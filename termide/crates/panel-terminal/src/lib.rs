@@ -23,7 +23,7 @@ pub use terminal_info::TerminalInfo;
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
 use input_encoding::{arrow_modifier_param, modern_key_bytes, pty_key};
-use link_detection::{HighlightSegment, LinkType};
+use link_detection::HighlightSegment;
 #[cfg(unix)]
 use nix::sys::signal::{self, Signal};
 #[cfg(unix)]
@@ -95,8 +95,8 @@ pub struct Terminal {
     cached_focus: bool,
     /// Cached active buffer state (main vs alt screen) for cache invalidation
     cached_use_alt_screen: bool,
-    /// Currently hovered link (type, segments for multi-line highlighting)
-    hovered_link: Option<(LinkType, Vec<HighlightSegment>)>,
+    /// Currently hovered link (kind, segments for multi-line highlighting)
+    hovered_link: Option<(hyperlink::HoveredLink, Vec<HighlightSegment>)>,
     /// Whether Ctrl key is pressed (tracked for link highlighting)
     ctrl_pressed: bool,
     /// Search state for text search (matches across scrollback + visible grid)
@@ -1475,6 +1475,9 @@ impl Panel for Terminal {
             | PanelCommand::UpdateRepoPaths { .. }
             | PanelCommand::ShowGitLog { .. } => CommandResult::None,
 
+            PanelCommand::ProvideCredentials { .. } | PanelCommand::CancelCredentials { .. } => {
+                CommandResult::Handled(false)
+            }
             PanelCommand::GetScrollBars => CommandResult::ScrollBars(self.scrollbars),
             PanelCommand::SetScrollOffset { offset, .. } => {
                 // The bar counts top-down while the terminal counts rows back

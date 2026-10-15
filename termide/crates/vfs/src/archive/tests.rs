@@ -84,6 +84,26 @@ mod encryption {
     }
 
     #[test]
+    fn check_password_tells_missing_wrong_and_right_apart() {
+        let dir = tempfile::tempdir().unwrap();
+        let aes = dir.path().join("aes.zip");
+        aes_zip(&aes);
+        assert!(matches!(
+            check_password(&aes, None),
+            Err(VfsError::PasswordRequired)
+        ));
+        assert!(matches!(
+            check_password(&aes, Some("nope")),
+            Err(VfsError::WrongPassword)
+        ));
+        assert!(check_password(&aes, Some("hunter2")).is_ok());
+
+        let plain = dir.path().join("plain.zip");
+        write_zip(&plain);
+        assert!(check_password(&plain, None).is_ok());
+    }
+
+    #[test]
     fn a_plain_archive_ignores_a_password() {
         let dir = tempfile::tempdir().unwrap();
         let archive = dir.path().join("plain.zip");
@@ -694,7 +714,7 @@ fn zip_names_from_russian_windows_read_as_cp866() {
 
 mod packing {
     use super::*;
-    use crate::archive::pack::{self, PackProgress};
+    use crate::archive::pack::{self, CompressionLevel, PackProgress};
 
     /// A small tree with a nested file, an empty directory and a symlink.
     fn source_tree(root: &Path) -> PathBuf {
@@ -709,9 +729,17 @@ mod packing {
     }
 
     fn pack_all(sources: &[PathBuf], dest: &Path) -> VfsResult<PackProgress> {
+        pack_at(sources, dest, CompressionLevel::default())
+    }
+
+    fn pack_at(
+        sources: &[PathBuf],
+        dest: &Path,
+        level: CompressionLevel,
+    ) -> VfsResult<PackProgress> {
         let items = pack::collect(sources, dest)?;
         let mut last = PackProgress::default();
-        pack::pack(&items, dest, &mut |p| {
+        pack::pack(&items, dest, level, &mut |p| {
             last = p.clone();
             Ok(())
         })?;
@@ -779,6 +807,34 @@ mod packing {
         }
     }
 
+    /// Every level writes a readable archive in every format, and storing
+    /// leaves the compressible test data larger than compressing it does.
+    #[test]
+    fn every_level_writes_a_readable_archive() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = source_tree(dir.path());
+        for ext in ["zip", "tar.gz", "tar.bz2", "tar.xz", "tar.zst"] {
+            let mut sizes = Vec::new();
+            for (i, level) in CompressionLevel::ALL.into_iter().enumerate() {
+                let dest = dir.path().join(format!("l{i}.{ext}"));
+                pack_at(std::slice::from_ref(&src), &dest, level).unwrap();
+                let data = opened(&dest)
+                    .read_file(&at(&dest, "/project/src/deep/big.bin"))
+                    .recv()
+                    .unwrap();
+                assert_eq!(data, big(), "{ext} at {level:?}");
+                sizes.push(fs::metadata(&dest).unwrap().len());
+            }
+            let stored = sizes[0];
+            let best = sizes[3];
+            assert!(stored > best, "{ext}: stored {stored}, best {best}");
+            // bzip2 and xz have no stored mode; their weakest level stands in.
+            if !matches!(ext, "tar.bz2" | "tar.xz") {
+                assert!(stored > big().len() as u64, "{ext}: stored {stored}");
+            }
+        }
+    }
+
     #[test]
     fn names_are_relative_to_the_common_parent_of_the_sources() {
         let dir = tempfile::tempdir().unwrap();
@@ -829,7 +885,7 @@ mod packing {
         for name in ["c.zip", "c.tar.gz", "c.tar.zst"] {
             let dest = dir.path().join(name);
             let items = pack::collect(std::slice::from_ref(&src), &dest).unwrap();
-            let result = pack::pack(&items, &dest, &mut |p| {
+            let result = pack::pack(&items, &dest, CompressionLevel::default(), &mut |p| {
                 if p.bytes_done > 0 {
                     Err(VfsError::Cancelled)
                 } else {

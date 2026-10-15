@@ -38,6 +38,9 @@ pub(crate) struct MountEntry {
     pub device: String,
     pub mount_point: String,
     pub fs_type: String,
+    /// macOS `MNT_DONTBROWSE`: the system marks the mount as not meant to be
+    /// shown to the user (`/System/Volumes/*`, `/Volumes/Recovery`, …).
+    pub nobrowse: bool,
 }
 
 /// Read the system mount table.
@@ -57,12 +60,135 @@ fn read_mounts() -> Vec<MountEntry> {
         .filter_map(|line| {
             let mut parts = line.split_whitespace();
             Some(MountEntry {
-                device: parts.next()?.to_string(),
-                mount_point: parts.next()?.to_string(),
+                device: unescape_mount_field(parts.next()?),
+                mount_point: unescape_mount_field(parts.next()?),
                 fs_type: parts.next().unwrap_or_default().to_string(),
+                nobrowse: false,
             })
         })
         .collect()
+}
+
+/// Undo the octal escapes `/proc/mounts` writes for whitespace and
+/// backslashes in its fields (`\040` for a space, `\134` for `\`), so a
+/// mount point such as `/media/me/USB DISK` comes out as a usable path.
+#[cfg(target_os = "linux")]
+fn unescape_mount_field(field: &str) -> String {
+    let bytes = field.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 4 <= bytes.len() {
+            let digits = &bytes[i + 1..i + 4];
+            if digits.iter().all(|d| (b'0'..=b'7').contains(d)) {
+                let value = digits
+                    .iter()
+                    .fold(0u32, |acc, d| acc * 8 + u32::from(d - b'0'));
+                if let Ok(byte) = u8::try_from(value) {
+                    out.push(byte);
+                    i += 4;
+                    continue;
+                }
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_else(|_| field.to_string())
+}
+
+/// Filesystem types of network and user-space mounts worth offering as a
+/// place to go even though they have no `/dev/` device behind them.
+#[cfg(unix)]
+const BROWSABLE_VIRTUAL_FS: &[&str] = &[
+    "nfs",
+    "nfs4",
+    "cifs",
+    "smb3",
+    "smbfs",
+    "afpfs",
+    "webdav",
+    "davfs",
+    "9p",
+    "drvfs",
+    "virtiofs",
+    "fuse.sshfs",
+    "fuse.rclone",
+    "fuse.s3fs",
+    "fuse.davfs",
+    "osxfuse",
+    "macfuse",
+];
+
+/// Mount points under these prefixes are system plumbing (pseudo filesystems,
+/// boot partitions, container layers, macOS system volumes), not places a user
+/// browses to. `/run/media` is where udisks mounts removable media and is let
+/// through by `is_browsable_mount`.
+#[cfg(unix)]
+const HIDDEN_MOUNT_PREFIXES: &[&str] = &[
+    "/proc",
+    "/sys",
+    "/dev",
+    "/run",
+    "/boot",
+    "/efi",
+    "/snap",
+    "/var/lib",
+    "/var/snap",
+    "/nix",
+    "/usr/lib",
+    "/System",
+    "/private",
+];
+
+/// Whether a mount-table entry is a place worth listing next to bookmarks:
+/// the root, a real disk or partition, removable media or a network share.
+#[cfg(unix)]
+fn is_browsable_mount(entry: &MountEntry) -> bool {
+    let mount_point = entry.mount_point.as_str();
+    if mount_point == "/" {
+        return true;
+    }
+    if entry.nobrowse {
+        return false;
+    }
+    let under = |prefix: &str| {
+        mount_point == prefix
+            || mount_point
+                .strip_prefix(prefix)
+                .is_some_and(|rest| rest.starts_with('/'))
+    };
+    if HIDDEN_MOUNT_PREFIXES.iter().any(|p| under(p)) && !under("/run/media") {
+        return false;
+    }
+    let device = entry.device.as_str();
+    let real_device = device.starts_with("/dev/")
+        && !device.starts_with("/dev/loop")
+        && !device.starts_with("/dev/ram");
+    real_device || BROWSABLE_VIRTUAL_FS.contains(&entry.fs_type.as_str())
+}
+
+/// Mount points a user may want to jump to: the root, mounted disks and
+/// partitions, removable media and network shares, sorted and deduplicated.
+///
+/// Windows drives are listed by `termide_vfs::drive_roots`, so this returns
+/// nothing there.
+#[cfg(unix)]
+pub fn browsable_mount_points() -> Vec<std::path::PathBuf> {
+    let mut points: Vec<std::path::PathBuf> = read_mounts()
+        .iter()
+        .filter(|entry| is_browsable_mount(entry))
+        .map(|entry| std::path::PathBuf::from(&entry.mount_point))
+        .collect();
+    points.sort();
+    points.dedup();
+    points
+}
+
+/// Windows drives are listed by `termide_vfs::drive_roots`.
+#[cfg(not(unix))]
+pub fn browsable_mount_points() -> Vec<std::path::PathBuf> {
+    Vec::new()
 }
 
 /// `getmntinfo` returns a pointer into per-process static storage that the
@@ -95,6 +221,7 @@ fn read_mounts() -> Vec<MountEntry> {
                 device: c_chars_to_string(&fs.f_mntfromname)?,
                 mount_point: c_chars_to_string(&fs.f_mntonname)?,
                 fs_type: c_chars_to_string(&fs.f_fstypename).unwrap_or_default(),
+                nobrowse: fs.f_flags & libc::MNT_DONTBROWSE as u32 != 0,
             })
         })
         .collect()
@@ -253,6 +380,17 @@ pub(crate) fn statvfs_bytes(path: &Path) -> Option<(u64, u64)> {
         stat
     };
 
+    statvfs_bytes_of(&stat)
+}
+
+/// Scale the block counts of an already-taken `statvfs` snapshot to bytes.
+///
+/// Split from [`statvfs_bytes`] so the scaling can be tested against a single
+/// snapshot: two `statvfs` calls cannot be compared byte for byte, because
+/// every other writer on the volume moves `f_bavail` between them.
+#[cfg(unix)]
+#[allow(clippy::unnecessary_cast)]
+fn statvfs_bytes_of(stat: &libc::statvfs) -> Option<(u64, u64)> {
     let block_size = {
         let frsize = stat.f_frsize as u64;
         if frsize == 0 {
@@ -451,21 +589,77 @@ mod tests {
         }
     }
 
-    /// `statvfs` block counts are fundamental-block counts. Cross-check against
-    /// a raw `statvfs` call, and assert the figure stays physically plausible:
-    /// on macOS scaling by `f_bsize` (1 MiB) instead of `f_frsize` (4 KiB)
-    /// inflated a 1.8 TB volume to ~464 TB.
+    /// `statvfs` figures stay physically plausible on a live volume.
+    ///
+    /// The block-size scaling itself is pinned exactly by
+    /// [`test_statvfs_bytes_scales_by_frsize`] and
+    /// [`test_statvfs_bytes_falls_back_to_bsize`], which need no volume.
+    /// This one only checks the shape of the answer, because it cannot check
+    /// the numbers: comparing against a second `statvfs` call races with every
+    /// other writer on the volume. Measured on macOS under load, `f_bavail`
+    /// moved up to 3072 blocks (12 MiB) between two back-to-back calls, so no
+    /// tolerance small enough to mean anything would have held.
+    ///
+    /// The plausibility bound still catches the original bug: scaling by
+    /// `f_bsize` (1 MiB) instead of `f_frsize` (4 KiB) inflates a 606 GiB
+    /// volume to 151 TiB, far past the 64 TiB ceiling below.
     #[cfg(unix)]
-    // The casts mirror `statvfs_bytes`, which explains why they stay.
-    #[allow(clippy::unnecessary_cast)]
     #[test]
-    fn test_statvfs_bytes_matches_statvfs_and_is_plausible() {
+    fn test_statvfs_bytes_is_plausible_on_a_live_volume() {
         let path = std::path::Path::new("/");
         let (available, total) = statvfs_bytes(path).expect("statvfs on /");
 
+        assert!(
+            total < 64 * 1024u64.pow(4),
+            "total {total} bytes is beyond any plausible single volume"
+        );
+        assert!(
+            available > 0 && available < total,
+            "available {available} outside 0..{total}"
+        );
+    }
+
+    /// The scaling itself, pinned on a synthetic snapshot so it holds on every
+    /// platform and cannot race a live volume.
+    ///
+    /// The original bug was scaling by `f_bsize` where `f_frsize` was the
+    /// fundamental size. On macOS those differ by 256x, but on a platform
+    /// where they are equal the mistake is invisible — so a test that only
+    /// reads a real volume does not always catch it. Here the two fields are
+    /// deliberately different, on every platform.
+    #[cfg(unix)]
+    // Mirrors the casts in `statvfs_bytes_of`, which explains why they stay.
+    #[allow(clippy::unnecessary_cast)]
+    #[test]
+    fn test_statvfs_bytes_scales_by_frsize() {
+        let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+        stat.f_bsize = 1024 * 1024; // optimal I/O size, deliberately larger
+        stat.f_frsize = 4096; // fundamental block size
+        stat.f_blocks = 1_000_000;
+        stat.f_bavail = 250_000;
+
+        let (available, total) = statvfs_bytes_of(&stat).expect("scaling");
+        assert_eq!(total, 1_000_000 * 4096);
+        assert_eq!(available, 250_000 * 4096);
+        assert_ne!(
+            total,
+            stat.f_blocks as u64 * stat.f_bsize as u64,
+            "total was scaled by f_bsize, which inflates the volume"
+        );
+    }
+
+    /// A snapshot taken off a real volume scales exactly, with no second call
+    /// to race against: the counts and the bytes come from the same one.
+    #[cfg(unix)]
+    // Mirrors the casts in `statvfs_bytes_of`, which explains why they stay.
+    #[allow(clippy::unnecessary_cast)]
+    #[test]
+    fn test_statvfs_bytes_of_a_live_snapshot_is_exact() {
         let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
         let c_path = std::ffi::CString::new("/").unwrap();
         assert_eq!(unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) }, 0);
+
+        let (available, total) = statvfs_bytes_of(&stat).expect("scaling");
         let block = {
             let frsize = stat.f_frsize as u64;
             if frsize == 0 {
@@ -477,14 +671,23 @@ mod tests {
 
         assert_eq!(total, stat.f_blocks as u64 * block);
         assert_eq!(available, stat.f_bavail as u64 * block);
-        assert!(
-            total < 64 * 1024u64.pow(4),
-            "total {total} bytes is beyond any plausible single volume"
-        );
-        assert!(
-            available > 0 && available < total,
-            "available {available} outside 0..{total}"
-        );
+    }
+
+    /// Some platforms leave `f_frsize` unset; the counts then scale by
+    /// `f_bsize`. When neither is set there is nothing to scale by.
+    #[cfg(unix)]
+    #[test]
+    fn test_statvfs_bytes_falls_back_to_bsize() {
+        let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
+        stat.f_bsize = 8192;
+        stat.f_frsize = 0;
+        stat.f_blocks = 100;
+        stat.f_bavail = 50;
+
+        assert_eq!(statvfs_bytes_of(&stat), Some((50 * 8192, 100 * 8192)));
+
+        stat.f_bsize = 0;
+        assert_eq!(statvfs_bytes_of(&stat), None);
     }
 
     #[cfg(unix)]
@@ -545,6 +748,91 @@ mod tests {
             .collect();
         for dev in seen {
             assert!(pools.contains(&dev), "{dev} is not a mounted pool");
+        }
+    }
+
+    #[cfg(unix)]
+    fn mount(device: &str, mount_point: &str, fs_type: &str) -> MountEntry {
+        MountEntry {
+            device: device.into(),
+            mount_point: mount_point.into(),
+            fs_type: fs_type.into(),
+            nobrowse: false,
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn browsable_mounts_keep_disks_media_and_shares() {
+        for entry in [
+            mount("/dev/nvme0n1p2", "/", "ext4"),
+            mount("/dev/nvme0n1p3", "/home", "ext4"),
+            mount("/dev/sdb1", "/run/media/me/USB", "vfat"),
+            mount("/dev/sdc1", "/media/me/Backup", "exfat"),
+            mount("/dev/disk4s1", "/Volumes/Photos", "apfs"),
+            mount("//me@nas/share", "/Volumes/share", "smbfs"),
+            mount("nas:/export", "/mnt/nas", "nfs4"),
+            mount("me@host:/srv", "/home/me/remote", "fuse.sshfs"),
+            mount("C:\\", "/mnt/c", "drvfs"),
+        ] {
+            assert!(is_browsable_mount(&entry), "{} hidden", entry.mount_point);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn browsable_mounts_skip_system_plumbing() {
+        for entry in [
+            mount("proc", "/proc", "proc"),
+            mount("tmpfs", "/tmp", "tmpfs"),
+            mount("/dev/nvme0n1p1", "/boot/efi", "vfat"),
+            mount("/dev/loop3", "/snap/core/1", "squashfs"),
+            mount("/dev/nvme0n1p2", "/nix/store", "ext4"),
+            mount("/dev/sda1", "/run/user/1000/doc", "fuse.portal"),
+            mount("/dev/disk3s5", "/System/Volumes/Data", "apfs"),
+            mount("devfs", "/dev", "devfs"),
+            mount("map auto_home", "/System/Volumes/Data/home", "autofs"),
+            mount("overlay", "/var/lib/docker/overlay2/x/merged", "overlay"),
+            mount("drivers", "/usr/lib/wsl/drivers", "drvfs"),
+        ] {
+            assert!(!is_browsable_mount(&entry), "{} listed", entry.mount_point);
+        }
+        let recovery = MountEntry {
+            nobrowse: true,
+            ..mount("/dev/disk3s3", "/Volumes/Recovery", "apfs")
+        };
+        assert!(!is_browsable_mount(&recovery));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn hidden_prefix_matches_whole_components_only() {
+        // `/runner` is not under `/run`, `/system-backup` is not `/System`.
+        assert!(is_browsable_mount(&mount("/dev/sdd1", "/runner", "ext4")));
+        assert!(is_browsable_mount(&mount("/dev/sdd2", "/devdata", "ext4")));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn proc_mounts_escapes_are_decoded() {
+        assert_eq!(
+            unescape_mount_field("/media/me/USB\\040DISK"),
+            "/media/me/USB DISK"
+        );
+        assert_eq!(unescape_mount_field("/a\\011b\\134c"), "/a\tb\\c");
+        assert_eq!(unescape_mount_field("/plain"), "/plain");
+        // A lone or short backslash sequence is kept literally.
+        assert_eq!(unescape_mount_field("/x\\04"), "/x\\04");
+    }
+
+    #[test]
+    fn browsable_mount_points_include_root_on_unix() {
+        let points = browsable_mount_points();
+        if cfg!(any(target_os = "linux", target_os = "macos")) {
+            assert!(
+                points.iter().any(|p| p == std::path::Path::new("/")),
+                "{points:?}"
+            );
         }
     }
 }

@@ -9,18 +9,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- OSC 8 hyperlink and OSC 0/2 title parsing in `panel-terminal`: terminal cells carry hyperlink ids (`file://` and `zeta-open://?line=&col=` URIs, percent-decoded, drive-letter and localhost forms accepted), Ctrl+click on a link region emits `PanelEvent::OpenPath{path, line, col}` (visible-text `:line:col` fallback), and parsed titles surface via `Terminal::osc_title` for pane auto-naming. Replayed on the 0.38.0 snapshot; `osc_dispatch` now also carries the upstream OSC 7/9;9 working-directory report alongside.
+- OSC 8 hyperlink and OSC 0/2 title parsing in `panel-terminal`: terminal cells carry hyperlink ids (`file://` and `zeta-open://?line=&col=` URIs, percent-decoded, drive-letter and localhost forms accepted), `Ctrl+Click` on a link region emits `PanelEvent::OpenPath{path, line, col}` (visible-text `:line:col` fallback), and parsed titles surface via `Terminal::osc_title` for pane auto-naming. Carried onto the 0.41.0 snapshot on top of upstream's shared `core::links` model: an OSC 8 region still wins over text scraping, `Ctrl+Alt+Click` on a local one opens it outside, and upstream's OSC 7/9;9 working-directory report rides the same `osc_dispatch`.
+- SGR 2 "faint" (`CellStyle::dim`) is parsed, rendered as the `DIM` modifier and cleared by SGR 22 as ECMA-48 says, so PSReadLine's inline history prediction reads as a dimmed italic suffix instead of typed text; a kitty keyboard-protocol push enables CSI-u reporting whenever its flag *mask* has bit 1 set (`>1u`, `>3u`), not only when it equals `1`; and an unbound `Alt` chord forwarded from the host reaches the PTY as `ESC` + the key (the xterm encoding) instead of its bare character.
 
 ### Changed
 
-- `file[:line[:col]]` and directory positional arguments (Zeta layer): a directory argument becomes the project root and editor-opened files place the cursor, routed through the upstream `open_cli_path` viewer dispatch so non-text files keep their viewer.
+- `file[:line[:col]]` and directory positional arguments (Zeta layer): a directory argument becomes the project root and editor-opened files place the cursor, routed through the upstream `open_cli_path` viewer dispatch so non-text files keep their viewer. A detached instance is spawned with the already-resolved absolute paths, so `--detached file:12:3` opens what the foreground launch would.
 - The Windows shell chain prefers PowerShell over Git Bash and never probes `where bash.exe` (the WSL launcher); Git Bash resolves only through a real Git installation.
 
 ### Fixed
 
 - `set_env` now injects a `ZETA_WORKBENCH=1` probe into PTY children on every spawn path, letting host-aware TUIs (zetacode) unlock workbench-specific behavior such as hyperlinks. It also strips the launching terminal's `TERM_PROGRAM`/`WT_SESSION`/`COLORTERM` from the child environment: a leaked outer-terminal identity made hosted TUIs detect the wrong terminal and pick the wrong image protocol, and the workbench identity is expressed by `ZETA_WORKBENCH` alone.
 
-## [0.38.0] - 2026-10-04
+## [0.41.0] - 2026-10-12
+
+[0.41.0]: https://github.com/termide/termide/releases/tag/0.41.0
+
+### Breaking Changes
+- **Links open inside termide; `[viewer] open_links` and `open_images` are gone.** A followed link opens a web address in the viewer, a file where Open… opens it, an image in the image preview, and a web bookmark always in the viewer. To open one outside, use `O`, `Alt+Enter` or `Alt+Click` in the HTML and Markdown viewers (`open_external` under `[viewer.keybindings]`, rebindable, listed in Settings and the help) and `Ctrl+Alt+Click` in the terminal and agent panel, where `Ctrl+Click` still follows a link inside. The old keys in `config.toml` are ignored.
+
+### Added
+- **Unpack archives with `Alt+F9`.** The selected archives, or the one under the cursor, unpack through the Operations panel with progress, pause and cancel. The prompt offers a directory named after the archive in the other file manager's directory, the other panels' directories or the archive's own; several archives get a directory each. An encrypted zip asks for its password first, and again when it is wrong; unpacking over existing files asks first. Unpack and pack failures are worded in your language.
+- **Select by mask.** `+` and `-` in the file manager select and unselect what matches a mask — glob patterns, case-insensitive, a trailing `/` for directories (`*.rs *.md`, `target/`) — and `*` inverts the selection. `Alt+Click` toggles a row like `Ctrl+Click`, which macOS terminals turn into a right click.
+- **Mount points in the directory switcher.** On Linux and macOS it lists the root, mounted disks, removable media and network shares, leaving system mounts out.
+- **Far / Total Commander aliases in the file manager**, beside the existing keys: `Alt+F1` directory switcher, `Shift+F4` new file, `Alt+F5` pack, `Alt+F7` search, `Alt+F9` unpack. All are rebindable.
+- **Pictures in the agent prompt.** `Ctrl+V` attaches a picture on the clipboard (a screenshot, an image copied in a browser) or picture files copied in a file manager, and pasting or dropping the path of a PNG, JPEG, GIF or WebP does the same. Each stands in the prompt as `[#1 pasted image 1280×720]` and goes with the message while the placeholder is there; pictures over 1568 px are scaled down. External agents get them when they declare image support. On macOS use `Ctrl+V`: `Cmd+V` is the terminal's own text paste.
+- **Work left going when a panel closed can be carried on.** Closing the panel or termide during a run, `/goal` or `/loop` now asks first. A session reopened with a run cut off or paused, or a goal or loop left going, says how far it got and offers **Continue**, **Drop it** or **Decide later**; nothing runs by itself. Calls the cut-off run left without a result are not repeated blindly: the model is told they may have run in part.
+- **Running subagents stay in sight.** The state strip above the input keeps a row for each running `task` call, `& Delegating to agent · task` with what it did last, a spinner and its time, so one whose block has scrolled away still shows it works; a click on the row brings the block into view.
+- **`/goal` can say a goal is out of reach.** The judge may answer `IMPOSSIBLE` besides `DONE` and `CONTINUE`, which ends the goal.
+- **Make, rename and delete directories in the directory picker.** New project, Change root path and the other directory pickers take the file manager's `create_dir` (`F7`/`D`, or a **New folder** button), `rename` (`F2`/`R`) and `delete` (`F8`/`Delete`). The name is typed into a tree row beside the entry under the cursor — at its level, not inside it — and `Esc` takes the row away; the new directory is left under the cursor, ready to pick. Only an empty directory can be deleted there.
+- **A compression level for packing.** The pack prompt (`P`) has a **Compression** row — None, Fast, Normal (the default) or Best — that sets the zip, gzip, bzip2 and xz level; zstd tells only None from the rest.
+- **Limit a CLI agent's context window.** A Claude Code or Codex connection takes a **Context window limit** (`context_window_limit`) smaller than the model's: Claude Code gets it as `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (at least 100000), Codex as `model_context_window` through `CODEX_CONFIG`. The agent compacts at it, and the panel's `Context:` shows no more than it.
+- **A CLI agent's models in the settings.** Opening a Claude Code, Codex or Gemini CLI connection lists the models of its sign-in in the model dropdown, and the field shows a spinner while any connection's models load.
+- **A model that reasons in circles is caught.** The built-in agent watches the reasoning and the answer as they stream; once most recent sentences restate ones already said several times, it cuts the call, keeps the reasoning up to where the circling began, tells the model what it kept going back and forth between, and calls it once more without reasoning. A second loop stops the run, and an active `/goal` with it, and shows those points for you to decide. Before, such a reply ran on to the output limit — 140 KB and 18 minutes in one case — and the run ended with nothing shown. Reword `system/loop.md` to change what the model is told.
+
+### Changed
+- **One ticking timer everywhere.** The agent's run clock, subagents, pauses, `/loop` countdowns, the file operations panel and a remote connection's status all show the same `✻` spinner beside the same duration: whole seconds as the two largest parts (`45s`, `1m13s`, `2h5m`, `3d4h`), a zero smaller part left out (`5m`, `1h`). The operations panel and the `/loop` interval used other formats before (`1h 10m 5s`, an untranslated `60m`).
+- **A stop reads as one line, then one status.** While a run stops, the run clock gives way to `stopping… ✻ 2s`; the stopped answer then ends on a translated `✗ cancelled` with its time and status. The `stopping…` notice and the provider's raw `aborted` no longer both stay in the transcript, and sessions reopened from the log show `cancelled` too.
+- **An active `/goal` and `/loop` stay in sight.** The state strip above the input pins a row for each while it goes on, beside the running subagents: `◎ Heading for the goal …` with how long it has run (and the judge's check while it runs), `↺ Repeating every 5m …` with its run count and the countdown to its next run. A click on the row's `✕` stops it; elsewhere on the row brings its latest run into view.
+- **Settings save as they change.** The settings modal has no Apply: switches and dropdowns save when set, text and number fields on `Enter`. The bottom row is **Stored: Global / Project**, **Reset** and **Close**. Switching to Project creates `.termide/config.toml`; switching back asks whether to discard the project's settings or move them to the global file. Reset asks first and resets a project to the global settings, or the global settings to the defaults. Keybindings changed there apply at once.
+- **`--config` names the global file for saving as well as loading**, with the project file on top; a missing or unreadable one is now an error. `--no-lsp`, `--log-level` and the Linux console theme are no longer written into the config files, and a detached instance keeps all three flags.
+- **A `/goal` has no turn cap.** It used to stop at 50 turns; now it ends when the judge finds it reached or out of reach. A goal whose agent only talks — three work turns in a row without a tool call — pauses, still set, for `/continue` or `/goal stop`.
+- **A `/goal` can start while the agent works, and is taken at once.** It used to be refused, and then queued as a steering message that a stop left behind; now nothing is queued, and once the run ends its first turn, headed by the `/goal` as typed, goes in place of the judge. Starting a goal no longer prints it twice. A stop or `/loop stop` also withdraws a loop turn still waiting in the queue.
+- **CLI agents start from npm's cache.** Claude Code, Codex and Gemini CLI no longer ask the npm registry on every start, which cost seconds per panel, reviewer and subagent and over a minute offline; a newer release is looked for once per run in the background and used from the next start.
+- **The AI menu dates its sessions as the panel does** (`YYYY-MM-DD HH:MM`, dimmed), instead of "2h ago".
+- **The agent's status bar shows only the connection name**; the protocol stays in the welcome banner, and stands in only for a connection without a name.
+- **The attention bell precedes the text in the menu bar** (`🔔 name`), as icons do everywhere else.
+
+### Fixed
+- **An external agent working on by itself shows that it works.** Claude Code moves a running command to the background to take a message typed meanwhile, and goes on when it finishes — after its turn has ended. That work is now a run of its own: the clock ticks, the session cannot be switched or deleted under it, `Esc` stops it, and a message typed meanwhile goes as the next request. It ends once the agent has no call open and stays quiet (5 s after its answer, 30 s otherwise). A new session (`F7`) no longer inherits a ticking clock left behind.
+- **A Claude Code request sent right after a quick stop no longer hangs.** Stopped before it answered anything, Claude Code's ACP adapter could go on with the cancelled prompt out of sight and keep the next one waiting behind it. An external agent stopped before its first reply is now started anew on the same session, which also ends the hidden work, and the transcript says so.
+- **The `/goal` check shows that it is working.** While the judge decides, the transcript shows the live line a model message has: the ticking clock, and with the built-in agent the reading progress (`⏫`) and the answer's tokens. A long check on a local model no longer looks hung.
+- **An active `/goal` or `/loop` rings the bell at its end only.** A run the goal's judge or the loop's next run follows rings no bell, however long it took; the goal reached, given up, paused or failed, and the loop ended at its cap, ring.
+- **A bare `/goal` or `/loop` no longer stops the active one.** It reports it — the goal and its turn, or the loop, its run and the wait for the next — and shows the usage when nothing is active. Only `stop` (or `off`) ends either.
+- **The `/goal` judge's verdict is read past markup and a preamble.** A judge that wrapped the word (`**DONE**`) or wrote a line before it was read as `CONTINUE`, and the work turn it sent told the agent only `Still missing: CONTINUE`.
+- **A dismissed question no longer bars the agent from asking again.** Its result told the model never to ask again, which in a long `/goal` kept it from asking about later decisions that were the user's to make.
+- **A failed `/goal` check no longer drops the goal.** A judge call that errors is tried again after 10 s and 20 s; when those fail too, the goal pauses, `/continue` checks it again and `/goal stop` ends it.
+- **A `bash` call no longer hangs on a process that left its group.** A daemon or an ssh `ControlPersist` master that kept the output open held the call forever, even past its timeout or a stop; the output is now read until it goes quiet, and the result says when something was left running.
+- **Claude Code's tool calls show their full arguments.** Its arguments arrive in pieces and only the first was kept, so a subagent call showed as `default:` with no task, in the panel and the session log alike.
+- **Closing an agent panel no longer freezes the UI** for up to 2 s per remote MCP server while their HTTP sessions were closed.
+- **The mouse wheel scrolls the settings**, the Keybindings tab included; before, the next frame snapped it back.
+- **The paste placeholder reads as a phrase** with the count declined (`[#1 вставлено 6 строк]`), and English no longer says "1 chars".
+- **Entering another open project applies its own settings**, the global baseline follows every global save, and saving `config.toml` in the editor keeps the project overlay and the command-line flags. Config files are written through a temporary file.
+- **`install.sh` uses the right Homebrew tap**, `termide/termide`; the `termide/tap` it named does not exist.
+
+## [0.40.0] - 2026-10-08
+
+[0.40.0]: https://github.com/termide/termide/releases/tag/0.40.0
+
+### Breaking Changes
+- **`Alt+1`…`Alt+9` switch open projects instead of panel groups.** Open projects now keep the order you give them, like tabs, so their numbers stay put. Jumping to a panel group by number (`goto_panel_N`) ships unbound; bind it in **Settings → Keybindings** if you used it. A `goto_panel_N = "Alt+N"` that an older version saved into `config.toml` gives way to the projects; to keep the digits for panels, also move `goto_project_N` to other keys in the same file.
+- **`[ai.auto_reviewer]` is a table** of `connection` and `model`; a model alone reviews on the session's connection. The old `auto_reviewer = "<connection>"` under `[ai]` is dropped with a warning: move it into the table as `connection = "<connection>"`.
+
+### Added
+- **A password vault for remote logins.** SFTP, FTP/FTPS, PostgreSQL, MySQL and git over HTTPS or SSH ask for a refused password and can keep it in an encrypted vault under a master password (`~/.config/termide/vault.toml`). A password is saved only after the server accepted it, saving never needs the master password, and the vault locks after `[vault] lock_after_mins` of idle time or from the command palette. Saving a bookmark whose URL holds a password offers to move it into the vault. See [Password Vault](doc/en/passwords.md).
+- **Open projects show as buttons in the menu bar**, the current one bright and a waiting one with 🔔. A click switches; drag a button, or use `Alt+PgUp`/`Alt+PgDn`/`Alt+Home`/`Alt+End` in the `Projects` menu, the switcher or on the bar, to reorder the projects, and `Delete`/`F8` closes one. The order is saved and restored with the set. `Delete`/`F8` on the current project in the `Projects` menu now closes it and returns to the project left last.
+- **`termide -r` / `--restore`** reopens the last run's projects at startup, in the project that run was in. Without a saved set it is an ordinary launch, so it is safe in a shell alias.
+- **Failed agent runs offer a way on.** A subscription limit, a rate limit or a network outage is recognised, with its reset time, and the panel offers to wait until the reset, retry, keep retrying, compact, restart a dead external agent, switch agents or stop. A retry sends no new message. `[ai] on_limit = "ask" | "wait" | "stop"` lets an unattended `/goal` or `/loop` wait out a limit.
+- **Subagents work in parallel and on any connection.** The read-only calls of one reply (reads, searches, fetches, `recall`, look-only commands) and delegated tasks now run side by side. A connection names, in `subagents`, where its delegates run, and on Claude Code a delegate can be a fresh Claude Code session. Subagents get the MCP servers' tools, show their tool calls in the task block, honour an agent's subagent turn limit, and their tokens, like the `auto` reviewer's, count in the session totals.
+- **Cap the requests a connection serves at once** with `max_concurrent_requests`, so several panels, subagents and the reviewer do not crowd a local server; a waiting request shows ⏳ with its place in the queue.
+- **Each connection can name its `auto` mode reviewer**, and a Claude Code or Codex subscription can serve as one. External agents are now reviewed in `auto` mode too.
+- **External agents are level with the built-in loop.** A message typed during a turn steers it where the agent supports that; the model, reasoning level and the agent's other options (on a new **Options** chip) switch at any time and survive a reopen; the agent's own slash commands join the `/` list; `/goal` and `/handoff` work; Codex and Gemini CLI get `recall`, `skill`, `question` and `suggest_command`. The Model chip shows the model's own name and a spinner while the agent starts.
+- **An `icon` in an agent's `AGENT.md`** replaces the 🤖 in its panel header, the agent picker and the AI menu.
+- **Six night-path themes**: `black-earth`, `moonlit-dew` and `fireflies`, with their daytime light pairs `dry-path`, `morning-mist` and `summer-meadow`.
+
+### Changed
+- **Typing on a chat block goes to the prompt** instead of being swallowed.
+- **The first click on an unfocused agent panel only focuses it.**
+- **The agent's welcome banner scrolls as one page**, so on a short panel the fields make room for the recent sessions.
+- **`suggest_command` reads as a shell call** in the chat, with its own "Suggesting" action.
+- **The Projects menu no longer has a Switch project item**; the list below it and `Alt+\` do the same.
+- **The Permissions guide states that agent tools run unsandboxed**: permissions are a control, not isolation.
+
+### Fixed
+- **Copying an agent answer copied its drawn rows**: the `›` mark, code block bars and breaks where the panel wrapped, so a copied command would not run.
+- **An unused agent panel forgot its connection, model and options** when the project was reopened, and switching connection or agent emptied the prompt.
+- **`termide -r` added the directory it was started from** to the saved set of projects.
+- **The journal's level pills could not be toggled from the keyboard**; plain `1`…`5` now do it.
+- **A message sent to an external agent stayed on the queue strip** after its turn had taken it.
+- **Claude Code wrote commands as `! cmd`** in its replies instead of offering them on a card.
+- **A subagent kept running after Stop** until its next event, and showed nothing while it waited for a slot.
+- **Connection passwords could appear in debug logs.**
+
+## [0.39.0] - 2026-10-06
+
+[0.39.0]: https://github.com/termide/termide/releases/tag/0.39.0
+
+### Breaking Changes
+- **An agent is defined by one `agents/<name>/AGENT.md`.** Its settings (`description`, `model`, `mode`, `tools`, or `command` for an external agent) live in the front matter and the prompt template in the body, like a `SKILL.md`. `SOUL.md` and `agent.toml` are no longer read: move their content into `AGENT.md`. A directory under `agents/` without an `AGENT.md` no longer defines an agent; an empty one will do.
+- **The default agent is `ai/agents/default/AGENT.md`.** An existing `ai/AGENTS.md` is moved there on start, so your edits stay in effect; `ai/AGENTS.md` is not read afterwards.
+
+### Added
+- **The agent recalls what the project already knows.** A read-only `recall` tool searches earlier agent sessions, the git history and the project's files together and returns cited results, with no memory store to curate. It also reaches a directory the panel moved to outside the project, can answer from its results with a model of your choice, and runs headless as `termide --recall`. Time limits are under `[ai.recall]`.
+- **Plan mode works the task through with you.** The agent explores, then settles the open decisions in rounds of question cards, each with a recommended answer, before it writes the plan. It can delegate searches to read-only subagents. The plan card can carry the plan out from a clean context, which drops what was read along the way and keeps your messages and answers word for word. `←` and `→` step back and forth between the model's questions.
+- **Claude Code, Codex and Gemini CLI get the tools of termide's MCP servers**, beside their own, and every call goes through termide's checks. On Claude Code, termide's tools show in the Tools chip and the checklist again and can be switched off. External agents also get the plan card, and Claude Code learns when plan mode switches mid-session.
+- **A session carries over between agents.** Reopening a session, or switching it to an external agent, resumes that agent's own session where it can, and otherwise starts the new one with a recap of the conversation. An external agent's tool calls are now logged in the session, so `recall` and a reopened session see them.
+- **Reopen the projects of the last run** from the `Projects` menu. The set is saved whenever it changes, so it also survives a crash; reopened projects load only when you enter them.
+- **Links open the same way everywhere.** A Markdown link in the agent chat keeps its address, and a path or URL in a tool headline opens with `Ctrl+click` across all the rows it wraps over; holding `Ctrl` highlights the whole link. Bare web addresses in Markdown become links. A followed link opens by the same rules in every panel: a web address by `[viewer] open_links`, a directory in the file manager, a file where `Open…` would open it, an image by `open_images`.
+- **Edit each key of a binding in the settings.** `←`/`→` walk the keys of an action, `Enter` replaces the one under the cursor or adds a new one on the `[+]` button, and `Delete` removes the selected key. A chord the action already answers to is refused.
+- **The help panel lists the agent panel's keys.**
+- **The agent reports mistakes in its definitions**: front-matter keys nothing reads and tool texts with an empty body or named after no tool.
+- **What the model is told about each built-in tool lives in `ai/tools/<name>.md`** and can be edited like the service prompts.
+
+### Changed
+- **Waiting panels and projects are marked with a bell instead of a colour.** The 🔔 takes the place of the panel icon (`!` without emoji icons), and entering a project moves the focus to the panel that waits.
+- **The agent chat reads quieter.** An edit shows its diff hunks with the added and removed counts in the headline; a tool call's prefix turns success or error colour once it finishes; long read, edit, search and fetch headlines wrap instead of clipping; finished reasoning dims; the cursor and run controls dim in a background panel.
+- **In the agent prompt, `↑`/`↓` move through wrapped rows** before recalling history, and a recalled request opens with the cursor at its start.
+- **More read-only commands pass plan mode**: printing `sed`, listing `git tag`, `git branch`, `git stash` and `git worktree`, other git reads, and the listing and viewing forms of `gh`, `glab` and `tea`. A refused command names the part that is not read-only.
+- **Compaction shows its progress** and the new context size as soon as it ends.
+- **The operations panel follows you across project switches**, and a command running in another project names it.
+
+### Fixed
+- **Dismissing a build report with `Enter` could quit termide.** A quit refused with `Esc` stayed armed until the next modal closed. Quitting now takes an accepted confirmation.
+- **A report finishing over an open question replaced it** and lost the answer; it now waits until the question is answered.
+- **Long calls from Claude Code to termide's tools timed out** after five minutes, and one long call held up every other; a question card the agent gave up on stayed open.
+- **Styled text split words apart**: `**bold**ly` read "bold ly" and `[docs](u).` read "docs .".
+- **The context bar ran up to a cell ahead** of the figures beside it.
+- **The auto mode reviewer and the recall solver failed** on a connection that names no model.
+- **Claude Code could not ask a question or offer a command on a card**: its `question` and `suggest_command` calls found no one to ask, so commands ended up as text in its reply.
+- **Long lines in code blocks were cut off** at the panel's edge in the agent chat and the Markdown and HTML viewers; they now wrap.
+- **A paused run's controls carried over into a newly opened session.**
 
 [0.38.0]: https://github.com/termide/termide/releases/tag/0.38.0
 

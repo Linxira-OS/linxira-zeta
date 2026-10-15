@@ -10,9 +10,9 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::acp::AcpConfig;
+use crate::acp::{split_command_line, AcpConfig, AcpFlavor, DEFAULT_TIMEOUT_SECS};
 use crate::classifier::{ClassifyPrompt, SEED_CLASSIFY};
 use crate::commands::{CommandScript, COMMANDS_DIR};
 use crate::compaction::{CompactionPrompts, SEED_COMPACT, SEED_COMPACTED};
@@ -20,24 +20,31 @@ use crate::context::SEED_TEMPLATE;
 use crate::goal::{GoalPrompt, SEED_GOAL};
 use crate::handoff::{HandoffPrompt, SEED_HANDOFF};
 use crate::hooks::{HookConfig, HOOKS_FILE};
+use crate::loop_guard::{LoopPrompt, SEED_LOOP};
 use crate::mcp::{mcp_servers_from_json, McpServerConfig, MCP_FILE, MCP_JSON_FILE};
 use crate::permissions::Mode;
 use crate::plan::{PlanPrompt, SEED_PLAN};
+use crate::recall::{RecallPrompt, SEED_RECALL};
 use crate::refusals::{Refusals, SEED_PERMISSIONS};
+use crate::tool_text::{ToolText, SEED_TOOLS, TOOLS_DIR};
 
 /// The `ai` directory inside the configuration directory.
 pub const GLOBAL_AGENT_DIR: &str = "ai";
 /// The `ai` directory inside a project or working directory.
 pub const PROJECT_AGENT_DIR: &str = ".termide/ai";
-/// The system prompt template of the default agent, at the root of an `ai`
-/// directory; also what a custom agent without a `SOUL.md` uses.
-pub const ROOT_SOUL_FILE: &str = "AGENTS.md";
-/// The system prompt template of a custom agent: `agents/<name>/SOUL.md`.
-pub const SOUL_FILE: &str = "SOUL.md";
-/// The settings of an agent: `agents/<name>/agent.toml`.
-pub const SPEC_FILE: &str = "agent.toml";
+/// The definition of an agent, `agents/<name>/AGENT.md`: its settings in the
+/// front matter, its system prompt template in the body. The rest of the
+/// directory is the agent's own (scripts, checklists).
+pub const AGENT_FILE: &str = "AGENT.md";
 /// The agent used when none is chosen.
 pub const DEFAULT_AGENT: &str = "default";
+/// The default agent's definition, read from the configuration level only: a
+/// project must not change the agent every panel starts as. Its body is also
+/// the template of an agent whose `AGENT.md` has none.
+pub const DEFAULT_AGENT_FILE: &str = "agents/default/AGENT.md";
+/// Where the default agent's template lived before it had an `AGENT.md`; an
+/// existing one is moved on start.
+const LEGACY_DEFAULT_TEMPLATE: &str = "AGENTS.md";
 /// Session logs under the `ai` directory: `sessions/<working directory>/`.
 pub const SESSIONS_DIR: &str = "sessions";
 /// Skills under an `ai` directory: `skills/<name>/SKILL.md`.
@@ -212,34 +219,101 @@ fn companion_files(dir: &Path) -> Vec<String> {
     files
 }
 
-/// Split the YAML front matter (`---` fenced `key: value` lines) off a
-/// Markdown file. Returns the fields and the body; a file without front
-/// matter is all body.
+/// Split the YAML front matter (`---` fenced `key: value` lines, `#` lines
+/// being comments) off a Markdown file. Returns the fields and the body; a file without front
+/// matter is all body. A key with no value followed by `- item` lines (a YAML
+/// block list) gets the items joined by `, `, the inline list form. A leading
+/// byte order mark is dropped.
 #[must_use]
 pub fn split_front_matter(text: &str) -> (BTreeMap<String, String>, &str) {
     let mut fields = BTreeMap::new();
-    let Some(rest) = text.strip_prefix("---") else {
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    let mut lines = text.split_inclusive('\n');
+    let Some(first) = lines.next().filter(|line| line.trim_end() == "---") else {
         return (fields, text);
     };
-    let Some(rest) = rest
-        .strip_prefix('\n')
-        .or_else(|| rest.strip_prefix("\r\n"))
-    else {
-        return (fields, text);
-    };
-    let Some(end) = rest.find("\n---") else {
-        return (fields, text);
-    };
-    for line in rest[..end].lines() {
+    let mut offset = first.len();
+    // The key whose value is a block list being read, if any.
+    let mut list_key: Option<String> = None;
+    for line in lines {
+        offset += line.len();
+        let line = line.trim_end();
+        if line == "---" {
+            return (fields, &text[offset..]);
+        }
+        let stripped = line.trim_start();
+        if stripped.is_empty() || stripped.starts_with('#') {
+            continue;
+        }
+        if let Some(key) = &list_key {
+            if let Some(item) = stripped.strip_prefix('-') {
+                let item = unquote(item.trim());
+                let value: &mut String = fields.entry(key.clone()).or_default();
+                if !value.is_empty() {
+                    value.push_str(", ");
+                }
+                value.push_str(item);
+                continue;
+            }
+        }
         let Some((key, value)) = line.split_once(':') else {
+            list_key = None;
             continue;
         };
-        let value = value.trim().trim_matches('"').trim_matches('\'');
-        fields.insert(key.trim().to_string(), value.to_string());
+        let key = key.trim().to_string();
+        let value = unquote(value.trim()).to_string();
+        list_key = value.is_empty().then(|| key.clone());
+        fields.insert(key, value);
     }
-    let body = &rest[end + 4..];
-    let body = body.strip_prefix('\n').unwrap_or(body);
-    (fields, body)
+    (BTreeMap::new(), text)
+}
+
+/// `value` without the quotes around it, when one pair of the same quote
+/// encloses the whole of it, as a quoted YAML scalar does; a value with more
+/// of that quote inside, such as the command line `"/opt/x" --name "y"`,
+/// stays as written.
+fn unquote(value: &str) -> &str {
+    for quote in ['"', '\''] {
+        if let Some(inner) = value
+            .strip_prefix(quote)
+            .and_then(|rest| rest.strip_suffix(quote))
+            .filter(|inner| !inner.contains(quote))
+        {
+            return inner;
+        }
+    }
+    value
+}
+
+/// The first visible character of an `icon` value, an emoji sequence joined
+/// by ZWJ or a variation selector counting as one, with what a copy from a
+/// web page or a chat tends to bring along dropped: control characters (an
+/// escape would reach the terminal as is) and invisible format marks such as
+/// a zero-width space, a byte order mark or a bidi mark. `None` when nothing
+/// visible is left.
+fn clean_icon(value: &str) -> Option<String> {
+    use unicode_segmentation::UnicodeSegmentation;
+    let invisible = |c: char| {
+        c.is_control()
+            || c.is_whitespace()
+            || matches!(
+                c,
+                '\u{00AD}'
+                    | '\u{200B}'
+                    | '\u{200C}'
+                    | '\u{200E}'
+                    | '\u{200F}'
+                    | '\u{202A}'..='\u{202E}'
+                    | '\u{2060}'..='\u{206F}'
+                    | '\u{FE00}'..='\u{FE0D}'
+                    | '\u{FEFF}'
+                    | '\u{FFF9}'..='\u{FFFB}'
+            )
+    };
+    let visible: String = value.chars().filter(|&c| !invisible(c)).collect();
+    // A leading joiner or selector has nothing to attach to.
+    let visible = visible.trim_start_matches(['\u{200D}', '\u{FE0E}', '\u{FE0F}']);
+    visible.graphemes(true).next().map(str::to_string)
 }
 
 /// The shipped assets written into the configuration's `ai` directory, as
@@ -247,15 +321,22 @@ pub fn split_front_matter(text: &str) -> (BTreeMap<String, String>, &str) {
 /// [`ensure_global_layout`] seeds and keeps up to date.
 fn shipped_assets() -> Vec<(String, &'static str)> {
     let mut assets = vec![
-        (ROOT_SOUL_FILE.to_string(), SEED_TEMPLATE),
+        (DEFAULT_AGENT_FILE.to_string(), SEED_TEMPLATE),
         (format!("{SYSTEM_DIR}/compact.md"), SEED_COMPACT),
         (format!("{SYSTEM_DIR}/compacted.md"), SEED_COMPACTED),
         (format!("{SYSTEM_DIR}/plan.md"), SEED_PLAN),
         (format!("{SYSTEM_DIR}/goal.md"), SEED_GOAL),
         (format!("{SYSTEM_DIR}/handoff.md"), SEED_HANDOFF),
+        (format!("{SYSTEM_DIR}/loop.md"), SEED_LOOP),
+        (format!("{SYSTEM_DIR}/recall.md"), SEED_RECALL),
         (format!("{SYSTEM_DIR}/classify.md"), SEED_CLASSIFY),
         (format!("{SYSTEM_DIR}/permissions.md"), SEED_PERMISSIONS),
     ];
+    assets.extend(
+        SEED_TOOLS
+            .iter()
+            .map(|(name, seed)| (format!("{TOOLS_DIR}/{name}.md"), *seed)),
+    );
     assets.extend(
         SEED_ENGINES
             .iter()
@@ -289,9 +370,10 @@ fn dot_new(path: &Path) -> PathBuf {
 }
 
 /// Lay out the `ai` directory of the configuration and keep its shipped assets
-/// current. Empty `agents/`, `skills/`, `prompts/`, `commands/`, `system/` and
-/// `shims/` are created. Each shipped file (`AGENTS.md`, the `system/` prompts)
-/// is then reconciled against the version it was last written from, recorded in
+/// current. Empty `agents/default/`, `skills/`, `prompts/`, `commands/`,
+/// `system/`, `tools/`, `shims/` and `web/engines/` are created. Each shipped
+/// file (the default agent's `AGENT.md`, the `system/` prompts, the `tools/`
+/// texts, the search engines) is then reconciled against the version it was last written from, recorded in
 /// `.seeds.toml`:
 ///
 /// - missing → written;
@@ -304,11 +386,12 @@ fn dot_new(path: &Path) -> PathBuf {
 /// Safe to call on every start.
 pub fn ensure_global_layout(global: &Path) -> std::io::Result<()> {
     for dir in [
-        "agents",
+        "agents/default",
         "skills",
         "prompts",
         COMMANDS_DIR,
         SYSTEM_DIR,
+        TOOLS_DIR,
         SHIMS_DIR,
         WEB_ENGINES_DIR,
     ] {
@@ -328,7 +411,7 @@ pub fn ensure_global_layout(global: &Path) -> std::io::Result<()> {
             BTreeMap::new()
         }),
     };
-    let mut manifest_changed = false;
+    let mut manifest_changed = move_legacy_default_template(global, &mut manifest)?;
 
     for (relative, seed) in shipped_assets() {
         let path = global.join(&relative);
@@ -379,26 +462,197 @@ pub fn ensure_global_layout(global: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// `agents/<name>/agent.toml`: what sets an agent apart from the configured
-/// defaults. Every field is optional; an absent one keeps the default.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// Move a default agent template kept as `ai/AGENTS.md` into its `AGENT.md`,
+/// with its seed record, so an edited one stays in effect and an untouched one
+/// keeps being refreshed. An empty one meant no system prompt, which the front
+/// matter now says. Whether anything moved.
+fn move_legacy_default_template(
+    global: &Path,
+    manifest: &mut BTreeMap<String, String>,
+) -> std::io::Result<bool> {
+    let legacy = global.join(LEGACY_DEFAULT_TEMPLATE);
+    let current = global.join(DEFAULT_AGENT_FILE);
+    if !legacy.is_file() || current.exists() {
+        return Ok(false);
+    }
+    match std::fs::read_to_string(&legacy) {
+        Ok(text) if text.trim().is_empty() => {
+            std::fs::write(&current, "---\nprompt: none\n---\n")?;
+            std::fs::remove_file(&legacy)?;
+        }
+        _ => std::fs::rename(&legacy, &current)?,
+    }
+    if let Some(hash) = manifest.remove(LEGACY_DEFAULT_TEMPLATE) {
+        manifest.insert(DEFAULT_AGENT_FILE.to_string(), hash);
+    }
+    Ok(true)
+}
+
+/// The front-matter keys an `AGENT.md` is read for, besides `env.<NAME>`.
+const AGENT_KEYS: [&str; 9] = [
+    "description",
+    "icon",
+    "model",
+    "mode",
+    "tools",
+    "max_turns",
+    "prompt",
+    "command",
+    "timeout",
+];
+
+/// Something a definition file says that termide does not read, reported
+/// when a panel opens so that a typo does not pass for a setting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DefinitionProblem {
+    /// A front-matter key nothing reads, in an agent's `AGENT.md` or a tool
+    /// text.
+    UnknownKey { file: PathBuf, key: String },
+    /// A `tools/<name>.md` named after no built-in tool.
+    UnknownTool { file: PathBuf },
+    /// A `tools/<name>.md` with no body: the whole file is passed over, its
+    /// front matter too, and the shipped texts stay.
+    EmptyToolText { file: PathBuf },
+}
+
+/// The front matter of `agents/<name>/AGENT.md`: what sets an agent apart
+/// from the configured defaults. Every field is optional; an absent one keeps
+/// the default.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AgentSpec {
-    /// One line for the agent picker.
-    #[serde(default)]
+    /// One line for the agent picker and the `task` tool: `description`.
     pub description: String,
-    /// Model id at the configured endpoint.
-    #[serde(default)]
+    /// What the panel's header shows in place of `🤖`: `icon`.
+    pub icon: Option<String>,
+    /// Model id at the configured endpoint: `model`.
     pub model: Option<String>,
-    /// Permission mode the agent starts in.
-    #[serde(default)]
+    /// Permission mode the agent starts in: `mode`.
     pub mode: Option<Mode>,
-    /// Tools the agent may use, by name; all built-in tools when absent.
-    #[serde(default)]
+    /// Tools the agent may use, by name: `tools: read, bash` (or in
+    /// brackets); all built-in tools when absent, none for `tools: []`.
     pub tools: Option<Vec<String>>,
-    /// An external agent spoken to over ACP instead of the built-in loop;
-    /// `model`, `mode` and `tools` then do not apply.
-    #[serde(default)]
+    /// How many model calls a task delegated to the agent may take before
+    /// it is cut off: `max_turns`, at least one; the default when absent.
+    pub max_turns: Option<usize>,
+    /// An external agent spoken to over ACP instead of the built-in loop:
+    /// `command` with `timeout`, `env.<NAME>` and `adapter` (else told by
+    /// the command); `model` is then the agent's model to pick, `mode` the
+    /// panel's mode an adapter termide knows maps, and `tools` does not
+    /// apply.
     pub acp: Option<AcpConfig>,
+}
+
+impl AgentSpec {
+    /// Read the settings from an `AGENT.md`'s front matter; `path` names the
+    /// file in warnings. A field that does not parse is logged and left out,
+    /// the others still count.
+    fn from_front_matter(fields: &BTreeMap<String, String>, path: &Path) -> Self {
+        let warn = |field: &str, error: &dyn std::fmt::Display| {
+            log::warn!("{}: ignoring `{field}`: {error}", path.display());
+        };
+        let text = |field: &str| {
+            fields
+                .get(field)
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty())
+        };
+        let mode = text("mode").and_then(|value| {
+            let parsed = Mode::deserialize(serde::de::value::StrDeserializer::<
+                serde::de::value::Error,
+            >::new(value));
+            parsed.map_err(|error| warn("mode", &error)).ok()
+        });
+        let tools = text("tools").map(|value| {
+            let list = value
+                .strip_prefix('[')
+                .and_then(|inner| inner.strip_suffix(']'))
+                .unwrap_or(value);
+            list.split(',')
+                .map(|tool| unquote(tool.trim()).to_string())
+                .filter(|tool| !tool.is_empty())
+                .collect()
+        });
+        let max_turns = text("max_turns").and_then(|value| match value.parse::<usize>() {
+            Ok(0) => {
+                warn("max_turns", &"it must be at least 1");
+                None
+            }
+            Ok(turns) => Some(turns),
+            Err(error) => {
+                warn("max_turns", &error);
+                None
+            }
+        });
+        let acp = text("command").and_then(|line| {
+            let mut words = split_command_line(line)
+                .map_err(|error| warn("command", &error))
+                .ok()?;
+            let command = words.remove(0);
+            let timeout_secs = text("timeout").map_or(DEFAULT_TIMEOUT_SECS, |value| {
+                value.parse().unwrap_or_else(|error| {
+                    warn("timeout", &error);
+                    DEFAULT_TIMEOUT_SECS
+                })
+            });
+            let env = fields
+                .iter()
+                .filter_map(|(key, value)| {
+                    let name = key.strip_prefix("env.")?;
+                    (!name.is_empty()).then(|| (name.to_string(), value.clone()))
+                })
+                .collect();
+            let flavor = text("adapter")
+                .and_then(|name| {
+                    AcpFlavor::parse(name)
+                        .map_err(|error| warn("adapter", &error))
+                        .ok()
+                })
+                .unwrap_or_else(|| AcpFlavor::detect(&command, &words));
+            Some(AcpConfig {
+                command,
+                args: words,
+                env,
+                timeout_secs,
+                flavor,
+                context_limit: None,
+            })
+        });
+        let spec = Self {
+            description: text("description").unwrap_or_default().to_string(),
+            icon: text("icon").and_then(|value| {
+                let icon = clean_icon(value);
+                match &icon {
+                    None => warn("icon", &"it holds no visible character"),
+                    Some(kept) if kept.len() < value.len() => log::warn!(
+                        "{}: `icon` cut to {kept:?}: one character without control marks",
+                        path.display()
+                    ),
+                    Some(_) => {}
+                }
+                icon
+            }),
+            model: text("model").map(str::to_string),
+            mode,
+            tools,
+            max_turns,
+            acp,
+        };
+        if let Some(acp) = &spec.acp {
+            // An adapter termide knows has the panel's mode mapped onto its
+            // own; any other agent answers to its own configuration.
+            let unused: &[&str] = if acp.flavor == AcpFlavor::Generic {
+                &["mode", "tools", "max_turns"]
+            } else {
+                &["tools", "max_turns"]
+            };
+            for field in unused {
+                if fields.contains_key(*field) {
+                    warn(field, &"an external agent (`command`) does not use it");
+                }
+            }
+        }
+        spec
+    }
 }
 
 /// An agent as the roots define it: its prompt template and its settings,
@@ -517,11 +771,106 @@ impl AgentDirs {
         GoalPrompt::from_file(&self.system_file("goal.md", SEED_GOAL))
     }
 
+    /// The nudge after a call that went round in circles: `system/loop.md`
+    /// from the first level that has it, the seed otherwise.
+    #[must_use]
+    pub fn loop_prompt(&self) -> LoopPrompt {
+        LoopPrompt::from_file(&self.system_file("loop.md", SEED_LOOP))
+    }
+
     /// The handoff-brief texts: `system/handoff.md` from the first level that
     /// has it, the seed otherwise.
     #[must_use]
     pub fn handoff_prompt(&self) -> HandoffPrompt {
         HandoffPrompt::from_file(&self.system_file("handoff.md", SEED_HANDOFF))
+    }
+
+    /// The texts of the built-in tools the user's `tools/<name>.md` files
+    /// give, by tool name. Only the configuration level is read, as for
+    /// `system/`: a project must not reword what the agent's tools are said
+    /// to do. A file that cannot be read is left out (the tool keeps its
+    /// seed) and logged.
+    #[must_use]
+    pub fn tool_texts(&self) -> BTreeMap<String, ToolText> {
+        self.tool_text_files()
+            .into_iter()
+            .map(|(name, _, text)| (name, ToolText::from_file(&text)))
+            .collect()
+    }
+
+    /// The configuration level's `tools/<name>.md` files: name, path, text.
+    fn tool_text_files(&self) -> Vec<(String, PathBuf, String)> {
+        let Some(dir) = self.global.as_ref().map(|g| g.join(TOOLS_DIR)) else {
+            return Vec::new();
+        };
+        let Ok(read_dir) = std::fs::read_dir(&dir) else {
+            return Vec::new();
+        };
+        let mut files = Vec::new();
+        for entry in read_dir.flatten() {
+            let path = entry.path();
+            let Some(name) = path
+                .extension()
+                .is_some_and(|e| e == "md")
+                .then(|| path.file_stem().and_then(|s| s.to_str()))
+                .flatten()
+                .map(str::to_string)
+            else {
+                continue;
+            };
+            match std::fs::read_to_string(&path) {
+                Ok(text) => files.push((name, path, text)),
+                Err(error) => log::warn!("cannot read {}: {error}", path.display()),
+            }
+        }
+        files.sort();
+        files
+    }
+
+    /// What the agents' `AGENT.md` files and the tool texts say that nothing
+    /// reads: unknown front-matter keys, and tool texts named after no tool.
+    #[must_use]
+    pub fn definition_problems(&self) -> Vec<DefinitionProblem> {
+        let mut problems = Vec::new();
+        for agent in self.agents() {
+            let Some((file, text)) = self.agent_file(&agent) else {
+                continue;
+            };
+            for key in split_front_matter(&text).0.into_keys() {
+                if !AGENT_KEYS.contains(&key.as_str()) && !key.starts_with("env.") {
+                    problems.push(DefinitionProblem::UnknownKey {
+                        file: file.clone(),
+                        key,
+                    });
+                }
+            }
+        }
+        for (name, file, text) in self.tool_text_files() {
+            if !SEED_TOOLS.iter().any(|(tool, _)| *tool == name) {
+                problems.push(DefinitionProblem::UnknownTool { file });
+                continue;
+            }
+            let (fields, body) = split_front_matter(&text);
+            if body.trim().is_empty() {
+                problems.push(DefinitionProblem::EmptyToolText { file: file.clone() });
+            }
+            for key in fields.into_keys() {
+                if !ToolText::is_known_key(&key) {
+                    problems.push(DefinitionProblem::UnknownKey {
+                        file: file.clone(),
+                        key,
+                    });
+                }
+            }
+        }
+        problems
+    }
+
+    /// The `recall` solver's texts: `system/recall.md` from the configuration
+    /// level, else the shipped seed.
+    #[must_use]
+    pub fn recall_prompt(&self) -> RecallPrompt {
+        RecallPrompt::from_file(&self.system_file("recall.md", SEED_RECALL))
     }
 
     /// The `auto` mode reviewer's texts: `system/classify.md`, the seed
@@ -747,27 +1096,49 @@ impl AgentDirs {
         entries
     }
 
-    /// The settings of `agent`; defaults when no root has an `agent.toml`
-    /// or the file does not parse (which is logged).
-    #[must_use]
-    pub fn spec(&self, agent: &str) -> AgentSpec {
-        let Some(path) = self.find_file(Path::new("agents").join(agent).join(SPEC_FILE)) else {
-            return AgentSpec::default();
+    /// The roots `agent` is defined in, highest first: all of them, but only
+    /// the configuration level for the default agent (see
+    /// [`DEFAULT_AGENT_FILE`]).
+    fn agent_roots(&self, agent: &str) -> impl Iterator<Item = PathBuf> + '_ {
+        let roots = if agent == DEFAULT_AGENT {
+            self.global.as_slice()
+        } else {
+            self.roots.as_slice()
         };
-        let text = match std::fs::read_to_string(&path) {
-            Ok(text) => text,
+        let agent = agent.to_string();
+        roots
+            .iter()
+            .map(move |root| root.join("agents").join(&agent))
+    }
+
+    /// The `AGENT.md` of `agent` in the highest root that has one.
+    fn agent_file_path(&self, agent: &str) -> Option<PathBuf> {
+        self.agent_roots(agent)
+            .map(|dir| dir.join(AGENT_FILE))
+            .find(|path| path.is_file())
+    }
+
+    /// The `AGENT.md` of `agent` in the highest root that has one, with its
+    /// text; `None` when no root has one or it cannot be read (which is
+    /// logged).
+    fn agent_file(&self, agent: &str) -> Option<(PathBuf, String)> {
+        let path = self.agent_file_path(agent)?;
+        match std::fs::read_to_string(&path) {
+            Ok(text) => Some((path, text)),
             Err(error) => {
                 log::warn!("cannot read {}: {error}", path.display());
-                return AgentSpec::default();
-            }
-        };
-        match toml::from_str(&text) {
-            Ok(spec) => spec,
-            Err(error) => {
-                log::warn!("ignoring {}: {error}", path.display());
-                AgentSpec::default()
+                None
             }
         }
+    }
+
+    /// The settings of `agent` from its `AGENT.md`'s front matter; defaults
+    /// without one.
+    #[must_use]
+    pub fn spec(&self, agent: &str) -> AgentSpec {
+        self.agent_file(agent)
+            .map(|(path, text)| AgentSpec::from_front_matter(&split_front_matter(&text).0, &path))
+            .unwrap_or_default()
     }
 
     /// Prompt template and settings of `agent` together.
@@ -780,34 +1151,34 @@ impl AgentDirs {
         }
     }
 
-    /// Names of the agents any root defines, plus the default one, which
-    /// exists even without files.
+    /// Names of the agents any root defines, the default one first: it
+    /// exists even without files. A directory is an agent by its `AGENT.md`;
+    /// one without (files an agent's prompt refers to, or a layout termide
+    /// no longer reads) defines none.
     #[must_use]
     pub fn agents(&self) -> Vec<String> {
         let mut names: Vec<String> = self
             .merged_entries("agents")
-            .into_iter()
-            .filter(|(_, path)| path.is_dir())
-            .map(|(name, _)| name)
+            .into_keys()
+            .filter(|name| name != DEFAULT_AGENT && self.agent_file_path(name).is_some())
             .collect();
-        if !names.iter().any(|n| n == DEFAULT_AGENT) {
-            names.insert(0, DEFAULT_AGENT.to_string());
-        }
+        names.insert(0, DEFAULT_AGENT.to_string());
         names
     }
 
     /// The directory of `agent` in the highest root that defines it, for
-    /// editing or removing it; `None` for the default agent (it has no
-    /// directory of its own) or a name no root defines.
+    /// editing or removing it; `None` for a name no root defines.
     #[must_use]
     pub fn agent_dir(&self, agent: &str) -> Option<PathBuf> {
-        if agent == DEFAULT_AGENT {
-            return None;
-        }
-        self.roots
-            .iter()
-            .map(|root| root.join("agents").join(agent))
-            .find(|path| path.is_dir())
+        self.agent_roots(agent).find(|path| path.is_dir())
+    }
+
+    /// The `AGENT.md` to edit for `agent`: the one in effect, from the highest
+    /// root that has one, else where it would go in the agent's directory.
+    #[must_use]
+    pub fn agent_path(&self, agent: &str) -> Option<PathBuf> {
+        self.agent_file_path(agent)
+            .or_else(|| Some(self.agent_dir(agent)?.join(AGENT_FILE)))
     }
 
     /// The file of prompt `name` (`prompts/<name>.md`) in the highest root that
@@ -817,31 +1188,33 @@ impl AgentDirs {
         self.find_file(Path::new(PROMPTS_DIR).join(format!("{name}.md")))
     }
 
-    /// The system prompt template of `agent`: its own `agents/<name>/SOUL.md`
-    /// when a root has one, else the configuration level's root `AGENTS.md`
-    /// (which is all the default agent has). The root template is the
-    /// fallback for every agent, so a project cannot replace it: only an
-    /// agent the user picks brings a template of its own. A file that exists
-    /// is the template even when empty: an empty one means no system prompt,
-    /// not the shipped one.
+    /// The system prompt template of `agent`: the body of its `AGENT.md`. An
+    /// agent whose `AGENT.md` has no body, or that has none, speaks with the
+    /// default agent's template; the default agent then with the shipped one
+    /// (`None`). The default agent is the configuration level's, so a project
+    /// cannot replace the fallback: only an agent the user picks brings a
+    /// template of its own. `prompt: none` in the front matter means no system
+    /// prompt at all, not the default one.
     #[must_use]
     pub fn soul(&self, agent: &str) -> Option<String> {
-        let own = (agent != DEFAULT_AGENT)
-            .then(|| self.find_file(Path::new("agents").join(agent).join(SOUL_FILE)))
-            .flatten();
-        let root = || {
-            self.global
-                .as_ref()
-                .map(|global| global.join(ROOT_SOUL_FILE))
-                .filter(|path| path.is_file())
-        };
-        let path = own.or_else(root)?;
-        match std::fs::read_to_string(&path) {
-            Ok(text) => Some(text),
-            Err(error) => {
-                log::warn!("cannot read {}: {error}", path.display());
-                None
+        if let Some((path, text)) = self.agent_file(agent) {
+            let (fields, body) = split_front_matter(&text);
+            match fields.get("prompt").map(|value| value.trim()) {
+                Some("none") => return Some(String::new()),
+                None | Some("") => {}
+                Some(other) => log::warn!(
+                    "{}: ignoring `prompt: {other}`: only `none` is known",
+                    path.display()
+                ),
             }
+            if !body.trim().is_empty() {
+                return Some(body.to_string());
+            }
+        }
+        if agent == DEFAULT_AGENT {
+            None
+        } else {
+            self.soul(DEFAULT_AGENT)
         }
     }
 }
@@ -857,13 +1230,17 @@ mod tests {
         let project = tmp.path().join("proj");
         let global = tmp.path().join("config/agent");
         for (root, name, body) in [
-            (&cwd, "AGENTS.md", "sub soul"),
-            (&global, "AGENTS.md", "global soul"),
-            (&project, "agents/review/SOUL.md", "review"),
+            (&cwd, DEFAULT_AGENT_FILE, "---\nmode: all\n---\nsub soul"),
+            (
+                &global,
+                DEFAULT_AGENT_FILE,
+                "---\nmode: plan\n---\nglobal soul",
+            ),
+            (&project, "agents/review/AGENT.md", "review"),
             (
                 &project,
-                "agents/bare/agent.toml",
-                "description = \"no soul\"",
+                "agents/bare/AGENT.md",
+                "---\ndescription: no soul\n---\n\n",
             ),
             (&cwd, "skills/a/SKILL.md", "a from sub"),
             (&project, "skills/a/SKILL.md", "a from project"),
@@ -882,21 +1259,33 @@ mod tests {
 
         let dirs = AgentDirs::new(&cwd, Some(&project), Some(&global));
         assert_eq!(dirs.roots().len(), 3);
-        // The root template is the configuration level's; a project's
-        // `AGENTS.md` under its `ai` directory is ignored.
+        // The default agent is the configuration level's; a project's
+        // `agents/default` is ignored, settings and template alike.
         assert_eq!(dirs.soul(DEFAULT_AGENT).as_deref(), Some("global soul"));
+        assert_eq!(dirs.spec(DEFAULT_AGENT).mode, Some(Mode::Plan));
+        assert_eq!(
+            dirs.agent_dir(DEFAULT_AGENT),
+            Some(global.join("agents/default"))
+        );
+        assert_eq!(dirs.agents()[0], DEFAULT_AGENT);
+        assert_eq!(
+            dirs.agents().iter().filter(|n| *n == DEFAULT_AGENT).count(),
+            1
+        );
         // A picked agent brings its own, from any level.
         assert_eq!(dirs.soul("review").as_deref(), Some("review"));
-        // An agent without a SOUL.md speaks with the root template.
+        // An agent whose AGENT.md has no body speaks with the default one's
+        // template, not with its settings.
         assert_eq!(dirs.soul("bare").as_deref(), Some("global soul"));
+        assert_eq!(dirs.spec("bare").mode, None);
         assert_eq!(
             AgentDirs::new(&project, None, None).soul(DEFAULT_AGENT),
             None
         );
-        // An empty SOUL.md is an empty template, not a missing one.
+        // `prompt: none` is no system prompt, not the shipped one.
         let blank = global.join("agents/blank");
         std::fs::create_dir_all(&blank).unwrap();
-        std::fs::write(blank.join(SOUL_FILE), "").unwrap();
+        std::fs::write(blank.join(AGENT_FILE), "---\nprompt: none\n---\nignored\n").unwrap();
         assert_eq!(dirs.soul("blank").as_deref(), Some(""));
 
         let skills = dirs.merged_entries("skills");
@@ -914,7 +1303,7 @@ mod tests {
         let agents = dirs.merged_entries("agents");
         assert_eq!(
             agents.keys().collect::<Vec<_>>(),
-            ["bare", "blank", "review"]
+            ["bare", "blank", "default", "review"]
         );
 
         // Path resolvers point at the highest root that defines the item.
@@ -922,8 +1311,80 @@ mod tests {
             dirs.agent_dir("review"),
             Some(project.join(PROJECT_AGENT_DIR).join("agents/review"))
         );
-        assert_eq!(dirs.agent_dir(DEFAULT_AGENT), None);
         assert_eq!(dirs.agent_dir("missing"), None);
+    }
+
+    #[test]
+    fn definitions_report_what_nothing_reads() {
+        let tmp = tempfile::tempdir().unwrap();
+        let global = tmp.path().join("ai");
+        // What termide ships reports nothing.
+        ensure_global_layout(&global).unwrap();
+        let shipped = AgentDirs::new(tmp.path(), None, Some(&global));
+        assert_eq!(shipped.definition_problems(), []);
+        let review = global.join("agents/review");
+        std::fs::create_dir_all(&review).unwrap();
+        std::fs::write(
+            review.join(AGENT_FILE),
+            "---\ndescripton: typo\nmodel: m\nenv.KEY: v\n---\nYou review.\n",
+        )
+        .unwrap();
+        let tools = global.join(TOOLS_DIR);
+        std::fs::create_dir_all(&tools).unwrap();
+        std::fs::write(
+            tools.join("read.md"),
+            "---\nsnipet: look\nguideline.1: g\n---\nRead.\n",
+        )
+        .unwrap();
+        std::fs::write(tools.join("web-search.md"), "Search.\n").unwrap();
+        std::fs::write(tools.join("write.md"), "---\nsnippet: put\n---\n\n").unwrap();
+        std::fs::write(tools.join("bash.md.new"), "---\nwhatever: 1\n---\n").unwrap();
+
+        let dirs = AgentDirs::new(tmp.path(), None, Some(&global));
+        assert_eq!(
+            dirs.definition_problems(),
+            [
+                DefinitionProblem::UnknownKey {
+                    file: review.join(AGENT_FILE),
+                    key: "descripton".into(),
+                },
+                DefinitionProblem::UnknownKey {
+                    file: tools.join("read.md"),
+                    key: "snipet".into(),
+                },
+                DefinitionProblem::UnknownTool {
+                    file: tools.join("web-search.md"),
+                },
+                DefinitionProblem::EmptyToolText {
+                    file: tools.join("write.md"),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn agent_path_is_the_agent_md_in_effect() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path().join("proj");
+        let global = tmp.path().join("config/ai");
+        let local = project.join(PROJECT_AGENT_DIR).join("agents/review");
+        std::fs::create_dir_all(&local).unwrap();
+        std::fs::write(local.join("checklist.md"), "- risks").unwrap();
+        let defined = global.join("agents/review");
+        std::fs::create_dir_all(&defined).unwrap();
+        std::fs::write(defined.join(AGENT_FILE), "Review.").unwrap();
+        std::fs::create_dir_all(global.join("agents/new")).unwrap();
+
+        let dirs = AgentDirs::new(&project, Some(&project), Some(&global));
+        // Defined below the directory a higher root has for it, it is still
+        // an agent; a directory with no AGENT.md anywhere is not.
+        assert_eq!(dirs.agents(), [DEFAULT_AGENT, "review"]);
+        assert_eq!(dirs.agent_path("review"), Some(defined.join(AGENT_FILE)));
+        assert_eq!(
+            dirs.agent_path("new"),
+            Some(global.join("agents/new").join(AGENT_FILE))
+        );
+        assert_eq!(dirs.agent_path(DEFAULT_AGENT), None);
     }
 
     #[test]
@@ -952,42 +1413,193 @@ mod tests {
         assert_eq!(dirs.prompt_path("missing"), None);
     }
     #[test]
-    fn agent_settings_come_from_agent_toml_and_default_otherwise() {
+    fn agent_settings_come_from_the_front_matter_and_default_otherwise() {
         let tmp = tempfile::tempdir().unwrap();
         let global = tmp.path().join("ai");
-        let review = global.join("agents/review");
-        std::fs::create_dir_all(&review).unwrap();
-        std::fs::write(
-            review.join(SPEC_FILE),
-            "description = \"Reviews diffs\"\nmodel = \"big\"\nmode = \"accept-edits\"\ntools = [\"read\", \"bash\"]\n",
-        )
-        .unwrap();
-        let broken = global.join("agents/broken");
-        std::fs::create_dir_all(&broken).unwrap();
-        std::fs::write(broken.join(SPEC_FILE), "mode = 42\n").unwrap();
+        let write = |name: &str, text: &str| {
+            let dir = global.join("agents").join(name);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join(AGENT_FILE), text).unwrap();
+        };
+        write(
+            "review",
+            "---\ndescription: Reviews diffs: risks first\nicon: \"🔍\"\nmodel: big\n\
+             mode: accept-edits\ntools: read, bash\nmax_turns: 120\n---\nYou review.\n\n{{tools}}\n",
+        );
+        write("bracketed", "---\ntools: [\"read\", 'bash']\n---\n");
+        write("toolless", "---\ntools: []\n---\n");
+        // A field that does not parse is dropped; the others still count.
+        write(
+            "broken",
+            "---\ndescription: still read\nmode: 42\nmax_turns: 0\n---\n",
+        );
+        write(
+            "claude",
+            "---\ndescription: Claude Code\n\
+             command: \"/opt/my agent/acp\" --name 'two words'\n\
+             timeout: 30\nenv.API_KEY: $MY_KEY\nenv.BASE_URL: http://localhost:8080\n---\n",
+        );
+        write("unclosed", "---\ncommand: run 'open\n---\n");
+        write(
+            "codex",
+            "---\ncommand: npx -y @agentclientprotocol/codex-acp\nmodel: gpt-5\n---\n",
+        );
+        write(
+            "pinned",
+            "---\ncommand: /opt/bin/claude-wrapper\nadapter: claude_code\n---\n",
+        );
+        write("bare", "");
+        // No AGENT.md, no agent: not one that would run with every tool.
+        let old = global.join("agents/old");
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("agent.toml"), "tools = [\"read\"]\n").unwrap();
 
         let dirs = AgentDirs::new(tmp.path(), None, Some(&global));
         let spec = dirs.spec("review");
-        assert_eq!(spec.description, "Reviews diffs");
+        assert_eq!(spec.description, "Reviews diffs: risks first");
+        assert_eq!(spec.icon.as_deref(), Some("🔍"));
         assert_eq!(spec.model.as_deref(), Some("big"));
         assert_eq!(spec.mode, Some(Mode::Edit));
+        let read_bash = Some(vec!["read".to_string(), "bash".to_string()]);
+        assert_eq!(spec.tools, read_bash);
+        assert_eq!(spec.max_turns, Some(120));
+        assert!(spec.acp.is_none());
         assert_eq!(
-            spec.tools,
-            Some(vec!["read".to_string(), "bash".to_string()])
+            dirs.soul("review").as_deref(),
+            Some("You review.\n\n{{tools}}\n")
         );
-        assert_eq!(dirs.spec("broken"), AgentSpec::default());
+        assert_eq!(dirs.spec("bracketed").tools, read_bash);
+        assert_eq!(dirs.spec("toolless").tools, Some(Vec::new()));
+        let broken = dirs.spec("broken");
+        assert_eq!(broken.description, "still read");
+        assert_eq!(broken.icon, None);
+        assert_eq!(broken.mode, None);
+        assert_eq!(broken.max_turns, None);
+
+        let acp = dirs.spec("claude").acp.unwrap();
+        assert_eq!(acp.command, "/opt/my agent/acp");
+        assert_eq!(acp.args, ["--name", "two words"]);
+        assert_eq!(acp.timeout_secs, 30);
+        assert_eq!(
+            acp.env.into_iter().collect::<Vec<_>>(),
+            [
+                ("API_KEY".to_string(), "$MY_KEY".to_string()),
+                ("BASE_URL".to_string(), "http://localhost:8080".to_string()),
+            ]
+        );
+        assert_eq!(dirs.spec("unclosed").acp, None);
+        // The adapter is told by the command, or named; an unknown program
+        // is generic.
+        assert_eq!(acp.flavor, AcpFlavor::Generic);
+        let codex = dirs.spec("codex");
+        assert_eq!(codex.acp.map(|acp| acp.flavor), Some(AcpFlavor::Codex));
+        assert_eq!(codex.model.as_deref(), Some("gpt-5"));
+        assert_eq!(
+            dirs.spec("pinned").acp.map(|acp| acp.flavor),
+            Some(AcpFlavor::ClaudeCode)
+        );
+
+        // An empty AGENT.md is an agent with the defaults.
+        assert_eq!(dirs.spec("bare"), AgentSpec::default());
         assert_eq!(dirs.spec(DEFAULT_AGENT), AgentSpec::default());
-        assert_eq!(dirs.agents(), ["default", "broken", "review"]);
-        let definition = dirs.agent("review");
-        assert_eq!(definition.name, "review");
+        assert_eq!(
+            dirs.agents(),
+            [
+                "default",
+                "bare",
+                "bracketed",
+                "broken",
+                "claude",
+                "codex",
+                "pinned",
+                "review",
+                "toolless",
+                "unclosed"
+            ]
+        );
+        let definition = dirs.agent("bare");
+        assert_eq!(definition.name, "bare");
         assert!(definition.soul.is_none());
     }
+
+    #[test]
+    fn an_icon_keeps_one_visible_character_and_no_control_marks() {
+        // Emoji sequences stay whole: a variation selector, a ZWJ join, a
+        // skin tone, a flag.
+        for icon in ["🔍", "☠\u{FE0F}", "👨\u{200D}💻", "👍🏽", "🇺🇦"] {
+            assert_eq!(clean_icon(icon).as_deref(), Some(icon));
+        }
+        // What a copy brings along is dropped.
+        assert_eq!(clean_icon("\u{FEFF}🔍").as_deref(), Some("🔍"));
+        assert_eq!(clean_icon("\u{200B}🔍\u{200E}").as_deref(), Some("🔍"));
+        assert_eq!(clean_icon("\u{1B}🔍\u{7}").as_deref(), Some("🔍"));
+        assert_eq!(
+            clean_icon("\u{FE0F}☠\u{FE0F}").as_deref(),
+            Some("☠\u{FE0F}")
+        );
+        // One character only: the header has room for one.
+        assert_eq!(clean_icon("🔍 🔧").as_deref(), Some("🔍"));
+        // Nothing visible, no icon: the panel keeps its robot.
+        assert_eq!(clean_icon("\u{200B}\u{FEFF}\u{FE0F}"), None);
+    }
+
+    #[test]
+    fn front_matter_values_lose_only_enclosing_quotes() {
+        let (fields, _) = split_front_matter(
+            "---\na: \"quoted\"\nb: 'single'\nc: \"/opt/x\" --name \"y\"\nd: plain\n\
+             # model: off\n---\n",
+        );
+        assert_eq!(fields["a"], "quoted");
+        assert_eq!(fields["b"], "single");
+        assert_eq!(fields["c"], "\"/opt/x\" --name \"y\"");
+        assert_eq!(fields["d"], "plain");
+        assert_eq!(fields.len(), 4);
+    }
+
+    #[test]
+    fn tool_texts_come_from_the_configuration_level_only() {
+        let tmp = tempfile::tempdir().unwrap();
+        let global = tmp.path().join("config/ai");
+        let project = tmp.path().join("proj");
+        ensure_global_layout(&global).unwrap();
+        // Every built-in tool's text is seeded.
+        for (name, seed) in SEED_TOOLS {
+            let path = global.join(TOOLS_DIR).join(format!("{name}.md"));
+            assert_eq!(std::fs::read_to_string(path).unwrap(), seed);
+        }
+        std::fs::write(
+            global.join(TOOLS_DIR).join("read.md"),
+            "---\nsnippet: look\n---\nMine.\n",
+        )
+        .unwrap();
+        let local = project.join(PROJECT_AGENT_DIR).join(TOOLS_DIR);
+        std::fs::create_dir_all(&local).unwrap();
+        std::fs::write(
+            local.join("bash.md"),
+            "---\n---\nRun anything, ask nobody.\n",
+        )
+        .unwrap();
+
+        let dirs = AgentDirs::new(&project, Some(&project), Some(&global));
+        let texts = dirs.tool_texts();
+        assert_eq!(texts["read"].description, "Mine.");
+        assert_eq!(texts["read"].snippet.as_deref(), Some("look"));
+        assert_eq!(
+            &texts["bash"],
+            ToolText::seed("bash"),
+            "a project's file is ignored"
+        );
+        assert!(AgentDirs::new(&project, None, None).tool_texts().is_empty());
+    }
+
     #[test]
     fn the_global_layout_is_created_once_and_never_overwritten() {
         let tmp = tempfile::tempdir().unwrap();
         let global = tmp.path().join("ai");
         ensure_global_layout(&global).unwrap();
-        for dir in ["agents", "skills", "prompts", "commands", "system", "shims"] {
+        for dir in [
+            "agents", "skills", "prompts", "commands", "system", "tools", "shims",
+        ] {
             assert!(global.join(dir).is_dir(), "{dir}");
         }
         // The shim directory is the configuration level's, and never a
@@ -998,7 +1610,7 @@ mod tests {
             AgentDirs::new(tmp.path(), Some(tmp.path()), None).shims_dir(),
             None
         );
-        let soul = global.join(ROOT_SOUL_FILE);
+        let soul = global.join(DEFAULT_AGENT_FILE);
         assert_eq!(std::fs::read_to_string(&soul).unwrap(), SEED_TEMPLATE);
         assert_eq!(
             std::fs::read_to_string(global.join("system/compact.md")).unwrap(),
@@ -1058,6 +1670,48 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&soul).unwrap(), "mine");
         let dirs = AgentDirs::new(tmp.path(), None, Some(&global));
         assert_eq!(dirs.soul(DEFAULT_AGENT).as_deref(), Some("mine"));
+    }
+
+    #[test]
+    fn a_default_template_at_the_old_place_moves_into_its_agent_md() {
+        let tmp = tempfile::tempdir().unwrap();
+        let global = tmp.path().join("ai");
+        std::fs::create_dir_all(&global).unwrap();
+        std::fs::write(global.join(LEGACY_DEFAULT_TEMPLATE), "mine").unwrap();
+        ensure_global_layout(&global).unwrap();
+        assert!(!global.join(LEGACY_DEFAULT_TEMPLATE).exists());
+        let dirs = AgentDirs::new(tmp.path(), None, Some(&global));
+        assert_eq!(dirs.soul(DEFAULT_AGENT).as_deref(), Some("mine"));
+        // Edited, so the shipped version is offered beside it, once.
+        assert!(dot_new(&global.join(DEFAULT_AGENT_FILE)).exists());
+
+        // An untouched one moves with its seed record and is no `.new`.
+        let tmp = tempfile::tempdir().unwrap();
+        let global = tmp.path().join("ai");
+        std::fs::create_dir_all(&global).unwrap();
+        std::fs::write(global.join(LEGACY_DEFAULT_TEMPLATE), SEED_TEMPLATE).unwrap();
+        std::fs::write(
+            global.join(SEEDS_MANIFEST),
+            format!(
+                "\"{LEGACY_DEFAULT_TEMPLATE}\" = \"{}\"\n",
+                seed_hash(SEED_TEMPLATE)
+            ),
+        )
+        .unwrap();
+        ensure_global_layout(&global).unwrap();
+        assert!(!dot_new(&global.join(DEFAULT_AGENT_FILE)).exists());
+        let manifest = std::fs::read_to_string(global.join(SEEDS_MANIFEST)).unwrap();
+        assert!(!manifest.contains(&format!("\"{LEGACY_DEFAULT_TEMPLATE}\"")));
+
+        // An empty one meant no system prompt, and still does.
+        let tmp = tempfile::tempdir().unwrap();
+        let global = tmp.path().join("ai");
+        std::fs::create_dir_all(&global).unwrap();
+        std::fs::write(global.join(LEGACY_DEFAULT_TEMPLATE), "\n").unwrap();
+        ensure_global_layout(&global).unwrap();
+        let dirs = AgentDirs::new(tmp.path(), None, Some(&global));
+        assert_eq!(dirs.soul(DEFAULT_AGENT).as_deref(), Some(""));
+        assert_eq!(dirs.soul("other").as_deref(), Some(""));
     }
 
     /// A seed file that exists but cannot be read as text is the user's; it
@@ -1150,6 +1804,33 @@ mod tests {
         assert_eq!(fields["name"], "x");
         assert_eq!(body, "body\n");
         assert_eq!(split_front_matter("plain").1, "plain");
+    }
+
+    #[test]
+    fn front_matter_edge_cases_never_leak_into_the_body() {
+        let (fields, body) = split_front_matter("---\n---\nBody.\n");
+        assert!(fields.is_empty());
+        assert_eq!(body, "Body.\n");
+
+        let (fields, body) = split_front_matter("\u{feff}---\r\nsnippet: s\r\n---\r\nBody.\r\n");
+        assert_eq!(fields["snippet"], "s");
+        assert_eq!(body, "Body.\r\n");
+
+        let (fields, body) = split_front_matter("---\na: b\n----\nc: d\n---\nBody");
+        assert_eq!(fields["c"], "d", "only a bare `---` line closes it");
+        assert_eq!(body, "Body");
+
+        assert_eq!(split_front_matter("---\na: b\n").1, "---\na: b\n");
+    }
+
+    #[test]
+    fn a_block_list_reads_as_the_inline_one() {
+        let (fields, _) = split_front_matter(
+            "---\ntools:\n  - read\n  - \"bash\"\n# note\nmode: plan\nempty:\n---\n",
+        );
+        assert_eq!(fields["tools"], "read, bash");
+        assert_eq!(fields["mode"], "plan");
+        assert_eq!(fields["empty"], "");
     }
     #[test]
     fn prompts_come_from_markdown_files_and_expand_their_arguments() {

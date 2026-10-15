@@ -102,11 +102,19 @@ impl App {
                     }
 
                     // Build modal (last completed command wins if multiple finish same tick)
-                    let title = if result.success {
+                    let mut title = if result.success {
                         format!("{} \u{2713}", result.command_name)
                     } else {
                         format!("{} \u{2717}", result.command_name)
                     };
+                    // Operations outlive a project switch: name the project
+                    // of a command that finished while another is on screen.
+                    if handle.project != self.project_root {
+                        title.push_str(" \u{2014} ");
+                        title.push_str(&termide_core::util::shorten_home_path(
+                            &handle.project.display().to_string(),
+                        ));
+                    }
 
                     let mut lines: Vec<(String, String)> =
                         report_lines(&result.stdout, &result.stderr)
@@ -136,7 +144,8 @@ impl App {
         // Show modal for the last completed command
         if let Some((title, lines)) = last_result_modal {
             let modal = InfoModal::new(&title, lines);
-            self.state.active_modal = Some(ActiveModal::Info(Box::new(modal)));
+            self.state
+                .show_message_modal(ActiveModal::Info(Box::new(modal)));
             self.state.needs_redraw = true;
         }
     }

@@ -16,17 +16,36 @@ pub struct OpenProjectView {
     pub attention: bool,
 }
 
+/// Where an open project's panels are.
+enum Slot<P> {
+    /// On screen: the current project.
+    Current,
+    /// Parked in the background.
+    Parked(P),
+    /// Not loaded yet: reopened from the last run, its layout is loaded the
+    /// first time it becomes current.
+    Pending,
+}
+
 struct Entry<P> {
     root: PathBuf,
-    /// The parked project; `None` for the current one, whose panels are on
-    /// screen.
-    parked: Option<P>,
+    slot: Slot<P>,
     /// When the project was last current, on the `clock` scale.
     last_used: u64,
 }
 
-/// The open projects, in the order they were opened. Exactly one of them is
-/// current; `P` is what a parked one keeps.
+impl<P> Entry<P> {
+    fn parked(&self) -> Option<&P> {
+        match &self.slot {
+            Slot::Parked(parked) => Some(parked),
+            _ => None,
+        }
+    }
+}
+
+/// The open projects, in the order the menus list them: the order they were
+/// opened in until the user moves one. Exactly one of them is current; `P`
+/// is what a parked one keeps.
 pub struct OpenProjects<P> {
     entries: Vec<Entry<P>>,
     clock: u64,
@@ -37,7 +56,7 @@ impl<P> OpenProjects<P> {
         Self {
             entries: vec![Entry {
                 root: current,
-                parked: None,
+                slot: Slot::Current,
                 last_used: 0,
             }],
             clock: 0,
@@ -47,7 +66,7 @@ impl<P> OpenProjects<P> {
     fn current_index(&self) -> usize {
         self.entries
             .iter()
-            .position(|entry| entry.parked.is_none())
+            .position(|entry| matches!(entry.slot, Slot::Current))
             .expect("one open project is always current")
     }
 
@@ -64,27 +83,44 @@ impl<P> OpenProjects<P> {
         self.entries.len()
     }
 
+    /// Open `root` without loading it; its layout is loaded when it first
+    /// becomes current. Returns whether it was not open yet.
+    pub fn open_pending(&mut self, root: PathBuf) -> bool {
+        if self.is_open(&root) {
+            return false;
+        }
+        self.entries.push(Entry {
+            root,
+            slot: Slot::Pending,
+            last_used: 0,
+        });
+        true
+    }
+
     /// Make `root` current, parking the current project as `leaving`.
     ///
     /// Returns what to show for `root`: its parked state when it was open,
     /// `leaving` itself when `root` already is the current project, and
-    /// `None` when `root` opens now and has to be loaded.
+    /// `None` when `root` opens now — or was pending — and has to be loaded.
     pub fn switch(&mut self, root: PathBuf, leaving: P) -> Option<P> {
         let current = self.current_index();
         if self.entries[current].root == root {
             return Some(leaving);
         }
         self.clock += 1;
-        self.entries[current].parked = Some(leaving);
+        self.entries[current].slot = Slot::Parked(leaving);
         match self.entries.iter().position(|entry| entry.root == root) {
             Some(index) => {
                 self.entries[index].last_used = self.clock;
-                self.entries[index].parked.take()
+                match std::mem::replace(&mut self.entries[index].slot, Slot::Current) {
+                    Slot::Parked(parked) => Some(parked),
+                    Slot::Current | Slot::Pending => None,
+                }
             }
             None => {
                 self.entries.push(Entry {
                     root,
-                    parked: None,
+                    slot: Slot::Current,
                     last_used: self.clock,
                 });
                 None
@@ -92,14 +128,18 @@ impl<P> OpenProjects<P> {
         }
     }
 
-    /// Close the parked project at `root` and hand back what it kept. The
-    /// current project is never closed.
+    /// Close the project at `root`, parked or pending, and hand back what it
+    /// kept (`None` for a pending one, or when nothing closed). The current
+    /// project is never closed.
     pub fn close(&mut self, root: &Path) -> Option<P> {
         let index = self
             .entries
             .iter()
-            .position(|entry| entry.root == root && entry.parked.is_some())?;
-        self.entries.remove(index).parked
+            .position(|entry| entry.root == root && !matches!(entry.slot, Slot::Current))?;
+        match self.entries.remove(index).slot {
+            Slot::Parked(parked) => Some(parked),
+            Slot::Current | Slot::Pending => None,
+        }
     }
 
     /// The current project's root moved to `root`.
@@ -108,7 +148,38 @@ impl<P> OpenProjects<P> {
         self.entries[current].root = root;
     }
 
-    /// Every open project's root, in the order they were opened.
+    /// Move the open project at `root` to place `to` (clamped to the last),
+    /// shifting the ones between. Returns whether it moved.
+    pub fn move_to(&mut self, root: &Path, to: usize) -> bool {
+        let Some(from) = self.entries.iter().position(|entry| entry.root == root) else {
+            return false;
+        };
+        let to = to.min(self.entries.len() - 1);
+        if from == to {
+            return false;
+        }
+        let entry = self.entries.remove(from);
+        self.entries.insert(to, entry);
+        true
+    }
+
+    /// Put the projects named in `order` in that order, ahead of the others,
+    /// which keep theirs.
+    pub fn arrange(&mut self, order: &[PathBuf]) {
+        self.entries.sort_by_key(|entry| {
+            order
+                .iter()
+                .position(|root| *root == entry.root)
+                .unwrap_or(usize::MAX)
+        });
+    }
+
+    /// Where the open project at `root` is listed.
+    pub fn position(&self, root: &Path) -> Option<usize> {
+        self.entries.iter().position(|entry| entry.root == root)
+    }
+
+    /// Every open project's root, in the order the menus list them.
     pub fn roots(&self) -> impl Iterator<Item = &Path> {
         self.entries.iter().map(|entry| entry.root.as_path())
     }
@@ -117,24 +188,32 @@ impl<P> OpenProjects<P> {
     /// one, then the one left last, and so on.
     pub fn by_recent_use(&self) -> Vec<&Path> {
         let mut entries: Vec<&Entry<P>> = self.entries.iter().collect();
-        entries.sort_by_key(|entry| (entry.parked.is_some(), std::cmp::Reverse(entry.last_used)));
+        entries.sort_by_key(|entry| {
+            (
+                !matches!(entry.slot, Slot::Current),
+                std::cmp::Reverse(entry.last_used),
+            )
+        });
         entries
             .into_iter()
             .map(|entry| entry.root.as_path())
             .collect()
     }
 
-    /// The parked projects, in the order they were opened.
+    /// The parked projects, in the order the menus list them.
     pub fn parked(&self) -> impl Iterator<Item = (&Path, &P)> {
         self.entries
             .iter()
-            .filter_map(|entry| Some((entry.root.as_path(), entry.parked.as_ref()?)))
+            .filter_map(|entry| Some((entry.root.as_path(), entry.parked()?)))
     }
 
     pub fn parked_mut(&mut self) -> impl Iterator<Item = (&Path, &mut P)> {
         self.entries
             .iter_mut()
-            .filter_map(|entry| Some((entry.root.as_path(), entry.parked.as_mut()?)))
+            .filter_map(|entry| match &mut entry.slot {
+                Slot::Parked(parked) => Some((entry.root.as_path(), parked)),
+                _ => None,
+            })
     }
 }
 
@@ -203,6 +282,35 @@ mod tests {
     }
 
     #[test]
+    fn a_project_moves_to_a_place_and_the_others_shift() {
+        let mut open: OpenProjects<()> = OpenProjects::new(PathBuf::from("/a"));
+        open.open_pending(PathBuf::from("/b"));
+        open.open_pending(PathBuf::from("/c"));
+        assert!(open.move_to(Path::new("/c"), 0));
+        assert_eq!(roots(&open), vec!["/c", "/a", "/b"]);
+        assert!(open.move_to(Path::new("/c"), 99), "past the end: last");
+        assert_eq!(roots(&open), vec!["/a", "/b", "/c"]);
+        assert!(!open.move_to(Path::new("/c"), 2), "already there");
+        assert!(!open.move_to(Path::new("/x"), 0), "not open");
+        assert_eq!(open.current(), Path::new("/a"));
+        assert_eq!(open.position(Path::new("/b")), Some(1));
+    }
+
+    #[test]
+    fn arranging_puts_the_named_projects_first_in_their_order() {
+        let mut open: OpenProjects<()> = OpenProjects::new(PathBuf::from("/a"));
+        for root in ["/b", "/c", "/d"] {
+            open.open_pending(PathBuf::from(root));
+        }
+        open.arrange(&[
+            PathBuf::from("/c"),
+            PathBuf::from("/gone"),
+            PathBuf::from("/a"),
+        ]);
+        assert_eq!(roots(&open), vec!["/c", "/a", "/b", "/d"]);
+    }
+
+    #[test]
     fn moving_the_current_project_keeps_its_place() {
         let mut open = OpenProjects::new(PathBuf::from("/a"));
         open.switch(PathBuf::from("/b"), 0);
@@ -210,5 +318,22 @@ mod tests {
         assert_eq!(roots(&open), vec!["/a", "/moved"]);
         assert!(open.is_open(Path::new("/moved")));
         assert!(!open.is_open(Path::new("/b")));
+    }
+
+    #[test]
+    fn a_pending_project_loads_on_first_switch_and_closes_without_state() {
+        let mut open = OpenProjects::new(PathBuf::from("/a"));
+        assert!(open.open_pending(PathBuf::from("/b")));
+        assert!(open.open_pending(PathBuf::from("/c")));
+        assert!(!open.open_pending(PathBuf::from("/a")), "already open");
+        assert_eq!(roots(&open), vec!["/a", "/b", "/c"]);
+        assert_eq!(open.parked().count(), 0, "nothing is loaded yet");
+
+        assert_eq!(open.switch(PathBuf::from("/b"), "panels of a"), None);
+        assert_eq!(open.current(), Path::new("/b"));
+        assert_eq!(recent(&open), vec!["/b", "/a", "/c"]);
+
+        assert_eq!(open.close(Path::new("/c")), None);
+        assert_eq!(roots(&open), vec!["/a", "/b"]);
     }
 }

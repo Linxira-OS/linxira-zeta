@@ -1,13 +1,13 @@
 //! System prompt composition and project instruction discovery.
 //!
-//! The prompt is a template — the agent's `SOUL.md` — with placeholders the
-//! builder fills: `{{tools}}` (the tool list with one-line snippets),
-//! `{{guidelines}}` (the rules the tools contribute), `{{skills}}` (the
-//! skills by name and description), `{{environment}}` and
+//! The prompt is a template — the body of the agent's `AGENT.md` — with
+//! placeholders the builder fills: `{{tools}}` (the tool list with one-line
+//! snippets), `{{guidelines}}` (the rules the tools contribute), `{{skills}}`
+//! (the skills by name and description), `{{environment}}` and
 //! `{{project_instructions}}`. No prompt text lives in code: the seed
-//! template is the data file `assets/AGENTS.md`, written to the
-//! configuration directory as `ai/AGENTS.md` on first use and read from
-//! there; only the order of assembly is code. Instruction files follow the cross-agent
+//! template is the data file `assets/agents/default/AGENT.md`, written to
+//! the configuration directory as `ai/agents/default/AGENT.md` on first use
+//! and read from there; only the order of assembly is code. Instruction files follow the cross-agent
 //! `AGENTS.md` convention with `CLAUDE.md` as a fallback in the same
 //! directory, walked from the filesystem root down to the working directory
 //! so the most specific file comes last.
@@ -28,9 +28,10 @@ pub const MAX_CONTEXT_FILE_BYTES: u64 = 32 * 1024;
 /// Names tried in each directory, in order; the first that exists wins.
 const CONTEXT_FILE_NAMES: [&str; 2] = ["AGENTS.md", "CLAUDE.md"];
 
-/// The seed of the configuration's `ai/AGENTS.md`: the data file shipped
-/// with the crate, used only to create that file and when it cannot be read.
-pub const SEED_TEMPLATE: &str = include_str!("../assets/AGENTS.md");
+/// The seed of the default agent's `ai/agents/default/AGENT.md`: the data
+/// file shipped with the crate, used only to create that file and when it
+/// gives no template.
+pub const SEED_TEMPLATE: &str = include_str!("../assets/agents/default/AGENT.md");
 
 /// One project instruction file, in prompt order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -226,7 +227,7 @@ pub fn build_system_prompt(options: &PromptOptions<'_>) -> String {
     let mut guidelines: Vec<&str> = Vec::new();
     for tool in options.tools.iter() {
         for guideline in tool.prompt_guidelines() {
-            if !guidelines.contains(guideline) {
+            if !guidelines.contains(&guideline.as_str()) {
                 guidelines.push(guideline);
             }
         }

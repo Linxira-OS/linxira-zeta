@@ -54,6 +54,7 @@ impl HelpGenerator {
                 t,
             ),
             Self::generate_terminal_section(&config.terminal.keybindings, t),
+            Self::generate_agent_section(t),
             Self::generate_database_section(&config.database.keybindings, t),
             Self::generate_diagnostics_section(t),
             Self::generate_operations_section(t),
@@ -72,33 +73,22 @@ impl HelpGenerator {
         }
     }
 
-    /// Format goto_panel_1..9 bindings as a compact display string.
-    fn format_goto_panel_keys(kb: &GlobalKeybindings) -> String {
-        let bindings: Vec<_> = [
-            &kb.goto_panel_1,
-            &kb.goto_panel_2,
-            &kb.goto_panel_3,
-            &kb.goto_panel_4,
-            &kb.goto_panel_5,
-            &kb.goto_panel_6,
-            &kb.goto_panel_7,
-            &kb.goto_panel_8,
-            &kb.goto_panel_9,
-        ]
-        .iter()
-        .map(|b| Self::format_keys(b))
-        .collect();
-
-        // Check if all follow "Alt+N" pattern
-        let all_default = bindings
+    /// Format a `goto_*_1..9` family as one display string: `Alt+1..9` when
+    /// it follows that pattern, otherwise the bound keys in order. Empty when
+    /// none is bound.
+    fn format_numbered_keys(bindings: [&Option<KeyBinding>; 9]) -> String {
+        let keys: Vec<String> = bindings.into_iter().map(Self::format_keys).collect();
+        let alt_digits = keys
             .iter()
             .enumerate()
-            .all(|(i, b)| *b == format!("Alt{}", i + 1));
-
-        if all_default {
+            .all(|(i, k)| *k == format!("Alt+{}", i + 1));
+        if alt_digits {
             "Alt+1..9".to_string()
         } else {
-            bindings.join(" / ")
+            keys.into_iter()
+                .filter(|k| !k.is_empty())
+                .collect::<Vec<_>>()
+                .join(" / ")
         }
     }
 
@@ -278,10 +268,6 @@ impl HelpGenerator {
                 keys: Self::format_keys(&kb.next_panel),
                 description: t.help_desc_next_panel().to_string(),
             },
-            HelpEntry {
-                keys: Self::format_goto_panel_keys(kb),
-                description: t.help_desc_goto_panel().to_string(),
-            },
         ];
         // Switching projects ships unbound: listed once the user binds it.
         let cycle = [&kb.prev_project, &kb.next_project]
@@ -296,18 +282,24 @@ impl HelpGenerator {
                 description: t.help_desc_cycle_project().to_string(),
             });
         }
-        let goto = kb
-            .goto_project()
-            .into_iter()
-            .map(Self::format_keys)
-            .filter(|keys| !keys.is_empty())
-            .collect::<Vec<_>>()
-            .join(" / ");
-        if !goto.is_empty() {
-            entries.push(HelpEntry {
-                keys: goto,
-                description: t.help_desc_goto_project().to_string(),
-            });
+        // Jumping by number: projects ship on `Alt+1..9`, panels unbound.
+        let numbered = [
+            (
+                Self::format_numbered_keys(kb.goto_project()),
+                t.help_desc_goto_project(),
+            ),
+            (
+                Self::format_numbered_keys(kb.goto_panel()),
+                t.help_desc_goto_panel(),
+            ),
+        ];
+        for (keys, description) in numbered {
+            if !keys.is_empty() {
+                entries.push(HelpEntry {
+                    keys,
+                    description: description.to_string(),
+                });
+            }
         }
 
         HelpSection {
@@ -367,6 +359,10 @@ impl HelpGenerator {
                 description: t.help_desc_pack().to_string(),
             },
             HelpEntry {
+                keys: Self::format_keys(&kb.unpack),
+                description: t.help_desc_unpack().to_string(),
+            },
+            HelpEntry {
                 keys: Self::format_keys(&kb.search),
                 description: t.help_desc_search().to_string(),
             },
@@ -397,6 +393,18 @@ impl HelpGenerator {
             HelpEntry {
                 keys: Self::format_keys(&kb.select_all),
                 description: t.help_desc_select_all().to_string(),
+            },
+            HelpEntry {
+                keys: Self::format_keys(&kb.select_group),
+                description: t.help_desc_select_group().to_string(),
+            },
+            HelpEntry {
+                keys: Self::format_keys(&kb.unselect_group),
+                description: t.help_desc_unselect_group().to_string(),
+            },
+            HelpEntry {
+                keys: Self::format_keys(&kb.invert_selection),
+                description: t.help_desc_invert_selection().to_string(),
             },
             HelpEntry {
                 keys: Self::format_keys(&kb.toggle_hidden),
@@ -709,6 +717,46 @@ impl HelpGenerator {
         }
     }
 
+    /// Generate agent panel keybindings section.
+    ///
+    /// The agent panel's keys are not configurable: they mirror the key
+    /// handling in `termide-panel-agent`'s `input.rs`, and the full table in
+    /// `doc/en/agent.md`. Prompt editing keys shared by every text field and
+    /// the `/` commands (listed by completion) are left out.
+    fn generate_agent_section(t: &dyn termide_i18n::Translation) -> HelpSection {
+        let entry = |keys: &str, description: &str| HelpEntry {
+            keys: keys.to_string(),
+            description: description.to_string(),
+        };
+        let entries = vec![
+            entry("Enter", t.help_desc_agent_send()),
+            entry("Shift+Enter / Ctrl+J", t.help_desc_agent_newline()),
+            entry("Esc", t.help_desc_agent_esc()),
+            entry("Tab", t.help_desc_agent_tab()),
+            entry("Shift+Tab", t.help_desc_agent_mode()),
+            entry("Ctrl+O", t.help_desc_agent_fold_all()),
+            entry("↑ / ↓", t.help_desc_agent_history()),
+            entry("$", t.help_desc_agent_shell()),
+            entry("Ctrl+↑↓ / PgUp / PgDn", t.help_desc_agent_scroll()),
+            entry("Ctrl+Home / Ctrl+End", t.help_desc_agent_jump()),
+            entry("Ctrl+C", t.help_desc_agent_copy()),
+            entry("Ctrl+S", t.help_desc_agent_save()),
+            entry("Space / ← / →", t.help_desc_agent_chat_fold()),
+            entry("o", t.help_desc_agent_chat_open()),
+            entry("F2", t.help_desc_agent_rename()),
+            entry("F3", t.help_desc_agent_info()),
+            entry("F4", t.help_desc_agent_rewind()),
+            entry("F5", t.help_desc_agent_fork()),
+            entry("F6", t.help_desc_agent_switch()),
+            entry("F7", t.help_desc_agent_new()),
+            entry("F8", t.help_desc_agent_delete()),
+        ];
+        HelpSection {
+            header: t.help_section_agent().to_string(),
+            entries,
+        }
+    }
+
     /// Generate database viewer keybindings section.
     fn generate_database_section(
         kb: &DatabaseKeybindings,
@@ -883,11 +931,11 @@ impl HelpGenerator {
                 description: t.help_desc_viewer_copy().to_string(),
             },
             HelpEntry {
-                keys: "Enter".to_string(),
+                keys: "Enter / Click".to_string(),
                 description: t.help_desc_viewer_follow().to_string(),
             },
             HelpEntry {
-                keys: "O".to_string(),
+                keys: format!("{} / Alt+Click", Self::format_keys(&kb.open_external)),
                 description: t.help_desc_viewer_external().to_string(),
             },
             HelpEntry {
@@ -1003,5 +1051,30 @@ impl HelpGenerator {
             }
             result
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn numbered_keys_collapse_alt_digits_and_skip_unbound() {
+        let mut config = termide_config::Config::default();
+        config.normalize();
+        let kb = &config.general.keybindings;
+        assert_eq!(
+            HelpGenerator::format_numbered_keys(kb.goto_project()),
+            "Alt+1..9"
+        );
+        assert_eq!(HelpGenerator::format_numbered_keys(kb.goto_panel()), "");
+
+        let mut kb = kb.clone();
+        kb.goto_panel_2 = Some(KeyBinding::Single("Ctrl+2".into()));
+        kb.goto_panel_5 = Some(KeyBinding::Single("Ctrl+5".into()));
+        assert_eq!(
+            HelpGenerator::format_numbered_keys(kb.goto_panel()),
+            "Ctrl+2 / Ctrl+5"
+        );
     }
 }

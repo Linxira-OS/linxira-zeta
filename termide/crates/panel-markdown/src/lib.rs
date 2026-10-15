@@ -26,8 +26,8 @@ use ratatui::{buffer::Buffer, layout::Rect, style::Style};
 
 use render::Rendered;
 use termide_core::{
-    CommandResult, Config, HotkeyTable, KeyChord, LinkOpen, Panel, PanelCommand, PanelEvent,
-    PanelState, RenderContext, SegmentKind, StatusSegment, Theme, ThemeColors, WidthPreference,
+    CommandResult, Config, HotkeyTable, KeyChord, Panel, PanelCommand, PanelEvent, PanelState,
+    RenderContext, SegmentKind, StatusSegment, Theme, ThemeColors, WidthPreference,
 };
 use termide_modal::FindBar;
 use termide_ui::ScrollBar;
@@ -95,10 +95,6 @@ pub struct MarkdownPanel {
     history: Vec<String>,
     /// Current position within `history`.
     hist_idx: usize,
-    /// Where a followed page/link opens by default (from config).
-    open_links: LinkOpen,
-    /// Where a followed image link opens by default (from config).
-    open_images: LinkOpen,
     /// Fragment to scroll to once content is (re)laid out — set when content
     /// loads from a URL carrying a `#fragment`.
     pending_anchor: Option<String>,
@@ -118,6 +114,7 @@ impl MarkdownPanel {
             error: None,
             doc: Rendered {
                 lines: Vec::new(),
+                copy: Vec::new(),
                 links: Vec::new(),
                 anchors: Vec::new(),
             },
@@ -140,8 +137,6 @@ impl MarkdownPanel {
             source_url: None,
             history: Vec::new(),
             hist_idx: 0,
-            open_links: LinkOpen::default(),
-            open_images: LinkOpen::default(),
             pending_anchor: None,
             loading: None,
         }
@@ -256,7 +251,7 @@ impl Panel for MarkdownPanel {
             .unwrap_or_else(|| self.title.clone())
     }
 
-    fn icon(&self) -> Option<&'static str> {
+    fn icon(&self) -> Option<&str> {
         // A globe for a fetched web page (matching the bookmark icon).
         self.source_url.as_ref().map(|_| "🌐")
     }
@@ -284,9 +279,8 @@ impl Panel for MarkdownPanel {
             self.last_config_ptr = ptr;
             let mut t = HotkeyTable::new();
             t.insert("toggle_view", &config.viewer.keybindings.toggle_view);
+            t.insert("open_external", &config.viewer.keybindings.open_external);
             self.hotkeys = t;
-            self.open_links = config.viewer.open_links;
-            self.open_images = config.viewer.open_images;
         }
     }
 
@@ -439,6 +433,14 @@ impl Panel for MarkdownPanel {
         if self.hotkeys.matches("toggle_view", &key) {
             return vec![PanelEvent::SwapActiveToText(self.file_path.clone())];
         }
+        // Open the link under the cursor outside termide (`O`/`Alt+Enter` by
+        // default), even where `Enter` would follow it in place.
+        if self.hotkeys.matches_canonical("open_external", &key) {
+            return match self.link_under_cursor().map(|l| l.url.clone()) {
+                Some(url) => self.activate_link_external(&url),
+                None => vec![],
+            };
+        }
         let shift = key.modifiers.contains(KeyModifiers::SHIFT);
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         let page = (self.viewport_height() as i32 - 1).max(1);
@@ -493,14 +495,6 @@ impl Panel for MarkdownPanel {
             KeyCode::Enter => {
                 if let Some(url) = self.link_under_cursor().map(|l| l.url.clone()) {
                     return self.activate_link(&url);
-                }
-                return vec![];
-            }
-            // Open the link under the cursor in the external browser, even when
-            // the viewer would otherwise navigate it in place.
-            KeyCode::Char('o') | KeyCode::Char('O') => {
-                if let Some(url) = self.link_under_cursor().map(|l| l.url.clone()) {
-                    return vec![PanelEvent::OpenExternal(PathBuf::from(self.resolve(&url)))];
                 }
                 return vec![];
             }
@@ -563,8 +557,14 @@ impl Panel for MarkdownPanel {
                 self.anchor = None;
                 self.drag_from = Some(self.cursor);
                 if let Some(url) = self.link_at(line_idx, rel_col).map(|l| l.url.clone()) {
+                    // A click follows the link inside; Alt+Click opens it
+                    // outside, as `O` does.
                     let mut evs = vec![PanelEvent::NeedsRedraw];
-                    evs.extend(self.activate_link(&url));
+                    if event.modifiers.contains(KeyModifiers::ALT) {
+                        evs.extend(self.activate_link_external(&url));
+                    } else {
+                        evs.extend(self.activate_link(&url));
+                    }
                     return evs;
                 }
             }
@@ -668,6 +668,7 @@ mod tests {
             error: None,
             doc: Rendered {
                 lines: Vec::new(),
+                copy: Vec::new(),
                 links: Vec::new(),
                 anchors: Vec::new(),
             },
@@ -690,8 +691,6 @@ mod tests {
             source_url: None,
             history: Vec::new(),
             hist_idx: 0,
-            open_links: LinkOpen::Panel,
-            open_images: LinkOpen::Panel,
             pending_anchor: None,
             loading: None,
         };

@@ -42,6 +42,7 @@ fn op_type_icon(op_type: &termide_state::OperationType) -> &'static str {
         termide_state::OperationType::MoveDownload => "\u{2193}", // ↓
         termide_state::OperationType::Delete => "\u{2715}", // ✕
         termide_state::OperationType::Pack => "\u{25A3}", // ▣
+        termide_state::OperationType::Unpack => "\u{25A2}", // ▢
         termide_state::OperationType::CommandBackground => "\u{2699}", // ⚙
         termide_state::OperationType::CommandReport => "\u{1F4CB}", // 📋
     }
@@ -60,6 +61,7 @@ fn op_type_label(op_type: &termide_state::OperationType) -> &str {
         termide_state::OperationType::MoveDownload => t.op_type_move_download(),
         termide_state::OperationType::Delete => t.progress_delete_title(),
         termide_state::OperationType::Pack => t.op_type_pack(),
+        termide_state::OperationType::Unpack => t.op_type_unpack(),
         termide_state::OperationType::CommandBackground => t.op_type_command(),
         termide_state::OperationType::CommandReport => t.op_type_command(),
     }
@@ -198,6 +200,18 @@ fn render_snapshot_card(
         y += 1;
     }
 
+    // Project of a command started in another one
+    if let Some(project) = &op.project {
+        let project = truncate_left(project, content_width);
+        buf.set_line(
+            inner.x,
+            y,
+            &Line::from(Span::styled(project, Style::default().fg(disabled_color))),
+            inner.width,
+        );
+        y += 1;
+    }
+
     // Files count (skip for commands, during scanning show "Found: N")
     if !is_command {
         let files = if is_scanning {
@@ -241,10 +255,16 @@ fn render_snapshot_card(
         y += 1;
     }
 
-    // Elapsed time (for all operations)
+    // Elapsed time (for all operations): the ticking timer every running
+    // clock shows, its spinner at rest while the operation is paused.
     {
-        let elapsed = op.started_at.elapsed().as_secs();
-        let elapsed_display = t.op_elapsed(&termide_i18n::compact_duration(elapsed));
+        let elapsed = op.started_at.elapsed();
+        let glyph = if op.is_paused {
+            termide_config::constants::TICK_GLYPH
+        } else {
+            termide_config::constants::tick_frame(elapsed)
+        };
+        let elapsed_display = format!("{glyph} {}", termide_i18n::duration(elapsed));
         buf.set_line(
             inner.x,
             y,

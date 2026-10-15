@@ -5,6 +5,7 @@
 use anyhow::Result;
 use crossterm::event::KeyEvent;
 
+use super::parked_projects::ProjectStep;
 use super::App;
 use crate::state::{ActiveModal, PendingAction};
 use crate::PanelExt;
@@ -90,26 +91,46 @@ pub(super) fn build_global_hotkey_table(kb: &GlobalKeybindings) -> HotkeyTable {
 }
 
 impl App {
+    /// Build the hotkey table when the cache holds none.
+    fn ensure_hotkey_table(&mut self) {
+        if self.state.cache.hotkey_table.is_some() {
+            return;
+        }
+        let mut table = build_global_hotkey_table(&self.state.config.general.keybindings);
+        if let Some(registry) = self.commands_registry() {
+            for (command, key_str) in registry.commands_with_hotkeys() {
+                let command_key = termide_config::commands::encode_command_menu_key(
+                    termide_config::commands::CommandMenuKeyKind::Command,
+                    &command.name,
+                    command.is_project,
+                );
+                table.insert_raw(format!("run_command:{command_key}"), key_str);
+            }
+        }
+        self.state.cache.hotkey_table = Some(table);
+    }
+
+    /// The move `key` asks of a selected open project in a menu: the keys
+    /// that move a panel between groups move it the same way.
+    pub(super) fn project_step_of(&mut self, key: &KeyEvent) -> Option<ProjectStep> {
+        self.ensure_hotkey_table();
+        let table = self.state.cache.hotkey_table.as_ref()?;
+        [
+            ("swap_left", ProjectStep::Back),
+            ("swap_right", ProjectStep::Forward),
+            ("move_first", ProjectStep::First),
+            ("move_last", ProjectStep::Last),
+        ]
+        .into_iter()
+        .find(|(action, _)| table.matches(action, key))
+        .map(|(_, step)| step)
+    }
+
     /// Handle app-level actions using HotkeyTable matching.
     ///
     /// Returns `true` if the action was handled, `false` to pass to panel.
     pub(super) fn handle_global_hotkey(&mut self, key: &KeyEvent) -> Result<bool> {
-        // Build table only when cache is empty
-        if self.state.cache.hotkey_table.is_none() {
-            let mut table = build_global_hotkey_table(&self.state.config.general.keybindings);
-            if let Some(registry) = self.commands_registry() {
-                for (command, key_str) in registry.commands_with_hotkeys() {
-                    let command_key = termide_config::commands::encode_command_menu_key(
-                        termide_config::commands::CommandMenuKeyKind::Command,
-                        &command.name,
-                        command.is_project,
-                    );
-                    table.insert_raw(format!("run_command:{command_key}"), key_str);
-                }
-            }
-            self.state.cache.hotkey_table = Some(table);
-        }
-
+        self.ensure_hotkey_table();
         let table = self.state.cache.hotkey_table.as_ref().unwrap();
 
         // Menu
@@ -384,6 +405,7 @@ impl App {
             "panel_shrink_vertical" => self.handle_panel_resize_vertical(false),
             "quit" => self.handle_quit_request()?,
             "detach_instance" => self.handle_detach_instance(),
+            "lock_vault" => self.vault_lock_now(),
             other => {
                 if let Some(key) = other.strip_prefix("run_command:") {
                     self.run_command_by_menu_key(key)?;

@@ -27,26 +27,33 @@ pub mod classifier;
 pub mod commands;
 pub mod compaction;
 pub mod context;
+pub mod failure;
 pub mod goal;
 pub mod handoff;
 pub mod hooks;
 pub mod layers;
+pub mod loop_guard;
 pub mod mcp;
 pub mod message;
 pub mod permissions;
 pub mod plan;
 pub mod provider;
+pub mod prune;
+pub mod recall;
+pub mod recap;
 pub mod refusals;
 pub mod runtime;
 pub mod session;
 pub mod shell;
 pub mod suggest;
 pub mod tool;
+pub mod tool_text;
 
-pub use acp::{AcpConfig, AcpFlavor};
+pub use acp::{companion_tools, AcpConfig, AcpFlavor, ACP_PROVIDER, COMPANION_TOOLS, MODEL_OPTION};
 pub use agent::{
-    execute_tool, Agent, AgentConfig, AgentEvent, ChainedHooks, Hooks, NoHooks, QueueHandle,
-    QueueMode, ToolDecision,
+    execute_tool, judge_tool_call, run_judged_call, unanswered_calls, Agent, AgentConfig,
+    AgentEvent, ChainedHooks, Hooks, JudgedCall, Judgment, NoHooks, QueueHandle, QueueMode,
+    ToolDecision,
 };
 pub use ask::{
     question_channel, Question, QuestionAnswer, QuestionEnvelope, QuestionOption, QuestionReply,
@@ -55,8 +62,8 @@ pub use ask::{
 pub use cancel::CancelToken;
 pub use checkpoints::{Checkpoint, CheckpointHooks, CheckpointStore, SavedFile, Undone};
 pub use classifier::{
-    parse_classification, Classifier, ClassifyPrompt, IntentEntry, IntentLog, ModelClassifier,
-    ReviewerSetup, SessionView, Verdict, SEED_CLASSIFY,
+    parse_classification, Classifier, ClassifyPrompt, IntentEntry, IntentLog, ModelChoice,
+    ModelClassifier, ReviewerSetup, SessionView, SpentMeter, Verdict, SEED_CLASSIFY,
 };
 pub use commands::{CommandScript, COMMANDS_DIR};
 pub use compaction::{CompactionPolicy, CompactionPrompts, CompactionReason};
@@ -64,16 +71,18 @@ pub use context::{
     build_system_prompt, civil_date, discover_context_files, ContextFile, PromptOptions,
     SEED_TEMPLATE,
 };
-pub use goal::{parse_verdict, GoalPrompt, GoalVerdict, SEED_GOAL};
+pub use failure::{parse_reset, Failure, FailureKind, LimitPolicy};
+pub use goal::{parse_verdict, GoalOutcome, GoalPrompt, GoalVerdict, SEED_GOAL};
 pub use handoff::{HandoffPrompt, SEED_HANDOFF};
 pub use hooks::{HookConfig, HookEvent, HOOKS_FILE};
 pub use layers::{
     ensure_global_layout, expand_arguments, split_front_matter, AgentDefinition, AgentDirs,
-    AgentSpec, LoadedSkill, PromptTemplate, SkillInfo, BROWSER_PROFILE_DIR, DEFAULT_AGENT,
-    GLOBAL_AGENT_DIR, PROJECT_AGENT_DIR, PROMPTS_DIR, ROOT_SOUL_FILE, SEED_ENGINES, SESSIONS_DIR,
-    SHARED_SKILLS_DIR, SHIMS_DIR, SKILLS_DIR, SKILL_FILE, SOUL_FILE, SPEC_FILE, SYSTEM_DIR,
-    WEB_ENGINES_DIR,
+    AgentSpec, DefinitionProblem, LoadedSkill, PromptTemplate, SkillInfo, AGENT_FILE,
+    BROWSER_PROFILE_DIR, DEFAULT_AGENT, DEFAULT_AGENT_FILE, GLOBAL_AGENT_DIR, PROJECT_AGENT_DIR,
+    PROMPTS_DIR, SEED_ENGINES, SESSIONS_DIR, SHARED_SKILLS_DIR, SHIMS_DIR, SKILLS_DIR, SKILL_FILE,
+    SYSTEM_DIR, WEB_ENGINES_DIR,
 };
+pub use loop_guard::{LoopGuard, LoopPrompt, LoopReport, SEED_LOOP};
 pub use mcp::{
     expand_env, mcp_servers_from_json, McpOAuth, McpReload, McpServerConfig, McpServerState,
     McpSignIn, McpStatus, McpTarget, MCP_FILE, MCP_JSON_FILE,
@@ -89,14 +98,24 @@ pub use permissions::{
     PermissionRules, PersistRule, PersistScope, PlanGuard, RuleTables, ShellPart,
 };
 pub use plan::{PlanPrompt, SEED_PLAN};
-pub use provider::{ModelInfo, ModelSpec, Provider, Request, StreamEvent, ThinkingLevel, ToolSpec};
+pub use provider::{
+    one_shot, ModelInfo, ModelSpec, Provider, Request, StreamEvent, ThinkingLevel, ToolSpec,
+};
+pub use prune::{prune_by, prune_to_decisions};
+pub use recall::{RecallPrompt, SEED_RECALL};
+pub use recap::{recap, RECAP_LIMIT};
 pub use refusals::{Refusals, SEED_PERMISSIONS};
-pub use runtime::{AgentRuntime, Backend, BackendModel, BackendSetup, HostTools, PromptError};
+pub use runtime::{
+    AgentCommand, AgentRuntime, Backend, BackendModel, BackendOption, BackendSetup, HostTools,
+    PromptError,
+};
 pub use session::{
-    Entry, EntryKind, LoggedMessage, Session, SessionHeader, SessionModel, SessionSummary, Timing,
+    Autorun, Entry, EntryKind, ExternalSessionRef, GoalRecord, LastRun, LoggedMessage, LoopRecord,
+    RunMark, Session, SessionHeader, SessionModel, SessionSummary, Timing,
 };
 pub use shell::{ShellOutput, ShellRunner};
 pub use suggest::{
     suggestion_channel, CommandSuggester, Suggestion, SuggestionEnvelope, SuggestionReply,
 };
 pub use tool::{LateTools, Tool, ToolContext, ToolRegistry, ToolUpdate};
+pub use tool_text::{apply_tool_texts, ToolText, SEED_TOOLS, TOOLS_DIR};

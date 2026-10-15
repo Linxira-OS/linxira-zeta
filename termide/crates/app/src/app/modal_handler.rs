@@ -12,6 +12,9 @@ use termide_ui::path_utils;
 impl App {
     /// Handle keyboard event in modal window
     pub(super) fn handle_modal_key(&mut self, key: crossterm::event::KeyEvent) -> Result<()> {
+        if self.move_switcher_project(&key) {
+            return Ok(());
+        }
         // Indicator modals opened from menu: intercept Left/Right/Esc for menu navigation
         if self.state.is_menu_open() {
             let is_resource = self.state.is_resource_modal_open();
@@ -65,6 +68,10 @@ impl App {
         if let Some(modal) = self.state.get_active_modal_mut() {
             // Handle event in corresponding modal window
             let modal_result = modal.handle_key_erased(chord)?;
+            // Taken now: the result below may close the modal.
+            if let ActiveModal::Settings(settings) = modal {
+                self.settings_save = settings.take_save_request().or(self.settings_save.take());
+            }
 
             // If modal window returned result, handle it
             if let Some(result) = modal_result {
@@ -143,29 +150,45 @@ impl App {
                                 self.reopen_bookmarks_menu(None, is_project, selected);
                                 return Ok(());
                             }
-                            PendingAction::DeleteProject { menu, .. }
-                            | PendingAction::CloseProject { menu, .. } => {
+                            PendingAction::DeleteProject { from, .. }
+                            | PendingAction::CloseProject { from, .. } => {
                                 self.state.close_modal();
-                                self.return_to_projects(menu)?;
+                                self.return_to_projects(from)?;
                                 return Ok(());
                             }
+                            PendingAction::Vault => {
+                                self.state.close_modal();
+                                self.vault_prompt_cancelled();
+                                return Ok(());
+                            }
+                            // A refused quit is answered by the refusal. Keeping
+                            // it pending — as before — let a later modal's Enter
+                            // run it: a quit dismissed with Esc came back to end
+                            // the app when an unrelated report modal closed.
+                            PendingAction::QuitApplication => {}
+                            // Settings save as they change; closing is all
+                            // that is left of them.
+                            PendingAction::Settings => {}
                             other => self.state.pending_action = Some(other),
                         }
                     }
                 }
 
                 self.sync_copy_symlink_flag();
+                self.sync_pack_level();
                 // Read InputModal checkbox before closing (used by stash push)
                 if let Some(termide_modal::ActiveModal::Input(ref modal)) = self.state.active_modal
                 {
                     self.state.stash.include_untracked = modal.is_checkbox_checked();
                 }
+                self.capture_vault_checkbox();
                 self.state.close_modal();
                 if let ModalResult::Confirmed(value) = result {
                     self.handle_modal_result(value)?;
                 }
             }
         }
+        self.flush_settings_save();
         self.try_apply_permissions_live();
         Ok(())
     }
@@ -190,6 +213,10 @@ impl App {
         if let Some(modal) = self.state.get_active_modal_mut() {
             // Handle event in corresponding modal window
             let modal_result = modal.handle_mouse_erased(mouse, modal_area)?;
+            // Taken now: the result below may close the modal.
+            if let termide_modal::ActiveModal::Settings(settings) = modal {
+                self.settings_save = settings.take_save_request().or(self.settings_save.take());
+            }
 
             // If modal window returned result, handle it
             if let Some(result) = modal_result {
@@ -199,17 +226,31 @@ impl App {
                 }
 
                 self.sync_copy_symlink_flag();
+                self.sync_pack_level();
                 // Read InputModal checkbox before closing (used by stash push)
                 if let Some(termide_modal::ActiveModal::Input(ref modal)) = self.state.active_modal
                 {
                     self.state.stash.include_untracked = modal.is_checkbox_checked();
                 }
+                if matches!(result, ModalResult::Cancelled)
+                    && matches!(
+                        self.state.pending_action,
+                        Some(termide_state::PendingAction::Vault)
+                    )
+                {
+                    self.state.pending_action = None;
+                    self.state.close_modal();
+                    self.vault_prompt_cancelled();
+                    return Ok(());
+                }
+                self.capture_vault_checkbox();
                 self.state.close_modal();
                 if let ModalResult::Confirmed(value) = result {
                     self.handle_modal_result(value)?;
                 }
             }
         }
+        self.flush_settings_save();
         self.try_apply_permissions_live();
         Ok(())
     }
@@ -309,11 +350,8 @@ impl App {
                 PendingAction::ViewPath { base_dir } => {
                     self.handle_view_path(base_dir, value)?;
                 }
-                PendingAction::GitSshPassphraseRetry {
-                    operation,
-                    repo_path,
-                } => {
-                    self.handle_git_ssh_passphrase_retry(operation, repo_path, value)?;
+                PendingAction::Vault => {
+                    self.vault_prompt_confirmed(value.as_ref());
                 }
                 PendingAction::CreateDirectory { directory } => {
                     self.handle_create_directory(directory, value)?;
@@ -420,8 +458,24 @@ impl App {
                     }
                     self.handle_move_path(sources, target_directory, value)?;
                 }
-                PendingAction::PackPaths { sources } => {
-                    self.handle_pack_paths(sources, value)?;
+                PendingAction::PackPaths { sources, level } => {
+                    self.handle_pack_paths(sources, level, value)?;
+                }
+                PendingAction::UnpackArchives { archives } => {
+                    self.handle_unpack_archives(archives, value)?;
+                }
+                PendingAction::ConfirmUnpack { plan } => {
+                    self.handle_confirm_unpack(plan, value)?;
+                }
+                PendingAction::UnpackPassword { plan } => {
+                    self.handle_unpack_password(plan, value)?;
+                }
+                PendingAction::SelectByMask { select } => {
+                    if let Some(mask) = value.downcast_ref::<String>() {
+                        if let Some(fm) = self.active_file_manager_mut() {
+                            fm.apply_selection_mask(mask, select);
+                        }
+                    }
                 }
                 PendingAction::ArchivePassword { archive } => {
                     if let Some(password) = value.downcast_ref::<String>() {
@@ -474,9 +528,17 @@ impl App {
                     }
                 }
                 PendingAction::QuitApplication => {
-                    // User confirmed quit - exit application
-                    self.state.quit();
+                    // Only an accepted answer quits. Quit always asks behind a
+                    // ConfirmModal, whose result is a `bool`; every other arm of
+                    // this match checks that bool and this one did not, so a
+                    // quit the user refused — or an answer from any other modal
+                    // — ended the application.
+                    if quit_is_confirmed(&*value) {
+                        self.state.quit();
+                    }
                 }
+                // Closing the settings carries nothing: they save as they change.
+                PendingAction::Settings => {}
                 PendingAction::CancelOperation(op_id) => {
                     // User confirmed cancelling the background operation.
                     if value.downcast_ref::<bool>().copied().unwrap_or(false) {
@@ -501,21 +563,21 @@ impl App {
                 PendingAction::SwitchProject => {
                     self.handle_switch_project(value)?;
                 }
-                PendingAction::CloseProject { root, menu } => {
+                PendingAction::CloseProject { root, from } => {
                     if value.downcast_ref::<bool>().copied().unwrap_or(false) {
-                        self.close_project(&root, menu)?;
+                        self.close_project(&root, from)?;
                     } else {
-                        self.return_to_projects(menu)?;
+                        self.return_to_projects(from)?;
                     }
                 }
                 PendingAction::NewProject => {
                     self.handle_new_project_result(value)?;
                 }
-                PendingAction::DeleteProject { path, menu } => {
+                PendingAction::DeleteProject { path, from } => {
                     if value.downcast_ref::<bool>().copied().unwrap_or(false) {
-                        self.handle_delete_project(&path, menu)?;
+                        self.handle_delete_project(&path, from)?;
                     } else {
-                        self.return_to_projects(menu)?;
+                        self.return_to_projects(from)?;
                     }
                 }
                 PendingAction::DeleteBookmark {
@@ -585,6 +647,9 @@ impl App {
                     let result_is_project = value
                         .downcast_ref::<BookmarkAddResult>()
                         .is_some_and(|r| r.is_project);
+                    let result_path = value
+                        .downcast_ref::<BookmarkAddResult>()
+                        .map(|r| r.path.clone());
                     if let Some(err) = self.handle_edit_bookmark_result(
                         value,
                         &original_path,
@@ -592,6 +657,15 @@ impl App {
                         was_project,
                     )? {
                         self.show_bookmark_error(&err);
+                    } else if let Some(path) = result_path {
+                        let back = super::vault::BookmarkReturn {
+                            group: result_group.clone(),
+                            is_project: result_is_project,
+                            selected,
+                        };
+                        if self.offer_bookmark_password_move(&path, back) {
+                            return Ok(());
+                        }
                     }
                     self.reopen_bookmarks_menu(result_group, result_is_project, selected);
                 }
@@ -642,8 +716,20 @@ impl App {
                     let result_is_project = value
                         .downcast_ref::<BookmarkAddResult>()
                         .is_some_and(|r| r.is_project);
+                    let result_path = value
+                        .downcast_ref::<BookmarkAddResult>()
+                        .map(|r| r.path.clone());
                     if let Some(err) = self.handle_add_bookmark_result(value)? {
                         self.show_bookmark_error(&err);
+                    } else if let Some(path) = result_path {
+                        let back = super::vault::BookmarkReturn {
+                            group: result_group.clone(),
+                            is_project: result_is_project,
+                            selected,
+                        };
+                        if self.offer_bookmark_password_move(&path, back) {
+                            return Ok(());
+                        }
                     }
                     self.reopen_bookmarks_menu(result_group, result_is_project, selected);
                 }
@@ -860,91 +946,6 @@ impl App {
                     }
                     self.reopen_bookmarks_menu(group, is_project, selected);
                 }
-                PendingAction::Settings => {
-                    use termide_modal::SettingsResult;
-                    if let Some(result) = value.downcast_ref::<SettingsResult>() {
-                        match result {
-                            SettingsResult::Apply(config) => {
-                                if let Err(e) =
-                                    self.save_config_to_active_target((**config).clone())
-                                {
-                                    log::error!("Failed to save settings: {}", e);
-                                    self.show_error_modal(format!(
-                                        "Failed to save settings: {}",
-                                        e
-                                    ));
-                                } else {
-                                    // Refresh theme and language
-                                    let theme_name = config.general.theme.clone();
-                                    self.apply_theme(&theme_name)?;
-                                    let lang_code = config.general.language.clone();
-                                    let languages = termide_i18n::get_language_list();
-                                    if let Some((_, name)) =
-                                        languages.iter().find(|(c, _)| c == &lang_code)
-                                    {
-                                        self.apply_language(&lang_code, name)?;
-                                    }
-                                    self.state.set_info("Settings saved".to_string());
-                                }
-                            }
-                            SettingsResult::CreateProjectOverride(config) => {
-                                let cfg = (**config).clone();
-                                if let Err(e) = cfg
-                                    .save_project(&self.project_root, &self.state.global_baseline)
-                                {
-                                    log::error!("Failed to create project override: {}", e);
-                                    self.show_error_modal(format!(
-                                        "Failed to create project override: {}",
-                                        e
-                                    ));
-                                } else {
-                                    super::agent_panel::publish_ai_settings(&cfg.ai);
-                                    self.state.config = std::sync::Arc::new(cfg);
-                                    log::info!(
-                                        "Created project override at {}",
-                                        termide_config::project_config_path(&self.project_root)
-                                            .display()
-                                    );
-                                }
-                            }
-                            SettingsResult::RemoveProjectOverride => {
-                                let t = termide_i18n::t();
-                                let modal = termide_modal::ConfirmModal::new(
-                                    t.settings_remove_project_override_title(),
-                                    t.settings_remove_project_override_message(),
-                                );
-                                self.state.set_pending_action(
-                                    crate::state::PendingAction::RemoveProjectOverride,
-                                    crate::state::ActiveModal::Confirm(Box::new(modal)),
-                                );
-                            }
-                            SettingsResult::Cancel => {}
-                        }
-                    }
-                }
-                PendingAction::RemoveProjectOverride => {
-                    if value.downcast_ref::<bool>().copied().unwrap_or(false) {
-                        let path = termide_config::project_config_path(&self.project_root);
-                        match std::fs::remove_file(&path) {
-                            Ok(()) => {
-                                log::info!("Removed project override at {}", path.display());
-                                // Effective config falls back to defaults+global.
-                                super::agent_panel::publish_ai_settings(
-                                    &self.state.global_baseline.ai,
-                                );
-                                self.state.config =
-                                    std::sync::Arc::clone(&self.state.global_baseline);
-                            }
-                            Err(e) => {
-                                log::error!("Failed to remove project override: {}", e);
-                                self.show_error_modal(format!(
-                                    "Failed to remove project override: {}",
-                                    e
-                                ));
-                            }
-                        }
-                    }
-                }
                 PendingAction::DbFilter => {
                     use termide_modal::DbFilterResult;
                     if let Some(result) = value.downcast_ref::<DbFilterResult>() {
@@ -1018,5 +1019,35 @@ impl App {
             }
         }
         Ok(())
+    }
+}
+
+/// Whether a modal answer accepts quitting.
+///
+/// Quit asks behind a `ConfirmModal`, which answers with a `bool`. Any other
+/// value means the answer did not come from that confirmation — an
+/// `InfoModal` reports `()` — and quitting on it would end the application
+/// on a keystroke that only dismissed a message.
+fn quit_is_confirmed(value: &dyn std::any::Any) -> bool {
+    value.downcast_ref::<bool>().copied().unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::quit_is_confirmed;
+
+    #[test]
+    fn only_an_accepted_confirmation_quits() {
+        assert!(quit_is_confirmed(&true));
+        assert!(!quit_is_confirmed(&false));
+    }
+
+    /// The report of a finished command is an `InfoModal`, whose Enter
+    /// answers `()`. It must not be read as consent to quit: a quit refused
+    /// earlier used to stay pending, and the next modal's Enter ran it.
+    #[test]
+    fn a_message_modal_answering_nothing_does_not_quit() {
+        assert!(!quit_is_confirmed(&()));
+        assert!(!quit_is_confirmed(&String::from("yes")));
     }
 }

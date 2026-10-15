@@ -7,16 +7,17 @@ use anyhow::Result;
 use ratatui::layout::Rect;
 use std::sync::Arc;
 
+use super::project_drag::ProjectDragSurface;
 use crate::app::App;
-use crate::projects_menu::ProjectsTarget;
+use crate::projects_menu::{ProjectRow, ProjectsTarget};
 use termide_i18n as i18n;
 use termide_theme::Theme;
 use termide_ui_render::{
-    dropdown_geometry, dropdown_width, get_ai_agent_choice_items, get_ai_items,
-    get_bookmarks_group_items, get_bookmarks_items, get_commands_group_items, get_commands_items,
-    get_menu_item_x_position, get_options_items, get_shell_items, get_tools_items,
-    language_dropdown_geometry, theme_dropdown_geometry, AI_MENU_INDEX, BOOKMARKS_MENU_INDEX,
-    COMMANDS_MENU_INDEX, OPTIONS_MENU_INDEX, WINDOWS_MENU_INDEX,
+    dropdown_geometry, dropdown_width, get_ai_items, get_bookmarks_group_items,
+    get_bookmarks_items, get_commands_group_items, get_commands_items, get_menu_item_x_position,
+    get_options_items, get_shell_items, get_tools_items, language_dropdown_geometry,
+    theme_dropdown_geometry, AI_MENU_INDEX, BOOKMARKS_MENU_INDEX, COMMANDS_MENU_INDEX,
+    OPTIONS_MENU_INDEX, WINDOWS_MENU_INDEX,
 };
 
 /// Hit-test a dropdown menu and return the clicked item index (if any).
@@ -187,10 +188,23 @@ impl App {
         if menu.items.get(index).is_none_or(|item| item.is_separator) {
             return Ok(true);
         }
+        // An open project is held: released where it was pressed it is
+        // switched to, dragged over the others it moves.
+        let open_place = match menu.rows.get(index) {
+            Some(ProjectRow::Project(project)) if project.open => menu
+                .rows
+                .iter()
+                .position(|row| matches!(row, ProjectRow::Project(_)))
+                .map(|first| index - first),
+            _ => None,
+        };
         let target = ProjectsTarget::of(menu.rows.get(index));
         drop(menu);
         self.state.ui.projects_submenu.selected = index;
-        self.activate_projects_target(target)?;
+        match open_place {
+            Some(place) => self.begin_project_drag(ProjectDragSurface::Menu, place, x, y),
+            None => self.activate_projects_target(target)?,
+        }
         Ok(true)
     }
 
@@ -328,27 +342,6 @@ impl App {
                 if !nested_items.is_empty() {
                     let nested_x = menu_x + dropdown_width(&ai_items);
                     let nested_y = 2 + self.state.ui.ai_submenu.selected as u16;
-
-                    // The agent file-choice (third level) sits to the right of
-                    // the nested list, at the selected agent's row.
-                    if self.state.ui.ai_agent_choice.open {
-                        let choice_items = get_ai_agent_choice_items();
-                        let choice_x = nested_x + dropdown_width(&nested_items);
-                        let choice_y = nested_y + 1 + self.state.ui.ai_nested.selected as u16;
-                        if let Some(index) = hit_dropdown_item(
-                            x,
-                            y,
-                            choice_x,
-                            choice_y,
-                            &choice_items,
-                            self.state.ui.ai_agent_choice.selected,
-                            self.screen_rect(),
-                        ) {
-                            self.state.ui.ai_agent_choice.selected = index;
-                            self.execute_ai_agent_choice_action()?;
-                            return Ok(true);
-                        }
-                    }
 
                     if let Some(index) = hit_dropdown_item(
                         x,

@@ -545,9 +545,18 @@ pub enum PanelEvent {
     /// followed inside a fetched page, or a history back/forward step).
     NavigateUrl(String),
 
-    /// Open an `http(s)://` URL in a new viewer panel (a web link followed from
-    /// a file-backed viewer when links open in the panel).
-    OpenUrl(String),
+    /// Follow a link the user clicked — in the terminal, the agent panel or a
+    /// viewer. The app opens it inside, the same way from any panel: an
+    /// `http(s)` address fetched into a viewer (an `ftp://` one in the
+    /// browser, as the viewer cannot fetch it), a directory in the file
+    /// manager, a file by its type as Open… does.
+    OpenLink(crate::links::LinkTarget),
+
+    /// Open a link outside termide — a web address in the browser, a local
+    /// path in its system application. The explicit "external" twin of
+    /// [`PanelEvent::OpenLink`]: `O`/`Alt+Enter`/`Alt+Click` in a viewer,
+    /// `Ctrl+Alt+Click` in the terminal and the agent panel.
+    OpenLinkExternal(crate::links::LinkTarget),
 
     /// Open an `.html` file in the rendered HTML viewer (read-only)
     ViewHtml(PathBuf),
@@ -788,6 +797,16 @@ pub enum PanelEvent {
         session: Option<PathBuf>,
         cwd: PathBuf,
     },
+
+    /// The connection to `url` (password-free) was refused; `attempt` says
+    /// which password it used. See [`crate::credentials`].
+    CredentialsRequired {
+        url: String,
+        attempt: crate::CredentialAttempt,
+    },
+
+    /// The connection to `url` succeeded with the password last provided.
+    CredentialsAccepted { url: String },
 }
 
 /// A single file location from LSP find-references.
@@ -887,15 +906,6 @@ pub enum InputAction {
         file_path: PathBuf,
         line: usize,
         column: usize,
-    },
-
-    /// Retry a git network operation (fetch/pull/push) with an SSH key
-    /// passphrase the user types into a masked modal.
-    GitSshPassphrase {
-        /// "fetch" | "pull" | "push"
-        operation: String,
-        /// Repository root path
-        repo_path: PathBuf,
     },
 }
 

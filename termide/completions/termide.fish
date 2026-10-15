@@ -15,6 +15,7 @@ end
 
 complete -c termide -l log-level -d 'Minimum log level' -x -a 'trace debug info warn error'
 complete -c termide -l no-lsp -d 'Disable LSP support'
+complete -c termide -s r -l restore -d 'Reopen the projects of the last run'
 complete -c termide -l config -d 'Path to config file' -r -F
 complete -c termide -l diagnostics -d 'Run pre-flight diagnostics and exit'
 complete -c termide -l detached -d 'Start a detached instance and print its id'
@@ -27,6 +28,7 @@ complete -c termide -l list-instances -d 'List detached instances and exit'
 complete -c termide -l completions -d 'Print a shell completion script and exit' -x -a 'bash zsh fish'
 complete -c termide -l install-completions -d 'Install the completion script for a shell, $SHELL by default' -x -a 'bash zsh fish'
 complete -c termide -l prompt -d 'Run one agent task without the UI and print the answer' -x
+complete -c termide -l recall -d 'Search earlier agent sessions, git history and code and print the results' -x
 complete -c termide -l agent -d 'Agent definition the --prompt run uses' -x
 complete -c termide -l output -d 'Headless output format' -x -a 'text json stream-json'
 complete -c termide -s h -l help -d 'Print help'

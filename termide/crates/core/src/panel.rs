@@ -20,7 +20,7 @@ use termide_theme::Theme;
 use crate::{CommandResult, KeyChord, PanelCommand, PanelEvent};
 
 // Re-export PanelState from termide-project for unified type
-pub use termide_project::PanelState;
+pub use termide_project::{AgentSetupState, PanelState};
 
 /// Configuration settings relevant to panels.
 ///
@@ -290,7 +290,7 @@ pub trait Panel: Any {
     /// Optional per-instance header icon, overriding the by-name default
     /// (e.g. a globe for a viewer showing a fetched web page). `None` uses the
     /// panel-type icon.
-    fn icon(&self) -> Option<&'static str> {
+    fn icon(&self) -> Option<&str> {
         None
     }
 
@@ -419,6 +419,15 @@ pub trait Panel: Any {
     /// (e.g., when search mode is active).
     fn captures_escape(&self) -> bool {
         false
+    }
+
+    /// Whether the click that focuses this panel also acts inside it.
+    ///
+    /// When false, a left press on the panel while it is not the active one
+    /// only activates it: the press, its drag and its release never reach
+    /// [`Panel::handle_mouse`], so the user clicks again where they meant to.
+    fn focus_click_acts(&self) -> bool {
+        true
     }
 
     /// Reload panel content from source.

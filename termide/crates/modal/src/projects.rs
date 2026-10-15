@@ -2,8 +2,8 @@
 //!
 //! Lists the projects as the Projects menu does: the open ones first, then
 //! the others below a separator. Each takes one row — the mark (● current,
-//! ○ open in the background), when it was last worked on, the path, and 🔔
-//! when a panel of it waits for the user — and the row under the cursor is
+//! ○ open in the background), when it was last worked on, the path, and the
+//! attention mark when a panel of it waits for the user — and the row under the cursor is
 //! inverted, as in the agent's session list.
 
 use anyhow::Result;
@@ -17,7 +17,7 @@ use ratatui::{
 };
 
 use crate::base::render_modal_block;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use termide_theme::Theme;
 use termide_ui::str_display_width;
@@ -28,15 +28,13 @@ use crate::{calculate_modal_width, centered_rect_with_size, Modal, ModalResult, 
 pub const CURRENT_MARK: &str = "●";
 /// Marks a project open in the background.
 pub const OPEN_MARK: &str = "○";
-/// Marks a project with a panel that waits for the user.
-pub const ATTENTION_MARK: &str = "🔔";
 
 /// Action returned by the projects modal
 #[derive(Debug, Clone)]
 pub enum ProjectAction {
     /// Switch to the selected project
     Switch(PathBuf),
-    /// Close the selected project, open in the background
+    /// Close the selected open project, the current one included
     Close(PathBuf),
     /// Request deletion of the selected project's layout
     Delete(PathBuf),
@@ -80,7 +78,7 @@ impl ProjectItem {
             format!("{} ", self.modified)
         };
         let tail = if self.attention {
-            format!(" {ATTENTION_MARK}")
+            format!(" {}", termide_core::attention_mark())
         } else {
             String::new()
         };
@@ -245,6 +243,34 @@ impl ProjectsModal {
             termide_ui::ensure_offset_visible(self.scroll_offset, row, MAX_VISIBLE_ROWS);
     }
 
+    /// The open project under the cursor, while the list is not filtered:
+    /// a filtered list is ranked by match, so a place in it means nothing.
+    pub fn selected_open_project(&self) -> Option<&Path> {
+        if !self.filter.is_empty() {
+            return None;
+        }
+        self.get_selected()
+            .filter(|item| item.is_open)
+            .map(|item| item.project_path.as_path())
+    }
+
+    /// Move the open project under the cursor to place `to` among the open
+    /// ones, which lead the list, the cursor with it. Nothing moves while
+    /// the list is filtered.
+    pub fn move_selected_open_project(&mut self, to: usize) {
+        if self.selected_open_project().is_none() {
+            return;
+        }
+        // Unfiltered, the list shows the items in their order.
+        let from = self.cursor;
+        let open = self.items.iter().take_while(|item| item.is_open).count();
+        let to = to.min(open.saturating_sub(1));
+        let item = self.items.remove(from);
+        self.items.insert(to, item);
+        self.cursor = to;
+        self.adjust_scroll();
+    }
+
     /// Get the selected project from filtered list
     fn get_selected(&self) -> Option<&ProjectItem> {
         self.filtered_indices
@@ -340,10 +366,6 @@ impl Modal for ProjectsModal {
                             .fg(theme.bg)
                             .bg(theme.fg)
                             .add_modifier(Modifier::BOLD)
-                    } else if item.attention {
-                        Style::default()
-                            .fg(theme.warning)
-                            .add_modifier(Modifier::BOLD)
                     } else if item.is_current {
                         Style::default().fg(theme.accented_fg)
                     } else {
@@ -413,17 +435,15 @@ impl Modal for ProjectsModal {
                 }
             }
 
-            // Delete or F8: close a project open in the background, delete
-            // the saved layout of one that is not open. The current project
-            // stays.
-            KeyCode::Delete | KeyCode::F(8) => Ok(self.get_selected().and_then(|item| {
+            // Delete or F8: close an open project (the current one too: the
+            // app switches to another first), delete the saved layout of one
+            // that is not open.
+            KeyCode::Delete | KeyCode::F(8) => Ok(self.get_selected().map(|item| {
                 let path = item.project_path.clone();
-                if item.is_current {
-                    None
-                } else if item.is_open {
-                    Some(ModalResult::Confirmed(ProjectAction::Close(path)))
+                if item.is_current || item.is_open {
+                    ModalResult::Confirmed(ProjectAction::Close(path))
                 } else {
-                    Some(ModalResult::Confirmed(ProjectAction::Delete(path)))
+                    ModalResult::Confirmed(ProjectAction::Delete(path))
                 }
             })),
 
@@ -525,7 +545,10 @@ mod tests {
             item("/closed", false, false),
         ];
         let mut modal = ProjectsModal::new("Projects", items).with_cursor(0);
-        assert!(press(&mut modal, KeyCode::Delete).is_none());
+        assert!(matches!(
+            press(&mut modal, KeyCode::Delete),
+            Some(ModalResult::Confirmed(ProjectAction::Close(path))) if path == Path::new("/current")
+        ));
         press(&mut modal, KeyCode::Down);
         assert!(matches!(
             press(&mut modal, KeyCode::Delete),
@@ -539,11 +562,51 @@ mod tests {
     }
 
     #[test]
+    fn an_open_project_moves_among_the_open_ones_until_filtered() {
+        let items = vec![
+            item("/a", true, true),
+            item("/b", false, true),
+            item("/c", false, true),
+            item("/d", false, false),
+        ];
+        let mut modal = ProjectsModal::new("Projects", items).with_cursor(2);
+        assert_eq!(modal.selected_open_project(), Some(Path::new("/c")));
+        modal.move_selected_open_project(0);
+        let paths: Vec<_> = modal
+            .items
+            .iter()
+            .map(|i| i.display_path.as_str())
+            .collect();
+        assert_eq!(paths, ["/c", "/a", "/b", "/d"]);
+        assert_eq!(modal.selected_open_project(), Some(Path::new("/c")));
+
+        modal.move_selected_open_project(99);
+        let paths: Vec<_> = modal
+            .items
+            .iter()
+            .map(|i| i.display_path.as_str())
+            .collect();
+        assert_eq!(paths, ["/a", "/b", "/c", "/d"], "never past the open ones");
+
+        press(&mut modal, KeyCode::Down);
+        assert_eq!(modal.selected_open_project(), None, "not open");
+        press(&mut modal, KeyCode::Up);
+        press(&mut modal, KeyCode::Char('c'));
+        assert_eq!(modal.selected_open_project(), None, "filtered");
+    }
+
+    #[test]
     fn a_row_carries_the_mark_the_time_the_path_and_the_bell() {
         let mut background = item("~/api", false, true);
         background.modified = "2026-10-03 14:22".into();
         background.attention = true;
-        assert_eq!(background.label(), "○ 2026-10-03 14:22 ~/api 🔔");
+        assert_eq!(
+            background.label(),
+            format!(
+                "○ 2026-10-03 14:22 ~/api {}",
+                termide_core::attention_mark()
+            )
+        );
         assert_eq!(item("~/x", true, true).label(), "● ~/x");
         assert_eq!(item("~/y", false, false).label(), "  ~/y");
     }
@@ -554,7 +617,8 @@ mod tests {
         long.attention = true;
         let (mark, time, rest) = long.segments(20);
         let fitted = format!("{mark}{time}{rest}");
-        assert!(fitted.ends_with("project 🔔"), "{fitted}");
+        let tail = format!("project {}", termide_core::attention_mark());
+        assert!(fitted.ends_with(&tail), "{fitted}");
         assert!(fitted.starts_with("○ …"), "{fitted}");
         assert_eq!(str_display_width(&fitted), 20);
     }

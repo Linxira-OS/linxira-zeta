@@ -10,7 +10,7 @@ use termide_agent_core::{
 };
 use termide_core::ThemeColors;
 use termide_panel_markdown::render_markdown;
-use termide_richtext::Builder;
+use termide_richtext::{Builder, RowCopy};
 
 /// Lines of tool output shown when a call is expanded.
 const EXPANDED_OUTPUT_LINES: usize = 60;
@@ -246,6 +246,8 @@ pub enum Item {
         /// The pause is still on: its line ticks and its `‖` stands out, as
         /// the live run clock does; once it ends both rest, dimmed.
         live: bool,
+        /// The run was cut off: the panel or termide closed while it ran.
+        cut: bool,
     },
 }
 
@@ -255,6 +257,32 @@ struct Cached {
     /// Whether the item folds at this width (see [`render_item`]).
     foldable: bool,
     lines: Vec<Line<'static>>,
+    /// The links the item marks up, on its own lines.
+    links: Vec<RowLink>,
+    /// How each of `lines` reads when copied.
+    copy: Vec<RowCopy>,
+}
+
+/// A lit stretch of a link: `(line, start, end)`, a `[start, end)` column
+/// range on a flattened line.
+pub(crate) type LinkRegion = (usize, usize, usize);
+
+/// A link a block marks up rather than writes out — a Markdown
+/// `[text](href)` in an answer, a tool call's path or URL in its wrapped
+/// headline — as a `[start, end)` column range on one of the rendered lines.
+/// A link wrapped over several lines is several of these sharing an `id`.
+/// A web address or path written out in plain text is found on its row
+/// instead (`select::link_at`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RowLink {
+    pub line: usize,
+    pub start: usize,
+    pub end: usize,
+    /// The target as the block gives it: a URL, or a path that may be
+    /// relative to the working directory.
+    pub href: String,
+    /// Which link of its block the region belongs to.
+    pub id: usize,
 }
 
 #[derive(Default)]
@@ -272,6 +300,10 @@ pub struct Transcript {
     flat: Vec<Line<'static>>,
     /// Item index per flattened line, for click-to-expand.
     line_item: Vec<usize>,
+    /// How each flattened line reads when copied.
+    flat_copy: Vec<RowCopy>,
+    /// The marked-up links on the flattened lines, with their item.
+    flat_links: Vec<(usize, RowLink)>,
     flat_dirty: bool,
     /// Live footer lines appended after the last item while the agent works
     /// (the ticking generation and clock meta with the spinner); empty when
@@ -291,6 +323,21 @@ impl Transcript {
         for index in 0..self.cache.len() {
             self.invalidate(index);
         }
+    }
+
+    /// The `task` calls still running: each one's index, call and the
+    /// subagent's progress so far.
+    pub(crate) fn running_tasks(&self) -> Vec<(usize, &ToolCall, Option<&str>)> {
+        self.items
+            .iter()
+            .enumerate()
+            .filter_map(|(index, item)| match item {
+                Item::Tool { call, live, .. } if call.name == "task" && is_live(item) => {
+                    Some((index, call, live.as_deref()))
+                }
+                _ => None,
+            })
+            .collect()
     }
 
     #[must_use]
@@ -316,6 +363,8 @@ impl Transcript {
         self.cache.clear();
         self.flat.clear();
         self.line_item.clear();
+        self.flat_copy.clear();
+        self.flat_links.clear();
         self.flat_dirty = true;
     }
 
@@ -574,6 +623,7 @@ impl Transcript {
             ok,
             paused,
             live: paused,
+            cut: false,
         });
     }
 
@@ -764,7 +814,7 @@ impl Transcript {
                 None => true,
             };
             if stale {
-                let (lines, foldable) = render_item(
+                let (lines, foldable, links, copy) = render_item(
                     &self.items[index],
                     self.collapsed[index],
                     self.fold,
@@ -777,6 +827,8 @@ impl Transcript {
                     is_light,
                     foldable,
                     lines,
+                    links,
+                    copy,
                 });
                 self.flat_dirty = true;
             }
@@ -784,19 +836,35 @@ impl Transcript {
         if self.flat_dirty {
             self.flat.clear();
             self.line_item.clear();
+            self.flat_copy.clear();
+            self.flat_links.clear();
             for (index, cached) in self.cache.iter().enumerate() {
                 if let Some(cached) = cached {
+                    let base = self.flat.len();
+                    self.flat_links.extend(cached.links.iter().map(|link| {
+                        let line = base + link.line;
+                        (
+                            index,
+                            RowLink {
+                                line,
+                                ..link.clone()
+                            },
+                        )
+                    }));
                     self.flat.extend(cached.lines.iter().cloned());
+                    self.flat_copy.extend(cached.copy.iter().copied());
                     self.line_item
                         .extend(std::iter::repeat_n(index, cached.lines.len()));
                     if !cached.lines.is_empty() && self.gap_after(index) {
                         self.flat.push(Line::default());
+                        self.flat_copy.push(RowCopy::default());
                         self.line_item.push(index);
                     }
                 }
             }
             for line in &self.live_footer {
                 self.flat.push(line.clone());
+                self.flat_copy.push(RowCopy::default());
                 self.line_item.push(self.items.len().saturating_sub(1));
             }
             self.flat_dirty = false;
@@ -815,10 +883,34 @@ impl Transcript {
             )
     }
 
+    /// The marked-up link under display column `col` of flattened line
+    /// `line`, with every region of it — a link wrapped over several lines
+    /// is lit whole.
+    #[must_use]
+    pub(crate) fn link_at(&self, line: usize, col: usize) -> Option<(String, Vec<LinkRegion>)> {
+        let (item, hit) = self
+            .flat_links
+            .iter()
+            .find(|(_, link)| link.line == line && (link.start..link.end).contains(&col))?;
+        let regions = self
+            .flat_links
+            .iter()
+            .filter(|(i, link)| i == item && link.id == hit.id)
+            .map(|(_, link)| (link.line, link.start, link.end))
+            .collect();
+        Some((hit.href.clone(), regions))
+    }
+
     /// The flattened lines as last laid out by [`Transcript::lines`].
     #[must_use]
     pub fn rendered(&self) -> &[Line<'static>] {
         &self.flat
+    }
+
+    /// How each of [`Transcript::rendered`]'s lines reads when copied.
+    #[must_use]
+    pub(crate) fn rendered_copy(&self) -> &[RowCopy] {
+        &self.flat_copy
     }
 
     #[must_use]
@@ -913,32 +1005,24 @@ fn push_time_meta(
     lines.push(right_meta(width, meta));
 }
 
-/// A duration in whole seconds with localized units, as its two largest
-/// parts: `2s` under a minute, `1m13s` under an hour, `2h5m` under a day,
-/// `3d4h` beyond. Tenths add no useful information here.
-pub(crate) fn fmt_dur(ms: u32) -> String {
-    let t = termide_i18n::t();
-    let total = (u64::from(ms) + 500) / 1000;
-    let (mins, secs) = (total / 60, total % 60);
-    let (hours, mins_left) = (mins / 60, mins % 60);
-    let (days, hours_left) = (hours / 24, hours % 24);
-    if mins == 0 {
-        format!("{secs}{}", t.agent_unit_secs())
-    } else if hours == 0 {
-        format!("{mins}{}{secs}{}", t.agent_unit_mins(), t.agent_unit_secs())
-    } else if days == 0 {
-        format!(
-            "{hours}{}{mins_left}{}",
-            t.agent_unit_hours(),
-            t.agent_unit_mins()
-        )
-    } else {
-        format!(
-            "{days}{}{hours_left}{}",
-            t.agent_unit_days(),
-            t.agent_unit_hours()
-        )
+/// What a subagent spent, as the session's totals show tokens.
+fn spent_label(spent: &termide_agent_core::Usage) -> String {
+    crate::token_label(spent.uncached(), spent.cache_read, spent.output)
+}
+
+/// The error an answer shows under it: an answer the user stopped says it
+/// was cancelled, in the user's language, rather than the provider's
+/// `aborted`; any other failure shows its own message.
+pub(crate) fn shown_error(assistant: &termide_agent_core::AssistantMessage) -> Option<String> {
+    if assistant.stop_reason == termide_agent_core::StopReason::Aborted {
+        return Some(termide_i18n::t().agent_run_cancelled().to_string());
     }
+    assistant.error_message.clone()
+}
+
+/// A duration in ms as every timer shows it (see [`termide_i18n::duration`]).
+pub(crate) fn fmt_dur(ms: u32) -> String {
+    termide_i18n::duration(std::time::Duration::from_millis(u64::from(ms)))
 }
 
 /// Average token throughput for a phase, localized (e.g. `88 tok/s`).
@@ -1027,9 +1111,10 @@ fn fill_bg(lines: &mut [Line<'static>], width: u16, bg: ratatui::style::Color) {
 }
 
 /// The command of a shell call, whose headline wraps and folds instead of
-/// being a single clipped line.
+/// being a single clipped line. A `suggest_command` offer counts: `[Run]`
+/// sends it through the same shell, its output coming back as the call's.
 fn shell_command(call: &ToolCall) -> Option<String> {
-    matches!(call.name.as_str(), "bash" | "shell").then(|| {
+    matches!(call.name.as_str(), "bash" | "shell" | "suggest_command").then(|| {
         call.arguments
             .get("command")
             .and_then(|v| v.as_str())
@@ -1039,13 +1124,33 @@ fn shell_command(call: &ToolCall) -> Option<String> {
     })
 }
 
-/// A shell call's type glyph and its localized action, in the accent: `$
-/// Running `.
-fn shell_prefix(colors: &ThemeColors) -> Vec<Span<'static>> {
-    let accent = Style::default().fg(colors.info);
+/// The color of a tool call's type glyph and action: the accent while it
+/// runs, then success or error by how it ended. Only the prefix carries it;
+/// the subject keeps its own style.
+fn tool_state_color(running: bool, ok: bool, colors: &ThemeColors) -> ratatui::style::Color {
+    if running {
+        colors.info
+    } else if ok {
+        colors.success
+    } else {
+        colors.error
+    }
+}
+
+/// A shell call's type glyph and its localized action, in the call's state
+/// color: `$ Running `, or `$ Suggesting ` for a command offered for the user
+/// to run.
+fn shell_prefix(call: &ToolCall, state: ratatui::style::Color) -> Vec<Span<'static>> {
+    let t = termide_i18n::t();
+    let verb = if call.name == "suggest_command" {
+        t.agent_tool_suggest()
+    } else {
+        t.agent_tool_bash()
+    };
+    let accent = Style::default().fg(state);
     vec![
         Span::styled("$ ", accent),
-        Span::styled(format!("{} ", termide_i18n::t().agent_tool_bash()), accent),
+        Span::styled(format!("{verb} "), accent),
     ]
 }
 
@@ -1053,13 +1158,15 @@ fn shell_prefix(colors: &ThemeColors) -> Vec<Span<'static>> {
 /// (if any) after the `$`, each command line wrapped under the command rather
 /// than clipped.
 fn command_lines(
+    call: &ToolCall,
     command: &str,
     marker: Option<Span<'static>>,
     width: u16,
+    state: ratatui::style::Color,
     colors: &ThemeColors,
 ) -> Vec<Line<'static>> {
     let dim = Style::default().fg(colors.disabled);
-    let mut prefix = shell_prefix(colors);
+    let mut prefix = shell_prefix(call, state);
     prefix.extend(marker);
     let indent: usize = prefix.iter().map(|s| width_of(&s.content)).sum();
     let avail = (width as usize).saturating_sub(indent);
@@ -1082,22 +1189,6 @@ fn command_lines(
         push_rows(line, &mut lines);
     }
     lines
-}
-
-/// A failed call's headline: every span but the fold marker in the error
-/// color, which stands in for the `✗` a single row does not carry.
-fn paint_failed(spans: Vec<Span<'static>>, colors: &ThemeColors) -> Vec<Span<'static>> {
-    spans
-        .into_iter()
-        .map(|span| {
-            if matches!(span.content.as_ref(), "▸ " | "▾ ") {
-                span
-            } else {
-                let style = span.style.fg(colors.error);
-                span.style(style)
-            }
-        })
-        .collect()
 }
 
 /// `spans` cut to at most `max` display columns, the last kept one ending in
@@ -1163,6 +1254,83 @@ fn row_with_meta(
         head
     };
     vec![Line::from(head), right_meta(width as u16, meta)]
+}
+
+/// A tool headline whose subject (its last span) wraps under the prefix — the
+/// glyph, the action and the fold marker — instead of being clipped, with
+/// `meta` at the last row's end when it fits there, else on a row of its own.
+/// A row too narrow to leave a useful subject beside the prefix clips it.
+/// Each subject row's `(row, start, end)` columns go to `subject_rows`.
+fn wrapped_row_with_meta(
+    mut head: Vec<Span<'static>>,
+    meta: Vec<Span<'static>>,
+    width: u16,
+    subject_rows: &mut Vec<(usize, usize, usize)>,
+) -> Vec<Line<'static>> {
+    /// Columns of subject worth wrapping into; narrower, the headline clips.
+    const MIN_SUBJECT: usize = 12;
+    let Some(subject) = head.pop() else {
+        return row_with_meta(head, meta, true, width);
+    };
+    let indent: usize = head.iter().map(|s| width_of(&s.content)).sum();
+    // The scrollbar gutter at the edge.
+    let avail = (width as usize).saturating_sub(indent + 1);
+    if avail < MIN_SUBJECT {
+        let end = (indent + width_of(&subject.content)).min(width as usize);
+        subject_rows.push((0, indent, end));
+        head.push(subject);
+        return row_with_meta(head, meta, true, width);
+    }
+    let mut prefix = Some(head);
+    let mut lines: Vec<Line<'static>> = wrap_row(&subject.content, avail)
+        .into_iter()
+        .enumerate()
+        .map(|(i, row)| {
+            let mut spans = prefix
+                .take()
+                .unwrap_or_else(|| vec![Span::raw(" ".repeat(indent))]);
+            let row = row.trim_end().to_string();
+            subject_rows.push((i, indent, indent + width_of(&row)));
+            spans.push(Span::styled(row, subject.style));
+            Line::from(spans)
+        })
+        .collect();
+    if !meta.is_empty() {
+        let last = lines.pop().unwrap_or_default();
+        lines.extend(row_with_meta(last.spans, meta, false, width));
+    }
+    lines
+}
+
+/// What a tool call's headline subject links to: the file a read, write or
+/// edit touched, the page a fetch loaded.
+fn headline_href(call: &ToolCall) -> Option<String> {
+    let key = match call.name.as_str() {
+        "read" | "write" | "edit" => "path",
+        "fetch" => "url",
+        _ => return None,
+    };
+    let href = call.arguments.get(key)?.as_str()?.trim();
+    (!href.is_empty()).then(|| href.to_string())
+}
+
+/// The links of a tool headline: its subject's rows, when the subject is a
+/// path or a URL.
+fn headline_links(call: &ToolCall, subject_rows: Vec<(usize, usize, usize)>) -> Vec<RowLink> {
+    let Some(href) = headline_href(call) else {
+        return Vec::new();
+    };
+    subject_rows
+        .into_iter()
+        .filter(|(_, start, end)| start < end)
+        .map(|(line, start, end)| RowLink {
+            line,
+            start,
+            end,
+            href: href.clone(),
+            id: 0,
+        })
+        .collect()
 }
 
 /// Split `line` into rows no wider than `width` columns, breaking after the
@@ -1240,6 +1408,47 @@ fn diff_kinds(lines: &[&str]) -> Vec<DiffKind> {
             }
         })
         .collect()
+}
+
+/// What an edit's block shows in place of the tool's text, drawn from the
+/// result's details (for the UI, never the model): the hunks of the full diff
+/// — the headline already names the file, so the summary and the `---`/`+++`
+/// header are left to Copy and Open — and the added/removed line counts for
+/// the headline. `None` without details (a failed edit), so the text shows.
+struct EditView {
+    hunks: String,
+    added: usize,
+    removed: usize,
+    /// The match was not exact (whitespace differed), worth a note.
+    loose: bool,
+}
+
+fn edit_view(result: &ToolResultMessage) -> Option<EditView> {
+    let details = result.details.as_ref()?;
+    let diff = details.get("diff")?.as_str()?;
+    let start = diff
+        .find("\n@@")
+        .map(|i| i + 1)
+        .or_else(|| diff.starts_with("@@").then_some(0))?;
+    let hunks = diff[start..].trim_end().to_string();
+    let (mut added, mut removed) = (0, 0);
+    for line in hunks.lines() {
+        match line.as_bytes().first() {
+            Some(b'+') => added += 1,
+            Some(b'-') => removed += 1,
+            _ => {}
+        }
+    }
+    let loose = details
+        .get("strategy")
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| !s.is_empty());
+    Some(EditView {
+        hunks,
+        added,
+        removed,
+        loose,
+    })
 }
 
 /// One indented line of tool output: dim, or — for an edit's diff — colored
@@ -1334,6 +1543,7 @@ fn tool_headline(
     call: &ToolCall,
     marker: Option<Span<'static>>,
     width: u16,
+    state: ratatui::style::Color,
     colors: &ThemeColors,
 ) -> Vec<Span<'static>> {
     let t = termide_i18n::t();
@@ -1350,8 +1560,8 @@ fn tool_headline(
     // fetched, `?` for a search, `/` for a skill as it is typed by hand, `&`
     // for a subagent, as a shell backgrounds a job, `*` for an MCP tool, `¿`
     // for a question to the user — then its localized action in the same
-    // accent and its subject.
-    let accent = Style::default().fg(colors.info);
+    // state color and its subject.
+    let accent = Style::default().fg(state);
     let styled_action = |glyph: &str, verb: &str, subject: String, style: Style| {
         let mut spans = vec![
             Span::styled(format!("{glyph} "), accent),
@@ -1382,6 +1592,27 @@ fn tool_headline(
             Style::default().fg(colors.disabled),
         ),
         "web_search" => action("?", t.agent_tool_web_search(), arg("query")),
+        "recall" => {
+            // A reference to open, or the first query and how many more.
+            let subject = match call.arguments["open"].as_str() {
+                Some(reference) if !reference.trim().is_empty() => reference.trim().to_string(),
+                _ => {
+                    let queries = call.arguments["queries"].as_array();
+                    let first = queries
+                        .and_then(|list| list.first())
+                        .and_then(|q| q.as_str())
+                        .unwrap_or("")
+                        .replace('\n', " ");
+                    let more = queries.map_or(0, |list| list.len().saturating_sub(1));
+                    if more > 0 {
+                        format!("{} (+{more})", first.trim())
+                    } else {
+                        first.trim().to_string()
+                    }
+                }
+            };
+            action("↺", t.agent_tool_recall(), subject)
+        }
         "skill" => action(
             "/",
             t.agent_tool_skill(),
@@ -1393,7 +1624,9 @@ fn tool_headline(
             action(
                 "&",
                 t.agent_tool_task(),
-                format!("{}: {}", arg("agent"), first.trim()),
+                // A middle dot, not a colon: `default:` alone on a row read as
+                // a cut-off phrase.
+                format!("{} · {}", arg("agent"), first.trim()),
             )
         }
         "question" => {
@@ -1424,9 +1657,7 @@ fn tool_headline(
             let mut spans = vec![
                 Span::styled(
                     call.name.clone(),
-                    Style::default()
-                        .fg(colors.info)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(state).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" "),
             ];
@@ -1476,13 +1707,24 @@ fn render_item(
     width: u16,
     colors: &ThemeColors,
     is_light: bool,
-) -> (Vec<Line<'static>>, bool) {
+) -> (Vec<Line<'static>>, bool, Vec<RowLink>, Vec<RowCopy>) {
     let mut foldable = is_foldable(item, fold);
     // Only reasoning can be foldable yet fit one row unfolded: a foldable tool
     // call has output or a second command line below its headline.
     if foldable && matches!(item, Item::Thinking { .. }) {
-        foldable = render_body(item, false, false, width, colors, is_light).len() > 1;
+        foldable = render_body(
+            item,
+            false,
+            false,
+            width,
+            colors,
+            is_light,
+            &mut Marks::default(),
+        )
+        .len()
+            > 1;
     }
+    let mut marks = Marks::default();
     let mut lines = render_body(
         item,
         collapsed && foldable,
@@ -1490,17 +1732,41 @@ fn render_item(
         width,
         colors,
         is_light,
+        &mut marks,
     );
+    let Marks {
+        mut links,
+        copy: copy_marks,
+    } = marks;
+    let mut copy = vec![RowCopy::default(); lines.len()];
+    for (line, row) in copy_marks {
+        if let Some(slot) = copy.get_mut(line) {
+            *slot = row;
+        }
+    }
     // The answer draws no dividing rule; a blank line above sets it apart
     // from the steps before it. Reasoning and tool calls stack with no gap.
     if matches!(item, Item::Assistant { .. }) && !lines.is_empty() {
         lines.insert(0, Line::default());
+        copy.insert(0, RowCopy::default());
+        for link in &mut links {
+            link.line += 1;
+        }
     }
-    (lines, foldable)
+    (lines, foldable, links, copy)
+}
+
+/// What [`render_body`] marks on the lines it returns: the links, and how
+/// rows read when copied (a row not listed is a line of its own).
+#[derive(Default)]
+struct Marks {
+    links: Vec<RowLink>,
+    copy: Vec<(usize, RowCopy)>,
 }
 
 /// The lines of `item` itself, without the gap [`render_item`] puts above it;
-/// `foldable` decides whether it carries a fold marker.
+/// `foldable` decides whether it carries a fold marker. What it marks up goes
+/// to `marks`.
 fn render_body(
     item: &Item,
     collapsed: bool,
@@ -1508,6 +1774,7 @@ fn render_body(
     width: u16,
     colors: &ThemeColors,
     is_light: bool,
+    marks: &mut Marks,
 ) -> Vec<Line<'static>> {
     let t = termide_i18n::t();
     let dim = Style::default().fg(colors.disabled);
@@ -1601,10 +1868,10 @@ fn render_body(
             content
         }
         Item::System { text } => {
-            // The system prompt, marked with an accent `#`, dim. It folds like a
-            // tool: collapsed shows the first few lines and a skipped-line note,
-            // behind a `▸`; expanded shows a `▾` and wraps the whole thing.
-            let accent = Style::default().fg(colors.info);
+            // The system prompt, marked with `#`, dim throughout — it is
+            // reference, not a step. It folds like a tool: collapsed shows the
+            // first few lines and a skipped-line note, behind a `▸`; expanded
+            // shows a `▾` and wraps the whole thing.
             let prompt = text.trim();
             let all: Vec<&str> = prompt.lines().collect();
             // The first line carries the `#` and the fold marker (when foldable);
@@ -1613,7 +1880,7 @@ fn render_body(
                 if !first {
                     return vec![Span::raw("  ")];
                 }
-                let mut spans = vec![Span::styled("# ", accent)];
+                let mut spans = vec![Span::styled("# ", dim)];
                 if foldable {
                     spans.push(Span::styled(if collapsed { "▸ " } else { "▾ " }, dim));
                 }
@@ -1649,12 +1916,22 @@ fn render_body(
             framed.append(&mut lines);
             framed
         }
-        Item::Thinking { text, cost, .. } => {
-            // Reasoning is its own dim block, marked with an accent `@`. Folded, a finished block is its
-            // first line alone with the turn's cost at the row's end; unfolded
-            // (and always while it streams) the whole text wraps under the
-            // marker.
-            let accent = Style::default().fg(colors.info);
+        Item::Thinking {
+            text,
+            cost,
+            streaming,
+            ..
+        } => {
+            // Reasoning is its own dim block, marked with `@`: the accent while
+            // it streams, like a running tool, then dim like the reasoning.
+            // Folded, a finished block is its first line alone with the turn's
+            // cost at the row's end; unfolded (and always while it streams)
+            // the whole text wraps under the marker.
+            let accent = Style::default().fg(if *streaming {
+                colors.info
+            } else {
+                colors.disabled
+            });
             let reasoning = text.trim();
             if reasoning.is_empty() {
                 return Vec::new();
@@ -1670,14 +1947,7 @@ fn render_body(
             if collapsed {
                 // Still streaming, the headline follows the reasoning: its
                 // latest line, not the first.
-                let streaming = matches!(
-                    item,
-                    Item::Thinking {
-                        streaming: true,
-                        ..
-                    }
-                );
-                let line = if streaming {
+                let line = if *streaming {
                     reasoning.lines().rev().find(|l| !l.trim().is_empty())
                 } else {
                     reasoning.lines().next()
@@ -1730,8 +2000,30 @@ fn render_body(
             if !answer.is_empty() {
                 // Reserve the marker's width and indent wrapped lines under it,
                 // so the accent `›` never pushes the first line over the edge.
-                let body = render_markdown(answer, width.saturating_sub(2), colors, is_light).lines;
-                for (i, mut line) in body.into_iter().enumerate() {
+                let body = render_markdown(answer, width.saturating_sub(2), colors, is_light);
+                // Past the `› ` mark the answer's links sit two columns in.
+                // Copied, the mark and the indent under it are decoration.
+                marks
+                    .copy
+                    .extend(body.copy.iter().enumerate().map(|(i, row)| {
+                        (
+                            lines.len() + i,
+                            RowCopy {
+                                lead: row.lead + 2,
+                                ..*row
+                            },
+                        )
+                    }));
+                marks
+                    .links
+                    .extend(body.links.into_iter().map(|link| RowLink {
+                        line: lines.len() + link.line,
+                        start: link.start as usize + 2,
+                        end: link.end as usize + 2,
+                        href: link.url,
+                        id: link.id,
+                    }));
+                for (i, mut line) in body.lines.into_iter().enumerate() {
                     line.spans.insert(
                         0,
                         if i == 0 {
@@ -1803,21 +2095,51 @@ fn render_body(
             waiting,
         } => {
             let running = is_live(item);
-            let body = match (result, live) {
-                (Some(result), _) => result.plain_text(),
-                (None, Some(live)) => live.clone(),
-                (None, None) => String::new(),
+            let edit = result
+                .as_ref()
+                .filter(|_| call.name == "edit")
+                .and_then(edit_view);
+            let body = match (&edit, result, live) {
+                (Some(edit), _, _) => edit.hunks.clone(),
+                (None, Some(result), _) => result.plain_text(),
+                (None, None, Some(live)) => live.clone(),
+                (None, None, None) => String::new(),
             };
             // Trim the stray blank lines a command's output ends with, so the
             // padding stays even.
             let all: Vec<&str> = body.trim().lines().collect();
+            // An edit's line counts stand at its headline's end, kept when a
+            // long path is clipped.
+            let stats: Vec<Span<'static>> = edit
+                .as_ref()
+                .map(|edit| {
+                    let mut spans = Vec::new();
+                    if edit.added > 0 {
+                        spans.push(Span::styled(
+                            format!("+{}", edit.added),
+                            Style::default().fg(colors.success),
+                        ));
+                    }
+                    if edit.removed > 0 {
+                        if !spans.is_empty() {
+                            spans.push(Span::raw(" "));
+                        }
+                        spans.push(Span::styled(
+                            format!("−{}", edit.removed),
+                            Style::default().fg(colors.error),
+                        ));
+                    }
+                    spans
+                })
+                .unwrap_or_default();
             let marker = foldable.then(|| Span::styled(if collapsed { "▸ " } else { "▾ " }, dim));
             // The meta of a finished call is how long it took (`🕒`, when
-            // known), never a wall-clock time. A single-row block carries the `🕒` alone and shows a failure by
-            // painting its headline; a taller one ends with a meta row that
-            // adds the status glyph.
+            // known), never a wall-clock time. A single-row block carries the
+            // `🕒` alone, its prefix's color telling how it ended; a taller one
+            // ends with a meta row that adds the status glyph.
             let finished = !at.is_empty();
             let ok = result.as_ref().is_none_or(|r| !r.is_error);
+            let state = tool_state_color(running, ok, colors);
             // A wait on a permission answer comes first, as the pause it was
             // (`‖`, marked while the question is up), then the call's own
             // duration.
@@ -1833,6 +2155,14 @@ fn render_body(
                     style,
                 ));
             }
+            // What a subagent's model calls spent, as the session's totals
+            // show tokens.
+            if let Some(spent) = result.as_ref().and_then(|r| r.spent()) {
+                if !clock.is_empty() {
+                    clock.push(Span::raw(" "));
+                }
+                clock.push(Span::styled(spent_label(&spent), dim));
+            }
             if let Some(ms) = duration_ms {
                 if !clock.is_empty() {
                     clock.push(Span::raw(" "));
@@ -1840,7 +2170,6 @@ fn render_body(
                 clock.push(Span::styled(format!("🕒 {}", fmt_dur(*ms)), dim));
             }
             let one_row = |head: Vec<Span<'static>>, clip: bool| {
-                let head = if ok { head } else { paint_failed(head, colors) };
                 row_with_meta(head, clock.clone(), clip, width)
             };
             if collapsed {
@@ -1848,23 +2177,43 @@ fn render_body(
                 // call's first command line — and its timing is one unfold
                 // away; a live one keeps the meta, where a wait on a
                 // permission answer ticks.
-                let head = match shell_command(call) {
+                // A shell call's command clips to its first line; any other
+                // call's subject wraps, read in full without unfolding.
+                let meta = if finished { stats } else { clock };
+                return match shell_command(call) {
                     Some(command) => {
-                        let mut head = shell_prefix(colors);
+                        let mut head = shell_prefix(call, state);
                         head.extend(marker);
                         let first = command.lines().next().unwrap_or("").to_string();
                         head.push(Span::styled(first, dim));
-                        head
+                        row_with_meta(head, meta, true, width)
                     }
-                    None => tool_headline(call, marker, width, colors),
+                    None => {
+                        let mut rows = Vec::new();
+                        let lines = wrapped_row_with_meta(
+                            tool_headline(call, marker, width, state, colors),
+                            meta,
+                            width,
+                            &mut rows,
+                        );
+                        marks.links.extend(headline_links(call, rows));
+                        lines
+                    }
                 };
-                let head = if ok { head } else { paint_failed(head, colors) };
-                let meta = if finished { Vec::new() } else { clock };
-                return row_with_meta(head, meta, true, width);
             }
             let mut lines = match shell_command(call) {
-                Some(command) => command_lines(&command, marker, width, colors),
-                None => vec![Line::from(tool_headline(call, marker, width, colors))],
+                Some(command) => command_lines(call, &command, marker, width, state, colors),
+                None => {
+                    let mut rows = Vec::new();
+                    let lines = wrapped_row_with_meta(
+                        tool_headline(call, marker, width, state, colors),
+                        stats,
+                        width,
+                        &mut rows,
+                    );
+                    marks.links.extend(headline_links(call, rows));
+                    lines
+                }
             };
             // An edit's result is a unified diff, painted like the git diff
             // panel paints one.
@@ -1884,8 +2233,9 @@ fn render_body(
                 ));
             }
             for (i, line) in all.iter().enumerate().take(end).skip(start) {
-                if call.name == "question" {
-                    // The answers are prose: they wrap rather than clip.
+                if call.name == "question" || kind(i) == Some(DiffKind::Summary) {
+                    // The answers, and an edit's text outside a diff (an
+                    // error), are prose: they wrap rather than clip.
                     lines.extend(prose_output_lines(line, width, colors));
                 } else {
                     lines.push(output_line(line, kind(i), width, colors));
@@ -1895,6 +2245,13 @@ fn render_body(
                 lines.push(Line::styled(
                     format!("  {}", t.agent_more_lines(all.len() - end)),
                     dim,
+                ));
+            }
+            if edit.as_ref().is_some_and(|edit| edit.loose) {
+                lines.extend(prose_output_lines(
+                    t.agent_edit_loose_match(),
+                    width,
+                    colors,
                 ));
             }
             // Who let the call run or refused it, unless the rules simply did;
@@ -1965,6 +2322,7 @@ fn render_body(
             ok,
             paused,
             live,
+            cut,
         } => {
             // The live run clock, frozen where it stood: right-aligned under
             // the last block, with no rule, and the time the run ended. A pause
@@ -1979,9 +2337,14 @@ fn render_body(
             } else {
                 dim
             };
+            let mut text = run_end_text(*elapsed_ms, at);
+            if *cut {
+                text.push_str(" · ");
+                text.push_str(termide_i18n::t().agent_run_cut_off());
+            }
             let mut spans = vec![
                 Span::styled(format!("{glyph} "), glyph_style),
-                Span::styled(run_end_text(*elapsed_ms, at), dim),
+                Span::styled(text, dim),
             ];
             if !*paused || !*ok {
                 spans.push(Span::raw(" "));
@@ -2026,13 +2389,9 @@ fn annotation(
 /// The mark of a paused run, on its closing line and in the state strip.
 pub(crate) const PAUSED_GLYPH: &str = "‖";
 
-/// The frames of the live run clock, swelling and shrinking back; it comes to
-/// rest on [`RUN_GLYPH`] when the run ends.
-pub(crate) const RUN_FRAMES: [&str; 10] = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
-
 /// The glyph of a run's total time: the live clock at rest, on the answer that
 /// closed the run or on its closing line.
-pub(crate) const RUN_GLYPH: &str = "✻";
+pub(crate) const RUN_GLYPH: &str = termide_config::constants::TICK_GLYPH;
 
 /// The text of a run's closing line after its glyph: `3m41s · 21:03:41`, or
 /// the duration alone for a pause, which carries no time of day.
@@ -2099,7 +2458,7 @@ mod tests {
     fn skill_task_and_mcp_calls_open_with_a_glyph_and_an_action() {
         let colors = ThemeColors::default();
         let headline = |name: &str, args: Value| -> String {
-            tool_headline(&call(name, args), None, 80, &colors)
+            tool_headline(&call(name, args), None, 80, colors.info, &colors)
                 .iter()
                 .map(|span| span.content.as_ref())
                 .collect()
@@ -2124,7 +2483,7 @@ mod tests {
                 "task",
                 json!({ "agent": "reviewer", "prompt": "\ncheck the diff\nthen report" })
             ),
-            "& Delegating to reviewer: check the diff"
+            "& Delegating to reviewer · check the diff"
         );
         assert_eq!(
             headline(
@@ -2540,6 +2899,39 @@ mod tests {
     }
 
     #[test]
+    fn a_suggested_command_reads_as_a_shell_call_with_its_own_action() {
+        // `[Run]` sends an offered command through the shell, so its block is
+        // a shell call's — the `$`, the command wrapped under itself — and
+        // only the action says the user, not the agent, runs it.
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        let offer = call(
+            "suggest_command",
+            json!({ "command": "cd x\nmake install", "why": "needs sudo" }),
+        );
+        transcript.push(Item::Tool {
+            call: offer.clone(),
+            result: Some(ToolResultMessage::text(&offer, "ok")),
+            live: None,
+            at: String::new(),
+            duration_ms: None,
+            waited_ms: None,
+            waiting: false,
+        });
+        let lines = text_of(transcript.lines(40, &colors, false));
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].starts_with("$ Suggesting ▸ cd x"), "{lines:?}");
+        assert!(transcript.toggle_expanded(0));
+        let lines = text_of(transcript.lines(40, &colors, false));
+        assert!(lines[0].starts_with("$ Suggesting ▾ cd x"), "{lines:?}");
+        let indent = " ".repeat(width_of("$ Suggesting ▾ "));
+        assert!(
+            lines[1].starts_with(&format!("{indent}make install")),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
     fn finished_reasoning_folds_to_one_line_without_a_rule() {
         let colors = ThemeColors::default();
         let mut transcript = Transcript::default();
@@ -2748,6 +3140,61 @@ mod tests {
     }
 
     #[test]
+    fn a_call_prefix_is_accent_while_running_then_success() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.push(Item::Tool {
+            call: call("bash", json!({ "command": "true" })),
+            result: None,
+            live: None,
+            at: String::new(),
+            duration_ms: None,
+            waited_ms: None,
+            waiting: false,
+        });
+        let fg_of = |lines: &[Line<'static>], content: &str| {
+            lines[0]
+                .spans
+                .iter()
+                .find(|s| s.content == content)
+                .and_then(|s| s.style.fg)
+        };
+        let lines = transcript.lines(40, &colors, false).to_vec();
+        assert_eq!(fg_of(&lines, "$ "), Some(colors.info));
+        let mut transcript = Transcript::default();
+        transcript.push(Item::Tool {
+            call: call("bash", json!({ "command": "true" })),
+            result: Some(ToolResultMessage::text(&call("bash", json!({})), "")),
+            live: None,
+            at: "12:00:00".into(),
+            duration_ms: Some(500),
+            waited_ms: None,
+            waiting: false,
+        });
+        let lines = transcript.lines(40, &colors, false).to_vec();
+        assert_eq!(fg_of(&lines, "$ "), Some(colors.success));
+        assert_ne!(fg_of(&lines, "true"), Some(colors.success));
+    }
+
+    #[test]
+    fn a_thinking_marker_is_accent_while_streaming_then_dim() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.stream_thinking("Weighing the options.");
+        let at_fg = |transcript: &mut Transcript| {
+            transcript
+                .lines(60, &colors, false)
+                .iter()
+                .flat_map(|l| l.spans.iter())
+                .find(|s| s.content == "@ ")
+                .and_then(|s| s.style.fg)
+        };
+        assert_eq!(at_fg(&mut transcript), Some(colors.info));
+        transcript.finish_thinking("12:00:00", None);
+        assert_eq!(at_fg(&mut transcript), Some(colors.disabled));
+    }
+
+    #[test]
     fn a_failed_one_row_call_is_painted_instead_of_marked() {
         let colors = ThemeColors::default();
         let mut transcript = Transcript::default();
@@ -2770,24 +3217,22 @@ mod tests {
             text.starts_with("$ Running ▸ exit 1") && !text.contains('✗'),
             "{text}"
         );
-        let command = lines[0]
-            .spans
-            .iter()
-            .find(|s| s.content == "exit 1")
-            .unwrap();
-        assert_eq!(command.style.fg, Some(colors.error));
+        // Only the prefix takes the error color; the command stays dim.
+        let fg_of = |content: &str| {
+            lines[0]
+                .spans
+                .iter()
+                .find(|s| s.content == content)
+                .unwrap()
+                .style
+                .fg
+        };
+        assert_eq!(fg_of("$ "), Some(colors.error));
+        assert_eq!(fg_of("exit 1"), Some(colors.disabled));
         // Unfolded, the output is there and the meta row keeps the `✗`.
         assert!(transcript.toggle_expanded(0));
         let lines = text_of(transcript.lines(40, &colors, false));
         assert!(lines.iter().any(|l| l.contains("🕒") && l.contains('✗')));
-    }
-
-    #[test]
-    fn durations_grow_into_hours_and_days() {
-        assert_eq!(fmt_dur(1_400), "1s");
-        assert_eq!(fmt_dur(73_000), "1m13s");
-        assert_eq!(fmt_dur((2 * 3600 + 5 * 60 + 30) * 1000), "2h5m");
-        assert_eq!(fmt_dur((3 * 86_400 + 4 * 3600) * 1000), "3d4h");
     }
 
     #[test]
@@ -2997,7 +3442,219 @@ mod tests {
         assert_eq!(style_of("--- dashes").0.fg, Some(colors.error));
         assert_eq!(style_of("--- a/a.rs").0.fg, Some(colors.info));
         assert_eq!(style_of(" keep").0.fg, Some(colors.fg));
+        // Without details (an older session), the text shows as it came.
         assert_eq!(style_of("Edited a.rs (1 replacement).").0.bg, None);
+    }
+
+    /// An edit result as the tool returns it: the model's text, which names
+    /// the file, and the details the UI draws from.
+    fn edit_result(text: &str, strategy: &str) -> ToolResultMessage {
+        let diff = "--- a/a.rs\n+++ b/a.rs\n@@ -1,3 +1,2 @@\n keep\n-old\n-gone\n+new\n";
+        ToolResultMessage::text(&call("edit", json!({})), text).with_details(json!({
+            "path": "a.rs",
+            "replacements": 1,
+            "strategy": strategy,
+            "diff": diff,
+        }))
+    }
+
+    fn push_edit(transcript: &mut Transcript, path: &str, result: ToolResultMessage) {
+        transcript.push(Item::Tool {
+            call: call("edit", json!({ "path": path })),
+            result: Some(result),
+            live: None,
+            at: "12:00:00".into(),
+            duration_ms: Some(10),
+            waited_ms: None,
+            waiting: false,
+        });
+    }
+
+    #[test]
+    fn an_edit_shows_its_hunks_and_counts_from_the_details() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.set_fold(FoldMode::Never);
+        // The model was told the diff is too large; the user still sees it.
+        push_edit(
+            &mut transcript,
+            "a.rs",
+            edit_result(
+                "Edited /abs/a.rs (1 replacement). The diff is too large to show inline.",
+                "",
+            ),
+        );
+        let lines = text_of(transcript.lines(40, &colors, false));
+        assert!(
+            lines[0].contains("a.rs") && lines[0].ends_with("+1 −2"),
+            "{lines:?}"
+        );
+        assert!(lines.iter().any(|l| l.contains("@@ -1,3 +1,2 @@")));
+        assert!(lines.iter().any(|l| l.contains("+new")));
+        // The summary and the file header repeat the headline's path.
+        assert!(!lines
+            .iter()
+            .any(|l| l.contains("Edited") || l.contains("--- a/")));
+        assert!(!lines.iter().any(|l| l.contains("whitespace")));
+    }
+
+    #[test]
+    fn an_edit_wraps_a_long_path_and_keeps_its_counts() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        let path = "/a/very/long/path/that/does/not/fit/the/row/at/all/a.rs";
+        push_edit(
+            &mut transcript,
+            path,
+            edit_result("Edited a.rs (1 replacement).", ""),
+        );
+        // Folded, and unfolded, the path wraps whole and the counts follow it.
+        let folded = text_of(transcript.lines(40, &colors, false));
+        assert!(folded.len() > 1, "{folded:?}");
+        assert!(folded.iter().all(|row| width_of(row) <= 40), "{folded:?}");
+        assert!(!folded.concat().contains('…'), "{folded:?}");
+        let joined: String = folded.iter().map(|row| row.trim()).collect();
+        assert!(joined.contains(path), "{folded:?}");
+        assert!(folded.last().unwrap().ends_with("+1 −2"), "{folded:?}");
+        assert!(transcript.toggle_expanded(0));
+        let unfolded = text_of(transcript.lines(40, &colors, false));
+        assert!(
+            unfolded.iter().any(|row| row.ends_with("+1 −2")),
+            "{unfolded:?}"
+        );
+    }
+
+    #[test]
+    fn a_folded_task_wraps_its_subject_under_the_action() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.push(Item::Tool {
+            call: call(
+                "task",
+                json!({ "agent": "clear", "prompt": "check every call site of the parser and report which ones skip validation" }),
+            ),
+            result: Some(ToolResultMessage::text(&call("task", json!({})), "done")),
+            live: None,
+            at: "12:00:00".into(),
+            duration_ms: Some(10),
+            waited_ms: None,
+            waiting: false,
+        });
+        let rows = text_of(transcript.lines(40, &colors, false));
+        assert!(rows.len() > 1, "{rows:?}");
+        assert!(rows.iter().all(|row| width_of(row) <= 40), "{rows:?}");
+        assert!(!rows.concat().contains('…'), "{rows:?}");
+        let joined = rows
+            .iter()
+            .map(|row| row.trim())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(joined.ends_with("which ones skip validation"), "{rows:?}");
+        // Continuation rows line up under the subject, past the action.
+        let indent = rows[0].find("clear ·").unwrap();
+        let indent = width_of(&rows[0][..indent]);
+        assert!(rows[1].starts_with(&" ".repeat(indent)), "{rows:?}");
+    }
+
+    #[test]
+    fn a_wrapped_fetch_headline_links_every_row_to_its_url() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        let url = "https://docs.rs/termide/latest/termide/links/index.html";
+        transcript.push(Item::Tool {
+            call: call("fetch", json!({ "url": url })),
+            result: Some(ToolResultMessage::text(&call("fetch", json!({})), "page")),
+            live: None,
+            at: "12:00:00".into(),
+            duration_ms: Some(10),
+            waited_ms: None,
+            waiting: false,
+        });
+        let rows = text_of(transcript.lines(40, &colors, false));
+        assert!(rows.len() > 1, "{rows:?}");
+        // The second row's piece of the address opens the whole of it, and
+        // lights the rows above and below with it.
+        let col = rows[1].len() - rows[1].trim_start().len();
+        let (href, regions) = transcript.link_at(1, col).expect("a link");
+        assert_eq!(href, url);
+        assert_eq!(regions.len(), rows.len(), "{regions:?}");
+        // The indent before it is not the link.
+        assert!(transcript.link_at(1, col - 1).is_none());
+    }
+
+    #[test]
+    fn an_answer_link_sits_past_the_mark_and_the_gap() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.push(Item::Assistant {
+            text: "see [x](a.md)".into(),
+            error: None,
+            at: String::new(),
+            cost: None,
+            run_ms: None,
+            streaming: false,
+        });
+        let rows = text_of(transcript.lines(40, &colors, false));
+        let line = rows.iter().position(|r| r.contains("see x")).unwrap();
+        let row = &rows[line];
+        let col = row[..row.find(" x").unwrap()].chars().count() + 1;
+        assert_eq!(
+            transcript
+                .link_at(line, col)
+                .map(|(href, _)| href)
+                .as_deref(),
+            Some("a.md")
+        );
+        assert!(transcript.link_at(line, col - 1).is_none());
+    }
+
+    #[test]
+    fn folded_reasoning_still_clips_to_one_row() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.push(Item::Thinking {
+            text: "a long first line of reasoning that goes well past the row\nmore".into(),
+            streaming: false,
+            at: "12:00:00".into(),
+            cost: None,
+        });
+        let rows = text_of(transcript.lines(40, &colors, false));
+        assert_eq!(rows.len(), 1, "{rows:?}");
+        assert!(rows[0].ends_with('…'), "{rows:?}");
+    }
+
+    #[test]
+    fn a_loose_edit_match_is_noted() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.set_fold(FoldMode::Never);
+        push_edit(
+            &mut transcript,
+            "a.rs",
+            edit_result(
+                "Edited a.rs (1 replacement, matched ignoring indentation).",
+                "ignoring indentation",
+            ),
+        );
+        let joined = text_of(transcript.lines(60, &colors, false)).join("\n");
+        assert!(joined.contains("whitespace"), "{joined}");
+    }
+
+    #[test]
+    fn a_failed_edit_wraps_its_error() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        transcript.set_fold(FoldMode::Never);
+        push_edit(
+            &mut transcript,
+            "a.rs",
+            ToolResultMessage::error(
+                &call("edit", json!({})),
+                "old_string not found in /a/long/path/to/a.rs; read the file again.",
+            ),
+        );
+        let joined = text_of(transcript.lines(30, &colors, false)).join(" ");
+        assert!(joined.contains("again."), "{joined}");
     }
 
     #[test]
@@ -3015,6 +3672,7 @@ mod tests {
             ok: true,
             paused: false,
             live: false,
+            cut: false,
         });
         let lines = text_of(transcript.lines(60, &colors, false));
         // The frozen run clock, right-aligned with no rule above it.
@@ -3028,6 +3686,7 @@ mod tests {
             ok: true,
             paused: true,
             live: true,
+            cut: false,
         });
         let lines = text_of(transcript.lines(60, &colors, false));
         assert_eq!(lines.last().unwrap().trim(), "‖ 1m12s");
@@ -3055,6 +3714,7 @@ mod tests {
             ok: false,
             paused: false,
             live: false,
+            cut: false,
         });
         transcript.push(Item::Notice {
             text: "goal stopped".into(),
@@ -3202,13 +3862,21 @@ mod tests {
         assert!(lines.iter().any(|l| l.contains("# ▾ rule 1")));
         assert!(lines.iter().any(|l| l.contains("rule 4")));
         assert!(lines.iter().any(|l| l.contains("rule 8")));
+        // The `#` is dim like the prompt itself, not an accent.
+        let hash_fg = transcript
+            .lines(60, &colors, false)
+            .iter()
+            .flat_map(|l| l.spans.iter())
+            .find(|s| s.content == "# ")
+            .and_then(|s| s.style.fg);
+        assert_eq!(hash_fg, Some(colors.disabled));
     }
 
     #[test]
     fn web_tools_head_with_their_glyph_and_subject() {
         let colors = ThemeColors::default();
         let text = |call: &ToolCall| -> String {
-            tool_headline(call, None, 80, &colors)
+            tool_headline(call, None, 80, colors.info, &colors)
                 .iter()
                 .map(|span| span.content.as_ref())
                 .collect()
@@ -3223,6 +3891,7 @@ mod tests {
             &call("fetch", json!({ "url": "https://docs.rs" })),
             None,
             80,
+            colors.info,
             &colors,
         );
         let url = spans.last().unwrap();
@@ -3234,6 +3903,17 @@ mod tests {
                 json!({ "query": "rust tui", "limit": 3 })
             )),
             format!("? {} rust tui", t.agent_tool_web_search())
+        );
+        assert_eq!(
+            text(&call(
+                "recall",
+                json!({ "queries": ["why no tokio", "почему без tokio"] })
+            )),
+            format!("↺ {} why no tokio (+1)", t.agent_tool_recall())
+        );
+        assert_eq!(
+            text(&call("recall", json!({ "open": "commit:.@08c2e3b1" }))),
+            format!("↺ {} commit:.@08c2e3b1", t.agent_tool_recall())
         );
     }
 
@@ -3266,6 +3946,36 @@ mod tests {
         assert_eq!(
             summarize_call(&call("mcp", json!({ "q": 1 })), 40),
             "{\"q\":1}"
+        );
+    }
+
+    /// A finished `task` shows under its fold what the subagent spent, as
+    /// the session's totals show tokens, beside how long it took.
+    #[test]
+    fn a_subagents_block_shows_what_it_spent() {
+        let colors = ThemeColors::default();
+        let mut transcript = Transcript::default();
+        let task = call("task", json!({ "agent": "search", "prompt": "find it" }));
+        let spent = termide_agent_core::Usage {
+            input: 1200,
+            output: 300,
+            cache_read: 2000,
+            cache_write: 0,
+        };
+        transcript.push(Item::Tool {
+            call: task.clone(),
+            result: Some(ToolResultMessage::text(&task, "found").with_spent(spent)),
+            live: None,
+            at: "21:03:20".into(),
+            duration_ms: Some(4000),
+            waited_ms: None,
+            waiting: false,
+        });
+        assert!(transcript.toggle_expanded(0));
+        let lines = text_of(transcript.lines(80, &colors, false));
+        assert!(
+            lines.iter().any(|l| l.contains("↑1k ↻2k ↓300 🕒 4s")),
+            "{lines:?}"
         );
     }
 }

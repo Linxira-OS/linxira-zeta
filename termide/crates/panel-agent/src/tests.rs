@@ -1,5 +1,6 @@
 use super::*;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -7,13 +8,14 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEventK
 use ratatui::style::Modifier;
 use ratatui::text::Line;
 use termide_agent_core::{
-    permission_channel, question_channel, suggestion_channel, Agent, AgentEvent, AssistantContent,
-    AssistantMessage, CancelToken, EntryKind, Message, PermissionAnswer, PermissionPrompter,
-    QuestionAnswer, QuestionReply, Request, ShellOutput, ShellRunner, StopReason, StreamEvent,
-    Suggestion, SuggestionReply, ThinkingLevel, Timing, ToolCall, ToolContext, ToolDecision,
-    ToolResultMessage, ToolUpdate, Usage, UserMessage,
+    now_millis, permission_channel, question_channel, suggestion_channel, Agent, AgentEvent,
+    AssistantContent, AssistantMessage, Autorun, CancelToken, EntryKind, GoalRecord, LastRun,
+    LimitPolicy, LoopRecord, Message, PermissionAnswer, PermissionPrompter, QuestionAnswer,
+    QuestionReply, Request, ShellOutput, ShellRunner, StopReason, StreamEvent, Suggestion,
+    SuggestionReply, ThinkingLevel, Timing, ToolCall, ToolContext, ToolDecision, ToolResultMessage,
+    ToolUpdate, Usage, UserMessage, MODEL_OPTION,
 };
-use termide_core::{ConfirmAction, PanelConfig, SegmentKind};
+use termide_core::{ConfirmAction, LinkTarget, PanelConfig, SegmentKind};
 use termide_ui::{ChoiceAction, ChoiceForm};
 
 use crate::input::file_completions;
@@ -21,7 +23,8 @@ use crate::pending::Pending;
 use crate::render::context_bar;
 use crate::runtime::{push_history, session_model};
 use crate::submit::{parse_duration, parse_loop_args, slash_command};
-use crate::toolset::{Blocked, ToolsetGuard};
+use crate::toolset::{Blocked, ToolsetGuard, TOOLSET_ACTION};
+use crate::unfinished::Restored;
 
 /// Replays one scripted assistant message per model call and records
 /// which model each call asked for.
@@ -116,6 +119,7 @@ fn reply(text: &str) -> AssistantMessage {
         provider: "scripted".into(),
         model: "m".into(),
         error_message: None,
+        failure: None,
         timestamp: 0,
     }
 }
@@ -140,14 +144,17 @@ impl AgentCatalog for Agents {
             AgentEntry {
                 name: "default".into(),
                 description: String::new(),
+                icon: None,
             },
             AgentEntry {
                 name: "review".into(),
                 description: "Reviews diffs".into(),
+                icon: Some("🔍".into()),
             },
             AgentEntry {
                 name: "outside".into(),
                 description: "An external agent".into(),
+                icon: None,
             },
         ]
     }
@@ -234,6 +241,7 @@ fn setup_with(provider: Arc<Scripted>) -> AgentPanelSetup {
         plan_prompt: PlanPrompt::default(),
         goal_prompt: GoalPrompt::default(),
         handoff_prompt: HandoffPrompt::default(),
+        loop_prompt: termide_agent_core::LoopPrompt::default(),
         reviewer: ReviewerSetup::default(),
         refusals: Refusals::default(),
         persist_rule: None,
@@ -243,6 +251,7 @@ fn setup_with(provider: Arc<Scripted>) -> AgentPanelSetup {
         // records what reached the shell, so nothing runs for real here.
         shell_run: None,
         fold: FoldMode::OnFinish,
+        on_limit: LimitPolicy::Ask,
     }
 }
 
@@ -341,6 +350,24 @@ fn a_pending_pause_lives_in_the_state_strip_and_a_pause_in_the_transcript() {
             ..
         })
     ));
+}
+
+#[test]
+fn a_new_session_does_not_inherit_a_pause() {
+    let mut panel = AgentPanel::new(setup(vec![]));
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::Paused);
+    panel.apply(AgentEvent::AgentEnd);
+    assert_eq!(
+        panel.run_buttons(),
+        vec![RunButton::Continue, RunButton::Stop]
+    );
+    // The paused run went with the old runtime: the fresh session is idle.
+    assert!(panel.switch_session(None));
+    assert!(panel.run_buttons().is_empty());
+    assert!(!panel.paused);
+    assert!(panel.pause_start.is_none());
+    assert!(panel.run_start.is_none());
 }
 
 #[test]
@@ -457,11 +484,11 @@ fn the_stop_control_is_red_only_while_a_stop_is_under_way() {
     panel.apply(AgentEvent::AgentStart);
     let colors = panel.colors;
     assert_eq!(
-        panel.run_button_color(RunButton::Pause),
+        panel.run_button_color(RunButton::Pause, true),
         colors.border_focused
     );
     assert_eq!(
-        panel.run_button_color(RunButton::Stop),
+        panel.run_button_color(RunButton::Stop, true),
         colors.border_focused
     );
     panel.request_pause();
@@ -469,7 +496,12 @@ fn the_stop_control_is_red_only_while_a_stop_is_under_way() {
     // A stop under way leaves stop alone, red, and a second press adds
     // no second notice.
     assert_eq!(panel.run_buttons(), vec![RunButton::Stop]);
-    assert_eq!(panel.run_button_color(RunButton::Stop), colors.error);
+    assert_eq!(panel.run_button_color(RunButton::Stop, true), colors.error);
+    // In the background every control dims with the frame, red stop too.
+    assert_eq!(
+        panel.run_button_color(RunButton::Stop, false),
+        colors.border
+    );
     let lines = panel.transcript.line_count();
     panel.abort();
     assert_eq!(panel.transcript.line_count(), lines);
@@ -477,8 +509,12 @@ fn the_stop_control_is_red_only_while_a_stop_is_under_way() {
     panel.apply(AgentEvent::AgentStart);
     assert_eq!(panel.run_buttons(), vec![RunButton::Pause, RunButton::Stop]);
     assert_eq!(
-        panel.run_button_color(RunButton::Stop),
+        panel.run_button_color(RunButton::Stop, true),
         colors.border_focused
+    );
+    assert_eq!(
+        panel.run_button_color(RunButton::Pause, false),
+        colors.border
     );
 }
 
@@ -615,7 +651,11 @@ fn a_drag_selects_transcript_text_for_copy() {
     let width = panel.transcript_area.width.saturating_sub(1) as usize;
     let selection = panel.text_selection.expect("a selection");
     assert_eq!(
-        selection.text(panel.transcript.rendered(), width),
+        selection.text(
+            panel.transcript.rendered(),
+            panel.transcript.rendered_copy(),
+            width,
+        ),
         "Hello from"
     );
     // It shows in the selection colours.
@@ -628,7 +668,62 @@ fn a_drag_selects_transcript_text_for_copy() {
 }
 
 #[test]
-fn a_ctrl_click_on_a_url_opens_it_in_the_browser() {
+fn a_copied_command_comes_out_whole_without_the_chat_decoration() {
+    let command = "git push origin main --tags --force-with-lease";
+    let mut panel = panel(vec![reply(&format!(
+        "Run it yourself, as it needs your login:\n\n```sh\n{command}\nls\n```"
+    ))]);
+    type_text(&mut panel, "push");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+    let rows = render_text(&mut panel, 30, 30);
+    let first = rows
+        .iter()
+        .position(|r| r.contains("┊ git"))
+        .expect("the command is on screen");
+    let last = rows
+        .iter()
+        .position(|r| r.contains("┊ ls"))
+        .expect("the code block ends on screen");
+    assert!(last > first + 1, "the command wraps: {rows:#?}");
+    // Dragged from the left edge of the first row to the end of `ls` (the
+    // block's byline sits right of it on the same row).
+    let area = panel.transcript_area;
+    let ls = &rows[last];
+    let ls_end = ls[..ls.find("ls").unwrap()].chars().count() as u16 + 1;
+    let mouse = |kind, column, row: usize| MouseEvent {
+        kind,
+        column,
+        row: row as u16,
+        modifiers: KeyModifiers::NONE,
+    };
+    let (left, right) = (area.x, ls_end);
+    panel.handle_mouse(
+        mouse(MouseEventKind::Down(MouseButton::Left), left, first),
+        area,
+    );
+    panel.handle_mouse(
+        mouse(MouseEventKind::Drag(MouseButton::Left), right, last),
+        area,
+    );
+    panel.handle_mouse(
+        mouse(MouseEventKind::Up(MouseButton::Left), right, last),
+        area,
+    );
+    let selection = panel.text_selection.expect("a selection");
+    let width = panel.transcript_area.width.saturating_sub(1) as usize;
+    assert_eq!(
+        selection.text(
+            panel.transcript.rendered(),
+            panel.transcript.rendered_copy(),
+            width,
+        ),
+        format!("{command}\nls")
+    );
+}
+
+#[test]
+fn a_ctrl_click_on_a_url_follows_it() {
     let mut panel = panel(vec![reply("See https://docs.rs now")]);
     type_text(&mut panel, "hi there");
     panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
@@ -657,21 +752,84 @@ fn a_ctrl_click_on_a_url_opens_it_in_the_browser() {
             area,
         )
     };
+    let opens = |events: &[PanelEvent]| events.iter().any(|e| matches!(e, PanelEvent::OpenLink(_)));
     let events = click(&mut panel, x, KeyModifiers::CONTROL);
     assert!(
-        matches!(events.as_slice(), [PanelEvent::OpenExternal(url)] if url.to_str() == Some("https://docs.rs")),
+        matches!(events.as_slice(), [PanelEvent::OpenLink(LinkTarget::Url(url))] if url == "https://docs.rs"),
+        "{events:?}"
+    );
+    // Ctrl+Alt+click opens it outside instead.
+    let events = click(&mut panel, x, KeyModifiers::CONTROL | KeyModifiers::ALT);
+    assert!(
+        matches!(events.as_slice(), [PanelEvent::OpenLinkExternal(LinkTarget::Url(url))] if url == "https://docs.rs"),
         "{events:?}"
     );
     // A plain click selects the block instead, and Ctrl+click beside the URL
     // opens nothing.
-    let events = click(&mut panel, x, KeyModifiers::NONE);
-    assert!(!events
+    assert!(!opens(&click(&mut panel, x, KeyModifiers::NONE)));
+    assert!(!opens(&click(&mut panel, x - 9, KeyModifiers::CONTROL)));
+}
+
+#[test]
+fn a_markdown_link_is_followed_and_lit_whole() {
+    let mut panel = panel(vec![reply("Read [the docs](https://docs.rs/x) first")]);
+    type_text(&mut panel, "hi there");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+    let rows = render_text(&mut panel, 40, 12);
+    let area = panel.transcript_area;
+    let y = rows
         .iter()
-        .any(|e| matches!(e, PanelEvent::OpenExternal(_))));
-    let events = click(&mut panel, x - 9, KeyModifiers::CONTROL);
-    assert!(!events
-        .iter()
-        .any(|e| matches!(e, PanelEvent::OpenExternal(_))));
+        .position(|r| r.contains("the docs"))
+        .expect("the link is on screen") as u16;
+    let row = &rows[y as usize];
+    let x = row[..row.find("the docs").unwrap()].chars().count() as u16;
+    let mouse = |kind, column, modifiers| MouseEvent {
+        kind,
+        column,
+        row: y,
+        modifiers,
+    };
+    // Ctrl over "the" lights "the docs", both words of the one link.
+    let events = panel.handle_mouse(mouse(MouseEventKind::Moved, x, KeyModifiers::CONTROL), area);
+    assert!(
+        matches!(events.as_slice(), [PanelEvent::NeedsRedraw]),
+        "{events:?}"
+    );
+    let buf = render_buf(&mut panel, 40, 12);
+    let info = ThemeColors::default().info;
+    // Each word is lit; the space between them is not part of the link.
+    for dx in (0..3).chain(4..8) {
+        let cell = &buf[(x + dx, y)];
+        assert!(
+            cell.modifier.contains(Modifier::UNDERLINED) && cell.fg == info,
+            "{dx}: {cell:?}"
+        );
+    }
+    // Releasing Ctrl puts it out.
+    panel.handle_mouse(mouse(MouseEventKind::Moved, x, KeyModifiers::NONE), area);
+    assert!(panel.hovered_link.is_none());
+    // Ctrl+click on "docs" follows the hidden address.
+    panel.handle_mouse(
+        mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            x + 5,
+            KeyModifiers::CONTROL,
+        ),
+        area,
+    );
+    let events = panel.handle_mouse(
+        mouse(
+            MouseEventKind::Up(MouseButton::Left),
+            x + 5,
+            KeyModifiers::CONTROL,
+        ),
+        area,
+    );
+    assert!(
+        matches!(events.as_slice(), [PanelEvent::OpenLink(LinkTarget::Url(url))] if url == "https://docs.rs/x"),
+        "{events:?}"
+    );
 }
 
 #[test]
@@ -759,7 +917,19 @@ fn a_selected_diff_keeps_its_colors() {
     // the plain selection.
     assert_eq!(buf[(4, row_of("+new"))].bg, colors.success);
     assert_eq!(buf[(4, row_of("-old"))].bg, colors.error);
-    assert_eq!(buf[(4, row_of("a.rs"))].bg, colors.fg);
+    // The headline's path, past its success-colored prefix.
+    let y = row_of("a.rs");
+    let x = (0..width)
+        .find(|&x| buf[(x, y)].symbol() == "a" && buf[(x + 1, y)].symbol() == ".")
+        .unwrap();
+    assert_eq!(buf[(x, y)].bg, colors.fg);
+
+    // A panel out of focus draws no cursor, so it does not draw the eye.
+    let buf = render_buf_focused(&mut panel, width, height, false);
+    assert!(
+        (0..height).all(|y| (0..width).all(|x| buf[(x, y)].bg != colors.fg)),
+        "no block shown inverted"
+    );
 }
 
 fn render_buf(panel: &mut AgentPanel, width: u16, height: u16) -> Buffer {
@@ -833,7 +1003,7 @@ fn a_run_the_user_stopped_rings_no_bell() {
     let mut panel = AgentPanel::new(setup(vec![]));
     panel.apply(AgentEvent::AgentStart);
     panel.run_start = Some(Instant::now() - Duration::from_secs(60));
-    panel.stop_requested = true;
+    panel.stop_requested = Some(Instant::now());
     panel.apply(AgentEvent::AgentEnd);
     assert!(!rings(&panel.tick()));
 }
@@ -897,7 +1067,7 @@ fn typing_enter_runs_a_turn_and_renders_it() {
     let text = |segs: &[StatusSegment]| segs.iter().map(|s| s.text.as_str()).collect::<String>();
     assert_eq!(
             text(&segments[..split]),
-            " Agent: default │ Permissions: configured │ Reasoning: off │ Tools: 0/0 │ Connection: local · OpenAI Compatible │ Model: m"
+            " Agent: default │ Permissions: configured │ Reasoning: off │ Tools: 0/0 │ Connection: local │ Model: m"
         );
     assert_eq!(text(&segments[split + 1..]), "↑100 ↓20 120/1k ▰▱▱▱▱▱▱▱ ");
 }
@@ -1042,6 +1212,12 @@ fn the_context_bar_fills_with_the_percentage() {
     assert_eq!(context_bar(0), "▱▱▱▱▱▱▱▱");
     assert_eq!(context_bar(12), "▰▱▱▱▱▱▱▱");
     assert_eq!(context_bar(50), "▰▰▰▰▱▱▱▱");
+    // Cells round to the nearest: a cell begun is not a cell filled.
+    assert_eq!(context_bar(1), "▱▱▱▱▱▱▱▱");
+    assert_eq!(context_bar(13), "▰▱▱▱▱▱▱▱");
+    assert_eq!(context_bar(51), "▰▰▰▰▱▱▱▱");
+    assert_eq!(context_bar(87), "▰▰▰▰▰▰▰▱");
+    assert_eq!(context_bar(94), "▰▰▰▰▰▰▰▰");
     assert_eq!(context_bar(100), "▰▰▰▰▰▰▰▰");
     assert_eq!(context_bar(200), "▰▰▰▰▰▰▰▰");
 }
@@ -1076,6 +1252,120 @@ fn activity_follows_the_events_and_totals_accumulate() {
 }
 
 #[test]
+fn a_call_update_fills_in_the_shown_calls_arguments() {
+    let mut panel = panel(vec![]);
+    let call = |arguments: serde_json::Value| termide_agent_core::ToolCall {
+        id: "t1".into(),
+        name: "task".into(),
+        arguments,
+        extra_content: None,
+    };
+    panel.apply(AgentEvent::ToolExecutionStart {
+        call: call(serde_json::json!({ "agent": "default" })),
+    });
+    let full = serde_json::json!({ "agent": "default", "prompt": "check the diff" });
+    panel.apply(AgentEvent::ToolCallUpdate {
+        call: call(full.clone()),
+    });
+    let shown = panel
+        .transcript()
+        .items()
+        .iter()
+        .find_map(|item| match item {
+            Item::Tool { call, .. } => Some(call.arguments.clone()),
+            _ => None,
+        });
+    assert_eq!(shown, Some(full));
+    assert_eq!(panel.transcript().items().len(), 1);
+}
+
+#[test]
+fn a_stop_ticks_on_the_live_line_and_the_answer_says_cancelled() {
+    let footer = |panel: &AgentPanel| -> Vec<String> {
+        panel
+            .live_footer_lines(60)
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.to_string()).collect())
+            .collect()
+    };
+    let mut panel = panel(vec![]);
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::MessageStart {
+        prompt_tokens: None,
+    });
+    panel.abort();
+    // The stop ticks in place of the run clock, and leaves no notice behind.
+    let stopping = termide_i18n::t().agent_notice_stopping();
+    let lines = footer(&panel);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].trim_start().starts_with(stopping), "{lines:?}");
+    assert!(
+        termide_config::constants::TICK_FRAMES
+            .iter()
+            .any(|f| lines[0].contains(&format!(" {f} "))),
+        "{lines:?}"
+    );
+    assert!(!panel
+        .transcript
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::Notice { .. })));
+    // The stopped answer says it was cancelled, not the provider's `aborted`.
+    panel.apply(AgentEvent::MessageEnd(Message::Assistant(
+        AssistantMessage::failed("p", "m", StopReason::Aborted, "aborted"),
+    )));
+    panel.apply(AgentEvent::AgentEnd);
+    assert!(footer(&panel).is_empty());
+    let cancelled = termide_i18n::t().agent_run_cancelled();
+    assert!(panel.transcript.items().iter().any(|i| matches!(
+        i,
+        Item::Assistant { error: Some(e), .. } if e == cancelled
+    )));
+}
+
+/// An ACP adapter may go on with a prompt stopped before the agent answered
+/// anything, hidden, and hold the next prompt behind it: the agent is started
+/// anew. One stopped after it answered was interrupted for real.
+#[test]
+fn an_external_agent_stopped_before_its_first_reply_is_restarted() {
+    let restarted = |panel: &AgentPanel| {
+        let wanted = termide_i18n::t().agent_notice_restarted_after_stop();
+        panel
+            .transcript
+            .items()
+            .iter()
+            .any(|i| matches!(i, Item::Notice { text, .. } if text == wanted))
+    };
+    let stopped = |panel: &mut AgentPanel| {
+        panel.abort();
+        panel.apply(AgentEvent::MessageEnd(Message::Assistant(
+            AssistantMessage::failed("p", "m", StopReason::Aborted, "aborted"),
+        )));
+        panel.apply(AgentEvent::AgentEnd);
+        panel.busy = false;
+        panel.tick();
+    };
+    let mut panel = panel(vec![]);
+    panel.external = true;
+    panel.apply(AgentEvent::AgentStart);
+    stopped(&mut panel);
+    assert!(restarted(&panel));
+    assert!(!panel.restart_due);
+
+    let mut panel = self::panel(vec![]);
+    panel.external = true;
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::MessageStart {
+        prompt_tokens: None,
+    });
+    panel.apply(AgentEvent::MessageUpdate(StreamEvent::TextDelta(
+        "on it".into(),
+    )));
+    stopped(&mut panel);
+    assert!(!restarted(&panel));
+}
+
+#[test]
 fn the_live_footer_shows_generation_meta_and_a_clock() {
     let text_of = |panel: &AgentPanel| -> Vec<String> {
         panel
@@ -1094,7 +1384,7 @@ fn the_live_footer_shows_generation_meta_and_a_clock() {
     let lines = text_of(&panel);
     assert_eq!(lines.len(), 1, "{lines:?}");
     assert!(
-        transcript::RUN_FRAMES
+        termide_config::constants::TICK_FRAMES
             .iter()
             .any(|f| lines[0].trim_start().starts_with(f)),
         "{lines:?}"
@@ -1122,6 +1412,61 @@ fn the_live_footer_shows_generation_meta_and_a_clock() {
     let lines = text_of(&panel);
     assert_eq!(lines.len(), 1, "{lines:?}");
     assert!(!lines[0].contains('✍'), "{lines:?}");
+}
+
+#[test]
+fn a_compaction_between_runs_shows_its_progress_and_the_new_context() {
+    let text_of = |panel: &AgentPanel| -> Vec<String> {
+        panel
+            .live_footer_lines(60)
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.to_string()).collect())
+            .collect()
+    };
+    let mut panel = panel(vec![]);
+    panel.context_tokens = 90_000;
+    panel.apply(AgentEvent::CompactionStart {
+        reason: termide_agent_core::CompactionReason::Manual,
+        prompt_tokens: 80_000,
+    });
+    // The summary call reads the old transcript: a `⏫` line with its size,
+    // and the clock keeps ticking although no run is in flight.
+    let lines = text_of(&panel);
+    assert_eq!(lines.len(), 2, "{lines:?}");
+    assert!(
+        lines[0].contains("⏫") && lines[0].contains("↑~80k"),
+        "{lines:?}"
+    );
+    panel.last_anim = Instant::now() - Duration::from_secs(1);
+    assert!(panel
+        .tick()
+        .iter()
+        .any(|e| matches!(e, PanelEvent::NeedsRedraw)));
+
+    // Its summary streams: the `✍️` line, with nothing in the transcript.
+    let items = panel.transcript.items().len();
+    panel.apply(AgentEvent::CompactionUpdate(StreamEvent::TextDelta(
+        "the summary so far".into(),
+    )));
+    let lines = text_of(&panel);
+    assert_eq!(lines.len(), 2, "{lines:?}");
+    assert!(
+        lines[0].contains('✍') && lines[0].contains('↓'),
+        "{lines:?}"
+    );
+    assert_eq!(panel.transcript.items().len(), items);
+
+    // Done: the context shows its new size at once, and nothing is left
+    // ticking.
+    panel.apply(AgentEvent::Compacted {
+        summary: "the summary".into(),
+        kept: 2,
+        tokens_before: 90_000,
+        tokens_after: 3_000,
+    });
+    assert_eq!(panel.context_tokens, 3_000);
+    assert!(panel.activity.is_none());
+    assert!(text_of(&panel).is_empty());
 }
 
 #[test]
@@ -1170,6 +1515,45 @@ fn the_live_footer_shows_the_prefill_until_the_first_token() {
     assert_eq!(lines.len(), 2, "{lines:?}");
     assert!(lines[0].contains('✍'), "{lines:?}");
     assert!(lines.iter().all(|l| !l.contains('⏫')), "{lines:?}");
+}
+
+#[test]
+fn the_live_footer_shows_a_wait_for_a_slot_until_the_request_is_sent() {
+    let text_of = |panel: &AgentPanel| -> Vec<String> {
+        panel
+            .live_footer_lines(80)
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.to_string()).collect())
+            .collect()
+    };
+    let t = termide_i18n::t();
+    let mut panel = panel(vec![]);
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::MessageStart {
+        prompt_tokens: Some(48_000),
+    });
+    // Waiting behind two others: a `⏳` line in place of the prefill's.
+    panel.apply(AgentEvent::MessageUpdate(StreamEvent::Queued { ahead: 2 }));
+    let lines = text_of(&panel);
+    assert_eq!(lines.len(), 2, "{lines:?}");
+    assert!(
+        lines[0].contains('⏳') && lines[0].contains(&t.agent_queued_ahead_fmt(2)),
+        "{lines:?}"
+    );
+    panel.apply(AgentEvent::MessageUpdate(StreamEvent::Queued { ahead: 0 }));
+    assert!(text_of(&panel)[0].contains(t.agent_queued()));
+
+    // Sent: the model reads, and the prefill is timed from here.
+    let waited_from = panel.activity.unwrap().msg_start;
+    panel.apply(AgentEvent::MessageUpdate(StreamEvent::Admitted));
+    let activity = panel.activity.unwrap();
+    assert!(activity.queued.is_none());
+    assert!(activity.msg_start >= waited_from);
+    let lines = text_of(&panel);
+    assert!(
+        lines[0].contains('⏫') && !lines[0].contains('⏳'),
+        "{lines:?}"
+    );
 }
 
 #[test]
@@ -1497,13 +1881,39 @@ fn the_clipboard_commands_answer_to_the_input_not_the_chat() {
 }
 
 #[test]
+fn typing_on_a_chat_block_hands_focus_back_to_the_prompt() {
+    let mut panel = panel(vec![reply("Hello from the model")]);
+    type_text(&mut panel, "hi");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
+    assert!(panel.chat_focus);
+    // A non-Latin key types its own character, not the canonical one the
+    // chat's shortcuts match on.
+    let event = |c| KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE);
+    panel.handle_key(KeyChord {
+        raw: event('р'),
+        canonical: event('h'),
+    });
+    assert!(!panel.chat_focus);
+    type_text(&mut panel, "ow");
+    assert_eq!(panel.input_text(), "рow");
+    // A chat shortcut stays a shortcut, and a Ctrl chord does not type.
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Char(' '), KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Char('o'), KeyModifiers::CONTROL));
+    assert!(panel.chat_focus);
+    assert_eq!(panel.input_text(), "рow");
+}
+
+#[test]
 fn dragging_in_the_prompt_selects_and_hands_focus_back_from_the_chat() {
     let mut panel = panel(vec![reply("Hello from the model")]);
     panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
     settle(&mut panel);
     let _ = render_text(&mut panel, 40, 12);
     // A draft in the prompt to drag a selection through, typed before the
-    // chat takes focus (which swallows plain characters).
+    // chat takes focus.
     type_text(&mut panel, "one two three");
     let _ = render_text(&mut panel, 40, 12);
     panel.chat_focus = true;
@@ -1906,6 +2316,21 @@ fn goal_works_turn_by_turn_until_the_judge_says_done() {
         .filter(|i| matches!(i, Item::User { .. }))
         .count();
     assert_eq!(users, 2);
+    // The first turn heads its block with the command as typed, and the
+    // notice does not repeat the goal.
+    let items = panel.transcript().items();
+    assert!(
+        items
+            .iter()
+            .any(|i| matches!(i, Item::User { command: Some(c), text, .. }
+            if c == "/goal get the build green" && text == "get the build green")),
+        "{items:?}"
+    );
+    assert!(items.iter().any(|i| matches!(i, Item::Notice { text, .. }
+        if text == termide_i18n::t().agent_notice_goal_working())));
+    assert!(!items
+        .iter()
+        .any(|i| matches!(i, Item::Notice { text, .. } if text.contains("get the build green"))));
     // The judge ran and the goal ended with the success reason.
     assert!(panel.transcript().items().iter().any(
         |i| matches!(i, Item::Notice { text, .. } if text.contains("checking whether the goal"))
@@ -1913,6 +2338,143 @@ fn goal_works_turn_by_turn_until_the_judge_says_done() {
     assert!(panel.transcript().items().iter().any(
             |i| matches!(i, Item::Notice { text, .. } if text.contains("goal reached: everything is green"))
         ));
+}
+
+/// A goal's work turn that the judge takes up next rings no bell, however
+/// long it ran; the goal's end does.
+#[test]
+fn a_goal_rings_only_when_it_ends() {
+    let mut panel = panel(vec![]);
+    panel.busy = true;
+    type_text(&mut panel, "/goal finish the refactor");
+    panel.submit();
+    panel.busy = false;
+    end_run_of(&mut panel, 60);
+    assert!(panel.goal_task.as_ref().unwrap().judge_at.is_some());
+    assert!(!panel.rung);
+    assert!(!panel.needs_attention());
+    panel.apply(AgentEvent::GoalJudged {
+        outcome: termide_agent_core::GoalOutcome::Done,
+        reason: "done".into(),
+    });
+    assert!(panel.goal_task.is_none());
+    assert!(panel.rung);
+}
+
+/// A loop's run with the next one scheduled rings no bell either.
+#[test]
+fn a_loop_run_with_another_to_come_rings_no_bell() {
+    let mut panel = panel(vec![]);
+    panel.busy = true;
+    type_text(&mut panel, "/loop 5m check the build");
+    panel.submit();
+    panel.busy = false;
+    assert!(panel.loop_task.is_some());
+    end_run_of(&mut panel, 60);
+    assert!(panel.loop_task.as_ref().unwrap().next_at.is_some());
+    assert!(!panel.rung);
+}
+
+/// While the judge decides, its call shows the ticking live line; the
+/// verdict takes it away.
+#[test]
+fn the_goal_check_shows_a_live_line_until_the_verdict() {
+    let mut panel = panel(vec![reply("DONE\nall green")]);
+    panel.busy = true;
+    type_text(&mut panel, "/goal get the build green");
+    panel.submit();
+    panel.busy = false;
+    panel.goal_task.as_mut().unwrap().first_turn = None;
+    panel.run_goal_judge();
+    assert_eq!(panel.activity.map(|a| a.phase), Some(Phase::Judge));
+    assert!(!panel.live_footer_lines(60).is_empty());
+    settle_goal(&mut panel);
+    assert!(panel.activity.is_none());
+}
+
+/// A judge that finds the goal out of reach ends it, with the reason.
+#[test]
+fn an_impossible_goal_ends_with_the_reason() {
+    let mut panel = panel(vec![
+        reply("looked into it"),
+        reply("IMPOSSIBLE\nthe API it needs was removed"),
+    ]);
+    type_text(&mut panel, "/goal use the old API");
+    panel.submit();
+    settle_goal(&mut panel);
+    let wanted =
+        termide_i18n::t().agent_notice_goal_impossible_reason_fmt("the API it needs was removed");
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::Notice { text, .. } if *text == wanted)));
+}
+
+/// With no turn cap, a goal whose turns call no tool is what stops it: after
+/// [`GOAL_IDLE_TURNS`] such turns it waits at a pause, still set.
+#[test]
+fn a_goal_that_only_talks_pauses_after_the_idle_turns() {
+    let mut replies = Vec::new();
+    for _ in 0..GOAL_IDLE_TURNS {
+        replies.push(reply("thinking about it"));
+        replies.push(reply("CONTINUE\nnothing has changed"));
+    }
+    let mut panel = panel(replies);
+    type_text(&mut panel, "/goal do the thing");
+    panel.submit();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !panel.paused {
+        panel.tick();
+        assert!(Instant::now() < deadline, "the goal did not pause");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let task = panel.goal_task.as_ref().expect("the goal is still set");
+    assert_eq!(task.iterations, GOAL_IDLE_TURNS);
+    assert_eq!(task.idle_turns, 0, "the count starts again after the pause");
+    assert_eq!(panel.restored, Some(Restored::Autorun));
+    let wanted = termide_i18n::t().agent_notice_goal_idle_paused_fmt(GOAL_IDLE_TURNS);
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::Notice { text, .. } if *text == wanted)));
+}
+
+#[test]
+fn goal_can_be_set_while_the_agent_works() {
+    let mut panel = panel(vec![reply("refactored")]);
+    // A run is in flight: the goal is taken at once, nothing joins the run.
+    panel.busy = true;
+    type_text(&mut panel, "/goal finish the refactor");
+    panel.submit();
+    assert!(panel.goal_task.is_some());
+    assert!(panel.queued_texts.is_empty());
+    assert!(panel.runtime.take_queued().is_empty());
+    let notices = |panel: &AgentPanel, wanted: &str| {
+        panel
+            .transcript()
+            .items()
+            .iter()
+            .any(|i| matches!(i, Item::Notice { text, .. } if text == wanted))
+    };
+    let t = termide_i18n::t();
+    assert!(notices(&panel, t.agent_notice_goal_working()));
+    assert!(!notices(&panel, t.agent_notice_busy()));
+    // Once the run ends, its first turn goes in place of the judge, headed
+    // by the `/goal …` typed.
+    panel.busy = false;
+    panel.goal_task.as_mut().unwrap().judge_at = Some(Instant::now());
+    panel.tick();
+    let task = panel.goal_task.as_ref().unwrap();
+    assert_eq!(task.iterations, 1);
+    assert!(task.first_turn.is_none());
+    assert!(!task.judging);
+    settle(&mut panel);
+    assert!(panel.transcript().items().iter().any(|i| matches!(
+        i,
+        Item::User { command: Some(c), .. } if c == "/goal finish the refactor"
+    )));
 }
 
 #[test]
@@ -1931,6 +2493,200 @@ fn goal_stop_ends_an_active_goal() {
             .items()
             .iter()
             .any(|i| matches!(i, Item::Notice { text, .. } if text.contains(termide_i18n::t().agent_notice_goal_stopped()))));
+}
+
+/// A bare `/goal` or `/loop` tells what is going on and leaves it going;
+/// without one it shows the usage. Only `stop` (or `off`) ends either.
+#[test]
+fn bare_goal_and_loop_report_rather_than_stop() {
+    let t = termide_i18n::t();
+    let last_notice = |panel: &AgentPanel| {
+        panel
+            .transcript()
+            .items()
+            .iter()
+            .rev()
+            .find_map(|i| match i {
+                Item::Notice { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .unwrap_or_default()
+    };
+    let mut panel = panel(vec![reply("working"), reply("again")]);
+    type_text(&mut panel, "/goal");
+    panel.submit();
+    assert_eq!(last_notice(&panel), t.agent_notice_goal_usage());
+    type_text(&mut panel, "/loop");
+    panel.submit();
+    assert_eq!(last_notice(&panel), t.agent_notice_loop_usage());
+
+    type_text(&mut panel, "/goal do the thing");
+    panel.submit();
+    settle(&mut panel);
+    type_text(&mut panel, "/goal");
+    panel.submit();
+    assert!(panel.goal_task.is_some(), "a bare /goal left it going");
+    let status = last_notice(&panel);
+    assert!(status.contains("do the thing"), "{status}");
+    let turns = panel.goal_task.as_ref().unwrap().iterations;
+    assert_eq!(status, t.agent_unfinished_goal_fmt("do the thing", turns));
+
+    let mut panel = looping_panel();
+    type_text(&mut panel, "/loop");
+    panel.submit();
+    assert!(panel.loop_task.is_some(), "a bare /loop left it going");
+    let status = last_notice(&panel);
+    assert!(status.contains("check the build"), "{status}");
+    assert!(status.contains("5m"), "{status}");
+}
+
+/// A panel whose `/loop 5m check the build` ran once and waits for its
+/// next run.
+fn looping_panel() -> AgentPanel {
+    let mut panel = panel(vec![reply("built")]);
+    assert!(panel.autorun_rows().is_empty());
+    type_text(&mut panel, "/loop 5m check the build");
+    panel.submit();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while panel
+        .loop_task
+        .as_ref()
+        .is_some_and(|t| t.next_at.is_none())
+    {
+        panel.tick();
+        assert!(Instant::now() < deadline, "the loop did not wait");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panel
+}
+
+/// An active goal and loop stay pinned in the state strip: the command as
+/// typed on the left, the count (and the wait for the next run) at the right.
+#[test]
+fn an_active_goal_and_loop_show_in_the_state_strip() {
+    let mut panel = looping_panel();
+    type_text(&mut panel, "/goal do the thing");
+    panel.submit();
+
+    let rows = panel.autorun_rows();
+    assert_eq!(rows.len(), 2, "{rows:?}");
+    let colors = ThemeColors::default();
+    let lines = crate::render::autorun_strip(&rows, 80, &colors);
+    let text = |line: &Line| {
+        line.spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect::<String>()
+    };
+    let goal = text(&lines[0]);
+    assert!(
+        goal.starts_with("◎ Heading for the goal do the thing"),
+        "{goal}"
+    );
+    assert_eq!(
+        lines[0].spans[0].style.fg,
+        Some(colors.info),
+        "label in accent"
+    );
+    assert_eq!(
+        lines[0].spans[1].style.fg,
+        Some(colors.disabled),
+        "goal dim"
+    );
+    let stop = lines[0].spans.last().unwrap();
+    assert_eq!(
+        (stop.content.as_ref(), stop.style.fg),
+        ("✕", Some(colors.info))
+    );
+    // No turn count and no cap: only how long the goal has run, then `✕`.
+    assert!(!goal.contains('/'), "{goal}");
+    let unit = termide_i18n::t().time_unit_secs();
+    assert!(goal.trim_end().ends_with(&format!("{unit} ✕")), "{goal}");
+    let looped = text(&lines[1]);
+    assert!(
+        looped.starts_with("↺ Repeating every 5m check the build"),
+        "{looped}"
+    );
+    assert_eq!(
+        lines[1].spans[0].style.fg,
+        Some(colors.info),
+        "label in accent"
+    );
+    assert!(looped.contains("next run in"), "{looped}");
+    assert!(
+        looped
+            .trim_end()
+            .ends_with(&format!("1/{LOOP_MAX_ITERATIONS} ✕")),
+        "{looped}"
+    );
+    for line in &lines {
+        let text = text(line);
+        assert!(termide_ui::str_display_width(&text) <= 80);
+        // The button sits where a click looks for it.
+        let column = crate::render::autorun_stop_column(80) as usize;
+        assert_eq!(text.chars().nth(column), Some('✕'), "{text:?}");
+    }
+
+    type_text(&mut panel, "/goal stop");
+    panel.submit();
+    type_text(&mut panel, "/loop stop");
+    panel.submit();
+    assert!(panel.autorun_rows().is_empty());
+}
+
+/// A click on the `✕` of a goal or loop row stops just that one.
+#[test]
+fn the_strip_stop_button_ends_a_goal_or_loop() {
+    let mut panel = looping_panel();
+    type_text(&mut panel, "/goal do the thing");
+    panel.submit();
+    let (width, height) = (80, 30);
+    let click_stop = |panel: &mut AgentPanel, kind: crate::render::Autorun| {
+        let _ = render_text(panel, width, height);
+        let (at, _) = *panel
+            .autorun_stops
+            .iter()
+            .find(|(_, k)| *k == kind)
+            .expect("the row shows its stop button");
+        panel.handle_mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: at.x,
+                row: at.y,
+                modifiers: KeyModifiers::NONE,
+            },
+            Rect::new(0, 0, width, height),
+        );
+    };
+    // A click on the row away from `✕` brings the loop's run into view.
+    let _ = render_text(&mut panel, width, height);
+    let (at, _) = *panel
+        .autorun_stops
+        .iter()
+        .find(|(_, k)| *k == crate::render::Autorun::Loop)
+        .unwrap();
+    let block = panel
+        .autorun_block(crate::render::Autorun::Loop)
+        .expect("the loop's run is in the transcript");
+    panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 4,
+            row: at.y,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, width, height),
+    );
+    assert!(panel.loop_task.is_some(), "the row click does not stop it");
+    assert!(panel.chat_focus);
+    assert_eq!(panel.selected, block);
+    click_stop(&mut panel, crate::render::Autorun::Loop);
+    assert!(panel.loop_task.is_none());
+    assert!(panel.goal_task.is_some(), "only the loop stopped");
+    click_stop(&mut panel, crate::render::Autorun::Goal);
+    assert!(panel.goal_task.is_none());
+    let _ = render_text(&mut panel, width, height);
+    assert!(panel.autorun_stops.is_empty());
 }
 
 fn roles(messages: &[Message]) -> Vec<&'static str> {
@@ -2585,16 +3341,18 @@ fn notices_before_the_first_request_go_under_the_banner() {
     assert!(cwd < rule && rule < notice, "{rows:#?}");
     assert!(!panel.banner_hits.is_empty());
 
-    // On a short panel the fields keep their rows and the newest notice
-    // is the one shown.
+    // On a short panel the notices scroll with the banner: the fields come
+    // first, and the wheel brings the newest notice in.
     for i in 0..10 {
         panel.notice(format!("note {i}"), NoticeKind::Info);
     }
     let rows = render_text(&mut panel, 60, 16);
     let all = rows.join("\n");
     let cwd = termide_i18n::t().agent_banner_cwd();
-    assert!(all.contains(cwd) && all.contains("note 9"), "{rows:#?}");
-    assert!(!all.contains("note 0"), "{rows:#?}");
+    assert!(all.contains(cwd) && !all.contains("note 9"), "{rows:#?}");
+    panel.handle_scroll(50, Rect::new(0, 0, 60, 16));
+    let all = render_text(&mut panel, 60, 16).join("\n");
+    assert!(all.contains("note 9") && !all.contains(cwd), "{all}");
 
     // The first request takes the banner away; the notices stay above it.
     type_text(&mut panel, "hello");
@@ -2640,6 +3398,64 @@ fn ctrl_s_saves_the_chat_and_the_menu_offers_it() {
     assert!(content.contains("### 🤖 Agent · ") && content.contains("Hi there."));
     // The reasoning and the panel's notices stay out.
     assert!(!content.contains("they greet") && !content.contains("Nothing to save"));
+}
+
+/// What the `auto` mode reviewers spend joins the session's totals at the
+/// next look, once; the context fill stays.
+#[test]
+fn the_reviewers_tokens_join_the_session_totals() {
+    let mut panel = panel(vec![]);
+    panel.context_tokens = 500;
+    panel.reviewer.spent.add(&termide_agent_core::Usage {
+        input: 300,
+        output: 4,
+        cache_read: 1000,
+        cache_write: 0,
+    });
+    panel.tick();
+    assert_eq!(
+        (
+            panel.session_input,
+            panel.session_cached,
+            panel.session_output
+        ),
+        (300, 1000, 4)
+    );
+    assert_eq!(panel.context_tokens, 500);
+    assert!(!panel.take_reviewer_spent());
+}
+
+/// A subagent's tokens join the session's totals when its `task` ends; its
+/// context was its own, so the context fill stays.
+#[test]
+fn a_subagents_tokens_join_the_session_totals() {
+    use termide_agent_core::{ToolCall, Usage};
+    let mut panel = panel(vec![]);
+    panel.context_tokens = 500;
+    let call = ToolCall {
+        id: "t1".into(),
+        name: "task".into(),
+        arguments: serde_json::json!({ "agent": "search", "prompt": "find it" }),
+        extra_content: None,
+    };
+    panel.apply(AgentEvent::ToolExecutionStart { call: call.clone() });
+    panel.apply(AgentEvent::ToolExecutionEnd {
+        result: ToolResultMessage::text(&call, "found").with_spent(Usage {
+            input: 40,
+            output: 7,
+            cache_read: 900,
+            cache_write: 2,
+        }),
+    });
+    assert_eq!(
+        (
+            panel.session_input,
+            panel.session_cached,
+            panel.session_output
+        ),
+        (42, 900, 7)
+    );
+    assert_eq!(panel.context_tokens, 500);
 }
 
 #[test]
@@ -2910,18 +3726,32 @@ fn tab_walks_the_banner_sessions_and_enter_opens_one() {
     );
     panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
     assert!(panel.chat_focus);
+    // The cursor shows only while the panel is focused.
+    let colors = ThemeColors::default();
+    let inverted = |buf: &Buffer| (0..12).any(|y| (0..80).any(|x| buf[(x, y)].bg == colors.fg));
+    assert!(inverted(&render_buf(&mut panel, 80, 12)));
+    assert!(!inverted(&render_buf_focused(&mut panel, 80, 12, false)));
     panel.handle_key(chord(KeyCode::Down, KeyModifiers::NONE));
     panel.handle_key(chord(KeyCode::Down, KeyModifiers::NONE));
     panel.handle_key(chord(KeyCode::Down, KeyModifiers::NONE));
     assert_eq!(panel.recent_selected, 2, "the cursor stops at the end");
+    // The whole banner scrolls to keep the cursor in view.
     let all = render_text(&mut panel, 80, 12).join("\n");
-    assert!(
-        all.contains("first task") && !all.contains("third task"),
-        "{all}"
-    );
-    // Typing goes nowhere while the list has the keyboard; Esc hands it back.
+    assert!(all.contains("first task"), "{all}");
+    assert!(panel.banner_top > 0);
+    // Back on the first session the banner returns to its top.
+    panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(panel.recent_selected, 0);
+    assert_eq!(panel.banner_top, 0);
+    panel.handle_key(chord(KeyCode::End, KeyModifiers::NONE));
+    // Typing while the list has the keyboard hands it back to the prompt,
+    // and the character lands there; Esc hands it back too.
     type_text(&mut panel, "x");
-    assert!(panel.input_text().is_empty());
+    assert!(!panel.chat_focus);
+    assert_eq!(panel.input_text(), "x");
+    panel.clear_input();
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
     panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
     assert!(!panel.chat_focus);
 
@@ -3021,7 +3851,152 @@ fn f8_in_the_banner_list_deletes_the_picked_session_not_the_fresh_one() {
 }
 
 #[test]
-fn the_wheel_scrolls_the_banner_sessions() {
+fn f2_in_the_banner_list_renames_the_picked_session_not_the_fresh_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("one"), reply("two")])
+    });
+    for prompt in ["first task", "second task"] {
+        type_text(&mut panel, prompt);
+        panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+        settle(&mut panel);
+        panel.handle_status_action(NEW_SESSION_ACTION);
+    }
+    let input = |events: &[PanelEvent]| match events {
+        [PanelEvent::ShowInput {
+            initial_value,
+            on_submit: InputAction::Custom(action),
+            ..
+        }] => (initial_value.clone(), action.clone()),
+        other => panic!("expected a rename prompt, got {other:?}"),
+    };
+
+    // From the prompt F2 still renames the current session.
+    let events = panel.handle_key(chord(KeyCode::F(2), KeyModifiers::NONE));
+    assert_eq!(input(&events).1, RENAME_ACTION);
+
+    // In the list it renames the session under the cursor; the rename may
+    // move it up the list, and the cursor follows it.
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Down, KeyModifiers::NONE));
+    let picked = panel.recent_sessions[1].path.clone();
+    let events = panel.handle_key(chord(KeyCode::F(2), KeyModifiers::NONE));
+    let (initial, action) = input(&events);
+    assert_eq!(initial, "", "an unnamed session starts empty");
+    panel.handle_command(PanelCommand::InputSubmitted {
+        action,
+        text: "renamed".to_string(),
+    });
+    let renamed = &panel.recent_sessions[panel.recent_selected];
+    assert_eq!(renamed.path, picked, "the cursor follows the session");
+    assert_eq!(renamed.name.as_deref(), Some("renamed"));
+    assert_eq!(panel.recent_sessions.len(), 2);
+    assert!(
+        panel
+            .recent_sessions
+            .iter()
+            .filter(|s| s.name.is_some())
+            .count()
+            == 1
+    );
+    assert_eq!(panel.session.as_ref().and_then(Session::name), None);
+
+    // Asked again, the prompt offers the name it now has.
+    let events = panel.handle_key(chord(KeyCode::F(2), KeyModifiers::NONE));
+    let (initial, action) = input(&events);
+    assert_eq!(initial, "renamed");
+
+    // An empty answer clears the name: the row falls back to its first
+    // prompt instead of going blank.
+    panel.handle_command(PanelCommand::InputSubmitted {
+        action,
+        text: String::new(),
+    });
+    assert_eq!(panel.recent_sessions.len(), 2);
+    assert!(panel.recent_sessions.iter().all(|s| s.name.is_none()));
+}
+
+#[test]
+fn clearing_the_name_of_a_listed_session_with_no_messages_discards_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let named = {
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session.set_name("only a name").unwrap();
+        session.path().to_path_buf()
+    };
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![])
+    });
+    assert_eq!(panel.recent_sessions.len(), 1);
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
+    assert!(panel.chat_focus);
+    let events = panel.handle_key(chord(KeyCode::F(2), KeyModifiers::NONE));
+    let [PanelEvent::ShowInput {
+        on_submit: InputAction::Custom(action),
+        ..
+    }] = events.as_slice()
+    else {
+        panic!("expected a rename prompt, got {events:?}");
+    };
+    panel.handle_command(PanelCommand::InputSubmitted {
+        action: action.clone(),
+        text: String::new(),
+    });
+    assert!(panel.recent_sessions.is_empty());
+    assert!(!named.exists(), "an untouched session is not left unlisted");
+    assert!(!panel.chat_focus, "the keyboard goes back to the prompt");
+}
+
+#[test]
+fn the_wheel_scrolls_the_whole_banner() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("one"), reply("two")])
+    });
+    for prompt in ["first task", "second task"] {
+        type_text(&mut panel, prompt);
+        panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+        settle(&mut panel);
+        panel.handle_status_action(NEW_SESSION_ACTION);
+    }
+    let area = Rect::new(0, 0, 80, 11);
+    let all = render_text(&mut panel, 80, 11).join("\n");
+    assert!(
+        all.contains("default") && !all.contains("first task"),
+        "{all}"
+    );
+    // The fields scroll away with the list, so the older session comes in
+    // and the panel's own scrollbar tracks the banner.
+    panel.handle_scroll(3, area);
+    let all = render_text(&mut panel, 80, 11).join("\n");
+    assert!(
+        all.contains("first task") && !all.contains("default"),
+        "{all}"
+    );
+    assert!(panel.scrollbars.vertical.is_some());
+    // Only rows on screen take clicks.
+    let view = panel.viewport_height() as u16;
+    assert!(panel.banner_hits.iter().all(|(rect, _)| rect.y < view));
+    assert!(!panel
+        .banner_hits
+        .iter()
+        .any(|(_, hit)| *hit == BannerHit::Action(AGENT_ACTION)));
+    // Past the end it stops, and back up the fields return.
+    panel.handle_scroll(50, area);
+    assert_eq!(panel.banner_top, panel.banner_max_top());
+    panel.handle_scroll(-50, area);
+    assert_eq!(panel.banner_top, 0);
+    // The wheel leaves the list's cursor where it is.
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
+    panel.handle_scroll(50, area);
+    assert_eq!(panel.recent_selected, 0);
+}
+
+#[test]
+fn a_notice_above_the_scrolled_banner_list_keeps_the_list_in_place() {
     let dir = tempfile::tempdir().unwrap();
     let mut panel = AgentPanel::new(AgentPanelSetup {
         session_dir: Some(dir.path().to_path_buf()),
@@ -3034,15 +4009,16 @@ fn the_wheel_scrolls_the_banner_sessions() {
         panel.handle_status_action(NEW_SESSION_ACTION);
     }
     let _ = render_text(&mut panel, 80, 11);
-    panel.handle_scroll(1, Rect::new(0, 0, 80, 11));
-    let all = render_text(&mut panel, 80, 11).join("\n");
-    assert!(
-        all.contains("first task") && !all.contains("second task"),
-        "{all}"
+    panel.handle_scroll(50, Rect::new(0, 0, 80, 11));
+    let before = render_text(&mut panel, 80, 11);
+    let row_of = |rows: &[String], text: &str| rows.iter().position(|r| r.contains(text));
+    panel.notice("mcp github: connecting".to_string(), NoticeKind::Info);
+    let after = render_text(&mut panel, 80, 11);
+    assert_eq!(
+        row_of(&before, "first task"),
+        row_of(&after, "first task"),
+        "{after:#?}"
     );
-    // Past the end it stops.
-    panel.handle_scroll(5, Rect::new(0, 0, 80, 11));
-    assert_eq!(panel.recent_top, 1);
 }
 
 fn ask_in_worker(
@@ -3104,7 +4080,7 @@ fn the_models_questions_are_answered_one_card_at_a_time() {
     panel.handle_key(chord(KeyCode::Char('2'), KeyModifiers::NONE));
     assert_eq!(
         panel.pending.as_ref().unwrap().form().title(),
-        "Agent asks (2/2)"
+        "Agent asks (← 2/2)"
     );
     // Several picks, and an answer of the user's own among them.
     panel.handle_key(chord(KeyCode::Char('1'), KeyModifiers::NONE));
@@ -3133,6 +4109,65 @@ fn the_models_questions_are_answered_one_card_at_a_time() {
 }
 
 #[test]
+fn the_arrows_step_back_to_an_answered_question_and_its_answer_shows() {
+    let mut panel = panel(vec![]);
+    let worker = ask_in_worker(
+        &mut panel,
+        vec![
+            question("Which approach?", &["Channel", "Slot"], false),
+            question("Which crates?", &["core", "ui", "app"], true),
+            question("Name?", &[], false),
+        ],
+    );
+    let title = |panel: &AgentPanel| panel.pending.as_ref().unwrap().form().title().to_string();
+    let key = |panel: &mut AgentPanel, code| panel.handle_key(chord(code, KeyModifiers::NONE));
+    // The first question has nothing before it: `←` is not a step there.
+    assert_eq!(title(&panel), "Agent asks (1/3)");
+    key(&mut panel, KeyCode::Char('2'));
+    key(&mut panel, KeyCode::Char('1'));
+    key(&mut panel, KeyCode::Char('3'));
+    key(&mut panel, KeyCode::Char('5'));
+    assert_eq!(title(&panel), "Agent asks (← 3/3)");
+
+    // Back to the second: its picks show, and `→` leads on again.
+    key(&mut panel, KeyCode::Left);
+    assert_eq!(title(&panel), "Agent asks (← 2/3 →)");
+    let form = panel.pending.as_ref().unwrap().form();
+    assert!(form.is_checked(0) && !form.is_checked(1) && form.is_checked(2));
+    // Back to the first: its choice is selected; a new one moves on to the
+    // second, which keeps its answer and can be stepped past.
+    key(&mut panel, KeyCode::Left);
+    assert_eq!(title(&panel), "Agent asks (1/3 →)");
+    assert_eq!(panel.pending.as_ref().unwrap().form().selected(), 1);
+    key(&mut panel, KeyCode::Char('1'));
+    assert_eq!(title(&panel), "Agent asks (← 2/3 →)");
+    key(&mut panel, KeyCode::Right);
+    assert_eq!(title(&panel), "Agent asks (← 3/3)");
+    // The last is answered in the user's own words; the set goes back.
+    key(&mut panel, KeyCode::Char('1'));
+    type_text(&mut panel, "relay");
+    key(&mut panel, KeyCode::Enter);
+    assert!(panel.pending.is_none());
+    assert_eq!(
+        worker.join().unwrap(),
+        QuestionReply::Answered(vec![
+            QuestionAnswer {
+                chosen: vec!["Channel".into()],
+                custom: None,
+            },
+            QuestionAnswer {
+                chosen: vec!["core".into(), "app".into()],
+                custom: None,
+            },
+            QuestionAnswer {
+                chosen: vec![],
+                custom: Some("relay".into()),
+            },
+        ])
+    );
+}
+
+#[test]
 fn escape_declines_the_models_question() {
     let mut panel = panel(vec![]);
     let worker = ask_in_worker(&mut panel, vec![question("Name?", &[], false)]);
@@ -3140,6 +4175,113 @@ fn escape_declines_the_models_question() {
     panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
     assert!(panel.pending.is_none());
     assert_eq!(worker.join().unwrap(), QuestionReply::Declined);
+}
+
+/// An external agent's calls reach the panel as a message of calls alone
+/// once one has run, for the log: it leaves no answer block behind, nor
+/// closes the reasoning streaming meanwhile.
+#[test]
+fn a_message_of_calls_alone_leaves_no_answer_block() {
+    let mut panel = panel(vec![]);
+    panel.external = true;
+    let call = termide_agent_core::ToolCall {
+        id: "c".into(),
+        name: "bash".into(),
+        arguments: serde_json::json!({ "command": "ls" }),
+        extra_content: None,
+    };
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::ToolExecutionStart { call: call.clone() });
+    panel.apply(AgentEvent::ToolExecutionEnd {
+        result: ToolResultMessage::text(&call, "a.rs"),
+    });
+    // The agent has started reasoning about what came back.
+    panel.apply(AgentEvent::MessageStart {
+        prompt_tokens: None,
+    });
+    panel.apply(AgentEvent::MessageUpdate(StreamEvent::ThinkingDelta(
+        "so".into(),
+    )));
+    panel.apply(AgentEvent::MessageEnd(Message::Assistant(
+        AssistantMessage {
+            content: vec![AssistantContent::ToolCall(call.clone())],
+            stop_reason: StopReason::ToolUse,
+            ..reply("")
+        },
+    )));
+    panel.apply(AgentEvent::MessageEnd(Message::ToolResult(
+        ToolResultMessage::text(&call, "a.rs"),
+    )));
+    assert!(
+        !panel
+            .transcript
+            .items()
+            .iter()
+            .any(|item| matches!(item, Item::Assistant { .. })),
+        "{:?}",
+        panel.transcript.items()
+    );
+    assert!(
+        matches!(
+            panel.transcript.items().last(),
+            Some(Item::Thinking {
+                streaming: true,
+                ..
+            })
+        ),
+        "{:?}",
+        panel.transcript.items()
+    );
+}
+
+/// A question for a call the external agent gave up comes down by itself,
+/// and the next call's question is shown rather than turned away.
+#[test]
+fn a_withdrawn_permission_question_comes_down() {
+    let mut panel = panel(vec![]);
+    let (prompter, rx) = permission_channel(CancelToken::new());
+    panel.permission_rx = rx;
+    let request = |command: &str| termide_agent_core::PermissionRequest {
+        tool: "bash".into(),
+        subject: command.into(),
+        call: termide_agent_core::ToolCall {
+            id: "c".into(),
+            name: "bash".into(),
+            arguments: serde_json::json!({ "command": command }),
+            extra_content: None,
+        },
+        suggested_pattern: String::new(),
+        can_persist: false,
+        can_allow_session: true,
+        parts: Vec::new(),
+    };
+    let wait_for = |panel: &mut AgentPanel, subject: &str| {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            panel.tick();
+            if let Some(Pending::Permission { envelope, .. }) = &panel.pending {
+                if envelope.request.subject == subject {
+                    return;
+                }
+            }
+            assert!(Instant::now() < deadline, "no card for {subject}");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    };
+    let withdrawn = CancelToken::new();
+    let mut first = prompter.clone();
+    let token = withdrawn.clone();
+    let worker = std::thread::spawn(move || first.ask_for_call(&request("git push"), Some(&token)));
+    wait_for(&mut panel, "git push");
+
+    withdrawn.cancel();
+    assert_eq!(worker.join().unwrap(), PermissionAnswer::Deny);
+    let mut second = prompter.clone();
+    let worker = std::thread::spawn(move || second.ask(&request("git fetch")));
+    // The given-up card goes and the next question takes its place.
+    wait_for(&mut panel, "git fetch");
+    assert!(panel.answer_permission(PermissionAnswer::AllowOnce));
+    assert_eq!(worker.join().unwrap(), PermissionAnswer::AllowOnce);
 }
 
 #[test]
@@ -3482,8 +4624,9 @@ impl ConnectionCatalog for Connections {
     fn build(&self, name: &str, _agent: &str) -> Option<ConnectionChoice> {
         let entry = self.list().into_iter().find(|entry| entry.name == name)?;
         let backend: Option<BackendFactory> = (entry.kind == "codex").then(|| {
-            Arc::new(|setup: BackendSetup| Ok(Box::new(External::new(setup)) as Box<dyn Backend>))
-                as BackendFactory
+            Arc::new(|setup: BackendSetup| {
+                Ok(Box::new(External::following_modes(setup)) as Box<dyn Backend>)
+            }) as BackendFactory
         });
         Some(ConnectionChoice {
             name: entry.name,
@@ -3492,6 +4635,14 @@ impl ConnectionCatalog for Connections {
             model: entry.model,
             context_window: 200_000,
             backend,
+            // Each connection's reviewer reviews under a model of its name.
+            reviewer: ReviewerSetup {
+                model: termide_agent_core::ModelChoice {
+                    own: None,
+                    session_model: Some(format!("{name}-reviewer")),
+                },
+                ..ReviewerSetup::default()
+            },
         })
     }
 }
@@ -3536,8 +4687,9 @@ fn the_connection_picker_switches_the_endpoint_and_its_model() {
     assert_eq!(panel.model.id, "claude-x");
     assert_eq!(panel.model.context_window, 200_000);
     assert!(!panel.external);
-    // The chip names the connection beside its protocol.
+    // The banner names the connection beside its protocol, the chip by name.
     assert_eq!(panel.connection_display(), "cloud · Anthropic Compatible");
+    assert_eq!(panel.connection_chip(), "cloud");
     // The log keeps it, so a reopened session reconnects there.
     let session = Session::open(panel.session_path().unwrap()).unwrap();
     assert_eq!(session.current_connection(), Some("cloud".to_string()));
@@ -3548,27 +4700,73 @@ fn the_connection_picker_switches_the_endpoint_and_its_model() {
 }
 
 #[test]
-fn a_cli_agent_connection_is_taken_on_only_before_the_first_request() {
+fn a_connection_switch_keeps_the_typed_prompt() {
     let dir = tempfile::tempdir().unwrap();
     let mut panel = connected_panel(dir.path());
+    type_text(&mut panel, "fix the bug");
+    assert!(panel.switch_connection("cloud"));
+    assert_eq!(panel.input.field_value(0), "fix the bug");
+    // As does a switch onto a CLI agent.
+    assert!(panel.switch_connection("cli"));
+    assert_eq!(panel.input.field_value(0), "fix the bug");
+}
+
+#[test]
+fn an_unsent_session_saves_its_setup_and_a_used_one_does_not() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = connected_panel(dir.path());
+    assert!(panel.switch_connection("cloud"));
+    assert!(panel.switch_model("claude-y", None));
+    let state = |panel: &AgentPanel| match panel.to_state(Path::new("/unused")) {
+        Some(termide_core::PanelState::Agent { setup, .. }) => setup,
+        other => panic!("agent state expected, got {other:?}"),
+    };
+    let saved = state(&panel);
+    assert_eq!(saved.connection.as_deref(), Some("cloud"));
+    assert_eq!(saved.model.as_deref(), Some("claude-y"));
+    // The connection's own model is not pinned.
+    assert!(panel.switch_model("claude-x", None));
+    assert_eq!(state(&panel).model, None);
+
+    // Once the log holds a conversation, it is what a restore reads.
+    let mut used = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("done")])
+    });
+    type_text(&mut used, "task");
+    used.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut used);
+    assert!(state(&used).is_empty());
+}
+
+#[test]
+fn a_cli_agent_connection_is_taken_on_mid_conversation_and_left_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = connected_panel(dir.path());
+    let meter = panel.reviewer.spent.clone();
     panel.transcript.push(Item::User {
         text: "go".into(),
         at: String::new(),
         command: None,
     });
-    // Mid-conversation the CLI agent would not see it: refused.
-    assert!(!panel.switch_connection("cli"));
-    assert_eq!(panel.connection, "local");
-    assert!(panel.transcript.items().iter().any(|item| matches!(
-            item,
-            Item::Notice { text, .. } if text == termide_i18n::t().agent_notice_connection_before_first()
-        )));
-    // In a fresh session it drives the CLI agent over ACP.
-    let dir = tempfile::tempdir().unwrap();
-    let mut fresh = connected_panel(dir.path());
-    assert!(fresh.switch_connection("cli"));
-    assert!(fresh.external);
-    assert_eq!(fresh.provider_kind, "codex");
+    // The CLI agent takes the conversation over (told a recap of it).
+    assert!(panel.switch_connection("cli"));
+    assert!(panel.external);
+    assert_eq!(panel.provider_kind, "codex");
+    // And the built-in loop takes it back.
+    assert!(panel.switch_connection("local"));
+    assert!(!panel.external);
+    // The connection's reviewer came along each time.
+    assert_eq!(
+        panel.reviewer.model.session_model.as_deref(),
+        Some("local-reviewer")
+    );
+    // What its reviews spend still reaches the panel's totals.
+    meter.add(&termide_agent_core::Usage {
+        input: 9,
+        ..Default::default()
+    });
+    assert_eq!(panel.reviewer.spent.take().input, 9);
 }
 
 #[test]
@@ -3661,6 +4859,7 @@ fn switching_off_mid_session_refuses_until_a_compaction_takes_it_out() {
         summary: "earlier".into(),
         kept: 1,
         tokens_before: 1000,
+        tokens_after: 200,
     });
     assert!(panel.context_stale);
     panel.tick();
@@ -3698,6 +4897,43 @@ fn up_takes_the_queue_back_into_the_input() {
         panel.state_lines(60).is_empty(),
         "the strip no longer lists them"
     );
+}
+
+/// A 1×1 PNG.
+const DOT_PNG: &[u8] = &[
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+    0x89, 0x00, 0x00, 0x00, 0x0B, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x60, 0x00, 0x02, 0x00,
+    0x00, 0x05, 0x00, 0x01, 0x7A, 0x5E, 0xAB, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
+    0xAE, 0x42, 0x60, 0x82,
+];
+
+#[test]
+fn a_pasted_picture_path_attaches_the_picture_and_survives_the_queue() {
+    let dir = tempfile::tempdir().unwrap();
+    let shot = dir.path().join("dot.png");
+    std::fs::write(&shot, DOT_PNG).unwrap();
+    let mut panel = panel(vec![]);
+    panel.apply(AgentEvent::AgentStart);
+    type_text(&mut panel, "what is ");
+    panel.paste(&shot.display().to_string());
+    let placeholder = termide_i18n::t()
+        .agent_paste_placeholder_fmt(1, &termide_i18n::t().agent_paste_image_fmt(1, 1));
+    assert_eq!(panel.input_text(), format!("what is {placeholder}"));
+    assert_eq!(panel.held_pictures(&panel.input_text()).len(), 1);
+
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(panel.runtime.queue_lens(), (1, 0));
+    assert!(panel.input_text().is_empty());
+
+    // Taken back into the input, the picture is held under its placeholder.
+    panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(panel.input_text(), format!("what is {placeholder}"));
+    let held = panel.held_pictures(&panel.input_text());
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].0, "image/png");
+    // Deleting the placeholder drops the picture.
+    assert!(panel.held_pictures("what is").is_empty());
 }
 
 #[test]
@@ -3757,6 +4993,7 @@ fn a_permission_wait_is_timed_apart_from_the_call() {
                 }],
             },
             reply,
+            withdrawn: termide_agent_core::CancelToken::default(),
         },
         form: ChoiceForm::new("", vec![]),
         answers: Vec::new(),
@@ -3820,6 +5057,7 @@ fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
                     }],
                 },
                 reply,
+                withdrawn: termide_agent_core::CancelToken::default(),
             },
             form: ChoiceForm::new("", vec![]),
             answers: Vec::new(),
@@ -4054,6 +5292,7 @@ fn saved_state_names_the_directory_and_the_session_log() {
             cwd: PathBuf::from("/tmp"),
             session: None,
             agent: None,
+            setup: termide_core::AgentSetupState::default(),
         })
     );
 
@@ -4179,6 +5418,23 @@ fn a_system_prompt_block_shows_once_and_on_change() {
     panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
     settle(&mut panel);
     assert_eq!(count(&panel), 2, "shown again after it changed");
+}
+
+#[test]
+fn the_header_shows_the_agents_own_icon_or_the_robot() {
+    let mut panel = panel(vec![]);
+    let (theme, config) = (Theme::default(), Arc::new(Config::default()));
+    panel.prepare_render(&theme, &config);
+    assert_eq!(panel.icon(), Some(AGENT_ICON));
+
+    let events = panel.handle_status_action(AGENT_ACTION);
+    let picker = events.first().expect("picker");
+    select(&mut panel, picker, 1);
+    // Until the next frame looks the agent up, the header keeps the robot
+    // rather than another agent's icon.
+    assert_eq!(panel.icon(), Some(AGENT_ICON));
+    panel.prepare_render(&theme, &config);
+    assert_eq!(panel.icon(), Some("🔍"));
 }
 
 #[test]
@@ -4341,11 +5597,9 @@ fn tab_moves_focus_to_the_chat_and_arrows_fold_blocks() {
     assert!(!panel.transcript.is_expanded(1));
     assert!(panel.input_text().is_empty(), "the arrows stay in the chat");
 
-    // Up walks to the user block; a printable key does not type.
+    // Up walks to the user block.
     panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
     assert_eq!(panel.selected, 0);
-    panel.handle_key(chord(KeyCode::Char('x'), KeyModifiers::NONE));
-    assert!(panel.input_text().is_empty());
 
     // Tab returns focus to the input.
     panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
@@ -4638,6 +5892,54 @@ fn shadowed_names_are_reported_when_the_panel_opens() {
         item,
         Item::Notice { text, .. } if text.starts_with("/review")
     )));
+}
+
+/// Definitions with a typo'd key and a tool text named after no tool.
+struct Misdefined;
+
+impl AgentCatalog for Misdefined {
+    fn list(&self) -> Vec<AgentEntry> {
+        Agents.list()
+    }
+    fn resolve(&self, name: &str) -> Option<AgentProfile> {
+        Agents.resolve(name)
+    }
+    fn definition_problems(&self) -> Vec<termide_agent_core::DefinitionProblem> {
+        vec![
+            termide_agent_core::DefinitionProblem::UnknownKey {
+                file: "/ai/agents/review/AGENT.md".into(),
+                key: "descripton".into(),
+            },
+            termide_agent_core::DefinitionProblem::UnknownTool {
+                file: "/ai/tools/web-search.md".into(),
+            },
+        ]
+    }
+}
+
+#[test]
+fn definitions_with_what_nothing_reads_are_reported_when_the_panel_opens() {
+    let panel = AgentPanel::new(AgentPanelSetup {
+        catalog: Arc::new(Misdefined),
+        ..setup(vec![])
+    });
+    let warnings: Vec<&str> = panel
+        .transcript()
+        .items()
+        .iter()
+        .filter_map(|item| match item {
+            Item::Notice {
+                text,
+                kind: NoticeKind::Warn,
+            } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(warnings.len(), 2, "{warnings:?}");
+    assert!(
+        warnings[0].contains("/ai/agents/review/AGENT.md") && warnings[0].contains("descripton")
+    );
+    assert!(warnings[1].contains("/ai/tools/web-search.md"));
 }
 
 /// A tool with nothing behind it, standing in for one an MCP server sent.
@@ -5124,16 +6426,83 @@ impl Backend for Idle {
     }
 }
 
+thread_local! {
+    /// What the last [`External`] started on this thread was handed: the
+    /// session to resume and the history, as `role:text`.
+    static EXTERNAL_START: std::cell::RefCell<Option<(Option<String>, Vec<String>)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
 /// An "external agent" for tests: answers every prompt with one text
-/// message, through the same events as the real ACP backend.
+/// message, through the same events as the real ACP backend, and like it
+/// reports the session it opened when it was given none to resume.
 struct External {
     events: Mutex<Vec<AgentEvent>>,
+    /// Whether the panel's modes reach it, as with Claude Code, Codex and
+    /// Gemini CLI.
+    follows_mode: bool,
+    /// The names of termide's tools it was last served, when its model
+    /// calls them, as Claude Code's does.
+    served: Option<Arc<Mutex<Vec<String>>>>,
+    /// Whether, on its own tools, it takes termide's MCP servers' beside
+    /// them, as Codex and Gemini CLI do; they go to `served`.
+    takes_mcp: bool,
+    /// What it was served when told the MCP servers had all answered.
+    settled: Arc<Mutex<Option<Vec<String>>>>,
 }
 
 impl External {
-    fn new(_setup: BackendSetup) -> Self {
+    fn new(setup: BackendSetup) -> Self {
+        let resume = setup
+            .resume
+            .map(|r| format!("{}:{}", r.agent, r.session_id));
+        let history = setup
+            .history
+            .iter()
+            .map(|message| match message {
+                Message::User(user) => format!("user:{}", user.plain_text()),
+                Message::Assistant(assistant) => format!("assistant:{}", assistant.plain_text()),
+                Message::ToolResult(result) => format!("result:{}", result.tool_name),
+            })
+            .collect();
+        let mut events = Vec::new();
+        if resume.is_none() {
+            events.push(AgentEvent::ExternalSession {
+                agent: "outside".into(),
+                session_id: "ext-1".into(),
+            });
+        }
+        EXTERNAL_START.with(|start| *start.borrow_mut() = Some((resume, history)));
         Self {
-            events: Mutex::new(Vec::new()),
+            events: Mutex::new(events),
+            follows_mode: false,
+            served: None,
+            takes_mcp: false,
+            settled: Arc::default(),
+        }
+    }
+
+    fn taking_mcp_tools(setup: BackendSetup, served: Arc<Mutex<Vec<String>>>) -> Self {
+        Self {
+            follows_mode: true,
+            served: Some(served),
+            takes_mcp: true,
+            ..Self::new(setup)
+        }
+    }
+
+    fn on_termides_tools(setup: BackendSetup, served: Arc<Mutex<Vec<String>>>) -> Self {
+        Self {
+            follows_mode: true,
+            served: Some(served),
+            ..Self::new(setup)
+        }
+    }
+
+    fn following_modes(setup: BackendSetup) -> Self {
+        Self {
+            follows_mode: true,
+            ..Self::new(setup)
         }
     }
 }
@@ -5160,6 +6529,7 @@ impl Backend for External {
                 provider: "acp".into(),
                 model: "outside".into(),
                 error_message: None,
+                failure: None,
                 timestamp: 0,
             },
         )));
@@ -5186,6 +6556,24 @@ impl Backend for External {
     fn into_agent(self: Box<Self>) -> Option<Agent> {
         None
     }
+    fn follows_mode(&self) -> bool {
+        self.follows_mode
+    }
+    fn runs_host_tools(&self) -> bool {
+        self.served.is_some() && !self.takes_mcp
+    }
+    fn takes_mcp_tools(&self) -> bool {
+        self.takes_mcp
+    }
+    fn host_tools_settled(&self) {
+        let served = self.served.as_ref().map(|s| s.lock().unwrap().clone());
+        *self.settled.lock().unwrap() = Some(served.unwrap_or_default());
+    }
+    fn update_host_tools(&self, tools: ToolRegistry) -> Result<(), PromptError> {
+        let served = self.served.as_ref().ok_or(PromptError::Unsupported)?;
+        *served.lock().unwrap() = tools.names().iter().map(|n| n.to_string()).collect();
+        Ok(())
+    }
 }
 
 #[test]
@@ -5209,12 +6597,14 @@ fn an_external_agent_replaces_the_loop_and_hides_its_knobs() {
     assert!(!texts.iter().any(|t| t.starts_with("Mode")), "{texts:?}");
     assert!(!texts.iter().any(|t| t.starts_with("Model")), "{texts:?}");
     assert!(texts.contains(&" (acp)".to_string()));
-    // The earlier conversation is shown, and marked as unknown to the agent.
+    // The earlier conversation is shown, and handed to the agent, which has
+    // no session of its own to resume yet.
     let items = panel.transcript().items();
     assert!(matches!(&items[0], Item::User { text, .. } if text == "hello"));
-    assert!(items.iter().any(
-            |i| matches!(i, Item::Notice { text, .. } if text.contains("not known to the external agent"))
-        ));
+    assert_eq!(
+        EXTERNAL_START.with(|start| start.borrow_mut().take()),
+        Some((None, vec!["user:hello".into(), "assistant:native".into()]))
+    );
 
     // Model and mode are not ours any more.
     let events = panel.handle_status_action(MODE_ACTION);
@@ -5236,10 +6626,24 @@ fn an_external_agent_replaces_the_loop_and_hides_its_knobs() {
     assert!(panel.transcript().items().iter().all(
         |i| !matches!(i, Item::Assistant { text, cost: Some(_), .. } if text == "from outside")
     ));
-    // The log records both the switch and the external agent's answer.
+    // The log records the switch, the session the agent opened and its
+    // answer.
     let session = Session::open(panel.session_path().unwrap()).unwrap();
     assert_eq!(session.current_agent().as_deref(), Some("outside"));
     assert_eq!(session.context_messages().len(), 4);
+    assert_eq!(
+        session.external_session().map(|r| r.session_id),
+        Some("ext-1".into())
+    );
+    // Reopened, the conversation goes on in the agent's own session.
+    let session = panel.session.take();
+    panel.switch_session(session);
+    assert_eq!(
+        EXTERNAL_START
+            .with(|start| start.borrow_mut().take())
+            .and_then(|(resume, _)| resume),
+        Some("outside:ext-1".into())
+    );
 
     // Back to the built-in loop.
     assert!(panel.switch_agent("default"));
@@ -5247,9 +6651,187 @@ fn an_external_agent_replaces_the_loop_and_hides_its_knobs() {
     assert_eq!(chip(&panel, MODE_ACTION), "configured");
 }
 
+#[test]
+fn an_external_agent_on_termides_tools_lists_gets_and_refuses_them() {
+    let served = Arc::new(Mutex::new(Vec::new()));
+    let external = |on_ours: bool| {
+        let (tx, rx) = mpsc::channel();
+        let served = Arc::clone(&served);
+        let mut panel = AgentPanel::new(AgentPanelSetup {
+            backend: Some(Arc::new(move |setup: BackendSetup| {
+                let backend = if on_ours {
+                    External::on_termides_tools(setup, Arc::clone(&served))
+                } else {
+                    External::new(setup)
+                };
+                Ok(Box::new(backend) as Box<dyn Backend>)
+            })),
+            late_tools: Some(rx),
+            ..setup(vec![])
+        });
+        panel.offered_tools = vec!["read".into(), "bash".into()];
+        // An MCP server of termide's connects after the agent started.
+        tx.send(LateTools::Ready {
+            source: "db".into(),
+            tools: vec![Arc::new(Late("db__query")) as Arc<dyn termide_agent_core::Tool>],
+        })
+        .unwrap();
+        panel.tick();
+        panel
+    };
+
+    // On its own tools there is nothing of termide's to show or serve.
+    let mut own = external(false);
+    assert!(own.external);
+    assert!(own.handle_status_action(TOOLSET_ACTION).is_empty());
+    assert!(!own
+        .status_segments()
+        .iter()
+        .any(|s| s.action == Some(TOOLSET_ACTION)));
+    assert!(served.lock().unwrap().is_empty());
+
+    // On termide's tools it is served the MCP server's tools as they come,
+    // and the list and the chip are there, with them.
+    let mut panel = external(true);
+    assert!(panel.external && panel.is_fresh());
+    assert!(
+        served.lock().unwrap().iter().any(|n| n == "db__query"),
+        "{served:?}"
+    );
+    assert!(panel.waiting_tools.is_empty());
+    assert_eq!(chip(&panel, TOOLSET_ACTION), "3/3");
+    let events = panel.handle_status_action(TOOLSET_ACTION);
+    let Some(PanelEvent::ShowChecklist { items, .. }) = events.first() else {
+        panic!("the toolset list opens: {events:?}");
+    };
+    let keys: Vec<&str> = items.iter().map(|i| i.key.as_str()).collect();
+    assert_eq!(keys, ["read", "bash", "db__query"]);
+
+    // Its session took the tools when it started: switched off, even before
+    // the first request, a tool is refused rather than taken out.
+    panel.apply_toolset(&["read".to_string(), "db__query".to_string()]);
+    assert!(panel.toolset_off.contains("bash"));
+    assert!(panel.context_off.is_empty());
+    assert!(panel.blocked.read().unwrap().contains("bash"));
+    assert_eq!(chip(&panel, TOOLSET_ACTION), "2/3");
+    let items = panel.toolset_items();
+    let bash = items.iter().find(|i| i.key == "bash").unwrap();
+    assert!(
+        bash.enabled && !bash.checked && !bash.note.is_empty(),
+        "{bash:?}"
+    );
+}
+
+#[test]
+fn an_external_agent_on_its_own_tools_gets_and_lists_the_mcp_servers_alone() {
+    let served = Arc::new(Mutex::new(Vec::new()));
+    let (tx, rx) = mpsc::channel();
+    let for_backend = Arc::clone(&served);
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        backend: Some(Arc::new(move |setup: BackendSetup| {
+            Ok(
+                Box::new(External::taking_mcp_tools(setup, Arc::clone(&for_backend)))
+                    as Box<dyn Backend>,
+            )
+        })),
+        late_tools: Some(rx),
+        ..setup(vec![])
+    });
+    panel.offered_tools = vec!["read".into(), "bash".into()];
+    // No MCP tools yet: nothing of termide's to show.
+    assert!(!panel
+        .status_segments()
+        .iter()
+        .any(|s| s.action == Some(TOOLSET_ACTION)));
+
+    tx.send(LateTools::Ready {
+        source: "db".into(),
+        tools: vec![
+            Arc::new(Late("db__query")) as Arc<dyn termide_agent_core::Tool>,
+            Arc::new(Late("db__drop")) as Arc<dyn termide_agent_core::Tool>,
+        ],
+    })
+    .unwrap();
+    panel.tick();
+    // Served the MCP server's tools, none of termide's own beside its own.
+    assert_eq!(*served.lock().unwrap(), ["db__query", "db__drop"]);
+    assert_eq!(chip(&panel, TOOLSET_ACTION), "2/2");
+    let events = panel.handle_status_action(TOOLSET_ACTION);
+    let Some(PanelEvent::ShowChecklist { items, .. }) = events.first() else {
+        panic!("the toolset list opens: {events:?}");
+    };
+    let keys: Vec<&str> = items.iter().map(|i| i.key.as_str()).collect();
+    assert_eq!(keys, ["db__query", "db__drop"]);
+
+    // Switched off, one is refused.
+    panel.apply_toolset(&["db__query".to_string()]);
+    assert!(panel.blocked.read().unwrap().contains("db__drop"));
+    assert_eq!(chip(&panel, TOOLSET_ACTION), "1/2");
+}
+
+/// A catalog whose MCP servers stand as a test sets them.
+struct Statuses(Arc<Mutex<Vec<termide_agent_core::McpServerState>>>);
+
+impl AgentCatalog for Statuses {
+    fn list(&self) -> Vec<AgentEntry> {
+        Agents.list()
+    }
+    fn resolve(&self, name: &str) -> Option<AgentProfile> {
+        Agents.resolve(name)
+    }
+    fn mcp_status(&self) -> Vec<termide_agent_core::McpServerState> {
+        self.0.lock().unwrap().clone()
+    }
+}
+
+#[test]
+fn an_agent_that_lists_its_tools_once_is_told_when_the_mcp_servers_answered() {
+    use termide_agent_core::{McpServerState, McpSignIn, McpStatus};
+    let state = |status| McpServerState {
+        name: "db".into(),
+        status,
+        sign_in: McpSignIn::None,
+    };
+    let statuses = Arc::new(Mutex::new(vec![state(McpStatus::Connecting)]));
+    let served = Arc::new(Mutex::new(Vec::new()));
+    let settled: Arc<Mutex<Option<Vec<String>>>> = Arc::default();
+    let (tx, rx) = mpsc::channel();
+    let (for_backend, settled_for_backend) = (Arc::clone(&served), Arc::clone(&settled));
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        backend: Some(Arc::new(move |setup: BackendSetup| {
+            let mut backend = External::taking_mcp_tools(setup, Arc::clone(&for_backend));
+            backend.settled = Arc::clone(&settled_for_backend);
+            Ok(Box::new(backend) as Box<dyn Backend>)
+        })),
+        catalog: Arc::new(Statuses(Arc::clone(&statuses))),
+        late_tools: Some(rx),
+        ..setup(vec![])
+    });
+    // Still connecting: not yet.
+    panel.tick();
+    assert!(settled.lock().unwrap().is_none());
+    // Reported connected, its tools not here yet: not yet either.
+    *statuses.lock().unwrap() = vec![state(McpStatus::Ready { tools: 1 })];
+    panel.tick();
+    assert!(settled.lock().unwrap().is_none());
+    // Its tools came: handed over first, then told.
+    tx.send(LateTools::Ready {
+        source: "db".into(),
+        tools: vec![Arc::new(Late("db__query")) as Arc<dyn termide_agent_core::Tool>],
+    })
+    .unwrap();
+    panel.tick();
+    assert_eq!(
+        settled.lock().unwrap().as_deref(),
+        Some(&["db__query".to_string()][..])
+    );
+}
+
 /// An external agent that advertises two models and records the one picked.
 struct ModelBackend {
     picked: Arc<Mutex<Option<String>>>,
+    /// Whether the agent's handshake is still running.
+    starting: Arc<AtomicBool>,
 }
 
 impl Backend for ModelBackend {
@@ -5293,6 +6875,9 @@ impl Backend for ModelBackend {
                 .clone()
                 .unwrap_or_else(|| "m-fast".into()),
         )
+    }
+    fn is_starting(&self) -> bool {
+        self.starting.load(Ordering::SeqCst)
     }
     fn select_model(&self, model_id: String) -> Result<(), String> {
         *self.picked.lock().unwrap() = Some(model_id);
@@ -5441,6 +7026,7 @@ fn an_external_agent_lists_and_switches_models() {
         backend: Some(Arc::new(move |_setup: BackendSetup| {
             Ok(Box::new(ModelBackend {
                 picked: Arc::clone(&for_factory),
+                starting: Arc::default(),
             }) as Box<dyn Backend>)
         })),
         ..setup(vec![])
@@ -5454,7 +7040,8 @@ fn an_external_agent_lists_and_switches_models() {
         .into_iter()
         .map(|s| s.text)
         .collect();
-    assert!(texts.iter().any(|t| t == "m-fast"), "{texts:?}");
+    // The chip shows the name the agent gives the model, not its id.
+    assert!(texts.iter().any(|t| t == "Fast"), "{texts:?}");
 
     // The Model chip opens the agent's model list.
     let events = panel.handle_status_action(MODEL_ACTION);
@@ -5474,6 +7061,249 @@ fn an_external_agent_lists_and_switches_models() {
 }
 
 #[test]
+fn an_external_agent_spins_in_place_of_its_model_while_starting() {
+    let starting = Arc::new(AtomicBool::new(true));
+    let for_factory = Arc::clone(&starting);
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        backend: Some(Arc::new(move |_setup: BackendSetup| {
+            Ok(Box::new(ModelBackend {
+                picked: Arc::default(),
+                starting: Arc::clone(&for_factory),
+            }) as Box<dyn Backend>)
+        })),
+        ..setup(vec![])
+    });
+    assert!(panel.external);
+    // Starting: the chip is there, holding a spinner, and opens nothing.
+    let spinner = termide_config::constants::SPINNER_FRAMES;
+    let display = panel.model_display();
+    assert!(spinner.contains(&display.as_str()), "{display}");
+    let label = termide_i18n::t().agent_chip_model();
+    assert!(panel.status_segments().iter().any(|s| s.text == label));
+    assert!(panel.handle_status_action(MODEL_ACTION).is_empty());
+    // Started: the model's name.
+    starting.store(false, Ordering::SeqCst);
+    panel.tick();
+    assert_eq!(panel.model_display(), "Fast");
+}
+
+/// An external agent with a model, a reasoning effort and a fast mode among
+/// its settings, which records every change asked of it.
+struct OptionsBackend {
+    asked: Arc<Mutex<Vec<(String, String)>>>,
+    state: Mutex<(String, String, String)>,
+    busy: Arc<AtomicBool>,
+}
+
+impl OptionsBackend {
+    fn new(asked: &Arc<Mutex<Vec<(String, String)>>>, busy: &Arc<AtomicBool>) -> Self {
+        Self {
+            asked: Arc::clone(asked),
+            state: Mutex::new(("m-fast".into(), "low".into(), "off".into())),
+            busy: Arc::clone(busy),
+        }
+    }
+}
+
+fn values(pairs: &[(&str, &str)]) -> Vec<BackendModel> {
+    pairs
+        .iter()
+        .map(|(id, name)| BackendModel {
+            id: (*id).into(),
+            name: (*name).into(),
+        })
+        .collect()
+}
+
+impl Backend for OptionsBackend {
+    fn prompt(&self, message: UserMessage) -> Result<(), PromptError> {
+        self.asked
+            .lock()
+            .unwrap()
+            .push(("prompt".into(), message.plain_text()));
+        Ok(())
+    }
+    fn agent_commands(&self) -> Vec<termide_agent_core::AgentCommand> {
+        ["compact", "deploy"]
+            .into_iter()
+            .map(|name| termide_agent_core::AgentCommand {
+                name: name.into(),
+                description: format!("{name} it"),
+                hint: String::new(),
+            })
+            .collect()
+    }
+    fn steer(&self, message: UserMessage) {
+        self.asked
+            .lock()
+            .unwrap()
+            .push(("prompt".into(), message.plain_text()));
+    }
+    fn queue_lens(&self) -> (usize, usize) {
+        (0, 0)
+    }
+    fn abort(&self) {}
+    fn is_busy(&self) -> bool {
+        self.busy.load(Ordering::SeqCst)
+    }
+    fn drain(&self) -> Vec<AgentEvent> {
+        Vec::new()
+    }
+    fn update(&self, _update: Box<dyn FnOnce(&mut Agent) + Send>) -> Result<(), PromptError> {
+        Err(PromptError::Unsupported)
+    }
+    fn compact(&self, _focus: Option<String>) -> Result<(), PromptError> {
+        Err(PromptError::Unsupported)
+    }
+    fn available_models(&self) -> Vec<BackendModel> {
+        values(&[("m-fast", "Fast"), ("m-slow", "Slow")])
+    }
+    fn current_model(&self) -> Option<String> {
+        Some(self.state.lock().unwrap().0.clone())
+    }
+    fn select_model(&self, model_id: String) -> Result<(), String> {
+        self.asked
+            .lock()
+            .unwrap()
+            .push((MODEL_OPTION.into(), model_id.clone()));
+        self.state.lock().unwrap().0 = model_id;
+        Ok(())
+    }
+    fn config_options(&self) -> Vec<BackendOption> {
+        let state = self.state.lock().unwrap();
+        vec![
+            BackendOption {
+                id: "effort".into(),
+                name: "Effort".into(),
+                category: Some("thought_level".into()),
+                current: state.1.clone(),
+                values: values(&[("low", "Low"), ("high", "High")]),
+            },
+            BackendOption {
+                id: "fast".into(),
+                name: "Fast mode".into(),
+                category: Some("model_config".into()),
+                current: state.2.clone(),
+                values: values(&[("off", "Off"), ("on", "On")]),
+            },
+        ]
+    }
+    fn set_option(&self, id: String, value: String) -> Result<(), String> {
+        self.asked.lock().unwrap().push((id.clone(), value.clone()));
+        let mut state = self.state.lock().unwrap();
+        match id.as_str() {
+            "effort" => state.1 = value,
+            "fast" => state.2 = value,
+            _ => return Err(format!("no {id}")),
+        }
+        Ok(())
+    }
+    fn into_agent(self: Box<Self>) -> Option<Agent> {
+        None
+    }
+}
+
+#[test]
+fn an_external_agents_settings_change_during_a_run_and_outlive_a_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let busy = Arc::new(AtomicBool::new(true));
+    let (for_factory, busy_for_factory) = (Arc::clone(&asked), Arc::clone(&busy));
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        backend: Some(Arc::new(move |_setup: BackendSetup| {
+            Ok(Box::new(OptionsBackend::new(&for_factory, &busy_for_factory)) as Box<dyn Backend>)
+        })),
+        ..setup(vec![])
+    });
+    panel.tick();
+    // The effort is on the Reasoning chip, the fast mode on Options.
+    assert_eq!(chip(&panel, REASONING_ACTION), "Low");
+    assert_eq!(chip(&panel, OPTIONS_ACTION), "Off");
+    // A run is in flight: the effort changes all the same.
+    assert!(panel.runtime.is_busy());
+    let events = panel.handle_status_action(REASONING_ACTION);
+    let Some(PanelEvent::ShowSelect { options, .. }) = events.first() else {
+        panic!("expected the efforts, got {events:?}");
+    };
+    assert_eq!(options.len(), 2);
+    panel.handle_command(PanelCommand::SelectionMade {
+        action: REASONING_ACTION.to_string(),
+        index: 1,
+    });
+    assert_eq!(chip(&panel, REASONING_ACTION), "High");
+    // The one other setting opens its values at once.
+    panel.handle_status_action(OPTIONS_ACTION);
+    panel.handle_command(PanelCommand::SelectionMade {
+        action: OPTION_VALUE_ACTION.to_string(),
+        index: 1,
+    });
+    panel.handle_status_action(MODEL_ACTION);
+    panel.handle_command(PanelCommand::SelectionMade {
+        action: MODEL_ACTION.to_string(),
+        index: 1,
+    });
+    let picked = vec![
+        ("effort".to_string(), "high".to_string()),
+        ("fast".to_string(), "on".to_string()),
+        (MODEL_OPTION.to_string(), "m-slow".to_string()),
+    ];
+    assert_eq!(*asked.lock().unwrap(), picked);
+    assert_eq!(panel.session.as_ref().unwrap().agent_options(), picked);
+
+    // Reopened, the agent starts on its defaults and is asked for the same.
+    asked.lock().unwrap().clear();
+    busy.store(false, Ordering::SeqCst);
+    let path = panel.session.as_ref().unwrap().path().to_path_buf();
+    panel.session = None;
+    assert!(panel.switch_session(Some(Session::open(&path).unwrap())));
+    panel.tick();
+    let mut again = asked.lock().unwrap().clone();
+    again.sort();
+    let mut expected = picked;
+    expected.sort();
+    assert_eq!(again, expected);
+    assert_eq!(chip(&panel, REASONING_ACTION), "High");
+    assert_eq!(panel.model.id, "m-slow");
+}
+
+#[test]
+fn an_external_agents_own_commands_are_offered_and_sent_as_typed() {
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let busy = Arc::new(AtomicBool::new(false));
+    let (for_factory, busy_for_factory) = (Arc::clone(&asked), Arc::clone(&busy));
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        backend: Some(Arc::new(move |_setup: BackendSetup| {
+            Ok(Box::new(OptionsBackend::new(&for_factory, &busy_for_factory)) as Box<dyn Backend>)
+        })),
+        ..setup(vec![])
+    });
+    type_text(&mut panel, "/dep");
+    let offered: Vec<String> = panel
+        .completion
+        .as_ref()
+        .map(|list| list.items().iter().map(|i| i.value.clone()).collect())
+        .unwrap_or_default();
+    assert_eq!(offered, ["deploy"]);
+    panel.clear_input();
+    // The agent's `/compact` stands for termide's, and both go as typed (a
+    // template of the same name would win, as over a skill).
+    for typed in ["/deploy staging", "/compact the tests"] {
+        type_text(&mut panel, typed);
+        panel.submit();
+        panel.tick();
+    }
+    let prompts: Vec<String> = asked
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|(kind, _)| kind == "prompt")
+        .map(|(_, text)| text.clone())
+        .collect();
+    assert_eq!(prompts, ["/deploy staging", "/compact the tests"]);
+}
+
+#[test]
 fn a_cli_provider_pre_selects_its_configured_model_on_start() {
     let dir = tempfile::tempdir().unwrap();
     let picked = Arc::new(Mutex::new(None));
@@ -5490,6 +7320,7 @@ fn a_cli_provider_pre_selects_its_configured_model_on_start() {
         backend: Some(Arc::new(move |_setup: BackendSetup| {
             Ok(Box::new(ModelBackend {
                 picked: Arc::clone(&for_factory),
+                starting: Arc::default(),
             }) as Box<dyn Backend>)
         })),
         ..base
@@ -5531,6 +7362,60 @@ fn arrow_keys_recall_earlier_requests_and_bring_the_draft_back() {
     assert_eq!(format_tokens(1_000_000), "1M");
     assert_eq!(format_tokens(1_250_000), "1.2M");
     assert_eq!(format_tokens(512), "512");
+}
+
+#[test]
+fn up_walks_past_multi_line_requests_without_stepping_through_their_rows() {
+    let mut panel = panel(vec![reply("a"), reply("b")]);
+    for request in [["one", "two"], ["three", "four"]] {
+        type_text(&mut panel, request[0]);
+        panel.handle_key(chord(KeyCode::Enter, KeyModifiers::SHIFT));
+        type_text(&mut panel, request[1]);
+        panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+        settle(&mut panel);
+    }
+    // Going back lands at the start, so the next ↑ is already history.
+    panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(panel.input_text(), "three\nfour");
+    {
+        let c = panel.input_area().cursor();
+        assert_eq!((c.row, c.col), (0, 0));
+    }
+    panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(panel.input_text(), "one\ntwo");
+    // ↓ first walks the rows, then moves on, landing at the end.
+    panel.handle_key(chord(KeyCode::Down, KeyModifiers::NONE));
+    assert_eq!(panel.input_text(), "one\ntwo");
+    panel.handle_key(chord(KeyCode::Down, KeyModifiers::NONE));
+    assert_eq!(panel.input_text(), "three\nfour");
+    {
+        let c = panel.input_area().cursor();
+        assert_eq!((c.row, c.col), (1, 4));
+    }
+}
+
+#[test]
+fn up_moves_through_a_soft_wrapped_line_before_recalling() {
+    let mut panel = panel(vec![reply("a")]);
+    type_text(&mut panel, "earlier");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+    // One logical line, several rows once wrapped to a narrow panel.
+    let long = "word ".repeat(30);
+    type_text(&mut panel, &long);
+    render_text(&mut panel, 40, 20);
+    let end = panel.input_area().cursor();
+    panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(panel.input_text(), long, "↑ stays in the wrapped draft");
+    let up = panel.input_area().cursor();
+    assert_eq!(up.row, 0);
+    assert!(up.col < end.col, "{up:?} vs {end:?}");
+    // Up to the first visual row, then history.
+    for _ in 0..10 {
+        render_text(&mut panel, 40, 20);
+        panel.handle_key(chord(KeyCode::Up, KeyModifiers::NONE));
+    }
+    assert_eq!(panel.input_text(), "earlier");
 }
 
 #[test]
@@ -5802,7 +7687,7 @@ fn plan_mode_adds_its_instructions_and_offers_to_carry_the_plan_out() {
     assert_eq!(panel.mode.get(), Mode::Plan);
 
     panel.offer_plan();
-    panel.handle_key(chord(KeyCode::Char('1'), KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Char('2'), KeyModifiers::NONE));
     let _ = panel.tick();
     assert_eq!(panel.mode.get(), Mode::Edit);
     settle(&mut panel);
@@ -5821,6 +7706,156 @@ fn plan_mode_adds_its_instructions_and_offers_to_carry_the_plan_out() {
     assert!(panel.pending.is_none(), "no card outside plan mode");
 }
 
+#[test]
+fn an_external_agent_following_the_modes_is_offered_to_carry_the_plan_out() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        connections: Some(Arc::new(Connections)),
+        plan_prompt: PlanPrompt::from_file(
+            "---\nrequest: Do it.\nclean_request: Do it afresh.\n---\nPlan first.",
+        ),
+        ..setup(vec![])
+    });
+    assert!(panel.switch_connection("cli"));
+    let _ = panel.set_mode(Mode::Plan);
+    type_text(&mut panel, "add a feature");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+
+    // Its history is its own: no clean context to offer.
+    let form = panel.pending.as_ref().expect("plan card").form();
+    assert!(form.title().starts_with("Plan mode"), "{}", form.title());
+    let t = termide_i18n::t();
+    assert_eq!(
+        form.options(),
+        [t.agent_plan_accept_edits(), t.agent_plan_configured()]
+    );
+
+    // The first row accepts edits and sends the request that keeps the context.
+    panel.handle_key(chord(KeyCode::Char('1'), KeyModifiers::NONE));
+    let _ = panel.tick();
+    assert_eq!(panel.mode.get(), Mode::Edit);
+    settle(&mut panel);
+    let users: Vec<&str> = panel
+        .transcript()
+        .items()
+        .iter()
+        .filter_map(|i| match i {
+            Item::User { text, .. } => Some(text.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(users, ["add a feature", "Do it."]);
+}
+
+#[test]
+fn an_external_agent_on_its_own_modes_gets_no_plan_card() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![])
+    });
+    assert!(panel.switch_agent("outside"));
+    let _ = panel.set_mode(Mode::Plan);
+    type_text(&mut panel, "add a feature");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+    assert!(panel.pending.is_none());
+}
+
+#[test]
+fn a_plan_carried_out_from_a_clean_context_leaves_the_exploration_out() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut looking = reply("");
+    looking.stop_reason = StopReason::ToolUse;
+    looking.content = vec![
+        AssistantContent::Text {
+            text: "Let me look.".into(),
+        },
+        AssistantContent::ToolCall(ToolCall {
+            id: "r1".into(),
+            name: "read".into(),
+            arguments: serde_json::json!({ "path": "src/main.rs" }),
+            extra_content: None,
+        }),
+    ];
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        plan_prompt: PlanPrompt::from_file(
+            "---\nrequest: Do it.\nclean_request: Do it afresh.\n---\nPlan first.",
+        ),
+        ..setup(vec![looking, reply("the plan"), reply("done")])
+    });
+    for _ in 0..4 {
+        panel.handle_key(chord(KeyCode::BackTab, KeyModifiers::SHIFT));
+    }
+    assert_eq!(panel.mode.get(), Mode::Plan);
+    type_text(&mut panel, "add a feature");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    settle(&mut panel);
+    assert!(panel.pending.is_some(), "plan card");
+
+    panel.handle_key(chord(KeyCode::Char('1'), KeyModifiers::NONE));
+    assert_eq!(panel.mode.get(), Mode::Edit);
+    // The request "edits" a file, so it has a checkpoint to undo. The run
+    // began inside `handle_key` and ends only when a tick drains its events,
+    // so the file is saved before any tick, however fast the reply comes.
+    let file = dir.path().join("notes.txt");
+    std::fs::write(&file, "before").unwrap();
+    panel
+        .checkpoints
+        .as_ref()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .save(&file)
+        .unwrap();
+    settle(&mut panel);
+
+    // The log keeps the exploration; the context rebuilt from it does not.
+    let reopened = Session::open(panel.session_path().unwrap()).unwrap();
+    assert!(reopened
+        .branch()
+        .iter()
+        .any(|entry| matches!(entry.kind, EntryKind::Pruned)));
+    let shape: Vec<String> = reopened
+        .context_messages()
+        .iter()
+        .map(|message| match message {
+            Message::User(user) => format!("user:{}", user.plain_text()),
+            Message::Assistant(assistant) => format!("assistant:{}", assistant.plain_text()),
+            Message::ToolResult(result) => format!("result:{}", result.tool_name),
+        })
+        .collect();
+    assert_eq!(
+        shape,
+        [
+            "user:add a feature",
+            "assistant:the plan",
+            "user:Do it afresh.",
+            "assistant:done",
+        ]
+    );
+
+    // Undoing the request leads back to before the clearing, so the
+    // exploration comes back with it.
+    let branch = reopened.branch();
+    let cleared = branch
+        .iter()
+        .find(|entry| matches!(entry.kind, EntryKind::Pruned))
+        .unwrap();
+    let checkpoints = panel
+        .checkpoints
+        .as_ref()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .checkpoints();
+    assert_eq!(checkpoints.len(), 1);
+    assert_eq!(checkpoints[0].leaf_before, cleared.parent_id);
+}
+
 /// A runner that records what reached the shell and answers from a table, so
 /// nothing runs for real and a test can see the exact command.
 fn recording_runner() -> (ShellRunner, Arc<Mutex<Vec<String>>>) {
@@ -5833,6 +7868,28 @@ fn recording_runner() -> (ShellRunner, Arc<Mutex<Vec<String>>>) {
         }
         Ok(ShellOutput {
             text: format!("out of {command}"),
+            failed: false,
+        })
+    });
+    (runner, seen)
+}
+
+/// A runner that records what reached the shell and then behaves like a long
+/// command: it only returns once stopped, so a test sees it still running.
+fn blocking_runner() -> (ShellRunner, Arc<Mutex<Vec<String>>>) {
+    let seen: Arc<Mutex<Vec<String>>> = Arc::default();
+    let recorder = Arc::clone(&seen);
+    let runner = ShellRunner::new(move |command, cancel| {
+        recorder.lock().unwrap().push(command.to_string());
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !cancel.is_cancelled() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        if cancel.is_cancelled() {
+            return Err("stopped".to_string());
+        }
+        Ok(ShellOutput {
+            text: "done".to_string(),
             failed: false,
         })
     });
@@ -6011,23 +8068,7 @@ fn bang_without_a_runner_is_refused_with_a_notice() {
 
 #[test]
 fn escape_stops_a_hand_run_command() {
-    let seen: Arc<Mutex<Vec<String>>> = Arc::default();
-    let recorder = Arc::clone(&seen);
-    let runner = ShellRunner::new(move |command, cancel| {
-        recorder.lock().unwrap().push(command.to_string());
-        // Behave like a long command: wait to be stopped.
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while !cancel.is_cancelled() && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(5));
-        }
-        if cancel.is_cancelled() {
-            return Err("stopped".to_string());
-        }
-        Ok(ShellOutput {
-            text: "done".to_string(),
-            failed: false,
-        })
-    });
+    let (runner, seen) = blocking_runner();
     let mut panel = AgentPanel::new(AgentPanelSetup {
         shell_run: Some(runner),
         ..setup(vec![])
@@ -6204,7 +8245,11 @@ fn plan_mode_withholds_run_from_a_suggestion() {
 
 #[test]
 fn a_second_bang_while_one_runs_is_refused() {
-    let (mut panel, seen, _) = panel_with_runner(vec![]);
+    let (runner, seen) = blocking_runner();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        shell_run: Some(runner),
+        ..setup(vec![])
+    });
     type_text(&mut panel, "$sleep 100");
     panel.submit();
     wait_for_commands(&mut panel, &seen, 1);
@@ -6442,4 +8487,600 @@ fn running_a_command_leaves_shell_mode() {
     assert!(!panel.shell_mode, "each command switches the mode on anew");
     wait_for_commands(&mut panel, &seen, 1);
     wait_for_bang_idle(&mut panel);
+}
+
+/// A reply that failed on a usage limit resetting in an hour.
+fn limited() -> AssistantMessage {
+    let resets_at = crate::failure::unix_now() + 3_600;
+    AssistantMessage::failed(
+        "scripted",
+        "m",
+        StopReason::Error,
+        "You've hit your session limit",
+    )
+    .with_failure(termide_agent_core::Failure {
+        kind: termide_agent_core::FailureKind::QuotaExhausted,
+        resets_at: Some(resets_at),
+    })
+}
+
+/// The rows of the failure card that is up.
+fn failure_rows(panel: &AgentPanel) -> Vec<String> {
+    match &panel.pending {
+        Some(Pending::Failure { form, .. }) => form.options().to_vec(),
+        _ => panic!("no failure card is up"),
+    }
+}
+
+#[test]
+fn a_failed_run_offers_what_fits_and_tries_again_on_the_same_request() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+
+    let rows = failure_rows(&panel);
+    assert!(rows[0].starts_with("Wait until"), "{rows:?}");
+    assert!(rows.iter().any(|row| row == "Try again now"), "{rows:?}");
+    assert!(
+        rows.iter()
+            .any(|row| row.starts_with("Continue with another agent")),
+        "two agents are defined: {rows:?}"
+    );
+    let now = rows.iter().position(|row| row == "Try again now").unwrap();
+    panel.apply_form_action(ChoiceAction::Chosen(now));
+    settle(&mut panel);
+
+    let items = panel.transcript().items();
+    let users = items
+        .iter()
+        .filter(|item| matches!(item, Item::User { .. }))
+        .count();
+    assert_eq!(
+        users, 1,
+        "the request is not sent a second time as a message"
+    );
+    assert!(items
+        .iter()
+        .any(|item| matches!(item, Item::Assistant { text, error: None, .. } if text == "done")));
+    assert!(panel.pending.is_none());
+}
+
+#[test]
+fn waiting_policy_tries_again_unasked_once_the_wait_is_over() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.on_limit = LimitPolicy::Wait;
+    panel.send("do it".to_string());
+    settle(&mut panel);
+
+    assert!(panel.pending.is_none(), "nothing is asked");
+    let wait = panel.retry_wait.expect("the reset is waited for");
+    assert!(wait.wall > crate::failure::unix_now() + 3_000);
+    assert!(panel
+        .retry_wait_text()
+        .is_some_and(|text| text.contains("Usage limit reached")));
+    // The reset comes.
+    panel.retry_wait.as_mut().unwrap().at = Instant::now();
+    panel.tick();
+    settle(&mut panel);
+
+    assert!(panel.retry_wait.is_none());
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|item| matches!(item, Item::Assistant { text, error: None, .. } if text == "done")));
+}
+
+#[test]
+fn a_new_request_takes_over_from_a_wait() {
+    let mut panel = panel(vec![limited(), reply("other")]);
+    panel.on_limit = LimitPolicy::Wait;
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(panel.retry_wait.is_some());
+
+    panel.send("something else".to_string());
+    assert!(panel.retry_wait.is_none());
+    settle(&mut panel);
+    assert!(panel.transcript().items().iter().any(
+        |item| matches!(item, Item::Notice { text, .. } if text.contains("no longer waiting"))
+    ));
+}
+
+#[test]
+fn continue_tries_a_failed_request_again() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.on_limit = LimitPolicy::Stop;
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(panel.pending.is_none(), "the stop policy asks nothing");
+
+    type_text(&mut panel, "/continue");
+    panel.submit();
+    settle(&mut panel);
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|item| matches!(item, Item::Assistant { text, error: None, .. } if text == "done")));
+}
+
+#[test]
+fn dismissing_the_failure_card_ends_the_goal() {
+    let mut panel = panel(vec![limited()]);
+    type_text(&mut panel, "/goal get it done");
+    panel.submit();
+    settle(&mut panel);
+    assert!(panel.goal_task.is_some(), "the goal waits on the card");
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+
+    panel.apply_form_action(ChoiceAction::Cancelled);
+    assert!(panel.goal_task.is_none());
+    assert!(panel.pending.is_none());
+}
+
+/// A running subagent keeps a row in the state strip — its agent, task,
+/// latest progress and clock — and past three the rest fold into `+N`.
+#[test]
+fn running_subagents_show_in_the_state_strip() {
+    let colors = ThemeColors::default();
+    let row = |n: usize| {
+        (
+            "search".to_string(),
+            format!("find thing {n}"),
+            "· read src/lib.rs".to_string(),
+            65_000,
+        )
+    };
+    let text = |line: &Line| {
+        line.spans
+            .iter()
+            .map(|s| s.content.as_ref())
+            .collect::<String>()
+    };
+    let lines = crate::render::task_strip(&[row(1)], 80, &colors);
+    assert_eq!(lines.len(), 1);
+    let first = text(&lines[0]);
+    let head = format!(
+        "& {} search · find thing 1",
+        termide_i18n::t().agent_tool_task()
+    );
+    assert!(first.starts_with(&head), "{first}");
+    assert!(first.contains("· read src/lib.rs"), "{first}");
+    let clock = crate::transcript::fmt_dur(65_000);
+    assert!(first.trim_end().ends_with(&clock), "{first}");
+    assert!(termide_ui::str_display_width(&first) <= 80, "{first}");
+
+    let lines = crate::render::task_strip(&(1..=5).map(row).collect::<Vec<_>>(), 80, &colors);
+    assert_eq!(lines.len(), 4);
+    assert_eq!(text(&lines[3]), "& +2");
+}
+
+/// A session log in `dir` holding one request, as the panel would have left
+/// it; `finish` writes what followed it.
+fn logged_request(dir: &Path, finish: impl FnOnce(&mut Session)) -> PathBuf {
+    let mut session = Session::create(dir, Path::new("/tmp")).unwrap();
+    session
+        .append_message(&Message::User(UserMessage::text("build it")))
+        .unwrap();
+    finish(&mut session);
+    session.path().to_path_buf()
+}
+
+fn reopen(path: &Path, dir: &Path, replies: Vec<AssistantMessage>) -> AgentPanel {
+    AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.to_path_buf()),
+        session: Some(Session::open_exclusive(path).unwrap()),
+        ..setup(replies)
+    })
+}
+
+/// The carry-on card's detail, failing when no such card is up.
+fn carry_on_card(panel: &AgentPanel) -> String {
+    match &panel.pending {
+        Some(Pending::Unfinished { form }) => {
+            assert_eq!(form.title(), termide_i18n::t().agent_unfinished_title());
+            form.detail().unwrap_or_default().to_string()
+        }
+        _ => panic!("no carry-on card"),
+    }
+}
+
+fn reply_calling(call: ToolCall) -> AssistantMessage {
+    AssistantMessage {
+        content: vec![AssistantContent::ToolCall(call)],
+        stop_reason: StopReason::ToolUse,
+        ..reply("")
+    }
+}
+
+#[test]
+fn a_run_cut_off_by_closing_is_asked_about_when_reopened() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = logged_request(dir.path(), |session| {
+        session.append_run_start().unwrap();
+    });
+    let mut panel = reopen(&path, dir.path(), vec![reply("built")]);
+    assert!(panel.paused);
+    assert_eq!(panel.restored, Some(Restored::Resume));
+    assert!(carry_on_card(&panel).contains(
+        &termide_i18n::t().agent_unfinished_run_cut_fmt(termide_i18n::t().time_just_now())
+    ));
+    assert!(panel.attention, "the panel asks to be looked at");
+    // The run's line says it was cut off.
+    assert!(matches!(
+        panel.transcript().items().last(),
+        Some(Item::RunEnd { cut: true, .. })
+    ));
+    // Nothing runs on its own.
+    panel.tick();
+    assert!(!panel.is_busy());
+
+    // Continue on the card resumes the run.
+    panel.apply_form_action(ChoiceAction::Chosen(0));
+    settle(&mut panel);
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::Assistant { text, .. } if text == "built")));
+    assert!(!panel.paused);
+    assert_eq!(panel.session.as_ref().unwrap().last_run(), LastRun::Ended);
+}
+
+#[test]
+fn a_call_a_cut_off_run_left_is_closed_not_run_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let call = ToolCall {
+        id: "c1".into(),
+        name: "bash".into(),
+        arguments: serde_json::json!({ "command": "git push" }),
+        extra_content: None,
+    };
+    let path = logged_request(dir.path(), |session| {
+        session.append_run_start().unwrap();
+        session
+            .append_message(&Message::Assistant(reply_calling(call.clone())))
+            .unwrap();
+    });
+    let mut panel = reopen(&path, dir.path(), vec![reply("checked first")]);
+    // The call has its result already, saying it may have run in part.
+    let results: Vec<String> = panel
+        .session
+        .as_ref()
+        .unwrap()
+        .context_messages()
+        .iter()
+        .filter_map(|m| match m {
+            Message::ToolResult(r) if r.tool_call_id == "c1" => Some(r.plain_text()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(results.len(), 1);
+    assert!(results[0].contains("may have run in part"), "{results:?}");
+    panel.apply_form_action(ChoiceAction::Chosen(0));
+    settle(&mut panel);
+    // The model answered the result; nothing ran the call again.
+    let logged = panel.session.as_ref().unwrap().context_messages();
+    let results = logged
+        .iter()
+        .filter(|m| matches!(m, Message::ToolResult(r) if r.tool_call_id == "c1"))
+        .count();
+    assert_eq!(results, 1);
+    assert!(
+        matches!(logged.last(), Some(Message::Assistant(a)) if a.plain_text() == "checked first")
+    );
+}
+
+#[test]
+fn a_finished_run_reopens_idle() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = logged_request(dir.path(), |session| {
+        session.append_run_start().unwrap();
+        session
+            .append_message(&Message::Assistant(reply("done")))
+            .unwrap();
+    });
+    // Its end was never written, but its reply came in whole.
+    let panel = reopen(&path, dir.path(), vec![]);
+    assert!(!panel.paused);
+    assert!(panel.restored.is_none());
+    assert!(panel.pending.is_none());
+    assert!(panel.run_buttons().is_empty());
+}
+
+#[test]
+fn a_goal_left_going_is_judged_again_on_continue() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = logged_request(dir.path(), |session| {
+        session.append_run_start().unwrap();
+        session
+            .append_message(&Message::Assistant(reply("halfway")))
+            .unwrap();
+        session.append_run_end(false).unwrap();
+        session
+            .append_autorun(&Autorun {
+                goal: Some(GoalRecord {
+                    goal: "build it".into(),
+                    iterations: 3,
+                }),
+                repeat: None,
+            })
+            .unwrap();
+    });
+    let mut panel = reopen(&path, dir.path(), vec![reply("DONE\nit builds")]);
+    // The run itself ended: only the goal waits to go on.
+    assert_eq!(panel.restored, Some(Restored::Autorun));
+    assert_eq!(panel.goal_task.as_ref().map(|t| t.iterations), Some(3));
+    assert!(
+        carry_on_card(&panel).contains(&termide_i18n::t().agent_unfinished_goal_fmt("build it", 3))
+    );
+    // Decide later: the card goes, the pause stays.
+    panel.apply_form_action(ChoiceAction::Cancelled);
+    assert!(panel.pending.is_none());
+    assert!(panel.paused);
+    panel.tick();
+    assert!(
+        panel.goal_task.is_some(),
+        "nothing goes on before /continue"
+    );
+
+    type_text(&mut panel, "/continue");
+    panel.submit();
+    settle_goal(&mut panel);
+    assert!(!panel.paused);
+    panel.tick();
+    // The goal reached is written to the log, so it is not offered again.
+    assert!(panel.session.as_ref().unwrap().autorun().is_empty());
+}
+
+#[test]
+fn a_loop_waits_only_what_is_left_of_its_interval() {
+    let dir = tempfile::tempdir().unwrap();
+    let due = now_millis() + 600_000;
+    let path = logged_request(dir.path(), |session| {
+        session.append_run_end(false).unwrap();
+        session
+            .append_autorun(&Autorun {
+                goal: None,
+                repeat: Some(LoopRecord {
+                    prompt: "check".into(),
+                    interval_ms: Some(3_600_000),
+                    iterations: 2,
+                    due_ms: Some(due),
+                }),
+            })
+            .unwrap();
+    });
+    let mut panel = reopen(&path, dir.path(), vec![]);
+    assert!(carry_on_card(&panel).contains("1h"));
+    panel.apply_form_action(ChoiceAction::Chosen(0));
+    let next = panel.loop_task.as_ref().and_then(|t| t.next_at).unwrap();
+    let wait = next.saturating_duration_since(Instant::now());
+    assert!(
+        wait > Duration::from_secs(590) && wait <= Duration::from_secs(600),
+        "{wait:?}"
+    );
+}
+
+#[test]
+fn dropping_restored_work_takes_it_out_of_the_log() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = logged_request(dir.path(), |session| {
+        session.append_run_end(false).unwrap();
+        session
+            .append_autorun(&Autorun {
+                goal: None,
+                repeat: Some(LoopRecord {
+                    prompt: "check".into(),
+                    interval_ms: Some(60_000),
+                    iterations: 2,
+                    due_ms: None,
+                }),
+            })
+            .unwrap();
+    });
+    assert!(Session::list(dir.path()).unwrap()[0]
+        .display_label()
+        .starts_with("⏸ "));
+    let mut panel = reopen(&path, dir.path(), vec![]);
+    assert_eq!(
+        panel.loop_task.as_ref().map(|t| t.interval),
+        Some(Some(Duration::from_secs(60)))
+    );
+    panel.apply_form_action(ChoiceAction::Chosen(1));
+    panel.tick();
+    assert!(panel.loop_task.is_none());
+    assert!(panel.run_buttons().is_empty());
+    drop(panel);
+    let session = Session::open(&path).unwrap();
+    assert!(session.autorun().is_empty());
+    assert!(!Session::list(dir.path()).unwrap()[0].unfinished);
+}
+
+#[test]
+fn closing_while_work_is_under_way_asks_first() {
+    let mut panel = panel(vec![reply("working")]);
+    assert!(panel.needs_close_confirmation().is_none());
+    type_text(&mut panel, "/loop 5m check");
+    panel.submit();
+    assert_eq!(
+        panel.needs_close_confirmation().as_deref(),
+        Some(termide_i18n::t().agent_close_confirm_working())
+    );
+    settle(&mut panel);
+    // Waiting out its interval, the loop is still going.
+    assert!(panel.needs_close_confirmation().is_some());
+    type_text(&mut panel, "/loop stop");
+    panel.submit();
+    assert!(panel.needs_close_confirmation().is_none());
+}
+
+#[test]
+fn a_goal_under_way_is_in_the_log_until_it_stops() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("working")])
+    });
+    let path = panel.session_path().unwrap().to_path_buf();
+    type_text(&mut panel, "/goal do the thing");
+    panel.submit();
+    settle(&mut panel);
+    panel.goal_task.as_mut().unwrap().judge_at = None;
+    panel.tick();
+    // The work turn's start and the goal are logged right after the
+    // request, which hangs off where the request started.
+    let logged = Session::open(&path).unwrap();
+    assert_eq!(logged.last_run(), LastRun::Ended);
+    let branch = logged.branch();
+    let user = branch
+        .iter()
+        .position(|e| {
+            matches!(
+                &e.kind,
+                EntryKind::Message {
+                    message: Message::User(_),
+                    ..
+                }
+            )
+        })
+        .unwrap();
+    assert!(matches!(branch[user + 1].kind, EntryKind::RunStart));
+    assert!(matches!(branch[user + 2].kind, EntryKind::Autorun { .. }));
+    assert_eq!(
+        logged.autorun().goal,
+        Some(GoalRecord {
+            goal: "do the thing".into(),
+            iterations: 1
+        })
+    );
+
+    type_text(&mut panel, "/goal stop");
+    panel.submit();
+    panel.tick();
+    assert!(Session::open(&path).unwrap().autorun().is_empty());
+}
+
+#[test]
+fn an_external_agent_cut_off_is_told_to_carry_on() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut session = Session::create(dir.path(), Path::new("/tmp")).unwrap();
+    session.append_agent_change("outside").unwrap();
+    session
+        .append_message(&Message::User(UserMessage::text("build it")))
+        .unwrap();
+    session.append_run_start().unwrap();
+    let path = session.path().to_path_buf();
+    drop(session);
+    let mut panel = reopen(&path, dir.path(), vec![]);
+    assert!(panel.external);
+    // It cannot be resumed between steps: it is told to go on instead.
+    assert_eq!(panel.restored, Some(Restored::Prompt));
+    panel.apply_form_action(ChoiceAction::Chosen(0));
+    settle(&mut panel);
+    let items = panel.transcript().items();
+    assert!(
+        items
+            .iter()
+            .any(|i| matches!(i, Item::User { command: Some(c), .. } if c == "/continue")),
+        "{items:?}"
+    );
+    assert!(items
+        .iter()
+        .any(|i| matches!(i, Item::Assistant { text, .. } if text == "from outside")));
+    assert_eq!(panel.session.as_ref().unwrap().last_run(), LastRun::Ended);
+}
+
+#[test]
+fn a_failing_goal_check_is_tried_again_then_pauses_the_goal() {
+    let mut panel = panel(vec![reply("working")]);
+    type_text(&mut panel, "/goal do the thing");
+    panel.submit();
+    settle(&mut panel);
+    let fail = || AgentEvent::GoalJudgeFailed {
+        error: "session/prompt: Internal error (code -32603)".into(),
+    };
+    // The first failures wait and try again; the goal stays.
+    for attempt in 1..=GOAL_JUDGE_RETRIES {
+        panel.goal_task.as_mut().unwrap().judging = true;
+        panel.apply(fail());
+        let task = panel.goal_task.as_ref().expect("the goal stays");
+        assert_eq!(task.judge_failures, attempt);
+        assert!(!task.judging);
+        assert!(task.judge_at.is_some_and(|at| at > Instant::now()));
+        assert!(!panel.paused);
+    }
+    // Once they are used up, the goal waits at a pause instead of ending.
+    panel.apply(fail());
+    let task = panel
+        .goal_task
+        .as_ref()
+        .expect("the goal is paused, not dropped");
+    assert!(task.judge_at.is_none());
+    assert_eq!(task.judge_failures, 0);
+    assert!(panel.paused);
+    // `/continue` judges it again now.
+    type_text(&mut panel, "/continue");
+    panel.submit();
+    assert!(!panel.paused);
+    assert!(panel.goal_task.is_some());
+}
+
+#[test]
+fn a_goal_paused_by_failing_checks_ends_with_goal_stop() {
+    let mut panel = panel(vec![reply("working")]);
+    type_text(&mut panel, "/goal do the thing");
+    panel.submit();
+    settle(&mut panel);
+    for _ in 0..=GOAL_JUDGE_RETRIES {
+        panel.apply(AgentEvent::GoalJudgeFailed {
+            error: "boom".into(),
+        });
+    }
+    assert!(panel.paused);
+    type_text(&mut panel, "/goal stop");
+    panel.submit();
+    panel.tick();
+    assert!(panel.goal_task.is_none());
+    assert!(!panel.paused);
+}
+
+#[test]
+fn a_goal_set_during_a_run_ends_with_a_stop_and_leaves_the_queue_alone() {
+    let mut panel = panel(vec![]);
+    panel.busy = true;
+    type_text(&mut panel, "/goal finish the refactor");
+    panel.submit();
+    type_text(&mut panel, "are you stuck?");
+    panel.submit();
+    assert_eq!(
+        panel.queued_texts.iter().collect::<Vec<_>>(),
+        ["are you stuck?"]
+    );
+    panel.abort();
+    assert!(panel.goal_task.is_none());
+    let left: Vec<String> = panel
+        .runtime
+        .take_queued()
+        .iter()
+        .map(UserMessage::typed)
+        .collect();
+    assert_eq!(left, ["are you stuck?"]);
+}
+
+#[test]
+fn stopping_withdraws_the_queued_loop_turn() {
+    let mut panel = panel(vec![]);
+    panel.busy = true;
+    type_text(&mut panel, "/loop 5m check the build");
+    panel.submit();
+    type_text(&mut panel, "are you stuck?");
+    panel.submit();
+    panel.abort();
+    assert!(panel.loop_task.is_none());
+    assert_eq!(
+        panel.queued_texts.iter().collect::<Vec<_>>(),
+        ["are you stuck?"]
+    );
 }

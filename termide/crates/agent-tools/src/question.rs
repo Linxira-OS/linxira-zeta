@@ -8,6 +8,7 @@
 //! has nobody to ask, and the model is told to decide on its own.
 
 use serde_json::{json, Value};
+use termide_agent_core::ToolText;
 use termide_agent_core::{
     CancelToken, Question, QuestionAnswer, QuestionOption, QuestionReply, Tool, ToolCall,
     ToolContext, ToolResultMessage, ToolUpdate,
@@ -29,12 +30,7 @@ impl Tool for QuestionTool {
     }
 
     fn description(&self) -> &str {
-        "Ask the user one or more questions and wait for the answers. Use it when a decision is \
-the user's to make and you cannot settle it from the request, the code or a sensible default: \
-choosing between approaches, clarifying an ambiguous requirement, confirming a preference. \
-Each question offers a few choices; the user can always type an answer of their own instead, \
-so do not add an \"Other\" choice. Put the recommended choice first and say so in its label. \
-Do not use it to ask for permission to run a tool, or to ask whether you may proceed."
+        &ToolText::seed("question").description
     }
 
     fn parameters(&self) -> Value {
@@ -90,11 +86,11 @@ Do not use it to ask for permission to run a tool, or to ask whether you may pro
     }
 
     fn prompt_snippet(&self) -> Option<&str> {
-        Some("ask the user to choose between options or answer in their own words")
+        ToolText::seed("question").snippet.as_deref()
     }
 
-    fn prompt_guidelines(&self) -> &[&str] {
-        &["Use `question` only when you are blocked on a decision that is the user's to make; otherwise pick the sensible default and say which you chose."]
+    fn prompt_guidelines(&self) -> &[String] {
+        &ToolText::seed("question").guidelines
     }
 
     fn execute(
@@ -122,8 +118,9 @@ and state the assumptions you made in your final answer.",
             }
             QuestionReply::Declined => ToolResultMessage::error(
                 call,
-                "The user declined to answer the questions. Do not ask them again; wait for \
-the user's next message.",
+                "The user dismissed these questions. Do not put them again now: go on with \
+what you can do without the answers, or end your turn and wait for the user's next message. \
+A later decision that is theirs to make you may still ask about.",
             ),
         }
     }
@@ -367,6 +364,9 @@ mod tests {
         );
         answerer.join().unwrap();
         assert!(result.is_error);
-        assert!(result.plain_text().contains("declined"));
+        let text = result.plain_text();
+        assert!(text.contains("dismissed"));
+        // Not a ban for the rest of the session: a later decision may be asked.
+        assert!(text.contains("may still ask"));
     }
 }

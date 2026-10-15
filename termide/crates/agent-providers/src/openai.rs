@@ -181,7 +181,21 @@ impl OpenAiCompatProvider {
 
     fn convert(&self, message: &Message) -> Value {
         match message {
-            Message::User(user) => json!({ "role": "user", "content": user.model_text() }),
+            // Plain text stays a string, which every compatible server takes;
+            // only a message with images needs the list of parts.
+            Message::User(user) if user.images().next().is_none() => {
+                json!({ "role": "user", "content": user.model_text() })
+            }
+            Message::User(user) => {
+                let mut parts = vec![json!({ "type": "text", "text": user.model_text() })];
+                parts.extend(user.images().map(|(media_type, data)| {
+                    json!({
+                        "type": "image_url",
+                        "image_url": { "url": format!("data:{media_type};base64,{data}") },
+                    })
+                }));
+                json!({ "role": "user", "content": parts })
+            }
             Message::ToolResult(result) => json!({
                 "role": "tool",
                 "tool_call_id": result.tool_call_id,
@@ -258,17 +272,17 @@ impl OpenAiCompatProvider {
         let response = match http.send_string(body) {
             Ok(response) => response,
             Err(ureq::Error::Status(code, response)) => {
+                let retry_after = response.header("retry-after").map(str::to_string);
                 let text = response.into_string().unwrap_or_default();
-                return Err(Failure {
-                    message: format!("HTTP {code}: {}", error_text(&text)),
-                    retryable: matches!(code, 408 | 409 | 425 | 429 | 500..=599),
-                });
+                return Err(Failure::http(
+                    code,
+                    &text,
+                    retry_after.as_deref(),
+                    error_text(&text),
+                ));
             }
             Err(ureq::Error::Transport(transport)) => {
-                return Err(Failure {
-                    message: format!("transport error: {transport}"),
-                    retryable: true,
-                });
+                return Err(Failure::transport(format!("transport error: {transport}")));
             }
         };
 
@@ -297,10 +311,7 @@ impl OpenAiCompatProvider {
                             on_event,
                         ));
                     }
-                    return Err(Failure {
-                        message: format!("stream error: {error}"),
-                        retryable: true,
-                    });
+                    return Err(Failure::transport(format!("stream error: {error}")));
                 }
             }
             let Some(payload) = Accumulator::payload(line.trim_end()) else {
@@ -318,10 +329,7 @@ impl OpenAiCompatProvider {
                                 acc, &self.name, model, message, on_event,
                             ));
                         }
-                        return Err(Failure {
-                            message,
-                            retryable: false,
-                        });
+                        return Err(Failure::in_stream(&chunk.to_string(), message));
                     }
                     acc.feed(&chunk, on_event);
                 }
@@ -518,6 +526,22 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn a_message_with_images_goes_as_parts() {
+        let provider = OpenAiCompatProvider::new("p", "http://x/v1/");
+        let plain = provider.convert(&Message::User(UserMessage::text("hi")));
+        assert_eq!(plain, json!({ "role": "user", "content": "hi" }));
+        let shot = UserMessage::text("see").with_images(vec![("image/png".into(), "QUJD".into())]);
+        let wire = provider.convert(&Message::User(shot));
+        assert_eq!(
+            wire["content"],
+            json!([
+                { "type": "text", "text": "see" },
+                { "type": "image_url", "image_url": { "url": "data:image/png;base64,QUJD" } },
+            ])
+        );
+    }
+
     fn model() -> ModelSpec {
         ModelSpec {
             provider: "test".into(),
@@ -641,6 +665,7 @@ mod tests {
                 provider: "p".into(),
                 model: "m".into(),
                 error_message: None,
+                failure: None,
                 timestamp: 0,
             }),
             Message::ToolResult(ToolResultMessage::text(&call, "contents")),
@@ -888,6 +913,32 @@ data: [DONE]\n";
             .unwrap()
             .contains("failed to load"));
         assert_eq!(bodies.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_limit_that_resets_later_is_not_waited_out_inline() {
+        let body =
+            "{\"error\":{\"message\":\"Rate limit reached\",\"code\":\"rate_limit_exceeded\"}}";
+        let response = format!(
+            "HTTP/1.1 429 X\r\nContent-Type: application/json\r\nRetry-After: 3600\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let (url, bodies) = serve(vec![response]);
+        let provider = provider(&url);
+        let messages = vec![Message::User(UserMessage::text("hi"))];
+        let request = Request {
+            model: &model(),
+            system_prompt: "",
+            messages: &messages,
+            tools: &[],
+            thinking: ThinkingLevel::Off,
+        };
+        let message = provider.stream(&request, &mut |_| {}, &CancelToken::new());
+
+        assert_eq!(bodies.lock().unwrap().len(), 1);
+        let failure = message.failure.expect("the failure is classified");
+        assert_eq!(failure.kind, termide_agent_core::FailureKind::RateLimited);
+        assert!(failure.resets_at.is_some());
     }
 
     #[test]

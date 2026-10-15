@@ -3,7 +3,7 @@ mod completions;
 mod ui;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{ArgGroup, Parser};
 use crossterm::{event::PopKeyboardEnhancementFlags, execute, terminal::enable_raw_mode};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
@@ -17,6 +17,7 @@ use termide_theme::{set_ansi16_mode, set_themes_dir};
 
 #[derive(Parser)]
 #[command(name = "termide", version = termide_core::VERSION, about = "Terminal IDE")]
+#[command(group(ArgGroup::new("headless").args(["prompt", "recall"])))]
 struct Cli {
     /// Override minimum log level (trace, debug, info, warn, error)
     #[arg(long)]
@@ -26,7 +27,8 @@ struct Cli {
     #[arg(long)]
     no_lsp: bool,
 
-    /// Path to config file (default: ~/.config/termide/config.toml)
+    /// Global config file to read and save, in place of config.toml in the
+    /// config directory; a project's .termide/config.toml still applies on top
     #[arg(long, value_name = "PATH")]
     config: Option<std::path::PathBuf>,
 
@@ -45,7 +47,13 @@ struct Cli {
 
     /// Attach to a detached instance. Without an id, the most recent one.
     #[cfg(unix)]
-    #[arg(long, value_name = "ID", num_args = 0..=1, default_missing_value = "")]
+    #[arg(
+        long,
+        value_name = "ID",
+        num_args = 0..=1,
+        default_missing_value = "",
+        conflicts_with = "restore"
+    )]
     attach: Option<String>,
 
     /// With `--attach`: take the instance over from a client that is already
@@ -89,17 +97,36 @@ struct Cli {
     #[arg(long, value_name = "PROMPT")]
     prompt: Option<String>,
 
+    /// Search the project's earlier agent sessions, git history and code the
+    /// way the agent's `recall` tool does, print the ranked results (or, with
+    /// `[ai.recall] solver = true`, the answer drawn from them) and exit:
+    /// `termide --recall "why no tokio"`. Exits 1 when nothing is found.
+    #[arg(long, value_name = "QUERY", conflicts_with = "prompt")]
+    recall: Option<String>,
+
     /// Which agent definition the `--prompt` run uses; the default agent
     /// otherwise.
-    #[arg(long, value_name = "NAME", requires = "prompt")]
+    #[arg(
+        long,
+        value_name = "NAME",
+        requires = "prompt",
+        conflicts_with = "recall"
+    )]
     agent: Option<String>,
 
     /// How a `--prompt` run reports: `text` (the answer on stdout, the
     /// default), `json` (one object with the answer, token usage, the tool
     /// calls and the status) or `stream-json` (one JSON object per event as
-    /// it happens).
-    #[arg(long, value_name = "FORMAT", requires = "prompt", value_parser = ["text", "json", "stream-json"], default_value = "text")]
+    /// it happens). A `--recall` run takes `text` or `json`.
+    #[arg(long, value_name = "FORMAT", requires = "headless", value_parser = ["text", "json", "stream-json"], default_value = "text")]
     output: String,
+
+    /// Reopen the projects of the last run, in the project that run was in;
+    /// the others open in the background and load when first entered. From a
+    /// directory of that set, stays in it. Without a saved set, an ordinary
+    /// launch.
+    #[arg(short, long, conflicts_with_all = ["files", "headless"])]
+    restore: bool,
 
     /// File(s) to open, optionally with a `file:line[:col]` position suffix.
     /// An existing directory becomes the project root. Given any file,
@@ -133,10 +160,13 @@ fn run_diagnostics(custom_config: Option<&std::path::Path>) -> bool {
 
     println!("Config:");
     let project_root = std::env::current_dir().ok();
-    let config_result = if let Some(path) = custom_config {
-        termide_config::Config::load_from(path).map(|_| path.display().to_string())
+    if let Some(path) = custom_config {
+        termide_config::set_global_config_file(path);
+    }
+    let config_result = if let Some(path) = custom_config.filter(|path| !path.is_file()) {
+        Err(anyhow::anyhow!("config file not found: {}", path.display()))
     } else if let Some(root) = project_root.as_ref() {
-        termide_config::Config::load_layered(None, root).and_then(|loaded| {
+        termide_config::Config::load_layered(root).and_then(|loaded| {
             if loaded.warnings.is_empty() {
                 Ok("layered (defaults + global + project) parses OK".to_string())
             } else {
@@ -206,6 +236,50 @@ fn restore_terminal() {
     termide_core::leave_terminal_modes();
 }
 
+/// Move to the project `--restore` starts in, when the saved set names one
+/// other than the working directory. Returns where it moved from and to, so
+/// the move reaches the journal once the logger is up; `None` when the launch
+/// stays put.
+fn restore_start_dir() -> Option<(std::path::PathBuf, std::path::PathBuf)> {
+    let cwd = std::env::current_dir().ok()?;
+    let start = termide_project::load_open_projects().start_dir(&cwd)?;
+    std::env::set_current_dir(&start)
+        .map(|()| (cwd, start))
+        .ok()
+}
+
+/// The arguments a detached instance's own termide starts with: the files
+/// to open, `--restore`, and the settings flags (`--config`, `--log-level`,
+/// `--no-lsp`), which the hosted process acts on itself.
+///
+/// The files come in already resolved (see `main`): the positional
+/// `file[:line[:col]]` suffix is parsed against the *invoking* directory,
+/// while the hosted process starts in the project root, so it must be handed
+/// paths that are already absolute — a second parse there would resolve
+/// relative ones against the wrong directory.
+#[cfg(unix)]
+fn hosted_args(cli: &Cli, files: &[&termide_app::OpenedTarget]) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = Vec::new();
+    if let Some(path) = &cli.config {
+        // The host may start elsewhere: name the file absolutely.
+        let path = std::path::absolute(path).unwrap_or_else(|_| path.clone());
+        args.push("--config".into());
+        args.push(path.into_os_string());
+    }
+    if let Some(level) = &cli.log_level {
+        args.push("--log-level".into());
+        args.push(level.into());
+    }
+    if cli.no_lsp {
+        args.push("--no-lsp".into());
+    }
+    if cli.restore {
+        args.push("--restore".into());
+    }
+    args.extend(files.iter().map(|t| t.path.clone().into_os_string()));
+    args
+}
+
 /// Handle `--list-instances`, `--kill`, `--attach` and `--detached`.
 ///
 /// Returns `Some(exit_code)` when one of them ran and the process should stop,
@@ -213,7 +287,7 @@ fn restore_terminal() {
 #[cfg(unix)]
 fn handle_detached_instance_cli(
     cli: &Cli,
-    file_paths: &[std::path::PathBuf],
+    file_targets: &[&termide_app::OpenedTarget],
 ) -> Result<Option<i32>> {
     if cli.list_instances {
         print!("{}", termide_detach::format_instance_list()?);
@@ -248,7 +322,7 @@ fn handle_detached_instance_cli(
 
     if cli.detached {
         let project_root = std::env::current_dir()?;
-        let id = termide_detach::spawn_detached(&project_root, file_paths)?;
+        let id = termide_detach::spawn_detached(&project_root, &hosted_args(cli, file_targets))?;
         println!("Detached instance '{id}' started.");
         println!("Attach with: termide --attach {id}");
         return Ok(Some(0));
@@ -258,13 +332,22 @@ fn handle_detached_instance_cli(
 }
 
 fn main() -> Result<()> {
-    // SSH_ASKPASS mode: when termide is set as ssh's askpass helper for a git
-    // network operation, ssh re-executes this binary to obtain the SSH key
-    // passphrase. We detect that purely by the presence of TERMIDE_ASKPASS_FILE
-    // (ssh passes the prompt as argv, which must NOT be treated as a file to
-    // open), hand the passphrase termide stored there back to ssh, and exit.
-    // No TUI, no clap.
+    // Askpass mode: when termide is set as ssh's or git's askpass helper for a
+    // git network operation, ssh / git re-execute this binary to obtain the
+    // SSH key passphrase or the HTTPS credentials. We detect that purely by
+    // the presence of TERMIDE_ASKPASS_FILE (the prompt comes as argv, which
+    // must NOT be treated as a file to open), hand back what termide stored —
+    // the user name for git's "Username for ..." prompt, the secret for any
+    // other — and exit. No TUI, no clap.
     if let Ok(secret_file) = std::env::var("TERMIDE_ASKPASS_FILE") {
+        let prompt = std::env::args().nth(1).unwrap_or_default();
+        if let (true, Ok(user)) = (
+            prompt.starts_with("Username"),
+            std::env::var("TERMIDE_ASKPASS_USER"),
+        ) {
+            println!("{user}");
+            return Ok(());
+        }
         if let Ok(secret) = std::fs::read(&secret_file) {
             // This is the SSH_ASKPASS contract, not logging: ssh reads the
             // passphrase from our stdout (a pipe it owns), so it never reaches
@@ -302,7 +385,6 @@ fn main() -> Result<()> {
     for t in targets.iter().filter(|t| t.is_dir_root).skip(1) {
         log::warn!("Ignoring extra directory argument '{}'", t.path.display());
     }
-    let file_paths: Vec<std::path::PathBuf> = file_targets.iter().map(|t| t.path.clone()).collect();
 
     // `--completions` only prints a script; like the other pre-UI options
     // it must stay plain stdout so `eval "$(termide --completions bash)"`
@@ -325,6 +407,18 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    // `--restore` reopens the projects of the last run, and starts in the one
+    // that run was in. Done before anything else reads the working directory —
+    // the diagnostics' project root, the detached instance's project, the
+    // layered config, the logger and the terminal title — so that a launch
+    // from an unrelated directory restores that run instead of adding this
+    // directory to it. Idempotent: once moved, the working directory is the
+    // saved one, and a hosted instance restoring again stays put.
+    let mut restored_start = None;
+    if cli.restore {
+        restored_start = restore_start_dir();
+    }
+
     // --diagnostics short-circuits before terminal init so output
     // is plain stdout, capturable by scripts and visible if termide
     // is launched without a TTY.
@@ -338,7 +432,7 @@ fn main() -> Result<()> {
     // carries the calling thread into the child: a lock held by a thread that
     // no longer exists would deadlock the daemon, so no thread may exist yet.
     #[cfg(unix)]
-    if let Some(code) = handle_detached_instance_cli(&cli, &file_paths)? {
+    if let Some(code) = handle_detached_instance_cli(&cli, &file_targets)? {
         std::process::exit(code);
     }
 
@@ -365,46 +459,45 @@ fn main() -> Result<()> {
         .unwrap_or_else(|_| dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/")));
 
     // Layered load: defaults → global file → project overlay (if any).
-    // `--config <PATH>` bypasses layering and treats the file as the whole
-    // effective config (historical semantics). The second tuple element is
-    // the `defaults + global` snapshot used later as the diff baseline for
-    // the per-project override file.
+    // `--config <PATH>` takes the place of the global file, for loading and
+    // for saving alike. The second tuple element is the `defaults + global`
+    // snapshot used later as the diff baseline for the per-project file.
     // Capture config-load problems so we can re-emit them as
     // `log::warn!` after the logger comes up below. eprintln before
     // raw mode prints to a soon-to-be-overwritten terminal scrollback;
     // the Journal panel is where the user will actually look.
+    if let Some(ref path) = cli.config {
+        // A mistyped path should not quietly start on defaults and create
+        // a new file at the first change.
+        if !path.is_file() {
+            anyhow::bail!("config file not found: {}", path.display());
+        }
+        termide_config::set_global_config_file(path);
+    }
     let mut config_load_warnings: Vec<String> = Vec::new();
-    let (mut config, mut global_baseline) = if let Some(ref path) = cli.config {
-        let cfg = Config::load_from(path)?;
-        (cfg.clone(), cfg)
-    } else {
-        match Config::load_layered(None, &project_root) {
-            Ok(loaded) => {
-                config_load_warnings = loaded.warnings;
-                (loaded.effective, loaded.global_layer)
-            }
-            Err(e) => {
-                config_load_warnings.push(format!("Could not load config: {e}. Using defaults."));
-                (Config::default(), Config::default())
-            }
+    let (mut config, global_baseline) = match Config::load_layered(&project_root) {
+        Ok(loaded) => {
+            config_load_warnings = loaded.warnings;
+            (loaded.effective, loaded.global_layer)
+        }
+        // With `--config` the user named the file: a broken one is an error,
+        // not a reason to run on defaults and overwrite it at the next save.
+        Err(e) if cli.config.is_some() => return Err(e),
+        Err(e) => {
+            config_load_warnings.push(format!("Could not load config: {e}. Using defaults."));
+            (Config::default(), Config::default())
         }
     };
 
-    // Apply CLI overrides on top of the layered config. These are runtime-only
-    // — they do NOT propagate into the diff-against-baseline saves.
-    if let Some(ref level) = cli.log_level {
-        config.logging.min_level = level.clone();
-        global_baseline.logging.min_level = config.logging.min_level.clone();
-    }
-    if cli.no_lsp {
-        config.lsp.enabled = false;
-        global_baseline.lsp.enabled = false;
-    }
-
-    // On Linux VT, use norton-commander theme by default (better for 16-color)
-    if caps.is_linux_console && config.general.theme == "default" {
-        config.general.theme = "norton-commander".to_string();
-    }
+    // What this run forces on top: the command line, and on a Linux VT the
+    // norton-commander theme in place of the default one (better for 16
+    // colours). Kept out of every save — see `RuntimeOverrides`.
+    let mut runtime_overrides = termide_config::RuntimeOverrides::new(
+        cli.log_level.clone(),
+        cli.no_lsp,
+        caps.is_linux_console,
+    );
+    runtime_overrides.apply(&mut config);
 
     // `general.always_detachable`: put this instance in a host of its own and
     // attach to it, so that it is the host — not this process — that dies with
@@ -416,10 +509,10 @@ fn main() -> Result<()> {
     // Skipped inside a hosted instance for the obvious reason.
     #[cfg(unix)]
     if config.general.always_detachable
-        && file_paths.is_empty()
+        && file_targets.is_empty()
         && std::env::var_os(termide_detach::SOCKET_ENV).is_none()
     {
-        let id = termide_detach::spawn_detached(&project_root, &[])?;
+        let id = termide_detach::spawn_detached(&project_root, &hosted_args(&cli, &file_targets))?;
         let code = termide_detach::client::attach(Some(id), false)?;
         std::process::exit(code);
     }
@@ -437,6 +530,19 @@ fn main() -> Result<()> {
 
     // Headless agent run: no UI, plain stdout, like --diagnostics. Config and
     // translations are up; the terminal is still untouched.
+    if let Some(query) = cli.recall.clone() {
+        if cli.output == "stream-json" {
+            eprintln!("termide: --recall reports as text or json");
+            std::process::exit(2);
+        }
+        let code = termide_app::run_recall(
+            &config.ai,
+            &project_root,
+            query.trim(),
+            cli.output == "json",
+        );
+        std::process::exit(code);
+    }
     if let Some(prompt) = cli.prompt.clone() {
         let prompt = if prompt == "-" {
             use std::io::Read;
@@ -528,7 +634,14 @@ fn main() -> Result<()> {
     let height = size.height.max(5);
 
     // Create application with pre-loaded config (avoids double config loading)
-    let mut app = App::new_with_config(config, global_baseline, width, height, keyboard_caps);
+    let mut app = App::new_with_config(
+        config,
+        global_baseline,
+        runtime_overrides,
+        width,
+        height,
+        keyboard_caps,
+    );
 
     // Re-emit any deferred startup warnings now that the logger is up
     match vs16_probe {
@@ -550,6 +663,10 @@ fn main() -> Result<()> {
     for (level, msg) in migration_notes {
         log::log!(level, "{}", msg);
     }
+    // The move happened before the logger existed; say here where it came from.
+    if let Some((from, to)) = &restored_start {
+        log::info!("--restore: starting in {to:?} rather than {from:?}");
+    }
 
     // Log git availability to journal (not to stderr)
     app.log_git_status(git_available);
@@ -568,6 +685,9 @@ fn main() -> Result<()> {
                 "Could not load the project layout ({e}); starting with the default layout."
             );
             app.setup_default_layout();
+        }
+        if cli.restore {
+            app.restore_projects_on_start();
         }
     } else {
         app.set_layout_persistence(false);
@@ -601,6 +721,61 @@ fn main() -> Result<()> {
 mod cli_tests {
     use super::Cli;
     use clap::Parser;
+
+    #[test]
+    fn restore_parses_alone_and_with_detached() {
+        assert!(!Cli::try_parse_from(["termide"]).unwrap().restore);
+        assert!(Cli::try_parse_from(["termide", "-r"]).unwrap().restore);
+        assert!(
+            Cli::try_parse_from(["termide", "--restore"])
+                .unwrap()
+                .restore
+        );
+        #[cfg(unix)]
+        {
+            let cli = Cli::try_parse_from(["termide", "--detached", "-r"]).unwrap();
+            assert!(cli.detached && cli.restore);
+            assert_eq!(super::hosted_args(&cli, &[]), vec!["--restore"]);
+        }
+    }
+
+    /// A detached instance runs with the settings flags it was started
+    /// with, not with the plain config.
+    #[cfg(unix)]
+    #[test]
+    fn a_detached_instance_keeps_the_settings_flags() {
+        let cli = Cli::try_parse_from([
+            "termide",
+            "--detached",
+            "--config",
+            "/etc/termide.toml",
+            "--log-level",
+            "debug",
+            "--no-lsp",
+        ])
+        .unwrap();
+        assert_eq!(
+            super::hosted_args(&cli, &[]),
+            vec![
+                "--config",
+                "/etc/termide.toml",
+                "--log-level",
+                "debug",
+                "--no-lsp"
+            ]
+        );
+    }
+
+    /// `--restore` sets up the full workspace, which the clean file view,
+    /// the headless runs and attaching to a running instance all exclude.
+    #[test]
+    fn restore_conflicts_with_files_headless_and_attach() {
+        assert!(Cli::try_parse_from(["termide", "-r", "notes.md"]).is_err());
+        assert!(Cli::try_parse_from(["termide", "-r", "--prompt", "x"]).is_err());
+        assert!(Cli::try_parse_from(["termide", "-r", "--recall", "x"]).is_err());
+        #[cfg(unix)]
+        assert!(Cli::try_parse_from(["termide", "-r", "--attach"]).is_err());
+    }
 
     // Regression for #24: a bare file path must parse as a positional argument
     // (clap previously rejected it as "unexpected argument"), so termide can be
@@ -649,6 +824,17 @@ mod cli_tests {
         );
         assert!(Cli::try_parse_from(["termide", "--prompt", "x", "--output", "yaml"]).is_err());
         assert!(Cli::try_parse_from(["termide", "--output", "json"]).is_err());
+    }
+
+    #[test]
+    fn recall_flag_takes_a_query_and_an_output_but_not_a_prompt() {
+        let cli = Cli::try_parse_from(["termide", "--recall", "why no tokio"]).unwrap();
+        assert_eq!(cli.recall.as_deref(), Some("why no tokio"));
+        assert_eq!(cli.output, "text");
+        let json = Cli::try_parse_from(["termide", "--recall", "x", "--output", "json"]).unwrap();
+        assert_eq!(json.output, "json");
+        assert!(Cli::try_parse_from(["termide", "--recall", "x", "--prompt", "y"]).is_err());
+        assert!(Cli::try_parse_from(["termide", "--recall", "x", "--agent", "a"]).is_err());
     }
 
     #[test]

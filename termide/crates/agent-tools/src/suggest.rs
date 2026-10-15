@@ -14,6 +14,7 @@
 //! subagent, headless mode) has nobody to confirm, and the model is told so.
 
 use serde_json::{json, Value};
+use termide_agent_core::ToolText;
 use termide_agent_core::{
     CancelToken, Suggestion, SuggestionReply, Tool, ToolCall, ToolContext, ToolResultMessage,
     ToolUpdate,
@@ -31,15 +32,7 @@ impl Tool for SuggestCommandTool {
     }
 
     fn description(&self) -> &str {
-        "Offer the user a shell command to run by hand, and wait for them to \
-confirm it. Use it when a call was blocked or you should not run something \
-yourself but the user plausibly will: publishing, anything that needs their \
-credentials or their judgement, a destructive step you were told to leave to \
-them. The command is shown on a card in full, exactly as it would run, with \
-`[Run]`, `[Edit first]`, `[Copy]` and `[Dismiss]`; nothing runs unless they \
-pick `[Run]`. Do not use it to ask permission for a call you could make with \
-the tools you have, and do not offer a command the permission rules deny — \
-the card then withholds `[Run]` and only offers the text."
+        &ToolText::seed("suggest_command").description
     }
 
     fn parameters(&self) -> Value {
@@ -60,16 +53,11 @@ the card then withholds `[Run]` and only offers the text."
     }
 
     fn prompt_snippet(&self) -> Option<&str> {
-        Some("offer the user a command to run by hand, and wait for them to confirm it")
+        ToolText::seed("suggest_command").snippet.as_deref()
     }
 
-    fn prompt_guidelines(&self) -> &[&str] {
-        &[
-            "Use `suggest_command` when a call was blocked or the user should run it \
-themselves; put the exact command in `command` and the reason in `why`. Never \
-run what you suggest, and never suggest a command to reach the same outcome a \
-denial already refused by another route.",
-        ]
+    fn prompt_guidelines(&self) -> &[String] {
+        &ToolText::seed("suggest_command").guidelines
     }
 
     fn execute(
@@ -202,6 +190,7 @@ mod tests {
                 })
             })),
             session: None,
+            withdrawn: None,
         }
     }
 
@@ -219,6 +208,7 @@ mod tests {
             suggester: Some(suggester),
             shell_run: None,
             session: None,
+            withdrawn: None,
         }
     }
 
@@ -273,6 +263,7 @@ mod tests {
                 })
             })),
             session: None,
+            withdrawn: None,
         };
         let answerer = std::thread::spawn(move || {
             let envelope = rx.recv().unwrap();
@@ -360,6 +351,7 @@ mod tests {
                 })
             })),
             session: None,
+            withdrawn: None,
         };
         let answerer = std::thread::spawn(move || {
             let envelope = rx.recv().unwrap();
@@ -400,6 +392,7 @@ mod tests {
                 })
             })),
             session: None,
+            withdrawn: None,
         };
         let result = SuggestCommandTool.execute(
             &call(json!({ "command": "gh issue comment 59" })),
@@ -428,6 +421,7 @@ mod tests {
             suggester: Some(suggester),
             shell_run: Some(ShellRunner::new(|_, _| Err("no shell".to_string()))),
             session: None,
+            withdrawn: None,
         };
         let result = SuggestCommandTool.execute(
             &call(json!({ "command": "ls" })),

@@ -20,14 +20,16 @@ mod tools;
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
+use super::parked_projects::ProjectStep;
 use super::App;
-use crate::state::{ActiveModal, PendingAction};
+use crate::state::{ActiveModal, PendingAction, ProjectsOrigin};
 use termide_i18n as i18n;
 use termide_theme::Theme;
 use termide_ui_render::menu::{
-    AI_MENU_INDEX, BOOKMARKS_MENU_INDEX, COMMANDS_MENU_INDEX, INDICATOR_CLOCK_INDEX,
-    INDICATOR_CPU_INDEX, INDICATOR_DISK_INDEX, INDICATOR_NET_INDEX, INDICATOR_RAM_INDEX,
-    MENU_TOTAL_COUNT, OPTIONS_MENU_INDEX, PROJECTS_MENU_INDEX, WINDOWS_MENU_INDEX,
+    project_button_of, AI_MENU_INDEX, BOOKMARKS_MENU_INDEX, COMMANDS_MENU_INDEX,
+    INDICATOR_CLOCK_INDEX, INDICATOR_CPU_INDEX, INDICATOR_DISK_INDEX, INDICATOR_NET_INDEX,
+    INDICATOR_RAM_INDEX, OPTIONS_MENU_INDEX, PROJECTS_MENU_INDEX, PROJECT_BUTTON_BASE,
+    WINDOWS_MENU_INDEX,
 };
 use termide_ui_render::{OPTIONS_SUBMENU_LANGUAGE, OPTIONS_SUBMENU_THEMES};
 
@@ -109,32 +111,59 @@ impl App {
     /// Switch to next root menu item and open its submenu
     pub(super) fn switch_to_next_menu(&mut self) -> Result<()> {
         self.state.ui.close_all_submenus();
-        self.state.next_menu_item(MENU_TOTAL_COUNT);
+        self.step_menu_item(true);
         self.execute_menu_action()
     }
 
     /// Switch to previous root menu item and open its submenu
     pub(super) fn switch_to_prev_menu(&mut self) -> Result<()> {
         self.state.ui.close_all_submenus();
-        self.state.prev_menu_item(MENU_TOTAL_COUNT);
+        self.step_menu_item(false);
         self.execute_menu_action()
+    }
+
+    /// Move the menu bar selection to the next (or previous) position in
+    /// the order the bar shows them, the project buttons on screen included.
+    fn step_menu_item(&mut self, forward: bool) {
+        let order = self.menu_bar().nav_order();
+        self.state.step_menu_item(&order, forward);
     }
 
     /// Handle keyboard event in menu
     pub(super) fn handle_menu_key(&mut self, key: crossterm::event::KeyEvent) -> Result<()> {
+        let button = self.state.ui.selected_menu_item.and_then(project_button_of);
+        if let Some(button) = button {
+            if let Some(step) = self.project_step_of(&key) {
+                self.move_project_button(button, step);
+                return Ok(());
+            }
+            if matches!(key.code, KeyCode::Delete | KeyCode::F(8)) {
+                if let Some(root) = self.listed_open_roots().get(button).cloned() {
+                    self.state.close_menu();
+                    self.confirm_close_project(root, ProjectsOrigin::Button(button));
+                }
+                return Ok(());
+            }
+        }
         match key.code {
             KeyCode::Esc => {
                 self.state.close_menu();
             }
             KeyCode::Left => {
-                self.state.prev_menu_item(MENU_TOTAL_COUNT);
+                self.step_menu_item(false);
                 self.execute_menu_action()?;
             }
             KeyCode::Right => {
-                self.state.next_menu_item(MENU_TOTAL_COUNT);
+                self.step_menu_item(true);
                 self.execute_menu_action()?;
             }
             KeyCode::Enter => {
+                // Enter on a project button switches to its project; moving
+                // onto one only selects it.
+                if let Some(index) = self.state.ui.selected_menu_item.and_then(project_button_of) {
+                    self.state.close_menu();
+                    return self.switch_to_open_project(index);
+                }
                 self.execute_menu_action()?;
             }
             _ => {}
@@ -171,10 +200,50 @@ impl App {
                 | INDICATOR_DISK_INDEX => {
                     self.open_indicator_as_submenu(menu_index);
                 }
-                _ => {}
+                _ => {
+                    if let Some(index) = project_button_of(menu_index) {
+                        self.select_project_button(index);
+                    }
+                }
             }
         }
         Ok(())
+    }
+
+    /// Select project button `index`: nothing opens, the status bar shows
+    /// the project's full path, which its button may have cut.
+    fn select_project_button(&mut self, index: usize) {
+        self.state.close_indicator_modal();
+        if let Some(view) = self.state.open_projects.get(index) {
+            let path = termide_core::util::shorten_home_path(&view.root.display().to_string());
+            self.state.set_info(path);
+        }
+        self.state.needs_redraw = true;
+    }
+
+    /// Move the project of button `index` along the bar, the selection with
+    /// it.
+    fn move_project_button(&mut self, index: usize, step: ProjectStep) {
+        let Some(root) = self.listed_open_roots().get(index).cloned() else {
+            return;
+        };
+        if let Some(place) = self.move_open_project(&root, step) {
+            self.state.ui.selected_menu_item = Some(PROJECT_BUTTON_BASE + place);
+            self.select_project_button(place);
+        }
+    }
+
+    /// Open the menu bar at project button `index`, or the last one when
+    /// fewer are left, after a project was closed from it. With one project
+    /// left there are no buttons, and the menu stays closed.
+    pub(in crate::app) fn reopen_menu_bar_at_button(&mut self, index: usize) {
+        let count = self.open_projects.count();
+        if count < 2 {
+            return;
+        }
+        let index = index.min(count - 1);
+        self.state.open_menu(Some(PROJECT_BUTTON_BASE + index));
+        self.select_project_button(index);
     }
 
     /// Open an indicator modal positioned as a dropdown under the indicator.
@@ -199,12 +268,12 @@ impl App {
             return;
         }
 
-        let (net_range, cpu_range, ram_range, clock_range) = self.get_indicator_ranges();
+        let bar = self.menu_bar();
         let anchor_x = match menu_index {
-            INDICATOR_NET_INDEX => net_range.start,
-            INDICATOR_CPU_INDEX => cpu_range.start,
-            INDICATOR_RAM_INDEX => ram_range.start,
-            INDICATOR_CLOCK_INDEX => clock_range.start,
+            INDICATOR_NET_INDEX => bar.net.start,
+            INDICATOR_CPU_INDEX => bar.cpu.start,
+            INDICATOR_RAM_INDEX => bar.ram.start,
+            INDICATOR_CLOCK_INDEX => bar.clock.start,
             _ => 0,
         };
 

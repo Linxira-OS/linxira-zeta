@@ -5,20 +5,34 @@
 //!
 //! The transport is MCP's Streamable HTTP in its simplest form, on the
 //! loopback only: every JSON-RPC message is a `POST`, a request gets its
-//! response as the body, a notification gets `202`. There is no server
-//! stream (`GET` is refused, which the protocol allows). A bearer token,
-//! handed to the agent with the URL, keeps other local processes out.
+//! response as the body, a notification gets `202`. A `GET` opens the
+//! standalone server stream, which carries `notifications/tools/list_changed`
+//! whenever [`McpServer::set_tools`] changes the set, so the agent lists the
+//! tools again: an MCP server of termide's that connects after the agent's
+//! session started still reaches it. A bearer token, handed to the agent with
+//! the URL, keeps other local processes out.
+//!
+//! A tool call is answered as a server-sent event stream when the client
+//! accepts one: the headers go out at once and a comment line every few
+//! seconds, so a call that runs for many minutes — a subagent, a long build,
+//! a permission card the user has not got to — does not trip the client's
+//! idle timeout. The same writes notice a client that went away, and the
+//! call is then cancelled, taking down a question asked on its behalf.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::sync::{Arc, Condvar, Mutex, PoisonError, RwLock};
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use serde_json::{json, Value};
-use termide_agent_core::{execute_tool, CancelToken, Hooks, ToolCall, ToolContext, ToolRegistry};
+use termide_agent_core::{
+    judge_tool_call, run_judged_call, CancelToken, Hooks, Judgment, ToolCall, ToolContext,
+    ToolRegistry,
+};
 
 use crate::client::PROTOCOL_VERSION;
 
@@ -29,17 +43,35 @@ pub const SERVER_NAME: &str = "termide";
 /// The largest request body read; a tool call's arguments are far smaller.
 const MAX_BODY: usize = 16 * 1024 * 1024;
 
+/// How often a streamed tool call shows the client it is alive. Clients
+/// drop a request that has been silent for minutes (five in Bun's `fetch`).
+const KEEPALIVE: Duration = Duration::from_secs(10);
+
+/// How many finished calls keep their details for [`McpServer::take_details`];
+/// the agent reports a call's end right after its reply, so a few suffice.
+const KEPT_DETAILS: usize = 32;
+
 struct Shared {
-    tools: ToolRegistry,
-    /// One call at a time goes through the hooks: they may block on a
-    /// permission card, and the panel answers one question at a time.
+    tools: RwLock<ToolRegistry>,
+    /// Bumped by every change of `tools`; the server streams wait on it.
+    generation: Mutex<u64>,
+    changed: Condvar,
+    /// One call at a time is judged by the hooks: they may block on a
+    /// permission card, and the panel answers one question at a time. The
+    /// tools themselves run outside, so a long call holds up no other.
     hooks: Mutex<Box<dyn Hooks + Send>>,
-    cwd: PathBuf,
+    /// What every call runs with: its directory and whom to ask.
+    context: ToolContext,
     token: String,
     /// The cancel token of each call in flight, by its JSON-RPC id, for
     /// `notifications/cancelled`.
     running: Mutex<HashMap<String, CancelToken>>,
+    /// The details of finished calls — for termide's UI, never sent to the
+    /// agent — as name, arguments and details, oldest first.
+    details: Mutex<VecDeque<(String, Value, Value)>>,
     stop: AtomicBool,
+    /// [`KEEPALIVE`]; shorter in tests.
+    keepalive: Duration,
 }
 
 /// A running server; dropping it stops it.
@@ -51,21 +83,34 @@ pub struct McpServer {
 
 impl McpServer {
     /// Serve `tools` on a free loopback port. Each call runs through `hooks`
-    /// in `cwd`, as the built-in loop would run it.
+    /// with `context`, as the built-in loop would run it.
     pub fn start(
         tools: ToolRegistry,
         hooks: Box<dyn Hooks + Send>,
-        cwd: PathBuf,
+        context: ToolContext,
+    ) -> std::io::Result<Self> {
+        Self::start_with(tools, hooks, context, KEEPALIVE)
+    }
+
+    fn start_with(
+        tools: ToolRegistry,
+        hooks: Box<dyn Hooks + Send>,
+        context: ToolContext,
+        keepalive: Duration,
     ) -> std::io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0))?;
         let addr = listener.local_addr()?;
         let shared = Arc::new(Shared {
-            tools,
+            tools: RwLock::new(tools),
+            generation: Mutex::new(0),
+            changed: Condvar::new(),
             hooks: Mutex::new(hooks),
-            cwd,
+            context,
             token: new_token(),
             running: Mutex::new(HashMap::new()),
+            details: Mutex::new(VecDeque::new()),
             stop: AtomicBool::new(false),
+            keepalive,
         });
         let serving = Arc::clone(&shared);
         let thread = std::thread::Builder::new()
@@ -103,11 +148,56 @@ impl McpServer {
     pub fn token(&self) -> &str {
         &self.shared.token
     }
+
+    /// Serve `tools` from now on, and tell the agent the list changed. A call
+    /// already running keeps the tool it started with.
+    pub fn set_tools(&self, tools: ToolRegistry) {
+        *self
+            .shared
+            .tools
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = tools;
+        *self
+            .shared
+            .generation
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) += 1;
+        self.shared.changed.notify_all();
+    }
+
+    /// The details of a finished call of `name` with `arguments`, which the
+    /// MCP reply leaves out: the agent reports the call to termide with the
+    /// reply's text only. Taken once; with no exact match, the one call of
+    /// `name` kept, if just one is.
+    pub fn take_details(&self, name: &str, arguments: &Value) -> Option<Value> {
+        let mut kept = self
+            .shared
+            .details
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let index = kept
+            .iter()
+            .position(|(n, args, _)| n == name && args == arguments)
+            .or_else(|| {
+                let mut same = kept.iter().enumerate().filter(|(_, (n, ..))| n == name);
+                let first = same.next()?.0;
+                same.next().is_none().then_some(first)
+            })?;
+        kept.remove(index).map(|(.., details)| details)
+    }
 }
 
 impl Drop for McpServer {
     fn drop(&mut self) {
         self.shared.stop.store(true, Ordering::Release);
+        // Wake the server streams so they see the flag and close.
+        drop(
+            self.shared
+                .generation
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner),
+        );
+        self.shared.changed.notify_all();
         for cancel in self
             .shared
             .running
@@ -148,6 +238,8 @@ struct Request {
     method: String,
     path: String,
     authorization: Option<String>,
+    /// Whether the client takes the answer as an event stream.
+    accepts_stream: bool,
     body: Vec<u8>,
 }
 
@@ -161,6 +253,7 @@ fn read_request(reader: &mut impl BufRead) -> std::io::Result<Option<Request>> {
     let path = parts.next().unwrap_or("").to_string();
     let mut length = 0usize;
     let mut authorization = None;
+    let mut accepts_stream = false;
     loop {
         let mut header = String::new();
         if reader.read_line(&mut header)? == 0 {
@@ -176,6 +269,7 @@ fn read_request(reader: &mut impl BufRead) -> std::io::Result<Option<Request>> {
         match name.trim().to_ascii_lowercase().as_str() {
             "content-length" => length = value.trim().parse().unwrap_or(0),
             "authorization" => authorization = Some(value.trim().to_string()),
+            "accept" => accepts_stream |= value.contains("text/event-stream"),
             _ => {}
         }
     }
@@ -188,6 +282,7 @@ fn read_request(reader: &mut impl BufRead) -> std::io::Result<Option<Request>> {
         method,
         path,
         authorization,
+        accepts_stream,
         body,
     }))
 }
@@ -222,6 +317,9 @@ fn serve(shared: &Shared, mut stream: TcpStream) -> std::io::Result<()> {
     if request.authorization.as_deref() != Some(expected.as_str()) {
         return respond(&mut stream, "401 Unauthorized", "");
     }
+    if request.method == "GET" && request.accepts_stream {
+        return server_stream(shared, stream);
+    }
     if request.method != "POST" {
         return respond(&mut stream, "405 Method Not Allowed", "");
     }
@@ -229,6 +327,9 @@ fn serve(shared: &Shared, mut stream: TcpStream) -> std::io::Result<()> {
         let error = rpc_error(Value::Null, -32700, "parse error");
         return respond(&mut stream, "400 Bad Request", &error.to_string());
     };
+    if request.accepts_stream && message["method"] == "tools/call" && message.get("id").is_some() {
+        return stream_tool_call(shared, stream, &message);
+    }
     let reply = match message {
         Value::Array(batch) => {
             let replies: Vec<Value> = batch.iter().filter_map(|m| handle(shared, m)).collect();
@@ -267,13 +368,15 @@ fn handle(shared: &Shared, message: &Value) -> Option<Value> {
     let result = match method {
         "initialize" => json!({
             "protocolVersion": params["protocolVersion"].as_str().unwrap_or(PROTOCOL_VERSION),
-            "capabilities": { "tools": { "listChanged": false } },
+            "capabilities": { "tools": { "listChanged": true } },
             "serverInfo": { "name": SERVER_NAME, "version": env!("CARGO_PKG_VERSION") },
         }),
         "ping" => json!({}),
         "tools/list" => {
             let tools: Vec<Value> = shared
                 .tools
+                .read()
+                .unwrap_or_else(PoisonError::into_inner)
                 .specs()
                 .into_iter()
                 .map(|spec| {
@@ -286,14 +389,145 @@ fn handle(shared: &Shared, message: &Value) -> Option<Value> {
                 .collect();
             json!({ "tools": tools })
         }
-        "tools/call" => call_tool(shared, &id, params),
+        "tools/call" => call_tool(shared, &id, params, CancelToken::new()),
         _ => return Some(rpc_error(id, -32601, "method not found")),
     };
     Some(json!({ "jsonrpc": "2.0", "id": id, "result": result }))
 }
 
-/// Run a `tools/call` the way the built-in loop runs a call.
-fn call_tool(shared: &Shared, id: &Value, params: &Value) -> Value {
+/// Answer a `tools/call` as an event stream: the headers at once, a progress
+/// notification (or, with no progress token, a comment) every [`KEEPALIVE`]
+/// while the call runs, then the response as one event.
+/// A write that fails, or a read that finds the connection closed, means the
+/// client gave up: the call is cancelled, and whatever it waits on with it.
+fn stream_tool_call(
+    shared: &Shared,
+    mut stream: TcpStream,
+    message: &Value,
+) -> std::io::Result<()> {
+    write!(
+        stream,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n"
+    )?;
+    stream.flush()?;
+    let id = message["id"].clone();
+    let cancel = CancelToken::new();
+    let (done, result) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let call_cancel = cancel.clone();
+        let id = &id;
+        scope.spawn(move || {
+            let result = call_tool(shared, id, &message["params"], call_cancel);
+            let _ = done.send(result);
+        });
+        // A comment keeps the connection open, but Claude Code also aborts a
+        // call that sends "no response or progress" for five minutes, and only
+        // a progress notification counts as progress there. The client asks
+        // for them by naming a token; one that names none gets the comment.
+        let progress_token = message["params"]["_meta"]
+            .get("progressToken")
+            .filter(|token| token.is_string() || token.is_number())
+            .cloned();
+        let mut ticks = 0u64;
+        let mut alive = true;
+        let result = loop {
+            match result.recv_timeout(shared.keepalive) {
+                Ok(result) => break Some(result),
+                Err(RecvTimeoutError::Disconnected) => break None,
+                Err(RecvTimeoutError::Timeout) if alive => {
+                    ticks += 1;
+                    let beat = match &progress_token {
+                        // `progress` must grow with each notification.
+                        Some(token) => {
+                            let note = json!({
+                                "jsonrpc": "2.0",
+                                "method": "notifications/progress",
+                                "params": { "progressToken": token, "progress": ticks },
+                            });
+                            format!("event: message\ndata: {note}\n\n")
+                        }
+                        None => ": keepalive\n\n".to_string(),
+                    };
+                    alive = !client_gone(&stream)
+                        && stream
+                            .write_all(beat.as_bytes())
+                            .and_then(|()| stream.flush())
+                            .is_ok();
+                    if !alive {
+                        cancel.cancel();
+                    }
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+            }
+        };
+        let Some(result) = result.filter(|_| alive) else {
+            return Ok(());
+        };
+        let reply = json!({ "jsonrpc": "2.0", "id": id, "result": result });
+        write!(stream, "event: message\ndata: {reply}\n\n")?;
+        stream.flush()
+    })
+}
+
+/// The standalone server stream a `GET` opens: a
+/// `notifications/tools/list_changed` for every change of the tools since it
+/// started, a comment every [`KEEPALIVE`] otherwise, until the client goes or
+/// the server stops.
+fn server_stream(shared: &Shared, mut stream: TcpStream) -> std::io::Result<()> {
+    write!(
+        stream,
+        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n"
+    )?;
+    stream.flush()?;
+    let lock = || {
+        shared
+            .generation
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    };
+    // A change between the agent's first `tools/list` and this stream would
+    // be lost, so a stream opened after any change starts with the
+    // notification: one listing too many costs nothing.
+    let mut seen = 0;
+    loop {
+        let (generation, _) = shared
+            .changed
+            .wait_timeout_while(lock(), shared.keepalive, |generation| {
+                *generation == seen && !shared.stop.load(Ordering::Acquire)
+            })
+            .unwrap_or_else(PoisonError::into_inner);
+        let now = *generation;
+        drop(generation);
+        if shared.stop.load(Ordering::Acquire) || client_gone(&stream) {
+            return Ok(());
+        }
+        let event = if now == seen {
+            ": keepalive\n\n".to_string()
+        } else {
+            seen = now;
+            let note = json!({ "jsonrpc": "2.0", "method": "notifications/tools/list_changed" });
+            format!("event: message\ndata: {note}\n\n")
+        };
+        stream.write_all(event.as_bytes())?;
+        stream.flush()?;
+    }
+}
+
+/// Whether the client closed its end: a read that would otherwise wait
+/// returns end of stream at once. The client sends nothing more on a
+/// request's connection, so there is nothing to read past.
+fn client_gone(stream: &TcpStream) -> bool {
+    if stream.set_nonblocking(true).is_err() {
+        return false;
+    }
+    let gone = matches!(stream.peek(&mut [0u8; 1]), Ok(0));
+    let _ = stream.set_nonblocking(false);
+    gone
+}
+
+/// Run a `tools/call` the way the built-in loop runs a call; `cancel` stops
+/// it, and is cancelled too by a `notifications/cancelled` for its id.
+fn call_tool(shared: &Shared, id: &Value, params: &Value, cancel: CancelToken) -> Value {
     let call = ToolCall {
         id: format!("mcp-{}", id.to_string().trim_matches('"')),
         name: params["name"].as_str().unwrap_or("").to_string(),
@@ -303,30 +537,44 @@ fn call_tool(shared: &Shared, id: &Value, params: &Value) -> Value {
         },
         extra_content: None,
     };
-    let cancel = CancelToken::new();
     let key = id.to_string();
     shared
         .running
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .insert(key.clone(), cancel.clone());
-    let result = {
-        let mut hooks = shared.hooks.lock().unwrap_or_else(PoisonError::into_inner);
-        let result = execute_tool(
-            &shared.tools,
-            &call,
-            hooks.as_mut(),
-            &ToolContext::new(shared.cwd.clone()),
-            &cancel,
-            &mut |_| {},
-        );
-        hooks.after_tool_call(&call, result)
+    let ctx = ToolContext {
+        withdrawn: Some(cancel.clone()),
+        ..shared.context.clone()
     };
+    let hooks = || shared.hooks.lock().unwrap_or_else(PoisonError::into_inner);
+    // The set as it stands now: a change while the call runs leaves it be.
+    let tools = shared
+        .tools
+        .read()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    let judged = judge_tool_call(&tools, &call, hooks().as_mut(), &ctx, &cancel);
+    let result = match judged {
+        Judgment::Run(judged) => run_judged_call(&tools, judged, &ctx, &cancel, &mut |_| {}),
+        Judgment::Done(result) => result,
+    };
+    let result = hooks().after_tool_call(&call, result);
     shared
         .running
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .remove(&key);
+    if let Some(details) = result.details.clone() {
+        let mut kept = shared
+            .details
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if kept.len() == KEPT_DETAILS {
+            kept.pop_front();
+        }
+        kept.push_back((call.name.clone(), call.arguments.clone(), details));
+    }
     json!({
         "content": [{ "type": "text", "text": result.plain_text() }],
         "isError": result.is_error,
@@ -358,7 +606,8 @@ mod tests {
             _on_update: &mut dyn FnMut(ToolUpdate),
             _cancel: &CancelToken,
         ) -> ToolResultMessage {
-            ToolResultMessage::text(call, call.arguments["text"].as_str().unwrap_or(""))
+            let text = call.arguments["text"].as_str().unwrap_or("");
+            ToolResultMessage::text(call, text).with_details(json!({ "said": text }))
         }
     }
 
@@ -397,10 +646,145 @@ mod tests {
         (head.lines().next().unwrap().to_string(), body.to_string())
     }
 
+    /// Runs until its call is cancelled, and says so.
+    struct UntilCancelled(Arc<AtomicBool>);
+
+    impl Tool for UntilCancelled {
+        fn name(&self) -> &str {
+            "wait"
+        }
+        fn description(&self) -> &str {
+            "Wait to be cancelled"
+        }
+        fn parameters(&self) -> Value {
+            json!({ "type": "object" })
+        }
+        fn execute(
+            &self,
+            call: &ToolCall,
+            _ctx: &ToolContext,
+            _on_update: &mut dyn FnMut(ToolUpdate),
+            cancel: &CancelToken,
+        ) -> ToolResultMessage {
+            while !cancel.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            self.0.store(true, Ordering::Release);
+            ToolResultMessage::text(call, "cancelled")
+        }
+    }
+
+    /// Send a streamed `tools/call` and return the open connection.
+    fn post_streamed(server: &McpServer, body: &Value) -> TcpStream {
+        let addr = server
+            .url()
+            .trim_start_matches("http://")
+            .trim_end_matches("/mcp")
+            .to_string();
+        let mut stream = TcpStream::connect(addr).unwrap();
+        let body = body.to_string();
+        write!(
+            stream,
+            "POST /mcp HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer {}\r\nAccept: application/json, text/event-stream\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            server.token(),
+            body.len()
+        )
+        .unwrap();
+        stream
+    }
+
     fn server() -> McpServer {
         let mut tools = ToolRegistry::new();
         tools.insert(Arc::new(Echo));
-        McpServer::start(tools, Box::new(Guard), PathBuf::from("/tmp")).unwrap()
+        McpServer::start(tools, Box::new(Guard), ToolContext::new("/tmp")).unwrap()
+    }
+
+    #[test]
+    fn a_call_keeps_its_details_out_of_the_reply_for_termide_to_take() {
+        let server = server();
+        let token = server.token().to_string();
+        let call = |id: u64, text: &str| {
+            json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call",
+                    "params": { "name": "echo", "arguments": { "text": text } } })
+        };
+        let (_, body) = post(&server, &token, &call(1, "one"));
+        assert!(!body.contains("said"), "details stay out of the reply");
+        post(&server, &token, &call(2, "two"));
+        let args = |text: &str| json!({ "text": text });
+        assert_eq!(
+            server.take_details("echo", &args("two")),
+            Some(json!({ "said": "two" }))
+        );
+        // No exact match, but the one call of the name kept.
+        assert_eq!(
+            server.take_details("echo", &args("other")),
+            Some(json!({ "said": "one" }))
+        );
+        assert_eq!(
+            server.take_details("echo", &args("one")),
+            None,
+            "taken once"
+        );
+    }
+
+    /// Says which of the context's people a call was given.
+    struct WhoIsThere;
+
+    impl Tool for WhoIsThere {
+        fn name(&self) -> &str {
+            "who"
+        }
+        fn description(&self) -> &str {
+            "Report the call's context"
+        }
+        fn parameters(&self) -> Value {
+            json!({ "type": "object" })
+        }
+        fn execute(
+            &self,
+            call: &ToolCall,
+            ctx: &ToolContext,
+            _on_update: &mut dyn FnMut(ToolUpdate),
+            _cancel: &CancelToken,
+        ) -> ToolResultMessage {
+            let text = format!(
+                "{} asker={} suggester={} withdrawn={}",
+                ctx.cwd.display(),
+                ctx.asker.is_some(),
+                ctx.suggester.is_some(),
+                ctx.withdrawn.is_some(),
+            );
+            ToolResultMessage::text(call, text)
+        }
+    }
+
+    /// `question` and `suggest_command` served to an external agent reach
+    /// the user only through the context the server was started with.
+    #[test]
+    fn a_call_runs_with_the_servers_context() {
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(WhoIsThere));
+        let cancel = CancelToken::new();
+        let (asker, _questions) = termide_agent_core::question_channel(cancel.clone());
+        let (suggester, _suggestions) = termide_agent_core::suggestion_channel(cancel);
+        let context = ToolContext {
+            asker: Some(asker),
+            suggester: Some(suggester),
+            ..ToolContext::new("/work")
+        };
+        let server = McpServer::start(tools, Box::new(Guard), context).unwrap();
+        let token = server.token().to_string();
+        let (_, body) = post(
+            &server,
+            &token,
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                     "params": { "name": "who", "arguments": {} } }),
+        );
+        let result = &serde_json::from_str::<Value>(&body).unwrap()["result"];
+        assert_eq!(
+            result["content"][0]["text"],
+            "/work asker=true suggester=true withdrawn=true"
+        );
     }
 
     #[test]
@@ -453,6 +837,145 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("not that"));
+    }
+
+    /// A client that takes event streams gets the call's answer as one,
+    /// after keepalive comments while it runs.
+    #[test]
+    fn a_tool_call_is_answered_as_an_event_stream() {
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(Echo));
+        let server = McpServer::start_with(
+            tools,
+            Box::new(Guard),
+            ToolContext::new("/tmp"),
+            Duration::from_millis(20),
+        )
+        .unwrap();
+        let mut stream = post_streamed(
+            &server,
+            &json!({ "jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                     "params": { "name": "echo", "arguments": { "text": "hi" } } }),
+        );
+        let mut response = String::new();
+        stream.read_to_string(&mut response).unwrap();
+        let (head, body) = response.split_once("\r\n\r\n").unwrap();
+        assert!(head.starts_with("HTTP/1.1 200 OK"), "{head}");
+        assert!(head.contains("Content-Type: text/event-stream"), "{head}");
+        let data = body
+            .lines()
+            .find_map(|line| line.strip_prefix("data: "))
+            .expect("an event with the response");
+        let reply: Value = serde_json::from_str(data).unwrap();
+        assert_eq!(reply["id"], 7);
+        assert_eq!(reply["result"]["content"][0]["text"], "hi");
+    }
+
+    /// A call whose client went away is cancelled, so it does not hold the
+    /// hooks — and every call after it — for good.
+    #[test]
+    fn a_call_whose_client_went_away_is_cancelled() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(UntilCancelled(Arc::clone(&cancelled))));
+        let server = McpServer::start_with(
+            tools,
+            Box::new(Guard),
+            ToolContext::new("/tmp"),
+            Duration::from_millis(20),
+        )
+        .unwrap();
+        let mut stream = post_streamed(
+            &server,
+            &json!({ "jsonrpc": "2.0", "id": 8, "method": "tools/call",
+                     "params": { "name": "wait", "arguments": {} } }),
+        );
+        let mut head = [0u8; 15];
+        stream.read_exact(&mut head).unwrap();
+        assert_eq!(&head, b"HTTP/1.1 200 OK");
+        drop(stream);
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !cancelled.load(Ordering::Acquire) {
+            assert!(std::time::Instant::now() < deadline, "the call ran on");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    /// A call that names a progress token hears growing progress while it
+    /// runs: Claude Code aborts one silent for five minutes, and a keepalive
+    /// comment is not progress to it.
+    #[test]
+    fn a_long_call_reports_progress_to_its_token() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(UntilCancelled(Arc::clone(&cancelled))));
+        let server = McpServer::start_with(
+            tools,
+            Box::new(Guard),
+            ToolContext::new("/tmp"),
+            Duration::from_millis(20),
+        )
+        .unwrap();
+        let stream = post_streamed(
+            &server,
+            &json!({ "jsonrpc": "2.0", "id": 9, "method": "tools/call",
+                     "params": { "name": "wait", "arguments": {},
+                                 "_meta": { "progressToken": 9 } } }),
+        );
+        let mut progress = Vec::new();
+        for line in BufReader::new(&stream).lines() {
+            let line = line.unwrap();
+            assert_ne!(line, ": keepalive", "a comment instead of progress");
+            if let Some(data) = line.strip_prefix("data: ") {
+                let note: Value = serde_json::from_str(data).unwrap();
+                assert_eq!(note["method"], "notifications/progress");
+                assert_eq!(note["params"]["progressToken"], 9);
+                progress.push(note["params"]["progress"].as_u64().unwrap());
+                if progress.len() == 2 {
+                    break;
+                }
+            }
+        }
+        assert!(progress[0] < progress[1], "{progress:?}");
+        assert!(!cancelled.load(Ordering::Acquire), "the call still runs");
+        drop(stream);
+    }
+
+    /// A long call holds up no other: the hooks judge one call at a time,
+    /// but the tools run side by side.
+    #[test]
+    fn a_long_call_holds_up_no_other() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(Echo));
+        tools.insert(Arc::new(UntilCancelled(Arc::clone(&cancelled))));
+        let server = McpServer::start_with(
+            tools,
+            Box::new(Guard),
+            ToolContext::new("/tmp"),
+            Duration::from_millis(20),
+        )
+        .unwrap();
+        let mut long = post_streamed(
+            &server,
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                     "params": { "name": "wait", "arguments": {} } }),
+        );
+        let mut head = [0u8; 15];
+        long.read_exact(&mut head).unwrap();
+        let (_, body) = post(
+            &server,
+            server.token(),
+            &json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                     "params": { "name": "echo", "arguments": { "text": "meanwhile" } } }),
+        );
+        let reply: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(reply["result"]["content"][0]["text"], "meanwhile");
+        assert!(
+            !cancelled.load(Ordering::Acquire),
+            "the long call still runs"
+        );
+        drop(long);
     }
 
     #[test]

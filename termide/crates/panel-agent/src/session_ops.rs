@@ -6,16 +6,18 @@ use std::sync::{Arc, PoisonError};
 
 use crate::runtime::local_minute;
 use termide_agent_core::{EntryKind, PromptError, Session, SessionSummary};
-use termide_core::{ConfirmAction, PanelEvent};
+use termide_core::{ConfirmAction, InputAction, PanelEvent};
 use termide_ui::ChoiceForm;
 
 use crate::pending::Pending;
 use crate::runtime::{
-    checkpoint_store, session_agent, session_model, spawn_runtime, start_session, Spawned,
+    acp_choices, checkpoint_store, preferred_acp_model, session_agent, session_model,
+    spawn_runtime, start_session, Spawned,
 };
+use crate::toolset::served_skills;
 use crate::{
     format_tokens, shorten_path, truncate_title, AgentPanel, Item, NoticeKind,
-    DELETE_RECENT_ACTION, DELETE_SESSION_ACTION, FORK_SESSION_ACTION,
+    DELETE_RECENT_ACTION, DELETE_SESSION_ACTION, FORK_SESSION_ACTION, RENAME_RECENT_ACTION,
 };
 
 /// Delete a session the panel is leaving when it holds no conversation, so
@@ -43,6 +45,8 @@ impl AgentPanel {
             self.notice(termide_i18n::t().agent_notice_busy(), NoticeKind::Warn);
             return false;
         }
+        // What the session being left has going is written before it goes.
+        self.sync_autorun();
         let session = session.or_else(|| {
             start_session(
                 self.session_dir.as_deref(),
@@ -66,7 +70,11 @@ impl AgentPanel {
             &self.context_off,
             session.as_ref(),
         );
+        // The model the agent's definition names, which an external agent is
+        // asked for.
+        let mut agent_model = None;
         if let Some((name, profile)) = resolved {
+            agent_model = profile.model.clone();
             agent = name;
             system_prompt = profile.system_prompt;
             tools = profile.tools;
@@ -105,6 +113,7 @@ impl AgentPanel {
             &self.plan_prompt,
             &self.goal_prompt,
             &self.handoff_prompt,
+            &self.loop_prompt,
             &self.reviewer,
             &self.refusals,
             self.persist_rule,
@@ -115,10 +124,16 @@ impl AgentPanel {
             session.as_ref(),
             &blocked,
             self.shell_run.clone(),
+            served_skills(
+                self.catalog.as_ref(),
+                &self.offered_skills,
+                &self.context_off,
+            ),
         );
         // Dropping the old runtime cancels it and asks its worker to stop.
         self.runtime = runtime;
         self.external = external;
+        self.mcp_settled_told = false;
         self.permission_rx = permission_rx;
         self.question_rx = question_rx;
         self.suggestion_rx = suggestion_rx;
@@ -150,11 +165,55 @@ impl AgentPanel {
         self.follow = true;
         self.queued = (0, 0);
         self.queued_texts.clear();
+        // A paused run belonged to the runtime just dropped: it cannot be
+        // resumed, so the pause and the loop or goal it was part of end here.
+        self.paused = false;
+        self.run_paused = false;
+        self.pause_start = None;
+        self.resuming = false;
+        self.run_start = None;
+        // An external agent may have streamed past its turn's end, leaving a
+        // live clock no `AgentEnd` will clear: it must not tick under the new
+        // session's banner.
+        self.activity = None;
+        self.loop_task = None;
+        self.goal_task = None;
+        self.restored = None;
+        self.adopt_logged_autorun();
+        self.run_start_due = false;
         self.pause_requested = false;
-        self.stop_requested = false;
+        self.stop_requested = None;
         self.context_tokens = 0;
+        // What the previous agent stated is not this one's.
+        self.acp_has_models = false;
+        self.acp_options.clear();
+        self.acp_models.clear();
+        self.acp_option_list.clear();
+        self.acp_option_choice = None;
+        self.pending_acp_choices = acp_choices(
+            self.external,
+            agent_model.or_else(|| preferred_acp_model(&self.model)),
+            self.session.as_ref(),
+        );
         self.refresh_recent_sessions();
         true
+    }
+
+    /// Rebuild the agent on the session it runs — after a connection or
+    /// agent switch — keeping what is typed in the prompt box, its large
+    /// pastes and its cursor: the switch changes who answers, not the request.
+    pub(crate) fn rebuild_keeping_prompt(&mut self) -> bool {
+        let prompt = self.input.multiline(0).cloned();
+        let pastes = std::mem::take(&mut self.pastes);
+        let paste_seq = self.paste_seq;
+        let session = self.session.take();
+        let rebuilt = self.switch_session(session);
+        if let (Some(prompt), Some(area)) = (prompt, self.input.multiline_mut(0)) {
+            *area = prompt;
+        }
+        self.pastes = pastes;
+        self.paste_seq = paste_seq;
+        rebuilt
     }
 
     /// Re-read the sessions the welcome banner offers, the cursor back on the
@@ -164,7 +223,7 @@ impl AgentPanel {
     pub(crate) fn refresh_recent_sessions(&mut self) {
         self.load_recent_sessions();
         self.recent_selected = 0;
-        self.recent_top = 0;
+        self.banner_top = 0;
     }
 
     /// Re-read the banner's sessions once another panel opened or released
@@ -208,26 +267,14 @@ impl AgentPanel {
     }
 
     /// Whether the welcome banner is up and lists recent sessions, so `Tab`
-    /// can take the keyboard into that list and the wheel scrolls it.
+    /// can take the keyboard into that list.
     pub(crate) fn recent_list_shown(&self) -> bool {
         self.banner_shown() && !self.recent_sessions.is_empty()
     }
 
-    /// Scroll the banner's list by `delta` rows. With the keyboard in the
-    /// list the cursor moves along, since the list keeps it in view.
-    pub(crate) fn scroll_recent(&mut self, delta: i32) {
-        if self.chat_focus {
-            self.move_recent_selection(delta as isize);
-            return;
-        }
-        let max_top = self
-            .recent_sessions
-            .len()
-            .saturating_sub(self.recent_rows.max(1));
-        self.recent_top = self
-            .recent_top
-            .saturating_add_signed(delta as isize)
-            .min(max_top);
+    /// The banner's last first row on screen, by the last render's layout.
+    pub(crate) fn banner_max_top(&self) -> usize {
+        self.banner_rows.saturating_sub(self.viewport_height())
     }
 
     /// Move the banner list's cursor by `delta` rows, clamped to the list,
@@ -239,13 +286,21 @@ impl AgentPanel {
     }
 
     /// Bring the banner list's cursor on screen, scrolling as little as
-    /// possible.
+    /// possible, by the last render's layout. On the first session the
+    /// banner scrolls back to its top when that leaves the cursor in view,
+    /// so walking up the list brings the fields back.
     pub(crate) fn scroll_recent_selection_into_view(&mut self) {
-        let rows = self.recent_rows.max(1);
-        if self.recent_selected < self.recent_top {
-            self.recent_top = self.recent_selected;
-        } else if self.recent_selected >= self.recent_top + rows {
-            self.recent_top = self.recent_selected + 1 - rows;
+        let view = self.viewport_height();
+        if view == 0 {
+            return;
+        }
+        let row = self.banner_list_start + self.recent_selected;
+        if self.recent_selected == 0 && row < view {
+            self.banner_top = 0;
+        } else if row < self.banner_top {
+            self.banner_top = row;
+        } else if row >= self.banner_top + view {
+            self.banner_top = row + 1 - view;
         }
     }
 
@@ -306,7 +361,8 @@ impl AgentPanel {
         }
         self.switch_session(None);
         self.send(format!(
-            "Continue the work described in this handoff brief:\n\n{brief}"
+            "{}\n\n{brief}",
+            termide_agent_core::handoff::CONTINUATION_LEAD
         ))
     }
 
@@ -353,7 +409,10 @@ impl AgentPanel {
         }
         match Session::open_exclusive(&summary.path) {
             Ok(session) => {
-                self.switch_session(Some(session));
+                // Work the session was left with is offered to carry on.
+                if self.switch_session(Some(session)) {
+                    self.restore_unfinished();
+                }
             }
             Err(error) => {
                 log::warn!("cannot open {}: {error}", summary.path.display());
@@ -490,6 +549,63 @@ impl AgentPanel {
             Ok(()) => vec![PanelEvent::NeedsRedraw],
             Err(error) => {
                 log::warn!("cannot delete {}: {error}", path.display());
+                vec![
+                    PanelEvent::SetStatusMessage {
+                        message: error.to_string(),
+                        is_error: true,
+                    },
+                    PanelEvent::NeedsRedraw,
+                ]
+            }
+        }
+    }
+
+    /// Ask for a new name for the recent session under the banner list's
+    /// cursor (F2 while the list has the keyboard); the answer comes back as
+    /// `PanelCommand::InputSubmitted(RENAME_RECENT_ACTION)`.
+    pub(crate) fn ask_rename_recent_session(&mut self) -> Vec<PanelEvent> {
+        let Some(summary) = self.recent_sessions.get(self.recent_selected) else {
+            return vec![];
+        };
+        self.recent_to_rename = Some(summary.path.clone());
+        vec![PanelEvent::ShowInput {
+            prompt: termide_i18n::t().agent_rename_prompt().to_string(),
+            initial_value: summary.name.clone().unwrap_or_default(),
+            on_submit: InputAction::Custom(RENAME_RECENT_ACTION.to_string()),
+        }]
+    }
+
+    /// Rename the recent session the prompt was opened for. It is claimed
+    /// first, so one another panel opened meanwhile is left alone. The rename
+    /// is a new entry, so the session may move up the list; the cursor follows
+    /// it.
+    pub(crate) fn perform_rename_recent_session(&mut self, name: &str) -> Vec<PanelEvent> {
+        let Some(path) = self.recent_to_rename.take() else {
+            return vec![];
+        };
+        // A session with no messages is listed only for its name: cleared, it
+        // is an untouched one, discarded as such rather than left unlisted.
+        let result = Session::open_exclusive(&path).and_then(|mut session| {
+            session.set_name(name)?;
+            if session.is_empty() {
+                session.discard()?;
+            }
+            Ok(())
+        });
+        let selected = self.recent_selected;
+        self.load_recent_sessions();
+        self.recent_selected = self
+            .recent_sessions
+            .iter()
+            .position(|summary| summary.path == path)
+            .unwrap_or_else(|| selected.min(self.recent_sessions.len().saturating_sub(1)));
+        if self.recent_sessions.is_empty() {
+            self.chat_focus = false;
+        }
+        match result {
+            Ok(_) => vec![PanelEvent::NeedsRedraw],
+            Err(error) => {
+                log::warn!("cannot rename {}: {error}", path.display());
                 vec![
                     PanelEvent::SetStatusMessage {
                         message: error.to_string(),

@@ -233,8 +233,9 @@ termide 在 macOS 上启动时会记录一条列出这些绑定的警告。请�
 
 ## 冲突检测
 
-设置 → 键绑定显示内联警告,当您分配的和弦已被另一个动作占用。检测
-三类冲突:
+设置 → 键绑定显示内联警告,当您分配的和弦已被另一个动作占用。同一
+动作已接受的和弦会被直接拒绝——它只会在该行中添加该动作已响应的
+按键的另一种写法——拒绝原因显示在其位置上。检测三类冲突:
 
 - **同一节内** — 同一节中两个动作共享和弦;第二个变得无法到达。
 - **跨节遮蔽** — 全局和弦遮蔽面板本地的;面板绑定永远不会触发。
@@ -273,23 +274,40 @@ crossterm 解析为 `Ctrl+7` / `Ctrl+4`,规范化器将其重写回斜杠 / 反�
 任何动作都支持多个备选项:列在数组中。第一项是帮助面板中显示的
 规范字符串。
 
+不用改文件也能配出同样的形状:在 Settings → Keybindings 中,每一行列出
+该动作接受的所有按键,`Left`/`Right` 在各按键之间移动光标,`Enter` 为
+光标所在的按键捕获一次组合,焦点行末尾画着的 `[+]` 则追加一个新的备选。
+参见 [ui.md](ui.md#设置模态框settings)。
+
 ### 未绑定的操作
 
-有些操作默认不带绑定，因为每个仍然空闲的组合键在某处都会与桌面或 shell
-的快捷键冲突：`Ctrl+Alt+Left` / `Ctrl+Alt+Right` 在多个 Linux 桌面中用于切换
-工作区，`Ctrl+Alt+<数字>` 在传统终端中会被当作 `Alt+<数字>`，而 `Alt+.` 在
-bash 中插入上一条命令的最后一个参数。请将它们绑定到您系统上空闲的组合键：
+有些操作默认不带绑定。对 `prev_project` / `next_project` 而言，每个仍然空闲
+的组合键在某处都会与桌面或 shell 的快捷键冲突：`Ctrl+Alt+Left` /
+`Ctrl+Alt+Right` 在多个 Linux 桌面中用于切换工作区，而 `Alt+.` 在 bash 中插入
+上一条命令的最后一个参数。`goto_panel_1` … `goto_panel_9` 已将 `Alt+1` …
+`Alt+9` 让给 `goto_project_1` … `goto_project_9`，后者切换到对应编号的已打开
+项目。请将它们绑定到您系统上空闲的组合键：
 
 | 操作 | 作用 |
 |------|------|
 | `prev_project` / `next_project` | 按 `项目` 菜单中的排列顺序切换到上一个 / 下一个已打开的项目 |
-| `goto_project_1` … `goto_project_9` | 切换到对应编号的已打开项目 |
+| `goto_panel_1` … `goto_panel_9` | 将焦点移到对应编号的面板组（列） |
 
 ```toml
 [general.keybindings]
 prev_project = "Shift+F5"
 next_project = "Shift+F6"
+goto_panel_1 = "Shift+F1"
+```
+
+若要把数字键还给面板，请在同一文件中为项目另行绑定。当 `goto_project_N`
+未设置时，绑定到 `Alt+N` 的 `goto_panel_N` 会被视为旧版本保存的旧默认值副本，
+并让位于新的默认值：
+
+```toml
+[general.keybindings]
+goto_panel_1 = "Alt+1"
 goto_project_1 = "Shift+F1"
 ```
 
-绑定后，按键会显示在 `项目` 菜单中对应项目的旁边。
+`goto_project_N` 的按键会显示在 `项目` 菜单中对应项目的旁边。

@@ -9,10 +9,12 @@
 pub const VERSION: &str = env!("TERMIDE_VERSION");
 
 pub mod command;
+pub mod credentials;
 pub mod event;
 pub mod graphics_cells;
 pub mod hotkey_table;
 pub mod key_chord;
+pub mod links;
 pub mod panel;
 pub mod scrollbar;
 pub mod terminal_caps;
@@ -21,6 +23,7 @@ pub mod util;
 pub mod wide_cells;
 
 pub use command::{CommandResult, PanelCommand};
+pub use credentials::{CredentialAttempt, SecretText};
 pub use event::{
     ChecklistButton, ChecklistGroup, ChecklistItem, ChecklistOutcome, ChecklistRefresh,
     ConfirmAction, ConflictResolution, Event, EventHandler, GitOperationType, InputAction,
@@ -29,14 +32,15 @@ pub use event::{
 pub use graphics_cells::GraphicsCells;
 pub use hotkey_table::HotkeyTable;
 pub use key_chord::KeyChord;
+pub use links::LinkTarget;
 pub use panel::{
-    HeightMode, Panel, PanelConfig, PanelState, RenderContext, Searchable, SegmentKind,
-    StatusSegment, ThemeColors, TitleCut, WidthPreference,
+    AgentSetupState, HeightMode, Panel, PanelConfig, PanelState, RenderContext, Searchable,
+    SegmentKind, StatusSegment, ThemeColors, TitleCut, WidthPreference,
 };
 pub use scrollbar::{ScrollAxis, ScrollBarGeometry, ScrollBars};
 pub use terminal_caps::{
-    get_terminal_caps, init_icon_mode, init_terminal_caps, refresh_terminal_caps, use_emoji_icons,
-    ColorDepth, TerminalCaps,
+    attention_mark, get_terminal_caps, init_icon_mode, init_terminal_caps, refresh_terminal_caps,
+    use_emoji_icons, ColorDepth, TerminalCaps,
 };
 pub use terminal_modes::{
     adopt_variation_selector_width, enter_terminal_modes, leave_terminal_modes,
@@ -49,5 +53,4 @@ pub use termide_keyboard::{KeyNormalizer, KeyboardCaps};
 
 // Re-export theme and config for convenience
 pub use termide_config::Config;
-pub use termide_config::LinkOpen;
 pub use termide_theme::Theme;

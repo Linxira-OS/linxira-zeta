@@ -7,6 +7,32 @@ use termide_vfs::{VfsManager, VfsPath};
 
 use crate::batch::BatchOperation;
 
+/// Where closing or deleting a project was started, to return to once it
+/// is done or refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProjectsOrigin {
+    /// The project switcher (`Alt+\`).
+    Switcher,
+    /// The Projects menu, at this row.
+    Menu(usize),
+    /// The menu bar, at this project button.
+    Button(usize),
+}
+
+/// An unpack being prepared: the passwords of encrypted archives are asked
+/// for one at a time and replacing existing files is confirmed before it
+/// starts. `Debug` keeps the passwords out of logs.
+#[derive(Debug, Clone)]
+pub struct UnpackPlan {
+    pub archives: Vec<PathBuf>,
+    pub destination: PathBuf,
+    pub passwords: termide_file_ops::ArchivePasswords,
+    /// How many archives, in order, have been checked for a password.
+    pub checked: usize,
+    /// Whether unpacking over existing files was confirmed.
+    pub confirmed: bool,
+}
+
 /// Action pending modal result
 #[derive(Debug, Clone)]
 pub enum PendingAction {
@@ -40,11 +66,29 @@ pub enum PendingAction {
         create_relative_symlink: bool,
     },
     /// Pack files/directories into a new archive; the modal answers with
-    /// the archive path.
-    PackPaths { sources: Vec<PathBuf> },
+    /// the archive path. `level` follows the modal's compression row.
+    PackPaths {
+        sources: Vec<PathBuf>,
+        level: termide_vfs::archive::pack::CompressionLevel,
+    },
+    /// Unpack local archives; the modal answers with the destination
+    /// directory (the app builds that modal, as for copy).
+    UnpackArchives { archives: Vec<PathBuf> },
+    /// Unpack into a destination that already holds files, once confirmed.
+    ConfirmUnpack { plan: UnpackPlan },
+    /// The password of the encrypted archive `plan.archives[plan.checked]`,
+    /// which the modal answers with.
+    UnpackPassword { plan: UnpackPlan },
+    /// Select (`select`) or unselect the active file manager's entries
+    /// matching the mask the modal answers with.
+    SelectByMask { select: bool },
     /// Open the encrypted archive at `archive` (its root) with the password
     /// the modal answers with.
     ArchivePassword { archive: termide_vfs::VfsPath },
+    /// A password-vault prompt (master password, a login password, a git
+    /// user name). The app's vault controller holds what it is for, so no
+    /// secret travels in a pending action.
+    Vault,
     /// Move files/directories (one or multiple)
     MovePath {
         sources: Vec<PathBuf>,
@@ -102,18 +146,16 @@ pub enum PendingAction {
     /// Close the project open in the background at `root` (with confirmation)
     CloseProject {
         root: PathBuf,
-        /// Projects menu row to reopen at afterwards (`None`: return to the
-        /// project switcher).
-        menu: Option<usize>,
+        /// Where to return afterwards.
+        from: ProjectsOrigin,
     },
     /// Create a new project in specified directory
     NewProject,
     /// Delete the saved layout of a project (with confirmation)
     DeleteProject {
         path: PathBuf,
-        /// Projects menu row to reopen at afterwards (`None`: return to the
-        /// project switcher).
-        menu: Option<usize>,
+        /// Where to return afterwards.
+        from: ProjectsOrigin,
     },
     /// Delete bookmark (with confirmation)
     DeleteBookmark {
@@ -314,19 +356,9 @@ pub enum PendingAction {
         /// Selected index to restore on return
         selected: usize,
     },
-    /// Retry a git network operation with an SSH key passphrase the user just
-    /// entered in the (masked) password modal.
-    GitSshPassphraseRetry {
-        /// "fetch" | "pull" | "push"
-        operation: String,
-        /// Repository root path
-        repo_path: PathBuf,
-    },
-    /// Apply settings from the Settings modal
+    /// The Settings modal is open. It saves as it goes, so nothing waits on
+    /// its result.
     Settings,
-    /// Confirm-modal result for "Remove project override". On `true` the
-    /// `<project>/.termide/config.toml` file is deleted.
-    RemoveProjectOverride,
     /// Confirm-modal result for cancelling a running background operation
     /// (triggered by Escape in the operations panel).
     CancelOperation(termide_file_ops::OperationId),

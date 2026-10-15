@@ -48,39 +48,76 @@ impl GoalPrompt {
     }
 }
 
-/// The judge's decision: whether the goal is reached and a one-line reason.
+/// What the judge decided about a goal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GoalOutcome {
+    /// Not reached yet: keep working.
+    Continue,
+    /// Reached: the goal ends.
+    Done,
+    /// Cannot be reached from here: the goal ends, with the reason.
+    Impossible,
+}
+
+/// The judge's decision and a one-line reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GoalVerdict {
-    pub done: bool,
+    pub outcome: GoalOutcome,
     pub reason: String,
 }
 
-/// Read a verdict from the judge's reply. The first word decides: an explicit
-/// `DONE` (or `ACHIEVED`/`COMPLETE`/`YES`) means done; anything else — an
-/// empty or confused reply included — means keep working, since the iteration
-/// cap protects against a judge that never says done. The reason is the rest
-/// of the reply, trimmed to a single line.
+/// Read a verdict from the judge's reply. The verdict word decides: an
+/// explicit `DONE` (or `ACHIEVED`/`COMPLETE`/`YES`) means done, `IMPOSSIBLE`
+/// (or `UNREACHABLE`) means the goal cannot be reached; anything else — an
+/// empty or confused reply included — means keep working: a goal that only
+/// spins is caught by the panel's idle-turn check. The word is looked for at
+/// the start of the first line that opens with one, past markup (`**DONE**`)
+/// and a preamble the judge was told not to write; with none, the first line
+/// stands for it. The reason is the rest of the reply, trimmed to a single
+/// line.
 #[must_use]
 pub fn parse_verdict(reply: &str) -> GoalVerdict {
-    let mut lines = reply.lines().map(str::trim).filter(|l| !l.is_empty());
-    let first = lines.next().unwrap_or_default();
-    let token: String = first
-        .chars()
-        .take_while(|c| c.is_ascii_alphabetic())
-        .collect::<String>()
-        .to_ascii_uppercase();
-    let done = matches!(token.as_str(), "DONE" | "ACHIEVED" | "COMPLETE" | "YES");
+    let lines: Vec<&str> = reply
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    let word = |line: &str| -> (usize, String) {
+        let start = line.len()
+            - line
+                .trim_start_matches(['*', '#', '`', '>', '_', ' '])
+                .len();
+        let token: String = line[start..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphabetic())
+            .collect::<String>()
+            .to_ascii_uppercase();
+        (start, token)
+    };
+    let verdict = |token: &str| match token {
+        "DONE" | "ACHIEVED" | "COMPLETE" | "YES" => Some(GoalOutcome::Done),
+        "IMPOSSIBLE" | "UNREACHABLE" => Some(GoalOutcome::Impossible),
+        "CONTINUE" => Some(GoalOutcome::Continue),
+        _ => None,
+    };
+    let at = lines
+        .iter()
+        .position(|line| verdict(&word(line).1).is_some())
+        .unwrap_or(0);
+    let first = lines.get(at).copied().unwrap_or_default();
+    let (start, token) = word(first);
+    let outcome = verdict(&token).unwrap_or(GoalOutcome::Continue);
     // The reason is the first non-empty line after the verdict word, or, when
     // the verdict word shared its line with the reason, the rest of that line.
-    let tail = first[token.len()..]
-        .trim_start_matches([':', '.', '-', ' '])
+    let tail = first[start + token.len()..]
+        .trim_start_matches([':', '.', '-', ' ', '*', '`', '_'])
         .trim();
     let reason = if tail.is_empty() {
-        lines.next().unwrap_or_default().to_string()
+        lines.get(at + 1).copied().unwrap_or_default().to_string()
     } else {
         tail.to_string()
     };
-    GoalVerdict { done, reason }
+    GoalVerdict { outcome, reason }
 }
 
 #[cfg(test)]
@@ -108,25 +145,46 @@ mod tests {
 
     #[test]
     fn a_verdict_reads_the_first_word_and_the_reason() {
+        let done = |reply: &str| parse_verdict(reply).outcome == GoalOutcome::Done;
         let v = parse_verdict("DONE\nThe tests pass.");
-        assert!(v.done);
+        assert_eq!(v.outcome, GoalOutcome::Done);
         assert_eq!(v.reason, "The tests pass.");
 
         let v = parse_verdict("CONTINUE\nThe build still fails.");
-        assert!(!v.done);
+        assert_eq!(v.outcome, GoalOutcome::Continue);
         assert_eq!(v.reason, "The build still fails.");
 
         // The word may share its line with the reason.
         let v = parse_verdict("DONE: everything compiles");
-        assert!(v.done);
+        assert_eq!(v.outcome, GoalOutcome::Done);
         assert_eq!(v.reason, "everything compiles");
 
         // Lowercase and trailing punctuation are tolerated.
-        assert!(parse_verdict("done.").done);
-        assert!(parse_verdict("Achieved — all green").done);
+        assert!(done("done."));
+        assert!(done("Achieved — all green"));
+
+        // A goal that cannot be reached says so, with the reason.
+        let v = parse_verdict("IMPOSSIBLE\nThe API it needs was removed.");
+        assert_eq!(v.outcome, GoalOutcome::Impossible);
+        assert_eq!(v.reason, "The API it needs was removed.");
+
+        // Markup round the word, or a line before it, does not hide it: the
+        // word is no reason ("Still missing: CONTINUE").
+        let v = parse_verdict("**DONE**\nThe tests pass.");
+        assert_eq!(v.outcome, GoalOutcome::Done);
+        assert_eq!(v.reason, "The tests pass.");
+        let v = parse_verdict("Verdict:\nCONTINUE\nThe IR slice 1e is not landed.");
+        assert_eq!(v.outcome, GoalOutcome::Continue);
+        assert_eq!(v.reason, "The IR slice 1e is not landed.");
+        let v = parse_verdict("</think>\n\n`IMPOSSIBLE`: the API is gone");
+        assert_eq!(v.outcome, GoalOutcome::Impossible);
+        assert_eq!(v.reason, "the API is gone");
 
         // An empty or confused reply keeps working.
-        assert!(!parse_verdict("").done);
-        assert!(!parse_verdict("I think maybe").done);
+        assert_eq!(parse_verdict("").outcome, GoalOutcome::Continue);
+        assert_eq!(
+            parse_verdict("I think maybe").outcome,
+            GoalOutcome::Continue
+        );
     }
 }

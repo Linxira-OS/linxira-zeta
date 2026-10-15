@@ -10,6 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::failure::Failure;
 use crate::permissions::PermissionNote;
 
 /// Milliseconds since the Unix epoch, used to timestamp transcript entries.
@@ -65,14 +66,40 @@ impl Usage {
             .saturating_add(self.cache_read)
             .saturating_add(self.cache_write)
     }
+
+    /// Add `other`'s counts to these.
+    pub fn add(&mut self, other: &Self) {
+        self.input = self.input.saturating_add(other.input);
+        self.output = self.output.saturating_add(other.output);
+        self.cache_read = self.cache_read.saturating_add(other.cache_read);
+        self.cache_write = self.cache_write.saturating_add(other.cache_write);
+    }
 }
+
+/// The key of a tool result's details under which the tool reports the
+/// tokens its own model calls spent: a subagent's run.
+const SPENT_KEY: &str = "usage";
 
 /// A block inside a user message.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum UserContent {
-    Text { text: String },
+    Text {
+        text: String,
+    },
+    /// A picture the user attached: pasted from the clipboard or named by a
+    /// pasted path. `data` is the encoded file in base64, `media_type` its
+    /// MIME type (`image/png`, `image/jpeg`, …).
+    Image {
+        media_type: String,
+        data: String,
+    },
 }
+
+/// The characters an attached image counts as in token estimates: a picture
+/// costs the model on the order of a thousand or two tokens, whatever the
+/// size of its base64.
+pub const IMAGE_ESTIMATE_CHARS: usize = 6000;
 
 /// A tool invocation requested by the model.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -165,6 +192,26 @@ impl UserMessage {
         }
     }
 
+    /// The message with `images` attached after its text, as `(media_type,
+    /// base64 data)` pairs.
+    #[must_use]
+    pub fn with_images(mut self, images: Vec<(String, String)>) -> Self {
+        self.content.extend(
+            images
+                .into_iter()
+                .map(|(media_type, data)| UserContent::Image { media_type, data }),
+        );
+        self
+    }
+
+    /// The attached images, as `(media_type, base64 data)`.
+    pub fn images(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.content.iter().filter_map(|block| match block {
+            UserContent::Image { media_type, data } => Some((media_type.as_str(), data.as_str())),
+            UserContent::Text { .. } => None,
+        })
+    }
+
     /// The message as produced by the typed `command`.
     #[must_use]
     pub fn with_command(mut self, command: Option<String>) -> Self {
@@ -228,16 +275,22 @@ impl UserMessage {
             .map(UserMessage::plain_text)
             .collect::<Vec<_>>()
             .join("\n\n");
-        Some(UserMessage::text(text))
+        let images = messages
+            .iter()
+            .flat_map(UserMessage::images)
+            .map(|(media_type, data)| (media_type.to_string(), data.to_string()))
+            .collect();
+        Some(UserMessage::text(text).with_images(images))
     }
 
-    /// Concatenated text blocks.
+    /// Concatenated text blocks; images are left out.
     #[must_use]
     pub fn plain_text(&self) -> String {
         self.content
             .iter()
-            .map(|block| match block {
-                UserContent::Text { text } => text.as_str(),
+            .filter_map(|block| match block {
+                UserContent::Text { text } => Some(text.as_str()),
+                UserContent::Image { .. } => None,
             })
             .collect()
     }
@@ -253,6 +306,10 @@ pub struct AssistantMessage {
     pub model: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+    /// What kind of failure `error_message` reports, when the provider
+    /// classified it; see [`Self::classify_failure`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure: Option<Failure>,
     pub timestamp: u64,
 }
 
@@ -273,8 +330,29 @@ impl AssistantMessage {
             provider: provider.into(),
             model: model.into(),
             error_message: Some(error_message.into()),
+            failure: None,
             timestamp: now_millis(),
         }
+    }
+
+    /// The message with its failure classified as `failure`.
+    #[must_use]
+    pub fn with_failure(mut self, failure: Failure) -> Self {
+        self.failure = Some(failure);
+        self
+    }
+
+    /// The failure this message reports, classified: as the provider did,
+    /// or from its error text when it did not. `None` unless the call
+    /// failed (an abort is no failure).
+    #[must_use]
+    pub fn classify_failure(&self) -> Option<Failure> {
+        if self.stop_reason != StopReason::Error {
+            return None;
+        }
+        Some(self.failure.unwrap_or_else(|| {
+            Failure::from_text(self.error_message.as_deref().unwrap_or_default())
+        }))
     }
 
     pub fn tool_calls(&self) -> impl Iterator<Item = &ToolCall> {
@@ -356,6 +434,36 @@ impl ToolResultMessage {
         self
     }
 
+    /// Note in the details the tokens the tool's own model calls spent —
+    /// a subagent's run — beside any details already there. Nothing spent
+    /// is noted as nothing.
+    #[must_use]
+    pub fn with_spent(mut self, usage: Usage) -> Self {
+        if usage.total() == 0 {
+            return self;
+        }
+        let Ok(value) = serde_json::to_value(usage) else {
+            return self;
+        };
+        match &mut self.details {
+            Some(Value::Object(details)) => {
+                details.insert(SPENT_KEY.to_string(), value);
+            }
+            Some(_) => {}
+            None => self.details = Some(serde_json::json!({ SPENT_KEY: value })),
+        }
+        self
+    }
+
+    /// The tokens the tool's own model calls spent, when it noted any.
+    #[must_use]
+    pub fn spent(&self) -> Option<Usage> {
+        let value = self.details.as_ref()?.get(SPENT_KEY)?;
+        serde_json::from_value(value.clone())
+            .ok()
+            .filter(|usage: &Usage| usage.total() > 0)
+    }
+
     /// Concatenated text blocks.
     #[must_use]
     pub fn plain_text(&self) -> String {
@@ -383,6 +491,55 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn images_ride_beside_the_text_and_survive_a_merge() {
+        let shot = UserMessage::text("look [#1 pasted image 2×2]")
+            .with_images(vec![("image/png".into(), "AAAA".into())]);
+        assert_eq!(shot.plain_text(), "look [#1 pasted image 2×2]");
+        assert_eq!(shot.images().collect::<Vec<_>>(), [("image/png", "AAAA")]);
+        let line = serde_json::to_value(&shot).unwrap();
+        assert_eq!(
+            line["content"][1],
+            json!({ "type": "image", "media_type": "image/png", "data": "AAAA" })
+        );
+        assert_eq!(serde_json::from_value::<UserMessage>(line).unwrap(), shot);
+
+        let merged = UserMessage::merge(vec![shot, UserMessage::text("and this")]).unwrap();
+        assert_eq!(
+            merged.plain_text(),
+            "look [#1 pasted image 2×2]\n\nand this"
+        );
+        assert_eq!(merged.images().count(), 1);
+    }
+
+    #[test]
+    fn what_a_tool_spent_rides_in_its_details_beside_the_rest() {
+        let call = ToolCall {
+            id: "c".into(),
+            name: "task".into(),
+            arguments: json!({}),
+            extra_content: None,
+        };
+        let spent = Usage {
+            input: 10,
+            output: 5,
+            cache_read: 100,
+            cache_write: 0,
+        };
+        assert_eq!(ToolResultMessage::text(&call, "ok").spent(), None);
+        let nothing = ToolResultMessage::text(&call, "ok").with_spent(Usage::default());
+        assert_eq!(nothing.details, None);
+        let result = ToolResultMessage::error(&call, "failed")
+            .with_details(json!({ "other": 1 }))
+            .with_spent(spent);
+        assert_eq!(result.spent(), Some(spent));
+        assert_eq!(result.details.as_ref().unwrap()["other"], 1);
+        let mut total = spent;
+        total.add(&spent);
+        assert_eq!(total.input, 20);
+        assert_eq!(total.cache_read, 200);
+    }
+
+    #[test]
     fn message_round_trips_through_json_with_role_tag() {
         let assistant = AssistantMessage {
             content: vec![
@@ -407,6 +564,7 @@ mod tests {
             provider: "fake".into(),
             model: "m".into(),
             error_message: None,
+            failure: None,
             timestamp: 1,
         };
         let messages = vec![

@@ -60,6 +60,52 @@ impl App {
         Ok(())
     }
 
+    /// Follow a link clicked in any panel, inside termide: an `http(s)`
+    /// address fetched into a viewer (an `ftp://` one in the browser, as the
+    /// viewer cannot fetch it); a local path as Open… opens one — an image in
+    /// the image preview. [`Self::event_open_link_external`] is the outside twin.
+    pub(super) fn event_open_link(&mut self, link: termide_core::LinkTarget) -> Result<()> {
+        use termide_core::LinkTarget;
+        match link {
+            LinkTarget::Url(url) => {
+                if url.starts_with("http://") || url.starts_with("https://") {
+                    self.close_help_panels();
+                    self.start_url_fetch(url);
+                } else {
+                    self.open_external_detached(&url);
+                }
+            }
+            LinkTarget::Path(path) => {
+                if !path.exists() {
+                    self.show_error_modal(format!("No such path: {}", path.display()));
+                    return Ok(());
+                }
+                self.open_local_path(path)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Open a link outside termide: a web address in the browser, a local
+    /// path in its system application.
+    pub(super) fn event_open_link_external(
+        &mut self,
+        link: termide_core::LinkTarget,
+    ) -> Result<()> {
+        use termide_core::LinkTarget;
+        match link {
+            LinkTarget::Url(url) => self.open_external_detached(&url),
+            LinkTarget::Path(path) => {
+                if !path.exists() {
+                    self.show_error_modal(format!("No such path: {}", path.display()));
+                    return Ok(());
+                }
+                self.open_external_detached(&path.to_string_lossy());
+            }
+        }
+        Ok(())
+    }
+
     /// Handle OpenPath event - open path in new file manager panel
     pub(super) fn event_open_path(
         &mut self,

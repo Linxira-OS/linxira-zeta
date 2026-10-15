@@ -6,7 +6,6 @@
 // (take_config_update, dir_size_receiver) which don't fit the command pattern.
 
 use anyhow::Result;
-use std::sync::Arc;
 
 use super::App;
 use crate::state::{ActiveModal, PendingAction};
@@ -47,6 +46,17 @@ impl App {
             self.state.ui.panel_drag.cancel();
             self.state.needs_redraw = true;
             return Ok(());
+        }
+
+        // Esc puts back an open project held by the mouse. Any other key
+        // lets it go where it is: a release lost outside the window must
+        // not leave the mouse held.
+        if self.is_dragging_project() {
+            if key.code == crossterm::event::KeyCode::Esc {
+                self.cancel_project_drag();
+                return Ok(());
+            }
+            self.release_project_drag();
         }
 
         // If modal window is open, handle it
@@ -325,11 +335,9 @@ impl App {
             }
         }
 
-        // Apply config update if present (legacy, still used by Editor)
+        // The global config file was saved in the editor.
         if let Some(new_config) = config_update {
-            super::agent_panel::publish_ai_settings(&new_config.ai);
-            self.state.config = Arc::new(new_config.clone());
-            self.state.set_theme(&new_config.general.theme);
+            self.adopt_global_file(new_config);
             self.state
                 .set_info(termide_i18n::t().status_config_saved().to_string());
         }
@@ -365,6 +373,9 @@ impl App {
                 if target_directory.is_none() && !sources.is_empty() {
                     modal = self.prepare_copy_move_modal(sources, target_directory, is_copy);
                 }
+            }
+            PendingAction::UnpackArchives { archives } if !archives.is_empty() => {
+                modal = self.prepare_unpack_modal(archives);
             }
             _ => {}
         }

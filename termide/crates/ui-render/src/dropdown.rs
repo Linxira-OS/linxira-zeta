@@ -26,9 +26,6 @@ pub struct DropdownItem {
     pub is_project: bool,
     /// Keyboard shortcut for this action, shown dimmed on the right.
     pub shortcut: Option<String>,
-    /// What the row stands for waits for the user (drawn in the warning
-    /// colour, as the header of a panel that waits is).
-    pub attention: bool,
     /// Drawn before the label in the row's own colours (a mark).
     pub lead: String,
     /// Drawn dimmed between `lead` and the label (a time).
@@ -48,7 +45,6 @@ impl DropdownItem {
             is_separator: false,
             is_project: false,
             shortcut: None,
-            attention: false,
             lead: String::new(),
             muted: String::new(),
             cut_start: false,
@@ -71,7 +67,6 @@ impl DropdownItem {
             is_separator: true,
             is_project: false,
             shortcut: None,
-            attention: false,
             lead: String::new(),
             muted: String::new(),
             cut_start: false,
@@ -87,12 +82,6 @@ impl DropdownItem {
     /// Mark this item as project-local (rendered bold)
     pub fn with_project(mut self) -> Self {
         self.is_project = true;
-        self
-    }
-
-    /// Mark this item as waiting for the user
-    pub fn with_attention(mut self) -> Self {
-        self.attention = true;
         self
     }
 
@@ -368,11 +357,6 @@ impl<'a> Dropdown<'a> {
                     .bg(self.theme.selected_bg)
                     .fg(self.theme.selected_fg)
                     .add_modifier(Modifier::BOLD)
-            } else if item.attention {
-                Style::default()
-                    .fg(self.theme.warning)
-                    .bg(self.theme.bg)
-                    .add_modifier(Modifier::BOLD)
             } else if item.is_project {
                 Style::default()
                     .fg(self.theme.fg)
@@ -494,19 +478,16 @@ pub fn get_projects_items(kb: Option<&termide_config::GlobalKeybindings>) -> Vec
     let shortcut = |key: &str| kb.and_then(|kb| menu_shortcut(kb, key));
     vec![
         DropdownItem::new(t.projects_new(), "new_project").with_shortcut(shortcut("new_project")),
-        DropdownItem::new(t.projects_switch(), "switch_project")
-            .with_shortcut(shortcut("switch_project")),
         DropdownItem::new(t.projects_change_root(), "change_root"),
     ]
 }
 
 /// Number of items in Projects submenu
-pub const PROJECTS_SUBMENU_ITEM_COUNT: usize = 3;
+pub const PROJECTS_SUBMENU_ITEM_COUNT: usize = 2;
 
 /// Index of Projects submenu items
 pub const PROJECTS_SUBMENU_NEW: usize = 0;
-pub const PROJECTS_SUBMENU_SWITCH: usize = 1;
-pub const PROJECTS_SUBMENU_CHANGE_ROOT: usize = 2;
+pub const PROJECTS_SUBMENU_CHANGE_ROOT: usize = 1;
 
 /// The AI submenu: four fixed sections, each opening a nested list. The item
 /// keys (`agents`/`sessions`/`skills`/`prompts`) are the contract the app's AI
@@ -548,16 +529,6 @@ pub const AI_SUBMENU_SESSIONS: usize = 1;
 pub const AI_SUBMENU_SKILLS: usize = 2;
 /// Index of the Prompts section in the AI submenu.
 pub const AI_SUBMENU_PROMPTS: usize = 3;
-
-/// The agent file-choice submenu (third level): which file of an agent to edit.
-/// Row keys `soul`/`toml` are decoded by the app's AI menu handler.
-pub fn get_ai_agent_choice_items() -> Vec<DropdownItem> {
-    let t = i18n::t();
-    vec![
-        DropdownItem::new(t.menu_ai_edit_prompt(), "soul"),
-        DropdownItem::new(t.menu_ai_edit_settings(), "toml"),
-    ]
-}
 
 /// Get tools submenu items
 pub fn get_tools_items(kb: Option<&termide_config::GlobalKeybindings>) -> Vec<DropdownItem> {
@@ -640,7 +611,6 @@ pub fn menu_shortcut(kb: &termide_config::GlobalKeybindings, key: &str) -> Optio
         "quit" => &kb.quit,
         // Projects
         "new_project" => &kb.new_project,
-        "switch_project" => &kb.open_projects,
         // Tools / Windows
         "terminal" => &kb.new_terminal,
         "files" => &kb.new_file_manager,

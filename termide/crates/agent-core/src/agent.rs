@@ -13,10 +13,12 @@ use crate::compaction::{
     context_tokens, is_context_overflow_error, should_compact, split_point, CompactionPolicy,
     CompactionPrompts, CompactionReason, MIN_SUMMARY_CHARS,
 };
-use crate::goal::{parse_verdict, GoalPrompt, GoalVerdict};
+use crate::goal::{parse_verdict, GoalOutcome, GoalPrompt, GoalVerdict};
 use crate::handoff::HandoffPrompt;
+use crate::loop_guard::{LoopGuard, LoopPrompt, LoopReport};
 use crate::message::{
-    AssistantMessage, Message, StopReason, ToolCall, ToolResultMessage, UserMessage,
+    AssistantContent, AssistantMessage, Message, StopReason, ToolCall, ToolResultMessage, Usage,
+    UserMessage,
 };
 use crate::permissions::{DecidedBy, PermissionNote};
 use crate::provider::{ModelSpec, Provider, Request, StreamEvent, ThinkingLevel};
@@ -51,6 +53,9 @@ struct Queues {
     /// call or model call, leaving the run resumable, unlike an abrupt
     /// cancel.
     paused: bool,
+    /// The model (with its reasoning level) the next step runs on, set while
+    /// a run is in flight; the loop takes it at the step boundary.
+    next_model: Option<ModelSpec>,
 }
 
 /// Thread-safe handle to the steering and follow-up queues.
@@ -116,6 +121,17 @@ impl QueueHandle {
         self.lock().paused = false;
     }
 
+    /// Have the next step run on `model`: the loop takes it at the step
+    /// boundary, as it takes steering, so a run in flight switches model or
+    /// reasoning level without stopping.
+    pub fn set_next_model(&self, model: ModelSpec) {
+        self.lock().next_model = Some(model);
+    }
+
+    fn take_next_model(&self) -> Option<ModelSpec> {
+        self.lock().next_model.take()
+    }
+
     fn take_steering(&self, mode: QueueMode) -> Vec<UserMessage> {
         let mut queues = self.lock();
         take(&mut queues.steering, mode)
@@ -174,20 +190,55 @@ pub fn execute_tool(
     cancel: &CancelToken,
     on_update: &mut dyn FnMut(ToolUpdate),
 ) -> ToolResultMessage {
-    if cancel.is_cancelled() {
-        return ToolResultMessage::error(call, "The run was cancelled before this tool ran.");
+    match judge_tool_call(tools, call, hooks, ctx, cancel) {
+        Judgment::Run(judged) => run_judged_call(tools, judged, ctx, cancel, on_update),
+        Judgment::Done(result) => result,
     }
-    let Some(tool) = tools.get(&call.name) else {
+}
+
+/// A call the hooks let run: with the arguments they settled on, and who
+/// decided.
+#[derive(Debug)]
+pub struct JudgedCall {
+    pub call: ToolCall,
+    pub permission: Option<Box<PermissionNote>>,
+}
+
+/// What the hooks made of a call: run it, or its result is already known.
+#[derive(Debug)]
+pub enum Judgment {
+    Run(JudgedCall),
+    /// The result of a call that does not run: cancelled, unknown or blocked.
+    Done(ToolResultMessage),
+}
+
+/// The first half of [`execute_tool`]: the hooks judge the call. Apart from
+/// the run so that a host serving several calls at once holds its hooks
+/// only while they judge, not while a tool runs.
+pub fn judge_tool_call(
+    tools: &ToolRegistry,
+    call: &ToolCall,
+    hooks: &mut dyn Hooks,
+    ctx: &ToolContext,
+    cancel: &CancelToken,
+) -> Judgment {
+    if cancel.is_cancelled() {
+        return Judgment::Done(ToolResultMessage::error(
+            call,
+            "The run was cancelled before this tool ran.",
+        ));
+    }
+    if tools.get(&call.name).is_none() {
         log::warn!("model requested unknown tool `{}`", call.name);
-        return ToolResultMessage::error(
+        return Judgment::Done(ToolResultMessage::error(
             call,
             format!(
                 "Unknown tool `{}`. Available tools: {}.",
                 call.name,
                 tools.names().join(", ")
             ),
-        );
-    };
+        ));
+    }
     let decision = hooks.before_tool_call(call, ctx);
     let permission = hooks.take_permission().map(Box::new);
     let effective = match decision {
@@ -202,12 +253,43 @@ pub fn execute_tool(
         ToolDecision::Block { reason } => {
             let mut result = ToolResultMessage::error(call, format!("Tool call blocked: {reason}"));
             result.permission = permission;
-            return result;
+            return Judgment::Done(result);
         }
     };
-    let mut result = tool.execute(&effective, ctx, on_update, cancel);
-    result.permission = permission;
+    Judgment::Run(JudgedCall {
+        call: effective,
+        permission,
+    })
+}
+
+/// The second half of [`execute_tool`]: run a call the hooks let through.
+pub fn run_judged_call(
+    tools: &ToolRegistry,
+    judged: JudgedCall,
+    ctx: &ToolContext,
+    cancel: &CancelToken,
+    on_update: &mut dyn FnMut(ToolUpdate),
+) -> ToolResultMessage {
+    let Some(tool) = tools.get(&judged.call.name) else {
+        return ToolResultMessage::error(&judged.call, "The tool is gone.");
+    };
+    let mut result = tool.execute(&judged.call, ctx, on_update, cancel);
+    result.permission = judged.permission;
     result
+}
+
+/// Whether a call may run side by side with its neighbours of the same
+/// kind: it changes nothing on this machine — a read, a search, a web page,
+/// a look-only shell command — or hands work to a subagent, and it asks the
+/// user nothing. A call that may change something runs alone, so the model's
+/// order holds between a change and what reads it.
+#[must_use]
+pub fn runs_alongside(call: &ToolCall) -> bool {
+    match call.name.as_str() {
+        "task" => true,
+        "question" | "suggest_command" => false,
+        _ => crate::permissions::is_read_only_call(call),
+    }
 }
 
 /// Extension points of the loop. All methods have permissive defaults.
@@ -346,6 +428,12 @@ pub enum AgentEvent {
     ToolExecutionStart {
         call: ToolCall,
     },
+    /// A started call's arguments grew: a backend that streams them (Claude
+    /// Code over ACP) shows the call on its first keys and fills in the rest
+    /// as they arrive. `call` carries the same id and the arguments so far.
+    ToolCallUpdate {
+        call: ToolCall,
+    },
     ToolExecutionUpdate {
         tool_call_id: String,
         update: ToolUpdate,
@@ -359,26 +447,36 @@ pub enum AgentEvent {
         steering: usize,
         follow_up: usize,
     },
+    /// A compaction began; `prompt_tokens` estimates the part of the
+    /// transcript the summary call reads.
     CompactionStart {
         reason: CompactionReason,
+        prompt_tokens: u64,
     },
+    /// Stream progress of the summary call: prefill progress, retries and
+    /// the summary's deltas. Not part of the transcript.
+    CompactionUpdate(StreamEvent),
     /// The transcript now starts with a summary message followed by the
     /// `kept` most recent messages; consumers mirroring the transcript must
-    /// apply the same replacement.
+    /// apply the same replacement. `tokens_after` estimates the new context.
     Compacted {
         summary: String,
         kept: usize,
         tokens_before: u64,
+        tokens_after: u64,
     },
     CompactionFailed {
         error: String,
     },
     /// The autonomous-goal judge ran (`/goal`) and returned its verdict: the
-    /// goal is reached, or more work is needed, with a one-line reason.
+    /// goal is reached, cannot be reached, or more work is needed, with a
+    /// one-line reason.
     GoalJudged {
-        done: bool,
+        outcome: GoalOutcome,
         reason: String,
     },
+    /// The judge call's stream, for its live progress (`/goal`).
+    GoalJudgeUpdate(StreamEvent),
     /// The judge call did not succeed; the goal loop stops.
     GoalJudgeFailed {
         error: String,
@@ -388,10 +486,25 @@ pub enum AgentEvent {
     Handoff {
         brief: Result<String, String>,
     },
+    /// A model call went round in circles and was cut short (see
+    /// [`crate::loop_guard`]). With `retrying` the loop nudges the model and
+    /// calls it once more without reasoning; without, the second call looped
+    /// too and the run stops for the user to decide.
+    ThinkingLoop {
+        report: LoopReport,
+        retrying: bool,
+    },
     /// The loop stopped early on a pause request with work still pending, so
     /// the run can be resumed. Not emitted on a natural finish.
     Paused,
     AgentEnd,
+    /// An external agent opened a session of its own for the conversation,
+    /// which the log records so a reopened session can resume it. Never from
+    /// the built-in loop.
+    ExternalSession {
+        agent: String,
+        session_id: String,
+    },
 }
 
 /// Transcript owner and loop driver. Single-threaded by design: the runtime
@@ -410,6 +523,8 @@ pub struct Agent {
     compaction_prompts: CompactionPrompts,
     goal_prompt: GoalPrompt,
     handoff_prompt: HandoffPrompt,
+    /// The nudge sent after a call that went round in circles.
+    loop_prompt: LoopPrompt,
     /// Whom the `question` tool asks; `None` when no one is watching.
     asker: Option<UserAsker>,
     /// Whom the `suggest_command` tool offers commands to; `None` when no one
@@ -425,6 +540,9 @@ pub struct Agent {
     /// Whether the user messages of this loop are a task another agent
     /// wrote, not the user's words.
     delegated: bool,
+    /// The id of the session log this loop's conversation is written to,
+    /// when there is one; tools see it in [`SessionView::id`].
+    session_id: Option<String>,
 }
 
 impl Agent {
@@ -448,12 +566,14 @@ impl Agent {
             compaction_prompts: CompactionPrompts::default(),
             goal_prompt: GoalPrompt::default(),
             handoff_prompt: HandoffPrompt::default(),
+            loop_prompt: LoopPrompt::default(),
             asker: None,
             suggester: None,
             shell_run: None,
             intent: IntentLog::new(),
             intent_seeded: false,
             delegated: false,
+            session_id: None,
         }
     }
 
@@ -478,6 +598,15 @@ impl Agent {
     #[must_use]
     pub fn with_asker(mut self, asker: UserAsker) -> Self {
         self.asker = Some(asker);
+        self
+    }
+
+    /// The id of the session log the conversation is written to, so a tool
+    /// can tell that log from the others (`recall` searches only what a
+    /// compaction took out of it: the rest is in the context already).
+    #[must_use]
+    pub fn with_session_id(mut self, id: Option<String>) -> Self {
+        self.session_id = id;
         self
     }
 
@@ -545,6 +674,12 @@ impl Agent {
     }
 
     #[must_use]
+    pub fn with_loop_prompt(mut self, prompt: LoopPrompt) -> Self {
+        self.loop_prompt = prompt;
+        self
+    }
+
+    #[must_use]
     pub fn with_handoff_prompt(mut self, prompt: HandoffPrompt) -> Self {
         self.handoff_prompt = prompt;
         self
@@ -575,6 +710,14 @@ impl Agent {
 
     pub fn set_model(&mut self, model: ModelSpec) {
         self.model = model;
+    }
+
+    /// Take up the model a run in flight was switched to
+    /// ([`QueueHandle::set_next_model`]), if any.
+    pub fn adopt_next_model(&mut self) {
+        if let Some(model) = self.queues.take_next_model() {
+            self.model = model;
+        }
     }
 
     pub fn set_cwd(&mut self, cwd: PathBuf) {
@@ -627,6 +770,13 @@ impl Agent {
         self.intent_seeded = true;
     }
 
+    /// Clear a plan's exploration from the transcript, see
+    /// [`crate::prune::prune_to_decisions`]. The reviewer's record of the
+    /// user's words is kept as it is.
+    pub fn prune_to_decisions(&mut self) {
+        self.messages = crate::prune::prune_to_decisions(&self.messages);
+    }
+
     /// Run the loop for one user prompt until the agent has nothing left to
     /// do, is cancelled, or hits an error.
     pub fn run(
@@ -664,6 +814,41 @@ impl Agent {
         self.seed_intent();
         let initial = self.drain_steering(emit);
         self.run_from(initial, true, hooks, cancel, emit);
+    }
+
+    /// Try the request a failed reply left unanswered again: the model is
+    /// called on the transcript as it stands, with no new user message. A
+    /// failed reply that made no calls is left out of the model's context —
+    /// its text, if any, is a fragment the next reply writes anew, and a
+    /// trailing assistant message would read as a prefill. The calls of one
+    /// that made some did not run and will not: each gets a result saying so,
+    /// as the provider requires one for every call.
+    pub fn retry(
+        &mut self,
+        hooks: &mut dyn Hooks,
+        cancel: &CancelToken,
+        emit: &mut dyn FnMut(AgentEvent),
+    ) {
+        self.seed_intent();
+        let failed = match self.messages.last() {
+            Some(Message::Assistant(reply)) if reply.stop_reason == StopReason::Error => {
+                Some(reply.tool_calls().next().is_some())
+            }
+            _ => None,
+        };
+        if failed == Some(false) {
+            self.messages.pop();
+        } else if failed == Some(true) {
+            for call in self.unanswered_calls() {
+                let result = ToolResultMessage::error(
+                    &call,
+                    "Not run: the reply failed before it finished, and the request was tried again.",
+                );
+                self.push(Message::ToolResult(result), emit);
+            }
+        }
+        let initial = self.drain_steering(emit);
+        self.run_from(initial, false, hooks, cancel, emit);
     }
 
     /// The loop shared by [`Agent::run`] and [`Agent::resume`]: drive turns
@@ -735,6 +920,8 @@ impl Agent {
         for message in pending {
             self.push(Message::User(message), emit);
         }
+        // A model or reasoning level picked during the run applies from here.
+        self.adopt_next_model();
 
         if should_compact(&self.messages, self.model.context_window, &self.compaction) {
             // A failed compaction is reported through events; the turn still
@@ -746,8 +933,31 @@ impl Agent {
             prompt_tokens: Some(context_tokens(&self.messages)),
         });
         let mut retried_after_overflow = false;
+        // After a call that went round in circles, the next one is made
+        // without reasoning; a second loop stops the run.
+        let mut thinking = self.model.thinking;
+        let mut looped_once = false;
         let assistant = loop {
-            let reply = self.call_model(cancel, emit);
+            let (reply, looped) = self.call_model(thinking, cancel, emit);
+            if let Some(report) = looped {
+                self.push(Message::Assistant(cut_loop(reply, &report)), emit);
+                emit(AgentEvent::ThinkingLoop {
+                    report: report.clone(),
+                    retrying: !looped_once,
+                });
+                if looped_once {
+                    emit(AgentEvent::TurnEnd);
+                    return TurnOutcome::Halt;
+                }
+                looped_once = true;
+                thinking = ThinkingLevel::Off;
+                let nudge = self.loop_prompt.render(&report);
+                self.push(Message::User(UserMessage::text(nudge)), emit);
+                emit(AgentEvent::MessageStart {
+                    prompt_tokens: Some(context_tokens(&self.messages)),
+                });
+                continue;
+            }
             let overflow = reply.stop_reason == StopReason::Error
                 && reply
                     .error_message
@@ -794,10 +1004,14 @@ impl Agent {
         }
     }
 
-    /// Run `calls` in order, pushing each result. Stops before a call once a
-    /// pause has been asked for, leaving it and the rest unanswered for a
-    /// resume to run; returns whether it stopped so. `truncated` calls come
-    /// from a reply cut off by the output limit and are refused, not run.
+    /// Run `calls`, pushing each result in their order. Calls that change
+    /// nothing or hand work to a subagent run side by side with their
+    /// neighbours of the same kind (see [`runs_alongside`]); any other runs
+    /// alone, after those before it and before those after it. Stops before
+    /// a call or such a group once a pause has been asked for, leaving the
+    /// rest unanswered for a resume to run; returns whether it stopped so.
+    /// `truncated` calls come from a reply cut off by the output limit and
+    /// are refused, not run.
     fn run_calls(
         &mut self,
         calls: &[ToolCall],
@@ -806,53 +1020,126 @@ impl Agent {
         cancel: &CancelToken,
         emit: &mut dyn FnMut(AgentEvent),
     ) -> bool {
-        for call in calls {
-            if !truncated && !cancel.is_cancelled() && self.queues.is_paused() {
-                return true;
-            }
-            let result = if truncated {
-                ToolResultMessage::error(
+        if truncated {
+            for call in calls {
+                let result = ToolResultMessage::error(
                     call,
                     "The response was cut off by the output limit, so the tool call arguments may be incomplete. The call was not executed.",
-                )
+                );
+                let result = hooks.after_tool_call(call, result);
+                emit(AgentEvent::ToolExecutionEnd {
+                    result: result.clone(),
+                });
+                self.push(Message::ToolResult(result), emit);
+            }
+            return false;
+        }
+        let mut start = 0;
+        while start < calls.len() {
+            if !cancel.is_cancelled() && self.queues.is_paused() {
+                return true;
+            }
+            let together = calls[start..]
+                .iter()
+                .take_while(|call| runs_alongside(call))
+                .count();
+            let end = start + together.max(1);
+            let results = if together > 1 {
+                self.run_together(&calls[start..end], hooks, cancel, emit)
             } else {
-                self.execute_call(call, hooks, cancel, emit)
+                let call = &calls[start];
+                let result = self.execute_call(call, hooks, cancel, emit);
+                let result = hooks.after_tool_call(call, result);
+                emit(AgentEvent::ToolExecutionEnd {
+                    result: result.clone(),
+                });
+                vec![result]
             };
-            let result = hooks.after_tool_call(call, result);
-            emit(AgentEvent::ToolExecutionEnd {
-                result: result.clone(),
-            });
-            self.push(Message::ToolResult(result), emit);
+            for result in results {
+                self.push(Message::ToolResult(result), emit);
+            }
+            start = end;
         }
         false
+    }
+
+    /// Run `calls` side by side and return their results in their order.
+    /// The hooks judge them one after another first — a permission prompt
+    /// or the reviewer takes them in turn — then the ones let through run
+    /// each on a thread of its own, their progress and ends reported as
+    /// they come.
+    fn run_together(
+        &self,
+        calls: &[ToolCall],
+        hooks: &mut dyn Hooks,
+        cancel: &CancelToken,
+        emit: &mut dyn FnMut(AgentEvent),
+    ) -> Vec<ToolResultMessage> {
+        enum Report {
+            Update(String, ToolUpdate),
+            Done(usize, ToolResultMessage),
+        }
+        let ctx = self.tool_context();
+        let judgments: Vec<Judgment> = calls
+            .iter()
+            .map(|call| {
+                emit(AgentEvent::ToolExecutionStart { call: call.clone() });
+                judge_tool_call(&self.tools, call, hooks, &ctx, cancel)
+            })
+            .collect();
+        let mut results: Vec<Option<ToolResultMessage>> = vec![None; calls.len()];
+        let tools = &self.tools;
+        std::thread::scope(|scope| {
+            let (tx, rx) = std::sync::mpsc::channel();
+            for (index, judgment) in judgments.into_iter().enumerate() {
+                match judgment {
+                    Judgment::Done(result) => {
+                        let _ = tx.send(Report::Done(index, result));
+                    }
+                    Judgment::Run(judged) => {
+                        let (tx, ctx) = (tx.clone(), ctx.clone());
+                        let id = calls[index].id.clone();
+                        scope.spawn(move || {
+                            let mut on_update = |update| {
+                                let _ = tx.send(Report::Update(id.clone(), update));
+                            };
+                            let result =
+                                run_judged_call(tools, judged, &ctx, cancel, &mut on_update);
+                            let _ = tx.send(Report::Done(index, result));
+                        });
+                    }
+                }
+            }
+            drop(tx);
+            for report in rx {
+                match report {
+                    Report::Update(tool_call_id, update) => {
+                        emit(AgentEvent::ToolExecutionUpdate {
+                            tool_call_id,
+                            update,
+                        });
+                    }
+                    Report::Done(index, result) => {
+                        let result = hooks.after_tool_call(&calls[index], result);
+                        emit(AgentEvent::ToolExecutionEnd {
+                            result: result.clone(),
+                        });
+                        results[index] = Some(result);
+                    }
+                }
+            }
+        });
+        results
+            .into_iter()
+            .map(|result| result.expect("every call of the group reports its end"))
+            .collect()
     }
 
     /// The tool calls of the last assistant message that have no result yet:
     /// those a pause stopped before, including across a restart, since the
     /// transcript itself records them.
     fn unanswered_calls(&self) -> Vec<ToolCall> {
-        let Some(index) = self
-            .messages
-            .iter()
-            .rposition(|m| matches!(m, Message::Assistant(_)))
-        else {
-            return Vec::new();
-        };
-        let Message::Assistant(assistant) = &self.messages[index] else {
-            return Vec::new();
-        };
-        let answered: Vec<&str> = self.messages[index + 1..]
-            .iter()
-            .filter_map(|m| match m {
-                Message::ToolResult(result) => Some(result.tool_call_id.as_str()),
-                _ => None,
-            })
-            .collect();
-        assistant
-            .tool_calls()
-            .filter(|call| !answered.contains(&call.id.as_str()))
-            .cloned()
-            .collect()
+        unanswered_calls(&self.messages)
     }
 
     fn execute_call(
@@ -870,37 +1157,80 @@ impl Agent {
                 update,
             });
         };
-        let ctx = ToolContext {
+        let ctx = self.tool_context();
+        execute_tool(&self.tools, call, hooks, &ctx, cancel, &mut on_update)
+    }
+
+    /// What the loop's tools run in.
+    fn tool_context(&self) -> ToolContext {
+        ToolContext {
             cwd: self.cwd.clone(),
             asker: self.asker.clone(),
             suggester: self.suggester.clone(),
             shell_run: self.shell_run.clone(),
             session: Some(SessionView {
+                id: self.session_id.clone(),
                 intent: self.intent.clone(),
                 provider: Arc::clone(&self.provider),
                 model: self.model.clone(),
             }),
-        };
-        execute_tool(&self.tools, call, hooks, &ctx, cancel, &mut on_update)
+            withdrawn: None,
+        }
     }
 
+    /// Call the model on the transcript at `thinking`. The streamed reasoning
+    /// and answer are watched for a loop; one cuts the call short and comes
+    /// back as the report beside the (partial) reply. A stop asked for by the
+    /// user is never reported as a loop.
     fn call_model(
         &self,
+        thinking: ThinkingLevel,
         cancel: &CancelToken,
         emit: &mut dyn FnMut(AgentEvent),
-    ) -> AssistantMessage {
+    ) -> (AssistantMessage, Option<LoopReport>) {
         let request = Request {
             model: &self.model,
             system_prompt: &self.system_prompt,
             messages: &self.messages,
             tools: &self.tools.specs(),
-            thinking: self.model.thinking,
+            thinking,
         };
-        self.provider.stream(
+        let call_cancel = cancel.child();
+        let mut reasoning = LoopGuard::new();
+        let mut answer = LoopGuard::new();
+        let mut cut = false;
+        let reply = self.provider.stream(
             &request,
-            &mut |event| emit(AgentEvent::MessageUpdate(event)),
-            cancel,
-        )
+            &mut |event| {
+                let looped = match &event {
+                    StreamEvent::ThinkingDelta(delta) => reasoning.feed(delta),
+                    StreamEvent::TextDelta(delta) => answer.feed(delta),
+                    _ => false,
+                };
+                emit(AgentEvent::MessageUpdate(event));
+                if looped && !call_cancel.is_cancelled() {
+                    cut = true;
+                    call_cancel.cancel();
+                }
+            },
+            &call_cancel,
+        );
+        // Only the guard stops the call alone: any other stop of it is a
+        // stop of the run.
+        if call_cancel.is_cancelled() && !cut {
+            cancel.cancel();
+        }
+        if cancel.is_cancelled() || !cut {
+            return (reply, None);
+        }
+        let report = reasoning.report().or_else(|| {
+            // A loop in the answer keeps no reasoning: none of it is cut.
+            answer.report().map(|report| LoopReport {
+                loop_start: usize::MAX,
+                ..report
+            })
+        });
+        (reply, report)
     }
 
     /// Replace the older part of the transcript with a model-written summary,
@@ -928,10 +1258,13 @@ impl Agent {
             });
             return Err(error);
         }
-        emit(AgentEvent::CompactionStart { reason });
         let tokens_before = context_tokens(&self.messages);
-
         let mut to_summarize = self.messages[..split].to_vec();
+        emit(AgentEvent::CompactionStart {
+            reason,
+            prompt_tokens: context_tokens(&to_summarize),
+        });
+
         to_summarize.push(Message::User(UserMessage::text(
             self.compaction_prompts.request.clone(),
         )));
@@ -943,7 +1276,11 @@ impl Agent {
             tools: &[],
             thinking: ThinkingLevel::Off,
         };
-        let reply = self.provider.stream(&request, &mut |_| {}, cancel);
+        let reply = self.provider.stream(
+            &request,
+            &mut |event| emit(AgentEvent::CompactionUpdate(event)),
+            cancel,
+        );
         let summary = reply.plain_text();
         if matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted)
             || summary.trim().chars().count() < MIN_SUMMARY_CHARS
@@ -960,7 +1297,15 @@ impl Agent {
             return Err(error);
         }
 
-        let tail = self.messages.split_off(split);
+        let mut tail = self.messages.split_off(split);
+        // A kept reply's usage measured the context before the summary
+        // replaced its head; left in place, `context_tokens` would keep
+        // reporting the old size until the next reply.
+        for message in &mut tail {
+            if let Message::Assistant(assistant) = message {
+                assistant.usage = Usage::default();
+            }
+        }
         let kept = tail.len();
         self.messages = vec![self.compaction_prompts.summary_message(&summary)];
         self.messages.extend(tail);
@@ -968,6 +1313,7 @@ impl Agent {
             summary,
             kept,
             tokens_before,
+            tokens_after: context_tokens(&self.messages),
         });
         Ok(())
     }
@@ -995,7 +1341,11 @@ impl Agent {
             tools: &[],
             thinking: ThinkingLevel::Off,
         };
-        let reply = self.provider.stream(&request, &mut |_| {}, cancel);
+        let reply = self.provider.stream(
+            &request,
+            &mut |event| emit(AgentEvent::GoalJudgeUpdate(event)),
+            cancel,
+        );
         if matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted) {
             let error = reply
                 .error_message
@@ -1007,7 +1357,7 @@ impl Agent {
         }
         let verdict = parse_verdict(&reply.plain_text());
         emit(AgentEvent::GoalJudged {
-            done: verdict.done,
+            outcome: verdict.outcome,
             reason: verdict.reason.clone(),
         });
         Ok(verdict)
@@ -1123,6 +1473,44 @@ enum TurnOutcome {
     Halt,
 }
 
+/// What of a reply cut for looping enters the transcript: its reasoning up
+/// to where the circling began, unsealed (a cut reasoning is no provider's to
+/// read back), and nothing else — a half-written answer or call is not one.
+/// It ends as cut short by length, not as a failure: nothing went wrong with
+/// the request.
+fn cut_loop(mut reply: AssistantMessage, report: &LoopReport) -> AssistantMessage {
+    let mut left = report.loop_start;
+    reply.content = reply
+        .content
+        .into_iter()
+        .filter_map(|block| match block {
+            AssistantContent::Thinking {
+                mut text,
+                redacted: false,
+                ..
+            } => {
+                let mut keep = left.min(text.len());
+                while !text.is_char_boundary(keep) {
+                    keep -= 1;
+                }
+                left -= keep;
+                text.truncate(keep);
+                let text = text.trim_end().to_string();
+                (!text.is_empty()).then_some(AssistantContent::Thinking {
+                    text,
+                    signature: None,
+                    redacted: false,
+                })
+            }
+            _ => None,
+        })
+        .collect();
+    reply.stop_reason = StopReason::Length;
+    reply.error_message = None;
+    reply.failure = None;
+    reply
+}
+
 impl std::fmt::Debug for Agent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Agent")
@@ -1143,7 +1531,7 @@ pub(crate) mod test_support {
     use serde_json::{json, Value};
 
     use super::*;
-    use crate::message::{AssistantContent, Usage};
+    use crate::message::AssistantContent;
     use crate::tool::Tool;
 
     /// Replays scripted assistant messages and records every request's
@@ -1154,6 +1542,8 @@ pub(crate) mod test_support {
         pub seen: Mutex<Vec<Vec<Message>>>,
         /// Cancel the run from inside the stream on the n-th call (0-based).
         pub cancel_on_call: Option<usize>,
+        /// The reasoning level each call asked for.
+        pub thinking_seen: Mutex<Vec<ThinkingLevel>>,
     }
 
     impl ScriptedProvider {
@@ -1185,6 +1575,7 @@ pub(crate) mod test_support {
                 seen.push(request.messages.to_vec());
                 seen.len() - 1
             };
+            self.thinking_seen.lock().unwrap().push(request.thinking);
             if self.cancel_on_call == Some(call_index) {
                 cancel.cancel();
             }
@@ -1228,6 +1619,7 @@ pub(crate) mod test_support {
             provider: "scripted".into(),
             model: "test".into(),
             error_message: None,
+            failure: None,
             timestamp: 0,
         }
     }
@@ -1253,6 +1645,7 @@ pub(crate) mod test_support {
             provider: "scripted".into(),
             model: "test".into(),
             error_message: None,
+            failure: None,
             timestamp: 0,
         }
     }
@@ -1336,6 +1729,33 @@ pub(crate) mod test_support {
     }
 }
 
+/// The tool calls of the last assistant message in `messages` that have no
+/// result after it: those a pause stopped before, or a run cut off left —
+/// the transcript itself records them, so this holds across a restart.
+#[must_use]
+pub fn unanswered_calls(messages: &[Message]) -> Vec<ToolCall> {
+    let Some(index) = messages
+        .iter()
+        .rposition(|m| matches!(m, Message::Assistant(_)))
+    else {
+        return Vec::new();
+    };
+    let Message::Assistant(assistant) = &messages[index] else {
+        return Vec::new();
+    };
+    let answered: Vec<&str> = messages[index + 1..]
+        .iter()
+        .filter_map(|m| match m {
+            Message::ToolResult(result) => Some(result.tool_call_id.as_str()),
+            _ => None,
+        })
+        .collect();
+    assistant
+        .tool_calls()
+        .filter(|call| !answered.contains(&call.id.as_str()))
+        .cloned()
+        .collect()
+}
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -1740,17 +2160,23 @@ mod tests {
         assert_eq!(
             verdict,
             GoalVerdict {
-                done: false,
+                outcome: GoalOutcome::Continue,
                 reason: "the build still fails".into(),
             }
         );
+        // The call's stream comes first, for its live progress; the verdict
+        // closes it.
+        let (verdict_event, stream) = events.split_last().expect("events");
         assert_eq!(
-            events,
-            vec![AgentEvent::GoalJudged {
-                done: false,
+            verdict_event,
+            &AgentEvent::GoalJudged {
+                outcome: GoalOutcome::Continue,
                 reason: "the build still fails".into(),
-            }]
+            }
         );
+        assert!(stream
+            .iter()
+            .all(|e| matches!(e, AgentEvent::GoalJudgeUpdate(_))));
         // The judge is a read-only call: the transcript is untouched, and the
         // request carried only the appended verdict question.
         assert!(agent.messages().is_empty());
@@ -1768,7 +2194,7 @@ mod tests {
         let verdict = agent
             .judge("ship it", &CancelToken::new(), &mut |_| {})
             .expect("judge succeeds");
-        assert!(verdict.done);
+        assert_eq!(verdict.outcome, GoalOutcome::Done);
         assert_eq!(verdict.reason, "everything compiles and tests pass");
     }
 
@@ -1890,6 +2316,121 @@ mod tests {
         assert!(result.plain_text().contains("cut off"));
     }
 
+    /// A reply whose reasoning goes round the same two thoughts.
+    fn looping_reply() -> AssistantMessage {
+        let head = "The table is only filled under the x86-ir verb, which matters here.\n";
+        let circle = "Actually, I should present the scope question to the owner first.\n\
+OK let me just start implementing and see what happens.\n";
+        AssistantMessage {
+            content: vec![
+                AssistantContent::Thinking {
+                    text: format!("{head}{}", circle.repeat(60)),
+                    signature: Some("sealed".into()),
+                    redacted: false,
+                },
+                AssistantContent::Text {
+                    text: "half an answer".into(),
+                },
+            ],
+            stop_reason: StopReason::Stop,
+            ..text_reply("")
+        }
+    }
+
+    #[test]
+    fn a_looping_reply_is_cut_and_tried_again_without_reasoning() {
+        let provider = Arc::new(ScriptedProvider::new(vec![
+            looping_reply(),
+            text_reply("I will ask the owner."),
+        ]));
+        let mut agent = Agent::new(
+            provider.clone(),
+            ToolRegistry::new(),
+            ModelSpec {
+                thinking: ThinkingLevel::High,
+                ..model()
+            },
+            PathBuf::from("."),
+        );
+        let events = collect(&mut agent, "go", &mut NoHooks);
+
+        assert_eq!(
+            roles(agent.messages()),
+            vec!["user", "assistant", "user", "assistant"]
+        );
+        // The cut reply keeps the reasoning before the circling, unsealed,
+        // and none of the answer; it is no failure.
+        let Message::Assistant(cut) = &agent.messages()[1] else {
+            panic!("expected the cut reply");
+        };
+        assert_eq!(cut.stop_reason, StopReason::Length);
+        assert_eq!(cut.plain_text(), "");
+        let [AssistantContent::Thinking {
+            text, signature, ..
+        }] = cut.content.as_slice()
+        else {
+            panic!("expected the kept reasoning alone: {:?}", cut.content);
+        };
+        assert!(text.starts_with("The table is only filled"));
+        assert!(text.matches("scope question").count() <= 2, "{text}");
+        assert!(signature.is_none());
+        // The nudge names what the model went round, and the next call is
+        // made without reasoning.
+        let Message::User(nudge) = &agent.messages()[2] else {
+            panic!("expected the nudge");
+        };
+        assert!(nudge.plain_text().contains("- Actually, I should present"));
+        assert_eq!(
+            *provider.thinking_seen.lock().unwrap(),
+            vec![ThinkingLevel::High, ThinkingLevel::Off]
+        );
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::ThinkingLoop { retrying: true, report } if report.thoughts.len() == 2
+        )));
+        assert!(!events.iter().any(|e| matches!(
+            e,
+            AgentEvent::ThinkingLoop {
+                retrying: false,
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn a_second_loop_stops_the_run() {
+        let (mut agent, _) = agent(
+            ScriptedProvider::new(vec![looping_reply(), looping_reply(), text_reply("never")]),
+            ToolRegistry::new(),
+        );
+        let events = collect(&mut agent, "go", &mut NoHooks);
+
+        assert_eq!(
+            roles(agent.messages()),
+            vec!["user", "assistant", "user", "assistant"]
+        );
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::ThinkingLoop {
+                retrying: false,
+                ..
+            }
+        )));
+        assert!(matches!(events.last(), Some(AgentEvent::AgentEnd)));
+    }
+
+    #[test]
+    fn a_stop_by_the_user_is_no_loop() {
+        let mut provider = ScriptedProvider::new(vec![looping_reply()]);
+        provider.cancel_on_call = Some(0);
+        let (mut agent, _) = agent(provider, ToolRegistry::new());
+        let events = collect(&mut agent, "go", &mut NoHooks);
+        assert!(!events
+            .iter()
+            .any(|e| matches!(e, AgentEvent::ThinkingLoop { .. })));
+        assert_eq!(roles(agent.messages()), vec!["user", "assistant"]);
+    }
+
     #[test]
     fn provider_error_halts_the_run() {
         let (mut agent, _) = agent(
@@ -1909,6 +2450,54 @@ mod tests {
             panic!("expected assistant");
         };
         assert_eq!(reply.error_message.as_deref(), Some("boom"));
+    }
+
+    #[test]
+    fn retry_asks_again_without_the_failed_reply() {
+        let (mut agent, provider) = agent(
+            ScriptedProvider::new(vec![
+                AssistantMessage::failed("scripted", "test", StopReason::Error, "limit"),
+                text_reply("done"),
+            ]),
+            ToolRegistry::new(),
+        );
+        collect(&mut agent, "go", &mut NoHooks);
+        agent.retry(&mut NoHooks, &CancelToken::new(), &mut |_| {});
+
+        // The second call saw the request alone, not the failure after it.
+        assert_eq!(roles(&provider.seen_requests()[1]), vec!["user"]);
+        assert_eq!(roles(agent.messages()), vec!["user", "assistant"]);
+        let Message::Assistant(reply) = &agent.messages()[1] else {
+            panic!("expected assistant");
+        };
+        assert_eq!(reply.plain_text(), "done");
+    }
+
+    #[test]
+    fn retry_closes_the_calls_of_a_failed_reply_unrun() {
+        let echo = Arc::new(EchoTool::default());
+        let mut failed = tool_reply(
+            vec![("c1", "echo", json!({ "text": "x" }))],
+            StopReason::Error,
+        );
+        failed.error_message = Some("stream interrupted".into());
+        let (mut agent, _) = agent(
+            ScriptedProvider::new(vec![failed, text_reply("done")]),
+            registry_with(echo.clone()),
+        );
+        collect(&mut agent, "go", &mut NoHooks);
+        agent.retry(&mut NoHooks, &CancelToken::new(), &mut |_| {});
+
+        assert!(echo.executed.lock().unwrap().is_empty());
+        assert_eq!(
+            roles(agent.messages()),
+            vec!["user", "assistant", "tool_result", "assistant"]
+        );
+        let Message::ToolResult(result) = &agent.messages()[2] else {
+            panic!("expected tool result");
+        };
+        assert!(result.is_error);
+        assert!(result.plain_text().contains("Not run"));
     }
 
     #[test]
@@ -2011,6 +2600,196 @@ mod tests {
             roles(agent.messages()),
             vec!["user", "assistant", "tool_result", "assistant"]
         );
+    }
+
+    /// A tool under a given name that logs its start and end; with a
+    /// meeting, it waits until that many calls have started, so calls run one
+    /// after another would never all meet.
+    struct ProbeTool {
+        name: &'static str,
+        log: Arc<std::sync::Mutex<Vec<String>>>,
+        /// The calls started so far, and how many must start to meet.
+        meeting: Option<(Arc<Meeting>, usize)>,
+    }
+
+    type Meeting = (std::sync::Mutex<usize>, std::sync::Condvar);
+
+    impl crate::Tool for ProbeTool {
+        fn name(&self) -> &str {
+            self.name
+        }
+        fn description(&self) -> &str {
+            "probe"
+        }
+        fn parameters(&self) -> serde_json::Value {
+            json!({ "type": "object" })
+        }
+        fn execute(
+            &self,
+            call: &ToolCall,
+            _ctx: &ToolContext,
+            on_update: &mut dyn FnMut(ToolUpdate),
+            _cancel: &CancelToken,
+        ) -> ToolResultMessage {
+            self.log.lock().unwrap().push(format!("start {}", call.id));
+            let mut met = true;
+            if let Some((meeting, expected)) = &self.meeting {
+                let (started, changed) = &**meeting;
+                let mut count = started.lock().unwrap();
+                *count += 1;
+                changed.notify_all();
+                let (count, timeout) = changed
+                    .wait_timeout_while(count, std::time::Duration::from_secs(5), |n| {
+                        *n < *expected
+                    })
+                    .unwrap();
+                met = !timeout.timed_out();
+                drop(count);
+            }
+            // The first call finishes last, so ends come out of order.
+            if call.id == "r1" {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            on_update(ToolUpdate::Output(format!("{} working", call.id)));
+            self.log.lock().unwrap().push(format!("end {}", call.id));
+            ToolResultMessage::text(call, if met { "met" } else { "alone" })
+        }
+    }
+
+    fn probes(meeting: usize) -> (ToolRegistry, Arc<std::sync::Mutex<Vec<String>>>) {
+        let log = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let meet = Arc::new((std::sync::Mutex::new(0), std::sync::Condvar::new()));
+        let mut registry = ToolRegistry::new();
+        registry.insert(Arc::new(ProbeTool {
+            name: "read",
+            log: Arc::clone(&log),
+            meeting: Some((meet, meeting)),
+        }));
+        registry.insert(Arc::new(ProbeTool {
+            name: "edit",
+            log: Arc::clone(&log),
+            meeting: None,
+        }));
+        (registry, log)
+    }
+
+    fn results(agent: &Agent) -> Vec<(String, String)> {
+        agent
+            .messages()
+            .iter()
+            .filter_map(|m| match m {
+                Message::ToolResult(r) => Some((r.tool_call_id.clone(), r.plain_text())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Reads of one step run side by side: they all start before any
+    /// ends, each ends as it finishes, and their results keep the model's
+    /// order. A blocked one among them is answered in its place.
+    #[test]
+    fn calls_that_change_nothing_run_side_by_side() {
+        struct DenyR3;
+        impl Hooks for DenyR3 {
+            fn before_tool_call(&mut self, call: &ToolCall, _ctx: &ToolContext) -> ToolDecision {
+                if call.id == "r3" {
+                    ToolDecision::Block {
+                        reason: "denied".into(),
+                    }
+                } else {
+                    ToolDecision::Allow
+                }
+            }
+        }
+        let (registry, _) = probes(2);
+        let (mut agent, _) = agent(
+            ScriptedProvider::new(vec![
+                tool_reply(
+                    vec![
+                        ("r1", "read", json!({ "path": "a" })),
+                        ("r2", "read", json!({ "path": "b" })),
+                        ("r3", "read", json!({ "path": "c" })),
+                    ],
+                    StopReason::ToolUse,
+                ),
+                text_reply("done"),
+            ]),
+            registry,
+        );
+        let events = collect(&mut agent, "go", &mut DenyR3);
+        let results = results(&agent);
+        let ids: Vec<&str> = results.iter().map(|(id, _)| id.as_str()).collect();
+        assert_eq!(ids, ["r1", "r2", "r3"]);
+        assert_eq!(results[0].1, "met");
+        assert_eq!(results[1].1, "met");
+        assert!(results[2].1.contains("denied"));
+        // Ends come as calls finish: the slow first one last; its progress
+        // still reaches the panel.
+        let ends: Vec<&str> = events
+            .iter()
+            .filter_map(|e| match e {
+                AgentEvent::ToolExecutionEnd { result } => Some(result.tool_call_id.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ends.last(), Some(&"r1"), "{ends:?}");
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::ToolExecutionUpdate { tool_call_id, .. } if tool_call_id == "r1"
+        )));
+    }
+
+    /// A call that may change something runs alone: what comes before it
+    /// has ended when it starts, and what comes after starts once it ended.
+    #[test]
+    fn a_change_runs_alone_between_the_reads_around_it() {
+        let (registry, log) = probes(1);
+        let (mut agent, _) = agent(
+            ScriptedProvider::new(vec![
+                tool_reply(
+                    vec![
+                        ("r1", "read", json!({ "path": "a" })),
+                        ("e1", "edit", json!({ "path": "a" })),
+                        ("r2", "read", json!({ "path": "a" })),
+                    ],
+                    StopReason::ToolUse,
+                ),
+                text_reply("done"),
+            ]),
+            registry,
+        );
+        collect(&mut agent, "go", &mut NoHooks);
+        assert_eq!(
+            *log.lock().unwrap(),
+            ["start r1", "end r1", "start e1", "end e1", "start r2", "end r2"]
+        );
+    }
+
+    #[test]
+    fn what_runs_alongside_is_what_changes_nothing_and_asks_nothing() {
+        let call = |name: &str, arguments| ToolCall {
+            id: "c".into(),
+            name: name.into(),
+            arguments,
+            extra_content: None,
+        };
+        for together in [
+            call("read", json!({ "path": "a" })),
+            call("fetch", json!({ "url": "https://x" })),
+            call("task", json!({ "agent": "a", "prompt": "p" })),
+            call("bash", json!({ "command": "rg foo src" })),
+        ] {
+            assert!(runs_alongside(&together), "{}", together.name);
+        }
+        for alone in [
+            call("edit", json!({})),
+            call("write", json!({})),
+            call("question", json!({})),
+            call("bash", json!({ "command": "cargo build" })),
+            call("mcp_tool", json!({})),
+        ] {
+            assert!(!runs_alongside(&alone), "{}", alone.name);
+        }
     }
 
     /// Two calls in one step, the first asking to pause: the pause stops
@@ -2249,9 +3028,13 @@ mod tests {
         collect(&mut agent, &long_prompt, &mut NoHooks);
         let events = collect(&mut agent, "next", &mut NoHooks);
 
-        assert!(events.contains(&AgentEvent::CompactionStart {
-            reason: CompactionReason::Threshold
-        }));
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::CompactionStart {
+                reason: CompactionReason::Threshold,
+                ..
+            }
+        )));
         assert!(events.iter().any(|e| matches!(
             e,
             AgentEvent::Compacted { summary, kept: 1, .. } if summary.starts_with("SUMMARY OF EARLIER WORK")
@@ -2296,9 +3079,13 @@ mod tests {
         ]);
         let events = collect(&mut agent, "new question", &mut NoHooks);
 
-        assert!(events.contains(&AgentEvent::CompactionStart {
-            reason: CompactionReason::Overflow
-        }));
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::CompactionStart {
+                reason: CompactionReason::Overflow,
+                ..
+            }
+        )));
         assert_eq!(provider.seen_requests().len(), 3);
         let Message::Assistant(last) = agent.messages().last().unwrap() else {
             panic!("expected assistant");
@@ -2355,6 +3142,53 @@ mod tests {
                 &mut |_| {}
             )
             .is_err());
+    }
+
+    #[test]
+    fn compaction_streams_its_progress_and_reports_the_new_size() {
+        let (agent, _) = agent(
+            ScriptedProvider::new(vec![text_reply(
+                "SUMMARY: the first question was asked and answered in full.",
+            )]),
+            ToolRegistry::new(),
+        );
+        let mut answered = text_reply("second answer");
+        answered.usage = Usage {
+            input: 50_000,
+            ..Usage::default()
+        };
+        let mut agent = agent.with_messages(vec![
+            Message::User(UserMessage::text("first question")),
+            Message::Assistant(text_reply("first answer")),
+            Message::User(UserMessage::text("second question")),
+            Message::Assistant(answered),
+        ]);
+        let mut events = Vec::new();
+        agent
+            .compact(
+                CompactionReason::Manual,
+                None,
+                &CancelToken::new(),
+                &mut |e| events.push(e),
+            )
+            .unwrap();
+
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::CompactionStart { prompt_tokens, .. } if *prompt_tokens > 0
+        )));
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::CompactionUpdate(StreamEvent::TextDelta(text)) if text.starts_with("SUMMARY")
+        )));
+        // The kept reply's usage measured the old context: the new size is
+        // the estimate of the summary and the tail, not that figure.
+        let after = events.iter().find_map(|e| match e {
+            AgentEvent::Compacted { tokens_after, .. } => Some(*tokens_after),
+            _ => None,
+        });
+        assert!(after.is_some_and(|tokens| tokens > 0 && tokens < 1_000));
+        assert_eq!(context_tokens(agent.messages()), after.unwrap());
     }
 
     #[test]

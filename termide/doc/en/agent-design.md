@@ -47,9 +47,19 @@ head and tail *(unverified)*.
 
 Decision: `bash` with a timeout, cooperative cancel that kills the process
 group, **head-and-tail truncation** (the command echo and the final error both
-survive) and the full output saved to a file whose path is returned. No sandbox
-in the first version; the tool takes its environment from `ToolContext`, so a
-sandbox can be added later as a separate module without changing the contract.
+survive) and the full output saved to a file whose path is returned.
+
+No sandbox, by decision: the agent is an unsafe tool that runs with the user's
+rights, and the docs say so. Path checks in termide's own tools would not be a
+boundary — any script the shell runs bypasses them — so only kernel or VM
+enforcement (Seatbelt, bwrap with Landlock, a container) would count, and it
+would have to cover the shell, the file tools and ACP `fs/*` alike, guard against
+deferred host execution (`.git/hooks`, `build.rs`, `.envrc` written for later)
+and contain brokers (XPC, D-Bus, agent sockets). Windows has no native
+equivalent of that strength. Partial isolation would promise more than it
+gives, so none is offered; the tool takes its environment from `ToolContext`,
+so a sandbox could still be added as a separate module without changing the
+contract.
 
 ## 3a. Subagents
 
@@ -62,7 +72,7 @@ the same shape (pi leans on its extension host).
 Decision: a `task` tool, present on every built-in-loop agent once a custom
 agent exists, that runs one of the other agents to completion and returns its
 final message. It reuses the whole machinery — the same agent definitions
-(`SOUL.md`, `agent.toml` tools/model/mode), the same prompt builder, the same
+(`AGENT.md` with its tools/model/mode), the same prompt builder, the same
 permission rules — so a subagent is just an agent run without a panel. Built
 in the app (`Subagents` in `agent_panel.rs`), not in `agent-tools`: the tool
 there holds only a closure, so the tools crate stays free of the provider and
@@ -342,10 +352,11 @@ OpenCode a separate `plan` agent with edit/write/bash denied, switched with
 
 Decision: a fourth permission mode, `plan`, not a separate agent — the mode
 is already the thing the user flips mid-run, and an agent definition can
-still fix it (`mode = "plan"` in `agent.toml`, which gives OpenCode's plan
+still fix it (`mode: plan` in its `AGENT.md`, which gives OpenCode's plan
 agent for free). The guard is `PlanGuard` in `permissions.rs`, first in the
 hook chain, so it also overrides a command hook's `allow`: in plan mode only
-`read`, `skill` and a shell command made of look-only parts without
+the reading tools (`read`, `skill`, the web tools, `question`, `recall`),
+`task` (see below) and a shell command made of look-only parts without
 substitution pass; everything else is blocked with a fixed reason the model
 reads. Instructions come from `ai/system/plan.md`, appended to the system
 prompt while the mode is on (the panel updates the worker's prompt on the
@@ -358,6 +369,39 @@ same file, so the plan stays in context. The plan is the answer in the
 session, not a file: the session log is the record, and the panel's `/undo`
 checkpoints cover the changes the accepted plan then makes. Not covered: MCP tools with
 a read-only annotation are blocked too, since annotations are not plumbed.
+
+`task` passes the guard as well: the subagent runs in plan mode whatever its
+`AGENT.md` names, behind a `PlanGuard` of its own, so delegation reads and
+never changes anything. That lets the planner hand fact-finding to a
+subagent, which the instructions below rely on.
+
+The instructions follow the grilling approach of Matt Pocock's skills
+(`grill-me`, `to-spec`): misalignment is the costliest failure, so the
+planner settles the open decisions with the user before writing anything.
+The decisions form a tree; each round asks those whose prerequisites are
+settled, with a recommended answer first. Facts are the agent's to look up,
+decisions the user's. A round is capped at the `question` tool's four
+questions, but the number of rounds is not: a large task may need dozens.
+The rounds go through `question` rather than the answer text because any
+answer in plan mode raises the carry-out card. The plan names goal,
+decisions, scope, steps (each leaving the project working, preparatory
+refactoring first), risks and verification. Unlike Pocock's specs, the steps
+name files: the plan is carried out at once, in the same context.
+
+The carry-out card also offers to start "from a clean context". Pocock's
+phase-boundary rule keeps grilling and implementation in one context, since
+the implementation wants the reasoning verbatim, and warns that a summary
+flattens decisions; but dozens of rounds plus their exploration can leave
+the implementation outside the window's good part, with an automatic
+compaction due mid-work. So clearing is an option, not the default, and it is
+mechanical, not a summary: `prune_to_decisions` (`agent-core/src/prune.rs`)
+keeps the user's messages, the `question` and `skill` calls with their
+results and every answer a run closed with, and drops the rest, keeping each
+kept call paired with its result. The log records an `EntryKind::Pruned`
+with no payload and the replay applies the same function, so live and
+reopened history agree; a rewind past the entry restores the whole history,
+and `recall` counts what was cleared as out of context. Claude Code's
+plan-approval dialog has a similar "clear context" choice.
 
 ## 4b. Auto mode
 
@@ -408,7 +452,30 @@ model's words are never taken for the user's. Calls from outside the loop
 about. The reviewer's text is `ai/system/classify.md`, one editable file at
 the configuration level only, like every service prompt — a checked-out
 repository must not be able to tell the reviewer to allow everything; it
-reviews with the session's model unless `auto_reviewer` names a connection.
+reviews with the session's model unless `[ai.auto_reviewer]` names a
+connection or a model (`ModelChoice`: its own provider and model, or the
+session's under another id).
+
+Who reviews for a subscription user. Someone on Claude Code or Codex seldom
+has an API key or a local model to name, and the agents' own reviewers
+(Claude Code's auto classifier, Codex's "Auto review" preset) do not see the
+calls of termide's tools nor follow its rules, so termide's reviewer is kept
+for them too. A CLI connection serves as the reviewer's model through
+`AcpProvider` (agent-acp): the adapter is started once and kept; each review
+opens a session of its own (`session/new` with, for Claude Code, the
+reviewer's text as `_meta.systemPrompt`, no tools and no settings; for Codex
+and Gemini CLI the text leads the request and Codex is put in read-only),
+picks the model asked for among those offered (id, name, or a unique part:
+`haiku`), runs as a side request — its updates kept from any panel, its
+permission requests refused — and closes. A fresh session rather than a fork
+of the agent's keeps the agent from judging itself. With no reviewer
+configured, an external session's "session's model" is the agent's own
+subscription (`CurrentModel` takes the agent's current model). The external
+agent's `SessionView` carries an `IntentLog` agent-acp keeps from the history,
+each request (steering included) and each call it shows, and goes with its
+permission requests and with the calls of termide's tools on the MCP server,
+so both are judged as the built-in loop's are. Codex's `edit` maps to
+`workspace-write`, not its `agent` preset, which is its own reviewer.
 The reviewer answers with its reason first and the verdict last: a small
 model that names the verdict first decides before it thinks, and on a local
 Qwen it once called an upload of `.env` to a paste site `ALLOW` while
@@ -497,15 +564,26 @@ will merge. Session logs go to `<config>/ai/sessions/<panel directory>/`,
 keyed by the directory the panel works in: the user's decision, the shape pi
 and Claude Code use (sessions under the tool's own directory), taken over the
 XDG data/config split. The configuration level is laid out on first use —
-`AGENTS.md` seeded from the shipped data file, empty `agents/`, `skills/` and
-`prompts/` — and files present are never touched again.
+the default agent's `agents/default/AGENT.md` seeded from the shipped data
+file, empty `skills/` and `prompts/` — and files present are never touched again.
 
 Agent definitions: Claude Code's `agents/*.md` and OpenCode's `agent/*.md`
 carry the settings (`description`, `model`, `tools`, `permissionMode` /
-`permission`) as YAML front matter above the prompt body. Decision: the
-prompt stays a plain Markdown file (`SOUL.md`) and the settings go beside it
-in `agent.toml` — termide is TOML throughout, and a prompt without front
-matter can be copied from and to any other tool. `default` exists without
+`permission`) as YAML front matter above the prompt body. Decision: the same
+shape in a directory — `agents/<name>/AGENT.md`, settings in the front matter
+and the prompt in the body, the rest of the directory free for the agent's
+own scripts and checklists, as `skills/<name>/SKILL.md` is. termide first
+kept the prompt in `SOUL.md` and the settings beside it in `agent.toml`; one
+file won because the two were resolved through the layers independently (a
+project could replace the prompt and silently keep the user's model and
+tools), because every other Markdown file under `ai/` — skills, prompt
+templates, the `system/` prompts — already carries front matter, and because
+a Claude Code or OpenCode agent then moves over almost by copying. The
+front matter stays flat `key: value` (`#` lines are comments): `tools` is a
+comma list, optionally in brackets, and an external agent's environment is
+one `env.<NAME>` key per variable rather than a repeated key, which YAML does
+not allow. An empty body means the root template; `prompt: none` means no
+system prompt, the rarer case. `default` exists without
 files; switching agents goes through an `AgentCatalog` trait the app
 implements over the directories, so the panel chooses among definitions
 without knowing how they are stored. The switch is one `AgentRuntime::update`
@@ -621,16 +699,20 @@ in the header feed the picker, and the built-in `/compact`, the templates
 and the scripts share one `/` namespace with the template winning a tie.
 
 The prompt is a template with `{{tools}}`, `{{guidelines}}`,
-`{{environment}}` and `{{project_instructions}}` placeholders: the `ai`
-directory's root `AGENTS.md` for the default agent (the user's decision — the
-root file of the directory is the default prompt, and a global instruction
-file would only duplicate what one can write into it), `agents/<name>/SOUL.md`
-for a custom agent, which falls back to the root file when it has none. The
-root file is read from the configuration level only: as every agent's
-fallback it must not be replaceable by a checked-out project, only by an agent
-the user picks; a custom agent's `SOUL.md` may live at any level. No
+`{{environment}}` and `{{project_instructions}}` placeholders: the body of
+`agents/<name>/AGENT.md`, the default agent's included (a global instruction
+file would only duplicate what one can write into it). An agent whose
+`AGENT.md` has no body falls back to the default agent's. The default agent
+was once the `ai` directory's root `AGENTS.md`; it became
+`agents/default/AGENT.md` so it takes front matter like any agent and no code
+path special-cases it, and the old name stopped reading as the cross-vendor
+project instruction file. It is read from the configuration level only: as
+the agent every panel starts as and every agent's fallback it must not be
+replaceable by a checked-out project, only by an agent the user picks; any
+other agent's `AGENT.md` may live at any level. An existing root `AGENTS.md`
+is moved into place on start, its seed record with it. No
 prompt text is code: the seed is the data file
-`crates/agent-core/assets/AGENTS.md` (the former fixed prompt, base
+`crates/agent-core/assets/agents/default/AGENT.md` (the former fixed prompt, base
 guidelines included), copied to the configuration on first use; code only
 fills the placeholders from tool metadata, the environment and the instruction
 files.
@@ -683,7 +765,7 @@ JSONL with typed items *(unverified)*. OpenCode, Goose, Hermes: SQLite.
 
 Decision: **append-only JSONL, one file per session** under the termide data
 dir, every entry with `id` and `parent_id` so branching needs no migration.
-Search across sessions is out of scope; if it comes, termide's `db` crate exists.
+Search across sessions is the `recall` tool (§6d).
 
 ## 6a. Compaction
 
@@ -722,8 +804,25 @@ the same rule as for `shims/`; `CompactionPrompts` carries them, and a
 reopened session words its old summaries with the current file. `system/` rather than `prompts/`
 because a slash template is something the user sends and a service prompt is
 not, and rather than `tools/` because compaction is the panel's operation, not
-a tool the model calls; `tools/` stays free for overriding built-in tool
-descriptions if that is ever wanted. `/compact` is a built-in slash command
+a tool the model calls; `tools/` holds the built-in tools' own texts (below).
+
+Tool texts as files: the description, the system-prompt snippet and the
+guidelines of every built-in tool were string constants in its crate. No
+other agent exposes them — Claude Code, Codex and pi compile theirs in *(pi
+lets an extension replace a tool whole)*. Decision
+(`crates/agent-core/src/tool_text.rs`): the same rule as for `system/` —
+`tools/<name>.md` per tool, the body the description, `snippet:` and numbered
+`guideline.N:` keys in flat front matter, seeded from
+`crates/agent-core/assets/tools/` and kept current by `.seeds.toml`, read from
+the configuration level only. The seeds live in agent-core, which every tool
+crate already depends on, so a tool reads its shipped text with
+`ToolText::seed(name)` and no tool crate holds prompt text. A user's file
+that differs from the seed wraps the tool (`apply_tool_texts`) when the
+registry is finished — panel, subagent and headless alike — so tools need no
+access to the directories; `Tool::render_description` lets a tool fill its own
+placeholders (`task`'s `{{agents}}`) in either text. Parameter descriptions
+in the JSON schemas and the wording of tool results stay in code: they
+describe the call's mechanics, not how the agent should use the tool. `/compact` is a built-in slash command
 next to the templates, a `Compact` worker command between runs.
 
 ## 6b. Checkpoints and undo
@@ -882,6 +981,80 @@ content — and Claude Code's `--continue` is the CLI shape of it. A missing log
 starts a fresh session in the same project; no configured model skips the
 panel, as an unavailable image backend skips an image panel.
 
+## 6d. Recall
+
+The agents keep memory three ways. Claude Code's auto-memory and Gemini
+CLI's `save_memory` have the model write facts to Markdown files loaded into
+later prompts; Anthropic's memory tool (`memory_20250818`) gives it a file
+directory to manage; Hermes keeps bounded `MEMORY.md`/`USER.md` files and
+searches past sessions with SQLite FTS5 *(unverified)*. Memory services
+(Mem0, Letta, Zep) extract facts into vector or graph stores. A coding agent's
+memory is mostly derivable — code, git and its own logs are the record — and
+a copy of it goes stale and needs a write path, curation and trust (a fetched
+page can ask to be remembered); what must always apply is already in
+`AGENTS.md`, which the user curates.
+
+Decision (`crates/agent-recall`): no memory store; a read-only built-in tool
+that searches the project's session logs, git history and files. Built in
+rather than an agent, a skill or an MCP server: those reach the logs through
+`bash` or an unknown tool name, which plan mode refuses and a subagent's
+`AutoDenyPrompter` denies, and the log format belongs to `session.rs`
+(`Session::read_branch` walks the live branch, so a rewind's dead entries stay
+out and a compaction's originals stay in). `recall` sits on the read-only lists
+of `permissions.rs`, so it runs in every mode.
+
+- Ranking is deterministic: BM25 per source over Snowball-stemmed terms
+  (English, Russian) with identifiers split at `_` and camelCase, a recency
+  weight for sessions and commits, reciprocal rank fusion across sources.
+  Each phrasing of a query is scored on its own and a document keeps its
+  best: a first version scored the union, and five phrasings of "сомбалу"
+  diluted the one rare word under a coverage floor until only "нет смысла"
+  matched. Coverage is by IDF weight, a word no document has counting as the
+  rarest. Snowball strips verb endings too and cut an unknown name by case
+  ("сомбала" → "сомба", "сомбалу" → "сомбал"), so a Russian word is also
+  indexed by its stem without the case ending, the forms of one word
+  counting as one. Session blocks
+  are weighted by kind: compaction summaries and handoff briefs most, tool
+  output least. No persistent index: the logs are parsed into an in-process
+  cache keyed by size and mtime (23 MB of real logs scan in memory), and the
+  `db` crate's FTS5 sits behind async sqlx, which the agent crates do not run.
+- Languages without a query-expansion call: `queries` is a list, and the
+  tool's guideline asks the calling model for the request in English and the
+  user's language plus the identifiers involved.
+- Git: `log --grep -F -i` over the stems and `log -S` for identifiers, per
+  repository the git panels would find (`termide_git::project_repos`); a
+  project inside a larger repository gets its directory as a pathspec. Files:
+  ripgrep's defaults (hidden, ignored and binary files skipped) plus one file
+  system, any file size read line by line, every nested repository walked
+  with its own ignore rules, the `sessions/` tree left to its own source. A
+  first version skipped roots outside git and files over 1 MB; both were
+  dropped as arbitrary — notes outside git are what a home-rooted project
+  holds — and time limits bound a large tree instead. The sources search on
+  threads side by side, each against its own limit (`[ai.recall]
+  sessions_timeout_secs`, `git_timeout_secs`, `files_timeout_secs`, 60 s): a
+  single shared budget, tried first, let a slow code walk in a home-rooted
+  project starve the sources after it. The result names a source its limit
+  stopped. `paths`
+  (globs) narrow all three, restated inside each nested repository; `since`
+  narrows sessions and commits only.
+- Files are notes and documents as much as code, so the source is `files`,
+  not `code`, and prose is treated as prose: a Markdown file is a document per
+  heading section (a long decision log is many results, each labelled with
+  its headings), a match is shown as its paragraph rather than a wrapped line,
+  and a prose file's mtime weighs in as recency does for sessions and
+  commits. Code stays one document per file, shown by line, with no age
+  weight — an old file that defines something is no less relevant.
+- Results carry references (`session:<id>#<entry>`, `commit:<repo>@<sha>`,
+  `file:<path>:<line>`); `open` shows a session entry's surroundings or the
+  commit, since `read` on a multi-megabyte log is useless. The calling
+  session's own log is excluded through `SessionView::id`.
+- The solver is an option of the tool, not an agent loop: one `one_shot` call
+  on `[ai.recall] connection` (or the session's model) answers from the
+  results with citations, prompt in `system/recall.md`; the results always
+  follow the answer, and a failed call returns them alone. Off by default.
+- `termide --recall` runs the same search headless, for an evaluation set
+  and for other agents.
+
 ## 7. Panel ↔ agent boundary
 
 ACP is becoming the editor-side standard: Gemini CLI speaks it natively, Claude
@@ -893,7 +1066,8 @@ backend; an ACP client over stdio is the second and reuses the same panel.
 
 Done (`crates/agent-acp`): the panel drives a `Backend` trait (agent-core)
 with two implementations, `AgentRuntime` and `AcpRuntime`. termide is the
-ACP client: it starts the agent from an `[acp]` table in `agent.toml`, runs
+ACP client: it starts the agent from the `command` line in its `AGENT.md`
+(split like shell words, never run through a shell), runs
 `initialize` and `session/new` on a thread (adapters started through `npx`
 take seconds), and turns `session/update` into the loop's own `AgentEvent`s
 — `agent_message_chunk` into `MessageStart`/`TextDelta`, a `tool_call`
@@ -904,11 +1078,59 @@ through the same `ChannelPrompter` as the built-in prompt (answers mapped
 onto the offered `allow_once`/`allow_always`/`reject_once` options),
 `fs/read_text_file` and `fs/write_text_file` from the working directory (a
 write surfaces as a `write` tool call for the editor reload), terminals not
-advertised. Model and mode chips are hidden for an external agent —
-`Backend::update` answers `Unsupported` — and switching between engines
-rebuilds the runtime on the same session log, whose history is shown but not
-known to the external agent (ACP's `session/load` is the way to change that
-later). Still hand-written JSON-RPC rather than the `agent-client-protocol`
+advertised. Switching between engines rebuilds the runtime on the same
+session log.
+
+Settings: ACP's session config options are the client-facing knobs, changeable
+"at any point, whether the agent is idle or generating". The backend keeps the
+agent's whole `select` set (from the session result, each
+`set_config_option` reply and `config_option_update`); the `model` option, or
+the older `models`, feeds the Model chip, `thought_level` the Reasoning chip,
+and the rest an Options chip (the agent's own modes left out when termide maps
+its mode onto them). A pick is logged as an `agent_option` entry (the model
+under the key `model`) and asked for again once a reopened agent states its
+options; an `agent_option` does not void the agent's own session. The built-in
+loop matches it: a model or reasoning level picked during a run goes through
+`QueueHandle::set_next_model` and is taken at the next step boundary, as
+steering is, and before any later worker command, so a switch made between
+runs wins.
+
+Steering: Claude Code's and Codex's adapters announce `_meta.steering.supported`
+and take `_session/steering` (`{sessionId, prompt}`, answered `injected`,
+`promptRequired` or — Codex, which ignores the `idleBehavior: promptRequired`
+asked for — `startedNewTurn`); ACP's own `session/inject` is still an RFD. A
+message typed during a turn waits in the queue (so the strip shows it) and is
+offered to the turn; its reply is taken in the reader thread, in order with
+the updates, so the message is logged before the text that answers it, and
+only once no call is open, so the log never puts a user message between a call
+and its result. Refused, it stays queued for the next turn.
+
+Side requests (`/goal`'s judge, `/handoff`): an external agent has no call
+without its loop, so the judge's or brief's instructions and request go as one
+prompt — into `session/fork` (closed after with `session/close`) when the agent
+offers it, else into the session itself with the panel's busy flag held;
+either way the updates of that session go to a buffer, never to the panel or
+the log, and a permission request from it is refused.
+
+What an adapter gets of termide: Claude Code its prompt and tools (and a
+`<system-reminder>` before a turn when plan mode or the served tool set
+changed); Codex and Gemini CLI their own, plus `COMPANION_TOOLS` (`recall`,
+`skill` with the skills listed in its description, `question`,
+`suggest_command`) and the MCP servers' tools. An `AGENT.md` with a `command`
+names its flavor in `adapter:` or has it told by the command line
+(`AcpFlavor::detect`), so the documented `claude-agent-acp` example is not
+generic. Auto mode reviews external agents with termide's reviewer, see
+§4b. The agent's session id goes
+into that log as an `external_session` entry (with the log's header id and
+`cwd`); `Session::external_session` hands it back while the branch is still
+what that session holds — no rewind, compaction, pruning, agent or connection
+change and no built-in answer since, and the same log in the same place, so a
+fork or a move drops it. The backend takes it up with `session/resume`, else
+`session/load` (its replay dropped, since the panel shows the log already);
+otherwise it opens a new session and sends a recap
+(`recap::recap`, the `prune_to_decisions` cut rendered as tagged text, newest
+kept within `RECAP_LIMIT`) as a text block before the first prompt, outside
+the log. Still hand-written JSON-RPC rather than the `agent-client-protocol`
 crate: the surface used is small, and the crate would bring tokio.
 
 ## 8. Provider
