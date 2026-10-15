@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// zeta-ide launcher — resolves the platform binary from optionalDependencies
-// leaves (same pattern as the zeta-editor launcher). Node-only, no Bun needed.
+// zetaide launcher — resolves the platform binary from optionalDependencies
+// leaves (same pattern as the other product launchers). Node-only, no Bun needed.
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -12,7 +12,7 @@ const PKG_PREFIX = "@linxiraos/ide-";
 const EXE = process.platform === "win32" ? "termide.exe" : "termide-linux-x64";
 
 function die(msg) {
-  process.stderr.write(`zeta-ide: ${msg}\n`);
+  process.stderr.write(`zetaide: ${msg}\n`);
   process.exit(1);
 }
 

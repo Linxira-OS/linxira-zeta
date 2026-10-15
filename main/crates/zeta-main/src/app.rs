@@ -1465,7 +1465,7 @@ impl Workspace {
 			},
 			Err(error) => {
 				self.notice = Some(format!(
-					"embedded editor could not open the file ({error}) — trying zeta-ide/zeta-editor"
+					"embedded editor could not open the file ({error}) — trying zetaide"
 				));
 				let shell = crate::shell::pick_shell(crate::settings::snapshot().shell);
 				let target = crate::tab::link_target_text(&path, line, col);

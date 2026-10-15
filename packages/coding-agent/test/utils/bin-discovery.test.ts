@@ -54,9 +54,12 @@ describe("bin-discovery", () => {
 				fs.writeFileSync(path.join(full, file), "");
 				return path.join(full, file);
 			};
-			const explicitHit = mk("explicit", `zeta-ide${EXT}`);
-			const pathHit = mk("path", `zeta-ide${EXT}`);
-			const aliasHit = mk("path", `zetaide${EXT}`);
+			// Fixtures use the real published bins — each product ships exactly one
+			// name (`zetacode`/`zetawork`/`zetaide`); provenance order is what the
+			// candidate list models, not legacy hyphenated aliases.
+			const explicitHit = mk("explicit", `zetacode${EXT}`);
+			const pathHit = mk("path", `zetacode${EXT}`);
+			const aliasHit = mk("path", `zetawork${EXT}`);
 
 			const env = {
 				PATH: path.join(root, "path"),
@@ -64,17 +67,17 @@ describe("bin-discovery", () => {
 				APPDATA: root,
 				HOME: root,
 			};
-			expect(discoverBin(["zeta-ide", "zetaide"], { env, exists: c => fs.existsSync(c) })).toBe(explicitHit);
+			expect(discoverBin(["zetacode", "zetawork"], { env, exists: c => fs.existsSync(c) })).toBe(explicitHit);
 
 			// Tier ① empty → PATH; first alias in the same tier wins.
 			expect(
-				discoverBin(["zeta-ide", "zetaide"], {
+				discoverBin(["zetacode", "zetawork"], {
 					env: { ...env, [ZETA_BIN_DIR_ENV]: "" },
 					exists: c => fs.existsSync(c),
 				}),
 			).toBe(pathHit);
 			expect(
-				discoverBin(["zetaide", "zeta-ide"], {
+				discoverBin(["zetawork", "zetacode"], {
 					env: { ...env, [ZETA_BIN_DIR_ENV]: "" },
 					exists: c => fs.existsSync(c),
 				}),
@@ -83,10 +86,10 @@ describe("bin-discovery", () => {
 			// Tier ② empty → npm-form dirs. The stub must live in the
 			// platform-derived dir (win: %APPDATA%\npm, posix: ~/.bun/bin).
 			const npmDir = path.join(root, IS_WIN ? "npm" : path.join(".bun", "bin"));
-			const npmHit = path.join(npmDir, `zeta-ide${EXT}`);
+			const npmHit = path.join(npmDir, `zetacode${EXT}`);
 			fs.mkdirSync(npmDir, { recursive: true });
 			fs.writeFileSync(npmHit, "");
-			expect(discoverBin(["zeta-ide"], { env: { APPDATA: root, HOME: root }, exists: c => fs.existsSync(c) })).toBe(
+			expect(discoverBin(["zetacode"], { env: { APPDATA: root, HOME: root }, exists: c => fs.existsSync(c) })).toBe(
 				npmHit,
 			);
 		} finally {
@@ -95,7 +98,7 @@ describe("bin-discovery", () => {
 	});
 
 	test("no tier has the binary → null", () => {
-		expect(discoverBin(["zeta-ide"], { env: { PATH: "" }, exists: () => false })).toBeNull();
+		expect(discoverBin(["zetacode"], { env: { PATH: "" }, exists: () => false })).toBeNull();
 	});
 
 	test("windows: the executable extension wins over a same-directory bare POSIX shim", () => {

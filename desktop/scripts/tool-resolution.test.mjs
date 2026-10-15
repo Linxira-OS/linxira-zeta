@@ -49,20 +49,6 @@ test("cmd shims from PATH require a shell", () => {
 	assert.equal(resolveToolIn("zetacode", deps).needsShell, true);
 });
 
-test("falls back to the dev repo platform leaf binary", () => {
-	const tag = process.platform === "win32" ? "windows" : "linux";
-	const leafName = process.platform === "win32" ? "ttt.exe" : "ttt-linux-x64";
-	const expected = path.join("/repo", "editor", "npm", `editor-${tag}-x64`, "bin", leafName);
-	const repoPkg = path.join("/repo", "package.json");
-	const deps = makeDeps({
-		exists: candidate => candidate === expected || candidate === repoPkg,
-		readTextFile: candidate => (candidate === repoPkg ? '{"workspaces":[]}' : null),
-	});
-	const resolved = resolveToolIn("zetaeditor", deps);
-	assert.equal(resolved?.file, expected);
-	assert.equal(resolved?.needsShell, false);
-});
-
 // --- zetawork (the framework workbench, @linxiraos/main) ---
 
 test("zetawork resolves from PATH like every other tool", () => {
@@ -76,13 +62,13 @@ test("zetawork resolves from PATH like every other tool", () => {
 	});
 });
 
-test("zetawork accepts the npm bin aliases behind the canonical name", () => {
+test("zetawork accepts the bare `zeta` launcher name behind the canonical bin", () => {
+	// TOOL_BIN_NAMES.zetawork is ["zetawork", "zeta"] — one bin name per product,
+	// so the bare `zeta` workbench launcher is the only fallback name probed.
 	const deps = makeDeps({
-		probePath: name => (name === "zeta-work" ? "/usr/local/bin/zeta-work" : null),
+		probePath: name => (name === "zeta" ? "/usr/local/bin/zeta" : null),
 	});
-	assert.equal(resolveToolIn("zetawork", deps)?.file, "/usr/local/bin/zeta-work");
-	const bare = makeDeps({ probePath: name => (name === "zeta" ? "/usr/local/bin/zeta" : null) });
-	assert.equal(resolveToolIn("zetawork", bare)?.file, "/usr/local/bin/zeta");
+	assert.equal(resolveToolIn("zetawork", deps)?.file, "/usr/local/bin/zeta");
 });
 
 test("a Windows zetawork.cmd shim is spawned through a shell", () => {

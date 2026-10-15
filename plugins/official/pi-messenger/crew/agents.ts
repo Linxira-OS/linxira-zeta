@@ -65,15 +65,17 @@ export function resolveModel(
  * 2. Source/dev run: `process.execPath` is the Bun/Node runtime and
  *    `process.argv[1]` the TS/JS CLI entry — spawn `[runtime, entry]`.
  * 3. Compiled binary: `process.execPath` IS the CLI executable.
- * 4. PATH lookup of the published CLI names — `CLI_BIN_NAME` ("zeta-c") first,
- *    then the install aliases "zetacode"/"zeta-cli". On Windows only real
- *    executables qualify: `.cmd`/`.bat` shims cannot be spawned without a
- *    shell (EINVAL under Bun and modern Node), and spawning through a shell
- *    would expose task text to command injection. When nothing resolves, the
- *    primary name is returned anyway so the spawn fails with a clear ENOENT
- *    instead of silently running the wrong CLI.
+ * 4. PATH lookup of the published CLI name — `CLI_BIN_NAME` ("zetacode") first,
+ *    then the `CLI_FALLBACK_NAMES` install list (also just "zetacode"): the
+ *    product ships exactly one bin name now, so no hyphenated compatibility
+ *    alias is ever probed. On Windows only real executables qualify:
+ *    `.cmd`/`.bat` shims cannot be spawned without a shell (EINVAL under Bun
+ *    and modern Node), and spawning through a shell would expose task text to
+ *    command injection. When nothing resolves, the primary name is returned
+ *    anyway so the spawn fails with a clear ENOENT instead of silently
+ *    running the wrong CLI.
  */
-const CLI_FALLBACK_NAMES = ["zetacode", "zeta-cli"];
+const CLI_FALLBACK_NAMES = ["zetacode"];
 
 /** Script-file argv[1] discriminates a source-mode CLI run from a compiled binary. */
 const ENTRY_SCRIPT_RE = /\.(?:[cm]?[jt]sx?)$/;

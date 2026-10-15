@@ -93,12 +93,11 @@ ${chalk.bold("Plugin Options:")}
   --plugin-dir <path>        Load plugin from directory (repeatable)
 
 ${chalk.bold("Companion Tools (separate npm packages):")}
+  zetawork                 - Zeta workbench: tabs, panes, and the suite menu
+                             (npm: @linxiraos/main; bare \`zeta\` prints help)
   zetaide                  - Zeta terminal IDE (TermIDE): file manager, panels,
-  (aliases: zeta-ide,          git, and embedded virtual terminal panes
-   zeta-i)                     (npm: @linxiraos/ide)
-  zetaeditor               - Zeta terminal editor; /editor inside zeta hands off
-  (aliases: zeta-editor,        the current directory, repo root and session to it
-   zeta-e)                     (npm: @linxiraos/editor)
+                             git, and embedded virtual terminal panes
+                             (npm: @linxiraos/ide)
 
 ${chalk.bold("Useful Commands:")}
   zetacode agents unpack           - Export bundled subagents to ~/.zeta/agent/agents (default)

@@ -13,22 +13,32 @@ recorded here, or a doc comment in the owning file saying "never rebrand" /
 git grep -n "<token>" -- packages | grep -i "compat\|never rebrand\|upstream-compatible\|do not\|keep"
 ```
 
-## The three names — do not swap them
+## The names — do not swap them
 
-Zeta has three distinct names. They were separated on purpose (2026-10-09) and
-mixing them is a defect, not a style preference:
+Zeta has a small, fixed set of names. They were separated on purpose
+(2026-10-09; the command set was closed on 2026-10-15) and mixing them is a
+defect, not a style preference. Three commands are user-visible — `zetawork`,
+`zetacode`, `zetaide` — and hyphenated compatibility bins no longer exist in
+any package:
 
 | Name | Identity | Used for |
 |---|---|---|
-| **`zeta`** | product / app | config root `.zeta/`, log file names, UA product token `zeta/<v>`, splash, attribution headers, process-global product identity, homepage |
-| **`zetawork`** | workbench CLI | `@linxiraos/main`, bins `zeta` / `zetawork` |
-| **`zetacode`** | coding-agent CLI | `@linxiraos/zeta`, bins `zetacode` (`zeta-c`, `zeta-cli` aliases), every "run this command" string, `--help` usage, process titles |
+| **`zeta`** | product / app | config root `.zeta/`, log file names, UA product token `zeta/<v>`, splash, attribution headers, process-global product identity, homepage; as a bin, a bare `zeta` prints the suite index (help) |
+| **`zetawork`** | workbench CLI | `@linxiraos/main`, bin `zetawork` (opens the workspace; `zetawork web` serves the Web UI) |
+| **`zetacode`** | coding-agent CLI | `@linxiraos/zeta`, bin `zetacode` (no aliases), every "run this command" string, `--help` usage, process titles |
+| **`zetaide`** | terminal IDE | `@linxiraos/ide`, bin `zetaide` (no aliases) |
+
+The editor is no longer a command: `@linxiraos/editor` ships the vendored TTT
+binary only, resolved by path (workbench/plugin surface). Release-asset **file
+names** (`zeta-cli-*`, `zeta-work-*`, `zeta-ide-*`, `zeta-editor-*`) are
+untouched by this registry.
 
 The deciding question is *"is the user being told to run something, or is the
-product naming itself?"* Command → `zetacode`. Identity → `zeta`.
+product naming itself?"* Command → the canonical bin (`zetawork` / `zetacode` /
+`zetaide`). Identity → `zeta`.
 
 A config path or UA token spelled `zetacode` points at a directory no install
-creates; a command spelled `zeta` silently invokes the workbench instead of the
+creates; a command spelled `zeta` prints the suite index instead of running the
 agent. Both are guarded mechanically (`brand-rules.ts` MUST_NOT_CONTAIN on
 `.zetacode`, `XDG_*/zetacode`, `` USER_AGENT = `zetacode/ ``).
 

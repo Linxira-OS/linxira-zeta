@@ -4,8 +4,8 @@
  * The agent CLI and the editor are two processes over the same work. Without
  * an explicit handoff the user loses three things on every switch: the
  * directory, the repository root, and the session the conversation lives in.
- * This command writes the handoff file and spawns `zeta-editor`, which reads
- * it on startup and re-opens exactly that context.
+ * This command writes the handoff file and spawns the editor binary, which
+ * reads it on startup and re-opens exactly that context.
  *
  * The editor is spawned detached: the CLI stays alive so returning is just
  * another switch, and a crashed editor never takes the session with it.

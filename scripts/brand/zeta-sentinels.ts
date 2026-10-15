@@ -515,6 +515,34 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: 'name: "serve",',
 		why: 'Zeta-only subcommand (`zeta serve` hosts the web gateway + desktop sessions; upstream OMP\'s table has no `serve`). It vanished from this table during the 1.2.0 upstream merge: `serveHelp` in cli/command-help.ts survived while the entry did not, `isSubcommand("serve")` returned false, and every desktop smoke failed — visible only in release runs. The table is a shared file a merge can take wholesale.',
 	},
+	{
+		file: "packages/coding-agent/src/cli-commands.ts",
+		symbol: 'aliases: ["server"],',
+		why: "`server` is the `serve` entry's only alias, and it is the spelling the workbench's `zetawork web` / `zetawork server` pair mirrors (registry: 伴侣产品 bin). The alias lives inside the same table a merge takes wholesale — losing it turns `zetacode server` back into a prompt handed to the model, with no error anywhere.",
+	},
+	// -- Command surface: one bin per product (2026-10-15) -----------------------
+	//
+	// The suite surface (`zetawork` / `zetacode` / `zetaide`, bare `zeta` =
+	// index help) is the contract every other surface derives from: the
+	// desktop's launchers, the web gateway's tool panes, the offline installer
+	// and the docs all resolve these names. Each sentinel below is a line a
+	// merge or a half-done rename can drop while `check:ts` stays green,
+	// because the *string* is the interface.
+	{
+		file: "packages/coding-agent/src/server/web-gateway/terminal.ts",
+		symbol: 'export const ZETAWORK_BINS = ["zetawork", "zeta"] as const;',
+		why: "the embedded terminal's default program is the workbench (registry: 伴侣产品 bin); losing the table makes every new terminal fall back to a bare shell and the desktop show `workbench-not-found`.",
+	},
+	{
+		file: "packages/coding-agent/src/server/web-gateway/open.ts",
+		symbol: 'export const ZETA_IDE_BINS = ["zetaide"] as const;',
+		why: "the web gateway's IDE pane resolves this one bin name; the hyphenated aliases it used to carry are deleted, so a merge re-adding them makes the probe resolve a name no install creates and the IDE pane reports missing.",
+	},
+	{
+		file: "packages/coding-agent/src/cli/help-extra.ts",
+		symbol: "  zetawork                 - Zeta workbench: tabs, panes, and the suite menu",
+		why: "the companion-tools block in `zetacode --help` is the discovery surface for the other two products (registry: 伴侣产品 bin); listing a retired command here points users at a bin no install creates.",
+	},
 	// -- Native sentinel ----------------------------------------------------------
 	{
 		file: "crates/pi-natives/src/lib.rs",

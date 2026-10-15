@@ -1014,8 +1014,8 @@ function AppShellContent() {
 	);
 
 	// 「在终端打开」 (spec U9): pop the terminal pane with a session that runs
-	// `zeta-ide <file>`; the gateway falls back to a plain shell when the
-	// zeta-ide binary is not on PATH.
+	// `zetaide <file>`; the gateway falls back to a plain shell when the
+	// zetaide binary is not on PATH.
 	const handleOpenFileInTerminal = useCallback((filePath: string) => {
 		setDockTool("terminal");
 		setTerminalFileRequest({ file: filePath, nonce: Date.now() });
@@ -1644,7 +1644,7 @@ function AppShellContent() {
 									} as React.CSSProperties
 								}
 							>
-								{(["zetacode", "zetaide", "zetaeditor", "zetawork"] as const).map(tool => (
+								{(["zetacode", "zetaide", "zetawork"] as const).map(tool => (
 									<button
 										key={tool}
 										type="button"

@@ -7,13 +7,7 @@ use termide_panel_terminal::Terminal;
 
 use crate::layout::{Axis, PaneNode, Side};
 
-/// Suite bin names, in resolution-priority order. `zeta` is deliberately
-/// absent from `AGENT_BINS`: since the npm package split it is the
-/// workbench's own bin (`@linxiraos/main`) and resolving the agent pane to
-/// it would spawn the workbench recursively.
-pub const AGENT_BINS: &[&str] = &["zetacode", "zeta-c", "zeta-cli"];
-pub const EDITOR_BINS: &[&str] = &["zetaeditor", "zeta-editor", "zeta-e"];
-pub const IDE_BINS: &[&str] = &["zeta-ide", "zeta-i"];
+use crate::suite::{CODING_BINS, IDE_BINS};
 
 /// What a pane runs — drives the pane label and the menu entries.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -32,7 +26,7 @@ pub enum PaneKind {
 	Command(String),
 	/// One-click bring-up of a missing suite tool: the raw install command
 	/// runs inside a modern chained shell (never cmd.exe), the pane stays
-	/// open afterwards, and the title stays readable (`install · zeta-c`).
+	/// open afterwards, and the title stays readable (`install · zetacode`).
 	Install {
 		tool: String,
 		command: String,
@@ -73,7 +67,6 @@ impl PaneKind {
 	pub(crate) fn install_spec(&self) -> Option<(&'static str, &'static str)> {
 		match self {
 			PaneKind::Agent => Some(("zetacode", "npm install -g @linxiraos/zeta")),
-			PaneKind::Editor => Some(("zetaeditor", "npm install -g @linxiraos/editor")),
 			PaneKind::Ide => Some(("zetaide", "npm install -g @linxiraos/ide")),
 			_ => None,
 		}
@@ -88,8 +81,7 @@ impl PaneKind {
 	/// visible, and the next Alt+<tool> finds the freshly installed binary.
 	pub fn install_kind(&self) -> Option<PaneKind> {
 		let bins = match self {
-			PaneKind::Agent => AGENT_BINS,
-			PaneKind::Editor => EDITOR_BINS,
+			PaneKind::Agent => CODING_BINS,
 			PaneKind::Ide => IDE_BINS,
 			_ => return None,
 		};
@@ -106,15 +98,17 @@ impl PaneKind {
 	/// tool panes keep their history.
 	fn launch_line(&self, shell: &crate::shell::Shell) -> Option<String> {
 		match self {
-			PaneKind::Shell | PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard => None,
+			// No child process: bare shells, native widgets, and the
+			// in-process editor panel all have nothing to type.
+			PaneKind::Shell
+			| PaneKind::Time
+			| PaneKind::Pomodoro
+			| PaneKind::Clipboard
+			| PaneKind::Editor => None,
 			PaneKind::Command(line) => Some(line.clone()),
 			PaneKind::Install { command, .. } => Some(command.clone()),
 			PaneKind::Agent => {
-				let candidates = crate::shell::resolve_bin_candidates(AGENT_BINS);
-				crate::shell::exec_line(shell, &candidates)
-			},
-			PaneKind::Editor => {
-				let candidates = crate::shell::resolve_bin_candidates(EDITOR_BINS);
+				let candidates = crate::shell::resolve_bin_candidates(CODING_BINS);
 				crate::shell::exec_line(shell, &candidates)
 			},
 			PaneKind::Ide => {
@@ -138,7 +132,7 @@ pub enum PaneBody {
 }
 
 /// One sub-page of a pane. Pages are live: switching keeps every PTY running
-/// so several zeta-c sessions can share one pane slot.
+/// so several zetacode sessions can share one pane slot.
 pub struct Page {
 	pub kind: PaneKind,
 	pub body: PaneBody,
@@ -584,16 +578,13 @@ pub fn link_target_text(path: &std::path::Path, line: Option<u32>, col: Option<u
 	text
 }
 
-/// Shell line that opens `target_text` in the suite IDE: `IDE_BINS` first,
-/// `EDITOR_BINS` as the fallback, `None` when neither is on PATH.
+/// Shell line that opens `target_text` in the suite IDE (`zetaide`), or
+/// `None` when it is not on PATH. The workbench's own editor pane is the
+/// in-process panel, so there is no editor command to fall back to.
 pub fn ide_open_command(shell: &crate::shell::Shell, target_text: &str) -> Option<String> {
-	for bins in [IDE_BINS, EDITOR_BINS] {
-		let candidates = crate::shell::resolve_bin_candidates(bins);
-		if let Some(bin) = crate::shell::exec_line(shell, &candidates) {
-			return Some(format!("{bin} {}", shell.quote_arg(target_text)));
-		}
-	}
-	None
+	let candidates = crate::shell::resolve_bin_candidates(IDE_BINS);
+	let bin = crate::shell::exec_line(shell, &candidates)?;
+	Some(format!("{bin} {}", shell.quote_arg(target_text)))
 }
 
 /// Ensure the Panel trait is linked even if call sites change.
@@ -661,12 +652,12 @@ mod tests {
 			PaneKind::Agent.install_spec(),
 			Some(("zetacode", "npm install -g @linxiraos/zeta"))
 		);
-		assert_eq!(
-			PaneKind::Editor.install_spec(),
-			Some(("zetaeditor", "npm install -g @linxiraos/editor"))
-		);
 		assert_eq!(PaneKind::Ide.install_spec(), Some(("zetaide", "npm install -g @linxiraos/ide")));
 		assert_eq!(PaneKind::Shell.install_spec(), None, "shells never install");
+		// The editor pane is the in-process panel: nothing to install, no
+		// command to resolve, so it must never divert to an install pane.
+		assert_eq!(PaneKind::Editor.install_spec(), None, "the embedded editor installs nothing");
+		assert_eq!(PaneKind::Editor.install_kind(), None);
 	}
 
 	#[test]
@@ -685,7 +676,7 @@ mod tests {
 		// Regression guard: install panes used to run `cmd /k npm …` on
 		// Windows. The spec layer must stay raw — shell choice belongs to
 		// the spawn layer, and cmd.exe is banned there for installs.
-		for kind in [PaneKind::Agent, PaneKind::Editor, PaneKind::Ide, PaneKind::Shell] {
+		for kind in [PaneKind::Agent, PaneKind::Ide, PaneKind::Shell] {
 			if let Some((_, command)) = kind.install_spec() {
 				assert!(!command.contains("cmd /k"), "cmd /k leaked into {command}");
 				assert!(!command.contains("sh -c"), "sh -c leaked into {command}");
@@ -695,13 +686,14 @@ mod tests {
 
 	#[test]
 	fn agent_bins_skip_the_workbench_itself() {
-		// `zeta` is the workbench's own npm bin (@linxiraos/main) since the
-		// package split; resolving the Agent pane to it would spawn the
-		// workbench recursively. Whatever the alias order, the workbench bin
-		// itself must never enter any suite resolution list.
-		assert!(!AGENT_BINS.contains(&"zeta"), "agent must not resolve to the workbench bin");
-		assert!(!EDITOR_BINS.contains(&"zeta"));
-		assert!(!IDE_BINS.contains(&"zeta"));
+		// `zeta`/`zetawork` are the workbench's own npm bins (@linxiraos/main);
+		// resolving a pane to them would spawn the workbench recursively.
+		// Whatever the bin order, the workbench bins must never enter any
+		// suite resolution list.
+		for bins in [CODING_BINS, IDE_BINS] {
+			assert!(!bins.contains(&"zeta"), "no suite pane may resolve to the workbench bin");
+			assert!(!bins.contains(&"zetawork"));
+		}
 	}
 
 	#[test]
@@ -869,11 +861,12 @@ mod tests {
 	}
 
 	#[test]
-	fn ide_open_command_orders_ide_bins_before_editor() {
-		// Resolution order is the contract: a zeta-ide on PATH must win over
-		// zeta-editor regardless of alias order inside each list.
-		assert_eq!(IDE_BINS, ["zeta-ide", "zeta-i"]);
-		assert_eq!(EDITOR_BINS, ["zetaeditor", "zeta-editor", "zeta-e"]);
+	fn ide_open_command_targets_the_canonical_ide_bin() {
+		// One canonical name per product, from the suite table: the CLI's
+		// alias bins are gone, so a list carrying them would resolve to
+		// nothing.
+		assert_eq!(IDE_BINS, ["zetaide"]);
+		assert_eq!(CODING_BINS, ["zetacode"]);
 	}
 
 	#[test]
@@ -885,6 +878,6 @@ mod tests {
 			flavor: crate::shell::ShellFlavor::PowerShell,
 		};
 		let target = link_target_text(std::path::Path::new("C:/repo/a b.rs"), Some(4), Some(2));
-		assert_eq!(format!("zeta-ide {}", shell.quote_arg(&target)), "zeta-ide 'C:/repo/a b.rs:4:2'");
+		assert_eq!(format!("zetaide {}", shell.quote_arg(&target)), "zetaide 'C:/repo/a b.rs:4:2'");
 	}
 }

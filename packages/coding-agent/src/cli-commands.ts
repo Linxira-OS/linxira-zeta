@@ -210,6 +210,9 @@ export const commands: CommandEntry[] = [
 		name: "serve",
 		load: () => import("./commands/serve").then(m => m.default),
 		help: commandHelp.serveHelp,
+		// `server` mirrors the workbench's `zetawork web` / `zetawork server`
+		// pair: one machine, two spellings users reach for.
+		aliases: ["server"],
 	},
 	{
 		name: "share",

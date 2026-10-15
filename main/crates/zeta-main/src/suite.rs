@@ -1,16 +1,30 @@
 //! Suite-tool resolution and the `zeta doctor` install report.
 //!
-//! The SUITE table is the single source of suite configuration: bin
-//! aliases, the owning npm package, the canonical install command, and the
-//! workbench pane kind. Every surface — `zeta doctor` fix lines, the CLI
-//! handoff (`zeta code|editor|ide`), and the workbench's install
+//! The SUITE table is the single source of suite configuration: bin names,
+//! the owning npm package, the canonical install command, and the workbench
+//! pane kind. Every surface — `zeta doctor` fix lines, the CLI handoff
+//! (`zetawork code|ide|web`), the pane layer and the workbench's install
 //! flow — renders what this table computes; none writes its own copy.
+//!
+//! One name per product (registry: companion-product bins): `zetacode` and
+//! `zetaide` are the only bin names these packages install. The hyphenated
+//! compatibility aliases (`zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`) and the
+//! retired editor command (`zetaeditor`/`zeta-editor`/`zeta-e`) are gone —
+//! a table carrying them would make `zeta doctor` resolve names no install
+//! creates, and the coded panes would spawn nothing.
 
 use crate::tab::PaneKind;
 
+/// Bin names of the coding CLI (`@linxiraos/zeta`), in resolution order.
+/// The workbench's own bins (`zeta`/`zetawork`) are deliberately absent:
+/// resolving a pane to them would spawn the workbench recursively.
+pub const CODING_BINS: &[&str] = &["zetacode"];
+
+/// Bin names of the terminal IDE (`@linxiraos/ide`).
+pub const IDE_BINS: &[&str] = &["zetaide"];
+
 pub struct SuiteTool {
-	/// Product name, as the menus spell it (full names: zeta-editor,
-	/// zeta-ide).
+	/// Product name, as the menus spell it (full names: zeta-code, zeta-ide).
 	pub name: &'static str,
 	/// PATH lookup candidates: the canonical bin first, private aliases
 	/// after. These are the bins the owning npm package actually installs.
@@ -24,19 +38,13 @@ pub struct SuiteTool {
 pub const SUITE: &[SuiteTool] = &[
 	SuiteTool {
 		name: "zetacode (coding CLI)",
-		bins: &["zetacode", "zeta-c", "zeta-cli"],
+		bins: CODING_BINS,
 		package: "@linxiraos/zeta",
 		kind: PaneKind::Agent,
 	},
 	SuiteTool {
-		name: "zetaeditor (TTT)",
-		bins: &["zetaeditor", "zeta-editor", "zeta-e"],
-		package: "@linxiraos/editor",
-		kind: PaneKind::Editor,
-	},
-	SuiteTool {
 		name: "zetaide (TermIDE)",
-		bins: &["zetaide", "zeta-ide", "zeta-i"],
+		bins: IDE_BINS,
 		package: "@linxiraos/ide",
 		kind: PaneKind::Ide,
 	},
@@ -54,9 +62,9 @@ impl SuiteTool {
 	}
 }
 
-/// The suite tool behind a bin name — any alias resolves, not just the
-/// primary (aliases ship together in one package, so a secondary is just as
-/// authoritative).
+/// The suite tool behind a bin name. Each tool declares exactly one bin
+/// today; the slice form stays because callers resolve by candidate list
+/// (argv dispatcher and pane layer pass the same table entries).
 pub fn tool_by_bins(bins: &[&str]) -> Option<&'static SuiteTool> {
 	bins
 		.iter()
@@ -117,7 +125,7 @@ pub fn doctor() -> String {
 		}
 	}
 	out.push_str(&format!(
-		"\n  {} of {} tools installed. Missing tools self-install:\n  Alt+C/E/I opens an install \
+		"\n  {} of {} tools installed. Missing tools self-install:\n  Alt+C/I opens an install \
 		 pane; Tools ▸ Install missing\n  fills every gap at once.\n",
 		SUITE.len() - missing,
 		SUITE.len()
@@ -131,7 +139,7 @@ mod tests {
 
 	#[test]
 	fn suite_table_is_consistent() {
-		assert_eq!(SUITE.len(), 3, "workspace + coding CLI + editor + IDE, no files leg");
+		assert_eq!(SUITE.len(), 2, "coding CLI + IDE; the editor pane is built in");
 		for tool in SUITE {
 			assert!(!tool.name.is_empty() && !tool.bins.is_empty(), "{}: identity set", tool.name);
 			assert!(
@@ -176,28 +184,30 @@ mod tests {
 
 	#[test]
 	fn workbench_bin_is_not_a_suite_alias() {
-		// `zeta` is the WORKBENCH binary (@linxiraos/main). Treating it as a
-		// zeta-c alias made doctor report the coding CLI installed whenever
-		// the workbench itself was on PATH.
+		// `zeta`/`zetawork` are the WORKBENCH bins (@linxiraos/main).
+		// Treating them as a zetacode alias made doctor report the coding CLI
+		// installed whenever the workbench itself was on PATH.
 		for tool in SUITE {
 			assert!(!tool.bins.contains(&"zeta"), "{} must not alias `zeta`", tool.name);
+			assert!(!tool.bins.contains(&"zetawork"), "{} must not alias `zetawork`", tool.name);
 		}
 		assert!(tool_by_bins(&["zeta"]).is_none(), "`zeta` resolves to no suite tool");
+		assert!(tool_by_bins(&["zetawork"]).is_none());
 	}
 
 	#[test]
-	fn bin_aliases_match_the_published_packages() {
-		// Ground truth: each package's own bin map.
-		assert_eq!(
-			tool_by_bins(&["zeta-c", "zeta-cli", "zetacode"]).map(|t| t.package),
-			Some("@linxiraos/zeta")
-		);
-		assert_eq!(
-			tool_by_bins(&["zeta-editor", "zeta-e"]).map(|t| t.package),
-			Some("@linxiraos/editor")
-		);
-		assert_eq!(tool_by_bins(&["zeta-ide", "zeta-i"]).map(|t| t.package), Some("@linxiraos/ide"));
+	fn bins_match_the_published_packages() {
+		// Ground truth: each package's own bin map (one name each).
+		assert_eq!(tool_by_bins(&["zetacode"]).map(|t| t.package), Some("@linxiraos/zeta"));
+		assert_eq!(tool_by_bins(&["zetaide"]).map(|t| t.package), Some("@linxiraos/ide"));
 		assert!(tool_by_bins(&["nosuchbin"]).is_none());
+		// The deleted compatibility names resolve to nothing, so no pane and
+		// no install hint can silently fall back to a command that no longer
+		// exists.
+		for gone in ["zeta-c", "zeta-cli", "zeta-ide", "zeta-i", "zeta-editor", "zeta-e", "zetaeditor"]
+		{
+			assert!(tool_by_bins(&[gone]).is_none(), "`{gone}` must not resolve");
+		}
 	}
 
 	#[test]
@@ -256,13 +266,5 @@ mod tests {
 	#[test]
 	fn empty_batch_has_no_line() {
 		assert!(install_batch_line(&[]).is_none());
-	}
-
-	#[test]
-	fn secondary_alias_yields_the_canonical_command() {
-		let zeta_c = tool_by_bins(&["zeta-cli"]).expect("secondary alias resolves");
-		assert_eq!(zeta_c.install_command().as_deref(), Some("npm install -g @linxiraos/zeta"));
-		let editor = tool_by_bins(&["zeta-e"]).expect("secondary alias resolves");
-		assert_eq!(editor.install_command().as_deref(), Some("npm install -g @linxiraos/editor"));
 	}
 }

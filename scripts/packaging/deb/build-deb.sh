@@ -24,10 +24,8 @@ mkdir -p "$PKG_DIR/usr/share/zsh/site-functions"
 mkdir -p "$PKG_DIR/usr/share/fish/vendor_completions.d"
 
 # ----- Binary -----
-cp "$BINARY" "$PKG_DIR/usr/bin/zeta-c"
-chmod 755 "$PKG_DIR/usr/bin/zeta-c"
-ln -s /usr/bin/zeta-c "$PKG_DIR/usr/bin/zeta-cli"
-ln -s /usr/bin/zeta-c "$PKG_DIR/usr/bin/zetacode"
+cp "$BINARY" "$PKG_DIR/usr/bin/zetacode"
+chmod 755 "$PKG_DIR/usr/bin/zetacode"
 
 # ----- License -----
 if [ -f "$REPO_ROOT/LICENSE" ]; then

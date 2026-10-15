@@ -3,7 +3,7 @@
  * GET /api/open/options — reports every open target with availability, plus
  * the resolved terminal shell for the platform.
  *
- * Body: { target: "terminal"|"explorer"|"editor"|"terminal-ide"|"terminal-editor", path?, editor? }
+ * Body: { target: "terminal"|"explorer"|"editor"|"terminal-ide", path?, editor? }
  *   path defaults to the current project root when omitted and must remain
  *   inside that project. Desktop requests return a signed path capability for
  *   the Electron host (`file-manager` / `editor:*` targets only); browser
@@ -49,9 +49,8 @@ const EDITOR_LABELS: Record<string, string> = {
 	zed: "Zed",
 };
 
-/** PATH probe order mirrors the bins each bundled npm package installs. */
-export const ZETA_IDE_BINS = ["zeta-ide", "zetaide", "zeta-i"] as const;
-const ZETA_EDITOR_BINS = ["zeta-editor", "zetaeditor", "zeta-e"] as const;
+/** PATH probe order mirrors the one bin each bundled npm package installs. */
+export const ZETA_IDE_BINS = ["zetaide"] as const;
 
 // --- terminal shell resolution ---
 
@@ -164,8 +163,8 @@ function resolveEditors(ctx: OpenProbeContext): string[] {
 }
 
 /**
- * Bundled terminal-tool lookup (zeta-ide / zeta-editor) across the unified
- * discovery tiers: ① `ZETA_BIN_DIR` ② PATH ③ npm-form global-bin dirs.
+ * Bundled terminal-tool lookup (`zetaide`) across the unified discovery
+ * tiers: ① `ZETA_BIN_DIR` ② PATH ③ npm-form global-bin dirs.
  */
 function resolveZetaTool(bins: readonly string[], ctx: OpenProbeContext): string | null {
 	return discoverBin(bins, { env: ctx.env, platform: ctx.platform, exists: ctx.exists });
@@ -213,7 +212,13 @@ function cachedZetaTool(key: string, bins: readonly string[], ctx: OpenProbeCont
 
 // --- options payload ---
 
-export type OpenTargetType = "terminal" | "explorer" | "editor" | "terminal-ide" | "terminal-editor";
+export type OpenTargetType = "terminal" | "explorer" | "editor" | "terminal-ide";
+
+/** Every target `POST /api/open` accepts, in menu order. A target outside
+ * this list is a 400, never a silent `no_app_found`: the retired
+ * `terminal-editor` (the deleted `zeta-editor` command) must fail loudly for
+ * a client that still asks for it. */
+export const OPEN_TARGETS = ["terminal", "explorer", "editor", "terminal-ide"] as const;
 
 export interface OpenTargetOption {
 	type: OpenTargetType;
@@ -241,8 +246,7 @@ export function getOpenOptions(desktop: boolean, ctx: OpenProbeContext = default
 	const platform = ctx.platform;
 	const terminal = cachedTerminal(ctx);
 	const linuxEmulator = platform === "linux" ? cachedLinuxEmulator(ctx) : null;
-	const zetaIde = cachedZetaTool("zeta-ide", ZETA_IDE_BINS, ctx);
-	const zetaEditor = cachedZetaTool("zeta-editor", ZETA_EDITOR_BINS, ctx);
+	const zetaIde = cachedZetaTool("zetaide", ZETA_IDE_BINS, ctx);
 
 	const terminalAvailable =
 		!desktop &&
@@ -279,12 +283,6 @@ export function getOpenOptions(desktop: boolean, ctx: OpenProbeContext = default
 			available: zetaIde !== null,
 			detail: zetaIde ?? undefined,
 		},
-		{
-			type: "terminal-editor",
-			label: "Zeta Editor",
-			available: zetaEditor !== null,
-			detail: zetaEditor ?? undefined,
-		},
 	];
 	const firstAvailable = targets.find(target => target.available);
 	if (firstAvailable) firstAvailable.default = true;
@@ -308,6 +306,9 @@ export async function handleOpenPost(req: Request): Promise<Response> {
 	try {
 		const body = (await req.json()) as { target?: string; path?: string; editor?: string };
 		const target = body.target ?? "terminal";
+		if (!(OPEN_TARGETS as readonly string[]).includes(target)) {
+			return json({ error: `Unknown target: ${target}` }, 400);
+		}
 		const projectPath = path.resolve(getProjectDir());
 		const dir = body.path ? path.resolve(body.path) : projectPath;
 
@@ -326,10 +327,9 @@ export async function handleOpenPost(req: Request): Promise<Response> {
 					return json({ error: "Unknown desktop target" }, 400);
 				return json(desktopOpenPath(dir));
 			}
-			// terminal-ide / terminal-editor have no host target id; the gateway
-			// process spawns them directly, exactly as for browser clients.
-			if (target !== "terminal-ide" && target !== "terminal-editor")
-				return json({ error: "Unknown desktop target" }, 400);
+			// terminal-ide has no host target id; the gateway process spawns it
+			// directly, exactly as for browser clients.
+			if (target !== "terminal-ide") return json({ error: "Unknown desktop target" }, 400);
 		}
 
 		const ctx = defaultProbeContext();
@@ -353,9 +353,8 @@ export async function handleOpenPost(req: Request): Promise<Response> {
 			const resolvedPath = cli ? whichCommand(cli, ctx) : null;
 			if (!resolvedPath) return json({ error: `unknown editor: ${chosen}` }, 404);
 			args = [resolvedPath, dir];
-		} else if (target === "terminal-ide" || target === "terminal-editor") {
-			const bins = target === "terminal-ide" ? ZETA_IDE_BINS : ZETA_EDITOR_BINS;
-			const resolvedPath = cachedZetaTool(target, bins, ctx);
+		} else if (target === "terminal-ide") {
+			const resolvedPath = cachedZetaTool("zetaide", ZETA_IDE_BINS, ctx);
 			if (!resolvedPath) return json({ error: "no_app_found" }, 404);
 			args = [resolvedPath];
 		}

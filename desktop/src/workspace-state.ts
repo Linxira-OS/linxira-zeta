@@ -3,7 +3,7 @@
  *
  * Lives at `<userData>/workspace-state.json` and records:
  *   - the last window bounds (+ maximized flag), restored on next launch
- *   - a bounded history of tool launches (zetacode / zetaide / zetaeditor),
+ *   - a bounded history of tool launches (zetacode / zetaide / zetawork),
  *     including the per-launch zetacode session directory used for `--resume`
  *
  * Writes are atomic (temp file + same-dir rename), mirroring
@@ -18,7 +18,7 @@ export const WORKSPACE_STATE_FILE = "workspace-state.json";
 
 export const MAX_LAUNCH_RECORDS = 50;
 
-export const TOOL_IDS = ["zetacode", "zetaide", "zetaeditor", "zetawork"] as const;
+export const TOOL_IDS = ["zetacode", "zetaide", "zetawork"] as const;
 export type ToolId = (typeof TOOL_IDS)[number];
 
 export function isToolId(value: unknown): value is ToolId {

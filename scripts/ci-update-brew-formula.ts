@@ -99,18 +99,15 @@ export function renderFormula(version: string, sums: Record<string, string>): st
 
   def install
     binary = Dir["zeta-cli-*"].first
-    bin.install binary => "zeta-c"
-    (bin/"zeta-c").chmod 0555
-    # zeta-cli / zetacode are aliases of the same binary
-    bin.install_symlink bin/"zeta-c" => "zeta-cli"
-    bin.install_symlink bin/"zeta-c" => "zetacode"
+    bin.install binary => "zetacode"
+    (bin/"zetacode").chmod 0555
     with_env(HOME: buildpath) do
-      generate_completions_from_executable(bin/"zeta-c", "completions", shells: [:bash, :zsh, :fish])
+      generate_completions_from_executable(bin/"zetacode", "completions", shells: [:bash, :zsh, :fish])
     end
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/zeta-c --version")
+    assert_match version.to_s, shell_output("#{bin}/zetacode --version")
   end
 end
 `;

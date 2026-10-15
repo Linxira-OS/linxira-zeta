@@ -11,8 +11,6 @@ const STATS_RUNTIME_IMAGES: Record<string, true> = {
 	bun: true,
 	node: true,
 	// Zeta runtime images: the compiled CLI and the standalone npm bin.
-	"zeta-c": true,
-	"zeta-cli": true,
 	zetacode: true,
 	"zeta-stats": true,
 	// Upstream OMP images kept so a leftover upstream dashboard is still reclaimable.
@@ -257,12 +255,9 @@ async function reclaimStatsPort(port: number, hasDashboardIdentity = false): Pro
 		normalizedImage === "omp-stats" ||
 		/(?:^|[/"'\s])(?:zeta|omp)-stats(?:\.exe)?(?:["'\s]|$)/.test(normalizedCommand) ||
 		/\/packages\/stats\/src\/index\.ts(?:["'\s]|$)/.test(normalizedCommand) ||
-		((normalizedImage === "zeta-c" ||
-			normalizedImage === "zeta-cli" ||
-			normalizedImage === "zetacode" ||
-			normalizedImage === "omp") &&
+		((normalizedImage === "zetacode" || normalizedImage === "omp") &&
 			/(?:^|\s)stats(?:\s|$)/.test(normalizedCommand)) ||
-		/(?:^|\/)(?:zeta-c|zeta-cli|zetacode|omp)(?:\.exe)?["'\s]+stats(?:["'\s]|$)/.test(normalizedCommand);
+		/(?:^|\/)(?:zetacode|omp)(?:\.exe)?["'\s]+stats(?:["'\s]|$)/.test(normalizedCommand);
 	if (!STATS_RUNTIME_IMAGES[normalizedImage] || (!hasStatsIdentity && !hasDashboardIdentity)) {
 		throw new Error(
 			`Port ${port} is in use by ${holder.image} (PID ${holder.pid}), which is not identifiable as a zetacode stats dashboard; refusing to stop it.`,

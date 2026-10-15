@@ -19,14 +19,14 @@ import * as path from "node:path";
 import type { ToolId } from "./workspace-state";
 
 export const TOOL_BIN_NAMES: Record<ToolId, readonly string[]> = {
-	zetacode: ["zetacode", "zeta-c", "zeta-cli"],
-	zetaide: ["zetaide", "zeta-ide", "zeta-i"],
-	zetaeditor: ["zetaeditor", "zeta-editor", "zeta-e"],
-	// The framework workbench (@linxiraos/main): npm bins `zeta` / `zetawork` /
-	// `zeta-work`, distro package `zetawork`. Probe order mirrors the gateway's
-	// `ZETAWORK_BINS` so the desktop launcher and the embedded terminal default
-	// can never disagree about which program "the workbench" means.
-	zetawork: ["zetawork", "zeta-work", "zeta"],
+	zetacode: ["zetacode"],
+	zetaide: ["zetaide"],
+	// The framework workbench (@linxiraos/main): npm bins `zeta` / `zetawork`,
+	// distro package `zetawork`. No hyphenated compatibility names exist any
+	// more. Probe order mirrors the gateway's `ZETAWORK_BINS` so the desktop
+	// launcher and the embedded terminal default can never disagree about
+	// which program "the workbench" means.
+	zetawork: ["zetawork", "zeta"],
 };
 
 export interface ToolResolutionDeps {
@@ -124,15 +124,12 @@ function vendoredCandidates(toolId: ToolId, deps: ToolResolutionDeps, repoRoot: 
 	if (toolId === "zetawork") {
 		// Same two checkout shapes the npm shim itself probes: the platform-leaf
 		// binary, then the cargo output. `zeta` is the leaf name in both (see
-		// main/npm/main/bin/zeta.js — `zeta.exe` / `zeta-linux-x64`).
+		// main/npm/main/bin/launch.js — `zeta.exe` / `zeta-linux-x64`).
 		pushBinary(path.join(repoRoot, "main", "npm", `main-${tag}-x64`, "bin", leafBinaryName("zeta", deps.platform)));
 		pushBinary(path.join(repoRoot, "main", "target", "release", deps.platform === "win32" ? "zeta.exe" : "zeta"));
 		return candidates;
 	}
 
-	// zetaeditor
-	pushBinary(path.join(repoRoot, "editor", "npm", `editor-${tag}-x64`, "bin", leafBinaryName("ttt", deps.platform)));
-	pushBinary(path.join(repoRoot, "editor", "bin", deps.platform === "win32" ? "ttt.exe" : "ttt"));
 	return candidates;
 }
 

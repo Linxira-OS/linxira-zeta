@@ -74,7 +74,7 @@ export function hasDesktopToolLauncher(): boolean {
 	return typeof window !== "undefined" && typeof window.piDesktop?.spawnTool === "function";
 }
 
-export type DesktopToolId = "zetacode" | "zetaide" | "zetaeditor" | "zetawork";
+export type DesktopToolId = "zetacode" | "zetaide" | "zetawork";
 
 /** Spawn a companion tool; rejects with the desktop shell's error message. */
 export async function spawnDesktopTool(

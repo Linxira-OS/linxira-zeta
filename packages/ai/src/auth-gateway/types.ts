@@ -10,7 +10,7 @@ import type {
 } from "../types";
 
 /**
- * Wire types for the zeta-c auth-gateway.
+ * Wire types for the zetacode auth-gateway.
  *
  * The gateway sits between unauthenticated clients (containerized zeta,
  * llm-git, …) and the broker. It accepts provider-format HTTP requests

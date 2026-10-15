@@ -12,9 +12,8 @@
     "directory": "main"
   },
   "bin": {
-    "zeta": "bin/zeta.js",
-    "zetawork": "bin/zeta.js",
-    "zeta-work": "bin/zeta.js"
+    "zetawork": "bin/zetawork.js",
+    "zeta": "bin/zeta.js"
   },
   "files": [
     "bin/",

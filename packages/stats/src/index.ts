@@ -48,7 +48,7 @@ function formatCost(n: number, unpricedRequests = 0): string {
 }
 
 /**
- * Print the dashboard summary to the console. Shared by `zeta-c stats --summary`
+ * Print the dashboard summary to the console. Shared by `zetacode stats --summary`
  * and the standalone `zeta-stats --sync`.
  */
 export async function printStatsSummary(): Promise<void> {

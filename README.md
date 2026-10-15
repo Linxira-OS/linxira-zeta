@@ -17,16 +17,17 @@ supported; there is no macOS build.
 
 ## The Suite
 
-| Command                 | Package             | What it is                                      |
-| ----------------------- | ------------------- | ----------------------------------------------- |
-| `zeta` / `zetawork`     | `@linxiraos/main`   | The workspace: nested-terminal workbench (Rust) |
-| `zetacode`              | `@linxiraos/zeta`   | Coding agent CLI                                |
-| `zetaeditor`            | `@linxiraos/editor` | Terminal editor (TTT, vendored Go)              |
-| `zetaide`               | `@linxiraos/ide`    | Terminal IDE (TermIDE, vendored Rust)           |
+| Command    | Package           | What it is                                            |
+| ---------- | ----------------- | ----------------------------------------------------- |
+| `zetawork` | `@linxiraos/main` | The workspace: nested-terminal workbench (Rust)       |
+| `zeta`     | `@linxiraos/main` | Suite index — a bare `zeta` prints the help/command map |
+| `zetacode` | `@linxiraos/zeta` | Coding agent CLI                                      |
+| `zetaide`  | `@linxiraos/ide`  | Terminal IDE (TermIDE, vendored Rust)                 |
 
-Every tool launches standalone with its own `--help`. The workbench is the
-unified entry: its coding/editor/IDE panes hand off to `zetacode`,
-`zetaeditor`, and `zetaide`.
+Every command launches standalone with its own `--help`; a bare `zeta` prints
+the suite index. The workbench is the unified entry: its coding/IDE panes hand
+off to `zetacode` and `zetaide`, and its editor pane is built in
+(`@linxiraos/editor` ships the vendored TTT binary with no command of its own).
 
 ## Quick Start
 
@@ -34,17 +35,18 @@ Install the workspace (Node 18+ or Bun on the machine):
 
 ```sh
 npm i -g @linxiraos/main      # or: bun add -g @linxiraos/main
-zeta                          # opens the workspace in the current directory
-zeta doctor                   # suite install status + exact fixes
+zetawork                      # opens the workspace in the current directory
+zetawork web                  # serves the full Web UI on loopback for your browser
+zetawork doctor               # suite install status + exact fixes
 ```
 
-`zeta doctor` lists every suite tool with installed/missing state and the
+`zetawork doctor` lists every suite tool with installed/missing state and the
 exact install command for what is missing. Missing tools also self-install
 into a workbench pane on first use. Install any tool standalone the same way:
 
 ```sh
 npm i -g @linxiraos/zeta      # zetacode — coding agent CLI
-npm i -g @linxiraos/editor    # zetaeditor — terminal editor
+npm i -g @linxiraos/editor    # editor binary for the built-in pane (no command)
 npm i -g @linxiraos/ide       # zetaide — terminal IDE
 ```
 
@@ -58,7 +60,8 @@ bun run dev
 
 ## The Workspace
 
-`zeta` is a real terminal multiplexer with product opinions, written in Rust:
+`zetawork` is a real terminal multiplexer with product opinions, written in
+Rust:
 
 - **Tabs and tiled panes** — each pane is a real PTY: anything that runs in a
   terminal runs in a pane (a shell, a `zetacode` session, the editor, the IDE).
@@ -70,7 +73,7 @@ bun run dev
   pointer operations.
 - **Widget panes** — a clock with a clickable calendar, a pomodoro timer, and
   a clipboard history pane run as native panes, not external tools.
-- **Suite-aware** — the Tools menu and `zeta doctor` know the suite; a missing
+- **Suite-aware** — the Tools menu and `zetawork doctor` know the suite; a missing
   tool installs itself into the pane that asked for it.
 
 ## The Coding Agent
@@ -111,10 +114,10 @@ inherits from upstream — and what Zeta owns — is stated per component:
 
 | Component                                                               | Upstream origin                                                                                        | Zeta ownership                                                                                                                      |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `main/` (workspace, `@linxiraos/main`, binary `zeta`)                   | Zeta-originated                                                                                        | Rust workspace built on the vendored termide crates; PaneTree layout, page stacks, widget panes, suite entry                        |
+| `main/` (workspace, `@linxiraos/main`, binaries `zetawork`/`zeta`)      | Zeta-originated                                                                                        | Rust workspace built on the vendored termide crates; PaneTree layout, page stacks, widget panes, suite entry                        |
 | `packages/coding-agent/` (CLI, `zetacode`)                                | OMP runtime tree, release-tag merges                                                                   | Brand, config dir `.zeta`, npm scope `@linxiraos/*`, release chain, Zeta-originated capabilities                                    |
 | `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats`   | OMP runtime tree                                                                                       | Same adaptation surface as the CLI                                                                                                  |
-| `editor/` (TTT Editor, `@linxiraos/editor`, binary `ttt`/`zetaeditor`) | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go source + prebuilt binaries         | Brand surface, Zeta theme, mouse/interaction fixes, i18n hook surface; every vendored-binary change is logged in `editor/VENDOR.md` |
+| `editor/` (TTT Editor, `@linxiraos/editor`, binary `ttt`)              | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go source + prebuilt binaries         | Brand surface, Zeta theme, mouse/interaction fixes, i18n hook surface; every vendored-binary change is logged in `editor/VENDOR.md` |
 | `termide/` (TermIDE, `@linxiraos/ide`, binaries `zetaide`)             | [termide/termide](https://github.com/termide/termide) — vendored Rust, ledgered in `termide/VENDOR.md` | Brand and npm surface; upstream snapshot with Zeta adaptations                                                                      |
 | `web-ui/`                                                               | OMP Web snapshot (frozen — manual cherry-picks only)                                                   | Own-desktop upgrade content, Next.js app                                                                                            |
 | `desktop/`                                                              | Zeta-originated                                                                                        | Electron shell that embeds the `web-ui/` build and the compiled runtime                                                             |
@@ -126,7 +129,7 @@ inherits from upstream — and what Zeta owns — is stated per component:
 Beyond the OMP runtime lineage, Zeta ships its own capabilities (roadmap in
 [document/roadmap.md](document/roadmap.md)):
 
-- **The workspace** (`zeta`) — tabs, tiled PTY panes with per-pane page
+- **The workspace** (`zetawork`) — tabs, tiled PTY panes with per-pane page
   stacks, a menu bar with full mouse control, native widget panes, and suite
   install/doctor integration.
 - **Adaptive long-term tracking** — ongoing session observation with standing
@@ -206,9 +209,9 @@ supported development/target platform; macOS is not built.
 
 | Surface                              | Linux      | Windows | macOS |
 | ------------------------------------ | ---------- | ------- | ----- |
-| `zeta` workspace (`@linxiraos/main`) | x64        | x64     | —     |
+| `zetawork` workspace (`@linxiraos/main`) | x64        | x64     | —     |
 | `zetacode` CLI                         | x64, arm64 | x64     | —     |
-| `zetaeditor` (`@linxiraos/editor`)  | x64        | x64     | —     |
+| editor binary (`@linxiraos/editor`)  | x64        | x64     | —     |
 | `zetaide` (`@linxiraos/ide`)        | x64        | x64     | —     |
 | `zetacode serve` (web workbench)       | x64, arm64 | x64     | —     |
 | `zeta-desktop` shell                 | x64        | x64     | —     |
@@ -245,16 +248,17 @@ Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，
 
 ### 套件
 
-| 命令                    | 包                  | 是什么                          |
-| ----------------------- | ------------------- | ------------------------------- |
-| `zeta` / `zetawork`     | `@linxiraos/main`   | 工作区：嵌套终端工作台(Rust)    |
-| `zetacode`              | `@linxiraos/zeta`   | 编码 Agent CLI                  |
-| `zetaeditor`            | `@linxiraos/editor` | 终端编辑器(TTT,vendored Go)     |
-| `zetaide`               | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust) |
+| 命令       | 包                  | 是什么                                          |
+| ---------- | ------------------- | ----------------------------------------------- |
+| `zetawork` | `@linxiraos/main`   | 工作区：嵌套终端工作台(Rust)                    |
+| `zeta`     | `@linxiraos/main`   | 套件索引——裸 `zeta` 打印帮助/命令表            |
+| `zetacode` | `@linxiraos/zeta`   | 编码 Agent CLI                                  |
+| `zetaide`  | `@linxiraos/ide`    | 终端 IDE(TermIDE,vendored Rust)                 |
 
-每个工具都能独立启动、各有自己的 `--help`。工作区是统一入口:
-其中的编码/编辑器/IDE 面板会接力到 `zetacode`、`zetaeditor` 与
-`zetaide`。
+每条命令都能独立启动、各有自己的 `--help`;裸 `zeta` 打印套件索引。工作区是
+统一入口:其中的编码/IDE 面板会接力到 `zetacode` 与 `zetaide`,编辑器面板
+则是内置的(`@linxiraos/editor` 只随包分发 vendored TTT 二进制,没有自己的
+命令)。
 
 ### 快速开始
 
@@ -262,16 +266,17 @@ Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，
 
 ```sh
 npm i -g @linxiraos/main      # 或:bun add -g @linxiraos/main
-zeta                          # 在当前目录打开工作区
-zeta doctor                   # 套件安装状态 + 精确修复命令
+zetawork                      # 在当前目录打开工作区
+zetawork web                  # 在 loopback 上起本机 Web UI 供浏览器访问
+zetawork doctor               # 套件安装状态 + 精确修复命令
 ```
 
-`zeta doctor` 逐项列出套件工具的安装状态,缺失项给出精确安装命令。缺失的
+`zetawork doctor` 逐项列出套件工具的安装状态,缺失项给出精确安装命令。缺失的
 工具也能在工作区里首次使用时直接装进窗格。任一工具同样可以独立安装:
 
 ```sh
 npm i -g @linxiraos/zeta      # zetacode — 编码 Agent CLI
-npm i -g @linxiraos/editor    # zetaeditor — 终端编辑器
+npm i -g @linxiraos/editor    # 内置编辑器面板的二进制(无独立命令)
 npm i -g @linxiraos/ide       # zetaide — 终端 IDE
 ```
 
@@ -285,7 +290,7 @@ bun run dev
 
 ### 工作区
 
-`zeta` 是一个有产品主张的真实终端复用器,Rust 编写:
+`zetawork` 是一个有产品主张的真实终端复用器,Rust 编写:
 
 - **标签页与平铺窗格** —— 每个窗格都是真实 PTY:终端里能跑的都能跑在
   窗格里(shell、`zetacode` 会话、编辑器、IDE)。任意窗格可左右或上下分裂;
@@ -295,7 +300,7 @@ bun run dev
   操作。
 - **组件窗格** —— 带可点击日历的时钟、番茄钟、剪贴板历史,都是原生窗格,
   不依赖外部工具。
-- **感知套件** —— Tools 菜单和 `zeta doctor` 认识全套件;缺失工具会在
+- **感知套件** —— Tools 菜单和 `zetawork doctor` 认识全套件;缺失工具会在
   请求它的那个窗格里直接自装。
 
 ### 编码 Agent
@@ -333,10 +338,10 @@ Zeta 是由四个上游项目组合而成的发行版,各自角色固定:
 
 | 组件                                                                  | 上游来源                                                                                         | Zeta 自有部分                                                                                       |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `main/`(工作区,`@linxiraos/main`,二进制 `zeta`)                       | Zeta 自创                                                                                        | 基于 vendored termide crates 的 Rust workspace;PaneTree 布局、子页栈、组件窗格、套件入口            |
+| `main/`(工作区,`@linxiraos/main`,二进制 `zetawork`/`zeta`)             | Zeta 自创                                                                                        | 基于 vendored termide crates 的 Rust workspace;PaneTree 布局、子页栈、组件窗格、套件入口            |
 | `packages/coding-agent/`(CLI,`zetacode`)                                | OMP 运行时树,按发布 tag 合并                                                                     | 品牌、配置目录 `.zeta`、npm scope `@linxiraos/*`、发布链、Zeta 自创能力                             |
 | `packages/ai`、`agent`、`catalog`、`tui`、`natives`、`utils`、`stats` | OMP 运行时树                                                                                     | 与 CLI 相同的适配面                                                                                 |
-| `editor/`(TTT Editor,`@linxiraos/editor`,二进制 `ttt`/`zetaeditor`)  | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go 源码 + 预构建二进制          | 品牌界面、Zeta 主题、鼠标/交互修复、i18n 钩子面;每个 vendored 二进制变更都记录在 `editor/VENDOR.md` |
+| `editor/`(TTT Editor,`@linxiraos/editor`,二进制 `ttt`)                 | [eugenioenko/ttt](https://github.com/eugenioenko/ttt) — vendored Go 源码 + 预构建二进制          | 品牌界面、Zeta 主题、鼠标/交互修复、i18n 钩子面;每个 vendored 二进制变更都记录在 `editor/VENDOR.md` |
 | `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zetaide`)                | [termide/termide](https://github.com/termide/termide) — vendored Rust,台账见 `termide/VENDOR.md` | 品牌与 npm 面;上游快照加 Zeta 适配                                                                  |
 | `web-ui/`                                                             | OMP Web 快照(冻结——仅手动 cherry-pick)                                                           | 自有桌面升级内容、Next.js 应用                                                                      |
 | `desktop/`                                                            | Zeta 自创                                                                                        | 嵌入 `web-ui/` 构建和编译后运行时的 Electron 外壳                                                   |
@@ -348,7 +353,7 @@ Zeta 是由四个上游项目组合而成的发行版,各自角色固定:
 除 OMP 运行时谱系之外,Zeta 还提供自己的能力(路线图见
 [document/roadmap.md](document/roadmap.md)):
 
-- **工作区**(`zeta`)—— 标签页、带子页栈的平铺 PTY 窗格、全鼠标可控的
+- **工作区**(`zetawork`)—— 标签页、带子页栈的平铺 PTY 窗格、全鼠标可控的
   菜单栏、原生组件窗格,以及套件安装/doctor 集成。
 - **自适应长期跟踪** —— 持续的会话观察与常驻系统指引,在长会话中保持
   提供商前缀缓存稳定。
@@ -418,9 +423,9 @@ Linux 是主力平台(Linxira OS,基于 Arch);Windows x64 是受支持的开发�
 
 | 形态                               | Linux      | Windows | macOS |
 | ---------------------------------- | ---------- | ------- | ----- |
-| `zeta` 工作区(`@linxiraos/main`)   | x64        | x64     | —     |
+| `zetawork` 工作区(`@linxiraos/main`) | x64        | x64     | —     |
 | `zetacode` CLI                       | x64, arm64 | x64     | —     |
-| `zetaeditor`(`@linxiraos/editor`) | x64        | x64     | —     |
+| 编辑器二进制(`@linxiraos/editor`)    | x64        | x64     | —     |
 | `zetaide`(`@linxiraos/ide`)       | x64        | x64     | —     |
 | `zetacode serve`(Web 工作台)         | x64, arm64 | x64     | —     |
 | `zeta-desktop` 外壳                | x64        | x64     | —     |

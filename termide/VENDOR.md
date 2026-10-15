@@ -7,8 +7,8 @@
 | 引入方式   | `git archive 0.41.0`(无上游 git 历史;上游 `.github/` 需显式删除,见「bump 流程」) |
 | 协议       | MIT(`LICENSE` 追加 Linxira-OS/Zeta 版权行)              |
 | 引入日期   | 2026-09-28(0.38.0 bump 2026-10-06;0.41.0 bump 2026-10-15)  |
-| npm 包     | `@linxiraos/ide`(bin `zeta-ide` + 短别名 `zeta-i`,Rust 二进制分发,版本对齐 Zeta 产品线;2026-09-30 由未发布的 `@linxiraos/work` 更名) |
-| 角色       | 工作台/壳:可视化文件管理器(最底层入口)+ 内嵌虚拟终端 pane;`zeta` 与 `zeta-editor`(短别名 `zeta-e`)作为 pane 内子进程经 PTY 组合,零代码耦合。产品愿景:把完整 Linux 无图形界面运维迁移到 Agent 流程的 TUI 底座 |
+| npm 包     | `@linxiraos/ide`(bin `zetaide`,Rust 二进制分发,版本对齐 Zeta 产品线;2026-09-30 由未发布的 `@linxiraos/work` 更名) |
+| 角色       | 工作台/壳:可视化文件管理器(最底层入口)+ 内嵌虚拟终端 pane;`zetacode`/`zetaide` 作为 pane 内子进程经 PTY 组合,编辑器为进程内面板,零代码耦合。产品愿景:把完整 Linux 无图形界面运维迁移到 Agent 流程的 TUI 底座 |
 
 ## 出局方案(选型记录)
 
@@ -29,7 +29,7 @@
 | # | 文件 | 偏离 | 上游演进/重放处理 | 0.41.0 处置 | 日期 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `LICENSE` | 版权行追加 Linxira-OS/Zeta | 无冲突,原样重放 | **保留**(上游版权行 0.41 已改 `2025-2026 Nick Nizovtsev and TermIDE contributors`,我方行追加其下);`npm/*/LICENSE` 三份副本同步刷新 | 2026-09-28 |
-| 2 | `npm/`(新增) | `@linxiraos/ide` 主包 + `ide-windows-x64`/`ide-linux-x64` 平台 leaf(bin `zeta-ide` + `zeta-i`;2026-09-30 由 work 更名,含 launcher win32→windows 映射修复与 leaf `files` 白名单) | 上游不涉 npm 面;每次 bump 后按发布流程重编 leaf 内嵌二进制并提交 | **保留**;并修掉 `npm/ide/VENDOR.md` 的陈旧副本(原记 0.35.0 `b1400585`、3 行,且随包发出去) | 2026-09-28 |
+| 2 | `npm/`(新增) | `@linxiraos/ide` 主包 + `ide-windows-x64`/`ide-linux-x64` 平台 leaf(bin `zetaide`;2026-09-30 由 work 更名,含 launcher win32→windows 映射修复与 leaf `files` 白名单) | 上游不涉 npm 面;每次 bump 后按发布流程重编 leaf 内嵌二进制并提交 | **保留**;并修掉 `npm/ide/VENDOR.md` 的陈旧副本(原记 0.35.0 `b1400585`、3 行,且随包发出去) | 2026-09-28 |
 | 3 | `rustfmt.toml`(新增) | 空配置文件,仅注释 | 无冲突,原样保留 | **保留**——0.41.0 tar 根条目已核实仍无 `rustfmt.toml` | 2026-09-28 |
 | 4 | `crates/core/src/event.rs` | `PanelEvent::OpenPath` 增 `line`/`col` | 上游大改 event.rs(0.39–0.41 新增 `OpenLink`/`OpenLinkExternal`/`CredentialsRequired`/`CredentialsAccepted`);OpenPath 本体仍未动 | **保留**(additive hunk 干净合并;上游至今无 `line`/`col`) | 2026-10-03 |
 | 5 | `crates/core/src/wide_cells.rs` | `mark_variation_selector_tails` 的 `#[allow(deprecated)]`(ratatui 0.30.0/0.30.2 版本线差) | 上游未动 | **保留**(ratatui 仍钉 0.30.0) | 2026-09-28 |

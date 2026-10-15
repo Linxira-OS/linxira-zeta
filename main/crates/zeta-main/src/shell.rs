@@ -9,7 +9,7 @@
 //! Binary probing is PATHEXT-aware. npm's global installs on Windows are
 //! shims — `name` (sh), `name.ps1`, `name.cmd` — and there is no
 //! `name.exe`, so the old `.exe`-only probe reported installed tools as
-//! missing (the "Split zeta-c opens an install pane" bug). Discovery follows
+//! missing (the "Split zetacode opens an install pane" bug). Discovery follows
 //! the product-wide order — explicit `ZETA_BIN_DIR` override, then the
 //! process PATH (the same value termide hands the pty child via `set_env`),
 //! then the npm/native global-bin directories a GUI-spawned process may be
@@ -637,8 +637,8 @@ mod tests {
 	fn quote_exec_powershell_call_operator_and_quote_doubling() {
 		let shell = Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
 		assert_eq!(
-			shell.quote_exec(Path::new(r"C:\Program Files\App\zeta-c.ps1")),
-			r"& 'C:\Program Files\App\zeta-c.ps1'"
+			shell.quote_exec(Path::new(r"C:\Program Files\App\zetacode.ps1")),
+			r"& 'C:\Program Files\App\zetacode.ps1'"
 		);
 		assert_eq!(shell.quote_exec(Path::new(r"C:\od d's\x.exe")), r"& 'C:\od d''s\x.exe'");
 	}
@@ -647,8 +647,8 @@ mod tests {
 	fn quote_exec_posix_forward_slashes_and_escape() {
 		let shell = Shell { path: PathBuf::from("bash.exe"), flavor: ShellFlavor::Posix };
 		assert_eq!(
-			shell.quote_exec(Path::new(r"C:\Users\a b\AppData\Roaming\npm\zeta-c")),
-			"'C:/Users/a b/AppData/Roaming/npm/zeta-c'"
+			shell.quote_exec(Path::new(r"C:\Users\a b\AppData\Roaming\npm\zetacode")),
+			"'C:/Users/a b/AppData/Roaming/npm/zetacode'"
 		);
 		assert_eq!(shell.quote_exec(Path::new(r"C:\it's\x")), r"'C:/it'\''s/x'");
 	}
@@ -854,12 +854,12 @@ mod tests {
 	fn discovery_prefers_explicit_env_dir_over_path() {
 		let explicit = ProbeDir::new("explicit");
 		let on_path = ProbeDir::new("path");
-		let from_explicit = explicit.write("zeta-c");
-		let from_path = on_path.write("zeta-c");
+		let from_explicit = explicit.write("zetacode");
+		let from_path = on_path.write("zetacode");
 		// Candidates stay complete (callers may want every form), but the
 		// explicit-env hit must lead the PATH hit.
 		let found = resolve_bin_candidates_in(
-			&["zeta-c"],
+			&["zetacode"],
 			std::slice::from_ref(&on_path.root),
 			std::slice::from_ref(&explicit.root),
 			&[],
@@ -871,10 +871,10 @@ mod tests {
 	fn discovery_path_hit_skips_npm_fallback() {
 		let on_path = ProbeDir::new("path-hit");
 		let npm = ProbeDir::new("npm-hit");
-		let from_path = on_path.write("zeta-c");
-		npm.write("zeta-c");
+		let from_path = on_path.write("zetacode");
+		npm.write("zetacode");
 		let found = resolve_bin_candidates_in(
-			&["zeta-c"],
+			&["zetacode"],
 			std::slice::from_ref(&on_path.root),
 			&[],
 			std::slice::from_ref(&npm.root),
@@ -885,14 +885,14 @@ mod tests {
 	#[test]
 	fn discovery_empty_path_falls_back_to_npm_dirs() {
 		let npm = ProbeDir::new("npm-fallback");
-		let from_npm = npm.write("zeta-c");
-		let found = resolve_bin_candidates_in(&["zeta-c"], &[], &[], std::slice::from_ref(&npm.root));
+		let from_npm = npm.write("zetacode");
+		let found = resolve_bin_candidates_in(&["zetacode"], &[], &[], std::slice::from_ref(&npm.root));
 		assert_eq!(found, vec![from_npm]);
 	}
 
 	#[test]
 	fn discovery_all_tiers_empty_resolves_nothing() {
-		let found = resolve_bin_candidates_in(&["zeta-c"], &[], &[], &[]);
+		let found = resolve_bin_candidates_in(&["zetacode"], &[], &[], &[]);
 		assert!(found.is_empty());
 	}
 
@@ -965,13 +965,13 @@ mod tests {
 	fn exec_line_prefers_exe_then_flavor_shim() {
 		let ps = Shell { path: PathBuf::from("powershell.exe"), flavor: ShellFlavor::PowerShell };
 		let candidates = vec![
-			PathBuf::from(r"C:\npm\zeta-c"),
-			PathBuf::from(r"C:\npm\zeta-c.ps1"),
-			PathBuf::from(r"C:\npm\zeta-c.cmd"),
+			PathBuf::from(r"C:\npm\zetacode"),
+			PathBuf::from(r"C:\npm\zetacode.ps1"),
+			PathBuf::from(r"C:\npm\zetacode.cmd"),
 		];
 		assert_eq!(
 			exec_line_in(&ps, &candidates, &[]),
-			Some(r"& 'C:\npm\zeta-c.ps1'".to_string()),
+			Some(r"& 'C:\npm\zetacode.ps1'".to_string()),
 			"PowerShell prefers its own shim form"
 		);
 		let with_exe = vec![PathBuf::from(r"C:\scoop\shims\tool.exe")];
@@ -983,14 +983,14 @@ mod tests {
 		let bash = Shell { path: PathBuf::from("bash.exe"), flavor: ShellFlavor::Posix };
 		assert_eq!(
 			exec_line_in(&bash, &candidates, &[]),
-			Some("'C:/npm/zeta-c'".to_string()),
+			Some("'C:/npm/zetacode'".to_string()),
 			"bash prefers the extensionless sh shim"
 		);
 
 		let cmd = Shell { path: PathBuf::from("cmd.exe"), flavor: ShellFlavor::Cmd };
 		assert_eq!(
 			exec_line_in(&cmd, &candidates, &[]),
-			Some(r#""C:\npm\zeta-c.cmd""#.to_string()),
+			Some(r#""C:\npm\zetacode.cmd""#.to_string()),
 			"cmd prefers the .cmd shim"
 		);
 	}
@@ -1012,10 +1012,10 @@ mod tests {
 		);
 
 		let bash = Shell { path: PathBuf::from("bash"), flavor: ShellFlavor::Posix };
-		let exe = vec![npm.join("zetaeditor.exe")];
+		let exe = vec![npm.join("zetaide.exe")];
 		assert_eq!(
 			exec_line_in(&bash, &exe, std::slice::from_ref(&npm)),
-			Some("zetaeditor".to_string()),
+			Some("zetaide".to_string()),
 			"bash also types bare names for on-PATH .exe files"
 		);
 

@@ -532,7 +532,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 		await $`sd '^(\s{4}version = ")[^"]+(")' ${"$1" + version + "$2"} ${buildFile}`;
 	}
 
-	// Step 2f: vendored npm distributions (editor, termide/zeta-ide, the zeta
+	// Step 2f: vendored npm distributions (editor, termide/ide, the zeta
 	// workbench; not Bun workspaces — bumped here so the CI trusted-publishing
 	// jobs release them on the same release version). The launcher pins its
 	// platform leaves EXACTLY in optionalDependencies, so those refs move in

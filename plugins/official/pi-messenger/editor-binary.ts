@@ -1,10 +1,17 @@
 /**
- * Editor binary resolution — find `zeta-editor`, install it when missing.
+ * Editor binary resolution — resolve the platform executable of
+ * `@linxiraos/editor`, install it when missing.
  *
  * The editor ships as its own npm package (`@linxiraos/editor`) with
  * per-platform binary packages, so a fresh zeta install does not have it.
  * Refusing the switch with "install it yourself" is a dead end for the user,
  * so the default behaviour installs the package on demand.
+ *
+ * There is no editor *command* to probe: the one command surface is
+ * zetawork / zetacode / zetaide, and the workbench's editor pane is built in.
+ * The platform leaf's executable (`<leaf>/bin/ttt[.exe]`) is therefore
+ * resolved by path — the same resolution the package's own launcher used to
+ * do before it was retired.
  *
  * The Linux case needs care: a system Node often has a root-owned global
  * prefix, so `npm i -g` fails with EACCES. Retrying under sudo is the
@@ -14,43 +21,53 @@
 
 import * as cp from "node:child_process";
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 
 /** npm package that carries the editor binary for the current platform. */
 const EDITOR_PACKAGE = "@linxiraos/editor";
 
-/** Candidate locations for the `zeta-editor` launcher, most specific first. */
-export function editorBinaryCandidates(): string[] {
+/** npm names use "windows"; Node's `process.platform` is "win32". */
+const PKG_PLATFORM = process.platform === "win32" ? "windows" : process.platform;
+
+/** The platform leaf that carries the executable. */
+const LEAF_PACKAGE = `${EDITOR_PACKAGE}-${PKG_PLATFORM}-${process.arch}`;
+
+/** The executable's file name inside the leaf package. */
+const LEAF_EXE = process.platform === "win32" ? "ttt.exe" : "ttt-linux-x64";
+
+/**
+ * Node module-resolution roots for the leaf package, most specific first:
+ * npm's global prefix (Windows keeps `node_modules` beside `node.exe`, POSIX
+ * under `lib/`), zeta's own plugin tree (the editor can be installed as a
+ * plugin dependency) and the project.
+ */
+export function editorLeafRoots(): string[] {
 	const home = os.homedir();
-	const binName = process.platform === "win32" ? "zeta-editor.cmd" : "zeta-editor";
+	const execDir = path.dirname(process.execPath);
 	return [
-		// npm global install next to the running zeta binary
-		path.join(path.dirname(process.execPath), binName),
-		// zeta's own plugin tree (the editor can be installed as a plugin dep)
-		path.join(home, ".zeta", "plugins", "node_modules", ".bin", binName),
-		// project-local install
-		path.join(process.cwd(), "node_modules", ".bin", binName),
+		path.join(execDir, "node_modules"),
+		path.join(execDir, "..", "lib", "node_modules"),
+		path.join(home, ".zeta", "plugins", "node_modules"),
+		path.join(process.cwd(), "node_modules"),
 	];
 }
 
-/** Absolute path to the launcher, or null when the package is not installed. */
+/**
+ * Absolute path to the platform editor executable, or null when the package
+ * is not installed. Resolution goes through Node's own algorithm so a leaf
+ * installed flat or nested both resolve.
+ */
 export function findEditorBinary(): string | null {
-	for (const candidate of editorBinaryCandidates()) {
-		try {
-			fs.accessSync(candidate, fs.constants.X_OK);
-			return candidate;
-		} catch {
-			// not here — keep looking
-		}
+	const require_ = createRequire(import.meta.url);
+	try {
+		const resolved = require_.resolve(`${LEAF_PACKAGE}/bin/${LEAF_EXE}`, { paths: editorLeafRoots() });
+		fs.accessSync(resolved, fs.constants.X_OK);
+		return resolved;
+	} catch {
+		return null;
 	}
-	// A global install may be on PATH without matching any candidate.
-	const probe = process.platform === "win32" ? "where" : "which";
-	const result = cp.spawnSync(probe, ["zeta-editor"], { encoding: "utf8" });
-	if (result.status === 0 && result.stdout.trim()) {
-		return result.stdout.trim().split(/\r?\n/)[0].trim();
-	}
-	return null;
 }
 
 export interface InstallResult {
@@ -122,9 +139,12 @@ export function ensureEditorBinary(autoInstall: boolean): { binary: string | nul
 	}
 	const install = installEditorPackage();
 	if (!install.ok) return { binary: null, error: install.message };
-	// npm puts the launcher on PATH for new shells; probe the known locations
-	// first so we do not depend on the current process's PATH being refreshed.
+	// Re-resolve right away instead of hoping a fresh shell's PATH catches up:
+	// the leaf lands under a known root, and a miss is worth reporting.
 	const installed = findEditorBinary();
 	if (installed) return { binary: installed, note: install.message };
-	return { binary: "zeta-editor", note: `${install.message} (launcher resolved via PATH)` };
+	return {
+		binary: null,
+		error: `${install.message}, but ${LEAF_PACKAGE} was not found under ${editorLeafRoots().join(", ")}.`,
+	};
 }

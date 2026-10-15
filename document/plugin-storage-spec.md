@@ -22,8 +22,8 @@
 | 对象 | 约束强度 |
 |---|---|
 | Zetacode coding-agent（`packages/coding-agent`，bin zetacode 系） | 全规范 |
-| Zetawork Rust 工作台（`main/`，bin zeta/zetawork） | §2 边界 + §3 命名 |
-| Zeta editor（vendored TTT，bin zeta-e） | §2 边界（只读面） |
+| Zetawork Rust 工作台（`main/`，bin zetawork/zeta） | §2 边界 + §3 命名 |
+| Zeta editor（vendored TTT，无独立命令；平台二进制 `ttt`） | §2 边界（只读面） |
 | Zetaide（vendored termide，bin zetaide） | §2 边界（零接触面） |
 | 插件（`~/.zeta/plugins` 装载的全部扩展） | §4 契约，红线级 |
 | 仓库 `scripts/` 下的运维/统计脚本 | §2 路径地图（只读为主） |
@@ -127,7 +127,7 @@
   写 `.zeta` 任何文件；自有状态归 `~/.config/ttt/`
   （internal/config/config.go:60-75，`TTT_CONFIG_DIR` 认领）。handoff 契约
   （handoff.ts ↔ handoff.go 无共享代码）为**单向下发**（agent 写、editor 读；
-  editor 侧写回面与 `plugins/node_modules/.bin/zeta-c` 读取已随 editor→agent
+  editor 侧写回面与插件树 `.bin` 里的 CLI 读取已随 editor→agent
   入口移除），双方 MUST 保持字段兼容。
 - **Zetaide（Rust/termide）**：零接触 `.zeta`（全树 grep `ZETA_|\.zeta`
   零命中），自有 XDG 三件套 `~/.config|local/share|cache/termide/`。规范
@@ -329,7 +329,7 @@ Zeta 管辖的 pi 安装仍在使用。
 
 ### 5.4 清理工具约定
 
-- `zeta doctor` 增加路径审计：枚举 `.zeta` 顶层条目对照 dirs.ts 已知
+- `zetawork doctor` 增加路径审计：枚举 `.zeta` 顶层条目对照 dirs.ts 已知
   符号集合，未匹配报 unmapped；`plugins/` 报半安装态；`.pi` 残留报迁移
   提示。
 - `logs/`、`wt/`、`run/`、`security/`、`autoresearch/` 已有各自 GC/保留

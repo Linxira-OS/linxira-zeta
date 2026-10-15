@@ -182,7 +182,7 @@ export class CredentialPool implements CredentialsApi {
 	 * The store is shared across every zeta process, but the pool is an
 	 * in-process cache refreshed only by this process's own writes. Without
 	 * this a long-running session ranks a stale pool for its whole lifetime:
-	 * `zeta-c auth` in another terminal is invisible, rotation reports no usable
+	 * `zetacode auth` in another terminal is invisible, rotation reports no usable
 	 * sibling while a freshly added account sits unblocked in SQLite, and the
 	 * turn degrades to the fallback chain. The auth-broker path already polls;
 	 * direct-store sessions had no equivalent.
@@ -719,7 +719,7 @@ export class CredentialPool implements CredentialsApi {
 	}
 
 	/**
-	 * Disabled credential tombstones for display surfaces (`zeta-c usage`,
+	 * Disabled credential tombstones for display surfaces (`zetacode usage`,
 	 * broker `GET /v1/credentials/disabled`). Empty when the backing store
 	 * keeps no tombstones or the remote broker predates the endpoint.
 	 */
@@ -732,7 +732,7 @@ export class CredentialPool implements CredentialsApi {
 	 * Force the backing store to revalidate its credential snapshot, then
 	 * reload. Remote broker stores re-fetch the snapshot; local stores are
 	 * always current, so only the reload runs. Callers that pair live
-	 * per-credential data with stored identities (`zeta-c usage`) use this so a
+	 * per-credential data with stored identities (`zetacode usage`) use this so a
 	 * disk-cached snapshot cannot misattribute fresh reports.
 	 */
 	async revalidate(): Promise<void> {

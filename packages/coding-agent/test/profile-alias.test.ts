@@ -6,13 +6,16 @@ import {
 	resolveProfileAliasCommandFromProcess,
 } from "../src/cli/profile-alias";
 
+// Alias-name fixtures use `zc-work`: a neutral placeholder that collides with no
+// real product bin (`zetacode`/`zetawork`/`zetaide`) and is not a retired legacy
+// token — each product ships exactly one command name now.
 describe("profile alias installer", () => {
 	it("writes a bash-compatible function that forwards subcommands through zeta", async () => {
 		const files = new Map<string, string>();
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/bash",
 			platform: "linux",
 			homeDir: "/home/me",
@@ -24,7 +27,7 @@ describe("profile alias installer", () => {
 
 		expect(result.configPath).toBe("/home/me/.bashrc");
 		expect(result.command).toBe("zetacode --profile=work");
-		expect(files.get("/home/me/.bashrc")).toContain("zeta-work() {");
+		expect(files.get("/home/me/.bashrc")).toContain("zc-work() {");
 		expect(files.get("/home/me/.bashrc")).toContain('command zetacode --profile=work "$@"');
 	});
 
@@ -83,7 +86,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/zsh",
 			platform: "darwin",
 			homeDir: "/Users/me",
@@ -101,7 +104,7 @@ describe("profile alias installer", () => {
 		});
 
 		expect(result.command).toBe("bun /repo/packages/coding-agent/src/cli.ts --profile=work");
-		expect(files.get("/Users/me/.zshrc")).toContain("zeta-work() {");
+		expect(files.get("/Users/me/.zshrc")).toContain("zc-work() {");
 		expect(files.get("/Users/me/.zshrc")).toContain(
 			`command bun '/repo/packages/coding-agent/src/cli.ts' --profile=work "$@"`,
 		);
@@ -112,7 +115,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/zsh",
 			platform: "darwin",
 			homeDir: "/Users/me",
@@ -124,7 +127,7 @@ describe("profile alias installer", () => {
 		});
 
 		expect(result.configPath).toBe("/Users/me/.config/zsh/.zshrc");
-		expect(files.get(result.configPath)).toContain("zeta-work() {");
+		expect(files.get(result.configPath)).toContain("zc-work() {");
 	});
 
 	it("writes a fish function that forwards argv", async () => {
@@ -132,7 +135,7 @@ describe("profile alias installer", () => {
 
 		await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/opt/homebrew/bin/fish",
 			platform: "darwin",
 			homeDir: "/Users/me",
@@ -144,7 +147,7 @@ describe("profile alias installer", () => {
 		});
 
 		const content = files.get("/Users/me/.config/fish/conf.d/zeta-profiles.fish") ?? "";
-		expect(content).toContain("function zeta-work --wraps zeta");
+		expect(content).toContain("function zc-work --wraps zeta");
 		expect(content).toContain("command zetacode --profile=work $argv");
 	});
 
@@ -153,7 +156,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/usr/bin/fish",
 			platform: "linux",
 			homeDir: "/home/me",
@@ -165,7 +168,7 @@ describe("profile alias installer", () => {
 		});
 
 		expect(result.configPath).toBe("/home/me/.dotfiles/config/fish/conf.d/zeta-profiles.fish");
-		expect(files.get(result.configPath)).toContain("function zeta-work --wraps zeta");
+		expect(files.get(result.configPath)).toContain("function zc-work --wraps zeta");
 	});
 
 	it("writes a PowerShell function because aliases cannot carry arguments", async () => {
@@ -173,7 +176,7 @@ describe("profile alias installer", () => {
 
 		await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "pwsh.exe",
 			platform: "win32",
 			homeDir: "C:\\Users\\me",
@@ -185,7 +188,7 @@ describe("profile alias installer", () => {
 
 		const psConfigPath = path.join("C:\\Users\\me", "Documents", "PowerShell", "Microsoft.PowerShell_profile.ps1");
 		const content = files.get(psConfigPath) ?? "";
-		expect(content).toContain("function zeta-work");
+		expect(content).toContain("function zc-work");
 		expect(content).toContain("& zetacode --profile=work @args");
 	});
 
@@ -194,7 +197,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			platform: "win32",
 			homeDir: "C:\\Users\\me",
 			env: {
@@ -218,7 +221,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			platform: "win32",
 			homeDir: "C:\\Users\\me",
 			env: {
@@ -246,7 +249,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			platform: "win32",
 			homeDir: "C:\\Users\\me",
 			env: { POWERSHELL_DISTRIBUTION_CHANNEL: "MSI:Windows 10 Pro" },
@@ -267,9 +270,9 @@ describe("profile alias installer", () => {
 				"/home/me/.zshrc",
 				[
 					"before",
-					"# >>> zeta profile alias: zeta-work >>>",
-					"alias zeta-work='command zeta --profile=old'",
-					"# <<< zeta profile alias: zeta-work <<<",
+					"# >>> zeta profile alias: zc-work >>>",
+					"alias zc-work='command zeta --profile=old'",
+					"# <<< zeta profile alias: zc-work <<<",
 					"after",
 				].join("\n"),
 			],
@@ -277,7 +280,7 @@ describe("profile alias installer", () => {
 
 		await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/zsh",
 			platform: "darwin",
 			homeDir: "/home/me",
@@ -300,14 +303,14 @@ describe("profile alias installer", () => {
 		// was interrupted or hand-edited. Appending a fresh block would let the
 		// *next* install splice from the stale start through the new end, deleting
 		// the user config in between. Refuse and preserve the file untouched.
-		const original = ["# >>> zeta profile alias: zeta-work >>>", "zeta-work() {", "export SECRET=keepme"].join("\n");
+		const original = ["# >>> zeta profile alias: zc-work >>>", "zc-work() {", "export SECRET=keepme"].join("\n");
 		const files = new Map<string, string>([["/home/me/.zshrc", original]]);
 		let wrote = false;
 
 		await expect(
 			installProfileAlias({
 				profile: "work",
-				aliasName: "zeta-work",
+				aliasName: "zc-work",
 				shellPath: "/bin/zsh",
 				platform: "darwin",
 				homeDir: "/home/me",
@@ -359,7 +362,7 @@ describe("profile alias installer", () => {
 		await expect(
 			installProfileAlias({
 				profile: "work",
-				aliasName: "zeta-work",
+				aliasName: "zc-work",
 				shellPath: "/bin/sh",
 				platform: "linux",
 				homeDir: "/home/me",
@@ -387,7 +390,7 @@ describe("profile alias installer", () => {
 		await expect(
 			installProfileAlias({
 				profile: "work'; touch /tmp/pwn; #",
-				aliasName: "zeta-work",
+				aliasName: "zc-work",
 				shellPath: "/bin/bash",
 				platform: "linux",
 				homeDir: "/home/me",
@@ -405,7 +408,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/bash",
 			platform: "win32",
 			homeDir: "C:\\Users\\me",
@@ -426,7 +429,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/zsh",
 			platform: "win32",
 			homeDir: "C:\\Users\\me",
@@ -446,7 +449,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/fish",
 			platform: "win32",
 			homeDir: "C:\\Users\\me",
@@ -466,7 +469,7 @@ describe("profile alias installer", () => {
 
 		const result = await installProfileAlias({
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 			shellPath: "/bin/bash",
 			platform: "win32",
 			homeDir: "\\\\server\\share\\me",

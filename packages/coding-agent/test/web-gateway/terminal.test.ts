@@ -2,7 +2,7 @@
  * Embedded terminal gateway contract (spec §15): session create/list/delete
  * with the live cap of 4, the 64KB replay ring, one-time connect tickets,
  * the WS upgrade auth gate (loopback pass / cross-site reject / ticket for
- * remote), resize validation, exit retention, and zeta-ide injection
+ * remote), resize validation, exit retention, and zetaide injection
  * command building. The PTY backend is faked, so no real shell spawns.
  */
 
@@ -169,25 +169,27 @@ describe("shellSpawnArgs", () => {
 	});
 });
 
-// --- zeta-ide injection ---
+// --- buildZetaIdeCommand ---
 
 describe("buildZetaIdeCommand", () => {
+	// ZETA_IDE_BINS is ["zetaide"] — one bin name per product, so the fixture
+	// uses the canonical name (the retired hyphenated aliases are gone).
 	const ctx = {
 		platform: "linux" as NodeJS.Platform,
 		env: { PATH: "/bin" },
-		exists: (candidate: string) => candidate === "/bin/zeta-ide",
+		exists: (candidate: string) => candidate === "/bin/zetaide",
 		now: () => 0,
 	};
 
-	test("builds file[:line[:col]] against a resolved zeta-ide binary", () => {
+	test("builds file[:line[:col]] against a resolved zetaide binary", () => {
 		// The resolved absolute PATH hit is used so injection works even when
 		// the session shell's PATH differs from the server's.
-		expect(buildZetaIdeCommand({ file: "src/a.ts" }, ctx)).toBe('/bin/zeta-ide "src/a.ts"');
-		expect(buildZetaIdeCommand({ file: "src/a.ts", line: 10 }, ctx)).toBe('/bin/zeta-ide "src/a.ts:10"');
-		expect(buildZetaIdeCommand({ file: "src/a.ts", line: 10, col: 4 }, ctx)).toBe('/bin/zeta-ide "src/a.ts:10:4"');
+		expect(buildZetaIdeCommand({ file: "src/a.ts" }, ctx)).toBe('/bin/zetaide "src/a.ts"');
+		expect(buildZetaIdeCommand({ file: "src/a.ts", line: 10 }, ctx)).toBe('/bin/zetaide "src/a.ts:10"');
+		expect(buildZetaIdeCommand({ file: "src/a.ts", line: 10, col: 4 }, ctx)).toBe('/bin/zetaide "src/a.ts:10:4"');
 	});
 
-	test("returns null when no zeta-ide binary exists (plain shell fallback)", () => {
+	test("returns null when no zetaide binary exists (plain shell fallback)", () => {
 		expect(buildZetaIdeCommand({ file: "src/a.ts" }, { ...ctx, exists: () => false })).toBeNull();
 		expect(buildZetaIdeCommand({ file: "" }, ctx)).toBeNull();
 	});
@@ -222,13 +224,15 @@ describe("resolveSessionProgram", () => {
 		expect(program?.fallbackReason).toBe("workbench-not-found");
 	});
 
-	test("probes zeta / zeta-work aliases behind zetawork", () => {
+	test("probes the bare `zeta` workbench name behind zetawork", () => {
+		// ZETAWORK_BINS is ["zetawork", "zeta"] — one bin name per product, so the
+		// only fallback the discovery loop probes is the bare `zeta` launcher.
 		const program = resolveSessionProgram(
-			probe({ exists: (candidate: string) => candidate === "/bin/zeta-work" || candidate === "/bin/bash" }),
+			probe({ exists: (candidate: string) => candidate === "/bin/zeta" || candidate === "/bin/bash" }),
 		);
 		expect(program?.kind).toBe("workbench");
-		expect(program?.command).toBe("/bin/zeta-work");
-		expect(program?.label).toBe("zeta-work");
+		expect(program?.command).toBe("/bin/zeta");
+		expect(program?.label).toBe("zeta");
 	});
 
 	test("Windows npm shims (.cmd) are started through cmd.exe", () => {
