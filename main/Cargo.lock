@@ -8008,6 +8008,7 @@ dependencies = [
  "egui",
  "png",
  "ratatui",
+ "serde_json",
  "sysinfo",
  "unicode-width",
 ]

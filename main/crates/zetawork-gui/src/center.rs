@@ -15,11 +15,12 @@ use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, 
 
 use crate::Shell;
 use crate::blit::{BufferCache, GridMetrics, paint_buffer_with, paint_cursor};
+use crate::git::DiffKind;
 use crate::icons::{Icon, icon_button, paint};
-use crate::seed::{self, DiffRow, Sample};
-use crate::state::{Pane, SessionKind, SessionTab};
+use crate::seed;
+use crate::state::{EditorDoc, Pane, PickerTarget, SessionKind, SessionTab};
 use crate::theme;
-use crate::widgets::{Chip, chip, truncated_mono, truncated_text};
+use crate::widgets::{Chip, chip, empty_note, truncated_mono, truncated_text};
 
 /// The pane grid, or the welcome panel when no workspace is open.
 pub fn workspace(ui: &mut Ui, shell: &mut Shell) {
@@ -123,14 +124,10 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 	}
 	let plus_rect = Rect::from_center_size(pos2(x + 14.0, rect.center().y), vec2(28.0, 28.0));
 	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(plus_rect));
-	if icon_button(&mut child, Icon::Plus, 28.0, false, "在大标签页新建工作区").clicked() {
-		let project_id = shell.state.active_project.clone();
-		match project_id {
-			Some(id) => shell.state.act(|s| s.new_workspace(&id)),
-			None => shell
-				.state
-				.show(crate::state::Notice("先选择一个项目".to_owned())),
-		}
+	if icon_button(&mut child, Icon::Plus, 28.0, false, "新建大标签页").clicked() {
+		// The strip's ＋ lists what the centre can show; the pick decides what
+		// the new 大标签页 opens with.
+		shell.open_picker(PickerTarget::BigTab, plus_rect);
 	}
 }
 
@@ -296,6 +293,8 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 			SessionKind::Term => Icon::Term,
 			SessionKind::Editor => Icon::Code,
 			SessionKind::Diff => Icon::Diff,
+			SessionKind::Git => Icon::GitBranch,
+			SessionKind::Ide => Icon::Term,
 		};
 		let is_active = tab.id == pane.active;
 		let text_width = (display_cols(&tab.title) as f32 * 7.2).min(120.0);
@@ -372,9 +371,8 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 	}
 	let plus = Rect::from_center_size(pos2(strip.max.x - 46.0, strip.center().y), vec2(28.0, 28.0));
 	let mut plus_ui = ui.new_child(egui::UiBuilder::new().max_rect(plus));
-	if icon_button(&mut plus_ui, Icon::Plus, 28.0, false, "新建小标签页").clicked() {
-		let pane_id = pane.id.clone();
-		shell.state.act(|s| s.add_tab(&pane_id));
+	if icon_button(&mut plus_ui, Icon::Plus, 28.0, false, "新建标签页").clicked() {
+		shell.open_picker(PickerTarget::Pane(pane.id.clone()), plus);
 	}
 	let close_pane =
 		Rect::from_center_size(pos2(strip.max.x - 18.0, strip.center().y), vec2(28.0, 28.0));
@@ -386,15 +384,23 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 }
 
 /// The active session tab's body.
+///
+/// 终端 is still a blitted placeholder (no PTY host), but the other four pages
+/// are the GUI's own, and they read real data: the editor opens and writes real
+/// files, the diff page renders a real `git diff`, the git page renders the same
+/// snapshot the right column's Git panel does, and the zetaide page says what
+/// still has to be linked before it can host the termide panel editor.
 fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	let Some(tab) = pane.active_tab() else {
 		return;
 	};
 	let tab = tab.clone();
-	match seed::sample_for(tab.kind, &tab.id) {
-		Sample::Term(kind) => term_body(ui, shell, pane, &tab, kind),
-		Sample::Editor => editor_body(ui, shell),
-		Sample::Diff => diff_body(ui),
+	match tab.kind {
+		SessionKind::Term => term_body(ui, shell, pane, &tab, seed::TermKind::of(&tab.id)),
+		SessionKind::Editor => editor_body(ui, shell, pane, &tab),
+		SessionKind::Diff => diff_body(ui, shell, pane),
+		SessionKind::Git => crate::right::git_panel(ui, shell),
+		SessionKind::Ide => ide_body(ui, shell, &tab),
 	}
 }
 
@@ -444,13 +450,17 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 		.map(|ws| ws.path.clone())
 		.unwrap_or_default();
 	let branch = shell.state.branch_label().to_owned();
-	let lines = seed::transcript(kind, &path, &branch).len() + 3;
+	let shell_name = tab.shell.map(|kind| kind.label().to_owned());
+	// The banner (which an unstarted terminal page owes the user) adds three
+	// lines, plus one more when the page names a shell.
+	let banner_rows = 3 + usize::from(shell_name.is_some());
+	let lines = seed::transcript(kind, &path, &branch).len() + banner_rows;
 	let rows = (lines as u16 + 1).max(metrics.rows);
-	let key = format!("{}|{columns}x{rows}|{:?}", tab.id, kind);
+	let key = format!("{}|{columns}x{rows}|{:?}|{:?}", tab.id, kind, tab.shell);
 	let paint_settings = shell.settings;
-	let buffer = shell
-		.term_buffers
-		.get_or_render(key, || seed::term_buffer(columns, rows, kind, &path, &branch));
+	let buffer = shell.term_buffers.get_or_render(key, || {
+		seed::term_buffer(columns, rows, kind, &path, &branch, shell_name.as_deref())
+	});
 	egui::ScrollArea::vertical()
 		.auto_shrink([false, false])
 		.show(ui, |ui| {
@@ -478,8 +488,14 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 		});
 }
 
-/// An editor pane: the sample code with the spec's keyword colouring.
-fn editor_body(ui: &mut Ui, shell: &mut Shell) {
+/// An 编辑器 page: a real file, editable in place and saved to disk.
+///
+/// The buffer is the file's text; Ctrl+S (or the footer's 保存) writes it back
+/// through [`crate::state::EditorDoc::save`]. The gutter numbers come from the
+/// text layout itself — one number per visual line, continuation rows of a
+/// wrapped line sharing their line's number — so 自动换行 and 显示行号 agree even
+/// when a long line breaks.
+fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
@@ -490,53 +506,130 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell) {
 		[pos2(etabs.min.x, etabs.max.y - 0.5), pos2(etabs.max.x, etabs.max.y - 0.5)],
 		Stroke::new(1.0, theme::BORDER),
 	);
+	let head = tab
+		.doc
+		.as_ref()
+		.map(|doc| {
+			if doc.dirty {
+				format!("{} · {}（未保存）", doc.name(), doc.path.display())
+			} else {
+				format!("{} · {}", doc.name(), doc.path.display())
+			}
+		})
+		.unwrap_or_else(|| "未打开文件".to_owned());
+	let dirty = tab.doc.as_ref().is_some_and(|doc| doc.dirty);
 	truncated_mono(
 		ui,
 		pos2(etabs.min.x + 10.0, etabs.center().y),
-		"src/ui/workspace.rs",
+		&head,
 		11.0,
-		theme::TEXT_3,
-		etabs.width() - 120.0,
+		if dirty { theme::WARN } else { theme::TEXT_3 },
+		etabs.width() - 130.0,
 	);
 	let foot = Rect::from_min_size(pos2(rect.min.x, rect.max.y - 24.0), vec2(rect.width(), 24.0));
 	let code = Rect::from_min_max(pos2(rect.min.x, etabs.max.y), pos2(rect.max.x, foot.min.y));
-
-	let banner = seed::placeholder("编辑器窗格未打开文件", "工作区内的只读文本（文件树点击打开）");
-	let size = f32::from(shell.settings.editor_size);
-	let line_height = (size * 1.6).max(14.0);
-	let style = EditorStyle {
-		size,
-		line_numbers: shell.settings.editor_line_numbers,
-		wrap: shell.settings.editor_wrap,
+	let settings = shell.settings;
+	let size = f32::from(settings.editor_size);
+	let font = crate::fonts::editor_font_for(ui.ctx(), size);
+	let widget_font = font.clone();
+	let gutter = if settings.editor_line_numbers {
+		46.0
+	} else {
+		0.0
 	};
-	let mut y = code.min.y + 8.0;
-	for (index, line) in banner.iter().enumerate() {
-		let used = editor_line(ui, code, y, index as u32 + 1, line, theme::WARN, style);
-		y += used.max(line_height);
-	}
-	y += 4.0;
-	for (index, line) in seed::EDITOR_LINES.iter().enumerate() {
-		let used =
-			editor_line(ui, code, y, index as u32 + banner.len() as u32 + 1, line, theme::TEXT, style);
-		y += used.max(line_height);
-		if y > code.max.y {
-			break;
+	let (pane_id, tab_id) = (pane.id.clone(), tab.id.clone());
+
+	let Some(doc) = shell.state.doc_mut(&pane_id, &tab_id) else {
+		empty_note(ui, "这个编辑器标签页没有打开文件", "右栏 文件树 里点一个文件，或 ＋ 里选 编辑器");
+		return;
+	};
+	// Split borrows: the text buffer goes to the widget, the flags stay here.
+	let EditorDoc { text, dirty, .. } = doc;
+	let text_rect = Rect::from_min_max(pos2(code.min.x + gutter, code.min.y), code.max);
+	let mut text_ui = ui.new_child(egui::UiBuilder::new().max_rect(text_rect.shrink(6.0)));
+	let wrap = settings.editor_wrap;
+	let mut layouter = move |ui: &egui::Ui, buffer: &dyn egui::TextBuffer, wrap_width: f32| {
+		let job = egui::text::LayoutJob::simple(
+			buffer.as_str().to_owned(),
+			font.clone(),
+			theme::TEXT,
+			if wrap { wrap_width } else { f32::INFINITY },
+		);
+		ui.painter().layout_job(job)
+	};
+	let output = egui::TextEdit::multiline(text)
+		.id(egui::Id::new(("zetawork-editor", &tab_id)))
+		.font(widget_font)
+		.text_color(theme::TEXT)
+		.code_editor()
+		.frame(false)
+		.desired_width(text_ui.available_width())
+		.desired_rows(24)
+		.lock_focus(true)
+		.layouter(&mut layouter)
+		.show(&mut text_ui);
+	let changed = output.response.changed();
+	let cursor_index = output.cursor_range.map(|range| range.primary.index);
+	// The gutter, drawn where the text itself was placed.
+	if gutter > 0.0 {
+		let painter = ui.painter().with_clip_rect(code.shrink(2.0));
+		let number_font = crate::fonts::editor_font_for(ui.ctx(), size - 1.0);
+		let mut number = 1usize;
+		for placed in output.galley.rows.iter() {
+			let row_top = output.galley_pos.y + placed.pos.y;
+			let row =
+				egui::Rect::from_min_size(pos2(code.min.x, row_top), vec2(gutter, placed.row.size.y));
+			if row.max.y >= code.min.y && row.min.y <= code.max.y {
+				painter.text(
+					pos2(code.min.x + gutter - 8.0, row.center().y),
+					egui::Align2::RIGHT_CENTER,
+					number.to_string(),
+					number_font.clone(),
+					theme::GUTTER,
+				);
+			}
+			if placed.ends_with_newline {
+				number += 1;
+			}
 		}
 	}
+	if changed {
+		*dirty = true;
+	}
+	// The footer's cursor position, read from the text edit's own cursor.
+	let line_col = cursor_index.map(|index| line_col_of(text, index));
+	let lines = text.lines().count().max(1);
+
 	ui.painter()
 		.rect_filled(foot, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(foot.min.x, foot.min.y + 0.5), pos2(foot.max.x, foot.min.y + 0.5)],
 		Stroke::new(1.0, theme::BORDER),
 	);
-	for (index, label) in ["Rust", "UTF-8", "LF", "只读占位"].iter().enumerate() {
-		ui.painter().text(
-			pos2(foot.min.x + 12.0 + index as f32 * 74.0, foot.center().y),
-			egui::Align2::LEFT_CENTER,
-			*label,
+	let eol = if text.contains("\r\n") { "CRLF" } else { "LF" };
+	let language = doc
+		.path
+		.extension()
+		.map(|ext| ext.to_string_lossy().to_lowercase())
+		.map(|ext| language_label(&ext))
+		.unwrap_or("Text");
+	let position = match line_col {
+		Some((line, column)) => format!("行 {line}, 列 {column}"),
+		None => format!("{lines} 行"),
+	};
+	let mut x = foot.min.x + 12.0;
+	for label in [language, "UTF-8", eol, position.as_str()] {
+		let galley = ui.painter().layout_no_wrap(
+			label.to_owned(),
 			egui::FontId::new(11.0, egui::FontFamily::Monospace),
+			if *dirty { theme::WARN } else { theme::TEXT_3 },
+		);
+		ui.painter().galley(
+			pos2(x, foot.center().y - galley.size().y / 2.0),
+			galley.clone(),
 			theme::TEXT_3,
 		);
+		x += galley.size().x + 18.0;
 	}
 	ui.painter().text(
 		pos2(foot.max.x - 12.0, foot.center().y),
@@ -547,73 +640,42 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell) {
 	);
 }
 
-/// How the editor pane draws its rows (设置 → 编辑器: 字号 / 自动换行 / 显示行号).
-#[derive(Clone, Copy)]
-struct EditorStyle {
-	size: f32,
-	line_numbers: bool,
-	wrap: bool,
+/// The one-based line and column of a character index in `text`.
+fn line_col_of(text: &str, index: usize) -> (usize, usize) {
+	let mut line = 1usize;
+	let mut column = 1usize;
+	for (offset, ch) in text.chars().enumerate() {
+		if offset >= index {
+			break;
+		}
+		if ch == '\n' {
+			line += 1;
+			column = 1;
+		} else {
+			column += 1;
+		}
+	}
+	(line, column)
 }
 
-/// One code row: gutter number plus the sample highlighter's spans.
-///
-/// Returns the height the row took, so the caller advances by the real height
-/// when 自动换行 is on and a long line becomes several rows.
-fn editor_line(
-	ui: &Ui,
-	area: Rect,
-	y: f32,
-	number: u32,
-	line: &str,
-	default_ink: Color32,
-	style: EditorStyle,
-) -> f32 {
-	let font = crate::fonts::editor_font_for(ui.ctx(), style.size);
-	let mut x = area.min.x + 12.0;
-	if style.line_numbers {
-		let gutter = area.min.x + 40.0;
-		ui.painter().text(
-			pos2(gutter, y),
-			egui::Align2::RIGHT_TOP,
-			number.to_string(),
-			font.clone(),
-			theme::GUTTER,
-		);
-		x = gutter + 14.0;
+/// The footer's language label, from the file's extension.
+fn language_label(extension: &str) -> &'static str {
+	match extension {
+		"rs" => "Rust",
+		"ts" | "tsx" => "TypeScript",
+		"js" | "jsx" | "mjs" | "cjs" => "JavaScript",
+		"json" => "JSON",
+		"toml" => "TOML",
+		"yml" | "yaml" => "YAML",
+		"md" => "Markdown",
+		"sh" | "bash" => "Shell",
+		"ps1" => "PowerShell",
+		"py" => "Python",
+		"go" => "Go",
+		"css" => "CSS",
+		"html" | "htm" => "HTML",
+		_ => "Text",
 	}
-	let spans = highlight(line, default_ink);
-	let text: String = spans.iter().map(|(part, _)| part.as_str()).collect();
-	let mut byte = 0usize;
-	let sections: Vec<egui::text::LayoutSection> = spans
-		.iter()
-		.map(|(part, color)| {
-			let section = egui::text::LayoutSection {
-				leading_space: 0.0,
-				byte_range: byte..byte + part.len(),
-				format: egui::TextFormat { font_id: font.clone(), color: *color, ..Default::default() },
-			};
-			byte += part.len();
-			section
-		})
-		.collect();
-	let job = egui::text::LayoutJob {
-		wrap: egui::text::TextWrapping {
-			max_width: if style.wrap {
-				(area.max.x - x - 8.0).max(24.0)
-			} else {
-				f32::INFINITY
-			},
-			break_anywhere: style.wrap,
-			..Default::default()
-		},
-		sections,
-		text,
-		..Default::default()
-	};
-	let galley = ui.painter().layout_job(job);
-	let height = galley.size().y;
-	ui.painter().galley(pos2(x, y), galley, default_ink);
-	height
 }
 
 /// The spec's `hl()`: comments, strings, numbers, keywords, identifiers.
@@ -622,6 +684,12 @@ fn editor_line(
 /// (cut a trailing `//` comment, then walk the code with a string-state
 /// machine) so the result is a list of coloured spans without pulling a regex
 /// engine in.
+///
+/// Nothing calls this yet: the 编辑器 page edits a real buffer through
+/// [`egui::TextEdit`], and colouring it would mean rebuilding a layout job for
+/// the whole file every frame. It stays for the read-only code views (the IDE
+/// page and the diff page's context lines) that want the spec's palette.
+#[allow(dead_code)]
 fn highlight(line: &str, default_ink: Color32) -> Vec<(String, Color32)> {
 	use crate::theme::syntax;
 	let (code, comment) = split_comment(line);
@@ -695,52 +763,177 @@ fn split_comment(line: &str) -> (String, String) {
 	(line.to_owned(), String::new())
 }
 
-/// A diff pane: the spec's `hunk / add / del / ctx` rows.
-fn diff_body(ui: &mut Ui) {
+/// A 差异比较器 page: the active workspace's real `git diff`, read-only.
+///
+/// The rows come straight from the cached diff text (no per-frame row list):
+/// [`crate::git::classify_line`] decides each line's kind as it is drawn. With
+/// no repository, or with `git` refusing, the page says so instead of drawing
+/// an empty diff.
+fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
+	shell.ensure_diff();
 	let rect = ui.max_rect();
 	ui.painter()
 		.rect_filled(rect, CornerRadius::ZERO, theme::TERM_BG);
-	let mut y = rect.min.y + 8.0;
-	let line_height = 20.0;
-	for text in seed::placeholder("diff 窗格未调用 git", "git diff --no-color（只读）") {
-		diff_row(ui, rect, y, DiffRow::Context, text.as_str(), theme::WARN);
-		y += line_height;
-	}
-	for (kind, text) in seed::DIFF_LINES.iter() {
-		diff_row(ui, rect, y, *kind, text, theme::TEXT);
-		y += line_height;
-		if y > rect.max.y {
-			break;
-		}
-	}
+	let _ = pane;
+	let header = Rect::from_min_size(rect.min, vec2(rect.width(), 26.0));
+	ui.painter()
+		.rect_filled(header, CornerRadius::ZERO, theme::TERM_SUB_BG);
+	ui.painter().line_segment(
+		[pos2(header.min.x, header.max.y - 0.5), pos2(header.max.x, header.max.y - 0.5)],
+		Stroke::new(1.0, theme::BORDER),
+	);
+	let path = shell
+		.state
+		.active_workspace()
+		.map(|ws| ws.path.clone())
+		.unwrap_or_default();
+	truncated_mono(
+		ui,
+		pos2(header.min.x + 10.0, header.center().y),
+		&format!("git diff --no-color HEAD · {path}"),
+		11.0,
+		theme::TEXT_3,
+		header.width() - 20.0,
+	);
+	let body = Rect::from_min_max(pos2(rect.min.x, header.max.y), rect.max);
+	let result = shell.diff_result();
+	let Some(result) = result else {
+		let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
+		empty_note(&mut child, "先打开一个工作区", "工作区目录里的 git 仓库");
+		return;
+	};
+	let text = match result {
+		Ok(text) if text.trim().is_empty() => {
+			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
+			empty_note(&mut child, "与 HEAD 没有差异", "git diff --no-color HEAD（只读）");
+			return;
+		},
+		Ok(text) => text,
+		Err(error) => {
+			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
+			empty_note(&mut child, &format!("无法读取 git diff：{error}"), "工作区目录里的 git 仓库");
+			return;
+		},
+	};
+	let mut body_ui = ui.new_child(egui::UiBuilder::new().max_rect(body));
+	egui::ScrollArea::both()
+		.auto_shrink([false, false])
+		.show(&mut body_ui, |ui| {
+			ui.spacing_mut().item_spacing.y = 0.0;
+			let width = ui.available_width().max(600.0);
+			for line in text.lines() {
+				let Some(kind) = crate::git::classify_line(line) else {
+					continue;
+				};
+				let (rect, _) = ui.allocate_exact_size(vec2(width, DIFF_ROW_H), Sense::hover());
+				diff_row(ui, rect, kind, line);
+			}
+		});
 }
 
-fn diff_row(ui: &Ui, area: Rect, y: f32, kind: DiffRow, text: &str, _default: Color32) {
+/// Height of one diff row.
+const DIFF_ROW_H: f32 = 20.0;
+
+/// One diff row: its sign, its colour and, for a header, the file it names.
+fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str) {
 	let (sign, ink, background) = match kind {
-		DiffRow::Hunk => ('@', theme::ACCENT_2, Some(theme::ACCENT.gamma_multiply(0.08))),
-		DiffRow::Add => {
+		DiffKind::Header => ('≡', theme::TEXT, Some(theme::PANEL_2)),
+		DiffKind::Hunk => ('@', theme::ACCENT_2, Some(theme::ACCENT.gamma_multiply(0.08))),
+		DiffKind::Add => {
 			('+', Color32::from_rgb(0xa9, 0xe6, 0xb4), Some(theme::ADD.gamma_multiply(0.09)))
 		},
-		DiffRow::Del => {
+		DiffKind::Del => {
 			('-', Color32::from_rgb(0xf0, 0xb6, 0xb2), Some(theme::DEL.gamma_multiply(0.09)))
 		},
-		DiffRow::Context => (' ', Color32::from_rgb(0x9a, 0xa3, 0xb0), None),
+		DiffKind::Context => (' ', Color32::from_rgb(0x9a, 0xa3, 0xb0), None),
 	};
-	let row = Rect::from_min_size(pos2(area.min.x, y), vec2(area.width(), 20.0));
 	if let Some(fill) = background {
 		ui.painter().rect_filled(row, CornerRadius::ZERO, fill);
 	}
 	let font = crate::fonts::editor_font_for(ui.ctx(), theme::MONO_SIZE);
 	ui.painter().text(
-		pos2(row.min.x + 12.0, row.min.y),
-		egui::Align2::LEFT_TOP,
+		pos2(row.min.x + 12.0, row.center().y),
+		egui::Align2::LEFT_CENTER,
 		sign.to_string(),
 		font.clone(),
 		theme::GUTTER,
 	);
-	let galley = ui.painter().layout_no_wrap(text.to_owned(), font, ink);
+	let text = if kind == DiffKind::Header {
+		format!("── {} ──", line.trim_start_matches("+++ ").trim())
+	} else {
+		line.to_owned()
+	};
+	let galley = ui.painter().layout_no_wrap(text, font, ink);
 	ui.painter()
-		.galley(pos2(row.min.x + 28.0, row.min.y), galley, ink);
+		.galley(pos2(row.min.x + 28.0, row.center().y - galley.size().y / 2.0), galley, ink);
+}
+
+/// A `zetaide` page. R23 gives the TUI form of the editor to `zetaide` (the
+/// termide `panel-editor`); the GUI form is this crate's own 编辑器 page
+/// instead, so this page is honest about the piece that is still missing.
+fn ide_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
+	let rect = ui.max_rect();
+	ui.painter()
+		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 34.0));
+	ui.painter()
+		.rect_filled(head, CornerRadius::ZERO, theme::PANEL_2);
+	ui.painter().line_segment(
+		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
+		Stroke::new(1.0, theme::BORDER),
+	);
+	truncated_mono(
+		ui,
+		pos2(head.min.x + 10.0, head.center().y),
+		"zetaide",
+		11.0,
+		theme::ACCENT_2,
+		head.width() - 20.0,
+	);
+	let path = shell
+		.state
+		.active_workspace()
+		.map(|ws| ws.path.clone())
+		.unwrap_or_default();
+	let body = Rect::from_min_max(pos2(rect.min.x, head.max.y), rect.max);
+	let child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(12.0)));
+	let mut y = child.max_rect().min.y;
+	let centre = child.max_rect().center().x;
+	for (text, size, ink, gap) in [
+		("zetaide 页面未接线：GUI 还没有内嵌 termide 的面板编辑器", 14.0, theme::WARN, 26.0),
+		(
+			"termide-panel-editor 已经链进终端形态（main/crates/zeta-main，#218），",
+			12.0,
+			theme::TEXT_2,
+			19.0,
+		),
+		(
+			"GUI 侧要链它需要把 ratatui 缓冲按单元格 blit 进 egui（R21 方案②），本轮未做。",
+			12.0,
+			theme::TEXT_2,
+			19.0,
+		),
+		("它启动的是 zetaide（终端里的编辑器），工作区路径取当前工作区。", 12.0, theme::TEXT_3, 19.0),
+	] {
+		child.painter().text(
+			pos2(centre, y),
+			egui::Align2::CENTER_TOP,
+			text,
+			egui::FontId::new(size, egui::FontFamily::Proportional),
+			ink,
+		);
+		y += gap;
+	}
+	y += 6.0;
+	let galley = child.painter().layout_no_wrap(
+		format!("$ zetaide {path}"),
+		crate::fonts::editor_font_for(child.ctx(), theme::MONO_SIZE),
+		theme::CYAN,
+	);
+	child
+		.painter()
+		.galley(pos2(centre - galley.size().x / 2.0, y), galley, theme::CYAN);
+	let _ = tab;
 }
 
 /// The welcome panel (spec `welcomeHTML`).

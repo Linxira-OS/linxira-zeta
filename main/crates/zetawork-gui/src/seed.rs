@@ -103,19 +103,15 @@ pub fn default_panes(ws_id: &str) -> Vec<Pane> {
 		let term_id = format!("{pane_id}-t1");
 		let extra_id = format!("{pane_id}-t2");
 		let extra = if index == 0 {
-			SessionTab { id: extra_id, kind: SessionKind::Editor, title: "workspace.rs".to_owned() }
+			SessionTab::new(extra_id, SessionKind::Editor, "workspace.rs".to_owned())
 		} else {
-			SessionTab { id: extra_id, kind: SessionKind::Diff, title: "改动".to_owned() }
+			SessionTab::new(extra_id, SessionKind::Diff, "改动".to_owned())
 		};
 		panes.push(Pane {
 			id: pane_id,
 			active: term_id.clone(),
 			tabs: vec![
-				SessionTab {
-					id: term_id,
-					kind: SessionKind::Term,
-					title: format!("终端 {}", index + 1),
-				},
+				SessionTab::new(term_id, SessionKind::Term, format!("终端 {}", index + 1)),
 				extra,
 			],
 		});
@@ -135,7 +131,11 @@ pub fn placeholder(what: &str, source: &str) -> Vec<String> {
 
 // ── the spec's sample text ────────────────────────────────────────────────
 
-/// The sample the editor pane renders (spec `EDITOR_LINES`).
+/// The sample the TUI view renders for an editor tab.
+///
+/// The GUI's 编辑器 page reads a real file instead (R23); this sample is what the
+/// terminal-shaped view draws, where an editor tab has no window to host a text
+/// buffer in.
 pub const EDITOR_LINES: &[&str] = &[
 	"use crate::term::session::Session;",
 	"use crate::ui::panels::Panel;",
@@ -302,31 +302,19 @@ pub fn transcript(kind: TermKind, path: &str, branch: &str) -> Vec<(String, Ink)
 	lines
 }
 
-/// The one sample a session tab's body is built from, by kind.
-pub fn sample_for(kind: SessionKind, tab_id: &str) -> Sample {
-	match kind {
-		SessionKind::Term => Sample::Term(TermKind::of(tab_id)),
-		SessionKind::Editor => Sample::Editor,
-		SessionKind::Diff => Sample::Diff,
-	}
-}
-
-/// Which placeholder body a session tab shows.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Sample {
-	Term(TermKind),
-	Editor,
-	Diff,
-}
-
 /// The cell grid the terminal placeholder renders into, so the blit is always
 /// asked for a real `Buffer` (the CJK rule included).
+///
+/// `shell` is the host shell the `+` picker found, when the page came from the
+/// picker: it is named in the banner, because a terminal page that cannot start
+/// a process yet has to say what it would have started.
 pub fn term_buffer(
 	width: u16,
 	height: u16,
 	kind: TermKind,
 	path: &str,
 	branch: &str,
+	shell: Option<&str>,
 ) -> ratatui::buffer::Buffer {
 	use ratatui::style::Style;
 	use ratatui::text::{Line, Span};
@@ -336,6 +324,12 @@ pub fn term_buffer(
 	for note in placeholder("终端窗格未接 PTY 宿主", "termide 会话（Session::spawn）+ 会话生命周期")
 	{
 		lines.push(Line::styled(note, Style::new().fg(Ink::Warn.ratatui())));
+	}
+	if let Some(shell) = shell {
+		lines.push(Line::styled(
+			format!("[占位] 该页指定的 shell：{shell}（探测自 $PATH / 系统目录）"),
+			Style::new().fg(Ink::Dim.ratatui()),
+		));
 	}
 	for (text, ink) in transcript(kind, path, branch) {
 		lines.push(Line::from(Span::styled(text, Style::new().fg(ink.ratatui()))));

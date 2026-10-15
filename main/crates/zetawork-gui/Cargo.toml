@@ -27,6 +27,9 @@ unicode-width = "0.2.2"
 sysinfo = "0.31"
 # The status bar's clock (local time).
 chrono = "0.4"
+# The 设置 modal's zetacode-option rows parse `zetacode config list --json`, and
+# the provider rows parse `~/.zeta/agent/models.yml`.
+serde_json = "1"
 
 [dev-dependencies]
 # `tests/shots.rs` writes headless PNG screenshots; the rasterizer it uses is in

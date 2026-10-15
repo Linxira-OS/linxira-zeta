@@ -54,10 +54,8 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 	// group: its children then lay out in reading order.
 	let controls_w = CONTROL_W * 3.0;
 	let switch_right = rect.max.x - 6.0 - controls_w - 8.0;
-	let switch_rect = Rect::from_min_max(
-		pos2(switch_right - SWITCH_W, rect.min.y),
-		pos2(switch_right, rect.max.y),
-	);
+	let switch_rect =
+		Rect::from_min_max(pos2(switch_right - SWITCH_W, rect.min.y), pos2(switch_right, rect.max.y));
 	let mut switch_ui = ui.new_child(
 		egui::UiBuilder::new()
 			.max_rect(switch_rect)

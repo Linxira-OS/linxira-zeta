@@ -284,6 +284,100 @@ fn parse_log(text: &str) -> Vec<GitCommit> {
 	commits
 }
 
+/// What one row of a unified diff is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DiffKind {
+	/// A `diff --git`/`---`/`+++`/`index` header line, or the file header the
+	/// parser synthesises from them.
+	Header,
+	/// A hunk header (`@@ -a,b +c,d @@`).
+	Hunk,
+	/// An added line.
+	Add,
+	/// A removed line.
+	Del,
+	/// An unchanged line inside a hunk.
+	Context,
+}
+
+/// One row of a parsed unified diff.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiffLine {
+	pub kind: DiffKind,
+	pub text: String,
+}
+
+/// The unified diff of the worktree against `HEAD`, read-only.
+///
+/// `file` narrows it to one repository-relative path. The command is
+/// `git diff --no-color HEAD -- [file]`, so staged *and* unstaged edits are in
+/// the result — which is also why a file that is only untracked does not show
+/// up: `git diff` has nothing to compare it against.
+pub fn read_diff(path: &Path, file: Option<&str>) -> Result<String, String> {
+	let mut args = vec!["diff", "--no-color", "HEAD", "--"];
+	if let Some(file) = file {
+		args.push(file);
+	}
+	run_git(path, &args)
+}
+
+/// Classify one unified-diff line, or `None` for git's own bookkeeping
+/// (`diff --git`, `index`, `---`, mode/rename headers), which the views drop.
+///
+/// This is the one place the diff's shape is decided; both [`parse_diff`] and
+/// the 差异比较器 page's renderer go through it, so a row can be classified
+/// without building the row list (the page walks the text straight from the
+/// cache, once per frame, allocation-free).
+pub fn classify_line(line: &str) -> Option<DiffKind> {
+	if line.starts_with("+++ ") {
+		return Some(DiffKind::Header);
+	}
+	if line.starts_with("diff --git")
+		|| line.starts_with("index ")
+		|| line.starts_with("--- ")
+		|| line.starts_with("new file mode")
+		|| line.starts_with("deleted file mode")
+		|| line.starts_with("old mode")
+		|| line.starts_with("new mode")
+		|| line.starts_with("similarity index")
+		|| line.starts_with("rename from")
+		|| line.starts_with("rename to")
+	{
+		return None;
+	}
+	Some(if line.starts_with("@@") {
+		DiffKind::Hunk
+	} else if line.starts_with('+') {
+		DiffKind::Add
+	} else if line.starts_with('-') {
+		DiffKind::Del
+	} else {
+		DiffKind::Context
+	})
+}
+
+/// Split a unified diff into rows.
+///
+/// `diff --git`, `index`, `---` and `+++` lines are replaced by one header row
+/// naming the destination path (`+++ b/<path>`), so a multi-file diff stays
+/// readable without repeating git's bookkeeping. `\ No newline at end of file`
+/// is kept as context — it is information about the change.
+pub fn parse_diff(text: &str) -> Vec<DiffLine> {
+	let mut rows = Vec::new();
+	for line in text.lines() {
+		let Some(kind) = classify_line(line) else {
+			continue;
+		};
+		let text = if kind == DiffKind::Header {
+			line.strip_prefix("+++ ").unwrap_or(line).trim().to_owned()
+		} else {
+			line.to_owned()
+		};
+		rows.push(DiffLine { kind, text });
+	}
+	rows
+}
+
 /// Wall-clock milliseconds since `started`.
 fn elapsed_ms(started: Instant) -> f64 {
 	(started.elapsed().as_secs_f64() * 1000.0).round()
@@ -344,5 +438,86 @@ mod tests {
 		assert!(status.changed.is_empty() && status.untracked.is_empty());
 		assert!(status.commits.is_empty());
 		assert_eq!((status.insertions, status.deletions, status.ahead, status.behind), (0, 0, 0, 0));
+	}
+
+	/// A scratch repository: `<temp>/zetawork-gui-diff-<pid>`, committed once.
+	fn scratch_repo(tag: &str) -> std::path::PathBuf {
+		let path =
+			std::env::temp_dir().join(format!("zetawork-gui-diff-{tag}-{}", std::process::id()));
+		let _ = std::fs::remove_dir_all(&path);
+		std::fs::create_dir_all(&path).unwrap();
+		let git = |args: &[&str]| {
+			let mut cmd = Command::new("git");
+			cmd.arg("-C").arg(&path).args(args);
+			cmd.stdin(Stdio::null())
+				.stdout(Stdio::piped())
+				.stderr(Stdio::piped());
+			#[cfg(windows)]
+			cmd.creation_flags(CREATE_NO_WINDOW);
+			let out = cmd.output().expect("git must be on PATH for this test");
+			assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+		};
+		git(&["init", "--quiet"]);
+		std::fs::write(path.join("notes.txt"), "one\n").unwrap();
+		std::fs::write(path.join("other.txt"), "hello\n").unwrap();
+		git(&["add", "notes.txt", "other.txt"]);
+		git(&[
+			"-c",
+			"user.email=zetawork@test",
+			"-c",
+			"user.name=zetawork",
+			"commit",
+			"--quiet",
+			"-m",
+			"seed",
+		]);
+		path
+	}
+
+	#[test]
+	fn parse_diff_names_files_and_classifies_rows() {
+		let text = "diff --git a/notes.txt b/notes.txt\nindex 111..222 100644\n--- a/notes.txt\n+++ b/notes.txt\n@@ -1 +1,2 @@\n-one\n+one changed\n+two\n\\ No newline at end of file\n";
+		let rows = parse_diff(text);
+		let kinds: Vec<DiffKind> = rows.iter().map(|row| row.kind).collect();
+		assert_eq!(
+			kinds,
+			vec![
+				DiffKind::Header,
+				DiffKind::Hunk,
+				DiffKind::Del,
+				DiffKind::Add,
+				DiffKind::Add,
+				DiffKind::Context,
+			],
+			"bookkeeping lines collapse into one header row"
+		);
+		assert_eq!(rows[0].text, "b/notes.txt");
+		assert_eq!(rows[1].text, "@@ -1 +1,2 @@");
+		assert!(parse_diff("").is_empty());
+	}
+
+	#[test]
+	fn read_diff_reads_a_real_worktree_change() {
+		let repo = scratch_repo("read");
+		std::fs::write(repo.join("notes.txt"), "one changed\ntwo\n").unwrap();
+		let text = read_diff(&repo, None).expect("a tracked edit must produce a diff");
+		let rows = parse_diff(&text);
+		assert!(
+			rows
+				.iter()
+				.any(|row| row.kind == DiffKind::Add && row.text == "+two")
+		);
+		assert!(
+			rows
+				.iter()
+				.any(|row| row.kind == DiffKind::Header && row.text == "b/notes.txt")
+		);
+
+		// Narrowing to one path keeps the other file out.
+		std::fs::write(repo.join("other.txt"), "hello changed\n").unwrap();
+		let narrowed = read_diff(&repo, Some("other.txt")).expect("diff of one path");
+		assert!(narrowed.contains("other.txt"), "{narrowed}");
+		assert!(!narrowed.contains("notes.txt"), "{narrowed}");
+		let _ = std::fs::remove_dir_all(&repo);
 	}
 }

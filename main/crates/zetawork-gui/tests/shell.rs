@@ -225,11 +225,7 @@ fn the_whole_frame_draws_in_every_arrangement() {
 	shell.state.toggle_right();
 	render_frame(&ctx, &mut shell);
 	// Every right-column panel, including the git one (real `git` output).
-	for tab in [
-		zetawork_gui::state::RightTab::Files,
-		zetawork_gui::state::RightTab::History,
-		zetawork_gui::state::RightTab::Git,
-	] {
+	for tab in zetawork_gui::state::RightTab::ALL {
 		shell.state.set_right_tab(tab);
 		render_frame(&ctx, &mut shell);
 	}
@@ -240,6 +236,29 @@ fn the_whole_frame_draws_in_every_arrangement() {
 		render_frame(&ctx, &mut shell);
 	}
 	shell.state.close_modal();
+	// Every page the ＋ picker offers, each in its own pane.
+	for kind in zetawork_gui::state::SessionKind::PAGES {
+		let pane = shell.state.visible_panes()[0].id.clone();
+		let notice = shell.state.open_page(&pane, kind);
+		assert!(notice.0.is_empty(), "opening {kind:?}: {}", notice.0);
+		render_frame(&ctx, &mut shell);
+	}
+	// The picker itself, over the frame, for both of its targets.
+	for target in [
+		zetawork_gui::state::PickerTarget::BigTab,
+		zetawork_gui::state::PickerTarget::Pane(shell.state.visible_panes()[0].id.clone()),
+	] {
+		shell.state.open_picker(target);
+		render_frame(&ctx, &mut shell);
+	}
+	shell.state.close_picker();
+	// The 用量 container, and the status bar's collapsed strip.
+	shell.state.open_usage();
+	render_frame(&ctx, &mut shell);
+	shell.state.close_usage();
+	shell.state.act(|state| state.toggle_statusbar());
+	render_frame(&ctx, &mut shell);
+	shell.state.act(|state| state.toggle_statusbar());
 	// 列数 1 · 2 · 3, and the welcome panel.
 	for cols in [1u8, 2, 3] {
 		shell.state.act(|state| state.set_cols(cols));
@@ -250,6 +269,279 @@ fn the_whole_frame_draws_in_every_arrangement() {
 	// A toast, which draws over everything.
 	shell.state.toast("测试提示");
 	render_frame(&ctx, &mut shell);
+}
+
+#[test]
+fn the_picker_lists_the_hosts_shells_and_every_page() {
+	let entries = zetawork_gui::state::PickerEntry::all();
+	let shells: Vec<&zetawork_gui::state::PickerEntry> = entries
+		.iter()
+		.filter(|entry| matches!(entry, zetawork_gui::state::PickerEntry::Shell(_)))
+		.collect();
+	let pages: Vec<&zetawork_gui::state::PickerEntry> = entries
+		.iter()
+		.filter(|entry| matches!(entry, zetawork_gui::state::PickerEntry::Page(_)))
+		.collect();
+	// The pages are exactly the four the GUI draws itself, in the spec's order.
+	assert_eq!(
+		pages.iter().map(|entry| entry.title()).collect::<Vec<_>>(),
+		vec!["编辑器", "差异比较器", "Git", "zetaide"]
+	);
+	// Whatever this host has, every shell row points at a file that exists and
+	// is classified as a shell (never a page).
+	for entry in &shells {
+		if let zetawork_gui::state::PickerEntry::Shell(shell) = entry {
+			assert!(shell.path.is_file(), "{} is not a file", shell.path.display());
+			assert_eq!(entry.session_kind(), zetawork_gui::state::SessionKind::Term);
+			assert!(!entry.detail().is_empty(), "a shell row names its path");
+		}
+	}
+	// 本机 has at least one of the six families on Windows; on any other host the
+	// list may legitimately be empty, so only the ordering rule is asserted.
+	let kinds: Vec<&str> = shells.iter().map(|entry| entry.group()).collect();
+	assert!(kinds.iter().all(|group| *group == "本机 Shell"), "shells come first");
+	assert!(entries.iter().any(|entry| entry.group() == "页面"));
+}
+
+#[test]
+fn a_new_big_tab_opens_a_terminal_and_a_pick_opens_what_was_picked() {
+	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let project = state.active_project.clone().unwrap();
+
+	// The default: one pane, one 终端 page, one column.
+	let notice = state.new_workspace(&project);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let workspace = state.active_workspace().unwrap().clone();
+	assert_eq!(workspace.panes.len(), 1);
+	assert_eq!(workspace.cols, 1);
+	assert_eq!(workspace.panes[0].tabs[0].kind, zetawork_gui::state::SessionKind::Term);
+
+	// A picker pick on the strip's ＋ puts the picked page in the new 大标签页.
+	state.open_picker(zetawork_gui::state::PickerTarget::BigTab);
+	let page = zetawork_gui::state::PickerEntry::Page(zetawork_gui::state::SessionKind::Diff);
+	let notice = state.pick(&page);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let workspace = state.active_workspace().unwrap();
+	assert_eq!(workspace.panes[0].tabs[0].kind, zetawork_gui::state::SessionKind::Diff);
+	assert!(state.picker().is_none(), "the pick closes the picker");
+
+	// A pick on a pane's ＋ adds a tab there instead.
+	let pane_id = state.visible_panes()[0].id.clone();
+	let before = state.visible_panes()[0].tabs.len();
+	state.open_picker(zetawork_gui::state::PickerTarget::Pane(pane_id.clone()));
+	let notice =
+		state.pick(&zetawork_gui::state::PickerEntry::Page(zetawork_gui::state::SessionKind::Git));
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	assert_eq!(state.visible_panes()[0].tabs.len(), before + 1);
+	assert_eq!(
+		state.visible_panes()[0].active_tab().map(|tab| tab.kind),
+		Some(zetawork_gui::state::SessionKind::Git),
+		"the new page is the active tab"
+	);
+}
+
+#[test]
+fn a_shell_pick_records_that_shell_on_the_terminal_page() {
+	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let Some(shell) = zetawork_gui::shells::detect().into_iter().next() else {
+		// A host with no shell at all cannot exercise this; the picker test
+		// above still covers the listing rule.
+		return;
+	};
+	let pane_id = state.visible_panes()[0].id.clone();
+	let kind = shell.kind;
+	let notice = state.open_shell(&pane_id, shell);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tab = state.visible_panes()[0].active_tab().cloned().unwrap();
+	assert_eq!(tab.kind, zetawork_gui::state::SessionKind::Term);
+	assert_eq!(tab.shell, Some(kind), "the page records which shell it is for");
+	assert!(tab.title.contains(kind.label()), "title: {}", tab.title);
+}
+
+#[test]
+fn the_editor_page_opens_and_saves_a_real_file() {
+	let dir = std::env::temp_dir().join(format!("zetawork-gui-editor-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&dir);
+	std::fs::create_dir_all(&dir).unwrap();
+	let path = dir.join("notes.md");
+	std::fs::write(&path, "# hello\nsecond line\n").unwrap();
+
+	let mut shell = shell();
+	let pane_id = shell.state.visible_panes()[0].id.clone();
+	let notice = shell.state.open_file(&pane_id, &path);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tab = shell.state.visible_panes()[0]
+		.active_tab()
+		.cloned()
+		.unwrap();
+	assert_eq!(tab.kind, zetawork_gui::state::SessionKind::Editor);
+	let doc = tab
+		.doc
+		.as_ref()
+		.expect("an editor tab carries its document");
+	assert_eq!(doc.path, path);
+	assert_eq!(doc.text, "# hello\nsecond line\n", "the buffer is the file");
+	assert_eq!(doc.lines(), 2);
+	assert!(!doc.dirty);
+
+	// Editing the buffer and Ctrl+S writes those exact bytes to disk.
+	let tab_id = tab.id.clone();
+	{
+		let doc = shell
+			.state
+			.doc_mut(&pane_id, &tab_id)
+			.expect("the document is still open");
+		doc.text.push_str("third line\n");
+		doc.touch();
+	}
+	assert!(shell.state.save_dirty_editors().0.contains("已保存"));
+	assert_eq!(
+		std::fs::read_to_string(&path).unwrap(),
+		"# hello\nsecond line\nthird line\n",
+		"the save wrote the buffer back"
+	);
+	assert!(!shell.state.doc_mut(&pane_id, &tab_id).unwrap().dirty);
+
+	// Re-opening the same file activates the open tab instead of reloading it.
+	let notice = shell.state.open_file(&pane_id, &path);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tabs = shell.state.visible_panes()[0]
+		.tabs
+		.iter()
+		.filter(|tab| tab.kind == zetawork_gui::state::SessionKind::Editor)
+		.count();
+	assert_eq!(tabs, 2, "the seeded editor tab plus this file's");
+
+	// A directory is refused, not opened as an empty document.
+	let notice = shell.state.open_file(&pane_id, &dir);
+	assert!(notice.0.contains("目录"), "{}", notice.0);
+	let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_right_column_has_four_tabs_and_six_settings_sections() {
+	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 4);
+	assert_eq!(
+		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
+		["文件树", "历史 · Agent 对话", "Git 状态", "上下文用量"]
+	);
+	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 6);
+	assert_eq!(
+		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
+		["外观", "编辑器", "终端", "快捷键", "管理", "关于"]
+	);
+	// The left column keeps 手机版's slot but does not draw it (R20).
+	assert_eq!(zetawork_gui::state::NavItem::ALL.len(), 4);
+	assert_eq!(zetawork_gui::state::NavItem::visible().count(), 3);
+	assert!(zetawork_gui::state::NavItem::Mobile.hidden());
+}
+
+#[test]
+fn the_settings_modal_reaches_all_three_targets() {
+	// ① zetawork's own file: the shell's settings type round-trips (see the
+	//    acceptance test above) and every section is drawn by the frame test.
+
+	// ② zetacode's options: five rows, each one a real key of
+	//    `zetacode config list`, written through `zetacode config set`.
+	let fixture = r#"{
+		"edit.mode": {"value": "hashline", "type": "enum", "description": "…"},
+		"autoResume": {"value": true, "type": "boolean", "description": "…"},
+		"readLineNumbers": {"value": true, "type": "boolean", "description": "…"},
+		"display.showTokenUsage": {"value": true, "type": "boolean", "description": "…"},
+		"colorBlindMode": {"value": false, "type": "boolean", "description": "…"}
+	}"#;
+	let options = zetawork_gui::zetacode::parse_config_list(fixture).expect("fixture parses");
+	let cache = zetawork_gui::settings_ui::ZetacodeCache::loaded(options);
+	for (key, _, _) in zetawork_gui::settings_ui::ZetacodeCache::ROWS {
+		assert!(cache.value(key).is_some(), "the row {key} has a value");
+	}
+	assert_eq!(
+		zetawork_gui::zetacode::set_argv("edit.mode", "patch"),
+		["config".to_owned(), "set".to_owned(), "edit.mode".to_owned(), "patch".to_owned(),]
+	);
+	// The key set is the one the real CLI reports: probe it when it is there.
+	if let Ok(real) = zetawork_gui::zetacode::config_list() {
+		for (key, _, _) in zetawork_gui::settings_ui::ZetacodeCache::ROWS {
+			assert!(
+				zetawork_gui::zetacode::option(&real, key).is_some(),
+				"{key} is not in `zetacode config list`"
+			);
+		}
+	}
+
+	// ③ the provider catalog: read from a real `models.yml`, and the row's write
+	//    target is the file's own `baseUrl` literal.
+	let dir = std::env::temp_dir().join(format!("zetawork-gui-providers-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&dir);
+	std::fs::create_dir_all(dir.join(".zeta").join("agent")).unwrap();
+	let catalog = dir.join(".zeta").join("agent").join("models.yml");
+	std::fs::write(
+		&catalog,
+		"{\n  \"providers\": {\n    \"zai\": {\n      \"baseUrl\": \"https://api.z.ai/v1\",\n      \"api\": \"openai-completions\",\n      \"apiKey\": \"ZAI_API_KEY\",\n      \"models\": []\n    }\n  }\n}\n",
+	)
+	.unwrap();
+	let mut providers = zetawork_gui::settings_ui::ProviderCache::default();
+	providers.ensure(Some(&dir));
+	assert_eq!(providers.providers().len(), 1);
+	assert_eq!(providers.providers()[0].id, "zai");
+	assert_eq!(providers.providers()[0].base_url.as_deref(), Some("https://api.z.ai/v1"));
+	assert!(providers.error().is_none());
+	zetawork_gui::zetacode::write_provider_field(&dir, "zai", "baseUrl", "https://example.test")
+		.unwrap();
+	providers.reload(Some(&dir));
+	assert_eq!(providers.providers()[0].base_url.as_deref(), Some("https://example.test"));
+	assert!(
+		std::fs::read_to_string(&catalog)
+			.unwrap()
+			.contains("\"apiKey\": \"ZAI_API_KEY\""),
+		"the rest of the file is preserved"
+	);
+	let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_usage_entry_opens_the_embedded_stats_container() {
+	let mut shell = shell();
+	assert!(!shell.state.usage_view_open());
+	zetawork_gui::left::open_usage(&mut shell);
+	assert!(shell.state.usage_view_open(), "用量 opens the container");
+	assert!(shell.state.modal_open(), "the container counts as an overlay");
+	// The container loads a loopback stats page, and says where the address
+	// came from. (A default endpoint is not an error: it means `zetacode serve`
+	// has not published a `~/.zeta/serve.json` on this machine.)
+	let url = zetawork_gui::usage::url(&shell).to_owned();
+	assert!(url.starts_with("http"), "{url}");
+	assert!(
+		zetawork_gui::stats::StatsEndpoint {
+			url: url.clone(),
+			source: zetawork_gui::stats::EndpointSource::Default,
+			info: None
+		}
+		.is_loopback()
+	);
+	assert!(zetawork_gui::usage::endpoint_line(&shell).contains(&url));
+	assert!(!zetawork_gui::stats::CONTAINER_OBSTACLE.is_empty());
+	// The right column's 上下文用量 tab opens the same container.
+	shell.state.close_usage();
+	shell
+		.state
+		.set_right_tab(zetawork_gui::state::RightTab::Context);
+	assert_eq!(shell.state.right_tab, zetawork_gui::state::RightTab::Context);
+	// Escape closes the container before anything else.
+	shell.state.open_usage();
+	assert!(shell.state.escape());
+	assert!(!shell.state.usage_view_open());
+}
+
+#[test]
+fn the_status_bar_collapses_and_comes_back() {
+	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	assert!(state.statusbar_visible());
+	assert!(state.toggle_statusbar().0.contains("收起"));
+	assert!(!state.statusbar_visible());
+	assert!(state.toggle_statusbar().0.contains("展开"));
+	assert!(state.statusbar_visible());
+	assert_eq!(state.context_label(), "上文 —", "no live session, no percentage");
 }
 
 #[test]

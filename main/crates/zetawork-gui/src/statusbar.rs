@@ -54,13 +54,68 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 			}
 
 			ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+				if item(ui, None, "关闭", false, "收起状态栏").clicked() {
+					shell.state.act(|state| state.toggle_statusbar());
+				}
 				item(ui, None, &clock(), true, "本地时间");
+				// 上文: the current conversation's share of its window. The only
+				// source is a live session's context report (R16), so with no
+				// session it says so instead of drawing a plausible number.
+				let context = shell.state.context_label().to_owned();
+				item(ui, None, &context, true, CONTEXT_HINT);
 				let throughput = shell.throughput.clone().unwrap_or_else(|| "—".to_owned());
 				item(ui, None, &throughput, true, crate::THROUGHPUT_HINT);
 				item(ui, None, &shell.memory_label(), true, "本进程常驻内存（sysinfo）");
 			});
 		});
 	});
+}
+
+/// The tooltip on the 上文 column: what would have to exist for it to show a
+/// percentage.
+const CONTEXT_HINT: &str =
+	"上下文占用：需要一个运行中的会话（数据源：GET /api/agent/<id>/context）";
+
+/// Height of the restore strip the collapsed status bar leaves behind.
+pub const STRIP_H: f32 = 16.0;
+
+/// The slim strip shown in place of the status bar after 关闭. It is the way
+/// back, so collapsing is never a one-way door.
+pub fn strip(ui: &mut Ui, shell: &mut Shell) {
+	let rect = ui.max_rect();
+	ui.painter()
+		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+	ui.painter().line_segment(
+		[pos2(rect.min.x, rect.min.y + 0.5), pos2(rect.max.x, rect.min.y + 0.5)],
+		Stroke::new(1.0, theme::BORDER),
+	);
+	let button = Rect::from_center_size(pos2(rect.center().x, rect.center().y), vec2(40.0, 14.0));
+	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(button));
+	if chrome_like_button(&mut child, "展开状态栏").clicked() {
+		shell.state.act(|state| state.toggle_statusbar());
+	}
+}
+
+/// The strip's own button: a chevron that points up at the workbench.
+fn chrome_like_button(ui: &mut Ui, tooltip: &str) -> egui::Response {
+	let (rect, response) = ui.allocate_exact_size(vec2(40.0, 14.0), Sense::click());
+	let hovered = response.hovered();
+	if hovered {
+		ui.painter()
+			.rect_filled(rect, CornerRadius::same(3), theme::PANEL_3);
+	}
+	paint(
+		ui.painter(),
+		Icon::ChevronDown,
+		Rect::from_center_size(rect.center(), vec2(11.0, 11.0)),
+		if hovered {
+			theme::TEXT_2
+		} else {
+			theme::TEXT_3
+		},
+		1.4,
+	);
+	response.on_hover_text(tooltip)
 }
 
 fn clock() -> String {

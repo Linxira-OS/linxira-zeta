@@ -20,6 +20,7 @@
 //! its index-based tab ids are not, and reusing an id after a close would make
 //! lookups ambiguous).
 
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::settings::Section;
@@ -39,25 +40,28 @@ pub const TOAST_TTL: Duration = Duration::from_millis(1800);
 
 /// The left column's navigation entries.
 ///
-/// The spec lists four (搜索 / 任务 / 自动化 / 手机版); this round ships three —
-/// the mobile entry is deliberately absent until its design exists, and it
-/// comes back as one more variant here plus one entry in [`NavItem::ALL`].
+/// The spec lists four (搜索 / 任务 / 自动化 / 手机版). The fourth is **hidden this
+/// round** (R20: the mobile entry has no design yet, so it is not drawn in the
+/// GUI or in the TUI) — but its slot stays in [`NavItem::ALL`], so bringing it
+/// back is deleting the [`NavItem::hidden`] filter and nothing else.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum NavItem {
 	#[default]
 	Search,
 	Tasks,
 	Automations,
+	Mobile,
 }
 
 impl NavItem {
-	pub const ALL: [Self; 3] = [Self::Search, Self::Tasks, Self::Automations];
+	pub const ALL: [Self; 4] = [Self::Search, Self::Tasks, Self::Automations, Self::Mobile];
 
 	pub fn label(self) -> &'static str {
 		match self {
 			Self::Search => "搜索",
 			Self::Tasks => "任务",
 			Self::Automations => "自动化",
+			Self::Mobile => "手机版",
 		}
 	}
 
@@ -67,6 +71,7 @@ impl NavItem {
 			Self::Search => Some(("⌘K", true)),
 			Self::Tasks => Some(("3", false)),
 			Self::Automations => None,
+			Self::Mobile => Some(("预览", false)),
 		}
 	}
 
@@ -77,7 +82,19 @@ impl NavItem {
 			Self::Search => "zetawork 全局搜索（文件 + 会话 + 命令索引）",
 			Self::Tasks => "zetawork 任务队列（agent 任务与后台进程）",
 			Self::Automations => "zetawork 自动化规则引擎",
+			Self::Mobile => "zetawork 手机端（设备配对 + 远程工作台视图）",
 		}
+	}
+
+	/// R20: 手机版 is not drawn this round. The row keeps its place in
+	/// [`NavItem::ALL`]; flipping this to `false` is the whole change.
+	pub fn hidden(self) -> bool {
+		self == Self::Mobile
+	}
+
+	/// The entries the column actually draws, in order.
+	pub fn visible() -> impl Iterator<Item = Self> {
+		Self::ALL.into_iter().filter(|item| !item.hidden())
 	}
 }
 
@@ -89,34 +106,184 @@ pub enum ViewMode {
 	Tui,
 }
 
-/// The right column's three panels (v2 dropped the context/usage tab).
+/// The right column's four panels — the spec's 文件树 / 历史 / Git / 上下文用量.
+///
+/// The context tab shows the *current* session's context (path + branch +
+/// session, R16/R17); the global roll-up lives in the 用量 container the left
+/// column's foot opens. The two are deliberately different data sources.
+///
+/// # The reserved slot
+///
+/// R13/R14 put web-based plugin pages in *this* column (Rust-side plugins are
+/// out). Nothing of that is built this round and nothing here forecloses it:
+/// a plugin panel becomes one more variant of this enum plus one arm in
+/// [`crate::right::right_column`], whose body is handed a plain `Rect` — which
+/// is exactly what a WebView2 child window needs to be parented into. The
+/// column's width is the spec's `--side-right-w` ([`crate::right::WIDTH`],
+/// 324pt), so a page laid out for the sidebar fits without a second layout.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RightTab {
 	#[default]
 	Files,
 	History,
 	Git,
+	Context,
 }
 
 impl RightTab {
-	pub const ALL: [Self; 3] = [Self::Files, Self::History, Self::Git];
+	pub const ALL: [Self; 4] = [Self::Files, Self::History, Self::Git, Self::Context];
 
 	/// The panel head, spelled as the spec spells it.
 	pub fn title(self) -> &'static str {
 		match self {
-			Self::Files => "文件",
+			Self::Files => "文件树",
 			Self::History => "历史 · Agent 对话",
 			Self::Git => "Git 状态",
+			Self::Context => "上下文用量",
+		}
+	}
+
+	/// The live source this panel reads, or reports as missing.
+	pub fn source(self) -> &'static str {
+		match self {
+			Self::Files => "工作区目录（本地 read_dir）",
+			Self::History => "zetacode 会话存储（~/.zeta/agent/agent.db）",
+			Self::Git => "git status / log / rev-list（只读）",
+			Self::Context => "GET /api/agent/<id>/context（zetacode web gateway）",
 		}
 	}
 }
 
 /// What a session tab renders.
+///
+/// 终端 is the default: a new 大标签页 and a new pane both open one. The other
+/// four are pages the GUI draws itself (R23) — 编辑器, 差异比较器 and Git read real
+/// data; zetaide is the termide panel editor, which this build does not host
+/// yet and says so on the page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SessionKind {
+	/// A terminal page. The shell it would run is recorded on the tab.
 	Term,
+	/// The GUI's own editor page: a real file, editable, saved to disk.
 	Editor,
+	/// The GUI's own diff page: `git diff` of the active workspace, read-only.
 	Diff,
+	/// The GUI's own git page — the same data as the right column's Git panel.
+	Git,
+	/// `zetaide` — the termide panel editor (R23: the editor the TUI uses).
+	Ide,
+}
+
+impl SessionKind {
+	/// The pages the `+` picker offers, in the spec's order.
+	pub const PAGES: [Self; 4] = [Self::Editor, Self::Diff, Self::Git, Self::Ide];
+
+	/// The kind's own name, as the picker and the tab tooltips spell it.
+	pub fn label(self) -> &'static str {
+		match self {
+			Self::Term => "终端",
+			Self::Editor => "编辑器",
+			Self::Diff => "差异比较器",
+			Self::Git => "Git",
+			Self::Ide => "zetaide",
+		}
+	}
+
+	/// The title a freshly opened tab of this kind gets.
+	pub fn tab_title(self) -> &'static str {
+		match self {
+			Self::Term => "终端",
+			Self::Editor => "编辑器",
+			Self::Diff => "改动",
+			Self::Git => "Git",
+			Self::Ide => "zetaide",
+		}
+	}
+
+	/// What backs this page, or what is still missing behind it.
+	pub fn source(self) -> &'static str {
+		match self {
+			Self::Term => "本机 shell（PTY 宿主尚未接入）",
+			Self::Editor => "工作区里的真实文件（读 + 写）",
+			Self::Diff => "git diff --no-color HEAD（只读）",
+			Self::Git => "git status / log（只读）",
+			Self::Ide => "termide panel-editor（本 crate 尚未链接）",
+		}
+	}
+}
+
+/// One file open in an 编辑器 page: the real bytes on disk plus the buffer.
+///
+/// The buffer *is* the file's text — editing it and saving writes those exact
+/// bytes back, so a round trip through the page is lossless. A file that could
+/// not be read keeps `text` empty and carries the OS message in `error`
+/// instead of pretending to be an empty document.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditorDoc {
+	pub path: PathBuf,
+	pub text: String,
+	/// True while the buffer differs from what was last read or written.
+	pub dirty: bool,
+	/// Why the read or the write failed.
+	pub error: Option<String>,
+}
+
+impl EditorDoc {
+	/// Read `path`. A failure is recorded, never fatal.
+	pub fn open(path: &Path) -> Self {
+		match std::fs::read_to_string(path) {
+			Ok(text) => Self { path: path.to_path_buf(), text, dirty: false, error: None },
+			Err(err) => Self {
+				path: path.to_path_buf(),
+				text: String::new(),
+				dirty: false,
+				error: Some(format!("{}: {err}", path.display())),
+			},
+		}
+	}
+
+	/// Read `path`, or `None` when `path` is a directory.
+	pub fn open_file(path: &Path) -> Option<Self> {
+		if path.is_dir() {
+			return None;
+		}
+		Some(Self::open(path))
+	}
+
+	/// Write the buffer back to `path`. Clears `dirty` only on success.
+	pub fn save(&mut self) -> Result<(), String> {
+		match std::fs::write(&self.path, self.text.as_bytes()) {
+			Ok(()) => {
+				self.dirty = false;
+				self.error = None;
+				Ok(())
+			},
+			Err(err) => {
+				let message = format!("{}: {err}", self.path.display());
+				self.error = Some(message.clone());
+				Err(message)
+			},
+		}
+	}
+
+	/// The tab title: the file's name.
+	pub fn name(&self) -> String {
+		self
+			.path
+			.file_name()
+			.map(|name| name.to_string_lossy().into_owned())
+			.unwrap_or_else(|| self.path.display().to_string())
+	}
+
+	/// Line count, as an editor reports it (a trailing newline opens no line).
+	pub fn lines(&self) -> usize {
+		self.text.lines().count().max(1)
+	}
+
+	/// The buffer was edited.
+	pub fn touch(&mut self) {
+		self.dirty = true;
+	}
 }
 
 /// One session tab inside a pane.
@@ -125,6 +292,96 @@ pub struct SessionTab {
 	pub id: String,
 	pub kind: SessionKind,
 	pub title: String,
+	/// The shell a 终端 page would run; `None` for the seeded sample tabs and
+	/// for pages that are not terminals.
+	pub shell: Option<crate::shells::ShellKind>,
+	/// The open document of an 编辑器 page.
+	pub doc: Option<EditorDoc>,
+}
+
+impl SessionTab {
+	pub fn new(id: String, kind: SessionKind, title: String) -> Self {
+		Self { id, kind, title, shell: None, doc: None }
+	}
+
+	pub fn is_term(&self) -> bool {
+		self.kind == SessionKind::Term
+	}
+}
+
+/// What a `+` opens into.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PickerTarget {
+	/// The 大标签页 strip's ＋: a new workspace holding the picked item.
+	BigTab,
+	/// A pane's ＋: one more session tab in that pane.
+	Pane(String),
+}
+
+/// One row of the `+` picker: something that can be shown in the centre.
+///
+/// The spec's rule (R23) is that the picker lists *everything the centre can
+/// display*: every shell installed on this host, then every page the GUI draws.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PickerEntry {
+	/// A shell found on this host → a 终端 page running it.
+	Shell(crate::shells::Shell),
+	/// A page the GUI draws itself.
+	Page(SessionKind),
+}
+
+impl PickerEntry {
+	/// Everything the centre can display on this host: the shells that really
+	/// exist, then the pages.
+	pub fn all() -> Vec<Self> {
+		let mut entries: Vec<Self> = crate::shells::detect()
+			.into_iter()
+			.map(Self::Shell)
+			.collect();
+		entries.extend(SessionKind::PAGES.into_iter().map(Self::Page));
+		entries
+	}
+
+	/// The picker's group heading for this row.
+	pub fn group(&self) -> &'static str {
+		match self {
+			Self::Shell(_) => "本机 Shell",
+			Self::Page(_) => "页面",
+		}
+	}
+
+	/// The picker row's label: the shell's name, or the page's own name.
+	pub fn title(&self) -> String {
+		match self {
+			Self::Shell(shell) => shell.label().to_owned(),
+			Self::Page(kind) => kind.label().to_owned(),
+		}
+	}
+
+	/// The tab title the pick produces — shorter than the row's label, so a
+	/// 差异比较器 tab reads as the spec's 改动.
+	pub fn tab_title(&self) -> String {
+		match self {
+			Self::Shell(shell) => shell.label().to_owned(),
+			Self::Page(kind) => kind.tab_title().to_owned(),
+		}
+	}
+
+	/// The second line of the row: where it comes from, or what backs it.
+	pub fn detail(&self) -> String {
+		match self {
+			Self::Shell(shell) => shell.path.display().to_string(),
+			Self::Page(kind) => kind.source().to_owned(),
+		}
+	}
+
+	/// The kind of session tab the pick opens.
+	pub fn session_kind(&self) -> SessionKind {
+		match self {
+			Self::Shell(_) => SessionKind::Term,
+			Self::Page(kind) => *kind,
+		}
+	}
 }
 
 /// One pane: a session-tab strip over a body.
@@ -195,9 +452,18 @@ pub struct AppState {
 	pub nav: NavItem,
 	/// The focused terminal box in the TUI view; `None` = none focused.
 	pub tui_pane: Option<String>,
+	/// The shell a new 终端 page records (设置 → 终端 的 默认 Shell). The shell
+	/// syncs it from the settings file every frame; `None` = 本机默认.
+	pub default_shell: Option<crate::shells::ShellKind>,
 	pub projects: Vec<Project>,
 	pub toast: Option<(String, Instant)>,
+	/// The open `+` picker, and what a pick opens into.
+	picker: Option<PickerTarget>,
 	settings_open: bool,
+	/// The 用量 container (the embedded stats page) is open.
+	usage_open: bool,
+	/// The status bar is drawn; 关闭 collapses it.
+	statusbar_open: bool,
 	/// Monotonic id source for workspaces, panes and session tabs.
 	next_id: u64,
 }
@@ -215,9 +481,13 @@ impl Default for AppState {
 			settings_section: Section::Appearance,
 			nav: NavItem::Search,
 			tui_pane: None,
+			default_shell: None,
 			projects: Vec::new(),
 			toast: None,
+			picker: None,
 			settings_open: false,
+			usage_open: false,
+			statusbar_open: true,
 			next_id: 1,
 		}
 	}
@@ -297,6 +567,15 @@ impl AppState {
 			.unwrap_or("—")
 	}
 
+	/// The status bar's 上文 column.
+	///
+	/// A percentage needs the live session's context report (R16); this crate
+	/// has no client for it yet, so the honest value is the dash next to the
+	/// label rather than a plausible-looking number.
+	pub fn context_label(&self) -> &'static str {
+		"上文 —"
+	}
+
 	fn pane_mut(&mut self, pane_id: &str) -> Option<&mut Pane> {
 		self
 			.projects
@@ -314,42 +593,41 @@ impl AppState {
 			.find(|w| w.id == ws_id)
 	}
 
-	/// The layout a fresh workspace starts with: two panes, the first holding a
-	/// terminal and an editor tab, the second a terminal and a diff tab —
-	/// exactly the spec's `layoutFor()`.
-	fn default_layout(&mut self, ws_id: &str) -> (Vec<Pane>, u8) {
-		let mut panes = Vec::with_capacity(2);
-		for (index, extra) in
-			[(0usize, Some(SessionKind::Editor)), (1, Some(SessionKind::Diff))].into_iter()
-		{
-			let pane_id = self.fresh_id("pane");
-			let mut pane = self.basic_pane(&pane_id, index + 1);
-			if let Some(kind) = extra {
-				let tab_id = self.fresh_id("tab");
-				let title = match kind {
-					SessionKind::Editor => "workspace.rs".to_owned(),
-					_ => "改动".to_owned(),
-				};
-				pane.tabs.push(SessionTab { id: tab_id, kind, title });
-			}
-			panes.push(pane);
-		}
-		let _ = ws_id;
-		(panes, 2)
-	}
-
-	/// A pane holding a single terminal session.
+	/// A pane holding a single 终端 session.
 	fn basic_pane(&mut self, pane_id: &str, number: usize) -> Pane {
 		let tab_id = self.fresh_id("tab");
 		Pane {
 			id: pane_id.to_owned(),
 			active: tab_id.clone(),
-			tabs: vec![SessionTab {
-				id: tab_id,
-				kind: SessionKind::Term,
-				title: format!("终端 {number}"),
-			}],
+			tabs: vec![SessionTab::new(
+				tab_id,
+				SessionKind::Term,
+				if number <= 1 {
+					SessionKind::Term.tab_title().to_owned()
+				} else {
+					format!("终端 {number}")
+				},
+			)],
 		}
+	}
+
+	/// One new session tab, from a picker row or from the default (终端).
+	///
+	/// The default 终端 records the 设置 → 终端 的 默认 Shell, so the tool strip's
+	/// 新建终端 and a fresh 大标签页 agree with the settings file.
+	fn tab_for(&mut self, entry: Option<&PickerEntry>) -> SessionTab {
+		let id = self.fresh_id("tab");
+		let Some(entry) = entry else {
+			let mut tab =
+				SessionTab::new(id, SessionKind::Term, SessionKind::Term.tab_title().to_owned());
+			tab.shell = self.default_shell;
+			return tab;
+		};
+		let mut tab = SessionTab::new(id, entry.session_kind(), entry.tab_title());
+		if let PickerEntry::Shell(shell) = entry {
+			tab.shell = Some(shell.kind);
+		}
+		tab
 	}
 
 	// ── selection ──────────────────────────────────────────────────────
@@ -391,7 +669,18 @@ impl AppState {
 	}
 
 	/// ＋新建大标签页 / ＋新建工作区: a new workspace under a project.
+	///
+	/// The workspace opens on the spec's default — one pane, one 终端 page, one
+	/// column (R23: 新开的默认是终端页). Use [`Self::new_workspace_with`] when the
+	/// `+` picker already knows what should be on that page.
 	pub fn new_workspace(&mut self, project_id: &str) -> Notice {
+		self.new_workspace_with(project_id, None)
+	}
+
+	/// ＋新建大标签页, with the `+` picker's choice as the new workspace's first
+	/// page. A refused creation leaves no residue — the tab is only built once
+	/// the caps have passed.
+	pub fn new_workspace_with(&mut self, project_id: &str, entry: Option<&PickerEntry>) -> Notice {
 		let Some(pos) = self.projects.iter().position(|p| p.id == project_id) else {
 			return Notice(format!("没有这个项目：{project_id}"));
 		};
@@ -401,13 +690,15 @@ impl AppState {
 		let project_name = self.projects[pos].name.clone();
 		let name = format!("新工作区 {}", self.projects[pos].workspaces.len() + 1);
 		let id = self.fresh_id("ws");
-		let (panes, cols) = self.default_layout(&id);
+		let pane_id = self.fresh_id("pane");
+		let tab = self.tab_for(entry);
+		let panes = vec![Pane { id: pane_id, active: tab.id.clone(), tabs: vec![tab] }];
 		self.projects[pos].workspaces.push(Workspace {
 			id: id.clone(),
 			name,
 			branch: "main".to_owned(),
 			path: format!("~/{project_name}/新工作区"),
-			cols,
+			cols: 1,
 			panes,
 		});
 		self.active_project = Some(project_id.to_owned());
@@ -455,11 +746,9 @@ impl AppState {
 			return Notice(String::new());
 		};
 		let n = pane.term_count() + 1;
-		pane.tabs.push(SessionTab {
-			id: id.clone(),
-			kind: SessionKind::Term,
-			title: format!("终端 {n}"),
-		});
+		pane
+			.tabs
+			.push(SessionTab::new(id.clone(), SessionKind::Term, format!("终端 {n}")));
 		pane.active = id;
 		Notice(String::new())
 	}
@@ -477,6 +766,194 @@ impl AppState {
 			pane.active = pane.tabs[0].id.clone();
 		}
 		Notice(String::new())
+	}
+
+	// ── pages, the ＋ picker, and the editor ───────────────────────────
+
+	/// ＋ in a pane's tab strip, with a page kind: opens that page as a tab.
+	pub fn open_page(&mut self, pane_id: &str, kind: SessionKind) -> Notice {
+		if self.pane_mut(pane_id).is_none() {
+			return Notice(format!("没有这个面板：{pane_id}"));
+		}
+		let tab = self.tab_for(Some(&PickerEntry::Page(kind)));
+		self.push_tab(pane_id, tab)
+	}
+
+	/// ＋ in a pane's tab strip, with a shell the host really has: opens a
+	/// 终端 page that records it.
+	pub fn open_shell(&mut self, pane_id: &str, shell: crate::shells::Shell) -> Notice {
+		if self.pane_mut(pane_id).is_none() {
+			return Notice(format!("没有这个面板：{pane_id}"));
+		}
+		let tab = self.tab_for(Some(&PickerEntry::Shell(shell)));
+		self.push_tab(pane_id, tab)
+	}
+
+	fn push_tab(&mut self, pane_id: &str, tab: SessionTab) -> Notice {
+		let Some(pane) = self.pane_mut(pane_id) else {
+			return Notice(format!("没有这个面板：{pane_id}"));
+		};
+		pane.active = tab.id.clone();
+		pane.tabs.push(tab);
+		Notice(String::new())
+	}
+
+	/// Open a real file in a pane's 编辑器 page.
+	///
+	/// A file that is already open in that pane is *activated*, not reloaded:
+	/// an unsaved buffer is the user's work and is never silently discarded. A
+	/// path that is a directory is refused rather than opened as empty.
+	pub fn open_file(&mut self, pane_id: &str, path: &Path) -> Notice {
+		let Some(doc) = EditorDoc::open_file(path) else {
+			return Notice(format!("{} 是目录，编辑器只打开文件", path.display()));
+		};
+		let existing = self.pane_mut(pane_id).and_then(|pane| {
+			pane
+				.tabs
+				.iter()
+				.find(|tab| {
+					tab.kind == SessionKind::Editor
+						&& tab.doc.as_ref().is_some_and(|open| open.path == path)
+				})
+				.map(|tab| tab.id.clone())
+		});
+		if let Some(tab_id) = existing {
+			self.select_tab(pane_id, &tab_id);
+			return Notice(String::new());
+		}
+		let io_error = doc.error.clone();
+		let mut tab = SessionTab::new(self.fresh_id("tab"), SessionKind::Editor, doc.name());
+		tab.doc = Some(doc);
+		let notice = self.push_tab(pane_id, tab);
+		if notice.0.is_empty() {
+			if let Some(error) = io_error {
+				return Notice(format!("打不开文件：{error}"));
+			}
+		}
+		notice
+	}
+
+	/// One session tab, mutably.
+	pub fn tab_mut(&mut self, pane_id: &str, tab_id: &str) -> Option<&mut SessionTab> {
+		self
+			.pane_mut(pane_id)?
+			.tabs
+			.iter_mut()
+			.find(|tab| tab.id == tab_id)
+	}
+
+	/// The open document behind a pane's session tab.
+	pub fn doc_mut(&mut self, pane_id: &str, tab_id: &str) -> Option<&mut EditorDoc> {
+		self.tab_mut(pane_id, tab_id)?.doc.as_mut()
+	}
+
+	/// Write one editor buffer back to its file.
+	pub fn save_editor(&mut self, pane_id: &str, tab_id: &str) -> Notice {
+		let Some(doc) = self.doc_mut(pane_id, tab_id) else {
+			return Notice("这个标签页没有打开文件".to_owned());
+		};
+		let path = doc.path.display().to_string();
+		match doc.save() {
+			Ok(()) => Notice(format!("已保存 {path}")),
+			Err(error) => Notice(format!("保存失败：{error}")),
+		}
+	}
+
+	/// 保存 (Ctrl+S): every dirty editor buffer in the open workspace.
+	pub fn save_dirty_editors(&mut self) -> Notice {
+		let targets: Vec<(String, String)> = self
+			.visible_panes()
+			.iter()
+			.flat_map(|pane| {
+				pane
+					.tabs
+					.iter()
+					.filter(|tab| tab.doc.as_ref().is_some_and(|doc| doc.dirty))
+					.map(|tab| (pane.id.clone(), tab.id.clone()))
+			})
+			.collect();
+		if targets.is_empty() {
+			return Notice(String::new());
+		}
+		let mut saved = 0usize;
+		let mut failed: Vec<String> = Vec::new();
+		for (pane_id, tab_id) in targets {
+			let Some(doc) = self.doc_mut(&pane_id, &tab_id) else {
+				continue;
+			};
+			match doc.save() {
+				Ok(()) => saved += 1,
+				Err(error) => failed.push(error),
+			}
+		}
+		if !failed.is_empty() {
+			return Notice(format!("保存失败：{}", failed.join("；")));
+		}
+		Notice(format!("已保存 {saved} 个文件"))
+	}
+
+	/// Open the ＋ picker for a target: the 大标签页 strip, or one pane.
+	pub fn open_picker(&mut self, target: PickerTarget) {
+		self.picker = Some(target);
+		self.settings_open = false;
+		self.usage_open = false;
+	}
+
+	pub fn close_picker(&mut self) {
+		self.picker = None;
+	}
+
+	pub fn picker(&self) -> Option<&PickerTarget> {
+		self.picker.as_ref()
+	}
+
+	/// A picker row was clicked: open it where the picker was opened from.
+	pub fn pick(&mut self, entry: &PickerEntry) -> Notice {
+		match self.picker.take() {
+			None => Notice(String::new()),
+			Some(PickerTarget::BigTab) => {
+				let Some(project) = self.active_project.clone() else {
+					return Notice("先选择一个项目".to_owned());
+				};
+				self.new_workspace_with(&project, Some(entry))
+			},
+			Some(PickerTarget::Pane(pane_id)) => {
+				let tab = self.tab_for(Some(entry));
+				self.push_tab(&pane_id, tab)
+			},
+		}
+	}
+
+	/// 左栏底部的 用量 (and the right column's 上下文用量 expansion): open the
+	/// embedded stats container. The page itself is served by `packages/stats`
+	/// on loopback; see [`crate::stats`] for the URL and the container's limits.
+	pub fn open_usage(&mut self) {
+		self.usage_open = true;
+		self.settings_open = false;
+		self.picker = None;
+	}
+
+	pub fn close_usage(&mut self) {
+		self.usage_open = false;
+	}
+
+	pub fn usage_view_open(&self) -> bool {
+		self.usage_open
+	}
+
+	/// The status bar's 关闭: collapse the bar. The bar's own slim restore strip
+	/// brings it back, so the button is never a one-way door.
+	pub fn toggle_statusbar(&mut self) -> Notice {
+		self.statusbar_open = !self.statusbar_open;
+		if self.statusbar_open {
+			Notice("状态栏已展开".to_owned())
+		} else {
+			Notice("状态栏已收起".to_owned())
+		}
+	}
+
+	pub fn statusbar_visible(&self) -> bool {
+		self.statusbar_open
 	}
 
 	// ── panes and columns ──────────────────────────────────────────────
@@ -592,10 +1069,18 @@ impl AppState {
 		self.view = view;
 	}
 
-	/// Escape: close the settings modal, else leave the TUI view.
+	/// Escape: close the topmost overlay, else leave the TUI view.
 	pub fn escape(&mut self) -> bool {
-		if self.modal_open() {
-			self.close_modal();
+		if self.picker.is_some() {
+			self.picker = None;
+			return true;
+		}
+		if self.usage_open {
+			self.usage_open = false;
+			return true;
+		}
+		if self.settings_open {
+			self.settings_open = false;
 			return true;
 		}
 		if self.view == ViewMode::Tui {
@@ -652,12 +1137,21 @@ impl AppState {
 
 	// ── the settings modal ─────────────────────────────────────────────
 
+	/// Any overlay is on screen: the 设置 modal, the 用量 container, or a `+`
+	/// picker. The resize border stands down while one is.
 	pub fn modal_open(&self) -> bool {
+		self.settings_open || self.usage_open || self.picker.is_some()
+	}
+
+	/// Specifically the 设置 modal.
+	pub fn settings_open(&self) -> bool {
 		self.settings_open
 	}
 
 	pub fn open_settings(&mut self) {
 		self.settings_open = true;
+		self.usage_open = false;
+		self.picker = None;
 	}
 
 	pub fn close_modal(&mut self) {

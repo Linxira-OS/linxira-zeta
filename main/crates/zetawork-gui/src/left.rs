@@ -36,6 +36,9 @@ fn nav_icon(item: NavItem) -> Icon {
 		NavItem::Search => Icon::Search,
 		NavItem::Tasks => Icon::Tasks,
 		NavItem::Automations => Icon::Zap,
+		// R20: hidden this round, but the slot keeps its icon for the day it
+		// comes back.
+		NavItem::Mobile => Icon::Hamburger,
 	}
 }
 
@@ -51,7 +54,7 @@ pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), HEAD_H));
 	let nav = Rect::from_min_size(
 		pos2(rect.min.x, head.max.y),
-		vec2(rect.width(), NAV_ROW_H * NavItem::ALL.len() as f32 + 10.0),
+		vec2(rect.width(), NAV_ROW_H * NavItem::visible().count() as f32 + 10.0),
 	);
 	let foot =
 		Rect::from_min_size(pos2(rect.min.x, rect.max.y - FOOT_H), vec2(rect.width(), FOOT_H));
@@ -109,7 +112,7 @@ fn nav_region(ui: &mut Ui, shell: &mut Shell) {
 			.max_rect(inner)
 			.layout(Layout::top_down(Align::Min)),
 	);
-	for item in NavItem::ALL {
+	for item in NavItem::visible() {
 		let active = shell.state.nav == item;
 		if nav_row(&mut child, nav_icon(item), item.label(), item.trailing(), active).clicked() {
 			shell.state.nav = item;
@@ -279,7 +282,10 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 	}
 }
 
-/// `.side-foot`: 设置, a spacer, 帮助 and 聚焦.
+/// `.side-foot`: 设置 + 用量, a spacer, 帮助 and 聚焦.
+///
+/// The spec's foot carries 设置 and 用量 side by side; both are fixed items (R13:
+/// the foot does not take the slot configuration).
 fn foot_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter().line_segment(
@@ -298,6 +304,9 @@ fn foot_region(ui: &mut Ui, shell: &mut Shell) {
 	if foot_button(&mut left, Icon::Gear, "设置").clicked() {
 		shell.state.open_settings();
 	}
+	if foot_button(&mut left, Icon::List, "用量").clicked() {
+		open_usage(shell);
+	}
 	let mut right = ui.new_child(
 		egui::UiBuilder::new()
 			.max_rect(Rect::from_min_max(pos2(inner.max.x - 62.0, inner.min.y), inner.max))
@@ -309,6 +318,13 @@ fn foot_region(ui: &mut Ui, shell: &mut Shell) {
 	if foot_button(&mut right, Icon::Help, "").clicked() {
 		shell.state.act(|s| s.help());
 	}
+}
+
+/// 用量: open the container, re-reading the stats endpoint first, so the URL is
+/// whatever `zetacode serve` published this session.
+pub fn open_usage(shell: &mut Shell) {
+	shell.refresh_stats();
+	shell.state.open_usage();
 }
 
 /// `rail.rail-left`: only the expand button.

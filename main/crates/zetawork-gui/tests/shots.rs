@@ -21,8 +21,8 @@ mod raster;
 use std::path::PathBuf;
 
 use egui::{Color32, Rect, pos2, vec2};
-use zetawork_gui::state::{AppState, ViewMode};
 use zetawork_gui::settings::Settings;
+use zetawork_gui::state::{AppState, ViewMode};
 use zetawork_gui::{Shell, fonts, theme};
 
 /// The window size the screenshots pretend the user has.
@@ -32,7 +32,12 @@ const SIZE: [f32; 2] = [1440.0, 900.0];
 fn shots_dir() -> PathBuf {
 	let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 	// …/main/crates/zetawork-gui → the worktree root
-	let root = manifest.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).map(PathBuf::from).unwrap_or(manifest);
+	let root = manifest
+		.parent()
+		.and_then(|p| p.parent())
+		.and_then(|p| p.parent())
+		.map(PathBuf::from)
+		.unwrap_or(manifest);
 	root.join("shots")
 }
 
@@ -42,15 +47,7 @@ fn shots_dir() -> PathBuf {
 fn ready_shell() -> Shell {
 	let cwd = std::env::current_dir().expect("cwd");
 	let state = AppState::seeded(&cwd);
-	let mut shell = Shell::with_state(state, Settings::default());
-	if let Some(workspace) = shell.state.active_workspace() {
-		let pane = workspace.panes[0].clone();
-		if let Some(editor) = pane.tabs.iter().find(|tab| tab.title.ends_with(".rs")) {
-			let (pane_id, tab_id) = (pane.id.clone(), editor.id.clone());
-			shell.state.select_tab(&pane_id, &tab_id);
-		}
-	}
-	shell
+	Shell::with_state(state, Settings::default())
 }
 
 /// Render `frames` frames and return the PNG bytes of the last one.
@@ -132,4 +129,111 @@ fn settings_modal_screenshot() {
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
 	write("03-settings-modal.png", &bytes);
+}
+
+/// `04-plus-picker.png` — the `+` picker open over the workspace, listing this
+/// host's shells and the four pages.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn picker_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	let anchor = egui::Rect::from_min_size(pos2(240.0, 40.0), vec2(28.0, 28.0));
+	let target = zetawork_gui::state::PickerTarget::Pane(shell.state.visible_panes()[0].id.clone());
+	shell.open_picker(target, anchor);
+	assert!(!shell.picker_entries.is_empty(), "the picker lists something");
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("04-plus-picker.png", &bytes);
+}
+
+/// `05-editor-diff-git.png` — three panes: the 编辑器 page with a real file open,
+/// the 差异比较器 page with the workspace's real `git diff`, and the Git page.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn gui_pages_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	shell.state.act(|state| state.set_cols(3));
+	let panes: Vec<String> = shell
+		.state
+		.visible_panes()
+		.iter()
+		.map(|pane| pane.id.clone())
+		.collect();
+	// Pane 1: the editor, over this crate's own manifest — a real file.
+	let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+	let notice = shell.state.open_file(&panes[0], &manifest);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	// Pane 2: the diff page (real `git diff` of the worktree it runs in).
+	assert!(
+		shell
+			.state
+			.open_page(&panes[1], zetawork_gui::state::SessionKind::Diff)
+			.0
+			.is_empty()
+	);
+	// Pane 3: the Git page.
+	assert!(
+		shell
+			.state
+			.open_page(&panes[2], zetawork_gui::state::SessionKind::Git)
+			.0
+			.is_empty()
+	);
+	shell
+		.state
+		.set_right_tab(zetawork_gui::state::RightTab::Context);
+	shell.state.right_collapsed = false;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("05-editor-diff-git.png", &bytes);
+}
+
+/// `06-usage-container.png` — the 用量 container: the address the stats page is
+/// served from, and the frame it will be painted into.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn usage_container_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	zetawork_gui::left::open_usage(&mut shell);
+	assert!(shell.state.usage_view_open());
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("06-usage-container.png", &bytes);
+}
+
+/// `07-settings-zetacode.png` — the 编辑器 section with the zetacode rows, and
+/// `08-settings-providers.png` — the 管理 section with the provider catalog.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn settings_remote_sections_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	// The remote caches are seeded from a fixture and a temp catalog so the two
+	// screenshots show the real controls without spawning `zetacode` or writing
+	// the user's files.
+	let fixture = r#"{
+		"edit.mode": {"value": "hashline", "type": "enum", "description": "…"},
+		"autoResume": {"value": true, "type": "boolean", "description": "…"},
+		"readLineNumbers": {"value": true, "type": "boolean", "description": "…"},
+		"display.showTokenUsage": {"value": true, "type": "boolean", "description": "…"},
+		"colorBlindMode": {"value": false, "type": "boolean", "description": "…"}
+	}"#;
+	let options = zetawork_gui::zetacode::parse_config_list(fixture).expect("fixture");
+	shell.remote = zetawork_gui::settings_ui::ZetacodeCache::loaded(options);
+
+	shell.state.open_settings();
+	shell.state.settings_section = zetawork_gui::settings::Section::Editor;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("07-settings-zetacode.png", &bytes);
+
+	// The provider rows read `~/.zeta/agent/models.yml`; in this headless run the
+	// real catalog is read (read-only) and the drafts are seeded from it.
+	shell.state.settings_section = zetawork_gui::settings::Section::Manage;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("08-settings-providers.png", &bytes);
 }

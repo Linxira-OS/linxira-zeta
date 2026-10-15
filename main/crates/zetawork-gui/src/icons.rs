@@ -48,6 +48,8 @@ pub enum Icon {
 	Info,
 	/// 历史 · Agent 对话 — a clock with a rewind arrow.
 	History,
+	/// The 用量 expander (`.iconbtn[data-act=open-usage]`) — a bulleted list.
+	List,
 	/// Custom chrome (the spec's mock has no window frame).
 	Minimize,
 	Maximize,
@@ -280,6 +282,14 @@ pub fn paint(painter: &egui::Painter, icon: Icon, rect: egui::Rect, color: Color
 			line((12.0, 12.0), (15.0, 14.0));
 			arc(12.0, 12.0, 8.5, -70.0, 250.0);
 			poly(&[(3.0, 20.0), (3.0, 16.0), (7.0, 16.0)]);
+		},
+		Icon::List => {
+			line((8.0, 6.0), (21.0, 6.0));
+			line((8.0, 12.0), (21.0, 12.0));
+			line((8.0, 18.0), (21.0, 18.0));
+			line((3.5, 6.0), (3.5, 6.3));
+			line((3.5, 12.0), (3.5, 12.3));
+			line((3.5, 18.0), (3.5, 18.3));
 		},
 		Icon::Minimize => {
 			line((5.0, 12.0), (19.0, 12.0));

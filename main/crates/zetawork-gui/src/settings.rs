@@ -211,39 +211,46 @@ impl MonoFont {
 	}
 }
 
-/// 默认 Shell: what a new terminal should run once a PTY host exists.
+/// 默认 Shell: which shell a new 终端 page runs.
+///
+/// `None` means 本机默认 — the first shell [`crate::shells::detect`] finds on this
+/// host. The value is stored by [`crate::shells::ShellKind::key`], so the file
+/// stays readable by hand and an unknown key falls back to the default instead
+/// of failing the whole file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ShellChoice {
-	#[default]
-	Environment,
-	Zsh,
-	Bash,
-	Pwsh,
-}
+pub struct ShellChoice(pub Option<crate::shells::ShellKind>);
 
 impl ShellChoice {
-	pub const ALL: [Self; 4] = [Self::Environment, Self::Zsh, Self::Bash, Self::Pwsh];
+	pub const ALL: Self = Self(None);
 
-	pub fn label(self) -> &'static str {
-		match self {
-			Self::Environment => "$SHELL",
-			Self::Zsh => "/bin/zsh",
-			Self::Bash => "/bin/bash",
-			Self::Pwsh => "pwsh",
+	/// The label the 设置 modal shows.
+	pub fn label(self) -> String {
+		match self.0 {
+			None => "本机默认".to_owned(),
+			Some(kind) => format!("{} · {}", kind.label(), kind.program()),
 		}
 	}
 
-	fn key(self) -> &'static str {
-		match self {
-			Self::Environment => "env",
-			Self::Zsh => "zsh",
-			Self::Bash => "bash",
-			Self::Pwsh => "pwsh",
-		}
+	pub fn kind(self) -> Option<crate::shells::ShellKind> {
+		self.0
 	}
 
-	fn from_key(key: &str) -> Option<Self> {
-		Self::ALL.into_iter().find(|value| value.key() == key)
+	fn key(self) -> String {
+		self
+			.0
+			.map(|kind| kind.key().to_owned())
+			.unwrap_or_else(|| "default".to_owned())
+	}
+
+	fn from_key(key: &str) -> Self {
+		if key == "default" {
+			return Self(None);
+		}
+		Self(
+			crate::shells::ShellKind::ALL
+				.into_iter()
+				.find(|kind| kind.key() == key),
+		)
 	}
 }
 
@@ -310,7 +317,7 @@ impl Default for Settings {
 			editor_size: 13,
 			editor_wrap: true,
 			editor_line_numbers: true,
-			shell: ShellChoice::Environment,
+			shell: ShellChoice::default(),
 			terminal_size: 13,
 			cursor: CursorStyle::Block,
 			terminal_autoconnect: true,
@@ -337,7 +344,7 @@ const MANAGED: [(&str, &str); 12] = [
 	("editor_size", "12 | 13 | 14 | 16"),
 	("editor_wrap", "wrap long lines in the editor pane"),
 	("editor_line_numbers", "show the gutter in the editor pane"),
-	("shell", "env | zsh | bash | pwsh"),
+	("shell", "default | powershell | pwsh | cmd | bash | git-bash | wsl"),
 	("terminal_size", "12 | 13 | 14"),
 	("cursor_style", "block | underline | bar"),
 	("terminal_autoconnect", "connect the local agent when a workspace opens"),
@@ -417,7 +424,7 @@ fn read(text: &str) -> Settings {
 			"editor_size" => settings.editor_size = size(value, &Settings::EDITOR_SIZES).unwrap_or(13),
 			"editor_wrap" => settings.editor_wrap = truthy(value).unwrap_or(true),
 			"editor_line_numbers" => settings.editor_line_numbers = truthy(value).unwrap_or(true),
-			"shell" => settings.shell = ShellChoice::from_key(value).unwrap_or_default(),
+			"shell" => settings.shell = ShellChoice::from_key(value),
 			"terminal_size" => {
 				settings.terminal_size = size(value, &Settings::TERMINAL_SIZES).unwrap_or(13)
 			},
@@ -589,7 +596,7 @@ mod tests {
 			editor_size: 16,
 			editor_wrap: false,
 			editor_line_numbers: false,
-			shell: ShellChoice::Pwsh,
+			shell: ShellChoice(Some(crate::shells::ShellKind::Pwsh)),
 			terminal_size: 12,
 			cursor: CursorStyle::Underline,
 			terminal_autoconnect: false,

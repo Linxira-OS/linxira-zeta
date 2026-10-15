@@ -66,6 +66,7 @@ pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 		RightTab::Files => files_panel(&mut child, shell),
 		RightTab::History => history_panel(&mut child, shell),
 		RightTab::Git => git_panel(&mut child, shell),
+		RightTab::Context => context_panel(&mut child, shell),
 	}
 }
 
@@ -74,6 +75,7 @@ fn tab_icon(tab: RightTab) -> Icon {
 		RightTab::Files => Icon::Folder,
 		RightTab::History => Icon::History,
 		RightTab::Git => Icon::GitBranch,
+		RightTab::Context => Icon::List,
 	}
 }
 
@@ -101,7 +103,7 @@ pub fn right_rail(ui: &mut Ui, shell: &mut Shell) {
 // ── 文件 ──────────────────────────────────────────────────────────────────
 
 fn files_panel(ui: &mut Ui, shell: &mut Shell) {
-	panel_head(ui, "文件", |ui| {
+	panel_head(ui, RightTab::Files.title(), |ui| {
 		if icon_button(ui, Icon::Refresh, 20.0, false, "重新读取目录").clicked() {
 			shell.reload_tree();
 		}
@@ -226,10 +228,30 @@ fn tree_rows(
 			badge(&mut badge_ui, "M", true);
 		}
 		if response.clicked() {
-			rel.push(index);
-			let path = rel.clone();
-			shell.tree.toggle(&path);
-			rel.pop();
+			if child.is_dir {
+				rel.push(index);
+				let path = rel.clone();
+				shell.tree.toggle(&path);
+				rel.pop();
+			} else {
+				// A file row opens the 编辑器 page in the first visible pane —
+				// the real file, editable and savable (R23).
+				let file = child.path.clone();
+				match shell
+					.state
+					.visible_panes()
+					.first()
+					.map(|pane| pane.id.clone())
+				{
+					Some(pane_id) => {
+						let notice = shell.state.open_file(&pane_id, &file);
+						shell.state.show(notice);
+					},
+					None => shell
+						.state
+						.show(crate::state::Notice("先打开一个工作区，再打开文件".to_owned())),
+				}
+			}
 		}
 		if child.is_dir && child.expanded {
 			rel.push(index);
@@ -259,8 +281,10 @@ fn history_panel(ui: &mut Ui, shell: &mut Shell) {
 
 // ── Git 状态 ──────────────────────────────────────────────────────────────
 
-fn git_panel(ui: &mut Ui, shell: &mut Shell) {
-	panel_head(ui, "Git 状态", |ui| {
+/// The Git panel: the same function draws the right column's Git tab and a
+/// `Git` page in the centre grid, so the two can never show different numbers.
+pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell) {
+	panel_head(ui, RightTab::Git.title(), |ui| {
 		if icon_button(ui, Icon::Refresh, 20.0, false, "重新读取 git 状态").clicked() {
 			shell.refresh_git();
 		}
@@ -345,6 +369,111 @@ fn git_panel(ui: &mut Ui, shell: &mut Shell) {
 			});
 			if head.clicked() {
 				shell.state.commits_open = !shell.state.commits_open;
+			}
+		});
+}
+
+/// 上下文用量: the *current* session's context (R16/R17), not the global roll-up.
+///
+/// The ring, the legend and the sub-agent list are drawn from
+/// `GET /api/agent/<id>/context` and `GET /api/agent/<id>/subagents` — an API
+/// this crate has no client for, and only answers while a session is running.
+/// So the panel draws the scope it is about (the real path and branch) and the
+/// shape it will fill, and sends the user to the 用量 container for the real
+/// numbers that exist today. It never invents a percentage.
+fn context_panel(ui: &mut Ui, shell: &mut Shell) {
+	panel_head(ui, RightTab::Context.title(), |ui| {
+		if icon_button(ui, Icon::List, 20.0, false, "展开用量统计").clicked() {
+			crate::left::open_usage(shell);
+		}
+	});
+	let path = shell
+		.state
+		.active_workspace()
+		.map(|ws| ws.path.clone())
+		.unwrap_or_default();
+	let branch = shell.state.branch_label().to_owned();
+	egui::ScrollArea::vertical()
+		.auto_shrink([false, false])
+		.show(ui, |ui| {
+			ui.spacing_mut().item_spacing.y = 6.0;
+			// The scope line: 当前路径 + 当前分支 (R17's panel head).
+			let (scope, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
+			truncated_mono(
+				ui,
+				pos2(scope.min.x + 4.0, scope.min.y + 9.0),
+				&path,
+				11.0,
+				theme::TEXT_2,
+				scope.width() - 8.0,
+			);
+			truncated_mono(
+				ui,
+				pos2(scope.min.x + 4.0, scope.min.y + 24.0),
+				&format!("分支 {branch} · 当前会话"),
+				11.0,
+				theme::TEXT_3,
+				scope.width() - 8.0,
+			);
+			// The ring's frame, empty: no live session, so no arc.
+			let (ring, _) = ui.allocate_exact_size(vec2(ui.available_width(), 118.0), Sense::hover());
+			let centre = pos2(ring.center().x - 58.0, ring.center().y);
+			ui.painter()
+				.circle_stroke(centre, 46.0, Stroke::new(10.0, theme::PANEL_4));
+			ui.painter().text(
+				centre,
+				egui::Align2::CENTER_CENTER,
+				"无活动会话",
+				egui::FontId::new(11.5, egui::FontFamily::Proportional),
+				theme::TEXT_3,
+			);
+			for (index, label) in ["系统提示", "系统上下文", "工具定义", "技能", "会话消息"]
+				.iter()
+				.enumerate()
+			{
+				let y = ring.min.y + 12.0 + index as f32 * 20.0;
+				ui.painter().rect_filled(
+					Rect::from_min_size(pos2(ring.center().x + 6.0, y), vec2(8.0, 8.0)),
+					CornerRadius::same(2),
+					theme::PANEL_4,
+				);
+				ui.painter().text(
+					pos2(ring.center().x + 22.0, y + 4.0),
+					egui::Align2::LEFT_CENTER,
+					*label,
+					egui::FontId::new(11.5, egui::FontFamily::Proportional),
+					theme::TEXT_3,
+				);
+				ui.painter().text(
+					pos2(ring.max.x - 4.0, y + 4.0),
+					egui::Align2::RIGHT_CENTER,
+					"—",
+					egui::FontId::new(11.0, egui::FontFamily::Monospace),
+					theme::TEXT_3,
+				);
+			}
+			empty_note(
+				ui,
+				"上下文数字未接线：需要一个运行中的会话",
+				"GET /api/agent/<id>/context · /subagents（zetacode web gateway，仅 live 会话）",
+			);
+			let (button, response) =
+				ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
+			ui.painter()
+				.rect_filled(button, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			ui.painter().text(
+				button.center(),
+				egui::Align2::CENTER_CENTER,
+				"打开用量统计（stats 页面）",
+				egui::FontId::new(12.0, egui::FontFamily::Proportional),
+				if response.hovered() {
+					theme::TEXT
+				} else {
+					theme::TEXT_2
+				},
+			);
+			if response.clicked() {
+				crate::left::open_usage(shell);
 			}
 		});
 }

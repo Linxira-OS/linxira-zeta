@@ -75,7 +75,14 @@ pub struct Canvas {
 
 impl Canvas {
 	pub fn new(width: usize, height: usize, background: Color32) -> Self {
-		Self { width, height, pixels: vec![[background.r(), background.g(), background.b(), background.a()]; width * height] }
+		Self {
+			width,
+			height,
+			pixels: vec![
+				[background.r(), background.g(), background.b(), background.a()];
+				width * height
+			],
+		}
 	}
 
 	/// `src` is premultiplied sRGBA in 0..=255, blended as
@@ -165,9 +172,19 @@ fn fill(
 		return;
 	}
 	let min_x = pa[0].min(pb[0]).min(pc[0]).max(clip[0]).max(0.0) as usize;
-	let max_x = (pa[0].max(pb[0]).max(pc[0]).min(clip[2]).min(canvas.width as f32) as usize).min(canvas.width);
+	let max_x = (pa[0]
+		.max(pb[0])
+		.max(pc[0])
+		.min(clip[2])
+		.min(canvas.width as f32) as usize)
+		.min(canvas.width);
 	let min_y = pa[1].min(pb[1]).min(pc[1]).max(clip[1]).max(0.0) as usize;
-	let max_y = (pa[1].max(pb[1]).max(pc[1]).min(clip[3]).min(canvas.height as f32) as usize).min(canvas.height);
+	let max_y = (pa[1]
+		.max(pb[1])
+		.max(pc[1])
+		.min(clip[3])
+		.min(canvas.height as f32) as usize)
+		.min(canvas.height);
 	let inv_area = 1.0 / area;
 	for y in min_y..max_y {
 		for x in min_x..max_x {
@@ -178,10 +195,8 @@ fn fill(
 			if wa < 0.0 || wb < 0.0 || wc < 0.0 {
 				continue;
 			}
-			let uv = [
-				wa * a.uv.x + wb * b.uv.x + wc * c.uv.x,
-				wa * a.uv.y + wb * b.uv.y + wc * c.uv.y,
-			];
+			let uv =
+				[wa * a.uv.x + wb * b.uv.x + wc * c.uv.x, wa * a.uv.y + wb * b.uv.y + wc * c.uv.y];
 			let texel = texture.map(|image| sample(image, uv)).unwrap_or([1.0; 4]);
 			let mut vertex = [0.0f32; 4];
 			let (ca, cb, cc) = (a.color, b.color, c.color);
@@ -231,14 +246,14 @@ fn sample(image: &ColorImage, uv: [f32; 2]) -> [f32; 4] {
 	let tx = x - x0 as f32;
 	let ty = y - y0 as f32;
 	let mut out = [0.0f32; 4];
-	for channel in 0..4 {
+	for (channel, value) in out.iter_mut().enumerate() {
 		let p00 = f32::from(component(image.pixels[y0 * w + x0], channel));
 		let p10 = f32::from(component(image.pixels[y0 * w + x1], channel));
 		let p01 = f32::from(component(image.pixels[y1 * w + x0], channel));
 		let p11 = f32::from(component(image.pixels[y1 * w + x1], channel));
 		let top = p00 + (p10 - p00) * tx;
 		let bottom = p01 + (p11 - p01) * tx;
-		out[channel] = top + (bottom - top) * ty;
+		*value = top + (bottom - top) * ty;
 	}
 	out
 }

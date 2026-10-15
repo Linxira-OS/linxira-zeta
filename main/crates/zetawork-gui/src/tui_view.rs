@@ -354,7 +354,7 @@ fn terminal_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>
 
 /// The lines one terminal box shows: the placeholder banner plus the sample.
 fn pane_lines(
-	_shell: &Shell,
+	shell: &Shell,
 	kind: crate::state::SessionKind,
 	tab_id: &str,
 	path: &str,
@@ -413,6 +413,42 @@ fn pane_lines(
 			}
 			lines
 		},
+		// The Git page draws the same snapshot the right column's F3 does, so
+		// the terminal form shows the numbers, not a second copy of the data.
+		crate::state::SessionKind::Git => {
+			let mut lines: Vec<Line<'static>> = Vec::new();
+			match &shell.git {
+				Some(status) if status.error.is_none() => {
+					lines.push(Line::from(vec![
+						Span::styled(status.branch.clone(), Style::new().fg(TEXT_2)),
+						Span::styled(
+							format!("  ↑{} ↓{}", status.ahead, status.behind),
+							Style::new().fg(TEXT_3),
+						),
+					]));
+					lines.push(Line::from(vec![
+						Span::styled(format!("+{} ", status.insertions), Style::new().fg(ADD)),
+						Span::styled(format!("-{}", status.deletions), Style::new().fg(DEL)),
+						Span::styled(format!("  {} 更改", status.changed.len()), Style::new().fg(TEXT_3)),
+					]));
+				},
+				_ => lines.push(Line::from(Span::styled(
+					"git 状态不可读（看 F3 的说明）",
+					Style::new().fg(TEXT_3),
+				))),
+			}
+			lines
+		},
+		// R23: the terminal form's editor is zetaide. This view draws what the
+		// page is, since hosting the panel needs a terminal host it has not got.
+		crate::state::SessionKind::Ide => vec![
+			Line::from(Span::styled("zetaide", Style::new().fg(ACCENT_2))),
+			Line::from(Span::styled(
+				"终端形态的编辑器走 zetaide（termide panel-editor）",
+				Style::new().fg(TEXT_2),
+			)),
+			Line::from(Span::styled(format!("$ zetaide {path}"), Style::new().fg(TEXT_3))),
+		],
 	}
 }
 
@@ -533,6 +569,24 @@ fn sidebar_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>)
 				},
 			}
 			Paragraph::new(lines).render(content, buf);
+		},
+		// R23: the terminal form has no usage page (zetacode's input box already
+		// shows the live conversation's usage, and the global roll-up is the
+		// stats page behind `zetacode /stats`). The tab can still be selected —
+		// the GUI shares this state — so it says so instead of drawing numbers.
+		RightTab::Context => {
+			Paragraph::new(vec![
+				Line::from(Span::styled("终端形态不显示用量页", Style::new().fg(TEXT_2))),
+				Line::from(Span::styled(
+					"全局用量：zetacode 里 /stats 弹网页（stats 服务 :3847）",
+					Style::new().fg(TEXT_3),
+				)),
+				Line::from(Span::styled(
+					"当前对话用量：zetacode 输入框已显示",
+					Style::new().fg(TEXT_3),
+				)),
+			])
+			.render(content, buf);
 		},
 	}
 }

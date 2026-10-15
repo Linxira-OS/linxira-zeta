@@ -27,15 +27,20 @@ pub mod fsread;
 pub mod git;
 pub mod icons;
 pub mod left;
+pub mod picker;
 pub mod right;
 pub mod seed;
 pub mod settings;
 pub mod settings_ui;
+pub mod shells;
 pub mod state;
+pub mod stats;
 pub mod statusbar;
 pub mod theme;
 pub mod tui_view;
+pub mod usage;
 pub mod widgets;
+pub mod zetacode;
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -116,10 +121,31 @@ pub struct Shell {
 	git_at: Option<Instant>,
 	/// The git panel's (disabled) commit message box.
 	pub git_message: String,
+	/// The active workspace's `git diff HEAD`, read when a 差异比较器 page shows
+	/// it; `diff_ws`/`diff_at` are the workspace and the time it was read.
+	pub diff: Option<Result<String, String>>,
+	diff_ws: String,
+	diff_at: Option<Instant>,
 	/// Rendered terminal cell grids.
 	pub term_buffers: BufferCache,
 	/// 模型吞吐 has no source; `None` renders as `—`.
 	pub throughput: Option<String>,
+	/// The `+` picker's rows for this host, read once when the picker opens.
+	pub picker_entries: Vec<state::PickerEntry>,
+	/// Where the open picker hangs from.
+	picker_anchor: Option<egui::Rect>,
+	/// The 用量 container's endpoint, read from `~/.zeta/serve.json`.
+	pub stats: stats::StatsEndpoint,
+	/// zetacode's own options (设置 target ②), read and written off the UI thread.
+	pub remote: settings_ui::ZetacodeCache,
+	/// The desktop app's provider catalog (设置 target ③).
+	pub providers: settings_ui::ProviderCache,
+	/// The `baseUrl` drafts the provider rows edit, keyed by provider id.
+	pub drafts: Vec<(String, String)>,
+	/// True when this shell is a real run: only then may it spawn `zetacode`.
+	/// [`Shell::with_state`] — the headless constructors — leaves this `false`,
+	/// so a test never runs a CLI.
+	pub probe: bool,
 	memory: Memory,
 	resizing: chrome::ResizeState,
 }
@@ -185,8 +211,18 @@ impl Shell {
 			git_ws: String::new(),
 			git_at: None,
 			git_message: String::new(),
+			diff: None,
+			diff_ws: String::new(),
+			diff_at: None,
 			term_buffers: BufferCache::default(),
 			throughput: None,
+			picker_entries: Vec::new(),
+			picker_anchor: None,
+			stats: crate::stats::discover(),
+			remote: settings_ui::ZetacodeCache::default(),
+			providers: settings_ui::ProviderCache::default(),
+			drafts: Vec::new(),
+			probe: true,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		};
@@ -210,8 +246,18 @@ impl Shell {
 			git_ws: String::new(),
 			git_at: None,
 			git_message: String::new(),
+			diff: None,
+			diff_ws: String::new(),
+			diff_at: None,
 			term_buffers: BufferCache::default(),
 			throughput: None,
+			picker_entries: Vec::new(),
+			picker_anchor: None,
+			stats: crate::stats::discover(),
+			remote: settings_ui::ZetacodeCache::default(),
+			providers: settings_ui::ProviderCache::default(),
+			drafts: Vec::new(),
+			probe: false,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		}
@@ -297,6 +343,77 @@ impl Shell {
 		}
 	}
 
+	// ── the ＋ picker, the diff page, the 用量 container ─────────────────
+
+	/// Open the `+` picker above the button that asked for it.
+	///
+	/// The rows are read here, once, so a PATH scan never happens per frame.
+	pub fn open_picker(&mut self, target: state::PickerTarget, anchor: egui::Rect) {
+		self.picker_entries = state::PickerEntry::all();
+		self.picker_anchor = Some(anchor);
+		self.state.open_picker(target);
+	}
+
+	/// (Re)read the active workspace's `git diff HEAD` when it is stale or
+	/// belongs to another workspace. The read is TTL'd, so the diff page can
+	/// call this every frame.
+	pub fn ensure_diff(&mut self) {
+		const TTL: std::time::Duration = std::time::Duration::from_secs(5);
+		let ws_id = self
+			.state
+			.active_workspace()
+			.map(|workspace| workspace.id.clone())
+			.unwrap_or_default();
+		let stale = self.diff_ws != ws_id
+			|| self.diff.is_none()
+			|| self.diff_at.is_none_or(|at| at.elapsed() >= TTL);
+		if !stale {
+			return;
+		}
+		let path = PathBuf::from(
+			self
+				.state
+				.active_workspace()
+				.map(|workspace| workspace.path.clone())
+				.unwrap_or_default(),
+		);
+		self.diff = Some(git::read_diff(&path, None));
+		self.diff_ws = ws_id;
+		self.diff_at = Some(Instant::now());
+	}
+
+	/// The diff the 差异比较器 page draws: `None` with no workspace open, `Err`
+	/// when `git` refused (with the command's own message).
+	pub fn diff_result(&self) -> Option<Result<&str, &str>> {
+		match self.diff.as_ref()? {
+			Ok(text) => Some(Ok(text.as_str())),
+			Err(error) => Some(Err(error.as_str())),
+		}
+	}
+
+	/// Re-read the stats endpoint published by `zetacode serve`.
+	pub fn refresh_stats(&mut self) {
+		self.stats = crate::stats::discover();
+	}
+
+	/// The editable draft of one provider row, seeded from the file the first
+	/// time the row is drawn.
+	pub fn draft(&mut self, id: &str, seed: &str) -> &mut String {
+		let index = match self.drafts.iter().position(|(key, _)| key == id) {
+			Some(index) => index,
+			None => {
+				self.drafts.push((id.to_owned(), seed.to_owned()));
+				self.drafts.len() - 1
+			},
+		};
+		&mut self.drafts[index].1
+	}
+
+	/// Drop every draft, so the rows re-seed from the file that was just read.
+	pub fn clear_drafts(&mut self) {
+		self.drafts.clear();
+	}
+
 	// ── settings plumbing ──────────────────────────────────────────────
 
 	/// Nothing to do until `update` notices the settings moved.
@@ -339,10 +456,11 @@ impl Shell {
 					i.key_pressed(egui::Key::Comma),
 					i.key_pressed(egui::Key::B),
 					i.modifiers.shift,
+					i.key_pressed(egui::Key::S),
 				),
 			)
 		});
-		let (command, key_n, key_backslash, key_t, key_comma, key_b, shift) = ctrl;
+		let (command, key_n, key_backslash, key_t, key_comma, key_b, shift, key_s) = ctrl;
 		if escape {
 			self.state.escape();
 		}
@@ -361,6 +479,11 @@ impl Shell {
 		}
 		if key_comma {
 			self.state.open_settings();
+		}
+		if key_s {
+			// 保存: every dirty 编辑器 buffer in the open workspace, to disk.
+			let notice = self.state.save_dirty_editors();
+			self.state.show(notice);
 		}
 		if key_b {
 			self.state.toggle_left();
@@ -430,6 +553,12 @@ impl Shell {
 		self.memory.sample_if_stale();
 		self.handle_keys(ctx);
 		self.sync_readers();
+		// 设置 → 终端 的 默认 Shell: the shell a new 终端 page records.
+		self.state.default_shell = self.settings.shell.kind();
+		// A finished zetacode job (读取 / 写入) reports itself once.
+		if let Some(notice) = self.remote.poll() {
+			self.state.show(state::Notice(notice));
+		}
 		// git is read when the git panel is looking at it, and once after a
 		// workspace change so the status bar and the file tree's markers are
 		// real too. Six `git` invocations per refresh are not worth spending
@@ -438,6 +567,15 @@ impl Shell {
 			!self.state.right_collapsed && self.state.right_tab == crate::state::RightTab::Git;
 		if git_tab || self.git.is_none() {
 			let _ = self.git_for_active();
+		}
+		// Same rule for the diff: read it only while a 差异比较器 page can see it.
+		let diff_page = self.state.visible_panes().iter().any(|pane| {
+			pane
+				.active_tab()
+				.is_some_and(|tab| tab.kind == state::SessionKind::Diff)
+		});
+		if diff_page {
+			self.ensure_diff();
 		}
 	}
 
@@ -448,35 +586,53 @@ impl Shell {
 	/// same frame headlessly — there is no window in the test harness.
 	pub fn draw(&mut self, ctx: &Context) {
 		let no_margin = egui::Frame::new().inner_margin(egui::Margin::ZERO);
+		// The window chrome (title bar with the controls and the view switch)
+		// stays in both views; the workbench's own GUI widgets — columns,
+		// status bar — belong to the GUI view only, so TUI mode renders the
+		// TUI over the whole body.
+		let gui = self.state.view == ViewMode::Gui;
 		egui::TopBottomPanel::top("zetawork-titlebar")
 			.exact_height(theme::TITLE_BAR_H)
 			.frame(no_margin)
 			.show(ctx, |ui| chrome::title_bar(ui, self));
-		egui::TopBottomPanel::bottom("zetawork-statusbar")
-			.exact_height(theme::STATUSBAR_H)
-			.frame(no_margin)
-			.show(ctx, |ui| statusbar::status_bar(ui, self));
+		if gui {
+			let height = if self.state.statusbar_visible() {
+				theme::STATUSBAR_H
+			} else {
+				statusbar::STRIP_H
+			};
+			egui::TopBottomPanel::bottom("zetawork-statusbar")
+				.exact_height(height)
+				.frame(no_margin)
+				.show(ctx, |ui| {
+					if self.state.statusbar_visible() {
+						statusbar::status_bar(ui, self);
+					} else {
+						statusbar::strip(ui, self);
+					}
+				});
+		}
 
-		if self.state.left_collapsed {
+		if gui && self.state.left_collapsed {
 			egui::SidePanel::left("zetawork-rail-left")
 				.exact_width(left::RAIL_WIDTH)
 				.resizable(false)
 				.frame(no_margin)
 				.show(ctx, |ui| left::left_rail(ui, self));
-		} else {
+		} else if gui {
 			egui::SidePanel::left("zetawork-side-left")
 				.exact_width(left::WIDTH)
 				.resizable(false)
 				.frame(no_margin)
 				.show(ctx, |ui| left::left_column(ui, self));
 		}
-		if self.state.right_collapsed {
+		if gui && self.state.right_collapsed {
 			egui::SidePanel::right("zetawork-rail-right")
 				.exact_width(right::RAIL_WIDTH)
 				.resizable(false)
 				.frame(no_margin)
 				.show(ctx, |ui| right::right_rail(ui, self));
-		} else {
+		} else if gui {
 			egui::SidePanel::right("zetawork-side-right")
 				.exact_width(right::WIDTH)
 				.resizable(false)
@@ -491,6 +647,8 @@ impl Shell {
 			});
 
 		settings_ui::modal(ctx, self);
+		usage::container(ctx, self);
+		picker::popup(ctx, self);
 		if let Some(text) = self.state.live_toast() {
 			let text = text.to_owned();
 			chrome::toast(ctx, &text);
