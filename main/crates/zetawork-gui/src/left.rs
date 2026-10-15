@@ -161,6 +161,7 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 	);
 	let mut list_ui = ui.new_child(egui::UiBuilder::new().max_rect(list));
 	egui::ScrollArea::vertical()
+		.id_salt("zetawork-left-projects")
 		.auto_shrink([false, false])
 		.show(&mut list_ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 2.0;

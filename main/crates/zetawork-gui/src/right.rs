@@ -65,7 +65,7 @@ pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 	match shell.state.right_tab {
 		RightTab::Files => files_panel(&mut child, shell),
 		RightTab::History => history_panel(&mut child, shell),
-		RightTab::Git => git_panel(&mut child, shell),
+		RightTab::Git => git_panel(&mut child, shell, "right"),
 		RightTab::Context => context_panel(&mut child, shell),
 	}
 }
@@ -144,6 +144,7 @@ fn files_panel(ui: &mut Ui, shell: &mut Shell) {
 	};
 	let root_path = std::path::PathBuf::from(&path);
 	egui::ScrollArea::vertical()
+		.id_salt("zetawork-files")
 		.auto_shrink([false, false])
 		.show(ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 0.0;
@@ -283,7 +284,8 @@ fn history_panel(ui: &mut Ui, shell: &mut Shell) {
 
 /// The Git panel: the same function draws the right column's Git tab and a
 /// `Git` page in the centre grid, so the two can never show different numbers.
-pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell) {
+/// `key` distinguishes the scroll state of the two places it is drawn.
+pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 	panel_head(ui, RightTab::Git.title(), |ui| {
 		if icon_button(ui, Icon::Refresh, 20.0, false, "重新读取 git 状态").clicked() {
 			shell.refresh_git();
@@ -303,6 +305,7 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell) {
 		return;
 	}
 	egui::ScrollArea::vertical()
+		.id_salt(("zetawork-git", key))
 		.auto_shrink([false, false])
 		.show(ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 4.0;
@@ -394,6 +397,7 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 		.unwrap_or_default();
 	let branch = shell.state.branch_label().to_owned();
 	egui::ScrollArea::vertical()
+		.id_salt("zetawork-context")
 		.auto_shrink([false, false])
 		.show(ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 6.0;

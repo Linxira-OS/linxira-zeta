@@ -399,7 +399,7 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		SessionKind::Term => term_body(ui, shell, pane, &tab, seed::TermKind::of(&tab.id)),
 		SessionKind::Editor => editor_body(ui, shell, pane, &tab),
 		SessionKind::Diff => diff_body(ui, shell, pane),
-		SessionKind::Git => crate::right::git_panel(ui, shell),
+		SessionKind::Git => crate::right::git_panel(ui, shell, pane.id.as_str()),
 		SessionKind::Ide => ide_body(ui, shell, &tab),
 	}
 }
@@ -461,7 +461,11 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 	let buffer = shell.term_buffers.get_or_render(key, || {
 		seed::term_buffer(columns, rows, kind, &path, &branch, shell_name.as_deref())
 	});
+	// One id per session tab: two panes rendering the same widget from the same
+	// call site would otherwise share one scroll state (and egui warns about the
+	// second use of the id).
 	egui::ScrollArea::vertical()
+		.id_salt(("zetawork-term", tab.id.as_str()))
 		.auto_shrink([false, false])
 		.show(ui, |ui| {
 			let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
@@ -817,6 +821,7 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	};
 	let mut body_ui = ui.new_child(egui::UiBuilder::new().max_rect(body));
 	egui::ScrollArea::both()
+		.id_salt(("zetawork-diff", pane.id.as_str()))
 		.auto_shrink([false, false])
 		.show(&mut body_ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 0.0;

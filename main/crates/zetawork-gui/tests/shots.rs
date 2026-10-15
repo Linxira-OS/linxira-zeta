@@ -64,6 +64,11 @@ fn shoot(shell: &mut Shell, frames: usize) -> Vec<u8> {
 	for frame in 0..frames {
 		let input = egui::RawInput {
 			screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(SIZE[0], SIZE[1]))),
+			// egui fades a new overlay in over `animation_time`; without a clock
+			// the fade never finishes and a modal would be shot half
+			// transparent. 50 ms per frame settles every transition in this
+			// shell well inside the frames each shot renders.
+			time: Some(frame as f64 * 0.05),
 			..Default::default()
 		};
 		let output = ctx.run(input, |ctx| {

@@ -36,7 +36,9 @@ fn section_icon(section: Section) -> Icon {
 /// Draw the modal, if it is open. Applied changes are persisted through
 /// [`crate::Shell::apply_settings`].
 pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
-	if !shell.state.modal_open() {
+	// `modal_open` also covers the 用量 container and the `+` picker; this dialog
+	// is only drawn for its own flag, or it would appear under them.
+	if !shell.state.settings_open() {
 		return;
 	}
 	let screen = ctx.content_rect();
@@ -145,6 +147,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 					let main = Rect::from_min_max(pos2(nav.max.x, body.min.y), body.max);
 					let mut main_ui = ui.new_child(egui::UiBuilder::new().max_rect(main));
 					egui::ScrollArea::vertical()
+						.id_salt("zetawork-settings-main")
 						.auto_shrink([false, false])
 						.show(&mut main_ui, |ui| {
 							ui.spacing_mut().item_spacing.y = 0.0;
@@ -623,8 +626,10 @@ fn language_row(ui: &mut Ui, shell: &mut Shell) {
 	row(
 		ui,
 		"界面语言",
-		"菜单与提示的显示语言",
+		"菜单与提示的显示语言（其他语言尚未接入：界面文案目前只有简体中文）",
 		|ui, shell| {
+			// Only 简体中文 is wired: a stored `en`/`ja` is normalised here, so
+			// the disabled control never shows a choice the file does not have.
 			if !shell.settings.language.wired() {
 				shell.settings.language = Language::SimplifiedChinese;
 			}
@@ -635,7 +640,6 @@ fn language_row(ui: &mut Ui, shell: &mut Shell) {
 				&Language::ALL,
 				|language| language.label(),
 			);
-			hint(ui, "其他语言尚未接入：界面文案目前只有简体中文。");
 		},
 		shell,
 	);
