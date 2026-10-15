@@ -53,6 +53,38 @@ const TIP_LINES: readonly TipLine[] = tipsText.split("\n").flatMap((line, index)
  *  trailing {@link NEW_TIP_MARKER} for its selection weight. */
 const TIPS: readonly string[] = TIP_LINES.map(tip => tip.raw);
 
+/** Catalogue keys (`tip${line}`) of every tips.txt line, in file order. The
+ *  host needs them to gate a tip by the product feature it advertises. */
+export const TIP_CATALOGUE_KEYS: readonly string[] = TIP_LINES.map(tip => `tip${tip.line}`);
+
+/**
+ * Host-installable tip gate: receives the tip's catalogue key and its raw
+ * tips.txt line; returning false removes it from the splash pool.
+ */
+export type TuiTipFilter = (key: string, raw: string) => boolean;
+
+let tipFilter: TuiTipFilter | undefined;
+
+/**
+ * Install the host's tip gate (pass `undefined` to reset). Consulted for every
+ * candidate on every pick, so no roll can surface a rejected tip — used when a
+ * feature a tip advertises is switched off by configuration.
+ */
+export function setTuiTipFilter(filter: TuiTipFilter | undefined): void {
+	tipFilter = filter;
+}
+
+/** The pool {@link WelcomeComponent} picks from, with the host gate applied. */
+function tipPool(): readonly string[] {
+	// Captured so the narrowing survives into the filter callback.
+	const filter = tipFilter;
+	if (!filter) return TIPS;
+	return TIPS.filter(tip => {
+		const entry = TIP_LINES.find(candidate => candidate.raw === tip);
+		return entry === undefined || filter(`tip${entry.line}`, tip);
+	});
+}
+
 /** Visible text rendered in place of {@link NEW_TIP_MARKER}. */
 const NEW_TAG_TEXT = "NEW!";
 
@@ -261,7 +293,7 @@ export class WelcomeComponent implements Component {
 		if (theme.getSymbolPreset() === "unicode" && this.#nagRoll < 0.1) {
 			return NERDFONT_TIP;
 		}
-		return pickWeightedTip(TIPS, this.#tipRoll) || undefined;
+		return pickWeightedTip(tipPool(), this.#tipRoll) || undefined;
 	}
 
 	invalidate(): void {

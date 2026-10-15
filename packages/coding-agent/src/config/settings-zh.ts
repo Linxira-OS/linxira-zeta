@@ -833,9 +833,13 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "空闲回顾延迟",
 		description: "空闲后显示回顾前等待的秒数",
 	},
+	"collab.enabled": {
+		label: "启用",
+		description: "启用实时会话共享（/collab、/join）。需把 collab.relayUrl 指向你自己掌控的中继；本产品不自营中继",
+	},
 	"collab.relayUrl": {
 		label: "中继 URL",
-		description: "/collab 使用的中继（wss://host[:port]）",
+		description: "/collab 使用的中继（wss://host[:port]）；留空则即便 collab.enabled 开启也不共享",
 	},
 	"collab.webUrl": {
 		label: "Web UI 地址",

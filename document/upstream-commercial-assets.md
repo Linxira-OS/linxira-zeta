@@ -38,7 +38,7 @@ bun scripts/brand/brand-check.ts
 
 | 服务 | 非测试落点 | 依据 |
 |---|---|---|
-| `my.omp.sh` — 中继/分享 URL | `packages/collab-web/{index.html,public/robots.txt,public/sitemap.xml,scripts/local-relay.ts}`、`packages/wire/src/index.ts`（另有测试 12 处） | 端到端加密中继，协议两端由上游运营；注册表「不品牌化」 |
+| `my.omp.sh` — 中继/分享 URL | `packages/collab-web/{index.html,public/robots.txt,public/sitemap.xml,scripts/local-relay.ts}`、`packages/wire/src/index.ts`（另有测试 12 处） | 端到端加密中继，协议两端由上游运营；注册表「不品牌化」。**2026-10-15 起不再是任何默认端点**：`collab.enabled` 默认关、`collab.relayUrl` 默认空，产品不提供中继（见 §1b） |
 | `catalog.stencil.so/models.json.zstd` | `packages/catalog/scripts/generate-models.ts`、`packages/catalog/src/provider-models/openai-compat.ts` | 模型发现数据源；替换需自建模型目录服务，未列入计划。注意 `packages/catalog/src/compat/rules.json` 是生成物 |
 | `docs.stencil.so/tern/protocol/` | `packages/tui/src/native/node.ts`、`packages/wire/src/tsp.ts` | 协议文档出处（注释），不是 API 调用 |
 
@@ -102,6 +102,17 @@ bun scripts/brand/brand-check.ts
 | 安装站点脚本 | `F:\Linxira-OS\Linxira-OS.github.io`（Astro，推 `master` 自动部署）：安装脚本原本下载 `zeta-windows-x64.exe` / `zeta-linux-x64`，而 CI 实际发布 `zeta-cli-*` —— **两个平台的安装脚本都必然失败**。已改为 `zeta-cli-*` 并安装为 `zetacode`（裸 `zeta` 是工作台 bin，会互相遮蔽）。站点仓库提交 `90d2e14`，已推送。 |
 | `.ompcast` → `.zetacast` | 已改完。 |
 
+### 1b. 协作面（`/collab`、`/join`）已改为「自带中继」，不再依赖上游主机（2026-10-15）
+
+用户裁决：协作不能依赖我们无法掌控的基础设施。落地形态（实现保留、默认关）：
+
+- **`collab.enabled`（新设置，默认 `false`）**：关时 `/collab`、`/join` 不在命令表里、明确拒绝并提示如何开启、`collab.autoStart` 失效、欢迎页 tips 不再出现协作条（`packages/coding-agent/src/collab/tips.ts` + pi-tui 的 `setTuiTipFilter`）。
+- **`collab.relayUrl` 默认由 `wss://my.omp.sh` 改为空**：开启后若没配端点，`/collab` 报「Collab is enabled but no relay is configured」，**不回退**到任何内置主机（`collab/settings.ts`、`config/settings-schema.ts`、`collab/controller.ts`）。
+- **无主机的裸链接**（`<roomId>.<key>`）：wire 语法原本把它解析到上游中继；现在 `/join` 先按 `collab.relayUrl` 解析（`collab/join-link.ts`），没配就拒绝。
+- **自托管入口**：`packages/collab-web/scripts/local-relay.ts`（`bun run relay`，内容不可见、`Bun.serve`）是协议参考实现，也是 `docs/collab.md` 里「Self-hosting the relay」一节的依据；上游中继本体仍未分发，故自托管 = 用户自建。
+- 守卫：`packages/coding-agent/test/collab/gate.test.ts`（真实面：命令表、`executeBuiltinSlashCommand`、splash tip、真 `CollabController` + in-memory relay 断言实际拨号端点），其中一条钉死「relayUrl 默认值不是 `DEFAULT_RELAY_URL`、不含 `omp.sh`」。
+- `DEFAULT_RELAY_URL`（`packages/wire/src/index.ts`）**保留**：它是 wire 语法常量（浏览器 guest 客户端与 `parseCollabLink` 共享），不是本产品的默认端点。
+
 另有两处**保留**的引用需要知晓：`src/discovery/builtin.ts` 的
 `https://omp.sh/docs/context-files` 是溯源注释；`packages/tui/src/native/node.ts`
 与 `packages/wire/src/tsp.ts` 引用 `https://docs.stencil.so/tern/protocol/` 作为
@@ -114,7 +125,7 @@ bun scripts/brand/brand-check.ts
 | `OMP_*` / `PI_*` 环境变量（约 190 个） | 文档化的用户配置项；改名破坏现有配置，且要求生产者/消费者同时改，漏一处即静默失效。正确路径是读旧写新分阶段迁移 |
 | Stencil `client-id "omp"` | 改则登录失败（见 §2） |
 | `.omp-plugin` / `omp-plugins.lock.json` | OMP/Claude 插件兼容面，刻意保留 |
-| `my.omp.sh` | 共享基础设施（见 §1）。安装提示 `omp.sh/install` **不在其列**：已换成自家站点安装器，见 §3c |
+| `my.omp.sh` | 共享基础设施（见 §1）。**作为默认端点已于 2026-10-15 移除**：协作面默认关且 `collab.relayUrl` 默认空（§1b）。安装提示 `omp.sh/install` **不在其列**：已换成自家站点安装器，见 §3c |
 
 ## 5. 遥测（已硬关闭）
 
