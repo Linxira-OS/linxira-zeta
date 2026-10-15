@@ -1,5 +1,5 @@
 /**
- * `omp --restore` end to end for a subagent: a transcript a crash cut off mid tool
+ * `zetacode --restore` end to end for a subagent: a transcript a crash cut off mid tool
  * call is revived from disk, its cut-off call runs again, the agent answers, and the
  * parent receives the answer as the subagent's job.
  */
@@ -7,25 +7,25 @@ import { afterEach, beforeEach, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createPersistedSubagentReviverFactory } from "@oh-my-pi/pi-coding-agent/task/persisted-revive";
-import { restoreSession } from "@oh-my-pi/pi-coding-agent/task/restore";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createPersistedSubagentReviverFactory } from "@linxiraos/zeta/task/persisted-revive";
+import { restoreSession } from "@linxiraos/zeta/task/restore";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
 
 const AGENT_ID = "Restored";
 const MOCK_API_SOURCE = "test/restore-revive";
-const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "ZETA_PROFILE", "OMP_PROFILE", "PI_PROFILE"] as const;
 
 let savedEnv: Record<string, string | undefined> = {};
 let root: string;
@@ -48,7 +48,7 @@ beforeEach(async () => {
 	await fs.mkdir(home, { recursive: true });
 	restoreEnvValue("HOME", home);
 	vi.spyOn(os, "homedir").mockReturnValue(home);
-	setAgentDir(path.join(home, ".omp", "agent"));
+	setAgentDir(path.join(home, ".zeta", "agent"));
 	AgentRegistry.resetGlobalForTests();
 	AgentLifecycleManager.resetGlobalForTests();
 	registerMockApi(MOCK_API_SOURCE);

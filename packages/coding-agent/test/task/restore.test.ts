@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AssistantMessage, Message } from "@oh-my-pi/pi-ai";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentRegistry, MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { getAgentTombstonePath } from "@oh-my-pi/pi-coding-agent/registry/agent-tombstone";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as executorModule from "@oh-my-pi/pi-coding-agent/task/executor";
-import { restoreSession } from "@oh-my-pi/pi-coding-agent/task/restore";
-import type { SingleResult } from "@oh-my-pi/pi-tui/tools/task";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage, Message } from "@linxiraos/pi-ai";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentRegistry, MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
+import { getAgentTombstonePath } from "@linxiraos/zeta/registry/agent-tombstone";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as executorModule from "@linxiraos/zeta/task/executor";
+import { restoreSession } from "@linxiraos/zeta/task/restore";
+import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const zeroUsage = {
 	input: 0,
@@ -64,7 +64,7 @@ async function writeSubagent(mainFile: string, cwd: string, id: string, messages
 	return file;
 }
 
-describe("restoreSession (omp --restore)", () => {
+describe("restoreSession (zetacode --restore)", () => {
 	const ids = ["Cut", "Done", "Killed"];
 	let tempDir: TempDir | undefined;
 	let manager: AsyncJobManager | undefined;

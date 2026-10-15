@@ -1,14 +1,5 @@
 ## [Unreleased]
 
-## [1.2.0] - 2026-10-12
-
-- 版本线推进至 1.1.28；本版无独立用户可见变化。
-
-## [1.1.27] - 2026-10-07
-
-- 版本线推进至 1.1.27；本版无独立用户可见变化。
-## [18.10.3] - 2026-10-12
-
 ### Breaking Changes
 
 - `providerImageBudget(provider)` and `providerFrameBudget(provider)` became `providerImageBudget(model)` and `providerFrameBudget(model)`, and `maxFramesForDataBudget(shape)` became `maxFramesForDataBudget(shape, budget)` with a required byte budget ([#15434](https://github.com/can1357/oh-my-pi/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
@@ -22,7 +13,13 @@
 
 - Fixed snapcompact frames for Claude and GPT on Cursor, including its `default` (Auto) route, being drawn at 1568–1932px, which Cursor shrank to 1024px before the model read them; frames now render at the host's catalog `image-max-edge` ([#15448](https://github.com/can1357/oh-my-pi/pull/15448) by [@will-bogusz](https://github.com/will-bogusz))
 
-## [18.6.3] - 2026-10-06
+## [1.2.0] - 2026-10-12
+
+- 版本线推进至 1.1.28；本版无独立用户可见变化。
+
+## [1.1.27] - 2026-10-07
+
+- 版本线推进至 1.1.27；本版无独立用户可见变化。
 
 ### Breaking Changes
 

@@ -1113,7 +1113,7 @@ class GitTuiComponent implements Component {
 							mediaColumn("before", contents.old, contents.oldRef),
 							mediaColumn("after", contents.new, contents.newRef),
 						],
-						{ gap: "sm", align: "stretch", grow: 1, role: "omp.app.git.compare" },
+						{ gap: "sm", align: "stretch", grow: 1, role: "zeta.app.git.compare" },
 					),
 					"compare",
 				);
@@ -1216,14 +1216,14 @@ function mediaColumn(side: "before" | "after", asset: FileAssetSide, ref: MediaR
 	const head = keyed(
 		text([span(assetTitle(side === "before" ? "Before" : "After", asset), "strong")], {
 			truncate: "end",
-			role: "omp.app.git.media-head",
+			role: "zeta.app.git.media-head",
 		}),
 		"head",
 	);
 	const body = ref
 		? node(
 				"media",
-				{ ...ref, link: MEDIA_COMPARE_LINK, grow: 1, role: "omp.app.git.media" },
+				{ ...ref, link: MEDIA_COMPARE_LINK, grow: 1, role: "zeta.app.git.media" },
 				undefined,
 				`media-${stableKey(ref.path)}`,
 			)
@@ -1232,11 +1232,11 @@ function mediaColumn(side: "before" | "after", asset: FileAssetSide, ref: MediaR
 					asset.kind === "empty"
 						? [span(side === "before" ? "Did not exist" : "Deleted", "muted")]
 						: assetText(asset).map(fact => span(fact.t, "muted")),
-					{ role: "omp.app.git.media-none" },
+					{ role: "zeta.app.git.media-none" },
 				),
 				"none",
 			);
-	return keyed(col([head, body], { gap: "xs", grow: 1, basis: 0, role: "omp.app.git.media-side" }), side);
+	return keyed(col([head, body], { gap: "xs", grow: 1, basis: 0, role: "zeta.app.git.media-side" }), side);
 }
 
 /** One side of a media/binary change as a short fact line. */

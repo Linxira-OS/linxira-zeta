@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { resolveImageCountBudget, resolveInlineImageByteBudget } from "@oh-my-pi/pi-catalog/compat/request-size";
-import type { Api, Model } from "@oh-my-pi/pi-catalog/types";
-import { CODEX_BASE_URL } from "@oh-my-pi/pi-catalog/wire/codex";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { resolveImageCountBudget, resolveInlineImageByteBudget } from "@linxiraos/pi-catalog/compat/request-size";
+import type { Api, Model } from "@linxiraos/pi-catalog/types";
+import { CODEX_BASE_URL } from "@linxiraos/pi-catalog/wire/codex";
 
 /** The configured endpoint's classification; request-time env reroutes are pi-ai's to apply. */
 function configuredOfficial(model: Model): boolean {

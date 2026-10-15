@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { getNativeBlob } from "@oh-my-pi/pi-tui/native/blobs";
-import type { DescribeContext, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { SnapcompactShapePreview } from "@oh-my-pi/pi-tui/overlays/snapcompact-shape-preview";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
-import type { ShapeTarget } from "@oh-my-pi/snapcompact";
+import { getNativeBlob } from "@linxiraos/pi-tui/native/blobs";
+import type { DescribeContext, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { SnapcompactShapePreview } from "@linxiraos/pi-tui/overlays/snapcompact-shape-preview";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
+import type { ShapeTarget } from "@linxiraos/pi-snapcompact";
 
 const CX: DescribeContext = { cols: 100, reduceMotion: false, dark: true, supports: () => true, feature: () => true };
 /** Cursor fits Claude images into 1024×1024, so every variant's frame is capped there. */

@@ -1,19 +1,19 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildParams } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async/job-manager";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import * as sdk from "@oh-my-pi/pi-coding-agent/sdk";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import * as settingsStream from "@oh-my-pi/pi-coding-agent/session/settings-stream-fn";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { VibeSessionRegistry } from "@oh-my-pi/pi-coding-agent/vibe/runtime";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildParams } from "@linxiraos/pi-ai/providers/openai-responses";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import * as sdk from "@linxiraos/zeta/sdk";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import * as settingsStream from "@linxiraos/zeta/session/settings-stream-fn";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { VibeSessionRegistry } from "@linxiraos/zeta/vibe/runtime";
+import { TempDir } from "@linxiraos/pi-utils";
 
 afterEach(() => {
 	vi.restoreAllMocks();

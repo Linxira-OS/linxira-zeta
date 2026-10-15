@@ -129,7 +129,11 @@ import { createPersistedSubagentReviverFactory } from "./task/persisted-revive";
 import { type RestoreOutcome, restoreSession } from "./task/restore";
 import { createTelemetryExportConfig, initTelemetryExport, isTelemetryExportEnabled } from "./telemetry-export";
 import { registerLocalInferenceApi } from "./tiny/local-inference-api";
-import { automaticThinkingLevel, concreteThinkingLevel, parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
+import {
+	automaticThinkingLevel,
+	concreteThinkingLevel,
+	parseConfiguredThinkingLevel,
+} from "@linxiraos/pi-tui/thinking";
 import type { LspStartupServerInfo } from "./tools";
 import { sanitizeDisplayWarnings } from "@linxiraos/pi-tui/render/render-utils";
 import {

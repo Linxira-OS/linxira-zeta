@@ -1,17 +1,17 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { buildTransformedCodexRequestBody } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { buildParams } from "@oh-my-pi/pi-ai/providers/openai-responses";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import { createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as settingsStream from "@oh-my-pi/pi-coding-agent/session/settings-stream-fn";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { Model } from "@linxiraos/pi-ai";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { buildTransformedCodexRequestBody } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { buildParams } from "@linxiraos/pi-ai/providers/openai-responses";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { createAgentSession } from "@linxiraos/zeta/sdk";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as settingsStream from "@linxiraos/zeta/session/settings-stream-fn";
+import { TempDir } from "@linxiraos/pi-utils";
 
 interface Request {
 	stage: string;
