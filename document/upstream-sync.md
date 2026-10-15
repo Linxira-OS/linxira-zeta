@@ -115,9 +115,36 @@ two-parent tag merge.
   validation lands on main's push run, which does build the addon — as the workflow's own notice says
   ("Native changes are validated post-merge on main and at release"). Branch also merged `origin/main`
   (`23e88c5e59f`) after #199/#201/#202; that merge was clean.
+- **Branch-dispatch validation — the recipe for this class (first instance)**: a `sync/omp-release/*`
+  branch can get a source-matched addon from **neither** event: `native_addons`' build step is
+  `if: github.event_name != 'pull_request'` (the PR path only *restores* main's newest `actions/cache`
+  entry, via `restore-keys` prefix fallback), and `on.push.branches` is `[main, "dev/*"]`. A
+  `MODULE.bazel.lock`-only push also produced no PR run (the `pull_request.paths` filter is evaluated
+  per push). Verify by a manual dispatch on the branch ref:
+  `gh workflow run ci.yml --ref sync/omp-release/v18.10.0` — the branch ref matches neither
+  `case "${{ github.ref }}"` arm (`refs/tags/v*`, `refs/heads/main`), so `release_tag=""` →
+  `is-release=false`, while `event_name=workflow_dispatch` ≠ `pull_request` makes `native_addons`
+  **build**; `rust_validate` and `Build native addons (bazel, cross targets)` come along for free.
+  Procedure is recorded in `document/merge-playbook.md` §"sync 分支的 native addon 真相"; it beats
+  editing `ci.yml` because it is zero-CI-change, keeps the documented "no PR-side addon build" cost
+  decision, and validates the branch *before* merge on main's own build path.
+  - Dispatch `38699235676` @ `7dd14745fae`: **18 success / 1 failure**. Eight of the nine PR-path reds
+    went green the moment the addon was source-matched, confirming the environmental diagnosis. The
+    ninth exposed a **real defect**: upstream's new ask-hide test
+    (`packages/tui/test/dialogs-native.test.ts`) asserts **upstream's** TUI role names
+    (`omp.btn` / `omp.ask.options`) while `packages/tui/src` emits `zeta.*`, so `press("hide")` threw
+    `no hide button`; `check:ts` cannot connect a role string in a test to the role a node is built with.
+    Fixed in `65a13e09fb4` (literals → `zeta.*`), and the guard that should have caught it was extended:
+    `brand-rules.ts`'s TUI-role alternation now includes `ask|btn` — it knew
+    `composer|editor|working|queue|status|note|run`, which is exactly why `brand-check` stayed green while
+    this shipped. Control: the extended needle flags the two pre-fix lines and 0 after.
+  - Dispatch `38705037483` @ `65a13e09fb4`: **19/19 success** — the whole surface green against a
+    source-matched addon, including `Validate Rust workspace (bazel)` and the cross-target addon build.
 - **Not verified on this host**: native addon build (no local `pi_natives.*.node`), so
-  `gen:compat`/local test runs relied on a borrowed prebuilt addon; `cargo metadata`
-  cannot resolve offline (`napi-build 2.6.0` is absent from the local registry cache).
+  `gen:compat`/local test runs relied on a borrowed prebuilt addon that predates this window (it reports
+  `ipcEndpoint: undefined`), and `cargo metadata` cannot resolve offline (`napi-build 2.6.0` is absent
+  from the local registry cache). Both are covered by the branch-dispatch run above, which builds the
+  addon and runs the Rust workspace.
 
 ## v18.9.2 incremental merge (Zeta — branch `sync/omp-release/v18.9.2`; merge commit `af624c160fe`)
 
