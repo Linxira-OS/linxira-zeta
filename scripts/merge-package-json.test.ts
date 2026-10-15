@@ -5,6 +5,7 @@ import * as path from "node:path";
 import {
 	type Manifest,
 	erasureViolations,
+	manifestLeaves,
 	mergeCatalog,
 	mergeDependencySection,
 	mergeManifests,
@@ -45,6 +46,29 @@ const incident = (manifest: "root" | "natives") => ({
 /** Dotted-path read, so an assertion names exactly one leaf. */
 const at = (manifest: Manifest, keys: string[]): unknown =>
 	keys.reduce<unknown>((value, key) => (value as Manifest | undefined)?.[key], manifest);
+
+/**
+ * The regression ledger captured from the real v18.10.0 sync merge
+ * (`driver-loss-v18.10.0.json`: merge `6f89e908c67` versus pre-merge `main`
+ * `2291ae3dc80`) — 29 leaves across 13 manifests the pre-rewrite driver dropped
+ * or changed. Every entry below is one test: the ledger's recorded `driver`
+ * value must still differ from `main`'s (the red case stays real) and the
+ * rewritten driver must ship `main`'s value for it.
+ */
+const LOSS_LEDGER = JSON.parse(fs.readFileSync(path.join(fixturesDir, "driver-loss-v18.10.0.json"), "utf-8")) as {
+	files: Record<
+		string,
+		Array<{ key: string; main: string | null; driver: string | null; kind: "changed" | "dropped" }>
+	>;
+};
+
+/** `package.json` → `root`, `packages/agent/package.json` → `agent` (the fixture key). */
+const manifestKey = (file: string) =>
+	file.replace(/^packages\/(.+)\/package\.json$/, "$1").replace(/^package\.json$/, "root");
+
+/** The ledger stores scalars raw and arrays as JSON text; normalise both to a value. */
+const ledgerValue = (raw: string | null): unknown =>
+	raw === null ? undefined : raw.startsWith("[") || raw.startsWith("{") ? JSON.parse(raw) : raw;
 
 /** Every Zeta-only script that must survive a merge, with the command `main` ships. */
 const ZETA_ONLY_SCRIPTS: Record<string, string> = {
@@ -161,6 +185,36 @@ describe("the v18.10.0 sync incident, replayed on the real manifests", () => {
 		expect(merged).toEqual({ ...ours, scripts: { ...(ours.scripts as Manifest), "bench:ipc": "bun bench/ipc.ts" } });
 		expect(erasureViolations(base, ours, theirs, merged)).toEqual([]);
 	});
+});
+
+describe("the PR #200 driver-loss ledger, entry by entry", () => {
+	const files = Object.entries(LOSS_LEDGER.files);
+
+	it("is the captured incident: 13 manifests, 29 leaves", () => {
+		expect(files).toHaveLength(13);
+		expect(files.reduce((count, [, entries]) => count + entries.length, 0)).toBe(29);
+	});
+
+	for (const [file, entries] of files) {
+		const key = manifestKey(file);
+		const base = fixture(`${key}.base`);
+		const ours = fixture(`${key}.ours`);
+		const theirs = fixture(`${key}.theirs`);
+		const merged = mergeManifests(base, ours, theirs);
+
+		it(`${file}: merges without losing a branch-side leaf`, () => {
+			expect(erasureViolations(base, ours, theirs, merged)).toEqual([]);
+		});
+
+		for (const entry of entries) {
+			it(`${file} ${entry.kind} ${entry.key}`, () => {
+				// The ledger recorded a real loss, so the assertion is not vacuous…
+				expect(ledgerValue(entry.driver)).not.toEqual(ledgerValue(entry.main));
+				// …and the rewrite does not reproduce it.
+				expect(manifestLeaves(merged).get(entry.key)).toEqual(ledgerValue(entry.main));
+			});
+		}
+	}
 });
 
 describe("merge rules", () => {

@@ -1,0 +1,206 @@
+{
+  "_what": "Keys the `zeta-package` merge driver (scripts/merge-package-json.ts) silently dropped or changed on the v18.9.2->v18.10.0 merge. `main` = Zeta side (2291ae3dc80); `driver` = driver output. Use as the fix PR's test fixture.",
+  "_source": "driver output = merge commit 6f89e908c67 (the prior, interrupted attempt's merge; reproducible with `git show 6f89e908c67:<path>`, whose package.json tree is byte-identical to a fresh `git merge v18.10.0` run through the driver) vs 2291ae3dc80 (pre-merge main). Temp ref `ztemp/botched-v1810` was deleted after this capture; the commit is still reachable via `git reflog`/`git show 6f89e908c67`.",
+  "files": {
+    "package.json": [
+      {
+        "key": "workspaces.packages",
+        "main": "[\"packages/*\", \"plugins/*\", \"python/robomp/web\"]",
+        "driver": "[\"packages/*\", \"python/robomp/web\"]",
+        "kind": "changed"
+      },
+      {
+        "key": "workspaces.catalog.@types/babel__generator",
+        "main": "7.27.0",
+        "driver": "^7.27.0",
+        "kind": "changed"
+      },
+      {
+        "key": "workspaces.catalog.@types/babel__traverse",
+        "main": "7.28.0",
+        "driver": "^7.28.0",
+        "kind": "changed"
+      },
+      {
+        "key": "workspaces.catalog.@types/bun",
+        "main": "1.4.3",
+        "driver": "^1.3.14",
+        "kind": "changed"
+      },
+      {
+        "key": "workspaces.catalog.@types/react",
+        "main": "19.3.0",
+        "driver": "^19.2.17",
+        "kind": "changed"
+      },
+      {
+        "key": "workspaces.catalog.@types/react-dom",
+        "main": "19.3.0",
+        "driver": "^19.2.3",
+        "kind": "changed"
+      },
+      {
+        "key": "scripts.check:nix-bun",
+        "main": "bun scripts/check-nix-bun-freshness.ts",
+        "driver": null,
+        "kind": "dropped"
+      },
+      {
+        "key": "scripts.check:relay-assets",
+        "main": "bun scripts/check-extension-assets-freshness.ts",
+        "driver": null,
+        "kind": "dropped"
+      },
+      {
+        "key": "scripts.ci:release:publish-web-ui",
+        "main": "bun scripts/ci-release-publish.ts --web-ui",
+        "driver": null,
+        "kind": "dropped"
+      },
+      {
+        "key": "scripts.ci:release:publish-plugin",
+        "main": "bun scripts/ci-release-publish.ts --plugin plugins/official/pi-messenger",
+        "driver": null,
+        "kind": "dropped"
+      },
+      {
+        "key": "scripts.test:py",
+        "main": "python3 -m pytest -x sdk/python/zeta-rpc/tests && python3 -m pytest -x python/robomp/tests",
+        "driver": "python3 -m pytest -x sdk/python/omp-rpc/tests && python3 -m pytest -x python/robomp/tests",
+        "kind": "changed"
+      },
+      {
+        "key": "scripts.robomp:install",
+        "main": "pip install -e sdk/python/zeta-rpc -e 'python/robomp[dev]'",
+        "driver": "pip install -e sdk/python/omp-rpc -e 'python/robomp[dev]'",
+        "kind": "changed"
+      },
+      {
+        "key": "scripts.gen:relay-assets",
+        "main": "bun --cwd=packages/browser-relay run gen:assets",
+        "driver": null,
+        "kind": "dropped"
+      },
+      {
+        "key": "scripts.gen:brand-art",
+        "main": "bun scripts/brand/generate-logo-art.ts",
+        "driver": null,
+        "kind": "dropped"
+      },
+      {
+        "key": "devDependencies.figlet",
+        "main": "1.8.0",
+        "driver": null,
+        "kind": "dropped"
+      },
+      {
+        "key": "packageManager",
+        "main": "bun@1.4.3",
+        "driver": "bun@>=1.4",
+        "kind": "changed"
+      }
+    ],
+    "packages/agent/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/ai/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/catalog/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/coding-agent/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/mnemopi/package.json": [
+      {
+        "key": "description",
+        "main": "Local SQLite memory engine for Zeta agents",
+        "driver": "Local SQLite memory engine for omp agents",
+        "kind": "changed"
+      },
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/natives/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/omptype/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/snapcompact/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/stats/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit && tsgo -p tsconfig.client.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/tui/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/utils/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ],
+    "packages/wire/package.json": [
+      {
+        "key": "scripts.check:types",
+        "main": "tsc -p tsconfig.json --noEmit",
+        "driver": "tsgo -p tsconfig.json --noEmit",
+        "kind": "changed"
+      }
+    ]
+  }
+}
