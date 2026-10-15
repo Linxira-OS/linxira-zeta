@@ -290,6 +290,14 @@ jobs:
          # into a job).
          - name: Unit-test the package.json merge driver
            run: bun test scripts/merge-package-json.test.ts
+         # The member audit is only worth its exit code if it can actually see a
+         # dropped member: it shipped comparing two empty member sets and printed
+         # "0 member(s) dropped" + exit 0 for every input, including the v18.10.0
+         # sync merge (568 members gone across 279 files in the same comparison).
+         # The fixtures are scratch repositories — real commits, real `git grep`,
+         # no network and no toolchain — so this stays a seconds-long gate.
+         - name: Unit-test the merge member-loss auditor
+           run: bun test scripts/audit-merge-members.test.ts
          - name: Build collab web
            run: bun run collab:web:build
 

@@ -60,9 +60,22 @@ duplicating (or inventing) rows for them.
 | Type check | `bun run ci:check:full` | every push | `check` |
 | Rust format | `cargo fmt --all --check` | when `crates/` touched | `rust_validate` |
 | **Upstream merge lineage** (tag-to-tag only) | `bun scripts/check-merge-lineage.ts --tag <tag>` | **before every upstream merge** | `sync/omp-release/*`, `port/*` |
-| **Merge member loss** — Zeta-only members dropped by a conflict resolution (damage class 4); diffs every `packages/*/src` module's member set between a pre-merge ref and the working tree, exit 1 when any are gone | `bun scripts/audit-merge-members.ts --base <pre-merge-ref>` | **before pushing an upstream merge** (not wired into CI yet) | — |
+| **Merge member loss** — Zeta-only members dropped by a conflict resolution (damage class 4); diffs every `packages/*/src` module's member set between a pre-merge ref and the working tree (or `--against <ref>`), exit 1 when any are gone, exit 2 when the audit could not run | `bun scripts/audit-merge-members.ts --base <pre-merge-ref>` | **before pushing an upstream merge**; its regression test runs on every push | `check` |
 | **Brand regression in the merge diff** — added lines carrying an upstream `omp` token next to removed lines that carried a Zeta token (a Zeta spelling reverted by the merge); prints the per-file hits and a total, no exit code | `bun scripts/scan-brand-regressions.ts --base <pre-merge-ref>` | **review before pushing an upstream merge** (not wired into CI yet) | — |
 | Native pipeline smoke | desktop smoke | release runs | `desktop_*` |
+
+The member-loss auditor's own regression is gated on every push
+(`bun test scripts/audit-merge-members.test.ts` in the `check` job: scratch
+repositories, real commits + real `git grep`, no network, no toolchain). It is
+gated because it had shipped as a **no-op**: `git grep <ref>` prefixes every hit
+with `<ref>:`, and the parse read the file name off the first `:` — so it took
+the *ref* as the path, filtered every hit out, compared two empty member sets,
+and printed `0 member(s) dropped` + exit 0 for **every** input. On the
+2026-10-15 v18.10.0 sync merge it reported 0 where the same comparison finds
+**568 members gone across 279 files** (`--base 2291ae3dc80 --against v18.10.0`),
+i.e. the exact class-4 damage it exists to catch. Exit 2 (unresolvable ref, git
+failure, or an extraction that found zero members) is now distinct from exit 0,
+so "could not audit" can never be read as "clean merge".
 
 ## The lineage gate — why it exists and how to use it
 
