@@ -51,6 +51,37 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ## Priorities
 
+### P0 — 桌面形态定稿：zetawork 取代 zeta web 桌面版（2026-10-15 用户裁决）
+
+**裁决内容**：
+
+- **`web-ui/` 冻结**：开发到此为止，**不再作为独立桌面应用分发**；只保留为 zetawork 桌面应用
+  内部**可选的渲染后端**。理由（用户原话指向的两个现场报错）：
+  `The Zeta service did not become ready in time.` 与
+  `The running Zeta service at http://127.0.0.1:30141 did not answer.` —— Electron 外壳要先 spawn
+  `zeta serve` 再轮询端口就绪，这条链长期不稳，桌面维护成本高。
+- **桌面应用本体 = zetawork**，开发位置整体迁到 `desktop/`（现有 Electron 外壳退役）。
+- **启动形态**：启动后**保底有一个 `zetacode` 进程**（由工作台自己拉起/内嵌），**不依赖外部服务
+  端口就绪** —— 上面那两类错误从形态上消失。
+- **渲染方式由用户选**：同一个 zetawork 里可选**原生渲染（ratatui）**或 **Web UI 渲染**；于是
+  "单独维护的只剩 zeta web 的包"，维护面显著变小。
+- **编辑器分工**（`@linxiraos/editor` 不能浪费）：工作台内嵌编辑器 = termide `panel-editor`
+  （进程内 Panel，LSP/tree-sitter/git 全套）；**`@linxiraos/editor`（zetaeditor = vendored TTT，Go）
+  改作"外部编辑器"**分发——`$EDITOR`/`$VISUAL`（git commit/rebase todo/credential）、大文件与
+  最小环境兜底、`zetaeditor +N file` 交接。**随之要改的是指令注册**：`zeta-e` / `editor` 斜杠命令
+  的语义需从"打开工作台编辑器"改为"交给外部 zetaeditor"，与工作台内 termide 面板区分开。
+- **路径链接复用原生逻辑**（同批裁决）：终端输出里"任何标准路径/URL → 悬停可点"不自己造；OSC8
+  消费端已通（`termide` `hyperlink.rs` → `OpenPath` → `app.rs` `open_path_in_ide`），要找的是现成的
+  普通路径/URL 识别并接到 Rust 侧。修饰键语义照参照实现：点击=动作菜单 · Ctrl+点击=切工作区 ·
+  Shift+Ctrl+点击=打开文件夹。
+
+**待开工（登记，不在本轮执行）**：①Electron 外壳退役 + `desktop/` 改作 zetawork 的家（连带发布面：
+`desktop_linux`/`desktop_windows` job、`zeta-desktop-*` 资产、`@linxiraos/zeta-web` 的桌面用途）；
+②渲染切换接线（同一状态两套渲染 + Web 资源打包方式，不再是 Electron 内嵌 Next standalone）；
+③详情栏 4 页（文件 / Agents 历史对话 / 分支·PR / 用量）+ 范围切换（工作区·项目·全部）+ 点会话切
+工作区（左栏没有就新建）；④路径链接（普通路径识别 + 修饰键）与发射端 `packages/tui/src/render/hyperlink.ts`
+的 line/col 修复；⑤`zetaeditor` 外部编辑器化的指令注册改造 + 打包分发。
+
 ### P0 - Web workbench foundation and desktop handoff
 
 The delivery-order items have landed: Web UI typecheck plus desktop/Web CI
