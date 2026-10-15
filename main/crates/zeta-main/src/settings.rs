@@ -270,7 +270,10 @@ fn merge(existing: &str, settings: Settings, slots: &[Slot]) -> String {
 		let compact: String = line.chars().filter(|c| !c.is_whitespace()).collect();
 		if compact == section {
 			// Replace the whole section: every `[[slots]]` block up to the
-			// next table header (or the end of the file).
+			// next table header (or the end of the file). A preference key the
+			// file was missing is written first — after the header it would
+			// belong to the slots table and stop counting as a preference.
+			insert_missing(settings, &mut out, &mut written, eol);
 			out.push_str(&slots::render(slots).replace('\n', eol));
 			slots_written = true;
 			preamble = false;
@@ -541,6 +544,29 @@ mod tests {
 		for (key, _) in MANAGED {
 			assert!(text.contains(key), "{key} is written even when the file omits it");
 		}
+		std::fs::remove_file(&path).ok();
+	}
+
+	/// A hand-edited file may put a preference key after the slot section —
+	/// where TOML makes it a slot field, so it stops counting as a preference.
+	/// The rewrite has to lift it back into the preamble, exactly once.
+	#[test]
+	fn a_preference_key_after_the_slot_section_moves_back_to_the_preamble() {
+		let path = temp_path("late-keys");
+		std::fs::write(&path, "[[slots]]\nid = \"tasks\"\nvisible = false\n\nshell = \"pwsh\"\n")
+			.unwrap();
+		let settings = Settings { shell: ShellChoice::Pwsh, ..Settings::default() };
+		save_to(&path, settings, &slots::default_registry()).unwrap();
+		let text = std::fs::read_to_string(&path).unwrap();
+
+		assert_eq!(text.matches("shell = ").count(), 1, "written once, not duplicated");
+		assert!(
+			text.find("shell = ").expect("written") < text.find("[[slots]]").expect("written"),
+			"and it lands in the preamble, where it counts as a preference"
+		);
+		let (reread, registry) = read_file(&path);
+		assert_eq!(reread, settings, "the value survives the rewrite");
+		assert_eq!(registry, slots::default_registry(), "the registry the file now holds");
 		std::fs::remove_file(&path).ok();
 	}
 }
