@@ -3,7 +3,7 @@
 
 use crossterm::event::{KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use termide_agent_core::{now_millis, CommandScript, ToolResultMessage, UserMessage};
-use termide_core::{KeyChord, Panel, PanelEvent};
+use termide_core::{KeyChord, LinkTarget, Panel, PanelEvent};
 use termide_ui::textarea::TextArea;
 use termide_ui::{ChoiceAction, CompletionAction, CompletionItem, CompletionList, FieldEdit};
 
@@ -69,6 +69,79 @@ pub(crate) fn file_completions(root: &std::path::Path, prefix: &str) -> Vec<Comp
         .collect()
 }
 
+/// The picture files `text` names, when it names nothing else: one path or
+/// several, each on its own line or separated by spaces, as a terminal types
+/// files dropped onto it — quoted, or with spaces escaped by `\`. A
+/// relative path is taken from `cwd`. `None` when any part is not an
+/// existing picture file.
+pub(crate) fn picture_paths(text: &str, cwd: &std::path::Path) -> Option<Vec<std::path::PathBuf>> {
+    let text = text.trim();
+    if text.is_empty() || text.len() > 8192 {
+        return None;
+    }
+    let is_picture = |path: &std::path::Path| {
+        termide_ui::clipboard::picture_kind(path).is_some() && path.is_file()
+    };
+    let resolve = |word: &str| {
+        let word = word.strip_prefix("file://").unwrap_or(word);
+        let path = std::path::Path::new(word);
+        let path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            cwd.join(path)
+        };
+        is_picture(&path).then_some(path)
+    };
+    // One path per line first, so a path with a bare space still counts.
+    let lines: Option<Vec<_>> = text.lines().map(|line| resolve(line.trim())).collect();
+    if lines.is_some() {
+        return lines;
+    }
+    let words = split_words(text)?;
+    words.iter().map(|word| resolve(word)).collect()
+}
+
+/// `text` split into words as a shell splits them: on unquoted whitespace,
+/// with `'…'`, `"…"` and `\` escapes taken out. `None` for an unclosed quote.
+fn split_words(text: &str) -> Option<Vec<String>> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut in_word = false;
+    let mut quote: Option<char> = None;
+    let mut chars = text.chars();
+    while let Some(c) = chars.next() {
+        match (quote, c) {
+            (Some(q), c) if c == q => quote = None,
+            (Some('"'), '\\') | (None, '\\') => {
+                word.push(chars.next()?);
+                in_word = true;
+            }
+            (Some(_), c) => word.push(c),
+            (None, '\'' | '"') => {
+                quote = Some(c);
+                in_word = true;
+            }
+            (None, c) if c.is_whitespace() => {
+                if in_word {
+                    words.push(std::mem::take(&mut word));
+                    in_word = false;
+                }
+            }
+            (None, c) => {
+                word.push(c);
+                in_word = true;
+            }
+        }
+    }
+    if quote.is_some() {
+        return None;
+    }
+    if in_word {
+        words.push(word);
+    }
+    Some(words)
+}
+
 impl AgentPanel {
     /// The prompt box's text area. The input bar holds exactly one multi-line
     /// field, so both accessors always resolve.
@@ -95,6 +168,20 @@ impl AgentPanel {
     /// a short `[#n pasted …]` placeholder whose full content is spliced back
     /// in on [`AgentPanel::submit`].
     pub(crate) fn paste(&mut self, text: &str) {
+        // A dropped or pasted path to a picture attaches the picture, as a
+        // terminal types the path of a file dragged onto it.
+        if let Some(paths) = picture_paths(text, &self.cwd) {
+            let pictures: Vec<_> = paths
+                .iter()
+                .filter_map(|path| termide_ui::clipboard::picture_from_path(path))
+                .collect();
+            if pictures.len() == paths.len() {
+                for picture in pictures {
+                    self.attach_picture(picture);
+                }
+                return;
+            }
+        }
         let lines = text.lines().count();
         let large = text.chars().count() > PASTE_MAX_CHARS || lines > PASTE_MAX_LINES;
         if !large {
@@ -124,7 +211,34 @@ impl AgentPanel {
         self.pastes.push(Paste {
             placeholder,
             text: text.to_string(),
+            picture: None,
         });
+    }
+
+    /// Hold `picture` for the next message, a `[#n pasted image W×H]`
+    /// placeholder standing for it at the cursor.
+    pub(crate) fn attach_picture(&mut self, picture: termide_ui::clipboard::Picture) {
+        self.paste_seq += 1;
+        let t = termide_i18n::t();
+        let label = t.agent_paste_image_fmt(picture.width, picture.height);
+        let placeholder = t.agent_paste_placeholder_fmt(self.paste_seq, &label);
+        self.input_area_mut().insert_str(&placeholder);
+        self.pastes.push(Paste {
+            placeholder,
+            text: String::new(),
+            picture: Some(picture),
+        });
+    }
+
+    /// The pictures whose placeholder is still in `text`, as `(media_type,
+    /// base64 data)`: one whose placeholder was deleted is dropped with it.
+    pub(crate) fn held_pictures(&self, text: &str) -> Vec<(String, String)> {
+        self.pastes
+            .iter()
+            .filter(|paste| text.contains(&paste.placeholder))
+            .filter_map(|paste| paste.picture.as_ref())
+            .map(|picture| (picture.media_type.clone(), picture.data.clone()))
+            .collect()
     }
 
     /// Copy the prompt's selection to the clipboard. Returns whether there was
@@ -151,6 +265,41 @@ impl AgentPanel {
             line: self.top + (row - area.y) as usize,
             col: col as usize,
         }
+    }
+
+    /// The link under transcript cell `cell`, with the regions to light: one
+    /// a block marks up (an answer's `[text](href)`, a tool call's path or
+    /// URL), else a web address or an existing path written out on the row.
+    pub(crate) fn link_under(
+        &self,
+        cell: select::Cell,
+    ) -> Option<(LinkTarget, Vec<transcript::LinkRegion>)> {
+        if let Some((href, regions)) = self.transcript.link_at(cell.line, cell.col) {
+            return Some((LinkTarget::from_href(&href, &self.cwd)?, regions));
+        }
+        let line = self.transcript.rendered().get(cell.line)?;
+        let (cols, target) = select::link_at(line, cell.col, &self.cwd)?;
+        Some((target, vec![(cell.line, cols.start, cols.end)]))
+    }
+
+    /// Light the link under the pointer while `Ctrl` is held, as the terminal
+    /// panel does; whether what is lit changed.
+    fn hover_link(&mut self, event: MouseEvent) -> bool {
+        let area = self.transcript_area;
+        let inside = event.column >= area.x
+            && event.column < area.x + area.width
+            && event.row >= area.y
+            && event.row < area.y + area.height;
+        let lit =
+            (event.modifiers.contains(KeyModifiers::CONTROL) && inside && self.pending.is_none())
+                .then(|| self.link_under(self.cell_at(event.column, event.row)))
+                .flatten()
+                .map(|(_, regions)| regions);
+        if lit == self.hovered_link {
+            return false;
+        }
+        self.hovered_link = lit;
+        true
     }
 
     /// A click on transcript line `line`: focus the chat and select the block
@@ -185,7 +334,11 @@ impl AgentPanel {
             return false;
         };
         let width = self.transcript_area.width.saturating_sub(1).max(1) as usize;
-        let text = selection.text(self.transcript.rendered(), width);
+        let text = selection.text(
+            self.transcript.rendered(),
+            self.transcript.rendered_copy(),
+            width,
+        );
         if text.trim().is_empty() {
             return false;
         }
@@ -208,11 +361,22 @@ impl AgentPanel {
     /// Paste the clipboard into the prompt; a large paste is held as a
     /// placeholder rather than flooding the input.
     pub(crate) fn paste_clipboard(&mut self) -> bool {
-        // `paste_text_or_paths` covers a clipboard holding only a native file
-        // list, which carries no text flavor on macOS/Linux.
-        match termide_ui::clipboard::paste_text_or_paths() {
-            Some(text) => {
-                self.paste(&text);
+        use termide_ui::clipboard;
+        // Files copied in a file manager: pictures among them are attached
+        // by `paste`, which their paths reach as text. Checked before the
+        // text flavor, which for a Finder copy is only the file name.
+        if let Some(files) = clipboard::paste_files() {
+            self.paste(&clipboard::paths_to_text(&files));
+            return true;
+        }
+        if let Some(text) = clipboard::paste().filter(|text| !text.is_empty()) {
+            self.paste(&text);
+            return true;
+        }
+        // A bitmap with no text: a screenshot, an image copied in a browser.
+        match clipboard::paste_picture() {
+            Some(picture) => {
+                self.attach_picture(picture);
                 true
             }
             None => false,
@@ -233,7 +397,7 @@ impl AgentPanel {
     /// Splice every held paste's full content back in place of its placeholder.
     pub(crate) fn expand_pastes(&self, text: &str) -> String {
         let mut out = text.to_string();
-        for paste in &self.pastes {
+        for paste in self.pastes.iter().filter(|paste| paste.picture.is_none()) {
             out = out.replace(&paste.placeholder, &paste.text);
         }
         out
@@ -265,8 +429,6 @@ impl AgentPanel {
         history
     }
 
-    /// Show an earlier (`older`) or later request in the input, the way a
-    /// shell recalls its history; past the newest, the draft comes back.
     /// Take the messages still waiting in the queue back into the input, to
     /// edit them before they go: ahead of what is typed, as they were sent
     /// first. Returns whether there were any, so `↑` walks history only once
@@ -288,9 +450,58 @@ impl AgentPanel {
             format!("{}\n\n{typed}", queued.typed())
         };
         self.set_input(&text);
+        self.hold_queued_pictures(&queued);
         true
     }
 
+    /// Hold the pictures of `queued`, just taken back into the input, again:
+    /// each under the placeholder it was pasted with when that is still in
+    /// the text, in order, else under a new one put at the end.
+    fn hold_queued_pictures(&mut self, queued: &UserMessage) {
+        let t = termide_i18n::t();
+        let mut from = 0;
+        for (media_type, data) in queued.images() {
+            let Some(picture) = termide_ui::clipboard::picture_from_data(media_type, data) else {
+                continue;
+            };
+            let label = t.agent_paste_image_fmt(picture.width, picture.height);
+            let text = self.input_text();
+            // The earliest placeholder for a picture of this size past the
+            // one the previous picture took.
+            let found = (1..=self.paste_seq.max(64))
+                .filter_map(|n| {
+                    let placeholder = t.agent_paste_placeholder_fmt(n, &label);
+                    let at = from + text.get(from..)?.find(&placeholder)?;
+                    Some((at, n, placeholder))
+                })
+                .min_by_key(|(at, ..)| *at);
+            match found {
+                Some((at, n, placeholder)) => {
+                    from = at + placeholder.len();
+                    self.paste_seq = self.paste_seq.max(n);
+                    self.pastes.push(Paste {
+                        placeholder,
+                        text: String::new(),
+                        picture: Some(picture),
+                    });
+                }
+                None => {
+                    self.input_area_mut().move_to_end();
+                    self.attach_picture(picture);
+                    from = self.input_text().len();
+                }
+            }
+        }
+    }
+
+    /// Show an earlier (`older`) or later request in the input, the way a
+    /// shell recalls its history; past the newest, the draft comes back.
+    /// Returns `false` with nothing further to show.
+    ///
+    /// The cursor lands on the edge the arrow came in through, so the next
+    /// press of the same arrow moves on through history at once instead of
+    /// first walking every row of a long recalled request: at the start going
+    /// back, at the end going forward.
     pub(crate) fn recall(&mut self, older: bool) -> bool {
         let history = self.history();
         let next = match (self.history_pos, older) {
@@ -298,8 +509,8 @@ impl AgentPanel {
                 self.draft = self.input_text();
                 Some(history.len() - 1)
             }
-            (None, _) => return false,
-            (Some(pos), true) => Some(pos.saturating_sub(1)),
+            (None, _) | (Some(0), true) => return false,
+            (Some(pos), true) => Some(pos - 1),
             (Some(pos), false) if pos + 1 < history.len() => Some(pos + 1),
             (Some(_), false) => None,
         };
@@ -309,15 +520,16 @@ impl AgentPanel {
             None => std::mem::take(&mut self.draft),
         };
         self.set_input(&text);
+        if older {
+            self.input_area_mut().move_to_start();
+        }
         true
     }
 
     /// Replace the input with `text`, cursor at its end.
     pub(crate) fn set_input(&mut self, text: &str) {
         self.input.set_field_text(0, text);
-        let area = self.input_area_mut();
-        while area.move_down() {}
-        area.move_end();
+        self.input_area_mut().move_to_end();
     }
 
     /// Recompute the `/command` popup after the input changed: it shows
@@ -562,7 +774,10 @@ impl AgentPanel {
                     .with_description(termide_i18n::t().agent_cmd_desc_pause()),
             );
         }
-        if (self.paused || self.pause_requested) && CONTINUE_COMMAND.starts_with(prefix) {
+        let can_continue = self.paused
+            || self.pause_requested
+            || (!self.is_busy() && (self.retry_wait.is_some() || self.retry_ready));
+        if can_continue && CONTINUE_COMMAND.starts_with(prefix) {
             items.push(
                 CompletionItem::new(CONTINUE_COMMAND)
                     .with_label(format!("/{CONTINUE_COMMAND}"))
@@ -585,7 +800,7 @@ impl AgentPanel {
                     .with_description(termide_i18n::t().agent_cmd_desc_goal()),
             );
         }
-        if HANDOFF_COMMAND.starts_with(prefix) && !self.external {
+        if HANDOFF_COMMAND.starts_with(prefix) {
             items.push(
                 CompletionItem::new(HANDOFF_COMMAND)
                     .with_label(format!("/{HANDOFF_COMMAND}"))
@@ -613,6 +828,17 @@ impl AgentPanel {
                     .with_hint(termide_i18n::t().agent_hint_mcp())
                     .with_description(termide_i18n::t().agent_cmd_desc_mcp()),
             );
+        }
+        // The external agent's own commands, but those termide's take.
+        for command in self.agent_commands() {
+            if command.name.starts_with(prefix) && !items.iter().any(|i| i.value == command.name) {
+                items.push(
+                    CompletionItem::new(command.name.clone())
+                        .with_label(format!("/{}", command.name))
+                        .with_hint(command.hint)
+                        .with_description(command.description),
+                );
+            }
         }
         if items.is_empty() {
             self.completion = None;
@@ -703,6 +929,15 @@ impl AgentPanel {
     }
 
     pub(crate) fn scroll_by(&mut self, delta: i32) {
+        // The welcome banner scrolls as its own document, the list's cursor
+        // left where it is, as a selected block is by the transcript's wheel.
+        if self.banner_shown() {
+            self.banner_top = self
+                .banner_top
+                .saturating_add_signed(delta as isize)
+                .min(self.banner_max_top());
+            return;
+        }
         let max_top = self.max_top();
         let next = if delta < 0 {
             self.top.saturating_sub(delta.unsigned_abs() as usize)
@@ -814,8 +1049,12 @@ impl AgentPanel {
             return self.save_chat();
         }
         // F2 renames the session, wherever the focus sits in the panel — the
-        // same prompt as the `[≡]` menu's Rename.
+        // same prompt as the `[≡]` menu's Rename. In the banner's list of
+        // recent sessions it renames the one under the cursor instead.
         if key.code == KeyCode::F(2) && !ctrl && !alt && !shift {
+            if self.chat_focus && self.recent_list_shown() {
+                return self.ask_rename_recent_session();
+            }
             return self.handle_status_action(RENAME_ACTION);
         }
         // F3 shows a summary of the session, F4 offers a message to rewind to.
@@ -895,8 +1134,13 @@ impl AgentPanel {
         // On the welcome banner the chat focus walks its recent sessions
         // instead: the arrows, the page keys and Home/End move the cursor,
         // Enter opens the session under it and Delete (like F8) deletes it.
+        // A printable character the chat has no use for means the user meant
+        // to type: focus goes back to the prompt and the key lands there, so a
+        // forgotten Tab costs nothing. The raw key is replayed, keeping the
+        // layout's character rather than its Latin canonical form.
+        let typed = |code: KeyCode| matches!(code, KeyCode::Char(_)) && !ctrl && !alt;
         if self.chat_focus && self.recent_list_shown() {
-            let page = self.recent_rows.max(1) as isize;
+            let page = self.viewport_height().max(1) as isize;
             match key.code {
                 KeyCode::Delete => return self.ask_delete_recent_session(),
                 KeyCode::Tab | KeyCode::Esc => self.chat_focus = false,
@@ -908,6 +1152,10 @@ impl AgentPanel {
                 KeyCode::End => self.move_recent_selection(isize::MAX),
                 KeyCode::Enter => {
                     self.open_recent_session(self.recent_selected);
+                }
+                code if typed(code) => {
+                    self.chat_focus = false;
+                    return self.on_key(chord);
                 }
                 _ => return vec![],
             }
@@ -967,7 +1215,11 @@ impl AgentPanel {
                     self.scroll_by(page);
                     return vec![PanelEvent::NeedsRedraw];
                 }
-                // Everything else is swallowed so it does not type into the
+                code if typed(code) => {
+                    self.chat_focus = false;
+                    return self.on_key(chord);
+                }
+                // Everything else is swallowed so it does not reach the
                 // (unfocused) input.
                 _ => return vec![],
             }
@@ -1129,6 +1381,9 @@ impl AgentPanel {
 
     /// The body of [`Panel::handle_mouse`].
     pub(crate) fn on_mouse(&mut self, event: MouseEvent) -> Vec<PanelEvent> {
+        if matches!(event.kind, MouseEventKind::Moved) && self.hover_link(event) {
+            return vec![PanelEvent::NeedsRedraw];
+        }
         // The prompt box claims its own presses and drags: a press places the
         // cursor, a drag selects the text under it. It is asked first because
         // the bar sits below the transcript, whose rows would otherwise take
@@ -1147,8 +1402,14 @@ impl AgentPanel {
                         self.request_pause();
                     }
                     RunButton::Continue if self.paused && !self.is_busy() => self.resume(),
+                    RunButton::Continue if self.retry_wait.is_some() && !self.is_busy() => {
+                        self.retry_now();
+                    }
                     RunButton::Continue => self.cancel_pause(),
                     RunButton::Stop if self.paused && !self.is_busy() => self.stop_paused(),
+                    RunButton::Stop if self.retry_wait.is_some() && !self.is_busy() => {
+                        self.cancel_retry_wait()
+                    }
                     RunButton::Stop => self.abort(),
                 }
                 return vec![PanelEvent::NeedsRedraw];
@@ -1189,16 +1450,17 @@ impl AgentPanel {
                     return vec![PanelEvent::NeedsRedraw];
                 }
                 self.text_selection = None;
-                // Ctrl+click on a URL opens it in the browser, as it does in
-                // the terminal panel.
+                // Ctrl+click follows a link inside, Ctrl+Alt+click opens it
+                // outside, as in the terminal panel; the app opens it the
+                // same way from every panel.
                 if event.modifiers.contains(KeyModifiers::CONTROL) {
-                    let url = self
-                        .transcript
-                        .rendered()
-                        .get(press.line)
-                        .and_then(|line| select::url_at(line, press.col));
-                    if let Some(url) = url {
-                        return vec![PanelEvent::OpenExternal(url.into())];
+                    if let Some((target, _)) = self.link_under(press) {
+                        self.hovered_link = None;
+                        return vec![if event.modifiers.contains(KeyModifiers::ALT) {
+                            PanelEvent::OpenLinkExternal(target)
+                        } else {
+                            PanelEvent::OpenLink(target)
+                        }];
                     }
                 }
                 return self.click_line(press.line);
@@ -1280,6 +1542,41 @@ impl AgentPanel {
                     self.cancel_pause();
                     return vec![PanelEvent::NeedsRedraw];
                 }
+                // A goal or loop row's `✕` stops it, as `/goal stop` and
+                // `/loop stop` do (one cell of slack either side).
+                if let Some(&(_, kind)) = self
+                    .autorun_stops
+                    .iter()
+                    .find(|(at, _)| at.y == event.row && event.column.abs_diff(at.x) <= 1)
+                {
+                    match kind {
+                        crate::render::Autorun::Goal => self.stop_goal(),
+                        crate::render::Autorun::Loop => self.stop_loop(),
+                    }
+                    self.settle_restored();
+                    return vec![PanelEvent::NeedsRedraw];
+                }
+                // Elsewhere on the row, its latest run comes into view.
+                if let Some(&(_, kind)) =
+                    self.autorun_stops.iter().find(|(at, _)| at.y == event.row)
+                {
+                    if let Some(index) = self.autorun_block(kind) {
+                        self.chat_focus = true;
+                        self.follow = false;
+                        self.selected = index;
+                        self.scroll_selected_into_view();
+                    }
+                    return vec![PanelEvent::NeedsRedraw];
+                }
+                // A running subagent's row selects its block and brings it
+                // into view.
+                if let Some(&(_, index)) = self.task_rows.iter().find(|(y, _)| *y == event.row) {
+                    self.chat_focus = true;
+                    self.follow = false;
+                    self.selected = index;
+                    self.scroll_selected_into_view();
+                    return vec![PanelEvent::NeedsRedraw];
+                }
                 // Under the banner the notices take no clicks: the banner's
                 // own rows did above.
                 if inside && self.banner_shown() {
@@ -1302,5 +1599,46 @@ impl AgentPanel {
             _ => return vec![],
         }
         vec![PanelEvent::NeedsRedraw]
+    }
+}
+
+#[cfg(test)]
+mod picture_path_tests {
+    use super::{picture_paths, split_words};
+
+    #[test]
+    fn words_split_as_a_shell_splits_them() {
+        assert_eq!(
+            split_words(r#"a\ b.png 'c d.png' "e\"f.png""#).unwrap(),
+            ["a b.png", "c d.png", "e\"f.png"]
+        );
+        assert_eq!(split_words("'open"), None);
+    }
+
+    #[test]
+    fn only_text_naming_nothing_but_pictures_is_taken() {
+        let dir = tempfile::tempdir().unwrap();
+        let shot = dir.path().join("Screen Shot.png");
+        let photo = dir.path().join("photo.jpg");
+        let notes = dir.path().join("notes.txt");
+        for path in [&shot, &photo, &notes] {
+            std::fs::write(path, b"x").unwrap();
+        }
+        let cwd = dir.path();
+        let escaped = shot.display().to_string().replace(' ', "\\ ");
+        assert_eq!(
+            picture_paths(&format!("{escaped} {}", photo.display()), cwd),
+            Some(vec![shot.clone(), photo.clone()])
+        );
+        // A path with a bare space, alone on its line.
+        assert_eq!(
+            picture_paths(&format!("{}\n", shot.display()), cwd),
+            Some(vec![shot.clone()])
+        );
+        assert_eq!(picture_paths("photo.jpg", cwd), Some(vec![photo.clone()]));
+        assert_eq!(picture_paths(&notes.display().to_string(), cwd), None);
+        assert_eq!(picture_paths("look at photo.jpg", cwd), None);
+        assert_eq!(picture_paths("missing.png", cwd), None);
+        assert_eq!(picture_paths("", cwd), None);
     }
 }

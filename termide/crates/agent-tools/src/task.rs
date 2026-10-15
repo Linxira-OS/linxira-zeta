@@ -14,22 +14,36 @@
 use std::sync::Arc;
 
 use serde_json::{json, Value};
-use termide_agent_core::{CancelToken, Tool, ToolCall, ToolContext, ToolResultMessage, ToolUpdate};
+use termide_agent_core::ToolText;
+use termide_agent_core::{
+    CancelToken, Tool, ToolCall, ToolContext, ToolResultMessage, ToolUpdate, Usage,
+};
 
 use crate::args::required_str;
 
-/// Runs the named agent on `prompt` to completion and returns its final
-/// answer, or an error message. Progress is forwarded through `on_update`;
-/// the context is the delegating call's, whose session the subagent's
-/// reviewer judges against.
+/// How a subagent's run ended: its final answer, or an error message, and
+/// the tokens its model calls spent either way.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubagentOutcome {
+    pub answer: Result<String, String>,
+    pub spent: Usage,
+}
+
+impl From<Result<String, String>> for SubagentOutcome {
+    /// An outcome that spent nothing.
+    fn from(answer: Result<String, String>) -> Self {
+        Self {
+            answer,
+            spent: Usage::default(),
+        }
+    }
+}
+
+/// Runs the named agent on `prompt` to completion. Progress is forwarded
+/// through `on_update`; the context is the delegating call's, whose session
+/// the subagent's reviewer judges against.
 pub type SubagentRun = Arc<
-    dyn Fn(
-            &str,
-            &str,
-            &ToolContext,
-            &CancelToken,
-            &mut dyn FnMut(ToolUpdate),
-        ) -> Result<String, String>
+    dyn Fn(&str, &str, &ToolContext, &CancelToken, &mut dyn FnMut(ToolUpdate)) -> SubagentOutcome
         + Send
         + Sync,
 >;
@@ -45,23 +59,13 @@ pub struct TaskTool {
 impl TaskTool {
     #[must_use]
     pub fn new(agents: Vec<(String, String)>, run: SubagentRun) -> Self {
-        let mut description = String::from(
-            "Delegate a self-contained task to another agent. It runs on its own — reading, \
-searching and editing as its permissions allow, without asking — and returns a final report. \
-Use it to keep a focused sub-task and the files it touches out of this conversation. Give it \
-everything it needs in the prompt; it does not see our history. Available agents:",
-        );
-        for (name, desc) in &agents {
-            description.push_str(&format!("\n- {name}"));
-            if !desc.is_empty() {
-                description.push_str(&format!(": {desc}"));
-            }
-        }
-        Self {
+        let mut tool = Self {
             agents,
             run,
-            description,
-        }
+            description: String::new(),
+        };
+        tool.description = tool.render_description(&ToolText::seed("task").description);
+        tool
     }
 }
 
@@ -72,6 +76,22 @@ impl Tool for TaskTool {
 
     fn description(&self) -> &str {
         &self.description
+    }
+
+    /// `{{agents}}` takes the agents it can delegate to, one per line.
+    fn render_description(&self, template: &str) -> String {
+        let agents: Vec<String> = self
+            .agents
+            .iter()
+            .map(|(name, desc)| {
+                if desc.is_empty() {
+                    format!("- {name}")
+                } else {
+                    format!("- {name}: {desc}")
+                }
+            })
+            .collect();
+        template.replace("{{agents}}", &agents.join("\n"))
     }
 
     fn parameters(&self) -> Value {
@@ -94,7 +114,11 @@ impl Tool for TaskTool {
     }
 
     fn prompt_snippet(&self) -> Option<&str> {
-        Some("delegate a self-contained task to another agent, which reports back")
+        ToolText::seed("task").snippet.as_deref()
+    }
+
+    fn prompt_guidelines(&self) -> &[String] {
+        &ToolText::seed("task").guidelines
     }
 
     fn execute(
@@ -119,10 +143,14 @@ impl Tool for TaskTool {
                 format!("no agent named {agent}; available: {}", names.join(", ")),
             );
         }
-        match (self.run)(agent, prompt, ctx, cancel, on_update) {
+        let outcome = (self.run)(agent, prompt, ctx, cancel, on_update);
+        // What the subagent spent rides in the details, for the panel's
+        // totals; the model reads the answer alone.
+        match outcome.answer {
             Ok(report) => ToolResultMessage::text(call, report),
             Err(message) => ToolResultMessage::error(call, message),
         }
+        .with_spent(outcome.spent)
     }
 }
 
@@ -158,11 +186,17 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push((agent.to_string(), prompt.to_string()));
-            if agent == "reviewer" {
+            let spent = Usage {
+                input: 7,
+                output: 3,
+                ..Usage::default()
+            };
+            let answer = if agent == "reviewer" {
                 Ok("looks fine".into())
             } else {
                 Err("the run failed".into())
-            }
+            };
+            SubagentOutcome { answer, spent }
         });
         let tool = TaskTool::new(
             vec![
@@ -184,6 +218,7 @@ mod tests {
         );
         assert!(!ok.is_error);
         assert_eq!(ok.plain_text(), "looks fine");
+        assert_eq!(ok.spent().map(|spent| spent.output), Some(3));
         assert_eq!(
             *seen.lock().unwrap(),
             vec![("reviewer".to_string(), "check the diff".to_string())]
@@ -192,6 +227,8 @@ mod tests {
         let failed = run_with(&tool, json!({ "agent": "writer", "prompt": "x" }));
         assert!(failed.is_error);
         assert_eq!(failed.plain_text(), "the run failed");
+        // A failed run spent tokens too.
+        assert_eq!(failed.spent().map(|spent| spent.input), Some(7));
 
         let unknown = run_with(&tool, json!({ "agent": "ghost", "prompt": "x" }));
         assert!(unknown.is_error);

@@ -5,12 +5,14 @@
 use std::time::Instant;
 
 use termide_agent_core::{
-    shell_parts, CommandScript, Decision, Mode, PermissionAnswer, PermissionEnvelope, PersistScope,
-    QuestionAnswer, QuestionEnvelope, QuestionReply, SuggestionEnvelope, SuggestionReply,
+    shell_parts, CommandScript, Decision, Failure, Mode, PermissionAnswer, PermissionEnvelope,
+    PersistScope, QuestionAnswer, QuestionEnvelope, QuestionReply, SuggestionEnvelope,
+    SuggestionReply,
 };
 use termide_core::PanelEvent;
 use termide_ui::{ChoiceAction, ChoiceForm};
 
+use crate::failure::FailureChoice;
 use crate::rewind::{RewindPoint, RewindScope};
 use crate::{millis, AgentPanel, Item, NoticeKind};
 
@@ -24,11 +26,13 @@ pub(crate) enum Pending {
         /// What each of the form's rows answers, in their order.
         answers: Vec<PermissionAnswer>,
     },
-    /// The model's questions, asked one card at a time; `answers` holds those
-    /// already given, and `form` asks the next.
+    /// The model's questions, asked one card at a time; `answers` holds one
+    /// slot per question, filled as they are answered, and `form` asks
+    /// question `current`. `←` and `→` step between them.
     Question {
         envelope: QuestionEnvelope,
-        answers: Vec<QuestionAnswer>,
+        answers: Vec<Option<QuestionAnswer>>,
+        current: usize,
         form: ChoiceForm,
     },
     Command {
@@ -47,6 +51,9 @@ pub(crate) enum Pending {
     /// Plan mode: the agent answered, carry the plan out or keep planning?
     Plan {
         form: ChoiceForm,
+        /// What each row carries the plan out in: the mode, and whether from
+        /// a clean context.
+        choices: Vec<(Mode, bool)>,
     },
     /// A `/handoff` brief is ready: save it to a file, or start a new session
     /// from it. The brief is kept until the choice is made.
@@ -64,6 +71,19 @@ pub(crate) enum Pending {
         /// What each row of the form answers, in their order.
         answers: Vec<SuggestionReply>,
     },
+    /// A run stopped on a failure: try again, wait, restart the agent, go
+    /// on with another — or stop.
+    Failure {
+        form: ChoiceForm,
+        /// What each row does, in their order.
+        choices: Vec<FailureChoice>,
+        failure: Failure,
+    },
+    /// A reopened session was left with work under way: carry it on, drop
+    /// it, or decide later at the pause.
+    Unfinished {
+        form: ChoiceForm,
+    },
 }
 
 impl Pending {
@@ -74,9 +94,11 @@ impl Pending {
             | Pending::Command { form, .. }
             | Pending::Undo { form }
             | Pending::Rewind { form, .. }
-            | Pending::Plan { form }
+            | Pending::Plan { form, .. }
             | Pending::Handoff { form, .. }
-            | Pending::Suggestion { form, .. } => form,
+            | Pending::Suggestion { form, .. }
+            | Pending::Failure { form, .. }
+            | Pending::Unfinished { form } => form,
         }
     }
 
@@ -87,9 +109,11 @@ impl Pending {
             | Pending::Command { form, .. }
             | Pending::Undo { form }
             | Pending::Rewind { form, .. }
-            | Pending::Plan { form }
+            | Pending::Plan { form, .. }
             | Pending::Handoff { form, .. }
-            | Pending::Suggestion { form, .. } => form,
+            | Pending::Suggestion { form, .. }
+            | Pending::Failure { form, .. }
+            | Pending::Unfinished { form } => form,
         }
     }
 }
@@ -98,15 +122,29 @@ impl Pending {
 /// title, with the position among several; the question itself as the
 /// detail; the choices with their descriptions, checkboxes when several can
 /// be picked; a row for an answer of the user's own, and one that declines.
-pub(crate) fn question_form(envelope: &QuestionEnvelope, index: usize) -> ChoiceForm {
+/// The answer given to it before, if any, shows picked; `←` steps back
+/// while there is a question before, `→` on once this one is answered.
+pub(crate) fn question_form(
+    envelope: &QuestionEnvelope,
+    index: usize,
+    answers: &[Option<QuestionAnswer>],
+) -> ChoiceForm {
     let t = termide_i18n::t();
     let question = &envelope.questions[index];
     let mut title = t.agent_question_title().to_string();
     if !question.header.is_empty() {
         title.push_str(&format!(": {}", question.header));
     }
+    let back = index > 0;
+    let forward = index + 1 < envelope.questions.len() && answers[index].is_some();
     if envelope.questions.len() > 1 {
-        title.push_str(&format!(" ({}/{})", index + 1, envelope.questions.len()));
+        let left = if back { "← " } else { "" };
+        let right = if forward { " →" } else { "" };
+        title.push_str(&format!(
+            " ({left}{}/{}{right})",
+            index + 1,
+            envelope.questions.len()
+        ));
     }
     let (labels, descriptions) = question
         .options
@@ -120,6 +158,25 @@ pub(crate) fn question_form(envelope: &QuestionEnvelope, index: usize) -> Choice
         .with_cancel(t.agent_question_decline());
     if question.multi_select {
         form = form.with_multi(t.agent_question_submit());
+    }
+    form = form.with_steps(back, forward);
+    if let Some(Some(given)) = answers.get(index) {
+        let picked: Vec<usize> = given
+            .chosen
+            .iter()
+            .filter_map(|label| question.options.iter().position(|o| &o.label == label))
+            .collect();
+        if let Some(custom) = &given.custom {
+            form = form.with_custom_answer(custom.clone());
+        }
+        form = form.with_checked(&picked);
+        // On the pick, or on the own answer's row when that was the answer.
+        let row = match (picked.first(), &given.custom) {
+            (Some(&first), _) => first,
+            (None, Some(_)) => question.options.len(),
+            (None, None) => 0,
+        };
+        form = form.with_selected(row);
     }
     form
 }
@@ -183,9 +240,27 @@ pub(crate) fn suggestion_form(
 }
 
 impl AgentPanel {
+    /// Take down a permission card no one waits for any more — the external
+    /// agent gave the call up, or the run stopped — so it neither lingers
+    /// nor turns away the next call's question. Whether one was taken down.
+    pub(crate) fn drop_withdrawn_permission(&mut self) -> bool {
+        let withdrawn = matches!(
+            &self.pending,
+            Some(Pending::Permission { envelope, .. }) if envelope.withdrawn.is_cancelled()
+        );
+        if withdrawn {
+            self.pending = None;
+            self.end_permission_wait();
+        }
+        withdrawn
+    }
+
     pub(crate) fn poll_permissions(&mut self) -> Vec<PanelEvent> {
         let mut events = Vec::new();
         while let Ok(envelope) = self.permission_rx.try_recv() {
+            // The card before may have been given up just now: its prompter
+            // returned before this question could be sent.
+            self.drop_withdrawn_permission();
             if self.pending.is_some() {
                 // Prompts are sequential on the agent thread; a second one
                 // cannot arrive before the first is answered. Deny defensively.
@@ -298,14 +373,16 @@ impl AgentPanel {
                 let _ = envelope.reply.send(QuestionReply::Declined);
                 continue;
             }
-            let form = question_form(&envelope, 0);
+            let answers = vec![None; envelope.questions.len()];
+            let form = question_form(&envelope, 0, &answers);
             events.push(PanelEvent::SetStatusMessage {
                 message: envelope.questions[0].question.clone(),
                 is_error: false,
             });
             self.pending = Some(Pending::Question {
                 envelope,
-                answers: Vec::new(),
+                answers,
+                current: 0,
                 form,
             });
             self.raise_attention(true);
@@ -314,29 +391,64 @@ impl AgentPanel {
         events
     }
 
-    /// Record the answer to the question on the card, then ask the next one,
-    /// or send them all back once the last is answered.
+    /// Record the answer to the question on the card, then ask the next one
+    /// (showing the answer it had, when the user came back to change an
+    /// earlier one), or send them all back once the last is answered.
     pub(crate) fn answer_question(&mut self, answer: QuestionAnswer) {
         let Some(Pending::Question {
             envelope,
             mut answers,
+            current,
             ..
         }) = self.pending.take()
         else {
             return;
         };
-        answers.push(answer);
-        if answers.len() < envelope.questions.len() {
-            let form = question_form(&envelope, answers.len());
-            self.pending = Some(Pending::Question {
-                envelope,
-                answers,
-                form,
-            });
+        answers[current] = Some(answer);
+        let next = current + 1;
+        if next < envelope.questions.len() {
+            self.show_question(envelope, answers, next);
             return;
         }
         self.end_permission_wait();
+        let answers = answers.into_iter().flatten().collect();
         let _ = envelope.reply.send(QuestionReply::Answered(answers));
+    }
+
+    /// `←` or `→` on a question's card: show the question before or after,
+    /// with the answer it was given. The card only offers a step that leads
+    /// somewhere, so the bounds are a formality.
+    pub(crate) fn step_question(&mut self, forward: bool) {
+        let Some(Pending::Question {
+            envelope,
+            answers,
+            current,
+            ..
+        }) = self.pending.take()
+        else {
+            return;
+        };
+        let target = if forward {
+            (current + 1).min(envelope.questions.len() - 1)
+        } else {
+            current.saturating_sub(1)
+        };
+        self.show_question(envelope, answers, target);
+    }
+
+    fn show_question(
+        &mut self,
+        envelope: QuestionEnvelope,
+        answers: Vec<Option<QuestionAnswer>>,
+        index: usize,
+    ) {
+        let form = question_form(&envelope, index, &answers);
+        self.pending = Some(Pending::Question {
+            envelope,
+            answers,
+            current: index,
+            form,
+        });
     }
 
     /// A permission question is up: the running call's wait starts counting.
@@ -474,9 +586,15 @@ impl AgentPanel {
     }
 
     /// In plan mode, once the agent has answered: offer to carry the plan
-    /// out, in accept-edits or asking, or to keep planning.
+    /// out, in accept-edits from a clean context or with the exploration in
+    /// it, or asking, or to keep planning. An external agent that follows
+    /// the panel's modes is offered the same, save the clean context: its
+    /// history is its own, so there is nothing of ours to clear.
     pub(crate) fn offer_plan(&mut self) {
-        if self.external || self.mode.get() != Mode::Plan || self.pending.is_some() {
+        if (self.external && !self.runtime.follows_mode())
+            || self.mode.get() != Mode::Plan
+            || self.pending.is_some()
+        {
             return;
         }
         // The run's closing line sits after the answer; look past it.
@@ -494,22 +612,45 @@ impl AgentPanel {
             return;
         }
         let t = termide_i18n::t();
-        let form = ChoiceForm::new(
-            t.agent_plan_carry_title(),
-            vec![
-                t.agent_plan_accept_edits().to_string(),
-                t.agent_plan_configured().to_string(),
-            ],
-        )
-        .with_cancel(t.agent_plan_keep());
-        self.pending = Some(Pending::Plan { form });
+        let mut rows = vec![
+            (t.agent_plan_clean_edits(), (Mode::Edit, true)),
+            (t.agent_plan_accept_edits(), (Mode::Edit, false)),
+            (t.agent_plan_configured(), (Mode::Configured, false)),
+        ];
+        if self.external {
+            rows.retain(|(_, (_, clean))| !clean);
+        }
+        let (labels, choices): (Vec<_>, Vec<_>) = rows
+            .into_iter()
+            .map(|(label, choice)| (label.to_string(), choice))
+            .unzip();
+        let form =
+            ChoiceForm::new(t.agent_plan_carry_title(), labels).with_cancel(t.agent_plan_keep());
+        self.pending = Some(Pending::Plan { form, choices });
     }
 
     /// The plan was accepted: leave plan mode for `mode` and send the
-    /// request that carries it out.
-    pub(crate) fn carry_out_plan(&mut self, mode: Mode) -> Vec<PanelEvent> {
+    /// request that carries it out. From a `clean` context, the exploration
+    /// is cleared first, in the log and in the agent's history alike; the
+    /// commands reach the agent in order, so before the request.
+    pub(crate) fn carry_out_plan(&mut self, mode: Mode, clean: bool) -> Vec<PanelEvent> {
+        if clean {
+            if let Some(session) = &mut self.session {
+                if let Err(error) = session.append_pruned() {
+                    log::warn!("agent session write failed: {error}");
+                }
+            }
+            if let Err(error) = self
+                .runtime
+                .update(Box::new(|agent| agent.prune_to_decisions()))
+            {
+                log::warn!("agent context not cleared: {error:?}");
+            }
+            // Known again with the next reply, as after a session switch.
+            self.context_tokens = 0;
+        }
         let mut events = vec![self.set_mode(mode)];
-        let request = self.plan_prompt.request.trim().to_string();
+        let request = self.plan_prompt.request(clean).trim().to_string();
         if request.is_empty() {
             self.notice(
                 termide_i18n::t().agent_notice_plan_no_request(),
@@ -576,8 +717,10 @@ impl AgentPanel {
                 }
                 self.abort();
             }
-            // Only a question's card lets several rows be picked.
-            (_, ChoiceAction::Submitted { .. }) => {}
+            (Some(Pending::Question { .. }), ChoiceAction::Back) => self.step_question(false),
+            (Some(Pending::Question { .. }), ChoiceAction::Forward) => self.step_question(true),
+            // Only a question's card lets several rows be picked, or steps.
+            (_, ChoiceAction::Submitted { .. } | ChoiceAction::Back | ChoiceAction::Forward) => {}
             (Some(Pending::Command { .. }), ChoiceAction::Chosen(index)) => {
                 let Some(Pending::Command { script, args, .. }) = self.pending.take() else {
                     return true;
@@ -623,14 +766,13 @@ impl AgentPanel {
             (Some(Pending::Rewind { .. }), ChoiceAction::Cancelled | ChoiceAction::Custom(_)) => {
                 self.pending = None;
             }
-            (Some(Pending::Plan { .. }), ChoiceAction::Chosen(index)) => {
+            (Some(Pending::Plan { choices, .. }), ChoiceAction::Chosen(index)) => {
+                let (mode, clean) = choices
+                    .get(index)
+                    .copied()
+                    .unwrap_or((Mode::Configured, false));
                 self.pending = None;
-                let mode = if index == 0 {
-                    Mode::Edit
-                } else {
-                    Mode::Configured
-                };
-                let events = self.carry_out_plan(mode);
+                let events = self.carry_out_plan(mode, clean);
                 self.pending_events.extend(events);
             }
             (Some(Pending::Plan { .. }), ChoiceAction::Cancelled | ChoiceAction::Custom(_)) => {
@@ -674,6 +816,40 @@ impl AgentPanel {
                     self.end_permission_wait();
                     let _ = envelope.reply.send(SuggestionReply::Declined);
                 }
+            }
+            (Some(Pending::Failure { .. }), ChoiceAction::Chosen(index)) => {
+                let Some(Pending::Failure {
+                    choices, failure, ..
+                }) = self.pending.take()
+                else {
+                    return true;
+                };
+                match choices.get(index) {
+                    Some(&choice) => {
+                        let events = self.choose_after_failure(choice, failure);
+                        self.pending_events.extend(events);
+                    }
+                    None => self.give_up_after_failure(),
+                }
+            }
+            (Some(Pending::Failure { .. }), ChoiceAction::Cancelled | ChoiceAction::Custom(_)) => {
+                self.pending = None;
+                self.give_up_after_failure();
+            }
+            (Some(Pending::Unfinished { .. }), ChoiceAction::Chosen(index)) => {
+                self.pending = None;
+                if index == 0 {
+                    self.resume();
+                } else {
+                    self.stop_paused();
+                }
+            }
+            // Later: the pause stays, with `/continue`, `[▶]` and `[■]`.
+            (
+                Some(Pending::Unfinished { .. }),
+                ChoiceAction::Cancelled | ChoiceAction::Custom(_),
+            ) => {
+                self.pending = None;
             }
             (None, _) => {}
         }

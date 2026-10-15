@@ -22,6 +22,10 @@ pub(super) const CONTEXT_WINDOW: usize = 5;
 pub(super) const PREFILL_PROGRESS: usize = 6;
 pub(super) const REASONING_PARAM: usize = 7;
 pub(super) const DEFAULT: usize = 8;
+pub(super) const SUBAGENTS: usize = 9;
+pub(super) const MAX_REQUESTS: usize = 10;
+pub(super) const REVIEWER: usize = 11;
+pub(super) const CONTEXT_LIMIT: usize = 12;
 
 /// The connection page, while one is open.
 #[derive(Debug, Clone)]
@@ -31,8 +35,8 @@ pub(super) struct ConnectionEdit {
     /// Named after its provider until the user names it, so choosing another
     /// provider renames it too.
     pub auto_named: bool,
-    /// Why the name typed last was refused.
-    pub error: Option<String>,
+    /// Why the value typed last was refused, and the field it was typed in.
+    pub error: Option<(usize, String)>,
     /// The button chosen on the buttons row: [`BACK`] or [`DELETE`].
     pub button: usize,
 }
@@ -103,6 +107,22 @@ pub(super) fn connection_fields() -> Vec<FieldDescriptor> {
             label: t.settings_ai_connection_default(),
             field_type: FieldType::Bool,
         },
+        FieldDescriptor {
+            label: t.settings_ai_connection_subagents(),
+            field_type: FieldType::Enum,
+        },
+        FieldDescriptor {
+            label: t.settings_ai_connection_max_requests(),
+            field_type: FieldType::Number,
+        },
+        FieldDescriptor {
+            label: t.settings_agent_auto_reviewer(),
+            field_type: FieldType::Enum,
+        },
+        FieldDescriptor {
+            label: t.settings_ai_connection_context_limit(),
+            field_type: FieldType::OptionalNumber,
+        },
     ]
 }
 
@@ -124,6 +144,18 @@ fn reasoning_param_label(param: ReasoningParam) -> String {
         ReasoningParam::Auto => t.settings_value_auto().to_string(),
         ReasoningParam::None => t.settings_value_none().to_string(),
         param => param.label().to_string(),
+    }
+}
+
+/// How the subagents' connection `value` of `connection` reads: a name, or
+/// for an empty one the connection itself — none, for a CLI agent on tools
+/// of its own, which cannot run them.
+fn subagents_label(connection: &Connection, value: &str) -> String {
+    let t = i18n::t();
+    match value {
+        "" if !connection.runs_subagents() => t.settings_value_none().to_string(),
+        "" => t.settings_ai_connection_subagents_own().to_string(),
+        name => name.to_string(),
     }
 }
 
@@ -178,8 +210,9 @@ impl SettingsModal {
     }
 
     /// The rows of the connection page. A CLI agent brings its endpoint,
-    /// key and window, so only its model (pre-selected over ACP) applies;
-    /// prefill progress is an OpenAI-compatible request field.
+    /// key and window, so only its model (pre-selected over ACP) and, where
+    /// it has a setting for it, a smaller window apply; prefill progress is
+    /// an OpenAI-compatible request field.
     pub(super) fn connection_page_rows(&self) -> Vec<ContentRow> {
         use ContentRow::{ConnectionButtons, Field, Header, Spacer};
         let cli = self.edited().is_some_and(Connection::is_cli);
@@ -196,10 +229,23 @@ impl SettingsModal {
         if !cli {
             rows.push(Field(CONTEXT_WINDOW));
         }
+        if self.edited().is_some_and(Connection::takes_context_limit) {
+            rows.push(Field(CONTEXT_LIMIT));
+        }
         if openai {
             rows.extend([Field(PREFILL_PROGRESS), Field(REASONING_PARAM)]);
         }
-        rows.extend([Field(DEFAULT), Spacer, ConnectionButtons]);
+        // A CLI agent's requests go through its own process, not termide's.
+        if !cli {
+            rows.push(Field(MAX_REQUESTS));
+        }
+        rows.extend([
+            Field(SUBAGENTS),
+            Field(REVIEWER),
+            Field(DEFAULT),
+            Spacer,
+            ConnectionButtons,
+        ]);
         rows
     }
 
@@ -290,6 +336,8 @@ impl SettingsModal {
         if self.config.ai.connections.remove(name).is_none() {
             return;
         }
+        self.retarget_subagents(name, "");
+        self.retarget_reviewers(name, "");
         // The default moves to the first left, named, so it stays put.
         if self.config.ai.connection == name {
             self.config.ai.connection = self
@@ -353,8 +401,18 @@ impl SettingsModal {
             PROVIDER => provider_label(&connection.provider),
             BASE_URL => empty_or(&connection.base_url),
             API_KEY_ENV => empty_or(&connection.api_key_env),
-            MODEL if connection.model.is_empty() => i18n::t().settings_ai_model_auto().to_string(),
-            MODEL => connection.model.clone(),
+            MODEL => {
+                let model = if connection.model.is_empty() {
+                    i18n::t().settings_ai_model_auto().to_string()
+                } else {
+                    connection.model.clone()
+                };
+                if self.models_loading {
+                    format!("{} {model}", termide_config::constants::spinner_frame())
+                } else {
+                    model
+                }
+            }
             CONTEXT_WINDOW => connection.context_window_fallback.map_or_else(
                 || {
                     i18n::t().settings_value_default_fmt(
@@ -363,11 +421,37 @@ impl SettingsModal {
                 },
                 |n| n.to_string(),
             ),
+            CONTEXT_LIMIT => connection.context_window_limit.map_or_else(
+                || i18n::t().settings_value_auto().to_string(),
+                |n| n.to_string(),
+            ),
             PREFILL_PROGRESS => bool_str(connection.prefill_progress),
             REASONING_PARAM => reasoning_param_label(connection.reasoning_param),
             DEFAULT => bool_str(self.config.ai.default_connection() == self.open_connection_name()),
+            SUBAGENTS => subagents_label(connection, &connection.subagents),
+            MAX_REQUESTS if connection.max_concurrent_requests == 0 => {
+                i18n::t().settings_value_no_limit().to_string()
+            }
+            MAX_REQUESTS => connection.max_concurrent_requests.to_string(),
+            REVIEWER => self.reviewer_label(&connection.reviewer),
             _ => String::new(),
         }
+    }
+
+    /// How the reviewer `value` of a connection reads: a connection's name,
+    /// or for an empty one the default, `[ai.auto_reviewer]`, it falls to.
+    fn reviewer_label(&self, value: &str) -> String {
+        if !value.is_empty() {
+            return value.to_string();
+        }
+        let t = i18n::t();
+        let default = &self.config.ai.auto_reviewer.connection;
+        let default = if default.is_empty() {
+            t.settings_agent_auto_reviewer_session()
+        } else {
+            default
+        };
+        t.settings_value_default_fmt(default)
     }
 
     /// A text field's value as it is edited: the stored text, without the
@@ -385,6 +469,11 @@ impl SettingsModal {
                 .context_window_fallback
                 .map(|n| n.to_string())
                 .unwrap_or_default(),
+            CONTEXT_LIMIT => connection
+                .context_window_limit
+                .map(|n| n.to_string())
+                .unwrap_or_default(),
+            MAX_REQUESTS => connection.max_concurrent_requests.to_string(),
             _ => String::new(),
         }
     }
@@ -448,6 +537,32 @@ impl SettingsModal {
                     .iter()
                     .position(|param| *param == connection.reasoning_param),
             }),
+            REVIEWER => {
+                // Any connection reviews: a CLI agent through its subscription.
+                let values: Vec<String> = std::iter::once(String::new())
+                    .chain(self.config.ai.connections.keys().cloned())
+                    .collect();
+                let labels = values.iter().map(|v| self.reviewer_label(v)).collect();
+                let current = values.iter().position(|v| *v == connection.reviewer);
+                Some(EnumOptions {
+                    values,
+                    labels,
+                    current,
+                })
+            }
+            SUBAGENTS => {
+                let values = self.subagents_choices();
+                let labels = values
+                    .iter()
+                    .map(|value| subagents_label(connection, value))
+                    .collect();
+                let current = values.iter().position(|v| *v == connection.subagents);
+                Some(EnumOptions {
+                    values,
+                    labels,
+                    current,
+                })
+            }
             _ => None,
         }
     }
@@ -467,12 +582,39 @@ impl SettingsModal {
                     connection.reasoning_param = param;
                 }
             }
+            SUBAGENTS => {
+                if let Some(connection) = self.edited_mut() {
+                    connection.subagents = value.to_string();
+                }
+            }
+            REVIEWER => {
+                if let Some(connection) = self.edited_mut() {
+                    connection.reviewer = value.to_string();
+                }
+            }
             _ => {}
         }
     }
 
-    /// Step the provider or the reasoning parameter with Left/Right, wrapping.
+    /// Step the provider, the reasoning parameter or the subagents'
+    /// connection with Left/Right, wrapping.
     pub(super) fn cycle_connection_field(&mut self, index: usize, forward: bool) {
+        if index == SUBAGENTS {
+            let choices = self.subagents_choices();
+            if let Some(connection) = self.edited_mut() {
+                step_value(&mut connection.subagents, &choices, forward);
+            }
+            return;
+        }
+        if index == REVIEWER {
+            let choices: Vec<String> = std::iter::once(String::new())
+                .chain(self.config.ai.connections.keys().cloned())
+                .collect();
+            if let Some(connection) = self.edited_mut() {
+                step_value(&mut connection.reviewer, &choices, forward);
+            }
+            return;
+        }
         if index == REASONING_PARAM {
             if let Some(connection) = self.edited_mut() {
                 let mut value = connection.reasoning_param.label().to_string();
@@ -521,10 +663,41 @@ impl SettingsModal {
         }
     }
 
-    /// Store the context window typed on the page; `None` is the default.
-    pub(super) fn apply_connection_window(&mut self, window: Option<u64>) {
+    /// Store a number typed on the page: how many requests the connection
+    /// serves at once, 0 for any number.
+    pub(super) fn apply_connection_number(&mut self, index: usize, value: u64) {
+        if index != MAX_REQUESTS {
+            return;
+        }
         if let Some(connection) = self.edited_mut() {
+            connection.max_concurrent_requests = u32::try_from(value).unwrap_or(u32::MAX);
+        }
+    }
+
+    /// Store a window typed on the page: the fallback window, or a CLI
+    /// agent's limit; `None` is the default. A limit below the least the
+    /// agent takes is refused, and the page says why.
+    pub(super) fn apply_connection_window(&mut self, index: usize, window: Option<u64>) {
+        let Some(connection) = self.edited_mut() else {
+            return;
+        };
+        if index != CONTEXT_LIMIT {
             connection.context_window_fallback = window;
+            return;
+        }
+        let least = connection.min_context_limit();
+        let error = match (window, least) {
+            (Some(window), Some(least)) if window < least => Some((
+                CONTEXT_LIMIT,
+                i18n::t().settings_ai_connection_context_limit_min_fmt(&least.to_string()),
+            )),
+            _ => {
+                connection.context_window_limit = window;
+                None
+            }
+        };
+        if let Some(edit) = self.connection_edit.as_mut() {
+            edit.error = error;
         }
     }
 
@@ -538,7 +711,10 @@ impl SettingsModal {
         }
         if name.is_empty() || self.config.ai.connections.contains_key(name) {
             if let Some(edit) = self.connection_edit.as_mut() {
-                edit.error = Some(i18n::t().settings_ai_connection_name_taken().to_string());
+                edit.error = Some((
+                    NAME,
+                    i18n::t().settings_ai_connection_name_taken().to_string(),
+                ));
             }
             return;
         }
@@ -561,9 +737,58 @@ impl SettingsModal {
         if self.config.ai.connection == old {
             self.config.ai.connection = new.to_string();
         }
+        self.retarget_subagents(old, new);
+        self.retarget_reviewers(old, new);
         if let Some(edit) = self.connection_edit.as_mut() {
             edit.name = new.to_string();
         }
+    }
+
+    /// Point the connections whose subagents ran on `old` at `new`; an empty
+    /// `new` hands them back to their own connection.
+    fn retarget_subagents(&mut self, old: &str, new: &str) {
+        for connection in self.config.ai.connections.values_mut() {
+            if connection.subagents == old {
+                connection.subagents = new.to_string();
+            }
+        }
+    }
+
+    /// Point the reviewers on `old` — the connections' and `[ai.auto_reviewer]`
+    /// — at `new`; an empty `new` hands them to the default.
+    fn retarget_reviewers(&mut self, old: &str, new: &str) {
+        for connection in self.config.ai.connections.values_mut() {
+            if connection.reviewer == old {
+                connection.reviewer = new.to_string();
+            }
+        }
+        let default = &mut self.config.ai.auto_reviewer;
+        if default.connection == old {
+            default.connection = new.to_string();
+            if new.is_empty() {
+                // Its model was one of the connection gone.
+                default.model.clear();
+            }
+        }
+    }
+
+    /// What the open connection's subagents can run on: itself (empty), or
+    /// another connection that runs them — termide's loop on a model, or a
+    /// copy of Claude Code; Codex and Gemini CLI keep tools of their own.
+    fn subagents_choices(&self) -> Vec<String> {
+        let own = self.open_connection_name();
+        std::iter::once(String::new())
+            .chain(
+                self.config
+                    .ai
+                    .connections
+                    .iter()
+                    .filter(|(name, connection)| {
+                        Some(name.as_str()) != own && connection.runs_subagents()
+                    })
+                    .map(|(name, _)| name.clone()),
+            )
+            .collect()
     }
 
     /// Switch the open connection's provider. A CLI agent brings its own
@@ -574,11 +799,22 @@ impl SettingsModal {
             return;
         };
         connection.provider = provider.to_string();
-        if connection.is_cli() {
+        let cli = connection.is_cli();
+        if cli {
             let defaults = Connection::default();
             connection.base_url = defaults.base_url;
             connection.api_key_env = defaults.api_key_env;
             connection.context_window_fallback = defaults.context_window_fallback;
+            connection.max_concurrent_requests = defaults.max_concurrent_requests;
+        }
+        // Only an agent with a setting for it keeps a limit, one it takes.
+        let limit_taken = connection.takes_context_limit()
+            && connection
+                .context_window_limit
+                .zip(connection.min_context_limit())
+                .is_none_or(|(limit, least)| limit >= least);
+        if !limit_taken {
+            connection.context_window_limit = None;
         }
         if !speaks_openai(connection) {
             connection.prefill_progress = false;
@@ -589,14 +825,23 @@ impl SettingsModal {
             let new = self.unused_name(provider_slug(provider), Some(&old));
             self.move_connection(&old, &new);
         }
+        // Codex and Gemini CLI cannot run the subagents others sent to it.
+        let runs_subagents = self.edited().is_some_and(Connection::runs_subagents);
+        if let (false, Some(name)) = (
+            runs_subagents,
+            self.open_connection_name().map(str::to_string),
+        ) {
+            self.retarget_subagents(&name, "");
+        }
         self.model_options.clear();
         self.request_models();
     }
 
-    /// Ask the app for the open connection's models; a CLI agent lists its
-    /// own over ACP.
+    /// Ask the app for the open connection's models — a CLI agent lists
+    /// those of its login over ACP — and show the wait in the model field.
     fn request_models(&mut self) {
-        self.model_fetch_request = self.edited().filter(|c| !c.is_cli()).cloned();
+        self.model_fetch_request = self.edited().cloned();
+        self.models_loading = self.model_fetch_request.is_some();
     }
 
     /// The connection whose models the model dropdown waits for, once: the
@@ -644,7 +889,7 @@ mod tests {
     use crate::settings::{FocusArea, SettingsResult};
 
     fn ai_modal(config: Config) -> SettingsModal {
-        let mut modal = SettingsModal::new(config, false);
+        let mut modal = SettingsModal::new(config.clone(), config, false);
         modal.active_tab = SettingsTab::Ai;
         modal.focus = FocusArea::Content;
         modal
@@ -705,7 +950,7 @@ mod tests {
         focus(&mut modal, ContentRow::ConnectionAdd);
         press(&mut modal, KeyCode::Enter);
         assert_eq!(modal.open_connection_name(), Some("openai"));
-        assert!(modal.dirty);
+        assert!(modal.save_pending);
         // The first one is the default, and as the only one it stays so.
         assert_eq!(modal.config.ai.connection, "openai");
         assert_eq!(modal.connection_value(DEFAULT), "true");
@@ -887,11 +1132,90 @@ mod tests {
         press(&mut modal, KeyCode::Enter);
         assert_eq!(modal.config.ai.connections["local"].model, "typed");
 
-        // Another endpoint asks again; a CLI agent lists its own models.
+        // Another endpoint asks again, and so does a CLI agent, which the
+        // app starts to list the models of its login.
         edit(&mut modal, BASE_URL, "http://other/v1");
         assert!(modal.take_model_fetch_request().is_some());
         modal.apply_connection_enum(PROVIDER, "codex");
-        assert!(modal.take_model_fetch_request().is_none());
+        let asked = modal.take_model_fetch_request().expect("a fetch request");
+        assert_eq!(asked.provider, "codex");
+    }
+
+    #[test]
+    fn the_model_field_spins_until_the_models_are_in() {
+        let mut modal = ai_modal(with_local());
+        modal.open_connection("local".into());
+        assert!(modal.models_loading);
+        let frames = termide_config::constants::SPINNER_FRAMES;
+        let value = modal.connection_value(MODEL);
+        assert!(value.ends_with(" qwen"), "{value}");
+        assert!(
+            frames.iter().any(|frame| value.starts_with(frame)),
+            "{value}"
+        );
+        // An empty list ends the wait as well: the endpoint could not list.
+        modal.set_model_options(Vec::new());
+        assert!(!modal.models_loading);
+        assert_eq!(modal.connection_value(MODEL), "qwen");
+    }
+
+    #[test]
+    fn a_cli_agents_window_is_limited_where_it_has_a_setting_for_it() {
+        let mut modal = ai_modal(with_local());
+        modal.open_connection("local".into());
+        // An endpoint has its fallback window, not a limit.
+        assert!(!modal
+            .content_rows()
+            .contains(&ContentRow::Field(CONTEXT_LIMIT)));
+        modal.apply_connection_enum(PROVIDER, "codex");
+        let name = modal.open_connection_name().unwrap().to_string();
+        let rows = modal.content_rows();
+        assert!(rows.contains(&ContentRow::Field(CONTEXT_LIMIT)));
+        assert!(!rows.contains(&ContentRow::Field(CONTEXT_WINDOW)));
+        assert_eq!(
+            modal.connection_value(CONTEXT_LIMIT),
+            i18n::t().settings_value_auto()
+        );
+        edit(&mut modal, CONTEXT_LIMIT, "64000");
+        assert_eq!(
+            modal.config.ai.connections[&name].context_window_limit,
+            Some(64_000)
+        );
+        // Claude Code takes no less than its least: the limit goes with the
+        // switch, and a smaller one typed is refused with the reason.
+        modal.apply_connection_enum(PROVIDER, "claude_code");
+        let name = modal.open_connection_name().unwrap().to_string();
+        assert_eq!(
+            modal.config.ai.connections[&name].context_window_limit,
+            None
+        );
+        edit(&mut modal, CONTEXT_LIMIT, "50000");
+        assert_eq!(
+            modal.config.ai.connections[&name].context_window_limit,
+            None
+        );
+        let error = modal.connection_edit.as_ref().unwrap().error.clone();
+        assert_eq!(error.map(|(field, _)| field), Some(CONTEXT_LIMIT));
+        assert!(screen(&mut modal)
+            .iter()
+            .any(|line| line.contains("100000")));
+        edit(&mut modal, CONTEXT_LIMIT, "150000");
+        assert_eq!(
+            modal.config.ai.connections[&name].context_window_limit,
+            Some(150_000)
+        );
+        assert!(modal.connection_edit.as_ref().unwrap().error.is_none());
+        // Emptied, it is the agent's own again.
+        edit(&mut modal, CONTEXT_LIMIT, "");
+        assert_eq!(
+            modal.config.ai.connections[&name].context_window_limit,
+            None
+        );
+        // Gemini CLI has no setting for it.
+        modal.apply_connection_enum(PROVIDER, "gemini_cli");
+        assert!(!modal
+            .content_rows()
+            .contains(&ContentRow::Field(CONTEXT_LIMIT)));
     }
 
     #[test]
@@ -1045,7 +1369,7 @@ mod tests {
         assert_eq!(modal.connection_value(PREFILL_PROGRESS), "false");
         modal.toggle_connection_field(PREFILL_PROGRESS);
         assert!(modal.config.ai.connections["local"].prefill_progress);
-        assert!(modal.dirty);
+        assert!(modal.save_pending);
         // The Messages API has no such field: the switch leaves the page and
         // the file.
         modal.apply_connection_enum(PROVIDER, "anthropic_compatible");
@@ -1083,11 +1407,141 @@ mod tests {
     }
 
     #[test]
+    fn subagents_run_on_a_connection_chosen_on_the_page() {
+        let mut config = with_local();
+        for (name, provider) in [
+            ("claude", "claude_code"),
+            ("codex", "codex"),
+            ("cloud", "openai_compatible"),
+        ] {
+            config.ai.connections.insert(
+                name.into(),
+                Connection {
+                    provider: provider.into(),
+                    ..Connection::default()
+                },
+            );
+        }
+        let mut modal = ai_modal(config);
+        modal.open_connection("codex".into());
+        // Codex keeps tools of its own: left empty it runs none, and its
+        // choices are the connections that run them — no Codex, Claude Code
+        // too.
+        assert!(modal.content_rows().contains(&ContentRow::Field(SUBAGENTS)));
+        assert_eq!(
+            modal.connection_value(SUBAGENTS),
+            i18n::t().settings_value_none()
+        );
+        let options = modal.connection_enum_options(SUBAGENTS).unwrap();
+        assert_eq!(options.values, ["", "claude", "cloud", "local"]);
+        assert_eq!(options.current, Some(0));
+        modal.apply_connection_enum(SUBAGENTS, "local");
+        assert_eq!(modal.config.ai.connections["codex"].subagents, "local");
+        modal.cycle_connection_field(SUBAGENTS, false);
+        assert_eq!(modal.config.ai.connections["codex"].subagents, "cloud");
+
+        // Claude Code and a model connection run their own when left empty.
+        for own in ["claude", "local"] {
+            modal.open_connection(own.into());
+            assert_eq!(
+                modal.connection_value(SUBAGENTS),
+                i18n::t().settings_ai_connection_subagents_own(),
+                "{own}"
+            );
+        }
+        // The choice follows a rename, and goes with a deletion or a switch
+        // to Codex; a switch to Claude Code keeps it.
+        modal.open_connection("cloud".into());
+        edit(&mut modal, NAME, "hosted");
+        assert_eq!(modal.config.ai.connections["codex"].subagents, "hosted");
+        modal.apply_connection_enum(PROVIDER, "claude_code");
+        assert_eq!(modal.config.ai.connections["codex"].subagents, "hosted");
+        modal.apply_connection_enum(PROVIDER, "gemini_cli");
+        assert!(modal.config.ai.connections["codex"].subagents.is_empty());
+        modal.open_connection("codex".into());
+        modal.apply_connection_enum(SUBAGENTS, "local");
+        modal.delete_connection("local");
+        assert!(modal.config.ai.connections["codex"].subagents.is_empty());
+    }
+
+    #[test]
+    fn a_connection_names_its_reviewer_or_leaves_it_to_the_default() {
+        let mut config = with_local();
+        config.ai.connections.insert(
+            "claude".into(),
+            Connection {
+                provider: "claude_code".into(),
+                ..Connection::default()
+            },
+        );
+        config.ai.auto_reviewer.connection = "claude".into();
+        config.ai.auto_reviewer.model = "haiku".into();
+        let mut modal = ai_modal(config);
+        modal.open_connection("local".into());
+        let t = i18n::t();
+        // Left empty, it says what the default is.
+        assert_eq!(
+            modal.connection_value(REVIEWER),
+            t.settings_value_default_fmt("claude")
+        );
+        let options = modal.connection_enum_options(REVIEWER).unwrap();
+        assert_eq!(options.values, ["", "claude", "local"]);
+        modal.apply_connection_enum(REVIEWER, "local");
+        assert_eq!(modal.config.ai.connections["local"].reviewer, "local");
+        modal.cycle_connection_field(REVIEWER, false);
+        assert_eq!(modal.config.ai.connections["local"].reviewer, "claude");
+        // A CLI agent's page has it too: termide reviews its calls in `auto`.
+        modal.open_connection("claude".into());
+        assert!(modal.content_rows().contains(&ContentRow::Field(REVIEWER)));
+        // Renamed, the reviewer is followed, the default's too; deleted, the
+        // connections' fall to the default, and the default to the session.
+        edit(&mut modal, NAME, "cc");
+        assert_eq!(modal.config.ai.connections["local"].reviewer, "cc");
+        assert_eq!(modal.config.ai.auto_reviewer.connection, "cc");
+        modal.delete_connection("cc");
+        assert!(modal.config.ai.connections["local"].reviewer.is_empty());
+        assert!(modal.config.ai.auto_reviewer.connection.is_empty());
+        assert!(modal.config.ai.auto_reviewer.model.is_empty());
+        modal.open_connection("local".into());
+        assert_eq!(
+            modal.connection_value(REVIEWER),
+            t.settings_value_default_fmt(t.settings_agent_auto_reviewer_session())
+        );
+    }
+
+    #[test]
+    fn the_request_limit_is_typed_for_an_endpoint_only() {
+        let mut modal = ai_modal(with_local());
+        modal.open_connection("local".into());
+        assert_eq!(
+            modal.connection_value(MAX_REQUESTS),
+            i18n::t().settings_value_no_limit()
+        );
+        edit(&mut modal, MAX_REQUESTS, "2");
+        assert_eq!(
+            modal.config.ai.connections["local"].max_concurrent_requests,
+            2
+        );
+        assert_eq!(modal.connection_value(MAX_REQUESTS), "2");
+        // A CLI agent sends its requests itself: the field and the value go.
+        modal.apply_connection_enum(PROVIDER, "claude_code");
+        let name = modal.open_connection_name().unwrap().to_string();
+        assert_eq!(
+            modal.config.ai.connections[&name].max_concurrent_requests,
+            0
+        );
+        assert!(!modal
+            .content_rows()
+            .contains(&ContentRow::Field(MAX_REQUESTS)));
+    }
+
+    #[test]
     fn every_page_field_is_shown_for_an_endpoint() {
         let mut modal = ai_modal(with_local());
         modal.open_connection("local".into());
         let rows = modal.content_rows();
-        for index in 0..connection_fields().len() {
+        // But a CLI agent's window limit.
+        for index in (0..connection_fields().len()).filter(|i| *i != CONTEXT_LIMIT) {
             assert!(rows.contains(&ContentRow::Field(index)), "field {index}");
         }
         // The sidebar leaves the page.

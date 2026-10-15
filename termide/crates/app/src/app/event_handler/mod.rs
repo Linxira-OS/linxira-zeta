@@ -110,8 +110,12 @@ impl App {
                 self.start_url_fetch_in_place(url);
             }
 
-            PanelEvent::OpenUrl(url) => {
-                self.start_url_fetch(url);
+            PanelEvent::OpenLink(link) => {
+                self.event_open_link(link)?;
+            }
+
+            PanelEvent::OpenLinkExternal(link) => {
+                self.event_open_link_external(link)?;
             }
 
             PanelEvent::ViewHtml(path) => {
@@ -142,7 +146,8 @@ impl App {
 
             PanelEvent::ShowInfo { title, rows } => {
                 let modal = termide_modal::InfoModal::new(title, rows);
-                self.state.active_modal = Some(crate::state::ActiveModal::Info(Box::new(modal)));
+                self.state
+                    .show_message_modal(crate::state::ActiveModal::Info(Box::new(modal)));
                 self.state.needs_redraw = true;
             }
 
@@ -323,6 +328,14 @@ impl App {
                 repo_path,
             } => {
                 self.event_git_operation(operation, repo_path, None)?;
+            }
+
+            PanelEvent::CredentialsRequired { url, attempt } => {
+                self.event_credentials_required(url, attempt);
+            }
+
+            PanelEvent::CredentialsAccepted { url } => {
+                self.event_credentials_accepted(&url);
             }
 
             PanelEvent::CancelGitOperation => {

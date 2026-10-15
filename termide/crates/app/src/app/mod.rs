@@ -51,6 +51,7 @@ mod panel_manager;
 mod panel_operations;
 mod parked_projects;
 mod project_layout;
+mod vault;
 mod watcher;
 mod workspace_edit;
 
@@ -83,6 +84,14 @@ pub struct App {
     /// with explicit file arguments ($EDITOR mode), so editing a commit
     /// message or crontab never restores or overwrites the project layout.
     persist_layout: bool,
+    /// The open projects and the current one as last saved for reopening,
+    /// `None` until saved. Nothing is saved while only the project started in
+    /// is open: a launch for a single directory must not replace the list of
+    /// the run before.
+    saved_open_projects: Option<termide_project::SavedOpenProjects>,
+    /// Reopen the projects of the last run as soon as the loop starts
+    /// (`termide --restore`), as the Projects menu item does.
+    restore_projects: bool,
     /// Terminal capabilities this process was started with. Kept so that a
     /// reattach can re-enter exactly the modes startup entered.
     keyboard_caps: termide_keyboard::KeyboardCaps,
@@ -94,6 +103,13 @@ pub struct App {
     /// each loop so the AI model field's dropdown fills in once it arrives.
     settings_model_fetch:
         Option<std::sync::mpsc::Receiver<Result<Vec<termide_agent_core::ModelInfo>, String>>>,
+    /// A change the settings modal made, taken from it right after the event
+    /// that made it and saved before the event handling returns.
+    settings_save: Option<termide_modal::SettingsSave>,
+    /// The password vault and the credential prompts in progress.
+    vault: vault::VaultState,
+    /// An open project held by the mouse to reorder.
+    project_drag: Option<mouse::project_drag::ProjectDrag>,
 }
 
 impl App {
@@ -170,8 +186,13 @@ impl App {
             normalizer: termide_keyboard::KeyNormalizer::default(),
             keyboard_caps: termide_keyboard::KeyboardCaps::default(),
             persist_layout: true,
+            saved_open_projects: None,
+            project_drag: None,
+            restore_projects: false,
             last_focus_sig: None,
             settings_model_fetch: None,
+            settings_save: None,
+            vault: vault::VaultState::default(),
         }
     }
 
@@ -185,12 +206,14 @@ impl App {
     pub fn new_with_config(
         config: Config,
         global_baseline: Config,
+        runtime_overrides: termide_config::RuntimeOverrides,
         width: u16,
         height: u16,
         caps: termide_keyboard::KeyboardCaps,
     ) -> Self {
         let theme = Theme::get_by_name(&config.general.theme);
         let mut state = AppState::with_config_and_theme(config, global_baseline, theme);
+        state.runtime_overrides = runtime_overrides;
         state.update_terminal_size(width, height);
         state.detach_available = Self::detect_detach_available();
 
@@ -259,8 +282,13 @@ impl App {
             normalizer: termide_keyboard::KeyNormalizer::new(caps),
             keyboard_caps: caps,
             persist_layout: true,
+            saved_open_projects: None,
+            project_drag: None,
+            restore_projects: false,
             last_focus_sig: None,
             settings_model_fetch: None,
+            settings_save: None,
+            vault: vault::VaultState::default(),
         }
     }
 
@@ -369,6 +397,13 @@ impl App {
     /// restored nor overwritten.
     pub fn set_layout_persistence(&mut self, enabled: bool) {
         self.persist_layout = enabled;
+    }
+
+    /// Reopen the projects of the last run in the background once the
+    /// application starts (`termide --restore`). Without a saved set the
+    /// launch is an ordinary one.
+    pub fn restore_projects_on_start(&mut self) {
+        self.restore_projects = true;
     }
 
     /// Open a file path in a new editor panel, creating the file (and parent
@@ -546,16 +581,117 @@ impl App {
     ///
     /// On success the in-memory `state.config` is replaced with the
     /// new value so callers and panels see the change immediately.
+    ///
+    /// `config` is a running config: what the session forces on it is put
+    /// back before the save (see [`termide_config::RuntimeOverrides`]).
     pub fn save_config_to_active_target(&mut self, config: Config) -> anyhow::Result<()> {
+        let config = self.state.runtime_overrides.strip(config);
         let project_path = termide_config::project_config_path(&self.project_root);
         if project_path.exists() {
             config.save_project(&self.project_root, &self.state.global_baseline)?;
         } else {
             config.save_global()?;
+            // Without a project file the effective config is the global
+            // layer: a project file created later diffs against it.
+            self.state.global_baseline = std::sync::Arc::new(config.clone());
         }
-        agent_panel::publish_ai_settings(&config.ai);
-        self.state.config = std::sync::Arc::new(config);
+        self.adopt_stored_config(config);
         Ok(())
+    }
+
+    /// Persist a change from the settings modal where it says, and make it
+    /// the running config.
+    ///
+    /// In the project, the config is saved as a diff against the global
+    /// layer. Globally, it becomes the global layer, and a project file, if
+    /// any, is deleted: storing globally means the project overrides
+    /// nothing. A failure is reported on the status line rather than in a
+    /// modal, which would close the settings.
+    pub(super) fn persist_settings(&mut self, save: termide_modal::SettingsSave) {
+        let termide_modal::SettingsSave { config, in_project } = save;
+        let config = self.state.runtime_overrides.strip(config);
+        let result = if in_project {
+            config.save_project(&self.project_root, &self.state.global_baseline)
+        } else {
+            config.save_global().and_then(|()| {
+                let project_path = termide_config::project_config_path(&self.project_root);
+                if project_path.exists() {
+                    std::fs::remove_file(&project_path)?;
+                    log::info!("Removed project settings at {}", project_path.display());
+                }
+                Ok(())
+            })
+        };
+        if let Err(e) = result {
+            log::error!("Failed to save settings: {e}");
+            self.state
+                .set_error(format!("Failed to save settings: {e}"));
+            return;
+        }
+        if !in_project {
+            self.state.global_baseline = std::sync::Arc::new(config.clone());
+        }
+        self.adopt_stored_config(config);
+    }
+
+    /// Save what the settings modal changed, if anything. Cheap; called
+    /// after every event the modal handles and on every tick.
+    pub(super) fn flush_settings_save(&mut self) {
+        if let Some(termide_modal::ActiveModal::Settings(modal)) = self.state.active_modal.as_mut()
+        {
+            if let Some(save) = modal.take_save_request() {
+                self.settings_save = Some(save);
+            }
+        }
+        if let Some(save) = self.settings_save.take() {
+            self.persist_settings(save);
+        }
+    }
+
+    /// Make `config`, a config as the files give it, the running config,
+    /// with what the session forces (`--no-lsp`, …) on top.
+    pub(super) fn adopt_stored_config(&mut self, mut config: Config) {
+        self.state.runtime_overrides.apply(&mut config);
+        self.adopt_config(config);
+    }
+
+    /// The global config file changed outside the settings (saved in the
+    /// editor): it becomes the global layer, the project's file goes back
+    /// on top of it, and the session's overrides on top of that.
+    pub(super) fn adopt_global_file(&mut self, mut global: Config) {
+        global.normalize();
+        match Config::with_project_overlay(&global, &self.project_root) {
+            Ok((config, warnings)) => {
+                for warning in warnings {
+                    log::warn!("{warning}");
+                }
+                self.state.global_baseline = std::sync::Arc::new(global);
+                self.adopt_stored_config(config);
+            }
+            Err(e) => log::warn!("Could not apply the saved config: {e}"),
+        }
+    }
+
+    /// Make `config` the running config, carrying out what changed in it:
+    /// theme, language, AI settings and the hotkey table.
+    pub(super) fn adopt_config(&mut self, config: Config) {
+        let old = std::sync::Arc::clone(&self.state.config);
+        if config.general.theme != old.general.theme {
+            self.state.set_theme(&config.general.theme);
+        }
+        if config.general.language != old.general.language {
+            if let Err(e) = termide_i18n::set_language(&config.general.language) {
+                log::warn!("Failed to set language: {e}");
+            }
+        }
+        // Published process-wide: only when it changed, so that entering a
+        // project does not reset what the agents read for nothing.
+        if config.ai_differs_from(&old) {
+            agent_panel::publish_ai_settings(&config.ai);
+        }
+        // The table is built from the keybindings in the config.
+        self.state.cache.hotkey_table = None;
+        self.state.config = std::sync::Arc::new(config);
     }
 
     /// Log git availability status to journal
@@ -744,6 +880,15 @@ impl App {
         // Initialize terminal dimensions
         let size = terminal.size()?;
         self.state.update_terminal_size(size.width, size.height);
+        self.load_reopenable_projects();
+        if self.restore_projects {
+            self.restore_projects = false;
+            if self.state.reopenable_projects.is_empty() {
+                log::info!("No projects of the last run to restore");
+            } else {
+                self.reopen_previous_projects();
+            }
+        }
         self.sync_open_projects();
 
         while !self.state.should_quit {
@@ -837,6 +982,13 @@ impl App {
             // Check and close panels that should auto-close
             self.check_auto_close_panels()?;
 
+            // A report that arrived behind an open question gets the screen
+            // once the question has been answered. Checked every turn, so it
+            // shows as soon as the modal closes, whichever key closed it.
+            if self.state.deliver_queued_message_modal() {
+                self.state.needs_redraw = true;
+            }
+
             // Render UI only when needed (reduces idle CPU from 24fps to near-zero)
             if self.state.needs_redraw {
                 terminal.draw(|frame| {
@@ -860,6 +1012,7 @@ impl App {
     /// operation-manager, git/command/fetch pollers and the always-on
     /// system-resource / LSP-completion / modal-spinner updates.
     fn poll_background(&mut self) {
+        self.flush_settings_save();
         self.poll_settings_model_fetch();
         if let Some(termide_modal::ActiveModal::Input(modal)) = self.state.active_modal.as_mut() {
             if modal.poll_suggestions() {
@@ -957,6 +1110,7 @@ impl App {
                 }
             }
             self.tick_parked_projects();
+            self.vault_tick();
         } else {
             // During scrolling: only check terminal output (lightweight)
             for panel in self.layout_manager.iter_all_panels_mut() {

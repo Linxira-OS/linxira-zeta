@@ -31,9 +31,12 @@ Parsed with `pulldown-cmark` and drawn as text pseudographics:
 - Bulleted and ordered lists, including nesting.
 - Block quotes, prefixed with `│`.
 - Fenced code blocks, syntax-highlighted with the same engine as the editor.
+  A line wider than the panel wraps onto the next row instead of being cut off.
 - Tables, drawn with box-drawing borders. Columns are sized to their content
   and long cells wrap onto extra lines instead of being cut off.
-- Horizontal rules and links (underlined, clickable).
+- Horizontal rules and links (underlined, clickable). A web address written
+  out in the text is a link too, as GitHub renders one; inside code it stays
+  text.
 - Images as a clickable `🖼` pictogram followed by the alt text (no terminal
   graphics protocol).
 - Embedded ```` ```mermaid ```` code blocks, rendered as the diagram itself
@@ -60,9 +63,12 @@ The preview has a movable cursor and supports text selection:
   typed path or `http(s)://` URL in the matching viewer (see the
   [HTML preview](html.md) for the URL-fetch policy).
 - Mouse wheel scrolls.
-- **Follow a link** (click or `Enter`): web links open in the viewer by default,
-  image links in the image preview, and `#heading` anchors jump within the page.
-  `O` opens the link externally; `[`/`]` are history back/forward. See the
-  [HTML preview](html.md) for the link-open settings and fetch policy.
+- **Follow a link** (click or `Enter`): web links open in the viewer,
+  image links in the image preview, a link to another local file in the viewer
+  for its type (a sibling `.md` in this preview), and `#heading` anchors jump
+  within the page.
+  `O`, `Alt+Enter` or `Alt+Click` opens the link outside (the browser, a
+  system application); `[`/`]` are history back/forward. See the
+  [HTML preview](html.md) for the details and the fetch policy.
 
 The panel is saved with the project layout and reopens at the same file.

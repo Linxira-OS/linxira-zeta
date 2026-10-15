@@ -162,6 +162,8 @@ mod tests {
             priority,
             is_move: false,
             conflict_mode: crate::types::ConflictMode::Ask,
+            archive_passwords: Default::default(),
+            compression: Default::default(),
         }
     }
 

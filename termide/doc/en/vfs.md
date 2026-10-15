@@ -45,8 +45,10 @@ Notes:
 - Omitting the user makes the SFTP provider fall back to your SSH
   config (see Authentication).
 - Omitting the port uses the protocol default (22 / 21 / 990).
-- Embedding a password in the URL is supported but not recommended —
-  prefer key-based authentication for SFTP.
+- A password in the URL is not used. When a server asks for one, TermIDE
+  prompts for it and can keep it in the
+  [password vault](passwords.md); for SFTP, key-based authentication
+  remains the better choice.
 
 ## Opening a remote location
 
@@ -76,7 +78,12 @@ SFTP supports four authentication modes:
 - **SSH agent** — uses an SSH agent if `SSH_AUTH_SOCK` points at one.
 - **SSH key** — explicit private-key file, optionally with a
   passphrase.
-- **Password** — interactive prompt or pre-stored value.
+- **Password** — when the methods above are refused, TermIDE takes the
+  password from the [password vault](passwords.md) or asks for it.
+
+FTP and FTPS log in with the user from the URL; a refused login asks for
+the password the same way. Without a user in the URL the login is
+anonymous.
 
 Because `Auto` reads `~/.ssh/config`, you can keep the bookmark URL
 plain (`sftp://my-build-host/path`) and let SSH config supply the
@@ -195,13 +202,20 @@ saved projects like any other VFS URL.
 
 ### Packing
 
-`P` packs the selected files and directories (or the entry under the
+`P` (or `Alt+F5`) packs the selected files and directories (or the entry under the
 cursor) into a new archive. The prompt suggests `<name>.zip` next to
 the selection and lists the other formats in its dropdown; the name's
 suffix picks the format — `.zip`, `.tar`, `.tar.gz`, `.tar.bz2`,
 `.tar.xz` or `.tar.zst`. A relative path is taken from the selection's
 directory, and a directory gets an archive named after the selection
 inside it.
+
+The **Compression** row under the name (reached with `↓`, changed with
+`←`/`→`, `Space` or a click) picks **None**, **Fast**, **Normal** (the
+default) or **Best**. zip, `.tar.gz`, `.tar.bz2` and `.tar.xz` map them
+to levels 0, 1, 6 and 9; bzip2 and xz have no uncompressed mode, so
+**None** gives their weakest level. `.tar.zst` only tells **None** from
+the rest, and a plain `.tar` is never compressed.
 
 Packing runs in the [Operations panel](operations.md) with progress,
 pause and cancel. Symbolic links are stored as links, not followed;
@@ -210,11 +224,26 @@ to a temporary file and appears under its name only when complete, so
 a cancelled or failed run leaves nothing behind, and an existing file
 is never overwritten. Only local files can be packed.
 
+### Unpacking
+
+`Alt+F9` unpacks the archives in the selection, or the archive under the
+cursor; other selected entries are left out. The prompt suggests a
+directory named after the archive in the nearest other file manager's
+directory and lists the other panels' directories in its dropdown. A
+single archive is unpacked into the directory you give, which is created
+if needed; several archives go into a directory each, named after the
+archive, under it. A relative path is taken from the archive's directory.
+
+Unpacking runs in the [Operations panel](operations.md) with progress,
+pause and cancel. When a target directory already holds files, TermIDE
+asks first, since files with the same names are replaced. Only local
+archives can be unpacked. For an encrypted zip archive TermIDE asks for
+the password before starting and asks again after a wrong one.
+
 ## Limitations / known gaps
 
 - No `smb://` / `nfs://` provider yet — only URL parsing.
 - No resume-from-byte-offset for interrupted transfers: cancelled
   uploads start over from the beginning if re-issued.
-- The interactive password prompt cannot be saved persistently
-  inside TermIDE; for repeated use, configure SSH keys or rely on
-  your SSH agent.
+- The passphrase of an encrypted SSH key is not asked for in remote
+  panels; load the key into your SSH agent.

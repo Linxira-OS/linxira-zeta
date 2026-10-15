@@ -325,10 +325,6 @@ pub struct UiState {
     pub ai_nested: SubmenuState,
     /// The AI section whose item list is open
     pub current_ai_section: Option<crate::AiSection>,
-    /// AI agent file-choice submenu (third level: SOUL.md vs agent.toml)
-    pub ai_agent_choice: SubmenuState,
-    /// The agent whose file-choice submenu is open
-    pub current_ai_agent: Option<String>,
     /// Bookmarks submenu state
     pub bookmarks_submenu: SubmenuState,
     /// Bookmarks nested submenu state (for groups)
@@ -351,6 +347,9 @@ pub struct UiState {
     pub operation_action_menu: OperationActionMenuState,
     /// Panel drag-and-drop state (grab a panel by its top border)
     pub panel_drag: PanelDragState,
+    /// A press that only focused its panel is held until its release, so
+    /// neither its drag nor its release reaches the panel.
+    pub focus_click_held: bool,
 }
 
 impl UiState {
@@ -368,8 +367,6 @@ impl UiState {
         self.ai_submenu.close();
         self.ai_nested.close();
         self.current_ai_section = None;
-        self.ai_agent_choice.close();
-        self.current_ai_agent = None;
         self.bookmarks_submenu.close();
         self.bookmarks_nested.close();
         self.current_bookmarks_group = None;

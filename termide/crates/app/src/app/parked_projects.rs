@@ -17,9 +17,22 @@ use termide_layout::LayoutManager;
 use super::project_layout::save_layout_of;
 use super::App;
 use crate::open_projects::OpenProjectView;
-use crate::projects_menu::path_order;
-use crate::state::{ActiveModal, PendingAction};
+use crate::state::{ActiveModal, PendingAction, ProjectsOrigin};
 use crate::PanelExt;
+
+/// Where to move an open project in the list, with the keys that move a
+/// panel between groups.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ProjectStep {
+    /// One place up, or left on the menu bar (`swap_left`).
+    Back,
+    /// One place down, or right (`swap_right`).
+    Forward,
+    /// To the start (`move_first`).
+    First,
+    /// To the end (`move_last`).
+    Last,
+}
 
 /// What a project open in the background keeps.
 pub(super) struct ParkedProject {
@@ -75,14 +88,32 @@ fn display_root(root: &Path) -> String {
     termide_core::util::shorten_home_path(&root.display().to_string())
 }
 
+/// What entering a project hands back to finish the switch with.
+pub(super) struct EnteredProject {
+    /// What the project kept when it was open already (`None` when it opens
+    /// now and its layout has yet to be set up).
+    pub restored: Option<ParkedProject>,
+    /// The operations panel of the project left, for
+    /// [`App::carry_operations_panel`].
+    pub operations_panel: Option<Box<dyn Panel>>,
+}
+
 impl App {
     /// Make `root` the current project: park the current one and hand back
-    /// what `root` kept when it was open already (`None` when it opens now
-    /// and its layout has yet to be set up).
-    pub(super) fn enter_project(&mut self, root: PathBuf) -> Result<Option<ParkedProject>> {
+    /// what `root` kept and what follows the user there.
+    pub(super) fn enter_project(&mut self, root: PathBuf) -> Result<EnteredProject> {
         std::env::set_current_dir(&root)?;
+        if !self.open_projects.is_open(&root) {
+            // A project opened by hand starts a new set: the last run's is
+            // no longer offered.
+            self.state.reopenable_projects.clear();
+        }
         log::info!("Changed working directory to: {:?}", root);
 
+        // Operations run for the instance, not for a project, so their panel
+        // leaves with the user: one left in a parked layout would keep cards
+        // of operations that end while it is off screen.
+        let operations_panel = self.close_operations_panel();
         self.auto_save_layout();
         // Parked panels skip background work and catch up once shown again.
         for panel in self.layout_manager.iter_all_panels_mut() {
@@ -94,7 +125,19 @@ impl App {
         };
         let restored = self.open_projects.switch(root.clone(), leaving);
         self.set_project_root(root);
-        Ok(restored)
+        Ok(EnteredProject {
+            restored,
+            operations_panel,
+        })
+    }
+
+    /// Put the operations panel taken from the project left into the layout
+    /// of the one entered, without taking the focus.
+    pub(super) fn carry_operations_panel(&mut self, panel: Option<Box<dyn Panel>>) {
+        if let Some(panel) = panel {
+            self.add_panel_without_focus(panel);
+            self.state.operations_panel_dirty = true;
+        }
     }
 
     /// Point everything that depends on the project root at `root`.
@@ -103,6 +146,23 @@ impl App {
         self.state.project_root = self.project_root.clone();
         self.state.project_bookmarks =
             termide_config::BookmarksConfig::load_from_project(&self.project_root);
+
+        // The settings of the project left must not carry over: the one
+        // entered gets the global layer with its own file, if it has one,
+        // on top. Otherwise the next settings save would write the old
+        // project's overrides into the new project or the global file.
+        match termide_config::Config::with_project_overlay(
+            &self.state.global_baseline,
+            &self.project_root,
+        ) {
+            Ok((config, warnings)) => {
+                for warning in warnings {
+                    log::warn!("{warning}");
+                }
+                self.adopt_stored_config(config);
+            }
+            Err(e) => log::warn!("Could not load the project's settings: {e}"),
+        }
 
         // Invalidate caches that depend on the project root: project-local
         // commands.toml lives under `<project_root>/.termide/`, so both the
@@ -118,6 +178,9 @@ impl App {
         self.layout_manager = parked.layout;
         self.layout_manager
             .redistribute_widths_proportionally(self.state.terminal.width);
+        // The project was likely entered for what waits in it; a mark on an
+        // unfocused header is easy to miss.
+        self.layout_manager.focus_waiting_panel();
         // Diagnostics published while the project was parked reached only
         // `all_diagnostics`.
         for panel in self.layout_manager.iter_all_panels_mut() {
@@ -141,8 +204,9 @@ impl App {
     }
 
     /// Bring `state.open_projects`, which the menus draw, in step with the
-    /// open projects.
+    /// open projects, and save the set for reopening when it changed.
     pub(super) fn sync_open_projects(&mut self) {
+        self.save_open_projects();
         let views: Vec<OpenProjectView> =
             self.open_projects
                 .roots()
@@ -157,6 +221,68 @@ impl App {
             self.state.open_projects = views;
             self.state.needs_redraw = true;
         }
+    }
+
+    /// Save the open projects and the current one for the next run to
+    /// reopen, once more than one has been open and whenever either changes
+    /// since. The current project goes along, so that `termide --restore`
+    /// reopens the run in the project it was in.
+    fn save_open_projects(&mut self) {
+        if !self.persist_layout {
+            return;
+        }
+        let projects = termide_project::SavedOpenProjects {
+            roots: self.open_projects.roots().map(Path::to_path_buf).collect(),
+            current: Some(self.project_root.clone()),
+        };
+        let unchanged = match &self.saved_open_projects {
+            Some(saved) => *saved == projects,
+            None => projects.roots.len() < 2,
+        };
+        if unchanged {
+            return;
+        }
+        if let Err(e) = termide_project::save_open_projects(&projects) {
+            log::error!("Failed to save the open projects: {}", e);
+        }
+        self.saved_open_projects = Some(projects);
+    }
+
+    /// Read the projects open together in the last run, those that still
+    /// exist and are not open now, for the Projects menu to offer.
+    pub(super) fn load_reopenable_projects(&mut self) {
+        if !self.persist_layout {
+            return;
+        }
+        let mut roots: Vec<PathBuf> = Vec::new();
+        for root in termide_project::load_open_projects().roots {
+            let root = project_root_of(root);
+            if root.is_dir() && !self.open_projects.is_open(&root) && !roots.contains(&root) {
+                roots.push(root);
+            }
+        }
+        self.state.reopenable_projects = roots;
+    }
+
+    /// Open the projects of the last run in the background. Their layouts
+    /// load the first time each is entered; the current project stays.
+    pub(super) fn reopen_previous_projects(&mut self) {
+        let roots = std::mem::take(&mut self.state.reopenable_projects);
+        let mut opened = 0;
+        for root in roots {
+            if self.open_projects.open_pending(root) {
+                opened += 1;
+            }
+        }
+        // In the order they were kept, the current project among them.
+        let order: Vec<PathBuf> = termide_project::load_open_projects()
+            .roots
+            .into_iter()
+            .map(project_root_of)
+            .collect();
+        self.open_projects.arrange(&order);
+        log::info!("Reopened {} projects of the last run", opened);
+        self.sync_open_projects();
     }
 
     /// Tick the panels of the parked projects. What they raise waits for
@@ -194,10 +320,25 @@ impl App {
     }
 
     /// The open projects' roots in the order the menus list them.
-    fn listed_open_roots(&self) -> Vec<PathBuf> {
-        let mut roots: Vec<PathBuf> = self.open_projects.roots().map(Path::to_path_buf).collect();
-        roots.sort_by(|a, b| path_order(a, b));
-        roots
+    pub(super) fn listed_open_roots(&self) -> Vec<PathBuf> {
+        self.open_projects.roots().map(Path::to_path_buf).collect()
+    }
+
+    /// Move the open project at `root` as `step` says. Returns its new
+    /// place, or `None` when it did not move.
+    pub(super) fn move_open_project(&mut self, root: &Path, step: ProjectStep) -> Option<usize> {
+        let from = self.open_projects.position(root)?;
+        let to = match step {
+            ProjectStep::Back => from.checked_sub(1)?,
+            ProjectStep::Forward => from + 1,
+            ProjectStep::First => 0,
+            ProjectStep::Last => usize::MAX,
+        };
+        if !self.open_projects.move_to(root, to) {
+            return None;
+        }
+        self.sync_open_projects();
+        self.open_projects.position(root)
     }
 
     /// Switch to the open project at `index` in the order the menus list
@@ -229,17 +370,50 @@ impl App {
         self.switch_to_open_project(next)
     }
 
-    /// Ask before closing the parked project at `root`. `menu` is where to
-    /// return afterwards, see `PendingAction::CloseProject`.
-    pub(super) fn confirm_close_project(&mut self, root: PathBuf, menu: Option<usize>) {
-        let Some(live) = self
+    /// The open project to switch to when the current one closes: the one
+    /// left last.
+    fn successor_project(&self) -> Option<PathBuf> {
+        self.open_projects
+            .by_recent_use()
+            .get(1)
+            .map(|root| root.to_path_buf())
+    }
+
+    /// Ask before closing the open project at `root`, then return `from`
+    /// where it was asked.
+    ///
+    /// The current project closes by switching to the one left last, and
+    /// only while another is open; it is asked about only when its panels
+    /// hold running processes or unsaved changes.
+    pub(super) fn confirm_close_project(&mut self, root: PathBuf, from: ProjectsOrigin) {
+        if !self.open_projects.is_open(&root) {
+            return;
+        }
+        if root == self.project_root {
+            if self.successor_project().is_none() {
+                return;
+            }
+            if !self.has_panels_requiring_confirmation() {
+                if let Err(e) = self.close_project(&root, from) {
+                    log::error!("Failed to close the current project: {}", e);
+                }
+                return;
+            }
+            let t = i18n::t();
+            let message = format!("{}\n{}", display_root(&root), t.projects_close_warning());
+            let modal = termide_modal::ConfirmModal::new(t.projects_close_title(), message)
+                .defaulting_to_no();
+            self.state.set_pending_action(
+                PendingAction::CloseProject { root, from },
+                ActiveModal::Confirm(Box::new(modal)),
+            );
+            return;
+        }
+        // A project reopened but not entered yet has nothing running.
+        let live = self
             .open_projects
             .parked()
-            .find(|(parked_root, _)| *parked_root == root)
-            .map(|(_, parked)| parked.requires_confirmation())
-        else {
-            return;
-        };
+            .any(|(parked_root, parked)| parked_root == root && parked.requires_confirmation());
         let t = i18n::t();
         let mut message = display_root(&root);
         if live {
@@ -251,14 +425,22 @@ impl App {
             modal = modal.defaulting_to_no();
         }
         self.state.set_pending_action(
-            PendingAction::CloseProject { root, menu },
+            PendingAction::CloseProject { root, from },
             ActiveModal::Confirm(Box::new(modal)),
         );
     }
 
-    /// Close the parked project at `root`: save its layout and drop its
-    /// panels, which stops the processes in its terminals.
-    pub(super) fn close_project(&mut self, root: &Path, menu: Option<usize>) -> Result<()> {
+    /// Close the open project at `root`: save its layout and drop its
+    /// panels, which stops the processes in its terminals. The current
+    /// project is first left for the one left last, and stays when no other
+    /// is open.
+    pub(super) fn close_project(&mut self, root: &Path, from: ProjectsOrigin) -> Result<()> {
+        if root == self.project_root {
+            let Some(successor) = self.successor_project() else {
+                return self.return_to_projects(from);
+            };
+            self.switch_to_project(successor)?;
+        }
         if let Some(mut parked) = self.open_projects.close(root) {
             // As closing an editor panel does: the server forgets the file.
             if let Some(lsp_manager) = self.state.lsp_manager.as_ref() {
@@ -276,15 +458,15 @@ impl App {
             log::info!("Closed project {:?}", root);
         }
         self.sync_open_projects();
-        self.return_to_projects(menu)
+        self.return_to_projects(from)
     }
 
-    /// Go back to where closing or deleting a project was started: the
-    /// Projects menu at row `menu`, or the project switcher.
-    pub(super) fn return_to_projects(&mut self, menu: Option<usize>) -> Result<()> {
-        match menu {
-            Some(selection) => self.reopen_projects_menu(selection),
-            None => self.handle_open_projects_modal()?,
+    /// Go back to where closing or deleting a project was started.
+    pub(super) fn return_to_projects(&mut self, from: ProjectsOrigin) -> Result<()> {
+        match from {
+            ProjectsOrigin::Switcher => self.handle_open_projects_modal()?,
+            ProjectsOrigin::Menu(selection) => self.reopen_projects_menu(selection),
+            ProjectsOrigin::Button(button) => self.reopen_menu_bar_at_button(button),
         }
         Ok(())
     }

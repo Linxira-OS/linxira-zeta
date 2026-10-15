@@ -2,10 +2,9 @@
 
 use std::path::PathBuf;
 
-use termide_core::{LinkOpen, PanelEvent};
+use termide_core::{LinkTarget, PanelEvent};
 
 use crate::MarkdownPanel;
-use termide_ui::text_utils::is_image_path;
 
 impl MarkdownPanel {
     /// Resolve a link `href` to an absolute target: against the document URL for
@@ -29,9 +28,12 @@ impl MarkdownPanel {
         href.to_string()
     }
 
-    /// Follow a link. Non-web targets go to the external opener. Web links
-    /// honor the `open_links` setting: `External` → browser; `Panel` →
-    /// in-place navigation in a fetched view, or a new viewer otherwise.
+    /// Follow a link inside termide (`Enter`, a click). A same-page `#anchor`
+    /// scrolls; inside a fetched page a web link replaces the page in place,
+    /// with history. Anything else goes to the app as
+    /// [`PanelEvent::OpenLink`], which opens a link the same way from every
+    /// panel; a scheme it does not know (`mailto:`) goes to the system
+    /// opener. [`Self::activate_link_external`] is the outside twin.
     pub(crate) fn activate_link(&mut self, href: &str) -> Vec<PanelEvent> {
         if href.is_empty() {
             return vec![];
@@ -43,35 +45,43 @@ impl MarkdownPanel {
             }
             return vec![PanelEvent::NeedsRedraw];
         }
+        if termide_core::links::is_foreign_scheme(href) {
+            return vec![PanelEvent::OpenExternal(PathBuf::from(href))];
+        }
         let target = self.resolve(href);
         let is_web = target.starts_with("http://") || target.starts_with("https://");
-        let is_image = is_image_path(&target);
-        // Images and pages each follow their own open-where setting; `O` is the
-        // per-action external override (handled by the caller).
-        let mode = if is_image {
-            self.open_images
-        } else {
-            self.open_links
-        };
-        if mode == LinkOpen::External {
-            return vec![PanelEvent::OpenExternal(PathBuf::from(target))];
+        if is_web && self.source_url.is_some() {
+            self.history.truncate(self.hist_idx + 1);
+            self.history.push(target.clone());
+            self.hist_idx = self.history.len() - 1;
+            return vec![PanelEvent::NavigateUrl(target)];
         }
-        if is_web {
-            // Fetch and render in the viewer; image responses are routed to the
-            // image preview by the fetch handler.
-            if self.source_url.is_some() {
-                self.history.truncate(self.hist_idx + 1);
-                self.history.push(target.clone());
-                self.hist_idx = self.history.len() - 1;
-                vec![PanelEvent::NavigateUrl(target)]
-            } else {
-                vec![PanelEvent::OpenUrl(target)]
-            }
-        } else if is_image {
-            // Local image → built-in image preview.
-            vec![PanelEvent::PreviewMedia(PathBuf::from(target))]
-        } else {
-            vec![PanelEvent::OpenExternal(PathBuf::from(target))]
+        let base = self.file_path.parent().unwrap_or(std::path::Path::new("/"));
+        match LinkTarget::from_href(&target, base) {
+            Some(link) => vec![PanelEvent::OpenLink(link)],
+            None => vec![PanelEvent::OpenExternal(PathBuf::from(target))],
+        }
+    }
+
+    /// Open a link outside termide (`O`/`Alt+Enter`, `Alt+Click`): a web
+    /// address in the browser, a local file in its system application. A
+    /// same-page `#anchor` of a file-backed view has nowhere outside to go,
+    /// so it scrolls as a followed one does.
+    pub(crate) fn activate_link_external(&mut self, href: &str) -> Vec<PanelEvent> {
+        if href.is_empty() {
+            return vec![];
+        }
+        if href.starts_with('#') && self.source_url.is_none() {
+            return self.activate_link(href);
+        }
+        if termide_core::links::is_foreign_scheme(href) {
+            return vec![PanelEvent::OpenExternal(PathBuf::from(href))];
+        }
+        let target = self.resolve(href);
+        let base = self.file_path.parent().unwrap_or(std::path::Path::new("/"));
+        match LinkTarget::from_href(&target, base) {
+            Some(link) => vec![PanelEvent::OpenLinkExternal(link)],
+            None => vec![PanelEvent::OpenExternal(PathBuf::from(target))],
         }
     }
 

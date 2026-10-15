@@ -2,8 +2,12 @@
 //! run controls and state strip, and the status-bar segments.
 
 use crate::runtime::local_minute;
+use std::time::{Duration, Instant};
+
+use termide_config::constants::tick_frame;
+
 use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use termide_core::{RenderContext, SegmentKind, StatusSegment, ThemeColors};
@@ -11,9 +15,9 @@ use termide_ui::ScrollBar;
 
 use crate::toolset::TOOLSET_ACTION;
 use crate::{
-    format_tokens, provider_label, shorten_path, transcript, truncate_title, AgentPanel, BannerHit,
-    Phase, RunButton, AGENT_ACTION, CONNECTION_ACTION, CWD_ACTION, MODEL_ACTION, MODE_ACTION,
-    REASONING_ACTION,
+    format_tokens, provider_label, shorten_path, single_line, transcript, truncate_title,
+    AgentEntry, AgentPanel, BannerHit, Phase, RunButton, AGENT_ACTION, CONNECTION_ACTION,
+    CWD_ACTION, LOOP_MAX_ITERATIONS, MODEL_ACTION, MODE_ACTION, OPTIONS_ACTION, REASONING_ACTION,
 };
 
 /// Rows of the welcome banner's logo.
@@ -27,13 +31,13 @@ const LABEL_COL: usize = 12;
 /// Queued messages the state strip shows before folding the rest into a count.
 pub(crate) const STATE_QUEUED_ROWS: usize = 3;
 
-/// The state strip's lines: a dim dashed rule, then a pause row (`pause`,
-/// when one is pending or active) and a row per queued message (its first
-/// line, cut to the width), at most [`STATE_QUEUED_ROWS`] of them before a
-/// "… N more" row. Empty when there is nothing to show.
+/// The state strip's lines: a dim dashed rule, then a pause row (`pause`:
+/// its glyph and text, when a pause is pending or a retry waits) and a row
+/// per queued message (its first line, cut to the width), at most
+/// [`STATE_QUEUED_ROWS`] of them before a "… N more" row. Empty when there is nothing to show.
 pub(crate) fn state_strip<'a>(
     queued: impl ExactSizeIterator<Item = &'a str>,
-    pause: Option<&str>,
+    pause: Option<(&str, &str)>,
     width: u16,
     colors: &ThemeColors,
 ) -> Vec<Line<'static>> {
@@ -46,10 +50,10 @@ pub(crate) fn state_strip<'a>(
     let width = width as usize;
     let cut = |text: &str, room: usize| termide_ui::path_utils::truncate_right(text, room);
     let mut lines = vec![transcript::separator(width as u16, colors)];
-    if let Some(pause) = pause {
+    if let Some((glyph, pause)) = pause {
         lines.push(Line::from(vec![
             Span::styled(
-                format!("{} ", transcript::PAUSED_GLYPH),
+                format!("{glyph} "),
                 Style::default()
                     .fg(colors.warning)
                     .add_modifier(Modifier::BOLD),
@@ -85,10 +89,162 @@ pub(crate) fn state_strip<'a>(
     lines
 }
 
-/// An eight-cell fill bar for a 0–100 percentage, e.g. `▰▰▱▱▱▱▱▱` at 20%.
+/// The state strip's subagent rows, one per running `task` call
+/// (`(agent, prompt, progress, elapsed ms)`), at most [`STATE_QUEUED_ROWS`]
+/// before a `+N` row: `& Delegating to agent · prompt` on the left (worded as
+/// the call's block in the transcript) and, at the right edge,
+/// what the subagent did last (or its wait for a slot), a spinner and its
+/// time. A block scrolled out of view stays in sight here while it runs.
+pub(crate) fn task_strip(
+    tasks: &[(String, String, String, u32)],
+    width: u16,
+    colors: &ThemeColors,
+) -> Vec<Line<'static>> {
+    let t = termide_i18n::t();
+    let dim = Style::default().fg(colors.disabled);
+    let accent = Style::default().fg(colors.info);
+    let width = width as usize;
+    let cut = |text: &str, room: usize| termide_ui::path_utils::truncate_right(text, room);
+    let mut lines = Vec::new();
+    for (agent, prompt, progress, ms) in tasks.iter().take(STATE_QUEUED_ROWS) {
+        let frame = tick_frame(Duration::from_millis(u64::from(*ms)));
+        let clock = format!(" {frame} {}", transcript::fmt_dur(*ms));
+        // What it does now takes at most a third of the row, so the task
+        // itself stays readable.
+        let progress = cut(progress, width / 3);
+        let right = if progress.is_empty() {
+            clock.clone()
+        } else {
+            format!(" {progress}{clock}")
+        };
+        let right_width = termide_ui::str_display_width(&right);
+        // Worded as the call's block in the transcript, `& Delegating to
+        // agent · prompt`, so the row is known for the block it stands for.
+        let head = format!("& {} ", t.agent_tool_task());
+        let head_width = termide_ui::str_display_width(&head);
+        let room = width.saturating_sub(1 + head_width + right_width);
+        let body = cut(&format!("{agent} · {prompt}"), room);
+        let used = head_width + termide_ui::str_display_width(&body) + right_width;
+        let mut spans = vec![
+            Span::styled(head, accent.add_modifier(Modifier::BOLD)),
+            Span::styled(body, dim),
+            Span::raw(" ".repeat(width.saturating_sub(used + 1))),
+        ];
+        if !progress.is_empty() {
+            spans.push(Span::styled(format!(" {progress}"), dim));
+        }
+        spans.push(Span::styled(
+            format!(" {frame}"),
+            accent.add_modifier(Modifier::BOLD),
+        ));
+        spans.push(Span::styled(format!(" {}", transcript::fmt_dur(*ms)), dim));
+        lines.push(Line::from(spans));
+    }
+    if tasks.len() > STATE_QUEUED_ROWS {
+        lines.push(Line::styled(
+            format!("& +{}", tasks.len() - STATE_QUEUED_ROWS),
+            dim,
+        ));
+    }
+    lines
+}
+
+/// Which of the self-running tasks a state-strip row stands for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Autorun {
+    Goal,
+    Loop,
+}
+
+/// One state-strip row of an active `/goal` or `/loop`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AutorunRow {
+    pub kind: Autorun,
+    pub glyph: &'static str,
+    /// What it does, as a verb (`Heading for the goal`), in the accent.
+    pub label: String,
+    /// What it works on: the goal, or the loop's prompt.
+    pub body: String,
+    /// Its state at the right edge, dim: elapsed time, run count, the wait.
+    pub state: String,
+}
+
+/// The stop button at the right end of an autorun row.
+pub(crate) const AUTORUN_STOP: &str = "✕";
+
+/// The state strip's rows for what goes on by itself between requests (an
+/// active `/goal` or `/loop`): `glyph label` in the accent and the goal or
+/// prompt, dim, on the left; at the right edge its state, dim, and the stop
+/// button in the accent. The state takes at most half the row, so the goal stays
+/// readable. The button sits two cells in from the edge (see
+/// [`autorun_stop_column`]).
+pub(crate) fn autorun_strip(
+    rows: &[AutorunRow],
+    width: u16,
+    colors: &ThemeColors,
+) -> Vec<Line<'static>> {
+    let dim = Style::default().fg(colors.disabled);
+    let accent = Style::default()
+        .fg(colors.info)
+        .add_modifier(Modifier::BOLD);
+    let width = width as usize;
+    let cut = |text: &str, room: usize| termide_ui::path_utils::truncate_right(text, room);
+    // ` ✕` after the state, then the row's last cell left blank.
+    let stop_width = 1 + termide_ui::str_display_width(AUTORUN_STOP);
+    rows.iter()
+        .map(|row| {
+            let state = if row.state.is_empty() {
+                String::new()
+            } else {
+                format!(" {}", cut(&row.state, width / 2))
+            };
+            let state_width = termide_ui::str_display_width(&state);
+            let head = format!("{} {} ", row.glyph, row.label);
+            let head_width = termide_ui::str_display_width(&head);
+            let body = cut(
+                &row.body,
+                width.saturating_sub(1 + head_width + state_width + stop_width),
+            );
+            let used = head_width + termide_ui::str_display_width(&body) + state_width + stop_width;
+            Line::from(vec![
+                Span::styled(head, accent),
+                Span::styled(body, dim),
+                Span::raw(" ".repeat(width.saturating_sub(used + 1))),
+                Span::styled(state, dim),
+                Span::raw(" "),
+                Span::styled(AUTORUN_STOP, accent),
+            ])
+        })
+        .collect()
+}
+
+/// The column of an autorun row's stop button, from the strip's left edge,
+/// for a strip `width` cells wide.
+pub(crate) fn autorun_stop_column(width: u16) -> u16 {
+    width.saturating_sub(2)
+}
+
+/// `text` with its first letter upper-cased, for a lower-case notice used as
+/// a label (`иду к цели` → `Иду к цели`).
+fn capitalized(text: &str) -> String {
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
+}
+
+/// The glyph of an active `/goal` in the state strip.
+pub(crate) const GOAL_GLYPH: &str = "◎";
+/// The glyph of an active `/loop` in the state strip.
+pub(crate) const LOOP_GLYPH: &str = "↺";
+
+/// An eight-cell fill bar for a 0–100 percentage, e.g. `▰▰▱▱▱▱▱▱` at 25%.
+/// Cells round to the nearest, so the bar never runs more than half a cell
+/// ahead of or behind the figure it stands beside.
 pub(crate) fn context_bar(percent: u64) -> String {
     const CELLS: u64 = 8;
-    let filled = (percent * CELLS).div_ceil(100).min(CELLS);
+    let filled = ((percent * CELLS + 50) / 100).min(CELLS);
     let mut bar = String::with_capacity(CELLS as usize * 3);
     for i in 0..CELLS {
         bar.push(if i < filled { '▰' } else { '▱' });
@@ -102,9 +258,16 @@ impl AgentPanel {
     /// messages. Empty when there is nothing to show. A pause that took
     /// effect is the transcript's `‖` line, not a line here.
     pub(crate) fn state_lines(&self, width: u16) -> Vec<Line<'static>> {
-        let pause = self
-            .pause_requested
-            .then(|| termide_i18n::t().agent_notice_will_pause());
+        let wait = self.retry_wait_text();
+        let pause = match &wait {
+            Some(wait) => Some((crate::failure::WAIT_GLYPH, wait.as_str())),
+            None => self.pause_requested.then(|| {
+                (
+                    transcript::PAUSED_GLYPH,
+                    termide_i18n::t().agent_notice_will_pause(),
+                )
+            }),
+        };
         state_strip(
             self.queued_texts.iter().map(String::as_str),
             pause,
@@ -113,12 +276,154 @@ impl AgentPanel {
         )
     }
 
+    /// The active goal as a sentence (`Goal: … — turn 3`), for a bare
+    /// `/goal`; `None` without one.
+    pub(crate) fn goal_status(&self) -> Option<String> {
+        let task = self.goal_task.as_ref()?;
+        Some(termide_i18n::t().agent_unfinished_goal_fmt(&single_line(&task.goal), task.iterations))
+    }
+
+    /// The active loop as a sentence (`Loop (5m): … — run 3 of 100, next
+    /// run in 4m`), for a bare `/loop`; `None` without one.
+    pub(crate) fn loop_status(&self) -> Option<String> {
+        let task = self.loop_task.as_ref()?;
+        let t = termide_i18n::t();
+        let interval = match task.interval {
+            Some(d) => termide_i18n::duration(d),
+            None => t.agent_unfinished_back_to_back().to_string(),
+        };
+        let mut line = t.agent_unfinished_loop_fmt(
+            &interval,
+            &single_line(&task.prompt),
+            task.iterations,
+            LOOP_MAX_ITERATIONS,
+        );
+        if let Some(wait) = self.loop_wait() {
+            line.push_str(", ");
+            line.push_str(&t.agent_unfinished_loop_due_fmt(&wait));
+        }
+        Some(line)
+    }
+
+    /// What is left of the active loop's wait for its next run, rounded up
+    /// to the second; `None` while a run is in flight or due.
+    fn loop_wait(&self) -> Option<String> {
+        let at = self.loop_task.as_ref()?.next_at?;
+        let left = at.saturating_duration_since(Instant::now());
+        (!left.is_zero()).then(|| {
+            termide_i18n::duration(Duration::from_secs(
+                left.as_secs() + u64::from(left.subsec_nanos() > 0),
+            ))
+        })
+    }
+
+    /// The state strip's rows for an active goal and loop (see
+    /// [`autorun_strip`]): the goal with how long it has run, the loop's
+    /// command as typed with its run count — and the judge's check or the
+    /// wait for the next run before them.
+    pub(crate) fn autorun_rows(&self) -> Vec<AutorunRow> {
+        let t = termide_i18n::t();
+        let mut rows = Vec::new();
+        if let Some(task) = &self.goal_task {
+            let ms = u32::try_from(task.started.elapsed().as_millis()).unwrap_or(u32::MAX);
+            let elapsed = transcript::fmt_dur(ms);
+            let state = if task.judging {
+                format!("{} · {elapsed}", t.agent_notice_goal_checking())
+            } else {
+                elapsed
+            };
+            rows.push(AutorunRow {
+                kind: Autorun::Goal,
+                glyph: GOAL_GLYPH,
+                label: capitalized(t.agent_notice_goal_working()),
+                body: single_line(&task.goal),
+                state,
+            });
+        }
+        if let Some(task) = &self.loop_task {
+            let label = match task.interval {
+                Some(d) => t.agent_autorun_loop_every_fmt(&termide_i18n::duration(d)),
+                None => t.agent_autorun_loop().to_string(),
+            };
+            let count = format!("{}/{LOOP_MAX_ITERATIONS}", task.iterations);
+            let state = match self.loop_wait() {
+                Some(wait) => format!("{} · {count}", t.agent_unfinished_loop_due_fmt(&wait)),
+                None => count,
+            };
+            rows.push(AutorunRow {
+                kind: Autorun::Loop,
+                glyph: LOOP_GLYPH,
+                label: capitalized(&label),
+                body: single_line(&task.prompt),
+                state,
+            });
+        }
+        rows
+    }
+
+    /// The running subagents for the state strip: each one's block index and
+    /// `(agent, prompt's first line, its latest progress line, elapsed ms)`.
+    /// The clock of each starts when it is first seen, and is dropped once
+    /// the call has returned.
+    pub(crate) fn running_task_rows(&mut self) -> Vec<(usize, (String, String, String, u32))> {
+        let now = Instant::now();
+        let mut seen = Vec::new();
+        let mut rows = Vec::new();
+        for (index, call, live) in self.transcript.running_tasks() {
+            let start = *self.task_clocks.entry(call.id.clone()).or_insert(now);
+            seen.push(call.id.clone());
+            let arg = |key: &str| call.arguments[key].as_str().unwrap_or("").to_string();
+            let prompt = arg("prompt");
+            let prompt = prompt
+                .lines()
+                .find(|l| !l.trim().is_empty())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            let progress = live
+                .unwrap_or("")
+                .lines()
+                .rev()
+                .find(|l| !l.trim().is_empty())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            let ms = now.duration_since(start).as_millis() as u32;
+            rows.push((index, (arg("agent"), prompt, progress, ms)));
+        }
+        self.task_clocks.retain(|id, _| seen.contains(id));
+        rows
+    }
+
     /// The streaming block's live meta line: the same right-aligned zone a
     /// finished block shows, but with the block glyph, the ticking elapsed time
     /// (and a live token estimate while generating) and, in place of the status
     /// check, an animated spinner. Sits after the last block, animating on the
     /// panel's ~10 fps redraw while busy; `None` when idle.
     pub(crate) fn live_footer_lines(&self, width: u16) -> Vec<Line<'static>> {
+        // A stop under way: the line ticks how long the stop takes, in place
+        // of the run clock and whatever the turn was doing.
+        if let Some(stopping) = self.stop_requested.filter(|_| self.is_busy()) {
+            let elapsed = stopping.elapsed();
+            let warn = Style::default().fg(self.colors.warning);
+            return vec![transcript::right_meta(
+                width,
+                vec![
+                    Span::styled(
+                        format!("{} ", termide_i18n::t().agent_notice_stopping()),
+                        warn,
+                    ),
+                    Span::styled(
+                        format!("{} ", tick_frame(elapsed)),
+                        warn.add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        termide_i18n::duration(elapsed),
+                        Style::default().fg(self.colors.disabled),
+                    ),
+                ],
+            )];
+        }
         let Some(activity) = self.activity.as_ref() else {
             return Vec::new();
         };
@@ -133,7 +438,26 @@ impl AgentPanel {
         // reopening a session otherwise shows nothing but the run clock.
         // An external agent's message starts with its first text, so it has
         // no prefill to show.
-        if activity.phase == Phase::Prefill && !self.external {
+        let reading = match activity.phase {
+            Phase::Prefill => true,
+            Phase::Compact | Phase::Judge => activity.first_token.is_none(),
+            Phase::Generating | Phase::Tool => false,
+        };
+        // A request waiting for a free slot of its connection is not being
+        // read yet: the line says it waits, and how many wait before it.
+        if let (Some(ahead), true) = (activity.queued, reading) {
+            let t = termide_i18n::t();
+            let waiting = if ahead == 0 {
+                t.agent_queued().to_string()
+            } else {
+                t.agent_queued_ahead_fmt(ahead)
+            };
+            let dur = transcript::fmt_dur(activity.msg_start.elapsed().as_millis() as u32);
+            lines.push(transcript::right_meta(
+                width,
+                vec![Span::styled(format!("⏳ {dur} {waiting}"), dim)],
+            ));
+        } else if reading && !self.external {
             let prefill_ms = activity.msg_start.elapsed().as_millis() as u32;
             let dur = transcript::fmt_dur(prefill_ms);
             let text = match (activity.prefill, activity.prompt_tokens) {
@@ -157,7 +481,7 @@ impl AgentPanel {
         // is still known (the cost needs it), but nothing is being generated.
         // An external agent sends its text in bursts and reports no tokens, so
         // there is no generation to time: none is shown for it.
-        if let (Phase::Generating, Some(first_token), false) =
+        if let (Phase::Generating | Phase::Compact | Phase::Judge, Some(first_token), false) =
             (activity.phase, activity.first_token, self.external)
         {
             let gen_ms = first_token.elapsed().as_millis() as u32;
@@ -181,13 +505,11 @@ impl AgentPanel {
         let elapsed = self
             .run_start
             .map_or_else(|| activity.msg_start.elapsed(), |start| start.elapsed());
-        let frames = transcript::RUN_FRAMES;
-        let frame = (elapsed.as_millis() / 120) as usize % frames.len();
         lines.push(transcript::right_meta(
             width,
             vec![
                 Span::styled(
-                    format!("{} ", frames[frame]),
+                    format!("{} ", tick_frame(elapsed)),
                     Style::default()
                         .fg(self.colors.info)
                         .add_modifier(Modifier::BOLD),
@@ -202,30 +524,47 @@ impl AgentPanel {
     /// (uncached input and cache writes), `↻` those the cache served (when
     /// any), `↓` the output.
     pub(crate) fn token_totals(&self) -> String {
-        let cached = if self.session_cached > 0 {
-            format!(" ↻{}", format_tokens(self.session_cached))
-        } else {
-            String::new()
-        };
-        format!(
-            "↑{}{cached} ↓{}",
-            format_tokens(self.session_input),
-            format_tokens(self.session_output)
-        )
+        crate::token_label(self.session_input, self.session_cached, self.session_output)
     }
 
-    /// The model as the banner and the chip show it: `auto` while it is left
-    /// to the provider and not known yet.
+    /// The model as the banner and the chip show it: a spinner while an
+    /// external agent is still starting, `auto` while the model is left to
+    /// the provider and not known yet, else the name an external agent gives
+    /// it (its id when it gives none).
     pub(crate) fn model_display(&self) -> String {
-        if self.model.id.is_empty() {
+        if self.external && self.runtime.is_starting() {
+            termide_config::constants::spinner_frame().to_string()
+        } else if self.model.id.is_empty() {
             "auto".to_string()
         } else {
-            self.model.id.clone()
+            self.model_name(&self.model.id)
         }
     }
 
-    /// The connection as the banner and the chip show it: its name beside
-    /// the protocol.
+    /// The human name of model `id`: the one an external agent advertised
+    /// for it, else the id itself.
+    pub(crate) fn model_name(&self, id: &str) -> String {
+        if !self.external {
+            return id.to_string();
+        }
+        self.runtime
+            .available_models()
+            .into_iter()
+            .find(|model| model.id == id)
+            .map_or_else(|| id.to_string(), |model| model.name)
+    }
+
+    /// The connection as the status-bar chip shows it: its name alone, the
+    /// protocol only when it has no name.
+    pub(crate) fn connection_chip(&self) -> String {
+        if self.connection.is_empty() {
+            provider_label(&self.provider_kind).to_string()
+        } else {
+            self.connection.clone()
+        }
+    }
+
+    /// The connection as the banner shows it: its name beside the protocol.
     pub(crate) fn connection_display(&self) -> String {
         let kind = provider_label(&self.provider_kind);
         if self.connection.is_empty() {
@@ -247,38 +586,60 @@ impl AgentPanel {
             .min(available.saturating_sub(2).max(1))
     }
 
+    /// The current agent's catalog entry, looked up again only when the
+    /// agent changed; an agent the catalog does not list has an empty one.
+    pub(crate) fn agent_entry(&mut self) -> &AgentEntry {
+        if self
+            .agent_entry
+            .as_ref()
+            .is_none_or(|entry| entry.name != self.agent)
+        {
+            let entry = self
+                .catalog
+                .list()
+                .into_iter()
+                .find(|entry| entry.name == self.agent)
+                .unwrap_or_else(|| AgentEntry {
+                    name: self.agent.clone(),
+                    description: String::new(),
+                    icon: None,
+                });
+            self.agent_entry = Some(entry);
+        }
+        self.agent_entry.as_ref().expect("filled above")
+    }
+
     /// The agent's description from its definition, empty when it has
     /// none; the banner shows it under the agent's name.
     pub(crate) fn agent_description(&mut self) -> String {
-        match &self.agent_description {
-            Some((agent, description)) if *agent == self.agent => description.clone(),
-            _ => {
-                let description = self
-                    .catalog
-                    .list()
-                    .into_iter()
-                    .find(|entry| entry.name == self.agent)
-                    .map(|entry| entry.description)
-                    .unwrap_or_default();
-                self.agent_description = Some((self.agent.clone(), description.clone()));
-                description
-            }
-        }
+        self.agent_entry().description.clone()
     }
 
     /// Rows the banner's fields take, before its list of sessions: the
     /// agent's name as the title, its description (when it has one), a
-    /// blank, cwd, connection, model and tools (for our own agent).
+    /// blank, cwd, connection, model and tools (when they are termide's).
     pub(crate) fn banner_field_rows(&mut self) -> usize {
-        5 + usize::from(!self.agent_description().is_empty()) + usize::from(!self.external)
+        5 + usize::from(!self.agent_description().is_empty()) + usize::from(self.has_toolset())
     }
 
-    /// The welcome banner shown while the session is empty: a logo on the left
-    /// and what the agent is set up with (agent, directory, connection, model)
-    /// on the right, at the top of the transcript area, with the recent sessions
-    /// filling the rows below. On a narrow panel the logo is dropped and only
-    /// the details show.
-    pub(crate) fn render_welcome(&mut self, area: Rect, buf: &mut Buffer, colors: &ThemeColors) {
+    /// The welcome banner shown while the session is empty, in place of the
+    /// transcript: a logo on the left and what the agent is set up with
+    /// (agent, directory, connection, model) on the right, at the top, then
+    /// what the panel reported before the first request (`notices`, past a
+    /// dashed rule), then the recent sessions. The three scroll as one
+    /// document, so on a short panel the fields make way for the list. On a
+    /// narrow panel the logo is dropped and only the details show. The
+    /// list's keyboard cursor is drawn only while `panel_focused`, so a
+    /// background panel does not draw the eye. Returns the document's rows,
+    /// for the scrollbar.
+    pub(crate) fn render_welcome(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        colors: &ThemeColors,
+        panel_focused: bool,
+        notices: &[Line<'static>],
+    ) -> usize {
         const LOGO: [&str; WELCOME_LOGO_ROWS] = [
             "╭───────╮",
             "│ ▀█ █▀ │",
@@ -288,7 +649,7 @@ impl AgentPanel {
         ];
         self.banner_hits.clear();
         if area.width < 14 || area.height == 0 {
-            return;
+            return 0;
         }
         let logo_w = LOGO
             .iter()
@@ -303,6 +664,8 @@ impl AgentPanel {
         // column and the width that comes with it.
         let list_x = area.x + 2;
         let list_w = (area.x + area.width).saturating_sub(list_x + 1);
+        // The notices keep the transcript's full width.
+        let text_w = area.width.saturating_sub(1).max(1);
 
         let accent = Style::default()
             .fg(colors.info)
@@ -333,15 +696,15 @@ impl AgentPanel {
         let t = termide_i18n::t();
         // The title is the agent's name, re-pickable with a click, and its
         // description, when it has one, goes under it.
-        let mut info: Vec<(Line<'static>, Option<BannerHit>)> = vec![(
+        let mut fields: Vec<(Line<'static>, Option<BannerHit>)> = vec![(
             Line::styled(self.agent.clone(), accent),
             Some(BannerHit::Action(AGENT_ACTION)),
         )];
         let description = self.agent_description();
         if !description.is_empty() {
-            info.push((Line::styled(description, fg), None));
+            fields.push((Line::styled(description, fg), None));
         }
-        info.extend([
+        fields.extend([
             (Line::from(""), None),
             // The directory moves only while the panel is idle.
             (
@@ -365,93 +728,100 @@ impl AgentPanel {
         ]);
         // What the session may use, re-pickable before the first request,
         // when switching it off keeps it out of the context altogether.
-        if !self.external {
+        if self.has_toolset() {
             let (on, all) = self.toolset_counts();
-            info.push((
+            fields.push((
                 field(t.agent_banner_tools(), format!("{on}/{all}"), true),
                 Some(BannerHit::Action(TOOLSET_ACTION)),
             ));
         }
-        debug_assert_eq!(info.len(), self.banner_field_rows());
-        // This directory's other sessions, newest first, one click (or
-        // Tab, the arrows and Enter) away: as many rows as the panel's height
-        // leaves, scrolling through the rest.
-        // The banner sits at the top, so the list gets every row under the
-        // fields, a blank and its heading; a blank row above the banner only
-        // when the whole list fits anyway. The sessions go under the heading
-        // rather than beside it, so their titles get the full width.
-        let header_len = info.len();
-        let total = self.recent_sessions.len();
-        let list_need = if total > 0 { total + 2 } else { 0 };
-        let margin = usize::from(area.height as usize > header_len + list_need);
-        let rows = total.min((area.height as usize).saturating_sub(margin + header_len + 2));
-        self.recent_rows = rows;
-        let list_start = header_len + 2;
-        if rows > 0 {
-            self.recent_top = self.recent_top.min(total - rows);
-            if self.chat_focus {
-                self.scroll_recent_selection_into_view();
-            }
-            info.push((Line::from(""), None));
-            info.push((
-                Line::styled(t.agent_banner_sessions().to_string(), dim),
+        debug_assert_eq!(fields.len(), self.banner_field_rows());
+
+        // The document, row by row: what each row shows, at which column and
+        // width, and what a click on it does.
+        let mut doc: Vec<(Line<'static>, u16, u16, Option<BannerHit>)> = Vec::new();
+        for (line, hit) in fields {
+            doc.push((line, info_x, info_w, hit));
+        }
+        if !notices.is_empty() {
+            doc.push((
+                transcript::separator(text_w + 1, colors),
+                area.x,
+                text_w,
                 None,
             ));
-            let first = self.recent_top;
-            for (index, summary) in self.recent_sessions[first..first + rows]
-                .iter()
-                .enumerate()
-                .map(|(row, summary)| (first + row, summary))
-            {
-                // Only the title is in the accent colour; the date before it
-                // is dim.
-                let line = Line::from(vec![
-                    Span::styled(format!("{}  ", local_minute(summary.modified)), dim),
-                    Span::styled(truncate_title(&summary.label()), link),
-                ]);
-                info.push((line, Some(BannerHit::Session(index))));
+            for line in notices {
+                doc.push((line.clone(), area.x, text_w, None));
             }
         }
-
+        // This directory's other sessions, newest first, one click (or
+        // Tab, the arrows and Enter) away. The sessions go under the heading
+        // rather than beside it, so their titles get the full width.
+        if !self.recent_sessions.is_empty() {
+            doc.push((Line::from(""), list_x, list_w, None));
+            doc.push((
+                Line::styled(t.agent_banner_sessions().to_string(), dim),
+                list_x,
+                list_w,
+                None,
+            ));
+        }
+        let list_start = doc.len();
+        for (index, summary) in self.recent_sessions.iter().enumerate() {
+            // Only the title is in the accent colour; the date before it is
+            // dim.
+            let line = Line::from(vec![
+                Span::styled(format!("{}  ", local_minute(summary.modified)), dim),
+                Span::styled(truncate_title(&summary.display_label()), link),
+            ]);
+            doc.push((line, list_x, list_w, Some(BannerHit::Session(index))));
+        }
+        // A blank row above the banner only when the whole document fits
+        // anyway, so a short panel spends none of its rows on it.
+        let height = area.height as usize;
+        let margin = usize::from(height > doc.len());
+        let total = doc.len() + margin;
+        let list_start = list_start + margin;
         // The logo starts on the title's row.
-        let bottom = area.y + area.height;
-        let top = area.y + margin as u16;
-        if show_logo {
-            for (i, line) in LOGO.iter().enumerate() {
-                let y = top + i as u16;
-                if y >= bottom {
-                    break;
-                }
+        let logo_row = margin;
+
+        // A notice arriving above the list while it is scrolled moves the
+        // view along with it, so the session under the pointer stays put.
+        if self.banner_top > 0 && list_start != self.banner_list_start {
+            self.banner_top = (self.banner_top + list_start).saturating_sub(self.banner_list_start);
+        }
+        self.banner_list_start = list_start;
+        self.banner_rows = total;
+        self.banner_top = self.banner_top.min(total.saturating_sub(height));
+
+        let cursor_shown = self.chat_focus && panel_focused;
+        let top = self.banner_top;
+        for screen_row in 0..height.min(total - top) {
+            let row = top + screen_row;
+            let y = area.y + screen_row as u16;
+            if show_logo && (logo_row..logo_row + WELCOME_LOGO_ROWS).contains(&row) {
                 buf.set_stringn(
                     area.x + 2,
                     y,
-                    line,
+                    LOGO[row - logo_row],
                     logo_w as usize,
                     Style::default().fg(colors.info),
                 );
             }
-        }
-        let info_top = top;
-        for (i, (line, hit)) in info.iter().enumerate() {
-            let y = info_top + i as u16;
-            if y >= bottom {
-                break;
-            }
-            let (x, w) = if i < header_len {
-                (info_x, info_w)
-            } else {
-                (list_x, list_w)
+            let Some((line, x, w, hit)) = row.checked_sub(margin).and_then(|i| doc.get(i)) else {
+                continue;
             };
-            buf.set_line(x, y, line, w);
+            buf.set_line(*x, y, line, *w);
             // The whole field row is the click target, so the label is as good
             // as the value; an external agent still routes the click, and its
-            // action answers with the "unsupported" notice.
+            // action answers with the "unsupported" notice. A row scrolled out
+            // of view takes no clicks.
             if let Some(hit) = hit {
                 self.banner_hits.push((
                     Rect {
-                        x,
+                        x: *x,
                         y,
-                        width: w,
+                        width: *w,
                         height: 1,
                     },
                     *hit,
@@ -459,27 +829,13 @@ impl AgentPanel {
             }
             // The session under the keyboard cursor is shown inverted, like
             // a selected chat block.
-            if self.chat_focus && *hit == Some(BannerHit::Session(self.recent_selected)) {
-                for x in x..x + w {
+            if cursor_shown && *hit == Some(BannerHit::Session(self.recent_selected)) {
+                for x in *x..*x + *w {
                     buf[(x, y)].set_style(Style::default().fg(colors.bg).bg(colors.fg));
                 }
             }
         }
-        // A list longer than its rows gets a scrollbar in the gutter beside it.
-        if rows > 0 {
-            let list_y = info_top + list_start as u16;
-            ScrollBar::render(
-                buf,
-                area.x + area.width - 1,
-                list_y,
-                (rows as u16).min(bottom.saturating_sub(list_y)),
-                self.recent_top,
-                rows,
-                total,
-                colors,
-                self.chat_focus,
-            );
-        }
+        total
     }
 
     /// The run controls the current state offers: pause and stop while the
@@ -487,8 +843,8 @@ impl AgentPanel {
     /// has taken effect, stop alone while a stop is under way, none while
     /// idle.
     pub(crate) fn run_buttons(&self) -> Vec<RunButton> {
-        let paused = self.paused && !self.is_busy();
-        if self.is_busy() && self.stop_requested {
+        let paused = (self.paused || self.retry_wait.is_some()) && !self.is_busy();
+        if self.is_busy() && self.stop_requested.is_some() {
             vec![RunButton::Stop]
         } else if paused || (self.is_busy() && self.pause_requested) {
             vec![RunButton::Continue, RunButton::Stop]
@@ -505,17 +861,29 @@ impl AgentPanel {
     /// A run control's color: the panel border's accent at rest, so a
     /// control reads as part of the frame rather than engaged just because
     /// a run is on; continue is green and stop red only while the pause or
-    /// stop they stand for is under way.
-    pub(crate) fn run_button_color(&self, button: RunButton) -> Color {
+    /// stop they stand for is under way. A panel in the background dims
+    /// them all to the inactive border color, as it does its frame.
+    pub(crate) fn run_button_color(&self, button: RunButton, focused: bool) -> Color {
+        if !focused {
+            return self.colors.border;
+        }
         match button {
             RunButton::Pause => self.colors.border_focused,
             RunButton::Continue => self.colors.success,
-            RunButton::Stop if self.stop_requested => self.colors.error,
+            RunButton::Stop if self.stop_requested.is_some() => self.colors.error,
             RunButton::Stop => self.colors.border_focused,
         }
     }
 
-    pub(crate) fn render_input(&mut self, area: Rect, buf: &mut Buffer, focused: bool) {
+    /// `panel_focused` colors the run controls; `focused` (the input's own
+    /// focus) brightens the bar's border.
+    pub(crate) fn render_input(
+        &mut self,
+        area: Rect,
+        buf: &mut Buffer,
+        focused: bool,
+        panel_focused: bool,
+    ) {
         let colors = self.colors;
         // The run controls sit at the right end of the top border, always in
         // view whatever the transcript's scroll.
@@ -531,7 +899,7 @@ impl AgentPanel {
                 };
                 (
                     label.to_string(),
-                    Style::default().fg(self.run_button_color(button)),
+                    Style::default().fg(self.run_button_color(button, panel_focused)),
                 )
             })
             .collect();
@@ -595,6 +963,41 @@ impl AgentPanel {
         // transcript and the card, leaving the transcript at least one row.
         let text_width = area.width.saturating_sub(1).max(1);
         let mut state = self.state_lines(text_width);
+        // An active goal or loop stays in sight while it goes on, between
+        // its runs as well as during them.
+        let autorun_rows = self.autorun_rows();
+        let autorun = autorun_strip(&autorun_rows, text_width, &self.colors);
+        let autorun_from = if autorun.is_empty() {
+            None
+        } else {
+            if state.is_empty() {
+                state.push(transcript::separator(text_width, &self.colors));
+            }
+            let from = state.len();
+            state.extend(autorun);
+            Some(from)
+        };
+        // The subagents still running, closest to the input, so a block
+        // scrolled out of view does not hide that one works.
+        let task_items = self.running_task_rows();
+        let task_lines = task_strip(
+            &task_items
+                .iter()
+                .map(|(_, row)| row.clone())
+                .collect::<Vec<_>>(),
+            text_width,
+            &self.colors,
+        );
+        let tasks_from = if task_lines.is_empty() {
+            None
+        } else {
+            if state.is_empty() {
+                state.push(transcript::separator(text_width, &self.colors));
+            }
+            let from = state.len();
+            state.extend(task_lines);
+            Some(from)
+        };
         let room = area
             .height
             .saturating_sub(bar_rows + form_rows + u16::from(has_separator) + 1);
@@ -642,9 +1045,6 @@ impl AgentPanel {
         // range to tint — computed now, before `lines` borrows the transcript.
         let item_count = self.transcript.items().len();
         let banner = self.banner_shown();
-        // The banner's top margin and its fields, which the notices under it
-        // leave room for.
-        let needed = 1 + self.banner_field_rows().max(WELCOME_LOGO_ROWS);
         let mut selected_range: Option<(usize, usize)> = None;
         // Under the banner the keyboard is in its list of sessions, not on
         // the notices.
@@ -657,36 +1057,30 @@ impl AgentPanel {
             // brought to a block only when the selection moves (see
             // `scroll_selected_into_view`), not on every frame. Here we only
             // note the block's flat-line range to tint.
-            // The rule or gap around a block stays out of the highlight.
-            selected_range = self.transcript.content_lines_of(self.selected);
+            // The rule or gap around a block stays out of the highlight, and
+            // a background panel shows none, so it does not draw the eye.
+            if ctx.is_focused {
+                selected_range = self.transcript.content_lines_of(self.selected);
+            }
         }
         let lines = self.transcript.lines(text_width, &colors, is_light);
         // The block under the chat cursor is shown inverted (text and
         // background swapped), so the selection reads as one solid block.
         let selected_style = Style::default().fg(colors.bg).bg(colors.fg);
+        // Rows and first row on screen of what the scrollbar tracks: the
+        // banner's document or the transcript.
+        let mut scroll = (self.top, total);
         if banner {
             // A fresh session shows a welcome banner in place of the
-            // transcript: the logo and what the agent is set up with. What
-            // the panel reports before the first request goes under it, past
-            // a dashed rule, the latest kept in view; the banner's list of
-            // sessions gives up its rows first, its fields never.
-            let room = (transcript_height as usize).saturating_sub(needed + 1);
-            let shown = lines.len().min(room);
-            let notices: Vec<Line<'static>> = lines[lines.len() - shown..].to_vec();
-            let rule_rows = u16::from(shown > 0);
+            // transcript, with what the panel reports before the first
+            // request inside it.
+            let notices: Vec<Line<'static>> = lines.to_vec();
             let welcome = Rect {
-                height: transcript_height - shown as u16 - rule_rows,
+                height: transcript_height,
                 ..area
             };
-            self.render_welcome(welcome, buf, &colors);
-            if shown > 0 {
-                let rule_y = area.y + welcome.height;
-                let rule = transcript::separator(text_width + 1, &colors);
-                buf.set_line(area.x, rule_y, &rule, text_width);
-                for (row, line) in notices.iter().enumerate() {
-                    buf.set_line(area.x, rule_y + 1 + row as u16, line, text_width);
-                }
-            }
+            let rows = self.render_welcome(welcome, buf, &colors, ctx.is_focused, &notices);
+            scroll = (self.banner_top, rows);
         } else {
             // No banner while the session has content, so its click targets go.
             self.banner_hits.clear();
@@ -709,6 +1103,19 @@ impl AgentPanel {
                         cell.set_style(style);
                     }
                 }
+                // The link under the pointer while Ctrl is held, lit whole.
+                for &(line, start, end) in self.hovered_link.iter().flatten() {
+                    if line != self.top + row {
+                        continue;
+                    }
+                    for dx in start.min(text_width as usize)..end.min(text_width as usize) {
+                        buf[(area.x + dx as u16, area.y + row as u16)].set_style(
+                            Style::default()
+                                .fg(colors.info)
+                                .add_modifier(Modifier::UNDERLINED),
+                        );
+                    }
+                }
                 // A mouse selection over the text, as a terminal shows one.
                 if let Some((start, end)) = self
                     .text_selection
@@ -724,31 +1131,56 @@ impl AgentPanel {
                 }
             }
         }
-        // The banner's list draws its own bar; the notices under it keep to
-        // their latest rows and scroll nowhere.
-        self.scrollbars.vertical = if banner {
-            None
-        } else {
-            ScrollBar::render_tracked(
-                buf,
-                ctx.border_right_x.unwrap_or(area.x + area.width - 1),
-                area.y,
-                transcript_height,
-                self.top,
-                transcript_height as usize,
-                total,
-                &self.colors,
-                ctx.is_focused,
-            )
-        };
+        self.scrollbars.vertical = ScrollBar::render_tracked(
+            buf,
+            ctx.border_right_x.unwrap_or(area.x + area.width - 1),
+            area.y,
+            transcript_height,
+            scroll.0,
+            transcript_height as usize,
+            scroll.1,
+            &self.colors,
+            ctx.is_focused,
+        );
 
         let state_y = area.y + transcript_height;
         for (row, line) in state.iter().enumerate() {
             buf.set_line(area.x, state_y + row as u16, line, text_width);
         }
+        // Each subagent row brings its block into view on a click.
+        self.task_rows = tasks_from
+            .map(|from| {
+                task_items
+                    .iter()
+                    .take(STATE_QUEUED_ROWS)
+                    .enumerate()
+                    .filter(|(i, _)| from + i < state.len())
+                    .map(|(i, (index, _))| (state_y + (from + i) as u16, *index))
+                    .collect()
+            })
+            .unwrap_or_default();
+        // Each goal or loop row stops it on a click on its `✕`, and brings
+        // its latest run into view on a click elsewhere on the row.
+        self.autorun_stops = autorun_from
+            .map(|from| {
+                autorun_rows
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, _)| from + i < state.len())
+                    .map(|(i, row)| {
+                        let at = Position {
+                            x: area.x + autorun_stop_column(text_width),
+                            y: state_y + (from + i) as u16,
+                        };
+                        (at, row.kind)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         // The strip's pending-pause line (after its rule) withdraws the pause
         // on a click.
-        self.pause_row = (self.pause_requested && state.len() > 1).then_some(state_y + 1);
+        self.pause_row = (self.pause_requested && self.retry_wait.is_none() && state.len() > 1)
+            .then_some(state_y + 1);
         if has_separator {
             let y = form_area.y - 1;
             let style = Style::default().fg(if ctx.is_focused {
@@ -761,7 +1193,12 @@ impl AgentPanel {
             }
         }
         let input_area = self.input_area;
-        self.render_input(input_area, buf, ctx.is_focused && !self.chat_focus);
+        self.render_input(
+            input_area,
+            buf,
+            ctx.is_focused && !self.chat_focus,
+            ctx.is_focused,
+        );
         if form_rows >= 3 {
             if let Some(pending) = &mut self.pending {
                 pending
@@ -815,6 +1252,56 @@ impl AgentPanel {
                     ),
                 ]);
             }
+            // The agent's own reasoning setting and the rest of its settings,
+            // when it offers them.
+            if let Some(option) = self.acp_thought_option() {
+                segments.extend([
+                    sep(),
+                    StatusSegment::clickable(
+                        t.agent_chip_reasoning(),
+                        SegmentKind::Label,
+                        REASONING_ACTION,
+                    ),
+                    StatusSegment::clickable(
+                        option.current_name().to_string(),
+                        SegmentKind::Active,
+                        REASONING_ACTION,
+                    ),
+                ]);
+            }
+            let extra = self.acp_extra_options();
+            if !extra.is_empty() {
+                let values: Vec<&str> = extra.iter().map(|option| option.current_name()).collect();
+                segments.extend([
+                    sep(),
+                    StatusSegment::clickable(
+                        t.agent_chip_options(),
+                        SegmentKind::Label,
+                        OPTIONS_ACTION,
+                    ),
+                    StatusSegment::clickable(
+                        values.join(" · "),
+                        SegmentKind::Active,
+                        OPTIONS_ACTION,
+                    ),
+                ]);
+            }
+            if self.has_toolset() {
+                let (on, all) = self.toolset_counts();
+                segments.extend([
+                    sep(),
+                    StatusSegment::clickable(
+                        t.agent_chip_tools(),
+                        SegmentKind::Label,
+                        TOOLSET_ACTION,
+                    ),
+                    StatusSegment::clickable(
+                        format!("{on}/{all}"),
+                        SegmentKind::Active,
+                        TOOLSET_ACTION,
+                    ),
+                ]);
+            }
             // A CLI agent is a connection too: the way back is here.
             if self.connections.is_some() {
                 segments.extend([
@@ -825,7 +1312,7 @@ impl AgentPanel {
                         CONNECTION_ACTION,
                     ),
                     StatusSegment::clickable(
-                        self.connection_display(),
+                        self.connection_chip(),
                         SegmentKind::Active,
                         CONNECTION_ACTION,
                     ),
@@ -873,15 +1360,16 @@ impl AgentPanel {
                     CONNECTION_ACTION,
                 ),
                 StatusSegment::clickable(
-                    self.connection_display(),
+                    self.connection_chip(),
                     SegmentKind::Active,
                     CONNECTION_ACTION,
                 ),
             ]);
         }
         // The agent's model over ACP, when it advertised any: clickable to
-        // switch, like the built-in loop's Model chip.
-        if !self.external || self.acp_has_models {
+        // switch, like the built-in loop's Model chip. While the agent starts
+        // the chip holds a spinner, its models not known yet.
+        if !self.external || self.acp_has_models || self.runtime.is_starting() {
             segments.extend([
                 sep(),
                 StatusSegment::clickable(t.agent_chip_model(), SegmentKind::Label, MODEL_ACTION),

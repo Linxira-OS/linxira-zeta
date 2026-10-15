@@ -3,15 +3,14 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
+use super::super::parked_projects::ProjectStep;
 use super::super::App;
 use crate::projects_menu::{ProjectRow, ProjectsTarget};
-use crate::state::{ActiveModal, PendingAction};
+use crate::state::{ActiveModal, PendingAction, ProjectsOrigin};
 use crate::PanelExt;
 use termide_app_core::Panel;
 use termide_i18n as i18n;
-use termide_ui_render::{
-    PROJECTS_SUBMENU_CHANGE_ROOT, PROJECTS_SUBMENU_NEW, PROJECTS_SUBMENU_SWITCH,
-};
+use termide_ui_render::{PROJECTS_SUBMENU_CHANGE_ROOT, PROJECTS_SUBMENU_NEW};
 
 impl App {
     /// Open the projects modal to switch between projects. It lists the
@@ -137,14 +136,18 @@ impl App {
             }
         }
 
-        // Drive roots (Windows only): the one way to another drive without
+        // Drive roots (Windows) and mount points (Unix: the root, disks,
+        // removable media, network shares): the way to another drive without
         // typing its path, and what ".." at a drive root opens.
-        for path in termide_vfs::drive_roots() {
+        let locations = termide_vfs::drive_roots()
+            .into_iter()
+            .chain(termide_system_monitor::browsable_mount_points());
+        for path in locations {
             if items.iter().any(|item| item.path == path) {
                 continue;
             }
             items.push(DirectoryItem {
-                display: path.display().to_string(),
+                display: termide_core::util::shorten_home_path(&path.display().to_string()),
                 is_current: current_dir.as_ref() == Some(&path),
                 path,
                 is_bookmark: false,
@@ -178,8 +181,8 @@ impl App {
     // =========================================================================
 
     /// Handle keyboard event in the Projects menu. Delete/F8 closes an open
-    /// project, or deletes the saved layout of one that is not open; the
-    /// current project stays.
+    /// project — the current one by switching to the one left last — or
+    /// deletes the saved layout of one that is not open.
     pub(in crate::app) fn handle_projects_submenu_key(
         &mut self,
         key: crossterm::event::KeyEvent,
@@ -187,12 +190,15 @@ impl App {
         use super::navigate_submenu;
         use super::SubmenuNavAction;
 
+        if let Some(step) = self.project_step_of(&key) {
+            self.move_selected_open_project(step);
+            return Ok(());
+        }
+
         let menu = self.state.projects_menu();
         let target = ProjectsTarget::of(menu.selected_row());
         let removable = match menu.selected_row() {
-            Some(ProjectRow::Project(project)) if project.root != self.project_root => {
-                Some(project.clone())
-            }
+            Some(ProjectRow::Project(project)) => Some(project.clone()),
             _ => None,
         };
         let mut cursor = termide_state::SubmenuState {
@@ -213,15 +219,64 @@ impl App {
                     let selection = self.state.ui.projects_submenu.selected;
                     self.state.close_menu();
                     if project.open {
-                        self.confirm_close_project(project.root, Some(selection));
+                        self.confirm_close_project(project.root, ProjectsOrigin::Menu(selection));
                     } else {
-                        self.confirm_delete_project(project.root, Some(selection));
+                        self.confirm_delete_project(project.root, ProjectsOrigin::Menu(selection));
                     }
                 }
             }
             SubmenuNavAction::Rename | SubmenuNavAction::Edit | SubmenuNavAction::None => {}
         }
         Ok(())
+    }
+
+    /// Move the open project selected in the Projects menu, the cursor with
+    /// it. Projects not open keep their order: the most recent first.
+    fn move_selected_open_project(&mut self, step: ProjectStep) {
+        let menu = self.state.projects_menu();
+        let root = match menu.selected_row() {
+            Some(ProjectRow::Project(project)) if project.open => project.root.clone(),
+            _ => return,
+        };
+        let Some(first) = menu
+            .rows
+            .iter()
+            .position(|row| matches!(row, ProjectRow::Project(_)))
+        else {
+            return;
+        };
+        drop(menu);
+        if let Some(place) = self.move_open_project(&root, step) {
+            self.state.ui.projects_submenu.selected = first + place;
+            self.state.needs_redraw = true;
+        }
+    }
+
+    /// In the project switcher, move the open project under the cursor
+    /// when `key` is one that moves panels between groups. Returns whether
+    /// the key was taken: a filtered list or a project not open lets it
+    /// through to the switcher.
+    pub(in crate::app) fn move_switcher_project(
+        &mut self,
+        key: &crossterm::event::KeyEvent,
+    ) -> bool {
+        let root = match &self.state.active_modal {
+            Some(ActiveModal::Projects(modal)) => match modal.selected_open_project() {
+                Some(root) => root.to_path_buf(),
+                None => return false,
+            },
+            _ => return false,
+        };
+        let Some(step) = self.project_step_of(key) else {
+            return false;
+        };
+        if let Some(place) = self.move_open_project(&root, step) {
+            if let Some(ActiveModal::Projects(modal)) = &mut self.state.active_modal {
+                modal.move_selected_open_project(place);
+            }
+            self.state.needs_redraw = true;
+        }
+        true
     }
 
     /// Open the Projects menu at row `selection`, as close as the reloaded
@@ -246,13 +301,13 @@ impl App {
                     self.switch_to_project(path)?;
                 }
             }
+            ProjectsTarget::Reopen => {
+                self.state.close_menu();
+                self.reopen_previous_projects();
+            }
             ProjectsTarget::Action(PROJECTS_SUBMENU_NEW) => {
                 self.state.close_menu();
                 self.handle_new_project()?;
-            }
-            ProjectsTarget::Action(PROJECTS_SUBMENU_SWITCH) => {
-                self.state.close_menu();
-                self.handle_open_projects_modal()?;
             }
             ProjectsTarget::Action(PROJECTS_SUBMENU_CHANGE_ROOT) => {
                 self.state.close_menu();
@@ -275,7 +330,8 @@ impl App {
             initial_dir,
             t.projects_new().to_string(),
             t.directory_picker_create().to_string(),
-        );
+        )
+        .with_keybindings(&self.state.config.file_manager.keybindings);
         self.state.set_pending_action(
             PendingAction::NewProject,
             ActiveModal::DirectoryPicker(Box::new(modal)),
@@ -296,7 +352,8 @@ impl App {
             initial_dir,
             t.projects_change_root().to_string(),
             t.directory_picker_move().to_string(),
-        );
+        )
+        .with_keybindings(&self.state.config.file_manager.keybindings);
         self.state.set_pending_action(
             PendingAction::ChangeRootPath,
             ActiveModal::DirectoryPicker(Box::new(modal)),

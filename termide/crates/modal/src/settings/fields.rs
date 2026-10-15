@@ -4,7 +4,7 @@
 //! each tab, how to read/write them on a `Config`, and the type markers used
 //! by the renderer. It deliberately contains no UI state or rendering logic.
 
-use termide_config::Config;
+use termide_config::{Config, LimitPolicy};
 use termide_i18n as i18n;
 use termide_theme::Theme;
 
@@ -187,10 +187,16 @@ pub(super) fn fields_for_tab(tab: SettingsTab) -> Vec<FieldDescriptor> {
                 field_type: FieldType::Enum,
             },
         ],
-        SettingsTab::Vfs => vec![FieldDescriptor {
-            label: t.settings_vfs_connection_timeout(),
-            field_type: FieldType::Number,
-        }],
+        SettingsTab::Vfs => vec![
+            FieldDescriptor {
+                label: t.settings_vfs_connection_timeout(),
+                field_type: FieldType::Number,
+            },
+            FieldDescriptor {
+                label: t.settings_vault_lock_after(),
+                field_type: FieldType::Number,
+            },
+        ],
         SettingsTab::Ai => vec![
             FieldDescriptor {
                 label: t.settings_agent_max_tokens(),
@@ -226,6 +232,14 @@ pub(super) fn fields_for_tab(tab: SettingsTab) -> Vec<FieldDescriptor> {
             },
             FieldDescriptor {
                 label: t.settings_agent_auto_reviewer(),
+                field_type: FieldType::Enum,
+            },
+            FieldDescriptor {
+                label: t.settings_agent_auto_reviewer_model(),
+                field_type: FieldType::OptionalText,
+            },
+            FieldDescriptor {
+                label: t.settings_agent_on_limit(),
                 field_type: FieldType::Enum,
             },
         ],
@@ -298,6 +312,7 @@ pub(super) fn get_field_value(config: &Config, tab: SettingsTab, index: usize) -
         },
         SettingsTab::Vfs => match index {
             0 => config.vfs.connection_timeout_secs.to_string(),
+            1 => config.vault.lock_after_mins.to_string(),
             _ => String::new(),
         },
         SettingsTab::Ai => match index {
@@ -318,7 +333,17 @@ pub(super) fn get_field_value(config: &Config, tab: SettingsTab, index: usize) -
                 }
             }
             AI_PERMISSION_MODE_FIELD => permission_mode_label(config.ai.permission_mode()),
-            AI_AUTO_REVIEWER_FIELD => auto_reviewer_label(&config.ai.auto_reviewer),
+            AI_AUTO_REVIEWER_FIELD => auto_reviewer_label(&config.ai.auto_reviewer.connection),
+            AI_ON_LIMIT_FIELD => on_limit_label(config.ai.on_limit),
+            AI_AUTO_REVIEWER_MODEL_FIELD => {
+                if config.ai.auto_reviewer.model.is_empty() {
+                    i18n::t()
+                        .settings_agent_auto_reviewer_model_default()
+                        .to_string()
+                } else {
+                    config.ai.auto_reviewer.model.clone()
+                }
+            }
             _ => String::new(),
         },
         // Read from the open connection by the modal, not the config alone.
@@ -496,10 +521,21 @@ pub(super) fn enum_options(config: &Config, tab: SettingsTab, index: usize) -> O
             let labels = values.iter().map(|v| permission_mode_label(v)).collect();
             (values, labels, config.ai.permission_mode().to_string())
         }
+        (SettingsTab::Ai, AI_ON_LIMIT_FIELD) => {
+            let values: Vec<String> = LimitPolicy::ALL
+                .iter()
+                .map(|p| p.label().to_string())
+                .collect();
+            let labels = LimitPolicy::ALL
+                .iter()
+                .map(|p| on_limit_label(*p))
+                .collect();
+            (values, labels, config.ai.on_limit.label().to_string())
+        }
         (SettingsTab::Ai, AI_AUTO_REVIEWER_FIELD) => {
             let values = auto_reviewer_choices(config);
             let labels = values.iter().map(|v| auto_reviewer_label(v)).collect();
-            (values, labels, config.ai.auto_reviewer.clone())
+            (values, labels, config.ai.auto_reviewer.connection.clone())
         }
         _ => return None,
     };
@@ -542,7 +578,14 @@ pub(super) fn apply_enum_value(config: &mut Config, tab: SettingsTab, index: usi
         (SettingsTab::Ai, 4) => config.ai.web.engine = value.to_string(),
         (SettingsTab::Ai, 5) => config.ai.web.display = value.to_string(),
         (SettingsTab::Ai, AI_PERMISSION_MODE_FIELD) => config.ai.set_permission_mode(value),
-        (SettingsTab::Ai, AI_AUTO_REVIEWER_FIELD) => config.ai.auto_reviewer = value.to_string(),
+        (SettingsTab::Ai, AI_ON_LIMIT_FIELD) => {
+            if let Some(policy) = LimitPolicy::ALL.into_iter().find(|p| p.label() == value) {
+                config.ai.on_limit = policy;
+            }
+        }
+        (SettingsTab::Ai, AI_AUTO_REVIEWER_FIELD) => {
+            config.ai.auto_reviewer.connection = value.to_string();
+        }
         _ => {}
     }
 }
@@ -573,6 +616,35 @@ fn cycle_fold_blocks(config: &mut Config, forward: bool) {
     }];
 }
 
+/// The AI tab's field for what a run stopped by a limit or an outage does.
+pub(super) const AI_ON_LIMIT_FIELD: usize = 10;
+
+/// A limit policy's localized name.
+fn on_limit_label(policy: LimitPolicy) -> String {
+    let t = i18n::t();
+    match policy {
+        LimitPolicy::Ask => t.settings_agent_on_limit_ask(),
+        LimitPolicy::Wait => t.settings_agent_on_limit_wait(),
+        LimitPolicy::Stop => t.settings_agent_on_limit_stop(),
+    }
+    .to_string()
+}
+
+/// Step the limit policy to the next (or previous) one, wrapping.
+fn cycle_on_limit(config: &mut Config, forward: bool) {
+    let all = LimitPolicy::ALL;
+    let pos = all
+        .iter()
+        .position(|p| *p == config.ai.on_limit)
+        .unwrap_or(0);
+    let len = all.len();
+    config.ai.on_limit = all[if forward {
+        (pos + 1) % len
+    } else {
+        (pos + len - 1) % len
+    }];
+}
+
 /// The AI tab's field for the permission mode new sessions start in.
 pub(super) const AI_PERMISSION_MODE_FIELD: usize = 7;
 
@@ -594,18 +666,15 @@ fn permission_mode_label(mode: &str) -> String {
 /// The AI tab's field for the connection whose model reviews in `auto` mode.
 pub(super) const AI_AUTO_REVIEWER_FIELD: usize = 8;
 
-/// What the `auto` mode reviewer can be: the session's model (empty), or a
-/// connection to a model — a CLI agent reviews nothing.
+/// The AI tab's field for the model of that connection (or of the
+/// session's) the reviewer runs on.
+pub(super) const AI_AUTO_REVIEWER_MODEL_FIELD: usize = 9;
+
+/// What the `auto` mode reviewer can be: the session's connection (empty),
+/// or any connection — a CLI agent reviews through its subscription.
 fn auto_reviewer_choices(config: &Config) -> Vec<String> {
     std::iter::once(String::new())
-        .chain(
-            config
-                .ai
-                .connections
-                .iter()
-                .filter(|(_, c)| !termide_config::is_cli_provider(&c.provider))
-                .map(|(name, _)| name.clone()),
-        )
+        .chain(config.ai.connections.keys().cloned())
         .collect()
 }
 
@@ -619,7 +688,7 @@ fn auto_reviewer_label(value: &str) -> String {
 
 fn cycle_auto_reviewer(config: &mut Config, forward: bool) {
     let choices = auto_reviewer_choices(config);
-    step_value(&mut config.ai.auto_reviewer, &choices, forward);
+    step_value(&mut config.ai.auto_reviewer.connection, &choices, forward);
 }
 
 /// Step the permission mode to the next (or previous) one, wrapping.
@@ -727,6 +796,7 @@ pub(super) fn cycle_enum_forward(config: &mut Config, tab: SettingsTab, index: u
             3..=5 => cycle_web_field(config, index, true),
             AI_PERMISSION_MODE_FIELD => cycle_permission_mode(config, true),
             AI_AUTO_REVIEWER_FIELD => cycle_auto_reviewer(config, true),
+            AI_ON_LIMIT_FIELD => cycle_on_limit(config, true),
             _ => {}
         },
         _ => {}
@@ -779,6 +849,7 @@ pub(super) fn cycle_enum_backward(config: &mut Config, tab: SettingsTab, index: 
             3..=5 => cycle_web_field(config, index, false),
             AI_PERMISSION_MODE_FIELD => cycle_permission_mode(config, false),
             AI_AUTO_REVIEWER_FIELD => cycle_auto_reviewer(config, false),
+            AI_ON_LIMIT_FIELD => cycle_on_limit(config, false),
             _ => {}
         },
         _ => {}
@@ -835,8 +906,8 @@ mod field_index_tests {
         let fields = fields_for_tab(SettingsTab::Ai);
         assert_eq!(
             fields.len(),
-            9,
-            "the permission mode and its reviewer follow the web fields"
+            11,
+            "the permission mode, its reviewer and model, then the limit policy follow the web fields"
         );
         assert!(matches!(fields[6].field_type, FieldType::OptionalText));
         assert!(matches!(fields[7].field_type, FieldType::Enum));
@@ -954,6 +1025,24 @@ mod enum_option_tests {
     }
 
     #[test]
+    fn the_limit_policy_cycles_and_reads_back() {
+        let mut config = Config::default();
+        let field = AI_ON_LIMIT_FIELD;
+        assert_eq!(fields_for_tab(SettingsTab::Ai).len(), field + 1);
+        assert_eq!(config.ai.on_limit, LimitPolicy::Ask);
+        cycle_enum_forward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.on_limit, LimitPolicy::Wait);
+        cycle_enum_backward(&mut config, SettingsTab::Ai, field);
+        cycle_enum_backward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.on_limit, LimitPolicy::Stop);
+        apply_enum_value(&mut config, SettingsTab::Ai, field, "wait");
+        assert_eq!(config.ai.on_limit, LimitPolicy::Wait);
+        let options = enum_options(&config, SettingsTab::Ai, field).unwrap();
+        assert_eq!(options.values, ["ask", "wait", "stop"]);
+        assert_eq!(options.current, Some(1));
+    }
+
+    #[test]
     fn the_auto_reviewer_is_the_session_model_or_a_model_connection() {
         let mut config = Config::default();
         for (name, provider) in [("cloud", "anthropic_compatible"), ("cli", "claude_code")] {
@@ -966,22 +1055,30 @@ mod enum_option_tests {
             );
         }
         let field = AI_AUTO_REVIEWER_FIELD;
-        assert_eq!(fields_for_tab(SettingsTab::Ai).len(), field + 1);
+        assert_eq!(AI_AUTO_REVIEWER_MODEL_FIELD, field + 1);
         let options = enum_options(&config, SettingsTab::Ai, field).unwrap();
-        // A CLI agent cannot review.
-        assert_eq!(options.values, ["", "cloud"]);
+        // A CLI agent reviews through its subscription.
+        assert_eq!(options.values, ["", "cli", "cloud"]);
         assert_eq!(options.current, Some(0));
         assert_eq!(
             get_field_value(&config, SettingsTab::Ai, field),
             i18n::t().settings_agent_auto_reviewer_session()
         );
         cycle_enum_forward(&mut config, SettingsTab::Ai, field);
-        assert_eq!(config.ai.auto_reviewer, "cloud");
-        assert_eq!(get_field_value(&config, SettingsTab::Ai, field), "cloud");
+        assert_eq!(config.ai.auto_reviewer.connection, "cli");
+        assert_eq!(get_field_value(&config, SettingsTab::Ai, field), "cli");
         cycle_enum_backward(&mut config, SettingsTab::Ai, field);
-        assert_eq!(config.ai.auto_reviewer, "");
+        assert_eq!(config.ai.auto_reviewer.connection, "");
         apply_enum_value(&mut config, SettingsTab::Ai, field, "cloud");
-        assert_eq!(config.ai.auto_reviewer, "cloud");
+        assert_eq!(config.ai.auto_reviewer.connection, "cloud");
+        // The model beside it: the connection's own until one is named.
+        let model = AI_AUTO_REVIEWER_MODEL_FIELD;
+        assert_eq!(
+            get_field_value(&config, SettingsTab::Ai, model),
+            i18n::t().settings_agent_auto_reviewer_model_default()
+        );
+        config.ai.auto_reviewer.model = "haiku".into();
+        assert_eq!(get_field_value(&config, SettingsTab::Ai, model), "haiku");
     }
 
     /// Choosing from the dropdown and cycling with Left/Right must write the

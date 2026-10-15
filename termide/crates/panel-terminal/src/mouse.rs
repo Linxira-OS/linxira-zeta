@@ -8,11 +8,12 @@ use anyhow::Result;
 use crossterm::event::KeyModifiers;
 use ratatui::layout::Rect;
 
-use termide_core::PanelEvent;
+use termide_core::{LinkTarget, PanelEvent};
 use termide_ui::{extract_hex_color_at_col, ColorPreview};
 
+use crate::hyperlink::HoveredLink;
 use crate::input_encoding::{can_send_mouse_event, mouse_modifier_bits, mouse_route, MouseRoute};
-use crate::link_detection::{self, LinkType};
+use crate::link_detection;
 use crate::selection::{line_selection, word_selection};
 use crate::Terminal;
 
@@ -190,9 +191,19 @@ impl Terminal {
             let detected = if let Some((id, segments)) =
                 crate::hyperlink::osc8_region_at(&screen, abs_row, inner_col)
             {
-                screen
-                    .hyperlink_uri(id)
-                    .map(|uri| (LinkType::Hyperlink(uri.to_string()), segments))
+                screen.hyperlink_uri(id).map(|uri| {
+                    // The URI is authoritative for the path; the region's
+                    // visible text fills in a `:line:col` it does not carry.
+                    let text = crate::hyperlink::region_text(&screen, &segments);
+                    let local = crate::hyperlink::resolve_hyperlink_target(uri, &text);
+                    (
+                        HoveredLink::Osc8 {
+                            uri: uri.to_string(),
+                            local,
+                        },
+                        segments,
+                    )
+                })
             } else {
                 link_detection::detect_link_at_position(
                     &screen,
@@ -200,7 +211,7 @@ impl Terminal {
                     inner_col,
                     &self.initial_cwd,
                 )
-                .map(|(link_type, link_start_row, link_start_col, display_len)| {
+                .map(|(target, link_start_row, link_start_col, display_len)| {
                     // Build segments for multi-line highlighting
                     let segments = link_detection::build_link_segments(
                         display_len,
@@ -208,24 +219,24 @@ impl Terminal {
                         link_start_col,
                         cols,
                     );
-                    (link_type, segments)
+                    (HoveredLink::Text(target), segments)
                 })
             };
             drop(screen);
 
-            if let Some((link_type, segments)) = detected {
+            if let Some((link, segments)) = detected {
                 // Link found - check if it's new
                 let is_new_link = self
                     .hovered_link
                     .as_ref()
-                    .map(|(l, _)| l != &link_type)
+                    .map(|(l, _)| l != &link)
                     .unwrap_or(true);
 
                 if is_new_link {
                     // Copy link text to clipboard
-                    let _ = termide_ui::clipboard::copy(&link_detection::link_text(&link_type));
+                    let _ = termide_ui::clipboard::copy(&link.text());
                 }
-                self.hovered_link = Some((link_type, segments));
+                self.hovered_link = Some((link, segments));
                 self.cached_lines = None; // Force redraw
                 needs_redraw = true;
             } else if self.hovered_link.is_some() {
@@ -293,60 +304,53 @@ impl Terminal {
                 return vec![PanelEvent::NeedsRedraw];
             }
 
-            if let Some((link_type, segments)) = &self.hovered_link {
-                match link_type {
-                    LinkType::Url(url) => {
-                        let _ = open::that(url);
-                        return if needs_redraw {
-                            vec![PanelEvent::NeedsRedraw]
-                        } else {
-                            vec![]
-                        };
-                    }
-                    LinkType::Hyperlink(uri) => {
-                        // Resolve the emitter's URI to a local target; the
-                        // visible region text fills in :line:col when the URI
-                        // itself carries no position.
-                        let text = {
-                            let screen = self.read_screen();
-                            crate::hyperlink::region_text(&screen, segments)
-                        };
-                        if let Some(target) = crate::hyperlink::resolve_hyperlink_target(uri, &text)
-                        {
-                            return vec![PanelEvent::OpenPath {
-                                path: target.path,
-                                select_file: None,
-                                line: target.line,
-                                col: target.col,
-                            }];
+            // Ctrl+Click follows the link inside termide; Ctrl+Alt+Click opens
+            // it outside (the browser, a system application).
+            //
+            // A local OSC 8 target keeps the position its emitter wrote: the
+            // workbench host opens it in the editor at that line and column,
+            // which `LinkTarget` has no room for. Ctrl+Alt+Click still sends
+            // it to the system opener.
+            if let Some((link, _)) = &self.hovered_link {
+                if let HoveredLink::Osc8 {
+                    local: Some(target),
+                    ..
+                } = link
+                {
+                    return vec![if alt_pressed {
+                        PanelEvent::OpenLinkExternal(LinkTarget::Path(target.path.clone()))
+                    } else {
+                        PanelEvent::OpenPath {
+                            path: target.path.clone(),
+                            select_file: None,
+                            line: target.line,
+                            col: target.col,
                         }
-                        // Not a local target (e.g. https://) — hand it to the OS.
-                        let _ = open::that(uri);
-                        return if needs_redraw {
-                            vec![PanelEvent::NeedsRedraw]
-                        } else {
-                            vec![]
-                        };
-                    }
-                    LinkType::FilePath(path) => {
-                        let (dir, file) = if path.is_dir() {
-                            (path.clone(), None)
-                        } else {
-                            (
-                                path.parent()
-                                    .map(|p| p.to_path_buf())
-                                    .unwrap_or_else(|| path.clone()),
-                                path.file_name().map(|n| n.to_os_string()),
-                            )
-                        };
-                        return vec![PanelEvent::OpenPath {
-                            path: dir,
-                            select_file: file,
-                            line: None,
-                            col: None,
-                        }];
-                    }
+                    }];
                 }
+
+                let target = match link {
+                    HoveredLink::Text(target) => target.clone(),
+                    // An OSC 8 URI that named no local file: a web address
+                    // follows the same route as a scraped one, and anything
+                    // else (`mailto:`) is not a `LinkTarget` — the system
+                    // opener is where such a link went before the links model.
+                    HoveredLink::Osc8 { uri, .. } => {
+                        match LinkTarget::from_href(uri, &self.initial_cwd) {
+                            Some(target) => target,
+                            None => {
+                                return vec![PanelEvent::OpenExternal(std::path::PathBuf::from(
+                                    uri,
+                                ))];
+                            }
+                        }
+                    }
+                };
+                return vec![if alt_pressed {
+                    PanelEvent::OpenLinkExternal(target)
+                } else {
+                    PanelEvent::OpenLink(target)
+                }];
             }
         }
 

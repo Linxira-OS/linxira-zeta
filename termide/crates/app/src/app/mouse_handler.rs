@@ -3,8 +3,8 @@
 use anyhow::Result;
 use crossterm::event::{MouseButton, MouseEventKind};
 use ratatui::layout::Rect;
-use unicode_width::UnicodeWidthStr;
 
+use super::mouse::project_drag::ProjectDragSurface;
 use super::App;
 use crate::PanelExt;
 use termide_i18n as i18n;
@@ -74,6 +74,22 @@ impl App {
                     self.handle_panel_drag_end(mouse.column, mouse.row)?;
                     return Ok(());
                 }
+                _ => {}
+            }
+        }
+
+        // An open project held to reorder owns the mouse until release.
+        if self.is_dragging_project() {
+            match mouse.kind {
+                MouseEventKind::Drag(MouseButton::Left) => {
+                    self.handle_project_drag_move(mouse.column, mouse.row);
+                    return Ok(());
+                }
+                MouseEventKind::Up(MouseButton::Left) => {
+                    return self.handle_project_drag_end(mouse.column, mouse.row);
+                }
+                // The release was lost (outside the window): let go.
+                MouseEventKind::Down(_) => self.release_project_drag(),
                 _ => {}
             }
         }
@@ -244,6 +260,20 @@ impl App {
             return Ok(());
         }
 
+        // A press that only focused its panel keeps its drag and release.
+        if self.state.ui.focus_click_held {
+            match mouse.kind {
+                MouseEventKind::Drag(MouseButton::Left) => return Ok(()),
+                MouseEventKind::Up(MouseButton::Left) => {
+                    self.state.ui.focus_click_held = false;
+                    return Ok(());
+                }
+                // The release was lost (outside the window): let go.
+                MouseEventKind::Down(_) => self.state.ui.focus_click_held = false,
+                _ => {}
+            }
+        }
+
         // Check click on panel [X] button
         if matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left)) {
             if self.handle_panel_close_click(mouse.column, mouse.row)? {
@@ -251,7 +281,11 @@ impl App {
             }
 
             // Check click on panel to switch focus
-            self.handle_panel_focus_click(mouse.column, mouse.row)?;
+            if self.handle_panel_focus_click(mouse.column, mouse.row)? {
+                self.state.ui.focus_click_held = true;
+                self.state.needs_redraw = true;
+                return Ok(());
+            }
         }
 
         // Scroll events handled at the top of this function (before modal check)
@@ -425,7 +459,8 @@ impl App {
                                     current_path,
                                     t.directory_switcher_title().to_string(),
                                     t.directory_picker_move().to_string(),
-                                );
+                                )
+                                .with_keybindings(&self.state.config.file_manager.keybindings);
                                 self.state.set_pending_action(
                                     PendingAction::SwitchDirectory,
                                     ActiveModal::DirectoryPicker(Box::new(modal)),
@@ -445,8 +480,11 @@ impl App {
         Ok(false)
     }
 
-    /// Handle click on panel to switch focus
-    fn handle_panel_focus_click(&mut self, click_x: u16, click_y: u16) -> Result<()> {
+    /// Handle click on panel to switch focus.
+    ///
+    /// Returns true when the click only activated its panel and must not
+    /// reach it (see [`termide_core::Panel::focus_click_acts`]).
+    fn handle_panel_focus_click(&mut self, click_x: u16, click_y: u16) -> Result<bool> {
         let panel_rects = self.calculate_panel_rects();
 
         for (group_idx, panel_idx, rect, _is_expanded) in panel_rects {
@@ -466,28 +504,38 @@ impl App {
                     }
                 }
 
+                let was_active = !focus_changing
+                    && self
+                        .layout_manager
+                        .panel_groups
+                        .get(group_idx)
+                        .is_some_and(|g| g.expanded_index() == panel_idx);
+
                 // Click on a panel group - make it active
                 self.layout_manager.focus = group_idx;
-                if let Some(group) = self.layout_manager.panel_groups.get_mut(group_idx) {
-                    group.set_expanded(panel_idx);
-                }
-                return Ok(());
+                let Some(group) = self.layout_manager.panel_groups.get_mut(group_idx) else {
+                    return Ok(false);
+                };
+                group.set_expanded(panel_idx);
+                let acts = group
+                    .panels()
+                    .get(panel_idx)
+                    .is_none_or(|p| p.focus_click_acts());
+                return Ok(!was_active && !acts);
             }
         }
 
-        Ok(())
+        Ok(false)
     }
 
     /// Handle click on menu bar
     fn handle_menu_click(&mut self, x: u16) -> Result<()> {
-        let mut current_x = 1_u16;
+        // The layout of the bar as drawn, the Projects attention mark included
+        let layout = termide_ui_render::MenuLayout::compute();
 
-        // Get menu items with translations
-        let menu_items = termide_ui_render::menu::get_menu_items();
-
-        for (i, item) in menu_items.iter().enumerate() {
-            let item_width = item.width() as u16;
-            if x >= current_x && x < current_x + item_width {
+        for (i, (&item_x, &item_width)) in layout.x_positions.iter().zip(&layout.widths).enumerate()
+        {
+            if x >= item_x && x < item_x + item_width {
                 // Toggle: if this menu item is already open, close it
                 if self.state.is_menu_open() && self.state.ui.selected_menu_item == Some(i) {
                     // Restore theme if nested submenu was open
@@ -502,24 +550,33 @@ impl App {
                 }
                 return Ok(());
             }
-            current_x += item_width + 2; // +2 for spaces
+        }
+
+        let bar = self.menu_bar();
+
+        // A project button is held: released where it was pressed it
+        // switches to its project, dragged along the bar it moves.
+        if let Some(index) = bar.project_at(x) {
+            if let Some(original_name) = self.state.ui.theme_preview_original.take() {
+                self.state.theme = Theme::get_by_name(&original_name);
+            }
+            self.begin_project_drag(ProjectDragSurface::Bar, index, x, 0);
+            return Ok(());
         }
 
         // Check network/CPU/RAM/clock indicator clicks (right side of menu bar)
-        let (net_range, cpu_range, ram_range, clock_range) = self.get_indicator_ranges();
-
         use termide_ui_render::{
             INDICATOR_CLOCK_INDEX, INDICATOR_CPU_INDEX, INDICATOR_NET_INDEX, INDICATOR_RAM_INDEX,
         };
 
-        let indicator = if net_range.contains(&x) {
-            Some((INDICATOR_NET_INDEX, net_range.start))
-        } else if cpu_range.contains(&x) {
-            Some((INDICATOR_CPU_INDEX, cpu_range.start))
-        } else if ram_range.contains(&x) {
-            Some((INDICATOR_RAM_INDEX, ram_range.start))
-        } else if clock_range.contains(&x) {
-            Some((INDICATOR_CLOCK_INDEX, clock_range.start))
+        let indicator = if bar.net.contains(&x) {
+            Some((INDICATOR_NET_INDEX, bar.net.start))
+        } else if bar.cpu.contains(&x) {
+            Some((INDICATOR_CPU_INDEX, bar.cpu.start))
+        } else if bar.ram.contains(&x) {
+            Some((INDICATOR_RAM_INDEX, bar.ram.start))
+        } else if bar.clock.contains(&x) {
+            Some((INDICATOR_CLOCK_INDEX, bar.clock.start))
         } else {
             None
         };

@@ -8,10 +8,11 @@ use std::sync::{Arc, Mutex};
 use termide_agent_core::{
     permission_channel, question_channel, suggestion_channel, Agent, AgentRuntime, Backend,
     BackendSetup, CancelToken, ChainedHooks, CheckpointHooks, CheckpointStore, CompactionPolicy,
-    CompactionPrompts, GoalPrompt, HandoffPrompt, Hooks, HostTools, LoggedMessage, Message, Mode,
-    ModeHandle, ModelInfo, ModelSpec, PermissionEnvelope, PermissionHooks, PermissionRules,
-    PersistRule, PlanGuard, PlanPrompt, Provider, QuestionEnvelope, Refusals, ReviewerSetup,
-    Session, ShellRunner, SuggestionEnvelope, Timing, ToolRegistry,
+    CompactionPrompts, GoalPrompt, HandoffPrompt, Hooks, HostTools, LoggedMessage, LoopPrompt,
+    Message, Mode, ModeHandle, ModelInfo, ModelSpec, PermissionEnvelope, PermissionHooks,
+    PermissionRules, PersistRule, PlanGuard, PlanPrompt, Provider, QuestionEnvelope, Refusals,
+    ReviewerSetup, Session, ShellRunner, SkillInfo, SuggestionEnvelope, Timing, ToolContext,
+    ToolRegistry, MODEL_OPTION,
 };
 
 use crate::toolset::{Blocked, ToolsetGuard};
@@ -130,6 +131,34 @@ pub(crate) fn session_model(configured: &ModelSpec, session: Option<&Session>) -
     model
 }
 
+/// The model to pre-select on an external agent when the session picked
+/// none: the one the configuration names — `[ai].model` of a CLI provider,
+/// or `model` in the agent's `AGENT.md`. An id the agent does not offer (a
+/// wire-protocol endpoint's model) is left alone when the choices apply.
+pub(crate) fn preferred_acp_model(model: &ModelSpec) -> Option<String> {
+    (!model.id.is_empty()).then(|| model.id.clone())
+}
+
+/// The settings to ask an external agent for once it states its own: those
+/// the session picked for it, the `preferred` model first when the session
+/// picked none. Nothing for the built-in loop.
+pub(crate) fn acp_choices(
+    external: bool,
+    preferred: Option<String>,
+    session: Option<&Session>,
+) -> Vec<(String, String)> {
+    if !external {
+        return Vec::new();
+    }
+    let mut choices = session.map(Session::agent_options).unwrap_or_default();
+    if let Some(model) = preferred {
+        if !choices.iter().any(|(id, _)| id == MODEL_OPTION) {
+            choices.insert(0, (MODEL_OPTION.to_string(), model));
+        }
+    }
+    choices
+}
+
 /// What [`spawn_runtime`] hands back.
 pub(crate) struct Spawned {
     pub(crate) runtime: Box<dyn Backend>,
@@ -160,6 +189,7 @@ pub(crate) fn spawn_runtime(
     plan_prompt: &PlanPrompt,
     goal_prompt: &GoalPrompt,
     handoff_prompt: &HandoffPrompt,
+    loop_prompt: &LoopPrompt,
     reviewer: &ReviewerSetup,
     refusals: &Refusals,
     persist_rule: Option<PersistFn>,
@@ -170,14 +200,15 @@ pub(crate) fn spawn_runtime(
     session: Option<&Session>,
     blocked: &Blocked,
     shell_run: Option<ShellRunner>,
+    skills: Vec<SkillInfo>,
 ) -> Spawned {
     let cancel = CancelToken::new();
     let (prompter, permission_rx) = permission_channel(cancel.clone());
-    // The `question` tool asks through this; an external agent asks its own
-    // way, so its asker is dropped and nothing ever arrives.
+    // The `question` tool asks through this, from the built-in loop or from
+    // an external agent served termide's tools.
     let (asker, question_rx) = question_channel(cancel.clone());
     // The `suggest_command` tool offers commands through this, and waits for
-    // the card; like the asker, an external agent has no use for it.
+    // the card; it reaches an external agent the same way.
     let (suggester, suggestion_rx) = suggestion_channel(cancel.clone());
     let system_prompt = if rules.mode == Mode::Plan {
         plan_prompt.apply(system_prompt)
@@ -240,6 +271,7 @@ pub(crate) fn spawn_runtime(
         let mut host_permissions =
             PermissionHooks::new(backend_rules.clone(), Box::new(external_prompter.clone()))
                 .with_mode_handle(mode.clone())
+                .with_classifier(Box::new(reviewer.classifier(cancel.clone())))
                 .with_refusals(refusals.clone());
         if let Some(persist) = persist_rule {
             host_permissions = host_permissions.with_persist(Box::new(persist) as PersistRule);
@@ -254,18 +286,27 @@ pub(crate) fn spawn_runtime(
             persist: persist_rule.map(|f| Box::new(f) as PersistRule),
             mode: mode.clone(),
             system_prompt: system_prompt.to_string(),
+            plan: plan_prompt.clone(),
+            goal: goal_prompt.clone(),
+            handoff: handoff_prompt.clone(),
+            reviewer: reviewer.clone(),
             host_tools: Some(HostTools {
                 tools: tools.clone(),
                 hooks: Box::new(ChainedHooks::new(host_chain)),
+                context: ToolContext {
+                    asker: Some(asker.clone()),
+                    suggester: Some(suggester.clone()),
+                    shell_run: shell_run.clone(),
+                    ..ToolContext::new(cwd)
+                },
+                skills,
             }),
+            // The conversation goes on in the agent's own session when it
+            // still holds it, else the agent is told a recap of it.
+            resume: session.and_then(Session::external_session),
+            history: messages.clone(),
         }) {
             Ok(runtime) => {
-                if !messages.is_empty() {
-                    transcript.push(Item::Notice {
-                        text: termide_i18n::t().agent_notice_external_history().into(),
-                        kind: NoticeKind::Info,
-                    });
-                }
                 return Spawned {
                     runtime,
                     permission_rx: external_rx,
@@ -294,7 +335,9 @@ pub(crate) fn spawn_runtime(
     .with_compaction_prompts(compaction_prompts.clone())
     .with_goal_prompt(goal_prompt.clone())
     .with_handoff_prompt(handoff_prompt.clone())
+    .with_loop_prompt(loop_prompt.clone())
     .with_messages(messages)
+    .with_session_id(session.map(|s| s.id().to_string()))
     .with_asker(asker)
     .with_suggester(suggester);
     if let Some(run) = shell_run {
@@ -379,7 +422,7 @@ pub(crate) fn push_history(transcript: &mut Transcript, logged: &LoggedMessage) 
             // when the reasoning already stands for the turn (a tool-only turn),
             // so no phantom block is left behind.
             let answer = assistant.plain_text();
-            let error = assistant.error_message.clone();
+            let error = transcript::shown_error(assistant);
             if !answer.trim().is_empty() || !has_thinking || error.is_some() {
                 transcript.push(Item::Assistant {
                     text: answer,
@@ -420,8 +463,9 @@ pub(crate) fn push_history(transcript: &mut Transcript, logged: &LoggedMessage) 
 }
 
 /// Format an epoch-millis timestamp as the local `YYYY-MM-DD HH:MM`, how a
-/// list of sessions dates each one by its last change.
-pub(crate) fn local_minute(ms: u64) -> String {
+/// list of sessions dates each one by its last change. The AI menu's session
+/// rows use it too, so both lists read the same date.
+pub fn local_minute(ms: u64) -> String {
     use chrono::TimeZone;
     match chrono::Local.timestamp_millis_opt(ms as i64) {
         chrono::offset::LocalResult::Single(dt) => dt.format("%Y-%m-%d %H:%M").to_string(),

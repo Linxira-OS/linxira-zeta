@@ -433,6 +433,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
+name = "color_quant"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
+
+[[package]]
 name = "compact_str"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1290,6 +1296,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gif"
+version = "0.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee8cfcc411d9adbbaba82fb72661cc1bcca13e8bba98b364e62b2dba8f960159"
+dependencies = [
+ "color_quant",
+ "weezl",
+]
+
+[[package]]
 name = "gloo-timers"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1541,10 +1557,25 @@ checksum = "85ab80394333c02fe689eaf900ab500fbd0c2213da414687ebf995a65d5a6104"
 dependencies = [
  "bytemuck",
  "byteorder-lite",
+ "color_quant",
+ "gif",
+ "image-webp",
  "moxcms",
  "num-traits",
  "png",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
+]
+
+[[package]]
+name = "image-webp"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "525e9ff3e1a4be2fbea1fdf0e98686a6d98b4d8f937e1bf7402245af1909e8c3"
+dependencies = [
+ "byteorder-lite",
+ "quick-error",
 ]
 
 [[package]]
@@ -1596,25 +1627,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7970510895cee30b3e9128319f2cefd4bde883a39f38baa279567ba3a7eb97d"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "is-docker"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "928bae27f42bc99b60d9ac7334e3a21d10ad8f1835a4e12ec3ec0464765ed1b3"
-dependencies = [
- "once_cell",
-]
-
-[[package]]
-name = "is-wsl"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "173609498df190136aa7dea1a91db051746d339e18476eed5ca40521f02d7aa5"
-dependencies = [
- "is-docker",
- "once_cell",
 ]
 
 [[package]]
@@ -2155,16 +2167,6 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
-
-[[package]]
-name = "open"
-version = "5.4.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa576c76302b7b808eecc68061e67336c47833ef9d22caa74dda10fa9675eebc"
-dependencies = [
- "is-wsl",
- "libc",
-]
 
 [[package]]
 name = "option-ext"
@@ -3647,22 +3649,25 @@ dependencies = [
 
 [[package]]
 name = "termide-agent-core"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
+ "chrono",
  "dunce",
  "log",
  "serde",
  "serde_json",
  "toml",
+ "unicode-segmentation",
 ]
 
 [[package]]
 name = "termide-clipboard"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "arboard",
  "base64 0.22.1",
  "dunce",
+ "image",
  "log",
  "objc2-app-kit",
  "objc2-foundation",
@@ -3670,7 +3675,7 @@ dependencies = [
 
 [[package]]
 name = "termide-config"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3686,33 +3691,36 @@ dependencies = [
 
 [[package]]
 name = "termide-core"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "crossterm",
  "dirs",
  "ratatui",
+ "regex",
  "termide-config",
  "termide-file-ops",
  "termide-keyboard",
  "termide-project",
  "termide-theme",
  "unicode-width",
+ "zeroize",
 ]
 
 [[package]]
 name = "termide-file-ops"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "dunce",
  "log",
+ "termide-i18n",
  "termide-vfs",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "termide-i18n"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "log",
@@ -3722,14 +3730,14 @@ dependencies = [
 
 [[package]]
 name = "termide-keyboard"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "crossterm",
 ]
 
 [[package]]
 name = "termide-modal"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3747,7 +3755,7 @@ dependencies = [
 
 [[package]]
 name = "termide-panel-terminal"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -3755,7 +3763,6 @@ dependencies = [
  "libc",
  "log",
  "nix 0.29.0",
- "open",
  "portable-pty",
  "ratatui",
  "regex",
@@ -3772,7 +3779,7 @@ dependencies = [
 
 [[package]]
 name = "termide-project"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3785,7 +3792,7 @@ dependencies = [
 
 [[package]]
 name = "termide-state"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "chrono",
  "ratatui",
@@ -3796,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "termide-system-monitor"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "dunce",
  "libc",
@@ -3808,7 +3815,7 @@ dependencies = [
 
 [[package]]
 name = "termide-theme"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "log",
@@ -3819,7 +3826,7 @@ dependencies = [
 
 [[package]]
 name = "termide-ui"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "anyhow",
  "crossterm",
@@ -3837,7 +3844,7 @@ dependencies = [
 
 [[package]]
 name = "termide-vfs"
-version = "0.38.0"
+version = "0.41.0"
 dependencies = [
  "bzip2",
  "dirs",

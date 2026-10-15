@@ -151,6 +151,7 @@ pub struct FileManagerKeybindings {
     pub delete: Option<KeyBinding>,
     pub info: Option<KeyBinding>,
     pub pack: Option<KeyBinding>,
+    pub unpack: Option<KeyBinding>,
 
     // Search
     pub search: Option<KeyBinding>,
@@ -167,6 +168,9 @@ pub struct FileManagerKeybindings {
     // Selection
     pub toggle_selection: Option<KeyBinding>,
     pub select_all: Option<KeyBinding>,
+    pub select_group: Option<KeyBinding>,
+    pub unselect_group: Option<KeyBinding>,
+    pub invert_selection: Option<KeyBinding>,
 
     // Other
     pub open_external: Option<KeyBinding>,
@@ -337,6 +341,10 @@ pub struct ViewerKeybindings {
     pub toggle_hex: Option<KeyBinding>,
     /// Toggle between rendered preview and source editing (markdown viewer).
     pub toggle_view: Option<KeyBinding>,
+    /// Open the link under the cursor outside termide — a web address in the
+    /// browser, a file in its system application (HTML/Markdown viewers).
+    /// `Enter` and a click follow it inside; `Alt+Click` is the mouse twin.
+    pub open_external: Option<KeyBinding>,
 }
 
 impl ViewerKeybindings {
@@ -352,6 +360,9 @@ impl ViewerKeybindings {
 
         set_default!(toggle_hex, "Ctrl+L");
         set_default!(toggle_view, "Ctrl+E");
+        if self.open_external.is_none() {
+            self.open_external = Some(KeyBinding::Multiple(vec!["O".into(), "Alt+Enter".into()]));
+        }
     }
 }
 
@@ -386,6 +397,21 @@ impl GlobalKeybindings {
         ]
     }
 
+    /// The `goto_panel_1..9` bindings, by number.
+    pub fn goto_panel(&self) -> [&Option<KeyBinding>; 9] {
+        [
+            &self.goto_panel_1,
+            &self.goto_panel_2,
+            &self.goto_panel_3,
+            &self.goto_panel_4,
+            &self.goto_panel_5,
+            &self.goto_panel_6,
+            &self.goto_panel_7,
+            &self.goto_panel_8,
+            &self.goto_panel_9,
+        ]
+    }
+
     /// Drop bindings that are verbatim copies of defaults this version no
     /// longer ships, so the new default can take their place.
     ///
@@ -416,6 +442,41 @@ impl GlobalKeybindings {
         drop_if_exactly(&mut self.prev_panel, &["Alt+Up", "Alt+W"]);
         drop_if_exactly(&mut self.next_panel, &["Alt+Down", "Alt+S"]);
         drop_if_exactly(&mut self.close_panel, &["Alt+X", "F10"]);
+
+        // `Alt+<digit>` moved from panels to projects. A frozen
+        // `goto_panel_N = "Alt+N"` gives way only while `goto_project_N` is
+        // absent from the file: old tables never hold it (it shipped
+        // unbound), while a user who takes the digits back for panels has to
+        // put projects somewhere else, and so keeps both choices.
+        let panels = [
+            &mut self.goto_panel_1,
+            &mut self.goto_panel_2,
+            &mut self.goto_panel_3,
+            &mut self.goto_panel_4,
+            &mut self.goto_panel_5,
+            &mut self.goto_panel_6,
+            &mut self.goto_panel_7,
+            &mut self.goto_panel_8,
+            &mut self.goto_panel_9,
+        ];
+        let projects = [
+            &self.goto_project_1,
+            &self.goto_project_2,
+            &self.goto_project_3,
+            &self.goto_project_4,
+            &self.goto_project_5,
+            &self.goto_project_6,
+            &self.goto_project_7,
+            &self.goto_project_8,
+            &self.goto_project_9,
+        ];
+        for (n, (panel, project)) in panels.into_iter().zip(projects).enumerate() {
+            let old_default = format!("Alt+{}", n + 1);
+            let frozen = matches!(panel, Some(KeyBinding::Single(key)) if *key == old_default);
+            if frozen && project.is_none() {
+                *panel = None;
+            }
+        }
     }
 
     /// Fill None values with default keybindings
@@ -503,15 +564,17 @@ impl GlobalKeybindings {
         set_default!(next_group, "Alt+Right");
         set_default!(prev_panel, "Alt+Up");
         set_default!(next_panel, "Alt+Down");
-        set_default!(goto_panel_1, "Alt+1");
-        set_default!(goto_panel_2, "Alt+2");
-        set_default!(goto_panel_3, "Alt+3");
-        set_default!(goto_panel_4, "Alt+4");
-        set_default!(goto_panel_5, "Alt+5");
-        set_default!(goto_panel_6, "Alt+6");
-        set_default!(goto_panel_7, "Alt+7");
-        set_default!(goto_panel_8, "Alt+8");
-        set_default!(goto_panel_9, "Alt+9");
+        // `Alt+<digit>` switches projects, like tabs elsewhere; jumping to a
+        // panel by number (`goto_panel_N`) ships unbound.
+        set_default!(goto_project_1, "Alt+1");
+        set_default!(goto_project_2, "Alt+2");
+        set_default!(goto_project_3, "Alt+3");
+        set_default!(goto_project_4, "Alt+4");
+        set_default!(goto_project_5, "Alt+5");
+        set_default!(goto_project_6, "Alt+6");
+        set_default!(goto_project_7, "Alt+7");
+        set_default!(goto_project_8, "Alt+8");
+        set_default!(goto_project_9, "Alt+9");
 
         // Application
         set_default!(quit, "Alt+Q");
@@ -634,7 +697,11 @@ impl FileManagerKeybindings {
             self.create_dir = Some(KeyBinding::Multiple(vec!["F7".into(), "D".into()]));
         }
         if self.create_file.is_none() {
-            self.create_file = Some(KeyBinding::Multiple(vec!["F".into(), "Ctrl+N".into()]));
+            self.create_file = Some(KeyBinding::Multiple(vec![
+                "F".into(),
+                "Ctrl+N".into(),
+                "Shift+F4".into(),
+            ]));
         }
         if self.delete.is_none() {
             self.delete = Some(KeyBinding::Multiple(vec!["Delete".into(), "F8".into()]));
@@ -642,10 +709,18 @@ impl FileManagerKeybindings {
         if self.info.is_none() {
             self.info = Some(KeyBinding::Multiple(vec!["F12".into(), "Space".into()]));
         }
-        set_default!(pack, "P");
+        // `Alt+F5` (pack), `Alt+F7` (search) and `Shift+F4` (new file) are
+        // aliases from the Far / Total Commander tradition.
+        if self.pack.is_none() {
+            self.pack = Some(KeyBinding::Multiple(vec!["P".into(), "Alt+F5".into()]));
+        }
+        // Total Commander's partner of `Alt+F5`.
+        set_default!(unpack, "Alt+F9");
 
         // Search
-        set_default!(search, "Ctrl+F");
+        if self.search.is_none() {
+            self.search = Some(KeyBinding::Multiple(vec!["Ctrl+F".into(), "Alt+F7".into()]));
+        }
         set_default!(search_content, "Ctrl+Shift+F");
         set_default!(search_replace, "Ctrl+Shift+H");
 
@@ -655,13 +730,24 @@ impl FileManagerKeybindings {
         set_default!(go_home, "~");
         // Parallel to global `open_projects = "Alt+\\"`: `Ctrl+\\` for
         // the analogous "switch directory" action. Reaches VTE via
-        // the `Ctrl+4→Ctrl+\\` quirk in `KeyNormalizer`.
-        set_default!(switch_directory, "Ctrl+\\");
+        // the `Ctrl+4→Ctrl+\\` quirk in `KeyNormalizer`. `Alt+F1` is the
+        // Far spelling of its drive list, which the switcher also is.
+        if self.switch_directory.is_none() {
+            self.switch_directory = Some(KeyBinding::Multiple(vec![
+                "Ctrl+\\".into(),
+                "Alt+F1".into(),
+            ]));
+        }
         set_default!(go_to_path, "Ctrl+G");
 
         // Selection
         set_default!(toggle_selection, "Insert");
         set_default!(select_all, "Ctrl+A");
+        // The Far / Total Commander / mc group keys, without the numeric
+        // keypad most laptops lack: `+` and `-` ask for a mask, `*` inverts.
+        set_default!(select_group, "+");
+        set_default!(unselect_group, "-");
+        set_default!(invert_selection, "*");
 
         // Other
         if self.open_external.is_none() {

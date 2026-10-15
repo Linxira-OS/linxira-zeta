@@ -113,7 +113,7 @@ Background and report commands appear in the [Operations](operations.md) panel, 
 
 ### Report window
 
-When a report command finishes, a window titled with the command's label and `✓` (exit code 0) or `✗` (any other exit code) shows its output: standard output first, then standard error. Indentation and blank lines inside the output are kept, tabs are expanded to four spaces, and blank lines before and after each stream are dropped; a command with no output shows `(no output)`. If several report commands finish at the same moment, only the last one's window is shown.
+When a report command finishes, a window titled with the command's label and `✓` (exit code 0) or `✗` (any other exit code) shows its output: standard output first, then standard error. Indentation and blank lines inside the output are kept, tabs are expanded to four spaces, and blank lines before and after each stream are dropped; a command with no output shows `(no output)`. The window opens in whichever project is current; a command started in another project adds that project's path to the title. If several report commands finish at the same moment, only the last one's window is shown.
 
 | Key | Action |
 |-----|--------|
@@ -167,7 +167,7 @@ The form is shown however the command is started: from the `Commands` menu, by i
 
 ## Hotkeys
 
-`key` uses the same notation as the keybindings in `config.toml` (see [keybindings.md](keybindings.md)), e.g. `Ctrl+Shift+D` or `Alt+F5`. `Ctrl+Shift+<letter>` reaches TermIDE only in terminals with the Kitty keyboard protocol (see [Universal vs Enhanced bindings](keybindings.md#universal-vs-enhanced-bindings)). A command hotkey is checked together with the global TermIDE shortcuts, so it works whichever panel has focus. A project command and a global command with the same identifier keep separate hotkeys.
+`key` uses the same notation as the keybindings in `config.toml` (see [keybindings.md](keybindings.md)), e.g. `Ctrl+Shift+D` or `Alt+F6`. `Ctrl+Shift+<letter>` reaches TermIDE only in terminals with the Kitty keyboard protocol (see [Universal vs Enhanced bindings](keybindings.md#universal-vs-enhanced-bindings)). A command hotkey is checked together with the global TermIDE shortcuts, so it works whichever panel has focus. A project command and a global command with the same identifier keep separate hotkeys.
 
 Commands with a hotkey are also listed in the command palette (`Ctrl+P`) as `Run command: <label>`.
 

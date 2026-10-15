@@ -1,36 +1,22 @@
-# VENDOR — TermIDE 工作台快照账目
+# VENDOR — TermIDE 工作台快照账目(npm 分发副本)
 
-| 项         | 值                                                         |
-| ---------- | ---------------------------------------------------------- |
-| 上游仓库   | https://github.com/termide/termide                         |
-| 来源 commit | `main` HEAD `b1400585e2aeadca23b6b86a86010e612e3dddae`(fork 零落后核验,2026-09-28) |
-| 引入方式   | `git archive HEAD`(无上游 git 历史;上游 `.github/` 不随树) |
-| 协议       | MIT(`LICENSE` 追加 Linxira-OS/Zeta 版权行)              |
-| 引入日期   | 2026-09-28                                                 |
-| npm 包     | `@linxiraos/ide`(bin `zeta-ide` + 短别名 `zeta-i`,Rust 二进制分发,版本对齐 Zeta 产品线;2026-09-30 由未发布的 `@linxiraos/work` 更名) |
-| 角色       | 工作台/壳:可视化文件管理器(最底层入口)+ 内嵌虚拟终端 pane;`zeta` 与 `zeta-editor`(短别名 `zeta-e`)作为 pane 内子进程经 PTY 组合,零代码耦合。产品愿景:把完整 Linux 无图形界面运维迁移到 Agent 流程的 TUI 底座 |
+本包是 **Zeta 仓库 vendored TermIDE 快照** 的 npm 分发入口。权威账目在仓库根
+`termide/VENDOR.md`(本文件随 `@linxiraos/ide` 发布,故只保留出处与版本口径)。
 
-## 出局方案(选型记录)
-
-- fresh(Rust,GPL-2.0):上游 sinelaw/fresh(9k★)活跃,但 **GPL 不可 vendor**(与 editor/VENDOR.md 同一结论);其 Orchestrator(worktree 工作区、agent 会话编排、Everything 对话框)仅作 MIT 重实现的交互参考。
-- 自建壳于 Zeta 主仓库:污染 OMP 可合并面,否决。
-
-## 与仓库其余部分的关系
-
-- **不是根 Cargo workspace 成员**:根 `Cargo.toml` members 显式列 `crates/*`;termide 自带 `[workspace]`(members `crates/*`,自有 `rust-toolchain.toml` = 1.91.1、`Cargo.lock`)。在 `termide/` 内跑 cargo 命令,与根 workspace 完全隔离。
-- **不是 Bun workspace 包**(同 `editor/`、`web-ui/` 先例)。
-- 构建产物走 `termide/target/`(根 `.gitignore` 全局 `target/` 已覆盖)。
-
-## 修改层清单(对上游快照的全部偏离)
-
-| # | 文件 | 偏离 | 原因 | 日期 |
-| --- | --- | --- | --- | --- |
-| 1 | `LICENSE` | 版权行追加 Linxira-OS/Zeta | MIT 分发声明 | 2026-09-28 |
-| 2 | `npm/`(新增) | `@linxiraos/ide` 主包 + `ide-windows-x64`/`ide-linux-x64` 平台 leaf(bin `zeta-ide` + `zeta-i`;2026-09-30 由 work 更名,含 launcher win32→windows 映射修复与 leaf `files` 白名单) | npm 分发链路,照抄 `editor/npm/` 模式;平台二进制(`termide.exe`/`termide-linux-x64`)发布前本地构建后提交进 leaf 的 `bin/`(同 editor 的 ttt.exe 先例),发布经 `ide-publish.yml` | 2026-09-28 |
-| 3 | `rustfmt.toml`(新增) | 空配置文件,仅注释 | 阻断 rustfmt 向上发现 Zeta 根配置(hard_tabs);否则 `cargo fmt` 重排整个快照、CI `--check` 门必挂(上游仓库自身即根,无此问题) | 2026-09-28 |
+| 项         | 值                                                                 |
+| ---------- | ------------------------------------------------------------------ |
+| 上游仓库   | https://github.com/termide/termide                                   |
+| 来源 commit | tag `0.41.0` = `f49a4c40ef6aaaff0741f7a52cefbf163dd9519b`(2026-10-12) |
+| 前一快照   | tag `0.38.0` = `c94e9a7e7f9b01c1c743c8087f8da9049c30dc06`(2026-10-06) |
+| 更早快照   | `main` HEAD `b1400585e2aeadca23b6b86a86010e612e3dddae`(0.35.0 时代,2026-09-28) |
+| 引入方式   | `git archive <tag>`(无上游 git 历史;上游 `.github/` 不随树)      |
+| 协议       | MIT(`LICENSE` 追加 Linxira-OS/Zeta 版权行)                       |
+| 修改层     | 见仓库根 `termide/VENDOR.md` 的「修改层清单」;本包 `bin/` 下的二进制由该快照本地重编(`--version` 必须等于上表来源 tag) |
 
 ## bump 流程
 
-1. `git -C temp/termide fetch origin && git -C temp/termide log HEAD..origin/main` 确认新提交;
-2. `git -C temp/termide archive <commit> | tar -x -C termide`(覆盖前 `diff -r` 对账本清单修改层,逐项重新应用并登记;上游 `.github/` 不随树);
-3. 更新本文件来源 commit/修改层;单 commit 提交(`vendor: bump termide to <sha>`)。
+1. `git -C temp/termide fetch origin --tags`,确认窗口;
+2. `git archive <tag> | tar -x -C termide`(上游 `.github/` 需显式删除);
+3. 逐行重放 `termide/VENDOR.md` 的修改层清单,重编 `bin/` 下两个平台二进制;
+4. 更新本文件与根账目的来源 commit/版本;
+5. 单 commit 提交(`vendor: bump termide to <sha>`)。

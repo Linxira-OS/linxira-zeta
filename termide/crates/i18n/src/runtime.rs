@@ -169,6 +169,7 @@ impl Translation for RuntimeTranslation {
         agent_chip_agent,
         agent_chip_mode,
         agent_chip_reasoning,
+        agent_chip_options,
         agent_chip_tools,
         agent_chip_connection,
         agent_chip_model,
@@ -183,7 +184,6 @@ impl Translation for RuntimeTranslation {
         agent_project_command,
         agent_hint_loop,
         agent_hint_goal,
-        agent_notice_external_history,
         agent_model_request_dropped,
         settings_header_appearance,
         settings_header_input,
@@ -379,6 +379,28 @@ impl Translation for RuntimeTranslation {
         help_desc_image_fit,
         help_desc_image_pan,
         help_desc_vim_panel_nav,
+        help_section_agent,
+        help_desc_agent_send,
+        help_desc_agent_newline,
+        help_desc_agent_esc,
+        help_desc_agent_tab,
+        help_desc_agent_mode,
+        help_desc_agent_fold_all,
+        help_desc_agent_history,
+        help_desc_agent_shell,
+        help_desc_agent_scroll,
+        help_desc_agent_jump,
+        help_desc_agent_copy,
+        help_desc_agent_save,
+        help_desc_agent_chat_fold,
+        help_desc_agent_chat_open,
+        help_desc_agent_rename,
+        help_desc_agent_info,
+        help_desc_agent_rewind,
+        help_desc_agent_fork,
+        help_desc_agent_switch,
+        help_desc_agent_new,
+        help_desc_agent_delete,
         help_section_viewers,
         help_desc_viewer_toggle,
         help_desc_viewer_search,
@@ -440,8 +462,6 @@ impl Translation for RuntimeTranslation {
         menu_ai_prompts,
         menu_ai_new_project,
         menu_ai_new_global,
-        menu_ai_edit_prompt,
-        menu_ai_edit_settings,
         ai_create_agent_title,
         ai_create_skill_title,
         ai_create_prompt_title,
@@ -493,6 +513,7 @@ impl Translation for RuntimeTranslation {
         agent_change_model,
         agent_change_mode,
         agent_change_reasoning,
+        agent_change_option,
         agent_model_prompt,
         agent_model_other,
         agent_models_loading,
@@ -534,6 +555,7 @@ impl Translation for RuntimeTranslation {
         agent_rewind_conversation_only,
         agent_rewind_files_only,
         agent_plan_carry_title,
+        agent_plan_clean_edits,
         agent_plan_accept_edits,
         agent_plan_configured,
         agent_plan_keep,
@@ -576,16 +598,44 @@ impl Translation for RuntimeTranslation {
         agent_notice_nothing_to_pause,
         agent_notice_already_running,
         agent_notice_nothing_to_continue,
+        agent_unfinished_title,
+        agent_unfinished_continue,
+        agent_unfinished_drop,
+        agent_unfinished_later,
+        agent_unfinished_back_to_back,
+        agent_run_cut_off,
+        agent_run_cancelled,
+        agent_close_confirm_working,
         agent_notice_loop_stopped,
         agent_notice_loop_usage,
         agent_notice_goal_stopped,
         agent_notice_goal_usage,
+        agent_notice_goal_working,
         agent_state_queued,
         agent_notice_goal_checking,
         agent_notice_handoff_preparing,
         agent_notice_stopping,
+        agent_notice_restarted_after_stop,
         agent_notice_goal_stopped_failed,
         agent_notice_compacting,
+        agent_failure_transient,
+        agent_failure_rate_limited,
+        agent_failure_quota,
+        agent_failure_auth,
+        agent_failure_bad_request,
+        agent_failure_context,
+        agent_failure_agent_died,
+        agent_failure_unknown,
+        agent_failure_retry_now,
+        agent_failure_keep_trying,
+        agent_failure_restart,
+        agent_failure_compact,
+        agent_failure_switch_agent,
+        agent_failure_stop,
+        agent_failure_auth_hint,
+        agent_notice_agent_restarting,
+        agent_notice_retrying,
+        agent_notice_retry_cancelled,
         agent_notice_no_model_choices,
         agent_notice_plan_no_request,
         agent_notice_nothing_to_open,
@@ -611,23 +661,25 @@ impl Translation for RuntimeTranslation {
         agent_suggest_denied_rule,
         agent_notice_clipboard_failed,
         agent_notice_goal_reached,
+        agent_notice_goal_impossible,
+        agent_autorun_loop,
         agent_notice_looping,
         agent_change_agent,
         agent_prompts,
         agent_no_prompts,
         agent_undo,
         agent_thinking,
-        agent_unit_secs,
-        agent_unit_mins,
-        agent_unit_hours,
-        agent_unit_days,
+        time_unit_secs,
+        time_unit_mins,
+        time_unit_hours,
+        time_unit_days,
         agent_unit_tok_per_sec,
         agent_tool_bash,
         agent_pick_connection,
         agent_delete_this_session,
         agent_fork_this_session,
-        agent_notice_connection_before_first,
         agent_notice_model_pending,
+        agent_queued,
         agent_toolset_title,
         agent_toolset_prompt,
         agent_toolset_builtin,
@@ -637,12 +689,15 @@ impl Translation for RuntimeTranslation {
         agent_tool_read,
         agent_tool_write,
         agent_tool_edit,
+        agent_edit_loose_match,
         agent_tool_fetch,
         agent_tool_web_search,
+        agent_tool_recall,
         agent_tool_skill,
         agent_tool_task,
         agent_tool_mcp,
         agent_tool_question,
+        agent_tool_suggest,
         agent_slash_kind_builtin,
         agent_slash_kind_template,
         agent_slash_kind_script,
@@ -662,6 +717,12 @@ impl Translation for RuntimeTranslation {
         settings_agent_permission_mode,
         settings_agent_auto_reviewer,
         settings_agent_auto_reviewer_session,
+        settings_agent_auto_reviewer_model,
+        settings_agent_auto_reviewer_model_default,
+        settings_agent_on_limit,
+        settings_agent_on_limit_ask,
+        settings_agent_on_limit_wait,
+        settings_agent_on_limit_stop,
         settings_ai_add_connection,
         settings_ai_delete_connection,
         settings_ai_connection_back,
@@ -673,6 +734,10 @@ impl Translation for RuntimeTranslation {
         settings_ai_connection_default,
         settings_ai_connection_prefill_progress,
         settings_ai_connection_reasoning_param,
+        settings_ai_connection_subagents,
+        settings_ai_connection_subagents_own,
+        settings_ai_connection_context_limit,
+        settings_ai_connection_max_requests,
         settings_ai_connection_name_taken,
         settings_web_backend,
         menu_ai_show_browser,
@@ -724,7 +789,6 @@ impl Translation for RuntimeTranslation {
         settings_logging_min_level,
         settings_vfs_connection_timeout,
         projects_new,
-        projects_switch,
         projects_change_root,
         projects_delete_title,
         project_created,
@@ -742,18 +806,19 @@ impl Translation for RuntimeTranslation {
         directory_picker_move,
         directory_picker_select,
         directory_picker_cancel,
+        directory_picker_new_folder,
+        directory_picker_name_empty,
+        directory_picker_name_invalid,
+        directory_picker_not_empty,
         directory_switcher_title,
         directory_switcher_no_paths,
         directory_switcher_unsupported,
         directory_switcher_process_running,
         settings_kb_hint_bindings,
         settings_kb_hint_capturing,
-        settings_kb_press_key,
+        settings_kb_hint_capturing_replace,
         projects_title,
         time_just_now,
-        time_short_hours,
-        time_short_minutes,
-        time_short_seconds,
         status_dir,
         status_file,
         status_mod,
@@ -831,7 +896,45 @@ impl Translation for RuntimeTranslation {
         op_type_pack,
         modal_pack_title,
         fm_pack_local_only,
+        help_desc_unpack,
+        op_type_unpack,
+        modal_unpack_title,
+        fm_unpack_local_only,
+        fm_unpack_no_archive,
+        help_desc_select_group,
+        help_desc_unselect_group,
+        help_desc_invert_selection,
+        modal_select_group_title,
+        modal_unselect_group_title,
+        fm_select_mask_prompt,
+        op_error_password_required,
+        op_error_wrong_password,
+        op_error_no_space,
+        op_error_permission_denied,
+        op_error_not_found,
+        op_error_already_exists,
+        op_error_archive,
+        pack_compression_label,
+        pack_level_store,
+        pack_level_fast,
+        pack_level_normal,
+        pack_level_best,
         modal_archive_password_title,
+        settings_vault_lock_after,
+        vault_password_title,
+        vault_save_checkbox,
+        vault_unlock_title,
+        vault_unlock_prompt,
+        vault_unlock_wrong,
+        vault_create_title,
+        vault_create_prompt,
+        vault_create_repeat,
+        vault_create_mismatch,
+        vault_saved,
+        vault_locked,
+        vault_target_ssh_key,
+        palette_lock_vault,
+        vault_move_bookmark_password,
         status_vfs_resolving_link,
         status_vfs_loading,
         status_vfs_connected,
@@ -909,12 +1012,16 @@ impl Translation for RuntimeTranslation {
         settings_tab_lsp,
         settings_tab_logging,
         settings_tab_vfs,
-        settings_btn_apply,
         settings_btn_reset,
-        settings_btn_create_project_override,
-        settings_btn_remove_project_override,
-        settings_remove_project_override_title,
-        settings_remove_project_override_message,
+        settings_storage_global,
+        settings_storage_project,
+        settings_btn_reset_to_global,
+        settings_btn_close,
+        settings_btn_discard,
+        settings_btn_move_to_global,
+        settings_confirm_reset_global,
+        settings_confirm_reset_project,
+        settings_confirm_leave_project,
         settings_general_vim_mode,
         settings_general_theme,
         settings_general_language,
@@ -1023,6 +1130,32 @@ impl Translation for RuntimeTranslation {
         self.format("agent_notice_cannot_continue_fmt", &[("error", error)])
     }
 
+    fn agent_failure_wait_until_fmt(&self, time: &str) -> String {
+        self.format("agent_failure_wait_until_fmt", &[("time", time)])
+    }
+
+    fn agent_failure_resets_fmt(&self, time: &str, left: &str) -> String {
+        self.format(
+            "agent_failure_resets_fmt",
+            &[("time", time), ("left", left)],
+        )
+    }
+
+    fn agent_notice_retry_waiting_fmt(&self, time: &str) -> String {
+        self.format("agent_notice_retry_waiting_fmt", &[("time", time)])
+    }
+
+    fn agent_notice_cannot_retry_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_retry_fmt", &[("error", error)])
+    }
+
+    fn agent_state_retry_at_fmt(&self, reason: &str, time: &str, left: &str) -> String {
+        self.format(
+            "agent_state_retry_at_fmt",
+            &[("reason", reason), ("time", time), ("left", left)],
+        )
+    }
+
     fn agent_notice_cannot_start_fmt(&self, error: &str) -> String {
         self.format("agent_notice_cannot_start_fmt", &[("error", error)])
     }
@@ -1043,12 +1176,33 @@ impl Translation for RuntimeTranslation {
         self.format("agent_notice_compaction_failed_fmt", &[("error", error)])
     }
 
-    fn agent_notice_goal_check_failed_fmt(&self, error: &str) -> String {
-        self.format("agent_notice_goal_check_failed_fmt", &[("error", error)])
+    fn agent_notice_goal_check_retry_fmt(&self, error: &str, wait: &str) -> String {
+        self.format(
+            "agent_notice_goal_check_retry_fmt",
+            &[("error", error), ("wait", wait)],
+        )
+    }
+
+    fn agent_notice_goal_check_paused_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_goal_check_paused_fmt", &[("error", error)])
     }
 
     fn agent_notice_handoff_failed_fmt(&self, error: &str) -> String {
         self.format("agent_notice_handoff_failed_fmt", &[("error", error)])
+    }
+
+    fn agent_notice_thinking_loop_retry_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_notice_thinking_loop_retry_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_notice_thinking_loop_stopped_fmt(&self, thoughts: &str) -> String {
+        self.format(
+            "agent_notice_thinking_loop_stopped_fmt",
+            &[("thoughts", thoughts)],
+        )
     }
 
     fn agent_notice_model_list_unavailable_fmt(&self, error: &str) -> String {
@@ -1067,6 +1221,10 @@ impl Translation for RuntimeTranslation {
 
     fn agent_notice_connection_fmt(&self, name: &str) -> String {
         self.format("agent_notice_connection_fmt", &[("name", name)])
+    }
+
+    fn agent_queued_ahead_fmt(&self, ahead: usize) -> String {
+        self.format("agent_queued_ahead_fmt", &[("ahead", &ahead.to_string())])
     }
 
     fn agent_notice_no_connection_fmt(&self, name: &str) -> String {
@@ -1191,6 +1349,17 @@ impl Translation for RuntimeTranslation {
         self.format("agent_notice_reasoning_fmt", &[("level", level)])
     }
 
+    fn agent_notice_option_fmt(&self, name: &str, value: &str) -> String {
+        self.format(
+            "agent_notice_option_fmt",
+            &[("name", name), ("value", value)],
+        )
+    }
+
+    fn agent_notice_cannot_set_option_fmt(&self, error: &str) -> String {
+        self.format("agent_notice_cannot_set_option_fmt", &[("error", error)])
+    }
+
     fn agent_notice_model_fmt(&self, id: &str) -> String {
         self.format("agent_notice_model_fmt", &[("id", id)])
     }
@@ -1258,6 +1427,21 @@ impl Translation for RuntimeTranslation {
         self.format("agent_notice_slash_skill_hint_fmt", &[("name", name)])
     }
 
+    fn agent_notice_unknown_key_fmt(&self, file: &str, key: &str) -> String {
+        self.format(
+            "agent_notice_unknown_key_fmt",
+            &[("file", file), ("key", key)],
+        )
+    }
+
+    fn agent_notice_unknown_tool_text_fmt(&self, file: &str) -> String {
+        self.format("agent_notice_unknown_tool_text_fmt", &[("file", file)])
+    }
+
+    fn agent_notice_empty_tool_text_fmt(&self, file: &str) -> String {
+        self.format("agent_notice_empty_tool_text_fmt", &[("file", file)])
+    }
+
     fn agent_notice_loop_stopped_max_fmt(&self, count: usize) -> String {
         self.format(
             "agent_notice_loop_stopped_max_fmt",
@@ -1265,24 +1449,68 @@ impl Translation for RuntimeTranslation {
         )
     }
 
-    fn agent_notice_goal_stopped_max_fmt(&self, count: usize) -> String {
+    fn agent_notice_goal_idle_paused_fmt(&self, count: usize) -> String {
         self.format(
-            "agent_notice_goal_stopped_max_fmt",
+            "agent_notice_goal_idle_paused_fmt",
             &[("count", &count.to_string())],
         )
-    }
-
-    fn agent_notice_goal_working_fmt(&self, goal: &str) -> String {
-        self.format("agent_notice_goal_working_fmt", &[("goal", goal)])
     }
 
     fn agent_notice_looping_every_fmt(&self, interval: &str) -> String {
         self.format("agent_notice_looping_every_fmt", &[("interval", interval)])
     }
 
+    fn agent_unfinished_run_cut_fmt(&self, age: &str) -> String {
+        self.format("agent_unfinished_run_cut_fmt", &[("age", age)])
+    }
+
+    fn agent_unfinished_run_paused_fmt(&self, age: &str) -> String {
+        self.format("agent_unfinished_run_paused_fmt", &[("age", age)])
+    }
+
+    fn agent_unfinished_goal_fmt(&self, goal: &str, turn: usize) -> String {
+        self.format(
+            "agent_unfinished_goal_fmt",
+            &[("goal", goal), ("turn", &turn.to_string())],
+        )
+    }
+
+    fn agent_unfinished_loop_fmt(
+        &self,
+        interval: &str,
+        prompt: &str,
+        turn: usize,
+        max: usize,
+    ) -> String {
+        self.format(
+            "agent_unfinished_loop_fmt",
+            &[
+                ("interval", interval),
+                ("prompt", prompt),
+                ("turn", &turn.to_string()),
+                ("max", &max.to_string()),
+            ],
+        )
+    }
+
+    fn agent_unfinished_loop_due_fmt(&self, wait: &str) -> String {
+        self.format("agent_unfinished_loop_due_fmt", &[("wait", wait)])
+    }
+
     fn agent_notice_goal_reached_reason_fmt(&self, reason: &str) -> String {
         self.format(
             "agent_notice_goal_reached_reason_fmt",
+            &[("reason", reason)],
+        )
+    }
+
+    fn agent_autorun_loop_every_fmt(&self, interval: &str) -> String {
+        self.format("agent_autorun_loop_every_fmt", &[("interval", interval)])
+    }
+
+    fn agent_notice_goal_impossible_reason_fmt(&self, reason: &str) -> String {
+        self.format(
+            "agent_notice_goal_impossible_reason_fmt",
             &[("reason", reason)],
         )
     }
@@ -1424,6 +1652,10 @@ impl Translation for RuntimeTranslation {
         self.format("status_dir_created", &[("name", name)])
     }
 
+    fn directory_picker_exists(&self, name: &str) -> String {
+        self.format("directory_picker_exists", &[("name", name)])
+    }
+
     fn fm_pack_prompt(&self, name: &str) -> String {
         self.format("fm_pack_prompt", &[("name", name)])
     }
@@ -1440,12 +1672,55 @@ impl Translation for RuntimeTranslation {
         self.format("fm_pack_exists", &[("name", name)])
     }
 
+    fn fm_unpack_prompt(&self, name: &str) -> String {
+        self.format("fm_unpack_prompt", &[("name", name)])
+    }
+
+    fn fm_unpack_prompt_multiple(&self, count: usize) -> String {
+        self.format(
+            "fm_unpack_prompt_multiple",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn fm_unpack_not_empty(&self, dir: &str) -> String {
+        self.format("fm_unpack_not_empty", &[("dir", dir)])
+    }
+
+    fn op_unpack_failed(&self, name: &str, error: &str) -> String {
+        self.format("op_unpack_failed", &[("name", name), ("error", error)])
+    }
+
+    fn op_pack_failed(&self, name: &str, error: &str) -> String {
+        self.format("op_pack_failed", &[("name", name), ("error", error)])
+    }
+
     fn fm_archive_password_prompt(&self, name: &str) -> String {
         self.format("fm_archive_password_prompt", &[("name", name)])
     }
 
     fn fm_archive_password_wrong(&self, name: &str) -> String {
         self.format("fm_archive_password_wrong", &[("name", name)])
+    }
+
+    fn vault_password_prompt(&self, target: &str) -> String {
+        self.format("vault_password_prompt", &[("target", target)])
+    }
+
+    fn vault_stored_refused(&self, target: &str) -> String {
+        self.format("vault_stored_refused", &[("target", target)])
+    }
+
+    fn vault_password_refused(&self, target: &str) -> String {
+        self.format("vault_password_refused", &[("target", target)])
+    }
+
+    fn vault_error(&self, error: &str) -> String {
+        self.format("vault_error", &[("error", error)])
+    }
+
+    fn git_username_prompt(&self, target: &str) -> String {
+        self.format("git_username_prompt", &[("target", target)])
     }
 
     fn status_vfs_connecting(&self, host: &str) -> String {
@@ -1586,11 +1861,29 @@ impl Translation for RuntimeTranslation {
     }
 
     fn agent_paste_lines_fmt(&self, count: usize) -> String {
-        self.format("agent_paste_lines_fmt", &[("count", &count.to_string())])
+        let plural = self.pluralize(count, "line");
+        self.format(
+            "agent_paste_lines_fmt",
+            &[("count", &count.to_string()), ("plural", plural)],
+        )
     }
 
     fn agent_paste_chars_fmt(&self, count: usize) -> String {
-        self.format("agent_paste_chars_fmt", &[("count", &count.to_string())])
+        let plural = self.pluralize(count, "char");
+        self.format(
+            "agent_paste_chars_fmt",
+            &[("count", &count.to_string()), ("plural", plural)],
+        )
+    }
+
+    fn agent_paste_image_fmt(&self, width: u32, height: u32) -> String {
+        self.format(
+            "agent_paste_image_fmt",
+            &[
+                ("width", &width.to_string()),
+                ("height", &height.to_string()),
+            ],
+        )
     }
 
     fn agent_project_command_fmt(&self, description: &str) -> String {
@@ -1644,6 +1937,13 @@ impl Translation for RuntimeTranslation {
 
     fn settings_value_default_fmt(&self, value: &str) -> String {
         self.format("settings_value_default_fmt", &[("value", value)])
+    }
+
+    fn settings_ai_connection_context_limit_min_fmt(&self, value: &str) -> String {
+        self.format(
+            "settings_ai_connection_context_limit_min_fmt",
+            &[("value", value)],
+        )
     }
 
     fn projects_delete_failed_fmt(&self, error: &str) -> String {
@@ -1743,6 +2043,14 @@ impl Translation for RuntimeTranslation {
     // Settings modal — Logging fields
     // Settings modal — VFS fields
     // Settings modal — Keybindings hints
+    fn settings_kb_key_taken_fmt(&self, key: &str) -> String {
+        self.format("settings_kb_key_taken_fmt", &[("key", key)])
+    }
+
+    fn settings_kb_conflict_fmt(&self, key: &str, held: &str) -> String {
+        self.format("settings_kb_conflict_fmt", &[("key", key), ("held", held)])
+    }
+
     fn time_minutes_ago(&self, count: usize) -> String {
         let plural = self.pluralize(count, "minute");
         self.format(
@@ -1887,10 +2195,6 @@ impl Translation for RuntimeTranslation {
         self.format("op_speed_rate", &[("speed", speed)])
     }
 
-    fn op_elapsed(&self, time: &str) -> String {
-        self.format("op_elapsed", &[("time", time)])
-    }
-
     fn git_action_files_fmt(&self, action: &str, count: usize) -> String {
         let plural = self.pluralize(count, "file");
         self.format(
@@ -1993,6 +2297,10 @@ impl Translation for RuntimeTranslation {
 
     fn app_quit_background_fmt(&self, projects: &str) -> String {
         self.format("app_quit_background_fmt", &[("projects", projects)])
+    }
+
+    fn projects_reopen_fmt(&self, count: usize) -> String {
+        self.format("projects_reopen_fmt", &[("count", &count.to_string())])
     }
 
     fn replace_done_fmt(&self, count: usize, files: usize) -> String {
@@ -2149,6 +2457,17 @@ mod tests {
     }
 
     #[test]
+    fn russian_paste_placeholder_reads_as_a_phrase() {
+        let t = RuntimeTranslation::new("ru").unwrap();
+        let lines = |n| t.agent_paste_placeholder_fmt(1, &t.agent_paste_lines_fmt(n));
+        assert_eq!(lines(2), "[#1 вставлено 2 строки]");
+        assert_eq!(lines(6), "[#1 вставлено 6 строк]");
+        assert_eq!(lines(21), "[#1 вставлено 21 строка]");
+        assert_eq!(t.agent_paste_chars_fmt(1500), "1500 символов");
+        assert_eq!(t.agent_paste_chars_fmt(42), "42 символа");
+    }
+
+    #[test]
     fn russian_counts_take_the_form_their_last_digits_ask_for() {
         let t = RuntimeTranslation::new("ru").unwrap();
         let file = |n| format!("{n} файл{}", t.pluralize(n, "file"));
@@ -2212,36 +2531,30 @@ mod tests {
         }
     }
 
-    /// Every language must carry its own compact duration units — a missing key
+    /// Every language must carry its own duration units — a missing key
     /// silently falls back to English, which is the bug these replaced.
     #[test]
-    fn compact_duration_units_are_translated_everywhere() {
-        let english = RuntimeTranslation::new("en").unwrap();
-        let (en_h, en_m, en_s) = (
-            english.time_short_hours().to_string(),
-            english.time_short_minutes().to_string(),
-            english.time_short_seconds().to_string(),
-        );
-
+    fn duration_units_are_translated_everywhere() {
+        let units = |t: &RuntimeTranslation| {
+            [
+                t.time_unit_days().to_string(),
+                t.time_unit_hours().to_string(),
+                t.time_unit_mins().to_string(),
+                t.time_unit_secs().to_string(),
+            ]
+        };
+        let english = units(&RuntimeTranslation::new("en").unwrap());
         for (code, _) in crate::SUPPORTED_LANGUAGES {
-            let t = RuntimeTranslation::new(code).unwrap();
-            for unit in [
-                t.time_short_hours(),
-                t.time_short_minutes(),
-                t.time_short_seconds(),
-            ] {
-                assert!(!unit.is_empty(), "{code}: missing a duration unit");
-            }
+            let own = units(&RuntimeTranslation::new(code).unwrap());
+            assert!(
+                own.iter().all(|unit| !unit.is_empty()),
+                "{code}: missing a duration unit"
+            );
             // Latin-script languages legitimately share some units with
             // English; the ones with their own script must not.
             if ["ru", "zh", "ja", "ko", "th", "hi", "bn"].contains(code) {
                 assert_ne!(
-                    (
-                        t.time_short_hours(),
-                        t.time_short_minutes(),
-                        t.time_short_seconds()
-                    ),
-                    (en_h.as_str(), en_m.as_str(), en_s.as_str()),
+                    own, english,
                     "{code}: duration units left as the English fallback"
                 );
             }

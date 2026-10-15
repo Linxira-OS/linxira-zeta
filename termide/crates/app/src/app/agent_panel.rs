@@ -6,24 +6,31 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError};
 
 use anyhow::Result;
-use termide_agent_acp::AcpRuntime;
+use termide_agent_acp::{AcpProvider, AcpRuntime};
 use termide_agent_core::Mode;
 use termide_agent_core::{
-    build_system_prompt, discover_context_files, ensure_global_layout, AcpConfig, AcpFlavor, Agent,
-    AgentDirs, AgentEvent, AutoDenyPrompter, CancelToken, CompactionPolicy, Decision, IntentLog,
-    Message, ModelSpec, PermissionHooks, PermissionRules, PersistScope, PromptOptions, Provider,
-    Refusals, ReviewerSetup, Session, SessionSummary, ShellOutput, ShellRunner, ThinkingLevel,
-    Tool, ToolCall, ToolContext, ToolRegistry, UserMessage, DEFAULT_AGENT, GLOBAL_AGENT_DIR,
-    SESSIONS_DIR,
+    apply_tool_texts, build_system_prompt, discover_context_files, ensure_global_layout,
+    permission_channel, AcpConfig, AcpFlavor, Agent, AgentDirs, AgentEvent, AssistantMessage,
+    AutoDenyPrompter, Backend, BackendSetup, CancelToken, ChainedHooks, CompactionPolicy, Decision,
+    HostTools, IntentLog, Message, ModeHandle, ModelChoice, ModelSpec, PermissionAnswer,
+    PermissionHooks, PermissionRules, PersistScope, PlanGuard, PromptOptions, Provider, Refusals,
+    ReviewerSetup, Session, SessionSummary, ShellOutput, ShellRunner, StreamEvent, ThinkingLevel,
+    Tool, ToolCall, ToolContext, ToolRegistry, ToolUpdate, Usage, UserMessage, DEFAULT_AGENT,
+    GLOBAL_AGENT_DIR, SESSIONS_DIR,
 };
 use termide_agent_hooks::CommandHooks;
 use termide_agent_mcp::{Connections, TokenStore};
-use termide_agent_providers::{AnthropicProvider, Compat, OpenAiCompatProvider, ReasoningParam};
+use termide_agent_providers::{
+    AnthropicProvider, Compat, OpenAiCompatProvider, ReasoningParam, Slots, SlottedProvider,
+};
+use termide_agent_recall::{PanelDir, RecallSetup, RecallTool, RepoFinder, Solver, TimeLimits};
 use termide_agent_tools::{
-    builtin_tools, BashTool, QuestionTool, SkillTool, SubagentRun, SuggestCommandTool, TaskTool,
+    builtin_tools, BashTool, QuestionTool, SkillTool, SubagentOutcome, SubagentRun,
+    SuggestCommandTool, TaskTool,
 };
 use termide_agent_web::{web_tools, Web, WebConfig};
 use termide_config::{AiSettings, Connection, WebSettings};
+use termide_core::AgentSetupState;
 use termide_panel_agent::{
     AgentCatalog, AgentEntry, AgentPanel, AgentPanelSetup, AgentProfile, BackendFactory,
     ConnectionCatalog, ConnectionChoice, ConnectionEntry, FoldMode, HooksFactory,
@@ -32,7 +39,7 @@ use termide_panel_agent::{
 use super::App;
 
 mod headless;
-pub use headless::{run_agent_headless, HeadlessOutput};
+pub use headless::{run_agent_headless, run_recall, HeadlessOutput};
 
 impl App {
     /// Open a new agent panel. Like a new terminal, each call opens another
@@ -98,9 +105,13 @@ impl App {
             }
         };
         let settings = self.state.config.ai.clone();
-        if let Some(panel) =
-            restore_agent_panel(&settings, cwd.to_path_buf(), Some(copy.clone()), None)
-        {
+        if let Some(panel) = restore_agent_panel(
+            &settings,
+            cwd.to_path_buf(),
+            Some(copy.clone()),
+            None,
+            AgentSetupState::default(),
+        ) {
             self.add_panel(Box::new(panel));
             self.auto_save_layout();
             return Ok(());
@@ -127,7 +138,8 @@ impl App {
             cwd.clone(),
             t.agent_cwd_title().to_string(),
             t.directory_picker_select().to_string(),
-        );
+        )
+        .with_keybindings(&self.state.config.file_manager.keybindings);
         self.state.set_pending_action(
             termide_state::PendingAction::ChangeAgentCwd { session, cwd },
             termide_modal::ActiveModal::DirectoryPicker(Box::new(modal)),
@@ -152,7 +164,7 @@ impl App {
         }
         // A modal moves no focus, so the panel that asked is the focused one;
         // checked all the same, as nothing else may be replaced.
-        let agent = match self
+        let (agent, setup) = match self
             .layout_manager
             .active_panel_mut()
             .and_then(|panel| panel.to_state(Path::new("")))
@@ -161,7 +173,8 @@ impl App {
                 cwd: active_cwd,
                 session: active_session,
                 agent,
-            }) if active_cwd == cwd && active_session.as_deref() == session => agent,
+                setup,
+            }) if active_cwd == cwd && active_session.as_deref() == session => (agent, setup),
             _ => return Ok(()),
         };
         let settings = self.state.config.ai.clone();
@@ -182,7 +195,8 @@ impl App {
                     })
                     .ok()
             });
-        let Some(panel) = restore_agent_panel(&settings, new_cwd.clone(), moved, agent) else {
+        let Some(panel) = restore_agent_panel(&settings, new_cwd.clone(), moved, agent, setup)
+        else {
             return Ok(());
         };
         // The old panel lets its log go; it finds the file moved, and an
@@ -256,13 +270,15 @@ fn strip_fork_suffix(name: &str) -> &str {
 
 /// Rebuild an agent panel saved in a project layout. `None` when there is
 /// no connection to run on any more; a session log that has gone missing starts a
-/// fresh session in the same project, an agent definition that has gone
-/// missing falls back to the default one.
+/// fresh session in the same project — on the `setup` saved for it when
+/// nothing was sent in it —, an agent definition that has gone missing falls
+/// back to the default one.
 pub(crate) fn restore_agent_panel(
     settings: &AiSettings,
     cwd: PathBuf,
     session: Option<PathBuf>,
     agent: Option<String>,
+    setup: AgentSetupState,
 ) -> Option<AgentPanel> {
     if usable_connection(settings).is_none() {
         log::warn!("agent panel not restored: no [ai.connections] entry to run on");
@@ -277,6 +293,16 @@ pub(crate) fn restore_agent_panel(
             None
         }
     });
+    let agent = agent.as_deref().unwrap_or(DEFAULT_AGENT);
+    let session = session.or_else(|| {
+        seeded_session(
+            settings,
+            session_dir_of(&cwd).as_deref(),
+            &cwd,
+            agent,
+            &setup,
+        )
+    });
     // termide's project root is its working directory, which follows the
     // current project; the layout restore runs off the App, so read it from
     // the same source.
@@ -285,9 +311,66 @@ pub(crate) fn restore_agent_panel(
         settings,
         cwd,
         &project_root,
-        agent.as_deref().unwrap_or(DEFAULT_AGENT),
+        agent,
         session,
     )))
+}
+
+/// A fresh session log for `cwd` in `dir` that starts on `setup`: the saved
+/// connection while it is still configured, with the model, reasoning level
+/// and agent options picked on it. `None` when nothing was saved, so the
+/// panel starts its session as a new one does.
+fn seeded_session(
+    settings: &AiSettings,
+    dir: Option<&Path>,
+    cwd: &Path,
+    agent: &str,
+    setup: &AgentSetupState,
+) -> Option<Session> {
+    if setup.is_empty() {
+        return None;
+    }
+    // The model was picked on the saved connection: one that is gone takes
+    // the default connection with its own model.
+    let saved = setup
+        .connection
+        .as_ref()
+        .and_then(|name| Some((name.clone(), settings.connections.get(name)?.clone())));
+    let kept_model = saved.is_some();
+    let (name, connection) = saved.or_else(|| session_connection(settings, None))?;
+    let mut session = match Session::create_exclusive(dir?, cwd) {
+        Ok(session) => session,
+        Err(error) => {
+            log::warn!("cannot start an agent session log: {error}");
+            return None;
+        }
+    };
+    // The order a new session records its setup in: the connection first,
+    // the model after it is that connection's.
+    let model = setup
+        .model
+        .as_deref()
+        .filter(|_| kept_model)
+        .unwrap_or(&connection.model);
+    let written = session
+        .append_connection_change(&name)
+        .and_then(|_| session.append_model_change(&connection.provider, model, None))
+        .and_then(|_| session.append_agent_change(agent))
+        .and_then(
+            |_| match setup.thinking.as_deref().and_then(ThinkingLevel::parse) {
+                Some(level) => session.append_thinking_change(level).map(drop),
+                None => Ok(()),
+            },
+        )
+        .and_then(|_| {
+            setup.options.iter().try_for_each(|(option, value)| {
+                session.append_agent_option(option, value).map(drop)
+            })
+        });
+    if let Err(error) = written {
+        log::warn!("agent session write failed: {error}");
+    }
+    Some(session)
 }
 
 /// The OAuth sign-ins of MCP servers, under the configuration's agent
@@ -308,6 +391,8 @@ struct FsCatalog {
     subagents: Option<Arc<Subagents>>,
     /// The web tools' service; set once the settings are known.
     web: Option<Arc<Web>>,
+    /// The project's `recall`; set once the settings are known.
+    recall: Option<Arc<RecallTool>>,
 }
 
 impl FsCatalog {
@@ -341,6 +426,7 @@ impl FsCatalog {
             dirs,
             subagents: None,
             web: None,
+            recall: None,
         }
     }
 }
@@ -386,6 +472,10 @@ impl AgentCatalog for FsCatalog {
         self.dirs.skills()
     }
 
+    fn definition_problems(&self) -> Vec<termide_agent_core::DefinitionProblem> {
+        self.dirs.definition_problems()
+    }
+
     fn list(&self) -> Vec<AgentEntry> {
         self.dirs
             .agents()
@@ -393,11 +483,16 @@ impl AgentCatalog for FsCatalog {
             .map(|name| {
                 // The default agent needs no definition, so unless one gives
                 // it a description it is described by the panel's own label.
-                let mut description = self.dirs.spec(&name).description;
+                let spec = self.dirs.spec(&name);
+                let mut description = spec.description;
                 if description.is_empty() && name == DEFAULT_AGENT {
                     description = termide_i18n::t().panel_agent().to_string();
                 }
-                AgentEntry { name, description }
+                AgentEntry {
+                    name,
+                    description,
+                    icon: spec.icon,
+                }
             })
             .collect()
     }
@@ -430,7 +525,7 @@ impl AgentCatalog for FsCatalog {
         let mut tools = if backend.is_some() {
             termide_agent_core::ToolRegistry::new()
         } else {
-            base_tools(&self.dirs, self.web.as_ref())
+            base_tools(&self.dirs, self.web.as_ref(), self.recall.as_ref())
         };
         // Someone watches the panel's agent to answer its questions and to
         // confirm a command it is offered; a subagent and headless mode build
@@ -478,8 +573,10 @@ impl AgentCatalog for FsCatalog {
         if skills.is_empty() {
             tools.remove("skill");
         }
-        // The configuration's `ai/AGENTS.md` is the prompt template itself,
-        // not an instruction file, so no global file joins the chain.
+        // The user's `ai/tools/<name>.md` texts, before the prompt lists them.
+        apply_tool_texts(&mut tools, &self.dirs.tool_texts());
+        // The default agent's `AGENT.md` is the prompt template itself, not an
+        // instruction file, so no global file joins the chain.
         let context_files = discover_context_files(&self.cwd, Some(&self.project_root), None);
         let mut options = PromptOptions::new(&self.cwd, &tools, &context_files);
         options.skills = &skills;
@@ -503,11 +600,8 @@ impl FsCatalog {
     /// built-in-loop agent, the default one included, except `caller`
     /// itself (delegating to yourself is pointless) and external ones.
     fn delegatable(&self, caller: &str) -> Vec<(String, String)> {
-        let mut names: Vec<String> = std::iter::once(DEFAULT_AGENT.to_string())
-            .chain(self.dirs.agents())
-            .collect();
-        names.dedup();
-        names
+        self.dirs
+            .agents()
             .into_iter()
             .filter(|name| name != caller && self.dirs.spec(name).acp.is_none())
             .map(|name| {
@@ -520,10 +614,17 @@ impl FsCatalog {
 
 /// The built-in tools followed by the web tools, before an agent's `tools`
 /// list narrows them.
-fn base_tools(dirs: &AgentDirs, web: Option<&Arc<Web>>) -> ToolRegistry {
+fn base_tools(
+    dirs: &AgentDirs,
+    web: Option<&Arc<Web>>,
+    recall: Option<&Arc<RecallTool>>,
+) -> ToolRegistry {
     let mut tools = builtin_tools(dirs.shims_dir());
     for tool in web.map(web_tools).unwrap_or_default() {
         tools.insert(tool);
+    }
+    if let Some(recall) = recall {
+        tools.insert(Arc::clone(recall) as Arc<dyn termide_agent_core::Tool>);
     }
     tools
 }
@@ -622,6 +723,12 @@ fn restrict_tools(tools: &mut ToolRegistry, allowed: &Option<Vec<String>>, agent
 /// window: what a delegated task inherits. A profile switch updates it.
 #[derive(Clone)]
 struct Active {
+    /// The connection's name, whose `subagents` field picks where a
+    /// delegated task runs.
+    connection: String,
+    /// The connection's provider kind: a CLI agent's `provider` is only a
+    /// placeholder, which no subagent can run on.
+    kind: String,
     provider: Arc<dyn Provider>,
     model: String,
     context_window: u64,
@@ -641,12 +748,29 @@ pub(crate) fn publish_ai_settings(settings: &AiSettings) {
     *APPLIED_AI
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(settings.clone());
+    // A limit changed in the settings reaches the requests already queued.
+    for (name, connection) in &settings.connections {
+        if !connection.is_cli() {
+            let _ = Slots::shared(name, connection.max_concurrent_requests as usize);
+        }
+    }
+}
+
+/// The settings applied last, else `built_with`, those a panel was built with.
+fn applied_ai_settings(built_with: &AiSettings) -> AiSettings {
+    APPLIED_AI
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
+        .unwrap_or_else(|| built_with.clone())
 }
 
 /// The connections of `[ai]` for the panel's picker, built on demand.
 struct AiConnections {
     /// The settings the panel was built with, until others are applied.
     settings: AiSettings,
+    /// Where the reviewer's texts come from.
+    dirs: AgentDirs,
     /// Shared with the subagent runner, so a switch reaches delegated tasks.
     active: ActiveSlot,
 }
@@ -654,11 +778,7 @@ struct AiConnections {
 impl AiConnections {
     /// The settings applied last, else those the panel was built with.
     fn settings(&self) -> AiSettings {
-        APPLIED_AI
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-            .unwrap_or_else(|| self.settings.clone())
+        applied_ai_settings(&self.settings)
     }
 }
 
@@ -681,10 +801,11 @@ impl ConnectionCatalog for AiConnections {
         Some(ConnectionChoice {
             name: name.to_string(),
             kind: connection.provider.clone(),
-            provider: build_provider(connection, api_key_of(connection)),
+            provider: connection_provider(name, connection),
             model: connection.model.clone(),
             context_window: connection.effective_context_window(),
-            backend: cli_provider_backend(&connection.provider, agent),
+            backend: cli_provider_backend(connection, agent),
+            reviewer: reviewer_setup(&settings, &self.dirs, name),
         })
     }
 
@@ -693,6 +814,8 @@ impl ConnectionCatalog for AiConnections {
             .active
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Active {
+            connection: choice.name.clone(),
+            kind: choice.kind.clone(),
             provider: Arc::clone(&choice.provider),
             model: choice.model.clone(),
             context_window: choice.context_window,
@@ -761,41 +884,209 @@ fn api_key_of(connection: &Connection) -> Option<String> {
         .flatten()
 }
 
-/// The `auto` mode reviewer: the texts of `system/classify.md`, and the
-/// model of the `auto_reviewer` connection when one is named. A name that
-/// matches no connection, or one that drives a CLI agent, reviews with the
-/// session's model.
-fn reviewer_setup(settings: &AiSettings, dirs: &AgentDirs) -> ReviewerSetup {
-    let name = settings.auto_reviewer.trim();
-    let model = match settings.connections.get(name) {
-        _ if name.is_empty() => None,
+/// A side call's provider when its connection names no model: the first
+/// model the endpoint lists answers, as it does for a session. Asked once, on
+/// the first call — side calls run on the agent's thread, never the UI's, so
+/// the request may block there.
+struct FirstListedModel {
+    inner: Arc<dyn Provider>,
+    model: std::sync::OnceLock<Option<String>>,
+}
+
+impl Provider for FirstListedModel {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+
+    fn stream(
+        &self,
+        request: &termide_agent_core::Request<'_>,
+        on_event: &mut dyn FnMut(termide_agent_core::StreamEvent),
+        cancel: &CancelToken,
+    ) -> termide_agent_core::AssistantMessage {
+        let listed = request
+            .model
+            .id
+            .trim()
+            .is_empty()
+            .then(|| {
+                self.model
+                    .get_or_init(|| resolve_model(self.inner.as_ref(), ""))
+                    .clone()
+            })
+            .flatten();
+        let Some(id) = listed else {
+            return self.inner.stream(request, on_event, cancel);
+        };
+        let model = ModelSpec {
+            id,
+            ..request.model.clone()
+        };
+        let request = termide_agent_core::Request {
+            model: &model,
+            system_prompt: request.system_prompt,
+            messages: request.messages,
+            tools: request.tools,
+            thinking: request.thinking,
+        };
+        self.inner.stream(&request, on_event, cancel)
+    }
+
+    fn endpoint(&self) -> Option<String> {
+        self.inner.endpoint()
+    }
+
+    fn list_models(&self) -> Result<Vec<termide_agent_core::ModelInfo>, String> {
+        self.inner.list_models()
+    }
+
+    fn thinking_levels(&self, model: &str) -> Vec<ThinkingLevel> {
+        self.inner.thinking_levels(model)
+    }
+}
+
+/// The model a side call (`purpose` names it in warnings) runs on: the
+/// connection `connection` names with `model` in place of its own when one is
+/// given — a CLI agent's through its subscription, see [`AcpProvider`]; or,
+/// with no connection named, the session's under `model`. A name that matches
+/// no connection falls back to the session's model.
+fn side_model(
+    settings: &AiSettings,
+    choice: &termide_config::SideModel,
+    purpose: &str,
+) -> ModelChoice {
+    let name = choice.connection.trim();
+    let model = choice.model.trim();
+    let session = || ModelChoice {
+        own: None,
+        session_model: (!model.is_empty()).then(|| model.to_string()),
+    };
+    match settings.connections.get(name) {
+        _ if name.is_empty() => session(),
         Some(connection) if !termide_config::is_cli_provider(&connection.provider) => {
+            let id = if model.is_empty() {
+                connection.model.clone()
+            } else {
+                model.to_string()
+            };
             let spec = ModelSpec {
                 provider: "agent".to_string(),
-                id: connection.model.clone(),
+                id: id.clone(),
                 context_window: connection.effective_context_window(),
                 max_tokens: None,
                 thinking: ThinkingLevel::Off,
             };
-            Some((build_provider(connection, api_key_of(connection)), spec))
+            let mut provider = connection_provider(name, connection);
+            if id.trim().is_empty() {
+                provider = Arc::new(FirstListedModel {
+                    inner: provider,
+                    model: std::sync::OnceLock::new(),
+                });
+            }
+            ModelChoice::own(provider, spec)
         }
-        _ => {
-            log::warn!(
-                "auto_reviewer names no model connection {name:?}; the session's model reviews"
-            );
-            None
+        Some(connection) => match cli_acp_config(connection) {
+            Some(config) => {
+                let id = if model.is_empty() {
+                    connection.model.trim().to_string()
+                } else {
+                    model.to_string()
+                };
+                let spec = ModelSpec {
+                    provider: "agent".to_string(),
+                    id,
+                    context_window: 0,
+                    max_tokens: None,
+                    thinking: ThinkingLevel::Off,
+                };
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let provider = AcpProvider::new(name, config, cwd);
+                ModelChoice::own(Arc::new(provider), spec)
+            }
+            None => {
+                log::warn!("{purpose} names {name:?}, which no side call can use");
+                ModelChoice::default()
+            }
+        },
+        None => {
+            log::warn!("{purpose} names no model connection {name:?}; the session's model serves");
+            ModelChoice::default()
         }
-    };
+    }
+}
+
+/// The `auto` mode reviewer: the texts of `system/classify.md`, and the
+/// model `[ai.auto_reviewer]` names, see [`side_model`].
+fn reviewer_setup(settings: &AiSettings, dirs: &AgentDirs, session: &str) -> ReviewerSetup {
     ReviewerSetup {
         prompt: dirs.classify_prompt(),
-        model,
+        model: side_model(
+            settings,
+            &settings.reviewer_of(session),
+            &format!("the reviewer of connection {session}"),
+        ),
+        spent: termide_agent_core::SpentMeter::default(),
     }
+}
+
+/// The `recall` tool of a project: its session logs, the repositories it
+/// holds, the panel's directory at `cwd` when that lies outside it, and the
+/// solver when `[ai.recall]` turns it on.
+fn recall_tool(
+    settings: &AiSettings,
+    dirs: &AgentDirs,
+    project_root: &Path,
+    cwd: &Path,
+) -> Arc<RecallTool> {
+    let project_root =
+        dunce::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());
+    let panel_dir = dunce::canonicalize(cwd)
+        .ok()
+        .filter(|dir| !dir.starts_with(&project_root))
+        .map(|dir| PanelDir {
+            dir,
+            sessions_dir: session_dir_of(cwd),
+        });
+    let solver = settings.recall.solver.then(|| Solver {
+        prompt: dirs.recall_prompt(),
+        model: side_model(
+            settings,
+            &termide_config::SideModel {
+                connection: settings.recall.connection.clone(),
+                model: settings.recall.model.clone(),
+            },
+            "[ai.recall]",
+        ),
+    });
+    // 0 is no limit.
+    let seconds = |secs: u64| (secs > 0).then(|| std::time::Duration::from_secs(secs));
+    Arc::new(RecallTool::new(RecallSetup {
+        sessions_dir: session_dir_of(&project_root),
+        project_root,
+        // Found at each search, on the agent's thread: a repository made
+        // after the panel opened is searched too.
+        find_repos: RepoFinder::new(termide_git::project_repos),
+        panel_dir,
+        solver,
+        time_limits: TimeLimits {
+            sessions: seconds(settings.recall.sessions_timeout_secs),
+            git: seconds(settings.recall.git_timeout_secs),
+            files: seconds(settings.recall.files_timeout_secs),
+        },
+    }))
 }
 
 struct Subagents {
     active: ActiveSlot,
+    /// The `[ai]` settings the panel was built with, until others are
+    /// applied: where the session's connection sends its subagents.
+    settings: AiSettings,
     dirs: AgentDirs,
     web: Arc<Web>,
+    recall: Arc<RecallTool>,
+    /// The panel's MCP servers: a subagent gets the tools of those connected
+    /// when its task starts.
+    mcp: Arc<Connections>,
     cwd: PathBuf,
     project_root: PathBuf,
     rules: PermissionRules,
@@ -805,64 +1096,408 @@ struct Subagents {
     max_tokens: Option<u64>,
     reasoning: ThinkingLevel,
     compaction: CompactionPolicy,
-    /// Reviews the subagent's calls in `auto` mode.
-    reviewer: ReviewerSetup,
     /// What the subagent's model reads when a call is refused.
     refusals: Refusals,
 }
 
-/// A runaway subagent is cut off after this many model calls.
+/// The mode a subagent runs in: its own, else the delegating agent's. Plan
+/// mode lets a delegation through only because the subagent cannot change
+/// anything either, so it overrides the agent's own mode.
+fn subagent_mode(parent: Mode, own: Option<Mode>) -> Mode {
+    match parent {
+        Mode::Plan => Mode::Plan,
+        parent => own.unwrap_or(parent),
+    }
+}
+
+/// A runaway subagent is cut off after this many model calls, unless its
+/// `AGENT.md` names another number (`max_turns`).
 const SUBAGENT_MAX_TURNS: usize = 50;
 
+/// Where a task delegated from a session runs.
+#[derive(Debug, PartialEq)]
+enum SubagentTarget {
+    /// termide's loop on the session's own model connection.
+    Session,
+    /// termide's loop on another model connection, by name.
+    Model(String, Connection),
+    /// A session of its own of Claude Code on this connection, by name,
+    /// calling termide's tools.
+    Cli(String, Connection),
+}
+
+/// Where a task delegated from a session on `active` runs: on the connection
+/// its connection's `subagents` field names, else on the session's own — for
+/// a Claude Code session a copy of Claude Code. Codex and Gemini CLI keep
+/// tools of their own and run none: one named there is passed over, and a
+/// session on one with nothing usable named has nowhere to run them, which
+/// the error says.
+fn subagent_target(settings: &AiSettings, active: &Active) -> Result<SubagentTarget, String> {
+    let session = active.connection.as_str();
+    let named = settings
+        .connections
+        .get(session)
+        .map(|connection| connection.subagents.trim())
+        .unwrap_or_default();
+    if !named.is_empty() && named != session {
+        match settings.connections.get(named) {
+            Some(connection) if !connection.is_cli() => {
+                return Ok(SubagentTarget::Model(named.to_string(), connection.clone()));
+            }
+            Some(connection) if connection.runs_subagents() => {
+                return Ok(SubagentTarget::Cli(named.to_string(), connection.clone()));
+            }
+            Some(_) => log::warn!(
+                "connection {session}: subagents names {named}, a CLI agent, which cannot run them"
+            ),
+            None => log::warn!("connection {session}: subagents names no connection {named:?}"),
+        }
+    }
+    if !termide_config::is_cli_provider(&active.kind) {
+        return Ok(SubagentTarget::Session);
+    }
+    let own = settings
+        .connections
+        .get(session)
+        .cloned()
+        .unwrap_or_else(|| Connection {
+            provider: active.kind.clone(),
+            ..Connection::default()
+        });
+    if own.runs_subagents() {
+        return Ok(SubagentTarget::Cli(session.to_string(), own));
+    }
+    Err(format!(
+        "the connection {session} is a CLI agent on tools of its own, which cannot run \
+         subagents; a model connection or a Claude Code one chosen under Subagents on its \
+         settings page runs them"
+    ))
+}
+
+/// Why a run ended without an answer, when its last reply says.
+fn run_error(messages: &[Message]) -> Option<String> {
+    messages
+        .iter()
+        .rev()
+        .find_map(|message| match message {
+            Message::Assistant(assistant) => Some(assistant.error_message.clone()),
+            _ => None,
+        })
+        .flatten()
+}
+
+/// A piece of a subagent's progress as the delegating call shows it.
+enum Step {
+    /// Something it said.
+    Said(String),
+    /// A tool it called, by the call's id: `· read src/main.rs`, marked `✗`
+    /// once it fails.
+    Call {
+        id: String,
+        line: String,
+        failed: bool,
+    },
+}
+
+/// The widest a subagent's call line gets before it is cut.
+const SUBAGENT_CALL_CHARS: usize = 100;
+
+/// A subagent's progress as the delegating call shows it: what it has said
+/// and the tools it called so far, and its answer — the last text it said.
+struct SubagentReport {
+    steps: Vec<Step>,
+    answer: Option<String>,
+    error: Option<String>,
+    turns: usize,
+    /// The model calls it may take before it is cut off.
+    max_turns: usize,
+    /// What its model calls spent so far.
+    spent: Usage,
+}
+
+impl SubagentReport {
+    fn new(max_turns: usize) -> Self {
+        Self {
+            steps: Vec::new(),
+            answer: None,
+            error: None,
+            turns: 0,
+            max_turns,
+            spent: Usage::default(),
+        }
+    }
+
+    /// Count one model call of the subagent's; `true` once it has taken
+    /// more than it may.
+    fn turn(&mut self) -> bool {
+        self.turns += 1;
+        self.turns > self.max_turns
+    }
+
+    /// Note a finished message of the subagent's.
+    fn said(&mut self, message: &AssistantMessage, on_update: &mut dyn FnMut(ToolUpdate)) {
+        self.spent.add(&message.usage);
+        let text = message.plain_text();
+        let text = text.trim();
+        if text.is_empty() {
+            self.error = message.error_message.clone();
+            return;
+        }
+        self.error = None;
+        self.steps.push(Step::Said(text.to_string()));
+        self.answer = Some(text.to_string());
+        on_update(ToolUpdate::Output(self.progress()));
+    }
+
+    /// Note a tool the subagent calls, in the directory `cwd`.
+    fn called(&mut self, call: &ToolCall, cwd: &Path, on_update: &mut dyn FnMut(ToolUpdate)) {
+        let subject = termide_agent_core::subject_of(call, &ToolContext::new(cwd.to_path_buf()));
+        let subject = subject.lines().next().unwrap_or("").trim();
+        let mut line = if subject.is_empty() {
+            format!("· {}", call.name)
+        } else {
+            format!("· {} {subject}", call.name)
+        };
+        if line.chars().count() > SUBAGENT_CALL_CHARS {
+            line = line
+                .chars()
+                .take(SUBAGENT_CALL_CHARS - 1)
+                .collect::<String>()
+                + "…";
+        }
+        self.steps.push(Step::Call {
+            id: call.id.clone(),
+            line,
+            failed: false,
+        });
+        on_update(ToolUpdate::Output(self.progress()));
+    }
+
+    /// Note how a call of the subagent's ended: a failed one is marked.
+    fn call_ended(
+        &mut self,
+        result: &termide_agent_core::ToolResultMessage,
+        on_update: &mut dyn FnMut(ToolUpdate),
+    ) {
+        if !result.is_error {
+            return;
+        }
+        let mut marked = false;
+        for step in &mut self.steps {
+            if let Step::Call { id, failed, .. } = step {
+                if *id == result.tool_call_id {
+                    *failed = true;
+                    marked = true;
+                }
+            }
+        }
+        if marked {
+            on_update(ToolUpdate::Output(self.progress()));
+        }
+    }
+
+    /// Its progress as text: what it said apart by blank lines, its calls
+    /// one line each.
+    fn progress(&self) -> String {
+        let mut text = String::new();
+        let mut after_call = false;
+        for step in &self.steps {
+            let (piece, call) = match step {
+                Step::Said(said) => (said.clone(), false),
+                Step::Call { line, failed, .. } => (
+                    if *failed {
+                        format!("{line} ✗")
+                    } else {
+                        line.clone()
+                    },
+                    true,
+                ),
+            };
+            if !text.is_empty() {
+                text.push_str(if call && after_call { "\n" } else { "\n\n" });
+            }
+            text.push_str(&piece);
+            after_call = call;
+        }
+        text
+    }
+
+    /// Show, under what the subagent said, that its request waits for a
+    /// free slot of its connection (`ahead` others before it), or no longer.
+    fn waiting(&self, ahead: Option<usize>, on_update: &mut dyn FnMut(ToolUpdate)) {
+        let t = termide_i18n::t();
+        let line = match ahead {
+            None => None,
+            Some(0) => Some(t.agent_queued().to_string()),
+            Some(ahead) => Some(t.agent_queued_ahead_fmt(ahead)),
+        };
+        let progress = self.progress();
+        let shown = match (line, progress.is_empty()) {
+            (None, _) => progress,
+            (Some(line), true) => format!("⏳ {line}"),
+            (Some(line), false) => format!("{progress}\n\n⏳ {line}"),
+        };
+        on_update(ToolUpdate::Output(shown));
+    }
+
+    /// The delegating call's result.
+    fn into_outcome(self, stopped: bool) -> SubagentOutcome {
+        let spent = self.spent;
+        let answer = match self.answer {
+            Some(text) if self.turns > self.max_turns => Ok(format!(
+                "{text}\n\n(subagent stopped after {} steps)",
+                self.max_turns
+            )),
+            Some(text) => Ok(text),
+            None if stopped => Err("the subagent was stopped".into()),
+            None => Err(self.error.map_or_else(
+                || "the subagent produced no answer".to_string(),
+                |error| format!("the subagent failed: {error}"),
+            )),
+        };
+        SubagentOutcome { answer, spent }
+    }
+}
+
 impl Subagents {
+    /// The tools, the skills and the system prompt the agent `name` runs
+    /// with as a subagent: no `task` (delegation does not nest), and no
+    /// `question` or `suggest_command` (nobody watches it).
+    fn toolset(
+        &self,
+        name: &str,
+        definition: &termide_agent_core::AgentDefinition,
+    ) -> (ToolRegistry, Vec<termide_agent_core::SkillInfo>, String) {
+        let mut tools = base_tools(&self.dirs, Some(&self.web), Some(&self.recall));
+        restrict_tools(&mut tools, &definition.spec.tools, name);
+        let skills = self.dirs.skills();
+        if !skills.is_empty() {
+            tools.insert(Arc::new(SkillTool::new(skills.clone())));
+        }
+        apply_tool_texts(&mut tools, &self.dirs.tool_texts());
+        let context_files = discover_context_files(&self.cwd, Some(&self.project_root), None);
+        let mut options = PromptOptions::new(&self.cwd, &tools, &context_files);
+        options.skills = &skills;
+        options.soul = definition.soul.as_deref();
+        let system_prompt = build_system_prompt(&options);
+        // As for the panel's agent, the MCP servers' tools are neither listed
+        // in the prompt nor narrowed by the agent's `tools` list.
+        for tool in self.mcp.ready_tools() {
+            tools.insert(tool);
+        }
+        (tools, skills, system_prompt)
+    }
+
     fn run(
         &self,
         name: &str,
         prompt: &str,
         ctx: &ToolContext,
         cancel: &CancelToken,
-        on_update: &mut dyn FnMut(termide_agent_core::ToolUpdate),
-    ) -> Result<String, String> {
+        on_update: &mut dyn FnMut(ToolUpdate),
+    ) -> SubagentOutcome {
+        self.delegate(name, prompt, ctx, cancel, on_update)
+            .unwrap_or_else(|error| Err(error).into())
+    }
+
+    /// Run the task; an error is one that came before anything was spent.
+    fn delegate(
+        &self,
+        name: &str,
+        prompt: &str,
+        ctx: &ToolContext,
+        cancel: &CancelToken,
+        on_update: &mut dyn FnMut(ToolUpdate),
+    ) -> Result<SubagentOutcome, String> {
         let definition = self.dirs.agent(name);
         if definition.spec.acp.is_some() {
             return Err(format!(
                 "{name} is an external agent and cannot be run as a subagent"
             ));
         }
-        let mut tools = base_tools(&self.dirs, Some(&self.web));
-        restrict_tools(&mut tools, &definition.spec.tools, name);
-        let skills = self.dirs.skills();
-        if !skills.is_empty() {
-            tools.insert(Arc::new(SkillTool::new(skills.clone())));
-        }
-        let context_files = discover_context_files(&self.cwd, Some(&self.project_root), None);
-        let mut options = PromptOptions::new(&self.cwd, &tools, &context_files);
-        options.skills = &skills;
-        options.soul = definition.soul.as_deref();
-        let system_prompt = build_system_prompt(&options);
+        let (tools, skills, system_prompt) = self.toolset(name, &definition);
+        let max_turns = definition.spec.max_turns.unwrap_or(SUBAGENT_MAX_TURNS);
 
         let active = self
             .active
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        let requested = definition
-            .spec
-            .model
-            .clone()
-            .unwrap_or_else(|| active.model.clone());
-        let Some(id) = resolve_model(active.provider.as_ref(), &requested) else {
+        let settings = applied_ai_settings(&self.settings);
+        let target = subagent_target(&settings, &active)?;
+        // The session's connection says who reviews, wherever the task runs.
+        let reviewer = reviewer_setup(&settings, &self.dirs, &active.connection);
+        // A meter of its own: what its reviewer spends counts in the task,
+        // not in the panel's own reviews.
+        let reviews = reviewer.spent.clone();
+        let with_reviews = |mut outcome: SubagentOutcome| {
+            outcome.spent.add(&reviews.take());
+            outcome
+        };
+
+        let mut rules = self.rules.clone();
+        rules.mode = subagent_mode(self.mode.get(), definition.spec.mode);
+        let plan_guard = PlanGuard::new(ModeHandle::new(rules.mode)).with_refusals(&self.refusals);
+        // Stops a run that will not stop itself; the parent's cancel stops
+        // it too.
+        let budget = CancelToken::new();
+        let permissions = PermissionHooks::new(
+            rules.clone(),
+            Box::new(AutoDenyPrompter::new(
+                self.refusals.unattended_subagent.clone(),
+            )),
+        )
+        .with_classifier(Box::new(reviewer.classifier(budget.clone())))
+        .with_refusals(self.refusals.clone());
+        // The guard goes first, as in the panel's own chain: in plan mode a
+        // session answer must not let a change through.
+        let hooks = ChainedHooks::new(vec![Box::new(plan_guard), Box::new(permissions)]);
+
+        let (provider, requested, context_window) = match target {
+            SubagentTarget::Cli(connection_name, connection) => {
+                let run = CliSubagent {
+                    name: format!("{connection_name}:{name}"),
+                    max_turns,
+                    reviewer,
+                    connection,
+                    system_prompt,
+                    tools,
+                    skills,
+                    hooks,
+                    rules,
+                };
+                return self
+                    .run_cli(run, prompt, &budget, cancel, on_update)
+                    .map(with_reviews);
+            }
+            // On a connection of its own the subagent runs that connection's
+            // model: the id its `AGENT.md` names is one of the session's
+            // endpoint.
+            SubagentTarget::Model(name, connection) => (
+                connection_provider(&name, &connection),
+                connection.model.clone(),
+                connection.effective_context_window(),
+            ),
+            SubagentTarget::Session => (
+                Arc::clone(&active.provider),
+                definition
+                    .spec
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| active.model.clone()),
+                active.context_window,
+            ),
+        };
+        let Some(id) = resolve_model(provider.as_ref(), &requested) else {
             return Err("the provider lists no model to run the subagent on".into());
         };
         let model = ModelSpec {
             provider: "agent".to_string(),
             id,
-            context_window: active.context_window,
+            context_window,
             max_tokens: self.max_tokens,
             thinking: self.reasoning,
         };
-        let mut rules = self.rules.clone();
-        rules.mode = definition.spec.mode.unwrap_or_else(|| self.mode.get());
         // The reviewer judges the subagent's calls against what the user asked
         // the delegating agent; the task itself counts as that agent's words.
         let parent = ctx
@@ -870,80 +1505,235 @@ impl Subagents {
             .as_ref()
             .map(|session| IntentLog::delegated(&session.intent))
             .unwrap_or_default();
-        let mut agent = Agent::new(Arc::clone(&active.provider), tools, model, self.cwd.clone())
+        let mut agent = Agent::new(provider, tools, model, self.cwd.clone())
             .with_system_prompt(system_prompt)
             .with_compaction(self.compaction)
             .with_delegated_intent(parent);
 
-        // Mirror the sub-run's own progress up as it goes, and stop a run
-        // that will not stop itself. The parent's cancel aborts it too.
-        let budget = CancelToken::new();
-        let mut hooks = PermissionHooks::new(
-            rules,
-            Box::new(AutoDenyPrompter::new(
-                self.refusals.unattended_subagent.clone(),
-            )),
-        )
-        .with_classifier(Box::new(self.reviewer.classifier(budget.clone())))
-        .with_refusals(self.refusals.clone());
-        let mut turns = 0usize;
-        let mut progress = String::new();
-        {
-            let budget = budget.clone();
-            let mut emit = |event: AgentEvent| {
-                match &event {
-                    AgentEvent::MessageStart { .. } => {
-                        turns += 1;
-                        if turns > SUBAGENT_MAX_TURNS {
-                            budget.cancel();
-                        }
+        let mut hooks = hooks;
+        let mut report = SubagentReport::new(max_turns);
+        let finished = std::sync::atomic::AtomicBool::new(false);
+        std::thread::scope(|scope| {
+            // The parent's stop reaches the run at once, not at its next
+            // event: a long prefill or tool sends none.
+            scope.spawn(|| {
+                while !finished.load(std::sync::atomic::Ordering::Acquire) {
+                    if cancel.is_cancelled() {
+                        budget.cancel();
+                        return;
                     }
-                    AgentEvent::MessageEnd(Message::Assistant(message)) => {
-                        let text = message.plain_text();
-                        if !text.trim().is_empty() {
-                            if !progress.is_empty() {
-                                progress.push_str(
-                                    "
-
-",
-                                );
-                            }
-                            progress.push_str(text.trim());
-                            on_update(termide_agent_core::ToolUpdate::Output(progress.clone()));
-                        }
+                    std::thread::sleep(CLI_SUBAGENT_POLL);
+                }
+            });
+            let mut emit = |event: AgentEvent| match &event {
+                AgentEvent::MessageStart { .. } => {
+                    if report.turn() {
+                        budget.cancel();
                     }
-                    _ => {}
                 }
-                if cancel.is_cancelled() {
-                    budget.cancel();
+                AgentEvent::MessageUpdate(StreamEvent::Queued { ahead }) => {
+                    report.waiting(Some(*ahead), on_update);
                 }
+                AgentEvent::MessageUpdate(StreamEvent::Admitted) => {
+                    report.waiting(None, on_update);
+                }
+                AgentEvent::MessageEnd(Message::Assistant(message)) => {
+                    report.said(message, on_update);
+                }
+                AgentEvent::ToolExecutionStart { call } => {
+                    report.called(call, &self.cwd, on_update);
+                }
+                AgentEvent::ToolExecutionEnd { result } => {
+                    report.call_ended(result, on_update);
+                }
+                _ => {}
             };
             agent.run(UserMessage::text(prompt), &mut hooks, &budget, &mut emit);
+            finished.store(true, std::sync::atomic::Ordering::Release);
+        });
+        if report.answer.is_none() && report.error.is_none() {
+            report.error = run_error(agent.messages());
         }
+        Ok(with_reviews(report.into_outcome(cancel.is_cancelled())))
+    }
 
-        let answer = agent
-            .messages()
-            .iter()
-            .rev()
-            .find_map(|message| match message {
-                Message::Assistant(assistant) => {
-                    let text = assistant.plain_text();
-                    (!text.trim().is_empty()).then(|| text.trim().to_string())
-                }
-                _ => None,
-            });
-        match answer {
-            Some(text) if turns > SUBAGENT_MAX_TURNS => Ok(format!(
-                "{text}
-
-(subagent stopped after {SUBAGENT_MAX_TURNS} steps)"
-            )),
-            Some(text) => Ok(text),
-            None if cancel.is_cancelled() => Err("the subagent was stopped".into()),
-            None => Err("the subagent produced no answer".into()),
-        }
+    /// Run `run` as a session of its own of its CLI agent, which calls the
+    /// subagent's tools through its hooks: the agent's model when the
+    /// connection names one, nobody to ask — the agent's own permission
+    /// requests are refused with the reason a subagent's calls get — and the
+    /// process gone once the task is.
+    fn run_cli(
+        &self,
+        run: CliSubagent,
+        prompt: &str,
+        budget: &CancelToken,
+        cancel: &CancelToken,
+        on_update: &mut dyn FnMut(ToolUpdate),
+    ) -> Result<SubagentOutcome, String> {
+        let config = cli_acp_config(&run.connection)
+            .ok_or_else(|| format!("{} is not a CLI agent", run.connection.provider))?;
+        let (prompter, permission_rx) = permission_channel(budget.clone());
+        let setup = BackendSetup {
+            cwd: self.cwd.clone(),
+            prompter,
+            cancel: budget.clone(),
+            mode: ModeHandle::new(run.rules.mode),
+            rules: run.rules,
+            persist: None,
+            system_prompt: run.system_prompt,
+            plan: self.dirs.plan_prompt(),
+            goal: self.dirs.goal_prompt(),
+            handoff: self.dirs.handoff_prompt(),
+            reviewer: run.reviewer,
+            host_tools: Some(HostTools {
+                tools: run.tools,
+                hooks: Box::new(run.hooks),
+                context: ToolContext::new(self.cwd.clone()),
+                skills: run.skills,
+            }),
+            resume: None,
+            history: Vec::new(),
+        };
+        let runtime = AcpRuntime::start(&run.name, &config, setup)?;
+        let drive = CliDrive {
+            name: &run.name,
+            model: run.connection.model.trim(),
+            permission_rx: &permission_rx,
+            refusal: &self.refusals.unattended_subagent,
+            max_turns: run.max_turns,
+            cwd: &self.cwd,
+            budget,
+            cancel,
+        };
+        // The process goes with the runtime, once the task is over.
+        drive.run(&runtime, &|| runtime.is_starting(), prompt, on_update)
     }
 }
+
+/// The run of a subagent on a CLI agent once its process is up.
+struct CliDrive<'a> {
+    name: &'a str,
+    /// The model to pick for the task, empty for the agent's own.
+    model: &'a str,
+    /// The agent's own permission requests, refused: nobody watches.
+    permission_rx: &'a std::sync::mpsc::Receiver<termide_agent_core::PermissionEnvelope>,
+    refusal: &'a str,
+    /// The model calls it may take before it is cut off.
+    max_turns: usize,
+    /// Where it works: its calls' paths are shown relative to it.
+    cwd: &'a Path,
+    budget: &'a CancelToken,
+    cancel: &'a CancelToken,
+}
+
+impl CliDrive<'_> {
+    /// Pick the model, hand `backend` the task and follow it to its end,
+    /// reporting what it says; `starting` says whether its handshake is
+    /// still under way.
+    fn run(
+        &self,
+        backend: &dyn Backend,
+        starting: &dyn Fn() -> bool,
+        prompt: &str,
+        on_update: &mut dyn FnMut(ToolUpdate),
+    ) -> Result<SubagentOutcome, String> {
+        let stopped = || self.cancel.is_cancelled() || self.budget.is_cancelled();
+        // The model goes before the task does, so the whole task runs on it.
+        if !self.model.is_empty() {
+            while starting() && !stopped() {
+                std::thread::sleep(CLI_SUBAGENT_POLL);
+            }
+            let models = backend.available_models();
+            match termide_agent_acp::match_model(self.model, &models) {
+                Some(id) => {
+                    if let Err(error) = backend.select_model(id) {
+                        log::warn!(
+                            "subagent {}: cannot pick {}: {error}",
+                            self.name,
+                            self.model
+                        );
+                    }
+                }
+                None if !models.is_empty() => log::warn!(
+                    "subagent {}: no model {}; its default runs",
+                    self.name,
+                    self.model
+                ),
+                None => {}
+            }
+        }
+        if stopped() {
+            return Err("the subagent was stopped".into());
+        }
+        backend
+            .prompt(UserMessage::text(prompt))
+            .map_err(|error| format!("the subagent did not start: {error:?}"))?;
+        let mut report = SubagentReport::new(self.max_turns);
+        let mut aborted: Option<std::time::Instant> = None;
+        let mut idle = 0;
+        'run: loop {
+            for envelope in self.permission_rx.try_iter() {
+                let _ = envelope
+                    .reply
+                    .send(PermissionAnswer::DenyWithReason(self.refusal.to_string()));
+            }
+            for event in backend.drain() {
+                match event {
+                    AgentEvent::MessageEnd(Message::Assistant(message)) => {
+                        let over = report.turn();
+                        report.said(&message, on_update);
+                        if over {
+                            self.budget.cancel();
+                        }
+                    }
+                    AgentEvent::ToolExecutionStart { call } => {
+                        report.called(&call, self.cwd, on_update);
+                    }
+                    AgentEvent::ToolExecutionEnd { result } => {
+                        report.call_ended(&result, on_update);
+                    }
+                    AgentEvent::AgentEnd => break 'run,
+                    _ => {}
+                }
+            }
+            // An agent that went away without saying it ended is over too,
+            // as is one that does not end within a while of being stopped.
+            idle = if backend.is_busy() { 0 } else { idle + 1 };
+            if idle > 1 || aborted.is_some_and(|at| at.elapsed() > CLI_SUBAGENT_ABORT_WAIT) {
+                break;
+            }
+            if aborted.is_none() && stopped() {
+                aborted = Some(std::time::Instant::now());
+                self.budget.cancel();
+                backend.abort();
+            }
+            std::thread::sleep(CLI_SUBAGENT_POLL);
+        }
+        Ok(report.into_outcome(self.cancel.is_cancelled()))
+    }
+}
+
+/// What a subagent on a CLI agent runs with, built as for termide's loop.
+struct CliSubagent {
+    /// How its process is named in the logs.
+    name: String,
+    /// The model calls it may take before it is cut off.
+    max_turns: usize,
+    /// Reviews its requests in `auto` mode.
+    reviewer: ReviewerSetup,
+    connection: Connection,
+    system_prompt: String,
+    tools: ToolRegistry,
+    skills: Vec<termide_agent_core::SkillInfo>,
+    hooks: ChainedHooks,
+    rules: PermissionRules,
+}
+
+/// How often a subagent on a CLI agent is looked at while it runs.
+const CLI_SUBAGENT_POLL: std::time::Duration = std::time::Duration::from_millis(50);
+
+/// How long a stopped subagent on a CLI agent may take to end its turn.
+const CLI_SUBAGENT_ABORT_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Everything the panel needs, resolved from `settings` for a panel working
 /// in `cwd` inside the termide project at `project_root` as the agent named
@@ -960,23 +1750,30 @@ fn agent_setup(
     let (connection_name, connection) =
         session_connection(settings, session.as_ref()).unwrap_or_default();
     let provider_kind = connection.provider.clone();
-    let provider: Arc<dyn Provider> = build_provider(&connection, api_key_of(&connection));
+    let provider = connection_provider(&connection_name, &connection);
 
     let mut catalog = FsCatalog::new(&cwd, project_root);
     let web = shared_web(&settings.web, &catalog.dirs);
     catalog.web = Some(Arc::clone(&web));
+    let recall = recall_tool(settings, &catalog.dirs, project_root, &cwd);
+    catalog.recall = Some(Arc::clone(&recall));
     // The subagent runner shares the provider, the rules and the model
     // defaults, so a delegated agent runs like the panel would run it.
     let active: ActiveSlot = Arc::new(std::sync::RwLock::new(Active {
+        connection: connection_name.clone(),
+        kind: provider_kind.clone(),
         provider: Arc::clone(&provider),
         model: connection.model.clone(),
         context_window: connection.effective_context_window(),
     }));
-    let reviewer = reviewer_setup(settings, &catalog.dirs);
+    let reviewer = reviewer_setup(settings, &catalog.dirs, &connection_name);
     catalog.subagents = Some(Arc::new(Subagents {
         active: Arc::clone(&active),
+        settings: settings.clone(),
         dirs: catalog.dirs.clone(),
         web,
+        recall,
+        mcp: Arc::clone(&catalog.mcp),
         cwd: cwd.clone(),
         project_root: project_root.to_path_buf(),
         rules: settings.permissions.clone(),
@@ -984,13 +1781,13 @@ fn agent_setup(
         max_tokens: settings.output_limit(),
         reasoning: settings.reasoning,
         compaction: settings.compaction,
-        reviewer: reviewer.clone(),
         refusals: catalog.dirs.refusals(),
     }));
     let compaction_prompts = catalog.dirs.compaction_prompts();
     let plan_prompt = catalog.dirs.plan_prompt();
     let goal_prompt = catalog.dirs.goal_prompt();
     let handoff_prompt = catalog.dirs.handoff_prompt();
+    let loop_prompt = catalog.dirs.loop_prompt();
     let refusals = catalog.dirs.refusals();
     let hooks: Option<HooksFactory> = {
         let configs = catalog.dirs.hooks();
@@ -1025,9 +1822,9 @@ fn agent_setup(
     }
 
     // A CLI-adapter provider (Claude Code, Codex, Gemini CLI) is an explicit choice of
-    // backend, so it drives its own ACP adapter — over any `[acp]` the agent
+    // backend, so it drives its own ACP adapter — over any `command` the agent
     // definition might carry. Otherwise the agent's own backend (if any) wins.
-    let provider_backend = cli_provider_backend(&provider_kind, &agent);
+    let provider_backend = cli_provider_backend(&connection, &agent);
     let backend = provider_backend.clone().or(profile.backend);
 
     let session_dir = session_dir_of(&cwd);
@@ -1035,6 +1832,8 @@ fn agent_setup(
     // Built before `cwd` moves into the setup: a hand-run command runs where
     // the panel works.
     let shell_run = user_shell_runner(&catalog.dirs, &cwd);
+    // The reviewer of a connection switched to reads its texts from here.
+    let connection_dirs = catalog.dirs.clone();
 
     AgentPanelSetup {
         cwd,
@@ -1046,6 +1845,7 @@ fn agent_setup(
         provider_backend,
         connections: Some(Arc::new(AiConnections {
             settings: settings.clone(),
+            dirs: connection_dirs,
             active,
         })),
         connection: connection_name,
@@ -1060,6 +1860,7 @@ fn agent_setup(
         plan_prompt,
         goal_prompt,
         handoff_prompt,
+        loop_prompt,
         reviewer,
         refusals,
         fold: match settings.fold_blocks {
@@ -1071,6 +1872,7 @@ fn agent_setup(
         session_dir,
         session,
         shell_run: Some(shell_run),
+        on_limit: settings.on_limit,
     }
 }
 
@@ -1120,11 +1922,22 @@ fn user_shell_runner(dirs: &AgentDirs, cwd: &Path) -> ShellRunner {
 /// speaks ACP itself), which signs in with the user's CLI
 /// login (a subscription or an API key — the adapter's concern, not ours).
 /// `None` for any other provider, so the built-in loop is used.
-fn cli_provider_backend(provider: &str, agent: &str) -> Option<BackendFactory> {
+fn cli_provider_backend(connection: &Connection, agent: &str) -> Option<BackendFactory> {
+    let config = cli_acp_config(connection)?;
+    let agent = agent.to_string();
+    Some(Arc::new(move |setup: termide_agent_core::BackendSetup| {
+        AcpRuntime::start(&agent, &config, setup)
+            .map(|runtime| Box::new(runtime) as Box<dyn termide_agent_core::Backend>)
+    }) as BackendFactory)
+}
+
+/// How the ACP adapter of a CLI-adapter connection runs; `None` for any
+/// other provider.
+fn cli_acp_config(connection: &Connection) -> Option<AcpConfig> {
     // Claude Code takes termide's prompt and tools in place of its own; Codex
     // and Gemini CLI keep their own and have termide's permission mode mapped
     // onto their modes.
-    let (package, flag, flavor) = match provider {
+    let (package, flag, flavor) = match connection.provider.as_str() {
         "claude_code" => (
             "@agentclientprotocol/claude-agent-acp@latest",
             None,
@@ -1145,41 +1958,171 @@ fn cli_provider_backend(provider: &str, agent: &str) -> Option<BackendFactory> {
     // The adapters ship on npm; `npx -y` fetches on first use. `@latest`,
     // because npx otherwise keeps running the copy it fetched first, and an
     // old adapter lists old models (and none at all, for Codex). A power
-    // user who wants a pinned binary can point an agent's own `[acp]` at it
+    // user who wants a pinned binary can point an agent's own `command` at it
     // and pick a compatible provider instead.
-    let config = AcpConfig {
+    //
+    // `--prefer-offline` takes what `@latest` meant at the last look from
+    // npm's cache instead of asking the registry at every start, which cost
+    // seconds per panel, side call and subagent, and over a minute with the
+    // registry out of reach. The look is taken once per process, off the
+    // thread, so the next start runs the new release.
+    #[cfg(not(test))]
+    refresh_adapter(package);
+    Some(AcpConfig {
         command: "npx".to_string(),
-        args: ["-y", package]
+        args: ["-y", "--prefer-offline", package]
             .into_iter()
             .chain(flag)
             .map(str::to_string)
             .collect(),
-        env: std::collections::BTreeMap::new(),
+        env: context_limit_env(connection),
         timeout_secs: 120,
         flavor,
+        context_limit: context_limit(connection),
+    })
+}
+
+/// The window a CLI agent is limited to: the connection's
+/// `context_window_limit`, raised to the least the agent takes; `None` for
+/// none, or an agent that cannot be limited.
+fn context_limit(connection: &Connection) -> Option<u64> {
+    let limit = connection
+        .context_window_limit
+        .filter(|_| connection.takes_context_limit())?;
+    Some(limit.max(connection.min_context_limit().unwrap_or(0)))
+}
+
+/// The environment that limits a CLI agent's context window, see
+/// [`context_limit`]: Claude Code compacts at
+/// `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; Codex takes its window, and compacts
+/// at nine tenths of it, from `CODEX_CONFIG`, which its adapter merges into
+/// the session's config — over what the user's own `CODEX_CONFIG` holds.
+fn context_limit_env(connection: &Connection) -> std::collections::BTreeMap<String, String> {
+    let mut env = std::collections::BTreeMap::new();
+    let Some(limit) = context_limit(connection) else {
+        return env;
     };
-    let agent = agent.to_string();
-    Some(Arc::new(move |setup: termide_agent_core::BackendSetup| {
-        AcpRuntime::start(&agent, &config, setup)
-            .map(|runtime| Box::new(runtime) as Box<dyn termide_agent_core::Backend>)
-    }) as BackendFactory)
+    match connection.provider.as_str() {
+        "claude_code" => {
+            env.insert("CLAUDE_CODE_AUTO_COMPACT_WINDOW".into(), limit.to_string());
+        }
+        "codex" => {
+            let own = std::env::var("CODEX_CONFIG").ok();
+            env.insert("CODEX_CONFIG".into(), codex_config(own.as_deref(), limit));
+        }
+        _ => {}
+    }
+    env
+}
+
+/// `CODEX_CONFIG` holding the user's own (`own`, when it is a JSON object)
+/// with the window set to `limit`.
+fn codex_config(own: Option<&str>, limit: u64) -> String {
+    let mut config = own
+        .and_then(|own| serde_json::from_str::<serde_json::Value>(own).ok())
+        .filter(serde_json::Value::is_object)
+        .unwrap_or_else(|| serde_json::json!({}));
+    config["model_context_window"] = limit.into();
+    config["model_auto_compact_token_limit"] = (limit / 10 * 9).into();
+    config.to_string()
+}
+
+/// Once per process for each adapter `package`, refresh npm's idea of its
+/// `@latest` and fetch a newer release into npx's cache, for the starts that
+/// [`cli_acp_config`] makes with `--prefer-offline`. Off the thread and after
+/// a delay, so it neither holds up nor races the install of the start that
+/// asked for it; a refresh that hangs is killed.
+#[cfg(not(test))]
+fn refresh_adapter(package: &'static str) {
+    use std::collections::HashSet;
+    use std::process::{Command, Stdio};
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+
+    const DELAY: Duration = Duration::from_secs(60);
+    const LIMIT: Duration = Duration::from_secs(300);
+    static REFRESHED: Mutex<Option<HashSet<&'static str>>> = Mutex::new(None);
+
+    let first = REFRESHED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get_or_insert_with(HashSet::new)
+        .insert(package);
+    if !first {
+        return;
+    }
+    let spawned = std::thread::Builder::new()
+        .name("termide-adapter-refresh".into())
+        .spawn(move || {
+            std::thread::sleep(DELAY);
+            // The spec must match the starts' so npx keeps one install;
+            // `--version` makes the adapter exit once it is in place.
+            let child = Command::new("npx")
+                .args(["-y", "--prefer-online", package, "--version"])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            let mut child = match child {
+                Ok(child) => child,
+                Err(error) => {
+                    log::warn!("cannot refresh {package}: {error}");
+                    return;
+                }
+            };
+            let deadline = Instant::now() + LIMIT;
+            loop {
+                match child.try_wait() {
+                    Ok(Some(_)) => return,
+                    Ok(None) if Instant::now() < deadline => {
+                        std::thread::sleep(Duration::from_secs(1));
+                    }
+                    _ => {
+                        log::warn!("refreshing {package} took too long; stopped");
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        return;
+                    }
+                }
+            }
+        });
+    if let Err(error) = spawned {
+        log::warn!("cannot refresh {package}: {error}");
+    }
 }
 
 /// Start an off-thread `list_models` for the settings modal's model dropdown
-/// of `connection`. `None` for a CLI agent (its models come over ACP at
-/// runtime). The receiver is polled by the app loop.
+/// of `connection`. A CLI agent is started for it, as for a side call, and
+/// lists the models of its login; the process ends with the fetch. The
+/// receiver is polled by the app loop.
 pub(crate) fn spawn_settings_model_fetch(
     connection: &Connection,
 ) -> Option<std::sync::mpsc::Receiver<Result<Vec<termide_agent_core::ModelInfo>, String>>> {
-    if connection.is_cli() {
-        return None;
-    }
-    let provider = build_provider(connection, api_key_of(connection));
+    let provider: Arc<dyn Provider> = if connection.is_cli() {
+        let config = cli_acp_config(connection)?;
+        let cwd = std::env::current_dir().unwrap_or_default();
+        Arc::new(AcpProvider::new("settings", config, cwd))
+    } else {
+        build_provider(connection, api_key_of(connection))
+    };
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let _ = tx.send(provider.list_models());
     });
     Some(rx)
+}
+
+/// The provider of connection `name` for a session or a side call: its
+/// requests take the connection's slots, which every panel of the process
+/// shares (see `max_concurrent_requests`). A CLI agent's is a placeholder
+/// that serves no request, so it takes none.
+fn connection_provider(name: &str, connection: &Connection) -> Arc<dyn Provider> {
+    let provider = build_provider(connection, api_key_of(connection));
+    if connection.is_cli() {
+        return provider;
+    }
+    let slots = Slots::shared(name, connection.max_concurrent_requests as usize);
+    Arc::new(SlottedProvider::new(provider, slots))
 }
 
 /// The provider `connection` names: the Anthropic Messages API, or the
@@ -1377,6 +2320,94 @@ fn merge_permission_rule(path: &Path, tool: &str, pattern: &str, decision: Decis
 #[cfg(test)]
 mod tests {
     use super::*;
+    use termide_agent_core::{AGENT_FILE, DEFAULT_AGENT_FILE, SEED_TOOLS};
+
+    #[test]
+    fn a_side_call_runs_on_a_connection_a_subscription_or_the_sessions_model() {
+        let mut settings = AiSettings::default();
+        for (name, provider, model) in [
+            ("local", "openai_compatible", "qwen"),
+            ("claude", "claude_code", ""),
+        ] {
+            settings.connections.insert(
+                name.to_string(),
+                termide_config::Connection {
+                    provider: provider.to_string(),
+                    model: model.to_string(),
+                    ..termide_config::Connection::default()
+                },
+            );
+        }
+        let pick = |connection: &str, model: &str| {
+            side_model(
+                &settings,
+                &termide_config::SideModel {
+                    connection: connection.into(),
+                    model: model.into(),
+                },
+                "test",
+            )
+        };
+        // An endpoint's model, or another of it.
+        let own = |choice: ModelChoice| {
+            let (provider, model) = choice.own.expect("a model of its own");
+            (provider.name().to_string(), model.id)
+        };
+        assert_eq!(own(pick("local", "")).1, "qwen");
+        assert_eq!(own(pick("local", "big")).1, "big");
+        // A CLI agent through its subscription.
+        assert_eq!(own(pick("claude", "haiku")), ("acp".into(), "haiku".into()));
+        // None named: the session's, under another model when one is.
+        let session = pick("", "haiku");
+        assert!(session.own.is_none());
+        assert_eq!(session.session_model.as_deref(), Some("haiku"));
+        assert!(pick("", "").session_model.is_none());
+        // A name that matches nothing: the session's.
+        assert!(pick("gone", "").own.is_none());
+    }
+
+    /// Every built-in tool a panel can offer has a shipped text, and every
+    /// shipped text a tool: a tool whose `ToolText::seed` name is wrong, or
+    /// one added without its `assets/tools/<name>.md`, would otherwise reach
+    /// the model with no description and stay off the prompt's tool list.
+    #[test]
+    fn every_built_in_tool_has_its_shipped_text() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dirs = AgentDirs::new(tmp.path(), Some(tmp.path()), None);
+        let web = termide_agent_web::Web::new(WebConfig {
+            backend: termide_agent_web::Backend::Http,
+            engine: None,
+            chrome_path: None,
+            display: termide_agent_web::Display::Headless,
+            profile: tmp.path().join("browser"),
+        });
+        let recall = recall_tool(&AiSettings::default(), &dirs, tmp.path(), tmp.path());
+        let mut tools = base_tools(&dirs, Some(&web), Some(&recall));
+        // Offered only with a browser to search in, which a test has not.
+        tools.insert(Arc::new(termide_agent_web::WebSearchTool::new(web)));
+        tools.insert(Arc::new(QuestionTool));
+        tools.insert(Arc::new(SuggestCommandTool));
+        let run: SubagentRun = Arc::new(|_, _, _, _, _| unreachable!());
+        tools.insert(Arc::new(TaskTool::new(
+            vec![("review".into(), "Reviews".into())],
+            run,
+        )));
+        tools.insert(Arc::new(SkillTool::new(Vec::new())));
+
+        let mut names: Vec<&str> = tools.iter().map(|tool| tool.name()).collect();
+        names.sort_unstable();
+        let mut shipped: Vec<&str> = SEED_TOOLS.iter().map(|(name, _)| *name).collect();
+        shipped.sort_unstable();
+        assert_eq!(names, shipped);
+        for tool in tools.iter() {
+            assert!(!tool.description().trim().is_empty(), "{}", tool.name());
+            assert!(
+                tool.prompt_snippet().is_some_and(|s| !s.trim().is_empty()),
+                "{}",
+                tool.name()
+            );
+        }
+    }
 
     /// A local endpoint (the one new sessions start on) and a hosted one.
     fn with_cloud() -> AiSettings {
@@ -1401,6 +2432,18 @@ mod tests {
             },
         );
         settings
+    }
+
+    /// What a panel on connection `name` of `settings` runs on.
+    fn active_on(settings: &AiSettings, name: &str) -> Active {
+        let connection = &settings.connections[name];
+        Active {
+            connection: name.to_string(),
+            kind: connection.provider.clone(),
+            provider: build_provider(connection, None),
+            model: connection.model.clone(),
+            context_window: connection.effective_context_window(),
+        }
     }
 
     #[test]
@@ -1461,17 +2504,38 @@ mod tests {
         );
     }
 
+    /// The applied `[ai]` settings are one per process: the tests that read
+    /// or publish them take turns, and a publisher clears them as it ends.
+    static APPLIED_TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn applied_turn() -> std::sync::MutexGuard<'static, ()> {
+        APPLIED_TURN
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// Clears the applied settings when dropped, a failed assertion included.
+    struct ClearApplied;
+
+    impl Drop for ClearApplied {
+        fn drop(&mut self) {
+            *APPLIED_AI
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+    }
+
     #[test]
     fn connections_build_and_hand_their_provider_to_delegated_tasks() {
-        let settings = with_cloud();
-        let local = &settings.connections["local"];
-        let active: ActiveSlot = Arc::new(std::sync::RwLock::new(Active {
-            provider: build_provider(local, None),
-            model: local.model.clone(),
-            context_window: local.effective_context_window(),
-        }));
+        let _turn = applied_turn();
+        let mut settings = with_cloud();
+        // `cloud`'s calls are reviewed by `local`'s model; `local` leaves it
+        // to `[ai.auto_reviewer]`, which says the session's model.
+        settings.connections.get_mut("cloud").unwrap().reviewer = "local".into();
+        let active: ActiveSlot = Arc::new(std::sync::RwLock::new(active_on(&settings, "local")));
         let connections = AiConnections {
             settings,
+            dirs: AgentDirs::new(Path::new("/tmp"), None, None),
             active: Arc::clone(&active),
         };
         let names: Vec<String> = connections.list().into_iter().map(|e| e.name).collect();
@@ -1483,6 +2547,17 @@ mod tests {
             ("claude-x", 200_000)
         );
         assert!(cloud.backend.is_none(), "an endpoint, not a CLI agent");
+        let reviewer = |choice: &ConnectionChoice| {
+            choice
+                .reviewer
+                .model
+                .own
+                .as_ref()
+                .map(|(_, model)| model.id.clone())
+        };
+        assert_eq!(reviewer(&cloud).as_deref(), Some("local-model"));
+        let local = connections.build("local", DEFAULT_AGENT).unwrap();
+        assert_eq!(reviewer(&local), None);
         assert!(connections.build("missing", DEFAULT_AGENT).is_none());
         // Switching to it moves what a delegated task runs on.
         connections.activate(&cloud);
@@ -1491,24 +2566,247 @@ mod tests {
             (now.model.as_str(), now.context_window),
             ("claude-x", 200_000)
         );
+        assert_eq!(
+            (now.connection.as_str(), now.kind.as_str()),
+            ("cloud", "anthropic_compatible")
+        );
+    }
+
+    /// A delegated task runs on the session's connection, or on the one its
+    /// `subagents` field names: termide's loop on a model connection, a copy
+    /// of Claude Code on its; Codex and Gemini CLI run none.
+    #[test]
+    fn subagents_run_where_the_session_connection_says() {
+        let mut settings = with_cloud();
+        for (name, provider) in [("claude", "claude_code"), ("codex", "codex")] {
+            settings.connections.insert(
+                name.into(),
+                Connection {
+                    provider: provider.into(),
+                    ..Connection::default()
+                },
+            );
+        }
+        let target = |settings: &AiSettings, session: &str| {
+            subagent_target(settings, &active_on(settings, session)).map(|target| match target {
+                SubagentTarget::Session => "session".to_string(),
+                SubagentTarget::Model(name, _) => format!("model {name}"),
+                SubagentTarget::Cli(name, _) => format!("cli {name}"),
+            })
+        };
+        // Nothing named: the session's own — termide's loop, or a copy of
+        // Claude Code.
+        assert_eq!(target(&settings, "local").as_deref(), Ok("session"));
+        assert_eq!(target(&settings, "claude").as_deref(), Ok("cli claude"));
+        // Codex has nowhere to run them, and says where to choose one.
+        let error = target(&settings, "codex").unwrap_err();
+        assert!(error.contains("Subagents"), "{error}");
+
+        let set = |settings: &mut AiSettings, on: &str, to: &str| {
+            settings.connections.get_mut(on).unwrap().subagents = to.into();
+        };
+        set(&mut settings, "codex", "local");
+        assert_eq!(target(&settings, "codex").as_deref(), Ok("model local"));
+        set(&mut settings, "local", "claude");
+        assert_eq!(target(&settings, "local").as_deref(), Ok("cli claude"));
+        set(&mut settings, "claude", "cloud");
+        assert_eq!(target(&settings, "claude").as_deref(), Ok("model cloud"));
+        // Itself, Codex or a name of no connection: the session's own.
+        for named in ["local", "codex", "gone"] {
+            set(&mut settings, "local", named);
+            assert_eq!(
+                target(&settings, "local").as_deref(),
+                Ok("session"),
+                "{named}"
+            );
+        }
+        set(&mut settings, "codex", "gone");
+        assert!(target(&settings, "codex").is_err());
+    }
+
+    /// A CLI agent standing in for Claude Code: it offers models, answers a
+    /// task with two messages and ends, or ends when stopped.
+    #[derive(Default)]
+    struct FakeCli {
+        picked: std::sync::Mutex<Option<String>>,
+        prompted: std::sync::Mutex<Vec<String>>,
+        events: std::sync::Mutex<std::collections::VecDeque<AgentEvent>>,
+        busy: std::sync::atomic::AtomicBool,
+    }
+
+    impl Backend for FakeCli {
+        fn prompt(&self, message: UserMessage) -> Result<(), termide_agent_core::PromptError> {
+            use termide_agent_core::StopReason;
+            self.prompted.lock().unwrap().push(message.model_text());
+            self.busy.store(true, std::sync::atomic::Ordering::SeqCst);
+            let said = |text: &str| {
+                AgentEvent::MessageEnd(Message::Assistant(AssistantMessage {
+                    content: vec![termide_agent_core::AssistantContent::Text { text: text.into() }],
+                    stop_reason: StopReason::Stop,
+                    usage: Usage {
+                        input: 100,
+                        output: 10,
+                        ..Usage::default()
+                    },
+                    provider: "acp".into(),
+                    model: "m".into(),
+                    error_message: None,
+                    failure: None,
+                    timestamp: 0,
+                }))
+            };
+            let call = |id: &str, name: &str, arguments: serde_json::Value| ToolCall {
+                id: id.into(),
+                name: name.into(),
+                arguments,
+                extra_content: None,
+            };
+            let read = call(
+                "c1",
+                "read",
+                serde_json::json!({ "path": "/proj/src/main.rs" }),
+            );
+            let test = call(
+                "c2",
+                "bash",
+                serde_json::json!({ "command": "cargo test\n--quiet" }),
+            );
+            self.events.lock().unwrap().extend([
+                AgentEvent::AgentStart,
+                said("working"),
+                AgentEvent::ToolExecutionStart { call: read.clone() },
+                AgentEvent::ToolExecutionStart { call: test.clone() },
+                AgentEvent::ToolExecutionEnd {
+                    result: termide_agent_core::ToolResultMessage::text(&read, "fn main"),
+                },
+                AgentEvent::ToolExecutionEnd {
+                    result: termide_agent_core::ToolResultMessage::error(&test, "failed"),
+                },
+                said("the answer"),
+                AgentEvent::AgentEnd,
+            ]);
+            Ok(())
+        }
+        fn steer(&self, _message: UserMessage) {}
+        fn queue_lens(&self) -> (usize, usize) {
+            (0, 0)
+        }
+        fn abort(&self) {
+            self.events.lock().unwrap().push_back(AgentEvent::AgentEnd);
+        }
+        fn is_busy(&self) -> bool {
+            self.busy.load(std::sync::atomic::Ordering::SeqCst)
+        }
+        fn drain(&self) -> Vec<AgentEvent> {
+            let events: Vec<_> = self.events.lock().unwrap().drain(..).collect();
+            if events.iter().any(|e| matches!(e, AgentEvent::AgentEnd)) {
+                self.busy.store(false, std::sync::atomic::Ordering::SeqCst);
+            }
+            events
+        }
+        fn update(
+            &self,
+            _update: Box<dyn FnOnce(&mut Agent) + Send>,
+        ) -> Result<(), termide_agent_core::PromptError> {
+            Err(termide_agent_core::PromptError::Unsupported)
+        }
+        fn compact(&self, _focus: Option<String>) -> Result<(), termide_agent_core::PromptError> {
+            Err(termide_agent_core::PromptError::Unsupported)
+        }
+        fn available_models(&self) -> Vec<termide_agent_core::BackendModel> {
+            ["claude-opus-5", "claude-haiku-5"]
+                .map(|id| termide_agent_core::BackendModel {
+                    id: id.into(),
+                    name: id.into(),
+                })
+                .to_vec()
+        }
+        fn select_model(&self, model_id: String) -> Result<(), String> {
+            *self.picked.lock().unwrap() = Some(model_id);
+            Ok(())
+        }
+        fn into_agent(self: Box<Self>) -> Option<Agent> {
+            None
+        }
+    }
+
+    /// A subagent on Claude Code runs on the connection's model, reports
+    /// what it says as it goes and answers with its last words; stopped
+    /// before it starts, it is not handed the task.
+    #[test]
+    fn a_subagent_on_a_cli_agent_runs_its_task_to_the_end() {
+        let (_prompter, permission_rx) = permission_channel(CancelToken::new());
+        let (budget, cancel) = (CancelToken::new(), CancelToken::new());
+        let drive = CliDrive {
+            name: "claude:search",
+            model: "haiku",
+            permission_rx: &permission_rx,
+            refusal: "nobody to ask",
+            max_turns: SUBAGENT_MAX_TURNS,
+            cwd: Path::new("/proj"),
+            budget: &budget,
+            cancel: &cancel,
+        };
+        let cli = FakeCli::default();
+        let mut progress = Vec::new();
+        let answer = drive.run(&cli, &|| false, "find it", &mut |update| {
+            let ToolUpdate::Output(text) = update;
+            progress.push(text);
+        });
+        let outcome = answer.unwrap();
+        assert_eq!(outcome.answer.as_deref(), Ok("the answer"));
+        // Every reply's tokens count, not the last one's alone.
+        assert_eq!((outcome.spent.input, outcome.spent.output), (200, 20));
+        assert_eq!(
+            cli.picked.lock().unwrap().as_deref(),
+            Some("claude-haiku-5")
+        );
+        assert_eq!(*cli.prompted.lock().unwrap(), ["find it"]);
+        // Its calls show one line each among what it said, relative to its
+        // directory, a failed one marked; a command shows its first line.
+        assert_eq!(
+            progress.last().unwrap(),
+            "working\n\n· read src/main.rs\n· bash cargo test ✗\n\nthe answer"
+        );
+
+        cancel.cancel();
+        let stopped = FakeCli::default();
+        let answer = drive.run(&stopped, &|| false, "find it", &mut |_| {});
+        assert!(answer.is_err());
+        assert!(stopped.prompted.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_failed_subagent_run_says_why() {
+        use termide_agent_core::{AssistantMessage, StopReason};
+        let failed = |error: Option<&str>| {
+            let mut reply = AssistantMessage::failed("agent", "m", StopReason::Error, "");
+            reply.error_message = error.map(str::to_string);
+            Message::Assistant(reply)
+        };
+        let refused = failed(Some("connection refused"));
+        assert_eq!(
+            run_error(std::slice::from_ref(&refused)).as_deref(),
+            Some("connection refused")
+        );
+        // Only the last reply counts: a later one without an error has none.
+        assert_eq!(run_error(&[refused, failed(None)]), None);
+        assert_eq!(run_error(&[]), None);
     }
 
     #[test]
     fn an_open_panel_offers_the_connections_applied_since() {
+        let _turn = applied_turn();
+        let _clear = ClearApplied;
         let mut built_with = with_cloud();
         built_with.connections.remove("cloud");
-        let local = &built_with.connections["local"];
         let connections = AiConnections {
-            active: Arc::new(std::sync::RwLock::new(Active {
-                provider: build_provider(local, None),
-                model: local.model.clone(),
-                context_window: local.effective_context_window(),
-            })),
+            active: Arc::new(std::sync::RwLock::new(active_on(&built_with, "local"))),
             settings: built_with,
+            dirs: AgentDirs::new(Path::new("/tmp"), None, None),
         };
         // Applying the settings modal adds `cloud`; the panel offers it at
-        // once. (The same settings the other tests build with, since the
-        // applied ones are shared across the process.)
+        // once.
         publish_ai_settings(&with_cloud());
         let names: Vec<String> = connections.list().into_iter().map(|e| e.name).collect();
         assert_eq!(names, ["cloud", "local"]);
@@ -1628,11 +2926,56 @@ mod tests {
     fn cli_providers_get_an_acp_backend() {
         // A CLI-adapter provider drives an external agent over ACP; a
         // wire-protocol provider uses the built-in loop (no backend override).
-        assert!(cli_provider_backend("claude_code", "default").is_some());
-        assert!(cli_provider_backend("codex", "default").is_some());
-        assert!(cli_provider_backend("gemini_cli", "default").is_some());
-        assert!(cli_provider_backend("openai_compatible", "default").is_none());
-        assert!(cli_provider_backend("anthropic_compatible", "default").is_none());
+        let on = |provider: &str| Connection {
+            provider: provider.into(),
+            ..Connection::default()
+        };
+        assert!(cli_provider_backend(&on("claude_code"), "default").is_some());
+        assert!(cli_provider_backend(&on("codex"), "default").is_some());
+        assert!(cli_provider_backend(&on("gemini_cli"), "default").is_some());
+        assert!(cli_provider_backend(&on("openai_compatible"), "default").is_none());
+        assert!(cli_provider_backend(&on("anthropic_compatible"), "default").is_none());
+    }
+
+    #[test]
+    fn a_cli_agents_window_limit_reaches_it_in_its_environment() {
+        let on = |provider: &str, limit: u64| Connection {
+            provider: provider.into(),
+            context_window_limit: Some(limit),
+            ..Connection::default()
+        };
+        // Claude Code, raised to the least it takes.
+        let claude = cli_acp_config(&on("claude_code", 50_000)).unwrap();
+        assert_eq!(claude.env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"], "100000");
+        assert_eq!(claude.context_limit, Some(100_000));
+        // Codex, compacting at nine tenths of it.
+        let codex = cli_acp_config(&on("codex", 64_000)).unwrap();
+        let config: serde_json::Value = serde_json::from_str(&codex.env["CODEX_CONFIG"]).unwrap();
+        assert_eq!(config["model_context_window"], 64_000);
+        assert_eq!(config["model_auto_compact_token_limit"], 57_600);
+        assert_eq!(codex.context_limit, Some(64_000));
+        // Gemini CLI has no setting for it; none set, none sent.
+        let gemini = cli_acp_config(&on("gemini_cli", 64_000)).unwrap();
+        assert!(gemini.env.is_empty());
+        assert_eq!(gemini.context_limit, None);
+        let unset = Connection {
+            context_window_limit: None,
+            ..on("codex", 1)
+        };
+        let own = cli_acp_config(&unset).unwrap();
+        assert!(own.env.is_empty());
+        assert_eq!(own.context_limit, None);
+    }
+
+    #[test]
+    fn codex_keeps_the_users_own_config_under_the_limit() {
+        let merged: serde_json::Value =
+            serde_json::from_str(&codex_config(Some(r#"{"model":"x"}"#), 1000)).unwrap();
+        assert_eq!(merged["model"], "x");
+        assert_eq!(merged["model_context_window"], 1000);
+        let fresh: serde_json::Value =
+            serde_json::from_str(&codex_config(Some("not json"), 1000)).unwrap();
+        assert_eq!(fresh["model_auto_compact_token_limit"], 900);
     }
 
     #[test]
@@ -1683,12 +3026,67 @@ mod tests {
     #[test]
     fn restore_is_skipped_without_a_connection_to_run_on() {
         let mut settings = AiSettings::default();
-        assert!(restore_agent_panel(&settings, PathBuf::from("/tmp"), None, None).is_none());
+        assert!(restore_agent_panel(
+            &settings,
+            PathBuf::from("/tmp"),
+            None,
+            None,
+            AgentSetupState::default()
+        )
+        .is_none());
         // A connection with no model named leaves the model to the provider.
         settings
             .connections
             .insert("local".into(), Connection::default());
         assert!(usable_connection(&settings).is_some());
+    }
+
+    #[test]
+    fn a_saved_setup_seeds_the_fresh_session_of_a_restore() {
+        let dir = tempfile::tempdir().unwrap();
+        let cwd = Path::new("/work");
+        let mut settings = AiSettings::default();
+        for (name, provider) in [("local", "openai_compatible"), ("cloud", "anthropic")] {
+            let connection = Connection {
+                provider: provider.into(),
+                model: format!("{name}-model"),
+                ..Connection::default()
+            };
+            settings.connections.insert(name.into(), connection);
+        }
+        let seed = |setup: &AgentSetupState| {
+            seeded_session(&settings, Some(dir.path()), cwd, DEFAULT_AGENT, setup)
+        };
+        assert!(seed(&AgentSetupState::default()).is_none());
+
+        let session = seed(&AgentSetupState {
+            connection: Some("cloud".into()),
+            model: Some("picked".into()),
+            thinking: Some("high".into()),
+            options: vec![("mode".into(), "plan".into())],
+        })
+        .unwrap();
+        assert_eq!(session.current_connection().as_deref(), Some("cloud"));
+        let model = session.current_model().unwrap();
+        assert_eq!(
+            (model.provider.as_str(), model.id.as_str()),
+            ("anthropic", "picked")
+        );
+        assert_eq!(session.current_thinking(), Some(ThinkingLevel::High));
+        assert_eq!(session.agent_options(), [("mode".into(), "plan".into())]);
+        // Still empty: discarded like any unused session once it closes.
+        assert!(session.is_empty());
+
+        // A connection gone from the config leaves its model behind too.
+        let session = seed(&AgentSetupState {
+            connection: Some("gone".into()),
+            model: Some("picked".into()),
+            ..AgentSetupState::default()
+        })
+        .unwrap();
+        let fallback = session.current_connection().unwrap();
+        let model = session.current_model().unwrap().id;
+        assert_eq!(model, format!("{fallback}-model"));
     }
 
     /// A provider listing `ids`.
@@ -1720,6 +3118,70 @@ mod tests {
         }
     }
 
+    /// A provider that answers with the model it was asked for, counting how
+    /// often it listed its models.
+    struct Echoes(std::sync::atomic::AtomicUsize);
+
+    impl Provider for Echoes {
+        fn name(&self) -> &str {
+            "echoes"
+        }
+
+        fn stream(
+            &self,
+            request: &termide_agent_core::Request<'_>,
+            _: &mut dyn FnMut(termide_agent_core::StreamEvent),
+            _: &CancelToken,
+        ) -> termide_agent_core::AssistantMessage {
+            termide_agent_core::AssistantMessage::failed(
+                "echoes",
+                request.model.id.clone(),
+                termide_agent_core::StopReason::Error,
+                "echo",
+            )
+        }
+
+        fn list_models(&self) -> Result<Vec<termide_agent_core::ModelInfo>, String> {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(vec![termide_agent_core::ModelInfo {
+                id: "first".into(),
+                context_window: None,
+            }])
+        }
+    }
+
+    #[test]
+    fn a_side_call_with_no_model_named_asks_the_first_listed_once() {
+        let inner = Arc::new(Echoes(std::sync::atomic::AtomicUsize::new(0)));
+        let provider = FirstListedModel {
+            inner: Arc::clone(&inner) as Arc<dyn Provider>,
+            model: std::sync::OnceLock::new(),
+        };
+        let ask = |id: &str| {
+            let model = ModelSpec {
+                provider: "agent".into(),
+                id: id.into(),
+                context_window: 0,
+                max_tokens: None,
+                thinking: ThinkingLevel::Off,
+            };
+            let request = termide_agent_core::Request {
+                model: &model,
+                system_prompt: "",
+                messages: &[],
+                tools: &[],
+                thinking: ThinkingLevel::Off,
+            };
+            provider
+                .stream(&request, &mut |_| {}, &CancelToken::new())
+                .model
+        };
+        assert_eq!(ask(""), "first");
+        assert_eq!(ask(""), "first");
+        assert_eq!(inner.0.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(ask("named"), "named");
+    }
+
     #[test]
     fn a_model_left_to_the_provider_is_its_first() {
         let provider = Lists(vec!["first", "second"]);
@@ -1728,28 +3190,58 @@ mod tests {
         assert_eq!(resolve_model(&Lists(vec![]), ""), None);
     }
 
+    #[test]
+    fn plan_mode_holds_a_subagent_whatever_its_own_mode() {
+        assert_eq!(subagent_mode(Mode::Plan, Some(Mode::All)), Mode::Plan);
+        assert_eq!(subagent_mode(Mode::Plan, None), Mode::Plan);
+        assert_eq!(subagent_mode(Mode::Edit, Some(Mode::Ask)), Mode::Ask);
+        assert_eq!(subagent_mode(Mode::Auto, None), Mode::Auto);
+    }
+
     /// With subagents wired, every agent gets `task`, unless its `tools`
     /// list leaves it out.
-    #[test]
-    fn an_agent_tools_list_governs_the_task_tool() {
-        let tmp = tempfile::tempdir().unwrap();
-        let global = tmp.path().join("ai");
-        for (agent, tools) in [("search", "[\"read\"]"), ("lead", "[\"read\", \"task\"]")] {
-            let dir = global.join("agents").join(agent);
-            std::fs::create_dir_all(&dir).unwrap();
-            std::fs::write(dir.join("agent.toml"), format!("tools = {tools}\n")).unwrap();
+    /// A provider that says nothing until its request is stopped, as a long
+    /// prefill does.
+    struct Silent;
+
+    impl Provider for Silent {
+        fn name(&self) -> &str {
+            "silent"
         }
-        let mut catalog = FsCatalog::with_global(tmp.path(), tmp.path(), Some(global));
+        fn stream(
+            &self,
+            request: &termide_agent_core::Request<'_>,
+            _on_event: &mut dyn FnMut(StreamEvent),
+            cancel: &CancelToken,
+        ) -> AssistantMessage {
+            while !cancel.is_cancelled() {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            AssistantMessage::failed(
+                "silent",
+                &request.model.id,
+                termide_agent_core::StopReason::Aborted,
+                "aborted",
+            )
+        }
+    }
+
+    /// The parent's stop ends a subagent at once, even while its model says
+    /// nothing.
+    #[test]
+    fn a_stopped_parent_stops_its_subagent_at_once() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dirs = AgentDirs::new(tmp.path(), Some(tmp.path()), None);
         let settings = with_cloud();
-        let local = &settings.connections["local"];
-        catalog.subagents = Some(Arc::new(Subagents {
-            active: Arc::new(std::sync::RwLock::new(Active {
-                provider: build_provider(local, None),
-                model: local.model.clone(),
-                context_window: local.effective_context_window(),
-            })),
-            dirs: catalog.dirs.clone(),
-            web: shared_web(&settings.web, &catalog.dirs),
+        let mut active = active_on(&settings, "local");
+        active.provider = Arc::new(Silent);
+        let subagents = Subagents {
+            active: Arc::new(std::sync::RwLock::new(active)),
+            settings: settings.clone(),
+            recall: recall_tool(&settings, &dirs, tmp.path(), tmp.path()),
+            web: shared_web(&settings.web, &dirs),
+            dirs,
+            mcp: Connections::new(std::collections::BTreeMap::new()),
             cwd: tmp.path().to_path_buf(),
             project_root: tmp.path().to_path_buf(),
             rules: settings.permissions.clone(),
@@ -1757,7 +3249,173 @@ mod tests {
             max_tokens: settings.output_limit(),
             reasoning: ThinkingLevel::Off,
             compaction: settings.compaction,
-            reviewer: ReviewerSetup::default(),
+            refusals: Refusals::default(),
+        };
+        let cancel = CancelToken::new();
+        let stopper = {
+            let cancel = cancel.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                cancel.cancel();
+            })
+        };
+        let started = std::time::Instant::now();
+        let result = subagents.run(
+            DEFAULT_AGENT,
+            "look around",
+            &ToolContext::new(tmp.path().to_path_buf()),
+            &cancel,
+            &mut |_| {},
+        );
+        stopper.join().unwrap();
+        assert_eq!(result.answer, Err("the subagent was stopped".to_string()));
+        assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    }
+
+    /// A subagent may take as many model calls as its limit says; the one
+    /// after is cut off, and its last words say so.
+    #[test]
+    fn a_subagent_is_cut_off_past_its_turn_limit() {
+        let said = |text: &str| {
+            let mut message =
+                AssistantMessage::failed("m", "m", termide_agent_core::StopReason::Stop, "");
+            message.error_message = None;
+            message.content =
+                vec![termide_agent_core::AssistantContent::Text { text: text.into() }];
+            message
+        };
+        let mut report = SubagentReport::new(2);
+        assert!(!report.turn());
+        assert!(!report.turn());
+        report.said(&said("half done"), &mut |_| {});
+        assert_eq!(
+            report.into_outcome(false).answer.as_deref(),
+            Ok("half done")
+        );
+
+        let mut report = SubagentReport::new(2);
+        for _ in 0..2 {
+            report.turn();
+        }
+        assert!(report.turn());
+        report.said(&said("half done"), &mut |_| {});
+        assert_eq!(
+            report.into_outcome(false).answer.as_deref(),
+            Ok("half done\n\n(subagent stopped after 2 steps)")
+        );
+    }
+
+    #[test]
+    fn a_waiting_subagent_says_so_under_what_it_said() {
+        let t = termide_i18n::t();
+        let mut report = SubagentReport::new(SUBAGENT_MAX_TURNS);
+        let mut shown = Vec::new();
+        report.waiting(Some(2), &mut |ToolUpdate::Output(text)| shown.push(text));
+        assert_eq!(
+            shown.last().unwrap(),
+            &format!("⏳ {}", t.agent_queued_ahead_fmt(2))
+        );
+        let said = AssistantMessage::failed("m", "m", termide_agent_core::StopReason::Stop, "");
+        let mut said = said;
+        said.error_message = None;
+        said.content = vec![termide_agent_core::AssistantContent::Text {
+            text: "looked".into(),
+        }];
+        report.said(&said, &mut |ToolUpdate::Output(text)| shown.push(text));
+        report.waiting(Some(0), &mut |ToolUpdate::Output(text)| shown.push(text));
+        assert_eq!(
+            shown.last().unwrap(),
+            &format!("looked\n\n⏳ {}", t.agent_queued())
+        );
+        report.waiting(None, &mut |ToolUpdate::Output(text)| shown.push(text));
+        assert_eq!(shown.last().unwrap(), "looked");
+    }
+
+    /// A subagent gets the tools of the MCP servers connected when its task
+    /// starts, whatever its `tools` list says, and they stay out of its
+    /// prompt as they do of the panel's.
+    #[cfg(unix)]
+    #[test]
+    fn a_subagent_gets_the_connected_mcp_servers_tools() {
+        let script = r#"while IFS= read -r line; do
+  id=$(printf '%s' "$line" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+  case "$line" in
+    *'"initialize"'*) printf '{"jsonrpc":"2.0","id":%s,"result":{"protocolVersion":"2024-11-05","serverInfo":{"name":"sh","version":"0"}}}\n' "$id";;
+    *'"tools/list"'*) printf '{"jsonrpc":"2.0","id":%s,"result":{"tools":[{"name":"lookup","description":"Look up","inputSchema":{"type":"object"}}]}}\n' "$id";;
+  esac
+done"#;
+        let tmp = tempfile::tempdir().unwrap();
+        let global = tmp.path().join("ai");
+        let dir = global.join("agents").join("search");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(AGENT_FILE), "---\ntools: read\n---\n").unwrap();
+        let catalog = FsCatalog::with_global(tmp.path(), tmp.path(), Some(global));
+        let servers = [(
+            "docs".to_string(),
+            termide_agent_core::McpServerConfig {
+                command: Some("sh".into()),
+                args: vec!["-c".into(), script.into()],
+                timeout_secs: 5,
+                ..Default::default()
+            },
+        )]
+        .into();
+        let mcp = Connections::new(servers);
+        // The panel's subscription is what connects the servers.
+        let late = mcp.subscribe();
+        assert!(matches!(
+            late.recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap(),
+            termide_agent_core::LateTools::Ready { .. }
+        ));
+        let settings = with_cloud();
+        let subagents = Subagents {
+            active: Arc::new(std::sync::RwLock::new(active_on(&settings, "local"))),
+            settings: settings.clone(),
+            dirs: catalog.dirs.clone(),
+            recall: recall_tool(&settings, &catalog.dirs, tmp.path(), tmp.path()),
+            web: shared_web(&settings.web, &catalog.dirs),
+            mcp,
+            cwd: tmp.path().to_path_buf(),
+            project_root: tmp.path().to_path_buf(),
+            rules: settings.permissions.clone(),
+            mode: termide_agent_core::ModeHandle::new(settings.permissions.mode),
+            max_tokens: settings.output_limit(),
+            reasoning: ThinkingLevel::Off,
+            compaction: settings.compaction,
+            refusals: Refusals::default(),
+        };
+        let definition = catalog.dirs.agent("search");
+        let (tools, _, prompt) = subagents.toolset("search", &definition);
+        assert_eq!(tools.names(), ["read", "docs__lookup"]);
+        assert!(!prompt.contains("docs__lookup"));
+    }
+
+    #[test]
+    fn an_agent_tools_list_governs_the_task_tool() {
+        let tmp = tempfile::tempdir().unwrap();
+        let global = tmp.path().join("ai");
+        for (agent, tools) in [("search", "read"), ("lead", "read, task")] {
+            let dir = global.join("agents").join(agent);
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join(AGENT_FILE), format!("---\ntools: {tools}\n---\n")).unwrap();
+        }
+        let mut catalog = FsCatalog::with_global(tmp.path(), tmp.path(), Some(global));
+        let settings = with_cloud();
+        catalog.subagents = Some(Arc::new(Subagents {
+            active: Arc::new(std::sync::RwLock::new(active_on(&settings, "local"))),
+            settings: settings.clone(),
+            dirs: catalog.dirs.clone(),
+            recall: recall_tool(&settings, &catalog.dirs, tmp.path(), tmp.path()),
+            web: shared_web(&settings.web, &catalog.dirs),
+            mcp: Arc::clone(&catalog.mcp),
+            cwd: tmp.path().to_path_buf(),
+            project_root: tmp.path().to_path_buf(),
+            rules: settings.permissions.clone(),
+            mode: termide_agent_core::ModeHandle::new(settings.permissions.mode),
+            max_tokens: settings.output_limit(),
+            reasoning: ThinkingLevel::Off,
+            compaction: settings.compaction,
             refusals: Refusals::default(),
         }));
 
@@ -1774,7 +3432,7 @@ mod tests {
             .is_some());
     }
 
-    /// `agent.toml` narrows the tools and names a model and a mode; a name no
+    /// `AGENT.md`'s front matter narrows the tools and names a model and a mode; a name no
     /// root defines does not resolve, the default always does.
     #[test]
     fn the_catalog_turns_definitions_into_profiles() {
@@ -1782,11 +3440,16 @@ mod tests {
         let global = tmp.path().join("ai");
         let review = global.join("agents/review");
         std::fs::create_dir_all(&review).unwrap();
-        std::fs::write(review.join("SOUL.md"), "You review.\n\n{{tools}}\n").unwrap();
-        std::fs::write(global.join("AGENTS.md"), "Root template.\n\n{{tools}}\n").unwrap();
+        std::fs::create_dir_all(global.join("agents/default")).unwrap();
         std::fs::write(
-            review.join("agent.toml"),
-            "description = \"Reviews diffs\"\nmodel = \"big\"\nmode = \"auto\"\ntools = [\"read\", \"bash\", \"nope\"]\n",
+            global.join(DEFAULT_AGENT_FILE),
+            "Root template.\n\n{{tools}}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            review.join(AGENT_FILE),
+            "---\ndescription: Reviews diffs\nmodel: big\nmode: auto\ntools: read, bash, nope\n---\n\
+             You review.\n\n{{tools}}\n",
         )
         .unwrap();
         let catalog = FsCatalog::with_global(tmp.path(), tmp.path(), Some(global.clone()));
@@ -1831,16 +3494,16 @@ mod tests {
             "---\nname: deploy\ndescription: Ship it\n---\nSteps.\n",
         )
         .unwrap();
-        std::fs::write(global.join("AGENTS.md"), "{{skills}}\n").unwrap();
+        std::fs::write(global.join(DEFAULT_AGENT_FILE), "{{skills}}\n").unwrap();
         let review = catalog.resolve("review").unwrap();
         assert_eq!(review.tools.names(), ["read", "bash", "skill"]);
 
-        // An [acp] table makes an external agent: no tools of ours, a backend.
+        // A `command` makes an external agent: no tools of ours, a backend.
         let outside = global.join("agents/outside");
         std::fs::create_dir_all(&outside).unwrap();
         std::fs::write(
-            outside.join("agent.toml"),
-            "description = \"Claude Code\"\n[acp]\ncommand = \"npx\"\nargs = [\"-y\", \"@agentclientprotocol/claude-agent-acp\"]\n",
+            outside.join(AGENT_FILE),
+            "---\ndescription: Claude Code\ncommand: npx -y @agentclientprotocol/claude-agent-acp\n---\n",
         )
         .unwrap();
         let outside = catalog.resolve("outside").unwrap();

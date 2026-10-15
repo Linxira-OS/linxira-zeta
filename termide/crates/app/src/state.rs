@@ -24,8 +24,8 @@ use termide_app_core::{ModalManager, StateManager};
 // Re-export pure types from state crate
 pub use termide_state::{
     ActiveOperation, BatchOperation, BatchOperationType, ConflictMode, DirSizeResult, LayoutInfo,
-    LayoutMode, OperationProgress, OperationType, PendingAction, RenamePattern, SourceLocation,
-    SpeedTracker, SubmenuState, TerminalState, UiState,
+    LayoutMode, OperationProgress, OperationType, PendingAction, ProjectsOrigin, RenamePattern,
+    SourceLocation, SpeedTracker, SubmenuState, TerminalState, UiState,
 };
 
 // Re-export ActiveModal from modal crate
@@ -64,6 +64,11 @@ pub struct AppState {
     pub layout_info: LayoutInfo,
     /// Active modal window
     pub active_modal: Option<ActiveModal>,
+    /// Reports that finished while another modal was open, oldest first. A
+    /// report's text exists only in its modal, so it is never dropped: it
+    /// waits here until the screen is clear. Bounded — the oldest goes when
+    /// full, since a stale build report is worth less than a live question.
+    pub queued_info_modals: Vec<ActiveModal>,
     /// Action pending modal result
     pub pending_action: Option<PendingAction>,
     /// Receiver channel for background directory size calculation results
@@ -104,6 +109,11 @@ pub struct AppState {
     /// per-project override file so only project-specific deltas are
     /// recorded.
     pub global_baseline: Arc<Config>,
+    /// What this run forces on `config` (`--log-level`, `--no-lsp`, the
+    /// Linux console's theme). `config` holds the forced values; they are
+    /// swapped back before a save, so the files never get them.
+    /// `global_baseline` holds the values from the files.
+    pub runtime_overrides: termide_config::RuntimeOverrides,
     /// System resource monitor (CPU, RAM)
     pub system_monitor: SystemMonitor,
     /// Last time system resources were updated
@@ -142,6 +152,12 @@ pub struct AppState {
     /// Projects open in this instance, for the menus to show (they sort it).
     /// `App` keeps it in step with the parked panels it holds.
     pub open_projects: Vec<crate::open_projects::OpenProjectView>,
+    /// The open project whose menu-bar button the mouse holds, by its
+    /// place: it keeps its button on a crowded bar while dragged.
+    pub held_project_button: Option<usize>,
+    /// Projects open together in the last run, offered by the Projects menu
+    /// until they are reopened or another project is opened by hand.
+    pub reopenable_projects: Vec<PathBuf>,
     /// Unified operation manager for file operations (copy, move, delete, upload, download).
     /// This is the new centralized system that will eventually replace the individual
     /// operation handles (local_copy_operation, batch_download_operation, etc.).
@@ -176,16 +192,6 @@ impl Default for AppState {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// A localized "N units ago" for a millisecond timestamp, for the Sessions
-/// list's "last worked on" column. Reuses [`termide_i18n::relative_age`].
-fn relative_millis_ago(modified_ms: u64) -> String {
-    let now_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    termide_i18n::relative_age(now_ms.saturating_sub(modified_ms) / 1000)
 }
 
 impl AppState {
@@ -234,6 +240,7 @@ impl AppState {
             layout_mode: LayoutMode::Single,
             layout_info,
             active_modal: None,
+            queued_info_modals: Vec::new(),
             pending_action: None,
             dir_size_receiver: None,
             view_fetches: Vec::new(),
@@ -253,6 +260,7 @@ impl AppState {
             theme,
             config: Arc::new(config),
             global_baseline: Arc::new(global_baseline),
+            runtime_overrides: termide_config::RuntimeOverrides::default(),
             system_monitor: SystemMonitor::new(),
             last_resource_update: std::time::Instant::now(),
             resource_modal_kind: None,
@@ -269,6 +277,8 @@ impl AppState {
             project_bookmarks: None,
             project_root: std::env::current_dir().unwrap_or_default(),
             open_projects: Vec::new(),
+            held_project_button: None,
+            reopenable_projects: Vec::new(),
             operation_manager: None, // Will be initialized when VfsManager is available
             active_operation_id: None,
             last_operation_paused: false,
@@ -313,6 +323,9 @@ impl AppState {
 
     /// Request application quit
     pub fn quit(&mut self) {
+        // Logged: without this a quit and a crash look the same in the
+        // journal — the run simply stops, with no record of why.
+        log::info!("Quit requested");
         self.should_quit = true;
     }
 
@@ -408,24 +421,10 @@ impl AppState {
         self.ui.current_ai_section = Some(section);
     }
 
-    /// Close the AI nested submenu (also closes the agent file-choice level).
+    /// Close the AI nested submenu.
     pub fn close_ai_nested_submenu(&mut self) {
         self.ui.ai_nested.close();
         self.ui.current_ai_section = None;
-        self.close_ai_agent_choice();
-    }
-
-    /// Open the agent file-choice submenu (third level) for `agent`.
-    pub fn open_ai_agent_choice(&mut self, agent: String) {
-        self.ui.ai_agent_choice.open();
-        self.ui.ai_agent_choice.selected = 0;
-        self.ui.current_ai_agent = Some(agent);
-    }
-
-    /// Close the agent file-choice submenu.
-    pub fn close_ai_agent_choice(&mut self) {
-        self.ui.ai_agent_choice.close();
-        self.ui.current_ai_agent = None;
     }
 
     /// The layered AI resource roots for this project (cwd/project/global). The
@@ -452,6 +451,8 @@ impl AppState {
     }
 
     /// The Sessions section's rows: the project's session logs, newest first.
+    /// Each carries its last change as a dimmed date and time before the
+    /// title, the way the panel's welcome banner dates them.
     fn ai_session_items(&self) -> Vec<termide_ui_render::DropdownItem> {
         use termide_ui_render::DropdownItem;
         let sessions = self
@@ -467,8 +468,14 @@ impl AppState {
         sessions
             .into_iter()
             .map(|s| {
-                DropdownItem::new(s.label(), format!("session:{}", s.path.to_string_lossy()))
-                    .with_shortcut(Some(relative_millis_ago(s.modified)))
+                DropdownItem::new(
+                    s.display_label(),
+                    format!("session:{}", s.path.to_string_lossy()),
+                )
+                .with_prefix(
+                    "",
+                    format!("{}  ", termide_panel_agent::local_minute(s.modified)),
+                )
             })
             .collect()
     }
@@ -486,20 +493,22 @@ impl AppState {
         let t = termide_i18n::t();
 
         let dirs = self.ai_dirs();
-        // (name, description, is_project)
-        let mut listed: Vec<(String, String, bool)> = match section {
+        // (name, description, is_project, icon); only agents have an icon.
+        let mut listed: Vec<(String, String, bool, Option<String>)> = match section {
             AiSection::Sessions => return self.ai_session_items(),
             AiSection::Agents => dirs
                 .agents()
                 .into_iter()
-                .filter(|n| n != termide_agent_core::DEFAULT_AGENT)
                 .map(|name| {
                     let is_project = dirs
                         .agent_dir(&name)
                         .map(|p| p.starts_with(&self.project_root))
                         .unwrap_or(false);
-                    let description = dirs.spec(&name).description;
-                    (name, description, is_project)
+                    let spec = dirs.spec(&name);
+                    let icon = spec
+                        .icon
+                        .unwrap_or_else(|| termide_panel_agent::AGENT_ICON.to_string());
+                    (name, spec.description, is_project, Some(icon))
                 })
                 .collect(),
             AiSection::Skills => dirs
@@ -507,7 +516,7 @@ impl AppState {
                 .into_iter()
                 .map(|s| {
                     let is_project = s.path.starts_with(&self.project_root);
-                    (s.name, s.description, is_project)
+                    (s.name, s.description, is_project, None)
                 })
                 .collect(),
             AiSection::Prompts => dirs
@@ -518,7 +527,7 @@ impl AppState {
                         .prompt_path(&p.name)
                         .map(|path| path.starts_with(&self.project_root))
                         .unwrap_or(false);
-                    (p.name, p.description, is_project)
+                    (p.name, p.description, is_project, None)
                 })
                 .collect(),
         };
@@ -529,10 +538,10 @@ impl AppState {
         ];
         // Project-local first (bold), then global; each group alphabetical.
         listed.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
-        let has_project = listed.iter().any(|(_, _, p)| *p);
-        let has_global = listed.iter().any(|(_, _, p)| !*p);
+        let has_project = listed.iter().any(|(_, _, p, _)| *p);
+        let has_global = listed.iter().any(|(_, _, p, _)| !*p);
         let mut pushed_sep = false;
-        for (name, description, is_project) in listed {
+        for (name, description, is_project, icon) in listed {
             if !is_project && has_project && has_global && !pushed_sep {
                 items.push(DropdownItem::separator());
                 pushed_sep = true;
@@ -540,11 +549,17 @@ impl AppState {
             // The key keeps the bare name; the label adds the one-line
             // description the same way the panel's pickers show it.
             let description = description.lines().next().unwrap_or("").trim();
-            let label = if description.is_empty() {
-                name.clone()
-            } else {
-                format!("{name} · {description}")
-            };
+            let mut label = String::new();
+            // The agent's icon only where the panel headers show icons.
+            if let Some(icon) = icon.filter(|_| termide_core::terminal_caps::use_emoji_icons()) {
+                label.push_str(&icon);
+                label.push(' ');
+            }
+            label.push_str(&name);
+            if !description.is_empty() {
+                label.push_str(" · ");
+                label.push_str(description);
+            }
             let mut item = DropdownItem::new(label, format!("item:{name}"));
             if is_project {
                 item = item.with_project();
@@ -573,24 +588,23 @@ impl AppState {
         }
     }
 
-    /// Move to next menu item
-    pub fn next_menu_item(&mut self, menu_count: usize) {
-        if let Some(current) = self.ui.selected_menu_item {
-            self.ui.selected_menu_item = Some((current + 1) % menu_count);
-            self.ui.selected_dropdown_item = 0;
+    /// Move the menu bar selection one step along `order` (the positions
+    /// as the bar shows them), wrapping around. A selection no longer in
+    /// `order` — a project button that went away — restarts at its start.
+    pub fn step_menu_item(&mut self, order: &[usize], forward: bool) {
+        let Some(current) = self.ui.selected_menu_item else {
+            return;
+        };
+        if order.is_empty() {
+            return;
         }
-    }
-
-    /// Move to previous menu item
-    pub fn prev_menu_item(&mut self, menu_count: usize) {
-        if let Some(current) = self.ui.selected_menu_item {
-            self.ui.selected_menu_item = Some(if current == 0 {
-                menu_count - 1
-            } else {
-                current - 1
-            });
-            self.ui.selected_dropdown_item = 0;
-        }
+        let next = match order.iter().position(|&index| index == current) {
+            Some(at) if forward => (at + 1) % order.len(),
+            Some(at) => (at + order.len() - 1) % order.len(),
+            None => 0,
+        };
+        self.ui.selected_menu_item = Some(order[next]);
+        self.ui.selected_dropdown_item = 0;
     }
 
     /// Update terminal dimensions
@@ -645,6 +659,58 @@ impl AppState {
     pub fn set_pending_action(&mut self, action: PendingAction, modal: ActiveModal) {
         self.pending_action = Some(action);
         self.active_modal = Some(modal);
+    }
+
+    /// Show a message that interrupts nothing: a report, an error, a result.
+    ///
+    /// A question already on screen — one that carries a `pending_action` —
+    /// keeps the screen: its answer decides a real operation, and replacing it
+    /// would lose both the question and whatever was typed into it. The message
+    /// waits instead. With no question open, or over a plain message, it shows
+    /// now; over a message it replaces it, the older one having been read.
+    pub fn show_message_modal(&mut self, modal: ActiveModal) {
+        let asking = self.active_modal.is_some() && self.pending_action.is_some();
+        if asking {
+            self.queued_info_modals.push(modal);
+            // A report nobody will ever reach is worth less than the live
+            // question ahead of it, and an unbounded queue never drains.
+            const MAX_QUEUED: usize = 8;
+            while self.queued_info_modals.len() > MAX_QUEUED {
+                self.queued_info_modals.remove(0);
+            }
+            log::debug!(
+                "A modal is open; queued a message behind it ({} waiting)",
+                self.queued_info_modals.len()
+            );
+        } else {
+            // The message that was here — a resource panel, an earlier report —
+            // is gone, and with it the kind that made it a resource panel.
+            // Leaving the kind set would have Esc and the arrows treat this
+            // report as that panel.
+            self.resource_modal_kind = None;
+            self.active_modal = Some(modal);
+        }
+    }
+
+    /// The next message waiting for the screen, if any.
+    fn take_queued_message_modal(&mut self) -> Option<ActiveModal> {
+        if self.active_modal.is_none() && !self.queued_info_modals.is_empty() {
+            Some(self.queued_info_modals.remove(0))
+        } else {
+            None
+        }
+    }
+
+    /// Give the screen to a message that was queued behind a question, if the
+    /// screen is clear now. Returns whether it did.
+    pub fn deliver_queued_message_modal(&mut self) -> bool {
+        match self.take_queued_message_modal() {
+            Some(modal) => {
+                self.active_modal = Some(modal);
+                true
+            }
+            None => false,
+        }
     }
 
     /// Take pending action (take ownership)
@@ -795,5 +861,97 @@ impl ModalManager for AppState {
 
     fn take_pending_action(&mut self) -> Option<PendingAction> {
         self.pending_action.take()
+    }
+}
+
+#[cfg(test)]
+mod message_queue_tests {
+    use super::{ActiveModal, AppState, PendingAction};
+    use termide_modal::{ConfirmModal, InfoModal};
+
+    /// State on the built-in defaults: `AppState::new` would read the
+    /// developer's own config file.
+    fn state() -> AppState {
+        let mut config = termide_config::Config::default();
+        config.normalize();
+        let theme = termide_theme::Theme::get_by_name(&config.general.theme);
+        AppState::with_config_and_theme(config.clone(), config, theme)
+    }
+
+    fn report(title: &str) -> ActiveModal {
+        ActiveModal::Info(Box::new(InfoModal::new(
+            title,
+            vec![(String::new(), "output".to_string())],
+        )))
+    }
+
+    fn question(title: &str) -> ActiveModal {
+        ActiveModal::Confirm(Box::new(ConfirmModal::new(title, "are you sure?")))
+    }
+
+    /// A report's text exists nowhere else, so a question on screen must not
+    /// cost it: the report waits and takes the screen once the question is
+    /// answered. Dropping it would abandon a copy mid-flight with no record.
+    #[test]
+    fn a_report_waits_behind_an_open_question() {
+        let mut s = state();
+        s.set_pending_action(PendingAction::QuitApplication, question("Quit?"));
+
+        s.show_message_modal(report("build"));
+
+        assert!(
+            matches!(s.active_modal(), Some(ActiveModal::Confirm(_))),
+            "the question keeps the screen"
+        );
+        assert!(!s.deliver_queued_message_modal(), "nothing to take yet");
+
+        s.close_modal();
+        assert!(s.deliver_queued_message_modal());
+        assert!(format!("{:?}", s.active_modal()).contains("build"));
+        assert!(!s.deliver_queued_message_modal(), "the queue drained once");
+    }
+
+    /// Over a plain message — no question behind it — the newer report wins
+    /// the screen at once; the older one has been read.
+    #[test]
+    fn a_report_over_a_plain_message_shows_at_once() {
+        let mut s = state();
+        s.show_message_modal(report("first"));
+        s.show_message_modal(report("second"));
+
+        assert!(s.queued_info_modals.is_empty());
+        assert!(format!("{:?}", s.active_modal()).contains("second"));
+    }
+
+    /// The queue is bounded: a session that never clears the screen must not
+    /// grow it without limit, and the stalest report is the least worth kept.
+    #[test]
+    fn the_queue_keeps_the_newest_and_drops_the_stalest() {
+        let mut s = state();
+        s.set_pending_action(PendingAction::QuitApplication, question("Quit?"));
+        for i in 0..12 {
+            s.show_message_modal(report(&format!("report-{i}")));
+        }
+
+        assert_eq!(s.queued_info_modals.len(), 8);
+        s.close_modal();
+        let first = s.take_queued_message_modal();
+        assert!(format!("{first:?}").contains("report-4"), "the oldest kept");
+    }
+
+    /// A resource indicator is an `Info` modal whose Esc and arrows come from
+    /// `resource_modal_kind`. A report replacing it must take that flag with
+    /// it, or Esc would close the wrong thing.
+    #[test]
+    fn a_report_replacing_a_resource_panel_clears_its_kind() {
+        use crate::state::ResourceModalKind;
+
+        let mut s = state();
+        s.show_message_modal(report("disk"));
+        s.resource_modal_kind = Some(ResourceModalKind::Disk);
+
+        s.show_message_modal(report("build"));
+
+        assert!(s.resource_modal_kind.is_none());
     }
 }

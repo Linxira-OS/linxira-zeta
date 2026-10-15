@@ -155,17 +155,17 @@ impl AnthropicProvider {
         let response = match http.send_string(body) {
             Ok(response) => response,
             Err(ureq::Error::Status(code, response)) => {
+                let retry_after = response.header("retry-after").map(str::to_string);
                 let text = response.into_string().unwrap_or_default();
-                return Err(Failure {
-                    message: format!("HTTP {code}: {}", error_text(&text)),
-                    retryable: matches!(code, 408 | 409 | 425 | 429 | 500..=599),
-                });
+                return Err(Failure::http(
+                    code,
+                    &text,
+                    retry_after.as_deref(),
+                    error_text(&text),
+                ));
             }
             Err(ureq::Error::Transport(transport)) => {
-                return Err(Failure {
-                    message: format!("transport error: {transport}"),
-                    retryable: true,
-                });
+                return Err(Failure::transport(format!("transport error: {transport}")));
             }
         };
 
@@ -190,10 +190,7 @@ impl AnthropicProvider {
                         partial.error_message = Some(format!("stream interrupted: {error}"));
                         return Ok(partial);
                     }
-                    return Err(Failure {
-                        message: format!("stream error: {error}"),
-                        retryable: true,
-                    });
+                    return Err(Failure::transport(format!("stream error: {error}")));
                 }
             }
             let Some(data) = sse_data(line.trim_end()) else {
@@ -209,10 +206,7 @@ impl AnthropicProvider {
                             partial.error_message = Some(message);
                             return Ok(partial);
                         }
-                        return Err(Failure {
-                            message,
-                            retryable: false,
-                        });
+                        return Err(Failure::in_stream(&event.to_string(), message));
                     }
                     acc.feed(&event, on_event);
                 }
@@ -334,10 +328,14 @@ fn convert_messages(messages: &[Message], replay_model: Option<&str>) -> Vec<Val
             }
             Message::User(user) => {
                 flush(&mut out, &mut pending_results);
-                out.push(json!({
-                    "role": "user",
-                    "content": [{ "type": "text", "text": user.model_text() }],
+                let mut content = vec![json!({ "type": "text", "text": user.model_text() })];
+                content.extend(user.images().map(|(media_type, data)| {
+                    json!({
+                        "type": "image",
+                        "source": { "type": "base64", "media_type": media_type, "data": data },
+                    })
                 }));
+                out.push(json!({ "role": "user", "content": content }));
             }
             Message::Assistant(assistant) => {
                 flush(&mut out, &mut pending_results);
@@ -725,6 +723,7 @@ impl Accumulator {
             provider: provider.to_string(),
             model: model.to_string(),
             error_message: None,
+            failure: None,
             timestamp: now_millis(),
         }
     }
@@ -815,6 +814,7 @@ mod tests {
             provider: "anthropic".into(),
             model: model.into(),
             error_message: None,
+            failure: None,
             timestamp: 0,
         })
     }
@@ -882,6 +882,7 @@ mod tests {
                 provider: "anthropic".into(),
                 model: "claude-sonnet-4-5".into(),
                 error_message: None,
+                failure: None,
                 timestamp: 0,
             }),
             Message::ToolResult(ToolResultMessage::text(&call, "contents")),
@@ -1161,6 +1162,19 @@ mod tests {
         assert_eq!(wire.len(), 1);
         assert_eq!(wire[0]["role"], json!("user"));
         assert_eq!(wire[0]["content"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn an_image_follows_the_text_as_a_base64_block() {
+        let shot = UserMessage::text("see").with_images(vec![("image/png".into(), "QUJD".into())]);
+        let wire = convert_messages(&[Message::User(shot)], None);
+        assert_eq!(
+            wire[0]["content"],
+            json!([
+                { "type": "text", "text": "see" },
+                { "type": "image", "source": { "type": "base64", "media_type": "image/png", "data": "QUJD" } },
+            ])
+        );
     }
 
     #[test]

@@ -7,21 +7,23 @@ use termide_i18n as i18n;
 
 use super::connection;
 use super::fields::{fields_for_tab, get_field_value, ContentRow, FieldType};
-use super::kb::KB_SECTIONS;
+use super::kb::{kb_binding_names, kb_keys_of, KB_SECTIONS};
 use super::{
-    FocusArea, KbMode, LspMode, SettingsModal, SettingsTab, SidebarRow, BUTTON_APPLY,
-    TOP_LEVEL_TABS,
+    Confirm, FocusArea, KbCapture, KbMode, LspMode, SettingsModal, SettingsSave, SettingsTab,
+    SidebarRow, BUTTON_CLOSE, BUTTON_RESET, BUTTON_STORAGE, TOP_LEVEL_TABS,
 };
 
 impl SettingsModal {
-    /// Build the modal. `project_override_active` reflects the existence
-    /// of `<project>/.termide/config.toml` at modal-open time and is used
-    /// purely for the third button's label and routing — the modal
-    /// itself never touches the filesystem.
-    pub fn new(config: Config, project_override_active: bool) -> Self {
+    /// Build the modal over the effective `config`. `global_layer` is
+    /// defaults + global file; `in_project` tells whether
+    /// `<project>/.termide/config.toml` exists, i.e. where changes are
+    /// stored. The modal never touches the filesystem: it hands each change
+    /// to the app through [`SettingsModal::take_save_request`].
+    pub fn new(config: Config, global_layer: Config, in_project: bool) -> Self {
         let lsp_server_keys = Self::sorted_server_keys(&config);
         let mut m = Self {
             config,
+            global_layer,
             active_tab: SettingsTab::General,
             sidebar_cursor: 0,
             sidebar_scroll: 0,
@@ -50,12 +52,17 @@ impl SettingsModal {
             kb_mode: KbMode::Bindings,
             kb_section: 0,
             kb_cursor: 0,
+            kb_key_cursor: 0,
             kb_scroll: 0,
+            kb_rows: Vec::new(),
+            kb_clicks: termide_ui::ClickTracker::new(),
             kb_capture_message: None,
-            selected_button: BUTTON_APPLY,
-            dirty: false,
-            project_override_active,
+            selected_button: BUTTON_STORAGE,
+            in_project,
+            save_pending: false,
+            confirm: None,
             model_options: Vec::new(),
+            models_loading: false,
             last_modal_area: None,
             last_sidebar_area: None,
             last_content_area: None,
@@ -67,9 +74,11 @@ impl SettingsModal {
     }
 
     /// Provide the open connection's model list (fetched off-thread by the
-    /// app), so the model field's dropdown lists them.
+    /// app), so the model field's dropdown lists them; an empty list ends
+    /// the wait with none (the endpoint or agent could not list them).
     pub fn set_model_options(&mut self, models: Vec<String>) {
         self.model_options = models;
+        self.models_loading = false;
     }
 
     /// The dropdown options for a field of the tab the content shows.
@@ -170,12 +179,22 @@ impl SettingsModal {
             SidebarRow::KbChild(idx) => {
                 self.active_tab = SettingsTab::Keybindings;
                 self.kb_section = idx;
-                self.kb_mode = KbMode::Bindings;
-                self.kb_cursor = 0;
-                self.kb_scroll = 0;
+                self.reset_kb_cursors();
                 self.editing = false;
             }
         }
+    }
+
+    /// Put every Keybindings-tab cursor back at the start, and drop the click
+    /// spans the last frame recorded: they belong to the section they were
+    /// drawn for, and a click must not be resolved against another one.
+    pub(super) fn reset_kb_cursors(&mut self) {
+        self.kb_mode = KbMode::Bindings;
+        self.kb_cursor = 0;
+        self.kb_key_cursor = 0;
+        self.kb_scroll = 0;
+        self.kb_rows.clear();
+        self.kb_capture_message = None;
     }
 
     /// Activate a row explicitly (Enter / mouse click). Toggles group header,
@@ -186,29 +205,253 @@ impl SettingsModal {
                 self.keybindings_expanded = !self.keybindings_expanded;
                 if self.keybindings_expanded {
                     self.active_tab = SettingsTab::Keybindings;
-                    self.kb_mode = KbMode::Bindings;
-                    self.kb_cursor = 0;
-                    self.kb_scroll = 0;
+                    self.reset_kb_cursors();
                 }
             }
             other => self.preview_sidebar_row(other),
         }
     }
 
-    /// Recompute whether "Reset to Defaults" has anything to reset.
+    /// Act on a click inside the Keybindings list.
     ///
-    /// Kept separate from `dirty`, which tracks unsaved edits: a config saved
-    /// long ago still differs from the defaults, and the button greying out in
-    /// that state is what made it look broken.
-    pub(super) fn refresh_reset_available(&mut self) {
-        self.reset_available = self.config.differs_from_defaults();
+    /// `row` is the binding row and `column` the screen column, both resolved
+    /// by the caller. A click on a key of the row selects that key, so the
+    /// next `Enter` or `Delete` acts on what was clicked rather than on the
+    /// first alternative. A click on the `+` slot starts capturing straight
+    /// away: the slot is one column wide and drawn only on the focused row, so
+    /// hitting it is deliberate. A second click on the same key within the
+    /// double-click interval captures it, the way a double click edits a text
+    /// field elsewhere in the modal.
+    pub(super) fn kb_click(&mut self, row: usize, column: u16) {
+        let names = kb_binding_names(self.kb_section);
+        if row >= names.len() {
+            return;
+        }
+        self.kb_cursor = row;
+        self.kb_capture_message = None;
+
+        // Resolve the click against the slots this row was drawn with, so a
+        // row whose keys were cut off by the width cannot be hit on a column
+        // that showed something else. The `+` is in the slots of the focused
+        // row only, so a click at its column on another row is not an add.
+        let hit = self
+            .kb_rows
+            .iter()
+            .find(|(i, _)| *i == row)
+            .and_then(|(_, slots)| {
+                slots
+                    .iter()
+                    .find(|s| s.span.0 <= column && column < s.span.1)
+            })
+            .map(|slot| (slot.key, slot.span.0));
+
+        // A double click is two clicks on the *same* slot: keying the tracker
+        // by the slot's start column keeps two quick clicks on different keys
+        // of one row from reading as a double click on either.
+        let slot_id = (row as u16, hit.map(|(_, start)| start).unwrap_or(column));
+        let double = self.kb_clicks.click(slot_id) >= 2;
+
+        match hit {
+            // The `+` slot: add another alternative.
+            Some((None, _)) => {
+                let keys = kb_keys_of(&self.config, self.kb_section, names[row]);
+                self.kb_key_cursor = keys.len();
+                self.kb_mode = KbMode::Capturing(KbCapture::Append);
+            }
+            Some((Some(key), _)) => {
+                self.kb_key_cursor = key;
+                if double {
+                    self.kb_mode = KbMode::Capturing(KbCapture::Replace(key));
+                }
+            }
+            // Empty part of the row: select the first key, ready for arrows.
+            None => self.kb_key_cursor = 0,
+        }
     }
 
-    /// Record a config change: marks the modal dirty and refreshes what the
-    /// reset button is allowed to do.
+    /// What Reset goes back to where the settings are stored: the global
+    /// settings for a project, the shipped defaults for the global file.
+    fn reset_target(&self) -> Config {
+        if self.in_project {
+            self.global_layer.clone()
+        } else {
+            // `Config::default()` derives its keybindings, so they are all
+            // unset there; without normalising, the Keybindings tab would
+            // show an empty list until the modal is reopened.
+            let mut defaults = Config::default();
+            defaults.normalize();
+            defaults
+        }
+    }
+
+    /// Recompute whether Reset has anything to reset.
+    pub(super) fn refresh_reset_available(&mut self) {
+        self.reset_available = if self.in_project {
+            self.config.differs_from(&self.global_layer)
+        } else {
+            self.config.differs_from_defaults()
+        };
+    }
+
+    /// Record a config change: it is saved at once, through
+    /// [`SettingsModal::take_save_request`].
     pub(super) fn mark_dirty(&mut self) {
-        self.dirty = true;
+        self.save_pending = true;
+        if !self.in_project {
+            // The global file now holds this config, and a project created
+            // later diffs against it.
+            self.global_layer = self.config.clone();
+        }
         self.refresh_reset_available();
+    }
+
+    /// The change to persist, if the config changed since the last call.
+    /// The app polls this after every event and saves what it gets.
+    pub fn take_save_request(&mut self) -> Option<SettingsSave> {
+        if !std::mem::take(&mut self.save_pending) {
+            return None;
+        }
+        Some(SettingsSave {
+            config: self.config.clone(),
+            in_project: self.in_project,
+        })
+    }
+
+    /// Whether the settings are stored in the project rather than globally.
+    pub fn stores_in_project(&self) -> bool {
+        self.in_project
+    }
+
+    /// Replace the whole config (after a reset or a storage switch): drop
+    /// whatever form was open on the old one and save the new one.
+    fn replace_config(&mut self, config: Config) {
+        self.config = config;
+        self.refresh_server_keys();
+        // The connection the page had open may be gone with the rest.
+        self.connection_edit = None;
+        self.enum_picker = None;
+        self.lsp_mode = LspMode::Fields;
+        self.kb_mode = KbMode::Bindings;
+        self.field_cursor = self.first_selectable_row();
+        self.content_scroll = 0;
+        self.editing = false;
+        self.mark_dirty();
+    }
+
+    /// Labels of the bottom buttons: the normal row, or the answers to the
+    /// question being asked.
+    pub(super) fn button_labels(&self) -> Vec<String> {
+        let t = i18n::t();
+        match self.confirm {
+            None => vec![
+                if self.in_project {
+                    t.settings_storage_project()
+                } else {
+                    t.settings_storage_global()
+                }
+                .to_string(),
+                if self.in_project {
+                    t.settings_btn_reset_to_global()
+                } else {
+                    t.settings_btn_reset()
+                }
+                .to_string(),
+                t.settings_btn_close().to_string(),
+            ],
+            Some(Confirm::Reset) => vec![
+                t.settings_btn_reset().to_string(),
+                t.settings_btn_cancel().to_string(),
+            ],
+            Some(Confirm::LeaveProject) => vec![
+                t.settings_btn_discard().to_string(),
+                t.settings_btn_move_to_global().to_string(),
+                t.settings_btn_cancel().to_string(),
+            ],
+        }
+    }
+
+    /// The question shown above the buttons while one is asked.
+    pub(super) fn confirm_prompt(&self) -> Option<&'static str> {
+        let t = i18n::t();
+        Some(match self.confirm? {
+            Confirm::Reset if self.in_project => t.settings_confirm_reset_project(),
+            Confirm::Reset => t.settings_confirm_reset_global(),
+            Confirm::LeaveProject => t.settings_confirm_leave_project(),
+        })
+    }
+
+    /// Ask `confirm` in the button row, starting on Cancel: the safe answer
+    /// is the one Enter gives without looking.
+    fn ask(&mut self, confirm: Confirm) {
+        self.confirm = Some(confirm);
+        self.focus = FocusArea::Buttons;
+        self.selected_button = self.button_labels().len() - 1;
+    }
+
+    /// Leave the question, back on the button that asked it.
+    fn end_confirm(&mut self, button: usize) {
+        self.confirm = None;
+        self.selected_button = button;
+    }
+
+    /// Press the selected button. Returns `true` when the modal should close.
+    pub(super) fn press_button(&mut self) -> bool {
+        let button = self.selected_button;
+        match self.confirm {
+            None => match button {
+                BUTTON_STORAGE if self.in_project => self.ask(Confirm::LeaveProject),
+                BUTTON_STORAGE => {
+                    // The project file starts as an empty diff: nothing
+                    // changes but where the next change goes.
+                    self.in_project = true;
+                    self.mark_dirty();
+                }
+                // Greyed out means inert.
+                BUTTON_RESET if self.reset_available => self.ask(Confirm::Reset),
+                BUTTON_CLOSE => return true,
+                _ => {}
+            },
+            Some(Confirm::Reset) => {
+                if button == super::RESET_CONFIRM {
+                    let target = self.reset_target();
+                    self.replace_config(target);
+                }
+                self.end_confirm(BUTTON_RESET);
+            }
+            Some(Confirm::LeaveProject) => {
+                match button {
+                    super::LEAVE_DISCARD => {
+                        self.in_project = false;
+                        let global = self.global_layer.clone();
+                        self.replace_config(global);
+                    }
+                    super::LEAVE_MOVE => {
+                        self.in_project = false;
+                        // `mark_dirty` makes this config the global layer.
+                        self.mark_dirty();
+                    }
+                    _ => {}
+                }
+                self.end_confirm(BUTTON_STORAGE);
+            }
+        }
+        false
+    }
+
+    /// Esc in the button row: drop the question, or close the modal.
+    /// Returns `true` when the modal should close.
+    pub(super) fn escape_buttons(&mut self) -> bool {
+        match self.confirm {
+            Some(Confirm::Reset) => self.end_confirm(BUTTON_RESET),
+            Some(Confirm::LeaveProject) => self.end_confirm(BUTTON_STORAGE),
+            None => return true,
+        }
+        false
+    }
+
+    /// Whether a question is being asked in the button row.
+    pub(super) fn confirming(&self) -> bool {
+        self.confirm.is_some()
     }
 
     /// Clamp sidebar scroll so `sidebar_cursor` is visible.
@@ -320,18 +563,20 @@ impl SettingsModal {
                 rows
             }
             SettingsTab::Logging => vec![Field(0), Field(1)],
-            SettingsTab::Vfs => vec![Field(0)],
+            SettingsTab::Vfs => vec![Field(0), Field(1)],
             SettingsTab::Ai => {
                 let mut rows = self.connection_list_rows();
                 rows.extend([
                     Spacer,
                     Header(t.settings_header_model()),
-                    Field(0), // max_tokens
-                    Field(1), // reasoning
+                    Field(0),  // max_tokens
+                    Field(1),  // reasoning
+                    Field(10), // on a limit or an outage
                     Spacer,
                     Header(t.settings_header_permissions()),
                     Field(7), // permission mode for new sessions
                     Field(8), // auto mode reviewer
+                    Field(9), // its model
                     Spacer,
                     Header(t.settings_header_transcript()),
                     Field(2), // autofold
@@ -404,6 +649,41 @@ impl SettingsModal {
 
     // ---- Scroll ----
 
+    /// Mouse-wheel step over the content area: move the content cursor by a
+    /// few rows and let the render clamp bring the view along. Moving only the
+    /// scroll offset would be undone by that clamp on the next frame. Focus is
+    /// left alone; an inline edit, a key capture and the LSP form keep their
+    /// cursor where it is.
+    pub(super) fn wheel_content(&mut self, forward: bool) {
+        const WHEEL_STEP: usize = 3;
+        if self.editing
+            || (self.active_tab == SettingsTab::Lsp && self.lsp_mode == LspMode::ServerEdit)
+        {
+            return;
+        }
+        if self.active_tab == SettingsTab::Keybindings {
+            if self.kb_mode != KbMode::Bindings {
+                return;
+            }
+            let last = kb_binding_names(self.kb_section).len().saturating_sub(1);
+            let cursor = if forward {
+                (self.kb_cursor + WHEEL_STEP).min(last)
+            } else {
+                self.kb_cursor.saturating_sub(WHEEL_STEP)
+            };
+            if cursor != self.kb_cursor {
+                self.kb_cursor = cursor;
+                self.kb_key_cursor = 0;
+            }
+            return;
+        }
+        for _ in 0..WHEEL_STEP {
+            if !self.step_cursor(forward) {
+                break;
+            }
+        }
+    }
+
     pub(super) fn clamp_scroll(&mut self, visible: usize) {
         self.content_scroll =
             termide_ui::ensure_offset_visible(self.content_scroll, self.field_cursor, visible);
@@ -426,12 +706,12 @@ impl SettingsModal {
             FieldType::Number => {
                 let val = self.edit_input.text().parse::<u64>().unwrap_or(0);
                 self.apply_number(tab, field_idx, val);
-                self.dirty = true;
+                self.mark_dirty();
             }
             FieldType::OptionalText => {
                 let text = self.edit_input.text().to_string();
                 self.apply_text(tab, field_idx, &text);
-                self.dirty = true;
+                self.mark_dirty();
             }
             FieldType::OptionalNumber => {
                 // Empty or zero clears the field back to "(auto)".
@@ -443,13 +723,13 @@ impl SettingsModal {
                     .ok()
                     .filter(|n| *n > 0);
                 self.apply_optional_number(tab, field_idx, val);
-                self.dirty = true;
+                self.mark_dirty();
             }
             // The model field: an enum, but its typed-id escape commits text.
             FieldType::Enum if tab == SettingsTab::Connection && field_idx == connection::MODEL => {
                 let text = self.edit_input.text().to_string();
                 self.apply_connection_text(field_idx, &text);
-                self.dirty = true;
+                self.mark_dirty();
             }
             _ => {}
         }
@@ -518,24 +798,30 @@ impl SettingsModal {
                 3 => self.config.lsp.hover_delay_ms = val,
                 _ => {}
             },
-            SettingsTab::Vfs => {
-                if index == 0 {
-                    self.config.vfs.connection_timeout_secs = val;
-                }
-            }
+            SettingsTab::Vfs => match index {
+                0 => self.config.vfs.connection_timeout_secs = val,
+                1 => self.config.vault.lock_after_mins = val,
+                _ => {}
+            },
             SettingsTab::Ai => {
                 if index == 0 {
                     self.config.ai.max_tokens_per_turn = i64::try_from(val).unwrap_or(i64::MAX);
                 }
             }
+            SettingsTab::Connection => self.apply_connection_number(index, val),
             _ => {}
         }
     }
 
     /// Apply an optional-number field (`None` means "(auto)").
     fn apply_optional_number(&mut self, tab: SettingsTab, index: usize, val: Option<u64>) {
-        if tab == SettingsTab::Connection && index == connection::CONTEXT_WINDOW {
-            self.apply_connection_window(val);
+        if tab == SettingsTab::Connection
+            && matches!(
+                index,
+                connection::CONTEXT_WINDOW | connection::CONTEXT_LIMIT
+            )
+        {
+            self.apply_connection_window(index, val);
         }
     }
 
@@ -562,6 +848,8 @@ impl SettingsModal {
             SettingsTab::Ai => {
                 if index == 6 {
                     self.config.ai.web.chrome_path = text.to_string();
+                } else if index == super::fields::AI_AUTO_REVIEWER_MODEL_FIELD {
+                    self.config.ai.auto_reviewer.model = text.trim().to_string();
                 }
             }
             SettingsTab::Connection => self.apply_connection_text(index, text),
@@ -594,7 +882,7 @@ mod content_row_tests {
         ];
 
         for tab in tabs {
-            let mut modal = SettingsModal::new(Config::default(), false);
+            let mut modal = SettingsModal::new(Config::default(), Config::default(), false);
             modal.active_tab = tab;
 
             let declared = fields_for_tab(tab).len();
@@ -621,17 +909,16 @@ mod content_row_tests {
 mod reset_availability_tests {
     use super::*;
 
-    /// "Reset to Defaults" used to grey out whenever the modal had no unsaved
-    /// edits, which is the state it opens in — so a user who had configured
-    /// termide, saved, and come back found the button dead exactly when it had
-    /// the most to do.
+    /// Reset used to grey out whenever the modal had no unsaved edits, which
+    /// is the state it opens in — so a user who had configured termide and
+    /// come back found the button dead exactly when it had the most to do.
     #[test]
     fn reset_is_offered_for_a_saved_non_default_config() {
         let mut config = Config::default();
         config.general.theme = "dracula".to_string();
 
-        let modal = SettingsModal::new(config, false);
-        assert!(!modal.dirty, "a freshly opened modal has no unsaved edits");
+        let mut modal = SettingsModal::new(config.clone(), config, false);
+        assert!(modal.take_save_request().is_none(), "opening saves nothing");
         assert!(
             modal.reset_available,
             "but the config differs from the defaults, so reset has work to do"
@@ -640,14 +927,14 @@ mod reset_availability_tests {
 
     #[test]
     fn reset_is_inert_for_a_default_config() {
-        let modal = SettingsModal::new(Config::default(), false);
+        let modal = SettingsModal::new(Config::default(), Config::default(), false);
         assert!(!modal.reset_available);
     }
 
     /// Editing a value makes reset available; resetting takes it away again.
     #[test]
     fn availability_follows_the_config() {
-        let mut modal = SettingsModal::new(Config::default(), false);
+        let mut modal = SettingsModal::new(Config::default(), Config::default(), false);
         assert!(!modal.reset_available);
 
         modal.config.general.vim_mode = true;
@@ -658,26 +945,160 @@ mod reset_availability_tests {
         modal.mark_dirty();
         assert!(!modal.reset_available);
     }
+
+    /// In a project, Reset goes back to the global settings, so a project
+    /// that overrides nothing has nothing to reset even when the global
+    /// settings are far from the defaults.
+    #[test]
+    fn in_a_project_reset_is_measured_against_the_global_settings() {
+        let mut global = Config::default();
+        global.general.vim_mode = true;
+        let mut modal = SettingsModal::new(global.clone(), global, true);
+        assert!(!modal.reset_available);
+
+        modal.config.general.theme = "dracula".to_string();
+        modal.mark_dirty();
+        assert!(modal.reset_available);
+    }
 }
 
 #[cfg(test)]
-mod reset_content_tests {
+mod storage_tests {
     use super::*;
     use crate::settings::kb::{get_kb_value, kb_binding_names};
-    use crate::settings::BUTTON_RESET;
+    use crate::settings::{LEAVE_DISCARD, LEAVE_MOVE, RESET_CONFIRM};
+
+    fn press(modal: &mut SettingsModal, button: usize) -> bool {
+        modal.selected_button = button;
+        modal.press_button()
+    }
+
+    fn global_with_vim() -> Config {
+        let mut global = Config::default();
+        global.normalize();
+        global.general.vim_mode = true;
+        global
+    }
+
+    /// Every change is handed to the app once, with where it goes.
+    #[test]
+    fn a_change_is_saved_once() {
+        let mut modal = SettingsModal::new(Config::default(), Config::default(), false);
+        modal.config.general.vim_mode = true;
+        modal.mark_dirty();
+
+        let save = modal.take_save_request().expect("a change to save");
+        assert!(save.config.general.vim_mode);
+        assert!(!save.in_project);
+        assert!(modal.take_save_request().is_none());
+    }
+
+    #[test]
+    fn switching_to_the_project_keeps_the_settings_and_stores_them_there() {
+        let global = global_with_vim();
+        let mut modal = SettingsModal::new(global.clone(), global, false);
+
+        assert!(!press(&mut modal, BUTTON_STORAGE));
+        let save = modal
+            .take_save_request()
+            .expect("the project file is created");
+        assert!(save.in_project);
+        assert!(save.config.general.vim_mode);
+        assert!(!modal.confirming(), "creating a project file asks nothing");
+    }
+
+    /// Leaving the project asks first; Cancel, the default answer, changes
+    /// nothing.
+    #[test]
+    fn leaving_the_project_asks_and_cancel_keeps_it() {
+        let global = global_with_vim();
+        let mut project = global.clone();
+        project.general.theme = "dracula".to_string();
+        let mut modal = SettingsModal::new(project, global, true);
+
+        press(&mut modal, BUTTON_STORAGE);
+        assert!(modal.confirming());
+        assert_eq!(modal.selected_button, modal.button_labels().len() - 1);
+        modal.press_button();
+
+        assert!(!modal.confirming());
+        assert!(modal.stores_in_project());
+        assert!(modal.take_save_request().is_none());
+    }
+
+    #[test]
+    fn discarding_the_project_settings_falls_back_to_the_global_ones() {
+        let global = global_with_vim();
+        let mut project = global.clone();
+        project.general.theme = "dracula".to_string();
+        let mut modal = SettingsModal::new(project, global.clone(), true);
+
+        press(&mut modal, BUTTON_STORAGE);
+        press(&mut modal, LEAVE_DISCARD);
+
+        let save = modal.take_save_request().expect("the switch is saved");
+        assert!(!save.in_project);
+        assert_eq!(save.config.general.theme, global.general.theme);
+        assert!(save.config.general.vim_mode, "the global settings stay");
+    }
+
+    #[test]
+    fn moving_the_project_settings_makes_them_global() {
+        let global = global_with_vim();
+        let mut project = global.clone();
+        project.general.theme = "dracula".to_string();
+        let mut modal = SettingsModal::new(project, global, true);
+
+        press(&mut modal, BUTTON_STORAGE);
+        press(&mut modal, LEAVE_MOVE);
+
+        let save = modal.take_save_request().expect("the switch is saved");
+        assert!(!save.in_project);
+        assert_eq!(save.config.general.theme, "dracula");
+
+        // A project created afterwards starts from the moved settings.
+        press(&mut modal, BUTTON_STORAGE);
+        assert!(!modal.reset_available);
+    }
+
+    /// Reset asks first, and in a project goes back to the global settings
+    /// rather than to the defaults.
+    #[test]
+    fn reset_in_a_project_restores_the_global_settings() {
+        let global = global_with_vim();
+        let mut project = global.clone();
+        project.general.theme = "dracula".to_string();
+        let mut modal = SettingsModal::new(project, global, true);
+
+        press(&mut modal, BUTTON_RESET);
+        assert!(modal.confirming());
+        assert!(
+            modal.take_save_request().is_none(),
+            "nothing before the yes"
+        );
+        press(&mut modal, RESET_CONFIRM);
+
+        let save = modal.take_save_request().expect("the reset is saved");
+        assert!(
+            save.in_project,
+            "a reset does not change where it is stored"
+        );
+        assert!(save.config.general.vim_mode);
+        assert_eq!(save.config.general.theme, Config::default().general.theme);
+    }
 
     /// Reset used to install a raw `Config::default()`, whose keybindings are
     /// all unset — so the Keybindings tab went blank and stayed blank until
     /// the modal was reopened, making it look as though reset had wiped them.
     #[test]
     fn reset_leaves_the_keybinding_list_populated() {
-        let mut modal = SettingsModal::new(Config::default(), false);
+        let mut modal = SettingsModal::new(Config::default(), Config::default(), false);
         modal.config.general.keybindings.quit =
             Some(termide_config::KeyBinding::Single("Alt+F4".to_string()));
         modal.mark_dirty();
 
-        modal.selected_button = BUTTON_RESET;
-        modal.execute_selected_button().unwrap();
+        press(&mut modal, BUTTON_RESET);
+        press(&mut modal, RESET_CONFIRM);
 
         let names = kb_binding_names(0);
         let populated = names
@@ -690,5 +1111,11 @@ mod reset_content_tests {
             names.len()
         );
         assert_eq!(get_kb_value(&modal.config, 0, "quit"), "Alt+Q");
+    }
+
+    #[test]
+    fn close_closes() {
+        let mut modal = SettingsModal::new(Config::default(), Config::default(), false);
+        assert!(press(&mut modal, BUTTON_CLOSE));
     }
 }

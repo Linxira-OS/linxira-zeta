@@ -77,6 +77,10 @@ pub struct Config {
     #[serde(default)]
     pub vfs: VfsSettings,
 
+    /// Password vault settings
+    #[serde(default)]
+    pub vault: VaultSettings,
+
     /// Syntax-highlighting settings (custom keyword languages)
     #[serde(default)]
     pub highlight: HighlightSettings,
@@ -121,10 +125,10 @@ pub struct AiSettings {
     #[serde(default)]
     pub permissions: termide_agent_core::PermissionRules,
 
-    /// The connection whose model reviews calls in `auto` mode. Empty
-    /// reviews with the model the session runs on.
+    /// `[ai.auto_reviewer]`: the model that reviews calls in `auto` mode.
+    /// Left empty, the model the session runs on reviews.
     #[serde(default)]
-    pub auto_reviewer: String,
+    pub auto_reviewer: SideModel,
 
     /// Context compaction policy.
     #[serde(default)]
@@ -139,10 +143,20 @@ pub struct AiSettings {
     #[serde(default)]
     pub web: WebSettings,
 
+    /// The `recall` tool: its sources' time limits and its solver.
+    #[serde(default)]
+    pub recall: RecallSettings,
+
     /// Ring the terminal bell when an agent panel waits for the user out of
     /// sight: a permission or question card, or a long run that finished.
     #[serde(default = "agent_defaults::bell_on_attention")]
     pub bell_on_attention: bool,
+
+    /// What a run that stops on a usage or rate limit, or on an outage that
+    /// outlasted the quick retries, does: `ask` what to do, `wait` for the
+    /// limit's reset (or back off) and try again, or `stop`.
+    #[serde(default)]
+    pub on_limit: termide_agent_core::LimitPolicy,
 }
 
 /// One connection to a model: the wire protocol or CLI agent, where it
@@ -179,6 +193,13 @@ pub struct Connection {
     /// [`DEFAULT_CONTEXT_WINDOW_FALLBACK`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_window_fallback: Option<u64>,
+    /// A CLI agent's context window, in tokens, when it is to be smaller
+    /// than the model's: the agent compacts its conversation at it. Claude
+    /// Code takes it as `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (at least
+    /// [`CLAUDE_CODE_MIN_CONTEXT_LIMIT`]), Codex as `model_context_window`;
+    /// Gemini CLI has no such setting. Unset leaves the agent's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_window_limit: Option<u64>,
     /// Ask an `openai_compatible` server for its prompt-processing progress
     /// (llama.cpp's `return_progress`), for a live prefill bar. Off by
     /// default: servers that do not know the field may reject the request.
@@ -187,6 +208,25 @@ pub struct Connection {
     /// The field an `openai_compatible` server takes the reasoning level in.
     #[serde(default, skip_serializing_if = "ReasoningParam::is_auto")]
     pub reasoning_param: ReasoningParam,
+    /// The connection, by name, the agents this one delegates to with
+    /// `task` run on; empty runs them on this one. A subagent runs the
+    /// built-in loop, so it needs a model connection, not a CLI agent.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub subagents: String,
+    /// How many requests the connection serves at once across the termide
+    /// process — the panels' agents, their subagents and side calls — the
+    /// rest waiting their turn; 0 sets no limit. A local server usually runs
+    /// one at a time (or llama.cpp's `--parallel` many).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub max_concurrent_requests: u32,
+    /// The connection, by name, whose model reviews the calls of this one's
+    /// sessions in `auto` mode; empty leaves it to `[ai.auto_reviewer]`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reviewer: String,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 /// `reasoning_param` of an `openai_compatible` connection.
@@ -258,8 +298,12 @@ impl Default for Connection {
             model: String::new(),
             api_key_env: String::new(),
             context_window_fallback: None,
+            context_window_limit: None,
             prefill_progress: false,
             reasoning_param: ReasoningParam::Auto,
+            subagents: String::new(),
+            max_concurrent_requests: 0,
+            reviewer: String::new(),
         }
     }
 }
@@ -277,7 +321,32 @@ impl Connection {
     pub fn is_cli(&self) -> bool {
         is_cli_provider(&self.provider)
     }
+
+    /// Whether the agents a session delegates to can run on it: termide's
+    /// own loop on a model connection, or a copy of Claude Code on termide's
+    /// tools. Codex and Gemini CLI keep tools of their own, so termide does
+    /// not run its subagents on them.
+    #[must_use]
+    pub fn runs_subagents(&self) -> bool {
+        !self.is_cli() || self.provider == "claude_code"
+    }
+
+    /// Whether its context window can be limited: a CLI agent with a
+    /// setting for it, see [`Connection::context_window_limit`].
+    #[must_use]
+    pub fn takes_context_limit(&self) -> bool {
+        matches!(self.provider.as_str(), "claude_code" | "codex")
+    }
+
+    /// The smallest context window limit the agent takes, if any.
+    #[must_use]
+    pub fn min_context_limit(&self) -> Option<u64> {
+        (self.provider == "claude_code").then_some(CLAUDE_CODE_MIN_CONTEXT_LIMIT)
+    }
 }
+
+/// Claude Code reads a smaller `CLAUDE_CODE_AUTO_COMPACT_WINDOW` as this.
+pub const CLAUDE_CODE_MIN_CONTEXT_LIMIT: u64 = 100_000;
 
 /// `[ai] fold_blocks`: when reasoning and tool calls fold to one line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -308,6 +377,64 @@ impl FoldBlocks {
             FoldBlocks::OnFinish => "on-finish",
             FoldBlocks::Never => "never",
         }
+    }
+}
+
+/// A model for a side call — the `auto` reviewer, the recall solver: a
+/// connection, a model or a CLI agent's subscription, and the model of it to
+/// use. An empty connection means the model the session runs on; an empty
+/// model, the connection's own.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SideModel {
+    #[serde(default)]
+    pub connection: String,
+    #[serde(default)]
+    pub model: String,
+}
+
+/// `[ai.recall]`: how long each source of a `recall` search may take, and whether it
+/// answers from its results with one model call before handing them back,
+/// and with which model.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecallSettings {
+    /// Seconds each source may search, 0 for no limit; the sources search
+    /// side by side, and what one found by its limit is returned, with a
+    /// note that it stopped.
+    #[serde(default = "recall_defaults::timeout_secs")]
+    pub sessions_timeout_secs: u64,
+    #[serde(default = "recall_defaults::timeout_secs")]
+    pub git_timeout_secs: u64,
+    #[serde(default = "recall_defaults::timeout_secs")]
+    pub files_timeout_secs: u64,
+    /// Answer from the results instead of returning them as found.
+    #[serde(default)]
+    pub solver: bool,
+    /// The connection whose model answers. Empty answers with the model the
+    /// session runs on.
+    #[serde(default)]
+    pub connection: String,
+    /// The model of that connection to answer with; empty takes the
+    /// connection's own.
+    #[serde(default)]
+    pub model: String,
+}
+
+impl Default for RecallSettings {
+    fn default() -> Self {
+        Self {
+            sessions_timeout_secs: recall_defaults::timeout_secs(),
+            git_timeout_secs: recall_defaults::timeout_secs(),
+            files_timeout_secs: recall_defaults::timeout_secs(),
+            solver: false,
+            connection: String::new(),
+            model: String::new(),
+        }
+    }
+}
+
+mod recall_defaults {
+    pub fn timeout_secs() -> u64 {
+        60
     }
 }
 
@@ -380,6 +507,20 @@ impl AiSettings {
         self.connections.keys().next().map(String::as_str)
     }
 
+    /// The model that reviews `auto` mode calls of a session on connection
+    /// `session`: the connection its `reviewer` names, on that connection's
+    /// model, else `[ai.auto_reviewer]`.
+    #[must_use]
+    pub fn reviewer_of(&self, session: &str) -> SideModel {
+        match self.connections.get(session) {
+            Some(connection) if !connection.reviewer.trim().is_empty() => SideModel {
+                connection: connection.reviewer.trim().to_string(),
+                model: String::new(),
+            },
+            _ => self.auto_reviewer.clone(),
+        }
+    }
+
     /// The per-turn output bound to request, `None` when the setting is zero
     /// or negative and the model decides the length itself.
     #[must_use]
@@ -434,11 +575,13 @@ impl Default for AiSettings {
             max_tokens_per_turn: agent_defaults::max_tokens(),
             reasoning: agent_defaults::reasoning(),
             permissions: termide_agent_core::PermissionRules::default(),
-            auto_reviewer: String::new(),
+            auto_reviewer: SideModel::default(),
             compaction: termide_agent_core::CompactionPolicy::default(),
             fold_blocks: FoldBlocks::default(),
             web: WebSettings::default(),
+            recall: RecallSettings::default(),
             bell_on_attention: agent_defaults::bell_on_attention(),
+            on_limit: termide_agent_core::LimitPolicy::default(),
         }
     }
 }
@@ -678,31 +821,12 @@ pub struct DatabaseSettings {
     pub keybindings: DatabaseKeybindings,
 }
 
-/// Where the viewers open a followed link.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum LinkOpen {
-    /// Open inside the built-in viewer panel (text-mode browsing). Default.
-    #[default]
-    Panel,
-    /// Open in the system's external browser.
-    External,
-}
-
 /// File viewer panels settings (binary hex viewer, markdown/HTML preview).
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ViewerSettings {
     /// Viewer keyboard shortcuts
     #[serde(default)]
     pub keybindings: ViewerKeybindings,
-    /// Where a followed page/link opens by default (the built-in panel, or the
-    /// external browser). `O` always forces the external browser.
-    #[serde(default)]
-    pub open_links: LinkOpen,
-    /// Where a followed link to an image opens by default (the built-in image
-    /// preview, or the external viewer).
-    #[serde(default)]
-    pub open_images: LinkOpen,
 }
 
 /// Terminal panel settings.
@@ -746,6 +870,27 @@ impl Default for VfsSettings {
 
 fn default_vfs_connection_timeout() -> u64 {
     60
+}
+
+/// Password vault settings (`[vault]`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultSettings {
+    /// Minutes without use after which the unlocked vault locks itself;
+    /// 0 keeps it unlocked until termide exits (default: 15).
+    #[serde(default = "default_vault_lock_after_mins")]
+    pub lock_after_mins: u64,
+}
+
+impl Default for VaultSettings {
+    fn default() -> Self {
+        Self {
+            lock_after_mins: default_vault_lock_after_mins(),
+        }
+    }
+}
+
+fn default_vault_lock_after_mins() -> u64 {
+    15
 }
 
 /// LSP (Language Server Protocol) settings.
@@ -1116,6 +1261,7 @@ impl From<LegacyConfig> for Config {
                 min_level: legacy.min_log_level,
             },
             vfs: VfsSettings::default(),
+            vault: VaultSettings::default(),
             highlight: HighlightSettings::default(),
             ai: AiSettings::default(),
         }
@@ -1224,6 +1370,28 @@ mod ai_settings_tests {
     use super::*;
 
     #[test]
+    fn recall_settings_keep_their_defaults_where_left_out() {
+        let parsed: AiSettings = toml::from_str(
+            r#"
+            [recall]
+            git_timeout_secs = 0
+            solver = true
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            parsed.recall,
+            RecallSettings {
+                git_timeout_secs: 0,
+                solver: true,
+                ..RecallSettings::default()
+            }
+        );
+        assert_eq!(parsed.recall.files_timeout_secs, 60);
+        assert_eq!(AiSettings::default().recall, RecallSettings::default());
+    }
+
+    #[test]
     fn new_sessions_start_on_the_named_connection_or_the_first() {
         let mut parsed: AiSettings = toml::from_str(
             r#"
@@ -1286,8 +1454,19 @@ mod ai_settings_tests {
         let parsed: AiSettings =
             toml::from_str("prefer_reasoning = false\n[permissions]\nmode = \"auto\"\n").unwrap();
         assert_eq!(parsed.permissions.mode, termide_agent_core::Mode::Auto);
-        assert!(parsed.auto_reviewer.is_empty());
+        assert_eq!(parsed.auto_reviewer, SideModel::default());
+
         assert_eq!(parsed.reasoning, termide_agent_core::ThinkingLevel::Off);
+        let reviewer: AiSettings =
+            toml::from_str("[auto_reviewer]\nconnection = \"claude\"\nmodel = \"haiku\"\n")
+                .unwrap();
+        assert_eq!(
+            reviewer.auto_reviewer,
+            SideModel {
+                connection: "claude".into(),
+                model: "haiku".into()
+            }
+        );
         let parsed: AiSettings = toml::from_str("prefer_reasoning = true\n").unwrap();
         assert_eq!(parsed.reasoning, termide_agent_core::ThinkingLevel::High);
         let parsed: AiSettings = toml::from_str("reasoning = \"xhigh\"\n").unwrap();
@@ -1306,6 +1485,57 @@ mod ai_settings_tests {
             "{text}"
         );
         assert_eq!(toml::from_str::<Connection>(&text).unwrap(), local);
+    }
+
+    #[test]
+    fn a_connection_names_its_subagents_connection_only_when_set() {
+        let mut claude = Connection {
+            provider: "claude_code".into(),
+            ..Connection::default()
+        };
+        assert!(!toml::to_string(&claude).unwrap().contains("subagents"));
+        claude.subagents = "local".into();
+        let text = toml::to_string(&claude).unwrap();
+        assert!(text.contains("subagents = \"local\""), "{text}");
+        assert_eq!(toml::from_str::<Connection>(&text).unwrap(), claude);
+    }
+
+    #[test]
+    fn a_connection_names_its_request_limit_only_when_set() {
+        let mut local = Connection::default();
+        assert!(!toml::to_string(&local)
+            .unwrap()
+            .contains("max_concurrent_requests"));
+        local.max_concurrent_requests = 1;
+        let text = toml::to_string(&local).unwrap();
+        assert!(text.contains("max_concurrent_requests = 1"), "{text}");
+        assert_eq!(toml::from_str::<Connection>(&text).unwrap(), local);
+    }
+
+    #[test]
+    fn a_connection_names_its_reviewer_over_the_default_one() {
+        let mut settings = AiSettings {
+            auto_reviewer: SideModel {
+                connection: "cloud".into(),
+                model: "small".into(),
+            },
+            ..AiSettings::default()
+        };
+        settings
+            .connections
+            .insert("local".into(), Connection::default());
+        assert_eq!(settings.reviewer_of("local"), settings.auto_reviewer);
+        assert_eq!(settings.reviewer_of("gone"), settings.auto_reviewer);
+        settings.connections.get_mut("local").unwrap().reviewer = "claude".into();
+        assert_eq!(
+            settings.reviewer_of("local"),
+            SideModel {
+                connection: "claude".into(),
+                model: String::new(),
+            }
+        );
+        let text = toml::to_string(&settings.connections["local"]).unwrap();
+        assert!(text.contains("reviewer = \"claude\""), "{text}");
     }
 
     #[test]
@@ -1396,6 +1626,66 @@ prev_panel = "Alt+W"
             "only a verbatim copy of the old default is dropped"
         );
         assert_eq!(kb.prev_panel, Some(KeyBinding::Single("Alt+W".to_string())));
+    }
+
+    fn single(key: &str) -> Option<KeyBinding> {
+        Some(KeyBinding::Single(key.to_string()))
+    }
+
+    #[test]
+    fn alt_digits_switch_projects_and_panels_ship_unbound() {
+        let mut config = Config::default();
+        config.normalize();
+
+        let kb = &config.general.keybindings;
+        for (n, (panel, project)) in kb
+            .goto_panel()
+            .into_iter()
+            .zip(kb.goto_project())
+            .enumerate()
+        {
+            assert_eq!(*project, single(&format!("Alt+{}", n + 1)));
+            assert_eq!(*panel, None);
+        }
+    }
+
+    /// An older full table holds `goto_panel_N = "Alt+N"` and no
+    /// `goto_project_N`; the digits go to projects as on a fresh install.
+    #[test]
+    fn frozen_alt_digits_for_panels_give_way_to_projects() {
+        let toml = r#"
+[general.keybindings]
+goto_panel_1 = "Alt+1"
+goto_panel_2 = "Alt+2"
+goto_panel_3 = "Ctrl+3"
+"#;
+        let mut config: Config = toml::from_str(toml).expect("config parses");
+        config.normalize();
+
+        let kb = &config.general.keybindings;
+        assert_eq!(kb.goto_panel_1, None);
+        assert_eq!(kb.goto_project_1, single("Alt+1"));
+        assert_eq!(kb.goto_panel_2, None);
+        assert_eq!(kb.goto_project_2, single("Alt+2"));
+        assert_eq!(kb.goto_panel_3, single("Ctrl+3"), "not the old default");
+        assert_eq!(kb.goto_project_3, single("Alt+3"));
+    }
+
+    /// Taking the digits back for panels means moving projects elsewhere;
+    /// with `goto_project_N` in the file, both choices stand.
+    #[test]
+    fn alt_digits_taken_back_for_panels_stay_there() {
+        let toml = r#"
+[general.keybindings]
+goto_panel_1 = "Alt+1"
+goto_project_1 = "Ctrl+Alt+1"
+"#;
+        let mut config: Config = toml::from_str(toml).expect("config parses");
+        config.normalize();
+
+        let kb = &config.general.keybindings;
+        assert_eq!(kb.goto_panel_1, single("Alt+1"));
+        assert_eq!(kb.goto_project_1, single("Ctrl+Alt+1"));
     }
 
     #[test]

@@ -7,11 +7,12 @@ use std::path::PathBuf;
 use std::sync::{mpsc, Arc, PoisonError, RwLock};
 
 use termide_agent_core::{
-    Hooks, LateTools, Mode, PromptError, ToolCall, ToolContext, ToolDecision,
+    companion_tools, Hooks, LateTools, McpStatus, Mode, PromptError, SkillInfo, ToolCall,
+    ToolContext, ToolDecision,
 };
 use termide_core::{ChecklistGroup, ChecklistItem, ChecklistRefresh, PanelEvent};
 
-use crate::{AgentPanel, NoticeKind};
+use crate::{AgentCatalog, AgentPanel, NoticeKind};
 
 /// What the session switched off but the model still has in its context,
 /// shared with the guard that refuses it.
@@ -19,6 +20,22 @@ pub(crate) type Blocked = Arc<RwLock<BTreeSet<String>>>;
 
 /// The checklist of the session's tools, skills and MCP tools.
 pub(crate) const TOOLSET_ACTION: &str = "agent_toolset";
+
+/// The skills of `offered` the context holds (`off` names those it was built
+/// without), as the catalog describes them: what an external agent on its
+/// own prompt is told the `skill` tool loads.
+pub(crate) fn served_skills(
+    catalog: &dyn AgentCatalog,
+    offered: &[String],
+    off: &BTreeSet<String>,
+) -> Vec<SkillInfo> {
+    catalog
+        .skills()
+        .into_iter()
+        .filter(|skill| offered.contains(&skill.name))
+        .filter(|skill| !off.contains(&format!("skill:{}", skill.name)))
+        .collect()
+}
 
 /// Refuses what the session switched off while it is still in the model's
 /// context: a tool by its name, a skill by the name the `skill` tool loads.
@@ -44,6 +61,28 @@ impl Hooks for ToolsetGuard {
 }
 
 impl AgentPanel {
+    /// Whether the session has a toolset of termide's: the model calls
+    /// termide's tools, the built-in loop's or those served to an external
+    /// agent in place of its own, or it is served the tools of termide's MCP
+    /// servers beside its own and some have come.
+    pub(crate) fn has_toolset(&self) -> bool {
+        self.runtime.runs_host_tools()
+            || (self.runtime.takes_mcp_tools() && !self.mcp_arrived.is_empty())
+    }
+
+    /// Whether the toolset lists termide's built-in tools and skills, and not
+    /// only its MCP servers' tools.
+    fn toolset_lists_own(&self) -> bool {
+        self.runtime.runs_host_tools()
+    }
+
+    /// Whether switching something off still takes it out of the context. An
+    /// external agent got its tools when its session started, so for it
+    /// switching off only ever refuses.
+    fn toolset_fresh(&self) -> bool {
+        !self.external && self.is_fresh()
+    }
+
     /// The system prompt as the agent receives it, written next to the
     /// session logs (or to the temp directory without them) so it can be
     /// opened in a viewer.
@@ -146,7 +185,7 @@ impl AgentPanel {
     /// allowed and refused, and what is out of it stays out.
     pub(crate) fn toolset_items(&self) -> Vec<ChecklistItem> {
         let t = termide_i18n::t();
-        let fresh = self.is_fresh();
+        let fresh = self.toolset_fresh();
         let item = |key: String, label: String, group: String| {
             let off = self.toolset_off.contains(&key);
             let in_context = !self.context_off.contains(&key);
@@ -167,9 +206,11 @@ impl AgentPanel {
                 note: note.to_string(),
             }
         };
+        let own = self.toolset_lists_own();
         let mut items: Vec<ChecklistItem> = self
             .offered_tools
             .iter()
+            .filter(|_| own)
             // The skill loader goes with the skills, which have their own items.
             .filter(|name| name.as_str() != "skill")
             .map(|name| {
@@ -180,7 +221,7 @@ impl AgentPanel {
                 )
             })
             .collect();
-        items.extend(self.offered_skills.iter().map(|name| {
+        items.extend(self.offered_skills.iter().filter(|_| own).map(|name| {
             item(
                 format!("skill:{name}"),
                 name.clone(),
@@ -227,7 +268,7 @@ impl AgentPanel {
     /// the first request that takes it out of the context at once; later it
     /// is refused until a compaction takes it out.
     pub(crate) fn apply_toolset(&mut self, checked: &[String]) {
-        let fresh = self.is_fresh();
+        let fresh = self.toolset_fresh();
         let before = self.toolset_off.clone();
         let mut off = self.toolset_off.clone();
         for item in self.toolset_items() {
@@ -349,6 +390,12 @@ impl AgentPanel {
 
     /// `on/all` of what the session offers, for the banner and the chip.
     pub(crate) fn toolset_counts(&self) -> (usize, usize) {
+        let is_mcp = |key: &str| self.mcp_arrived.iter().any(|(_, tool)| tool.name() == key);
+        if !self.toolset_lists_own() {
+            let all = self.mcp_arrived.len();
+            let off = self.toolset_off.iter().filter(|key| is_mcp(key)).count();
+            return (all.saturating_sub(off), all);
+        }
         let all = self
             .offered_tools
             .iter()
@@ -444,15 +491,50 @@ impl AgentPanel {
         if pending && !self.is_busy() {
             let batch = std::mem::take(&mut self.waiting_tools);
             let leaving = std::mem::take(&mut self.leaving_tools);
-            let (for_worker, leaving_worker) = (batch.clone(), leaving.clone());
-            match self.runtime.update(Box::new(move |agent| {
-                for name in &leaving_worker {
-                    agent.tools_mut().remove(name);
+            let handed = if self.external && self.runtime.runs_host_tools() {
+                // One on termide's tools is served the whole set anew.
+                let mut served = self.tools.clone();
+                for name in &leaving {
+                    served.remove(name);
                 }
-                for tool in for_worker {
-                    agent.tools_mut().insert(tool);
+                for tool in &batch {
+                    served.insert(Arc::clone(tool));
                 }
-            })) {
+                self.runtime.update_host_tools(served)
+            } else if self.external && self.runtime.takes_mcp_tools() {
+                // One on its own tools is served termide's it has no
+                // counterpart of and the MCP servers' beside them, save those
+                // its context was built without.
+                let skills = served_skills(
+                    self.catalog.as_ref(),
+                    &self.offered_skills,
+                    &self.context_off,
+                );
+                let mut served = companion_tools(&self.tools, &skills);
+                for name in &self.context_off {
+                    served.remove(name);
+                }
+                for (_, tool) in &self.mcp_arrived {
+                    if !self.context_off.contains(tool.name()) {
+                        served.insert(Arc::clone(tool));
+                    }
+                }
+                self.runtime.update_host_tools(served)
+            } else if self.external {
+                // One on its own tools alone takes none of ours.
+                Err(PromptError::Unsupported)
+            } else {
+                let (for_worker, leaving_worker) = (batch.clone(), leaving.clone());
+                self.runtime.update(Box::new(move |agent| {
+                    for name in &leaving_worker {
+                        agent.tools_mut().remove(name);
+                    }
+                    for tool in for_worker {
+                        agent.tools_mut().insert(tool);
+                    }
+                }))
+            };
+            match handed {
                 Ok(()) => {
                     for name in &leaving {
                         self.tools.remove(name);
@@ -467,7 +549,42 @@ impl AgentPanel {
                 }
             }
         }
+        self.tell_mcp_settled();
         changed
+    }
+
+    /// Tell an external agent served the MCP servers' tools beside its own
+    /// that they have all answered and theirs are handed over, so it opens its
+    /// session with them: it lists them once. A server that connected counts
+    /// once its tools are here, not only reported.
+    fn tell_mcp_settled(&mut self) {
+        if self.mcp_settled_told
+            || !self.external
+            || !self.waiting_tools.is_empty()
+            || !self.leaving_tools.is_empty()
+            || !self.runtime.takes_mcp_tools()
+        {
+            return;
+        }
+        let settled = self
+            .catalog
+            .mcp_status()
+            .iter()
+            .all(|server| match server.status {
+                McpStatus::Connecting => false,
+                McpStatus::Ready { tools } => {
+                    self.mcp_arrived
+                        .iter()
+                        .filter(|(source, _)| *source == server.name)
+                        .count()
+                        >= tools
+                }
+                _ => true,
+            });
+        if settled {
+            self.runtime.host_tools_settled();
+            self.mcp_settled_told = true;
+        }
     }
 
     /// Take `source`'s MCP tools out of the checklist and the queue, and mark

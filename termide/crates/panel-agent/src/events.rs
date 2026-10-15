@@ -52,8 +52,33 @@ impl AgentPanel {
         }
     }
 
+    /// A `/compact` between runs leaves no activity behind; one inside a run
+    /// is replaced by the next message's.
+    fn end_compaction(&mut self) {
+        if !self.busy {
+            self.activity = None;
+        }
+    }
+
+    /// The judge's call is over: its live line goes, unless a run took the
+    /// line over meanwhile.
+    pub(crate) fn end_judging(&mut self) {
+        if self.activity.is_some_and(|a| a.phase == Phase::Judge) {
+            self.activity = None;
+        }
+    }
+
     /// Apply one runtime event to the transcript and the session log.
     pub(crate) fn apply(&mut self, event: AgentEvent) {
+        if matches!(
+            event,
+            AgentEvent::MessageStart { .. }
+                | AgentEvent::MessageUpdate(_)
+                | AgentEvent::ToolExecutionStart { .. }
+                | AgentEvent::ToolCallUpdate { .. }
+        ) {
+            self.run_heard = true;
+        }
         match event {
             AgentEvent::AgentStart => {
                 self.busy = true;
@@ -66,7 +91,12 @@ impl AgentPanel {
                     self.run_start = Some(Instant::now());
                     self.run_failed = false;
                 }
+                self.last_failure = None;
+                self.run_heard = false;
                 self.run_paused = false;
+                // A pause taken up from the log ends with any run that starts.
+                self.restored = None;
+                self.run_start_due = true;
             }
             AgentEvent::Paused => {
                 // The run's closing line records the pause; the state strip
@@ -78,11 +108,17 @@ impl AgentPanel {
             AgentEvent::AgentEnd => {
                 self.busy = false;
                 self.activity = None;
+                self.log_run_end();
+                // A failure is acted on unless the user stopped the run.
+                let failure = self
+                    .last_failure
+                    .take()
+                    .filter(|_| self.stop_requested.is_none());
                 // A stop was the user's own doing, so they are there.
                 let long = self
                     .run_start
                     .is_some_and(|start| start.elapsed() >= LONG_RUN);
-                self.raise_attention(long && !self.stop_requested);
+                let ring = long && self.stop_requested.is_none();
                 if self.run_paused {
                     // The run waits at a pause: its line ticks the pause's
                     // length (no time of day), and the run's own clock stays
@@ -98,7 +134,10 @@ impl AgentPanel {
                     );
                 }
                 self.pause_requested = false;
-                self.stop_requested = false;
+                if self.external && self.stop_requested.is_some() && !self.run_heard {
+                    self.restart_due = true;
+                }
+                self.stop_requested = None;
                 self.set_queued(self.runtime.queue_lens());
                 if let Some(store) = &self.checkpoints {
                     store
@@ -109,28 +148,73 @@ impl AgentPanel {
                 if self.prompt_stale {
                     self.sync_system_prompt();
                 }
+                // A failed request is tried again, waited on or asked about;
+                // one that went through ends the tries.
+                let held = match failure {
+                    Some((failure, error)) => {
+                        self.retry_ready = true;
+                        self.on_run_failed(failure, &error)
+                    }
+                    None => {
+                        if !self.run_failed {
+                            self.retry_attempts = 0;
+                            self.restarted = false;
+                            self.retry_ready = false;
+                        }
+                        false
+                    }
+                };
                 self.offer_plan();
                 // A loop schedules its next iteration once the run ends, unless
-                // it was paused (then it waits for `/continue`) or a card is up.
-                if !self.paused && self.pending.is_none() {
+                // it was paused (then it waits for `/continue`), a card is up
+                // or a failed request waits to be tried again.
+                if !self.paused && self.pending.is_none() && self.retry_wait.is_none() {
                     if let Some(task) = self.loop_task.as_mut() {
                         task.next_at =
                             Some(Instant::now() + task.interval.unwrap_or(Duration::ZERO));
+                        task.due_ms = task.interval.map(|wait| {
+                            termide_agent_core::now_millis()
+                                .saturating_add(u64::try_from(wait.as_millis()).unwrap_or(u64::MAX))
+                        });
                     }
                 }
                 // A goal judges the finished work turn next, unless it was
                 // paused or a card is up; a turn that errored stops the goal
-                // rather than looping on the failure.
-                if self.goal_task.is_some() && self.goal_errored {
+                // rather than looping on the failure — unless the failed
+                // request is still in hand, waited on or asked about.
+                if self.goal_task.is_some() && self.goal_errored && !held {
                     self.goal_task = None;
                     self.notice(
                         termide_i18n::t().agent_notice_goal_stopped_failed(),
                         NoticeKind::Warn,
                     );
-                } else if !self.paused && self.pending.is_none() {
+                } else if !self.paused
+                    && self.pending.is_none()
+                    && self.retry_wait.is_none()
+                    && !self.goal_errored
+                {
                     if let Some(task) = self.goal_task.as_mut() {
                         task.judge_at = Some(Instant::now());
+                        // A work turn of the goal (not the run it was set
+                        // during) counts toward the idle-turn check.
+                        if task.first_turn.is_none() {
+                            task.idle_turns = if task.used_tools {
+                                0
+                            } else {
+                                task.idle_turns + 1
+                            };
+                        }
                     }
+                }
+                // A goal or loop that carries on by itself waits for no one:
+                // only its end (or a pause, a card, a failure) calls the user.
+                let goes_on = self
+                    .goal_task
+                    .as_ref()
+                    .is_some_and(|t| t.judge_at.is_some())
+                    || self.loop_task.as_ref().is_some_and(|t| t.next_at.is_some());
+                if !goes_on {
+                    self.raise_attention(ring);
                 }
             }
             AgentEvent::TurnStart | AgentEvent::TurnEnd => {}
@@ -161,7 +245,21 @@ impl AgentPanel {
                     activity.prefill = Some((processed, total, cached));
                 }
             }
+            AgentEvent::MessageUpdate(
+                event @ (StreamEvent::Queued { .. } | StreamEvent::Admitted),
+            ) => {
+                if let Some(activity) = self.activity.as_mut().filter(|a| a.phase == Phase::Prefill)
+                {
+                    activity.note_queue(&event);
+                }
+            }
             AgentEvent::MessageUpdate(StreamEvent::Retry {
+                attempt,
+                max_attempts,
+                delay_ms,
+                error,
+            })
+            | AgentEvent::CompactionUpdate(StreamEvent::Retry {
                 attempt,
                 max_attempts,
                 delay_ms,
@@ -193,6 +291,14 @@ impl AgentPanel {
                         self.transcript.push(item);
                         None
                     }
+                    // An external agent's calls show as they run; the
+                    // message of them, sent once one has run, is for the log
+                    // alone, and must not close what streams meanwhile.
+                    Message::Assistant(assistant)
+                        if self.external && assistant.tool_calls().next().is_some() =>
+                    {
+                        None
+                    }
                     Message::Assistant(assistant) => {
                         if assistant.usage.total() > 0 {
                             self.context_tokens = assistant.usage.total();
@@ -218,7 +324,13 @@ impl AgentPanel {
                         let error = assistant.error_message.clone();
                         // A goal work turn that errored must not be judged and
                         // retried on the failure; note it for `AgentEnd`.
-                        if error.is_some() && self.goal_task.is_some() {
+                        // A goal still waiting for its first turn did not run.
+                        if error.is_some()
+                            && self
+                                .goal_task
+                                .as_ref()
+                                .is_some_and(|task| task.first_turn.is_none())
+                        {
                             self.goal_errored = true;
                         }
                         if error.is_some()
@@ -229,6 +341,13 @@ impl AgentPanel {
                         {
                             self.run_failed = true;
                         }
+                        // What a failure was, for the run's end; a refusal
+                        // carries no error and is no failure to retry.
+                        self.last_failure = error.as_ref().and_then(|error| {
+                            assistant
+                                .classify_failure()
+                                .map(|failure| (failure, error.clone()))
+                        });
                         // The answer always carries the wall-clock time; a
                         // reasoning block, if any, carries the prefill/generation
                         // indicators (else the answer does). A tool-only turn
@@ -237,7 +356,7 @@ impl AgentPanel {
                         let answer_cost = if had_thinking { None } else { cost };
                         self.transcript.finish_assistant(
                             assistant.plain_text(),
-                            error,
+                            transcript::shown_error(assistant),
                             answer_cost,
                             at,
                             had_thinking,
@@ -261,8 +380,12 @@ impl AgentPanel {
                         log::warn!("agent session write failed: {error}");
                     }
                 }
+                self.log_run_start();
             }
             AgentEvent::ToolExecutionStart { call } => {
+                if let Some(task) = self.goal_task.as_mut() {
+                    task.used_tools = true;
+                }
                 self.set_phase(Phase::Tool);
                 self.tool_starts.insert(call.id.clone(), Instant::now());
                 self.transcript.push(Item::Tool {
@@ -273,6 +396,13 @@ impl AgentPanel {
                     duration_ms: None,
                     waited_ms: None,
                     waiting: false,
+                });
+            }
+            AgentEvent::ToolCallUpdate { call: fuller } => {
+                self.transcript.with_tool(&fuller.id.clone(), |item| {
+                    if let Item::Tool { call, .. } = item {
+                        *call = fuller;
+                    }
                 });
             }
             AgentEvent::ToolExecutionUpdate {
@@ -286,6 +416,13 @@ impl AgentPanel {
                 });
             }
             AgentEvent::ToolExecutionEnd { result } => {
+                // A subagent's tokens join the session's totals; its context
+                // was its own, so the context fill stays as it is.
+                if let Some(spent) = result.spent() {
+                    self.session_input += spent.uncached();
+                    self.session_cached += spent.cache_read;
+                    self.session_output += spent.output;
+                }
                 if let Some(path) = changed_file(&result) {
                     self.pending_events
                         .push(PanelEvent::FileChangedOnDisk(path));
@@ -339,18 +476,52 @@ impl AgentPanel {
                 steering,
                 follow_up,
             } => self.set_queued((steering, follow_up)),
-            AgentEvent::CompactionStart { .. } => {
-                self.set_phase(Phase::Compact);
+            AgentEvent::CompactionStart { prompt_tokens, .. } => {
+                // The summary call shows the same prefill and generation lines
+                // as a model message, under its own phase.
+                self.activity = Some(Activity {
+                    prompt_tokens: Some(prompt_tokens),
+                    ..Activity::new(Phase::Compact)
+                });
                 self.notice(
                     termide_i18n::t().agent_notice_compacting(),
                     NoticeKind::Info,
                 )
             }
+            AgentEvent::CompactionUpdate(event) | AgentEvent::GoalJudgeUpdate(event) => {
+                // The summary call and the judge's both show their progress.
+                if let Some(activity) = self
+                    .activity
+                    .as_mut()
+                    .filter(|a| matches!(a.phase, Phase::Compact | Phase::Judge))
+                {
+                    match event {
+                        StreamEvent::TextDelta(delta) | StreamEvent::ThinkingDelta(delta) => {
+                            activity.first_token.get_or_insert_with(Instant::now);
+                            activity.gen_chars += delta.chars().count();
+                        }
+                        StreamEvent::PrefillProgress {
+                            processed,
+                            total,
+                            cached,
+                        } => activity.prefill = Some((processed, total, cached)),
+                        StreamEvent::Queued { .. } | StreamEvent::Admitted => {
+                            activity.note_queue(&event);
+                        }
+                        _ => {}
+                    }
+                }
+            }
             AgentEvent::Compacted {
                 summary,
                 kept,
                 tokens_before,
+                tokens_after,
             } => {
+                // The next reply's usage would correct the figure only once
+                // the next turn finishes.
+                self.context_tokens = tokens_after;
+                self.end_compaction();
                 self.notice(
                     termide_i18n::t().agent_notice_compacted_fmt(tokens_before, kept),
                     NoticeKind::Info,
@@ -366,17 +537,27 @@ impl AgentPanel {
                     self.context_stale = true;
                 }
             }
-            AgentEvent::CompactionFailed { error } => self.notice(
-                termide_i18n::t().agent_notice_compaction_failed_fmt(&error.to_string()),
-                NoticeKind::Warn,
-            ),
-            AgentEvent::GoalJudged { done, reason } => self.on_goal_verdict(done, &reason),
-            AgentEvent::GoalJudgeFailed { error } => {
-                self.goal_task = None;
+            AgentEvent::CompactionFailed { error } => {
+                self.end_compaction();
                 self.notice(
-                    termide_i18n::t().agent_notice_goal_check_failed_fmt(&error.to_string()),
+                    termide_i18n::t().agent_notice_compaction_failed_fmt(&error.to_string()),
                     NoticeKind::Warn,
                 );
+            }
+            AgentEvent::ExternalSession { agent, session_id } => {
+                if let Some(session) = &mut self.session {
+                    if let Err(error) = session.append_external_session(&agent, &session_id) {
+                        log::warn!("agent session write failed: {error}");
+                    }
+                }
+            }
+            AgentEvent::GoalJudged { outcome, reason } => {
+                self.end_judging();
+                self.on_goal_verdict(outcome, &reason);
+            }
+            AgentEvent::GoalJudgeFailed { error } => {
+                self.end_judging();
+                self.on_goal_judge_failed(&error);
             }
             AgentEvent::Handoff { brief } => match brief {
                 Ok(text) => {
@@ -400,7 +581,49 @@ impl AgentPanel {
                     NoticeKind::Warn,
                 ),
             },
+            AgentEvent::ThinkingLoop { report, retrying } => {
+                let t = termide_i18n::t();
+                if retrying {
+                    self.notice(
+                        t.agent_notice_thinking_loop_retry_fmt(report.repeats),
+                        NoticeKind::Warn,
+                    );
+                } else {
+                    // A goal must not judge and resend a turn that looped
+                    // twice: the user decides what comes next, and is called.
+                    if self.goal_task.take().is_some() {
+                        self.end_judging();
+                        self.notice(t.agent_notice_goal_stopped(), NoticeKind::Info);
+                    }
+                    let thoughts = report
+                        .thoughts
+                        .iter()
+                        .map(|thought| format!("• {thought}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    self.notice(
+                        t.agent_notice_thinking_loop_stopped_fmt(&thoughts),
+                        NoticeKind::Warn,
+                    );
+                }
+            }
         }
+    }
+
+    /// Start an external agent anew once a stop before its first reply has
+    /// ended (see `restart_due`), on the same session; `true` when it did.
+    fn restart_after_early_stop(&mut self) -> bool {
+        if !self.restart_due || self.is_busy() {
+            return false;
+        }
+        self.restart_due = false;
+        let session = self.session.take();
+        self.switch_session(session);
+        self.notice(
+            termide_i18n::t().agent_notice_restarted_after_stop(),
+            NoticeKind::Info,
+        );
+        true
     }
 
     /// The body of [`Panel::tick`]: drain the runtime's events, poll the
@@ -417,6 +640,7 @@ impl AgentPanel {
             changed = true;
         }
         changed |= self.follow_open_sessions();
+        changed |= self.drop_withdrawn_permission();
         if let Some((start, before)) = self.permission_wait {
             if matches!(
                 self.pending,
@@ -438,6 +662,8 @@ impl AgentPanel {
             self.apply(event);
             changed = true;
         }
+        changed |= self.restart_after_early_stop();
+        changed |= self.take_reviewer_spent();
         let mut events = self.poll_permissions();
         events.append(&mut self.poll_questions());
         events.append(&mut self.poll_suggestions());
@@ -482,21 +708,25 @@ impl AgentPanel {
         // (its adapter starts asynchronously): adopt the current model for the
         // banner and the Model chip, and note whether it offers a choice.
         if self.external {
-            if !self.acp_has_models && !self.runtime.available_models().is_empty() {
+            let models_known = !self.runtime.available_models().is_empty();
+            if !self.acp_has_models && models_known {
                 self.acp_has_models = true;
                 changed = true;
-                // Apply the configured pre-selected model once, now that the
-                // agent's models are known.
-                if let Some(pref) = self.pending_preferred_model.take() {
-                    if self.runtime.current_model().as_deref() != Some(pref.as_str()) {
-                        match self.runtime.select_model(pref.clone()) {
-                            Ok(()) => self.model.id = pref,
-                            Err(error) => {
-                                log::warn!("cannot pre-select the model: {error}");
-                            }
-                        }
-                    }
-                }
+            }
+            // The agent's settings may change on their own (a model it falls
+            // back to, the efforts a new model offers).
+            let options = self.runtime.config_options();
+            if options != self.acp_options {
+                self.acp_options = options;
+                changed = true;
+            }
+            // Ask once for the session's settings, now the agent has stated
+            // its own.
+            if !self.pending_acp_choices.is_empty()
+                && (models_known || !self.acp_options.is_empty())
+            {
+                self.apply_acp_choices();
+                changed = true;
             }
             if let Some(id) = self.runtime.current_model() {
                 if id != self.model.id {
@@ -524,6 +754,8 @@ impl AgentPanel {
             events.extend(self.loop_step());
             changed = true;
         }
+        // A failed request whose wait is over is tried again.
+        changed |= self.poll_retry_wait();
         // A goal whose work turn has finished runs the judge once the panel is
         // free and no judge call is already in flight.
         let judge_due = self
@@ -536,9 +768,28 @@ impl AgentPanel {
         }
         // While the agent works, keep the ticking timer and the block's
         // spinner moving without waiting for an event (throttled to ~10 fps).
-        if self.is_busy() && self.last_anim.elapsed() >= Duration::from_millis(100) {
+        // A `/compact` between runs leaves the runtime idle but still works;
+        // an external agent still starting spins in place of its model.
+        let starting = self.external && self.runtime.is_starting();
+        if (self.is_busy() || self.activity.is_some() || starting)
+            && self.last_anim.elapsed() >= Duration::from_millis(100)
+        {
             self.last_anim = Instant::now();
             changed = true;
+        }
+        // A loop waiting out its interval counts down in the state strip.
+        if self.loop_task.as_ref().is_some_and(|t| t.next_at.is_some())
+            && self.last_anim.elapsed() >= Duration::from_secs(1)
+        {
+            self.last_anim = Instant::now();
+            changed = true;
+        }
+        changed |= self.settle_restored();
+        // A goal or loop started, stepped or stopped is written to the log,
+        // so a session reopened later offers to carry it on — between runs,
+        // so nothing comes between a request's start and its message.
+        if !self.is_busy() {
+            self.sync_autorun();
         }
         if changed || !events.is_empty() {
             events.push(PanelEvent::NeedsRedraw);
@@ -559,4 +810,22 @@ pub(crate) fn changed_file(result: &ToolResultMessage) -> Option<PathBuf> {
         .get("path")?
         .as_str()
         .map(PathBuf::from)
+}
+
+impl AgentPanel {
+    /// Add to the session's totals what the `auto` mode reviewers spent
+    /// since the last look — the panel's own, its external agent's and the
+    /// one of the tools it serves; a subagent's counts in its task instead.
+    /// The context fill stays: a review is a call of its own. `true` when
+    /// there was anything.
+    pub(crate) fn take_reviewer_spent(&mut self) -> bool {
+        let spent = self.reviewer.spent.take();
+        if spent.total() == 0 {
+            return false;
+        }
+        self.session_input += spent.uncached();
+        self.session_cached += spent.cache_read;
+        self.session_output += spent.output;
+        true
+    }
 }

@@ -32,7 +32,18 @@ Opened with `Alt+P` or menu **Options → Edit preferences**. The previous horiz
 **Three zones:**
 - **Left sidebar** (18 columns wide) — section list, navigated with Up/Down
 - **Content area** — fields of the selected section, organised under `── Group ──` subheaders and separated by blank spacers
-- **Bottom buttons** — `Apply & Save`, `Reset`, `Cancel`
+- **Bottom buttons** — `Stored: Global / Project`, `Reset`, `Close`
+
+**Saving.** Every change applies and saves at once: a switch or a dropdown when it is set, a text or number field on `Enter`. There is no Apply button and nothing to cancel.
+
+**Where settings are stored.** The first button switches storage:
+- **Global** — `~/.config/termide/config.toml`, shared by every project.
+- **Project** — `<project>/.termide/config.toml`, holding only what differs from the global settings. Switching to it creates the file; the settings themselves do not change.
+- Switching back to global deletes the project file and asks what to do with its settings: **Discard** them (the global ones apply) or **Move to Global** (they become the global settings for every project).
+
+**Reset** asks first and acts where the settings are stored: a project goes back to the global settings, the global settings to the defaults.
+
+Theme, language and shell chosen from the menus are stored the same way.
 
 **Sidebar sections:**
 - General, Editor, File Manager, Terminal, LSP, Logging, VFS — plain leaves
@@ -44,9 +55,9 @@ Opened with `Alt+P` or menu **Options → Edit preferences**. The previous horiz
 |----------|--------|
 | `Up` / `Down` | Move within the current zone (sections / fields / buttons) |
 | `Tab` / `Shift+Tab` | Cycle focus zones (Sidebar ↔ Content ↔ Buttons) |
-| `Left` / `Right` | Do **not** change the zone: used for editing values (cycle enum, toggle bool) and for collapsing the Keybindings group in the sidebar |
+| `Left` / `Right` | Do **not** change the zone: used for editing values (cycle enum, toggle bool), for moving between the keys of a keybinding row, and for collapsing the Keybindings group in the sidebar |
 | `Enter` / `Space` | Activate: in sidebar — enter the section; in content — toggle bool/enum or start editing number/text; on a group header — toggle expand |
-| `Escape` | Close the modal (Cancel) |
+| `Escape` / `Ctrl+S` | Close the modal (everything is already saved); in the buttons row, Escape first drops a pending question |
 | Mouse wheel | Scroll sidebar / content |
 
 **Fields and indicators:**
@@ -55,27 +66,40 @@ Opened with `Alt+P` or menu **Options → Edit preferences**. The previous horiz
 - **Number** / **OptionalText** — `Enter` enters inline edit mode
 - **LSP → Servers** — server list items are prefixed with a bullet `•`; there is also a `+ Add Server` row
 
-**Keybindings — key capture:**  
-Navigate bindings with `Up/Down`, press `Enter` to enter Capturing mode (the next keypress becomes the new binding), `Delete`/`Backspace` clears a binding.
+**Keybindings — editing a binding:**  
+Navigate bindings with `Up/Down`. Each row lists every key the action accepts — `Alt+W, Alt+X, F10` — and a cursor sits on one of them:
+
+| Shortcut | Action |
+|----------|--------|
+| `Left` / `Right` | Move the cursor between the keys of the row; past the last key it lands on the `[+]` button |
+| `Enter` | Capture a keypress for the slot under the cursor — replaces that key, or adds a new alternative on `[+]` |
+| `Delete` | Remove the key under the cursor |
+| `Shift+Delete` / `Backspace` | Clear every key of the action |
+| `Escape` | Leave the list, or abandon a capture in progress |
+
+The focused row ends with a `[+]` button; clicking it, or pressing `Enter` on it, captures a keypress and appends it. Clicking a key selects it, so the next `Enter` or `Delete` acts on what was clicked; a double click on a key captures it. A chord the action already accepts is refused and the reason is shown; a chord another action holds is stored with a warning naming where. While a keypress is being captured the row keeps showing its keys, the one to be overwritten marked in the warning colour.
 
 The active section highlight in the sidebar is cleared when focus leaves it — the current section name is shown in the content-area header, so a dual highlight would just be misleading.
 
 ## Menu Bar
 
-The menu bar is located at the top of the window and includes: menu items on the left, system resource indicators (network speed, CPU, RAM and — when a battery is present — its charge), and a clock in HH:MM format on the right.
+The menu bar is located at the top of the window and includes: menu items on the left, buttons of the open projects after them, system resource indicators (network speed, CPU, RAM and — when a battery is present — its charge), and a clock in HH:MM format on the right.
 Menu activation/deactivation and each item can be accessed by mouse click or [keyboard shortcuts](#keyboard-navigation-and-panel-management).
 
 **Menu items:**
-- `Bookmarks` — saved locations (directories, files, SSH, SFTP, web links). Opening one routes by type: directories and remote paths in the file manager, HTML/Markdown/Mermaid/image files and `http(s)` links in the built-in viewer (see [HTML preview](html.md); honours `[viewer] open_links`), other text files in the editor, SSH in a terminal, databases in the DB viewer. Clicking a group header toggles its submenu, as in Commands.
+- `Bookmarks` — saved locations (directories, files, SSH, SFTP, web links). Opening one routes by type: directories and remote paths in the file manager, HTML/Markdown/Mermaid/image files and `http(s)` links in the built-in viewer (see [HTML preview](html.md); `O` there hands a page on to the browser), other text files in the editor, SSH in a terminal, databases in the DB viewer. Clicking a group header toggles its submenu, as in Commands.
 - `Commands` — user-defined commands, project ones (bold) first, with group submenus; `Add command...` at the top creates one. Clicking a group header expands the submenu; clicking the same header again collapses it (toggle). See [Custom Commands](actions.md).
 - `Projects` — project management submenu:
   - New project — start a project in another directory
-  - Switch project — open the project switcher modal (`Alt+\`). It lists the projects as the menu below does, one row each — the mark, when a project not open was last worked on (dimmed), its path and 🔔 — and the row under the cursor is inverted. Typing filters the list by path. The cursor starts on the project you left last: `Alt+\` then `Enter` goes back to it. `Delete`/`F8` works as in the menu
   - Change root path — move the current project to another directory
 
     Both pick the directory in a tree: `→`/`←` expand and collapse a branch, `Enter` enters a directory, `Backspace` goes to the parent, `.` shows or hides hidden directories, `Ctrl+Enter` confirms from anywhere
-  - Below a separator, every project you have worked on. The ones open in this instance come first, sorted by path, then — below another separator — the others, the most recently used first; a long list scrolls. Each row reads as in the project switcher: the mark, the time a project not open was last worked on (dimmed), the path — losing its start when too long — and 🔔. ● marks the current project, ○ one open in the background, and 🔔 one whose panel waits for you (an agent's question or finished work, a terminal bell); while any does, the `Projects` title is highlighted in the warning colour. `Enter` or a click switches. `Delete`/`F8` closes a project open in the background, which stops the programs running in it, or deletes the saved layout of one that is not open, dropping it from the list (its files are not touched); both ask first, and the current project stays
-  - Switching to another project leaves the one you were in open in the background: programs in its terminals keep running, agents keep working, and unsaved edits stay as they were. A project stays open until you close it or TermIDE quits. New project on a directory that is already open switches to it. Quitting names the background projects that still run something. `prev_project`, `next_project` and `goto_project_1`…`goto_project_9` switch between open projects by keyboard; they ship unbound, see [Unbound actions](keybindings.md#unbound-actions)
+
+    The file manager's keys work on directories there too: `create_dir` (`F7`/`D`, or the `New folder` button) opens a name row beside the entry under the cursor — at its level, not inside it, even when it is expanded; `rename` (`F2`/`R`) edits a name in place; `delete` (`F8`/`Delete`) removes an empty directory only. `Enter` applies the name, `Esc` drops it; a name that cannot be used keeps the row open and says why above the tree
+  - Reopen projects of the last run (N) — shown after a run in which more than one project was open, until you use it or open another project yourself. It opens those projects in the background and leaves you where you are; each loads its layout the first time you switch to it, with new shells in its terminals. The list is saved whenever the set of open projects changes, so it survives a crash; a run that never opens a second project leaves it as it was. With several instances running, the one that changed its set last wins. `termide --restore` (`-r`) does the same at launch and starts in the project that run was in; started from a directory of that set, it stays there, so starting it elsewhere does not add that directory to the set. Without a saved set it starts as usual
+  - Below a separator, every project you have worked on. The ones open in this instance come first, in the order you keep them — a new one goes last, and the keys that move a panel between groups move the selected one: `Alt+PgUp`/`Alt+PgDn` one place up or down, `Alt+Home`/`Alt+End` to the start or the end; the mouse drags one over the others, and `Esc` during the drag puts it back; the order numbers them for `goto_project_N` and is restored with them — then — below another separator — the others, the most recently used first; a long list scrolls. Each row reads as in the project switcher: the mark, the time a project not open was last worked on (dimmed), the path — losing its start when too long — and 🔔. ● marks the current project, ○ one open in the background, and 🔔 one whose panel waits for you (an agent's question or finished work, a terminal bell); while any does and its button is not on the menu bar, 🔔 precedes the `Projects` title. Switching to a project with 🔔 moves the focus to its waiting panel. With emoji icons off, `!` stands for 🔔 here and in panel headers. `Enter` or a click switches. `Delete`/`F8` closes a project open in the background, which stops the programs running in it, or deletes the saved layout of one that is not open, dropping it from the list (its files are not touched); both ask first. On the current project it switches to the project you left last and closes the current one, asking first only when programs run in it or files have unsaved changes; with no other project open the current one stays
+  - Switching to another project leaves the one you were in open in the background: programs in its terminals keep running, agents keep working, and unsaved edits stay as they were. A project stays open until you close it or TermIDE quits. New project on a directory that is already open switches to it. Quitting names the background projects that still run something. `Alt+1`…`Alt+9` switch to the open project with that number, in the order the `Projects` menu lists them; `prev_project` and `next_project` step through them and ship unbound, see [Unbound actions](keybindings.md#unbound-actions)
+  - `Alt+\` opens the project switcher, a modal listing the projects as this menu does, one row each — the mark, when a project not open was last worked on (dimmed), its path and 🔔 — with the row under the cursor inverted. Typing filters the list by path. The cursor starts on the project you left last: `Alt+\` then `Enter` goes back to it. `Delete`/`F8` works as in the menu, and so do the keys that move an open project while nothing is typed in the filter
 - `AI` — the coding agent's agents, sessions, skills and prompts, and a switch for the agents' browser window; see [The AI menu](agent.md#the-ai-menu)
 - `Windows` — panel creation submenu:
   - Open… — open a file, directory or URL through a prompt with suggestions (`Ctrl+G`)
@@ -84,7 +108,7 @@ Menu activation/deactivation and each item can be accessed by mouse click or [ke
   - Editor — text editor panel
   - Git Status — git status panel
   - Git Log — commit history panel
-  - Journal — application log panel
+  - Journal — application log panel; the `TRACE`…`ERROR` pills in its header, or the keys `1`…`5`, show and hide each level
   - Diagnostics — LSP diagnostics panel
   - [Operations](operations.md) — background operations panel
   - Outline — structural code navigation panel
@@ -96,6 +120,8 @@ Menu activation/deactivation and each item can be accessed by mouse click or [ke
   - Help — open help panel
   - Detach instance — leave this instance running in the background (shown only when it can detach; see [Detached Instances](detached-instances.md))
   - Quit — exit application
+
+**Project buttons:** while more than one project is open, each has a button `name` between the menu items and the indicators: the project's directory name, with its parent when two open projects share a name, after 🔔 for one that waits. The current project's button has the menu items' colour, the others are dimmed. They follow the order of the `Projects` menu, kept apart by a dim `" | "` — none before the first and after the last — and start two columns after the last menu item, so the strip reads as a block of its own. When they do not fit, the names lose their start — a short name keeps its width and the long ones share the rest equally; when even cut names do not fit, buttons drop out — the selected or dragged one last, before it the current project and the waiting ones — and `+N` counts the hidden ones. A click switches to the project; a click on the current project's button selects it as `←`/`→` would, and a second click lets it go; dragging a button along the bar moves its project, and `Esc` during the drag puts it back. In the open menu `←`/`→` walk the buttons after the menu items and before the indicators; a selected button opens nothing and shows the project's full path in the status bar, and `Enter` switches to it. `Alt+PgUp`/`Alt+PgDn` move the selected button one place left or right, `Alt+Home`/`Alt+End` to the start or the end, as in the `Projects` menu; `Delete`/`F8` closes its project as the menu does, and the selection stays on the button now in its place.
 
 **System Resource Indicators** (clickable indicators open a details modal):
 
@@ -317,7 +343,7 @@ The disk window lists one row per storage pool, with the filesystem type as a se
 | `Alt+B`           | Add bookmark                               |
 | `Ctrl+P`          | Open command palette                       |
 | `Ctrl+G`          | Open a file, directory or URL              |
-| `Alt+1-9`         | Jump to panel by number                    |
+| `Alt+1-9`         | Switch to open project by number           |
 
 ### Command palette
 

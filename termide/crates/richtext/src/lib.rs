@@ -24,18 +24,44 @@ type Word = (String, Style, Option<usize>);
 type Cell = Vec<Word>;
 
 /// A clickable region: a half-open `[start, end)` column range on a rendered
-/// line that opens `url`.
+/// line that opens `url`. A link wrapped over several lines, or split by its
+/// styling, is several regions sharing one `id`.
 #[derive(Debug, Clone)]
 pub struct LinkSpan {
     pub line: usize,
     pub start: u16,
     pub end: u16,
     pub url: String,
+    /// Which link of the document the region belongs to.
+    pub id: usize,
+}
+
+/// How a rendered row reads when copied: the columns of decoration it opens
+/// with (a code block's bar, a quote's bars, the indent of a wrapped line),
+/// and how it attaches to the row above it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RowCopy {
+    pub lead: u16,
+    pub join: Join,
+}
+
+/// How a copied row attaches to the row above it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Join {
+    /// A line of its own: a line break before it.
+    #[default]
+    Break,
+    /// The rest of a line wrapped at a space: one space before it.
+    Space,
+    /// The rest of a line cut between characters: nothing before it.
+    Glued,
 }
 
 /// Rendered document: wrapped lines plus link hit-areas.
 pub struct Rendered {
     pub lines: Vec<Line<'static>>,
+    /// How each of `lines` reads when copied, one per line.
+    pub copy: Vec<RowCopy>,
     pub links: Vec<LinkSpan>,
     /// Named anchors (`id`/`name` / heading slug) → target line index, for
     /// fragment navigation (`#section`).
@@ -119,6 +145,9 @@ pub struct Builder<'c> {
     pending_links: Vec<PendingLink>,
     /// Named anchors → target line index.
     anchors: Vec<(String, usize)>,
+    /// How rows read when copied, by line index; a row not listed is a line
+    /// of its own with no decoration.
+    copy_marks: Vec<(usize, RowCopy)>,
 }
 
 impl<'c> Builder<'c> {
@@ -143,6 +172,7 @@ impl<'c> Builder<'c> {
             cur_link: None,
             pending_links: Vec::new(),
             anchors: Vec::new(),
+            copy_marks: Vec::new(),
         }
     }
 
@@ -212,6 +242,36 @@ impl<'c> Builder<'c> {
             self.code_buf.push_str(text);
         } else {
             self.push_text(text);
+        }
+    }
+
+    /// Append text whose bare web addresses become links, as GitHub's
+    /// autolinks do — outside code and outside a link already open. With
+    /// `restyle` an address takes the link style; without, it keeps the
+    /// text's own and is only clickable.
+    pub fn text_autolinked(&mut self, text: &str, restyle: bool) {
+        if self.in_code || self.cur_link.is_some() {
+            self.text(text);
+            return;
+        }
+        let mut at = 0;
+        for range in termide_core::links::url_ranges(text) {
+            if range.start > at {
+                self.push_text(&text[at..range.start]);
+            }
+            let url = &text[range.clone()];
+            self.cur_link = self.add_url(url.to_string());
+            let style = if restyle {
+                self.link_style()
+            } else {
+                self.cur_style()
+            };
+            self.push_span(url, style);
+            self.cur_link = None;
+            at = range.end;
+        }
+        if at < text.len() {
+            self.push_text(&text[at..]);
         }
     }
 
@@ -536,6 +596,7 @@ impl<'c> Builder<'c> {
                         Span::styled("┊ ", bar),
                         Span::styled(line, self.base_style()),
                     ];
+                    self.mark_copy(2, Join::Break);
                     self.lines.push(Line::from(spans));
                 }
                 return;
@@ -553,16 +614,26 @@ impl<'c> Builder<'c> {
             cache.set_document(&code);
         }
         let bar = Style::default().fg(self.colors.disabled);
+        // Code keeps every character: a line wider than the block wraps onto
+        // rows of its own, each behind the bar, rather than being clipped.
+        let budget = self.width.saturating_sub(2).max(1);
         for (i, line) in code.lines().enumerate() {
-            let mut spans: Vec<Span<'static>> = vec![Span::styled("┊ ", bar)];
-            if cache.has_syntax() {
-                for (text, style) in cache.get_line_segments(i, line) {
-                    spans.push(Span::styled(text.to_string(), *style));
-                }
+            let segments: Vec<Span<'static>> = if cache.has_syntax() {
+                cache
+                    .get_line_segments(i, line)
+                    .iter()
+                    .map(|(text, style)| Span::styled(text.to_string(), *style))
+                    .collect()
             } else {
-                spans.push(Span::styled(line.to_string(), self.base_style()));
+                vec![Span::styled(line.to_string(), self.base_style())]
+            };
+            // Copied, a wrapped line is whole again and the bar is gone.
+            for (k, row) in wrap_code_row(segments, budget).into_iter().enumerate() {
+                let mut spans = vec![Span::styled("┊ ", bar)];
+                spans.extend(row);
+                self.mark_copy(2, if k == 0 { Join::Break } else { Join::Glued });
+                self.lines.push(Line::from(spans));
             }
-            self.lines.push(Line::from(spans));
         }
     }
 
@@ -776,6 +847,8 @@ impl<'c> Builder<'c> {
 
         let first_w = prefix_width(&first_prefix);
         let cont_w = prefix_width(&cont_prefix);
+        // Copied, a quote loses its bars; a list keeps its indent and marker.
+        let first_lead = (2 * self.quote_depth).min(first_w);
 
         let base = self.lines.len();
         let mut out: Vec<Line<'static>> = Vec::new();
@@ -784,8 +857,8 @@ impl<'c> Builder<'c> {
         let mut cur_prefix_w = first_w;
         let mut avail = self.width.saturating_sub(first_w).max(1);
 
-        for (text, style, link) in words {
-            let ww = text.width();
+        for word in words {
+            let ww: usize = word.iter().map(|(text, _, _)| text.width()).sum();
             if cur_text_w > 0 && cur_text_w + 1 + ww > avail {
                 out.push(Line::from(std::mem::take(&mut cur)));
                 cur = cont_prefix.clone();
@@ -797,20 +870,46 @@ impl<'c> Builder<'c> {
                 cur.push(Span::raw(" "));
                 cur_text_w += 1;
             }
-            let start = cur_prefix_w + cur_text_w;
-            if let Some(url_id) = link {
-                self.pending_links.push(PendingLink {
-                    line: base + out.len(),
-                    start: start as u16,
-                    end: (start + ww) as u16,
-                    url_id,
-                });
+            for (text, style, link) in word {
+                let start = cur_prefix_w + cur_text_w;
+                let w = text.width();
+                if let Some(url_id) = link {
+                    self.pending_links.push(PendingLink {
+                        line: base + out.len(),
+                        start: start as u16,
+                        end: (start + w) as u16,
+                        url_id,
+                    });
+                }
+                cur.push(Span::styled(text, style));
+                cur_text_w += w;
             }
-            cur.push(Span::styled(text, style));
-            cur_text_w += ww;
         }
         out.push(Line::from(cur));
+        // Copied, the rows a paragraph wrapped onto are one line again.
+        for k in 0..out.len() {
+            let (lead, join) = if k == 0 {
+                (first_lead, Join::Break)
+            } else {
+                (cont_w, Join::Space)
+            };
+            if lead > 0 || join != Join::Break {
+                self.copy_marks.push((
+                    base + k,
+                    RowCopy {
+                        lead: lead as u16,
+                        join,
+                    },
+                ));
+            }
+        }
         self.lines.extend(out);
+    }
+
+    /// Record how the next row to be emitted reads when copied.
+    fn mark_copy(&mut self, lead: u16, join: Join) {
+        self.copy_marks
+            .push((self.lines.len(), RowCopy { lead, join }));
     }
 
     #[must_use]
@@ -828,6 +927,7 @@ impl<'c> Builder<'c> {
                 start: p.start,
                 end: p.end,
                 url: self.urls[p.url_id].clone(),
+                id: p.url_id,
             })
             .collect();
         // Clamp anchors that fell past the trimmed end to the last line.
@@ -837,24 +937,41 @@ impl<'c> Builder<'c> {
             .into_iter()
             .map(|(id, line)| (id, line.min(last)))
             .collect();
+        let mut copy = vec![RowCopy::default(); line_count];
+        for (line, row) in self.copy_marks {
+            if let Some(slot) = copy.get_mut(line) {
+                *slot = row;
+            }
+        }
         Rendered {
             lines: self.lines,
+            copy,
             links,
             anchors,
         }
     }
 }
 
-/// Split styled runs into whitespace-delimited words, preserving style + link.
-fn split_words(runs: &[Word]) -> Vec<Word> {
+/// Split styled runs into space-delimited words, each the fragments it is
+/// made of with their style and link: runs with no space between them form
+/// one word (`[docs](u).`, `**bold**ly`), so wrapping never inserts one.
+fn split_words(runs: &[Word]) -> Vec<Vec<Word>> {
     let mut words = Vec::new();
+    let mut cur: Vec<Word> = Vec::new();
     for (text, style, link) in runs {
-        for piece in text.split(' ') {
-            if piece.is_empty() {
-                continue;
+        for (i, piece) in text.split(' ').enumerate() {
+            // A space before this piece ends the word; a run that starts
+            // without one carries on the word the previous run left open.
+            if i > 0 && !cur.is_empty() {
+                words.push(std::mem::take(&mut cur));
             }
-            words.push((piece.to_string(), *style, *link));
+            if !piece.is_empty() {
+                cur.push((piece.to_string(), *style, *link));
+            }
         }
+    }
+    if !cur.is_empty() {
+        words.push(cur);
     }
     words
 }
@@ -938,6 +1055,37 @@ fn distribute(base: &[usize], weights: &[usize], spare: usize) -> Vec<usize> {
     out
 }
 
+/// Cut a code line's styled segments into rows of at most `width` columns,
+/// breaking between characters; an empty line stays one empty row.
+fn wrap_code_row(segments: Vec<Span<'static>>, width: usize) -> Vec<Vec<Span<'static>>> {
+    let mut rows = vec![Vec::new()];
+    let mut used = 0;
+    for segment in segments {
+        let style = segment.style;
+        let mut buf = String::new();
+        for ch in segment.content.chars() {
+            let w = char_width(ch);
+            if used > 0 && used + w > width {
+                if !buf.is_empty() {
+                    rows.last_mut()
+                        .expect("rows starts non-empty")
+                        .push(Span::styled(std::mem::take(&mut buf), style));
+                }
+                rows.push(Vec::new());
+                used = 0;
+            }
+            buf.push(ch);
+            used += w;
+        }
+        if !buf.is_empty() {
+            rows.last_mut()
+                .expect("rows starts non-empty")
+                .push(Span::styled(buf, style));
+        }
+    }
+    rows
+}
+
 /// Display width of a single character (best-effort).
 fn char_width(ch: char) -> usize {
     ch.to_string().width()
@@ -946,6 +1094,142 @@ fn char_width(ch: char) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn text_of(r: &Rendered) -> Vec<String> {
+        r.lines
+            .iter()
+            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+            .collect()
+    }
+
+    /// A command too wide for the block is still all there to read and
+    /// copy: it wraps behind the bar instead of being clipped.
+    #[test]
+    fn a_long_code_line_wraps_behind_the_bar() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(12, &colors, false);
+        b.start_code_block("");
+        b.text("git push origin 0.39.0\n\nok\n");
+        b.end_code_block();
+        let rows: Vec<String> = text_of(&b.finish())
+            .into_iter()
+            .filter(|row| !row.is_empty())
+            .collect();
+        assert_eq!(
+            rows,
+            ["┊ git push o", "┊ rigin 0.39", "┊ .0", "┊ ", "┊ ok"],
+            "every row fits the width and the text reads whole"
+        );
+        for row in &rows {
+            assert!(row.width() <= 12, "{row:?} is wider than the block");
+        }
+    }
+
+    #[test]
+    fn copied_code_drops_the_bar_and_rejoins_wrapped_rows() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(12, &colors, false);
+        b.start_code_block("");
+        b.text("git push origin 0.39.0\nok\n");
+        b.end_code_block();
+        let doc = b.finish();
+        assert_eq!(doc.copy.len(), doc.lines.len());
+        let code: Vec<RowCopy> = doc
+            .lines
+            .iter()
+            .zip(&doc.copy)
+            .filter(|(line, _)| !line.spans.is_empty())
+            .map(|(_, copy)| *copy)
+            .collect();
+        let row = |join| RowCopy { lead: 2, join };
+        assert_eq!(
+            code,
+            [
+                row(Join::Break),
+                row(Join::Glued),
+                row(Join::Glued),
+                row(Join::Break)
+            ]
+        );
+    }
+
+    #[test]
+    fn copied_prose_rejoins_wrapped_rows_with_a_space() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(10, &colors, false);
+        b.start_quote();
+        b.text("one two three");
+        b.end_paragraph();
+        b.end_quote();
+        b.text("four");
+        b.end_paragraph();
+        let doc = b.finish();
+        let rows: Vec<(String, RowCopy)> = text_of(&doc)
+            .into_iter()
+            .zip(doc.copy.iter().copied())
+            .filter(|(text, _)| !text.is_empty())
+            .collect();
+        let row = |text: &str, lead, join| (text.to_string(), RowCopy { lead, join });
+        assert_eq!(
+            rows,
+            [
+                row("│ one two", 2, Join::Break),
+                row("│ three", 2, Join::Space),
+                row("four", 0, Join::Break),
+            ]
+        );
+    }
+
+    #[test]
+    fn runs_without_a_space_between_stay_one_word() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(80, &colors, false);
+        b.text("see ");
+        b.start_link("https://a.b".into());
+        b.text("docs");
+        b.end_link();
+        b.text(". and ");
+        b.start_strong();
+        b.text("bold");
+        b.pop_style();
+        b.text("ly");
+        b.end_paragraph();
+        let r = b.finish();
+        assert_eq!(text_of(&r)[0], "see docs. and boldly");
+        assert_eq!((r.links[0].start, r.links[0].end), (4, 8));
+    }
+
+    #[test]
+    fn a_word_made_of_runs_wraps_whole() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(10, &colors, false);
+        b.text("aaaaa ");
+        b.start_link("https://a.b".into());
+        b.text("bbbb");
+        b.end_link();
+        b.text("!");
+        b.end_paragraph();
+        let r = b.finish();
+        assert_eq!(text_of(&r)[..2], ["aaaaa", "bbbb!"]);
+        assert_eq!(
+            (r.links[0].line, r.links[0].start, r.links[0].end),
+            (1, 0, 4)
+        );
+    }
+
+    #[test]
+    fn bare_addresses_become_links_outside_code() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(80, &colors, false);
+        b.text_autolinked("see https://a.b/c. or ", true);
+        b.inline_code("https://not.a/link");
+        b.end_paragraph();
+        let r = b.finish();
+        assert_eq!(text_of(&r)[0], "see https://a.b/c. or https://not.a/link");
+        assert_eq!(r.links.len(), 1, "{:?}", r.links);
+        assert_eq!(r.links[0].url, "https://a.b/c");
+        assert_eq!((r.links[0].start, r.links[0].end), (4, 17));
+    }
 
     #[test]
     fn columns_take_full_content_when_it_fits() {

@@ -9,6 +9,8 @@
 
 use std::path::PathBuf;
 
+use termide_core::LinkTarget;
+
 use crate::link_detection::HighlightSegment;
 use crate::terminal::TerminalScreen;
 
@@ -149,6 +151,38 @@ pub fn resolve_hyperlink_target(uri: &str, region_text: &str) -> Option<Hyperlin
         }
     }
     Some(target)
+}
+
+/// The link under the Ctrl cursor.
+///
+/// Upstream 0.41 finds links with one detector shared with every other panel
+/// (`termide_core::links`) and hands a [`LinkTarget`] to the app. An OSC 8
+/// hyperlink is not text and only a terminal has it, so it keeps its own
+/// case — and with it the cursor position (`file://…?line=`,
+/// `zeta-open://…?col=`, or the `:line:col` in the link's visible text) that
+/// [`LinkTarget`] has no room for.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum HoveredLink {
+    /// A web address or an existing path written out in the output.
+    Text(LinkTarget),
+    /// OSC 8 markup: the emitter's URI, authoritative over text scraping,
+    /// and the local open target when the URI names one.
+    Osc8 {
+        uri: String,
+        local: Option<HyperlinkTarget>,
+    },
+}
+
+impl HoveredLink {
+    /// The link as text, for the clipboard and the status line.
+    pub(crate) fn text(&self) -> String {
+        match self {
+            Self::Text(target) => target.text(),
+            // The emitter's own URI: for a local target the visible text is
+            // usually just a label, so the URI is the useful form.
+            Self::Osc8 { uri, .. } => uri.clone(),
+        }
+    }
 }
 
 /// The hyperlink region under a cell: the link id plus one highlight segment

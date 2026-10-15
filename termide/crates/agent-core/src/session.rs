@@ -17,10 +17,12 @@ use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 
+use crate::acp::ACP_PROVIDER;
 use crate::compaction::CompactionPrompts;
 use crate::context::file_timestamp;
-use crate::message::{now_millis, Message};
+use crate::message::{now_millis, Message, StopReason};
 use crate::provider::ThinkingLevel;
+use crate::prune::{prune_by, prune_to_decisions};
 
 /// Bumped when a line shape changes incompatibly.
 pub const SESSION_FORMAT_VERSION: u32 = 1;
@@ -111,6 +113,107 @@ pub enum EntryKind {
     /// The user undid a request: the branch continues from this entry's
     /// parent, the undone messages stay in the file on a dead branch.
     Rewind,
+    /// A plan was carried out from a clean context: the messages before
+    /// this entry are cut down to the decisions, see
+    /// [`crate::prune::prune_to_decisions`]. They stay in the file whole.
+    Pruned,
+    /// An external agent opened its own session for this branch: `agent` is
+    /// the name it runs under, `session_id` the id it gave, `log` the header
+    /// id and `cwd` the working directory of this log when it did. A
+    /// reopened session asks the agent to resume it, see
+    /// [`Session::external_session`].
+    ExternalSession {
+        agent: String,
+        session_id: String,
+        log: String,
+        cwd: PathBuf,
+    },
+    /// A setting of the external agent's own picked in the panel from here
+    /// (its model, reasoning effort, …, under the id it offers it by), so a
+    /// reopened session asks the agent for the same again, see
+    /// [`Session::agent_options`].
+    AgentOption { option: String, value: String },
+    /// A run started: until a [`EntryKind::RunEnd`] follows, it is under
+    /// way, so a session reopened after the panel or termide closed mid-run
+    /// knows the run was cut off, see [`Session::last_run`].
+    RunStart,
+    /// The run ended — `paused` when it stopped at a `/pause` with work
+    /// left for `/continue`.
+    RunEnd {
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        paused: bool,
+    },
+    /// The unattended work (`/goal`, `/loop`) the branch has going from here;
+    /// empty once it stopped. A reopened session offers to carry it on, see
+    /// [`Session::autorun`].
+    Autorun { autorun: Autorun },
+}
+
+/// The unattended work a session has going: a `/goal`, a `/loop`, or both.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Autorun {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<GoalRecord>,
+    #[serde(default, rename = "loop", skip_serializing_if = "Option::is_none")]
+    pub repeat: Option<LoopRecord>,
+}
+
+impl Autorun {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.goal.is_none() && self.repeat.is_none()
+    }
+}
+
+/// A `/goal` under way: what it aims at and the work turns sent so far.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GoalRecord {
+    pub goal: String,
+    pub iterations: usize,
+}
+
+/// A `/loop` under way: its prompt, the wait between runs (`None`: back to
+/// back) and the runs sent so far.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LoopRecord {
+    pub prompt: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interval_ms: Option<u64>,
+    pub iterations: usize,
+    /// When the next run is due (epoch millis), while the loop waits out its
+    /// interval, so a reopen waits only what is left of it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due_ms: Option<u64>,
+}
+
+/// A run the branch left unfinished, see [`Session::unfinished_run`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RunMark {
+    /// [`LastRun::Paused`] or [`LastRun::CutOff`].
+    pub state: LastRun,
+    /// When the run started and when it stopped (the pause, or the last
+    /// thing it logged), epoch millis.
+    pub started: u64,
+    pub stopped: u64,
+}
+
+/// How the branch's last run ended, see [`Session::last_run`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LastRun {
+    /// It ended (or there was none).
+    Ended,
+    /// It stopped at a `/pause`, its remaining work left for `/continue`.
+    Paused,
+    /// It never ended: the panel or termide closed while it ran.
+    CutOff,
+}
+
+/// An external agent's own session that still holds this branch's
+/// conversation, see [`Session::external_session`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternalSessionRef {
+    pub agent: String,
+    pub session_id: String,
 }
 
 /// The model a session last recorded, see [`Session::current_model`].
@@ -152,6 +255,57 @@ struct HeaderLine {
 #[serde(rename_all = "snake_case")]
 enum HeaderTag {
     Session,
+}
+
+/// The header and every entry of the log at `path`, in file order. Malformed
+/// lines are skipped with a warning so one bad write does not lose a session.
+fn read_file(path: &Path) -> std::io::Result<(SessionHeader, Vec<Entry>)> {
+    let reader = BufReader::new(File::open(path)?);
+    let mut header = None;
+    let mut entries = Vec::new();
+    for (index, line) in reader.lines().enumerate() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        match serde_json::from_str::<Line>(&line) {
+            Ok(Line::Header(h)) if header.is_none() => header = Some(h.header),
+            Ok(Line::Header(_)) => {
+                log::warn!("{}: duplicate header at line {}", path.display(), index + 1)
+            }
+            Ok(Line::Entry(entry)) => entries.push(entry),
+            Err(error) => log::warn!(
+                "{}: skipping malformed line {}: {error}",
+                path.display(),
+                index + 1
+            ),
+        }
+    }
+    let header = header.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("{} has no session header", path.display()),
+        )
+    })?;
+    Ok((header, entries))
+}
+
+/// The entries from the root to `leaf`, oldest first; `path` names the log
+/// in the warning about a dangling parent.
+fn branch_of<'a>(entries: &'a [Entry], leaf: Option<&str>, path: &Path) -> Vec<&'a Entry> {
+    let by_id: HashMap<&str, &Entry> = entries.iter().map(|e| (e.id.as_str(), e)).collect();
+    let mut branch = Vec::new();
+    let mut current = leaf;
+    while let Some(id) = current {
+        let Some(entry) = by_id.get(id) else {
+            log::warn!("{}: dangling parent id {id}", path.display());
+            break;
+        };
+        branch.push(*entry);
+        current = entry.parent_id.as_deref();
+    }
+    branch.reverse();
+    branch
 }
 
 #[derive(Debug)]
@@ -251,33 +405,7 @@ impl Session {
     /// Load an existing session; the leaf is the last entry. Malformed lines
     /// are skipped with a warning so one bad write does not lose a session.
     pub fn open(path: &Path) -> std::io::Result<Self> {
-        let reader = BufReader::new(File::open(path)?);
-        let mut header = None;
-        let mut entries = Vec::new();
-        for (index, line) in reader.lines().enumerate() {
-            let line = line?;
-            if line.trim().is_empty() {
-                continue;
-            }
-            match serde_json::from_str::<Line>(&line) {
-                Ok(Line::Header(h)) if header.is_none() => header = Some(h.header),
-                Ok(Line::Header(_)) => {
-                    log::warn!("{}: duplicate header at line {}", path.display(), index + 1)
-                }
-                Ok(Line::Entry(entry)) => entries.push(entry),
-                Err(error) => log::warn!(
-                    "{}: skipping malformed line {}: {error}",
-                    path.display(),
-                    index + 1
-                ),
-            }
-        }
-        let header = header.ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("{} has no session header", path.display()),
-            )
-        })?;
+        let (header, entries) = read_file(path)?;
         let leaf = entries.last().map(|e| e.id.clone());
         let file = OpenOptions::new().append(true).open(path)?;
         Ok(Self {
@@ -478,12 +606,11 @@ impl Session {
     /// it does not clutter the session list or the disk.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        !self.entries.iter().any(|e| {
-            matches!(
-                e.kind,
-                EntryKind::Message { .. } | EntryKind::SessionName { .. }
-            )
-        })
+        self.name().is_none()
+            && !self
+                .entries
+                .iter()
+                .any(|e| matches!(e.kind, EntryKind::Message { .. }))
     }
 
     /// Delete the session's file from disk, consuming the session (its lock is
@@ -499,6 +626,18 @@ impl Session {
     #[must_use]
     pub fn leaf_id(&self) -> Option<&str> {
         self.leaf.as_deref()
+    }
+
+    /// Where undoing a request about to start leads back to: the leaf, or
+    /// what came before a context cleared just ahead of the request, so the
+    /// undo brings back what the clearing left out.
+    #[must_use]
+    pub fn undo_point(&self) -> Option<&str> {
+        let leaf = self.leaf.as_deref()?;
+        match self.entries.iter().rev().find(|e| e.id == leaf) {
+            Some(entry) if matches!(entry.kind, EntryKind::Pruned) => entry.parent_id.as_deref(),
+            _ => Some(leaf),
+        }
     }
 
     /// Move the leaf. `None` restarts from the root; an unknown id is an
@@ -560,20 +699,25 @@ impl Session {
     /// Entries on the path from the root to the leaf, oldest first.
     #[must_use]
     pub fn branch(&self) -> Vec<&Entry> {
-        let by_id: HashMap<&str, &Entry> =
-            self.entries.iter().map(|e| (e.id.as_str(), e)).collect();
-        let mut path = Vec::new();
-        let mut current = self.leaf.as_deref();
-        while let Some(id) = current {
-            let Some(entry) = by_id.get(id) else {
-                log::warn!("{}: dangling parent id {id}", self.path.display());
-                break;
-            };
-            path.push(*entry);
-            current = entry.parent_id.as_deref();
-        }
-        path.reverse();
-        path
+        branch_of(&self.entries, self.leaf.as_deref(), &self.path)
+    }
+
+    /// The header and the live branch of the log at `path` (root to the last
+    /// entry, oldest first), read without opening the file for writing or
+    /// claiming it, so a log another panel is appending to can be searched.
+    /// Entries a rewind left on a dead branch are not in it.
+    ///
+    /// # Errors
+    ///
+    /// When the file cannot be read or has no header.
+    pub fn read_branch(path: &Path) -> std::io::Result<(SessionHeader, Vec<Entry>)> {
+        let (header, entries) = read_file(path)?;
+        let leaf = entries.last().map(|e| e.id.as_str());
+        let branch = branch_of(&entries, leaf, path)
+            .into_iter()
+            .cloned()
+            .collect();
+        Ok((header, branch))
     }
 
     /// The transcript the model should see for the current branch, with
@@ -598,7 +742,12 @@ impl Session {
                 | EntryKind::ReasoningChange { .. }
                 | EntryKind::ThinkingChange { .. }
                 | EntryKind::Toolset { .. }
-                | EntryKind::ConnectionChange { .. } => {}
+                | EntryKind::ConnectionChange { .. }
+                | EntryKind::ExternalSession { .. }
+                | EntryKind::AgentOption { .. }
+                | EntryKind::RunStart
+                | EntryKind::RunEnd { .. }
+                | EntryKind::Autorun { .. } => {}
                 EntryKind::Compaction {
                     summary, keep_last, ..
                 } => {
@@ -607,6 +756,7 @@ impl Session {
                     messages = vec![prompts.summary_message(summary)];
                     messages.extend(tail);
                 }
+                EntryKind::Pruned => messages = prune_to_decisions(&messages),
             }
         }
         messages
@@ -633,7 +783,12 @@ impl Session {
                 | EntryKind::ReasoningChange { .. }
                 | EntryKind::ThinkingChange { .. }
                 | EntryKind::Toolset { .. }
-                | EntryKind::ConnectionChange { .. } => {}
+                | EntryKind::ConnectionChange { .. }
+                | EntryKind::ExternalSession { .. }
+                | EntryKind::AgentOption { .. }
+                | EntryKind::RunStart
+                | EntryKind::RunEnd { .. }
+                | EntryKind::Autorun { .. } => {}
                 EntryKind::Compaction {
                     summary, keep_last, ..
                 } => {
@@ -646,13 +801,22 @@ impl Session {
                     }];
                     messages.extend(tail);
                 }
+                EntryKind::Pruned => {
+                    messages = prune_by(&messages, |logged| &logged.message)
+                        .into_iter()
+                        .map(|(logged, message)| LoggedMessage {
+                            message,
+                            ..logged.clone()
+                        })
+                        .collect();
+                }
             }
         }
         messages
     }
 
     /// The conversation's name: the last one set on the current branch, or
-    /// the one the file was created with.
+    /// the one the file was created with; an empty one set last clears it.
     #[must_use]
     pub fn name(&self) -> Option<&str> {
         self.branch()
@@ -663,6 +827,7 @@ impl Session {
                 _ => None,
             })
             .or(self.header.name.as_deref())
+            .filter(|name| !name.is_empty())
     }
 
     /// Name (or rename) the conversation. An empty name clears it.
@@ -683,6 +848,11 @@ impl Session {
             tokens_before,
             keep_last,
         })
+    }
+
+    /// Record that a plan is carried out from a clean context.
+    pub fn append_pruned(&mut self) -> std::io::Result<String> {
+        self.append(EntryKind::Pruned)
     }
 
     /// Model recorded last on the current branch.
@@ -706,10 +876,16 @@ impl Session {
                 | EntryKind::SessionName { .. }
                 | EntryKind::AgentChange { .. }
                 | EntryKind::Rewind
+                | EntryKind::Pruned
                 | EntryKind::ReasoningChange { .. }
                 | EntryKind::ThinkingChange { .. }
                 | EntryKind::Toolset { .. }
-                | EntryKind::ConnectionChange { .. } => None,
+                | EntryKind::ConnectionChange { .. }
+                | EntryKind::ExternalSession { .. }
+                | EntryKind::AgentOption { .. }
+                | EntryKind::RunStart
+                | EntryKind::RunEnd { .. }
+                | EntryKind::Autorun { .. } => None,
             })
     }
 
@@ -760,6 +936,187 @@ impl Session {
                 EntryKind::ConnectionChange { connection } => Some(connection.clone()),
                 _ => None,
             })
+    }
+
+    /// Record that the external agent `agent` opened its own session
+    /// `session_id` for this branch.
+    pub fn append_external_session(
+        &mut self,
+        agent: &str,
+        session_id: &str,
+    ) -> std::io::Result<String> {
+        self.append(EntryKind::ExternalSession {
+            agent: agent.to_string(),
+            session_id: session_id.to_string(),
+            log: self.header.id.clone(),
+            cwd: self.header.cwd.clone(),
+        })
+    }
+
+    /// The external agent's session that holds this branch's conversation as
+    /// the branch has it, for the agent to resume: the last one recorded,
+    /// unless the branch has since gone where that session cannot follow —
+    /// a request undone, the context compacted or cleared, another agent or
+    /// connection taken. A fork or a move into another directory leaves it
+    /// behind too: the session belongs to the log and the place it was
+    /// opened for, and two logs resuming one session would tangle it. The
+    /// external agent checks the session is still its own when it resumes.
+    #[must_use]
+    pub fn external_session(&self) -> Option<ExternalSessionRef> {
+        for entry in self.branch().into_iter().rev() {
+            match &entry.kind {
+                EntryKind::ExternalSession {
+                    agent,
+                    session_id,
+                    log,
+                    cwd,
+                } => {
+                    return (*log == self.header.id && *cwd == self.header.cwd).then(|| {
+                        ExternalSessionRef {
+                            agent: agent.clone(),
+                            session_id: session_id.clone(),
+                        }
+                    });
+                }
+                EntryKind::Rewind
+                | EntryKind::Compaction { .. }
+                | EntryKind::Pruned
+                | EntryKind::AgentChange { .. }
+                | EntryKind::ConnectionChange { .. } => return None,
+                // The built-in loop answered in the meantime (the agent could
+                // not start): the agent's session never saw that exchange.
+                EntryKind::Message {
+                    message: Message::Assistant(assistant),
+                    ..
+                } if assistant.provider != ACP_PROVIDER => return None,
+                EntryKind::Message { .. }
+                | EntryKind::ModelChange { .. }
+                | EntryKind::SessionName { .. }
+                | EntryKind::ReasoningChange { .. }
+                | EntryKind::ThinkingChange { .. }
+                | EntryKind::Toolset { .. }
+                | EntryKind::AgentOption { .. }
+                | EntryKind::RunStart
+                | EntryKind::RunEnd { .. }
+                | EntryKind::Autorun { .. } => {}
+            }
+        }
+        None
+    }
+
+    /// Record that the external agent's setting `option` was set to `value`.
+    pub fn append_agent_option(&mut self, option: &str, value: &str) -> std::io::Result<String> {
+        self.append(EntryKind::AgentOption {
+            option: option.to_string(),
+            value: value.to_string(),
+        })
+    }
+
+    /// The external agent's settings picked on the current branch, the last
+    /// value of each, oldest pick first. Those picked before the agent or
+    /// the connection last changed belong to another agent and are left out.
+    #[must_use]
+    pub fn agent_options(&self) -> Vec<(String, String)> {
+        let mut picked: Vec<(String, String)> = Vec::new();
+        for entry in self.branch() {
+            match &entry.kind {
+                EntryKind::AgentChange { .. } | EntryKind::ConnectionChange { .. } => {
+                    picked.clear();
+                }
+                EntryKind::AgentOption { option, value } => {
+                    picked.retain(|(id, _)| id != option);
+                    picked.push((option.clone(), value.clone()));
+                }
+                _ => {}
+            }
+        }
+        picked
+    }
+
+    /// Record that a run started.
+    pub fn append_run_start(&mut self) -> std::io::Result<String> {
+        self.append(EntryKind::RunStart)
+    }
+
+    /// Record that the run ended, `paused` when at a `/pause`.
+    pub fn append_run_end(&mut self, paused: bool) -> std::io::Result<String> {
+        self.append(EntryKind::RunEnd { paused })
+    }
+
+    /// Record the unattended work going from here (empty: none).
+    pub fn append_autorun(&mut self, autorun: &Autorun) -> std::io::Result<String> {
+        self.append(EntryKind::Autorun {
+            autorun: autorun.clone(),
+        })
+    }
+
+    /// How the current branch's last run ended, see [`Self::unfinished_run`].
+    #[must_use]
+    pub fn last_run(&self) -> LastRun {
+        self.unfinished_run()
+            .map_or(LastRun::Ended, |mark| mark.state)
+    }
+
+    /// The branch's last run, when it did not end: paused, or cut off — it
+    /// started and never ended, and its last message leaves work to do (a
+    /// request or results the model has not answered, calls not run). One
+    /// whose last reply finished, or failed, is as good as ended: only its
+    /// end was not written. A log written before runs were recorded holds
+    /// none.
+    #[must_use]
+    pub fn unfinished_run(&self) -> Option<RunMark> {
+        let branch = self.branch();
+        let at = branch
+            .iter()
+            .rposition(|e| matches!(e.kind, EntryKind::RunStart | EntryKind::RunEnd { .. }))?;
+        // The start is written after the run's first message.
+        let started_of = |start: usize| branch[start.saturating_sub(1)].timestamp;
+        match branch[at].kind {
+            EntryKind::RunEnd { paused: true } => {
+                let start = branch[..at]
+                    .iter()
+                    .rposition(|e| matches!(e.kind, EntryKind::RunStart))
+                    .unwrap_or(at);
+                Some(RunMark {
+                    state: LastRun::Paused,
+                    started: started_of(start),
+                    stopped: branch[at].timestamp,
+                })
+            }
+            EntryKind::RunStart => {
+                let last = branch.iter().rev().find_map(|e| match &e.kind {
+                    EntryKind::Message { message, .. } => Some((message, e.timestamp)),
+                    _ => None,
+                })?;
+                let open = match last.0 {
+                    Message::Assistant(reply) => {
+                        reply.tool_calls().next().is_some()
+                            && !matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted)
+                    }
+                    Message::User(_) | Message::ToolResult(_) => true,
+                };
+                open.then(|| RunMark {
+                    state: LastRun::CutOff,
+                    started: started_of(at),
+                    stopped: last.1,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// The unattended work recorded last on the current branch; empty when
+    /// none was, or it stopped.
+    #[must_use]
+    pub fn autorun(&self) -> Autorun {
+        self.branch()
+            .into_iter()
+            .rev()
+            .find_map(|entry| match &entry.kind {
+                EntryKind::Autorun { autorun } => Some(autorun.clone()),
+                _ => None,
+            })
+            .unwrap_or_default()
     }
 
     pub fn append_toolset(&mut self, disabled: &[String]) -> std::io::Result<String> {
@@ -832,6 +1189,17 @@ impl SessionSummary {
             })
             .unwrap_or_else(|| self.id.clone())
     }
+
+    /// [`Self::label`] marked `⏸` when the session was left with work to
+    /// carry on, for the lists that offer sessions to open.
+    #[must_use]
+    pub fn display_label(&self) -> String {
+        if self.unfinished {
+            format!("⏸ {}", self.label())
+        } else {
+            self.label()
+        }
+    }
 }
 
 /// What a session picker shows.
@@ -846,6 +1214,9 @@ pub struct SessionSummary {
     /// The first user prompt, as a title fallback.
     pub first_prompt: Option<String>,
     pub message_count: usize,
+    /// The session was left with work to carry on: a run cut off or
+    /// paused, a `/goal` or `/loop` going.
+    pub unfinished: bool,
 }
 
 impl From<&Session> for SessionSummary {
@@ -857,10 +1228,16 @@ impl From<&Session> for SessionSummary {
             | EntryKind::SessionName { .. }
             | EntryKind::AgentChange { .. }
             | EntryKind::Rewind
+            | EntryKind::Pruned
             | EntryKind::ReasoningChange { .. }
             | EntryKind::ThinkingChange { .. }
             | EntryKind::Toolset { .. }
-            | EntryKind::ConnectionChange { .. } => None,
+            | EntryKind::ConnectionChange { .. }
+            | EntryKind::ExternalSession { .. }
+            | EntryKind::AgentOption { .. }
+            | EntryKind::RunStart
+            | EntryKind::RunEnd { .. }
+            | EntryKind::Autorun { .. } => None,
         });
         let first_prompt = messages.clone().find_map(|m| match m {
             Message::User(user) => Some(user.plain_text()),
@@ -877,6 +1254,7 @@ impl From<&Session> for SessionSummary {
                 .map_or(session.header.created, |e| e.timestamp),
             first_prompt,
             message_count: messages.count(),
+            unfinished: session.unfinished_run().is_some() || !session.autorun().is_empty(),
         }
     }
 }
@@ -905,7 +1283,7 @@ fn write_line(file: &mut File, line: &Line) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use crate::agent::test_support::text_reply;
-    use crate::message::UserMessage;
+    use crate::message::{AssistantMessage, UserMessage};
 
     #[test]
     fn is_empty_tracks_conversation_and_discard_removes_the_file() {
@@ -918,6 +1296,15 @@ mod tests {
         session.append_agent_change("default").unwrap();
         assert!(session.is_empty());
         // A user-given name marks intent to keep it.
+        session.set_name("keep me").unwrap();
+        assert!(!session.is_empty());
+        // Clearing the name gives the default label back and the intent up.
+        session.set_name(" ").unwrap();
+        assert_eq!(session.name(), None);
+        assert!(session.is_empty());
+        let reopened = Session::open(session.path()).unwrap();
+        assert_eq!(reopened.name(), None);
+        assert_eq!(SessionSummary::from(&reopened).name, None);
         session.set_name("keep me").unwrap();
         assert!(!session.is_empty());
 
@@ -933,6 +1320,170 @@ mod tests {
         assert!(path.exists());
         chatted.discard().unwrap();
         assert!(!path.exists());
+    }
+
+    /// A reply of the external agent, as its backend logs it.
+    fn agent_reply(text: &str) -> Message {
+        Message::Assistant(AssistantMessage {
+            provider: ACP_PROVIDER.into(),
+            ..text_reply(text)
+        })
+    }
+
+    #[test]
+    fn runs_and_unattended_work_survive_a_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        assert_eq!(session.last_run(), LastRun::Ended);
+        let before = session
+            .append_message(&Message::User(UserMessage::text("one")))
+            .unwrap();
+        session.append_run_start().unwrap();
+        let autorun = Autorun {
+            goal: Some(GoalRecord {
+                goal: "ship".into(),
+                iterations: 2,
+            }),
+            repeat: Some(LoopRecord {
+                prompt: "check".into(),
+                interval_ms: None,
+                iterations: 5,
+                due_ms: None,
+            }),
+        };
+        session.append_autorun(&autorun).unwrap();
+        let path = session.path().to_path_buf();
+        drop(session);
+
+        let mut session = Session::open(&path).unwrap();
+        assert_eq!(session.last_run(), LastRun::CutOff);
+        assert_eq!(session.autorun(), autorun);
+        // None of it reaches the model.
+        assert_eq!(session.context_messages().len(), 1);
+        session.append_run_end(true).unwrap();
+        assert_eq!(session.last_run(), LastRun::Paused);
+        session.append_autorun(&Autorun::default()).unwrap();
+        assert!(Session::open(&path).unwrap().autorun().is_empty());
+        // Undone back to before the run, the branch holds none of it.
+        session.rewind_to(Some(&before)).unwrap();
+        assert_eq!(session.last_run(), LastRun::Ended);
+    }
+
+    #[test]
+    fn a_run_whose_last_reply_finished_counts_as_ended() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("one")))
+            .unwrap();
+        session.append_run_start().unwrap();
+        assert_eq!(session.last_run(), LastRun::CutOff);
+        // The reply came in whole; only the run's end was not written.
+        session.append_message(&agent_reply("answer")).unwrap();
+        assert_eq!(session.last_run(), LastRun::Ended);
+        assert!(!SessionSummary::from(&session).unfinished);
+    }
+
+    #[test]
+    fn an_external_session_is_resumed_while_the_branch_is_still_its_own() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session.append_agent_change("claude").unwrap();
+        assert_eq!(session.external_session(), None);
+        session.append_external_session("claude", "s1").unwrap();
+        let start = session
+            .append_message(&Message::User(UserMessage::text("one")))
+            .unwrap();
+        session.append_message(&agent_reply("answer")).unwrap();
+        // What the session holds does not change with these.
+        session.append_toolset(&["bash".into()]).unwrap();
+        session.set_name("named").unwrap();
+        let expected = Some(ExternalSessionRef {
+            agent: "claude".into(),
+            session_id: "s1".into(),
+        });
+        assert_eq!(session.external_session(), expected);
+        // It survives a reopen.
+        let path = session.path().to_path_buf();
+        drop(session);
+        let mut session = Session::open(&path).unwrap();
+        assert_eq!(session.external_session(), expected);
+
+        // An undone request is still in the agent's session.
+        session.rewind_to(Some(&start)).unwrap();
+        assert_eq!(session.external_session(), None);
+        // A new one after it is resumed again.
+        session.append_external_session("claude", "s2").unwrap();
+        assert_eq!(
+            session.external_session().map(|r| r.session_id),
+            Some("s2".into())
+        );
+        // The built-in loop answered in between: the agent never saw it.
+        session
+            .append_message(&Message::Assistant(text_reply("built-in")))
+            .unwrap();
+        assert_eq!(session.external_session(), None);
+    }
+
+    #[test]
+    fn an_external_agents_settings_are_kept_until_another_agent_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session.append_agent_change("claude").unwrap();
+        session.append_external_session("claude", "s1").unwrap();
+        session.append_agent_option("effort", "low").unwrap();
+        session.append_agent_option("model", "opus").unwrap();
+        session.append_agent_option("effort", "high").unwrap();
+        let expected = vec![
+            ("model".to_string(), "opus".to_string()),
+            ("effort".to_string(), "high".to_string()),
+        ];
+        assert_eq!(session.agent_options(), expected);
+        // They change nothing the agent's own session holds.
+        assert!(session.external_session().is_some());
+        let path = session.path().to_path_buf();
+        drop(session);
+        let mut session = Session::open(&path).unwrap();
+        assert_eq!(session.agent_options(), expected);
+        // Another agent's settings are its own.
+        session.append_agent_change("codex").unwrap();
+        assert!(session.agent_options().is_empty());
+    }
+
+    #[test]
+    fn another_agent_a_compaction_a_fork_or_a_move_leave_the_external_session_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let fresh = |dir: &Path| {
+            let mut session = Session::create(dir, Path::new("/work")).unwrap();
+            session.append_external_session("claude", "s1").unwrap();
+            session
+                .append_message(&Message::User(UserMessage::text("one")))
+                .unwrap();
+            assert!(session.external_session().is_some());
+            session
+        };
+        let mut switched = fresh(dir.path());
+        switched.append_agent_change("default").unwrap();
+        assert_eq!(switched.external_session(), None);
+        let mut reconnected = fresh(dir.path());
+        reconnected.append_connection_change("cloud").unwrap();
+        assert_eq!(reconnected.external_session(), None);
+        let mut compacted = fresh(dir.path());
+        compacted.append_compaction("gist", 100, 1).unwrap();
+        assert_eq!(compacted.external_session(), None);
+        let mut cleared = fresh(dir.path());
+        cleared.append_pruned().unwrap();
+        assert_eq!(cleared.external_session(), None);
+
+        let original = fresh(dir.path());
+        let fork = Session::open(&original.fork(Path::new("/work"), None).unwrap()).unwrap();
+        assert_eq!(fork.external_session(), None);
+        assert!(original.external_session().is_some());
+        let elsewhere = tempfile::tempdir().unwrap();
+        let moved = original
+            .move_into(elsewhere.path(), Path::new("/elsewhere"))
+            .unwrap();
+        assert_eq!(Session::open(&moved).unwrap().external_session(), None);
     }
 
     #[test]
@@ -999,6 +1550,101 @@ mod tests {
         assert!(session.set_leaf(Some("nope")).is_err());
         session.set_leaf(None).unwrap();
         assert!(session.context_messages().is_empty());
+    }
+
+    #[test]
+    fn a_pruned_entry_replays_as_the_live_pruning_and_a_rewind_past_it_undoes_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/w")).unwrap();
+        let read = crate::message::ToolCall {
+            id: "r1".into(),
+            name: "read".into(),
+            arguments: serde_json::json!({}),
+            extra_content: None,
+        };
+        let mut looking = text_reply("looking");
+        looking
+            .content
+            .push(crate::message::AssistantContent::ToolCall(read.clone()));
+        session
+            .append_message(&Message::User(UserMessage::text("plan it")))
+            .unwrap();
+        session
+            .append_message(&Message::Assistant(looking))
+            .unwrap();
+        session
+            .append_message(&Message::ToolResult(
+                crate::message::ToolResultMessage::text(&read, "contents"),
+            ))
+            .unwrap();
+        let plan = session
+            .append_message(&Message::Assistant(text_reply("the plan")))
+            .unwrap();
+        let whole = session.context_messages();
+        session.append_pruned().unwrap();
+        // One message, logged and expected alike: two would differ in their
+        // timestamps whenever a millisecond passes between them.
+        let next = Message::User(UserMessage::text("do it"));
+        session.append_message(&next).unwrap();
+
+        let mut expected = prune_to_decisions(&whole);
+        expected.push(next);
+        assert_eq!(expected.len(), 3);
+        assert_eq!(session.context_messages(), expected);
+        let timed: Vec<Message> = session
+            .context_messages_with_times(&CompactionPrompts::default())
+            .into_iter()
+            .map(|logged| logged.message)
+            .collect();
+        assert_eq!(timed, expected);
+
+        session.rewind_to(Some(&plan)).unwrap();
+        assert_eq!(session.context_messages(), whole);
+
+        // A request made right after a clearing undoes to before it.
+        let cleared = session.append_pruned().unwrap();
+        assert_eq!(session.leaf_id(), Some(cleared.as_str()));
+        let point = session.undo_point().map(str::to_string);
+        assert_ne!(point.as_deref(), Some(cleared.as_str()));
+        session.rewind_to(point.as_deref()).unwrap();
+        assert_eq!(session.context_messages(), whole);
+    }
+
+    #[test]
+    fn read_branch_gives_the_live_path_and_leaves_dead_branches_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/w")).unwrap();
+        let first = session
+            .append_message(&Message::User(UserMessage::text("one")))
+            .unwrap();
+        session
+            .append_message(&Message::Assistant(text_reply("undone")))
+            .unwrap();
+        session.rewind_to(Some(&first)).unwrap();
+        session
+            .append_message(&Message::Assistant(text_reply("kept")))
+            .unwrap();
+        let path = session.path().to_path_buf();
+
+        // Read while the session is still open for appending.
+        let (header, branch) = Session::read_branch(&path).unwrap();
+        assert_eq!(&header.id, session.id());
+        let texts: Vec<String> = branch
+            .iter()
+            .filter_map(|entry| match &entry.kind {
+                EntryKind::Message {
+                    message: Message::User(user),
+                    ..
+                } => Some(user.plain_text()),
+                EntryKind::Message {
+                    message: Message::Assistant(reply),
+                    ..
+                } => Some(reply.plain_text()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts, ["one", "kept"]);
+        assert!(branch.iter().any(|e| matches!(e.kind, EntryKind::Rewind)));
     }
 
     #[test]
