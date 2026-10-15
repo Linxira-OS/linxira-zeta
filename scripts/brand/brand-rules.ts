@@ -661,8 +661,9 @@ export const MUST_NOT_CONTAIN: Array<{
 		exempt: ["CHANGELOG.md"],
 	},
 	{
-		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer|editor|working|queue|status|note|run)(?![A-Za-z0-9_-])/,
-		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips/send/stop/effort/rate/model/bar/focus, editor modes, working row, queue pills, status, notes, image cache symbol, run box/foot/state/time/facts/status/caption). v18.9.1 shipped upstream's composer tests asserting omp.composer.* while the sources emit zeta.* — the rule only knew omp.composer.chips and omp.run",
+		needle:
+			/(?<![A-Za-z0-9_.-])omp\.(imagePng|composer|editor|working|queue|status|note|run|ask|btn)(?![A-Za-z0-9_-])/,
+		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips/send/stop/effort/rate/model/bar/focus, editor modes, working row, queue pills, status, notes, image cache symbol, run box/foot/state/time/facts/status/caption, ask dialog head/question/options, action buttons). v18.9.1 shipped upstream's composer tests asserting omp.composer.* while the sources emit zeta.* — the rule only knew omp.composer.chips and omp.run. v18.10.0 repeated it with upstream's new ask-hide test: `dialogs-native.test.ts` asserted `omp.btn`/`omp.ask.options` against sources that emit `zeta.btn`/`zeta.ask.options`, so the test threw `no hide button` on CI while brand-check stayed green (ask/btn were not in this alternation)",
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},
 	{

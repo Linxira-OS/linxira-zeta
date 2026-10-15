@@ -151,9 +151,9 @@ describe("dialogs under a native surface", () => {
 		const onSubmit = vi.fn();
 		const onCancel = vi.fn();
 		const dialog = ask(onSubmit, onCancel);
-		const options = () => find(dialog.describe(CX), node => node.p?.role === "omp.ask.options");
+		const options = () => find(dialog.describe(CX), node => node.p?.role === "zeta.ask.options");
 		const press = (act: string) => {
-			const button = find(dialog.describe(CX), node => node.p?.role === "omp.btn" && node.key === act);
+			const button = find(dialog.describe(CX), node => node.p?.role === "zeta.btn" && node.key === act);
 			if (!button) throw new Error(`no ${act} button`);
 			dialog.handleNativeEvent({ type: "action", key: button.path, act, mods: [] });
 		};
