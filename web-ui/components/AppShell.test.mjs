@@ -15,7 +15,7 @@ test("the shell mode comes from the URL, with the route able to pin it", () => {
 	assert.match(source, /<AppShellContent shellMode=\{mode\} \/>/);
 	assert.match(
 		source,
-		/const shellMode = pinnedMode \?\? resolveShellMode\(searchParams\.get\(SHELL_MODE_PARAM\)\);[\s\S]*?const embed = shellMode === "embed";/,
+		/const shellMode = pinnedMode \?\? resolveShellMode\(searchParams\.get\(SHELL_MODE_PARAM\)\);[\s\S]*?const panel = shellMode === "panel";/,
 	);
 	assert.match(source, /<ShellLayout\n\t{4}mode=\{shellMode\}/);
 });
@@ -43,16 +43,16 @@ test("chrome columns are handed to the layout as slots, not inlined in the cente
 	assert.match(slotBody("dockWindow"), /<FileViewer/);
 });
 
-test("embed mode also drops the chrome that lives outside the layout", () => {
+test("panel mode also drops the chrome that lives outside the layout", () => {
 	// Self-drawn desktop titlebar and the mobile drawer backdrop are siblings of
 	// ShellLayout, so they carry their own guard.
-	assert.match(source, /\{desktopChrome && !embed && \(/);
-	assert.match(source, /\{!embed && \(\n\t{4}<div\n\t{5}className=\{`sidebar-overlay-backdrop/);
-	assert.match(source, /desktopChromeInset=\{desktopChrome && !embed \? 30 : 0\}/);
+	assert.match(source, /\{desktopChrome && !panel && \(/);
+	assert.match(source, /\{!panel && \(\n\t{4}<div\n\t{5}className=\{`sidebar-overlay-backdrop/);
+	assert.match(source, /desktopChromeInset=\{desktopChrome && !panel \? 30 : 0\}/);
 });
 
 test("an explicit ?mode= survives the shell's own URL rewrites", () => {
-	// Switching session inside an embed must not silently drop back to full
+	// Switching session inside a panel must not silently drop back to full
 	// chrome — the two router.replace sites carry the parameter along.
 	assert.match(source, /const modeParam = searchParams\.get\(SHELL_MODE_PARAM\);/);
 	assert.match(source, /if \(modeParam\) params\.set\(SHELL_MODE_PARAM, modeParam\);/);
@@ -62,17 +62,17 @@ test("an explicit ?mode= survives the shell's own URL rewrites", () => {
 	assert.ok(!source.includes('router.replace("/"'), "draft rewrite must keep the mode parameter");
 });
 
-test("an embed with nothing to show offers the composer instead of sidebar advice", () => {
+test("a panel with nothing to show offers the composer instead of sidebar advice", () => {
 	// DegradedDraftCard = workspace picker + hero composer, and picking creates
 	// the draft tab; the two placeholders under it only make sense with a sidebar.
 	assert.match(
 		source,
-		/\) : showPlaceholder \? \(\s+embed \? \([\s\S]*?<DegradedDraftCard onWorkspaceSelect=\{cwd => openDraftTab\(cwd, true\)\} \/>\s+\) : activeCwd \? \(/,
+		/\) : showPlaceholder \? \(\s+panel \? \([\s\S]*?<DegradedDraftCard onWorkspaceSelect=\{cwd => openDraftTab\(cwd, true\)\} \/>\s+\) : activeCwd \? \(/,
 	);
 });
 
-test("the /embed route pins the mode instead of relying on a query parameter", async () => {
-	const route = await readFile(new URL("../app/embed/page.tsx", import.meta.url), "utf8");
+test("the /panel route pins the mode instead of relying on a query parameter", async () => {
+	const route = await readFile(new URL("../app/panel/page.tsx", import.meta.url), "utf8");
 
-	assert.match(route, /<AppShell mode="embed" \/>/);
+	assert.match(route, /<AppShell mode="panel" \/>/);
 });

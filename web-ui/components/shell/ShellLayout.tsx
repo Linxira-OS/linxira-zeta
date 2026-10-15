@@ -50,7 +50,7 @@ export function ShellSlot({ children }: ShellSlotProps) {
 
 export interface ShellLayoutProps {
 	/**
-	 * Which regions the shell owns. `embed` renders the center column only (the
+	 * Which regions the shell owns. `panel` renders the center column only (the
 	 * conversation + composer) and skips every chrome column, handle and inset;
 	 * `full` renders the three-column desktop shell. Defaults to `full`.
 	 */
@@ -94,7 +94,7 @@ export function ShellLayout({
 }: ShellLayoutProps) {
 	const { t } = useI18n();
 	const viewportWidth = useViewportWidth();
-	const embed = mode === "embed";
+	const panel = mode === "panel";
 
 	const elements = Children.toArray(children).filter(
 		(child): child is ReactElement<ShellSlotProps> => isValidElement(child) && child.type === ShellSlot,
@@ -183,11 +183,11 @@ export function ShellLayout({
 		.join(" ");
 
 	const gridStyle: CSSProperties = {
-		gridTemplateColumns: embed
+		gridTemplateColumns: panel
 			? "minmax(0, 1fr)"
 			: `${tracks.sidebar}px minmax(0, 1fr) ${tracks.details}px`,
 		// Embed is mounted inside a host surface: no desktop titlebar inset.
-		paddingTop: embed ? 0 : desktopChromeInset,
+		paddingTop: panel ? 0 : desktopChromeInset,
 	};
 
 	return (
@@ -206,7 +206,7 @@ export function ShellLayout({
         }
         /* Embed: the conversation column is the whole surface — the host owns
            the frame, so no safe-area padding and no track transition. */
-        .shell-grid--embed {
+        .shell-grid--panel {
           padding-left: 0;
           padding-right: 0;
           transition: none;
@@ -280,11 +280,11 @@ export function ShellLayout({
         }
       `}</style>
 			<div
-				className={`shell-grid${resizing ? " is-resizing" : ""}${embed ? " shell-grid--embed" : ""}`}
+				className={`shell-grid${resizing ? " is-resizing" : ""}${panel ? " shell-grid--panel" : ""}`}
 				style={gridStyle}
 				{...{ [SHELL_MODE_ATTRIBUTE]: mode }}
 			>
-				{!embed && (
+				{!panel && (
 					<div className="shell-col shell-col--sidebar" {...{ [SHELL_REGION_ATTRIBUTE]: "sidebar" }}>
 						<div
 							ref={sidebarResizer.panelRef}
@@ -319,20 +319,20 @@ export function ShellLayout({
 				)}
 
 				<div className="shell-col shell-col--center" {...{ [SHELL_REGION_ATTRIBUTE]: "center" }}>
-					{!embed && (
+					{!panel && (
 						<div className="shell-chrome shell-chrome--topbar" {...{ [SHELL_REGION_ATTRIBUTE]: "topbar" }}>
 							{slotOf("topbar")}
 						</div>
 					)}
 					{slotOf("center")}
-					{!embed && (
+					{!panel && (
 						<div className="shell-chrome shell-chrome--tabs" {...{ [SHELL_REGION_ATTRIBUTE]: "tabs" }}>
 							{slotOf("tabs")}
 						</div>
 					)}
 				</div>
 
-				{!embed && (
+				{!panel && (
 					<div className="shell-col shell-col--details" {...{ [SHELL_REGION_ATTRIBUTE]: "details" }}>
 						<div className="shell-chrome shell-chrome--rail" {...{ [SHELL_REGION_ATTRIBUTE]: "rail" }}>
 							{slotOf("rail")}

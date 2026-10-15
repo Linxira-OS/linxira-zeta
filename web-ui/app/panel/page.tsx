@@ -8,14 +8,14 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
  * client: the layout drops every chrome region and keeps the transcript plus
  * the composer — see `components/shell/ShellLayout.tsx`.
  *
- * `?mode=embed` on the root route is equivalent; this route exists so a host
- * can point at a clean URL, e.g. `http://127.0.0.1:30141/embed?session=<id>`.
+ * `?mode=panel` on the root route is equivalent; this route exists so a host
+ * can point at a clean URL, e.g. `http://127.0.0.1:30141/panel?session=<id>`.
  */
 export default function EmbedPage() {
   return (
     <ErrorBoundary>
       <Suspense>
-        <AppShell mode="embed" />
+        <AppShell mode="panel" />
       </Suspense>
     </ErrorBoundary>
   );

@@ -15,12 +15,12 @@ test("defaults to the full shell when the mode parameter is absent", async () =>
 	assert.equal(resolveShellMode("   "), "full");
 });
 
-test("reads the embed mode from the mode parameter", async () => {
+test("reads the panel mode from the mode parameter", async () => {
 	const { resolveShellMode } = await loadSubject();
 
-	assert.equal(resolveShellMode("embed"), "embed");
-	assert.equal(resolveShellMode(" EMBED "), "embed");
-	assert.equal(resolveShellMode("Embed"), "embed");
+	assert.equal(resolveShellMode("panel"), "panel");
+	assert.equal(resolveShellMode(" PANEL "), "panel");
+	assert.equal(resolveShellMode("Panel"), "panel");
 	assert.equal(resolveShellMode("full"), "full");
 });
 
@@ -32,28 +32,28 @@ test("falls back to full for unknown mode values", async () => {
 	assert.equal(resolveShellMode("true"), "full");
 });
 
-test("names the mode parameter, the embed route and the hidden chrome regions", async () => {
+test("names the mode parameter, the panel route and the hidden chrome regions", async () => {
 	const {
 		SHELL_MODE_PARAM,
-		EMBED_MODE_ROUTE,
+		PANEL_MODE_ROUTE,
 		SHELL_MODES,
-		EMBED_HIDDEN_SHELL_REGIONS,
+		PANEL_HIDDEN_SHELL_REGIONS,
 		SHELL_REGION_ATTRIBUTE,
 		SHELL_MODE_ATTRIBUTE,
 	} = await loadSubject();
 
 	assert.equal(SHELL_MODE_PARAM, "mode");
-	assert.equal(EMBED_MODE_ROUTE, "/embed");
-	assert.deepEqual([...SHELL_MODES], ["full", "embed"]);
+	assert.equal(PANEL_MODE_ROUTE, "/panel");
+	assert.deepEqual([...SHELL_MODES], ["full", "panel"]);
 	assert.equal(SHELL_REGION_ATTRIBUTE, "data-shell-region");
 	assert.equal(SHELL_MODE_ATTRIBUTE, "data-shell-mode");
-	assert.deepEqual([...EMBED_HIDDEN_SHELL_REGIONS].sort(), [
+	assert.deepEqual([...PANEL_HIDDEN_SHELL_REGIONS].sort(), [
 		"dockWindow",
 		"rail",
 		"sidebar",
 		"tabs",
 		"topbar",
 	]);
-	// The conversation column is never hidden — embed keeps exactly that.
-	assert.ok(!EMBED_HIDDEN_SHELL_REGIONS.includes("center"));
+	// The conversation column is never hidden — panel keeps exactly that.
+	assert.ok(!PANEL_HIDDEN_SHELL_REGIONS.includes("center"));
 });

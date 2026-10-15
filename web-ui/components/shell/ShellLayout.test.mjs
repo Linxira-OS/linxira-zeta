@@ -16,7 +16,7 @@ const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
 const h = React.createElement;
 
-/** Chrome regions the `embed` mode must not render at all. */
+/** Chrome regions the `panel` mode must not render at all. */
 const CHROME_REGIONS = ["sidebar", "topbar", "tabs", "rail", "dockWindow"];
 
 /** Textual shapes of the chrome nodes, as rendered. */
@@ -144,39 +144,39 @@ test("full mode keeps every shell region in the DOM", () => {
 	assert.match(html, /<textarea/);
 });
 
-test("embed mode drops the sidebar, top bar, tab strip and right dock", () => {
-	const html = markupOf(renderShell("embed"));
+test("panel mode drops the sidebar, top bar, tab strip and right dock", () => {
+	const html = markupOf(renderShell("panel"));
 
 	assert.deepEqual(shellRegions(html), ["center"]);
-	assert.match(html, /data-shell-mode="embed"/);
+	assert.match(html, /data-shell-mode="panel"/);
 	for (const needle of CHROME_TEXT) {
-		assert.ok(!html.includes(needle), `embed mode must not render ${needle}`);
+		assert.ok(!html.includes(needle), `panel mode must not render ${needle}`);
 	}
 	for (const region of CHROME_REGIONS) {
-		assert.ok(!shellRegions(html).includes(region), `embed mode must not render region ${region}`);
+		assert.ok(!shellRegions(html).includes(region), `panel mode must not render region ${region}`);
 	}
 });
 
-test("embed mode still renders the conversation column and the composer", () => {
-	const html = markupOf(renderShell("embed"));
+test("panel mode still renders the conversation column and the composer", () => {
+	const html = markupOf(renderShell("panel"));
 
 	assert.match(html, /shell-col--center/);
 	assert.match(html, /data-shell-region="center"/);
 	assert.match(html, /<textarea/);
 });
 
-test("embed mode collapses the grid to one full-bleed track", () => {
-	const embed = renderShell("embed");
-	assert.equal(gridStyleAttr(embed), "grid-template-columns:minmax(0, 1fr);padding-top:0");
-	assert.match(markupOf(embed), /class="shell-grid shell-grid--embed"/);
+test("panel mode collapses the grid to one full-bleed track", () => {
+	const panel = renderShell("panel");
+	assert.equal(gridStyleAttr(panel), "grid-template-columns:minmax(0, 1fr);padding-top:0");
+	assert.match(markupOf(panel), /class="shell-grid shell-grid--panel"/);
 	// The host owns the frame: no safe-area padding, no track transition.
-	assert.match(embed, /\.shell-grid--embed \{[^}]*padding-left: 0;/);
-	assert.match(embed, /\.shell-grid--embed \{[^}]*padding-right: 0;/);
-	assert.match(embed, /\.shell-grid--embed \{[^}]*transition: none;/);
+	assert.match(panel, /\.shell-grid--panel \{[^}]*padding-left: 0;/);
+	assert.match(panel, /\.shell-grid--panel \{[^}]*padding-right: 0;/);
+	assert.match(panel, /\.shell-grid--panel \{[^}]*transition: none;/);
 
 	const full = renderShell("full");
 	assert.match(gridStyleAttr(full), /^grid-template-columns:\d+px minmax\(0, 1fr\) \d+px;padding-top:30px$/);
-	assert.ok(!markupOf(full).includes("shell-grid--embed"));
+	assert.ok(!markupOf(full).includes("shell-grid--panel"));
 	assert.match(markupOf(full), /class="shell-grid"/);
 });
 

@@ -75,8 +75,8 @@ helpers — no AgentSession created.
 ```
 app/
   page.tsx                        full shell (AppShell, mode from ?mode=)
-  embed/page.tsx                  embed shell (AppShell mode="embed") — the
-                                  conversation-only surface a host WebView mounts
+  panel/page.tsx                  panel shell (AppShell mode="panel") — the
+                                  chrome-free surface a host panel mounts
   settings/page.tsx               server redirect to /?panel=settings
   globals.css                     base sheet + theme imports
 
@@ -109,6 +109,9 @@ app/api/
   skills/search/route.ts          GET/POST skills.sh search
   tracking/route.ts               GET tracking read (request-time gateway proxy)
   worktrees/route.ts              GET/POST/DELETE git worktrees
+  plugin-pages/route.ts           GET installed web plugins + the pages they ship
+  plugin-assets/[pluginId]/[...path]/route.ts
+                                  GET one file out of a plugin package (root-guarded)
 
 lib/
   agent-client.ts      typed fetch helper for /api/agent commands
@@ -120,7 +123,8 @@ lib/
   pi-types.ts          local structural types for pi SDK objects
   rpc-manager.ts      AgentSessionWrapper + registry + startRpcSession
   session-reader.ts   SessionManager wrappers + path cache + buildSessionContext adapter
-  shell-mode.ts       ShellMode ("full" | "embed") + ?mode= URL contract
+  shell-mode.ts       ShellMode ("full" | "panel") + ?mode= URL contract
+  plugin-pages.ts     installed web plugins, their .html pages, root-guarded asset resolution
   tool-presets.ts     PRESET_NONE/DEFAULT/FULL + getPresetFromTools()
   types.ts            shared TypeScript types
   normalize.ts        normalizeToolCalls() — field name mismatch between file format and our types
@@ -131,6 +135,8 @@ components/
   shell/ShellLayout.tsx  three-column grid + the single mode gate: every
                       region (sidebar/topbar/tabs/center/rail/dockWindow) is a
                       named slot carrying `data-shell-region`
+  shell/PageSurface.tsx  the panel-mode page frame (one region, no chrome) that
+                      any non-chat page mounts in — web plugin pages included
   shell/SessionTabBar.tsx session tab strip (topbar chrome)
   shell/DockRail.tsx  right-edge dock rail
   SessionSidebar.tsx  session tree + FileExplorer
@@ -162,29 +168,65 @@ hooks/
 
 ## Key Design Decisions & Traps
 
-### Shell modes — `full` vs `embed` (`lib/shell-mode.ts`, `components/shell/ShellLayout.tsx`)
+### Shell modes — `full` vs `panel` (`lib/shell-mode.ts`, `components/shell/ShellLayout.tsx`)
 
-- Two surfaces, one client bundle: `full` is the complete desktop shell; `embed`
-  is the conversation-only surface a host mounts (the zetawork GUI's WebView2, an
-  iframe, a kiosk page) — transcript + composer, nothing else.
-- Chosen by URL, no rebuild and no build flag: `/?mode=embed` (equivalently the
-  `/embed` route, which pins the mode server-side). Unknown or empty values fall
-  back to `full`.
+- Two surfaces, one client bundle. `full` is the complete application chrome
+  (project sidebar, top bar, session tab strip, right tool dock). `panel` is a
+  **mountable page**: the page's own content only — no left rail, no right dock,
+  no top bar, no outer padding — so a host panel can own the frame (the desktop's
+  right sidebar, an iframe, a kiosk page, a web plugin view).
+- Chosen by URL, no rebuild and no build flag: `?mode=panel` (equivalently the
+  `/panel` route, which pins the mode server-side). Unknown or empty values fall
+  back to `full`. The mode is chat-independent: it is a property of the *page*,
+  not of the conversation.
 - The gate lives in **one** place. `ShellLayout` owns a named region per slot and
-  skips the chrome regions when `mode === "embed"`. Regions carry
+  skips the chrome regions when `mode === "panel"`. Regions carry
   `data-shell-region` (`sidebar` | `topbar` | `tabs` | `center` | `rail` |
   `dockWindow`) and the grid carries `data-shell-mode`. The three region wrappers
   are `display: contents`, so a marker never introduces a box.
+- Page routes that are not the chat app mount `PageSurface` instead: one region
+  (`center`), `data-shell-mode="panel"`, no chrome by construction. Keep chrome
+  out of pages — a page that needs a column of its own belongs in the slot set.
 - `AppShell` only *feeds* slots (`sidebar`, `topbar`, `tabs`, `center`, `rail`,
   `dockWindow`) — it never branches on the mode for slot content. The two chrome
   nodes that live outside `ShellLayout` (the frameless desktop titlebar and the
-  mobile drawer backdrop) carry their own `!embed` guard.
-- `embed` also drops the safe-area padding and the desktop titlebar inset: the
-  host owns the frame.
-- A sub-page that must not appear in an embed belongs in a chrome slot; never
-  scatter `mode === "embed"` checks through feature components.
+  mobile drawer backdrop) carry their own `!panel` guard.
+- `panel` also drops the safe-area padding and the desktop titlebar inset, and
+  the shell's own URL rewrites carry an explicit `?mode=` along (otherwise the
+  first session switch would silently restore the full chrome).
+- A sub-page that must not appear in a panel belongs in a chrome slot; never
+  scatter `mode === "panel"` checks through feature components.
 - The host needs no message bridge: the mode, session and workspace all arrive as
-  URL state (`/embed?session=<id>&cwd=<path>`), so a WebView mount is one URL.
+  URL state (`/panel?session=<id>`, `/plugins/view/<plugin>/<page>?mode=panel`),
+  so mounting a surface is one URL.
+
+### Web plugin pages (`lib/plugin-pages.ts`, `app/plugins/view/…`)
+
+- A user-registered **web plugin** contributes pages as static files inside its own
+  package; web-ui mounts one page per URL, chrome-free, so the desktop can host it
+  in the right sidebar: `http://127.0.0.1:<port>/plugins/view/<plugin>/<page>?mode=panel`.
+- Registration today = "the file is in the plugin package": every `.html`/`.htm`
+  under the package is a page, titled by its document `<title>`. Discovery is
+  `GET /api/plugin-pages` (list + mount URL per page); `/plugins/view/<plugin>`
+  (no page) lists a plugin's pages for a human.
+- Pages are framed (`iframe`, `sandbox="allow-scripts allow-same-origin …"`) so a
+  plugin's CSS/DOM cannot leak into the app document, while still being same-origin
+  — a plugin view is expected to call `/api/*`. Their assets come from
+  `GET /api/plugin-assets/<plugin>/<path>`, which serves from the plugin package
+  root only: `lib/plugin-pages.ts` refuses any path (or symlink) that escapes it
+  with 403 and anything missing with 404.
+- Install roots: `<agent-dir>/plugins` (default `~/.zeta/plugins`) plus
+  `ZETA_WEB_PLUGIN_ROOTS` (extra package directories, `;`/`:` separated — used by
+  tests and by a host that ships plugins elsewhere). Project-local
+  `<project>/.zeta/plugins` is **not** scanned yet: an asset request has no cwd.
+- **Hand-off**: the planned manifest v2 `pages` declaration
+  (`PluginManifest.pages`, validated by the Zeta loader) and a gateway-side
+  `plugin-assets` route are *not implemented* — this scan is the interim read
+  path. When `PluginManifest.pages` lands, `readPluginPackages()` should read the
+  declared pages instead of walking for `.html`, and the asset route can be
+  dropped in favour of the gateway's. See
+  `document/webui-desktop-overhaul-plan.md` batch Z4 / `document/plugin-system.md`
+  §"web 显示面".
 
 ### AgentSession lifecycle (`lib/rpc-manager.ts`)
 

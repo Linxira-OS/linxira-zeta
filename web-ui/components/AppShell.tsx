@@ -195,7 +195,7 @@ interface TabBindings {
 }
 
 /**
- * `mode` is normally read from the URL (`?mode=embed`); the `/embed` route
+ * `mode` is normally read from the URL (`?mode=panel`); the `/panel` route
  * passes it explicitly so the host URL needs no query parameter. Either way the
  * shell itself is the only component that knows about it — see
  * `components/shell/ShellLayout.tsx`.
@@ -214,7 +214,7 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const shellMode = pinnedMode ?? resolveShellMode(searchParams.get(SHELL_MODE_PARAM));
-	const embed = shellMode === "embed";
+	const panel = shellMode === "panel";
 	const [bootFailures, setBootFailures] = useState<string[]>([]);
 	const recordBootFailure = useCallback((step: string, error: unknown) => {
 		const detail = error instanceof Error ? error.message : String(error);
@@ -1098,8 +1098,8 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 	// desktop tray and the browser back/forward rely on. Skipped when the param
 	// already matches: replacing it with the same value makes Next.js remount
 	// the route in production. An explicit `?mode=` is carried along, otherwise
-	// the first session switch inside an embed would drop it and the host would
-	// suddenly get the full chrome (`/embed` needs no help: its mode is pinned by
+	// the first session switch inside a panel would drop it and the host would
+	// suddenly get the full chrome (`/panel` needs no help: its mode is pinned by
 	// the route, not the query).
 	useEffect(() => {
 		const current = searchParams.get("session");
@@ -1620,9 +1620,9 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
       }
     `}</style>
 			{/* Self-drawn titlebar — frameless desktop shell only, never inside an
-        embed (the host owns the frame). Fixed so the existing three-column row
+        panel (the host owns the frame). Fixed so the existing three-column row
         only needs a top inset to make room. */}
-			{desktopChrome && !embed && (
+			{desktopChrome && !panel && (
 				<div
 					style={
 						{
@@ -1720,7 +1720,7 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 				</div>
 			)}
 			{/* Mobile overlay backdrop */}
-			{!embed && (
+			{!panel && (
 				<div
 					className={`sidebar-overlay-backdrop${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
 					onClick={() => setSidebarOpen(false)}
@@ -1742,7 +1742,7 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 				sidebarCollapsed={sidebarRailActive}
 				detailOpen={dockTool !== null}
 				isMobile={isMobile}
-				desktopChromeInset={desktopChrome && !embed ? 30 : 0}
+				desktopChromeInset={desktopChrome && !panel ? 30 : 0}
 			>
 				<ShellSlot name="sidebar">{sidebarContent}</ShellSlot>
 
@@ -2641,8 +2641,8 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 								<div style={{ maxWidth: 720, fontSize: 12 }}>{initialCwdError}</div>
 							</div>
 						) : showPlaceholder ? (
-							embed ? (
-								// An embed has no sidebar, so the "pick a project in the
+							panel ? (
+								// A panel has no sidebar, so the "pick a project in the
 								// sidebar" placeholders below would be dead instructions.
 								// The host normally passes `?session=`/`?cwd=`; when it does
 								// not, hand the workspace picker + composer straight to the
