@@ -394,9 +394,9 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "writer side of the tiny-worker banner",
 	},
 	{
-		file: "packages/coding-agent/src/tiny/title-client.ts",
-		needle: '"zetacode tiny worker listening on "',
-		why: "reader side: the client filters the worker's banner lines — a one-sided spelling silently stops filtering (found split omp/zetacode, 2026-10-11)",
+		file: "packages/coding-agent/src/subprocess/shared-worker.ts",
+		needle: "/^zetacode tiny worker listening on /",
+		why: "reader side: it filters the worker's banner lines. v18.10.0 moved this filter (upstream `logTail`) out of `tiny/title-client.ts` into the shared worker helper and reverted the prefix to the upstream spelling; a one-sided spelling silently stops filtering (found split upstream/zetacode, 2026-10-11)",
 	},
 	{
 		file: "packages/coding-agent/src/lsp/mux/server.ts",

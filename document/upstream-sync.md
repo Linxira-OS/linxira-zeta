@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.9.2
+## Integrated through: v18.10.0
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -9,9 +9,10 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.9.2` (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`,
-  confirmed by `git merge-base HEAD <tag>`, merge commit `af624c160fe`). The
-  previous value was `v18.9.1` (`a4d6f0adc6`, PR #91, merge `d45b699092e`),
+- **Integrated through**: `v18.10.0` (`b83200eb866821f02625332025b453f06ce4e12a`,
+  confirmed by `git merge-base refs/heads/main <tag>` == `bd4dffd5e617`, merge commit
+  `TBD-SHA`). The previous value was `v18.9.2`
+  (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`, PR #92, merge `af624c160fe`),
   which is exactly the merge-base this round started from.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
@@ -23,12 +24,79 @@ two-parent tag merge.
 - **Upstream moved the v18.8.4 tag** after we merged it: the remote now
   advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
   the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
-- **Next merge** starts from this round's final commit on `main` (`af624c160fe`
-  once PR #92 merges), which is exactly what `git merge-base` against the next
-  tag will compute. The increment applied is upstream's, not a whole-tree
-  comparison against our branch.
+- **Next merge** starts from this round's final commit on `main` (`TBD-SHA`
+  once PR for `sync/omp-release/v18.10.0` merges), which is exactly what `git merge-base`
+  against the next tag will compute. The increment applied is upstream's, not a
+  whole-tree comparison against our branch.
 
 
+
+## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `TBD-SHA`)
+
+- **Baseline**: v18.9.2, integrated by PR #92 (`af624c160fe`; tag commit `bd4dffd5e617`).
+- **Source tag**: `v18.10.0` → `b83200eb866821f02625332025b453f06ce4e12a`, a *lightweight* tag
+  (no `refs/tags/v18.10.0^{}` peeled line is advertised). Verified with
+  `git ls-remote --tags omp-upstream refs/tags/v18.10.0` **before** the merge and read
+  back locally (`git rev-parse v18.10.0^{commit}`) — remote and local agree, so the tag
+  was not moved. **Zeta starting commit**: `2291ae3dc80`.
+- **Window**: upstream's own increment — the merge-base gate passed exactly
+  (`git merge-base refs/heads/main b83200eb866 == bd4dffd5e617`), **22 commits / 143 files /
+  +9278 −2845**, integrated as one real two-parent merge commit (no squash/rebase/cherry-pick).
+- **Conflicts**: **43** (42 `UU`, 1 `UD` — upstream deleted
+  `packages/coding-agent/test/stream/protocol.test.ts`; the deletion was accepted, its two
+  remaining consumers import the live internal `src/stream/protocol`).
+  The window is upstream's **IPC rework**: `IpcConnection`/`IpcServer`/`ipcEndpoint` from
+  `pi-natives` replace every hand-rolled `node:net` socket + Windows named-pipe name
+  computation (IDA hosts, daemon broker, LSP mux, text prediction, `stream`, collab
+  discovery, local model workers), plus session/auth transfer commands, a machine-shared
+  mnemopi embedding server, and `napi-rs` 3.14.2. Resolution rule: adopt upstream's shape,
+  then re-apply the Zeta surface — scope **map** (`@oh-my-pi/pi-coding-agent`→`@linxiraos/zeta`,
+  `omptype`→`pi-omptype`, `omp-stats`→`pi-stats`, `snapcompact`→`pi-snapcompact`),
+  `__omp_worker_*`→`__zeta_worker_*`, `zetacode` for the CLI name, `.omp`→`.zeta` paths.
+  Judgment calls: kept Zeta's `IDA_HOST_WORKER_ARG`/`setProcessName` spellings; kept
+  Zeta's `CLI_SESSION` 4th argument while adopting upstream's new `forkIfMovedAway` wrapper
+  (`main.ts`); kept Zeta's `#spawnBroker` stderr-tee in `launch/client.ts`; dropped Zeta's
+  `resolveSocketEndpoint`/`lspMuxEndpoint` + `clearStaleSocket`/`probeSocket` helpers after
+  grepping them to zero call sites (their helper constants were gone with upstream's block,
+  so they could no longer compile).
+- **⚠️ New damage mechanism found: the `zeta-package` merge driver silently deletes
+  Zeta-only `package.json` keys.** `.gitattributes` maps root + `packages/*/package.json`
+  to `merge=zeta-package` (`scripts/merge-package-json.ts`). Its `main()` starts from
+  `result = { ...other }` (upstream wholesale) and only re-adds a fixed identity-field set,
+  the dependency sections and `workspaces.catalog`, so **every Zeta-only top-level key is
+  dropped on every merge**. Observed on this round (main → driver output):
+  `workspaces.packages` `"plugins/*"` dropped; `packageManager` `bun@1.4.3` → `bun@>=1.4`;
+  scripts `check:nix-bun`, `check:relay-assets`, `ci:release:publish-web-ui`,
+  `ci:release:publish-plugin`, `gen:relay-assets`, `gen:brand-art` dropped;
+  `devDependencies.figlet` dropped; `test:py`/`robomp:install` rewritten to the
+  **non-existent** `sdk/python/omp-rpc`; the five exact catalog pins →
+  upstream carets; all 12 `packages/*/package.json` `check:types` `tsc` → `tsgo`;
+  `packages/mnemopi/package.json` description "Zeta agents" → "omp agents". All were
+  resolved by hand to **Zeta main + the genuine upstream delta** (this window's entire
+  upstream manifest delta is catalog version bumps + `bench:ipc` in `packages/natives`).
+  This also explains the #189 finding that `packageManager` reverts to `bun@>=1.4` every
+  merge (previously attributed to `fb4dcded44d` alone): the driver rewrites it each round.
+  The driver fix is **not** in this PR (merge rounds and tooling fixes stay separate).
+- **Regenerated**: `Cargo.lock` (3-way reconstructed with `git merge-file`; its 11 conflicts
+  were all `1.2.1` vs `18.10.0` version lines, resolved to the Zeta line, while upstream's
+  `napi 3.14.2` + `napi-build 2.6.0` bumps were kept), `packages/catalog/src/compat/rules.json`
+  (`bun run gen:compat` — 999 rules / 21 classes / 87 catalog providers / 234 files),
+  `MODULE.bazel.lock`, `bun.lock` (`bun install --frozen-lockfile` reported "no changes" —
+  this window carried **no** dependency changes, since upstream's manifest delta is
+  version-line only). The 5 upstream `## [18.10.0]` CHANGELOG sections were **folded into
+  `[Unreleased]`** with Zeta spellings (released sections are immutable).
+- **Checks**: see the PR body / round report. Version line 1.2.1 across 14 packages +
+  13 catalog keys + Cargo + natives stamp + README badge + Cargo.lock members;
+  `check:ts` 0 errors; `brand-check` 0 hits / 0 missing assertions (one rule retargeted:
+  the tiny-worker banner *reader* moved from `tiny/title-client.ts` to
+  `subprocess/shared-worker.ts` in this window and came back spelled `omp`);
+  `check-zeta-sentinels` 104/104; `check-scope-imports` 18762 specifiers resolve;
+  `check-ci-surface` 32 jobs; `check-local-ci-parity` OK; `cargo fmt --all --check` clean;
+  `audit-merge-members` 0 dropped across 0 files; `check-i18n-consistency` 3219/3219/3219;
+  `check-i18n-commands` 259 descriptions / 0 failures; `check-package-json-merge` OK.
+- **Not verified on this host**: native addon build (no local `pi_natives.*.node`), so
+  `gen:compat`/local test runs relied on a borrowed prebuilt addon; `cargo metadata`
+  cannot resolve offline (`napi-build 2.6.0` is absent from the local registry cache).
 
 ## v18.9.2 incremental merge (Zeta — branch `sync/omp-release/v18.9.2`; merge commit `af624c160fe`)
 
