@@ -35,10 +35,17 @@ two-parent tag merge.
 
 ## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `80ca49db8c7`)
 
-- **Branch head at hand-off**: `680c2145281` (PR #200). `main` is fully contained
-  (`git merge-base HEAD origin/main` == `origin/main` == `1d5bf9aab5d`); below the head sit the merge
+- **Branch head at hand-off**: `652c1c16be1` (PR #200; an earlier hand-off head was `680c2145281`).
+  `main` is fully contained (`git merge-base HEAD origin/main` == `origin/main`); below the head sit the merge
   itself (`80ca49db8c7`), the version/web-ui/lock follow-ups, three merges of `main` and the
   CI-driven fixes. The v18.10.0 tag commit is an ancestor of the head.
+- **Final merge commit on `main`**: `1765251a473` — PR #200 merged 2026-10-15, parents
+  `eb62e9c61c1` (main) + `652c1c16be1` (branch head), a real two-parent merge (no squash).
+  Lineage re-checked on `main` **after** the merge:
+  `git merge-base --is-ancestor b83200eb866821f02625332025b453f06ce4e12a HEAD` succeeds and
+  `git merge-base --is-ancestor $(git rev-parse v18.10.0) HEAD` succeeds, so the complete upstream
+  v18.10.0 release is in `main`'s history. The branch `sync/omp-release/v18.10.0` and its worktree
+  are deleted after this record.
 - **Baseline**: v18.9.2, integrated by PR #92 (`af624c160fe`; tag commit `bd4dffd5e617`).
 - **Source tag**: `v18.10.0` → `b83200eb866821f02625332025b453f06ce4e12a`, a *lightweight* tag
   (no `refs/tags/v18.10.0^{}` peeled line is advertised). Verified with
