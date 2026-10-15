@@ -9,7 +9,6 @@ import { setCodexAttestationProvider } from "@linxiraos/pi-ai/providers/openai-c
 import { getProviderDefinition } from "@linxiraos/pi-ai/registry";
 import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
 import { OAuthRefreshUnavailableError } from "@linxiraos/pi-ai/error";
-import { isOfficialCodexApiUrl } from "@linxiraos/pi-ai/stream";
 import type {
 	Api,
 	Context,
@@ -49,6 +48,7 @@ import {
 } from "@linxiraos/pi-catalog/provider-models";
 import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
 import { apiServesKind, modelKind, type ModelKind } from "@linxiraos/pi-catalog/types";
+import { isOfficialCodexApiUrl } from "@linxiraos/pi-catalog/wire/codex";
 import { getAgentDir, isBunTestRuntime, logger, wrapFetchForExtraCa } from "@linxiraos/pi-utils";
 import { resolveProviderModelReference } from "../config/model-resolver";
 import { generateCodexAttestation } from "../live/attestation";
