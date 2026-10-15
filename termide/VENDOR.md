@@ -105,7 +105,16 @@ cargo build --release --locked -p termide
 (a) 构建前工作树必须干净(否则带 `-dirty`)——先提交快照,再构建,二进制随后单独提交;
 (b) WSL 里 **git worktree 不能用来构建 linux 叶子**:worktree 的 `.git` 是含 Windows 绝对路径的 gitfile,
 WSL git 报 `fatal: gitfile does not point to a valid repository` ⇒ 静默退化成无 stamp 的 `termide 0.41.0`。
-linux 叶子要在一个 **native checkout(clone)** 里构建(旧的 0.38.0 叶子带 `(c4559e00)` 戳,即当年在根 checkout 上编的)。
+linux 叶子要在一个 **native checkout(clone)** 里构建(旧的 0.38.0 叶子带 `(c4559e00)` 戳,即当年在根 checkout 上编的);
+(c) **换快照后必须强制重跑该 build script**。它的 `rerun-if-changed` 只挂 `build.rs` 与
+`../../.git/HEAD`、`../../.git/index`——而 vendored 子树的 `termide/.git` **不存在**(本仓库连 worktree 根都不是它的仓库根),
+所以整棵源码被替换**不会**自动触发重跑,target 里可能沿用上一次打出的 `TERMIDE_VERSION`。
+强制办法任选:`touch termide/crates/core/build.rs`、`cargo clean -p termide-core`、或换一个空 `CARGO_TARGET_DIR`
+(本次 vendor 两个平台叶子都用了换新 target/新 clone 的办法);
+(d) stamp 的值取自**构建时刻的 HEAD**:同一棵树在 vendor commit `540284a1` 与合并 main 后的 `b9cac734` 上构建会得到
+两个不同的干净戳(都不是 `-dirty`)。发布口径只要求版本号(AGENTS 13 类),SHA 只用于区分同版本多次构建;
+(e) 免执行核对 stamp:`grep -a -o -E '0\.(38|41)\.0 \([0-9a-f]{8}(-dirty)?\)' <leaf binary>`(两个平台叶子各只有一条命中)。
+注意别拿错文件:根 checkout 里**同一相对路径**的叶子仍是上一版的 0.38.0(会打印 `termide 0.38.0 (c4559e00)`)。
 
 ## 上游 0.38.0→0.41.0 重大结构变更(供后续重放参照)
 
