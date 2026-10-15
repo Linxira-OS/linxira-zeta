@@ -48,6 +48,11 @@ import { fetchSessions } from "@/lib/session-api";
 import { getFileName } from "@/lib/file-paths";
 import { buildAtMentionText, buildFileAtMentionsText, buildFileLineMentionText } from "@/lib/file-fuzzy";
 import { getInitialNavigation } from "@/lib/initial-navigation";
+import {
+	resolveShellMode,
+	SHELL_MODE_PARAM,
+	type ShellMode,
+} from "@/lib/shell-mode";
 import { SidePanel } from "./SidePanel";
 import { CommandPalette, type CommandPaletteAction } from "./command-palette";
 import { useSidebar } from "@/hooks/useSidebar";
@@ -189,19 +194,27 @@ interface TabBindings {
 	) => void;
 }
 
-export function AppShell() {
+/**
+ * `mode` is normally read from the URL (`?mode=panel`); the `/panel` route
+ * passes it explicitly so the host URL needs no query parameter. Either way the
+ * shell itself is the only component that knows about it — see
+ * `components/shell/ShellLayout.tsx`.
+ */
+export function AppShell({ mode }: { mode?: ShellMode } = {}) {
 	return (
 		<I18nProvider>
 			<RunningSessionsProvider>
-				<AppShellContent />
+				<AppShellContent shellMode={mode} />
 			</RunningSessionsProvider>
 		</I18nProvider>
 	);
 }
 
-function AppShellContent() {
+function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const shellMode = pinnedMode ?? resolveShellMode(searchParams.get(SHELL_MODE_PARAM));
+	const panel = shellMode === "panel";
 	const [bootFailures, setBootFailures] = useState<string[]>([]);
 	const recordBootFailure = useCallback((step: string, error: unknown) => {
 		const detail = error instanceof Error ? error.message : String(error);
@@ -1084,17 +1097,26 @@ function AppShellContent() {
 	// a draft — the same contract as the pre-tab shell, and the deep link the
 	// desktop tray and the browser back/forward rely on. Skipped when the param
 	// already matches: replacing it with the same value makes Next.js remount
-	// the route in production.
+	// the route in production. An explicit `?mode=` is carried along, otherwise
+	// the first session switch inside a panel would drop it and the host would
+	// suddenly get the full chrome (`/panel` needs no help: its mode is pinned by
+	// the route, not the query).
 	useEffect(() => {
 		const current = searchParams.get("session");
+		const modeParam = searchParams.get(SHELL_MODE_PARAM);
+		const withMode = (params: URLSearchParams): string => {
+			if (modeParam) params.set(SHELL_MODE_PARAM, modeParam);
+			const query = params.toString();
+			return query ? `?${query}` : "/";
+		};
 		if (!activeTab) return;
 		if (activeTab.kind === "session" && activeTab.sessionId) {
 			if (current === activeTab.sessionId) return;
-			router.replace(`?session=${encodeURIComponent(activeTab.sessionId)}`, { scroll: false });
+			router.replace(withMode(new URLSearchParams({ session: activeTab.sessionId })), { scroll: false });
 			return;
 		}
 		if (current === null) return;
-		router.replace("/", { scroll: false });
+		router.replace(withMode(new URLSearchParams()), { scroll: false });
 	}, [activeTab, router, searchParams]);
 
 	// Per-tab callbacks are created once per tab (see `bindingsFor`); point them
@@ -1597,9 +1619,10 @@ function AppShellContent() {
         }
       }
     `}</style>
-			{/* Self-drawn titlebar — frameless desktop shell only. Fixed so the
-        existing three-column row only needs a top inset to make room. */}
-			{desktopChrome && (
+			{/* Self-drawn titlebar — frameless desktop shell only, never inside an
+        panel (the host owns the frame). Fixed so the existing three-column row
+        only needs a top inset to make room. */}
+			{desktopChrome && !panel && (
 				<div
 					style={
 						{
@@ -1697,30 +1720,33 @@ function AppShellContent() {
 				</div>
 			)}
 			{/* Mobile overlay backdrop */}
-			<div
-				className={`sidebar-overlay-backdrop${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
-				onClick={() => setSidebarOpen(false)}
-				style={{
-					position: "fixed",
-					inset: 0,
-					zIndex: 199,
-					background: "color-mix(in srgb, var(--zeta-alias-bg) 40%, transparent)",
-					opacity: sidebarOpen ? 1 : 0,
-					pointerEvents: sidebarOpen ? "auto" : "none",
-					transition: "opacity 0.25s ease",
-				}}
-			/>
+			{!panel && (
+				<div
+					className={`sidebar-overlay-backdrop${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
+					onClick={() => setSidebarOpen(false)}
+					style={{
+						position: "fixed",
+						inset: 0,
+						zIndex: 199,
+						background: "color-mix(in srgb, var(--zeta-alias-bg) 40%, transparent)",
+						opacity: sidebarOpen ? 1 : 0,
+						pointerEvents: sidebarOpen ? "auto" : "none",
+						transition: "opacity 0.25s ease",
+					}}
+				/>
+			)}
 
 			<ShellLayout
+				mode={shellMode}
 				sidebarOpen={sidebarOpen}
 				sidebarCollapsed={sidebarRailActive}
 				detailOpen={dockTool !== null}
 				isMobile={isMobile}
-				desktopChromeInset={desktopChrome ? 30 : 0}
+				desktopChromeInset={desktopChrome && !panel ? 30 : 0}
 			>
 				<ShellSlot name="sidebar">{sidebarContent}</ShellSlot>
 
-				<ShellSlot name="center">
+				<ShellSlot name="topbar">
 					{/* Top bar with sidebar toggle */}
 					<div
 						ref={topBarRef}
@@ -2479,7 +2505,9 @@ function AppShellContent() {
 							</div>
 						)}
 					</div>
+				</ShellSlot>
 
+				<ShellSlot name="tabs">
 					{/* Session tab strip — one tab per open chat */}
 					{tabs.length > 0 && (
 						<SessionTabBar
@@ -2494,7 +2522,9 @@ function AppShellContent() {
 							isMobile={isMobile}
 						/>
 					)}
+				</ShellSlot>
 
+				<ShellSlot name="center">
 					{/* Chat content */}
 					<div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
 						{showChat ? (
@@ -2611,7 +2641,14 @@ function AppShellContent() {
 								<div style={{ maxWidth: 720, fontSize: 12 }}>{initialCwdError}</div>
 							</div>
 						) : showPlaceholder ? (
-							activeCwd ? (
+							panel ? (
+								// A panel has no sidebar, so the "pick a project in the
+								// sidebar" placeholders below would be dead instructions.
+								// The host normally passes `?session=`/`?cwd=`; when it does
+								// not, hand the workspace picker + composer straight to the
+								// surface and let the pick create the draft tab.
+								<DegradedDraftCard onWorkspaceSelect={cwd => openDraftTab(cwd, true)} />
+							) : activeCwd ? (
 								<div
 									style={{
 										height: "100%",

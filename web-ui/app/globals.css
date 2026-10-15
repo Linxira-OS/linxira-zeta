@@ -689,6 +689,23 @@ body {
 	flex-direction: column;
 }
 
+/* Panel-mode page frame (components/shell/PageSurface.tsx). The host owns the
+   frame, so the surface is full-bleed and adds no chrome of its own; the page
+   inside decides how it scrolls. */
+.page-surface {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: var(--app-viewport-height, 100dvh);
+	overflow: hidden;
+	background: var(--zeta-alias-bg);
+	color: var(--zeta-alias-text);
+}
+.page-surface > * {
+	flex: 1;
+	min-height: 0;
+}
+
 ::-webkit-scrollbar {
 	width: 4px;
 	height: 4px;
