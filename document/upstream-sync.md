@@ -444,9 +444,15 @@ recurs on every sync.
 
 - **The bulk scans were green while the failures were live.** A whole-window
   added-line scan (upstream `v18.8.4→v18.8.8` lines present in HEAD) reports 0 files
-  missing upstream's increment, and `scripts/audit-merge-members.ts --base <pre-merge>`
-  reports 0 dropped members. Both are necessary; the losses below are *individual
-  hunks inside otherwise-present files*, invisible to either.
+  missing upstream's increment. The member audit used to be quoted here as a second
+  green (`0 dropped members`); that number carried no information — until
+  2026-10-15 the auditor was a no-op that printed `0 member(s) dropped` for *every*
+  input (see the guard-matrix note in `document/merge-review.md`), so the losses
+  below are attested by the added-line scan and the hand-resolved file ledger alone,
+  not by it. The losses are *individual hunks inside otherwise-present files* —
+  invisible to a whole-window scan either way; re-run the fixed auditor
+  (`bun scripts/audit-merge-members.ts --base <pre-merge-ref>`) on that window if
+  the member-level answer is ever needed.
 
 - **Class 1 — brand surface reverted (195 sites), overlay rules too narrow.**
   `docs/context-files.md` + `docs/environment-variables.md` reverted wholesale to
