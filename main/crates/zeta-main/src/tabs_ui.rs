@@ -21,7 +21,7 @@ pub const MENUS: &[(&str, &[&str])] = &[
 		&[
 			"💻 Split shell",
 			"🤖 Split zetacode",
-			"📝 Split zetaeditor",
+			"📝 Split editor",
 			"🧩 Split zetaide",
 			"🕒 Time · calendar",
 			"🍅 Pomodoro",

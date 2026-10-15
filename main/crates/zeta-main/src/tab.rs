@@ -44,7 +44,7 @@ impl PaneKind {
 		match self {
 			PaneKind::Shell => "shell".into(),
 			PaneKind::Agent => "zetacode".into(),
-			PaneKind::Editor => "zetaeditor".into(),
+			PaneKind::Editor => "editor".into(),
 			PaneKind::Ide => "zetaide".into(),
 			PaneKind::Time => "time · calendar".into(),
 			PaneKind::Pomodoro => "🍅 pomodoro".into(),
@@ -57,6 +57,14 @@ impl PaneKind {
 	/// Native widget panes carry no child process.
 	pub fn is_widget(&self) -> bool {
 		matches!(self, PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard)
+	}
+
+	/// Panes the workbench renders itself, with no child process: the
+	/// time/calendar, pomodoro and clipboard widgets plus the embedded editor.
+	/// These never self-install from PATH — there is no external binary to
+	/// install — so the split flow must not divert them to an install pane.
+	pub fn is_embedded(&self) -> bool {
+		self.is_widget() || matches!(self, PaneKind::Editor)
 	}
 
 	/// The raw install spec for a suite tool: `(pane label, command)` — no
@@ -117,12 +125,16 @@ impl PaneKind {
 	}
 }
 
-/// What a pane page contains: a real PTY child terminal, or a native widget
-/// rendered by the workbench itself (no child process).
+/// What a pane page contains: a real PTY child terminal, a native widget, or
+/// the in-process editor panel — the two latter are rendered by the workbench
+/// itself, with no child process.
 #[allow(clippy::large_enum_variant)]
 pub enum PaneBody {
 	Pty(Terminal),
 	Widget,
+	/// The embedded termide editor (`crate::editor`): file open, line numbers,
+	/// syntax highlighting, Ctrl+S save-to-disk. No external binary, no PTY.
+	Editor(Box<termide_panel_editor::Editor>),
 }
 
 /// One sub-page of a pane. Pages are live: switching keeps every PTY running
@@ -159,6 +171,12 @@ impl Pane {
 	) -> Result<usize> {
 		let body = if kind.is_widget() {
 			PaneBody::Widget
+		} else if matches!(kind, PaneKind::Editor) {
+			// The editor pane is a native, in-process panel — termide's own
+			// editor widget, not a PTY running an external program. It opens
+			// with an empty buffer; pick a file with [`Self::open_file_page`]
+			// or the workbench's open-path entry points.
+			PaneBody::Editor(Box::new(crate::editor::new_editor()))
 		} else {
 			// Every PTY page is the modern chained shell (PowerShell 7 →
 			// Windows PowerShell → Git Bash, cmd.exe only as last
@@ -188,6 +206,27 @@ impl Pane {
 		Ok(self.page)
 	}
 
+	/// Replace this pane's pages with a single embedded-editor page for
+	/// `path`. The open-path flow creates the editor pane with a placeholder
+	/// empty buffer (via `Pane::new`), builds the real editor first, and then
+	/// swaps it in here — so a file that cannot be opened never leaves an
+	/// empty pane behind. The page carries the file's base name as its label;
+	/// the full path (with the language and cursor position) is drawn in the
+	/// pane's status header by [`crate::editor`].
+	pub fn set_editor_page(&mut self, editor: termide_panel_editor::Editor, path: &std::path::Path) {
+		let label = path
+			.file_name()
+			.map(|n| n.to_string_lossy().into_owned())
+			.unwrap_or_else(|| path.display().to_string());
+		self.pages.clear();
+		self.pages.push(Page {
+			kind: PaneKind::Editor,
+			body: PaneBody::Editor(Box::new(editor)),
+			name: Some(label),
+		});
+		self.page = 0;
+	}
+
 	/// Close sub-page `idx`. Returns true when the pane has no pages left and
 	/// must be closed entirely.
 	pub fn close_page(&mut self, idx: usize) -> bool {
@@ -215,9 +254,17 @@ impl Pane {
 
 	/// The active page's PTY terminal, when it is a terminal page.
 	pub fn as_terminal(&mut self) -> Option<&mut Terminal> {
-		match self.pages.get_mut(self.page)?.body {
-			PaneBody::Pty(ref mut term) => Some(term),
-			PaneBody::Widget => None,
+		match &mut self.pages.get_mut(self.page)?.body {
+			PaneBody::Pty(term) => Some(term),
+			PaneBody::Widget | PaneBody::Editor(_) => None,
+		}
+	}
+
+	/// The active page's embedded editor, when it is an editor page.
+	pub fn as_editor(&mut self) -> Option<&mut termide_panel_editor::Editor> {
+		match &mut self.pages.get_mut(self.page)?.body {
+			PaneBody::Editor(ed) => Some(ed),
+			PaneBody::Pty(_) | PaneBody::Widget => None,
 		}
 	}
 
@@ -242,11 +289,11 @@ impl Pane {
 	}
 
 	/// The active PTY page's OSC 0/2 title, when the child announced one.
-	/// Widget pages have none.
+	/// Widget and editor pages have none.
 	pub fn osc_title(&self) -> Option<String> {
 		match &self.pages.get(self.page)?.body {
 			crate::tab::PaneBody::Pty(term) => term.osc_title(),
-			crate::tab::PaneBody::Widget => None,
+			crate::tab::PaneBody::Widget | crate::tab::PaneBody::Editor(_) => None,
 		}
 	}
 }
