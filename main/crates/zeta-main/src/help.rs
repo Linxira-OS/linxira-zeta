@@ -37,6 +37,12 @@ KEYS (inside the workspace)
   button (or the Pane menu) minimizes a pane into the dock at the
   bottom — click its chip there to restore it. Double-click a tab or a
   pane's title to rename it (Enter saves, Esc cancels).
+  Rail: the left column's buttons are the builtin views (search, tasks,
+  automation, mobile by default; usage and context start hidden). Click
+  one to switch the pane canvas to that view, click it again (or Esc) to
+  go back. The + under the buttons opens the manager, which shows/hides
+  and reorders them; the choice is saved to ~/.zeta/workbench.toml. The
+  rail holds builtin views only — it takes no custom URL.
   Paste: bracketed paste keeps multi-line clipboard text whole; an image
   on the clipboard pastes as a temp-file path (Alt+V), which zetacode
   loads as an attachment.
@@ -64,7 +70,8 @@ pane (still running) at the bottom of its tab.
 /// In-app help overlay: keymap + suite map, centered.
 pub fn overlay_text() -> &'static str {
 	"zeta workspace — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ \
-	 cycle\npanes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\nAlt+D \
+	 cycle\nrail     click a view button · + manages the buttons · Esc back to the \
+	 panes\npanes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\nAlt+D \
 	 time+calendar · Alt+L layout · Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock \
 	 below)\nAlt+B move pane to its own new tab · Alt+V paste image (path)\nAlt+any other chord is \
 	 forwarded to the pane\nmouse    click tab bar · click pane to focus · drag border = resize\ndrag \

@@ -18,6 +18,7 @@ use termide_keyboard::{KeyNormalizer, KeyboardCaps};
 use crate::{
 	help,
 	layout::{Axis, PaneNode, Side},
+	rail, slots,
 	tab::{PaneClose, PaneKind, Tab, pane_close_target},
 	tabs_ui::{MenuBar, MenuDropdown, TabBar, status_text, tab_layout_named, truncate},
 	widgets::{self, WidgetState},
@@ -141,6 +142,10 @@ fn plain_theme() -> termide_theme::Theme {
 /// A clickable region recorded during draw. Mouse events resolve against the
 /// registry — the geometry is exactly what was rendered (the fresh-ui lesson:
 /// derive hit paths from rendered geometry, never re-derive them).
+///
+/// `Hit::RailSlot` carries a builtin index (see [`slots::BUILTINS`]) and
+/// `Hit::SlotRow` a registry index: reordering the rail makes the two differ,
+/// so neither may be used as the other.
 #[derive(Clone, Copy, Debug)]
 enum Hit {
 	Menu(usize),
@@ -164,6 +169,9 @@ enum Hit {
 	Boundary { axis: Axis, low: usize, high: usize },
 	LayoutCycle,
 	SettingRow(usize),
+	RailSlot(usize),
+	RailPlus,
+	SlotRow(usize),
 	Quit,
 }
 
@@ -189,9 +197,11 @@ enum Overlay {
 	Settings,
 	Doctor,
 	Help,
+	/// The rail's button manager (open / hide / reorder the builtin slots).
+	Slots,
 }
 
-/// The workspace: menu row, tab row, and a tree of panes per tab.
+/// The workspace: menu row, tab row, the rail, and a tree of panes per tab.
 pub struct Workspace {
 	tabs: Vec<Tab>,
 	active_tab: usize,
@@ -201,6 +211,13 @@ pub struct Workspace {
 	help_open: bool,
 	doctor_open: bool,
 	settings_open: bool,
+	slots_open: bool,
+	/// Selected row of the slot manager (a registry index).
+	manager_row: usize,
+	/// The builtin view the rail is showing in the pane canvas; `None` is the
+	/// panes themselves. Set by a rail button, cleared by pressing it again or
+	/// by Esc.
+	active_slot: Option<usize>,
 	notice: Option<String>,
 	/// Hit regions recorded by the last draw, in paint order (later wins).
 	hits: Vec<(Rect, Hit)>,
@@ -328,6 +345,9 @@ impl Workspace {
 			help_open: false,
 			doctor_open: false,
 			settings_open: false,
+			slots_open: false,
+			manager_row: 0,
+			active_slot: None,
 			notice: None,
 			hits: Vec::new(),
 			last_pane_areas: Vec::new(),
@@ -360,10 +380,71 @@ impl Workspace {
 		self.settings_open = false;
 		self.doctor_open = false;
 		self.help_open = false;
+		self.slots_open = false;
 		match which {
 			Overlay::Settings => self.settings_open = true,
 			Overlay::Doctor => self.doctor_open = true,
 			Overlay::Help => self.help_open = true,
+			Overlay::Slots => {
+				self.slots_open = true;
+				self.manager_row = 0;
+			},
+		}
+	}
+
+	/// The slot manager's keys: select a row, flip its visibility, move it in
+	/// the rail order. Every edit goes straight to the file through
+	/// [`crate::settings::update_slots`], so nothing is lost if the workbench
+	/// dies right after.
+	fn handle_manager_key(&mut self, key: KeyEvent) {
+		let row = self.manager_row;
+		let count = crate::settings::slots().len();
+		match key.code {
+			KeyCode::Esc => self.slots_open = false,
+			KeyCode::Up | KeyCode::Char('k') => {
+				self.manager_row = row.saturating_sub(1);
+			},
+			KeyCode::Down | KeyCode::Char('j') => {
+				self.manager_row = (row + 1).min(count.saturating_sub(1));
+			},
+			// Shift+J / Shift+K move the slot itself — the keyboard stand-in
+			// for the drag the design records as a terminal-hard affordance.
+			KeyCode::Char('K') => {
+				if row > 0 {
+					crate::settings::update_slots(|registry| {
+						slots::move_up(registry, row);
+					});
+					self.manager_row = row - 1;
+				}
+			},
+			KeyCode::Char('J') => {
+				if row + 1 < count {
+					crate::settings::update_slots(|registry| {
+						slots::move_down(registry, row);
+					});
+					self.manager_row = row + 1;
+				}
+			},
+			KeyCode::Char(' ') | KeyCode::Enter | KeyCode::Char('x') => self.toggle_slot(row),
+			_ => {},
+		}
+	}
+
+	/// Flip one slot's visibility and persist — the manager's click action and
+	/// its space/enter action are the same edit. Hiding the slot the rail is
+	/// currently showing also returns the canvas to the panes: its button is
+	/// gone, so nothing would be able to switch back.
+	fn toggle_slot(&mut self, row: usize) {
+		crate::settings::update_slots(|registry| {
+			if let Some(slot) = registry.get_mut(row) {
+				slot.visible = !slot.visible;
+			}
+		});
+		let registry = crate::settings::slots();
+		if let Some(slot) = registry.get(row) {
+			if !slot.visible && self.active_slot == Some(slot.builtin) {
+				self.active_slot = None;
+			}
 		}
 	}
 
@@ -456,6 +537,18 @@ impl Workspace {
 					}
 				}
 			}
+			return Ok(false);
+		}
+		// The slot manager is modal as well: it owns the arrows and letters it
+		// binds, and persists every edit as it is made.
+		if self.slots_open {
+			self.handle_manager_key(key);
+			return Ok(false);
+		}
+		// Esc leaves a rail view — the same key that closes the overlays, so
+		// "back to the panes" is always one Esc away.
+		if matches!(key.code, KeyCode::Esc) && self.active_slot.is_some() {
+			self.active_slot = None;
 			return Ok(false);
 		}
 		if self.help_open || self.doctor_open || self.settings_open {
@@ -773,6 +866,7 @@ impl Workspace {
 			|| self.help_open
 			|| self.doctor_open
 			|| self.settings_open
+			|| self.slots_open
 			|| self.drag.is_some()
 		{
 			return false;
@@ -845,6 +939,7 @@ impl Workspace {
 				self.settings_open = false;
 				self.doctor_open = false;
 				self.help_open = false;
+				self.slots_open = false;
 			},
 			Hit::Menu(menu) => {
 				self.open_menu = if self.open_menu == Some(menu) {
@@ -1057,6 +1152,17 @@ impl Workspace {
 				};
 				self.apply_events(events);
 			},
+			Hit::RailSlot(builtin) => {
+				// A second press on the button that is already on returns to
+				// the panes — the button is its own off switch.
+				self.active_slot = if self.active_slot == Some(builtin) {
+					None
+				} else {
+					Some(builtin)
+				};
+			},
+			Hit::RailPlus => self.open_overlay(Overlay::Slots),
+			Hit::SlotRow(row) => self.toggle_slot(row),
 			Hit::LayoutCycle => self.cycle_preset(),
 			Hit::Quit => {
 				if self.confirm_quit() {
@@ -1593,7 +1699,6 @@ impl Workspace {
 			Constraint::Length(1),      // status
 		])
 		.split(size);
-		self.last_content = rows[2];
 
 		// Row 0: menu bar — render and hit geometry from the same helper.
 		frame.render_widget(MenuBar { open: self.open_menu }, rows[0]);
@@ -1626,173 +1731,204 @@ impl Workspace {
 		let (plus_x, plus_w) = layout.plus;
 		self.push_hit(Rect { x: plus_x, y: rows[1].y, width: plus_w, height: 1 }, Hit::TabPlus);
 
-		// Panes.
-		let content = rows[2];
+		// Left rail: the builtin-view column. It owns the content row's left
+		// edge — below the top chrome, like the design's sidebar. Too narrow a
+		// frame drops it and the panes take the whole row back.
+		let (rail_area, content) = rail::split(rows[2]);
+		self.last_content = content;
+		if let Some(rail_area) = rail_area {
+			let registry = crate::settings::slots();
+			let strip = rail::render(frame, rail_area, &registry, self.active_slot);
+			for (rect, builtin) in strip.buttons {
+				self.push_hit(rect, Hit::RailSlot(builtin));
+			}
+			self.push_hit(strip.plus, Hit::RailPlus);
+		}
+
+		// The rail button owns the canvas while it is on. Resolve it first so a
+		// registry that somehow lost the slot falls back to the panes instead
+		// of drawing nothing.
+		let active_view = self.active_slot.and_then(|builtin| {
+			crate::settings::slots()
+				.into_iter()
+				.find(|slot| slot.builtin == builtin)
+		});
+		if self.active_slot.is_some() && active_view.is_none() {
+			self.active_slot = None;
+		}
+
 		let panel_config = PanelConfig::default();
-		let rects: Vec<(usize, Rect)> = {
-			let tab = &self.tabs[self.active_tab];
-			tab.tree.leaf_rects(content)
-		};
-		self.last_pane_areas = rects.clone();
-		{
-			let mut deferred: Vec<(Rect, Hit)> = Vec::new();
-			let mut push_deferred = |rect: Rect, hit: Hit| deferred.push((rect, hit));
-			let widgets_state = self.widgets.clone();
-			let tab = &mut self.tabs[self.active_tab];
-			for (pane_id, area) in rects.iter().copied() {
-				let display_name = tab.pane_display_name(pane_id);
-				let Some(pane) = tab.panes.get_mut(pane_id) else {
-					continue;
-				};
-				let pre_inner = Rect {
-					x: area.x + 1,
-					y: area.y + 1,
-					width: area.width.saturating_sub(2).max(1),
-					height: area.height.saturating_sub(2).max(1),
-				};
-				let is_widget = pane.is_widget();
-				if !is_widget {
-					if let Some(term) = pane.as_terminal() {
-						let _ = term.resize(pre_inner.height, pre_inner.width);
-					}
-				}
-				let focused = pane_id == tab.active;
-				let pane_style = if focused {
-					Style::default()
-						.fg(Color::White)
-						.add_modifier(Modifier::BOLD)
-				} else {
-					Style::default().fg(Color::DarkGray)
-				};
-				// Title row: page tabs left, fixed controls right.
-				let mut left_spans: Vec<Span> = Vec::new();
-				let mut page_boxes: Vec<(u16, u16)> = Vec::new();
-				let mut cursor = area.x + 1;
-				for page_idx in 0..pane.pages.len() {
-					let label: String = if page_idx == pane.page {
-						// The active page carries the pane's display name:
-						// OSC title when the child named itself, else the
-						// numbered default.
-						display_name.clone()
-					} else {
-						pane
-							.pages
-							.get(page_idx)
-							.map(|p| p.name.clone().unwrap_or_else(|| p.kind.label()))
-							.unwrap_or_default()
+		if let Some(slot) = active_view {
+			// The panes keep running (their PTYs are untouched); nothing of
+			// them is drawn or hit-testable while the view shows.
+			rail::render_view(frame, content, &slot);
+			self.last_pane_areas.clear();
+		} else {
+			let rects: Vec<(usize, Rect)> = {
+				let tab = &self.tabs[self.active_tab];
+				tab.tree.leaf_rects(content)
+			};
+			self.last_pane_areas = rects.clone();
+			{
+				let mut deferred: Vec<(Rect, Hit)> = Vec::new();
+				let mut push_deferred = |rect: Rect, hit: Hit| deferred.push((rect, hit));
+				let widgets_state = self.widgets.clone();
+				let tab = &mut self.tabs[self.active_tab];
+				for (pane_id, area) in rects.iter().copied() {
+					let display_name = tab.pane_display_name(pane_id);
+					let Some(pane) = tab.panes.get_mut(pane_id) else {
+						continue;
 					};
-					let label = format!(" {} ", truncate(&label, 12));
-					let w = Span::raw(label.clone()).width() as u16;
-					page_boxes.push((cursor, w));
-					left_spans.push(if page_idx == pane.page {
-						Span::styled(
-							label,
-							Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
-						)
-					} else {
-						Span::styled(label, Style::default().fg(Color::DarkGray))
-					});
-					cursor += w;
-				}
-				const CONTROLS: &str = " +  ↔  ↕  –  ✕ ";
-				let controls_w = Span::raw(CONTROLS).width() as u16;
-				let controls_x = area.right().saturating_sub(controls_w + 1);
-				push_deferred(
-					Rect { x: controls_x, y: area.y, width: 3, height: 1 },
-					Hit::PagePlus { pane: pane_id },
-				);
-				push_deferred(
-					Rect { x: controls_x + 3, y: area.y, width: 3, height: 1 },
-					Hit::SplitRow { pane: pane_id },
-				);
-				push_deferred(
-					Rect { x: controls_x + 6, y: area.y, width: 3, height: 1 },
-					Hit::SplitCol { pane: pane_id },
-				);
-				push_deferred(
-					Rect { x: controls_x + 9, y: area.y, width: 3, height: 1 },
-					Hit::PaneMinimize { pane: pane_id },
-				);
-				push_deferred(
-					Rect { x: controls_x + 12, y: area.y, width: 3, height: 1 },
-					Hit::PageClose { pane: pane_id },
-				);
-				for (idx, (x, w)) in page_boxes.iter().enumerate() {
-					push_deferred(
-						Rect { x: *x, y: area.y, width: *w, height: 1 },
-						Hit::PageTab { pane: pane_id, page: idx },
-					);
-				}
-				let left_end = page_boxes.last().map(|(x, w)| x + w).unwrap_or(area.x + 1);
-				if controls_x > left_end {
-					push_deferred(
-						Rect { x: left_end, y: area.y, width: controls_x - left_end, height: 1 },
-						Hit::PaneTitle { pane: pane_id },
-					);
-				}
-				push_deferred(pre_inner, Hit::Pane { pane: pane_id });
-
-				let block = Block::default()
-					.borders(Borders::ALL)
-					.border_type(BorderType::Rounded)
-					.border_style(pane_style)
-					.title(Line::from(left_spans))
-					.title(
-						Line::from(Span::styled(
-							CONTROLS,
-							if focused {
-								Style::default().fg(Color::White)
-							} else {
-								Style::default().fg(Color::DarkGray)
-							},
-						))
-						.right_aligned(),
-					);
-				let inner = block.inner(area);
-				frame.render_widget(block, area);
-				if is_widget {
-					match pane.active_page().map(|p| &p.kind) {
-						Some(PaneKind::Time) => {
-							widgets::render_time_calendar(&widgets_state, inner, frame.buffer_mut())
-						},
-						Some(PaneKind::Pomodoro) => {
-							widgets::render_pomodoro(&widgets_state.pomodoro, inner, frame.buffer_mut())
-						},
-						Some(PaneKind::Clipboard) => {
-							widgets::render_clipboard(&widgets_state, inner, frame.buffer_mut())
-						},
-						_ => {},
+					let pre_inner = Rect {
+						x: area.x + 1,
+						y: area.y + 1,
+						width: area.width.saturating_sub(2).max(1),
+						height: area.height.saturating_sub(2).max(1),
+					};
+					let is_widget = pane.is_widget();
+					if !is_widget {
+						if let Some(term) = pane.as_terminal() {
+							let _ = term.resize(pre_inner.height, pre_inner.width);
+						}
 					}
-					continue;
-				}
-				let colors = ThemeColors::from(&self.theme);
-				let ctx = RenderContext {
-					theme: &colors,
-					config: &panel_config,
-					is_focused: focused,
-					panel_index: pane_id,
-					terminal_width: size.width,
-					terminal_height: size.height,
-					border_right_x: Some(area.right().saturating_sub(1)),
-					border_bottom_y: Some(area.bottom().saturating_sub(1)),
-				};
-				// A pane whose pages were all reaped this tick (child exit)
-				// can reach the draw between reap and close — render it as an
-				// empty body instead of panicking.
-				if let Some(term) = pane.as_terminal() {
-					term.prepare_render(&self.theme, &self.config);
-					term.render(inner, frame.buffer_mut(), &ctx);
-				}
-			}
+					let focused = pane_id == tab.active;
+					let pane_style = if focused {
+						Style::default()
+							.fg(Color::White)
+							.add_modifier(Modifier::BOLD)
+					} else {
+						Style::default().fg(Color::DarkGray)
+					};
+					// Title row: page tabs left, fixed controls right.
+					let mut left_spans: Vec<Span> = Vec::new();
+					let mut page_boxes: Vec<(u16, u16)> = Vec::new();
+					let mut cursor = area.x + 1;
+					for page_idx in 0..pane.pages.len() {
+						let label: String = if page_idx == pane.page {
+							// The active page carries the pane's display name:
+							// OSC title when the child named itself, else the
+							// numbered default.
+							display_name.clone()
+						} else {
+							pane
+								.pages
+								.get(page_idx)
+								.map(|p| p.name.clone().unwrap_or_else(|| p.kind.label()))
+								.unwrap_or_default()
+						};
+						let label = format!(" {} ", truncate(&label, 12));
+						let w = Span::raw(label.clone()).width() as u16;
+						page_boxes.push((cursor, w));
+						left_spans.push(if page_idx == pane.page {
+							Span::styled(
+								label,
+								Style::default().add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+							)
+						} else {
+							Span::styled(label, Style::default().fg(Color::DarkGray))
+						});
+						cursor += w;
+					}
+					const CONTROLS: &str = " +  ↔  ↕  –  ✕ ";
+					let controls_w = Span::raw(CONTROLS).width() as u16;
+					let controls_x = area.right().saturating_sub(controls_w + 1);
+					push_deferred(
+						Rect { x: controls_x, y: area.y, width: 3, height: 1 },
+						Hit::PagePlus { pane: pane_id },
+					);
+					push_deferred(
+						Rect { x: controls_x + 3, y: area.y, width: 3, height: 1 },
+						Hit::SplitRow { pane: pane_id },
+					);
+					push_deferred(
+						Rect { x: controls_x + 6, y: area.y, width: 3, height: 1 },
+						Hit::SplitCol { pane: pane_id },
+					);
+					push_deferred(
+						Rect { x: controls_x + 9, y: area.y, width: 3, height: 1 },
+						Hit::PaneMinimize { pane: pane_id },
+					);
+					push_deferred(
+						Rect { x: controls_x + 12, y: area.y, width: 3, height: 1 },
+						Hit::PageClose { pane: pane_id },
+					);
+					for (idx, (x, w)) in page_boxes.iter().enumerate() {
+						push_deferred(
+							Rect { x: *x, y: area.y, width: *w, height: 1 },
+							Hit::PageTab { pane: pane_id, page: idx },
+						);
+					}
+					let left_end = page_boxes.last().map(|(x, w)| x + w).unwrap_or(area.x + 1);
+					if controls_x > left_end {
+						push_deferred(
+							Rect { x: left_end, y: area.y, width: controls_x - left_end, height: 1 },
+							Hit::PaneTitle { pane: pane_id },
+						);
+					}
+					push_deferred(pre_inner, Hit::Pane { pane: pane_id });
 
-			// Boundary grab zones: shared border columns/rows. Claimed
-			// before the deferred flush so title-bar controls keep
-			// priority where they overlap the strip.
-			for (axis, low, high, rect) in crate::layout::boundary_grabs(&rects) {
-				self.push_hit(rect, Hit::Boundary { axis, low, high });
-			}
-			for (rect, hit) in deferred {
-				self.push_hit(rect, hit);
+					let block = Block::default()
+						.borders(Borders::ALL)
+						.border_type(BorderType::Rounded)
+						.border_style(pane_style)
+						.title(Line::from(left_spans))
+						.title(
+							Line::from(Span::styled(
+								CONTROLS,
+								if focused {
+									Style::default().fg(Color::White)
+								} else {
+									Style::default().fg(Color::DarkGray)
+								},
+							))
+							.right_aligned(),
+						);
+					let inner = block.inner(area);
+					frame.render_widget(block, area);
+					if is_widget {
+						match pane.active_page().map(|p| &p.kind) {
+							Some(PaneKind::Time) => {
+								widgets::render_time_calendar(&widgets_state, inner, frame.buffer_mut())
+							},
+							Some(PaneKind::Pomodoro) => {
+								widgets::render_pomodoro(&widgets_state.pomodoro, inner, frame.buffer_mut())
+							},
+							Some(PaneKind::Clipboard) => {
+								widgets::render_clipboard(&widgets_state, inner, frame.buffer_mut())
+							},
+							_ => {},
+						}
+						continue;
+					}
+					let colors = ThemeColors::from(&self.theme);
+					let ctx = RenderContext {
+						theme: &colors,
+						config: &panel_config,
+						is_focused: focused,
+						panel_index: pane_id,
+						terminal_width: size.width,
+						terminal_height: size.height,
+						border_right_x: Some(area.right().saturating_sub(1)),
+						border_bottom_y: Some(area.bottom().saturating_sub(1)),
+					};
+					// A pane whose pages were all reaped this tick (child exit)
+					// can reach the draw between reap and close — render it as an
+					// empty body instead of panicking.
+					if let Some(term) = pane.as_terminal() {
+						term.prepare_render(&self.theme, &self.config);
+						term.render(inner, frame.buffer_mut(), &ctx);
+					}
+				}
+
+				// Boundary grab zones: shared border columns/rows. Claimed
+				// before the deferred flush so title-bar controls keep
+				// priority where they overlap the strip.
+				for (axis, low, high, rect) in crate::layout::boundary_grabs(&rects) {
+					self.push_hit(rect, Hit::Boundary { axis, low, high });
+				}
+				for (rect, hit) in deferred {
+					self.push_hit(rect, hit);
+				}
 			}
 		}
 
@@ -2013,6 +2149,80 @@ impl Workspace {
 						height: 1,
 					},
 					Hit::SettingRow(idx),
+				);
+			}
+		}
+
+		// Slot manager: what the rail's `+` opens. Every builtin is listed in
+		// rail order, visible or not — the strip above only draws the result.
+		if self.slots_open {
+			// Dismiss beneath, rows above: a click on a row toggles it, a click
+			// anywhere else closes.
+			self.push_hit(size, Hit::DismissOverlay);
+			let registry = crate::settings::slots();
+			let count = registry.len();
+			self.manager_row = self.manager_row.min(count.saturating_sub(1));
+			let mut lines: Vec<Line> = registry
+				.iter()
+				.enumerate()
+				.map(|(row, slot)| {
+					let marker = if slot.visible { "[x]" } else { "[ ]" };
+					let label = format!(
+						" {marker}  {} {} {:<12} {}",
+						slot.order + 1,
+						slot.icon,
+						slot.title,
+						if slot.visible { "" } else { "hidden" }
+					);
+					let style = if row == self.manager_row {
+						Style::default()
+							.fg(Color::White)
+							.add_modifier(Modifier::REVERSED)
+					} else if slot.visible {
+						Style::default().fg(Color::Gray)
+					} else {
+						Style::default().fg(Color::DarkGray)
+					};
+					Line::from(Span::styled(label, style))
+				})
+				.collect();
+			lines.push(Line::from(""));
+			lines.push(Line::from(Span::styled(
+				" space/enter or click toggles · K/J moves · esc closes — the rail holds the six \
+				 builtin views only",
+				Style::default().fg(Color::DarkGray),
+			)));
+			let height = (count as u16 + 4).min(size.height);
+			let width = (size.width * 72 / 100).clamp(52, size.width.saturating_sub(2).max(52));
+			let area = Rect {
+				x: size.x + (size.width.saturating_sub(width)) / 2,
+				y: size.y + (size.height.saturating_sub(height)) / 2,
+				width,
+				height,
+			};
+			let overlay = Paragraph::new(lines)
+				.block(
+					Block::default()
+						.borders(Borders::ALL)
+						.border_type(BorderType::Rounded)
+						.title(" manage buttons — click outside to close "),
+				)
+				.style(Style::default().bg(Color::Reset));
+			frame.render_widget(Clear, area);
+			frame.render_widget(overlay, area);
+			// Only the rows the panel actually shows may take clicks: on a
+			// frame shorter than the list the rest would land outside the
+			// modal and steal presses from what is underneath.
+			let clickable = count.min(area.height.saturating_sub(2) as usize);
+			for row in 0..clickable {
+				self.push_hit(
+					Rect {
+						x: area.x + 1,
+						y: area.y + 1 + row as u16,
+						width: area.width.saturating_sub(2),
+						height: 1,
+					},
+					Hit::SlotRow(row),
 				);
 			}
 		}

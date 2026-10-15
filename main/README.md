@@ -7,6 +7,12 @@ Zeta suite. Type `zeta` in a project directory and everything is one key away:
 - `Alt+C` — a pane running `zetacode` (the coding agent)
 - `Alt+E` — a pane running `zeta-e` (the terminal editor)
 - `Alt+N` / `Alt+S` — a plain shell pane
+- Left rail — one button per builtin view (search, tasks, automation, mobile by
+  default; usage and context start hidden). Clicking one switches the pane
+  canvas to that view, clicking it again (or `Esc`) returns. The `+` under the
+  buttons opens the manager: show/hide each slot and reorder it, saved to
+  `~/.zeta/workbench.toml`. The rail holds builtin views only — there is no
+  custom-URL entry.
 - `Alt+T` / `Alt+1..9` — new tab / jump between tabs (each tab keeps its own
   layout)
 - `Alt+L` — cycle the pane layout (1x1, side-by-side, 2x2)
