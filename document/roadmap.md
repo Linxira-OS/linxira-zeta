@@ -420,6 +420,16 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **OpenDesigner 官方兼容(2026-10-15 用户登记,后期)**:用户考虑把
+  [`nexu-io/open-design`](https://github.com/nexu-io/open-design)(中文说明见其
+  `docs/i18n/README.zh-CN.md`)**迁进 zetawork 的设置面**,目标是**后期加入
+  OpenDesigner 的官方兼容**,用来提升设计能力。**本轮只登记,不开工**。动手前
+  必须先定三件事:①"兼容"的确切含义——读它的设计文件格式 / 调它的 CLI /
+  内嵌它的界面,三者成本差一个量级;②**家在哪**:zetawork 的原生 rust GUI
+  设置页(设置页归 zetawork 自己,见 roadmap 的 P2 设置面条款),还是它自己的
+  一页;③**许可与分发边界**:它是独立上游,许可证须单独核,**不得把 copyleft
+  链进我们的 MIT 发布面**(同 R19 里 Zed 编辑器 crate 的裁决口径)。
+
 - **robomp 容器 CLI 契约残留(2026-10-14)**:本轮已修「镜像只装了一个 CLI 垫片,
   而 robomp 按名 spawn 另一个名字」这一断层——`Dockerfile`(pi-base 段)的垫片
   `/usr/local/bin/zeta` 更名 `zetacode`(`ENTRYPOINT` 同步),robomp 三处取值
