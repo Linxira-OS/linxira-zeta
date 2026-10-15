@@ -59,8 +59,8 @@
  * the loss.
  *
  * `check-package-json-merge.ts` asserts the same invariant across a branch's own
- * merge commits and imports this module's policy (`ZETA_OWNED_PATHS`,
- * `manifestLeaves`) instead of re-declaring it.
+ * merge commits, sharing this module's leaf walker and equality rule
+ * (`manifestLeaves`, `sameJson`) instead of re-declaring them.
  */
 
 import * as fs from "node:fs";
@@ -103,12 +103,11 @@ export const DRIVER_MERGED_PATHS = ["workspaces.catalog", "workspaces.packages"]
 /**
  * Dotted paths Zeta owns outright: the branch side's value wins, and the
  * merged-in side can neither overwrite nor delete them. This is the driver's
- * only keep-list; it is deliberately short, and it stays data (not a second,
- * drifting copy in the guard — `check-package-json-merge.ts` imports it).
- *
- * Zeta-only content is *not* listed here — `mergeLeaf` protects it structurally —
- * so adding a Zeta script, catalog pin or dependency never needs an entry:
- * that is what keeps this list from creeping.
+ * only keep-list and it is deliberately short: Zeta-only content is protected
+ * structurally (`mergeLeaf`), so adding a Zeta script, catalog pin or
+ * dependency never needs an entry here. `isZetaOwnedPath` is the single
+ * predicate for it, and `manifestLeaves` is where the guard reads the same
+ * policy from.
  */
 export const ZETA_OWNED_PATHS: readonly string[] = [
 	...Object.keys(ZETA_IDENTITY_FIELDS),
