@@ -318,6 +318,16 @@ role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间�
      `scripts/__fixtures__/package-json-merge/`（事故真实 manifest + 旧 driver
      输出实录）与两个 test 文件。CI `check` job 与 `.gitea` 本地镜像都已接入
      （不新增热路径成本：同一 job 里 `check-merge-lineage.ts` 已经 unshallow）。
+     **本地运行前提**：这个 clone（含 `temp/` 下的 worktree）是 shallow 的，guard 会先
+     `git rev-parse --is-shallow-repository` 然后 fail loud
+     （`package.json merge guard FAILED: shallow repository — run git fetch --unshallow first`），
+     因为 shallow 会让"range 内 merge commit 与其父对比"退化成绿色空转。CI 里同一 job 的
+     `check-merge-lineage.ts` 已经 unshallow，那边无需处理；本地要么 `git fetch --unshallow`，
+     要么按 2026-10-15 两轮同步的实际做法加进程级覆盖：
+     `GIT_SHALLOW_FILE=/nonexistent-shallow bun scripts/check-package-json-merge.ts`
+     （只骗过 `--is-shallow-repository` 的判定；父对象在本 worktree 里其实是齐的——
+     2026-10-15 实测 9 个 merge commit 逐一对得上，输出
+     `OK: 9 merge commit(s) in origin/main..HEAD, no branch-side leaf dropped or reverted`）。
 5. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
    rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
    + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名

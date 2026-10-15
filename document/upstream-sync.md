@@ -24,8 +24,10 @@ two-parent tag merge.
 - **Upstream moved the v18.8.4 tag** after we merged it: the remote now
   advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
   the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
-- **Next merge** starts from this round's final commit on `main` (`80ca49db8c7`
-  once PR for `sync/omp-release/v18.10.0` merges), which is exactly what `git merge-base`
+- **Next merge** starts from this round's final commit on `main` once PR #200
+  (`sync/omp-release/v18.10.0`) merges. The branch head handed over is `680c2145281`, and it
+  carries the v18.10.0 tag commit (`git merge-base --is-ancestor b83200eb866 HEAD` is true), which is
+  exactly what `git merge-base`
   against the next tag will compute. The increment applied is upstream's, not a
   whole-tree comparison against our branch.
 
@@ -33,6 +35,10 @@ two-parent tag merge.
 
 ## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `80ca49db8c7`)
 
+- **Branch head at hand-off**: `680c2145281` (PR #200). `main` is fully contained
+  (`git merge-base HEAD origin/main` == `origin/main` == `1d5bf9aab5d`); below the head sit the merge
+  itself (`80ca49db8c7`), the version/web-ui/lock follow-ups, three merges of `main` and the
+  CI-driven fixes. The v18.10.0 tag commit is an ancestor of the head.
 - **Baseline**: v18.9.2, integrated by PR #92 (`af624c160fe`; tag commit `bd4dffd5e617`).
 - **Source tag**: `v18.10.0` → `b83200eb866821f02625332025b453f06ce4e12a`, a *lightweight* tag
   (no `refs/tags/v18.10.0^{}` peeled line is advertised). Verified with
