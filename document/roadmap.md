@@ -31,7 +31,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Markdown command files                         | `src/discovery/builtin.ts` + `src/utils/command-args.ts`                    | `<config-dir>/commands/*.md` at user + project level, `$ARGUMENTS`/`$@`/`$1` substitution                                                                |
 | Command marketplace (Bun-package distribution) | `slash-commands/builtin-marketplace.ts`                                     | Install/uninstall commands as Bun packages                                                                                                               |
 | ACP collaboration builtins                     | `slash-commands/acp-builtins.ts`                                            | Agent Client Protocol session commands                                                                                                                   |
-| Local stats dashboard                          | `zeta stats` (`packages/stats`)                                             | Local observability                                                                                                                                      |
+| Local stats dashboard                          | `zetacode stats` (`packages/stats`)                                         | Local observability                                                                                                                                      |
 | IM channels (WeChat / Feishu / Telegram)       | `packages/channels` + `src/channels/`                                       | `ChatChannel`/`ChannelHost` interface, session router, `channel_send`/`workspace_run`/`im_control` tools, WeChat iLink QR login                          |
 | Remote token auth + LAN exposure               | `src/server/web-gateway.ts` (`authorizedForAccess`)                         | Non-loopback bind via `ZETA_SERVE_HOSTNAME` + `remote.token` (Bearer / `X-Zeta-Token` on every `/api/*`), CSRF origin guard, `docs/remote-workspaces.md` |
 | Web-ui open-in-app buttons + update check      | `src/server/web-gateway/open.ts`, `web-ui/components/AppShell.tsx`          | `POST /api/open` (terminal / explorer / editors), `GET /api/open/options`, update check/download/install                                                 |
@@ -40,18 +40,18 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Web-ui trajectory view                         | `web-ui/lib/trajectory.ts` + TrajectoryView/TrajectoryCell                  | Chat/Trajectory toggle, think/tool cells with duration + token counts, raw-entry inspector                                                               |
 | Mermaid rendering (web + TUI)                  | `web-ui/components/MermaidBlock.tsx`, `packages/utils/src/mermaid-ascii.ts` | Web-ui strict-SVG render (`securityLevel: "strict"`); TUI ASCII render under `tui.renderMermaid` (default on)                                            |
 | SVG fence rendering (web + TUI)                | `web-ui/components/SvgBlock.tsx`, `packages/tui/src/chat/svg-figure.ts`     | Web-ui draws closed ```svg fences as themed inline SVG (DOMPurify SVG-profile policy + `svg-figure` token aliases); TUI rasterizes them under `tui.renderSvg` (default on); serve/web-gateway sessions set `chatSvgRendering` so the prompt advertises them |
-| Session sharing                                | `slash-commands/builtin-collaboration.ts`                                   | `/share` slash command + `zeta share` encrypted link                                                                                                     |
+| Session sharing                                | `slash-commands/builtin-collaboration.ts`                                   | `/share` slash command + `zetacode share` encrypted link                                                                                                 |
 
 | Linux packaging lane (1.1.19)                  | `document/release.md` (`### Linux downstream packaging contract`)           | Repo-side contract frozen as the release-asset PKGBUILD lane; asset name `zeta-desktop-<version>-linux-x64.tar.gz` (Linxira-OS `[linxira]` repo)         |
 | Plan-mode detail ceiling (length-bound plans)  | `packages/coding-agent/src/plan-mode/plan-protection.ts`                    | `readTargetsPlan` wired into the read tool: plan files get the full default read window so long plans are never amended blind                            |
 | Web-ui settings coverage + reload button       | `POST /api/settings/reload` + `web-ui/lib/settings-client.ts`               | SettingsPanel mirrors the full settings schema (all tabs/groups from `GET /api/settings`); "Reload config" button wired to the reload endpoint           |
 | Full-surface CLI i18n                          | `packages/tui/src/i18n.ts` + `src/i18n/wire-tui.ts`                         | Host-injectable `tuiText` layer, `settings-zh.ts` overlay; ~700 keys across all TUI panels; `scripts/check-i18n-consistency.ts` guards en/zh parity      |
 | Plan-surface completion A+B                    | `webui-desktop-overhaul-plan.md` §14                                        | Shell wrap-up, command palette (Ctrl+K), Shiki, windowed searchable settings, gateway plan endpoint + sidebar Plan card, Tracking v2, U2 (9e7c4e4251f)   |
-| `ssh_exec` remote command tool (v1.1.17)       | `src/ssh/` + `ctx.registerTool`                                             | Wraps the retained connection manager (`zeta ssh` CLI, `/ssh`); PR #34                                                                                   |
+| `ssh_exec` remote command tool (v1.1.17)       | `src/ssh/` + `ctx.registerTool`                                             | Wraps the retained connection manager (`zetacode ssh` CLI, `/ssh`); PR #34                                                                                |
 
 ## Priorities
 
-### P0 — 桌面形态定稿：zetawork 取代 zeta web 桌面版（2026-10-15 用户裁决）
+### P0 — 桌面形态定稿：`zetawork`（`zetawork web`）取代已删除的 `zeta web` 桌面版（2026-10-15 用户裁决）
 
 **裁决内容**：
 
@@ -59,17 +59,18 @@ These exist today (headline capabilities are marked in the root `README.md`):
   内部**可选的渲染后端**。理由（用户原话指向的两个现场报错）：
   `The Zeta service did not become ready in time.` 与
   `The running Zeta service at http://127.0.0.1:30141 did not answer.` —— Electron 外壳要先 spawn
-  `zeta serve` 再轮询端口就绪，这条链长期不稳，桌面维护成本高。
+  `zetacode serve` 再轮询端口就绪，这条链长期不稳，桌面维护成本高。
 - **桌面应用本体 = zetawork**，开发位置整体迁到 `desktop/`（现有 Electron 外壳退役）。
 - **启动形态**：启动后**保底有一个 `zetacode` 进程**（由工作台自己拉起/内嵌），**不依赖外部服务
   端口就绪** —— 上面那两类错误从形态上消失。
 - **渲染方式由用户选**：同一个 zetawork 里可选**原生渲染（ratatui）**或 **Web UI 渲染**；于是
-  "单独维护的只剩 zeta web 的包"，维护面显著变小。
+  "单独维护的只剩 web-ui 的包"，维护面显著变小。
 - **编辑器分工**（`@linxiraos/editor` 不能浪费）：工作台内嵌编辑器 = termide `panel-editor`
-  （进程内 Panel，LSP/tree-sitter/git 全套）；**`@linxiraos/editor`（zetaeditor = vendored TTT，Go）
+  （进程内 Panel，LSP/tree-sitter/git 全套）；**`@linxiraos/editor`（vendored TTT，Go）
   改作"外部编辑器"**分发——`$EDITOR`/`$VISUAL`（git commit/rebase todo/credential）、大文件与
-  最小环境兜底、`zetaeditor +N file` 交接。**随之要改的是指令注册**：`zeta-e` / `editor` 斜杠命令
-  的语义需从"打开工作台编辑器"改为"交给外部 zetaeditor"，与工作台内 termide 面板区分开。
+  最小环境兜底、平台编辑器二进制 `+N file` 交接（它没有独立命令名，按平台二进制路径解析）。
+  **随之要改的是指令注册**：`editor` 斜杠命令
+  的语义需从"打开工作台编辑器"改为"交给外部编辑器"，与工作台内 termide 面板区分开。
 - **路径链接复用原生逻辑**（同批裁决）：终端输出里"任何标准路径/URL → 悬停可点"不自己造；OSC8
   消费端已通（`termide` `hyperlink.rs` → `OpenPath` → `app.rs` `open_path_in_ide`），要找的是现成的
   普通路径/URL 识别并接到 Rust 侧。修饰键语义照参照实现：点击=动作菜单 · Ctrl+点击=切工作区 ·
@@ -80,7 +81,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 ②渲染切换接线（同一状态两套渲染 + Web 资源打包方式，不再是 Electron 内嵌 Next standalone）；
 ③详情栏 4 页（文件 / Agents 历史对话 / 分支·PR / 用量）+ 范围切换（工作区·项目·全部）+ 点会话切
 工作区（左栏没有就新建）；④路径链接（普通路径识别 + 修饰键）与发射端 `packages/tui/src/render/hyperlink.ts`
-的 line/col 修复；⑤`zetaeditor` 外部编辑器化的指令注册改造 + 打包分发。
+的 line/col 修复；⑤外部编辑器化的指令注册改造 + 打包分发。
 
 ### P0 - Web workbench foundation and desktop handoff
 
@@ -376,7 +377,7 @@ blocks and inline media.
 
 Remaining:
 
-1. **Exposure hardening**: a `--host` flag on `zeta serve` (today env-only);
+1. **Exposure hardening**: a `--host` flag on `zetacode serve` (today env-only);
    optional built-in TLS listener (`Bun.serve tls`) plus documented
    reverse-proxy (caddy/nginx) recipes — never silent plain-HTTP beyond the
    LAN; a pairing QR in settings/desktop encoding `URL + token` (reuse
@@ -404,8 +405,7 @@ protocols and auth flows.
 
 ### P2 — TTT editor About branding (remaining scope; zh UI done)
 
-The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
-`zeta-editor`) predates the tui text layer.
+The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the tui text layer.
 
 - ~~**zh UI**~~ DONE: `editor/internal/app/i18n.go` now carries a full zh
   string table (settings tabs/labels, menus, footer actions, dialog
@@ -511,14 +511,15 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 - **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游
   修复,可修则 revert matrix 裁剪提交。
 - **TUI 套件命名定稿与 zeta 工作台(2026-09-30 用户裁定,取代上方的
-  "TUI 三件套整合设计"旧条)**:产品形态 = `zeta` 打开**嵌套终端工作台**
+  "TUI 三件套整合设计"旧条;命名口径 2026-10-15 收口)**:产品形态 =
+  `zetawork` 打开**嵌套终端工作台**
   ——一个终端进程,顶层标签页(tab = 窗格布局快照),窗格为真实 PTY 嵌
-  终端(zeta-c / zeta-e / shell 皆为子进程),快捷键+菜单快速打开自家工
-  具,四件套各自独立启动、help 各自独立。命名:`zeta-c`/`zeta-cli`/
-  `zetacode` = coding CLI(@linxiraos/zeta 换 bin 不换包);`zeta-editor`/
-  `zeta-e` = ttt;`zeta-ide`/`zeta-i` = termide(由未发布的
-  @linxiraos/work 更名);`zeta` = @linxiraos/main(新,工作台本体,
-  main/ 独立 Rust workspace,path 依 termide crates);files = 终端文件
+  终端(zetacode / 内置编辑器面板 / shell 皆为子进程),快捷键+菜单快速打开自家工
+  具,各命令独立启动、help 各自独立。命名:`zetacode` = coding CLI
+  (@linxiraos/zeta 换 bin 不换包);编辑器 = ttt(vendored,无独立命令名);
+  `zetaide` = termide(由未发布的 @linxiraos/work 更名);`zetawork` =
+  @linxiraos/main(新,工作台本体,main/ 独立 Rust workspace,path 依
+  termide crates;裸 `zeta` 只打印套件索引 help);files = 终端文件
   管理器(superfile 暂缓,候选调研中)。两个 IDE(ttt 与 termide)并存
   观察,不二选一。参照系:OpenCode 的多 tab 在其 app 层
   (SessionTab/DraftTab + 持久化,packages/app/src/context/tabs.tsx),
@@ -531,7 +532,7 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
   (2026-09-30 用户裁定):零快捷键基线** —— 一切界面元素都要能鼠标高
   效点击(标签切换/新建/关闭、窗格聚焦/关闭、布局切换、退出、菜单、
   设置),快捷键只做可选加速器;这从根上消解跨工具热键冲突(工作台
-  Alt 平面 vs files/两个 editor/zeta-c 各自的键位,冲突最多损失加速、
+  Alt 平面 vs files/两个 editor/zetacode 各自的键位,冲突最多损失加速、
   不损失功能),设置页/自定义键位按此准则设计。迭代队列:**真菜单栏
   系统**(顶部标签栏+可展开菜单栏,File/Pane/Tab/Tools/Settings 树)、
   **设置页**(键位/主题/默认 shell/套件路径等)+ 自定义键位、
@@ -579,7 +580,7 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor` +
 
 - **上游 2.0 评估：被推迟的三项(2026-10-13 用户裁决)**:完整决策记录见
   `document/upstream-2.0-evaluation.md`。统一后端方向已定为「局部对齐 + 发现即复用」
-  (不做完整统一后端,已开工:`zeta serve` 注册文件 + 同版本复用 + 桌面优先复用);
+  (不做完整统一后端,已开工:`zetacode serve` 注册文件 + 同版本复用 + 桌面优先复用);
   PI 内核**不换**。本队列登记三项:①**自建完整统一后端**(opencode 2.0 形态:全机
   daemon + 固定端口 + HTTP/SSE + 服务发现)——押后,启动时再评估;②**跟进 omp² /
   pi-durable**——两者均未发布(omp² `omp2` 分支仍 pre-release,pi-durable 为

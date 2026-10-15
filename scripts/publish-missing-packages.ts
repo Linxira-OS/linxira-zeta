@@ -74,7 +74,7 @@ const TARGETS: Array<{
 	{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
 	{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },
 	{ dir: "main/npm/main", name: "@linxiraos/main" },
-	// ide（vendored termide，bin zeta-ide/zeta-i）：同上
+	// ide（vendored termide，bin zetaide）：同上
 	{ dir: "termide/npm/ide-windows-x64", name: "@linxiraos/ide-windows-x64" },
 	{ dir: "termide/npm/ide-linux-x64", name: "@linxiraos/ide-linux-x64" },
 	{ dir: "termide/npm/ide", name: "@linxiraos/ide" },

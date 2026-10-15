@@ -1637,7 +1637,7 @@ export interface Model<TApi extends Api = Api> {
 	 * Streaming transport override. When `"pi-native"`, `streamSimple` routes
 	 * the request to the model's `baseUrl` via the auth-gateway's
 	 * `POST /v1/pi/stream` endpoint instead of dispatching the per-API
-	 * provider client. The `baseUrl` must point at an `zeta-c auth-gateway`
+	 * provider client. The `baseUrl` must point at an `zetacode auth-gateway`
 	 * (or compatible) host; `headers.Authorization` (or `apiKey` resolved by
 	 * the registry) carries the gateway bearer.
 	 *

@@ -66,8 +66,8 @@ describe("crew CLI spawn command resolution", () => {
 
 	it("treats a non-JS-runtime execPath as the compiled CLI binary", () => {
 		process.env.PI_SUBPROCESS_CMD = "";
-		process.execPath = path.join("install", "zeta-c.exe");
-		process.argv = ["zeta-c.exe", "--mode", "json"];
+		process.execPath = path.join("install", "zetacode.exe");
+		process.argv = ["zetacode.exe", "--mode", "json"];
 
 		const resolved = getCliSpawnCommand();
 		expect(resolved).toEqual({ cmd: process.execPath, args: [] });
@@ -82,7 +82,6 @@ describe("crew CLI spawn command resolution", () => {
 
 		const binDir = createTempDir();
 		const candidate = writeCliCandidate(binDir, CLI_BIN_NAME);
-		writeCliCandidate(binDir, "zetacode");
 		process.env.PATH = binDir;
 
 		const resolved = getCliSpawnCommand();

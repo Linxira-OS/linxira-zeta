@@ -36,8 +36,10 @@ describe("renderFormula", () => {
 	// popened binary doesn't touch the real `~/.zeta` (denied by Homebrew's
 	// sandbox profile) during the build (issue #2398).
 	it("wraps `generate_completions_from_executable` with a HOME redirect to buildpath", () => {
+		// The formula installs the single CLI bin name (`zetacode`); the release
+		// asset it unpacks keeps its `zeta-cli-*` name.
 		expect(formula).toMatch(
-			/with_env\(HOME: buildpath\) do\n\s+generate_completions_from_executable\(bin\/"zeta-c", "completions", shells: \[:bash, :zsh, :fish\]\)\n\s+end/,
+			/with_env\(HOME: buildpath\) do\n\s+generate_completions_from_executable\(bin\/"zetacode", "completions", shells: \[:bash, :zsh, :fish\]\)\n\s+end/,
 		);
 		// And the bare form (which is what failed in the sandbox) must not appear
 		// outside the `with_env` block.

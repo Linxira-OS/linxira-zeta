@@ -9,7 +9,7 @@
 > 参考项目调查 deepseek-harness（dsh）与 zcode-ui-reference（ZCode）
 > （`agent://ScoutHarness/report`、`agent://ScoutZcode/report`）。
 
-## 1. 产品定位与四产品线
+## 1. 产品定位与对外命令
 
 **来源：`AGENTS.md`（Zeta Direction / Brand Surface Registry）、本批次 spec §13、
 `roadmap.md`（Deferred Queue TUI 套件条）。**
@@ -27,39 +27,45 @@ Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运
 
 - 为什么：每个发布平台都是持续的 CI 与损伤面成本，无消费方的平台只产损伤。
 
-**四产品线**（bin 命名 2026-09-30 定稿）：
+**产品线与对外命令**（2026-10-15 收口：对外只有三条命令）：
 
-| 产品线 | 包 | 标准名（唯一对外文案） | 兼容别名 | 形态 |
-|---|---|---|---|---|
-| Zetawork 工作台 | `@linxiraos/main`（`main/` 独立 Rust workspace） | `zetawork`（裸 `zeta` 同指工作台） | `zeta-work` | 嵌套终端工作台：tab = 窗格布局快照，窗格 = 真 PTY 终端（zetacode / zetaeditor / shell 为子进程）；零快捷键基线——一切元素可鼠标高效点击，快捷键只是可选加速器 |
-| Zetacode 编码 CLI | `@linxiraos/zeta`（`packages/coding-agent`，仓库主包） | `zetacode` | `zeta-c` / `zeta-cli` | 编码 agent CLI + `zeta serve` 网关 + IM 渠道；`APP_NAME`("zeta") 仍是产品身份（配置根/日志名/归因头/splash） |
-| Zetaide | `@linxiraos/ide`（termide） | `zetaide` | `zeta-i` / `zeta-ide` | 终端 IDE |
-| Zetaeditor | `@linxiraos/editor`（vendored TTT） | `zetaeditor` | `zeta-e` / `zeta-editor` | 终端编辑器 |
+| 产品线 | 包 | 标准名（唯一对外文案） | 形态 |
+|---|---|---|---|
+| Zetawork 工作台 | `@linxiraos/main`（`main/` 独立 Rust workspace） | `zetawork`（打开工作台；裸 `zeta` = 打印套件索引 help） | 嵌套终端工作台：tab = 窗格布局快照，窗格 = 真 PTY 终端（zetacode / zetaide / shell 为子进程）；零快捷键基线——一切元素可鼠标高效点击，快捷键只是可选加速器 |
+| Zetacode 编码 CLI | `@linxiraos/zeta`（`packages/coding-agent`，仓库主包） | `zetacode` | 编码 agent CLI + `zetacode serve` 网关 + IM 渠道；`APP_NAME`("zeta") 仍是产品身份（配置根/日志名/归因头/splash） |
+| Zetaide | `@linxiraos/ide`（termide） | `zetaide` | 终端 IDE |
 
-**命名裁定（2026-10-09）**：四个标准名一律**无连字符**（zetawork / zetacode /
-zetaide / zetaeditor）。连字符形式只作为 `package.json` `bin` 兼容别名存在，
-用户可见文案、`CLI_BIN_NAME`、提示串、示例一律写标准名；`zeta code` 这类带空格
-写法不是 bin，任何文案不得出现。文件/垫片名语境（`zeta-c.cmd`、`zeta-capture-*`、
-`zeta-cli-*` 资产名）是例外，机械 sweep 的正则须排除 `[\w.-]` 后缀。
+编辑器不再是命令：`@linxiraos/editor`（vendored TTT）只按路径分发平台二进制，
+供工作台内置编辑器面板与插件面调用；它原有的独立命令名已随本批删除。
+
+**命名裁定（2026-10-15，取代 2026-09-30 的别名口径）**：对外只有三条命令
+（zetawork / zetacode / zetaide），一律**无连字符**；**连字符兼容名全部删除**
+（任何包的 `bin` 字段都不再有别名），用户可见文案、`CLI_BIN_NAME`、提示串、
+示例一律写标准名；`zeta code` 这类带空格写法不是 bin，任何文案不得出现。
+发布资产名（`zeta-cli-*`/`zeta-work-*`/`zeta-ide-*`/`zeta-editor-*`）与
+文件/垫片名语境不变，机械 sweep 的正则须排除 `[\w.-]` 后缀。
 
 两个 IDE（ttt 与 termide）并存观察，不二选一。壳坚定 Rust（真 PTY 窗格；
 参照系 fresh：绘制时登记命中区，渲染几何即命中几何）。
 
 **bin 命名教义**（本批次 spec §13.4，红线级）：
 
-1. **展示一律 canonical**；连字符别名内部可存、绝不展示。
+1. **展示一律 canonical**；连字符兼容名已全部删除（`bin` 里不再有别名），
+   文档/help/示例只写标准名。
    为什么：用户可见串是承诺面，别名扩散让文档与支持面失控。
-2. **空格形式零容忍**：`zeta code|work|editor|ide` 这类内部 hand-off 语法
-   保留，但任何用户可见串（README、help、UPDATE-LOG）不得出现。
+2. **空格形式零容忍**：`zeta code|work|editor|ide` 这类伪命令写法不再存在，
+   任何用户可见串（README、help、UPDATE-LOG）不得出现；内部入口只走原生
+   `--zeta-entry=workbench|zeta`。
    为什么：空格形式误导用户把参数喂给工作台 bin——`main` 对 `-` 开头参数
    静默吞掉，2026-10-02 实测静默失败的元凶即此类。
 3. **`CLI_BIN_NAME` ≠ `APP_NAME`**：命令行提示插值必须用 `CLI_BIN_NAME`；
    `APP_NAME`("zeta") 是产品身份（配置根/日志名/归因头/splash），勿把配置
    /线值扫成 CLI bin 名。
-   为什么：resume 提示曾用 `APP_NAME` 插值打出 `zeta --resume`（裸 zeta 是
-   Zetawork 的 bin），用户照敲即静默失败（spec §13.1 P0）。
-4. **兼容内部保留**：别名注册在包 `bin` 字段里照常工作，只是不进文档/帮助
-   文案。为什么：老用户的肌肉记忆是兼容面，不是宣传面。
+   为什么：resume 提示曾用 `APP_NAME` 插值打出 `zeta --resume`（裸 `zeta` 是
+   套件索引 bin，敲下去只打印 help），用户照敲即静默失败（spec §13.1 P0）。
+4. **兼容名不保留**（2026-10-15 收口）：连字符别名已从所有包 `bin` 字段删除；
+   旧名的肌肉记忆不再作为兼容面保留，文档/帮助/示例一律 canonical。
+   为什么：两个名字两套支持面，收口后用户可见面才唯一。
 5. **发包规矩**：全包系统一版本号（依赖不强制最新）；新包先由用户手动以
    现行版本号占位首发，npm trusted publishing 配好后才接自动发布链
    （`main-publish.yml` 已备未接线）。
@@ -286,7 +292,7 @@ Deferred Queue，不另立计划文）；③架构设计文档（本文即此类
 
 | 包 | 职责 |
 |---|---|
-| `coding-agent` | 主包：编码 CLI（bin zetacode 系）、`zeta serve`、web-gateway、渠道宿主、InteractiveMode/TUI 宿主 |
+| `coding-agent` | 主包：编码 CLI（bin zetacode 系）、`zetacode serve`、web-gateway、渠道宿主、InteractiveMode/TUI 宿主 |
 | `ai` | 多 provider LLM 客户端（流式、自动模型发现与 provider 配置） |
 | `catalog` | 模型目录：bundled models.json、provider 描述符、模型身份/分类/等价（import 惯例：从 `@linxiraos/pi-catalog/<module>` 导值，`pi-ai` barrel 只出类型） |
 | `agent` | agent 运行时：工具调用、状态管理、附件、传输抽象 |
@@ -315,14 +321,14 @@ marketplace、ACP、渠道、远程 token 鉴权、trajectory、mermaid、`/shar
 ### 6.2 三大 UI 面 + 渠道面（代码各归其家，依赖方向永不倒置）
 
 ```
-desktop/ (Electron)  ──HTTP──▶  zeta serve (zeta-server.ts)  ──▶  packages/coding-agent/src/**
+desktop/ (Electron)  ──HTTP──▶  zetacode serve (zeta-server.ts)  ──▶  packages/coding-agent/src/**
 web-ui/ (Next.js)    ──HTTP──▶  webGatewayFetch (/api/*)     ──▶  packages/coding-agent/src/server/web-gateway/
 TUI (packages/tui + InteractiveMode)  ──进程内──▶  packages/coding-agent/src/**
-channels (src/channels)  ──嵌入 zeta serve──▶  ChannelHost + channel_send/workspace_run 工具
+channels (src/channels)  ──嵌入 zetacode serve──▶  ChannelHost + channel_send/workspace_run 工具
 ```
 
 - **TUI 面**：`packages/tui`（差分渲染库）+ `coding-agent` 的
-  `InteractiveMode`；Zetawork 工作台把 zeta-c/zeta-e 作为 PTY 子进程嵌套。
+  `InteractiveMode`；Zetawork 工作台把 zetacode（以及内置编辑器面板）作为 PTY 子进程嵌套。
 - **web-ui/**：Next.js 独立快照，自有包管理器与规则（`web-ui/AGENTS.md`），
   不是根 Bun workspace 包，不 carry 自己的 workflow（检查全在根 `ci.yml`）；
   `feat/desktop-ui-upgrade` 起为 Zeta 自有演进。
@@ -331,7 +337,7 @@ channels (src/channels)  ──嵌入 zeta serve──▶  ChannelHost + channel
   Node（`prepare-runtime.mjs`），只经 HTTP loopback 对话
   （30141 web / 3847 stats），永不 import `packages/*` 或 `web-ui/*` 源码。
   「one source, two outputs」：桌面嵌入的 web-ui 与浏览器 UI 同源同构建。
-- **渠道面**：`src/channels` 嵌在 `zeta serve`；渠道工具走 surface-scoped
+- **渠道面**：`src/channels` 嵌在 `zetacode serve`；渠道工具走 surface-scoped
   sink 模式——构造期接线（只有 serve 协调器与 bot 会话拿到 sink），不是
   运行时门；合并时必须保住「subagent/临时会话永不拿 sink」的不变量。
 

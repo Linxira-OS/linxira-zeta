@@ -1,14 +1,13 @@
 //! zetawork's **in-process** editor pane.
 //!
-//! Today the workbench's editor pane is a PRT running an external editor
-//! binary (`PaneKind::Editor` → `EDITOR_BINS`, see `tab.rs`). This module is
-//! the replacement: the pane body is termide's own `panel-editor` widget,
+//! The editor pane is the only editor this product has: the pane body is
+//! termide's own `panel-editor` widget (`PaneKind::Editor`, see `tab.rs`),
 //! rendered in-process like the Time/Pomodoro/Clipboard widgets. It gives
 //! file open, line numbers, syntax highlighting, and Ctrl+S save-to-disk with
-//! no child process and no external program.
-//!
-//! The external editor code path is *kept* (see `tab.rs`): it still backs the
-//! suite's install flow and the link-open fallback. The two coexist.
+//! no child process and no external program. There is no editor command to
+//! install or spawn — the retired `zetaeditor`/`zeta-editor`/`zeta-e` bins
+//! are gone (registry: companion-product bins), and link-open falls back to
+//! the suite IDE (`zetaide`) instead.
 //!
 //! ## Language features are intentionally absent
 //!

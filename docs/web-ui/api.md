@@ -205,10 +205,10 @@ Body: `{ cwd, package, scope }`.
 ### `GET /api/open/options`
 
 Open targets with availability: `{ desktop, targets: [{ type, label,
-available, default?, editor?, detail? }] }`. `type` is `terminal`,
-`explorer`, `editor` (then `editor` carries the product id), `terminal-ide`
-(`zeta-ide`), or `terminal-editor` (`zeta-editor`); `default` marks the
-gateway-suggested target. On Windows the terminal is resolved through the
+`available, default?, editor?, detail? }] }`. `type` is `terminal`,
+`explorer`, `editor` (then `editor` carries the product id), or
+`terminal-ide` (`zetaide`); `default` marks the gateway-suggested target. On
+Windows the terminal is resolved through the
 `pwsh` → Git Bash → `powershell` chain, elsewhere `$SHELL` → bash; probe
 results are cached in-process (~60s).
 
@@ -216,10 +216,9 @@ results are cached in-process (~60s).
 
 Body: `{ target?: string, path?: string, editor?: string }` — open a path in
 an editor, terminal, file manager, or one of the bundled terminal tools
-(`terminal-ide` / `terminal-editor` spawn `zeta-ide` / `zeta-editor` at the
-path). Desktop hosts execute only `explorer` / `editor` targets and receive a
-signed `{ path, token }` capability; the bundled terminal tools always launch
-through the gateway.
+(`terminal-ide` spawns `zetaide` at the path). Desktop hosts execute only
+`explorer` / `editor` targets and receive a signed `{ path, token }`
+capability; the bundled terminal tool always launches through the gateway.
 
 ### `GET /api/update/check`
 
@@ -264,12 +263,12 @@ for one slot:
 - no live session (first open, exited, killed, or a previous gateway process)
   → a session is spawned, `reused: false`;
 - `replace: true` ends the slot's live session first (`session_ended`,
-  reason `killed`) so the new spawn carries the `file`/`line`/`col` zeta-ide
+  reason `killed`) so the new spawn carries the `file`/`line`/`col` zetaide
   injection.
 
 Response: `{ id, ticket, shell, cwd, instance, program, fallbackReason, reused,
 injected }`. `program` is `workbench` when the framework workbench
-(`zetawork`; npm bins `zeta` / `zetawork` / `zeta-work`) resolved through the
+(`zetawork`; npm bins `zeta` / `zetawork`) resolved through the
 shared binary-discovery tiers, else `shell` with
 `fallbackReason: "workbench-not-found"` — the UI must show that fallback
 instead of silently running the shell. On Windows a resolved `.cmd`/`.bat`

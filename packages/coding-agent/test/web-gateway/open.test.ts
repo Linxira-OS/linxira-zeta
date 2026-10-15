@@ -2,7 +2,7 @@
  * Gateway open-target contract: which-style PATH probing (Windows PATHEXT
  * semantics included), the Windows terminal chain pwsh → Git Bash →
  * powershell, the POSIX $SHELL → bash chain, detection of the bundled
- * zeta-ide / zeta-editor terminal tools, the process-level probe cache, and
+ * zetaide terminal tool, the process-level probe cache, and
  * the POST /api/open target wiring (desktop capability split included).
  * All PATH/fs-dependent probes run against injected probe contexts; the
  * handler tests use real temp stub executables.
@@ -98,9 +98,9 @@ describe("gateway open targets", () => {
 	test.skipIf(process.platform !== "win32")(
 		"windows probe resolves npm-style .cmd shims and native .exe via PATHEXT",
 		() => {
-			const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd", "code.exe"] });
+			const tree = makeProbeTree("win32", { tools: ["zetaide.cmd", "code.exe"] });
 			trackTree(tree);
-			expect(whichCommand("zeta-ide", tree.ctx())).toBe(path.join(tree.root, "tools", "zeta-ide.cmd"));
+			expect(whichCommand("zetaide", tree.ctx())).toBe(path.join(tree.root, "tools", "zetaide.cmd"));
 			expect(whichCommand("code", tree.ctx())).toBe(path.join(tree.root, "tools", "code.exe"));
 			expect(whichCommand("missing", tree.ctx())).toBeNull();
 		},
@@ -271,7 +271,7 @@ describe("gateway open targets", () => {
 	test.skipIf(process.platform !== "win32")(
 		"options list every target with availability and mark the first available as default",
 		() => {
-			const tree = makeProbeTree("win32", { pwsh: ["pwsh.exe"], tools: ["zeta-ide.cmd"] });
+			const tree = makeProbeTree("win32", { pwsh: ["pwsh.exe"], tools: ["zetaide.cmd"] });
 			trackTree(tree);
 			const body = getOpenOptions(false, tree.ctx());
 
@@ -286,20 +286,17 @@ describe("gateway open targets", () => {
 			expect(byType["explorer"]).toMatchObject({ type: "explorer", available: true });
 			expect(byType["editor:vscode"]).toMatchObject({ type: "editor", label: "VS Code", available: false });
 			expect(byType["terminal-ide"]).toMatchObject({ type: "terminal-ide", label: "Zeta IDE", available: true });
-			expect(byType["terminal-editor"]).toMatchObject({
-				type: "terminal-editor",
-				label: "Zeta Editor",
-				available: false,
-			});
+			// The retired `terminal-editor` target is gone from the menu entirely.
+			expect(body.targets.map(t => t.type as string)).not.toContain("terminal-editor");
 			// Exactly one default, and it is the first available target.
 			expect(body.targets.filter(t => t.default)).toHaveLength(1);
 		},
 	);
 
 	test.skipIf(process.platform !== "win32")(
-		"desktop host hides explorer/editors but keeps the bundled terminal tools",
+		"desktop host hides explorer/editors but keeps the bundled terminal tool",
 		() => {
-			const tree = makeProbeTree("win32", { tools: ["zeta-editor.cmd"] });
+			const tree = makeProbeTree("win32", { tools: ["zetaide.cmd"] });
 			trackTree(tree);
 			const body = getOpenOptions(true, tree.ctx());
 			expect(body.desktop).toBe(true);
@@ -307,8 +304,10 @@ describe("gateway open targets", () => {
 			expect(byType["terminal"].available).toBe(false);
 			expect(byType["explorer"].available).toBe(false);
 			expect(body.targets.filter(t => t.type === "editor").every(t => !t.available)).toBe(true);
-			expect(byType["terminal-editor"].available).toBe(true);
-			expect(byType["terminal-ide"].available).toBe(false);
+			// `terminal-editor` no longer exists (the editor command is gone),
+			// so it is not listed even when a matching shim is on PATH.
+			expect(body.targets.map(t => t.type as string)).not.toContain("terminal-editor");
+			expect(byType["terminal-ide"].available).toBe(true);
 		},
 	);
 
@@ -317,16 +316,16 @@ describe("gateway open targets", () => {
 	test.skipIf(process.platform !== "win32")(
 		"explicit ZETA_BIN_DIR dir outranks the PATH hit for terminal tools (win32)",
 		() => {
-			const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd"] });
+			const tree = makeProbeTree("win32", { tools: ["zetaide.cmd"] });
 			trackTree(tree);
 			const overrideDir = path.join(tree.root, "override");
 			fs.mkdirSync(overrideDir);
-			fs.writeFileSync(path.join(overrideDir, "zeta-ide.cmd"), "");
+			fs.writeFileSync(path.join(overrideDir, "zetaide.cmd"), "");
 			const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), ZETA_BIN_DIR: overrideDir } });
 			const body = getOpenOptions(false, ctx);
 			const ide = body.targets.find(t => t.type === "terminal-ide");
 			expect(ide?.available).toBe(true);
-			expect(ide?.detail).toBe(path.join(overrideDir, "zeta-ide.cmd"));
+			expect(ide?.detail).toBe(path.join(overrideDir, "zetaide.cmd"));
 		},
 	);
 
@@ -334,27 +333,27 @@ describe("gateway open targets", () => {
 		const tree = makeProbeTree("win32", { tools: [] });
 		trackTree(tree);
 		fs.mkdirSync(path.join(tree.root, "npm"));
-		fs.writeFileSync(path.join(tree.root, "npm", "zeta-ide.cmd"), "");
+		fs.writeFileSync(path.join(tree.root, "npm", "zetaide.cmd"), "");
 		const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), APPDATA: tree.root } });
 		const body = getOpenOptions(false, ctx);
 		const ide = body.targets.find(t => t.type === "terminal-ide");
 		expect(ide?.available).toBe(true);
-		expect(ide?.detail).toBe(path.join(tree.root, "npm", "zeta-ide.cmd"));
+		expect(ide?.detail).toBe(path.join(tree.root, "npm", "zetaide.cmd"));
 	});
 
 	test.skipIf(process.platform === "win32")(
 		"explicit ZETA_BIN_DIR dir outranks the PATH hit for terminal tools (posix)",
 		() => {
-			const tree = makeProbeTree("linux", { tools: ["zeta-ide"] });
+			const tree = makeProbeTree("linux", { tools: ["zetaide"] });
 			trackTree(tree);
 			const overrideDir = path.join(tree.root, "override");
 			fs.mkdirSync(overrideDir);
-			fs.writeFileSync(path.join(overrideDir, "zeta-ide"), "");
+			fs.writeFileSync(path.join(overrideDir, "zetaide"), "");
 			const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), ZETA_BIN_DIR: overrideDir } });
 			const body = getOpenOptions(false, ctx);
 			const ide = body.targets.find(t => t.type === "terminal-ide");
 			expect(ide?.available).toBe(true);
-			expect(ide?.detail).toBe(path.join(overrideDir, "zeta-ide"));
+			expect(ide?.detail).toBe(path.join(overrideDir, "zetaide"));
 		},
 	);
 
@@ -363,12 +362,12 @@ describe("gateway open targets", () => {
 		trackTree(tree);
 		const bunBin = path.join(tree.root, ".bun", "bin");
 		fs.mkdirSync(bunBin, { recursive: true });
-		fs.writeFileSync(path.join(bunBin, "zeta-ide"), "");
+		fs.writeFileSync(path.join(bunBin, "zetaide"), "");
 		const ctx = tree.ctx({ env: { PATH: path.join(tree.root, "tools"), HOME: tree.root } });
 		const body = getOpenOptions(false, ctx);
 		const ide = body.targets.find(t => t.type === "terminal-ide");
 		expect(ide?.available).toBe(true);
-		expect(ide?.detail).toBe(path.join(bunBin, "zeta-ide"));
+		expect(ide?.detail).toBe(path.join(bunBin, "zetaide"));
 	});
 
 	// --- probe cache ---
@@ -376,7 +375,7 @@ describe("gateway open targets", () => {
 	test.skipIf(process.platform !== "win32")(
 		"probe results are cached within the TTL and re-resolved after expiry or invalidation",
 		() => {
-			const tree = makeProbeTree("win32", { tools: ["zeta-ide.cmd"] });
+			const tree = makeProbeTree("win32", { tools: ["zetaide.cmd"] });
 			trackTree(tree);
 			let clock = 1_000;
 			const ctx = tree.ctx({ now: () => clock });
@@ -384,7 +383,7 @@ describe("gateway open targets", () => {
 			const first = getOpenOptions(false, ctx);
 			expect(first.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
 
-			fs.rmSync(path.join(tree.root, "tools", "zeta-ide.cmd"), { force: true });
+			fs.rmSync(path.join(tree.root, "tools", "zetaide.cmd"), { force: true });
 			// Still cached: identical result before TTL expiry.
 			const second = getOpenOptions(false, ctx);
 			expect(second.targets.find(t => t.type === "terminal-ide")?.available).toBe(true);
@@ -394,7 +393,7 @@ describe("gateway open targets", () => {
 			expect(third.targets.find(t => t.type === "terminal-ide")?.available).toBe(false);
 
 			// Recomputed results are cached again until explicit invalidation.
-			fs.writeFileSync(path.join(tree.root, "tools", "zeta-ide.cmd"), "");
+			fs.writeFileSync(path.join(tree.root, "tools", "zetaide.cmd"), "");
 			const fourth = getOpenOptions(false, ctx);
 			expect(fourth.targets.find(t => t.type === "terminal-ide")?.available).toBe(false);
 			invalidateOpenProbes();
@@ -446,14 +445,14 @@ describe("gateway open targets", () => {
 		const missing = await handleOpenPost(postRequest({ target: "terminal-ide", path: workspace }));
 		expect(missing.status).toBe(404);
 
-		installStub(process.env.PATH!, "zeta-ide");
+		installStub(process.env.PATH!, "zetaide");
 		invalidateOpenProbes();
 		const response = await handleOpenPost(postRequest({ target: "terminal-ide", path: workspace }));
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ spawned: true });
 	});
 
-	test("POST rejects paths outside the project and unknown desktop targets, but spawns zeta tools under the desktop bridge", async () => {
+	test("POST rejects paths outside the project and non-host desktop targets, and refuses the retired terminal-editor target", async () => {
 		const workspace = trackTempDir("zeta-gw-open-ws-");
 		setProjectDir(workspace);
 		isolatePath();
@@ -476,11 +475,12 @@ describe("gateway open targets", () => {
 		const desktopTerminal = await handleOpenPost(postRequest({ target: "terminal", path: workspace }));
 		expect(desktopTerminal.status).toBe(400);
 
-		// zeta tools have no host id: the gateway spawns them directly.
-		installStub(process.env.PATH!, "zeta-editor");
-		invalidateOpenProbes();
-		const spawned = await handleOpenPost(postRequest({ target: "terminal-editor", path: workspace }));
-		expect(spawned.status).toBe(200);
-		expect(await spawned.json()).toEqual({ spawned: true });
+		// The retired `terminal-editor` target is rejected by the OPEN_TARGETS
+		// whitelist before any path/desktop branch runs — even under the desktop
+		// bridge — so a stale client can never reach a spawn for the deleted
+		// editor command.
+		const retired = await handleOpenPost(postRequest({ target: "terminal-editor", path: workspace }));
+		expect(retired.status).toBe(400);
+		expect(await retired.json()).toEqual({ error: "Unknown target: terminal-editor" });
 	});
 });

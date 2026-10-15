@@ -21,9 +21,9 @@
  * DELETE emits `session_ended` (reason `killed`) before the PTY is reaped.
  *
  * The default program is the framework workbench `zetawork` (npm bins `zeta` /
- * `zetawork` / `zeta-work`); when it is not installed the session falls back to
- * the platform shell and reports `fallbackReason` so the UI can say so out
- * loud instead of hiding the substitution.
+ * `zetawork`); when it is not installed the session falls back to the platform
+ * shell and reports `fallbackReason` so the UI can say so out loud instead of
+ * hiding the substitution.
  *
  * Data plane: GET /api/terminal/:id/ws (WebSocket upgrade). Browsers cannot
  * attach `Authorization`/`X-Zeta-Token` headers to a WebSocket, so the upgrade
@@ -74,10 +74,10 @@ const INSTANCE_ID_RE = /^[A-Za-z0-9._-]{1,64}$/;
 
 /**
  * Framework workbench launchers, in probe order. The npm form
- * (`@linxiraos/main`) installs `zeta` / `zetawork` / `zeta-work`; distro and
- * pacman packages ship `zetawork` alone. In-repo shorthand: never rename it.
+ * (`@linxiraos/main`) installs `zeta` / `zetawork`; distro and pacman
+ * packages ship `zetawork` alone. In-repo shorthand: never rename it.
  */
-export const ZETAWORK_BINS = ["zetawork", "zeta-work", "zeta"] as const;
+export const ZETAWORK_BINS = ["zetawork", "zeta"] as const;
 
 /** Why a session runs a plain shell instead of the workbench. */
 export type SessionFallbackReason = "workbench-not-found";
@@ -756,7 +756,7 @@ export function resolveSessionProgram(ctx: OpenProbeContext = defaultProbeContex
 	};
 }
 
-// --- zeta-ide injection ---
+// --- zetaide injection ---
 
 export interface ZetaIdeTarget {
 	file: string;
@@ -765,8 +765,8 @@ export interface ZetaIdeTarget {
 }
 
 /**
- * Command string that opens `file[:line[:col]]` in zeta-ide, or null when no
- * bundled zeta-ide binary is on PATH (the session then stays a plain shell).
+ * Command string that opens `file[:line[:col]]` in `zetaide`, or null when no
+ * bundled `zetaide` binary is on PATH (the session then stays a plain shell).
  * Line/col ride inside the quotes so PowerShell keeps the whole thing as one
  * argv (`"src/a.ts:10:4"` → `src/a.ts:10:4`).
  */

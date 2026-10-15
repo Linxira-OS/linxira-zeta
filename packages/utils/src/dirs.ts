@@ -23,10 +23,11 @@ import { isEnoent, isEnotdir } from "./fs-error";
  * names, provider attribution headers, splash wordmark. NOT the CLI command. */
 export const APP_NAME: string = "zeta";
 
-/** CLI binary name (`npm i -g @linxiraos/zeta` installs `zetacode`, with
- * `zetacode` and `zeta-cli` as compatibility aliases). Every user-facing "run
- * this command" string and process title uses this; the bare `zeta` name
- * belongs to the @linxiraos/main workspace product, not this package. */
+/** CLI binary name (`npm i -g @linxiraos/zeta` installs exactly one bin,
+ * `zetacode` — the retired `zeta-c`/`zeta-cli` aliases are gone). Every
+ * user-facing "run this command" string and process title uses this; the
+ * bare `zeta` name belongs to the @linxiraos/main workbench product, where it
+ * prints the suite index, not this package. */
 export const CLI_BIN_NAME: string = "zetacode";
 
 /** Public homepage that inference gateways (OpenRouter, Vercel AI Gateway) credit our traffic to. */

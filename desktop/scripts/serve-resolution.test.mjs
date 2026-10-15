@@ -66,12 +66,12 @@ test("tier 1: ZETA_SERVE_COMMAND wins over PATH and the vendored bundle", () => 
 	const tree = makeDeps({
 		isPackaged: true,
 		probePath: () => "/usr/local/bin/zetacode",
-		env: { ZETA_SERVE_COMMAND: '"mock dir/zeta-c" serve --port 1' },
+		env: { ZETA_SERVE_COMMAND: '"mock dir/zetacode" serve --port 1' },
 	});
 	try {
 		installBundle(tree);
 		const cmd = resolveServeCommandIn(tree.deps);
-		assert.equal(cmd.file, "mock dir/zeta-c");
+		assert.equal(cmd.file, "mock dir/zetacode");
 		assert.deepEqual(cmd.args, ["serve", "--port", "1"]);
 	} finally {
 		cleanup(tree);
@@ -83,7 +83,7 @@ test("tier 1: a ZETA_BIN_DIR dir outranks a PATH hit", () => {
 	try {
 		const dir = path.join(tree.root, "override");
 		fs.mkdirSync(dir);
-		const binName = `zeta-c${process.platform === "win32" ? ".cmd" : ""}`;
+		const binName = `zetacode${process.platform === "win32" ? ".cmd" : ""}`;
 		fs.writeFileSync(path.join(dir, binName), "");
 		const cmd = resolveServeCommandIn({ ...tree.deps, env: { [SERVE_BIN_DIR_ENV]: dir } });
 		assert.equal(cmd.file, path.join(dir, binName));
@@ -105,7 +105,7 @@ test("packaged shell: the vendored bundle wins over a PATH hit; bare zeta never 
 			...tree.deps,
 			probePath: name => {
 				probed.push(name);
-				return name === "zeta-c" ? path.join(tree.root, "npm", "zeta-c") : null;
+				return name === "zetacode" ? path.join(tree.root, "npm", "zetacode") : null;
 			},
 		});
 		assert.deepEqual(probed, [], "a complete bundle must be decided before any PATH probe");
@@ -125,8 +125,8 @@ test("packaged shell: an incomplete bundle does not shadow a PATH hit", () => {
 		const serviceDir = path.join(tree.deps.resourcesPath, "zeta");
 		fs.mkdirSync(serviceDir, { recursive: true });
 		fs.writeFileSync(path.join(serviceDir, "zeta"), "");
-		const hit = path.join(tree.root, "npm", "zeta-c");
-		const cmd = resolveServeCommandIn({ ...tree.deps, probePath: name => (name === "zeta-c" ? hit : null) });
+		const hit = path.join(tree.root, "npm", "zetacode");
+		const cmd = resolveServeCommandIn({ ...tree.deps, probePath: name => (name === "zetacode" ? hit : null) });
 		assert.equal(cmd.file, hit);
 	} finally {
 		cleanup(tree);
@@ -149,18 +149,18 @@ test("tier 3: with no bundle, the PATH probe resolves the absolute suffixed path
 	const tree = makeDeps({ isPackaged: true });
 	try {
 		const probed = [];
-		const hit = path.join(tree.root, "npm", "zeta-c");
+		const hit = path.join(tree.root, "npm", "zetacode");
 		const cmd = resolveServeCommandIn({
 			...tree.deps,
 			probePath: name => {
 				probed.push(name);
-				return name === "zeta-c" ? hit : null;
+				return name === "zetacode" ? hit : null;
 			},
 		});
-		// Canonical-first: the loop probes `zetacode` before its aliases and
-		// stops at the first serving-capable hit; the workbench bin is never
-		// probed at all.
-		assert.deepEqual(probed, ["zetacode", "zeta-c"]);
+		// One bin name per product: the loop probes only `zetacode` (the retired
+		// hyphenated CLI aliases are gone) and stops at the first hit; the
+		// workbench bins are never probed at all.
+		assert.deepEqual(probed, ["zetacode"]);
 		assert.ok(!probed.includes("zeta"), "workbench bin must never be a serve candidate");
 		// The resolved absolute path is spawned, never the bare probe name.
 		assert.equal(cmd.file, hit);
@@ -254,14 +254,14 @@ test("describeServeResolution lists every tier, the paths checked, and the fix",
 		const text = describeServeResolution({
 			...tree.deps,
 			env: { [SERVE_BIN_DIR_ENV]: "/opt/zeta/bin" },
-			probePath: name => (name === "zeta-cli" ? "/usr/bin/zeta-cli" : null),
+			probePath: name => (name === "zetacode" ? "/usr/bin/zetacode" : null),
 		});
 		assert.match(text, /①/);
 		assert.match(text, /②/);
 		assert.match(text, /③/);
 		assert.ok(text.includes("/opt/zeta/bin"), "explicit dir must appear");
-		assert.ok(text.includes("/usr/bin/zeta-cli"), "resolved PATH hit must appear");
-		assert.ok(text.includes("zetacode → not found"), "each probed name must appear");
+		assert.ok(text.includes("/usr/bin/zetacode"), "resolved PATH hit must appear");
+		assert.ok(text.includes("zetacode → /usr/bin/zetacode"), "each probed name must appear");
 		assert.ok(text.includes("npm install -g @linxiraos/zeta"), "install hint must appear");
 	} finally {
 		cleanup(tree);
@@ -269,12 +269,12 @@ test("describeServeResolution lists every tier, the paths checked, and the fix",
 });
 
 test("describeServeResolution reports the bundle tier before the PATH tier when packaged", () => {
-	const tree = makeDeps({ isPackaged: true, probePath: name => (name === "zeta-cli" ? "/usr/bin/zeta-cli" : null) });
+	const tree = makeDeps({ isPackaged: true, probePath: name => (name === "zetacode" ? "/usr/bin/zetacode" : null) });
 	try {
 		const serviceDir = installBundle(tree);
 		const text = describeServeResolution(tree.deps);
 		assert.ok(
-			text.indexOf(serviceDir) < text.indexOf("/usr/bin/zeta-cli"),
+			text.indexOf(serviceDir) < text.indexOf("/usr/bin/zetacode"),
 			"the bundled runtime must be listed before the PATH probe",
 		);
 		assert.match(text, /② vendored/);

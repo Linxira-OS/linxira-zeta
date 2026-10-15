@@ -201,7 +201,7 @@ function restoredWindowBounds(): { bounds: WindowBounds; maximized: boolean } | 
 }
 
 // ---------------------------------------------------------------------------
-// Topbar tool launchers (zetacode / zetaide / zetaeditor)
+// Topbar tool launchers (zetacode / zetaide)
 // ---------------------------------------------------------------------------
 
 /**

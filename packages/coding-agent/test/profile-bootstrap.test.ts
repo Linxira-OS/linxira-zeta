@@ -150,10 +150,12 @@ describe("extractProfileFlags", () => {
 	});
 
 	it("treats explicit launch as the default command and keeps extracting globals", () => {
-		expect(extractProfileFlags(["launch", "--profile", "work", "--alias", "zeta-work"])).toEqual({
+		// `zc-work` is an arbitrary alias placeholder — not a product bin name and
+		// not one of the retired hyphenated aliases.
+		expect(extractProfileFlags(["launch", "--profile", "work", "--alias", "zc-work"])).toEqual({
 			argv: ["launch"],
 			profile: "work",
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 		});
 	});
 
@@ -250,10 +252,10 @@ describe("extractProfileFlags", () => {
 			profile: "work",
 			aliasName: undefined,
 		});
-		expect(extractProfileFlags(["--some-ext-flag", "--alias", "zeta-work"])).toEqual({
+		expect(extractProfileFlags(["--some-ext-flag", "--alias", "zc-work"])).toEqual({
 			argv: ["--some-ext-flag"],
 			profile: undefined,
-			aliasName: "zeta-work",
+			aliasName: "zc-work",
 		});
 	});
 

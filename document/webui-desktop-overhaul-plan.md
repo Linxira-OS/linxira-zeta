@@ -392,7 +392,7 @@ web.yml 字段契约与 gateway 端点。
     药丸);输入/下拉/卡片对齐参考控件规范;危险操作 destructive 变体;文案
     全 i18n;`useSettingsData`/web.yml 契约零改动。
 19. Open 面(D15):菜单带图标与「(默认)」标注,split-button 一键默认打开;
-    检测到 `zeta-ide`/`zeta-editor` 时可一键在终端 IDE/编辑器打开当前
+    检测到 `zetaide` 时可一键在终端 IDE 打开当前
     工作区;Windows 终端按 pwsh→Git Bash→powershell 链解析,Linux 用
     $SHELL;默认目标刷新后保持;desktop 桥 `npm test` 回归绿。
 
@@ -401,8 +401,9 @@ web.yml 字段契约与 gateway 端点。
     - **UI**:顶栏 Open 改 split-button(左半=一键用默认目标打开,右半=下拉);
       菜单每项带图标,当前默认目标标「(默认)」+勾选(对齐 dsh
       「文件资源管理器(默认)」形态);默认目标记忆(localStorage,菜单内切换)。
-    - **新目标(用户裁决)**:我们自己的终端编辑器/IDE——gateway 检测 PATH 上的
-      `zeta-ide`/`zeta-editor`,存在即作为打开目标(cwd=当前工作区启动)。
+    - **新目标(用户裁决)**:我们自己的终端 IDE——gateway 检测 PATH 上的
+      `zetaide`,存在即作为打开目标(cwd=当前工作区启动);编辑器目标
+      (`terminal-editor`)随编辑器命令删除一并移除。
     - **终端解析链(用户裁决)**:Windows=`pwsh`(PowerShell 7+,优先高版本)→
       Git Bash(更稳)→系统自带 `powershell.exe`;Linux/macOS=`$SHELL`→bash。
       解析在 gateway 侧做,`GET /api/open/options` 返回 terminal 解析结果与
@@ -516,9 +517,9 @@ omp-legacy-pi-modules 构建 stub(构建链必需,**永久保留**,见文件头�
 之外的独立分支进行:
 
 1. **P0 提示错名**:`packages/coding-agent/src/utils/resume-command.ts:17`
-   用 `APP_NAME`("zeta")插值,退出提示打出 `zeta --resume <id>`(裸 zeta 是
-   Zetawork bin;`main/crates/zeta-main/src/main.rs:43` 对 `-` 开头参数静默
-   吞掉进工作台)——2026-10-02 用户实测静默失败的元凶。修复:改
+   用 `APP_NAME`("zeta")插值,退出提示打出 `zeta --resume <id>`(当时裸 `zeta` 会静默进工作台;
+   2026-10-15 收口后裸 `zeta` 只打印套件索引,工作台入口改走 `--zeta-entry=workbench`)——2026-10-02
+   用户实测静默失败的元凶。修复:改
    `CLI_BIN_NAME`;伴生测试 `test/utils/resume-command.test.ts:14,:21` 同步;
    `interactive-mode.ts:6112` 硬编码英文改接既有死 i18n 键
    `imResumeHintFmt`(en/zh L1135,传 CLI_BIN_NAME)。
@@ -530,14 +531,14 @@ omp-legacy-pi-modules 构建 stub(构建链必需,**永久保留**,见文件头�
 3. **P1 run-string 错名**(~18 文件):config-cli/plugin-cli/setup-cli/
    update-cli 提示/login-cli/shell-cli/web-search-cli/commands/
    help-extra/builtin-collaboration 全部 `${APP_NAME} x` → `CLI_BIN_NAME`;
-   `launch-help.ts:122` `--alias omp-work` → `--alias zeta-work`。
-4. **红线:空格形式展示违规(零容忍)**:根 `README.md:28-29,:255-257`
+   `launch-help.ts:122` 的 `--alias omp-work` 兜底随连字符别名一并删除。
+4. **红线:旧命令名展示违规(零容忍)**:根 `README.md:28-29,:255-257`
    (`zeta code`/`zeta editor`/`zeta ide`)、`main/crates/zeta-main/src/
    help.rs:12-15`(子命令 help 展示 `zeta work/code/editor/ide` 与全部
    别名)、`UPDATE-LOG.md:12`。展示一律 canonical
-   (`zeta`/`zetawork`、`zetacode`、`zetaide`、`zetaeditor`);连字符别名
-   (`zeta-work`/`zeta-c`/`zeta-cli`/`zeta-e`/`zeta-i`)内部可存、绝不展示;
-   `zeta code|work|editor|ide` 内部 hand-off 语法保留但任何用户可见串不得
+   (`zetawork`、`zetacode`、`zetaide`);**连字符兼容名全部删除**(任何包
+   `bin` 里都不再有别名);`zeta code|work|editor|ide` 内部 hand-off 语法
+   随本批删除(`--zeta-entry=workbench|zeta` 取而代之),任何用户可见串不得
    出现。brand-rules 扩 MUST_NOT_CONTAIN 守卫(反引号空格形式+usage 上下文
    `${APP_NAME}` 插值)。
 5. **P2 语料**:docs/ 30+ 文件裸 `omp` 命令名;`.github/ISSUE_TEMPLATE`
@@ -680,8 +681,8 @@ omp-legacy-pi-modules 构建 stub(构建链必需,**永久保留**,见文件头�
 3. 验收:完整/精简双态各跑一遍 U 系全部批的验收项。
 
 ### Z3 小活清欠(原 C-track 批 0)
-- `server/web-gateway/open.ts` `EDITOR_CLIS` 追加 `ttt`/`zeta-editor` + 契约
-  测试一条;`web-ui/AGENTS.md` File Map 按现状重写(U 批动过的目录一并覆盖);
+- `server/web-gateway/open.ts` `EDITOR_CLIS` 不再追加编辑器 CLI（编辑器已无命令，
+  平台二进制 `ttt` 只按路径解析）+ 契约测试一条;`web-ui/AGENTS.md` File Map 按现状重写(U 批动过的目录一并覆盖);
   windows-2022 构建评估:跟踪 next.js 上游修复,可修则恢复 matrix。
 - 滚动条指针感知移入 U6(同属容器改造,不单列)。
 
@@ -742,12 +743,12 @@ omp-legacy-pi-modules 构建 stub(构建链必需,**永久保留**,见文件头�
   （upgrade 复用网关既有授权 authorizedForAccess + x-zeta-token/Bearer）。
   PTY 用 node-pty；64KB 环形缓冲断线重放；并发上限 4（Z2 既有规格）。
 - **前端**（web-ui/components/TerminalView.tsx 新文件）：xterm.js + addon-fit，挂既有 dock/rail
-  体系（U9）；聊天文件路径 chip 点击 → TerminalView 窗格跑 `zeta-ide <file>[:line[:col]]`。
+  体系（U9）；聊天文件路径 chip 点击 → TerminalView 窗格跑 `zetaide <file>[:line[:col]]`。
 - **桌面壳零改动**：PTY 在网关进程，浏览器/桌面共用同一 WS。
 - **安全**：全部复用网关既有授权，WS upgrade 同一 token 校验，不新增暴露面。
 
 ### 验收
 
 创建/输入/resize/退出全链可用；断开重连恢复缓冲；并发第 5 会话拒绝有提示；
-非授权 WS upgrade 被拒；聊天路径 chip → 终端窗格 zeta-ide 打通；
+非授权 WS upgrade 被拒；聊天路径 chip → 终端窗格 zetaide 打通；
 check:ts / web-ui 测试全绿。

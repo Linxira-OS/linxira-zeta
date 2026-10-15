@@ -309,7 +309,7 @@ export const enLocale: LocalePlugin = {
 		"terminal.restart": "Restart",
 		"terminal.retry": "Retry",
 		"terminal.kill": "Stop",
-		"terminal.injected": "Opening in zeta-ide…",
+		"terminal.injected": "Opening in zetaide…",
 		"terminal.newSlot": "New terminal",
 		"terminal.slotTitle": "Terminal slot {instance}",
 		"terminal.shellFallback": "zetawork not found — running {shell} instead",

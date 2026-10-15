@@ -211,8 +211,8 @@ install_via_bun() {
         }
     fi
     echo ""
-    echo "✓ Installed zeta-c via bun"
-    echo "Run 'zeta-c' to get started!"
+    echo "✓ Installed zetacode via bun"
+    echo "Run 'zetacode' to get started!"
 }
 
 # Install binary from GitHub releases
@@ -282,24 +282,21 @@ install_binary() {
     # Download binary
     BINARY_URL="https://github.com/${REPO}/releases/download/${LATEST}/${BINARY}"
     echo "Downloading ${BINARY}..."
-    curl -fsSL --connect-timeout 10 --speed-limit 1024 --speed-time 30 "$BINARY_URL" -o "${INSTALL_DIR}/zeta-c"
-    chmod +x "${INSTALL_DIR}/zeta-c"
-    # zeta-cli / zetacode are aliases of the same binary
-    ln -sf "${INSTALL_DIR}/zeta-c" "${INSTALL_DIR}/zeta-cli"
-    ln -sf "${INSTALL_DIR}/zeta-c" "${INSTALL_DIR}/zetacode"
+    curl -fsSL --connect-timeout 10 --speed-limit 1024 --speed-time 30 "$BINARY_URL" -o "${INSTALL_DIR}/zetacode"
+    chmod +x "${INSTALL_DIR}/zetacode"
 
     # Verify the freshly installed binary can actually start before reporting
     # success. Bun's musl-target binaries link libstdc++/libgcc dynamically,
     # which stock Alpine/musl systems do not ship, so the download succeeds while
     # the binary exits 127 with relocation errors. Never claim success for a
     # binary that cannot run.
-    if ! SMOKE_OUTPUT="$("${INSTALL_DIR}/zeta-c" --version 2>&1)"; then
+    if ! SMOKE_OUTPUT="$("${INSTALL_DIR}/zetacode" --version 2>&1)"; then
         echo ""
-        echo "✗ zeta-c was downloaded to ${INSTALL_DIR}/zeta-c but cannot start:"
+        echo "✗ zetacode was downloaded to ${INSTALL_DIR}/zetacode but cannot start:"
         echo "$SMOKE_OUTPUT" | sed 's/^/    /'
         if [ "$PLATFORM" = "linux-musl" ]; then
             echo ""
-            echo "The musl build links libstdc++/libgcc dynamically. Install them, then re-run 'zeta-c':"
+            echo "The musl build links libstdc++/libgcc dynamically. Install them, then re-run 'zetacode':"
             if command -v apk >/dev/null 2>&1; then
                 echo "    apk add libstdc++ libgcc"
             else
@@ -310,12 +307,12 @@ install_binary() {
     fi
 
     echo ""
-    echo "✓ Installed zeta-c to ${INSTALL_DIR}/zeta-c"
+    echo "✓ Installed zetacode to ${INSTALL_DIR}/zetacode"
 
     # Check if in PATH
     case ":$PATH:" in
-        *":$INSTALL_DIR:"*) echo "Run 'zeta-c' to get started!" ;;
-        *) echo "Add ${INSTALL_DIR} to your PATH, then run 'zeta-c'" ;;
+        *":$INSTALL_DIR:"*) echo "Run 'zetacode' to get started!" ;;
+        *) echo "Add ${INSTALL_DIR} to your PATH, then run 'zetacode'" ;;
     esac
 }
 

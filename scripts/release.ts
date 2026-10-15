@@ -74,7 +74,7 @@ export function selectLatestZetaTag(tagListOutput: string): string | null {
  * leading `v` and NO prerelease suffix. Prereleases are rejected because the
  * downstream publish (`scripts/ci-release-publish.ts`) runs `npm publish` with
  * no `--tag`, which would promote a prerelease to the npm `latest` dist-tag —
- * hitting every unqualified install and the `/latest` endpoint `zeta-c update`
+ * hitting every unqualified install and the `/latest` endpoint `zetacode update`
  * reads. Bump keywords (major/minor/patch) are handled separately and must not
  * be routed through this check.
  *

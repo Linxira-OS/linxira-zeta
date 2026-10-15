@@ -1,5 +1,5 @@
 name: Publish ide packages
-# Standalone dispatchable entry for the vendored termide (zeta-ide) npm
+# Standalone dispatchable entry for the vendored termide (zetaide) npm
 # distribution (@linxiraos/ide + platform leaves). Mirrors
 # editor-publish.yml: exists so a missed or skipped ide publish on a
 # release run can be republished without re-tagging (`gh workflow run

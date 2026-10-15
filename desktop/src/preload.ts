@@ -37,7 +37,7 @@ const api = {
 	 * Returns an unsubscribe function.
 	 */
 	/**
-	 * Spawn a companion tool (zetacode / zetaide / zetaeditor) in a directory.
+	 * Spawn a companion tool (zetacode / zetaide) in a directory.
 	 * zetacode launches get an isolated --session-dir so `opts.resume` can
 	 * continue the newest session there on the next launch.
 	 */

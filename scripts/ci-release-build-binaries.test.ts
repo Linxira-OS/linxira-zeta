@@ -28,7 +28,7 @@ describe("Windows release binary target", () => {
 		expect(output).not.toContain("bun-windows-x64-modern");
 	});
 
-	it("builds the bare zeta-work/zeta-ide/zeta-editor release assets and skips the CLI bundle round-trip", async () => {
+	it("builds the bare zeta-work-*/zeta-ide-*/zeta-editor-* release assets and skips the CLI bundle round-trip", async () => {
 		const result =
 			await $`bun scripts/ci-release-build-binaries.ts --dry-run --targets zeta-work-linux-x64,zeta-work-win-x64,zeta-ide-linux-x64,zeta-editor-linux-x64,zeta-editor-win-x64`
 				.cwd(repoRoot)

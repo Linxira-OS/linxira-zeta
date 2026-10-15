@@ -11,8 +11,8 @@
  * Today the image ships exactly one CLI shim: `/usr/local/bin/zetacode`,
  * written by the `pi-base` stage of `Dockerfile` and inherited by
  * `Dockerfile.robomp` through `${PI_BASE}`. Nothing else on PATH resolves to
- * the CLI — `packages/coding-agent/package.json`'s `zetacode`/`zeta-c`/
- * `zeta-cli` bins are only linked into `node_modules/.bin`, which is not on the
+ * CLI — `packages/coding-agent/package.json`'s `zetacode`
+ * bin is only linked into `node_modules/.bin`, which is not on the
  * container's PATH.
  *
  * Both sides are derived from the real files, so neither can drift silently:

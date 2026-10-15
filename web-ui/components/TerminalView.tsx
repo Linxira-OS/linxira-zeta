@@ -15,7 +15,7 @@ import {
 	type TerminalEnsurePayload,
 } from "@/lib/terminal-client";
 
-/** File-open request from the chat path chips (spec U9): inject `zeta-ide <file>`. */
+/** File-open request from the chat path chips (spec U9): inject `zetaide <file>`. */
 export interface TerminalFileRequest {
 	file: string;
 	line?: number;

@@ -1,11 +1,11 @@
 /**
- * End-to-end discovery smoke for the npm launcher shim
- * (`main/npm/main/bin/zeta.js`): a stub native binary installed on a
- * simulated PATH must be found and executed (tier ②), `ZETA_BIN_DIR` must
+ * End-to-end discovery smoke for the npm launchers
+ * (`main/npm/main/bin/{zetawork,zeta}.js`): a stub native binary installed on
+ * a simulated PATH must be found and executed (tier ②), `ZETA_BIN_DIR` must
  * outrank PATH (tier ①), the vendored platform leaf must serve as the
  * fallback when PATH has no native hit (tier ③), and with nothing available
- * the shim must die with the install hint. Every state runs the real script
- * in a real child process — no mocks.
+ * the launcher must die with the install hint. Every state runs the real
+ * script in a real child process — no mocks.
  */
 
 import { afterAll, describe, expect, test } from "bun:test";
@@ -15,9 +15,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
-const SHIM = path.join(REPO_ROOT, "main", "npm", "main", "bin", "zeta.js");
+/** The launcher package's shipped `bin/` directory (npm `files: ["bin/"]`). */
+const LAUNCHER_BIN = path.join(REPO_ROOT, "main", "npm", "main", "bin");
+const SHIM = path.join(LAUNCHER_BIN, "zeta.js");
 const IS_WIN = process.platform === "win32";
-const EXE = IS_WIN ? "zetacode.exe" : "zeta-linux-x64";
+const EXE = IS_WIN ? "zeta.exe" : "zeta-linux-x64";
 const LEAF = IS_WIN ? "@linxiraos/main-windows-x64" : "@linxiraos/main-linux-x64";
 
 /** Bun's own executable doubles as the stub native binary: it is a real
@@ -72,6 +74,18 @@ async function runShim(shimPath: string, env: Record<string, string | undefined>
 	return done.promise;
 }
 
+/** Install the launcher the way npm ships it: the whole `bin/` directory —
+ * the entry shims plus the shared `launch.js` they require. A lone `zeta.js`
+ * is not a layout any install produces (the old single-file shim was one).
+ * Returns the entry point to run (`zeta.js` by default). */
+function installLauncher(binDir: string, entry = "zeta.js"): string {
+	fs.mkdirSync(binDir, { recursive: true });
+	for (const file of fs.readdirSync(LAUNCHER_BIN)) {
+		fs.copyFileSync(path.join(LAUNCHER_BIN, file), path.join(binDir, file));
+	}
+	return path.join(binDir, entry);
+}
+
 /** Empty dir standing in for bun's global install cache (see envWith). */
 let cacheSandbox: string | undefined;
 function cacheSandboxDir(): string {
@@ -103,7 +117,7 @@ describe("npm launcher shim discovery (e2e)", () => {
 
 	test("ZETA_BIN_DIR stub outranks PATH", async () => {
 		const explicitDir = tempDir("zeta-shim-explicit-");
-		installStub(explicitDir, IS_WIN ? "zetacode.exe" : "zeta");
+		installStub(explicitDir, IS_WIN ? "zeta.exe" : "zeta");
 		const { code, stdout } = await runShim(SHIM, envWith({ ZETA_BIN_DIR: explicitDir }));
 		expect(code).toBe(0);
 		expect(stdout).toMatch(/^\d+\.\d+\.\d+/m);
@@ -111,21 +125,17 @@ describe("npm launcher shim discovery (e2e)", () => {
 
 	test("no native hit falls back to the vendored platform leaf", async () => {
 		const tree = tempDir("zeta-shim-vendored-");
-		const binDir = path.join(tree, "bin");
-		fs.mkdirSync(binDir, { recursive: true });
-		fs.copyFileSync(SHIM, path.join(binDir, "zeta.js"));
+		const shim = installLauncher(path.join(tree, "bin"));
 		const leafBin = path.join(tree, "node_modules", LEAF, "bin");
 		installStub(leafBin, EXE);
-		const { code, stdout } = await runShim(path.join(binDir, "zeta.js"), envWith({ PATH: envWith({}).PATH }));
+		const { code, stdout } = await runShim(shim, envWith({ PATH: envWith({}).PATH }));
 		expect(code).toBe(0);
 		expect(stdout).toMatch(/^\d+\.\d+\.\d+/m);
 	});
 
 	test("nothing available dies with the install hint", async () => {
 		const tree = tempDir("zeta-shim-die-");
-		const binDir = path.join(tree, "bin");
-		fs.mkdirSync(binDir, { recursive: true });
-		fs.copyFileSync(SHIM, path.join(binDir, "zeta.js"));
+		const shim = installLauncher(path.join(tree, "bin"));
 		// Seed leaf packages WITHOUT their bin files: require.resolve must
 		// fail deterministically (package boundary matched, file ENOENT) so
 		// bun's global-cache download fallback can never satisfy tier ③.
@@ -134,7 +144,7 @@ describe("npm launcher shim discovery (e2e)", () => {
 			fs.mkdirSync(pkgDir, { recursive: true });
 			fs.writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify({ name: leaf, version: "0.0.0" }));
 		}
-		const { code, stderr } = await runShim(path.join(binDir, "zeta.js"), envWith({}));
+		const { code, stderr } = await runShim(shim, envWith({}));
 		expect(code).toBe(1);
 		expect(stderr).toContain("no native zetawork/zeta on PATH");
 		expect(stderr).toContain("@linxiraos/main");

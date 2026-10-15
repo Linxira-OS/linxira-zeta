@@ -275,11 +275,11 @@ function Install-ViaBun {
     }
 
     Write-Host ""
-    Write-Host "[OK] Installed zeta-c via bun" -ForegroundColor Green
+    Write-Host "[OK] Installed zetacode via bun" -ForegroundColor Green
 
     Configure-BashShell
 
-    Write-Host "Run 'zeta-c' to get started!"
+    Write-Host "Run 'zetacode' to get started!"
 }
 
 function Install-Binary {
@@ -314,15 +314,12 @@ function Install-Binary {
     # Download binary
     $BinaryUrl = "https://github.com/$Repo/releases/download/$Latest/$BinaryName"
     Write-Host "Downloading $BinaryName..."
-    $OutPath = Join-Path $InstallDir "zeta-c.exe"
+    $OutPath = Join-Path $InstallDir "zetacode.exe"
     Invoke-WebRequest -Uri $BinaryUrl -OutFile $OutPath -TimeoutSec 900
 
-    # zeta-cli / zetacode are aliases of the same binary
-    Copy-Item $OutPath (Join-Path $InstallDir "zeta-cli.exe") -Force
-    Copy-Item $OutPath (Join-Path $InstallDir "zetacode.exe") -Force
 
     Write-Host ""
-    Write-Host "[OK] Installed zeta-c to $OutPath" -ForegroundColor Green
+    Write-Host "[OK] Installed zetacode to $OutPath" -ForegroundColor Green
 
     # Add to PATH if not already there
     $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -335,9 +332,9 @@ function Install-Binary {
     Configure-BashShell
 
     if ($needsRestart) {
-        Write-Host "Restart your terminal, then run 'zeta-c' to get started!"
+        Write-Host "Restart your terminal, then run 'zetacode' to get started!"
     } else {
-        Write-Host "Run 'zeta-c' to get started!"
+        Write-Host "Run 'zetacode' to get started!"
     }
 }
 

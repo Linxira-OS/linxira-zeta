@@ -409,6 +409,36 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		needle: '"Zeta RPC wire protocol"',
 		why: "protocol identity string surfaced in the wire handshake",
 	},
+	// ── The one-bin-per-product command surface (2026-10-15) ─────────────────
+	// Every published bin map is pinned: a merge (or a habit) that re-adds a
+	// hyphenated alias silently ships a command the docs, installers and
+	// resolvers no longer know about. The needle is the canonical entry only —
+	// the retired names are banned by the MUST_NOT_CONTAIN rule above.
+	{
+		file: "packages/coding-agent/package.json",
+		needle: '"zetacode": "src/cli.ts"',
+		why: "the coding CLI installs exactly one bin (`zetacode`); the package manifest is what npm links",
+	},
+	{
+		file: "main/npm/main/package.json",
+		needle: '"zetawork": "bin/zetawork.js"',
+		why: "the workbench's npm face: `zetawork` opens the workspace, bare `zeta` prints the suite index (both entries exec one binary with `--zeta-entry=`)",
+	},
+	{
+		file: "termide/npm/ide/package.json",
+		needle: '"zetaide": "bin/zetaide.js"',
+		why: "the terminal IDE's npm face (one bin, launcher file named after it)",
+	},
+	{
+		file: "main/crates/zeta-main/src/help.rs",
+		needle: "  zetawork              Launch the workspace in the current directory",
+		why: "the bare-`zeta` index help is the suite's discovery surface (registry: 伴侣产品 bin): it must spell the canonical bins and the `zetawork web` subcommand, or users are told to run commands that no longer exist",
+	},
+	{
+		file: "main/crates/zeta-main/src/main.rs",
+		needle: '"web" | "server" => web_action(&args[1..]),',
+		why: "`zetawork web` is the workbench's only local server (registry: 伴侣产品 bin): it reuses the CLI's serve machine — dropping the dispatch arm removes the browser-facing full Web UI",
+	},
 ];
 
 /**
@@ -605,7 +635,7 @@ export const MUST_NOT_CONTAIN: Array<{
 	// ── CLI command-surface red lines (PR #43 round) ──────────────────────
 	{
 		needle: /`zeta (code|work|editor|ide)`/,
-		why: "red line: the space form is internal hand-off syntax only and must never appear in any user-visible string; display the canonical bins (zetacode/zetawork/zetaeditor/zetaide). UPDATE-LOG.md is exempt because released entries are immutable history",
+		why: "red line: the space form is internal hand-off syntax only and must never appear in any user-visible string; display the canonical bins (zetawork/zetacode/zetaide). UPDATE-LOG.md is exempt because released entries are immutable history",
 	},
 	{
 		needle: /\$\{APP_NAME\} [a-z]{2,}/,
@@ -789,51 +819,32 @@ export const MUST_NOT_CONTAIN: Array<{
 		needle: /\bomp-owned\b/,
 		why: "browser-profile prose is model-visible (prompt + settings copy): write Zeta-owned",
 	},
-	// ── Short-dash legacy bins in default-visible copy (2026-10-13 sweep) ────
-	// The canonical command is `zetacode`; `zeta-c`/`zeta-cli` survive only as
-	// compatibility bin aliases (registry: CLI bin 命名). They must never reach
-	// default-visible copy — i18n strings, prompts, TUI/stats rendered text,
-	// README command lines. The lookarounds exclude the suffixed forms the
-	// registry protects (`zeta-c.cmd`/`zeta-c.exe`, `zeta-capture-*`,
-	// `zeta-cli-*` release assets, `zeta-cli-<host>` shim paths), so only a bare
-	// token is banned. Exempt files carry the aliases solely in bin/alias tables,
-	// resolver/match tables, comments, or file/shim-name contexts (installers,
-	// packaging, brew/deb formulae name the on-disk binary `zeta-c`).
+	// ── Retired alias bins and the retired editor command (2026-10-15 sweep) ─
+	// One product, one bin name (registry: CLI bin 命名 / 伴侣产品 bin). The
+	// hyphenated compatibility names and the editor command are gone; the
+	// mapping a stale merge or a half-done rename must not undo is:
+	//   zeta-c / zeta-cli                 → zetacode
+	//   zeta-work                         → zetawork (bare `zeta` prints the suite index)
+	//   zeta-ide / zeta-i                 → zetaide
+	//   zeta-editor / zeta-e / zetaeditor → deleted (the editor is a built-in
+	//                                       pane; TUI editor pages go through zetaide)
+	// File-name faces stay: the lookarounds leave every `-`/`.`/word-suffixed
+	// form alone — release assets (`zeta-cli-*`, `zeta-work-*`, `zeta-ide-*`,
+	// `zeta-editor-*`), shim names (`zeta-c.cmd`) and `zeta-capture-*`.
+	// Exempt files name a retired token only to assert it resolves to nothing
+	// (the suite table's own test) or record released history (changelogs).
 	{
-		needle: /(?<![\w.-])zeta-(?:c|cli)(?![\w.-])/,
-		why: "short-dash alias bins are compatibility-only; default-visible copy must read the canonical `zetacode` (registry: CLI bin 命名)",
+		needle: /(?<![\w.-])zeta-(?:c|cli|work|ide|i|editor|e)(?![\w.-])|(?<![\w.-])zetaeditor(?![\w.-])/,
+		why: "one bin per product: the hyphenated compatibility names and the retired editor command are deleted (registry: CLI bin 命名 / 伴侣产品 bin). Copy, resolver tables and bin maps read `zetacode` / `zetawork` / `zetaide`; a hit is a stale rename or a merge re-adding an alias no install creates",
 		skipCommentLines: true,
 		exempt: [
-			"desktop/src/serve-resolution.ts", // PATH resolver bin list + comment
-			"desktop/src/tool-resolution.ts", // resolver bin list
-			"main/crates/zeta-main/src/main.rs", // workbench bin resolver table
-			"main/crates/zeta-main/src/shell.rs", // shim-name resolution comments/paths
-			"main/crates/zeta-main/src/suite.rs", // tool bin table
-			"main/crates/zeta-main/src/tab.rs", // tool bin table
-			"packages/ai/src/auth-gateway/types.ts", // doc comment naming the CLI
-			"packages/ai/src/auth/pool.ts", // doc comments naming the CLI
-			"packages/ai/src/auth/types.ts", // doc comments naming the CLI
-			"packages/catalog/src/types.ts", // doc comment naming the CLI
-			"packages/coding-agent/package.json", // bin/alias table
-			"packages/coding-agent/src/cli/classify-install-target.ts", // doc comment
-			"packages/coding-agent/src/cli/desktop-entry.ts", // doc/inline comments
-			"packages/coding-agent/src/cli/npm-registry.ts", // doc comments
-			"packages/stats/src/client/i18n/index.ts", // doc comment
-			"packages/stats/src/index.ts", // doc comment
-			"packages/stats/src/port-conflict.ts", // process-name match table
-			"packages/tui/src/overlays/model-hub.ts", // inline comment
-			"packages/tui/src/overlays/session-selector.ts", // doc comment
-			"packages/tui/src/prompt/composer-cache.ts", // doc comment
-			"packages/utils/src/dirs.ts", // doc comment naming the alias bins
-			"packages/wire/src/index.ts", // doc comment naming the CLI
-			"scripts/ci-release-publish.ts", // npm publish bin table
-			"scripts/ci-update-brew-formula.ts", // brew formula bin/symlink table
-			"scripts/ci-update-brew-formula.test.ts", // asserts that formula
-			"scripts/install-tests/run-ci.sh", // smoke-test file paths of the built binary
-			"scripts/install.ps1", // installer: on-disk binary/shim names + hints for it
-			"scripts/install.sh", // installer: on-disk binary/shim names + hints for it
-			"scripts/packaging/deb/build-deb.sh", // deb packaging bin/symlink table
-			"scripts/release.ts", // doc comment naming the CLI
+			"main/crates/zeta-main/src/suite.rs", // asserts each retired name resolves to no tool
+			"document/brand-surface-rules.md", // the registry doc names what it retired
+			"CHANGELOG.md", // released entries are immutable history
+			"UPDATE-LOG.md",
+			"packages/coding-agent/CHANGELOG.md",
+			"packages/stats/CHANGELOG.md",
+			"plugins/official/pi-messenger/CHANGELOG.md",
 		],
 	},
 	{

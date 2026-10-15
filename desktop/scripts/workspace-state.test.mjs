@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
 	DEFAULT_WORKSPACE_STATE,
+	TOOL_IDS,
 	isBoundsValid,
 	isToolId,
 	lastZetacodeLaunch,
@@ -43,9 +44,10 @@ test("parseWorkspaceState keeps valid bounds and maximized, drops junk launches"
 });
 
 test("isToolId whitelists the launcher products only", () => {
+	// One id per product; the retired editor tool id no longer exists.
+	assert.deepEqual([...TOOL_IDS], ["zetacode", "zetaide", "zetawork"]);
 	assert.equal(isToolId("zetacode"), true);
 	assert.equal(isToolId("zetaide"), true);
-	assert.equal(isToolId("zetaeditor"), true);
 	assert.equal(isToolId("zetawork"), true);
 	assert.equal(isToolId("zeta"), false);
 	assert.equal(isToolId("rm -rf /"), false);
@@ -55,7 +57,7 @@ test("isToolId whitelists the launcher products only", () => {
 test("withLaunch truncates to the newest MAX_LAUNCH_RECORDS", () => {
 	let state = { ...DEFAULT_WORKSPACE_STATE, launches: [] };
 	for (let i = 0; i < MAX_LAUNCH_RECORDS + 5; i++) {
-		state = withLaunch(state, { tool: "zetaeditor", cwd: "/repo", pid: i, ts: `t${i}` });
+		state = withLaunch(state, { tool: "zetacode", cwd: "/repo", pid: i, ts: `t${i}` });
 	}
 	assert.equal(state.launches.length, MAX_LAUNCH_RECORDS);
 	assert.equal(state.launches[0].pid, 5);

@@ -31,7 +31,7 @@ export function setLocale(tag: string | undefined | null): StatsLocale {
 }
 
 /**
- * The locale to boot with: the host's language when `zeta-c stats` injected it,
+ * The locale to boot with: the host's language when `zetacode stats` injected it,
  * then the browser's own preference, then English.
  */
 export function resolveInitialLocale(): StatsLocale {

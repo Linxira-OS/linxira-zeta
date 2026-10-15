@@ -1,22 +1,24 @@
-/// `zeta --help` — the workspace's own help. The suite map is the product
-/// contract: every tool is independently launchable and has its own help.
+/// `zetawork --help` (and the bare-`zeta` index) — the workspace's own help.
+/// The suite map is the product contract: three commands, each with its own
+/// help.
 pub const CLI_HELP: &str = "\
-zeta — the Zeta workspace
+zeta — the Zeta suite index
 
-One terminal, many tools: a nested-terminal workbench with top-level tabs,
-tiled panes of embedded terminals (PTY children), and a menu of the Zeta
-suite. Each tool below also runs standalone.
+One terminal, many tools: zetawork is a nested-terminal workbench with
+top-level tabs, tiled panes of embedded terminals (PTY children), and a
+menu of the Zeta suite. Each tool below also runs standalone.
 
 USAGE
-  zeta                  Launch the workspace in the current directory
-  zetawork              Same workspace (joined form)
-  zeta doctor           Suite install status + exact fixes
-  zeta --help           This help
-  zeta --version        Workspace version
+  zetawork              Launch the workspace in the current directory
+  zetawork web          Serve the full Web UI on loopback for your browser
+  zetawork doctor       Suite install status + exact fixes
+  zeta                  This help (the suite index)
+  zetawork --help       This help
+  zetawork --version    Workbench version
 
 The other suite tools hand off from inside the workspace: the coding and IDE
 panes run zetacode and zetaide, and the editor pane is a built-in editor
-(Alt+C / E / I). zetaeditor still runs standalone.
+(Alt+C / E / I).
 
 KEYS (inside the workspace)
   Alt+N    new shell pane          Alt+T    new tab
@@ -52,8 +54,7 @@ KEYS (inside the workspace)
   if a hotkey does not respond.
 
 THE ZETA SUITE (each with its own --help)
-  zetacode                       coding agent CLI      (npm: @linxiraos/zeta)
-  zetaeditor                     terminal editor (TTT) (npm: @linxiraos/editor)
+  zetacode                       coding agent CLI       (npm: @linxiraos/zeta)
   zetaide                        terminal IDE (TermIDE) (npm: @linxiraos/ide)
 
   A suite tool missing from PATH installs itself into a pane on first
@@ -74,7 +75,7 @@ its tab.
 
 /// In-app help overlay: keymap + suite map, centered.
 pub fn overlay_text() -> &'static str {
-	"zeta workspace — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ \
+	"zetawork — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ \
 	 cycle\nrail     click a view button · + manages the buttons · Esc back to the \
 	 panes\npanes    Alt+N shell · Alt+C zetacode · Alt+E editor (built in) · Alt+I zetaide\nAlt+D \
 	 time+calendar · Alt+L layout · Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock \
@@ -83,7 +84,7 @@ pub fn overlay_text() -> &'static str {
 	 pane title onto a pane = swap / reposition\ndouble-click a tab or pane title = rename (Enter \
 	 save · Esc cancel)\ndock     minimized panes wait at the bottom — click a chip to restore\npaste    \
 	 bracketed paste keeps multi-line clipboard text whole\ngeneral  F1 help · Alt+Q quit\n\nsuite    \
-	 zetacode · zetaeditor · zetaide\nmissing  a missing suite tool installs itself into a pane on \
+	 zetacode · zetaide\nmissing  a missing suite tool installs itself into a pane on \
 	 first use\n\nnote     an active IME can swallow Alt combos — use English input\npress F1 or \
 	 Esc to close"
 }

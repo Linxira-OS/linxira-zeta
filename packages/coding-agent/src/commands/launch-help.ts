@@ -124,7 +124,7 @@ export const launchHelp = {
 		`# Include files in initial message\n  ${CLI_BIN_NAME} @prompt.md @image.png "What color is the sky?"`,
 		`# Non-interactive mode (process and exit)\n  ${CLI_BIN_NAME} -p "List all .ts files in src/"`,
 		`# Continue previous session\n  ${CLI_BIN_NAME} --continue "What did we discuss?"`,
-		`# Create a shell shortcut for a work profile\n  ${CLI_BIN_NAME} --profile work --alias zeta-work`,
+		`# Create a shell shortcut for a work profile\n  ${CLI_BIN_NAME} --profile work --alias zc-work`,
 		`# Use different model (fuzzy matching)\n  ${CLI_BIN_NAME} --model opus "Help me refactor this code"`,
 		`# Limit model cycling to specific models\n  ${CLI_BIN_NAME} --models claude-sonnet,claude-haiku,gpt-4o`,
 		`# Export a session file to HTML\n  ${CLI_BIN_NAME} --export ~/.zeta/agent/sessions/--path--/session.jsonl`,

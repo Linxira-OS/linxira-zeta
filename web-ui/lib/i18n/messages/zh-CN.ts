@@ -307,7 +307,7 @@ export const zhCNLocale: LocalePlugin = {
 		"terminal.restart": "重启会话",
 		"terminal.retry": "重试",
 		"terminal.kill": "结束",
-		"terminal.injected": "正在通过 zeta-ide 打开…",
+		"terminal.injected": "正在通过 zetaide 打开…",
 		"terminal.newSlot": "新建终端",
 		"terminal.slotTitle": "终端槽位 {instance}",
 		"terminal.shellFallback": "未找到 zetawork——已回退到 {shell}",

@@ -212,7 +212,7 @@ now installs a `zeta`-only fixture and requires both halves: listed *and* loaded
   `Not registered. Use pi_messenger({ action: "join" }) to join the agent mesh first.`
   A two-agent exchange over a real `zetacode` session remains unverified here.
 - **`/editor` end to end.** The command is registered; the handoff file write and
-  the `zetaeditor` spawn were not exercised.
+  the editor-binary spawn were not exercised.
 - **Windows-only run.** Every command above was run on Windows against a source
   checkout. Path handling in the plugin (`~/…` expansion, the editor binary it
   looks for) is not verified on Linux/macOS.

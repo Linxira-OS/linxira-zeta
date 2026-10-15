@@ -203,16 +203,16 @@ OAuth 登录流程的 SSE 流（授权 URL + 轮询事件）。
 
 “打开方式”目标及其可用性：`{ desktop, targets: [{ type, label, available,
 default?, editor?, detail? }] }`。`type` 取 `terminal`、`explorer`、`editor`
-（此时 `editor` 为产品 id）、`terminal-ide`（`zeta-ide`）或
-`terminal-editor`（`zeta-editor`）；`default` 标记网关建议的默认目标。
+（此时 `editor` 为产品 id）或 `terminal-ide`（`zetaide`）；`default` 标记
+网关建议的默认目标。
 Windows 终端按 `pwsh` → Git Bash → `powershell` 链解析，其余平台
 `$SHELL` → bash；探测结果按进程缓存（约 60s）。
 
 ### `POST /api/open`
 
 请求体：`{ target?: string, path?: string, editor?: string }` —
-用编辑器、终端、文件管理器或内置终端工具打开路径（`terminal-ide` /
-`terminal-editor` 在该路径启动 `zeta-ide` / `zeta-editor`）。桌面宿主只执行
+用编辑器、终端、文件管理器或内置终端工具打开路径（`terminal-ide` 在该路径
+启动 `zetaide`）。桌面宿主只执行
 `explorer` / `editor` 目标并接收签名 `{ path, token }` 凭据；内置终端工具
 始终由网关直接启动。
 
@@ -255,11 +255,11 @@ UI 分配（每个工作区第一个槽位是 `t1`，之后 `t2`、`t3`……）
 - 槽位内无活会话（首次打开、已退出、被结束，或上一轮网关进程）→ 新建会话，
   `reused: false`；
 - `replace: true` → 先结束槽位内的活会话（`session_ended`，reason
-  `killed`），再新建，使 `file`/`line`/`col` 的 zeta-ide 注入生效。
+  `killed`），再新建，使 `file`/`line`/`col` 的 zetaide 注入生效。
 
 响应：`{ id, ticket, shell, cwd, instance, program, fallbackReason, reused,
 injected }`。`program` 为 `workbench` 表示解析到框架工作台
-（`zetawork`；npm 侧 bin 为 `zeta` / `zetawork` / `zeta-work`），否则为
+（`zetawork`；npm 侧 bin 为 `zeta` / `zetawork`），否则为
 `shell` 且 `fallbackReason: "workbench-not-found"`——UI 必须把该回退明确显示
 出来，而不是静默换成 shell。Windows 上解析到 `.cmd`/`.bat` 启动器时，以
 `cmd.exe /c <shim>` 启动（ConPTY 无法直接执行脚本）。

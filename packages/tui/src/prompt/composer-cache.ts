@@ -4,7 +4,7 @@
  *
  * Each row is one JSON payload keyed by project (the resolved cwd) and kind.
  * Settings-derived kinds (theme/composer preferences, status-bar inputs) are
- * also written under the empty project, so a folder that never ran zeta-c still
+ * also written under the empty project, so a folder that never ran zetacode still
  * paints with the user's theme and status bar: those are rarely
  * project-specific, and path/branch render live.
  *

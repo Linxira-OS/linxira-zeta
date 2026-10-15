@@ -1363,7 +1363,7 @@ export interface SessionSelectorOptions<T extends SessionSelectorEntry = Session
 	/** Path of the live session, or a getter so detach/newSession stays accurate. */
 	currentSessionPath?: string | (() => string | undefined);
 	/**
-	 * The picker is the whole program (`zeta-c --resume`): the native picker
+	 * The picker is the whole program (`zetacode --resume`): the native picker
 	 * fills the screen surface (`size:"screen"`) instead of floating as a
 	 * sheet over the transcript.
 	 */

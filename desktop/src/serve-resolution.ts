@@ -10,9 +10,9 @@
  *     because that is the only launcher version-locked to the shell and able to
  *     serve the embedded UI offline; then the dev repo checkout (built dist
  *     binary, then Bun-run source)
- *   ③ PATH — native `zetacode`/`zeta-c`/`zeta-cli` as installed (a distro or npm
- *     install puts them here); reached when no bundle is present, with no
- *     cross-component version validation
+ *   ③ PATH — native `zetacode` as installed (a distro or npm install puts it
+ *     here); reached when no bundle is present, with no cross-component
+ *     version validation
  *
  * Pure node-builtins only: main.ts supplies the Electron/process seams, so
  * the whole order is unit-testable without Electron.
@@ -26,8 +26,8 @@ import * as path from "node:path";
 /** Explicit discovery override, shared with the other product surfaces. */
 export const SERVE_BIN_DIR_ENV = "ZETA_BIN_DIR";
 
-/** Serve-capable launcher names in alias-priority order. */
-export const SERVE_BIN_NAMES = ["zetacode", "zeta-c", "zeta-cli"] as const;
+/** Serve-capable launcher names: the coding CLI's one bin name. */
+export const SERVE_BIN_NAMES = ["zetacode"] as const;
 
 export interface ServeCommand {
 	file: string;
