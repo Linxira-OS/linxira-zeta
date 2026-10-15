@@ -178,6 +178,16 @@ describes disappears the moment the addon is source-matched. The single red is
 "stub did not answer for web" — in `main/`, which this branch never touches (no `main/` or `crates/`
 file appears in the branch diff), so it is a workbench-suite flake rather than merge damage.
 
+Re-dispatched on the final head (`c8df74aa84a`) as run `38779490653`: **same verdict — 1 failure, the
+same `Test main workspace (zeta workbench)` job.** It is a load flake, confirmed three ways:
+`git diff --name-only origin/main HEAD -- main/ crates/` is **empty** (the code under test is
+byte-identical to `main`), the two **`pull_request` runs on that same head** (`38779332353`,
+`38779333023`) both succeeded with that job green, and `main`'s own push run on `b580b1cbaa2`
+(`38777161539`) is green. `workflow_dispatch` is the one event that *builds* the native addons
+concurrently with the test jobs, and the failing assertion is a fixed-timeout HTTP probe against a
+node stub (`http_status(web_port, "/__stop")`) — the sibling
+`web_subcommand_runs_the_serve_machine_on_loopback` test stayed green in both dispatch runs.
+
 ## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `80ca49db8c7`)
 
 - **Branch head at hand-off**: `652c1c16be1` (PR #200; an earlier hand-off head was `680c2145281`).
