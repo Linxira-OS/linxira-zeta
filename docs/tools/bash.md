@@ -8,6 +8,7 @@
 - Key collaborators:
   - `packages/coding-agent/src/tools/bash-interactive.ts` — PTY/TUI execution path.
   - `packages/coding-agent/src/tools/bash-interceptor.ts` — blocks tool-better shell patterns.
+  - `packages/coding-agent/src/tools/host-process-guard.ts` — refuses kills that would sweep processes or hit this agent's own process chain.
   - `packages/coding-agent/src/internal-urls/url-filesystem.ts` — router-backed shell filesystem for `scheme://` paths.
   - `packages/coding-agent/src/tools/bash-pty-selection.ts` — `canUseInteractiveBashPty()` decides whether a call may use the local PTY overlay.
   - `packages/coding-agent/src/tools/gh-cache-invalidation.ts` — drops `github-cache` rows for mutating `gh issue`/`gh pr` subcommands.
@@ -69,12 +70,25 @@ Stdout and stderr are merged before the model sees them. Definite non-zero exit 
 
 ## Command policy and dedicated-tool routing
 
-Two independent settings can prevent a Bash subprocess from starting. They serve different purposes and run at different points in the tool-call lifecycle.
+Three independent mechanisms can prevent a Bash subprocess from starting. They serve different purposes and run at different points in the tool-call lifecycle.
 
 | Setting | Purpose | Rule syntax | Result when matched |
 | --- | --- | --- | --- |
 | `bash.patterns` | Command-specific execution policy | Literal text with `*` wildcards | Allows the call, requests human approval, or denies it. |
 | `bashInterceptor.patterns` | Prefer a dedicated tool over Bash | JavaScript regular expression, optional flags, tool name, and message | Returns a Bash tool error telling the model to call the named dedicated tool instead. |
+| Host-process guard (always on) | Never let a command kill this agent's own process chain or sweep unrelated processes | Built-in; not configurable | Returns a Bash tool error naming the target, why the reach is unsafe, and the safe alternative. |
+
+### Host-process guard
+
+The shell runs commands inside the host's own process tree, so a careless `Stop-Process`/`taskkill`/`pkill` can end the agent, the terminal the user is typing in, or unrelated work. `tools/host-process-guard.ts` classifies every command before any execution backend (shell, PTY, service, async job, client terminal) sees it.
+
+- **Refused — unscoped kills:** `Stop-Process` without an explicit `-Id`/`-InputObject` (including `Get-Process <name> | Stop-Process` and any `StartTime`/recency filter), `Stop-Process -Name`, `taskkill /IM`, `pkill`, `killall`, `kill -1`/`kill 0`/negative pids, `wmic process … delete`, `Invoke-CimMethod -MethodName Terminate`, `kill`/`xargs kill` fed from a pipeline or command substitution, and `.Kill()` on a handle the command did not create.
+- **Refused — the agent's own chain:** the agent process, its parents, the `bun`/`node` host, and the terminal/console host are collected at call time (native process handles when available, `/proc` on Linux, `ps` elsewhere, CIM/PowerShell on Windows). A kill naming one of those pids, or the shell itself (`$PPID`, `$$`, `$PID`), is refused even though it is scoped.
+- **Allowed — a recorded spawn:** `sleep 30 & kill $!`, `p=$!; kill "$p"`, `Start-Process … -PassThru` handles (`Stop-Process -Id $p.Id`, `-InputObject $p`, `$p.Kill()`), an explicit numeric pid outside the chain, `kill -0` liveness probes, and the same verbs inside a container namespace (`docker exec …`).
+- Killing a process the agent spawned in an **earlier** tool call is the one case the guard cannot verify statically: pass its numeric pid (allowed) rather than a name or pattern.
+- Refusals throw `ToolError` with the target, the reason, and the fix in one message; nothing else changes.
+
+The guard is not switchable from the session — no setting and no tool argument, because the agent can write settings files. The user disables it from the launch environment with `ZETA_HOST_PROCESS_GUARD=off` (see [Environment Variables](../environment-variables.md#7-shelltool-execution-environment)).
 
 ### `bash.patterns`: permission policy
 

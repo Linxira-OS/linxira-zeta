@@ -36,6 +36,7 @@ import type { ToolSession } from ".";
 import { truncateForPrompt } from "./approval";
 import { type BashInteractiveResult, runInteractiveBashPty } from "./bash-interactive";
 import { checkBashInterception } from "./bash-interceptor";
+import { checkHostProcessCommands } from "./host-process-guard";
 import { rewriteGitWorktreeAdd } from "./bash-worktree-rewrite";
 import { canUseInteractiveBashPty } from "./bash-pty-selection";
 import { resolveEvalBackends } from "./eval-backends";
@@ -1000,6 +1001,18 @@ export class BashTool implements AgentTool<BashToolSchema, BashToolDetails> {
 					throw new ToolError(interception.message ?? "Command blocked");
 				}
 			}
+		}
+
+		// Host-process guard: a command that sweeps processes by name, or that
+		// targets this agent's own process chain, must not reach any execution
+		// backend (shell, PTY, service, async job, client terminal). Same
+		// candidate set as the interceptor, and deliberately not switchable from
+		// the session: the agent can write settings, the guard cannot be its own
+		// exception. See host-process-guard.ts.
+		const guardCommands = rawCommand === command ? [command] : [rawCommand, command];
+		const hostGuard = await checkHostProcessCommands(guardCommands);
+		if (hostGuard.block) {
+			throw new ToolError(hostGuard.message ?? "Command blocked");
 		}
 
 		if (cfgWorktreeClone.get(this.session.settings)) {
