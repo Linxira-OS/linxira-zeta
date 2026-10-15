@@ -76,7 +76,7 @@ party's registry carries the string.
 | Reading upstream npm release manifests (`omp.rename`, `omp.dist`) | Consuming the upstream ecosystem | `cli/update-cli.ts` |
 | Reading upstream plugin packages (`pkg.zeta \|\| pkg.omp \|\| pkg.pi`) | Consuming the upstream ecosystem | `plugins/manager.ts` |
 | `.omp-plugin` manifest dir | OMP/Claude compatibility | AGENTS registry |
-| `my.omp.sh`（中继/分享） | Shared upstream infrastructure while the self-hosted relay is built | AGENTS registry + `document/upstream-commercial-assets.md` |
+| `my.omp.sh`（中继/分享） | Wire-grammar 常量与 collab-web 部署引用；**不再是任何默认端点**（`collab.enabled` 默认关、`collab.relayUrl` 默认空，见 §Collab gate） | AGENTS registry + `document/upstream-commercial-assets.md` |
 | `live.omp.sh`, `skills.omp.sh`, `catalog.stencil.so`, `omp.sh/docs/...` … | Ledger-tracked upstream services (keep / replace per entry) | 台账 + `scripts/check-shared-infra.ts`（`replace-*`）。**品牌 sweep 不再豁免主机名**（2026-10-14 收窄）；`qa.omp.sh`、`scl.so`、`build.stencil.so`、`omp.sh/install` 已替换/移除，复活即红 |
 | `__omp_*` cross-process symbols | Inter-process protocol between our own components | AGENTS damage class 9/11 |
 | `omp/muxConnect`-style handshakes | Single in-repo constant (`MUX_CONNECT_METHOD`) — renaming both ends together is safe; a hand-rolled string on one side is not | `lsp/mux/protocol.ts` |

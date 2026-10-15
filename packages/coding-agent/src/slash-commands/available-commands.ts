@@ -1,5 +1,6 @@
 import type { AvailableCommand } from "@linxiraos/pi-utils/acp";
 import type { EffectiveExtensionRoots } from "../capability/types";
+import type { Settings } from "../config/settings";
 import type { SkillsSettings } from "../extensibility/settings";
 import type { LoadedCustomCommand } from "../extensibility/custom-commands";
 import type { ExtensionRunner } from "../extensibility/extensions";
@@ -21,6 +22,8 @@ export interface InternalAvailableSlashCommand {
 }
 
 export interface AvailableCommandsSession {
+	/** Live configuration; gates commands whose feature is opt-in. */
+	readonly settings?: Settings;
 	readonly extensionRunner?: ExtensionRunner;
 	readonly customCommands: ReadonlyArray<LoadedCustomCommand>;
 	readonly mcpPromptCommands?: ReadonlyArray<LoadedCustomCommand>;
@@ -46,6 +49,11 @@ export async function buildAvailableSlashCommands(
 
 	for (const command of BUILTIN_SLASH_COMMANDS_INTERNAL) {
 		if (!command.handle) continue;
+		// Advertise only commands the host's configuration currently allows; a
+		// disabled feature must not appear in the client's command list.
+		if (command.enabled !== undefined && session.settings !== undefined && !command.enabled(session.settings)) {
+			continue;
+		}
 		const hint = command.acpInputHint ?? command.inlineHint;
 		appendCommand({
 			name: command.name,

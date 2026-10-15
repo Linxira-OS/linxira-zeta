@@ -396,6 +396,7 @@ import {
 	cfgTuiSidebar,
 } from "./settings";
 import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
+import { cfgCollabEnabled } from "../collab/settings";
 import { cfgTasksTodoClearDelay } from "../tools/settings";
 import { cfgWorktreeOnExit, cfgWorktreeOnStart } from "../task/settings";
 import { cfgExpandThinkingBlocks, cfgProseOnlyThinking } from "../session/settings";
@@ -2484,6 +2485,14 @@ export class InteractiveMode implements InteractiveModeContext {
 				// Skills/commands rediscovery (live `skills.*`/`commands.*`/extension edits,
 				// `/move`, manage_skill, MCP prompts) lands here; rebuild the picker
 				// from session state even though the snapshot key is unchanged.
+				this.#rebuildSlashCommandAutocomplete(this.sessionManager.getCwd(), { force: true });
+				this.ui.requestRender();
+			}),
+		);
+		// The collab commands are gated by `collab.enabled`, so a /settings toggle
+		// adds or drops them from the picker (and their refusal path) live.
+		this.#eventBusUnsubscribers.push(
+			cfgCollabEnabled.listen(this.settings, () => {
 				this.#rebuildSlashCommandAutocomplete(this.sessionManager.getCwd(), { force: true });
 				this.ui.requestRender();
 			}),

@@ -7,6 +7,8 @@ import { CLI_BIN_NAME } from "@linxiraos/pi-utils";
 import { Args, Command } from "@linxiraos/pi-utils/cli";
 import { parseArgs } from "../cli/args";
 import { joinHelp as commandHelp } from "../cli/command-help";
+import { cfgCollabEnabled, COLLAB_DISABLED_MESSAGE } from "../collab/settings";
+import { Settings } from "../config/settings";
 import { runRootCommand } from "../main";
 
 export default class Join extends Command {
@@ -30,6 +32,14 @@ export default class Join extends Command {
 		}
 		if (!process.stdin.isTTY || !process.stdout.isTTY) {
 			process.stderr.write(`${CLI_BIN_NAME} join requires an interactive terminal\n`);
+			process.exitCode = 1;
+			return;
+		}
+		// Sharing is opt-in: refuse before the TUI boots rather than starting a
+		// guest that would dial the host's relay with the feature switched off.
+		const settings = await Settings.loadReadOnly({ cwd: process.cwd() });
+		if (!cfgCollabEnabled.get(settings)) {
+			process.stderr.write(`${COLLAB_DISABLED_MESSAGE}\n`);
 			process.exitCode = 1;
 			return;
 		}

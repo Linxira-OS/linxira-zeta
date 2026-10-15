@@ -40,6 +40,15 @@ export interface BuiltinSlashCommand {
 	inlineHint?: string;
 	/** TUI-only dynamic status text for command-name autocomplete. Static `description` remains canonical for ACP/help. */
 	getTuiAutocompleteDescription?: (runtime: TuiSlashCommandRuntime) => string | undefined;
+	/**
+	 * Configuration gate for a command whose feature is opt-in. Returning false
+	 * hides the command from the palette and the advertised command list, and
+	 * refuses an explicit invocation with {@link disabledMessage} instead of
+	 * silently forwarding the text to the model.
+	 */
+	enabled?: (settings: Settings) => boolean;
+	/** Copy shown when {@link enabled} refuses an invocation. */
+	disabledMessage?: string | (() => string);
 }
 
 /** Parsed slash-command text after stripping the leading "/". */

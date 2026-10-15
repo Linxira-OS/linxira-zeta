@@ -12,6 +12,7 @@ import {
 	lookupBuiltinSlashCommand,
 	type SlashCommandRuntime,
 } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import { CombinedAutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
 import { AUTO_THINKING, type ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
@@ -62,7 +63,8 @@ function harness(options: { reasoning?: boolean; efforts?: readonly Effort[]; ce
 		getAvailableThinkingLevels: () => controls.getAvailableThinkingLevels(),
 		getAvailableEffortSelectors: () => controls.getAvailableEffortSelectors(),
 	} as unknown as AgentSession;
-	const tuiRuntime = { ctx: { session } } as unknown as TuiSlashCommandRuntime;
+	// Real settings: the palette applies per-command configuration gates.
+	const tuiRuntime = { ctx: { session, settings: Settings.isolated({}) } } as unknown as TuiSlashCommandRuntime;
 	return {
 		outputs,
 		runtime: {

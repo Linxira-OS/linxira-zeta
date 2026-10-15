@@ -89,7 +89,7 @@ Sources: [`packages/browser-relay/README.md`](../packages/browser-relay/README.m
 
 Sources: [`packages/collab-web/README.md`](../packages/collab-web/README.md), [`packages/collab-web/package.json`](../packages/collab-web/package.json), [`docs/collab.md`](./collab.md).
 
-- Package: private `@linxiraos/collab-web`; production client: <https://my.omp.sh/>.
+- Package: private `@linxiraos/collab-web`; a static SPA you deploy next to your own relay (no relay or hosted client is shipped — see [Self-hosting the relay](./collab.md#self-hosting-the-relay)).
 - Feature: browser guest UI for `/collab` sessions, including streaming transcript, tool cards,
   subagent views, prompts, and host interruption.
 - Local paths: `bun run dev` serves the UI on port 3000; `bun run mock-host` runs an offline relay
