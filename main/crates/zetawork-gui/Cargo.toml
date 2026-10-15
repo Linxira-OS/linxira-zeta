@@ -1,0 +1,37 @@
+[package]
+name = "zetawork-gui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "zetawork — the GUI shell of the Zeta workbench: title bar, big tabs, pane grid, settings + usage modals, GUI/TUI switch"
+publish = false
+
+[[bin]]
+name = "zetawork-gui"
+path = "src/main.rs"
+
+[dependencies]
+# Versions are the ones the `spike/egui-shell` branch proved on this host
+# (egui 0.33.3 + eframe 0.33.3, offscreen ratatui blit, WebView2 child window).
+egui = "0.33.3"
+eframe = "0.33.3"
+ratatui.workspace = true
+# `main/Cargo.toml` patches `unicode-width` to
+# `termide/crates/unicode-width-fix`, so the workspace resolves one build of
+# it and a wide grapheme is two grid columns here exactly when ratatui says so.
+unicode-width = "0.2.2"
+# The status bar reports the process's own RSS; that is the only per-second
+# number the shell can honestly show without a live session.
+sysinfo = "0.31"
+# The status bar's clock (local time).
+chrono = "0.4"
+# The 设置 modal's zetacode-option rows parse `zetacode config list --json`, and
+# the provider rows parse `~/.zeta/agent/models.yml`.
+serde_json = "1"
+
+[dev-dependencies]
+# `tests/shots.rs` writes headless PNG screenshots; the rasterizer it uses is in
+# `tests/support/raster.rs`, and only the encoder comes from a crate.
+png = "0.18"
