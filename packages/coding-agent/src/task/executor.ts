@@ -3469,8 +3469,8 @@ export interface FollowUpTurnOptions {
 	/**
 	 * Model selector to run this wake turn on (`provider/id`, `:level` suffix, or
 	 * an `@role` alias). Opt-in and absent by default: without it the turn
-	 * continues on the session's current model, exactly as before. Requires
-	 * `task.enableModelParam`.
+	 * continues on the session's current model, exactly as before. Only a
+	 * subagent that has completed a model response can be switched.
 	 */
 	model?: string;
 	/** Structured-output state retained from the original invocation. */

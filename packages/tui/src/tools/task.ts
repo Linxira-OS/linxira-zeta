@@ -2206,13 +2206,6 @@ export interface TaskItem {
 	solutionSpace?: string;
 	/** Per-spawn thinking effort: lowest/middle/highest level the resolved model supports. Overrides the agent's default selector (e.g. `auto`). */
 	effort?: "lo" | "med" | "hi";
-	/**
-	 * Per-spawn model selector (`provider/id`, `provider/id:level`, or a role
-	 * alias like `@smol`). Highest priority in the resolution chain: it beats
-	 * `task.agentModelOverrides`, the agent's own `model`, and the parent's
-	 * active model. Present only with `task.enableModelParam=true`.
-	 */
-	model?: string;
 	/** Caller-provided output schema; its presence overrides the selected agent's schema. */
 	outputSchema?: unknown;
 	/** Validation behavior for a caller-provided or inherited output schema. */

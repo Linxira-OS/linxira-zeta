@@ -1,8 +1,13 @@
 /**
- * The per-spawn `model` parameter behind `task.enableModelParam`: the wire
- * field is absent (and a hand-written one rejected) while the setting is off,
- * forwards into the child's model resolution when it is on, and cannot re-hit
- * a model this session already watched fail hard.
+ * The task wire contract for a subagent's model. Dispatch never chooses a
+ * child's model — it comes from the agent definition, or the parent's own — so
+ * the wire shape carries no `model` field at all and a hand-written one is
+ * rejected rather than silently dropped. Switching a child's model is a
+ * per-subagent capability that opens once it has completed a model response;
+ * that half is covered by model-switch.test.ts and wake-model-override.test.ts.
+ *
+ * The internal `StructuredSubagentRequest.model` seam (used by the eval bridge)
+ * keeps working and is covered here.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import type { Api, Model } from "@linxiraos/pi-ai";
@@ -14,7 +19,7 @@ import * as executorModule from "@linxiraos/zeta/task/executor";
 import { modelFailureLedgerForSession, resetModelFailureLedgers } from "@linxiraos/zeta/task/model-switch";
 import { runStructuredSubagent, type StructuredSubagentRequest } from "@linxiraos/zeta/task/structured-subagent";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
-import { getTaskSchema, taskSchema } from "@linxiraos/zeta/task/types";
+import { taskSchema } from "@linxiraos/zeta/task/types";
 import { TaskTool } from "@linxiraos/zeta/task";
 import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -96,7 +101,7 @@ afterEach(() => {
 });
 
 describe("task wire schema", () => {
-	it("strips `model` from the default shape", () => {
+	it("never advertises a `model` field", () => {
 		const parsed = taskSchema({
 			agent: "worker",
 			task: "Inspect the target.",
@@ -106,108 +111,43 @@ describe("task wire schema", () => {
 		expect(parsed instanceof type.errors).toBe(false);
 		if (!(parsed instanceof type.errors)) expect("model" in parsed).toBe(false);
 	});
+});
 
-	it("keeps `model` on every shape once task.enableModelParam is on", () => {
-		/** Reflective read: the dynamic task schemas validate to `unknown`. */
-		function readField(parsed: unknown, key: string): unknown {
-			return parsed !== null && typeof parsed === "object" ? Reflect.get(parsed, key) : undefined;
-		}
-
-		/** Same, for `tasks[<index>]` in the batch shape. */
-		function readItemField(parsed: unknown, index: number, key: string): unknown {
-			const tasks = readField(parsed, "tasks");
-			return Array.isArray(tasks) ? readField(tasks[index], key) : undefined;
-		}
-
-		const single = getTaskSchema({ isolationEnabled: false, batchEnabled: false, modelParamEnabled: true });
-		const parsedSingle = single({
+describe("task dispatch model rejection", () => {
+	it("rejects a flat call that names a model", async () => {
+		const text = await executeText(testSession(Settings.isolated({ "task.batch": false })), {
 			agent: "worker",
 			task: "Inspect the target.",
 			solutionSpace: "one fix",
 			model: PRIMARY_SELECTOR,
 		});
-		expect(readField(parsedSingle, "model")).toBe(PRIMARY_SELECTOR);
+		expect(text).toContain("cannot set `model`");
+	});
 
-		const batch = getTaskSchema({ isolationEnabled: false, batchEnabled: true, modelParamEnabled: true });
-		const parsedBatch = batch({
+	it("rejects a batch item that names a model", async () => {
+		const text = await executeText(testSession(Settings.isolated({ "task.batch": true })), {
 			context: "shared",
 			tasks: [{ task: "Inspect the target.", solutionSpace: "one fix", model: SECONDARY_SELECTOR }],
 		});
-		expect(readItemField(parsedBatch, 0, "model")).toBe(SECONDARY_SELECTOR);
-	});
-});
-
-describe("task spawn model parameter", () => {
-	it("rejects a model selector while task.enableModelParam is off", async () => {
-		const text = await executeText(
-			testSession(Settings.isolated({ "task.enableModelParam": false, "task.batch": false })),
-			{ agent: "worker", task: "Inspect the target.", solutionSpace: "one fix", model: PRIMARY_SELECTOR },
-		);
-		expect(text).toContain("cannot set `model` while task.enableModelParam is false");
+		expect(text).toContain("cannot set `model`");
 	});
 
-	it("rejects an empty selector", async () => {
-		const text = await executeText(
-			testSession(Settings.isolated({ "task.enableModelParam": true, "task.batch": false })),
-			{ agent: "worker", task: "Inspect the target.", solutionSpace: "one fix", model: "  " },
-		);
-		expect(text).toContain("empty `model` selector");
-	});
-
-	it("refuses a model inside its hard-failure cooldown without dispatching", async () => {
-		const session = testSession(Settings.isolated({ "task.enableModelParam": true, "task.batch": false }));
-		modelFailureLedgerForSession(PARENT_SESSION_FILE).noteFailure({
-			selector: PRIMARY_SELECTOR,
-			failureClass: "usage-limit",
-			agent: "worker",
-		});
-		const dispatched = captureDispatches(settledResult());
-
-		const text = await executeText(session, {
+	it("still dispatches a call that names only an effort", async () => {
+		captureDispatches(settledResult());
+		const text = await executeText(testSession(Settings.isolated({ "task.batch": false })), {
 			agent: "worker",
 			task: "Inspect the target.",
 			solutionSpace: "one fix",
-			model: PRIMARY_SELECTOR,
+			effort: "hi",
 		});
-
-		expect(text).toContain(`Model \`${PRIMARY_SELECTOR}\` is in cooldown after a usage-limit failure`);
-		expect(text).toContain(SECONDARY_SELECTOR);
-		expect(dispatched).toHaveLength(0);
-	});
-
-	it("never re-hits a model that failed hard in the same session", async () => {
-		const session = testSession(Settings.isolated({ "task.enableModelParam": true, "task.batch": false }));
-		const dispatched = captureDispatches(
-			settledResult({
-				exitCode: 1,
-				output: "",
-				stderr: `[${PRIMARY_SELECTOR}] ${USAGE_LIMIT_ERROR}`,
-				resolvedModel: PRIMARY_SELECTOR,
-			}),
-		);
-		const params = {
-			agent: "worker",
-			task: "Inspect the target.",
-			solutionSpace: "one fix",
-			model: PRIMARY_SELECTOR,
-		};
-
-		const first = await executeText(session, params);
-		expect(first).toContain('<failure class="usage-limit" />');
-		expect(dispatched).toHaveLength(1);
-
-		// The parent (or a retry) asking for the same model again must not reach
-		// the provider: the first request already proved that route is dry.
-		const second = await executeText(session, params);
-		expect(second).toContain(`Model \`${PRIMARY_SELECTOR}\` is in cooldown after a usage-limit failure`);
-		expect(dispatched).toHaveLength(1);
+		expect(text).not.toContain("cannot set `model`");
 	});
 });
 
-describe("per-spawn model resolution", () => {
+describe("internal spawn model seam", () => {
 	function request(overrides: Partial<StructuredSubagentRequest> = {}) {
 		return {
-			session: testSession(Settings.isolated({ "task.enableModelParam": true, "task.isolation.enabled": false })),
+			session: testSession(Settings.isolated({ "task.isolation.enabled": false })),
 			invocationKind: "task" as const,
 			assignment: "Inspect the target.",
 			agent: "worker",
@@ -230,10 +170,9 @@ describe("per-spawn model resolution", () => {
 
 		const settled = await runStructuredSubagent(
 			request({
-				session: testSession(
-					Settings.isolated({ "task.enableModelParam": true, "task.isolation.enabled": false }),
-					{ agentModel: [PRIMARY_SELECTOR] },
-				),
+				session: testSession(Settings.isolated({ "task.isolation.enabled": false }), {
+					agentModel: [PRIMARY_SELECTOR],
+				}),
 			}),
 		);
 
@@ -241,14 +180,18 @@ describe("per-spawn model resolution", () => {
 		expect(settled.result.modelChange).toBeUndefined();
 	});
 
-	it("leaves an off-gate session's results and ledger untouched", async () => {
-		const parent = testSession(
-			Settings.isolated({ "task.enableModelParam": false, "task.isolation.enabled": false }),
-			{
-				agentModel: [PRIMARY_SELECTOR],
-			},
+	it("annotates a failed run that named no model — the bookkeeping is unconditional", async () => {
+		const parent = testSession(Settings.isolated({ "task.isolation.enabled": false }), {
+			agentModel: [PRIMARY_SELECTOR],
+		});
+		const dispatched = captureDispatches(
+			settledResult({
+				exitCode: 1,
+				output: "",
+				stderr: `[${PRIMARY_SELECTOR}] ${USAGE_LIMIT_ERROR}`,
+				resolvedModel: PRIMARY_SELECTOR,
+			}),
 		);
-		const dispatched = captureDispatches(settledResult({ resolvedModel: PRIMARY_SELECTOR }));
 
 		const settled = await runStructuredSubagent({
 			session: parent,
@@ -257,20 +200,16 @@ describe("per-spawn model resolution", () => {
 			agent: "worker",
 		});
 
-		expect(dispatched[0]?.modelOverride).toEqual([PRIMARY_SELECTOR]);
-		expect(settled.result.failureClass).toBeUndefined();
-		expect(settled.result.fallbackCandidates).toBeUndefined();
-		expect(settled.result.modelChange).toBeUndefined();
-		expect(modelFailureLedgerForSession(PARENT_SESSION_FILE).exhausted()).toHaveLength(0);
+		expect(settled.result.failureClass).toBe("usage-limit");
+		expect(settled.result.fallbackCandidates).toBeDefined();
+		expect(modelFailureLedgerForSession(PARENT_SESSION_FILE).exhaustedRecord(PRIMARY_SELECTOR)).toBeDefined();
+		expect(dispatched).toHaveLength(1);
 	});
 
-	it("reports the failure class, the candidates, and blocks the same-model re-dispatch", async () => {
-		const parent = testSession(
-			Settings.isolated({ "task.enableModelParam": true, "task.isolation.enabled": false }),
-			{
-				agentModel: [PRIMARY_SELECTOR],
-			},
-		);
+	it("reports the failure class, the candidates, and records the dry route", async () => {
+		const parent = testSession(Settings.isolated({ "task.isolation.enabled": false }), {
+			agentModel: [PRIMARY_SELECTOR],
+		});
 		const dispatched = captureDispatches(
 			settledResult({
 				exitCode: 1,

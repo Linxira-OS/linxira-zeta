@@ -32,8 +32,10 @@ interface SessionStub {
 	setModelCalls: Model<Api>[];
 }
 
-function sessionStub(options: { settings?: Settings; current?: Model<Api> } = {}): SessionStub {
-	const settings = options.settings ?? Settings.isolated({ "task.enableModelParam": true });
+function sessionStub(
+	options: { settings?: Settings; current?: Model<Api>; messages?: readonly unknown[] } = {},
+): SessionStub {
+	const settings = options.settings ?? Settings.isolated({});
 	const models = [PRIMARY, SECONDARY];
 	const modelRegistry = {
 		getAvailable: () => models,
@@ -44,6 +46,7 @@ function sessionStub(options: { settings?: Settings; current?: Model<Api> } = {}
 	const session = {
 		settings,
 		modelRegistry,
+		messages: options.messages ?? [{ role: "assistant" }],
 		get model() {
 			return current;
 		},
@@ -115,10 +118,10 @@ describe("ensureLive model override", () => {
 		expect(stub.setModelCalls).toHaveLength(0);
 	});
 
-	it("refuses the override while task.enableModelParam is off", async () => {
+	it("refuses to switch a subagent that has not answered yet", async () => {
 		const registry = AgentRegistry.global();
 		const lifecycle = AgentLifecycleManager.global();
-		const stub = sessionStub({ settings: Settings.isolated({ "task.enableModelParam": false }) });
+		const stub = sessionStub({ messages: [] });
 		registry.register({
 			id: "gated-Sub",
 			displayName: "task",
@@ -129,9 +132,27 @@ describe("ensureLive model override", () => {
 		lifecycle.adopt("gated-Sub", { idleTtlMs: 0 });
 
 		await expect(lifecycle.ensureLive("gated-Sub", { model: SECONDARY_SELECTOR })).rejects.toThrow(
-			"task.enableModelParam is false",
+			"has not completed a model response yet",
 		);
 		expect(stub.setModelCalls).toHaveLength(0);
+	});
+
+	it("switches once the subagent has answered", async () => {
+		const registry = AgentRegistry.global();
+		const lifecycle = AgentLifecycleManager.global();
+		const stub = sessionStub({ messages: [{ role: "assistant" }] });
+		registry.register({
+			id: "answered-Sub",
+			displayName: "task",
+			kind: "sub",
+			session: stub.session,
+			status: "idle",
+		});
+		lifecycle.adopt("answered-Sub", { idleTtlMs: 0 });
+
+		await lifecycle.ensureLive("answered-Sub", { model: SECONDARY_SELECTOR });
+
+		expect(stub.setModelCalls).toEqual([SECONDARY]);
 	});
 
 	it("reaches ensureLive from a follow-up turn's model option", async () => {

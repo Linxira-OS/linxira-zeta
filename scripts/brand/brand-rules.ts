@@ -497,6 +497,11 @@ export const MUST_NOT_CONTAIN: Array<{
 		why: "the OTLP export opt-in was deleted, not defaulted off — Zeta runs no collector, so export has no on-switch at all; a merge must not resurrect the setting (hard-off policy in main.ts)",
 		exempt: ["CHANGELOG.md"],
 	},
+	{
+		needle: /task\.enableModelParam/,
+		why: "the global per-spawn `model` switch was removed, not defaulted off (2026-10-16): a subagent's model comes from its agent definition or the parent's, and switching is a per-subagent capability that opens after its first model response; a merge must not resurrect the setting",
+		exempt: ["CHANGELOG.md"],
+	},
 	// ── External-identity bans (2026-10-10 sweep) ───────────────────────────
 	// Names the operating system, the browser, or our own peers would use to
 	// identify this product as upstream. Word-boundary anchored so ordinary
