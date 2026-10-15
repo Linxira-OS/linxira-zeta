@@ -5227,18 +5227,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"task.enableModelParam": {
-		type: "boolean",
-		default: false,
-		ui: {
-			tab: "tasks",
-			group: "Subagents",
-			label: "Per-Task Model",
-			description:
-				"Let a task spawn name the model it runs on, so the parent agent can re-plan a failed subagent on a different model instead of waiting for the configured fallback chains. Off by default: the field is absent from the model-facing schema, and a call that carries `model` is rejected rather than silently ignored.",
-		},
-	},
-
 	"task.maxConcurrency": {
 		type: "number",
 		default: 32,

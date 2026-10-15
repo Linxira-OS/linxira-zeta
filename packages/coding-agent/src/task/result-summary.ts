@@ -48,7 +48,7 @@ const MODEL_SWITCH_CLASSES: Readonly<Partial<Record<NonNullable<SingleResult["fa
 /** Render the `<task-result>` envelope for a settled run. */
 export function formatTaskResultSummary(
 	result: SingleResult,
-	options: { totalDurationMs: number; mergeSummary?: string; modelSwitchHints?: boolean },
+	options: { totalDurationMs: number; mergeSummary?: string },
 ): string {
 	const status = result.aborted
 		? "cancelled"
@@ -73,13 +73,12 @@ export function formatTaskResultSummary(
 	const refStatus = AgentRegistry.global().get(result.id)?.status;
 	const resumable = result.aborted && !result.isolated && (refStatus === "idle" || refStatus === "parked");
 	// Diagnostics, not instructions: a parent that cannot act on a class would
-	// still rather see it than read another bare error line. The actionable
-	// re-dispatch hint needs `task.enableModelParam`, so it is caller-gated.
+	// still rather see it than read another bare error line.
 	const candidates = result.fallbackCandidates ?? [];
 	const failedClass = result.exitCode !== 0 ? result.failureClass : undefined;
 	const modelSwitchHint =
-		options.modelSwitchHints === true && failedClass !== undefined && MODEL_SWITCH_CLASSES[failedClass] === true
-			? `\`${result.resolvedModel ?? result.agent}\` failed with ${failedClass}. Re-dispatch the work on another model by passing the task \`model\` field${candidates.length > 0 ? ` (candidates above)` : ""}, or handle it in your plan; the harness will not re-hit that model on its own.`
+		failedClass !== undefined && MODEL_SWITCH_CLASSES[failedClass] === true
+			? `\`${result.resolvedModel ?? result.agent}\` failed with ${failedClass}. Waking this subagent on another model will run its next turn there${candidates.length > 0 ? ` (candidates above)` : ""}; the harness will not re-hit that model on its own.`
 			: undefined;
 	return prompt.render(taskSummaryTemplate, {
 		agentName: result.agent,

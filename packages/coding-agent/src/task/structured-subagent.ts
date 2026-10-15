@@ -79,7 +79,6 @@ import {
 	cfgTaskAgentServiceTierOverrides,
 	cfgTaskDisabledAgents,
 	cfgTaskEnableLsp,
-	cfgTaskEnableModelParam,
 	cfgTaskIsolationApply,
 	cfgTaskIsolationEnabled,
 	cfgTaskIsolationMerge,
@@ -765,15 +764,14 @@ function describeSalvagedWork(result: SingleResult): string {
  * this layer knows the *parent* session, which is the scope a re-plan happens
  * in; both frontends (task and eval) reach it.
  *
- * Inert while `task.enableModelParam` is off, so a default session's results
- * and ledger stay exactly as they were.
+ * Always on: the bookkeeping is diagnostics for the parent, so it does not
+ * depend on which model the run started on.
  */
 function annotateAgentDrivenModelUse(
 	request: StructuredSubagentRequest,
 	policy: EffectiveSubagentPolicy,
 	result: SingleResult,
 ): void {
-	if (!cfgTaskEnableModelParam.get(request.session.settings)) return;
 	const registry = request.session.modelRegistry;
 	const ledger = modelFailureLedgerForSession(request.session);
 	const selected = result.resolvedModel ?? result.resolvedModelIdentity;

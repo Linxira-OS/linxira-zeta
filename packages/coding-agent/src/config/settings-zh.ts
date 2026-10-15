@@ -1593,11 +1593,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "每任务思考投入",
 		description: "在任务生成时暴露可选的 effort 参数，允许调用方覆盖每个子代理的思考级别",
 	},
-	"task.enableModelParam": {
-		label: "每任务模型",
-		description:
-			"允许任务生成指定其运行所用的模型，使主代理能在子代理失败后换一个模型重新规划，而不必依赖配置好的回退链。默认关闭：该字段不会出现在面向模型的 schema 中，携带 `model` 的调用会被拒绝而不是被静默忽略。",
-	},
 	"task.maxConcurrency": {
 		label: "最大并发任务",
 		description: "同时运行的子代理最大数量",

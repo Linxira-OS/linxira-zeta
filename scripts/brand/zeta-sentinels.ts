@@ -491,6 +491,25 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: 'export const PLAN_ULTRA_LABEL = "Plan-Ultra";',
 		why: "the status-line ultra plan label (lost in the v18.6.0 merge).",
 	},
+	// -- task: a subagent's model is not a spawn parameter (2026-10-16) ------------
+	// The per-spawn `model` parameter was removed: dispatch never chooses a
+	// child's model (agent definition, else the parent's own), and switching is
+	// a per-subagent capability that opens after its first model response.
+	{
+		file: "packages/coding-agent/src/task/model-switch.ts",
+		symbol: "export function hasCompletedModelResponse(session: AgentSession): boolean {",
+		why: "Zeta-only gate (2026-10-16 user decision): a subagent's model may only be switched once it has completed a model response. An upstream take of this file drops the gate and lets a switch land on a subagent that never ran.",
+	},
+	{
+		file: "packages/coding-agent/src/task/model-switch.ts",
+		symbol: "has not completed a model response yet",
+		why: "the refusal text for the passive switch gate — the same surface the tests assert on",
+	},
+	{
+		file: "packages/coding-agent/src/task/index.ts",
+		symbol: "a subagent's model comes from its agent definition or the parent's",
+		why: "dispatch must reject a `model` rather than choose one: the wire shape has no such field, so reaching validation means an internal or stale-transcript caller",
+	},
 	// -- bash: elevated commands + credential policy -------------------------------
 	{
 		file: "packages/coding-agent/src/prompts/tools/bash.md",

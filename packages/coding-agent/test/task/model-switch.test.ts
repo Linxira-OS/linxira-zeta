@@ -39,6 +39,8 @@ interface SessionStubOptions {
 	models?: readonly Model<Api>[];
 	current?: Model<Api>;
 	sessionFile?: string | null;
+	/** Transcript the switch gate reads; one assistant response is the default. */
+	messages?: readonly unknown[];
 }
 
 interface SessionStub {
@@ -50,7 +52,7 @@ interface SessionStub {
 }
 
 function sessionStub(options: SessionStubOptions = {}): SessionStub {
-	const settings = options.settings ?? Settings.isolated({ "task.enableModelParam": true });
+	const settings = options.settings ?? Settings.isolated({});
 	const modelRegistry = registry(options.models);
 	const setModelCalls: Model<Api>[] = [];
 	const notices: string[] = [];
@@ -58,6 +60,7 @@ function sessionStub(options: SessionStubOptions = {}): SessionStub {
 		settings,
 		modelRegistry,
 		model: options.current ?? PRIMARY,
+		messages: options.messages ?? [{ role: "assistant" }],
 		setModelTemporary: async (model: Model<Api>) => {
 			setModelCalls.push(model);
 		},
@@ -151,7 +154,6 @@ describe("normalizeModelSelector", () => {
 describe("collectModelSwitchCandidates", () => {
 	it("offers the remaining configured models and skips the failed one", () => {
 		const settings = Settings.isolated({
-			"task.enableModelParam": true,
 			modelRoles: { smol: SECONDARY_SELECTOR },
 			"retry.fallbackChains": { default: [PRIMARY_SELECTOR] },
 		});
@@ -170,7 +172,7 @@ describe("collectModelSwitchCandidates", () => {
 	});
 
 	it("never offers a model inside its hard-failure cooldown", () => {
-		const settings = Settings.isolated({ "task.enableModelParam": true });
+		const settings = Settings.isolated({});
 		const ledger = new ModelFailureLedger();
 		ledger.noteFailure({ selector: SECONDARY_SELECTOR, failureClass: "usage-limit" });
 		const candidates = collectModelSwitchCandidates({
@@ -185,14 +187,18 @@ describe("collectModelSwitchCandidates", () => {
 });
 
 describe("applySubagentModelOverride", () => {
-	it("refuses to act while task.enableModelParam is off", async () => {
-		const { session, setModelCalls } = sessionStub({
-			settings: Settings.isolated({ "task.enableModelParam": false }),
-		});
+	it("refuses to switch a subagent that has not completed a model response yet", async () => {
+		const { session, setModelCalls } = sessionStub({ messages: [] });
 		await expect(applySubagentModelOverride(session, SECONDARY_SELECTOR)).rejects.toThrow(
-			"task.enableModelParam is false",
+			"has not completed a model response yet",
 		);
 		expect(setModelCalls).toHaveLength(0);
+	});
+
+	it("switches a subagent that has answered — the capability is per subagent, not a setting", async () => {
+		const { session, setModelCalls } = sessionStub({ messages: [{ role: "assistant" }] });
+		await applySubagentModelOverride(session, SECONDARY_SELECTOR);
+		expect(setModelCalls).toEqual([SECONDARY]);
 	});
 
 	it("switches the session and records the audit trail", async () => {

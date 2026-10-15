@@ -1,5 +1,7 @@
 /**
- * Agent-driven model switching: the wiring behind `task.enableModelParam`.
+ * Agent-driven model switching: a subagent's model is its own — chosen by its
+ * agent definition or inherited from the parent — and a wake may switch it once
+ * it has completed a model response.
  *
  * The config side (`retry.fallbackChains`, `retry.usageAwareFallback`) is a
  * *static* safety net: it picks the next model from a list the user wrote in
@@ -25,8 +27,8 @@
  *
  * Nothing here selects a model on its own initiative: candidates are advisory
  * and the ledger only refuses and records. There is deliberately no automatic
- * hopping between models (`task.enableModelParam` is opt-in for exactly this
- * reason — see docs/settings.md).
+ * hopping between models — nothing switches a route on its own initiative
+ * (see docs/settings.md).
  */
 import type { Api, Model } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
@@ -43,7 +45,6 @@ import {
 } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
 import { cfgRetryFallbackChains } from "../session/settings";
-import { cfgTaskEnableModelParam } from "./settings";
 import type { AgentSession } from "../session/agent-session";
 
 /** Coarse failure category a parent agent can plan a model switch from. */
@@ -436,33 +437,48 @@ export function formatExhaustedModelRefusal(record: ExhaustedModelRecord, candid
 }
 
 /**
- * Validate an explicit model selector before any work starts: the gate must be
- * on, the selector must resolve against this session's catalog, a credential
- * must be configured for it, and it must not be inside a hard-failure cooldown.
+ * Whether this subagent has completed at least one model response. Its model is
+ * fixed until then: there is nothing to switch before the first response, and
+ * the session's own transcript is the record of that — it survives parking and
+ * revival, so the capability is per-subagent and passive rather than a global
+ * setting.
+ */
+export function hasCompletedModelResponse(session: AgentSession): boolean {
+	return session.messages.some(message => message.role === "assistant");
+}
+
+/**
+ * Validate an explicit model selector before the switch lands: the subagent must
+ * already have completed a model response, the selector must resolve against
+ * this session's catalog, a credential must be configured for it, and it must
+ * not be inside a hard-failure cooldown.
  *
  * Throws rather than returning a flag because every caller treats a bad
- * selector the same way — refuse the dispatch — and silently running on a model
+ * selector the same way — refuse the switch — and silently running on a model
  * nobody asked for is the failure mode this whole feature exists to avoid.
  */
 export function assertModelOverrideUsable(
 	scope: {
-		settings: Settings;
+		session: AgentSession;
 		modelRegistry?: ModelRegistry;
-		/** Ledger of the session the caller belongs to (spawn) or is waking (wake). */
+		/** Ledger of the session being woken. */
 		ledger: ModelFailureLedger;
 	},
 	selector: string,
 ): void {
-	if (!cfgTaskEnableModelParam.get(scope.settings)) {
+	if (!hasCompletedModelResponse(scope.session)) {
 		throw new Error(
-			"Model override rejected: task.enableModelParam is false. Enable it to let callers choose the model a spawn or wake runs on.",
+			"Model override rejected: this subagent has not completed a model response yet. Its model becomes switchable once its first response lands.",
 		);
 	}
 	const registry = scope.modelRegistry;
 	if (!registry) {
 		throw new Error("Model override rejected: this session has no model registry to resolve it against.");
 	}
-	const resolved = resolveSubagentModelOverride(selector, { settings: scope.settings, modelRegistry: registry });
+	const resolved = resolveSubagentModelOverride(selector, {
+		settings: scope.session.settings,
+		modelRegistry: registry,
+	});
 	if (resolved.problem) throw new Error(`Model override rejected: ${resolved.problem}`);
 	const ledger = scope.ledger;
 	const exhausted =
@@ -473,7 +489,7 @@ export function assertModelOverrideUsable(
 		formatExhaustedModelRefusal(
 			exhausted,
 			collectModelSwitchCandidates({
-				settings: scope.settings,
+				settings: scope.session.settings,
 				modelRegistry: registry,
 				failedSelector: exhausted.selector,
 				ledger,
@@ -505,7 +521,7 @@ export async function applySubagentModelOverride(
 ): Promise<ModelSwitchRecord> {
 	const selector = override.trim();
 	const ledger = options?.ledger ?? new ModelFailureLedger();
-	assertModelOverrideUsable({ settings: session.settings, modelRegistry: session.modelRegistry, ledger }, selector);
+	assertModelOverrideUsable({ session, modelRegistry: session.modelRegistry, ledger }, selector);
 	const resolved = resolveSubagentModelOverride(selector, session);
 	if (!resolved.model) throw new Error(`Model override rejected: \`${selector}\` could not be resolved.`);
 	const target = resolved.model;

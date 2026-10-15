@@ -9,6 +9,8 @@
 
 ### Changed
 
+- A subagent's model is no longer a spawn parameter: `task` rejects `model` outright (the model comes from the agent definition, or — unconfigured — the parent's own), and switching a subagent's model is now a per-subagent capability that opens once it has completed a model response, instead of an opt-in global setting. Failure classes and the session's alternative models are reported unconditionally.
+
 - Local IPC endpoints (daemon broker, LSP mux, IDA hosts, text prediction, `zetacode stream`, Collab discovery, local model workers) now run on a native transport: owner-only on every platform, including Windows named pipes; on Windows, daemons started by an older zetacode are not reused, so close older sessions after upgrading.
 - Output hidden behind an open `ask` dialog, command report or todo list now reaches terminal scrollback once it closes, rather than while it is still open ([#15405](https://github.com/can1357/oh-my-pi/pull/15405) by [@H4vC](https://github.com/H4vC))
 
