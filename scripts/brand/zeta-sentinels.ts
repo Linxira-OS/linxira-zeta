@@ -471,6 +471,45 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: '{{#has tools "github"}}- GitHub (CI runs, PRs, issues, search)',
 		why: "Zeta-only rule: GitHub/Gitea work goes through the `github`/`tea` tools, never shell `gh`/`tea` (CI polling via `op: run_watch`). Upstream's Specialized Tools list covers files/search/LSP but has no host-CLI entry, so an upstream take of this file silently restores the shell-`gh` habit the CI-green prompt already tried to prevent.",
 	},
+	// -- Ultra plan workflow (`/plan-ultra`) ---------------------------------------
+	// The ultra plan workflow was merged away once (v18.6.0) and its three
+	// surfaces (state type, slash command, status label) each disappeared
+	// silently — no compile error, because the consumers live in shared files
+	// a `--theirs` take can restore to the pre-ultra pair.
+	{
+		file: "packages/coding-agent/src/plan-mode/state.ts",
+		symbol: 'export type PlanWorkflow = "parallel" | "iterative" | "ultra";',
+		why: "the ultra plan workflow (merged away once in v18.6.0).",
+	},
+	{
+		file: "packages/coding-agent/src/slash-commands/builtin-modes.ts",
+		symbol: 'name: "plan-ultra",',
+		why: "the `/plan-ultra` slash-command registration.",
+	},
+	{
+		file: "packages/tui/src/status-line/segments.ts",
+		symbol: 'export const PLAN_ULTRA_LABEL = "Plan-Ultra";',
+		why: "the status-line ultra plan label (lost in the v18.6.0 merge).",
+	},
+	// -- task: a subagent's model is not a spawn parameter (2026-10-16) ------------
+	// The per-spawn `model` parameter was removed: dispatch never chooses a
+	// child's model (agent definition, else the parent's own), and switching is
+	// a per-subagent capability that opens after its first model response.
+	{
+		file: "packages/coding-agent/src/task/model-switch.ts",
+		symbol: "export function hasCompletedModelResponse(session: AgentSession): boolean {",
+		why: "Zeta-only gate (2026-10-16 user decision): a subagent's model may only be switched once it has completed a model response. An upstream take of this file drops the gate and lets a switch land on a subagent that never ran.",
+	},
+	{
+		file: "packages/coding-agent/src/task/model-switch.ts",
+		symbol: "has not completed a model response yet",
+		why: "the refusal text for the passive switch gate — the same surface the tests assert on",
+	},
+	{
+		file: "packages/coding-agent/src/task/index.ts",
+		symbol: "a subagent's model comes from its agent definition or the parent's",
+		why: "dispatch must reject a `model` rather than choose one: the wire shape has no such field, so reaching validation means an internal or stale-transcript caller",
+	},
 	// -- bash: elevated commands + credential policy -------------------------------
 	{
 		file: "packages/coding-agent/src/prompts/tools/bash.md",

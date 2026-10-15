@@ -396,6 +396,15 @@ jobs:
            run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
+         # 镜像 GitHub `check` job：i18n 目录三文件必须键一致（messages 接口 == en ==
+         # zh，无空白 zh 值），描述符守卫则保证翻译过的键真被调用点读取。
+         - name: i18n catalogue consistency guard
+           run: bun scripts/check-i18n-consistency.ts
+         - name: i18n command-description guard
+           run: bun scripts/check-i18n-commands.ts
+         # 同 GitHub：守卫自己的用例不跑，守卫就是注释。
+         - name: Unit-test the i18n guards
+           run: bun test scripts/check-i18n-consistency.test.ts scripts/check-i18n-commands.test.ts
          # The desktop shell mirrors the CLI's serve-discovery decision module
          # (it has no workspace dependency), so the two decision matrices must
          # stay equal.
@@ -425,6 +434,27 @@ jobs:
          # （merge dab5fa80ac4 就是这么把 main 留红的：`test:scripts` 没有接进任何 job）。
          - name: Unit-test the package.json merge driver
            run: bun test scripts/merge-package-json.test.ts
+         # 同 GitHub `check` job：成员审计的用例在 scratch repo 里跑真 git merge，
+         # 也是唯一能证明"审计真能看见丢失成员"的关卡。
+         - name: Unit-test the merge member-loss auditor
+           run: bun test scripts/audit-merge-members.test.ts
+         # 同上面三个 unit-test 步骤的理由，用在门禁自身：没被收集的测试会腐坏——
+         # 这正是本 PR 在两个孤儿套件里发现的事。用例钉住单页摘要、失败非零退出、
+         # 品牌扫描的"只报告"裁决（两种结果都 exit 0）以及 `--gates-only` 真跳过测试。
+         - name: Unit-test the merge gate
+           run: bun test scripts/merge-gate.test.ts
+         # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外
+         #（根 `plugins/*` glob 到 `plugins/official` 为止），任何 bucket 都跑不到它。
+         # 因此这里自带依赖安装（package.json 声明 vitest，包内 .gitignore 已忽略
+         # node_modules/ 与 package-lock.json），与 `editor_tests` 的独立 vitest 同形。
+         # `continue-on-error` 是**有意的临时状态**：2026-10-16 首次接线即发现该套件
+         # 早已腐坏（ubuntu 上 7/438 失败、6/49 文件），与本改动无关、此前无人看见。
+         # 步骤照跑并标注，但不设门禁，直到专门的修复 PR 清零后去掉此标志。
+         # 不要用"删掉这一步"的方式让它变绿。
+         - name: Test the pi-messenger plugin (vitest; known-red, annotate-only)
+           working-directory: plugins/official/pi-messenger
+           continue-on-error: true
+           run: npm install --no-audit --no-fund && npx vitest run
          - name: Build collab web
            run: bun run collab:web:build
          - name: Local-CI parity guard
@@ -789,6 +819,18 @@ jobs:
               # 不跑 `test:scripts`：scripts/musl-release.test.ts 在 main 上就是红的
               #（install.sh 冒烟会执行假二进制），与本 job 无关。与 GitHub 同款拆分。
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
+         # 镜像 GitHub `test_workspace`：`packages/stats` 不属于任何 ci-test-ts bucket，
+         # 此前 CI 与本地 `bun run test:ts` 都没跑过它。放在这个 job（而非 `check`）是
+         # 因为它的用例经 `@linxiraos/pi-utils` → `@linxiraos/pi-natives` 在 import
+         # 阶段就要 Linux addon；`packages/natives` 没有 per-platform optional
+         # dependency，只有 native_addons 产物能提供。
+         # `continue-on-error` 是**有意的临时状态**：2026-10-16 首次收集即发现
+         # 214 个用例里 69 个失败（37 个文件中；`pruneOrphanSessionsInDb` 已从
+         # `src/db.ts` 移除导致整文件编译失败，sync/rollup/tool-stats/frustration
+         # 断言漂移）。步骤照跑并标注但不设门禁，直到专门修复 PR 清零。
+         - name: Test the stats package (bun test; known-red, annotate-only)
+           continue-on-error: true
+           run: bun test packages/stats/test
 
    test_coding_agent_singleton:
       name: Test coding-agent singleton/global-state (TS)

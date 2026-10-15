@@ -40,8 +40,9 @@ export type AgentReviver = (expected: AgentRef) => Promise<AgentSession>;
 export interface EnsureLiveOptions {
 	/**
 	 * Run the ensured session on this model selector (`provider/id[:level]` or an
-	 * `@role` alias) instead of the one it already has. Requires
-	 * `task.enableModelParam`; omitted keeps the session's current model.
+	 * `@role` alias) instead of the one it already has. Only a subagent that has
+	 * completed a model response can be switched; omitted keeps the session's
+	 * current model.
 	 */
 	model?: string;
 }
@@ -366,9 +367,9 @@ export class AgentLifecycleManager {
 	 * the following turn on that selector (`provider/id[:level]` or `@role`),
 	 * whether it was already live (warm) or rebuilt from its transcript (cold).
 	 * Omitted — the default — leaves the session on its current model and
-	 * behaves exactly as before. Requires `task.enableModelParam`; an
-	 * unresolvable selector or one inside its hard-failure cooldown throws
-	 * instead of quietly running on the wrong route.
+	 * behaves exactly as before. A subagent that has not completed a model
+	 * response cannot be switched; an unresolvable selector or one inside its
+	 * hard-failure cooldown throws instead of quietly running on the wrong route.
 	 */
 	async ensureLive(id: string, options?: EnsureLiveOptions): Promise<AgentSession> {
 		const session = await this.#ensureLiveSession(id);

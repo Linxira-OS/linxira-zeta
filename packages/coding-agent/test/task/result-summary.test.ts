@@ -100,7 +100,7 @@ describe("formatTaskResultSummary", () => {
 					to: "anthropic/claude-opus-4-6",
 				},
 			},
-			{ totalDurationMs: 5, modelSwitchHints: true },
+			{ totalDurationMs: 5 },
 		);
 
 		expect(summary).toContain('<failure class="usage-limit" />');
@@ -111,20 +111,24 @@ describe("formatTaskResultSummary", () => {
 		expect(summary).toContain("<retry-hint>");
 	});
 
-	it("keeps the re-dispatch hint out of an envelope whose session cannot act on it", () => {
-		// The hint tells the parent to pass the task `model` field, which only
-		// exists with `task.enableModelParam`: printing it for a session without
-		// the setting would instruct the model to send a field that gets stripped.
-		const summary = formatTaskResultSummary(
+	it("prints the switch hint for a hard-failure class and nothing for a class no model swap fixes", () => {
+		const hard = formatTaskResultSummary(
 			{ ...settledResult(""), exitCode: 1, stderr: "usage limit reached", failureClass: "usage-limit" },
 			{ totalDurationMs: 5 },
 		);
-		expect(summary).toContain('<failure class="usage-limit" />');
-		expect(summary).not.toContain("<retry-hint>");
+		expect(hard).toContain('<failure class="usage-limit" />');
+		expect(hard).toContain("<retry-hint>");
+
+		const transient = formatTaskResultSummary(
+			{ ...settledResult(""), exitCode: 1, stderr: "connection reset", failureClass: "transient" },
+			{ totalDurationMs: 5 },
+		);
+		expect(transient).toContain('<failure class="transient" />');
+		expect(transient).not.toContain("<retry-hint>");
 	});
 
 	it("adds nothing to a run that never declared a failure", () => {
-		const summary = formatTaskResultSummary(settledResult("done"), { totalDurationMs: 5, modelSwitchHints: true });
+		const summary = formatTaskResultSummary(settledResult("done"), { totalDurationMs: 5 });
 		expect(summary).not.toContain("<failure");
 		expect(summary).not.toContain("<candidates>");
 		expect(summary).not.toContain("<retry-hint>");
