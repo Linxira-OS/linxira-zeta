@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.10.0
+## Integrated through: v18.10.1
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -9,10 +9,10 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.10.0` (`b83200eb866821f02625332025b453f06ce4e12a`,
-  confirmed by `git merge-base refs/heads/main <tag>` == `bd4dffd5e617`, merge commit
-  `80ca49db8c7`). The previous value was `v18.9.2`
-  (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`, PR #92, merge `af624c160fe`),
+- **Integrated through**: `v18.10.1` (`5d0aaffaf1f987503ce129a642fb6e30339615af`,
+  confirmed by `git merge-base refs/heads/main <tag>` == `b83200eb866821f02625332025b453f06ce4e12a`,
+  merge commit `e72c77df4df`). The previous value was `v18.10.0`
+  (`b83200eb866821f02625332025b453f06ce4e12a`, PR #200, merge `1765251a473`),
   which is exactly the merge-base this round started from.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
@@ -24,14 +24,116 @@ two-parent tag merge.
 - **Upstream moved the v18.8.4 tag** after we merged it: the remote now
   advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
   the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
-- **Next merge** starts from this round's final commit on `main` once PR #200
-  (`sync/omp-release/v18.10.0`) merges. The branch head handed over is `680c2145281`, and it
-  carries the v18.10.0 tag commit (`git merge-base --is-ancestor b83200eb866 HEAD` is true), which is
-  exactly what `git merge-base`
-  against the next tag will compute. The increment applied is upstream's, not a
-  whole-tree comparison against our branch.
+- **Next merge**: starts from this round's final commit on `main` once
+  `sync/omp-release/v18.10.1` merges (branch head `dcc8e8a84ef`, plus any CI fixes). It carries the
+  v18.10.1 tag commit (`git merge-base --is-ancestor 5d0aaffaf1f HEAD` is true), which is exactly
+  what `git merge-base` against the next tag computes. The increment applied is upstream's
+  tag-to-tag diff, never a whole-tree comparison against our branch. Per
+  `local://upstream-ladder-measured.md` the ladder continues at `v18.10.2` — re-measure its
+  conflict set there, because the base changes after every step; `v18.11.0`/`v18.11.1` are later
+  rungs and must not be folded into this window.
 
 
+
+## v18.10.1 incremental merge (Zeta — branch `sync/omp-release/v18.10.1`; merge commit `e72c77df4df`)
+
+- **Source tag**: `v18.10.1` → `5d0aaffaf1f987503ce129a642fb6e30339615af`, a *lightweight* tag
+  (`git ls-remote --tags omp-upstream refs/tags/v18.10.1` advertises that one line only, no
+  `refs/tags/v18.10.1^{}` peel), read back locally with `git rev-parse v18.10.1` — remote and
+  local agree, so the release tag was not moved. **Zeta starting commit**: `1dcf2ccecde` (`main`).
+- **Baseline**: v18.10.0 (`b83200eb866821f02625332025b453f06ce4e12a`, PR #200, merge `1765251a473`).
+- **Lineage gate** (pre-merge, mandatory): `git merge-base HEAD v18.10.1` → `b83200eb866821f02625332025b453f06ce4e12a`,
+  exactly the previous tag, and `bun scripts/check-merge-lineage.ts --tag v18.10.1` → "lineage intact — safe to merge".
+  The merge therefore computes upstream's own increment, never our own diff.
+- **Window**: 9 commits / 66 files / +5199 −1625 (upstream's tag-to-tag diff). Theme: the native-modal
+  redesign — jobs/session-info/usage/context/BTW/pause/autoresearch/login/ask/MCP-wizard sheets rebuilt
+  to read like the command palette, icon footers on the user message and turn footer, one merged
+  running-work counter, grouped single-file `grep` output, and the MCP-wizard test pinning its key-hint
+  platform.
+- **Conflicts**: 27, all `UU` (a `git merge-tree --write-tree` dry run predicted 27 — exact match).
+- **Resolution rule**: upstream wins inside every overlapping hunk, then the Zeta surface is re-applied
+  (`zeta.*` semantic roles, the `@linxiraos/*` scope map, `.zeta` paths). Two hunks carry deliberate
+  Zeta-only behaviour and were *combined* rather than taken from one side (rows 5 and 19 below).
+- **Lockfiles**: `Cargo.toml` / `Cargo.lock` / `bun.lock` / `MODULE.bazel.lock` conflict on the version
+  line only — upstream's entire delta in all four is `18.10.0` → `18.10.1` — and the Zeta `1.2.1` line
+  wins, so all four end byte-identical to `1dcf2ccecde`. `bun install` afterwards reported no `bun.lock`
+  change, and `MODULE.bazel.lock` stayed valid because neither Cargo file moved.
+
+### Per-file conflict decisions (27)
+
+| # | File | Upstream's change | Zeta side at risk | Resolution |
+|---|---|---|---|---|
+| 1 | `Cargo.lock` | 12 workspace-crate version lines `18.10.0`→`18.10.1` | the `1.2.1` line | **ours** (Zeta version line; upstream added no dependency) |
+| 2 | `Cargo.toml` | `[workspace.package] version = "18.10.1"` | `version = "1.2.1"`, `authors = ["Linxira-OS"]` | **ours** |
+| 3 | `bun.lock` | 24 workspace `version` lines | our `1.2.1` + Zeta workspace set | **ours** (verified: a later `bun install` leaves the file unchanged) |
+| 4 | `MODULE.bazel.lock` | `Cargo.lock`/`Cargo.toml` FILE hashes + `pi-shell-18.10.1` alias | ours' `pi-shell-1.2.1` + hashes of our Cargo files | **ours** (generated artifact; consistent only because both Cargo files stay ours) |
+| 5 | `packages/coding-agent/src/modes/interactive-mode.ts` | pills → segments: `RunningSegment`, `#agentsSegment`/`#jobsSegment`, `omp.hud.seg`, one merged counter | `zeta.hud.*`, **and the Zeta-only idle tok/s HUD** (`#idleStatusNative` + `#describeIdleStatusHud` + its `slot` in `describeStatusHud`) | **combined**: upstream's segment shape + `zeta.*`; the idle HUD kept (fields `#agentsSegment`/`#jobsSegment` *and* `#idleStatusNative`; `#describeIdleStatusHud` kept under upstream's new doc comment) |
+| 6 | `packages/coding-agent/test/hook-editor.test.ts` | new `describe()` shape (`k:"text"` head + `md` part) | `role: "zeta.ask.question"` | upstream test (its impl changed in the same window) + `zeta.ask.question` |
+| 7 | `packages/coding-agent/test/modes/components/pause-screen.test.ts` | imports `NativeChild`/`NativeNode`, asserts `omp.btn`/`omp.overlay.pause` | `@linxiraos/*` imports, `zeta.*` roles | upstream test + scope map + `zeta.*` |
+| 8 | `packages/tui/src/apps/autoresearch-dashboard.ts` | `fmtNum`, `TspScrollBy`, `scroll`, `describeSheetHead`, `omp.autoresearch.*` roles | `zeta.*` roles, `@linxiraos/pi-wire` | upstream + role/scope map |
+| 9 | `packages/tui/src/chat/assistant-message.ts` | shared `line` in the turn-usage row; `#handleErrorAction` → `#handleAction`; `omp.turn.*` | `zeta.turn.usage` | upstream + roles |
+| 10 | `packages/tui/src/chat/user-message.ts` | toolbar becomes an icon row (Copy/Rewind icons, `align:"center"`) | text buttons carrying `zeta.user.tool` | upstream (icon footer) + `zeta.user.tool`/`zeta.user.tools` |
+| 11 | `packages/tui/src/overlays/advisor-config.ts` | picker editors hoist into `#editorSheet` | `zeta.prefs.editor` | upstream + role |
+| 12 | `packages/tui/src/overlays/annotation-overlay.ts` | `#describeRail`, `omp.review.*`, `max:{lines}`, `editing` guard; drops ours' `selectList` sidebar + `overlayCard` | `zeta.overlay.codeReview*` / `zeta.overlay.annotateText*` | upstream + roles |
+| 13 | `packages/tui/src/overlays/ask-dialog.ts` | `ring` param, `omp.editor.ask(.hidden)`, checked tabs, `omp.ask.summary/preview/notice/answers/other.check`, `optionLabelSpans` | `zeta.editor`, `zeta.ask.*` | upstream + roles |
+| 14 | `packages/tui/src/overlays/btw-history-panel.ts` | `nativeOverlay` becomes a getter over `SHEET`/`EMPTY_SHEET`; mail-reader anatomy | `zeta.overlay.btwHistory` | upstream + role |
+| 15 | `packages/tui/src/overlays/hook-editor.ts` | role literal → `ROLE` constant | `"zeta.overlay.hook-editor"` | upstream (constant), with `ROLE` verified `zeta.overlay.hook-editor` |
+| 16 | `packages/tui/src/overlays/jobs-panel.ts` | master–detail split (`omp.jobs.split/master/detail`, status pill, `elapsed` node, `omp.jobs.*`) | `zeta.jobs.row/detail/output` | upstream + roles |
+| 17 | `packages/tui/src/overlays/login-dialog.ts` | `#describeCode/Link/Open/Live/Done`, `omp.login.*`, `omp.btn` | `zeta.login.*` | upstream + roles |
+| 18 | `packages/tui/src/overlays/mcp-add-wizard.ts` | adds `node:path` import | `@linxiraos/pi-utils` | upstream + scope map |
+| 19 | `packages/tui/src/overlays/plugin-selector.ts` | badges (`badgesByValue`) for version/installed/scope | **Zeta i18n** (`tuiText("pluginSelectorInstalled"/"mcpScopeWordUser"/"mcpScopeWordProject")`) | **combined**: our localized `status`/`scopeTag` + upstream's `badgesByValue.set(...)` |
+| 20 | `packages/tui/src/overlays/session-info-overlay.ts` | `identityField`, `#describeStats`, `omp.info.*` | `zeta.info.copy/kv/file/*` | upstream + roles |
+| 21 | `packages/tui/src/overlays/usage-dashboard.ts` | `#describeStats`/`#describeActivity`/`#quotaMeta`, `leftSpans`, `omp.usage.*` | `zeta.usage.*` | upstream + roles |
+| 22 | `packages/tui/src/status-line/context-usage.ts` | stacked `bar` + `shares` rows + snapcompact rows (`omp.context.*`) | `zeta.context.*` | upstream + roles |
+| 23 | `packages/tui/test/annotation-overlay.test.ts` | adds a `NativeUiEvent` import | `@linxiraos/pi-tui/...` | upstream + scope map |
+| 24 | `packages/tui/test/dialogs-native.test.ts` | asserts the `omp.editor.ask` root and submit-button tone | `zeta.*` roles | upstream test + roles |
+| 25 | `packages/tui/test/hook-input-timeout.test.ts` | harness helpers (`nodes`/`spans`) + imports | `@linxiraos/*` | upstream + scope map |
+| 26 | `packages/tui/test/native/transcript-redesign-native.test.ts` | icon-based toolbar query (`prop(node,"name") === icon`) | `zeta.user.tool` | upstream test + role |
+| 27 | `packages/tui/test/usage-native-describe.test.ts` | `plain()` helper, tightest-quota headline, `omp.info.copy` copies | `zeta.info.copy` | upstream test + role |
+
+### Post-merge Zeta adaptation (commit `dcc8e8a84ef`)
+
+- 31 of the window's 66 files were swept `omp.*` → `zeta.*` and `@oh-my-pi/*` → the scope map
+  (`@oh-my-pi/pi-coding-agent`→`@linxiraos/zeta`, `omp-stats`→`pi-stats`, `snapcompact`→`pi-snapcompact`,
+  `omptype`→`pi-omptype`, rest → `@linxiraos/<name>`), including the auto-merged regions git never
+  marked as conflicts. Impl/test pairs stay consistent (`tools-native-search.test.ts` now asserts the
+  role the source emits).
+- Both package CHANGELOGs: the upstream `## [18.10.1]` and `## [18.10.0]` sections folded back into
+  `[Unreleased]` (repo convention for unreleased upstream sections; item counts 28→28 and 26→26, no
+  content lost), with the tui bullets' role names rewritten to `zeta.*`.
+- `scripts/brand/brand-rules.ts`: the TUI-role alternation grew the v18.10.1 namespaces
+  (turn/user/context/jobs/login/info/review/mcpAdd/btw/pause/report/prefs/autoresearch/overlay/hook/
+  tool/usage/hud/actions) so a later merge cannot ship them silently.
+- `scripts/brand/brand-overlay.ts`: excluded `config/omp-compat` + `config/model-registry` (they probe
+  the real upstream OMP root `~/.omp/agent`, decision `92f06c8b240`) and CHANGELOG prose from the
+  path-rewrite rules. Before this the overlay wanted to rewrite 9 tokens in those 4 files — i.e. it
+  would have reverted that decision; after it the overlay reports `0 file(s), 0 token(s)`.
+
+### Checks (all exit 0)
+
+| Gate | Result |
+|---|---|
+| `bun scripts/check-version-consistency.ts` | version line consistent at `1.2.1`: 14 packages + 13 catalog keys + Cargo + main workspace + natives stamp + desktop + npm distribution leaf pins + README badge + `crates/*/BUILD.bazel` + Cargo.lock members |
+| `bun run check:ts` | 0 errors across all 17 workspace packages (plus `check:tools` oxlint/oxfmt clean) |
+| `bun scripts/check-scope-imports.ts` | 18837 `@linxiraos/*` specifiers resolve (5 allow patterns) |
+| `bun scripts/brand/brand-check.ts` | 0 hit(s), 0 missing assertion(s) |
+| `bun scripts/check-zeta-sentinels.ts` | 108 sentinels verified, AGENTS.md → document/merge-review.md |
+| `bun scripts/check-ci-surface.ts` | 32 jobs in `ci.yml` (+ 4 satellite workflows), 37 required jobs, 6 needs edges (floor 27) |
+| `bun scripts/check-package-json-merge.ts --base origin/main` | OK: 1 merge commit, no branch-side leaf dropped or reverted |
+| `bun scripts/audit-merge-members.ts --base 1dcf2ccecde` | 25 flagged across 10 files — all classified: upstream renames/removals (`describeRunningPill`→`describeRunningSegment`, `#handleErrorAction`→`#handleAction`, the redesigned `#describe*` helpers) or call-site-shape regex noise; **zero `export`-level losses**, and the Zeta-only idle HUD survived |
+| `bun scripts/scan-brand-regressions.ts --base 1dcf2ccecde` | 2 hits, both inside the `brand-rules.ts` `why` text this round edited (rule documentation names the upstream spellings) — no product surface |
+
+- **Tests**: the touched buckets are green — `bun test` over the 5 conflicted tui test files + the 3
+  new tui test files + `coding-agent`'s two conflicted tests = **80 pass / 0 fail**, and the HUD test
+  `interactive-mode-activity-line.test.ts` is **4 pass / 0 fail**. The whole `packages/tui/test` suite
+  is 3712 pass / 20 fail, and the **identical** failure set reproduces on clean `main` (22 fail) — host
+  locale (`toLocaleTimeString` renders `下午06:05` where the test wants `06:05 pm`), Windows ConPTY
+  escape sequences, and flaky native-image timeouts. No merge-introduced failure.
+- **Not verified here**: the native addon build. This host has no local `pi_natives.*.node`, so the
+  suite borrowed `main`'s prebuilt `pi_natives.win32-x64-baseline.node`. This window changes no
+  `crates/` file and `packages/natives/native/index.{js,d.ts}` are byte-identical to `v18.10.1`, so the
+  borrowed addon is ABI-adequate; PR CI (which never builds a PR-side addon for `sync/*` branches) and
+  the branch-dispatch recipe in `document/merge-playbook.md` remain the authoritative validation.
 
 ## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `80ca49db8c7`)
 
