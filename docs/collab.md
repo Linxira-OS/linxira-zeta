@@ -24,16 +24,18 @@ prints
 
 ```
 Collab session started!
- • Join from another terminal: zetacode join "mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30"
- • or any web browser: my.omp.sh/#mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30
+ • Join from another terminal: zetacode join "relay.example.com/r/mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30"
+ • or any web browser: relay.example.com/#mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30
 ```
+
+(The links always name the relay the room was created on — here `relay.example.com`, from `collab.relayUrl`. A room hosted against a relay whose browser UI lives elsewhere prints `collab.webUrl` instead.)
 
 The browser line is click-to-join (an OSC 8 hyperlink to the full `https://` deep link): the relay serves the web guest client at `/`, and the room id + key ride in the URL fragment. From another zetacode (any directory, any machine), either form works:
 
 Running `/collab` or `/collab view` starts or displays the active hosting session, rendering terminal/browser join links and a QR code for the browser URL. `/collab` requests control access: if the active room was started view-only, it replaces that room. `/collab view` reuses either access level and prints only the read-only link.
 
 ```
-/join my.omp.sh/#mgAYTZwEnpRQtca0CTgn-Q.gdJU…
+/join relay.example.com/#mgAYTZwEnpRQtca0CTgn-Q.gdJU…
 ```
 
 The guest's previous session is restored on `/leave` (or when the host stops).
