@@ -8,7 +8,8 @@
 
 ### 新增
 
-- **welcome/splash 字符画改标准工具生成**（2026-10-14 品牌字样规格）：新增 `scripts/brand/logo-art.ts` + `scripts/brand/generate-logo-art.ts`，用 FIGlet 标准字体生成字符画常量（mark = `Z`/`ANSI Shadow`，主行 `Zeta`/`ANSI Shadow`，次行 `Linxira-Zeta`/`mini`；字体 `ANSI Shadow.flf`、`mini.flf` 随包 vendored 到 `scripts/brand/fonts/`，root devDependency 加 `figlet@1.8.0` 作渲染器，CI 离线可复现）；`brand-check.ts` 新增"字符画必须与生成脚本输出逐字一致"校验——手改一个字符即红，`bun scripts/brand/generate-logo-art.ts` 重生成即绿。拉丁 `Z` 而非 `Ζ` 的原因：标准 FIGlet 字体全是单字节码表、无希腊区，`Ζ`/`ζ` 渲染为空串（`Z` 与 `Ζ` 同源）。
+- **工作台左栏按钮可配置（内建视图槽）**：工作台（`main/`，终端形态）新增左栏按钮列 —— 默认 4 个内建视图按钮（搜索 / 任务 / 自动化 / 手机端；用量、上下文默认隐藏），点按钮把中间面板区整块换成该视图，再点一次或 `Esc` 回到窗格；按钮下方 `+` 打开「管理按钮」面板：勾选显示/隐藏、`K`/`J` 调序（也可点行切换），改动即时写回 `~/.zeta/workbench.toml` 的 `[[slots]]` 段（写回只动该段与工作台自己的 4 个偏好键，文件里其它键/注释/段落原地保留）。配置缺失、截断或含未知 id 一律回落默认四槽、不阻断启动；设置里多出来的字段被忽略（向前兼容）。左栏只放内建视图，**没有"新增 URL"入口**；六个内建视图本期只做"切换 + 说明帧"（帧内写明各自的数据来源），数据面实现是后续工单。
+- **welcome/splash 字符画改标准工具生成**（2026-10-14 品牌字样规格）：新增 `scripts/brand/logo-art.ts` + `scripts/brand/generate-logo-art.ts`，用 FIGlet 标准字体生成字符画常量（mark = `Z`/`ANSI Shadow`，主行 `Zeta`/`ANSI Shadow`，次行 `Linxira-Zeta`/`mini`；字体 `ANSI Shadow.flf`、`mini.flf` 随包 vendored 到 `scripts/brand/fonts/`，root devDependency 加 `figlet@1.8.0` 作渲染器，CI 离线可复现）；`brand-check.ts` 新增"字符画必须与生成脚本输出逐字一致"校验——手改一个字符即红，`bun scripts/brand/generate-logo-art.ts` 重生成即绿。拉丁 `Z` 而非 `Ζ` 的原因：标准 FIGlet 字体全是单字节码表、无希腊区，`Ζ`/`ζ` 渲染为空串（`Z` 与 `Ζ`…
 
 ### 修复
 
