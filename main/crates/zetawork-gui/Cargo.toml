@@ -1,0 +1,33 @@
+[package]
+name = "zetawork-gui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "zetawork GUI feasibility spike: egui/eframe shell — dock layout + persistence, ratatui cell blit, WebView2 child embed, CJK IME"
+publish = false
+
+[[bin]]
+name = "zetawork-gui"
+path = "src/main.rs"
+
+[dependencies]
+egui = "0.33.3"
+eframe = "0.33.3"
+# `serde` gives DockState a loss-free layout round-trip (spike evidence item 6).
+egui_dock = { version = "0.18.0", features = ["serde"] }
+ratatui.workspace = true
+unicode-width = "0.2.2"
+# termide's grid fix-ups (variation-selector emoji tails) are reused verbatim so
+# this blit path and the real termide panes agree on what a wide cell is.
+termide-core.workspace = true
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# `--capture` writes the live GL framebuffer (screenshots with no GPU test rig).
+png = "0.18"
+
+# WebView2 host. Guarded by target so the Linux `cargo check` leg of
+# `Test main workspace` never has to build GTK/WebKit.
+[target.'cfg(windows)'.dependencies]
+wry = "0.57.0"
