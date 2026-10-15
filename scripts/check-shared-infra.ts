@@ -13,8 +13,13 @@
  *
  * This gate pins the inventory: an unregistered `*.omp.sh` / `*.stencil.so` /
  * `scl.so` URL in a scanned file fails, and so does a known domain showing up
- * in a file it was not whitelisted for. Test files are exempt (fixtures may
- * quote any endpoint). Adding a placement is a deliberate two-step act: record
+ * in a file it was not whitelisted for. Test files and recorded fixture trees
+ * (`__fixtures__/`: real manifests, leak corpora) are exempt — fixtures must
+ * quote the upstream endpoints verbatim, exactly like brand-check's token bans.
+ * That exemption is scoped to a `__fixtures__` directory on purpose and MUST NOT
+ * be widened (`scripts/**`, a whole top-level tree, or the repository root): a
+ * recorded fixture is the only thing here allowed to quote an endpoint it does
+ * not own, and a broader exemption would silently retire this inventory. Adding a placement is a deliberate two-step act: record
  * it in the ledger, then here.
  */
 import * as path from "node:path";
@@ -197,6 +202,7 @@ function isTest(rel: string): boolean {
 		rel.includes("/test/") ||
 		rel.includes("/tests/") ||
 		rel.includes("/__tests__/") ||
+		rel.includes("/__fixtures__/") ||
 		/\.(test|spec)\./.test(rel)
 	);
 }
