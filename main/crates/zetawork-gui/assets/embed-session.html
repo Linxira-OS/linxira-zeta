@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>zeta embed · session (chrome=none)</title>
+<style>
+	:root { color-scheme: dark; }
+	html, body { margin: 0; padding: 0; height: 100%; }
+	body {
+		background: #1c2128;
+		color: #d8dee9;
+		font: 13px/1.5 "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+		display: flex; flex-direction: column;
+	}
+	header { padding: 6px 10px; background: #22272e; border-bottom: 1px solid #373e47; font-size: 12px; color: #9aa5b1; }
+	header b { color: #88c0d0; }
+	#view { flex: 1 1 auto; padding: 10px; overflow: auto; }
+	.row { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
+	.you { color: #88c0d0; }
+	.zeta { color: #a3be8c; }
+	.card { border: 1px solid #373e47; border-radius: 6px; padding: 8px 10px; margin: 8px 0; background: #21262d; }
+	.cjk { font-size: 15px; letter-spacing: 0; }
+	code { color: #ebcb8b; }
+	footer { padding: 4px 10px; border-top: 1px solid #373e47; font-size: 11px; color: #7d8590; display: flex; gap: 12px; }
+</style>
+</head>
+<body data-chrome="none" data-view="session">
+	<header>zeta embed · <b>chrome=none</b> · view=<b>session</b> · 这份页面没有左/右/顶栏</header>
+	<div id="view">
+		<div class="row"><span class="you">你</span><span>把右栏和中间区都换成 web 子页，行不行？</span></div>
+		<div class="row"><span class="zeta">ζ zetacode</span><span>这是 <code>/embed/session?chrome=none</code> 的静态原型；壳把我塞进一个子窗口，宽度由面板决定。</span></div>
+		<div class="card">
+			<div class="cjk">中文宽字符占两格：中文 ｜ 中 a 文 b ｜ 测试 ✓</div>
+			<div id="probe">probe: 未测量</div>
+		</div>
+		<div class="card" id="shell-msg-card">壳 → 页 postMessage: <span id="shell-msg">（还没有收到）</span></div>
+	</div>
+	<footer><span>tick: <span id="tick">-</span></span><span>inner: <span id="size">-</span></span><span id="dpr"></span></footer>
+	<script>
+		"use strict";
+		window.__zeta_errors = [];
+		window.addEventListener("error", function (event) {
+			window.__zeta_errors.push(String(event.message) + " @" + String(event.filename) + ":" + String(event.lineno));
+		});
+		var bridge = function () {
+			// Native WebView2 first: it does not depend on wry's `window.ipc`
+			// shim, which only exists when the host registered an IPC handler.
+			if (window.chrome && window.chrome.webview) return window.chrome.webview.postMessage.bind(window.chrome.webview);
+			if (window.ipc && typeof window.ipc.postMessage === "function") return window.ipc.postMessage.bind(window.ipc);
+			return null;
+		};
+		var send = function (msg) {
+			var post = bridge();
+			if (post) post(JSON.stringify(msg));
+			window.__zeta_log = (window.__zeta_log || []).concat([msg.type]);
+		};
+		// shell -> page (design §3.2): the shell calls window.__zetaReceive(message)
+		window.__zetaReceive = function (msg) {
+			window.__zeta_last_shell_message = msg;
+			document.getElementById("shell-msg").textContent = JSON.stringify(msg);
+		};
+		window.__zetaProbe = function () {
+			var measure = function (text) {
+				var el = document.createElement("span");
+				el.style.font = '15px "Noto Sans SC", "Microsoft YaHei", monospace';
+				el.style.position = "absolute";
+				el.style.whiteSpace = "pre";
+				el.textContent = text;
+				document.body.appendChild(el);
+				var w = el.getBoundingClientRect().width;
+				el.remove();
+				return Math.round(w * 1000) / 1000;
+			};
+			return JSON.stringify({
+				type: "zeta-probe",
+				inner: [window.innerWidth, window.innerHeight],
+				dpr: window.devicePixelRatio,
+				title: document.title,
+				ready: document.readyState,
+				cjk_cell_px: measure("中"),
+				ascii_cell_px: measure("0"),
+				shellMessage: window.__zeta_last_shell_message || null,
+				tick: document.getElementById("tick").textContent,
+				messageTypes: window.__zeta_log || []
+			});
+		};
+		var refresh = function () {
+			document.getElementById("size").textContent = window.innerWidth + "x" + window.innerHeight;
+			document.getElementById("dpr").textContent = "dpr=" + window.devicePixelRatio;
+		};
+		window.addEventListener("resize", function () {
+			refresh();
+			send({ type: "zeta-title", text: "session · " + window.innerWidth + "x" + window.innerHeight });
+		});
+		window.addEventListener("load", function () {
+			refresh();
+			document.getElementById("probe").textContent = "probe: 等你按壳里的「probe」";
+			send({ type: "zeta-embed-ready", view: "session", minWidth: 320, inner: [window.innerWidth, window.innerHeight] });
+		});
+		setInterval(function () { document.getElementById("tick").textContent = new Date().toLocaleTimeString("zh-CN"); }, 1000);
+	</script>
+</body>
+</html>
