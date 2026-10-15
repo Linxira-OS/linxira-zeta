@@ -316,6 +316,23 @@ jobs:
          # no network and no toolchain — so this stays a seconds-long gate.
          - name: Unit-test the merge member-loss auditor
            run: bun test scripts/audit-merge-members.test.ts
+         # Orphan suite: `plugins/official/pi-messenger/tests` is a **vitest**
+         # suite outside the bun workspace — the root `plugins/*` glob stops at
+         # `plugins/official`, so `bun install` never installed its deps and no
+         # bucket in `ci-test-ts.ts` (which walks `packages/*`) ever ran it.
+         # Only `test/plugins/pi-messenger-activation.test.ts`'s "is it
+         # registered" assertion touched the plugin at all. It therefore
+         # installs its own dependencies here: `package.json` declares
+         # `vitest ^2.1.8` and the package's `.gitignore` already ignores
+         # `node_modules/` + `package-lock.json`, the same standalone-vitest
+         # shape `editor_tests` uses. It belongs in this job because it is
+         # self-contained: its native dependency comes from npm's published
+         # per-platform leaf packages (`@linxiraos/pi-natives-linux-x64`), not
+         # from the addon artifact the `test_*` buckets download — the `check`
+         # job deliberately has none.
+         - name: Test the pi-messenger plugin (vitest)
+           working-directory: plugins/official/pi-messenger
+           run: npm install --no-audit --no-fund && npx vitest run
          - name: Build collab web
            run: bun run collab:web:build
 
@@ -887,6 +904,18 @@ jobs:
               # (its install.sh smoke-check executes a fake binary), so running
               # the whole group here would red this job on an unrelated break.
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
+         # Orphan suite: `packages/stats` is a workspace package that sits in no
+         # `ci-test-ts.ts` bucket (neither `fastWorkspacePackages` nor
+         # `nativeAndIntegrationPackages`), so neither CI nor the local
+         # `bun run test:ts` ever ran its 104 tests. It runs *here*, not in
+         # `check`, because its suites import `@linxiraos/pi-utils` →
+         # `@linxiraos/pi-natives`, whose loader throws at import time unless a
+         # Linux addon is present in `packages/natives/native/` — and the
+         # `packages/natives` workspace package declares no per-platform
+         # optional dependency, so only the steps above (native-artifacts) can
+         # supply it. In `check` this suite is a guaranteed red.
+         - name: Test the stats package (bun test)
+           run: bun test packages/stats/test
 
    test_coding_agent_singleton:
       name: Test coding-agent singleton/global-state (TS)

@@ -113,6 +113,14 @@ command away on a Linux box (WSL included):
 
 ```sh
 bun install
+# One command for every layer — mechanical guards, the three merge audits and
+# the behaviour suites — with a single-page pass/fail summary at the end:
+bun run merge-gate
+bun run merge-gate --gates-only        # guards + merge audits only (pre-merge)
+bun run merge-gate --base v18.10.0 --tag v18.10.1
+bun run merge-gate --dry-run           # print the plan, run nothing
+bun run merge-gate --only audit-members
+# …or one step at a time:
 bun scripts/check-local-ci-parity.ts
 bun run ci:check:full
 bun scripts/brand/brand-check.ts
@@ -125,6 +133,11 @@ bun run check:relay-assets                   # no zip/bun install needed
 cargo build --release -p pi-natives        # then copy into packages/natives/native/
 bun run ci:test:full                       # every TS bucket + cargo nextest
 ```
+
+`merge-gate` is also the only entry point that runs the two orphan suites —
+`packages/stats/test` and `plugins/official/pi-messenger/tests` (vitest, outside
+the bun workspace, so it installs its own dependencies). `bun run test:ts` alone
+still skips both; in CI they run in `test_workspace` and `check` respectively.
 
 ## One-time Gitea setting
 
