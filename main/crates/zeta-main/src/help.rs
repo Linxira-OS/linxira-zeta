@@ -14,13 +14,14 @@ USAGE
   zeta --help           This help
   zeta --version        Workspace version
 
-The other suite tools hand off from inside the workspace: the coding,
-editor, and IDE panes run zetacode, zetaeditor, and zetaide (Alt+C / E / I).
+The other suite tools hand off from inside the workspace: the coding and IDE
+panes run zetacode and zetaide, and the editor pane is a built-in editor
+(Alt+C / E / I). zetaeditor still runs standalone.
 
 KEYS (inside the workspace)
   Alt+N    new shell pane          Alt+T    new tab
   Alt+C    pane: zetacode          Alt+W    close tab
-  Alt+E    pane: zetaeditor        Alt+1..9 jump to tab n
+  Alt+E    pane: editor (built in) Alt+1..9 jump to tab n
   Alt+I    pane: zetaide           Alt+←/→  prev/next tab
   Alt+S    pane: shell             Alt+O    focus next pane
   Alt+D    pane: time+calendar     Alt+X    close focused pane
@@ -59,19 +60,22 @@ THE ZETA SUITE (each with its own --help)
 
 PANES
 A pane is a real terminal (PTY): anything that runs in a terminal runs in a
-pane — zetacode coding sessions, the zetaeditor, plain shells. Panes tile
-through the pane tree: split any pane left/right or top/bottom, then drag
-borders to taste — the Tools menu carries smart presets (1+2 gives the
-left pane a third of the width; thirds, T, quad, and columns cover the
-wider shapes). Each pane keeps a stack of pages; minimizing docks the
-pane (still running) at the bottom of its tab.
+pane — zetacode coding sessions, plain shells. The editor pane is the
+exception: it is a built-in, in-process editor (open a file, edit, Ctrl+S to
+save; its language bar shows the file, language and cursor, and notes that no
+language service is wired in yet). Panes tile through the pane tree: split
+any pane left/right or top/bottom, then drag borders to taste — the Tools
+menu carries smart presets (1+2 gives the left pane a third of the width;
+thirds, T, quad, and columns cover the wider shapes). Each pane keeps a
+stack of pages; minimizing docks the pane (still running) at the bottom of
+its tab.
 ";
 
 /// In-app help overlay: keymap + suite map, centered.
 pub fn overlay_text() -> &'static str {
 	"zeta workspace — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ \
 	 cycle\nrail     click a view button · + manages the buttons · Esc back to the \
-	 panes\npanes    Alt+N shell · Alt+C zetacode · Alt+E zetaeditor · Alt+I zetaide\nAlt+D \
+	 panes\npanes    Alt+N shell · Alt+C zetacode · Alt+E editor (built in) · Alt+I zetaide\nAlt+D \
 	 time+calendar · Alt+L layout · Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock \
 	 below)\nAlt+B move pane to its own new tab · Alt+V paste image (path)\nAlt+any other chord is \
 	 forwarded to the pane\nmouse    click tab bar · click pane to focus · drag border = resize\ndrag \

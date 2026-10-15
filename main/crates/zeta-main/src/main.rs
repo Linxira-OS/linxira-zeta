@@ -1,5 +1,6 @@
 mod app;
 mod busy;
+mod editor;
 mod help;
 mod layout;
 mod rail;
