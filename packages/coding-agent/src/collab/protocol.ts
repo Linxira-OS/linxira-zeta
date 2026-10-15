@@ -291,6 +291,16 @@ export function formatCollabWebLink(
 	return `${normalizeCollabWebBaseUrl(relayUrl, webUrl)}/#${formatCollabLink(relayUrl, roomId, key, writeToken)}`;
 }
 
+/**
+ * A host-less link (`<roomId>.<key>`, legacy `<roomId>#<key>`). The wire
+ * grammar resolves it against the canonical relay, so callers that must not
+ * reach a host the user never chose need to resolve it themselves first —
+ * see `resolveCollabJoinLink`.
+ */
+export function isBareCollabLink(link: string): boolean {
+	return BARE_LINK_RE.test(link.trim());
+}
+
 export function parseCollabLink(link: string): ParsedCollabLink | { error: string } {
 	// Lenient input: terminals that open OSC 8 links through strict URL stacks
 	// (macOS Foundation) percent-encode the legacy second `#` to `%23`.

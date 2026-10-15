@@ -24,7 +24,6 @@ import {
 	type BlobDestinationMetadata,
 	BUILTIN_BLOB_DESTINATIONS,
 } from "../blob-broker/destinations";
-import { DEFAULT_RELAY_URL } from "../collab/protocol";
 import { DEFAULT_LIVE_VOICE, LIVE_VOICE_OPTIONS, LIVE_VOICE_VALUES } from "../live/voices";
 import { MAGIC_KEYWORDS, type MagicKeywordId } from "../modes/magic-keywords";
 import {
@@ -2382,14 +2381,26 @@ export const SETTINGS_SCHEMA = {
 	},
 
 	// Collab
+	"collab.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "interaction",
+			group: "Collab",
+			label: "Enabled",
+			description:
+				"Enable live session sharing (/collab, /join). Requires collab.relayUrl to point at a relay you control; zeta operates none.",
+		},
+	},
 	"collab.relayUrl": {
 		type: "string",
-		default: DEFAULT_RELAY_URL,
+		default: "",
 		ui: {
 			tab: "interaction",
 			group: "Collab",
 			label: "Relay URL",
-			description: "Relay used by /collab (wss://host[:port])",
+			description:
+				"Relay used by /collab (wss://host[:port]); empty disables sharing even when collab.enabled is on",
 		},
 	},
 
