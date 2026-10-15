@@ -135,6 +135,49 @@ two-parent tag merge.
   borrowed addon is ABI-adequate; PR CI (which never builds a PR-side addon for `sync/*` branches) and
   the branch-dispatch recipe in `document/merge-playbook.md` remain the authoritative validation.
 
+### Second merge: `main` caught up (commit `15511db8069`)
+
+- `main` advanced from `1dcf2ccecde` to `b580b1cbaa2` while the PR was in flight (PR #225 plan-ultra
+  depth, PR #226 `bun run merge-gate` + the two orphan suites, PR #228 passive per-subagent model
+  switching). Repo rule: an integration branch is never pushed/PR'd behind `main`, so `origin/main`
+  was merged into the branch.
+- **Zero conflicts** — this is an our-vs-our merge, so no upstream comparison applies. Auto-merged:
+  `packages/coding-agent/CHANGELOG.md` (main's #228 bullet landed inside the folded `[Unreleased]`;
+  one stray blank line removed), `packages/coding-agent/src/modes/interactive-mode.ts` (main's
+  plan-ultra workflow journaling and this round's HUD/segment resolution coexist —
+  `#planModePausedWorkflow` ×7, `zeta.hud.seg` ×1, `#describeIdleStatusHud` ×2), and
+  `scripts/brand/brand-rules.ts` (main's new `task.enableModelParam` MUST_NOT_CONTAIN rule beside this
+  round's v18.10.1 role alternation).
+- Nothing resolved in the tag merge was invalidated: no `packages/coding-agent/src/task/**`,
+  `config/settings*` or `packages/tui/src/tools/task.ts` file was ever part of the conflict set, and
+  after the merge `git merge-base v18.10.1 HEAD` is still
+  `5d0aaffaf1f987503ce129a642fb6e30339615af` with `git merge-base --is-ancestor v18.10.1 HEAD` passing.
+- The PR (#227) shows the net diff against `main`, so the four lockfiles (identical to main) and the
+  reverted-by-net files drop out of that view.
+
+### `bun run merge-gate --gates-only --base origin/main --tag v18.10.1`
+
+16 passed, 3 failed, 1 skipped — all three failures are the documented machine-local shapes, not
+damage:
+
+| Step | Verdict | Why |
+|---|---|---|
+| `package.json merge-drop` | FAIL | `package.json merge guard FAILED: shallow repository` — this clone is shallow; the guard needs `git fetch --unshallow` or the documented process override `GIT_SHALLOW_FILE=/nonexistent-shallow`, under which the same guard reports **OK: 1 merge commit(s), no branch-side leaf dropped or reverted** |
+| `merge member loss` | FAIL | 25 members across 10 files vs `origin/main` — the identical set already classified above: upstream renames/removals (`describeRunningPill`→`describeRunningSegment`, `#handleErrorAction`→`#handleAction`, the redesigned `#describe*` helpers) plus call-site regex noise. No `packages/coding-agent/src/task/**`, `plan-mode/*`, or `scripts/merge-gate.ts` member from main's new PRs is missing |
+| `brand regression scan` | FAIL | 2 hits, both in the `scripts/brand/brand-rules.ts` `why` text this round edited (rule documentation must name the upstream spellings) |
+| `Rust format` | SKIP | no Rust change since `origin/main` |
+
+### Branch-dispatch CI run
+
+`gh workflow run ci.yml --ref sync/omp-release/v18.10.1` @ `1f4d7e4ec80` (the pre-`main`-merge head) →
+run `38771990229`: **18 success / 1 failure / 13 skipped**. Every TS bucket, both native-addon builds
+(`Build native addons (bazel)` and the cross-target build), `Validate Rust workspace (bazel)` and
+`Check MODULE.bazel.lock freshness` are green — i.e. the PR-path "environmental red" the playbook
+describes disappears the moment the addon is source-matched. The single red is
+`Test main workspace (zeta workbench)`: `crates/zeta-main/tests/web_subcommand.rs:267` panicked with
+"stub did not answer for web" — in `main/`, which this branch never touches (no `main/` or `crates/`
+file appears in the branch diff), so it is a workbench-suite flake rather than merge damage.
+
 ## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `80ca49db8c7`)
 
 - **Branch head at hand-off**: `652c1c16be1` (PR #200; an earlier hand-off head was `680c2145281`).
