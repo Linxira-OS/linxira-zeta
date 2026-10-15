@@ -1216,6 +1216,11 @@ export function getTinyWorkerRuntimeDir(): string {
 	return dirs.rootSubdir(path.join("run", "tiny"), "state");
 }
 
+/** Directory holding the per-model mnemopi embedding server endpoints and logs (~/.zeta/run/mnemopi; XDG default: $XDG_STATE_HOME/zeta/run/mnemopi). */
+export function getMnemopiEmbedRuntimeDir(): string {
+	return dirs.rootSubdir(path.join("run", "mnemopi"), "state");
+}
+
 /** Root directory containing every per-project daemon runtime scope (~/.zeta/run/daemons; XDG default: $XDG_STATE_HOME/zeta/run/daemons). */
 export function getDaemonRuntimeRoot(): string {
 	return dirs.rootSubdir(path.join("run", "daemons"), "state");

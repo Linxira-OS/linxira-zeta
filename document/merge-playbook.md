@@ -195,6 +195,42 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 五关全绿才允许 push。 Feature Branch Workflow 的 merge-main-into-branch 前置
 步骤照旧执行。
 
+### sync 分支的 native addon 真相：PR CI 不建 addon，用分支 ref 手动 dispatch 验证
+
+- **事实（v18.10.0 首次踩到）**：`ci.yml` 的 `native_addons` 里，构建步骤是
+  `if: github.event_name != 'pull_request'`——**PR 路径只 restore main 的最新 addon
+  缓存**（`restore-keys: <prefix>` 前缀回退），notice 里也写明"native 变更在 merge
+  后于 main 与 release 验证"。而 `on.push.branches` 只有 `[main, "dev/*"]`，所以
+  `sync/omp-release/*` 分支**永远拿不到 source-matched addon**。
+- **后果**：任何引入新 natives 导出（本轮：`ipcEndpoint`/`IpcConnection`/`IpcServer`）
+  的 sync 分支，PR run 的 TS 测试类 job 必然整片红
+  （`TypeError: <symbol> is not a function`）。判据：调用点与上游 tag 逐行一致、
+  `packages/natives/native/{index.js,index.d.ts}` 与上游字节一致、且本地拿任何
+  早于该窗口构建的 `.node` 都能复现——**这是环境，不是合并伤**。
+- **规程**：先 `git merge origin/main` 并 push，然后在**分支 ref 上手动 dispatch**：
+  `gh workflow run ci.yml --ref sync/omp-release/<release>`。
+  分支 ref 让 `release_metadata` 的 `case "${{ github.ref }}"` 两个分支都不命中 →
+  `release_tag=""` → `is-release=false`；dispatch 的 `event_name=workflow_dispatch`
+  ≠ `pull_request` → `native_addons` **真的构建** addon，`needs.native_addons.result ==
+  'success'` 的测试类 job 才拿到 source-matched 二进制（顺带 `rust_validate` 也会跑）。
+  盯这次 run 到结束（走 `release-<sha>` 并发组、不取消、较慢），把 run URL 与关键 job
+  结论写进账本。
+- **为什么优于改 `ci.yml`**：零 CI 改动；不推翻 workflow 注释里"native-changing PR 不做
+  PR 侧 addon 构建"的既有成本决定；验证仍发生在 **merge 之前**，且走的是与 main 完全
+  相同的构建路径（bazel + 同一套 cache action）。改 `ci.yml`（让 PR 在缓存未 source-matched
+  时现场构建）反而给每个动 `crates/` 的 PR 加一次冷 bazel 链接。
+- **注意**：同一 SHA 上会同时存在 PR run（红）与 dispatch run（绿）两组同名 check；
+  以 dispatch run 的 URL 为准。addon 一旦 source-matched，PR 里那些"环境红"会立刻转绿，
+  剩下的红才是真伤——本轮因此捞出一条真缺陷（见下）。
+
+### 共享测试契约的 role 字面量：TUI 角色命名空间
+
+`packages/tui/src/**` 发出的语义 role 是 `zeta.*`，而上游测试断言 `omp.*`——两边
+没有任何类型联系，`check:ts` 也不会报。v18.9.1 的 `omp.composer.*`、v18.10.0 的
+`omp.btn`/`omp.ask.options` 是同一类损伤。合并后对上游**新增/改动**的测试文件跑一次
+role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间），并把新命名空间补进
+`brand-rules.ts` 那条 role 规则的 alternation——否则 brand-check 会静默放行。
+
 ## 上游增量合并规程（v18.2.5 起，唯一合并方式）
 
 > 本节取代已废弃的压缩式 squash sync。核心原则一句话：**只合并上游原生
@@ -282,6 +318,16 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
      `scripts/__fixtures__/package-json-merge/`（事故真实 manifest + 旧 driver
      输出实录）与两个 test 文件。CI `check` job 与 `.gitea` 本地镜像都已接入
      （不新增热路径成本：同一 job 里 `check-merge-lineage.ts` 已经 unshallow）。
+     **本地运行前提**：这个 clone（含 `temp/` 下的 worktree）是 shallow 的，guard 会先
+     `git rev-parse --is-shallow-repository` 然后 fail loud
+     （`package.json merge guard FAILED: shallow repository — run git fetch --unshallow first`），
+     因为 shallow 会让"range 内 merge commit 与其父对比"退化成绿色空转。CI 里同一 job 的
+     `check-merge-lineage.ts` 已经 unshallow，那边无需处理；本地要么 `git fetch --unshallow`，
+     要么按 2026-10-15 两轮同步的实际做法加进程级覆盖：
+     `GIT_SHALLOW_FILE=/nonexistent-shallow bun scripts/check-package-json-merge.ts`
+     （只骗过 `--is-shallow-repository` 的判定；父对象在本 worktree 里其实是齐的——
+     2026-10-15 实测 9 个 merge commit 逐一对得上，输出
+     `OK: 9 merge commit(s) in origin/main..HEAD, no branch-side leaf dropped or reverted`）。
 5. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
    rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
    + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名

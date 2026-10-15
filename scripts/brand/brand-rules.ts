@@ -395,9 +395,9 @@ export const MUST_CONTAIN: Array<{ file: string; needle: string; why: string }> 
 		why: "writer side of the tiny-worker banner",
 	},
 	{
-		file: "packages/coding-agent/src/tiny/title-client.ts",
-		needle: '"zetacode tiny worker listening on "',
-		why: "reader side: the client filters the worker's banner lines — a one-sided spelling silently stops filtering (found split omp/zetacode, 2026-10-11)",
+		file: "packages/coding-agent/src/subprocess/shared-worker.ts",
+		needle: "/^zetacode tiny worker listening on /",
+		why: "reader side: it filters the worker's banner lines. v18.10.0 moved this filter (upstream `logTail`) out of `tiny/title-client.ts` into the shared worker helper and reverted the prefix to the upstream spelling; a one-sided spelling silently stops filtering (found split upstream/zetacode, 2026-10-11)",
 	},
 	{
 		file: "packages/coding-agent/src/lsp/mux/server.ts",
@@ -662,8 +662,9 @@ export const MUST_NOT_CONTAIN: Array<{
 		exempt: ["CHANGELOG.md"],
 	},
 	{
-		needle: /(?<![A-Za-z0-9_.-])omp\.(imagePng|composer|editor|working|queue|status|note|run)(?![A-Za-z0-9_-])/,
-		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips/send/stop/effort/rate/model/bar/focus, editor modes, working row, queue pills, status, notes, image cache symbol, run box/foot/state/time/facts/status/caption). v18.9.1 shipped upstream's composer tests asserting omp.composer.* while the sources emit zeta.* — the rule only knew omp.composer.chips and omp.run",
+		needle:
+			/(?<![A-Za-z0-9_.-])omp\.(imagePng|composer|editor|working|queue|status|note|run|ask|btn)(?![A-Za-z0-9_-])/,
+		why: "TUI semantic roles and symbol descriptions are zeta.* (composer chips/send/stop/effort/rate/model/bar/focus, editor modes, working row, queue pills, status, notes, image cache symbol, run box/foot/state/time/facts/status/caption, ask dialog head/question/options, action buttons). v18.9.1 shipped upstream's composer tests asserting omp.composer.* while the sources emit zeta.* — the rule only knew omp.composer.chips and omp.run. v18.10.0 repeated it with upstream's new ask-hide test: `dialogs-native.test.ts` asserted `omp.btn`/`omp.ask.options` against sources that emit `zeta.btn`/`zeta.ask.options`, so the test threw `no hide button` on CI while brand-check stayed green (ask/btn were not in this alternation)",
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},
 	{

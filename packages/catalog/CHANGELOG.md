@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Changed
+
+- Raised the default context window for `openai-codex/gpt-6.1-sol` and `gpt-6.1-sol-wm` from 272K to 500K, matching OpenAI's new Codex default; extended context still opens 922K ([#15421](https://github.com/can1357/oh-my-pi/issues/15421))
+
+
 ## [1.2.0] - 2026-10-12
 
 - 版本线推进至 1.2.0；本版无独立用户可见变化。
