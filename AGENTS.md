@@ -434,6 +434,31 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
 （v18.2.5 → v18.3.0），并测定**最稳的合并步长**（按冲突量决定一次合几个
 tag）；结论成立则写入 `document/merge-playbook.md`。
 
+### 工作树与分支纪律（2026-10-15 立规）
+
+根 checkout 必须永远是"干净且停在 `main`"的状态；任何开发都在短命 worktree
+里做。立的由头：2026-10-11 的 v18.8.7 同步轮把根 checkout 留在
+`sync/omp-release/v18.8.7` 且带 79 个未提交改动，一直没人切回，之后**从这棵
+陈旧树里读出了 `packageManager = bun@1.4.0` 这种错误事实**（main 上其实是
+`bun@1.4.3`）——凡读现状必须读 `refs/heads/main`。
+
+- **开工前先查根**：`git rev-parse --abbrev-ref HEAD` 必须是 `main`，
+  `git status --porcelain` 必须为空。不在 `main` 时先把改动安顿好
+  （`git stash push -u -m "<说明>"` 或提交到对应分支），**切回 `main` 再干活**。
+- **根 checkout 只做无副作用操作**：读文件、`git fetch`、`git worktree` /
+  `git branch` 管理。**禁止**在根里改文件、提交、或跑会写盘的构建。
+- **所有开发在 worktree 里**：
+  `git worktree add temp/<topic> -b <branch> refs/heads/main`；分支名**开工前
+  定好**（`feat/*`、`fix/*`、`docs/*`、`chore/*`、`sync/omp-release/<tag>`）。
+- **一轮合并 / 一个 PR 结束后立刻切回 `main`**，`sync/omp-release/<release>`
+  分支与其 worktree **用完即删**（`git worktree remove <path>` +
+  `git branch -d <branch>`）。干净且已并入 `main` 的 `temp/*` worktree 属残留，
+  随时可删；**有未提交内容的一律先保留并登记**。
+- **推送任何集成分支前先 `git merge main`**；不允许落后 `main` 就推。
+- **读事实只认 `refs/heads/main`**（根即 main 时可直接读）。禁止从陈旧 worktree、
+  旧 stash、旧分支里读"现状"。
+- 子代理一律**自建 worktree**，禁止改根 checkout 的文件；委托时把这条写进 brief。
+
 ### 合并时的文件所有权（非代码文件）
 
 代码以外的文件默认**以 Zeta 的版本为准**，不得被上游覆盖：
