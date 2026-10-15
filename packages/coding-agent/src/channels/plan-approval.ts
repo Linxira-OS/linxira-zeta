@@ -122,6 +122,9 @@ export async function approveRemotePlan(
 			planFilePath,
 			planContent,
 			contextPreserved: mode !== "fresh",
+			// `{{#has tools "…"}}` blocks (todo, tracking_update) need the live
+			// active tool set; omitting it silently drops them.
+			tools: session.getActiveToolNames(),
 		});
 		await session.prompt(approvedPrompt);
 		return { approved: true };

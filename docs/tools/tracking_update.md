@@ -57,7 +57,7 @@ Mirrors todo phases into `status.json`: `stage` = current phase name, `phases` =
 - `details` is `{ op, path, message }`.
 
 ## Side Effects
-- Filesystem: creates and mutates files under `<project>/.zeta/tracking/` (`status.json`, `INDEX.md`, the rotated `actions.<day>.jsonl.log` family, `sessions/`, plus `summaries/` and `plans/` written by the compaction hook and plan approval). `status.json` is published by atomic replace; the rotated action-log files are pruned to the newest 3.
+- Filesystem: creates and mutates files under `<project>/.zeta/tracking/` (`status.json`, `INDEX.md`, the rotated `actions.<day>.jsonl.log` family, `sessions/`, plus `plans/` written by plan approval). `status.json` is published by atomic replace; the rotated action-log files are pruned to the newest 3. `summaries/compaction-*.md` is **not written today**: `TrackingRecorder.recordCompaction` implements it but has no production call site (see `docs/zeta-tracking.md` → Automation hooks).
 - Also updates the global tracking index (`~/.zeta/agent/tracking-index.json`) so the project is registered for cross-project discovery. The index is a JSON array of objects `{path, name, phase, progress, lastActiveSessionId, lastUpdated}` (v1 stored bare path strings; they are migrated on first write).
 - Concurrency: `status.json` and the global index are read-modify-written under an advisory file lease keyed on `<tracking>/.lock`, taken for the whole read-modify-write, and the tool itself runs serialized against sibling calls in the same batch — two writers cannot drop each other's update.
 

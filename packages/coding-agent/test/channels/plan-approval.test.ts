@@ -15,6 +15,7 @@ import type { AgentSession } from "../../src/session/agent-session";
 
 interface StubSession {
 	settings: Settings;
+	getActiveToolNames: ReturnType<typeof vi.fn>;
 	setPlanModeState: ReturnType<typeof vi.fn>;
 	getPlanModeState: ReturnType<typeof vi.fn>;
 	setPlanReferencePath: ReturnType<typeof vi.fn>;
@@ -25,9 +26,10 @@ interface StubSession {
 	enterGoalMode: ReturnType<typeof vi.fn>;
 }
 
-function makeStubSession(settings = Settings.isolated({})): StubSession {
+function makeStubSession(settings = Settings.isolated({}), activeToolNames: string[] = ["read", "bash"]): StubSession {
 	return {
 		settings,
+		getActiveToolNames: vi.fn(() => activeToolNames),
 		setPlanModeState: vi.fn(),
 		getPlanModeState: vi.fn(() => undefined),
 		setPlanReferencePath: vi.fn(),
@@ -89,11 +91,33 @@ describe("approveRemotePlan", () => {
 		expect(injected).toContain("History usable;");
 	});
 
+	test("injects the tool-gated instructions its template declares", async () => {
+		const session = makeStubSession(Settings.isolated({ "tracking.enabled": true }), [
+			"read",
+			"bash",
+			"todo",
+			"tracking_update",
+		]);
+		const planFilePath = await seedPlan();
+
+		await approveRemotePlan(session as unknown as AgentSession, { planFilePath, mode: "preserve" }, opts());
+
+		// `{{#has tools "…"}}` blocks render only when the live active tool set is
+		// passed to the template; without it the todo/tracking instructions vanish.
+		const injected = String(session.prompt.mock.calls[0]?.[0]);
+		expect(injected).toContain('op: "sync_todo"');
+		expect(injected).toContain("initialize todo tracking with `todo`");
+
+		const withoutTools = makeStubSession(Settings.isolated({}));
+		await approveRemotePlan(withoutTools as unknown as AgentSession, { planFilePath, mode: "preserve" }, opts());
+		const bare = String(withoutTools.prompt.mock.calls[0]?.[0]);
+		expect(bare).not.toContain('op: "sync_todo"');
+	});
+
 	test("fresh mode clears the session, rewrites the plan and injects the prompt without history", async () => {
 		const session = makeStubSession();
 		session.newSession.mockResolvedValue(undefined);
 		const planFilePath = await seedPlan("# Plan\n\nFresh.");
-
 		const result = await approveRemotePlan(
 			session as unknown as AgentSession,
 			{ planFilePath, mode: "fresh" },

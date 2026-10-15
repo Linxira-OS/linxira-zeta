@@ -1050,6 +1050,26 @@ export const cfgSessionTimeInjectEvery = register({
 	},
 });
 
+/**
+ * Project tracking. Gates the `tracking_update` tool; the tracking layer
+ * mirrors session plan state into `<project>/.zeta/tracking/`.
+ *
+ * Declared before {@link cfgBuiltinToolGates} because that combine reads the
+ * registered handle eagerly: membership is what makes a live session reconcile
+ * its built-ins — and rebuild its prompt — when `/tracking on|off` writes it.
+ */
+export const cfgTrackingEnabled = register({
+	id: "tracking.enabled",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "Project Tracking",
+		description: "Enable the tracking_update tool so the agent maintains project tracking documents",
+	},
+});
+
 /** Settings read by `resolveBuiltinToolPlan` (`tools/index.ts`); a live session reconciles its built-ins when any changes. */
 export const cfgBuiltinToolGates = combine({
 	ask: cfgAskEnabled,
@@ -1075,6 +1095,7 @@ export const cfgBuiltinToolGates = combine({
 	security: cfgSecurityEnabled,
 	taskMaxRecursionDepth: cfgTaskMaxRecursionDepth,
 	todo: cfgTodoEnabled,
+	tracking: cfgTrackingEnabled,
 	webSearch: cfgWebSearchEnabled,
 });
 
@@ -1102,22 +1123,6 @@ export const cfgProvidersImageOrder = register({
 			"Prioritized providers for image generation; unlisted providers follow the active session provider and the built-in order",
 		options: IMAGE_PROVIDER_CHOICES,
 		ordered: true,
-	},
-});
-
-/**
- * Project tracking. Gates the `tracking_update` tool; the tracking layer
- * mirrors session plan state into `<project>/.zeta/tracking/`.
- */
-export const cfgTrackingEnabled = register({
-	id: "tracking.enabled",
-	type: "boolean",
-	default: false,
-	ui: {
-		tab: "tools",
-		group: "Available Tools",
-		label: "Project Tracking",
-		description: "Enable the tracking_update tool so the agent maintains project tracking documents",
 	},
 });
 

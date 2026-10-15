@@ -1,4 +1,4 @@
-The todo tool just reported that phase "{phase}" is fully completed.
+The todo tool just reported that phase "{{phase}}" is fully completed.
 
 Before continuing with the next phase, call `tracking_update` with
 `op: "sync_todo"`, `current_phase` set to the phase you are starting next,
