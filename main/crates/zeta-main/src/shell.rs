@@ -886,7 +886,8 @@ mod tests {
 	fn discovery_empty_path_falls_back_to_npm_dirs() {
 		let npm = ProbeDir::new("npm-fallback");
 		let from_npm = npm.write("zetacode");
-		let found = resolve_bin_candidates_in(&["zetacode"], &[], &[], std::slice::from_ref(&npm.root));
+		let found =
+			resolve_bin_candidates_in(&["zetacode"], &[], &[], std::slice::from_ref(&npm.root));
 		assert_eq!(found, vec![from_npm]);
 	}
 

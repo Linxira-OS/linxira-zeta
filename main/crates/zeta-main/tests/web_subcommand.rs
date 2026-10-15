@@ -118,7 +118,9 @@ fn write_stub(dir: &Path, node: &Path) -> PathBuf {
 	#[cfg(unix)]
 	{
 		use std::os::unix::fs::PermissionsExt;
-		let mut perms = std::fs::metadata(&launcher).expect("stat shim").permissions();
+		let mut perms = std::fs::metadata(&launcher)
+			.expect("stat shim")
+			.permissions();
 		perms.set_mode(0o755);
 		std::fs::set_permissions(&launcher, perms).expect("chmod shim");
 	}
@@ -209,7 +211,11 @@ fn web_subcommand_runs_the_serve_machine_on_loopback() {
 
 	// ③ the hand-off: the serve machine received the subcommand plus every
 	// pass-through flag, unchanged.
-	let got: Vec<&str> = argv.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+	let got: Vec<&str> = argv
+		.lines()
+		.map(str::trim)
+		.filter(|l| !l.is_empty())
+		.collect();
 	let expected: Vec<String> = vec![
 		"serve".into(),
 		"--web-port".into(),

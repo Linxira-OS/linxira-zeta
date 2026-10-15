@@ -204,7 +204,8 @@ mod tests {
 		// The deleted compatibility names resolve to nothing, so no pane and
 		// no install hint can silently fall back to a command that no longer
 		// exists.
-		for gone in ["zeta-c", "zeta-cli", "zeta-ide", "zeta-i", "zeta-editor", "zeta-e", "zetaeditor"]
+		for gone in
+			["zeta-c", "zeta-cli", "zeta-ide", "zeta-i", "zeta-editor", "zeta-e", "zetaeditor"]
 		{
 			assert!(tool_by_bins(&[gone]).is_none(), "`{gone}` must not resolve");
 		}

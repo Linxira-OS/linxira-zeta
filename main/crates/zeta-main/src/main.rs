@@ -46,7 +46,10 @@ enum Action {
 	/// Open the workspace.
 	Workbench,
 	/// Hand off to a companion tool: exec it with `args` passed through.
-	Suite { bins: &'static [&'static str], args: Vec<String> },
+	Suite {
+		bins: &'static [&'static str],
+		args: Vec<String>,
+	},
 	Unknown(String),
 }
 
@@ -335,10 +338,7 @@ mod tests {
 		);
 		// The editor is no longer a product command (the workbench's editor
 		// pane is built in), so the old hand-off word must not resolve.
-		assert_eq!(
-			plan(Entry::Workbench, &argv(&["editor"])),
-			Action::Unknown("editor".to_string())
-		);
+		assert_eq!(plan(Entry::Workbench, &argv(&["editor"])), Action::Unknown("editor".to_string()));
 		assert_eq!(plan(Entry::Workbench, &argv(&["e"])), Action::Unknown("e".to_string()));
 	}
 
@@ -367,10 +367,7 @@ mod tests {
 		assert_eq!(entry_of(r"C:\Program Files\Zeta\ZETA.EXE", None), Entry::Index);
 		// Anything unrecognized (a `cargo run` temp path, a distro rename)
 		// keeps the historical default: open the workspace.
-		assert_eq!(
-			entry_of(r"C:\repo\main\target\debug\deps\zeta-1234abcd", None),
-			Entry::Workbench
-		);
+		assert_eq!(entry_of(r"C:\repo\main\target\debug\deps\zeta-1234abcd", None), Entry::Workbench);
 		assert_eq!(entry_of("", None), Entry::Workbench);
 	}
 
