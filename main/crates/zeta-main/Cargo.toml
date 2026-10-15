@@ -26,4 +26,8 @@ termide-core.workspace = true
 termide-config.workspace = true
 termide-keyboard.workspace = true
 termide-panel-terminal.workspace = true
+termide-panel-editor.workspace = true
 termide-theme.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

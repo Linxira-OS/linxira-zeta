@@ -341,7 +341,17 @@ impl Workspace {
 			active_tab: 0,
 			normalizer: KeyNormalizer::new(KeyboardCaps::default()),
 			theme: plain_theme(),
-			config: std::sync::Arc::new(termide_config::Config::default()),
+			config: {
+				// Materialize termide's default keybindings before handing the
+				// config to panels: `Config::default()` leaves every keybinding
+				// `None`, and both the terminal and the embedded editor build
+				// their hotkey tables from this config. Without `normalize()`
+				// the editor's Ctrl+S (and the terminal's scroll chords) would
+				// silently do nothing.
+				let mut config = termide_config::Config::default();
+				config.normalize();
+				std::sync::Arc::new(config)
+			},
 			help_open: false,
 			doctor_open: false,
 			settings_open: false,
@@ -485,13 +495,21 @@ impl Workspace {
 			.unwrap_or_else(|| self.focused_rect());
 		let axis = axis.unwrap_or_else(|| Axis::for_rect(rect));
 		let cwd = launch_cwd();
-		let kind = match kind.install_kind() {
-			Some(install) => {
-				self.notice =
-					Some(format!("{} not on PATH — installing in the new pane", kind.label()));
-				install
-			},
-			None => kind,
+		// Embedded panes (widgets, the in-process editor) render themselves —
+		// there is no external binary to install, so they are never diverted
+		// to an install pane. The external editor path stays reachable through
+		// link opens and explicit installs.
+		let kind = if kind.is_embedded() {
+			kind
+		} else {
+			match kind.install_kind() {
+				Some(install) => {
+					self.notice =
+						Some(format!("{} not on PATH — installing in the new pane", kind.label()));
+					install
+				},
+				None => kind,
+			}
 		};
 		match self.active().add_pane(pane, kind, cwd, rect, axis) {
 			Ok(()) => {
@@ -651,9 +669,11 @@ impl Workspace {
 		Ok(false)
 	}
 
-	/// Route a key chord to the focused pane's PTY. Unbound chords — every
-	/// regular key and every host Alt combination the workbench does not claim
-	/// — fall through here, so the child (zetacode and friends) sees them.
+	/// Route a key chord to the focused pane: the embedded editor when the
+	/// active page is an editor page, otherwise the PTY. Unbound chords —
+	/// every regular key and every host Alt combination the workbench does not
+	/// claim — fall through here, so the child (zetacode and friends) sees
+	/// them.
 	fn forward_key(&mut self, key: KeyEvent) {
 		let chord = KeyChord::new(key, &self.normalizer);
 		let events = {
@@ -661,10 +681,13 @@ impl Workspace {
 			let Some(pane) = tab.panes.get_mut(tab.active) else {
 				return;
 			};
-			let Some(term) = pane.as_terminal() else {
+			if let Some(editor) = pane.as_editor() {
+				editor.handle_key(chord)
+			} else if let Some(term) = pane.as_terminal() {
+				term.handle_key(chord)
+			} else {
 				return;
-			};
-			term.handle_key(chord)
+			}
 		};
 		self.apply_events(events);
 	}
@@ -672,13 +695,18 @@ impl Workspace {
 	/// A bracketed paste from the host: write the text into the focused pane's
 	/// PTY as one bracketed paste. The pane re-wraps it (its child shell/agent
 	/// expects the markers), so a multi-line paste lands whole instead of
-	/// line-by-line submits.
+	/// line-by-line submits. An editor page takes the text as a plain insert.
 	fn handle_paste(&mut self, text: &str) {
 		if text.is_empty() {
 			return;
 		}
 		let tab = self.active();
 		let active = tab.active;
+		if let Some(editor) = tab.panes.get_mut(active).and_then(|p| p.as_editor()) {
+			let _ =
+				editor.handle_command(termide_core::PanelCommand::PasteText { text: text.to_string() });
+			return;
+		}
 		if let Some(term) = tab.panes.get_mut(active).and_then(|p| p.as_terminal()) {
 			let _ = term.paste_text(text);
 		}
@@ -908,13 +936,17 @@ impl Workspace {
 			.find(|(_, a)| a.contains(position))
 			.map(|(p, a)| (*p, *a))
 		{
-			let events = match self
-				.active()
-				.panes
-				.get_mut(pane)
-				.and_then(|p| p.as_terminal())
-			{
-				Some(term) => term.handle_mouse(mouse, area),
+			let editor_area = crate::editor::mouse_area(area);
+			let events = match self.active().panes.get_mut(pane) {
+				Some(p) => {
+					if let Some(term) = p.as_terminal() {
+						term.handle_mouse(mouse, area)
+					} else if let Some(editor) = p.as_editor() {
+						editor.handle_mouse(mouse, editor_area)
+					} else {
+						Vec::new()
+					}
+				},
 				None => Vec::new(),
 			};
 			self.apply_events(events);
@@ -1141,13 +1173,17 @@ impl Workspace {
 					},
 					_ => {},
 				}
-				let events = match self
-					.active()
-					.panes
-					.get_mut(pane)
-					.and_then(|p| p.as_terminal())
-				{
-					Some(term) => term.handle_mouse(mouse, area),
+				let editor_area = crate::editor::mouse_area(area);
+				let events = match self.active().panes.get_mut(pane) {
+					Some(p) => {
+						if let Some(term) = p.as_terminal() {
+							term.handle_mouse(mouse, area)
+						} else if let Some(editor) = p.as_editor() {
+							editor.handle_mouse(mouse, editor_area)
+						} else {
+							Vec::new()
+						}
+					},
 					None => Vec::new(),
 				};
 				self.apply_events(events);
@@ -1384,7 +1420,7 @@ impl Workspace {
 					self.split_active(PaneKind::Command(command), None);
 				},
 				PanelEvent::OpenPath { path, select_file, line, col } => {
-					self.open_path_in_ide(path, select_file, line, col);
+					self.open_path_in_editor(path, select_file, line, col);
 				},
 				_ => {},
 			}
@@ -1392,10 +1428,13 @@ impl Workspace {
 	}
 
 	/// A clicked terminal link (OSC 8 hyperlink or scraped file path) opens
-	/// the suite IDE in a new pane to the right of the focused one — the
-	/// same split a hand press of `[↔]` performs. zeta-editor backs zeta-ide
-	/// up; with neither installed the notice carries the error.
-	fn open_path_in_ide(
+	/// the **embedded, in-process editor** in a new pane to the right of the
+	/// focused one — the same split a hand press of `[↔]` performs. When the
+	/// embedded editor cannot open the file (unreadable, binary, too large),
+	/// the pre-embedded path takes over: the external suite IDE/editor is
+	/// launched in a PTY pane, and with neither installed the notice carries
+	/// the error.
+	fn open_path_in_editor(
 		&mut self,
 		path: std::path::PathBuf,
 		select_file: Option<std::ffi::OsString>,
@@ -1403,20 +1442,41 @@ impl Workspace {
 		col: Option<u32>,
 	) {
 		// Scraped file-path clicks report the parent directory plus the file
-		// to select inside it; the IDE wants the file itself.
+		// to select inside it; the editor wants the file itself.
 		let path = match select_file {
 			Some(file) => path.join(file),
 			None => path,
 		};
-		let shell = crate::shell::pick_shell(crate::settings::snapshot().shell);
-		let target = crate::tab::link_target_text(&path, line, col);
-		match crate::tab::ide_open_command(&shell, &target) {
-			Some(command) => {
-				self.split_active(PaneKind::Command(command), Some(Axis::Row));
+
+		// Build the editor *before* splitting so a failure never leaves an
+		// empty editor pane behind.
+		match crate::editor::open_editor(&path) {
+			Ok(editor) => {
+				if self.split_active(PaneKind::Editor, Some(Axis::Row)) {
+					let tab = self.active();
+					let idx = tab.active;
+					if let Some(pane) = tab.panes.get_mut(idx) {
+						pane.set_editor_page(editor, &path);
+					}
+					self.notice = None;
+					return;
+				}
+				self.notice = Some("could not open an editor pane".into());
 			},
-			None => {
-				self.notice =
-					Some("no zeta-ide or zeta-editor on PATH — install one to open links".into());
+			Err(error) => {
+				self.notice = Some(format!(
+					"embedded editor could not open the file ({error}) — trying zeta-ide/zeta-editor"
+				));
+				let shell = crate::shell::pick_shell(crate::settings::snapshot().shell);
+				let target = crate::tab::link_target_text(&path, line, col);
+				match crate::tab::ide_open_command(&shell, &target) {
+					Some(command) => {
+						self.split_active(PaneKind::Command(command), Some(Axis::Row));
+					},
+					None => {
+						self.notice = Some("no editor available — the file could not be opened".into());
+					},
+				}
 			},
 		}
 	}
@@ -1526,7 +1586,7 @@ impl Workspace {
 		};
 		pane.pages.iter().any(|page| match &page.body {
 			crate::tab::PaneBody::Pty(term) => crate::busy::pane_is_busy(term.shell_pid()),
-			crate::tab::PaneBody::Widget => false,
+			crate::tab::PaneBody::Widget | crate::tab::PaneBody::Editor(_) => false,
 		})
 	}
 
@@ -1629,6 +1689,11 @@ impl Workspace {
 						if !term.is_alive() {
 							dead_pages.push(page_idx);
 						}
+					} else if let crate::tab::PaneBody::Editor(editor) = &mut page.body {
+						// Background work the editor schedules itself (git
+						// blame, selection auto-scroll). No language service is
+						// involved — see `crate::editor`.
+						let _ = editor.tick();
 					}
 				}
 				dead_pages.sort_unstable();
@@ -1917,6 +1982,19 @@ impl Workspace {
 					if let Some(term) = pane.as_terminal() {
 						term.prepare_render(&self.theme, &self.config);
 						term.render(inner, frame.buffer_mut(), &ctx);
+					} else if let Some(editor) = pane.as_editor() {
+						crate::editor::EditorView {
+							theme: &self.theme,
+							config: &self.config,
+							panel_config: &panel_config,
+							is_focused: focused,
+							panel_index: pane_id,
+							terminal_width: size.width,
+							terminal_height: size.height,
+							border_right_x: Some(area.right().saturating_sub(1)),
+							border_bottom_y: Some(area.bottom().saturating_sub(1)),
+						}
+						.render(editor, inner, frame.buffer_mut());
 					}
 				}
 
