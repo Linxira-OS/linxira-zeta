@@ -29,8 +29,11 @@ that OMP updates remain mergeable. Four upstreams, fixed roles:
   package. It must never carry its own GitHub workflow — GitHub only executes
   workflows from the repository root, so all web-ui checks live in the root
   `.github/workflows/ci.yml` (see `document/release.md`).
-- `temp/` holds local reference clones only. It is ignored and must never be
-  committed.
+- `temp/` is the **in-repo** scratch tree (gitignored, never committed). Two
+  standard uses: local reference clones of external projects, and our own
+  sub-branch worktrees (`temp/<topic>`). It MUST live under the repository
+  path — never a system temp directory (`%TEMP%`, `/tmp`, `os.tmpdir()`): those
+  are wiped on reboot, which throws away everything built there.
 
 ## Product Posture (operator decision, 2026-10-12)
 
@@ -467,6 +470,26 @@ tag）；结论成立则写入 `document/merge-playbook.md`。
 - **读事实只认 `refs/heads/main`**（根即 main 时可直接读）。禁止从陈旧 worktree、
   旧 stash、旧分支里读"现状"。
 - 子代理一律**自建 worktree**，禁止改根 checkout 的文件；委托时把这条写进 brief。
+
+#### `temp/` 的用途、路径与清理（2026-10-15 立规）
+
+- **两个标准用途**：① 外部学习 / 参考项目的克隆；② 我们自己的子分支
+  worktree（`temp/<topic>`）。两者都必须是**仓库内路径**——绝不使用系统
+  临时目录（`%TEMP%`、`/tmp`、`os.tmpdir()`）：那里重启即清空，之前做的
+  事情全部丢失。`temp/` 本身被 gitignore，内容永不提交。
+- **清理前先核两件事**：分支是否真在 `main` 里
+  （`git branch --contains <sha>` 应列出 `main`），以及是否有未提交内容
+  （有则**先保留并登记**，不得直接删）。
+- **登记工作树一律用 `git worktree remove --force` 删**（git 的删除不追
+  链接），不要手写递归删除。
+- **地雷：禁止对任何含 `node_modules` 的目录执行 `rm -rf`。** Windows 上
+  bun 的 workspace 链接是 junction，`rm -rf` 会**穿透**它——2026-10-15 实测
+  上级目录旧目录里 `node_modules/@linxiraos/pi-ai` 指向 `<repo>/packages/ai`，
+  穿透即等于删掉仓库源码。删任何目录前先确认其中的链接指向哪里
+  （Node/Bun 用 `lstat().isSymbolicLink()`，PowerShell 用 `LinkType`/`Target`）。
+  登记已被清掉的孤儿目录，用「只 `lstat`、遇链接只删链接本身」的遍历器删。
+- **产物与证据不入库，也不留在 `temp/`**：截图、diff、PR 正文草稿等归档到
+  `~/.zeta/parked-evidence/<date>/`，然后再删对应目录。
 
 ### 合并时的文件所有权（非代码文件）
 
