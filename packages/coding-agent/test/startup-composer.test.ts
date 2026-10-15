@@ -92,6 +92,7 @@ describe("outer startup collaboration gate", () => {
 		const testSession = await createTestSession({
 			inMemory: true,
 			settingsOverrides: {
+				"collab.enabled": true,
 				"collab.autoStart": "control",
 				"collab.relayUrl": "ws://localhost:8788",
 				"collab.webUrl": "https://collab.example",

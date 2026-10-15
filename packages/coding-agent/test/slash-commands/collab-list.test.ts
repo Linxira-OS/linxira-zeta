@@ -47,7 +47,8 @@ function createHarness() {
 		editor: { setText },
 		showStatus,
 		showError,
-		settings: { get: () => "" },
+		// Real settings: the collab commands read their configuration gate off it.
+		settings: Settings.isolated({ "collab.enabled": true }),
 	} as unknown as InteractiveModeContext;
 	ctx.collabController = new CollabController(ctx);
 	return { ctx, setText, showStatus, showError, runtime: { ctx } as BuiltinSlashCommandRuntime };

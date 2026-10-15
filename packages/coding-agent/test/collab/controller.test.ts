@@ -102,6 +102,8 @@ function makeControllerContext(over: { autoStart?: "off" | "view" | "control"; r
 	const state: ControllerContextState = {
 		sessionId: `sess-${crypto.randomUUID()}`,
 		settings: Settings.isolated({
+			// Hosting is opt-in; these tests exercise the enabled feature.
+			"collab.enabled": true,
 			"collab.autoStart": over.autoStart ?? "off",
 			"collab.relayUrl": over.relayUrl ?? RELAY_URL,
 			"collab.webUrl": WEB_URL,
@@ -280,6 +282,7 @@ describe("interactive collaboration startup", () => {
 		cfgMarketplaceAutoUpdate.override(activeSettings, "off");
 		testSession = await createTestSession({
 			settingsOverrides: {
+				"collab.enabled": true,
 				"collab.autoStart": "view",
 				"collab.relayUrl": RELAY_URL,
 				"collab.webUrl": WEB_URL,
@@ -947,7 +950,9 @@ describe("CollabController", () => {
 
 		expect(() => controller!.autoStart()).not.toThrow();
 
-		expect(await state.firstStatus.promise).toMatch(/auto-start failed: No relay configured/);
+		expect(await state.firstStatus.promise).toMatch(
+			/auto-start failed: Collab is enabled but no relay is configured/,
+		);
 		expect(ctx.collabHost).toBeUndefined();
 	});
 
