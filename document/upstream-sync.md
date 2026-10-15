@@ -101,6 +101,20 @@ two-parent tag merge.
   `check-ci-surface` 32 jobs; `check-local-ci-parity` OK; `cargo fmt --all --check` clean;
   `audit-merge-members` 0 dropped across 0 files; `check-i18n-consistency` 3219/3219/3219;
   `check-i18n-commands` 259 descriptions / 0 failures; `check-package-json-merge` OK.
+- **CI validation (PR #200)**: `Check MODULE.bazel.lock freshness` needed the job's own refreshed
+  artifact committed (`e585739726c` — the job uploads it precisely so a contributor without a working
+  local bazel evaluation can do this). The other **9** red jobs are all one environmental cause: PR CI
+  never builds a native addon — `Build linux-x64 native addons` is
+  `if: github.event_name != 'pull_request'`, so the PR path only restores main's newest
+  `actions/cache` entry (this run computed key `natives-linux-x64-v1-3301050ac9a9…` but restored
+  `…eab5f724…`, `stamp unstamped`). Every failing call site is upstream's: **31/31** files'
+  `ipcEndpoint`/`IpcConnection`/`IpcServer` lines are identical to `v18.10.0` after the documented
+  scope/brand mapping, and `packages/natives/native/{index.js,index.d.ts,bench/ipc.ts,test/ipc.test.ts}`
+  are byte-identical to upstream. The same failure reproduces locally with any addon built before the
+  IPC work (the worktree's `.node` reports `ipcEndpoint: undefined`). So this window's runtime
+  validation lands on main's push run, which does build the addon — as the workflow's own notice says
+  ("Native changes are validated post-merge on main and at release"). Branch also merged `origin/main`
+  (`23e88c5e59f`) after #199/#201/#202; that merge was clean.
 - **Not verified on this host**: native addon build (no local `pi_natives.*.node`), so
   `gen:compat`/local test runs relied on a borrowed prebuilt addon; `cargo metadata`
   cannot resolve offline (`napi-build 2.6.0` is absent from the local registry cache).
