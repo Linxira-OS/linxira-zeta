@@ -11,7 +11,7 @@ import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { PlanYolo } from "@linxiraos/zeta/session/agent-session-types";
 import { PrewalkCoordinator, type PrewalkCoordinatorHost } from "@linxiraos/zeta/session/prewalk";
 import type { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
 
 import { cfgPlanAutosave, cfgPlanEnabled } from "@linxiraos/zeta/plan-mode/settings";
 
@@ -209,6 +209,50 @@ describe("plan-yolo approval autosave", () => {
 			source: "plan-yolo",
 		});
 		expect(t.modelTemporaryCalls.length).toBe(1);
+	});
+
+	it("mirrors the approved plan into project tracking", async () => {
+		const cwd = makeCwd();
+		const artifactsDir = path.join(cwd, "artifacts");
+		const settings = Settings.isolated({ "plan.autosave": true, "tracking.enabled": true });
+		// The mirror also registers the project in the machine-global tracking
+		// index; keep that write inside the temp dir.
+		const previousAgentDir = getAgentDir();
+		setAgentDir(path.join(cwd, "agent"));
+		try {
+			const t = setupPlanYolo(cwd, artifactsDir, settings);
+			const coordinator = new PrewalkCoordinator(t.host, { planYolo: { target } satisfies PlanYolo });
+			await coordinator.armPlanYoloIfNeeded();
+			const planPath = resolveLocalUrlToPath("local://auth-plan.md", t.localOptions);
+			await Bun.write(planPath, "# Plan\n\nYolo.\n");
+			const handler = t.getHandler();
+			if (!handler) throw new Error("expected a plan proposal handler");
+			await handler("auth");
+
+			// Autosave and the tracking mirror are independent destinations.
+			expect(await Bun.file(path.join(cwd, ".zeta", "plans", "AUTH_PLAN.md")).text()).toBe("# Plan\n\nYolo.\n");
+			expect(await Bun.file(path.join(cwd, ".zeta", "tracking", "plans", "auth-plan.md")).text()).toBe(
+				"# Plan\n\nYolo.\n",
+			);
+		} finally {
+			setAgentDir(previousAgentDir);
+		}
+	});
+
+	it("writes no tracking mirror when tracking is disabled", async () => {
+		const cwd = makeCwd();
+		const artifactsDir = path.join(cwd, "artifacts");
+		const settings = Settings.isolated({ "plan.autosave": true });
+		const t = setupPlanYolo(cwd, artifactsDir, settings);
+		const coordinator = new PrewalkCoordinator(t.host, { planYolo: { target } satisfies PlanYolo });
+		await coordinator.armPlanYoloIfNeeded();
+		const planPath = resolveLocalUrlToPath("local://auth-plan.md", t.localOptions);
+		await Bun.write(planPath, "# Plan\n\nYolo.\n");
+		const handler = t.getHandler();
+		if (!handler) throw new Error("expected a plan proposal handler");
+		await handler("auth");
+
+		expect(await Bun.file(path.join(cwd, ".zeta", "tracking", "plans")).exists()).toBe(false);
 	});
 
 	it("warns the operator but still implements when autosave fails", async () => {

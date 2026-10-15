@@ -62,6 +62,7 @@ import { loadAllExtensions } from "../../modes/components/extensions/state-manag
 import { theme } from "@linxiraos/pi-tui/theme";
 import { normalizePlanTitle, type PlanApprovalDetails, resolveApprovedPlan } from "../../plan-mode/approved-plan";
 import { autosaveApprovedPlan } from "../../plan-mode/plan-autosave";
+import { mirrorPlanToTracking } from "../../tools/tracking";
 import type { AgentSession, AgentSessionEvent } from "../../session/agent-session";
 import { BlobStore, resolveImageDataSync } from "../../session/blob-store";
 import { isSilentAbort, SKILL_PROMPT_MESSAGE_TYPE, USER_INTERRUPT_LABEL } from "../../session/messages";
@@ -1958,6 +1959,15 @@ export class AcpAgent implements Agent {
 			});
 			autosaveFailed = true;
 		}
+		// Mirror the approved plan into project tracking. Independent of the
+		// optional autosave above and gated on `tracking.enabled` inside the
+		// helper, which never throws — an approval must not fail over tracking.
+		await mirrorPlanToTracking({
+			settings: session.settings,
+			cwd: session.sessionManager.getCwd(),
+			slug: resolvedTitle,
+			planContent,
+		});
 		try {
 			await this.#connection.sessionUpdate({
 				sessionId: session.sessionId,

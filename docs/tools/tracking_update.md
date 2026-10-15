@@ -57,9 +57,9 @@ Mirrors todo phases into `status.json`: `stage` = current phase name, `phases` =
 - `details` is `{ op, path, message }`.
 
 ## Side Effects
-- Filesystem: creates and mutates files under `<project>/.zeta/tracking/` (`status.json`, `INDEX.md`, the rotated `actions.<day>.jsonl.log` family, `sessions/`, plus `plans/` written by plan approval). `status.json` is published by atomic replace; the rotated action-log files are pruned to the newest 3. `summaries/compaction-*.md` is **not written today**: `TrackingRecorder.recordCompaction` implements it but has no production call site (see `docs/zeta-tracking.md` → Automation hooks).
+- Filesystem: creates and mutates files under `<project>/.zeta/tracking/` (`status.json`, `INDEX.md`, the rotated `actions.<day>.jsonl.log` family, `sessions/`, plus `plans/` mirrored by every plan-approval path and `summaries/compaction-<ts>.md` written by every committed compaction — both while `tracking.enabled` is on). `status.json` is published by atomic replace; the rotated action-log files are pruned to the newest 3.
 - Also updates the global tracking index (`~/.zeta/agent/tracking-index.json`) so the project is registered for cross-project discovery. The index is a JSON array of objects `{path, name, phase, progress, lastActiveSessionId, lastUpdated}` (v1 stored bare path strings; they are migrated on first write).
-- Concurrency: `status.json` and the global index are read-modify-written under an advisory file lease keyed on `<tracking>/.lock`, taken for the whole read-modify-write, and the tool itself runs serialized against sibling calls in the same batch — two writers cannot drop each other's update.
+- Concurrency: `status.json` and the global index are read-modify-written under an advisory file lease (`<target>.lock`), taken for the whole read-modify-write — `<tracking>/.lock` for `status.json`, the index path for the global index — and the tool itself runs serialized against sibling calls in the same batch — two writers cannot drop each other's update.
 
 ## Errors
 - `content is required for update_index operation` — `update_index` called without `content`.

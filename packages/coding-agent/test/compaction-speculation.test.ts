@@ -153,6 +153,7 @@ describe("async speculative compaction", () => {
 			dropPersistedAssistantTurn: async () => undefined,
 			runRecoveryCompactionWithRollback: async () => ({ continuationScheduled: false }),
 			parseRetryAfterMsFromError: () => undefined,
+			recordTrackingCompaction: async () => {},
 			setModelTemporary: async () => {},
 			abort: async () => {},
 			abortHandoff: () => {},

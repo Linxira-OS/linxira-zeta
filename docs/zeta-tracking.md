@@ -35,7 +35,7 @@ memory by topic instead.
 │                        #   rolled at 5 MB per file, 3 files kept per day family
 ├── sessions/            # Synced plan files from agent sessions
 │   └── <plan>.md
-├── summaries/           # Compaction-derived summaries (v2) — NOT WIRED, see below
+├── summaries/           # Compaction-derived summaries (v2), written on every committed compaction
 │   └── compaction-<ts>.md
 └── plans/               # Read-only mirrors of approved plans (v2)
     └── <slug>-plan.md
@@ -116,19 +116,26 @@ adds or removes the tool in a running session.
 
 ### Automation hooks (v2)
 
-- **Plan approval mirroring**: when a plan is approved and tracking is on,
-  the plan text is mirrored read-only into `plans/<slug>-plan.md`; INDEX.md's
-  Current Phase section links it.
-- **Compaction summaries**: **NOT WIRED** — no `summaries/compaction-<ts>.md`
-  is written today. `TrackingRecorder.recordCompaction`
-  (`packages/coding-agent/src/tools/tracking.ts`) implements the write and has
-  unit tests, but production code has no call site for it, so the Web UI
-  Summaries tab stays empty unless the directory is populated by hand. The
-  clean place to wire it is `SessionMaintenance.#commitCompactionEntry`
-  (`packages/coding-agent/src/session/session-maintenance.ts`), the single
-  commit chokepoint that already returns the saved `CompactionEntry`; wiring
-  is pending an explicit decision, and this note records the current state
-  until then.
+- **Plan approval mirroring**: every approval path — the TUI plan review
+  (`InteractiveMode.#approvePlan`), ACP plan proposals
+  (`AcpAgent.#handleAcpPlanProposal`), remote/IM approval (`approveRemotePlan`,
+  which serves the web gateway and `serve`), and plan-yolo
+  (`PrewalkCoordinator`) — mirrors the approved plan read-only into
+  `plans/<slug>-plan.md` once `tracking.enabled` is on. `<slug>` is the shared
+  plan-title resolver's normalized title, lowercased (falling back to the plan
+  filename stem); the mirror is written before the execution turn is
+  dispatched, and a tracking failure never fails the approval. The INDEX.md
+  template tells the agent to link the mirror from Current Phase.
+- **Compaction summaries**: every committed compaction persists its summary to
+  `summaries/compaction-<ts>.md` (`<ts>` = the compaction entry's ISO
+  timestamp, `:`/`.` replaced by `-`). `TrackingRecorder.recordCompaction` is
+  invoked from `SessionMaintenance.#commitCompactionEntry` — the single
+  chokepoint every compaction method commits through — and from the
+  snapcompact dead-end rebuild that appends a replacement entry; both await it,
+  so the file exists once the commit resolves. Gated on `tracking.enabled`:
+  while off, nothing is written and `summaries/` is not created. A timestamp
+  collision falls back to `compaction-<ts>-<entry id>.md` instead of
+  overwriting, and a write failure is logged without failing the compaction.
 - **Phase completion nudge**: when the `todo` tool reports a phase fully
   completed, the session injects a one-shot hidden reminder telling the agent
   to `sync_todo` before starting the next phase; the approved-plan prompt

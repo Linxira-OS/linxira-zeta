@@ -259,6 +259,7 @@ import {
 import { isAttachmentOnlyTitleInput, isLowSignalTitleInput } from "../tiny/text";
 import type { ImageAttachmentEntry, ToolSession } from "../tools";
 import { resolveApproval } from "../tools/approval";
+import { TrackingRecorder } from "../tools/tracking";
 import { type AskToolDetails } from "@linxiraos/pi-tui/tools/ask";
 import { type AskToolInput, recoverAskQuestions } from "../tools/ask";
 import {
@@ -3033,6 +3034,11 @@ export class AgentSession implements SettingsScope {
 				this.#todo.syncFromBranch();
 				this.#modelMentions.syncFromBranch();
 			},
+			// Project-tracking mirror of a committed compaction summary. The
+			// recorder gates on `tracking.enabled` and swallows its own failures,
+			// so this stays a pure best-effort side effect of the commit.
+			recordTrackingCompaction: entry =>
+				new TrackingRecorder(this.settings).recordCompaction(this.sessionManager.getCwd(), entry),
 			resetAdvisorRuntimes: (reason, options) => this.#advisors.resetAllRuntimes(reason, options),
 			rebaseAdvisorPrefix: reason => this.#advisors.rebaseDeliveredPrefixes(reason),
 			rebaseAfterCompaction: () => this.#stats.rebaseAfterCompaction(),

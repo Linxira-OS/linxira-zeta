@@ -473,6 +473,12 @@ export interface SessionMaintenanceHost {
 	resetCodexProviderAfterCompaction(compaction: CodexCompactionContext): void;
 	resetPlanReference(): void;
 	syncTodoPhasesFromBranch(): void;
+	/**
+	 * Best-effort project-tracking mirror of a committed compaction summary
+	 * (`tracking.enabled`): `<project>/.zeta/tracking/summaries/compaction-<ts>.md`.
+	 * Owns its own error handling and never rejects into the commit path.
+	 */
+	recordTrackingCompaction(entry: CompactionEntry): Promise<void>;
 	/** `compacted` marks a rewrite that replaced history with a summary. */
 	resetAdvisorRuntimes(reason?: string, options?: { compacted?: boolean }): void;
 	/** Re-aligns advisors after an in-place prune their own contexts already cover (no re-prime). */
@@ -2468,6 +2474,10 @@ export class SessionMaintenance {
 		const savedCompactionEntry = newEntries.find(e => e.type === "compaction" && e.id === entryId) as
 			| CompactionEntry
 			| undefined;
+		// Project-tracking mirror of the committed summary. Awaited so the file
+		// exists once the commit resolves; the host call swallows its own errors,
+		// so a tracking failure can never fail the compaction.
+		if (savedCompactionEntry) await this.#host.recordTrackingCompaction(savedCompactionEntry);
 		if (this.#host.extensionRunner && savedCompactionEntry) {
 			const compactEmit = this.#host.extensionRunner.emit({
 				type: "session_compact",
@@ -4336,6 +4346,9 @@ export class SessionMaintenance {
 		const rebuiltEntry = this.#host.sessionManager.getEntries().find(e => e.id === rebuiltEntryId) as
 			| CompactionEntry
 			| undefined;
+		// Same committed-summary mirror as the regular append path: this rebuild
+		// commits a new `CompactionEntry` (the one the session now carries).
+		if (rebuiltEntry) await this.#host.recordTrackingCompaction(rebuiltEntry);
 		if (this.#host.extensionRunner && rebuiltEntry) {
 			await this.#host.extensionRunner.emit({
 				type: "session_compact",
