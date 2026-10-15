@@ -24,7 +24,12 @@ const BASE = baseIdx !== -1 ? args[baseIdx + 1] : "main";
 const OMP_TOKEN = /(?<![A-Za-z0-9_])omp(?![A-Za-z0-9_])|~\/\.omp|@oh-my-pi|\.omp-plugin|omp\.sh/;
 const ZETA_TOKEN = /zeta|CLI_BIN_NAME|ZETA_|\.zeta/;
 
-const diff = execFileSync("git", ["diff", "-U0", BASE, "HEAD"], { encoding: "utf8", maxBuffer: 1 << 30 });
+// The trailing `--` is load-bearing: this repo also has a `main/` directory
+// (the npm distribution leaves), so a bare `git diff main HEAD` dies with
+// "fatal: ambiguous argument 'main': both revision and filename" — the script's
+// own default base was unusable. `--` ends the revision list, so `main` is read
+// as a ref and the diff still covers the whole tree (no pathspecs).
+const diff = execFileSync("git", ["diff", "-U0", BASE, "HEAD", "--"], { encoding: "utf8", maxBuffer: 1 << 30 });
 
 interface Hit {
 	file: string;

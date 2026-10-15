@@ -316,6 +316,43 @@ jobs:
          # no network and no toolchain — so this stays a seconds-long gate.
          - name: Unit-test the merge member-loss auditor
            run: bun test scripts/audit-merge-members.test.ts
+         # Same reasoning as the three unit-test steps above, applied to the gate
+         # itself: an uncollected test rots — that is exactly what this PR found
+         # in the two orphan suites below. The gate's regression pins the
+         # one-page summary, the non-zero exit on failure, the brand scan's
+         # report-only verdict (it exits 0 either way) and `--gates-only`
+         # dropping the test phase, and it runs the real CLI twice (`--dry-run`;
+         # an audit that fails on an unresolvable --base).
+         - name: Unit-test the merge gate
+           run: bun test scripts/merge-gate.test.ts
+         # Orphan suite: `plugins/official/pi-messenger/tests` is a **vitest**
+         # suite outside the bun workspace — the root `plugins/*` glob stops at
+         # `plugins/official`, so `bun install` never installed its deps and no
+         # bucket in `ci-test-ts.ts` (which walks `packages/*`) ever ran it.
+         # Only `test/plugins/pi-messenger-activation.test.ts`'s "is it
+         # registered" assertion touched the plugin at all. It therefore
+         # installs its own dependencies here: `package.json` declares
+         # `vitest ^2.1.8` and the package's `.gitignore` already ignores
+         # `node_modules/` + `package-lock.json`, the same standalone-vitest
+         # shape `editor_tests` uses. It belongs in this job because it is
+         # self-contained: its native dependency comes from npm's published
+         # per-platform leaf packages (`@linxiraos/pi-natives-linux-x64`), not
+         # from the addon artifact the `test_*` buckets download — the `check`
+         # job deliberately has none.
+         #
+         # `continue-on-error` IS DELIBERATE AND TEMPORARY. Wiring the suite in
+         # for the first time on 2026-10-16 found it already rotten: **7 of 438
+         # tests in 6 of 49 files fail on ubuntu** (agent-message-renderer,
+         # status-heartbeat ×2, teamagent-command, typebox-compat,
+         # agent-end-autonomous ×2) — none of them caused by this change, all of
+         # them invisible until now because no job collected the suite. The step
+         # runs (and annotates) on every push so the rot cannot grow silently;
+         # it does NOT gate until a follow-up PR fixes those 7 and drops this
+         # flag. Do not "solve" it by deleting the step.
+         - name: Test the pi-messenger plugin (vitest; known-red, annotate-only)
+           working-directory: plugins/official/pi-messenger
+           continue-on-error: true
+           run: npm install --no-audit --no-fund && npx vitest run
          - name: Build collab web
            run: bun run collab:web:build
 
@@ -887,6 +924,29 @@ jobs:
               # (its install.sh smoke-check executes a fake binary), so running
               # the whole group here would red this job on an unrelated break.
               bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
+         # Orphan suite: `packages/stats` is a workspace package that sits in no
+         # `ci-test-ts.ts` bucket (neither `fastWorkspacePackages` nor
+         # `nativeAndIntegrationPackages`), so neither CI nor the local
+         # `bun run test:ts` ever ran its 214 tests. It runs *here*, not in
+         # `check`, because its suites import `@linxiraos/pi-utils` →
+         # `@linxiraos/pi-natives`, whose loader throws at import time unless a
+         # Linux addon is present in `packages/natives/native/` — and the
+         # `packages/natives` workspace package declares no per-platform
+         # optional dependency, so only the steps above (native-artifacts) can
+         # supply it. In `check` this suite is a guaranteed red.
+         #
+         # `continue-on-error` IS DELIBERATE AND TEMPORARY. First collection
+         # (2026-10-16) found **69 of 214 tests failing across 37 files**: one
+         # file no longer compiles against `src/db.ts`
+         # (`pruneOrphanSessionsInDb` was removed/renamed) and the sync,
+         # rollup, tool-stats and frustration-dashboard assertions drifted
+         # while nothing ran them. The step runs and annotates on every push so
+         # the drift cannot grow silently; it does NOT gate until a follow-up PR
+         # fixes those 69 and drops this flag. Do not "solve" it by deleting the
+         # step.
+         - name: Test the stats package (bun test; known-red, annotate-only)
+           continue-on-error: true
+           run: bun test packages/stats/test
 
    test_coding_agent_singleton:
       name: Test coding-agent singleton/global-state (TS)

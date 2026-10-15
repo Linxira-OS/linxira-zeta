@@ -77,6 +77,17 @@ i.e. the exact class-4 damage it exists to catch. Exit 2 (unresolvable ref, git
 failure, or an extraction that found zero members) is now distinct from exit 0,
 so "could not audit" can never be read as "clean merge".
 
+**One command runs the whole matrix.** `bun run merge-gate` walks every row above
+in dependency order, then the three pre-merge audits (members, brand
+regressions, lineage — `--base <ref>` / `--tag <tag>` feed them), then the
+behaviour suites, and prints a single-page pass/fail summary with the first error
+line of each failure (`--gates-only` stops after the audits; `--only <id>`
+re-runs one step). It is also the only entry point that *gates* on the two suites
+no CI bucket collects on a blocking path: `packages/stats/test` and
+`plugins/official/pi-messenger/tests` (vitest) run in CI as `continue-on-error`
+steps until their pre-existing failures are fixed — 69/214 and 7/438 on
+2026-10-16, the first time either suite ever ran in a job.
+
 ## The lineage gate — why it exists and how to use it
 
 The rule this repo is built on is one sentence: **only the difference between two
