@@ -160,7 +160,7 @@ pub fn save_window(window: &Window, path: &Path) -> anyhow::Result<()> {
 		ReleaseDC(hwnd, screen_dc);
 
 		anyhow::ensure!(lines == height, "GetDIBits returned {lines} of {height} lines");
-		for pixel in bits.chunks_exact_mut(4) {
+		for pixel in bits.as_chunks_mut::<4>().0 {
 			pixel.swap(0, 2); // BGRA -> RGBA
 			pixel[3] = 255;
 		}

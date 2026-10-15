@@ -189,7 +189,7 @@ mod tests {
 	}
 
 	#[gpui_kit::test]
-	fn a_panel_payload_has_a_slot_and_an_unknown_name_is_reported(cx: &mut TestAppContext) {
+	fn a_panel_payload_has_a_slot_in_the_schema(cx: &mut TestAppContext) {
 		cx.update(register_spike_panels);
 
 		let (dock, vcx) = cx.add_window_view(move |window, cx| {
@@ -204,10 +204,11 @@ mod tests {
 		});
 
 		let state = vcx.read(|cx| dock.read(cx).dump(cx));
-		// `set_center(tabs())` nests: the group itself is a `TabPanel`, its
-		// children are the panels in tab order.
-		assert_eq!(state.center.panel_name, "TabPanel");
-		let panel = &state.center.children[0];
+		// `set_center` always keeps a `StackPanel` root; the tab group is its
+		// child, and the panel is the group's child.
+		assert_eq!(state.center.panel_name, "StackPanel");
+		assert_eq!(state.center.children[0].panel_name, "TabPanel");
+		let panel = &state.center.children[0].children[0];
 		assert_eq!(panel.panel_name, "ImePanel");
 		// The default `Panel::dump` records the name and nothing else; a panel
 		// with real state overrides `dump` to return `PanelInfo::Panel(json)` —

@@ -6,7 +6,7 @@
 //! bounds every frame (`gpui_wry::WebViewElement::prepaint` → `set_bounds`), so
 //! it follows the panel and never participates in the GPUI scene.
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use gpui_kit::component::dock::{BasePanel, Panel, PanelEvent};
 use gpui_kit::*;
@@ -28,7 +28,7 @@ pub fn materialise_demo_page() -> anyhow::Result<String> {
 	Ok(file_url(&path))
 }
 
-fn file_url(path: &PathBuf) -> String {
+fn file_url(path: &Path) -> String {
 	let slashed = path.to_string_lossy().replace('\\', "/");
 	if slashed.starts_with('/') {
 		format!("file://{slashed}")
