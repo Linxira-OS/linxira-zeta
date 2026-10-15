@@ -567,6 +567,12 @@ These affect where coding-agent stores data and which process-local settings ove
 
 `PI_BASH_NO_CI`, `PI_BASH_NO_LOGIN`, and `PI_SHELL_PREFIX` use their `CLAUDE_*` aliases when the canonical variable is unset or empty. These controls use non-empty string checks, not boolean parsing: even `0` or `false` activates the corresponding no-CI/no-login control.
 
+The bash tool also carries a **host-process guard** (`packages/coding-agent/src/tools/host-process-guard.ts`): a command that sweeps processes by name or pattern (`Stop-Process -Name …`, `Get-Process x | Stop-Process`, `taskkill /IM …`, `pkill`, `killall`, `kill -1`/`kill 0`, `wmic process … delete`) or that targets the agent's own process chain (its pid, its parents, the `bun`/`node` host, the terminal/console) is refused before anything runs, with the safe alternative in the message.
+
+| Variable                 | Behavior                                                                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `ZETA_HOST_PROCESS_GUARD` | `off` disables the guard. Read from the agent's **process environment** when a command is checked — never from settings or the session, so neither a tool call nor a plugged-in plugin can turn it off mid-session (a child shell's `export` never reaches the agent). Set it before starting `zetacode`; note that Bun's launch-directory `.env` autoload also lands in the process environment, so a project `.env` sets it for a future launch in that directory |
+
 ---
 
 ## 8) UI/theme/session detection (auto-detected env)
