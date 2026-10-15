@@ -97,7 +97,7 @@ describe("grep native view", () => {
 			{ pattern: "hit" },
 		);
 		const body = (view.body ?? []).filter(isNode);
-		expect(body.map(role)).toEqual(["omp.tool.search.file"]);
+		expect(body.map(role)).toEqual(["zeta.tool.search.file"]);
 		const kinds = (body[0]!.c ?? []).filter(isNode).map(n => n.k);
 		expect(kinds).toEqual(["row", "code", "text", "code"]);
 		expect(codeStarts(body[0]!.c)).toEqual([9, 40]);

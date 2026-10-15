@@ -138,9 +138,9 @@ export class JobsSheet implements Component {
 			? col([
 					node(
 						"row",
-						{ role: "omp.jobs.split" },
+						{ role: "zeta.jobs.split" },
 						[
-							node("col", { role: "omp.jobs.master" }, [describeJobList(jobs, selected, now)], "master"),
+							node("col", { role: "zeta.jobs.master" }, [describeJobList(jobs, selected, now)], "master"),
 							describeDetail(selected, detail, now),
 						],
 						"split",
@@ -263,7 +263,7 @@ function describeJobList(jobs: readonly JobsPanelJob[], selected: JobsPanelJob, 
 		["Recent", jobs.filter(job => job.status !== "running")],
 	] as const) {
 		if (group.length === 0) continue;
-		rows.push(node("text", { role: "omp.jobs.group", text: label, wrap: "none" }, undefined, `group-${label}`));
+		rows.push(node("text", { role: "zeta.jobs.group", text: label, wrap: "none" }, undefined, `group-${label}`));
 		for (const job of group) rows.push(describeJobItem(job, nowMs));
 	}
 	return selectList("jobs", rows, { selected: selected.id, max: { lines: 12 } });
@@ -293,19 +293,19 @@ function describeSummary(jobs: readonly JobsPanelJob[]): NativeNode {
 		running > 0 && `${running} running`,
 		jobs.length > running && `${jobs.length - running} recent`,
 	]);
-	return node("text", { role: "omp.jobs.summary", text: parts.join(" · "), wrap: "none" }, undefined, "summary");
+	return node("text", { role: "zeta.jobs.summary", text: parts.join(" · "), wrap: "none" }, undefined, "summary");
 }
 
 /** No jobs: what the sheet is for, in place of the split. */
 function describeEmpty(): NativeNode {
 	return node(
 		"col",
-		{ role: "omp.jobs.empty", align: "center" },
+		{ role: "zeta.jobs.empty", align: "center" },
 		[
 			node("icon", { name: "jobs" }),
-			text("No background jobs", { role: "omp.jobs.empty.title" }),
+			text("No background jobs", { role: "zeta.jobs.empty.title" }),
 			text("Commands and subagent tasks started in the background show up here while they run.", {
-				role: "omp.jobs.empty.note",
+				role: "zeta.jobs.empty.note",
 				wrap: "word",
 			}),
 		],

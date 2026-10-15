@@ -721,7 +721,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 		}
 		if (memo && sameDeps(memo.deps, [active])) return memo.node;
 		const content = this.#screen === "review-interval" ? this.#intervalCard(active) : active;
-		const card = col([content], { role: "omp.prefs.editor" });
+		const card = col([content], { role: "zeta.prefs.editor" });
 		this.#nativeEditor = { deps: [active], node: card };
 		return card;
 	}
@@ -767,7 +767,7 @@ export class AdvisorConfigOverlayComponent implements Component {
 	/** The review-interval field as a titled card: what the number means, the field, Cancel and Save. */
 	#intervalCard(input: Component): NativeNode {
 		const name = this.#doc.advisors[this.#detailIndex]?.name || "this advisor";
-		return overlayCard("omp.overlay.advisor.interval", `Review interval · ${name}`, [
+		return overlayCard("zeta.overlay.advisor.interval", `Review interval · ${name}`, [
 			text([span("Review every Nth eligible update; skipped updates join the next review.", "muted")], {
 				wrap: "word",
 			}),

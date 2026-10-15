@@ -38,12 +38,12 @@ import { plainText } from "../native/spans";
 import { sanitizeCarriageReturns } from "../render/render-utils";
 
 /** Root role of the native sheet. */
-const ROLE = "omp.overlay.hook-editor";
+const ROLE = "zeta.overlay.hook-editor";
 /**
  * Role prefix of its parts (`.head`, `.title`, `.detail`, `.eyebrow`, `.field`/`.line`); outside
- * `omp.overlay.*`, which Tern draws as a sheet of its own.
+ * `zeta.overlay.*`, which Tern draws as a sheet of its own.
  */
-const PART = "omp.hook-editor";
+const PART = "zeta.hook-editor";
 
 /** Most title rows the terminal prompt shows, so a long question cannot push the input row off-screen. */
 const MAX_PROMPT_TITLE_ROWS = 3;

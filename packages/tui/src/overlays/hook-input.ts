@@ -14,8 +14,8 @@ import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "..
 import { actionBar, actionButton } from "../native/overlay";
 import { plainText } from "../native/spans";
 
-/** Role prefix of the sheet's parts (`omp.hook-input.head`, `.title`, `.timer`, `.detail`, `.field`). */
-const PART = "omp.hook-input";
+/** Role prefix of the sheet's parts (`zeta.hook-input.head`, `.title`, `.timer`, `.detail`, `.field`). */
+const PART = "zeta.hook-input";
 
 export interface HookInputOptions {
 	tui?: TUI;

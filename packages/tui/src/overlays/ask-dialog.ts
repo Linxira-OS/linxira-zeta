@@ -854,7 +854,7 @@ export class AskDialogComponent implements Component {
 				span(normalizedInlineInput(sanitizeCarriageReturns(question?.question ?? ""))),
 				...(more ? [span(more, "muted")] : []),
 			],
-			{ truncate: "end", role: "omp.ask.summary" },
+			{ truncate: "end", role: "zeta.ask.summary" },
 		);
 		const hideKey = getKeybindings().getKeys("app.ask.hide")[0];
 		const show = actionButton("Show", "show", {
@@ -901,11 +901,11 @@ export class AskDialogComponent implements Component {
 			const role =
 				rowItem.kind === "other"
 					? question.multi
-						? "omp.ask.other.check"
-						: "omp.ask.other"
+						? "zeta.ask.other.check"
+						: "zeta.ask.other"
 					: question.multi
-						? "omp.ask.check"
-						: "omp.ask.option";
+						? "zeta.ask.check"
+						: "zeta.ask.option";
 			return node(
 				"item",
 				{
@@ -936,7 +936,7 @@ export class AskDialogComponent implements Component {
 		const option = highlighted?.kind === "option" ? question.options[highlighted.optionIndex ?? -1] : undefined;
 		if (option?.preview?.trim()) {
 			children.push(
-				node("md", { text: replaceTabs(option.preview), role: "omp.ask.preview" }, undefined, "preview"),
+				node("md", { text: replaceTabs(option.preview), role: "zeta.ask.preview" }, undefined, "preview"),
 			);
 		}
 	}
@@ -951,7 +951,7 @@ export class AskDialogComponent implements Component {
 						span(` · Submit still sends ${unanswered === this.#questions.length ? "the questions" : "the rest"}`),
 					]
 				: [span("All answered · Submit sends them")];
-		children.push(node("text", { spans: notice, role: "omp.ask.notice" }, undefined, "notice"));
+		children.push(node("text", { spans: notice, role: "zeta.ask.notice" }, undefined, "notice"));
 		const answers: { k: string; v: readonly TspSpan[] }[] = [];
 		for (let index = 0; index < this.#questions.length; index++) {
 			const question = this.#questions[index];
@@ -959,7 +959,7 @@ export class AskDialogComponent implements Component {
 			if (!question || !state) continue;
 			answers.push({ k: questionTabName(question, index), v: describeAnswer(question, state) });
 		}
-		children.push(node("kv", { items: answers, role: "omp.ask.answers" }, undefined, "answers"));
+		children.push(node("kv", { items: answers, role: "zeta.ask.answers" }, undefined, "answers"));
 	}
 
 	/**
@@ -985,7 +985,7 @@ export class AskDialogComponent implements Component {
 		if (blocked && inputGuard) {
 			return actionBar([
 				...lead,
-				text([span(plainText(inputGuard.hint), "muted")], { truncate: "end", role: "omp.ask.summary" }),
+				text([span(plainText(inputGuard.hint), "muted")], { truncate: "end", role: "zeta.ask.summary" }),
 				skip,
 			]);
 		}

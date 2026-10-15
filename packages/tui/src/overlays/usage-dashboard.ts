@@ -378,7 +378,7 @@ export function buildHeatmapLayout(points: DailyActivityPoint[], weeks: number, 
 const NATIVE_HEATMAP_WEEKS = 53;
 /** Span tokens for heatmap intensity levels 1..4 (the `table` fallback). */
 const HEAT_LEVEL_TOKENS = ["dim", "accent dim", "accent", "accent strong"];
-/** Heatmap row labels, Monday first like omp's grid: M/W/F only. */
+/** Heatmap row labels, Monday first like zeta's grid: M/W/F only. */
 const HEATMAP_ROW_LABELS = ["M", "", "W", "", "F", "", ""];
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -402,7 +402,7 @@ function statusDot(status: UsageLimit["status"]): NativeNode {
 				: status === "ok"
 					? "OK"
 					: "Unknown";
-	return text([span("●", token)], { role: "omp.usage.dot", title: label, aria: label });
+	return text([span("●", token)], { role: "zeta.usage.dot", title: label, aria: label });
 }
 
 /**
@@ -468,8 +468,8 @@ function footnote(key: string, label: string, cards: readonly ProviderCard[], ti
 function sectionHead(title: string, meta: readonly NativeChild[]): NativeNode {
 	return node(
 		"row",
-		{ role: "omp.usage.section", gap: "sm", align: "center" },
-		[text([span(title)], { role: "omp.usage.section.title" }), node("spacer", { grow: 1 }), ...meta],
+		{ role: "zeta.usage.section", gap: "sm", align: "center" },
+		[text([span(title)], { role: "zeta.usage.section.title" }), node("spacer", { grow: 1 }), ...meta],
 		"head",
 	);
 }
@@ -485,15 +485,15 @@ function statTile(
 	sub: TspText,
 	options: { chart?: NativeNode; title?: string } = {},
 ): NativeNode {
-	const figure: NativeChild[] = [text(value, { role: "omp.usage.stat.value", truncate: "end" })];
+	const figure: NativeChild[] = [text(value, { role: "zeta.usage.stat.value", truncate: "end" })];
 	if (options.chart) figure.push(options.chart);
 	return node(
 		"col",
-		{ role: "omp.usage.stat", gap: "xs", ...(options.title ? { title: options.title } : {}) },
+		{ role: "zeta.usage.stat", gap: "xs", ...(options.title ? { title: options.title } : {}) },
 		[
-			text([span(label)], { role: "omp.usage.stat.label", truncate: "end" }),
+			text([span(label)], { role: "zeta.usage.stat.label", truncate: "end" }),
 			node("row", { gap: "md", align: "end" }, figure, "figure"),
-			text(sub, { role: "omp.usage.stat.sub", truncate: "end" }),
+			text(sub, { role: "zeta.usage.stat.sub", truncate: "end" }),
 		],
 		key,
 	);
@@ -1089,7 +1089,7 @@ export class UsageDashboardComponent implements Component {
 		const root = col(
 			[
 				this.#describeHead(),
-				node("col", { role: "omp.usage.body", gap: "lg" }, body, this.#view),
+				node("col", { role: "zeta.usage.body", gap: "lg" }, body, this.#view),
 				actionBar([null, close]),
 			],
 			{ gap: "lg" },
@@ -1205,7 +1205,7 @@ export class UsageDashboardComponent implements Component {
 		if (framed.length === 0 && quiet && !this.#activityError) {
 			const children: NativeChild[] = [
 				node("icon", { name: "gauge" }, undefined, "icon"),
-				text([span("No usage yet")], { role: "omp.usage.empty.title" }),
+				text([span("No usage yet")], { role: "zeta.usage.empty.title" }),
 				text(
 					[
 						span(
@@ -1213,11 +1213,11 @@ export class UsageDashboardComponent implements Component {
 							"muted",
 						),
 					],
-					{ role: "omp.usage.empty.body", wrap: "word" },
+					{ role: "zeta.usage.empty.body", wrap: "word" },
 				),
 			];
 			if (notes.length > 0) children.push(node("col", { gap: "xs" }, notes, "footnotes"));
-			return [node("col", { role: "omp.usage.empty", gap: "sm", align: "center" }, children, "empty")];
+			return [node("col", { role: "zeta.usage.empty", gap: "sm", align: "center" }, children, "empty")];
 		}
 
 		const quotas: NativeChild[] = [sectionHead("Quotas", this.#quotaMeta(framed))];
@@ -1225,7 +1225,9 @@ export class UsageDashboardComponent implements Component {
 		if (this.#cards.length === 0) {
 			quotas.push(text([span("No usage data available.", "muted")], { role: "zeta.usage.none", wrap: "word" }));
 		} else if (framed.length === 0) {
-			quotas.push(text([span("Nothing used on any quota yet.", "muted")], { role: "zeta.usage.none", wrap: "word" }));
+			quotas.push(
+				text([span("Nothing used on any quota yet.", "muted")], { role: "zeta.usage.none", wrap: "word" }),
+			);
 		}
 		quotas.push(...notes);
 		return [
@@ -1301,7 +1303,7 @@ export class UsageDashboardComponent implements Component {
 				statTile("month", "Last 30 days", [span("—", "dim")], sub),
 				statTile("busiest", "Busiest day", [span("—", "dim")], sub),
 			);
-			return node("row", { role: "omp.usage.stats", wrap: true }, tiles, "stats");
+			return node("row", { role: "zeta.usage.stats", wrap: true }, tiles, "stats");
 		}
 
 		const amount = (cost: number, requests: number): TspSpan[] =>
@@ -1353,7 +1355,7 @@ export class UsageDashboardComponent implements Component {
 					])
 				: statTile("busiest", "Busiest day", [span("—", "dim")], [span("No activity yet", "dim")]),
 		);
-		return node("row", { role: "omp.usage.stats", wrap: true }, tiles, "stats");
+		return node("row", { role: "zeta.usage.stats", wrap: true }, tiles, "stats");
 	}
 
 	/**
@@ -1380,7 +1382,7 @@ export class UsageDashboardComponent implements Component {
 			),
 		];
 		if (entry.accounts > 1) {
-			who.push(text([span(`${entry.accounts} accounts`, "dim")], { role: "omp.usage.provider.meta" }));
+			who.push(text([span(`${entry.accounts} accounts`, "dim")], { role: "zeta.usage.provider.meta" }));
 		}
 		if (entry.resetCredits) {
 			const resets = entry.resetCredits;
@@ -1397,7 +1399,7 @@ export class UsageDashboardComponent implements Component {
 			const label = `${resets.bankedCount} reset${resets.bankedCount === 1 ? "" : "s"} banked`;
 			who.push(
 				text([span(label, resets.redeemableCount > 0 ? "success" : "warning")], {
-					role: "omp.usage.provider.meta",
+					role: "zeta.usage.provider.meta",
 					title: details.length > 0 ? `${label} · ${details.join(" · ")}` : label,
 				}),
 			);
@@ -1406,7 +1408,7 @@ export class UsageDashboardComponent implements Component {
 			const name = sanitizeDisplayLine(account);
 			who.push(
 				text([span(`Daybreak · ${name}`, "success")], {
-					role: "omp.usage.provider.meta",
+					role: "zeta.usage.provider.meta",
 					truncate: "middle",
 					title: `Daybreak access · ${name}`,
 				}),
@@ -1416,7 +1418,7 @@ export class UsageDashboardComponent implements Component {
 			const name = sanitizeDisplayLine(account);
 			who.push(
 				text([span(`${name}: no usage data`, "warning")], {
-					role: "omp.usage.provider.meta",
+					role: "zeta.usage.provider.meta",
 					truncate: "middle",
 					title: `${name}: no usage data`,
 				}),
@@ -1425,7 +1427,7 @@ export class UsageDashboardComponent implements Component {
 
 		const rows: NativeChild[] = [];
 		if (entry.unlimited) {
-			rows.push(text([span("No quotas reported", "muted")], { role: "omp.usage.none" }));
+			rows.push(text([span("No quotas reported", "muted")], { role: "zeta.usage.none" }));
 		} else {
 			for (const [index, window] of entry.windows.slice(0, CARD_MAX_WINDOWS).entries()) {
 				const label: TspSpan[] = [span(sanitizeDisplayLine(window.label))];
@@ -1453,7 +1455,7 @@ export class UsageDashboardComponent implements Component {
 			if (hidden > 0) {
 				rows.push(
 					text([span(`${hidden} more in Details`, "dim")], {
-						role: "omp.usage.more",
+						role: "zeta.usage.more",
 						title: "Details lists every quota per account  ⏎",
 					}),
 				);
@@ -1486,7 +1488,7 @@ export class UsageDashboardComponent implements Component {
 		} else if (layout) {
 			const today = new Date();
 			const range = `${layout.start.getDate()} ${MONTH_NAMES[layout.start.getMonth()]} ${layout.start.getFullYear()} – ${today.getDate()} ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
-			meta.push(text([span(range, "dim")], { role: "omp.usage.section.meta" }));
+			meta.push(text([span(range, "dim")], { role: "zeta.usage.section.meta" }));
 		}
 		const children: NativeChild[] = [sectionHead("Activity", meta)];
 		const points = this.#activity;
@@ -1494,7 +1496,7 @@ export class UsageDashboardComponent implements Component {
 			const detail = formatActivityErrorDetail(this.#activityError);
 			children.push(
 				text([span(detail ? `Usage history unavailable (${detail}).` : "Usage history unavailable.", "muted")], {
-					role: "omp.usage.none",
+					role: "zeta.usage.none",
 					wrap: "word",
 				}),
 			);
@@ -1526,7 +1528,7 @@ export class UsageDashboardComponent implements Component {
 					node("spacer", { grow: 1 }),
 					node(
 						"row",
-						{ role: "omp.usage.legend", gap: "sm", align: "center" },
+						{ role: "zeta.usage.legend", gap: "sm", align: "center" },
 						[
 							text([span("Less", "dim")]),
 							node(
@@ -1541,7 +1543,7 @@ export class UsageDashboardComponent implements Component {
 					),
 				);
 			}
-			children.push(node("row", { role: "omp.usage.activity.foot", gap: "md", align: "center" }, foot, "foot"));
+			children.push(node("row", { role: "zeta.usage.activity.foot", gap: "md", align: "center" }, foot, "foot"));
 		}
 		return node("col", { role: "zeta.usage.activity" }, children, "activity");
 	}
@@ -1623,13 +1625,13 @@ export class UsageDashboardComponent implements Component {
 						: aggregateStatus(entry.windows);
 			const head: NativeChild[] = [
 				statusDot(cardStatus),
-				text([span(entry.name)], { role: "omp.usage.provider.name", truncate: "end" }),
+				text([span(entry.name)], { role: "zeta.usage.provider.name", truncate: "end" }),
 			];
 			if (entry.accounts > 1) {
-				head.push(text([span(`${entry.accounts} accounts`, "dim")], { role: "omp.usage.provider.meta" }));
+				head.push(text([span(`${entry.accounts} accounts`, "dim")], { role: "zeta.usage.provider.meta" }));
 			}
 			const children: NativeChild[] = [
-				node("row", { role: "omp.usage.report.head", gap: "sm", align: "baseline" }, head, "head"),
+				node("row", { role: "zeta.usage.report.head", gap: "sm", align: "baseline" }, head, "head"),
 			];
 			for (const account of unavailable) {
 				if (account.provider !== entry.provider) continue;
@@ -1670,7 +1672,7 @@ export class UsageDashboardComponent implements Component {
 				});
 			}
 			if (facts.length > 0) {
-				children.push(node("kv", { items: facts, layout: "grid", role: "omp.usage.facts" }, undefined, "facts"));
+				children.push(node("kv", { items: facts, layout: "grid", role: "zeta.usage.facts" }, undefined, "facts"));
 			}
 
 			const buckets = new Map<string, { label: string; window?: string; rows: Record<string, TspText>[] }>();
@@ -1722,7 +1724,7 @@ export class UsageDashboardComponent implements Component {
 					{ id: "left", head: "Left", align: "end", priority: 3 },
 					{ id: "reset", head: "Resets", align: "end", priority: 2 },
 				];
-				children.push(node("table", { cols, rows, role: "omp.usage.limits" }, undefined, "limits"));
+				children.push(node("table", { cols, rows, role: "zeta.usage.limits" }, undefined, "limits"));
 				for (const note of new Set(limitNotes)) children.push(mutedText(note, true));
 			} else if (unavailable.every(account => account.provider !== entry.provider)) {
 				children.push(mutedText("No quotas reported"));

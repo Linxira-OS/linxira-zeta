@@ -758,10 +758,10 @@ function contextShareRow(
 		"row",
 		{ role, align: "center", title: `${label} · ${tokens.toLocaleString("en-US")} tokens` },
 		[
-			text([swatch], { role: "omp.context.swatch", wrap: "none" }),
-			text(label, { role: "omp.context.label", grow: 1, wrap: "none", truncate: "end" }),
-			text(formatNumber(tokens), { role: "omp.context.tokens", wrap: "none" }),
-			text(percentString(tokens, window), { role: "omp.context.share", wrap: "none" }),
+			text([swatch], { role: "zeta.context.swatch", wrap: "none" }),
+			text(label, { role: "zeta.context.label", grow: 1, wrap: "none", truncate: "end" }),
+			text(formatNumber(tokens), { role: "zeta.context.tokens", wrap: "none" }),
+			text(percentString(tokens, window), { role: "zeta.context.share", wrap: "none" }),
 		],
 		key,
 	);
@@ -776,11 +776,11 @@ function describeSnapcompact(breakdown: ContextBreakdown): NativeNode | undefine
 	const snap = breakdown.snapcompact;
 	if (!snap) return undefined;
 	const head = text([span("Snapcompact", "strong"), span(" · estimated savings on the wire", "dim")], {
-		role: "omp.context.snap.head",
+		role: "zeta.context.snap.head",
 	});
 	if (!snap.visionCapable) {
-		const note = text("Inactive: the model has no image input.", { role: "omp.context.snap.note" });
-		return node("col", { role: "omp.context.snap" }, [head, note], "snapcompact");
+		const note = text("Inactive: the model has no image input.", { role: "zeta.context.snap.note" });
+		return node("col", { role: "zeta.context.snap" }, [head, note], "snapcompact");
 	}
 	const lines: { label: string; detail: string; value?: TspSpan }[] = [];
 	const sp = snap.systemPrompt;
@@ -824,16 +824,16 @@ function describeSnapcompact(breakdown: ContextBreakdown): NativeNode | undefine
 	const rows = lines.map((line, index) =>
 		node(
 			"row",
-			{ role: "omp.context.snap.row", align: "baseline" },
+			{ role: "zeta.context.snap.row", align: "baseline" },
 			[
-				text(line.label, { role: "omp.context.label", wrap: "none" }),
-				text(line.detail, { role: "omp.context.detail", grow: 1, wrap: "none", truncate: "end" }),
-				...(line.value ? [text([line.value], { role: "omp.context.tokens", wrap: "none" })] : []),
+				text(line.label, { role: "zeta.context.label", wrap: "none" }),
+				text(line.detail, { role: "zeta.context.detail", grow: 1, wrap: "none", truncate: "end" }),
+				...(line.value ? [text([line.value], { role: "zeta.context.tokens", wrap: "none" })] : []),
 			],
 			`snap-${index}`,
 		),
 	);
-	return node("col", { role: "omp.context.snap" }, [head, ...rows], "snapcompact");
+	return node("col", { role: "zeta.context.snap" }, [head, ...rows], "snapcompact");
 }
 
 /**
@@ -856,16 +856,16 @@ function describeContextFrame(breakdown: ContextBreakdown): NativeNode {
 				: `${formatNumber(thresholdTokens - usedTokens)} left before auto-compaction at ${percentString(thresholdTokens, window, 0)}`;
 	const summary = node(
 		"row",
-		{ role: "omp.context.summary", align: "baseline", wrap: true },
+		{ role: "zeta.context.summary", align: "baseline", wrap: true },
 		[
 			text(
 				[
 					span(formatNumber(usedTokens), "strong"),
 					span(` of ${formatNumber(window)} tokens · ${percentString(usedTokens, window, 0)}`, "dim"),
 				],
-				{ role: "omp.context.used", grow: 1, wrap: "none" },
+				{ role: "zeta.context.used", grow: 1, wrap: "none" },
 			),
-			text(room, { role: "omp.context.room", wrap: "none" }),
+			text(room, { role: "zeta.context.room", wrap: "none" }),
 		],
 		"summary",
 	);
@@ -895,12 +895,12 @@ function describeContextFrame(breakdown: ContextBreakdown): NativeNode {
 			window,
 		),
 	);
-	shares.push(contextShareRow("free", "omp.context.cat.free", span("□", "dim"), "Free space", freeTokens, window));
+	shares.push(contextShareRow("free", "zeta.context.cat.free", span("□", "dim"), "Free space", freeTokens, window));
 	if (autoCompactBufferTokens > 0) {
 		shares.push(
 			contextShareRow(
 				"buffer",
-				"omp.context.cat.buffer",
+				"zeta.context.cat.buffer",
 				span("▨", "warning"),
 				"Autocompact buffer",
 				autoCompactBufferTokens,

@@ -297,7 +297,7 @@ describe("dialogs under a native surface", () => {
 		dialog.showAuth("https://auth.example.com/authorize?x=1", "Enter code: ABCD-1234");
 		const waiting = dialog.describe();
 		// The device code copies itself; with nothing to answer, opening the page is the primary action.
-		expect(find(waiting, node => node.p?.role === "omp.login.code")?.node.p).toMatchObject({
+		expect(find(waiting, node => node.p?.role === "zeta.login.code")?.node.p).toMatchObject({
 			actions: { click: "copy" },
 			href: "ABCD-1234",
 		});

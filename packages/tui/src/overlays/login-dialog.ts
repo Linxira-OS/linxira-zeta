@@ -324,14 +324,14 @@ export class LoginDialogComponent extends OverlayPanel {
 		const field = this.#activeField();
 		const body: NativeChild[] = [];
 		if (auth) {
-			body.push(keyed(text(this.#lead(auth), { role: "omp.login.lead", wrap: "word" }), "lead"));
+			body.push(keyed(text(this.#lead(auth), { role: "zeta.login.lead", wrap: "word" }), "lead"));
 			if (auth.device) body.push(this.#describeCode(auth.device.code));
 			body.push(this.#describeLink(auth.url));
 			if (auth.launchUrl) {
 				body.push(
 					keyed(
 						text([span("On this machine  ", "dim"), span(auth.launchUrl, "mono", { href: auth.launchUrl })], {
-							role: "omp.login.shortcut",
+							role: "zeta.login.shortcut",
 							truncate: "middle",
 							lines: 1,
 							title: auth.launchUrl,
@@ -358,7 +358,7 @@ export class LoginDialogComponent extends OverlayPanel {
 				body.push(
 					node(
 						"row",
-						{ role: "omp.login.answer", gap: "sm", align: "baseline" },
+						{ role: "zeta.login.answer", gap: "sm", align: "baseline" },
 						[
 							keyed(text(label, { truncate: "end", lines: 1 }), "label"),
 							keyed(text(step.answer || "—", { truncate: "end", lines: 1 }), "value"),
@@ -370,17 +370,16 @@ export class LoginDialogComponent extends OverlayPanel {
 				body.push(
 					node(
 						"col",
-						{ role: "omp.login.prompt", gap: "sm" },
-						[keyed(text(label, { role: "omp.login.label", wrap: "word" }), "label"), step.field],
+						{ role: "zeta.login.prompt", gap: "sm" },
+						[keyed(text(label, { role: "zeta.login.label", wrap: "word" }), "label"), step.field],
 						`i${index}`,
 					),
 				);
 			}
-
 		}
 		// The provider reports nothing while the browser half runs (GitHub's device poll): say so.
 		if (auth && live === -1 && !field) status.push(this.#describeLive(BROWSER_WAIT, "browser"));
-		if (status.length > 0) body.push(node("col", { role: "omp.login.status", gap: "xs" }, status, "status"));
+		if (status.length > 0) body.push(node("col", { role: "zeta.login.status", gap: "xs" }, status, "status"));
 
 		const cancelKey = getKeybindings().getKeys("tui.select.cancel")[0];
 		const cancel = actionButton("Cancel", "cancel", cancelKey ? { keys: cancelKey } : {});

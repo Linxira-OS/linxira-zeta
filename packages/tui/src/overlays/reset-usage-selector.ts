@@ -13,7 +13,7 @@ import { node, span, text } from "../native/describe";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "../native/node";
 import { actionHint, hintsRow, overlayCard } from "../native/overlay";
 import { CLOSE_ACTION, dockedPicker, PICKER_KEY, pickerAction, pickerEvent } from "../native/picker";
-import type { TspPickerItem, TspPickerProps, TspSpan } from "@oh-my-pi/pi-wire";
+import type { TspPickerItem, TspPickerProps, TspSpan } from "@linxiraos/pi-wire";
 
 const RESET_SELECTOR_MAX_VISIBLE = 10;
 

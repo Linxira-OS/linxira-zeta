@@ -43,7 +43,11 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		name: "omp-path-fixture",
 		from: /(path\.join\([^)]*?)\.omp(?=\s*,\s*"(?:skills|agent|agents|plugins|cache)")/g,
 		to: "$1.zeta",
-		exclude: /discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi/,
+		// config/omp-compat + config/model-registry probe the *upstream* OMP root
+		// (`~/.omp/agent`) on purpose (92f06c8b240); rewriting it made the probe
+		// re-read Zeta's own models.yml as a phantom "upstream overlay".
+		exclude:
+			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|config\/(omp-compat|model-registry)/,
 	},
 	{
 		name: "mcp-schema-url",
@@ -66,8 +70,10 @@ const REWRITES: Array<{ name: string; from: RegExp; to: string; exclude?: RegExp
 		name: "omp-doc-path",
 		from: /(\W|^)\.omp(?![\w.-])/g,
 		to: "$1.zeta",
+		// CHANGELOG.md prose documents history (upstream paths as they were), and
+		// config/omp-compat|model-registry name the upstream root on purpose.
 		exclude:
-			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts/,
+			/discovery\/(helpers|omp-plugins|claude-plugins)|omp-extension-roots|legacy-pi|title-generator|export\/share|browser-relay|plugins\/|loader\.ts|CHANGELOG\.md|config\/(omp-compat|model-registry)/,
 	},
 	{
 		name: "omp-xdg-doc",

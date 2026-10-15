@@ -206,14 +206,14 @@ describe("native transcript redesign", () => {
 		harness = await TspHarness.start();
 		harness.tui.addChild(component);
 		await harness.render();
-		const copy = harness.find(node => node.p?.role === "omp.turn.copy");
+		const copy = harness.find(node => node.p?.role === "zeta.turn.copy");
 		harness.event({ ev: "action", sf: harness.terminal.surface!, id: copy!.id, act: "copy-answer" });
 		expect(actions).toEqual([{ act: "copy", text: "First part.\n\nSecond part." }]);
 
 		component.updateContent(answer({ type: "thinking", thinking: "Nothing to say" }));
 		await harness.render();
-		expect(harness.find(node => node.p?.role === "omp.turn.usage")).toBeDefined();
-		expect(harness.find(node => node.p?.role === "omp.turn.copy")).toBeUndefined();
+		expect(harness.find(node => node.p?.role === "zeta.turn.usage")).toBeDefined();
+		expect(harness.find(node => node.p?.role === "zeta.turn.copy")).toBeUndefined();
 		expect(harness.errors).toEqual([]);
 	});
 

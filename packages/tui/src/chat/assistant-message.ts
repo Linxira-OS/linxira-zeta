@@ -994,7 +994,7 @@ export class AssistantMessageComponent extends Container {
 						"icon",
 						{
 							name: "copy",
-							role: "omp.turn.copy",
+							role: "zeta.turn.copy",
 							title: "Copy answer",
 							aria: "Copy answer",
 							actions: { click: "copy-answer" },
@@ -1007,7 +1007,12 @@ export class AssistantMessageComponent extends Container {
 			}
 			line.push(node("text", { text: usage.text }, undefined, "text"));
 			children.push(
-				node("row", { role: "zeta.turn.usage", gap: "xs", align: "center", title: usage.title }, line, "turn-usage"),
+				node(
+					"row",
+					{ role: "zeta.turn.usage", gap: "xs", align: "center", title: usage.title },
+					line,
+					"turn-usage",
+				),
 			);
 		}
 		return col(children, { role: this.#rewound ? "zeta.assistant.rewound" : "zeta.assistant" });

@@ -214,7 +214,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 					"icon",
 					{
 						name: "copy",
-						role: "omp.user.tool",
+						role: "zeta.user.tool",
 						title: "Copy message",
 						aria: "Copy message",
 						actions: { click: "copy-message" },
@@ -226,7 +226,7 @@ export class UserMessageComponent extends Container implements ReactionTarget, T
 					"icon",
 					{
 						name: "rewind",
-						role: "omp.user.tool",
+						role: "zeta.user.tool",
 						title: "Rewind the conversation to an earlier message",
 						aria: "Rewind",
 						actions: { click: "rewind" },
