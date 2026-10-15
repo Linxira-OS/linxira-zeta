@@ -2,7 +2,7 @@ import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { readTargetsPlan } from "../plan-mode/plan-protection";
+import { readTargetsPlan, readTargetsPlanArtifact } from "../plan-mode/plan-protection";
 import { type EditStore, notebookToEditableText } from "@linxiraos/pi-natives";
 import { type } from "@linxiraos/pi-omptype";
 import type {
@@ -1121,14 +1121,20 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 	}
 
 	/**
-	 * True when `readPath` targets the session plan file: the canonical
-	 * `local://PLAN.md` alias or the session plan reference path. Plan files
-	 * read without an explicit selector get the full default window so
-	 * incremental plan amendments never operate on a truncated view.
+	 * True when `readPath` targets a plan file: the canonical `local://PLAN.md`
+	 * alias, the session plan reference path, or the canonical session-local
+	 * artifact name `local://<name>-plan.md` (recognised even before the
+	 * reference is promoted on submission). Plan files read without an explicit
+	 * selector get the full default window so incremental plan amendments never
+	 * operate on a truncated view.
 	 */
 	#isPlanRead(readPath: string): boolean {
 		const reference = this.session.getPlanReferencePath?.() ?? "local://PLAN.md";
-		return readTargetsPlan(readPath, "local://PLAN.md") || readTargetsPlan(readPath, reference);
+		return (
+			readTargetsPlan(readPath, "local://PLAN.md") ||
+			readTargetsPlan(readPath, reference) ||
+			readTargetsPlanArtifact(readPath)
+		);
 	}
 
 	/**

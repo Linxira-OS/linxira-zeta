@@ -52,6 +52,13 @@ describe("createPlanReadMatcher", () => {
 		expect(matcher(context({ path: "local://wp-migration.md:10-20" }))).toBe(true);
 	});
 
+	it("protects a canonical artifact-name read before the reference is promoted", () => {
+		const matcher = createPlanReadMatcher(() => "local://PLAN.md");
+		expect(matcher(context({ path: "local://my-task-plan.md" }))).toBe(true);
+		expect(matcher(context({ path: "local://my-task-plan.md:1-50" }))).toBe(true);
+		expect(matcher(context({ path: "local:/my-task-plan.md" }))).toBe(true);
+	});
+
 	it("reflects a mid-session retitle at match time", () => {
 		let planPath = "local://PLAN.md";
 		const matcher = createPlanReadMatcher(() => planPath);

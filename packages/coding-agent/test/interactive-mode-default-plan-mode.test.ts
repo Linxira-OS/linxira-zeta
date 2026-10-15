@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
@@ -8,10 +9,11 @@ import { initTheme } from "@linxiraos/pi-tui/theme";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TempDir } from "@linxiraos/pi-utils";
+import { removeSyncWithRetries, TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import type { CustomTool } from "../src/extensibility/custom-tools/types";
-import { resolveLocalUrlToPath } from "../src/internal-urls";
+import { M } from "../src/i18n";
+import { resolveLocalUrlToPath, resolveLocalRoot } from "../src/internal-urls";
 import { InteractiveMode, shouldEnterPlanModeOnStartup } from "../src/modes/interactive-mode";
 import { resolveXdevTool, type XdevState } from "../src/tools/xdev";
 
@@ -496,5 +498,48 @@ describe("InteractiveMode plan.defaultOnStartup", () => {
 
 		expect(created.planModeEnabled).toBe(true);
 		expect(session?.model?.id).toBe("claude-sonnet-4-5");
+	});
+
+	it("restores the journaled ultra workflow when resuming an active plan session", async () => {
+		const created = createHarness(Settings.isolated({ "compaction.enabled": false }));
+		created.sessionManager.appendModeChange("plan", { planFilePath: "local://PLAN.md", workflow: "ultra" });
+
+		await created.init({ suppressWelcomeIntro: true });
+
+		expect(created.planModeEnabled).toBe(true);
+		expect(session?.getPlanModeState()?.workflow).toBe("ultra");
+	});
+
+	it("renders the /plan-ultra entry banner from the i18n key", async () => {
+		const created = createHarness(Settings.isolated({ "compaction.enabled": false }));
+		await created.init({ suppressWelcomeIntro: true });
+		const status = vi.spyOn(created, "showStatus");
+
+		await created.handlePlanUltraCommand();
+
+		expect(created.planModeEnabled).toBe(true);
+		expect(status.mock.calls.map(([message]) => message)).toContain(
+			M.imPlanUltraModeEnabledFmt.replace("%s", "local://PLAN.md"),
+		);
+	});
+
+	it("points the plan reference at an existing plan artifact instead of the canonical alias", async () => {
+		const created = createHarness(Settings.isolated({ "compaction.enabled": false }));
+		await created.init({ suppressWelcomeIntro: true });
+		const manager = session?.sessionManager;
+		if (!manager) throw new Error("harness session missing");
+		const localRoot = resolveLocalRoot({
+			getArtifactsDir: () => manager.getArtifactsDir(),
+			getSessionId: () => manager.getSessionId(),
+		});
+		fs.mkdirSync(localRoot, { recursive: true });
+		fs.writeFileSync(path.join(localRoot, "my-task-plan.md"), "# Task\n\n## Approach\n\n- Add `--verbose`\n");
+		try {
+			await created.handlePlanModeCommand();
+
+			expect(session?.getPlanModeState()?.planFilePath).toBe("local://my-task-plan.md");
+		} finally {
+			removeSyncWithRetries(localRoot);
+		}
 	});
 });

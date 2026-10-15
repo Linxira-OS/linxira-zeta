@@ -100,6 +100,7 @@ import { cfgPlanEnabled } from "../../plan-mode/settings";
 
 const ACP_DEFAULT_MODE_ID = "default";
 const ACP_PLAN_MODE_ID = "plan";
+const ACP_PLAN_ULTRA_MODE_ID = "plan-ultra";
 const DEFAULT_PLAN_FILE_URL = "local://PLAN.md";
 const APPROVE_OPTION = "Approve and execute";
 const REFINE_OPTION = "Refine plan";
@@ -1860,20 +1861,30 @@ export class AcpAgent implements Agent {
 	}
 
 	#getCurrentModeId(session: AgentSession): string {
-		return session.getPlanModeState()?.enabled ? ACP_PLAN_MODE_ID : ACP_DEFAULT_MODE_ID;
+		const state = session.getPlanModeState();
+		if (!state?.enabled) return ACP_DEFAULT_MODE_ID;
+		return state.workflow === "ultra" ? ACP_PLAN_ULTRA_MODE_ID : ACP_PLAN_MODE_ID;
 	}
 
 	#applyModeChange(session: AgentSession, modeId: string): void {
-		const availableModes = this.#getAvailableModes(session);
-		if (!availableModes.some(mode => mode.id === modeId)) {
-			throw new Error(`Unsupported ACP mode: ${modeId}`);
+		// `plan-ultra` is a known-but-unadvertised id: it is never listed in
+		// `#getAvailableModes` (clients must keep seeing exactly
+		// `["default", "plan"]`), so it is exempt from that membership check.
+		if (modeId !== ACP_PLAN_ULTRA_MODE_ID) {
+			const availableModes = this.#getAvailableModes(session);
+			if (!availableModes.some(mode => mode.id === modeId)) {
+				throw new Error(`Unsupported ACP mode: ${modeId}`);
+			}
 		}
-		if (modeId === ACP_PLAN_MODE_ID) {
+		if (modeId === ACP_PLAN_MODE_ID || modeId === ACP_PLAN_ULTRA_MODE_ID) {
 			const previous = session.getPlanModeState();
 			session.setPlanModeState({
 				enabled: true,
 				planFilePath: previous?.planFilePath ?? DEFAULT_PLAN_FILE_URL,
-				workflow: previous?.workflow ?? "parallel",
+				// Ultra is explicit; plain `plan` keeps whatever workflow the
+				// session already had armed (an ultra session must not be
+				// silently downgraded to parallel).
+				workflow: modeId === ACP_PLAN_ULTRA_MODE_ID ? "ultra" : (previous?.workflow ?? "parallel"),
 				reentry: previous !== undefined,
 			});
 			// Mirror `InteractiveMode.#enterPlanMode`: register the plan-proposal

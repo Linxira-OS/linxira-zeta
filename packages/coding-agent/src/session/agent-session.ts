@@ -217,6 +217,7 @@ import { theme } from "@linxiraos/pi-tui/theme";
 import { parseTurnBudget } from "../modes/turn-budget";
 import { computeNonMessageTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 import { type PlanApprovalDetails, resolveApprovedPlan } from "../plan-mode/approved-plan";
+import { analyzePlanDepth } from "../plan-mode/plan-depth";
 import { listPlanFiles, readPlanFile, resolvePlanFilePath } from "../plan-mode/plan-files";
 import { loadOverallPlanReference } from "../plan-mode/plan-handoff";
 import type { PlanModeState, PlanWorkflow } from "../plan-mode/state";
@@ -1878,6 +1879,9 @@ export class AgentSession implements SettingsScope {
 		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
 
 		const planFilePath = options.planFilePath ?? (this.getPlanReferencePath() || "local://PLAN.md");
+		// Journaled with the mode change: a resume would otherwise silently fall
+		// back to `parallel` and lose the ultra floor the user selected.
+		const workflow = options.workflow ?? "parallel";
 		const previousTools = this.getEnabledToolNames();
 		const planAugmentations: string[] = [];
 		if (this.hasBuiltInTool("write")) planAugmentations.push("write");
@@ -1888,7 +1892,7 @@ export class AgentSession implements SettingsScope {
 		this.setPlanModeState({
 			enabled: true,
 			planFilePath,
-			workflow: options.workflow ?? "parallel",
+			workflow,
 			reentry: options.reentry,
 			enteredBy: options.enteredBy ?? "user",
 			// Carried for the approved-plan execution round: approving a plan runs
@@ -1900,7 +1904,7 @@ export class AgentSession implements SettingsScope {
 		if (!options.preserveRestoredModel) {
 			await this.#applyPlanModeModel();
 		}
-		this.sessionManager.appendModeChange("plan", { planFilePath });
+		this.sessionManager.appendModeChange("plan", { planFilePath, workflow });
 		if (initialPrompt && initialPrompt.trim() !== "") {
 			await this.#submitPlanModeTask(initialPrompt.trim());
 		} else if (this.isStreaming) {
@@ -1980,7 +1984,12 @@ export class AgentSession implements SettingsScope {
 		this.setPlanProposalHandler?.(null);
 		this.#planModePreviousTools = undefined;
 		if (!options.deferModelRestore) this.#planModePreviousModelState = undefined;
-		this.sessionManager.appendModeChange(options.paused ? "plan_paused" : "none");
+		this.sessionManager.appendModeChange(
+			options.paused ? "plan_paused" : "none",
+			// Pausing keeps the workflow on the journal so resuming re-arms the same
+			// plan flavour instead of silently falling back to `parallel`.
+			options.paused ? { planFilePath: planModeState.planFilePath, workflow: planModeState.workflow } : undefined,
+		);
 	}
 
 	/** Pre-plan tool snapshot (used by the CLI approval/switch flows). */
@@ -7829,9 +7838,17 @@ export class AgentSession implements SettingsScope {
 		// Capability gates, not the visible surface: a Code Mode partition keeps
 		// `task` and `ask` callable through the eval bridge after demoting them.
 		const capableToolNames = this.getEnabledToolNames();
-		const content = prompt.render(state.workflow === "ultra" ? planModeUltraActivePrompt : planModeActivePrompt, {
+		const isUltra = state.workflow === "ultra";
+		// Ultra only: the per-turn check renders real counts off the plan file, and
+		// stops rendering entirely once the plan clears the harness-owned floor.
+		const planContent = isUltra ? await this.#readPlanFile(state.planFilePath) : null;
+		const planDepth = analyzePlanDepth(planContent ?? "");
+		const content = prompt.render(isUltra ? planModeUltraActivePrompt : planModeActivePrompt, {
 			planFilePath: displayPlanPath,
 			planExists,
+			planDepthBelowFloor: planContent !== null && !planDepth.meetsFloor,
+			planStepCount: planDepth.stepCount,
+			planGenericStepCount: planDepth.genericStepCount,
 			askToolName: "ask",
 			writeToolName: "write",
 			editToolName: "edit",

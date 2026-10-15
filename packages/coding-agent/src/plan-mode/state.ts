@@ -1,5 +1,13 @@
 export type PlanWorkflow = "parallel" | "iterative" | "ultra";
 
+/** Coerce a journaled/persisted value into a `PlanWorkflow`, defaulting to `parallel`.
+ *  Restoring a session reads this back from a `mode_change` entry, where an absent
+ *  or unknown value (older journals, hand-edited files) must not leave the plan run
+ *  in an unsupported workflow. */
+export function coercePlanWorkflow(value: unknown): PlanWorkflow {
+	return value === "ultra" || value === "iterative" ? value : "parallel";
+}
+
 export interface PlanModeState {
 	enabled: boolean;
 	planFilePath: string;
