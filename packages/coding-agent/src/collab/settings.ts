@@ -2,19 +2,45 @@
  * Settings declared by this domain (see `config/registry.ts`). Declaration order is the
  * settings-panel order; `config/all-settings.ts` registers every domain.
  */
-import { register } from "../config/registry";
-import { DEFAULT_RELAY_URL } from "./protocol";
+import { register, type ScopeLike } from "../config/registry";
 
 // Collab
+
+/**
+ * Master gate, default **off**. The implementation is intact behind it: with
+ * the gate off, `/collab` and `/join` are hidden from the palette and refused,
+ * `collab.autoStart` stops hosting, and the splash stops advertising the
+ * feature. Sharing needs a relay operated by someone the user trusts, so the
+ * product ships it opt-in.
+ */
+export const cfgCollabEnabled = register({
+	id: "collab.enabled",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "interaction",
+		group: "Collab",
+		label: "Enabled",
+		description:
+			"Enable live session sharing (/collab, /join). Requires collab.relayUrl to point at a relay you control; zeta operates none.",
+	},
+});
+
+/**
+ * Relay endpoint, default **empty**: no relay is shipped, so a fresh install
+ * has nothing to dial and sharing reports the missing configuration instead of
+ * reaching for infrastructure the user does not control. A scheme-less value
+ * (`relay.example.com`) is dialed over `wss://`; `ws://` must be spelled out.
+ */
 export const cfgCollabRelayUrl = register({
 	id: "collab.relayUrl",
 	type: "string",
-	default: DEFAULT_RELAY_URL,
+	default: "",
 	ui: {
 		tab: "interaction",
 		group: "Collab",
 		label: "Relay URL",
-		description: "Relay used by /collab (wss://host[:port])",
+		description: "Relay used by /collab (wss://host[:port]); empty disables sharing even when collab.enabled is on",
 	},
 });
 
@@ -69,3 +95,19 @@ export const cfgCollabAutoStart = register({
 		],
 	},
 });
+
+/** Whether live session sharing is enabled for this scope (`collab.enabled`). */
+export function isCollabEnabled(scope: ScopeLike): boolean {
+	return cfgCollabEnabled.get(scope);
+}
+
+/** Shown when a collab command is invoked while {@link cfgCollabEnabled} is off. */
+export const COLLAB_DISABLED_MESSAGE =
+	"Collab sharing is disabled. Set collab.enabled to true and collab.relayUrl to a relay you control.";
+
+/**
+ * Shown when sharing is enabled but no endpoint is configured. Zeta ships no
+ * relay, so there is deliberately nothing to fall back to.
+ */
+export const COLLAB_RELAY_MISSING_MESSAGE =
+	"Collab is enabled but no relay is configured. Set collab.relayUrl to a relay you control (for example wss://relay.example.com); zeta ships no default relay.";

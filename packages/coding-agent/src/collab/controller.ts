@@ -18,7 +18,14 @@ import { TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/rend
 import { CollabHost, CollabHostStoppedError, CollabRelayUnavailableError } from "./host";
 import type { CollabAccess } from "./registry";
 
-import { cfgCollabAutoStart, cfgCollabRelayUrl, cfgCollabWebUrl } from "./settings";
+import {
+	cfgCollabAutoStart,
+	cfgCollabRelayUrl,
+	cfgCollabWebUrl,
+	COLLAB_DISABLED_MESSAGE,
+	COLLAB_RELAY_MISSING_MESSAGE,
+	isCollabEnabled,
+} from "./settings";
 
 export type CollabAutoStart = "off" | CollabAccess;
 
@@ -80,7 +87,13 @@ export class CollabController {
 		return this.#generation;
 	}
 
+	/**
+	 * Effective auto-start policy: `off` while {@link cfgCollabEnabled} is off,
+	 * so a saved `collab.autoStart` cannot host through a relay the user has
+	 * not opted into sharing with.
+	 */
 	get autoStartMode(): CollabAutoStart {
+		if (!isCollabEnabled(this.#ctx.settings)) return "off";
 		return cfgCollabAutoStart.get(this.#ctx.settings);
 	}
 
@@ -142,6 +155,7 @@ export class CollabController {
 	 * control is requested.
 	 */
 	async start(options: CollabStartOptions): Promise<CollabHost> {
+		if (!isCollabEnabled(this.#ctx.settings)) throw new Error(COLLAB_DISABLED_MESSAGE);
 		if (this.#shutdown) throw new CollabHostStoppedError("collab controller shut down");
 		if (this.#ctx.collabGuest) throw new CollabHostStoppedError("collab guest owns the session");
 		const existing = this.host;
@@ -205,11 +219,12 @@ export class CollabController {
 	}
 
 	#resolveRelayUrl(relay?: string): string {
+		if (!isCollabEnabled(this.#ctx.settings)) throw new Error(COLLAB_DISABLED_MESSAGE);
 		const input = relay?.trim() || cfgCollabRelayUrl.get(this.#ctx.settings) || "";
 		if (!input) {
-			throw new Error(
-				"No relay configured. Set collab.relayUrl in /settings or pass one: /collab relay.example.com",
-			);
+			// No fallback: there is no relay we operate, and dialing one nobody
+			// configured is exactly the silent dependency this gate removes.
+			throw new Error(COLLAB_RELAY_MISSING_MESSAGE);
 		}
 		// Scheme-less relay args default to wss (ws:// must be spelled out for localhost).
 		return input.includes("://") ? input : `wss://${input}`;

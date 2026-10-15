@@ -35,6 +35,8 @@ import { emitSubagentFrame } from "../utils/event-bus";
 import { GuestLifecycleEmitter } from "../extensibility/extensions/lifecycle-mirror";
 import { setSessionTerminalTitle } from "../utils/title-generator";
 import { importRoomKey } from "./crypto";
+import { resolveCollabJoinLink } from "./join-link";
+import { cfgCollabRelayUrl } from "./settings";
 import { collabDisplayName } from "./display-name";
 import {
 	type AgentSnapshot,
@@ -282,7 +284,9 @@ export class CollabGuestLink {
 	}
 
 	async join(link: string): Promise<void> {
-		const parsed = parseCollabLink(link);
+		// Resolve first: a host-less link must point at this install's relay (or
+		// be refused), never at a relay nobody configured.
+		const parsed = parseCollabLink(resolveCollabJoinLink(link, cfgCollabRelayUrl.get(this.#ctx.settings)));
 		if ("error" in parsed) throw new Error(parsed.error);
 		if (this.#ctx.collabGuest || this.#left) throw new Error("Already in a collab session (/leave first)");
 		this.#roomId = parsed.roomId;

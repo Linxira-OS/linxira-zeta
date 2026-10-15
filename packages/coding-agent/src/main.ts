@@ -39,6 +39,7 @@ import { processFileArguments } from "./cli/file-processor";
 import { buildInitialMessage } from "./cli/initial-message";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
+import { installCollabTipsGate } from "./collab/tips";
 import { applyStartupCwd } from "./cli/startup-cwd";
 import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
 import { findConfigFile } from "./config";
@@ -649,6 +650,9 @@ async function runInteractiveMode(
 	// switch re-resolves on the next render. This is the single wiring point for
 	// the whole TUI; headless modes never register a source.
 	wireTuiTexts();
+	// Collaboration is opt-in, and the splash advertises it: gate the collab
+	// tip on the same setting that gates the commands, before the first render.
+	installCollabTipsGate(settings);
 	// The prepaint frame was painted before settings/theme/catalogue settled, so
 	// the welcome (when its intro was suppressed) may still hold English fallback
 	// lines in its width cache. Drop the frame so the next render re-resolves

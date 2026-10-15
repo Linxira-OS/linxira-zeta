@@ -104,7 +104,7 @@ zetaide / zetaeditor）。连字符形式只作为 `package.json` `bin` 兼容�
   branding-overlay commit 恢复。
   为什么：v18.0.3 合并曾静默回翻 ζ 品牌——散文规则不可执行，机械守卫才
   挡得住合并。
-- **刻意不品牌化**：中继/分享 URL `my.omp.sh`（共享 OMP 基础设施）、native
+- **刻意不品牌化**：中继/分享 URL `my.omp.sh`（共享 OMP 基础设施；2026-10-15 起协作面默认关且无默认端点，该主机只作为 wire 语法常量与 collab-web 部署引用保留）、native
   Tokio 安装导出 `__ompInstallTokioRuntime`
   （crate/index.js/loader 三方一致协议，sweep 会让 Tokio 静默不装）、上游
   进程间协议符号（`__omp_with_call_site__` 等负断言 marker）。

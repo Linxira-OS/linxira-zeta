@@ -103,6 +103,11 @@ export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BU
 		subcommandOptional: command.subcommandOptional,
 		inlineHint: command.inlineHint,
 		getTuiAutocompleteDescription: command.getTuiAutocompleteDescription,
+		// Configuration gates must survive the defs projection: the palette and
+		// the ACP/RPC command lists are built from these, and both hide a
+		// disabled command.
+		enabled: command.enabled,
+		disabledMessage: command.disabledMessage,
 	}),
 );
 
@@ -154,7 +159,9 @@ export const BUILTIN_SLASH_COMMANDS: ReadonlyArray<TuiBuiltinSlashCommand> = BUI
 );
 
 export function buildTuiBuiltinSlashCommands(runtime: TuiSlashCommandRuntime): ReadonlyArray<TuiBuiltinSlashCommand> {
-	return BUILTIN_SLASH_COMMAND_DEFS.map(cmd => materializeTuiBuiltinSlashCommand(cmd, runtime));
+	return BUILTIN_SLASH_COMMAND_DEFS.filter(cmd => cmd.enabled === undefined || cmd.enabled(runtime.ctx.settings)).map(
+		cmd => materializeTuiBuiltinSlashCommand(cmd, runtime),
+	);
 }
 
 /**
@@ -180,6 +187,14 @@ export async function executeBuiltinSlashCommand(
 
 	const command = BUILTIN_SLASH_COMMAND_LOOKUP.get(parsed.name);
 	if (!command) return false;
+	// A command whose feature is switched off must say so instead of falling
+	// through to the model as prompt text.
+	if (command.enabled !== undefined && !command.enabled(runtime.ctx.settings)) {
+		const message = command.disabledMessage;
+		runtime.ctx.showError(typeof message === "function" ? message() : (message ?? `/${command.name} is disabled`));
+		clearSubmittedText(runtime);
+		return true;
+	}
 	if (parsed.args.length > 0 && !command.allowArgs) {
 		return false;
 	}

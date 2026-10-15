@@ -2,9 +2,19 @@
 
 `/collab` shares your running session with other zetacode instances in real time. Guests render the **same session natively in their own TUI** — streaming assistant text, tool-call cards, footer state (cwd, model, context %, cost), ctrl+o expansion, `/dump` — no terminal mirroring. Guests can prompt and interrupt the agent; the host machine runs the agent and all tools.
 
+**Off by default, and it needs a relay you control.** The stream is relayed by a WebSocket server, so zetacode ships with sharing disabled and with no relay configured: `/collab` and `/join` stay out of the command list, the splash does not advertise them, and `collab.autoStart` does nothing until you turn the feature on. Turn it on in `/settings` (group **Collab**) or in your config:
+
+```yaml
+collab:
+  enabled: true
+  relayUrl: wss://relay.example.com   # your relay; a scheme-less host is dialed over wss://
+```
+
+`collab.relayUrl` has no default on purpose — zetacode does not operate a relay, and it never dials one you did not name. Two mistakes are reported instead of silently ignored: with `collab.enabled: true` but no `collab.relayUrl`, `/collab` fails with "Collab is enabled but no relay is configured"; with the gate off, `/collab` reports that sharing is disabled. See [Self-hosting the relay](#self-hosting-the-relay) for what to run on the other end.
+
 ## Quick start
 
-Host:
+With sharing enabled and a relay configured, host:
 
 ```
 /collab
@@ -14,16 +24,18 @@ prints
 
 ```
 Collab session started!
- • Join from another terminal: zetacode join "mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30"
- • or any web browser: my.omp.sh/#mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30
+ • Join from another terminal: zetacode join "relay.example.com/r/mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30"
+ • or any web browser: relay.example.com/#mgAYTZwEnpRQtca0CTgn-Q.gdJUbTovD94ofDaa8YvhY0-ty16w4fn8PgB6PLnoA30
 ```
+
+(The links always name the relay the room was created on — here `relay.example.com`, from `collab.relayUrl`. A room hosted against a relay whose browser UI lives elsewhere prints `collab.webUrl` instead.)
 
 The browser line is click-to-join (an OSC 8 hyperlink to the full `https://` deep link): the relay serves the web guest client at `/`, and the room id + key ride in the URL fragment. From another zetacode (any directory, any machine), either form works:
 
 Running `/collab` or `/collab view` starts or displays the active hosting session, rendering terminal/browser join links and a QR code for the browser URL. `/collab` requests control access: if the active room was started view-only, it replaces that room. `/collab view` reuses either access level and prints only the read-only link.
 
 ```
-/join my.omp.sh/#mgAYTZwEnpRQtca0CTgn-Q.gdJU…
+/join relay.example.com/#mgAYTZwEnpRQtca0CTgn-Q.gdJU…
 ```
 
 The guest's previous session is restored on `/leave` (or when the host stops).
@@ -40,6 +52,8 @@ The guest's previous session is restored on `/leave` (or when the host stops).
 | `/collab list`    | List every active local Collab host (no links)                                      |
 | `/join <link>`    | Join a shared session as a guest                                                    |
 | `/leave`          | Leave (guest) or stop sharing (host)                                                |
+
+Both commands exist only while `collab.enabled` is true; while it is off they are absent from the command list and an explicit `/collab` or `/join` reports that sharing is disabled. `/collab <relay>` (and `collab.autoStart`) still need an endpoint: a relay passed inline is used for that room only, otherwise `collab.relayUrl` supplies it.
 
 `/collab start [relay]` is also accepted. Passing a relay while a reusable room is active does not move that room to another relay; stop it first to change the relay.
 
@@ -95,7 +109,7 @@ A missing registry directory means no active hosts. An unreadable or symlinked r
 Accepted by `/join <link>` and `zetacode join "<link>"`:
 
 ```
-<roomId>.<key>                                                    → default relay (wss://my.omp.sh)
+<roomId>.<key>                                                    → the relay this install is configured with
 <roomId>#<key>                                                    → legacy bare form
 host[:port]/r/<roomId>.<key>                                     → custom relay, wss:// inferred
 host[:port]/r/<roomId>#<key>                                     → legacy direct relay form
@@ -108,6 +122,8 @@ https://web.example/collab/#relay.example.com/r/<roomId>.<key>   → web UI and 
 ```
 
 `<link>` / `<relay-link>` are parsed recursively as any accepted link above. For `http(s)` browser wrappers with a parseable fragment, the fragment wins before the HTTP host/path are treated as a relay. This lets `https://web.example/collab/#relay.example.com/r/<roomId>.<key>` open the web UI at `web.example` while joining `wss://relay.example.com/r/<roomId>`. If the fragment is not a complete collab link, parsing falls back to the legacy direct relay form, so `https://relay.example.com/r/<roomId>#<key>` still means relay `relay.example.com`.
+
+A **host-less** link (the two bare rows above) names no relay. zetacode resolves it against `collab.relayUrl` — the relay *you* configured — and refuses the join when none is set, rather than dialing an endpoint nobody chose. Links generated by a self-hosted relay always carry their host (`relay.example.com/r/<roomId>.<key>`), so sharing them is unambiguous. Links that do name a host are dialed as written.
 
 The trailing `.<key>` or `#<key>` part is the room secret, base64url-encoded, in one of two strengths:
 
@@ -157,7 +173,8 @@ Set `collab.webUrl` when the browser UI is hosted separately from the websocket 
 
 | Setting               | Default               | Meaning                                                                                                        |
 | --------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `collab.relayUrl`     | `wss://my.omp.sh`     | Relay used by `/collab` when no relay is passed inline                                                         |
+| `collab.enabled`      | `false`               | Master gate. Off hides `/collab` + `/join` and the splash tip, and stops `collab.autoStart`                      |
+| `collab.relayUrl`     | empty (no relay)      | Your relay. Empty is an error when sharing is on: `/collab` reports the missing configuration, never a fallback |
 | `collab.webUrl`       | empty                 | Browser UI URL for `/collab` links; empty derives from relay; explicit `http://` is allowed only for localhost |
 | `collab.displayName`  | OS username           | Name shown to other participants                                                                               |
 | `collab.autoStart`    | `off`                 | `view` / `control`: host every interactive session as it starts and publish it to the local registry            |
@@ -167,9 +184,40 @@ Set `collab.webUrl` when the browser UI is hosted separately from the websocket 
 
 ## Self-hosting the relay
 
-The production relay is not currently distributed for self-hosting: its Go source and standalone binaries are not published. The endpoint list below documents the hosted service's network contract, not an installable release.
+**There is no upstream relay release to install.** zetacode has no relay of its own, and the relay that used to be the built-in default is not distributed: its Go source and standalone binaries are unpublished. Pointing `collab.relayUrl` somewhere is therefore not a supported product default — it is your own deployment, and this section is what that takes.
 
-For local protocol development, this repository includes a source-available, WebSocket-only stand-in at [`packages/collab-web/scripts/local-relay.ts`](../packages/collab-web/scripts/local-relay.ts). Run `bun run relay` from `packages/collab-web` to listen on `ws://localhost:7466`. It implements `/r/<roomId>` but does not serve the browser client, `/share` blobs, or `/healthz`, so it is not a replacement for the production service.
+What the client needs is small and fully described by the wire contract, so a self-hosted relay can be built from this repository in a few dozen lines. [`packages/collab-web/scripts/local-relay.ts`](../packages/collab-web/scripts/local-relay.ts) is the working reference: a content-blind `Bun.serve` WebSocket relay implementing the exact contract below. It is *not* a packaged release and it is not hardened for the public internet — treat it as the specification plus a starting point.
+
+To run the reference relay against your own session:
+
+```sh
+cd packages/collab-web
+bun run relay                      # ws://localhost:7466
+```
+
+then, in zetacode:
+
+```yaml
+collab:
+  enabled: true
+  relayUrl: ws://localhost:7466    # ws:// must be spelled out for non-wss hosts
+```
+
+The relay contract:
+
+- `GET /r/<roomId>?role=host|guest` — WebSocket upgrade. The host creates the room; a second host for a live room is rejected (`4009`), a guest joining a missing room (`4004`).
+- Host binary frames: envelope peer id `0` broadcasts to every guest, a nonzero id targets one guest; the relay forwards them unchanged.
+- Guest binary frames: the first four envelope bytes are rewritten to the sender's peer id and forwarded to the host.
+- `{"t":"peer-joined","peer":N}` / `{"t":"peer-left","peer":N}` text control frames to the host; `{"t":"room-closed"}` to every guest before the host's socket goes away, then close `4001`.
+- Payloads are sealed end to end, so the relay only ever handles ciphertext plus routing bytes. It needs no key material, no account, and no persistent state.
+
+A relay that also serves the browser guest client additionally needs:
+
+- `GET /` — the static collab-web client (see [Web client](#web-client)); set `collab.webUrl` when it lives on another origin,
+- `POST /s` / `GET /s/<id>` / `GET /s/<id>/raw` — `/share` blob upload, viewer page, and blob fetch (only if you also want `/share` against it),
+- `GET /healthz` — liveness.
+
+`ws://` is accepted only for localhost/loopback; anything else must be `wss://`, and the browser client additionally requires a secure context (`https://` or `localhost`) because it unwraps the room key with WebCrypto.
 
 The relay is a small content-blind Go service. It keeps no state beyond live connections and exposes:
 

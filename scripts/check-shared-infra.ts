@@ -54,7 +54,10 @@ const INVENTORY: Placement[] = [
 			"packages/collab-web/scripts/local-relay.ts",
 			"packages/wire/src/index.ts",
 		],
-		why: "collab relay + share URLs; both protocol ends run upstream (registry: 不品牌化)",
+		why:
+			"collab/share constants + the collab-web deployment; kept for the wire grammar only — " +
+			"collab is gated off by default with an empty relay (collab.enabled / collab.relayUrl), " +
+			"so this host is no longer a product default (registry: 不品牌化; ledger §1b)",
 	},
 	{
 		domain: "https://omp.sh/install",

@@ -13,6 +13,7 @@ import {
 import type { SourceMeta } from "@linxiraos/zeta/capability/types";
 import type { MCPServerConfig } from "@linxiraos/zeta/mcp/types";
 import { collectMcpServerNames } from "@linxiraos/zeta/modes/controllers/mcp-command-controller";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { buildTuiBuiltinSlashCommands } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
@@ -48,7 +49,8 @@ function createFakeCtx(discoveredNames: string[]) {
 		getSource: vi.fn((): SourceMeta | undefined => undefined),
 		getConnectionStatus: vi.fn(() => "connected" as const),
 	};
-	const ctx = { mcpManager } as never as InteractiveModeContext;
+	// Real settings: the palette applies per-command configuration gates.
+	const ctx = { mcpManager, settings: Settings.isolated({}) } as never as InteractiveModeContext;
 	return { ctx, mcpManager };
 }
 

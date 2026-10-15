@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { InteractiveModeContext } from "../src/modes/types";
+import { Settings } from "../src/config/settings";
 import { setLanguage } from "../src/i18n";
 import { buildAcpBuiltinSlashCommands } from "../src/slash-commands/acp-builtins";
 import {
@@ -42,11 +43,15 @@ const SYMBOL_PRESET = "nerd";
  * every ctx read resolves to a self-returning callable: hooks take their
  * "unknown state" branch instead of dragging a session graph into this guard.
  * Nothing under test dereferences the result, so the structural cast stands in
- * for the class the real caller passes.
+ * for the class the real caller passes. `settings` is the exception: the
+ * palette applies per-command configuration gates against it.
  */
 function paletteRuntime(): { ctx: InteractiveModeContext } {
+	const settings = Settings.isolated({});
 	const shadow: unknown = new Proxy(() => shadow, {
-		get: (_target, property) => (property === Symbol.toPrimitive ? () => "" : shadow),
+		get: (_target, property) =>
+			property === "settings" ? settings : property === Symbol.toPrimitive ? () => "" : shadow,
+		has: (_target, property) => property === "settings",
 		apply: () => shadow,
 		ownKeys: () => [],
 		getOwnPropertyDescriptor: () => ({ configurable: true, enumerable: true, value: shadow }),
