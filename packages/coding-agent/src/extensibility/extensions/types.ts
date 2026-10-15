@@ -1509,7 +1509,8 @@ export type {
 // `getArgumentCompletions` and bind handlers to ExtensionCommandContext.
 export interface RegisteredCommand {
 	name: string;
-	description?: string;
+	/** Localized copy as a thunk (`() => M.cmdFoo`); resolved at read time. */
+	description?: string | (() => string);
 	getArgumentCompletions?: (argumentPrefix: string) => AutocompleteItem[] | null;
 	handler: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
 }
@@ -1709,7 +1710,7 @@ export interface ExtensionAPI {
 	registerCommand(
 		name: string,
 		options: {
-			description?: string;
+			description?: string | (() => string);
 			getArgumentCompletions?: RegisteredCommand["getArgumentCompletions"];
 			handler: RegisteredCommand["handler"];
 		},

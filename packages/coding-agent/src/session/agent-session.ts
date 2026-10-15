@@ -893,7 +893,16 @@ function ephemeralMaxTokensRejection(model: Model): string | undefined {
  * notification when a reload read back the same commands.
  */
 function commandMetadataSignature(commands: readonly LoadedCustomCommand[]): string {
-	return commands.map(({ command }) => `${command.name}\u0000${command.description}`).join("\u0001");
+	// Descriptions may be thunks (`() => M.cmdFoo`); resolve against the live
+	// catalogue so a `/language` switch changes the signature and re-emits the
+	// command list. Mirrors `resolveCommandDescription` in the slash-command
+	// registry (imported here would risk a session↔registry cycle).
+	return commands
+		.map(({ command }) => {
+			const description = typeof command.description === "function" ? command.description() : command.description;
+			return `${command.name}\u0000${description}`;
+		})
+		.join("\u0001");
 }
 
 export class AgentSession implements SettingsScope {

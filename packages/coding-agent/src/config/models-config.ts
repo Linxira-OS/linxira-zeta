@@ -7,6 +7,7 @@ import type { Api, ModelSpec } from "@linxiraos/pi-ai/types";
 import { AXES } from "@linxiraos/pi-catalog/compat/axes";
 import { type ModelKind, servedKinds } from "@linxiraos/pi-catalog/types";
 import { isRecord, once } from "@linxiraos/pi-utils";
+import { M } from "../i18n";
 import { ConfigFile } from "./config-file";
 import type { ModelsConfig, ProviderAuthMode, ProviderDiscovery } from "./models-config-schema";
 import { getModelsConfigSchema, getModelsConfigSchemaBundle } from "./models-config-schema-bundle";
@@ -242,9 +243,9 @@ export function formatUnknownCompatKeyWarnings(file: string, unknown: readonly U
 	const lines: string[] = [];
 	for (const entry of unknown.slice(0, UNKNOWN_COMPAT_KEY_LIMIT)) {
 		const renamedTo = RENAMED_COMPAT_KEYS[entry.key];
-		const hint = renamedTo === undefined ? "" : ` — renamed to "${renamedTo}"; update or remove it`;
+		const hint = renamedTo === undefined ? "" : M.modelsUnknownCompatKeyRenamedFmt(renamedTo);
 		if (entry.paths.length === 1 && hint === "") {
-			lines.push(`Unknown compat key in ${file}: ${entry.paths[0]} (configuration still loaded).`);
+			lines.push(M.modelsUnknownCompatKeyFmt(file, entry.paths[0]));
 			continue;
 		}
 		const suffixLength = entry.key.length + 1;
@@ -253,15 +254,16 @@ export function formatUnknownCompatKeyWarnings(file: string, unknown: readonly U
 			.map(keyPath => keyPath.slice(0, -suffixLength))
 			.join(", ");
 		const rest = entry.paths.length - UNKNOWN_COMPAT_PATH_SAMPLE;
+		const restSuffix = rest > 0 ? M.modelsUnknownCompatKeyMoreFmt(rest) : "";
 		const where =
 			entry.paths.length === 1
 				? entry.paths[0]
-				: `${entry.key} at ${entry.paths.length} places (${sample}${rest > 0 ? `, +${rest} more` : ""})`;
-		lines.push(`Unknown compat key in ${file}: ${where}${hint} (configuration still loaded).`);
+				: `${M.modelsUnknownCompatKeyPlacesFmt(entry.key, entry.paths.length)} (${sample}${restSuffix})`;
+		lines.push(M.modelsUnknownCompatKeyWhereFmt(file, where, hint));
 	}
 	const omitted = unknown.length - UNKNOWN_COMPAT_KEY_LIMIT;
 	if (omitted > 0) {
-		lines.push(`${omitted} more unknown compat key(s) in ${file}; see the debug log for the full list.`);
+		lines.push(M.modelsUnknownCompatKeyOmittedFmt(omitted, file));
 	}
 	return lines;
 }

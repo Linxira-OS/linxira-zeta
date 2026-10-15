@@ -145,7 +145,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "tool",
 		description: () => M.cmdTool,
-		acpDescription: "Toggle a dynamic tool on or off",
+		acpDescription: () => M.cmdTool,
 		acpInputHint: "<name> on|off",
 		inlineHint: "<name> on|off",
 		allowArgs: true,
@@ -171,7 +171,7 @@ export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "time",
 		description: () => M.cmdTime,
-		acpDescription: "Show or toggle the time injection feature",
+		acpDescription: () => M.cmdTime,
 		acpInputHint: "[status|on|off|interval <n>]",
 		inlineHint: "[status|on|off|interval <n>]",
 		subcommands: [

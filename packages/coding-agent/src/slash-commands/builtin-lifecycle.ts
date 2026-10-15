@@ -137,7 +137,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "ssh",
 		icon: "host",
 		description: () => M.cmdSsh,
-		acpDescription: "Manage SSH connections",
+		acpDescription: () => M.cmdSshAcp,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{
@@ -214,7 +214,9 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		acpDescription: () => M.cmdCompactAcp,
 		subcommands: COMPACT_MODES.map(mode => ({
 			name: mode.name,
-			description:
+			// Thunk, not an eager `M.*` read: the spec table is built at import
+			// time, so a plain read would freeze whichever locale was active then.
+			description: () =>
 				mode.name === "soft"
 					? M.compactModeSoft
 					: mode.name === "remote"
@@ -282,7 +284,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "shake",
 		icon: "vibrate",
 		description: () => M.cmdShake,
-		acpDescription: "Shake heavy content out of the conversation context",
+		acpDescription: () => M.cmdShakeAcp,
 		subcommands: [
 			{ name: "elide", description: () => M.cmdCompactElide },
 			{ name: "images", description: () => M.cmdCompactImages },
@@ -311,7 +313,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "handoff",
 		icon: "handoff",
 		description: () => M.cmdHandoff,
-		acpDescription: "Summarize the session into a handoff document and compact in place",
+		acpDescription: () => M.cmdHandoff,
 		inlineHint: "[focus instructions]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -537,7 +539,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "memory",
 		icon: "memory",
 		description: () => M.cmdMemory,
-		acpDescription: "Manage memory",
+		acpDescription: () => M.cmdMemoryAcp,
 		acpInputHint: "<subcommand>",
 		subcommands: [
 			{ name: "view", description: () => M.cmdMemoryView },
@@ -704,7 +706,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "move",
 		icon: "folderMove",
 		description: () => M.cmdMove,
-		acpDescription: "Move the current session to a different directory",
+		acpDescription: () => M.cmdMoveAcp,
 		inlineHint: "[<path>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -735,7 +737,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		aliases: ["worktree"],
 		icon: "folderMove",
 		description: () => M.cmdMoveThisSessionIntoaNewWorktreeChangesIncluded,
-		acpDescription: "Move this session into a new worktree, changes included",
+		acpDescription: () => M.cmdMoveThisSessionIntoaNewWorktreeChangesIncluded,
 		inlineHint: "[<branch>]",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -769,7 +771,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "add-dir",
 		icon: "folderPlus",
 		description: () => M.cmdAddDir,
-		acpDescription: "Add a workspace directory to this session",
+		acpDescription: () => M.cmdAddDirAcp,
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -801,7 +803,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "remove-dir",
 		icon: "folderMinus",
 		description: () => M.cmdRemoveDir,
-		acpDescription: "Remove a workspace directory from this session",
+		acpDescription: () => M.cmdRemoveDirAcp,
 		inlineHint: "<path>",
 		allowArgs: true,
 		handle: async (command, runtime) => {
@@ -829,7 +831,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 	{
 		name: "dirs",
 		description: () => M.cmdDirs,
-		acpDescription: "List this session's workspace directories",
+		acpDescription: () => M.cmdDirsAcp,
 		handle: async (_command, runtime) => {
 			await runtime.output(formatWorkspaceDirectories(runtime));
 			return commandConsumed();

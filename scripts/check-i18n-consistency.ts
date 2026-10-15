@@ -1,23 +1,38 @@
 #!/usr/bin/env bun
 /**
- * One-off consistency check for the i18n catalogues:
- * - messages.ts interface keys == en.ts keys == zh.ts keys (set equality)
- * - zh values are non-empty
+ * Gate: the three i18n catalogue files agree.
+ *
+ *  - `messages.ts` interface keys == `en.ts` keys == `zh.ts` keys (set equality)
+ *  - no `zh` value is empty
+ *  - a scan that finds zero keys is a failure, not a green no-op: a moved or
+ *    renamed catalogue file would otherwise report `failures: 0` forever
+ *
+ * The extractors and the report are pure functions (`check-i18n-consistency.test.ts`
+ * drives them against a synthetic catalogue directory); `main()` is the CLI
+ * wrapper, so the exit code and the stdout summary are decided in one place.
+ *
  * Usage: bun scripts/check-i18n-consistency.ts
  */
 import * as path from "node:path";
 
-const repoRoot = path.join(import.meta.dir, "..");
-const dir = path.join(repoRoot, "packages/coding-agent/src/i18n");
+/** What a gate run reports: the summary line, the diagnostics, the exit code. */
+export interface GateOutcome {
+	summary: string;
+	errors: string[];
+	exitCode: number;
+}
 
-async function readLines(file: string): Promise<string[]> {
-	return (await Bun.file(file).text()).split("\n");
+/** The three key sets a catalogue check compares. */
+export interface CatalogueCheck {
+	iface: Set<string>;
+	en: Map<string, string>;
+	zh: Map<string, string>;
 }
 
 /** Interface keys: `\tname: <type>;` — any member shape (string, function, …). */
-async function extractInterfaceKeys(file: string): Promise<Set<string>> {
+export function extractInterfaceKeys(source: string): Set<string> {
 	const keys = new Set<string>();
-	for (const line of await readLines(file)) {
+	for (const line of source.split("\n")) {
 		const match = /^\t([A-Za-z][A-Za-z0-9]*):/.exec(line);
 		if (match) keys.add(match[1]);
 	}
@@ -28,9 +43,9 @@ async function extractInterfaceKeys(file: string): Promise<Set<string>> {
  *  multiline continuation). Presence is what set equality cares about; the
  *  same-line remainder (plus the next line for continuations) backs the
  *  zh-emptiness check. */
-async function extractCatalogueKeys(file: string): Promise<Map<string, string>> {
+export function extractCatalogueKeys(source: string): Map<string, string> {
 	const keys = new Map<string, string>();
-	const lines = await readLines(file);
+	const lines = source.split("\n");
 	for (let i = 0; i < lines.length; i++) {
 		const match = /^\t([A-Za-z][A-Za-z0-9]*):\s?(.*)$/.exec(lines[i]);
 		if (!match) continue;
@@ -41,27 +56,52 @@ async function extractCatalogueKeys(file: string): Promise<Map<string, string>> 
 	return keys;
 }
 
-const iface = await extractInterfaceKeys(path.join(dir, "messages.ts"));
-const en = await extractCatalogueKeys(path.join(dir, "en.ts"));
-const zh = await extractCatalogueKeys(path.join(dir, "zh.ts"));
+/** Compare the three key sets and report every disagreement. */
+export function checkCatalogue(catalogue: CatalogueCheck): GateOutcome {
+	const { iface, en, zh } = catalogue;
+	const errors: string[] = [];
+	for (const key of iface) {
+		if (!en.has(key)) errors.push(`messages-only (missing en): ${key}`);
+		if (!zh.has(key)) errors.push(`messages-only (missing zh): ${key}`);
+	}
+	for (const [key] of en) {
+		if (!iface.has(key)) errors.push(`en-only (missing in messages interface): ${key}`);
+	}
+	for (const [key] of zh) {
+		if (!iface.has(key)) errors.push(`zh-only (missing in messages interface): ${key}`);
+	}
+	for (const [key, value] of zh) {
+		if (value.trim() === "") errors.push(`zh empty value: ${key}`);
+	}
+	// Zero keys in all three files means the extractors (or the paths they are
+	// pointed at) stopped working — never "the catalogues are consistent".
+	if (iface.size === 0 && en.size === 0 && zh.size === 0) {
+		errors.push("no catalogue keys found — scan scope is broken");
+	}
+	return {
+		summary: `interface: ${iface.size}, en: ${en.size}, zh: ${zh.size}, failures: ${errors.length}`,
+		errors,
+		exitCode: errors.length === 0 ? 0 : 1,
+	};
+}
 
-let failed = 0;
-const report = (message: string): void => {
-	console.error(message);
-	failed++;
-};
-for (const key of iface) {
-	if (!en.has(key)) report(`messages-only (missing en): ${key}`);
-	if (!zh.has(key)) report(`messages-only (missing zh): ${key}`);
+/** Read `messages.ts`/`en.ts`/`zh.ts` from `directory` and check them. */
+export async function checkCatalogueDirectory(directory: string): Promise<GateOutcome> {
+	const read = async (file: string): Promise<string> => Bun.file(path.join(directory, file)).text();
+	const [messages, en, zh] = await Promise.all([read("messages.ts"), read("en.ts"), read("zh.ts")]);
+	return checkCatalogue({
+		iface: extractInterfaceKeys(messages),
+		en: extractCatalogueKeys(en),
+		zh: extractCatalogueKeys(zh),
+	});
 }
-for (const [key] of en) {
-	if (!iface.has(key)) report(`en-only (missing in messages interface): ${key}`);
+
+async function main(): Promise<void> {
+	const directory = path.join(path.resolve(import.meta.dir, ".."), "packages/coding-agent/src/i18n");
+	const outcome = await checkCatalogueDirectory(directory);
+	for (const error of outcome.errors) console.error(error);
+	console.log(outcome.summary);
+	process.exit(outcome.exitCode);
 }
-for (const [key] of zh) {
-	if (!iface.has(key)) report(`zh-only (missing in messages interface): ${key}`);
-}
-for (const [key, value] of zh) {
-	if (value.trim() === "") report(`zh empty value: ${key}`);
-}
-console.log(`interface: ${iface.size}, en: ${en.size}, zh: ${zh.size}, failures: ${failed}`);
-process.exit(failed === 0 ? 0 : 1);
+
+if (import.meta.main) await main();

@@ -458,7 +458,8 @@ export type HookHandler<E, R = undefined> = (event: E, ctx: HookContext) => Prom
 // HookCommandContext and have no argument-completion hook.
 export interface RegisteredCommand {
 	name: string;
-	description?: string;
+	/** Localized copy as a thunk (`() => M.cmdFoo`); resolved at read time. */
+	description?: string | (() => string);
 
 	handler: (args: string, ctx: HookCommandContext) => Promise<void>;
 }
@@ -561,7 +562,10 @@ export interface HookAPI {
 	 * Register a custom slash command.
 	 * Handler receives HookCommandContext with session control methods.
 	 */
-	registerCommand(name: string, options: { description?: string; handler: RegisteredCommand["handler"] }): void;
+	registerCommand(
+		name: string,
+		options: { description?: string | (() => string); handler: RegisteredCommand["handler"] },
+	): void;
 
 	/**
 	 * Execute a shell command and return stdout/stderr/code.

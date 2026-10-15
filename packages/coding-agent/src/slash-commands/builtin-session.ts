@@ -206,7 +206,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "todo",
 		icon: "todo",
 		description: () => M.cmdTodo,
-		acpDescription: "Manage todos",
+		acpDescription: () => M.cmdTodoAcp,
 		acpInputHint: "<subcommand>",
 		subcommands: [
 			{ name: "edit", description: () => M.cmdTodoEdit },
@@ -247,7 +247,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "session",
 		icon: "session",
 		description: () => M.cmdSession,
-		acpDescription: "Show or configure the current session",
+		acpDescription: () => M.cmdSessionAcp,
 		acpInputHint: "[info|delete|pin [account]]",
 		subcommands: [
 			{ name: "info", description: () => M.cmdSessionInfo },
@@ -325,7 +325,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "jobs",
 		icon: "jobs",
 		description: () => M.cmdJobs,
-		acpDescription: "Show background jobs",
+		acpDescription: () => M.cmdJobsAcp,
 		acpInputHint: "[full|kill <id>|kill all]",
 		subcommands: [
 			{ name: "full", description: () => M.cmdJobsFull },
@@ -397,7 +397,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "usage",
 		icon: "gauge",
 		description: () => M.cmdUsage,
-		acpDescription: "Show token usage",
+		acpDescription: () => M.cmdUsageAcp,
 		acpInputHint: "[show|reset [provider/credential-id|provider/active]]",
 		subcommands: [
 			{ name: "show", description: () => M.cmdUsage },
@@ -479,7 +479,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "changelog",
 		icon: "news",
 		description: () => M.cmdChangelog,
-		acpDescription: "Show changelog",
+		acpDescription: () => M.cmdChangelogAcp,
 		acpInputHint: "[full|last [N]]",
 		subcommands: [
 			{ name: "full", description: () => M.cmdChangelogFull },
@@ -517,7 +517,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "tools",
 		icon: "tools",
 		description: () => M.cmdTools,
-		acpDescription: "Show available tools",
+		acpDescription: () => M.cmdToolsAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const active = runtime.ctx.session.getActiveToolNames().length;
 			const all = runtime.ctx.session.getAllToolNames().length;
@@ -546,7 +546,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "context",
 		icon: "context",
 		description: () => M.cmdContext,
-		acpDescription: "Show context usage",
+		acpDescription: () => M.cmdContextAcp,
 		getTuiAutocompleteDescription: runtime => {
 			const usage = runtime.ctx.session.getContextUsage();
 			if (!usage) return M.acContextUnavailable;
@@ -742,7 +742,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "mcp",
 		icon: "mcp",
 		description: () => M.cmdMcp,
-		acpDescription: "Manage MCP servers",
+		acpDescription: () => M.cmdMcpAcp,
 		inlineHint: "<subcommand>",
 		subcommands: [
 			{

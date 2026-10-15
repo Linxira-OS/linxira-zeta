@@ -74,6 +74,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Todos: "待办",
 	"Grep & Browser": "Grep 与浏览器",
 	Computer: "电脑",
+	"IDA Pro": "IDA Pro",
 	GitHub: "GitHub 集成",
 	"Output Limits": "输出限制",
 	Execution: "执行",
@@ -216,34 +217,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问审阅模式",
 		description: "没有 WATCHDOG.yml 名册时的默认顾问节奏。turn 在每个主要回合后审阅；agent-end 仅在最终产出时审阅。",
 	},
-	"advisor.reviewMode::turn": {
-		label: "每个回合",
-		description: "审阅每个主要更新（工具调用轮次）。",
-	},
-	"advisor.reviewMode::agent-end": {
-		label: "智能体结束时",
-		description: "仅在最终产出时审阅（每次运行一次）。",
-	},
 	"advisor.reviewInterval": {
 		label: "顾问审阅间隔",
 		description:
 			"没有 WATCHDOG.yml 名册时的默认顾问节奏：每 N 个符合条件的主要更新审阅一次。1 表示每次更新。被跳过的更新会随下一次计划审阅一并发送。",
-	},
-	"advisor.reviewInterval::1": {
-		label: "每个符合条件的更新",
-		description: "默认。",
-	},
-	"advisor.reviewInterval::2": {
-		label: "每 2 次",
-	},
-	"advisor.reviewInterval::3": {
-		label: "每 3 次",
-	},
-	"advisor.reviewInterval::5": {
-		label: "每 5 次",
-	},
-	"advisor.reviewInterval::10": {
-		label: "每 10 次",
 	},
 
 	"git.enabled": {
@@ -1165,38 +1142,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "时间注入间隔（工具调用次数）",
 		description: "启用动态 time 工具后，每 N 次工具调用注入一次当前时间；用户自身的时间要求优先",
 	},
-	"session.timeInjectEvery::10": {
-		label: "10 次",
-		description: "频繁",
-	},
-	"session.timeInjectEvery::25": {
-		label: "25 次",
-	},
-	"session.timeInjectEvery::50": {
-		label: "50 次",
-		description: "默认",
-	},
-	"session.timeInjectEvery::100": {
-		label: "100 次",
-	},
-	"session.timeInjectEvery::200": {
-		label: "200 次",
-	},
-	"session.trashRetentionDays::7": {
-		label: "7 天",
-	},
-	"session.trashRetentionDays::14": {
-		label: "14 天",
-	},
-	"session.trashRetentionDays::30": {
-		label: "30 天",
-	},
-	"session.trashRetentionDays::90": {
-		label: "90 天",
-	},
-	"session.trashRetentionDays::0": {
-		label: "永久保留",
-	},
 	readLineNumbers: {
 		label: "行号",
 		description: "默认在 read 工具输出前附加行号",
@@ -1622,30 +1567,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "退出时处理工作树",
 		description: "退出时如何处理本次运行期间创建的工作树（启动时创建或用 `/wt` 创建）",
 	},
-	"worktree.onStart::off": {
-		label: "关闭",
-		description: "在当前检出中启动",
-	},
-	"worktree.onStart::ask": {
-		label: "询问",
-		description: "会话启动时询问",
-	},
-	"worktree.onStart::create": {
-		label: "创建",
-		description: "总是在新的 `wt/*` 分支工作树中启动",
-	},
-	"worktree.onExit::keep": {
-		label: "保留",
-		description: "保留工作树不动",
-	},
-	"worktree.onExit::ask": {
-		label: "询问",
-		description: "退出时询问",
-	},
-	"worktree.onExit::remove": {
-		label: "移除",
-		description: "移除干净的工作树；有未提交修改或新提交时询问。被 gitignore 的文件（如 `.env`）也会删除",
-	},
 	"worktree.base": {
 		label: "Worktree 基础目录",
 		description:
@@ -1813,18 +1734,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"providers.cacheWarming": {
 		label: "缓存保温",
 		description: "在提示词缓存条目过期前片刻，以 1 token 输出预算重放上一请求，避免空闲后整段前缀缓存失效重写。",
-	},
-	"providers.cacheWarming::off": {
-		label: "关闭",
-		description: "禁用缓存保温",
-	},
-	"providers.cacheWarming::streaming": {
-		label: "流式期间",
-		description: "在长时间工具执行期间保护昂贵的前缀缓存；代理稳定后即停止",
-	},
-	"providers.cacheWarming::idle": {
-		label: "空闲时",
-		description: "在两次运行之间也会刷新 5 分钟级缓存条目，只要预期节省仍高于成本下限",
 	},
 	"providers.fireworksTier": {
 		label: "Fireworks 层级",
@@ -2258,26 +2167,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "隔离合并策略",
 		description: "隔离任务变更的整合方式（应用补丁或合并分支）",
 	},
-	"tools.artifactMaxBytes::0": {
-		label: "不限量",
-		description: "保存完整输出",
-	},
-	"tools.artifactMaxBytes::4": {
-		label: "4 MB",
-	},
-	"tools.artifactMaxBytes::16": {
-		label: "16 MB",
-		description: "默认",
-	},
-	"tools.artifactMaxBytes::64": {
-		label: "64 MB",
-	},
-	"tools.artifactMaxBytes::256": {
-		label: "256 MB",
-	},
-	"tools.artifactMaxBytes::1024": {
-		label: "1 GB",
-	},
 	"worktree.clone": {
 		label: "将检出克隆到工作树",
 		description:
@@ -2303,6 +2192,30 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"loop.conditionTimeoutMs::120000": {
 		label: "2 分钟",
 	},
+	"advisor.reviewMode::turn": {
+		label: "每个回合",
+		description: "审阅每次主要更新（工具调用回合）。",
+	},
+	"advisor.reviewMode::agent-end": {
+		label: "智能体结束",
+		description: "仅在最终产出时审阅（每次运行一次）。",
+	},
+	"advisor.reviewInterval::1": {
+		label: "每个符合条件的更新",
+		description: "默认。",
+	},
+	"advisor.reviewInterval::2": {
+		label: "每 2 次",
+	},
+	"advisor.reviewInterval::3": {
+		label: "每 3 次",
+	},
+	"advisor.reviewInterval::5": {
+		label: "每 5 次",
+	},
+	"advisor.reviewInterval::10": {
+		label: "每 10 次",
+	},
 	"advisor.maxNotesPerUpdate::1": {
 		label: "1 条",
 		description: "防刷屏（严格）。",
@@ -2315,6 +2228,7 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"advisor.maxNotesPerUpdate::4": {
 		label: "4 条",
+		description: "前沿推理模型。默认。",
 	},
 	"tui.vimModeDisplay::text": {
 		label: "文本",
@@ -2474,6 +2388,22 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"symbolPreset::ascii": {
 		label: "ASCII",
 		description: "最大兼容性",
+	},
+	"statusLine.contextLine::off": {
+		label: "关闭",
+		description: "纯色强调线，不反映上下文",
+	},
+	"statusLine.contextLine::percentage": {
+		label: "百分比",
+		description: "已用部分用强调色，剩余部分变暗",
+	},
+	"statusLine.contextLine::annotated": {
+		label: "带标注",
+		description: "百分比，并在投机执行与自动压缩边界处加刻度",
+	},
+	"statusLine.contextLine::embedded": {
+		label: "内嵌",
+		description: "带标注的行，把上下文百分比与窗口嵌入进度条",
 	},
 	"statusLine.preset::default": {
 		label: "默认",
@@ -2700,6 +2630,30 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "5000 行",
 		description: "约 25K token",
 	},
+	"tui.resizeScrollback::append": {
+		label: "追加",
+		description: "在新宽度下重放转录，接在保留的历史之后",
+	},
+	"tui.resizeScrollback::rebuild": {
+		label: "重建",
+		description: "清除全部终端回滚，再以当前宽度回放一份转录",
+	},
+	"tui.resizeScrollback::preserve": {
+		label: "保留",
+		description: "只重绘视口，历史仍按旧宽度折行",
+	},
+	"tui.autoGraph::smart": {
+		label: "智能",
+		description: "由 judge 模型细化每张图表：类型、列、行名与分组、刻度、哪个方向更好以及标题",
+	},
+	"tui.autoGraph::always": {
+		label: "总是",
+		description: "用内置的最佳猜测为每个读起来是数值的表格绘图",
+	},
+	"tui.autoGraph::off": {
+		label: "关闭",
+		description: "表格保持为表格",
+	},
 	"display.shimmer::classic": {
 		label: "经典",
 		description: "柔和余弦波扫过文本",
@@ -2908,6 +2862,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "高",
 		description: "偏好详细响应",
 	},
+	"tier.openai::ultrafast": {
+		label: "极速",
+		description: "延迟最低的服务层级；需要 OpenAI API 预览权限，或声明支持它的 Codex 模型",
+	},
 	"tier.openai::none": {
 		label: "无",
 		description: "省略 service_tier（标准处理）",
@@ -2952,6 +2910,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "Priority",
 		description: "更快、更可靠（Gemini API + Vertex）",
 	},
+	"tier.subagent::ultrafast": {
+		label: "极速",
+		description: "极速服务（OpenAI 系列，如可用）",
+	},
 	"tier.subagent::inherit": {
 		label: "继承",
 		description: "与主智能体的实时分系列层级保持一致",
@@ -2980,6 +2942,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "Priority",
 		description: "生成模型支持的每个系列都使用优先级",
 	},
+	"tier.advisor::ultrafast": {
+		label: "极速",
+		description: "极速服务（OpenAI 系列，如可用）",
+	},
 	"tier.advisor::inherit": {
 		label: "继承",
 		description: "与主智能体的实时分系列层级保持一致",
@@ -3007,6 +2973,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tier.advisor::priority": {
 		label: "Priority",
 		description: "顾问模型所属每个受支持系列都使用优先级",
+	},
+	"retry.fallbackOn::any": {
+		label: "任何错误",
+		description: "任何服务商错误都可以切换模型",
+	},
+	"retry.fallbackOn::usage-limit": {
+		label: "仅用量上限",
+		description: "只在用量上限时切换；其他错误在原模型上重试后再呈现",
+	},
+	"retry.fallbackOn::except-usage-limit": {
+		label: "除用量上限外",
+		description: "用量上限等待或直接呈现；其他错误才切换",
 	},
 	"retry.maxRetries::1": {
 		label: "1 次",
@@ -3075,6 +3053,22 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "重置",
 		description: "先开始新会话，然后重新提交提示词",
 	},
+	"spelling.autocomplete::off": {
+		label: "关闭",
+		description: "不做单词补全",
+	},
+	"spelling.autocomplete::auto": {
+		label: "自动",
+		description: "N-gram（无需下载）",
+	},
+	"spelling.autocomplete::ngram": {
+		label: "N-gram",
+		description: "从提示历史学习你的词汇",
+	},
+	"spelling.autocomplete::smollm": {
+		label: "SmolLM",
+		description: "小型设备端语言模型，与 N-gram 混合（首次使用时下载权重）",
+	},
 	"autocompleteMaxVisible::3": {
 		label: "3 条",
 	},
@@ -3120,6 +3114,12 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "自动",
 		description: "启动时检查并自动安装更新",
 	},
+	"update.channel::stable": {
+		label: "稳定版",
+	},
+	"update.channel::canary": {
+		label: "金丝雀版",
+	},
 	"startup.changelogMode::summary": {
 		label: "摘要",
 		description: "显示发布与变更数量，并附 /changelog 提示",
@@ -3162,6 +3162,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"recap.idleSeconds::600": {
 		label: "10 分钟",
 	},
+	"collab.autoStart::off": {
+		label: "关闭",
+		description: "仅在运行 /collab 时分享",
+	},
+	"collab.autoStart::view": {
+		label: "查看",
+		description: "自动托管；注册表分发只读链接（zetacode collab link --view）",
+	},
+	"collab.autoStart::control": {
+		label: "控制",
+		description: "自动托管；注册表分发可向会话发送提示的控制链接",
+	},
 	"share.store::blob": {
 		label: "加密 Blob",
 		description: "上传到分享服务器（无需 GitHub 账户；避免 gist API 限流）",
@@ -3201,6 +3213,26 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"stt.submitTrigger::say-submit": {
 		label: '当我说"提交"时',
 		description: '若语音以包含 "submit" 的词结尾则提交（提交前会去掉该词）。',
+	},
+	"compaction.methodOrder::remote": {
+		label: "服务端压缩",
+		description: "当前路由支持时，使用服务商原生的服务端压缩（OpenAI Responses compact、Anthropic compaction beta）",
+	},
+	"compaction.methodOrder::snapcompact": {
+		label: "Snapcompact",
+		description: "把历史归档为密集位图图像，由当前视觉模型读回；不调用 LLM",
+	},
+	"compaction.methodOrder::handoff": {
+		label: "交接",
+		description: "生成交接文档，并以其作为压缩摘要继续",
+	},
+	"compaction.methodOrder::soft": {
+		label: "软压缩",
+		description: "用压缩模型就地摘要，不使用服务端压缩",
+	},
+	"compaction.methodOrder::shake": {
+		label: "抖动清理",
+		description: "不调用 LLM，就地丢弃可恢复的重内容",
 	},
 	"compaction.strategy::context-full": {
 		label: "完整上下文",
@@ -3487,6 +3519,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "文档 8on16，句色 + 虚词变暗",
 		description: "双列文档布局，句色墨水，功能词变暗为灰色。",
 	},
+	"memory.backend::sharpshooter": {
+		label: "Sharpshooter",
+		description: "带摩擦门槛的项目决策文件（架构/产品/风格），在后台整合",
+	},
 	"memory.backend::off": {
 		label: "关闭",
 		description: "不运行任何记忆子系统",
@@ -3554,6 +3590,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"hindsight.retainMode::last-turn": {
 		label: "最后一轮",
 		description: "按轮次边界切分的分块保留",
+	},
+	"ttsr.judge::auto": {
+		label: "自动",
+		description: "仅当 judge 角色解析为原生 TypeSafe jev 模型时判定",
+	},
+	"ttsr.judge::on": {
+		label: "开启",
+		description: "无论 judge 角色解析为哪种模型都始终判定",
+	},
+	"ttsr.judge::off": {
+		label: "关闭",
+		description: "从不判定；question 规则保持停用",
 	},
 	"ttsr.interruptMode::always": {
 		label: "always",
@@ -3686,6 +3734,221 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"grep.contextAfter::10": {
 		label: "10 行",
 	},
+	"images.urls.backends::imgur": {
+		label: "Imgur",
+		description: "上传需要 Imgur 访问令牌或客户端 ID。",
+	},
+	"images.urls.backends::imageshack": {
+		label: "ImageShack",
+		description: "该 API 需要付费订阅。",
+	},
+	"images.urls.backends::flickr": {
+		label: "Flickr",
+		description: "图床",
+	},
+	"images.urls.backends::chevereto": {
+		label: "Chevereto",
+		description: "自托管",
+	},
+	"images.urls.backends::vgyme": {
+		label: "vgy.me",
+		description: "图床",
+	},
+	"images.urls.backends::dropbox": {
+		label: "Dropbox",
+		description: "云盘",
+	},
+	"images.urls.backends::ftp": {
+		label: "FTP / FTPS / SFTP",
+		description: "文件传输",
+	},
+	"images.urls.backends::onedrive": {
+		label: "OneDrive",
+		description: "云盘",
+	},
+	"images.urls.backends::google-drive": {
+		label: "Google Drive",
+		description: "云盘",
+	},
+	"images.urls.backends::puush": {
+		label: "兼容 puush 的端点",
+		description: "公共服务已下线；需要自行提供替代端点。",
+	},
+	"images.urls.backends::box": {
+		label: "Box",
+		description: "云盘",
+	},
+	"images.urls.backends::amazon-s3": {
+		label: "Amazon S3",
+		description: "S3 兼容",
+	},
+	"images.urls.backends::google-cloud-storage": {
+		label: "Google Cloud Storage",
+		description: "对象存储",
+	},
+	"images.urls.backends::azure-storage": {
+		label: "Azure Blob Storage",
+		description: "对象存储",
+	},
+	"images.urls.backends::backblaze-b2": {
+		label: "Backblaze B2",
+		description: "可配置原生 B2 应用密钥或 S3 兼容访问密钥。",
+	},
+	"images.urls.backends::owncloud": {
+		label: "ownCloud / Nextcloud",
+		description: "WebDAV",
+	},
+	"images.urls.backends::mediafire": {
+		label: "兼容 MediaFire 的端点",
+		description: "公共 API 已弃用；需要自行提供替代端点。",
+	},
+	"images.urls.backends::sendspace": {
+		label: "兼容 SendSpace 的端点",
+		description: "公共发现 API 已弃用；需要自行提供替代端点。",
+	},
+	"images.urls.backends::localhostr": {
+		label: "兼容 Hostr 的端点",
+		description: "公共服务已停运；需要自行提供替代端点。",
+	},
+	"images.urls.backends::lambda": {
+		label: "兼容 Lambda 的端点",
+		description: "公共服务已停运；需要自行提供替代端点。",
+	},
+	"images.urls.backends::pomf": {
+		label: "Pomf",
+		description: "Pomf 图床",
+	},
+	"images.urls.backends::uguu": {
+		label: "Uguu",
+		description: "公开上传约三小时后过期。",
+	},
+	"images.urls.backends::seafile": {
+		label: "Seafile",
+		description: "云盘",
+	},
+	"images.urls.backends::s-ul": {
+		label: "s-ul",
+		description: "文件托管",
+	},
+	"images.urls.backends::lobfile": {
+		label: "兼容 LobFile 的端点",
+		description: "公共服务已停运；需要自行提供替代端点。",
+	},
+	"images.urls.backends::transfer-sh": {
+		label: "兼容 transfer.sh 的端点",
+		description: "已下线的公共端点被屏蔽；需要自建替代端点。",
+	},
+	"images.urls.backends::plik": {
+		label: "Plik",
+		description: "自托管",
+	},
+	"images.urls.backends::shared-folder": {
+		label: "共享文件夹",
+		description: "文件系统",
+	},
+	"images.urls.backends::catbox": {
+		label: "Catbox",
+		description: "匿名图床",
+	},
+	"images.urls.backends::litterbox": {
+		label: "Litterbox",
+		description: "上传内容为临时文件。",
+	},
+	"images.urls.backends::0x0": {
+		label: "0x0.st",
+		description: "公开上传在按文件大小决定的保留窗口后过期。",
+	},
+	"images.urls.backends::tmpfiles": {
+		label: "tmpfiles.org",
+		description: "公开上传为临时文件。",
+	},
+	"images.urls.backends::discord": {
+		label: "Discord",
+		description: "即时通讯",
+	},
+	"images.urls.backends::provider-files": {
+		label: "模型服务商文件",
+		description: "服务商文件引用只在 API 内有效，而非公开图片 URL。",
+	},
+	"images.urls.backends::direct": {
+		label: "公开直链",
+		description: "本地直链",
+	},
+	"images.urls.backends::cloudflared": {
+		label: "Cloudflare 快速隧道",
+		description: "隧道",
+	},
+	"images.urls.backends::ngrok": {
+		label: "ngrok",
+		description: "隧道",
+	},
+	"images.urls.backends::tailscale": {
+		label: "Tailscale Funnel",
+		description: "隧道",
+	},
+	"images.urls.backends::ssh": {
+		label: "SSH 反向隧道",
+		description: "隧道",
+	},
+	"images.urls.backends::command": {
+		label: "上传命令",
+		description: "外部命令",
+	},
+	"images.urls.backends::localhost-run": {
+		label: "localhost.run",
+		description: "隧道",
+	},
+	"images.urls.backends::pinggy": {
+		label: "Pinggy",
+		description: "隧道",
+	},
+	"images.urls.backends::devtunnel": {
+		label: "Microsoft dev tunnel",
+		description: "需要在本地登录 devtunnel CLI。",
+	},
+	"images.urls.backends::zrok": {
+		label: "zrok",
+		description: "需要启用本地 zrok 环境。",
+	},
+	"images.urls.backends::bore": {
+		label: "bore",
+		description: "隧道",
+	},
+	"images.urls.backends::named-cloudflared": {
+		label: "命名 Cloudflare 隧道",
+		description: "隧道",
+	},
+	"images.urls.backends::r2": {
+		label: "Cloudflare R2",
+		description: "S3 兼容",
+	},
+	"images.urls.backends::tigris": {
+		label: "Tigris",
+		description: "S3 兼容",
+	},
+	"images.urls.backends::minio": {
+		label: "MinIO",
+		description: "S3 兼容",
+	},
+	"images.urls.backends::garage": {
+		label: "Garage",
+		description: "S3 兼容",
+	},
+	"images.questionTimeoutMs::0": {
+		label: "禁用",
+	},
+	"images.questionTimeoutMs::60000": {
+		label: "1 分钟",
+	},
+	"images.questionTimeoutMs::120000": {
+		label: "2 分钟",
+	},
+	"images.questionTimeoutMs::180000": {
+		label: "3 分钟",
+	},
+	"images.questionTimeoutMs::300000": {
+		label: "5 分钟",
+	},
 	"inspect_image.timeoutMs::0": {
 		label: "禁用",
 	},
@@ -3700,6 +3963,30 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"inspect_image.timeoutMs::300000": {
 		label: "5 分钟",
+	},
+	"browser.idleCloseSec::0": {
+		label: "从不",
+	},
+	"browser.idleCloseSec::900": {
+		label: "15 分钟",
+	},
+	"browser.idleCloseSec::1800": {
+		label: "30 分钟",
+	},
+	"browser.idleCloseSec::3600": {
+		label: "1 小时",
+	},
+	"tools.speculativeExecution.maxInFlight::1": {
+		label: "1 次操作",
+	},
+	"tools.speculativeExecution.maxInFlight::2": {
+		label: "2 次操作",
+	},
+	"tools.speculativeExecution.maxInFlight::3": {
+		label: "3 次操作",
+	},
+	"tools.speculativeExecution.maxInFlight::4": {
+		label: "4 次操作",
 	},
 	"tools.maxTimeout::0": {
 		label: "无限制",
@@ -3745,6 +4032,66 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tools.xdevDocs::catalog": {
 		label: "仅目录",
 		description: "列出每个设备；按需获取所有文档。",
+	},
+	"isolation.backend::auto": {
+		label: "自动",
+		description: "由 PAL 挑选可用的最佳后端",
+	},
+	"isolation.backend::apfs": {
+		label: "APFS",
+		description: "macOS clonefile reflink（APFS）",
+	},
+	"isolation.backend::btrfs": {
+		label: "btrfs",
+		description: "btrfs 子卷快照",
+	},
+	"isolation.backend::zfs": {
+		label: "ZFS",
+		description: "ZFS 快照 + 克隆",
+	},
+	"isolation.backend::reflink": {
+		label: "Reflink",
+		description: "Linux FICLONE 按文件 reflink",
+	},
+	"isolation.backend::overlayfs": {
+		label: "Overlayfs",
+		description: "Linux 内核 overlay（或 fuse-overlayfs 回退）",
+	},
+	"isolation.backend::projfs": {
+		label: "ProjFS",
+		description: "Windows 投影文件系统",
+	},
+	"isolation.backend::block-clone": {
+		label: "块克隆",
+		description: "Windows FSCTL_DUPLICATE_EXTENTS_TO_FILE（NTFS/ReFS）",
+	},
+	"isolation.backend::rcopy": {
+		label: "递归复制",
+		description: "有 git worktree 时优先使用，否则递归复制",
+	},
+	"worktree.onStart::off": {
+		label: "关闭",
+		description: "在当前检出中启动",
+	},
+	"worktree.onStart::ask": {
+		label: "询问",
+		description: "在会话启动时询问",
+	},
+	"worktree.onStart::create": {
+		label: "创建",
+		description: "总是在 `wt/*` 分支的新工作树中启动",
+	},
+	"worktree.onExit::keep": {
+		label: "保留",
+		description: "保留工作树不动",
+	},
+	"worktree.onExit::ask": {
+		label: "询问",
+		description: "退出时询问",
+	},
+	"worktree.onExit::remove": {
+		label: "移除",
+		description: "删除干净的工作树；存在未提交改动或新提交时先询问。被 gitignore 的文件（如 `.env`）也会一并删除",
 	},
 	"task.isolation.mode::none": {
 		label: "无",
@@ -3906,6 +4253,33 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "max",
 		description: "模型支持的最大推理",
 	},
+	"ida.maxOpen::2": {
+		label: "2",
+	},
+	"ida.maxOpen::4": {
+		label: "4",
+	},
+	"ida.maxOpen::8": {
+		label: "8",
+	},
+	"ida.maxOpen::16": {
+		label: "16",
+	},
+	"ida.idleCloseSec::0": {
+		label: "从不",
+	},
+	"ida.idleCloseSec::300": {
+		label: "5 分钟",
+	},
+	"ida.idleCloseSec::900": {
+		label: "15 分钟",
+	},
+	"ida.idleCloseSec::1800": {
+		label: "30 分钟",
+	},
+	"ida.idleCloseSec::3600": {
+		label: "1 小时",
+	},
 	"tasks.todoClearDelay::0": {
 		label: "立即",
 	},
@@ -3927,6 +4301,15 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"tasks.todoClearDelay::-1": {
 		label: "从不",
+	},
+	"providers.webSearchOrder::openai": {
+		label: "OpenAI API",
+	},
+	"providers.webSearchOrder::openrouter": {
+		label: "OpenRouter",
+	},
+	"providers.webSearchOrder::ollama": {
+		label: "Ollama",
 	},
 	"providers.webSearchOrder::perplexity": {
 		label: "Perplexity",
@@ -4131,6 +4514,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"providers.webSearchTimeoutSeconds::300": {
 		label: "5 分钟",
 	},
+	"providers.cacheWarming::off": {
+		label: "关闭",
+		description: "禁用缓存保温",
+	},
+	"providers.cacheWarming::streaming": {
+		label: "流式期间",
+		description: "长时间工具执行时保护昂贵的前缀；智能体稳定后停止",
+	},
+	"providers.cacheWarming::idle": {
+		label: "空闲期间",
+		description: "同时在运行间隙刷新 5 分钟条目，只要预期节省仍高于成本下限",
+	},
 	"providers.antigravityEndpoint::auto": {
 		label: "Auto",
 		description: "尝试生产端点，5xx/429 时故障转移到沙盒",
@@ -4142,6 +4537,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"providers.antigravityEndpoint::sandbox": {
 		label: "仅沙盒",
 		description: "仅强制沙盒端点",
+	},
+	"providers.imageOrder::deepinfra": {
+		label: "DeepInfra",
+		description: "需要 DEEPINFRA_API_KEY",
 	},
 	"providers.imageOrder::openai": {
 		label: "OpenAI",
@@ -4202,6 +4601,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"live.voice::vale": {
 		label: "Vale",
 	},
+	"providers.tts::deepinfra": {
+		label: "DeepInfra 语音",
+		description: "需要 DEEPINFRA_API_KEY；MP3 或 WAV",
+	},
 	"providers.tts::auto": {
 		label: "Auto",
 		description: "优先使用本地设备端 TTS；存在凭据时将 .mp3 输出路由到 xAI",
@@ -4217,6 +4620,30 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tts.localModel::kokoro": {
 		label: "Kokoro-82M",
 		description: "Kokoro-82M 神经 TTS——设备端最优质、多音色、完全本地",
+	},
+	"tts.localSpeed::0.5": {
+		label: "0.5×",
+	},
+	"tts.localSpeed::0.75": {
+		label: "0.75×",
+	},
+	"tts.localSpeed::1": {
+		label: "1×（正常）",
+	},
+	"tts.localSpeed::1.25": {
+		label: "1.25×",
+	},
+	"tts.localSpeed::1.5": {
+		label: "1.5×",
+	},
+	"tts.localSpeed::1.75": {
+		label: "1.75×",
+	},
+	"tts.localSpeed::2": {
+		label: "2×",
+	},
+	"tts.localSpeed::2.5": {
+		label: "2.5×",
 	},
 	"tts.localVoice::af_heart": {
 		label: "Heart（美式女声）",
@@ -4253,6 +4680,30 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"tts.localVoice::bm_fable": {
 		label: "Fable（英式男声）",
+	},
+	"speech.speed::0.5": {
+		label: "0.5×",
+	},
+	"speech.speed::0.75": {
+		label: "0.75×",
+	},
+	"speech.speed::1": {
+		label: "1×（正常）",
+	},
+	"speech.speed::1.25": {
+		label: "1.25×",
+	},
+	"speech.speed::1.5": {
+		label: "1.5×",
+	},
+	"speech.speed::1.75": {
+		label: "1.75×",
+	},
+	"speech.speed::2": {
+		label: "2×",
+	},
+	"speech.speed::2.5": {
+		label: "2.5×",
 	},
 	"speech.mode::all": {
 		label: "全部（消息 + 思考）",
@@ -4311,6 +4762,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "LLM",
 		description: "从不使用 TypeSafe；以关键词提示调用 tiny/smol 或本地模型",
 	},
+	"providers.tinyModel::lfm2.5-230m": {
+		label: "LFM2.5 230M",
+		description: "推荐的本地模型；最快的 LFM2.5 选项，缓存约 214 MB。",
+	},
+	"providers.tinyModel::lfm2.5-350m": {
+		label: "LFM2.5 350M",
+		description: "更大的 LFM2.5 选项，缓存约 292 MB；标题倾向更简短。",
+	},
+	"providers.tinyModel::falcon-h1-90m": {
+		label: "Falcon H1 Tiny 90M",
+		description: "最小的选项，缓存约 147 MB；在复杂提示上保真度较低。",
+	},
 	"providers.tinyModel::online": {
 		label: "在线（TINY 角色，否则 @smol）",
 		description:
@@ -4335,6 +4798,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"providers.tinyModel::lfm2-700m": {
 		label: "LFM2 700M",
 		description: "最高质量的本地选项；比 LFM2 350M 更大更慢。",
+	},
+	"providers.tinyModelDevice::mlx": {
+		label: "MLX",
+		description: "通过 mlx-lm 使用 Apple 芯片 GPU（Python 子进程；macOS arm64）",
 	},
 	"providers.tinyModelDevice::default": {
 		label: "默认",
@@ -4504,6 +4971,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "max",
 		description: "分类器可在模型支持时解析为 max",
 	},
+	"features.unexpectedStopDetection::none": {
+		label: "无",
+		description: "已禁用",
+	},
+	"features.unexpectedStopDetection::mechanical": {
+		label: "机械",
+		description: "对没有可见助手消息的停止自动重试；不含工具调用（默认）",
+	},
+	"features.unexpectedStopDetection::smart": {
+		label: "智能",
+		description: "机械检测 + 小模型对纯文本停止的分类",
+	},
 	"providers.unexpectedStopModel::online": {
 		label: "在线（TINY 角色，否则 @smol）",
 		description: "使用在线模型：设置时使用 /models 中的 TINY 角色，否则 @smol。无本地模型下载或设备端推理。",
@@ -4622,6 +5101,10 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: ":exacto",
 		description: "精选高质量服务商（仅针对特定模型定义）",
 	},
+	"providers.fetch::firecrawl": {
+		label: "Firecrawl",
+		description: "需要 FIRECRAWL_API_KEY",
+	},
 	"providers.fetch::auto": {
 		label: "Auto",
 		description: "优先级：native > trafilatura > lynx > parallel > jina",
@@ -4646,6 +5129,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "Jina",
 		description: "使用 r.jina.ai 阅读器（JINA_API_KEY 可选）",
 	},
+	"claudeResets.autoRedeem::unset": {
+		label: "未设置",
+		description: "先检查实时资格，再在花掉第一次 Claude 重置前询问。没有提示界面时，只花掉 5 分钟内到期的重置。",
+	},
+	"claudeResets.autoRedeem::yes": {
+		label: "是",
+		description: "无需询问即可花掉符合条件的 Claude 重置。",
+	},
+	"claudeResets.autoRedeem::no": {
+		label: "否",
+		description: "不运行 Claude 重置自动兑换检查。",
+	},
 	"codexResets.autoRedeem::unset": {
 		label: "未设置",
 		description: "先检查资格，再在首次使用保存的重置前询问。",
@@ -4669,6 +5164,84 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"provider.appendOnlyContext::off": {
 		label: "关闭",
 		description: "禁用仅追加上下文",
+	},
+
+	// Moved out of ZH_SETTING_TEXTS: the settings host resolves an option's
+	// `path::value` text through ZH_OPTION_TEXTS only (config/settings-ui.ts), so
+	// every `::` entry parked in the settings map was dead — it shipped English.
+	// settings-zh.test.ts asserts the settings map holds no `::` keys.
+	"session.timeInjectEvery::10": {
+		label: "10 次",
+		description: "频繁",
+	},
+	"session.timeInjectEvery::100": {
+		label: "100 次",
+	},
+	"session.timeInjectEvery::200": {
+		label: "200 次",
+	},
+	"session.timeInjectEvery::25": {
+		label: "25 次",
+	},
+	"session.timeInjectEvery::50": {
+		label: "50 次",
+		description: "默认",
+	},
+	"session.trashRetentionDays::0": {
+		label: "永久保留",
+	},
+	"session.trashRetentionDays::14": {
+		label: "14 天",
+	},
+	"session.trashRetentionDays::30": {
+		label: "30 天",
+	},
+	"session.trashRetentionDays::7": {
+		label: "7 天",
+	},
+	"session.trashRetentionDays::90": {
+		label: "90 天",
+	},
+	"tools.artifactMaxBytes::0": {
+		label: "不限量",
+		description: "保存完整输出",
+	},
+	"tools.artifactMaxBytes::1024": {
+		label: "1 GB",
+	},
+	"tools.artifactMaxBytes::16": {
+		label: "16 MB",
+		description: "默认",
+	},
+	"tools.artifactMaxBytes::256": {
+		label: "256 MB",
+	},
+	"tools.artifactMaxBytes::4": {
+		label: "4 MB",
+	},
+	"tools.artifactMaxBytes::64": {
+		label: "64 MB",
+	},
+	"find.enabled::auto": {
+		label: "自动",
+		description: "当 judge 角色解析为原生 TypeSafe jev 模型时启用",
+	},
+	"find.enabled::on": {
+		label: "开启",
+		description: "无论 judge 角色解析为哪种模型都始终启用",
+	},
+	"find.enabled::off": {
+		label: "关闭",
+		description: "禁用 find 工具",
+	},
+	"providers.webSearchExclude::openai": {
+		label: "OpenAI API",
+	},
+	"providers.webSearchExclude::openrouter": {
+		label: "OpenRouter",
+	},
+	"providers.webSearchExclude::ollama": {
+		label: "Ollama",
 	},
 };
 

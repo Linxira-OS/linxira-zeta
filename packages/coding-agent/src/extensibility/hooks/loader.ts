@@ -114,7 +114,10 @@ async function createHookAPI(
 		registerMessageRenderer<T = unknown>(customType: string, renderer: HookMessageRenderer<T>): void {
 			messageRenderers.set(customType, renderer as HookMessageRenderer);
 		},
-		registerCommand(name: string, options: { description?: string; handler: RegisteredCommand["handler"] }): void {
+		registerCommand(
+			name: string,
+			options: { description?: string | (() => string); handler: RegisteredCommand["handler"] },
+		): void {
 			commands.set(name, { name, ...options });
 		},
 		exec(command: string, args: string[], options?: ExecOptions) {

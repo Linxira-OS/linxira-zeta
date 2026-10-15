@@ -956,7 +956,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "modelpreset",
 		icon: "model",
 		description: () => M.cmdModelpreset,
-		acpDescription: "Manage model presets",
+		acpDescription: () => M.cmdModelpresetAcp,
 		acpInputHint: "[list|save|switch|delete] [name]",
 		inlineHint: "[save|switch|delete|list] [name]",
 		subcommands: [
@@ -1008,14 +1008,17 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		get description() {
 			return M.cmdEffortFmt.replace("%s", formatKeyHint("shift+tab"));
 		},
-		acpDescription: "Set or show reasoning effort (thinking level, intelligence)",
+		acpDescription: () => M.cmdEffortAcp,
 		acpInputHint: "[level]",
 		inlineHint: "[level]",
 		allowArgs: true,
 		get subcommands() {
 			return CLI_THINKING_LEVELS.map(level => ({
 				name: level,
-				description: EFFORT_CMD_DESCRIPTIONS[level](),
+				// Pass the thunk, don't call it: every consumer then resolves
+				// the locale at build time, matching the other subcommand entries
+				// (and satisfying the command-description guard).
+				description: EFFORT_CMD_DESCRIPTIONS[level],
 			}));
 		},
 		getTuiAutocompleteDescription: runtime =>

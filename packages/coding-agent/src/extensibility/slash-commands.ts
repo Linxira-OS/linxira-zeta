@@ -5,7 +5,7 @@ import type { EffectiveExtensionRoots } from "../capability/types";
 import { appendInlineArgsFallback, templateUsesInlineArgPlaceholders } from "../config/prompt-templates";
 import type { SlashCommand } from "../discovery";
 import { loadCapability } from "../discovery";
-import { EMBEDDED_COMMAND_TEMPLATES } from "../task/commands";
+import { EMBEDDED_COMMAND_DESCRIPTION_KEYS, EMBEDDED_COMMANDS } from "../task/embedded-commands";
 import { parseCommandArgs, substituteArgs } from "../utils/command-args";
 
 export type SlashCommandSource = "extension" | "prompt" | "skill";
@@ -36,7 +36,7 @@ export interface FileSlashCommand {
 	_source?: { providerName: string; level: "user" | "project" | "native" };
 }
 
-const EMBEDDED_SLASH_COMMANDS = EMBEDDED_COMMAND_TEMPLATES;
+const EMBEDDED_SLASH_COMMANDS = EMBEDDED_COMMANDS;
 
 function parseCommandTemplate(
 	content: string,
@@ -100,13 +100,21 @@ export async function loadSlashCommands(options: LoadSlashCommandsOptions = {}):
 		const name = cmd.name.replace(/\.md$/, "");
 		if (seenNames.has(name)) continue;
 
-		const { description, body, argumentHint } = parseCommandTemplate(cmd.content, {
+		// The embedded templates ship English frontmatter; the picker copy comes
+		// from the catalogue so `/init` follows `/language`. Resolved per call
+		// (not cached) because this list is rebuilt on every picker render — the
+		// same read-time rule as `SlashCommandSpec.description`.
+		const {
+			description: frontmatterDescription,
+			body,
+			argumentHint,
+		} = parseCommandTemplate(cmd.content, {
 			source: `embedded:${cmd.name}`,
 			level: "fatal",
 		});
 		fileCommands.push({
 			name,
-			description,
+			description: EMBEDDED_COMMAND_DESCRIPTION_KEYS[name]?.() ?? frontmatterDescription,
 			argumentHint,
 			content: body,
 			source: "bundled",

@@ -1,6 +1,7 @@
 import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { prompt } from "@linxiraos/pi-utils";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
+import { M } from "../../../../i18n";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
 import reviewCustomRequestTemplate from "../../../../prompts/review-custom-request.md" with { type: "text" };
 import reviewHeadlessRequestTemplate from "../../../../prompts/review-headless-request.md" with { type: "text" };
@@ -388,7 +389,7 @@ function buildCustomReviewPrompt(instructions: string): string {
 
 export class ReviewCommand implements CustomCommand {
 	name = "review";
-	description = "Launch interactive code review";
+	description = () => M.cmdReview;
 
 	constructor(private readonly api: CustomCommandAPI) {}
 

@@ -48,7 +48,10 @@ function commandModule(description: string): string {
 }
 
 function descriptionOf(session: AgentSession): string | undefined {
-	return session.customCommands.find(({ command }) => command.name === COMMAND_NAME)?.command.description;
+	// Descriptions may be thunks (`() => M.cmdFoo`); resolve against the live
+	// catalogue exactly like the command-list consumers do.
+	const description = session.customCommands.find(({ command }) => command.name === COMMAND_NAME)?.command.description;
+	return typeof description === "function" ? description() : description;
 }
 
 /** Resolve once a command-metadata notification observes `predicate`. */

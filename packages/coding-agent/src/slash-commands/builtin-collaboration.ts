@@ -64,7 +64,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		name: "advisor",
 		icon: "advisor",
 		description: () => M.cmdAdvisor,
-		acpDescription: "Toggle advisor",
+		acpDescription: () => M.cmdAdvisorAcp,
 		acpInputHint: "[on|off|status|dump [raw]|configure]",
 		subcommands: [
 			{ name: "on", description: () => M.cmdAdvisorOn },
@@ -234,7 +234,7 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		name: "dump",
 		icon: "clipboard",
 		description: () => M.cmdDumpTranscript,
-		acpDescription: "Return full transcript as plain text, with LLM request JSON path",
+		acpDescription: () => M.cmdDumpAcp,
 		acpInputHint: "[all|anon]",
 		subcommands: [
 			{

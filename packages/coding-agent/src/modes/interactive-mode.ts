@@ -152,7 +152,11 @@ import {
 	type WorktreeExitPlan,
 } from "../session/session-worktree";
 import type { ShakeMode } from "../session/shake-types";
-import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
+import {
+	BUILTIN_SLASH_COMMAND_RESERVED_NAMES,
+	buildTuiBuiltinSlashCommands,
+	resolveCommandDescription,
+} from "../slash-commands/builtin-registry";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
 import {
 	resolveCommandSnapshot,
@@ -2639,7 +2643,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.session.extensionRunner?.getRegisteredCommands(BUILTIN_SLASH_COMMAND_RESERVED_NAMES) ?? []
 		).map(cmd => ({
 			name: cmd.name,
-			description: cmd.description ?? "(hook command)",
+			description: cmd.description === undefined ? "(hook command)" : resolveCommandDescription(cmd.description),
 			icon: getSlashCommandTypeIcon("extension"),
 			iconName: "extension",
 			getArgumentCompletions: cmd.getArgumentCompletions,
@@ -2650,7 +2654,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			const complete = loaded.command.getArgumentCompletions?.bind(loaded.command);
 			return {
 				name: loaded.command.name,
-				description: `${loaded.command.description} (${loaded.source})`,
+				description: `${resolveCommandDescription(loaded.command.description)} (${loaded.source})`,
 				icon: getSlashCommandTypeIcon(loaded.path.startsWith("mcp:") ? "mcp" : "prompt"),
 				iconName: loaded.path.startsWith("mcp:") ? "mcp" : "prompt",
 				getArgumentCompletions: complete && (prefix => complete(prefix, this.sessionManager.getCwd())),
