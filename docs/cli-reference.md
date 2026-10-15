@@ -247,7 +247,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `bench` | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model. | |
 | `browser-relay` | Run the local CDP relay used by Eval's browser API to drive your own Chrome tabs. | [computer use](./computer-use.md) |
 | `cleanse` | Detect and fix project diagnostics with weighted parallel subagents. | |
-| `collab` | List active local Collab hosts without exposing URLs; `collab link <instanceId\|pid>` retrieves a control link (`--view` for view-only). | [collab](./collab.md) |
+| `collab` | List active local Collab hosts without exposing URLs; `collab link <instanceId\|pid>` retrieves a control link (`--view` for view-only). Requires `collab.enabled` and a relay you control. | [collab](./collab.md) |
 | `clip` | Upload a `/record` recording to live.omp.sh as a public clip and print its URL. | |
 | `commit` | Generate a commit message and update changelogs. | |
 | `completions` | Print a shell completion script (bash, zsh, or fish). | |
@@ -263,7 +263,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `if-bench` | Benchmark instruction following and working memory: one cached thread of glyph array actions with a cat-sound directive that moves through the prompt. | |
 | `images`, `img` | Inspect, diagnose, probe, and purge image publication backends. | |
 | `install` | Install or link an extension package (alias of `plugin install` / `plugin link`). | [extensions](./extensions.md) |
-| `join` | Join a shared collab session (same as `/join`). | [collab](./collab.md) |
+| `join` | Join a shared collab session (same as `/join`); refuses to start while `collab.enabled` is off. | [collab](./collab.md) |
 | `login` | Log in to a model provider from the terminal (counterpart of `/login`). | |
 | `models` | List, search, and refresh available models. | [models](./models.md) |
 | `plugin`, `plugins` | Manage plugins (install, uninstall, list, etc.). | [plugins](./plugins.md), [extensions](./extensions.md), [marketplace](./marketplace.md) |
