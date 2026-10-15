@@ -34,8 +34,10 @@ describe("TrackingTool (part 1)", () => {
 	it("has the correct tool name and properties", () => {
 		const tool = new TrackingTool(createMockSession(tempDir));
 		expect(tool.name).toBe("tracking_update");
-		expect(tool.label).toBe("Tracking Update");
-		expect(tool.summary).toBe("Update project tracking documents (status, index, actions, plans)");
+		// label/summary 是本地化文案（`M.toolTrackingLabel` / `M.toolTrackingSummary`，见 src/tools/tracking.ts:469,478），
+		// 语言由 `src/i18n/index.ts` 的优先级决定（配置 > ZETA_LANG > LC_* > LANG > 系统语言），
+		// 所以断言英文字面量会随机器语言红/绿 —— 这里不做文案断言；键的完整性由
+		// `src/i18n/messages.test.ts` 的 "catalogue completeness" 守卫。
 	});
 
 	it("update_status: creates status.json with all fields", async () => {
