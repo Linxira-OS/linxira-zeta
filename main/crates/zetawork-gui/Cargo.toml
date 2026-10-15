@@ -27,3 +27,8 @@ unicode-width = "0.2.2"
 sysinfo = "0.31"
 # The status bar's clock (local time).
 chrono = "0.4"
+
+[dev-dependencies]
+# `tests/shots.rs` writes headless PNG screenshots; the rasterizer it uses is in
+# `tests/support/raster.rs`, and only the encoder comes from a crate.
+png = "0.18"

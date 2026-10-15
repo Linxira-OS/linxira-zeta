@@ -20,6 +20,9 @@ use crate::theme;
 /// Height of the window-control buttons; the width is Windows-like.
 const CONTROL_W: f32 = 44.0;
 
+/// Width reserved for the 视图 GUI/TUI switch, left of the controls.
+const SWITCH_W: f32 = 116.0;
+
 /// Draw the title bar. Call from a `TopBottomPanel::top` of
 /// [`theme::TITLE_BAR_H`].
 pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
@@ -45,11 +48,22 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 	ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(6.0, 0.0))), |ui| {
 		ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
 			window_controls(ui, shell);
-			ui.add_space(8.0);
-			view_switch(ui, &mut shell.state);
-			ui.add_space(8.0);
 		});
 	});
+	// The switch gets an explicit rect instead of riding the right-to-left
+	// group: its children then lay out in reading order.
+	let controls_w = CONTROL_W * 3.0;
+	let switch_right = rect.max.x - 6.0 - controls_w - 8.0;
+	let switch_rect = Rect::from_min_max(
+		pos2(switch_right - SWITCH_W, rect.min.y),
+		pos2(switch_right, rect.max.y),
+	);
+	let mut switch_ui = ui.new_child(
+		egui::UiBuilder::new()
+			.max_rect(switch_rect)
+			.layout(Layout::left_to_right(Align::Center)),
+	);
+	view_switch(&mut switch_ui, &mut shell.state);
 
 	// Left: brand, presence, current workspace/branch.
 	ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(10.0, 0.0))), |ui| {

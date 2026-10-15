@@ -55,7 +55,7 @@ pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
 	);
 	let foot =
 		Rect::from_min_size(pos2(rect.min.x, rect.max.y - FOOT_H), vec2(rect.width(), FOOT_H));
-	let list = Rect::from_min_max(nav.max, pos2(rect.max.x, foot.min.y));
+	let list = Rect::from_min_max(pos2(rect.min.x, nav.max.y), pos2(rect.max.x, foot.min.y));
 	let mut head_ui = ui.new_child(egui::UiBuilder::new().max_rect(head));
 	head_region(&mut head_ui, shell);
 	let mut nav_ui = ui.new_child(
@@ -131,7 +131,7 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 	);
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 28.0));
 	let note = Rect::from_min_size(pos2(rect.min.x, head.max.y), vec2(rect.width(), 20.0));
-	let list = Rect::from_min_max(note.max, rect.max);
+	let list = Rect::from_min_max(pos2(rect.min.x, note.max.y), rect.max);
 	ui.painter().text(
 		pos2(head.min.x + 12.0, head.center().y),
 		egui::Align2::LEFT_CENTER,

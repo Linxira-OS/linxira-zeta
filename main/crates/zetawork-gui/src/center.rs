@@ -174,7 +174,8 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 		.stroke(Stroke::new(1.0, theme::BORDER))
 		.inner_margin(egui::Margin::same(0));
 	frame.show(&mut right, |ui| {
-		ui.horizontal(|ui| {
+		// Same reason as the view switch: the parent here is right-to-left.
+		ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
 			ui.spacing_mut().item_spacing.x = 0.0;
 			for columns in [1u8, 2, 3] {
 				let (rect, response) = ui.allocate_exact_size(vec2(26.0, 24.0), Sense::click());
