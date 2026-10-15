@@ -438,6 +438,11 @@ jobs:
          # 也是唯一能证明"审计真能看见丢失成员"的关卡。
          - name: Unit-test the merge member-loss auditor
            run: bun test scripts/audit-merge-members.test.ts
+         # 同上面三个 unit-test 步骤的理由，用在门禁自身：没被收集的测试会腐坏——
+         # 这正是本 PR 在两个孤儿套件里发现的事。用例钉住单页摘要、失败非零退出、
+         # 品牌扫描的"只报告"裁决（两种结果都 exit 0）以及 `--gates-only` 真跳过测试。
+         - name: Unit-test the merge gate
+           run: bun test scripts/merge-gate.test.ts
          # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外
          #（根 `plugins/*` glob 到 `plugins/official` 为止），任何 bucket 都跑不到它。
          # 因此这里自带依赖安装（package.json 声明 vitest，包内 .gitignore 已忽略

@@ -316,6 +316,15 @@ jobs:
          # no network and no toolchain — so this stays a seconds-long gate.
          - name: Unit-test the merge member-loss auditor
            run: bun test scripts/audit-merge-members.test.ts
+         # Same reasoning as the three unit-test steps above, applied to the gate
+         # itself: an uncollected test rots — that is exactly what this PR found
+         # in the two orphan suites below. The gate's regression pins the
+         # one-page summary, the non-zero exit on failure, the brand scan's
+         # report-only verdict (it exits 0 either way) and `--gates-only`
+         # dropping the test phase, and it runs the real CLI twice (`--dry-run`;
+         # an audit that fails on an unresolvable --base).
+         - name: Unit-test the merge gate
+           run: bun test scripts/merge-gate.test.ts
          # Orphan suite: `plugins/official/pi-messenger/tests` is a **vitest**
          # suite outside the bun workspace — the root `plugins/*` glob stops at
          # `plugins/official`, so `bun install` never installed its deps and no
