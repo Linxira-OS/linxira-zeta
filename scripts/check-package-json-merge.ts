@@ -3,36 +3,44 @@
  * package.json merge-drop guard.
  *
  * `.gitattributes` binds `package.json` and `packages/&#42;/package.json` to
- * `merge=zeta-package` (`scripts/merge-package-json.ts`). That driver rebuilds
- * the merged manifest **from the side being merged in**: the result starts as
- * `other` and only the paths the driver owns come from `current` — the Zeta
- * identity fields, the four dependency sections (merged key-by-key) and
- * `workspaces.catalog`. Every other path therefore arrives from the merged-in
- * side, so a branch-side leaf `main` lacks is silently dropped and a branch-side
- * *value* edit is silently reverted.
+ * `merge=zeta-package` (`scripts/merge-package-json.ts`). That driver is a
+ * three-way merge: `ZETA_OWNED_PATHS` leaves and Zeta-only leaves (present on
+ * the branch side, absent at the base) always keep the branch side's value, and
+ * every other leaf follows the base→theirs delta. So the invariant this guard
+ * asserts is exact and complete: **no branch-side leaf change may vanish**,
+ * outside the documented upstream-wins cases below.
  *
- * The keep-list is imported from the driver itself (`ZETA_IDENTITY_FIELDS`,
- * `DEPENDENCY_SECTIONS`, `DRIVER_MERGED_PATHS`) and never re-declared here: a
- * second, hand-maintained copy drifts the moment the driver's ownership
- * changes, which would turn this guard into a green no-op.
+ * It is a real regression detector, not decoration. The 2026-10-15 v18.10.0
+ * sync merge (`6f89e908c67`, driver before this rewrite) silently erased:
  *
- * Both shapes of that damage are real:
- *   - 2026-10-14: `check:nix-bun`, `check:relay-assets` and `gen:relay-assets`
- *     (leaves under `scripts`) were lost that way on
- *     `chore/nix-bun-freshness-check`; only the workflow's "script not found"
- *     error surfaced it, after the push.
- *   - the v18.9.1 upstream merge replaced the top-level `packageManager` pin
- *     with upstream's `bun@>=1.4` floor (`document/upstream-sync.md`), and the
- *     exact pin had to be restored by hand in
- *     `chore(release): prepare the 1.2.1 release`. `packageManager` is not a
- *     `scripts` entry, so a `scripts`-only guard cannot see it.
+ *   - `workspaces.packages[1]` = `"plugins/*"` (reverted to the pre-branch list)
+ *   - the six Zeta-only scripts `check:nix-bun`, `check:relay-assets`,
+ *     `ci:release:publish-web-ui`, `ci:release:publish-plugin`,
+ *     `gen:relay-assets`, `gen:brand-art`
+ *   - `devDependencies.figlet`
+ *   - the exact catalog pins (`@types/bun` `1.4.3` → `^1.3.14`, …)
+ *   - `packageManager` `bun@1.4.3` → `bun@>=1.4` (the same regression the v18.9.1
+ *     merge produced, and which `chore(release): prepare the 1.2.1 release` had
+ *     to restore by hand)
+ *   - `scripts.test:py` / `scripts.robomp:install` → the merged-in side's Python
+ *     SDK targets, which this tree does not have
+ *
+ * and reverted the deliberate `tsgo`→`tsc` type-check switch in 17 package
+ * manifests besides. A `scripts`-only check cannot see the pin, the catalog or
+ * the dependencies; this guard therefore checks *every* leaf, including the
+ * leaves inside the sections the driver merges itself (dependency sections, the
+ * catalog, the workspace lists) — which is what makes it non-vacuous against the
+ * incident above. It shares the driver's policy instead of re-declaring it:
+ * `manifestLeaves` and `sameJson` come from `scripts/merge-package-json.ts`, and
+ * importing a second hand-maintained copy of either is what would turn this
+ * guard into a green no-op.
  *
  * For every merge commit in `<base>..HEAD` this guard compares each manifest's
- * unowned leaves before and after that merge and reports a leaf the FIRST parent
- * added or changed relative to the two parents' merge-base whose branch-side
- * value is still missing or still reverted at HEAD. A later commit that carries
- * the branch's value at HEAD clears the report: the gate cares about what
- * ships, not about the merge commit itself.
+ * leaves before and after that merge and reports a leaf the FIRST parent added
+ * or changed relative to the two parents' merge-base whose branch-side value is
+ * still missing (`dropped`) or back to the pre-branch value (`reverted`) at
+ * HEAD. A later commit that carries the branch's value at HEAD clears the
+ * report: the gate cares about what ships, not about the merge commit itself.
  *
  * Leaves the branch did not touch are never reported — a merge taking the
  * upstream rename/removal of a key is the driver's documented behavior. A leaf
@@ -40,71 +48,21 @@
  * indistinguishable from a driver overwrite, so restore it by hand when it
  * happens (see `document/merge-playbook.md`).
  *
- * Usage: bun scripts/check-package-json-merge.ts            (base: origin/main)
+ * Usage: bun scripts/check-package-json-merge.ts                       (base: origin/main)
  *        bun scripts/check-package-json-merge.ts --base <ref>
+ *        bun scripts/check-package-json-merge.ts --repo <dir>          (default: this repo)
+ *        `--repo` points the scan at another checkout — a scratch repo that carries
+ *        a reproduction of the incident, or another worktree.
  */
 
 import * as path from "node:path";
 import { $ } from "bun";
-import { DEPENDENCY_SECTIONS, DRIVER_MERGED_PATHS, ZETA_IDENTITY_FIELDS } from "./merge-package-json";
-
-const repoRoot = path.resolve(import.meta.dir, "..");
-
-/** A parsed package.json. */
-export type Manifest = Record<string, unknown>;
+import { type Manifest, manifestLeaves, sameJson } from "./merge-package-json";
 
 /** A leaf that is genuinely absent, distinct from a leaf whose value is `null`. */
 const ABSENT = "<absent>";
 
-/**
- * Value equality for manifest leaves. `JSON.stringify(undefined)` is
- * `undefined`, so an absent leaf compares equal only to another absent leaf —
- * exactly the "the branch never touched it" test below (every call site must
- * agree on that rule).
- */
-function sameValue(a: unknown, b: unknown): boolean {
-	return JSON.stringify(a) === JSON.stringify(b);
-}
-
-/**
- * Whether `path` (dotted, relative to the manifest root) is owned by
- * `scripts/merge-package-json.ts`, i.e. rebuilt from the branch side. Exported
- * because it is the guard's whole policy: the driver's constants are the only
- * source of truth for what a merge may overwrite.
- */
-export function isDriverOwnedPath(path: string): boolean {
-	return (
-		path in ZETA_IDENTITY_FIELDS ||
-		(DEPENDENCY_SECTIONS as readonly string[]).includes(path) ||
-		DRIVER_MERGED_PATHS.some(owned => path === owned || path.startsWith(`${owned}.`))
-	);
-}
-
-/**
- * Flatten a manifest into its unowned leaves: dotted path → value, stopping at
- * the driver-owned paths. Scalars and arrays are leaves (the driver takes them
- * wholesale from the merged-in side); plain objects are recursed into so a
- * dropped `scripts` entry is visible at the same granularity as a dropped
- * top-level key.
- */
-export function manifestLeaves(manifest: Manifest | undefined): Map<string, unknown> {
-	const leaves = new Map<string, unknown>();
-	const walk = (value: unknown, prefix: string): void => {
-		if (value === null || typeof value !== "object" || Array.isArray(value)) {
-			leaves.set(prefix, value);
-			return;
-		}
-		for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-			const child = prefix === "" ? key : `${prefix}.${key}`;
-			if (isDriverOwnedPath(child)) continue;
-			walk(nested, child);
-		}
-	};
-	walk(manifest ?? {}, "");
-	return leaves;
-}
-
-/** An unowned manifest leaf whose branch-side change did not survive into HEAD. */
+/** A manifest leaf whose branch-side state did not survive into HEAD. */
 export interface ManifestViolation {
 	/** `dropped`: the leaf is gone. `reverted`: the leaf carries the pre-branch value again. */
 	kind: "dropped" | "reverted";
@@ -129,9 +87,14 @@ export interface MergeStates {
 }
 
 /**
- * Leaves the first parent added or changed relative to the merge-base whose
- * branch-side value is absent (`dropped`) or back to the pre-branch value
- * (`reverted`) at HEAD.
+ * Leaves where the first parent and the merge-base disagree whose branch-side
+ * state did not survive into HEAD:
+ *
+ * - `dropped` — the branch side has the leaf, the merge left it out and HEAD
+ *   still lacks it.
+ * - `reverted` — the merge put the pre-branch value back, either undoing an edit
+ *   or undoing a deletion (the branch side lacks a leaf the merge-base has).
+ *   A later commit carrying the branch-side state at HEAD clears the report.
  */
 export function manifestViolations(parts: MergeStates): ManifestViolation[] {
 	const branch = manifestLeaves(parts.branch);
@@ -139,8 +102,31 @@ export function manifestViolations(parts: MergeStates): ManifestViolation[] {
 	const merged = manifestLeaves(parts.merged);
 	const head = manifestLeaves(parts.head);
 	const violations: ManifestViolation[] = [];
-	for (const [path, branchValue] of branch) {
-		if (sameValue(branchValue, ancestor.get(path))) continue; // the branch never touched this leaf
+
+	// The union, not just the branch's leaves: a branch-side *deletion* is only
+	// visible through the merge-base side (the 2026-10-15 merge brought back both
+	// `devDependencies.@typescript/native-preview` and its catalog pin, which
+	// `chore(toolchain): TypeScript 7 stable tsc + bun 1.4.3` had removed).
+	for (const path of new Set([...branch.keys(), ...ancestor.keys()])) {
+		const branchValue = branch.get(path);
+		const ancestorValue = ancestor.get(path);
+		if (sameJson(branchValue, ancestorValue)) continue; // the branch never touched this leaf
+
+		if (branchValue === undefined) {
+			// A branch-side deletion survives when the merge keeps the leaf out or
+			// takes an upstream value. Bringing the pre-branch value back is the
+			// revert; a later commit deleting it again clears it.
+			if (!merged.has(path) || !sameJson(merged.get(path), ancestorValue)) continue;
+			if (!head.has(path)) continue;
+			violations.push({
+				kind: "reverted",
+				path,
+				branchValue: ABSENT,
+				mergedValue: JSON.stringify(merged.get(path)) ?? ABSENT,
+			});
+			continue;
+		}
+
 		if (!merged.has(path)) {
 			// The merge dropped the leaf; a later commit carrying it at HEAD clears it.
 			if (!head.has(path)) {
@@ -153,12 +139,13 @@ export function manifestViolations(parts: MergeStates): ManifestViolation[] {
 			}
 			continue;
 		}
+
 		const mergedValue = merged.get(path);
 		// branchValue !== ancestorValue (the `continue` above), so a merged value
 		// equal to the ancestor's is the pre-branch value restored by the merge.
 		// A later commit putting the branch's value back at HEAD clears it.
-		if (sameValue(mergedValue, ancestor.get(path)) && !sameValue(mergedValue, branchValue)) {
-			if (sameValue(head.get(path), branchValue)) continue;
+		if (sameJson(mergedValue, ancestorValue) && !sameJson(mergedValue, branchValue)) {
+			if (sameJson(head.get(path), branchValue)) continue;
 			violations.push({
 				kind: "reverted",
 				path,
@@ -167,6 +154,7 @@ export function manifestViolations(parts: MergeStates): ManifestViolation[] {
 			});
 		}
 	}
+
 	return violations.sort((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind));
 }
 
@@ -180,6 +168,14 @@ interface MergeManifests {
 }
 
 const MANIFEST = /^(?:packages\/[^/]+\/)?package\.json$/;
+
+/** The value of `--flag <value>`, or undefined when the flag is absent. */
+function flagValue(flag: string): string | undefined {
+	const index = process.argv.indexOf(flag);
+	return index === -1 ? undefined : process.argv[index + 1];
+}
+
+const repoRoot = path.resolve(flagValue("--repo") ?? path.resolve(import.meta.dir, ".."));
 
 async function git(...args: string[]): Promise<string> {
 	const result = await $`git ${args}`.cwd(repoRoot).quiet().nothrow();
@@ -227,8 +223,7 @@ async function resolveBase(explicit: string | undefined): Promise<string | undef
 }
 
 async function main(): Promise<void> {
-	const baseIndex = process.argv.indexOf("--base");
-	const base = await resolveBase(baseIndex === -1 ? undefined : process.argv[baseIndex + 1]);
+	const base = await resolveBase(flagValue("--base"));
 	if (!base) {
 		console.log(
 			"package.json merge guard: no base ref resolved (no --base, no GITHUB_BASE_REF, no origin/main) — nothing to scan",
@@ -293,10 +288,11 @@ async function main(): Promise<void> {
 			}
 		}
 		console.error(
-			"\nThe `merge.zeta-package` driver (scripts/merge-package-json.ts) rebuilds the merged manifest from\n" +
-				"the merged-in side, so only the paths it owns (Zeta identity fields, the four dependency sections,\n" +
-				"`workspaces.catalog`) survive a `git merge main` from the branch side. Restore the leaf with the\n" +
-				"branch's value and keep it at HEAD — see document/merge-playbook.md step 4.",
+			"\nEvery branch-side leaf outside the upstream-wins cases must survive `merge=zeta-package`\n" +
+				"(scripts/merge-package-json.ts: Zeta-owned paths and Zeta-only leaves keep the branch side's\n" +
+				"value, everything else follows the base→theirs delta). A leaf reported above means the merge\n" +
+				"erased or reverted it: restore it at HEAD with the branch's value — see\n" +
+				"document/merge-playbook.md step 4.",
 		);
 		process.exitCode = 1;
 		return;

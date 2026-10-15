@@ -268,34 +268,56 @@ role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间�
    `git config merge.zeta-package.driver "bun <repo>/scripts/merge-package-json.ts %A %O %B"`
    （`<repo>` 为仓库绝对路径；`git config --get merge.zeta-package.driver`
    应回显该值。driver 定义见 `scripts/merge-package-json.ts` 头部注释）。
-   - **语义（决定合并后要核对什么）**：driver **不是**对称三方合并。它把
-     结果**以"被并入侧"（`%B`/other，即 `git merge` 的参数侧、`git pull`
-     的远端侧）为基线重建**——即最终 manifest ≈ `other` 的那一份，只有
-     identity 字段（name/version/homepage/bin/repository/bugs/author/
-     contributors/keywords）、四段依赖（含 `workspaces.catalog`）取自
-     `current`（本分支）。**推论：其余每一个 path 都来自被并入侧，
-     分支侧新增的 leaf 会被静默丢弃、分支侧改过的 value 会被静默回退**。
-     两个实例：2026-10-14 `git merge origin/main` 丢掉 `scripts` 下的
-     `check:nix-bun` / `check:relay-assets` / `gen:relay-assets`（直到 CI
-     报 "script not found" 才暴露）；v18.9.1 上游合并把顶层
-     `packageManager` 从精确 pin 换回上游的 `bun@>=1.4`（见
-     `document/upstream-sync.md` 该节）。
+   - **语义（决定合并后要核对什么）**：driver 自 2026-10-15 起是**真三方合并**
+     （`%A`=本分支 / `%O`=merge-base / `%B`=被并入侧），逐 leaf 决策：
+
+     1. **Zeta-owned path**（`ZETA_OWNED_PATHS`：品牌/identity 字段、
+        `packageManager`、`scripts.test:py`、`scripts.robomp:install`）——
+        恒取本分支值，被并入侧既不能覆盖也不能删除。
+     2. **Zeta-only leaf**（本分支在 base 之上新增的 leaf）——归 Zeta。这一条
+        是**结构性**的：Zeta-only 的 `check:*`/`gen:*` 脚本、`figlet` 这类
+        Zeta-only 依赖、每个 `@linxiraos/*` pin 都自动受保护，**不再需要往
+        keep-list 里逐条登记**（这正是 2026-10-14 事故的机制：漏登记一条就静默丢一条）。
+     3. **其余 leaf**——普通 base→theirs delta：上游的改动/新增/删除生效，
+        上游没动过的 leaf 保持本分支值（含本分支的删除）。两侧都改过的 leaf
+        取上游值（与合并契约 upstream-wins 一致），driver 会把每个被拒绝的
+        值打到 stderr，所以合并不再是"静默"的。
+
+     两个嵌套路径按条目合并：`workspaces.catalog`（Zeta pin 表：`@linxiraos/*`
+     走 Zeta 版本线；本分支动过的第三方 pin——精确 pin——保持 exact，未被
+     Zeta pin 的键随上游 delta）与 `workspaces.packages`（保序并集，`plugins/*`
+     必留、上游新增照收）。写文件前 driver 还会复核
+     `erasureViolations()`：任何"本分支改过、被并入侧没动过"的 leaf 若没保住，
+     driver **拒绝写入并 exit 1**（git 报冲突，不会带着擦除结果绿着过去）。
+   - **事故参照**：2026-10-15 v18.10.0 同步合并（`6f89e908c67`，driver 重写前）
+     一次静默擦除 17 个 leaf：`workspaces.packages[1]="plugins/*"`、六个
+     Zeta-only 脚本、`devDependencies.figlet`、五个精确 catalog pin、
+     `@typescript/native-preview`（`chore(toolchain)` 删掉的）被复活、
+     `packageManager` 回退 `bun@>=1.4`、`test:py`/`robomp:install` 指向不存在的
+     `sdk/python/omp-rpc`，外加每个包的 `tsgo`→`tsc` 被回退；合并本身报
+     "Merge made by the 'ort' strategy" 零冲突。driver 重写后：合并输出只剩
+     上游真改动，`.gitattributes` 绑定的 manifest 与 `main` 完全不漂移。
    - **判据**：合并后 `git diff $(git merge-base <被并入侧> HEAD^1) HEAD -- package.json`
-     应只有预期改动；或直接确认分支侧新增/改动的 leaf（`scripts.*`、
-     `packageManager`、`workspaces.packages` 等）仍在。
-     注意 driver 恰恰是"静默"的来源：**没注册 driver 时**同一处改动会变成
-     可见的 `CONFLICT (content): Merge conflict in package.json`（2026-10-14
-     实测）；注册之后冲突消失、分支侧改动也一起消失。
+     应只有预期改动（含上游真改动）；或直接确认分支侧新增/改动的 leaf
+     （`scripts.*`、`packageManager`、`workspaces.packages`、catalog pin）仍在。
+     注意 driver 未注册时同一处改动会退化成可见的
+     `CONFLICT (content): Merge conflict in package.json`（2026-10-14 实测），
+     那是**好消息**——它说明 driver 没跑。
    - **修法**：按分支侧的值手工恢复，**并让它在 HEAD 上存在**（只留在
-     merge commit 里、随后续提交被覆盖不算修复）。
+     merge commit 里、随后续提交被覆盖不算修复）；若 driver 报
+     `REFUSED to write an erasing result`，先查 driver 规则与其测试，不要手工绕过。
    - **机械检查**：`bun scripts/check-package-json-merge.ts`
-     （`--base <ref>` 可指定基线）扫描 `<base>..HEAD` 的 merge commit，
-     报"第一父侧改过、merge 后仍缺或被回退"的 leaf（顶层键与 `scripts.*`
-     等嵌套键同粒度，dump 形如 `packageManager`、
-     `scripts.check:nix-bun`）；keep-list 直接 import
-     `scripts/merge-package-json.ts` 的常量，不另抄一份。CI `check` job 与
-     `.gitea` 本地镜像都已接入（不新增热路径成本：同一 job 里
-     `check-merge-lineage.ts` 已经 unshallow）。
+     （`--base <ref>` 指定基线；`--repo <dir>` 可指向另一个 checkout/事故复现仓库）
+     扫描 `<base>..HEAD` 的 merge commit，报"第一父侧改过、merge 后仍缺/被回退/
+     被复活"的 leaf（顶层键、`scripts.*`、`dependencies.*`、`workspaces.catalog.*`
+     同粒度，dump 形如 `packageManager`、`scripts.check:nix-bun`、
+     `workspaces.catalog.@types/bun`）；leaf 遍历与等值判定直接 import
+     `scripts/merge-package-json.ts`（`manifestLeaves`/`sameJson`），不另抄一份。
+     该 guard 覆盖全部 leaf（含 driver 自己合并的依赖段与 catalog），因此对
+     2026-10-15 事故的 17 个 leaf 全部报红——见
+     `scripts/__fixtures__/package-json-merge/`（事故真实 manifest + 旧 driver
+     输出实录）与两个 test 文件。CI `check` job 与 `.gitea` 本地镜像都已接入
+     （不新增热路径成本：同一 job 里 `check-merge-lineage.ts` 已经 unshallow）。
 5. **合并**：`git merge v18.2.6 --no-edit`（双亲 merge commit，禁止 squash /
    rebase / cherry-pick 上游提交）。冲突按下方「大批量冲突的分级 resolve」
    + 共享契约处理：upstream-wins + Zeta surface 重应用（scope 映射、包名
@@ -303,9 +325,12 @@ role 字面量专项 grep（`"omp\.[a-z]` 且属于我们拥有的命名空间�
    Zeta-only 功能存活清单）。
    **合并后必须核对 manifest 没被 driver 吃掉或回退**（见步骤 4 的
    「语义」段）：`bun scripts/check-package-json-merge.ts`，或直接
-   `git diff <merge-base> HEAD -- package.json`。任何分支侧新增/改动的 leaf
+   `git diff <merge-base> HEAD -- package.json`。分支侧新增/改动的 leaf
    ——Zeta-only 的 `check:*`/`gen:*` 脚本、`packageManager` 的精确 pin、
-   `workspaces.packages`——在 merge 后**不会**自动存活。
+   `workspaces.packages`、精确 catalog pin——现在**按规则自动存活**（两侧都
+   改过、以及 driver 有意让上游填充的 `@linxiraos/*` 段键除外），driver 也会
+   在写盘前拒绝擦除结果；仍然要过一遍上面的机械检查，确认 driver 真的注册并
+   跑了，而不是靠"合并没报冲突"。
 6. **生成物新鲜度 gate**：合并落地后按需重跑并提交——
    `bun install`（bun.lock）→ `bunx bun2nix -l bun.lock -c ../ -o nix/bun.nix`
    → `bun run gen:compat`（**凡 rules/ 下 KDL 有变化必跑**，v18.2.5 教训：

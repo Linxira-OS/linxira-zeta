@@ -263,12 +263,17 @@ jobs:
               fi
               bun scripts/check-merge-lineage.ts
          # `.gitattributes` binds every manifest to the `merge.zeta-package`
-         # driver, which rebuilds the merged package.json from the merged-in
-         # side — branch-side leaves vanish or revert silently (2026-10-14:
-         # three `scripts` entries, noticed only by a later "script not found";
-         # the v18.9.1 merge reverted the top-level `packageManager` pin the
-         # same way). The scan needs this branch's own merge commits, hence the
-         # unshallow.
+         # driver (scripts/merge-package-json.ts). A three-way merge in the
+         # driver's own rules is not enough on its own: the guard is what proves
+         # the driver ran and kept the branch side, because a driver that was
+         # never registered (fresh worktree, new clone, runner) degrades to a
+         # conflict, and a driver that erases leaves the merge *green* — that is
+         # how the 2026-10-15 v18.10.0 sync merge lost `plugins/*`, the six
+         # Zeta-only scripts, `devDependencies.figlet`, the exact catalog pins
+         # and the `sdk/python/zeta-rpc` targets, reverted `packageManager` to
+         # `bun@>=1.4`, and brought back the `@typescript/native-preview` pin
+         # that `chore(toolchain): TypeScript 7 stable tsc + bun 1.4.3` removed.
+         # The scan needs this branch's own merge commits, hence the unshallow.
          - name: package.json merge-drop guard
            run: |
               set -euo pipefail
@@ -276,10 +281,13 @@ jobs:
               bun scripts/check-package-json-merge.ts
          - name: Unit-test the package.json merge guard
            run: bun test scripts/check-package-json-merge.test.ts
-         # The driver's own tests are the only thing that catches a brand sweep
-         # rewriting the upstream-scope fixtures (merge dab5fa80ac4 did exactly
-         # that and left `merge-package-json.test.ts` red on main for days: no
-         # CI bucket ran it, `test:scripts` is not wired into a job).
+         # The driver's own tests carry the incident's real manifests
+         # (`scripts/__fixtures__/package-json-merge/`), replay the merge through
+         # the real script in a scratch repo, and are also the only thing that
+         # catches a brand sweep rewriting the upstream-scope fixtures (merge
+         # dab5fa80ac4 did exactly that and left `merge-package-json.test.ts` red
+         # on main for days: no CI bucket ran it, `test:scripts` is not wired
+         # into a job).
          - name: Unit-test the package.json merge driver
            run: bun test scripts/merge-package-json.test.ts
          - name: Build collab web

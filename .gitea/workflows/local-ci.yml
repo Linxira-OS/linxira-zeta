@@ -408,17 +408,21 @@ jobs:
            run: bun scripts/check-robomp-cli-contract.ts
          - name: Upstream merge lineage guard
            run: bun scripts/check-merge-lineage.ts
-         # 镜像 GitHub `check` job：`merge.zeta-package` driver 以被并入侧为
-         # 基线重建 package.json，分支侧新增的 leaf（`scripts` 下的条目、
-         # 顶层 `packageManager`……）会被静默丢掉或回退
-         # （2026-10-14 丢过三个 script）。本地合并后即刻跑，能在 push 前发现。
+         # 镜像 GitHub `check` job：`merge.zeta-package` driver 与 `.gitattributes`
+         # 绑定 13 个 manifest。driver 已改为真三方合并（分支侧改动：Zeta-owned 与
+         # Zeta-only leaf 恒保留，其余按 base→theirs delta），但这个 guard 才是
+         # "合并没吃掉分支侧"的机械证明——driver 未注册时退化为冲突，driver 擦除时
+         # 合并是绿的（2026-10-15 v18.10.0 同步即如此：丢 `plugins/*`、六个
+         # Zeta-only script、`figlet`、精确 catalog pin，回退 `packageManager`，
+         # 复活 `@typescript/native-preview`）。本地合并后即刻跑，能在 push 前发现。
          - name: package.json merge-drop guard
            run: bun scripts/check-package-json-merge.ts
          - name: Unit-test the package.json merge guard
            run: bun test scripts/check-package-json-merge.test.ts
-         # 镜像 GitHub：driver 自身的测试是唯一能挡住品牌 sweep 改写上游 scope
-         # fixture 的关卡（merge dab5fa80ac4 就是这么把 main 留红的：
-         # `test:scripts` 没有接进任何 job）。
+         # 镜像 GitHub：driver 自身的测试带事故现场的真实 manifest
+         # （`scripts/__fixtures__/package-json-merge/`）并在 scratch repo 里跑真
+         # `git merge`，也是唯一能挡住品牌 sweep 改写上游 scope fixture 的关卡
+         # （merge dab5fa80ac4 就是这么把 main 留红的：`test:scripts` 没有接进任何 job）。
          - name: Unit-test the package.json merge driver
            run: bun test scripts/merge-package-json.test.ts
          - name: Build collab web

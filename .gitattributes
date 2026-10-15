@@ -55,8 +55,10 @@ poetry.lock -text
 # Changelogs are append-mostly; auto-merge by unioning both sides.
 packages/*/CHANGELOG.md merge=union
 
-# Zeta package.json merge driver: keeps Zeta identity (name, version, @linxiraos/*
-# scope, bin=zeta) while accepting upstream dependency & script updates.
+# Zeta package.json merge driver: a three-way merge that keeps Zeta-owned paths
+# (brand/identity fields, packageManager, the Python entry points) and every
+# Zeta-only leaf on the branch side, lets the rest follow the upstream delta,
+# reports what it kept, and refuses to write an erasing result.
 # Register with: git config merge.zeta-package.driver "bun scripts/merge-package-json.ts %A %O %B"
 package.json merge=zeta-package
 packages/*/package.json merge=zeta-package

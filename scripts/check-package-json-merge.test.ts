@@ -1,12 +1,24 @@
 import { describe, expect, test } from "bun:test";
-import { isDriverOwnedPath, type Manifest, manifestLeaves, manifestViolations } from "./check-package-json-merge";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { manifestViolations } from "./check-package-json-merge";
+import { type Manifest, isZetaOwnedPath, manifestLeaves } from "./merge-package-json";
 
 /**
- * The guard's contract: a merge that drops or reverts a branch-side manifest
- * leaf is RED, unless the leaf is one `scripts/merge-package-json.ts` owns. The
- * fixtures below are shaped like the real damage — `packageManager` reverted to
- * the merged-in side's value, and `scripts` entries that vanish.
+ * The guard's contract: a merge that drops or reverts a branch-side manifest leaf
+ * is RED. The failure-mode fixtures below are shaped like the real damage —
+ * `packageManager` reverted to the merged-in side's value, `scripts` entries that
+ * vanish, a dependency the branch deleted and the merge brought back.
+ *
+ * The final block is the incident itself: the real v18.10.0 merge manifests and
+ * the pre-rewrite driver's recorded output on them (`__fixtures__/package-json-merge`,
+ * see `merge-package-json.test.ts` for the provenance). It pins the guard's
+ * non-vacuity — the guard must name every leaf that merge erased.
  */
+const fixturesDir = path.join(import.meta.dir, "__fixtures__", "package-json-merge");
+
+const fixture = (name: string): Manifest =>
+	JSON.parse(fs.readFileSync(path.join(fixturesDir, `${name}.json`), "utf-8")) as Manifest;
 
 const MAIN: Manifest = {
 	name: "zeta",
@@ -79,6 +91,30 @@ describe("manifestViolations", () => {
 		).toEqual([{ kind: "reverted", path: "scripts.check:probe", branchValue: '"new"', mergedValue: '"old"' }]);
 	});
 
+	test("reports a branch-side deletion the merge undid", () => {
+		// `chore(toolchain): TypeScript 7 stable tsc + bun 1.4.3` removed the preview
+		// dependency; the merge brought it back from the pre-branch manifest.
+		const ancestor = at({ devDependencies: { "@typescript/native-preview": "catalog:" } });
+		const branch = at({ devDependencies: {} });
+		expect(manifestViolations({ branch, ancestor, merged: ancestor, head: ancestor })).toEqual([
+			{
+				kind: "reverted",
+				path: "devDependencies.@typescript/native-preview",
+				branchValue: "<absent>",
+				mergedValue: '"catalog:"',
+			},
+		]);
+		// A merge taking an upstream value instead is not branch-side loss.
+		expect(
+			manifestViolations({
+				branch,
+				ancestor,
+				merged: at({ devDependencies: { "@typescript/native-preview": "^7.0.1" } }),
+				head: at({ devDependencies: { "@typescript/native-preview": "^7.0.1" } }),
+			}),
+		).toEqual([]);
+	});
+
 	test("clears a revert once HEAD carries the branch value again", () => {
 		const ancestor = at({ packageManager: "bun@1.4.0" });
 		expect(
@@ -94,6 +130,19 @@ describe("manifestViolations", () => {
 	test("clears a drop once HEAD carries the leaf again", () => {
 		const branch = at({ scripts: { ...MAIN.scripts, "check:probe": "bun scripts/probe.ts" } });
 		expect(manifestViolations({ branch, ancestor: at(), merged: at(), head: branch })).toEqual([]);
+	});
+
+	test("clears a resurrected deletion once HEAD deletes it again", () => {
+		const ancestor = at({ devDependencies: { "@typescript/native-preview": "catalog:" } });
+		const branch = at({ devDependencies: {} });
+		expect(
+			manifestViolations({
+				branch,
+				ancestor,
+				merged: ancestor, // the merge brought it back
+				head: branch, // a later commit removed it again
+			}),
+		).toEqual([]);
 	});
 
 	test("is green on a clean tree", () => {
@@ -132,24 +181,35 @@ describe("manifestViolations", () => {
 		).toEqual([]);
 	});
 
-	test("exempts the paths the driver owns", () => {
-		// Identity fields and dependency sections come from the branch side by
-		// construction, so a merge taking the merged-in value is not branch loss.
+	test("checks the sections the driver merges itself, including the catalog", () => {
+		// A Zeta-only dependency the merge dropped (the incident's `figlet`).
 		expect(
 			manifestViolations({
-				branch: at({ version: "1.2.2", dependencies: { zod: "4.1.0", "zeta-only": "1.0.0" } }),
-				ancestor: at({ version: "1.2.1", dependencies: { zod: "4.0.0" } }),
-				merged: at({ version: "9.9.9", dependencies: { zod: "3.0.0" } }),
-				head: at({ version: "9.9.9", dependencies: { zod: "3.0.0" } }),
-			}),
-		).toEqual([]);
-		// `workspaces.catalog` is re-merged key-by-key; its siblings are not.
-		const catalogOnly = at({ workspaces: { ...MAIN.workspaces, catalog: { zod: "4.0.0" } } });
-		const packagesToo = at({ workspaces: { packages: ["packages/*", "vendor/*"], catalog: { zod: "4.0.0" } } });
-		expect(manifestViolations({ branch: catalogOnly, ancestor: at(), merged: at(), head: at() })).toEqual([]);
+				branch: at({ devDependencies: { "zeta-only": "1.0.0" } }),
+				ancestor: at(),
+				merged: at(),
+				head: at(),
+			}).map(violation => `${violation.kind}:${violation.path}`),
+		).toEqual(["dropped:devDependencies.zeta-only"]);
+
+		// An exact catalog pin degraded to the merged-in side's caret (the incident's
+		// `@types/bun`: "1.4.3" → "^1.3.14").
+		const ancestor = at({ workspaces: { ...MAIN.workspaces, catalog: { zod: "3.25.76", "@types/bun": "^1.3.14" } } });
 		expect(
-			manifestViolations({ branch: packagesToo, ancestor: at(), merged: at(), head: at() }).map(v => v.path),
-		).toEqual(["workspaces.packages"]);
+			manifestViolations({
+				branch: at({ workspaces: { ...MAIN.workspaces, catalog: { zod: "3.25.76", "@types/bun": "1.4.3" } } }),
+				ancestor,
+				merged: ancestor,
+				head: ancestor,
+			}),
+		).toEqual([
+			{
+				kind: "reverted",
+				path: "workspaces.catalog.@types/bun",
+				branchValue: '"1.4.3"',
+				mergedValue: '"^1.3.14"',
+			},
+		]);
 	});
 
 	test("tolerates a missing manifest at any revision", () => {
@@ -179,40 +239,93 @@ describe("manifestViolations", () => {
 	});
 });
 
-describe("isDriverOwnedPath", () => {
-	test("derives the keep-list from the merge driver's own constants", () => {
-		// ZETA_IDENTITY_FIELDS — the driver copies these from the branch side.
+describe("the guard on the v18.10.0 incident", () => {
+	const incident = (name: "root" | "natives") => ({
+		branch: fixture(`${name}.ours`),
+		ancestor: fixture(`${name}.base`),
+		merged: fixture(`${name}.merged-prefix`),
+		head: fixture(`${name}.merged-prefix`),
+	});
+
+	test("names every leaf the pre-rewrite driver erased in the root manifest", () => {
+		expect(manifestViolations(incident("root")).map(violation => `${violation.kind}:${violation.path}`)).toEqual([
+			"reverted:devDependencies.@typescript/native-preview",
+			"dropped:devDependencies.figlet",
+			"reverted:packageManager",
+			"dropped:scripts.check:nix-bun",
+			"dropped:scripts.check:relay-assets",
+			"dropped:scripts.ci:release:publish-plugin",
+			"dropped:scripts.ci:release:publish-web-ui",
+			"dropped:scripts.gen:brand-art",
+			"dropped:scripts.gen:relay-assets",
+			"reverted:scripts.robomp:install",
+			"reverted:scripts.test:py",
+			"reverted:workspaces.catalog.@types/babel__generator",
+			"reverted:workspaces.catalog.@types/babel__traverse",
+			"reverted:workspaces.catalog.@types/bun",
+			"reverted:workspaces.catalog.@types/react",
+			"reverted:workspaces.catalog.@types/react-dom",
+			"reverted:workspaces.catalog.@typescript/native-preview",
+			"reverted:workspaces.packages",
+		]);
+	});
+
+	test("names the reverted `tsc` switch in packages/natives", () => {
+		expect(manifestViolations(incident("natives"))).toEqual([
+			{
+				kind: "reverted",
+				path: "scripts.check:types",
+				branchValue: '"tsc -p tsconfig.json --noEmit"',
+				mergedValue: '"tsgo -p tsconfig.json --noEmit"',
+			},
+		]);
+	});
+});
+
+describe("isZetaOwnedPath", () => {
+	test("covers the brand surface, the Bun pin and the Python entry points", () => {
 		for (const owned of ["name", "version", "bin", "homepage", "repository", "bugs", "keywords"]) {
-			expect(isDriverOwnedPath(owned)).toBe(true);
+			expect(isZetaOwnedPath(owned)).toBe(true);
 		}
-		// DEPENDENCY_SECTIONS — merged key-by-key via mergeDeps.
-		for (const owned of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
-			expect(isDriverOwnedPath(owned)).toBe(true);
-		}
-		// DRIVER_MERGED_PATHS — the nested paths rebuilt from the branch side.
-		expect(isDriverOwnedPath("workspaces.catalog")).toBe(true);
-		expect(isDriverOwnedPath("workspaces.catalog.zod")).toBe(true);
-		// Everything else arrives from the merged-in side.
-		for (const unowned of ["packageManager", "scripts", "type", "engines", "private", "exports"]) {
-			expect(isDriverOwnedPath(unowned)).toBe(false);
-		}
-		for (const unowned of ["scripts.check:ts", "workspaces", "workspaces.packages", "packageManager.foo"]) {
-			expect(isDriverOwnedPath(unowned)).toBe(false);
+		// The nested identity subtrees the driver keeps whole.
+		expect(isZetaOwnedPath("repository.url")).toBe(true);
+		expect(isZetaOwnedPath("author.name")).toBe(true);
+		expect(isZetaOwnedPath("packageManager")).toBe(true);
+		expect(isZetaOwnedPath("scripts.test:py")).toBe(true);
+		expect(isZetaOwnedPath("scripts.robomp:install")).toBe(true);
+		// Everything the driver protects structurally is *not* a keep-list entry:
+		// the guard checks those leaves, which is what makes it catch the incident.
+		for (const checked of [
+			"scripts.check:nix-bun",
+			"devDependencies.figlet",
+			"workspaces.packages",
+			"workspaces.catalog.@types/bun",
+			"dependencies.@linxiraos/pi-ai",
+		]) {
+			expect(isZetaOwnedPath(checked)).toBe(false);
 		}
 	});
 });
 
 describe("manifestLeaves", () => {
-	test("stops at driver-owned paths and keeps arrays opaque", () => {
+	test("flattens nested keys and keeps arrays, owned subtrees and section keys visible", () => {
 		expect([...manifestLeaves(MAIN).keys()].sort()).toEqual([
+			"dependencies.zod",
+			"name",
 			"packageManager",
 			"scripts.check:ts",
 			"scripts.gen:models",
+			"version",
+			"workspaces.catalog.@linxiraos/pi-ai",
+			"workspaces.catalog.zod",
 			"workspaces.packages",
 		]);
-		// `workspaces.catalog` is owned, so none of its entries appear.
 		expect(manifestLeaves(MAIN).get("workspaces.packages")).toEqual(["packages/*"]);
-		expect(manifestLeaves(MAIN).has("workspaces.catalog.zod")).toBe(false);
+		expect(manifestLeaves(MAIN).get("dependencies.zod")).toBe("4.0.0");
+		// An owned key is one leaf: its subtree is the branch side's value.
+		expect([...manifestLeaves({ author: { name: "Stencil Labs, Inc.", url: "https://stencil.so" } }).keys()]).toEqual(
+			["author"],
+		);
 		expect(manifestLeaves(undefined).size).toBe(0);
 	});
 });
