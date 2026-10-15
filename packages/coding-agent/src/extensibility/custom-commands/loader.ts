@@ -83,7 +83,7 @@ async function loadCommandModule(
 			if (!cmd.name || typeof cmd.name !== "string") {
 				return { commands: null, error: "Command must have a name" };
 			}
-			if (!cmd.description || typeof cmd.description !== "string") {
+			if (!cmd.description || (typeof cmd.description !== "string" && typeof cmd.description !== "function")) {
 				return { commands: null, error: `Command "${cmd.name}" must have a description` };
 			}
 			if (typeof cmd.execute !== "function") {

@@ -4,15 +4,14 @@
  * Commands are embedded at build time via Bun's import with { type: "text" }.
  */
 import * as path from "node:path";
-import { parseFrontmatter, prompt } from "@linxiraos/pi-utils";
+import { parseFrontmatter } from "@linxiraos/pi-utils";
 import { type SlashCommand, slashCommandCapability } from "../capability/slash-command";
 import { loadCapability } from "../discovery";
-// Embed command markdown files at build time
-import initMd from "../prompts/agents/init.md" with { type: "text" };
-
-const EMBEDDED_COMMANDS: { name: string; content: string }[] = [{ name: "init.md", content: prompt.render(initMd) }];
+import { EMBEDDED_COMMANDS, EMBEDDED_COMMAND_DESCRIPTION_KEYS } from "./embedded-commands";
 
 export const EMBEDDED_COMMAND_TEMPLATES: ReadonlyArray<{ name: string; content: string }> = EMBEDDED_COMMANDS;
+
+export { EMBEDDED_COMMAND_DESCRIPTION_KEYS };
 
 /** Workflow command definition */
 export interface WorkflowCommand {
@@ -29,37 +28,42 @@ function getString(frontmatter: Record<string, unknown>, key: string): string {
 	return typeof value === "string" ? value : "";
 }
 
-/** Cache for bundled commands */
+/** Cache for bundled commands: the parsed templates only, never a resolved locale. */
 let bundledCommandsCache: WorkflowCommand[] | null = null;
+
+/** Catalogue-backed copy of an embedded template's picker description, if it has one. */
+function embeddedDescription(name: string, fallback: string): string {
+	return EMBEDDED_COMMAND_DESCRIPTION_KEYS[name]?.() ?? fallback;
+}
 
 /**
  * Load all bundled commands from embedded content.
+ *
+ * The parse is cached, the description is not: `/init`'s copy comes from the
+ * original English markdown frontmatter, so resolving it into the cache would
+ * freeze whichever locale was active on the first call and leave `/init`
+ * English — or stale — after `/language`. Resolving per call costs two object
+ * spreads and keeps every consumer (the picker, an embedder of
+ * `discoverCommands`) in step with the live catalogue.
  */
 export function loadBundledCommands(): WorkflowCommand[] {
-	if (bundledCommandsCache !== null) {
-		return bundledCommandsCache;
-	}
-
-	const commands: WorkflowCommand[] = [];
-
-	for (const { name, content } of EMBEDDED_COMMANDS) {
+	bundledCommandsCache ??= EMBEDDED_COMMANDS.map(({ name, content }) => {
 		const { frontmatter, body } = parseFrontmatter(content, {
 			source: `embedded:${name}`,
 			level: "fatal",
 		});
-		const cmdName = name.replace(/\.md$/, "");
-
-		commands.push({
-			name: cmdName,
+		return {
+			name: name.replace(/\.md$/, ""),
 			description: getString(frontmatter, "description"),
 			instructions: body,
-			source: "bundled",
+			source: "bundled" as const,
 			filePath: `embedded:${name}`,
-		});
-	}
-
-	bundledCommandsCache = commands;
-	return commands;
+		};
+	});
+	return bundledCommandsCache.map(command => ({
+		...command,
+		description: embeddedDescription(command.name, command.description),
+	}));
 }
 
 /**

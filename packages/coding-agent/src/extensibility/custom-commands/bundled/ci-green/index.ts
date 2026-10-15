@@ -1,6 +1,7 @@
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { prompt } from "@linxiraos/pi-utils";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
+import { M } from "../../../../i18n";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
 import ciGreenRequestTemplate from "../../../../prompts/ci-green-request.md" with { type: "text" };
 
@@ -45,7 +46,7 @@ async function getHeadTagContext(api: CustomCommandAPI): Promise<{ branch: strin
 
 export class GreenCommand implements CustomCommand {
 	name = "green";
-	description = "Generate a prompt to iterate on CI failures until the branch is green";
+	description = () => M.cmdGreen;
 
 	constructor(private api: CustomCommandAPI) {}
 

@@ -240,7 +240,7 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 	registerCommand(
 		name: string,
 		options: {
-			description?: string;
+			description?: string | (() => string);
 			getArgumentCompletions?: RegisteredCommand["getArgumentCompletions"];
 			handler: RegisteredCommand["handler"];
 		},

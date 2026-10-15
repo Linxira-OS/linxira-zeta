@@ -59,8 +59,10 @@ describe("custom command loader", () => {
 				"\texecute() {},",
 				"});",
 			].join("\n");
-		const descriptionOf = (result: CustomCommandsLoadResult): string | undefined =>
-			result.commands.find(({ command }) => command.name === "live-edit")?.command.description;
+		const descriptionOf = (result: CustomCommandsLoadResult): string | undefined => {
+			const description = result.commands.find(({ command }) => command.name === "live-edit")?.command.description;
+			return typeof description === "function" ? description() : description;
+		};
 
 		await Bun.write(commandPath, source("first description"));
 		expect(descriptionOf(await loadCustomCommands({ cwd: tempRoot, agentDir: tempRoot }))).toBe("first description");

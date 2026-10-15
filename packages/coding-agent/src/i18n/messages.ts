@@ -152,206 +152,13 @@ export interface Messages {
 	// provider setup (standalone command entry)
 	setupProviderUnavailable: string; // "Provider setup is unavailable."
 	// slash command descriptions
-	cmdAddAMarketplaceSource: string; // Add a marketplace source
-	cmdAddANewMCPServer: string; // Add a new MCP server
-	cmdAddAWorkspaceDirectoryToThisSession: string; // Add a workspace directory to this session
-	cmdAddAWorkspaceDirectoryToThisSessionMultiRoot: string; // Add a workspace directory to this session (multi-root)
-	cmdAddAnSSHHost: string; // Add an SSH host
-	cmdAdjustTheTokenBudget: string; // Adjust the token budget
-	cmdAliasForClear: string; // Alias for clear
-	cmdAliasForEnqueue: string; // Alias for enqueue
-	cmdAlwaysExposeInspectImageThisSession: string; // Always expose inspect_image this session
-	cmdAppendATaskPhaseFuzzyMatchedOrAutoCreated: string; // Append a task; phase fuzzy-matched or auto-created
-	cmdAskAnEphemeralSideQuestionUsingTheCurrentSessionContext: string; // Ask an ephemeral side question using the current session context
-	cmdBrowseAvailablePlugins: string; // Browse available plugins
-	cmdCancelARunningNativeScan: string; // Cancel a running native scan
-	cmdClearConversationContext: string; // Clear the conversation context in place, keeping the session
-	cmdClearPersistedMemoryDataAndArtifacts: string; // Clear persisted memory data and artifacts
-	cmdCompactTheConversation: string; // Compact the conversation
-	cmdCompareFindingLineageAcrossTwoScans: string; // Compare finding lineage across two scans
-	cmdConfigureSignInAndWebSearchProviders: string; // Configure sign-in and web search providers
-	cmdControlTheInspectImageVisionDelegationToolForThisSession: string; // Control the inspect_image vision-delegation tool for this session
-	cmdCopySessionTranscriptToClipboardAndWriteLLMRequestJSONToTmp: string; // Copy session transcript to clipboard (and write LLM request JSON to tmp)
-	cmdCopyTheAdvisorSTranscriptToClipboard: string; // Copy the advisor's transcript to clipboard
-	cmdCopyTodosAsMarkdownToClipboard: string; // Copy todos as Markdown to clipboard
-	cmdCreateANewBranchFromAPreviousMessage: string; // Create a new branch from a previous message
-	cmdCreateANewForkFromAPreviousMessage: string; // Create a new fork from a previous message
-	cmdCreateAnImmutableSecurityScanPlan: string; // Create an immutable security scan plan
-	cmdCreateAnyBuiltInMentalModelsThatAreMissing: string; // Create any built-in mental models that are missing
-	cmdDeleteAMentalModelFromTheBankIdRequired: string; // Delete a mental model from the bank (id required)
-	cmdDeleteCurrentSessionAndReturnToSelector: string; // Delete current session and return to selector
-	cmdDeleteTheCurrentSessionAndStartANewOne: string; // Delete the current session and start a new one
-	cmdDiffTheChangeHistoryOfAMentalModel: string; // Diff the change history of a mental model
-	cmdDisableAMarketplacePlugin: string; // Disable a marketplace plugin
-	cmdDisableAnMCPServer: string; // Disable an MCP server
-	cmdDisableComputerUseForThisSession: string; // Disable computer use for this session
-	cmdDisableFastMode: string; // Disable fast mode
-	cmdDisableTheAdvisor: string; // Disable the advisor
-	cmdDropHeavyContentFromContextToolResultsLargeBlocks: string; // Drop heavy content from context (tool results, large blocks)
-	cmdDropTheCurrentGoal: string; // Drop the current goal
-	cmdEnableAMarketplacePlugin: string; // Enable a marketplace plugin
-	cmdEnableAnMCPServer: string; // Enable an MCP server
-	cmdEnableComputerUseForThisSession: string; // Enable computer use for this session
-	cmdEnableFastMode: string; // Enable fast mode
-	cmdEnableTheAdvisor: string; // Enable the advisor
 	cmdEnglish: string; // English
-	cmdEnqueueMemoryConsolidationMaintenance: string; // Enqueue memory consolidation maintenance
-	cmdExitTheApplication: string; // Exit the application
-	cmdExportACanonicalBundleSARIFOrReport: string; // Export a canonical bundle, SARIF, or report
-	cmdExportSessionToHTMLFile: string; // Export session to HTML file
-	cmdFollowInspectImageModeAutoHidesItForVisionCapableModels: string; // Follow inspect_image.mode (auto hides it for vision-capable models)
-	cmdForceNextTurnToUseASpecificTool: string; // Force next turn to use a specific tool
-	cmdForceReloadMCPRuntimeTools: string; // Force reload MCP runtime tools
-	cmdForgeATTSRRuleFromAComplaintToStopARecurringBehavior: string; // Forge a TTSR rule from a complaint to stop a recurring behavior
-	cmdFreezeAllAgentsMainSubagentsAdvisorUntilResumed: string; // Freeze all agents (main, subagents, advisor) until resumed
-	cmdHandOffSessionContextToANewSession: string; // Hand off session context to a new session
-	cmdHaveTheAgentInterviewYouInChatThenSetUpGoalMode: string; // Have the agent interview you in chat, then set up goal mode
-	cmdImportSARIFOrACodexSecurityBundle: string; // Import SARIF or a Codex Security bundle
-	cmdInspectAndOperateMemoryMaintenance: string; // Inspect and operate memory maintenance
-	cmdInstallAPluginInteractiveBrowserIfNoArgs: string; // Install a plugin (interactive browser if no args)
-	cmdJoinASharedCollabSession: string; // Join a shared collab session
-	cmdLaunchTheLocalStatsDashboard: string; // Launch the local stats dashboard
-	cmdLeaveTheCollabSession: string; // Leave the collab session
-	cmdListAllConfiguredMCPServers: string; // List all configured MCP servers
-	cmdListAllConfiguredSSHHosts: string; // List all configured SSH hosts
-	cmdListAllInstalledPluginsNpmMarketplace: string; // List all installed plugins (npm + marketplace)
-	cmdListAvailablePromptsFromConnectedServers: string; // List available prompts from connected servers
-	cmdListAvailableResourcesFromConnectedServers: string; // List available resources from connected servers
-	cmdListConfiguredMarketplaces: string; // List configured marketplaces
-	cmdListInstalledMarketplacePlugins: string; // List installed marketplace plugins
-	cmdListMentalModelsOnTheActiveBank: string; // List mental models on the active bank
-	cmdListStoredProjectSecurityScans: string; // List stored project security scans
-	cmdListThisSessionSWorkspaceDirectories: string; // List this session's workspace directories
-	cmdLoginToSmitheryAndCacheAPIKey: string; // Login to Smithery and cache API key
-	cmdLoginWithOAuthProvider: string; // Login with OAuth provider
-	cmdLogoutFromOAuthProvider: string; // Logout from OAuth provider
-	cmdManageMarketplacePluginSourcesAndInstalledPlugins: string; // Manage marketplace plugin sources and installed plugins
-	cmdManageMCPServers: string; // Manage MCP servers
-	cmdManageMCPServersAddListRemoveTest: string; // Manage MCP servers (add, list, remove, test)
-	cmdManageMemory: string; // Manage memory
-	cmdManagePlugins: string; // Manage plugins
-	cmdManagePluginsFromMarketplaces: string; // Manage plugins from marketplaces
-	cmdManageSSHConnections: string; // Manage SSH connections
-	cmdManageSSHHostsAddListRemove: string; // Manage SSH hosts (add, list, remove)
-	cmdManageTodos: string; // Manage todos
-	cmdManuallyCompactTheSessionContext: string; // Manually compact the session context
-	cmdMarkTaskInProgressFuzzyMatched: string; // Mark task in_progress (fuzzy-matched)
-	cmdMarkTaskPhaseAllAbandonedFuzzyMatched: string; // Mark task/phase/all abandoned (fuzzy-matched)
-	cmdMarkTaskPhaseAllCompletedFuzzyMatched: string; // Mark task/phase/all completed (fuzzy-matched)
-	cmdMoveTheCurrentSessionToADifferentDirectory: string; // Move the current session to a different directory
-	cmdNavigateSessionTreeSwitchBranches: string; // Navigate session tree (switch branches)
-	cmdNeverExposeInspectImageThisSession: string; // Never expose inspect_image this session
-	cmdOpenAgentControlCenterDashboard: string; // Open Agent Control Center dashboard
-	cmdOpenDebugToolsSelector: string; // Open debug tools selector
-	cmdOpenExtensionControlCenterDashboard: string; // Open Extension Control Center dashboard
-	cmdOpenProviderSetup: string; // Open provider setup
-	cmdOpenSettingsMenu: string; // Open settings menu
-	cmdOpenTheAdvisorConfigurationEditorTUI: string; // Open the advisor configuration editor (TUI)
-	cmdOpenTodosInEDITORMarkdownRoundTrip: string; // Open todos in $EDITOR (Markdown round-trip)
-	cmdPauseTheCurrentGoal: string; // Pause the current goal
-	cmdPickTextOrCodeFromTheConversationToCopy: string; // Pick text or code from the conversation to copy
-	cmdPinTheCurrentProviderToAStoredOAuthAccount: string; // Pin the current provider to a stored OAuth account
-	cmdPlanRunInspectImportAndCompareZetaSecurityScans: string; // Plan, run, inspect, import, and compare Zeta security scans
-	cmdPrewalkAtTheNextAction: string; // Prewalk at the next action
-	cmdQueueAMessageForAfterTheAgentYields: string; // Queue a message for after the agent yields
-	cmdQuitTheApplication: string; // Quit the application
-	cmdReOpenThePlanReviewForTheLatestPlanPlanModeOnly: string; // Re-open the plan review for the latest plan (plan mode only)
-	cmdRePullTheCachedMentalModelsBlock: string; // Re-pull the cached <mental_models> block
-	cmdReauthorizeOAuthForAServer: string; // Reauthorize OAuth for a server
-	cmdReconnectToASpecificMCPServer: string; // Reconnect to a specific MCP server
-	cmdRefreshAutoRefreshModelsBankWideOrOneModelById: string; // Refresh auto-refresh models bank-wide, or one model by id
-	cmdReloadAllPlugins: string; // Reload all plugins
-	cmdReloadAllPluginsSkillsCommandsHooksToolsAgentsMCP: string; // Reload all plugins (skills, commands, hooks, tools, agents, MCP)
-	cmdRemoveAMarketplaceSource: string; // Remove a marketplace source
-	cmdRemoveAWorkspaceDirectoryFromThisSession: string; // Remove a workspace directory from this session
-	cmdRemoveAnMCPServer: string; // Remove an MCP server
-	cmdRemoveAnSSHHost: string; // Remove an SSH host
-	cmdRemoveCachedSmitheryAPIKey: string; // Remove cached Smithery API key
-	cmdRemoveOAuthAuthFromAServer: string; // Remove OAuth auth from a server
-	cmdRemoveTaskPhaseAllFuzzyMatched: string; // Remove task/phase/all (fuzzy-matched)
-	cmdRenameTheCurrentSession: string; // Rename the current session
-	cmdRenderAScanOrSecurityResource: string; // Render a scan or security:// resource
-	cmdReplaceTodosFromAMarkdownFileDefaultTODOMd: string; // Replace todos from a Markdown file (default: TODO.md)
-	cmdResetProviderStreamStateWithoutChangingTheLocalTranscript: string; // Reset provider stream state without changing the local transcript
-	cmdResumeADifferentSession: string; // Resume a different session
-	cmdResumeAPausedGoal: string; // Resume a paused goal
-	cmdRetryTheLastFailedAgentTurn: string; // Retry the last failed agent turn
-	cmdReturnFullTranscriptAsPlainTextWithLLMRequestJSONPath: string; // Return full transcript as plain text, with LLM request JSON path
-	cmdRunAFullBackgroundAgentOnTangentialWork: string; // Run a full background agent on tangential work
-	cmdRunMemoryBackendDiagnostics: string; // Run memory backend diagnostics
-	cmdSearchSmitheryRegistryAndDeployAnMCPServer: string; // Search Smithery registry and deploy an MCP server
-	cmdSessionManagementCommands: string; // Session management commands
-	cmdSetAFindingDispositionWithRationale: string; // Set a finding disposition with rationale
-	cmdSetOrReplaceTheGoal: string; // Set or replace the goal
 	cmdSetTheCLIDisplayLanguage: string; // Set the CLI display language
-	cmdShakeHeavyContentOutOfTheConversationContext: string; // Shake heavy content out of the conversation context
-	cmdShareAReadOnlyLinkGuestsCanWatchNotPrompt: string; // Share a read-only link (guests can watch, not prompt)
 	cmdSkills: string; // Search, install, and update skills from the skills registry
 	cmdSkillsSearch: string; // Search the skill registry
 	cmdSkillsInstall: string; // Install registry skills
 	cmdSkillsInstalled: string; // List installed registry skills
 	cmdSkillsUpdate: string; // Update registry skills within their ranges
-	cmdShareSessionViaAnEncryptedLinkShareServerOrSecretGist: string; // Share session via an encrypted link (share server or secret gist)
-	cmdShareThisSessionLiveViaARelay: string; // Share this session live via a relay
-	cmdShowAdvisorStatus: string; // Show advisor status
-	cmdShowAllKeyboardShortcuts: string; // Show all keyboard shortcuts
-	cmdShowAsyncBackgroundJobsStatus: string; // Show async background jobs status
-	cmdShowAvailableTools: string; // Show available tools
-	cmdShowBackgroundJobs: string; // Show background jobs
-	cmdShowChangelog: string; // Show changelog
-	cmdShowChangelogEntries: string; // Show changelog entries
-	cmdShowCompleteChangelog: string; // Show complete changelog
-	cmdShowComputerUseStatus: string; // Show computer use status
-	cmdShowContextUsage: string; // Show context usage
-	cmdShowCurrentGoalDetails: string; // Show current goal details
-	cmdShowCurrentMemoryInjectionPayload: string; // Show current memory injection payload
-	cmdShowCurrentModelSelection: string; // Show current model selection
-	cmdShowEstimatedContextUsageBreakdown: string; // Show estimated context usage breakdown
-	cmdShowFastModeStatus: string; // Show fast mode status
-	cmdShowHelpMessage: string; // Show help message
-	cmdShowInspectImageStatus: string; // Show inspect_image status
-	cmdShowLinkParticipants: string; // Show link + participants
-	cmdShowMemoryBackendStatistics: string; // Show memory backend statistics
-	cmdShowNativeScanOperationStatus: string; // Show native scan operation status
-	cmdShowNotificationCapabilitiesAndSubscriptions: string; // Show notification capabilities and subscriptions
-	cmdShowOneMentalModelIdRequired: string; // Show one mental model (id required)
-	cmdShowOrConfigureTheCurrentSession: string; // Show or configure the current session
-	cmdShowProviderUsageAndLimits: string; // Show provider usage and limits
-	cmdShowSessionInfoAndStats: string; // Show session info and stats
-	cmdShowTokenUsage: string; // Show token usage
-	cmdShowToolsCurrentlyVisibleToTheAgent: string; // Show tools currently visible to the agent
-	cmdShowUsageGuide: string; // Show usage guide
-	cmdSpendASavedCodexRateLimitReset: string; // Spend a saved Codex rate-limit reset
-	cmdStartANewSession: string; // Start a new session
-	cmdStartAPlannedOrNewlyPlannedNativeScan: string; // Start a planned or newly planned native scan
-	cmdStartCodexBackedRealtimeVoiceMode: string; // Start Codex-backed realtime voice mode
-	cmdStopSharing: string; // Stop sharing
-	cmdStripImageBlocks: string; // Strip image blocks
-	cmdStripToolResultsLargeBlocksDefault: string; // Strip tool results + large blocks (default)
-	cmdSwitchModelForThisSession: string; // Switch model for this session
-	cmdSwitchModelForThisSessionSameAsAltP: string; // Switch model for this session (same as alt+p)
-	cmdSwitchToAFastCheapModelAtTheNextActionWorksEvenWithoutPrewalk: string; // Switch to a fast/cheap model at the next action (works even without --prewalk)
-	cmdSwitchToHeadlessMode: string; // Switch to headless mode
-	cmdSwitchToVisibleMode: string; // Switch to visible mode
-	cmdTestConnectionToAServer: string; // Test connection to a server
-	cmdToggleAdvisor: string; // Toggle advisor
-	cmdToggleBrowserHeadlessVsVisibleMode: string; // Toggle browser headless vs visible mode
-	cmdToggleComputerUse: string; // Toggle computer use
-	cmdToggleFastMode: string; // Toggle fast mode
-	cmdToggleGoalModePersistentAutonomousObjectiveForThisSession: string; // Toggle goal mode (persistent autonomous objective for this session)
-	cmdTogglePlanModeAgentPlansBeforeExecuting: string; // Toggle plan mode (agent plans before executing)
-	cmdTogglePriorityServiceTierOpenAIServiceTierPriorityAnthropicSpeedFast: string; // Toggle priority service tier (OpenAI service_tier=priority, Anthropic speed=fast)
-	cmdToggleTheAdvisorASecondModelThatReviewsEachTurnAndInjectsNotes: string; // Toggle the advisor (a second model that reviews each turn and injects notes)
-	cmdToggleTheNativeComputerUseToolForThisSession: string; // Toggle the native computer-use tool for this session
-	cmdToggleVibeModeDirectPersistentFastGoodWorkerSessionsReadOnlyToolset: string; // Toggle vibe mode (direct persistent fast/good worker sessions; read-only toolset)
-	cmdToggleVisionDelegation: string; // Toggle vision delegation
-	cmdUninstallAPluginSelectorIfNoArgs: string; // Uninstall a plugin (selector if no args)
-	cmdUpdateMarketplaceCatalogS: string; // Update marketplace catalog(s)
-	cmdUpgradeOutdatedPlugins: string; // Upgrade outdated plugins
-	cmdValidateOneFindingWithZetaTools: string; // Validate one finding with Zeta tools
-	cmdViewAndManageInstalledPlugins: string; // View and manage installed plugins
-	cmdViewOrModifyTheAgentSTodoList: string; // View or modify the agent's todo list
-	cmdWriteTodosAsMarkdownToAFileDefaultTODOMd: string; // Write todos as Markdown to a file (default: TODO.md)
 
 	// input & selector controller status texts
 	statusImagePasteIsNotSupportedInThisPrompt: string; // Image paste is not supported in this prompt
@@ -1098,7 +905,6 @@ export interface Messages {
 	imExitVibeModeFirst: string;
 	imExitPlanModeFirst: string;
 	imPlanModeEnabledFmt: string;
-	cmdLoopLong: string;
 	cmdRenameGenerate: string;
 	imPlanUltraModeEnabledFmt: string;
 	imPlanModePaused: string;
@@ -1975,13 +1781,10 @@ export interface Messages {
 	cmdSshAdd: string;
 	cmdSshList: string;
 	cmdSshRemove: string;
-	cmdSshHelp: string;
 	cmdNew: string;
 	cmdFresh: string;
 	cmdClear: string;
 	cmdDrop: string;
-	cmdTrash: string;
-	cmdRestore: string;
 	deleteArmed: string;
 	deleteArmedFinal: string;
 	deleteRelayProtected: string;
@@ -1999,7 +1802,6 @@ export interface Messages {
 	cmdShake: string;
 	cmdHandoff: string;
 	cmdResume: string;
-	cmdBtw: string;
 	cmdBtwHistory: string;
 	cmdTan: string;
 	cmdOmfg: string;
@@ -2073,7 +1875,6 @@ export interface Messages {
 	cmdCollabStop: string;
 	cmdCollabJoin: string;
 	cmdCollabLeave: string;
-	cmdBrowserMode: string;
 	cmdBrowserHeadless: string;
 	cmdBrowserVisible: string;
 	cmdCopyPick: string;
@@ -2101,7 +1902,6 @@ export interface Messages {
 	cmdQuit: string;
 	cmdMemoryMmDelete: string;
 	cmdMemoryMmReload: string;
-	cmdRename: string;
 	cmdMove: string;
 	cmdAddDir: string;
 	cmdRemoveDir: string;
@@ -2135,21 +1935,14 @@ export interface Messages {
 	cmdGuidedGoal: string;
 	cmdQueue: string;
 	cmdModel: string;
-	cmdModelSwitch: string;
 	cmdFast: string;
 	cmdFastOn: string;
 	cmdFastUltra: string;
 	cmdFastOff: string;
 	cmdFastStatus: string;
-	cmdComputer: string;
 	cmdComputerOn: string;
 	cmdComputerOff: string;
 	cmdComputerStatus: string;
-	cmdVision: string;
-	cmdVisionOn: string;
-	cmdVisionOff: string;
-	cmdVisionAuto: string;
-	cmdVisionStatus: string;
 	cmdPrewalk: string;
 	cmdTodo: string;
 	cmdTodoEdit: string;
@@ -2186,7 +1979,6 @@ export interface Messages {
 	cmdContext: string;
 	cmdExtensions: string;
 	cmdAgents: string;
-	cmdBranch: string;
 	cmdFork: string;
 	cmdForkPane: string;
 	cmdForkWindow: string;
@@ -2294,7 +2086,6 @@ export interface Messages {
 	cmdModelAcp: string;
 	cmdFastAcp: string;
 	cmdComputerAcp: string;
-	cmdVisionAcp: string;
 	cmdPrewalkAcp: string;
 	cmdPrewalkRestart: string;
 	cmdPrewalkOff: string;
@@ -2324,32 +2115,20 @@ export interface Messages {
 	cmdDropAllThinkingBlocks: string;
 	cmdEnableLargerContextWindows: string;
 	cmdMoveThisSessionIntoaNewWorktreeChangesIncluded: string;
-	cmdOpentheGitUISplitDiffViewerStagingCommitComposer: string;
-	cmdOpentheLiveAgentHub: string;
 	cmdPinorUnpinaSessionattheTopoftheResumeList: string;
-	cmdPlanRunInspectImportandCompareOMPNativeSecurityScans: string;
 	cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession: string;
-	cmdRestoretheBoundedHUDPreview: string;
-	cmdRewindtoaPreviousMessageKeepingtheOldPathAsaBranch: string;
 	cmdRunMemoryConsolidationNow: string;
-	cmdShowEveryPhaseandTaskintheHUD: string;
 	cmdShowExtendedContextStatus: string;
 	cmdShowPendingMemoryDeltasAwaitingConsolidation: string;
 	cmdToggleExtendedContextWindows: string;
 	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor: string;
 	cmdUseDefaultOrStandardPricingContextWindows: string;
-	cmdValidateOneFindingwithOMPNativeTools: string;
-	cmdDetectAndFixProjectDiagnosticsWithWeightedParallelSubagents: string;
-	cmdMoveThisSessionIntoANewWorktreeChangesIncluded: string;
 	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer: string;
 	cmdOpenTheLiveAgentHub: string;
 	cmdOpenThisSessionsTraceInTheStatsDashboard: string;
-	cmdPinOrUnpinASessionAtTheTopOfTheResumeList: string;
-	cmdRestartOmpWithTheSameLaunchFlagsResumingThisSession: string;
 	cmdRestoreTheBoundedHudPreview: string;
 	cmdRewindToAPreviousMessageKeepingTheOldPathAsABranch: string;
 	cmdShowEveryPhaseAndTaskInTheHud: string;
-	cmdToggleLoopModeWhileEnabledTheNextPromptYouSendResubmitsAfterEveryYieldEscCancelsTheCurrentIterationLoopAgainToDisable: string;
 
 	// ── Slash-command TUI autocomplete states ───────────────────────────────
 	acPlanDisabledInSettings: string; // "Plan: disabled in settings"
@@ -3346,6 +3125,42 @@ export interface Messages {
 	grManualTitleFmt: string; // "Title: %s"
 	grManualLabelsFmt: string; // "Labels: %s"
 	grManualBodyLabel: string; // "Body:"
+
+	// Command descriptions that were still hard-coded English before the
+	// fix/i18n gaps pass: the bundled custom commands (green/review/annotate)
+	// and the autoresearch extension command. `/init` and `/dump` reuse the
+	// catalogue keys that already existed for them (`cmdInitGenerateAgentsMd`,
+	// `cmdDumpAcp`) instead of growing near-duplicate entries.
+	cmdAutoresearch: string; // Toggle builtin autoresearch mode, or pass off / clear, or a goal message.
+	cmdGreen: string; // Generate a prompt to iterate on CI failures until the branch is green
+	cmdReview: string; // Launch interactive code review
+	cmdAnnotate: string; // Annotate a diff or text from a file, prompt, latest reply, or session
+
+	// ACP-only copy for slash commands whose `acpDescription` was a literal.
+	// Commands whose ACP copy is byte-identical to an existing key reuse that
+	// key instead (cmdTool, cmdTime, cmdHandoff, cmdMoveAcp, ...).
+	cmdModelpresetAcp: string; // Manage model presets
+	cmdEffortAcp: string; // Set or show reasoning effort (thinking level, intelligence)
+
+	// Startup warnings: model restore fallback and unknown compat keys.
+	restoreModelRestoredFmt: (p: string, m: string) => string; // Restored model: <provider>/<id>
+	restoreModelFallbackToFmt: (p: string, m: string) => string; // Falling back to: <provider>/<id>
+	restoreModelReasonMissing: string; // model no longer exists
+	restoreModelReasonNoApiKey: string; // no API key available
+	restoreModelWarningFmt: (p: string, m: string, reason: string) => string; // Warning: Could not restore model <p>/<m> (<reason>).
+	restoreModelFallbackMessageFmt: (
+		p: string,
+		m: string,
+		reason: string,
+		fallbackProvider: string,
+		fallbackModel: string,
+	) => string; // Could not restore model <p>/<m> (<reason>). Using <fp>/<fm>.
+	modelsUnknownCompatKeyFmt: (file: string, keyPath: string) => string; // Unknown compat key in <file>: <keyPath> (configuration still loaded).
+	modelsUnknownCompatKeyWhereFmt: (file: string, where: string, hint: string) => string; // ... <where><hint> ...
+	modelsUnknownCompatKeyRenamedFmt: (renamedTo: string) => string; //  — renamed to "<name>"; update or remove it
+	modelsUnknownCompatKeyPlacesFmt: (key: string, count: number) => string; // <key> at <count> places
+	modelsUnknownCompatKeyMoreFmt: (count: number) => string; // , +<count> more
+	modelsUnknownCompatKeyOmittedFmt: (n: number, file: string) => string; // <n> more unknown compat key(s) in <file>; see the debug log for the full list.
 }
 
 export { M } from "./index";

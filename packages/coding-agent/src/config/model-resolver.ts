@@ -39,6 +39,7 @@ import { fuzzyMatch } from "@linxiraos/pi-tui";
 import { logger } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import MODEL_PRIO from "../priority.json" with { type: "json" };
+import { M } from "../i18n";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -2427,26 +2428,32 @@ export async function restoreModelFromSession(
 
 	if (restoredModel && hasApiKey) {
 		if (shouldPrintMessages) {
-			console.log(chalk.dim(`Restored model: ${savedProvider}/${savedModelId}`));
+			console.log(chalk.dim(M.restoreModelRestoredFmt(savedProvider, savedModelId)));
 		}
 		return { model: restoredModel, fallbackMessage: undefined };
 	}
 
 	// Model not found or no API key - fall back
-	const reason = !restoredModel ? "model no longer exists" : "no API key available";
+	const reason = !restoredModel ? M.restoreModelReasonMissing : M.restoreModelReasonNoApiKey;
 
 	if (shouldPrintMessages) {
-		console.error(chalk.yellow(`Warning: Could not restore model ${savedProvider}/${savedModelId} (${reason}).`));
+		console.error(chalk.yellow(M.restoreModelWarningFmt(savedProvider, savedModelId, reason)));
 	}
 
 	// If we already have a model, use it as fallback
 	if (currentModel) {
 		if (shouldPrintMessages) {
-			console.log(chalk.dim(`Falling back to: ${currentModel.provider}/${currentModel.id}`));
+			console.log(chalk.dim(M.restoreModelFallbackToFmt(currentModel.provider, currentModel.id)));
 		}
 		return {
 			model: currentModel,
-			fallbackMessage: `Could not restore model ${savedProvider}/${savedModelId} (${reason}). Using ${currentModel.provider}/${currentModel.id}.`,
+			fallbackMessage: M.restoreModelFallbackMessageFmt(
+				savedProvider,
+				savedModelId,
+				reason,
+				currentModel.provider,
+				currentModel.id,
+			),
 		};
 	}
 
@@ -2458,12 +2465,18 @@ export async function restoreModelFromSession(
 	);
 	if (fallbackModel) {
 		if (shouldPrintMessages) {
-			console.log(chalk.dim(`Falling back to: ${fallbackModel.provider}/${fallbackModel.id}`));
+			console.log(chalk.dim(M.restoreModelFallbackToFmt(fallbackModel.provider, fallbackModel.id)));
 		}
 
 		return {
 			model: fallbackModel,
-			fallbackMessage: `Could not restore model ${savedProvider}/${savedModelId} (${reason}). Using ${fallbackModel.provider}/${fallbackModel.id}.`,
+			fallbackMessage: M.restoreModelFallbackMessageFmt(
+				savedProvider,
+				savedModelId,
+				reason,
+				fallbackModel.provider,
+				fallbackModel.id,
+			),
 		};
 	}
 

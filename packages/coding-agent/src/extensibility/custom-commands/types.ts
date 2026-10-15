@@ -85,8 +85,15 @@ export interface CustomCommandAPI {
 export interface CustomCommand {
 	/** Command name (can include namespace like "git:commit") */
 	name: string;
-	/** Description shown in command autocomplete */
-	description: string;
+	/**
+	 * Description shown in command autocomplete.
+	 *
+	 * Declare localized copy as a thunk (`() => M.cmdFoo`) so the string is
+	 * recomputed against the catalogue active at read time and follows
+	 * `/language`. A plain string is still accepted for copy that has no
+	 * translation; consumers must resolve it with `resolveCommandDescription`.
+	 */
+	description: string | (() => string);
 	/**
 	 * Optional argument completions shown in the slash-command autocomplete UI.
 	 * @param cwd - Live session working directory (follows /move and /wt)

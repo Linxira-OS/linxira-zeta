@@ -91,7 +91,10 @@ export async function buildAvailableSlashCommands(
 			if (isAcpBuiltinShadowedName(command.name)) continue;
 			appendCommand({
 				name: command.name,
-				description: command.description ?? "(extension command)",
+				description:
+					command.description === undefined
+						? "(extension command)"
+						: resolveCommandDescription(command.description),
 				input: { hint: "arguments" },
 				source: "extension",
 			});
@@ -102,7 +105,7 @@ export async function buildAvailableSlashCommands(
 		const source: AvailableSlashCommandSource = command.path?.startsWith("mcp:") ? "mcp_prompt" : "custom";
 		appendCommand({
 			name: command.command.name,
-			description: command.command.description,
+			description: resolveCommandDescription(command.command.description),
 			input: { hint: "arguments" },
 			source,
 		});

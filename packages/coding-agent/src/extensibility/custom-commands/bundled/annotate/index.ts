@@ -5,6 +5,7 @@ import type {
 } from "../../../../extensibility/custom-commands/types";
 import type { AutocompleteItem } from "@linxiraos/pi-tui";
 import { CombinedAutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
+import { M } from "../../../../i18n";
 import type { CodeReviewOverlayResult, TextReviewSource } from "@linxiraos/pi-tui/overlays/annotation-types";
 import {
 	extractReviewPrRefFromArgs,
@@ -309,7 +310,7 @@ export async function runAnnotateCommand(
 
 export class AnnotateCommand implements CustomCommand {
 	name = "annotate";
-	description = "Annotate a diff or text from a file, prompt, latest reply, or session";
+	description = () => M.cmdAnnotate;
 	#fileCompletionProvider: CombinedAutocompleteProvider | undefined;
 	#fileCompletionCwd: string | undefined;
 

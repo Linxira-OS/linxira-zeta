@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import type { AutocompleteItem } from "@linxiraos/pi-tui";
 import { logger, prompt } from "@linxiraos/pi-utils";
+import { M } from "../i18n";
 import type { ExtensionContext, ExtensionFactory } from "../extensibility/extensions";
 import commandResumeTemplate from "./command-resume.md" with { type: "text" };
 import { createDashboardController } from "@linxiraos/pi-tui/apps/autoresearch-dashboard";
@@ -123,7 +124,7 @@ export const createAutoresearchExtension: ExtensionFactory = api => {
 	api.registerTool(createUpdateNotesTool({ dashboard, getRuntime, pi: api }));
 
 	api.registerCommand("autoresearch", {
-		description: "Toggle builtin autoresearch mode, or pass off / clear, or a goal message.",
+		description: () => M.cmdAutoresearch,
 		getArgumentCompletions(argumentPrefix: string): AutocompleteItem[] | null {
 			if (argumentPrefix.includes(" ")) return null;
 			const normalized = argumentPrefix.trim().toLowerCase();

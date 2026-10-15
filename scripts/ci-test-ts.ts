@@ -281,7 +281,19 @@ function classifyCodingAgentTest(testFile: string, content: string): CodingAgent
 async function getCodingAgentTestPartition(): Promise<CodingAgentTestPartition> {
 	codingAgentTestPartitionPromise ??= (async () => {
 		const codingAgentDir = path.join(repoRoot, "packages/coding-agent");
-		const testFiles = (await collectTestsUnder(path.join(codingAgentDir, "test"), codingAgentDir)).sort();
+		// `test/` only, for years: every guard that lives *next to* its subject
+		// under `src/` — `src/i18n/messages.test.ts` (catalogue key parity),
+		// `src/config/settings-zh.test.ts`, `src/i18n/command-descriptions.test.ts`
+		// — was collected by no bucket and therefore ran in no CI job. It is the
+		// reason a 3219-key catalogue could silently drift, and why the settings
+		// zh overlay could park 29 option entries in a map the panel never reads.
+		// Both roots are `bun test`-runnable from the package root; unmatched
+		// files fall through to the `native` bucket (lowest concurrency, native
+		// addon present), which is what these guards want.
+		const testFiles = [
+			...(await collectTestsUnder(path.join(codingAgentDir, "test"), codingAgentDir)),
+			...(await collectTestsUnder(path.join(codingAgentDir, "src"), codingAgentDir)),
+		].sort();
 		const partition: CodingAgentTestPartition = {
 			singleton: [],
 			ui: [],

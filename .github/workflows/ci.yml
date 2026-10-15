@@ -231,6 +231,24 @@ jobs:
            run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
+         # i18n: the catalogue is three files that must stay key-equal (messages
+         # interface == en == zh, no blank zh value) — `packages/coding-agent/
+         # src/i18n/messages.test.ts` asserts the same property, but it lives
+         # under `src/` and was collected by no test bucket, so this step is the
+         # only signal a catalogue edit got on a PR that did not touch anything
+         # else. The description guard is its counterpart: a translated key is
+         # worthless if no call site reads it (26 hardcoded `acpDescription`
+         # literals shipped next to 21 unused `cmd*Acp` keys).
+         - name: i18n catalogue consistency guard
+           run: bun scripts/check-i18n-consistency.ts
+         - name: i18n command-description guard
+           run: bun scripts/check-i18n-commands.ts
+         # Same reason as the package.json merge guard below: a guard whose
+         # fixtures are never executed is a comment. These pin the failure modes
+         # (dropped key, blank zh value, static description, broken scan scope)
+         # against synthetic catalogue files.
+         - name: Unit-test the i18n guards
+           run: bun test scripts/check-i18n-consistency.test.ts scripts/check-i18n-commands.test.ts
          # The desktop shell mirrors the CLI's serve-discovery decision module
          # (it has no workspace dependency), so the two decision matrices must
          # stay equal.
