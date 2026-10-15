@@ -246,6 +246,65 @@ The v18.1.10 sync has merged (PR #8) and rides the 1.1.9 release; everything
 lands as Zeta overlay commits on that baseline, except item 1, which is
 build-infra and can land independently.
 
+### P0 — LSP memory discipline & multi-language server strategy (zetawork prerequisite)
+
+User ruling (2026-10-15): **this must be optimised — it is a high-level roadmap
+goal, not a nice-to-have.** Once the IDE/workbench is real, LSP servers are
+mandatory, and "repos multiply × sessions multiply" makes the memory grow
+**super-linearly — it will flatten the machine** (their words; the local Linux
+distro repos + many subagents in parallel make it worse).
+
+Triggering incident (2026-10-15, measured on this workstation): a single
+`tsc.exe --lsp --stdio` (pid 31516) reached **11,756 MB**, spawned by this
+repo's LSP broker (`omp.lsp.mux`, `lsp.lazy = true`, `lsp.shared = true`,
+resident ~52 min), running **at the repo root** — the root `tsconfig.json` is a
+solution file whose reference (`packages/tsconfig.workspace.json`) globs every
+package. Broker stopped → memory released (free 16.2 GB / 31.4 GB); no
+`tsc`/`--lsp` process remained. **Not** a build; the merge-branch worktree was
+not involved.
+
+Problem surface
+1. One server per (repo × language) held by a shared broker: resident,
+   unbounded, no heap cap, no idle eviction, no RSS ceiling.
+2. Language breadth (TS/JS, Python, Rust, R, Java, C/C++, …); the node- and
+   JVM-based servers (`tsc --lsp` / `typescript-language-server`, `jdtls`) are
+   the heavy ones.
+3. Many repos × many sessions × many subagents → per-process peak × process
+   count → system-level OOM.
+
+Directions (to be refined; not commitments)
+1. **Prefer Rust-native servers** where they exist — measured/claimed to be far
+   cheaper than node-based: `rust-analyzer` (Rust); `ty` (Astral: *"extremely
+   fast Python type checker and language server, **written in Rust**"*) and
+   `pyrefly` (Meta, Rust) for Python. Evaluate per language as we add support.
+2. **TypeScript: move to the native TypeScript 7 (Go) server** —
+   `microsoft/typescript-go`, preview on npm as `@typescript/native-preview`
+   (`tsgo`), which ships its own `internal/lsp`; third-party editor plugins
+   already use it instead of the node `typescript-language-server`. This is the
+   most direct fix for the TS side; fold in the existing
+   `toolchain-ts7-bun14x` findings.
+3. **Broker-side discipline**: exactly one instance per (repo, language) with
+   **configurable RSS ceiling + idle LRU eviction + restart on breach**.
+   `lsp.shared` gives sharing without limits — that is the current state and it
+   is not enough.
+4. **Server configuration must expose extra args / environment** — today
+   `cfg://lsp` has only `enabled / lazy / shared / diagnostics* / formatOnWrite`,
+   i.e. **no way to set a heap cap** (e.g. `NODE_OPTIONS=--max-old-space-size=…`).
+5. **Rust-side LSP host/client for zetawork**: `tower-lsp` /
+   `tower-lsp-server` (Tower ecosystem) or `rust-analyzer/lsp-server`
+   (lightweight sync) — no node in the workbench's host path.
+6. **Graceful degradation**: when LSP is unavailable/disabled, workbench
+   navigation must still work (grep/index), never a blank surface.
+
+Acceptance directions: per-(repo, language) resident memory is configurable and
+enforced; idle servers are released after N minutes; M repos × K sessions grows
+sub-linearly; TS-side peak has a measured before/after when switching to tsgo.
+
+Interim discipline (in force since 2026-10-15): this repo runs with
+`lsp.enabled = false` for agent sessions; agents use `grep`/`read` instead of
+`xd://lsp`, never run repo-wide `tsc`/`bun check`/builds, and stop any LSP
+broker they started. Agents never write into the root checkout.
+
 ### P1 — Surface-scoped tool exposure contract
 
 The channel-trio pattern is the canonical mechanism for surface-targeted

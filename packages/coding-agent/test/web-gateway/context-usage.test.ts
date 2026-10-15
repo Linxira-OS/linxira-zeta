@@ -6,11 +6,13 @@
  * real system prompt + tool schemas): the whole point of the route is that it
  * invents no accounting of its own, so a stub session would test nothing. What
  * is pinned here is the projection contract — the category partition, the
- * window arithmetic, and the route's liveness/method gate.
+ * window arithmetic, the per-tool occupancy list (merge/sum + its memo), and
+ * the route's liveness/method gate.
  */
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { ToolResultMessage } from "@linxiraos/pi-ai";
 import { refreshDirsFromEnv, TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -21,6 +23,7 @@ import { webGatewayFetch } from "../../src/server/web-gateway";
 import { AgentSessionWrapper, sessions } from "../../src/server/web-gateway/agents";
 import {
 	buildContextUsageReport,
+	computeToolOccupancy,
 	handleAgentContextUsage,
 	type ContextUsageCategoryId,
 	type ContextUsageReport,
@@ -133,6 +136,22 @@ async function startWrappedSession(dir: TempDir) {
 	return { wrapper, sessionId: sessionManager.getSessionId(), model, contextWindow };
 }
 
+/**
+ * A settled tool result, as the agent loop appends one. The occupancy
+ * aggregation only reads `role`, `toolName` and `content`, so this is the whole
+ * shape it needs; fixed timestamps keep the cache key deterministic.
+ */
+function toolResult(toolName: string, toolCallId: string, text: string, timestamp: number): ToolResultMessage {
+	return {
+		role: "toolResult",
+		toolCallId,
+		toolName,
+		content: [{ type: "text", text }],
+		isError: false,
+		timestamp,
+	};
+}
+
 describe("buildContextUsageReport", () => {
 	test("projects the session's own accounting: window, categories, counters", async () => {
 		const { wrapper, sessionId, model, contextWindow } = await startWrappedSession(
@@ -193,6 +212,64 @@ describe("buildContextUsageReport", () => {
 			report.contextWindow,
 		);
 	});
+
+	test("aggregates the live tool results into `tools`, descending by tokens", async () => {
+		const { wrapper } = await startWrappedSession(tempDir("@pi-gateway-context-tools-"));
+		const session = wrapper.getSession();
+		const tokenizer = session.agent.tokenizer;
+		// The panel reports on the live transcript, so seed it directly: the two
+		// `read` results must merge, `bash` must stay its own entry.
+		const firstRead = toolResult("read", "call-0", "alpha ".repeat(40), 1);
+		const bash = toolResult("bash", "call-1", "beta ".repeat(10), 2);
+		const secondRead = toolResult("read", "call-2", "gamma ".repeat(120), 3);
+		session.agent.state.messages.push(firstRead, bash, secondRead);
+
+		const tools = buildContextUsageReport(session).tools;
+		expect(tools.map(entry => entry.name)).toEqual(["read", "bash"]);
+		expect(tools.map(entry => entry.results)).toEqual([2, 1]);
+		// Oracle: the session's own tokenizer, counted once per message and summed
+		// per tool name — no second estimation scheme may appear in the report.
+		expect(tools[0]!.tokens).toBe(tokenizer.countMessage(firstRead) + tokenizer.countMessage(secondRead));
+		expect(tools[1]!.tokens).toBe(tokenizer.countMessage(bash));
+		// The panel draws this order as-is: descending by tokens.
+		expect(tools[0]!.tokens).toBeGreaterThan(tools[1]!.tokens);
+	});
+});
+
+describe("computeToolOccupancy", () => {
+	test("memoizes on the transcript version: no re-tokenization until it grows", async () => {
+		const { wrapper } = await startWrappedSession(tempDir("@pi-gateway-context-tools-cache-"));
+		const session = wrapper.getSession();
+		const tokenizer = session.agent.tokenizer;
+		const firstRead = toolResult("read", "call-0", "alpha ".repeat(40), 1);
+		const secondRead = toolResult("read", "call-1", "beta ".repeat(40), 2);
+		const bash = toolResult("bash", "call-2", "gamma ".repeat(40), 3);
+		session.agent.state.messages.push(firstRead, secondRead, bash);
+
+		// Spy on the session's own counter, passing through to the real estimator
+		// so the numbers stay the session's: what is asserted is the call count.
+		const estimate = tokenizer.countMessage.bind(tokenizer);
+		const spy = spyOn(tokenizer, "countMessage").mockImplementation(message => estimate(message));
+
+		const first = computeToolOccupancy(session);
+		expect(spy).toHaveBeenCalledTimes(3);
+		spy.mockClear();
+
+		// The panel polls this route: an unchanged transcript must not re-walk
+		// (let alone re-tokenize) its tool results.
+		const second = computeToolOccupancy(session);
+		expect(spy).not.toHaveBeenCalled();
+		expect(second).toEqual(first);
+
+		// A grown transcript must recompute — the memo is not "first result wins".
+		const thirdBash = toolResult("bash", "call-3", "delta ".repeat(200), 4);
+		session.agent.state.messages.push(thirdBash);
+		const third = computeToolOccupancy(session);
+		expect(spy).toHaveBeenCalledTimes(4);
+		expect(third.map(entry => entry.name)).toEqual(["bash", "read"]);
+		expect(third.map(entry => entry.results)).toEqual([2, 2]);
+		expect(third[0]!.tokens).toBe(estimate(bash) + estimate(thirdBash));
+	});
 });
 
 describe("GET /api/agent/:id/context", () => {
@@ -207,12 +284,14 @@ describe("GET /api/agent/:id/context", () => {
 		expect(body.context.sessionId).toBe(sessionId);
 		expect(body.context.contextWindow).toBe(contextWindow);
 		expect(body.context.categories.map(category => category.id)).toEqual([...CATEGORY_ORDER]);
+		// A fresh session has no tool results, and says so instead of omitting the field.
+		expect(body.context.tools).toEqual([]);
 	});
 
-	test("reports { running: false } for a session the gateway is not hosting", async () => {
+	test("reports { running: false, tools: [] } for a session the gateway is not hosting", async () => {
 		const response = handleAgentContextUsage("no-such-session");
 		expect(response.status).toBe(200);
-		expect(await response.json()).toEqual({ running: false });
+		expect(await response.json()).toEqual({ running: false, tools: [] });
 	});
 
 	test("is reachable through the gateway dispatcher and answers GET only", async () => {
@@ -224,7 +303,7 @@ describe("GET /api/agent/:id/context", () => {
 			"127.0.0.1",
 		);
 		expect(getResponse.status).toBe(200);
-		expect(await getResponse.json()).toEqual({ running: false });
+		expect(await getResponse.json()).toEqual({ running: false, tools: [] });
 
 		const postResponse = await webGatewayFetch(
 			new Request("http://127.0.0.1/api/agent/no-such-session/context", { method: "POST" }),
