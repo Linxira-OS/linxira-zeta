@@ -148,6 +148,12 @@ two-parent tag merge.
     this shipped. Control: the extended needle flags the two pre-fix lines and 0 after.
   - Dispatch `38705037483` @ `65a13e09fb4`: **19/19 success** — the whole surface green against a
     source-matched addon, including `Validate Rust workspace (bazel)` and the cross-target addon build.
+  - Then `main` advanced 10 commits (the real three-way `zeta-package` driver fix #203 + the fixtures
+    guard note + roadmap); merged clean and re-dispatched:
+    - Dispatch `38709164744` @ `c128458bd71`: **success** (all 19 non-skipped jobs).
+    - Dispatch `38709556642` @ `42e2a2d6ba4` (the merged head, and the PR head):
+      **19 success / 0 failure / 13 skipped** — the PR is green at its exact head against a
+      source-matched addon.
 - **Not verified on this host**: native addon build (no local `pi_natives.*.node`), so
   `gen:compat`/local test runs relied on a borrowed prebuilt addon that predates this window (it reports
   `ipcEndpoint: undefined`), and `cargo metadata` cannot resolve offline (`napi-build 2.6.0` is absent
