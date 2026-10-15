@@ -77,6 +77,14 @@ two-parent tag merge.
   This also explains the #189 finding that `packageManager` reverts to `bun@>=1.4` every
   merge (previously attributed to `fb4dcded44d` alone): the driver rewrites it each round.
   The driver fix is **not** in this PR (merge rounds and tooling fixes stay separate).
+  **Update (same day): the driver was fixed on `main` by PR #203** — `a36353a4cab` "fix(tooling):
+  make the zeta-package merge driver a real three-way merge", `e7c7b9b7517` (its three-way policy
+  documented where it is bound), `4b9e6f18475` (incident corpus + driver-loss ledger checked in as
+  `scripts/merge-package-json.test.ts` + `scripts/__fixtures__/package-json-merge/`) and
+  `27293e4d494`/`7ea1b4f97cc` (the `__fixtures__` exemption those fixtures need). Merging `main`
+  into this branch brought all of it in. The manifests hand-resolved in `80ca49db8c7` are unaffected
+  (they were resolved by hand, not by the driver), and `check-package-json-merge` still reports `OK`
+  on the merged tree — but every future round now goes through the three-way driver.
 - **`web-ui/` deliberately untouched**: running the playbook's `bun scripts/set-version.ts 1.2.1`
   also bumps the standalone `web-ui/package.json` (`@linxiraos/zeta-web`) — it was at `1.1.5` on
   main. `check-version-consistency.ts` says why that is correct between releases ("web-ui/ is
