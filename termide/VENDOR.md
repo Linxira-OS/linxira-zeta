@@ -79,7 +79,7 @@
 1. `git -C temp/termide fetch origin --tags && git log --oneline 0.38.0..<tag>` 确认窗口,**只取 tag**(上游 `main` 常领先于最新 tag,不要用 `main`);
 2. `git archive <tag> | tar -x -C termide`;**0.41.0 起上游没有 `.gitattributes`**(0.38.0 也没有),`git archive` **会**带上 `.github/` —— 解包后必须显式 `rm -rf termide/.github`;
 3. 逐项重放本表:干净项直接取上游,冲突项按「0.41.0 处置」列语义重放(`git merge-file --diff3 ours 旧上游树 新上游树` 是好工具:base=旧上游树可把「我们的偏离」与「上游演进」分开);
-4. 重生成锁文件:先 `termide/Cargo.lock`(发布构建走 `--locked`),再 `main/Cargo.lock`(path 依赖 + `[patch.crates-io] unicode-width` 镜像);根 `Cargo.lock` 不含 `termide-*`,不动;
+4. 核对锁文件:本次 `termide/Cargo.lock` **已与上游 0.41.0 逐字节一致**(本树 `Cargo.toml` 与上游 0.41.0 逐字节相同,故无需本地解析;发布构建走 `--locked`),副作用是该文件原有的 CRLF 被规范化为 **LF**(`main/Cargo.lock`/根 `Cargo.lock` 本就是 LF);`main/Cargo.lock` 在 path 依赖变化后重新生成(`[patch.crates-io] unicode-width` 镜像保留,两个锁里 `unicode-width 0.2.2` 均无 `source` 行 ⇒ 走路径补丁);根 `Cargo.lock` 不含 `termide-*`,不动;
 5. 在 `termide/` 与 `main/` 各自 workspace 内跑 fmt / check / clippy / nextest;
 6. 重编两个平台 leaf 二进制并提交(见下);
 7. 更新本文件来源 commit/修改层;单 commit 提交(`vendor: bump termide to <sha>`)。
@@ -99,6 +99,13 @@ cargo build --release --locked -p termide
 `npm/ide-windows-x64/bin/termide.exe`、`npm/ide-linux-x64/bin/termide-linux-x64`;
 `--version` 必须等于本文件来源 tag(CI 矩阵**没有** windows 腿,`.exe` 只能本地出)。
 `.cargo/config.toml` 已为 `x86_64-pc-windows-gnu` 配好 mingw 链接器;`russh`/`aws-lc-sys` 还需要 `nasm`。
+
+**stamp 陷阱(实测)**：`crates/core/build.rs` 用 `git rev-parse --short=8 HEAD` + `git status --porcelain` 打
+`TERMIDE_VERSION = "<pkg> (<sha>[-dirty])"`。所以
+(a) 构建前工作树必须干净(否则带 `-dirty`)——先提交快照,再构建,二进制随后单独提交;
+(b) WSL 里 **git worktree 不能用来构建 linux 叶子**:worktree 的 `.git` 是含 Windows 绝对路径的 gitfile,
+WSL git 报 `fatal: gitfile does not point to a valid repository` ⇒ 静默退化成无 stamp 的 `termide 0.41.0`。
+linux 叶子要在一个 **native checkout(clone)** 里构建(旧的 0.38.0 叶子带 `(c4559e00)` 戳,即当年在根 checkout 上编的)。
 
 ## 上游 0.38.0→0.41.0 重大结构变更(供后续重放参照)
 
