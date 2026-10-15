@@ -11,7 +11,7 @@ two-parent tag merge.
 
 - **Integrated through**: `v18.10.0` (`b83200eb866821f02625332025b453f06ce4e12a`,
   confirmed by `git merge-base refs/heads/main <tag>` == `bd4dffd5e617`, merge commit
-  `TBD-SHA`). The previous value was `v18.9.2`
+  `80ca49db8c7`). The previous value was `v18.9.2`
   (`bd4dffd5e617ce732f8a14249b0be1e6c7621886`, PR #92, merge `af624c160fe`),
   which is exactly the merge-base this round started from.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
@@ -24,14 +24,14 @@ two-parent tag merge.
 - **Upstream moved the v18.8.4 tag** after we merged it: the remote now
   advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
   the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
-- **Next merge** starts from this round's final commit on `main` (`TBD-SHA`
+- **Next merge** starts from this round's final commit on `main` (`80ca49db8c7`
   once PR for `sync/omp-release/v18.10.0` merges), which is exactly what `git merge-base`
   against the next tag will compute. The increment applied is upstream's, not a
   whole-tree comparison against our branch.
 
 
 
-## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `TBD-SHA`)
+## v18.10.0 incremental merge (Zeta — branch `sync/omp-release/v18.10.0`; merge commit `80ca49db8c7`)
 
 - **Baseline**: v18.9.2, integrated by PR #92 (`af624c160fe`; tag commit `bd4dffd5e617`).
 - **Source tag**: `v18.10.0` → `b83200eb866821f02625332025b453f06ce4e12a`, a *lightweight* tag
