@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>zeta embed · chrome=none</title>
+    <style>
+      /* Deliberately chrome-less: the shell draws every bar, this page draws
+         only its own body — the `chrome=none` contract of
+         local://zetawork-webbridge-design.md §3.1. */
+      :root {
+        color-scheme: dark;
+        --bg: #14161a;
+        --panel: #1b1f26;
+        --line: #2a2f38;
+        --fg: #d6d8dc;
+        --dim: #8a9099;
+        --accent: #4c86df;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+        font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+      body { display: flex; flex-direction: column; gap: 10px; padding: 12px; overflow: auto; }
+      header { display: flex; align-items: baseline; gap: 8px; }
+      h1 { font-size: 14px; margin: 0; font-weight: 600; }
+      .badge { font-size: 11px; color: var(--bg); background: var(--accent);
+        border-radius: 999px; padding: 1px 8px; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+        padding: 8px 10px; }
+      .k { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+      .v { font-variant-numeric: tabular-nums; font-size: 15px; margin-top: 2px; }
+      .live { border-left: 3px solid var(--accent); padding-left: 10px; }
+      .msgs { list-style: none; margin: 0; padding: 0; font-size: 12px; color: var(--dim); }
+      .msgs li { border-bottom: 1px dotted var(--line); padding: 3px 0; }
+      code { background: #0f1115; border-radius: 4px; padding: 0 4px; }
+      .cjk { letter-spacing: 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>嵌入页 /embed/session?chrome=none</h1>
+      <span class="badge">WebView2</span>
+    </header>
+
+    <div class="cards">
+      <div class="card">
+        <div class="k">面板尺寸 (随窗口变化)</div>
+        <div class="v live" id="size">–</div>
+      </div>
+      <div class="card">
+        <div class="k">设备像素比</div>
+        <div class="v" id="dpr">–</div>
+      </div>
+      <div class="card">
+        <div class="k">UA 里的 Edge</div>
+        <div class="v" id="ua" style="font-size:11px; word-break:break-all;">–</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="k">中文渲染（页面侧，用于与 GPUI 侧对比）</div>
+      <div class="v cjk">中文｜宽字符｜对齐｜测试 · abc中def · 汉字 2 格</div>
+    </div>
+
+    <div class="card">
+      <div class="k">postMessage 契约（壳 ↔ 页）</div>
+      <ul class="msgs" id="msgs"></ul>
+    </div>
+
+    <script>
+      const log = (text) => {
+        const ul = document.getElementById("msgs");
+        const li = document.createElement("li");
+        li.textContent = new Date().toLocaleTimeString() + "  " + text;
+        ul.prepend(li);
+      };
+
+      const report = () => {
+        document.getElementById("size").textContent =
+          `${Math.round(window.innerWidth)} × ${Math.round(window.innerHeight)} CSS px`;
+        document.getElementById("dpr").textContent = window.devicePixelRatio;
+      };
+      report();
+      addEventListener("resize", () => { report(); log("resize —— 面板尺寸变化已送达页面"); });
+
+      const ua = navigator.userAgent;
+      const edge = ua.match(/Edg\/[\d.]+/);
+      document.getElementById("ua").textContent = edge ? edge[0] : ua;
+
+      // The shell contract: the page announces itself and nothing else.
+      const ready = { type: "zeta-embed-ready", view: "session", minWidth: 320 };
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(ready);
+        window.chrome.webview.addEventListener("message", (e) =>
+          log("壳 → 页: " + JSON.stringify(e.data)));
+        log("已发出 zeta-embed-ready（chrome.webview 通道）");
+      } else {
+        log("已发出 zeta-embed-ready（window.parent.postMessage 通道）");
+        parent.postMessage(ready, "*");
+      }
+      log("本地文件加载完成：" + location.href);
+    </script>
+  </body>
+</html>
