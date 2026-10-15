@@ -97,7 +97,13 @@ fn head_region(ui: &mut Ui, shell: &mut Shell) {
 /// `.nav` — 搜索 / 任务 / 自动化.
 fn nav_region(ui: &mut Ui, shell: &mut Shell) {
 	ui.add_space(5.0);
-	let inner = ui.max_rect().shrink2(vec2(8.0, 0.0));
+	let rect = ui.max_rect();
+	// `add_space` moved the cursor, so the rows start below it rather than at
+	// the region's top.
+	let inner = Rect::from_min_max(
+		pos2(rect.min.x + 8.0, ui.cursor().top()),
+		pos2(rect.max.x - 8.0, rect.max.y),
+	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()
 			.max_rect(inner)
