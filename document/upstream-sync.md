@@ -77,6 +77,13 @@ two-parent tag merge.
   This also explains the #189 finding that `packageManager` reverts to `bun@>=1.4` every
   merge (previously attributed to `fb4dcded44d` alone): the driver rewrites it each round.
   The driver fix is **not** in this PR (merge rounds and tooling fixes stay separate).
+- **`web-ui/` deliberately untouched**: running the playbook's `bun scripts/set-version.ts 1.2.1`
+  also bumps the standalone `web-ui/package.json` (`@linxiraos/zeta-web`) — it was at `1.1.5` on
+  main. `check-version-consistency.ts` says why that is correct between releases ("web-ui/ is
+  intentionally NOT checked: … between releases its manifest legitimately still carries the
+  version it last published"), and the previous round (`af624c160fe`) did not touch it either.
+  The bump was reverted so this round changes only the upstream integration and Zeta repair,
+  not a release surface.
 - **Regenerated**: `Cargo.lock` (3-way reconstructed with `git merge-file`; its 11 conflicts
   were all `1.2.1` vs `18.10.0` version lines, resolved to the Zeta line, while upstream's
   `napi 3.14.2` + `napi-build 2.6.0` bumps were kept), `packages/catalog/src/compat/rules.json`
