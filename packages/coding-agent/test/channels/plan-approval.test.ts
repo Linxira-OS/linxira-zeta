@@ -6,9 +6,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils";
 import { approveRemotePlan } from "../../src/channels/plan-approval";
 import { Settings } from "../../src/config/settings";
 import type { AgentSession } from "../../src/session/agent-session";
@@ -16,6 +17,7 @@ import type { AgentSession } from "../../src/session/agent-session";
 interface StubSession {
 	settings: Settings;
 	getActiveToolNames: ReturnType<typeof vi.fn>;
+	sessionManager: { getCwd: () => string };
 	setPlanModeState: ReturnType<typeof vi.fn>;
 	getPlanModeState: ReturnType<typeof vi.fn>;
 	setPlanReferencePath: ReturnType<typeof vi.fn>;
@@ -26,10 +28,15 @@ interface StubSession {
 	enterGoalMode: ReturnType<typeof vi.fn>;
 }
 
-function makeStubSession(settings = Settings.isolated({}), activeToolNames: string[] = ["read", "bash"]): StubSession {
+function makeStubSession(
+	settings = Settings.isolated({}),
+	activeToolNames: string[] = ["read", "bash"],
+	cwd = process.cwd(),
+): StubSession {
 	return {
 		settings,
 		getActiveToolNames: vi.fn(() => activeToolNames),
+		sessionManager: { getCwd: () => cwd },
 		setPlanModeState: vi.fn(),
 		getPlanModeState: vi.fn(() => undefined),
 		setPlanReferencePath: vi.fn(),
@@ -43,15 +50,24 @@ function makeStubSession(settings = Settings.isolated({}), activeToolNames: stri
 
 describe("approveRemotePlan", () => {
 	let tempDir: string;
+	let previousAgentDir: string | undefined;
 	const cleanups: Array<() => Promise<void>> = [];
 
 	beforeEach(async () => {
 		tempDir = await mkdtemp(join(tmpdir(), "zeta-plan-approve-"));
+		// The tracking mirror also updates the machine-global project index
+		// (`<agentDir>/tracking-index.json`); point it at the temp dir so a test
+		// run never registers a throwaway path in the developer's index.
+		previousAgentDir = getAgentDir();
+		const agentDir = join(tempDir, "agent");
+		await mkdir(agentDir, { recursive: true });
+		setAgentDir(agentDir);
 		cleanups.push(() => rm(tempDir, { recursive: true, force: true }));
 	});
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
+		if (previousAgentDir !== undefined) setAgentDir(previousAgentDir);
 		await Promise.all(cleanups.splice(0).map(fn => fn()));
 	});
 
@@ -112,6 +128,27 @@ describe("approveRemotePlan", () => {
 		await approveRemotePlan(withoutTools as unknown as AgentSession, { planFilePath, mode: "preserve" }, opts());
 		const bare = String(withoutTools.prompt.mock.calls[0]?.[0]);
 		expect(bare).not.toContain('op: "sync_todo"');
+	});
+
+	test("preserve mode mirrors the approved plan into project tracking", async () => {
+		const session = makeStubSession(Settings.isolated({ "tracking.enabled": true }), ["read", "bash"], tempDir);
+		const planFilePath = await seedPlan("# Words Counter\n\nFile contents.");
+
+		await approveRemotePlan(session as unknown as AgentSession, { planFilePath, mode: "preserve" }, opts());
+
+		// Slug comes from the shared plan-title resolver (`# Words Counter` →
+		// `words-counter`), the same source every other approval path uses.
+		const mirrored = join(tempDir, ".zeta", "tracking", "plans", "words-counter-plan.md");
+		expect(await Bun.file(mirrored).text()).toBe("# Words Counter\n\nFile contents.\n");
+	});
+
+	test("mirrors nothing when tracking is disabled", async () => {
+		const session = makeStubSession(Settings.isolated({}), ["read", "bash"], tempDir);
+		const planFilePath = await seedPlan();
+
+		await approveRemotePlan(session as unknown as AgentSession, { planFilePath, mode: "preserve" }, opts());
+
+		expect(await Bun.file(join(tempDir, ".zeta", "tracking", "plans")).exists()).toBe(false);
 	});
 
 	test("fresh mode clears the session, rewrites the plan and injects the prompt without history", async () => {

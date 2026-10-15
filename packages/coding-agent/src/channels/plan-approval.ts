@@ -19,6 +19,8 @@ import * as path from "node:path";
 import { isEnoent, logger, prompt } from "@linxiraos/pi-utils";
 import { derivePlanGoalObjective } from "../goals/plan-objective";
 import { cfgGoalEnabled } from "../goals/settings";
+import { resolvePlanTitle } from "../plan-mode/approved-plan";
+import { mirrorPlanToTracking } from "../tools/tracking";
 import { type LocalProtocolOptions, resolveLocalUrlToPath } from "../internal-urls";
 import planModeApprovedPrompt from "../prompts/system/plan-mode-approved.md" with { type: "text" };
 import planModeCompactInstructionsPrompt from "../prompts/system/plan-mode-compact-instructions.md" with { type: "text" };
@@ -118,6 +120,16 @@ export async function approveRemotePlan(
 
 		session.setPlanReferencePath(planFilePath);
 		session.markPlanReferenceSent();
+		// Mirror the approved plan into project tracking. Best-effort and gated on
+		// `tracking.enabled` inside the helper: a tracking miss must never fail an
+		// approval. Slug comes from the shared title resolver so this path names
+		// the mirror exactly like the yolo/TUI paths.
+		await mirrorPlanToTracking({
+			settings: session.settings,
+			cwd: session.sessionManager.getCwd(),
+			slug: resolvePlanTitle({ planContent, planFilePath }).title,
+			planContent,
+		});
 		const approvedPrompt = prompt.render(planModeApprovedPrompt, {
 			planFilePath,
 			planContent,

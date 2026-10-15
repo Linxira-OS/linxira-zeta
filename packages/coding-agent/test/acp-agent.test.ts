@@ -44,6 +44,7 @@ import {
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 import { cfgPlanAutosave, cfgPlanAutosaveDir, cfgPlanEnabled } from "@linxiraos/zeta/plan-mode/settings";
+import { cfgTrackingEnabled } from "@linxiraos/zeta/tools/settings";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
 function expectAcpStructure(schema: Validator<unknown>, value: unknown): void {
@@ -806,6 +807,62 @@ describe("ACP agent", () => {
 		const saved = path.join(harness.cwdA, ".zeta", "plans", "WORDS_COUNTER_PLAN.md");
 		expect(await Bun.file(saved).text()).toBe("# Words Counter\n\nFile contents.");
 		expect(session.planModeState).toBeUndefined();
+
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+
+	it("plan-proposal handler mirrors the approved plan into project tracking", async () => {
+		const harness = await createHarness();
+		cfgPlanEnabled.set(Settings.instance, true);
+		cfgTrackingEnabled.set(Settings.instance, true);
+
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		await harness.agent.setSessionMode({ sessionId: created.sessionId, modeId: "plan" });
+
+		const localOptions = {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		};
+		cleanupRoots.push(resolveLocalUrlToPath("local://", localOptions));
+		const planPath = resolveLocalUrlToPath("local://words-counter-plan.md", localOptions);
+		await Bun.write(planPath, "# Words Counter\n\nFile contents.");
+
+		const handler = session.planProposalHandler!;
+		const result = (await handler("words-counter")) as { content: Array<{ type: string; text: string }> };
+		expect(result.content[0]?.text).toMatch(/Plan approved/);
+
+		// Independent of plan autosave (`plan.autosave` is off here): the mirror
+		// lands under the session cwd's tracking dir, named from the resolved
+		// plan title.
+		const mirrored = path.join(harness.cwdA, ".zeta", "tracking", "plans", "words-counter-plan.md");
+		expect(await Bun.file(mirrored).text()).toBe("# Words Counter\n\nFile contents.\n");
+
+		harness.abortController.abort();
+		await Bun.sleep(0);
+	});
+
+	it("plan-proposal handler writes no tracking mirror when tracking is disabled", async () => {
+		const harness = await createHarness();
+		cfgPlanEnabled.set(Settings.instance, true);
+
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		await harness.agent.setSessionMode({ sessionId: created.sessionId, modeId: "plan" });
+
+		const localOptions = {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		};
+		cleanupRoots.push(resolveLocalUrlToPath("local://", localOptions));
+		const planPath = resolveLocalUrlToPath("local://words-counter-plan.md", localOptions);
+		await Bun.write(planPath, "# Words Counter\n\nFile contents.");
+
+		const handler = session.planProposalHandler!;
+		const result = (await handler("words-counter")) as { content: Array<{ type: string; text: string }> };
+		expect(result.content[0]?.text).toMatch(/Plan approved/);
+		expect(await Bun.file(path.join(harness.cwdA, ".zeta", "tracking", "plans")).exists()).toBe(false);
 
 		harness.abortController.abort();
 		await Bun.sleep(0);

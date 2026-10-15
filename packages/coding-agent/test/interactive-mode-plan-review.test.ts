@@ -25,6 +25,7 @@ import { setKeybindings } from "@linxiraos/pi-tui";
 import { formatNumber, TempDir } from "@linxiraos/pi-utils";
 
 import { cfgPlanAutosave, cfgPlanAutosaveDir } from "@linxiraos/zeta/plan-mode/settings";
+import { cfgTrackingEnabled } from "@linxiraos/zeta/tools/settings";
 
 /**
  * Matches the plan-approved synthetic-prompt dispatch. `#approvePlan` calls
@@ -1676,6 +1677,56 @@ describe("InteractiveMode plan review rendering", () => {
 		const saved = path.join(tempDir.path(), ".zeta", "plans", "AUTOSAVE_PLAN.md");
 		expect(await Bun.file(saved).text()).toBe("# Plan\n\nAutosave me.");
 		expect(status).toHaveBeenCalledWith(expect.stringContaining("Saved plan to"));
+	});
+
+	it("mirrors the approved plan into project tracking", async () => {
+		const planFilePath = "local://PLAN.md";
+		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		});
+		await Bun.write(resolvedPlanPath, "# Plan\n\nMirror me.");
+
+		await mode.handlePlanModeCommand();
+		cfgTrackingEnabled.set(session.settings, true);
+
+		vi.spyOn(mode, "showPlanReview").mockResolvedValue("Approve and execute");
+		vi.spyOn(mode, "handleClearCommand").mockResolvedValue();
+		vi.spyOn(session, "prompt").mockResolvedValue(undefined as never);
+
+		await mode.handlePlanApproval({
+			planFilePath,
+			planExists: true,
+			title: "MIRRORED",
+		});
+
+		// `plan.autosave` stays off: the tracking mirror is its own destination,
+		// gated on `tracking.enabled`, and lowercases the resolved title slug.
+		const mirrored = path.join(tempDir.path(), ".zeta", "tracking", "plans", "mirrored-plan.md");
+		expect(await Bun.file(mirrored).text()).toBe("# Plan\n\nMirror me.\n");
+		expect(await Bun.file(path.join(tempDir.path(), ".zeta", "plans")).exists()).toBe(false);
+	});
+
+	it("writes no tracking mirror when tracking is disabled", async () => {
+		const planFilePath = "local://PLAN.md";
+		const resolvedPlanPath = resolveLocalUrlToPath(planFilePath, {
+			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
+			getSessionId: () => session.sessionManager.getSessionId(),
+		});
+		await Bun.write(resolvedPlanPath, "# Plan\n\nMirror me.");
+
+		await mode.handlePlanModeCommand();
+		vi.spyOn(mode, "showPlanReview").mockResolvedValue("Approve and execute");
+		vi.spyOn(mode, "handleClearCommand").mockResolvedValue();
+		vi.spyOn(session, "prompt").mockResolvedValue(undefined as never);
+
+		await mode.handlePlanApproval({
+			planFilePath,
+			planExists: true,
+			title: "MIRRORED",
+		});
+
+		expect(await Bun.file(path.join(tempDir.path(), ".zeta", "tracking", "plans")).exists()).toBe(false);
 	});
 
 	it("continues approval with a warning when autosave fails", async () => {

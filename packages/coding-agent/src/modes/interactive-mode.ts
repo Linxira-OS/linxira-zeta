@@ -115,6 +115,7 @@ import {
 import { onDownloadActivity } from "../downloads/activity";
 import { DownloadActivityHud, JudgmentBatchProgressHud } from "./progress-hud";
 import { autosaveApprovedPlan, planSaveFileName } from "../plan-mode/plan-autosave";
+import { mirrorPlanToTracking } from "../tools/tracking";
 import { resolvePlanModelTransition } from "../plan-mode/model-transition";
 import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
 import planFilenamePrompt from "../prompts/system/plan-filename.md" with { type: "text" };
@@ -5792,6 +5793,22 @@ export class InteractiveMode implements InteractiveModeContext {
 			);
 			this.showWarning(`Failed to autosave plan: ${detail}`);
 		}
+
+		// Mirror the approved plan into project tracking (`<project>/.zeta/tracking/plans/`).
+		// Best-effort and separate from the autosave try/catch above: autosave is
+		// optional and can fail, the tracking mirror is a second, independent
+		// destination gated on `tracking.enabled` inside the helper. Slug comes
+		// from the shared title resolver so every approval path names it the same.
+		await mirrorPlanToTracking({
+			settings: this.session.settings,
+			cwd: this.sessionManager.getCwd(),
+			slug: resolvePlanTitle({
+				suppliedTitle: options.title,
+				planContent,
+				planFilePath: options.planFilePath,
+			}).title,
+			planContent,
+		});
 
 		// Resolve the deferred plan-approval model transition. On the compact path
 		// the before-flush hook passed to handleCompactCommand already ran this (so
