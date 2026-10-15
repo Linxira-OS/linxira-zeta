@@ -8,9 +8,9 @@
 //! edits exactly that.
 //!
 //! [`parse`] is total: a missing, truncated or damaged `[[slots]]` section
-//! falls back to the default four visible slots and never blocks startup, and
-//! fields this build has never heard of are ignored — the same file also
-//! carries the right column's `where = "right"` pages.
+//! falls back to the shipped defaults and never blocks startup, and fields
+//! this build has never heard of are ignored — the same file also carries the
+//! right column's `where = "right"` pages.
 
 /// Section name in `~/.zeta/workbench.toml`.
 pub const SECTION: &str = "slots";
@@ -33,9 +33,15 @@ pub struct Builtin {
 	pub source: &'static str,
 }
 
-/// The builtin rail set, in default order. Six views; the first four show by
-/// default (search · tasks · automation · mobile), the rest start hidden.
-pub const BUILTINS: [Builtin; 6] = [
+/// The builtin rail set, in default order. Four views; search · tasks ·
+/// automation show by default, `mobile` is kept in the list but starts hidden
+/// (its design is not settled yet — one line re-shows it).
+///
+/// There is deliberately no usage/statistics view here: zetacode's own input
+/// box already shows the current conversation's usage, and the global usage
+/// lives behind `zetacode`'s `/stats`. The terminal form carries no usage
+/// surface of its own.
+pub const BUILTINS: [Builtin; 4] = [
 	Builtin {
 		id: "search",
 		title: "search",
@@ -61,24 +67,8 @@ pub const BUILTINS: [Builtin; 6] = [
 		id: "mobile",
 		title: "mobile",
 		icon: "📱",
-		default_visible: true,
+		default_visible: false,
 		source: "a zeta web page (web-ui) — the terminal form is not scheduled yet",
-	},
-	Builtin {
-		id: "stats",
-		title: "usage",
-		icon: "📊",
-		default_visible: false,
-		source: "zeta's own stats page (`zetacode stats`, the sqlite db under ~/.zeta) — not \
-		         mounted in the terminal build yet",
-	},
-	Builtin {
-		id: "context",
-		title: "context",
-		icon: "🧠",
-		default_visible: false,
-		source: "GET /api/agent/<id>/context on the web gateway (plus the four subagent \
-		         read-only routes and their SSE feed) — not scheduled yet",
 	},
 ];
 
@@ -339,12 +329,13 @@ mod tests {
 	}
 
 	#[test]
-	fn defaults_show_exactly_the_first_four_in_order() {
+	fn defaults_show_the_three_builtin_views_in_order() {
 		let slots = default_registry();
-		assert_eq!(ids(&slots), ["search", "tasks", "automation", "mobile", "stats", "context"]);
-		assert_eq!(visible_ids(&slots), ["search", "tasks", "automation", "mobile"]);
+		assert_eq!(ids(&slots), ["search", "tasks", "automation", "mobile"]);
+		assert_eq!(visible_ids(&slots), ["search", "tasks", "automation"]);
 		assert_eq!(slots[0].order, 0);
-		assert_eq!(slots[5].order, 5, "orders are dense and 0-based");
+		assert_eq!(slots[3].order, 3, "orders are dense and 0-based");
+		assert!(!slots[3].visible, "mobile is listed but hidden out of the box");
 	}
 
 	#[test]
@@ -353,7 +344,7 @@ mod tests {
 		assert_eq!(ids(&parse("shell = \"auto\"\n")), ids(&default_registry()), "no section at all");
 		assert_eq!(
 			visible_ids(&parse("[[right]]\nid = \"files\"\nurl = \"http://x\"\n")),
-			["search", "tasks", "automation", "mobile"],
+			["search", "tasks", "automation"],
 			"a right-column page is not ours to validate"
 		);
 	}
@@ -362,7 +353,7 @@ mod tests {
 	fn parse_applies_visibility_and_order() {
 		let text = "\
 [[slots]]
-id = \"context\"
+id = \"mobile\"
 visible = true
 order = 0
 
@@ -372,11 +363,11 @@ visible = false
 order = 3
 ";
 		let slots = parse(text);
-		assert_eq!(ids(&slots)[0], "context", "order 0 wins");
-		assert_eq!(visible_ids(&slots), ["context", "tasks", "automation", "mobile"]);
+		assert_eq!(ids(&slots)[0], "mobile", "order 0 wins");
+		assert_eq!(visible_ids(&slots), ["mobile", "tasks", "automation"]);
 		assert_eq!(
 			slots.iter().map(|s| s.order).collect::<Vec<_>>(),
-			[0, 1, 2, 3, 4, 5],
+			[0, 1, 2, 3],
 			"the registry stays densely numbered"
 		);
 	}
@@ -407,9 +398,11 @@ future_field = 42
 	}
 
 	#[test]
-	fn damaged_sections_fall_back_to_the_default_four() {
+	fn damaged_sections_fall_back_to_the_shipped_defaults() {
 		let cases = [
 			"[[slots]]\nid = \"nonsense\"\nvisible = true\n",
+			"[[slots]]\nid = \"stats\"\nvisible = true\n",
+			"[[slots]]\nid = \"context\"\nvisible = true\n",
 			"[[slots]]\nvisible = true\n",
 			"[[slots]]\nid = \"tasks\"\nvisible = maybe\n",
 			"[[slots]]\nid = \"tasks\"\norder = first\n",
@@ -421,8 +414,8 @@ future_field = 42
 			let slots = parse(case);
 			assert_eq!(
 				visible_ids(&slots),
-				["search", "tasks", "automation", "mobile"],
-				"input {case:?} must fall back to the default four"
+				["search", "tasks", "automation"],
+				"input {case:?} must fall back to the shipped defaults"
 			);
 			assert_eq!(slots.len(), BUILTINS.len());
 		}
@@ -432,8 +425,8 @@ future_field = 42
 	fn render_roundtrips_through_parse() {
 		let mut slots = default_registry();
 		slots[0].visible = false;
-		slots[4].visible = true;
-		move_down(&mut slots, 4);
+		slots[3].visible = true;
+		assert!(move_up(&mut slots, 3));
 		let text = render(&slots);
 		let again = parse(&text);
 		assert_eq!(again, slots, "what the manager writes reads back identically");
@@ -444,8 +437,8 @@ future_field = 42
 	fn moving_an_entry_rewrites_the_order_keys() {
 		let mut slots = default_registry();
 		assert!(move_up(&mut slots, 3));
-		assert_eq!(ids(&slots), ["search", "tasks", "mobile", "automation", "stats", "context"]);
-		assert_eq!(slots.iter().map(|s| s.order).collect::<Vec<_>>(), [0, 1, 2, 3, 4, 5]);
+		assert_eq!(ids(&slots), ["search", "tasks", "mobile", "automation"]);
+		assert_eq!(slots.iter().map(|s| s.order).collect::<Vec<_>>(), [0, 1, 2, 3]);
 		assert!(!move_up(&mut slots, 0), "the first row cannot move up");
 		assert!(move_down(&mut slots, 0));
 		assert_eq!(ids(&slots)[0], "tasks");

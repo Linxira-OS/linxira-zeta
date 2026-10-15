@@ -213,22 +213,20 @@ mod tests {
 	}
 
 	#[test]
-	fn the_default_rail_draws_four_buttons_then_the_plus() {
+	fn the_default_rail_draws_three_buttons_then_the_plus() {
 		let registry = slots::default_registry();
 		let (lines, strip) = draw(&registry, None, 60, 20);
-		assert_eq!(strip.buttons.len(), 4, "exactly the four default slots");
-		assert_eq!(strip.plus.y, 4, "the `+` sits directly under the buttons");
+		assert_eq!(strip.buttons.len(), 3, "exactly the three default slots");
+		assert_eq!(strip.plus.y, 3, "the `+` sits directly under the buttons");
 		assert!(lines[strip.plus.y as usize].contains("+ manage buttons"));
 		assert_eq!(
 			button_titles(&lines, &strip),
-			["🔍 search", "☰ tasks", "⏱ automation", "📱 mobile"],
+			["🔍 search", "☰ tasks", "⏱ automation"],
 			"drawn top-down in config order"
 		);
 		assert!(
-			!lines
-				.iter()
-				.any(|line| line.contains("usage") || line.contains("context")),
-			"slots that default to hidden are not drawn"
+			!lines.iter().any(|line| line.contains("mobile")),
+			"the hidden mobile slot is not drawn"
 		);
 	}
 
@@ -241,20 +239,19 @@ mod tests {
 			.expect("builtin");
 		registry[index].visible = false;
 		let (lines, strip) = draw(&registry, None, 60, 20);
-		assert_eq!(strip.buttons.len(), 3);
-		assert_eq!(button_titles(&lines, &strip), ["🔍 search", "☰ tasks", "📱 mobile"]);
-		assert_eq!(strip.plus.y, 3);
+		assert_eq!(strip.buttons.len(), 2);
+		assert_eq!(button_titles(&lines, &strip), ["🔍 search", "☰ tasks"]);
+		assert_eq!(strip.plus.y, 2);
 		assert!(!lines.iter().any(|line| line.contains("automation")));
 	}
 
 	#[test]
 	fn the_button_order_follows_the_configured_order() {
 		let mut registry = slots::default_registry();
-		// `context` is the last builtin and hidden by default: reordering must
-		// not need it visible first.
+		// `mobile` starts hidden: reordering must not need it visible first.
 		let index = registry
 			.iter()
-			.position(|slot| slot.id() == "context")
+			.position(|slot| slot.id() == "mobile")
 			.expect("builtin");
 		assert!(slots::move_up(&mut registry, index));
 		assert!(slots::move_up(&mut registry, index - 1));
@@ -262,28 +259,28 @@ mod tests {
 		let (lines, strip) = draw(&registry, Some(registry[index - 2].builtin), 60, 20);
 		assert_eq!(
 			button_titles(&lines, &strip),
-			["🔍 search", "☰ tasks", "⏱ automation", "🧠 context", "📱 mobile"],
+			["🔍 search", "📱 mobile", "☰ tasks", "⏱ automation"],
 			"the strip is the master list filtered by visibility, not the builtin table order"
 		);
 		assert!(
-			lines[strip.buttons[3].0.y as usize].starts_with('▏'),
+			lines[strip.buttons[1].0.y as usize].starts_with('▏'),
 			"the active slot carries the marker"
 		);
-		assert_eq!(slots::visible(&registry)[3].id(), "context", "the registry keeps that order");
+		assert_eq!(slots::visible(&registry)[1].id(), "mobile", "the registry keeps that order");
 	}
 
 	#[test]
 	fn the_view_frame_names_the_slots_source() {
 		let registry = slots::default_registry();
-		let context = registry
+		let mobile = registry
 			.iter()
-			.find(|slot| slot.id() == "context")
+			.find(|slot| slot.id() == "mobile")
 			.expect("builtin");
 		let mut terminal = Terminal::new(TestBackend::new(80, 16)).expect("terminal");
 		terminal
 			.draw(|frame| {
 				let area = frame.area();
-				render_view(frame, area, context);
+				render_view(frame, area, mobile);
 			})
 			.expect("draw");
 		let buffer = terminal.backend().buffer().clone();
@@ -300,9 +297,9 @@ mod tests {
 			})
 			.collect::<Vec<_>>()
 			.join("\n");
-		assert!(text.contains("🧠 context"), "the frame is titled by the slot");
-		assert!(text.contains("id=context"), "and states the slot it belongs to");
-		assert!(text.contains("GET /api/agent/<id>/context"), "with its real data source");
+		assert!(text.contains("📱 mobile"), "the frame is titled by the slot");
+		assert!(text.contains("id=mobile"), "and states the slot it belongs to");
+		assert!(text.contains("a zeta web page (web-ui)"), "with its real data source");
 		assert!(text.contains("the view body is not"), "and says plainly that P0 draws no body");
 	}
 
