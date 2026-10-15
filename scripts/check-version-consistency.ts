@@ -227,11 +227,18 @@ function main(): void {
 	// npm tree must belong to a registered distribution, so a new launcher (or
 	// a new leaf) cannot silently escape the bump and this check.
 	// `Glob#ignore` does not prune nested `node_modules` here, and a sibling
-	// worktree checked out under a dot dir (`.worktrees/`) would otherwise be
-	// scanned too — filter both out explicitly.
+	// worktree checked out under a dot dir (`.worktrees/`) or under `temp/`
+	// (this repo's worktree home per AGENTS.md) would otherwise be scanned too —
+	// filter all three out explicitly, or a local run reports the copies in
+	// `temp/<topic>/main/npm/...` as unregistered distributions.
 	const npmManifests = [...new Glob(NPM_MANIFEST_GLOB).scanSync({ cwd: root })]
 		.map(rel => rel.replaceAll("\\", "/"))
-		.filter(rel => !rel.split("/").some(segment => segment.startsWith(".") || segment === "node_modules"));
+		.filter(
+			rel =>
+				!rel
+					.split("/")
+					.some(segment => segment.startsWith(".") || segment === "node_modules" || segment === "temp"),
+		);
 
 	for (const manifestRel of npmManifests) {
 		let manifest: { optionalDependencies?: Record<string, string> };
