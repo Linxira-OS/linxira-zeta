@@ -37,6 +37,7 @@ import { spawnWebUi } from "../commands/web-ui-launcher";
 import { WebConfig } from "../config/web-config";
 import { currentLanguage } from "../i18n";
 import { humanizePlanTitle, planFileUrlForSlug, planSlugFromSupplied } from "../plan-mode/approved-plan";
+import type { PlanWorkflow } from "../plan-mode/state";
 import type { AgentSession } from "../session/agent-session";
 import { SessionManager } from "../session/session-manager";
 import { openPath } from "../utils/open";
@@ -777,6 +778,7 @@ export class ZetaServer {
 		peer: string,
 		title: string,
 		runtime: ChannelRuntime,
+		workflow?: PlanWorkflow,
 	): Promise<void> {
 		const router = this.#router;
 		const coordinator = this.#channelCoordinator;
@@ -795,7 +797,11 @@ export class ZetaServer {
 		// choose its own slug; resolveApprovedPlan re-locates the actual file
 		// when the plan is submitted, and the handler below syncs state.
 		const slug = planSlugFromSupplied(title) ?? "plan";
-		session.setPlanModeState({ enabled: true, planFilePath: planFileUrlForSlug(slug), workflow: "parallel" });
+		session.setPlanModeState({
+			enabled: true,
+			planFilePath: planFileUrlForSlug(slug),
+			workflow: workflow ?? "parallel",
+		});
 		session.setPlanProposalHandler(proposedTitle =>
 			this.#handleRemotePlanProposal(channelId, peer, proposedTitle, session, runtime),
 		);
@@ -897,7 +903,7 @@ export class ZetaServer {
 			channelId,
 			peer,
 			sendText: text => runtime.sendText(channelId, peer, text),
-			planRequest: title => this.#startRemotePlanRequest(channelId, peer, title, runtime),
+			planRequest: (title, workflow) => this.#startRemotePlanRequest(channelId, peer, title, runtime, workflow),
 			fallback: async () => {},
 			channelStatus: () => getChannelStatus(),
 			listModels: () => this.#listModels(),

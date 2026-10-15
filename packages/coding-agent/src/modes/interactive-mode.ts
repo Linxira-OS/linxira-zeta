@@ -410,7 +410,7 @@ import { derivePlanGoalObjective, normalizeGoalObjective } from "../goals/plan-o
 import { cfgGoalContinuationModes, cfgGoalEnabled } from "../goals/settings";
 import { goalContinuationActivity, goalFromModeData } from "../goals/state";
 import { cfgPlanDefaultOnStartup, cfgPlanEnabled } from "../plan-mode/settings";
-import type { PlanWorkflow } from "../plan-mode/state";
+import { coercePlanWorkflow, type PlanWorkflow } from "../plan-mode/state";
 import { cfgStreamRedactPatterns } from "../stream/settings";
 import { cfgSttEnabled } from "../stt/settings";
 import { combine, type SettingValueOf } from "../config/registry";
@@ -1229,6 +1229,9 @@ export class InteractiveMode implements InteractiveModeContext {
 	goalModePaused = false;
 	vibeModeEnabled = false;
 	planModePlanFilePath: string | undefined = undefined;
+	/** Workflow of the paused plan session, so a resume re-arms ultra (or iterative)
+	 *  instead of the `parallel` default. Cleared when plan mode turns off. */
+	#planModePausedWorkflow: PlanWorkflow | undefined = undefined;
 	loopModeEnabled = false;
 	loopModePaused = false;
 	loopPrompt: string | undefined = undefined;
@@ -4546,7 +4549,16 @@ export class InteractiveMode implements InteractiveModeContext {
 	}
 
 	async #getPlanFilePath(): Promise<string> {
-		return this.session.getPlanReferencePath() || "local://PLAN.md";
+		const reference = this.session.getPlanReferencePath();
+		// A reference promoted by an earlier approval or a journal restore already
+		// names the real plan artifact; keep pointing at it.
+		if (reference && reference !== "local://PLAN.md") return reference;
+		// Entering plan mode on a session that already drafted a plan (a rejected
+		// proposal, or a `/plan` re-entry) must resolve to that artifact: the prompt
+		// keys its "existing plan" branch on `planExists`, so a stale `local://PLAN.md`
+		// reference would tell the agent to create a second plan file.
+		const [existing] = await this.#listLocalPlanFiles();
+		return existing ?? "local://PLAN.md";
 	}
 
 	#resolvePlanFilePath(planFilePath: string): string {
@@ -4567,7 +4579,9 @@ export class InteractiveMode implements InteractiveModeContext {
 						paused: this.planModePaused,
 						// The ultra workflow keeps its own status-line label ("Plan-Ultra"); the
 						// session owns the workflow, the status line just renders it.
-						workflow: this.session.getPlanModeState()?.workflow,
+						workflow: this.planModeEnabled
+							? this.session.getPlanModeState()?.workflow
+							: this.#planModePausedWorkflow,
 					}
 				: undefined;
 		this.statusLine.setPlanModeStatus(status);
@@ -4988,10 +5002,19 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		if (sessionContext.mode === "plan") {
 			const planFilePath = sessionContext.modeData?.planFilePath as string | undefined;
-			await this.#enterPlanMode({ planFilePath, preserveRestoredModel: true });
+			await this.#enterPlanMode({
+				planFilePath,
+				// Journaled at entry: restoring without it silently downgrades a
+				// `/plan-ultra` session to `parallel`.
+				workflow: coercePlanWorkflow(sessionContext.modeData?.workflow),
+				preserveRestoredModel: true,
+			});
 		} else if (sessionContext.mode === "plan_paused") {
 			this.planModePaused = true;
 			this.#planModeHasEntered = true;
+			// Remember the journaled workflow so re-entering from the paused state
+			// restores ultra instead of falling back to `parallel`.
+			this.#planModePausedWorkflow = coercePlanWorkflow(sessionContext.modeData?.workflow);
 			this.#updatePlanModeStatus();
 		}
 	}
@@ -5049,10 +5072,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		// direct surface keeps `write` only while a transport needs it, and plan
 		// approval is a top-level `write` to `xd://propose`.
 		const previousPlanModeState = this.session.getPlanModeState();
+		const workflow = options?.workflow ?? "parallel";
 		this.session.setPlanModeState({
 			enabled: true,
 			planFilePath,
-			workflow: options?.workflow ?? "parallel",
+			workflow,
 			reentry: this.#planModeHasEntered,
 			// Seeds the goal objective of the approved-plan execution round.
 			objective: normalizeGoalObjective(options?.objective),
@@ -5076,8 +5100,10 @@ export class InteractiveMode implements InteractiveModeContext {
 			await this.#applyPlanModeModel();
 		}
 		this.#updatePlanModeStatus();
-		this.sessionManager.appendModeChange("plan", { planFilePath });
-		this.showStatus(`Plan mode enabled. Plan file: ${planFilePath}`);
+		this.sessionManager.appendModeChange("plan", { planFilePath, workflow });
+		this.showStatus(
+			(workflow === "ultra" ? M.imPlanUltraModeEnabledFmt : M.imPlanModeEnabledFmt).replace("%s", planFilePath),
+		);
 	}
 
 	async #restorePlanPreviousModel(prev: { model: Model; thinkingLevel?: ConfiguredThinkingLevel }): Promise<void> {
@@ -5213,12 +5239,20 @@ export class InteractiveMode implements InteractiveModeContext {
 		// prompt, which predictably invalidates the cache.
 		this.lastAssistantUsage = undefined;
 		this.planModePaused = options?.paused ?? false;
+		this.#planModePausedWorkflow = this.planModePaused ? planModeState?.workflow : undefined;
 		this.planModePlanFilePath = undefined;
 		this.#planModePreviousToolPresentation = undefined;
 		if (!options?.deferModelRestore) this.#planModePreviousModelState = undefined;
 		this.#updatePlanModeStatus();
 		const paused = options?.paused ?? false;
-		this.sessionManager.appendModeChange(paused ? "plan_paused" : "none");
+		this.sessionManager.appendModeChange(
+			paused ? "plan_paused" : "none",
+			// Keep the workflow on the journal while paused so resuming re-arms the
+			// same plan flavour instead of silently falling back to `parallel`.
+			paused && planModeState
+				? { planFilePath: planModeState.planFilePath, workflow: planModeState.workflow }
+				: undefined,
+		);
 		if (!options?.silent) {
 			this.showStatus(paused ? "Plan mode paused." : "Plan mode disabled.");
 		}
@@ -5943,6 +5977,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			// supplied prompt is still submitted as the first plan-mode turn.
 			this.planModePaused = false;
 			this.#planModeHasEntered = false;
+			this.#planModePausedWorkflow = undefined;
 			this.#updatePlanModeStatus();
 			this.sessionManager.appendModeChange("none");
 			this.showStatus("Plan mode disabled.");
@@ -5952,12 +5987,14 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.showWarning("Plan mode is disabled. Enable it in settings (plan.enabled).");
 			return false;
 		}
+		const restoredWorkflow = workflow ?? this.#planModePausedWorkflow;
 		await this.#enterPlanMode({
-			...(workflow ? { workflow } : {}),
+			...(restoredWorkflow ? { workflow: restoredWorkflow } : {}),
 			// The supplied task is the operator's own statement of what the plan
 			// is for; approving it later runs the plan as a goal under it.
 			...(initialPrompt ? { objective: initialPrompt } : {}),
 		});
+		this.#planModePausedWorkflow = undefined;
 		if (!initialPrompt) return false;
 		if (isKnownSkillCommand(this, initialPrompt)) {
 			await invokeSkillCommandFromText(this, initialPrompt, "steer", {

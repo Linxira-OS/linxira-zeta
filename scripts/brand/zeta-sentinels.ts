@@ -471,6 +471,26 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: '{{#has tools "github"}}- GitHub (CI runs, PRs, issues, search)',
 		why: "Zeta-only rule: GitHub/Gitea work goes through the `github`/`tea` tools, never shell `gh`/`tea` (CI polling via `op: run_watch`). Upstream's Specialized Tools list covers files/search/LSP but has no host-CLI entry, so an upstream take of this file silently restores the shell-`gh` habit the CI-green prompt already tried to prevent.",
 	},
+	// -- Ultra plan workflow (`/plan-ultra`) ---------------------------------------
+	// The ultra plan workflow was merged away once (v18.6.0) and its three
+	// surfaces (state type, slash command, status label) each disappeared
+	// silently — no compile error, because the consumers live in shared files
+	// a `--theirs` take can restore to the pre-ultra pair.
+	{
+		file: "packages/coding-agent/src/plan-mode/state.ts",
+		symbol: 'export type PlanWorkflow = "parallel" | "iterative" | "ultra";',
+		why: "the ultra plan workflow (merged away once in v18.6.0).",
+	},
+	{
+		file: "packages/coding-agent/src/slash-commands/builtin-modes.ts",
+		symbol: 'name: "plan-ultra",',
+		why: "the `/plan-ultra` slash-command registration.",
+	},
+	{
+		file: "packages/tui/src/status-line/segments.ts",
+		symbol: 'export const PLAN_ULTRA_LABEL = "Plan-Ultra";',
+		why: "the status-line ultra plan label (lost in the v18.6.0 merge).",
+	},
 	// -- bash: elevated commands + credential policy -------------------------------
 	{
 		file: "packages/coding-agent/src/prompts/tools/bash.md",

@@ -26,6 +26,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { isEnoent, logger } from "@linxiraos/pi-utils";
+import type { PlanWorkflow } from "../plan-mode/state";
 import { COORDINATOR_ALIAS, type SessionRouter } from "./session-router";
 
 export interface WorkspaceRouterDeps {
@@ -38,8 +39,8 @@ export interface WorkspaceRouterDeps {
 	sendText(text: string): Promise<void>;
 	/** Called when the message is NOT a control command. */
 	fallback(body: string, peer: string): Promise<void>;
-	/** Start a remote plan-mode request (`@plan <title>`) on the coordinator. */
-	planRequest(title: string): Promise<void>;
+	/** Start a remote plan-mode request (`@plan <title>`; optional `workflow` selects ultra). */
+	planRequest(title: string, workflow?: PlanWorkflow): Promise<void>;
 	/** Running channel status for `!status` (zero AI). */
 	channelStatus?: () => { id: string; running: boolean }[];
 	/** Available models grouped by provider (stable order) for `!model`. */

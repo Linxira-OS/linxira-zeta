@@ -69,6 +69,15 @@ describe("read plan-aware default limit", () => {
 		expect(result.details?.truncation).toBeUndefined();
 	});
 
+	it("reads the canonical artifact name past the default window before the reference is promoted", async () => {
+		const tool = new ReadTool(createSession(testDir, artifactsDir, "local://PLAN.md"));
+		const result = await tool.execute("read-plan-artifact", { path: "local://my-task-plan.md" });
+
+		const text = textOf(result);
+		expect(text).toContain("line 500");
+		expect(result.details?.truncation).toBeUndefined();
+	});
+
 	it("keeps an explicit selector window on plan files", async () => {
 		const tool = new ReadTool(createSession(testDir, artifactsDir, "local://PLAN.md"));
 		const result = await tool.execute("read-plan", { path: "local://PLAN.md:1-10" });
