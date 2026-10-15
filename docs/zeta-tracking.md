@@ -35,7 +35,7 @@ memory by topic instead.
 │                        #   rolled at 5 MB per file, 3 files kept per day family
 ├── sessions/            # Synced plan files from agent sessions
 │   └── <plan>.md
-├── summaries/           # Compaction-derived summaries (v2)
+├── summaries/           # Compaction-derived summaries (v2) — NOT WIRED, see below
 │   └── compaction-<ts>.md
 └── plans/               # Read-only mirrors of approved plans (v2)
     └── <slug>-plan.md
@@ -76,9 +76,15 @@ v1 stored bare path strings; they are migrated to object rows on first write.
 
 ## `tracking_update` Tool
 
-The agent uses the `tracking_update` tool to maintain tracking documents. It is
-a `discoverable` tool (loaded on demand) with `read` approval level, gated by
-`tracking.enabled`.
+The agent uses the `tracking_update` tool to maintain tracking documents. It
+declares the `discoverable` load mode (its schema is not shipped on every
+request), but it is pinned top-level rather than mounted under `xd://`
+(`XDEV_KEEP_TOP_LEVEL` in `packages/coding-agent/src/tools/xdev.ts`): the
+phase-completion nudge and the approved-plan prompt both read the *active*
+tool set and call it by name, so mounting it as a device would silently close
+both gates. `read` approval level, gated by `tracking.enabled` — and that
+setting is a live tool gate (`cfgBuiltinToolGates`), so `/tracking on|off`
+adds or removes the tool in a running session.
 
 ### Operations
 
@@ -113,9 +119,16 @@ a `discoverable` tool (loaded on demand) with `read` approval level, gated by
 - **Plan approval mirroring**: when a plan is approved and tracking is on,
   the plan text is mirrored read-only into `plans/<slug>-plan.md`; INDEX.md's
   Current Phase section links it.
-- **Compaction summaries**: after each committed compaction, the summary is
-  persisted to `summaries/compaction-<ts>.md` — long-term context survives
-  compression.
+- **Compaction summaries**: **NOT WIRED** — no `summaries/compaction-<ts>.md`
+  is written today. `TrackingRecorder.recordCompaction`
+  (`packages/coding-agent/src/tools/tracking.ts`) implements the write and has
+  unit tests, but production code has no call site for it, so the Web UI
+  Summaries tab stays empty unless the directory is populated by hand. The
+  clean place to wire it is `SessionMaintenance.#commitCompactionEntry`
+  (`packages/coding-agent/src/session/session-maintenance.ts`), the single
+  commit chokepoint that already returns the saved `CompactionEntry`; wiring
+  is pending an explicit decision, and this note records the current state
+  until then.
 - **Phase completion nudge**: when the `todo` tool reports a phase fully
   completed, the session injects a one-shot hidden reminder telling the agent
   to `sync_todo` before starting the next phase; the approved-plan prompt
@@ -143,8 +156,9 @@ blockers, decisions, last updated — the v2 `stage`/`phases` mirror is stored b
 not yet drawn), and Summaries lists `summaries/compaction-*.md` newest first.
 `updatedAt` is the newest mtime among the tracked files, not the request clock,
 so polling an unchanged project reports a stable instant. The dock tracking
-entry itself is gated on `tracking.enabled` (conditional entry — see
-`document/simplify-and-plan-surface.md` §1.3).
+entry itself is gated on `tracking.enabled`: the web shell reads
+`GET /api/settings` and only then renders the entry
+(`web-ui/components/AppShell.tsx`).
 
 ## Design Principles
 

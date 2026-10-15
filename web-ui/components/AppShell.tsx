@@ -319,7 +319,7 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 	// Sidebar Plan card state: read from the active tab's metadata (the tab's
 	// own ChatWindow writes it) so a background plan cannot drive the sidebar.
 	const sidebarPlan = tabMetaFor(tabMeta, activeTabId).plan;
-	// tracking.enabled gates the dock tracking entry (conditional entry, §1.3).
+	// tracking.enabled gates the dock tracking entry.
 	const [trackingEnabled, setTrackingEnabled] = useState(false);
 	useEffect(() => {
 		let cancelled = false;

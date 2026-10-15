@@ -5856,6 +5856,10 @@ export class InteractiveMode implements InteractiveModeContext {
 			planFilePath: options.planFilePath,
 			planContent,
 			contextPreserved: options.preserveContext === true,
+			// The template's `{{#has tools "…"}}` gates (todo, tracking_update)
+			// resolve against the live active tool set; without it both blocks
+			// silently disappear from every approved-plan prompt.
+			tools: this.session.getActiveToolNames(),
 		});
 		// Close the review overlay only now — after the async title write and plan
 		// prompt are prepared, immediately before the execution turn is queued. The

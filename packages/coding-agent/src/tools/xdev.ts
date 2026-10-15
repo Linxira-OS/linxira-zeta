@@ -53,13 +53,18 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
  * (which have no notion of the `xd://` protocol) so hiding it behind dispatch
  * makes it unreachable in practice (issue #5973). `yield` terminates structured
  * subagent runs and must stay directly callable — each loses its harness
- * integration or usability if hidden behind dispatch.
+ * integration or usability if hidden behind dispatch. `tracking_update` is the
+ * same class: the todo phase nudge and the approved-plan prompt both read the
+ * *active* set and instruct the model to call it by name, so mounting it under
+ * `xd://` silently closes both gates (the tool is enabled but the nudge never
+ * fires and the prompt never carries the instruction).
  */
 export const XDEV_KEEP_TOP_LEVEL: Record<string, true> = {
 	todo: true,
 	yield: true,
 	ask: true,
 	grep: true,
+	tracking_update: true,
 	web_search: true,
 };
 
