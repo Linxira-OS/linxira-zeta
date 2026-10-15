@@ -73,6 +73,13 @@ helpers — no AgentSession created.
 ## File Map
 
 ```
+app/
+  page.tsx                        full shell (AppShell, mode from ?mode=)
+  embed/page.tsx                  embed shell (AppShell mode="embed") — the
+                                  conversation-only surface a host WebView mounts
+  settings/page.tsx               server redirect to /?panel=settings
+  globals.css                     base sheet + theme imports
+
 app/api/
   (sessions family is gateway-owned — no route files)
   agent/new/route.ts              POST { cwd, message, toolNames?, provider?, modelId? }
@@ -113,13 +120,19 @@ lib/
   pi-types.ts          local structural types for pi SDK objects
   rpc-manager.ts      AgentSessionWrapper + registry + startRpcSession
   session-reader.ts   SessionManager wrappers + path cache + buildSessionContext adapter
+  shell-mode.ts       ShellMode ("full" | "embed") + ?mode= URL contract
   tool-presets.ts     PRESET_NONE/DEFAULT/FULL + getPresetFromTools()
   types.ts            shared TypeScript types
   normalize.ts        normalizeToolCalls() — field name mismatch between file format and our types
   worktree.ts         project/worktree resolution and git worktree operations
 
 components/
-  AppShell.tsx        layout + URL state + tab management
+  AppShell.tsx        layout + URL state + tab management; feeds the shell slots
+  shell/ShellLayout.tsx  three-column grid + the single mode gate: every
+                      region (sidebar/topbar/tabs/center/rail/dockWindow) is a
+                      named slot carrying `data-shell-region`
+  shell/SessionTabBar.tsx session tab strip (topbar chrome)
+  shell/DockRail.tsx  right-edge dock rail
   SessionSidebar.tsx  session tree + FileExplorer
   ChatWindow.tsx      chat composition + completion sound wrapper
   ChatInput.tsx       input bar + model/thinking/tools/compact controls
@@ -148,6 +161,30 @@ hooks/
 ---
 
 ## Key Design Decisions & Traps
+
+### Shell modes — `full` vs `embed` (`lib/shell-mode.ts`, `components/shell/ShellLayout.tsx`)
+
+- Two surfaces, one client bundle: `full` is the complete desktop shell; `embed`
+  is the conversation-only surface a host mounts (the zetawork GUI's WebView2, an
+  iframe, a kiosk page) — transcript + composer, nothing else.
+- Chosen by URL, no rebuild and no build flag: `/?mode=embed` (equivalently the
+  `/embed` route, which pins the mode server-side). Unknown or empty values fall
+  back to `full`.
+- The gate lives in **one** place. `ShellLayout` owns a named region per slot and
+  skips the chrome regions when `mode === "embed"`. Regions carry
+  `data-shell-region` (`sidebar` | `topbar` | `tabs` | `center` | `rail` |
+  `dockWindow`) and the grid carries `data-shell-mode`. The three region wrappers
+  are `display: contents`, so a marker never introduces a box.
+- `AppShell` only *feeds* slots (`sidebar`, `topbar`, `tabs`, `center`, `rail`,
+  `dockWindow`) — it never branches on the mode for slot content. The two chrome
+  nodes that live outside `ShellLayout` (the frameless desktop titlebar and the
+  mobile drawer backdrop) carry their own `!embed` guard.
+- `embed` also drops the safe-area padding and the desktop titlebar inset: the
+  host owns the frame.
+- A sub-page that must not appear in an embed belongs in a chrome slot; never
+  scatter `mode === "embed"` checks through feature components.
+- The host needs no message bridge: the mode, session and workspace all arrive as
+  URL state (`/embed?session=<id>&cwd=<path>`), so a WebView mount is one URL.
 
 ### AgentSession lifecycle (`lib/rpc-manager.ts`)
 

@@ -24,9 +24,15 @@ import {
 	SIDEBAR_MIN_WIDTH,
 } from "@/lib/panel-layout";
 import { useI18n } from "@/hooks/useI18n";
+import {
+	DEFAULT_SHELL_MODE,
+	SHELL_MODE_ATTRIBUTE,
+	SHELL_REGION_ATTRIBUTE,
+	type ShellMode,
+} from "@/lib/shell-mode";
 import { useColumnResize } from "./useColumnResize";
 
-export type ShellSlotName = "sidebar" | "center" | "rail" | "dockWindow";
+export type ShellSlotName = "sidebar" | "topbar" | "tabs" | "center" | "rail" | "dockWindow";
 
 export interface ShellSlotProps {
 	name: ShellSlotName;
@@ -43,6 +49,12 @@ export function ShellSlot({ children }: ShellSlotProps) {
 }
 
 export interface ShellLayoutProps {
+	/**
+	 * Which regions the shell owns. `embed` renders the center column only (the
+	 * conversation + composer) and skips every chrome column, handle and inset;
+	 * `full` renders the three-column desktop shell. Defaults to `full`.
+	 */
+	mode?: ShellMode;
 	sidebarOpen: boolean;
 	sidebarCollapsed: boolean;
 	detailOpen: boolean;
@@ -72,6 +84,7 @@ function useViewportWidth(): number {
  * reduced motion).
  */
 export function ShellLayout({
+	mode = DEFAULT_SHELL_MODE,
 	sidebarOpen,
 	sidebarCollapsed,
 	detailOpen,
@@ -81,6 +94,7 @@ export function ShellLayout({
 }: ShellLayoutProps) {
 	const { t } = useI18n();
 	const viewportWidth = useViewportWidth();
+	const embed = mode === "embed";
 
 	const elements = Children.toArray(children).filter(
 		(child): child is ReactElement<ShellSlotProps> => isValidElement(child) && child.type === ShellSlot,
@@ -169,8 +183,11 @@ export function ShellLayout({
 		.join(" ");
 
 	const gridStyle: CSSProperties = {
-		gridTemplateColumns: `${tracks.sidebar}px minmax(0, 1fr) ${tracks.details}px`,
-		paddingTop: desktopChromeInset,
+		gridTemplateColumns: embed
+			? "minmax(0, 1fr)"
+			: `${tracks.sidebar}px minmax(0, 1fr) ${tracks.details}px`,
+		// Embed is mounted inside a host surface: no desktop titlebar inset.
+		paddingTop: embed ? 0 : desktopChromeInset,
 	};
 
 	return (
@@ -186,6 +203,13 @@ export function ShellLayout({
           background: var(--zeta-alias-bg);
           box-sizing: border-box;
           transition: grid-template-columns 0.2s ease;
+        }
+        /* Embed: the conversation column is the whole surface — the host owns
+           the frame, so no safe-area padding and no track transition. */
+        .shell-grid--embed {
+          padding-left: 0;
+          padding-right: 0;
+          transition: none;
         }
         .shell-grid.is-resizing {
           transition: none !important;
@@ -212,6 +236,12 @@ export function ShellLayout({
         .shell-col--details {
           flex-direction: row;
           align-items: stretch;
+        }
+        /* Region wrappers carry the data-shell-region contract only: they must
+           never introduce a box (the slot payload stays a direct child of its
+           column, exactly as before the wrappers existed). */
+        .shell-chrome {
+          display: contents;
         }
         .shell-handle {
           position: relative;
@@ -249,68 +279,91 @@ export function ShellLayout({
           background: color-mix(in srgb, var(--zeta-alias-text-muted) 70%, var(--zeta-alias-border));
         }
       `}</style>
-			<div className={`shell-grid${resizing ? " is-resizing" : ""}`} style={gridStyle}>
-				<div className="shell-col shell-col--sidebar">
-					<div
-						ref={sidebarResizer.panelRef}
-						id="session-sidebar"
-						className={sidebarClasses}
-						style={
-							{
-								"--sidebar-width": `${tracks.sidebar}px`,
-								background: "var(--zeta-alias-bg-panel)",
-								borderRight: "1px solid var(--zeta-alias-border)",
-								display: "flex",
-								flexDirection: "column",
-								flexShrink: 0,
-								paddingTop: "env(safe-area-inset-top)",
-								paddingBottom: "env(safe-area-inset-bottom)",
-								zIndex: 200,
-							} as CSSProperties
-						}
-					>
-						{slotOf("sidebar")}
-					</div>
-					{sidebarOpen && !sidebarRail && (
+			<div
+				className={`shell-grid${resizing ? " is-resizing" : ""}${embed ? " shell-grid--embed" : ""}`}
+				style={gridStyle}
+				{...{ [SHELL_MODE_ATTRIBUTE]: mode }}
+			>
+				{!embed && (
+					<div className="shell-col shell-col--sidebar" {...{ [SHELL_REGION_ATTRIBUTE]: "sidebar" }}>
 						<div
-							{...sidebarResizer.separatorProps}
-							aria-controls="session-sidebar"
-							className={`panel-resize-handle shell-handle shell-handle--sidebar${sidebarResizer.isResizing ? " is-resizing" : ""}`}
-							data-resize-handle="sidebar"
-							title={`${t("layout.resizeSidebar")}: ${t("layout.resizeHint")}`}
-						/>
+							ref={sidebarResizer.panelRef}
+							id="session-sidebar"
+							className={sidebarClasses}
+							style={
+								{
+									"--sidebar-width": `${tracks.sidebar}px`,
+									background: "var(--zeta-alias-bg-panel)",
+									borderRight: "1px solid var(--zeta-alias-border)",
+									display: "flex",
+									flexDirection: "column",
+									flexShrink: 0,
+									paddingTop: "env(safe-area-inset-top)",
+									paddingBottom: "env(safe-area-inset-bottom)",
+									zIndex: 200,
+								} as CSSProperties
+							}
+						>
+							{slotOf("sidebar")}
+						</div>
+						{sidebarOpen && !sidebarRail && (
+							<div
+								{...sidebarResizer.separatorProps}
+								aria-controls="session-sidebar"
+								className={`panel-resize-handle shell-handle shell-handle--sidebar${sidebarResizer.isResizing ? " is-resizing" : ""}`}
+								data-resize-handle="sidebar"
+								title={`${t("layout.resizeSidebar")}: ${t("layout.resizeHint")}`}
+							/>
+						)}
+					</div>
+				)}
+
+				<div className="shell-col shell-col--center" {...{ [SHELL_REGION_ATTRIBUTE]: "center" }}>
+					{!embed && (
+						<div className="shell-chrome shell-chrome--topbar" {...{ [SHELL_REGION_ATTRIBUTE]: "topbar" }}>
+							{slotOf("topbar")}
+						</div>
+					)}
+					{slotOf("center")}
+					{!embed && (
+						<div className="shell-chrome shell-chrome--tabs" {...{ [SHELL_REGION_ATTRIBUTE]: "tabs" }}>
+							{slotOf("tabs")}
+						</div>
 					)}
 				</div>
 
-				<div className="shell-col shell-col--center">{slotOf("center")}</div>
-
-				<div className="shell-col shell-col--details">
-					{slotOf("rail")}
-					<div
-						{...detailResizer.separatorProps}
-						aria-controls="right-tool-dock"
-						className={`panel-resize-handle shell-handle right-panel-resize-handle${detailResizer.isResizing ? " is-resizing" : ""}`}
-						data-resize-handle="right-panel"
-						title={`${t("layout.resizeFilePanel")}: ${t("layout.resizeHint")}`}
-						style={{ ...detailResizer.separatorProps.style, display: detailOpen ? undefined : "none" }}
-					/>
-					<div
-						ref={detailResizer.panelRef}
-						id="right-tool-dock"
-						className={detailClasses}
-						style={
-							{
-								"--right-panel-width": `${dockWidthVar}px`,
-								display: "flex",
-								flexDirection: "column",
-								borderLeft: "1px solid var(--zeta-alias-border)",
-								background: "var(--zeta-alias-bg)",
-							} as CSSProperties
-						}
-					>
-						{slotOf("dockWindow")}
+				{!embed && (
+					<div className="shell-col shell-col--details" {...{ [SHELL_REGION_ATTRIBUTE]: "details" }}>
+						<div className="shell-chrome shell-chrome--rail" {...{ [SHELL_REGION_ATTRIBUTE]: "rail" }}>
+							{slotOf("rail")}
+						</div>
+						<div
+							{...detailResizer.separatorProps}
+							aria-controls="right-tool-dock"
+							className={`panel-resize-handle shell-handle right-panel-resize-handle${detailResizer.isResizing ? " is-resizing" : ""}`}
+							data-resize-handle="right-panel"
+							title={`${t("layout.resizeFilePanel")}: ${t("layout.resizeHint")}`}
+							style={{ ...detailResizer.separatorProps.style, display: detailOpen ? undefined : "none" }}
+						/>
+						<div
+							ref={detailResizer.panelRef}
+							id="right-tool-dock"
+							className={detailClasses}
+							{...{ [SHELL_REGION_ATTRIBUTE]: "dockWindow" }}
+							style={
+								{
+									"--right-panel-width": `${dockWidthVar}px`,
+									display: "flex",
+									flexDirection: "column",
+									borderLeft: "1px solid var(--zeta-alias-border)",
+									background: "var(--zeta-alias-bg)",
+								} as CSSProperties
+							}
+						>
+							{slotOf("dockWindow")}
+						</div>
 					</div>
-				</div>
+				)}
 			</div>
 		</>
 	);
