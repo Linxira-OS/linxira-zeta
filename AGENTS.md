@@ -325,6 +325,15 @@ across the correct directories.
 | **Channel / bot runtime** (WeChat/Feishu/Telegram, plan-image, workspace routing) | `packages/coding-agent/src/channels/` | Bun runtime, embedded in `zeta serve` (`packages/coding-agent/src/server/zeta-server.ts`). Channel tools (`channel_send`, `workspace_run`) live in `packages/coding-agent/src/tools/`. |
 | **Config layer** (web.yml: tray/autostart/channels/remote) | `packages/coding-agent/src/config/web-config.ts` | Bun runtime, read by both the gateway and (via `zeta serve` HTTP) the desktop shell. |
 
+> **方向变更（2026-10-15 用户裁决）**：`web-ui/` **冻结**——不再作为独立桌面应用分发
+> （Electron 桌面长期起不来：`The Zeta service did not become ready in time.` /
+> `The running Zeta service at http://127.0.0.1:30141 did not answer.`，根因是"外部服务端口
+> 就绪"这条链），只保留为 **zetawork 桌面应用内部可选的渲染后端**；**桌面应用本体 =
+> zetawork**，其家迁到 `desktop/`（现有 Electron 外壳退役中）。上表的 desktop/web-ui 分工
+> 按此方向读：Electron 行与"内嵌 Next standalone"链路属**待退役**遗留。渲染方式（原生
+> ratatui ／ Web UI）由用户在应用内选择；启动后保底由工作台自己拉起/内嵌 `zetacode`，
+> **不依赖外部服务端口就绪**。
+
 **Dependency direction (never invert):**
 
 ```
