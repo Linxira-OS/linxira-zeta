@@ -452,7 +452,7 @@ mod tests {
 
 		let (settings, reread) = read_file(&path);
 		assert_eq!(reread, registry, "the hidden state survives the file");
-		assert_eq!(visible_ids(&reread), ["tasks", "mobile"], "exactly the two left visible");
+		assert_eq!(visible_ids(&reread), ["tasks"], "exactly the one left visible");
 		assert_eq!(settings, Settings::default(), "the preferences ride along untouched");
 
 		// And the rewrite is idempotent: a second save of the same state is a
@@ -464,7 +464,7 @@ mod tests {
 	}
 
 	#[test]
-	fn damaged_files_fall_back_to_the_default_four_slots() {
+	fn damaged_files_fall_back_to_the_default_slots() {
 		let cases: [(&str, &str); 3] = [
 			("missing", ""),
 			(
@@ -483,8 +483,8 @@ mod tests {
 			let (_, slots) = read_file(&path);
 			assert_eq!(
 				visible_ids(&slots),
-				["search", "tasks", "automation", "mobile"],
-				"{tag} must boot on the default four"
+				["search", "tasks", "automation"],
+				"{tag} must boot on the shipped defaults"
 			);
 			assert_eq!(slots, slots::default_registry(), "{tag} yields the shipped registry");
 			if tag == "truncated" {
@@ -527,7 +527,7 @@ mod tests {
 			"a section this build does not know is copied verbatim"
 		);
 		assert!(text.contains("[[slots]]\nid = \"search\"\n"), "and the slot section is appended");
-		assert!(text.ends_with("order = 5\n"), "the file stays newline-terminated");
+		assert!(text.ends_with("order = 3\n"), "the file stays newline-terminated");
 		let (_, slots) = read_file(&path);
 		assert_eq!(slots, slots::default_registry());
 		std::fs::remove_file(&path).ok();
