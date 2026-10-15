@@ -2210,7 +2210,11 @@ impl Workspace {
 				.style(Style::default().bg(Color::Reset));
 			frame.render_widget(Clear, area);
 			frame.render_widget(overlay, area);
-			for row in 0..count {
+			// Only the rows the panel actually shows may take clicks: on a
+			// frame shorter than the list the rest would land outside the
+			// modal and steal presses from what is underneath.
+			let clickable = count.min(area.height.saturating_sub(2) as usize);
+			for row in 0..clickable {
 				self.push_hit(
 					Rect {
 						x: area.x + 1,
