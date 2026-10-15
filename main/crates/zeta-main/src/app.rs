@@ -2266,7 +2266,7 @@ impl Workspace {
 				.collect();
 			lines.push(Line::from(""));
 			lines.push(Line::from(Span::styled(
-				" space/enter or click toggles · K/J moves · esc closes — the rail holds the six \
+				" space/enter or click toggles · K/J moves · esc closes — the rail holds the four \
 				 builtin views only",
 				Style::default().fg(Color::DarkGray),
 			)));

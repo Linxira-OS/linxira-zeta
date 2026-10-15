@@ -38,12 +38,13 @@ KEYS (inside the workspace)
   button (or the Pane menu) minimizes a pane into the dock at the
   bottom — click its chip there to restore it. Double-click a tab or a
   pane's title to rename it (Enter saves, Esc cancels).
-  Rail: the left column's buttons are the builtin views (search, tasks,
-  automation, mobile by default; usage and context start hidden). Click
-  one to switch the pane canvas to that view, click it again (or Esc) to
-  go back. The + under the buttons opens the manager, which shows/hides
-  and reorders them; the choice is saved to ~/.zeta/workbench.toml. The
-  rail holds builtin views only — it takes no custom URL.
+  Rail: the left column's buttons are the builtin views (search, tasks
+  and automation by default; the mobile view is listed but starts
+  hidden). Click one to switch the pane canvas to that view, click it
+  again (or Esc) to go back. The + under the buttons opens the manager,
+  which shows/hides and reorders them; the choice is saved to
+  ~/.zeta/workbench.toml. The rail holds builtin views only — it takes
+  no custom URL.
   Paste: bracketed paste keeps multi-line clipboard text whole; an image
   on the clipboard pastes as a temp-file path (Alt+V), which zetacode
   loads as an attachment.
