@@ -1,0 +1,32 @@
+[package]
+name = "zetawork-gui-gpui"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "Spike: GPUI shell feasibility for zetawork (dock + ratatui blit + WebView2 + IME)."
+
+[[bin]]
+name = "zetawork-gui-gpui"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+# Pinned to the release train the API notes were read from: gpui-kit 0.7.1
+# (= gpui-component 0.7.1, gpui-base 0.7.1, gpui-pre 0.3.8).
+# `test-support` is on for the whole crate (not just dev): it is what makes
+# `Window::render_to_image` — the scene screenshot used as evidence — and the
+# headless `#[gpui_kit::test]` context exist at all
+# (`gpui-pre/src/window.rs:2752`).
+gpui-kit = { version = "=0.7.1", features = ["test-support"] }
+gpui-wry = "=0.7.1"
+image = "0.25"
+ratatui = { workspace = true }
+unicode-width = "0.2"
+wry = { version = "0.53.3", package = "lb-wry" }
+
+[dev-dependencies]
+serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = { version = "0.6", features = ["std"] }
