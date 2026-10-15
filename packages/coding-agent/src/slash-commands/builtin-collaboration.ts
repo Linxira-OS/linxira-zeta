@@ -7,6 +7,7 @@ import { clearSubmittedText } from "./helpers/draft";
 import { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import { type CollabHostSnapshot, listCollabHosts } from "../collab/registry";
+import { COLLAB_DISABLED_MESSAGE, isCollabEnabled } from "../collab/settings";
 import { cfgShareRedactSecrets, cfgShareServerUrl, cfgShareStore } from "../commands/settings";
 import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
@@ -322,6 +323,10 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		icon: "broadcast",
 		description: () => M.cmdCollab,
 		inlineHint: "[start|view|list|stop|status] [relayUrl]",
+		// Off by default: sharing needs a relay the user operates, so the
+		// command only exists once collab.enabled turns the feature on.
+		enabled: isCollabEnabled,
+		disabledMessage: COLLAB_DISABLED_MESSAGE,
 		subcommands: [
 			{ name: "view", description: () => M.cmdCollabView },
 			{ name: "list", description: () => M.cmdCollabList },
@@ -452,6 +457,10 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		icon: "signIn",
 		description: () => M.cmdCollabJoin,
 		inlineHint: "<link>",
+		// Same gate as /collab: a guest dials the host's relay, so the command
+		// stays out of the palette until sharing is switched on.
+		enabled: isCollabEnabled,
+		disabledMessage: COLLAB_DISABLED_MESSAGE,
 		allowArgs: true,
 		handleTui: async (command, runtime) => {
 			const ctx = runtime.ctx;
