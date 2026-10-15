@@ -134,10 +134,12 @@ cargo build --release -p pi-natives        # then copy into packages/natives/nat
 bun run ci:test:full                       # every TS bucket + cargo nextest
 ```
 
-`merge-gate` is also the only entry point that runs the two orphan suites —
+`merge-gate` is also the only entry point that *gates* on the two orphan suites —
 `packages/stats/test` and `plugins/official/pi-messenger/tests` (vitest, outside
 the bun workspace, so it installs its own dependencies). `bun run test:ts` alone
-still skips both; in CI they run in `test_workspace` and `check` respectively.
+still skips both; in CI they run in `test_workspace` and `check` respectively as
+`continue-on-error` (annotate-only) steps until their pre-existing failures are
+fixed — today 69/214 and 7/438.
 
 ## One-time Gitea setting
 

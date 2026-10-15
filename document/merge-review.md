@@ -82,9 +82,11 @@ in dependency order, then the three pre-merge audits (members, brand
 regressions, lineage — `--base <ref>` / `--tag <tag>` feed them), then the
 behaviour suites, and prints a single-page pass/fail summary with the first error
 line of each failure (`--gates-only` stops after the audits; `--only <id>`
-re-runs one step). It is the only entry point that also runs the two suites no CI
-bucket collected: `packages/stats/test` and
-`plugins/official/pi-messenger/tests` (vitest).
+re-runs one step). It is also the only entry point that *gates* on the two suites
+no CI bucket collects on a blocking path: `packages/stats/test` and
+`plugins/official/pi-messenger/tests` (vitest) run in CI as `continue-on-error`
+steps until their pre-existing failures are fixed — 69/214 and 7/438 on
+2026-10-16, the first time either suite ever ran in a job.
 
 ## The lineage gate — why it exists and how to use it
 
