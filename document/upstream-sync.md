@@ -1722,9 +1722,10 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
   `v18.11.0` (rung 4/4), then `v18.11.1`.
 - Zeta: `1.2.1` (version line holds across the published `@linxiraos/*`
   packages, the Cargo workspace and the natives stamp).
-- In flight: `sync/omp-release/v18.10.4` — its merge commit `c86128383f1` has
-  parents `08a79203681` (main) and `687892d1046` (the tag), and carries the
-  follow-up the merge opened (`chore(sync): re-apply the Zeta brand surface
-  after the v18.10.4 merge`: the folded CHANGELOGs, the dead Code Mode settings
-  entries, the `approval` role namespace, the `commands/gc.ts` i18n pin bump
-  and the regenerated `compat/rules.json`).
+- In flight: `sync/omp-release/v18.10.4` (PR #230,
+  <https://github.com/Linxira-OS/linxira-zeta/pull/230>); its merge commit `c86128383f1` has parents
+  `08a79203681` (main) + `687892d1046` (the tag), and the branch-dispatch validation run is
+  <https://github.com/Linxira-OS/linxira-zeta/actions/runs/38849920435>. It carries the follow-up the
+  merge opened (`chore(sync): re-apply the Zeta brand surface after the v18.10.4 merge`: the folded
+  CHANGELOGs, the dead Code Mode settings entries, the `approval` role namespace, the
+  `commands/gc.ts` i18n pin bump and the regenerated `compat/rules.json`).
