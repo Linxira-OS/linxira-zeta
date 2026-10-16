@@ -53,6 +53,7 @@ import {
 	handleOAuthProviders,
 } from "./web-gateway/auth";
 import { handleBlobGet } from "./web-gateway/blobs";
+import { handleChannelSend } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
@@ -195,6 +196,8 @@ const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
 const CHANNELS_WECHAT_RECONNECT_RE = /^\/api\/channels\/wechat\/reconnect$/;
 const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
 const CHANNELS_STATUS_RE = /^\/api\/channels\/status$/;
+// The only write route in the channels family; see web-gateway/channels.ts.
+const CHANNELS_SEND_RE = /^\/api\/channels\/send$/;
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -696,6 +699,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (CHANNELS_STATUS_RE.test(pathname)) {
 		if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 		return json({ channels: getChannelStatus() });
+	}
+
+	if (CHANNELS_SEND_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleChannelSend(req);
 	}
 
 	if (CHANNELS_WECHAT_QR_RE.test(pathname)) {

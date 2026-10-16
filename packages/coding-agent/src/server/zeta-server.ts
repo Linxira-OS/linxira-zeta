@@ -43,6 +43,7 @@ import { SessionManager } from "../session/session-manager";
 import { openPath } from "../utils/open";
 import { clearServeRegistration, writeServeRegistration } from "./serve-registry";
 import { authorizedForAccess, startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
+import { classifySendError, registerChannelSend } from "./web-gateway/channels";
 import {
 	handleTerminalWsUpgrade,
 	isTerminalWsUpgradeRequest,
@@ -447,6 +448,7 @@ export class ZetaServer {
 			setPendingWechatQr(null);
 			registerWechatReconnect(null);
 			registerWechatUnbind(null);
+			registerChannelSend(null);
 		}
 		registerRestartChannels(null);
 		registerMainSessionId(null);
@@ -677,6 +679,7 @@ export class ZetaServer {
 		registerWechatReconnect(null);
 		registerWechatUnbind(null);
 		registerChannelStatus(null);
+		registerChannelSend(null);
 	}
 
 	/** Start the channel runtime when any channel is enabled (fresh copy). */
@@ -748,6 +751,24 @@ export class ZetaServer {
 				running: this.#channelRuntimeRef?.channels.has(id as ChannelId) ?? false,
 			})),
 		);
+		// The gateway's IM write entry (`POST /api/channels/send`) resolves
+		// against the same runtime, so an out-of-process caller gets the same
+		// answers the in-process `channel_send` tool does: "not enabled" when
+		// the channel is missing here, "not paired" when the channel refuses
+		// the peer before sending, and the platform's own error otherwise.
+		registerChannelSend(async (channelId, to, text) => {
+			const runtime = this.#channelRuntimeRef;
+			if (!runtime || !runtime.channels.has(channelId)) {
+				return { ok: false, kind: "unknown-channel", message: `Channel not enabled: ${channelId}` };
+			}
+			try {
+				await runtime.sendText(channelId, to, text);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				return { ok: false, kind: classifySendError(message), message };
+			}
+			return { ok: true, channelId, to };
+		});
 		const wechatChannel = this.#channelRuntime.channels.get("wechat");
 		registerWechatReconnect(wechatChannel instanceof WeChatChannel ? () => wechatChannel.reconnect() : null);
 		registerWechatUnbind(wechatChannel instanceof WeChatChannel ? () => wechatChannel.unbind() : null);

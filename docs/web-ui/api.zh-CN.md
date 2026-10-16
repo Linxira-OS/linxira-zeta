@@ -354,3 +354,24 @@ WebSocket 升级（loopback 调用可省略票据）。首个下行帧是 `0x00`
 ### `POST /api/channels/wechat/reconnect`
 
 触发新的微信扫码登录。`{ "ok": true }`；渠道未运行时返回 404。
+
+### `POST /api/channels/send`
+
+通过一个正在运行的渠道发一条文本消息 —— 这是 `channel_send` 工具的**进程外**入口，
+给不是 `zeta serve` 本进程的调用方用（桌面壳、GUI 的通知回落、脚本）。
+
+```json
+{ "channelId": "wechat", "to": "<peer id>", "text": "<message>" }
+```
+
+三个字段都是必填：它们就是运行时 `sendText(channelId, to, text)` 的三个参数，
+网关自己没有可回落的会话。
+
+```json
+{ "ok": true, "receipt": { "channelId": "wechat", "to": "<peer id>", "textLength": 12, "sentAt": "<ISO 8601>" } }
+```
+
+字段缺失或为空 → 400；该渠道下这个 peer 没有配对 → 400（微信对没有
+`context_token` 的 peer 直接拒绝，需先收到对方一条消息）；渠道在本进程未运行 → 404；
+渠道已把请求交给平台而平台拒绝 → 500。鉴权沿用网关既有的那一套：回环放行，
+非回环需要 `remote.token`。

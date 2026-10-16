@@ -370,3 +370,27 @@ or `{ "pending": false }`.
 
 Trigger a fresh WeChat QR login. `{ "ok": true }` or 404 when the channel is
 not running.
+
+### `POST /api/channels/send`
+
+Send one text message through a running channel — the out-of-process half of the
+`channel_send` tool, for a caller that is not the serve process (the desktop
+shell, the GUI's notification fallback, a script).
+
+```json
+{ "channelId": "wechat", "to": "<peer id>", "text": "<message>" }
+```
+
+All three fields are required: they are the runtime's `sendText(channelId, to,
+text)` arguments, and the gateway has no chat of its own to default to.
+
+```json
+{ "ok": true, "receipt": { "channelId": "wechat", "to": "<peer id>", "textLength": 12, "sentAt": "<ISO 8601>" } }
+```
+
+400 when a field is missing or blank, or when the peer is not paired with that
+channel (WeChat refuses a peer it holds no `context_token` for — wait for an
+inbound message first); 404 when the channel is not running in this process;
+500 when the channel reached the platform and the platform refused. Access
+control is the gateway's own, unchanged: loopback passes, a non-loopback caller
+needs `remote.token`.
