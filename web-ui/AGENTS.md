@@ -224,9 +224,9 @@ hooks/
   `plugin-assets` route are *not implemented* — this scan is the interim read
   path. When `PluginManifest.pages` lands, `readPluginPackages()` should read the
   declared pages instead of walking for `.html`, and the asset route can be
-  dropped in favour of the gateway's. See
-  `document/webui-desktop-overhaul-plan.md` batch Z4 / `document/plugin-system.md`
-  §"web 显示面".
+  dropped in favour of the gateway's. See `document/plugin-system.md`
+  §"web 显示面"（原 `webui-desktop-overhaul-plan.md` batch Z4 计划已于 2026-10-16 删除；
+  未开发项见 `document/roadmap.md` 的 Deferred Queue）。
 
 ### AgentSession lifecycle (`lib/rpc-manager.ts`)
 

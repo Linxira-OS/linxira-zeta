@@ -4,10 +4,10 @@
 > 文档）。时点：2026-10-02。规则的操作细节一律以来源文件为准，本文只收束
 > 「理念是什么、为什么」，每条教义给一句「为什么」。
 >
-> 信息来源：根 `AGENTS.md`、`document/webui-desktop-overhaul-plan.md`
-> （下称「本批次 spec」）、`document/roadmap.md`、`document/upstream-sync.md`、
-> 参考项目调查 deepseek-harness（dsh）与 zcode-ui-reference（ZCode）
-> （`agent://ScoutHarness/report`、`agent://ScoutZcode/report`）。
+> 信息来源：根 `AGENTS.md`、`document/roadmap.md`（**桌面/GUI 与产品面的当前口径以它的
+> `P0 — 桌面形态定稿` 一节为准，2026-10-16 修订**）、`document/upstream-sync.md`、
+> 参考项目调查 deepseek-harness（dsh）与 zcode-ui-reference（ZCode）。
+> 旧「本批次 spec」`document/webui-desktop-overhaul-plan.md` 已于 2026-10-16 关闭并删除。
 
 ## 1. 产品定位与对外命令
 
@@ -321,22 +321,23 @@ marketplace、ACP、渠道、远程 token 鉴权、trajectory、mermaid、`/shar
 ### 6.2 三大 UI 面 + 渠道面（代码各归其家，依赖方向永不倒置）
 
 ```
-desktop/ (Electron)  ──HTTP──▶  zetacode serve (zeta-server.ts)  ──▶  packages/coding-agent/src/**
-web-ui/ (Next.js)    ──HTTP──▶  webGatewayFetch (/api/*)     ──▶  packages/coding-agent/src/server/web-gateway/
-TUI (packages/tui + InteractiveMode)  ──进程内──▶  packages/coding-agent/src/**
+zetawork (Rust: main/crates/zetawork-gui = GUI/egui · main/crates/zeta-main = TUI/ratatui)
+                     ──进程内 / PTY──▶  zetacode（TS TUI / CLI）  ──▶  packages/coding-agent/src/**
+web-ui/ (Next.js)    ──HTTP──▶  webGatewayFetch (/api/*)        ──▶  packages/coding-agent/src/server/web-gateway/
+TUI (packages/tui + InteractiveMode, zetacode 自带)  ──进程内──▶  packages/coding-agent/src/**
 channels (src/channels)  ──嵌入 zetacode serve──▶  ChannelHost + channel_send/workspace_run 工具
 ```
 
-- **TUI 面**：`packages/tui`（差分渲染库）+ `coding-agent` 的
-  `InteractiveMode`；Zetawork 工作台把 zetacode（以及内置编辑器面板）作为 PTY 子进程嵌套。
-- **web-ui/**：Next.js 独立快照，自有包管理器与规则（`web-ui/AGENTS.md`），
-  不是根 Bun workspace 包，不 carry 自己的 workflow（检查全在根 `ci.yml`）；
-  `feat/desktop-ui-upgrade` 起为 Zeta 自有演进。
-- **desktop/**：Electron 壳（托盘/frameless 自绘标题栏/会话完成通知），
-  **零业务 UI 代码**——嵌入 web-ui standalone 构建 + zeta 二进制 + 捆绑
-  Node（`prepare-runtime.mjs`），只经 HTTP loopback 对话
-  （30141 web / 3847 stats），永不 import `packages/*` 或 `web-ui/*` 源码。
-  「one source, two outputs」：桌面嵌入的 web-ui 与浏览器 UI 同源同构建。
+- **zetawork = 唯一桌面应用**（`main/`，Rust）：GUI 与 TUI 同仓，GUI 走 egui/eframe
+  （`main/crates/zetawork-gui`）。面板内容用**虚拟终端**承载（pty + VT 渲染）；zetacode 的
+  TS TUI 与 zetawork 自己的 ratatui TUI **都只当面板内容**。**TUI 只保基本功能**（减法为主）。
+- **web-ui/**：Next.js 独立快照，自有包管理器与规则（`web-ui/AGENTS.md`），不是根 Bun workspace 包，
+  不 carry 自己的 workflow（检查全在根 `ci.yml`）。**2026-10-16 起降级**：职责只剩
+  **浏览器远程连接的服务端**（`zetacode serve` 的 `/api/*`，含已有降级页面）与**插件接口**；
+  不再承担"产品第二界面"，不再做后续复杂维护，**不做**"GUI 里选渲染方式"的开关。
+- **右栏插件宿主**：右栏要能挂第三方 HTML 页面（形态倾向 **GUI 内嵌 WebView2 面板**）；插件体系
+  目前**只登记在 `roadmap.md` 的 Deferred Queue —— 不暴露、不开发**。
+  （旧 `desktop/` Electron 壳退役中，"one source, two outputs" 的桌面渲染路径随之作废。）
 - **渠道面**：`src/channels` 嵌在 `zetacode serve`；渠道工具走 surface-scoped
   sink 模式——构造期接线（只有 serve 协调器与 bot 会话拿到 sink），不是
   运行时门；合并时必须保住「subagent/临时会话永不拿 sink」的不变量。
@@ -353,28 +354,21 @@ models/open/web-config/archive…），handler 只 import coding-agent 内部源
 
 ## 7. 在途轨道
 
-**来源：本批次 spec §8/§10/§13、`upstream-sync.md`（账本）、`roadmap.md`
-（Deferred Queue / Priorities）；v18.4.4 与 pi v1.0.0、teamagent 的在途状态
-来自当前任务上下文。**
+**来源：`roadmap.md`（Priorities + Deferred Queue，2026-10-16 修订）与
+`upstream-sync.md`（账本）；在途状态以账本与 PR 记录为准，不在此写死。**
 
-1. **上游合并（v18.4.4 在途）**：v18.3.3+.34 增量双 tag、v18.4.3 五 tag 直拉
-   已在 `dev/main` 实验线按「上游增量合并规程」完成（v18.4.3 带入
-   check-ci-surface 机械化：job 清单/needs 接线/产物名三查）。v18.4.4 合并
-   在途，剩余步骤 = 六阶段管线后段（结构修复 → 品牌 overlay → 逐 bucket
-   测试契约 resolve → brand-check 归零 + 全绿）+ 实验线结论回 main 的正常
-   Feature Branch 落地。
-2. **web-ui 大修（本工作树 `feat/webui-sidebar-overhaul`，发布硬门）**：
-   批 0 切分支/基线截图 → 批 1 清场（D12 兼容面 11 项删除 + D13 i18n 债
-   接线）→ 批 2 IA 重排（删 action row/死代码、`ProjectsSection`、组头
-   hover 化、去时间桶）→ 批 3 草稿直开（空态 hero + `DraftContextBar`，
-   删 `NewSessionDialog`）→ 批 4 命名规则 + `EmptySessionsFold` → 批 5
-   偏好统一 P2（`zeta-web:sidebar-preferences-v2` 单一偏好源）→ 批 6
-   merge main → PR → CI 绿 → 桌面 dist 冒烟 → 合并。
-3. **发布门规则（硬性）**：下一次 release CI 之前必须完成本计划全部批次 +
-   验收 1-17 全绿 + 桌面链路（desktop_linux/windows）在含本计划的 commit
-   上跑绿 + tag release 的桌面产物内嵌新 web-ui（冒烟断言「项目」section
-   文案存在）；未满足不得打任何 release tag；判定 CI 绿必须核对 run 的
-   jobs 数（单 job 的 `Zeta Nix` run 不是主流水线）。
+1. **上游合并（梯子收尾）**：v18.10.1 → v18.10.3 → v18.10.4 → **v18.11.1**
+   （最后一档，吸收 v18.11.0）按「上游增量合并规程」逐档双父合并，v18.11.1 在途。
+   规矩不变：只比上游 tag ↔ tag、真双父不 squash、逐行双向核对、推送前六道门禁归零；
+   下一目标 = **等上游下一个正式 release tag**（未打 tag 的 `omp-upstream/main` 不整合）。
+2. **GUI 按 HTML 稿重做（新主线；见 `roadmap.md` 的 `P0 — GUI 按 HTML 稿重做`）**：
+   唯一基准是用户的两份 HTML 稿（`Downloads/index.html` = 信息面；
+   `Downloads/workspace-v2.html` = 工作区组织，按各自侧重开发）；实现是 Rust 原生 GUI
+   （egui/eframe），**渲染路线 A**（GUI 内虚拟终端承载 TUI）；自证用仓库里的离屏截图 harness。
+   **TUI 只保基本功能**（减法为主）。
+3. **web-ui 收口（不再是发布硬门）**：职责降级为"**浏览器远程连接的服务端 + 插件接口**"，
+   保留现有能力与降级页面，不再做复杂维护；**不做**"GUI 里选渲染方式"的开关。
+   右栏 HTML 插件宿主**只登记在 roadmap 的 Deferred Queue —— 不暴露、不开发**。
 4. **CLI 指令面修复（独立分支 `fix/cli-command-surface`）**：P0
    resume-command 提示错名（`APP_NAME` → `CLI_BIN_NAME`）；P0 update-cli
    自更新链（shim 劫持工作台 `zeta.exe`、REPO/MISE 指向上游）；P1 约 18
@@ -384,9 +378,10 @@ models/open/web-config/archive…），handler 只 import coding-agent 内部源
 5. **pi v1.0.0 语义移植排队**：pi 仍是特性语义移植源；v1.0.0 的移植项按
    语义移植纪律逐项评估排队（`port/pi/<scope>`，保留 OMP 刻意分叉，
    不移植 Pi-only 运行时 facade）。
-6. **teamagent 修正**：随 agent-team 插件线推进（设计登记于
-   `document/plan-zeta-ui-carryover.md` Z5+U11 批、
-   `document/session-map-web.md`）；具体修正项以任务分配为准。
+6. **teamagent 修正**：随 agent-team 插件线推进；**插件线整体搁置**（相关设计文档
+   `document/plugin-system.md` 等保持草案状态，未开发项已登记 `roadmap.md` 的 Deferred Queue）。
+   具体修正项以任务分配为准。（原引用的 `plan-zeta-ui-carryover.md` 与
+   `session-map-web.md` 均不存在 / 已删。）
 7. **其余排队项（roadmap）**：compaction as a service（专用 compaction
    agent + 分相进度事件）、tracking+prompt-cache 写序规则、上下文文件
    热更新（AGENTS.md 变更感知）、OpenCode 命令三种类迁移、记忆稳定性

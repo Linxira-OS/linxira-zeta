@@ -48,7 +48,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Plan-mode detail ceiling (length-bound plans)  | `packages/coding-agent/src/plan-mode/plan-protection.ts`                    | `readTargetsPlan` wired into the read tool: plan files get the full default read window so long plans are never amended blind                            |
 | Web-ui settings coverage + reload button       | `POST /api/settings/reload` + `web-ui/lib/settings-client.ts`               | SettingsPanel mirrors the full settings schema (all tabs/groups from `GET /api/settings`); "Reload config" button wired to the reload endpoint           |
 | Full-surface CLI i18n                          | `packages/tui/src/i18n.ts` + `src/i18n/wire-tui.ts`                         | Host-injectable `tuiText` layer, `settings-zh.ts` overlay; ~700 keys across all TUI panels; `scripts/check-i18n-consistency.ts` guards en/zh parity      |
-| Plan-surface completion A+B                    | `webui-desktop-overhaul-plan.md` §14                                        | Shell wrap-up, command palette (Ctrl+K), Shiki, windowed searchable settings, gateway plan endpoint + sidebar Plan card, Tracking v2, U2 (9e7c4e4251f)   |
+| Plan-surface completion A+B                    | 原 §14（该计划已于 2026-10-16 删除）                                        | Shell wrap-up, command palette (Ctrl+K), Shiki, windowed searchable settings, gateway plan endpoint + sidebar Plan card, Tracking v2, U2 (9e7c4e4251f)   |
 | `ssh_exec` remote command tool (v1.1.17)       | `src/ssh/` + `ctx.registerTool`                                             | Wraps the retained connection manager (`zetacode ssh` CLI, `/ssh`); PR #34                                                                                |
 
 ## Priorities
@@ -173,8 +173,8 @@ restored (item 1), project grouping and concurrent-session status preserved
 through the visual recomposition (item 2), the desktop file-manager/editor
 bridge (item 3), AppImage packaging + Linux CI artifact validation (item 5),
 and the workbench visual recomposition (item 6 — see Shipped). These landed on
-the locked design/typography/port-boundary contracts; the full spec stays in
-`document/webui-desktop-overhaul-plan.md` §14. One item remains open:
+the locked design/typography/port-boundary contracts; the full spec lived in the
+now-deleted `document/webui-desktop-overhaul-plan.md` §14. One item remains open:
 
 - **Cross-client provenance (item 4)**: session/run provenance must record the
   initiating client — `cli`, `web`, `desktop`, or non-interactive `automation`

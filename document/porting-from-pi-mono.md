@@ -5,7 +5,8 @@ It covers semantic feature ports on `port/pi/<scope>` branches; full release syn
 are a different path — a complete non-squash OMP tag merge governed by `AGENTS.md`
 and `document/upstream-sync.md`.
 
-Live baseline: `document/upstream-sync.md`（当前 OMP `v18.1.10`）— this file no longer tracks sync points.
+Live baseline: `document/upstream-sync.md` — **单一来源**，不在此写死版本号：账本的
+`Integrated through:` 字段是本仓库唯一记录的同步点。This file no longer tracks sync points.
 
 ## 0) Define the scope
 
