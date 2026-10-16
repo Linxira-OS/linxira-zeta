@@ -179,14 +179,21 @@ two-parent tag merge.
   coding-agent's conflicted/swept set **328 / 0** (12 agent-session files) and **43 / 0** (status-line,
   footer, tools-manager, input-controller, issue-12247, sdk-computer-user-wait, power-assertion,
   auth-gateway-clients-reload, read-limited-text, extension-loader) and **31 / 0** for the two SQLite
-  session files after the table-name fix; utils **836 pass / 36 skip / 4 fail**; ai **5950 pass / 8 fail**;
+  session files after the table-name fix; utils **839 pass / 36 skip / 5 fail** package-wide
+  (880 tests / 92 files) against `main`'s **828 / 36 / 5** (869 tests / 90 files) — the same five either
+  side (upstream's `browsers.test.ts` symlink entry on Windows `EPERM`, plus the four offline
+  `ensureRuntimeInstalled` install-lock cases); ai **5950 pass / 8 fail**;
   tui **3851 pass / 16 fail**; browser upload/relay **36 pass / 1 fail**. Every non-zero line was re-run
-  against `main` and is **identical there** (utils' four `ensureRuntimeInstalled` failures are the offline
-  `bun install` EPERM, ai's eight are 5–10 s AuthStorage/Codex-OAuth timeouts, tui's sixteen are the
-  PTY/ConPTY `ProcessTerminal` and clock-reading tests, plus two `workspace-tree` cases that fail on
-  `main` because the *local* native binary predates `listWorkspace`'s `unreadableDirectories` field —
-  main's own binary returns only `entries/agentsMdFiles/truncated`), and the branch adds 50 new passing
-  tests in tui and 50 in ai. The browser upload symlink case fails with Windows `EPERM: symlink`
+  against `main` and is **identical there** (ai's eight are 5–10 s AuthStorage/Codex-OAuth timeouts,
+  tui's sixteen are the PTY/ConPTY `ProcessTerminal` and clock-reading tests, plus two `workspace-tree`
+  cases that fail on `main` because the *local* native binary predates `listWorkspace`'s
+  `unreadableDirectories` field — main's own binary returns only `entries/agentsMdFiles/truncated`), and
+  the branch adds 50 new passing tests in tui, 50 in ai and 11 in utils (the window's two new utils files
+  plus the tui/ai cases). One transient was chased down and cleared: a package-wide utils run that
+  reddened `postmortem-epipe`, `postmortem-guard-exit` and `logger-contract` (5–7.8 s process-timing
+  tests, untouched by the branch) while the typecheck ran alongside it — all three pass in isolation on
+  both trees, and the quiet package-wide re-run above has none of them, so that trio was load, not
+  damage. The browser upload symlink case fails with Windows `EPERM: symlink`
   (unprivileged symlinks) and is expected to pass on the Linux runner. **Rust/native tests are not run
   locally** (no bazel, and the local `.node` is the baseline artifact) — the dispatched `ci.yml` run's
   native-addon jobs are the authority for them.
