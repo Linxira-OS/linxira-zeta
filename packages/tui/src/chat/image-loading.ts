@@ -1,5 +1,10 @@
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
-import { decodeBase64ImageData, formatBytes, parseImageMetadata, SUPPORTED_IMAGE_MIME_TYPES } from "@linxiraos/pi-utils";
+import {
+	decodeBase64ImageData,
+	formatBytes,
+	parseImageMetadata,
+	SUPPORTED_IMAGE_MIME_TYPES,
+} from "@linxiraos/pi-utils";
 
 export const MAX_IMAGE_INPUT_BYTES = 20 * 1024 * 1024;
 

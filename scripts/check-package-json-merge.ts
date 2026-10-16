@@ -288,7 +288,10 @@ async function main(): Promise<void> {
 		// revision this merge is judged by must carry its tree locally.
 		for (const rev of [head, branch, mergedIn, ancestor]) {
 			if (!(await hasTree(rev))) {
-				return unreadable(`the tree of ${rev.slice(0, 12)} (needed to judge ${merge.slice(0, 12)}) is missing`, shallow);
+				return unreadable(
+					`the tree of ${rev.slice(0, 12)} (needed to judge ${merge.slice(0, 12)}) is missing`,
+					shallow,
+				);
 			}
 		}
 		for (const file of await manifestsAt(merge)) {
