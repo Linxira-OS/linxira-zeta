@@ -159,7 +159,15 @@ two-parent tag merge.
   `check-shared-infra` 0 (15 endpoints / 4,324 files), `check-release-asset-names` 0,
   `check-serve-discovery-parity` 0, `check-nix-bun-freshness` 0 (`nix/bun.nix` byte-identical),
   `check-robomp-cli-contract` 0, `generated-freshness` 0, `cargo fmt --all --check` 0.
-  `check-package-json-merge --base d98033c2694` reported no branch-side manifest leaf dropped or reverted.
+  `check-package-json-merge` was not run to completion locally — its scan walks *every* merge commit in
+  `<base>..HEAD`, which on this branch is the whole 497-commit upstream window, and it does not finish in
+  reasonable time here. The equivalent, stronger check was done directly instead: **all 39 manifests
+  (`package.json`, `packages/*`, `plugins/*`, `python/robomp/web`) are byte-identical to `d98033c2694`**
+  (`git diff --name-status` over that path set prints nothing), and the Zeta-owned leaves are intact
+  (`packageManager bun@1.4.3`, `workspaces.packages [packages/*, plugins/*, python/robomp/web]`,
+  13 `@linxiraos/*` catalog pins, the Zeta-only `check:*`/`gen:*` scripts), so the merge driver dropped and
+  reverted nothing. Upstream's entire manifest delta in this window was version bumps plus
+  `@oh-my-pi/*` catalog keys, all rejected by the driver by design.
   Not a merge signal: `check-spoofed-versions` cannot run offline here (it fetches the newest Gemini CLI
   build) and reports the same `Claude Code 2.1.280 -> 2.1.301` drift on `main`.
 - **Tests (local, affected buckets only)**: catalog **1306 pass / 0 fail**; mnemopi **477 / 0**;
