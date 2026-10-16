@@ -1215,6 +1215,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "诊断去重",
 		description: "抑制编辑后已显示过的文件 LSP 诊断；只呈现新的或变化的",
 	},
+	"lsp.requestTimeout": {
+		label: "请求超时",
+		description:
+			"当 agent 未设置超时时，等待语言服务器返回诊断、悬停等结果的最长秒数；写入后的延迟诊断至少等待这么久。冷启动较慢的服务器可调高。lsp 工具的 timeout 参数仍可按次调高或调低",
+	},
 	"bash.enabled": {
 		label: "Bash 命令执行",
 		description: "启用 bash 工具执行 shell 命令",
@@ -2171,6 +2176,25 @@ export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; description?: string }>> = {
+	"lsp.requestTimeout::10": {
+		label: "10 秒",
+		description: "默认。",
+	},
+	"lsp.requestTimeout::20": {
+		label: "20 秒",
+	},
+	"lsp.requestTimeout::30": {
+		label: "30 秒",
+	},
+	"lsp.requestTimeout::60": {
+		label: "1 分钟",
+	},
+	"lsp.requestTimeout::120": {
+		label: "2 分钟",
+	},
+	"lsp.requestTimeout::300": {
+		label: "5 分钟",
+	},
 	"loop.conditionTimeoutMs::0": {
 		label: "不限时",
 	},

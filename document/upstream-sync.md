@@ -185,6 +185,46 @@ two-parent tag merge.
   (unprivileged symlinks) and is expected to pass on the Linux runner. **Rust/native tests are not run
   locally** (no bazel, and the local `.node` is the baseline artifact) — the dispatched `ci.yml` run's
   native-addon jobs are the authority for them.
+- **Dispatched CI — `ci.yml` run `38949297746` (headSha `65c8326bd46`)**: the native path is **green** —
+  `Build native addons (bazel)`, `Build native addons (bazel, cross targets)`,
+  `Check MODULE.bazel.lock freshness`, `Test TS native/integration packages`, `Lint, type check & web
+  build`, `Test CLI smoke (TS)`, `Test coding-agent runtime/session (TS)`,
+  `Test coding-agent singleton/global-state (TS)`, `Test main workspace (zeta workbench)`,
+  `Test web/desktop contracts`, `Test editor (vendored TTT)`, `Test termide (vendored TermIDE)`,
+  `Install method smoke tests`, `Web UI build`, `Resolve release metadata`. So the native-addon build this
+  machine cannot run (no bazel) is validated, and CI's own freshness job independently confirms the
+  `MODULE.bazel.lock` conclusion. Four jobs were red; every one was reproduced locally and three were real
+  merge damage, fixed on the branch:
+  1. **zh settings (real, merge-caused)** — upstream's new `lsp.requestTimeout` had no zh label,
+     description or option texts: `src/config/settings-zh.test.ts` reported 9 of 2,255 user-visible strings
+     missing, and `test/i18n-settings-localization.test.ts` stopped at
+     `label for lsp.requestTimeout should be zh: Request Timeout`. Added
+     `ZH_SETTING_TEXTS["lsp.requestTimeout"]` plus the six `ZH_OPTION_TEXTS["lsp.requestTimeout::N"]`
+     entries to `config/settings-zh.ts`.
+  2. **CLI-help pin (real, merge-caused)** — upstream's new `auth-gateway --clients` help literal moved the
+     pinned unlocalized inventory from 7 to 8 sites in `commands/auth-gateway.ts`; the pin was bumped,
+     which is the guard's own documented one-line remedy.
+  3. **orphan catalogue key (real, merge-caused)** — upstream's redesigned commit row (`N files in <sha>`)
+     removed the only call site of Zeta's `gitModifiedCountFmt`, so `test/i18n-message-references.test.ts`
+     listed it as a new orphan. The row was wired through the catalogue rather than the key deleted:
+     `gitModifiedCountOneFmt` / `gitModifiedCountManyFmt` (the plural-pair idiom
+     `gitFileChangesOnOneFmt`/`ManyFmt` already uses) plus `gitInShaFmt`. The English rendering stays
+     byte-identical to upstream's (`2 files in abcdef0`, pinned by
+     `packages/tui/test/git-commit-view-hints.test.ts`); a zh session now reads `2 个文件 在 abcdef0`.
+  4. **`__omp_call_tool__` scar (real, merge-caused)** — upstream's new artifact-locating branch in
+     `src/eval/js/shared/prelude.txt` still called `globalThis.__omp_call_tool__` while the runtime installs
+     `__zeta_call_tool__` (the file is a `.txt`, so the scope sweep's `*.ts` glob skipped it); three
+     `test/eval/prelude-agent.test.ts` read()-delegation cases threw
+     `TypeError: globalThis.__omp_call_tool__ is not a function`. The single line was renamed.
+  The remaining two reds are **not** merge damage: `packages/utils/test/json-lexer-string-scan.test.ts`
+  ("keeps escape-dense strings linear", wall-clock ratio `3.162` against a `< 3` bound) and Rust's
+  `shell::tests::cancellation_keeps_output_open_for_a_term_trap_that_writes` (1 of 927 tests in
+  `//crates/pi-shell:pi-shell_test`). For both, the code under test is byte-identical to `d98033c2694`:
+  `packages/utils/src/json-lexer*` and `json-parse*` are untouched by the branch (`git diff --stat` empty)
+  and the branch's only `crates/pi-shell/src/shell.rs` edits are inside `mod tests` (+53/-3, Zeta's own
+  added cases and two widened timeouts), so Zeta contributes nothing to either production path; the job
+  runs `OMP_TEST_CONCURRENCY=4` on a 4-core runner, which is what a wall-clock ratio assertion is exposed
+  to. Both jobs were re-run on the same head to separate flake from damage.
 - **Tag-to-tag only, explicitly**: every comparison in this round is `v18.11.1` <-> `v18.11.2` (the merge
   preview, the forward completeness check, the member audit's *explained* leg) plus each file's own
   baseline-to-branch delta (`git diff v18.11.1..HEAD -- <file>`, used only to decide whether a conflict

@@ -1692,9 +1692,14 @@ export class Sidebar {
 
 		const additions = head.files.reduce((sum, file) => sum + (file.additions ?? 0), 0);
 		const deletions = head.files.reduce((sum, file) => sum + (file.deletions ?? 0), 0);
-		const count = `${head.files.length} file${head.files.length === 1 ? "" : "s"}`;
+		// Upstream's redesigned row ("N files in <sha>"); the count and the sha
+		// fragment both come from the catalogue so a zh session localizes them.
+		const count =
+			head.files.length === 1
+				? tuiTextFmt("gitModifiedCountOneFmt", "%s file", head.files.length)
+				: tuiTextFmt("gitModifiedCountManyFmt", "%s files", head.files.length);
 		rows.push({
-			text: ` ${theme.bold(count)} ${theme.fg("dim", `in ${head.shortSha}`)}  ${theme.fg("success", `+${additions}`)} ${theme.fg("error", `−${deletions}`)}`,
+			text: ` ${theme.bold(count)} ${theme.fg("dim", tuiTextFmt("gitInShaFmt", `in ${head.shortSha}`, head.shortSha))}  ${theme.fg("success", `+${additions}`)} ${theme.fg("error", `−${deletions}`)}`,
 		});
 		rows.push(this.#viewToggleRow(width));
 		rows.push(...this.#entryRows(head.files, "commit"));
