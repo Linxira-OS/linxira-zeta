@@ -32,6 +32,7 @@ export { AbortError, ChildProcess, Exception, NonZeroExitError } from "./ptree";
 export * from "./release-assets";
 export * from "./runtime-install";
 export * from "./sanitize-text";
+export * from "./slugify";
 export * from "./snowflake";
 export * from "./sqlite";
 export * from "./stderr-guard";

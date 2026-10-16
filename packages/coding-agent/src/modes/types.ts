@@ -9,6 +9,7 @@ import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import type { TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
+import type { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import type { Settings } from "../config/settings";
 import type {
 	AutocompleteProviderFactory,
@@ -120,6 +121,7 @@ export interface AgentHubOpenOptions {
 export interface InteractiveModeContext {
 	// UI access
 	ui: TUI;
+	readonly composer: Pick<Composer, "setRunActive">;
 	chatContainer: TranscriptContainer;
 	pendingMessagesContainer: Container;
 	statusContainer: Container;

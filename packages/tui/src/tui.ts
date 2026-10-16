@@ -931,6 +931,8 @@ export class TUI extends Container {
 	#debugNextWindowTop = 0;
 	#inputListeners = new Set<InputListener>();
 	#startListeners = new Set<StartListener>();
+	/** True from the end of start() until stop(): the terminal modes start listeners enable are live. */
+	#started = false;
 	#paintListeners = new Set<PaintListener>();
 
 	/** Global callback for debug key (Shift+Ctrl+D). Called before input is forwarded to focused component. */
@@ -1702,13 +1704,8 @@ export class TUI extends Container {
 		if (this.#stopped) return;
 		this.#cancelPostmortemRestore?.();
 		this.#cancelPostmortemRestore = postmortem.register("tui-restore", () => this.stop());
-		for (const listener of this.#startListeners) {
-			try {
-				listener();
-			} catch {
-				// Startup listeners are feature hooks; one broken hook must not prevent rendering.
-			}
-		}
+		for (const listener of this.#startListeners) this.#runStartListener(listener);
+		this.#started = !this.#stopped;
 		this.terminal.hideCursor();
 		this.#recordHardwareCursorHidden();
 		if (!this.#inputDeferred) {
@@ -2476,11 +2473,27 @@ export class TUI extends Container {
 		if (this.#heldInput !== undefined && this.#heldFocus === previous) this.#heldFocus = next;
 	}
 
+	/**
+	 * Register a hook that re-enables terminal modes on every start(). A hook
+	 * added while the TUI is already running (a prepaint composer starts it
+	 * before the interactive mode wires its controllers) missed that start, so
+	 * it runs immediately instead of waiting for a stop/start cycle that may
+	 * never come.
+	 */
 	addStartListener(listener: StartListener): () => void {
 		this.#startListeners.add(listener);
+		if (this.#started) this.#runStartListener(listener);
 		return () => {
 			this.#startListeners.delete(listener);
 		};
+	}
+
+	#runStartListener(listener: StartListener): void {
+		try {
+			listener();
+		} catch {
+			// Startup listeners are feature hooks; one broken hook must not prevent rendering.
+		}
 	}
 
 	addInputListener(listener: InputListener): () => void {
@@ -2735,6 +2748,7 @@ export class TUI extends Container {
 		// (and live-session ghosts are already bounded by the inline-image budget).
 		this.#clearSixelProbeState();
 		this.#stopped = true;
+		this.#started = false;
 		this.#watchdog.stop();
 		if (this.#renderTimer) {
 			this.#renderTimer.cancel();
@@ -2800,6 +2814,13 @@ export class TUI extends Container {
 			return;
 		}
 		this.#requestOrdinaryRender();
+	}
+
+	/** Run `callback` after `delayMs` on the render scheduler's clock, unless the TUI has stopped. */
+	scheduleAfter(delayMs: number, callback: () => void): RenderTimer {
+		return this.#renderScheduler.scheduleRender(() => {
+			if (!this.#stopped) callback();
+		}, delayMs);
 	}
 
 	/**

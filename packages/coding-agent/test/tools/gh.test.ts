@@ -15,6 +15,7 @@ import {
 	resolveDefaultRepoMemoized,
 } from "@linxiraos/zeta/tools/gh";
 import { parseIssueUrl, parsePullRequestUrl } from "@linxiraos/zeta/tools/gh-common";
+import { sanitizeRemoteName } from "@linxiraos/zeta/tools/gh-pr-checkout";
 import { github } from "@linxiraos/zeta/utils/github";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { withRepoLock } from "@linxiraos/zeta/utils/repo-lock";
@@ -234,6 +235,13 @@ async function expectedWorktreePath(home: string, primaryRoot: string, localBran
 	const segment = `${prNumber}-${hashPath(primaryRoot)}`;
 	return fs.realpath(path.join(home, ".zeta", "wt", segment));
 }
+
+describe("sanitizeRemoteName", () => {
+	it("prefixes sanitized fork owners and falls back to a bare fork remote", () => {
+		expect(sanitizeRemoteName("Octo_Cat.Org")).toBe("fork-octo-cat-org");
+		expect(sanitizeRemoteName("__")).toBe("fork");
+	});
+});
 
 describe("parsePrUnifiedDiff", () => {
 	it("parses quoted diff headers instead of falling back to unknown paths", () => {

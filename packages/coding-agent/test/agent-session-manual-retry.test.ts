@@ -1,16 +1,17 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
+import { type } from "@linxiraos/pi-omptype";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { type } from "@linxiraos/pi-omptype";
-import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { convertToLlm, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function lastAgentMessage(session: AgentSession): AssistantMessage {
 	const message = session.agent.state.messages.at(-1);
@@ -443,5 +444,82 @@ describe("AgentSession manual retry", () => {
 			type: "text",
 			text: "recovered after session reopen",
 		});
+	});
+
+	it("lets an idle aside start a turn after the user resumes an interrupted run with retry", async () => {
+		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
+		if (!model) {
+			throw new Error("Expected bundled Anthropic test model to exist");
+		}
+
+		const toolSchema = type({});
+		const firstRunStarted = Promise.withResolvers<void>();
+		let probeRuns = 0;
+		const probeTool: AgentTool<typeof toolSchema> = {
+			name: "probe",
+			label: "Probe",
+			description: "Probe tool",
+			parameters: toolSchema,
+			async execute(_toolCallId, _params, signal) {
+				probeRuns++;
+				if (probeRuns === 1) {
+					// Blocks until the user interrupt aborts it, like a pending `ask`.
+					const aborted = Promise.withResolvers<never>();
+					signal?.addEventListener("abort", () => aborted.reject(new Error("aborted")), { once: true });
+					firstRunStarted.resolve();
+					await aborted.promise;
+				}
+				return { content: [{ type: "text", text: "probed" }] };
+			},
+		};
+		const mock = createMockModel({
+			handler: context => {
+				const transcript = JSON.stringify(context.messages);
+				if (transcript.includes("LATE_ASIDE")) return { content: ["handled late aside"] };
+				if (context.messages.at(-1)?.role === "user") {
+					return { content: [{ type: "toolCall", name: "probe", arguments: {} }] };
+				}
+				if (transcript.includes("probed")) return { content: ["done after retry"] };
+				// The interrupted run's follow-up call after the aborted tool; the abort cancels it.
+				return { content: ["unreachable"], delayMs: 60_000 };
+			},
+		});
+		const agent = new Agent({
+			convertToLlm,
+			getApiKey: model => `${model.provider}-test-key`,
+			initialState: { model, systemPrompt: ["Test"], tools: [probeTool], messages: [] },
+			streamFn: mock.stream,
+		});
+		session = new AgentSession({
+			agent,
+			sessionManager: SessionManager.inMemory(),
+			settings: Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+			modelRegistry,
+			toolRegistry: new Map([[probeTool.name, probeTool]]),
+		});
+		session.subscribe(() => {});
+
+		// The user presses Esc while the tool runs, then resumes with /retry.
+		const run = session.prompt("run the probe");
+		await firstRunStarted.promise;
+		await session.abort({ reason: USER_INTERRUPT_LABEL });
+		await run.catch(() => {});
+		await session.waitForIdle();
+		await expect(session.retry()).resolves.toBe(true);
+		await session.waitForIdle();
+		expect(probeRuns).toBe(2);
+		expect(lastAgentMessage(session).content).toContainEqual({ type: "text", text: "done after retry" });
+
+		// The resumed run finished; a late aside must wake the agent, not stay folded
+		// as if the earlier interrupt were still in effect.
+		const dispatched = await session.sendCustomMessage(
+			{ customType: "ext-aside", content: "LATE_ASIDE", display: false, attribution: "agent" },
+			{ deliverAs: "aside" },
+		);
+		await session.waitForIdle();
+
+		expect(dispatched).toBe(true);
+		expect(mock.calls.filter(call => JSON.stringify(call.context.messages).includes("LATE_ASIDE"))).toHaveLength(1);
+		expect(lastAgentMessage(session).content).toContainEqual({ type: "text", text: "handled late aside" });
 	});
 });
