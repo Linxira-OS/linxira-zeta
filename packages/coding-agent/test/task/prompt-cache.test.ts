@@ -222,7 +222,11 @@ describe("task sibling prompt-cache routing", () => {
 					const result = await tool.execute(name, {
 						name,
 						task: `Review ${name}.`,
-						model: `${provider}/${modelId}`,
+						// No `model` here: dispatch never chooses a subagent's model, and the task
+						// tool rejects the field outright (a subagent inherits the parent's model
+						// — resolved per case above — and can only be switched after it has
+						// completed a model response). Upstream's copy of this test passed the
+						// redundant selector; the routing under test is the same either way.
 					});
 					expect(result.isError, JSON.stringify(result)).not.toBe(true);
 					expect(result.details?.results[0]?.exitCode, JSON.stringify(result)).toBe(0);
