@@ -17,7 +17,7 @@ import { isExistingPathWithinRoots, isPathWithinRoots } from "./path-security";
  * `.html`/`.htm` file under the package is a mountable page and its title is the
  * document `<title>`. Discovery is `GET /api/plugin-pages`. The Zeta-side
  * manifest v2 `pages` declaration
- * (`document/webui-desktop-overhaul-plan.md`, batch Z4) is not implemented, so
+ * (`document/roadmap.md` 的 Deferred Queue，未开发) is not implemented, so
  * this scan is the interim read path — see `web-ui/AGENTS.md` ("Web plugin
  * pages") for the hand-off.
  */
