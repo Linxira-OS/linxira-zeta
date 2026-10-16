@@ -444,7 +444,15 @@ pub struct Workspace {
 	/// The workspace's run state, from the contract's 状态词表 — see
 	/// [`crate::status::RunState`]. Shown as a dot and a word on the left
 	/// column's row and as the 总面板's 状态 column.
-	pub run_state: RunState,
+	///
+	/// **`None` means no source observes this workspace**, and it renders as `—`
+	/// with no dot — *not* as a plausible member of the seven. Nothing in this
+	/// build observes a workspace: there is no session state machine (see
+	/// [`crate::notify::MISSING_SIGNALS`]) and no PTY host
+	/// ([`Pane::shell_pid`]). Only the seeded sample projects carry a state,
+	/// and those exist to show the vocabulary, which is why their section head
+	/// says `示例项目`.
+	pub run_state: Option<RunState>,
 }
 
 /// What the centre column shows. The strip's first 大标签页 is always 总面板;
@@ -773,10 +781,9 @@ impl AppState {
 			path: format!("~/{project_name}/新工作区"),
 			cols: 1,
 			panes,
-			// A workspace that was just created is being worked in, not
-			// finished and not broken — the only one of the seven states that
-			// fits. (`unconfirmed` would claim work was reported done.)
-			run_state: RunState::Work,
+			// Nothing observes a workspace the user just created, so it has no
+			// state of the seven — `—` is the honest answer.
+			run_state: None,
 		});
 		self.active_project = Some(project_id.to_owned());
 		self.active_workspace = Some(id);

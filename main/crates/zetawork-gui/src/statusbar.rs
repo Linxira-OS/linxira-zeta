@@ -53,23 +53,10 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 				shell.state.set_right_tab(RightTab::Git);
 			}
 
-			ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-				if item(ui, None, "关闭", false, "收起状态栏").clicked() {
-					shell.state.act(|state| state.toggle_statusbar());
-				}
-				item(ui, None, &clock(), true, "本地时间");
-				// 上文: the current conversation's share of its window. The only
-				// source is a live session's context report (R16), so with no
-				// session it says so instead of drawing a plausible number.
-				let context = shell.state.context_label().to_owned();
-				item(ui, None, &context, true, CONTEXT_HINT);
-				let throughput = shell.throughput.clone().unwrap_or_else(|| "—".to_owned());
-				item(ui, None, &throughput, true, crate::THROUGHPUT_HINT);
-				item(ui, None, &shell.memory_label(), true, "本进程常驻内存（sysinfo）");
-			});
-			// 通知留痕: the fallback chain's second link. It sits left of the
-			// right-hand group, and clicking it goes to the workspace the
-			// notification was about.
+			// 通知留痕: the fallback chain's second link. It is allocated
+			// **before** the right-aligned group on purpose — a
+			// `right_to_left` layout consumes the rest of the row, so anything
+			// allocated after it lands past the panel and is clipped away.
 			if let Some(trace) = shell.last_trace.clone() {
 				let line = trace.message.trace_line();
 				let hint = crate::notify::trace_hint(&trace);
@@ -85,6 +72,21 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 					}
 				}
 			}
+
+			ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+				if item(ui, None, "关闭", false, "收起状态栏").clicked() {
+					shell.state.act(|state| state.toggle_statusbar());
+				}
+				item(ui, None, &clock(), true, "本地时间");
+				// 上文: the current conversation's share of its window. The only
+				// source is a live session's context report (R16), so with no
+				// session it says so instead of drawing a plausible number.
+				let context = shell.state.context_label().to_owned();
+				item(ui, None, &context, true, CONTEXT_HINT);
+				let throughput = shell.throughput.clone().unwrap_or_else(|| "—".to_owned());
+				item(ui, None, &throughput, true, crate::THROUGHPUT_HINT);
+				item(ui, None, &shell.memory_label(), true, "本进程常驻内存（sysinfo）");
+			});
 		});
 	});
 }

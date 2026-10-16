@@ -57,8 +57,10 @@ pub fn local_project(cwd: &Path) -> Project {
 		path: cwd.display().to_string(),
 		cols: 2,
 		panes: Vec::new(),
-		// The directory the shell was started in is the one being worked in.
-		run_state: RunState::Work,
+		// Nothing observes this directory's state: there is no session state
+		// machine and no PTY host, so the row shows `—` rather than a word from
+		// the seven that nothing produced.
+		run_state: None,
 	};
 	workspace.panes = default_panes("ws-local");
 	Project { id: "p-local".to_owned(), name: LOCAL_PROJECT.to_owned(), workspaces: vec![workspace] }
@@ -69,12 +71,11 @@ pub fn sample_projects() -> Vec<Project> {
 	/// One sample project: id, name, and its workspaces as
 	/// (name, branch, run state).
 	///
-	/// The states come from the contract's 状态词表 and are spread across the
-	/// seven on purpose: a 总面板 whose 状态 column reads the same word on every
-	/// row would not show that the column works. The pairings are the ones the
-	/// older mock's cards use (`工作区 1-1` working, `项目 3-1` done, …), plus the
-	/// ones the contract's priority order makes interesting — `permission`
-	/// outranks everything, `unconfirmed` is *not* `done`.
+	/// The states come from the contract's 状态词表 and are spread across four
+	/// of the seven on purpose: a 总面板 whose 状态 column read the same word on
+	/// every row would not show that the column works. They are **demo data**,
+	/// which is why they live only on the 示例项目 entries — the real 本机
+	/// project gets `None` (see [`Workspace::run_state`]).
 	type SampleProject =
 		(&'static str, &'static str, &'static [(&'static str, &'static str, RunState)]);
 	let sample: [SampleProject; 3] = [
@@ -103,7 +104,7 @@ pub fn sample_projects() -> Vec<Project> {
 						cols: 2,
 						panes: default_panes(&ws_id),
 						id: ws_id,
-						run_state: *run_state,
+						run_state: Some(*run_state),
 					}
 				})
 				.collect(),

@@ -38,6 +38,11 @@ fn fingerprint(state: &AppState) -> Vec<String> {
 		}
 	}
 	out.push(format!("right:{:?}", state.right_tab));
+	// The centre's page and the open workspace's run state are shared state
+	// too: the GUI's strip, the TUI's page switch and the left column all read
+	// them, so a view that disagreed about either would be a bug this catches.
+	out.push(format!("center:{:?}", state.center_page));
+	out.push(format!("status:{:?}", state.active_workspace().and_then(|w| w.run_state)));
 	out.push(format!("collapsed:{}/{}", state.left_collapsed, state.right_collapsed));
 	out
 }
@@ -164,6 +169,15 @@ fn the_gui_and_the_tui_read_the_same_state() {
 
 	let workspace = shell.state.workspace_label().to_owned();
 	let branch = shell.state.branch_label().to_owned();
+	// The TUI opens on the same page the GUI does (总面板), so the pane
+	// assertions below are made about the workspace page explicitly.
+	assert_eq!(shell.state.center_page, zetawork_gui::state::CenterPage::Total);
+	let text = tui_view::snapshot(&shell, 150, 40);
+	assert!(text.contains("总面板"), "the TUI opens on the total panel:\n{text}");
+	assert!(text.contains("所有项目一张表"), "with the contract's foot line:\n{text}");
+	shell
+		.state
+		.set_center_page(zetawork_gui::state::CenterPage::Workspace);
 	let text = tui_view::snapshot(&shell, 150, 40);
 	assert!(text.contains(&workspace), "the TUI shows the open workspace:\n{text}");
 	assert!(text.contains(&branch), "the TUI shows the branch:\n{text}");
@@ -176,12 +190,47 @@ fn the_gui_and_the_tui_read_the_same_state() {
 			}
 		}
 	}
+	// The page switch is on the bottom row and both pages are reachable.
+	assert!(text.contains("终端 宿主"), "the page switch is drawn:\n{text}");
+	shell.state.show_total();
 
 	// …and the GUI draws that same state without a window.
 	let ctx = egui::Context::default();
 	shell.state.set_view(ViewMode::Gui);
 	render_frame(&ctx, &mut shell);
 	assert_eq!(fingerprint(&shell.state), gui, "the GUI drew the same state");
+}
+
+/// The TUI's centre box has the same two pages the GUI's strip has, and the
+/// page switch on its bottom row is the only way between them in a terminal.
+#[test]
+fn the_tui_centre_box_switches_between_both_pages() {
+	let mut shell = shell();
+	shell.state.set_view(ViewMode::Tui);
+	let total = tui_view::snapshot(&shell, 150, 40);
+	let switch = total
+		.lines()
+		.find(|line| line.contains("总面板") && line.contains("终端 宿主"))
+		.unwrap_or_else(|| panic!("no page switch row:\n{total}"));
+	assert!(
+		switch.contains("所有项目一张表"),
+		"the 总面板 foot line the contract pins is on that row:\n{switch}"
+	);
+	// The real project's row is `—` in 状态: nothing observes it, and the sample
+	// projects' rows show words from the contract's table.
+	assert!(total.contains("permission"), "a sample state is drawn:\n{total}");
+
+	shell
+		.state
+		.set_center_page(zetawork_gui::state::CenterPage::Workspace);
+	let workspace = tui_view::snapshot(&shell, 150, 40);
+	assert!(!workspace.contains("所有项目一张表"), "the table is gone:\n{workspace}");
+	assert!(
+		workspace
+			.lines()
+			.any(|line| line.contains("总面板") && line.contains("终端 宿主")),
+		"the switch stays on both pages:\n{workspace}"
+	);
 }
 
 #[test]
@@ -466,20 +515,42 @@ fn the_total_panel_is_the_first_big_tab_and_what_opens() {
 	assert!(notice.0.is_empty(), "{}", notice.0);
 	assert_eq!(state.center_page, CenterPage::Workspace);
 
-	// Every seeded workspace carries one of the contract's seven states, and
-	// the sample projects do not all read the same word.
+	// The sample projects carry one of the contract's seven states each — they
+	// are demo data, and their section head says `示例项目` — and they do not
+	// all read the same word. The **real** project (本机, the user's own
+	// directory) must carry none: nothing in this build observes a workspace, so
+	// a state there would be invented.
 	let states: Vec<_> = state
 		.projects
 		.iter()
 		.flat_map(|p| p.workspaces.iter())
-		.map(|w| w.run_state)
+		.filter_map(|w| w.run_state)
 		.collect();
+	assert!(!states.is_empty(), "the sample projects show the vocabulary");
 	assert!(
 		states
 			.iter()
 			.all(|state| zetawork_gui::status::RunState::ALL.contains(state))
 	);
 	assert!(states.iter().any(|state| *state != states[0]), "the 状态 column is not degenerate");
+	let local = state
+		.projects
+		.iter()
+		.find(|p| p.id == "p-local")
+		.expect("the real project is seeded");
+	assert!(
+		local.workspaces.iter().all(|w| w.run_state.is_none()),
+		"the real project's state is not observed, so it is not claimed"
+	);
+
+	// A workspace created from the ＋ is in the same position: `—`, not a guess.
+	let project = state.active_project.clone().expect("a project");
+	state.new_workspace(&project);
+	assert_eq!(
+		state.active_workspace().and_then(|w| w.run_state),
+		None,
+		"a brand new workspace has no observed state"
+	);
 }
 
 #[test]

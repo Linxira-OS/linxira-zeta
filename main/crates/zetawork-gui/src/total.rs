@@ -7,10 +7,12 @@
 //!
 //! ```text
 //! 项目   工作区    分支      状态            ±行        未提交
-//! 本机   zeta      ⎇ main    ● working      +184 −22   12
-//! 项目 1 工作区 1-1 ⎇ main    ◐ permission   —          —
+//! 本机   zeta      main      ● working      +184 −22   12
+//! 项目 1 工作区 1-1 main      ◐ permission   —          —
 //! ```
 //!
+//! The branch is the draft's `.chip.branch`: cyan mono, no glyph in front of it
+//! (the drafts have none, and inventing one would render as tofu).
 //! # What is real
 //!
 //! A row is drawn from the state itself — project, workspace, branch and run
@@ -26,7 +28,7 @@ use egui::{Align2, CornerRadius, FontId, Rect, Sense, Stroke, pos2, vec2};
 use crate::Shell;
 use crate::state::Notice;
 use crate::theme;
-use crate::widgets::{status_word, truncated_mono, truncated_text};
+use crate::widgets::{status_dot, status_word, truncated_mono, truncated_text};
 
 /// The columns, in the contract's order and with their share of the width.
 const COLUMNS: [(&str, f32); 6] = [
@@ -198,13 +200,15 @@ fn row_body(
 	// 工作区
 	truncated_text(ui, pos2(x, baseline), &workspace.name, 12.5, ink, widths[1] - 8.0);
 	x += widths[1];
-	// 分支 — the mono chip the spec paints (`--accent` ink, no fill in a table).
-	let branch = format!("⎇ {}", workspace.branch);
-	truncated_mono(ui, pos2(x, baseline), &branch, 11.5, theme::ACCENT, widths[2] - 8.0);
+	// 分支 — the draft's `.chip.branch`: cyan mono, no glyph in front of it.
+	truncated_mono(ui, pos2(x, baseline), &workspace.branch, 11.5, theme::ACCENT, widths[2] - 8.0);
 	x += widths[2];
-	// 状态 — the contract's 状态词表, through the one shared widget.
-	let state = workspace.run_state;
-	status_word(ui, pos2(x, baseline), state, 12.0, widths[3] - 8.0);
+	// 状态 — the contract's 状态词表, through the two shared widgets: the dot is
+	// the mock's own mechanism (`.d-work` … are coloured discs) and the word is
+	// what makes the column scannable. A workspace nothing observes reads `—`
+	// and draws no dot, like the two git columns.
+	status_dot(ui, pos2(x + 5.0, baseline), workspace.run_state);
+	status_word(ui, pos2(x + 13.0, baseline), workspace.run_state, 12.0, widths[3] - 20.0);
 	x += widths[3];
 	// ±行 / 未提交 — only the open workspace has a snapshot in hand.
 	let (delta, dirty) = match (is_active, shell.git.as_ref()) {

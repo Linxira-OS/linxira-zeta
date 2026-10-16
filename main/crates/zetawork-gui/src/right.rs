@@ -557,6 +557,18 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 				egui::FontId::new(11.0, egui::FontFamily::Proportional),
 				theme::TEXT_3,
 			);
+			// …and the contract's own footnote for this page, which is what
+			// keeps it distinct from the 用量 container in the left column's
+			// foot: this page is *one* session, that one is everything.
+			let (scope_note, _) =
+				ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
+			ui.painter().text(
+				pos2(scope_note.min.x + 6.0, scope_note.min.y),
+				egui::Align2::LEFT_TOP,
+				"只统计这一个会话（左栏点别的会话，这一栏跟着换）；全局用量在左下角「设置 / 用量追踪」",
+				egui::FontId::new(11.0, egui::FontFamily::Proportional),
+				theme::TEXT_3,
+			);
 		});
 }
 

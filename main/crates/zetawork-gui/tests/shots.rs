@@ -29,7 +29,15 @@ use zetawork_gui::{Shell, fonts, theme};
 const SIZE: [f32; 2] = [1440.0, 900.0];
 
 /// Where the PNGs go: `<worktree>/shots`.
+///
+/// `ZETA_SHOTS_DIR` overrides it. The PNGs are build output, not source, and
+/// the worktree's `shots/` is **not** git-ignored, so pointing this at a
+/// directory outside the checkout is how you generate them without leaving the
+/// tree dirty.
 fn shots_dir() -> PathBuf {
+	if let Some(dir) = std::env::var_os("ZETA_SHOTS_DIR") {
+		return PathBuf::from(dir);
+	}
 	let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 	// …/main/crates/zetawork-gui → the worktree root
 	let root = manifest
@@ -334,16 +342,21 @@ fn close_ask_screenshot() {
 	write("12-close-ask.png", &bytes);
 }
 
-/// `13-workspace-state-words.png` — the left column's workspace rows with the
-/// 状态词表 drawn as a dot plus its word, which is what makes the seven states
-/// visible without opening the 总面板.
+/// `13-workspace-state-words.png` — the 状态词表 two ways at once: the left
+/// column's rows (dot plus word) for the open project, and the 总面板's 状态
+/// column behind them, which is the only place all the projects' states are
+/// visible together — hence the first 大标签页.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn workspace_state_words_screenshot() {
 	let mut shell = ready_shell();
 	shell.state.set_view(ViewMode::Gui);
-	workspace_page(&mut shell);
 	shell.state.left_collapsed = false;
+	// 项目 1 is the one with two different states on its two workspaces.
+	let notice = shell.state.select_project("p1");
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	// The centre stays on 总面板, so one shot shows both surfaces.
+	shell.state.show_total();
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
 	write("13-workspace-state-words.png", &bytes);

@@ -218,10 +218,15 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			} else {
 				"窗口在前台"
 			};
-			let wake = if shell.lifecycle.tray_available() {
+			// Two separate facts: whether an icon exists, and how the window
+			// comes back. The tray can be missing with the feature compiled in
+			// (no StatusNotifier host), so ask the tray, not the build.
+			let wake = if shell.tray.available() {
 				"托盘图标 + 第二次运行"
+			} else if crate::tray::compiled_in() {
+				"第二次运行 zetawork（托盘图标没建起来，见下面的驻留提示）"
 			} else {
-				"第二次运行 zetawork（本构建没有托盘图标）"
+				"第二次运行 zetawork（本构建没有编译托盘）"
 			};
 			plain_row(ui, "驻留状态", residency, wake);
 			for (_, why) in crate::notify::MISSING_SIGNALS {

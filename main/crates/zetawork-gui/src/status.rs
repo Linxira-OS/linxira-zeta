@@ -165,3 +165,86 @@ impl RunState {
 		best
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::collections::HashSet;
+
+	/// The contract's table, verbatim — the one place that pins it. Every
+	/// surface that draws a state now depends on these seven strings, so a
+	/// paraphrase here would be a fidelity bug everywhere at once.
+	const CONTRACT: [(RunState, &str, &str); 7] = [
+		(RunState::Perm, "◐ permission", "在等你批准（最高优先级，盖过其它）"),
+		(RunState::Fail, "✕ failed", "失败"),
+		(RunState::Work, "● working", "正在干"),
+		(RunState::Mon, "◇ monitoring", "后台值守（等外部信号 / 定时任务）"),
+		(RunState::Unc, "◔ unconfirmed", "说自己干完了，但没验证 —— 不等于 done"),
+		(RunState::Int, "‖ interrupted", "中途被打断"),
+		(RunState::Done, "✓ done", "完成且已确认"),
+	];
+
+	#[test]
+	fn the_seven_states_are_the_contracts_seven() {
+		assert_eq!(RunState::ALL.len(), 7, "Orca's seven, no more and no fewer");
+		for (state, label, meaning) in CONTRACT {
+			assert_eq!(state.label(), label, "glyph + word");
+			assert_eq!(state.glyph(), label.split(' ').next().unwrap());
+			assert_eq!(state.word(), label.split(' ').nth(1).unwrap());
+			assert_eq!(state.meaning(), meaning, "the contract's meaning, word for word");
+			assert!(RunState::ALL.contains(&state));
+		}
+		// The keys are the mock's `data-dot` names.
+		assert_eq!(RunState::Perm.key(), "perm");
+		assert_eq!(RunState::Unc.key(), "unc");
+	}
+
+	#[test]
+	fn permission_outranks_everything_and_done_is_last() {
+		let ordered: Vec<u8> = RunState::ALL.iter().map(|state| state.priority()).collect();
+		assert_eq!(ordered, vec![1, 2, 3, 4, 5, 6, 7]);
+		for state in RunState::ALL {
+			if state != RunState::Perm {
+				assert!(RunState::Perm.outranks(state), "permission 盖过其它");
+			}
+			if state != RunState::Done {
+				assert!(state.outranks(RunState::Done), "{state:?} outranks done");
+			}
+		}
+		// A roll-up shows the highest-priority member, which is what makes the
+		// order load-bearing rather than decorative.
+		assert_eq!(
+			RunState::highest([RunState::Done, RunState::Perm, RunState::Work]),
+			Some(RunState::Perm)
+		);
+		assert_eq!(RunState::highest([RunState::Done, RunState::Done]), Some(RunState::Done));
+		assert_eq!(RunState::highest([]), None);
+	}
+
+	#[test]
+	fn the_seven_states_are_seven_colours() {
+		// Seven states that shared an ink would be one state as far as the eye
+		// goes, and the whole point of the vocabulary is telling them apart.
+		let inks: HashSet<[u8; 4]> = RunState::ALL
+			.iter()
+			.map(|state| state.ink().to_array())
+			.collect();
+		assert_eq!(inks.len(), 7, "every state has its own ink");
+		// The five the mock's stylesheet colours keep those colours; only
+		// `unconfirmed` and `interrupted` take a neutral ink, and the two are
+		// still distinct from each other.
+		assert_eq!(RunState::Perm.ink(), theme::WARN);
+		assert_eq!(RunState::Fail.ink(), theme::DEL);
+		assert_eq!(RunState::Work.ink(), theme::ADD);
+		assert_eq!(RunState::Mon.ink(), theme::PURPLE);
+		assert_eq!(RunState::Done.ink(), theme::ACCENT);
+		assert_ne!(RunState::Unc.ink(), RunState::Int.ink());
+	}
+
+	#[test]
+	fn the_default_is_a_state_and_not_an_absence() {
+		// `RunState` always names one of the seven; "unknown" is expressed by
+		// the *absent* value (`Option<RunState>`), never by a member.
+		assert!(RunState::ALL.contains(&RunState::default()));
+	}
+}

@@ -75,6 +75,18 @@ pub struct Tray {
 	pub note: Option<String>,
 }
 
+impl Tray {
+	/// Did this process actually get a tray icon?
+	///
+	/// A different question from [`compiled_in`]: the feature can be compiled in
+	/// and the icon still fail to appear (no StatusNotifier host, no
+	/// `libayatana-appindicator3`, a headless session). 设置 → 常规 must say
+	/// *that* instead of claiming the build has no tray support.
+	pub fn available(&self) -> bool {
+		self.note.is_none()
+	}
+}
+
 #[cfg(not(feature = "tray"))]
 impl Tray {
 	/// No tray in this build.

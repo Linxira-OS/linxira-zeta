@@ -385,12 +385,6 @@ impl Lifecycle {
 		}
 	}
 
-	/// Is the托盘 compiled into this build? Without the `tray` feature it never
-	/// is, and the shell says so instead of pretending.
-	pub fn tray_available(&self) -> bool {
-		crate::tray::compiled_in() && self.listener.is_some()
-	}
-
 	/// Per-frame residency work: answer activation requests, run the slow poll
 	/// while hidden, and report a pending quit.
 	pub fn poll(&mut self, ctx: &Context) -> Polled {
