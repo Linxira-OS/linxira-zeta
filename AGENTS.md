@@ -60,11 +60,17 @@ hard release-boundary rule, not a suggestion.
 
 - The user must name the exact upstream tag (for example, `v17.2.11`). Never
   infer a "latest" release or substitute `omp-upstream/main`.
-- Before integration, verify the exact remote tag name and its peeled commit
-  SHA with `git ls-remote --tags omp-upstream refs/tags/<tag>` and record that
-  immutable SHA in the sync ledger. If a locally fetched tag disagrees with
-  the remote, stop and escalate — never force-update or silently accept a
-  moved release tag.
+- **Follow the remote tag; a moved tag is not an escalation.** Verify the exact
+  remote tag name and its peeled commit SHA with
+  `git ls-remote --tags omp-upstream refs/tags/<tag>` — both before starting and
+  at the moment the merge begins — and treat the **remote** as authoritative:
+  upstream re-cutting a tag onto the same release is normal (v18.11.2:
+  `714a6368` → `470b7efb`, one commit apart). Realign a stale local tag with
+  `git fetch --force omp-upstream --no-filter tag <tag>`, **record the old→new
+  SHA in the sync ledger**, and merge the new target. The only case that stops
+  the merge is a tag that moves **after** we have begun merging from a SHA we
+  already verified — then report and re-verify, never force-update our own refs
+  or silently finish a merge against a moved tag.
 - Integration starts from `main` on a short-lived `sync/omp-release/<release>`
   branch (preferably in an isolated worktree) as a real non-squash merge of
   the verified tag; afterward `git merge-base --is-ancestor <tag-commit> HEAD`
@@ -412,20 +418,44 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
    MUST name their branch.
 2. Work and commit on that branch locally until functionally complete.
 3. **Before EVERY push of an integration branch** (`sync/omp-release/*`,
-   `port/*`, `feat/*`): merge the latest `main` into it first
+   `port/*`, `feat/*`, `chore/*`): merge the latest `main` into it first
    (`git merge main`), then run the local minimum gate —
    `bun scripts/check-version-consistency.ts`, `bun run check:ts`, `oxlint`/`oxfmt`
    on the changed files, plus a re-run of any suite that was red in the last CI
-   round. Never push a branch that is behind `main`; a PR CI failure triage
+   round. Never push a branch that is behind `main`; a CI failure triage
    starts with "is this already fixed on `main`, and is `main` fully merged
    into this branch?" before touching the branch itself.
-4. Push the branch to `origin`, open a PR, and only merge after CI passes.
-5. Merge to `main` on the remote (cloud), then merge the same branch into
-   local `main` to keep them in sync.
-6. Delete the branch after the merge (both remote and local).
+4. **Zeta's own work does not open PRs.** PRs exist for outside contributions
+   (see [Pull requests](#pull-requests)); for our own branches the evidence is
+   the local gate plus the branch's **one** `workflow_dispatch`
+   (`gh workflow run ci.yml --ref <branch>`) — a push to a branch outside
+   `main`/`dev/*` triggers no CI at all (`ci.yml` → `on.push.branches`), so the
+   dispatch is the only branch-side run. Use it **once, after the last push** —
+   not after every fix, and only when the branch needs a real natives build or a
+   full-suite verdict.
+5. **Land through the local integration batch** (see below), then push `main`
+   once.
+6. Delete the branch and its worktree after the landing (both remote and local).
 
 `main` stays reserved for released/stable work; a new direction only lands on
 `main` via this merge path, never by committing directly to it.
+
+### 内部整合批次：本地先合、一次推（2026-10-16 用户裁决）
+
+当多个**已各自验过的分支**要一起落 `main`（同步分支 + 编辑器/GUI/文档批次）：
+
+1. 每个分支**合并前**过本地最小门禁（`bun run merge-gate --gates-only` +
+   `bun run check:ts`；动过 `crates/` 再加 `cargo fmt --all -- --check`）；
+2. 在**本地**按顺序合并进 `main`（真 merge commit、禁 squash）。推荐做法：先在
+   `temp/<topic>` 工作树里把批次合出来并跑完整门禁，再用 `git merge --ff-only`
+   把 `main` 推进到它 —— 根 checkout 因此只承担"推进引用 + 推送"，不承担编辑；
+3. 合并后刷新依赖：`bun install --frozen-lockfile`。它同时是锁文件一致性检验；
+   若它改动了**跟踪的**生成物，说明合并后的生成物过期，必须先修再推；
+4. **一次 push** `main`。`ci.yml` 的 `concurrency` 让紧邻的重复推送互相取消、
+   main 只留最后一个 run —— 所以"逐个 push"不省 CI，**本地先合才有意义**；
+5. **高风险或发布性质**的变更（上游 tag 同步、品牌面、发布链、CI 自身）仍按各自
+   章节走完整证据链；上游同步分支的权威证据是它的 `workflow_dispatch`（本地做不了
+   真编 natives 与依赖 natives 的桶）。
 
 ### `dev/*` — 用户指定的实验分支
 
@@ -487,9 +517,37 @@ tag）；结论成立则写入 `document/merge-playbook.md`。
   上级目录旧目录里 `node_modules/@linxiraos/pi-ai` 指向 `<repo>/packages/ai`，
   穿透即等于删掉仓库源码。删任何目录前先确认其中的链接指向哪里
   （Node/Bun 用 `lstat().isSymbolicLink()`，PowerShell 用 `LinkType`/`Target`）。
-  登记已被清掉的孤儿目录，用「只 `lstat`、遇链接只删链接本身」的遍历器删。
+  登记已被清掉的孤儿目录，用「只 `lstat`、遇链接只删链接本身」的遍历器删 ——
+  入库工具：**`bun scripts/safe-remove-tree.ts <dir>`**（先删链接 → 复核 0 链接 →
+  才整删普通树；仍有链接就停机交人判断）。它只支持"先看后删"，`list` 模式可
+  用来登记某个目录里的链接指向哪里。
 - **产物与证据不入库，也不留在 `temp/`**：截图、diff、PR 正文草稿等归档到
   `~/.zeta/parked-evidence/<date>/`，然后再删对应目录。
+
+### 路径归属：上游面 vs Zeta 自有面（2026-10-16 立规）
+
+上游 tag↔tag 差异**只**落在这些路径：`packages/`、`crates/`、`docs/`、`sdk/`，
+以及根锁文件与清单（`Cargo.toml`、`Cargo.lock`、`bun.lock`、
+`MODULE.bazel.lock`）。下面这些顶层目录**永不参与合并计算**，是 **Zeta 自有面**：
+
+| 自有面 | 是什么 |
+|---|---|
+| `main/` | zetawork：TUI（`main/crates/zeta-main/`）+ GUI（`main/crates/zetawork-gui/`），独立 Cargo workspace |
+| `termide/` | vendored TermIDE = `zetaide`（`@linxiraos/ide`），另有 Zeta 新增的 `termide-editor` bin |
+| `editor/` | `@linxiraos/editor` 的 npm 面（载荷 = `termide-editor`） |
+| `web-ui/` | 浏览器远程 UI（降级维护） |
+| `desktop/` | 待退役 Electron 壳（不新增代码） |
+| `.gitea/` | Gitea 本地 CI 镜像（见 `document/local-ci.md`） |
+
+- 改/删这些目录**只按路径判定**：不需要与上游协商，也不会与同步分支冲突
+  （判据是 `git diff --name-only <prev-tag> <tag> -- <path>` 为空）。
+- 因此"一次只做一个集成分支"**只约束同一面内部**；Zeta 自有面的分支可以与上游
+  同步并行（2026-10-16 用户裁决，当日四轨并行即按此执行）。
+- GUI 代码**只落** `main/crates/zetawork-gui/`；TUI 只落 `main/crates/zeta-main/`；
+  `termide/crates/**` 是 vendored 面板库，**不在 `main/` 里重写它**；对 vendored
+  快照的任何偏离都要在 `termide/VENDOR.md` 的偏离清单登记一行。
+- 新增/删除一个 CI job 必须同步三处（`ci.yml` / `local-ci.yml` 或 `EXCLUDED` /
+  `document/local-ci.md` 的 job map），见该文档的同步规则。
 
 ### 合并时的文件所有权（非代码文件）
 
