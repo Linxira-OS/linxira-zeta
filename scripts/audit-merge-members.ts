@@ -20,7 +20,25 @@
  * Usage:
  *   bun scripts/audit-merge-members.ts --base <pre-merge-ref>
  *   bun scripts/audit-merge-members.ts --base main --against HEAD
- *   bun scripts/audit-merge-members.ts --base <ref> --json
+ *   bun scripts/audit-merge-members.ts --base <ref> --tag <upstream-tag> --json
+ *
+ * `--tag` (default: the ledger's `## Integrated through:` tag) is the upstream
+ * release tag whose increment this tree carries. Every member the comparison
+ * reports is then judged against that tag — and against the tag it descends
+ * from (`merge-base <base> <tag>`, i.e. the previously integrated tag while the
+ * lineage is intact):
+ *
+ *   - the tag still ships it                       → **dropped** (real class-4 loss)
+ *   - absent from the tag, present in its parent    → **explained**: upstream
+ *     removed or renamed it in this window, so the merge was right to follow
+ *   - absent from both tags                         → **dropped**: no upstream
+ *     side ever had it, so it is Zeta's own code
+ *
+ * Without a resolvable tag the classification is unavailable and every finding
+ * counts as a drop, exactly as before — a missing ledger must not silently
+ * downgrade real damage. That is why the round that added this (v18.11.1:
+ * 24 findings, every one upstream's own removal in the window) needed no
+ * hand-reconciliation.
  *
  * Exit codes: 0 nothing dropped · 1 members dropped · 2 the audit could not run
  * (unknown ref, git failure, or an extraction that found zero members in the base
@@ -38,6 +56,8 @@
  */
 
 import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 const args = process.argv.slice(2);
 const argValue = (name: string): string | undefined => {
@@ -167,6 +187,43 @@ if (AGAINST) requireCommit(AGAINST);
 const base: Tree = { label: BASE, ref: BASE };
 const target: Tree = AGAINST ? { label: AGAINST, ref: AGAINST } : { label: "worktree", ref: null };
 
+/** The tag named by the ledger's `## Integrated through` line, when there is a ledger. */
+function ledgerTag(): string | undefined {
+	try {
+		const text = fs.readFileSync(path.join(TOPLEVEL, "document", "upstream-sync.md"), "utf8");
+		return /^## Integrated through: (v\d+\.\d+\.\d+)/m.exec(text)?.[1];
+	} catch {
+		return undefined; // no ledger here (scratch repos, non-Zeta checkouts): no consultation
+	}
+}
+
+/**
+ * The upstream side a reported member is judged against: the tag whose
+ * increment this tree carries, and the tag it descends from. `prev` is the
+ * merge-base of the audited base and that tag — under an intact lineage that is
+ * exactly the previously integrated tag, so "the tag does not have it, its
+ * parent did" means upstream removed it in this window.
+ */
+interface Consultation {
+	tag: Tree;
+	prev: Tree;
+}
+
+const TAG = argValue("tag") ?? ledgerTag();
+let consultation: Consultation | undefined;
+if (TAG) {
+	requireCommit(TAG);
+	const prev = git(["merge-base", BASE, TAG]).trim();
+	requireCommit(prev);
+	if (prev === git(["rev-parse", `${TAG}^{commit}`]).trim()) {
+		fail(
+			`--tag ${TAG} is already in ${BASE}'s history, so it cannot date anything this tree changed — ` +
+				"pass the tag whose increment the merge applied (the ledger's `Integrated through` line is still on the previous tag)",
+		);
+	}
+	consultation = { tag: { label: TAG, ref: TAG }, prev: { label: prev, ref: prev } };
+}
+
 const before = membersByFile(base);
 // Non-vacuity: an empty base set means the extraction (or the ref) is broken, not
 // that the merge was clean. Reporting "0 dropped" here is exactly the bug this
@@ -177,25 +234,83 @@ if (before.size === 0)
 const after = membersByFile(target);
 const afterFiles = filesIn(target);
 
-const dropped: Array<{ file: string; members: string[] }> = [];
+// The upstream side of the same comparison, extracted with the same regexes, so
+// "the tag does not have it" means exactly what the drop report means — the same
+// heuristics on both sides, never a second opinion from a different matcher.
+const upstream = consultation
+	? {
+			members: membersByFile(consultation.tag),
+			prevMembers: membersByFile(consultation.prev),
+			files: filesIn(consultation.tag),
+			prevFiles: filesIn(consultation.prev),
+		}
+	: undefined;
+
+interface Finding {
+	file: string;
+	members: string[];
+}
+
+const dropped: Finding[] = [];
+const explained: Finding[] = [];
+
+/** Split one file's gone members into "we lost code upstream still ships" and "upstream removed it too". */
+function classify(file: string, gone: string[]): void {
+	if (!upstream) {
+		dropped.push({ file, members: gone });
+		return;
+	}
+	const tagMembers = upstream.members.get(file);
+	const prevMembers = upstream.prevMembers.get(file);
+	const lost: string[] = [];
+	const removedUpstream: string[] = [];
+	for (const member of gone) {
+		if (tagMembers?.has(member)) lost.push(member);
+		else if (prevMembers?.has(member)) removedUpstream.push(member);
+		else lost.push(member); // no upstream side ever had it: it is Zeta's own
+	}
+	if (lost.length > 0) dropped.push({ file, members: lost });
+	if (removedUpstream.length > 0) explained.push({ file, members: removedUpstream });
+}
+
 for (const [file, oldMembers] of before) {
 	if (!afterFiles.has(file)) {
-		dropped.push({ file, members: ["<whole file removed>"] });
+		const whole = ["<whole file removed>"];
+		if (!upstream || upstream.files.has(file)) dropped.push({ file, members: whole });
+		else if (upstream.prevFiles.has(file)) explained.push({ file, members: whole });
+		else dropped.push({ file, members: whole }); // a Zeta-only module: no upstream side to blame
 		continue;
 	}
 	const newMembers = after.get(file) ?? new Set<string>();
 	const gone = [...oldMembers].filter(m => !newMembers.has(m)).sort();
-	if (gone.length > 0) dropped.push({ file, members: gone });
+	if (gone.length > 0) classify(file, gone);
 }
 
 const total = dropped.reduce((n, d) => n + d.members.length, 0);
+const explainedTotal = explained.reduce((n, d) => n + d.members.length, 0);
 const compared = [...before.values()].reduce((n, s) => n + s.size, 0);
 dropped.sort((a, b) => a.file.localeCompare(b.file));
+explained.sort((a, b) => a.file.localeCompare(b.file));
 
 if (JSON_OUT) {
 	// `compared` is the non-vacuity anchor for machine consumers: a report with
 	// `compared: 0` means the extraction saw nothing, never that the merge was clean.
-	console.log(JSON.stringify({ base: BASE, against: target.label, total, compared, dropped }, null, 2));
+	console.log(
+		JSON.stringify(
+			{
+				base: BASE,
+				against: target.label,
+				tag: TAG ?? null,
+				total,
+				explainedTotal,
+				compared,
+				dropped,
+				explained,
+			},
+			null,
+			2,
+		),
+	);
 } else {
 	console.log(`\nMerge member-loss audit: ${base.label} -> ${target.label}`);
 	console.log("=".repeat(60));
@@ -204,6 +319,17 @@ if (JSON_OUT) {
 		for (const m of d.members) console.log(`    ${m}`);
 	}
 	console.log(`\n${total} member(s) dropped across ${dropped.length} file(s)`);
+	if (explained.length > 0) {
+		console.log(
+			`${explainedTotal} member(s) across ${explained.length} file(s) explained as upstream's own removal in this window (${TAG})`,
+		);
+		for (const d of explained) {
+			console.log(`  ~ ${d.file}`);
+			for (const m of d.members) console.log(`      ${m}`);
+		}
+	} else if (TAG) {
+		console.log(`0 members explained by ${TAG} (nothing was reported and absent from it)`);
+	}
 	console.log(
 		`${compared} members compared in ${before.size} file(s) of ${base.label} against ${afterFiles.size} file(s) of ${target.label}\n`,
 	);

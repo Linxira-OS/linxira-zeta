@@ -267,7 +267,10 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 			id: "audit-members",
 			name: "merge member loss",
 			phase: "audit",
-			commands: [["bun", "scripts/audit-merge-members.ts", "--base", base]],
+			// `--tag` lets the audit split its findings into real losses and
+			// upstream's own removals in the merged window; without it the audit
+			// falls back to the ledger's `Integrated through` tag.
+			commands: [["bun", "scripts/audit-merge-members.ts", "--base", base, ...(tag ? ["--tag", tag] : [])]],
 		},
 		{
 			id: "audit-brand-regressions",

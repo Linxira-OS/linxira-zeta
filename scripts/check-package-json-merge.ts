@@ -177,6 +177,26 @@ function flagValue(flag: string): string | undefined {
 
 const repoRoot = path.resolve(flagValue("--repo") ?? path.resolve(import.meta.dir, ".."));
 
+/** Whether `rev`'s commit *and* tree objects are present in this clone. */
+async function hasTree(rev: string): Promise<boolean> {
+	return (await $`git rev-parse --verify --quiet ${`${rev}^{tree}`}`.cwd(repoRoot).quiet().nothrow()).exitCode === 0;
+}
+
+/**
+ * Report an unreadable merge and stop, naming the shallow cause when the clone
+ * is shallow — the one shape where the missing objects are expected rather than
+ * a sign of a broken checkout.
+ */
+function unreadable(what: string, shallow: boolean): void {
+	console.error(
+		`package.json merge guard FAILED: ${what}\n` +
+			(shallow
+				? "  this repository is shallow and the objects above are not present locally — run `git fetch --unshallow` first\n"
+				: "  the objects above are missing from this clone — fetch the missing history and re-run\n"),
+	);
+	process.exitCode = 1;
+}
+
 async function git(...args: string[]): Promise<string> {
 	const result = await $`git ${args}`.cwd(repoRoot).quiet().nothrow();
 	if (result.exitCode !== 0) throw new Error(`git ${args.join(" ")} failed: ${result.stderr.toString().trim()}`);
@@ -240,18 +260,15 @@ async function main(): Promise<void> {
 		return;
 	}
 
-	// Fail loud instead of reporting a green no-op: a shallow clone hides a
-	// merge's parents, and a merge whose parents are unknown cannot be checked.
-	// Only reachable once there is something to check, so ordinary local runs in
-	// a shallow clone stay green.
-	if ((await git("rev-parse", "--is-shallow-repository")).trim() === "true") {
-		console.error(
-			"package.json merge guard FAILED: shallow repository — run `git fetch --unshallow` first\n" +
-				"  (the merges in range cannot be compared against their parents while history is truncated)",
-		);
-		process.exitCode = 1;
-		return;
-	}
+	// The guard's requirement is that every merge in range and both of its
+	// parents are readable *here* — not that the repository is unshallow. A
+	// shallow clone that carries the range (this repo's worktrees are exactly
+	// that: `temp/sync-*` advertises `--is-shallow-repository` yet holds every
+	// object the merge needs) can be checked in full; the 2026-10-16 rung-4 gate
+	// turned the old blanket refusal into a red no-op on a runnable guard. An
+	// entry whose parents or merge-base are genuinely missing still fails loud
+	// below, naming the shallow cause.
+	const shallow = (await git("rev-parse", "--is-shallow-repository")).trim() === "true";
 
 	const head = (await git("rev-parse", "HEAD")).trim();
 	const violations: Array<{ merge: string; subject: string; file: string; found: ManifestViolation[] }> = [];
@@ -261,8 +278,19 @@ async function main(): Promise<void> {
 			git("log", "-1", "--format=%s", merge),
 		]);
 		const [, branch, mergedIn] = parents.trim().split(" ");
-		if (!branch || !mergedIn) continue;
+		if (!branch || !mergedIn) {
+			return unreadable(`${merge.slice(0, 12)} does not carry both parents`, shallow);
+		}
 		const ancestor = (await git("merge-base", branch, mergedIn)).trim();
+		// A readable commit is not enough: `manifestAt` reads `rev:<file>` and
+		// reports a missing object the same way it reports an absent file, so a
+		// truncated clone would compare against "absent" and stay green. Every
+		// revision this merge is judged by must carry its tree locally.
+		for (const rev of [head, branch, mergedIn, ancestor]) {
+			if (!(await hasTree(rev))) {
+				return unreadable(`the tree of ${rev.slice(0, 12)} (needed to judge ${merge.slice(0, 12)}) is missing`, shallow);
+			}
+		}
 		for (const file of await manifestsAt(merge)) {
 			const parts: MergeManifests = {
 				file,
