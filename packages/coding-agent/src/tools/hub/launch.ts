@@ -281,6 +281,11 @@ function toolContent(result: DaemonRpcResult, params: LaunchParams): string {
 				`Cwd: ${shortenPath(result.spec.cwd)}`,
 				`PTY: ${result.spec.pty}; restart=${result.spec.restart}; persist=${result.spec.persist}; detached=${result.spec.detached}`,
 			].join("\n");
+		// Upstream v18.11.1 added the broker's `cancel` response to the result union
+		// (launch/protocol.ts): a cancel with nothing in flight is a no-op, one that
+		// cancelled the in-flight operation reports itself.
+		case "cancel":
+			return result.cancelled ? "Cancelled the daemon operation." : "Nothing to cancel.";
 		default:
 			return assertUnreachable(result);
 	}
@@ -327,6 +332,9 @@ async function toolDetails(result: DaemonRpcResult, params: LaunchParams): Promi
 			return { op: "describe", daemon: result.daemon, spec: result.spec };
 		case "ping":
 		case "shutdown":
+		// The broker's cancel response is equally internal: no launch-tool call
+		// reaches the daemon through it, so it never becomes tool details.
+		case "cancel":
 			throw new ToolError(`Internal daemon result ${result.op} is not tool-visible`);
 		default:
 			return assertUnreachable(result);
