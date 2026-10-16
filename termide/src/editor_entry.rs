@@ -334,16 +334,31 @@ mod tests {
         );
     }
 
-    /// A drive-letter colon is never a `:line` separator, so `C:\x.go:42`
-    /// stays one path with a line.
+    /// A drive-letter colon is never a `:line` separator, so `C:\src\x.go:42`
+    /// stays one path with a line — the drive colon is not read as `:x`, and
+    /// the only position consumed is the trailing `:42`.
+    ///
+    /// The path is asserted by suffix, not by equality: off Windows a
+    /// drive-letter path is not absolute, so the parser resolves it against
+    /// the invoking directory (exactly what the editor does with any relative
+    /// argument). What matters here is that the colon splitting left the drive
+    /// colon alone and took the line.
     #[test]
     fn a_drive_letter_colon_is_not_a_position() {
         let dir = tempfile::tempdir().unwrap();
         let plan = plan(&strings(&[r"C:\src\x.go:42"]), dir.path());
 
         assert_eq!(plan.files.len(), 1);
-        assert_eq!(plan.files[0].path, PathBuf::from(r"C:\src\x.go"));
         assert_eq!(plan.files[0].line, Some(42));
+        assert_eq!(plan.files[0].col, None);
+        assert!(
+            plan.files[0]
+                .path
+                .to_string_lossy()
+                .ends_with(r"C:\src\x.go"),
+            "the drive colon stays part of the path: {:?}",
+            plan.files[0].path
+        );
     }
 
     /// A directory argument is the project root, not a panel; extra ones are
