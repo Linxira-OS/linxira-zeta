@@ -23,6 +23,7 @@
 - The composer stays usable while a tool approval is pending: sending a message denies the call and steers the turn with it, so the agent knows why it was denied ([#15642](https://github.com/can1357/oh-my-pi/pull/15642) by [@H4vC](https://github.com/H4vC))
 - Session entries record which omp build wrote them, so a transcript shows whether a fix was live even in a session left open across an upgrade: the version, plus commit, branch, and uncommitted-diff hash when run from a source checkout, and `OMP_BUILD_LABEL` when set. `/session` lists the builds that wrote the session ([#15680](https://github.com/can1357/oh-my-pi/pull/15680) by [@will-bogusz](https://github.com/will-bogusz))
 - Added `lsp.requestTimeout` setting to configure wait durations for language server diagnostics and requests
+- Added `POST /api/channels/send` to the `zeta serve` gateway: any process outside the server (the desktop shell, a script) can push one IM message through a running WeChat/Feishu/Telegram channel with `{channelId, to, text}`; 404 when that channel is not running here, 400 when the peer is not paired (WeChat needs a `context_token` from an earlier inbound), 500 when the platform refused. Same access gate as `/api/channels/status` — loopback passes, a non-loopback caller needs `remote.token`.
 - Added `omp auth-gateway serve --clients=<file>`: per-client bearer tokens, each limited to listed models and broker OAuth accounts with no fallback to other accounts or API keys, re-read while serving ([#5098](https://github.com/can1357/oh-my-pi/issues/5098), [#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
 
 ### Changed
@@ -223,6 +224,7 @@
 
 ### Removed
 
+- Removed the unused `editor.handoffSession` setting (and its row in `zetacode config`): `/editor` hands the session to the editor on the command line, so nothing read the key.
 - Removed Codex Code Mode and its `providers.openai-codex.codeMode` / `providers.openai-codex.codeModeDirectTools` settings; Codex models always use the full direct tool surface.
 
 ## [1.2.1] - 2026-10-13
