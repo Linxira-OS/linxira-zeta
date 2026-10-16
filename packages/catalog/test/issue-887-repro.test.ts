@@ -6,7 +6,8 @@
  * stencil.so declares these ids with `provider.npm = "@ai-sdk/anthropic"`,
  * which by default would resolve to anthropic-messages on opencode-go. The
  * descriptor must override these specific ids to openai-completions so that
- * regenerated models.json keeps the correct routing.
+ * regenerated models.json keeps the correct routing. The Go gateway itself is
+ * served at https://opencode.ai/inference/go/v1.
  */
 import { describe, expect, test } from "bun:test";
 import {
@@ -15,7 +16,9 @@ import {
 	opencodeGoModelManagerOptions,
 } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
-const OPENCODE_GO_BASE = "https://opencode.ai/zen/go/v1";
+// The OpenCode Go gateway endpoint moved to /inference/go (upstream v18.11.1);
+// the old /zen/go path is stale and the descriptor no longer serves it.
+const OPENCODE_GO_BASE = "https://opencode.ai/inference/go/v1";
 
 describe("opencode-go resolver routes 404-ing ids to openai-completions (issue #887)", () => {
 	const descriptor = MODELS_DEV_PROVIDER_DESCRIPTORS.find(d => d.providerId === "opencode-go");
@@ -23,7 +26,8 @@ describe("opencode-go resolver routes 404-ing ids to openai-completions (issue #
 	// Per upstream stencil.so (verified 2026-05-02 against
 	// https://stencil.so/api.json["opencode-go"].models), these three ids carry
 	// `provider.npm = "@ai-sdk/anthropic"`. The naive @ai-sdk/anthropic rule
-	// would route them to /v1/messages on opencode.ai/zen/go which 404s.
+	// would route them to anthropic-messages /v1/messages, which the Go gateway
+	// does not serve (404).
 	const npmAnthropic: ModelsDevModel = { provider: { npm: "@ai-sdk/anthropic" }, tool_call: true };
 
 	test.each([["minimax-m2.7"], ["qwen3.5-plus"], ["qwen3.6-plus"]])(
@@ -58,8 +62,8 @@ describe("opencode-go resolver routes 404-ing ids to openai-completions (issue #
 		const models = await options.fetchDynamicModels?.();
 		const qwenMax = models?.find(model => model.id === "qwen3.7-max");
 
-		expect(requestedUrl).toBe("https://opencode.ai/zen/go/v1/models");
+		expect(requestedUrl).toBe(`${OPENCODE_GO_BASE}/models`);
 		expect(qwenMax?.api).toBe("openai-completions");
-		expect(qwenMax?.baseUrl).toBe("https://opencode.ai/zen/go/v1");
+		expect(qwenMax?.baseUrl).toBe(OPENCODE_GO_BASE);
 	});
 });
