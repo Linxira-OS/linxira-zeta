@@ -1,0 +1,27 @@
+{
+  "name": "@linxiraos/editor-linux-x64",
+  "version": "1.2.1",
+  "description": "Zeta's built-in terminal editor (editor payload binary) for linux/x64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+    "directory": "editor"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "LICENSE"
+  ],
+  "scripts": {
+    "postinstall": "node -e \"if(process.platform!=='win32'){try{require('fs').chmodSync(require('path').join('bin','termide-editor-linux-x64'),0o755)}catch(e){}}\""
+  }
+}

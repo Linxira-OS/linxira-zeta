@@ -29,13 +29,10 @@ type Workflow = { jobs: Record<string, Job> };
 
 /** ci.yml jobs that must never run locally, with the reason they are cut. */
 const EXCLUDED: Record<string, string> = {
-	// Retired 2026-10-16 with the vendored editor: `editor_tests` was deleted
-	// and `release_editor_packages` is commented out in ci.yml, so neither is a
-	// ci.yml job any more and neither may be listed here (this guard rejects a
-	// stale exclusion). Re-enable the pair in ci.yml + MIRRORED/EXCLUDED
-	// together if the reserved editor payload comes back.
-	//
-	// `editor_tests` was additionally removed from MIRRORED below.
+	// Back in ci.yml with the built-in editor's payload (2026-10-17), so the
+	// job must be classified again; `editor_tests` stays retired (its Go suites
+	// went with the TTT tree, and termide_tests covers the Rust payload).
+	release_editor_packages: "release chain",
 	release_metadata: "release chain",
 	release_gate: "release chain",
 	release_binary: "release chain",

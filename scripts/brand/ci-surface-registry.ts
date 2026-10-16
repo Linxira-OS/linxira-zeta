@@ -131,6 +131,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{ job: "release_npm", why: "npm publish of the zeta CLI package" },
 			{
+				job: "release_editor_packages",
+				why: "Zeta-only editor package publish — the @linxiraos/editor distribution (the built-in editor's termide-editor payload, which took the name over from the retired TTT editor on 2026-10-17); v18.4.3 merge dropped it, breaking tag-triggered publishing (damage class 7 追记)",
+			},
+			{
 				job: "termide_tests",
 				why: "Zeta-only termide test bucket; v18.4.3 merge 7137261d83e silently dropped it (damage class 7 追记)",
 			},
@@ -239,14 +243,14 @@ export const CI_SURFACE: WorkflowSurface[] = [
 	},
 	{
 		file: ".github/workflows/editor-publish.yml",
-		// Kept as a file and as this requirement: the workflow is RESERVED (the
-		// `@linxiraos/editor` name + chain stay for the zetawork built-in
-		// editor's payload; TTT payload removed 2026-10-16), so it must keep
-		// holding a dispatchable `publish` job even though nothing calls it.
+		// Kept as a file and as this requirement: npm binds a trusted publisher
+		// to the workflow FILE that runs the publish, so the editor leg must
+		// keep its own dispatchable entry point (ci.yml's
+		// release_editor_packages dispatches it and waits).
 		requiresAll: [
 			{
 				job: "publish",
-				why: "reserved manual editor re-publish path; the v18.4.3 ci.yml outage was survivable only because this workflow survived (damage class 7 追记)",
+				why: "manual editor re-publish path; the v18.4.3 ci.yml outage was survivable only because this workflow survived (damage class 7 追记)",
 			},
 		],
 		needsEdges: [],

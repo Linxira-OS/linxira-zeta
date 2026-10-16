@@ -66,12 +66,11 @@ const TARGETS: Array<{
 	{ dir: "packages/natives", name: "@linxiraos/pi-natives" },
 	{ dir: "packages/omptype", name: "@linxiraos/pi-omptype" },
 	{ dir: "packages/wire", name: "@linxiraos/pi-wire" },
-	// 预留：@linxiraos/editor（zetawork 内置编辑器）三包名与发布链保留，TTT
-	// 载荷已于 2026-10-16 移除——目录不存在，故就地注释；内置编辑器载荷回归时
-	// 取消注释即可补发。
-	// { dir: "editor/npm/editor-windows-x64", name: "@linxiraos/editor-windows-x64" },
-	// { dir: "editor/npm/editor-linux-x64", name: "@linxiraos/editor-linux-x64" },
-	// { dir: "editor/npm/editor", name: "@linxiraos/editor" },
+	// editor（内置编辑器=termide 编辑器专用入口）：launcher 无 bin + 两个平台
+	// 叶，版本线对齐产品；载荷二进制在 termide/VENDOR.md 的重编配方里产出并提交
+	{ dir: "editor/npm/editor-windows-x64", name: "@linxiraos/editor-windows-x64" },
+	{ dir: "editor/npm/editor-linux-x64", name: "@linxiraos/editor-linux-x64" },
+	{ dir: "editor/npm/editor", name: "@linxiraos/editor" },
 	// main 工作台（vendored Rust，bin zeta）：叶包带预编译二进制，版本线统一 1.1.21
 	{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
 	{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },

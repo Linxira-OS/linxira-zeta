@@ -101,10 +101,15 @@ These exist today (headline capabilities are marked in the root `README.md`):
   最小环境兜底、平台编辑器二进制 `+N file` 交接（它没有独立命令名，按平台二进制路径解析）。
   **随之要改的是指令注册**：`editor` 斜杠命令
   的语义需从"打开工作台编辑器"改为"交给外部编辑器"，与工作台内 termide 面板区分开。~~
-  **2026-10-16 修订（已执行）**：`@linxiraos/editor`（vendored TTT）按**退场**裁决处理
-  （YML 文件只改不删、发布包替换干净）——`editor/` 整包已删除，`zeta-editor-*` 资产名、
-  `editor_tests` 与 `release_editor_packages` 派发一并退场，`editor-publish.yml` 与
-  `--editor` 链保留为预留；工作台内嵌编辑器仍是 termide `panel-editor`（专业化、无代码补全）。
+  **2026-10-16 修订**：`@linxiraos/editor`（vendored TTT）按**退场**裁决处理
+  （YML 文件只改不删、发布包替换干净）——`editor/` 整包已删除，`zeta-editor-*` 资产名与
+  `editor_tests` 一并退场；工作台内嵌编辑器仍是 termide `panel-editor`（专业化、无代码补全）。
+  **2026-10-17 接续（已执行）**：包名与发布链**由内置编辑器接手**——`editor/npm/`
+  重建为 launcher（无 bin）+ 两个平台叶，载荷是 vendored termide 新增的**编辑器专用入口**
+  `termide-editor`（只起编辑器面板、`$EDITOR` 语义、位置参数 `FILE[:line[:col]]`，
+  `--editor` 链/`editor-publish.yml`/`release_editor_packages` 全部改回实发），
+  pi-messenger 的 `/editor` 改用它并经命令行传目标，`~/.zeta/handoff.json` 契约退场；
+  用户可见命令面不变（`@linxiraos/editor` 仍无 bin）。
 - **路径链接复用原生逻辑**（同批裁决）：终端输出里"任何标准路径/URL → 悬停可点"不自己造；OSC8
   消费端已通（`termide` `hyperlink.rs` → `OpenPath` → `app.rs` `open_path_in_ide`），要找的是现成的
   普通路径/URL 识别并接到 Rust 侧。修饰键语义照参照实现：点击=动作菜单 · Ctrl+点击=切工作区 ·
@@ -115,7 +120,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 ②**GUI 按 HTML 稿重做**（见新增的 P0 条目）；③详情栏 4 页（文件 / Agents 历史对话 / 分支·PR /
 用量）+ 范围切换（工作区·项目·全部）+ 点会话切工作区（左栏没有就新建）；④路径链接（普通路径识别 +
 修饰键）与发射端 `packages/tui/src/render/hyperlink.ts` 的 line/col 修复。
-~~②渲染切换接线~~（2026-10-16 作废）；~~⑤外部编辑器化的指令注册改造 + 打包分发~~（同日由退场裁决取代）。
+~~②渲染切换接线~~（2026-10-16 作废）；~~⑤外部编辑器化的指令注册改造 + 打包分发~~（同日由退场裁决取代，2026-10-17 以「内置编辑器接手该包名」重开并已执行：见上）。
 
 ### P0 — GUI 按 HTML 稿重做（`main/crates/zetawork-gui`）
 
@@ -493,8 +498,9 @@ protocols and auth flows.
 **Retired.** The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`)
 was removed wholesale on 2026-10-16 by maintainer ruling, so this whole item —
 zh UI (shipped) and the remaining About-branding work — has no target left.
-The `@linxiraos/editor` package name stays reserved for the zetawork built-in
-editor's payload; if that payload returns with its own About dialog, the
+The `@linxiraos/editor` package name came back on 2026-10-17 carrying the
+zetawork built-in editor's payload (termide's editor-only entry, resolved by
+path, no `bin`), so if that payload ever grows its own About dialog, the
 `Zeta Editor · v<zeta version> · <upstream version>` identity line below is the
 carried-over requirement.
 
@@ -608,7 +614,8 @@ carried-over requirement.
   终端(zetacode / 内置编辑器面板 / shell 皆为子进程),快捷键+菜单快速打开自家工
   具,各命令独立启动、help 各自独立。命名:`zetacode` = coding CLI
   (@linxiraos/zeta 换 bin 不换包);编辑器 = 工作台内置面板(ttt vendored 已于
-  2026-10-16 退场,`@linxiraos/editor` 只留预留包名与发布链);
+  2026-10-16 退场,2026-10-17 起 `@linxiraos/editor` 的载荷就是该内置编辑器的
+  编辑器专用入口 `termide-editor`,按路径 spawn,无 bin);
   `zetaide` = termide(由未发布的 @linxiraos/work 更名);`zetawork` =
   @linxiraos/main(新,工作台本体,main/ 独立 Rust workspace,path 依
   termide crates;裸 `zeta` 只打印套件索引 help);files = 终端文件

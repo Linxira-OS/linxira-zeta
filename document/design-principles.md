@@ -35,16 +35,19 @@ Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运
 | Zetacode 编码 CLI | `@linxiraos/zeta`（`packages/coding-agent`，仓库主包） | `zetacode` | 编码 agent CLI + `zetacode serve` 网关 + IM 渠道；`APP_NAME`("zeta") 仍是产品身份（配置根/日志名/归因头/splash） |
 | Zetaide | `@linxiraos/ide`（termide） | `zetaide` | 终端 IDE |
 
-编辑器不是命令：`@linxiraos/editor` 是**预留包名**，按路径解析（工作台内置
-编辑器面板与插件面调用）；它原先承载的 vendored TTT 二进制载荷已于 2026-10-16
-随 vendored 目录一并退场，包名与发布链保留待内置编辑器的载荷。
+编辑器不是命令：`@linxiraos/editor` 是**工作台内置编辑器的载荷包**，按路径解析
+（工作台与插件面调用），**无 `bin`**。载荷即 vendored TermIDE 的 `panel-editor`，
+编为编辑器专用入口 `termide-editor`（`termide/src/bin/termide-editor.rs`，只起编辑器
+面板、`$EDITOR` 语义、位置参数 `FILE[:line[:col]]`），2026-10-17 接手该包名与发布链
+（原 vendored TTT／Go 载荷已于 2026-10-16 随 vendored 目录退场）。
 
 **命名裁定（2026-10-15，取代 2026-09-30 的别名口径）**：对外只有三条命令
 （zetawork / zetacode / zetaide），一律**无连字符**；**连字符兼容名全部删除**
 （任何包的 `bin` 字段都不再有别名），用户可见文案、`CLI_BIN_NAME`、提示串、
 示例一律写标准名；`zeta code` 这类带空格写法不是 bin，任何文案不得出现。
 发布资产名（`zeta-cli-*`/`zeta-work-*`/`zeta-ide-*`；`zeta-editor-*` 随
-vendored 载荷于 2026-10-16 退场）与文件/垫片名语境不变，机械 sweep 的正则须
+vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是叶包内的文件
+名，不是任何安装创建的 bin）与文件/垫片名语境不变，机械 sweep 的正则须
 排除 `[\w.-]` 后缀。
 
 终端 IDE 只剩 termide（ttt 已随 vendored 目录退场，不再"两个并存观察"）。壳

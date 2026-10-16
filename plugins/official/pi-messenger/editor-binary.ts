@@ -8,10 +8,10 @@
  * so the default behaviour installs the package on demand.
  *
  * There is no editor *command* to probe: the one command surface is
- * zetawork / zetacode / zetaide, and the workbench's editor pane is built in.
- * The platform leaf's executable (`<leaf>/bin/ttt[.exe]`) is therefore
- * resolved by path — the same resolution the package's own launcher used to
- * do before it was retired.
+ * zetawork / zetacode / zetaide, and `@linxiraos/editor` deliberately ships no
+ * `bin`. The platform leaf's executable (`<leaf>/bin/termide-editor[.exe]`) is
+ * therefore resolved by path — the built-in editor's editor-only entry, which
+ * the package's own `launcher.js` resolves the same way.
  *
  * The Linux case needs care: a system Node often has a root-owned global
  * prefix, so `npm i -g` fails with EACCES. Retrying under sudo is the
@@ -35,7 +35,7 @@ const PKG_PLATFORM = process.platform === "win32" ? "windows" : process.platform
 const LEAF_PACKAGE = `${EDITOR_PACKAGE}-${PKG_PLATFORM}-${process.arch}`;
 
 /** The executable's file name inside the leaf package. */
-const LEAF_EXE = process.platform === "win32" ? "ttt.exe" : "ttt-linux-x64";
+const LEAF_EXE = process.platform === "win32" ? "termide-editor.exe" : "termide-editor-linux-x64";
 
 /**
  * Node module-resolution roots for the leaf package, most specific first:

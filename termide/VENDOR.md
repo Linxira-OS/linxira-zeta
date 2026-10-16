@@ -19,6 +19,10 @@
 
 - **不是根 Cargo workspace 成员**:根 `Cargo.toml` members 显式列 `crates/*`;termide 自带 `[workspace]`(members `crates/*`,自有 `rust-toolchain.toml` = 1.91.1、`Cargo.lock`)。在 `termide/` 内跑 cargo 命令,与根 workspace 完全隔离。
 - **不是 Bun workspace 包**(同 `editor/`、`web-ui/` 先例)。
+- **本树的编辑器专用入口是 `@linxiraos/editor` 的载荷**:`src/bin/termide-editor.rs`(偏离 23)编出的
+  `termide-editor[.exe]` 进 `editor/npm/editor-{windows,linux}-x64/bin/`,由 `@linxiraos/editor`
+  launcher(无 bin,按路径解析)与 `plugins/official/pi-messenger/editor-binary.ts` 解析;
+  `$EDITOR` 用法(位置参数 `FILE[:line[:col]]`、阻塞到退出)即由该入口保证。
 - **被 `main/`(zeta 工作台)以 path 依赖链接 5 个 crate**:`termide-core`、`termide-config`、`termide-keyboard`、`termide-panel-terminal`、`termide-theme`。因此 `termide/**` 的改动可以让 `main_tests` 变红,`.github/workflows/ci.yml` 的 `main_tests` 触发路径已含 `termide/`(2026-10-15 修复;此前只匹配 `main/`,纯 vendor 改动会让该 job 自跳)。
 - 构建产物走 `termide/target/`(根 `.gitignore` 全局 `target/` 已覆盖)。
 
@@ -50,6 +54,7 @@
 | 20 | `crates/panel-terminal/src/terminal/{mod.rs,csi_handlers.rs}` | `CellStyle::dim`(SGR 2「faint」)+ SGR 22 同时清 bold 与 dim(ECMA-48) | 上游 0.41 仍无 dim,窗口内未动该文件 | **保留**(既有偏离,本次补登记;PSReadLine 内联预测靠它读作暗色后缀) | 2026-10-13(`a573f5cc2a1`) |
 | 21 | `crates/panel-terminal/src/terminal/vt100_parser.rs` | CSI-u 推入按**位掩码** `flag & 1 == 1` 判定(而非 `flag == 1`) | 上游仍为 `flag == 1`,窗口内未动该文件 | **保留**(既有偏离,本次补登记;`>1u`/`>3u` 也要启用 CSI-u) | 2026-10-13(`73d9794c539`) |
 | 22 | `crates/panel-terminal/src/lib.rs` | `send_ctrl_char`: `Alt+Ctrl` 和弦发 `ESC` + 控制字节;普通字符前有 Alt 时先发 `ESC`(xterm 编码) | 上游窗口内未动这段按键转发 | **保留**(既有偏离,本次补登记) | 2026-10-13(`73d9794c539`) |
+| 23 | `src/bin/termide-editor.rs`(新增)、`src/editor_entry.rs`(新增)、`termide/tests/editor_entry.rs`(新增)、`crates/app/src/app/mod.rs`(`App::open_new_editor`) | **编辑器专用入口** `termide-editor`:`@linxiraos/editor` 平台叶的载荷。只装配编辑器面板(位置参数走既有 `cli_args`,空参数开一个空 buffer),`$EDITOR` 语义——阻塞到退出、关最后一个面板交回控制权(`set_layout_persistence(false)`)、**无** detach/headless/agent/补全选项面;入口用 `#[path]` 引入 `src/ui.rs` 与 `src/editor_entry.rs`,**不动** `src/main.rs`(上游改动最频繁的文件),也不新增 lib target | 上游无此物(上游只有 `termide` 一个 bin) | **保留**(Zeta 2026-10-17 裁决:内置编辑器接管 `@linxiraos/editor` 包名;见 `editor/npm/editor/VENDOR.md`) | 2026-10-17 |
 
 行 19–22 是 0.38.0 快照里**已经存在但未登记**的偏离,本次 bump 补登记(`diff -rq` 0.38.0 上游树 vs 本树)。
 
@@ -99,6 +104,22 @@ cargo build --release --locked -p termide
 `npm/ide-windows-x64/bin/termide.exe`、`npm/ide-linux-x64/bin/termide-linux-x64`;
 `--version` 必须等于本文件来源 tag(CI 矩阵**没有** windows 腿,`.exe` 只能本地出)。
 `.cargo/config.toml` 已为 `x86_64-pc-windows-gnu` 配好 mingw 链接器;`russh`/`aws-lc-sys` 还需要 `nasm`。
+
+`-p termide` 现在会同时编出**两个** bin:上面的 `termide`(工作台,进 ide 叶)与
+`termide-editor`(编辑器专用入口,偏离 23,进 **editor 叶**):
+
+```
+# 同一个 target 目录里,编辑器载荷 = target[/x86_64-pc-windows-gnu]/release/termide-editor[.exe]
+cargo build --release --locked -p termide --bin termide-editor --target x86_64-pc-windows-gnu   # Windows
+cargo build --release --locked -p termide --bin termide-editor                                  # Linux
+```
+
+产物拷进 `editor/npm/editor-windows-x64/bin/termide-editor.exe`、
+`editor/npm/editor-linux-x64/bin/termide-editor-linux-x64`(文件名必须与
+`editor/npm/editor/launcher.js`、`plugins/official/pi-messenger/editor-binary.ts`
+里的 `LEAF_EXE` 一致;`scripts/ci-release-publish.ts --editor` 在叶包缺这个文件时
+**拒绝发布**)。免执行核对 stamp 同样适用:`grep -a -o -E '0\.41\.0 \([0-9a-f]{8}(-dirty)?\)' <leaf binary>`。
+**本轮的 editor 叶二进制尚未构建/提交**(focused 约定:发版前动作),叶包 `bin/` 缺文件即为此。
 
 **stamp 陷阱(实测)**：`crates/core/build.rs` 用 `git rev-parse --short=8 HEAD` + `git status --porcelain` 打
 `TERMIDE_VERSION = "<pkg> (<sha>[-dirty])"`。所以

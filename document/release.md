@@ -102,15 +102,16 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
   plugins/official/pi-messenger`，把插件目录原样打包）发布——两个腿都在
   `ci.yml` 内，不在任何独立 workflow 里。注意 `pi-messenger` 在 npm 上停在
   1.1.1（上一次手工补发），首次随线发布是它绑定关系的第一道实战检验。
-  ~~editor（vendored TTT）三包 `@linxiraos/editor` /
-  `@linxiraos/editor-windows-x64` / `@linxiraos/editor-linux-x64` 经
-  `release_editor_packages` job（`ci-release-publish.ts --editor`）随 release
-  tag 发布~~：**2026-10-16 退场**——TTT vendored 载荷与三包目录一并删除，该 job
-  已在 `ci.yml` 就地注释、`release_editor_packages` 不再派发。包名与
-  `editor-publish.yml` / `--editor` 链**保留为预留**，供 zetawork 内置编辑器的
-  发布载荷回归；`ci-release-publish.ts --editor` 在载荷目录缺失时打印一行并干净
-  退出 0。`release-v2.ts` / `set-version.ts` 的 bump 与
-  `scripts/npm-distributions.ts` 注册表都已不含该发行版。
+  editor 三包 `@linxiraos/editor` / `@linxiraos/editor-windows-x64` /
+  `@linxiraos/editor-linux-x64` 经 `release_editor_packages` job
+  （`ci-release-publish.ts --editor`）随 release tag 发布，载荷是 zetawork 内置
+  编辑器的**编辑器专用入口** `termide-editor`（vendored termide；TTT／Go 载荷
+  2026-10-16 退场、包名与链路 2026-10-17 由它接手）。叶包内嵌二进制是入库产物：
+  tag 前必须 `cargo build --release --locked -p termide --bin termide-editor`
+  （Windows 侧 `--target x86_64-pc-windows-gnu`）并提交进叶包 `bin/`；
+  `ci-release-publish.ts --editor` 在叶包缺载荷时**拒绝发布**（缺整个目录时打印
+  一行并干净退出 0）。`release-v2.ts` / `set-version.ts` 的 bump 与
+  `scripts/npm-distributions.ts` 注册表都已包含该发行版。
 
    同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
    `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵

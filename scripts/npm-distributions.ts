@@ -6,17 +6,18 @@
  *   - `scripts/set-version.ts` (Step 3b: local/test bump)
  *   - `scripts/check-version-consistency.ts` (drift gate)
  *
- * A distribution is a launcher package (`main/npm/main`) plus the platform
- * leaves it pins EXACTLY in `optionalDependencies` (`@linxiraos/main-windows-x64`).
- * None of them is a Bun workspace member, so the version line has no other
- * writer. The launcher ships no binary itself: a pin that lags the line
- * silently installs the previous release's leaf, which is how the 1.2.0 npm
- * publish shipped the editor launcher still pinning 1.1.28 and needed a hand
- * fix (PR #119) — that distribution has since retired (TTT payload removed
- * 2026-10-16; the `@linxiraos/editor` name itself stays reserved for the
- * zetawork built-in editor's future payload, so it is deliberately absent
- * here: registering it would make every bump walk a directory that does not
- * exist).
+ * A distribution is a launcher package (`editor/npm/editor`, `main/npm/main`)
+ * plus the platform leaves it pins EXACTLY in `optionalDependencies`
+ * (`@linxiraos/editor-windows-x64`). None of them is a Bun workspace member,
+ * so the version line has no other writer. The launcher ships no binary
+ * itself: a pin that lags the line silently installs the previous release's
+ * leaf, which is how the 1.2.0 npm publish shipped the editor launcher still
+ * pinning 1.1.28 and needed a hand fix (PR #119). The editor distribution
+ * changed payload (the vendored TTT editor retired 2026-10-16; the built-in
+ * editor's `termide-editor` entry took the name over 2026-10-17) but not
+ * shape, so it is registered here again — a registered distribution whose
+ * directory is missing would make every bump walk a non-existent tree, which
+ * is why it was absent only while no payload existed.
  *
  * Adding a distribution: register it here. `check-version-consistency.ts`
  * fails on any unregistered `@linxiraos/*` entry under an npm distribution's
@@ -38,6 +39,15 @@ export interface NpmDistribution {
 }
 
 export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
+	{
+		// The built-in editor's payload (termide's editor-only entry), launcher
+		// without a `bin` plus its platform leaves — see termide/VENDOR.md.
+		dir: "editor/npm/editor",
+		leaves: [
+			{ dir: "editor/npm/editor-windows-x64", name: "@linxiraos/editor-windows-x64" },
+			{ dir: "editor/npm/editor-linux-x64", name: "@linxiraos/editor-linux-x64" },
+		],
+	},
 	{
 		dir: "main/npm/main",
 		leaves: [
