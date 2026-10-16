@@ -16,7 +16,8 @@ use egui::{Align, Color32, CornerRadius, FontId, Layout, Rect, Sense, Stroke, Ui
 use crate::Shell;
 use crate::icons::{Icon, paint};
 use crate::settings::{
-	CursorStyle, Density, Language, MonoFont, Section, Settings, ShellChoice, Theme,
+	CloseAction, CursorStyle, Density, Language, MonoFont, NotifyPolicy, Section, Settings,
+	ShellChoice, Theme,
 };
 use crate::theme;
 use crate::zetacode;
@@ -24,6 +25,7 @@ use crate::zetacode;
 /// Which nav icon a section gets.
 fn section_icon(section: Section) -> Icon {
 	match section {
+		Section::General => Icon::Info,
 		Section::Appearance => Icon::Sun,
 		Section::Editor => Icon::Code,
 		Section::Terminal => Icon::Term,
@@ -165,6 +167,70 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 	let section = shell.state.settings_section;
 	ui.add_space(20.0);
 	match section {
+		Section::General => {
+			head(ui, "常规");
+			row(
+				ui,
+				"关闭窗口时",
+				"标题栏关闭键的行为；最小化到后台时会话与后台任务继续运行",
+				|ui, shell| {
+					let before = shell.settings.close_action;
+					let mut value = before;
+					select(ui, "close-action", &mut value, &CloseAction::ALL, |action| action.label());
+					if value != before {
+						shell.settings.close_action = value;
+					}
+				},
+				shell,
+			);
+			row(
+				ui,
+				"开机自启",
+				"登录时启动 zetawork（需要安装自启项，本构建只记录这个选择）",
+				|ui, shell| {
+					let mut value = shell.settings.auto_start;
+					if switch(ui, &mut value) {
+						shell.settings.auto_start = value;
+					}
+				},
+				shell,
+			);
+			row(
+				ui,
+				"通知",
+				"后台任务空闲、需要输入或失败时的提示；仅后台 = 只在窗口不在前台时提示",
+				|ui, shell| {
+					let before = shell.settings.notify;
+					let mut value = before;
+					select(ui, "notify", &mut value, &NotifyPolicy::ALL, |policy| policy.label());
+					if value != before {
+						shell.settings.notify = value;
+					}
+				},
+				shell,
+			);
+			// 后台驻留的实况: the single-instance mechanism, the tray, and the
+			// triggers with no signal source yet. None of this is a control —
+			// it is what the process is actually doing, so a degraded run is
+			// visible instead of silent.
+			let residency = if shell.lifecycle.background {
+				"正在后台运行"
+			} else {
+				"窗口在前台"
+			};
+			let wake = if shell.lifecycle.tray_available() {
+				"托盘图标 + 第二次运行"
+			} else {
+				"第二次运行 zetawork（本构建没有托盘图标）"
+			};
+			plain_row(ui, "驻留状态", residency, wake);
+			for (_, why) in crate::notify::MISSING_SIGNALS {
+				plain_row(ui, "通知缺信号", why, "未接入");
+			}
+			for note in shell.lifecycle.notes.iter().chain(shell.tray.note.iter()) {
+				plain_row(ui, "驻留提示", note, "降级");
+			}
+		},
 		Section::Appearance => {
 			head(ui, "外观");
 			row(

@@ -67,6 +67,24 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 				item(ui, None, &throughput, true, crate::THROUGHPUT_HINT);
 				item(ui, None, &shell.memory_label(), true, "本进程常驻内存（sysinfo）");
 			});
+			// 通知留痕: the fallback chain's second link. It sits left of the
+			// right-hand group, and clicking it goes to the workspace the
+			// notification was about.
+			if let Some(trace) = shell.last_trace.clone() {
+				let line = trace.message.trace_line();
+				let hint = crate::notify::trace_hint(&trace);
+				let target = trace.message.target.clone();
+				if item(ui, None, &line, false, &hint).clicked() {
+					match target {
+						Some(id) => {
+							shell.state.act(|state| state.select_workspace(&id));
+						},
+						// `AppState::show` is in-place; `act` is for the verbs
+						// that hand a Notice back.
+						None => shell.state.show(crate::state::Notice(hint.clone())),
+					}
+				}
+			}
 		});
 	});
 }

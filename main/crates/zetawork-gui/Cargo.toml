@@ -23,13 +23,48 @@ ratatui.workspace = true
 # it and a wide grapheme is two grid columns here exactly when ratatui says so.
 unicode-width = "0.2.2"
 # The status bar reports the process's own RSS; that is the only per-second
-# number the shell can honestly show without a live session.
+# number the shell can honestly show without a live session. The busy-pane
+# probe (a pane is busy when its shell has live children) uses the same crate.
 sysinfo = "0.31"
 # The status bar's clock (local time).
 chrono = "0.4"
 # The 设置 modal's zetacode-option rows parse `zetacode config list --json`, and
 # the provider rows parse `~/.zeta/agent/models.yml`.
 serde_json = "1"
+
+# ── 后台驻留与通知 (lifecycle rulings) ────────────────────────────────────
+#
+# Both integrations are *optional and off by default*: their trees are large
+# (tray-icon pulls muda and the Win32 shell types; toast pulls its own windows
+# crates) and neither surface can be exercised in the headless environment this
+# round is verified in — a tray needs a desktop, a notification needs a daemon
+# or a toast host. Turning the feature on is the whole change:
+#
+#     cargo build -p zetawork-gui --features tray,os-notify
+#
+# With the features off, the shell still runs the whole residency policy: closing
+# the window hides it, a second launch activates the first, and a notification
+# falls back to the status bar's trace — see `src/notify.rs`'s回落链.
+[features]
+default = []
+# 托盘图标与菜单.
+tray = ["dep:tray-icon"]
+# 系统通知 (Windows toast / Linux org.freedesktop.Notifications).
+os-notify = ["dep:tauri-winrt-notification", "dep:zbus"]
+
+[target.'cfg(windows)'.dependencies]
+# The Windows toast host. **Not** the crate named `toast`: that one is
+# stepchowfun's Docker-based build tool (0.48.0), and neither `windows-toasts`
+# nor `winrt-notification` exists on crates.io — this is the crate that reaches
+# `UI_Notifications` through `windows ^0.62`.
+tauri-winrt-notification = { version = "0.8", optional = true }
+tray-icon = { version = "0.26", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# The bus that carries `org.freedesktop.Notifications`, already in this host's
+# cargo cache (5.19.0).
+zbus = { version = "5", optional = true }
+
 
 [dev-dependencies]
 # `tests/shots.rs` writes headless PNG screenshots; the rasterizer it uses is in

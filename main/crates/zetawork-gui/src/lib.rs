@@ -27,6 +27,8 @@ pub mod fsread;
 pub mod git;
 pub mod icons;
 pub mod left;
+pub mod lifecycle;
+pub mod notify;
 pub mod picker;
 pub mod right;
 pub mod seed;
@@ -35,8 +37,11 @@ pub mod settings_ui;
 pub mod shells;
 pub mod state;
 pub mod stats;
+pub mod status;
 pub mod statusbar;
 pub mod theme;
+pub mod total;
+pub mod tray;
 pub mod tui_view;
 pub mod usage;
 pub mod widgets;
@@ -69,7 +74,9 @@ pub const THROUGHPUT_HINT: &str =
 
 /// The 快捷键 section: label, hint, the keys this build actually binds.
 pub const BINDINGS: [(&str, &str, &str); 5] = [
-	("新建工作区", "在当前项目下新建工作区", "Ctrl N"),
+	// 工作区 and 大标签页 are the same level, so this reads as the draft's
+	// 创建大标签页 while binding the key this build binds.
+	("创建大标签页", "在当前项目下新建一个工作区（= 一个新大标签页）", "Ctrl N"),
 	("拆分面板", "把当前面板左右分屏", "Ctrl \\"),
 	("新建终端", "在当前面板新建一个终端", "Ctrl ⇧ T"),
 	("打开设置", "打开本设置面板", "Ctrl ,"),
@@ -146,17 +153,28 @@ pub struct Shell {
 	/// [`Shell::with_state`] — the headless constructors — leaves this `false`,
 	/// so a test never runs a CLI.
 	pub probe: bool,
+	/// 后台驻留: the close policy, the single-instance listener and the
+	/// background/idle bookkeeping.
+	pub lifecycle: lifecycle::Lifecycle,
+	/// The tray icon, when this build has one.
+	pub tray: tray::Tray,
+	/// The last notification raised, and how far it got. The status bar shows
+	/// it, which is the fallback chain's second link.
+	pub last_trace: Option<notify::Trace>,
 	memory: Memory,
 	resizing: chrome::ResizeState,
 }
 
 /// The status bar's memory column: this process's RSS, sampled at most every
-/// two seconds (a per-frame `refresh_processes` would be pure waste).
+/// two seconds (a per-frame `refresh_processes` would be pure waste). In the
+/// background the interval widens to
+/// [`lifecycle::BACKGROUND_POLL`].
 struct Memory {
 	system: sysinfo::System,
 	pid: sysinfo::Pid,
 	bytes: u64,
 	sampled_at: Option<Instant>,
+	interval: std::time::Duration,
 }
 
 impl Memory {
@@ -170,13 +188,19 @@ impl Memory {
 			.process(pid)
 			.map(|process| process.memory())
 			.unwrap_or(0);
-		Self { system, pid, bytes, sampled_at: Some(Instant::now()) }
+		Self { system, pid, bytes, sampled_at: Some(Instant::now()), interval: Self::INTERVAL }
+	}
+
+	/// Widen (or restore) the sampling interval: 30 s while the window is
+	/// hidden, 2 s while it is not.
+	fn set_interval(&mut self, interval: std::time::Duration) {
+		self.interval = interval;
 	}
 
 	fn sample_if_stale(&mut self) {
 		let stale = self
 			.sampled_at
-			.is_none_or(|at| at.elapsed() >= Self::INTERVAL);
+			.is_none_or(|at| at.elapsed() >= self.interval);
 		if !stale {
 			return;
 		}
@@ -223,6 +247,15 @@ impl Shell {
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
 			probe: true,
+			lifecycle: {
+				let mut residency = lifecycle::Lifecycle::default();
+				// Only a real run claims the singleton: a headless shell must
+				// not bind a port, and a test must not talk to a live instance.
+				residency.claim();
+				residency
+			},
+			tray: tray::Tray::new(&cc.egui_ctx),
+			last_trace: None,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		};
@@ -258,6 +291,12 @@ impl Shell {
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
 			probe: false,
+			// A headless shell never claims the singleton and never builds a
+			// tray: both are process-level, and a test runs inside a test
+			// runner that may already have a zetawork-like listener.
+			lifecycle: lifecycle::Lifecycle::default(),
+			tray: tray::Tray::disabled(),
+			last_trace: None,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		}
@@ -534,6 +573,87 @@ impl Shell {
 		};
 		self.state.tui_pane = next;
 	}
+
+	// ── 后台驻留与通知 ─────────────────────────────────────────────────
+
+	/// Is the window in front of the user? The policy's `仅后台` reads this: it
+	/// means "the user is not already looking at the thing we would announce".
+	pub fn foreground(&self, ctx: &Context) -> bool {
+		let focused = ctx.input(|i| i.viewport().focused).unwrap_or(false);
+		!self.lifecycle.background && focused
+	}
+
+	/// How many terminal pages are open in the visible panes — the tray menu's
+	/// 运行中会话数.
+	pub fn running_sessions(&self) -> usize {
+		self
+			.state
+			.visible_panes()
+			.iter()
+			.map(|pane| pane.term_count())
+			.sum()
+	}
+
+	/// Watch every visible pane for a busy→idle edge and raise a notification on
+	/// one.
+	///
+	/// The edge detector ([`lifecycle::BusyEdges`]) and the whole delivery path
+	/// are real; what they need is a **pid**, and a pane has none until the PTY
+	/// host lands — [`Pane::shell_pid`] is the one place that changes. Until
+	/// then every pane reads idle, so nothing fires and no number is invented.
+	pub fn detect_idle_panes(&mut self, ctx: &Context) {
+		let panes: Vec<(String, Option<u32>)> = self
+			.state
+			.visible_panes()
+			.iter()
+			.map(|pane| (pane.id.clone(), pane.shell_pid()))
+			.collect();
+		let live: Vec<String> = panes.iter().map(|(id, _)| id.clone()).collect();
+		self.lifecycle.busy.retain(&live);
+		for (id, pid) in panes {
+			if !self
+				.lifecycle
+				.busy
+				.observe(&id, lifecycle::pane_is_busy(pid))
+			{
+				continue;
+			}
+			let workspace = self.state.workspace_label().to_owned();
+			let message = notify::Message {
+				trigger: notify::Trigger::Idle,
+				title: format!("{workspace} · {id} 已空闲"),
+				body: "该面板的子进程都退出了".to_owned(),
+				target: self.state.active_workspace.clone(),
+			};
+			// The trace is the return value; the status bar reads it from the
+			// shell, so there is nothing to do with it here.
+			let _ = self.raise_notification(ctx, message);
+			// One notification per frame: a burst of edges is one event as far
+			// as the user is concerned.
+			break;
+		}
+	}
+
+	/// Raise one notification through the policy and the fallback chain.
+	///
+	/// Returns the trace when it went out, so the caller (and the tests) can see
+	/// which route carried it. A policy that says no is not an error — it is the
+	/// 关 / 仅后台 setting doing its job.
+	pub fn raise_notification(
+		&mut self,
+		ctx: &Context,
+		message: notify::Message,
+	) -> Option<&notify::Trace> {
+		if !notify::should_fire(self.settings.notify, self.foreground(ctx)) {
+			return None;
+		}
+		let trace = notify::emit(message);
+		self.last_trace = Some(trace);
+		// The status bar draws the trace; a repaint makes it appear at once even
+		// with no input, which is the one frame the background state is allowed.
+		ctx.request_repaint();
+		self.last_trace.as_ref()
+	}
 }
 
 impl eframe::App for Shell {
@@ -547,12 +667,36 @@ impl Shell {
 	/// The per-frame work that is not drawing: settings, the memory sample,
 	/// keys, the read-only readers.
 	pub fn tick(&mut self, ctx: &Context) {
+		// 后台驻留 first: it answers a second launch's activation request and
+		// is the only thing that runs while the window is hidden.
+		let polled = self.lifecycle.poll(ctx);
+		tray::poll(ctx, self);
+		if polled.background_refresh_due {
+			// 后台保活: the sessions and the agent children are read again, so a
+			// hidden window still knows what is running.
+			self.sync_readers();
+		}
+		if polled.quitting {
+			return;
+		}
+		if self.lifecycle.background {
+			// 后台态: no frames of its own to draw, so the terminal blit and
+			// the offscreen raster never run; nothing re-reads git or the diff;
+			// and the RSS/clock sample drops to `BACKGROUND_POLL`. The session
+			// state machine and any agent children are untouched — staying
+			// alive is the point of hiding instead of closing.
+			self.memory.set_interval(lifecycle::BACKGROUND_POLL);
+			self.memory.sample_if_stale();
+			return;
+		}
+		self.memory.set_interval(Memory::INTERVAL);
 		if self.settings_changed() {
 			self.apply_settings(ctx);
 		}
 		self.memory.sample_if_stale();
 		self.handle_keys(ctx);
 		self.sync_readers();
+		self.detect_idle_panes(ctx);
 		// 设置 → 终端 的 默认 Shell: the shell a new 终端 page records.
 		self.state.default_shell = self.settings.shell.kind();
 		// A finished zetacode job (读取 / 写入) reports itself once.
@@ -647,6 +791,7 @@ impl Shell {
 			});
 
 		settings_ui::modal(ctx, self);
+		lifecycle::modal(ctx, self);
 		usage::container(ctx, self);
 		picker::popup(ctx, self);
 		if let Some(text) = self.state.live_toast() {
@@ -660,7 +805,15 @@ impl Shell {
 
 /// Run the shell. The window is frameless: [`chrome`] draws the title bar and
 /// handles the resize border.
+///
+/// A second launch does not open a second window: it tells the running instance
+/// to show itself (see [`lifecycle`]) and returns. If no instance answers — a
+/// squatter on the port, a wedged process, a refused loopback bind — it starts
+/// normally; every one of those paths is spelled out in [`lifecycle::claim`].
 pub fn run() -> eframe::Result<()> {
+	if lifecycle::another_instance_is_running() {
+		return Ok(());
+	}
 	let options = eframe::NativeOptions {
 		viewport: egui::ViewportBuilder::default()
 			.with_title(APP_TITLE)
