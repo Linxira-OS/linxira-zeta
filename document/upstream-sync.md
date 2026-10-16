@@ -246,6 +246,24 @@ two-parent tag merge.
   rather than noise (the rerun's own test-level log is not retrievable — `gh` serves attempt 1 for a
   partially re-run workflow, so the identity of attempt 2's failing test in `Test TS workspace fast` is
   inferred, not read).
+- **Second dispatch — `ci.yml` run `38963026878` (headSha `9cb54ac2c0a`, the tree carrying the four
+  fixes)**: **17 jobs green, 2 red, 15 skipped** (every skip is a release-only job gated on a tag), the
+  green set covering every native job (`Build native addons (bazel)`, cross
+  targets, `Check MODULE.bazel.lock freshness`, `Test TS native/integration packages`),
+  `Validate Rust workspace (bazel)`, `Test TS workspace fast`, `Lint, type check & web build`,
+  `Test CLI smoke (TS)`, all four coding-agent/workspace/desktop test jobs that were green before, both
+  vendored trees and `Resolve release metadata`. Every one of the first run's real causes is gone: the
+  `packages/utils` ratio job is green (so that red *was* a flake, now confirmed by the same-head re-run),
+  and the two coding-agent buckets no longer list `settings-zh`, `i18n-settings-localization`,
+  `i18n-cli-help-surface`, `i18n-message-references` or the three `prelude-agent` cases. The two jobs
+  still red are **load-sensitive timing flakes**, not damage: `test/web-gateway/plan-flow.test.ts`'s
+  approve step raced the agent ("Agent is already processing. Use steer() or followUp() to queue messages
+  …") in a file byte-identical to `d98033c2694`, and the window's own
+  `test/tools/browser-relay-detach.test.ts` took the "could not reattach … released" branch instead of
+  the "used up this call's 1000ms budget" one. Each passed in run `38949297746`, both pass on the fixed
+  tree locally (11/11 twice), and the relay chunk took 100 s where its neighbours took ~10 s, so the
+  runner was contended; the job runs `OMP_TEST_CONCURRENCY=4` on a 4-core runner. Making those two
+  deterministic is upstream-test synchronization work, deliberately left out of this merge.
 - **Tag-to-tag only, explicitly**: every comparison in this round is `v18.11.1` <-> `v18.11.2` (the merge
   preview, the forward completeness check, the member audit's *explained* leg) plus each file's own
   baseline-to-branch delta (`git diff v18.11.1..HEAD -- <file>`, used only to decide whether a conflict
@@ -257,11 +275,12 @@ two-parent tag merge.
   dispatched once (`gh workflow run ci.yml --ref sync/omp-release/v18.11.2` -> run `38949297746`, the
   authority for the native-addon build and the natives-dependent buckets this machine cannot run). That
   run's four red jobs were then triaged and fixed (see the run bullet above), and the fixes went out as a
-  **second push** of the same branch followed by a **second dispatch** (`ci.yml` on
-  `sync/omp-release/v18.11.2`), which is the authority for the fixed tree; its per-job conclusions are
-  appended to this entry once it finishes. The landing to `main` is sequenced centrally with the other
-  in-flight branches (one push, one CI run for `main`), so this entry deliberately does **not** claim a
-  `main` merge commit of its own.
+  **second push** of the same branch (`65c8326bd46..9cb54ac2c0a`) followed by a **second dispatch**
+  (`ci.yml` on `sync/omp-release/v18.11.2` -> run `38963026878`), which is the authority for the fixed
+  tree: 17 jobs green, 2 red, 15 skipped, the two reds being the load-sensitive timing flakes documented
+  in the run bullet. The landing to `main` is sequenced centrally with the other in-flight branches (one
+  push, one CI run for `main`), so this entry deliberately does **not** claim a `main` merge commit of its
+  own.
 
 ## v18.11.1 incremental merge (Zeta — branch `sync/omp-release/v18.11.1`; merge commit `949687f3230`)
 
@@ -2038,6 +2057,7 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
   packages, the Cargo workspace and the natives stamp).
 - In flight: `sync/omp-release/v18.11.2` — merge commit `bd6938cbac3` (parents `d98033c2694` (main) +
   `470b7efb6` (the v18.11.2 tag)) plus the follow-up commits (the CHANGELOG fold, the Zeta surface
-  re-application, the SQLite table-name repair, the ledger). Pushed once and dispatched once
-  (`gh workflow run ci.yml --ref sync/omp-release/v18.11.2`); its landing on `main` is sequenced with the
-  other in-flight branches so `main` takes a single push and a single CI run.
+  re-application, the SQLite table-name repair, the four CI-triaged merge scars, the ledger). Pushed twice
+  and dispatched twice: run `38949297746` at `65c8326bd46` (natives green; four reds triaged) and run
+  `38963026878` at `9cb54ac2c0a` (17 green / 2 load-flake red / 15 tag-gated skips). Its landing on `main`
+  is sequenced with the other in-flight branches so `main` takes a single push and a single CI run.
