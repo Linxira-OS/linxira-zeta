@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const probePath = path.resolve(import.meta.dir, "../fixtures/legacy-pi-require-cache-clear-probe.ts");
 const tempDirs: TempDir[] = [];
@@ -30,7 +30,7 @@ it("keeps host modules loaded when extension CommonJS clears and restores requir
 	// Subprocess: without the guard the probe's whole module graph is unloaded.
 	const proc = Bun.spawn([process.execPath, probePath, dir.join("index.mjs")], {
 		cwd: path.resolve(import.meta.dir, "../.."),
-		env: { ...process.env, PI_CODING_AGENT_DIR: dir.join("agent") },
+		env: { ...process.env, ZETA_CODING_AGENT_DIR: dir.join("agent") },
 		stdout: "pipe",
 		stderr: "pipe",
 	});

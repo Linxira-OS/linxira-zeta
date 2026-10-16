@@ -1,10 +1,10 @@
 import { afterEach, expect, it, vi } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TaskTool } from "@oh-my-pi/pi-coding-agent/task";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import { cfgTaskMaxRecursionDepth } from "@oh-my-pi/pi-coding-agent/task/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { cfgAsyncEnabled } from "@oh-my-pi/pi-coding-agent/tools/settings";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { TaskTool } from "@linxiraos/zeta/task";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import { cfgTaskMaxRecursionDepth } from "@linxiraos/zeta/task/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { cfgAsyncEnabled } from "@linxiraos/zeta/tools/settings";
 
 afterEach(() => vi.restoreAllMocks());
 

@@ -160,7 +160,7 @@ export class JobsSheet implements Component {
 						"row",
 						{ role: "zeta.jobs.split" },
 						[
-							node("col", { role: "omp.jobs.master" }, [describeJobList(rows, selected, now)], "master"),
+							node("col", { role: "zeta.jobs.master" }, [describeJobList(rows, selected, now)], "master"),
 							describeDetail(selected, detail, now, cancellable),
 						],
 						"split",
@@ -305,7 +305,7 @@ function describeJobList(rows: readonly JobTreeRow<JobsPanelJob>[], selected: Jo
 		return node(
 			"text",
 			{
-				role: "omp.jobs.group",
+				role: "zeta.jobs.group",
 				spans: compact([guide !== "" && span(guide, "mono dim"), span(entry.agent.id)]),
 				wrap: "none",
 			},

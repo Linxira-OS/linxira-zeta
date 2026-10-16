@@ -344,7 +344,7 @@ describe("dialogs under a native surface", () => {
 			vi.advanceTimersByTime(900);
 			expect(dialog.toggleDetails()).toBe(true);
 			vi.advanceTimersByTime(900);
-			const expand = find(dialog.describe(), node => node.p?.role === "omp.btn" && node.key === "expand");
+			const expand = find(dialog.describe(), node => node.p?.role === "zeta.btn" && node.key === "expand");
 			dialog.handleNativeEvent({ type: "action", key: expand!.path, act: "expand", mods: [] });
 			vi.advanceTimersByTime(900);
 			expect(onTimeoutReset).toHaveBeenCalledTimes(2);
@@ -388,9 +388,9 @@ describe("dialogs under a native surface", () => {
 		expect(routed).toEqual([]);
 		expect(body()).toContain("rm-rf~");
 		expect(body()).toContain("secondline");
-		const row = find(dialog.describe(), node => node.p?.role === "omp.approval.details")?.node.c?.[0];
+		const row = find(dialog.describe(), node => node.p?.role === "zeta.approval.details")?.node.c?.[0];
 		expect((row as NativeNode).p).not.toHaveProperty("truncate");
-		const expand = find(dialog.describe(), node => node.p?.role === "omp.btn" && node.key === "expand");
+		const expand = find(dialog.describe(), node => node.p?.role === "zeta.btn" && node.key === "expand");
 		dialog.handleNativeEvent({ type: "action", key: expand!.path, act: "expand", mods: [] });
 		expect(body()).not.toContain("rm-rf~");
 		// Without a full prompt there is nothing to expand, so no Details button.

@@ -58,7 +58,7 @@ import { buildHotkeysMarkdown, HotkeysSheetComponent } from "@linxiraos/pi-tui/h
 import { isNativeRendering } from "@linxiraos/pi-tui/native/state";
 import { buildToolsMarkdown } from "@linxiraos/pi-tui/prompt/tools-markdown";
 import type { AsyncJobSnapshotItem } from "../../session/agent-session";
-import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@oh-my-pi/pi-tui/overlays/job-tree";
+import { buildJobTree, jobTreeGuide, jobTreeIndent } from "@linxiraos/pi-tui/overlays/job-tree";
 import type { AuthStorage, OAuthAccountIdentity } from "../../session/auth-storage";
 import type { CompactMode } from "../../session/compact-modes";
 import {

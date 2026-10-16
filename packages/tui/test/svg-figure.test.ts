@@ -150,7 +150,7 @@ describe("SvgFigure", () => {
 	// raster, so the figure was marked failed and showed its source instead.
 	it("draws in a process that never installed a theme", async () => {
 		const script = `
-			import { SvgFigure } from "@oh-my-pi/pi-tui/chat/svg-figure";
+			import { SvgFigure } from "@linxiraos/pi-tui/chat/svg-figure";
 			const landed = Promise.withResolvers();
 			const svg = new SvgFigure({ onChange: () => landed.resolve() });
 			svg.update(${JSON.stringify(SVG)}, true);

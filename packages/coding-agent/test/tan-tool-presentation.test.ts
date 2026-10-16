@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { type CustomTool, createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { createSubagentSettings } from "@oh-my-pi/pi-coding-agent/task/executor";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { type CustomTool, createAgentSession } from "@linxiraos/zeta/sdk";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { createSubagentSettings } from "@linxiraos/zeta/task/executor";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const mcpTool: CustomTool = {
 	name: "mcp__fixture_probe",

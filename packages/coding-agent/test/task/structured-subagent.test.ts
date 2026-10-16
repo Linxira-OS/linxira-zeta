@@ -1008,7 +1008,7 @@ describe("structured subagent primitive", () => {
 
 describe("agent frontmatter structured opt-in", () => {
 	const MOCK_API_SOURCE = "test/structured-subagent-opt-in";
-	const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+	const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
 	let savedEnv: Record<string, string | undefined> = {};
 	let root: string;
 
@@ -1050,7 +1050,7 @@ describe("agent frontmatter structured opt-in", () => {
 		await fs.mkdir(home, { recursive: true });
 		restoreEnvValue("HOME", home);
 		vi.spyOn(os, "homedir").mockReturnValue(home);
-		setAgentDir(path.join(home, ".omp", "agent"));
+		setAgentDir(path.join(home, ".zeta", "agent"));
 		AgentRegistry.resetGlobalForTests();
 		AgentLifecycleManager.resetGlobalForTests();
 		registerMockApi(MOCK_API_SOURCE);
@@ -1078,7 +1078,7 @@ describe("agent frontmatter structured opt-in", () => {
 			// Under the isolated HOME so project discovery stops before the developer's real ~/.omp.
 			const cwd = path.join(root, "home", "work");
 			await fs.mkdir(cwd, { recursive: true });
-			const agentsDir = path.join(root, "home", ".omp", "agent", "agents");
+			const agentsDir = path.join(root, "home", ".zeta", "agent", "agents");
 			await Bun.write(path.join(agentsDir, "reporter.md"), agentFile("reporter", true));
 			await Bun.write(path.join(agentsDir, "plain.md"), agentFile("plain", false));
 

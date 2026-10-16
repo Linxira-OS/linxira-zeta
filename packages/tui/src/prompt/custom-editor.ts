@@ -1309,7 +1309,7 @@ export class CustomEditor extends Editor {
 				: node(
 						"row",
 						{
-							role: "omp.composer.dictation",
+							role: "zeta.composer.dictation",
 							gap: "xs",
 							align: "center",
 							tone: recording ? "error" : starting || transcribing ? "pending" : undefined,

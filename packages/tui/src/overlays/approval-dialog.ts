@@ -101,7 +101,7 @@ export class ApprovalDialogComponent implements Component {
 		this.#summary = promptDetails(lines);
 		this.#full =
 			options.fullPrompt === undefined ? undefined : promptDetails(sanitizeDisplayLines(options.fullPrompt));
-		this.#panel = new OverlayPanel(title, "omp.overlay.approval");
+		this.#panel = new OverlayPanel(title, "zeta.overlay.approval");
 		this.#footer.setHeight(1);
 		this.#panel.addChild(this.#body);
 		this.#panel.addChild(new PanelDivider());
@@ -231,7 +231,7 @@ export class ApprovalDialogComponent implements Component {
 
 	/**
 	 * In the dock, in the composer's place and framed as the composer is (an
-	 * `omp.editor.*` root role), like the ask dialog, rather than a card over
+	 * `zeta.editor.*` root role), like the ask dialog, rather than a card over
 	 * the transcript: the title, the details, then Details (with a full prompt),
 	 * Deny, and the primary Approve, whose keys show in their tooltips.
 	 */
@@ -272,9 +272,9 @@ export class ApprovalDialogComponent implements Component {
 		children.push(
 			actionBar([...(this.#countdown ? [this.#countdown.describe()] : []), null, ...expand, deny, approve]),
 		);
-		// Under the `omp.editor.ask` prefix: Tern's console layout sizes an ask's rows to the
-		// composer column by that prefix, where a bare `omp.editor.*` role spans the whole dock.
-		this.#native = col(children, { role: "omp.editor.ask.approval", gap: "md" });
+		// Under the `zeta.editor.ask` prefix: Tern's console layout sizes an ask's rows to the
+		// composer column by that prefix, where a bare `zeta.editor.*` role spans the whole dock.
+		this.#native = col(children, { role: "zeta.editor.ask.approval", gap: "md" });
 		return this.#native;
 	}
 

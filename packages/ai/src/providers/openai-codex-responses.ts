@@ -12,7 +12,6 @@ import {
 	OPENAI_HEADER_VALUES,
 	OPENAI_HEADERS,
 } from "@linxiraos/pi-catalog/wire/codex";
-import { type } from "@linxiraos/pi-omptype";
 import {
 	$env,
 	$flag,

@@ -205,16 +205,16 @@ describe("native composer", () => {
 		editor.onSubmit = vi.fn();
 		editor.onToggleDictation = vi.fn();
 		const hidden = editor.describe(cx);
-		expect(byRole(hidden, "omp.composer.dictation")).toBeUndefined();
+		expect(byRole(hidden, "zeta.composer.dictation")).toBeUndefined();
 		editor.handleNativeEvent({ type: "action", key: "bar/dictation", act: "dictation.toggle", mods: [] });
 		expect(editor.onToggleDictation).not.toHaveBeenCalled();
 
 		for (const state of ["idle", "starting", "recording", "transcribing", "idle"] as const) {
 			dictation = state;
 			const root = editor.describe(cx);
-			const mic = byRole(root, "omp.composer.dictation")!;
-			const send = byRole(root, "omp.composer.send")!;
-			const bar = byRole(root, "omp.composer.bar")!;
+			const mic = byRole(root, "zeta.composer.dictation")!;
+			const send = byRole(root, "zeta.composer.send")!;
+			const bar = byRole(root, "zeta.composer.bar")!;
 			const children = (bar.c ?? []).filter(isNode);
 			const holdsDraft = state === "recording" || state === "transcribing";
 			expect(children.indexOf(mic)).toBe(children.indexOf(send) - 1);
@@ -235,7 +235,7 @@ describe("native composer", () => {
 			}
 		}
 		dictation = undefined;
-		expect(byRole(editor.describe(cx), "omp.composer.dictation")).toBeUndefined();
+		expect(byRole(editor.describe(cx), "zeta.composer.dictation")).toBeUndefined();
 	});
 
 	it("routes microphone clicks without keyboard focus, cancels a slow start and keeps transcription as a draft", async () => {
@@ -263,8 +263,8 @@ describe("native composer", () => {
 			tui.setFocus(other);
 		});
 		try {
-			const mic = h.find(n => n.p?.role === "omp.composer.dictation")!;
-			const send = h.find(n => n.p?.role === "omp.composer.send")!;
+			const mic = h.find(n => n.p?.role === "zeta.composer.dictation")!;
+			const send = h.find(n => n.p?.role === "zeta.composer.send")!;
 			const input = h.find(n => n.k === "editor" && n.p?.text === "existing draft")!;
 			const clickMic = () => h.event({ ev: "action", sf: h.terminal.surface!, id: mic.id, act: "dictation.toggle" });
 			const assertSendBlocked = () => {

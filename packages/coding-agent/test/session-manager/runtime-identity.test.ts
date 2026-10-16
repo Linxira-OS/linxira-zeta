@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import * as runtimeIdentity from "@oh-my-pi/pi-coding-agent/session/runtime-identity";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import * as runtimeIdentity from "@linxiraos/zeta/session/runtime-identity";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TempDir } from "@linxiraos/pi-utils";
 
 const BUILD_A: runtimeIdentity.RuntimeIdentity = { version: "1.0.0", commit: "a".repeat(40), branch: "will/a" };
 const BUILD_B: runtimeIdentity.RuntimeIdentity = { ...BUILD_A, diff: "beef" };

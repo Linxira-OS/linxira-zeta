@@ -755,7 +755,7 @@ describe("skill:// falls back to an MCP resource with the same URI", () => {
 		vi.useFakeTimers();
 		try {
 			const started = Promise.withResolvers<void>();
-			// `omp read` with a zero startup window: the loader awaits a handshake that never settles.
+			// `zetacode read` with a zero startup window: the loader awaits a handshake that never settles.
 			MCPManager.setDeferredInstance(() => {
 				started.resolve();
 				return Promise.withResolvers<MCPManager>().promise;

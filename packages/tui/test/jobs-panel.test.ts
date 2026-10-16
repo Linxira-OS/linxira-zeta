@@ -155,7 +155,7 @@ describe("JobsSheet", () => {
 		// A focused subagent view only watches that agent's jobs (#14814).
 		const source: JobsSheetSource = { load: () => JOBS, inspect: (id: string) => DETAILS[id], close: vi.fn() };
 		const sheet = new JobsSheet(source);
-		expect(byRole(sheet.describe(CX), "omp.btn").map(btn => btn.key)).toEqual(["close"]);
+		expect(byRole(sheet.describe(CX), "zeta.btn").map(btn => btn.key)).toEqual(["close"]);
 
 		sheet.handleInput(DOWN);
 		const lines = sheet.render(100).join("\n");
@@ -230,7 +230,7 @@ describe("JobsSheet", () => {
 		it("cancels only jobs the root owns", () => {
 			const { sheet, source } = treeSheet();
 			sheet.handleInput(DOWN); // task-sub, owned by Audit
-			expect(byRole(sheet.describe(CX), "omp.btn").map(btn => btn.key)).toEqual(["close"]);
+			expect(byRole(sheet.describe(CX), "zeta.btn").map(btn => btn.key)).toEqual(["close"]);
 			sheet.handleInput("x");
 			sheet.handleNativeEvent({ type: "action", key: "cancel", act: "cancel", mods: [] });
 			expect(source.cancel).not.toHaveBeenCalled();

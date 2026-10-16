@@ -798,7 +798,7 @@ describe("PluginManager.install with git sources", () => {
 	// Runs the real CLI because Bun.spawn resolves bare names against the
 	// PATH the process started with, so only a fresh process sees a bun-less PATH.
 	test.skipIf(process.platform === "win32")(
-		"`omp install`/`uninstall` work without a bun executable on PATH (#15480)",
+		"`zetacode install`/`uninstall` work without a bun executable on PATH (#15480)",
 		async () => {
 			const remote = await serveLocalGitPackage(tmpRoot);
 			// The standalone binary targets machines without Bun: PATH offers git
@@ -827,7 +827,7 @@ describe("PluginManager.install with git sources", () => {
 			};
 			const installedManifest = path.join(
 				home,
-				".omp",
+				".zeta",
 				"plugins",
 				"node_modules",
 				"@test",

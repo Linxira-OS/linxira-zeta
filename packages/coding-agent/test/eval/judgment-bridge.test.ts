@@ -342,7 +342,7 @@ describe("eval judge() bridge", () => {
 	it("forwards image options through the JavaScript judge helper callback", async () => {
 		const calls: Array<{ name: string; args: unknown }> = [];
 		const sandbox: Record<string, unknown> = {
-			__omp_call_tool__: async (name: string, args: unknown) => {
+			__zeta_call_tool__: async (name: string, args: unknown) => {
 				calls.push({ name, args });
 				if (name === "__judge__") return { answers: { ok: { type: "bool", bool: 1 } }, model: "p/smol" };
 				throw new Error(`unexpected bridge call ${name}`);

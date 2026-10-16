@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, test, spyOn, vi } from "bun:te
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { EffectiveExtensionRoots } from "@oh-my-pi/pi-coding-agent/capability/types";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { loadSkills } from "@oh-my-pi/pi-coding-agent/extensibility/skills";
-import { writeInstalledPluginsRegistry } from "@oh-my-pi/pi-coding-agent/extensibility/plugins/marketplace";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import type { EffectiveExtensionRoots } from "@linxiraos/zeta/capability/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { loadSkills } from "@linxiraos/zeta/extensibility/skills";
+import { writeInstalledPluginsRegistry } from "@linxiraos/zeta/extensibility/plugins/marketplace";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import * as piUtils from "@linxiraos/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const ROOTS: EffectiveExtensionRoots = { explicit: [], mode: "merge", configured: [], configuredLevel: "user" };
 
