@@ -837,7 +837,8 @@ export const MUST_NOT_CONTAIN: Array<{
 	// form alone — release assets (`zeta-cli-*`, `zeta-work-*`,
 	// `zeta-ide-*`; the `zeta-editor-*` asset name retired with the vendored
 	// TTT payload on 2026-10-16, while the `@linxiraos/editor` package name
-	// stays reserved for the built-in editor), shim names (`zeta-c.cmd`) and
+	// now carries the built-in editor's payload — a payload file inside the
+	// platform leaves, still not a bin), shim names (`zeta-c.cmd`) and
 	// `zeta-capture-*`. The bare `zeta-editor` bin name above stays banned.
 	// Exempt files name a retired token only to assert it resolves to nothing
 	// (the suite table's own test) or record released history (changelogs).
