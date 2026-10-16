@@ -42,7 +42,7 @@ class HeldSqlClient implements SqlSessionStorageClient {
 	}
 
 	unsafe(query: string, values?: unknown[]) {
-		if (this.holdNextReplace && query.startsWith("UPDATE omp_session_files SET content")) {
+		if (this.holdNextReplace && query.startsWith("UPDATE zeta_session_files SET content")) {
 			this.holdNextReplace = false;
 			this.replaceStarted.resolve();
 			return this.allowReplace.promise.then(() => this.#client.unsafe(query, values));
