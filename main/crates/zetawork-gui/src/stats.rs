@@ -282,7 +282,7 @@ fn home_dir() -> Option<PathBuf> {
 
 /// The scheme of a URL (`http` in `http://host/path`), `None` when there is no
 /// plausible `scheme://` at the front.
-fn scheme_of(url: &str) -> Option<&str> {
+pub(crate) fn scheme_of(url: &str) -> Option<&str> {
 	let end = url.find("://")?;
 	let scheme = &url[..end];
 	let plausible = !scheme.is_empty()
@@ -300,7 +300,7 @@ fn is_web_scheme(scheme: &str) -> bool {
 /// The authority of a URL (`127.0.0.1:3847` in `http://127.0.0.1:3847/x`), with
 /// any `user@` prefix removed. `None` when there is no scheme or the authority
 /// is empty.
-fn authority_of(url: &str) -> Option<&str> {
+pub(crate) fn authority_of(url: &str) -> Option<&str> {
 	let start = url.find("://")? + 3;
 	let rest = &url[start..];
 	let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
@@ -319,7 +319,7 @@ fn authority_of(url: &str) -> Option<&str> {
 /// The host inside an authority: `[::1]:3847` → `::1`, `host:3847` → `host`,
 /// `host` → `host`. An unterminated bracket or an empty host yields `""`, which
 /// matches nothing.
-fn host_of(authority: &str) -> &str {
+pub(crate) fn host_of(authority: &str) -> &str {
 	if let Some(rest) = authority.strip_prefix('[') {
 		return match rest.find(']') {
 			Some(end) => &rest[..end],

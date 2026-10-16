@@ -159,8 +159,15 @@ pub struct Shell {
 	/// The tray icon, when this build has one.
 	pub tray: tray::Tray,
 	/// The last notification raised, and how far it got. The status bar shows
-	/// it, which is the fallback chain's second link.
+	/// it, which is the fallback chain's last link (after the OS route and the
+	/// IM one).
 	pub last_trace: Option<notify::Trace>,
+	/// The IM fallback's destination: the gateway origin from
+	/// `~/.zeta/serve.json` plus the chat to post to. `None` — the state this
+	/// build is in — because the chat is pairing data the serve process owns
+	/// (`~/.zeta/web.yml`), see [`notify::MISSING_TARGET`]; the fallback then
+	/// stops at the status bar's trace instead of guessing a recipient.
+	pub im_target: Option<notify::MessagingTarget>,
 	memory: Memory,
 	resizing: chrome::ResizeState,
 }
@@ -256,6 +263,10 @@ impl Shell {
 			},
 			tray: tray::Tray::new(&cc.egui_ctx),
 			last_trace: None,
+			// `~/.zeta/serve.json` names the serve origin, but no file this
+			// shell reads names the chat to send to (`notify::MISSING_TARGET`),
+			// so the IM fallback has no destination here either.
+			im_target: None,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		};
@@ -297,6 +308,7 @@ impl Shell {
 			lifecycle: lifecycle::Lifecycle::default(),
 			tray: tray::Tray::disabled(),
 			last_trace: None,
+			im_target: None,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		}
@@ -647,7 +659,7 @@ impl Shell {
 		if !notify::should_fire(self.settings.notify, self.foreground(ctx)) {
 			return None;
 		}
-		let trace = notify::emit(message);
+		let trace = notify::emit(message, self.im_target.as_ref());
 		self.last_trace = Some(trace);
 		// The status bar draws the trace; a repaint makes it appear at once even
 		// with no input, which is the one frame the background state is allowed.

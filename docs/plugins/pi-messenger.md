@@ -10,7 +10,7 @@ This page is the activation and usage record for that plugin. Read [`plugins.md`
 
 - A `pi_messenger` tool that joins a room, lists participants, claims tasks, reserves file paths, and sends messages between agents sharing a project directory.
 - A `crew/` sub-agent set (planner / worker / reviewer / `crew-plan-sync`) discovered as task agents, with an orchestrator skill.
-- `/editor` — hands the current session to the companion editor (writes the handoff file, spawns the editor).
+- `/editor` — hands the current session to the companion editor (spawns the editor on the workspace root, at the requested target when one was given).
 - `/teamagent` — team/agent orchestration command.
 
 Internals: `plugins/official/pi-messenger/index.ts` registers everything; the crew logic is under `crew/`; the skill is `skills/pi-messenger-crew/SKILL.md`.
@@ -143,11 +143,11 @@ pi_messenger({ action: "list" })
 ```
 
 This was broken until recently, and the way it was broken is worth recording:
-the plugin's `editor-command.ts:14` imports the host's
-`cfgEditorAutoInstall` / `cfgEditorHandoffSession` settings handles, and those
-handles had gone missing from `packages/coding-agent/src/session/settings.ts`
-(registered by `f02d7401fa9`, dropped by a merge; the i18n labels survive at
-`packages/coding-agent/src/config/settings-zh.ts:383,387`). Because `index.ts`
+the plugin's `editor-command.ts:22` imports the host's `cfgEditorAutoInstall`
+settings handle, and that handle had gone missing from
+`packages/coding-agent/src/session/settings.ts` (registered by `f02d7401fa9`,
+dropped by a merge; the i18n label survives at
+`packages/coding-agent/src/config/settings-zh.ts:360`). Because `index.ts`
 imports `./editor-command.ts` statically, the whole module graph failed to
 import:
 
@@ -166,7 +166,7 @@ plugin enabled, `plugin doctor` was clean, the crew skill still loaded (skills
 come from the `skills/` directory, not from the module), and `/editor`,
 `/teamagent`, and `pi_messenger` simply did not exist. The failure was
 route-independent — `plugin link`, `plugin install ./path`, and a marketplace
-install all feed the same `extensions` entry to the same loader. The handles are
+install all feed the same `extensions` entry to the same loader. The handle is
 restored, and `packages/coding-agent/test/plugins/pi-messenger-activation.test.ts`
 imports this plugin through the real loader so the same loss fails a test
 instead of a user's session.
@@ -211,8 +211,8 @@ now installs a `zeta`-only fixture and requires both halves: listed *and* loaded
   session: `pi_messenger({ action: "list" })` →
   `Not registered. Use pi_messenger({ action: "join" }) to join the agent mesh first.`
   A two-agent exchange over a real `zetacode` session remains unverified here.
-- **`/editor` end to end.** The command is registered; the handoff file write and
-  the editor-binary spawn were not exercised.
+- **`/editor` end to end.** The command is registered; the editor-binary spawn
+  was not exercised.
 - **Windows-only run.** Every command above was run on Windows against a source
   checkout. Path handling in the plugin (`~/…` expansion, the editor binary it
   looks for) is not verified on Linux/macOS.

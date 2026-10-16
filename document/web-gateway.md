@@ -49,6 +49,8 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/agent/[id]/subagents`、`[id]/subagents/events`（SSE）、`[id]/subagents/[subId]/transcript`、`[id]/subagents/[subId]/output` | Gateway（新增，非迁移） | ✅ 子代理名册读面（`subagents.ts`）：快照 / 增量 SSE / 字节分页转写 / 已发布输出。仅 `GET`（其余 405）；本节下方「子代理名册」给出 DTO 与词表映射。动作面（`cancel`/`steer`）**未实现**，见该节末尾 |
 | `api/auth/*`（5 条）、`api/models`、`api/models-config`、`models-config/test` | Gateway（AuthStorage/ModelRegistry） | W3 ✅ |
 | `api/skills/*`（5 条）、`api/plugins` | Gateway（`DefaultResourceLoader`/`DefaultPackageManager`） | W4 ✅ |
+| `api/channels/status`、`api/channels/wechat/{qrcode,reconnect,unbind}` | Gateway（`../channels` 的模块级桥） | ✅ 读面 + 微信登录/解绑；`qrcode` 仅 `GET`，其余仅 `POST` |
+| `api/channels/send` | Gateway（新增，非迁移；`web-gateway/channels.ts` + `zeta-server.ts` 的 `registerChannelSend`） | ✅ **IM 写入口**：`{channelId,to,text}`（= 运行时 `ChatChannel.sendText` 的三个参数），200 带回执 / 400 缺字段或 peer 未配对 / 404 渠道未运行 / 500 平台拒绝；仅 `POST`（其余 405）。鉴权同 `channels/status` |
 | `api/tracking`、`api/tracking/events`（SSE） | Gateway（`tracking.ts`） | ✅ `zeta serve` 进程内分派（`classifyRequest`，不依赖 Next rewrite）；dev/standalone 经 Next rewrite |
 | `api/fs/*`、`api/files/*`、`api/cwd/*`、`api/git/*`、`api/home`、`api/default-cwd`、`api/worktrees`、`api/file-index` | **留在 Next**（纯 Node，无 runtime import）；其中 `api/git/{branches,checkout,branch}` 是**请求期网关代理**（`app/api/git/*` → `resolveGatewayUrl()`） | — |
 
@@ -82,6 +84,10 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
   为每个会话注入自己的 `subagentEventBus`（`createAgentSession` 的公开选项）。
 - `auth.ts` — W3 ✅：`AuthStorage`/`ModelRegistry` 的 provider/API-key/OAuth 流。
 - `models.ts` — W3 ✅：models 列表、`models.json` 读写、连接测试。
+- `channels.ts` — IM 写入口（新增）：`POST /api/channels/send` 的 handler
+  （`handleChannelSend`）与运行时下沉的模块级桥（`registerChannelSend`/
+  `classifySendError`）。渠道读面（`status`/`wechat/*`）仍在 `../web-gateway.ts`
+  内联分派，走 `../channels` 既有的桥；本模块只承载写入口。
 - `skills.ts`、`skills-lock.ts`、`skill-updates.ts`、`npx.ts` — W4 ✅：skills 列表
   （`DefaultResourceLoader` + `.skill-lock.json` 注解，`Settings.loadIsolated` 隔离
   实例避免触碰 CLI 单例）、PATCH `disable-model-invocation` 外科式编辑、install/

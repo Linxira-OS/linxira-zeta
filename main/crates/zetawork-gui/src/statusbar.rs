@@ -53,10 +53,11 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 				shell.state.set_right_tab(RightTab::Git);
 			}
 
-			// 通知留痕: the fallback chain's second link. It is allocated
-			// **before** the right-aligned group on purpose — a
-			// `right_to_left` layout consumes the rest of the row, so anything
-			// allocated after it lands past the panel and is clipped away.
+			// 通知留痕: the fallback chain's last link — the one that always
+			// happens. It is allocated **before** the right-aligned group on
+			// purpose — a `right_to_left` layout consumes the rest of the row,
+			// so anything allocated after it lands past the panel and is
+			// clipped away.
 			if let Some(trace) = shell.last_trace.clone() {
 				let line = trace.message.trace_line();
 				let hint = crate::notify::trace_hint(&trace);

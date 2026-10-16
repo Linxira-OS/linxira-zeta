@@ -232,6 +232,17 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			for (_, why) in crate::notify::MISSING_SIGNALS {
 				plain_row(ui, "通知缺信号", why, "未接入");
 			}
+			// The IM fallback's own state: the gateway route is real
+			// (`POST /api/channels/send`), the destination is what is missing.
+			match &shell.im_target {
+				Some(target) => plain_row(
+					ui,
+					"IM 回落",
+					&format!("{}/api/channels/send · {}", target.origin, target.channel_id),
+					"已接线",
+				),
+				None => plain_row(ui, "IM 回落", crate::notify::MISSING_TARGET, "未接线"),
+			}
 			for note in shell.lifecycle.notes.iter().chain(shell.tray.note.iter()) {
 				plain_row(ui, "驻留提示", note, "降级");
 			}

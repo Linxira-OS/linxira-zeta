@@ -6,13 +6,13 @@ import { loadExtensions } from "@linxiraos/zeta/extensibility/extensions/loader"
  * Activation smoke for the official plugin in this repository.
  *
  * `plugins/official/pi-messenger/index.ts` statically imports
- * `./editor-command.ts`, which reads the host's `cfgEditorAutoInstall` /
- * `cfgEditorHandoffSession` settings handles. When those handles went missing
- * from `src/session/settings.ts` (dropped in a merge, AGENTS.md damage class 4)
- * the whole module graph failed to import: `plugin list` showed the plugin
- * enabled, its `skills/` still loaded by directory convention, and every tool
- * and command the plugin registers simply did not exist. Nothing in the tree
- * noticed, because the only consumer of those handles is this plugin.
+ * `./editor-command.ts`, which reads the host's `cfgEditorAutoInstall` settings
+ * handle. When that handle went missing from `src/session/settings.ts` (dropped
+ * in a merge, AGENTS.md damage class 4) the whole module graph failed to
+ * import: `plugin list` showed the plugin enabled, its `skills/` still loaded
+ * by directory convention, and every tool and command the plugin registers
+ * simply did not exist. Nothing in the tree noticed, because the only consumer
+ * of that handle is this plugin.
  *
  * So the assertion is the observable contract, not the source text: import the
  * real plugin through the real extension loader and require that the surface it

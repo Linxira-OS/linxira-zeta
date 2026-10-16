@@ -1448,8 +1448,7 @@ export const cfgThinkingBudgets = combine({
 
 /**
  * TTT editor integration. The bundled editor ships as its own npm package, so
- * both switches default to on: the handoff file is the only way the editor
- * learns the session, and the install guard keeps a missing package from
+ * the switch defaults to on: the install guard keeps a missing package from
  * turning a switch into an error dialog.
  */
 export const cfgEditorAutoInstall = register({
@@ -1462,18 +1461,5 @@ export const cfgEditorAutoInstall = register({
 		label: "Auto-install Editor",
 		description:
 			"Install the @linxiraos/editor package automatically when a switch to the editor needs it and the package is missing",
-	},
-});
-
-export const cfgEditorHandoffSession = register({
-	id: "editor.handoffSession",
-	type: "boolean",
-	default: true,
-	ui: {
-		tab: "interaction",
-		group: "Agent",
-		label: "Hand Off Session",
-		description:
-			"Write the current session into the handoff file so the editor side can restore the conversation context",
 	},
 });

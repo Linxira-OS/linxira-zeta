@@ -897,8 +897,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	// Bundled TTT editor (cross-surface handoff)
-
 	"images.autoResize": {
 		type: "boolean",
 		default: true,
