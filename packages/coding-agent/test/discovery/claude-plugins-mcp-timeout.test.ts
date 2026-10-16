@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { enableProvider, loadCapability } from "@oh-my-pi/pi-coding-agent/capability";
-import type { MCPServer } from "@oh-my-pi/pi-coding-agent/capability/mcp";
-import { clearClaudePluginRootsCache } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { loadAllMCPConfigs } from "@oh-my-pi/pi-coding-agent/mcp/config";
-import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
-import "@oh-my-pi/pi-coding-agent/discovery/claude-plugins";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { enableProvider, loadCapability } from "@linxiraos/zeta/capability";
+import type { MCPServer } from "@linxiraos/zeta/capability/mcp";
+import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
+import { loadAllMCPConfigs } from "@linxiraos/zeta/mcp/config";
+import { __resetDirsFromEnvForTests, logger, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import "@linxiraos/zeta/discovery/claude-plugins";
 describe("Claude plugin MCP timeout compatibility", () => {
 	let tempDir: string;
 	let testAgentDir: string;
@@ -22,7 +22,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		clearClaudePluginRootsCache();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.OMP_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
@@ -49,8 +49,8 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		else process.env.OMP_PROFILE = originalOmpProfileEnv;
 		if (originalPiProfileEnv === undefined) delete process.env.PI_PROFILE;
 		else process.env.PI_PROFILE = originalPiProfileEnv;
-		if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+		if (originalAgentDirEnv === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+		else process.env.ZETA_CODING_AGENT_DIR = originalAgentDirEnv;
 		if (originalClaudeConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
 		else process.env.CLAUDE_CONFIG_DIR = originalClaudeConfigDir;
 		__resetDirsFromEnvForTests();
@@ -65,8 +65,8 @@ describe("Claude plugin MCP timeout compatibility", () => {
 	 */
 	async function installPluginWithTimeout(timeout: unknown): Promise<void> {
 		const pluginPath = path.join(tempDir, "plugins", "sap-fiori-mcp-server");
-		const registryPath = path.join(tempDir, ".omp", "plugins", "installed_plugins.json");
-		await fs.mkdir(path.join(tempDir, ".omp", "plugins"), { recursive: true });
+		const registryPath = path.join(tempDir, ".zeta", "plugins", "installed_plugins.json");
+		await fs.mkdir(path.join(tempDir, ".zeta", "plugins"), { recursive: true });
 		await fs.mkdir(pluginPath, { recursive: true });
 		await fs.writeFile(
 			path.join(pluginPath, ".mcp.json"),

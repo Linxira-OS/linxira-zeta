@@ -2,20 +2,20 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import { findFreeCdpPort, waitForCdp } from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import { prepareElementUpload } from "@oh-my-pi/pi-coding-agent/tools/browser/interactions";
-import { ensureChromiumExecutable } from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { releaseAllTabs } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { findFreeCdpPort, waitForCdp } from "@linxiraos/zeta/tools/browser/attach";
+import { prepareElementUpload } from "@linxiraos/zeta/tools/browser/interactions";
+import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
+import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import {
 	openUploadSource,
 	sweepUploadStaging,
 	type UploadRoute,
 	UploadStaging,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/upload-files";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
+} from "@linxiraos/zeta/tools/browser/upload-files";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import type { ElementHandle, Page } from "puppeteer-core";
 import { rejectionOf } from "../helpers/rejection";
 import { chromiumAvailable } from "./chromium-probe";

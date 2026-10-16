@@ -496,8 +496,6 @@ import {
 	SessionAdvisors,
 	type SessionAdvisorsHost,
 } from "./session-advisors";
-import type { SessionContext, TranscriptSessionContextOptions } from "./session-context";
-import { buildSessionContext, getRestorableSessionModels, isTranscriptEntry } from "./session-context";
 import type { CacheWarmer, CacheWarmingMode, CacheWarmingStatus } from "./cache-warmer";
 import { isUserRequestEntry, transcriptEntryMessage, userTurnDraft } from "@linxiraos/pi-tui/chat/transcript-entry";
 import { anonymizeSessionTranscripts } from "./session-anonymizer";
@@ -635,8 +633,8 @@ import {
 } from "../extensibility/extensions";
 import {
 	buildSessionContext,
-	type BuildSessionContextOptions,
 	type SessionContext,
+	type TranscriptSessionContextOptions,
 	getRestorableSessionModels,
 	isTranscriptEntry,
 } from "./session-context";

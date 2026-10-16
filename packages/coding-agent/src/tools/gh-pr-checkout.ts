@@ -5,7 +5,6 @@ import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { IsoBackendKind, VcsGitRepo, VcsWorktreeEntry } from "@linxiraos/pi-natives";
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getWorktreeDir, hashPath, isEnoent, logger, slugify } from "@linxiraos/pi-utils";
-import { github } from "../utils/github";
 import { formatIsolationBackend, parseIsolationBackend } from "../task/worktree";
 import { github } from "../utils/github";
 import { withRepoLock } from "../utils/repo-lock";

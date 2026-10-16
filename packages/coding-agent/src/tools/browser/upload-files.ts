@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { untilAborted, withTimeout } from "@oh-my-pi/pi-utils";
-import { ToolError } from "@oh-my-pi/pi-tui/tools/tool-errors";
+import { untilAborted, withTimeout } from "@linxiraos/pi-utils";
+import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import type { BunFile } from "bun";
 import type { ElementHandle, Page, Realm } from "puppeteer-core";
 import { throwIfAborted } from "../tool-errors";

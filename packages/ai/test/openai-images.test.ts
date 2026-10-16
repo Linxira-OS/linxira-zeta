@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 import { generateOpenAIImage } from "../src/images/openai-images";
 import type { FetchImpl } from "../src/types";
 

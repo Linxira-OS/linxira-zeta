@@ -3,11 +3,11 @@ import * as nodeFs from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { clearCache as clearFsCache } from "@oh-my-pi/pi-coding-agent/capability/fs";
-import { type Hook, hookCapability } from "@oh-my-pi/pi-coding-agent/capability/hook";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { initializeWithSettings, loadCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
+import { type Hook, hookCapability } from "@linxiraos/zeta/capability/hook";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
 const HOOK_SOURCE = `export default function(pi) {
@@ -52,20 +52,20 @@ describe("native hook discovery", () => {
 		resetSettingsForTest();
 		clearFsCache();
 		originalHome = process.env.HOME;
-		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.OMP_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
 		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-builtin-hooks-"));
 		const home = path.join(root, "home");
 		project = path.join(root, "project");
-		projectPre = path.join(project, ".omp", "hooks", "pre");
+		projectPre = path.join(project, ".zeta", "hooks", "pre");
 		sharedHooks = path.join(root, "shared-hooks");
 		process.env.HOME = home;
 		vi.spyOn(os, "homedir").mockReturnValue(home);
-		setAgentDir(path.join(home, ".omp", "agent"));
+		setAgentDir(path.join(home, ".zeta", "agent"));
 		await Promise.all([
 			fs.mkdir(projectPre, { recursive: true }),
-			fs.mkdir(path.join(home, ".omp", "agent", "hooks", "pre"), { recursive: true }),
+			fs.mkdir(path.join(home, ".zeta", "agent", "hooks", "pre"), { recursive: true }),
 			fs.mkdir(sharedHooks, { recursive: true }),
 			fs.mkdir(path.join(project, ".git"), { recursive: true }),
 		]);
@@ -79,7 +79,7 @@ describe("native hook discovery", () => {
 		restoreEnvValue("HOME", originalHome);
 		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
-		restoreEnvValue("PI_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
 		await removeWithRetries(root);
 	});

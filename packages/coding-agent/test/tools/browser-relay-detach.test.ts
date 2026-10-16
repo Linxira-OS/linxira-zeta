@@ -1,16 +1,16 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, spyOn } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as rewriteImports from "@oh-my-pi/pi-coding-agent/eval/js/shared/rewrite-imports";
-import * as toolBridge from "@oh-my-pi/pi-coding-agent/eval/js/tool-bridge";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import { findFreeCdpPort } from "@oh-my-pi/pi-coding-agent/tools/browser/attach";
-import { ensureChromiumExecutable } from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
-import { DISCARDED_TABS_PROTOCOL_VERSION } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/protocol";
-import { type RelayServer, startRelayServer } from "@oh-my-pi/pi-coding-agent/tools/browser/relay/server";
-import { getTab, releaseTab, runInTab } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
-import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as rewriteImports from "@linxiraos/zeta/eval/js/shared/rewrite-imports";
+import * as toolBridge from "@linxiraos/zeta/eval/js/tool-bridge";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { findFreeCdpPort } from "@linxiraos/zeta/tools/browser/attach";
+import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
+import { DISCARDED_TABS_PROTOCOL_VERSION } from "@linxiraos/zeta/tools/browser/relay/protocol";
+import { type RelayServer, startRelayServer } from "@linxiraos/zeta/tools/browser/relay/server";
+import { getTab, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import type { ToolSession } from "@linxiraos/zeta/tools/index";
+import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
+import { isRecord } from "@linxiraos/pi-utils";
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import { chromiumAvailable } from "./chromium-probe";
 
@@ -375,7 +375,7 @@ describe("relay tabs Chrome detaches omp from", () => {
 			});
 			try {
 				const evaluating = ext.hanging();
-				const code = `void __omp_call_tool__("probe", {}); ${HANG.code}`;
+				const code = `void __zeta_call_tool__("probe", {}); ${HANG.code}`;
 				const stalled = invoke({ action: "run", code, timeout: HANG.timeout }).catch((error: unknown) => error);
 				const signal = await started.promise;
 				await evaluating;

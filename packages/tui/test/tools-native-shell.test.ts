@@ -558,7 +558,7 @@ describe("eval native run boxes", () => {
 					{ expanded, isPartial: false },
 				).body,
 			);
-			return nodes(nodes(box?.c).find(child => role(child) === "omp.run.status")?.c);
+			return nodes(nodes(box?.c).find(child => role(child) === "zeta.run.status")?.c);
 		};
 
 		const folded = statusEntries(false);
@@ -569,12 +569,12 @@ describe("eval native run boxes", () => {
 
 		const [read, log] = statusEntries(true);
 		expect(read?.k).toBe("col");
-		expect(role(read)).toBe("omp.tool.eval.status.event");
+		expect(role(read)).toBe("zeta.tool.eval.status.event");
 		const [line, preview] = nodes(read?.c);
 		expect(spansText(line)).toBe("read path=src/rollup.ts:1:raw chars=2082");
 		expect(preview?.k).toBe("code");
 		expect(props(preview)).toMatchObject({
-			role: "omp.tool.eval.status.preview",
+			role: "zeta.tool.eval.status.preview",
 			lang: "typescript",
 			wrap: false,
 			preview: { lines: 3 },
