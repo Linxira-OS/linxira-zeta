@@ -1593,6 +1593,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "每任务思考投入",
 		description: "在任务生成时暴露可选的 effort 参数，允许调用方覆盖每个子代理的思考级别",
 	},
+	"task.structured": {
+		label: "结构化任务结果",
+		description:
+			"在 task 工具上暴露 outputSchema/schemaMode，并让子代理结果经 yield 工具返回、按调用方或 agent 的输出 schema 校验。关闭：task 子代理没有 yield 工具，改以纯文本返回最终消息；eval 的 agent()/workpool 生成始终保留结构化结果。",
+	},
 	"task.maxConcurrency": {
 		label: "最大并发任务",
 		description: "同时运行的子代理最大数量",

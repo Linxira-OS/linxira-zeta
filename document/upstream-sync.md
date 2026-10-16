@@ -1536,10 +1536,13 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.8.8` (`1ca13863a828`; two-parent merges `9362fef9d66` → v18.8.7,
-  `110331518bc` → v18.8.8 — see the entries above). Next sync target: `v18.8.9`
-  (`fa5ff4a3a977`, 58 commits / 124 files).
-- Zeta: `1.1.29` (version line holds across the published `@linxiraos/*`
-  packages; the tag is not cut yet).
-- In flight: `sync/omp-release/v18.8.7` (PR #79) — the v18.8.7 + v18.8.8 merges
-  plus the repair pass above; `git merge-base HEAD v18.8.8` must equal `1ca13863a828`.
+- OMP: `v18.10.3` (`81e1d8927a3c16cfaff2e9456baa8c060e1e0e9b`; two-parent merges
+  `e72c77df4df` → v18.10.1 (rung 1/4, PR #227) and `e78ebe945da` → v18.10.3
+  (rung 2/4, PR #229) — see the entries above). Next sync target: `v18.10.4`
+  (rung 3/4), then `v18.11.0` and `v18.11.1`.
+- Zeta: `1.2.1` (version line holds across the published `@linxiraos/*`
+  packages, the Cargo workspace and the natives stamp).
+- In flight: `sync/omp-release/v18.10.3` (PR #229) — its merge commit
+  `e78ebe945da` has parents `c2f5a0a01210` (main) and `81e1d8927a3c` (the tag),
+  and carries the i18n follow-up the merge opened (`task.structured` zh entry,
+  the `launch-help.ts` pin bump).
