@@ -1,17 +1,10 @@
 ## [Unreleased]
 
-## [18.11.2] - 2026-10-16
-
-### Fixed
-
-- Fixed `MNEMOPI_<LABEL>_WEIGHT` and `MNEMOPI_TIER<N>_WEIGHT` having no effect on recall ranking ([#13824](https://github.com/can1357/oh-my-pi/pull/13824) by [@sjawhar](https://github.com/sjawhar))
-
-## [18.11.1] - 2026-10-15
-
 ### Fixed
 
 - Fixed a failing `mnemopi` CLI command or MCP memory call dropping the embeddings of memories it had just stored ([#15804](https://github.com/can1357/oh-my-pi/pull/15804) by [@yuzu-octopus](https://github.com/yuzu-octopus))
 - Fixed polyphonic recall ranking unrelated memories above relevant ones when the query shared only a common word such as "that" with an extracted fact subject ([#15512](https://github.com/can1357/oh-my-pi/issues/15512)).
+- Fixed `MNEMOPI_<LABEL>_WEIGHT` and `MNEMOPI_TIER<N>_WEIGHT` having no effect on recall ranking ([#13824](https://github.com/can1357/oh-my-pi/pull/13824) by [@sjawhar](https://github.com/sjawhar))
 
 ## [1.2.0] - 2026-10-12
 
