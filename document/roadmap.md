@@ -1,9 +1,11 @@
 # Zeta Development Roadmap
 
-> **当前执行计划**（UI 迁移、编辑器/终端两端、team agent 接入）见
-> [webui-desktop-overhaul-plan.md](./webui-desktop-overhaul-plan.md)（2026-10-02 起；carryover 未完成批次已收编其 §14）。本文档保留长期
-> 路线与 Shipped 记录；执行细节以该计划为准。文档规范：旧计划随新计划生效
-> 即删；未开发的后期规划登记在本文档。
+> **执行计划状态（2026-10-16 更新）**：原「UI 迁移 / 桌面交接」执行计划
+> （`webui-desktop-overhaul-plan.md`，2026-10-02 起）**已被 2026-10-16 的裁决取代并关闭**，
+> 其唯一未完项（跨端来源标记）已收编进下文的 Web workbench 条目。GUI 开发启动时，
+> 执行细节的载体是**本文档 + 项目 tracking**（`<project>/.zeta/tracking/`）。
+> 文档规范：`document/` 只放三类（①当前执行计划 ②未开发的后期规划 ③架构设计文档）；
+> 旧计划随新计划生效即删；未开发的后期规划一律登记在本文档的 Deferred Queue。
 
 Zeta is an OMP downstream distribution: the runtime tree, package layout, Bun
 workflow, and internal `@linxiraos/*` names intentionally follow OMP so upstream
@@ -51,9 +53,36 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ## Priorities
 
-### P0 — 桌面形态定稿：`zetawork`（`zetawork web`）取代已删除的 `zeta web` 桌面版（2026-10-15 用户裁决）
+### P0 — 桌面形态定稿：`zetawork` 是唯一桌面应用（2026-10-15 裁决，2026-10-16 修订）
 
-**裁决内容**：
+**2026-10-16 生效裁决（当前口径；与本节其余段落冲突时以此为准）**：
+
+- **`web-ui/` 保留、不删、降级**：职责只剩两件 —— ① **服务端**：`zetacode serve` 的 `/api/*`，
+  供**浏览器远程连接**（已有降级页面，保持能用即可）；② **插件接口**。**不再做后续复杂维护**，
+  也不再承担"产品第二界面"的职责。
+- **"渲染方式由用户选"作废**：不再做"在 GUI 里选终端渲染 / 选 Web UI 渲染"的开关
+  （一开始即裁决不做，现彻底放弃）。
+- **GUI 渲染路线 A（先行）**：GUI 用**虚拟终端**承载 TUI（pty + VT 渲染）；`zetacode`（TS TUI）与
+  `zetawork` 自己的 ratatui TUI **都只当面板内容**。zetawork 侧沿用已验证的
+  `ratatui Buffer → blit → egui`（`main/crates/zetawork-gui/src/tui_view.rs` 已把每行 cell 范围
+  变成点击区）。结构化通道（原生控件 / 浏览器渲染）**后置，不属于当前需求**。
+- **新 GUI 按用户给的 HTML 稿做**：`Downloads/index.html` 与 `Downloads/workspace-v2.html`
+  （仓库内副本 `temp/zetawork-ui-mock/`；证据归档 `~/.zeta/parked-evidence/2026-10-16/`）。
+  **两份各有侧重，按各自侧重开发**：
+  `index.html` → **信息面**（右栏四页·含上下文页、设置与用量两个模态、状态栏信息）；
+  `workspace-v2.html` → **工作区组织**（项目→工作区→大标签页→面板的增删改与切换、TUI 形态）。
+  共同基底：系统标题栏 + 应用菜单栏 + 左中右三栏 + 状态栏。实现语言是 **Rust 原生 GUI
+  （`main/crates/zetawork-gui`，egui/eframe）**；HTML 只作设计参照，**不得实现成 web 前端**。
+- **术语与层级（用户口径）**：**项目 → 工作区**，且 **工作区 = 一个大标签页**；`工作区 1-1`
+  读作「项目一 · 第一个大标签页」；每个大标签页下若干**子页面 / 面板**；第一个大标签页 = **总面板**
+  （所有项目合并一张表）。
+- **右栏要接 HTML 插件宿主**；但**插件目前只登记进本文档，不暴露、不开发**（见 Deferred Queue）。
+- **TUI 只保基本功能**：不再加需求，减法为主；后续投入全在 GUI。
+- **内置编辑器要"像专业编辑器"，但不要代码补全**（能力缺口审计后逐项登记）。
+
+**2026-10-15 裁决（保留为历史记录；与上面冲突处以 2026-10-16 为准）**：
+
+**当时的裁决内容**：
 
 - **`web-ui/` 冻结**：开发到此为止，**不再作为独立桌面应用分发**；只保留为 zetawork 桌面应用
   内部**可选的渲染后端**。理由（用户原话指向的两个现场报错）：
@@ -63,25 +92,79 @@ These exist today (headline capabilities are marked in the root `README.md`):
 - **桌面应用本体 = zetawork**，开发位置整体迁到 `desktop/`（现有 Electron 外壳退役）。
 - **启动形态**：启动后**保底有一个 `zetacode` 进程**（由工作台自己拉起/内嵌），**不依赖外部服务
   端口就绪** —— 上面那两类错误从形态上消失。
-- **渲染方式由用户选**：同一个 zetawork 里可选**原生渲染（ratatui）**或 **Web UI 渲染**；于是
-  "单独维护的只剩 web-ui 的包"，维护面显著变小。
-- **编辑器分工**（`@linxiraos/editor` 不能浪费）：工作台内嵌编辑器 = termide `panel-editor`
+- ~~**渲染方式由用户选**：同一个 zetawork 里可选**原生渲染（ratatui）**或 **Web UI 渲染**；于是
+  "单独维护的只剩 web-ui 的包"，维护面显著变小。~~
+  **（2026-10-16 作废：不做渲染切换开关；渲染形态由上面的「路线 A」定死。）**
+- ~~**编辑器分工**（`@linxiraos/editor` 不能浪费）：工作台内嵌编辑器 = termide `panel-editor`
   （进程内 Panel，LSP/tree-sitter/git 全套）；**`@linxiraos/editor`（vendored TTT，Go）
   改作"外部编辑器"**分发——`$EDITOR`/`$VISUAL`（git commit/rebase todo/credential）、大文件与
   最小环境兜底、平台编辑器二进制 `+N file` 交接（它没有独立命令名，按平台二进制路径解析）。
   **随之要改的是指令注册**：`editor` 斜杠命令
-  的语义需从"打开工作台编辑器"改为"交给外部编辑器"，与工作台内 termide 面板区分开。
+  的语义需从"打开工作台编辑器"改为"交给外部编辑器"，与工作台内 termide 面板区分开。~~
+  **2026-10-16 修订**：`@linxiraos/editor`（vendored TTT）按**退场**裁决处理（YML 文件只改不删、
+  发布包替换干净）；工作台内嵌编辑器仍是 termide `panel-editor`（专业化、无代码补全）。
 - **路径链接复用原生逻辑**（同批裁决）：终端输出里"任何标准路径/URL → 悬停可点"不自己造；OSC8
   消费端已通（`termide` `hyperlink.rs` → `OpenPath` → `app.rs` `open_path_in_ide`），要找的是现成的
   普通路径/URL 识别并接到 Rust 侧。修饰键语义照参照实现：点击=动作菜单 · Ctrl+点击=切工作区 ·
   Shift+Ctrl+点击=打开文件夹。
 
-**待开工（登记，不在本轮执行）**：①Electron 外壳退役 + `desktop/` 改作 zetawork 的家（连带发布面：
+**待开工（2026-10-16 修订）**：①Electron 外壳退役 + `desktop/` 改作 zetawork 的家（连带发布面：
 `desktop_linux`/`desktop_windows` job、`zeta-desktop-*` 资产、`@linxiraos/zeta-web` 的桌面用途）；
-②渲染切换接线（同一状态两套渲染 + Web 资源打包方式，不再是 Electron 内嵌 Next standalone）；
-③详情栏 4 页（文件 / Agents 历史对话 / 分支·PR / 用量）+ 范围切换（工作区·项目·全部）+ 点会话切
-工作区（左栏没有就新建）；④路径链接（普通路径识别 + 修饰键）与发射端 `packages/tui/src/render/hyperlink.ts`
-的 line/col 修复；⑤外部编辑器化的指令注册改造 + 打包分发。
+②**GUI 按 HTML 稿重做**（见新增的 P0 条目）；③详情栏 4 页（文件 / Agents 历史对话 / 分支·PR /
+用量）+ 范围切换（工作区·项目·全部）+ 点会话切工作区（左栏没有就新建）；④路径链接（普通路径识别 +
+修饰键）与发射端 `packages/tui/src/render/hyperlink.ts` 的 line/col 修复。
+~~②渲染切换接线~~（2026-10-16 作废）；~~⑤外部编辑器化的指令注册改造 + 打包分发~~（同日由退场裁决取代）。
+
+### P0 — GUI 按 HTML 稿重做（`main/crates/zetawork-gui`）
+
+- **唯一基准 = 用户的两份 HTML 稿**：`Downloads/index.html` 与 `Downloads/workspace-v2.html`；
+  两份**各有侧重、按各自侧重开发** —— 信息面（右栏四页·含上下文页、设置/用量模态、状态栏）
+  与工作区组织（项目→工作区→大标签页→面板的增删改与切换、TUI 形态）。
+- **实现语言**：Rust 原生 GUI（egui/eframe，现 0.33.3）；HTML 仅设计参照，**不得引入 web 前端**。
+- **渲染路线 A**：面板内容用**虚拟终端**承载（pty + VT）；两套 TUI（`zetacode` 的 TS TUI 与
+  zetawork 自己的 ratatui）都只当面板内容；zetawork 侧沿用 `ratatui Buffer → blit → egui`。
+- **反馈闭环**：改完用仓库里的**离屏截图 harness**（`main/crates/zetawork-gui/tests/shots.rs`）
+  出图自证（**不弹窗、不抢焦点**），逐项与稿子对图；稿子上的元件**不得错位**
+  （旧 spike 版是错位反例，其截图不作为基准）。
+- **边界**：TUI 只保基本功能（减法为主）；web-ui 降级为"服务端 + 插件接口"。
+
+### P0 — 工作区 ↔ 会话绑定与布局持久化（布局与会话分离）
+
+**核心原则**：**布局与会话分离** —— 工作区/面板/面板内标签属于**布局**；会话只是面板上的一个
+**可空引用**。因此删会话永远不毁布局。
+
+- **绑定文件**：`~/.zeta/workbench.toml`（userdata 路径；现只存 `shell`/`drag`/
+  `focus_follows_mouse`/`close_confirmation` + `[[slots]]`，需新增 `[[workspace]]`）。
+- **模型**：一条 = 一个工作区（= 一个大标签页）：`id`（`"1-1"` = 项目一 · 第一个大标签页）、
+  `project`（规范化路径）、`remote`（git remote 哈希，作次键 —— 仓库被移动/换机克隆还能认回来）、
+  `left`（左栏当前项）、`right`（右栏当前页），以及每个**面板**的 `tabs`/`active` 与
+  **`agents`（会话引用列表 + 当前指针）** —— **左右两侧各跑一个 agent 会话时分别记**。
+- **生命周期与兜底**（保证"永不空白、永不报错"）：
+
+  | 事件 | 行为 |
+  |---|---|
+  | 首次进项目（无记录） | 在该 cwd 找最近会话；没有则新建；写一条 `[[workspace]]` |
+  | 用户换会话（例如新开一个） | 只改指针，旧记录保留（**列表 + 当前指针**，不是单值） |
+  | 一个标签页里有多个会话 | 按**面板**分别记，恢复时逐面板 `--restore` |
+  | 用户删除会话 / 会话被 GC | 指针失效 → ① 同工作区其余会话中最近一次 → ② 该 cwd 下最近一次（会话库本就按项目 slug 分目录） → ③ 在该面板新建 |
+  | 工作区 / 项目被移除 | 整条移除，不留半条 |
+
+- **恢复开关**：`zetacode --restore`（恢复指定会话并继续它被打断的那一轮；要求交互式）/
+  `--resume <id>` / `--continue`。
+- **复用既有零件**：`session/session-listing.ts`（列会话）、`cli/gc-cli.ts`（会话 GC）、
+  `channels/session-router.ts` + `im-control.ts` 的**选择器语义**（裸 id / `{n}` / `[id]`，已支持
+  删除会话）—— 直接作为绑定记录的解析规则，不另发明一套。
+- **信任边界**：仓库自带指令（`AGENTS.md` / `.zeta/*`）会被喂给 YOLO 权限的 agent；自动装配
+  **只对用户显式加过的工作区**生效，未信任的仓库只起裸 shell（一次性在"加工作区"时确认，
+  不逐次弹窗）。
+
+### P1 — 内置编辑器专业化（明确不含代码补全）
+
+目标：**像一个专业编辑器**，但**不要代码补全**。现状（vendored `termide`：`panel-editor` +
+`buffer`/`highlight`/`lsp`/`git`/`panel-outline`/`panel-diagnostics`）已有 undo/redo、查找替换、
+折叠、语法高亮、gutter、缩进、括号配对与 LSP crate；**多光标在 termide 内零命中**。
+缺口清单待**只读审计**逐项核出后登记于此（专业基线：多光标、跳转/快速打开、整文件替换、行移动/
+复制、注释切换、跳括号、软换行、EOL/编码、大文件、光标位置恢复、分屏、未保存提示、文件树…）。
 
 ### P0 - Web workbench foundation and desktop handoff
 
@@ -842,6 +925,13 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the
   **为什么待定**:属**既定策略**,非本次 flake 的成因(#187 未触碰),且放宽/收紧回拨会影响额度耗尽时的失败面,需用户裁断。
   **开工前先定**:阈值取值与「窗口极短时优先用 fallback 而非主模型」是否符合产品意图(与我们默认 YOLO、不新增审批层的姿态一致)。
   **取证**:`pr://187` 根因 2(含逐档阈值与 `model_change`/`isSelectorSuppressed()` 时间线探针)。
+
+- **右栏 HTML 插件宿主（2026-10-16 用户裁决；只登记，不暴露、不开发）**:用户口径 —— **右栏要接
+  HTML 插件宿主**，但**先把"插件"这件事在路线图里放好，暂不对外暴露**。本轮只登记方向：右栏面板
+  需要一个能挂第三方 HTML 页面的宿主，形态二选一 —— **GUI 内嵌 WebView2 面板**（倾向此项：spike
+  已证明 WebView2 子窗口在本机可行、GUI 内可缩放），或复用 `zetacode serve` 服务端 + GUI 内浏览器
+  视图。插件体系本身已有设计文档（`document/plugin-system.md`、`plugin-storage-spec.md`、
+  `plugin-manager-installer-plumbing.md`），本项**只做宿主接线**，不重做那三份设计。
 
 ## Notes
 
