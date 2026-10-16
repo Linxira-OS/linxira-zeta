@@ -514,7 +514,7 @@ export class BtwHistoryPanel implements Component, Focusable {
 				case "close":
 					this.#options.onClose();
 					return;
-				case "copy":
+				case "copy-answer":
 					if (record && getBtwCopyText(record) !== undefined) this.#options.onCopy(record);
 					break;
 				case "follow-up":
@@ -661,8 +661,8 @@ export class BtwHistoryPanel implements Component, Focusable {
 		const buttons: (NativeNode | null)[] = [];
 		if (running) buttons.push(actionButton("Stop answer", "stop", { keys: hides ? "x" : "escape" }));
 		if (record && getBtwCopyText(record) !== undefined) {
-			buttons.push(actionButton(copied ? "Copy again" : "Copy answer", "copy", { keys: "c" }));
-			if (copied) buttons.push(text([span("✓ Copied", "success")], { role: "zeta.btw.copied" }));
+			buttons.push(actionButton(copied ? "Copy again" : "Copy answer", "copy-answer", { keys: "c" }));
+			if (copied) buttons.push(text([span("✓ Copied", "success")], { role: "omp.btw.copied" }));
 		}
 		buttons.push(null);
 		// Clicking Close always dismisses the sheet; its tooltip names Esc only where Esc does too.
