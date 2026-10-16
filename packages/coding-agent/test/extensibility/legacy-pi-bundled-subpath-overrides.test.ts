@@ -297,6 +297,6 @@ export const observed = {
 		);
 		expect(observed).toEqual({ theme: true, svg: "function", caps: "function" });
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
-		for (const key of keys) expect(overrides[key]).toBe(`omp-legacy-pi-bundled:${key}`);
+		for (const key of keys) expect(overrides[key]).toBe(`zeta-legacy-pi-bundled:${key}`);
 	});
 });
