@@ -205,7 +205,9 @@ function main(): void {
 	// new version while its pins stay behind publishes a package that installs
 	// the PREVIOUS release's binary and nothing on npm's side complains — the
 	// 1.2.0 editor launcher shipped pinning @linxiraos/editor-{windows,linux}-x64
-	// at 1.1.28 and had to be hand-fixed (PR #119).
+	// at 1.1.28 and had to be hand-fixed (PR #119). That distribution has since
+	// retired (TTT payload removed 2026-10-16), so the registry now holds
+	// main/ + termide/ only.
 	const registeredPins: Record<string, ReadonlySet<string>> = {};
 	for (const dist of NPM_DISTRIBUTIONS) {
 		const parentRel = `${dist.dir}/package.json`;

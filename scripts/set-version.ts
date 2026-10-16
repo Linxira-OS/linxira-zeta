@@ -9,10 +9,11 @@
  *   - Cargo.toml workspace version
  *   - desktop/package.json + desktop/package-lock.json
  *   - the root workspaces.catalog @linxiraos keys
- *   - the vendored npm distributions (editor / main / termide): the launcher
+ *   - the vendored npm distributions (main / termide): the launcher
  *     package and its platform leaves, plus the launcher's exact
  *     optionalDependencies pins — a stale pin ships the previous release's
- *     binary (scripts/npm-distributions.ts holds the registry)
+ *     binary (scripts/npm-distributions.ts holds the registry; the editor
+ *     distribution retired 2026-10-16 with the vendored TTT payload)
  *   - web-ui/package.json (@linxiraos/zeta-web) version, so the web UI
  *     publishes in step with the gateway it talks to (release_web_ui_packages
  *     in ci.yml). That manifest declares no @linxiraos/* dependency today, so
@@ -268,12 +269,13 @@ async function main(): Promise<void> {
 		}
 	}
 
-	// 3b. Vendored npm distributions (editor / main / termide — published by
-	// `ci-release-publish.ts --editor/--ide` and the workbench job). Not Bun
+	// 3b. Vendored npm distributions (main / termide — published by
+	// `ci-release-publish.ts --ide` and the workbench job). Not Bun
 	// workspaces: the launcher, its platform leaves, and the launcher's exact
 	// leaf pins all ride the release line. The 1.2.0 editor launcher was lifted
 	// to the line while its pins stayed at 1.1.28 (hand-fixed in PR #119), so
-	// the pins are part of this pass.
+	// the pins are part of this pass. The editor distribution is gone from the
+	// registry (TTT payload removed 2026-10-16).
 	for (const dist of NPM_DISTRIBUTIONS) {
 		bumpManifest(
 			`${dist.dir}/package.json`,

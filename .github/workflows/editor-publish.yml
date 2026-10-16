@@ -1,9 +1,15 @@
 name: Publish editor packages
-# Standalone dispatchable entry for the vendored editor npm distribution
+# Standalone dispatchable entry for the reserved editor npm distribution
 # (@linxiraos/editor + platform leaves). Exists so a missed or skipped
 # editor publish on a release run can be republished without re-tagging:
-# `gh workflow run editor-publish.yml`. The release pipeline runs the same
-# step in release_editor_packages; keep both in sync.
+# `gh workflow run editor-publish.yml`.
+#
+# RESERVED: the `@linxiraos/editor` package name and this publish chain are
+# kept for the zetawork built-in editor's publish payload; the TTT vendored
+# payload was removed 2026-10-16. Nothing dispatches this workflow any more —
+# ci.yml's `release_editor_packages` job is commented out in place — and
+# `ci-release-publish.ts --editor` now exits cleanly when the payload directory
+# is absent. `--dry-run` still works.
 
 on:
    workflow_dispatch:

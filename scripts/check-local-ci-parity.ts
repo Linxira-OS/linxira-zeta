@@ -29,6 +29,13 @@ type Workflow = { jobs: Record<string, Job> };
 
 /** ci.yml jobs that must never run locally, with the reason they are cut. */
 const EXCLUDED: Record<string, string> = {
+	// Retired 2026-10-16 with the vendored editor: `editor_tests` was deleted
+	// and `release_editor_packages` is commented out in ci.yml, so neither is a
+	// ci.yml job any more and neither may be listed here (this guard rejects a
+	// stale exclusion). Re-enable the pair in ci.yml + MIRRORED/EXCLUDED
+	// together if the reserved editor payload comes back.
+	//
+	// `editor_tests` was additionally removed from MIRRORED below.
 	release_metadata: "release chain",
 	release_gate: "release chain",
 	release_binary: "release chain",
@@ -36,7 +43,6 @@ const EXCLUDED: Record<string, string> = {
 	release_native_leaves: "release chain",
 	release_github: "release chain",
 	release_npm: "release chain",
-	release_editor_packages: "release chain",
 	release_main_packages: "release chain",
 	release_ide_packages: "release chain",
 	release_web_ui_packages: "release chain",
@@ -64,7 +70,6 @@ const MIRRORED: Record<string, string> = {
 	test_coding_agent_runtime: "test_coding_agent_runtime",
 	test_smoke: "test_smoke",
 	install_methods: "install_methods",
-	editor_tests: "editor_tests",
 	termide_tests: "termide_tests",
 	main_tests: "main_tests",
 	// The local desktop_tests job is the mirror of the GitHub job that carries

@@ -9,8 +9,9 @@
  *
  * Publish targets whose manifests are already publish-ready pack as-authored
  * through `publishAsIsNpmDirs` instead of the steps below, each from its own
- * ci.yml job: `--editor`, `--ide`, `--main`, `--web-ui` (vendored
- * distributions) and `--plugin <dir>` (official plugins, see that function).
+ * ci.yml job: `--editor` (RESERVED — see `publishReservedEditorDirs`), `--ide`,
+ * `--main`, `--web-ui` (vendored distributions) and `--plugin <dir>` (official
+ * plugins, see that function).
  *
  * For each public TypeScript package we:
  *   1. Emit `.d.ts` declarations into `dist/types/` so consumers get
@@ -99,7 +100,7 @@ const publishEditor = process.argv.slice(2).includes("--editor");
 const publishIde = process.argv.slice(2).includes("--ide");
 const publishMain = process.argv.slice(2).includes("--main");
 // web-ui is a standalone npm-only project (not a Bun workspace package), so it
-// packs/publishes through the vendored-dir path like editor/main/termide. Its
+// packs/publishes through the vendored-dir path like main/termide. Its
 // `.next` build is produced by the invoking CI job before this runs.
 const publishWebUi = process.argv.slice(2).includes("--web-ui");
 // Official plugins (`plugins/official/<id>/`) ship the TS source their host
@@ -648,7 +649,7 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
  * as-authored (platform leaves first, then the launcher package that pins them
  * via optionalDependencies). Two callers:
  *
- *   - Vendored distributions (editor/, termide/, web-ui/, main/) — not Bun
+ *   - Vendored distributions (termide/, web-ui/, main/) — not Bun
  *     workspace packages; only the legal payloads need staging before
  *     pack+publish. web-ui has no platform leaves and no `prepack` — its
  *     `.next` build is produced by the invoking CI job
@@ -683,6 +684,36 @@ async function publishAsIsNpmDirs(dirs: readonly string[]): Promise<string[]> {
 		targets.map(target => publishTargetJob(target, createKeyedMutex())),
 		1,
 	);
+}
+
+/**
+ * Reserved editor distribution dirs — the `--editor` publish payload.
+ * The `@linxiraos/editor` package name and this chain are kept for the
+ * zetawork built-in editor's publish payload; the TTT vendored payload was
+ * removed 2026-10-16.
+ */
+const EDITOR_NPM_DIRS = ["editor/npm/editor-windows-x64", "editor/npm/editor-linux-x64", "editor/npm/editor"];
+
+/**
+ * `--editor` entry point. While the reserved payload is absent (the current
+ * state — see `EDITOR_NPM_DIRS`) every dir is missing, so this prints one line
+ * and returns cleanly: the flag stays wired (ci.yml's `release_editor_packages`
+ * job and editor-publish.yml are kept, commented out / dormant) and
+ * `--dry-run` keeps working, instead of dying on an ENOENT manifest read.
+ * Re-add the payload dirs and this publishes them as-authored again.
+ */
+async function publishReservedEditorDirs(): Promise<string[]> {
+	const missing: string[] = [];
+	for (const dir of EDITOR_NPM_DIRS) {
+		if (!(await Bun.file(path.join(repoRoot, dir, "package.json")).exists())) missing.push(dir);
+	}
+	if (missing.length > 0) {
+		console.log(
+			`Reserved editor payload absent (${missing.join(", ")}) — @linxiraos/editor is kept unpublished for the zetawork built-in editor's future payload; nothing to publish.`,
+		);
+		return [];
+	}
+	return publishAsIsNpmDirs(EDITOR_NPM_DIRS);
 }
 
 async function prepareNativePackage(pkg: PublishPackage): Promise<PackageManifest> {
@@ -760,11 +791,7 @@ if (import.meta.main) {
 	const failed = nativeLeafTag
 		? await publishNativeLeafPackage(nativeLeafTag)
 		: publishEditor
-			? await publishAsIsNpmDirs([
-					"editor/npm/editor-windows-x64",
-					"editor/npm/editor-linux-x64",
-					"editor/npm/editor",
-				])
+			? await publishReservedEditorDirs()
 			: publishIde
 				? await publishAsIsNpmDirs(["termide/npm/ide-windows-x64", "termide/npm/ide-linux-x64", "termide/npm/ide"])
 				: publishMain

@@ -33,7 +33,6 @@ Two rules define it:
 | `test_coding_agent_runtime` | same id | |
 | `test_smoke` | same id | CLI smoke |
 | `install_methods` | same id | |
-| `editor_tests` | `editor_tests` | Go tests + functional vitest (vendored TTT editor) |
 | `termide_tests` | `termide_tests` | fmt / check / clippy / nextest (zetaide) |
 | `main_tests` | `main_tests` | fmt / check / clippy / tests (zetawork) |
 | `desktop_linux` / `desktop_windows` | `desktop_tests` | both are `is-release`-gated on GitHub; locally only the **test half** runs (`desktop npm test`) — packaging stays a release concern |

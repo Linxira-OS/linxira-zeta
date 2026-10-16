@@ -175,15 +175,20 @@ async function collectTargets(): Promise<{ names: string[]; repoFromManifest: st
 	// as-is pack, which builds its `.next` first), the official plugin
 	// pi-messenger (`release_plugin_packages` → `--plugin`, packed from
 	// plugins/official/pi-messenger as-authored), and the vendored
-	// editor/ide/main distributions (`--editor`/`--ide`/`--main`). They still
+	// ide/main distributions (`--ide`/`--main`). They still
 	// need trusted-publisher links so CI can publish them with OIDC; the
 	// workflow they must name stays `.github/workflows/ci.yml` for all of them.
+	// `@linxiraos/editor*` stays reserved but is commented out below: nothing
+	// publishes the name any more (TTT payload removed 2026-10-16), and the
+	// links must be re-created only when the zetawork built-in editor's payload
+	// returns.
 	const extras = [
 		"@linxiraos/zeta-web",
 		"@linxiraos/pi-messenger",
-		"@linxiraos/editor",
-		"@linxiraos/editor-windows-x64",
-		"@linxiraos/editor-linux-x64",
+		// 预留：@linxiraos/editor（内置编辑器）——载荷退场，回归时取消注释。
+		// "@linxiraos/editor",
+		// "@linxiraos/editor-windows-x64",
+		// "@linxiraos/editor-linux-x64",
 		"@linxiraos/ide",
 		"@linxiraos/ide-windows-x64",
 		"@linxiraos/ide-linux-x64",

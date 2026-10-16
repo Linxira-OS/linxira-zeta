@@ -28,10 +28,12 @@ any package:
 | **`zetacode`** | coding-agent CLI | `@linxiraos/zeta`, bin `zetacode` (no aliases), every "run this command" string, `--help` usage, process titles |
 | **`zetaide`** | terminal IDE | `@linxiraos/ide`, bin `zetaide` (no aliases) |
 
-The editor is no longer a command: `@linxiraos/editor` ships the vendored TTT
-binary only, resolved by path (workbench/plugin surface). Release-asset **file
-names** (`zeta-cli-*`, `zeta-work-*`, `zeta-ide-*`, `zeta-editor-*`) are
-untouched by this registry.
+The editor is no longer a command: `@linxiraos/editor` is a reserved package
+name for the zetawork built-in editor's payload, resolved by path (workbench
+/plugin surface) — the vendored TTT binary it used to carry was removed
+2026-10-16. Release-asset **file names** (`zeta-cli-*`, `zeta-work-*`,
+`zeta-ide-*`) are untouched by this registry (the `zeta-editor-*` asset name
+retired with that payload).
 
 The deciding question is *"is the user being told to run something, or is the
 product naming itself?"* Command → the canonical bin (`zetawork` / `zetacode` /

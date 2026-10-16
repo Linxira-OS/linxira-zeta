@@ -6,13 +6,17 @@
  *   - `scripts/set-version.ts` (Step 3b: local/test bump)
  *   - `scripts/check-version-consistency.ts` (drift gate)
  *
- * A distribution is a launcher package (`editor/npm/editor`) plus the platform
- * leaves it pins EXACTLY in `optionalDependencies` (`@linxiraos/editor-windows-x64`).
+ * A distribution is a launcher package (`main/npm/main`) plus the platform
+ * leaves it pins EXACTLY in `optionalDependencies` (`@linxiraos/main-windows-x64`).
  * None of them is a Bun workspace member, so the version line has no other
  * writer. The launcher ships no binary itself: a pin that lags the line
  * silently installs the previous release's leaf, which is how the 1.2.0 npm
- * publish shipped an editor launcher still pinning 1.1.28 and needed a hand
- * fix (PR #119).
+ * publish shipped the editor launcher still pinning 1.1.28 and needed a hand
+ * fix (PR #119) — that distribution has since retired (TTT payload removed
+ * 2026-10-16; the `@linxiraos/editor` name itself stays reserved for the
+ * zetawork built-in editor's future payload, so it is deliberately absent
+ * here: registering it would make every bump walk a directory that does not
+ * exist).
  *
  * Adding a distribution: register it here. `check-version-consistency.ts`
  * fails on any unregistered `@linxiraos/*` entry under an npm distribution's
@@ -34,13 +38,6 @@ export interface NpmDistribution {
 }
 
 export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
-	{
-		dir: "editor/npm/editor",
-		leaves: [
-			{ dir: "editor/npm/editor-windows-x64", name: "@linxiraos/editor-windows-x64" },
-			{ dir: "editor/npm/editor-linux-x64", name: "@linxiraos/editor-linux-x64" },
-		],
-	},
 	{
 		dir: "main/npm/main",
 		leaves: [

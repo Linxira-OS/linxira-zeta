@@ -101,8 +101,10 @@ These exist today (headline capabilities are marked in the root `README.md`):
   最小环境兜底、平台编辑器二进制 `+N file` 交接（它没有独立命令名，按平台二进制路径解析）。
   **随之要改的是指令注册**：`editor` 斜杠命令
   的语义需从"打开工作台编辑器"改为"交给外部编辑器"，与工作台内 termide 面板区分开。~~
-  **2026-10-16 修订**：`@linxiraos/editor`（vendored TTT）按**退场**裁决处理（YML 文件只改不删、
-  发布包替换干净）；工作台内嵌编辑器仍是 termide `panel-editor`（专业化、无代码补全）。
+  **2026-10-16 修订（已执行）**：`@linxiraos/editor`（vendored TTT）按**退场**裁决处理
+  （YML 文件只改不删、发布包替换干净）——`editor/` 整包已删除，`zeta-editor-*` 资产名、
+  `editor_tests` 与 `release_editor_packages` 派发一并退场，`editor-publish.yml` 与
+  `--editor` 链保留为预留；工作台内嵌编辑器仍是 termide `panel-editor`（专业化、无代码补全）。
 - **路径链接复用原生逻辑**（同批裁决）：终端输出里"任何标准路径/URL → 悬停可点"不自己造；OSC8
   消费端已通（`termide` `hyperlink.rs` → `OpenPath` → `app.rs` `open_path_in_ide`），要找的是现成的
   普通路径/URL 识别并接到 Rust 侧。修饰键语义照参照实现：点击=动作菜单 · Ctrl+点击=切工作区 ·
@@ -486,20 +488,26 @@ each is an adapter over the same minimal channel interface; add on demand,
 reference `temp/openclaw-ref` (checked out for this survey) for wire
 protocols and auth flows.
 
-### P2 — TTT editor About branding (remaining scope; zh UI done)
+### ~~P2 — TTT editor About branding~~ (RETIRED 2026-10-16: the editor is gone)
 
-The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the tui text layer.
+**Retired.** The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`)
+was removed wholesale on 2026-10-16 by maintainer ruling, so this whole item —
+zh UI (shipped) and the remaining About-branding work — has no target left.
+The `@linxiraos/editor` package name stays reserved for the zetawork built-in
+editor's payload; if that payload returns with its own About dialog, the
+`Zeta Editor · v<zeta version> · <upstream version>` identity line below is the
+carried-over requirement.
 
-- ~~**zh UI**~~ DONE: `editor/internal/app/i18n.go` now carries a full zh
+- ~~**zh UI**~~ DONE (before retirement): `editor/internal/app/i18n.go` carried a full zh
   string table (settings tabs/labels, menus, footer actions, dialog
   chrome); the settings view exposes an English/中文（简体） selector.
-- **About branding (remaining)**: upstream attribution is already cleaned —
-  Source points at `github.com/Linxira-OS/linxira-zeta` and the upstream
+- ~~**About branding (remaining)**~~: upstream attribution was already cleaned —
+  Source pointed at `github.com/Linxira-OS/linxira-zeta` and the upstream
   website line is gone (VENDOR.md). Still upstream-flavored: the dialog
-  title remains "About TTT Editor" and the version line shows TTT's own
-  semver. Remaining work: a Zeta distribution identity line
-  (`Zeta Editor · v<zeta version> · TTT <upstream version>`),
-  Chinese-first copy.
+  title remained "About TTT Editor" and the version line showed TTT's own
+  semver. The planned work (a Zeta distribution identity line
+  `Zeta Editor · v<zeta version> · TTT <upstream version>`,
+  Chinese-first copy) is void with the tree.
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
@@ -599,12 +607,13 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the
   ——一个终端进程,顶层标签页(tab = 窗格布局快照),窗格为真实 PTY 嵌
   终端(zetacode / 内置编辑器面板 / shell 皆为子进程),快捷键+菜单快速打开自家工
   具,各命令独立启动、help 各自独立。命名:`zetacode` = coding CLI
-  (@linxiraos/zeta 换 bin 不换包);编辑器 = ttt(vendored,无独立命令名);
+  (@linxiraos/zeta 换 bin 不换包);编辑器 = 工作台内置面板(ttt vendored 已于
+  2026-10-16 退场,`@linxiraos/editor` 只留预留包名与发布链);
   `zetaide` = termide(由未发布的 @linxiraos/work 更名);`zetawork` =
   @linxiraos/main(新,工作台本体,main/ 独立 Rust workspace,path 依
   termide crates;裸 `zeta` 只打印套件索引 help);files = 终端文件
-  管理器(superfile 暂缓,候选调研中)。两个 IDE(ttt 与 termide)并存
-  观察,不二选一。参照系:OpenCode 的多 tab 在其 app 层
+  管理器(superfile 暂缓,候选调研中)。**终端 IDE 只剩 termide**(ttt 已随之
+  退场,不再是"两个并存观察")。参照系:OpenCode 的多 tab 在其 app 层
   (SessionTab/DraftTab + 持久化,packages/app/src/context/tabs.tsx),
   终端 TUI 无分屏;OpenTUI = Zig 核心 + TS 应用层,不合纯 Rust——我们
   的形态(真 PTY 窗格)更强,壳坚定 Rust。**发包规矩(用户裁定)**:新包
@@ -615,7 +624,7 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the
   (2026-09-30 用户裁定):零快捷键基线** —— 一切界面元素都要能鼠标高
   效点击(标签切换/新建/关闭、窗格聚焦/关闭、布局切换、退出、菜单、
   设置),快捷键只做可选加速器;这从根上消解跨工具热键冲突(工作台
-  Alt 平面 vs files/两个 editor/zetacode 各自的键位,冲突最多损失加速、
+  Alt 平面 vs files/编辑器/zetacode 各自的键位,冲突最多损失加速、
   不损失功能),设置页/自定义键位按此准则设计。迭代队列:**真菜单栏
   系统**(顶部标签栏+可展开菜单栏,File/Pane/Tab/Tools/Settings 树)、
   **设置页**(键位/主题/默认 shell/套件路径等)+ 自定义键位、
@@ -842,8 +851,7 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the
   范围 = ①删 desktop 打包期的内置 Node staging——`desktop/scripts/prepare-runtime.mjs:53`
   (`fs.copyFileSync(process.execPath, stagedNode)`)、`desktop/scripts/platform.mjs:12`(`nodeBinaryName`)、
   `desktop/src/main.ts:66` 的 `WEB_RUNTIME_NAME`(及其 `webRuntimeName` 契约面:`desktop/src/serve-resolution.ts:59,123,141`、
-  `desktop/src/tool-resolution.ts:44`);②把 3 个 npm 启动器(`main/npm/main/bin/zeta.js`、`termide/npm/ide/bin/zeta-ide.js`、
-  `editor/npm/editor/bin/zeta-editor.js`)的 shebang 从 `#!/usr/bin/env node` 改为 `bun`、`engines` 声明改为
+  `desktop/src/tool-resolution.ts:44`);②把 2 个 npm 启动器(`main/npm/main/bin/zeta.js`、`termide/npm/ide/bin/zeta-ide.js`)的 shebang 从 `#!/usr/bin/env node` 改为 `bun`、`engines` 声明改为
   `{"bun": ">=1.3.14"}`,**并同步把安装文档改为 `bun install -g`**(`README.md:33` 的 "Node 18+ or Bun"、
   `docs/user-guide.md:14-18`、`docs/user-guide.zh-CN.md:13`)。**量级**:低——2 个 PR,**约 1–3 agent-日 [推断]**。
   **为什么推迟**:**依赖 P0**——内置 Node 存在的唯一理由是托管 Next standalone 的 `server.js`(Node 目标产物),
@@ -869,7 +877,7 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the
   不是运行时迁移;②**CI 发布 job 的 `setup-node` + npm trusted publishing**——`npm publish` 的 OIDC 依赖 npm CLI
   (`ci.yml` 注释已写死:npm 12 需要比 Bun 1.3 更新的 emulated Node),改动收益为零、风险是断发布;③**`electron-builder`**
   (`desktop/scripts/package-desktop.mjs`)——纯 Node 工具、无 Bun 等价物,只在构建期跑;④**构建期 Node**(web-ui
-  `next build`、desktop `npm ci`、`node --test` 契约测试、editor `vitest`)——工具链而非产品运行时,目标机用户不接触;
+  `next build`、desktop `npm ci`、`node --test` 契约测试)——工具链而非产品运行时,目标机用户不接触;
   ⑤**用户自带的 LSP/MCP/DAP/npx 生态工具**——它们本身就是 Node 程序,我们只保证"优先 / 回退"策略正确;
   ⑥**Dockerfile 的 `node→bun` 符号链接**(`Dockerfile:141-147`)——方向是"去 Node 化"(用 bun 伪装 node,服务镜像内
   `#!/usr/bin/env node` 的包 bin),删掉反而让镜像工具链断。**取证(本地)**:
@@ -889,7 +897,7 @@ The vendored TTT editor (`editor/`, shipped as `@linxiraos/editor`) predates the
 - **README 语义修正项(待定;2026-10-13 登记)**:`README.md:33`(报告记作 :36)的 "Install the workspace
   (**Node 18+ or Bun** on the machine)" 与实测不符——`@linxiraos/zeta` 实际**需要 Bun**(发布产物是 Bun 目标 bundle,
   `packages/coding-agent/src/cli.ts:47` 模块顶层访问 `Bun.semver`);`@linxiraos/zeta-web` 需要 **Node ≥ 22.19.0**
-  (`web-ui/bin/node-version.js:3` 硬门禁);真正只需系统 Node 的是 main/editor/ide 三个 Rust/Go 工具的**启动器**。
+  (`web-ui/bin/node-version.js:3` 硬门禁);真正只需系统 Node 的是 main/ide 两个 Rust 工具的**启动器**。
   范围 = 修正 README 与 `docs/user-guide*.md` 的安装前置描述。**量级**:极低(单文件级文档小修)。**为什么待定**:
   它从属 **P1**——P1 落地时安装文档本就要改成 `bun install -g`,可顺带一次改对;若 P1 长期不开工,可独立小修。
   **开工前先定**:归入 P1 批次,还是独立小修。**取证(本地)**:`temp/.omp-tmp/node-residency-report.md` §2.5、§4.2。

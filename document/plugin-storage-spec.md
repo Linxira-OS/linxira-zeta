@@ -23,7 +23,6 @@
 |---|---|
 | Zetacode coding-agent（`packages/coding-agent`，bin zetacode 系） | 全规范 |
 | Zetawork Rust 工作台（`main/`，bin zetawork/zeta） | §2 边界 + §3 命名 |
-| Zeta editor（vendored TTT，无独立命令；平台二进制 `ttt`） | §2 边界（只读面） |
 | Zetaide（vendored termide，bin zetaide） | §2 边界（零接触面） |
 | 插件（`~/.zeta/plugins` 装载的全部扩展） | §4 契约，红线级 |
 | 仓库 `scripts/` 下的运维/统计脚本 | §2 路径地图（只读为主） |
@@ -33,9 +32,9 @@
 - **项目内 `.zeta/` 不在此规范**：`<project>/.zeta`（`getProjectAgentDir`，
   dirs.ts）是项目级配置面，由 coding-agent 的项目配置机制管辖。本文只在
   §4 涉及插件项目级状态时引用它。
-- vendored 上游（TTT、termide）**自有** XDG 配置面（`~/.config/ttt`、
-  `~/.config/termide`）不在整改范围——它们是上游产品身份；本规范只约束
-  这些产品**写入 `.zeta` 的部分**。
+- vendored 上游（termide）**自有** XDG 配置面（`~/.config/termide`）不在整改
+  范围——它是上游产品身份；本规范只约束这些产品**写入 `.zeta` 的部分**。
+  （TTT editor 同属此列的 vendored 上游，其目录/二进制已于 2026-10-16 退场。）
 - `./.zeta/merge-scope/`（仓库内开发目录，merge-scope-report.ts:63）是
   brand-rules.ts:27 明确的排除项，与配置根 `.zeta` 无关，勿混淆。
 
@@ -122,13 +121,15 @@
   这是边界声明，不是缺陷。迁移注意：settings.rs 直拼 home 绕过 R4，属
   已知违规豁免点（单文件、三键），改用 dirs.ts 前至少 MUST 认
   `ZETA_CONFIG_DIR`（§3.4）。
-- **Zeta editor（Go/TTT）**：对 `.zeta` 全只读——读 `handoff.json`
-  （handoff.go:25，`ZETA_HANDOFF_PATH` 可直指）。MUST NOT
+- **~~Zeta editor（Go/TTT）~~（2026-10-16 退场）**：随 vendored 目录与二进制一并
+  退场，不再是本规范的约束对象。其历史契约存档如下——对 `.zeta` 全只读：读
+  `handoff.json`（handoff.go:25，`ZETA_HANDOFF_PATH` 可直指）。MUST NOT
   写 `.zeta` 任何文件；自有状态归 `~/.config/ttt/`
   （internal/config/config.go:60-75，`TTT_CONFIG_DIR` 认领）。handoff 契约
   （handoff.ts ↔ handoff.go 无共享代码）为**单向下发**（agent 写、editor 读；
   editor 侧写回面与插件树 `.bin` 里的 CLI 读取已随 editor→agent
-  入口移除），双方 MUST 保持字段兼容。
+  入口移除），双方 MUST 保持字段兼容。留存理由：agent 侧的 handoff 写入面
+  仍在，任何未来的编辑器消费者仍须遵守同一条只读接缝。
 - **Zetaide（Rust/termide）**：零接触 `.zeta`（全树 grep `ZETA_|\.zeta`
   零命中），自有 XDG 三件套 `~/.config|local/share|cache/termide/`。规范
   立场：保持零接触；若未来需与 agent 交互，走 handoff 式只读接缝，不新开
