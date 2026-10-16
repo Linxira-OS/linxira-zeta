@@ -572,6 +572,11 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+         # 与 GitHub `bazel_lock` 同序、同入口：先无条件跑 crate 覆盖守卫（守卫
+         # 自身出错必须先暴露，不能被下面的 "stale" 提示掩盖），再查
+         # crate_universe 条目。
+         - name: Test the crate-coverage guard
+           run: bun test scripts/bazel-lock-drift.test.ts
          - name: Check crate_universe entry
            run: bun scripts/gen-bazel-lock.ts --check
          - name: Report how to refresh
