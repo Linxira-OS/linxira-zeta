@@ -82,7 +82,6 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const argv = process.argv.slice(2);
-fs.writeFileSync(path.join(__dirname, "argv.txt"), argv.join("\n") + "\n");
 const port = Number(argv[argv.indexOf("--web-port") + 1]);
 const server = http.createServer((req, res) => {
 	if (req.url === "/__stop") {
@@ -92,7 +91,16 @@ const server = http.createServer((req, res) => {
 	}
 	res.end("zetacode serve stub");
 });
-server.listen(port, "127.0.0.1");
+// The handshake IS the readiness signal: `argv.txt` is published only from the
+// listen callback, and the tmp+rename keeps it from ever being read
+// half-written. Publishing it before `listen()` raced the probe — under load
+// the parent read the file and connected before the bind, saw ECONNREFUSED
+// and failed with "stub did not answer for <spelling>".
+server.listen(port, "127.0.0.1", () => {
+	const tmp = path.join(__dirname, "argv.txt.tmp");
+	fs.writeFileSync(tmp, argv.join("\n") + "\n");
+	fs.renameSync(tmp, path.join(__dirname, "argv.txt"));
+});
 setTimeout(() => process.exit(0), 120000);
 "#;
 
@@ -263,8 +271,13 @@ fn web_and_server_spellings_are_the_same_subcommand() {
 			web_port.to_string(),
 		];
 		let child = spawn_workbench(&stub_dir, &args);
+		// `argv.txt` is the stub's ready signal and it now lands only once the
+		// port is bound, but the probe still polls: a single-shot request right
+		// after the handshake raced the accept queue under load and failed with
+		// "stub did not answer for …".
 		let argv = wait_for(|| std::fs::read_to_string(&argv_file).ok());
-		assert!(http_status(web_port, "/__stop").is_some(), "stub did not answer for {spelling}");
+		let stopped = wait_for(|| http_status(web_port, "/__stop"));
+		assert!(stopped.is_some(), "stub did not answer for {spelling}");
 		reap(child);
 		let expected = format!("serve\n--web-port\n{web_port}");
 		assert_eq!(
