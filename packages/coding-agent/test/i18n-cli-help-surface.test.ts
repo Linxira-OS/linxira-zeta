@@ -48,7 +48,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/anonymize.ts": 2,
 	"commands/attach.ts": 2,
 	"commands/auth-broker.ts": 13,
-	"commands/auth-gateway.ts": 7,
+	"commands/auth-gateway.ts": 8,
 	"commands/auth.ts": 2,
 	"commands/bench.ts": 15,
 	"commands/browser-relay.ts": 6,

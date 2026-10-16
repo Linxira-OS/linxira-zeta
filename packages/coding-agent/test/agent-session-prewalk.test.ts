@@ -6,6 +6,9 @@ import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
 import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { CustomToolAdapter } from "@linxiraos/zeta/extensibility/custom-tools/wrapper";
+import { DeferredMCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
+import { dispatchXdevTool, type XdevDispatch, type XdevState } from "@linxiraos/zeta/tools/xdev";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -125,6 +128,8 @@ describe("AgentSession prewalk", () => {
 			sessionManager?: SessionManager;
 			target?: Model;
 			startupTarget?: Model;
+			tools?: AgentTool[];
+			registry?: Map<string, AgentTool>;
 		} = {},
 	) {
 		const primary = modelOrThrow("claude-sonnet-4-5");
@@ -144,7 +149,7 @@ describe("AgentSession prewalk", () => {
 			initialState: {
 				model: primary,
 				systemPrompt: ["Test"],
-				tools: [todoTool as AgentTool, writeTool as AgentTool],
+				tools: options.tools ?? [todoTool as AgentTool, writeTool as AgentTool],
 				messages: [],
 				thinkingLevel: Effort.High,
 			},
@@ -165,7 +170,7 @@ describe("AgentSession prewalk", () => {
 			sessionManager: options.sessionManager ?? SessionManager.inMemory(tempDir.path()),
 			settings,
 			modelRegistry,
-			toolRegistry,
+			toolRegistry: options.registry ?? toolRegistry,
 			thinkingLevel: Effort.High,
 			prewalk:
 				options.armed === false
@@ -889,6 +894,71 @@ describe("AgentSession prewalk", () => {
 		expect(requested).toEqual(Array(4).fill(`${primary.provider}/${primary.id}`));
 		expect(session.model?.id).toBe(primary.id);
 	});
+
+	it.each([
+		{ readOnlyHint: true, thirdTurnModel: "claude-sonnet-4-5" },
+		{ readOnlyHint: false, thirdTurnModel: "claude-sonnet-4-6" },
+	])(
+		"keeps write approval while honoring MCP readOnlyHint=$readOnlyHint at the prewalk gate",
+		async ({ readOnlyHint, thirdTurnModel }) => {
+			const mcp = new DeferredMCPTool(
+				"memory",
+				{ name: "list_projects", inputSchema: { type: "object" }, annotations: { readOnlyHint } },
+				async () => {
+					throw new Error("MCP connection is not used by this write fixture");
+				},
+			);
+			const xdevState: XdevState = {
+				tools: new Map([
+					[
+						mcp.name,
+						new CustomToolAdapter(mcp, () => {
+							throw new Error("MCP context is not used");
+						}),
+					],
+				]),
+				mountedNames: new Set([mcp.name]),
+				builtInNames: new Set(),
+				isActive: () => false,
+			};
+			let writes = 0;
+			const dispatchedWrite: AgentTool<typeof writeToolSchema, { xdev: XdevDispatch } | undefined> = {
+				name: "write",
+				label: "Write",
+				description: "MCP lookup then workspace write",
+				parameters: writeToolSchema,
+				async execute(toolCallId) {
+					if (writes++ === 0) {
+						const { result, xdev } = await dispatchXdevTool(xdevState, mcp.name, "{}", toolCallId);
+						// A tools/list_changed refresh drops the definition before the turn ends; the
+						// gate must classify the tool that ran.
+						xdevState.tools.delete(mcp.name);
+						return { content: result.content, details: { xdev } };
+					}
+					return { content: [{ type: "text", text: "implementation written" }], details: undefined };
+				},
+			};
+			const created = createLifecycleSession(
+				[
+					toolCall("todo", "todo"),
+					toolCall("lookup", "write"),
+					toolCall("implementation", "write"),
+					{ content: ["done"] },
+				],
+				{
+					tools: [todoTool, dispatchedWrite],
+					registry: new Map<string, AgentTool>([
+						[todoTool.name, todoTool],
+						[dispatchedWrite.name, dispatchedWrite],
+					]),
+				},
+			);
+			await created.session.prompt("inspect projects then implement");
+			expect(mcp.approval).toBe("write");
+			expect(created.requested[2]).toBe(thirdTurnModel);
+			expect(created.session.model?.id).toBe(created.target.id);
+		},
+	);
 
 	it("switches on a write-tier xd:// device dispatched through write (issue #7312)", async () => {
 		const primary = modelOrThrow("claude-sonnet-4-5");

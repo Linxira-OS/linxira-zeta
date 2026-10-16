@@ -127,11 +127,14 @@ describe("classifyUnexpectedStop", () => {
 			content: [{ type: "text", text: "YES" }],
 		} as never);
 
-		const result = await classifyUnexpectedStop("I will continue with the next command.", {
-			settings,
-			registry,
-			sessionId: "session-1",
-		});
+		const result = await classifyUnexpectedStop(
+			{ message: "I will continue with the next command." },
+			{
+				settings,
+				registry,
+				sessionId: "session-1",
+			},
+		);
 		const options = completeSimpleMock.mock.calls[0]?.[2] as
 			| { disableReasoning?: boolean; maxTokens?: number }
 			| undefined;
@@ -180,11 +183,14 @@ describe("classifyUnexpectedStop", () => {
 			}),
 		);
 
-		const result = await classifyUnexpectedStop("Let me run the tests next.", {
-			settings,
-			registry,
-			sessionId: "session-1",
-		});
+		const result = await classifyUnexpectedStop(
+			{ message: "Let me run the tests next." },
+			{
+				settings,
+				registry,
+				sessionId: "session-1",
+			},
+		);
 
 		expect(result).toBe(false);
 		expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -195,6 +201,8 @@ describe("classifyUnexpectedStop", () => {
 		const settings = Settings.isolated({ modelRoles: { judge: "missing/judge" } });
 		const registry = makeRegistry([]);
 
-		expect(await classifyUnexpectedStop("Doing that now.", { settings, registry, sessionId: "s" })).toBeUndefined();
+		expect(
+			await classifyUnexpectedStop({ message: "Doing that now." }, { settings, registry, sessionId: "s" }),
+		).toBeUndefined();
 	});
 });

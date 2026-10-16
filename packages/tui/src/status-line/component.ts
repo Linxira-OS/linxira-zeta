@@ -775,9 +775,12 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 	// than poison the fresh cache or advance its throttle.
 	#jjCacheGeneration = 0;
 
-	// PR lookup caching (invalidated on branch/repo context changes)
+	// PR lookup cache. `#cachedPrContext` is the branch/repo `#cachedPr` was
+	// resolved for; it is never shown for any other branch. Expiry forces a
+	// refetch while keeping that branch's PR visible until the lookup lands.
 	#cachedPr: { number: number; url: string } | null | undefined = undefined;
 	#cachedPrContext: PrCacheContext | undefined = undefined;
+	#cachedPrExpired = false;
 	#prLookupInFlight = false;
 	#defaultBranch?: string;
 	#defaultBranchCwd: string | undefined = undefined;
@@ -1458,8 +1461,8 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		// was designed to avoid. Explicit Git/repository invalidation (watcher
 		// HEAD-move, cwd/repo switch) goes through {@link invalidateGitCaches}.
 		// A tool may open, close, or merge a PR without moving HEAD. Expire the
-		// settled PR context on ordinary activity while leaving HEAD work intact.
-		this.#cachedPrContext = undefined;
+		// settled PR on ordinary activity while leaving HEAD work intact.
+		this.#cachedPrExpired = true;
 	}
 	#invalidateSessionCaches(): void {
 		this.#clearUsageStartTimer();
@@ -1490,7 +1493,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		this.#branchResolveActive = undefined;
 		this.#branchLastFetch = undefined;
 		this.#branchCacheGeneration++;
-		this.#cachedPrContext = undefined;
+		this.#cachedPrExpired = true;
 		// A HEAD move (commit, checkout, reset) changes the dirty counts; keep the
 		// stale counts on screen but refetch on the next render. The generation
 		// bump stops an in-flight pre-move result from re-stamping freshness.
@@ -1811,11 +1814,16 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 		const branch = this.#getBranchLabel(activeRepoCache, this.#resolveRepository(activeRepoCache));
 		const currentContext = branch ? createPrCacheContext(branch, this.#cachedBranchRepoId ?? null) : null;
 
-		if (canReuseCachedPr(this.#cachedPr, this.#cachedPrContext, currentContext)) {
+		if (!this.#cachedPrExpired && canReuseCachedPr(this.#cachedPr, this.#cachedPrContext, currentContext)) {
 			return this.#cachedPr ?? null;
 		}
 
-		const stalePr = this.#cachedPr;
+		// Keep an expired PR visible during the refetch only on the branch it
+		// was resolved for; after a checkout the old PR must not linger.
+		const stalePr =
+			currentContext && isSamePrCacheContext(this.#cachedPrContext, currentContext)
+				? (this.#cachedPr ?? null)
+				: null;
 
 		if (!branch) {
 			this.#cachedPr = null;
@@ -1823,10 +1831,9 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 			return null;
 		}
 
-		// Don't look up if detached, default branch, or already in flight.
-		if (branch === "detached" || this.#isDefaultBranch(branch, gitCwd) || this.#prLookupInFlight) {
-			return stalePr ?? null;
-		}
+		// Detached HEAD and the default branch never carry a PR; no lookup.
+		if (branch === "detached" || this.#isDefaultBranch(branch, gitCwd)) return null;
+		if (this.#prLookupInFlight) return stalePr;
 
 		this.#prLookupInFlight = true;
 		const lookupContext = currentContext;
@@ -1848,6 +1855,7 @@ export class StatusLineComponent<TSession extends StatusLineSession = StatusLine
 				if (lookupContext && isSamePrCacheContext(latestContext, lookupContext)) {
 					this.#cachedPr = value;
 					this.#cachedPrContext = lookupContext;
+					this.#cachedPrExpired = false;
 				}
 			};
 			try {
