@@ -190,10 +190,13 @@ two-parent tag merge.
   baseline-to-branch delta (`git diff v18.11.1..HEAD -- <file>`, used only to decide whether a conflict
   block carried a Zeta change). Upstream was never diffed against the Zeta branch as a whole, and no
   upstream file was copied wholesale outside the merge.
-- **Verdict**: merge commit `bd6938cbac3` (parents `d98033c2694` + `470b7efb6`), then `c4911224c07`
-  (CHANGELOG fold) and `ebd5b18160a` (Zeta surface re-application), plus the ledger commit. Pushed once as
-  `sync/omp-release/v18.11.2`, dispatched once as `gh workflow run ci.yml --ref sync/omp-release/v18.11.2`,
-  and merged into `main` locally as a real merge commit after the dispatched native-addon jobs reported.
+- **Verdict / hand-off**: merge commit `bd6938cbac3` (parents `d98033c2694` + `470b7efb6`), then
+  `c4911224c07` (CHANGELOG fold) and `ebd5b18160a` (Zeta surface re-application), the ledger commits, and
+  the SQLite table-name repair. The branch was pushed once to `origin` (`sync/omp-release/v18.11.2`) and
+  dispatched once (`gh workflow run ci.yml --ref sync/omp-release/v18.11.2` -> run `38949297746`, the
+  authority for the native-addon build and the natives-dependent buckets this machine cannot run). The
+  landing to `main` is sequenced centrally with the other in-flight branches (one push, one CI run for
+  `main`), so this entry deliberately does **not** claim a `main` merge commit of its own.
 
 ## v18.11.1 incremental merge (Zeta — branch `sync/omp-release/v18.11.1`; merge commit `949687f3230`)
 
@@ -1970,6 +1973,6 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
   packages, the Cargo workspace and the natives stamp).
 - In flight: `sync/omp-release/v18.11.2` — merge commit `bd6938cbac3` (parents `d98033c2694` (main) +
   `470b7efb6` (the v18.11.2 tag)) plus the follow-up commits (the CHANGELOG fold, the Zeta surface
-  re-application, the ledger). Pushed once and dispatched once (`gh workflow run ci.yml --ref
-  sync/omp-release/v18.11.2`); merged into `main` as a real merge commit after the dispatched native-addon
-  jobs reported, then the branch and its worktree were deleted.
+  re-application, the SQLite table-name repair, the ledger). Pushed once and dispatched once
+  (`gh workflow run ci.yml --ref sync/omp-release/v18.11.2`); its landing on `main` is sequenced with the
+  other in-flight branches so `main` takes a single push and a single CI run.
