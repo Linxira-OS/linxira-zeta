@@ -131,9 +131,9 @@ describe("openai-completions compat — GLM coding-plan stream idle timeout", ()
 			resolveModelPolicy(glm52("zhipu-coding-plan", "https://open.bigmodel.cn/api/coding/paas/v4")).compat
 				.streamIdleTimeoutMs,
 		).toBe(600_000);
-		expect(resolveModelPolicy(glm52("opencode-go", "https://opencode.ai/zen/go/v1")).compat.streamIdleTimeoutMs).toBe(
-			600_000,
-		);
+		expect(
+			resolveModelPolicy(glm52("opencode-go", "https://opencode.ai/inference/go/v1")).compat.streamIdleTimeoutMs,
+		).toBe(600_000);
 		expect(resolveModelPolicy(glm52("opencode-zen", "https://opencode.ai/zen/v1")).compat.streamIdleTimeoutMs).toBe(
 			600_000,
 		);
@@ -145,7 +145,7 @@ describe("openai-completions compat — GLM coding-plan stream idle timeout", ()
 			id: "kimi-k2.5",
 			name: "Kimi K2.5",
 			provider: "opencode-go",
-			baseUrl: "https://opencode.ai/zen/go/v1",
+			baseUrl: "https://opencode.ai/inference/go/v1",
 		}).compat;
 		expect(kimi.streamIdleTimeoutMs).toBeUndefined();
 	});

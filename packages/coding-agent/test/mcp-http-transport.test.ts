@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import { postmortem } from "@linxiraos/pi-utils";
 import { connectToServer } from "@linxiraos/zeta/mcp/client";
 import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
+import { analyzeAuthError } from "@linxiraos/zeta/mcp/oauth-discovery";
 import { HttpTransport } from "@linxiraos/zeta/mcp/transports/http";
 
 const encoder = new TextEncoder();
@@ -261,6 +262,30 @@ describe("MCP Streamable HTTP failure diagnostics", () => {
 		expect(error.data?.length).toBeLessThanOrEqual(2_000);
 		expect(error.data).toContain("[redacted]");
 		expect(error.data).not.toContain("server-secret");
+	});
+
+	it("keeps a bare Bearer resource_metadata challenge while redacting echoed credentials", async () => {
+		const metadataUrl = "https://auth.example.test/prm/probe";
+		server = Bun.serve({
+			port: 0,
+			fetch() {
+				return new Response("rejected Authorization: Bearer server-secret", {
+					status: 401,
+					headers: { "WWW-Authenticate": `Bearer resource_metadata="${metadataUrl}"` },
+				});
+			},
+		});
+		const transport = await connectedTransport();
+		const error = await transport.request("initialize").then(
+			() => undefined,
+			reason => reason,
+		);
+		if (!(error instanceof MCPTransportError)) throw error;
+
+		expect(error.message).not.toContain("server-secret");
+		const auth = analyzeAuthError(error, `http://127.0.0.1:${server.port}/mcp`);
+		expect(auth.requiresAuth).toBe(true);
+		expect(auth.resourceMetadataUrl).toBe(metadataUrl);
 	});
 });
 

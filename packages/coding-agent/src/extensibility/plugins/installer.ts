@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getAgentDir, getProjectDir } from "@linxiraos/pi-utils";
+import { runBunCli } from "./bun-cli";
 import { extractPackageName } from "./parser";
 import { buildPluginStorage } from "./loader";
 import { type InstalledPlugin, readPluginManifest } from "./types";
@@ -46,21 +47,7 @@ export async function installPlugin(packageName: string): Promise<InstalledPlugi
 	}
 
 	// Run npm install in plugins directory
-	const proc = Bun.spawn(["bun", "install", packageName], {
-		cwd: PLUGINS_DIR,
-		stdin: "ignore",
-		stdout: "pipe",
-		stderr: "pipe",
-		windowsHide: true,
-	});
-
-	// Drain both pipes concurrently with proc.exited to avoid a pipe-buffer
-	// deadlock if bun install floods stdout/stderr.
-	const [exitCode, , stderr] = await Promise.all([
-		proc.exited,
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-	]);
+	const { exitCode, stderr } = await runBunCli(["install", packageName], PLUGINS_DIR);
 	if (exitCode !== 0) {
 		throw new Error(`Failed to install ${packageName}: ${stderr}`);
 	}
@@ -94,19 +81,7 @@ export async function uninstallPlugin(name: string): Promise<void> {
 
 	await ensurePluginsDir();
 
-	const proc = Bun.spawn(["bun", "uninstall", name], {
-		cwd: PLUGINS_DIR,
-		stdin: "ignore",
-		stdout: "pipe",
-		stderr: "pipe",
-		windowsHide: true,
-	});
-
-	const [exitCode] = await Promise.all([
-		proc.exited,
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-	]);
+	const { exitCode } = await runBunCli(["uninstall", name], PLUGINS_DIR);
 	if (exitCode !== 0) {
 		throw new Error(`Failed to uninstall ${name}`);
 	}

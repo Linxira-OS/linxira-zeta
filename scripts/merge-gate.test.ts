@@ -110,7 +110,7 @@ describe("planSteps", () => {
 			expect(commands).toContain(guard);
 	});
 
-	test("--base reaches the diff audits, --tag only the lineage audit", () => {
+	test("--base reaches the diff audits, --tag the lineage and member audits", () => {
 		const plan = planSteps(parseArgs(["--gates-only", "--base", "abc123", "--tag", "v18.10.1"]));
 		const audits = plan.filter(step => step.phase === "audit");
 		// The lineage audit reads its baseline from the ledger, not from --base.
@@ -121,7 +121,11 @@ describe("planSteps", () => {
 		expect(lineage.commands.flat()).toContain("v18.10.1");
 		expect(lineage.commands.flat()).not.toContain("abc123");
 		const members = audits.find(step => step.id === "audit-members")!;
-		expect(members.commands.flat()).not.toContain("--tag");
+		// The rung-4 gate fix hands the member audit the tag as well: it is what
+		// separates real member losses from upstream's own removals inside the
+		// merged window (see the step's comment in merge-gate.ts).
+		expect(members.commands.flat()).toContain("--tag");
+		expect(members.commands.flat()).toContain("v18.10.1");
 	});
 
 	test("the full plan carries both orphan suites, pi-messenger on its own runner", () => {

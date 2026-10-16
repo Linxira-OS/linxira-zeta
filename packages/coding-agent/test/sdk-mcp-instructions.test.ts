@@ -7,6 +7,8 @@ import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import type { MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
@@ -570,4 +572,47 @@ describe("createAgentSession MCP server instructions (deferred UI)", () => {
 			await session.dispose();
 		}
 	}, 20_000);
+
+	// Regression for #15705: remote servers connect late or reconnect, so
+	// connection order varies within and across sessions. The section must not
+	// follow it, or every reorder rewrites the provider prompt cache.
+	it("renders server instructions in name order regardless of connection order", async () => {
+		const config: MCPStdioServerConfig = { type: "stdio", command: process.execPath, args: [FIXTURE_PATH] };
+		const renderSection = async (connectOrder: string[]): Promise<string> => {
+			const manager = new MCPManager(tempDir, null, async () => ({ configs: {}, sources: {}, exaApiKeys: [] }));
+			try {
+				for (const name of connectOrder) await manager.connectServers({ [name]: config }, {}, undefined, 0);
+				const { session } = await createAgentSession({
+					cwd: tempDir,
+					agentDir: tempDir,
+					modelRegistry,
+					sessionManager: SessionManager.inMemory(),
+					settings: Settings.isolated({}),
+					model: getBundledModel("openai", "gpt-4o-mini"),
+					disableExtensionDiscovery: true,
+					skills: [],
+					contextFiles: [],
+					promptTemplates: [],
+					slashCommands: [],
+					enableLsp: false,
+					skipPythonPreflight: true,
+					enableMCP: true,
+					mcpManager: manager,
+				});
+				try {
+					const prompt = session.systemPrompt.join("\n");
+					return prompt.slice(prompt.indexOf("## MCP Server Instructions"));
+				} finally {
+					await session.dispose();
+				}
+			} finally {
+				await manager.disconnectAll();
+			}
+		};
+
+		const lateAlpha = await renderSection(["zeta", "alpha"]);
+		expect(lateAlpha.indexOf("### alpha\n")).toBeGreaterThan(-1);
+		expect(lateAlpha.indexOf("### alpha\n")).toBeLessThan(lateAlpha.indexOf("### zeta\n"));
+		expect(await renderSection(["alpha", "zeta"])).toBe(lateAlpha);
+	}, 30_000);
 });

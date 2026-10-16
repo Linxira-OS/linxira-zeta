@@ -67,6 +67,19 @@ import { parseJsonWithRepair } from "./json-parse";
 /** Maximum container nesting before a scan reports the value as pending forever. */
 const MAX_DEPTH = 128;
 
+/**
+ * @internal exported for tests — monotonic count of members re-lexed by
+ * selecting scans: one per object member or array element a scan walked over
+ * on the way to the member it was asked for.
+ *
+ * Cursor resumption (see {@link ContainerIndex}) is what keeps a full
+ * traversal linear in the document instead of quadratic, and losing it
+ * changes nothing about the pulled values — only how many members get
+ * re-lexed. Read the live binding before and after a traversal to measure
+ * exactly that.
+ */
+export let rescannedMembers = 0;
+
 /** Location component in a pulled JSON path: an object member name or an array index. */
 export type PullPathSegment = string | number;
 
@@ -326,6 +339,7 @@ function selectKey(
 		lex.ws();
 		if (lex.atEnd) return PENDING;
 		if (key === wanted) return selectValue(lex, path, at, ended, depth + 1, slot);
+		rescannedMembers++;
 		const skipped = scanValue(lex, ended, depth + 1);
 		if (skipped.tag !== "located" || skipped.end === undefined) return PENDING;
 		lex.ws();
@@ -372,6 +386,7 @@ function selectIndex(
 		// biome-ignore lint/suspicious/noAssignInExpressions: parser state machine relies on the inline memoized slot
 		const slot = index.elements[element] ?? (index.tail ??= { offset: lex.pos });
 		if (element === wanted) return selectValue(lex, path, at, ended, depth + 1, slot);
+		rescannedMembers++;
 		const skipped = scanValue(lex, ended, depth + 1);
 		if (skipped.tag !== "located" || skipped.end === undefined) return PENDING;
 		if (element === index.elements.length) {

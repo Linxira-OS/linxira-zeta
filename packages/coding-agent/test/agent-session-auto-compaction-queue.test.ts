@@ -13,6 +13,7 @@ import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/ag
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-stop-classifier";
+import { TodoTool } from "@linxiraos/zeta/tools";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import * as logger from "@linxiraos/pi-utils/logger";
@@ -1934,6 +1935,16 @@ describe("AgentSession auto-compaction queue resume", () => {
 
 	it("forwards todo reminder lifecycle signals to extensions", async () => {
 		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
+		// Stop reminders only fire while the todo tool is active.
+		session.agent.setTools([
+			new TodoTool({
+				cwd: tempDir.path(),
+				hasUI: false,
+				getSessionFile: () => null,
+				getSessionSpawns: () => "*",
+				settings: session.settings,
+			}),
+		]);
 
 		session.setTodoPhases([
 			{

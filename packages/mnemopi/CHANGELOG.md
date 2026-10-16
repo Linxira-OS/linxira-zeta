@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Fixed
+
+- Fixed a failing `mnemopi` CLI command or MCP memory call dropping the embeddings of memories it had just stored ([#15804](https://github.com/can1357/oh-my-pi/pull/15804) by [@yuzu-octopus](https://github.com/yuzu-octopus))
+- Fixed polyphonic recall ranking unrelated memories above relevant ones when the query shared only a common word such as "that" with an extracted fact subject ([#15512](https://github.com/can1357/oh-my-pi/issues/15512)).
+
 ## [1.2.0] - 2026-10-12
 
 - Fixed proactive linking freezing the host for seconds per stored memory on large banks; a memory's graph links are now written in one commit instead of one per link ([#14998](https://github.com/can1357/oh-my-pi/issues/14998)).

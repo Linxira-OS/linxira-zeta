@@ -115,6 +115,10 @@ packages/coding-agent/bench/boot-baseline.json
 /bazel-testlogs
 /bazel-pi
 /bazel-oh-my-pi
+# Bazel also symlinks the workspace name itself (bazel-<checkout directory>),
+# which none of the fixed names above cover: a WSL-rooted build in the
+# temp/sync-v18.11.1 worktree left `bazel-sync-v18.11.1` untracked.
+/bazel-*
 /.bazelrc.user
 
 # Local-only session handoff notes (never commit; anchored so vendored

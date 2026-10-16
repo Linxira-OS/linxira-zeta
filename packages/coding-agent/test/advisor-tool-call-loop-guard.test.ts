@@ -15,6 +15,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TodoTool } from "@linxiraos/zeta/tools";
 import { finalizeSubagentLifecycle } from "@linxiraos/zeta/task/executor";
 import { TempDir } from "@linxiraos/pi-utils";
 import type { AdvisorConfig } from "@linxiraos/pi-tui/overlays/advisor-config";
@@ -326,6 +327,16 @@ describe("advisor tool-call loop guard", () => {
 		);
 		if (!session) throw new Error("Expected live session");
 		const live = session;
+		// Stop reminders only fire while the todo tool is active.
+		live.agent.setTools([
+			new TodoTool({
+				cwd: tempDir.path(),
+				hasUI: false,
+				getSessionFile: () => null,
+				getSessionSpawns: () => "*",
+				settings: live.settings,
+			}),
+		]);
 		live.setTodoPhases([{ name: "Work", tasks: [{ content: "Finish the migration", status: "in_progress" }] }]);
 		const reminderRunEnded = Promise.withResolvers<void>();
 		let reminded = false;

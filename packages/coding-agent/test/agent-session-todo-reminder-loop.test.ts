@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@linxiraos/pi-agent-core";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, TextContent, ToolCall } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { TempDir } from "@linxiraos/pi-utils";
@@ -7,6 +7,8 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
+import { cfgTodoEnabled, cfgTodoReminders } from "@linxiraos/zeta/tools/settings";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 /**
@@ -115,11 +117,26 @@ describe("AgentSession todo reminder self-continuation suppression", () => {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
 		if (!model) throw new Error("Expected built-in anthropic model to exist");
 
+		const settings = Settings.isolated({
+			"compaction.enabled": false,
+			"todo.enabled": true,
+			"todo.reminders": true,
+			"todo.remindersMax": 3,
+		});
+		const toolSession: ToolSession = {
+			cwd: tempDir.path(),
+			hasUI: false,
+			getSessionFile: () => sessionManager.getSessionFile() ?? null,
+			getSessionSpawns: () => "*",
+			settings,
+		};
+		const todoTool = new TodoTool(toolSession);
+
 		const agent = new Agent({
 			initialState: {
 				model,
 				systemPrompt: ["Test"],
-				tools: [],
+				tools: [todoTool],
 				messages: [],
 			},
 		});
@@ -127,13 +144,9 @@ describe("AgentSession todo reminder self-continuation suppression", () => {
 		session = new AgentSession({
 			agent,
 			sessionManager,
-			settings: Settings.isolated({
-				"compaction.enabled": false,
-				"todo.enabled": true,
-				"todo.reminders": true,
-				"todo.remindersMax": 3,
-			}),
+			settings,
 			modelRegistry: sharedModelRegistry,
+			toolRegistry: new Map([["todo", todoTool as AgentTool]]),
 		});
 
 		reminderAttempts = [];
@@ -169,6 +182,49 @@ describe("AgentSession todo reminder self-continuation suppression", () => {
 		const reminderEntry = todoReminderTranscriptEntry();
 		expect(reminderEntry?.type).toBe("message");
 	});
+
+	it("stays silent when todo is not in the active roster", async () => {
+		await session.setActiveToolsByName([]);
+		expect(session.getActiveToolNames()).not.toContain("todo");
+		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
+
+		emitTextOnlyStop();
+		await session.waitForIdle();
+
+		expect(reminderAttempts).toEqual([]);
+		expect(todoReminderTranscriptEntry()).toBeUndefined();
+		expect(continueSpy).not.toHaveBeenCalled();
+	});
+
+	it.each(["roster", "todo.reminders", "todo.enabled"] as const)(
+		"waits for progress across disabling and re-enabling %s",
+		async control => {
+			const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();
+			emitTextOnlyStop();
+			await session.waitForIdle();
+			expect(reminderAttempts).toEqual([1]);
+
+			if (control === "roster") await session.setActiveToolsByName([]);
+			else (control === "todo.enabled" ? cfgTodoEnabled : cfgTodoReminders).override(session.settings, false);
+			emitTextOnlyStop();
+			await session.waitForIdle();
+			expect(continueSpy).toHaveBeenCalledTimes(1);
+
+			if (control === "roster") await session.setActiveToolsByName(["todo"]);
+			else (control === "todo.enabled" ? cfgTodoEnabled : cfgTodoReminders).override(session.settings, true);
+			expect(session.getActiveToolNames()).toContain("todo");
+			emitTextOnlyStop();
+			await session.waitForIdle();
+			expect(reminderAttempts).toEqual([1]);
+			expect(continueSpy).toHaveBeenCalledTimes(1);
+
+			emitToolResult("todo", { phases: session.getTodoPhases() });
+			emitTextOnlyStop();
+			await session.waitForIdle();
+			expect(reminderAttempts).toEqual([1, 2]);
+			expect(continueSpy).toHaveBeenCalledTimes(2);
+		},
+	);
 
 	it("does not remind or continue when the assistant yields with a user-facing question", async () => {
 		const continueSpy = vi.spyOn(session.agent, "continue").mockResolvedValue();

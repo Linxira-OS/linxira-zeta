@@ -78,6 +78,7 @@ import {
 	type TtsrInjectionEntry,
 	type UsageStatistics,
 } from "./session-entries";
+import { currentRuntimeIdentity, type RuntimeIdentity } from "./runtime-identity";
 import {
 	filterSessionsForPicker,
 	findMostRecentNonEmptySession,
@@ -2057,11 +2058,12 @@ export class SessionManager {
 		this.#index.rebuild(entries);
 	}
 
-	#freshEntryFields(): { id: string; parentId: string | null; timestamp: string } {
+	#freshEntryFields(): { id: string; parentId: string | null; timestamp: string; runtime: RuntimeIdentity } {
 		return {
 			id: generateId(this.#index),
 			parentId: this.#index.leafId(),
 			timestamp: nowIso(),
+			runtime: currentRuntimeIdentity(),
 		};
 	}
 
@@ -3435,6 +3437,7 @@ export class SessionManager {
 			id: generateId(this.#index),
 			parentId,
 			timestamp: nowIso(),
+			runtime: currentRuntimeIdentity(),
 			message,
 		};
 		// The leaf is restored below, so the entry never joins the active branch;
@@ -3462,6 +3465,7 @@ export class SessionManager {
 			id: generateId(this.#index),
 			parentId: owner.parentId,
 			timestamp: nowIso(),
+			runtime: currentRuntimeIdentity(),
 			...usage,
 			...(activeLeafId !== owner.parentId ? { activeLeafId } : {}),
 		};
@@ -3870,6 +3874,7 @@ export class SessionManager {
 			id: generateId(this.#index),
 			parentId: branchFromId,
 			timestamp: nowIso(),
+			runtime: currentRuntimeIdentity(),
 			fromId: branchFromId ?? "root",
 			summary,
 			details,
@@ -3932,6 +3937,7 @@ export class SessionManager {
 				id: generateId(new Set([...keptIds, ...labels.map(entry => entry.id)])),
 				parentId,
 				timestamp: nowIso(),
+				runtime: currentRuntimeIdentity(),
 				targetId: carried.targetId,
 				label: carried.label,
 			};
@@ -4147,6 +4153,7 @@ export class SessionManager {
 				id,
 				parentId,
 				timestamp: nowIso(),
+				runtime: currentRuntimeIdentity(),
 				message: result,
 			};
 			history.push(entry);
