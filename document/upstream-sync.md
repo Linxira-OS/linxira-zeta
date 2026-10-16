@@ -220,7 +220,11 @@ two-parent tag merge.
      `src/eval/js/shared/prelude.txt` still called `globalThis.__omp_call_tool__` while the runtime installs
      `__zeta_call_tool__` (the file is a `.txt`, so the scope sweep's `*.ts` glob skipped it); three
      `test/eval/prelude-agent.test.ts` read()-delegation cases threw
-     `TypeError: globalThis.__omp_call_tool__ is not a function`. The single line was renamed.
+     `TypeError: globalThis.__omp_call_tool__ is not a function`. The single line was renamed, and the
+     playbook's own all-text-type sweep (`git grep -nE '@linxiraos/|__omp_|PI_CODING_AGENT_DIR|PI_LOGO'
+     -- .`, step 7, which names `prelude.txt` as a repeat offender) was then re-run over the whole tree:
+     its only upstream-side hits are the deliberate protocol names (`__omp_judgment_images`, `mcp__omp__`
+     — upstream wire keys, kept on both sides per conclusion 10) and pre-existing documentation.
   The remaining two reds are **not** merge damage: `packages/utils/test/json-lexer-string-scan.test.ts`
   ("keeps escape-dense strings linear", wall-clock ratio `3.162` against a `< 3` bound) and Rust's
   `shell::tests::cancellation_keeps_output_open_for_a_term_trap_that_writes` (1 of 927 tests in
@@ -229,7 +233,12 @@ two-parent tag merge.
   and the branch's only `crates/pi-shell/src/shell.rs` edits are inside `mod tests` (+53/-3, Zeta's own
   added cases and two widened timeouts), so Zeta contributes nothing to either production path; the job
   runs `OMP_TEST_CONCURRENCY=4` on a 4-core runner, which is what a wall-clock ratio assertion is exposed
-  to. Both jobs were re-run on the same head to separate flake from damage.
+  to. Both jobs were re-run on the same head to separate flake from damage: **`Validate Rust workspace
+  (bazel)` went green** (attempt 2, job `117136538659`), so the `pi-shell` test is a flake; the three
+  i18n/eval jobs failed again on the unchanged head, which is what makes their four causes above real
+  rather than noise (the rerun's own test-level log is not retrievable — `gh` serves attempt 1 for a
+  partially re-run workflow, so the identity of attempt 2's failing test in `Test TS workspace fast` is
+  inferred, not read).
 - **Tag-to-tag only, explicitly**: every comparison in this round is `v18.11.1` <-> `v18.11.2` (the merge
   preview, the forward completeness check, the member audit's *explained* leg) plus each file's own
   baseline-to-branch delta (`git diff v18.11.1..HEAD -- <file>`, used only to decide whether a conflict
@@ -239,9 +248,13 @@ two-parent tag merge.
   `c4911224c07` (CHANGELOG fold) and `ebd5b18160a` (Zeta surface re-application), the ledger commits, and
   the SQLite table-name repair. The branch was pushed once to `origin` (`sync/omp-release/v18.11.2`) and
   dispatched once (`gh workflow run ci.yml --ref sync/omp-release/v18.11.2` -> run `38949297746`, the
-  authority for the native-addon build and the natives-dependent buckets this machine cannot run). The
-  landing to `main` is sequenced centrally with the other in-flight branches (one push, one CI run for
-  `main`), so this entry deliberately does **not** claim a `main` merge commit of its own.
+  authority for the native-addon build and the natives-dependent buckets this machine cannot run). That
+  run's four red jobs were then triaged and fixed (see the run bullet above), and the fixes went out as a
+  **second push** of the same branch followed by a **second dispatch** (`ci.yml` on
+  `sync/omp-release/v18.11.2`), which is the authority for the fixed tree; its per-job conclusions are
+  appended to this entry once it finishes. The landing to `main` is sequenced centrally with the other
+  in-flight branches (one push, one CI run for `main`), so this entry deliberately does **not** claim a
+  `main` merge commit of its own.
 
 ## v18.11.1 incremental merge (Zeta — branch `sync/omp-release/v18.11.1`; merge commit `949687f3230`)
 
