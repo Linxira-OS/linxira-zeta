@@ -1,29 +1,14 @@
-# VENDOR — TTT Editor 快照账目
+# VENDOR — `@linxiraos/editor` 载荷账目
 
-| 项 | 值 |
-|---|---|
-| 上游仓库 | https://github.com/eugenioenko/ttt |
-| 来源 tag | `v1.5.0` |
-| peeled SHA | `765048940a54d9765fa574ae62df43abed398fa8` |
-| 引入方式 | `git archive v1.5.0`（无上游 git 历史）|
-| 协议 | MIT（`LICENSE` 原样保留，未改动）|
-| 引入日期 | 2026-09-19 |
-| npm 包 | `@linxiraos/editor`（Go 二进制分发，版本对齐 Zeta 产品线）|
+| 项         | 值                                                                 |
+| ---------- | ------------------------------------------------------------------ |
+| 载荷       | Zeta 内置编辑器：vendored TermIDE（`termide/`）的 `panel-editor`，编为**编辑器专用入口** `termide-editor` |
+| 上游仓库   | https://github.com/termide/termide（快照 tag `0.41.0`）             |
+| 协议       | MIT（上游版权行 + Linxira-OS 发行行，见本目录 `LICENSE`）           |
+| 载荷引入   | 2026-10-17（此前的 vendored TTT Editor／Go 载荷于 2026-10-16 退场） |
+| npm 包     | `@linxiraos/editor`（launcher，无 `bin`）+ 平台叶 `@linxiraos/editor-{windows,linux}-x64` |
+| 偏离账本   | **`termide/VENDOR.md`**（本载荷是它对上游快照的偏离第 23 项：新增编辑器专用入口；本目录不重复登记） |
+| 二进制来源 | `cargo build --release --locked -p termide --bin termide-editor`（在 `termide/` 内；Windows 侧走 `--target x86_64-pc-windows-gnu`），产物拷进对应平台叶的 `bin/`（见 `termide/VENDOR.md` 的重编配方） |
 
-## 出局方案（选型记录）
-
-- fresh（Rust，GPL-2.0）：臂长引用价值不足，协议不可 vendor。
-- termide（MIT）：功能差一档（无多光标/插件）。
-- subtree 全历史：ttt/.git 实测 57MB，超 50MB push 红线。
-- submodule：树不可改、force-push 场景易碎。
-
-## 修改层清单（对上游 v1.5.0 的全部偏离）
-
-（当前为纯净快照，无修改。后续每一处偏离在此登记：文件、内容、原因。）
-
-## bump 流程
-
-1. `git -C temp/ttt fetch origin && git -C temp/ttt tag` 确认新 tag；
-2. `git -C temp/ttt archive <new-tag> | tar -x -C editor`（覆盖前 `diff -r` 对账
-   本清单的修改层，逐项重新应用并登记）；
-3. 更新本文件 tag/SHA/修改层；单 commit 提交（`vendor: bump editor to <tag>`）。
+本目录不再有"vendored 第三方编辑器的独立台账"：载荷来自我们自己的 vendored
+TermIDE 树，上游与偏离口径以 `termide/VENDOR.md` 为准。

@@ -431,13 +431,14 @@ v18.3.4（143 文件）15 冲突。干跑与实跑逐个相符，谱系检查两
   （merge-file），比逐 hunk 手解 135 个快一个量级；身份行扫描兜底。恢复
   后必须重跑品牌 overlay（PI_LOGO/icon.omp 这类不在哨兵里的面）。
 - **结论 5（root bun test 不是本地门禁）**：root `bun test` 会扫进
-  editor/web-ui 的自有套件（vitest API 不兼容）与 Windows 符号链接族噪声；
+  web-ui 的自有套件（vitest API 不兼容）与 Windows 符号链接族噪声；
   本地裁决用「worktree 基线差集法」（同测试在 HEAD 上跑对照）+ WSL Linux
-  复核，CI 才是最终裁决。bunfig pathIgnorePatterns 已修剪三个 vendored 树。
+  复核，CI 才是最终裁决。bunfig pathIgnorePatterns 已修剪 vendored 树
+  （editor 退场后剩 termide + web-ui）。
 - **新损伤类预警（候选第 11 类）**：vendored 树无 rustfmt.toml 时，cargo
   会向上发现 Zeta 根配置并按 hard_tabs 重排整个快照，fmt --check 门必挂；
-  修法 = vendored 树放空 rustfmt.toml 阻断发现链（termide/VENDOR.md 层 3），
-  editor 为 Go 树天然免疫。
+  修法 = vendored 树放空 rustfmt.toml 阻断发现链（termide/VENDOR.md 层 3）；
+  Go 树（editor）已随 vendored 载荷于 2026-10-16 退场，不再有此面。
 
 ### v18.2.6 → v18.2.11 实测：步长、失效边界与全树收口
 

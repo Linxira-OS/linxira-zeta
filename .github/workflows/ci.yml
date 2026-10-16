@@ -231,6 +231,13 @@ jobs:
            run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
+         # The Gitea mirror is the one workflow a merge can silently desync:
+         # `.gitea/workflows/local-ci.yml` must keep the same command entry
+         # points as its ci.yml counterpart. Running it here is what keeps the
+         # mirror honest on the GitHub side too (the local-ci `check` job runs
+         # the same guard); the mirror itself never runs GitHub workflows.
+         - name: Check the Gitea mirror parity
+           run: bun scripts/check-local-ci-parity.ts
          # i18n: the catalogue is three files that must stay key-equal (messages
          # interface == en == zh, no blank zh value) — `packages/coding-agent/
          # src/i18n/messages.test.ts` asserts the same property, but it lives
@@ -333,8 +340,8 @@ jobs:
          # registered" assertion touched the plugin at all. It therefore
          # installs its own dependencies here: `package.json` declares
          # `vitest ^2.1.8` and the package's `.gitignore` already ignores
-         # `node_modules/` + `package-lock.json`, the same standalone-vitest
-         # shape `editor_tests` uses. It belongs in this job because it is
+         # `node_modules/` + `package-lock.json`, a standalone-vitest shape no
+         # workspace bucket can host. It belongs in this job because it is
          # self-contained: its native dependency comes from npm's published
          # per-platform leaf packages (`@linxiraos/pi-natives-linux-x64`), not
          # from the addon artifact the `test_*` buckets download — the `check`
@@ -890,8 +897,8 @@ jobs:
       # KNOWN FLAKE (annotate-only): mcp/transports/stdio.test.ts
       # "still reaps a SIGTERM-trapping grandchild…" — processExists(grandchildPid)
       # races the 20 ms pid-poll loop under shard load; pre-existing on main
-      # (passes on reruns, editor-only PRs trip it with no code path in
-      # common). Rerun the shard before investigating.
+      # (passes on reruns, with no code path in common). Rerun the shard
+      # before investigating.
       strategy:
          fail-fast: false
          matrix:
@@ -1192,11 +1199,10 @@ jobs:
               key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
 
    # Bare native binaries of the non-CLI products (the zetawork workbench from
-   # the main/ workspace, zetaide from the vendored termide workspace, the
-   # TTT editor from the vendored Go module), published as release
-   # assets for distribution repackaging: the asset file name is the target
-   # id and the Linxira pacman PKGBUILDs fetch it verbatim from
-   # releases/download/v<pkgver>/. Same artifact family as release_binary
+   # the main/ workspace, zetaide from the vendored termide workspace),
+   # published as release assets for distribution repackaging: the asset file
+   # name is the target id and the Linxira pacman PKGBUILDs fetch it verbatim
+   # from releases/download/v<pkgver>/. Same artifact family as release_binary
    # (zeta-binary-* names merged into the same release staging dir) so every
    # asset enters SHA256SUMS.txt. No native-addon dependency — these products
    # embed no node addons — so this job runs purely in parallel with the test
@@ -1205,7 +1211,7 @@ jobs:
    # termide_tests gate with). Windows assets cross-compile on the Linux
    # runner like the zeta-cli-* win32-x64 leg: cargo via the GNU target (the
    # same "Win GNU target" method the committed npm leaf binaries are
-   # rebuilt with, no Windows runner needed), editor via GOOS=windows.
+   # rebuilt with, no Windows runner needed).
    release_product_binaries:
       name: "Release product binary: ${{ matrix.target_id }}"
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() }}
@@ -1217,37 +1223,20 @@ jobs:
                - {
                     os: ubuntu-22.04,
                     platform: linux,
-                    toolchain: cargo,
                     target_id: zeta-work-linux-x64,
                     artifact: zeta-work-linux-x64,
                  }
                - {
                     os: ubuntu-22.04,
                     platform: win32,
-                    toolchain: cargo,
                     target_id: zeta-work-win-x64,
                     artifact: zeta-work-win-x64.exe,
                  }
                - {
                     os: ubuntu-22.04,
                     platform: linux,
-                    toolchain: cargo,
                     target_id: zeta-ide-linux-x64,
                     artifact: zeta-ide-linux-x64,
-                 }
-               - {
-                    os: ubuntu-22.04,
-                    platform: linux,
-                    toolchain: go,
-                    target_id: zeta-editor-linux-x64,
-                    artifact: zeta-editor-linux-x64,
-                 }
-               - {
-                    os: ubuntu-22.04,
-                    platform: win32,
-                    toolchain: go,
-                    target_id: zeta-editor-win-x64,
-                    artifact: zeta-editor-win-x64.exe,
                  }
       runs-on: ${{ matrix.os }}
       permissions:
@@ -1259,7 +1248,7 @@ jobs:
          # never bundle the CLI.
          - uses: ./.github/actions/bun-install
          - name: Install mingw-w64 cross toolchain
-           if: matrix.toolchain == 'cargo' && matrix.platform == 'win32'
+           if: matrix.platform == 'win32'
            run: |
               sudo apt-get update
               # mingw-w64: GNU cross toolchain (linker + cc auto-detection);
@@ -1267,37 +1256,21 @@ jobs:
               # termide crates) assembles its windows-gnu crypto sources.
               sudo apt-get install -y --no-install-recommends mingw-w64 nasm
          - uses: dtolnay/rust-toolchain@1.91.1
-           if: matrix.toolchain == 'cargo'
            with:
               components: rustfmt, clippy
               targets: ${{ matrix.platform == 'win32' && 'x86_64-pc-windows-gnu' || 'x86_64-unknown-linux-gnu' }}
          - uses: Swatinem/rust-cache@v2
-           if: matrix.toolchain == 'cargo'
            with:
               workspaces: ${{ matrix.target_id == 'zeta-ide-linux-x64' && 'termide' || 'main' }}
-         - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-           if: matrix.toolchain == 'go'
-           with:
-              go-version-file: editor/go.mod
-              cache-dependency-path: editor/go.sum
-         - name: Resolve product version stamp
-           if: matrix.toolchain == 'go'
-           id: product_version
-           env:
-              RELEASE_TAG: ${{ needs.release_metadata.outputs.release-tag }}
-           run: echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
          - name: Build release product binary
            env:
               RELEASE_TARGETS: ${{ matrix.target_id }}
-              # ttt --version stamp, same -X stamp the committed npm leaf
-              # binaries carry; cargo products stamp CARGO_PKG_VERSION.
-              RELEASE_PRODUCT_VERSION: ${{ steps.product_version.outputs.version }}
               # GNU cross linker for the cargo win32 legs; unset (empty) on
               # native Linux legs where cargo uses the default host linker.
               CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: ${{ matrix.platform == 'win32' && 'x86_64-w64-mingw32-gcc' || '' }}
            run: bun run ci:release:build-binaries
          # Bare TUI products: --version short-circuits before any terminal
-         # setup (zeta/termide/ttt flag parse), so a bare runner probe is
+         # setup (zeta/termide flag parse), so a bare runner probe is
          # safe. Windows assets are cross-built — nothing on the Linux
          # runner can exec them (same policy as the zeta-cli-* win32-x64 leg).
          - name: Smoke release product binary
@@ -1601,11 +1574,11 @@ jobs:
                 echo "::error::Expected at least 3 zeta-cli-* binaries, found $count"
                 missing=1
               fi
-              product_count=$(ls packages/coding-agent/binaries/zeta-work-* packages/coding-agent/binaries/zeta-ide-* packages/coding-agent/binaries/zeta-editor-* 2>/dev/null | wc -l)
-              if [ "$product_count" -lt 5 ]; then
-                # Product matrix: zetawork linux+win, zetaide linux,
-                # TTT editor linux+win (release_product_binaries).
-                echo "::error::Expected at least 5 zeta-work-*/zeta-ide-*/zeta-editor-* product binaries, found $product_count"
+              product_count=$(ls packages/coding-agent/binaries/zeta-work-* packages/coding-agent/binaries/zeta-ide-* 2>/dev/null | wc -l)
+              if [ "$product_count" -lt 3 ]; then
+                # Product matrix: zetawork linux+win, zetaide linux
+                # (release_product_binaries).
+                echo "::error::Expected at least 3 zeta-work-*/zeta-ide-* product binaries, found $product_count"
                 missing=1
               fi
               desktop_count=$(find temp/desktop/release -type f \( -name 'zeta-desktop-*.zip' -o -name 'zeta-desktop-*.exe' -o -name 'zeta-desktop-*.deb' -o -name 'zeta-desktop-*.AppImage' -o -name 'zeta-desktop-*.tar.gz' \) 2>/dev/null | wc -l)
@@ -1625,7 +1598,6 @@ jobs:
                 packages/coding-agent/binaries/zeta-cli-* \
                 packages/coding-agent/binaries/zeta-work-* \
                 packages/coding-agent/binaries/zeta-ide-* \
-                packages/coding-agent/binaries/zeta-editor-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 temp/desktop/release/zeta-desktop-* \
                 LICENSE \
@@ -1639,7 +1611,6 @@ jobs:
                  packages/coding-agent/binaries/zeta-cli-*
                  packages/coding-agent/binaries/zeta-work-*
                  packages/coding-agent/binaries/zeta-ide-*
-                 packages/coding-agent/binaries/zeta-editor-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  temp/desktop/release/zeta-desktop-*
                  LICENSE
@@ -1708,48 +1679,14 @@ jobs:
               NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: bun run ci:release:publish
 
-   # Vendored TTT editor (zeta-editor-* assets) test contract: Go unit + e2e plus the
-   # functional vitest harness against a freshly built binary. Gates the
-   # vendor tree, not the Zeta release (release_gate does not depend on it).
-
-   editor_tests:
-      name: Test editor (vendored TTT)
-      runs-on: ubuntu-22.04
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-           with:
-              go-version-file: editor/go.mod
-              cache-dependency-path: editor/go.sum
-         - name: Go tests (unit + e2e)
-           working-directory: editor
-           run: go test ./...
-         - name: Build editor binary for functional harness
-           working-directory: editor
-           run: go build -ldflags="-s -w -X main.version=ci-test" -o bin/ttt ./cmd/ttt
-         # Same prerequisite upstream's functional-tests job installs (TTT
-         # v1.6.0 scripts/install-prerequisites.sh): the sidebar global search
-         # shells out to ripgrep, and hosted ubuntu-22.04 images ship without
-         # it — without rg the search panel shows "ripgrep (rg) not found" and
-         # every wait-for on a result row times out (PR #64, 4 red tests).
-         - name: Install ripgrep for global-search e2e
-           working-directory: editor
-           run: bash ./scripts/install-prerequisites.sh
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-         - name: Functional vitest suite
-           working-directory: editor/tests/functional
-           run: npm install --no-audit --no-fund && npx vitest run
-
    # Vendored TermIDE (zetaide) upstream test contract, mirroring what the
    # upstream project gates on every PR: fmt / cargo check --all-targets /
    # clippy -D warnings / nextest, with the toolchain pinned by
    # termide/rust-toolchain.toml (1.91.1). A full Rust rebuild of the vendored
    # workspace is expensive, so the job self-skips when the triggering change
    # set does not touch termide/ — a manual dispatch always runs the full
-   # gate. Same policy as the editor job: gates the vendor tree, not the
-   # Zeta release (release_gate does not depend on it).
+   # gate. Same policy: gates the vendor tree, not the Zeta release
+   # (release_gate does not depend on it).
 
    termide_tests:
       name: Test termide (vendored TermIDE)
@@ -1882,11 +1819,14 @@ jobs:
            working-directory: main
            run: cargo test --workspace
 
-   # Publishes the vendored editor npm distribution (@linxiraos/editor plus
+   # Publishes the built-in editor's npm distribution (@linxiraos/editor plus
    # its windows/linux x64 platform leaves) on release tags via npm trusted
-   # publishing. Binaries are prebuilt and committed under editor/npm/*/bin,
-   # so no cross-platform build legs are needed. Does not gate the GitHub
-   # release itself (same policy as native leaves).
+   # publishing, dispatching the dedicated editor-publish.yml so the OIDC
+   # claim matches the workflow binding (same lesson as v1.1.19's editor
+   # E404). The payload binaries are built and committed in termide/ before
+   # the tag (termide/VENDOR.md's rebuild recipe) — this job publishes what
+   # the leaves carry. Does not gate the GitHub release itself (same policy as
+   # the other package legs).
 
    release_editor_packages:
       name: Publish editor npm packages
@@ -1930,7 +1870,7 @@ jobs:
    # tags via npm trusted publishing, dispatching the dedicated
    # ide-publish.yml so the OIDC claim matches the workflow binding (same
    # lesson as v1.1.19's editor E404). Does not gate the GitHub release
-   # itself (same policy as the editor).
+   # itself (same policy as the other package legs).
 
    release_main_packages:
       name: Publish main npm packages
@@ -2009,7 +1949,7 @@ jobs:
    # would publish a missing or stale build against a new gateway.
    #
    # needs: [release_metadata, release_gate] mirrors the vendored
-   # editor/main/ide publish jobs — release_metadata supplies is-release (this
+   # main/ide publish jobs — release_metadata supplies is-release (this
    # job must not run on ordinary pushes) and release_gate carries the
    # release-state prerequisite: `check`'s guard steps run on a release run, and
    # publishing before they pass must be impossible. There is no build-artifact
@@ -2055,7 +1995,7 @@ jobs:
          # No `bun install --frozen-lockfile` here (unlike release_npm): this
          # path only packs a self-contained npm directory, and
          # ci-release-publish.ts's own imports are node builtins — the
-         # editor/main/ide publish workflows run the same pack path the same
+         # main/ide publish workflows run the same pack path the same
          # way, without a workspace install.
          - name: Install web-ui dependencies
            working-directory: web-ui
@@ -2078,7 +2018,7 @@ jobs:
    # official plugin ships TS source (`index.ts` entry, `crew/**`, `skills/**`,
    # `bin` → `install.mjs`) for the host loader to transpile, so
    # `ci-release-publish.ts --plugin` packs the directory as-authored through
-   # the same as-is path the vendored editor/main/ide/web-ui legs use. The
+   # the same as-is path the vendored main/ide/web-ui legs use. The
    # workspace `packages` table (release_npm) cannot carry it: that path's
    # `typescript` kind runs a declaration emit whose output the plugin cannot
    # consume — its sources use `allowImportingTsExtensions`, so the emitted
@@ -2094,7 +2034,7 @@ jobs:
    # matching trusted publisher fails `PUT 404` (the v1.1.9 native-leaf lesson).
    #
    # needs: [release_metadata, release_gate] mirrors release_web_ui_packages and
-   # the vendored editor/main/ide publish jobs — release_metadata supplies
+   # the vendored main/ide publish jobs — release_metadata supplies
    # is-release (this job must not run on ordinary pushes) and release_gate
    # carries the release-state prerequisite: `check`'s guard steps run on a
    # release run, and publishing before they pass must be impossible. No

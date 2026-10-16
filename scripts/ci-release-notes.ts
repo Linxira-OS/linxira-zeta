@@ -280,8 +280,9 @@ async function main(): Promise<void> {
  * installers/archives (`zeta-desktop-<version>-<os>-<arch>.<ext>`, matching
  * `desktop/electron-builder.yml` `artifactName`), the CLI binaries
  * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles),
- * and the bare product binaries (`zeta-work-*` / `zeta-ide-*` /
- * `zeta-editor-*` from the release_product_binaries job), then the remaining
+ * and the bare product binaries (`zeta-work-*` / `zeta-ide-*`
+ * from the release_product_binaries job; the `zeta-editor-*` assets retired
+ * 2026-10-16), then the remaining
  * release assets (`LICENSE`, `SHA256SUMS.txt`, `THIRD-PARTY-NOTICES.txt`, and
  * the browser relay extension).
  * Every line links to its `releases/download` URL so release assets stay
@@ -302,13 +303,7 @@ function buildAssetSections(version: string): string {
 	const cliAssets = ["zeta-cli-linux-x64", "zeta-cli-linux-musl-x64", "zeta-cli-windows-x64.exe"];
 	// Bare product binaries from the release_product_binaries job; the
 	// distribution PKGBUILDs fetch these URLs verbatim.
-	const productAssets = [
-		"zeta-work-linux-x64",
-		"zeta-work-win-x64.exe",
-		"zeta-ide-linux-x64",
-		"zeta-editor-linux-x64",
-		"zeta-editor-win-x64.exe",
-	];
+	const productAssets = ["zeta-work-linux-x64", "zeta-work-win-x64.exe", "zeta-ide-linux-x64"];
 	// Remaining release_github assets: root license, third-party notices, the
 	// checksum manifest, and the browser relay extension. Keep in sync with
 	// that job's `files:` list.

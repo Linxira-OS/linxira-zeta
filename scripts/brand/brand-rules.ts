@@ -834,8 +834,12 @@ export const MUST_NOT_CONTAIN: Array<{
 	//   zeta-editor / zeta-e / zetaeditor → deleted (the editor is a built-in
 	//                                       pane; TUI editor pages go through zetaide)
 	// File-name faces stay: the lookarounds leave every `-`/`.`/word-suffixed
-	// form alone — release assets (`zeta-cli-*`, `zeta-work-*`, `zeta-ide-*`,
-	// `zeta-editor-*`), shim names (`zeta-c.cmd`) and `zeta-capture-*`.
+	// form alone — release assets (`zeta-cli-*`, `zeta-work-*`,
+	// `zeta-ide-*`; the `zeta-editor-*` asset name retired with the vendored
+	// TTT payload on 2026-10-16, while the `@linxiraos/editor` package name
+	// now carries the built-in editor's payload — a payload file inside the
+	// platform leaves, still not a bin), shim names (`zeta-c.cmd`) and
+	// `zeta-capture-*`. The bare `zeta-editor` bin name above stays banned.
 	// Exempt files name a retired token only to assert it resolves to nothing
 	// (the suite table's own test) or record released history (changelogs).
 	{
@@ -890,7 +894,7 @@ export const MUST_NOT_CONTAIN: Array<{
  * Python is deliberately narrow: `python/**` + `sdk/**` are the Python SDK, its
  * generated languages and robomp (its only in-repo consumer). The other ~150
  * tracked `.py` files are eval preludes, fixture generators and analysis tools
- * under `packages/**`, `crates/pi-natives/tools/**`, `editor/tests/**` and
+ * under `packages/**`, `crates/pi-natives/tools/**` and
  * `bazel/**`, which no SDK rename can reach.
  */
 export const MUST_NOT_CONTAIN_EXTRA_GLOBS: RegExp[] = [

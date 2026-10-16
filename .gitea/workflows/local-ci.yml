@@ -12,10 +12,10 @@ name: local-ci
 #   镜像：check / web_ui_build / bazel_lock / rust_validate / native_addons /
 #        test_coding_agent_native / test_workspace / test_coding_agent_singleton /
 #        test_ts_native / test_coding_agent_ui / test_coding_agent_runtime /
-#        test_smoke / install_methods / editor_tests / termide_tests / main_tests
+#        test_smoke / install_methods / termide_tests / main_tests
 #   裁掉：release_metadata / release_gate / release_binary /
 #        release_product_binaries / release_native_leaves / release_github /
-#        release_npm / release_{editor,main,ide,web_ui,plugin}_packages（发布链，永不在此跑）
+#        release_npm / release_{main,ide,web_ui,plugin}_packages（发布链，永不在此跑）
 #        desktop_windows、native_addons_cross 的 win32/darwin 腿（Windows/macOS）
 #
 # 与 GitHub 侧刻意保持一致的地方：命令行入口全部走仓库脚本
@@ -63,6 +63,27 @@ env:
    # every job its own `act/<hash>/hostexecutor` workdir. Set LOCAL_CI_TOOLS in
    # the runner environment to move the store.
    NATIVES_X64_TARGETS: natives-linux-x64-baseline natives-linux-x64-modern
+
+   # ── 国内镜像层（只在这份 Gitea 镜像里；GitHub 侧一律不动）────────────────
+   # 只影响**下载传输**面：`Cargo.lock` / `MODULE.bazel.lock` 的校验和仍逐包
+   # 校验，镜像只是从别处取同样的字节。分两类消费方式：
+   #   ① 工具直接读进程环境（npm / bun registry、electron、rustup dist）：必须是
+   #      字面 URL；
+   #   ② shell `run:` 步骤消费（node tarball、GitHub 代理前缀、cargo 索引）：这里
+   #      只放默认值，use 点写 `${VAR:-<同一默认>}`。
+   # 换镜像 = 改这里一行（回退官方源同理）；② 也可由 host 环境覆盖。
+   # 严禁写成只在内网可解析的地址：镜像不可达时要么回退官方源，要么直接红在
+   # 下载步骤上，而不是静默半跑。
+   npm_config_registry: https://registry.npmmirror.com
+   BUN_CONFIG_REGISTRY: https://registry.npmmirror.com
+   ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+   RUSTUP_DIST_SERVER: https://mirrors.ustc.edu.cn/rust-static
+   RUSTUP_UPDATE_ROOT: https://mirrors.ustc.edu.cn/rust-static/rustup
+   # ② 的默认值（use 点带同样的 `:-` 缺省）：
+   LOCAL_CI_MIRROR_NODE: https://npmmirror.com/mirrors/node/
+   LOCAL_CI_CARGO_MIRROR: https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/
+   # GitHub release 下载物的代理前缀；留空 = 直连（bazelisk 等下载自动走它）。
+   LOCAL_CI_MIRROR_GH: ""
 
 jobs:
    # ── 0. 触发面护栏 ─────────────────────────────────────────────────────────
@@ -177,8 +198,20 @@ jobs:
               export RUSTUP_HOME="$TOOLS/rustup"
               export CARGO_HOME="$TOOLS/cargo"
               export PATH="$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$PATH"
-              export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+              export RUSTUP_DIST_SERVER="${RUSTUP_DIST_SERVER:-https://mirrors.ustc.edu.cn/rust-static}"
+              export RUSTUP_UPDATE_ROOT="${RUSTUP_UPDATE_ROOT:-https://mirrors.ustc.edu.cn/rust-static/rustup}"
               export CARGO_NET_RETRY=10
+
+              # cargo 索引/下载走国内镜像（同样只影响传输：Cargo.lock 的校验和逐包
+              # 校验）。config.toml 写在**镜像自己的持久 CARGO_HOME** 里——绝不写进
+              # 仓库根，否则会顺带改掉 GitHub 侧的解析行为。
+              mkdir -p "$CARGO_HOME"
+              {
+                 echo '[source.crates-io]'
+                 echo 'replace-with = "mirror"'
+                 echo '[source.mirror]'
+                 echo "registry = \"sparse+${LOCAL_CI_CARGO_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/}\""
+              } > "$CARGO_HOME/config.toml"
 
               # The runner's egress to GitHub/nodejs.org/go.dev resets mid-transfer
               # (observed: curl exit 56 "SSL unexpected eof"), and plain `--retry`
@@ -228,6 +261,9 @@ jobs:
                    ;;
               esac
               if [ "${ok:-false}" != true ]; then
+                 # bun.sh 不是 GitHub，MIRROR_GH 前缀管不到它；而且它的 installer
+                 # 内部自己拼 GitHub release URL。镜像不可达时用发行版包管理器把 bun
+                 # 预装进 $TOOLS，别改这里的 URL 去赌一个不存在的镜像。
                  fetch https://bun.sh/install "$TOOLS/bun-install.sh"
                  # The installer takes the release tag as its first positional
                  # argument when run from the downloaded file. `-s --` belongs to
@@ -261,7 +297,7 @@ jobs:
 
               # bazelisk —— .bazelversion 钉版本，交给 bazelisk 自己解析。
               if ! command -v bazelisk >/dev/null 2>&1; then
-                 fetch "https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64" \
+                 fetch "${LOCAL_CI_MIRROR_GH:-}https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64" \
                    "$TOOLS/bin/bazelisk"
                  chmod +x "$TOOLS/bin/bazelisk"
               fi
@@ -272,36 +308,29 @@ jobs:
                    (echo "::warning::cargo install $tool failed"; true)
               done
 
-              # node —— web-ui 与 editor functional harness 用（GitHub 侧 22/24）。
+              # node —— web-ui 用（GitHub 侧 22/24）。
               if ! command -v node >/dev/null 2>&1; then
-                 fetch https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz /tmp/node.tar.xz
+                 fetch "${LOCAL_CI_MIRROR_NODE:-https://npmmirror.com/mirrors/node/}v22.14.0/node-v22.14.0-linux-x64.tar.xz" /tmp/node.tar.xz
                  mkdir -p "$TOOLS/node"
                  tar -xJf /tmp/node.tar.xz -C "$TOOLS/node" --strip-components=1
-              fi
-
-              # go —— editor（TTT）测试。
-              if ! command -v go >/dev/null 2>&1; then
-                 fetch https://go.dev/dl/go1.24.5.linux-amd64.tar.gz /tmp/go.tar.gz
-                 mkdir -p "$TOOLS/go"
-                 tar -xzf /tmp/go.tar.gz -C "$TOOLS/go" --strip-components=1
               fi
 
               {
                  echo "RUSTUP_HOME=$RUSTUP_HOME"
                  echo "CARGO_HOME=$CARGO_HOME"
                  echo "BUN_INSTALL=$TOOLS"
-                 echo "PATH_EXTRA=$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin"
+                 echo "PATH_EXTRA=$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin"
               } >> "$GITHUB_ENV"
 
               # GITHUB_ENV is job-scoped, so persist the same PATH for the
               # downstream jobs (they fall back to this file when PATH_EXTRA
               # is absent from their own environment).
-              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin" > "$TOOLS/env.path"
+              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin" > "$TOOLS/env.path"
 
               # PATH_EXTRA 只是变量，不会进 PATH：本 job 自己的后续步骤
               # （Verify toolchains / Install workspace dependencies）必须靠
               # GITHUB_PATH 拿到 bun，否则 `bun install` 直接 127。
-              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin:$TOOLS/go/bin" >> "$GITHUB_PATH"
+              printf '%s\n' "$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$TOOLS/node/bin" >> "$GITHUB_PATH"
 
          - name: Verify toolchains
            shell: bash
@@ -310,8 +339,7 @@ jobs:
               echo "bun   $(bun --version)"
               echo "cargo $(cargo --version)"
               echo "rustc $(rustc --version)"
-              echo "node  $(node --version 2>/dev/null || echo '<absent: web-ui/editor jobs will install it>')"
-              echo "go    $(go version 2>/dev/null || echo '<absent: editor job will install it>')"
+              echo "node  $(node --version 2>/dev/null || echo '<absent: web-ui job will install it>')"
               echo "bazel $(bazelisk --version 2>/dev/null | head -1 || echo '<absent>')"
 
          - name: Install workspace dependencies
@@ -446,7 +474,7 @@ jobs:
          # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外
          #（根 `plugins/*` glob 到 `plugins/official` 为止），任何 bucket 都跑不到它。
          # 因此这里自带依赖安装（package.json 声明 vitest，包内 .gitignore 已忽略
-         # node_modules/ 与 package-lock.json），与 `editor_tests` 的独立 vitest 同形。
+         # node_modules/ 与 package-lock.json），一个独立 vitest 形状（任何 bucket 都装不下它）。
          # `continue-on-error` 是**有意的临时状态**：2026-10-16 首次接线即发现该套件
          # 早已腐坏（ubuntu 上 7/438 失败、6/49 文件），与本改动无关、此前无人看见。
          # 步骤照跑并标注，但不设门禁，直到专门的修复 PR 清零后去掉此标志。
@@ -580,6 +608,11 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+         # 与 GitHub `bazel_lock` 同序、同入口：先无条件跑 crate 覆盖守卫（守卫
+         # 自身出错必须先暴露，不能被下面的 "stale" 提示掩盖），再查
+         # crate_universe 条目。
+         - name: Test the crate-coverage guard
+           run: bun test scripts/bazel-lock-drift.test.ts
          - name: Check crate_universe entry
            run: bun scripts/gen-bazel-lock.ts --check
          - name: Report how to refresh
@@ -647,11 +680,19 @@ jobs:
               mkdir -p "$HOME/.cache/omp-bazel-disk" "$HOME/.cache/omp-bazel-repo"
               find "$HOME/.cache/omp-bazel-disk" -type f -mtime +14 -delete 2>/dev/null || true
               rc="$RUNNER_TEMP/bazel-cache.rc"
+              mkdir -p "$HOME/.cache/omp-bazel-distdir"
               {
                  echo "common --config=ci"
                  echo "common --disk_cache=$HOME/.cache/omp-bazel-disk"
                  echo "common --repository_cache=$HOME/.cache/omp-bazel-repo"
+                 # 持久 distdir：BCR/GitHub 的 archive 拉过一次就完全离线复跑（首次
+                 # 预热 = 正常跑一次 rust_validate / native_addons，其后不再依赖
+                 # GitHub）。这是本地最不稳的一环，distdir 是它的兜底。
+                 echo "common --distdir=$HOME/.cache/omp-bazel-distdir"
               } > "$rc"
+              # 服务器侧若有 BCR 镜像：导出 BAZEL_REGISTRY 即被采用；不设就不加这一
+              # 行——文件不假设任何镜像存在，靠上面的 distdir 兜底。
+              if [ -n "${BAZEL_REGISTRY:-}" ]; then echo "common --registry=$BAZEL_REGISTRY" >> "$rc"; fi
               echo "rc=$rc" >> "$GITHUB_OUTPUT"
          - name: Build linux-x64 native addons
            shell: bash
@@ -1222,11 +1263,19 @@ jobs:
               set -euo pipefail
               mkdir -p "$HOME/.cache/omp-bazel-disk" "$HOME/.cache/omp-bazel-repo"
               rc="$RUNNER_TEMP/bazel-cache.rc"
+              mkdir -p "$HOME/.cache/omp-bazel-distdir"
               {
                  echo "common --config=ci"
                  echo "common --disk_cache=$HOME/.cache/omp-bazel-disk"
                  echo "common --repository_cache=$HOME/.cache/omp-bazel-repo"
+                 # 持久 distdir：BCR/GitHub 的 archive 拉过一次就完全离线复跑（首次
+                 # 预热 = 正常跑一次 rust_validate / native_addons，其后不再依赖
+                 # GitHub）。这是本地最不稳的一环，distdir 是它的兜底。
+                 echo "common --distdir=$HOME/.cache/omp-bazel-distdir"
               } > "$rc"
+              # 服务器侧若有 BCR 镜像：导出 BAZEL_REGISTRY 即被采用；不设就不加这一
+              # 行——文件不假设任何镜像存在，靠上面的 distdir 兜底。
+              if [ -n "${BAZEL_REGISTRY:-}" ]; then echo "common --registry=$BAZEL_REGISTRY" >> "$rc"; fi
               echo "rc=$rc" >> "$GITHUB_OUTPUT"
          - name: Rust tests
            shell: bash
@@ -1327,70 +1376,7 @@ jobs:
          - name: Test the serve reuse decision
            run: bun test packages/coding-agent/test/serve-registry.test.ts
 
-   # ── 8. vendor 工作区（镜像 editor_tests / termide_tests / main_tests）────
-   editor_tests:
-      name: Test editor (vendored TTT)
-      needs: [preflight, toolchains]
-      if: ${{ always() && needs.toolchains.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.suite == 'full' || inputs.suite == 'gates') }}
-      runs-on: self-hosted
-      timeout-minutes: 90
-      steps:
-         # The NAS runner's egress to github.com is intermittent (observed:
-         # `TLS handshake timeout` fetching actions/checkout, and `curl: (56)
-         # SSL unexpected eof` fetching a release asset), and actions/checkout
-         # has no retry - one reset loses the whole run. Clone from the Gitea
-         # instance instead: it is on the LAN and needs no action download.
-         - name: Checkout (local Gitea remote)
-           shell: bash
-           run: |
-              set -euo pipefail
-              ref="${{ github.ref }}"
-              sha="${{ github.sha }}"
-              host="${{ github.server_url }}"
-              host="${host#*://}"
-              token="${{ github.token }}"
-              auth=""
-              if [ -n "$token" ]; then auth="x-access-token:${token}@"; fi
-              url="http://${auth}${host}/${{ github.repository }}.git"
-              if [ ! -d .git ]; then git init -q .; fi
-              if git remote get-url origin >/dev/null 2>&1; then
-                 git remote set-url origin "$url"
-              else
-                 git remote add origin "$url"
-              fi
-              git fetch -q --depth=1 --tags origin "$ref"
-              # --depth=1 only brings the ref tip; fall back to the full branch
-              # when the run's SHA is not that tip (branch moved mid-run).
-              if ! git checkout -q -f "$sha" 2>/dev/null; then
-                 git fetch -q --tags origin "$ref"
-                 git checkout -q -f "$sha"
-              fi
-              git log -1 --format='checked out %h %s'
-         - name: Toolchain PATH
-           shell: bash
-           run: |
-              set -euo pipefail
-              tools="${LOCAL_CI_TOOLS:-$HOME/.local-ci-tools}"
-              extra="${PATH_EXTRA:-}"
-              if [ -z "$extra" ] && [ -f "$tools/env.path" ]; then extra="$(cat "$tools/env.path")"; fi
-              if [ -z "$extra" ]; then
-                 echo "::error::toolchain PATH unavailable: PATH_EXTRA is empty and $tools/env.path is missing"
-                 exit 1
-              fi
-              echo "$extra:$PATH" >> "$GITHUB_PATH"
-         - name: Go tests (unit + e2e)
-           working-directory: editor
-           run: go test ./...
-         - name: Build editor binary for functional harness
-           working-directory: editor
-           run: go build -ldflags="-s -w -X main.version=ci-test" -o bin/ttt ./cmd/ttt
-         - name: Install ripgrep for global-search e2e
-           working-directory: editor
-           run: bash ./scripts/install-prerequisites.sh
-         - name: Functional vitest suite
-           working-directory: editor/tests/functional
-           run: npm install --no-audit --no-fund && npx vitest run
-
+   # ── 8. vendor 工作区（镜像 termide_tests / main_tests）──────────────────
    termide_tests:
       name: Test termide (vendored TermIDE)
       needs: [preflight, toolchains]

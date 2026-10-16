@@ -9,8 +9,9 @@
  *
  * Publish targets whose manifests are already publish-ready pack as-authored
  * through `publishAsIsNpmDirs` instead of the steps below, each from its own
- * ci.yml job: `--editor`, `--ide`, `--main`, `--web-ui` (vendored
- * distributions) and `--plugin <dir>` (official plugins, see that function).
+ * ci.yml job: `--editor`, `--ide`,
+ * `--main`, `--web-ui` (vendored distributions) and `--plugin <dir>` (official
+ * plugins, see that function).
  *
  * For each public TypeScript package we:
  *   1. Emit `.d.ts` declarations into `dist/types/` so consumers get
@@ -99,7 +100,7 @@ const publishEditor = process.argv.slice(2).includes("--editor");
 const publishIde = process.argv.slice(2).includes("--ide");
 const publishMain = process.argv.slice(2).includes("--main");
 // web-ui is a standalone npm-only project (not a Bun workspace package), so it
-// packs/publishes through the vendored-dir path like editor/main/termide. Its
+// packs/publishes through the vendored-dir path like main/termide. Its
 // `.next` build is produced by the invoking CI job before this runs.
 const publishWebUi = process.argv.slice(2).includes("--web-ui");
 // Official plugins (`plugins/official/<id>/`) ship the TS source their host
@@ -648,7 +649,7 @@ async function publishNativeLeafPackage(tag: string): Promise<string[]> {
  * as-authored (platform leaves first, then the launcher package that pins them
  * via optionalDependencies). Two callers:
  *
- *   - Vendored distributions (editor/, termide/, web-ui/, main/) — not Bun
+ *   - Vendored distributions (termide/, web-ui/, main/) — not Bun
  *     workspace packages; only the legal payloads need staging before
  *     pack+publish. web-ui has no platform leaves and no `prepack` — its
  *     `.next` build is produced by the invoking CI job
@@ -683,6 +684,68 @@ async function publishAsIsNpmDirs(dirs: readonly string[]): Promise<string[]> {
 		targets.map(target => publishTargetJob(target, createKeyedMutex())),
 		1,
 	);
+}
+
+/**
+ * The `--editor` payload: the built-in editor's npm distribution — the
+ * launcher package plus the platform leaves it pins. Leaves first, then the
+ * launcher that resolves them.
+ */
+const EDITOR_NPM_DIRS = ["editor/npm/editor-windows-x64", "editor/npm/editor-linux-x64", "editor/npm/editor"];
+
+/**
+ * The executable each editor leaf must carry before it may be published. The
+ * binaries are built and committed in `termide/` before the tag (see
+ * termide/VENDOR.md's rebuild recipe); the leaves ship them as-authored.
+ */
+const EDITOR_LEAF_PAYLOADS: Readonly<Record<string, string>> = {
+	"editor/npm/editor-windows-x64": "bin/termide-editor.exe",
+	"editor/npm/editor-linux-x64": "bin/termide-editor-linux-x64",
+};
+
+/**
+ * `--editor` entry point.
+ *
+ * Two guards, deliberately different:
+ *  - a **missing directory** means this tree does not carry the payload at
+ *    all (an older branch, or a checkout from before the built-in editor took
+ *    the name over): print what is missing and publish nothing, so a
+ *    `--dry-run` and a partial checkout stay usable;
+ *  - a directory that exists but has no **executable** is a half-built
+ *    release, not a reserved one: publishing it would ship a leaf with an
+ *    empty `bin/`, so that is reported as a failed publish, with the exact
+ *    build-and-copy command.
+ */
+async function publishEditorDirs(): Promise<string[]> {
+	const missing: string[] = [];
+	const unbuilt: string[] = [];
+	for (const dir of EDITOR_NPM_DIRS) {
+		if (!(await Bun.file(path.join(repoRoot, dir, "package.json")).exists())) {
+			missing.push(dir);
+			continue;
+		}
+		const payload = EDITOR_LEAF_PAYLOADS[dir];
+		if (payload && !(await Bun.file(path.join(repoRoot, dir, payload)).exists())) {
+			unbuilt.push(`${dir}/${payload}`);
+		}
+	}
+	if (missing.length > 0) {
+		console.log(
+			`Editor payload absent (${missing.join(", ")}) — nothing to publish. The @linxiraos/editor distribution is the built-in editor's; its leaves carry the committed termide-editor binary.`,
+		);
+		return [];
+	}
+	if (unbuilt.length > 0) {
+		console.error(
+			`EDITOR PAYLOAD NOT BUILT: ${unbuilt.join(", ")}.\n` +
+				"Build and commit it before publishing: `cargo build --release --locked -p termide --bin termide-editor` " +
+				"in termide/ (the Windows asset adds `--target x86_64-pc-windows-gnu`), then copy the binary into the " +
+				"leaf's bin/ — see termide/VENDOR.md's rebuild recipe. Publishing an empty leaf would ship a broken " +
+				"@linxiraos/editor.",
+		);
+		return ["editor/npm (payload binary missing)"];
+	}
+	return publishAsIsNpmDirs(EDITOR_NPM_DIRS);
 }
 
 async function prepareNativePackage(pkg: PublishPackage): Promise<PackageManifest> {
@@ -760,11 +823,7 @@ if (import.meta.main) {
 	const failed = nativeLeafTag
 		? await publishNativeLeafPackage(nativeLeafTag)
 		: publishEditor
-			? await publishAsIsNpmDirs([
-					"editor/npm/editor-windows-x64",
-					"editor/npm/editor-linux-x64",
-					"editor/npm/editor",
-				])
+			? await publishEditorDirs()
 			: publishIde
 				? await publishAsIsNpmDirs(["termide/npm/ide-windows-x64", "termide/npm/ide-linux-x64", "termide/npm/ide"])
 				: publishMain

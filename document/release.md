@@ -102,13 +102,16 @@ stage publish` + maintainer 2FA approval) is the recommended pairing for
   plugins/official/pi-messenger`，把插件目录原样打包）发布——两个腿都在
   `ci.yml` 内，不在任何独立 workflow 里。注意 `pi-messenger` 在 npm 上停在
   1.1.1（上一次手工补发），首次随线发布是它绑定关系的第一道实战检验。
-  editor（vendored TTT）三包 `@linxiraos/editor` /
-  `@linxiraos/editor-windows-x64` / `@linxiraos/editor-linux-x64`（1.1.16 起，
-  短期仅编译 linux-x64 + win32-x64；macOS 任何版本与任何设备的 ARM 构建
-  暂停——目标系统上这类设备量很少，恢复时 revert 平台裁剪提交即可）已配置
-  并随 release tag 经 `release_editor_packages` job 发布
-  （`ci-release-publish.ts --editor`）；版本随 release 线由 `release-v2.ts`
-  Step 2f bump。
+  editor 三包 `@linxiraos/editor` / `@linxiraos/editor-windows-x64` /
+  `@linxiraos/editor-linux-x64` 经 `release_editor_packages` job
+  （`ci-release-publish.ts --editor`）随 release tag 发布，载荷是 zetawork 内置
+  编辑器的**编辑器专用入口** `termide-editor`（vendored termide；TTT／Go 载荷
+  2026-10-16 退场、包名与链路 2026-10-17 由它接手）。叶包内嵌二进制是入库产物：
+  tag 前必须 `cargo build --release --locked -p termide --bin termide-editor`
+  （Windows 侧 `--target x86_64-pc-windows-gnu`）并提交进叶包 `bin/`；
+  `ci-release-publish.ts --editor` 在叶包缺载荷时**拒绝发布**（缺整个目录时打印
+  一行并干净退出 0）。`release-v2.ts` / `set-version.ts` 的 bump 与
+  `scripts/npm-distributions.ts` 注册表都已包含该发行版。
 
    同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
    `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
@@ -273,7 +276,7 @@ conclusions first, `--log-failed` second) — one call, not a loop.
 | 4   | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致                                                                                         | `bun-install` 全 job 死 / `check-version-consistency` 报错                                     | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖）                                                                                   |
 | 5   | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0` | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建 | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链                                                                     |
 | 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                      | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
-| 7   | 手动版本 bump 漏 npm 平台叶包 / 漏叶包 pin（v1.1.16 只 bump launcher；v1.2.0 的 `editor/npm/editor` launcher 升到 1.2.0 而 `optionalDependencies` 的 `@linxiraos/editor-{windows,linux}-x64` 仍钉 1.1.28，PR #119 手工修）                | `release_editor_packages` 重发已存在版本 → npm 409，run 红；launcher 装出的却是上一版二进制（pin 落后不报错，只在用户侧炸） | 全部路径统一走 `scripts/npm-distributions.ts` 注册表：`release-v2.ts` Step 2f / `set-version.ts` Step 3b 同时改 launcher + 叶包 + pins；bump 后 `release-v2.ts` preflight 与 `bun scripts/check-version-consistency.ts` 都会校验 pins；新增发行版必须登记进注册表（未登记的 `@linxiraos/*` pin 直接判红） |
+| 7   | 手动版本 bump 漏 npm 平台叶包 / 漏叶包 pin（v1.1.16 只 bump launcher；v1.2.0 的 `editor/npm/editor` launcher 升到 1.2.0 而 `optionalDependencies` 的 `@linxiraos/editor-{windows,linux}-x64` 仍钉 1.1.28，PR #119 手工修）                | `release_editor_packages` 重发已存在版本 → npm 409，run 红；launcher 装出的却是上一版二进制（pin 落后不报错，只在用户侧炸） | 全部路径统一走 `scripts/npm-distributions.ts` 注册表：`release-v2.ts` Step 2f / `set-version.ts` Step 3b 同时改 launcher + 叶包 + pins；bump 后 `release-v2.ts` preflight 与 `bun scripts/check-version-consistency.ts` 都会校验 pins；新增发行版必须登记进注册表（未登记的 `@linxiraos/*` pin 直接判红）。**2026-10-16 追记**：`editor/npm/editor` 发行版随 TTT 载荷退场，`npm-distributions.ts` 现只剩 `main` + `termide`；本条的机制与规则不变 |
 | 8   | release worktree 重解析 lockfile vs CI frozen 安装的不对称（v1.2.0）：`release-v2.ts` 会 `rm -f bun.lock && bun install` 重解析，而每个 CI job 都是 `--frozen-lockfile`，于是类型类依赖的 caret 要到发布时才被抬版本（`@types/bun` 1.4.2 → 1.4.3 放宽 `Subprocess.signalCode`） | Step 8 `bun run check:ts` 在发布机上首次报错——CI 从未见过该版本（不是"CI 没跑类型检查"：`check` job 一直在跑，只是跑的是旧 types） | 类型依赖写死版本：catalog 里的 `@types/*` 全部精确钉版（与已精确的 `@types/bun` 一致），升级走单独 PR，让 CI 的 frozen 安装与 `check:ts` 真正看到新版本 |
 | 9   | 发布 run 被取消（v1.2.0 事故）：tag 落在**非 bump 提交**（如 release PR 的 merge 提交）上并随 main 推送 → concurrency 谓词认不出它是发布 run → 落进可取消的 `CI-refs/heads/main` 组，后续 main 推送把它取消，tag 留下但 GitHub Release / npm 未发 | 发布 run 中途变 `cancelled`；tag 在、Release 缺失或 npm 缺包 | 发布一律走 `release-v2.ts`（tag 必落在 bump 提交上，`chore: bump version to …` 主题即免取消组的判据）；**发布 run 运行期间禁止向 main 推送**；单独补 tag 用 `gh workflow run ci.yml --ref main`（dispatch 在免取消组）；**不要**给 `on.push` 加 `tags: ["v*"]`（同一 SHA 会多出 tag-ref run，重复发布） |
 | 10  | 矩阵↔`ASSETS` 脱节（v1.2.0 收尾）**——机制已退役 2026-10-14，见类别 11**：`scripts/ci-build-upload.ts` 的 `ASSETS` 表键多于 `release_binary` 真正构建的那几条腿——三条 arm64（`zeta-cli-linux-arm64`/`-linux-musl-arm64`/`-windows-arm64.exe`）有键无腿，而 arm64 目标仍在 build 脚本里（可构建、未发布） | 发布链**最后一环** `Publish to build.stencil.so` 硬失败：`error: missing release binaries: zeta-cli-linux-arm64, zeta-cli-linux-musl-arm64, zeta-cli-windows-arm64.exe`；此时 GitHub Release 与 npm 都已发出，只有 stencil 镜像缺失，run 红在 tag 之后 | ~~上传器 `ASSETS` 表与矩阵两方向硬拦~~ 随上传器一并删除；`scripts/check-release-asset-names.ts` 现只校 CLI 目标 ↔ `release_binary` 矩阵 ↔ 更新器资产名（类别 1/2 的三面） |
@@ -312,9 +315,10 @@ Can Bölük / Stencil Labs）并追加 `Copyright (c) 2026 Linxira-OS (Zeta
 modifications and additions)`；`desktop/electron-builder.yml` 的
 `copyright:` 与其保持同一主体；npm 包的 LICENSE 由 `ci-release-publish.ts`
 从根 LICENSE 注入（`legalPayloadFiles`），修改随**下个发布版本**生效——已发布
-版本不可覆盖。Vendored 上游目录（editor/TTT、uutils 组件等）自己的 LICENSE
+版本不可覆盖。Vendored 上游目录（termide、uutils 组件等）自己的 LICENSE
 文件原样保留，禁止追加或改写；我们的追加只出现在根 LICENSE 与
-THIRD-PARTY-NOTICES 汇总。
+THIRD-PARTY-NOTICES 汇总。（editor/TTT 同属此列，其目录与 LICENSE 已于
+2026-10-16 随 vendored 载荷退场。）
 
 **发布中断后的补发路径**：CI 发布链任何 job 失败后，未发布的包用
 `bun scripts/publish-missing-packages.ts`（交互式，EOTP 时浏览器授权）在本地补发核心包；
@@ -372,7 +376,9 @@ version sections, `UPDATE-LOG.md` entry) lives in
 From **1.1.19** Zeta ships as a system package in the Linxira OS mainline
 (`document/roadmap.md` § P1). **Scope: the `zeta-desktop` shell (with its
 bundled `zeta` CLI) only** — the vendored editor npm distribution
-(`@linxiraos/editor*`) stays npm-only and never becomes a system package.
+(`@linxiraos/editor*`) stays npm-only and never becomes a system package
+(it has since retired outright: TTT payload removed 2026-10-16, package name
+reserved).
 The downstream driver is
 `Linxira-OS/packages` → `packages/zetabin` — a **release-asset PKGBUILD**
 (`source=` points at the GitHub release asset, no `_commit` pin), wired into

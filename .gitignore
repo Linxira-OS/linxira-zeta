@@ -135,8 +135,3 @@ packages/coding-agent/bench/boot-baseline.json
 
 # In-repo runtime artifacts (merge scope reports etc.)
 .zeta/
-
-# editor (vendored TTT Editor) build artifacts (root-anchored: editor/npm/*/bin must stay tracked)
-/editor/bin/
-/editor/ttt
-/editor/ttt.exe

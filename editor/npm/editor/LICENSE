@@ -1,7 +1,9 @@
 MIT License
 
-Copyright (c) 2026 Eugene Yakhnenko
-Copyright (c) 2026 Linxira-OS (Zeta)
+Copyright (c) 2025-2026 Nick Nizovtsev and TermIDE contributors
+
+Copyright (c) 2026 Linxira-OS / Zeta Contributors (vendored distribution;
+see VENDOR.md for the modification-layer ledger)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

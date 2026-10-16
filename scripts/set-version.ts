@@ -269,11 +269,12 @@ async function main(): Promise<void> {
 	}
 
 	// 3b. Vendored npm distributions (editor / main / termide — published by
-	// `ci-release-publish.ts --editor/--ide` and the workbench job). Not Bun
+	// `ci-release-publish.ts --editor`/`--ide` and the workbench job). Not Bun
 	// workspaces: the launcher, its platform leaves, and the launcher's exact
 	// leaf pins all ride the release line. The 1.2.0 editor launcher was lifted
 	// to the line while its pins stayed at 1.1.28 (hand-fixed in PR #119), so
-	// the pins are part of this pass.
+	// the pins are part of this pass. The editor distribution is registered
+	// again: its payload is the built-in editor's termide-editor entry.
 	for (const dist of NPM_DISTRIBUTIONS) {
 		bumpManifest(
 			`${dist.dir}/package.json`,

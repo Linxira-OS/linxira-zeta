@@ -23,7 +23,6 @@
 |---|---|
 | Zetacode coding-agent（`packages/coding-agent`，bin zetacode 系） | 全规范 |
 | Zetawork Rust 工作台（`main/`，bin zetawork/zeta） | §2 边界 + §3 命名 |
-| Zeta editor（vendored TTT，无独立命令；平台二进制 `ttt`） | §2 边界（只读面） |
 | Zetaide（vendored termide，bin zetaide） | §2 边界（零接触面） |
 | 插件（`~/.zeta/plugins` 装载的全部扩展） | §4 契约，红线级 |
 | 仓库 `scripts/` 下的运维/统计脚本 | §2 路径地图（只读为主） |
@@ -33,9 +32,10 @@
 - **项目内 `.zeta/` 不在此规范**：`<project>/.zeta`（`getProjectAgentDir`，
   dirs.ts）是项目级配置面，由 coding-agent 的项目配置机制管辖。本文只在
   §4 涉及插件项目级状态时引用它。
-- vendored 上游（TTT、termide）**自有** XDG 配置面（`~/.config/ttt`、
-  `~/.config/termide`）不在整改范围——它们是上游产品身份；本规范只约束
-  这些产品**写入 `.zeta` 的部分**。
+- vendored 上游（termide）**自有** XDG 配置面（`~/.config/termide`）不在整改
+  范围——它是上游产品身份；本规范只约束这些产品**写入 `.zeta` 的部分**。
+  （`@linxiraos/editor` 的载荷是我们自己的编辑器专用入口，不属此类：它零接触
+  `~/.zeta`，见 §2.4。）
 - `./.zeta/merge-scope/`（仓库内开发目录，merge-scope-report.ts:63）是
   brand-rules.ts:27 明确的排除项，与配置根 `.zeta` 无关，勿混淆。
 
@@ -64,8 +64,7 @@
   `agentSubdir` + XDG 档）解析，禁止业务代码手拼
   `path.join(os.homedir(), ".zeta", ...)`。为什么：手拼路径绕过 XDG 与
   profile，等于在规范上开洞——现有反例：zeta-main settings.rs:117 直拼
-  `USERPROFILE→HOME→.`、editor handoff.go:33 自算基目录（§2.4 声明其
-  vendored 豁免与最低要求）。
+  `USERPROFILE→HOME→.`（§2.4 声明其最低要求）。
 
 ### 2.2 路径总表（现状固化）
 
@@ -79,7 +78,7 @@
 | `~/.zeta/logs/`（含 `http-400-requests/`、`.zeta.<pid>-audit.json`） | coding-agent/ai | `getLogsDir`/`getLogPath`、http-inspector.ts:93、logger.ts:257 | 在用 |
 | `~/.zeta/plugins/{package.json,zeta-plugins.lock.json,bun.lock,node_modules}` | 插件平台 | `getPlugins*`、loader.ts:101-123 | 在用（半安装态见 §5.2） |
 | `~/.zeta/plugins/{data,cache,state}/<plugin-id>/` | 插件平台 | `getPluginDataDir`/`getPluginCacheDir`/`getPluginStateDir` | **API 已落地**（dirs.ts + loader 注入；插件接入待 #44 合并） |
-| `~/.zeta/handoff.json` | 共享接缝：pi-messenger 写 / editor 读 | handoff.ts:39-45 / handoff.go:26-38 | 在用 |
+| ~~`~/.zeta/handoff.json`~~ | TTT 时代的 agent→editor 接缝 | 已删除（写方 `handoff.ts` 与读方 `handoff.go` 一起退场） | **退场 2026-10-17**（`/editor` 改走命令行位置参数） |
 | `~/.zeta/cache/{github-cache,commit-inference,judgment-cache,legacy-pi-extension-cache}.db`、`auth-broker-snapshot.enc`、`avatars/`、`fastembed{,-runtime}` | coding-agent | 对应 `get*Cache*` | 在用 |
 | `~/.zeta/{reports,ssh-control,browser-profiles,security,autoresearch}` | coding-agent | 对应 `get*Dir`（state 档） | 在用（部分未生成） |
 | `~/.zeta/{remote,remote-host,python-env,browser-relay}` | coding-agent | 对应 `get*Dir`（data 档） | 在用（未生成） |
@@ -122,13 +121,17 @@
   这是边界声明，不是缺陷。迁移注意：settings.rs 直拼 home 绕过 R4，属
   已知违规豁免点（单文件、三键），改用 dirs.ts 前至少 MUST 认
   `ZETA_CONFIG_DIR`（§3.4）。
-- **Zeta editor（Go/TTT）**：对 `.zeta` 全只读——读 `handoff.json`
-  （handoff.go:25，`ZETA_HANDOFF_PATH` 可直指）。MUST NOT
-  写 `.zeta` 任何文件；自有状态归 `~/.config/ttt/`
-  （internal/config/config.go:60-75，`TTT_CONFIG_DIR` 认领）。handoff 契约
-  （handoff.ts ↔ handoff.go 无共享代码）为**单向下发**（agent 写、editor 读；
-  editor 侧写回面与插件树 `.bin` 里的 CLI 读取已随 editor→agent
-  入口移除），双方 MUST 保持字段兼容。
+- **Zeta editor（内置编辑器载荷，`@linxiraos/editor`）**：载荷即 vendored
+  TermIDE 的编辑器专用入口 `termide-editor`（2026-10-17 接手包名；原
+  Go/TTT 载荷 2026-10-16 退场）。上下文**只经命令行**交接
+  （`FILE[:line[:col]]... [DIRECTORY]`，DIRECTORY = 项目根），因此它
+  **零接触 `.zeta`**：不读不写 `handoff.json`（该文件契约随 TTT 退场）。自有
+  状态沿用 termide 的 XDG 三件套（`~/.config|local/share|cache/termide/`，
+  `--config` 可直指；日志在项目目录的 `.termide/` 下，与 `.zeta` 无关）。
+  插件侧（`plugins/official/pi-messenger`）的 `/editor` 只做两件事：解析平台叶
+  二进制（缺失时 `npm i -g @linxiraos/editor`）并按上面的位置参数 spawn。
+  留存历史（供对账）：TTT 时代对 `.zeta` 全只读（读 `handoff.json`），其
+  `handoff.ts ↔ handoff.go` 单向下发契约随两侧载荷一起退场。
 - **Zetaide（Rust/termide）**：零接触 `.zeta`（全树 grep `ZETA_|\.zeta`
   零命中），自有 XDG 三件套 `~/.config|local/share|cache/termide/`。规范
   立场：保持零接触；若未来需与 agent 交互，走 handoff 式只读接缝，不新开
@@ -139,9 +142,10 @@
 
 ### 2.4 共享面白名单
 
-跨产品/跨进程共享件 MUST 且只能落在根部白名单内：`handoff.json`、
+跨产品/跨进程共享件 MUST 且只能落在根部白名单内：
 `plugins/`、`install-id`、`stats.db`、`logs/`、`cache/`、`wt/`、`run/`、
-`collab/`、`workbench.toml`、`workspace/`。新共享件进白名单 = 修本文 +
+`collab/`、`workbench.toml`、`workspace/`。（`handoff.json` 已于 2026-10-17
+移出白名单：editor 交接改走命令行位置参数，见 §2.4 与该行的退场记录。）新共享件进白名单 = 修本文 +
 dirs.ts 增符号，一次 PR 完成。为什么：白名单外根部条目即孤儿候选
 （§5.1 的 doctor 审计以 dirs.ts 已知集合为准）。
 
@@ -186,10 +190,9 @@ dirs.ts 增符号，一次 PR 完成。为什么：白名单外根部条目即�
 ### 3.4 统一 override env
 
 全产品统一语义：`PI_CONFIG_DIR`（TS 面已认，dirs.ts `getConfigDirName`）
-与 `ZETA_CONFIG_DIR`（本文新增裁定：全产品等价 override，pi-messenger
-handoff.ts:43 已自认此名）。新代码 MUST 只用这两个名字之一（推荐
-`ZETA_CONFIG_DIR` 做长期名），禁止自造第三个。vendored 面（zeta-main
-settings.rs、editor handoff.go）至少 MUST 认其中之一。为什么：三套
+与 `ZETA_CONFIG_DIR`（本文新增裁定：全产品等价 override）。新代码 MUST 只用
+这两个名字之一（推荐 `ZETA_CONFIG_DIR` 做长期名），禁止自造第三个。vendored
+面（zeta-main settings.rs）至少 MUST 认其中之一。为什么：三套
 override 各自为政时，测试隔离与用户搬迁都会漏面。
 
 ## 4. 插件存储契约（核心）

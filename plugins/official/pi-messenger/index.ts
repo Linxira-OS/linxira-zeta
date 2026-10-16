@@ -587,7 +587,8 @@ Usage (action-based API - preferred):
 	// Local team/crew reads + role→subagent registration: no model turn, works
 	// without any API key.
 	registerTeamAgentCommand(pi);
-	// Hand the session to the TTT editor (writes the handoff file, spawns the editor).
+	// Hand the session to the built-in editor (spawns the editor payload on the
+	// workspace, optionally at a FILE[:line[:col]] target).
 	registerEditorCommand(pi);
 	// The top-right editor switch button is gone (2026-10-01): the zeta
 	// workbench is the unified entry — tools open as panes there by click or

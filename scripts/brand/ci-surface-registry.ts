@@ -103,7 +103,7 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{
 				job: "release_product_binaries",
-				why: "bare zeta-work/zeta-ide/zeta-editor binary build/upload for distribution repackaging; release_github preflight expects zeta-work-*/zeta-ide-*/zeta-editor-* assets",
+				why: "bare zeta-work/zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-work-*/zeta-ide-* assets (the zeta-editor-* legs retired 2026-10-16 with the vendored TTT payload)",
 			},
 			{
 				job: "web_ui_build",
@@ -131,18 +131,14 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{ job: "release_npm", why: "npm publish of the zeta CLI package" },
 			{
-				job: "editor_tests",
-				why: "Zeta-only editor test bucket; v18.4.3 merge 7137261d83e silently dropped it (damage class 7 追记)",
+				job: "release_editor_packages",
+				why: "Zeta-only editor package publish — the @linxiraos/editor distribution (the built-in editor's termide-editor payload, which took the name over from the retired TTT editor on 2026-10-17); v18.4.3 merge dropped it, breaking tag-triggered publishing (damage class 7 追记)",
 			},
 			{
 				job: "termide_tests",
 				why: "Zeta-only termide test bucket; v18.4.3 merge 7137261d83e silently dropped it (damage class 7 追记)",
 			},
 			{ job: "main_tests", why: "main test bucket" },
-			{
-				job: "release_editor_packages",
-				why: "Zeta-only editor package publish; v18.4.3 merge dropped it, breaking tag-triggered publishing (damage class 7 追记)",
-			},
 			{
 				job: "release_ide_packages",
 				why: "Zeta-only ide package publish (renamed from release_work_packages in 7d588b2503b; damage class 7 追记)",
@@ -191,7 +187,7 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			{
 				job: "release_web_ui_packages",
 				needs: ["release_metadata", "release_gate"],
-				why: "release_metadata supplies is-release (the web UI must never publish from an ordinary push) and release_gate carries the release-state prerequisite — `check`'s guard steps gate publishing. Same shape as release_editor_packages / release_main_packages / release_ide_packages; no build-artifact edge is needed because the tarball's `.next` is produced inside the job",
+				why: "release_metadata supplies is-release (the web UI must never publish from an ordinary push) and release_gate carries the release-state prerequisite — `check`'s guard steps gate publishing. Same shape as release_main_packages / release_ide_packages; no build-artifact edge is needed because the tarball's `.next` is produced inside the job",
 			},
 			{
 				job: "release_plugin_packages",
@@ -247,6 +243,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 	},
 	{
 		file: ".github/workflows/editor-publish.yml",
+		// Kept as a file and as this requirement: npm binds a trusted publisher
+		// to the workflow FILE that runs the publish, so the editor leg must
+		// keep its own dispatchable entry point (ci.yml's
+		// release_editor_packages dispatches it and waits).
 		requiresAll: [
 			{
 				job: "publish",
@@ -272,7 +272,7 @@ export const CI_SURFACE: WorkflowSurface[] = [
 		requiresAll: [
 			{
 				job: "publish",
-				why: "manual main-branch package publish path; must survive every merge like its editor/ide siblings (damage class 7)",
+				why: "manual main-branch package publish path; must survive every merge like its ide sibling (damage class 7)",
 			},
 		],
 		needsEdges: [],

@@ -25,7 +25,7 @@ interface ProductBinaryTarget {
 	kind: "product";
 	/** Release asset name — hyphenated product + platform, no extra suffix. */
 	id: string;
-	product: "work" | "ide" | "editor";
+	product: "work" | "ide";
 	platform: "linux" | "win32";
 }
 
@@ -111,11 +111,10 @@ const targets: ReleaseTarget[] = [
 		target: "bun-windows-arm64",
 		outfile: "packages/coding-agent/binaries/zeta-cli-windows-arm64.exe",
 	},
-	// Bare product binaries. work/ide are Cargo workspace builds (toolchain
+	// Bare product binaries. Both are Cargo workspace builds (toolchain
 	// pinned by each workspace's rust-toolchain.toml, 1.91.1 — the same pin
-	// the main_tests/termide_tests jobs compile under); editor is the vendored
-	// TTT Go module. win32 assets cross-build on the Linux runner: cargo via
-	// the GNU target, editor via GOOS=windows.
+	// the main_tests/termide_tests jobs compile under). The win32 asset
+	// cross-builds on the Linux runner: cargo via the GNU target.
 	{
 		kind: "product",
 		id: "zeta-work-linux-x64",
@@ -134,25 +133,10 @@ const targets: ReleaseTarget[] = [
 		product: "ide",
 		platform: "linux",
 	},
-	{
-		kind: "product",
-		id: "zeta-editor-linux-x64",
-		product: "editor",
-		platform: "linux",
-	},
-	{
-		kind: "product",
-		id: "zeta-editor-win-x64",
-		product: "editor",
-		platform: "win32",
-	},
 ];
 
 /** Cargo workspace roots per Rust product: package to build, produced bin. */
-const CARGO_PRODUCTS: Record<
-	Exclude<ProductBinaryTarget["product"], "editor">,
-	{ dir: string; pkg: string; bin: string }
-> = {
+const CARGO_PRODUCTS: Record<ProductBinaryTarget["product"], { dir: string; pkg: string; bin: string }> = {
 	work: { dir: "main", pkg: "zeta-main", bin: "zeta" },
 	ide: { dir: "termide", pkg: "termide", bin: "termide" },
 };
@@ -228,7 +212,7 @@ async function buildCliBinary(target: CliBinaryTarget): Promise<void> {
 	}
 }
 
-async function buildCargoProduct(target: ProductBinaryTarget & { product: "work" | "ide" }): Promise<void> {
+async function buildCargoProduct(target: ProductBinaryTarget): Promise<void> {
 	const product = CARGO_PRODUCTS[target.product];
 	const workspaceDir = path.join(repoRoot, product.dir);
 	// Windows assets cross-compile from the Linux runner with the GNU
@@ -260,46 +244,9 @@ async function buildCargoProduct(target: ProductBinaryTarget & { product: "work"
 	await fs.copyFile(builtBin, path.join(binariesDir, target.id + (target.platform === "win32" ? ".exe" : "")));
 }
 
-async function buildGoProduct(target: ProductBinaryTarget): Promise<void> {
-	if (isDryRun) {
-		console.log(`DRY RUN go build ./cmd/ttt -> ${target.id}`);
-		return;
-	}
-	// PE assets carry the .exe suffix (same convention as the cargo win
-	// build); the id itself stays the bare asset name.
-	const artifactName = target.platform === "win32" ? `${target.id}.exe` : target.id;
-	const outArtifact = path.join(binariesDir, artifactName);
-	const env: NodeJS.ProcessEnv = {
-		...Bun.env,
-		// Pin the arch so an arm64 release host cannot silently emit the wrong
-		// asset; the win32 asset is a first-class GOOS cross build.
-		GOARCH: "amd64",
-		GOOS: target.platform === "win32" ? "windows" : (Bun.env.GOOS ?? "linux"),
-	};
-	// Stamp the release version the committed npm leaf binaries carry
-	// (`ttt <version>` via --version); builds without the env stay at the
-	// source default.
-	const ldflags = ["-s", "-w"];
-	if (Bun.env.RELEASE_PRODUCT_VERSION) {
-		ldflags.push(`-X main.version=${Bun.env.RELEASE_PRODUCT_VERSION}`);
-	}
-	await runCommand(
-		["go", "build", `-ldflags=${ldflags.join(" ")}`, "-o", outArtifact, "./cmd/ttt"],
-		path.join(repoRoot, "editor"),
-		env,
-	);
-}
-
 async function buildProductBinary(target: ProductBinaryTarget): Promise<void> {
 	console.log(`Building ${target.id}...`);
-	if (target.product === "editor") {
-		await buildGoProduct(target);
-		return;
-	}
-	// The dispatch above excluded "editor"; the remaining products are the
-	// two Cargo workspaces.
-	const cargoTarget: ProductBinaryTarget & { product: "work" | "ide" } = { ...target, product: target.product };
-	await buildCargoProduct(cargoTarget);
+	await buildCargoProduct(target);
 }
 
 async function generateBundle(): Promise<void> {

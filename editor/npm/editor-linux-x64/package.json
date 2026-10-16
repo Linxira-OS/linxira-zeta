@@ -1,7 +1,7 @@
 {
   "name": "@linxiraos/editor-linux-x64",
   "version": "1.2.1",
-  "description": "TTT Editor (vendored by Zeta) binary for linux/x64",
+  "description": "Zeta's built-in terminal editor (editor payload binary) for linux/x64",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,6 +22,6 @@
     "LICENSE"
   ],
   "scripts": {
-    "postinstall": "node -e \"if(process.platform!=='win32'){try{require('fs').chmodSync(require('path').join('bin','ttt-linux-x64'),0o755)}catch(e){}}\""
+    "postinstall": "node -e \"if(process.platform!=='win32'){try{require('fs').chmodSync(require('path').join('bin','termide-editor-linux-x64'),0o755)}catch(e){}}\""
   }
 }

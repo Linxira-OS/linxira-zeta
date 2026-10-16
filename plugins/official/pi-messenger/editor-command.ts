@@ -1,36 +1,29 @@
 /**
- * /editor — hand the current session to the TTT editor.
+ * `/editor` — hand the current session to the editor.
  *
- * The agent CLI and the editor are two processes over the same work. Without
- * an explicit handoff the user loses three things on every switch: the
- * directory, the repository root, and the session the conversation lives in.
- * This command writes the handoff file and spawns the editor binary, which
- * reads it on startup and re-opens exactly that context.
+ * The agent CLI and the editor are two processes over the same workspace, so
+ * the switch has to carry the context the user was in: where they were, and
+ * what they were looking at. It carries it the way any other editor does —
+ * on the command line, as the editor's own positional protocol:
+ *
+ *   termide-editor FILE[:line[:col]]... [DIRECTORY]
+ *
+ * The workspace directory goes last as the directory positional, which the
+ * editor takes as its project root (LSP, git and config resolve there), and
+ * the requested target (if any) goes first, so the cursor lands on the line
+ * the user asked for. Nothing is written to `~/.zeta` — the previous
+ * `handoff.json` contract existed because the editor of the day could not be
+ * told anything else; the built-in editor's positional protocol replaces it.
  *
  * The editor is spawned detached: the CLI stays alive so returning is just
  * another switch, and a crashed editor never takes the session with it.
  */
 
-import { cfgEditorAutoInstall, cfgEditorHandoffSession } from "@linxiraos/zeta/session/settings";
+import { cfgEditorAutoInstall } from "@linxiraos/zeta/session/settings";
 import * as cp from "node:child_process";
-import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@linxiraos/zeta";
 import { ensureEditorBinary } from "./editor-binary.ts";
-import { writeHandoff } from "./handoff.ts";
-
-/** Best-effort repository root for a directory; empty when not inside one. */
-function detectGitRoot(dir: string): string {
-	try {
-		const result = cp.spawnSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
-			encoding: "utf8",
-			timeout: 3000,
-		});
-		if (result.status === 0) return result.stdout.trim();
-	} catch {
-		// git missing or not a repo — the editor discovers the root itself.
-	}
-	return "";
-}
+import { editorArgs } from "./editor-target.ts";
 
 /**
  * Register /editor. Safe to call on every extension load: the runtime
@@ -38,44 +31,41 @@ function detectGitRoot(dir: string): string {
  */
 export function registerEditorCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("editor", {
-		description: "Open the TTT editor on the current workspace (hands off cwd, repo and session)",
-		handler: async (_args: string, ctx: ExtensionCommandContext) => {
-			await switchToEditor(ctx);
+		description: "Open the built-in editor on this workspace, optionally at FILE[:line[:col]]",
+		handler: async (args: string, ctx: ExtensionCommandContext) => {
+			await switchToEditor(ctx, args);
 		},
 	});
 }
 
 /**
- * Perform the switch: write the handoff and spawn the editor. Shared by the
- * /editor command and the header button so both honour the same settings and
- * report the same way.
+ * Perform the switch: resolve the editor and spawn it on the workspace.
+ * Shared by the /editor command and the header button so both honour the
+ * same settings and report the same way.
  */
-export async function switchToEditor(ctx: ExtensionCommandContext): Promise<void> {
+export async function switchToEditor(ctx: ExtensionCommandContext, args = ""): Promise<void> {
 	const cwd = ctx.cwd;
-	const handoffSession = ctx.settings ? cfgEditorHandoffSession.get(ctx.settings) : true;
-	const sessionFile = handoffSession ? (ctx.sessionManager?.getSessionFile?.() ?? undefined) : undefined;
-	const handoff = await writeHandoff({
-		cwd,
-		gitRoot: detectGitRoot(cwd),
-		sessionFile,
-		from: "zeta",
-	});
-
 	const autoInstall = ctx.settings ? cfgEditorAutoInstall.get(ctx.settings) : true;
 	const resolved = ensureEditorBinary(autoInstall === true);
 	if (!resolved.binary) {
 		ctx.ui?.notify?.(resolved.error ?? "The editor is unavailable.", "error");
 		return;
 	}
-	// The editor reads the handoff on startup; cwd is passed positionally so a
-	// binary older than handoff support still opens the right directory.
-	const child = cp.spawn(resolved.binary, [cwd], { detached: true, stdio: "ignore", cwd });
+
+	const argv = editorArgs(args, cwd);
+	// Detached so the CLI survives the switch and a crashed editor cannot take
+	// the session with it. On Windows a detached child gets its own console,
+	// which is where the editor then runs; the editor discovers everything else
+	// it needs from the argv above (the workspace directory is the last entry).
+	const child = cp.spawn(resolved.binary, argv, { detached: true, stdio: "ignore", cwd });
 	child.unref();
 
-	const parts = [`Opened the editor on ${cwd}`];
-	if (sessionFile) parts.push(`session ${path.basename(sessionFile)}`);
-	if (resolved.note) parts.push(resolved.note);
-	ctx.ui?.notify?.(`${parts.join(" — ")}.`, "info");
+	// `argv` is the resolved targets followed by the project root; the first
+	// entries are what the user asked to open, the last is always cwd.
+	const targets = argv.slice(0, -1);
+	const opened =
+		targets.length > 0 ? `Opened the editor at ${targets.join(", ")}` : `Opened the editor on ${cwd}`;
+	ctx.ui?.notify?.(resolved.note ? `${opened} — ${resolved.note}.` : `${opened}.`, "info");
 }
 
 /** Entry point for the header button (no slash-command arguments). */

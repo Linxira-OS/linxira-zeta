@@ -1,9 +1,15 @@
 name: Publish editor packages
-# Standalone dispatchable entry for the vendored editor npm distribution
-# (@linxiraos/editor + platform leaves). Exists so a missed or skipped
-# editor publish on a release run can be republished without re-tagging:
+# Standalone dispatchable entry for the editor npm distribution
+# (@linxiraos/editor + platform leaves). Exists so a missed or skipped editor
+# publish on a release run can be republished without re-tagging:
 # `gh workflow run editor-publish.yml`. The release pipeline runs the same
 # step in release_editor_packages; keep both in sync.
+#
+# The payload is Zeta's built-in editor — the editor-only entry of the vendored
+# TermIDE workspace (`termide/src/bin/termide-editor.rs`), built and committed
+# into the platform leaves before the tag (termide/VENDOR.md's rebuild recipe),
+# and packed as-authored by `scripts/ci-release-publish.ts --editor`. It took
+# the name over from the retired vendored TTT editor on 2026-10-17.
 
 on:
    workflow_dispatch:

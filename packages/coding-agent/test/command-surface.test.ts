@@ -31,9 +31,11 @@ const PRODUCT_BINS: ReadonlyArray<{ file: string; bins: readonly string[] }> = [
 	// bare `zeta` prints the suite index (see main/crates/zeta-main/src/main.rs).
 	{ file: "main/npm/main/package.json", bins: ["zeta", "zetawork"] },
 	{ file: "termide/npm/ide/package.json", bins: ["zetaide"] },
-	// The editor ships platform binaries only: its editor is a built-in pane,
-	// so the package declares no command at all.
-	{ file: "editor/npm/editor/package.json", bins: [] },
+	// The reserved editor distribution (`@linxiraos/editor`) is deliberately
+	// absent: the vendored TTT payload was removed 2026-10-16, so there is no
+	// launcher manifest to assert against until the zetawork built-in editor's
+	// payload returns (it declared no command either way — the editor is a
+	// built-in pane, not a bin).
 ];
 
 /** Every `zeta*` bin key any package in this repository may declare. */

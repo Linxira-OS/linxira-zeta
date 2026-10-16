@@ -40,7 +40,7 @@
  *               before — `packages/stats/test` (bun test) and
  *               `plugins/official/pi-messenger/tests` (**vitest**, outside the
  *               bun workspace, so it gets its own `npm install` + `npx vitest
- *               run`, the same shape the vendored editor job uses).
+ *               run`, a standalone-vitest shape no workspace bucket hosts).
  *
  * Usage:
  *   bun run merge-gate                      # everything

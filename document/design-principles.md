@@ -35,18 +35,23 @@ Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运
 | Zetacode 编码 CLI | `@linxiraos/zeta`（`packages/coding-agent`，仓库主包） | `zetacode` | 编码 agent CLI + `zetacode serve` 网关 + IM 渠道；`APP_NAME`("zeta") 仍是产品身份（配置根/日志名/归因头/splash） |
 | Zetaide | `@linxiraos/ide`（termide） | `zetaide` | 终端 IDE |
 
-编辑器不再是命令：`@linxiraos/editor`（vendored TTT）只按路径分发平台二进制，
-供工作台内置编辑器面板与插件面调用；它原有的独立命令名已随本批删除。
+编辑器不是命令：`@linxiraos/editor` 是**工作台内置编辑器的载荷包**，按路径解析
+（工作台与插件面调用），**无 `bin`**。载荷即 vendored TermIDE 的 `panel-editor`，
+编为编辑器专用入口 `termide-editor`（`termide/src/bin/termide-editor.rs`，只起编辑器
+面板、`$EDITOR` 语义、位置参数 `FILE[:line[:col]]`），2026-10-17 接手该包名与发布链
+（原 vendored TTT／Go 载荷已于 2026-10-16 随 vendored 目录退场）。
 
 **命名裁定（2026-10-15，取代 2026-09-30 的别名口径）**：对外只有三条命令
 （zetawork / zetacode / zetaide），一律**无连字符**；**连字符兼容名全部删除**
 （任何包的 `bin` 字段都不再有别名），用户可见文案、`CLI_BIN_NAME`、提示串、
 示例一律写标准名；`zeta code` 这类带空格写法不是 bin，任何文案不得出现。
-发布资产名（`zeta-cli-*`/`zeta-work-*`/`zeta-ide-*`/`zeta-editor-*`）与
-文件/垫片名语境不变，机械 sweep 的正则须排除 `[\w.-]` 后缀。
+发布资产名（`zeta-cli-*`/`zeta-work-*`/`zeta-ide-*`；`zeta-editor-*` 随
+vendored 载荷于 2026-10-16 退场，包载荷入口 `termide-editor` 只是叶包内的文件
+名，不是任何安装创建的 bin）与文件/垫片名语境不变，机械 sweep 的正则须
+排除 `[\w.-]` 后缀。
 
-两个 IDE（ttt 与 termide）并存观察，不二选一。壳坚定 Rust（真 PTY 窗格；
-参照系 fresh：绘制时登记命中区，渲染几何即命中几何）。
+终端 IDE 只剩 termide（ttt 已随 vendored 目录退场，不再"两个并存观察"）。壳
+坚定 Rust（真 PTY 窗格；参照系 fresh：绘制时登记命中区，渲染几何即命中几何）。
 
 **bin 命名教义**（本批次 spec §13.4，红线级）：
 
@@ -74,7 +79,7 @@ Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运
 ## 2. 品牌教义
 
 **来源：`AGENTS.md`（Zeta Brand Surface Registry / OMP Release Sync Policy）、
-本批次 spec §12（D12）、`roadmap.md`（P2 TTT About）。**
+本批次 spec §12（D12）。**
 
 - **ζ 品牌**：CLI 终端标题字符 `ζ`（title-generator）、`icon.omp` unicode 预设用
   `ζ`；welcome/splash 的字符画由标准 FIGlet 工具生成（mark = `Ζ` 的 ASCII 形
@@ -101,8 +106,7 @@ Zeta 是 OMP（oh-my-pi，github.com/can1357/oh-my-pi）的下游发行版：运
   为什么：兼容代码不是免费的，每行都是认知税；但协议依赖与品牌残留是两
   回事，删错了是把功能当垃圾。
 - **法律署名保留**：THIRD_PARTY_NOTICES 的署名行不可删；vendored 上游组件
-  （如 TTT，MIT）保留 upstream attribution 行，旁加 Zeta 发行身份
-  （`Zeta Editor · v<zeta 版本> · TTT <上游版本>`）。
+  （如 termide，MIT）保留 upstream attribution 行，旁加 Zeta 发行身份。
   为什么：署名是 fork 的合规义务，也是 fork 存在的诚实记录。
 - **守卫机制**：机械规则进 `scripts/brand/brand-rules.ts`，
   `bun scripts/brand/brand-check.ts` 进 CI check job；散文文档只留判断。

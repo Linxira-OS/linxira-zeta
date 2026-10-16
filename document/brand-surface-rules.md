@@ -28,10 +28,17 @@ any package:
 | **`zetacode`** | coding-agent CLI | `@linxiraos/zeta`, bin `zetacode` (no aliases), every "run this command" string, `--help` usage, process titles |
 | **`zetaide`** | terminal IDE | `@linxiraos/ide`, bin `zetaide` (no aliases) |
 
-The editor is no longer a command: `@linxiraos/editor` ships the vendored TTT
-binary only, resolved by path (workbench/plugin surface). Release-asset **file
-names** (`zeta-cli-*`, `zeta-work-*`, `zeta-ide-*`, `zeta-editor-*`) are
-untouched by this registry.
+The editor is still not a command: `@linxiraos/editor` is the payload package
+of the zetawork built-in editor (the vendored TermIDE `panel-editor`, built as
+the editor-only entry `termide-editor`), resolved by path from the workbench
+and plugin surface — it ships **no `bin`** and adds no name to this table. Its
+platform leaves carry the executable; consumers spawn it with the editor's own
+`FILE[:line[:col]]` positional protocol. (The vendored TTT binary it carried
+until 2026-10-16 is what retired, not the package name.) Release-asset **file
+names** (`zeta-cli-*`, `zeta-work-*`, `zeta-ide-*`) are untouched by this
+registry (the `zeta-editor-*` asset name retired with that payload; the
+bundle's own entry point is `termide-editor`, a payload file inside the
+leaves, not a command any install creates).
 
 The deciding question is *"is the user being told to run something, or is the
 product naming itself?"* Command → the canonical bin (`zetawork` / `zetacode` /

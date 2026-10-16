@@ -473,6 +473,23 @@ impl App {
         }
     }
 
+    /// Open one empty editor panel, with no file attached yet.
+    ///
+    /// The editor-only entry point (`src/bin/termide-editor.rs`) uses this
+    /// when it was handed no file at all — a bare `termide-editor`, or a
+    /// launch that named only a directory: "start editing here" then means a
+    /// buffer to type into rather than an empty screen. The panel's SaveAs
+    /// starts in the project root, which is where the process was started
+    /// (or the directory positional moved it to).
+    pub fn open_new_editor(&mut self) -> Result<()> {
+        use termide_panel_editor::Editor;
+
+        let mut config = self.state.editor_config();
+        config.initial_directory = Some(self.project_root.clone());
+        self.add_panel(Box::new(Editor::with_config(config)));
+        Ok(())
+    }
+
     /// Log same-section conflicts and bindings that need Kitty
     /// keyboard protocol on terminals that don't advertise it.
     fn log_keybinding_warnings(config: &Config, caps: termide_keyboard::KeyboardCaps) {
