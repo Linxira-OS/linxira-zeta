@@ -64,6 +64,27 @@ env:
    # the runner environment to move the store.
    NATIVES_X64_TARGETS: natives-linux-x64-baseline natives-linux-x64-modern
 
+   # ── 国内镜像层（只在这份 Gitea 镜像里；GitHub 侧一律不动）────────────────
+   # 只影响**下载传输**面：`Cargo.lock` / `MODULE.bazel.lock` 的校验和仍逐包
+   # 校验，镜像只是从别处取同样的字节。分两类消费方式：
+   #   ① 工具直接读进程环境（npm / bun registry、electron、rustup dist）：必须是
+   #      字面 URL；
+   #   ② shell `run:` 步骤消费（node tarball、GitHub 代理前缀、cargo 索引）：这里
+   #      只放默认值，use 点写 `${VAR:-<同一默认>}`。
+   # 换镜像 = 改这里一行（回退官方源同理）；② 也可由 host 环境覆盖。
+   # 严禁写成只在内网可解析的地址：镜像不可达时要么回退官方源，要么直接红在
+   # 下载步骤上，而不是静默半跑。
+   npm_config_registry: https://registry.npmmirror.com
+   BUN_CONFIG_REGISTRY: https://registry.npmmirror.com
+   ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+   RUSTUP_DIST_SERVER: https://mirrors.ustc.edu.cn/rust-static
+   RUSTUP_UPDATE_ROOT: https://mirrors.ustc.edu.cn/rust-static/rustup
+   # ② 的默认值（use 点带同样的 `:-` 缺省）：
+   LOCAL_CI_MIRROR_NODE: https://npmmirror.com/mirrors/node/
+   LOCAL_CI_CARGO_MIRROR: https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/
+   # GitHub release 下载物的代理前缀；留空 = 直连（bazelisk 等下载自动走它）。
+   LOCAL_CI_MIRROR_GH: ""
+
 jobs:
    # ── 0. 触发面护栏 ─────────────────────────────────────────────────────────
    preflight:
@@ -177,8 +198,20 @@ jobs:
               export RUSTUP_HOME="$TOOLS/rustup"
               export CARGO_HOME="$TOOLS/cargo"
               export PATH="$TOOLS/bin:$RUSTUP_HOME/bin:$CARGO_HOME/bin:$PATH"
-              export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+              export RUSTUP_DIST_SERVER="${RUSTUP_DIST_SERVER:-https://mirrors.ustc.edu.cn/rust-static}"
+              export RUSTUP_UPDATE_ROOT="${RUSTUP_UPDATE_ROOT:-https://mirrors.ustc.edu.cn/rust-static/rustup}"
               export CARGO_NET_RETRY=10
+
+              # cargo 索引/下载走国内镜像（同样只影响传输：Cargo.lock 的校验和逐包
+              # 校验）。config.toml 写在**镜像自己的持久 CARGO_HOME** 里——绝不写进
+              # 仓库根，否则会顺带改掉 GitHub 侧的解析行为。
+              mkdir -p "$CARGO_HOME"
+              {
+                 echo '[source.crates-io]'
+                 echo 'replace-with = "mirror"'
+                 echo '[source.mirror]'
+                 echo "registry = \"sparse+${LOCAL_CI_CARGO_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/}\""
+              } > "$CARGO_HOME/config.toml"
 
               # The runner's egress to GitHub/nodejs.org/go.dev resets mid-transfer
               # (observed: curl exit 56 "SSL unexpected eof"), and plain `--retry`
@@ -228,6 +261,9 @@ jobs:
                    ;;
               esac
               if [ "${ok:-false}" != true ]; then
+                 # bun.sh 不是 GitHub，MIRROR_GH 前缀管不到它；而且它的 installer
+                 # 内部自己拼 GitHub release URL。镜像不可达时用发行版包管理器把 bun
+                 # 预装进 $TOOLS，别改这里的 URL 去赌一个不存在的镜像。
                  fetch https://bun.sh/install "$TOOLS/bun-install.sh"
                  # The installer takes the release tag as its first positional
                  # argument when run from the downloaded file. `-s --` belongs to
@@ -261,7 +297,7 @@ jobs:
 
               # bazelisk —— .bazelversion 钉版本，交给 bazelisk 自己解析。
               if ! command -v bazelisk >/dev/null 2>&1; then
-                 fetch "https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64" \
+                 fetch "${LOCAL_CI_MIRROR_GH:-}https://github.com/bazelbuild/bazelisk/releases/download/v1.27.0/bazelisk-linux-amd64" \
                    "$TOOLS/bin/bazelisk"
                  chmod +x "$TOOLS/bin/bazelisk"
               fi
@@ -274,7 +310,7 @@ jobs:
 
               # node —— web-ui 用（GitHub 侧 22/24）。
               if ! command -v node >/dev/null 2>&1; then
-                 fetch https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz /tmp/node.tar.xz
+                 fetch "${LOCAL_CI_MIRROR_NODE:-https://npmmirror.com/mirrors/node/}v22.14.0/node-v22.14.0-linux-x64.tar.xz" /tmp/node.tar.xz
                  mkdir -p "$TOOLS/node"
                  tar -xJf /tmp/node.tar.xz -C "$TOOLS/node" --strip-components=1
               fi
@@ -644,11 +680,19 @@ jobs:
               mkdir -p "$HOME/.cache/omp-bazel-disk" "$HOME/.cache/omp-bazel-repo"
               find "$HOME/.cache/omp-bazel-disk" -type f -mtime +14 -delete 2>/dev/null || true
               rc="$RUNNER_TEMP/bazel-cache.rc"
+              mkdir -p "$HOME/.cache/omp-bazel-distdir"
               {
                  echo "common --config=ci"
                  echo "common --disk_cache=$HOME/.cache/omp-bazel-disk"
                  echo "common --repository_cache=$HOME/.cache/omp-bazel-repo"
+                 # 持久 distdir：BCR/GitHub 的 archive 拉过一次就完全离线复跑（首次
+                 # 预热 = 正常跑一次 rust_validate / native_addons，其后不再依赖
+                 # GitHub）。这是本地最不稳的一环，distdir 是它的兜底。
+                 echo "common --distdir=$HOME/.cache/omp-bazel-distdir"
               } > "$rc"
+              # 服务器侧若有 BCR 镜像：导出 BAZEL_REGISTRY 即被采用；不设就不加这一
+              # 行——文件不假设任何镜像存在，靠上面的 distdir 兜底。
+              if [ -n "${BAZEL_REGISTRY:-}" ]; then echo "common --registry=$BAZEL_REGISTRY" >> "$rc"; fi
               echo "rc=$rc" >> "$GITHUB_OUTPUT"
          - name: Build linux-x64 native addons
            shell: bash
@@ -1219,11 +1263,19 @@ jobs:
               set -euo pipefail
               mkdir -p "$HOME/.cache/omp-bazel-disk" "$HOME/.cache/omp-bazel-repo"
               rc="$RUNNER_TEMP/bazel-cache.rc"
+              mkdir -p "$HOME/.cache/omp-bazel-distdir"
               {
                  echo "common --config=ci"
                  echo "common --disk_cache=$HOME/.cache/omp-bazel-disk"
                  echo "common --repository_cache=$HOME/.cache/omp-bazel-repo"
+                 # 持久 distdir：BCR/GitHub 的 archive 拉过一次就完全离线复跑（首次
+                 # 预热 = 正常跑一次 rust_validate / native_addons，其后不再依赖
+                 # GitHub）。这是本地最不稳的一环，distdir 是它的兜底。
+                 echo "common --distdir=$HOME/.cache/omp-bazel-distdir"
               } > "$rc"
+              # 服务器侧若有 BCR 镜像：导出 BAZEL_REGISTRY 即被采用；不设就不加这一
+              # 行——文件不假设任何镜像存在，靠上面的 distdir 兜底。
+              if [ -n "${BAZEL_REGISTRY:-}" ]; then echo "common --registry=$BAZEL_REGISTRY" >> "$rc"; fi
               echo "rc=$rc" >> "$GITHUB_OUTPUT"
          - name: Rust tests
            shell: bash

@@ -229,6 +229,13 @@ jobs:
            run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
+         # The Gitea mirror is the one workflow a merge can silently desync:
+         # `.gitea/workflows/local-ci.yml` must keep the same command entry
+         # points as its ci.yml counterpart. Running it here is what keeps the
+         # mirror honest on the GitHub side too (the local-ci `check` job runs
+         # the same guard); the mirror itself never runs GitHub workflows.
+         - name: Check the Gitea mirror parity
+           run: bun scripts/check-local-ci-parity.ts
          # i18n: the catalogue is three files that must stay key-equal (messages
          # interface == en == zh, no blank zh value) — `packages/coding-agent/
          # src/i18n/messages.test.ts` asserts the same property, but it lives
