@@ -201,7 +201,7 @@ describe("read group tool node", () => {
 			table,
 			fence,
 		]);
-		expect(collect(collapsed.c, n => role(n) === "omp.tool.stats")).toHaveLength(0);
+		expect(collect(collapsed.c, n => role(n) === "zeta.tool.stats")).toHaveLength(0);
 
 		group.setExpanded(true);
 		expect(

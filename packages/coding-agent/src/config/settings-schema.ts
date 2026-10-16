@@ -501,31 +501,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"providers.openai-codex.codeMode": {
-		type: "enum",
-		values: ["off", "on", "auto"] as const,
-		default: "off",
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Codex Code Mode",
-			description:
-				"Route Codex code_mode_only models (GPT-5.6) through eval. The direct tools are eval, ask, todo, yield, think, checkpoint, and rewind. Use eval cells for other session tools. Mirrors codex-rs Code Mode. 'auto' follows the model catalog flag.",
-		},
-	},
-
-	"providers.openai-codex.codeModeDirectTools": {
-		type: "array",
-		default: EMPTY_STRING_ARRAY,
-		ui: {
-			tab: "providers",
-			group: "Services",
-			label: "Codex Code Mode Direct Tools",
-			description:
-				"Extra direct tools for Codex Code Mode. The standard direct tools are eval, ask, todo, yield, think, checkpoint, and rewind.",
-		},
-	},
-
 	disabledExtensions: { type: "array", default: EMPTY_STRING_ARRAY },
 
 	modelRoleStorage: {

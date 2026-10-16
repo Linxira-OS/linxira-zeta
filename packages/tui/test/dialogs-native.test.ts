@@ -258,7 +258,7 @@ describe("dialogs under a native surface", () => {
 			expect(denied.onDeny).toHaveBeenCalledTimes(1);
 			const pointed = { onApprove: vi.fn(), onDeny: vi.fn() };
 			const clicked = new ApprovalDialogComponent(prompt, pointed);
-			const approve = find(clicked.describe(), node => node.p?.role === "omp.btn" && node.key === "approve");
+			const approve = find(clicked.describe(), node => node.p?.role === "zeta.btn" && node.key === "approve");
 			clicked.handleNativeEvent({ type: "action", key: approve!.path, act: "approve", mods: [] });
 			expect(pointed.onApprove).toHaveBeenCalledTimes(1);
 		} finally {
@@ -318,7 +318,7 @@ describe("dialogs under a native surface", () => {
 		expect(body(new ApprovalDialogComponent(`Allow tool: bash\n${command}`, callbacks))).not.toContain("rm-rf~");
 		const wrapped = new ApprovalDialogComponent(`Allow tool: bash\n${command}`, callbacks, { wrapDetails: true });
 		expect(body(wrapped)).toContain("rm-rf~");
-		const row = find(wrapped.describe(), node => node.p?.role === "omp.approval.details")?.node.c?.[0];
+		const row = find(wrapped.describe(), node => node.p?.role === "zeta.approval.details")?.node.c?.[0];
 		expect((row as NativeNode).p).not.toHaveProperty("truncate");
 	});
 
@@ -339,8 +339,8 @@ describe("dialogs under a native surface", () => {
 		});
 		try {
 			expect(harness.errors).toEqual([]);
-			const root = harness.region("dock")!.c?.find(node => node.p?.role === "omp.editor.ask.approval");
-			const details = root?.c?.find(node => node.p?.role === "omp.approval.details");
+			const root = harness.region("dock")!.c?.find(node => node.p?.role === "zeta.editor.ask.approval");
+			const details = root?.c?.find(node => node.p?.role === "zeta.approval.details");
 			expect(details?.c?.map(node => node.p)).toEqual([
 				expect.objectContaining({ text: "Path: /tmp/out.txt", truncate: "end" }),
 			]);

@@ -68,10 +68,7 @@ import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
 import { cfgHindsightBankId, cfgHindsightScoping } from "@linxiraos/zeta/hindsight/settings";
 import { cfgEditMode } from "@linxiraos/zeta/edit/settings";
 import { cfgExaEnabled } from "@linxiraos/zeta/web/settings";
-import {
-	cfgCompactionMethodOrder,
-	cfgSnapcompactSystemPrompt,
-} from "@linxiraos/zeta/session/context-settings";
+import { cfgCompactionMethodOrder, cfgSnapcompactSystemPrompt } from "@linxiraos/zeta/session/context-settings";
 import { cfgModelRoles, cfgDisabledProviders, cfgEnabledModels } from "@linxiraos/zeta/config/model-settings";
 import { cfgShellPath } from "@linxiraos/zeta/exec/settings";
 

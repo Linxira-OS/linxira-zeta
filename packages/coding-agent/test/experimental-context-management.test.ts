@@ -9,11 +9,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
 import { CONTEXT_NOTES_ENTRY_TYPE, getContextNotes } from "@linxiraos/zeta/session/context-notes";
-import {
-	createCustomMessage,
-	convertToLlm,
-	SKILL_PROMPT_MESSAGE_TYPE,
-} from "@linxiraos/zeta/session/messages";
+import { createCustomMessage, convertToLlm, SKILL_PROMPT_MESSAGE_TYPE } from "@linxiraos/zeta/session/messages";
 import type { CompactionEntry } from "@linxiraos/zeta/session/session-entries";
 import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";

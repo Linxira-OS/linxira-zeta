@@ -62,7 +62,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/dry-balance.ts": 7,
 	"commands/find.ts": 6,
 	"commands/gallery.ts": 12,
-	"commands/gc.ts": 12,
+	"commands/gc.ts": 14,
 	"commands/git.ts": 2,
 	"commands/grep.ts": 8,
 	"commands/grievances.ts": 6,

@@ -662,7 +662,7 @@ export class BtwHistoryPanel implements Component, Focusable {
 		if (running) buttons.push(actionButton("Stop answer", "stop", { keys: hides ? "x" : "escape" }));
 		if (record && getBtwCopyText(record) !== undefined) {
 			buttons.push(actionButton(copied ? "Copy again" : "Copy answer", "copy-answer", { keys: "c" }));
-			if (copied) buttons.push(text([span("✓ Copied", "success")], { role: "omp.btw.copied" }));
+			if (copied) buttons.push(text([span("✓ Copied", "success")], { role: "zeta.btw.copied" }));
 		}
 		buttons.push(null);
 		// Clicking Close always dismisses the sheet; its tooltip names Esc only where Esc does too.
