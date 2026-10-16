@@ -205,8 +205,10 @@ two-parent tag merge.
   `Test web/desktop contracts`, `Test editor (vendored TTT)`, `Test termide (vendored TermIDE)`,
   `Install method smoke tests`, `Web UI build`, `Resolve release metadata`. So the native-addon build this
   machine cannot run (no bazel) is validated, and CI's own freshness job independently confirms the
-  `MODULE.bazel.lock` conclusion. Four jobs were red; every one was reproduced locally and three were real
-  merge damage, fixed on the branch:
+  `MODULE.bazel.lock` conclusion. Four jobs were red. Two of them carried four real, merge-caused
+  failures — `Test coding-agent UI/TUI (TS)` one, `Test coding-agent native/unit (TS) 1/1` three — each
+  reproduced locally and fixed on the branch; the other two (`Test TS workspace fast`,
+  `Validate Rust workspace (bazel)`) turned out to be flakes, see below:
   1. **zh settings (real, merge-caused)** — upstream's new `lsp.requestTimeout` had no zh label,
      description or option texts: `src/config/settings-zh.test.ts` reported 9 of 2,255 user-visible strings
      missing, and `test/i18n-settings-localization.test.ts` stopped at
@@ -251,8 +253,10 @@ two-parent tag merge.
   green set covering every native job (`Build native addons (bazel)`, cross
   targets, `Check MODULE.bazel.lock freshness`, `Test TS native/integration packages`),
   `Validate Rust workspace (bazel)`, `Test TS workspace fast`, `Lint, type check & web build`,
-  `Test CLI smoke (TS)`, all four coding-agent/workspace/desktop test jobs that were green before, both
-  vendored trees and `Resolve release metadata`. Every one of the first run's real causes is gone: the
+  `Test CLI smoke (TS)`, `Test coding-agent runtime/session (TS)`,
+  `Test coding-agent singleton/global-state (TS)`, `Test main workspace (zeta workbench)`,
+  `Test web/desktop contracts`, both vendored trees (editor, termide), `Install method smoke tests`,
+  `Web UI build` and `Resolve release metadata`. Every one of the first run's real causes is gone: the
   `packages/utils` ratio job is green (so that red *was* a flake, now confirmed by the same-head re-run),
   and the two coding-agent buckets no longer list `settings-zh`, `i18n-settings-localization`,
   `i18n-cli-help-surface`, `i18n-message-references` or the three `prelude-agent` cases. The two jobs
