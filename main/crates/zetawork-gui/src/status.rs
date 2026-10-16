@@ -1,0 +1,167 @@
+//! 状态词表: the seven run states, copied word for word from the contract.
+//!
+//! `temp/zetawork-ui-mock/mock-override.js` (the user's spoken contract) fixes
+//! the vocabulary and its priority order — the mock's own comment says the
+//! seven are copied from Orca — and `mock-common.js`'s `ST` / `DOTE` tables fix
+//! the machine keys and the glyphs:
+//!
+//! | # | key | glyph | word | meaning |
+//! |---|---|---|---|---|
+//! | 1 | `perm` | `◐` | `permission` | 在等你批准（最高优先级，盖过其它） |
+//! | 2 | `fail` | `✕` | `failed` | 失败 |
+//! | 3 | `work` | `●` | `working` | 正在干 |
+//! | 4 | `mon` | `◇` | `monitoring` | 后台值守（等外部信号 / 定时任务） |
+//! | 5 | `unc` | `◔` | `unconfirmed` | 说自己干完了，但没验证 —— 不等于 done |
+//! | 6 | `int` | `‖` | `interrupted` | 中途被打断 |
+//! | 7 | `done` | `✓` | `done` | 完成且已确认 |
+//!
+//! Every surface that shows a state — the left column's workspace row, the
+//! 总面板's 状态 column, and any card that reports progress — reads it from
+//! here, so the wording and the colour can only be changed in one place.
+//!
+//! # Colour
+//!
+//! Five of the seven have a colour of their own in the mock's stylesheet
+//! (`.d-work` / `.d-perm` / `.d-fail` / `.d-mon` / `.d-done`, plus `.d-idle`).
+//! `unconfirmed` and `interrupted` have no `.d-*` rule, so they take the two
+//! neutral inks instead of a new colour being invented — see
+//! [`RunState::ink`].
+
+use egui::Color32;
+
+use crate::theme;
+
+/// One of the seven run states. Earlier variants are *higher* priority, which
+/// is the order the contract's table lists them in (and what
+/// [`RunState::outranks`] compares); the derive order is deliberately not used
+/// for that, so the logic stays readable.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RunState {
+	/// `◐ permission` — 在等你批准. Highest priority: it overrides everything.
+	Perm,
+	/// `✕ failed` — 失败.
+	Fail,
+	/// `● working` — 正在干. The state a freshly created workspace starts in.
+	#[default]
+	Work,
+	/// `◇ monitoring` — 后台值守（等外部信号 / 定时任务）.
+	Mon,
+	/// `◔ unconfirmed` — 说自己干完了，但没验证. **Not** `done`.
+	Unc,
+	/// `‖ interrupted` — 中途被打断.
+	Int,
+	/// `✓ done` — 完成且已确认.
+	Done,
+}
+
+impl RunState {
+	/// The seven, in the contract's priority order (highest first).
+	pub const ALL: [Self; 7] =
+		[Self::Perm, Self::Fail, Self::Work, Self::Mon, Self::Unc, Self::Int, Self::Done];
+
+	/// The glyph the mock's `DOTE` table pairs with this state.
+	pub fn glyph(self) -> &'static str {
+		match self {
+			Self::Perm => "◐",
+			Self::Fail => "✕",
+			Self::Work => "●",
+			Self::Mon => "◇",
+			Self::Unc => "◔",
+			Self::Int => "‖",
+			Self::Done => "✓",
+		}
+	}
+
+	/// The word the contract spells, in English, as the mock's `ST` table does.
+	pub fn word(self) -> &'static str {
+		match self {
+			Self::Perm => "permission",
+			Self::Fail => "failed",
+			Self::Work => "working",
+			Self::Mon => "monitoring",
+			Self::Unc => "unconfirmed",
+			Self::Int => "interrupted",
+			Self::Done => "done",
+		}
+	}
+
+	/// What the state means, word for word from the contract's table.
+	pub fn meaning(self) -> &'static str {
+		match self {
+			Self::Perm => "在等你批准（最高优先级，盖过其它）",
+			Self::Fail => "失败",
+			Self::Work => "正在干",
+			Self::Mon => "后台值守（等外部信号 / 定时任务）",
+			Self::Unc => "说自己干完了，但没验证 —— 不等于 done",
+			Self::Int => "中途被打断",
+			Self::Done => "完成且已确认",
+		}
+	}
+
+	/// `1` (highest) … `7` (lowest), the contract's table order.
+	pub fn priority(self) -> u8 {
+		match self {
+			Self::Perm => 1,
+			Self::Fail => 2,
+			Self::Work => 3,
+			Self::Mon => 4,
+			Self::Unc => 5,
+			Self::Int => 6,
+			Self::Done => 7,
+		}
+	}
+
+	/// The mock's key: what a `data-dot` / `.d-*` class was named after.
+	pub fn key(self) -> &'static str {
+		match self {
+			Self::Perm => "perm",
+			Self::Fail => "fail",
+			Self::Work => "work",
+			Self::Mon => "mon",
+			Self::Unc => "unc",
+			Self::Int => "int",
+			Self::Done => "done",
+		}
+	}
+
+	/// The ink the dot and the word are drawn in.
+	///
+	/// Five come straight from the mock's dot rules; the two that have none
+	/// (`◔ unconfirmed` and `‖ interrupted`) take the neutral inks: `unconfirmed`
+	/// stays legible because it is a *trust* signal — the agent claims it is
+	/// finished and it is not verified — while `interrupted` recedes one step.
+	pub fn ink(self) -> Color32 {
+		match self {
+			Self::Perm => theme::WARN,
+			Self::Fail => theme::DEL,
+			Self::Work => theme::ADD,
+			Self::Mon => theme::PURPLE,
+			Self::Unc => theme::TEXT_2,
+			Self::Int => theme::TEXT_3,
+			Self::Done => theme::ACCENT,
+		}
+	}
+
+	/// `◐ permission` — the glyph and the word, as the mock's rows show them.
+	pub fn label(self) -> String {
+		format!("{} {}", self.glyph(), self.word())
+	}
+
+	/// Does this state outrank `other`? The higher-priority state is what a
+	/// roll-up shows: a project with one `permission` workspace and four `done`
+	/// ones is waiting for an approval, not finished.
+	pub fn outranks(self, other: Self) -> bool {
+		self.priority() < other.priority()
+	}
+
+	/// The highest-priority state of a group; `None` for an empty group.
+	pub fn highest(states: impl IntoIterator<Item = Self>) -> Option<Self> {
+		let mut best: Option<Self> = None;
+		for state in states {
+			if best.is_none_or(|current| state.outranks(current)) {
+				best = Some(state);
+			}
+		}
+		best
+	}
+}

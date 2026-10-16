@@ -419,21 +419,67 @@ fn the_editor_page_opens_and_saves_a_real_file() {
 }
 
 #[test]
-fn the_right_column_has_four_tabs_and_six_settings_sections() {
+fn the_right_column_has_four_tabs_and_seven_settings_sections() {
 	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 4);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
 		["文件树", "历史 · Agent 对话", "Git 状态", "上下文用量"]
 	);
-	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 6);
+	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are the
+	// one section the design drafts do not have, and the six they fix keep
+	// their own order behind it.
+	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 7);
 	assert_eq!(
 		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
-		["外观", "编辑器", "终端", "快捷键", "管理", "关于"]
+		["常规", "外观", "编辑器", "终端", "快捷键", "管理", "关于"]
 	);
+	assert_eq!(zetawork_gui::settings::Section::ALL[0], zetawork_gui::settings::Section::General);
+	assert_eq!(zetawork_gui::settings::Section::General.key(), "general");
 	// The left column keeps 手机版's slot but does not draw it (R20).
 	assert_eq!(zetawork_gui::state::NavItem::ALL.len(), 4);
 	assert_eq!(zetawork_gui::state::NavItem::visible().count(), 3);
 	assert!(zetawork_gui::state::NavItem::Mobile.hidden());
+}
+
+#[test]
+fn the_total_panel_is_the_first_big_tab_and_what_opens() {
+	use zetawork_gui::state::{CenterPage, MAX_SUBS_PER_PANE};
+
+	assert_eq!(CenterPage::Total.label(), "总面板");
+	assert_eq!(CenterPage::Workspace.label(), "", "a workspace tab carries its own name");
+	assert_eq!(MAX_SUBS_PER_PANE, 8, "子页上限 8, from the contract");
+
+	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	assert_eq!(state.center_page, CenterPage::Total, "the strip's first tab is what opens");
+
+	// 总面板 is a page, not a workspace: switching to it leaves the open
+	// workspace alone, and clicking a workspace row (or its left-column row)
+	// goes back to the pane grid.
+	let ws = state
+		.active_workspace()
+		.map(|w| w.id.clone())
+		.expect("a seeded workspace");
+	state.show_total();
+	assert_eq!(state.center_page, CenterPage::Total);
+	assert_eq!(state.active_workspace.as_deref(), Some(ws.as_str()));
+	let notice = state.select_workspace(&ws);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	assert_eq!(state.center_page, CenterPage::Workspace);
+
+	// Every seeded workspace carries one of the contract's seven states, and
+	// the sample projects do not all read the same word.
+	let states: Vec<_> = state
+		.projects
+		.iter()
+		.flat_map(|p| p.workspaces.iter())
+		.map(|w| w.run_state)
+		.collect();
+	assert!(
+		states
+			.iter()
+			.all(|state| zetawork_gui::status::RunState::ALL.contains(state))
+	);
+	assert!(states.iter().any(|state| *state != states[0]), "the 状态 column is not degenerate");
 }
 
 #[test]

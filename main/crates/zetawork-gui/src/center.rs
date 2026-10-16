@@ -18,7 +18,7 @@ use crate::blit::{BufferCache, GridMetrics, paint_buffer_with, paint_cursor};
 use crate::git::DiffKind;
 use crate::icons::{Icon, icon_button, paint};
 use crate::seed;
-use crate::state::{EditorDoc, Pane, PickerTarget, SessionKind, SessionTab};
+use crate::state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab, ViewMode};
 use crate::theme;
 use crate::widgets::{Chip, chip, empty_note, truncated_mono, truncated_text};
 
@@ -26,10 +26,13 @@ use crate::widgets::{Chip, chip, empty_note, truncated_mono, truncated_text};
 pub fn workspace(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	let open = shell.state.active_workspace().is_some();
+	// 总面板 is a page, not a workspace: it has no panes, so the tool strip
+	// (新建终端 / 分屏 / 列数) would control nothing while it is on screen.
+	let panes_open = open && shell.state.center_page == CenterPage::Workspace;
 	let topbar = Rect::from_min_size(rect.min, vec2(rect.width(), theme::TOPBAR_H));
 	let toolstrip = Rect::from_min_size(
 		pos2(rect.min.x, topbar.max.y),
-		vec2(rect.width(), if open { theme::TOOLSTRIP_H } else { 0.0 }),
+		vec2(rect.width(), if panes_open { theme::TOOLSTRIP_H } else { 0.0 }),
 	);
 	let body = Rect::from_min_max(pos2(rect.min.x, toolstrip.max.y), rect.max);
 	for (region, draw) in [
@@ -55,11 +58,43 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 		Stroke::new(1.0, theme::BORDER),
 	);
 	let mut x = rect.min.x + 8.0;
+	// 总面板 is the strip's **first** 大标签页 (the contract's ruling). It is
+	// always there and never closable — it is a page, not a workspace — and the
+	// mock draws its label in `--purple` when it is not the active tab.
+	{
+		let label = CenterPage::Total.label();
+		let text_width = (display_cols(label) as f32 * 7.4).min(150.0);
+		let width = text_width + 24.0;
+		let tab = Rect::from_min_max(
+			pos2(x, rect.min.y + theme::TOPBAR_H - 32.0 - 1.0),
+			pos2(x + width, rect.max.y),
+		);
+		let is_active = shell.state.center_page == CenterPage::Total;
+		let response = ui.interact(tab, ui.id().with("bigtab-total"), Sense::click());
+		tab_face(ui, tab, is_active, response.hovered());
+		truncated_text(
+			ui,
+			pos2(tab.min.x + 12.0, tab.center().y),
+			label,
+			12.0,
+			if is_active {
+				theme::TEXT
+			} else {
+				theme::PURPLE
+			},
+			text_width,
+		);
+		if response.clicked() {
+			shell.state.show_total();
+		}
+		x += width + 2.0;
+	}
 	let active = shell.state.active_workspace.as_deref().map(str::to_owned);
 	let project = shell.state.active_project().cloned();
 	if let Some(project) = project {
 		for workspace in &project.workspaces {
-			let is_active = active.as_deref() == Some(workspace.id.as_str());
+			let is_active = shell.state.center_page == CenterPage::Workspace
+				&& active.as_deref() == Some(workspace.id.as_str());
 			let text_width = (display_cols(&workspace.name) as f32 * 7.4).min(150.0);
 			let width = text_width + 40.0;
 			let tab = Rect::from_min_max(
@@ -71,25 +106,7 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 			let response = ui.interact(tab, ui.id().with(("bigtab", &workspace.id)), Sense::click());
 			let close_response =
 				ui.interact(close, ui.id().with(("bigtab-close", &workspace.id)), Sense::click());
-			if is_active {
-				ui.painter().rect_filled(
-					Rect::from_min_max(tab.min, pos2(tab.max.x, tab.max.y)),
-					CornerRadius { nw: theme::R_PANEL, ne: theme::R_PANEL, sw: 0, se: 0 },
-					theme::GROUND,
-				);
-				ui.painter().rect_stroke(
-					Rect::from_min_max(tab.min, pos2(tab.max.x, tab.min.y + 32.0)),
-					CornerRadius { nw: theme::R_PANEL, ne: theme::R_PANEL, sw: 0, se: 0 },
-					Stroke::new(1.0, theme::BORDER),
-					egui::StrokeKind::Inside,
-				);
-			} else if response.hovered() {
-				ui.painter().rect_filled(
-					Rect::from_min_max(tab.min, pos2(tab.max.x, tab.max.y)),
-					CornerRadius { nw: theme::R_PANEL, ne: theme::R_PANEL, sw: 0, se: 0 },
-					theme::PANEL_3,
-				);
-			}
+			tab_face(ui, tab, is_active, response.hovered());
 			truncated_text(
 				ui,
 				pos2(tab.min.x + 12.0, tab.center().y),
@@ -129,6 +146,108 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 		// the new 大标签页 opens with.
 		shell.open_picker(PickerTarget::BigTab, plus_rect);
 	}
+	// The caps, spelled the way the contract's strip spells them.
+	let count = shell
+		.state
+		.active_project()
+		.map(|p| p.workspaces.len())
+		.unwrap_or(0);
+	let caps = format!(
+		"大标签页 {count}/{} · 子页上限 {}",
+		crate::state::MAX_WORKSPACES_PER_PROJECT,
+		crate::state::MAX_SUBS_PER_PANE
+	);
+	let caps_x = plus_rect.max.x + 8.0;
+	let switch_x = rect.max.x - 8.0 - VIEW_SWITCH_W;
+	if caps_x + 150.0 < switch_x {
+		truncated_text(ui, pos2(caps_x, rect.center().y), &caps, 11.0, theme::TEXT_3, 140.0);
+	}
+	view_switch(
+		ui,
+		shell,
+		Rect::from_min_max(pos2(switch_x, rect.min.y), pos2(rect.max.x - 8.0, rect.max.y)),
+	);
+}
+
+/// The face of one 大标签页: the active one is filled with the ground colour
+/// and outlined on its top and sides (`.bigtab.is-active`); a hovered one is
+/// filled with `--panel-3` (`.bigtab:hover`). Shared by 总面板's tab and the
+/// workspace tabs so the two cannot drift apart.
+fn tab_face(ui: &Ui, tab: Rect, is_active: bool, hovered: bool) {
+	let radius = CornerRadius { nw: theme::R_PANEL, ne: theme::R_PANEL, sw: 0, se: 0 };
+	if is_active {
+		ui.painter().rect_filled(
+			Rect::from_min_max(tab.min, pos2(tab.max.x, tab.max.y)),
+			radius,
+			theme::GROUND,
+		);
+		ui.painter().rect_stroke(
+			Rect::from_min_max(tab.min, pos2(tab.max.x, tab.min.y + 32.0)),
+			radius,
+			Stroke::new(1.0, theme::BORDER),
+			egui::StrokeKind::Inside,
+		);
+	} else if hovered {
+		ui.painter().rect_filled(
+			Rect::from_min_max(tab.min, pos2(tab.max.x, tab.max.y)),
+			radius,
+			theme::PANEL_3,
+		);
+	}
+}
+
+/// The width `视图 GUI/TUI` needs, reserved at the strip's right end.
+const VIEW_SWITCH_W: f32 = 116.0;
+
+/// `视图 GUI / TUI` — the spec's `.viewswitch`, at the end of the centre's top
+/// bar.
+///
+/// The information-surface draft puts it in `.ws-topbar`, on the same row as
+/// the 大标签页 strip, and *not* in the window's title bar: it switches what the
+/// centre draws, so it belongs to the centre.
+fn view_switch(ui: &mut Ui, shell: &mut Shell, rect: Rect) {
+	let mut child = ui.new_child(
+		egui::UiBuilder::new()
+			.max_rect(rect)
+			.layout(Layout::left_to_right(Align::Center)),
+	);
+	let ui = &mut child;
+	let frame = egui::Frame::new()
+		.fill(theme::PANEL_3)
+		.stroke(Stroke::new(1.0, theme::BORDER))
+		.corner_radius(CornerRadius::same(6))
+		.inner_margin(egui::Margin::same(2));
+	frame.show(ui, |ui| {
+		ui.horizontal(|ui| {
+			ui.spacing_mut().item_spacing.x = 2.0;
+			ui.label(egui::RichText::new("视图").size(11.0).color(theme::TEXT_3));
+			for (mode, label) in [(ViewMode::Gui, "GUI"), (ViewMode::Tui, "TUI")] {
+				let active = shell.state.view == mode;
+				let ink = if active { theme::TEXT } else { theme::TEXT_3 };
+				let (rect, response) = ui.allocate_exact_size(vec2(38.0, 24.0), Sense::click());
+				let fill = if active {
+					theme::PANEL_4
+				} else if response.hovered() {
+					theme::PANEL_4.gamma_multiply(0.6)
+				} else {
+					Color32::TRANSPARENT
+				};
+				if fill != Color32::TRANSPARENT {
+					ui.painter().rect_filled(rect, CornerRadius::same(4), fill);
+				}
+				ui.painter().text(
+					rect.center(),
+					egui::Align2::CENTER_CENTER,
+					label,
+					egui::FontId::new(12.0, egui::FontFamily::Monospace),
+					ink,
+				);
+				if response.clicked() {
+					shell.state.set_view(mode);
+				}
+			}
+		});
+	});
 }
 
 /// `.ws-toolstrip` — 新建终端 / 分屏 / 列数.
@@ -244,6 +363,12 @@ fn body_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter()
 		.rect_filled(rect, CornerRadius::ZERO, theme::GROUND);
+	// The strip's first 大标签页 owns the whole body when it is selected: 总面板
+	// is a page of its own (every project in one table), not a pane layout.
+	if shell.state.center_page == CenterPage::Total {
+		crate::total::page(ui, shell);
+		return;
+	}
 	if shell.state.active_workspace().is_none() {
 		welcome(ui, shell);
 		return;
@@ -957,7 +1082,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 	ui.painter().text(
 		pos2(centre.x, mark.max.y + 46.0),
 		egui::Align2::CENTER_CENTER,
-		"在左侧选择一个项目或工作区开始",
+		"从侧边栏中选择一个工作区开始",
 		egui::FontId::new(13.0, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
@@ -977,17 +1102,24 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 			.max_rect(Rect::from_center_size(pos2(centre.x + 80.0, cta_y), vec2(140.0, 34.0)))
 			.layout(Layout::left_to_right(Align::Center)),
 	);
-	if wide_button(&mut new_btn, Icon::Folder, "打开工作区", true).clicked() {
-		if let Some(id) = shell
-			.state
-			.active_project()
-			.and_then(|p| p.workspaces.first())
-			.map(|w| w.id.clone())
-		{
-			shell.state.act(|s| s.select_workspace(&id));
+	// 创建工作区 is the draft's label for this button, and creating a workspace in
+	// the active project is exactly what it can really do. `active_project` on
+	// the state is the project's **id**, which is what `new_workspace` takes.
+	if wide_button(&mut new_btn, Icon::Plus, "创建工作区", true).clicked() {
+		match shell.state.active_project.clone() {
+			Some(project) => {
+				shell.state.act(|s| s.new_workspace(&project));
+			},
+			None => {
+				shell.state.show(crate::state::Notice(
+					"创建工作区：先添加一个项目（项目注册表尚未接入）".to_owned(),
+				));
+			},
 		}
 	}
-	let shortcuts = [("创建工作区", "⌘ N"), ("打开项目", "⌘ O"), ("切换大标签页", "⌃ Tab")];
+	// The three shortcuts the build really binds; the draft's own list names
+	// macOS keys and two moves this shell does not have.
+	let shortcuts = [("创建大标签页", "Ctrl N"), ("拆分面板", "Ctrl \\"), ("打开设置", "Ctrl ,")];
 	let mut y = cta_y + 44.0;
 	for (label, keys) in shortcuts {
 		ui.painter().text(

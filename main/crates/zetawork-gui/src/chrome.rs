@@ -14,14 +14,10 @@ use egui::{
 
 use crate::Shell;
 use crate::icons::{Icon, paint};
-use crate::state::{AppState, ViewMode};
 use crate::theme;
 
 /// Height of the window-control buttons; the width is Windows-like.
 const CONTROL_W: f32 = 44.0;
-
-/// Width reserved for the 视图 GUI/TUI switch, left of the controls.
-const SWITCH_W: f32 = 116.0;
 
 /// Draw the title bar. Call from a `TopBottomPanel::top` of
 /// [`theme::TITLE_BAR_H`].
@@ -44,24 +40,14 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 		toggle_maximize(ui);
 	}
 
-	// Right: window controls, then the view switch to their left.
+	// Right: the window controls. 视图 GUI/TUI is *not* here — it switches what
+	// the centre draws, so it lives at the end of the centre's 大标签页 strip
+	// (`center::big_tabs`), where the information-surface draft puts it.
 	ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(6.0, 0.0))), |ui| {
 		ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
 			window_controls(ui, shell);
 		});
 	});
-	// The switch gets an explicit rect instead of riding the right-to-left
-	// group: its children then lay out in reading order.
-	let controls_w = CONTROL_W * 3.0;
-	let switch_right = rect.max.x - 6.0 - controls_w - 8.0;
-	let switch_rect =
-		Rect::from_min_max(pos2(switch_right - SWITCH_W, rect.min.y), pos2(switch_right, rect.max.y));
-	let mut switch_ui = ui.new_child(
-		egui::UiBuilder::new()
-			.max_rect(switch_rect)
-			.layout(Layout::left_to_right(Align::Center)),
-	);
-	view_switch(&mut switch_ui, &mut shell.state);
 
 	// Left: brand, presence, current workspace/branch.
 	ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(10.0, 0.0))), |ui| {
@@ -129,54 +115,19 @@ fn lerp(from: Color32, to: Color32, t: f32) -> Color32 {
 	Color32::from_rgb(mix(from.r(), to.r()), mix(from.g(), to.g()), mix(from.b(), to.b()))
 }
 
-/// 视图 GUI / TUI — moved out of the top-right corner, where the window
-/// controls live.
-fn view_switch(ui: &mut Ui, state: &mut AppState) {
-	let frame = egui::Frame::new()
-		.fill(theme::PANEL_3)
-		.stroke(Stroke::new(1.0, theme::BORDER))
-		.corner_radius(CornerRadius::same(6))
-		.inner_margin(egui::Margin::same(2));
-	frame.show(ui, |ui| {
-		ui.horizontal(|ui| {
-			ui.spacing_mut().item_spacing.x = 2.0;
-			ui.label(egui::RichText::new("视图").size(11.0).color(theme::TEXT_3));
-			for (mode, label) in [(ViewMode::Gui, "GUI"), (ViewMode::Tui, "TUI")] {
-				let active = state.view == mode;
-				let ink = if active { theme::TEXT } else { theme::TEXT_3 };
-				let (rect, response) = ui.allocate_exact_size(vec2(38.0, 24.0), Sense::click());
-				let fill = if active {
-					theme::PANEL_4
-				} else if response.hovered() {
-					theme::PANEL_4.gamma_multiply(0.6)
-				} else {
-					Color32::TRANSPARENT
-				};
-				if fill != Color32::TRANSPARENT {
-					ui.painter().rect_filled(rect, CornerRadius::same(4), fill);
-				}
-				ui.painter().text(
-					rect.center(),
-					egui::Align2::CENTER_CENTER,
-					label,
-					egui::FontId::new(12.0, egui::FontFamily::Monospace),
-					ink,
-				);
-				if response.clicked() {
-					state.set_view(mode);
-				}
-			}
-		});
-	});
-}
-
 /// 最小化 / 最大化(还原) / 关闭.
+///
+/// 视图 GUI/TUI is not here: it switches what the *centre* draws, so it lives
+/// at the end of the centre's 大标签页 strip (`center::big_tabs`), which is where
+/// the information-surface draft puts it.
 fn window_controls(ui: &mut Ui, shell: &mut Shell) {
 	let maximized = ui.ctx().input(|i| i.viewport().maximized.unwrap_or(false));
 	let height = ui.available_height().max(theme::TITLE_BAR_H);
 	let close = chrome_button(ui, Icon::X, "关闭", true, height);
 	if close.clicked() {
-		ui.ctx().send_viewport_cmd(ViewportCommand::Close);
+		// 关闭窗口时 decides: 最小化到后台 / 退出应用 / 每次询问. The title bar has
+		// no policy of its own — see `crate::lifecycle::request_close`.
+		crate::lifecycle::request_close(ui.ctx(), shell);
 	}
 	let maximize_icon = if maximized {
 		Icon::Restore
@@ -196,7 +147,6 @@ fn window_controls(ui: &mut Ui, shell: &mut Shell) {
 	if minimize.clicked() {
 		ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
 	}
-	let _ = shell;
 }
 
 fn toggle_maximize(ui: &Ui) {

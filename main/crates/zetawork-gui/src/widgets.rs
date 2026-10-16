@@ -5,10 +5,28 @@
 //! spec's stylesheet spells it once, instead of repeating the geometry in every
 //! panel.
 
-use egui::{Align2, Color32, CornerRadius, FontId, Rect, Response, Sense, Stroke, Ui, pos2, vec2};
+use egui::{
+	Align2, Color32, CornerRadius, FontId, Pos2, Rect, Response, Sense, Stroke, Ui, pos2, vec2,
+};
 
 use crate::icons::{Icon, paint};
+use crate::status::RunState;
 use crate::theme;
+
+/// The 状态词表's dot: a 7 pt disc in the state's own ink.
+///
+/// The colour and the glyph both come from [`RunState`], so the left column's
+/// workspace rows and the 总面板's 状态 column cannot drift apart — which is the
+/// whole reason this is here rather than painted twice.
+pub fn status_dot(ui: &Ui, centre: Pos2, state: RunState) {
+	ui.painter().circle_filled(centre, 3.5, state.ink());
+}
+
+/// The 状态词表's word at a vertical centre, in the state's ink, clipped to
+/// `available`.
+pub fn status_word(ui: &Ui, at: Pos2, state: RunState, size: f32, available: f32) {
+	truncated_text(ui, at, state.word(), size, state.ink(), available);
+}
 
 /// Which `.chip` variant to draw.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -17,7 +17,9 @@ use crate::icons::icon_button;
 use crate::seed;
 use crate::state::{NavItem, Project, Workspace};
 use crate::theme;
-use crate::widgets::{foot_button, nav_row, truncated_mono, truncated_text};
+use crate::widgets::{
+	foot_button, nav_row, status_dot, status_word, truncated_mono, truncated_text,
+};
 
 /// Width of the open column (`--side-left-w`).
 pub const WIDTH: f32 = 248.0;
@@ -248,14 +250,30 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
 	}
 	let chip_width = 24.0 + crate::center::display_cols(&workspace.branch) as f32 * 6.2;
-	let name_available = rect.width() - 30.0 - chip_width - 8.0;
+	// The run state's word takes its place between the name and the branch
+	// chip, and the dot in front of the name carries its colour: the contract's
+	// 状态词表 is only useful if the word is readable, not just the glyph. The
+	// tooltip spells the state's meaning out, which the word alone cannot.
+	let state = workspace.run_state;
+	let word = state.word();
+	let word_width = crate::center::display_cols(word) as f32 * 6.2 + 8.0;
+	let name_available = rect.width() - 30.0 - chip_width - word_width - 8.0;
+	let response = response.on_hover_text(format!("{} — {}", state.label(), state.meaning()));
+	status_dot(ui, pos2(rect.min.x + 13.0, rect.center().y), state);
 	truncated_text(
 		ui,
-		pos2(rect.min.x + 22.0, rect.center().y),
+		pos2(rect.min.x + 24.0, rect.center().y),
 		&workspace.name,
 		13.0,
 		if active { theme::TEXT } else { theme::TEXT_2 },
 		name_available.max(24.0),
+	);
+	status_word(
+		ui,
+		pos2(rect.max.x - 12.0 - chip_width - word_width, rect.center().y),
+		state,
+		11.0,
+		word_width - 4.0,
 	);
 	let chip_rect = Rect::from_min_size(
 		pos2(rect.max.x - 8.0 - chip_width, rect.center().y - 9.0),

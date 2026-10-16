@@ -19,6 +19,7 @@ use std::path::Path;
 use crate::blit;
 use crate::git;
 use crate::state::{Pane, Project, SessionKind, SessionTab, Workspace};
+use crate::status::RunState;
 
 /// The line under the 项目 section head, so the sample entries are never
 /// mistaken for the user's own projects.
@@ -56,6 +57,8 @@ pub fn local_project(cwd: &Path) -> Project {
 		path: cwd.display().to_string(),
 		cols: 2,
 		panes: Vec::new(),
+		// The directory the shell was started in is the one being worked in.
+		run_state: RunState::Work,
 	};
 	workspace.panes = default_panes("ws-local");
 	Project { id: "p-local".to_owned(), name: LOCAL_PROJECT.to_owned(), workspaces: vec![workspace] }
@@ -63,12 +66,25 @@ pub fn local_project(cwd: &Path) -> Project {
 
 /// The spec's three sample projects, verbatim.
 pub fn sample_projects() -> Vec<Project> {
-	/// One sample project: id, name, and its workspaces as (name, branch).
-	type SampleProject = (&'static str, &'static str, &'static [(&'static str, &'static str)]);
+	/// One sample project: id, name, and its workspaces as
+	/// (name, branch, run state).
+	///
+	/// The states come from the contract's 状态词表 and are spread across the
+	/// seven on purpose: a 总面板 whose 状态 column reads the same word on every
+	/// row would not show that the column works. The pairings are the ones the
+	/// older mock's cards use (`工作区 1-1` working, `项目 3-1` done, …), plus the
+	/// ones the contract's priority order makes interesting — `permission`
+	/// outranks everything, `unconfirmed` is *not* `done`.
+	type SampleProject =
+		(&'static str, &'static str, &'static [(&'static str, &'static str, RunState)]);
 	let sample: [SampleProject; 3] = [
-		("p1", "项目 1", &[("工作区 1-1", "main"), ("工作区 1-2", "main")]),
-		("p2", "项目 2", &[("工作区 2-1", "dev")]),
-		("p3", "项目 3", &[("工作区 3-1", "main")]),
+		(
+			"p1",
+			"项目 1",
+			&[("工作区 1-1", "main", RunState::Perm), ("工作区 1-2", "main", RunState::Unc)],
+		),
+		("p2", "项目 2", &[("工作区 2-1", "dev", RunState::Mon)]),
+		("p3", "项目 3", &[("工作区 3-1", "main", RunState::Done)]),
 	];
 	sample
 		.into_iter()
@@ -78,7 +94,7 @@ pub fn sample_projects() -> Vec<Project> {
 			workspaces: workspaces
 				.iter()
 				.enumerate()
-				.map(|(index, (workspace, branch))| {
+				.map(|(index, (workspace, branch, run_state))| {
 					let ws_id = format!("{id}-w{index}");
 					Workspace {
 						name: (*workspace).to_owned(),
@@ -87,6 +103,7 @@ pub fn sample_projects() -> Vec<Project> {
 						cols: 2,
 						panes: default_panes(&ws_id),
 						id: ws_id,
+						run_state: *run_state,
 					}
 				})
 				.collect(),

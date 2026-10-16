@@ -1,9 +1,38 @@
 //! The spec's design tokens, and the egui `Style` derived from them.
 //!
-//! Every colour here is copied from the `:root` block of
-//! `temp/zetawork-ui-mock/spec-v22-tui-workspace.html`, so a token rename in
-//! the spec is a one-line change in this file. The shell never hard-codes a
-//! colour anywhere else.
+//! Every colour here is copied from the `:root` block the two design drafts
+//! share — `spec-v22-opendesign.html` (the GUI/information-surface draft, the
+//! same bytes as `Downloads/index.html`) and `spec-v22-tui-workspace.html` (the
+//! workspace-organising draft, the same bytes as `Downloads/workspace-v2.html`)
+//! declare an identical `:root`, so a token rename in either is a one-line
+//! change in this file. The shell never hard-codes a colour anywhere else.
+//!
+//! # The other palette, and why only one value is taken from it
+//!
+//! `mock.css` — the older `desktop.html` family's stylesheet, **not linked by
+//! either draft** — declares a second set. Its names and values are recorded
+//! here as the mapping, so a ruling in its favour is a mechanical edit:
+//!
+//! | this file (drafts' `:root`) | `mock.css :root` | value there |
+//! |---|---|---|
+//! | `GROUND` | `--bg` | `#0a0a0a` |
+//! | `PANEL` | `--bg2` | `#171717` |
+//! | `PANEL_3` | `--bg3` | `#1f1f1f` |
+//! | `PANEL_4` | `--bg4` | `#2a2a2a` |
+//! | `TEXT` | `--fg` | `#ededed` |
+//! | `TEXT_2` | `--muted` | `#a1a1aa` |
+//! | `TEXT_3` | `--dim` | `#71717a` |
+//! | `BORDER` | `--border` | `#242424` |
+//! | `BORDER_2` | `--border2` | `#333333` |
+//! | `ACCENT` | `--accent` | `#5b9cf8` |
+//! | `ADD` | `--ok` | `#4ac26b` |
+//! | `WARN` | `--warn` | `#d8a534` |
+//! | `DEL` | `--err` | `#f0645c` |
+//! | `PURPLE` | `--purple` | `#b083f0` |
+//! | `R_PANEL` | `--radius` | `10px` |
+//!
+//! Exactly one value is taken from it — [`PURPLE`] — because the drafts have no
+//! purple at all and the contract's 状态词表 needs one for `◇ monitoring`.
 
 use egui::{Color32, CornerRadius, FontFamily, FontId, Margin, Stroke, TextStyle};
 
@@ -43,6 +72,13 @@ pub const DEL: Color32 = Color32::from_rgb(0xf8, 0x51, 0x49);
 pub const WARN: Color32 = Color32::from_rgb(0xd2, 0x99, 0x22);
 /// `--cyan`
 pub const CYAN: Color32 = Color32::from_rgb(0x39, 0xc5, 0xcf);
+
+/// The ink for `◇ monitoring`, and the only token here that comes from
+/// `mock.css`'s `:root` (`--purple`, applied by its `.d-mon` dot rule) rather
+/// than from the drafts': neither draft declares a purple, and
+/// [`crate::status::RunState`] needs one so the seven run states are seven
+/// distinguishable colours. See the module doc for the full mapping.
+pub const PURPLE: Color32 = Color32::from_rgb(0xb0, 0x83, 0xf0);
 
 /// `.term` / `.diff` background (`#080a0d`).
 pub const TERM_BG: Color32 = Color32::from_rgb(0x08, 0x0a, 0x0d);

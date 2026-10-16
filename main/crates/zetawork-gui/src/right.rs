@@ -396,6 +396,15 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 		.map(|ws| ws.path.clone())
 		.unwrap_or_default();
 	let branch = shell.state.branch_label().to_owned();
+	// 已载入文件 is the one part of this page with a real source today: the
+	// 编辑器 pages that are open, whose bytes are in memory.
+	let loaded: Vec<String> = shell
+		.state
+		.visible_panes()
+		.iter()
+		.flat_map(|pane| pane.tabs.iter())
+		.filter_map(|tab| tab.doc.as_ref().map(|doc| doc.path.display().to_string()))
+		.collect();
 	egui::ScrollArea::vertical()
 		.id_salt("zetawork-context")
 		.auto_shrink([false, false])
@@ -419,37 +428,71 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 				theme::TEXT_3,
 				scope.width() - 8.0,
 			);
-			// The ring's frame, empty: no live session, so no arc.
-			let (ring, _) = ui.allocate_exact_size(vec2(ui.available_width(), 118.0), Sense::hover());
-			let centre = pos2(ring.center().x - 58.0, ring.center().y);
-			ui.painter()
-				.circle_stroke(centre, 46.0, Stroke::new(10.0, theme::PANEL_4));
-			ui.painter().text(
-				centre,
+			// `.usage-head`: the ring with its three `.stat` blocks. The ring's
+			// frame is drawn; the arc needs a live session's report, so with
+			// none it stays empty and every number reads `—`.
+			let (head, _) = ui.allocate_exact_size(vec2(ui.available_width(), 104.0), Sense::hover());
+			let centre = pos2(head.min.x + 56.0, head.center().y);
+			let painter = ui.painter();
+			painter.circle_stroke(centre, 44.0, Stroke::new(10.0, theme::PANEL_4));
+			painter.text(
+				pos2(centre.x, centre.y - 7.0),
 				egui::Align2::CENTER_CENTER,
-				"无活动会话",
-				egui::FontId::new(11.5, egui::FontFamily::Proportional),
+				"—",
+				egui::FontId::new(22.0, egui::FontFamily::Monospace),
+				theme::TEXT_2,
+			);
+			painter.text(
+				pos2(centre.x, centre.y + 12.0),
+				egui::Align2::CENTER_CENTER,
+				"已用",
+				egui::FontId::new(10.0, egui::FontFamily::Proportional),
 				theme::TEXT_3,
 			);
-			for (index, label) in ["系统提示", "系统上下文", "工具定义", "技能", "会话消息"]
+			for (index, caption) in ["已用 token", "窗口上限", "当前对话占比"]
 				.iter()
 				.enumerate()
 			{
-				let y = ring.min.y + 12.0 + index as f32 * 20.0;
-				ui.painter().rect_filled(
-					Rect::from_min_size(pos2(ring.center().x + 6.0, y), vec2(8.0, 8.0)),
-					CornerRadius::same(2),
-					theme::PANEL_4,
+				let y = head.min.y + 14.0 + index as f32 * 30.0;
+				painter.text(
+					pos2(head.min.x + 118.0, y),
+					egui::Align2::LEFT_TOP,
+					"—",
+					egui::FontId::new(15.0, egui::FontFamily::Monospace),
+					theme::TEXT,
 				);
-				ui.painter().text(
-					pos2(ring.center().x + 22.0, y + 4.0),
-					egui::Align2::LEFT_CENTER,
-					*label,
-					egui::FontId::new(11.5, egui::FontFamily::Proportional),
+				painter.text(
+					pos2(head.min.x + 118.0, y + 17.0),
+					egui::Align2::LEFT_TOP,
+					*caption,
+					egui::FontId::new(11.0, egui::FontFamily::Proportional),
 					theme::TEXT_3,
 				);
-				ui.painter().text(
-					pos2(ring.max.x - 4.0, y + 4.0),
+			}
+			// `.legend` — the four buckets the draft names, in its order and
+			// with its colours.
+			for (label, ink) in [
+				("已加载文件", theme::ACCENT),
+				("对话历史", theme::CYAN),
+				("工具输出", theme::WARN),
+				("系统提示", theme::TEXT_3),
+			] {
+				let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 18.0), Sense::hover());
+				let painter = ui.painter();
+				painter.rect_filled(
+					Rect::from_min_size(pos2(row.min.x + 6.0, row.center().y - 4.0), vec2(8.0, 8.0)),
+					CornerRadius::same(2),
+					ink,
+				);
+				painter.text(
+					pos2(row.min.x + 22.0, row.center().y),
+					egui::Align2::LEFT_CENTER,
+					label,
+					egui::FontId::new(12.0, egui::FontFamily::Proportional),
+					theme::TEXT_2,
+				);
+				painter.text(
+					pos2(row.max.x - 6.0, row.center().y),
 					egui::Align2::RIGHT_CENTER,
 					"—",
 					egui::FontId::new(11.0, egui::FontFamily::Monospace),
@@ -461,24 +504,59 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 				"上下文数字未接线：需要一个运行中的会话",
 				"GET /api/agent/<id>/context · /subagents（zetacode web gateway，仅 live 会话）",
 			);
-			let (button, response) =
-				ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
-			ui.painter()
-				.rect_filled(button, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			// 已载入文件 — this part *is* real: it lists the 编辑器 pages that are
+			// actually open, which is the same set whose bytes are in memory.
+			// The bar's share of the window has no source, so the bar is drawn
+			// as an empty track and the share reads `—`.
+			let (sub, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
 			ui.painter().text(
-				button.center(),
-				egui::Align2::CENTER_CENTER,
-				"打开用量统计（stats 页面）",
-				egui::FontId::new(12.0, egui::FontFamily::Proportional),
-				if response.hovered() {
-					theme::TEXT
-				} else {
-					theme::TEXT_2
-				},
+				pos2(sub.min.x + 6.0, sub.center().y),
+				egui::Align2::LEFT_CENTER,
+				"已载入文件",
+				egui::FontId::new(11.0, egui::FontFamily::Proportional),
+				theme::TEXT_3,
 			);
-			if response.clicked() {
-				crate::left::open_usage(shell);
+			if loaded.is_empty() {
+				let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::hover());
+				ui.painter().text(
+					pos2(row.min.x + 6.0, row.center().y),
+					egui::Align2::LEFT_CENTER,
+					"没有打开的编辑器页面",
+					egui::FontId::new(11.0, egui::FontFamily::Proportional),
+					theme::TEXT_3,
+				);
 			}
+			for file in &loaded {
+				let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
+				let painter = ui.painter();
+				paint(
+					painter,
+					Icon::File,
+					Rect::from_center_size(pos2(row.min.x + 12.0, row.center().y), vec2(14.0, 14.0)),
+					theme::TEXT_3,
+					1.5,
+				);
+				let bar =
+					Rect::from_min_size(pos2(row.max.x - 70.0, row.center().y - 2.5), vec2(64.0, 5.0));
+				painter.rect_filled(bar, CornerRadius::same(3), theme::PANEL_3);
+				truncated_mono(
+					ui,
+					pos2(row.min.x + 24.0, row.center().y),
+					file,
+					11.0,
+					theme::TEXT_2,
+					bar.min.x - row.min.x - 28.0,
+				);
+			}
+			// The draft's own line about compaction, word for word.
+			let (note, _) = ui.allocate_exact_size(vec2(ui.available_width(), 32.0), Sense::hover());
+			ui.painter().text(
+				pos2(note.min.x + 6.0, note.min.y + 2.0),
+				egui::Align2::LEFT_TOP,
+				"上下文接近 80% 时会自动压缩较早的工具输出，仅保留结论与改动。",
+				egui::FontId::new(11.0, egui::FontFamily::Proportional),
+				theme::TEXT_3,
+			);
 		});
 }
 
