@@ -80,15 +80,15 @@ two-parent tag merge.
 - **Conflicts**: **79**, all `UU` (no `modify/delete` rows); the dry run
   (`git merge-tree --write-tree --name-only HEAD v18.11.2 | grep -cE '^CONFLICT'`) predicted 79 exactly.
   **107 conflict blocks inside those 79 files**, resolved as:
-  - **20 blocks / 18 files — upstream wins, then the Zeta surface is re-applied** (docs, `lsp/settings.ts`,
+  - **[U] 20 blocks / 18 files — upstream wins, then the Zeta surface is re-applied** (docs, `lsp/settings.ts`,
     the auth-gateway CLI copy, `tools/browser/tab-worker.ts`, `tools/gh-pr-checkout.ts`, and the test files
     whose only Zeta delta was the scope).
-  - **27 blocks / 4 files — Zeta wins** (`Cargo.toml`, `Cargo.lock`, `bun.lock`, `MODULE.bazel.lock`:
+  - **[Z] 27 blocks / 4 files — Zeta wins** (`Cargo.toml`, `Cargo.lock`, `bun.lock`, `MODULE.bazel.lock`:
     upstream's *only* change to all four in this window is the `18.11.1` -> `18.11.2` version line —
     verified with `git diff v18.11.1 v18.11.2 -- Cargo.toml Cargo.lock bun.lock` and no
     `crates/*/Cargo.toml` delta — so the Zeta line wins and the merged locks are byte-identical to
     `d98033c2694`, which keeps the hashes `MODULE.bazel.lock` records valid for the merged tree).
-  - **7 blocks / 4 files — hand-merged unions** (both sides' change survives):
+  - **[H] 7 blocks / 4 files — hand-merged unions** (both sides' change survives):
     `src/launch/broker.ts` (Zeta's `#stopUnownedOneShotDaemons` sweep + upstream's `#watchEndpoint`
     socket-loss shutdown — upstream's method is called from the constructor path, so dropping either
     half leaves dead or undefined code), `src/session/agent-session.ts` (upstream's `type PowerAssertion`
@@ -99,17 +99,22 @@ two-parent tag merge.
     branch and provider-generic messages — with Zeta's model-candidate retry loop kept: upstream's
     `runSearch` helper now routes through `runCodexSearchCandidates`, because the merged
     `callCodexSearch` takes Zeta's `model: CodexModelCandidate`, not upstream's `modelId`).
-  - **53 blocks / 52 files — resolved automatically** by a scope-normalized classifier: 37 blocks in
-    files whose entire Zeta delta was the mechanical scope/brand rewrite (`FILE_SCOPE_ONLY` -> upstream's
+  - **[S] 37 blocks / 36 files + [C] 16 blocks / 16 files — resolved automatically** by the
+    scope-normalized classifier: 37 blocks in files whose entire Zeta delta was the mechanical
+    scope/brand rewrite (`FILE_SCOPE_ONLY` -> upstream's
     block, re-mapped), 14 where ours' scope-normalized block was a subset of upstream's, and 2 where
     ours was empty. The `packages/*/CHANGELOG.md` files are the one class the classifier is not allowed
     to touch (see the CHANGELOGs bullet).
-  - `packages/catalog/src/compat/rules.json` is `binary` in `.gitattributes`, so it arrives without
-    markers; it was regenerated from the merged KDL tree with `bun run gen:compat`
-    (`1041 rules, 21 classes, 88 catalog providers, 97 auth providers, 236 files`). Diffed against
-    upstream's own compile it differs in exactly two values, both intentional: `providers/baseten/defaultModel`
-    is Zeta's `moonshotai/Kimi-K3` (a Zeta-only data change upstream never took) and
-    `auth/providers[0]/login/authorizeParams/originator` is `zeta` where upstream says `omp`.
+  - **[G] 1 file / 0 blocks — regenerated, not hand-edited**: `packages/catalog/src/compat/rules.json` is
+    `binary` in `.gitattributes`, so it arrives without markers; it was regenerated from the merged KDL
+    tree with `bun run gen:compat` (`1041 rules, 21 classes, 88 catalog providers, 97 auth providers,
+    236 files`). Diffed against upstream's own compile it differs in exactly two values, both
+    intentional: `providers/baseten/defaultModel` is Zeta's `moonshotai/Kimi-K3` (a Zeta-only data change
+    upstream never took) and `auth/providers[0]/login/authorizeParams/originator` is `zeta` where
+    upstream says `omp`.
+  The six classes reconcile with the decision table (`temp/analysis-v18112/decision-table.txt`):
+  18+4+4+1+36+16 = 79 files and 20+27+7+0+37+16 = 107 blocks; `[G]` has no markers (see its bullet)
+  but git still listed the path as `UU`.
 - **Tag-to-tag delta completeness (forward)**: every line upstream *added* between `v18.11.1` and
   `v18.11.2` is in the merged tree — 386 files, **17,945 added lines** (blank lines excluded),
   17,593 exact + 252 present after the documented Zeta rewrites, **97 explained exceptions**:
@@ -152,10 +157,10 @@ two-parent tag merge.
   byte-identical to main (`git diff --numstat d98033c2694` on those files is pure insertions, 0 deletions).
 - **Guards** (all local, `exit 0` unless noted): `check-version-consistency` 0 (after the changelog fold;
   before it the eight `## [18.` sections were the only drift), `bun run check:ts` 0 (oxlint clean +
-  `oxfmt --check` over 6,422 files), `check-scope-imports` 0 (19,306 specifiers, 5 allow patterns),
+  `oxfmt --check` over 6,422 files), `check-scope-imports` 0 (19,475 specifiers, 5 allow patterns),
   `bazel-lock-drift` 0 ("MODULE.bazel.lock covers every workspace dependency"), `brand-check` 0,
   `check-zeta-sentinels` 0 (114 sentinels + AGENTS.md link), `check-ci-surface` 0 (32 jobs in ci.yml,
-  37 required, 6 needs edges), both i18n guards 0 (`3016/3016/3016` keys; 320 command descriptions),
+  37 required, 6 needs edges), both i18n guards 0 (`3018/3018/3018` keys; 320 command descriptions),
   `check-shared-infra` 0 (15 endpoints / 4,324 files), `check-release-asset-names` 0,
   `check-serve-discovery-parity` 0, `check-nix-bun-freshness` 0 (`nix/bun.nix` byte-identical),
   `check-robomp-cli-contract` 0, `generated-freshness` 0, `cargo fmt --all --check` 0.
