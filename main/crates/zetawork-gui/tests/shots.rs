@@ -42,12 +42,21 @@ fn shots_dir() -> PathBuf {
 }
 
 /// A shell whose state is the shipped default: 本机 open, two panes, two
-/// columns, right column on 文件 — plus the first pane switched to its editor
-/// tab so one pane shows the editor and the other the terminal.
+/// columns, the 总面板 as the selected 大标签页 and the right column on
+/// 上下文 — plus the first pane switched to its editor tab so one pane shows the
+/// editor and the other the terminal.
 fn ready_shell() -> Shell {
 	let cwd = std::env::current_dir().expect("cwd");
 	let state = AppState::seeded(&cwd);
 	Shell::with_state(state, Settings::default())
+}
+
+/// Select the active workspace's 大标签页, so a shot that is about the pane grid
+/// shows the pane grid: the shipped default opens on 总面板 instead.
+fn workspace_page(shell: &mut Shell) {
+	shell
+		.state
+		.set_center_page(zetawork_gui::state::CenterPage::Workspace);
 }
 
 /// Render `frames` frames and return the PNG bytes of the last one.
@@ -101,12 +110,14 @@ fn write(name: &str, bytes: &[u8]) -> PathBuf {
 	absolute
 }
 
-/// `01-gui-mode.png` — the GUI view with a workspace open.
+/// `01-gui-mode.png` — the GUI view with a workspace open (its 大标签页 selected,
+/// so the pane grid is what the shot is of).
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn gui_mode_screenshot() {
 	let mut shell = ready_shell();
 	shell.state.set_view(ViewMode::Gui);
+	workspace_page(&mut shell);
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
 	write("01-gui-mode.png", &bytes);
@@ -159,6 +170,7 @@ fn picker_screenshot() {
 fn gui_pages_screenshot() {
 	let mut shell = ready_shell();
 	shell.state.set_view(ViewMode::Gui);
+	workspace_page(&mut shell);
 	shell.state.act(|state| state.set_cols(3));
 	let panes: Vec<String> = shell
 		.state
@@ -241,4 +253,98 @@ fn settings_remote_sections_screenshot() {
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
 	write("08-settings-providers.png", &bytes);
+}
+
+/// `09-total-panel.png` — 总面板, the strip's first 大标签页 and what the shell
+/// opens on: every project in one table, with the 状态 column from the contract's
+/// 状态词表.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn total_panel_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	assert_eq!(
+		shell.state.center_page,
+		zetawork_gui::state::CenterPage::Total,
+		"总面板 is the first big tab, so it is what opens"
+	);
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("09-total-panel.png", &bytes);
+}
+
+/// `10-context-page.png` — the right column's 上下文用量 page, which is the
+/// column's default tab: the ring, the three `.stat` blocks, the draft's four
+/// legend rows, the 已载入文件 list and the compaction line.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn context_page_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	workspace_page(&mut shell);
+	assert_eq!(
+		shell.state.right_tab,
+		zetawork_gui::state::RightTab::Context,
+		"上下文 is the right column's default page"
+	);
+	// One real file open, so 已载入文件 has something in it.
+	let panes: Vec<String> = shell
+		.state
+		.visible_panes()
+		.iter()
+		.map(|pane| pane.id.clone())
+		.collect();
+	let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+	let notice = shell.state.open_file(&panes[0], &manifest);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	shell.state.right_collapsed = false;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("10-context-page.png", &bytes);
+}
+
+/// `11-lifecycle-settings.png` — 设置 → 常规: 关闭窗口时 / 开机自启 / 通知, the
+/// residency's own status line, and the two triggers that have no signal source
+/// yet, named rather than offered as dead controls.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn lifecycle_settings_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	shell.state.open_settings();
+	shell.state.settings_section = zetawork_gui::settings::Section::General;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("11-lifecycle-settings.png", &bytes);
+}
+
+/// `12-close-ask.png` — the 每次询问 modal: three buttons and **one** checkbox.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn close_ask_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	workspace_page(&mut shell);
+	// 关闭窗口时 = 每次询问, plus the modal's own state, so the shot shows exactly
+	// what the ruling describes: three buttons and one checkbox.
+	shell.settings.close_action = zetawork_gui::settings::CloseAction::Ask;
+	shell.lifecycle.ask = Some(zetawork_gui::lifecycle::AskState { remember: true });
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("12-close-ask.png", &bytes);
+}
+
+/// `13-workspace-state-words.png` — the left column's workspace rows with the
+/// 状态词表 drawn as a dot plus its word, which is what makes the seven states
+/// visible without opening the 总面板.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn workspace_state_words_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.set_view(ViewMode::Gui);
+	workspace_page(&mut shell);
+	shell.state.left_collapsed = false;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("13-workspace-state-words.png", &bytes);
 }
