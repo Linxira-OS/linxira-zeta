@@ -53,6 +53,26 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 				shell.state.set_right_tab(RightTab::Git);
 			}
 
+			// 通知留痕: the fallback chain's second link. It is allocated
+			// **before** the right-aligned group on purpose — a
+			// `right_to_left` layout consumes the rest of the row, so anything
+			// allocated after it lands past the panel and is clipped away.
+			if let Some(trace) = shell.last_trace.clone() {
+				let line = trace.message.trace_line();
+				let hint = crate::notify::trace_hint(&trace);
+				let target = trace.message.target.clone();
+				if item(ui, None, &line, false, &hint).clicked() {
+					match target {
+						Some(id) => {
+							shell.state.act(|state| state.select_workspace(&id));
+						},
+						// `AppState::show` is in-place; `act` is for the verbs
+						// that hand a Notice back.
+						None => shell.state.show(crate::state::Notice(hint.clone())),
+					}
+				}
+			}
+
 			ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
 				if item(ui, None, "关闭", false, "收起状态栏").clicked() {
 					shell.state.act(|state| state.toggle_statusbar());

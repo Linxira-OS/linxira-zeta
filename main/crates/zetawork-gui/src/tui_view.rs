@@ -39,6 +39,10 @@ enum TuiAction {
 	FocusPane(String),
 	RightTab(RightTab),
 	OpenSettings,
+	/// The centre box's page switch: 总面板.
+	ShowTotal,
+	/// The centre box's page switch: the active workspace's pane grid.
+	ShowWorkspace,
 }
 
 /// A clickable cell range, resolved to pixels after the blit.
@@ -108,6 +112,12 @@ pub fn view(ui: &mut Ui, shell: &mut Shell) {
 			TuiAction::FocusPane(id) => shell.state.toggle_tui_pane(&id),
 			TuiAction::RightTab(tab) => shell.state.right_tab = tab,
 			TuiAction::OpenSettings => shell.state.open_settings(),
+			TuiAction::ShowTotal => shell.state.show_total(),
+			TuiAction::ShowWorkspace => {
+				shell
+					.state
+					.set_center_page(crate::state::CenterPage::Workspace);
+			},
 		}
 	}
 }
@@ -134,7 +144,16 @@ fn build(shell: &Shell, cols: u16, rows: u16) -> (Buffer, Vec<Hit>) {
 	top_line(&mut buf, top, shell);
 	let left_body = box_frame(&mut buf, left, "项目 / 工作区", None);
 	projects_box(&mut buf, left_body, shell, &mut hits);
-	let centre_body = box_frame(&mut buf, centre, "终端 宿主 · 大标签页", None);
+	// The centre box is the same two pages the GUI's strip switches between,
+	// driven by the same `center_page`: 总面板 (what the shell opens on) and the
+	// active workspace's pane grid. The title says which one is showing.
+	let total = shell.state.center_page == crate::state::CenterPage::Total;
+	let centre_title = if total {
+		"总面板"
+	} else {
+		"终端 宿主 · 大标签页"
+	};
+	let centre_body = box_frame(&mut buf, centre, centre_title, None);
 	terminal_box(&mut buf, centre_body, shell, &mut hits);
 	let right_body = box_frame(&mut buf, right, "侧栏 文件 · 历史 · Git", None);
 	sidebar_box(&mut buf, right_body, shell, &mut hits);
@@ -265,6 +284,19 @@ fn terminal_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>
 			.areas(area);
 	buf.set_style(tabs, Style::new().bg(BOX_BG));
 	buf.set_style(bottom, Style::new().bg(BOX_BG));
+	// 总面板 is a page of this one box, not a box of its own: it takes the whole
+	// body and leaves the page switch below it.
+	if shell.state.center_page == crate::state::CenterPage::Total {
+		let body = Rect {
+			x: area.x,
+			y: tabs.y,
+			width: area.width,
+			height: split.bottom().saturating_sub(tabs.y),
+		};
+		total_box(buf, body, shell, hits);
+		page_switch(buf, bottom, shell, hits);
+		return;
+	}
 	// The tabs row lists the active project's workspaces.
 	if let Some(project) = shell.state.active_project() {
 		let mut x = tabs.x;
@@ -337,19 +369,178 @@ fn terminal_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>
 			.wrap(Wrap { trim: false })
 			.render(inner, buf);
 	}
-	Paragraph::new(Line::from(vec![
-		Span::styled("点击大标签页切换 · 点击面板聚焦", Style::new().fg(TEXT_3)),
-		Span::styled(
-			format!(
-				"{:>width$}split: {}col",
-				"",
-				shell.state.active_cols(),
-				width = split.width.saturating_sub(36) as usize
-			),
-			Style::new().fg(TEXT_3),
-		),
-	]))
-	.render(bottom, buf);
+	page_switch(buf, bottom, shell, hits);
+}
+
+/// The centre box's bottom row: the two pages this box can show, then the
+/// hints. Both pages are reachable by a click, which is what the GUI's strip
+/// gives you with its tabs.
+fn page_switch(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>) {
+	let total = shell.state.center_page == crate::state::CenterPage::Total;
+	let mut x = area.x;
+	for (label, is_total, action) in
+		[(" 总面板 ", true, TuiAction::ShowTotal), (" 终端 宿主 ", false, TuiAction::ShowWorkspace)]
+	{
+		let width = cols(label);
+		if x + width > area.right() {
+			break;
+		}
+		let style = if total == is_total {
+			Style::new().bg(ACTIVE_BG).fg(ACTIVE_TEXT)
+		} else {
+			Style::new().fg(TEXT_3)
+		};
+		Paragraph::new(Line::from(Span::styled(label, style)))
+			.render(Rect { x, y: area.y, width, height: 1 }, buf);
+		hits.push(Hit { row: area.y, col: x, width, action });
+		x += width + 1;
+	}
+	let hint = if total {
+		"所有项目一张表：项目 · 工作区 · 分支 · 状态 · ±行 · 未提交"
+	} else {
+		"点击大标签页切换 · 点击面板聚焦"
+	};
+	// The hint is drawn into what is left *after* the chips: a paragraph renders
+	// its whole rect, so drawing it over the row would blank the chips (whose
+	// text would then be replaced by the hint's leading padding spaces).
+	let rest = Rect { x, y: area.y, width: area.right().saturating_sub(x), height: 1 };
+	if rest.width == 0 {
+		return;
+	}
+	let used = cols(hint) as usize;
+	let split = format!("split: {}col", shell.state.active_cols());
+	let split_width = cols(&split) as usize;
+	let room = rest.width as usize;
+	if room > used + split_width + 2 {
+		let pad = room - used - split_width - 2;
+		Paragraph::new(Line::from(vec![
+			Span::styled(format!(" {}{}", hint, " ".repeat(pad)), Style::new().fg(TEXT_3)),
+			Span::styled(format!(" {split}"), Style::new().fg(TEXT_3)),
+		]))
+		.render(rest, buf);
+	} else {
+		// Too tight for both: the hint stays and `split:` goes, because the hint
+		// is the contract's own description of the page. The renderer clips it,
+		// which is better than dropping it silently.
+		Paragraph::new(Line::from(Span::styled(format!(" {hint}"), Style::new().fg(TEXT_3))))
+			.render(rest, buf);
+	}
+}
+
+/// `text` padded to `width` display columns — wide glyphs count as two, so the
+/// columns line up the way they look rather than the way they are counted.
+fn padded(text: &str, width: usize) -> String {
+	let used = cols(text) as usize;
+	if used >= width {
+		return text.to_owned();
+	}
+	format!("{text}{}", " ".repeat(width - used))
+}
+
+/// One table row: every cell padded to its column width and joined with a
+/// one-column gap, so a cell that fills its column exactly still cannot touch
+/// its neighbour.
+fn table_row(cells: Vec<(String, Style, usize)>) -> Line<'static> {
+	let mut spans: Vec<Span<'static>> = Vec::new();
+	for (text, style, width) in cells {
+		if !spans.is_empty() {
+			spans.push(Span::raw(" "));
+		}
+		spans.push(Span::styled(padded(&text, width), style));
+	}
+	Line::from(spans)
+}
+
+/// The grid's mirror of one of [`crate::theme`]'s tokens.
+///
+/// The blit paints ratatui colours, so a state's ink (which comes from the
+/// contract's table via [`crate::status::RunState::ink`]) has to be translated.
+/// Reading it off the token, rather than repeating the RGB here, keeps the one
+/// state palette in one place.
+fn tui_ink(ink: egui::Color32) -> Color {
+	Color::Rgb(ink.r(), ink.g(), ink.b())
+}
+
+/// 总面板 as terminal rows: every project's every workspace on one line, with
+/// the 状态 column from the contract's 状态词表.
+///
+/// The two git columns come from the one snapshot the shell holds, so only the
+/// open workspace has numbers; every other row reads `—` rather than a
+/// plausible value. A workspace nothing observes reads `—` in 状态 for the same
+/// reason.
+fn total_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>) {
+	buf.set_style(area, Style::new().bg(BOX_BG));
+	if area.height == 0 {
+		return;
+	}
+	const W_PROJECT: usize = 14;
+	const W_BRANCH: usize = 20;
+	const W_STATE: usize = 12;
+	const W_DELTA: usize = 12;
+	const W_DIRTY: usize = 8;
+	// 工作区 takes what is left (the five 1-col gaps included), so the 未提交
+	// column cannot fall off the edge of a narrow box — the header says `未提交`
+	// and the numbers have to be under it.
+	let w_name = (area.width as usize)
+		.saturating_sub(W_PROJECT + W_BRANCH + W_STATE + W_DELTA + W_DIRTY + 5 + 1)
+		.max(8);
+	let header = table_row(vec![
+		("项目".to_owned(), Style::new().fg(TEXT_3).add_modifier(Modifier::BOLD), W_PROJECT),
+		("工作区".to_owned(), Style::new().fg(TEXT_3).add_modifier(Modifier::BOLD), w_name),
+		("分支".to_owned(), Style::new().fg(TEXT_3).add_modifier(Modifier::BOLD), W_BRANCH),
+		("状态".to_owned(), Style::new().fg(TEXT_3).add_modifier(Modifier::BOLD), W_STATE),
+		("±行".to_owned(), Style::new().fg(TEXT_3).add_modifier(Modifier::BOLD), W_DELTA),
+		("未提交".to_owned(), Style::new().fg(TEXT_3).add_modifier(Modifier::BOLD), W_DIRTY),
+	]);
+	Paragraph::new(header).render(Rect { x: area.x, y: area.y, width: area.width, height: 1 }, buf);
+
+	let mut row = area.y + 1;
+	for project in &shell.state.projects {
+		for workspace in &project.workspaces {
+			if row >= area.bottom() {
+				return;
+			}
+			let open = shell.state.active_workspace.as_deref() == Some(workspace.id.as_str());
+			let (delta, dirty) = match (open, shell.git.as_ref()) {
+				(true, Some(status)) if status.error.is_none() => (
+					format!("+{} −{}", status.insertions, status.deletions),
+					status.changed.len().to_string(),
+				),
+				_ => ("—".to_owned(), "—".to_owned()),
+			};
+			// Both arms are the egui token; `tui_ink` translates for the grid.
+			// Only the *word* is drawn: the bundled fonts have no ◐ (U+25D0) or
+			// ✓ (U+2713) — the first attempt at `label()` rendered `?◐`
+			// replacements into the table — so the glyphs stay in the tooltip
+			// and in the docs, where they are not font-dependent.
+			let (state_ink, state_text) = match workspace.run_state {
+				Some(state) => (state.ink(), state.word().to_owned()),
+				None => (crate::theme::TEXT_3, "—".to_owned()),
+			};
+			let line = table_row(vec![
+				(
+					project.name.clone(),
+					Style::new().fg(if open { ACTIVE_TEXT } else { TEXT_2 }),
+					W_PROJECT,
+				),
+				(workspace.name.clone(), Style::new().fg(TEXT_2), w_name),
+				(workspace.branch.clone(), Style::new().fg(CYAN), W_BRANCH),
+				(state_text, Style::new().fg(tui_ink(state_ink)), W_STATE),
+				(delta, Style::new().fg(TEXT_3), W_DELTA),
+				(dirty, Style::new().fg(TEXT_3), W_DIRTY),
+			]);
+			Paragraph::new(line)
+				.style(Style::new().bg(if open { ACTIVE_BG } else { BOX_BG }))
+				.render(Rect { x: area.x, y: row, width: area.width, height: 1 }, buf);
+			hits.push(Hit {
+				row,
+				col: area.x,
+				width: area.width,
+				action: TuiAction::SelectWorkspace(workspace.id.clone()),
+			});
+			row += 1;
+		}
+	}
 }
 
 /// The lines one terminal box shows: the placeholder banner plus the sample.

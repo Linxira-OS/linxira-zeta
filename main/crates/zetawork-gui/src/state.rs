@@ -24,6 +24,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::settings::Section;
+use crate::status::RunState;
 
 /// The most workspaces (大标签页) one project may hold.
 ///
@@ -34,6 +35,10 @@ pub const MAX_WORKSPACES_PER_PROJECT: usize = 6;
 
 /// A workspace shows at most three panes, in one to three columns.
 pub const MAX_PANES: usize = 3;
+
+/// A pane shows at most eight sub-pages — the contract's 子页上限 8
+/// (`mock-common.js`'s `MAX_SUBS`, stated in the UI as `子页上限 8`).
+pub const MAX_SUBS_PER_PANE: usize = 8;
 
 /// How long a toast stays on screen.
 pub const TOAST_TTL: Duration = Duration::from_millis(1800);
@@ -405,9 +410,25 @@ impl Pane {
 			.filter(|tab| tab.kind == SessionKind::Term)
 			.count()
 	}
+
+	/// The pid of the shell this pane's terminal runs, when one is known.
+	///
+	/// **Always `None` in this build**, and deliberately so: the GUI has no PTY
+	/// host yet, so no page owns a process. This is the one place that changes
+	/// when one lands — [`crate::lifecycle::pane_is_busy`] and the busy→idle edge
+	/// detector already ask here, and nothing invents a number in the meantime.
+	pub fn shell_pid(&self) -> Option<u32> {
+		None
+	}
 }
 
 /// A workspace — the spec's 大标签页. Carries its own pane layout.
+///
+/// 工作区 and 大标签页 are one level, not two: the workspace-organising draft
+/// fills `#bigTabs` — `aria-label="大标签页（项目的工作区）"` — from the active
+/// project's workspaces, and the contract's ruling collapses the pair the same
+/// way. So this is what the left column lists *and* what the centre's top strip
+/// switches between.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Workspace {
 	pub id: String,
@@ -420,6 +441,42 @@ pub struct Workspace {
 	/// Visible columns: 1, 2 or 3.
 	pub cols: u8,
 	pub panes: Vec<Pane>,
+	/// The workspace's run state, from the contract's 状态词表 — see
+	/// [`crate::status::RunState`]. Shown as a dot and a word on the left
+	/// column's row and as the 总面板's 状态 column.
+	///
+	/// **`None` means no source observes this workspace**, and it renders as `—`
+	/// with no dot — *not* as a plausible member of the seven. Nothing in this
+	/// build observes a workspace: there is no session state machine (see
+	/// [`crate::notify::MISSING_SIGNALS`]) and no PTY host
+	/// ([`Pane::shell_pid`]). Only the seeded sample projects carry a state,
+	/// and those exist to show the vocabulary, which is why their section head
+	/// says `示例项目`.
+	pub run_state: Option<RunState>,
+}
+
+/// What the centre column shows. The strip's first 大标签页 is always 总面板;
+/// it is a page, not a workspace, so it is a second axis of state rather than a
+/// member of `Project::workspaces`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CenterPage {
+	/// 总面板 — every project in one table (the contract's ruling: 总面板 =
+	/// 中间区第 1 个大标签页, 所有项目合并一张表). This build opens on it.
+	#[default]
+	Total,
+	/// The active workspace's pane grid, or the welcome panel when none is
+	/// open.
+	Workspace,
+}
+
+impl CenterPage {
+	/// The strip's label for this page.
+	pub fn label(self) -> &'static str {
+		match self {
+			Self::Total => "总面板",
+			Self::Workspace => "",
+		}
+	}
 }
 
 /// A project groups workspaces; a project is what the left column lists.
@@ -439,6 +496,9 @@ pub struct Notice(pub String);
 #[derive(Clone, Debug)]
 pub struct AppState {
 	pub view: ViewMode,
+	/// Which 大标签页 the centre shows: 总面板 (the strip's first tab, and what
+	/// this build opens on) or the active workspace's pane grid.
+	pub center_page: CenterPage,
 	pub left_collapsed: bool,
 	pub right_collapsed: bool,
 	pub right_tab: RightTab,
@@ -472,9 +532,13 @@ impl Default for AppState {
 	fn default() -> Self {
 		Self {
 			view: ViewMode::Gui,
+			center_page: CenterPage::Total,
 			left_collapsed: false,
 			right_collapsed: false,
-			right_tab: RightTab::Files,
+			// 当前会话上下文 is the right column's default page (the contract's
+			// ruling), so the column is drawn open rather than collapsed: a
+			// default page nobody can see is not a default.
+			right_tab: RightTab::Context,
 			active_project: None,
 			active_workspace: None,
 			commits_open: true,
@@ -658,13 +722,30 @@ impl AppState {
 		};
 		self.active_workspace = Some(id.to_owned());
 		self.active_project = Some(owner);
+		// Clicking a workspace — in the left column or on the 总面板's row —
+		// opens its pane grid, so the 总面板 tab is left behind.
+		self.center_page = CenterPage::Workspace;
 		self.tui_pane = None;
 		Notice(String::new())
+	}
+
+	/// The strip's 总面板 tab: the centre goes back to the all-projects table.
+	/// Nothing else changes, so the open workspace survives the round trip.
+	pub fn show_total(&mut self) {
+		self.center_page = CenterPage::Total;
+	}
+
+	/// A centre-page switch from the strip. Selecting [`CenterPage::Workspace`]
+	/// with no workspace open lands on the welcome panel, which is what the
+	/// status bar's 回到首页 does.
+	pub fn set_center_page(&mut self, page: CenterPage) {
+		self.center_page = page;
 	}
 
 	/// The status bar's home button: no workspace open → the welcome panel.
 	pub fn go_home(&mut self) {
 		self.active_workspace = None;
+		self.center_page = CenterPage::Workspace;
 		self.tui_pane = None;
 	}
 
@@ -700,9 +781,13 @@ impl AppState {
 			path: format!("~/{project_name}/新工作区"),
 			cols: 1,
 			panes,
+			// Nothing observes a workspace the user just created, so it has no
+			// state of the seven — `—` is the honest answer.
+			run_state: None,
 		});
 		self.active_project = Some(project_id.to_owned());
 		self.active_workspace = Some(id);
+		self.center_page = CenterPage::Workspace;
 		self.tui_pane = None;
 		Notice(String::new())
 	}
@@ -745,6 +830,11 @@ impl AppState {
 		let Some(pane) = self.pane_mut(pane_id) else {
 			return Notice(String::new());
 		};
+		if pane.tabs.len() >= MAX_SUBS_PER_PANE {
+			return Notice(format!(
+				"每个面板最多 {MAX_SUBS_PER_PANE} 个子页（子页上限 {MAX_SUBS_PER_PANE}）"
+			));
+		}
 		let n = pane.term_count() + 1;
 		pane
 			.tabs
@@ -793,6 +883,11 @@ impl AppState {
 		let Some(pane) = self.pane_mut(pane_id) else {
 			return Notice(format!("没有这个面板：{pane_id}"));
 		};
+		if pane.tabs.len() >= MAX_SUBS_PER_PANE {
+			return Notice(format!(
+				"每个面板最多 {MAX_SUBS_PER_PANE} 个子页（子页上限 {MAX_SUBS_PER_PANE}）"
+			));
+		}
 		pane.active = tab.id.clone();
 		pane.tabs.push(tab);
 		Notice(String::new())
@@ -1330,13 +1425,8 @@ mod tests {
 		let mut state = state();
 		let ws_id = state.active_workspace().unwrap().id.clone();
 		let pane = state.workspace(&ws_id).unwrap().panes[0].id.clone();
-		let mut seen = std::collections::HashSet::new();
-		// Repeatedly add and close, which is where an index-based id scheme
-		// starts reusing ids.
-		for _ in 0..8 {
-			let notice = state.add_tab(&pane);
-			assert!(notice.0.is_empty());
-			let tab = state
+		let active = |state: &AppState| {
+			state
 				.workspace(&ws_id)
 				.unwrap()
 				.panes
@@ -1344,9 +1434,36 @@ mod tests {
 				.find(|p| p.id == pane)
 				.unwrap()
 				.active
-				.clone();
+				.clone()
+		};
+		let tabs = |state: &AppState| state.workspace(&ws_id).unwrap().panes[0].tabs.len();
+		let mut seen = std::collections::HashSet::new();
+		// Repeatedly add and close, which is where an index-based id scheme
+		// starts reusing ids. The pane starts with the two seeded tabs, so
+		// 子页上限 8 is reached after six more.
+		let seeded = tabs(&state);
+		for added in 0..(MAX_SUBS_PER_PANE - seeded) {
+			let notice = state.add_tab(&pane);
+			assert!(notice.0.is_empty(), "{added}: {}", notice.0);
+			let tab = active(&state);
 			assert!(seen.insert(tab.clone()), "duplicate id {tab}");
 		}
-		assert_eq!(state.workspace(&ws_id).unwrap().panes[0].tabs.len(), 10);
+		assert_eq!(tabs(&state), MAX_SUBS_PER_PANE, "the pane is full");
+		// 子页上限 8: the ninth is refused, says so, and changes nothing.
+		let refused = state.add_tab(&pane);
+		assert!(refused.0.contains("8"), "{}", refused.0);
+		assert_eq!(tabs(&state), MAX_SUBS_PER_PANE);
+		// Closing frees exactly one slot, and the id that replaces it is still
+		// fresh — the add/close cycle the old index-based scheme failed.
+		for _ in 0..2 {
+			let closing = active(&state);
+			assert!(state.close_tab(&pane, &closing).0.is_empty());
+			let notice = state.add_tab(&pane);
+			assert!(notice.0.is_empty(), "{}", notice.0);
+			let tab = active(&state);
+			assert_ne!(tab, closing, "a freed tab id must not come back");
+			assert!(seen.insert(tab.clone()), "duplicate id {tab}");
+		}
+		assert_eq!(tabs(&state), MAX_SUBS_PER_PANE);
 	}
 }

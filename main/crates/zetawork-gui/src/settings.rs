@@ -22,10 +22,17 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// One of the 设置 modal's six categories, in the spec's order.
+/// One of the 设置 modal's seven categories, in the order the modal lists them.
+///
+/// 常规 comes first and is the one section the design drafts do not have: the
+/// drafts were drawn before the lifecycle rulings (关闭窗口时 / 开机自启 / 通知),
+/// so the six they fix (外观 / 编辑器 / 终端 / 快捷键 / 管理 / 关于) keep their order
+/// behind it rather than being renumbered.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Section {
+	/// 生命周期：关闭窗口时 / 开机自启 / 通知.
 	#[default]
+	General,
 	Appearance,
 	Editor,
 	Terminal,
@@ -35,12 +42,20 @@ pub enum Section {
 }
 
 impl Section {
-	pub const ALL: [Self; 6] =
-		[Self::Appearance, Self::Editor, Self::Terminal, Self::Keys, Self::Manage, Self::About];
+	pub const ALL: [Self; 7] = [
+		Self::General,
+		Self::Appearance,
+		Self::Editor,
+		Self::Terminal,
+		Self::Keys,
+		Self::Manage,
+		Self::About,
+	];
 
 	/// The nav label.
 	pub fn label(self) -> &'static str {
 		match self {
+			Self::General => "常规",
 			Self::Appearance => "外观",
 			Self::Editor => "编辑器",
 			Self::Terminal => "终端",
@@ -53,6 +68,7 @@ impl Section {
 	/// The `data-sec` key the spec uses.
 	pub fn key(self) -> &'static str {
 		match self {
+			Self::General => "general",
 			Self::Appearance => "appearance",
 			Self::Editor => "editor",
 			Self::Terminal => "terminal",
@@ -287,6 +303,95 @@ impl CursorStyle {
 	}
 }
 
+/// `关闭窗口时` — what the title bar's close button does.
+///
+/// The default keeps the workbench alive: closing the window is the fastest way
+/// to get it out of the way without losing the session state machine and the
+/// agent children that go with it. `Ask` is the third choice so the modal only
+/// appears when the user asked to be asked.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CloseAction {
+	/// 最小化到后台 — hide the window, keep the process and its sessions alive.
+	#[default]
+	MinimizeToBackground,
+	/// 退出应用 — end the process.
+	Quit,
+	/// 每次询问 — ask on every close, with a 记住我的选择 checkbox.
+	Ask,
+}
+
+impl CloseAction {
+	pub const ALL: [Self; 3] = [Self::MinimizeToBackground, Self::Quit, Self::Ask];
+
+	pub fn label(self) -> &'static str {
+		match self {
+			Self::MinimizeToBackground => "最小化到后台",
+			Self::Quit => "退出应用",
+			Self::Ask => "每次询问",
+		}
+	}
+
+	pub fn key(self) -> &'static str {
+		match self {
+			Self::MinimizeToBackground => "background",
+			Self::Quit => "quit",
+			Self::Ask => "ask",
+		}
+	}
+
+	pub fn from_key(key: &str) -> Option<Self> {
+		Self::ALL.into_iter().find(|value| value.key() == key)
+	}
+}
+
+/// `通知` — when a background edge is allowed to reach the user.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NotifyPolicy {
+	/// 关.
+	Off,
+	/// 仅后台 — only while the window is not in front of the user, which is the
+	/// only time a notification says something the screen does not.
+	#[default]
+	BackgroundOnly,
+	/// 总是.
+	Always,
+}
+
+impl NotifyPolicy {
+	pub const ALL: [Self; 3] = [Self::Off, Self::BackgroundOnly, Self::Always];
+
+	pub fn label(self) -> &'static str {
+		match self {
+			Self::Off => "关",
+			Self::BackgroundOnly => "仅后台",
+			Self::Always => "总是",
+		}
+	}
+
+	pub fn key(self) -> &'static str {
+		match self {
+			Self::Off => "off",
+			Self::BackgroundOnly => "background",
+			Self::Always => "always",
+		}
+	}
+
+	pub fn from_key(key: &str) -> Option<Self> {
+		Self::ALL.into_iter().find(|value| value.key() == key)
+	}
+
+	/// May a notification fire right now? `foreground` is true when the window
+	/// is visible *and* focused — the case where the user is already looking at
+	/// the thing the notification would announce.
+	pub fn allows(self, foreground: bool) -> bool {
+		match self {
+			Self::Off => false,
+			Self::BackgroundOnly => !foreground,
+			Self::Always => true,
+		}
+	}
+}
+
 /// Every value the 设置 modal persists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Settings {
@@ -304,6 +409,13 @@ pub struct Settings {
 	pub terminal_size: u8,
 	pub cursor: CursorStyle,
 	pub terminal_autoconnect: bool,
+	/// 关闭窗口时.
+	pub close_action: CloseAction,
+	/// 开机自启. Stored so the choice survives, and reported as not wired until
+	/// a per-user autostart entry is installed.
+	pub auto_start: bool,
+	/// 通知.
+	pub notify: NotifyPolicy,
 }
 
 impl Default for Settings {
@@ -321,6 +433,9 @@ impl Default for Settings {
 			terminal_size: 13,
 			cursor: CursorStyle::Block,
 			terminal_autoconnect: true,
+			close_action: CloseAction::MinimizeToBackground,
+			auto_start: false,
+			notify: NotifyPolicy::BackgroundOnly,
 		}
 	}
 }
@@ -335,7 +450,7 @@ impl Settings {
 
 /// The keys this file owns, with their canonical inline comment (the same
 /// shape `zeta-main`'s writer uses).
-const MANAGED: [(&str, &str); 12] = [
+const MANAGED: [(&str, &str); 15] = [
 	("theme", "dark | light | system"),
 	("density", "compact | standard | spacious"),
 	("language", "zh-CN | en | ja (only zh-CN is wired)"),
@@ -348,6 +463,9 @@ const MANAGED: [(&str, &str); 12] = [
 	("terminal_size", "12 | 13 | 14"),
 	("cursor_style", "block | underline | bar"),
 	("terminal_autoconnect", "connect the local agent when a workspace opens"),
+	("close_action", "background | quit | ask"),
+	("auto_start", "start zetawork when the user logs in"),
+	("notify", "off | background | always"),
 ];
 
 const HEADER: &str = "# zetawork settings — rewritten by the 设置 surface; other lines are kept \
@@ -430,6 +548,9 @@ fn read(text: &str) -> Settings {
 			},
 			"cursor_style" => settings.cursor = CursorStyle::from_key(value).unwrap_or_default(),
 			"terminal_autoconnect" => settings.terminal_autoconnect = truthy(value).unwrap_or(true),
+			"close_action" => settings.close_action = CloseAction::from_key(value).unwrap_or_default(),
+			"auto_start" => settings.auto_start = truthy(value).unwrap_or(false),
+			"notify" => settings.notify = NotifyPolicy::from_key(value).unwrap_or_default(),
 			_ => {},
 		}
 	}
@@ -551,6 +672,9 @@ fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str)
 		"terminal_size" => settings.terminal_size.to_string(),
 		"cursor_style" => settings.cursor.key().to_owned(),
 		"terminal_autoconnect" => settings.terminal_autoconnect.to_string(),
+		"close_action" => settings.close_action.key().to_owned(),
+		"auto_start" => settings.auto_start.to_string(),
+		"notify" => settings.notify.key().to_owned(),
 		_ => String::new(),
 	};
 	let comment = comment.unwrap_or(fallback);
@@ -600,6 +724,12 @@ mod tests {
 			terminal_size: 12,
 			cursor: CursorStyle::Underline,
 			terminal_autoconnect: false,
+			// The lifecycle keys must round-trip too, and with values that are
+			// *not* their defaults, or a write that dropped them would still
+			// pass.
+			close_action: CloseAction::Ask,
+			auto_start: true,
+			notify: NotifyPolicy::Always,
 		};
 		save_to(&path, written).unwrap();
 		assert_eq!(load_from(&path), written, "{}", std::fs::read_to_string(&path).unwrap());

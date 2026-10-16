@@ -17,7 +17,9 @@ use crate::icons::icon_button;
 use crate::seed;
 use crate::state::{NavItem, Project, Workspace};
 use crate::theme;
-use crate::widgets::{foot_button, nav_row, truncated_mono, truncated_text};
+use crate::widgets::{
+	foot_button, nav_row, status_dot, status_tooltip, status_word, truncated_mono, truncated_text,
+};
 
 /// Width of the open column (`--side-left-w`).
 pub const WIDTH: f32 = 248.0;
@@ -248,15 +250,36 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
 	}
 	let chip_width = 24.0 + crate::center::display_cols(&workspace.branch) as f32 * 6.2;
-	let name_available = rect.width() - 30.0 - chip_width - 8.0;
+	// The run state: the dot in front of the name carries its colour, and the
+	// word sits before the branch chip. The **name outranks the word** — a row
+	// whose name has been squeezed to `…` tells you nothing, and the dot plus
+	// the tooltip still carry the state — so the word is only drawn when the
+	// name keeps a readable 64 px. A workspace nothing observes shows `—` and no
+	// dot; the tooltip says why.
+	let state = workspace.run_state;
+	let word_width = 3.0_f32.max(crate::center::display_cols("unconfirmed") as f32 * 6.2) + 8.0;
+	let show_word = rect.width() - 30.0 - chip_width - word_width - 8.0 >= 64.0;
+	let name_available =
+		rect.width() - 30.0 - chip_width - if show_word { word_width } else { 0.0 } - 8.0;
+	let response = response.on_hover_text(status_tooltip(state));
+	status_dot(ui, pos2(rect.min.x + 13.0, rect.center().y), state);
 	truncated_text(
 		ui,
-		pos2(rect.min.x + 22.0, rect.center().y),
+		pos2(rect.min.x + 24.0, rect.center().y),
 		&workspace.name,
 		13.0,
 		if active { theme::TEXT } else { theme::TEXT_2 },
 		name_available.max(24.0),
 	);
+	if show_word {
+		status_word(
+			ui,
+			pos2(rect.max.x - 12.0 - chip_width - word_width, rect.center().y),
+			state,
+			11.0,
+			word_width - 4.0,
+		);
+	}
 	let chip_rect = Rect::from_min_size(
 		pos2(rect.max.x - 8.0 - chip_width, rect.center().y - 9.0),
 		vec2(chip_width, 18.0),
