@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { Agent } from "@linxiraos/pi-agent-core";
+import { type } from "@linxiraos/pi-omptype";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Message, Model, Usage, UserMessage } from "@linxiraos/pi-ai";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -7,6 +8,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { estimateToolSchemaTokens } from "@linxiraos/pi-tui/status-line/context-usage";
 
 describe("AgentSession session stats", () => {
 	let authStorage: AuthStorage;
@@ -479,5 +481,56 @@ describe("AgentSession session stats", () => {
 			"claude-opus-4-6": 2,
 			"swe-1-7-medium": 1,
 		});
+	});
+
+	it("drops anchored tool schemas after switching to a model that defers them", () => {
+		const inlineModel = { ...model(), toolSchemasInContext: true };
+		const deferredModel: Model = { ...inlineModel, toolSchemasInContext: false };
+		const tool: AgentTool = {
+			name: "mcp__catalog__search",
+			label: "Search",
+			description: "Search account records with detailed filters. ".repeat(2_000),
+			parameters: type("object"),
+			execute: async () => ({ content: [{ type: "text" as const, text: "ok" }] }),
+		};
+		const agent = new Agent({ initialState: { model: inlineModel, systemPrompt: ["Test"], tools: [tool] } });
+		const schemaTokens = estimateToolSchemaTokens(agent.state.tools, agent.tokenizer);
+		const promptTokens = schemaTokens + 1_000;
+		const messages: Message[] = [
+			{ role: "user", content: "Look up the account.", timestamp: 1 },
+			{
+				role: "assistant",
+				content: [{ type: "text", text: "Found it." }],
+				api: inlineModel.api,
+				provider: inlineModel.provider,
+				model: inlineModel.id,
+				usage: {
+					input: promptTokens,
+					output: 0,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: promptTokens,
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+				},
+				contextSnapshot: { promptTokens, nonMessageTokens: schemaTokens, toolSchemaTokens: schemaTokens },
+				stopReason: "stop",
+				timestamp: 2,
+			},
+		];
+		const sessionManager = SessionManager.inMemory();
+		for (const message of messages) sessionManager.appendMessage(message);
+		agent.replaceMessages(messages);
+		session = new AgentSession({
+			agent,
+			sessionManager,
+			settings: Settings.isolated({ "compaction.enabled": false }),
+			modelRegistry,
+		});
+		const inlineTokens = session.getContextUsage()?.tokens ?? 0;
+
+		agent.setModel(deferredModel);
+
+		expect(inlineTokens).toBeGreaterThanOrEqual(promptTokens);
+		expect(session.getContextUsage()?.tokens).toBe(inlineTokens - schemaTokens);
 	});
 });

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import { RunOutput } from "@linxiraos/zeta/tools/browser/run-output";
 import type { ScreenshotResult } from "@linxiraos/zeta/tools/browser/tab-protocol";
 import { TernElementHandle, TernTab, userSourceFunction } from "@linxiraos/zeta/tools/browser/tern/tern-tab";
+import { parseTernSelector } from "@linxiraos/zeta/tools/browser/tern/selectors";
 import { TernSocketClient } from "@linxiraos/zeta/tools/browser/tern/wire";
 import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
 import { type FakeAnswer, type FakeDaemon, startFakeDaemon } from "./tern-fake-daemon";
@@ -330,6 +331,26 @@ describe("TernTab", () => {
 		expect(handles).toHaveLength(2);
 		await handles[1]!.text();
 		expect(reads).toEqual([{ engine: "handle", token: "t2" }]);
+	});
+
+	it("reads the page body when text or html gets no selector", async () => {
+		const reads: unknown[][] = [];
+		const fake = await startPage({
+			eventBatches: [],
+			kit: {
+				read: args => {
+					reads.push(args.slice(0, 2));
+					return "page";
+				},
+			},
+		});
+		const tab = await openTab(fake);
+		expect(await tab.text()).toBe("page");
+		expect(await tab.html()).toBe("page");
+		expect(reads).toEqual([
+			[parseTernSelector("body"), "text"],
+			[parseTernSelector("body"), "html"],
+		]);
 	});
 
 	it("closes the PiP of an open that was abandoned before Tern answered", async () => {

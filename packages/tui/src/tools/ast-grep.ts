@@ -175,7 +175,7 @@ export const astGrepToolRenderer = {
 		const extraLines: string[] = [];
 		if (limitReached) {
 			extraLines.push(
-				uiTheme.fg("warning", tuiText("agrpLimitNarrowPath", "limit reached; narrow path or increase limit")),
+				uiTheme.fg("warning", tuiText("agrpLimitNarrowPath", "limit reached; narrow path or use skip")),
 			);
 		}
 		if (details?.parseErrors?.length) {
@@ -275,7 +275,7 @@ export const astGrepToolRenderer = {
 			head,
 			body: compact<NativeChild>([
 				...describeGroupedOutput(kept, { lang: getLanguageFromPath }),
-				limitReached && noteText("limit reached; narrow path or increase limit", "warning"),
+				limitReached && noteText("limit reached; narrow path or use skip", "warning"),
 				parseNote,
 			]),
 			preview: { lines: COLLAPSED_MATCH_LIMIT },

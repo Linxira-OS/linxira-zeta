@@ -19,6 +19,7 @@ import {
 	resolveOrDefaultProjectRegistryPath,
 } from "@linxiraos/zeta/discovery/helpers";
 import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace/manager";
+import { getEnabledPlugins } from "@linxiraos/zeta/extensibility/plugins/loader";
 import type { InstalledPluginEntry } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import {
 	addInstalledPlugin,
@@ -27,6 +28,7 @@ import {
 	writeInstalledPluginsRegistry,
 } from "@linxiraos/zeta/extensibility/plugins/marketplace";
 import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+import * as piUtils from "@linxiraos/pi-utils";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ describe("resolveActiveProjectRegistryPath", () => {
 	});
 
 	afterEach(() => {
+		clearClaudePluginRootsCache();
 		vi.restoreAllMocks();
 		removeSyncWithRetries(tmpDir);
 	});
@@ -90,6 +93,146 @@ describe("resolveActiveProjectRegistryPath", () => {
 		const result = await resolveActiveProjectRegistryPath(cwd);
 
 		expect(result).toBe(path.join(tmpDir, ".zeta", "plugins", "installed_plugins.json"));
+	});
+
+	it("does not load a temporary root's .zeta/plugins from an unanchored scratch directory", async () => {
+		const tempRoot = path.join(tmpDir, "tmp");
+		const cwd = path.join(tempRoot, "scratch", "work");
+		fs.mkdirSync(path.join(tempRoot, ".zeta", "plugins"), { recursive: true });
+		fs.mkdirSync(cwd, { recursive: true });
+		vi.spyOn(os, "tmpdir").mockReturnValue(tempRoot);
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "home"));
+
+		expect(await resolveActiveProjectRegistryPath(cwd)).toBeNull();
+	});
+
+	it("does not fall back to a temporary root's .git anchor", async () => {
+		const tempRoot = path.join(tmpDir, "tmp");
+		const cwd = path.join(tempRoot, "scratch", "work");
+		fs.mkdirSync(path.join(tempRoot, ".git"), { recursive: true });
+		fs.mkdirSync(cwd, { recursive: true });
+		vi.spyOn(os, "tmpdir").mockReturnValue(tempRoot);
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "home"));
+
+		expect(await resolveActiveProjectRegistryPath(cwd)).toBeNull();
+	});
+
+	it("still finds a project's .zeta below the temporary root", async () => {
+		const tempRoot = path.join(tmpDir, "tmp");
+		const project = path.join(tempRoot, "project");
+		const cwd = path.join(project, "sub");
+		fs.mkdirSync(path.join(project, ".zeta"), { recursive: true });
+		fs.mkdirSync(cwd, { recursive: true });
+		vi.spyOn(os, "tmpdir").mockReturnValue(tempRoot);
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "home"));
+
+		expect(await resolveActiveProjectRegistryPath(cwd)).toBe(
+			path.join(project, ".zeta", "plugins", "installed_plugins.json"),
+		);
+	});
+
+	it("does not create a default project registry at an aliased temporary root", async () => {
+		const tempRoot = path.join(tmpDir, "tmp");
+		const alias = path.join(tmpDir, "tmp-link");
+		fs.mkdirSync(path.join(tempRoot, ".zeta"), { recursive: true });
+		fs.symlinkSync(tempRoot, alias, "dir");
+		vi.spyOn(os, "tmpdir").mockReturnValue(`${alias}${path.sep}`);
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "home"));
+
+		expect(await resolveActiveProjectRegistryPath(path.join(tempRoot, "scratch"))).toBeNull();
+		expect(await resolveOrDefaultProjectRegistryPath(tempRoot)).toBeUndefined();
+	});
+
+	it.skipIf(process.platform === "win32").each(["/tmp", "/var/tmp"])(
+		"does not create a project registry at the shared %s root even with another tmpdir",
+		async root => {
+			vi.spyOn(os, "tmpdir").mockReturnValue(tmpDir);
+			vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "home"));
+
+			expect(await resolveOrDefaultProjectRegistryPath(root)).toBeUndefined();
+		},
+	);
+
+	it("skips another account's .zeta/agent root and falls back to the cwd's git anchor", async () => {
+		const foreignHome = path.join(tmpDir, "other-user");
+		const cwd = path.join(foreignHome, "Development", "project");
+		fs.mkdirSync(path.join(foreignHome, ".zeta", "agent"), { recursive: true });
+		fs.mkdirSync(path.join(foreignHome, ".zeta", "plugins"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".git"), { recursive: true });
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "isolated-home"));
+
+		expect(await resolveActiveProjectRegistryPath(cwd)).toBe(
+			path.join(cwd, ".zeta", "plugins", "installed_plugins.json"),
+		);
+		expect(await resolveOrDefaultProjectRegistryPath(foreignHome)).toBeUndefined();
+	});
+
+	it("keeps an active repo-local .zeta/agent directory in project scope", async () => {
+		const project = path.join(tmpDir, "project");
+		const agentDir = path.join(project, ".zeta", "agent");
+		fs.mkdirSync(agentDir, { recursive: true });
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "isolated-home"));
+		vi.spyOn(piUtils, "getAgentDir").mockReturnValue(`${agentDir}${path.sep}`);
+		const registry = path.join(project, ".zeta", "plugins", "installed_plugins.json");
+
+		expect(await resolveActiveProjectRegistryPath(project)).toBe(registry);
+		expect(await resolveOrDefaultProjectRegistryPath(project)).toBe(registry);
+	});
+
+	it.each([".", "nested"])("keeps .zeta/agent at or below a git root (%s) in project scope", async subdir => {
+		const project = path.join(tmpDir, "project");
+		const anchor = path.join(project, subdir);
+		const cwd = path.join(anchor, "work");
+		const home = path.join(tmpDir, "isolated-home");
+		const pluginsDir = path.join(anchor, ".zeta", "plugins");
+		const pluginDir = path.join(pluginsDir, "node_modules", "omp-project-agent");
+		fs.mkdirSync(path.join(project, ".git"), { recursive: true });
+		fs.mkdirSync(path.join(anchor, ".zeta", "agent"), { recursive: true });
+		fs.mkdirSync(cwd, { recursive: true });
+		fs.mkdirSync(pluginDir, { recursive: true });
+		await Bun.write(
+			path.join(pluginsDir, "package.json"),
+			JSON.stringify({ dependencies: { "omp-project-agent": "*" } }),
+		);
+		await Bun.write(
+			path.join(pluginDir, "package.json"),
+			JSON.stringify({ name: "omp-project-agent", version: "1.0.0", omp: { tools: "tools" } }),
+		);
+		vi.spyOn(os, "homedir").mockReturnValue(home);
+		vi.spyOn(piUtils, "getAgentDir").mockReturnValue(path.join(home, ".zeta", "agent"));
+		const registry = path.join(pluginsDir, "installed_plugins.json");
+
+		expect(await resolveActiveProjectRegistryPath(cwd)).toBe(registry);
+		expect(await resolveOrDefaultProjectRegistryPath(anchor)).toBe(registry);
+		const plugins = await getEnabledPlugins(cwd, { home });
+		expect(plugins.map(plugin => [plugin.name, plugin.scope, plugin.path])).toEqual([
+			["omp-project-agent", "project", pluginDir],
+		]);
+	});
+
+	it("skips an inactive user config root without a git anchor", async () => {
+		const foreignHome = path.join(tmpDir, "other-user");
+		const cwd = path.join(foreignHome, "scratch", "work");
+		fs.mkdirSync(path.join(foreignHome, ".zeta", "agent"), { recursive: true });
+		fs.mkdirSync(path.join(foreignHome, ".zeta", "plugins"), { recursive: true });
+		fs.mkdirSync(cwd, { recursive: true });
+		vi.spyOn(os, "tmpdir").mockReturnValue(tmpDir);
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "isolated-home"));
+		vi.spyOn(piUtils, "getAgentDir").mockReturnValue(path.join(tmpDir, "isolated-agent"));
+
+		expect(await resolveActiveProjectRegistryPath(cwd)).toBeNull();
+		expect(await resolveOrDefaultProjectRegistryPath(foreignHome)).toBeUndefined();
+	});
+
+	it("still prefers a plain ancestor .zeta above the git root", async () => {
+		const cwd = path.join(tmpDir, "project");
+		fs.mkdirSync(path.join(tmpDir, ".zeta"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".git"), { recursive: true });
+		vi.spyOn(os, "homedir").mockReturnValue(path.join(tmpDir, "isolated-home"));
+
+		expect(await resolveActiveProjectRegistryPath(cwd)).toBe(
+			path.join(tmpDir, ".zeta", "plugins", "installed_plugins.json"),
+		);
 	});
 
 	it("returns null when neither .zeta/ nor .git/ found anywhere in the tree", async () => {
