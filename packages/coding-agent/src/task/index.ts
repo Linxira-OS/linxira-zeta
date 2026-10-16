@@ -68,7 +68,12 @@ import { AgentOutputManager } from "./output-manager";
 import { mapWithConcurrencyLimitAllSettled, Semaphore } from "./parallel";
 import { renderResult, renderCall as renderTaskCall } from "@linxiraos/pi-tui/tools/task";
 import { repairTaskParams } from "@linxiraos/pi-tui/tools/task-repair-args";
-import { resolveEffectiveSubagentPolicy, runStructuredSubagent, StructuredSubagentError } from "./structured-subagent";
+import {
+	resolveEffectiveSubagentPolicy,
+	runStructuredSubagent,
+	StructuredSubagentError,
+	type StructuredSubagentRequest,
+} from "./structured-subagent";
 import { SpawnRun, type SpawnPermit } from "./spawn-run";
 import { type TaskLauncher, TaskLaunchSession } from "./speculative-launch";
 
@@ -85,6 +90,7 @@ import {
 	cfgTaskMaxRecursionDepth,
 	cfgTaskMaxRuntimeMs,
 	cfgTaskSpeculativeLaunch,
+	cfgTaskStructured,
 } from "./settings";
 
 function renderSubagentUserPrompt(assignment: string): string {
@@ -157,6 +163,7 @@ interface TaskDescriptionOptions {
 	batchEnabled: boolean;
 	effortEnabled: boolean;
 	evalToolsEnabled: boolean;
+	structured: boolean;
 	asyncEnabled: boolean;
 	ircEnabled: boolean;
 	parentSpawns: string;
@@ -192,6 +199,7 @@ function renderDescription(options: TaskDescriptionOptions): string {
 		batchEnabled: options.batchEnabled,
 		effortEnabled: options.effortEnabled,
 		evalToolsEnabled: options.evalToolsEnabled,
+		structured: options.structured,
 		asyncEnabled: options.asyncEnabled,
 		hasBlockingAgents: renderedAgents.some(agent => agent.blocking),
 		hasModelMentions: options.sessionAgents.length > 0,
@@ -702,6 +710,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			batchEnabled: this.#isBatchEnabled(),
 			effortEnabled: cfgTaskEnableEffort.get(this.session.settings),
 			evalToolsEnabled: evalToolsEnabled(this.session),
+			structured: this.#isStructured(),
 			defaultAgent: this.#defaultAgent(),
 		});
 	}
@@ -726,6 +735,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			batchEnabled: this.#isBatchEnabled(),
 			effortEnabled: cfgTaskEnableEffort.get(this.session.settings),
 			evalToolsEnabled: evalToolsEnabled(this.session),
+			structured: this.#isStructured(),
 			asyncEnabled: cfgAsyncEnabled.get(this.session.settings),
 			ircEnabled: isIrcEnabled(this.session.settings, this.session.taskDepth ?? 0),
 			parentSpawns: this.session.getSessionSpawns() ?? "*",
@@ -741,6 +751,23 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 
 	#isBatchEnabled(): boolean {
 		return cfgTaskBatch.get(this.session.settings);
+	}
+
+	#isStructured(): boolean {
+		return cfgTaskStructured.get(this.session.settings);
+	}
+
+	/**
+	 * Result contract for a spawn: with `task.structured` the caller's
+	 * `outputSchema`/`schemaMode` pass through; without it the child gets no
+	 * schema or `yield` tool and returns its final message.
+	 */
+	#resultParams(params: TaskParams): Pick<StructuredSubagentRequest, "outputSchema" | "schemaMode" | "structured"> {
+		if (!this.#isStructured()) return { structured: false };
+		return {
+			...(Object.hasOwn(params, "outputSchema") ? { outputSchema: params.outputSchema } : {}),
+			...(Object.hasOwn(params, "schemaMode") ? { schemaMode: params.schemaMode } : {}),
+		};
 	}
 
 	#defaultAgent(): string {
@@ -851,8 +878,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 			assignment: (params.task ?? "").trim(),
 			context: this.#isBatchEnabled() ? params.context?.trim() || undefined : undefined,
 			agent: params.agent,
-			...(Object.hasOwn(params, "outputSchema") ? { outputSchema: params.outputSchema } : {}),
-			...(Object.hasOwn(params, "schemaMode") ? { schemaMode: params.schemaMode } : {}),
+			...this.#resultParams(params),
 			...(params.effort !== undefined ? { effort: params.effort } : {}),
 			...("isolated" in params ? { isolation: { requested: params.isolated } } : {}),
 			blockedAgent: this.#blockedAgent,
@@ -1663,8 +1689,7 @@ export class TaskTool implements AgentTool<TaskToolSchemaInstance, TaskToolDetai
 				assignment,
 				context,
 				agent: params.agent,
-				...(Object.hasOwn(params, "outputSchema") ? { outputSchema: params.outputSchema } : {}),
-				...(Object.hasOwn(params, "schemaMode") ? { schemaMode: params.schemaMode } : {}),
+				...this.#resultParams(params),
 				...(params.effort !== undefined ? { effort: params.effort } : {}),
 				solutionSpace: params.solutionSpace,
 				...(params.tools?.length

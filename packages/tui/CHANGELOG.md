@@ -8,6 +8,7 @@
 
 - `AssistantMessageComponent`'s native turn footer leads with a Copy icon (`zeta.turn.copy`) and a dot instead of the clock icon; it copies the answer's text and shows when the host handles transcript actions
 - Added the `app.ask.hide` keybinding (default `Alt+H`) and Hide/Show actions on `AskDialogComponent`, which collapse the dialog to a single line while its question stays pending ([#15400](https://github.com/can1357/oh-my-pi/pull/15400) by [@H4vC](https://github.com/H4vC))
+- Added opt-in `/tree` branch navigation across visible branches and nested fork depths; bind `app.tree.previousBranch` / `app.tree.nextBranch` (e.g. to `Shift+Left` / `Shift+Right`) in `keybindings.yml` ([#12623](https://github.com/can1357/oh-my-pi/pull/12623) by [@azain47](https://github.com/azain47)).
 
 ### Changed
 
@@ -22,6 +23,10 @@
 - The `OMP_TUI_DEBUG` control socket now uses the native IPC transport: it is owner-only and no longer replaces a socket another live process is serving.
 - Transcript rows pushed aside by an open dialog, report or HUD now reach scrollback when it closes or newer output pushes them out, instead of while it is open ([#15405](https://github.com/can1357/oh-my-pi/pull/15405) by [@H4vC](https://github.com/H4vC))
 - A transcript block straddling the top of the screen now sends only its off-screen rows to scrollback; the rest stays live ([#15405](https://github.com/can1357/oh-my-pi/pull/15405) by [@H4vC](https://github.com/H4vC))
+- The `wait` tool's native job rows (`zeta.wait.job`) are a single `row`: badge, id and label, progress and clock, without the output preview or capture notice beneath
+- The native bash run foot reads In background with a live clock (`zeta.run.time` without `stopped`) while a parked job's frames stream (`details.async.state === "running"`, partial), instead of Running
+- Native model pickers (/model, the quick switch and the advisor's) mark providers with their logo (`mark.icon: "provider:<id>"`, initials where the terminal has none), and every model row leads with its provider's mark
+- Updated model picker to offer manual effort selection for unverified models instead of automatic mode
 
 ### Fixed
 
@@ -34,12 +39,16 @@
 - Fixed a split transcript block dropping punctuation-only rows it reveals after the split (such as a tool pane's rule line on expand); the seam now stops before them instead of treating them as already committed ([#15420](https://github.com/can1357/oh-my-pi/pull/15420) by [@H4vC](https://github.com/H4vC))
 - Fixed a split transcript block fingerprinting measured rows instead of the bytes committed to scrollback, which could duplicate a SIXEL image prefix once its pending encode landed ([#15420](https://github.com/can1357/oh-my-pi/pull/15420) by [@H4vC](https://github.com/H4vC))
 - Fixed a transcript block straddling the top of the screen losing its off-screen rows when the inline-image limit demoted its images to text in the same frame; those rows now reach scrollback as text
+- Fixed the `snapcompact.shape` settings preview labelling variants `5x8-sent` and repeating the first variant's sample when the frame edge differs from the variant table (Claude and GPT on Cursor; `auto` on high-resolution Claude) ([#15448](https://github.com/can1357/oh-my-pi/pull/15448) by [@will-bogusz](https://github.com/will-bogusz))
 
 ### Removed
 
 - Removed `Composer.pinInputToBottom()`; the composer keeps the input on the bottom row by itself ([#15405](https://github.com/can1357/oh-my-pi/pull/15405) by [@H4vC](https://github.com/H4vC))
 - `SingleResult` (and the task tool's settled payload) carries the failure diagnostics an agent-driven model switch needs: optional `failureClass` (`usage-limit` / `auth` / `account-policy` / `context-overflow` / `transient` / `aborted` / `unknown`), optional `fallbackCandidates` (other selectors this session could run), and optional `modelChange` (`{ source: "spawn-param" | "wake-param", from?, to }`) recording that a caller-supplied model replaced the default one. All three stay absent unless a run actually reports them.
 - The welcome/splash brand art is now generated with the standard FIGlet tool instead of being drawn by hand: `ZETA_LOGO` renders the mark `Z` (the ASCII form of `Ζ`), `ZETA_WORDMARK` renders `Zeta` (both in the standard `ANSI Shadow` font) and `ZETA_SUBLINE` renders the `Linxira-Zeta` identity line in `mini`, with the version under the wordmark. `bun scripts/brand/generate-logo-art.ts` regenerates the three constants from the vendored fonts, and the brand guard fails on any hand-edited glyph.
+- Removed the unused `app.tree.foldOrUp` / `app.tree.unfoldOrDown` keybinding ids, which no longer did anything.
+- Added `parksAsBackground(toolName, details)`, `asyncJobState(details)`, `isSettledJobFrame(details)` and `settleWithJobFrame(component, frame, toolCallId)` (`chat/tool-execution`): whether a returned call's card stays live for its background job's frames (`task` always; `bash` and `eval` under native rendering), the job state a frame reports, and settling the card with the job's last frame (a cancelled job keeps its output and seals as cancelled)
+- `BashToolDetails.async.state` and `EvalToolDetails.async.state` gain `cancelled` for a job killed before it finished
 
 ## [1.2.1] - 2026-10-13
 

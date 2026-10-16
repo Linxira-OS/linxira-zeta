@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.10.1
+## Integrated through: v18.10.3
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -9,11 +9,14 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.10.1` (`5d0aaffaf1f987503ce129a642fb6e30339615af`,
-  confirmed by `git merge-base refs/heads/main <tag>` == `b83200eb866821f02625332025b453f06ce4e12a`,
-  merge commit `e72c77df4df`). The previous value was `v18.10.0`
-  (`b83200eb866821f02625332025b453f06ce4e12a`, PR #200, merge `1765251a473`),
-  which is exactly the merge-base this round started from.
+- **Integrated through**: `v18.10.3` (`81e1d8927a3c16cfaff2e9456baa8c060e1e0e9b`,
+  confirmed by `git merge-base refs/heads/main <tag>` == `5d0aaffaf1f987503ce129a642fb6e30339615af`
+  *before* the merge, and by `git merge-base --is-ancestor 81e1d8927a3c HEAD`, merge commit
+  `e78ebe945da`). The previous value was `v18.10.1`
+  (`5d0aaffaf1f987503ce129a642fb6e30339615af`, PR #227, merge `c2f5a0a0121`),
+  which is exactly the merge-base this round started from. `v18.10.2`
+  (`c8913466dd7bf92040de911f8e00e30b8f4e48a2`) is an ancestor of the v18.10.3 tag — verified with
+  `git merge-base --is-ancestor`, not assumed — so this one merge applies both releases.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
   `082bb1ac490`) but that branch was never merged into main. What landed was
@@ -25,15 +28,216 @@ two-parent tag merge.
   advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
   the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
 - **Next merge**: starts from this round's final commit on `main` once
-  `sync/omp-release/v18.10.1` merges (branch head `dcc8e8a84ef`, plus any CI fixes). It carries the
-  v18.10.1 tag commit (`git merge-base --is-ancestor 5d0aaffaf1f HEAD` is true), which is exactly
+  `sync/omp-release/v18.10.3` merges (branch head `196e6293996`, plus any CI fixes). It carries the
+  v18.10.3 tag commit (`git merge-base --is-ancestor 81e1d8927a3c HEAD` is true), which is exactly
   what `git merge-base` against the next tag computes. The increment applied is upstream's
   tag-to-tag diff, never a whole-tree comparison against our branch. Per
-  `local://upstream-ladder-measured.md` the ladder continues at `v18.10.2` — re-measure its
-  conflict set there, because the base changes after every step; `v18.11.0`/`v18.11.1` are later
-  rungs and must not be folded into this window.
+  `local://upstream-ladder-measured.md` the ladder continues at `v18.10.4`
+  (`687892d1046e`; measured 105 commits / 191 files / ~109 conflicts from a *v18.10.0* base — the
+  base moves with every rung, so re-measure from the merge-base this round lands on), then
+  `v18.11.0` (`c2cb79e4c227`). Both are later rungs and must not be folded into this window.
+  **Two divergences this round proved will hit the next rung again**: (1) upstream tests that pass a
+  per-spawn `model` to the task tool are rejected by the #228 contract and must be adapted; (2) the
+  union merge driver re-adds upstream's whole `## [18.x]` CHANGELOG section history, so every round
+  folds the new sections into `[Unreleased]`.
 
 
+
+## v18.10.3 incremental merge (Zeta — branch `sync/omp-release/v18.10.3`; merge commit `e78ebe945da`)
+
+- **Source tag**: `v18.10.3` → `81e1d8927a3c16cfaff2e9456baa8c060e1e0e9b`, a *lightweight* tag
+  (`git ls-remote --tags omp-upstream refs/tags/v18.10.3` advertises that one line and no
+  `refs/tags/v18.10.3^{}` peel), fetched with `git fetch omp-upstream --no-filter tag v18.10.3` and
+  read back with `git rev-parse v18.10.3` — remote and local agree, so the tag was not moved.
+  **Zeta starting commit**: `c2f5a0a0121` (`main`, the rung-1 merge of PR #227).
+- **Baseline**: v18.10.1 (`5d0aaffaf1f987503ce129a642fb6e30339615af`).
+- **The window carries v18.10.2 as well** (verified, not assumed): `git merge-base --is-ancestor
+  v18.10.2 v18.10.3` exits 0 (`v18.10.2` = `c8913466dd7bf92040de911f8e00e30b8f4e48a2`).
+- **Lineage gate** (pre-merge, mandatory): `git merge-base HEAD v18.10.3` →
+  `5d0aaffaf1f987503ce129a642fb6e30339615af`, exactly the previous integrated tag, so the merge
+  computes upstream's own increment and never our diff. **After** the merge: `git merge-base HEAD
+  v18.10.3` → `81e1d8927a3c16cfaff2e9456baa8c060e1e0e9b` and `git merge-base --is-ancestor v18.10.3
+  HEAD` exits 0. (`bun scripts/check-merge-lineage.ts --tag v18.10.3` is the *pre*-merge form of this
+  gate — run afterwards it refuses by design, because the candidate tag has become an ancestor; CI
+  runs the no-argument audit form, which reads the "Integrated through" line at the top of this file.)
+- **Window**: 126 commits / 272 files / +23561 −1587 — upstream's tag-to-tag diff
+  (`git diff --shortstat v18.10.1 v18.10.3`), i.e. `v18.10.1→v18.10.2` (26 commits / 138 files)
+  plus `v18.10.2→v18.10.3` (100 commits / 173 files). Theme: GPT-5-and-later and replayed-Claude
+  context counted at what each provider bills, catalog-policy-driven image/snapcompact budgets
+  (official-endpoint gating, `image-max-edge`, `thinking-unverified`, verified frame prices),
+  sibling subagent prompt-cache sharing, the in-process shell builtins (`env`, `du`, `chmod`, `fold`,
+  `rmdir`, `od`, `df`, `uptime`, `id`, `dd`, `nl`), the native media viewer for git diffs, media-path
+  read results, and `--restore` (resume the turn a crashed process left unfinished).
+- **Conflicts**: 57, all `UU`; the dry run
+  (`git merge-tree --write-tree --name-only HEAD v18.10.3 | grep -cE '^CONFLICT'`) predicted 57
+  exactly. `local://upstream-ladder-measured.md` listed 81 for this tag, but that figure was measured
+  from a *v18.10.0* merge-base (`.1` and `.2` folded in); stepping one integrated tag at a time is
+  what keeps this window at 57.
+- **Resolution rule**: upstream wins inside every overlapping hunk, then the Zeta surface is
+  re-applied (`@oh-my-pi/*` → the scope map / `pi-coding-agent`→`zeta`, `omp.*` → `zeta.*` roles,
+  `.zeta` paths, `zetacode`/`CLI_BIN_NAME` copy). Eleven hunks carried deliberate Zeta-only behaviour
+  and were *combined* instead of taken from one side (rows 5, 16, 23, 27, 28, 30, 34, 49 — plus the
+  four artifact rows that are ours by version line, and row 57 which is regenerated). The rest are
+  mechanical: upstream added imports/fields the merged body needs, and our side of the hunk differs
+  only by the scope or role spelling.
+- **Lockfiles**: `Cargo.toml` / `Cargo.lock` / `bun.lock` conflict on the version line only —
+  upstream's entire delta in all three is `18.10.1` → `18.10.3` (`git diff v18.10.1 v18.10.3` has no
+  other changed line in any of them) — and the Zeta `1.2.1` line wins, so all three end
+  byte-identical to `c2f5a0a0121`. `bun install` afterwards changed nothing.
+- **`MODULE.bazel.lock`**: ours, plus exactly one re-pointed input hash. The lock records each
+  build input as `FILE:@@//<path> <sha256 of that file>` — a property this round verified mechanically
+  (18 of 19 entries matched their working-tree file; the 19th was `crates/pi-builtins/Cargo.toml`,
+  whose merged content is upstream's because upstream rewrote that manifest in this window). That one
+  line now carries upstream's `98e0ec7aaec5e4239fd4eced13515aed9767507210610d2ab7c9f6ca30030939`,
+  which is the sha256 of the merged file. Everything else in the lock stays ours, because both Cargo
+  files are ours — the same reasoning as the v18.10.1 round.
+- **Generated catalog artifacts**: `packages/catalog/src/models.json` (unchanged on our side) is
+  upstream's, auto-merged with no conflict. `packages/catalog/src/compat/rules.json` is generated
+  from the merged KDL tree and *both* sides had regenerated it away from the base, so neither copy was
+  right: the merge commit takes upstream's and the follow-up commit regenerates ours
+  (`bun run gen:compat` → 1015 rules, 21 classes, 87 catalog providers, 96 auth providers, 234 files).
+
+### Per-file conflict decisions (57)
+
+`mech` = upstream's change with the Zeta surface re-applied (scope/role/copy only); `combine` =
+upstream's change *and* a Zeta-only behaviour merged by hand; `version` = lockfile version line;
+`regen` = generated artifact.
+
+| # | File | Class | Upstream's change | Zeta side at risk | Resolution |
+|---|---|---|---|---|---|
+| 1 | `Cargo.lock` | version | 11 hunks: workspace crate versions `18.10.1`→`18.10.3` | our `1.2.1` lines | **ours** (no dependency delta upstream) |
+| 2 | `Cargo.toml` | version | `[workspace.package] version = "18.10.3"` | `version = "1.2.1"`, `authors = ["Linxira-OS"]` | **ours** |
+| 3 | `bun.lock` | version | 12 hunks: workspace names/versions | our `@linxiraos/*` names + `1.2.1` | **ours** |
+| 4 | `MODULE.bazel.lock` | version | Cargo file hashes, `BUILD.bazel` blob, `pi-shell-18.10.3` alias | our hashes + `pi-shell-1.2.1` | **ours**, one input hash re-pointed (see above) |
+| 5 | `crates/pi-builtins/src/lib.rs` | combine | adds `md5sum`/`sha*sum`/`chmod` module declarations and `nl` | our `nohup` declaration (Zeta-only builtin) | **theirs + ours**: upstream's list is a strict superset (`147 ⊃ 132` modules, identical `#[cfg]` attrs for every shared one), so the file is taken wholesale — which *keeps* `nohup` because upstream has it too |
+| 6 | `packages/agent/src/agent.ts` | mech | adds `openAIResponsesReplaysNativeHistory` import | our `snapcompact` import | upstream's import; our `snapcompact` import **dropped** — upstream's `#syncTokenizer` rewrite (`countsAlike(model, options)`) removed its only use in this file |
+| 7 | `packages/agent/src/compaction/openai.ts` | mech | drops `estimateImageTokens` from the image-tokens import | our import of it | **theirs** — upstream's billing rewrite removed the usage; keeping it would be an unused import |
+| 8 | `packages/agent/src/tokenizer.ts` | mech | new replay/reader imports (`AssistantMessage`, `isColdReplayableResponsesTurn`, `resolveThinkingReplayTokens`, …) | `@oh-my-pi/snapcompact` → `@linxiraos/pi-snapcompact` | upstream's import block + scope map |
+| 9 | `packages/agent/test/branch-summarization.test.ts` | mech | adds `getBundledModel` | scope map | upstream + scope map |
+| 10 | `packages/agent/test/image-tokens.test.ts` | mech | adds `countResponsesHistoryTokens`, `Model` | scope map | upstream + scope map |
+| 11 | `packages/agent/test/output-budget.test.ts` | mech | adds `transformMessages` | scope map | upstream + scope map |
+| 12 | `packages/agent/test/tokenizer.test.ts` | mech | adds codex/responses fixtures | scope map | upstream + scope map |
+| 13 | `packages/ai/src/stream.ts` | combine | `CODEX_BASE_URL` → `isOfficialCodexApiUrl`, adds `withoutUnverifiedThinking` | our `CODEX_BASE_URL` import | **theirs**: upstream moved the helper to `pi-catalog/wire/codex` and this file's only reference is now `isOfficialCodexApiUrl(model.baseUrl)` |
+| 14 | `packages/ai/test/openai-responses-history-payload.test.ts` | mech | adds `openAIResponsesReplaysNativeHistory` | scope map | upstream + scope map |
+| 15 | `packages/coding-agent/src/cli/git-tui/state.ts` | mech | adds `type MediaRef` | scope map | upstream + scope map |
+| 16 | `packages/coding-agent/src/commands/launch-help.ts` | combine | hunk 1: new `restore` flag + `from-claude`/`from-codex`; hunk 2: new `--restore` example | our `ZETA` in the import descriptions, `${CLI_BIN_NAME}`, `~/.zeta/agent/...`, `--alias zc-work` | **combined**: upstream's flag and example line, our copy/bin/paths throughout |
+| 17 | `packages/coding-agent/src/config/model-registry.ts` | mech | `isOfficialCodexApiUrl` now imported from `pi-catalog/wire/codex` | our old `pi-ai/stream` import | **theirs** (drop the stale one) |
+| 18 | `packages/coding-agent/src/main.ts` | mech | adds `automaticThinkingLevel` | longer scope name | upstream + scope map (oxfmt then re-wrapped the line) |
+| 19 | `packages/coding-agent/src/modes/controllers/event-controller.ts` | mech | adds `readMediaPath` + job-frame helpers | scope map | upstream + scope map |
+| 20 | `packages/coding-agent/src/modes/utils/ui-helpers.ts` | mech | same as row 19 | scope map | upstream + scope map |
+| 21 | `packages/coding-agent/src/sdk.ts` | mech | adds `resolveCatalogPolicy`, snapcompact budget helpers | scope map | upstream + scope map |
+| 22 | `packages/coding-agent/src/session/agent-session.ts` | mech | adds `resolveCatalogPolicy`, `frameDataBytesBudget` | scope map | upstream + scope map |
+| 23 | `packages/coding-agent/src/session/exit-diagnostics.ts` | combine | replaces a literal with the new `INTERRUPTED_TURN_ERROR` constant | our brand string `Previous ZETA process exited…` | **combined**: the constant is adopted *and* its value is the Zeta one (the matcher at line 180 compares against the same constant) |
+| 24 | `packages/coding-agent/src/session/provider-image-budget.ts` | mech | adds `reachesOfficialEndpoint`, `capFrameDataBytes` | scope map | upstream + scope map |
+| 25 | `packages/coding-agent/src/session/session-advisors.ts` | mech | adds `automaticThinkingLevel` | scope map | upstream + scope map |
+| 26 | `packages/coding-agent/src/session/session-maintenance.ts` | mech | adds `Tokenizer`, `openAIResponsesReplaysNativeHistory` | scope map | upstream + scope map |
+| 27 | `packages/coding-agent/src/session/session-manager.ts` | combine | adds `getInheritedProviderPromptCacheKey` + `taskPromptCacheKey` to the fork/new-session paths | our `client` field (web client identity survives a `/new` copy and a fork) | **combined**: `client` kept *and* upstream's inherited-key logic added in both hunks |
+| 28 | `packages/coding-agent/src/session/settings-stream-fn.ts` | combine | adds `openAIResponsesReplaysNativeHistory` | our `tokenizerEncodingForModel` + `Encoding` imports | **combined**: upstream's import added, ours kept |
+| 29 | `packages/coding-agent/src/session/snapcompact-inline.ts` | mech | `Message` replaces `ToolResultMessage` in the pi-ai import; new comment | our `ToolResultMessage` import | **theirs** — upstream's imaging rewrite replaced the usage (verified: no remaining reference) |
+| 30 | `packages/coding-agent/src/task/executor.ts` | combine | new `structured?: boolean` field + doc on `FollowUpTurnOptions` | our Zeta-only `model?: string` wake-turn field (#228) | **combined**: both fields, upstream's doc line |
+| 31 | `packages/coding-agent/src/task/index.ts` | mech | adds `type StructuredSubagentRequest` | scope map | upstream + scope map |
+| 32 | `packages/coding-agent/src/task/settings.ts` | mech | adds `isRecord` | scope map | upstream + scope map |
+| 33 | `packages/coding-agent/src/tools/bash.ts` | mech | adds `WALL_TIME_NOTICE_MIN_MS` | scope map | upstream + scope map |
+| 34 | `packages/coding-agent/src/tools/read.ts` | combine | `FilesystemReadOptions` interface + `#readFilesystemPath`/`#readFilesystemPipeline` split | our `planTargetedRead?` option (plan-URL read window) | **combined**: upstream's refactor, and `planTargetedRead?` (+ its doc) restored on the moved interface — without it the call site is an excess-property error |
+| 35 | `packages/coding-agent/src/utils/image-resize.ts` | mech | adds `inflateSync`, `encodeRawPng` | scope map | upstream + scope map |
+| 36 | `packages/coding-agent/test/agent-session-model-persistence.test.ts` | mech | new imports (`AgentMessage`, `AssistantMessageEventStream`, …) | `@linxiraos/zeta` paths | upstream + scope map |
+| 37 | `packages/coding-agent/test/agent-session-snapcompact-budget.test.ts` | mech | adds `buildModel`/`toModelSpec`/`ExtensionRunner` | scope map | upstream + scope map |
+| 38 | `packages/coding-agent/test/agent-session-snapcompact-frame-dead-end.test.ts` | mech | adds `Model`, `computeNonMessageTokens` | scope map | upstream + scope map |
+| 39 | `packages/coding-agent/test/agent-session-snapcompact-trigger-room.test.ts` | mech | adds `buildModel`/`toModelSpec` | scope map | upstream + scope map |
+| 40 | `packages/coding-agent/test/bash-failure-result.test.ts` | mech | adds theme + `bashToolRenderer` imports, timing tests | scope map | upstream + scope map |
+| 41 | `packages/coding-agent/test/git-tui-stream.test.ts` | mech | adds `ChangedFile` | scope map | upstream + scope map |
+| 42 | `packages/coding-agent/test/modes/controllers/event-controller-task-async-updates.test.ts` | mech | adds native-rendering helpers | scope map | upstream + scope map |
+| 43 | `packages/coding-agent/test/session/provider-image-budget.test.ts` | mech | adds `getBundledModel`/`toModelSpec` | scope map | upstream + scope map |
+| 44 | `packages/coding-agent/test/snapcompact-inline.test.ts` | mech | multi-line pi-ai import + `transformMessages` | scope map | upstream + scope map |
+| 45 | `packages/coding-agent/test/task/executor-soft-budget.test.ts` | mech | adds `node:path`, `cfgTaskAgentSoftRequestBudget` | scope map | upstream + scope map |
+| 46 | `packages/coding-agent/test/utils/image-resize.test.ts` | mech | adds `encodeRawPng` | scope map | upstream + scope map |
+| 47 | `packages/snapcompact/src/snapcompact.ts` | mech | adds `Model`, `reachesOfficialEndpoint`, `resolveCatalogPolicy`, `resolveImageCountBudget`/`resolveInlineImageByteBudget` | scope map | upstream + scope map |
+| 48 | `packages/snapcompact/test/snapcompact.test.ts` | mech | adds `Model`, `buildModel`, `getBundledModel`, `toModelSpec` | scope map | upstream + scope map |
+| 49 | `packages/tui/src/apps/git/diff-pane.ts` | combine | moves the asset-title helper to a module-level `assetTitle()` and calls it from both panes | our `#assetTitle` method carrying the Zeta i18n kinds, and the localized Before/After labels | **combined**: upstream's module function and call shape, our `tuiText(...)` labels/kinds re-applied inside it, the private copy deleted |
+| 50 | `packages/tui/src/native/blobs.ts` | mech | adds `resolveImageOptions` | scope map | upstream + scope map |
+| 51 | `packages/tui/src/overlays/model-browser.ts` | mech | adds `TspPickerMark` | scope map | upstream + scope map |
+| 52 | `packages/tui/src/overlays/tree-selector.ts` | mech | adds `editorKey`, `getKeybindings` | scope map | upstream + scope map |
+| 53 | `packages/tui/src/tools/native-view.ts` | mech | `input.state === "background"` branch | our `zeta.run.time` roles | upstream's condition + role map |
+| 54 | `packages/tui/src/tools/wait.ts` | mech | `"col"`→`"row"`, `gap: "sm"` | our `zeta.wait.job` role | upstream's shape + role map |
+| 55 | `packages/tui/test/apps-native.test.ts` | mech | adds `TSP_KINDS` | scope map | upstream + scope map |
+| 56 | `packages/tui/test/tools-native-shell.test.ts` | mech | adds pi-ai + assistant-message imports | scope map | upstream + scope map |
+| 57 | `packages/catalog/src/compat/rules.json` | regen | upstream regenerated it | our own KDL deltas | **theirs in the merge, regenerated in the follow-up** (see above) |
+
+**Honest split**: 43 of the 57 rows were mechanical (upstream's hunk plus the scope map, the role map,
+or a `.zeta` path — no judgement involved). 14 were judgement calls: rows 5, 16, 23, 27, 28, 30, 34
+and 49 are Zeta-only behaviour that had to survive an upstream rewrite of the same lines; rows 1–4 and
+57 are "whose artifact is right" (version line / generated file), which is a decision about ownership,
+not about code; rows 7, 13, 17 and 29 are cases where our side of the conflict had to be *dropped*
+because upstream's rewrite removed the only use of the symbol.
+
+### Post-merge Zeta adaptation (commits `faf617c5b86`, `196e6293996`)
+
+- **Scope sweep** (`@oh-my-pi/*` → the Zeta scope map, 137 specifiers in 21 files) and **role sweep**
+  (`omp.*` → `zeta.*`) run over *every file the merge touched*, not only the conflicted hunks — git
+  auto-merged the rest, so the residue lives outside the conflict list (merge-playbook 「结论 2」). The
+  residue was 22 files of upstream tests/sources carrying `@oh-my-pi/*` imports plus
+  `packages/tui/{src/apps/git/git-tui.ts,test/apps-native.test.ts,test/wait-render.test.ts}` carrying
+  `omp.app.git.*` / `omp.wait.job`. **Neither `app` nor `wait` was in the brand-rules role
+  alternation, so brand-check stayed green while the residue shipped** — the alternation now lists
+  every namespace the TUI emits (`role: "zeta.<ns>"` over `packages/`), which is the only form that
+  cannot go stale again.
+- **`bun scripts/brand/brand-overlay.ts`** (idempotent mechanical pass): 3 tokens in 2 files — the
+  `--restore`/`--export` examples' `~/.omp/agent` → `~/.zeta/agent`, and a `.omp` fixture path in the
+  imported `restore-revive` test.
+- **`omp --restore` copy** (8 source/doc-comment/test-label sites) → `zetacode --restore`: the
+  backticked form sits outside the brand rule's lookbehind, so the gate cannot see it; the CLI is
+  `zetacode` everywhere else in the product. CHANGELOG prose keeps upstream's spelling (the rule
+  exempts it, and released entries are history).
+- **A resurrected env contract**: upstream's new `test/task/restore-revive.test.ts` isolated the agent
+  dir with `PI_CODING_AGENT_DIR`/`PI_PROFILE`, which `packages/utils/src/dirs.ts` does not read (it
+  reads `ZETA_CODING_AGENT_DIR`/`ZETA_PROFILE`) — the test would have written into the developer's real
+  agent dir. `ENV_KEYS` now clears the Zeta names too (the `OMP_`/`PI_` aliases the rest of the suite
+  clears are kept).
+- **CHANGELOG fold**: the union merge driver (`packages/*/CHANGELOG.md merge=union`) re-adds upstream's
+  entire `## [18.x]` section history, and the version gate rejects any `^## [1[5-8]\.` header. The new
+  upstream sections (`18.10.2`, `18.10.3`, plus upstream's `[Unreleased]`) were folded into
+  `[Unreleased]` for all 8 packages — 68 bullets, verified against `refs/heads/main` for exact and
+  near duplicates (none), with `omp.run.time`/`omp.wait.job` re-spelled to `zeta.*`. Nothing else of
+  upstream's CHANGELOG history is carried (the fork dropped those sections in the squash-sync era).
+  One pre-existing `[Unreleased]` bullet's `@oh-my-pi/pi-tui/native/*` spelling was restored to main's
+  text rather than swept, because that file is allow-listed for exactly that mention.
+- **The task `model` contract** (`196e6293996`): upstream's imported sibling prompt-cache routing test
+  spawns with `model: \`${provider}/${modelId}\``; #228's Zeta contract rejects a spawn `model`
+  outright, and upstream's own `spawnParamsFor` never reads the field, so the test's assertions depend
+  on the parent session's model (which the test already resolves per case). The field was dropped with
+  a comment; the routing contract under test is unchanged (16 pass / 0 fail).
+
+### Checks (all exit 0 unless stated)
+
+| Gate | Result |
+|---|---|
+| `bun scripts/check-version-consistency.ts` | version line consistent at `1.2.1`: 14 packages + 13 catalog keys + Cargo + main workspace + natives stamp + desktop + npm distribution leaf pins + README badge + `crates/*/BUILD.bazel` + Cargo.lock members (needed the CHANGELOG fold to get here: before it, 8 packages reported an upstream `## [18.x]` section) |
+| `bun run check:ts` | 0 errors (`check:tools` + all 17 workspace `check:types`) |
+| `bun scripts/check-scope-imports.ts` | 18885 `@linxiraos/*` specifiers resolve (5 allow patterns) |
+| `bun scripts/brand/brand-check.ts` | 0 hit(s), 0 missing assertion(s) |
+| `bun scripts/check-zeta-sentinels.ts` | 114 sentinels verified, AGENTS.md → document/merge-review.md |
+| `bun scripts/check-ci-surface.ts` | CI surface OK (32 jobs in `ci.yml` + satellite workflows) |
+| `bun scripts/check-shared-infra.ts` | 15 endpoints pinned across 4308 scanned files (5 marked for replacement); the window's new `skills.omp.sh`/`live.omp.sh` mentions are the registered ones |
+| `bun scripts/check-release-asset-names.ts` | OK |
+| `bun scripts/check-robomp-cli-contract.ts` | OK (`zetacode` on both sides) |
+| `bun scripts/generated-freshness.ts` | OK |
+| `bun scripts/check-package-json-merge.ts --base refs/heads/main` | OK: 22 merge commits, no branch-side leaf dropped or reverted (needs the documented `GIT_SHALLOW_FILE=/nonexistent-shallow` override in this shallow clone — the guard refuses to run otherwise) |
+| `cargo fmt --all -- --check` | exit 0 (the merge touches `crates/pi-builtins/**`; upstream's own formatting is rustfmt-clean, so the brand-shortening class-8 damage did not occur this round) |
+| `bun scripts/check-merge-lineage.ts --tag v18.10.3` | **refuses, as designed**: post-merge the candidate tag is an ancestor, so `merge-base(HEAD, v18.10.3)` is the tag itself, not the baseline. The gate's pre-merge form passed here and CI runs the no-argument audit form against the "Integrated through" line |
+
+- **Tests**: every merge-touched test file was run (agent 61 pass, ai 55, catalog 39, snapcompact 104,
+  tui 49, coding-agent: 88+346+327 across three batches after the contract fix) — **all green except
+  two failures that reproduce byte-identically on `main`**: `bash-failure-result.test.ts`'s
+  symlink-containment case (Windows `EPERM` on `fs.symlink` — creating symlinks needs Developer Mode)
+  and `eval/agent-bridge-policy.test.ts`'s JS-handle concurrency case. Both were re-run from the root
+  checkout on `main` to prove they are host-local, not merge damage.
+- **Not verified here**: the native addon build. This host has no local `pi_natives.*.node` for the
+  worktree, so the suites borrowed `main`'s prebuilt `pi_natives.win32-x64-baseline.node` (the window
+  changes no `crates/` binding surface; `packages/natives/native/index.{js,d.ts}` are byte-identical to
+  `v18.10.3`). PR CI never builds a PR-side addon for `sync/*` branches; the branch-dispatch recipe in
+  `document/merge-playbook.md` remains the authoritative validation and is recorded below.
+- **Not verified here (2)**: the full `packages/coding-agent` suite (thousands of tests) — the merge's
+  touched set was run instead, plus the four affected packages' suites; CI's buckets are the decider.
 
 ## v18.10.1 incremental merge (Zeta — branch `sync/omp-release/v18.10.1`; merge commit `e72c77df4df`)
 
@@ -1332,10 +1536,13 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.8.8` (`1ca13863a828`; two-parent merges `9362fef9d66` → v18.8.7,
-  `110331518bc` → v18.8.8 — see the entries above). Next sync target: `v18.8.9`
-  (`fa5ff4a3a977`, 58 commits / 124 files).
-- Zeta: `1.1.29` (version line holds across the published `@linxiraos/*`
-  packages; the tag is not cut yet).
-- In flight: `sync/omp-release/v18.8.7` (PR #79) — the v18.8.7 + v18.8.8 merges
-  plus the repair pass above; `git merge-base HEAD v18.8.8` must equal `1ca13863a828`.
+- OMP: `v18.10.3` (`81e1d8927a3c16cfaff2e9456baa8c060e1e0e9b`; two-parent merges
+  `e72c77df4df` → v18.10.1 (rung 1/4, PR #227) and `e78ebe945da` → v18.10.3
+  (rung 2/4, PR #229) — see the entries above). Next sync target: `v18.10.4`
+  (rung 3/4), then `v18.11.0` and `v18.11.1`.
+- Zeta: `1.2.1` (version line holds across the published `@linxiraos/*`
+  packages, the Cargo workspace and the natives stamp).
+- In flight: `sync/omp-release/v18.10.3` (PR #229) — its merge commit
+  `e78ebe945da` has parents `c2f5a0a01210` (main) and `81e1d8927a3c` (the tag),
+  and carries the i18n follow-up the merge opened (`task.structured` zh entry,
+  the `launch-help.ts` pin bump).

@@ -1255,7 +1255,7 @@ export class SessionManager {
 			id: this.#sessionId,
 			timestamp,
 			parentSession: previousSessionId,
-			providerPromptCacheKey: this.#header.providerPromptCacheKey ?? previousSessionId,
+			providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(this.#header),
 		};
 		this.#closeWriterEventually();
 		this.#sessionFile = to;
@@ -1991,6 +1991,7 @@ export class SessionManager {
 			client: options?.client ?? this.#header?.client,
 			parentSession: options?.parentSession,
 			providerPromptCacheKey: options?.providerPromptCacheKey,
+			taskPromptCacheKey: options?.taskPromptCacheKey,
 		};
 		const workspace = normalizeSessionWorkspace({
 			cwd: this.#cwd,
@@ -2439,7 +2440,8 @@ export class SessionManager {
 			// The fork is the same conversation read by the same client.
 			client: this.#header.client,
 			parentSession: parentSessionId,
-			providerPromptCacheKey: this.#header.providerPromptCacheKey ?? parentSessionId,
+			providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(this.#header),
+			taskPromptCacheKey: this.#header.taskPromptCacheKey,
 		};
 		this.#sessionName = this.#header.title;
 		this.#titleSource = this.#header.titleSource;
@@ -2687,7 +2689,7 @@ export class SessionManager {
 		manager.#suppressBreadcrumb = options?.suppressBreadcrumb === true;
 		// The copy is this same conversation under a new id, so it keeps the client
 		// that was reading it.
-		manager.#resetToNewSession({ client: this.#header.client });
+		manager.#resetToNewSession({ client: this.#header.client, taskPromptCacheKey: this.#header.taskPromptCacheKey });
 		manager.#sessionName = this.#sessionName;
 		manager.#titleSource = this.#titleSource;
 		manager.#titleUpdatedAt = this.#titleUpdatedAt;
@@ -3759,6 +3761,20 @@ export class SessionManager {
 		return this.#header;
 	}
 
+	static getInheritedProviderPromptCacheKey(header: SessionHeader | undefined): string | undefined {
+		return header?.taskPromptCacheKey !== undefined ? undefined : (header?.providerPromptCacheKey ?? header?.id);
+	}
+
+	/** Seed automatic affinity without turning a legacy fork identity into an explicit override. */
+	async setTaskPromptCacheKey(key: string): Promise<void> {
+		if (this.#header.taskPromptCacheKey === key && this.#header.providerPromptCacheKey === undefined) return;
+		this.#header.taskPromptCacheKey = key;
+		this.#header.providerPromptCacheKey = undefined;
+		if (!this.#persist || !this.#sessionFile || !this.#shouldHaveSessionFile()) return;
+		this.#rewriteRequired = true;
+		await this.#rewriteAtomically();
+	}
+
 	/** All session entries (excludes header). Returns a shallow copy. */
 	getEntries(): SessionEntry[] {
 		return [...this.#entries];
@@ -4017,7 +4033,8 @@ export class SessionManager {
 				parentSession: sourceHeader?.id,
 				// A fork of a transcript is read by whoever read the original.
 				client: sourceHeader?.client,
-				providerPromptCacheKey: sourceHeader?.providerPromptCacheKey ?? sourceHeader?.id,
+				providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(sourceHeader),
+				taskPromptCacheKey: sourceHeader?.taskPromptCacheKey,
 			},
 			options?.sessionFile,
 		);

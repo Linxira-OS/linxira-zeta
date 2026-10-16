@@ -216,7 +216,7 @@ export interface RunFootInput {
 	readonly state: RunState;
 	/** Exit code of a `failed` run; a non-zero code names the state `exit N`. */
 	readonly exitCode?: number;
-	/** Milliseconds run so far (`running`) or in total; the time is omitted when undefined. */
+	/** Milliseconds run so far (`running`, a live `background` job) or in total; omitted when undefined. */
 	readonly elapsedMs?: number;
 	/** Quiet facts (job id, service state, artifact), muted and ` · `-joined. */
 	readonly facts?: readonly string[];
@@ -250,7 +250,7 @@ export function runFoot(input: RunFootInput): NativeNode {
 			? undefined
 			: node(
 					"elapsed",
-					input.state === "running"
+					input.state === "running" || input.state === "background"
 						? { role: "zeta.run.time", age: ms, format: "short" }
 						: { role: "zeta.run.time", age: ms, stopped: ms, format: "short" },
 					undefined,
