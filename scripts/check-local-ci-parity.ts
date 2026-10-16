@@ -10,13 +10,17 @@
  *      (release chain / release-gated / non-Linux leg), or **unaccounted
  *      for** (a bug: either the mirror drifted or a list went stale).
  *   2. Every local job is either a mirror or an acknowledged local-only job.
- *   3. Every mirrored job's command entry points (`bun run …`, `bun scripts/…`,
- *      `cargo …`, `bazelisk …`, `go …`) must still appear in the local file,
- *      so a renamed repo script cannot leave the mirror calling a ghost.
+ *   3. Every mirrored job's command **entry-point set** matches on both sides
+ *      (`bun run …`, `bun scripts/…`, `bun test …`, `cargo …`, `bazelisk …`,
+ *      `go …`). Set equality, not substring containment: a renamed repo script
+ *      cannot leave the mirror calling a ghost, and a command the mirror drops
+ *      (or grows on its own) fails too. The only allowed asymmetries are the
+ *      deliberate ones recorded in `ENTRY_EXCEPTIONS` with a reason.
  *   4. The local workflow must not be able to publish (no release/publish/tag
  *      commands anywhere in it).
  *
- * Runs inside the local-ci `check` job; GitHub CI is untouched.
+ * Runs in the local-ci `check` job (Gitea) and in the GitHub `check` job, so a
+ * merge that desyncs the mirror reddens both.
  */
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
@@ -85,6 +89,33 @@ const LOCAL_ONLY: Record<string, string> = {
 	toolchains: "mirror scaffolding: persistent toolchain + bun install",
 };
 
+/**
+ * Mirrored-job entry points the two sides are ALLOWED to differ on, keyed by
+ * local job id and then by the entry itself, each with the reason it deviates.
+ * The entry-point comparison is set equality, so anything the mirror adds or
+ * drops must be recorded here — and a stale row is itself a failure (both sides
+ * agreeing again means the exception now hides real drift).
+ *
+ * Keys use the comparison's own shape: the first three whitespace tokens of a
+ * matching `run:` line (`bun scripts/x.ts`, `cargo nextest run`, …).
+ */
+const ENTRY_EXCEPTIONS: Record<string, Record<string, string>> = {
+	bazel_lock: {
+		"bun scripts/gen-bazel-lock.ts":
+			"GitHub auto-refreshes MODULE.bazel.lock on failure (regenerate + upload the artifact); the mirror only reports the refresh hint — it must never write into the persistent shared workspace",
+	},
+	native_addons: {
+		"bun scripts/bazel-natives.ts $NATIVE_TARGETS":
+			"the mirror stages the built addon straight into packages/natives/native/ (no artifact plumbing); GitHub installs it from the uploaded artifact through shell-literal invocations this guard's entry-point regex does not count",
+	},
+	main_tests: {
+		"cargo nextest run":
+			"nextest ships in the mirror's persistent toolchain store (per-crate parallelism on one box); GitHub has no nextest",
+		"cargo test --workspace":
+			"the mirror's `cargo nextest run … || cargo test --workspace` fallback half; GitHub runs it as the primary",
+	},
+};
+
 const problems: string[] = [];
 
 const github = parse(readFileSync(GITHUB, "utf8")) as Workflow;
@@ -121,21 +152,52 @@ for (const forbidden of ["release_", "publish", "npm publish", "tag -f", "git pu
 	}
 }
 
-// Command entry points: the mirror must call the same repo scripts.
-const commandOf = (job: Job): string[] =>
-	(job.steps ?? [])
-		.flatMap(step => step.run?.split(/\r?\n/) ?? [])
-		.filter(line => /^\s*(bun (run|scripts|test)|cargo |bazelisk |go (test|build))/u.test(line));
+/**
+ * Command entry points: the mirror must call the same repo scripts — compared
+ * as sets, in both directions. `ENTRY_EXCEPTIONS` is the only way to record a
+ * deliberate asymmetry, and it must stay live (a row whose two sides agree
+ * again is stale).
+ */
+const ENTRY_POINT = /^\s*(bun (run|scripts|test)|cargo |bazelisk |go (test|build))/u;
+
+const entryPointsOf = (job: Job): Record<string, true> => {
+	const entries: Record<string, true> = {};
+	for (const step of job.steps ?? []) {
+		for (const line of step.run?.split(/\r?\n/) ?? []) {
+			if (!ENTRY_POINT.test(line)) continue;
+			entries[line.trim().split(/\s+/).slice(0, 3).join(" ")] = true;
+		}
+	}
+	return entries;
+};
 
 for (const [githubId, localId] of Object.entries(MIRRORED)) {
 	const githubJob = github.jobs[githubId];
 	const localJob = local.jobs[localId];
-	if (!githubJob || !localJob) continue;
-	const localText = (localJob.steps ?? []).map(step => step.run ?? "").join("\n");
-	for (const command of commandOf(githubJob)) {
-		const entry = command.trim().split(/\s+/).slice(0, 3).join(" ");
-		if (!localText.includes(entry)) {
-			problems.push(`${LOCAL}:${localId} is missing the ${githubId} entry point \`${entry}\``);
+	if (!githubJob || !localJob) continue; // the missing side is reported above
+	const exceptions = ENTRY_EXCEPTIONS[localId] ?? {};
+	const onGithub = entryPointsOf(githubJob);
+	const onLocal = entryPointsOf(localJob);
+	for (const entry of Object.keys(onLocal)) {
+		if (!Object.hasOwn(onGithub, entry) && !(entry in exceptions)) {
+			problems.push(
+				`${LOCAL}:${localId} adds the entry point \`${entry}\` (no counterpart in ${GITHUB}:${githubId}) — mirror it there, or record it in ENTRY_EXCEPTIONS with a reason`,
+			);
+		}
+	}
+	for (const entry of Object.keys(onGithub)) {
+		if (!Object.hasOwn(onLocal, entry) && !(entry in exceptions)) {
+			problems.push(
+				`${LOCAL}:${localId} is missing the ${githubId} entry point \`${entry}\` — add the same command there, or record it in ENTRY_EXCEPTIONS with a reason`,
+			);
+		}
+	}
+	for (const entry of Object.keys(exceptions)) {
+		const present = [Object.hasOwn(onGithub, entry), Object.hasOwn(onLocal, entry)];
+		if (present[0] === present[1]) {
+			problems.push(
+				`${LOCAL}:${localId} ENTRY_EXCEPTIONS lists \`${entry}\` but both sides now ${present[0] ? "have" : "lack"} it — drop the stale exception`,
+			);
 		}
 	}
 }
