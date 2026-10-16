@@ -1067,6 +1067,10 @@ export function createGatewayUiContext(
 		// `cancelled: true` — treat that as user cancellation, not a timeout,
 		// so the ask tool reports "cancelled by the user" instead of aborting.
 		timeoutStartsOnPresentation: false,
+		// Upstream's #8655 editor-factory surface (v18.11.1): the gateway runs no
+		// in-process TUI, so extensions there get no custom editor — the same
+		// `undefined` the ACP, headless and session contexts answer with.
+		getEditorComponent: () => undefined,
 		select(title, options, dialogOptions) {
 			return sendDialog(
 				"select",
