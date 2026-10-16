@@ -22,13 +22,12 @@ import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
 import { ContextNotesTool, NewContextTool } from "@linxiraos/zeta/tools/context-notes";
 import { BUILTIN_TOOL_NAMES } from "@linxiraos/zeta/tools/builtin-names";
 import { GrepTool } from "@linxiraos/zeta/tools/grep";
-import { EvalTool } from "@linxiraos/zeta/tools/eval";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const authStorage = createInMemoryAuthStorage();
 authStorage.keys.setRuntime("anthropic", "test-key");
-authStorage.keys.setRuntime("openai-codex", "test-key");
+authStorage.keys.setRuntime("mock", "test-key");
 const modelRegistry = new ModelRegistry(authStorage);
 
 afterAll(() => {
@@ -100,7 +99,7 @@ describe("experimental context management", () => {
 		session = undefined;
 	});
 
-	async function createCodeModeSession() {
+	async function createRolloverSession() {
 		const mock = createMockModel({
 			responses: [
 				{
@@ -116,7 +115,6 @@ describe("experimental context management", () => {
 			"compaction.experimentalContextManagement": true,
 			"compaction.keepRecentTokens": 128,
 			"compaction.midTurnEnabled": false,
-			"providers.openai-codex.codeMode": "on",
 		});
 		const toolSession: ToolSession = {
 			cwd: process.cwd(),
@@ -132,11 +130,9 @@ describe("experimental context management", () => {
 			new GrepTool(toolSession),
 			new ContextNotesTool(toolSession),
 			new NewContextTool(toolSession),
-			new EvalTool(toolSession),
 		];
-		const model = { ...mock.model, provider: "openai-codex" };
 		const agent = new Agent({
-			initialState: { model, systemPrompt: ["test"], tools, messages: history },
+			initialState: { model: mock.model, systemPrompt: ["test"], tools, messages: history },
 			getApiKey: () => "test-key",
 			streamFn: mock.stream,
 		});
@@ -152,14 +148,12 @@ describe("experimental context management", () => {
 		return { session, manager, mock };
 	}
 
-	it("exposes new_context directly in Code Mode and rolls over once below the automatic threshold", async () => {
-		const { session, manager, mock } = await createCodeModeSession();
+	it("rolls over once on new_context below the automatic threshold", async () => {
+		const { session, manager, mock } = await createRolloverSession();
 		const events: AgentSessionEvent[] = [];
 		session.subscribe(event => {
 			events.push(event);
 		});
-		expect(session.getActiveToolNames()).toContain("new_context");
-		expect(session.getActiveToolNames()).not.toContain("read");
 		const request = "Implement the task; preserve the public API and do not deploy.";
 		await session.prompt(request);
 		await session.waitForIdle();
@@ -182,7 +176,7 @@ describe("experimental context management", () => {
 	});
 
 	it("retains the latest request through successive rollovers and context reconstruction without notes", async () => {
-		const { session, manager, mock } = await createCodeModeSession();
+		const { session, manager, mock } = await createRolloverSession();
 		const request = "Keep the API compatible; implement this task without deploying.";
 		await session.prompt(request);
 		await session.waitForIdle();
@@ -250,7 +244,7 @@ describe("experimental context management", () => {
 	});
 
 	it("closes the lifecycle when cancellation occurs during awaited start dispatch", async () => {
-		const { session, manager } = await createCodeModeSession();
+		const { session, manager } = await createRolloverSession();
 		const events: AgentSessionEvent[] = [];
 		const started = Promise.withResolvers<void>();
 		const release = Promise.withResolvers<void>();

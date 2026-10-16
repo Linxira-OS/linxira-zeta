@@ -10,6 +10,10 @@
 
 - Optimized transport performance with task-local write coalescing and batch-based newline processing
 
+### Fixed
+
+- Fixed `pwsh` code blocks rendering without PowerShell syntax colors ([#15008](https://github.com/can1357/oh-my-pi/issues/15008)).
+
 ## [1.2.0] - 2026-10-12
 
 - 版本线推进至 1.2.0；本版无独立用户可见变化。

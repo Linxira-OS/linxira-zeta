@@ -1702,11 +1702,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Ollama Cloud 最大并发",
 		description: "每个进程的最大并发 Ollama Cloud 子代理运行数；0 禁用服务商特定限制",
 	},
-	"providers.openai-codex.codeModeDirectTools": {
-		label: "Codex Code Mode 直连工具",
-		description:
-			"Codex Code Mode 的额外直连工具。标准直连工具为 eval、ask、todo、yield、think、checkpoint 和 rewind。",
-	},
 	"providers.webSearchOrder": {
 		label: "网络搜索服务商顺序",
 		description: "web_search 工具的优先服务商列表；未列出的服务商在其后保留默认顺序",
@@ -1980,10 +1975,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"edit.autoRepair.enabled": {
 		label: "自动修复解析回归",
 		description: "编辑引入 AST 解析失败时自动修复",
-	},
-	"providers.openai-codex.codeMode": {
-		label: "Codex 代码模式",
-		description: "以代码优先模式运行 Codex",
 	},
 	// ===== v18.1.2–v18.1.5 上游新增设置项（合并批补齐） =====
 	"async.maxJobs": {

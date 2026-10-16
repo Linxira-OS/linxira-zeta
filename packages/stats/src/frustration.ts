@@ -19,6 +19,7 @@
 import { type Judge, judgeQuestions, type Model } from "@linxiraos/pi-ai";
 import { compareRevision, parseRevision } from "@linxiraos/pi-catalog/compat/revision";
 import { classifyModel } from "@linxiraos/pi-catalog/compat/taxonomy";
+import { getEffectiveTokenCost } from "@linxiraos/pi-catalog/models";
 import { logger } from "@linxiraos/pi-utils";
 import { getTimeRangeConfig } from "./aggregator";
 import {
@@ -216,8 +217,8 @@ export async function estimateFrustrationRun(range?: string | null): Promise<Fru
 	const { cutoff } = getTimeRangeConfig(range);
 	const { messages, chars } = getPendingFrustrationTotals(cutoff);
 	const inputTokens = messages * REQUEST_OVERHEAD_TOKENS + Math.ceil(chars / CHARS_PER_TOKEN);
-	const cost =
-		(inputTokens * model.cost.input) / 1e6 + (messages * OUTPUT_TOKENS_PER_REQUEST * model.cost.output) / 1e6;
+	const rates = getEffectiveTokenCost(model.cost);
+	const cost = (inputTokens * rates.input) / 1e6 + (messages * OUTPUT_TOKENS_PER_REQUEST * rates.output) / 1e6;
 	return { available: true, messages, chars, inputTokens, cost, judge: `${model.provider}/${model.id}` };
 }
 
