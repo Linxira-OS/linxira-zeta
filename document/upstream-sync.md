@@ -124,6 +124,16 @@ two-parent tag merge.
   agent" validator. The protected intent is unchanged — a non-seance spawn still cannot choose a model —
   and the row is updated rather than dropped. `check-zeta-sentinels` remains at 114 sentinels.
 
+### `main/` live test red (dispatch 3)
+
+`Test main workspace (zeta workbench)` reached its test step and failed on
+`live::tests::a_spawned_terminal_has_a_pid_renders_its_output_and_reports_exit`:
+the POSIX branch built `sh -c 'printf %s <text>; sleep 0.05'`, but
+`Terminal::new_with_command` splits the command on whitespace and spawns it
+without a shell, so the quoted script arrived as several arguments and dash
+reported an unterminated quote. Both branches now name a program directly
+(`printf <text>`); also pre-existing on the starting commit.
+
 ### `main/` clippy red (dispatch 2)
 
 The only red job of dispatch `39032073476` was `Test main workspace (zeta workbench)`: clippy
