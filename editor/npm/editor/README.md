@@ -64,7 +64,7 @@ Only **x64 (amd64)** builds of Linux and Windows are provided. macOS and ARM
 `bin/zeta-editor.js` and its platform leaves carry `ttt.exe`. From the next
 published version the package is the payload described above:
 
-- the `zeta-editor` command is **gone** (this package has no `bin` by design;
+- the old editor command is **gone** (this package has no `bin` by design;
   spawn the payload, or `node launcher.js`),
 - the leaves carry `termide-editor[.exe]` instead of `ttt.exe`,
 - the editor's command line is `FILE[:line[:col]]` (`$EDITOR` semantics: no
