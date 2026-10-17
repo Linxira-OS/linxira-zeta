@@ -304,8 +304,8 @@ pub fn transcript(kind: TermKind, path: &str, branch: &str) -> Vec<(String, Ink)
 			lines.push(("$ agent run --task \"重构分屏渲染\"".to_owned(), Ink::Prompt));
 			lines.push(("[agent] 读取 src/ui/workspace.rs …".to_owned(), Ink::Ai));
 			lines.push(("[agent] 规划：拆分渲染管线 → 3 步".to_owned(), Ink::Ai));
-			lines.push(("[agent] ✓ 步骤 1/3 完成  耗时 1.2s".to_owned(), Ink::Ok));
-			lines.push(("[agent] ✓ 步骤 2/3 完成  耗时 0.8s".to_owned(), Ink::Ok));
+			lines.push(("[agent] + 步骤 1/3 完成  耗时 1.2s".to_owned(), Ink::Ok));
+			lines.push(("[agent] + 步骤 2/3 完成  耗时 0.8s".to_owned(), Ink::Ok));
 			lines.push(("[agent] … 步骤 3/3 进行中".to_owned(), Ink::Ai));
 		},
 		TermKind::C => {

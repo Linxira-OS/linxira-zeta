@@ -218,7 +218,7 @@ fn projects_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>
 		}
 		let active = shell.state.active_project.as_deref() == Some(project.id.as_str());
 		let line = Line::from(vec![
-			Span::styled(if active { "▾ " } else { "▸ " }, Style::new().fg(TEXT_3)),
+			Span::styled(if active { "v " } else { "> " }, Style::new().fg(TEXT_3)),
 			Span::styled(
 				project.name.clone(),
 				Style::new().fg(if active { ACTIVE_TEXT } else { TEXT_2 }),
@@ -249,7 +249,7 @@ fn projects_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>
 			}
 			let is_open = shell.state.active_workspace.as_deref() == Some(workspace.id.as_str());
 			let line = Line::from(vec![
-				Span::styled("    ▸ ", Style::new().fg(TEXT_3)),
+				Span::styled("    > ", Style::new().fg(TEXT_3)),
 				Span::styled(
 					workspace.name.clone(),
 					Style::new().fg(if is_open { ACTIVE_TEXT } else { TEXT_2 }),
@@ -681,7 +681,7 @@ fn sidebar_box(buf: &mut Buffer, area: Rect, shell: &Shell, hits: &mut Vec<Hit>)
 					for child in root.children.iter().take(content.height as usize) {
 						let mut spans = vec![Span::styled(
 							if child.is_dir {
-								format!("▾ {}/", child.name)
+								format!("v {}/", child.name)
 							} else {
 								child.name.clone()
 							},

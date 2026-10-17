@@ -1893,7 +1893,7 @@ impl Workspace {
 						});
 						cursor += w;
 					}
-					const CONTROLS: &str = " +  ↔  ↕  –  ✕ ";
+					const CONTROLS: &str = " +  ↔  ↕  –  x ";
 					let controls_w = Span::raw(CONTROLS).width() as u16;
 					let controls_x = area.right().saturating_sub(controls_w + 1);
 					push_deferred(

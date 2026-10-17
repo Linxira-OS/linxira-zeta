@@ -115,18 +115,18 @@ pub fn doctor() -> String {
 	let mut missing = 0usize;
 	for tool in SUITE {
 		if resolve_bin(tool.bins).is_some() {
-			out.push_str(&format!("  ✓ {} — installed\n", tool.name));
+			out.push_str(&format!("  + {} — installed\n", tool.name));
 		} else {
 			missing += 1;
 			let fix = tool
 				.install_command()
 				.unwrap_or_else(|| format!("install {}", tool.package));
-			out.push_str(&format!("  ✗ {} — missing\n      fix: {fix}\n", tool.name));
+			out.push_str(&format!("  x {} — missing\n      fix: {fix}\n", tool.name));
 		}
 	}
 	out.push_str(&format!(
 		"\n  {} of {} tools installed. Missing tools self-install:\n  Alt+C/I opens an install \
-		 pane; Tools ▸ Install missing\n  fills every gap at once.\n",
+		 pane; Tools > Install missing\n  fills every gap at once.\n",
 		SUITE.len() - missing,
 		SUITE.len()
 	));
@@ -236,7 +236,7 @@ mod tests {
 					tool.name
 				);
 			} else {
-				assert!(report.contains(&format!("✓ {}", tool.name)));
+				assert!(report.contains(&format!("+ {}", tool.name)));
 			}
 		}
 		assert!(report.contains(&format!(

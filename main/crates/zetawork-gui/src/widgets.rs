@@ -43,7 +43,7 @@ pub fn status_word(ui: &Ui, at: Pos2, state: Option<RunState>, size: f32, availa
 /// out ("说自己干完了，但没验证 —— 不等于 done") is only reachable here.
 pub fn status_tooltip(state: Option<RunState>) -> String {
 	match state {
-		Some(state) => format!("{} — {}", state.label(), state.meaning()),
+		Some(state) => format!("{} — {}", state.word(), state.meaning()),
 		None => "状态未接线：还没有会话状态源，所以这里不显示七个状态中的任何一个".to_owned(),
 	}
 }

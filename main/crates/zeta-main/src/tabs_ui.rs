@@ -226,7 +226,7 @@ pub fn tab_layout_named(width: u16, count: usize, active: usize, names: &[String
 			.cloned()
 			.unwrap_or_else(|| format!("{}:tab", idx + 1));
 		let raw = if idx == active {
-			format!("▸ {name} ")
+			format!("> {name} ")
 		} else {
 			format!(" {name} ")
 		};
@@ -249,8 +249,8 @@ pub fn tab_layout_named(width: u16, count: usize, active: usize, names: &[String
 	TabLayout { prev, tabs, active_close, next, plus }
 }
 
-/// The tab bar (row 1): `‹ ▸1:tab × 2:tab › +`. Wheel switching is handled
-/// by the app (scroll over this row). Active tab: ▸ + bold/underline + ×.
+/// The tab bar (row 1): `‹ >1:tab × 2:tab › +`. Wheel switching is handled
+/// by the app (scroll over this row). Active tab: > + bold/underline + ×.
 pub struct TabBar {
 	pub layout: TabLayout,
 	pub active: usize,

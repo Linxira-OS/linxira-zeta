@@ -59,18 +59,9 @@ impl RunState {
 	pub const ALL: [Self; 7] =
 		[Self::Perm, Self::Fail, Self::Work, Self::Mon, Self::Unc, Self::Int, Self::Done];
 
-	/// The glyph the mock's `DOTE` table pairs with this state.
-	pub fn glyph(self) -> &'static str {
-		match self {
-			Self::Perm => "◐",
-			Self::Fail => "✕",
-			Self::Work => "●",
-			Self::Mon => "◇",
-			Self::Unc => "◔",
-			Self::Int => "‖",
-			Self::Done => "✓",
-		}
-	}
+	// The state's *icon* is painted by `widgets::status_dot` — deliberately not
+	// a codepoint: the bundled faces lack ◐/✓/✕ (they render as tofu on the
+	// hosts we tested), so the seven states must not depend on font coverage.
 
 	/// The word the contract spells, in English, as the mock's `ST` table does.
 	pub fn word(self) -> &'static str {
@@ -142,11 +133,6 @@ impl RunState {
 		}
 	}
 
-	/// `◐ permission` — the glyph and the word, as the mock's rows show them.
-	pub fn label(self) -> String {
-		format!("{} {}", self.glyph(), self.word())
-	}
-
 	/// Does this state outrank `other`? The higher-priority state is what a
 	/// roll-up shows: a project with one `permission` workspace and four `done`
 	/// ones is waiting for an approval, not finished.
@@ -171,26 +157,24 @@ mod tests {
 	use super::*;
 	use std::collections::HashSet;
 
-	/// The contract's table, verbatim — the one place that pins it. Every
-	/// surface that draws a state now depends on these seven strings, so a
-	/// paraphrase here would be a fidelity bug everywhere at once.
+	/// The contract's table: word, meaning and key, verbatim. The *icon* is not
+	/// pinned here — `widgets::status_dot` paints it, so no codepoint can turn
+	/// into tofu on a host whose faces lack the mock's glyphs.
 	const CONTRACT: [(RunState, &str, &str); 7] = [
-		(RunState::Perm, "◐ permission", "在等你批准（最高优先级，盖过其它）"),
-		(RunState::Fail, "✕ failed", "失败"),
-		(RunState::Work, "● working", "正在干"),
-		(RunState::Mon, "◇ monitoring", "后台值守（等外部信号 / 定时任务）"),
-		(RunState::Unc, "◔ unconfirmed", "说自己干完了，但没验证 —— 不等于 done"),
-		(RunState::Int, "‖ interrupted", "中途被打断"),
-		(RunState::Done, "✓ done", "完成且已确认"),
+		(RunState::Perm, "permission", "在等你批准（最高优先级，盖过其它）"),
+		(RunState::Fail, "failed", "失败"),
+		(RunState::Work, "working", "正在干"),
+		(RunState::Mon, "monitoring", "后台值守（等外部信号 / 定时任务）"),
+		(RunState::Unc, "unconfirmed", "说自己干完了，但没验证 —— 不等于 done"),
+		(RunState::Int, "interrupted", "中途被打断"),
+		(RunState::Done, "done", "完成且已确认"),
 	];
 
 	#[test]
 	fn the_seven_states_are_the_contracts_seven() {
 		assert_eq!(RunState::ALL.len(), 7, "Orca's seven, no more and no fewer");
-		for (state, label, meaning) in CONTRACT {
-			assert_eq!(state.label(), label, "glyph + word");
-			assert_eq!(state.glyph(), label.split(' ').next().unwrap());
-			assert_eq!(state.word(), label.split(' ').nth(1).unwrap());
+		for (state, word, meaning) in CONTRACT {
+			assert_eq!(state.word(), word, "the contract's word, word for word");
 			assert_eq!(state.meaning(), meaning, "the contract's meaning, word for word");
 			assert!(RunState::ALL.contains(&state));
 		}
