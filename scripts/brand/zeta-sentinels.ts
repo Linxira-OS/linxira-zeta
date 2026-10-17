@@ -506,9 +506,9 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		why: "the refusal text for the passive switch gate — the same surface the tests assert on",
 	},
 	{
-		file: "packages/coding-agent/src/task/index.ts",
-		symbol: "a subagent's model comes from its agent definition or the parent's",
-		why: "dispatch must reject a `model` rather than choose one: the wire shape has no such field, so reaching validation means an internal or stale-transcript caller",
+		file: "packages/coding-agent/src/task/seance.ts",
+		symbol: "is only accepted for the",
+		why: "dispatch must reject a `model` rather than choose one: the wire shape has no such field, so reaching validation means an internal or stale-transcript caller. Since v18.11.3 the seance validator owns the rule (a non-seance spawn's `model` is refused here); the per-spawn field is gone from `TaskParams`.",
 	},
 	// -- bash: elevated commands + credential policy -------------------------------
 	{

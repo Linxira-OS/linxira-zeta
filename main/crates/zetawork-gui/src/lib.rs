@@ -651,10 +651,6 @@ impl Shell {
 		}
 	}
 
-	/// Poll the live PTYs: repaint on new output (foreground only — the
-	/// background state draws no frames of its own) and notify when a terminal
-	/// ends.
-
 	/// Type into the focused terminal pane. `true` means this frame's keys were
 	/// consumed, so the global hotkeys must not also see them.
 	///
@@ -688,6 +684,9 @@ impl Shell {
 		true
 	}
 
+	/// Poll the live PTYs: repaint on new output (foreground only — the
+	/// background state draws no frames of its own) and notify when a terminal
+	/// ends.
 	pub fn poll_live(&mut self, ctx: &Context) {
 		let mut ended: Vec<String> = Vec::new();
 		for event in self.live.poll() {

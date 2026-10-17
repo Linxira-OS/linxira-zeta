@@ -1865,6 +1865,12 @@ export interface Messages {
 	cmdAdvisorStatus: string;
 	cmdAdvisorDump: string;
 	cmdAdvisorConfigure: string;
+	cmdSeance: string;
+	cmdSeanceConsultWith: string;
+	cmdSeanceUseSavedModel: string;
+	cmdSeanceUseSavedModelDescription: string;
+	cmdSeanceChooseModel: string;
+	cmdSeanceChooseModelDescription: string;
 	cmdExportHtml: string;
 	cmdDumpTranscript: string;
 	cmdShare: string;

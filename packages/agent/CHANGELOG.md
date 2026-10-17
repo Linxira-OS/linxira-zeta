@@ -16,6 +16,8 @@
 - `CompactionPreparation.lastSummarizedEntryId` and `CompactionResult.providerReplayThroughEntryId`: a remote compaction that could only fit the history before the kept tail reports the last entry its native history covers; later entries replay normally ([#15712](https://github.com/can1357/oh-my-pi/pull/15712) by [@H4vC](https://github.com/H4vC))
 - `agent_start` carries `resumedToolCallIds` when a continued run first executes the calls of an unpaired assistant tail
 
+- `prepareQueuedMessages` receives which queue (`steering` or `followUp`) a batch came from ([#16026](https://github.com/can1357/oh-my-pi/pull/16026))
+
 ### Changed
 
 - Before-model-call hooks now receive the loop context as a second argument, and `buildProviderContext` receives the summarizer model ([#15436](https://github.com/can1357/oh-my-pi/pull/15436) by [@will-bogusz](https://github.com/will-bogusz))

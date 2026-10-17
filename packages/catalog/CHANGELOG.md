@@ -42,6 +42,8 @@
 - OpenCode Go requests now go to the current `https://opencode.ai/inference/go/v1` endpoint instead of the legacy `/zen/go` one ([#15722](https://github.com/can1357/oh-my-pi/issues/15722))
 - GPT Image models (`gpt-image-*`, `chatgpt-image-*`) now classify as their own `gpt-image` family instead of `gpt` or `chatgpt`, so GPT chat-model rules no longer apply to them ([#14619](https://github.com/can1357/oh-my-pi/pull/14619) by [@jimhester](https://github.com/jimhester))
 
+- Renamed the built-in `google-antigravity` login option to "Google Antigravity (Gemini, Claude, GPT-OSS)" so it is distinguishable from similarly named third-party plugins and no longer implies support stops at Gemini 3 ([#15998](https://github.com/can1357/oh-my-pi/pull/15998) by [@savanne-kham](https://github.com/savanne-kham)).
+
 ### Fixed
 
 - Applied `max-image-dimension` and `max-image-payload-bytes` to Google API models, and declared the 5 MiB per-image limit of Claude on Google Antigravity ([#15444](https://github.com/can1357/oh-my-pi/pull/15444) by [@will-bogusz](https://github.com/will-bogusz))
@@ -60,6 +62,10 @@
 - Fixed OpenCode Go's `deepseek-flash` alias showing $0, unknown limits, and no reasoning instead of the V4.1 Flash rate card and capabilities ([#15357](https://github.com/can1357/oh-my-pi/issues/15357))
 - Fixed OpenCode Go's Gemini 4 Argon Contributor failing with an unsupported protocol and thinking level; it now uses the native Gemini endpoint ([#15722](https://github.com/can1357/oh-my-pi/issues/15722))
 - Fixed OpenCode Zen Gemini 4 Argon failing with an unsupported protocol; it now uses the native Gemini endpoint ([#15977](https://github.com/can1357/oh-my-pi/issues/15977)).
+
+- Fixed Command Code's `z-ai/glm-5.3-flash` failing every request with "not available on this endpoint": the catalog routes it to chat completions, the only endpoint Command Code lists for it ([#15922](https://github.com/can1357/oh-my-pi/pull/15922) by [@jasonharrison](https://github.com/jasonharrison))
+- Fixed `/handoff` failing with `400 Provider returned error` on OpenRouter's hosted Muse Spark 1.x and Muse Wonder models: requests no longer send a `tool_choice` the upstream Meta backend rejects ([#15910](https://github.com/can1357/oh-my-pi/issues/15910))
+- Fixed OpenCode Zen bringing back retired bundled models from an authoritative model cache, and dropping drop-listed models such as `gemini-3.7-flash` when a refresh fails after an upgrade ([#15770](https://github.com/can1357/oh-my-pi/pull/15770) by [@adi-IL](https://github.com/adi-IL))
 
 ### Removed
 
