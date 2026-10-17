@@ -1,0 +1,15 @@
+[package]
+name = "termide-panel-ide"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The standard IDE page: a fixed layout with file tabs, a left column (tree over git) and an editor, shared by the TUI and the GUI"
+
+[dependencies]
+crossterm.workspace = true
+ratatui.workspace = true
+
+# Workspace crates
+termide-core = { path = "../core" }

@@ -5582,6 +5582,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "termide-panel-ide"
+version = "0.41.0"
+dependencies = [
+ "crossterm",
+ "ratatui",
+ "termide-core",
+]
+
+[[package]]
 name = "termide-panel-image"
 version = "0.41.0"
 dependencies = [
