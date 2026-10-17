@@ -162,8 +162,34 @@ two-parent tag merge.
   `v18.11.3` modulo the scope mapping, and the native addon used locally is main's prebuilt
   `win32-x64` binary (the window's `crates/pi-natives` changes are internal — `index.d.ts` is
   unchanged), so CI's source-matched bazel build is the authority.
-- **Dispatch**: `ci.yml` on `sync/omp-release/v18.11.3` → run `<pending>` (see the run bullet added
-  after it completes).
+- **Dispatch — first run `39028789166`** (`headSha 711a5613643`): **24 jobs green / 4 red / 15
+  tag-gated skips**. Green includes every native job (`Build native addons (bazel)` + cross targets,
+  `Check MODULE.bazel.lock freshness`, `Test TS native/integration packages`), `Validate Rust workspace
+  (bazel)`, `Test TS workspace fast`, `Test CLI smoke (TS)`, three coding-agent buckets, termide, web
+  contracts, install smoke, `Web UI build`, release metadata. Red:
+  1. `Lint, type check & web build` — **real merge residue**, fixed below: the new `/seance` slash
+     command shipped three static English descriptions and a `prewalk.auto`/`prewalk.autoTarget`
+     setting group had no zh overlay (`check-i18n-commands` 3 failures; `settings-zh.test` 10/2263
+     missing).
+  2. `Test coding-agent UI/TUI (TS)` — same two causes plus two Zeta tests
+     (`test/task/task-model-param.test.ts`) still asserting the removed `cannot set \`model\`` wording.
+  3. `Test coding-agent native/unit (TS) 1/1` — the settings-zh + command-description parity tests.
+  4. `Test main workspace (zeta workbench)` — **pre-existing main defect, not merge damage**:
+     `cargo clippy --workspace --all-targets -- -D warnings` fails in
+     `main/crates/zetawork-gui/src/lib.rs` with `clippy::empty-line-after-doc-comments` (a doc comment
+     at line 656 followed by a blank line before `forward_terminal_input`). `git diff 5769cf3c771 HEAD
+     -- main/` is empty and the file's last change is the starting commit `5769cf3c771`
+     (`feat(gui): type into the focused terminal pane`), so `main` itself is red there. `main/` is a
+     Zeta-owned tree this sync is not allowed to modify, so it is recorded here and left to the
+     maintainer; it is unrelated to the merge (`main/` never participates in the tag delta).
+- **Fixes after run `39028789166`**: `/seance` now reads `M.cmdSeance`/`cmdSeance*` thunks
+  (`messages.ts`, `en.ts`, `zh.ts`); the zh overlay gained `prewalk.auto` (label, description, three
+  option pairs) and `prewalk.autoTarget`; the two Zeta tests assert the new seance-validator wording.
+  Local re-checks: `check-i18n-commands` 0 (323 descriptions), `settings-zh.test`,
+  `command-descriptions.test`, `messages.test`, `i18n-slash-commands.test`,
+  `i18n-message-references.test`, `i18n-settings-localization.test` and `task-model-param.test` all
+  pass (35 + 2 tests).
+- **Dispatch — second run** (head sha `<pending>`) → run `<pending>` (see below).
 
 ### Risks / open items
 

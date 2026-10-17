@@ -121,7 +121,7 @@ describe("task dispatch model rejection", () => {
 			solutionSpace: "one fix",
 			model: PRIMARY_SELECTOR,
 		});
-		expect(text).toContain("cannot set `model`");
+		expect(text).toContain("is only accepted for the");
 	});
 
 	it("rejects a batch item that names a model", async () => {
@@ -129,7 +129,7 @@ describe("task dispatch model rejection", () => {
 			context: "shared",
 			tasks: [{ task: "Inspect the target.", solutionSpace: "one fix", model: SECONDARY_SELECTOR }],
 		});
-		expect(text).toContain("cannot set `model`");
+		expect(text).toContain("is only accepted for the");
 	});
 
 	it("still dispatches a call that names only an effort", async () => {
@@ -140,7 +140,7 @@ describe("task dispatch model rejection", () => {
 			solutionSpace: "one fix",
 			effort: "hi",
 		});
-		expect(text).not.toContain("cannot set `model`");
+		expect(text).not.toContain("is only accepted for the");
 	});
 });
 

@@ -8,6 +8,7 @@ import { SEANCE_AGENT_NAME } from "../task/seance-policy";
 import seanceCommandPrompt from "../prompts/system/seance-command.md" with { type: "text" };
 import seanceCommandSolutionSpace from "../prompts/system/seance-command-solution-space.md" with { type: "text" };
 import { parseCommandArgs } from "../utils/command-args";
+import { M } from "../i18n";
 import { clearSubmittedText } from "./helpers/draft";
 import type { SlashCommandSpec } from "./types";
 import type { InteractiveModeContext } from "../modes/types";
@@ -126,17 +127,20 @@ async function chooseSeanceModel(
 		// No saved model to offer: go straight to the one-off model picker.
 		const choice =
 			source.modelSelectors.length === 0
-				? "Choose another model"
-				: await ctx.showHookSelector("Consult this session with", [
+				? M.cmdSeanceChooseModel
+				: await ctx.showHookSelector(M.cmdSeanceConsultWith, [
 						{
-							label: "Use saved model",
-							description: "Use the active role or default model saved with this session",
+							label: M.cmdSeanceUseSavedModel,
+							description: M.cmdSeanceUseSavedModelDescription,
 						},
-						{ label: "Choose another model", description: "Select a one-off model for this consultation" },
+						{
+							label: M.cmdSeanceChooseModel,
+							description: M.cmdSeanceChooseModelDescription,
+						},
 					]);
-		if (choice === "Use saved model") {
+		if (choice === M.cmdSeanceUseSavedModel) {
 			void launchSeance(ctx, sourceSession);
-		} else if (choice === "Choose another model") {
+		} else if (choice === M.cmdSeanceChooseModel) {
 			ctx.showModelSelector({
 				selectOnly: {
 					onSelect: picked => launchSeance(ctx, sourceSession, picked),
@@ -151,7 +155,7 @@ async function chooseSeanceModel(
 export const SEANCE_SLASH_COMMAND: SlashCommandSpec = {
 	name: "seance",
 	icon: "ghost",
-	description: "Consult a saved session without resuming it",
+	description: () => M.cmdSeance,
 	inlineHint: "[session id|path] [--model selector]",
 	allowArgs: true,
 	handleTui: async (command, runtime) => {
