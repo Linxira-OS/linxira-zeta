@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.11.2
+## Integrated through: v18.11.3
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -9,17 +9,15 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.11.2` (`470b7efb67673960d37e3e64584669e6e9caad1c`,
-  confirmed by `git merge-base refs/heads/main <tag>` == `7cc912940b107eb2d771b0d106c640a8eddc9edf`
-  *before* the merge, and by `git merge-base --is-ancestor 470b7efb6 HEAD`, merge commit
-  `bd6938cbac3`). The previous value was `v18.11.1`
-  (`7cc912940b107eb2d771b0d106c640a8eddc9edf`, merge `949687f3230`), which is exactly the merge-base
-  this round started from, so this rung applies upstream's own `v18.11.1`→`v18.11.2` increment and never
-  our diff. **The release tag was re-cut upstream on 2026-10-16**: the old object
-  `714a63689bb4551e59dd27efba2e894d31aec86e` was replaced by
-  `470b7efb67673960d37e3e64584669e6e9caad1c` (the `chore: bump version to 18.11.2` commit, one commit
-  later). `git ls-remote --tags omp-upstream refs/tags/v18.11.2` returned the **new** SHA at the start of
-  this round and again at merge time, so the integration carries the new object.
+- **Integrated through**: `v18.11.3` (`96894a6147d8cc64b7e00ad3a7d7178fd93b9531`,
+  confirmed by `git ls-remote --tags omp-upstream refs/tags/v18.11.3` **before and after** the merge
+  returning the same peeled SHA, and by `git merge-base --is-ancestor 96894a6147d HEAD`, merge commit
+  `24c3da1c56b`). The previous value was `v18.11.2`
+  (`470b7efb67673960d37e3e64584669e6e9caad1c`, merge `bd6938cbac3`), which is exactly the merge-base
+  this round started from (`git merge-base 5769cf3c771 v18.11.3` →
+  `470b7efb67673960d37e3e64584669e6e9caad1c`), so this rung applies upstream's own
+  `v18.11.2`→`v18.11.3` increment and never our diff. The v18.11.3 tag is a lightweight tag; it was not
+  moved during this round.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
   `082bb1ac490`) but that branch was never merged into main. What landed was
@@ -31,21 +29,146 @@ two-parent tag merge.
   advertises `40e9368ef045`, while we merged `153b37c3b65b`. Diffing against
   the tag *name* will not reproduce what we took. Compare SHAs, not tag names.
 - **Next merge**: the next sync starts from this round's final commit on `main` once
-  `sync/omp-release/v18.11.2` merges (branch head `bd6938cbac3`, plus the changelog, surface-repair and
-  ledger commits), and its target is **the next upstream release tag when it appears** (whatever comes
-  after `v18.11.2`; no standing target). It carries the v18.11.2 tag commit
-  (`git merge-base --is-ancestor 470b7efb6 HEAD` is true), which is exactly what `git merge-base`
-  against the next tag computes; the increment applied is upstream's tag-to-tag diff, never a
-  whole-tree comparison against our branch. Per `local://upstream-ladder-measured.md`, stepping one
-  integrated tag at a time is what keeps the window small, and one step per release is now the whole
-  ladder. The rung-4 ledger entry's forward-looking notes proved accurate again and are recorded as
-  *what actually happened* in the v18.11.2 entry below: `merge=union` on `packages/*/CHANGELOG.md`
-  re-added upstream's whole section history (this round: `## [18.11.2]` plus every older upstream
-  section the fold/archive had removed), the scope sweep was needed again for the files the merge
-  brought in untouched, and `modify/delete` rows did **not** appear this round either (all 79 conflicts
-  were `UU`).
+  `sync/omp-release/v18.11.3` merges (branch head `24c3da1c56b`, plus the changelog fold, the compat
+  regen, the surface re-application and the ledger commits), and its target is **the next upstream
+  release tag when it appears** (whatever comes after `v18.11.3`; no standing target). It carries the
+  v18.11.3 tag commit (`git merge-base --is-ancestor 96894a6147d HEAD` is true), which is exactly what
+  `git merge-base` against the next tag computes; the increment applied is upstream's tag-to-tag diff,
+  never a whole-tree comparison against our branch. Per `local://upstream-ladder-measured.md`, stepping
+  one integrated tag at a time keeps the window small, and one step per release is the whole ladder.
+  The forward-looking notes from previous rounds proved accurate again: `merge=union` on
+  `packages/*/CHANGELOG.md` re-added upstream's whole section history (`## [18.11.3]` plus every older
+  upstream section the fold/archive had removed), the scope sweep was needed again for files the merge
+  brought in untouched, `modify/delete` rows did **not** appear (all 27 conflicts were `UU`), and the
+  upstream test contract moved again (this time the `model` spawn argument is owned by seance
+  validation).
 
 
+
+## v18.11.3 incremental merge (Zeta — branch `sync/omp-release/v18.11.3`; merge commit `24c3da1c56b`)
+
+**One rung, no ladder — the previous release is the merge-base, so the round applies upstream's own
+`v18.11.2`→`v18.11.3` increment and never our diff.**
+
+- **Source tag**: `v18.11.3` → `96894a6147d8cc64b7e00ad3a7d7178fd93b9531`. Verified with
+  `git ls-remote --tags omp-upstream refs/tags/v18.11.3` **before the merge and again immediately
+  before the merge commit was written** — same peeled SHA both times, so the release tag was not moved
+  during the round. The tag object is already present locally (`git rev-parse v18.11.3` matches).
+- **Baseline**: `v18.11.2` (`470b7efb67673960d37e3e64584669e6e9caad1c`). **Zeta starting commit**:
+  `5769cf3c771` (`main`). All work happened in the `temp/omp18113` worktree; the root checkout stayed on
+  `main`.
+- **Lineage gate** (pre-merge, mandatory): `bun scripts/check-merge-lineage.ts --tag v18.11.3` → all
+  six checks PASS; `git merge-base HEAD v18.11.3` → `470b7efb67673960d37e3e64584669e6e9caad1c` (exactly
+  the baseline), window **101 commits / 184 files / +7580 −832**. Post-merge,
+  `git merge-base --is-ancestor v18.11.3 HEAD` exits 0, so the complete tag sits in history behind a
+  true two-parent merge commit (`24c3da1c56b`, parents `5769cf3c771` + `96894a6147d`).
+- **Conflict count**: 27, all `UU` (no `modify/delete`, no add/add). Every file is listed below with its
+  resolution. Two thirds were pure scope/import unions; the non-mechanical ones are the four generated
+  files (kept Zeta-side because upstream's only change was the release version line), the CHANGELOG
+  (folded separately, see below), and the three TUI surfaces where upstream's redesign met Zeta's role
+  namespace.
+
+### Conflict decisions
+
+| File | Decision | Reason |
+|---|---|---|
+| `Cargo.toml` | Zeta `version = "1.2.1"` | Zeta version line; upstream's `18.11.3` is its release line, not ours |
+| `Cargo.lock` | kept main's lock | upstream's window delta was **only** workspace `version` lines; no dependency moved |
+| `MODULE.bazel.lock` | kept main's lock | crate_universe hashes the same Cargo inputs we kept; Zeta's recorded-input set (per-crate `Cargo.toml` lines) is local to this repo |
+| `bun.lock` | kept main's lock | upstream's delta was workspace name/version lines only; taking it would have re-resolved and **downgraded** Zeta patch pins (`@babel/*`, `sharp`, `@huggingface/*`). `bun install --frozen-lockfile` passes on main's lock |
+| `docs/tools/read.md` | upstream text, `zeta://` + `ZETA-owned` | upstream reworded the `agent://` semantics; the scheme and the producer name are Zeta surfaces |
+| `docs/tools/task.md` | upstream isolation text, `zeta/task/<id>` | upstream clarified `isolated: true`; the branch-mode prefix is Zeta's |
+| `packages/ai/test/auth-gateway-pi-native.test.ts` | union + mapped scope | upstream added `buildModel`; rest is scope noise |
+| `packages/catalog/src/compat/rules.json` | **regenerated, not hand-resolved** | binary in `.gitattributes`; `bun run gen:compat` from the merged KDL produced 1042 rules and differs from upstream's compile in exactly two Zeta-owned values (`auth originator=zeta`, `baseten defaultModel=moonshotai/Kimi-K3`) |
+| `packages/coding-agent/src/cursor.ts` | upstream `shellDeadlineSeconds` + mapped scope | upstream renamed the helper; both call sites already use the new name |
+| `packages/coding-agent/src/modes/controllers/selector-controller.ts` | 3 unions: theme imports keep Zeta's `setColorBlindMode`/`setSymbolPreset`/`setMarkdownMermaidRendering`; types gain upstream `SelectOnlyModelSelectorOptions`/`SessionPickHandler`; `sanitizeErrorLine` import; the `onDelete` block adopts upstream's `!onSelect` conditional but keeps Zeta's `moveSessionWithArtifactsToTrash` | upstream's consult-mode session picker is new surface; Zeta's trash semantics are deliberate (deletion is recoverable) |
+| `packages/coding-agent/src/modes/types.ts` | union | upstream `SessionInfo` type + Zeta's `SpaceHoldHandler`/`ConfiguredThinkingLevel` |
+| `packages/coding-agent/src/session/prewalk.ts` | upstream `AutoPrewalkDecision` import + mapped scope | upstream's auto-prewalk routing is new |
+| `packages/coding-agent/src/session/session-tools.ts` | upstream `planXdevPromptDocs` import | upstream added prompt docs; rest is scope noise |
+| `packages/coding-agent/src/task/index.ts` | upstream single-line type import (scope mapped) | formatting-only change upstream |
+| `packages/coding-agent/src/task/types.ts` | upstream `FluentType` import | new omptype export |
+| `packages/coding-agent/src/tools/fetch.ts` | upstream `Element` import | new DOM typing for feeds |
+| `packages/coding-agent/src/utils/tools-manager.ts` | upstream `$env` import | new env probe |
+| `packages/coding-agent/test/internal-urls/history-protocol.test.ts` | union (`getInternalUrlSuggestions`, `SessionManager`, `TempDir`) | new upstream test legs |
+| `packages/coding-agent/test/memories-runtime.test.ts` | union (`buildModel`) | upstream switched the fixture to `buildModel` |
+| `packages/coding-agent/test/selector-controller-settings-single.test.ts` | upstream imports + mapped scope | new consult/no-resume legs |
+| `packages/coding-agent/test/task/prompt-cache.test.ts` | upstream (comment dropped) | both sides deleted the redundant `model:` argument; upstream's copy is the contract, Zeta's explanatory comment no longer describes a divergence |
+| `packages/coding-agent/test/task/structured-subagent.test.ts` | union (`getBundledAgent`, `AuthStorage`) | upstream's structured-policy legs |
+| `packages/coding-agent/test/task/task-schema.test.ts` | upstream (`loadBundledAgents`, `parseAgent`, seance schema fields, `AgentDefinition`) | seance wire-schema contract |
+| `packages/coding-agent/test/tools-manager-download.test.ts` | upstream (`getLatestVersion`) | new version-resolution leg |
+| `packages/tui/src/overlays/approval-dialog.ts` | upstream choice list (`once`/`session`/`deny`) + `#nativeDrafting`; Zeta role namespace kept (`zeta.overlay.approval`, `zeta.approval.choice{,s}`, `zeta.editor.ask.approval`) | **breaking**: `ui.approve()` now answers an enum, and the dialog is a select list |
+| `packages/tui/src/overlays/model-picker.ts` | upstream mode-derived head (`selection`/`task`/`session`); `zeta.overlay.model-picker` | consult-mode picker |
+| `packages/tui/src/status-line/segments.ts` | upstream profile-tagged brand (`brandMark(getActiveProfile())`); role stays `zeta` | profile tagging is new; the segment id namespace is Zeta's |
+
+### Post-merge adaptations (separate commits)
+
+- `f471e70c607` — **CHANGELOG fold**: `packages/*/CHANGELOG.md` is `merge=union`, so the merge
+  re-added upstream's entire section history. Each file was rebuilt from the Zeta baseline and only the
+  `v18.11.3` bullets were appended to the matching `[Unreleased]` category — **38 bullets across 7
+  packages** (1/4/4/22/0/1/4/2 for agent/ai/catalog/coding-agent/mnemopi/natives/tui/utils; mnemopi had
+  no section). Released sections stay byte-identical to main. The same commit holds `bun.lock` at main's
+  resolutions.
+- `4ed1f89ede8` — **Zeta surface re-application**: `brand-overlay` rewrote the new upstream `.omp`
+  session fixtures (3 files / 11 tokens); by hand: the new approval roles → `zeta.approval.*` in the
+  dialog and `dialogs-native.test.ts`, and `PI_CODING_AGENT_DIR` → `ZETA_CODING_AGENT_DIR` in the new
+  seance test. Also drops the stale per-spawn `TaskParams.model` field the new contract removed.
+- `714d23827af` — **model-argument contract**: upstream now validates a spawn's `model` inside
+  `validateSeanceParams` ("`model` is only accepted for the `seance` agent."), and its new schema test
+  asserts that message. Zeta's `rejectSpawnModel` pre-empted it with a different wording; removed so one
+  validator owns the rule (`packages/coding-agent/src/task/index.ts`).
+- `feb03892640` — **compat regen** (`bun run gen:compat`; 1042 rules, 21 classes, 88 catalog providers,
+  97 auth providers, 236 files).
+
+### Checks (local, exit codes)
+
+- `bun scripts/check-merge-lineage.ts --tag v18.11.3` → 0 (six PASS before merge).
+- `bun scripts/check-version-consistency.ts` → 0 (`1.2.1` across 14 packages + 13 catalog keys + Cargo
+  + workspace + natives stamp + desktop + npm leaves + README badge + BUILD.bazel + Cargo.lock members).
+  It was **1** before the changelog fold (seven `## [18.` sections were the only drift).
+- `bun run check:ts` → 0 (oxlint 0 errors, `oxfmt --check` clean over 6,439 files, every workspace
+  package's `check:types` 0). First pass caught two real things: an `oxfmt` diff in the two edited test
+  imports, and a **duplicate `model` field** in `packages/tui/src/tools/task.ts` where main's per-spawn
+  selector met upstream's consult-session selector; the per-spawn one is gone per the new contract.
+- `bun scripts/check-scope-imports.ts` → 0 (19,598 specifiers, 5 allow patterns).
+- `bun scripts/brand/brand-check.ts` → 0 (`7 hits -> 0`, 0 missing assertions; overlay pre-pass
+  rewrote 3 files / 11 tokens).
+- `bun scripts/check-zeta-sentinels.ts` → 0 (114 sentinels, AGENTS.md → merge-review link).
+- `bun scripts/check-ci-surface.ts` → 0 (31 ci.yml jobs + 3 publish workflows, 36 required, 6 needs
+  edges, floor 27).
+- `bun scripts/audit-merge-members.ts --base 5769cf3c771 --tag v18.11.3` → 0, **0 members dropped
+  across 0 files**, 1 member explained as upstream's own removal (`assertPlanControlsAllowed` in
+  `structured-subagent.ts`), 58,819 members compared in 2,754 → 2,848 files.
+- `cargo fmt --all -- --check` → 0 (crates/ touched: pi-edit, pi-natives).
+- Conflict-marker sweep `git grep -lE "^(<<<<<<<|>>>>>>>) "` → 0 hits.
+- **Manifest identity**: every `package.json` (root, `packages/*`, `plugins/*`, `python/robomp/web`) is
+  byte-identical to `5769cf3c771`; so are `Cargo.toml`, `Cargo.lock`, `MODULE.bazel.lock` and
+  `nix/bun.nix`.
+  `check-package-json-merge.ts` was **not** run to completion (its scan of `5769cf3c771..HEAD` walks the
+  whole 101-commit window and timed out at 300 s); the byte-identity above is the stronger statement.
+- **Tests** (affected buckets, local Windows): ai 106/106, catalog 65/65, tui 46/46, utils 67/67,
+  coding-agent approval 55/55; `test/task/` + fetch/tools-manager 644 pass / 1 skip / 7 fail;
+  agent-session batch 305 pass / 1 skip / 1 fail; modes/session/internal-urls/memories batch 258 pass /
+  1 fail. **All 9 failures are host environment, not merge damage**: `EPERM` on `fs.symlinkSync` (3
+  tests: `worktree.test.ts` ×1, `cursor-exec.test.ts` ×1, `file-operations.test.ts` ×1 — this Windows
+  account cannot create symlinks), libgit2 `git diff: Can only diff blobs and links, not Commit`
+  (`worktree.test.ts` ×2, file untouched by the window), and the three new
+  `test/tools/fetch-binary-dispatch.test.ts` refetch legs exceeding Bun's default 5 s per-test budget
+  (the file passes **10/10 with `--timeout 30000`**, 30.9 s). The files involved are byte-identical to
+  `v18.11.3` modulo the scope mapping, and the native addon used locally is main's prebuilt
+  `win32-x64` binary (the window's `crates/pi-natives` changes are internal — `index.d.ts` is
+  unchanged), so CI's source-matched bazel build is the authority.
+- **Dispatch**: `ci.yml` on `sync/omp-release/v18.11.3` → run `<pending>` (see the run bullet added
+  after it completes).
+
+### Risks / open items
+
+- The three `fetch-binary-dispatch` legs budget ~10 s each on this host. If CI's Linux runner keeps the
+  default 5 s budget they will red there too; the cause would be test-side timing, not the merge (the
+  implementation is upstream's, and no Zeta code touches `web/scrapers`). Watch that job first.
+- `packages/coding-agent/src/tools/approval.ts`'s enum answers are wired end-to-end (dialog, extension
+  UI context, `requestApproval` call sites, collab-aware approval), and no boolean-returning
+  `ui.approve` assertion remains in the tree. The wire/ACP path still uses its own approval model and
+  was not part of this window.
 
 ## v18.11.2 incremental merge (Zeta — branch `sync/omp-release/v18.11.2`; merge commit `bd6938cbac3`)
 
@@ -2049,22 +2172,24 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.11.2` (`470b7efb67673960d37e3e64584669e6e9caad1c`; two-parent merge
-  `bd6938cbac3` ← `d98033c2694` + `470b7efb6`; the tag was re-cut upstream on 2026-10-16, the older
-  object being `714a63689bb4551e59dd27efba2e894d31aec86e` — see the entry above). The previous anchor was
-  `v18.11.1` (`7cc912940b107eb2d771b0d106c640a8eddc9edf`, two-parent merge `949687f3230` ← `e5b1667537b`
+- OMP: `v18.11.3` (`96894a6147d8cc64b7e00ad3a7d7178fd93b9531`; two-parent merge
+  `24c3da1c56b` ← `5769cf3c771` + `96894a6147d`; the tag was remote-verified before and after the
+  merge — see the entry above). The previous anchor was `v18.11.2`
+  (`470b7efb67673960d37e3e64584669e6e9caad1c`, two-parent merge `bd6938cbac3` ← `d98033c2694`
+  + `470b7efb6`), and before that `v18.11.1`
+  (`7cc912940b107eb2d771b0d106c640a8eddc9edf`, two-parent merge `949687f3230` ← `e5b1667537b`
   + `7cc912940b1`, rung 4/4 carrying v18.11.0, with `c86128383f1` → v18.10.4 (rung 3/4), `e78ebe945da` →
-  v18.10.3 (rung 2/4, PR #229) and `e72c77df4df` → v18.10.1 (rung 1/4, PR #227) before it). The ladder is
-  complete and this release continues it one tag at a time;
+  v18.10.3 (rung 2/4, PR #229) and `e72c77df4df` → v18.10.1 (rung 1/4, PR #227) before it). One tag per
+  release, each on its own `sync/omp-release/*` branch;
   **next sync target: the next upstream OMP release tag when it appears.**
 - Zeta: `1.2.1` (version line holds across the published `@linxiraos/*`
   packages, the Cargo workspace and the natives stamp).
-- In flight: `sync/omp-release/v18.11.2` — merge commit `bd6938cbac3` (parents `d98033c2694` (main) +
-  `470b7efb6` (the v18.11.2 tag)) plus the follow-up commits (the CHANGELOG fold, the Zeta surface
-  re-application, the SQLite table-name repair, the four CI-triaged merge scars, the ledger). Pushed twice
-  and dispatched twice: run `38949297746` at `65c8326bd46` (natives green; four reds triaged) and run
-  `38963026878` at `9cb54ac2c0a` (17 green / 2 load-flake red / 15 tag-gated skips). Its landing on `main`
-  is sequenced with the other in-flight branches so `main` takes a single push and a single CI run.
+- In flight: `sync/omp-release/v18.11.3` — merge commit `24c3da1c56b` (parents `5769cf3c771` (main) +
+  `96894a6147d` (the v18.11.3 tag)) plus the follow-up commits (the CHANGELOG fold, the Zeta surface
+  re-application, the model-argument contract fix, the compat regen, this ledger). Pushed and dispatched
+  once (`gh workflow run ci.yml --ref sync/omp-release/v18.11.3` → run `<pending>`); the run bullet in
+  the entry above is updated when it completes. Its landing on `main` is a maintainer decision and is
+  sequenced with the other in-flight branches so `main` takes a single push and a single CI run.
 
 ### Zeta-side flake hardening（2026-10-17）
 
