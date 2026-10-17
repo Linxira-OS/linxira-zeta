@@ -7044,9 +7044,19 @@ replace = [{ pattern = "^.+$", replacement = "PWD" }]
 	async fn cancellation_keeps_output_open_for_a_term_trap_that_writes() {
 		let _guard = shell_test_lock().lock().await;
 		let root = tempfile::tempdir().expect("cleanup directory");
+		// The trap's delay must stay well inside both graces the cancellation
+		// path documents: `TERM_GRACE` — 1 s on unix (`shell.rs:386`) — after
+		// which `wait_for_term_grace` escalates to KILL, and
+		// `CANCEL_READER_GRACE` (`shell.rs:398`), which is what keeps the
+		// readers open for the trap's `echo flushing`. A trap that outruns
+		// the KILL escalation never writes at all, so the `sleep 0.7` this
+		// test used to carry (~300 ms of margin, and `sleep` is only a
+		// minimum) lost that race on a loaded runner and CI failed on a
+		// missing `cleaned`. The sibling test above runs the same TERM trap
+		// against the same grace with 0.2 s.
 		fs::write(
 			root.path().join("cleanup.sh"),
-			"trap 'sleep 0.7; echo flushing; printf cleaned > cleaned; exit 0' TERM\n: > \
+			"trap 'sleep 0.2; echo flushing; printf cleaned > cleaned; exit 0' TERM\n: > \
 			 ready\nwhile :; do :; done\n",
 		)
 		.expect("cleanup script");
@@ -7054,6 +7064,12 @@ replace = [{ pattern = "^.+$", replacement = "PWD" }]
 		let mut cancel = CancelToken::default();
 		let abort = cancel.emplace_abort_token();
 		let cwd = root.path().to_str().expect("utf8 cwd").to_owned();
+		// The trap's own output is the witness for what this test names: the
+		// readers must still be open when the trap writes. Cancelled earlier,
+		// the shell dies of SIGPIPE on `echo flushing` and never reaches its
+		// `printf cleaned > cleaned`. An unbounded channel never parks the
+		// reader, so observing the output cannot alter the run's timing.
+		let (tx, rx) = flume::unbounded::<String>();
 		let task = tokio::spawn(async move {
 			shell
 				.run(
@@ -7062,7 +7078,7 @@ replace = [{ pattern = "^.+$", replacement = "PWD" }]
 						cwd: Some(cwd),
 						..Default::default()
 					},
-					None,
+					Some(tx),
 					cancel,
 				)
 				.await
@@ -7081,11 +7097,62 @@ replace = [{ pattern = "^.+$", replacement = "PWD" }]
 			.expect("run task")
 			.expect("shell result");
 		assert!(result.cancelled);
-		assert_eq!(
-			fs::read_to_string(root.path().join("cleaned"))
-				.expect("TERM cleanup after writing output"),
-			"cleaned"
+
+		// Cancellation resolves once its TERM/KILL waves have emptied the run's
+		// spawn registry — a deadline measured from the signal, not from the
+		// trap starting (`wait_for_term_grace`, `shell.rs:1762`) — so the
+		// trap's write is only *probably* visible at the instant `run` returns.
+		// Both of its witnesses are observables to wait for, each on its own
+		// explicit bound, and a timeout reports the run result, the trap's
+		// output and the artifact instead of a bare `NotFound`. Neither wait
+		// can mask a regression: by the time `run` returns every writer of
+		// these files is gone (brush SIGKILLs the child on its own post-cancel
+		// grace and on drop), so a missing artifact stays missing.
+		let mut output = String::new();
+		let drained = time::timeout(Duration::from_secs(5), async {
+			loop {
+				// `run` has returned, so every sender is gone: this drains to
+				// the last chunk the trap managed to write and then ends.
+				match rx.recv_async().await {
+					Ok(chunk) => output.push_str(&chunk),
+					Err(_) => break,
+				}
+				if output.contains("flushing") {
+					break;
+				}
+			}
+		})
+		.await;
+		if drained.is_err() {
+			panic!("trap output never drained (run result: {result:?}, output: {output:?})");
+		}
+		assert!(
+			output.contains("flushing"),
+			"the TERM trap never wrote `flushing`: it was killed before it could write its output \
+			 (run result: {result:?}, output: {output:?})"
 		);
+
+		let cleaned = root.path().join("cleaned");
+		let written = time::timeout(Duration::from_secs(5), async {
+			loop {
+				if let Ok(text) = fs::read_to_string(&cleaned)
+					&& text == "cleaned"
+				{
+					return text;
+				}
+				time::sleep(Duration::from_millis(10)).await;
+			}
+		})
+		.await;
+		let Ok(content) = written else {
+			let artifact = fs::read_to_string(&cleaned)
+				.map_or_else(|err| format!("unreadable ({err})"), |text| format!("{text:?}"));
+			panic!(
+				"the TERM trap never finished `printf cleaned > cleaned` after cancellation \
+				 (artifact: {artifact}, run result: {result:?}, output: {output:?})"
+			);
+		};
+		assert_eq!(content, "cleaned");
 	}
 
 	#[tokio::test(flavor = "multi_thread")]

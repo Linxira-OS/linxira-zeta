@@ -22,6 +22,19 @@ const FOREIGN_FRAME_REFUSAL = "Cannot access a chrome-extension:// URL of differ
 const HANG = { code: "await page.evaluate(() => new Promise(function ompHang() {}));", timeout: 30 };
 
 /**
+ * Resolve once `predicate()` holds, polling every 5ms, and fail with what it was waiting for when
+ * `timeoutMs` passes. Nothing here waits for a fixed duration: the loop exits the moment the state
+ * it cares about is observable, so a loaded CI runner slows the wait down instead of breaking it.
+ */
+async function waitUntil(predicate: () => boolean, what: string, timeoutMs = 30_000): Promise<void> {
+	const deadline = performance.now() + timeoutMs;
+	while (!predicate()) {
+		if (performance.now() >= deadline) throw new Error(`Timed out after ${timeoutMs}ms waiting for ${what}`);
+		await Bun.sleep(5);
+	}
+}
+
+/**
  * The relay extension's side of the wire, played over a real headless Chromium's CDP endpoint: `attach`,
  * `send` and `detach` drive one page target the way `chrome.debugger` drives a tab. {@link chromeDetach}
  * does what Chrome does when another extension's frame loads in the tab: it ends the attachment, fails the
@@ -40,6 +53,21 @@ class ChromeBackedExtension {
 	readonly #sendWaiters = new Set<{ method: string; match: (params: unknown) => boolean; resolve: () => void }>();
 	/** Answer attaches with Chrome's refusal, as while a foreign extension frame is in the tab. */
 	refuseAttach = false;
+	/** Set by {@link gateSend}: the reply to that method waits on it, so a call can be parked in one command. */
+	#sendGate: { method: string; holding: PromiseWithResolvers<void>; release: PromiseWithResolvers<void> } | undefined;
+
+	/**
+	 * Hold the reply to the next `method` command until the returned `release` runs. A call starts by
+	 * reapplying the tab's emulation state, so holding that reply parks the call in the state under test —
+	 * attached, before its code started — for as long as the test needs, and a detach then fails that command
+	 * exactly as Chrome does. `holding` resolves once the command is actually parked.
+	 */
+	gateSend(method: string): { holding: Promise<void>; release: () => void } {
+		const holding = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		this.#sendGate = { method, holding, release };
+		return { holding: holding.promise, release: () => release.resolve() };
+	}
 
 	private constructor(
 		relay: WebSocket,
@@ -170,6 +198,11 @@ class ChromeBackedExtension {
 					waiter.resolve();
 				}
 				const answer = await sent.promise;
+				const gate = this.#sendGate;
+				if (gate?.method === method) {
+					gate.holding.resolve();
+					await gate.release.promise;
+				}
 				// Chrome already answered this RPC when the attachment ended under it.
 				if (!this.#inFlight.delete(sent.id)) return;
 				if (isRecord(answer.error)) return this.#reply(id, { error: String(answer.error.message) });
@@ -243,6 +276,12 @@ describe("relay tabs Chrome detaches omp from", () => {
 	let tool: ToolSession;
 	const name = `relay-detach-${process.pid}`;
 
+	// The hooks below launch Chromium, tear a relay tab down and close Chromium again. On a loaded
+	// runner those round trips can outlast Bun's 5s default hook budget, which reds the whole file for
+	// cleanup that asserts nothing (the teardown is best-effort: `releaseTab` is already `.catch`ed).
+	// Give them room instead of letting load turn teardown into a failure.
+	const HOOK_TIMEOUT_MS = 30_000;
+
 	beforeAll(async () => {
 		if (!CHROMIUM_AVAILABLE) return;
 		const executablePath = await ensureChromiumExecutable();
@@ -256,18 +295,18 @@ describe("relay tabs Chrome detaches omp from", () => {
 					headers: { "content-type": "text/html" },
 				}),
 		});
-	});
+	}, HOOK_TIMEOUT_MS);
 
 	afterAll(async () => {
 		await chromium?.close();
 		site?.stop(true);
-	});
+	}, HOOK_TIMEOUT_MS);
 
 	afterEach(async () => {
 		await releaseTab(name, { kill: false }).catch(() => undefined);
 		extension?.close();
 		relay?.stop();
-	});
+	}, HOOK_TIMEOUT_MS);
 
 	async function invoke(parameters: Record<string, unknown>) {
 		const result = await createBrowserPrelude(tool).invoke(
@@ -434,26 +473,67 @@ describe("relay tabs Chrome detaches omp from", () => {
 			await invoke({ action: "run", code: 'await tab.emulate({ userAgent: "omp-detach-test" });', timeout: 10 });
 			const tab = getTab(name);
 			if (tab?.backend !== "worker") throw new Error("expected a worker tab");
-			// Hold the re-adoption for the call's whole budget once the detached worker is gone. Real time: the
-			// re-adoption's own init deadline reads the same clock, so a faked clock would fail it instead.
-			const budgetMs = 1_000;
+			// A worker replaced during a call is re-adopted, and the re-adoption is bounded by what is left of
+			// that call's budget (`budgetMs + GRACE_MS`, measured from the re-adoption's start). Spending the
+			// whole budget inside the re-adoption would leave its own init phases only that GRACE_MS tail —
+			// under load too little for the CDP round trips a re-adoption needs, so the re-adoption dies with
+			// "could not reattach" instead of reporting the spent budget. So the call spends all but its tail
+			// while it is still in flight (parked in the reapply below), and the re-adoption finishes it off:
+			// the branch under test still turns on the re-adoption's own completion.
+			const budgetMs = 4_800;
+			const spentInFlightMs = 4_100;
+			// Run the re-adoption on the inline fallback: it does the same recovery work in this process, so the
+			// phases the re-adoption's budget leaves it don't also have to cover a cold worker realm — that cold
+			// start is what CI load stretches past the init deadline. The fallback's module is already in this
+			// process (`@linxiraos/zeta/tools/browser` is imported at the top of this file).
+			const noThreads = spyOn(globalThis, "Worker").mockImplementation((() => {
+				throw new Error("Worker threads unavailable");
+			}) as never);
+			// The re-adoption starts where the detached worker's `terminate` is awaited, so holding it holds the
+			// whole re-adoption — which is what carries this call over its budget line. Released by the events
+			// below (the worker is gone; the call's budget is provably gone with it) rather than a fixed sleep,
+			// and measured with the clock the branch under test reads: real time, not a faked clock, because the
+			// re-adoption's own init deadline reads that clock too.
+			const startedAt = performance.now();
+			const readopting = Promise.withResolvers<void>();
+			const release = Promise.withResolvers<void>();
 			const terminate = tab.worker.terminate.bind(tab.worker);
 			const held = spyOn(tab.worker, "terminate").mockImplementation(async () => {
 				await terminate();
-				await Bun.sleep(budgetMs);
+				readopting.resolve();
+				await release.promise;
 			});
+			// A call starts by reapplying the tab's emulation state, before its code; parking that reply keeps
+			// the call in the state this test is about for as long as the budget below needs.
+			const parked = ext.gateSend("Network.setUserAgentOverride");
 			try {
-				const reapplying = ext.nextSend("Network.setUserAgentOverride");
 				const next = runInTab(name, { code: readMark.code, timeoutMs: budgetMs, session: tool }).catch(
 					(error: unknown) => error,
 				);
-				await reapplying;
+				// The call is now parked in that reapply, which is the state this test detaches from.
+				await parked.holding;
+				// `startedAt` precedes the call's own budget clock, so a mark passed here is passed for the call
+				// as well; the margin covers the poll interval and that head start.
+				await waitUntil(
+					() => performance.now() - startedAt >= spentInFlightMs,
+					`this call to spend ${spentInFlightMs}ms of its ${budgetMs}ms budget in flight`,
+				);
 				await ext.chromeDetach("target_closed");
+				parked.release();
+				await readopting.promise;
+				await waitUntil(
+					() => performance.now() - startedAt >= budgetMs + 100,
+					`this call's ${budgetMs}ms budget to elapse during the re-adoption`,
+				);
+				release.resolve();
 				const failure = String(await next);
 				expect(failure).toContain("before this call, so its code did not run");
 				expect(failure).toContain(`used up this call's ${budgetMs}ms budget, so the call was not run again`);
 			} finally {
+				release.resolve();
+				parked.release();
 				held.mockRestore();
+				noThreads.mockRestore();
 			}
 			expect((await invoke(readMark)).value).toBe("kept");
 		},
