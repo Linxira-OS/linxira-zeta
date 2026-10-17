@@ -124,6 +124,15 @@ two-parent tag merge.
   agent" validator. The protected intent is unchanged — a non-seance spawn still cannot choose a model —
   and the row is updated rather than dropped. `check-zeta-sentinels` remains at 114 sentinels.
 
+### `main/` clippy red (dispatch 2)
+
+The only red job of dispatch `39032073476` was `Test main workspace (zeta workbench)`: clippy
+`empty-line-after-doc-comments` at `main/crates/zetawork-gui/src/lib.rs`. It is a pre-existing
+defect on the starting commit (`5769cf3c771`), not a merge change: the `poll_live` doc comment
+was left above `forward_terminal_input` when input forwarding was inserted between them. The
+follow-up commit moves the comment back onto `poll_live`; `cargo clippy -p zetawork-gui
+--all-targets -- -D warnings` is 0 locally. Nothing else under `main/` changed.
+
 ### Checks (local, exit codes)
 
 - `bun scripts/check-merge-lineage.ts --tag v18.11.3` → 0 (six PASS before merge).
@@ -202,7 +211,7 @@ two-parent tag merge.
   the starting commit). `main/` is Zeta-owned and explicitly out of this sync's write scope; a one-line
   fix (drop the blank line between the two doc comments) is all it needs, and it belongs to the
   maintainer's `main` cleanup, not to this branch.
-- **Follow-up commits**: `b37ec9a7c98` (i18n localization + model-argument test wording) and the ledger
+- **Follow-up commits**: the doc-comment fix below, `b37ec9a7c98` (i18n localization + model-argument test wording) and the ledger
   commit appended after it.
 
 ### Risks / open items
