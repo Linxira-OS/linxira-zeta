@@ -170,6 +170,13 @@ enum Drag {
     Git,
 }
 
+/// The page's commit box: one line, active on demand, cleared on commit.
+#[derive(Default)]
+struct CommitBox {
+    text: String,
+    active: bool,
+}
+
 /// Which side takes keys.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Focus {
@@ -196,6 +203,10 @@ pub struct IdePage {
     focus: Focus,
     /// The last load failure, drawn in the status line.
     message: Option<String>,
+    /// The repository the git pane shows; the commit box's target.
+    repo: Option<PathBuf>,
+    /// The commit message box drawn at the bottom of the git pane.
+    commit: CommitBox,
 }
 
 impl IdePage {
@@ -213,6 +224,8 @@ impl IdePage {
             ])),
             focus: Focus::Editor,
             message: None,
+            repo: std::env::current_dir().ok(),
+            commit: CommitBox::default(),
         }
     }
 
@@ -225,6 +238,16 @@ impl IdePage {
     /// Replace the git pane (the app points it at the open file's repository).
     pub fn set_git(&mut self, panel: Box<dyn Panel>) {
         self.git = panel;
+    }
+
+    /// Point the commit box at `repo`.
+    pub fn set_repo(&mut self, repo: PathBuf) {
+        self.repo = Some(repo);
+    }
+
+    /// The repository the commit box targets.
+    pub fn repo(&self) -> Option<&PathBuf> {
+        self.repo.as_ref()
     }
 
     /// Open (or focus) `path` as a tab.
@@ -391,9 +414,38 @@ impl Panel for IdePage {
             }
         }
 
-        // The git pane, below its divider.
+        // The git pane, below its divider; its last row is the commit box.
         if layout.git.height > 0 {
-            self.git.render(layout.git, buf, ctx);
+            let box_rows = u16::from(layout.git.height >= 2);
+            let pane = Rect::new(
+                layout.git.x,
+                layout.git.y,
+                layout.git.width,
+                layout.git.height - box_rows,
+            );
+            if pane.height > 0 {
+                self.git.render(pane, buf, ctx);
+            }
+            if box_rows == 1 {
+                let row = layout.git.y + layout.git.height - 1;
+                let text = if self.commit.active {
+                    format!("Commit: {}", self.commit.text)
+                } else {
+                    "Commit: (Ctrl+Enter to write a message)".to_owned()
+                };
+                let ink = if self.commit.active {
+                    ctx.theme.selection_fg
+                } else {
+                    ctx.theme.fg
+                };
+                buf.set_stringn(
+                    layout.git.x,
+                    row,
+                    &text,
+                    layout.git.width as usize,
+                    Style::default().fg(ink),
+                );
+            }
         }
 
         // The active tab's editor, or the empty-page hint.
@@ -496,6 +548,42 @@ impl Panel for IdePage {
 
     fn handle_key(&mut self, chord: KeyChord) -> Vec<PanelEvent> {
         let code = chord.raw.code;
+        if self.commit.active {
+            match (code, chord.raw.modifiers.contains(KeyModifiers::CONTROL)) {
+                (KeyCode::Esc, _) => {
+                    self.commit.active = false;
+                    self.commit.text.clear();
+                    return vec![PanelEvent::NeedsRedraw];
+                }
+                (KeyCode::Enter, false) => {
+                    let message = self.commit.text.trim().to_owned();
+                    self.commit.active = false;
+                    self.commit.text.clear();
+                    if message.is_empty() {
+                        return vec![PanelEvent::NeedsRedraw];
+                    }
+                    return match self.repo.clone() {
+                        Some(repo) => vec![
+                            PanelEvent::NeedsRedraw,
+                            PanelEvent::GitCommit {
+                                repo_path: repo,
+                                message,
+                            },
+                        ],
+                        None => vec![PanelEvent::NeedsRedraw],
+                    };
+                }
+                (KeyCode::Backspace, _) => {
+                    self.commit.text.pop();
+                    return vec![PanelEvent::NeedsRedraw];
+                }
+                (KeyCode::Char(c), false) => {
+                    self.commit.text.push(c);
+                    return vec![PanelEvent::NeedsRedraw];
+                }
+                _ => return Vec::new(),
+            }
+        }
         let ctrl = chord.raw.modifiers.contains(KeyModifiers::CONTROL);
         let shift = chord.raw.modifiers.contains(KeyModifiers::SHIFT);
         match (code, ctrl) {
@@ -507,6 +595,10 @@ impl Panel for IdePage {
             _ if self.focus == Focus::Left => {
                 let events = self.left.handle_key(chord);
                 self.absorb(events)
+            }
+            (KeyCode::Enter, true) if self.focus == Focus::Git => {
+                self.commit.active = true;
+                vec![PanelEvent::NeedsRedraw]
             }
             _ if self.focus == Focus::Git => {
                 let events = self.git.handle_key(chord);
@@ -563,6 +655,11 @@ impl Panel for IdePage {
                     self.focus = Focus::Left;
                     let events = self.left.handle_mouse(event, tree);
                     return self.absorb(events);
+                }
+                if layout.git.height >= 2 && row == layout.git.y + layout.git.height - 1 {
+                    self.focus = Focus::Git;
+                    self.commit.active = true;
+                    return vec![PanelEvent::NeedsRedraw];
                 }
                 if layout.git.height > 0 && layout.git.contains((column, row).into()) {
                     self.focus = Focus::Git;
@@ -822,11 +919,66 @@ mod tests {
         page.render(area, &mut buf, &ctx);
 
         let tabs: String = (0..20).map(|x| buf[(x, 0)].symbol().to_string()).collect();
-        assert!(tabs.contains("a.rs"), "the tab strip names the open file: {tabs:?}");
+        assert!(
+            tabs.contains("a.rs"),
+            "the tab strip names the open file: {tabs:?}"
+        );
         let divider: String = (1..10).map(|y| buf[(30, y)].symbol().to_string()).collect();
-        assert!(divider.contains("\u{2502}"), "the left divider is drawn: {divider:?}");
+        assert!(
+            divider.contains("\u{2502}"),
+            "the left divider is drawn: {divider:?}"
+        );
         let status: String = (0..24).map(|x| buf[(x, 23)].symbol().to_string()).collect();
         assert!(status.contains("Ln"), "the status row is drawn: {status:?}");
+    }
+
+    #[test]
+    fn the_commit_box_emits_the_typed_message() {
+        let mut page = IdePage::new();
+        page.set_repo(PathBuf::from("/tmp/repo"));
+        let layout = layout(AREA, DEFAULT_LEFT, DEFAULT_GIT);
+        let down = MouseEvent {
+            kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+            column: layout.git.x + 1,
+            row: layout.git.y + 1,
+            modifiers: KeyModifiers::NONE,
+        };
+        page.handle_mouse(down, AREA);
+        let ctrl_enter = KeyChord {
+            raw: crossterm::event::KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL),
+            canonical: crossterm::event::KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL),
+        };
+        page.handle_key(ctrl_enter);
+        for c in "fix: the thing".chars() {
+            page.handle_key(key(KeyCode::Char(c)));
+        }
+        let events = page.handle_key(key(KeyCode::Enter));
+        assert!(
+            events.iter().any(|e| matches!(e, PanelEvent::GitCommit { message, .. } if message == "fix: the thing")),
+            "the box hands the message to the app: {events:?}"
+        );
+        assert!(!page.commit.active, "the box closes after the commit");
+    }
+
+    #[test]
+    fn escape_cancels_the_commit_box_without_emitting() {
+        let mut page = IdePage::new();
+        page.set_repo(PathBuf::from("/tmp/repo"));
+        page.focus = Focus::Git;
+        let ctrl_enter = KeyChord {
+            raw: crossterm::event::KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL),
+            canonical: crossterm::event::KeyEvent::new(KeyCode::Enter, KeyModifiers::CONTROL),
+        };
+        page.handle_key(ctrl_enter);
+        page.handle_key(key(KeyCode::Char('x')));
+        let events = page.handle_key(key(KeyCode::Esc));
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, PanelEvent::GitCommit { .. })),
+            "escape emits nothing"
+        );
+        assert!(page.commit.text.is_empty(), "escape clears the draft");
     }
 
     #[test]
