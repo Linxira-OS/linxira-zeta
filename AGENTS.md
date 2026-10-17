@@ -451,8 +451,17 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
    把 `main` 推进到它 —— 根 checkout 因此只承担"推进引用 + 推送"，不承担编辑；
 3. 合并后刷新依赖：`bun install --frozen-lockfile`。它同时是锁文件一致性检验；
    若它改动了**跟踪的**生成物，说明合并后的生成物过期，必须先修再推；
-4. **一次 push** `main`。`ci.yml` 的 `concurrency` 让紧邻的重复推送互相取消、
-   main 只留最后一个 run —— 所以"逐个 push"不省 CI，**本地先合才有意义**；
+4. **一次 push** `main`，且**在上一轮 run 结束前不推**（2026-10-17 立规，
+   起因：同一轮对 main 连推 4 次，`#1212`–`#1214` 被并发组互相取消，整条流水线
+   一次都没跑完，等于没有信号）。落规三条：
+   - 一轮落地的推送次数 **≤1**；CI 红之后的修复一律**先在 worktree 里累积**
+     （`merge-gate --gates-only` + clippy 本地跑绿），攒到下一次整轮推送；
+   - **在途 run 存在时不推同一分支**；推送前先看 `gh run list --branch <b>`；
+   - `cancelled` 既不是失败也不是通过——只有 `success` 才算证据；被取消的 run
+     必须在报告里写明"无信号"，不得当作绿。
+   `ci.yml` 的 `concurrency` 已对 **main 推送**改为**排队**（不再互相取消）：
+   即便误推两次，两轮都会完整跑完，信号不会被抹掉。release run 与 main 推送
+   都在 no-cancel 组，分支 dispatch 仍会互相取代。**本地先合仍然才有意义**；
 5. **高风险或发布性质**的变更（上游 tag 同步、品牌面、发布链、CI 自身）仍按各自
    章节走完整证据链；上游同步分支的权威证据是它的 `workflow_dispatch`（本地做不了
    真编 natives 与依赖 natives 的桶）。

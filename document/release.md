@@ -253,6 +253,26 @@ Allowed patterns, in order of preference:
 Diagnose a finished run with `gh run view <run-id> --json jobs` (job-level
 conclusions first, `--log-failed` second) — one call, not a loop.
 
+### Push discipline on `main` (one push per round)
+
+A push to `main` starts a full run; a second push used to cancel the first
+through `ci.yml`'s concurrency group, so a round of "fix, push, fix, push"
+could end with **no complete run at all** (2026-10-17: four pushes in one
+round, `#1212`–`#1214` all superseded, only the tip's run finished).
+
+Rules:
+
+- **At most one push per landing round.** Whatever a red run surfaces is
+  fixed locally first (`merge-gate --gates-only`, clippy for the touched
+  crates, the failing bucket), then pushed together.
+- **Never push while a run for the same branch is in flight.** Check
+  `gh run list --branch <branch>` before pushing.
+- **`cancelled` is not a verdict.** Only `success` counts as evidence; a
+  cancelled run is reported as "no signal", never as green.
+- `ci.yml` now makes **main pushes queue** (`cancel-in-progress` is false for
+  `push` on `refs/heads/main`), so even a mistaken second push keeps both
+  verdicts. Branch dispatches still supersede each other.
+
 ### Release tags require an update log
 
 - Every Zeta release tag (`v*`) MUST update the root `UPDATE-LOG.md` in the
