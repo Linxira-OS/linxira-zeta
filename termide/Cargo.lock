@@ -5586,6 +5586,7 @@ dependencies = [
 name = "termide-panel-ide"
 version = "0.41.0"
 dependencies = [
+ "anyhow",
  "crossterm",
  "ratatui",
  "tempfile",

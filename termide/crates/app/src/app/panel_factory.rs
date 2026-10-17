@@ -338,6 +338,18 @@ impl App {
         Ok(())
     }
 
+    /// Open the workspace note (`<workspace>/.zeta/notepad.md`, singleton).
+    pub(super) fn handle_open_notepad(&mut self) -> Result<()> {
+        self.close_help_panels();
+
+        if !self.find_and_focus_panel_by_name("notepad") {
+            let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            self.add_panel(Box::new(termide_panel_ide::NotepadPanel::new(&root)));
+        }
+        self.auto_save_layout();
+        Ok(())
+    }
+
     /// Open Git Log panel (singleton)
     pub(super) fn handle_open_git_log(&mut self) -> Result<()> {
         self.close_help_panels();

@@ -29,9 +29,11 @@
 //! through `Panel::render` → blit — the terminal panel already proves that road.
 
 mod formatters;
+mod notepad;
 mod ports;
 mod todo;
 
+pub use notepad::NotepadPanel;
 pub use ports::PortsPanel;
 pub use todo::TodoPanel;
 

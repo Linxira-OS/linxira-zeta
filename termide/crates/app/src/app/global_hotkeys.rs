@@ -35,6 +35,7 @@ pub(super) fn build_global_hotkey_table(kb: &GlobalKeybindings) -> HotkeyTable {
     t.insert("open_diagnostics", &kb.open_diagnostics);
     t.insert("open_git_log", &kb.open_git_log);
     t.insert("open_ide", &kb.open_ide);
+    t.insert("open_notepad", &kb.open_notepad);
     t.insert("open_bookmark_add", &kb.open_bookmark_add);
     t.insert("open_command_palette", &kb.open_command_palette);
     t.insert("open_path", &kb.open_path);
@@ -200,6 +201,10 @@ impl App {
         }
         if table.matches("open_ide", key) {
             self.handle_open_ide()?;
+            return Ok(true);
+        }
+        if table.matches("open_notepad", key) {
+            self.handle_open_notepad()?;
             return Ok(true);
         }
         if table.matches("open_bookmark_add", key) {
@@ -392,6 +397,7 @@ impl App {
             "open_diagnostics" => self.handle_open_diagnostics()?,
             "open_git_log" => self.handle_open_git_log()?,
             "open_ide" => self.handle_open_ide()?,
+            "open_notepad" => self.handle_open_notepad()?,
             "open_bookmark_add" => self.handle_add_bookmark()?,
             "open_command_palette" => self.handle_open_command_palette()?,
             "open_path" => self.open_path_prompt(),

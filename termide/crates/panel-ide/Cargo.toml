@@ -8,6 +8,7 @@ repository.workspace = true
 description = "The standard IDE page: a fixed layout with file tabs, a left column (tree over git) and an editor, shared by the TUI and the GUI"
 
 [dependencies]
+anyhow.workspace = true
 crossterm.workspace = true
 ratatui.workspace = true
 

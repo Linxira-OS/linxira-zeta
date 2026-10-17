@@ -32,6 +32,7 @@ pub struct GlobalKeybindings {
     pub open_diagnostics: Option<KeyBinding>,
     pub open_git_log: Option<KeyBinding>,
     pub open_ide: Option<KeyBinding>,
+    pub open_notepad: Option<KeyBinding>,
 
     // Panel management
     pub close_panel: Option<KeyBinding>,
@@ -518,6 +519,7 @@ impl GlobalKeybindings {
         set_default!(open_diagnostics, "Alt+I");
         set_default!(open_git_log, "Alt+C");
         set_default!(open_ide, "Alt+Z");
+        set_default!(open_notepad, "Alt+J");
 
         // Panel management (close_panel and toggle_stack get F-key alternatives below)
         set_default!(swap_left, "Alt+PageUp");
