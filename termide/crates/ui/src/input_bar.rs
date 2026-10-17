@@ -476,16 +476,16 @@ impl InputBar {
         // field's rows: dragged past the top or bottom edge it selects to the
         // edge instead of computing a position outside the field.
         let (col, row) = match self.drag_field {
-            Some(i) if !pressed => match self.field_areas.get(i).copied() {
-                Some(area) => (
-                    mouse
-                        .column
-                        .clamp(area.x, area.x + area.width.saturating_sub(1)),
-                    mouse
-                        .row
-                        .clamp(area.y, area.y + area.height.saturating_sub(1)),
-                ),
-                None => return None,
+            Some(i) if !pressed => {
+                let area = self.field_areas.get(i).copied()?;
+                (
+                mouse
+                    .column
+                    .clamp(area.x, area.x + area.width.saturating_sub(1)),
+                mouse
+                    .row
+                    .clamp(area.y, area.y + area.height.saturating_sub(1)),
+            )
             },
             _ => (mouse.column, mouse.row),
         };
@@ -989,9 +989,7 @@ fn render_multiline(
     let cursor = ta.cursor();
     let cursor_vi = visual
         .iter()
-        .enumerate()
-        .filter(|(_, (row, start, _))| *row == cursor.row && *start <= cursor.col)
-        .next_back()
+        .enumerate().rfind(|(_, (row, start, _))| *row == cursor.row && *start <= cursor.col)
         .map(|(i, _)| i)
         .unwrap_or(0);
     let height = area.height as usize;

@@ -250,9 +250,9 @@ impl FileManager {
                     }
                 }
             }
-            MouseEventKind::Drag(MouseButton::Left) => {
+            MouseEventKind::Drag(MouseButton::Left)
                 // Handle drag only if there's an active drag mode
-                if self.selection.is_dragging() {
+                if self.selection.is_dragging() => {
                     let relative_row = (mouse.row - inner_area.y) as usize;
                     let current_index = self.scroll_offset + relative_row;
 
@@ -262,7 +262,6 @@ impl FileManager {
                         self.selected = current_index;
                     }
                 }
-            }
             _ => {}
         }
 

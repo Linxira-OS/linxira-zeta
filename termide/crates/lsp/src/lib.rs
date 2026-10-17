@@ -160,9 +160,9 @@ impl LspManager {
                 }
             }
 
-            match current.parent() {
-                Some(parent) => current = parent,
-                None => return None,
+            {
+                let parent = current.parent()?;
+                current = parent
             }
         }
     }

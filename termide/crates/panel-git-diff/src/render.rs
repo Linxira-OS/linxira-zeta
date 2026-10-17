@@ -93,7 +93,7 @@ impl GitDiffPanel {
                 // Format: ─[▼] ~ path (+N -M) [staged] ─────────
                 let title_text = format!(
                     "{} {} {} {}{}",
-                    collapse_btn, status_char, &diff.path, stats, &staged_marker
+                    collapse_btn, status_char, diff.path, stats, staged_marker
                 );
                 let title_width = title_text.width();
 

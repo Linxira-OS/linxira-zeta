@@ -151,8 +151,8 @@ impl SettingsModal {
                 self.lsp_edit_cursor = 0;
                 self.lsp_mode = LspMode::ServerEdit;
             }
-            Some(ContentRow::LspServer(idx)) => {
-                if idx < self.lsp_server_keys.len() {
+            Some(ContentRow::LspServer(idx))
+                if idx < self.lsp_server_keys.len() => {
                     let lang = self.lsp_server_keys[idx].clone();
                     if let Some(srv) = self.config.lsp.servers.get(&lang) {
                         self.lsp_edit_fields = [
@@ -167,7 +167,6 @@ impl SettingsModal {
                         self.lsp_mode = LspMode::ServerEdit;
                     }
                 }
-            }
             _ => {}
         }
     }
@@ -627,11 +626,10 @@ impl SettingsModal {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 return self.execute_selected_button();
             }
-            KeyCode::Esc => {
-                if self.escape_buttons() {
+            KeyCode::Esc
+                if self.escape_buttons() => {
                     return Ok(Some(ModalResult::Cancelled));
                 }
-            }
             _ => {}
         }
         Ok(None)

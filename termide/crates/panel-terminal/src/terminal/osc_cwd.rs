@@ -48,9 +48,9 @@ pub fn parse_osc_cwd(params: &[&[u8]], local_host: &str) -> Option<PathBuf> {
 /// `file://host/path` → the decoded path, when the host is this machine.
 fn parse_file_url(url: &str, local_host: &str) -> Option<String> {
     let rest = url.strip_prefix("file://")?;
-    let (host, path) = match rest.find('/') {
-        Some(i) => (&rest[..i], &rest[i..]),
-        None => return None,
+    let (host, path) = {
+        let i = rest.find('/')?;
+        (&rest[..i], &rest[i..])
     };
     let is_local = host.is_empty()
         || host.eq_ignore_ascii_case("localhost")

@@ -1211,9 +1211,7 @@ mod tests {
         assert!(dest_parent.join("source/sub/deeper/c.txt").exists());
         // `scanning_details` reports the running count in `files_completed`.
         let scanned = updates
-            .iter()
-            .filter(|u| matches!(u.phase, OperationPhase::Scanning))
-            .next_back()
+            .iter().rfind(|u| matches!(u.phase, OperationPhase::Scanning))
             .expect("copy reports scanned totals");
         assert_eq!(scanned.files_completed, 3, "3 files in the fixture");
         assert_eq!(scanned.total_bytes, 1 + 2 + 3);
