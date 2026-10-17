@@ -12,7 +12,6 @@
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::Shell;
-use crate::chrome::gradient_mark;
 use crate::icons::Icon;
 use crate::icons::icon_button;
 use crate::seed;
@@ -52,7 +51,7 @@ pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
 	ui.painter().line_segment(
 		[pos2(rect.max.x - 0.5, rect.min.y), pos2(rect.max.x - 0.5, rect.max.y)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), HEAD_H));
 	let nav = Rect::from_min_size(
@@ -79,18 +78,16 @@ pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
 /// `.side-head`: brand mark, name, presence, collapse button.
 fn head_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
-	let mark =
-		Rect::from_min_size(pos2(rect.min.x + 12.0, rect.center().y - 11.0), vec2(22.0, 22.0));
-	gradient_mark(ui, mark, "Z");
+	let name_x = rect.min.x + 12.0;
 	ui.painter().text(
-		pos2(mark.max.x + 8.0, rect.center().y),
+		pos2(name_x, rect.center().y),
 		egui::Align2::LEFT_CENTER,
 		crate::APP_TITLE,
 		egui::FontId::new(13.0, egui::FontFamily::Proportional),
 		theme::TEXT,
 	);
 	ui.painter()
-		.circle_filled(pos2(mark.max.x + 8.0 + 60.0, rect.center().y), 3.5, theme::ADD);
+		.circle_filled(pos2(name_x + 60.0, rect.center().y), 3.5, theme::ADD);
 	let mut collapse = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
 		pos2(rect.max.x - 32.0, rect.center().y - 12.0),
 		vec2(24.0, 24.0),
@@ -133,7 +130,7 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.min.y), pos2(rect.max.x, rect.min.y)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 28.0));
 	let note = Rect::from_min_size(pos2(rect.min.x, head.max.y), vec2(rect.width(), 20.0));
@@ -290,7 +287,7 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 	ui.painter().rect_stroke(
 		chip_rect,
 		CornerRadius::same(4),
-		Stroke::new(1.0, theme::CHIP_BRANCH_BORDER),
+		Stroke::new(1.0_f32, theme::CHIP_BRANCH_BORDER),
 		egui::StrokeKind::Inside,
 	);
 	truncated_mono(
@@ -315,7 +312,7 @@ fn foot_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.min.y + 0.5), pos2(rect.max.x, rect.min.y + 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let inner = Rect::from_min_max(
 		pos2(rect.min.x + 8.0, rect.center().y - 15.0),
@@ -359,7 +356,7 @@ pub fn left_rail(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
 	ui.painter().line_segment(
 		[pos2(rect.max.x - 0.5, rect.min.y), pos2(rect.max.x - 0.5, rect.max.y)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()

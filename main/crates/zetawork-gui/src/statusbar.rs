@@ -21,7 +21,7 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.min.y + 0.5), pos2(rect.max.x, rect.min.y + 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(8.0, 0.0))), |ui| {
 		ui.horizontal_centered(|ui| {
@@ -109,7 +109,7 @@ pub fn strip(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.min.y + 0.5), pos2(rect.max.x, rect.min.y + 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let button = Rect::from_center_size(pos2(rect.center().x, rect.center().y), vec2(40.0, 14.0));
 	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(button));

@@ -66,7 +66,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 			let mut dialog_ui = ui.new_child(egui::UiBuilder::new().max_rect(dialog));
 			egui::Frame::new()
 				.fill(theme::PANEL)
-				.stroke(Stroke::new(1.0, theme::BORDER_2))
+				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
 				.corner_radius(CornerRadius::same(theme::R_MODAL))
 				.outer_margin(egui::Margin::ZERO)
 				.show(&mut dialog_ui, |ui| {
@@ -83,7 +83,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 					);
 					ui.painter().line_segment(
 						[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-						Stroke::new(1.0, theme::BORDER),
+						Stroke::new(1.0_f32, theme::BORDER),
 					);
 					let mut close_ui = ui.new_child(egui::UiBuilder::new().max_rect(
 						Rect::from_min_size(pos2(head.max.x - 42.0, head.min.y + 12.0), vec2(28.0, 28.0)),
@@ -98,7 +98,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 						.rect_filled(nav, CornerRadius::ZERO, theme::PANEL_2);
 					ui.painter().line_segment(
 						[pos2(nav.max.x - 0.5, nav.min.y), pos2(nav.max.x - 0.5, nav.max.y)],
-						Stroke::new(1.0, theme::BORDER),
+						Stroke::new(1.0_f32, theme::BORDER),
 					);
 					let mut nav_ui = ui.new_child(
 						egui::UiBuilder::new()
@@ -521,7 +521,7 @@ fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0, theme::BORDER_2),
+			Stroke::new(1.0_f32, theme::BORDER_2),
 			egui::StrokeKind::Inside,
 		);
 		ui.painter().text(
@@ -686,7 +686,7 @@ fn small_button(ui: &mut Ui, label: &str) -> egui::Response {
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_CONTROL),
-		Stroke::new(1.0, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::BORDER_2),
 		egui::StrokeKind::Inside,
 	);
 	ui.painter().text(
@@ -751,7 +751,7 @@ fn row(
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 14.0),
@@ -782,7 +782,7 @@ fn plain_row(ui: &mut Ui, label: &str, hint_text: &str, value: &str) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 52.0), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 12.0),
@@ -877,7 +877,7 @@ fn switch(ui: &mut Ui, value: &mut bool) -> bool {
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(11),
-		Stroke::new(1.0, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::BORDER_2),
 		egui::StrokeKind::Inside,
 	);
 	let knob_x = if *value {
@@ -902,7 +902,7 @@ fn disabled_switch(ui: &mut Ui, value: bool) {
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(11),
-		Stroke::new(1.0, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::BORDER_2),
 		egui::StrokeKind::Inside,
 	);
 	let knob_x = if value {
@@ -928,7 +928,7 @@ fn kbd(ui: &mut Ui, keys: &str) {
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(5),
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 		egui::StrokeKind::Inside,
 	);
 	ui.painter()
@@ -1163,7 +1163,7 @@ fn manage_card(
 		rect,
 		CornerRadius::same(theme::R_PANEL),
 		Stroke::new(
-			1.0,
+			1.0_f32,
 			if response.hovered() {
 				theme::BORDER_2
 			} else {

@@ -209,7 +209,7 @@ fn visuals(theme: Theme) -> egui::Visuals {
 	visuals.dark_mode = dark;
 	visuals.panel_fill = panel;
 	visuals.window_fill = panel;
-	visuals.window_stroke = Stroke::new(1.0, border);
+	visuals.window_stroke = Stroke::new(1.0_f32, border);
 	visuals.window_corner_radius = CornerRadius::same(R_MODAL);
 	visuals.menu_corner_radius = CornerRadius::same(R_PANEL);
 	visuals.extreme_bg_color = if dark { GROUND } else { Color32::WHITE };
@@ -227,41 +227,41 @@ fn visuals(theme: Theme) -> egui::Visuals {
 	visuals.override_text_color = Some(text);
 	visuals.weak_text_color = Some(text_weak);
 	visuals.selection.bg_fill = ACCENT_DIM;
-	visuals.selection.stroke = Stroke::new(1.0, ACCENT_2);
+	visuals.selection.stroke = Stroke::new(1.0_f32, ACCENT_2);
 	visuals.hyperlink_color = ACCENT_2;
 	visuals.warn_fg_color = WARN;
 	visuals.error_fg_color = DEL;
 	visuals.button_frame = true;
 
-	let line = Stroke::new(1.0, border);
+	let line = Stroke::new(1.0_f32, border);
 	visuals.widgets.noninteractive.bg_fill = panel;
 	visuals.widgets.noninteractive.weak_bg_fill = panel;
 	visuals.widgets.noninteractive.bg_stroke = line;
-	visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, text_weak);
+	visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, text_weak);
 	visuals.widgets.noninteractive.corner_radius = CornerRadius::same(R_CONTROL);
 
 	visuals.widgets.inactive.bg_fill = if dark { PANEL_2 } else { Color32::WHITE };
 	visuals.widgets.inactive.weak_bg_fill = PANEL_2;
-	visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, if dark { BORDER_2 } else { border });
-	visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, text);
+	visuals.widgets.inactive.bg_stroke = Stroke::new(1.0_f32, if dark { BORDER_2 } else { border });
+	visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, text);
 	visuals.widgets.inactive.corner_radius = CornerRadius::same(R_CONTROL);
 
 	visuals.widgets.hovered.bg_fill = hover;
 	visuals.widgets.hovered.weak_bg_fill = hover;
-	visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, BORDER_2);
-	visuals.widgets.hovered.fg_stroke = Stroke::new(1.0, text);
+	visuals.widgets.hovered.bg_stroke = Stroke::new(1.0_f32, BORDER_2);
+	visuals.widgets.hovered.fg_stroke = Stroke::new(1.0_f32, text);
 	visuals.widgets.hovered.corner_radius = CornerRadius::same(R_CONTROL);
 
 	visuals.widgets.active.bg_fill = active;
 	visuals.widgets.active.weak_bg_fill = active;
-	visuals.widgets.active.bg_stroke = Stroke::new(1.0, BORDER_2);
-	visuals.widgets.active.fg_stroke = Stroke::new(1.0, text);
+	visuals.widgets.active.bg_stroke = Stroke::new(1.0_f32, BORDER_2);
+	visuals.widgets.active.fg_stroke = Stroke::new(1.0_f32, text);
 	visuals.widgets.active.corner_radius = CornerRadius::same(R_CONTROL);
 
 	visuals.widgets.open.bg_fill = active;
 	visuals.widgets.open.weak_bg_fill = active;
-	visuals.widgets.open.bg_stroke = Stroke::new(1.0, BORDER_2);
-	visuals.widgets.open.fg_stroke = Stroke::new(1.0, text);
+	visuals.widgets.open.bg_stroke = Stroke::new(1.0_f32, BORDER_2);
+	visuals.widgets.open.fg_stroke = Stroke::new(1.0_f32, text);
 	visuals.widgets.open.corner_radius = CornerRadius::same(R_CONTROL);
 	visuals
 }

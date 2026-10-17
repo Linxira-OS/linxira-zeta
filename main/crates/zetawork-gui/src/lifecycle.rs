@@ -501,7 +501,7 @@ pub fn modal(ctx: &Context, shell: &mut Shell) {
 		.show(ctx, |ui| {
 			egui::Frame::new()
 				.fill(crate::theme::PANEL)
-				.stroke(egui::Stroke::new(1.0, crate::theme::BORDER_2))
+				.stroke(egui::Stroke::new(1.0_f32, crate::theme::BORDER_2))
 				.corner_radius(egui::CornerRadius::same(crate::theme::R_MODAL))
 				.inner_margin(egui::Margin::same(16))
 				.show(ui, |ui| {

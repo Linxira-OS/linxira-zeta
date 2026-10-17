@@ -135,7 +135,7 @@ fn head_row(ui: &egui::Ui, rect: Rect, widths: &[f32; 6]) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let mut x = rect.min.x;
 	for (index, (label, _)) in COLUMNS.iter().enumerate() {
@@ -175,7 +175,7 @@ fn row_body(
 	}
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	// The active-workspace marker: `.ws-btn.is-active::before`, turned on its
 	// side for a table row.

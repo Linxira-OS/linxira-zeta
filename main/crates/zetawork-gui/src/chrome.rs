@@ -28,7 +28,7 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 	painter.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
 	painter.line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 
 	// The whole bar drags the window; the controls inside are separate widgets
@@ -255,7 +255,7 @@ pub fn toast(ctx: &egui::Context, text: &str) {
 		.show(ctx, |ui| {
 			egui::Frame::new()
 				.fill(theme::PANEL_4)
-				.stroke(Stroke::new(1.0, theme::BORDER_2))
+				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
 				.corner_radius(CornerRadius::same(theme::R_PANEL))
 				.inner_margin(egui::Margin::symmetric(16, 9))
 				.show(ui, |ui| {

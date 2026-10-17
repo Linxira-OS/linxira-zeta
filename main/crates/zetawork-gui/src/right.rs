@@ -31,12 +31,12 @@ pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
 	ui.painter().line_segment(
 		[pos2(rect.min.x + 0.5, rect.min.y), pos2(rect.min.x + 0.5, rect.max.y)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 44.0));
 	ui.painter().line_segment(
 		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let mut tabs = ui.new_child(
 		egui::UiBuilder::new()
@@ -87,7 +87,7 @@ pub fn right_rail(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
 	ui.painter().line_segment(
 		[pos2(rect.min.x + 0.5, rect.min.y), pos2(rect.min.x + 0.5, rect.max.y)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()
@@ -435,7 +435,7 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 			let (head, _) = ui.allocate_exact_size(vec2(ui.available_width(), 104.0), Sense::hover());
 			let centre = pos2(head.min.x + 56.0, head.center().y);
 			let painter = ui.painter();
-			painter.circle_stroke(centre, 44.0, Stroke::new(10.0, theme::PANEL_4));
+			painter.circle_stroke(centre, 44.0, Stroke::new(10.0_f32, theme::PANEL_4));
 			painter.text(
 				pos2(centre.x, centre.y - 7.0),
 				egui::Align2::CENTER_CENTER,
@@ -710,7 +710,7 @@ fn commit_row(ui: &mut Ui, commit: &crate::git::GitCommit) {
 		dot,
 		3.5,
 		Stroke::new(
-			2.0,
+			2.0_f32,
 			if commit.merge {
 				theme::CYAN
 			} else {

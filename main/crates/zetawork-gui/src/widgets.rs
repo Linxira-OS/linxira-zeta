@@ -77,7 +77,7 @@ pub fn chip(ui: &mut Ui, label: &str, kind: Chip) -> Response {
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(4),
-		Stroke::new(1.0, border),
+		Stroke::new(1.0_f32, border),
 		egui::StrokeKind::Inside,
 	);
 	ui.painter().text(
@@ -180,7 +180,7 @@ pub fn foot_button(ui: &mut Ui, icon: Icon, label: &str) -> Response {
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0, theme::BORDER),
+			Stroke::new(1.0_f32, theme::BORDER),
 			egui::StrokeKind::Inside,
 		);
 	}
@@ -279,7 +279,7 @@ pub fn empty_note(ui: &mut Ui, headline: &str, source: &str) {
 	painter.rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_PANEL),
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 		egui::StrokeKind::Inside,
 	);
 	painter.text(

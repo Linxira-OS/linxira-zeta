@@ -12,8 +12,8 @@
 //! [`Shell`] owns everything the shell knows ([`state::AppState`], the
 //! persisted [`settings::Settings`], the read-only file tree and git status, the
 //! terminal blit cache) and drives the panels in [`eframe::App::update`]. The
-//! GUI view is [`center::workspace`]; the TUI view is [`tui_view::view`] and
-//! reads the *same* state, minus the controls that only exist in a window.
+//! The GUI is [`center::workspace`]. The TUI is the terminal binary and is
+//! never rendered here.
 //!
 //! What is real in this slice: the file tree ([`fsread`]), the git status
 //! ([`git`]), the process's own memory (the status bar), and every state
@@ -49,7 +49,6 @@ pub mod terminal_service;
 pub mod theme;
 pub mod total;
 pub mod tray;
-pub mod tui_view;
 pub mod usage;
 pub mod widgets;
 pub mod ws;
@@ -67,7 +66,7 @@ use crate::fsread::FileTree;
 use crate::git::GitStatus;
 use crate::icons::Icon;
 use crate::settings::Settings;
-use crate::state::{AppState, ViewMode};
+use crate::state::AppState;
 
 /// The window title and the title bar's brand.
 pub const APP_TITLE: &str = "zetawork";
@@ -540,16 +539,6 @@ impl Shell {
 		if escape {
 			self.state.escape();
 		}
-		if self.state.view == ViewMode::Tui {
-			let (tab, quit) =
-				ctx.input(|i| (i.key_pressed(egui::Key::Tab), i.key_pressed(egui::Key::Q)));
-			if tab {
-				self.cycle_tui_focus();
-			}
-			if quit {
-				self.state.set_view(ViewMode::Gui);
-			}
-		}
 		if !command {
 			return;
 		}
@@ -584,31 +573,6 @@ impl Shell {
 			};
 			self.state.show(notice);
 		}
-	}
-
-	/// Tab in the TUI view: move the focused terminal box along.
-	pub fn cycle_tui_focus(&mut self) {
-		let panes: Vec<String> = self
-			.state
-			.visible_panes()
-			.iter()
-			.map(|p| p.id.clone())
-			.collect();
-		if panes.is_empty() {
-			return;
-		}
-		let next = match self.state.tui_pane.as_ref() {
-			None => panes.first().cloned(),
-			Some(current) => {
-				let index = panes
-					.iter()
-					.position(|id| id == current)
-					.map(|i| i + 1)
-					.unwrap_or(0);
-				panes.get(index).cloned().or_else(|| panes.first().cloned())
-			},
-		};
-		self.state.tui_pane = next;
 	}
 
 	// ── 后台驻留与通知 ─────────────────────────────────────────────────
@@ -967,53 +931,48 @@ impl Shell {
 	/// same frame headlessly — there is no window in the test harness.
 	pub fn draw(&mut self, ctx: &Context) {
 		let no_margin = egui::Frame::new().inner_margin(egui::Margin::ZERO);
-		// The window chrome (title bar with the controls and the view switch)
-		// stays in both views; the workbench's own GUI widgets — columns,
-		// status bar — belong to the GUI view only, so TUI mode renders the
-		// TUI over the whole body.
-		let gui = self.state.view == ViewMode::Gui;
+		// The window chrome owns the title bar and the brand mark; the panels
+		// below it are the workbench's own widgets.
 		egui::TopBottomPanel::top("zetawork-titlebar")
 			.exact_height(theme::TITLE_BAR_H)
 			.frame(no_margin)
 			.show(ctx, |ui| chrome::title_bar(ui, self));
-		if gui {
-			let height = if self.state.statusbar_visible() {
-				theme::STATUSBAR_H
-			} else {
-				statusbar::STRIP_H
-			};
-			egui::TopBottomPanel::bottom("zetawork-statusbar")
-				.exact_height(height)
-				.frame(no_margin)
-				.show(ctx, |ui| {
-					if self.state.statusbar_visible() {
-						statusbar::status_bar(ui, self);
-					} else {
-						statusbar::strip(ui, self);
-					}
-				});
-		}
+		let height = if self.state.statusbar_visible() {
+			theme::STATUSBAR_H
+		} else {
+			statusbar::STRIP_H
+		};
+		egui::TopBottomPanel::bottom("zetawork-statusbar")
+			.exact_height(height)
+			.frame(no_margin)
+			.show(ctx, |ui| {
+				if self.state.statusbar_visible() {
+					statusbar::status_bar(ui, self);
+				} else {
+					statusbar::strip(ui, self);
+				}
+			});
 
-		if gui && self.state.left_collapsed {
+		if self.state.left_collapsed {
 			egui::SidePanel::left("zetawork-rail-left")
 				.exact_width(left::RAIL_WIDTH)
 				.resizable(false)
 				.frame(no_margin)
 				.show(ctx, |ui| left::left_rail(ui, self));
-		} else if gui {
+		} else {
 			egui::SidePanel::left("zetawork-side-left")
 				.exact_width(left::WIDTH)
 				.resizable(false)
 				.frame(no_margin)
 				.show(ctx, |ui| left::left_column(ui, self));
 		}
-		if gui && self.state.right_collapsed {
+		if self.state.right_collapsed {
 			egui::SidePanel::right("zetawork-rail-right")
 				.exact_width(right::RAIL_WIDTH)
 				.resizable(false)
 				.frame(no_margin)
 				.show(ctx, |ui| right::right_rail(ui, self));
-		} else if gui {
+		} else {
 			egui::SidePanel::right("zetawork-side-right")
 				.exact_width(right::WIDTH)
 				.resizable(false)
@@ -1022,10 +981,7 @@ impl Shell {
 		}
 		egui::CentralPanel::default()
 			.frame(no_margin)
-			.show(ctx, |ui| match self.state.view {
-				ViewMode::Gui => center::workspace(ui, self),
-				ViewMode::Tui => tui_view::view(ui, self),
-			});
+			.show(ctx, |ui| center::workspace(ui, self));
 
 		settings_ui::modal(ctx, self);
 		lifecycle::modal(ctx, self);

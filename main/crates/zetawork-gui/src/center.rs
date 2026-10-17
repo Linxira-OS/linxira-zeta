@@ -23,7 +23,7 @@ use crate::blit::{BufferCache, GridMetrics, paint_buffer_with, paint_cursor};
 use crate::git::DiffKind;
 use crate::icons::{Icon, icon_button, paint};
 use crate::seed;
-use crate::state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab, ViewMode};
+use crate::state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab};
 use crate::theme;
 use crate::widgets::{Chip, chip, empty_note, truncated_mono, truncated_text};
 
@@ -60,7 +60,7 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let mut x = rect.min.x + 8.0;
 	// 总面板 is the strip's **first** 大标签页 (the contract's ruling). It is
@@ -163,15 +163,9 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 		crate::state::MAX_SUBS_PER_PANE
 	);
 	let caps_x = plus_rect.max.x + 8.0;
-	let switch_x = rect.max.x - 8.0 - VIEW_SWITCH_W;
-	if caps_x + 150.0 < switch_x {
+	if caps_x + 150.0 < rect.max.x - 8.0 - 116.0 {
 		truncated_text(ui, pos2(caps_x, rect.center().y), &caps, 11.0, theme::TEXT_3, 140.0);
 	}
-	view_switch(
-		ui,
-		shell,
-		Rect::from_min_max(pos2(switch_x, rect.min.y), pos2(rect.max.x - 8.0, rect.max.y)),
-	);
 }
 
 /// The face of one 大标签页: the active one is filled with the ground colour
@@ -189,7 +183,7 @@ fn tab_face(ui: &Ui, tab: Rect, is_active: bool, hovered: bool) {
 		ui.painter().rect_stroke(
 			Rect::from_min_max(tab.min, pos2(tab.max.x, tab.min.y + 32.0)),
 			radius,
-			Stroke::new(1.0, theme::BORDER),
+			Stroke::new(1.0_f32, theme::BORDER),
 			egui::StrokeKind::Inside,
 		);
 	} else if hovered {
@@ -199,60 +193,6 @@ fn tab_face(ui: &Ui, tab: Rect, is_active: bool, hovered: bool) {
 			theme::PANEL_3,
 		);
 	}
-}
-
-/// The width `视图 GUI/TUI` needs, reserved at the strip's right end.
-const VIEW_SWITCH_W: f32 = 116.0;
-
-/// `视图 GUI / TUI` — the spec's `.viewswitch`, at the end of the centre's top
-/// bar.
-///
-/// The information-surface draft puts it in `.ws-topbar`, on the same row as
-/// the 大标签页 strip, and *not* in the window's title bar: it switches what the
-/// centre draws, so it belongs to the centre.
-fn view_switch(ui: &mut Ui, shell: &mut Shell, rect: Rect) {
-	let mut child = ui.new_child(
-		egui::UiBuilder::new()
-			.max_rect(rect)
-			.layout(Layout::left_to_right(Align::Center)),
-	);
-	let ui = &mut child;
-	let frame = egui::Frame::new()
-		.fill(theme::PANEL_3)
-		.stroke(Stroke::new(1.0, theme::BORDER))
-		.corner_radius(CornerRadius::same(6))
-		.inner_margin(egui::Margin::same(2));
-	frame.show(ui, |ui| {
-		ui.horizontal(|ui| {
-			ui.spacing_mut().item_spacing.x = 2.0;
-			ui.label(egui::RichText::new("视图").size(11.0).color(theme::TEXT_3));
-			for (mode, label) in [(ViewMode::Gui, "GUI"), (ViewMode::Tui, "TUI")] {
-				let active = shell.state.view == mode;
-				let ink = if active { theme::TEXT } else { theme::TEXT_3 };
-				let (rect, response) = ui.allocate_exact_size(vec2(38.0, 24.0), Sense::click());
-				let fill = if active {
-					theme::PANEL_4
-				} else if response.hovered() {
-					theme::PANEL_4.gamma_multiply(0.6)
-				} else {
-					Color32::TRANSPARENT
-				};
-				if fill != Color32::TRANSPARENT {
-					ui.painter().rect_filled(rect, CornerRadius::same(4), fill);
-				}
-				ui.painter().text(
-					rect.center(),
-					egui::Align2::CENTER_CENTER,
-					label,
-					egui::FontId::new(12.0, egui::FontFamily::Monospace),
-					ink,
-				);
-				if response.clicked() {
-					shell.state.set_view(mode);
-				}
-			}
-		});
-	});
 }
 
 /// `.ws-toolstrip` — 新建终端 / 分屏 / 列数.
@@ -265,7 +205,7 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let mut left = ui.new_child(
 		egui::UiBuilder::new()
@@ -292,7 +232,7 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 	let cols = shell.state.active_cols();
 	let frame = egui::Frame::new()
 		.fill(theme::PANEL_2)
-		.stroke(Stroke::new(1.0, theme::BORDER))
+		.stroke(Stroke::new(1.0_f32, theme::BORDER))
 		.inner_margin(egui::Margin::same(0));
 	frame.show(&mut right, |ui| {
 		// Same reason as the view switch: the parent here is right-to-left.
@@ -335,7 +275,7 @@ fn tool_button(ui: &mut Ui, icon: Icon, label: &str) -> egui::Response {
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_CONTROL),
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 		egui::StrokeKind::Inside,
 	);
 	if response.hovered() {
@@ -421,7 +361,7 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 		.rect_filled(strip, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(strip.min.x, strip.max.y - 0.5), pos2(strip.max.x, strip.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let mut x = strip.min.x + 6.0;
 	let reserved = 60.0;
@@ -454,7 +394,7 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 			ui.painter().rect_stroke(
 				tab_rect,
 				CornerRadius::same(theme::R_CONTROL),
-				Stroke::new(1.0, theme::BORDER),
+				Stroke::new(1.0_f32, theme::BORDER),
 				egui::StrokeKind::Inside,
 			);
 		} else if response.hovered() {
@@ -555,7 +495,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 		.rect_filled(sub, CornerRadius::ZERO, theme::TERM_SUB_BG);
 	ui.painter().line_segment(
 		[pos2(sub.min.x, sub.max.y - 0.5), pos2(sub.max.x, sub.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	// The sub-chips are this pane's terminal sessions: clicking one switches
 	// the session tab, and ＋ opens another — the same actions as the strip
@@ -742,7 +682,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		.rect_filled(etabs, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(etabs.min.x, etabs.max.y - 0.5), pos2(etabs.max.x, etabs.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let head = tab
 		.doc
@@ -842,7 +782,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		.rect_filled(foot, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(foot.min.x, foot.min.y + 0.5), pos2(foot.max.x, foot.min.y + 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let eol = if text.contains("\r\n") { "CRLF" } else { "LF" };
 	let language = doc
@@ -1018,7 +958,7 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		.rect_filled(header, CornerRadius::ZERO, theme::TERM_SUB_BG);
 	ui.painter().line_segment(
 		[pos2(header.min.x, header.max.y - 0.5), pos2(header.max.x, header.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let path = shell
 		.state
@@ -1123,7 +1063,7 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		.rect_filled(head, CornerRadius::ZERO, theme::PANEL_2);
 	ui.painter().line_segment(
 		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
+		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let origin = shell.stats.origin().to_owned();
 	let pane = shell.agents.ensure(&tab.id);
@@ -1334,7 +1274,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(5),
-			Stroke::new(1.0, theme::BORDER),
+			Stroke::new(1.0_f32, theme::BORDER),
 			egui::StrokeKind::Inside,
 		);
 		ui.painter().text(
@@ -1348,7 +1288,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 	}
 	let line = Rect::from_min_size(pos2(centre.x - 190.0, y - 22.0), vec2(380.0, 1.0));
 	ui.painter()
-		.line_segment([line.min, pos2(line.max.x, line.min.y)], Stroke::new(1.0, theme::BORDER));
+		.line_segment([line.min, pos2(line.max.x, line.min.y)], Stroke::new(1.0_f32, theme::BORDER));
 }
 
 /// The welcome panel's `.btn`.
@@ -1365,7 +1305,7 @@ fn wide_button(ui: &mut Ui, icon: Icon, label: &str, primary: bool) -> egui::Res
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0, theme::BORDER_2),
+			Stroke::new(1.0_f32, theme::BORDER_2),
 			egui::StrokeKind::Inside,
 		);
 	}
@@ -1388,7 +1328,7 @@ fn wide_button(ui: &mut Ui, icon: Icon, label: &str, primary: bool) -> egui::Res
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0, theme::BORDER_2),
+			Stroke::new(1.0_f32, theme::BORDER_2),
 			egui::StrokeKind::Inside,
 		);
 	}

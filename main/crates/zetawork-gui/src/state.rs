@@ -104,14 +104,6 @@ impl NavItem {
 	}
 }
 
-/// Which shell is on screen. Both render the *same* state.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ViewMode {
-	#[default]
-	Gui,
-	Tui,
-}
-
 /// The right column's four panels — the spec's 文件树 / 历史 / Git / 上下文用量.
 ///
 /// The context tab shows the *current* session's context (path + branch +
@@ -505,7 +497,6 @@ pub struct Notice(pub String);
 /// The whole shell state.
 #[derive(Clone, Debug)]
 pub struct AppState {
-	pub view: ViewMode,
 	/// Which 大标签页 the centre shows: 总面板 (the strip's first tab, and what
 	/// this build opens on) or the active workspace's pane grid.
 	pub center_page: CenterPage,
@@ -545,7 +536,6 @@ pub struct AppState {
 impl Default for AppState {
 	fn default() -> Self {
 		Self {
-			view: ViewMode::Gui,
 			center_page: CenterPage::Total,
 			left_collapsed: false,
 			right_collapsed: false,
@@ -1195,10 +1185,6 @@ impl AppState {
 		self.right_collapsed = false;
 	}
 
-	pub fn set_view(&mut self, view: ViewMode) {
-		self.view = view;
-	}
-
 	/// Escape: close the topmost overlay, else leave the TUI view.
 	pub fn escape(&mut self) -> bool {
 		if self.picker.is_some() {
@@ -1211,10 +1197,6 @@ impl AppState {
 		}
 		if self.settings_open {
 			self.settings_open = false;
-			return true;
-		}
-		if self.view == ViewMode::Tui {
-			self.view = ViewMode::Gui;
 			return true;
 		}
 		false
@@ -1447,19 +1429,6 @@ mod tests {
 				.id
 				.starts_with(&state.projects[2].workspaces[0].id)
 		);
-	}
-
-	#[test]
-	fn escape_closes_the_modal_before_leaving_the_tui_view() {
-		let mut state = state();
-		state.set_view(ViewMode::Tui);
-		state.open_settings();
-		assert!(state.escape(), "the modal swallowed the first escape");
-		assert!(!state.modal_open());
-		assert_eq!(state.view, ViewMode::Tui, "still in the TUI view");
-		assert!(state.escape());
-		assert_eq!(state.view, ViewMode::Gui);
-		assert!(!state.escape(), "nothing left to close");
 	}
 
 	#[test]

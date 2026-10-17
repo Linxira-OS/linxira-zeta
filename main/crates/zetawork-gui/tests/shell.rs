@@ -9,10 +9,10 @@
 //! * the CJK width rule (`中a文b` → the `a` lands two columns later);
 //! * the GUI and the TUI read the same state.
 
+use zetawork_gui::Shell;
 use zetawork_gui::blit;
 use zetawork_gui::settings::{self, Density, MonoFont, Settings, Theme};
-use zetawork_gui::state::{AppState, MAX_WORKSPACES_PER_PROJECT, ViewMode};
-use zetawork_gui::{Shell, tui_view};
+use zetawork_gui::state::{AppState, MAX_WORKSPACES_PER_PROJECT};
 
 fn shell() -> Shell {
 	let cwd = std::env::current_dir().expect("cwd");
@@ -162,85 +162,21 @@ fn a_wide_glyph_claims_two_cells_and_the_next_ascii_lands_on_column_two() {
 }
 
 #[test]
-fn the_gui_and_the_tui_read_the_same_state() {
+fn a_frame_never_changes_the_state_it_draws() {
 	let mut shell = shell();
-	let gui = fingerprint(&shell.state);
-	shell.state.set_view(ViewMode::Tui);
-	assert_eq!(fingerprint(&shell.state), gui, "switching views changes no data");
-
-	let workspace = shell.state.workspace_label().to_owned();
-	let branch = shell.state.branch_label().to_owned();
-	// The TUI opens on the same page the GUI does (总面板), so the pane
-	// assertions below are made about the workspace page explicitly.
-	assert_eq!(shell.state.center_page, zetawork_gui::state::CenterPage::Total);
-	let text = tui_view::snapshot(&shell, 150, 40);
-	assert!(text.contains("总面板"), "the TUI opens on the total panel:\n{text}");
-	assert!(text.contains("所有项目一张表"), "with the contract's foot line:\n{text}");
-	shell
-		.state
-		.set_center_page(zetawork_gui::state::CenterPage::Workspace);
-	let text = tui_view::snapshot(&shell, 150, 40);
-	assert!(text.contains(&workspace), "the TUI shows the open workspace:\n{text}");
-	assert!(text.contains(&branch), "the TUI shows the branch:\n{text}");
-	assert!(text.contains("F1 文件"), "the sidebar tabs are drawn:\n{text}");
-	assert!(text.contains("设置"), "the status line starts with 设置:\n{text}");
-	for pane in shell.state.visible_panes() {
-		for tab in &pane.tabs {
-			if tab.id == pane.active {
-				assert!(text.contains(&tab.title), "the focused tab is drawn:\n{text}");
-			}
-		}
-	}
-	// The page switch is on the bottom row and both pages are reachable.
-	assert!(text.contains("终端 宿主"), "the page switch is drawn:\n{text}");
-	shell.state.show_total();
-
-	// …and the GUI draws that same state without a window.
+	let before = fingerprint(&shell.state);
 	let ctx = egui::Context::default();
-	shell.state.set_view(ViewMode::Gui);
 	render_frame(&ctx, &mut shell);
-	assert_eq!(fingerprint(&shell.state), gui, "the GUI drew the same state");
+	assert_eq!(fingerprint(&shell.state), before, "drawing changes no data");
 }
 
 /// The TUI's centre box has the same two pages the GUI's strip has, and the
 /// page switch on its bottom row is the only way between them in a terminal.
 #[test]
-fn the_tui_centre_box_switches_between_both_pages() {
-	let mut shell = shell();
-	shell.state.set_view(ViewMode::Tui);
-	let total = tui_view::snapshot(&shell, 150, 40);
-	let switch = total
-		.lines()
-		.find(|line| line.contains("总面板") && line.contains("终端 宿主"))
-		.unwrap_or_else(|| panic!("no page switch row:\n{total}"));
-	assert!(
-		switch.contains("所有项目一张表"),
-		"the 总面板 foot line the contract pins is on that row:\n{switch}"
-	);
-	// The real project's row is `—` in 状态: nothing observes it, and the sample
-	// projects' rows show words from the contract's table.
-	assert!(total.contains("permission"), "a sample state is drawn:\n{total}");
-
-	shell
-		.state
-		.set_center_page(zetawork_gui::state::CenterPage::Workspace);
-	let workspace = tui_view::snapshot(&shell, 150, 40);
-	assert!(!workspace.contains("所有项目一张表"), "the table is gone:\n{workspace}");
-	assert!(
-		workspace
-			.lines()
-			.any(|line| line.contains("总面板") && line.contains("终端 宿主")),
-		"the switch stays on both pages:\n{workspace}"
-	);
-}
-
-#[test]
 fn the_welcome_panel_appears_with_no_workspace_open() {
 	let mut shell = shell();
 	shell.state.go_home();
 	assert!(shell.state.visible_panes().is_empty());
-	let text = tui_view::snapshot(&shell, 150, 40);
-	assert!(text.contains("选择左侧的项目或工作区"), "the TUI says so too:\n{text}");
 	let ctx = egui::Context::default();
 	render_frame(&ctx, &mut shell);
 }
@@ -265,11 +201,8 @@ fn render_frame(ctx: &egui::Context, shell: &mut Shell) {
 fn the_whole_frame_draws_in_every_arrangement() {
 	let ctx = egui::Context::default();
 	let mut shell = shell();
-	// Open, with both columns, in each view.
+	// Open, with both columns.
 	render_frame(&ctx, &mut shell);
-	shell.state.set_view(ViewMode::Tui);
-	render_frame(&ctx, &mut shell);
-	shell.state.set_view(ViewMode::Gui);
 	// Collapsed columns (the rails) and the focus mode.
 	shell.state.toggle_left();
 	shell.state.toggle_right();
@@ -663,16 +596,13 @@ fn the_status_bar_collapses_and_comes_back() {
 }
 
 #[test]
-fn the_modal_and_the_view_switch_keep_their_order_under_escape() {
+fn escape_closes_the_modal_before_anything_else() {
 	let mut shell = shell();
-	shell.state.set_view(ViewMode::Tui);
 	shell.state.open_settings();
 	assert!(shell.state.modal_open());
-	assert!(shell.state.escape(), "escape closes the modal first");
+	assert!(shell.state.escape(), "escape closes the modal");
 	assert!(!shell.state.modal_open());
-	assert_eq!(shell.state.view, ViewMode::Tui);
-	assert!(shell.state.escape(), "then it leaves the TUI view");
-	assert_eq!(shell.state.view, ViewMode::Gui);
+	assert!(!shell.state.escape(), "nothing left to close");
 }
 
 /// One fake SSE endpoint for the shell-level agent test: a plain body with

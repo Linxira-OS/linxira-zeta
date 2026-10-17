@@ -101,7 +101,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 			painter.rect_stroke(
 				rect,
 				CornerRadius::same(theme::R_MODAL),
-				Stroke::new(1.0, theme::BORDER_2),
+				Stroke::new(1.0_f32, theme::BORDER_2),
 				egui::StrokeKind::Inside,
 			);
 			painter.text(
@@ -113,7 +113,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 			);
 			painter.line_segment(
 				[pos2(rect.min.x, rect.min.y + 32.5), pos2(rect.max.x, rect.min.y + 32.5)],
-				Stroke::new(1.0, theme::BORDER),
+				Stroke::new(1.0_f32, theme::BORDER),
 			);
 			let mut y = rect.min.y + 34.0;
 			if entries.is_empty() {

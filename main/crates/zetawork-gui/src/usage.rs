@@ -76,7 +76,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 			let mut dialog_ui = ui.new_child(egui::UiBuilder::new().max_rect(dialog));
 			egui::Frame::new()
 				.fill(theme::PANEL)
-				.stroke(Stroke::new(1.0, theme::BORDER_2))
+				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
 				.corner_radius(CornerRadius::same(theme::R_MODAL))
 				.show(&mut dialog_ui, |ui| {
 					let rect = ui.max_rect();
@@ -85,7 +85,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 					let head = Rect::from_min_size(rect.min, vec2(rect.width(), 52.0));
 					ui.painter().line_segment(
 						[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-						Stroke::new(1.0, theme::BORDER),
+						Stroke::new(1.0_f32, theme::BORDER),
 					);
 					ui.painter().text(
 						pos2(head.min.x + 14.0, head.center().y),
@@ -117,7 +117,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 						.rect_filled(bar, CornerRadius::ZERO, theme::PANEL_2);
 					ui.painter().line_segment(
 						[pos2(bar.min.x, bar.max.y - 0.5), pos2(bar.max.x, bar.max.y - 0.5)],
-						Stroke::new(1.0, theme::BORDER),
+						Stroke::new(1.0_f32, theme::BORDER),
 					);
 					ui.painter().text(
 						pos2(bar.min.x + 14.0, bar.center().y - 8.0),
@@ -157,7 +157,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 					ui.painter().rect_stroke(
 						inner,
 						CornerRadius::same(theme::R_PANEL),
-						Stroke::new(1.0, theme::BORDER),
+						Stroke::new(1.0_f32, theme::BORDER),
 						egui::StrokeKind::Inside,
 					);
 					let mut body_ui = ui.new_child(egui::UiBuilder::new().max_rect(inner));
@@ -259,7 +259,7 @@ fn copy_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_CONTROL),
-		Stroke::new(1.0, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::BORDER_2),
 		egui::StrokeKind::Inside,
 	);
 	ui.painter().text(

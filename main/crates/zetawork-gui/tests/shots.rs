@@ -23,7 +23,7 @@ use std::path::PathBuf;
 
 use egui::{Color32, Rect, pos2, vec2};
 use zetawork_gui::settings::Settings;
-use zetawork_gui::state::{AppState, ViewMode};
+use zetawork_gui::state::AppState;
 use zetawork_gui::{Shell, fonts, theme};
 
 /// The window size the screenshots pretend the user has.
@@ -125,22 +125,10 @@ fn write(name: &str, bytes: &[u8]) -> PathBuf {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn gui_mode_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	workspace_page(&mut shell);
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
 	write("01-gui-mode.png", &bytes);
-}
-
-/// `02-tui-mode.png` — the TUI view over the same state.
-#[test]
-#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
-fn tui_mode_screenshot() {
-	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Tui);
-	let bytes = shoot(&mut shell, 3);
-	assert!(bytes.len() > 4096);
-	write("02-tui-mode.png", &bytes);
 }
 
 /// `03-settings-modal.png` — the 设置 modal over the GUI view.
@@ -148,7 +136,6 @@ fn tui_mode_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn settings_modal_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	shell.state.open_settings();
 	shell.state.settings_section = zetawork_gui::settings::Section::Appearance;
 	let bytes = shoot(&mut shell, 3);
@@ -162,7 +149,6 @@ fn settings_modal_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn picker_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	let anchor = egui::Rect::from_min_size(pos2(240.0, 40.0), vec2(28.0, 28.0));
 	let target = zetawork_gui::state::PickerTarget::Pane(shell.state.visible_panes()[0].id.clone());
 	shell.open_picker(target, anchor);
@@ -178,7 +164,6 @@ fn picker_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn gui_pages_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	workspace_page(&mut shell);
 	shell.state.act(|state| state.set_cols(3));
 	let panes: Vec<String> = shell
@@ -222,7 +207,6 @@ fn gui_pages_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn usage_container_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	zetawork_gui::left::open_usage(&mut shell);
 	assert!(shell.state.usage_view_open());
 	let bytes = shoot(&mut shell, 3);
@@ -236,7 +220,6 @@ fn usage_container_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn settings_remote_sections_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	// The remote caches are seeded from a fixture and a temp catalog so the two
 	// screenshots show the real controls without spawning `zetacode` or writing
 	// the user's files.
@@ -271,7 +254,6 @@ fn settings_remote_sections_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn total_panel_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	assert_eq!(
 		shell.state.center_page,
 		zetawork_gui::state::CenterPage::Total,
@@ -289,7 +271,6 @@ fn total_panel_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn context_page_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	workspace_page(&mut shell);
 	assert_eq!(
 		shell.state.right_tab,
@@ -319,7 +300,6 @@ fn context_page_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn lifecycle_settings_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	shell.state.open_settings();
 	shell.state.settings_section = zetawork_gui::settings::Section::General;
 	let bytes = shoot(&mut shell, 3);
@@ -332,7 +312,6 @@ fn lifecycle_settings_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn close_ask_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	workspace_page(&mut shell);
 	// 关闭窗口时 = 每次询问, plus the modal's own state, so the shot shows exactly
 	// what the ruling describes: three buttons and one checkbox.
@@ -351,7 +330,6 @@ fn close_ask_screenshot() {
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn workspace_state_words_screenshot() {
 	let mut shell = ready_shell();
-	shell.state.set_view(ViewMode::Gui);
 	shell.state.left_collapsed = false;
 	// 项目 1 is the one with two different states on its two workspaces.
 	let notice = shell.state.select_project("p1");
