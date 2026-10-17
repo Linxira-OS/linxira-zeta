@@ -28,6 +28,7 @@ pub mod git;
 pub mod icons;
 pub mod left;
 pub mod lifecycle;
+pub mod live;
 pub mod notify;
 pub mod picker;
 pub mod right;
@@ -135,6 +136,8 @@ pub struct Shell {
 	diff_at: Option<Instant>,
 	/// Rendered terminal cell grids.
 	pub term_buffers: BufferCache,
+	/// Live PTYs for terminal session tabs ([`live`]).
+	pub live: live::LiveSessions,
 	/// 模型吞吐 has no source; `None` renders as `—`.
 	pub throughput: Option<String>,
 	/// The `+` picker's rows for this host, read once when the picker opens.
@@ -246,6 +249,7 @@ impl Shell {
 			diff_ws: String::new(),
 			diff_at: None,
 			term_buffers: BufferCache::default(),
+			live: live::LiveSessions::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -294,6 +298,7 @@ impl Shell {
 			diff_ws: String::new(),
 			diff_at: None,
 			term_buffers: BufferCache::default(),
+			live: live::LiveSessions::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -609,16 +614,16 @@ impl Shell {
 	/// Watch every visible pane for a busy→idle edge and raise a notification on
 	/// one.
 	///
-	/// The edge detector ([`lifecycle::BusyEdges`]) and the whole delivery path
-	/// are real; what they need is a **pid**, and a pane has none until the PTY
-	/// host lands — [`Pane::shell_pid`] is the one place that changes. Until
-	/// then every pane reads idle, so nothing fires and no number is invented.
+	/// The pid comes from the pane's **live PTY** ([`live::LiveSessions::pid`]);
+	/// a tab with no spawned terminal still reads idle, and nothing invents a
+	/// number. The edge detector ([`lifecycle::BusyEdges`]) and the whole
+	/// delivery path are the same code that ran before the PTY host landed.
 	pub fn detect_idle_panes(&mut self, ctx: &Context) {
 		let panes: Vec<(String, Option<u32>)> = self
 			.state
 			.visible_panes()
 			.iter()
-			.map(|pane| (pane.id.clone(), pane.shell_pid()))
+			.map(|pane| (pane.id.clone(), self.live.pid(&pane.active)))
 			.collect();
 		let live: Vec<String> = panes.iter().map(|(id, _)| id.clone()).collect();
 		self.lifecycle.busy.retain(&live);
@@ -643,6 +648,33 @@ impl Shell {
 			// One notification per frame: a burst of edges is one event as far
 			// as the user is concerned.
 			break;
+		}
+	}
+
+	/// Poll the live PTYs: repaint on new output (foreground only — the
+	/// background state draws no frames of its own) and notify when a terminal
+	/// ends.
+	pub fn poll_live(&mut self, ctx: &Context) {
+		let mut ended: Vec<String> = Vec::new();
+		for event in self.live.poll() {
+			match event {
+				live::Event::Output { .. } | live::Event::Titled { .. } => {
+					if !self.lifecycle.background {
+						ctx.request_repaint();
+					}
+				},
+				live::Event::Ended { tab } => ended.push(tab),
+			}
+		}
+		for tab in ended {
+			let workspace = self.state.workspace_label().to_owned();
+			let message = notify::Message {
+				trigger: notify::Trigger::Failed,
+				title: format!("{workspace} · {tab} 已退出"),
+				body: "终端子进程已结束".to_owned(),
+				target: self.state.active_workspace.clone(),
+			};
+			let _ = self.raise_notification(ctx, message);
 		}
 	}
 
@@ -709,6 +741,7 @@ impl Shell {
 		self.handle_keys(ctx);
 		self.sync_readers();
 		self.detect_idle_panes(ctx);
+		self.poll_live(ctx);
 		// 设置 → 终端 的 默认 Shell: the shell a new 终端 page records.
 		self.state.default_shell = self.settings.shell.kind();
 		// A finished zetacode job (读取 / 写入) reports itself once.

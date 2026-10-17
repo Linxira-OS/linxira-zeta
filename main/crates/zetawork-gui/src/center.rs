@@ -576,6 +576,33 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 		.unwrap_or_default();
 	let branch = shell.state.branch_label().to_owned();
 	let shell_name = tab.shell.map(|kind| kind.label().to_owned());
+	// A live PTY replaces the seeded transcript: the grid below is a real
+	// terminal, rendered by the same `Panel` implementation the TUI runs.
+	// `ensure` spawns it on first show and resizes it when the grid changes.
+	let rows = metrics.rows.max(1);
+	let cwd = shell
+		.state
+		.active_workspace()
+		.map(|ws| std::path::PathBuf::from(&ws.path));
+	if shell.live.ensure(tab.id.as_str(), columns, rows, cwd) {
+		let area = ratatui::layout::Rect::new(0, 0, columns, rows);
+		let mut grid_buf = ratatui::buffer::Buffer::empty(area);
+		if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
+			let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
+			let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+			let grid = GridMetrics {
+				origin: rect.min,
+				font: metrics.font.clone(),
+				cell_w: metrics.cell_w,
+				cell_h: metrics.cell_h,
+				cols: columns,
+				rows,
+				font_size: metrics.font_size,
+			};
+			paint_buffer_with(ui.painter(), &grid_buf, &grid, theme::TERM_TEXT);
+			return;
+		}
+	}
 	// The banner (which an unstarted terminal page owes the user) adds three
 	// lines, plus one more when the page names a shell.
 	let banner_rows = 3 + usize::from(shell_name.is_some());

@@ -8533,6 +8533,8 @@ dependencies = [
  "serde_json",
  "sysinfo",
  "tauri-winrt-notification",
+ "termide-core",
+ "termide-panel-terminal",
  "tray-icon",
  "unicode-width",
  "zbus",
