@@ -551,32 +551,31 @@ carried-over requirement.
 - **PDF Viewer**：仅 GUI 语义可行（TUI 无法有意义渲染）；默认交给系统浏览器，可选后置。
 - **cheat-sheet / http-client**：玩具型，不做。
 
-### Deferred — 许可策略：zetawork 可能改为双授权（2026-10-18 记录，未执行）
+### Deferred — 许可策略：可能调整，但大概率不动（2026-10-18 记录，未执行）
 
-**方向**：上游派生面与 vendored 三方**永远保持 MIT**；我们原创的产品面（`main/` =
-zetawork，含 `main/npm/*`）考虑改为 **MPL-2.0**——按"MIT 的超集"理解（更严格、但兼容且
-文件级），并最终可能以**双授权**（MPL + 商业许可）发布。
+**态度**：只登记可能性，**不承诺任何一次许可证变更**。若将来调整，**大概率只覆盖我们原创的
+Rust 面（`main/` = zetawork，含 `main/npm/*`）**，最终选哪个许可证（MPL / AGPL / 其他）**现在
+不定**；上游派生面与 vendored 三方**永远保持 MIT**。
 
-**约束（执行时必须遵守）**
+**双授权：大概率不做。** 障碍是实打实的：要求我们对拟改许可的部分拥有**完整版权**（外部贡献
+需 CLA，历史提交无法追溯回收），并且 npm 发布链、`$EDITOR`/插件作者的预期都要跟着解释一遍；
+收益（卖商业许可）远小于成本。除非出现明确的商业需求，否则不启动。
+
+**约束（真要动时的硬边界）**
 
 - `packages/`、`crates/`、`termide/`、`crates/vendor/`、`web-ui/` 是上游/vendored 代码，
   **不能重授权**；只能保留其 MIT 与版权行。
 - `@linxiraos/ide`（zetaide）与 `@linxiraos/editor`（termide-editor 载荷）分发的是 vendored
-  二进制，**必须保持 MIT**，即使它们由 zetawork 的发布链打包。
-- 双授权要求我们对 MPL 部分拥有完整版权：外部贡献需要 **CLA**（或先 DCO，之后补 CLA）。
-- 整个组合产品可以按更强协议分发，但必须保留 MIT 声明；不得删除上游版权行。
+  二进制，**必须保持 MIT**，即使由 zetawork 的发布链打包。
+- 组合产品可以按更强协议分发，但必须保留全部 MIT 声明；不得删除上游版权行。
 
-**执行时的机械改动**（届时一批做完，避免夹在功能分支里）
+**执行时的机械改动（一批做完，不夹在功能分支里）**
 
 1. 根 `LICENSE` 改为聚合声明 + `NOTICE`（上游 OMP / termide / brush / uutils /
    tree-sitter-go / web-ui 快照逐条版权）。
 2. 只在我们原创文件加 `SPDX-License-Identifier`（上游文件不动，避免每次合并解冲突）。
 3. `scripts/check-license-map.ts` 按路径守卫（仿 `brand-check`）：`packages|crates|termide`
    必须 MIT；`main/` 必须等于选定值；缺失 SPDX 的原创文件报错。
-4. 贡献政策落 `CONTRIBUTING.md`（CLA/DCO 二选一）。
-
-**未决**：`main/` 选 **MPL-2.0**（推荐：插件生态友好、文件级 copyleft）还是
-**AGPL-3.0**（防闭源 SaaS 分叉，但会劝退插件与闭源集成）。
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
