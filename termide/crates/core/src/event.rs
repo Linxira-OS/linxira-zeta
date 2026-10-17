@@ -705,6 +705,12 @@ pub enum PanelEvent {
         file_path: Option<PathBuf>,
     },
 
+    /// Commit the staged changes in `repo_path` with `message`.
+    ///
+    /// The IDE page's commit box emits this; the app runs the commit directly,
+    /// so no modal is involved and an embedded git pane keeps working.
+    GitCommit { repo_path: PathBuf, message: String },
+
     /// Open git log panel for repository, showing `branch` (`None` = HEAD)
     OpenGitLog {
         repo_path: PathBuf,

@@ -78,6 +78,8 @@ pub struct GitLogPanel {
     log: Option<LogStream>,
     /// What `log` shows, so a refresh of the same view keeps its place
     log_view: Option<LogView>,
+    /// When set, the history is narrowed to commits that touched this file.
+    file_filter: Option<PathBuf>,
     /// A restart of the shown view waiting for its first rows
     reload: Option<Reload>,
     /// A request to `log` is in flight
@@ -174,6 +176,7 @@ impl GitLogPanel {
             scroll: 0,
             log: None,
             log_view: None,
+            file_filter: None,
             reload: None,
             log_waiting: false,
             log_done: false,
@@ -200,6 +203,18 @@ impl GitLogPanel {
     }
 
     /// Create a new Git Log panel from a list of paths (from panels/layout)
+    pub fn set_file_filter(&mut self, path: Option<PathBuf>) {
+        if self.file_filter != path {
+            self.file_filter = path;
+            self.restart_log();
+        }
+    }
+
+    /// The file the history is narrowed to, if any.
+    pub fn file_filter(&self) -> Option<&PathBuf> {
+        self.file_filter.as_ref()
+    }
+
     pub fn new(paths: &[PathBuf]) -> Self {
         Self::create(RepoManager::new(paths))
     }

@@ -1163,69 +1163,35 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 /// A `zetaide` page. R23 gives the TUI form of the editor to `zetaide` (the
 /// termide `panel-editor`); the GUI form is this crate's own 编辑器 page
 /// instead, so this page is honest about the piece that is still missing.
+/// The IDE page: `termide-panel-ide`, the same `Panel` the TUI mounts.
+///
+/// The page renders into a ratatui `Buffer` sized to this pane's grid and the
+/// cells are blitted — the road the terminal pane already proves.
 fn ide_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
-	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 34.0));
-	ui.painter()
-		.rect_filled(head, CornerRadius::ZERO, theme::PANEL_2);
-	ui.painter().line_segment(
-		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-		Stroke::new(1.0, theme::BORDER),
-	);
-	truncated_mono(
-		ui,
-		pos2(head.min.x + 10.0, head.center().y),
-		"zetaide",
-		11.0,
-		theme::ACCENT_2,
-		head.width() - 20.0,
-	);
-	let path = shell
-		.state
-		.active_workspace()
-		.map(|ws| ws.path.clone())
-		.unwrap_or_default();
-	let body = Rect::from_min_max(pos2(rect.min.x, head.max.y), rect.max);
-	let child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(12.0)));
-	let mut y = child.max_rect().min.y;
-	let centre = child.max_rect().center().x;
-	for (text, size, ink, gap) in [
-		("zetaide 页面未接线：GUI 还没有内嵌 termide 的面板编辑器", 14.0, theme::WARN, 26.0),
-		(
-			"termide-panel-editor 已经链进终端形态（main/crates/zeta-main，#218），",
-			12.0,
-			theme::TEXT_2,
-			19.0,
-		),
-		(
-			"GUI 侧要链它需要把 ratatui 缓冲按单元格 blit 进 egui（R21 方案②），本轮未做。",
-			12.0,
-			theme::TEXT_2,
-			19.0,
-		),
-		("它启动的是 zetaide（终端里的编辑器），工作区路径取当前工作区。", 12.0, theme::TEXT_3, 19.0),
-	] {
-		child.painter().text(
-			pos2(centre, y),
-			egui::Align2::CENTER_TOP,
-			text,
-			egui::FontId::new(size, egui::FontFamily::Proportional),
-			ink,
-		);
-		y += gap;
+		.rect_filled(rect, CornerRadius::ZERO, theme::TERM_BG);
+	let metrics = GridMetrics::for_panel(ui.ctx(), rect, f32::from(shell.settings.terminal_size));
+	let columns = metrics.cols.max(1);
+	let rows = metrics.rows.max(1);
+	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
+	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
+	shell.pages.ensure(tab.id.as_str());
+	if !shell.pages.render(tab.id.as_str(), area, &mut grid_buf) {
+		return;
 	}
-	y += 6.0;
-	let galley = child.painter().layout_no_wrap(
-		format!("$ zetaide {path}"),
-		crate::fonts::editor_font_for(child.ctx(), theme::MONO_SIZE),
-		theme::CYAN,
-	);
-	child
-		.painter()
-		.galley(pos2(centre - galley.size().x / 2.0, y), galley, theme::CYAN);
-	let _ = tab;
+	let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
+	let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+	let grid = GridMetrics {
+		origin: rect.min,
+		font: metrics.font.clone(),
+		cell_w: metrics.cell_w,
+		cell_h: metrics.cell_h,
+		cols: columns,
+		rows,
+		font_size: metrics.font_size,
+	};
+	paint_buffer_with(ui.painter(), &grid_buf, &grid, theme::TERM_TEXT);
 }
 
 /// The welcome panel (spec `welcomeHTML`).

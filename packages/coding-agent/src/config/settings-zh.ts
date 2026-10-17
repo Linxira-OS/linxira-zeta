@@ -197,6 +197,15 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			'先在当前模型上运行，然后在计划提示的待办列表就绪后的第一次编辑/写入时切换到快速/廉价模型（默认为"smol"角色）——强模型负责规划、提交待办并开始实现，之后再交接。可通过 --prewalk / --no-prewalk 按会话覆盖。',
 	},
+	"prewalk.auto": {
+		label: "自动预遍历",
+		description:
+			"让通过 'judge' 角色解析的原生裁判判断每个新的顶层用户任务是否前载了其困难推理。需要原生裁判；没有时不进行任何分类。独立于“启用预遍历”。",
+	},
+	"prewalk.autoTarget": {
+		label: "自动预遍历目标",
+		description: "自动预遍历在第一次编辑/写入时交接到的模型或角色（默认 '@smol'）。",
+	},
 	"advisor.syncBacklog": {
 		label: "顾问同步积压",
 		description: "当顾问落后超过这么多轮时，最多暂停主智能体 30 秒。关闭可禁用追赶延迟。",
@@ -2172,6 +2181,19 @@ export type ZetaSettingsZhOverlay = typeof ZH_SETTING_TEXTS;
  * `description` is omitted only when the schema entry has no description.
  */
 export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; description?: string }>> = {
+	"prewalk.auto::off": {
+		label: "关闭",
+		description: "从不为预遍历分类提示",
+	},
+	"prewalk.auto::suggest": {
+		label: "建议",
+		description: "对每个任务分类并报告决定，但不启用预遍历",
+	},
+	"prewalk.auto::on": {
+		label: "开启",
+		description: "对确信前载的任务，安排从当前模型到自动目标模型的交接；下一个任务重新从规划模型开始",
+	},
+
 	"lsp.requestTimeout::10": {
 		label: "10 秒",
 		description: "默认。",

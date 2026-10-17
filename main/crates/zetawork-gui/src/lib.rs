@@ -33,6 +33,7 @@ pub mod left;
 pub mod lifecycle;
 pub mod live;
 pub mod notify;
+pub mod page;
 pub mod picker;
 pub mod right;
 pub mod seed;
@@ -143,6 +144,8 @@ pub struct Shell {
 	pub live: live::LiveSessions,
 	/// Every [`state::SessionKind::Agent`] tab's gateway link ([`agent_sessions`]).
 	pub agents: agent_sessions::AgentSessions,
+	/// Per-tab IDE pages (`termide-panel-ide`), rendered like the terminal.
+	pub pages: page::Pages,
 	/// 模型吞吐 has no source; `None` renders as `—`.
 	pub throughput: Option<String>,
 	/// The `+` picker's rows for this host, read once when the picker opens.
@@ -256,6 +259,7 @@ impl Shell {
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
 			agents: agent_sessions::AgentSessions::default(),
+			pages: page::Pages::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -306,6 +310,7 @@ impl Shell {
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
 			agents: agent_sessions::AgentSessions::default(),
+			pages: page::Pages::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -680,6 +685,36 @@ impl Shell {
 		else {
 			return false;
 		};
+		// An IDE page takes the keys itself: chords go to the page, whose
+		// editor is the same `panel-editor` the TUI runs.
+		let kind = self
+			.state
+			.visible_panes()
+			.iter()
+			.find(|pane| pane.id == pane_id)
+			.and_then(|pane| pane.active_tab())
+			.map(|tab| tab.kind);
+		if kind == Some(state::SessionKind::Ide) {
+			let chords = ctx.input(|input| page::chords_for_events(&input.events));
+			if chords.is_empty() {
+				return false;
+			}
+			let mut events = Vec::new();
+			for chord in chords {
+				events.extend(self.pages.key(&tab, chord));
+			}
+			// The page hands the host the events it cannot act on itself; the
+			// working-directory diff is one the GUI can show.
+			for event in events {
+				if let termide_core::event::PanelEvent::OpenGitDiff { commit_hash: None, .. } = event {
+					let pane = pane_id.clone();
+					self.state.act(|state| {
+						state.add_tab_of(&pane, state::SessionKind::Diff, "改动".to_owned())
+					});
+				}
+			}
+			return true;
+		}
 		if !self.live.contains(&tab) {
 			return false;
 		}

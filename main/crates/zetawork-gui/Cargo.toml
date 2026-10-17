@@ -18,11 +18,13 @@ path = "src/main.rs"
 egui = "0.33.3"
 eframe = "0.33.3"
 ratatui.workspace = true
+crossterm.workspace = true
 # The live terminal pane is the TUI's own terminal: `termide-panel-terminal`
 # spawns the PTY and renders it through the same `Panel` implementation, so the
 # GUI grid and the TUI grid cannot drift.
 termide-core.workspace = true
 termide-panel-terminal.workspace = true
+termide-panel-ide.workspace = true
 # `main/Cargo.toml` patches `unicode-width` to
 # `termide/crates/unicode-width-fix`, so the workspace resolves one build of
 # it and a wide grapheme is two grid columns here exactly when ratatui says so.

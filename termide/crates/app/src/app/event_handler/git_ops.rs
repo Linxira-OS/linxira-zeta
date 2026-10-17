@@ -8,6 +8,26 @@ use termide_core::{GitOperationType, PanelCommand};
 use termide_i18n as i18n;
 
 impl App {
+    /// Commit the staged changes for the IDE page's commit box.
+    ///
+    /// The page emits `PanelEvent::GitCommit`; the commit runs here so an
+    /// embedded git pane never needs the app-level commit modal.
+    pub(in crate::app) fn event_git_commit(
+        &mut self,
+        repo_path: PathBuf,
+        message: String,
+    ) -> Result<()> {
+        match termide_git::commit(&repo_path, &message) {
+            Ok(_) => {}
+            Err(error) => self.state.set_error(format!("git commit failed: {error}")),
+        }
+        for panel in self.layout_manager.iter_all_panels_mut() {
+            panel.handle_command(PanelCommand::Reload);
+        }
+        self.state.needs_redraw = true;
+        Ok(())
+    }
+
     /// Handle GitOperation event - run git push/pull in background thread
     pub(in crate::app) fn event_git_operation(
         &mut self,

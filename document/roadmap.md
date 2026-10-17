@@ -165,13 +165,41 @@ These exist today (headline capabilities are marked in the root `README.md`):
   **只对用户显式加过的工作区**生效，未信任的仓库只起裸 shell（一次性在"加工作区"时确认，
   不逐次弹窗）。
 
-### P1 — 内置编辑器专业化（明确不含代码补全）
+### P1 — 标准 IDE 页（`panel-ide`）与编辑器能力补齐（2026-10-17 修订）
 
-目标：**像一个专业编辑器**，但**不要代码补全**。现状（vendored `termide`：`panel-editor` +
-`buffer`/`highlight`/`lsp`/`git`/`panel-outline`/`panel-diagnostics`）已有 undo/redo、查找替换、
-折叠、语法高亮、gutter、缩进、括号配对与 LSP crate；**多光标在 termide 内零命中**。
-缺口清单待**只读审计**逐项核出后登记于此（专业基线：多光标、跳转/快速打开、整文件替换、行移动/
-复制、注释切换、跳括号、软换行、EOL/编码、大文件、光标位置恢复、分屏、未保存提示、文件树…）。
+**方向修正**：早先"专业编辑器、**明确不含补全**"是**自研渲染层**的口径。现在改为**复用
+termide 的 Rust 编辑器核心**（`panel-editor` + `lsp` + `highlight` + `buffer`），只换渲染层
+（ratatui 网格 → egui blit）——LSP/补全/悬停/跳转/引用/重命名/诊断随核心一起来了；自研的
+玩具高亮退役。
+
+**形态**：新增复合面板 `termide/crates/panel-ide`，固定版式（不再自由拖拽）：
+
+```
+顶：文件标签条（多文件，＋ / ×）
+左：文件树（可切 Find 搜索）+ Git 更改 / 历史（纵向堆叠）
+右：编辑器（每个标签一个 panel-editor 实例）
+底：状态栏（Ln/Col、缩进、编码、EOL）
+```
+
+只有两条可拖动分割线（左栏宽度、左栏 Git 高度），其余固定。**TUI 与 GUI 渲染同一个面板**
+（GUI 走 `Panel::render` → `Buffer` → blit，与终端面板同一手法）。
+
+**四批**：
+
+1. **标准页**：`panel-ide` 固定版式 + 标签条 + 文件树/编辑器接入；TUI 用一个 `PanelGroup`
+   装它，GUI 在 pane 里渲染它（TUI 编辑器同时接上 `LspManager`，去掉"本版未接语言服务"）。
+2. **Git 中心**：Changes（提交框/文件列表/暂存）、History 分页（Load older）、分支列表 +
+   数量、**逐文件历史 + inline diff**（`panel-git-log` 的逐文件视角）。
+3. **Formatter 层**：保存/快捷键调外部格式化器（rustfmt / prettier / black / gofmt / stylua /
+   clang-format / shfmt），一个层 + 七条配置。
+4. **小工具**：JSON Viewer、TODO Scanner、Bookmarks、Notepad、Port Finder、Spell、
+   Color Picker。
+
+**不做**（只登记 Deferred Queue）：Vim/Emacs 兼容层、Docker Manager、Go Test Runner（我们不写
+Go）、cheat-sheet/http-client 类玩具。**PDF** 仅 GUI 可选后置（TUI 永不渲染；默认用系统浏览器）。
+
+参考物：`temp/ttt`（TTT 上游原版，`github.com/eugenioenko/ttt`）的形态与
+`community-plugins.json`（45 条 = 24 `lsp-*` + 7 `formatter-*` + 14 功能插件）。
 
 ### P0 - Web workbench foundation and desktop handoff
 
@@ -514,6 +542,14 @@ carried-over requirement.
   semver. The planned work (a Zeta distribution identity line
   `Zeta Editor · v<zeta version> · TTT <upstream version>`,
   Chinese-first copy) is void with the tree.
+
+### Deferred — TTT 形态的兼容层与小工具（2026-10-17 调查结论）
+
+- **Vim / Emacs 兼容层**（TTT `vim`/`emacs`）：独立工程，人群小；需要时再做。
+- **Docker Manager**（容器/镜像/卷）：重、与 coding agent 工作流无直接关系。
+- **Go Test Runner**：我们不写 Go（TTT 已退场），不做。
+- **PDF Viewer**：仅 GUI 语义可行（TUI 无法有意义渲染）；默认交给系统浏览器，可选后置。
+- **cheat-sheet / http-client**：玩具型，不做。
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 

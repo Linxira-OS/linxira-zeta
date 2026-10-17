@@ -223,7 +223,9 @@ mod tests {
 		if cfg!(windows) {
 			format!("cmd /c echo {text}")
 		} else {
-			format!("sh -c 'printf %s {text}; sleep 0.05'")
+			// `new_with_command` splits on whitespace and never runs a shell, so
+			// the script token cannot carry quotes: call `printf` directly.
+			format!("printf {text}")
 		}
 	}
 

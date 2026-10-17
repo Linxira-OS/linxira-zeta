@@ -21,6 +21,7 @@ ratatui = "0.30.0"
 
 termide-core = { path = "../termide/crates/core" }
 termide-config = { path = "../termide/crates/config" }
+termide-panel-ide = { path = "../termide/crates/panel-ide" }
 termide-keyboard = { path = "../termide/crates/keyboard" }
 termide-panel-terminal = { path = "../termide/crates/panel-terminal" }
 termide-panel-editor = { path = "../termide/crates/panel-editor" }
