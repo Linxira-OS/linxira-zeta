@@ -711,6 +711,11 @@ pub enum PanelEvent {
     /// so no modal is involved and an embedded git pane keeps working.
     GitCommit { repo_path: PathBuf, message: String },
 
+    /// Spell-check `path` and open the result panel.
+    ///
+    /// Emitted by the IDE page for its active tab; the app owns panel creation.
+    SpellCheck { path: PathBuf },
+
     /// Open git log panel for repository, showing `branch` (`None` = HEAD)
     OpenGitLog {
         repo_path: PathBuf,

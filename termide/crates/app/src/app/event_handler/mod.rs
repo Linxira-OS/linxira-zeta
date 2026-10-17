@@ -354,6 +354,10 @@ impl App {
                 self.event_git_commit(repo_path, message)?;
             }
 
+            PanelEvent::SpellCheck { path } => {
+                self.handle_open_spell(path)?;
+            }
+
             PanelEvent::OpenGitLog { repo_path, branch } => {
                 self.handle_open_git_log()?;
                 // The log panel is focused now, found or just created.

@@ -362,6 +362,18 @@ impl App {
         Ok(())
     }
 
+    /// Spell-check `path` in a panel. One at a time: a second file replaces the
+    /// first, because two stale word lists side by side answer nothing.
+    pub(super) fn handle_open_spell(&mut self, path: std::path::PathBuf) -> Result<()> {
+        self.close_help_panels();
+        if self.find_and_focus_panel_by_name("spell") {
+            self.close_panel_at_index();
+        }
+        self.add_panel(Box::new(termide_panel_ide::SpellPanel::new(path)));
+        self.auto_save_layout();
+        Ok(())
+    }
+
     /// Open Git Log panel (singleton)
     pub(super) fn handle_open_git_log(&mut self) -> Result<()> {
         self.close_help_panels();

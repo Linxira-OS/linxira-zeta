@@ -32,11 +32,13 @@ mod colors;
 mod formatters;
 mod notepad;
 mod ports;
+mod spell;
 mod todo;
 
 pub use colors::ColorPickerPanel;
 pub use notepad::NotepadPanel;
 pub use ports::PortsPanel;
+pub use spell::SpellPanel;
 pub use todo::TodoPanel;
 
 use std::any::Any;
@@ -751,6 +753,17 @@ impl Panel for IdePage {
         let shift = chord.raw.modifiers.contains(KeyModifiers::SHIFT);
         match (code, ctrl) {
             (KeyCode::Char('w'), true) if self.close_active() => vec![PanelEvent::NeedsRedraw],
+            // Spell-check the active tab. The event carries the path so the app
+            // can open the panel; the page has no panel-open channel of its own.
+            (KeyCode::Char('b'), true) => self
+                .active
+                .and_then(|index| self.tabs.get(index))
+                .map(|entry| {
+                    vec![PanelEvent::SpellCheck {
+                        path: entry.tab.path.clone(),
+                    }]
+                })
+                .unwrap_or_default(),
             (KeyCode::Tab, true) => {
                 self.cycle(if shift { -1 } else { 1 });
                 vec![PanelEvent::NeedsRedraw]
