@@ -18,3 +18,4 @@ termide-panel-editor = { path = "../panel-editor" }
 termide-theme = { path = "../theme" }
 termide-config = { path = "../config" }
 termide-panel-git-status = { path = "../panel-git-status" }
+termide-panel-git-log = { path = "../panel-git-log" }

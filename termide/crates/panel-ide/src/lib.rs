@@ -41,6 +41,7 @@ use termide_core::event::PanelEvent;
 use termide_core::key_chord::KeyChord;
 use termide_core::panel::{Panel, RenderContext, SegmentKind, StatusSegment};
 use termide_panel_editor::{Editor, EditorConfig};
+use termide_panel_git_log::GitLogPanel;
 use termide_panel_git_status::GitStatusPanel;
 use termide_theme::Theme;
 
@@ -200,6 +201,10 @@ pub struct IdePage {
     left: Box<dyn Panel>,
     /// The left column's lower pane - git status by default.
     git: Box<dyn Panel>,
+    /// The history view, created on first switch (`Ctrl+H`).
+    git_log: Option<Box<dyn Panel>>,
+    /// Whether the history view is showing instead of changes.
+    show_log: bool,
     focus: Focus,
     /// The last load failure, drawn in the status line.
     message: Option<String>,
@@ -222,6 +227,8 @@ impl IdePage {
             git: Box::new(GitStatusPanel::new(&[
                 std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
             ])),
+            git_log: None,
+            show_log: false,
             focus: Focus::Editor,
             message: None,
             repo: std::env::current_dir().ok(),
@@ -238,6 +245,30 @@ impl IdePage {
     /// Replace the git pane (the app points it at the open file's repository).
     pub fn set_git(&mut self, panel: Box<dyn Panel>) {
         self.git = panel;
+    }
+
+    /// Swap the lower-left pane between changes and history.
+    pub fn toggle_git_view(&mut self) -> bool {
+        if !self.show_log {
+            if self.git_log.is_none() {
+                let paths = self.repo.clone().unwrap_or_else(|| PathBuf::from("."));
+                self.git_log = Some(Box::new(GitLogPanel::new(&[paths])));
+            }
+            self.show_log = true;
+        } else {
+            self.show_log = false;
+        }
+        true
+    }
+
+    /// The lower-left pane currently showing.
+    fn git_view(&mut self) -> &mut dyn Panel {
+        if self.show_log {
+            if let Some(log) = self.git_log.as_mut() {
+                return log.as_mut();
+            }
+        }
+        self.git.as_mut()
     }
 
     /// Point the commit box at `repo`.
@@ -394,6 +425,9 @@ impl Panel for IdePage {
     fn prepare_render(&mut self, theme: &Theme, config: &Arc<Config>) {
         self.left.prepare_render(theme, config);
         self.git.prepare_render(theme, config);
+        if let Some(log) = self.git_log.as_mut() {
+            log.prepare_render(theme, config);
+        }
         for entry in &mut self.tabs {
             if let Some(editor) = entry.editor.as_mut() {
                 editor.prepare_render(theme, config);
@@ -424,9 +458,9 @@ impl Panel for IdePage {
                 layout.git.height - box_rows,
             );
             if pane.height > 0 {
-                self.git.render(pane, buf, ctx);
+                self.git_view().render(pane, buf, ctx);
             }
-            if box_rows == 1 {
+            if box_rows == 1 && !self.show_log {
                 let row = layout.git.y + layout.git.height - 1;
                 let text = if self.commit.active {
                     format!("Commit: {}", self.commit.text)
@@ -596,12 +630,16 @@ impl Panel for IdePage {
                 let events = self.left.handle_key(chord);
                 self.absorb(events)
             }
+            (KeyCode::Char('h'), true) => {
+                self.toggle_git_view();
+                vec![PanelEvent::NeedsRedraw]
+            }
             (KeyCode::Enter, true) if self.focus == Focus::Git => {
                 self.commit.active = true;
                 vec![PanelEvent::NeedsRedraw]
             }
             _ if self.focus == Focus::Git => {
-                let events = self.git.handle_key(chord);
+                let events = self.git_view().handle_key(chord);
                 self.absorb(events)
             }
             _ => {
@@ -636,6 +674,9 @@ impl Panel for IdePage {
     fn tick(&mut self) -> Vec<PanelEvent> {
         let mut events = self.left.tick();
         events.extend(self.git.tick());
+        if let Some(log) = self.git_log.as_mut() {
+            events.extend(log.tick());
+        }
         for entry in &mut self.tabs {
             if let Some(editor) = entry.editor.as_mut() {
                 events.extend(editor.tick());
@@ -663,7 +704,7 @@ impl Panel for IdePage {
                 }
                 if layout.git.height > 0 && layout.git.contains((column, row).into()) {
                     self.focus = Focus::Git;
-                    let events = self.git.handle_mouse(event, layout.git);
+                    let events = self.git_view().handle_mouse(event, layout.git);
                     return self.absorb(events);
                 }
                 if layout.editor.contains((column, row).into()) {
@@ -717,7 +758,7 @@ impl Panel for IdePage {
             return self.absorb(events);
         }
         if self.focus == Focus::Git {
-            let events = self.git.handle_scroll(delta, layout.git);
+            let events = self.git_view().handle_scroll(delta, layout.git);
             return self.absorb(events);
         }
         let events = match self.active_editor_mut() {
@@ -958,6 +999,20 @@ mod tests {
             "the box hands the message to the app: {events:?}"
         );
         assert!(!page.commit.active, "the box closes after the commit");
+    }
+
+    #[test]
+    fn ctrl_h_swaps_the_lower_pane_between_changes_and_history() {
+        let mut page = IdePage::new();
+        assert!(!page.show_log, "changes is the default view");
+        page.toggle_git_view();
+        assert!(page.show_log, "history takes the lower pane");
+        assert!(
+            page.git_log.is_some(),
+            "the history panel is created lazily"
+        );
+        page.toggle_git_view();
+        assert!(!page.show_log, "the second toggle goes back to changes");
     }
 
     #[test]
