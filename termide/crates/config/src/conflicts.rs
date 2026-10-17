@@ -99,6 +99,7 @@ pub fn enumerate_bindings(config: &Config) -> Vec<(BindingLocation, ParsedKeyBin
     push(&mut out, "general", "open_git_log", &g.open_git_log);
     push(&mut out, "general", "open_ide", &g.open_ide);
     push(&mut out, "general", "open_notepad", &g.open_notepad);
+    push(&mut out, "general", "open_colors", &g.open_colors);
     push(&mut out, "general", "close_panel", &g.close_panel);
     push(&mut out, "general", "toggle_stack", &g.toggle_stack);
     push(&mut out, "general", "swap_left", &g.swap_left);

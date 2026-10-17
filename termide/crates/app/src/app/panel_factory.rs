@@ -350,6 +350,18 @@ impl App {
         Ok(())
     }
 
+    /// Open the theme palette (singleton): pick a colour, Enter copies it.
+    pub(super) fn handle_open_colors(&mut self) -> Result<()> {
+        self.close_help_panels();
+
+        if !self.find_and_focus_panel_by_name("colors") {
+            let colors = termide_core::panel::ThemeColors::from(self.state.theme);
+            self.add_panel(Box::new(termide_panel_ide::ColorPickerPanel::new(&colors)));
+        }
+        self.auto_save_layout();
+        Ok(())
+    }
+
     /// Open Git Log panel (singleton)
     pub(super) fn handle_open_git_log(&mut self) -> Result<()> {
         self.close_help_panels();

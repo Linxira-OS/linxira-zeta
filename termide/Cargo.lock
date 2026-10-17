@@ -5590,6 +5590,7 @@ dependencies = [
  "crossterm",
  "ratatui",
  "tempfile",
+ "termide-clipboard",
  "termide-config",
  "termide-core",
  "termide-panel-editor",
