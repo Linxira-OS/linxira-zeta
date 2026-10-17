@@ -105,7 +105,7 @@ Zeta is built on two upstream projects:
 | [Pi](https://github.com/earendil-works/pi)            | Semantic-port source for feature work, never a raw merge source |
 
 The workbench (`main/`) and the desktop-facing additions are ours. Vendored
-projects keep their own licences and are listed in [NOTICE](NOTICE); the merge
+projects keep their own licences and are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt); the merge
 procedure is recorded in [document/upstream-sync.md](document/upstream-sync.md).
 
 ## Component Lineage
@@ -241,7 +241,7 @@ Zeta carries two licences, split by path:
 
 The root [LICENSE](LICENSE) states the split and reproduces the MIT text that
 governs everything outside `main/`. Derived and vendored projects keep their own
-licences and are listed in [NOTICE](NOTICE).
+licences and are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 Commercial licensing of the workbench is available by arrangement with the
 maintainers.
@@ -338,7 +338,7 @@ Zeta 基于两个上游项目:
 | [Pi](https://github.com/earendil-works/pi)            | 功能工作的语义移植来源,绝不作为原始合并源 |
 
 工作台(`main/`)与桌面相关增补由我们维护。vendored 项目保持各自的许可,
-列在 [NOTICE](NOTICE);合并流程记录在
+列在 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt);合并流程记录在
 [document/upstream-sync.md](document/upstream-sync.md)。
 
 ### 组件谱系
@@ -462,7 +462,7 @@ Zeta 按路径承载两种许可:
 | `termide/`、`editor/` — vendored TermIDE                              | **MIT**([全文](termide/LICENSE))          |
 
 根目录 [LICENSE](LICENSE) 说明分层,并复述管辖 `main/` 之外全部代码的 MIT 文本。
-派生与 vendored 项目保持各自许可,列在 [NOTICE](NOTICE)。
+派生与 vendored 项目保持各自许可,列在 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)。
 
 工作台的商业授权可与维护者协商。
 
