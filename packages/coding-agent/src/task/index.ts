@@ -262,19 +262,6 @@ function validateEffort(effort: TaskEffort | undefined, label: string): string |
 	return `${label} has an invalid \`effort\` value ${JSON.stringify(effort)}. Use "lo", "med", or "hi".`;
 }
 
-/**
- * Reject a `model` on a spawn. Dispatch never chooses a subagent's model: it
- * comes from the agent definition, or — unconfigured — the parent's own model.
- * A child's model can only be switched once it has completed a model response
- * (see `model-switch.ts`), never at launch. The field is not part of the wire
- * schema, so reaching here means an internal or stale-transcript caller sent
- * one; silently dropping it would run the child on a model nobody asked for.
- */
-function rejectSpawnModel(params: object, label: string): string | undefined {
-	if (!Object.hasOwn(params, "model")) return undefined;
-	return `${label} cannot set \`model\`: a subagent's model comes from its agent definition or the parent's, and can only be switched after it has completed a model response.`;
-}
-
 function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string | undefined {
 	const hasTask = typeof params.task === "string" && params.task.trim() !== "";
 	const tasks = params.tasks;
@@ -293,8 +280,6 @@ function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string 
 			}
 			const effortError = validateEffort(item.effort, itemLabel);
 			if (effortError) return effortError;
-			const modelError = rejectSpawnModel(item, itemLabel);
-			if (modelError) return modelError;
 		}
 		const seen = new Map<string, string>();
 		for (const item of tasks) {
@@ -317,7 +302,7 @@ function validateSpawnParams(params: TaskParams, batchEnabled: boolean): string 
 			? "Missing `tasks`. Provide a `tasks` array (one subagent per item) with a shared `context`."
 			: "Missing `task`. Provide complete, self-contained instructions for the agent.";
 	}
-	return validateEffort(params.effort, "The call") ?? rejectSpawnModel(params, "The call");
+	return validateEffort(params.effort, "The call");
 }
 
 /**
