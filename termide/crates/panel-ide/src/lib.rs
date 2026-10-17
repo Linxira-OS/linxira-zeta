@@ -28,6 +28,8 @@
 //! Rendering is a `ratatui::Buffer`, so the desktop shell hosts the *same* page
 //! through `Panel::render` → blit — the terminal panel already proves that road.
 
+mod formatters;
+
 use std::any::Any;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -365,6 +367,35 @@ impl IdePage {
     /// Load the active tab's editor on first activation. A file that fails to
     /// open leaves the tab visible with the reason in the status line, which is
     /// better than silently showing an empty buffer.
+    /// Format the active file: save, run the formatter for its extension,
+    /// reload. Unsaved edits are saved first; a remote file is refused because
+    /// the formatter writes local paths.
+    fn format_active(&mut self) -> Vec<PanelEvent> {
+        self.ensure_editor();
+        let Some(index) = self.active else {
+            return Vec::new();
+        };
+        let path = self.tabs[index].tab.path.clone();
+        let outcome: Result<String, String> = match self.tabs[index].editor.as_mut() {
+            None => Err("no editor".to_owned()),
+            Some(editor) => match editor.save() {
+                Err(error) => Err(format!("save failed: {error}")),
+                Ok(Some(_)) => Err("remote file: formatting writes local files only".to_owned()),
+                Ok(None) => match formatters::run(&path) {
+                    Ok(program) => match editor.reload_from_disk() {
+                        Ok(()) => Ok(format!("formatted with {program}")),
+                        Err(error) => Err(format!("formatted, reload failed: {error}")),
+                    },
+                    Err(error) => Err(error),
+                },
+            },
+        };
+        self.message = Some(match outcome {
+            Ok(message) | Err(message) => message,
+        });
+        vec![PanelEvent::NeedsRedraw]
+    }
+
     fn ensure_editor(&mut self) {
         let Some(index) = self.active else {
             return;
@@ -651,6 +682,7 @@ impl Panel for IdePage {
                 let events = self.left.handle_key(chord);
                 self.absorb(events)
             }
+            (KeyCode::Char('f'), true) if shift => self.format_active(),
             (KeyCode::Char('h'), true) => {
                 self.toggle_git_view();
                 vec![PanelEvent::NeedsRedraw]
@@ -1020,6 +1052,32 @@ mod tests {
             "the box hands the message to the app: {events:?}"
         );
         assert!(!page.commit.active, "the box closes after the commit");
+    }
+
+    #[test]
+    fn formatting_a_file_with_no_tool_says_which_tool_is_missing() {
+        let dir = std::env::temp_dir().join("panel-ide-tests");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("notes.txt");
+        std::fs::write(&path, "plain\n").expect("write the fixture");
+        let mut page = IdePage::new();
+        page.open(path);
+        let ctrl_shift_f = KeyChord {
+            raw: crossterm::event::KeyEvent::new(
+                KeyCode::Char('f'),
+                KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+            ),
+            canonical: crossterm::event::KeyEvent::new(
+                KeyCode::Char('f'),
+                KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+            ),
+        };
+        page.handle_key(ctrl_shift_f);
+        let message = page.message.clone().unwrap_or_default();
+        assert!(
+            message.contains("no formatter"),
+            "the refusal names the reason: {message}"
+        );
     }
 
     #[test]
