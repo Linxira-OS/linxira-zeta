@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Builtin LSP servers come from the shared `lsp/servers.json` registry (generated into `lsp_servers_generated.rs`) and support candidate chains: the first command that exists on PATH (or as a configured path) is started, `~/.zeta/lsp.json` overrides sit between the builtins and `[lsp.servers]`, and a language whose chain resolves to nothing is left out with a logged reason instead of failing at spawn. The TypeScript languages prefer `tsgo --lsp --stdio`, then `typescript-language-server --stdio`, then `tsc --lsp --stdio`.
+
 - `file[:line[:col]]` and directory positional arguments (Zeta layer): a directory argument becomes the project root and editor-opened files place the cursor, routed through the upstream `open_cli_path` viewer dispatch so non-text files keep their viewer. A detached instance is spawned with the already-resolved absolute paths, so `--detached file:12:3` opens what the foreground launch would.
 - The Windows shell chain prefers PowerShell over Git Bash and never probes `where bash.exe` (the WSL launcher); Git Bash resolves only through a real Git installation.
 

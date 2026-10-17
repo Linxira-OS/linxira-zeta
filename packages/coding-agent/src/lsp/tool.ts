@@ -252,7 +252,7 @@ export class LspTool implements AgentTool<typeof lspSchema, LspToolDetails, Them
 			const startedClients = getActiveClients();
 			const startedByConfigName = new Map<string, LspServerStatus>();
 			// getActiveClients() reports `name = client.config.command` (the
-			// unresolved binary name from defaults.json), so match against
+			// unresolved name from the registry), so match against
 			// `serverConfig.command`, not the resolved path.
 			for (const [name, serverConfig] of Object.entries(config.servers)) {
 				const matched = startedClients.find(c => c.name === serverConfig.command);
@@ -264,13 +264,17 @@ export class LspTool implements AgentTool<typeof lspSchema, LspToolDetails, Them
 				lines.push("No language servers configured for this project");
 			} else {
 				const labelled = configuredNames.map(name => {
+					const command = config.servers[name].command;
 					const started = startedByConfigName.get(name);
-					if (!started) return `${name} (configured, not started)`;
-					return `${name} (${started.status})`;
+					if (!started) return `${name} (configured, not started) [command: ${command}]`;
+					return `${name} (${started.status}) [command: ${command}]`;
 				});
 				lines.push(`Language servers: ${labelled.join(", ")}`);
 				lines.push(
 					"  note: 'configured, not started' means the binary resolves on PATH but no request has spawned it yet; 'ready' means a client process is live for this cwd.",
+				);
+				lines.push(
+					"  note: [command] is the candidate that resolved on PATH; a server with a candidate chain runs the first alternative that is installed.",
 				);
 			}
 			if (lspmuxStatus) lines.push(lspmuxStatus);

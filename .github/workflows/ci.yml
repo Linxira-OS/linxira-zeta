@@ -237,6 +237,11 @@ jobs:
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
            run: bun scripts/check-license-map.ts
+         # Both language-server registries (the coding-agent's and termide's) are
+         # generated from `lsp/servers.json`. A hand edit to a generated file, or
+         # a canonical change that was never regenerated, desyncs the two editors.
+         - name: LSP server registry freshness guard
+           run: bun scripts/check-lsp-servers.ts
          # The Gitea mirror is the one workflow a merge can silently desync:
          # `.gitea/workflows/local-ci.yml` must keep the same command entry
          # points as its ci.yml counterpart. Running it here is what keeps the

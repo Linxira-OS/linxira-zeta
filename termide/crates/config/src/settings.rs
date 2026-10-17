@@ -912,14 +912,16 @@ pub struct LspSettings {
     #[serde(default = "default_lsp_hover_delay_ms")]
     pub hover_delay_ms: u64,
 
-    /// Per-language server configurations: the built-ins, with each user
-    /// entry laid over the built-in of the same language or added beside them.
+    /// Per-language server configurations: the generated builtins with the
+    /// shared `~/.zeta/lsp.json` override (see [`crate::lsp`]) and each
+    /// `[lsp.servers.<lang>]` entry laid over the built-in of the same
+    /// language or added beside them.
     #[serde(default = "default_lsp_servers", deserialize_with = "lsp_servers")]
     pub servers: std::collections::HashMap<String, LspServerSettings>,
 }
 
 /// Configuration for a specific LSP server.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LspServerSettings {
     /// Command to start the server. Defaulted so a server entry that omits it
     /// deserializes to an (unusable, logged-at-spawn) empty command rather than
@@ -934,6 +936,23 @@ pub struct LspServerSettings {
     /// File patterns to identify project root
     #[serde(default)]
     pub root_markers: Vec<String>,
+
+    /// Ordered alternatives to `command`/`args`; the first whose command
+    /// resolves on PATH (or in a project-local bin directory) is started.
+    /// Empty means the single `command`/`args` pair is the only choice.
+    #[serde(default)]
+    pub candidates: Vec<LspCandidate>,
+}
+
+/// One alternative command for an LSP server.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LspCandidate {
+    /// Command to start the server
+    pub command: String,
+
+    /// Command arguments
+    #[serde(default)]
+    pub args: Vec<String>,
 }
 
 // Default value functions for serde
@@ -1048,106 +1067,7 @@ fn default_lsp_hover_delay_ms() -> u64 {
 }
 
 fn default_lsp_servers() -> std::collections::HashMap<String, LspServerSettings> {
-    let mut servers = std::collections::HashMap::new();
-
-    // Rust - rust-analyzer
-    servers.insert(
-        "rust".to_string(),
-        LspServerSettings {
-            command: "rust-analyzer".to_string(),
-            args: vec![],
-            root_markers: vec!["Cargo.toml".to_string()],
-        },
-    );
-
-    // Python - pylsp or pyright
-    servers.insert(
-        "python".to_string(),
-        LspServerSettings {
-            command: "pylsp".to_string(),
-            args: vec![],
-            root_markers: vec![
-                "pyproject.toml".to_string(),
-                "setup.py".to_string(),
-                "requirements.txt".to_string(),
-            ],
-        },
-    );
-
-    // TypeScript/JavaScript - typescript-language-server. The JSX variants
-    // are languages of their own to the server, so they get their own keys.
-    for lang in ["typescript", "typescriptreact"] {
-        servers.insert(
-            lang.to_string(),
-            LspServerSettings {
-                command: "typescript-language-server".to_string(),
-                args: vec!["--stdio".to_string()],
-                root_markers: vec!["tsconfig.json".to_string(), "package.json".to_string()],
-            },
-        );
-    }
-
-    for lang in ["javascript", "javascriptreact"] {
-        servers.insert(
-            lang.to_string(),
-            LspServerSettings {
-                command: "typescript-language-server".to_string(),
-                args: vec!["--stdio".to_string()],
-                root_markers: vec!["package.json".to_string()],
-            },
-        );
-    }
-
-    // Go - gopls
-    servers.insert(
-        "go".to_string(),
-        LspServerSettings {
-            command: "gopls".to_string(),
-            args: vec![],
-            root_markers: vec!["go.mod".to_string()],
-        },
-    );
-
-    // PHP - PHPantom
-    servers.insert(
-        "php".to_string(),
-        LspServerSettings {
-            command: "phpantom_lsp".to_string(),
-            args: vec![],
-            root_markers: vec!["composer.json".to_string()],
-        },
-    );
-
-    // Terraform - terraform-ls
-    for lang in ["terraform", "terraform-vars"] {
-        servers.insert(
-            lang.to_string(),
-            LspServerSettings {
-                command: "terraform-ls".to_string(),
-                args: vec!["serve".to_string()],
-                root_markers: vec![".terraform.lock.hcl".to_string(), ".terraform".to_string()],
-            },
-        );
-    }
-
-    // Dockerfile/Compose - docker-language-server
-    for lang in ["dockerfile", "dockercompose"] {
-        servers.insert(
-            lang.to_string(),
-            LspServerSettings {
-                command: "docker-language-server".to_string(),
-                args: vec!["start".to_string(), "--stdio".to_string()],
-                root_markers: vec![
-                    "compose.yaml".to_string(),
-                    "compose.yml".to_string(),
-                    "docker-compose.yaml".to_string(),
-                    "docker-compose.yml".to_string(),
-                ],
-            },
-        );
-    }
-
-    servers
+    crate::lsp::default_servers()
 }
 
 /// `[lsp.servers]` as written, laid over [`default_lsp_servers`] the way the
@@ -1165,14 +1085,22 @@ where
     let entries = std::collections::HashMap::<String, toml::Value>::deserialize(deserializer)?;
     let mut servers = default_lsp_servers();
     for (lang, entry) in entries {
-        let merged = match servers.remove(&lang) {
+        let mut merged = match servers.remove(&lang) {
             Some(builtin) => {
                 let mut value = toml::Value::try_from(builtin).map_err(D::Error::custom)?;
                 crate::diff::merge_partial(&mut value, &entry);
                 value
             }
-            None => entry,
+            None => entry.clone(),
         };
+        // A user who names a command without a candidate list means that
+        // command, not the builtin list: the chain would otherwise win over
+        // the explicit override whenever its first alternative is installed.
+        if entry.get("command").is_some() && entry.get("candidates").is_none() {
+            if let Some(table) = merged.as_table_mut() {
+                table.remove("candidates");
+            }
+        }
         let server = merged
             .try_into()
             .map_err(|e: toml::de::Error| D::Error::custom(format!("{lang}: {}", e.message())))?;
@@ -1735,23 +1663,35 @@ mod lsp_default_tests {
                 "terraform",
                 "terraform-ls",
                 &["serve"],
-                &[".terraform.lock.hcl", ".terraform"],
+                &[
+                    ".terraform",
+                    ".terraform.lock.hcl",
+                    "terraform.tfstate",
+                    "*.tf",
+                ],
             ),
             (
                 "terraform-vars",
                 "terraform-ls",
                 &["serve"],
-                &[".terraform.lock.hcl", ".terraform"],
+                &[
+                    ".terraform",
+                    ".terraform.lock.hcl",
+                    "terraform.tfstate",
+                    "*.tf",
+                ],
             ),
             (
                 "dockerfile",
                 "docker-language-server",
                 &["start", "--stdio"],
                 &[
+                    "Dockerfile",
                     "compose.yaml",
                     "compose.yml",
-                    "docker-compose.yaml",
                     "docker-compose.yml",
+                    "docker-compose.yaml",
+                    ".dockerignore",
                 ],
             ),
             (
@@ -1759,10 +1699,12 @@ mod lsp_default_tests {
                 "docker-language-server",
                 &["start", "--stdio"],
                 &[
+                    "Dockerfile",
                     "compose.yaml",
                     "compose.yml",
-                    "docker-compose.yaml",
                     "docker-compose.yml",
+                    "docker-compose.yaml",
+                    ".dockerignore",
                 ],
             ),
         ];
