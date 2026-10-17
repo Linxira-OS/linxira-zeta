@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { $which, isRecord, logger, pathIsWithin, type WhichOptions } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -11,8 +12,8 @@ import {
 } from "../utils/config-file-sources";
 import { BiomeClient } from "./clients/biome-client";
 import { SwiftLintClient } from "./clients/swiftlint-client";
-import DEFAULTS from "./defaults.json" with { type: "json" };
-import type { ServerConfig } from "./types";
+import { LSP_SERVERS } from "./servers.generated";
+import type { ServerConfig, ServerCandidate } from "./types";
 
 export interface LspConfig {
 	servers: Record<string, ServerConfig>;
@@ -129,6 +130,12 @@ function mergeServers(
 	for (const [name, config] of Object.entries(overrides)) {
 		if (merged[name]) {
 			const candidate = { ...merged[name], ...config };
+			// An override that names a command without a candidate list replaces
+			// the builtin chain: the user's command is what must run, not the
+			// first builtin alternative that happens to be installed.
+			if (config.command !== undefined && config.candidates === undefined) {
+				delete candidate.candidates;
+			}
 			const normalized = normalizeServerConfig(name, candidate);
 			if (normalized) {
 				merged[name] = normalized;
@@ -154,11 +161,6 @@ function applyRuntimeDefaults(servers: Record<string, ServerConfig>): Record<str
 
 	if (updated.swiftlint) {
 		updated.swiftlint = { ...updated.swiftlint, createClient: SwiftLintClient.create };
-	}
-
-	if (updated.omnisharp?.args) {
-		const args = updated.omnisharp.args.map(arg => (arg === PID_TOKEN ? String(process.pid) : arg));
-		updated.omnisharp = { ...updated.omnisharp, args };
 	}
 
 	return updated;
@@ -308,58 +310,39 @@ export function resolveCommand(command: string, cwd: string, options?: ResolveCo
 }
 
 // =============================================================================
-// TypeScript Server Selection
+// Candidate Selection
 // =============================================================================
 
-/**
- * Directory of the package that owns a resolved `tsc` launcher, or null
- * when the layout is not a recognizable npm install.
- */
-function typescriptPackageDir(tscPath: string): string | null {
-	let realPath = tscPath;
-	try {
-		realPath = fs.realpathSync(tscPath);
-	} catch {}
-	const binDir = path.dirname(tscPath);
-	const candidates = [
-		// <pkg>/bin/tsc: symlinked node_modules/.bin and global installs
-		...(path.basename(path.dirname(realPath)) === "bin" ? [path.dirname(path.dirname(realPath))] : []),
-		// node_modules/.bin/tsc.cmd on Windows
-		path.join(binDir, "..", "typescript"),
-		// npm global prefix on Windows
-		path.join(binDir, "node_modules", "typescript"),
-	];
-	for (const dir of candidates) {
-		if (fs.existsSync(path.join(dir, "package.json"))) return dir;
-	}
-	return null;
+/** The candidate that won, and the absolute path it resolved to. */
+export interface SelectedServerCommand {
+	command: string;
+	args: string[];
+	resolvedCommand: string;
 }
 
-/**
- * Whether the `tsc` at `tscPath` speaks LSP itself. TypeScript 7 dropped the JS
- * `lib/tsserver.js` that typescript-language-server wraps and exposes
- * `tsc --lsp --stdio` from its native binary instead; older releases reject the
- * flag with TS5023.
- */
-function typescriptSpeaksLsp(tscPath: string): boolean {
-	const packageDir = typescriptPackageDir(tscPath);
-	return packageDir !== null && !fs.existsSync(path.join(packageDir, "lib", "tsserver.js"));
-}
+export type ServerCommandSelection = { selection: SelectedServerCommand } | { reason: string };
 
 /**
- * Keep exactly one TypeScript server. `typescript-language-server` needs
- * `lib/tsserver.js`, which a TypeScript 7 workspace no longer ships, so it fails
- * at initialize there; `tsc --lsp` exits on older TypeScript. Pick by inspecting
- * the resolved `tsc` install rather than spawning both.
+ * Pick the first candidate that resolves on PATH (after the project-local bin
+ * directories). A server without a candidate list is a one-element chain; the
+ * `$PID` token is substituted either way.
  */
-function selectTypescriptServer(servers: Record<string, ServerConfig>): void {
-	const native = servers["typescript-native"];
-	if (!native?.resolvedCommand) return;
-	if (typescriptSpeaksLsp(native.resolvedCommand)) {
-		delete servers["typescript-language-server"];
-	} else {
-		delete servers["typescript-native"];
+export function selectServerCommand(
+	config: ServerConfig,
+	cwd: string,
+	options?: ResolveCommandOptions,
+): ServerCommandSelection {
+	const candidates: ServerCandidate[] = config.candidates?.length
+		? config.candidates
+		: [{ command: config.command, args: config.args }];
+	for (const candidate of candidates) {
+		const resolved = resolveCommand(candidate.command, cwd, options);
+		if (!resolved) continue;
+		const args = (candidate.args ?? config.args ?? []).map(arg => (arg === PID_TOKEN ? String(process.pid) : arg));
+		return { selection: { command: candidate.command, args, resolvedCommand: resolved } };
 	}
+	const tried = candidates.map(candidate => candidate.command).join(", ");
+	return { reason: `no candidate resolves on PATH or in a project-local bin directory (tried: ${tried})` };
 }
 
 function readMarketplaceLspConfig(root: ClaudePluginRoot): NormalizedConfig | null {
@@ -407,17 +390,25 @@ function marketplaceConfigSource(root: ClaudePluginRoot): ConfigFileSource<Norma
  * 2. Project config dirs: .zeta/lsp.*, .pi/lsp.*, .claude/lsp.* (+ hidden variants)
  * 3. User config dirs: ~/.zeta/agent/lsp.*, ~/.pi/agent/lsp.*, ~/.claude/lsp.* (+ hidden variants)
  * 4. User home root: ~/lsp.*, ~/.lsp.*
- * 5. Auto-detect from project markers + available binaries
+ * 5. Shared user override: `~/.zeta/lsp.json` (also read by termide)
+ * 6. Builtins: `lsp/servers.json`, generated into `./servers.generated.ts`
  *
  * Config files are merged from lowest to highest priority; later files override earlier settings.
+ * An override that sets `command` without `candidates` replaces the builtin
+ * candidate chain, so the user's command is what runs.
  *
  * Config file format (JSON or YAML):
  * ```json
  * {
  *   "servers": {
- *     "typescript-language-server": {
- *       "command": "typescript-language-server",
- *       "args": ["--stdio", "--log-level", "4"],
+ *     "typescript": {
+ *       "command": "tsgo",
+ *       "args": ["--lsp", "--stdio"],
+ *       "candidates": [
+ *         { "command": "tsgo", "args": ["--lsp", "--stdio"] },
+ *         { "command": "typescript-language-server", "args": ["--stdio"] },
+ *         { "command": "tsc", "args": ["--lsp", "--stdio"] }
+ *       ],
  *       "disabled": false
  *     },
  *     "my-custom-server": {
@@ -432,7 +423,14 @@ function marketplaceConfigSource(root: ClaudePluginRoot): ConfigFileSource<Norma
  * ```
  */
 export function loadConfig(cwd: string): LspConfig {
-	let mergedServers = coerceServerConfigs(DEFAULTS);
+	let mergedServers = coerceServerConfigs(LSP_SERVERS);
+
+	// `~/.zeta/lsp.json` is the shared user override: the same file termide
+	// reads, merged over the builtins. Project-level lsp.* files still win.
+	const sharedOverride = readConfigFile(path.join(os.homedir(), ".zeta", "lsp.json"), adaptConfig);
+	if (sharedOverride) {
+		mergedServers = mergeServers(mergedServers, sharedOverride.servers);
+	}
 
 	const configSources = configFileSources("lsp", cwd, adaptConfig, {
 		pluginRootSource: marketplaceConfigSource,
@@ -448,18 +446,26 @@ export function loadConfig(cwd: string): LspConfig {
 		}
 	}
 
-	// Filter to servers whose project markers exist and whose binary resolves (local or $PATH)
+	// Filter to servers whose project markers exist and whose candidate chain
+	// yields a command (project-local bin directory or $PATH).
 	const servers: Record<string, ServerConfig> = {};
 	const candidates = applyRuntimeDefaults(mergedServers);
 	for (const name in candidates) {
 		const config = candidates[name];
 		if (config.disabled) continue;
 		if (!hasRootMarkers(cwd, config.rootMarkers)) continue;
-		const resolved = resolveCommand(config.command, cwd);
-		if (!resolved) continue;
-		servers[name] = { ...config, resolvedCommand: resolved };
+		const selected = selectServerCommand(config, cwd);
+		if ("reason" in selected) {
+			logger.debug("LSP server unavailable.", { name, reason: selected.reason });
+			continue;
+		}
+		servers[name] = {
+			...config,
+			command: selected.selection.command,
+			args: selected.selection.args,
+			resolvedCommand: selected.selection.resolvedCommand,
+		};
 	}
-	selectTypescriptServer(servers);
 
 	return { servers, idleTimeoutMs };
 }

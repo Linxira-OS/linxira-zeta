@@ -23,7 +23,7 @@
   - `packages/coding-agent/src/lsp/clients/swiftlint-client.ts` — SwiftLint CLI diagnostics adapter
   - `packages/coding-agent/src/tools/index.ts` — tool registration and `lsp.enabled` gating
   - `packages/coding-agent/src/tools/tool-timeouts.ts` — timeout defaults and clamping
-  - `packages/coding-agent/src/lsp/defaults.json` — built-in server definitions for auto-detect
+  - `lsp/servers.json` — canonical built-in server definitions for auto-detect (generated into `packages/coding-agent/src/lsp/servers.generated.ts`)
 
 ## Inputs
 
@@ -51,7 +51,7 @@
 1. `packages/coding-agent/src/tools/index.ts` registers `lsp: LspTool.createIf`. The tool is present only when both `session.enableLsp !== false` and `lsp.enabled` (default `true`) allow it. A session with `lspReadOnly` rejects every action outside `LSP_READONLY_ACTIONS`; restricted sessions default both to LSP disabled and read-only if it is explicitly re-enabled.
 2. `LspTool.execute()` in `packages/coding-agent/src/lsp/tool.ts` resolves `timeout` and the `lsp.requestTimeout` setting with `resolveLspTimeouts()`, including the optional global `tools.maxTimeout` ceiling, builds an `AbortSignal.timeout(...)` for the call deadline, and combines it with the caller signal.
 3. `getConfig()` loads and caches `LspConfig` per cwd and reuses the cached config on later calls. Workspace `reload` is the explicit exception: it clears and rebuilds that cwd's config cache before reloading the newly selected servers.
-4. Config loading in `packages/coding-agent/src/lsp/config.ts` merges `defaults.json` with JSON/YAML overrides from project, project config dirs, user config dirs, plugin roots/marketplace metadata, and home. In every case, it filters disabled servers and requires matching root markers plus a resolvable local/PATH executable, then selects one TypeScript server. See [LSP configuration](../lsp-config.md) for filenames, precedence, and server fields.
+4. Config loading in `packages/coding-agent/src/lsp/config.ts` merges the generated builtin table (`lsp/servers.json` → `servers.generated.ts`) with `~/.zeta/lsp.json` (the shared override termide also reads) and JSON/YAML overrides from project, project config dirs, user config dirs, plugin roots/marketplace metadata, and home. In every case, it filters disabled servers and requires matching root markers plus a resolvable command: each server's candidate chain is walked and the first candidate that resolves in a project-local bin directory or on `$PATH` wins. See [LSP configuration](../lsp-config.md) for filenames, precedence, and server fields.
 5. Server routing uses `getServersForFile()` / `getServerForFile()` from `config.ts`: extension or basename match, then sort primary servers before linters. Helpers in `servers.ts` filter custom `createClient` adapters out of navigation/refactor paths with `getLspServersForFile()` / `getLspServerForFile()`.
 6. `getOrCreateClient()` caches by resolved spawn command, cwd, arguments, initialization options, settings, and language id. With `lsp.shared` (default `true` in SDK sessions), it first asks the broker-managed project mux for a shared transport; failure falls back to a private `ptree.spawn()`. An external `lspmux` wrapper takes precedence over broker sharing. Toggling `lsp.shared` mid-session applies to servers cold-started afterwards; already-running clients keep their transport. The client starts its message reader, sends `initialize`, stores capabilities, and sends `initialized`.
 7. The message reader in `client.ts` parses LSP frames, resolves pending requests, caches `publishDiagnostics`, tracks `$/progress` tokens for project-load completion, answers `workspace/configuration`, handles dynamic capability registration, and applies `workspace/applyEdit` through `applyWorkspaceEditWithLsp()`.
@@ -204,7 +204,7 @@ Uses the same location normalization and output shape as `definition`, but sends
 - Calls `detectLspmux()` and appends status text when `lspmux` is installed.
 
 **Output text**
-- `Language servers: <name (configured, not started) | name (<status>)>` plus an explanatory note line, or `No language servers configured for this project`, optionally followed by `lspmux: active (multiplexing enabled)` or `lspmux: installed but server not running`.
+- `Language servers: <name (configured, not started) | name (<status>)> [command: <chosen candidate>]` plus explanatory note lines, or `No language servers configured for this project`, optionally followed by `lspmux: active (multiplexing enabled)` or `lspmux: installed but server not running`.
 
 ### `reload`
 **Inputs**
@@ -311,7 +311,7 @@ Uses the same location normalization and output shape as `definition`, but sends
 - Caller aborts are not converted to text. In the main single-file action block, a wall-clock timeout without caller cancellation throws `ToolError`: `LSP <action> timed out after <N>s on <server>. ...`; the separate raw-request branch reports aborts as `ToolAbortError`.
 
 ## Notes
-- `status` reports configured servers from `LspConfig` and labels each one via `getActiveClients()`: `(configured, not started)` means the binary resolves on PATH but no request has spawned it; a live client reports its status.
+- `status` reports configured servers from `LspConfig` and labels each one via `getActiveClients()`: `(configured, not started)` means the binary resolves on PATH but no request has spawned it; a live client reports its status. The `[command: …]` suffix is the candidate that resolved (e.g. `tsgo` for the TypeScript chain).
 - `getLspServerForFile()` excludes `createClient` adapters; navigation/refactor actions never target Biome/SwiftLint custom clients. Ordinary LSP servers marked `isLinter` remain eligible after primary servers.
 - `getServersForFile()` matches both file extensions and exact basenames from `fileTypes`; config can target names like `Dockerfile` if present.
 - `symbol` matching uses identifier boundaries for bare identifiers, exact case first, then case-insensitive matching, and selects the Nth occurrence on the specified line only. Repeated matches default to the first; use `#N` to select another. It never scans other lines.

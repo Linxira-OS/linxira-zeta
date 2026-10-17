@@ -54,7 +54,7 @@ import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
 import * as piUtils from "@linxiraos/pi-utils";
 import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
 import type { Subprocess } from "bun";
-import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
+import { LSP_SERVERS } from "../../src/lsp/servers.generated";
 import { renderResult as renderLocalResult } from "@linxiraos/pi-tui/tools/lsp";
 import { getLanguageFromPath } from "@linxiraos/pi-tui/lang-from-path";
 
@@ -2520,7 +2520,8 @@ describe("lsp regressions", () => {
 			await Bun.write(localTsServer, "");
 
 			const config = loadConfig(tempDir.path());
-			expect(config.servers["typescript-language-server"]?.resolvedCommand).toBe(localTsServer);
+			expect(config.servers.typescript?.command).toBe("typescript-language-server");
+			expect(config.servers.typescript?.resolvedCommand).toBe(localTsServer);
 			expect(whichSpy).not.toHaveBeenCalledWith("typescript-language-server");
 		} finally {
 			vi.restoreAllMocks();
@@ -2528,68 +2529,61 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	// TypeScript 7 dropped lib/tsserver.js (typescript-language-server's backend) and
-	// speaks LSP via `tsc --lsp --stdio`; older tsc rejects `--lsp`. Exactly one of the
-	// two servers must survive config loading, chosen from the resolved tsc install.
-	describe("TypeScript server selection", () => {
-		async function writeTypescriptWorkspace(root: string, options: { tsserver: boolean; symlinkTsc: boolean }) {
+	// The TypeScript family is a candidate chain: tsgo --lsp --stdio, then
+	// typescript-language-server --stdio, then tsc --lsp --stdio. The first one
+	// that resolves is the server, and the tsc install layout no longer decides.
+	describe("TypeScript candidate selection", () => {
+		async function writeTypescriptWorkspace(root: string, binaries: string[]) {
 			await Bun.write(path.join(root, "package.json"), "{}");
 			const binDir = path.join(root, "node_modules", ".bin");
-			const pkgDir = path.join(root, "node_modules", "typescript");
 			await fs.promises.mkdir(binDir, { recursive: true });
-			await Bun.write(path.join(pkgDir, "package.json"), '{"name":"typescript"}');
-			await Bun.write(path.join(pkgDir, "bin", "tsc"), "");
-			if (options.tsserver) await Bun.write(path.join(pkgDir, "lib", "tsserver.js"), "");
-			if (options.symlinkTsc) {
-				await fs.promises.symlink(path.join("..", "typescript", "bin", "tsc"), path.join(binDir, "tsc"));
-			} else {
-				await Bun.write(path.join(binDir, "tsc"), "");
-			}
-			await Bun.write(path.join(binDir, "typescript-language-server"), "");
+			for (const binary of binaries) await Bun.write(path.join(binDir, binary), "");
 		}
 
-		it("prefers tsc --lsp when the workspace TypeScript ships no tsserver.js", async () => {
-			if (process.platform === "win32") return;
-			const tempDir = TempDir.createSync("@zeta-lsp-ts7-");
+		it("prefers tsgo when it is installed", async () => {
+			const tempDir = TempDir.createSync("@zeta-lsp-tsgo-");
 			vi.spyOn(Bun, "which").mockReturnValue(null);
 			try {
-				await writeTypescriptWorkspace(tempDir.path(), { tsserver: false, symlinkTsc: true });
+				await writeTypescriptWorkspace(tempDir.path(), ["tsgo", "typescript-language-server", "tsc"]);
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript-native"]);
-				expect(config.servers["typescript-native"]?.resolvedCommand).toBe(
-					path.join(tempDir.path(), "node_modules", ".bin", "tsc"),
+				expect(Object.keys(config.servers)).toEqual(["typescript"]);
+				expect(config.servers.typescript?.command).toBe("tsgo");
+				expect(config.servers.typescript?.args).toEqual(["--lsp", "--stdio"]);
+				expect(config.servers.typescript?.resolvedCommand).toBe(
+					path.join(tempDir.path(), "node_modules", ".bin", "tsgo"),
 				);
-				expect(config.servers["typescript-native"]?.args).toEqual(["--lsp", "--stdio"]);
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();
 			}
 		});
 
-		it("keeps typescript-language-server when tsserver.js exists", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-ts5-");
-			vi.spyOn(Bun, "which").mockReturnValue(null);
-			try {
-				await writeTypescriptWorkspace(tempDir.path(), { tsserver: true, symlinkTsc: false });
-				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
-			} finally {
-				vi.restoreAllMocks();
-				tempDir.removeSync();
+		it("falls back to typescript-language-server, then tsc", async () => {
+			for (const [binaries, expected] of [
+				[["typescript-language-server", "tsc"], "typescript-language-server"],
+				[["tsc"], "tsc"],
+			] as const) {
+				const tempDir = TempDir.createSync("@zeta-lsp-ts-fallback-");
+				vi.spyOn(Bun, "which").mockReturnValue(null);
+				try {
+					await writeTypescriptWorkspace(tempDir.path(), [...binaries]);
+					const config = loadConfig(tempDir.path());
+					expect(config.servers.typescript?.command).toBe(expected);
+					expect(config.servers.typescript?.args).toEqual(expected === "tsc" ? ["--lsp", "--stdio"] : ["--stdio"]);
+				} finally {
+					vi.restoreAllMocks();
+					tempDir.removeSync();
+				}
 			}
 		});
 
-		it("drops tsc --lsp when the tsc install layout is unrecognized", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-ts-unknown-");
+		it("starts no TypeScript server when no candidate resolves", async () => {
+			const tempDir = TempDir.createSync("@zeta-lsp-ts-none-");
 			vi.spyOn(Bun, "which").mockReturnValue(null);
 			try {
-				await Bun.write(path.join(tempDir.path(), "package.json"), "{}");
-				const binDir = path.join(tempDir.path(), "node_modules", ".bin");
-				await fs.promises.mkdir(binDir, { recursive: true });
-				await Bun.write(path.join(binDir, "tsc"), "");
-				await Bun.write(path.join(binDir, "typescript-language-server"), "");
+				await writeTypescriptWorkspace(tempDir.path(), []);
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
+				expect(config.servers.typescript).toBeUndefined();
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();
@@ -5806,7 +5800,7 @@ describe("lsp regressions", () => {
 
 describe("clangd CUDA defaults", () => {
 	it("registers CUDA sources and headers", () => {
-		const config = { servers: DEFAULTS as unknown as Record<string, ServerConfig> };
+		const config = { servers: LSP_SERVERS };
 		for (const file of ["kernel.cu", "kernel.cuh"]) {
 			const names = getServersForFile(config, file).map(([name]) => name);
 			expect(names).toContain("clangd");
@@ -5816,7 +5810,7 @@ describe("clangd CUDA defaults", () => {
 
 describe("expert elixir lsp", () => {
 	it("registers expert for .ex while keeping elixirls primary", () => {
-		const config = { servers: DEFAULTS as unknown as Record<string, ServerConfig> };
+		const config = { servers: LSP_SERVERS };
 		const names = getServersForFile(config, "lib/app.ex").map(([name]) => name);
 		expect(names).toContain("expert");
 		expect(names).toContain("elixirls");
@@ -5830,7 +5824,7 @@ describe("ty python lsp", () => {
 	});
 
 	it("registers ty for .py behind existing Python primaries and before ruff", () => {
-		const config = { servers: DEFAULTS as unknown as Record<string, ServerConfig> };
+		const config = { servers: LSP_SERVERS };
 		const names = getServersForFile(config, "app.py").map(([name]) => name);
 		expect(names).toContain("ty");
 		expect(names).toContain("ruff");
@@ -5843,7 +5837,7 @@ describe("ty python lsp", () => {
 	});
 
 	it("registers ty for .pyi stub files", () => {
-		const config = { servers: DEFAULTS as unknown as Record<string, ServerConfig> };
+		const config = { servers: LSP_SERVERS };
 		const names = getServersForFile(config, "app.pyi").map(([name]) => name);
 		expect(names).toContain("ty");
 	});

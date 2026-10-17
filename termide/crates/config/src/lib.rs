@@ -9,6 +9,8 @@ pub mod conflicts;
 pub mod constants;
 pub mod diff;
 pub mod keybindings;
+pub mod lsp;
+pub mod lsp_servers_generated;
 mod overrides;
 mod settings;
 mod xdg;
@@ -32,7 +34,7 @@ pub use settings::{is_cli_provider, permission_modes};
 pub use settings::{
     AiSettings, Config, Connection, CustomLanguage, DatabaseSettings, EditorSettings,
     FileManagerSettings, FoldBlocks, GeneralSettings, GitDiffSettings, GitLogSettings,
-    GitStatusSettings, HighlightSettings, IconMode, LegacyConfig, LoggingSettings,
+    GitStatusSettings, HighlightSettings, IconMode, LegacyConfig, LoggingSettings, LspCandidate,
     LspServerSettings, LspSettings, ReasoningParam, RecallSettings, SideModel, TerminalSettings,
     VaultSettings, VfsSettings, ViewerSettings, WebSettings, CLAUDE_CODE_MIN_CONTEXT_LIMIT,
     DEFAULT_CONTEXT_WINDOW_FALLBACK,
@@ -923,7 +925,8 @@ mod lsp_servers_tests {
         let servers = &config.lsp.servers;
         assert_eq!(servers["rust"].command, "/opt/rust-analyzer");
         // Fields the entry leaves out keep the built-in's values.
-        assert_eq!(servers["rust"].root_markers, vec!["Cargo.toml".to_string()]);
+        let builtin = crate::lsp_servers_generated::builtin_lsp_servers();
+        assert_eq!(servers["rust"].root_markers, builtin["rust"].root_markers);
         assert_eq!(servers["zig"].command, "zls");
         for builtin in ["go", "php", "terraform", "dockerfile", "typescriptreact"] {
             assert!(servers.contains_key(builtin), "{builtin} was dropped");

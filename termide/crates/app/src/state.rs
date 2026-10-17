@@ -294,16 +294,34 @@ impl AppState {
         }
     }
 
-    /// Create LSP configuration from app config
+    /// Create LSP configuration from app config.
+    ///
+    /// Each language's candidate chain is resolved here, once: the first
+    /// command that exists is the one the manager spawns. A language whose
+    /// chain resolves to nothing is left out with a logged reason, rather than
+    /// failing at spawn time.
     fn create_lsp_config(config: &Config) -> LspConfig {
         let mut servers = std::collections::HashMap::new();
 
         for (lang, server_config) in &config.lsp.servers {
+            let selected = match termide_config::lsp::select_command(server_config) {
+                Ok(selected) => selected,
+                Err(error) => {
+                    log::warn!("LSP: language '{}' disabled: {}", lang, error);
+                    continue;
+                }
+            };
+            log::info!(
+                "LSP: language '{}' uses '{}' ({})",
+                lang,
+                selected.command,
+                selected.program.display()
+            );
             servers.insert(
                 lang.clone(),
                 LspServerConfig {
-                    command: server_config.command.clone(),
-                    args: server_config.args.clone(),
+                    command: selected.program.to_string_lossy().into_owned(),
+                    args: selected.args,
                     root_markers: server_config.root_markers.clone(),
                 },
             );

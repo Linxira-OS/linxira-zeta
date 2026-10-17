@@ -327,6 +327,11 @@ export interface ServerCapabilities {
 	relatedTests?: boolean;
 }
 
+export interface ServerCandidate {
+	command: string;
+	args?: string[];
+}
+
 export interface ServerConfig {
 	command: string;
 	args?: string[];
@@ -334,6 +339,12 @@ export interface ServerConfig {
 	/** LSP language identifier sent in didOpen; inferred from the file path when omitted. */
 	languageId?: string;
 	rootMarkers: string[];
+	/**
+	 * Ordered alternatives to `command`/`args`. The first candidate whose command
+	 * resolves on PATH is the one that runs; `command` remains the label and the
+	 * fallback when no candidate list is configured.
+	 */
+	candidates?: ServerCandidate[];
 	initOptions?: Record<string, unknown>;
 	settings?: Record<string, unknown>;
 	disabled?: boolean;

@@ -446,12 +446,25 @@ impl SettingsModal {
                 .collect()
         };
 
+        // The form edits command/args/root markers only. Keep the builtin
+        // candidate chain when the command is unchanged; naming a different
+        // command drops it, since that command is what the user asked for.
+        let candidates = self
+            .config
+            .lsp
+            .servers
+            .get(&lang)
+            .filter(|existing| existing.command == command)
+            .map(|existing| existing.candidates.clone())
+            .unwrap_or_default();
+
         self.config.lsp.servers.insert(
             lang,
             LspServerSettings {
                 command,
                 args,
                 root_markers,
+                candidates,
             },
         );
         self.refresh_server_keys();

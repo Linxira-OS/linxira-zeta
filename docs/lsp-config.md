@@ -6,16 +6,21 @@ Source of truth in code:
 
 - Server config type: `packages/coding-agent/src/lsp/types.ts` (`ServerConfig`)
 - Config loader: `packages/coding-agent/src/lsp/config.ts`
-- Built-in server definitions: `packages/coding-agent/src/lsp/defaults.json`
+- Built-in server definitions: `lsp/servers.json` (canonical; generated into
+  `packages/coding-agent/src/lsp/servers.generated.ts` and
+  `termide/crates/config/src/lsp_servers_generated.rs`)
 
 ## Auto-detection
 
 ZETA starts from the built-in server definitions, applies config overrides, then keeps enabled servers that meet both conditions:
 
 1. The project directory contains at least one of the server's `rootMarkers`.
-2. The server binary is available — checked in project-local bin directories first (e.g., `node_modules/.bin/`, `.venv/bin/`), then `$PATH`.
+2. At least one command in the server's candidate chain is available — checked in
+   project-local bin directories first (e.g., `node_modules/.bin/`,
+   `.venv/bin/`), then `$PATH`. Without a `candidates` list, `command` is the
+   only candidate.
 
-No configuration is required for common setups. The built-in server list covers most popular languages; see [`defaults.json`](../packages/coding-agent/src/lsp/defaults.json) for the full set.
+No configuration is required for common setups. The built-in server list covers most popular languages; see [`lsp/servers.json`](../lsp/servers.json) for the full set.
 
 ## Config file locations
 
@@ -23,13 +28,20 @@ ZETA merges LSP config from multiple sources, lowest to highest precedence:
 
 | Precedence | Location                                                                                                     |
 | ---------: | ------------------------------------------------------------------------------------------------------------ |
-|     Lowest | `~/lsp.json`, `~/.lsp.json`, `~/lsp.yaml`, `~/.lsp.yaml`, `~/lsp.yml`, `~/.lsp.yml`                          |
+|     Lowest | `~/.zeta/lsp.json` (shared user override, also read by termide)                                              |
+|            | `~/lsp.json`, `~/.lsp.json`, `~/lsp.yaml`, `~/.lsp.yaml`, `~/lsp.yml`, `~/.lsp.yml`                          |
 |            | Plugin LSP configs (marketplace / `--plugin-dir` roots)                                                      |
 |            | User config dirs: active native agent directory, then `~/.claude/lsp.*`, `~/.codex/lsp.*`, `~/.gemini/lsp.*` |
 |            | Cwd config dirs: `<cwd>/.zeta/lsp.*`, `<cwd>/.claude/lsp.*`, `<cwd>/.codex/lsp.*`, `<cwd>/.gemini/lsp.*`      |
 |    Highest | Cwd root: `<cwd>/lsp.*` and `<cwd>/.lsp.*`                                                                   |
 
 Within each config-directory row, directories are listed highest to lowest priority. Each location accepts `.json`, `.yaml`, and `.yml`, including hidden variants. When multiple variants coexist in one location, precedence from highest to lowest is `lsp.json`, `.lsp.json`, `lsp.yaml`, `.lsp.yaml`, `lsp.yml`, `.lsp.yml`. All readable variants are merged; this is not a first-file-only search.
+
+`~/.zeta/lsp.json` is shared with termide: it uses the same `servers` schema and
+keys servers by name, and termide expands a server key to the language ids that
+entry serves (it also accepts its own language ids there). Precedence inside
+termide is `lsp/servers.json` < `~/.zeta/lsp.json` < `[lsp.servers.<lang>]` in
+`config.toml`.
 
 Merging is shallow per server: a higher-precedence server object overrides only its top-level fields, but object-valued fields such as `settings`, `initOptions`, `capabilities`, and `workspaceReadyTimings` replace the lower value as a whole rather than deep-merging it. Servers absent from override files remain at built-in defaults.
 
@@ -79,6 +91,7 @@ Do not mix wrapped and flat server entries: when `servers` is an object, sibling
 | ----------------------- | ---------- | ------------------------: | -------------------------------------------------------------------------------------------------------- |
 | `command`               | `string`   |                       yes | Binary name (resolved through local bins / PATH) or absolute path                                        |
 | `args`                  | `string[]` |                        no | Arguments passed to the binary                                                                           |
+| `candidates`            | `object[]` |                        no | Ordered `{ command, args? }` alternatives; the first one that resolves is used (see [Candidate chains](#candidate-chains)) |
 | `fileTypes`             | `string[]` |                       yes | Extensions or basenames, for example `[".ts", ".tsx", "Dockerfile"]`; case-insensitive, with or without a leading dot |
 | `languageId`            | `string`   |                        no | LSP language id sent in `textDocument/didOpen`; inferred from the file path when omitted                 |
 | `rootMarkers`           | `string[]` |                       yes | Files/directories indicating a project root; one-level wildcard patterns such as `*.cabal` are supported |
@@ -91,6 +104,38 @@ Do not mix wrapped and flat server entries: when `servers` is an object, sibling
 | `workspaceReadyTimings` | `object`   |                        no | Advanced rust-analyzer workspace-readiness timing overrides; see below                                   |
 
 The required fields may be omitted from an override of a built-in server because they are inherited before validation. A genuinely new server normally needs all three. `resolvedCommand` and `createClient` are runtime-owned fields and must not be configured.
+
+### Candidate chains
+
+A server may list several implementations, in preference order:
+
+```json
+{
+  "servers": {
+    "typescript": {
+      "command": "tsgo",
+      "args": ["--lsp", "--stdio"],
+      "candidates": [
+        { "command": "tsgo", "args": ["--lsp", "--stdio"] },
+        { "command": "typescript-language-server", "args": ["--stdio"] },
+        { "command": "tsc", "args": ["--lsp", "--stdio"] }
+      ]
+    }
+  }
+}
+```
+
+Selection walks the list and takes the first command that resolves (local bin
+directories, then `$PATH`); the status action reports the chosen command. If
+none resolves, the server is not started and the reason names every command that
+was tried. Setting `command` in an override without `candidates` replaces the
+builtin chain, so an explicitly configured command is not shadowed by an
+installed first alternative.
+
+The builtin TypeScript family uses `tsgo --lsp --stdio` first (TypeScript 7's
+native server), then `typescript-language-server --stdio`, then
+`tsc --lsp --stdio`. The Python entry uses `ty server`, then `pyrefly lsp`, then
+`pylsp`.
 
 For plugin-compatible definitions, `initializationOptions` is accepted when `initOptions` is not an object. `extensionToLanguage` can supply `fileTypes` from its keys and defaults missing `rootMarkers` to `["."]`; its values do not set per-extension language IDs. Marketplace entries can provide an inline `lspServers` map or a config-file path contained within the plugin root.
 
@@ -215,7 +260,7 @@ The user-level config in `~/.zeta/agent/lsp.json` is unaffected; pylsp is only s
 
 ## Built-in server list
 
-The following servers ship in `defaults.json` and are eligible for auto-detection:
+The following servers ship in `lsp/servers.json` and are eligible for auto-detection:
 
 | Server key                    | Language(s)                   | Binary                            |
 | ----------------------------- | ----------------------------- | --------------------------------- |
@@ -223,8 +268,7 @@ The following servers ship in `defaults.json` and are eligible for auto-detectio
 | `clangd`                      | C, C++, ObjC, CUDA            | `clangd`                          |
 | `zls`                         | Zig                           | `zls`                             |
 | `gopls`                       | Go                            | `gopls`                           |
-| `typescript-language-server`  | TypeScript, JavaScript (≤ 6)  | `typescript-language-server`      |
-| `typescript-native`           | TypeScript, JavaScript (7+)   | `tsc --lsp --stdio`               |
+| `typescript`                  | TypeScript, JavaScript        | `tsgo --lsp --stdio`, else `typescript-language-server --stdio`, else `tsc --lsp --stdio` |
 | `denols`                      | TypeScript, JavaScript (Deno) | `deno`                            |
 | `biome`                       | TS/JS/JSON/CSS (linter)       | `biome`                           |
 | `eslint`                      | TS/JS/Vue/Svelte (linter)     | `vscode-eslint-language-server`   |
@@ -275,4 +319,4 @@ The following servers ship in `defaults.json` and are eligible for auto-detectio
 | `swiftlint`                   | Swift (linter)                | `swiftlint`                       |
 | `tlaplus`                     | TLA+                          | `tlapm_lsp`                       |
 
-Only one TypeScript server is kept per project: when the resolved `tsc` belongs to a TypeScript install without `lib/tsserver.js` (TypeScript 7+), `typescript-native` wins and `typescript-language-server` is dropped, since it cannot drive that install; otherwise `typescript-native` is dropped because older `tsc` rejects `--lsp`.
+The TypeScript entry is one server with a candidate chain, so exactly one TypeScript server runs per project: `tsgo --lsp --stdio` when installed, otherwise `typescript-language-server --stdio`, otherwise `tsc --lsp --stdio`. `tsc --lsp` is only reached when neither of the other two is installed, so an older `tsc` that rejects the flag is never preferred over a working wrapper.
