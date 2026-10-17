@@ -20,21 +20,28 @@
 //!
 //! The page owns the "a file was chosen" contract: the left pane (the file tree
 //! by default) emits [`PanelEvent::OpenFile`] and the page turns that into a
-//! tab, so the host app never has to know how the page is composed.
+//! tab, so the host app never has to know how the page is composed. Each tab
+//! gets an [`Editor`] lazily, on first activation — opening ten files does not
+//! parse ten syntax trees, and the LSP config reaches the editor through the
+//! panel protocol the app already speaks.
 //!
 //! Rendering is a `ratatui::Buffer`, so the desktop shell hosts the *same* page
 //! through `Panel::render` → blit — the terminal panel already proves that road.
 
 use std::any::Any;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use crossterm::event::{KeyCode, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
+use termide_config::Config;
 use termide_core::event::PanelEvent;
 use termide_core::key_chord::KeyChord;
 use termide_core::panel::{Panel, RenderContext};
+use termide_panel_editor::{Editor, EditorConfig};
+use termide_theme::Theme;
 
 /// The tab strip is one row: ` title × `.
 pub const TAB_HEIGHT: u16 = 1;
@@ -69,6 +76,12 @@ impl Tab {
             dirty: false,
         }
     }
+}
+
+/// A tab and its editor. The editor is created on first activation.
+struct TabEntry {
+    tab: Tab,
+    editor: Option<Editor>,
 }
 
 /// The page's rectangles, derived from the area and the two dividers.
@@ -167,7 +180,7 @@ pub enum Focus {
 
 /// The IDE page.
 pub struct IdePage {
-    tabs: Vec<Tab>,
+    tabs: Vec<TabEntry>,
     active: Option<usize>,
     left_width: u16,
     git_height: u16,
@@ -176,6 +189,8 @@ pub struct IdePage {
     /// the app can mount a search view later and so tests can drive it.
     left: Box<dyn Panel>,
     focus: Focus,
+    /// The last load failure, drawn in the status line.
+    message: Option<String>,
 }
 
 impl IdePage {
@@ -189,6 +204,7 @@ impl IdePage {
             drag: None,
             left: Box::new(termide_panel_file_manager::FileManager::new()),
             focus: Focus::Editor,
+            message: None,
         }
     }
 
@@ -200,11 +216,14 @@ impl IdePage {
 
     /// Open (or focus) `path` as a tab.
     pub fn open(&mut self, path: PathBuf) {
-        if let Some(index) = self.tabs.iter().position(|tab| tab.path == path) {
+        if let Some(index) = self.tabs.iter().position(|entry| entry.tab.path == path) {
             self.active = Some(index);
             return;
         }
-        self.tabs.push(Tab::from_path(path));
+        self.tabs.push(TabEntry {
+            tab: Tab::from_path(path),
+            editor: None,
+        });
         self.active = Some(self.tabs.len() - 1);
     }
 
@@ -213,7 +232,8 @@ impl IdePage {
     pub fn titles(&self) -> Vec<String> {
         self.tabs
             .iter()
-            .map(|tab| {
+            .map(|entry| {
+                let tab = &entry.tab;
                 if tab.dirty {
                     format!("{} *", tab.title)
                 } else {
@@ -246,6 +266,35 @@ impl IdePage {
         let current = self.active.unwrap_or(0) as isize;
         let next = (current + step).rem_euclid(count as isize) as usize;
         self.active = Some(next);
+    }
+
+    /// Whether the active tab's editor is mounted (loaded on demand).
+    pub fn active_editor_loaded(&self) -> bool {
+        self.active
+            .is_some_and(|index| self.tabs[index].editor.is_some())
+    }
+
+    /// Load the active tab's editor on first activation. A file that fails to
+    /// open leaves the tab visible with the reason in the status line, which is
+    /// better than silently showing an empty buffer.
+    fn ensure_editor(&mut self) {
+        let Some(index) = self.active else {
+            return;
+        };
+        let mut failure = None;
+        {
+            let entry = &mut self.tabs[index];
+            if entry.editor.is_none() && entry.tab.path.is_file() {
+                match Editor::open_file_with_config(entry.tab.path.clone(), EditorConfig::default())
+                {
+                    Ok(editor) => entry.editor = Some(editor),
+                    Err(error) => failure = Some(format!("无法打开 {}: {error}", entry.tab.title)),
+                }
+            }
+        }
+        if failure.is_some() {
+            self.message = failure;
+        }
     }
 
     /// The page owns the "a file was chosen" contract: sub-panels emit
@@ -282,6 +331,13 @@ impl IdePage {
             column >= start && column < end
         })
     }
+
+    fn active_editor_mut(&mut self) -> Option<&mut Editor> {
+        self.active
+            .and_then(|index| self.tabs.get_mut(index))?
+            .editor
+            .as_mut()
+    }
 }
 
 impl Default for IdePage {
@@ -299,7 +355,17 @@ impl Panel for IdePage {
         "IDE".to_owned()
     }
 
+    fn prepare_render(&mut self, theme: &Theme, config: &Arc<Config>) {
+        self.left.prepare_render(theme, config);
+        for entry in &mut self.tabs {
+            if let Some(editor) = entry.editor.as_mut() {
+                editor.prepare_render(theme, config);
+            }
+        }
+    }
+
     fn render(&mut self, area: Rect, buf: &mut Buffer, ctx: &RenderContext) {
+        self.ensure_editor();
         buf.set_style(area, Style::default().bg(ctx.theme.bg).fg(ctx.theme.fg));
         let layout = layout(area, self.left_width, self.git_height);
 
@@ -308,6 +374,34 @@ impl Panel for IdePage {
             let tree = layout.tree();
             if tree.height > 0 {
                 self.left.render(tree, buf, ctx);
+            }
+        }
+
+        // The active tab's editor, or the empty-page hint.
+        let mut editor_drawn = false;
+        if let Some(index) = self.active {
+            if let Some(editor) = self.tabs[index].editor.as_mut() {
+                editor.render(layout.editor, buf, ctx);
+                editor_drawn = true;
+            }
+        }
+        if self.tabs.is_empty() && !editor_drawn {
+            let hint = "Ctrl+P 打开文件";
+            let x = layout.editor.x
+                + layout
+                    .editor
+                    .width
+                    .saturating_sub(hint.chars().count() as u16)
+                    / 2;
+            let y = layout.editor.y + layout.editor.height / 2;
+            if layout.editor.width as usize >= hint.chars().count() {
+                buf.set_stringn(
+                    x,
+                    y,
+                    hint,
+                    hint.chars().count(),
+                    Style::default().fg(Color::DarkGray),
+                );
             }
         }
 
@@ -359,35 +453,18 @@ impl Panel for IdePage {
             }
         }
 
-        // Status line: the fixed set of fields, always in the same slots.
-        let status = " Ln 1, Col 1   Spaces: 4   UTF-8   LF";
+        // Status line: the load failure takes the row when there is one.
+        let status = match self.message.as_deref() {
+            Some(message) => format!(" {message}"),
+            None => " Ln 1, Col 1   Spaces: 4   UTF-8   LF".to_owned(),
+        };
         buf.set_stringn(
             layout.status.x,
             layout.status.y,
-            status,
+            &status,
             layout.status.width as usize,
             Style::default().bg(ctx.theme.bg).fg(ctx.theme.fg),
         );
-        // The page's own hint so an empty page reads as "no file", not broken.
-        if self.tabs.is_empty() {
-            let hint = "Ctrl+P 打开文件";
-            let x = layout.editor.x
-                + layout
-                    .editor
-                    .width
-                    .saturating_sub(hint.chars().count() as u16)
-                    / 2;
-            let y = layout.editor.y + layout.editor.height / 2;
-            if layout.editor.width as usize >= hint.chars().count() {
-                buf.set_stringn(
-                    x,
-                    y,
-                    hint,
-                    hint.chars().count(),
-                    Style::default().fg(Color::DarkGray),
-                );
-            }
-        }
     }
 
     fn handle_key(&mut self, chord: KeyChord) -> Vec<PanelEvent> {
@@ -404,12 +481,24 @@ impl Panel for IdePage {
                 let events = self.left.handle_key(chord);
                 self.absorb(events)
             }
-            _ => Vec::new(),
+            _ => {
+                self.ensure_editor();
+                let events = match self.active_editor_mut() {
+                    Some(editor) => editor.handle_key(chord),
+                    None => Vec::new(),
+                };
+                self.absorb(events)
+            }
         }
     }
 
     fn tick(&mut self) -> Vec<PanelEvent> {
-        let events = self.left.tick();
+        let mut events = self.left.tick();
+        for entry in &mut self.tabs {
+            if let Some(editor) = entry.editor.as_mut() {
+                events.extend(editor.tick());
+            }
+        }
         self.absorb(events)
     }
 
@@ -427,6 +516,11 @@ impl Panel for IdePage {
                 }
                 if layout.editor.contains((column, row).into()) {
                     self.focus = Focus::Editor;
+                    self.ensure_editor();
+                    if let Some(editor) = self.active_editor_mut() {
+                        let events = editor.handle_mouse(event, layout.editor);
+                        return self.absorb(events);
+                    }
                 }
                 if row == layout.tabs.y && column < layout.tabs.x + layout.tabs.width {
                     if let Some(index) = self.tab_at(column.saturating_sub(layout.tabs.x)) {
@@ -470,7 +564,11 @@ impl Panel for IdePage {
             let events = self.left.handle_scroll(delta, layout.tree());
             return self.absorb(events);
         }
-        Vec::new()
+        let events = match self.active_editor_mut() {
+            Some(editor) => editor.handle_scroll(delta, layout.editor),
+            None => Vec::new(),
+        };
+        self.absorb(events)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -617,6 +715,29 @@ mod tests {
         // A plain key is forwarded to the left pane, which answers with OpenFile.
         page.handle_key(key(KeyCode::Enter));
         assert_eq!(page.titles(), vec!["picked.rs".to_owned()]);
+    }
+
+    #[test]
+    fn opening_a_real_file_mounts_its_editor_on_first_use() {
+        let dir = std::env::temp_dir().join("panel-ide-tests");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("hello.rs");
+        std::fs::write(&path, "fn main() {}\n").expect("write the fixture");
+        let mut page = IdePage::new();
+        page.open(path);
+        assert!(
+            !page.active_editor_loaded(),
+            "lazy until the editor is needed"
+        );
+        let _ = page.handle_key(key(KeyCode::Char('a')));
+        assert!(
+            page.active_editor_loaded(),
+            "the first key press mounts the editor"
+        );
+        assert!(
+            page.message.is_none(),
+            "loading a real file reports no failure"
+        );
     }
 
     #[test]

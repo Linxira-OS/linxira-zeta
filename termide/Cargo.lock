@@ -5587,8 +5587,11 @@ version = "0.41.0"
 dependencies = [
  "crossterm",
  "ratatui",
+ "termide-config",
  "termide-core",
+ "termide-panel-editor",
  "termide-panel-file-manager",
+ "termide-theme",
 ]
 
 [[package]]
