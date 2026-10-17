@@ -31,6 +31,8 @@
 mod formatters;
 mod todo;
 
+pub use todo::TodoPanel;
+
 use std::any::Any;
 use std::path::PathBuf;
 use std::sync::Arc;

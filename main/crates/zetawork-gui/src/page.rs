@@ -25,10 +25,7 @@ pub struct Pages {
 impl Pages {
 	/// Create the page for `tab` on first show.
 	pub fn ensure(&mut self, tab: &str) -> &mut IdePage {
-		self
-			.pages
-			.entry(tab.to_owned())
-			.or_insert_with(IdePage::new)
+		self.pages.entry(tab.to_owned()).or_default()
 	}
 
 	/// Whether `tab` has a page.
