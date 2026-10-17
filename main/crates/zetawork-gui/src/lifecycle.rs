@@ -42,7 +42,7 @@
 //! | loopback `bind` is refused by policy | claim `Unavailable`, start normally, record the OS message |
 //! | `~/.zeta` cannot be written | the lock file is skipped; the default port is used |
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -148,21 +148,37 @@ pub fn probe(addr: SocketAddr) -> Probe {
 	}
 	let mut line = String::new();
 	match BufReader::new(&stream).read_line(&mut line) {
-		Ok(0) | Err(_) => Probe::Squat,
 		Ok(_) if line.trim() == ACK => Probe::Ack,
-		Ok(_) => Probe::Squat,
+		// Nothing spoke inside the budget. That is the wedged-instance row of
+		// the table, not a squatter: [`Probe::Silent`] already means "no
+		// listener, or a wedged one". Calling a timeout on a live `zetawork` a
+		// squatter sent the diagnosis in the wrong direction.
+		Err(error) if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock) => {
+			Probe::Silent
+		},
+		// Hung up on, or answered with something that is not [`ACK`]: someone
+		// else holds the port.
+		Ok(_) | Err(_) => Probe::Squat,
 	}
 }
 
 /// Answer one pending connection on the owner's listener.
 ///
-/// Non-blocking: a frame that has nothing to accept costs one `accept` call that
-/// returns `WouldBlock`. Returns true when the connection asked this window to
-/// show itself.
+/// The accept never parks a frame: with nothing waiting it costs one `accept`
+/// call that returns `WouldBlock`. The read that follows *does* wait, for the
+/// same [`HANDSHAKE_TIMEOUT`] budget a launch gives the answer, because the
+/// connection can be in the backlog a while before the request line is in the
+/// buffer. On Windows a socket accepted from a non-blocking listener inherits
+/// that mode, so taking that empty buffer for a hang-up dropped a live
+/// launcher's request and made it read us as a squatter. Returns true when the
+/// connection asked this window to show itself.
 pub fn serve_one(listener: &TcpListener) -> bool {
 	let Ok((mut stream, _)) = listener.accept() else {
 		return false;
 	};
+	// Per-socket, so the accept above stays non-blocking. Bounded: a connection
+	// that never speaks costs one frame its timeout, and is then let go.
+	let _ = stream.set_nonblocking(false);
 	let _ = stream.set_read_timeout(Some(HANDSHAKE_TIMEOUT));
 	let mut line = String::new();
 	let asked = BufReader::new(&stream)
@@ -537,16 +553,29 @@ mod tests {
 		SocketAddr::from((Ipv4Addr::LOCALHOST, port))
 	}
 
-	#[test]
-	fn an_owner_answers_the_handshake_and_is_found() {
-		// Port 0: the OS picks a free one, so the test never collides with a
-		// real instance or with a parallel test.
+	/// A listener in the state [`claim`] leaves the real one in: bound on a port
+	/// the OS picked, listening, non-blocking so `accept` never parks a frame.
+	fn owned_listener() -> (TcpListener, u16) {
 		let listener = TcpListener::bind(addr(0)).expect("bind");
 		let port = listener.local_addr().expect("addr").port();
 		listener.set_nonblocking(true).expect("nonblocking");
-		let server = std::thread::spawn(move || {
-			// One frame's worth of polling, with a deadline so a failure to
-			// connect cannot hang the suite.
+		(listener, port)
+	}
+
+	/// The owner's loop off the UI thread: the receiver that resolves once the
+	/// thread is up, and the thread itself, whose verdict is whether it saw the
+	/// activation request.
+	type Owner = (std::sync::mpsc::Receiver<()>, std::thread::JoinHandle<bool>);
+
+	/// The owner's per-frame loop: `serve_one` until it answers, with a deadline
+	/// so a handshake that never arrives cannot hang the suite.
+	///
+	/// The receiver resolves once the thread is up, so a test that probes the
+	/// port straight away is not racing the thread's start-up.
+	fn spawn_owner(listener: TcpListener) -> Owner {
+		let (ready, up) = std::sync::mpsc::channel();
+		let owner = std::thread::spawn(move || {
+			let _ = ready.send(());
 			let deadline = Instant::now() + Duration::from_secs(5);
 			while Instant::now() < deadline {
 				if serve_one(&listener) {
@@ -556,8 +585,49 @@ mod tests {
 			}
 			false
 		});
+		(up, owner)
+	}
+
+	#[test]
+	fn an_owner_answers_the_handshake_and_is_found() {
+		// Port 0: the OS picks a free one, so the test never collides with a
+		// real instance or with a parallel test.
+		let (listener, port) = owned_listener();
+		let (owner_up, owner) = spawn_owner(listener);
+		owner_up.recv().expect("the owner thread is up");
 		assert_eq!(probe(addr(port)), Probe::Ack, "the owner answers with ACK");
-		assert!(server.join().expect("join"), "the owner saw the activation request");
+		assert!(owner.join().expect("join"), "the owner saw the activation request");
+	}
+
+	#[test]
+	fn the_owner_waits_for_the_request_line_before_it_answers() {
+		// The interleaving the full-run flake lived in, staged on purpose: the
+		// connect is `Ok` as soon as the listener's backlog takes it, which can
+		// be a good while before the request line is in the owner's receive
+		// buffer. A socket accepted from a non-blocking listener inherits that
+		// mode on Windows, so the owner's first read comes back `WouldBlock`;
+		// treating that as "not asked" hung up on a live launcher, whose
+		// `probe` then read an aborted socket and called this process a
+		// squatter (`Squat`).
+		let (listener, port) = owned_listener();
+		let (owner_up, owner) = spawn_owner(listener);
+		owner_up.recv().expect("the owner thread is up");
+		let launcher = std::thread::spawn(move || {
+			let mut stream = TcpStream::connect(addr(port)).expect("connect");
+			// Connect first, speak later — the order the race produced.
+			std::thread::sleep(Duration::from_millis(200));
+			let _ = writeln!(stream, "{ACTIVATE}");
+			let _ = stream.flush();
+			let mut line = String::new();
+			let _ = BufReader::new(&stream).read_line(&mut line);
+			line.trim().to_owned()
+		});
+		assert_eq!(
+			launcher.join().expect("join"),
+			ACK,
+			"the owner waits for the request line instead of hanging up on it"
+		);
+		assert!(owner.join().expect("join"), "the owner saw the activation request");
 	}
 
 	#[test]
