@@ -692,8 +692,19 @@ impl Shell {
 			if chords.is_empty() {
 				return false;
 			}
+			let mut events = Vec::new();
 			for chord in chords {
-				let _ = self.pages.key(&tab, chord);
+				events.extend(self.pages.key(&tab, chord));
+			}
+			// The page hands the host the events it cannot act on itself; the
+			// working-directory diff is one the GUI can show.
+			for event in events {
+				if let termide_core::event::PanelEvent::OpenGitDiff { commit_hash: None, .. } = event {
+					let pane = pane_id.clone();
+					self.state.act(|state| {
+						state.add_tab_of(&pane, state::SessionKind::Diff, "改动".to_owned())
+					});
+				}
 			}
 			return true;
 		}

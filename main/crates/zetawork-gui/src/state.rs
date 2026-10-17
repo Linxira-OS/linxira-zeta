@@ -822,6 +822,26 @@ impl AppState {
 	}
 
 	/// ＋ in a pane's tab strip: one more terminal session.
+	/// Add a sub-page of `kind` to `pane_id` (the `+` picker's pages and the
+	/// IDE page's "open the diff" event both come through here).
+	pub fn add_tab_of(&mut self, pane_id: &str, kind: SessionKind, title: String) -> Notice {
+		if self.pane_mut(pane_id).is_none() {
+			return Notice(format!("没有这个面板：{pane_id}"));
+		}
+		let id = self.fresh_id("tab");
+		let Some(pane) = self.pane_mut(pane_id) else {
+			return Notice(String::new());
+		};
+		if pane.tabs.len() >= MAX_SUBS_PER_PANE {
+			return Notice(format!(
+				"每个面板最多 {MAX_SUBS_PER_PANE} 个子页（子页上限 {MAX_SUBS_PER_PANE}）"
+			));
+		}
+		pane.tabs.push(SessionTab::new(id.clone(), kind, title));
+		pane.active = id;
+		Notice(String::new())
+	}
+
 	pub fn add_tab(&mut self, pane_id: &str) -> Notice {
 		if self.pane_mut(pane_id).is_none() {
 			return Notice(format!("没有这个面板：{pane_id}"));
@@ -1261,6 +1281,23 @@ mod tests {
 	/// A workspace with `cols` columns and the spec's default two panes.
 	fn state() -> AppState {
 		AppState::seeded(std::path::Path::new("."))
+	}
+
+	#[test]
+	fn a_page_of_any_kind_can_be_added() {
+		let mut state = state();
+		let pane = state.active_workspace().unwrap().panes[0].id.clone();
+		let seen = state.active_workspace().unwrap().panes[0].tabs.len();
+		let notice = state.add_tab_of(&pane, SessionKind::Diff, "改动".to_owned());
+		assert!(notice.0.is_empty(), "accepted: {}", notice.0);
+		let after = &state.active_workspace().unwrap().panes[0];
+		assert_eq!(after.tabs.len(), seen + 1);
+		assert_eq!(
+			after.tabs.last().unwrap().kind,
+			SessionKind::Diff,
+			"the kind is the one asked for"
+		);
+		assert_eq!(after.active, after.tabs.last().unwrap().id, "the new page takes focus");
 	}
 
 	#[test]
