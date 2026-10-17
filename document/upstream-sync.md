@@ -2065,3 +2065,47 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
   and dispatched twice: run `38949297746` at `65c8326bd46` (natives green; four reds triaged) and run
   `38963026878` at `9cb54ac2c0a` (17 green / 2 load-flake red / 15 tag-gated skips). Its landing on `main`
   is sequenced with the other in-flight branches so `main` takes a single push and a single CI run.
+
+### Zeta-side flake hardening（2026-10-17）
+
+Three load-sensitive flaky tests that the current upstream window brought in were made deterministic
+**test-side only** — no implementation change, no assertion weakened, no scope narrowed. Recorded so the
+next merge can replay these three files instead of re-triaging them.
+
+- `packages/coding-agent/test/tools/browser-relay-detach.test.ts` — **upstream-new suite** (added by this
+  window). Flake: `"does not rerun a call detached before its code started once the re-adoption spent its
+  budget"` answered with `omp could not reattach to the tab, so it was released: …` instead of the
+  spent-budget report. Cause: the test held the re-adoption for the call's whole budget, while the
+  re-adoption's own init budget is `budgetMs + GRACE_MS` **measured from the re-adoption's start** — so
+  the hold left its init phases only the 750 ms `GRACE_MS` tail, and under load the worker-init ready
+  phase outlived that tail (`Failed to recycle browser tab worker …: Timed out initializing browser tab
+  worker`), the recycle failed and the call was released. Zeta side: the call is parked in its pre-code
+  reapply (a new `gateSend` hook on the test's Chrome-backed extension) and spends its budget there, the
+  re-adoption carries it over the line and runs on the inline fallback (no cold worker realm inside the
+  window), and both waits are released by events (worker gone; budget provably elapsed on the clock the
+  branch reads) instead of a fixed sleep. Same two assertions, same branch. Also raised this file's
+  `beforeAll`/`afterAll`/`afterEach` budgets to 30 s: on a loaded runner Chromium launch/tab teardown
+  outlived Bun's 5 s default hook budget and red the file for cleanup that asserts nothing.
+- `packages/coding-agent/test/web-gateway/plan-flow.test.ts` — **upstream test, byte-identical to
+  `d98033c2694`**. Flake: `approval.error === "Agent is already processing. Use steer() or followUp() to
+  queue messages, or wait for completion."`. Cause: `plan_proposed` is emitted from `tool_execution_end`
+  (`src/server/web-gateway/agents.ts:458-473`), i.e. **mid-turn**, so `await proposed.promise` never meant
+  the session was idle; `plan_approve` prompts, and `AgentSession.prompt` throws `AgentBusyError`
+  (`src/session/agent-session.ts:8273-8281`) while the plan turn's closing model call still runs. Zeta
+  side: wait for the session's own idle transition (`agent_end`, the frame the runtime defers until the
+  owning prompt unwinds) under a hard deadline, then assert the idle precondition. Same assertions plus
+  one added.
+- `crates/pi-shell/src/shell.rs` — **upstream-new test**
+  (`shell::tests::cancellation_keeps_output_open_for_a_term_trap_that_writes`). Flake:
+  `fs::read_to_string(root.path().join("cleaned")).expect("TERM cleanup after writing output")` →
+  `Os { code: 2, NotFound }`. Cause: the trap's `sleep 0.7` left only ~300 ms of margin against
+  `TERM_GRACE` (1 s on unix, `shell.rs:386`) — and against the vendored brush's own 1 s post-cancel
+  SIGKILL — so a loaded runner KILLed the trap before it wrote, and the test then read the artifact at the
+  instant the cancel resolved. Zeta side: the trap delay matches its sibling test (0.2 s), the trap's own
+  `flushing` output and the `cleaned` artifact are waited for on explicit bounds (5 s each) with the run
+  result and output in the failure diagnostics, and the trailing `assert_eq!(content, "cleaned")` is the
+  original assertion. Compile-unverified locally: the test is `#[cfg(unix)]`, the host is Windows, and the
+  pinned `nightly-2026-10-06` has no GNU target installed.
+
+None of the three is an implementation-change request; they are the same upstream tests with their
+observation points moved onto the state each assertion actually depends on.

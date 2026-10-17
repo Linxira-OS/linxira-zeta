@@ -15,7 +15,7 @@ import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { type } from "@linxiraos/pi-omptype";
 import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
-import { TempDir } from "@linxiraos/pi-utils";
+import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
@@ -48,6 +48,44 @@ function messageText(message: { content?: unknown }): string {
 		.filter((block): block is { type: "text"; text: string } => (block as { type?: string }).type === "text")
 		.map(block => block.text)
 		.join("\n");
+}
+
+/** How long the plan turn may take to reach its own idle transition. */
+const TURN_END_DEADLINE_MS = 20_000;
+
+/**
+ * Resolve once the plan turn has actually ended, i.e. the session is idle.
+ *
+ * `plan_proposed` is emitted from `tool_execution_end` (agents.ts:458-473), so
+ * it fires MID-TURN: the run still owes its closing model call. `plan_approve`
+ * dispatches straight into `approveRemotePlan` → `session.prompt()`, which
+ * throws `AgentBusyError` while the session is streaming (agent-session.ts:
+ * 8273-8281; the throw itself is `Agent.prompt`'s guard, agent.ts:1610-1611).
+ * The session's `agent_end` is the idle transition — the runtime defers that
+ * frame until the owning prompt unwinds (agent-session.ts:4094-4097) — so
+ * waiting on it is the ordering premise approval actually needs, instead of
+ * assuming the propose event ends the turn.
+ *
+ * Event-driven with a hard deadline: a missed event must fail loudly (with the
+ * observed event sequence) rather than hang the suite.
+ */
+async function waitForTurnEnd(
+	session: AgentSession,
+	events: readonly AgentEvent[],
+	turnEnded: Promise<void>,
+): Promise<void> {
+	try {
+		await withTimeout(turnEnded, TURN_END_DEADLINE_MS, "plan turn did not end");
+	} catch (error) {
+		// Failure path only: the diagnostic is built here, not at the call site,
+		// so it reports the state and the event sequence actually observed when
+		// the deadline fired.
+		throw new Error(
+			`plan turn never reached agent_end within ${TURN_END_DEADLINE_MS}ms ` +
+				`(isStreaming=${session.isStreaming}); events seen: ${events.map(event => event.type).join(", ")}`,
+			{ cause: error },
+		);
+	}
 }
 
 interface PlanFlowState {
@@ -172,9 +210,14 @@ describe("web-gateway plan chain", () => {
 		const wrapper = new AgentSessionWrapper(created, "sess-plan-flow", null);
 		const events: AgentEvent[] = [];
 		const proposed = Promise.withResolvers<void>();
+		const turnEnded = Promise.withResolvers<void>();
 		wrapper.onEvent(event => {
 			events.push(event);
 			if (event.type === "plan_proposed") proposed.resolve();
+			// The plan turn's idle transition: `agent_end` is the session-level
+			// "run finished and the owning prompt unwound" frame the approval
+			// dispatch needs (see `waitForTurnEnd`).
+			if (event.type === "agent_end") turnEnded.resolve();
 		});
 
 		// 1. Enter plan mode with the task, exactly like web-ui `/plan <task>`.
@@ -184,9 +227,14 @@ describe("web-gateway plan chain", () => {
 			options: { initialPrompt: "Draft the web plan" },
 		});
 
-		// 2. The propose lands and is broadcast as a plan-ready event.
+		// 2. The propose lands and is broadcast as a plan-ready event, then the
+		// plan turn runs to its own end. The propose fires mid-turn, so the
+		// session is only safe to approve once `agent_end` arrives.
 		await proposed.promise;
 		expect(events.filter(event => event.type === "mode_changed" && event.mode === "plan").length).toBeGreaterThan(0);
+		await waitForTurnEnd(created, events, turnEnded.promise);
+		// The precondition `plan_approve` actually relies on.
+		expect(created.isStreaming).toBe(false);
 
 		// The turn opened with the plan-mode context before the task (the CLI's
 		// `/plan <prompt>` prompt-path injection, mirrored on the steer path).
@@ -215,5 +263,8 @@ describe("web-gateway plan chain", () => {
 
 		const finalState = (await wrapper.send({ type: "get_state" })) as PlanFlowState;
 		expect(finalState.planModeEnabled).toBe(false);
-	});
+		// The turn-end wait above carries its own 20s deadline and fails with the observed event
+		// sequence; this test's own budget has to sit above that, or Bun kills the test first and
+		// the diagnostic never prints. Bun's 5s default is below the wait, not above it.
+	}, 25_000);
 });
