@@ -393,6 +393,13 @@ fn body_region(ui: &mut Ui, shell: &mut Shell) {
 }
 
 fn pane_region(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
+	// A click anywhere on the pane focuses it: the focused pane is where the
+	// keyboard types, and its live terminal receives the keys.
+	let focus =
+		ui.interact(ui.max_rect(), ui.id().with(("pane-focus", pane.id.as_str())), Sense::click());
+	if focus.clicked() {
+		shell.state.tui_pane = Some(pane.id.clone());
+	}
 	let rect = ui.max_rect();
 	ui.painter()
 		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);

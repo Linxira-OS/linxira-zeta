@@ -654,6 +654,40 @@ impl Shell {
 	/// Poll the live PTYs: repaint on new output (foreground only — the
 	/// background state draws no frames of its own) and notify when a terminal
 	/// ends.
+
+	/// Type into the focused terminal pane. `true` means this frame's keys were
+	/// consumed, so the global hotkeys must not also see them.
+	///
+	/// The focused pane is the one a click last selected (`state.tui_pane`),
+	/// the same one the TUI view draws a focus ring around. A modal or a text
+	/// field keeps priority; the background state has no keyboard at all.
+	pub fn forward_terminal_input(&mut self, ctx: &Context) -> bool {
+		if self.lifecycle.background || self.state.modal_open() || ctx.wants_keyboard_input() {
+			return false;
+		}
+		let Some(pane_id) = self.state.tui_pane.clone() else {
+			return false;
+		};
+		let Some(tab) = self
+			.state
+			.visible_panes()
+			.iter()
+			.find(|pane| pane.id == pane_id)
+			.and_then(|pane| pane.active_tab().map(|tab| tab.id.clone()))
+		else {
+			return false;
+		};
+		if !self.live.contains(&tab) {
+			return false;
+		}
+		let bytes = ctx.input(|input| live::bytes_for_events(&input.events));
+		if bytes.is_empty() {
+			return false;
+		}
+		self.live.send_bytes(&tab, &bytes);
+		true
+	}
+
 	pub fn poll_live(&mut self, ctx: &Context) {
 		let mut ended: Vec<String> = Vec::new();
 		for event in self.live.poll() {
@@ -738,7 +772,9 @@ impl Shell {
 			self.apply_settings(ctx);
 		}
 		self.memory.sample_if_stale();
-		self.handle_keys(ctx);
+		if !self.forward_terminal_input(ctx) {
+			self.handle_keys(ctx);
+		}
 		self.sync_readers();
 		self.detect_idle_panes(ctx);
 		self.poll_live(ctx);

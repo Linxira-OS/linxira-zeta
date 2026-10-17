@@ -153,6 +153,67 @@ impl LiveSessions {
 	}
 }
 
+impl LiveSessions {
+	/// Write raw bytes to a tab's PTY (see [`bytes_for_events`]). No-op when
+	/// the tab has no terminal.
+	pub fn send_bytes(&mut self, tab: &str, bytes: &[u8]) {
+		if let Some(live) = self.tabs.get_mut(tab) {
+			let _ = live.term.send_bytes(bytes);
+		}
+	}
+}
+
+/// The bytes a frame's egui events would type into a terminal.
+///
+/// Printable input arrives as `Event::Text`; keys the PTY cares about (Enter,
+/// Backspace, arrows, Ctrl+letter, …) arrive as `Event::Key`. Plain letters are
+/// **not** mapped from `Key`, so a keystroke is never sent twice.
+pub fn bytes_for_events(events: &[egui::Event]) -> Vec<u8> {
+	let mut out = Vec::new();
+	for event in events {
+		match event {
+			egui::Event::Text(text) => out.extend_from_slice(text.as_bytes()),
+			egui::Event::Key { key, pressed: true, modifiers, .. } => {
+				if let Some(bytes) = key_bytes(*key, *modifiers) {
+					out.extend_from_slice(&bytes);
+				}
+			},
+			_ => {},
+		}
+	}
+	out
+}
+
+fn key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<u8>> {
+	let fixed: &[u8] = match key {
+		egui::Key::Enter => b"\r",
+		egui::Key::Backspace => b"\x7f",
+		egui::Key::Tab => b"\t",
+		egui::Key::Escape => b"\x1b",
+		egui::Key::ArrowUp => b"\x1b[A",
+		egui::Key::ArrowDown => b"\x1b[B",
+		egui::Key::ArrowRight => b"\x1b[C",
+		egui::Key::ArrowLeft => b"\x1b[D",
+		egui::Key::Home => b"\x1b[H",
+		egui::Key::End => b"\x1b[F",
+		egui::Key::PageUp => b"\x1b[5~",
+		egui::Key::PageDown => b"\x1b[6~",
+		egui::Key::Delete => b"\x1b[3~",
+		_ => {
+			// Ctrl+letter is the only modifier chord the PTY protocol encodes
+			// as a single byte (0x01..0x1a). Everything else is left to Text.
+			if modifiers.ctrl && !modifiers.alt {
+				let name = key.name().as_bytes();
+				if name.len() == 1 && name[0].is_ascii_uppercase() {
+					return Some(vec![name[0] & 0x1f]);
+				}
+			}
+			return None;
+		},
+	};
+	Some(fixed.to_vec())
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -204,6 +265,24 @@ mod tests {
 			.map(|(col, row)| buf[(col, row)].symbol().to_owned())
 			.collect();
 		assert!(text.contains("hi"), "the rendered grid carries the child's text: {text:?}");
+	}
+
+	#[test]
+	fn keys_map_to_the_bytes_a_terminal_expects() {
+		let key = |key: egui::Key, modifiers: egui::Modifiers| egui::Event::Key {
+			key,
+			physical_key: None,
+			pressed: true,
+			repeat: false,
+			modifiers,
+		};
+		let text = egui::Event::Text("ls".to_owned());
+		assert_eq!(bytes_for_events(&[text, key(egui::Key::Enter, egui::Modifiers::NONE)]), b"ls\r");
+		assert_eq!(bytes_for_events(&[key(egui::Key::ArrowUp, egui::Modifiers::NONE)]), b"\x1b[A");
+		let ctrl_c = egui::Modifiers { ctrl: true, command: true, ..Default::default() };
+		assert_eq!(bytes_for_events(&[key(egui::Key::C, ctrl_c)]), vec![0x03]);
+		// A plain letter key is not mapped: Text already carried it.
+		assert!(bytes_for_events(&[key(egui::Key::A, egui::Modifiers::NONE)]).is_empty());
 	}
 
 	#[test]

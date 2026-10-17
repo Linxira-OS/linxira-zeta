@@ -664,6 +664,15 @@ impl Terminal {
         self.send_command(&self.shell_kind.cd_command(path))
     }
 
+    /// Write raw bytes to the PTY (keystrokes, control sequences).
+    ///
+    /// Zeta deviation (2026-10-17): the TUI feeds keys through its own event
+    /// loop; a host that owns the keyboard (the GUI) needs the same seam, so
+    /// the private `send_input` is exposed under a name that says what it is.
+    pub fn send_bytes(&mut self, bytes: &[u8]) -> Result<()> {
+        self.send_input(bytes)
+    }
+
     /// Send a command to the terminal and execute it (adds Enter)
     pub fn send_command(&mut self, command: &str) -> Result<()> {
         self.send_input(command.as_bytes())?;
