@@ -39,7 +39,7 @@ use ratatui::style::{Color, Modifier, Style};
 use termide_config::Config;
 use termide_core::event::PanelEvent;
 use termide_core::key_chord::KeyChord;
-use termide_core::panel::{Panel, RenderContext};
+use termide_core::panel::{Panel, RenderContext, SegmentKind, StatusSegment};
 use termide_panel_editor::{Editor, EditorConfig};
 use termide_panel_git_status::GitStatusPanel;
 use termide_theme::Theme;
@@ -475,7 +475,15 @@ impl Panel for IdePage {
         // Status line: the load failure takes the row when there is one.
         let status = match self.message.as_deref() {
             Some(message) => format!(" {message}"),
-            None => " Ln 1, Col 1   Spaces: 4   UTF-8   LF".to_owned(),
+            None => {
+                let segments = self.status_segments();
+                let joined = segments
+                    .iter()
+                    .map(|segment| segment.text.as_str())
+                    .collect::<Vec<_>>()
+                    .join("   ");
+                format!(" {joined}")
+            }
         };
         buf.set_stringn(
             layout.status.x,
@@ -513,6 +521,24 @@ impl Panel for IdePage {
                 self.absorb(events)
             }
         }
+    }
+
+    fn status_segments(&self) -> Vec<StatusSegment> {
+        // The editor owns the real numbers (Ln/Col, indentation, encoding, EOL);
+        // the page only supplies the empty-page placeholder.
+        if let Some(index) = self.active {
+            if let Some(editor) = self.tabs[index].editor.as_ref() {
+                let segments = editor.status_segments();
+                if !segments.is_empty() {
+                    return segments;
+                }
+            }
+        }
+        vec![StatusSegment {
+            text: "Ln 1, Col 1".to_owned(),
+            kind: SegmentKind::Label,
+            action: None,
+        }]
     }
 
     fn tick(&mut self) -> Vec<PanelEvent> {
@@ -788,6 +814,32 @@ mod tests {
             page.focus,
             Focus::Git,
             "the git pane takes focus above the tree"
+        );
+    }
+
+    #[test]
+    fn the_status_line_reports_the_editors_own_segments() {
+        let dir = std::env::temp_dir().join("panel-ide-tests");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("status.rs");
+        std::fs::write(
+            &path,
+            "let answer = 42;
+",
+        )
+        .expect("write the fixture");
+        let mut page = IdePage::new();
+        page.open(path);
+        let _ = page.handle_key(key(KeyCode::Char('b')));
+        let segments = page.status_segments();
+        let joined = segments
+            .iter()
+            .map(|segment| segment.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            joined.contains("Pos:") && joined.contains("UTF-8"),
+            "the mounted editor contributes its fields: {joined:?}"
         );
     }
 
