@@ -1,3 +1,24 @@
+Zeta is distributed under more than one licence. The directory a file lives in
+decides which licence applies:
+
+    main/                          GNU Affero General Public License v3.0, only
+                                   (full text: main/LICENSE)
+    packages/  crates/  sdk/       MIT
+    termide/  editor/              MIT  (vendored TermIDE: termide/LICENSE)
+    web-ui/  desktop/              MIT
+    docs/  document/  scripts/     MIT
+
+Everything outside main/ is under the MIT licence reproduced below. The
+workbench (main/, the zetawork TUI and GUI and its npm packages) is under
+AGPL-3.0-only; that licence text lives in main/LICENSE and is not repeated here.
+
+Integrated third-party components keep their own licences; NOTICE lists them.
+
+Commercial licensing of the workbench is available by arrangement with the
+maintainers.
+
+--------------------------------------------------------------------------------
+
 MIT License
 
 Copyright (c) 2025 Mario Zechner
