@@ -350,6 +350,10 @@ impl App {
                 self.event_open_git_diff(repo_path, commit_hash, file_path)?;
             }
 
+            PanelEvent::GitCommit { repo_path, message } => {
+                self.event_git_commit(repo_path, message)?;
+            }
+
             PanelEvent::OpenGitLog { repo_path, branch } => {
                 self.handle_open_git_log()?;
                 // The log panel is focused now, found or just created.

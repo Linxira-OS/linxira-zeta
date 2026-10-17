@@ -30,6 +30,7 @@ pub mod left;
 pub mod lifecycle;
 pub mod live;
 pub mod notify;
+pub mod page;
 pub mod picker;
 pub mod right;
 pub mod seed;
@@ -138,6 +139,8 @@ pub struct Shell {
 	pub term_buffers: BufferCache,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
+	/// Per-tab IDE pages (`termide-panel-ide`), rendered like the terminal.
+	pub pages: page::Pages,
 	/// 模型吞吐 has no source; `None` renders as `—`.
 	pub throughput: Option<String>,
 	/// The `+` picker's rows for this host, read once when the picker opens.
@@ -250,6 +253,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			pages: page::Pages::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -299,6 +303,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			pages: page::Pages::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -673,6 +678,25 @@ impl Shell {
 		else {
 			return false;
 		};
+		// An IDE page takes the keys itself: chords go to the page, whose
+		// editor is the same `panel-editor` the TUI runs.
+		let kind = self
+			.state
+			.visible_panes()
+			.iter()
+			.find(|pane| pane.id == pane_id)
+			.and_then(|pane| pane.active_tab())
+			.map(|tab| tab.kind);
+		if kind == Some(state::SessionKind::Ide) {
+			let chords = ctx.input(|input| page::chords_for_events(&input.events));
+			if chords.is_empty() {
+				return false;
+			}
+			for chord in chords {
+				let _ = self.pages.key(&tab, chord);
+			}
+			return true;
+		}
 		if !self.live.contains(&tab) {
 			return false;
 		}

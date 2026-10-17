@@ -326,6 +326,18 @@ impl App {
         Ok(())
     }
 
+    /// Open the standard IDE page (singleton): tabs, the file tree over git,
+    /// and the editor in one fixed layout.
+    pub(super) fn handle_open_ide(&mut self) -> Result<()> {
+        self.close_help_panels();
+
+        if !self.find_and_focus_panel_by_name("ide") {
+            self.add_panel(Box::new(termide_panel_ide::IdePage::new()));
+        }
+        self.auto_save_layout();
+        Ok(())
+    }
+
     /// Open Git Log panel (singleton)
     pub(super) fn handle_open_git_log(&mut self) -> Result<()> {
         self.close_help_panels();

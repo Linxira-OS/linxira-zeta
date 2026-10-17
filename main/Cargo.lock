@@ -701,6 +701,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bb31b46c14244e20ee9984b11bf5c992b91fb6939fea616e3512c8baecdbe5f"
+dependencies = [
+ "memchr",
+ "serde_core",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2383,6 +2393,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
+name = "globset"
+version = "0.4.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07c34a9410465b45bd9787443bc7370f37735bad04b0f0cd57ff1a3186c98988"
+dependencies = [
+ "aho-corasick",
+ "bstr",
+ "log",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "gloo-timers"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2844,6 +2867,22 @@ checksum = "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714"
 dependencies = [
  "icu_normalizer",
  "icu_properties",
+]
+
+[[package]]
+name = "ignore"
+version = "0.4.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00b69833ed729dc5aa7d19541d96d6cf8e9137194207a04916d658e43168402f"
+dependencies = [
+ "crossbeam-deque",
+ "globset",
+ "log",
+ "memchr",
+ "regex-automata",
+ "same-file",
+ "walkdir",
+ "winapi-util",
 ]
 
 [[package]]
@@ -6137,6 +6176,69 @@ dependencies = [
 ]
 
 [[package]]
+name = "termide-panel-file-manager"
+version = "0.41.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "crossterm",
+ "dirs 6.0.0",
+ "dunce",
+ "glob",
+ "libc",
+ "log",
+ "ratatui",
+ "regex",
+ "termide-config",
+ "termide-core",
+ "termide-git",
+ "termide-i18n",
+ "termide-keyboard",
+ "termide-modal",
+ "termide-state",
+ "termide-system-monitor",
+ "termide-theme",
+ "termide-ui",
+ "termide-vfs",
+ "termide-walk",
+ "unicode-segmentation",
+ "unicode-width",
+]
+
+[[package]]
+name = "termide-panel-git-status"
+version = "0.41.0"
+dependencies = [
+ "crossterm",
+ "ratatui",
+ "termide-config",
+ "termide-core",
+ "termide-git",
+ "termide-i18n",
+ "termide-modal",
+ "termide-state",
+ "termide-system-monitor",
+ "termide-theme",
+ "termide-ui",
+ "termide-ui-render",
+ "unicode-width",
+]
+
+[[package]]
+name = "termide-panel-ide"
+version = "0.41.0"
+dependencies = [
+ "crossterm",
+ "ratatui",
+ "termide-config",
+ "termide-core",
+ "termide-panel-editor",
+ "termide-panel-file-manager",
+ "termide-panel-git-status",
+ "termide-theme",
+]
+
+[[package]]
 name = "termide-panel-outline"
 version = "0.41.0"
 dependencies = [
@@ -6260,6 +6362,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "termide-ui-render"
+version = "0.41.0"
+dependencies = [
+ "chrono",
+ "ratatui",
+ "termide-config",
+ "termide-core",
+ "termide-git",
+ "termide-i18n",
+ "termide-panel-editor",
+ "termide-panel-file-manager",
+ "termide-panel-terminal",
+ "termide-system-monitor",
+ "termide-theme",
+ "termide-ui",
+ "unicode-width",
+]
+
+[[package]]
 name = "termide-vfs"
 version = "0.41.0"
 dependencies = [
@@ -6282,6 +6403,13 @@ dependencies = [
  "webpki-roots",
  "windows-sys 0.59.0",
  "zip",
+]
+
+[[package]]
+name = "termide-walk"
+version = "0.41.0"
+dependencies = [
+ "ignore",
 ]
 
 [[package]]
@@ -8526,6 +8654,7 @@ name = "zetawork-gui"
 version = "1.2.1"
 dependencies = [
  "chrono",
+ "crossterm",
  "eframe",
  "egui",
  "png",
@@ -8534,6 +8663,7 @@ dependencies = [
  "sysinfo",
  "tauri-winrt-notification",
  "termide-core",
+ "termide-panel-ide",
  "termide-panel-terminal",
  "tray-icon",
  "unicode-width",
