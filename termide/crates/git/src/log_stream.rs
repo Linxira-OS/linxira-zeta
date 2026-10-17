@@ -47,6 +47,19 @@ impl LogStream {
     /// `--graph`. Nothing is read until [`LogStream::request`].
     #[must_use]
     pub fn start(repo: &Path, branch: Option<&str>, unicode_graph: bool) -> Self {
+        Self::start_filtered(repo, branch, unicode_graph, None)
+    }
+
+    /// The same stream narrowed to commits that touched `path` — a file's own
+    /// history (`git log -- <path>`), which is what the IDE page's per-file
+    /// view asks for.
+    #[must_use]
+    pub fn start_filtered(
+        repo: &Path,
+        branch: Option<&str>,
+        unicode_graph: bool,
+        path: Option<&Path>,
+    ) -> Self {
         let (requests, wanted) = mpsc::channel::<usize>();
         let (sender, chunks) = mpsc::channel();
         let child = Arc::new(Mutex::new(None));
@@ -63,6 +76,11 @@ impl LogStream {
         }
         if let Some(branch) = branch {
             args.push(branch);
+        }
+        let path_str = path.map(|path| path.to_string_lossy().into_owned());
+        if let Some(path) = path_str.as_deref() {
+            args.push("--");
+            args.push(path);
         }
         let spawned = hardened_git(repo, &args)
             .stdout(Stdio::piped())
@@ -84,7 +102,12 @@ impl LogStream {
         let count_repo = repo.to_path_buf();
         let count_sender = sender.clone();
         std::thread::spawn(move || {
-            let total = git_command_stdout(&count_repo, &["rev-list", "--count", &revision])
+            let mut count_args = vec!["rev-list", "--count", &revision];
+            if let Some(path) = path_str.as_deref() {
+                count_args.push("--");
+                count_args.push(path);
+            }
+            let total = git_command_stdout(&count_repo, &count_args)
                 .and_then(|out| out.trim().parse().ok());
             if let Some(total) = total {
                 let _ = count_sender.send(LogChunk::Total(total));
@@ -280,6 +303,44 @@ mod tests {
             .output()
             .unwrap();
         assert!(out.status.success(), "git {args:?}: {out:?}");
+    }
+
+    #[test]
+    fn a_path_filter_narrows_the_history() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path();
+        git(path, &["init", "-q", "-b", "main"]);
+        std::fs::write(path.join("a.txt"), "1").unwrap();
+        git(path, &["add", "a.txt"]);
+        git(path, &["commit", "-q", "-m", "a1"]);
+        std::fs::write(path.join("b.txt"), "1").unwrap();
+        git(path, &["add", "b.txt"]);
+        git(path, &["commit", "-q", "-m", "b1"]);
+        std::fs::write(path.join("a.txt"), "2").unwrap();
+        git(path, &["add", "a.txt"]);
+        git(path, &["commit", "-q", "-m", "a2"]);
+
+        let stream = LogStream::start_filtered(path, None, true, Some(Path::new("a.txt")));
+        stream.request(10);
+        let start = Instant::now();
+        let mut commits = 0;
+        let mut done = false;
+        while !done && start.elapsed() < Duration::from_secs(20) {
+            match stream.try_recv() {
+                Some(LogChunk::Rows {
+                    commits: n,
+                    done: d,
+                    ..
+                }) => {
+                    commits += n;
+                    done = d;
+                }
+                Some(LogChunk::Total(_)) => {}
+                None => std::thread::sleep(Duration::from_millis(20)),
+            }
+        }
+        assert!(done, "the stream ends");
+        assert_eq!(commits, 2, "only the commits that touched a.txt");
     }
 
     /// A repository with `n` commits on `main`, a side branch merged back in
