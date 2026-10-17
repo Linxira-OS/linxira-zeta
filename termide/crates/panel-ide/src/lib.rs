@@ -800,6 +800,36 @@ mod tests {
     }
 
     #[test]
+    fn the_page_draws_its_chrome_into_a_buffer() {
+        use termide_core::panel::{PanelConfig, ThemeColors};
+
+        let mut page = IdePage::new();
+        page.open(PathBuf::from("a.rs"));
+        let area = Rect::new(0, 0, 80, 24);
+        let mut buf = Buffer::empty(area);
+        let theme = ThemeColors::default();
+        let config = PanelConfig::default();
+        let ctx = RenderContext {
+            theme: &theme,
+            config: &config,
+            is_focused: true,
+            panel_index: 0,
+            terminal_width: area.width,
+            terminal_height: area.height,
+            border_right_x: None,
+            border_bottom_y: None,
+        };
+        page.render(area, &mut buf, &ctx);
+
+        let tabs: String = (0..20).map(|x| buf[(x, 0)].symbol().to_string()).collect();
+        assert!(tabs.contains("a.rs"), "the tab strip names the open file: {tabs:?}");
+        let divider: String = (1..10).map(|y| buf[(30, y)].symbol().to_string()).collect();
+        assert!(divider.contains("\u{2502}"), "the left divider is drawn: {divider:?}");
+        let status: String = (0..24).map(|x| buf[(x, 23)].symbol().to_string()).collect();
+        assert!(status.contains("Ln"), "the status row is drawn: {status:?}");
+    }
+
+    #[test]
     fn clicking_the_git_pane_focuses_it() {
         let mut page = IdePage::new();
         let layout = layout(AREA, DEFAULT_LEFT, DEFAULT_GIT);
