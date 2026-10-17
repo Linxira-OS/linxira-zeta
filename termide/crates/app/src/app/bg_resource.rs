@@ -70,14 +70,13 @@ impl App {
                     self.state.needs_redraw = true;
                 }
             }
-            Some(ActiveModal::InfoAction(ref mut modal)) => {
+            Some(ActiveModal::InfoAction(ref mut modal))
                 // Update spinner only if operation is still ongoing
-                if modal.is_operation_in_progress() {
+                if modal.is_operation_in_progress() => {
                     modal.advance_spinner();
                     self.state.last_spinner_update = Some(std::time::Instant::now());
                     self.state.needs_redraw = true;
                 }
-            }
             _ => {}
         }
 

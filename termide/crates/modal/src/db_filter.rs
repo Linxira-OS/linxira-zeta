@@ -346,13 +346,12 @@ impl Modal for DbFilterModal {
                     }
                 }
             }
-            KeyCode::Backspace => {
-                if !self.buttons_focused() && self.field == Field::Value {
+            KeyCode::Backspace
+                if !self.buttons_focused() && self.field == Field::Value => {
                     if let Some(r) = self.rows.get_mut(self.focus) {
                         r.value.pop();
                     }
                 }
-            }
             _ => {}
         }
         Ok(None)

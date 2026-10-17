@@ -440,12 +440,11 @@ impl App {
                     self.state.ui.nested_submenu.selected = count.saturating_sub(1);
                 }
             }
-            KeyCode::Down => {
-                if count > 0 {
+            KeyCode::Down
+                if count > 0 => {
                     self.state.ui.nested_submenu.selected =
                         (self.state.ui.nested_submenu.selected + 1) % count;
                 }
-            }
             _ => {}
         }
     }

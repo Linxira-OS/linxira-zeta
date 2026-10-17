@@ -184,10 +184,9 @@ fn parse_note(seq: &mut Sequence, rest: &str) -> Option<SeqEvent> {
         (NotePlacement::LeftOf, a)
     } else if let Some(a) = rest.strip_prefix("right of ") {
         (NotePlacement::RightOf, a)
-    } else if let Some(a) = rest.strip_prefix("over ") {
-        (NotePlacement::Over, a)
     } else {
-        return None;
+        let a = rest.strip_prefix("over ")?;
+        (NotePlacement::Over, a)
     };
     let (names, text) = after.split_once(':')?;
     let targets: Vec<usize> = names
