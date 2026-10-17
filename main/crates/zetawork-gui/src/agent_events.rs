@@ -6,9 +6,11 @@
 //! falls back to read-to-EOF for a plain one.
 //!
 //! The thread owns one connection: it streams frames until the server ends the
-//! stream, then sends [`Event::Closed`] and exits. Reconnect/backoff belongs to
-//! the pane's tick (it can tell Closed from a live stream), so this module never
-//! sleeps.
+//! stream, then sends [`Event::Closed`] and exits. A connection that cannot be
+//! made (or breaks mid-read) sends [`Event::Failed`] with the transport's own
+//! message instead, so the pane can name the reason. Reconnect/backoff belongs
+//! to the pane's tick (it can tell Closed from a live stream), so this module
+//! never sleeps.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
@@ -21,9 +23,12 @@ use crate::agent::Frame;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Event {
 	Frame(Frame),
-	/// The stream ended (server close, error, or a non-200 answer). The pane
-	/// treats this as "disconnected" and backs off before reconnecting.
+	/// The stream ended after the request was accepted (server close or a
+	/// non-200 answer). The pane treats this as "disconnected".
 	Closed,
+	/// The connection itself failed — refused, unresolvable, or cut mid-flight.
+	/// Carries the transport's own message so the pane can show a reason.
+	Failed(String),
 }
 
 /// A live per-session event stream.
@@ -46,9 +51,15 @@ impl AgentEvents {
 		let (sender, events) = channel();
 		let session = session.to_owned();
 		thread::spawn(move || {
-			let _ = stream(&address, &session, &sender);
-			// A closed receiver means the pane is gone; nothing to report then.
-			let _ = sender.send(Event::Closed);
+			match stream(&address, &session, &sender) {
+				Ok(()) => {
+					// A closed receiver means the pane is gone; nothing to report then.
+					let _ = sender.send(Event::Closed);
+				},
+				Err(error) => {
+					let _ = sender.send(Event::Failed(error.to_string()));
+				},
+			}
 		});
 		Ok(Self { events })
 	}
@@ -245,6 +256,10 @@ mod tests {
 			socket
 				.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
 				.expect("answer");
+			// Keep the socket alive long enough for the client to read the
+			// answer: a bare drop on Windows can reset the connection first.
+			let _ = socket.shutdown(std::net::Shutdown::Write);
+			thread::sleep(std::time::Duration::from_millis(200));
 		});
 		let seen = collect(&address);
 		assert_eq!(seen, vec![Event::Closed]);

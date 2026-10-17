@@ -331,10 +331,10 @@ fn the_picker_lists_the_hosts_shells_and_every_page() {
 		.iter()
 		.filter(|entry| matches!(entry, zetawork_gui::state::PickerEntry::Page(_)))
 		.collect();
-	// The pages are exactly the four the GUI draws itself, in the spec's order.
+	// The pages are exactly the five the GUI draws itself, in the spec's order.
 	assert_eq!(
 		pages.iter().map(|entry| entry.title()).collect::<Vec<_>>(),
-		vec!["编辑器", "差异比较器", "Git", "zetaide"]
+		vec!["编辑器", "差异比较器", "Git", "zetaide", "Agent 会话"]
 	);
 	// Whatever this host has, every shell row points at a file that exists and
 	// is classified as a shell (never a page).
@@ -672,4 +672,66 @@ fn the_modal_and_the_view_switch_keep_their_order_under_escape() {
 	assert_eq!(shell.state.view, ViewMode::Tui);
 	assert!(shell.state.escape(), "then it leaves the TUI view");
 	assert_eq!(shell.state.view, ViewMode::Gui);
+}
+
+/// One fake SSE endpoint for the shell-level agent test: a plain body with
+/// `frames`, half-closed after the write so the reader sees the stream end.
+fn fake_agent_serve(frames: &'static str) -> String {
+	use std::io::{Read, Write};
+	use std::net::{Shutdown, TcpListener};
+
+	let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+	let address = listener.local_addr().expect("addr").to_string();
+	std::thread::spawn(move || {
+		let (mut socket, _) = listener.accept().expect("accept");
+		let mut request = [0u8; 1024];
+		let _ = socket.read(&mut request);
+		let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n";
+		socket.write_all(head.as_bytes()).expect("head");
+		socket.write_all(frames.as_bytes()).expect("frames");
+		let _ = socket.shutdown(Shutdown::Write);
+		std::thread::sleep(std::time::Duration::from_millis(200));
+	});
+	format!("http://{address}")
+}
+
+#[test]
+fn an_agent_ui_request_raises_a_notification_through_the_shell() {
+	use std::time::{Duration, Instant};
+
+	use zetawork_gui::notify::Trigger;
+	use zetawork_gui::settings::NotifyPolicy;
+	use zetawork_gui::state::SessionKind;
+
+	let origin = fake_agent_serve(
+		"data: {\"type\":\"extension_ui_request\",\"id\":\"r1\",\"method\":\"confirm\",\"title\":\"允许执行？\"}\n\n",
+	);
+	let mut shell = shell();
+	shell.settings.notify = NotifyPolicy::Always;
+	let ctx = egui::Context::default();
+	let pane_id = shell.state.visible_panes()[0].id.clone();
+	let notice = shell.state.open_page(&pane_id, SessionKind::Agent);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tab = shell.state.visible_panes()[0]
+		.active_tab()
+		.expect("the agent tab is active")
+		.id
+		.clone();
+	shell
+		.agents
+		.connect(&tab, &origin, "s1")
+		.expect("reader thread");
+	let deadline = Instant::now() + Duration::from_secs(3);
+	let mut seen = None;
+	while Instant::now() < deadline {
+		shell.poll_agents(&ctx);
+		if let Some(trace) = shell.last_trace.take() {
+			seen = Some(trace.message.trigger);
+			break;
+		}
+		std::thread::sleep(Duration::from_millis(10));
+	}
+	assert_eq!(seen, Some(Trigger::NeedsInput));
+	assert!(shell.state.needs_redraw, "the poll asks for a repaint");
+	assert!(shell.agents.pane(&tab).expect("pane").awaiting_input());
 }

@@ -21,6 +21,7 @@
 
 pub mod agent;
 pub mod agent_events;
+pub mod agent_sessions;
 pub mod blit;
 pub mod center;
 pub mod chrome;
@@ -140,6 +141,8 @@ pub struct Shell {
 	pub term_buffers: BufferCache,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
+	/// Every [`state::SessionKind::Agent`] tab's gateway link ([`agent_sessions`]).
+	pub agents: agent_sessions::AgentSessions,
 	/// 模型吞吐 has no source; `None` renders as `—`.
 	pub throughput: Option<String>,
 	/// The `+` picker's rows for this host, read once when the picker opens.
@@ -252,6 +255,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			agents: agent_sessions::AgentSessions::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -301,6 +305,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			agents: agent_sessions::AgentSessions::default(),
 			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
@@ -653,10 +658,6 @@ impl Shell {
 		}
 	}
 
-	/// Poll the live PTYs: repaint on new output (foreground only — the
-	/// background state draws no frames of its own) and notify when a terminal
-	/// ends.
-
 	/// Type into the focused terminal pane. `true` means this frame's keys were
 	/// consumed, so the global hotkeys must not also see them.
 	///
@@ -690,6 +691,9 @@ impl Shell {
 		true
 	}
 
+	/// Poll the live PTYs: repaint on new output (foreground only — the
+	/// background state draws no frames of its own) and notify when a terminal
+	/// ends.
 	pub fn poll_live(&mut self, ctx: &Context) {
 		let mut ended: Vec<String> = Vec::new();
 		for event in self.live.poll() {
@@ -711,6 +715,53 @@ impl Shell {
 				target: self.state.active_workspace.clone(),
 			};
 			let _ = self.raise_notification(ctx, message);
+		}
+	}
+
+	/// Drain every agent SSE link once.
+	///
+	/// A pane is created for each open
+	/// [`state::SessionKind::Agent`] tab and forgotten when its tab closes —
+	/// across every project and workspace, so switching away does not tear the
+	/// link down. Frames go through the reducer
+	/// ([`agent::SessionView::apply`]); its `Notify` effects become the same
+	/// [`notify::Message`]s the rest of the shell raises, so the delivery chain
+	/// (系统通知 → IM → 状态栏留痕) is unchanged.
+	///
+	/// The reader threads are the only I/O; this method never connects or
+	/// blocks. A live link schedules a slow repaint so frames arriving while
+	/// the user is idle still reach the pane.
+	pub fn poll_agents(&mut self, ctx: &Context) {
+		let open: Vec<String> = self
+			.state
+			.projects
+			.iter()
+			.flat_map(|project| project.workspaces.iter())
+			.flat_map(|workspace| workspace.panes.iter())
+			.flat_map(|pane| pane.tabs.iter())
+			.filter(|tab| tab.kind == state::SessionKind::Agent)
+			.map(|tab| tab.id.clone())
+			.collect();
+		self.agents.retain(&open);
+		for tab in &open {
+			self.agents.ensure(tab);
+		}
+		for update in self.agents.poll() {
+			match &update.effect {
+				agent::Effect::Repaint => self.state.needs_redraw = true,
+				agent::Effect::Notify { .. } => {
+					if let Some(message) = update.notification(self.state.active_workspace.clone()) {
+						let _ = self.raise_notification(ctx, message);
+					}
+					self.state.needs_redraw = true;
+				},
+				// The pane is a viewer: `Send` (the reducer's `get_state` after
+				// `connected`) and `Reconnect` have no writer on this side.
+				agent::Effect::Send(_) | agent::Effect::Reconnect => {},
+			}
+		}
+		if self.agents.is_watching() {
+			ctx.request_repaint_after(std::time::Duration::from_millis(250));
 		}
 	}
 
@@ -758,6 +809,13 @@ impl Shell {
 		}
 		if polled.quitting {
 			return;
+		}
+		// Agent panes are polled in the background too: "needs input" and "the
+		// run finished" are exactly the edges a hidden window exists to tell the
+		// user about. The round trip is non-blocking (`try_iter`).
+		self.poll_agents(ctx);
+		if std::mem::take(&mut self.state.needs_redraw) {
+			ctx.request_repaint();
 		}
 		if self.lifecycle.background {
 			// 后台态: no frames of its own to draw, so the terminal blit and

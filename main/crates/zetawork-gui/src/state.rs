@@ -162,9 +162,9 @@ impl RightTab {
 /// What a session tab renders.
 ///
 /// 终端 is the default: a new 大标签页 and a new pane both open one. The other
-/// four are pages the GUI draws itself (R23) — 编辑器, 差异比较器 and Git read real
+/// five are pages the GUI draws itself (R23) — 编辑器, 差异比较器 and Git read real
 /// data; zetaide is the termide panel editor, which this build does not host
-/// yet and says so on the page.
+/// yet and says so on the page; Agent 会话 reads a gateway session's SSE stream.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SessionKind {
 	/// A terminal page. The shell it would run is recorded on the tab.
@@ -177,11 +177,17 @@ pub enum SessionKind {
 	Git,
 	/// `zetaide` — the termide panel editor (R23: the editor the TUI uses).
 	Ide,
+	/// A zetacode serve agent session, read through its SSE endpoint.
+	///
+	/// The gateway owns the session; this page is a viewer that also raises
+	/// the **needs input** and **run finished** notifications
+	/// ([`crate::agent_sessions`]).
+	Agent,
 }
 
 impl SessionKind {
 	/// The pages the `+` picker offers, in the spec's order.
-	pub const PAGES: [Self; 4] = [Self::Editor, Self::Diff, Self::Git, Self::Ide];
+	pub const PAGES: [Self; 5] = [Self::Editor, Self::Diff, Self::Git, Self::Ide, Self::Agent];
 
 	/// The kind's own name, as the picker and the tab tooltips spell it.
 	pub fn label(self) -> &'static str {
@@ -191,6 +197,7 @@ impl SessionKind {
 			Self::Diff => "差异比较器",
 			Self::Git => "Git",
 			Self::Ide => "zetaide",
+			Self::Agent => "Agent 会话",
 		}
 	}
 
@@ -202,6 +209,7 @@ impl SessionKind {
 			Self::Diff => "改动",
 			Self::Git => "Git",
 			Self::Ide => "zetaide",
+			Self::Agent => "Agent",
 		}
 	}
 
@@ -213,6 +221,7 @@ impl SessionKind {
 			Self::Diff => "git diff --no-color HEAD（只读）",
 			Self::Git => "git status / log（只读）",
 			Self::Ide => "termide panel-editor（本 crate 尚未链接）",
+			Self::Agent => "zetacode serve 的 SSE 会话流（/api/agent/<id>/events）",
 		}
 	}
 }
@@ -524,6 +533,10 @@ pub struct AppState {
 	usage_open: bool,
 	/// The status bar is drawn; 关闭 collapses it.
 	statusbar_open: bool,
+	/// A background producer (the agent SSE poll) changed what the frame would
+	/// draw since the last tick. The shell consumes it, requests a repaint and
+	/// clears it.
+	pub needs_redraw: bool,
 	/// Monotonic id source for workspaces, panes and session tabs.
 	next_id: u64,
 }
@@ -552,6 +565,7 @@ impl Default for AppState {
 			settings_open: false,
 			usage_open: false,
 			statusbar_open: true,
+			needs_redraw: false,
 			next_id: 1,
 		}
 	}

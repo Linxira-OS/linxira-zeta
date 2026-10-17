@@ -630,6 +630,50 @@ fn pane_lines(
 			}
 			lines
 		},
+		crate::state::SessionKind::Agent => {
+			let mut lines: Vec<Line<'static>> = Vec::new();
+			match shell.agents.pane(tab_id) {
+				Some(pane) => {
+					lines.push(Line::from(Span::styled(
+						format!("Agent 会话 · {}", pane.session.as_deref().unwrap_or("未连接")),
+						Style::new().fg(ACCENT_2),
+					)));
+					let ink = if matches!(pane.link, crate::agent_sessions::Link::Failed(_)) {
+						DEL
+					} else {
+						TEXT_2
+					};
+					lines.push(Line::from(Span::styled(
+						format!("状态：{}", pane.status_line()),
+						Style::new().fg(ink),
+					)));
+					if let Some(reason) = pane.error.as_deref() {
+						lines.push(Line::from(Span::styled(
+							format!("原因：{reason}"),
+							Style::new().fg(ink),
+						)));
+					}
+					if let Some(summary) = pane.request_summary() {
+						lines.push(Line::from(Span::styled(
+							format!("请求：{summary}"),
+							Style::new().fg(ACCENT),
+						)));
+					}
+					let start = pane.view.rows.len().saturating_sub(8);
+					for row in &pane.view.rows[start..] {
+						lines.push(Line::from(Span::styled(
+							format!("  {}", row.text),
+							Style::new().fg(TEXT_3),
+						)));
+					}
+				},
+				None => lines.push(Line::from(Span::styled(
+					"Agent 页面尚未初始化（打开一个 Agent 会话子页）",
+					Style::new().fg(TEXT_3),
+				))),
+			}
+			lines
+		},
 		// R23: the terminal form's editor is zetaide. This view draws what the
 		// page is, since hosting the panel needs a terminal host it has not got.
 		crate::state::SessionKind::Ide => vec![

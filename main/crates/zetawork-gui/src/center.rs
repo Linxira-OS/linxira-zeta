@@ -14,6 +14,8 @@
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::Shell;
+use crate::agent::RowKind;
+use crate::agent_sessions::{EMPTY_HINT, Link};
 use crate::blit::{BufferCache, GridMetrics, paint_buffer_with, paint_cursor};
 use crate::git::DiffKind;
 use crate::icons::{Icon, icon_button, paint};
@@ -427,6 +429,7 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 			SessionKind::Diff => Icon::Diff,
 			SessionKind::Git => Icon::GitBranch,
 			SessionKind::Ide => Icon::Term,
+			SessionKind::Agent => Icon::History,
 		};
 		let is_active = tab.id == pane.active;
 		let text_width = (display_cols(&tab.title) as f32 * 7.2).min(120.0);
@@ -533,6 +536,7 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		SessionKind::Diff => diff_body(ui, shell, pane),
 		SessionKind::Git => crate::right::git_panel(ui, shell, pane.id.as_str()),
 		SessionKind::Ide => ide_body(ui, shell, &tab),
+		SessionKind::Agent => agent_body(ui, shell, &tab),
 	}
 }
 
@@ -1030,6 +1034,130 @@ fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str) {
 	let galley = ui.painter().layout_no_wrap(text, font, ink);
 	ui.painter()
 		.galley(pos2(row.min.x + 28.0, row.center().y - galley.size().y / 2.0), galley, ink);
+}
+
+/// An Agent 会话 page: the gateway session id, its busy state, the last
+/// `extension_ui_request` and the transcript the reducer built.
+///
+/// The page is a **viewer**: it never writes to the session, and the PTY path
+/// is untouched. The connection is opened from here, but the dial happens on
+/// the SSE reader's thread, so a serve that is down is reported in the body
+/// instead of freezing the frame.
+fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
+	let rect = ui.max_rect();
+	ui.painter()
+		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 34.0));
+	ui.painter()
+		.rect_filled(head, CornerRadius::ZERO, theme::PANEL_2);
+	ui.painter().line_segment(
+		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
+		Stroke::new(1.0, theme::BORDER),
+	);
+	let origin = shell.stats.origin().to_owned();
+	let pane = shell.agents.ensure(&tab.id);
+	let title = match pane.session.as_deref() {
+		Some(session) => format!("Agent · {session}"),
+		None => "Agent 会话".to_owned(),
+	};
+	truncated_mono(
+		ui,
+		pos2(head.min.x + 10.0, head.center().y),
+		&title,
+		11.0,
+		theme::ACCENT_2,
+		head.width() - 200.0,
+	);
+	let (status, ink) = match &pane.link {
+		Link::Live if pane.view.running => ("running".to_owned(), theme::ADD),
+		Link::Live => ("not-running".to_owned(), theme::TEXT_3),
+		Link::Connecting => (pane.link.label().to_owned(), theme::WARN),
+		Link::Failed(_) => (pane.link.label().to_owned(), theme::DEL),
+		Link::Detached | Link::Ended => (pane.link.label().to_owned(), theme::TEXT_3),
+	};
+	ui.painter().text(
+		pos2(head.max.x - 10.0, head.center().y),
+		egui::Align2::RIGHT_CENTER,
+		status,
+		egui::FontId::new(11.0, egui::FontFamily::Monospace),
+		ink,
+	);
+
+	let body = Rect::from_min_max(pos2(rect.min.x, head.max.y), rect.max);
+	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(12.0)));
+	child.spacing_mut().item_spacing = vec2(8.0, 6.0);
+
+	// The session id is user-supplied: the gateway knows it, this shell does
+	// not guess it.
+	child.horizontal(|ui| {
+		ui.label(egui::RichText::new("会话 id").color(theme::TEXT_3));
+		ui.add(
+			egui::TextEdit::singleline(&mut pane.draft)
+				.desired_width(260.0)
+				.font(egui::FontId::new(11.5, egui::FontFamily::Monospace))
+				.hint_text("agent session id"),
+		);
+		if ui.button("连接").clicked() {
+			let draft = pane.draft.clone();
+			let _ = pane.connect(&origin, &draft);
+		}
+		if matches!(pane.link, Link::Live | Link::Connecting) && ui.button("断开").clicked() {
+			pane.disconnect();
+		}
+	});
+
+	if let Some(reason) = pane.error.as_deref() {
+		let ink = if matches!(pane.link, Link::Failed(_)) {
+			theme::DEL
+		} else {
+			theme::TEXT_3
+		};
+		child.label(egui::RichText::new(format!("原因：{reason}")).color(ink));
+	}
+
+	if pane.session.is_none() {
+		empty_note(&mut child, "尚未连接 agent 会话", EMPTY_HINT);
+		return;
+	}
+
+	if let Some(summary) = pane.request_summary() {
+		let (label, ink) = if pane.awaiting_input() {
+			("等待你的输入", theme::WARN)
+		} else {
+			("最近一次请求", theme::TEXT_2)
+		};
+		child.horizontal_wrapped(|ui| {
+			ui.label(egui::RichText::new(label).color(ink).strong());
+			ui.label(egui::RichText::new(summary).color(theme::TEXT_2));
+		});
+	}
+
+	let rows = &pane.view.rows;
+	egui::ScrollArea::vertical()
+		.id_salt(("zetawork-agent", tab.id.as_str()))
+		.auto_shrink([false, false])
+		.show(&mut child, |ui| {
+			if rows.is_empty() {
+				ui.label(
+					egui::RichText::new("还没有会话记录；新的 durable entry 会出现在这里。")
+						.color(theme::TEXT_3),
+				);
+			}
+			for row in rows {
+				let (prefix, ink) = match row.kind {
+					RowKind::User => ("你：", theme::TEXT),
+					RowKind::Assistant => ("助手：", theme::TEXT_2),
+					RowKind::Tool => ("工具：", theme::TEXT_3),
+					RowKind::Error => ("错误：", theme::DEL),
+					RowKind::Notice => ("· ", theme::TEXT_3),
+				};
+				ui.label(
+					egui::RichText::new(format!("{prefix}{}", row.text))
+						.monospace()
+						.color(ink),
+				);
+			}
+		});
 }
 
 /// A `zetaide` page. R23 gives the TUI form of the editor to `zetaide` (the

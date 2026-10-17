@@ -6,12 +6,12 @@
 //! | # | trigger | signal today |
 //! |---|---|---|
 //! | ① | a pane went busy → idle while the window is not in front | **the edge detector is real** ([`crate::lifecycle::BusyEdges`]); no pane has a shell pid yet, so no edge can fire — see [`MISSING_SIGNALS`] |
-//! | ② | a session needs the user | **no signal**: nothing in the GUI's state machine records "waiting for the user", and zetacode's approval events are not wired in. Deliberately not guessed at. |
-//! | ③ | a session failed or ended | **no signal**: there is no session event stream yet. |
+//! | ② | a session needs the user | **the agent SSE stream** ([`crate::agent_events`]): an `extension_ui_request` frame is reduced to `Effect::Notify` by [`crate::agent::SessionView`] |
+//! | ③ | a session failed or ended | **the agent SSE stream's `not-running` edge**, raised as `Trigger::Idle`; a transport failure itself still has no signal ([`MISSING_SIGNALS`]) |
 //!
-//! ② and ③ keep their [`Trigger`] variants and the delivery path they would
-//! take, and are listed in [`MISSING_SIGNALS`] so the shell can *say* they are
-//! missing instead of drawing a control that does nothing.
+//! ② and ③ keep their [`Trigger`] variants and the delivery path they take;
+//! the triggers that still lack a source are listed in [`MISSING_SIGNALS`] so
+//! the shell can *say* so instead of drawing a control that does nothing.
 //!
 //! # The fallback chain
 //!
@@ -53,9 +53,11 @@ pub const MISSING_TARGET: &str =
 pub enum Trigger {
 	/// A pane stopped working while the window was not in front of the user.
 	Idle,
-	/// A session is waiting for the user. **No signal source yet.**
+	/// A session is waiting for the user. Raised by an
+	/// `extension_ui_request` on the agent SSE stream.
 	NeedsInput,
-	/// A session failed or ended. **No signal source yet.**
+	/// A session failed or ended. **The SSE stream raises its finished edge as
+	/// `Idle`; a transport failure has no signal yet.**
 	Failed,
 }
 
@@ -78,13 +80,11 @@ impl Trigger {
 	}
 }
 
-/// The triggers that cannot fire yet, and what each one is waiting for. Drawn in
+/// Why a notification trigger still has no source, when it has none. Drawn in
 /// 设置 → 常规 so the gap is visible in the product rather than only in a commit
 /// message.
-pub const MISSING_SIGNALS: [(Trigger, &str); 2] = [
-	(Trigger::NeedsInput, "GUI 侧还没有「等待用户输入」状态（zetacode 审批事件未接入）"),
-	(Trigger::Failed, "还没有会话事件流（会话失败/结束没有信号源）"),
-];
+pub const MISSING_SIGNALS: [(Trigger, &str); 1] =
+	[(Trigger::Failed, "Agent 事件流的失败/断开还没有通知信号（needs input 与跑完已接 SSE）")];
 
 /// The IM senders the fallback reaches, by the names the user knows them by.
 /// The gateway's `channelId` for the first one is `wechat` — see
@@ -671,13 +671,14 @@ mod tests {
 
 	#[test]
 	fn the_missing_triggers_and_the_missing_target_are_named() {
-		// The two triggers with no signal source are listed, so the settings
-		// surface can say so instead of offering a dead toggle.
-		assert_eq!(MISSING_SIGNALS.len(), 2);
+		// The triggers with no signal source are listed, so the settings
+		// surface can say so instead of offering a dead toggle. NeedsInput is
+		// no longer one of them: the agent SSE stream raises it.
+		assert_eq!(MISSING_SIGNALS.len(), 1);
 		assert!(
 			MISSING_SIGNALS
 				.iter()
-				.any(|(trigger, _)| *trigger == Trigger::NeedsInput)
+				.all(|(trigger, _)| *trigger != Trigger::NeedsInput)
 		);
 		assert!(
 			MISSING_SIGNALS
