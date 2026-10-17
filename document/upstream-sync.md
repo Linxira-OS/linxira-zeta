@@ -162,7 +162,7 @@ two-parent tag merge.
   `v18.11.3` modulo the scope mapping, and the native addon used locally is main's prebuilt
   `win32-x64` binary (the window's `crates/pi-natives` changes are internal — `index.d.ts` is
   unchanged), so CI's source-matched bazel build is the authority.
-- **Dispatch — first run `39028789166`** (`headSha 711a5613643`): **24 jobs green / 4 red / 15
+- **Dispatch — first run `39028789166`** (`headSha 711a5613643`): **14 jobs green / 4 red / 13
   tag-gated skips**. Green includes every native job (`Build native addons (bazel)` + cross targets,
   `Check MODULE.bazel.lock freshness`, `Test TS native/integration packages`), `Validate Rust workspace
   (bazel)`, `Test TS workspace fast`, `Test CLI smoke (TS)`, three coding-agent buckets, termide, web
@@ -190,7 +190,7 @@ two-parent tag merge.
   `i18n-message-references.test`, `i18n-settings-localization.test` and `task-model-param.test` all
   pass (35 + 2 tests).
 - **Dispatch — second run `39032073476`** (head `b37ec9a7c98`; push `711a5613643..b37ec9a7c98`):
-  **25 jobs green / 1 red / 15 tag-gated skips**. Every merge-touched bucket is green — `Lint, type
+  **17 jobs green / 1 red / 13 tag-gated skips**. Every merge-touched bucket is green — `Lint, type
   check & web build`, `Test coding-agent UI/TUI (TS)`, `Test coding-agent native/unit (TS) 1/1`,
   `Test coding-agent runtime/session (TS)`, `Test coding-agent singleton/global-state (TS)`,
   `Test TS workspace fast`, `Test TS native/integration packages`, `Test CLI smoke (TS)`,
@@ -2238,10 +2238,10 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 - In flight: `sync/omp-release/v18.11.3` — merge commit `24c3da1c56b` (parents `5769cf3c771` (main) +
   `96894a6147d` (the v18.11.3 tag)) plus the follow-up commits (the CHANGELOG fold, the Zeta surface
   re-application, the model-argument contract fix, the compat regen, the i18n localization, this
-  ledger). Pushed twice and dispatched twice: run `39028789166` at `711a5613643` (24 green / 4 red — all
+  ledger). Pushed twice and dispatched twice: run `39028789166` at `711a5613643` (14 green / 4 red — all
   four were triaged, three fixed as merge residue, one pre-existing `main/` clippy defect) and run
-  `39032073476` at `b37ec9a7c98` (25 green / 1 red — only the pre-existing `main/` clippy defect /
-  15 tag-gated skips). Its landing on `main` is a maintainer decision and is sequenced with the other
+  `39032073476` at `b37ec9a7c98` (17 green / 1 red — only the pre-existing `main/` clippy defect /
+  13 tag-gated skips). Its landing on `main` is a maintainer decision and is sequenced with the other
   in-flight branches so `main` takes a single push and a single CI run.
 
 ### Zeta-side flake hardening（2026-10-17）
