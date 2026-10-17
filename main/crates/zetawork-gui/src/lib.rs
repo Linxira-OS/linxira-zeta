@@ -19,6 +19,8 @@
 //! transition. What is not: the pane bodies, which are labelled placeholders
 //! naming their future source, and everything that would write to a repository.
 
+pub mod agent;
+pub mod agent_events;
 pub mod blit;
 pub mod center;
 pub mod chrome;
