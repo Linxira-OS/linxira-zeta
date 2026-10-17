@@ -41,6 +41,7 @@ use termide_core::event::PanelEvent;
 use termide_core::key_chord::KeyChord;
 use termide_core::panel::{Panel, RenderContext};
 use termide_panel_editor::{Editor, EditorConfig};
+use termide_panel_git_status::GitStatusPanel;
 use termide_theme::Theme;
 
 /// The tab strip is one row: ` title × `.
@@ -174,8 +175,10 @@ enum Drag {
 pub enum Focus {
     /// The editor area (default).
     Editor,
-    /// The left column (file tree).
+    /// The left column's file tree.
     Left,
+    /// The left column's git pane.
+    Git,
 }
 
 /// The IDE page.
@@ -188,6 +191,8 @@ pub struct IdePage {
     /// The left column's top pane — the file tree by default; replaceable so
     /// the app can mount a search view later and so tests can drive it.
     left: Box<dyn Panel>,
+    /// The left column's lower pane - git status by default.
+    git: Box<dyn Panel>,
     focus: Focus,
     /// The last load failure, drawn in the status line.
     message: Option<String>,
@@ -203,6 +208,9 @@ impl IdePage {
             git_height: DEFAULT_GIT,
             drag: None,
             left: Box::new(termide_panel_file_manager::FileManager::new()),
+            git: Box::new(GitStatusPanel::new(&[
+                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+            ])),
             focus: Focus::Editor,
             message: None,
         }
@@ -212,6 +220,11 @@ impl IdePage {
     /// tests mount a scripted one).
     pub fn set_left(&mut self, panel: Box<dyn Panel>) {
         self.left = panel;
+    }
+
+    /// Replace the git pane (the app points it at the open file's repository).
+    pub fn set_git(&mut self, panel: Box<dyn Panel>) {
+        self.git = panel;
     }
 
     /// Open (or focus) `path` as a tab.
@@ -357,6 +370,7 @@ impl Panel for IdePage {
 
     fn prepare_render(&mut self, theme: &Theme, config: &Arc<Config>) {
         self.left.prepare_render(theme, config);
+        self.git.prepare_render(theme, config);
         for entry in &mut self.tabs {
             if let Some(editor) = entry.editor.as_mut() {
                 editor.prepare_render(theme, config);
@@ -375,6 +389,11 @@ impl Panel for IdePage {
             if tree.height > 0 {
                 self.left.render(tree, buf, ctx);
             }
+        }
+
+        // The git pane, below its divider.
+        if layout.git.height > 0 {
+            self.git.render(layout.git, buf, ctx);
         }
 
         // The active tab's editor, or the empty-page hint.
@@ -481,6 +500,10 @@ impl Panel for IdePage {
                 let events = self.left.handle_key(chord);
                 self.absorb(events)
             }
+            _ if self.focus == Focus::Git => {
+                let events = self.git.handle_key(chord);
+                self.absorb(events)
+            }
             _ => {
                 self.ensure_editor();
                 let events = match self.active_editor_mut() {
@@ -494,6 +517,7 @@ impl Panel for IdePage {
 
     fn tick(&mut self) -> Vec<PanelEvent> {
         let mut events = self.left.tick();
+        events.extend(self.git.tick());
         for entry in &mut self.tabs {
             if let Some(editor) = entry.editor.as_mut() {
                 events.extend(editor.tick());
@@ -512,6 +536,11 @@ impl Panel for IdePage {
                 if layout.left.width > 0 && tree.contains((column, row).into()) {
                     self.focus = Focus::Left;
                     let events = self.left.handle_mouse(event, tree);
+                    return self.absorb(events);
+                }
+                if layout.git.height > 0 && layout.git.contains((column, row).into()) {
+                    self.focus = Focus::Git;
+                    let events = self.git.handle_mouse(event, layout.git);
                     return self.absorb(events);
                 }
                 if layout.editor.contains((column, row).into()) {
@@ -562,6 +591,10 @@ impl Panel for IdePage {
         let layout = layout(panel_area, self.left_width, self.git_height);
         if self.focus == Focus::Left {
             let events = self.left.handle_scroll(delta, layout.tree());
+            return self.absorb(events);
+        }
+        if self.focus == Focus::Git {
+            let events = self.git.handle_scroll(delta, layout.git);
             return self.absorb(events);
         }
         let events = match self.active_editor_mut() {
@@ -737,6 +770,24 @@ mod tests {
         assert!(
             page.message.is_none(),
             "loading a real file reports no failure"
+        );
+    }
+
+    #[test]
+    fn clicking_the_git_pane_focuses_it() {
+        let mut page = IdePage::new();
+        let layout = layout(AREA, DEFAULT_LEFT, DEFAULT_GIT);
+        let down = MouseEvent {
+            kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+            column: layout.git.x + 1,
+            row: layout.git.y + 1,
+            modifiers: KeyModifiers::NONE,
+        };
+        page.handle_mouse(down, AREA);
+        assert_eq!(
+            page.focus,
+            Focus::Git,
+            "the git pane takes focus above the tree"
         );
     }
 

@@ -5591,6 +5591,7 @@ dependencies = [
  "termide-core",
  "termide-panel-editor",
  "termide-panel-file-manager",
+ "termide-panel-git-status",
  "termide-theme",
 ]
 
