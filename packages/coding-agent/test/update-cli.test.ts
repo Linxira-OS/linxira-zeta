@@ -696,11 +696,11 @@ describe("update-cli package manager commands", () => {
 		const legacy = buildBunInstallArgs(
 			"16.3.15",
 			"linux-x64",
-			{ pkg: "@oh-my-pi/pi-coding-agent", natives: "@oh-my-pi/pi-natives" },
+			{ pkg: "@linxiraos/zeta", natives: "@linxiraos/pi-natives" },
 			{ supportsReleaseAgeOverride: false },
 		);
 		expect(legacy).not.toContain("--minimum-release-age=0");
-		expect(legacy).toContain("@oh-my-pi/pi-coding-agent@16.3.15");
+		expect(legacy).toContain("@linxiraos/zeta@16.3.15");
 	});
 
 	it("overrides ambient npm release-age settings with the same key, never with before", () => {

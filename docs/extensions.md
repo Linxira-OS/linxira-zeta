@@ -235,8 +235,8 @@ names are reserved), and `streamSimple` returns the canonical
 `AssistantMessageEventStream`; it does not need to be an HTTP endpoint:
 
 ```ts
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai";
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai";
+import type { ExtensionAPI } from "@linxiraos/zeta";
 
 export default function (pi: ExtensionAPI) {
   pi.registerProvider("local-command", {
@@ -911,7 +911,7 @@ Herdr, CMUX, and Orca are supported; screen and wmux remain recognized by the
 multiplexer taxonomy but are currently unsupported.
 
 Provider-specific session detection is centralized in
-`@oh-my-pi/pi-tui/terminal-multiplexer`, which registers one module per multiplexer.
+`@linxiraos/pi-tui/terminal-multiplexer`, which registers one module per multiplexer.
 `hasTerminalMultiplexerSession(provider, env)` checks explicit session markers, while
 `classifyTerminalMultiplexer(env)` names the multiplexer hosting the process: session
 markers first, then a `tmux`/`screen` `TERM` fallback, then outer applications such as
