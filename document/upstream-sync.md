@@ -189,13 +189,33 @@ two-parent tag merge.
   `command-descriptions.test`, `messages.test`, `i18n-slash-commands.test`,
   `i18n-message-references.test`, `i18n-settings-localization.test` and `task-model-param.test` all
   pass (35 + 2 tests).
-- **Dispatch — second run** (head sha `<pending>`) → run `<pending>` (see below).
+- **Dispatch — second run `39032073476`** (head `b37ec9a7c98`; push `711a5613643..b37ec9a7c98`):
+  **25 jobs green / 1 red / 15 tag-gated skips**. Every merge-touched bucket is green — `Lint, type
+  check & web build`, `Test coding-agent UI/TUI (TS)`, `Test coding-agent native/unit (TS) 1/1`,
+  `Test coding-agent runtime/session (TS)`, `Test coding-agent singleton/global-state (TS)`,
+  `Test TS workspace fast`, `Test TS native/integration packages`, `Test CLI smoke (TS)`,
+  `Validate Rust workspace (bazel)`, both native builds, `Check MODULE.bazel.lock freshness`,
+  `Test main workspace`'s sibling jobs, termide, web/desktop contracts, install smoke and
+  `Web UI build`. The single red is the **same pre-existing `main/` clippy error** from run 1
+  (`main/crates/zetawork-gui/src/lib.rs:656:2`, `clippy::empty-line-after-doc-comments`), which the
+  merge cannot have caused (`git diff 5769cf3c771 HEAD -- main/` is empty and the file's last change is
+  the starting commit). `main/` is Zeta-owned and explicitly out of this sync's write scope; a one-line
+  fix (drop the blank line between the two doc comments) is all it needs, and it belongs to the
+  maintainer's `main` cleanup, not to this branch.
+- **Follow-up commits**: `b37ec9a7c98` (i18n localization + model-argument test wording) and the ledger
+  commit appended after it.
 
 ### Risks / open items
 
-- The three `fetch-binary-dispatch` legs budget ~10 s each on this host. If CI's Linux runner keeps the
-  default 5 s budget they will red there too; the cause would be test-side timing, not the merge (the
-  implementation is upstream's, and no Zeta code touches `web/scrapers`). Watch that job first.
+- **The one red in the authoritative run is pre-existing and outside this branch's write scope**:
+  `Test main workspace (zeta workbench)` → `cargo clippy --workspace --all-targets -- -D warnings` →
+  `main/crates/zetawork-gui/src/lib.rs:656:2` `clippy::empty-line-after-doc-comments` (a doc comment
+  ending at line 656, a blank line at 657, then the `forward_terminal_input` doc). `main/` is untouched
+  by the merge and is a Zeta-owned tree this sync must not edit; it needs a one-line fix on `main`.
+  Every other job in run `39032073476` is green.
+- The three `fetch-binary-dispatch` legs that exceed Bun's default 5 s budget on this Windows host did
+  **not** red CI: both coding-agent buckets that contain them are green in run `39032073476`, so the
+  Linux runner's timing is fine and no test change is needed.
 - `packages/coding-agent/src/tools/approval.ts`'s enum answers are wired end-to-end (dialog, extension
   UI context, `requestApproval` call sites, collab-aware approval), and no boolean-returning
   `ui.approve` assertion remains in the tree. The wire/ACP path still uses its own approval model and
@@ -2217,10 +2237,12 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
   packages, the Cargo workspace and the natives stamp).
 - In flight: `sync/omp-release/v18.11.3` — merge commit `24c3da1c56b` (parents `5769cf3c771` (main) +
   `96894a6147d` (the v18.11.3 tag)) plus the follow-up commits (the CHANGELOG fold, the Zeta surface
-  re-application, the model-argument contract fix, the compat regen, this ledger). Pushed and dispatched
-  once (`gh workflow run ci.yml --ref sync/omp-release/v18.11.3` → run `<pending>`); the run bullet in
-  the entry above is updated when it completes. Its landing on `main` is a maintainer decision and is
-  sequenced with the other in-flight branches so `main` takes a single push and a single CI run.
+  re-application, the model-argument contract fix, the compat regen, the i18n localization, this
+  ledger). Pushed twice and dispatched twice: run `39028789166` at `711a5613643` (24 green / 4 red — all
+  four were triaged, three fixed as merge residue, one pre-existing `main/` clippy defect) and run
+  `39032073476` at `b37ec9a7c98` (25 green / 1 red — only the pre-existing `main/` clippy defect /
+  15 tag-gated skips). Its landing on `main` is a maintainer decision and is sequenced with the other
+  in-flight branches so `main` takes a single push and a single CI run.
 
 ### Zeta-side flake hardening（2026-10-17）
 
