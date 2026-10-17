@@ -77,6 +77,9 @@ fn shoot(shell: &mut Shell, frames: usize) -> Vec<u8> {
 	theme::apply(&ctx, &settings);
 	fonts::install(&ctx, &settings);
 
+	// Render at 2x so the PNG is readable without zooming: the layout keeps the
+	// window's logical size, only the raster is denser.
+	ctx.set_pixels_per_point(2.0);
 	let mut textures = raster::Textures::default();
 	let mut shot = Vec::new();
 	for frame in 0..frames {
@@ -128,7 +131,7 @@ fn gui_mode_screenshot() {
 	workspace_page(&mut shell);
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
-	write("01-gui-mode.png", &bytes);
+	write("01-workspace-two-panes.png", &bytes);
 }
 
 /// `03-settings-modal.png` — the 设置 modal over the GUI view.
@@ -140,7 +143,7 @@ fn settings_modal_screenshot() {
 	shell.state.settings_section = zetawork_gui::settings::Section::Appearance;
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("03-settings-modal.png", &bytes);
+	write("03-appearance-settings.png", &bytes);
 }
 
 /// `04-plus-picker.png` — the `+` picker open over the workspace, listing this
@@ -155,7 +158,7 @@ fn picker_screenshot() {
 	assert!(!shell.picker_entries.is_empty(), "the picker lists something");
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("04-plus-picker.png", &bytes);
+	write("04-new-pane-picker.png", &bytes);
 }
 
 /// `05-editor-diff-git.png` — three panes: the 编辑器 page with a real file open,
@@ -198,7 +201,7 @@ fn gui_pages_screenshot() {
 	shell.state.right_collapsed = false;
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("05-editor-diff-git.png", &bytes);
+	write("05-editor-diff-git-status.png", &bytes);
 }
 
 /// `06-usage-container.png` — the 用量 container: the address the stats page is
@@ -211,7 +214,7 @@ fn usage_container_screenshot() {
 	assert!(shell.state.usage_view_open());
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("06-usage-container.png", &bytes);
+	write("06-context-usage-overlay.png", &bytes);
 }
 
 /// `07-settings-zetacode.png` — the 编辑器 section with the zetacode rows, and
@@ -261,7 +264,7 @@ fn total_panel_screenshot() {
 	);
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("09-total-panel.png", &bytes);
+	write("09-total-panel-projects.png", &bytes);
 }
 
 /// `10-context-page.png` — the right column's 上下文用量 page, which is the
@@ -290,7 +293,7 @@ fn context_page_screenshot() {
 	shell.state.right_collapsed = false;
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("10-context-page.png", &bytes);
+	write("10-sidebar-context.png", &bytes);
 }
 
 /// `11-lifecycle-settings.png` — 设置 → 常规: 关闭窗口时 / 开机自启 / 通知, the
@@ -304,7 +307,7 @@ fn lifecycle_settings_screenshot() {
 	shell.state.settings_section = zetawork_gui::settings::Section::General;
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("11-lifecycle-settings.png", &bytes);
+	write("11-settings-lifecycle.png", &bytes);
 }
 
 /// `12-close-ask.png` — the 每次询问 modal: three buttons and **one** checkbox.
@@ -319,7 +322,7 @@ fn close_ask_screenshot() {
 	shell.lifecycle.ask = Some(zetawork_gui::lifecycle::AskState { remember: true });
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("12-close-ask.png", &bytes);
+	write("12-close-behaviour.png", &bytes);
 }
 
 /// `13-workspace-state-words.png` — the 状态词表 two ways at once: the left

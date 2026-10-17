@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "zetawork — the GUI shell of the Zeta workbench: title bar, big tabs, pane grid, settings + usage modals, GUI/TUI switch"
+description = "zetawork — the GUI shell of the Zeta workbench: title bar, big tabs, pane grid, settings + usage modals"
 publish = false
 
 [[bin]]
