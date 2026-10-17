@@ -5080,6 +5080,7 @@ dependencies = [
  "termide-panel-git-log",
  "termide-panel-git-status",
  "termide-panel-html",
+ "termide-panel-ide",
  "termide-panel-image",
  "termide-panel-markdown",
  "termide-panel-mermaid",
