@@ -118,6 +118,11 @@ two-parent tag merge.
   validator owns the rule (`packages/coding-agent/src/task/index.ts`).
 - `feb03892640` — **compat regen** (`bun run gen:compat`; 1042 rules, 21 classes, 88 catalog providers,
   97 auth providers, 236 files).
+- Sentinel registry — moved the "dispatch must reject a `model`" row from
+  `packages/coding-agent/src/task/index.ts` (Zeta's `rejectSpawnModel`, removed above) to
+  `packages/coding-agent/src/task/seance.ts`'s "`model`/`sourceSession` is only accepted for the `seance`
+  agent" validator. The protected intent is unchanged — a non-seance spawn still cannot choose a model —
+  and the row is updated rather than dropped. `check-zeta-sentinels` remains at 114 sentinels.
 
 ### Checks (local, exit codes)
 
