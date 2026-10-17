@@ -899,6 +899,8 @@ jobs:
       # races the 20 ms pid-poll loop under shard load; pre-existing on main
       # (passes on reruns, with no code path in common). Rerun the shard
       # before investigating.
+      # Same class (2026-10-17): browser-relay-detach (since hardened) and
+      # launch/broker-endpoint-loss — see the concurrency note on the test step.
       strategy:
          fail-fast: false
          matrix:
@@ -911,8 +913,13 @@ jobs:
               targets: linux-x64-baseline linux-x64-modern
               stash: ${{ needs.native_addons.outputs.stash }}
          - name: Test coding-agent native/unit bucket
+           # 2, not 4: this bucket carries several timing-sensitive tests
+           # (browser-relay-detach, broker-endpoint-loss, mcp stdio grandchild),
+           # and four chunks on a 4-core runner saturate it — the flakes simply
+           # trade places run to run (2026-10-17: three consecutive main reds).
+           # The UI/TUI job already runs at 2 for the same reason.
            env:
-              OMP_TEST_CONCURRENCY: "4"
+              OMP_TEST_CONCURRENCY: "2"
               OMP_TEST_SHARD: ${{ matrix.shard }}
            run: bun run ci:test:coding-agent:native
 
