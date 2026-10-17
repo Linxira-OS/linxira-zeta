@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! A CPU rasterizer for egui's tessellated output.
 //!
 //! The screenshots in `tests/shots.rs` must not open a window (a window would

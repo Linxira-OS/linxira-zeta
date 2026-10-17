@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! zetawork's **in-process** editor pane.
 //!
 //! The editor pane is the only editor this product has: the pane body is

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The IDE page hosted in a desktop pane.
 //!
 //! The page itself lives in `termide-panel-ide` — the same `Panel` the TUI

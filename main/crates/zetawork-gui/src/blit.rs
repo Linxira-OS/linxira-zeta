@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Offscreen ratatui rendering and its blit into an egui painter.
 //!
 //! # Why a blit

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Headless screenshots of the shell.
 //!
 //! This renders the real shell — real theme, real fonts, real state, the same

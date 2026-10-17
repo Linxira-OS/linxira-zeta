@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Which shells exist on this host, and where their executables live — the data
 //! source behind the shell picker's `+` menu. The search is a pure filesystem
 //! walk driven by a [`Probe`]: the `PATH` text, `%COMSPEC%`, `%SystemRoot%`,

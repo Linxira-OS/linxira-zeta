@@ -424,6 +424,8 @@ jobs:
            run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
+         - name: Licence map guard
+           run: bun scripts/check-license-map.ts
          # 镜像 GitHub `check` job：i18n 目录三文件必须键一致（messages 接口 == en ==
          # zh，无空白 zh 值），描述符守卫则保证翻译过的键真被调用点读取。
          - name: i18n catalogue consistency guard

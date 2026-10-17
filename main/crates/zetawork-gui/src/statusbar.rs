@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The footer `.statusbar`: workspace · branch · ↑↓ · 更改 · memory ·
 //! throughput · clock.
 //!

@@ -1,0 +1,23 @@
+Zeta bundles or derives from the following open-source projects. Each keeps
+its own licence; the licence named here governs that component, not the rest of
+the repository.
+
+oh-my-pi (OMP)                         MIT    Copyright (c) 2025 Mario Zechner
+pi-mono (Pi)                           MIT    Copyright (c) 2025 Mario Zechner
+TermIDE                                MIT    Copyright (c) Stencil Labs, Inc.
+brush (brush-core, brush-parser)       MIT    Copyright (c) Reuben Thomas
+uutils coreutils / findutils / sed     MIT    Copyright (c) uutils contributors
+jaq                                   MIT    Copyright (c) jqnatividad
+tree-sitter-go                         MIT    Copyright (c) Max Brunsfeld
+napi-rs                                MIT    Copyright (c) LongYinan
+highlighted.js                         BSD-3-Clause
+Unicode character data                 Unicode-3.0
+unicode-width-fix                     MIT OR Apache-2.0
+
+inferno (CDDL-1.0) is linked only into the MIT-licensed native addon
+(crates/pi-natives), which is why the repository cannot be relicensed as a
+whole; it is not part of main/ and does not reach the AGPL surface.
+
+The AGPL-3.0-only text that governs main/ is in main/LICENSE. The MIT text that
+governs every other first-party path is in LICENSE. Vendored trees carry their
+own copies (termide/LICENSE, crates/vendor/*/LICENSE).

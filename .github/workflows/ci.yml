@@ -235,6 +235,8 @@ jobs:
            run: bun scripts/check-release-asset-names.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
+         - name: Licence map guard
+           run: bun scripts/check-license-map.ts
          # The Gitea mirror is the one workflow a merge can silently desync:
          # `.gitea/workflows/local-ci.yml` must keep the same command entry
          # points as its ci.yml counterpart. Running it here is what keeps the

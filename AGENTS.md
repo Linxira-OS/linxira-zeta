@@ -223,7 +223,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 
 **Triage 指纹**：所有 CI job 死在 `Run ./.github/actions/bun-install` ⇒ 版本线/catalog 损伤（第 1、2 类），先跑 `bun scripts/check-version-consistency.ts`，不要去翻测试日志。tag run 的 binary/release job 崩或排队数小时 ⇒ 第 7 类，查 `runs-on` 与产物命名。`Validate Rust workspace` exit 1（非 3）⇒ 构建/格式门禁（第 8 类），`cargo fmt --all --check` 全量对账；exit 3 ⇒ 测试失败，看 test result 行。**发布 run 判红但没有任何 job 失败（只有 skipped）** ⇒ 第 14 类：先 `gh run view <id> --json jobs` 找「本该出现却缺席 / 显示为未渲染 `${{ matrix.* }}` 模板」的 job——缺席的 job 不会报错，只会让依赖它的发布 job 集体 skipped。
 
-**推送 sync 分支前的最低门槛**：`bun scripts/check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误 + `bun scripts/check-scope-imports.ts` 归零（第 3 类的可执行形式：每个 `@linxiraos/*` specifier 必须真能解析；v18.9.1 教训——泛 scope 替换产出过 `@linxiraos/pi-coding-agent`（真名 `@linxiraos/zeta`）与 `@linxiraos/snapcompact`（真名 `@linxiraos/pi-snapcompact`），brand-check 全绿但运行时/tsc 全炸）+ `bun scripts/brand/brand-check.ts` 归零（exit 0）+ 动过 crates/ 时 `cargo fmt --all --check` 归零 + `bun scripts/check-ci-surface.ts` 归零（exit 0）。六者都绿才允许 push。
+**推送 sync 分支前的最低门槛**：`bun scripts/check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误 + `bun scripts/check-scope-imports.ts` 归零 + `bun scripts/check-license-map.ts` 归零（许可分层：`main/`=AGPL-3.0-only、其余 MIT、vendored 目录必须带 LICENSE——改错一个 manifest 或漏一个 SPDX 头即红）（第 3 类的可执行形式：每个 `@linxiraos/*` specifier 必须真能解析；v18.9.1 教训——泛 scope 替换产出过 `@linxiraos/pi-coding-agent`（真名 `@linxiraos/zeta`）与 `@linxiraos/snapcompact`（真名 `@linxiraos/pi-snapcompact`），brand-check 全绿但运行时/tsc 全炸）+ `bun scripts/brand/brand-check.ts` 归零（exit 0）+ 动过 crates/ 时 `cargo fmt --all --check` 归零 + `bun scripts/check-ci-surface.ts` 归零（exit 0）。六者都绿才允许 push。
 
 ## Documentation Layout
 

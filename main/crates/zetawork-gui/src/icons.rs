@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The spec's icon set as vector strokes.
 //!
 //! Every icon in `spec-v22-tui-workspace.html` is an inline SVG on a 24×24

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Suite-tool resolution and the `zeta doctor` install report.
 //!
 //! The SUITE table is the single source of suite configuration: bin names,

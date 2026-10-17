@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The shell's own settings: the six sections of the spec's 设置 modal, the
 //! values behind them, and the file they live in.
 //!

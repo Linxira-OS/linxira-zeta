@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The TUI view (`#tuiView`): the same state, rendered the way the terminal
 //! surface renders it.
 //!

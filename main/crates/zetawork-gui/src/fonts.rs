@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Font loading: the CJK face the interface needs, and the editor's mono face.
 //!
 //! egui's stock fonts carry **no CJK glyphs**: without a face loaded, every

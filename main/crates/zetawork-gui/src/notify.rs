@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! 通知: which background edge reaches the user, by what route, and what happens
 //! when the route is not there.
 //!

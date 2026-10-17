@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Live terminal sessions: one PTY per terminal session tab.
 //!
 //! The GUI used to draw a seeded transcript — a faithful *replica* of a

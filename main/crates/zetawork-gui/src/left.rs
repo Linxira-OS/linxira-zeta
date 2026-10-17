@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The left column (`aside.side-left`) and its collapsed rail.
 //!
 //! Content order is the spec's: brand head, 主导航, 项目 (the project → workspace

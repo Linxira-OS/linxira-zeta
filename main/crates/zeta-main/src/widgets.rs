@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! First-party widget panes: native ratatui-rendered content that shares the
 //! pane grid with PTY panes — time+calendar dashboard, pomodoro timer,
 //! clipboard history. Widgets are workbench-drawn (no child process, no PTY)

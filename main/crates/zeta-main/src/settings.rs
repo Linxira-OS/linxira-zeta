@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Workbench settings: a handful of runtime preferences plus the rail slot
 //! registry, persisted to `~/.zeta/workbench.toml`. No schema framework — a
 //! `key = value` header, `[[slots]]` blocks, parsed by hand, written on every

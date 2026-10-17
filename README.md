@@ -95,38 +95,34 @@ Rust:
 - Native text, image, terminal, browser, and desktop capabilities where the
   host platform supports them.
 
-## Upstream Origins
+## Origins
 
-Zeta is a distribution derived from four upstream projects, each with a
-fixed role:
+Zeta is built on two upstream projects:
 
-| Project                                               | Role in Zeta                                                                                      |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | The runtime tree. Integrated only at complete, official release tags — never raw upstream commits |
-| [Pi](https://github.com/earendil-works/pi)            | Semantic-port source for feature work, never a raw merge source                                   |
-| [OMP Web](https://github.com/17380936778/omp-web)     | Source of the `web-ui/` snapshot                                                                  |
-| [Pi Web](https://github.com/agegr/pi-web)             | Semantic-port source for web features                                                             |
+| Project                                               | Role in Zeta                                                   |
+| ----------------------------------------------------- | -------------------------------------------------------------- |
+| [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | The runtime tree, integrated only at complete official releases |
+| [Pi](https://github.com/earendil-works/pi)            | Semantic-port source for feature work, never a raw merge source |
 
-The merge policy is recorded in [document/upstream-sync.md](document/upstream-sync.md);
-the web workbench's own front door is [web-ui/README.md](web-ui/README.md).
-Predecessor contributions remain acknowledged in source history and package
-notices.
+The workbench (`main/`) and the desktop-facing additions are ours. Vendored
+projects keep their own licences and are listed in [NOTICE](NOTICE); the merge
+procedure is recorded in [document/upstream-sync.md](document/upstream-sync.md).
 
 ## Component Lineage
 
 The distribution is assembled from parts with different origins. What a part
 inherits from upstream — and what Zeta owns — is stated per component:
 
-| Component                                                               | Upstream origin                                                                                        | Zeta ownership                                                                                                                      |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `main/` (workspace, `@linxiraos/main`, binaries `zetawork`/`zeta`)      | Zeta-originated                                                                                        | Rust workspace built on the vendored termide crates; PaneTree layout, page stacks, widget panes, suite entry                        |
-| `packages/coding-agent/` (CLI, `zetacode`)                                | OMP runtime tree, release-tag merges                                                                   | Brand, config dir `.zeta`, npm scope `@linxiraos/*`, release chain, Zeta-originated capabilities                                    |
-| `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats`   | OMP runtime tree                                                                                       | Same adaptation surface as the CLI                                                                                                  |
-| `termide/` (TermIDE, `@linxiraos/ide`, binaries `zetaide`)             | [termide/termide](https://github.com/termide/termide) — vendored Rust, ledgered in `termide/VENDOR.md` | Brand and npm surface; upstream snapshot with Zeta adaptations                                                                      |
-| `web-ui/`                                                               | OMP Web snapshot (frozen — manual cherry-picks only)                                                   | Own-desktop upgrade content, Next.js app                                                                                            |
-| `desktop/`                                                              | Zeta-originated                                                                                        | Electron shell that embeds the `web-ui/` build and the compiled runtime                                                             |
-| `packages/coding-agent/src/channels/` (WeChat/Feishu/Telegram bridge)   | Zeta-originated                                                                                        | Channel runtime, tools (`channel_send`, `workspace_run`)                                                                            |
-| `packages/coding-agent/src/server/` (web-gateway, `zetacode serve`)       | Zeta-originated                                                                                        | REST surface consumed by `web-ui/` and `desktop/` over HTTP                                                                         |
+| Component                                                          | Origin                                 |
+| ------------------------------------------------------------------ | -------------------------------------- |
+| `main/` (workspace, `@linxiraos/main`, binaries `zetawork`/`zeta`) | Zeta-originated                        |
+| `packages/coding-agent/` (CLI, `zetacode`)                         | OMP runtime tree, release-tag merges   |
+| `packages/ai`, `agent`, `catalog`, `tui`, `natives`, `utils`, `stats` | OMP runtime tree                     |
+| `termide/` (TermIDE, `@linxiraos/ide`, binaries `zetaide`)         | [termide/termide](https://github.com/termide/termide), vendored |
+| `web-ui/`                                                          | Frozen browser UI; manual cherry-picks only |
+| `desktop/`                                                         | Zeta-originated                        |
+| `packages/coding-agent/src/channels/` (WeChat/Feishu/Telegram bridge) | Zeta-originated                     |
+| `packages/coding-agent/src/server/` (web-gateway, `zetacode serve`) | Zeta-originated                       |
 
 ## Zeta-Originated Capabilities
 
@@ -230,19 +226,29 @@ required Zeta package, brand, Bun, CI, and product adaptations in separate
 commits. The exact source tag, SHA, conflict decisions, and checks are recorded
 in [document/upstream-sync.md](document/upstream-sync.md).
 
-Pi and Pi Web are semantic feature sources, not raw merge sources. See
+Pi is a semantic feature source, not a raw merge source. See
 [AGENTS.md](AGENTS.md) for the repository rules.
 
 ## License
 
-Zeta is distributed under the repository's [MIT License](LICENSE). Its runtime
-lineage includes OMP and Pi; the terminal IDE is vendored from
-[TermIDE](https://github.com/termide/termide). The workbench's editor pane is
-built in: `@linxiraos/editor` is the reserved package name for its binary
-payload (the earlier [TTT Editor](https://github.com/eugenioenko/ttt)-derived
-Go payload was removed 2026-10-16 and stays credited in source history).
+Zeta carries two licences, split by path:
 
----
+| Path                                                                     | Licence                                   |
+| ------------------------------------------------------------------------ | ----------------------------------------- |
+| `main/` — the zetawork workbench (`zetawork`, `zeta`, and its npm packages) | **AGPL-3.0-only** ([text](main/LICENSE)) |
+| `packages/`, `crates/`, `sdk/`, `web-ui/`, `desktop/`, `docs/`, `document/`, `scripts/` | **MIT**                    |
+| `termide/`, `editor/` — vendored TermIDE                                  | **MIT** ([text](termide/LICENSE))        |
+
+The root [LICENSE](LICENSE) states the split and reproduces the MIT text that
+governs everything outside `main/`. Derived and vendored projects keep their own
+licences and are listed in [NOTICE](NOTICE).
+
+Commercial licensing of the workbench is available by arrangement with the
+maintainers.
+
+The workbench's editor pane is built in: `@linxiraos/editor` is the reserved
+package name for its binary payload (the earlier TTT-derived Go payload was
+removed 2026-10-16 and stays credited in source history).
 
 ## 简体中文
 
@@ -324,34 +330,32 @@ bun run dev
 
 ### 上游来源
 
-Zeta 是由四个上游项目组合而成的发行版,各自角色固定:
+Zeta 基于两个上游项目:
 
-| 项目                                                  | 在 Zeta 中的角色                                                |
-| ----------------------------------------------------- | --------------------------------------------------------------- |
-| [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | 运行时树。仅在完整、官方的发布 tag 上集成——绝不合并原始上游提交 |
-| [Pi](https://github.com/earendil-works/pi)            | 功能工作的语义移植来源,绝不是原始合并来源                       |
-| [OMP Web](https://github.com/17380936778/omp-web)     | `web-ui/` 快照的来源                                            |
-| [Pi Web](https://github.com/agegr/pi-web)             | Web 功能的语义移植来源                                          |
+| 项目                                                  | 在 Zeta 中的角色                          |
+| ----------------------------------------------------- | ----------------------------------------- |
+| [OMP (oh-my-pi)](https://github.com/can1357/oh-my-pi) | 运行时树,只在完整官方发布上合并           |
+| [Pi](https://github.com/earendil-works/pi)            | 功能工作的语义移植来源,绝不作为原始合并源 |
 
-合并政策记录在 [document/upstream-sync.md](document/upstream-sync.md);Web
-工作台自己的入口是 [web-ui/README.md](web-ui/README.md)。前身的贡献仍在
-源代码历史和包声明中获得致谢。
+工作台(`main/`)与桌面相关增补由我们维护。vendored 项目保持各自的许可,
+列在 [NOTICE](NOTICE);合并流程记录在
+[document/upstream-sync.md](document/upstream-sync.md)。
 
 ### 组件谱系
 
-该发行版由不同来源的部件组装而成。每个部件从上游继承了什么、Zeta 自有
-什么,逐组件说明如下:
+该发行版由不同来源的部件组装而成。每个部件继承了什么、Zeta 拥有什么,
+逐组件说明:
 
-| 组件                                                                  | 上游来源                                                                                         | Zeta 自有部分                                                                                       |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `main/`(工作区,`@linxiraos/main`,二进制 `zetawork`/`zeta`)             | Zeta 自创                                                                                        | 基于 vendored termide crates 的 Rust workspace;PaneTree 布局、子页栈、组件窗格、套件入口            |
-| `packages/coding-agent/`(CLI,`zetacode`)                                | OMP 运行时树,按发布 tag 合并                                                                     | 品牌、配置目录 `.zeta`、npm scope `@linxiraos/*`、发布链、Zeta 自创能力                             |
-| `packages/ai`、`agent`、`catalog`、`tui`、`natives`、`utils`、`stats` | OMP 运行时树                                                                                     | 与 CLI 相同的适配面                                                                                 |
-| `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zetaide`)                | [termide/termide](https://github.com/termide/termide) — vendored Rust,台账见 `termide/VENDOR.md` | 品牌与 npm 面;上游快照加 Zeta 适配                                                                  |
-| `web-ui/`                                                             | OMP Web 快照(冻结——仅手动 cherry-pick)                                                           | 自有桌面升级内容、Next.js 应用                                                                      |
-| `desktop/`                                                            | Zeta 自创                                                                                        | 嵌入 `web-ui/` 构建和编译后运行时的 Electron 外壳                                                   |
-| `packages/coding-agent/src/channels/`(微信/飞书/Telegram 桥接)        | Zeta 自创                                                                                        | 通道运行时、工具(`channel_send`、`workspace_run`)                                                   |
-| `packages/coding-agent/src/server/`(web-gateway,`zetacode serve`)       | Zeta 自创                                                                                        | 由 `web-ui/` 和 `desktop/` 通过 HTTP 消费的 REST 面                                                 |
+| 组件                                                              | 来源                                   |
+| ----------------------------------------------------------------- | -------------------------------------- |
+| `main/`(工作区,`@linxiraos/main`,二进制 `zetawork`/`zeta`)       | Zeta 原创                              |
+| `packages/coding-agent/`(CLI,`zetacode`)                          | OMP 运行时树,按发布 tag 合并           |
+| `packages/ai`、`agent`、`catalog`、`tui`、`natives`、`utils`、`stats` | OMP 运行时树                       |
+| `termide/`(TermIDE,`@linxiraos/ide`,二进制 `zetaide`)             | [termide/termide](https://github.com/termide/termide),vendored |
+| `web-ui/`                                                         | 冻结的浏览器 UI,仅手动挑选             |
+| `desktop/`                                                        | Zeta 原创                              |
+| `packages/coding-agent/src/channels/`(微信/飞书/Telegram 桥接)    | Zeta 原创                              |
+| `packages/coding-agent/src/server/`(web-gateway,`zetacode serve`) | Zeta 原创                              |
 
 ### Zeta 自有能力
 
@@ -439,18 +443,29 @@ Linux 是主力平台(Linxira OS,基于 Arch);Windows x64 是受支持的开发�
 
 ### 上游政策
 
-Zeta 只通过完整、官方的发布 tag 跟随 OMP。每次发布都在临时集成分支上作为
-真实 Git 历史合并,然后以独立提交加入所需的 Zeta 包、品牌、Bun、CI 和产品
-适配。确切的来源 tag、SHA、冲突决策和检查记录在
+Zeta 只通过完整、官方的发布 tag 跟随 OMP。每次发布都在临时集成分支上作真实
+Git 历史合并,然后以独立提交加入所需的 Zeta 包、品牌、Bun、CI 和产品适配。
+确切的来源 tag、SHA、冲突决策和检查记录在
 [document/upstream-sync.md](document/upstream-sync.md)。
 
-Pi 和 Pi Web 是语义功能来源,不是原始合并来源。仓库规则见
+Pi 是语义功能来源,不是原始合并来源。仓库规则见
 [AGENTS.md](AGENTS.md)。
 
 ### 许可证
 
-Zeta 以仓库的 [MIT 许可证](LICENSE) 发布。其运行时谱系包括 OMP 和 Pi;终端
-IDE vendored 自 [TermIDE](https://github.com/termide/termide)。编辑器是工作
-区里的内置面板:`@linxiraos/editor` 是预留给该面板二进制载荷的包名(早先由
-[TTT Editor](https://github.com/eugenioenko/ttt) 派生的 Go 载荷已于
+Zeta 按路径承载两种许可:
+
+| 路径                                                                  | 许可                                      |
+| --------------------------------------------------------------------- | ----------------------------------------- |
+| `main/` — zetawork 工作台(`zetawork`、`zeta` 及其 npm 包)            | **AGPL-3.0-only**([全文](main/LICENSE))  |
+| `packages/`、`crates/`、`sdk/`、`web-ui/`、`desktop/`、`docs/`、`document/`、`scripts/` | **MIT**          |
+| `termide/`、`editor/` — vendored TermIDE                              | **MIT**([全文](termide/LICENSE))          |
+
+根目录 [LICENSE](LICENSE) 说明分层,并复述管辖 `main/` 之外全部代码的 MIT 文本。
+派生与 vendored 项目保持各自许可,列在 [NOTICE](NOTICE)。
+
+工作台的商业授权可与维护者协商。
+
+工作区的编辑器是内置面板:`@linxiraos/editor` 是预留给该面板二进制载荷的包名
+(早先由 [TTT Editor](https://github.com/eugenioenko/ttt) 派生的 Go 载荷已于
 2026-10-16 移除,仍在源代码历史中获得致谢)。

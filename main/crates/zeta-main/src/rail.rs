@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The left rail: the workbench's builtin-view column.
 //!
 //! Top-down the column is the button strip — one button per visible builtin

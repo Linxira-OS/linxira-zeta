@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The `+` picker: everything the centre can display, as one list.
 //!
 //! Both `+` buttons in the centre open this — the 大标签页 strip's (a new

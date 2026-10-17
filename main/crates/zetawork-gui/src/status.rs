@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! 状态词表: the seven run states, copied word for word from the contract.
 //!
 //! `temp/zetawork-ui-mock/mock-override.js` (the user's spoken contract) fixes

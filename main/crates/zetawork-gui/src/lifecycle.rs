@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! 后台驻留 (background residency): what closing the window means, what the
 //! process does once the window is gone, and how a second launch finds the
 //! first one.

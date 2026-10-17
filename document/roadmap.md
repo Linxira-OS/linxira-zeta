@@ -551,43 +551,25 @@ carried-over requirement.
 - **PDF Viewer**：仅 GUI 语义可行（TUI 无法有意义渲染）；默认交给系统浏览器，可选后置。
 - **cheat-sheet / http-client**：玩具型，不做。
 
-### Deferred — 许可策略：可能调整，但大概率不动（2026-10-18 记录，未执行）
+### 许可分层（2026-10-18 定稿）
 
-**态度**：只登记可能性，**不承诺任何一次许可证变更**。若将来调整，**只覆盖我们原创的
-Rust 面（`main/` = zetawork，含 `main/npm/*`）**；上游派生面与 vendored 三方**永远保持 MIT**。
+| 路径 | 许可 | 说明 |
+|---|---|---|
+| `main/`（zetawork：TUI/GUI + `main/npm/*`） | **AGPL-3.0-only** | 我们原创；依赖无 CDDL，AGPL 兼容 |
+| `packages/`、`crates/`、`sdk/`、`web-ui/`、`desktop/` | **MIT** | OMP 派生，不能重授权 |
+| `termide/`、`editor/` | **MIT** | vendored；分发二进制必须带 MIT 声明 |
+| 根 `LICENSE` | 分层声明 | GitHub 只能显示一个，因此显示 Other；README 表格解释 |
 
-**硬排除**：**永不**改为商业不友好协议——AGPL、SSPL、BUSL、Elastic License 这类一律不选
-（网络条款/非 OSI/限制商用都会赶走用户与插件作者）。
+**为什么不是整仓**：`crates/pi-natives` 直接依赖 `inferno`（CDDL-1.0），与 AGPL
+不兼容。整仓 AGPL 需要先替换 inferno。
 
-**目标性质**（用户定调）：要比 MIT/**Apache-2.0 保护更多**，但**不要 GPL 式义务**，且必须仍是
-OSI/自由软件。这个组合只有一条现实路径：
+**商业授权**：README 只写"可协商"，不写条款与价格；对外双授权需要 CLA 与
+完整版权审计，暂不推进。
 
-- 宽松许可里**没有比 Apache-2.0 更强的**——MIT/ISC/BSD/Boost 都更弱；Apache 已包含专利授权、
-  NOTICE 保留与商标条款，再往上就只能是 copyleft。
-- 因此"保护更多"= **弱 copyleft**（文件级），首选 **MPL-2.0**：改过的文件必须开源，新增文件
-  可闭源，无链接义务，插件生态不受牵连；Firefox/RabbitMQ 同级实践。
-- **注意 MPL 的次级许可条款**：默认允许把作品并入 GPL/LGPL/AGPL 分发。若要杜绝"下游把它
-  变成 AGPL"，需加 **Exhibit B**（Incompatible With Secondary Licenses）——这一步要单独决定。
+**机械守卫**：`scripts/check-license-map.ts`（CI `check` job + 本地最低门槛六项
+里的第四项）钉住 manifest 许可、`main/` 的 SPDX 头、vendored LICENSE、根
+LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红。
 
-**双授权：大概率不做。** 要求对拟改部分拥有完整版权（外部贡献需 CLA，历史提交无法追溯），
-npm 发布链与 `$EDITOR`/插件作者的预期都要解释一遍；收益远小于成本。除非出现明确商业需求，
-否则不启动。
-
-**约束（真要动时的硬边界）**
-
-- `packages/`、`crates/`、`termide/`、`crates/vendor/`、`web-ui/` 是上游/vendored 代码，
-  **不能重授权**；只能保留其 MIT 与版权行。
-- `@linxiraos/ide`（zetaide）与 `@linxiraos/editor`（termide-editor 载荷）分发的是 vendored
-  二进制，**必须保持 MIT**，即使由 zetawork 的发布链打包。
-- 组合产品可以按更强协议分发，但必须保留全部 MIT 声明；不得删除上游版权行。
-
-**执行时的机械改动（一批做完，不夹在功能分支里）**
-
-1. 根 `LICENSE` 改为聚合声明 + `NOTICE`（上游 OMP / termide / brush / uutils /
-   tree-sitter-go / web-ui 快照逐条版权）。
-2. 只在我们原创文件加 `SPDX-License-Identifier`（上游文件不动，避免每次合并解冲突）。
-3. `scripts/check-license-map.ts` 按路径守卫（仿 `brand-check`）：`packages|crates|termide`
-   必须 MIT；`main/` 必须等于选定值；缺失 SPDX 的原创文件报错。
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 

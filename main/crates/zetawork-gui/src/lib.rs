@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! zetawork — the GUI shell of the Zeta workbench.
 //!
 //! One window, one state, two renderings of it:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Small shared pieces of the shell's look: chips, list rows, heads and the
 //! label/hint/control row the settings modal is built from.
 //!

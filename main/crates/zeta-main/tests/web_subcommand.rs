@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! `zetawork web` end to end, through the real binary.
 //!
 //! The acceptance for the command unify is not "the dispatch table returns

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The spec's design tokens, and the egui `Style` derived from them.
 //!
 //! Every colour here is copied from the `:root` block the two design drafts

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The centre column: the 大标签页 strip, the tool strip, the pane grid and the
 //! three pane bodies.
 //!

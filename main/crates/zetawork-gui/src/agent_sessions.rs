@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The shell's agent-session panes: one SSE link per [`SessionKind::Agent`]
 //! tab, polled from the frame loop.
 //!

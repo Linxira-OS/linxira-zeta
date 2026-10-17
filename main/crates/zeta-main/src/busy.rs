@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Busy-pane detection: a terminal pane is busy when its shell has live
 //! child processes (zetacode, vim, git, …) — closing it would kill work,
 //! so the workspace asks before tearing it down. An idle shell (no

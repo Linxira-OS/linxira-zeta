@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The shell's starting data: the spec's sample projects, one real project for
 //! the directory the shell was started in, and the sample text the placeholder
 //! panes render.

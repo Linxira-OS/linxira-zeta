@@ -2,7 +2,7 @@
   "name": "@linxiraos/main-windows-x64",
   "version": "1.2.1",
   "description": "main-windows-x64 binary for @linxiraos/main (zeta)",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Linxira-OS/linxira-zeta.git",

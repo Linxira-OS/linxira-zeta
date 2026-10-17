@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The right column: 文件 / 历史 · Agent 对话 / Git 状态, plus its collapsed rail.
 //!
 //! Two of the three panels read live data: the file tree walks the active

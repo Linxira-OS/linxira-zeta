@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The 用量 container: the embedded view both 用量 entries open.
 //!
 //! The left column's foot has 用量 and the right column's fourth tab is 上下文用量;

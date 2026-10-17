@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Shell chain and binary probing for pane spawning.
 //!
 //! The chain order is a product ruling: on Windows prefer PowerShell 7

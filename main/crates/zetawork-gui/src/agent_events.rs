@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! SSE transport for one agent session — std only, no new dependencies.
 //!
 //! Same shape as `notify.rs`: a hand-written HTTP/1.1 request on a loopback

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Read-only git introspection for the shell's status strip: which branch the
 //! worktree is on, how far it drifted from its upstream, what is dirty and what
 //! landed lately. Every answer is a real, read-only `git` invocation through

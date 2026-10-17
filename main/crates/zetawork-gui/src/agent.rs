@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Gateway agent sessions: the SSE frame vocabulary and the pure reducer an
 //! agent pane runs.
 //!

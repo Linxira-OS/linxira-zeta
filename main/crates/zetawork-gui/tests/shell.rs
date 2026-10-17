@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The shell's acceptance tests, against the public surface only.
 //!
 //! Four things the brief calls out are checked here end to end:

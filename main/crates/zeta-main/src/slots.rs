@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Builtin rail slots: the left column's view buttons, their order and their
 //! visibility.
 //!

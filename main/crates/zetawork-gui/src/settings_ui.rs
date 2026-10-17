@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The 设置 modal: native egui, six sections, persisted immediately.
 //!
 //! Opened from the left column's foot (or `Ctrl+,`), it dims the window and

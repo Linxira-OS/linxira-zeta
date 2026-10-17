@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Lazy, read-only directory listing for the shell's file-tree pane.
 //!
 //! The tree opens one level at a time: [`FileTree::load`] reads the root

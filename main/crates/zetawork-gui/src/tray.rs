@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! 托盘: the icon and its menu.
 //!
 //! Compiled only with the `tray` feature (see the crate manifest). Without it

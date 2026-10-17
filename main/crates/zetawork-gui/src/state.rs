@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! The shell's state model: projects → workspaces → panes → session tabs.
 //!
 //! v2 of the UI spec locks the terminology: **大标签页 *is* 工作区**, one to

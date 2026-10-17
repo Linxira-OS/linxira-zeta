@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! zetacode's own options, and the desktop app's provider (服务商) catalog.
 //!
 //! The 设置 modal has two rows that belong to zetacode rather than to

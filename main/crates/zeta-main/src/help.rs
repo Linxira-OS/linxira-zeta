@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 /// `zetawork --help` (and the bare-`zeta` index) — the workspace's own help.
 /// The suite map is the product contract: three commands, each with its own
 /// help.

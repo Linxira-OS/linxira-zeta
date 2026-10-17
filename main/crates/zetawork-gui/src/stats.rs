@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Where the native stats page lives, and what the shell's embedded container
 //! honestly cannot do yet.
 //!

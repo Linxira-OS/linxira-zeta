@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! 总面板 — the centre strip's **first** 大标签页.
 //!
 //! The contract's ruling (`mock-override.js`, "功能分派"): 总面板 lives in 中间区

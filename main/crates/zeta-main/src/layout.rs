@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 use ratatui::layout::{Constraint, Layout, Rect};
 
 /// Split axis of a tree node. `Row` = children side by side (left|right),

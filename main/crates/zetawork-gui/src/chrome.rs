@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Window chrome: the custom title bar and the resize border.
 //!
 //! The window is frameless (`decorations: false`), so the shell owes the user

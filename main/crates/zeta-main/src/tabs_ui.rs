@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Top chrome, two rows: the menu bar (row 0) and the tab bar (row 1) —
 //! per the product sketch. Both publish their geometry through layout
 //! helpers shared by rendering and mouse hit-testing, so clicks always agree

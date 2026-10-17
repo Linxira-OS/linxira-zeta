@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 //! Guard: rendered strings must not use codepoints the bundled faces lack.
 //!
 //! The seven-state icons are **painted** (`widgets::status_dot`) and the tree
