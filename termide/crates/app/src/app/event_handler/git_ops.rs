@@ -12,7 +12,11 @@ impl App {
     ///
     /// The page emits `PanelEvent::GitCommit`; the commit runs here so an
     /// embedded git pane never needs the app-level commit modal.
-    pub(in crate::app) fn event_git_commit(&mut self, repo_path: PathBuf, message: String) -> Result<()> {
+    pub(in crate::app) fn event_git_commit(
+        &mut self,
+        repo_path: PathBuf,
+        message: String,
+    ) -> Result<()> {
         match termide_git::commit(&repo_path, &message) {
             Ok(_) => {}
             Err(error) => self.state.set_error(format!("git commit failed: {error}")),

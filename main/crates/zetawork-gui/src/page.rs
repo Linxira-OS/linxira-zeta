@@ -10,8 +10,8 @@ use std::path::PathBuf;
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use termide_core::panel::{Panel, PanelConfig, RenderContext, ThemeColors};
 use termide_core::KeyChord;
+use termide_core::panel::{Panel, PanelConfig, RenderContext, ThemeColors};
 use termide_panel_ide::IdePage;
 
 /// Per-tab IDE pages, keyed by session tab id.
@@ -25,7 +25,10 @@ pub struct Pages {
 impl Pages {
 	/// Create the page for `tab` on first show.
 	pub fn ensure(&mut self, tab: &str) -> &mut IdePage {
-		self.pages.entry(tab.to_owned()).or_insert_with(IdePage::new)
+		self
+			.pages
+			.entry(tab.to_owned())
+			.or_insert_with(IdePage::new)
 	}
 
 	/// Whether `tab` has a page.
@@ -156,14 +159,31 @@ mod tests {
 		let mut modifiers = egui::Modifiers::NONE;
 		modifiers.ctrl = true;
 		let events = vec![
-			egui::Event::Key { key: egui::Key::W, physical_key: None, pressed: true, repeat: false, modifiers },
+			egui::Event::Key {
+				key: egui::Key::W,
+				physical_key: None,
+				pressed: true,
+				repeat: false,
+				modifiers,
+			},
 			egui::Event::Text("w".to_owned()),
-			egui::Event::Key { key: egui::Key::W, physical_key: None, pressed: false, repeat: false, modifiers },
+			egui::Event::Key {
+				key: egui::Key::W,
+				physical_key: None,
+				pressed: false,
+				repeat: false,
+				modifiers,
+			},
 		];
 		let chords = chords_for_events(&events);
 		assert_eq!(chords.len(), 1, "a press is one chord; text and releases are skipped");
 		assert_eq!(chords[0].raw.code, crossterm::event::KeyCode::Char('w'));
-		assert!(chords[0].raw.modifiers.contains(crossterm::event::KeyModifiers::CONTROL));
+		assert!(
+			chords[0]
+				.raw
+				.modifiers
+				.contains(crossterm::event::KeyModifiers::CONTROL)
+		);
 	}
 
 	#[test]
