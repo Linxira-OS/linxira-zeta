@@ -62,7 +62,7 @@ async function writeSession(file: string, id: string, cwd: string, entries: unkn
 /** Point the agent dir (and so every project's session bucket) at a temp root for one test. */
 async function withAgentDir<T>(agentDir: string, fn: () => Promise<T>): Promise<T> {
 	const originalAgentDir = getAgentDir();
-	const originalAgentDirOverride = process.env.PI_CODING_AGENT_DIR;
+	const originalAgentDirOverride = process.env.ZETA_CODING_AGENT_DIR;
 	setAgentDir(agentDir);
 	try {
 		return await fn();
@@ -71,7 +71,7 @@ async function withAgentDir<T>(agentDir: string, fn: () => Promise<T>): Promise<
 			setAgentDir(originalAgentDirOverride);
 		} else {
 			setAgentDir(originalAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 	}
 }

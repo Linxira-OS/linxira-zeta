@@ -322,12 +322,12 @@ export class ApprovalDialogComponent implements Component {
 		const choices = this.#choices.map(choice =>
 			item(choice.answer, {
 				label: choice.label,
-				role: "omp.approval.choice",
+				role: "zeta.approval.choice",
 				tone: choice.answer === "deny" ? "error" : "accent",
 			}),
 		);
 		const selected = drafting ? "deny" : this.#choices[this.#choice]!.answer;
-		children.push(node("list", { selected, role: "omp.approval.choices" }, choices, "choices"));
+		children.push(node("list", { selected, role: "zeta.approval.choices" }, choices, "choices"));
 		// The countdown, when one runs, leads the bar like the ask dialog's.
 		children.push(
 			actionBar([...(this.#countdown ? [this.#countdown.describe()] : []), null, ...expand, deny, approve]),

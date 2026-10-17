@@ -293,7 +293,7 @@ describe("dialogs under a native surface", () => {
 				stripVTControlCharacters(dialog.render(80).join("\n"))
 					.split("\n")
 					.filter(line => /Approve|Deny/.test(line));
-			const choices = () => find(dialog.describe(), node => node.p?.role === "omp.approval.choices")!;
+			const choices = () => find(dialog.describe(), node => node.p?.role === "zeta.approval.choices")!;
 			const selected = () => {
 				const props = choices().node.p;
 				return props && "selected" in props ? props.selected : undefined;
@@ -313,7 +313,7 @@ describe("dialogs under a native surface", () => {
 
 			const clicked = { onApprove: vi.fn(), onDeny: vi.fn() };
 			const pointed = new ApprovalDialogComponent("Allow tool: bash\nCommand: ls", clicked);
-			const list = find(pointed.describe(), node => node.p?.role === "omp.approval.choices")!;
+			const list = find(pointed.describe(), node => node.p?.role === "zeta.approval.choices")!;
 			pointed.handleNativeEvent({ type: "select", key: list.path, item: "deny" });
 			expect(clicked.onDeny).toHaveBeenCalledTimes(1);
 		} finally {
@@ -337,7 +337,7 @@ describe("dialogs under a native surface", () => {
 		expect(highlighted()).toContain("Approve");
 		dialog.handleInput("k");
 		expect(highlighted()).toContain("Deny and send message");
-		const choices = find(dialog.describe(), node => node.p?.role === "omp.approval.choices")!;
+		const choices = find(dialog.describe(), node => node.p?.role === "zeta.approval.choices")!;
 		expect(choices.node.p && "selected" in choices.node.p ? choices.node.p.selected : undefined).toBe("deny");
 		draft = "";
 		expect(highlighted()).toContain("Approve");

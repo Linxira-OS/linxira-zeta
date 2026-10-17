@@ -2241,8 +2241,6 @@ export interface TaskParams {
 	solutionSpace?: string;
 	/** Per-spawn thinking effort (flat form): lowest/middle/highest level the resolved model supports. */
 	effort?: "lo" | "med" | "hi";
-	/** Per-spawn model selector (flat form); see {@link TaskItem.model}. */
-	model?: string;
 	/** Caller-provided output schema; its presence overrides the selected agent's schema. */
 	outputSchema?: unknown;
 	/** Validation behavior for a caller-provided or inherited output schema. */

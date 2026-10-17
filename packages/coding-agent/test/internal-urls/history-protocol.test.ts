@@ -15,10 +15,7 @@ import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
 import { getInternalUrlSuggestions } from "@linxiraos/pi-tui/prompt/internal-url-autocomplete";
-import {
-	formatCurrentBranchFullHistory,
-	HistoryProtocolHandler,
-} from "@linxiraos/zeta/internal-urls/history-protocol";
+import { formatCurrentBranchFullHistory, HistoryProtocolHandler } from "@linxiraos/zeta/internal-urls/history-protocol";
 import {
 	registerArtifactsDir,
 	resetRegisteredArtifactDirsForTests,
