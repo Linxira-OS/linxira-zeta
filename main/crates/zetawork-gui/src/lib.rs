@@ -45,12 +45,14 @@ pub mod state;
 pub mod stats;
 pub mod status;
 pub mod statusbar;
+pub mod terminal_service;
 pub mod theme;
 pub mod total;
 pub mod tray;
 pub mod tui_view;
 pub mod usage;
 pub mod widgets;
+pub mod ws;
 pub mod zetacode;
 
 use std::path::PathBuf;
@@ -143,6 +145,9 @@ pub struct Shell {
 	pub term_buffers: BufferCache,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
+	/// The serve-backed alternative for terminal tabs ([`terminal_service`]):
+	/// a PTY in `zetacode serve` reached over the gateway's WebSocket.
+	pub terminals: terminal_service::TerminalHost,
 	/// Every [`state::SessionKind::Agent`] tab's gateway link ([`agent_sessions`]).
 	pub agents: agent_sessions::AgentSessions,
 	/// Per-tab IDE pages (`termide-panel-ide`), rendered like the terminal.
@@ -259,6 +264,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
 			throughput: None,
@@ -310,6 +316,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
 			throughput: None,
@@ -716,11 +723,16 @@ impl Shell {
 			}
 			return true;
 		}
-		if !self.live.contains(&tab) {
-			return false;
-		}
 		let bytes = ctx.input(|input| live::bytes_for_events(&input.events));
 		if bytes.is_empty() {
+			return false;
+		}
+		// The serve backend's stdin is a text frame; only a tab that already
+		// fell back to the local PTY reaches `live`.
+		if self.terminals.send_bytes(&tab, &bytes) {
+			return true;
+		}
+		if !self.live.contains(&tab) {
 			return false;
 		}
 		self.live.send_bytes(&tab, &bytes);
@@ -751,6 +763,53 @@ impl Shell {
 				target: self.state.active_workspace.clone(),
 			};
 			let _ = self.raise_notification(ctx, message);
+		}
+	}
+
+	/// Drain every serve-backed terminal once.
+	///
+	/// Output and `Opened` repaint. A transport failure is the fallback edge:
+	/// the tab becomes [`terminal_service::Backend::Local`] and its status line
+	/// names the reason, so the in-process PTY takes over on the next frame.
+	/// A serve-side exit (`exit` / `session_ended`) keeps the final grid and
+	/// raises the same notification the local PTY's exit does.
+	pub fn poll_terminals(&mut self, ctx: &Context) {
+		let open: Vec<String> = self
+			.state
+			.projects
+			.iter()
+			.flat_map(|project| project.workspaces.iter())
+			.flat_map(|workspace| workspace.panes.iter())
+			.flat_map(|pane| pane.tabs.iter())
+			.filter(|tab| tab.kind == state::SessionKind::Term)
+			.map(|tab| tab.id.clone())
+			.collect();
+		self.terminals.retain(&open);
+		let events = self.terminals.poll();
+		for event in events {
+			match event {
+				terminal_service::HostEvent::Opened { .. }
+				| terminal_service::HostEvent::Output { .. } => {
+					if !self.lifecycle.background {
+						ctx.request_repaint();
+					}
+				},
+				terminal_service::HostEvent::Failed { .. } => {
+					// The reason lives in the pane's status line; no second
+					// notice for the same event.
+					self.state.needs_redraw = true;
+				},
+				terminal_service::HostEvent::Ended { tab, reason } => {
+					let workspace = self.state.workspace_label().to_owned();
+					let message = notify::Message {
+						trigger: notify::Trigger::Failed,
+						title: format!("{workspace} · {tab} 已退出"),
+						body: reason,
+						target: self.state.active_workspace.clone(),
+					};
+					let _ = self.raise_notification(ctx, message);
+				},
+			}
 		}
 	}
 
@@ -874,6 +933,7 @@ impl Shell {
 		self.sync_readers();
 		self.detect_idle_panes(ctx);
 		self.poll_live(ctx);
+		self.poll_terminals(ctx);
 		// 设置 → 终端 的 默认 Shell: the shell a new 终端 page records.
 		self.state.default_shell = self.settings.shell.kind();
 		// A finished zetacode job (读取 / 写入) reports itself once.
