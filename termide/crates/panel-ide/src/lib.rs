@@ -29,6 +29,7 @@
 //! through `Panel::render` → blit — the terminal panel already proves that road.
 
 mod formatters;
+mod todo;
 
 use std::any::Any;
 use std::path::PathBuf;
@@ -173,6 +174,14 @@ enum Drag {
     Git,
 }
 
+/// Which view the lower-left pane shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum GitView {
+    Changes,
+    History,
+    Todo,
+}
+
 /// The page's commit box: one line, active on demand, cleared on commit.
 #[derive(Default)]
 struct CommitBox {
@@ -205,8 +214,10 @@ pub struct IdePage {
     git: Box<dyn Panel>,
     /// The history view, created on first switch (`Ctrl+H`).
     git_log: Option<Box<dyn Panel>>,
-    /// Whether the history view is showing instead of changes.
-    show_log: bool,
+    /// Which view the lower-left pane shows.
+    view: GitView,
+    /// The TODO list, created on first switch (`Ctrl+T`).
+    todo: Option<Box<dyn Panel>>,
     /// The file the history view was narrowed to (the active tab's file).
     history_filter: Option<PathBuf>,
     focus: Focus,
@@ -232,7 +243,8 @@ impl IdePage {
                 std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
             ])),
             git_log: None,
-            show_log: false,
+            view: GitView::Changes,
+            todo: None,
             history_filter: None,
             focus: Focus::Editor,
             message: None,
@@ -254,7 +266,7 @@ impl IdePage {
 
     /// Swap the lower-left pane between changes and history.
     pub fn toggle_git_view(&mut self) -> bool {
-        if !self.show_log {
+        if self.view != GitView::History {
             if self.git_log.is_none() {
                 let paths = self.repo.clone().unwrap_or_else(|| PathBuf::from("."));
                 self.git_log = Some(Box::new(GitLogPanel::new(&[paths])));
@@ -272,9 +284,23 @@ impl IdePage {
                     panel.set_file_filter(filter);
                 }
             }
-            self.show_log = true;
+            self.view = GitView::History;
         } else {
-            self.show_log = false;
+            self.view = GitView::Changes;
+        }
+        true
+    }
+
+    /// Swap the lower-left pane between changes and the TODO list.
+    pub fn toggle_todo_view(&mut self) -> bool {
+        if self.view != GitView::Todo {
+            if self.todo.is_none() {
+                let root = self.repo.clone().unwrap_or_else(|| PathBuf::from("."));
+                self.todo = Some(Box::new(todo::TodoPanel::new(root)));
+            }
+            self.view = GitView::Todo;
+        } else {
+            self.view = GitView::Changes;
         }
         true
     }
@@ -286,10 +312,18 @@ impl IdePage {
 
     /// The lower-left pane currently showing.
     fn git_view(&mut self) -> &mut dyn Panel {
-        if self.show_log {
-            if let Some(log) = self.git_log.as_mut() {
-                return log.as_mut();
+        match self.view {
+            GitView::History => {
+                if let Some(log) = self.git_log.as_mut() {
+                    return log.as_mut();
+                }
             }
+            GitView::Todo => {
+                if let Some(todo) = self.todo.as_mut() {
+                    return todo.as_mut();
+                }
+            }
+            GitView::Changes => {}
         }
         self.git.as_mut()
     }
@@ -424,6 +458,13 @@ impl IdePage {
         for event in events {
             match event {
                 PanelEvent::OpenFile(path) => self.open(path),
+                PanelEvent::OpenFileAt { path, line, column } => {
+                    self.open(path);
+                    self.ensure_editor();
+                    if let Some(editor) = self.active_editor_mut() {
+                        editor.goto_position(line, column);
+                    }
+                }
                 other => rest.push(other),
             }
         }
@@ -480,6 +521,9 @@ impl Panel for IdePage {
         if let Some(log) = self.git_log.as_mut() {
             log.prepare_render(theme, config);
         }
+        if let Some(todo) = self.todo.as_mut() {
+            todo.prepare_render(theme, config);
+        }
         for entry in &mut self.tabs {
             if let Some(editor) = entry.editor.as_mut() {
                 editor.prepare_render(theme, config);
@@ -512,7 +556,7 @@ impl Panel for IdePage {
             if pane.height > 0 {
                 self.git_view().render(pane, buf, ctx);
             }
-            if box_rows == 1 && !self.show_log {
+            if box_rows == 1 && self.view == GitView::Changes {
                 let row = layout.git.y + layout.git.height - 1;
                 let text = if self.commit.active {
                     format!("Commit: {}", self.commit.text)
@@ -683,6 +727,10 @@ impl Panel for IdePage {
                 self.absorb(events)
             }
             (KeyCode::Char('f'), true) if shift => self.format_active(),
+            (KeyCode::Char('t'), true) => {
+                self.toggle_todo_view();
+                vec![PanelEvent::NeedsRedraw]
+            }
             (KeyCode::Char('h'), true) => {
                 self.toggle_git_view();
                 vec![PanelEvent::NeedsRedraw]
@@ -729,6 +777,9 @@ impl Panel for IdePage {
         events.extend(self.git.tick());
         if let Some(log) = self.git_log.as_mut() {
             events.extend(log.tick());
+        }
+        if let Some(todo) = self.todo.as_mut() {
+            events.extend(todo.tick());
         }
         for entry in &mut self.tabs {
             if let Some(editor) = entry.editor.as_mut() {
@@ -1099,15 +1150,20 @@ mod tests {
     #[test]
     fn ctrl_h_swaps_the_lower_pane_between_changes_and_history() {
         let mut page = IdePage::new();
-        assert!(!page.show_log, "changes is the default view");
+        assert_eq!(page.view, GitView::Changes, "changes is the default view");
         page.toggle_git_view();
-        assert!(page.show_log, "history takes the lower pane");
+        assert_eq!(page.view, GitView::History);
         assert!(
             page.git_log.is_some(),
             "the history panel is created lazily"
         );
         page.toggle_git_view();
-        assert!(!page.show_log, "the second toggle goes back to changes");
+        assert_eq!(page.view, GitView::Changes, "the second toggle goes back");
+        page.toggle_todo_view();
+        assert_eq!(page.view, GitView::Todo);
+        assert!(page.todo.is_some(), "the TODO list is created lazily");
+        page.toggle_todo_view();
+        assert_eq!(page.view, GitView::Changes, "the second toggle goes back");
     }
 
     #[test]
