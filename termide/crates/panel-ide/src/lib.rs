@@ -205,6 +205,8 @@ pub struct IdePage {
     git_log: Option<Box<dyn Panel>>,
     /// Whether the history view is showing instead of changes.
     show_log: bool,
+    /// The file the history view was narrowed to (the active tab's file).
+    history_filter: Option<PathBuf>,
     focus: Focus,
     /// The last load failure, drawn in the status line.
     message: Option<String>,
@@ -229,6 +231,7 @@ impl IdePage {
             ])),
             git_log: None,
             show_log: false,
+            history_filter: None,
             focus: Focus::Editor,
             message: None,
             repo: std::env::current_dir().ok(),
@@ -254,11 +257,29 @@ impl IdePage {
                 let paths = self.repo.clone().unwrap_or_else(|| PathBuf::from("."));
                 self.git_log = Some(Box::new(GitLogPanel::new(&[paths])));
             }
+            // History opens on the file in front of the reader, which is the
+            // question the page is being used to answer: what changed here.
+            let filter = self
+                .active
+                .and_then(|index| self.tabs.get(index))
+                .map(|entry| entry.tab.path.clone())
+                .filter(|path| path.is_file());
+            self.history_filter = filter.clone();
+            if let Some(log) = self.git_log.as_mut() {
+                if let Some(panel) = log.as_any_mut().downcast_mut::<GitLogPanel>() {
+                    panel.set_file_filter(filter);
+                }
+            }
             self.show_log = true;
         } else {
             self.show_log = false;
         }
         true
+    }
+
+    /// The file the history view is showing, if it is narrowed to one.
+    pub fn history_filter(&self) -> Option<&PathBuf> {
+        self.history_filter.as_ref()
     }
 
     /// The lower-left pane currently showing.
@@ -999,6 +1020,22 @@ mod tests {
             "the box hands the message to the app: {events:?}"
         );
         assert!(!page.commit.active, "the box closes after the commit");
+    }
+
+    #[test]
+    fn history_narrows_to_the_open_file() {
+        let dir = std::env::temp_dir().join("panel-ide-tests");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("narrow.rs");
+        std::fs::write(&path, "x\n").expect("write the fixture");
+        let mut page = IdePage::new();
+        page.open(path.clone());
+        page.toggle_git_view();
+        assert_eq!(
+            page.history_filter(),
+            Some(&path),
+            "the history follows the active tab"
+        );
     }
 
     #[test]

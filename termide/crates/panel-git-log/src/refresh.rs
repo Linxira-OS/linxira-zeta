@@ -17,7 +17,7 @@ const AHEAD_SCREENS: usize = 2;
 
 /// What a log stream shows: the repository, the branch (`None` = HEAD) and
 /// the graph style. A refresh of the same view keeps the reader's place.
-pub(crate) type LogView = (PathBuf, Option<String>, bool);
+pub(crate) type LogView = (PathBuf, Option<String>, bool, Option<PathBuf>);
 
 /// A restarted stream of the view already shown: the old rows stay up until
 /// the new ones arrive, then the selected commit is found again.
@@ -133,7 +133,7 @@ impl GitLogPanel {
     /// new ones arrive and reads at least as far as it had, so a watcher
     /// refresh neither blanks the list nor loses the reader's place; another
     /// repository or branch starts at the top.
-    fn restart_log(&mut self) {
+    pub(crate) fn restart_log(&mut self) {
         let Some(repo) = self.repo_manager.current() else {
             self.clear_git_state();
             return;
@@ -142,8 +142,10 @@ impl GitLogPanel {
             repo.to_path_buf(),
             self.selected_branch.clone(),
             self.unicode_graph,
+            self.file_filter.clone(),
         );
-        let stream = LogStream::start(&view.0, view.1.as_deref(), view.2);
+        let stream =
+            LogStream::start_filtered(&view.0, view.1.as_deref(), view.2, view.3.as_deref());
         if self.log_view.as_ref() == Some(&view) {
             stream.request(self.loaded_commits.max(PAGE));
             self.reload = Some(Reload {
