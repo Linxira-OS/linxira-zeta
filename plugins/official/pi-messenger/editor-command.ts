@@ -20,6 +20,11 @@
  */
 
 import { cfgEditorAutoInstall } from "@linxiraos/zeta/session/settings";
+import {
+	createDefaultTerminalLaunchRequest,
+	terminalLaunchCapabilities,
+} from "@linxiraos/zeta/subprocess/terminal-launch";
+import { classifyTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-multiplexer";
 import * as cp from "node:child_process";
 import type { ExtensionAPI, ExtensionCommandContext } from "@linxiraos/zeta";
 import { ensureEditorBinary } from "./editor-binary.ts";
@@ -53,6 +58,34 @@ export async function switchToEditor(ctx: ExtensionCommandContext, args = ""): P
 	}
 
 	const argv = editorArgs(args, cwd);
+
+	// Inside a multiplexer the editor belongs beside the CLI, as a pane: the
+	// session stays visible and the editor is not a separate detached process
+	// the terminal knows nothing about. The host owns the launch (see
+	// `ctx.ui.openTerminal`); when it cannot place the pane we fall through to
+	// the detached spawn rather than leaving the user without an editor.
+	if (process.platform !== "win32" && ctx.ui?.openTerminal) {
+		const multiplexer = classifyTerminalMultiplexer(process.env);
+		if (multiplexer !== null) {
+			const plan = createDefaultTerminalLaunchRequest(multiplexer, "pane", [resolved.binary, ...argv], cwd);
+			if ("request" in plan) {
+				try {
+					const result = await ctx.ui.openTerminal(plan.request);
+					const provider = terminalLaunchCapabilities[result.multiplexer].displayName;
+					ctx.ui.notify?.(
+						result.warning
+							? `Opened the editor in ${provider}, but ${result.warning}`
+							: `Opened the editor in ${provider}.`,
+						result.warning ? "warning" : "info",
+					);
+					return;
+				} catch {
+					// A multiplexer that cannot launch must not cost the user the editor.
+				}
+			}
+		}
+	}
+
 	// Detached so the CLI survives the switch and a crashed editor cannot take
 	// the session with it. On Windows a detached child gets its own console,
 	// which is where the editor then runs; the editor discovers everything else
