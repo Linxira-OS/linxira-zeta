@@ -559,6 +559,16 @@ impl Terminal {
         self.is_alive.lock().map(|alive| *alive).unwrap_or(false)
     }
 
+    /// Poll the PTY child's exit status without blocking.
+    ///
+    /// Zeta deviation (2026-10-17): `is_alive` is driven by the reader thread's
+    /// EOF, and ConPTY never signals EOF on Windows when the client exits, so a
+    /// host that needs to know a child exited (the GUI's "session ended"
+    /// signal) asks the child directly. `None` means it is still running.
+    pub fn try_wait(&mut self) -> Option<portable_pty::ExitStatus> {
+        self.child.try_wait().ok().flatten()
+    }
+
     /// Get terminal info for status bar
     pub fn get_terminal_info(&self) -> TerminalInfo {
         // Get user@host

@@ -15,6 +15,8 @@
 - fresh(Rust,GPL-2.0):上游 sinelaw/fresh(9k★)活跃,但 **GPL 不可 vendor**(与 editor/VENDOR.md 同一结论);其 Orchestrator(worktree 工作区、agent 会话编排、Everything 对话框)仅作 MIT 重实现的交互参考。
 - 自建壳于 Zeta 主仓库:污染 OMP 可合并面,否决。
 
+| 24 | `crates/panel-terminal/src/lib.rs`(`Terminal::try_wait`) | **子进程退出查询**：`is_alive` 由读线程 EOF 驱动，而 ConPTY 在 Windows 上客户端退出时不发 EOF（实测 4 s 内恒 true）⇒ 增加 `pub fn try_wait()` 直接问 child（`portable_pty::Child::try_wait`），供 zetawork GUI 的「会话结束」信号使用 | 上游无此物 | **保留**（Zeta 2026-10-17：GUI 真 PTY 需要平台无关的退出信号） | 2026-10-17 |
+
 ## 与仓库其余部分的关系
 
 - **不是根 Cargo workspace 成员**:根 `Cargo.toml` members 显式列 `crates/*`;termide 自带 `[workspace]`(members `crates/*`,自有 `rust-toolchain.toml` = 1.91.1、`Cargo.lock`)。在 `termide/` 内跑 cargo 命令,与根 workspace 完全隔离。
