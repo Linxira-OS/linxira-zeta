@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Live terminal sessions: one PTY per terminal session tab.
 //!
+//! This is the pane's **fallback** backend: [`crate::terminal_service`] first
+//! tries to attach to the PTY `zetacode serve` owns, and only when the gateway
+//! is unreachable (or refuses the attach) does the shell spawn the shell
+//! locally through this module. Both backends render into the same ratatui
+//! `Buffer`, so the pane looks the same either way and its status line names
+//! which one it is on.
+//!
 //! The GUI used to draw a seeded transcript — a faithful *replica* of a
 //! workbench with nothing behind it. This module is the other half: a real
 //! shell on a PTY (`termide_panel_terminal::Terminal`), rendered through the

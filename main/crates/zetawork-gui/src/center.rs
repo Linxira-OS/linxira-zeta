@@ -12,7 +12,9 @@
 //! sample code, and the diff draws the spec's hunk rows — and each one starts
 //! with a `[占位]` banner naming the data source it will read once that exists.
 
-use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
+use egui::{
+	Align, Align2, Color32, CornerRadius, FontId, Layout, Rect, Sense, Stroke, Ui, pos2, vec2,
+};
 
 use crate::Shell;
 use crate::agent::RowKind;
@@ -521,11 +523,13 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 
 /// The active session tab's body.
 ///
-/// 终端 is still a blitted placeholder (no PTY host), but the other four pages
-/// are the GUI's own, and they read real data: the editor opens and writes real
-/// files, the diff page renders a real `git diff`, the git page renders the same
-/// snapshot the right column's Git panel does, and the zetaide page says what
-/// still has to be linked before it can host the termide panel editor.
+/// 终端 is a real grid over either PTY backend (serve's, reached over the
+/// gateway WebSocket, with this process's own PTY as the unreachable-serve
+/// fallback), and the other four pages are the GUI's own, reading real data:
+/// the editor opens and writes real files, the diff page renders a real
+/// `git diff`, the git page renders the same snapshot the right column's Git
+/// panel does, and the zetaide page says what still has to be linked before it
+/// can host the termide panel editor.
 fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	let Some(tab) = pane.active_tab() else {
 		return;
@@ -579,7 +583,17 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 	}
 
 	let grid = Rect::from_min_max(pos2(rect.min.x, sub.max.y), rect.max);
-	let metrics = GridMetrics::for_panel(ui.ctx(), grid, f32::from(shell.settings.terminal_size));
+	// The backend line is the pane's own status line: which PTY is behind the
+	// grid, and, on a fallback, the one reason serve could not be used.
+	let status_h = if grid.height() > crate::terminal_service::STATUS_HEIGHT + 32.0 {
+		crate::terminal_service::STATUS_HEIGHT
+	} else {
+		0.0
+	};
+	let term_grid =
+		Rect::from_min_max(grid.min, pos2(grid.max.x, (grid.max.y - status_h).max(grid.min.y)));
+	let metrics =
+		GridMetrics::for_panel(ui.ctx(), term_grid, f32::from(shell.settings.terminal_size));
 	let columns = metrics.cols.max(1);
 	let path = shell
 		.state
@@ -588,30 +602,47 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 		.unwrap_or_default();
 	let branch = shell.state.branch_label().to_owned();
 	let shell_name = tab.shell.map(|kind| kind.label().to_owned());
-	// A live PTY replaces the seeded transcript: the grid below is a real
-	// terminal, rendered by the same `Panel` implementation the TUI runs.
-	// `ensure` spawns it on first show and resizes it when the grid changes.
+	// A serve-backed PTY replaces the seeded transcript when the gateway is
+	// reachable; otherwise the in-process PTY below does. `ensure` picks once
+	// per tab, so a mid-stream failure moves it to `Local` permanently.
 	let rows = metrics.rows.max(1);
 	let cwd = shell
 		.state
 		.active_workspace()
 		.map(|ws| std::path::PathBuf::from(&ws.path));
-	if shell.live.ensure(tab.id.as_str(), columns, rows, cwd) {
-		let area = ratatui::layout::Rect::new(0, 0, columns, rows);
+	// A headless shell (`Shell::with_state`, every test) must not dial a live
+	// gateway: only a real run may own a serve attach.
+	let origin = if shell.probe {
+		shell
+			.stats
+			.info
+			.as_ref()
+			.and_then(|info| info.web_url.clone())
+	} else {
+		None
+	};
+	shell
+		.terminals
+		.ensure(tab.id.as_str(), origin.as_deref(), cwd.clone(), columns, rows);
+	let status = shell
+		.terminals
+		.label(tab.id.as_str())
+		.unwrap_or_else(|| "后端：本地 PTY".to_owned());
+	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
+	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
+	if shell.terminals.render(tab.id.as_str(), area, &mut grid_buf) {
+		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+		paint_terminal_status(ui, grid, &status);
+		return;
+	}
+	// The serve tab fell back: today's in-process PTY takes the same grid.
+	if shell.terminals.is_local(tab.id.as_str())
+		&& shell.live.ensure(tab.id.as_str(), columns, rows, cwd)
+	{
 		let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 		if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
-			let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
-			let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
-			let grid = GridMetrics {
-				origin: rect.min,
-				font: metrics.font.clone(),
-				cell_w: metrics.cell_w,
-				cell_h: metrics.cell_h,
-				cols: columns,
-				rows,
-				font_size: metrics.font_size,
-			};
-			paint_buffer_with(ui.painter(), &grid_buf, &grid, theme::TERM_TEXT);
+			paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+			paint_terminal_status(ui, grid, &status);
 			return;
 		}
 	}
@@ -654,6 +685,45 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 				paint_settings.cursor,
 			);
 		});
+	paint_terminal_status(ui, grid, &status);
+}
+
+/// Paint one rendered terminal grid into the pane and return nothing: the
+/// caller has already reserved the area.
+fn paint_terminal_grid(
+	ui: &mut Ui,
+	metrics: &GridMetrics,
+	columns: u16,
+	rows: u16,
+	buf: &ratatui::buffer::Buffer,
+) {
+	let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
+	let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+	let grid = GridMetrics {
+		origin: rect.min,
+		font: metrics.font.clone(),
+		cell_w: metrics.cell_w,
+		cell_h: metrics.cell_h,
+		cols: columns,
+		rows,
+		font_size: metrics.font_size,
+	};
+	paint_buffer_with(ui.painter(), buf, &grid, theme::TERM_TEXT);
+}
+
+/// The pane's backend line, at the bottom of the terminal body.
+fn paint_terminal_status(ui: &Ui, area: Rect, status: &str) {
+	if area.height() <= crate::terminal_service::STATUS_HEIGHT + 32.0 {
+		return;
+	}
+	let y = area.max.y - crate::terminal_service::STATUS_HEIGHT / 2.0;
+	ui.painter().text(
+		pos2(area.min.x + 8.0, y),
+		Align2::LEFT_CENTER,
+		status,
+		FontId::monospace(11.0),
+		theme::TEXT_3,
+	);
 }
 
 /// An 编辑器 page: a real file, editable in place and saved to disk.
