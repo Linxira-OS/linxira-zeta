@@ -13,3 +13,4 @@ ratatui.workspace = true
 
 # Workspace crates
 termide-core = { path = "../core" }
+termide-panel-file-manager = { path = "../panel-file-manager" }

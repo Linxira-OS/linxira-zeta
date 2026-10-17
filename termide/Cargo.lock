@@ -5588,6 +5588,7 @@ dependencies = [
  "crossterm",
  "ratatui",
  "termide-core",
+ "termide-panel-file-manager",
 ]
 
 [[package]]

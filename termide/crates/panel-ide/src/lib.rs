@@ -18,11 +18,12 @@
 //! Only two dividers move (left width, git height); everything else is fixed,
 //! which is what makes the page legible to someone who has used VS Code.
 //!
+//! The page owns the "a file was chosen" contract: the left pane (the file tree
+//! by default) emits [`PanelEvent::OpenFile`] and the page turns that into a
+//! tab, so the host app never has to know how the page is composed.
+//!
 //! Rendering is a `ratatui::Buffer`, so the desktop shell hosts the *same* page
 //! through `Panel::render` → blit — the terminal panel already proves that road.
-//! The sub-panels (file manager, editor, git) are composed in the next step; the
-//! layout, the tab model and the pointer geometry land here first so both
-//! surfaces can wire against a stable shape.
 
 use std::any::Any;
 use std::path::PathBuf;
@@ -80,6 +81,18 @@ pub struct Layout {
     pub status: Rect,
     pub left_divider_x: u16,
     pub git_divider_y: u16,
+}
+
+impl Layout {
+    /// The tree/source area: the left column above the git divider.
+    pub fn tree(&self) -> Rect {
+        Rect::new(
+            self.left.x,
+            self.left.y,
+            self.left.width,
+            self.git.y.saturating_sub(self.left.y),
+        )
+    }
 }
 
 /// The fixed layout. `left_width` is clamped so the editor keeps [`MIN_EDITOR`]
@@ -143,14 +156,26 @@ enum Drag {
     Git,
 }
 
+/// Which side takes keys.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Focus {
+    /// The editor area (default).
+    Editor,
+    /// The left column (file tree).
+    Left,
+}
+
 /// The IDE page.
-#[derive(Debug, Default)]
 pub struct IdePage {
     tabs: Vec<Tab>,
     active: Option<usize>,
     left_width: u16,
     git_height: u16,
     drag: Option<Drag>,
+    /// The left column's top pane — the file tree by default; replaceable so
+    /// the app can mount a search view later and so tests can drive it.
+    left: Box<dyn Panel>,
+    focus: Focus,
 }
 
 impl IdePage {
@@ -162,7 +187,15 @@ impl IdePage {
             left_width: DEFAULT_LEFT,
             git_height: DEFAULT_GIT,
             drag: None,
+            left: Box::new(termide_panel_file_manager::FileManager::new()),
+            focus: Focus::Editor,
         }
+    }
+
+    /// Replace the left-top pane (the app may mount a search view here; the
+    /// tests mount a scripted one).
+    pub fn set_left(&mut self, panel: Box<dyn Panel>) {
+        self.left = panel;
     }
 
     /// Open (or focus) `path` as a tab.
@@ -215,6 +248,20 @@ impl IdePage {
         self.active = Some(next);
     }
 
+    /// The page owns the "a file was chosen" contract: sub-panels emit
+    /// [`PanelEvent::OpenFile`] and the page opens a tab for it; every other
+    /// event passes through to the app.
+    fn absorb(&mut self, events: Vec<PanelEvent>) -> Vec<PanelEvent> {
+        let mut rest = Vec::with_capacity(events.len());
+        for event in events {
+            match event {
+                PanelEvent::OpenFile(path) => self.open(path),
+                other => rest.push(other),
+            }
+        }
+        rest
+    }
+
     /// The x range of tab `index` in the tab strip.
     fn tab_span(&self, index: usize) -> (u16, u16) {
         let mut x = 0;
@@ -237,6 +284,12 @@ impl IdePage {
     }
 }
 
+impl Default for IdePage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Panel for IdePage {
     fn name(&self) -> &'static str {
         "ide"
@@ -249,6 +302,14 @@ impl Panel for IdePage {
     fn render(&mut self, area: Rect, buf: &mut Buffer, ctx: &RenderContext) {
         buf.set_style(area, Style::default().bg(ctx.theme.bg).fg(ctx.theme.fg));
         let layout = layout(area, self.left_width, self.git_height);
+
+        // The left column's tree, above the git divider.
+        if layout.left.width > 0 {
+            let tree = layout.tree();
+            if tree.height > 0 {
+                self.left.render(tree, buf, ctx);
+            }
+        }
 
         // Tab strip: titles, the active one emphasised.
         let mut x = layout.tabs.x;
@@ -339,8 +400,17 @@ impl Panel for IdePage {
                 self.cycle(if shift { -1 } else { 1 });
                 vec![PanelEvent::NeedsRedraw]
             }
+            _ if self.focus == Focus::Left => {
+                let events = self.left.handle_key(chord);
+                self.absorb(events)
+            }
             _ => Vec::new(),
         }
+    }
+
+    fn tick(&mut self) -> Vec<PanelEvent> {
+        let events = self.left.tick();
+        self.absorb(events)
     }
 
     fn handle_mouse(&mut self, event: MouseEvent, panel_area: Rect) -> Vec<PanelEvent> {
@@ -349,6 +419,15 @@ impl Panel for IdePage {
         let row = event.row;
         match event.kind {
             MouseEventKind::Down(_) => {
+                let tree = layout.tree();
+                if layout.left.width > 0 && tree.contains((column, row).into()) {
+                    self.focus = Focus::Left;
+                    let events = self.left.handle_mouse(event, tree);
+                    return self.absorb(events);
+                }
+                if layout.editor.contains((column, row).into()) {
+                    self.focus = Focus::Editor;
+                }
                 if row == layout.tabs.y && column < layout.tabs.x + layout.tabs.width {
                     if let Some(index) = self.tab_at(column.saturating_sub(layout.tabs.x)) {
                         self.active = Some(index);
@@ -385,6 +464,15 @@ impl Panel for IdePage {
         Vec::new()
     }
 
+    fn handle_scroll(&mut self, delta: i32, panel_area: Rect) -> Vec<PanelEvent> {
+        let layout = layout(panel_area, self.left_width, self.git_height);
+        if self.focus == Focus::Left {
+            let events = self.left.handle_scroll(delta, layout.tree());
+            return self.absorb(events);
+        }
+        Vec::new()
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -417,6 +505,11 @@ mod tests {
         assert_eq!(
             layout.editor.height, layout.left.height,
             "the editor spans the body"
+        );
+        assert_eq!(
+            layout.tree().height,
+            layout.left.height - 9,
+            "the tree ends at the git divider"
         );
     }
 
@@ -463,6 +556,67 @@ mod tests {
         assert!(page.close_active());
         assert_eq!(page.titles(), vec!["a.rs".to_owned(), "b.rs".to_owned()]);
         assert_eq!(page.active, Some(1), "the left neighbour takes over");
+    }
+
+    /// A left pane that answers every interaction with `OpenFile`, standing in
+    /// for the file tree (whose real events are exercised in its own suite).
+    struct Scripted;
+
+    impl Panel for Scripted {
+        fn name(&self) -> &'static str {
+            "scripted"
+        }
+        fn title(&self) -> String {
+            "scripted".to_owned()
+        }
+        fn render(&mut self, _area: Rect, _buf: &mut Buffer, _ctx: &RenderContext) {}
+        fn handle_key(&mut self, _chord: KeyChord) -> Vec<PanelEvent> {
+            vec![PanelEvent::OpenFile(PathBuf::from("picked.rs"))]
+        }
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
+    }
+
+    fn key(code: KeyCode) -> KeyChord {
+        let raw = crossterm::event::KeyEvent::new(code, KeyModifiers::NONE);
+        KeyChord {
+            raw,
+            canonical: raw,
+        }
+    }
+
+    #[test]
+    fn the_page_owns_the_open_file_contract() {
+        let mut page = IdePage::new();
+        page.absorb(vec![PanelEvent::OpenFile(PathBuf::from("a.rs"))]);
+        page.absorb(vec![
+            PanelEvent::NeedsRedraw,
+            PanelEvent::OpenFile(PathBuf::from("b.rs")),
+        ]);
+        assert_eq!(page.titles(), vec!["a.rs".to_owned(), "b.rs".to_owned()]);
+        // Non-open events pass through to the app.
+        assert_eq!(page.absorb(vec![PanelEvent::NeedsRedraw]).len(), 1);
+    }
+
+    #[test]
+    fn clicking_the_left_column_focuses_it_and_keys_go_there() {
+        let mut page = IdePage::new();
+        page.set_left(Box::new(Scripted));
+        let down = MouseEvent {
+            kind: MouseEventKind::Down(crossterm::event::MouseButton::Left),
+            column: 2,
+            row: 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        page.handle_mouse(down, AREA);
+        assert_eq!(page.focus, Focus::Left);
+        // A plain key is forwarded to the left pane, which answers with OpenFile.
+        page.handle_key(key(KeyCode::Enter));
+        assert_eq!(page.titles(), vec!["picked.rs".to_owned()]);
     }
 
     #[test]
