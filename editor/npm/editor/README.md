@@ -58,6 +58,21 @@ npm install @linxiraos/editor
 Only **x64 (amd64)** builds of Linux and Windows are provided. macOS and ARM
 (arm64/armv7) builds are **not** available yet.
 
+## Migration from 1.2.1 (the TTT handover)
+
+`@linxiraos/editor@1.2.1` on npm is still the **retired TTT editor**: it carries
+`bin/zeta-editor.js` and its platform leaves carry `ttt.exe`. From the next
+published version the package is the payload described above:
+
+- the `zeta-editor` command is **gone** (this package has no `bin` by design;
+  spawn the payload, or `node launcher.js`),
+- the leaves carry `termide-editor[.exe]` instead of `ttt.exe`,
+- the editor's command line is `FILE[:line[:col]]` (`$EDITOR` semantics: no
+  sessions, no detach, no layout persistence).
+
+Nothing else in the repository refers to TTT; the package name stayed because
+it is the slot `$EDITOR` consumers point at.
+
 ## License
 
 MIT. The payload is built from the vendored TermIDE snapshot; see
