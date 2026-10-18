@@ -164,6 +164,12 @@ fn read_loop(replies: File, pending: Pending, closed: Arc<AtomicBool>) {
 
 #[cfg(test)]
 mod tests {
+    // The unix-gated cases below build `Cdp`, `File`, `BufReader`, `Value` and
+    // the timeout types from this module's own prelude; without this line the
+    // Linux leg (`--all-targets`) fails with `cannot find type Cdp` while the
+    // Windows leg compiles clean, because `#[cfg(unix)]` removes the only code
+    // that would have missed it.
+    use super::*;
 
     /// A fake browser on the far end of two pipes: answers every command with
     /// its method name, and an error for `Fail.me`.
