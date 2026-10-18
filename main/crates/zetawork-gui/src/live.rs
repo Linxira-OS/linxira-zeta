@@ -39,9 +39,11 @@ use termide_core::panel::{Panel, PanelConfig, RenderContext, ThemeColors};
 use termide_core::{Config, Theme};
 use termide_panel_terminal::Terminal;
 
-/// One spawned pane: the PTY and the geometry it was last sized to.
+/// One spawned pane: the PTY, the geometry it was last sized to, and the
+/// command line the pane actually spawned (so the status line can name it).
 struct Live {
 	term: Terminal,
+	command: String,
 	cols: u16,
 	rows: u16,
 	title: Option<String>,
@@ -51,15 +53,15 @@ struct Live {
 /// How the local fallback starts its shell.
 ///
 /// `Auto` keeps termide's own detection (`$SHELL`, Git Bash, `cmd.exe`, …).
-/// The other two are the GUI's own answer for the PowerShell families: both
-/// hosts get an explicit black/gray init line, so a fresh pane's console
-/// defaults are the workbench's ink rather than whatever the host inherited.
+/// PowerShell gets its own plan — not because it needs an init script (it does
+/// not; see [`spawn_local`]) but because the GUI sets the working directory at
+/// spawn time instead of typing `Set-Location` into the shell.
 #[cfg(windows)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum LocalShell {
 	Auto,
 	Path(PathBuf),
-	PowerShell { program: PathBuf, args: Vec<String> },
+	PowerShell { program: PathBuf },
 }
 
 /// True for both PowerShell families (the `$SHELL` can name either).
@@ -76,12 +78,9 @@ fn local_shell_plan(
 	shell_env: Option<&std::path::Path>,
 	pwsh: Option<&std::path::Path>,
 	powershell: Option<&std::path::Path>,
-	cwd: Option<&std::path::Path>,
 ) -> LocalShell {
-	let powershell_plan = |program: &std::path::Path| LocalShell::PowerShell {
-		program: program.to_path_buf(),
-		args: powershell_args(cwd),
-	};
+	let powershell_plan =
+		|program: &std::path::Path| LocalShell::PowerShell { program: program.to_path_buf() };
 	if let Some(shell) = shell_env {
 		let stem = shell
 			.file_stem()
@@ -100,44 +99,6 @@ fn local_shell_plan(
 		return powershell_plan(powershell);
 	}
 	LocalShell::Auto
-}
-
-/// The argv a PowerShell host needs: stay interactive, set the console ink
-/// the workbench expects, clear the inherited blue buffer, and land in `cwd`.
-///
-/// Every argument is whitespace-free on purpose: [`Terminal::new_with_command`]
-/// splits its string on whitespace, and PowerShell joins the tokens after
-/// `-Command` back with single spaces. The working directory therefore travels
-/// percent-encoded through `[uri]::UnescapeDataString`.
-#[cfg(windows)]
-fn powershell_args(cwd: Option<&std::path::Path>) -> Vec<String> {
-	let mut args = vec!["-NoLogo".to_owned(), "-NoExit".to_owned(), "-Command".to_owned()];
-	if let Some(cwd) = cwd {
-		args.push("Set-Location".to_owned());
-		args.push(format!("([uri]::UnescapeDataString('{}'));", percent_encode(cwd)));
-	}
-	args.push(
-		"$Host.UI.RawUI.BackgroundColor='Black';$Host.UI.RawUI.ForegroundColor='Gray';Clear-Host"
-			.to_owned(),
-	);
-	args
-}
-
-/// Percent-encode a path for `.NET`'s `UnescapeDataString`, leaving the
-/// separators and drive colon so the decoded value is the original path.
-#[cfg(windows)]
-fn percent_encode(path: &std::path::Path) -> String {
-	let mut out = String::new();
-	for byte in path.to_string_lossy().bytes() {
-		if byte.is_ascii_alphanumeric()
-			|| matches!(byte, b'\\' | b'/' | b':' | b'.' | b'-' | b'_' | b'~')
-		{
-			out.push(char::from(byte));
-		} else {
-			out.push_str(&format!("%{byte:02X}"));
-		}
-	}
-	out
 }
 
 /// The ink a terminal pane renders with.
@@ -168,9 +129,24 @@ fn pane_theme() -> Theme {
 static PANE_CONFIG: std::sync::LazyLock<std::sync::Arc<Config>> =
 	std::sync::LazyLock::new(|| std::sync::Arc::new(Config::default()));
 
-/// Start the local fallback: the planned PowerShell argv, or termide's own
-/// detection for everything else. `None` means the spawn failed.
-fn spawn_local(rows: u16, cols: u16, cwd: Option<PathBuf>) -> Option<Terminal> {
+/// Start the local fallback and report the command line it spawned.
+///
+/// # Why PowerShell is spawned through `new_with_shell`
+///
+/// The old start passed an init line through `-NoExit -Command
+/// Set-Location ([uri]::UnescapeDataString('…')); $Host.UI.RawUI…;
+/// Clear-Host`. That command was never typed, but the host still wrote it into
+/// the console's own title/buffer state before the first frame, and a
+/// `RawUI.BackgroundColor` write plus `Clear-Host` repaints the whole console
+/// buffer — which is where the screenshot's stray `?1:C:\Window…` fragments and
+/// menu-looking status text came from. `new_with_shell` runs the host with
+/// `-NoLogo` only and sets the working directory through `CreateProcess`, so
+/// the pane shows exactly one `PS <cwd>>` prompt: nothing is echoed, nothing is
+/// cleared after the prompt is drawn, and the shell's own profile output stays
+/// where the user can see it.
+///
+/// `None` means the spawn failed.
+fn spawn_local(rows: u16, cols: u16, cwd: Option<PathBuf>) -> Option<(Terminal, String)> {
 	#[cfg(windows)]
 	{
 		let installed = crate::shells::detect();
@@ -189,35 +165,38 @@ fn spawn_local(rows: u16, cols: u16, cwd: Option<PathBuf>) -> Option<Terminal> {
 			shell_env.as_deref(),
 			find(crate::shells::ShellKind::Pwsh),
 			find(crate::shells::ShellKind::PowerShell),
-			cwd.as_deref(),
 		);
-		match plan {
-			LocalShell::Auto => Terminal::new_with_cwd(rows, cols, cwd),
+		let (term, command) = match plan {
+			LocalShell::Auto => {
+				let program = installed
+					.first()
+					.map(|shell| shell.path.to_string_lossy().into_owned())
+					.unwrap_or_else(|| "自动检测的 shell".to_owned());
+				(Terminal::new_with_cwd(rows, cols, cwd).ok()?, program)
+			},
 			LocalShell::Path(path) => {
-				let program = path.to_string_lossy();
-				Terminal::new_with_shell(rows, cols, &program, cwd)
+				let program = path.to_string_lossy().into_owned();
+				(Terminal::new_with_shell(rows, cols, &program, cwd).ok()?, program)
 			},
-			LocalShell::PowerShell { program, args } => {
-				// `new_with_command` splits on whitespace, and a pwsh install
-				// often lives under `C:\Program Files`; its bare name is what
-				// the PTY's PATH search (and CreateProcess's System32 search)
-				// resolves, so the argv carries that instead of the full path.
-				let executable = program
-					.file_name()
-					.map(|name| name.to_string_lossy().into_owned())
-					.unwrap_or_else(|| program.to_string_lossy().into_owned());
-				let command = std::iter::once(executable)
-					.chain(args)
-					.collect::<Vec<_>>()
-					.join(" ");
-				Terminal::new_with_command(rows, cols, &command)
+			LocalShell::PowerShell { program } => {
+				let program = program.to_string_lossy().into_owned();
+				// `new_with_shell` passes its own `-NoLogo` and sets the cwd;
+				// no `-Command` is involved, so nothing is echoed or repainted.
+				(
+					Terminal::new_with_shell(rows, cols, &program, cwd).ok()?,
+					format!("{program} -NoLogo"),
+				)
 			},
-		}
-		.ok()
+		};
+		Some((term, command))
 	}
 	#[cfg(not(windows))]
 	{
-		Terminal::new_with_cwd(rows, cols, cwd).ok()
+		let program = crate::shells::detect()
+			.first()
+			.map(|shell| shell.path.to_string_lossy().into_owned())
+			.unwrap_or_else(|| "自动检测的 shell".to_owned());
+		Some((Terminal::new_with_cwd(rows, cols, cwd).ok()?, program))
 	}
 }
 
@@ -252,6 +231,13 @@ impl LiveSessions {
 		self.tabs.get(tab)?.term.shell_pid()
 	}
 
+	/// The command line this tab actually spawned — the program plus the
+	/// arguments the GUI gave it. The pane's status line shows it, so a pane
+	/// can never claim a shell it did not start.
+	pub fn command(&self, tab: &str) -> Option<&str> {
+		self.tabs.get(tab).map(|live| live.command.as_str())
+	}
+
 	/// Spawn the PTY for `tab` when it has none, and resize it when the grid
 	/// changed. `false` means the spawn failed (no shell, no PTY) — the caller
 	/// keeps its placeholder and says so.
@@ -265,10 +251,11 @@ impl LiveSessions {
 			return true;
 		}
 		match spawn_local(rows, cols, cwd) {
-			Some(term) => {
-				self
-					.tabs
-					.insert(tab.to_owned(), Live { term, cols, rows, title: None, ended: false });
+			Some((term, command)) => {
+				self.tabs.insert(
+					tab.to_owned(),
+					Live { term, command, cols, rows, title: None, ended: false },
+				);
 				true
 			},
 			None => false,
@@ -422,9 +409,10 @@ mod tests {
 		// Spawn through the test seam: `new_with_cwd` would start an interactive
 		// shell, which never exits.
 		let term = Terminal::new_with_command(4, 40, &print_command("hi")).expect("spawn a command");
-		live
-			.tabs
-			.insert("t".to_owned(), Live { term, cols: 40, rows: 4, title: None, ended: false });
+		live.tabs.insert(
+			"t".to_owned(),
+			Live { term, command: print_command("hi"), cols: 40, rows: 4, title: None, ended: false },
+		);
 		assert!(live.pid("t").is_some(), "a spawned PTY knows its shell pid");
 
 		// Pump until the child wrote something (bounded: a slow CI box, not a hang).
@@ -478,9 +466,10 @@ mod tests {
 	fn closing_a_tab_drops_its_terminal() {
 		let mut live = LiveSessions::default();
 		let term = Terminal::new_with_command(2, 20, &print_command("x")).expect("spawn");
-		live
-			.tabs
-			.insert("t".to_owned(), Live { term, cols: 20, rows: 2, title: None, ended: false });
+		live.tabs.insert(
+			"t".to_owned(),
+			Live { term, command: print_command("x"), cols: 20, rows: 2, title: None, ended: false },
+		);
 		assert!(live.contains("t"));
 		live.close("t");
 		assert!(!live.contains("t"));
@@ -489,61 +478,39 @@ mod tests {
 
 	#[cfg(windows)]
 	#[test]
-	fn windows_powershell_51_starts_black_without_a_real_spawn() {
-		let cwd = std::path::Path::new(r"C:\work space\zeta");
+	fn windows_powershell_51_plan_carries_no_init_script() {
 		let program =
 			std::path::Path::new(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");
-		let plan = local_shell_plan(None, None, Some(program), Some(cwd));
-		let LocalShell::PowerShell { program: chosen, args } = plan else {
-			panic!("5.1 must take the init line");
+		let plan = local_shell_plan(None, None, Some(program));
+		let LocalShell::PowerShell { program: chosen } = plan else {
+			panic!("5.1 must take the PowerShell plan");
 		};
 		assert_eq!(chosen.as_path(), program);
-		assert_eq!(args[0], "-NoLogo");
-		assert_eq!(args[1], "-NoExit");
-		assert_eq!(args[2], "-Command");
-		assert!(
-			args.iter().all(|arg| !arg.chars().any(char::is_whitespace)),
-			"each token must survive new_with_command's split: {args:?}"
-		);
-		let script = args.last().expect("the init script");
-		assert!(script.contains("$Host.UI.RawUI.BackgroundColor='Black'"), "{script}");
-		assert!(script.contains("$Host.UI.RawUI.ForegroundColor='Gray'"), "{script}");
-		assert!(script.contains("Clear-Host"), "{script}");
-		assert!(
-			args.iter().any(|arg| arg.contains(r"C:\work%20space\zeta")),
-			"the workspace path is carried, encoded: {args:?}"
-		);
+		// The plan is just the executable: the cwd travels through
+		// CreateProcess, and `new_with_shell` adds `-NoLogo` itself. There is no
+		// `-Command` text left to echo, paste, or repaint the console with.
+		assert!(!format!("{chosen:?}").contains("-Command"));
 	}
 
 	#[cfg(windows)]
 	#[test]
-	fn pwsh_is_preferred_and_both_hosts_take_the_init_line() {
+	fn pwsh_is_preferred_and_both_hosts_use_the_same_clean_plan() {
 		let pwsh = std::path::Path::new(r"C:\Program Files\PowerShell\7\pwsh.exe");
 		let ps = std::path::Path::new(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");
-		let plan = local_shell_plan(None, Some(pwsh), Some(ps), None);
-		let LocalShell::PowerShell { program, args } = plan else {
+		let plan = local_shell_plan(None, Some(pwsh), Some(ps));
+		let LocalShell::PowerShell { program } = plan else {
 			panic!("pwsh is a PowerShell host too");
 		};
 		assert_eq!(program.as_path(), pwsh, "pwsh wins when installed");
-		assert!(
-			args
-				.iter()
-				.any(|arg| arg.contains("BackgroundColor='Black'")),
-			"{args:?}"
-		);
-		assert!(matches!(
-			local_shell_plan(None, None, Some(ps), None),
-			LocalShell::PowerShell { .. }
-		));
+		assert!(matches!(local_shell_plan(None, None, Some(ps)), LocalShell::PowerShell { .. }));
 		assert_eq!(
-			local_shell_plan(None, None, None, None),
+			local_shell_plan(None, None, None),
 			LocalShell::Auto,
 			"no PowerShell family leaves termide's chain alone"
 		);
-		// A `$SHELL` that names a PowerShell host is still that host: termide
-		// would have run it, so the init line is applied there too.
+		// A `$SHELL` that names a PowerShell host is still that host.
 		assert!(matches!(
-			local_shell_plan(Some(ps), Some(pwsh), Some(ps), None),
+			local_shell_plan(Some(ps), Some(pwsh), Some(ps)),
 			LocalShell::PowerShell { .. }
 		));
 	}

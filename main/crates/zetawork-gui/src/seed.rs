@@ -50,7 +50,7 @@ pub fn local_project(cwd: &Path) -> Project {
 		name,
 		branch,
 		path: cwd.display().to_string(),
-		cols: 2,
+		cols: 1,
 		panes: Vec::new(),
 		// Nothing observes this directory's state: there is no session state
 		// machine and no PTY host, so the row shows `—` rather than a word from
@@ -86,36 +86,28 @@ pub fn registered_project(entry: &workbench_projects::Project) -> Project {
 			name: entry.name.clone(),
 			branch,
 			path: entry.path.display().to_string(),
-			cols: 2,
+			cols: 1,
 			panes: default_panes(&ws_id),
 			run_state: None,
 		}],
 	}
 }
 
-/// The layout the spec's `layoutFor()` builds: two panes, each with a terminal
-/// and one more tab (an editor in the first, a diff in the second).
+/// The layout a workspace opens on: **one** pane holding one terminal page.
+///
+/// The maintainer's ruling (2026-10-18): a fresh workspace gets a single pane.
+/// 分屏 is the user's action, not the seed; the spec mock's two-pane
+/// `layoutFor()` was a demo layout, never the default. A workspace that was
+/// split keeps its saved layout when it is restored — this function only says
+/// what a workspace with no saved state starts as.
 pub fn default_panes(ws_id: &str) -> Vec<Pane> {
-	let mut panes = Vec::with_capacity(2);
-	for index in 0..2usize {
-		let pane_id = format!("{ws_id}-p{}", index + 1);
-		let term_id = format!("{pane_id}-t1");
-		let extra_id = format!("{pane_id}-t2");
-		let extra = if index == 0 {
-			SessionTab::new(extra_id, SessionKind::Editor, "workspace.rs".to_owned())
-		} else {
-			SessionTab::new(extra_id, SessionKind::Diff, "改动".to_owned())
-		};
-		panes.push(Pane {
-			id: pane_id,
-			active: term_id.clone(),
-			tabs: vec![
-				SessionTab::new(term_id, SessionKind::Term, format!("终端 {}", index + 1)),
-				extra,
-			],
-		});
-	}
-	panes
+	let pane_id = format!("{ws_id}-p1");
+	let term_id = format!("{pane_id}-t1");
+	vec![Pane {
+		id: pane_id,
+		active: term_id.clone(),
+		tabs: vec![SessionTab::new(term_id, SessionKind::Term, "终端 1".to_owned())],
+	}]
 }
 
 /// The three lines every placeholder pane body starts with: what is not
@@ -352,7 +344,8 @@ mod tests {
 		assert_eq!(projects[0].name, LOCAL_PROJECT);
 		assert_eq!(projects[0].workspaces[0].path, cwd.display().to_string());
 		assert!(!projects[0].workspaces[0].branch.is_empty());
-		assert_eq!(projects[0].workspaces[0].panes.len(), 2);
+		assert_eq!(projects[0].workspaces[0].panes.len(), 1, "a fresh workspace opens one pane");
+		assert_eq!(projects[0].workspaces[0].cols, 1);
 	}
 
 	#[test]
@@ -372,7 +365,8 @@ mod tests {
 		assert_eq!(project.path, path);
 		assert_eq!(project.workspaces.len(), 1);
 		assert_eq!(project.workspaces[0].path, path.display().to_string());
-		assert_eq!(project.workspaces[0].panes.len(), 2);
+		assert_eq!(project.workspaces[0].panes.len(), 1);
+		assert_eq!(project.workspaces[0].cols, 1);
 		assert!(project.workspaces[0].run_state.is_none(), "nothing observes it yet");
 	}
 

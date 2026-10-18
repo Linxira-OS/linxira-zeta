@@ -402,7 +402,7 @@ fn the_editor_page_opens_and_saves_a_real_file() {
 		.iter()
 		.filter(|tab| tab.kind == zetawork_gui::state::SessionKind::Editor)
 		.count();
-	assert_eq!(tabs, 2, "the seeded editor tab plus this file's");
+	assert_eq!(tabs, 1, "the file has one editor tab; the reopen activated it");
 
 	// A directory is refused, not opened as an empty document.
 	let notice = shell.state.open_file(&pane_id, &dir);
@@ -715,14 +715,20 @@ fn project_registry_add_rename_remove_and_zetacode_workspace() {
 	assert_eq!(state.registry.get(&id).unwrap().name, "演示项目 2");
 	assert_eq!(state.project(&id).unwrap().name, "演示项目 2");
 
-	// The `+` spawns a zetacode pane at the project path.
+	// The `+` spawns a zetacode pane at the project path, running the binary
+	// resolved next to this GUI rather than whatever is first on PATH.
 	let notice = state.new_workspace_zetacode(&id);
 	assert!(notice.0.is_empty(), "{}", notice.0);
 	let workspace = state.active_workspace().expect("the new workspace opens");
 	assert_eq!(workspace.path, canonical.display().to_string());
+	assert_eq!(workspace.panes.len(), 1, "one pane");
 	let tab = workspace.panes[0].active_tab().expect("a tab");
 	assert_eq!(tab.kind, SessionKind::Term, "the pane is a terminal");
-	assert_eq!(tab.command.as_deref(), Some("zetacode"));
+	let command = tab.command.as_deref().expect("the launch command");
+	assert!(
+		command.to_ascii_lowercase().contains("zetacode"),
+		"the pane launches zetacode, resolved or from PATH: {command}"
+	);
 
 	// Removing the registration keeps the directory and any history.
 	let notice = state.remove_project(&id);

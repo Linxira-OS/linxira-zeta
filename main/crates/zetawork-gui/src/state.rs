@@ -303,8 +303,9 @@ pub struct SessionTab {
 	/// for pages that are not terminals.
 	pub shell: Option<crate::shells::ShellKind>,
 	/// The command a fresh 终端 page types into its shell once the PTY is up.
-	/// The project `+` sets it to `zetacode`, which is what makes that
-	/// workspace a zetacode pane rather than a plain shell.
+	/// The project `+` sets it to the resolved `zetacode` path, which is what
+	/// makes that workspace a zetacode pane rather than a plain shell; the
+	/// pane's status line names the same string it sent.
 	pub command: Option<String>,
 	/// The open document of an 编辑器 page.
 	pub doc: Option<EditorDoc>,
@@ -988,7 +989,9 @@ impl AppState {
 	}
 
 	/// The project row's `+`: a workspace over the project directory whose
-	/// first terminal types `zetacode` into its shell at that path.
+	/// first terminal starts the GUI's own `zetacode` at that path (resolved
+	/// next to the running binary before `PATH`, see
+	/// [`crate::zetacode::resolved_command`]).
 	pub fn new_workspace_zetacode(&mut self, project_id: &str) -> Notice {
 		self.new_workspace_inner(project_id, None, true)
 	}
@@ -1018,7 +1021,12 @@ impl AppState {
 		let pane_id = self.fresh_id("pane");
 		let mut tab = self.tab_for(entry);
 		if zetacode {
-			tab.command = Some("zetacode".to_owned());
+			// The binary this GUI shipped with, not whatever `zetacode` on PATH
+			// happens to be (an older global install draws a different UI). The
+			// resolved absolute path is also what gets typed and what the pane's
+			// status line shows; a host with neither falls back to the bare name
+			// so the pane still opens.
+			tab.command = Some(crate::zetacode::resolved_command());
 			tab.title = "zetacode".to_owned();
 		}
 		let panes = vec![Pane { id: pane_id, active: tab.id.clone(), tabs: vec![tab] }];
@@ -1520,7 +1528,7 @@ impl AppState {
 mod tests {
 	use super::*;
 
-	/// A workspace with `cols` columns and the spec's default two panes.
+	/// A shell over an empty registry: 本机 with its single seeded pane.
 	fn state() -> AppState {
 		static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 		let unique = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -1557,8 +1565,8 @@ mod tests {
 		assert_eq!(state.projects.len(), 1, "本机 is the only project without registrations");
 		assert!(state.active_project().is_some());
 		assert!(state.active_workspace().is_some());
-		assert_eq!(state.active_workspace().unwrap().panes.len(), 2);
-		assert_eq!(state.active_cols(), 2);
+		assert_eq!(state.active_workspace().unwrap().panes.len(), 1);
+		assert_eq!(state.active_cols(), 1);
 	}
 
 	#[test]
@@ -1595,7 +1603,7 @@ mod tests {
 		let mut state = state();
 		let ws = state.active_workspace().unwrap().clone();
 		let pane = ws.panes[0].clone();
-		assert!(pane.tabs.len() >= 2);
+		assert!(!pane.tabs.is_empty());
 		// Close every tab but one: allowed.
 		loop {
 			let tabs = state
@@ -1635,7 +1643,7 @@ mod tests {
 		let notice = state.new_pane();
 		assert_eq!(state.workspace(&ws_id).unwrap().panes.len(), MAX_PANES);
 		assert!(notice.0.contains("最多"), "got {notice:?}");
-		// 3 columns were reached from 2 panes.
+		// Three panes were added from the single seeded pane.
 		assert_eq!(state.active_cols(), 3);
 		// Now closing is allowed down to one pane, then refused.
 		let second = state.workspace(&ws_id).unwrap().panes[1].id.clone();
@@ -1652,7 +1660,7 @@ mod tests {
 	fn column_control_creates_the_panes_it_needs() {
 		let mut state = state();
 		let ws_id = state.active_workspace().unwrap().id.clone();
-		assert_eq!(state.active_cols(), 2);
+		assert_eq!(state.active_cols(), 1, "a fresh workspace starts at one column");
 		assert!(state.set_cols(3).0.is_empty());
 		assert_eq!(state.workspace(&ws_id).unwrap().panes.len(), 3);
 		assert_eq!(state.active_cols(), 3);

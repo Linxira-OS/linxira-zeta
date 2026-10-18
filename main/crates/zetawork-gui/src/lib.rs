@@ -51,6 +51,7 @@ pub mod total;
 pub mod tray;
 pub mod usage;
 pub mod widgets;
+pub mod workspace_memory;
 pub mod ws;
 pub mod zetacode;
 
@@ -182,6 +183,8 @@ pub struct Shell {
 	pub lifecycle: lifecycle::Lifecycle,
 	/// The tray icon, when this build has one.
 	pub tray: tray::Tray,
+	/// The last 清除所有工作区记忆 result, shown in the 设置 modal's row.
+	pub workspace_memory: Option<workspace_memory::Report>,
 	/// The last notification raised, and how far it got. The status bar shows
 	/// it, which is the fallback chain's last link (after the OS route and the
 	/// IM one).
@@ -291,6 +294,7 @@ impl Shell {
 				residency
 			},
 			tray: tray::Tray::new(&cc.egui_ctx),
+			workspace_memory: None,
 			last_trace: None,
 			// `~/.zeta/serve.json` names the serve origin, but no file this
 			// shell reads names the chat to send to (`notify::MISSING_TARGET`),
@@ -341,6 +345,7 @@ impl Shell {
 			// runner that may already have a zetawork-like listener.
 			lifecycle: lifecycle::Lifecycle::default(),
 			tray: tray::Tray::disabled(),
+			workspace_memory: None,
 			last_trace: None,
 			im_target: None,
 			memory: Memory::new(),
