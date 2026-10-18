@@ -1298,8 +1298,8 @@ impl AppState {
 	}
 
 	/// 左栏底部的 用量 (and the right column's 上下文用量 expansion): open the
-	/// embedded stats container. The page itself is served by `packages/stats`
-	/// on loopback; see [`crate::stats`] for the URL and the container's limits.
+	/// stats container. The numbers are read from `packages/stats` on loopback;
+	/// see [`crate::stats`] for the URL and [`crate::usage`] for the panel.
 	pub fn open_usage(&mut self) {
 		self.usage_open = true;
 		self.settings_open = false;

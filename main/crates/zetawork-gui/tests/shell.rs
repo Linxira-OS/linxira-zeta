@@ -575,7 +575,12 @@ fn the_usage_entry_opens_the_embedded_stats_container() {
 		.is_loopback()
 	);
 	assert!(zetawork_gui::usage::endpoint_line(&shell).contains(&url));
-	assert!(!zetawork_gui::stats::CONTAINER_OBSTACLE.is_empty());
+	// With no answer yet, the panel's one line names the URL it would read.
+	assert_eq!(
+		zetawork_gui::usage::absent_line(&url),
+		format!("stats 服务未启动：zetacode serve 未在监听 {url}")
+	);
+	assert!(shell.usage.snapshot().is_none());
 	// The right column's 上下文用量 tab opens the same container.
 	shell.state.close_usage();
 	shell
