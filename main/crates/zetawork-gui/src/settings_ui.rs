@@ -464,7 +464,7 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			head(ui, "关于");
 			plain_row(ui, "zetawork", "纯 Rust 桌面工作台 · 界面规格 v2（GUI / TUI）", crate::VERSION);
 			plain_row(ui, "界面规格", "本实现按 temp/zetawork-ui-mock 的 v2 规格绘制", "GUI / TUI");
-			plain_row(ui, shell.fonts.cjk_line().as_str(), "界面与终端的中文字形来源", "只读");
+			plain_row(ui, shell.fonts.cjk_line().as_str(), "界面与等宽中文字形来源", "只读");
 			plain_row(ui, shell.fonts.mono_line().as_str(), "编辑器等宽字体", "只读");
 			scope_rows(ui);
 		},
