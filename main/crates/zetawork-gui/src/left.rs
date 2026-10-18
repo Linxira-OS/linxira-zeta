@@ -363,10 +363,9 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 			pos2(head_rect.max.x - 24.0, head_rect.center().y - 10.0),
 			vec2(20.0, 20.0),
 		)));
-		if icon_button(&mut plus, Icon::Plus, 20.0, false, "新建工作区（zetacode）").clicked()
-		{
+		if icon_button(&mut plus, Icon::Plus, 20.0, false, "新建工作区").clicked() {
 			let id = project.id.clone();
-			shell.state.act(|state| state.new_workspace_zetacode(&id));
+			shell.state.act(|state| state.new_workspace(&id));
 		}
 	}
 	// A project that is not open is collapsed, exactly as `.proj.collapsed`
@@ -409,7 +408,9 @@ fn open_in_file_manager(probe: bool, path: &Path) {
 		command.arg(path);
 		command
 	};
-	let _ = command.spawn();
+	if let Ok(child) = command.spawn() {
+		crate::spawn_probe::record_command(child.id(), &command);
+	}
 }
 
 /// `.ws-btn`: name + branch chip, with the accent bar when it is the open one.

@@ -274,10 +274,10 @@ fn the_picker_lists_the_hosts_shells_and_every_page() {
 		.iter()
 		.filter(|entry| matches!(entry, zetawork_gui::state::PickerEntry::Page(_)))
 		.collect();
-	// The pages are exactly the five the GUI draws itself, in the spec's order.
+	// The pages are exactly the six the GUI draws itself, in the spec's order.
 	assert_eq!(
 		pages.iter().map(|entry| entry.title()).collect::<Vec<_>>(),
-		vec!["编辑器", "差异比较器", "Git", "zetaide", "Agent 会话"]
+		vec!["编辑器", "差异比较器", "Git", "zetacode", "zetaide", "Agent 会话"]
 	);
 	// Whatever this host has, every shell row points at a file that exists and
 	// is classified as a shell (never a page).
@@ -293,6 +293,36 @@ fn the_picker_lists_the_hosts_shells_and_every_page() {
 	let kinds: Vec<&str> = shells.iter().map(|entry| entry.group()).collect();
 	assert!(kinds.iter().all(|group| *group == "本机 Shell"), "shells come first");
 	assert!(entries.iter().any(|entry| entry.group() == "页面"));
+}
+
+#[test]
+fn a_zetacode_pick_opens_a_page_that_runs_the_shipped_binary_without_typing() {
+	use zetawork_gui::state::{PickerEntry, PickerTarget, SessionKind};
+	use zetawork_gui::zetacode::{Companion, Launch};
+
+	let mut state = seeded_state();
+	state.open_picker(PickerTarget::BigTab);
+	let notice = state.pick(&PickerEntry::Page(SessionKind::Zetacode));
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tab = state
+		.active_workspace()
+		.and_then(|workspace| workspace.panes[0].active_tab())
+		.expect("the picked page opens");
+	assert_eq!(tab.kind, SessionKind::Zetacode);
+	assert_eq!(tab.command, None, "the page types nothing into a shell");
+	match tab.program.as_ref().expect("the program was resolved with the tab") {
+		Launch::Binary(path) => {
+			assert!(path.is_file(), "a resolved binary is a file: {}", path.display());
+			let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
+			assert!(
+				Companion::Zetacode.executable_names().contains(&name),
+				"{name} is one of the shipped zetacode names"
+			);
+		},
+		Launch::Missing(sentence) => {
+			assert!(sentence.starts_with("未找到随包的 zetacode："), "{sentence}");
+		},
+	}
 }
 
 #[test]
@@ -678,9 +708,10 @@ fn an_agent_ui_request_raises_a_notification_through_the_shell() {
 
 /// The project registry is shared state: adding writes the file, removing
 /// clears the row and **never** touches the directory, and the project row's
-/// `+` opens a workspace whose first terminal runs `zetacode` at that path.
+/// `+` opens a workspace with one plain terminal at that path — nothing is
+/// typed into its shell.
 #[test]
-fn project_registry_add_rename_remove_and_zetacode_workspace() {
+fn project_registry_add_rename_remove_and_plain_workspace() {
 	use zetawork_gui::state::SessionKind;
 
 	let dir = tempfile::tempdir().expect("temp dir");
@@ -720,20 +751,18 @@ fn project_registry_add_rename_remove_and_zetacode_workspace() {
 	assert_eq!(state.registry.get(&id).unwrap().name, "演示项目 2");
 	assert_eq!(state.project(&id).unwrap().name, "演示项目 2");
 
-	// The `+` spawns a zetacode pane at the project path, running the binary
-	// resolved next to this GUI rather than whatever is first on PATH.
-	let notice = state.new_workspace_zetacode(&id);
+	// The `+` opens a plain workspace: one terminal page at the project path,
+	// and **nothing** queued to be typed into its shell (the old behaviour
+	// typed a PATH-resolved `zetacode` into every new workspace).
+	let notice = state.new_workspace(&id);
 	assert!(notice.0.is_empty(), "{}", notice.0);
 	let workspace = state.active_workspace().expect("the new workspace opens");
 	assert_eq!(workspace.path, canonical.display().to_string());
 	assert_eq!(workspace.panes.len(), 1, "one pane");
 	let tab = workspace.panes[0].active_tab().expect("a tab");
 	assert_eq!(tab.kind, SessionKind::Term, "the pane is a terminal");
-	let command = tab.command.as_deref().expect("the launch command");
-	assert!(
-		command.to_ascii_lowercase().contains("zetacode"),
-		"the pane launches zetacode, resolved or from PATH: {command}"
-	);
+	assert_eq!(tab.command, None, "the `+` types nothing into the shell");
+	assert_eq!(tab.program, None, "the `+` starts no companion binary");
 
 	// Removing the registration keeps the directory and any history.
 	let notice = state.remove_project(&id);

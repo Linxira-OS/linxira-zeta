@@ -415,33 +415,6 @@ fn attach_thread(
 	}
 }
 
-/// The one clause a status line can show for a fallback reason.
-///
-/// The attach's own text is `serve 拒绝终端 attach（400）：cwd does not exist`;
-/// the only part a user can act on is the cause, so the known cause gets a
-/// human word and everything else is cut to a fixed budget with an ellipsis.
-fn short_reason(reason: &str) -> String {
-	if reason.contains("cwd does not exist") {
-		return "目录不存在".to_owned();
-	}
-	if reason.contains("未发现") && reason.contains("serve.json") {
-		return "未发现 serve.json".to_owned();
-	}
-	let detail = reason
-		.rsplit_once("fatal: ")
-		.map(|(_, rest)| rest)
-		.or_else(|| reason.rsplit_once('：').map(|(_, rest)| rest))
-		.unwrap_or(reason)
-		.trim();
-	const BUDGET: usize = 16;
-	if detail.chars().count() <= BUDGET {
-		return detail.to_owned();
-	}
-	let mut short: String = detail.chars().take(BUDGET - 1).collect();
-	short.push('…');
-	short
-}
-
 /// Which backend every terminal tab is on, and the reason it is not on serve.
 #[derive(Default)]
 pub struct TerminalHost {
@@ -496,24 +469,28 @@ impl TerminalHost {
 		self.panes.insert(tab.to_owned(), pane);
 	}
 
-	/// The pane's status line: which backend, and why it fell back.
+	/// The pane's status line: which backend, in **one short sentence**.
 	///
-	/// One short line per pane: the reason is reduced to the clause a user can
-	/// act on (`目录不存在`), never the transport's full `attach(400)` text.
+	/// A fallback always reads the same sentence. The transport's own text
+	/// (`serve 拒绝终端 attach（400）：cwd does not exist`, a WebSocket close
+	/// reason) is not a status line — it is not something the user can act on
+	/// at a glance, and printing it made the line longer than the pane. The
+	/// full reason stays on the host ([`Self::reason`]), which the pane shows
+	/// in a tooltip.
 	pub fn label(&self, tab: &str) -> Option<String> {
 		let pane = self.panes.get(tab)?;
 		Some(match pane.backend {
 			Backend::Connecting => "后端：serve · 连接中…".to_owned(),
 			Backend::Service => "后端：serve".to_owned(),
-			Backend::Ended => match pane.reason.as_deref() {
-				Some(reason) => format!("后端：serve · {}", short_reason(reason)),
-				None => "后端：serve · 会话已结束".to_owned(),
-			},
-			Backend::Local => match pane.reason.as_deref() {
-				Some(reason) => format!("后端：本地 PTY · {}", short_reason(reason)),
-				None => "后端：本地 PTY".to_owned(),
-			},
+			Backend::Ended => "后端：serve · 会话已结束".to_owned(),
+			Backend::Local => "serve 未应答，已回落本地 PTY".to_owned(),
 		})
+	}
+
+	/// The full reason the pane is not on serve, for the status line's
+	/// tooltip. `None` when the pane is on serve or never tried it.
+	pub fn reason(&self, tab: &str) -> Option<&str> {
+		self.panes.get(tab)?.reason.as_deref()
 	}
 
 	/// True when this tab must use [`crate::live`]'s in-process PTY.
@@ -1068,11 +1045,30 @@ mod tests {
 		let mut host = TerminalHost::default();
 		host.ensure("tab1", None, None, 80, 24);
 		assert!(host.is_local("tab1"), "no serve origin means the local PTY");
-		let label = host.label("tab1").expect("label");
-		assert!(label.contains("本地 PTY"), "{label}");
-		assert!(label.contains("serve.json"), "the reason is named: {label}");
+		assert_eq!(
+			host.label("tab1").expect("label"),
+			"serve 未应答，已回落本地 PTY",
+			"the status line is one short sentence"
+		);
+		let reason = host.reason("tab1").expect("the reason is kept");
+		assert!(reason.contains("serve.json"), "the tooltip names the cause: {reason}");
 		let area = Rect::new(0, 0, 80, 24);
 		assert!(!host.render("tab1", area, &mut Buffer::empty(area)));
 		assert!(!host.send_bytes("tab1", b"x"), "local stdin is not serve's");
+	}
+
+	#[test]
+	fn a_transport_failure_collapses_to_the_same_sentence_and_keeps_the_raw_reason() {
+		let mut host = TerminalHost::default();
+		// A service-backed pane whose socket dies: the test pushes the
+		// failure through the same state `poll` takes.
+		host.ensure("tab1", Some("ws://127.0.0.1:9/term"), None, 80, 24);
+		assert_eq!(host.label("tab1").as_deref(), Some("后端：serve · 连接中…"));
+		let raw = "serve 拒绝终端 attach（400）：cwd does not exist";
+		let pane = host.panes.get_mut("tab1").expect("pane");
+		pane.backend = Backend::Local;
+		pane.reason = Some(raw.to_owned());
+		assert_eq!(host.label("tab1").as_deref(), Some("serve 未应答，已回落本地 PTY"));
+		assert_eq!(host.reason("tab1"), Some(raw), "the tooltip keeps the raw reason");
 	}
 }

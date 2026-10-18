@@ -24,6 +24,7 @@ use crate::seed;
 use crate::state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab};
 use crate::theme;
 use crate::widgets::{Chip, chip, empty_note, truncated_mono, truncated_text};
+use crate::zetacode::Launch;
 
 /// The pane grid, or the welcome panel when no workspace is open.
 pub fn workspace(ui: &mut Ui, shell: &mut Shell) {
@@ -388,6 +389,7 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 			SessionKind::Editor => Icon::Code,
 			SessionKind::Diff => Icon::Diff,
 			SessionKind::Git => Icon::GitBranch,
+			SessionKind::Zetacode => Icon::Term,
 			SessionKind::Ide => Icon::Term,
 			SessionKind::Agent => Icon::History,
 		};
@@ -482,11 +484,12 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 ///
 /// 终端 is a real grid over either PTY backend (serve's, reached over the
 /// gateway WebSocket, with this process's own PTY as the unreachable-serve
-/// fallback), and the other four pages are the GUI's own, reading real data:
-/// the editor opens and writes real files, the diff page renders a real
-/// `git diff`, the git page renders the same snapshot the right column's Git
-/// panel does, and the zetaide page says what still has to be linked before it
-/// can host the termide panel editor.
+/// fallback). A zetacode page is also a real PTY, but the shipped `zetacode`
+/// binary is the process itself — no shell, nothing typed. The other pages are
+/// the GUI's own, reading real data: the editor opens and writes real files,
+/// the diff page renders a real `git diff`, the git page renders the same
+/// snapshot the right column's Git panel does, and the zetaide page says what
+/// still has to be linked before it can host the termide panel editor.
 fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	let Some(tab) = pane.active_tab() else {
 		return;
@@ -497,6 +500,7 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		SessionKind::Editor => editor_body(ui, shell, pane, &tab),
 		SessionKind::Diff => diff_body(ui, shell, pane),
 		SessionKind::Git => crate::right::git_panel(ui, shell, pane.id.as_str()),
+		SessionKind::Zetacode => zetacode_body(ui, shell, &tab),
 		SessionKind::Ide => ide_body(ui, shell, &tab),
 		SessionKind::Agent => agent_body(ui, shell, &tab),
 	}
@@ -581,45 +585,27 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 	shell
 		.terminals
 		.ensure(tab.id.as_str(), origin.as_deref(), cwd.clone(), columns, rows);
-	// A project's `+` opens a zetacode pane: once the backend exists, type the
-	// command into it at the workspace path. The serve backend queues it on the
-	// socket; the local PTY below sends it after its spawn.
-	if let Some(command) = tab.command.as_deref() {
-		if !shell.launched_commands.contains(&tab.id) && !shell.terminals.is_local(&tab.id) {
-			let line = format!("{command}\r");
-			if shell.terminals.send_bytes(&tab.id, line.as_bytes()) {
-				shell.launched_commands.insert(tab.id.clone());
-			}
-		}
-	}
 	// Spawn the local PTY before drawing either backend. A tab on `Local` is
-	// about to show this grid, and its status line must name the command that
-	// actually ran — which only exists after the spawn.
+	// about to show this grid, and its status line names the shell that
+	// actually started — which only exists after the spawn.
 	if shell.terminals.is_local(tab.id.as_str()) {
 		shell.live.ensure(tab.id.as_str(), columns, rows, cwd);
 	}
 	let status = terminal_status(shell, tab);
+	let reason = shell.terminals.reason(&tab.id).map(str::to_owned);
 	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
 	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 	if shell.terminals.render(tab.id.as_str(), area, &mut grid_buf) {
 		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
-		paint_terminal_status(ui, grid, &status);
+		paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 		return;
 	}
 	// The serve tab fell back: today's in-process PTY takes the same grid.
 	if shell.live.contains(tab.id.as_str()) {
-		if let Some(command) = tab.command.as_deref() {
-			if !shell.launched_commands.contains(&tab.id) {
-				shell
-					.live
-					.send_text(tab.id.as_str(), &format!("{command}\r"));
-				shell.launched_commands.insert(tab.id.clone());
-			}
-		}
 		let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 		if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
 			paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
-			paint_terminal_status(ui, grid, &status);
+			paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 			return;
 		}
 	}
@@ -662,30 +648,19 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 				paint_settings.cursor,
 			);
 		});
-	paint_terminal_status(ui, grid, &status);
+	paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 }
 
 /// The pane's backend line, extended with the process it really started.
 ///
-/// One line has room for the backend, the spawned program, and the one-shot
-/// launch command (the resolved `zetacode` path). It is clipped by
-/// [`paint_terminal_status`], so a long install path ends in an ellipsis rather
-/// than running under the neighbouring pane.
+/// [`crate::terminal_service::TerminalHost::label`] owns the sentence; the
+/// shell this process spawned is appended only when it exists, so a pane can
+/// never claim a process it did not start.
 fn terminal_status(shell: &Shell, tab: &SessionTab) -> String {
 	let mut status = shell
 		.terminals
 		.label(&tab.id)
 		.unwrap_or_else(|| "后端：本地 PTY".to_owned());
-	// The one-shot launch command comes first: a narrow pane clips the tail of
-	// this line, and the resolved path is the part the user must be able to read.
-	if let Some(command) = tab.command.as_deref() {
-		status.push_str(if shell.launched_commands.contains(&tab.id) {
-			" · 启动 "
-		} else {
-			" · 待启动 "
-		});
-		status.push_str(command);
-	}
 	if let Some(spawned) = shell.live.command(&tab.id) {
 		status.push_str(" · ");
 		status.push_str(spawned);
@@ -718,14 +693,22 @@ fn paint_terminal_grid(
 
 /// The pane's backend line, at the bottom of the terminal body.
 ///
-/// One line, clipped to the pane: the label is already short, but a legacy
-/// reason or a narrow pane still has to end in an ellipsis at the pane's own
-/// right edge rather than run under the next one.
-fn paint_terminal_status(ui: &Ui, area: Rect, status: &str) {
+/// One line, clipped to the pane. When the backend fell back, the full reason
+/// hangs under the line as a tooltip: the status line stays one short sentence
+/// while the diagnostic is still one hover away.
+fn paint_terminal_status(ui: &mut Ui, area: Rect, status: &str, tab: &str, reason: Option<&str>) {
 	if area.height() <= crate::terminal_service::STATUS_HEIGHT + 32.0 {
 		return;
 	}
 	let y = area.max.y - crate::terminal_service::STATUS_HEIGHT / 2.0;
+	if let Some(reason) = reason {
+		let line = Rect::from_min_size(
+			pos2(area.min.x, y - crate::terminal_service::STATUS_HEIGHT / 2.0),
+			vec2(area.width(), crate::terminal_service::STATUS_HEIGHT),
+		);
+		let response = ui.interact(line, ui.id().with(("term-status", tab)), Sense::hover());
+		let _ = response.on_hover_text(reason);
+	}
 	truncated_mono(ui, pos2(area.min.x + 8.0, y), status, 11.0, theme::TEXT_3, area.width() - 16.0);
 }
 
@@ -1231,6 +1214,71 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 						.color(ink),
 				);
 			}
+		});
+}
+
+/// A zetacode page: the shipped CLI, run as the pane's own process.
+///
+/// The binary was resolved when the tab was created and the PTY spawns it
+/// directly in the workspace directory — there is no shell between the two,
+/// so nothing is echoed or started by accident. A missing install draws the
+/// sentence naming every path that was searched instead of pretending to be a
+/// terminal.
+fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
+	let rect = ui.max_rect();
+	ui.painter()
+		.rect_filled(rect, CornerRadius::ZERO, theme::TERM_BG);
+	let path = match tab.program.clone() {
+		Some(Launch::Binary(path)) => path,
+		Some(Launch::Missing(sentence)) => {
+			missing_body(ui, &sentence);
+			return;
+		},
+		None => {
+			empty_note(ui, "这个页面没有 zetacode 程序", "随包的 zetacode");
+			return;
+		},
+	};
+	let metrics = GridMetrics::for_panel(ui.ctx(), rect, f32::from(shell.settings.terminal_size));
+	let columns = metrics.cols.max(1);
+	let rows = metrics.rows.max(1);
+	let cwd = shell
+		.state
+		.active_workspace()
+		.map(|ws| std::path::PathBuf::from(&ws.path));
+	if !shell
+		.live
+		.ensure_program(tab.id.as_str(), columns, rows, cwd, &path)
+	{
+		missing_body(
+			ui,
+			&format!("无法启动随包的 zetacode：{}（PTY 创建失败）", path.display()),
+		);
+		return;
+	}
+	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
+	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
+	if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
+		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+	}
+}
+
+/// A companion page's whole body when there is nothing to run: the exact
+/// sentence, wrapped, with the paths it names readable at the pane's width.
+fn missing_body(ui: &mut Ui, sentence: &str) {
+	ui.painter()
+		.rect_filled(ui.max_rect(), CornerRadius::ZERO, theme::TERM_BG);
+	egui::ScrollArea::vertical()
+		.id_salt(("zetawork-missing", sentence))
+		.auto_shrink([false, false])
+		.show(ui, |ui| {
+			ui.add_space(14.0);
+			ui.label(
+				egui::RichText::new(sentence)
+					.monospace()
+					.size(12.0)
+					.color(theme::WARN),
+			);
 		});
 }
 

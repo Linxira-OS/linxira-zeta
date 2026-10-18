@@ -168,6 +168,10 @@ pub enum SessionKind {
 	Diff,
 	/// The GUI's own git page — the same data as the right column's Git panel.
 	Git,
+	/// The shipped `zetacode` CLI, run as the pane's own process in the
+	/// workspace directory. No shell sits between the two, so nothing is
+	/// typed into anything.
+	Zetacode,
 	/// `zetaide` — the termide panel editor (R23: the editor the TUI uses).
 	Ide,
 	/// A zetacode serve agent session, read through its SSE endpoint.
@@ -180,7 +184,8 @@ pub enum SessionKind {
 
 impl SessionKind {
 	/// The pages the `+` picker offers, in the spec's order.
-	pub const PAGES: [Self; 5] = [Self::Editor, Self::Diff, Self::Git, Self::Ide, Self::Agent];
+	pub const PAGES: [Self; 6] =
+		[Self::Editor, Self::Diff, Self::Git, Self::Zetacode, Self::Ide, Self::Agent];
 
 	/// The kind's own name, as the picker and the tab tooltips spell it.
 	pub fn label(self) -> &'static str {
@@ -189,6 +194,7 @@ impl SessionKind {
 			Self::Editor => "编辑器",
 			Self::Diff => "差异比较器",
 			Self::Git => "Git",
+			Self::Zetacode => "zetacode",
 			Self::Ide => "zetaide",
 			Self::Agent => "Agent 会话",
 		}
@@ -201,6 +207,7 @@ impl SessionKind {
 			Self::Editor => "编辑器",
 			Self::Diff => "改动",
 			Self::Git => "Git",
+			Self::Zetacode => "zetacode",
 			Self::Ide => "zetaide",
 			Self::Agent => "Agent",
 		}
@@ -213,6 +220,7 @@ impl SessionKind {
 			Self::Editor => "工作区里的真实文件（读 + 写）",
 			Self::Diff => "git diff --no-color HEAD（只读）",
 			Self::Git => "git status / log（只读）",
+			Self::Zetacode => "随包的 zetacode（packages/coding-agent/dist/zeta）",
 			Self::Ide => "termide panel-editor（本 crate 尚未链接）",
 			Self::Agent => "zetacode serve 的 SSE 会话流（/api/agent/<id>/events）",
 		}
@@ -302,18 +310,26 @@ pub struct SessionTab {
 	/// The shell a 终端 page would run; `None` for the seeded sample tabs and
 	/// for pages that are not terminals.
 	pub shell: Option<crate::shells::ShellKind>,
-	/// The command a fresh 终端 page types into its shell once the PTY is up.
-	/// The project `+` sets it to the resolved `zetacode` path, which is what
-	/// makes that workspace a zetacode pane rather than a plain shell; the
-	/// pane's status line names the same string it sent.
+	/// The command a 终端 page would type into its shell once the PTY is up.
+	///
+	/// **Always `None` today.** No GUI action types into a shell — a new
+	/// workspace opens a plain shell at the project path. The project `+` used
+	/// to set the resolved `zetacode` path here, which echoed a stale PATH
+	/// binary into every fresh workspace; the field is kept (and asserted
+	/// `None`) so that cannot come back by accident.
 	pub command: Option<String>,
+	/// The process this page runs **instead of a shell**, resolved when the
+	/// tab was created. Only a companion page (zetacode) sets it: the binary
+	/// is spawned directly in the pane's PTY, so nothing is typed into a
+	/// shell; a missing binary carries the sentence the pane shows.
+	pub program: Option<crate::zetacode::Launch>,
 	/// The open document of an 编辑器 page.
 	pub doc: Option<EditorDoc>,
 }
 
 impl SessionTab {
 	pub fn new(id: String, kind: SessionKind, title: String) -> Self {
-		Self { id, kind, title, shell: None, command: None, doc: None }
+		Self { id, kind, title, shell: None, command: None, program: None, doc: None }
 	}
 
 	pub fn is_term(&self) -> bool {
@@ -742,8 +758,14 @@ impl AppState {
 			return tab;
 		};
 		let mut tab = SessionTab::new(id, entry.session_kind(), entry.tab_title());
-		if let PickerEntry::Shell(shell) = entry {
-			tab.shell = Some(shell.kind);
+		match entry {
+			PickerEntry::Shell(shell) => tab.shell = Some(shell.kind),
+			// A companion page runs the shipped binary itself; resolving here
+			// (once per tab) also gives a missing install its sentence.
+			PickerEntry::Page(SessionKind::Zetacode) => {
+				tab.program = Some(crate::zetacode::launch(crate::zetacode::Companion::Zetacode));
+			},
+			PickerEntry::Page(_) => {},
 		}
 		tab
 	}
@@ -979,36 +1001,27 @@ impl AppState {
 		self.tui_pane = None;
 	}
 
-	/// ＋新建大标签页 / ＋新建工作区: a new workspace under a project.
+	/// ＋新建大标签页 / ＋新建工作区 / a project row's `+`: a new workspace over
+	/// the project directory.
 	///
 	/// The workspace opens on the spec's default — one pane, one 终端 page, one
-	/// column (R23: 新开的默认是终端页). Use [`Self::new_workspace_with`] when the
-	/// `+` picker already knows what should be on that page.
+	/// column (R23: 新开的默认是终端页), running a plain shell with its working
+	/// directory at the project path. Nothing is typed into it: starting a
+	/// program is the user's call, not a side effect of creating a workspace.
+	/// Use [`Self::new_workspace_with`] when the `+` picker already knows what
+	/// should be on that page.
 	pub fn new_workspace(&mut self, project_id: &str) -> Notice {
 		self.new_workspace_with(project_id, None)
-	}
-
-	/// The project row's `+`: a workspace over the project directory whose
-	/// first terminal starts the GUI's own `zetacode` at that path (resolved
-	/// next to the running binary before `PATH`, see
-	/// [`crate::zetacode::resolved_command`]).
-	pub fn new_workspace_zetacode(&mut self, project_id: &str) -> Notice {
-		self.new_workspace_inner(project_id, None, true)
 	}
 
 	/// ＋新建大标签页, with the `+` picker's choice as the new workspace's first
 	/// page. A refused creation leaves no residue — the tab is only built once
 	/// the caps have passed.
 	pub fn new_workspace_with(&mut self, project_id: &str, entry: Option<&PickerEntry>) -> Notice {
-		self.new_workspace_inner(project_id, entry, false)
+		self.new_workspace_inner(project_id, entry)
 	}
 
-	fn new_workspace_inner(
-		&mut self,
-		project_id: &str,
-		entry: Option<&PickerEntry>,
-		zetacode: bool,
-	) -> Notice {
+	fn new_workspace_inner(&mut self, project_id: &str, entry: Option<&PickerEntry>) -> Notice {
 		let Some(pos) = self.projects.iter().position(|p| p.id == project_id) else {
 			return Notice(format!("没有这个项目：{project_id}"));
 		};
@@ -1019,16 +1032,7 @@ impl AppState {
 		let name = format!("新工作区 {}", self.projects[pos].workspaces.len() + 1);
 		let id = self.fresh_id("ws");
 		let pane_id = self.fresh_id("pane");
-		let mut tab = self.tab_for(entry);
-		if zetacode {
-			// The binary this GUI shipped with, not whatever `zetacode` on PATH
-			// happens to be (an older global install draws a different UI). The
-			// resolved absolute path is also what gets typed and what the pane's
-			// status line shows; a host with neither falls back to the bare name
-			// so the pane still opens.
-			tab.command = Some(crate::zetacode::resolved_command());
-			tab.title = "zetacode".to_owned();
-		}
+		let tab = self.tab_for(entry);
 		let panes = vec![Pane { id: pane_id, active: tab.id.clone(), tabs: vec![tab] }];
 		self.projects[pos].workspaces.push(Workspace {
 			id: id.clone(),
