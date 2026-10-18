@@ -214,6 +214,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "顾问免疫轮次",
 		description: "当顾问的疑虑或阻塞打断后，在接下来的这么多主轮次中以非打断方式路由后续疑虑/阻塞。",
 	},
+	"advisor.continueSeverity": {
+		label: "顾问续行严重级别",
+		description:
+			"智能体给出最终答案后，能唤醒它继续工作的顾问笔记所需的最低严重级别。低于该级别的笔记只留在对话末尾的卡片中，随你的下一条消息送达。",
+	},
 	"advisor.maxNotesPerUpdate": {
 		label: "顾问每次更新最多建议数",
 		description: "每次顾问提示更新最多接受的非阻塞建议数（1–32；UI 提供 1–5 快捷选项）。阻塞类建议不受限。",
@@ -2224,6 +2229,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"loop.conditionTimeoutMs::120000": {
 		label: "2 分钟",
+	},
+	"advisor.continueSeverity::nit": {
+		label: "轻微",
+		description: "任何笔记都会让运行继续。",
+	},
+	"advisor.continueSeverity::concern": {
+		label: "疑虑",
+		description: "疑虑与阻塞都会让运行继续。默认。",
+	},
+	"advisor.continueSeverity::blocker": {
+		label: "阻塞",
+		description: "仅阻塞会让运行继续。",
 	},
 	"advisor.reviewMode::turn": {
 		label: "每个回合",
