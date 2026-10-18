@@ -1,4 +1,5 @@
 import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { presentNarrationAsAnswer } from "@linxiraos/pi-ai/utils/narration";
 import { type Component, getSegmenter } from "@linxiraos/pi-tui";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { formatThinkingForDisplay, hasDisplayableThinking } from "@linxiraos/pi-tui/chat/thinking-display";
@@ -297,6 +298,8 @@ export class StreamingRevealController {
 	begin(component: StreamingRevealComponent, message: AssistantMessage, hasToolCalls: boolean): void {
 		this.stop();
 		this.#component = component;
+		// Reveal counts narration as answer text, matching how the component renders it.
+		message = presentNarrationAsAnswer(message);
 		this.#target = message;
 		this.#revealed = 0;
 		this.#hideThinkingBlock = this.#getHideThinkingBlock();
@@ -323,6 +326,7 @@ export class StreamingRevealController {
 	}
 
 	setTarget(message: AssistantMessage, hasToolCalls: boolean): void {
+		message = presentNarrationAsAnswer(message);
 		this.#target = message;
 		this.#hideThinkingBlock = this.#getHideThinkingBlock();
 		this.#proseOnlyThinking = this.#getProseOnlyThinking();

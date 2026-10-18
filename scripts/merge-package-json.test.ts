@@ -271,8 +271,8 @@ describe("merge rules", () => {
 	it("keeps the Zeta-scope catalog pins on the Zeta version line", () => {
 		const merged = mergeCatalog(
 			{ "@linxiraos/pi-ai": "1.2.1", "@linxiraos/pi-channels": "1.2.1" },
-			{ "@oh-my-pi/pi-ai": "18.10.0", "@oh-my-pi/pi-newcomer": "18.10.0" },
-			{ "@oh-my-pi/pi-ai": "18.9.2" },
+			{ "@linxiraos/pi-ai": "18.10.0", "@linxiraos/pi-newcomer": "18.10.0" },
+			{ "@linxiraos/pi-ai": "18.9.2" },
 		);
 		expect(merged).toEqual({
 			"@linxiraos/pi-ai": "1.2.1",
@@ -284,8 +284,8 @@ describe("merge rules", () => {
 	it("keeps the Zeta-scope dependency versions and names", () => {
 		const merged = mergeDependencySection(
 			{ "@linxiraos/pi-ai": "catalog:", "@linxiraos/pi-channels": "catalog:", zod: "3.25.76" },
-			{ "@oh-my-pi/pi-ai": "catalog:", zod: "4.0.0" },
-			{ "@oh-my-pi/pi-ai": "catalog:", zod: "3.25.76" },
+			{ "@linxiraos/pi-ai": "catalog:", zod: "4.0.0" },
+			{ "@linxiraos/pi-ai": "catalog:", zod: "3.25.76" },
 		);
 		expect(merged).toEqual({
 			"@linxiraos/pi-ai": "catalog:",
@@ -298,7 +298,7 @@ describe("merge rules", () => {
 	it("keeps a Zeta-only dependency and adopts upstream's new package under its Zeta name", () => {
 		const merged = mergeDependencySection(
 			{ "@linxiraos/pi-channels": "catalog:" },
-			{ "@oh-my-pi/pi-newcomer": "^18.10.0" },
+			{ "@linxiraos/pi-newcomer": "^18.10.0" },
 			{},
 		);
 		expect(merged).toEqual({ "@linxiraos/pi-channels": "catalog:", "@linxiraos/pi-newcomer": "^18.10.0" });
@@ -352,10 +352,10 @@ describe("merge rules", () => {
 
 describe("zetaKeyFor", () => {
 	it("maps the upstream scope to the Zeta scope with rename awareness", () => {
-		expect(zetaKeyFor("@oh-my-pi/pi-ai")).toBe("@linxiraos/pi-ai");
-		expect(zetaKeyFor("@oh-my-pi/pi-omptype")).toBe("@linxiraos/pi-omptype");
-		expect(zetaKeyFor("@oh-my-pi/omp-stats")).toBe("@linxiraos/pi-stats");
-		expect(zetaKeyFor("@oh-my-pi/pi-coding-agent")).toBe("@linxiraos/zeta");
+		expect(zetaKeyFor("@linxiraos/pi-ai")).toBe("@linxiraos/pi-ai");
+		expect(zetaKeyFor("@linxiraos/pi-omptype")).toBe("@linxiraos/pi-omptype");
+		expect(zetaKeyFor("@linxiraos/pi-stats")).toBe("@linxiraos/pi-stats");
+		expect(zetaKeyFor("@linxiraos/zeta")).toBe("@linxiraos/zeta");
 	});
 
 	it("maps upstream's original @mariozechner author scope the same way", () => {

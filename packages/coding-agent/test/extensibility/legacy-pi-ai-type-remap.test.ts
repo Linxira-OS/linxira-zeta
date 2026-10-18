@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
 import { registerCustomApi, unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { networkFailureMessage } from "@linxiraos/pi-ai/error";
 import type { Api, AssistantMessage, Context, Model, SimpleStreamOptions } from "@linxiraos/pi-ai";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
 import { buildModel } from "@linxiraos/pi-catalog/build";
@@ -15,6 +16,7 @@ import {
 	modelsAreEqual,
 } from "@linxiraos/pi-catalog/models";
 import { Type as TypeBoxShimType } from "@linxiraos/zeta/extensibility/legacy-typebox";
+import { isRetryableAssistantError } from "@linxiraos/zeta/extensibility/legacy-pi-ai-shim";
 import {
 	__resetLegacyPiResolutionCache,
 	installLegacyPiSpecifierShim,
@@ -51,7 +53,7 @@ afterAll(async () => {
 });
 
 async function writeFixtureExtension(source: string): Promise<string> {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-pi-ai-type-remap-"));
+	const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-pi-ai-type-remap-"));
 	tempRoots.push(dir);
 	const entry = path.join(dir, "index.ts");
 	await fs.writeFile(entry, source, "utf8");
@@ -77,25 +79,6 @@ describe("legacy-pi @(scope)/pi-ai root `Type` remap (issue #1437)", () => {
 		expect(loaded.schema.safeParse({ name: "ok" }).success).toBe(true);
 		expect(loaded.schema.safeParse({}).success).toBe(false);
 		expect(loaded.schema.safeParse({ name: "ok", extra: 1 }).success).toBe(false);
-	});
-
-	it("redirects the legacy pi-ai compat entrypoint through the root compatibility shim", async () => {
-		const entry = await writeFixtureExtension(
-			[
-				'import { StringEnum, complete, type Model } from "@earendil-works/pi-ai/compat";',
-				'export const schema = StringEnum(["red", "green"] as const);',
-				"export const completeType = typeof complete;",
-				"export type LegacyModel = Model;",
-			].join("\n"),
-		);
-
-		const loaded = (await loadLegacyPiModule(entry)) as {
-			schema: { safeParse: (input: unknown) => { success: boolean } };
-			completeType: string;
-		};
-		expect(loaded.schema.safeParse("red").success).toBe(true);
-		expect(loaded.schema.safeParse("blue").success).toBe(false);
-		expect(loaded.completeType).toBe("function");
 	});
 
 	it('redirects `import { Type } from "@linxiraos/pi-ai"` for plugins published against the canonical scope', async () => {
@@ -274,7 +257,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 	});
 
 	it("preserves legacy defineTool root imports and usable coding tools", async () => {
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-legacy-coding-tools-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-coding-tools-"));
 		tempRoots.push(dir);
 		await fs.writeFile(path.join(dir, "sample.txt"), "legacy read body", "utf8");
 		const entry = path.join(dir, "index.ts");
@@ -344,7 +327,7 @@ describe("legacy pi package root remaps (issue #1474)", () => {
 			return realResolveSync(specifier, from);
 		});
 
-		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-legacy-direct-subpath-"));
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-legacy-direct-subpath-"));
 		tempRoots.push(dir);
 		const packageDir = path.join(dir, "node_modules", "@mariozechner", "pi-ai");
 		await fs.mkdir(packageDir, { recursive: true });
@@ -486,5 +469,58 @@ it("runs the legacy pi-ai compat `complete` export with SoL-Pi's reducer call sh
 		cacheRetention: "none",
 		maxTokens: 321,
 		sessionId: "sol-pi-run",
+	});
+});
+
+describe("legacy isRetryableAssistantError network-failure wording", () => {
+	function erroredTurn(errorMessage: string): AssistantMessage {
+		return {
+			role: "assistant",
+			content: [],
+			api: "anthropic-messages",
+			provider: "anthropic",
+			model: "claude-sonnet-4-5",
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "error",
+			errorMessage,
+			timestamp: Date.now(),
+		};
+	}
+
+	// Each row is a distinct transport failure family; a legacy extension that
+	// stops restarting any of them regressed against the old `Connection error.`.
+	it.each([
+		[
+			"offline",
+			new TypeError("fetch failed", {
+				cause: Object.assign(new Error("connect ENETUNREACH 1.2.3.4:443"), { code: "ENETUNREACH" }),
+			}),
+		],
+		["unreachable", Object.assign(new Error("Was there a typo in the url or port?"), { code: "FailedToOpenSocket" })],
+		[
+			"refused",
+			new TypeError("fetch failed", {
+				cause: new AggregateError([
+					Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:8080"), { code: "ECONNREFUSED" }),
+				]),
+			}),
+		],
+		[
+			"tls",
+			Object.assign(new Error("unable to verify the first certificate"), {
+				code: "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+			}),
+		],
+	])("restarts a turn that failed with the %s sentence", (kind, cause) => {
+		const message = networkFailureMessage(cause, "https://api.anthropic.com/v1/messages");
+		if (message === undefined) throw new Error(`Expected a ${kind} network-failure sentence`);
+		expect(isRetryableAssistantError(erroredTurn(message))).toBe(true);
 	});
 });

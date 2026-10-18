@@ -81,7 +81,7 @@ describe("browser prelude", () => {
 		const calls: unknown[] = [];
 		const displayed: unknown[] = [];
 		const context = createContext({
-			__zeta_display__: (value: unknown) => displayed.push(value),
+			__zeta_log__: (_level: string, value: unknown) => displayed.push(value),
 			__zeta_prelude__: async (name: string, parameters: unknown) => {
 				calls.push({ name, parameters });
 				if (parameters === null || typeof parameters !== "object") return { text: "", details: {} };

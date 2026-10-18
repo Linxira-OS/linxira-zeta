@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -7,7 +7,9 @@ import { EditTool, getEditStore } from "@linxiraos/zeta/edit";
 import { type EditToolDetails } from "@linxiraos/pi-tui/tools/edit";
 import type { EditMode } from "@linxiraos/pi-tui/tools/edit";
 import type { ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { $ } from "bun";
 
 function makeSession(cwd: string, settings: Record<string, unknown> = {}): ToolSession {
 	return {
@@ -27,7 +29,7 @@ let tempDir: string;
 
 beforeEach(async () => {
 	resetSettingsForTest();
-	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-edit-tool-details-"));
+	tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-edit-tool-details-"));
 });
 
 afterEach(async () => {
@@ -159,6 +161,107 @@ describe("EditTool details", () => {
 		expect(details.diagnostics?.messages).toHaveLength(1);
 		expect(details.diagnostics?.messages[0]).toMatch(/^patch: Inexact match in warning\.ts near line 1:/);
 		expect(details.meta).toBeDefined();
+	});
+});
+
+describe.skipIf(process.platform === "win32")("EditTool move permissions", () => {
+	test.each(["hashline", "patch", "apply_patch"] as const)(
+		"%s keeps an edited script executable after moving it",
+		async mode => {
+			const source = path.join(tempDir, "run.sh");
+			const destination = path.join(tempDir, "scripts", "renamed.sh");
+			await Bun.write(source, "#!/bin/sh\nprintf 'before\\n'\n");
+			await fs.chmod(source, 0o750);
+			const session = makeSession(tempDir);
+			const read = await new ReadTool(session).execute("read-script", { path: "run.sh" });
+			const header = read.content.find(c => c.type === "text")?.text.split("\n")[0];
+			const params =
+				mode === "patch"
+					? {
+							path: "run.sh",
+							edits: [
+								{
+									op: "update" as const,
+									rename: "scripts/renamed.sh",
+									diff: "@@\n-printf 'before\\n'\n+printf 'after\\n'",
+								},
+							],
+						}
+					: {
+							input:
+								mode === "hashline"
+									? `${header}\nPUT 2.=2:\n+printf 'after\\n'\nMV scripts/renamed.sh`
+									: "*** Begin Patch\n*** Update File: run.sh\n*** Move to: scripts/renamed.sh\n@@\n-printf 'before\\n'\n+printf 'after\\n'\n*** End Patch",
+						};
+
+			const result = await new EditTool(session, mode).execute("move-script", params);
+			expect(result.isError).not.toBe(true);
+			expect(await Bun.file(source).exists()).toBe(false);
+			expect(await Bun.file(destination).text()).toBe("#!/bin/sh\nprintf 'after\\n'\n");
+			expect((await fs.stat(destination)).mode & 0o777).toBe(0o750);
+			expect(await $`${destination}`.quiet().text()).toBe("after\n");
+		},
+	);
+
+	test("hashline MV uses the source permissions when overwriting a destination", async () => {
+		const source = path.join(tempDir, "run.sh");
+		const destination = path.join(tempDir, "renamed.sh");
+		await Bun.write(source, "#!/bin/sh\nprintf 'moved\\n'\n");
+		await fs.chmod(source, 0o700);
+		await Bun.write(destination, "replaced\n");
+		await fs.chmod(destination, 0o644);
+		const session = makeSession(tempDir);
+		const read = await new ReadTool(session).execute("read-script", { path: "run.sh" });
+		const header = read.content.find(c => c.type === "text")?.text.split("\n")[0];
+
+		const result = await new EditTool(session, "hashline").execute("move-script", {
+			input: `${header}\nMV renamed.sh`,
+		});
+		expect(result.isError).not.toBe(true);
+		expect(await Bun.file(source).exists()).toBe(false);
+		expect((await fs.stat(destination)).mode & 0o777).toBe(0o700);
+		expect(await $`${destination}`.quiet().text()).toBe("moved\n");
+	});
+
+	test("hashline MV keeps the setuid bit of the source", async () => {
+		const source = path.join(tempDir, "run.sh");
+		const destination = path.join(tempDir, "renamed.sh");
+		await Bun.write(source, "#!/bin/sh\nprintf 'moved\\n'\n");
+		await fs.chmod(source, 0o4750);
+		const session = makeSession(tempDir);
+		const read = await new ReadTool(session).execute("read-script", { path: "run.sh" });
+		const header = read.content.find(c => c.type === "text")?.text.split("\n")[0];
+
+		const result = await new EditTool(session, "hashline").execute("move-script", {
+			input: `${header}\nMV renamed.sh`,
+		});
+		expect(result.isError).not.toBe(true);
+		expect((await fs.stat(destination)).mode & 0o7777).toBe(0o4750);
+	});
+
+	test("hashline MV completes when the destination denies mode changes", async () => {
+		const source = path.join(tempDir, "run.sh");
+		const destination = path.join(tempDir, "renamed.sh");
+		await Bun.write(source, "#!/bin/sh\nprintf 'moved\\n'\n");
+		await fs.chmod(source, 0o750);
+		const session = makeSession(tempDir);
+		const read = await new ReadTool(session).execute("read-script", { path: "run.sh" });
+		const header = read.content.find(c => c.type === "text")?.text.split("\n")[0];
+		const chmod = vi
+			.spyOn(fs, "chmod")
+			.mockRejectedValueOnce(Object.assign(new Error("EPERM: operation not permitted, chmod"), { code: "EPERM" }));
+
+		try {
+			const result = await new EditTool(session, "hashline").execute("move-script", {
+				input: `${header}\nMV renamed.sh`,
+			});
+			expect(result.isError).not.toBe(true);
+			expect(chmod).toHaveBeenCalledTimes(1);
+			expect(await Bun.file(source).exists()).toBe(false);
+			expect(await Bun.file(destination).text()).toBe("#!/bin/sh\nprintf 'moved\\n'\n");
+		} finally {
+			chmod.mockRestore();
+		}
 	});
 });
 

@@ -5,12 +5,12 @@
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Api, Model } from "@linxiraos/pi-ai";
 import { completeSimple, retryTransientCompletion } from "@linxiraos/pi-ai";
+import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
 import { logger, prompt } from "@linxiraos/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import { getModelMatchPreferences, resolveModelRoleValue } from "../config/model-resolver";
 import type { Settings } from "../config/settings";
-import MODEL_PRIO from "../priority.json" with { type: "json" };
 import commitSystemPrompt from "../prompts/system/commit-message-system.md" with { type: "text" };
 import { concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 
@@ -62,7 +62,7 @@ function getSmolModelCandidates(
 	});
 	addCandidate(configuredSmol.model, concreteThinkingLevel(configuredSmol.thinkingLevel));
 
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of roleDefaultModels().smol) {
 		const needle = pattern.toLowerCase();
 		addCandidate(availableModels.find(m => m.id.toLowerCase() === needle));
 		addCandidate(availableModels.find(m => m.id.toLowerCase().includes(needle)));

@@ -19,6 +19,7 @@ import {
 	PREVIEW_LIMITS,
 	replaceTabs,
 	truncateToWidth,
+	clipCollapsed,
 } from "../render/render-utils";
 import { tuiText, tuiTextFmt } from "../i18n";
 import { renderStatusLine, renderTreeList, urlHyperlink } from "../render";
@@ -35,7 +36,7 @@ const MAX_COLLAPSED_ITEMS = PREVIEW_LIMITS.COLLAPSED_ITEMS;
 function renderFallbackText(contentText: string, expanded: boolean, theme: Theme): Component {
 	const lines = contentText.split("\n").filter(line => line.trim());
 	const maxLines = expanded ? lines.length : 6;
-	const displayLines = lines.slice(0, maxLines).map(line => truncateToWidth(line.trim(), 110));
+	const displayLines = lines.slice(0, maxLines).map(line => clipCollapsed(line.trim(), 110, expanded));
 	const remaining = lines.length - displayLines.length;
 
 	const headerIcon = formatStatusIcon("warning", theme);

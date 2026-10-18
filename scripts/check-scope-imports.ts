@@ -5,10 +5,10 @@
  *
  * The v18.9.1 merge cost two rounds on this. A plain `@oh-my-pi/` → `@linxiraos/`
  * sweep looks right and is wrong wherever the leaf name is not ours:
- *   - `@oh-my-pi/pi-coding-agent` → our package is `@linxiraos/zeta`
+ *   - `@linxiraos/zeta` → our package is `@linxiraos/zeta`
  *     (registry: pi-coding-agent → zeta) — the one workspace member that is
  *     NOT linked under its upstream leaf name, so nothing resolved.
- *   - `@oh-my-pi/snapcompact` → `@linxiraos/pi-snapcompact` (stale bare name).
+ *   - `@linxiraos/pi-snapcompact` → `@linxiraos/pi-snapcompact` (stale bare name).
  * Both produced specifiers that resolve nowhere at runtime and in tsc, while
  * brand-check stayed green because the scope itself was correct.
  *

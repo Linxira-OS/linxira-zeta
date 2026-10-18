@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -19,6 +19,7 @@ import {
 	hashPath,
 	setAgentDir,
 } from "@linxiraos/pi-utils";
+import { resolveEquivalentPath } from "@linxiraos/pi-utils/dirs";
 
 const cleanup: string[] = [];
 
@@ -41,9 +42,78 @@ afterEach(() => {
 });
 
 describe("legacy session directory migration", () => {
+	test.each([false, true])(
+		"recovers hashed home-scoped sessions when the temp root is inside home (collision: %s)",
+		withCollision => {
+			const root = makeTempDir("omp-shadowed-home-");
+			const home = path.join(root, "home");
+			const tempRoot = path.join(home, "tmp");
+			const cwd = path.join(tempRoot, "project");
+			const sessionsRoot = path.join(root, "sessions");
+			fs.mkdirSync(cwd, { recursive: true });
+			const canonical = resolveEquivalentPath(path.resolve(cwd));
+			const digest = Bun.SHA256.hash(canonical.replaceAll("\\", "/"), "hex");
+			const oldDir = path.join(sessionsRoot, `home-project-${digest}`);
+			const canonicalDir = path.join(sessionsRoot, "-tmp-project");
+			const transcript = Buffer.from('{"type":"session","id":"saved","note":"你好"}\r\n');
+			fs.mkdirSync(oldDir, { recursive: true });
+			fs.writeFileSync(path.join(oldDir, "saved.jsonl"), transcript);
+			if (withCollision) {
+				fs.mkdirSync(canonicalDir);
+				fs.writeFileSync(path.join(oldDir, "active.jsonl"), "legacy\n");
+				fs.writeFileSync(path.join(canonicalDir, "active.jsonl"), "canonical\n");
+			}
+			const homeMock = vi.spyOn(os, "homedir").mockReturnValue(home);
+			try {
+				const tempMock = vi.spyOn(os, "tmpdir").mockReturnValue(tempRoot);
+				try {
+					const destination = computeDefaultSessionDir(cwd, new FileSessionStorage(), sessionsRoot);
+					expect(destination).toBe(canonicalDir);
+					expect(fs.readFileSync(path.join(destination, "saved.jsonl"))).toEqual(transcript);
+					if (withCollision) {
+						expect(fs.readFileSync(path.join(oldDir, "active.jsonl"), "utf8")).toBe("legacy\n");
+						expect(fs.readFileSync(path.join(destination, "active.jsonl"), "utf8")).toBe("canonical\n");
+					} else {
+						expect(fs.existsSync(oldDir)).toBe(false);
+					}
+				} finally {
+					tempMock.mockRestore();
+				}
+			} finally {
+				homeMock.mockRestore();
+			}
+		},
+	);
+
+	test("keeps normal home and temp session directory names", () => {
+		const root = makeTempDir("omp-session-scopes-");
+		const home = path.join(root, "home");
+		const tempRoot = path.join(root, "tmp");
+		const sessionsRoot = path.join(root, "sessions");
+		const homeCwd = path.join(home, "project");
+		const tempCwd = path.join(tempRoot, "project");
+		fs.mkdirSync(homeCwd, { recursive: true });
+		fs.mkdirSync(tempCwd, { recursive: true });
+		const homeMock = vi.spyOn(os, "homedir").mockReturnValue(home);
+		try {
+			const tempMock = vi.spyOn(os, "tmpdir").mockReturnValue(tempRoot);
+			try {
+				const storage = new FileSessionStorage();
+				expect(computeDefaultSessionDir(homeCwd, storage, sessionsRoot)).toBe(path.join(sessionsRoot, "-project"));
+				expect(computeDefaultSessionDir(tempCwd, storage, sessionsRoot)).toBe(
+					path.join(sessionsRoot, "-tmp-project"),
+				);
+			} finally {
+				tempMock.mockRestore();
+			}
+		} finally {
+			homeMock.mockRestore();
+		}
+	});
+
 	test("keeps a colliding live legacy session reachable through its path", () => {
-		const sessionsRoot = makeTempDir("zeta-session-root-");
-		const cwd = makeTempDir("zeta-session-cwd-");
+		const sessionsRoot = makeTempDir("omp-session-root-");
+		const cwd = makeTempDir("omp-session-cwd-");
 		const storage = new FileSessionStorage();
 		const canonicalDir = computeDefaultSessionDir(cwd, storage, sessionsRoot);
 		const legacyDir = legacySessionDir(sessionsRoot, cwd);
@@ -63,8 +133,8 @@ describe("legacy session directory migration", () => {
 	});
 
 	test("preserves writes when an older process recreates its cached legacy directory", () => {
-		const sessionsRoot = makeTempDir("zeta-session-root-");
-		const cwd = makeTempDir("zeta-session-cwd-");
+		const sessionsRoot = makeTempDir("omp-session-root-");
+		const cwd = makeTempDir("omp-session-cwd-");
 		const storage = new FileSessionStorage();
 		const canonicalDir = computeDefaultSessionDir(cwd, storage, sessionsRoot);
 		const legacyDir = legacySessionDir(sessionsRoot, cwd);
@@ -83,8 +153,8 @@ describe("legacy session directory migration", () => {
 
 describe("hasPositiveMovedProjectEvidence", () => {
 	test("is true only when the continue cwd is the same directory inode", () => {
-		const from = makeTempDir("zeta-cwd-from-");
-		const sibling = makeTempDir("zeta-cwd-unrelated-");
+		const from = makeTempDir("omp-cwd-from-");
+		const sibling = makeTempDir("omp-cwd-unrelated-");
 		const identity = readCwdIdentity(from);
 		expect(identity).toBeDefined();
 		expect(hasPositiveMovedProjectEvidence(identity, sibling)).toBe(false);
@@ -99,8 +169,8 @@ describe("hasPositiveMovedProjectEvidence", () => {
 
 describe("custom session-file registry", () => {
 	test("records an exact relocated session file and skips managed JSONL files", () => {
-		const agentDir = makeTempDir("zeta-agent-");
-		const cwd = makeTempDir("zeta-cwd-");
+		const agentDir = makeTempDir("omp-agent-");
+		const cwd = makeTempDir("omp-cwd-");
 		const originalAgentDir = getAgentDir();
 		setAgentDir(agentDir);
 		try {
@@ -123,8 +193,8 @@ describe("custom session-file registry", () => {
 	});
 
 	test("leaves identical breadcrumb and marker files unwritten when the same session is recorded again", () => {
-		const agentDir = makeTempDir("zeta-agent-");
-		const cwd = makeTempDir("zeta-cwd-");
+		const agentDir = makeTempDir("omp-agent-");
+		const cwd = makeTempDir("omp-cwd-");
 		const originalAgentDir = getAgentDir();
 		const originalTmuxPane = process.env.TMUX_PANE;
 		process.env.TMUX_PANE = "%pointer-write-test";
@@ -156,8 +226,8 @@ describe("custom session-file registry", () => {
 	});
 
 	test("records no marker for a session on a non-filesystem storage backend", async () => {
-		const globalAgentDir = makeTempDir("zeta-agent-global-");
-		const cwd = makeTempDir("zeta-cwd-");
+		const globalAgentDir = makeTempDir("omp-agent-global-");
+		const cwd = makeTempDir("omp-cwd-");
 		const originalAgentDir = getAgentDir();
 		setAgentDir(globalAgentDir);
 		try {
