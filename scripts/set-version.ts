@@ -32,7 +32,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { NPM_DISTRIBUTIONS } from "./npm-distributions";
+import { distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 
 const repoRoot = path.join(import.meta.dir, "..");
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -152,17 +152,17 @@ async function main(): Promise<void> {
 	const changed: string[] = [];
 	const unchanged: string[] = [];
 
-	// Fail before writing anything when the leaf-pin registry and the tree
-	// disagree: a renamed or removed leaf would otherwise half-apply the bump.
+	// Fail before writing anything when the pin registry and the tree disagree:
+	// a renamed or removed leaf/companion would otherwise half-apply the bump.
 	for (const dist of NPM_DISTRIBUTIONS) {
 		const parentRel = `${dist.dir}/package.json`;
 		const parent = readJson(parentRel) as { optionalDependencies?: Record<string, string> };
-		for (const leaf of dist.leaves) {
-			if (!parent.optionalDependencies?.[leaf.name]) {
-				fail(`${parentRel}: ${leaf.name} is not pinned in optionalDependencies`);
+		for (const pin of distributionPins(dist)) {
+			if (!parent.optionalDependencies?.[pin.name]) {
+				fail(`${parentRel}: ${pin.name} is not pinned in optionalDependencies`);
 			}
-			if (!fs.existsSync(path.join(repoRoot, `${leaf.dir}/package.json`))) {
-				fail(`${leaf.dir}/package.json: missing (registered as a leaf of ${dist.dir})`);
+			if (!fs.existsSync(path.join(repoRoot, `${pin.dir}/package.json`))) {
+				fail(`${pin.dir}/package.json: missing (registered as a pin of ${dist.dir})`);
 			}
 		}
 	}
@@ -270,15 +270,16 @@ async function main(): Promise<void> {
 
 	// 3b. Vendored npm distributions (editor / main / termide — published by
 	// `ci-release-publish.ts --editor`/`--ide` and the workbench job). Not Bun
-	// workspaces: the launcher, its platform leaves, and the launcher's exact
-	// leaf pins all ride the release line. The 1.2.0 editor launcher was lifted
-	// to the line while its pins stayed at 1.1.28 (hand-fixed in PR #119), so
-	// the pins are part of this pass. The editor distribution is registered
-	// again: its payload is the built-in editor's termide-editor entry.
+	// workspaces: the launcher, its platform leaves, its same-line companions
+	// (zetacode/zetaide under `@linxiraos/main`), and the launcher's exact pins
+	// all ride the release line. The 1.2.0 editor launcher was lifted to the
+	// line while its pins stayed at 1.1.28 (hand-fixed in PR #119), so the pins
+	// are part of this pass. The editor distribution is registered again: its
+	// payload is the built-in editor's termide-editor entry.
 	for (const dist of NPM_DISTRIBUTIONS) {
 		bumpManifest(
 			`${dist.dir}/package.json`,
-			dist.leaves.map(leaf => leaf.name),
+			distributionPins(dist).map(pin => pin.name),
 		);
 		for (const leaf of dist.leaves) bumpManifest(`${leaf.dir}/package.json`);
 	}

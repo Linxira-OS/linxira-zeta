@@ -391,6 +391,34 @@ The changelog-side pre-tag gate (`[Unreleased]` completeness, no upstream
 version sections, `UPDATE-LOG.md` entry) lives in
 `document/dev-conventions.md` § Changelog.
 
+### Workbench bundle layout (zetawork + zetacode + zetaide)
+
+Installing `zetawork` installs the whole suite. `@linxiraos/main` pins
+`@linxiraos/zeta` (bin `zetacode`) and `@linxiraos/ide` (bin `zetaide`) as
+**companions** in the same `optionalDependencies` block that pins its platform
+leaves — same exact version, same optional form (a companion unavailable for
+the host must not fail the workbench install; each product's binary stays
+inside its own `os`/`cpu`-gated leaf, so a Linux install never drags a Windows
+payload). No binary is duplicated between packages.
+
+Where each command lives per install shape (`<root>` = the npm prefix's
+`node_modules/@linxiraos`):
+
+| Shape | Windows x64 | Linux x64 |
+| --- | --- | --- |
+| npm install | `<root>/main-windows-x64/bin/zeta.exe`<br>`<root>/ide-windows-x64/bin/termide.exe`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) | `<root>/main-linux-x64/bin/zeta-linux-x64`<br>`<root>/ide-linux-x64/bin/termide-linux-x64`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) |
+| Staged runtime / release archives | `zeta-work-win-x64.exe`, `zeta-ide-win-x64.exe`, `zeta-cli-windows-x64.exe` | `zeta-work-linux-x64`, `zeta-ide-linux-x64`, `zeta-cli-linux-x64` |
+
+The staged-runtime row is `packages/coding-agent/binaries/` — the one directory
+`scripts/ci-release-build-binaries.ts` stages every product into and
+`release_github` uploads from, so the GUI finds zetacode/zetaide beside
+`zetawork` after unpacking (the pacman PKGBUILDs consume the same three
+assets). Because an `optionalDependencies` pin never fails an install,
+`release_main_packages` publishes **after** `release_npm` (zetacode) and
+`release_ide_packages` (zetaide) — a launcher that lands first exists only as an
+install with two missing commands. `scripts/check-workbench-bundles.ts` gates
+the declaration and every step above (both CI mirrors run it).
+
 ### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
 
 From **1.1.19** Zeta ships as a system package in the Linxira OS mainline

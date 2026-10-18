@@ -111,10 +111,18 @@ const targets: ReleaseTarget[] = [
 		target: "bun-windows-arm64",
 		outfile: "packages/coding-agent/binaries/zeta-cli-windows-arm64.exe",
 	},
-	// Bare product binaries. Both are Cargo workspace builds (toolchain
-	// pinned by each workspace's rust-toolchain.toml, 1.91.1 — the same pin
-	// the main_tests/termide_tests jobs compile under). The win32 asset
-	// cross-builds on the Linux runner: cargo via the GNU target.
+	// Bare product binaries. All are Cargo workspace builds (toolchain pinned
+	// by each workspace's rust-toolchain.toml, 1.91.1 — the same pin the
+	// main_tests/termide_tests jobs compile under). The win32 assets
+	// cross-build on the Linux runner: cargo via the GNU target.
+	//
+	// One target per (product, platform): the staged tree
+	// (`packages/coding-agent/binaries/`) and the release archives must carry
+	// zetawork, zetacode and zetaide for both platforms, so a GUI unpacking
+	// any of them finds all three products beside `zetawork`. `zeta-cli-*`
+	// legs (above) are zetacode; the two families below are zetawork/zetaide.
+	// scripts/check-workbench-bundles.ts fails when a product/platform pair
+	// disappears from this table.
 	{
 		kind: "product",
 		id: "zeta-work-linux-x64",
@@ -132,6 +140,12 @@ const targets: ReleaseTarget[] = [
 		id: "zeta-ide-linux-x64",
 		product: "ide",
 		platform: "linux",
+	},
+	{
+		kind: "product",
+		id: "zeta-ide-win-x64",
+		product: "ide",
+		platform: "win32",
 	},
 ];
 

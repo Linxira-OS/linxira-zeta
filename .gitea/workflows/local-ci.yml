@@ -426,6 +426,12 @@ jobs:
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
            run: bun scripts/check-license-map.ts
+         # 镜像 GitHub `check` job：安装 zetawork 必须同时装上 zetacode 与
+         # zetaide（同一条版本线的 companion 钉），发布构建把三个二进制放在
+         # 同一目录、发布资产三族齐发。钉或发布腿少带一个，用户装到的就是
+         # 一个工作台加两个失踪命令，而所有 manifest 仍然可解析。
+         - name: Workbench bundle guard
+           run: bun scripts/check-workbench-bundles.ts
          # 镜像 GitHub `check` job：两个语言服务器注册表（coding-agent 与 termide）
          # 都由 `lsp/servers.json` 生成；手工改生成物或改了规范文件忘记重生成，
          # 都会让两个编辑器悄悄分叉。

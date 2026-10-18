@@ -22,6 +22,16 @@
  * Adding a distribution: register it here. `check-version-consistency.ts`
  * fails on any unregistered `@linxiraos/*` entry under an npm distribution's
  * `optionalDependencies`, so the table cannot silently fall behind the tree.
+ *
+ * `companions` are the same shape of pin for a *different product* the
+ * launcher installs beside itself. `@linxiraos/main` (the zetawork workbench)
+ * pins `@linxiraos/zeta` (bin `zetacode`) and `@linxiraos/ide` (bin `zetaide`)
+ * in the same `optionalDependencies` block, so one install yields the whole
+ * suite. They are not leaves: no `os`/`cpu` gate, no binary of their own — the
+ * binary stays in that product's own platform leaf, and the pin is what makes
+ * npm materialize it. The pin still rides the line exactly (a stale pin
+ * installs the previous release's companion), so every bump/check pass treats
+ * it like a leaf pin.
  */
 
 export interface NpmLeafPin {
@@ -31,11 +41,20 @@ export interface NpmLeafPin {
 	readonly name: string;
 }
 
+/**
+ * A same-line companion *product* the launcher installs beside itself. Same
+ * pin semantics as a leaf, but it is another product's launcher package, not
+ * a platform leaf of this one.
+ */
+export type NpmCompanionPin = NpmLeafPin;
+
 export interface NpmDistribution {
 	/** Repo-relative dir of the launcher package that pins `leaves`. */
 	readonly dir: string;
 	/** Platform leaves pinned by the launcher's `optionalDependencies`. */
 	readonly leaves: readonly NpmLeafPin[];
+	/** Companion products pinned in the same `optionalDependencies` block. */
+	readonly companions?: readonly NpmCompanionPin[];
 }
 
 export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
@@ -54,6 +73,11 @@ export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
 			{ dir: "main/npm/main-windows-x64", name: "@linxiraos/main-windows-x64" },
 			{ dir: "main/npm/main-linux-x64", name: "@linxiraos/main-linux-x64" },
 		],
+		// zetacode and zetaide ship with zetawork: one install, three commands.
+		companions: [
+			{ dir: "packages/coding-agent", name: "@linxiraos/zeta" },
+			{ dir: "termide/npm/ide", name: "@linxiraos/ide" },
+		],
 	},
 	{
 		dir: "termide/npm/ide",
@@ -63,6 +87,11 @@ export const NPM_DISTRIBUTIONS: readonly NpmDistribution[] = [
 		],
 	},
 ];
+
+/** Every pin (platform leaves, then companions) the launcher must carry. */
+export function distributionPins(distribution: NpmDistribution): readonly NpmLeafPin[] {
+	return [...distribution.leaves, ...(distribution.companions ?? [])];
+}
 
 /**
  * Glob (repo-relative) matching every manifest inside a vendored npm

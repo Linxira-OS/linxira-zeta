@@ -30,7 +30,7 @@
 import { Glob } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { distributionManifests, NPM_DISTRIBUTIONS, NPM_MANIFEST_GLOB } from "./npm-distributions";
+import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS, NPM_MANIFEST_GLOB } from "./npm-distributions";
 
 const root = path.resolve(import.meta.dir, "..");
 
@@ -212,16 +212,16 @@ function main(): void {
 	const registeredPins: Record<string, ReadonlySet<string>> = {};
 	for (const dist of NPM_DISTRIBUTIONS) {
 		const parentRel = `${dist.dir}/package.json`;
-		registeredPins[parentRel] = new Set(dist.leaves.map(leaf => leaf.name));
+		registeredPins[parentRel] = new Set(distributionPins(dist).map(pin => pin.name));
 		for (const rel of distributionManifests(dist)) {
 			const manifestVersion = readVersion(rel);
 			if (manifestVersion !== expected) problems.push(`${rel}: ${manifestVersion} != ${expected}`);
 		}
 		const parent = JSON.parse(fs.readFileSync(path.join(root, parentRel), "utf8"));
-		for (const leaf of dist.leaves) {
-			const pinned = parent.optionalDependencies?.[leaf.name];
+		for (const pin of distributionPins(dist)) {
+			const pinned = parent.optionalDependencies?.[pin.name];
 			if (pinned !== expected) {
-				problems.push(`${parentRel} optionalDependencies ${leaf.name}: ${pinned} != ${expected}`);
+				problems.push(`${parentRel} optionalDependencies ${pin.name}: ${pinned} != ${expected}`);
 			}
 		}
 	}
@@ -295,7 +295,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + natives stamp + desktop + npm distribution leaf pins + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + natives stamp + desktop + npm distribution leaf/companion pins + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
 	);
 }
 
