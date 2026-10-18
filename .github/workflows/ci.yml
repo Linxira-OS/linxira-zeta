@@ -1870,12 +1870,14 @@ jobs:
          !inputs.skip_npm }}
       needs: [release_metadata, release_gate]
       runs-on: ubuntu-22.04
-      # Same OIDC split as the other publish legs: id-token: write lets npm
-      # exchange the GitHub OIDC token for a short-lived publish token (trusted
-      # publishing + provenance); NODE_AUTH_TOKEN below is only the fallback for
-      # a name npm has no trusted-publisher entry for.
+      # Token-only publish, on purpose. The runtime line has npm trusted
+      # publishers configured, so `id-token: write` works there; the plugin name
+      # does not, and npm does NOT fall back to NODE_AUTH_TOKEN after an OIDC
+      # 404 — v1.3.0 failed with `404 Not Found - PUT
+      # https://registry.npmjs.org/@linxiraos%2fpi-messenger`. Without the OIDC
+      # permission npm publishes straight with the granular token, which owns
+      # the package (same maintainers as the rest of the scope).
       permissions:
-         id-token: write
          contents: read
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
