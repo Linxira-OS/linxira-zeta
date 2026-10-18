@@ -143,6 +143,71 @@ pub fn render_view(frame: &mut Frame, area: Rect, slot: &Slot) {
 	);
 }
 
+/// The 本机 row: the directory the workbench was started in and its branch.
+///
+/// The GUI synthesises the same pseudo-project (`seed::local_project`) instead
+/// of reading a registration, so both surfaces name the same workspace the same
+/// way even when `~/.zeta/projects.json` does not exist yet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocalWorkspace {
+	pub dir: std::path::PathBuf,
+	/// `None` when the directory is not a repository (or git is absent).
+	pub branch: Option<String>,
+}
+
+impl LocalWorkspace {
+	/// Read the row for `dir` — path and branch, both real.
+	pub fn read(dir: std::path::PathBuf) -> Self {
+		let branch = branch_of(&dir);
+		Self { dir, branch }
+	}
+
+	/// The workspace's own name: the directory's leaf, or its full path for a
+	/// drive root.
+	pub fn name(&self) -> String {
+		match self.dir.file_name() {
+			Some(leaf) => leaf.to_string_lossy().into_owned(),
+			None => self.dir.display().to_string(),
+		}
+	}
+
+	/// What the table shows for the branch column.
+	pub fn branch_label(&self) -> &str {
+		self.branch.as_deref().unwrap_or("—")
+	}
+}
+
+/// `git rev-parse --abbrev-ref HEAD` in `dir`. `None` when it is not a
+/// repository, has no commits yet, or git is not installed — the row then shows
+/// `—` instead of inventing a branch. No console window on Windows.
+pub fn branch_of(dir: &std::path::Path) -> Option<String> {
+	use std::process::{Command, Stdio};
+
+	let mut command = Command::new("git");
+	command
+		.arg("-C")
+		.arg(dir)
+		.args(["rev-parse", "--abbrev-ref", "HEAD"])
+		.stdin(Stdio::null())
+		.stdout(Stdio::piped())
+		.stderr(Stdio::null());
+	#[cfg(windows)]
+	{
+		use std::os::windows::process::CommandExt as _;
+		command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+	}
+	let output = command.output().ok()?;
+	if !output.status.success() {
+		return None;
+	}
+	let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+	// A detached HEAD reports `HEAD`, which is not a branch name.
+	if text.is_empty() || text == "HEAD" {
+		return None;
+	}
+	Some(text)
+}
+
 /// The projects view: the shared registry as a project → workspace tree.
 ///
 /// The registry stores registrations, not workspaces, so each project's child
@@ -152,6 +217,7 @@ pub fn render_view(frame: &mut Frame, area: Rect, slot: &Slot) {
 pub fn render_projects(
 	frame: &mut Frame,
 	area: Rect,
+	local: &LocalWorkspace,
 	registry: &workbench_projects::Registry,
 	error: Option<&str>,
 	selected: usize,
@@ -179,6 +245,17 @@ pub fn render_projects(
 			Style::default().fg(Color::Red),
 		)));
 	}
+	lines.push(Line::from(""));
+	// 本机 first, exactly like the GUI's left column: the directory this
+	// workbench runs in, with its branch. It is not a registration.
+	lines.push(Line::from(Span::styled(
+		format!(" ▏📁 本机 · {}", local.name()),
+		Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+	)));
+	lines.push(Line::from(Span::styled(
+		format!("     {} · {}", local.dir.display(), local.branch_label()),
+		Style::default().fg(Color::DarkGray),
+	)));
 	lines.push(Line::from(""));
 	if registry.is_empty() {
 		lines.push(Line::from(Span::styled(" 尚未注册项目。", Style::default().fg(Color::DarkGray))));
@@ -384,12 +461,12 @@ mod tests {
 
 	#[test]
 	fn the_projects_view_reads_the_shared_registry() {
-		fn text_of(registry: &workbench_projects::Registry) -> String {
+		fn text_of(local: &LocalWorkspace, registry: &workbench_projects::Registry) -> String {
 			let mut terminal = Terminal::new(TestBackend::new(64, 14)).expect("terminal");
 			terminal
 				.draw(|frame| {
 					let area = frame.area();
-					render_projects(frame, area, registry, None, 0);
+					render_projects(frame, area, local, registry, None, 0);
 				})
 				.expect("draw");
 			let buffer = terminal.backend().buffer().clone();
@@ -411,7 +488,8 @@ mod tests {
 		let registry = workbench_projects::Registry::load_from(&path).expect("load");
 		// A wide glyph leaves its second buffer cell blank, so compare with
 		// every space removed — the same normalization the strip tests use.
-		let text: String = text_of(&registry)
+		let local = LocalWorkspace { dir: std::path::PathBuf::from("C:/work/demo"), branch: Some("main".into()) };
+		let text: String = text_of(&local, &registry)
 			.chars()
 			.filter(|ch| !ch.is_whitespace())
 			.collect();
@@ -421,9 +499,13 @@ mod tests {
 		assert!(text.contains("work") && text.contains("demo"), "so is its path");
 		assert!(text.contains("默认工作区·zetacode"), "with the workspace child line");
 		assert!(text.contains("x移除注册"), "and the remove key");
+		// 本机 comes first, unregistered, with its own branch — the row the GUI's
+		// left column always shows.
+		assert!(text.contains("📁本机·demo"), "本机 is drawn with its directory name:\n{text}");
+		assert!(text.contains("main"), "and its branch");
 
 		let empty = workbench_projects::Registry::empty_at(dir.path().join("none.json"));
-		let text: String = text_of(&empty)
+		let text: String = text_of(&local, &empty)
 			.chars()
 			.filter(|ch| !ch.is_whitespace())
 			.collect();

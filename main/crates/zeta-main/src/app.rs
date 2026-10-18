@@ -225,6 +225,10 @@ pub struct Workspace {
 	/// Why the registry could not be read. The view shows the reason; the file
 	/// itself is left untouched.
 	projects_error: Option<String>,
+	/// 本机: the directory this workbench runs in and its branch — the row the
+	/// GUI's left column always shows, synthesised the same way
+	/// (`seed::local_project`) rather than registered.
+	local: crate::rail::LocalWorkspace,
 	/// Selected row of the projects view (an index into [`Registry::list`]).
 	project_row: usize,
 	notice: Option<String>,
@@ -368,6 +372,12 @@ fn event_loop(terminal: &mut RatuTerminal<CrosstermBackend<Stdout>>) -> Result<(
 impl Workspace {
 	fn new() -> Result<Self> {
 		let cwd = launch_cwd();
+		let local = crate::rail::LocalWorkspace::read(
+			cwd
+				.clone()
+				.or_else(|| std::env::current_dir().ok())
+				.unwrap_or_else(|| std::path::PathBuf::from(".")),
+		);
 		let first = Tab::new_shell(cwd)?;
 		let (projects, projects_error) = match workbench_projects::Registry::load() {
 			Ok(registry) => (registry, None),
@@ -400,6 +410,7 @@ impl Workspace {
 			active_slot: None,
 			projects,
 			projects_error,
+			local,
 			project_row: 0,
 			notice: None,
 			hits: Vec::new(),
@@ -1935,6 +1946,7 @@ impl Workspace {
 				rail::render_projects(
 					frame,
 					content,
+					&self.local,
 					&self.projects,
 					self.projects_error.as_deref(),
 					self.project_row,
