@@ -1,6 +1,9 @@
 /**
- * Wire types for `zetacode stream`: Twitch-style live screen sharing at
- * `live.omp.sh/<username>`.
+ * Wire types for `zetacode stream`: Twitch-style live screen sharing.
+ *
+ * Zeta ships no stream server, so there is no default host: `zetacode stream`
+ * and clip uploads only work against a compatible server the user configures
+ * in `stream.serverUrl`. See {@link STREAM_HOSTING_UNAVAILABLE}.
  *
  * Independent from collab. A publisher (`zetacode stream`) sends plaintext JSON
  * screen deltas for one or more panes (one pane per omp session attached in
@@ -13,8 +16,20 @@
  * secrets before a row leaves the session process.
  */
 
-/** Default stream server; its host route derives the channel from the bearer identity. */
-export const DEFAULT_STREAM_URL = "https://live.omp.sh";
+/**
+ * No stream or clip hosting ships with Zeta. `stream.serverUrl` has no
+ * default; point it at a compatible server you run yourself to enable
+ * `zetacode stream` (the server derives the channel from the bearer identity).
+ */
+export const STREAM_HOSTING_UNAVAILABLE =
+	"no stream server ships with Zeta; set stream.serverUrl to a compatible server";
+
+/**
+ * Default value of `stream.serverUrl`. Empty: Zeta ships no stream hosting, so
+ * users must point the setting at their own compatible server (see
+ * {@link STREAM_HOSTING_UNAVAILABLE}).
+ */
+export const DEFAULT_STREAM_URL = "";
 
 /** Protocol version carried in `hello`/`snapshot`; the server rejects mismatches. */
 export const STREAM_PROTO = 1;
@@ -155,7 +170,7 @@ export interface ClipUploadResponse {
 	url: string;
 }
 
-/** HTTP/WS route layout of the stream server, relative to `DEFAULT_STREAM_URL`. */
+/** HTTP/WS route layout of the stream server, relative to the configured `stream.serverUrl`. */
 export const STREAM_ROUTES = {
 	channels: "/api/channels",
 	channel: (name: string) => `/api/channels/${name}`,

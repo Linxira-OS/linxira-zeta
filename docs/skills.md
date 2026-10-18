@@ -169,6 +169,23 @@ removes the files the installer added, leaves anything you edited in place, and 
 
 To turn the pack off entirely, set `skills.enableOfficial` to `false` (this also skips the install).
 
+## Extra skills from npm
+
+Zeta ships the bundled official pack (above) and no skill registry. Extra
+skills are distributed as the npm package `@linxiraos/linxira-skills`:
+
+```text
+npm i -g @linxiraos/linxira-skills
+linxira-skills --help
+```
+
+Install what you need with that CLI or copy the skill directories into
+`~/.zeta/agent/skills/`; the `native` provider discovers them like any authored
+skill. The `zetacode skill …` and `/skills …` commands talk to a Skillshare
+registry, and no registry ships by default: set `skills.registryUrl` to your own
+registry (or pass `--registry <url>`) to use them. With neither configured they
+print the npm-package guidance instead of attempting a network call.
+
 ## Runtime usage behavior
 
 ### System prompt exposure

@@ -36,7 +36,8 @@ type Status =
 	| "replace-P2"
 	| "replace-P3"
 	| "replace-brand"
-	| "replaced";
+	| "replaced"
+	| "disabled";
 
 interface Placement {
 	/** URL prefix this entry governs (longest match wins). */
@@ -121,26 +122,24 @@ const INVENTORY: Placement[] = [
 	},
 	{
 		domain: "https://skills.omp.sh",
-		status: "replace-P2",
-		files: [
-			"packages/coding-agent/src/cli/command-help.ts",
-			"packages/coding-agent/src/commands/skill.ts",
-			"packages/coding-agent/src/skillshare/client.ts",
-			"packages/coding-agent/src/slash-commands/builtin-skills.ts",
-			"packages/wire/src/skillshare.ts",
-		],
-		why: "skillshare default source; replacement = @linxiraos/linxira-skills (npm+git, no server)",
+		status: "replaced",
+		// Deliberately empty: no registry default ships. Extra skills come from
+		// the npm package `@linxiraos/linxira-skills`; a user who runs a registry
+		// configures it in `skills.registryUrl`. The wire contract keeps the
+		// protocol usable for such a registry, but any committed upstream host is
+		// a regression (2026-10-18).
+		files: [],
+		why: "upstream skill registry default — removed 2026-10-18; extra skills now come from the npm package @linxiraos/linxira-skills (npm i -g @linxiraos/linxira-skills), or a user-configured skills.registryUrl",
 	},
 	{
 		domain: "https://live.omp.sh",
-		status: "replace-P3",
-		files: [
-			"packages/catalog/src/compat/rules/auth/stencil.kdl",
-			"packages/coding-agent/src/cli/command-help.ts",
-			"packages/coding-agent/src/stream/clip-upload.ts",
-			"packages/wire/src/stream.ts",
-		],
-		why: "live voice service; same account family as Stencil, lowest priority",
+		status: "disabled",
+		// Deliberately empty: Zeta ships no stream/clip server. `zetacode stream`
+		// needs a user-configured `stream.serverUrl` and `uploadClip` refuses
+		// (CLIP_UPLOAD_ENABLED = false). A merge that re-introduces the upstream
+		// host trips "registered endpoint (disabled) but not whitelisted".
+		files: [],
+		why: "upstream live stream/clip service — hosting disabled 2026-10-18; no stream server ships, clip uploads are unavailable, any placement is a regression",
 	},
 	{
 		domain: "https://docs.stencil.so",

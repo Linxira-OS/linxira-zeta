@@ -1,7 +1,11 @@
 /**
- * Wire contract for Skillshare (`skills.omp.sh`): an npm-style registry for
- * zetacode skills. Shared by the omp CLI (`zetacode skill …`), the Go server
- * (`stencil/apps/skills`), and its web UI (which mirrors this file).
+ * Wire contract for Skillshare: an npm-style registry for zetacode skills.
+ * Shared by the omp CLI (`zetacode skill …`) and a registry server.
+ *
+ * Zeta ships no registry: extra skills come from the npm package
+ * `@linxiraos/linxira-skills` (`npm i -g @linxiraos/linxira-skills`), and the
+ * registry commands only work after the user configures `skills.registryUrl`.
+ * See {@link SKILLS_REGISTRY_UNAVAILABLE}.
  *
  * Packages are scoped: `@scope/name`. A scope is a Stencil username claimed on
  * first publish and bound to the account's immutable `sub` forever (usernames
@@ -14,8 +18,19 @@
  * (comma-separated), `metadata.repository`, `metadata.homepage`.
  */
 
-/** Default registry; `skills.registryUrl` overrides it. */
-export const DEFAULT_SKILLS_URL = "https://skills.omp.sh";
+/**
+ * No skill registry ships with Zeta. Extra skills come from the npm package
+ * `@linxiraos/linxira-skills` (`npm i -g @linxiraos/linxira-skills`); the
+ * registry commands work against a user-configured `skills.registryUrl`.
+ */
+export const SKILLS_REGISTRY_UNAVAILABLE =
+	"no skill registry ships with Zeta; extra skills come from the npm package @linxiraos/linxira-skills (npm i -g @linxiraos/linxira-skills), or set skills.registryUrl to your own registry";
+
+/**
+ * Default value of `skills.registryUrl`. Empty: no registry ships by default
+ * (see {@link SKILLS_REGISTRY_UNAVAILABLE}).
+ */
+export const DEFAULT_SKILLS_URL = "";
 
 /** Scopes are Stencil usernames (or registry orgs): lowercase letters, digits, underscores; 3–32 chars. */
 export const SKILL_SCOPE_RE = /^[a-z0-9][a-z0-9_]{2,31}$/;
@@ -68,8 +83,12 @@ export const SKILL_HEADERS = {
 	githubOidc: "X-Skill-GitHub-OIDC",
 } as const;
 
-/** Audience CI must request for GitHub Actions OIDC tokens. */
-export const SKILLS_OIDC_AUDIENCE = "skills.omp.sh";
+/**
+ * Audience CI requests for GitHub Actions OIDC tokens. No default ships: a
+ * self-hosted registry issues tokens for its own audience, so the value comes
+ * from the registry's configuration.
+ */
+export const SKILLS_OIDC_AUDIENCE = "";
 
 /** Env var holding a registry publish token for CI (`sks_…`); wins over the Stencil login. */
 export const SKILLS_TOKEN_ENV = "SKILLS_TOKEN";

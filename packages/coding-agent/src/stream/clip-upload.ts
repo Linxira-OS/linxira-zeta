@@ -2,7 +2,7 @@ import { type ClipUploadResponse, STREAM_ROUTES } from "@linxiraos/pi-wire";
 import { parseRecording, type RecordingHeader } from "./recording";
 
 export interface ClipUploadOptions {
-	/** Stream server base URL (`stream.serverUrl`), e.g. https://live.omp.sh. */
+	/** Stream server base URL (`stream.serverUrl`); no server ships with Zeta. */
 	serverUrl: string;
 	/** Stencil bearer (see `StencilCredential`); the clip belongs to its account. */
 	token: string;
@@ -14,14 +14,25 @@ export interface ClipUploadOptions {
 }
 
 /**
- * Publish a `/record` capture as a clip at `<server>/c/<id>`. The recording is
- * validated locally, its header stamped with title/description, and sent
- * gzip-compressed.
+ * Clip uploads are unavailable in Zeta: no clip/stream server ships. Kept as a
+ * flag so the check is visible at the call boundary; flip only alongside
+ * shipping real hosting.
+ */
+export const CLIP_UPLOAD_ENABLED: boolean = false;
+
+/**
+ * Publish a `/record` capture as a clip at `<server>/c/<id>`. Uploads are
+ * disabled in Zeta (see {@link CLIP_UPLOAD_ENABLED}); the call always throws
+ * before touching the network, and recordings stay local for `zetacode play`.
  *
- * @throws {Error} when the recording is malformed, the server URL is not
- *   http(s), or the server rejects the upload (its error message is included).
+ * @throws {Error} always while {@link CLIP_UPLOAD_ENABLED} is false.
  */
 export async function uploadClip(options: ClipUploadOptions): Promise<ClipUploadResponse> {
+	if (!CLIP_UPLOAD_ENABLED) {
+		throw new Error(
+			"clip uploads are unavailable in Zeta: no upload server ships; recordings stay local (use `zetacode play`)",
+		);
+	}
 	const base = new URL(options.serverUrl);
 	if (base.protocol !== "https:" && base.protocol !== "http:") {
 		throw new Error(`clip server URL must use http or https: ${options.serverUrl}`);

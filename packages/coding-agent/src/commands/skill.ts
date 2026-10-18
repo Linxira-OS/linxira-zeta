@@ -1,10 +1,29 @@
 /**
- * Install, publish, and manage skills on a Skillshare registry (skills.omp.sh).
+ * Install, publish, and manage skills. Zeta ships no registry: extra skills
+ * come from the npm package `@linxiraos/linxira-skills`, and the registry
+ * commands require a user-configured `skills.registryUrl`.
  */
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
-import type { SkillSearchSort } from "@linxiraos/pi-wire/skillshare";
+import { SKILLS_REGISTRY_UNAVAILABLE, type SkillSearchSort } from "@linxiraos/pi-wire/skillshare";
 import { skillHelp as commandHelp } from "../cli/command-help";
 import { runSkillCommand, SKILL_ACTIONS, SKILL_USAGE, type SkillAction } from "../cli/skill-cli";
+import { Settings } from "../config/settings";
+import { cfgSkillsRegistryUrl } from "../extensibility/settings";
+
+/** Actions that talk to a registry; the rest work on local files only. */
+const REGISTRY_ACTIONS: Readonly<Partial<Record<SkillAction, true>>> = {
+	publish: true,
+	tag: true,
+	yank: true,
+	deprecate: true,
+	owner: true,
+	token: true,
+	import: true,
+	install: true,
+	update: true,
+	search: true,
+	info: true,
+};
 
 export default class Skill extends Command {
 	static description = commandHelp.description;
@@ -52,11 +71,21 @@ export default class Skill extends Command {
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Skill);
 		if (!args.action) {
-			process.stdout.write(SKILL_USAGE);
+			process.stdout.write(`${SKILL_USAGE}\n${SKILLS_REGISTRY_UNAVAILABLE}\n`);
 			return;
 		}
+		const action = args.action as SkillAction;
+		if (REGISTRY_ACTIONS[action] === true) {
+			const settings = await Settings.loadReadOnly({ cwd: process.cwd() });
+			const registry = (flags.registry ?? "").trim() || cfgSkillsRegistryUrl.get(settings).trim();
+			if (!registry) {
+				process.stderr.write(`skill ${action}: ${SKILLS_REGISTRY_UNAVAILABLE}\n`);
+				process.exitCode = 1;
+				return;
+			}
+		}
 		const exitCode = await runSkillCommand({
-			action: args.action as SkillAction,
+			action,
 			args: args.targets ?? [],
 			cwd: process.cwd(),
 			flags: {

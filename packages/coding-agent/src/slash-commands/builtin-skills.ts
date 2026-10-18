@@ -1,4 +1,7 @@
+import { SKILLS_REGISTRY_UNAVAILABLE } from "@linxiraos/pi-wire/skillshare";
 import { M } from "../i18n";
+import { Settings } from "../config/settings";
+import { cfgSkillsRegistryUrl } from "../extensibility/settings";
 import type { InteractiveModeContext } from "../modes/types";
 import { SkillshareClient } from "../skillshare/client";
 import {
@@ -17,8 +20,12 @@ import { errorMessage, parseSubcommand } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
 
 const USAGE = [
-	"Skill registry (skills.omp.sh) commands:",
-	"  /skills search <query>                        Search the registry",
+	"No skill registry ships with Zeta. Extra skills come from the npm package",
+	"@linxiraos/linxira-skills (`npm i -g @linxiraos/linxira-skills`), or set",
+	"your own registry URL in skills.registryUrl.",
+	"",
+	"Skill registry commands:",
+	"  /skills search <query>                        Search the configured registry",
 	"  /skills install <@scope/name[@range]>… [-g]   Install into this project (-g: user-global)",
 	"  /skills installed                             List installed registry skills",
 	"  /skills update [@scope/name…] [-g]            Update within the ranges in skills.json",
@@ -37,7 +44,9 @@ function parseTargets(rest: string): { names: string[]; global: boolean } | { er
 	return { names, global };
 }
 
-async function withClient<T>(run: (client: SkillshareClient) => Promise<T>): Promise<T> {
+async function withClient<T>(cwd: string, run: (client: SkillshareClient) => Promise<T>): Promise<T> {
+	const settings = await Settings.loadReadOnly({ cwd });
+	if (!cfgSkillsRegistryUrl.get(settings).trim()) throw new Error(SKILLS_REGISTRY_UNAVAILABLE);
 	const client = await SkillshareClient.create();
 	try {
 		return await run(client);
@@ -90,7 +99,7 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 							ctx.showError("Usage: /skills search <query>");
 							return;
 						}
-						const response = await withClient(client => client.search(rest));
+						const response = await withClient(cwd, client => client.search(rest));
 						ctx.showStatus(formatSkillSearch(response));
 						return;
 					}
@@ -105,7 +114,7 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 							return;
 						}
 						ctx.showStatus(`Installing ${targets.names.join(", ")}…`, { dim: true });
-						const changes = await withClient(client =>
+						const changes = await withClient(cwd, client =>
 							installSkillPackages(
 								client,
 								{ specs: targets.names, global: targets.global, yes: false, cwd },
@@ -126,7 +135,7 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 							return;
 						}
 						ctx.showStatus("Checking the registry for updates…", { dim: true });
-						const changes = await withClient(client =>
+						const changes = await withClient(cwd, client =>
 							updateSkillPackages(client, { names: targets.names, global: targets.global, cwd }, tuiHooks(ctx)),
 						);
 						await reportChanges(ctx, changes);
