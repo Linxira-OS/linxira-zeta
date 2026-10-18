@@ -50,10 +50,9 @@ fn shots_dir() -> PathBuf {
 	root.join("shots")
 }
 
-/// A shell whose state is the shipped default: 本机 open, two panes, two
-/// columns, the 总面板 as the selected 大标签页 and the right column on
-/// 上下文 — plus the first pane switched to its editor tab so one pane shows the
-/// editor and the other the terminal.
+/// A shell whose state is the shipped default: 本机 open, **one** pane in one
+/// column (the maintainer's ruling: a fresh workspace is not pre-split), the
+/// 总面板 as the selected 大标签页 and the right column on 上下文.
 fn ready_shell() -> Shell {
 	let cwd = std::env::current_dir().expect("cwd");
 	let state = AppState::seeded_with_registry(
@@ -129,16 +128,18 @@ fn write(name: &str, bytes: &[u8]) -> PathBuf {
 	absolute
 }
 
-/// `01-gui-mode.png` — the GUI view with a workspace open (its 大标签页 selected,
-/// so the pane grid is what the shot is of).
+/// `01-workspace-single-pane.png` — the GUI view with a workspace open (its
+/// 大标签页 selected, so the pane grid is what the shot is of). The shipped
+/// default is one terminal pane; 分屏 is what adds the second.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
-fn gui_mode_screenshot() {
+fn workspace_screenshot() {
 	let mut shell = ready_shell();
 	workspace_page(&mut shell);
+	assert_eq!(shell.state.visible_panes().len(), 1, "a fresh workspace opens one pane");
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
-	write("01-workspace-two-panes.png", &bytes);
+	write("01-workspace-single-pane.png", &bytes);
 }
 
 /// `03-settings-modal.png` — the 设置 modal over the GUI view.

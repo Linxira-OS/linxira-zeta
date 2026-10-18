@@ -22,6 +22,7 @@ use crate::settings::{
 	ShellChoice, Theme,
 };
 use crate::theme;
+use crate::widgets::{truncated_mono, truncated_text};
 use crate::zetacode;
 
 /// Which nav icon a section gets.
@@ -249,6 +250,7 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			for note in shell.lifecycle.notes.iter().chain(shell.tray.note.iter()) {
 				plain_row(ui, "驻留提示", note, "降级");
 			}
+			workspace_memory_row(ui, shell);
 		},
 		Section::Appearance => {
 			head(ui, "外观");
@@ -784,6 +786,98 @@ fn about_identity(ui: &mut Ui, shell: &mut Shell) {
 		FontId::new(11.5, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
+}
+
+/// 清除所有工作区记忆: the one destructive action in this modal.
+///
+/// The label says exactly what happens and the hint names both owned
+/// directories, so no confirmation dialog stands between the user and the
+/// click — but nothing else is touched: the registry, the project directories
+/// and the agent's configuration are not candidates.
+fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
+	let paths: Vec<std::path::PathBuf> = shell
+		.state
+		.projects
+		.iter()
+		.flat_map(|project| project.workspaces.iter())
+		.map(|workspace| std::path::PathBuf::from(&workspace.path))
+		.collect();
+	let targets = home_dir().map(|home| crate::workspace_memory::owned_paths(&home, &paths));
+	let hint_text = match &targets {
+		Some(targets) => format!(
+			"删除 {} 个路径：~/.zeta/zetawork/workspaces 与各项目会话日志；保留 projects.json、项目目录与 agent 配置",
+			targets.len()
+		),
+		None => "找不到用户目录（USERPROFILE / HOME 都为空），无法定位 ~/.zeta".to_owned(),
+	};
+	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::hover());
+	ui.painter().line_segment(
+		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
+		Stroke::new(1.0_f32, theme::BORDER),
+	);
+	ui.painter().text(
+		pos2(rect.min.x, rect.min.y + 14.0),
+		egui::Align2::LEFT_TOP,
+		"清除所有工作区记忆",
+		FontId::new(13.0, egui::FontFamily::Proportional),
+		theme::TEXT,
+	);
+	let control =
+		Rect::from_min_size(pos2(rect.max.x - 240.0, rect.min.y + 12.0), vec2(240.0, 32.0));
+	truncated_text(
+		ui,
+		pos2(rect.min.x, rect.min.y + 32.0),
+		&hint_text,
+		11.5,
+		theme::TEXT_3,
+		control.min.x - rect.min.x - 12.0,
+	);
+	if ui
+		.put(control, egui::Button::new(egui::RichText::new("清除所有工作区记忆").size(12.0)))
+		.clicked()
+	{
+		if let Some(home) = home_dir() {
+			let report = crate::workspace_memory::clear_workspace_memory(&home, &paths);
+			shell.workspace_memory = Some(report);
+		}
+	}
+	if let Some(report) = &shell.workspace_memory {
+		let (line, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
+		truncated_text(
+			ui,
+			pos2(line.min.x, line.min.y + 6.0),
+			&report.summary(),
+			11.5,
+			if report.errors.is_empty() {
+				theme::TEXT_2
+			} else {
+				theme::WARN
+			},
+			line.width(),
+		);
+		for path in &report.paths {
+			let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 18.0), Sense::hover());
+			truncated_mono(
+				ui,
+				pos2(row.min.x + 10.0, row.center().y),
+				&path.display().to_string(),
+				10.5,
+				theme::TEXT_3,
+				row.width() - 20.0,
+			);
+		}
+		for (path, error) in &report.errors {
+			let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 18.0), Sense::hover());
+			truncated_mono(
+				ui,
+				pos2(row.min.x + 10.0, row.center().y),
+				&format!("{} · {error}", path.display()),
+				10.5,
+				theme::DEL,
+				row.width() - 20.0,
+			);
+		}
+	}
 }
 
 fn head(ui: &mut Ui, title: &str) {

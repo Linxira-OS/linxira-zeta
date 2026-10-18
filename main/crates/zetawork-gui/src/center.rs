@@ -592,10 +592,13 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 			}
 		}
 	}
-	let status = shell
-		.terminals
-		.label(tab.id.as_str())
-		.unwrap_or_else(|| "后端：本地 PTY".to_owned());
+	// Spawn the local PTY before drawing either backend. A tab on `Local` is
+	// about to show this grid, and its status line must name the command that
+	// actually ran — which only exists after the spawn.
+	if shell.terminals.is_local(tab.id.as_str()) {
+		shell.live.ensure(tab.id.as_str(), columns, rows, cwd);
+	}
+	let status = terminal_status(shell, tab);
 	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
 	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 	if shell.terminals.render(tab.id.as_str(), area, &mut grid_buf) {
@@ -604,9 +607,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 		return;
 	}
 	// The serve tab fell back: today's in-process PTY takes the same grid.
-	if shell.terminals.is_local(tab.id.as_str())
-		&& shell.live.ensure(tab.id.as_str(), columns, rows, cwd)
-	{
+	if shell.live.contains(tab.id.as_str()) {
 		if let Some(command) = tab.command.as_deref() {
 			if !shell.launched_commands.contains(&tab.id) {
 				shell
@@ -662,6 +663,34 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 			);
 		});
 	paint_terminal_status(ui, grid, &status);
+}
+
+/// The pane's backend line, extended with the process it really started.
+///
+/// One line has room for the backend, the spawned program, and the one-shot
+/// launch command (the resolved `zetacode` path). It is clipped by
+/// [`paint_terminal_status`], so a long install path ends in an ellipsis rather
+/// than running under the neighbouring pane.
+fn terminal_status(shell: &Shell, tab: &SessionTab) -> String {
+	let mut status = shell
+		.terminals
+		.label(&tab.id)
+		.unwrap_or_else(|| "后端：本地 PTY".to_owned());
+	// The one-shot launch command comes first: a narrow pane clips the tail of
+	// this line, and the resolved path is the part the user must be able to read.
+	if let Some(command) = tab.command.as_deref() {
+		status.push_str(if shell.launched_commands.contains(&tab.id) {
+			" · 启动 "
+		} else {
+			" · 待启动 "
+		});
+		status.push_str(command);
+	}
+	if let Some(spawned) = shell.live.command(&tab.id) {
+		status.push_str(" · ");
+		status.push_str(spawned);
+	}
+	status
 }
 
 /// Paint one rendered terminal grid into the pane and return nothing: the

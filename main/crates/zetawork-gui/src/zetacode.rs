@@ -37,8 +37,121 @@ use std::{
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// The CLI this module drives, resolved from `PATH`.
+/// The CLI this module drives.
 const CLI: &str = "zetacode";
+
+/// The executable names to try, in order: the `.exe` Windows ships first, then
+/// the bare name (a shim, or a unix install).
+pub fn executable_names() -> &'static [&'static str] {
+	#[cfg(windows)]
+	{
+		&["zetacode.exe", "zetacode"]
+	}
+	#[cfg(not(windows))]
+	{
+		&["zetacode"]
+	}
+}
+
+/// The command line to type into a shell: quoted only when the path needs it.
+pub fn command_for(path: &Path) -> String {
+	let text = path.to_string_lossy();
+	if text.chars().any(|c| c.is_whitespace()) {
+		format!("\"{text}\"")
+	} else {
+		text.into_owned()
+	}
+}
+
+/// Candidate directories, in resolution order: the running GUI's own directory
+/// first, then the shipped npm layouts, then `PATH`.
+///
+/// The function is pure: it only builds the list; [`resolve_in`] decides which
+/// entry is a file.
+pub fn search_dirs(exe_dir: &Path, npm_bins: &[PathBuf], path_dirs: &[PathBuf]) -> Vec<PathBuf> {
+	let mut out = Vec::with_capacity(1 + npm_bins.len() + path_dirs.len());
+	for dir in std::iter::once(exe_dir)
+		.chain(npm_bins.iter().map(PathBuf::as_path))
+		.chain(path_dirs.iter().map(PathBuf::as_path))
+	{
+		if !out.iter().any(|seen: &PathBuf| seen == dir) {
+			out.push(dir.to_path_buf());
+		}
+	}
+	out
+}
+
+/// Every candidate file for `dirs`, names in [`executable_names`] order.
+pub fn candidates(dirs: &[PathBuf]) -> Vec<PathBuf> {
+	let mut out = Vec::with_capacity(dirs.len() * executable_names().len());
+	for dir in dirs {
+		for name in executable_names() {
+			out.push(dir.join(name));
+		}
+	}
+	out
+}
+
+/// The `main/npm/<package>/bin` directories of a source checkout, found by
+/// walking up from the running executable.
+///
+/// A shipped GUI is extracted next to the packages, so `zetacode.exe` sits in
+/// the same directory (checked before this list). A dev build runs from
+/// `main/target/debug`, four levels below the checkout root, which is why the
+/// walk exists rather than one relative path.
+pub fn npm_bin_dirs(exe_dir: &Path) -> Vec<PathBuf> {
+	let mut out = Vec::new();
+	for ancestor in exe_dir.ancestors() {
+		for npm in [ancestor.join("main").join("npm"), ancestor.join("npm")] {
+			let Ok(entries) = std::fs::read_dir(&npm) else {
+				continue;
+			};
+			for entry in entries.flatten() {
+				let bin = entry.path().join("bin");
+				if bin.is_dir() && !out.contains(&bin) {
+					out.push(bin);
+				}
+			}
+		}
+	}
+	out
+}
+
+/// The first candidate that exists, checked in [`search_dirs`] order.
+pub fn resolve_in(exe_dir: &Path, npm_bins: &[PathBuf], path_dirs: &[PathBuf]) -> Option<PathBuf> {
+	candidates(&search_dirs(exe_dir, npm_bins, path_dirs))
+		.into_iter()
+		.find(|candidate| candidate.is_file())
+}
+
+/// Resolve the shipped `zetacode` for this process.
+///
+/// The GUI's own directory wins over `PATH` on purpose: a machine with an older
+/// global install must still open the binary that shipped with this GUI.
+pub fn resolve() -> Option<PathBuf> {
+	let exe = std::env::current_exe().ok()?;
+	let exe_dir = exe.parent()?;
+	let npm_bins = npm_bin_dirs(exe_dir);
+	let path_dirs: Vec<PathBuf> = std::env::var_os("PATH")
+		.map(|path| std::env::split_paths(&path).collect())
+		.unwrap_or_default();
+	resolve_in(exe_dir, &npm_bins, &path_dirs)
+}
+
+/// The command a new zetacode pane types into its shell: the resolved shipped
+/// binary when there is one, the bare [`CLI`] otherwise (so the pane still
+/// opens, and its status line says it fell back to `PATH`).
+pub fn resolved_command() -> String {
+	match resolve() {
+		Some(path) => command_for(&path),
+		None => CLI.to_owned(),
+	}
+}
+
+/// True when `command` was resolved to an absolute path rather than `PATH`.
+pub fn is_resolved(command: &str) -> bool {
+	Path::new(command.trim_matches('"')).is_absolute()
+}
 
 /// One option `zetacode config list` reports.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -779,5 +892,87 @@ mod tests {
 		write_provider_field(&dir, "aaccxx", "baseUrl", "https://example.test/v1").unwrap();
 		assert_eq!(fs::read_to_string(&path).unwrap(), edited, "an identical value rewrites nothing");
 		let _ = fs::remove_dir_all(&dir);
+	}
+
+	#[test]
+	fn resolution_order_is_exe_dir_then_npm_bins_then_path() {
+		let exe = PathBuf::from("gui");
+		let npm = vec![PathBuf::from("pkg").join("bin")];
+		let path = vec![PathBuf::from("path")];
+		let dirs = search_dirs(&exe, &npm, &path);
+		assert_eq!(dirs, vec![exe.clone(), npm[0].clone(), path[0].clone()]);
+
+		let files = candidates(&dirs);
+		let names = executable_names();
+		assert_eq!(files.len(), dirs.len() * names.len());
+		assert_eq!(files[0], exe.join(names[0]), "the running GUI's own directory wins");
+		assert_eq!(
+			files[names.len()],
+			npm[0].join(names[0]),
+			"the shipped npm layout is checked before PATH"
+		);
+		assert_eq!(files[2 * names.len()], path[0].join(names[0]), "PATH is the last resort");
+	}
+
+	#[test]
+	fn resolve_in_takes_the_first_real_file_in_that_order() {
+		let root = temp_dir("resolve-order");
+		let exe_dir = root.join("gui");
+		let npm_bin = root.join("npm").join("bin");
+		let path_dir = root.join("path");
+		for dir in [&exe_dir, &npm_bin, &path_dir] {
+			fs::create_dir_all(dir).unwrap();
+		}
+		let name = executable_names()[0];
+		let from_path = path_dir.join(name);
+		let from_npm = npm_bin.join(name);
+		let from_exe = exe_dir.join(name);
+
+		fs::write(&from_path, b"path").unwrap();
+		assert_eq!(
+			resolve_in(&exe_dir, std::slice::from_ref(&npm_bin), std::slice::from_ref(&path_dir)),
+			Some(from_path)
+		);
+		fs::write(&from_npm, b"npm").unwrap();
+		assert_eq!(
+			resolve_in(&exe_dir, std::slice::from_ref(&npm_bin), std::slice::from_ref(&path_dir)),
+			Some(from_npm)
+		);
+		fs::write(&from_exe, b"exe").unwrap();
+		assert_eq!(
+			resolve_in(&exe_dir, std::slice::from_ref(&npm_bin), std::slice::from_ref(&path_dir)),
+			Some(from_exe),
+			"the co-located binary wins even with a PATH install"
+		);
+		assert_eq!(resolve_in(&root.join("nowhere"), &[], &[]), None);
+		let _ = fs::remove_dir_all(&root);
+	}
+
+	#[test]
+	fn npm_bin_dirs_walk_up_to_the_checkouts_main_npm() {
+		let root = temp_dir("npm-walk");
+		let bin = root
+			.join("main")
+			.join("npm")
+			.join("main-windows-x64")
+			.join("bin");
+		fs::create_dir_all(&bin).unwrap();
+		let exe_dir = root.join("main").join("target").join("debug");
+		fs::create_dir_all(&exe_dir).unwrap();
+		let found = npm_bin_dirs(&exe_dir);
+		assert!(found.contains(&bin), "{found:?}");
+		let _ = fs::remove_dir_all(&root);
+	}
+
+	#[test]
+	#[cfg(windows)]
+	fn command_for_quotes_only_when_the_path_has_whitespace() {
+		assert_eq!(command_for(Path::new(r"C:\tools\zetacode.exe")), r"C:\tools\zetacode.exe");
+		assert_eq!(
+			command_for(Path::new(r"C:\Program Files\zeta\zetacode.exe")),
+			"\"C:\\Program Files\\zeta\\zetacode.exe\""
+		);
+		assert!(is_resolved(r"C:\tools\zetacode.exe"));
+		assert!(!is_resolved("zetacode"));
 	}
 }
