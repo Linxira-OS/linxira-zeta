@@ -212,12 +212,21 @@ fn gui_pages_screenshot() {
 	write("05-editor-diff-git-status.png", &bytes);
 }
 
-/// `06-usage-container.png` — the 用量 container: the address the stats page is
-/// served from, and the frame it will be painted into.
+/// `06-usage-container.png` — the 用量 panel: the real cards, token chart and
+/// agent-type table decoded from the captured `/api/stats/overview` fixture,
+/// with the live `/api/status` and `/api/stats/costs` bodies beside it. No
+/// socket is opened: [`UsageCache::fixture`] is the headless path.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn usage_container_screenshot() {
 	let mut shell = ready_shell();
+	shell.usage = zetawork_gui::usage::UsageCache::fixture(
+		include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/usage/fixtures/overview-24h.json")),
+		include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/usage/fixtures/costs-24h.json")),
+		include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/usage/fixtures/status.json")),
+		zetawork_gui::usage::Range::Today,
+	)
+	.expect("the captured fixtures decode");
 	zetawork_gui::left::open_usage(&mut shell);
 	assert!(shell.state.usage_view_open());
 	let bytes = shoot(&mut shell, 3);

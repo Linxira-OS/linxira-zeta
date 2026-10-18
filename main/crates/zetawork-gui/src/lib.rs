@@ -170,6 +170,9 @@ pub struct Shell {
 	picker_anchor: Option<egui::Rect>,
 	/// The 用量 container's endpoint, read from `~/.zeta/serve.json`.
 	pub stats: stats::StatsEndpoint,
+	/// The 用量 container's last answer from that endpoint, read off the UI
+	/// thread ([`usage::UsageCache`]).
+	pub usage: usage::UsageCache,
 	/// zetacode's own options (设置 target ②), read and written off the UI thread.
 	pub remote: settings_ui::ZetacodeCache,
 	/// The desktop app's provider catalog (设置 target ③).
@@ -285,6 +288,7 @@ impl Shell {
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
+			usage: usage::UsageCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
@@ -340,6 +344,7 @@ impl Shell {
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
+			usage: usage::UsageCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
@@ -499,9 +504,11 @@ impl Shell {
 		}
 	}
 
-	/// Re-read the stats endpoint published by `zetacode serve`.
+	/// Re-read the stats endpoint published by `zetacode serve`, then read the
+	/// 用量 panel's numbers again from it (off the UI thread).
 	pub fn refresh_stats(&mut self) {
 		self.stats = crate::stats::discover();
+		self.usage.reload(self.stats.origin());
 	}
 
 	/// The editable draft of one provider row, seeded from the file the first

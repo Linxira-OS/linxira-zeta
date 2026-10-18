@@ -219,16 +219,14 @@ pub fn panel_head(ui: &mut Ui, label: &str, right: impl FnOnce(&mut Ui)) {
 	right(&mut child);
 }
 
-/// Text clipped to `available` points, with an ellipsis when it does not fit.
-pub fn truncated_text(
+/// A galley for `text`, shortened with an ellipsis until it fits `available`.
+fn fitted(
 	ui: &Ui,
-	at: egui::Pos2,
 	text: &str,
-	size: f32,
+	font: &FontId,
 	color: Color32,
 	available: f32,
-) {
-	let font = FontId::new(size, egui::FontFamily::Proportional);
+) -> std::sync::Arc<egui::Galley> {
 	let mut text = text.to_owned();
 	let mut galley = ui
 		.painter()
@@ -241,8 +239,61 @@ pub fn truncated_text(
 				.layout_no_wrap(format!("{text}…"), font.clone(), color);
 		}
 	}
+	galley
+}
+
+/// Text clipped to `available` points, with an ellipsis when it does not fit.
+pub fn truncated_text(
+	ui: &Ui,
+	at: egui::Pos2,
+	text: &str,
+	size: f32,
+	color: Color32,
+	available: f32,
+) {
+	let font = FontId::new(size, egui::FontFamily::Proportional);
+	let galley = fitted(ui, text, &font, color, available);
 	ui.painter()
 		.galley(pos2(at.x, at.y - galley.size().y / 2.0), galley, color);
+}
+
+/// [`truncated_text`] ending at `right` instead of starting at `left`: the
+/// right-hand columns of a row or chart title use this so a long value cannot
+/// paint past the panel's edge.
+pub fn truncated_text_right(
+	ui: &Ui,
+	right: f32,
+	centre_y: f32,
+	text: &str,
+	size: f32,
+	color: Color32,
+	available: f32,
+) {
+	let font = FontId::new(size, egui::FontFamily::Proportional);
+	let galley = fitted(ui, text, &font, color, available);
+	let width = galley.size().x;
+	ui.painter()
+		.galley(pos2(right - width, centre_y - galley.size().y / 2.0), galley, color);
+}
+
+/// [`truncated_text`] centred on `centre_x`.
+pub fn truncated_text_center(
+	ui: &Ui,
+	centre_x: f32,
+	centre_y: f32,
+	text: &str,
+	size: f32,
+	color: Color32,
+	available: f32,
+) {
+	let font = FontId::new(size, egui::FontFamily::Proportional);
+	let galley = fitted(ui, text, &font, color, available);
+	let width = galley.size().x;
+	ui.painter().galley(
+		pos2(centre_x - width / 2.0, centre_y - galley.size().y / 2.0),
+		galley,
+		color,
+	);
 }
 
 /// Mono text clipped to `available` points.
