@@ -15,10 +15,10 @@
 //! `main/Cargo.toml` patches `unicode-width` to
 //! `termide/crates/unicode-width-fix`, the whole workspace resolves *one* build
 //! of that crate, so a wide grapheme is two grid columns here exactly when
-//! ratatui says so. [`paint_buffer`] advances cells with the CJK face
-//! ([`crate::fonts::GRID_FAMILY`]), whose ASCII advance is half its full-width
-//! CJK advance, so the second half of a wide glyph lands on the next column
-//! without per-glyph fitting.
+//! ratatui says so. [`paint_buffer`] advances cells with the fixed-pitch CJK
+//! face ([`crate::fonts::GRID_FAMILY`]), whose ASCII advance is half its
+//! full-width CJK advance, so the second half of a wide glyph lands on the next
+//! column without per-glyph fitting.
 //!
 //! # Deriving wide-cell continuations
 //!
@@ -43,7 +43,7 @@ use ratatui::{Frame, Terminal};
 use unicode_width::UnicodeWidthStr;
 
 /// Font family whose ASCII advance is half its CJK advance (installed by
-/// [`crate::fonts::install`]).
+/// [`crate::fonts::install`] from the fixed-pitch CJK face).
 pub const GRID_FAMILY: &str = "zetawork-cjk-mono";
 
 /// A cell surface shared between the headless backend and its owner.
@@ -213,8 +213,8 @@ impl GridMetrics {
 	}
 }
 
-/// The grid font: the CJK family once [`crate::fonts::install`] has been
-/// applied, egui's default monospace before that.
+/// The grid font: the fixed-pitch CJK family once [`crate::fonts::install`]
+/// has been applied, egui's default monospace before that.
 ///
 /// The fallback matters: `set_fonts` only takes effect at the start of the next
 /// frame, and asking egui for a `FontFamily::Name` that is not bound yet panics
