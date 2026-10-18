@@ -8374,6 +8374,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "workbench-projects"
+version = "1.2.1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8670,6 +8679,7 @@ dependencies = [
  "termide-panel-terminal",
  "termide-theme",
  "unicode-width",
+ "workbench-projects",
 ]
 
 [[package]]
@@ -8685,11 +8695,13 @@ dependencies = [
  "serde_json",
  "sysinfo",
  "tauri-winrt-notification",
+ "tempfile",
  "termide-core",
  "termide-panel-ide",
  "termide-panel-terminal",
  "tray-icon",
  "unicode-width",
+ "workbench-projects",
  "zbus",
 ]
 

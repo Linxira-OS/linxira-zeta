@@ -219,6 +219,14 @@ pub struct Workspace {
 	/// panes themselves. Set by a rail button, cleared by pressing it again or
 	/// by Esc.
 	active_slot: Option<usize>,
+	/// The shared project registry (`~/.zeta/projects.json`), loaded once at
+	/// startup. The `projects` rail view renders this and removes rows from it.
+	projects: workbench_projects::Registry,
+	/// Why the registry could not be read. The view shows the reason; the file
+	/// itself is left untouched.
+	projects_error: Option<String>,
+	/// Selected row of the projects view (an index into [`Registry::list`]).
+	project_row: usize,
 	notice: Option<String>,
 	/// Hit regions recorded by the last draw, in paint order (later wins).
 	hits: Vec<(Rect, Hit)>,
@@ -337,6 +345,13 @@ impl Workspace {
 	fn new() -> Result<Self> {
 		let cwd = launch_cwd();
 		let first = Tab::new_shell(cwd)?;
+		let (projects, projects_error) = match workbench_projects::Registry::load() {
+			Ok(registry) => (registry, None),
+			Err(error) => (
+				workbench_projects::Registry::empty_at(workbench_projects::default_path()),
+				Some(error.to_string()),
+			),
+		};
 		Ok(Self {
 			tabs: vec![first],
 			active_tab: 0,
@@ -359,6 +374,9 @@ impl Workspace {
 			slots_open: false,
 			manager_row: 0,
 			active_slot: None,
+			projects,
+			projects_error,
+			project_row: 0,
 			notice: None,
 			hits: Vec::new(),
 			last_pane_areas: Vec::new(),
@@ -376,6 +394,27 @@ impl Workspace {
 
 	fn active(&mut self) -> &mut Tab {
 		&mut self.tabs[self.active_tab]
+	}
+
+	/// `x` in the projects view: remove one registration. The directory and
+	/// any conversation history are untouched, which the notice says.
+	fn remove_selected_project(&mut self) {
+		let Some(project) = self.projects.list().get(self.project_row) else {
+			self.notice = Some("没有可移除的项目".to_owned());
+			return;
+		};
+		let id = project.id.clone();
+		let name = project.name.clone();
+		match self.projects.remove(&id) {
+			Ok(true) => {
+				self.notice = Some(format!("已移除 {name} 的注册（目录未删除）"));
+				if self.project_row >= self.projects.len() {
+					self.project_row = self.projects.len().saturating_sub(1);
+				}
+			},
+			Ok(false) => self.notice = Some(format!("注册表里没有 {name}")),
+			Err(error) => self.notice = Some(format!("移除失败：{error}")),
+		}
 	}
 
 	fn push_hit(&mut self, rect: Rect, hit: Hit) {
@@ -569,6 +608,27 @@ impl Workspace {
 		if matches!(key.code, KeyCode::Esc) && self.active_slot.is_some() {
 			self.active_slot = None;
 			return Ok(false);
+		}
+		// The projects view owns j/k/x while it is on: it is a list of
+		// registrations, and removing one edits the shared file immediately.
+		if self.active_slot == crate::slots::index_of("projects") {
+			match key.code {
+				KeyCode::Char('j') | KeyCode::Down => {
+					if !self.projects.is_empty() {
+						self.project_row = (self.project_row + 1).min(self.projects.len() - 1);
+					}
+					return Ok(false);
+				},
+				KeyCode::Char('k') | KeyCode::Up => {
+					self.project_row = self.project_row.saturating_sub(1);
+					return Ok(false);
+				},
+				KeyCode::Char('x') | KeyCode::Delete => {
+					self.remove_selected_project();
+					return Ok(false);
+				},
+				_ => {},
+			}
 		}
 		if self.help_open || self.doctor_open || self.settings_open {
 			self.help_open = false;
@@ -1826,7 +1886,20 @@ impl Workspace {
 		if let Some(slot) = active_view {
 			// The panes keep running (their PTYs are untouched); nothing of
 			// them is drawn or hit-testable while the view shows.
-			rail::render_view(frame, content, &slot);
+			if slot.id() == "projects" {
+				if !self.projects.is_empty() && self.project_row >= self.projects.len() {
+					self.project_row = self.projects.len() - 1;
+				}
+				rail::render_projects(
+					frame,
+					content,
+					&self.projects,
+					self.projects_error.as_deref(),
+					self.project_row,
+				);
+			} else {
+				rail::render_view(frame, content, &slot);
+			}
 			self.last_pane_areas.clear();
 		} else {
 			let rects: Vec<(usize, Rect)> = {

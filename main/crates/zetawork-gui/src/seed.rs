@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The shell's starting data: the spec's sample projects, one real project for
-//! the directory the shell was started in, and the sample text the placeholder
-//! panes render.
+//! The shell's starting data: the pseudo-project for the directory the shell
+//! was started in, one project per registration in `~/.zeta/projects.json`,
+//! and the sample text the placeholder panes render.
 //!
 //! # What is real here and what is not
 //!
-//! * The 本機 project is **real**: its path is the process's working directory
-//!   and its branch is read from `git`. Its file tree and git panel show live
-//!   data.
-//! * The three 项目 N entries are the spec's sample projects, kept so the shell
-//!   looks like the spec out of the box. Their paths do not exist on disk, and
-//!   the file and git panels say so instead of inventing contents.
+//! * 本机 is the process's own directory: a pseudo-entry that is **not** a
+//!   registry row. Its path is the working directory and its branch is read
+//!   from `git`.
+//! * Every other project comes from the shared registry
+//!   ([`workbench_projects`]); its path is a directory the user registered.
 //! * The editor, diff and terminal pane bodies are **labelled placeholders**
 //!   (see [`placeholder`]): they render the spec's sample text so the look can
 //!   be judged, and each one names the data source it will read from.
@@ -20,19 +19,14 @@ use std::path::Path;
 use crate::blit;
 use crate::git;
 use crate::state::{Pane, Project, SessionKind, SessionTab, Workspace};
-use crate::status::RunState;
 
-/// The line under the 项目 section head, so the sample entries are never
-/// mistaken for the user's own projects.
-pub const SAMPLE_NOTE: &str = "示例项目：项目注册表尚未接入；本机 一项读取真实路径";
-
-/// The heading the 本机 project gets.
+/// The heading 本机's pseudo-project gets.
 pub const LOCAL_PROJECT: &str = "本机";
 
-/// Every start: the real project first, then the spec's samples.
-pub fn projects(cwd: &Path) -> Vec<Project> {
+/// Every start: 本机 first, then one project per registry row.
+pub fn projects(cwd: &Path, registered: &[workbench_projects::Project]) -> Vec<Project> {
 	let mut projects = vec![local_project(cwd)];
-	projects.extend(sample_projects());
+	projects.extend(registered.iter().map(registered_project));
 	projects
 }
 
@@ -64,53 +58,39 @@ pub fn local_project(cwd: &Path) -> Project {
 		run_state: None,
 	};
 	workspace.panes = default_panes("ws-local");
-	Project { id: "p-local".to_owned(), name: LOCAL_PROJECT.to_owned(), workspaces: vec![workspace] }
+	Project {
+		id: "p-local".to_owned(),
+		name: LOCAL_PROJECT.to_owned(),
+		path: cwd.to_path_buf(),
+		workspaces: vec![workspace],
+	}
 }
 
-/// The spec's three sample projects, verbatim.
-pub fn sample_projects() -> Vec<Project> {
-	/// One sample project: id, name, and its workspaces as
-	/// (name, branch, run state).
-	///
-	/// The states come from the contract's 状态词表 and are spread across four
-	/// of the seven on purpose: a 总面板 whose 状态 column read the same word on
-	/// every row would not show that the column works. They are **demo data**,
-	/// which is why they live only on the 示例项目 entries — the real 本机
-	/// project gets `None` (see [`Workspace::run_state`]).
-	type SampleProject =
-		(&'static str, &'static str, &'static [(&'static str, &'static str, RunState)]);
-	let sample: [SampleProject; 3] = [
-		(
-			"p1",
-			"项目 1",
-			&[("工作区 1-1", "main", RunState::Perm), ("工作区 1-2", "main", RunState::Unc)],
-		),
-		("p2", "项目 2", &[("工作区 2-1", "dev", RunState::Mon)]),
-		("p3", "项目 3", &[("工作区 3-1", "main", RunState::Done)]),
-	];
-	sample
-		.into_iter()
-		.map(|(id, name, workspaces)| Project {
-			id: id.to_owned(),
-			name: name.to_owned(),
-			workspaces: workspaces
-				.iter()
-				.enumerate()
-				.map(|(index, (workspace, branch, run_state))| {
-					let ws_id = format!("{id}-w{index}");
-					Workspace {
-						name: (*workspace).to_owned(),
-						branch: (*branch).to_owned(),
-						path: format!("~/{name}/{workspace}"),
-						cols: 2,
-						panes: default_panes(&ws_id),
-						id: ws_id,
-						run_state: Some(*run_state),
-					}
-				})
-				.collect(),
-		})
-		.collect()
+/// One registered project as the GUI models it: a real path, a real branch,
+/// and one workspace over that path. The registry owns the registration; the
+/// workspace is the shell's own working set.
+pub fn registered_project(entry: &workbench_projects::Project) -> Project {
+	let status = git::read_status(&entry.path, 0);
+	let branch = if status.branch.is_empty() {
+		"—".to_owned()
+	} else {
+		status.branch.clone()
+	};
+	let ws_id = format!("{}-ws", entry.id);
+	Project {
+		id: entry.id.clone(),
+		name: entry.name.clone(),
+		path: entry.path.clone(),
+		workspaces: vec![Workspace {
+			id: ws_id.clone(),
+			name: entry.name.clone(),
+			branch,
+			path: entry.path.display().to_string(),
+			cols: 2,
+			panes: default_panes(&ws_id),
+			run_state: None,
+		}],
+	}
 }
 
 /// The layout the spec's `layoutFor()` builds: two panes, each with a terminal
@@ -365,29 +345,35 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn the_real_project_comes_first_and_reads_its_branch() {
+	fn the_local_pseudo_project_comes_first_and_reads_its_branch() {
 		let cwd = std::env::current_dir().unwrap();
-		let projects = projects(&cwd);
+		let projects = projects(&cwd, &[]);
+		assert_eq!(projects.len(), 1, "本机 与 no registrations");
 		assert_eq!(projects[0].name, LOCAL_PROJECT);
 		assert_eq!(projects[0].workspaces[0].path, cwd.display().to_string());
-		assert_eq!(projects.len(), 4, "本机 + 三个示例项目");
-		// Every sample workspace has a pane layout and a branch chip.
-		for project in &projects[1..] {
-			for workspace in &project.workspaces {
-				assert_eq!(workspace.panes.len(), 2);
-				assert!(!workspace.branch.is_empty());
-			}
-		}
+		assert!(!projects[0].workspaces[0].branch.is_empty());
+		assert_eq!(projects[0].workspaces[0].panes.len(), 2);
 	}
 
 	#[test]
-	fn the_sample_projects_match_the_spec() {
-		let projects = sample_projects();
-		let names: Vec<&str> = projects.iter().map(|p| p.name.as_str()).collect();
-		assert_eq!(names, vec!["项目 1", "项目 2", "项目 3"]);
-		assert_eq!(projects[0].workspaces.len(), 2);
-		assert_eq!(projects[1].workspaces[0].branch, "dev");
-		assert_eq!(projects[0].workspaces[0].path, "~/项目 1/工作区 1-1");
+	fn a_registration_becomes_one_real_project() {
+		let dir = tempfile::tempdir().expect("temp dir");
+		let path = dir.path().join("demo");
+		std::fs::create_dir_all(&path).unwrap();
+		let entry = workbench_projects::Project {
+			id: "p-1".to_owned(),
+			name: "演示".to_owned(),
+			path: path.clone(),
+			added_at: 0,
+		};
+		let project = registered_project(&entry);
+		assert_eq!(project.id, "p-1");
+		assert_eq!(project.name, "演示");
+		assert_eq!(project.path, path);
+		assert_eq!(project.workspaces.len(), 1);
+		assert_eq!(project.workspaces[0].path, path.display().to_string());
+		assert_eq!(project.workspaces[0].panes.len(), 2);
+		assert!(project.workspaces[0].run_state.is_none(), "nothing observes it yet");
 	}
 
 	#[test]

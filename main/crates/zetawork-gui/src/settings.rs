@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The shell's own settings: the six sections of the spec's 设置 modal, the
+//! The shell's own settings: the sections of the spec's 设置 modal, the
 //! values behind them, and the file they live in.
 //!
 //! # Scope
@@ -23,12 +23,13 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// One of the 设置 modal's seven categories, in the order the modal lists them.
+/// One of the 设置 modal's eight categories, in the order the modal lists them.
 ///
 /// 常规 comes first and is the one section the design drafts do not have: the
 /// drafts were drawn before the lifecycle rulings (关闭窗口时 / 开机自启 / 通知),
 /// so the six they fix (外观 / 编辑器 / 终端 / 快捷键 / 管理 / 关于) keep their order
-/// behind it rather than being renumbered.
+/// behind it rather than being renumbered. 项目 is the registry page the 管理
+/// card opens: the list of registered projects plus the remove action.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Section {
 	/// 生命周期：关闭窗口时 / 开机自启 / 通知.
@@ -38,17 +39,19 @@ pub enum Section {
 	Editor,
 	Terminal,
 	Keys,
+	Projects,
 	Manage,
 	About,
 }
 
 impl Section {
-	pub const ALL: [Self; 7] = [
+	pub const ALL: [Self; 8] = [
 		Self::General,
 		Self::Appearance,
 		Self::Editor,
 		Self::Terminal,
 		Self::Keys,
+		Self::Projects,
 		Self::Manage,
 		Self::About,
 	];
@@ -61,6 +64,7 @@ impl Section {
 			Self::Editor => "编辑器",
 			Self::Terminal => "终端",
 			Self::Keys => "快捷键",
+			Self::Projects => "项目",
 			Self::Manage => "管理",
 			Self::About => "关于",
 		}
@@ -74,6 +78,7 @@ impl Section {
 			Self::Editor => "editor",
 			Self::Terminal => "terminal",
 			Self::Keys => "keys",
+			Self::Projects => "projects",
 			Self::Manage => "manage",
 			Self::About => "about",
 		}
