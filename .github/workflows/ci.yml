@@ -1595,7 +1595,8 @@ jobs:
          # taiki-e/install-action and Swatinem/rust-cache).
          - name: Resolve Rust toolchain pin
            id: rust-pin
-           run: echo "channel=$(sed -n 's/^channel *= *"\\(.*\\)"/\\1/p' termide/rust-toolchain.toml | head -1)" >> "$GITHUB_OUTPUT"
+           run: |
+              echo "channel=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' termide/rust-toolchain.toml | head -1)" >> "$GITHUB_OUTPUT"
          - uses: dtolnay/rust-toolchain@master
            if: steps.termide.outputs.skip != 'true'
            with:
@@ -1670,7 +1671,8 @@ jobs:
               fi
          - name: Resolve Rust toolchain pin
            id: rust-pin
-           run: echo "channel=$(sed -n 's/^channel *= *"\\(.*\\)"/\\1/p' main/rust-toolchain.toml | head -1)" >> "$GITHUB_OUTPUT"
+           run: |
+              echo "channel=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' main/rust-toolchain.toml | head -1)" >> "$GITHUB_OUTPUT"
          - uses: dtolnay/rust-toolchain@master
            if: steps.main.outputs.skip != 'true'
            with:
