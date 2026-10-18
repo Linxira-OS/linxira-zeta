@@ -573,6 +573,19 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **面板补齐（2026-10-18 评估 Stencil Term 面板集，仅登记）**：参考其 Git / 看板 /
+  SQL / Notebook / 资源五个面板，结论如下——
+  - **值得做**：① **资源面板**（CPU、内存、GPU 占比 + 进程列表按 CPU 排序）——`termide`
+    已有 `system-monitor` crate，缺的是面板与接线；② **看板 Board**（TODO.md 三列
+    Todo/Doing/Done，带标签）——把现有 TODO 扫描器（`panel-ide/todo.rs`）升级成看板，
+    而不是另写一套解析。
+  - **已有、不重复**：SQL（`panel-db`）、Markdown/HTML/Mermaid/图片/Outline/诊断/文件
+    管理器/Git diff·log·status/终端/编辑器。
+  - **明确不做**：Notebook（重、与 zetacode eval 重复）；Stencil 式 Git 图与提交泳道
+    （用户裁决"华而不实"，我们的 Git 中心保持现状）。
+  - **仍未开发（沿用旧登记）**：Vim/Emacs 兼容层、Docker Manager、Go Test Runner、
+    PDF Viewer（仅 GUI 可选，TUI 永不渲染）。
+
 - **OpenDesigner 官方兼容(2026-10-15 用户登记,后期)**:用户考虑把
   [`nexu-io/open-design`](https://github.com/nexu-io/open-design)(中文说明见其
   `docs/i18n/README.zh-CN.md`)**迁进 zetawork 的设置面**,目标是**后期加入
