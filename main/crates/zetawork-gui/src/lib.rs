@@ -25,6 +25,7 @@ pub mod agent_sessions;
 pub mod blit;
 pub mod center;
 pub mod chrome;
+pub mod embed;
 pub mod fonts;
 pub mod fsread;
 pub mod git;
@@ -122,6 +123,10 @@ pub struct Shell {
 	picker_anchor: Option<egui::Rect>,
 	/// The 用量 container's endpoint, read from `~/.zeta/serve.json`.
 	pub stats: stats::StatsEndpoint,
+	/// The 用量 container's WebView2 child: it loads the dashboard the endpoint
+	/// serves, and falls back to [`usage`] when the runtime is missing
+	/// ([`embed::EmbedState`]).
+	pub embed: embed::EmbedState,
 	/// The 用量 container's last answer from that endpoint, read off the UI
 	/// thread ([`usage::UsageCache`]).
 	pub usage: usage::UsageCache,
@@ -230,6 +235,7 @@ impl Shell {
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
+			embed: embed::EmbedState::default(),
 			usage: usage::UsageCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
@@ -278,6 +284,7 @@ impl Shell {
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
+			embed: embed::EmbedState::default(),
 			usage: usage::UsageCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
@@ -442,6 +449,9 @@ impl Shell {
 	pub fn refresh_stats(&mut self) {
 		self.stats = crate::stats::discover();
 		self.usage.reload(self.stats.origin());
+		// 刷新 also navigates the embedded dashboard to the freshly discovered
+		// address (or retries an attach that failed earlier).
+		self.embed.reload();
 	}
 
 	/// The editable draft of one provider row, seeded from the file the first
@@ -822,8 +832,17 @@ impl Shell {
 }
 
 impl eframe::App for Shell {
-	fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+	fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
 		self.tick(ctx);
+		// The 用量 container embeds the stats dashboard as a WebView2 child of
+		// this window; only the real eframe frame carries a window handle, so
+		// the attach/navigate step runs here rather than in `draw` (which the
+		// headless tests call without a window). The container paints the
+		// body's rectangle and `usage::container` issues `set_bounds`.
+		if self.state.usage_view_open() {
+			let url = embed::page_url(&self.stats);
+			self.embed.prepare(&*frame, url);
+		}
 		self.draw(ctx);
 	}
 }

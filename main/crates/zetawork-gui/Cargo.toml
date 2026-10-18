@@ -65,6 +65,10 @@ tray = ["dep:tray-icon"]
 os-notify = ["dep:tauri-winrt-notification", "dep:zbus"]
 
 [target.'cfg(windows)'.dependencies]
+# The 用量 container's WebView2 child (see `src/embed.rs`). Guarded by target
+# so the Linux `cargo check` leg of `Test main workspace` never has to build
+# GTK/WebKit; non-Windows builds fall back to the native usage panel.
+wry = "0.57.0"
 # The Windows toast host. **Not** the crate named `toast`: that one is
 # stepchowfun's Docker-based build tool (0.48.0), and neither `windows-toasts`
 # nor `winrt-notification` exists on crates.io — this is the crate that reaches
