@@ -250,7 +250,9 @@ pub fn render_projects(
 	// workbench runs in, with its branch. It is not a registration.
 	lines.push(Line::from(Span::styled(
 		format!(" ▏📁 本机 · {}", local.name()),
-		Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+		Style::default()
+			.fg(Color::White)
+			.add_modifier(Modifier::BOLD),
 	)));
 	lines.push(Line::from(Span::styled(
 		format!("     {} · {}", local.dir.display(), local.branch_label()),
@@ -488,7 +490,10 @@ mod tests {
 		let registry = workbench_projects::Registry::load_from(&path).expect("load");
 		// A wide glyph leaves its second buffer cell blank, so compare with
 		// every space removed — the same normalization the strip tests use.
-		let local = LocalWorkspace { dir: std::path::PathBuf::from("C:/work/demo"), branch: Some("main".into()) };
+		let local = LocalWorkspace {
+			dir: std::path::PathBuf::from("C:/work/demo"),
+			branch: Some("main".into()),
+		};
 		let text: String = text_of(&local, &registry)
 			.chars()
 			.filter(|ch| !ch.is_whitespace())

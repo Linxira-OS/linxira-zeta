@@ -53,6 +53,7 @@ pub mod total;
 pub mod tray;
 pub mod usage;
 pub mod widgets;
+pub mod window_shape;
 pub mod workspace_memory;
 pub mod ws;
 pub mod zetacode;
@@ -96,6 +97,8 @@ pub struct Shell {
 	pub fonts: Fonts,
 	/// The 关于 page's mark, uploaded from the committed raster on first draw.
 	app_icon: Option<egui::TextureHandle>,
+	/// The window's own rounded corners (see [`window_shape`]).
+	corners: window_shape::Corners,
 	/// The active workspace's tree; `tree_ws` is the workspace it belongs to.
 	pub tree: FileTree,
 	tree_ws: String,
@@ -224,6 +227,7 @@ impl Shell {
 			applied: settings,
 			fonts,
 			app_icon: None,
+			corners: window_shape::Corners::default(),
 			tree: FileTree::load(std::path::Path::new(".")),
 			tree_ws: String::new(),
 			git: None,
@@ -274,6 +278,7 @@ impl Shell {
 			applied: settings,
 			fonts: Fonts::default(),
 			app_icon: None,
+			corners: window_shape::Corners::default(),
 			tree: FileTree::load(std::path::Path::new(".")),
 			tree_ws: String::new(),
 			git: None,
@@ -839,6 +844,9 @@ impl Shell {
 
 impl eframe::App for Shell {
 	fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+		// The window's own corners: the shell is frameless, so nothing else
+		// will round the outer rectangle the OS gave us (see `window_shape`).
+		self.corners.apply(&*frame);
 		self.tick(ctx);
 		// The 用量 container embeds the stats dashboard as a WebView2 child of
 		// this window; only the real eframe frame carries a window handle, so

@@ -131,6 +131,9 @@ pub const CHIP_BRANCH_BORDER: Color32 = Color32::from_rgb(0x1f, 0x3a, 0x3d);
 pub const R_CONTROL: u8 = 4;
 pub const R_PANEL: u8 = 6;
 pub const R_MODAL: u8 = 8;
+/// The radius scale is ordered by construction: an inner surface is never
+/// rounder than the surface that holds it.
+const _: () = assert!(R_MODAL > R_PANEL && R_PANEL > R_CONTROL);
 
 /// The title bar's height. The right column starts below it (the top-right
 /// strip belongs to the window controls).

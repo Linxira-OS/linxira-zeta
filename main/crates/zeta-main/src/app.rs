@@ -373,8 +373,7 @@ impl Workspace {
 	fn new() -> Result<Self> {
 		let cwd = launch_cwd();
 		let local = crate::rail::LocalWorkspace::read(
-			cwd
-				.clone()
+			cwd.clone()
 				.or_else(|| std::env::current_dir().ok())
 				.unwrap_or_else(|| std::path::PathBuf::from(".")),
 		);

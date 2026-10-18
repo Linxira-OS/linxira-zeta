@@ -89,7 +89,6 @@ impl Companion {
 				Self::Zetacode => &[
 					"zetacode",
 					// No bare `zeta`: that is the workbench's index bin.
-
 					"zeta-linux-x64",
 					"zeta-linux-arm64",
 					"zeta-darwin-x64",
@@ -868,7 +867,9 @@ mod tests {
 		// zetacode page started an old zetawork instead of the current CLI.
 		let names = Companion::Zetacode.executable_names();
 		assert!(
-			!names.iter().any(|name| name.eq_ignore_ascii_case("zeta.exe") || name.eq_ignore_ascii_case("zeta")),
+			!names
+				.iter()
+				.any(|name| name.eq_ignore_ascii_case("zeta.exe") || name.eq_ignore_ascii_case("zeta")),
 			"the workbench's own names must not count as zetacode: {names:?}"
 		);
 		assert!(names.iter().any(|name| name.starts_with("zetacode")));
@@ -888,7 +889,9 @@ mod tests {
 			);
 		}
 		assert!(
-			found.iter().any(|path| path.file_name().is_some_and(|name| name == "zetacode.exe")),
+			found
+				.iter()
+				.any(|path| path.file_name().is_some_and(|name| name == "zetacode.exe")),
 			"the real CLI beside the GUI is: {found:?}"
 		);
 	}

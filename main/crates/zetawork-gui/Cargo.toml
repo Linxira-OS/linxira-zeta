@@ -69,6 +69,14 @@ os-notify = ["dep:tauri-winrt-notification", "dep:zbus"]
 # so the Linux `cargo check` leg of `Test main workspace` never has to build
 # GTK/WebKit; non-Windows builds fall back to the native usage panel.
 wry = "0.57.0"
+# The window's own rounded corners (`src/window_shape.rs`): the frameless
+# window gets DWM's rounding, or a rounded region on builds that refuse it.
+windows-sys = { version = "0.61", features = [
+	"Win32_Foundation",
+	"Win32_Graphics_Dwm",
+	"Win32_Graphics_Gdi",
+	"Win32_UI_WindowsAndMessaging",
+] }
 # The Windows toast host. **Not** the crate named `toast`: that one is
 # stepchowfun's Docker-based build tool (0.48.0), and neither `windows-toasts`
 # nor `winrt-notification` exists on crates.io — this is the crate that reaches
