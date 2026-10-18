@@ -27,7 +27,7 @@ import { runChangelogFixer } from "./fix-changelogs";
  * match.
  */
 import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
-import { distributionManifests, NPM_DISTRIBUTIONS } from "./npm-distributions";
+import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
 // All published packages ride the release version in lock-step. Entries are
@@ -194,21 +194,22 @@ async function assertConsistency(version: string): Promise<void> {
 		if (manifest.version !== version) problems.push(`${manifestPath}: ${manifest.version} != ${version}`);
 	}
 
-	// Vendored npm distributions: launcher and platform leaves ride the line,
-	// and the launcher's optionalDependencies pins must have moved with them —
-	// a pin left behind publishes a launcher that installs the previous
-	// release's leaf (PR #119). Runs after the Step 2f bump, so a pin whose
-	// sed pattern missed fails here instead of reaching npm.
+	// Vendored npm distributions: launcher, platform leaves and same-line
+	// companions ride the line, and the launcher's optionalDependencies pins
+	// must have moved with them — a pin left behind publishes a launcher that
+	// installs the previous release's leaf/companion (PR #119). Runs after the
+	// Step 2f bump, so a pin whose sed pattern missed fails here instead of
+	// reaching npm.
 	for (const dist of NPM_DISTRIBUTIONS) {
 		for (const rel of distributionManifests(dist)) {
 			const manifest = await Bun.file(rel).json();
 			if (manifest.version !== version) problems.push(`${rel}: ${manifest.version} != ${version}`);
 		}
 		const parent = await Bun.file(`${dist.dir}/package.json`).json();
-		for (const leaf of dist.leaves) {
-			const pinned = parent.optionalDependencies?.[leaf.name];
+		for (const pin of distributionPins(dist)) {
+			const pinned = parent.optionalDependencies?.[pin.name];
 			if (pinned !== version) {
-				problems.push(`${dist.dir}/package.json optionalDependencies ${leaf.name}: ${pinned} != ${version}`);
+				problems.push(`${dist.dir}/package.json optionalDependencies ${pin.name}: ${pinned} != ${version}`);
 			}
 		}
 	}
@@ -535,22 +536,23 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	// Step 2f: vendored npm distributions (editor, termide/ide, the zeta
 	// workbench; not Bun workspaces — bumped here so the CI trusted-publishing
 	// jobs release them on the same release version). The launcher pins its
-	// platform leaves EXACTLY in optionalDependencies, so those refs move in
-	// the same pass: a launcher bumped without its pins installs the previous
-	// release's leaf (the 1.2.0 editor launcher shipped pinning 1.1.28 and was
-	// hand-fixed in PR #119). Registry: scripts/npm-distributions.ts.
+	// platform leaves AND its same-line companions (zetacode/zetaide) EXACTLY
+	// in optionalDependencies, so those refs move in the same pass: a launcher
+	// bumped without its pins installs the previous release's leaf/companion
+	// (the 1.2.0 editor launcher shipped pinning 1.1.28 and was hand-fixed in
+	// PR #119). Registry: scripts/npm-distributions.ts.
 	for (const dist of NPM_DISTRIBUTIONS) {
 		console.log(`Updating ${dist.dir} npm distribution to ${version}...`);
 		for (const dir of [dist.dir, ...dist.leaves.map(leaf => leaf.dir)]) {
 			await $`sd '"version": "[^"]+"' ${`"version": "${version}"`} ${dir}/package.json`;
 		}
-		for (const leaf of dist.leaves) {
+		for (const pin of distributionPins(dist)) {
 			// Interpolated args reach `sd` verbatim (Bun strips shell quotes only
 			// from the template's literal parts), so the pattern is the plain
 			// regex — wrapping it in quotes makes `sd` look for a leading `'` and
 			// silently rewrite nothing (the post-bump consistency gate catches
 			// that, but only after a wasted release run).
-			await $`sd ${`"${leaf.name}": "[^"]+"`} ${`"${leaf.name}": "${version}"`} ${dist.dir}/package.json`;
+			await $`sd ${`"${pin.name}": "[^"]+"`} ${`"${pin.name}": "${version}"`} ${dist.dir}/package.json`;
 		}
 	}
 

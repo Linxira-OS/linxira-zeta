@@ -237,6 +237,13 @@ jobs:
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
            run: bun scripts/check-license-map.ts
+         # Installing zetawork must install zetacode and zetaide: the launcher
+         # pins them as same-line companions, the release build stages all
+         # three beside each other, and the archives upload all three. A pin or
+         # a packaging leg that stops carrying a companion leaves users with a
+         # workbench and two missing commands — every manifest still parses.
+         - name: Workbench bundle guard
+           run: bun scripts/check-workbench-bundles.ts
          # Both language-server registries (the coding-agent's and termide's) are
          # generated from `lsp/servers.json`. A hand edit to a generated file, or
          # a canonical change that was never regenerated, desyncs the two editors.
@@ -1256,6 +1263,12 @@ jobs:
                     target_id: zeta-ide-linux-x64,
                     artifact: zeta-ide-linux-x64,
                  }
+               - {
+                    os: ubuntu-22.04,
+                    platform: win32,
+                    target_id: zeta-ide-win-x64,
+                    artifact: zeta-ide-win-x64.exe,
+                 }
       runs-on: ${{ matrix.os }}
       permissions:
          contents: read
@@ -1279,7 +1292,7 @@ jobs:
               targets: ${{ matrix.platform == 'win32' && 'x86_64-pc-windows-gnu' || 'x86_64-unknown-linux-gnu' }}
          - uses: Swatinem/rust-cache@v2
            with:
-              workspaces: ${{ matrix.target_id == 'zeta-ide-linux-x64' && 'termide' || 'main' }}
+              workspaces: ${{ startsWith(matrix.target_id, 'zeta-ide-') && 'termide' || 'main' }}
          - name: Build release product binary
            env:
               RELEASE_TARGETS: ${{ matrix.target_id }}
@@ -1593,10 +1606,12 @@ jobs:
                 missing=1
               fi
               product_count=$(ls packages/coding-agent/binaries/zeta-work-* packages/coding-agent/binaries/zeta-ide-* 2>/dev/null | wc -l)
-              if [ "$product_count" -lt 3 ]; then
-                # Product matrix: zetawork linux+win, zetaide linux
-                # (release_product_binaries).
-                echo "::error::Expected at least 3 zeta-work-*/zeta-ide-* product binaries, found $product_count"
+              if [ "$product_count" -lt 4 ]; then
+                # Product matrix: zetawork linux+win, zetaide linux+win
+                # (release_product_binaries). The whole suite ships for both
+                # platforms, so an unpacked workbench finds zetacode/zetaide
+                # beside zetawork.
+                echo "::error::Expected at least 4 zeta-work-*/zeta-ide-* product binaries, found $product_count"
                 missing=1
               fi
               desktop_count=$(find temp/desktop/release -type f \( -name 'zeta-desktop-*.zip' -o -name 'zeta-desktop-*.exe' -o -name 'zeta-desktop-*.deb' -o -name 'zeta-desktop-*.AppImage' -o -name 'zeta-desktop-*.tar.gz' \) 2>/dev/null | wc -l)
@@ -1883,19 +1898,24 @@ jobs:
               fi
               gh run watch "$rid" --exit-status --interval 15
 
-   # Publishes the vendored termide (zetaide) npm distribution
-   # (@linxiraos/ide plus its windows/linux x64 platform leaves) on release
-   # tags via npm trusted publishing, dispatching the dedicated
-   # ide-publish.yml so the OIDC claim matches the workflow binding (same
-   # lesson as v1.1.19's editor E404). Does not gate the GitHub release
-   # itself (same policy as the other package legs).
+   # Publishes the zeta workbench npm distribution (@linxiraos/main plus its
+   # windows/linux x64 platform leaves) on release tags via npm trusted
+   # publishing, dispatching main-publish.yml so the OIDC claim matches the
+   # workflow binding (same lesson as v1.1.19's editor E404).
+   #
+   # The launcher pins zetacode (@linxiraos/zeta) and zetaide
+   # (@linxiraos/ide) as its same-line companions, so it must publish LAST:
+   # npm install of the workbench resolves those pins, and a launcher that
+   # lands before its companions exists only as an install with two missing
+   # commands (optionalDependencies skip silently). Hence the needs below —
+   # scripts/check-workbench-bundles.ts holds this edge.
 
    release_main_packages:
       name: Publish main npm packages
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          !inputs.skip_npm }}
-      needs: [release_metadata, release_gate]
+      needs: [release_metadata, release_gate, release_npm, release_ide_packages]
       runs-on: ubuntu-22.04
       permissions:
          contents: read
@@ -1920,6 +1940,14 @@ jobs:
                  exit 1
               fi
               gh run watch "$rid" --exit-status --interval 15
+
+   # Publishes the vendored termide (zetaide) npm distribution
+   # (@linxiraos/ide plus its windows/linux x64 platform leaves) on release
+   # tags via npm trusted publishing, dispatching the dedicated
+   # ide-publish.yml so the OIDC claim matches the workflow binding (same
+   # lesson as v1.1.19's editor E404). Does not gate the GitHub release
+   # itself (same policy as the other package legs), but does gate
+   # release_main_packages (the workbench pins @linxiraos/ide).
 
    release_ide_packages:
       name: Publish ide npm packages

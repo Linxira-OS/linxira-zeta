@@ -91,6 +91,7 @@ interface PackageManifest {
 	private?: boolean;
 	license?: string;
 	files?: JsonValue[];
+	bin?: JsonObject;
 	optionalDependencies?: JsonObject;
 }
 
@@ -748,6 +749,74 @@ async function publishEditorDirs(): Promise<string[]> {
 	return publishAsIsNpmDirs(EDITOR_NPM_DIRS);
 }
 
+/**
+ * The `--main` payload: the zeta workbench's npm distribution — the launcher
+ * package plus the platform leaves it pins, leaves first.
+ */
+const MAIN_NPM_DIRS = ["main/npm/main-windows-x64", "main/npm/main-linux-x64", "main/npm/main"];
+
+/**
+ * The companion products the workbench launcher installs beside itself,
+ * pinned in the same `optionalDependencies` block as the platform leaves.
+ * `@linxiraos/main` is the binary `zetawork`; these two are `zetacode` and
+ * `zetaide`, so one install yields the whole suite and the GUI never has to
+ * reach for a separate global install.
+ *
+ * They are **not published here**: each has its own trusted-publisher
+ * workflow (`release_npm` → @linxiraos/zeta, `release_ide_packages` →
+ * @linxiraos/ide), and `release_main_packages` is ordered after both in
+ * ci.yml (`scripts/check-workbench-bundles.ts` holds that edge). What this
+ * leg must guarantee is that the tree it is about to publish actually carries
+ * them at the launcher's version — a launcher whose pins point at packages
+ * this tree does not carry installs with two silently missing commands,
+ * because optionalDependencies never fail an install.
+ */
+const MAIN_COMPANIONS: ReadonlyArray<{ dir: string; name: string; bin: string }> = [
+	{ dir: "packages/coding-agent", name: "@linxiraos/zeta", bin: "zetacode" },
+	{ dir: "termide/npm/ide", name: "@linxiraos/ide", bin: "zetaide" },
+];
+
+/** Refuse a `--main` publish whose launcher cannot honour its companion pins. */
+async function assertMainCompanions(): Promise<{ version: string; dirs: string[] }> {
+	const launcherRel = "main/npm/main/package.json";
+	const launcher = (await Bun.file(path.join(repoRoot, launcherRel)).json()) as PackageManifest;
+	if (typeof launcher.version !== "string") throw new Error(`Missing version in ${launcherRel}`);
+	const problems: string[] = [];
+	for (const companion of MAIN_COMPANIONS) {
+		const rel = `${companion.dir}/package.json`;
+		if (!(await Bun.file(path.join(repoRoot, rel)).exists())) {
+			problems.push(`${rel}: missing — the workbench's ${companion.name} companion is not in this tree`);
+			continue;
+		}
+		const manifest = (await Bun.file(path.join(repoRoot, rel)).json()) as PackageManifest;
+		if (manifest.version !== launcher.version) {
+			problems.push(`${rel}: ${manifest.version} != ${launcher.version} (launcher version)`);
+		}
+		if (launcher.optionalDependencies?.[companion.name] !== launcher.version) {
+			problems.push(
+				`${launcherRel}: optionalDependencies ${companion.name} is ${launcher.optionalDependencies?.[companion.name]}, expected ${launcher.version}`,
+			);
+		}
+		if (typeof manifest.bin?.[companion.bin] !== "string") {
+			problems.push(`${rel}: bin.${companion.bin} is missing — installs would carry no ${companion.bin} command`);
+		}
+	}
+	if (problems.length > 0) {
+		throw new Error(
+			`Workbench companion payload is not release-ready:\n  - ${problems.join("\n  - ")}\n` +
+				"The workbench installs zetacode and zetaide as same-line companions; publishing a launcher whose pins this tree cannot honour ships two missing commands.",
+		);
+	}
+	return { version: launcher.version, dirs: MAIN_COMPANIONS.map(companion => companion.dir) };
+}
+
+/** `--main` entry point: verify the companion payload, then publish leaves + launcher. */
+async function publishMainDirs(): Promise<string[]> {
+	const { version, dirs } = await assertMainCompanions();
+	console.log(`Workbench companions verified at ${version}: ${dirs.join(", ")}`);
+	return publishAsIsNpmDirs(MAIN_NPM_DIRS);
+}
+
 async function prepareNativePackage(pkg: PublishPackage): Promise<PackageManifest> {
 	const manifest = await prepareNativeCorePackage(path.join(repoRoot, pkg.dir), !isDryRun);
 	if (isDryRun) {
@@ -827,7 +896,7 @@ if (import.meta.main) {
 			: publishIde
 				? await publishAsIsNpmDirs(["termide/npm/ide-windows-x64", "termide/npm/ide-linux-x64", "termide/npm/ide"])
 				: publishMain
-					? await publishAsIsNpmDirs(["main/npm/main-windows-x64", "main/npm/main-linux-x64", "main/npm/main"])
+					? await publishMainDirs()
 					: publishWebUi
 						? await publishAsIsNpmDirs(["web-ui"])
 						: publishPluginDir

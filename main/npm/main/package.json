@@ -22,7 +22,9 @@
   ],
   "optionalDependencies": {
     "@linxiraos/main-windows-x64": "1.2.1",
-    "@linxiraos/main-linux-x64": "1.2.1"
+    "@linxiraos/main-linux-x64": "1.2.1",
+    "@linxiraos/zeta": "1.2.1",
+    "@linxiraos/ide": "1.2.1"
   },
   "engines": {
     "node": ">=18"

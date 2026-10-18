@@ -302,8 +302,9 @@ function buildAssetSections(version: string): string {
 	];
 	const cliAssets = ["zeta-cli-linux-x64", "zeta-cli-linux-musl-x64", "zeta-cli-windows-x64.exe"];
 	// Bare product binaries from the release_product_binaries job; the
-	// distribution PKGBUILDs fetch these URLs verbatim.
-	const productAssets = ["zeta-work-linux-x64", "zeta-work-win-x64.exe", "zeta-ide-linux-x64"];
+	// distribution PKGBUILDs fetch these URLs verbatim. The workbench suite
+	// ships on both platforms: zetawork + zetacode (zeta-cli-*) + zetaide.
+	const productAssets = ["zeta-work-linux-x64", "zeta-work-win-x64.exe", "zeta-ide-linux-x64", "zeta-ide-win-x64.exe"];
 	// Remaining release_github assets: root license, third-party notices, the
 	// checksum manifest, and the browser relay extension. Keep in sync with
 	// that job's `files:` list.
