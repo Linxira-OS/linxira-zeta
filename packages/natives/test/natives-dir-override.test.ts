@@ -82,7 +82,7 @@ describe("native addon directory override", () => {
 		process.env.PI_NATIVES_DIR = override;
 
 		expect(initLoaderContext({ isCompiledBinary: true }).versionedDir).toBe(
-			path.join(xdgData, "omp", "natives", packageJson.version),
+			path.join(xdgData, "zeta", "natives", packageJson.version),
 		);
 	});
 });

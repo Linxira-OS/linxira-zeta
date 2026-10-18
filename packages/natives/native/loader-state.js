@@ -65,8 +65,8 @@ function getNativesDir() {
 		if (path.isAbsolute(dir)) return path.normalize(dir);
 	}
 	const xdgDataHome = process.env.XDG_DATA_HOME;
-	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "omp"))) {
-		return path.join(xdgDataHome, "omp", "natives");
+	if (xdgDataHome && fs.existsSync(path.join(xdgDataHome, "zeta"))) {
+		return path.join(xdgDataHome, "zeta", "natives");
 	}
 	return path.join(os.homedir(), ".zeta", "natives");
 }
