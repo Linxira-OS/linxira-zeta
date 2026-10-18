@@ -52,7 +52,7 @@ fn shots_dir() -> PathBuf {
 
 /// A shell whose state is the shipped default: 本机 open, **one** pane in one
 /// column (the maintainer's ruling: a fresh workspace is not pre-split), the
-/// 总面板 as the selected 大标签页 and the right column on 上下文.
+/// 总面板 as the selected 大标签页 and the right column on 用量.
 fn ready_shell() -> Shell {
 	let cwd = std::env::current_dir().expect("cwd");
 	let state = AppState::seeded_with_registry(
@@ -205,7 +205,7 @@ fn gui_pages_screenshot() {
 	);
 	shell
 		.state
-		.set_right_tab(zetawork_gui::state::RightTab::Context);
+		.set_right_tab(zetawork_gui::state::RightTab::Usage);
 	shell.state.right_collapsed = false;
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
@@ -284,33 +284,61 @@ fn total_panel_screenshot() {
 	write("09-total-panel-projects.png", &bytes);
 }
 
-/// `10-context-page.png` — the right column's 上下文用量 page, which is the
-/// column's default tab: the ring, the three `.stat` blocks, the draft's four
-/// legend rows, the 已载入文件 list and the compaction line.
+/// `10-usage-page-latest.png` — the right column's 用量 page following the
+/// active conversation: the fixture journal's id, title, token rows, cost,
+/// model, context bar and last-entry time, with the `最新会话` source badge.
+/// `10-usage-page-empty.png` — the same page with no session under the active
+/// workspace: the one-line empty state.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
-fn context_page_screenshot() {
-	let mut shell = ready_shell();
+fn usage_page_screenshot() {
+	const FIXTURE: &str = include_str!("../src/usage/fixtures/session-usage.jsonl");
+	let home = tempfile::tempdir().expect("home");
+	let project = home.path().join("project");
+	std::fs::create_dir_all(&project).expect("project");
+	let state = AppState::seeded_with_registry(
+		&project,
+		workbench_projects::Registry::empty_at(home.path().join("projects.json")),
+	);
+	let roots =
+		zetawork_gui::conversation::SessionRoots::at(home.path().to_path_buf(), std::env::temp_dir());
+	let directory = roots.project_dir(&project);
+	std::fs::create_dir_all(&directory).expect("session directory");
+	std::fs::write(directory.join("2026-10-18T09-00-00-000Z_fixture-conv.jsonl"), FIXTURE)
+		.expect("fixture journal");
+	let mut shell = Shell::with_state(state, Settings::default());
+	shell.conversation.set_roots(Some(roots));
 	workspace_page(&mut shell);
 	assert_eq!(
 		shell.state.right_tab,
-		zetawork_gui::state::RightTab::Context,
-		"上下文 is the right column's default page"
+		zetawork_gui::state::RightTab::Usage,
+		"用量 is the right column's default page"
 	);
-	// One real file open, so 已载入文件 has something in it.
-	let panes: Vec<String> = shell
-		.state
-		.visible_panes()
-		.iter()
-		.map(|pane| pane.id.clone())
-		.collect();
-	let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
-	let notice = shell.state.open_file(&panes[0], &manifest);
-	assert!(notice.0.is_empty(), "{}", notice.0);
 	shell.state.right_collapsed = false;
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
-	write("10-sidebar-context.png", &bytes);
+	write("10-usage-page-latest.png", &bytes);
+
+	// The same page with no journal under the active workspace.
+	let empty_home = tempfile::tempdir().expect("empty home");
+	let empty_project = empty_home.path().join("project");
+	std::fs::create_dir_all(&empty_project).expect("empty project");
+	let state = AppState::seeded_with_registry(
+		&empty_project,
+		workbench_projects::Registry::empty_at(empty_home.path().join("projects.json")),
+	);
+	let mut empty = Shell::with_state(state, Settings::default());
+	empty
+		.conversation
+		.set_roots(Some(zetawork_gui::conversation::SessionRoots::at(
+			empty_home.path().to_path_buf(),
+			std::env::temp_dir(),
+		)));
+	workspace_page(&mut empty);
+	empty.state.right_collapsed = false;
+	let bytes = shoot(&mut empty, 3);
+	assert!(bytes.len() > 4096);
+	write("10-usage-page-empty.png", &bytes);
 }
 
 /// `11-lifecycle-settings.png` — 设置 → 常规: 关闭窗口时 / 开机自启 / 通知, the

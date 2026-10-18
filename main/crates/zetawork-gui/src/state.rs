@@ -44,10 +44,10 @@ pub const MAX_SUBS_PER_PANE: usize = 8;
 /// How long a toast stays on screen.
 pub const TOAST_TTL: Duration = Duration::from_millis(1800);
 
-/// The right column's four panels — the spec's 文件树 / 历史 / Git / 上下文用量.
+/// The right column's four panels — the spec's 文件树 / 历史 / Git / 用量.
 ///
-/// The context tab shows the *current* session's context (path + branch +
-/// session, R16/R17); the global roll-up lives in the 用量 container the left
+/// The 用量 tab shows the *active conversation's* own usage and follows the
+/// active pane/tab; the global roll-up lives in the 用量 container the left
 /// column's foot opens. The two are deliberately different data sources.
 ///
 /// # The reserved slot
@@ -65,11 +65,11 @@ pub enum RightTab {
 	Files,
 	History,
 	Git,
-	Context,
+	Usage,
 }
 
 impl RightTab {
-	pub const ALL: [Self; 4] = [Self::Files, Self::History, Self::Git, Self::Context];
+	pub const ALL: [Self; 4] = [Self::Files, Self::History, Self::Git, Self::Usage];
 
 	/// The panel head, spelled as the spec spells it.
 	pub fn title(self) -> &'static str {
@@ -77,7 +77,7 @@ impl RightTab {
 			Self::Files => "文件树",
 			Self::History => "历史 · Agent 对话",
 			Self::Git => "Git 状态",
-			Self::Context => "上下文用量",
+			Self::Usage => "用量",
 		}
 	}
 
@@ -87,7 +87,7 @@ impl RightTab {
 			Self::Files => "工作区目录（本地 read_dir）",
 			Self::History => "zetacode 会话存储（~/.zeta/agent/agent.db）",
 			Self::Git => "git status / log / rev-list（只读）",
-			Self::Context => "GET /api/agent/<id>/context（zetacode web gateway）",
+			Self::Usage => "活动会话的日志（~/.zeta/agent/sessions）",
 		}
 	}
 }
@@ -512,10 +512,10 @@ impl Default for AppState {
 			center_page: CenterPage::Total,
 			left_collapsed: false,
 			right_collapsed: false,
-			// 当前会话上下文 is the right column's default page (the contract's
-			// ruling), so the column is drawn open rather than collapsed: a
-			// default page nobody can see is not a default.
-			right_tab: RightTab::Context,
+			// 用量 is the right column's default page (the contract's ruling),
+			// so the column is drawn open rather than collapsed: a default
+			// page nobody can see is not a default.
+			right_tab: RightTab::Usage,
 			active_project: None,
 			active_workspace: None,
 			commits_open: true,
@@ -638,13 +638,20 @@ impl AppState {
 			.unwrap_or("—")
 	}
 
-	/// The status bar's 上文 column.
-	///
-	/// A percentage needs the live session's context report (R16); this crate
-	/// has no client for it yet, so the honest value is the dash next to the
-	/// label rather than a plausible-looking number.
-	pub fn context_label(&self) -> &'static str {
-		"上文 —"
+	/// The focused pane: the one a click last selected, else the first visible
+	/// pane. The right column's 用量 page follows this pane's active tab.
+	pub fn active_pane(&self) -> Option<&Pane> {
+		let panes = self.visible_panes();
+		self
+			.tui_pane
+			.as_deref()
+			.and_then(|id| panes.iter().find(|pane| pane.id == id))
+			.or_else(|| panes.first())
+	}
+
+	/// The active tab on the focused pane.
+	pub fn active_session_tab(&self) -> Option<&SessionTab> {
+		self.active_pane().and_then(Pane::active_tab)
 	}
 
 	fn pane_mut(&mut self, pane_id: &str) -> Option<&mut Pane> {
@@ -1238,7 +1245,7 @@ impl AppState {
 		}
 	}
 
-	/// 左栏底部的 用量 (and the right column's 上下文用量 expansion): open the
+	/// 左栏底部的 用量: open the
 	/// stats container. The numbers are read from `packages/stats` on loopback;
 	/// see [`crate::stats`] for the URL and [`crate::usage`] for the panel.
 	pub fn open_usage(&mut self) {

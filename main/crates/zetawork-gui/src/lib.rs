@@ -25,6 +25,7 @@ pub mod agent_sessions;
 pub mod blit;
 pub mod center;
 pub mod chrome;
+pub mod conversation;
 pub mod fonts;
 pub mod fsread;
 pub mod git;
@@ -125,6 +126,9 @@ pub struct Shell {
 	/// The 用量 container's last answer from that endpoint, read off the UI
 	/// thread ([`usage::UsageCache`]).
 	pub usage: usage::UsageCache,
+	/// The active conversation's usage, for the right column's 用量 page and
+	/// the status bar's 上文 column ([`conversation::ConversationCache`]).
+	pub conversation: conversation::ConversationCache,
 	/// zetacode's own options (设置 target ②), read and written off the UI thread.
 	pub remote: settings_ui::ZetacodeCache,
 	/// The desktop app's provider catalog (设置 target ③).
@@ -231,6 +235,7 @@ impl Shell {
 			picker_anchor: None,
 			stats: crate::stats::discover(),
 			usage: usage::UsageCache::default(),
+			conversation: conversation::ConversationCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
@@ -279,6 +284,7 @@ impl Shell {
 			picker_anchor: None,
 			stats: crate::stats::discover(),
 			usage: usage::UsageCache::default(),
+			conversation: conversation::ConversationCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
@@ -848,6 +854,20 @@ impl Shell {
 		// run finished" are exactly the edges a hidden window exists to tell the
 		// user about. The round trip is non-blocking (`try_iter`).
 		self.poll_agents(ctx);
+		// The right column's 用量 page follows the active pane/tab; the cache
+		// re-reads the journal only when that source changes (or once a
+		// second), so a long transcript is not parsed every frame. The live
+		// gateway can also report the window a journal does not record.
+		self.conversation.set_origin(
+			self
+				.stats
+				.info
+				.as_ref()
+				.and_then(|info| info.web_url.clone()),
+		);
+		self
+			.conversation
+			.refresh(&self.state, &self.agents, std::time::Instant::now());
 		if std::mem::take(&mut self.state.needs_redraw) {
 			ctx.request_repaint();
 		}
