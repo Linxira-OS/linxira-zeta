@@ -573,6 +573,16 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **双看板：agent 的 todo 与用户的 board（2026-10-18 用户定方向，仅登记，设计待线下推敲）**：
+  - **agent todo** 保持现状：`todo` 工具、会话内、agent 自己维护，任务完成即翻页。
+  - **用户看板**是长期、跨工作区、可编辑的那一层：三列 Todo/Doing/Done，卡片含标题、
+    标签、负责人（用户/agent）、截止；**用户可以在面板里直接编辑**，也可以把一张卡
+    "交给 agent"——用卡片内容作为 brief 起一个 zetacode 会话，agent 改状态时回写卡片。
+  - 存储：项目内 `.zeta/board/` 下的 markdown 卡片（可 diff、可手工编辑），面板解析与
+    写入同一份文件，不引入第二套真源；离开面板也能用编辑器改。
+  - 定位参照 plan-ultra 的"长期目标"层，但**权威在用户**：plan 由 agent 起草，board 由
+    用户起草。
+  - 与看板面板同一实现：`panel-ide/todo.rs` 升级为 Board，agent todo 不并入该面板。
 - **面板补齐（2026-10-18 评估 Stencil Term 面板集，仅登记）**：参考其 Git / 看板 /
   SQL / Notebook / 资源五个面板，结论如下——
   - **值得做**：① **资源面板**（CPU、内存、GPU 占比 + 进程列表按 CPU 排序）——`termide`
