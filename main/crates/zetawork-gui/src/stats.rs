@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Where the native stats server lives.
 //!
-//! The left column's 用量 entry and the right column's 上下文用量 tab open the
-//! same container: the dashboard served by `packages/stats`, whose
+//! The left column's 用量 entry opens this container: the dashboard served by
+//! `packages/stats`, whose
 //! `src/server.ts` binds `127.0.0.1:3847` by default, answers the dashboard at
 //! `/` and the JSON the panels aggregate under `/api/stats/*`. The live address
 //! is published by `zetacode serve` in `~/.zeta/serve.json` (`statsUrl`, next to

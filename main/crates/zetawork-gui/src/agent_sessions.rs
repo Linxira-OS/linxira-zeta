@@ -71,6 +71,10 @@ pub struct AgentPane {
 	pub draft: String,
 	/// The reducer's view of the stream.
 	pub view: SessionView,
+	/// The usage blocks the stream delivered since this pane attached. The
+	/// transcript file is the complete record; this is the live fallback for
+	/// the 用量 page while a session is running.
+	pub usage: crate::conversation::UsageSummary,
 	/// The transport state.
 	pub link: Link,
 	/// Why the link is not live, when there is a reason to show.
@@ -86,6 +90,7 @@ impl Default for AgentPane {
 			session: None,
 			draft: String::new(),
 			view: SessionView::default(),
+			usage: crate::conversation::UsageSummary::default(),
 			link: Link::Detached,
 			error: None,
 			last_request: None,
@@ -113,6 +118,7 @@ impl AgentPane {
 		// session.
 		self.events = None;
 		self.view = SessionView::default();
+		self.usage = crate::conversation::UsageSummary::default();
 		self.last_request = None;
 		self.error = None;
 		self.session = Some(session.to_owned());
@@ -258,6 +264,9 @@ impl AgentSessions {
 					Event::Frame(frame) => {
 						if let Frame::UiRequest(request) = &frame {
 							pane.last_request = Some(request.clone());
+						}
+						if let Frame::SessionEntry(entry) = &frame {
+							pane.usage.observe(entry);
 						}
 						pane.link = Link::Live;
 						pane.error = None;

@@ -78,10 +78,9 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 					shell.state.act(|state| state.toggle_statusbar());
 				}
 				item(ui, None, &clock(), true, "本地时间");
-				// 上文: the current conversation's share of its window. The only
-				// source is a live session's context report (R16), so with no
-				// session it says so instead of drawing a plausible number.
-				let context = shell.state.context_label().to_owned();
+				// 上文: the active conversation's share of its window, the same
+				// figure the right column's 用量 page draws. Unknown stays `—`.
+				let context = crate::conversation::status_label(shell.conversation.percent());
 				item(ui, None, &context, true, CONTEXT_HINT);
 				item(ui, None, &shell.memory_label(), true, "本进程常驻内存（sysinfo）");
 			});
@@ -89,10 +88,8 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 	});
 }
 
-/// The tooltip on the 上文 column: what would have to exist for it to show a
-/// percentage.
-const CONTEXT_HINT: &str =
-	"上下文占用：需要一个运行中的会话（数据源：GET /api/agent/<id>/context）";
+/// The tooltip on the 上文 column: the same source the 用量 page reads.
+const CONTEXT_HINT: &str = "当前会话的上下文占用，取自会话日志的 usage 条目；窗口未知时显示 —";
 
 /// Height of the restore strip the collapsed status bar leaves behind.
 pub const STRIP_H: f32 = 16.0;

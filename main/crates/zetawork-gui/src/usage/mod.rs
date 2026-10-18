@@ -2,9 +2,10 @@
 //! The 用量 panel: the stats the `packages/stats` server already holds, drawn
 //! natively by egui.
 //!
-//! The left column's foot has 用量 and the right column's fourth tab is
-//! 上下文用量; the first opens this container, and the tab's expander opens the
-//! same one. The data comes from the stats server `zetacode serve` runs on
+//! The left column's foot opens this container (the global roll-up). The right
+//! column's 用量 tab is a different page — the active conversation's own
+//! usage, see [`crate::conversation`]. The data here comes from the stats
+//! server `zetacode serve` runs on
 //! loopback — the origin is discovered from `~/.zeta/serve.json` (see
 //! [`crate::stats`]) and the three requests are `/api/stats/overview`,
 //! `/api/stats/costs` and `/api/status` (see [`api`], whose module docs carry
@@ -21,6 +22,10 @@
 //! placeholder prose and no number that did not come from the server.
 
 mod api;
+
+/// The one loopback `GET` this crate owns, shared with the conversation page's
+/// live-window probe (`crate::conversation`).
+pub(crate) use api::get as http_get;
 
 use std::sync::mpsc::{Receiver, TryRecvError, channel};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

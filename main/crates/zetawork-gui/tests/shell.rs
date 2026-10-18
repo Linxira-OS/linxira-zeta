@@ -445,7 +445,7 @@ fn the_right_column_has_four_tabs_and_eight_settings_sections() {
 	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 4);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
-		["文件树", "历史 · Agent 对话", "Git 状态", "上下文用量"]
+		["文件树", "历史 · Agent 对话", "Git 状态", "用量"]
 	);
 	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are the
 	// one section the design drafts do not have, and the six they fix keep
@@ -607,12 +607,13 @@ fn the_usage_entry_opens_the_embedded_stats_container() {
 		format!("stats 服务未启动：zetacode serve 未在监听 {url}")
 	);
 	assert!(shell.usage.snapshot().is_none());
-	// The right column's 上下文用量 tab opens the same container.
+	// The right column's 用量 tab is the conversation page, not this container.
 	shell.state.close_usage();
 	shell
 		.state
-		.set_right_tab(zetawork_gui::state::RightTab::Context);
-	assert_eq!(shell.state.right_tab, zetawork_gui::state::RightTab::Context);
+		.set_right_tab(zetawork_gui::state::RightTab::Usage);
+	assert_eq!(shell.state.right_tab, zetawork_gui::state::RightTab::Usage);
+	assert!(!shell.state.usage_view_open());
 	// Escape closes the container before anything else.
 	shell.state.open_usage();
 	assert!(shell.state.escape());
@@ -627,7 +628,11 @@ fn the_status_bar_collapses_and_comes_back() {
 	assert!(!state.statusbar_visible());
 	assert!(state.toggle_statusbar().0.contains("展开"));
 	assert!(state.statusbar_visible());
-	assert_eq!(state.context_label(), "上文 —", "no live session, no percentage");
+	assert_eq!(
+		zetawork_gui::conversation::status_label(None),
+		"上文 —",
+		"no session, no percentage"
+	);
 }
 
 #[test]
