@@ -12,9 +12,7 @@
 //! sample code, and the diff draws the spec's hunk rows — and each one starts
 //! with a `[占位]` banner naming the data source it will read once that exists.
 
-use egui::{
-	Align, Align2, Color32, CornerRadius, FontId, Layout, Rect, Sense, Stroke, Ui, pos2, vec2,
-};
+use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::Shell;
 use crate::agent::RowKind;
@@ -323,17 +321,36 @@ fn body_region(ui: &mut Ui, shell: &mut Shell) {
 		welcome(ui, shell);
 		return;
 	}
-	let count = panes.len() as f32;
-	let gap = 1.0;
-	let width = (rect.width() - gap * (count - 1.0)) / count;
-	// The 1px gaps are painted as the grid's own border colour, as `.panes` does.
+	let count = panes.len();
+	// Equal columns snapped to whole points. Panes abut, so the only ink
+	// between them is the one hairline drawn below — no backdrop band, and no
+	// second line where the grid meets the right column's own edge.
+	let boundary = |index: usize| {
+		if index == count {
+			rect.max.x
+		} else {
+			rect.min.x + (rect.width() * index as f32 / count as f32).round()
+		}
+	};
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::BORDER);
+		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
 	for (index, pane) in panes.iter().enumerate() {
-		let x = rect.min.x + index as f32 * (width + gap);
-		let pane_rect = Rect::from_min_size(pos2(x, rect.min.y), vec2(width, rect.height()));
+		let pane_rect = Rect::from_min_max(
+			pos2(boundary(index), rect.min.y),
+			pos2(boundary(index + 1), rect.max.y),
+		);
 		let mut child = ui.new_child(egui::UiBuilder::new().max_rect(pane_rect));
 		pane_region(&mut child, shell, pane);
+	}
+	for index in 1..count {
+		// Half-point offset: a 1 pt stroke centred on a whole point smears
+		// across two pixels, which is the heavy bar this replaced. At +0.5 it
+		// lands exactly on one pixel column, like the columns' own hairlines.
+		let x = boundary(index) + 0.5;
+		ui.painter().line_segment(
+			[pos2(x, rect.min.y), pos2(x, rect.max.y)],
+			Stroke::new(1.0_f32, theme::BORDER),
+		);
 	}
 }
 
@@ -671,18 +688,16 @@ fn paint_terminal_grid(
 }
 
 /// The pane's backend line, at the bottom of the terminal body.
+///
+/// One line, clipped to the pane: the label is already short, but a legacy
+/// reason or a narrow pane still has to end in an ellipsis at the pane's own
+/// right edge rather than run under the next one.
 fn paint_terminal_status(ui: &Ui, area: Rect, status: &str) {
 	if area.height() <= crate::terminal_service::STATUS_HEIGHT + 32.0 {
 		return;
 	}
 	let y = area.max.y - crate::terminal_service::STATUS_HEIGHT / 2.0;
-	ui.painter().text(
-		pos2(area.min.x + 8.0, y),
-		Align2::LEFT_CENTER,
-		status,
-		FontId::monospace(11.0),
-		theme::TEXT_3,
-	);
+	truncated_mono(ui, pos2(area.min.x + 8.0, y), status, 11.0, theme::TEXT_3, area.width() - 16.0);
 }
 
 /// An 编辑器 page: a real file, editable in place and saved to disk.

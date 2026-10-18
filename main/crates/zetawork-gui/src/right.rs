@@ -301,7 +301,11 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 		return;
 	};
 	if let Some(error) = &status.error {
-		empty_note(ui, &format!("无法读取 git 状态：{error}"), "工作区目录里的 git 仓库");
+		empty_note(
+			ui,
+			&format!("无法读取 git 状态：{}", short_git_error(error)),
+			"工作区目录里的 git 仓库",
+		);
 		readonly_hint(ui);
 		return;
 	}
@@ -551,36 +555,73 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 			}
 			// The draft's own line about compaction, word for word.
 			let (note, _) = ui.allocate_exact_size(vec2(ui.available_width(), 32.0), Sense::hover());
-			ui.painter().text(
-				pos2(note.min.x + 6.0, note.min.y + 2.0),
-				egui::Align2::LEFT_TOP,
+			truncated_text(
+				ui,
+				pos2(note.min.x + 6.0, note.min.y + 9.0),
 				"上下文接近 80% 时会自动压缩较早的工具输出，仅保留结论与改动。",
-				egui::FontId::new(11.0, egui::FontFamily::Proportional),
+				11.0,
 				theme::TEXT_3,
+				note.width() - 12.0,
 			);
 			// …and the contract's own footnote for this page, which is what
 			// keeps it distinct from the 用量 container in the left column's
 			// foot: this page is *one* session, that one is everything.
 			let (scope_note, _) =
 				ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
-			ui.painter().text(
-				pos2(scope_note.min.x + 6.0, scope_note.min.y),
-				egui::Align2::LEFT_TOP,
+			truncated_text(
+				ui,
+				pos2(scope_note.min.x + 6.0, scope_note.min.y + 9.0),
 				"只统计这一个会话（左栏点别的会话，这一栏跟着换）；全局用量在左下角「设置 / 用量追踪」",
-				egui::FontId::new(11.0, egui::FontFamily::Proportional),
+				11.0,
 				theme::TEXT_3,
+				scope_note.width() - 12.0,
 			);
 		});
 }
 
+/// A git failure reduced to one short, human clause.
+///
+/// `git`'s own text is the whole command line plus a `fatal:` dump. The panel
+/// already says `无法读取 git 状态`, so the reason only has to finish the
+/// sentence: the refusals a user can act on get a plain word, and anything
+/// else is cut to a fixed budget with an ellipsis.
+fn short_git_error(error: &str) -> String {
+	for (needle, phrase) in [
+		("cwd does not exist", "目录不存在"),
+		("cannot change to", "目录不存在"),
+		("does not exist", "目录不存在"),
+		("not a git repository", "不是 git 仓库"),
+		("ambiguous argument", "还没有提交"),
+		("unknown revision", "还没有提交"),
+		("permission denied", "没有权限"),
+	] {
+		if error.contains(needle) {
+			return phrase.to_owned();
+		}
+	}
+	let detail = error
+		.rsplit_once("fatal: ")
+		.map(|(_, rest)| rest)
+		.or_else(|| error.rsplit_once(": ").map(|(_, rest)| rest))
+		.unwrap_or(error)
+		.trim();
+	if detail.chars().count() <= 20 {
+		return detail.to_owned();
+	}
+	let mut short: String = detail.chars().take(19).collect();
+	short.push('…');
+	short
+}
+
 fn readonly_hint(ui: &mut Ui) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
-	ui.painter().text(
+	truncated_text(
+		ui,
 		pos2(rect.min.x + 4.0, rect.min.y + 10.0),
-		egui::Align2::LEFT_TOP,
 		"本切片只读：暂存 / 提交 / 创建 PR 未接入（未来：git add、git commit、gh pr create）",
-		egui::FontId::new(11.0, egui::FontFamily::Proportional),
+		11.0,
 		theme::WARN,
+		rect.width() - 8.0,
 	);
 }
 
@@ -731,11 +772,12 @@ fn commit_row(ui: &mut Ui, commit: &crate::git::GitCommit) {
 	} else {
 		commit.refs.join(" · ")
 	};
-	ui.painter().text(
+	truncated_mono(
+		ui,
 		pos2(rect.min.x + 20.0, rect.min.y + 24.0),
-		egui::Align2::LEFT_CENTER,
-		refs,
-		egui::FontId::new(10.5, egui::FontFamily::Monospace),
+		&refs,
+		10.5,
 		theme::CHIP_BRANCH_INK,
+		rect.width() - 30.0,
 	);
 }

@@ -415,6 +415,33 @@ fn attach_thread(
 	}
 }
 
+/// The one clause a status line can show for a fallback reason.
+///
+/// The attach's own text is `serve 拒绝终端 attach（400）：cwd does not exist`;
+/// the only part a user can act on is the cause, so the known cause gets a
+/// human word and everything else is cut to a fixed budget with an ellipsis.
+fn short_reason(reason: &str) -> String {
+	if reason.contains("cwd does not exist") {
+		return "目录不存在".to_owned();
+	}
+	if reason.contains("未发现") && reason.contains("serve.json") {
+		return "未发现 serve.json".to_owned();
+	}
+	let detail = reason
+		.rsplit_once("fatal: ")
+		.map(|(_, rest)| rest)
+		.or_else(|| reason.rsplit_once('：').map(|(_, rest)| rest))
+		.unwrap_or(reason)
+		.trim();
+	const BUDGET: usize = 16;
+	if detail.chars().count() <= BUDGET {
+		return detail.to_owned();
+	}
+	let mut short: String = detail.chars().take(BUDGET - 1).collect();
+	short.push('…');
+	short
+}
+
 /// Which backend every terminal tab is on, and the reason it is not on serve.
 #[derive(Default)]
 pub struct TerminalHost {
@@ -470,17 +497,20 @@ impl TerminalHost {
 	}
 
 	/// The pane's status line: which backend, and why it fell back.
+	///
+	/// One short line per pane: the reason is reduced to the clause a user can
+	/// act on (`目录不存在`), never the transport's full `attach(400)` text.
 	pub fn label(&self, tab: &str) -> Option<String> {
 		let pane = self.panes.get(tab)?;
 		Some(match pane.backend {
-			Backend::Connecting => "后端：serve WebSocket（连接中…）".to_owned(),
-			Backend::Service => "后端：serve WebSocket".to_owned(),
+			Backend::Connecting => "后端：serve · 连接中…".to_owned(),
+			Backend::Service => "后端：serve".to_owned(),
 			Backend::Ended => match pane.reason.as_deref() {
-				Some(reason) => format!("后端：serve（{reason}）"),
-				None => "后端：serve（会话已结束）".to_owned(),
+				Some(reason) => format!("后端：serve · {}", short_reason(reason)),
+				None => "后端：serve · 会话已结束".to_owned(),
 			},
 			Backend::Local => match pane.reason.as_deref() {
-				Some(reason) => format!("后端：本地 PTY（serve 不可用：{reason}）"),
+				Some(reason) => format!("后端：本地 PTY · {}", short_reason(reason)),
 				None => "后端：本地 PTY".to_owned(),
 			},
 		})
@@ -1040,7 +1070,7 @@ mod tests {
 		assert!(host.is_local("tab1"), "no serve origin means the local PTY");
 		let label = host.label("tab1").expect("label");
 		assert!(label.contains("本地 PTY"), "{label}");
-		assert!(label.contains("webUrl"), "the reason is named: {label}");
+		assert!(label.contains("serve.json"), "the reason is named: {label}");
 		let area = Rect::new(0, 0, 80, 24);
 		assert!(!host.render("tab1", area, &mut Buffer::empty(area)));
 		assert!(!host.send_bytes("tab1", b"x"), "local stdin is not serve's");

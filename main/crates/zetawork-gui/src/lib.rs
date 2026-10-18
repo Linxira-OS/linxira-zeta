@@ -948,6 +948,7 @@ impl Shell {
 		// below it are the workbench's own widgets.
 		egui::TopBottomPanel::top("zetawork-titlebar")
 			.exact_height(theme::TITLE_BAR_H)
+			.show_separator_line(false)
 			.frame(no_margin)
 			.show(ctx, |ui| chrome::title_bar(ui, self));
 		let height = if self.state.statusbar_visible() {
@@ -957,6 +958,7 @@ impl Shell {
 		};
 		egui::TopBottomPanel::bottom("zetawork-statusbar")
 			.exact_height(height)
+			.show_separator_line(false)
 			.frame(no_margin)
 			.show(ctx, |ui| {
 				if self.state.statusbar_visible() {
@@ -970,12 +972,14 @@ impl Shell {
 			egui::SidePanel::left("zetawork-rail-left")
 				.exact_width(left::RAIL_WIDTH)
 				.resizable(false)
+				.show_separator_line(false)
 				.frame(no_margin)
 				.show(ctx, |ui| left::left_rail(ui, self));
 		} else {
 			egui::SidePanel::left("zetawork-side-left")
 				.exact_width(left::WIDTH)
 				.resizable(false)
+				.show_separator_line(false)
 				.frame(no_margin)
 				.show(ctx, |ui| left::left_column(ui, self));
 		}
@@ -983,12 +987,14 @@ impl Shell {
 			egui::SidePanel::right("zetawork-rail-right")
 				.exact_width(right::RAIL_WIDTH)
 				.resizable(false)
+				.show_separator_line(false)
 				.frame(no_margin)
 				.show(ctx, |ui| right::right_rail(ui, self));
 		} else {
 			egui::SidePanel::right("zetawork-side-right")
 				.exact_width(right::WIDTH)
 				.resizable(false)
+				.show_separator_line(false)
 				.frame(no_margin)
 				.show(ctx, |ui| right::right_column(ui, self));
 		}

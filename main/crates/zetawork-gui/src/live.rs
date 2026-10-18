@@ -36,6 +36,7 @@ use std::path::PathBuf;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use termide_core::panel::{Panel, PanelConfig, RenderContext, ThemeColors};
+use termide_core::{Config, Theme};
 use termide_panel_terminal::Terminal;
 
 /// One spawned pane: the PTY and the geometry it was last sized to.
@@ -45,6 +46,179 @@ struct Live {
 	rows: u16,
 	title: Option<String>,
 	ended: bool,
+}
+
+/// How the local fallback starts its shell.
+///
+/// `Auto` keeps termide's own detection (`$SHELL`, Git Bash, `cmd.exe`, …).
+/// The other two are the GUI's own answer for the PowerShell families: both
+/// hosts get an explicit black/gray init line, so a fresh pane's console
+/// defaults are the workbench's ink rather than whatever the host inherited.
+#[cfg(windows)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum LocalShell {
+	Auto,
+	Path(PathBuf),
+	PowerShell { program: PathBuf, args: Vec<String> },
+}
+
+/// True for both PowerShell families (the `$SHELL` can name either).
+#[cfg(windows)]
+fn is_powershell(stem: &str) -> bool {
+	stem.eq_ignore_ascii_case("pwsh") || stem.eq_ignore_ascii_case("powershell")
+}
+
+/// The GUI's local-shell plan, in the same order termide's Windows chain
+/// uses: a `$SHELL` that is an absolute path this host has, then `pwsh`, then
+/// Windows PowerShell 5.1.
+#[cfg(windows)]
+fn local_shell_plan(
+	shell_env: Option<&std::path::Path>,
+	pwsh: Option<&std::path::Path>,
+	powershell: Option<&std::path::Path>,
+	cwd: Option<&std::path::Path>,
+) -> LocalShell {
+	let powershell_plan = |program: &std::path::Path| LocalShell::PowerShell {
+		program: program.to_path_buf(),
+		args: powershell_args(cwd),
+	};
+	if let Some(shell) = shell_env {
+		let stem = shell
+			.file_stem()
+			.and_then(|stem| stem.to_str())
+			.unwrap_or("");
+		return if is_powershell(stem) {
+			powershell_plan(shell)
+		} else {
+			LocalShell::Path(shell.to_path_buf())
+		};
+	}
+	if let Some(pwsh) = pwsh {
+		return powershell_plan(pwsh);
+	}
+	if let Some(powershell) = powershell {
+		return powershell_plan(powershell);
+	}
+	LocalShell::Auto
+}
+
+/// The argv a PowerShell host needs: stay interactive, set the console ink
+/// the workbench expects, clear the inherited blue buffer, and land in `cwd`.
+///
+/// Every argument is whitespace-free on purpose: [`Terminal::new_with_command`]
+/// splits its string on whitespace, and PowerShell joins the tokens after
+/// `-Command` back with single spaces. The working directory therefore travels
+/// percent-encoded through `[uri]::UnescapeDataString`.
+#[cfg(windows)]
+fn powershell_args(cwd: Option<&std::path::Path>) -> Vec<String> {
+	let mut args = vec!["-NoLogo".to_owned(), "-NoExit".to_owned(), "-Command".to_owned()];
+	if let Some(cwd) = cwd {
+		args.push("Set-Location".to_owned());
+		args.push(format!("([uri]::UnescapeDataString('{}'));", percent_encode(cwd)));
+	}
+	args.push(
+		"$Host.UI.RawUI.BackgroundColor='Black';$Host.UI.RawUI.ForegroundColor='Gray';Clear-Host"
+			.to_owned(),
+	);
+	args
+}
+
+/// Percent-encode a path for `.NET`'s `UnescapeDataString`, leaving the
+/// separators and drive colon so the decoded value is the original path.
+#[cfg(windows)]
+fn percent_encode(path: &std::path::Path) -> String {
+	let mut out = String::new();
+	for byte in path.to_string_lossy().bytes() {
+		if byte.is_ascii_alphanumeric()
+			|| matches!(byte, b'\\' | b'/' | b':' | b'.' | b'-' | b'_' | b'~')
+		{
+			out.push(char::from(byte));
+		} else {
+			out.push_str(&format!("%{byte:02X}"));
+		}
+	}
+	out
+}
+
+/// The ink a terminal pane renders with.
+///
+/// The values are the workbench's own `.term` tokens (`TERM_BG`, `TERM_TEXT`,
+/// the accent and semantic inks); only the fields termide reads for a terminal
+/// grid are meaningful. Keeping this local to the pane means the app never
+/// depends on a termide theme file.
+fn pane_theme() -> Theme {
+	Theme {
+		name: "zetawork-terminal",
+		bg: ratatui::style::Color::Rgb(0x08, 0x0a, 0x0d),
+		fg: ratatui::style::Color::Rgb(0xc8, 0xd0, 0xdb),
+		accented_bg: ratatui::style::Color::Rgb(0x0c, 0x0f, 0x13),
+		accented_fg: ratatui::style::Color::Rgb(0x7e, 0xa9, 0xf5),
+		selected_bg: ratatui::style::Color::Rgb(0x22, 0x31, 0x4d),
+		selected_fg: ratatui::style::Color::Rgb(0xe7, 0xea, 0xf0),
+		disabled: ratatui::style::Color::Rgb(0x8b, 0x93, 0xa1),
+		success: ratatui::style::Color::Rgb(0x3f, 0xb9, 0x50),
+		warning: ratatui::style::Color::Rgb(0xd2, 0x99, 0x22),
+		error: ratatui::style::Color::Rgb(0xf8, 0x51, 0x49),
+		is_light: Some(false),
+	}
+}
+
+/// One `Config` for every pane: `prepare_render` only reads it to build the
+/// terminal's hotkey table, and the table never changes.
+static PANE_CONFIG: std::sync::LazyLock<std::sync::Arc<Config>> =
+	std::sync::LazyLock::new(|| std::sync::Arc::new(Config::default()));
+
+/// Start the local fallback: the planned PowerShell argv, or termide's own
+/// detection for everything else. `None` means the spawn failed.
+fn spawn_local(rows: u16, cols: u16, cwd: Option<PathBuf>) -> Option<Terminal> {
+	#[cfg(windows)]
+	{
+		let installed = crate::shells::detect();
+		let find = |kind: crate::shells::ShellKind| {
+			installed
+				.iter()
+				.find(|shell| shell.kind == kind)
+				.map(|shell| shell.path.as_path())
+		};
+		// termide trusts `$SHELL` only when it is an absolute Windows path
+		// (`MSYS` exports `/usr/bin/bash`, which a native binary cannot run).
+		let shell_env = std::env::var_os("SHELL")
+			.map(PathBuf::from)
+			.filter(|path| path.to_string_lossy().contains(':') && path.exists());
+		let plan = local_shell_plan(
+			shell_env.as_deref(),
+			find(crate::shells::ShellKind::Pwsh),
+			find(crate::shells::ShellKind::PowerShell),
+			cwd.as_deref(),
+		);
+		match plan {
+			LocalShell::Auto => Terminal::new_with_cwd(rows, cols, cwd),
+			LocalShell::Path(path) => {
+				let program = path.to_string_lossy();
+				Terminal::new_with_shell(rows, cols, &program, cwd)
+			},
+			LocalShell::PowerShell { program, args } => {
+				// `new_with_command` splits on whitespace, and a pwsh install
+				// often lives under `C:\Program Files`; its bare name is what
+				// the PTY's PATH search (and CreateProcess's System32 search)
+				// resolves, so the argv carries that instead of the full path.
+				let executable = program
+					.file_name()
+					.map(|name| name.to_string_lossy().into_owned())
+					.unwrap_or_else(|| program.to_string_lossy().into_owned());
+				let command = std::iter::once(executable)
+					.chain(args)
+					.collect::<Vec<_>>()
+					.join(" ");
+				Terminal::new_with_command(rows, cols, &command)
+			},
+		}
+		.ok()
+	}
+	#[cfg(not(windows))]
+	{
+		Terminal::new_with_cwd(rows, cols, cwd).ok()
+	}
 }
 
 /// Something a terminal did since the last poll.
@@ -90,14 +264,14 @@ impl LiveSessions {
 			}
 			return true;
 		}
-		match Terminal::new_with_cwd(rows, cols, cwd) {
-			Ok(term) => {
+		match spawn_local(rows, cols, cwd) {
+			Some(term) => {
 				self
 					.tabs
 					.insert(tab.to_owned(), Live { term, cols, rows, title: None, ended: false });
 				true
 			},
-			Err(_) => false,
+			None => false,
 		}
 	}
 
@@ -107,6 +281,11 @@ impl LiveSessions {
 		let Some(live) = tabs.get_mut(tab) else {
 			return false;
 		};
+		// termide fills the grid from the theme it was last prepared with, and
+		// its built-in default is the royal-blue Windows XP palette. Preparing
+		// with the workbench's own ink on every frame is what makes a fresh
+		// pane black, independent of the shell's ConPTY defaults.
+		live.term.prepare_render(&pane_theme(), &PANE_CONFIG);
 		let ctx = RenderContext {
 			theme,
 			config,
@@ -306,5 +485,66 @@ mod tests {
 		live.close("t");
 		assert!(!live.contains("t"));
 		assert_eq!(live.pid("t"), None);
+	}
+
+	#[cfg(windows)]
+	#[test]
+	fn windows_powershell_51_starts_black_without_a_real_spawn() {
+		let cwd = std::path::Path::new(r"C:\work space\zeta");
+		let program =
+			std::path::Path::new(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");
+		let plan = local_shell_plan(None, None, Some(program), Some(cwd));
+		let LocalShell::PowerShell { program: chosen, args } = plan else {
+			panic!("5.1 must take the init line");
+		};
+		assert_eq!(chosen.as_path(), program);
+		assert_eq!(args[0], "-NoLogo");
+		assert_eq!(args[1], "-NoExit");
+		assert_eq!(args[2], "-Command");
+		assert!(
+			args.iter().all(|arg| !arg.chars().any(char::is_whitespace)),
+			"each token must survive new_with_command's split: {args:?}"
+		);
+		let script = args.last().expect("the init script");
+		assert!(script.contains("$Host.UI.RawUI.BackgroundColor='Black'"), "{script}");
+		assert!(script.contains("$Host.UI.RawUI.ForegroundColor='Gray'"), "{script}");
+		assert!(script.contains("Clear-Host"), "{script}");
+		assert!(
+			args.iter().any(|arg| arg.contains(r"C:\work%20space\zeta")),
+			"the workspace path is carried, encoded: {args:?}"
+		);
+	}
+
+	#[cfg(windows)]
+	#[test]
+	fn pwsh_is_preferred_and_both_hosts_take_the_init_line() {
+		let pwsh = std::path::Path::new(r"C:\Program Files\PowerShell\7\pwsh.exe");
+		let ps = std::path::Path::new(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");
+		let plan = local_shell_plan(None, Some(pwsh), Some(ps), None);
+		let LocalShell::PowerShell { program, args } = plan else {
+			panic!("pwsh is a PowerShell host too");
+		};
+		assert_eq!(program.as_path(), pwsh, "pwsh wins when installed");
+		assert!(
+			args
+				.iter()
+				.any(|arg| arg.contains("BackgroundColor='Black'")),
+			"{args:?}"
+		);
+		assert!(matches!(
+			local_shell_plan(None, None, Some(ps), None),
+			LocalShell::PowerShell { .. }
+		));
+		assert_eq!(
+			local_shell_plan(None, None, None, None),
+			LocalShell::Auto,
+			"no PowerShell family leaves termide's chain alone"
+		);
+		// A `$SHELL` that names a PowerShell host is still that host: termide
+		// would have run it, so the init line is applied there too.
+		assert!(matches!(
+			local_shell_plan(Some(ps), Some(pwsh), Some(ps), None),
+			LocalShell::PowerShell { .. }
+		));
 	}
 }
