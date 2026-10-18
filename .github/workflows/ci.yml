@@ -1231,8 +1231,8 @@ jobs:
    # asset enters SHA256SUMS.txt. No native-addon dependency — these products
    # embed no node addons — so this job runs purely in parallel with the test
    # fan-out. The cargo legs compile under each workspace's own
-   # rust-toolchain.toml pin (1.91.1, the same toolchain main_tests /
-   # termide_tests gate with). Windows assets cross-compile on the Linux
+   # rust-toolchain.toml pin (currently 1.97.1, read at run time — the
+   # same toolchain main_tests / termide_tests gate with). Windows assets cross-compile on the Linux
    # runner like the zeta-cli-* win32-x64 leg: cargo via the GNU target (the
    # same "Win GNU target" method the committed npm leaf binaries are
    # rebuilt with, no Windows runner needed).
@@ -1273,8 +1273,25 @@ jobs:
               # nasm: aws-lc-sys (pulled in by russh through the vendored
               # termide crates) assembles its windows-gnu crypto sources.
               sudo apt-get install -y --no-install-recommends mingw-w64 nasm
-         - uses: dtolnay/rust-toolchain@1.91.1
+         # The workspace pins are the source of truth: both `main/` and
+         # `termide/` ship a rust-toolchain.toml, and cargo obeys it no matter
+         # which toolchain the action made default. Hardcoding a version here
+         # (1.91.1, before the pin moved to 1.97.1) installed the wrong
+         # toolchain and the cross leg died with `can't find crate for core`
+         # because the pinned one had no windows-gnu target.
+         - name: Resolve Rust toolchain pin
+           id: rust-pin
+           run: |
+              channel="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' main/rust-toolchain.toml | head -1)"
+              termide_channel="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' termide/rust-toolchain.toml | head -1)"
+              if [ -z "$channel" ] || [ "$channel" != "$termide_channel" ]; then
+                 echo "::error::main/ ($channel) and termide/ ($termide_channel) toolchain pins must exist and match"
+                 exit 1
+              fi
+              echo "channel=$channel" >> "$GITHUB_OUTPUT"
+         - uses: dtolnay/rust-toolchain@master
            with:
+              toolchain: ${{ steps.rust-pin.outputs.channel }}
               components: rustfmt, clippy
               targets: ${{ matrix.platform == 'win32' && 'x86_64-pc-windows-gnu' || 'x86_64-unknown-linux-gnu' }}
          - uses: Swatinem/rust-cache@v2
@@ -1535,7 +1552,7 @@ jobs:
    # Vendored TermIDE (zetaide) upstream test contract, mirroring what the
    # upstream project gates on every PR: fmt / cargo check --all-targets /
    # clippy -D warnings / nextest, with the toolchain pinned by
-   # termide/rust-toolchain.toml (1.91.1). A full Rust rebuild of the vendored
+   # termide/rust-toolchain.toml (read at run time). A full Rust rebuild of the vendored
    # workspace is expensive, so the job self-skips when the triggering change
    # set does not touch termide/ — a manual dispatch always runs the full
    # gate. Same policy: gates the vendor tree, not the Zeta release
@@ -1576,9 +1593,13 @@ jobs:
          # Action refs mirror the upstream termide CI pins (tag per toolchain
          # release on dtolnay/rust-toolchain; major-version branch on
          # taiki-e/install-action and Swatinem/rust-cache).
-         - uses: dtolnay/rust-toolchain@1.91.1
+         - name: Resolve Rust toolchain pin
+           id: rust-pin
+           run: echo "channel=$(sed -n 's/^channel *= *"\\(.*\\)"/\\1/p' termide/rust-toolchain.toml | head -1)" >> "$GITHUB_OUTPUT"
+         - uses: dtolnay/rust-toolchain@master
            if: steps.termide.outputs.skip != 'true'
            with:
+              toolchain: ${{ steps.rust-pin.outputs.channel }}
               components: rustfmt, clippy
          - uses: Swatinem/rust-cache@v2
            if: steps.termide.outputs.skip != 'true'
@@ -1647,9 +1668,13 @@ jobs:
                  echo "main/ and termide/ untouched - skipping the workspace Rust gate"
                  echo "skip=true" >> "$GITHUB_OUTPUT"
               fi
-         - uses: dtolnay/rust-toolchain@1.91.1
+         - name: Resolve Rust toolchain pin
+           id: rust-pin
+           run: echo "channel=$(sed -n 's/^channel *= *"\\(.*\\)"/\\1/p' main/rust-toolchain.toml | head -1)" >> "$GITHUB_OUTPUT"
+         - uses: dtolnay/rust-toolchain@master
            if: steps.main.outputs.skip != 'true'
            with:
+              toolchain: ${{ steps.rust-pin.outputs.channel }}
               components: rustfmt, clippy
          - uses: Swatinem/rust-cache@v2
            if: steps.main.outputs.skip != 'true'
