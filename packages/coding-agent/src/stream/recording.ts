@@ -69,7 +69,10 @@ export interface Recording {
 
 /** Directory `/record` writes into (temporary storage for now). */
 export function recordingsDir(): string {
-	return path.join(os.tmpdir(), "omp-recordings");
+	// `zeta-`, like the `.zetacast` extension next to it: the `.ompcast` ->
+	// `.zetacast` rename left this directory behind, and the path is printed in
+	// the user-facing "no recordings in …" message.
+	return path.join(os.tmpdir(), "zeta-recordings");
 }
 
 /** Fresh, sortable recording path for one session: `<recordingsDir>/<utc-stamp>-<session>.ompcast`. */
