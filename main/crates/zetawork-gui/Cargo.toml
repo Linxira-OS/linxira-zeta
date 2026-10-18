@@ -16,7 +16,11 @@ path = "src/main.rs"
 # Versions are the ones the `spike/egui-shell` branch proved on this host
 # (egui 0.33.3 + eframe 0.33.3, offscreen ratatui blit, WebView2 child window).
 egui = "0.33.3"
-eframe = "0.33.3"
+# `wgpu` is enabled alongside the default `glow`: Intel's OpenGL ICD
+# (`igxelpgicd64.dll`) faulted with 0xC000041D under the glow path on this host,
+# so the shell asks for wgpu (D3D12) and keeps glow as the escape hatch
+# (`ZETAWORK_RENDERER=glow`).
+eframe = { version = "0.33.3", features = ["wgpu"] }
 ratatui.workspace = true
 crossterm.workspace = true
 # The live terminal pane is the TUI's own terminal: `termide-panel-terminal`

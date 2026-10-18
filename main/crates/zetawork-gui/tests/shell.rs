@@ -321,9 +321,22 @@ fn a_zetacode_pick_opens_a_page_that_runs_the_shipped_binary_without_typing() {
 				.file_name()
 				.and_then(|name| name.to_str())
 				.unwrap_or("");
+			// Either a shipped name, or the checkout's own
+			// `packages/coding-agent/dist/zeta(.exe)` — the dev build, whose
+			// file name is chosen by that package's build, not by the shipped
+			// bin list. Anything else (`zeta.exe` beside the shell, a PATH hit)
+			// would be the workbench running as zetacode, which is the bug this
+			// test exists for.
+			let dev = path.ends_with(
+				std::path::Path::new("packages")
+					.join("coding-agent")
+					.join("dist")
+					.join(name),
+			);
 			assert!(
-				Companion::Zetacode.executable_names().contains(&name),
-				"{name} is one of the shipped zetacode names"
+				Companion::Zetacode.executable_names().contains(&name) || dev,
+				"{name} is neither a shipped zetacode name nor the checkout's dist binary: {}",
+				path.display()
 			);
 		},
 		Launch::Missing(sentence) => {

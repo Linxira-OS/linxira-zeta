@@ -79,7 +79,9 @@ pub fn registered_project(entry: &workbench_projects::Project) -> Project {
 		path: entry.path.clone(),
 		workspaces: vec![Workspace {
 			id: ws_id.clone(),
-			name: entry.name.clone(),
+			// A renamed workspace keeps its name across launches: the registry
+			// owns it, so the TUI reads the same one.
+			name: entry.workspace_name.clone().unwrap_or_else(|| entry.name.clone()),
 			branch,
 			path: entry.path.display().to_string(),
 			cols: 1,
@@ -132,6 +134,7 @@ mod tests {
 			name: "演示".to_owned(),
 			path: path.clone(),
 			added_at: 0,
+			workspace_name: None,
 		};
 		let project = registered_project(&entry);
 		assert_eq!(project.id, "p-1");
@@ -164,6 +167,7 @@ mod tests {
 			name: "项目".to_owned(),
 			path: dir.path().to_path_buf(),
 			added_at: 0,
+			workspace_name: None,
 		};
 		let pane = &registered_project(&entry).workspaces[0].panes[0];
 		assert_eq!(pane.tabs.len(), 1);

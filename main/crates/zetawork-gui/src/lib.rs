@@ -1047,7 +1047,20 @@ pub fn run() -> eframe::Result<()> {
 	if let Some(icon) = icons::app_icon() {
 		viewport = viewport.with_icon(icon);
 	}
-	let options = eframe::NativeOptions { viewport, ..Default::default() };
+	// Renderer choice. The glow (OpenGL) path is what this host's Intel driver
+	// crashed on (`igxelpgicd64.dll`, 0xC000041D, a fatal user-callback
+	// exception the shell cannot catch), so wgpu — D3D12 here — is the
+	// default. `ZETAWORK_RENDERER=glow` keeps the old path reachable for a
+	// machine where the GL driver is the working one.
+	let renderer = match std::env::var("ZETAWORK_RENDERER").as_deref() {
+		Ok("glow") => eframe::Renderer::Glow,
+		_ => eframe::Renderer::Wgpu,
+	};
+	let options = eframe::NativeOptions {
+		viewport,
+		renderer,
+		..Default::default()
+	};
 	eframe::run_native(APP_TITLE, options, Box::new(|cc| Ok(Box::new(Shell::new(cc)))))
 }
 

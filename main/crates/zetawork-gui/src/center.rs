@@ -97,30 +97,115 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 		for workspace in &project.workspaces {
 			let is_active = shell.state.center_page == CenterPage::Workspace
 				&& active.as_deref() == Some(workspace.id.as_str());
+			let renaming = shell
+				.state
+				.renaming_workspace()
+				.is_some_and(|(id, _)| id == workspace.id);
 			let text_width = (display_cols(&workspace.name) as f32 * 7.4).min(150.0);
-			let width = text_width + 40.0;
+			// Three slots at the tab's end — ⋯ and × — plus the label's margin.
+			let width = text_width + 64.0;
 			let tab = Rect::from_min_max(
 				pos2(x, rect.min.y + theme::TOPBAR_H - 32.0 - 1.0),
 				pos2(x + width, rect.max.y),
 			);
+			let more =
+				Rect::from_min_size(pos2(tab.max.x - 44.0, tab.center().y - 9.0), vec2(18.0, 18.0));
 			let close =
 				Rect::from_min_size(pos2(tab.max.x - 24.0, tab.center().y - 9.0), vec2(18.0, 18.0));
 			let response = ui.interact(tab, ui.id().with(("bigtab", &workspace.id)), Sense::click());
+			let more_response =
+				ui.interact(more, ui.id().with(("bigtab-more", &workspace.id)), Sense::click());
 			let close_response =
 				ui.interact(close, ui.id().with(("bigtab-close", &workspace.id)), Sense::click());
 			tab_face(ui, tab, is_active, response.hovered());
-			truncated_text(
-				ui,
-				pos2(tab.min.x + 12.0, tab.center().y),
-				&workspace.name,
-				12.0,
-				if is_active {
-					theme::TEXT
-				} else {
-					theme::TEXT_3
-				},
-				text_width,
-			);
+			if renaming {
+				let mut text = shell
+					.state
+					.renaming_workspace()
+					.map(|(_, text)| text.to_owned())
+					.unwrap_or_default();
+				let field = Rect::from_min_max(
+					pos2(tab.min.x + 8.0, tab.min.y + 5.0),
+					pos2(more.min.x - 4.0, tab.max.y - 5.0),
+				);
+				let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
+				let edit = child.add(
+					egui::TextEdit::singleline(&mut text)
+						.frame(false)
+						.desired_width(field.width()),
+				);
+				if shell.state.take_rename_focus() {
+					edit.request_focus();
+				}
+				if edit.changed() {
+					shell.state.set_workspace_rename_text(text);
+				}
+				let enter = child.input(|input| input.key_pressed(egui::Key::Enter));
+				let escape = child.input(|input| input.key_pressed(egui::Key::Escape));
+				if enter {
+					let notice = shell.state.commit_rename_workspace();
+					shell.state.show(notice);
+				} else if escape {
+					shell.state.cancel_rename_workspace();
+				}
+			} else {
+				truncated_text(
+					ui,
+					pos2(tab.min.x + 12.0, tab.center().y),
+					&workspace.name,
+					12.0,
+					if is_active {
+						theme::TEXT
+					} else {
+						theme::TEXT_3
+					},
+					text_width,
+				);
+			}
+			// ⋯ appears on hover (a resting tab stays quiet): the menu carries
+			// 重命名, and 关闭 for parity with the × next to it.
+			let more_ink = if more_response.hovered() {
+				theme::TEXT
+			} else if response.hovered() {
+				theme::TEXT_2
+			} else {
+				theme::TEXT_3.gamma_multiply(0.35)
+			};
+			if more_response.hovered() {
+				ui.painter()
+					.rect_filled(more, CornerRadius::same(3), theme::PANEL_4);
+			}
+			crate::icons::paint_more(ui.painter(), more, more_ink);
+			let mut want_rename = false;
+			let mut want_close = false;
+			let _ = egui::Popup::menu(&more_response)
+				.id(ui.id().with(("bigtab-menu", &workspace.id)))
+				.show(|ui| {
+					ui.set_min_width(150.0);
+					let can_rename = shell.state.can_rename_workspace(&workspace.id);
+					let rename = ui.add_enabled(can_rename, egui::Button::new("重命名"));
+					if rename.clicked() {
+						want_rename = true;
+						ui.close();
+					}
+					if !can_rename {
+						rename.on_disabled_hover_text(
+							"只有注册项目的首个标签页会持久化命名（本机与新建标签页仅在本次运行有效）",
+						);
+					}
+					if ui.button("关闭标签页").clicked() {
+						want_close = true;
+						ui.close();
+					}
+				});
+			if want_rename {
+				let id = workspace.id.clone();
+				shell.state.begin_rename_workspace(&id);
+			}
+			if want_close {
+				let id = workspace.id.clone();
+				shell.state.act(|s| s.close_workspace(&id));
+			}
 			let close_ink = if close_response.hovered() {
 				theme::TEXT
 			} else {
@@ -134,7 +219,7 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 			if close_response.clicked() {
 				let id = workspace.id.clone();
 				shell.state.act(|s| s.close_workspace(&id));
-			} else if response.clicked() {
+			} else if response.clicked() && !renaming {
 				let id = workspace.id.clone();
 				shell.state.act(|s| s.select_workspace(&id));
 			}

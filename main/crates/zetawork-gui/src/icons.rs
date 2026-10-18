@@ -338,6 +338,20 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, tooltip: &s
 	}
 }
 
+/// The 更多 (⋯) affordance, painted rather than typed.
+///
+/// The bundled UI font has no `U+22EF`, so the character rendered as a tofu
+/// box (seen in a real window capture). Three dots at the same spacing read the
+/// same at every DPI and cannot fall back to a missing glyph.
+pub fn paint_more(painter: &egui::Painter, rect: egui::Rect, color: Color32) {
+	let r = 1.5;
+	let gap = 4.0;
+	let c = egui::pos2(rect.center().x, rect.center().y - 1.0);
+	for offset in [-gap, 0.0, gap] {
+		painter.circle_filled(egui::pos2(c.x + offset, c.y), r, color);
+	}
+}
+
 /// A text-less icon button whose active ink uses the accent, for the session
 /// tab type marker.
 pub fn paint_marker(ui: &Ui, icon: Icon, rect: egui::Rect, color: Color32) {

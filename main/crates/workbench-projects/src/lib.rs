@@ -48,6 +48,10 @@ pub struct Project {
 	/// Seconds since the Unix epoch — the moment the row was added.
 	#[serde(rename = "addedAt")]
 	pub added_at: u64,
+	/// What the row's seeded workspace is called, when the user renamed it.
+	/// Absent means "name it after the project" — the historical behaviour.
+	#[serde(rename = "workspaceName", default, skip_serializing_if = "Option::is_none")]
+	pub workspace_name: Option<String>,
 }
 
 /// Everything the registry can go wrong with.
@@ -215,7 +219,13 @@ impl Registry {
 			.map(|name| name.to_string_lossy().into_owned())
 			.filter(|name| !name.is_empty())
 			.unwrap_or_else(|| canonical.display().to_string());
-		let project = Project { id: self.fresh_id(), name, path: canonical, added_at: now_secs() };
+		let project = Project {
+			id: self.fresh_id(),
+			name,
+			path: canonical,
+			added_at: now_secs(),
+			workspace_name: None,
+		};
 		let before = self.projects.clone();
 		self.projects.push(project.clone());
 		if let Err(error) = self.save() {
@@ -240,6 +250,27 @@ impl Registry {
 		self.projects[index].name = name.to_owned();
 		if let Err(error) = self.save() {
 			self.projects[index].name = before;
+			return Err(error);
+		}
+		Ok(())
+	}
+
+	/// Rename the workspace a project opens with. Unlike a project rename this
+	/// does not touch the project's own name.
+	pub fn rename_workspace(&mut self, id: &str, name: &str) -> Result<(), Error> {
+		let name = name.trim();
+		if name.is_empty() {
+			return Err(Error::InvalidName);
+		}
+		let index = self
+			.projects
+			.iter()
+			.position(|project| project.id == id)
+			.ok_or_else(|| Error::NotFound { id: id.to_owned() })?;
+		let before = self.projects[index].workspace_name.take();
+		self.projects[index].workspace_name = Some(name.to_owned());
+		if let Err(error) = self.save() {
+			self.projects[index].workspace_name = before;
 			return Err(error);
 		}
 		Ok(())

@@ -270,13 +270,7 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 					theme::PANEL_3,
 				);
 			}
-			ui.painter().text(
-				many_rect_center(more_rect),
-				egui::Align2::CENTER_CENTER,
-				"⋯",
-				egui::FontId::new(13.0, egui::FontFamily::Proportional),
-				ink,
-			);
+			crate::icons::paint_more(ui.painter(), more_rect, ink);
 			let mut rename = false;
 			let mut open_folder = false;
 			let mut remove = false;

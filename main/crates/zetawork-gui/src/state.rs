@@ -485,6 +485,8 @@ pub struct AppState {
 	pub registry: workbench_projects::Registry,
 	/// The inline rename editor: `(project id, working text)`.
 	pub renaming_project: Option<(String, String)>,
+	/// The 大标签页 rename editor: `(workspace id, working text)`.
+	pub renaming_workspace: Option<(String, String)>,
 	/// The inline 添加项目 path editor; `None` = closed.
 	pub adding_project: Option<String>,
 	/// The two inline editors ask for keyboard focus once, when they open.
@@ -525,6 +527,7 @@ impl Default for AppState {
 			projects: Vec::new(),
 			registry: workbench_projects::Registry::empty_at(workbench_projects::default_path()),
 			renaming_project: None,
+			renaming_workspace: None,
 			adding_project: None,
 			rename_focus: false,
 			add_focus: false,
@@ -778,6 +781,112 @@ impl AppState {
 					}
 				}
 				self.renaming_project = None;
+				self.rename_focus = false;
+				Notice(format!("已重命名为 {name}"))
+			},
+			Err(error) => Notice(format!("重命名失败：{error}")),
+		}
+	}
+
+	/// Start the inline rename editor on one 大标签页. The local pseudo-project
+	/// has no registry entry, so its workspace rename would not survive a
+	/// restart; it is not offered there (see [`Self::can_rename_workspace`]).
+	pub fn begin_rename_workspace(&mut self, workspace_id: &str) {
+		let Some(workspace) = self.workspace(workspace_id) else {
+			return;
+		};
+		self.renaming_workspace = Some((workspace_id.to_owned(), workspace.name.clone()));
+		self.rename_focus = true;
+	}
+
+	/// Whether a workspace's name can be persisted: it must belong to a
+	/// registered project, and be that project's seeded (first) workspace —
+	/// the only one the registry knows how to name.
+	pub fn can_rename_workspace(&self, workspace_id: &str) -> bool {
+		let Some(project) = self
+			.projects
+			.iter()
+			.find(|project| project.workspaces.iter().any(|ws| ws.id == workspace_id))
+		else {
+			return false;
+		};
+		if Self::is_local_project(&project.id) {
+			return false;
+		}
+		project
+			.workspaces
+			.first()
+			.is_some_and(|first| first.id == workspace_id)
+			&& self.registry.get(&project.id).is_some()
+	}
+
+	/// `(id, working text)` of the open 大标签页 rename editor.
+	pub fn renaming_workspace(&self) -> Option<(&str, &str)> {
+		self
+			.renaming_workspace
+			.as_ref()
+			.map(|(id, text)| (id.as_str(), text.as_str()))
+	}
+
+	pub fn set_workspace_rename_text(&mut self, text: String) {
+		if let Some((_, current)) = self.renaming_workspace.as_mut() {
+			*current = text;
+		}
+	}
+
+	pub fn cancel_rename_workspace(&mut self) {
+		self.renaming_workspace = None;
+		self.rename_focus = false;
+	}
+
+	/// Commit the 大标签页 rename: the registry is written first, and the
+	/// in-memory copy follows only when that write succeeded — so a failed
+	/// write cannot leave the tab showing a name that is not stored.
+	pub fn commit_rename_workspace(&mut self) -> Notice {
+		let Some((id, text)) = self.renaming_workspace.clone() else {
+			return Notice(String::new());
+		};
+		let name = text.trim().to_owned();
+		if name.is_empty() {
+			return Notice("标签页名不能为空".to_owned());
+		}
+		let Some(project_id) = self
+			.projects
+			.iter()
+			.find(|project| project.workspaces.iter().any(|ws| ws.id == id))
+			.map(|project| project.id.clone())
+		else {
+			self.renaming_workspace = None;
+			self.rename_focus = false;
+			return Notice("这个标签页已经关闭".to_owned());
+		};
+		if !self.can_rename_workspace(&id) {
+			// Only the seeded workspace is stored by the registry; anything
+			// else lives for this run, and saying so is better than a silent
+			// reset on the next launch.
+			if let Some(workspace) = self
+				.projects
+				.iter_mut()
+				.flat_map(|project| project.workspaces.iter_mut())
+				.find(|ws| ws.id == id)
+			{
+				workspace.name = name.clone();
+			}
+			self.renaming_workspace = None;
+			self.rename_focus = false;
+			return Notice(format!("已重命名为 {name}（仅本次运行）"));
+		}
+		match self.registry.rename_workspace(&project_id, &name) {
+			Ok(()) => {
+				if let Some(workspace) = self
+					.projects
+					.iter_mut()
+					.flat_map(|project| project.workspaces.iter_mut())
+					.find(|ws| ws.id == id)
+				{
+					workspace.name = name.clone();
+				}
+				self.renaming_workspace = None;
 				self.rename_focus = false;
 				Notice(format!("已重命名为 {name}"))
 			},
