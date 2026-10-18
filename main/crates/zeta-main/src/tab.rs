@@ -302,21 +302,25 @@ pub struct Tab {
 	pub minimized: Vec<Pane>,
 	pub active: usize,
 	pub tree: PaneNode,
-	/// Explicit tab rename; when `Some` the tab bar shows it (still numbered)
-	/// instead of the focused pane's title.
+	/// Explicit 工作区 rename; when `Some` the tab bar shows it (still
+	/// numbered) instead of the directory name.
 	pub name: Option<String>,
+	/// The directory this 工作区 was opened on. The tab bar names the tab after
+	/// it — a top-level tab is a workspace, never the focused pane's shell.
+	pub cwd: Option<PathBuf>,
 }
 
 impl Tab {
 	/// A tab starts with a single shell pane; the layout grows by splitting.
 	pub fn new_shell(cwd: Option<PathBuf>) -> Result<Self> {
-		let pane = Pane::new(PaneKind::Shell, 24, 80, cwd)?;
+		let pane = Pane::new(PaneKind::Shell, 24, 80, cwd.clone())?;
 		Ok(Self {
 			panes: vec![pane],
 			minimized: Vec::new(),
 			active: 0,
 			tree: PaneNode::single(0),
 			name: None,
+			cwd,
 		})
 	}
 
@@ -330,6 +334,27 @@ impl Tab {
 			active: 0,
 			tree: PaneNode::single(0),
 			name: None,
+			cwd: None,
+		}
+	}
+
+	/// The 工作区 name this tab shows: the user's rename, else the directory it
+	/// was opened on. It must not borrow the focused pane's title — panes and
+	/// their pages are one level down, and the GUI's 大标签页 names the
+	/// workspace the same way (`AppState::workspace_label`).
+	pub fn display_base(&self) -> String {
+		if let Some(name) = &self.name {
+			if !name.is_empty() {
+				return name.clone();
+			}
+		}
+		match self.cwd.as_deref() {
+			Some(path) => match path.file_name() {
+				Some(leaf) => leaf.to_string_lossy().into_owned(),
+				// A drive root (`C:\`) has no file name; show the path.
+				None => path.display().to_string(),
+			},
+			None => "工作区".to_string(),
 		}
 	}
 
@@ -596,6 +621,21 @@ fn _panel_bound(_: &dyn Panel) {}
 mod tests {
 	use super::*;
 
+	#[test]
+	fn a_top_level_tab_is_named_by_its_workspace_not_by_a_pane() {
+		// A top-level tab is the 工作区 level: a rename wins, else the directory
+		// the workspace was opened on — never the focused pane's shell, which
+		// belongs one level down (`1:zeta`, not `1:C:\...\pwsh.exe`).
+		let mut tab = widget_tab(1);
+		assert_eq!(tab.display_base(), "工作区", "no directory, no rename");
+		tab.cwd = Some(PathBuf::from("C:/work/demo"));
+		assert_eq!(tab.display_base(), "demo");
+		tab.name = Some("前端".to_string());
+		assert_eq!(tab.display_base(), "前端", "the user's own name wins");
+		tab.name = Some(String::new());
+		assert_eq!(tab.display_base(), "demo", "an empty rename is not a name");
+	}
+
 	fn widget_tab(count: usize) -> Tab {
 		let kinds = [PaneKind::Time, PaneKind::Pomodoro, PaneKind::Clipboard, PaneKind::Time];
 		let panes: Vec<Pane> = (0..count)
@@ -609,6 +649,7 @@ mod tests {
 			active: 0,
 			tree: PaneNode::Split { axis: crate::layout::Axis::Row, children },
 			name: None,
+			cwd: None,
 		}
 	}
 

@@ -249,6 +249,30 @@ pub struct Workspace {
 	last_click: Option<(Instant, u16, u16)>,
 }
 
+/// The body's three regions: the rail column, the 大标签页 strip, and the pane
+/// canvas. One function so the draw loop and the tests agree on the nesting —
+/// the rail owns the left column for the whole body height (it starts right
+/// under the menu bar, like the GUI's left column), so the strip is the centre
+/// column's first row.
+pub(crate) struct BodySplit {
+	pub rail: Option<Rect>,
+	pub tabs: Rect,
+	pub content: Rect,
+}
+
+pub(crate) fn split_body(body: Rect) -> BodySplit {
+	let (rail, centre) = rail::split(body);
+	let tabs_h = centre.height.min(1);
+	let tabs = Rect { x: centre.x, y: centre.y, width: centre.width, height: tabs_h };
+	let content = Rect {
+		x: centre.x,
+		y: centre.y.saturating_add(tabs_h),
+		width: centre.width,
+		height: centre.height.saturating_sub(tabs_h),
+	};
+	BodySplit { rail, tabs, content }
+}
+
 /// A close the user still has to confirm: which panes are busy, and what
 /// executes on Yes.
 struct ConfirmClose {
@@ -1339,6 +1363,7 @@ impl Workspace {
 							active: 0,
 							tree: PaneNode::single(0),
 							name: None,
+							cwd: None,
 						});
 						self.active_tab = self.tabs.len() - 1;
 					}
@@ -1542,7 +1567,14 @@ impl Workspace {
 	}
 
 	fn new_tab(&mut self) {
-		let cwd = launch_cwd();
+		// 新建工作区 in the same place as the active one (the GUI's `+` on a
+		// project does the same); a fresh launch falls back to the cwd the
+		// workbench was started from.
+		let cwd = self
+			.tabs
+			.get(self.active_tab)
+			.and_then(|tab| tab.cwd.clone())
+			.or_else(launch_cwd);
 		match Tab::new_shell(cwd) {
 			Ok(tab) => {
 				self.tabs.push(tab);
@@ -1720,13 +1752,11 @@ impl Workspace {
 			.iter()
 			.enumerate()
 			.map(|(idx, tab)| {
-				// An explicit tab rename replaces the focused pane's float-up
-				// title; the number prefix keeps tabs distinguishable.
-				let base = match &tab.name {
-					Some(name) if !name.is_empty() => name.clone(),
-					_ => tab.pane_title_base(tab.active),
-				};
-				format!("{}:{}", idx + 1, base)
+				// A top-level tab is a 工作区: an explicit rename, else the
+				// directory it was opened on. The focused pane's title belongs
+				// to the pane level (and its pages one below that), so reusing
+				// it here collapsed three levels into one label.
+				format!("{}:{}", idx + 1, tab.display_base())
 			})
 			.collect()
 	}
@@ -1825,6 +1855,19 @@ impl Workspace {
 		])
 		.split(size);
 
+		// The rail owns the left column for the whole body height, so the 大标签页
+		// strip belongs to the centre column only — the nesting the GUI already
+		// draws (left column | centre with its big tabs | right column). The
+		// strip used to span the full width with the rail starting a row lower,
+		// which put the workspace level outside the column it belongs to.
+		let body = Rect {
+			x: size.x,
+			y: rows[1].y,
+			width: size.width,
+			height: rows[1].height + rows[2].height,
+		};
+		let BodySplit { rail: rail_area, tabs: tab_row, content } = split_body(body);
+
 		// Row 0: menu bar — render and hit geometry from the same helper.
 		frame.render_widget(MenuBar { open: self.open_menu }, rows[0]);
 		for (idx, (_, x, w)) in crate::tabs_ui::menu_layout(size.width)
@@ -1840,26 +1883,25 @@ impl Workspace {
 
 		// Row 1: tab bar.
 		let tab_names = self.tab_display_names();
-		let layout = tab_layout_named(size.width, self.tabs.len(), self.active_tab, &tab_names);
+		let layout = tab_layout_named(tab_row.width, self.tabs.len(), self.active_tab, &tab_names);
 		frame
-			.render_widget(TabBar { layout: clone_layout(&layout), active: self.active_tab }, rows[1]);
+			.render_widget(TabBar { layout: clone_layout(&layout), active: self.active_tab }, tab_row);
 		let (prev, prev_w) = layout.prev;
-		self.push_hit(Rect { x: prev, y: rows[1].y, width: prev_w, height: 1 }, Hit::TabPrev);
+		self.push_hit(Rect { x: prev, y: tab_row.y, width: prev_w, height: 1 }, Hit::TabPrev);
 		for (idx, (_, x, w)) in layout.tabs.iter().enumerate() {
-			self.push_hit(Rect { x: *x, y: rows[1].y, width: *w, height: 1 }, Hit::Tab(idx));
+			self.push_hit(Rect { x: *x, y: tab_row.y, width: *w, height: 1 }, Hit::Tab(idx));
 		}
 		if let Some((x, w)) = layout.active_close {
-			self.push_hit(Rect { x, y: rows[1].y, width: w, height: 1 }, Hit::TabClose);
+			self.push_hit(Rect { x, y: tab_row.y, width: w, height: 1 }, Hit::TabClose);
 		}
 		let (next_x, next_w) = layout.next;
-		self.push_hit(Rect { x: next_x, y: rows[1].y, width: next_w, height: 1 }, Hit::TabNext);
+		self.push_hit(Rect { x: next_x, y: tab_row.y, width: next_w, height: 1 }, Hit::TabNext);
 		let (plus_x, plus_w) = layout.plus;
-		self.push_hit(Rect { x: plus_x, y: rows[1].y, width: plus_w, height: 1 }, Hit::TabPlus);
+		self.push_hit(Rect { x: plus_x, y: tab_row.y, width: plus_w, height: 1 }, Hit::TabPlus);
 
 		// Left rail: the builtin-view column. It owns the content row's left
 		// edge — below the top chrome, like the design's sidebar. Too narrow a
 		// frame drops it and the panes take the whole row back.
-		let (rail_area, content) = rail::split(rows[2]);
 		self.last_content = content;
 		if let Some(rail_area) = rail_area {
 			let registry = crate::settings::slots();
@@ -2204,7 +2246,7 @@ impl Workspace {
 		}
 
 		if let Some(confirm) = &self.confirm {
-			render_confirm_box(frame, rows[2], &confirm.message);
+			render_confirm_box(frame, content, &confirm.message);
 		}
 
 		if let Some(rename) = &self.rename {
@@ -2212,7 +2254,7 @@ impl Workspace {
 				RenameTarget::Tab(_) => "rename tab",
 				RenameTarget::Page { .. } => "rename pane",
 			};
-			render_rename_box(frame, rows[2], title, &rename.buffer);
+			render_rename_box(frame, content, title, &rename.buffer);
 		}
 
 		if self.doctor_open {
@@ -2515,5 +2557,34 @@ fn clone_layout(layout: &crate::tabs_ui::TabLayout) -> crate::tabs_ui::TabLayout
 		active_close: layout.active_close,
 		next: layout.next,
 		plus: layout.plus,
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn the_rail_owns_the_left_column_of_the_whole_body() {
+		let body = Rect { x: 0, y: 1, width: 120, height: 20 };
+		let split = split_body(body);
+		let rail = split.rail.expect("a wide frame keeps the rail");
+		assert_eq!((rail.x, rail.y), (body.x, body.y), "the rail starts at the body's first row");
+		assert_eq!(rail.height, body.height, "and spans the whole body");
+		assert_eq!(split.tabs.x, rail.right(), "the strip is the centre column's, not the window's");
+		assert_eq!(split.tabs.y, body.y, "the strip shares the rail's first row");
+		assert_eq!(split.tabs.width, body.width - rail.width);
+		assert_eq!(split.content.y, split.tabs.bottom(), "the panes sit under the strip");
+		assert_eq!(split.content.height, body.height - 1);
+	}
+
+	#[test]
+	fn a_narrow_frame_drops_the_rail_and_keeps_the_strip_full_width() {
+		let body = Rect { x: 0, y: 1, width: 40, height: 12 };
+		let split = split_body(body);
+		assert!(split.rail.is_none(), "too narrow for a rail");
+		assert_eq!(split.tabs.x, body.x);
+		assert_eq!(split.tabs.width, body.width);
+		assert_eq!(split.content.height, body.height - 1);
 	}
 }
