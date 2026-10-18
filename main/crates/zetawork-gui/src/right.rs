@@ -381,14 +381,14 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 		});
 }
 
-/// 上下文用量: the *current* session's context (R16/R17), not the global roll-up.
+/// 上下文用量: what this build can state about the *current* session.
 ///
-/// The ring, the legend and the sub-agent list are drawn from
-/// `GET /api/agent/<id>/context` and `GET /api/agent/<id>/subagents` — an API
-/// this crate has no client for, and only answers while a session is running.
-/// So the panel draws the scope it is about (the real path and branch) and the
-/// shape it will fill, and sends the user to the 用量 container for the real
-/// numbers that exist today. It never invents a percentage.
+/// The card draws no invented figures. With no agent pane attached it says so
+/// in one line and shows no counters. The mechanism lines are the product's
+/// real compaction rules — `shouldCompact` / `findValidCutPoints` in
+/// `packages/agent/src/compaction/compaction.ts`, the `compaction.*` defaults in
+/// `packages/coding-agent/src/session/context-settings.ts`, and the method list
+/// in `packages/coding-agent/src/session/compaction-methods.ts`.
 fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 	panel_head(ui, RightTab::Context.title(), |ui| {
 		if icon_button(ui, Icon::List, 20.0, false, "展开用量统计").clicked() {
@@ -401,6 +401,7 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 		.map(|ws| ws.path.clone())
 		.unwrap_or_default();
 	let branch = shell.state.branch_label().to_owned();
+	let session = attached_session(shell);
 	// 已载入文件 is the one part of this page with a real source today: the
 	// 编辑器 pages that are open, whose bytes are in memory.
 	let loaded: Vec<String> = shell
@@ -428,91 +429,50 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 			truncated_mono(
 				ui,
 				pos2(scope.min.x + 4.0, scope.min.y + 24.0),
-				&format!("分支 {branch} · 当前会话"),
+				&format!("分支 {branch}"),
 				11.0,
 				theme::TEXT_3,
 				scope.width() - 8.0,
 			);
-			// `.usage-head`: the ring with its three `.stat` blocks. The ring's
-			// frame is drawn; the arc needs a live session's report, so with
-			// none it stays empty and every number reads `—`.
-			let (head, _) = ui.allocate_exact_size(vec2(ui.available_width(), 104.0), Sense::hover());
-			let centre = pos2(head.min.x + 56.0, head.center().y);
-			let painter = ui.painter();
-			painter.circle_stroke(centre, 44.0, Stroke::new(10.0_f32, theme::PANEL_4));
-			painter.text(
-				pos2(centre.x, centre.y - 7.0),
-				egui::Align2::CENTER_CENTER,
-				"—",
-				egui::FontId::new(22.0, egui::FontFamily::Monospace),
-				theme::TEXT_2,
-			);
-			painter.text(
-				pos2(centre.x, centre.y + 12.0),
-				egui::Align2::CENTER_CENTER,
-				"已用",
-				egui::FontId::new(10.0, egui::FontFamily::Proportional),
-				theme::TEXT_3,
-			);
-			for (index, caption) in ["已用 token", "窗口上限", "当前对话占比"]
-				.iter()
-				.enumerate()
-			{
-				let y = head.min.y + 14.0 + index as f32 * 30.0;
-				painter.text(
-					pos2(head.min.x + 118.0, y),
-					egui::Align2::LEFT_TOP,
-					"—",
-					egui::FontId::new(15.0, egui::FontFamily::Monospace),
-					theme::TEXT,
-				);
-				painter.text(
-					pos2(head.min.x + 118.0, y + 17.0),
-					egui::Align2::LEFT_TOP,
-					*caption,
-					egui::FontId::new(11.0, egui::FontFamily::Proportional),
-					theme::TEXT_3,
-				);
-			}
-			// `.legend` — the four buckets the draft names, in its order and
-			// with its colours.
-			for (label, ink) in [
-				("已加载文件", theme::ACCENT),
-				("对话历史", theme::CYAN),
-				("工具输出", theme::WARN),
-				("系统提示", theme::TEXT_3),
-			] {
-				let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 18.0), Sense::hover());
-				let painter = ui.painter();
-				painter.rect_filled(
-					Rect::from_min_size(pos2(row.min.x + 6.0, row.center().y - 4.0), vec2(8.0, 8.0)),
-					CornerRadius::same(2),
-					ink,
-				);
-				painter.text(
-					pos2(row.min.x + 22.0, row.center().y),
-					egui::Align2::LEFT_CENTER,
-					label,
-					egui::FontId::new(12.0, egui::FontFamily::Proportional),
+			// One line, one fact: the session this page is about, or the fact
+			// that there is none. No counters are drawn while detached.
+			let (status, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
+			if let Some(id) = &session {
+				truncated_mono(
+					ui,
+					pos2(status.min.x + 4.0, status.center().y),
+					&session_line(Some(id)),
+					11.0,
 					theme::TEXT_2,
+					status.width() - 8.0,
 				);
-				painter.text(
-					pos2(row.max.x - 6.0, row.center().y),
-					egui::Align2::RIGHT_CENTER,
-					"—",
-					egui::FontId::new(11.0, egui::FontFamily::Monospace),
+			} else {
+				truncated_text(
+					ui,
+					pos2(status.min.x + 4.0, status.center().y),
+					&session_line(None),
+					11.5,
 					theme::TEXT_3,
+					status.width() - 8.0,
 				);
 			}
-			empty_note(
-				ui,
-				"上下文数字未接线：需要一个运行中的会话",
-				"GET /api/agent/<id>/context · /subagents（zetacode web gateway，仅 live 会话）",
-			);
+			// The mechanism, as it actually is.
+			egui::Frame::new()
+				.fill(theme::PANEL_2)
+				.stroke(Stroke::new(1.0_f32, theme::BORDER))
+				.corner_radius(CornerRadius::same(theme::R_PANEL))
+				.inner_margin(egui::Margin::same(10))
+				.show(ui, |ui| {
+					ui.set_width(ui.available_width());
+					ui.spacing_mut().item_spacing.y = 3.0;
+					context_fact(ui, "统计范围", CONTEXT_MEASURED);
+					context_fact(ui, "何时压缩", COMPACTION_TRIGGER);
+					context_fact(ui, "切点与保留", COMPACTION_CUT);
+					context_fact(ui, "压缩方法", COMPACTION_METHODS);
+				});
 			// 已载入文件 — this part *is* real: it lists the 编辑器 pages that are
 			// actually open, which is the same set whose bytes are in memory.
-			// The bar's share of the window has no source, so the bar is drawn
-			// as an empty track and the share reads `—`.
+			ui.add_space(2.0);
 			let (sub, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
 			ui.painter().text(
 				pos2(sub.min.x + 6.0, sub.center().y),
@@ -533,51 +493,76 @@ fn context_panel(ui: &mut Ui, shell: &mut Shell) {
 			}
 			for file in &loaded {
 				let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
-				let painter = ui.painter();
 				paint(
-					painter,
+					ui.painter(),
 					Icon::File,
 					Rect::from_center_size(pos2(row.min.x + 12.0, row.center().y), vec2(14.0, 14.0)),
 					theme::TEXT_3,
 					1.5,
 				);
-				let bar =
-					Rect::from_min_size(pos2(row.max.x - 70.0, row.center().y - 2.5), vec2(64.0, 5.0));
-				painter.rect_filled(bar, CornerRadius::same(3), theme::PANEL_3);
 				truncated_mono(
 					ui,
 					pos2(row.min.x + 24.0, row.center().y),
 					file,
 					11.0,
 					theme::TEXT_2,
-					bar.min.x - row.min.x - 28.0,
+					row.width() - 28.0,
 				);
 			}
-			// The draft's own line about compaction, word for word.
-			let (note, _) = ui.allocate_exact_size(vec2(ui.available_width(), 32.0), Sense::hover());
-			truncated_text(
-				ui,
-				pos2(note.min.x + 6.0, note.min.y + 9.0),
-				"上下文接近 80% 时会自动压缩较早的工具输出，仅保留结论与改动。",
-				11.0,
-				theme::TEXT_3,
-				note.width() - 12.0,
-			);
-			// …and the contract's own footnote for this page, which is what
-			// keeps it distinct from the 用量 container in the left column's
-			// foot: this page is *one* session, that one is everything.
-			let (scope_note, _) =
-				ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
-			truncated_text(
-				ui,
-				pos2(scope_note.min.x + 6.0, scope_note.min.y + 9.0),
-				"只统计这一个会话（左栏点别的会话，这一栏跟着换）；全局用量在左下角「设置 / 用量追踪」",
-				11.0,
-				theme::TEXT_3,
-				scope_note.width() - 12.0,
-			);
 		});
 }
+
+/// One heading plus one wrapped paragraph of the context card.
+fn context_fact(ui: &mut Ui, heading: &str, body: &str) {
+	ui.add(egui::Label::new(egui::RichText::new(heading).size(11.0).color(theme::TEXT_3)).wrap());
+	ui.add(egui::Label::new(egui::RichText::new(body).size(11.5).color(theme::TEXT_2)).wrap());
+	ui.add_space(5.0);
+}
+
+/// The first agent pane's attached gateway session, if any pane has one.
+///
+/// This is the "current session" the 上下文 page is about: a `SessionKind::Agent`
+/// tab whose pane holds a session id. An empty agent pane is not a session.
+fn attached_session(shell: &Shell) -> Option<String> {
+	shell
+		.state
+		.visible_panes()
+		.iter()
+		.flat_map(|pane| pane.tabs.iter())
+		.filter(|tab| tab.kind == crate::state::SessionKind::Agent)
+		.find_map(|tab| {
+			shell
+				.agents
+				.pane(&tab.id)
+				.and_then(|pane| pane.session.clone())
+		})
+}
+
+/// The card's status line: the attached session, or the plain fact that there
+/// is none. Kept pure so the empty state can be tested for carrying no number.
+pub fn session_line(session: Option<&str>) -> String {
+	match session {
+		Some(id) => format!("已连接会话 {id}"),
+		None => NO_SESSION.to_owned(),
+	}
+}
+
+/// What the card says with no session attached. No number, no promise of one.
+pub const NO_SESSION: &str = "当前没有连接的会话";
+
+/// What the card measures, and where the numbers come from.
+pub const CONTEXT_MEASURED: &str =
+	"当前会话的上下文 token 数、窗口上限与占比，数字取自运行中会话的用量报告。";
+
+/// When compaction runs.
+pub const COMPACTION_TRIGGER: &str = "上下文超过提示预算时压缩：窗口预留 15%（默认约 85%）；compaction.thresholdPercent 或 compaction.thresholdTokens 可覆盖。";
+
+/// Where the cut lands, and how much stays verbatim.
+pub const COMPACTION_CUT: &str =
+	"切点落在工具调用 / 结果对之外；最近 20000 token 原样保留，更早的历史交给配置的压缩方法。";
+
+/// The methods a compaction pass can use, in the product's own names.
+pub const COMPACTION_METHODS: &str = "服务端压缩 · Snapcompact · Handoff · 软压缩（LLM 摘要）· Shake（丢弃可恢复的重内容，不调用 LLM）";
 
 /// A git failure reduced to one short, human clause.
 ///
@@ -780,4 +765,67 @@ fn commit_row(ui: &mut Ui, commit: &crate::git::GitCommit) {
 		theme::CHIP_BRANCH_INK,
 		rect.width() - 30.0,
 	);
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// The card's whole visible copy, so a banned sentence cannot hide in one
+	/// constant while the test checks another.
+	fn context_copy() -> String {
+		[NO_SESSION, CONTEXT_MEASURED, COMPACTION_TRIGGER, COMPACTION_CUT, COMPACTION_METHODS]
+			.join("\n")
+	}
+
+	#[test]
+	fn the_demo_copy_is_gone() {
+		let copy = context_copy();
+		for banned in [
+			"上下文数字未接线",
+			"上下文接近 80%",
+			"自动压缩较早的工具输出",
+			"只统计这一个会话",
+			"未来数据源",
+		] {
+			assert!(!copy.contains(banned), "placeholder copy survived: {banned}");
+		}
+	}
+
+	#[test]
+	fn the_card_states_the_real_mechanism() {
+		let copy = context_copy();
+		for fact in [
+			"token",
+			"窗口",
+			"占比",
+			"用量报告",
+			"15%",
+			"85%",
+			"compaction.thresholdPercent",
+			"compaction.thresholdTokens",
+			"工具调用",
+			"20000",
+			"服务端压缩",
+			"Snapcompact",
+			"Handoff",
+			"软压缩",
+			"Shake",
+		] {
+			assert!(copy.contains(fact), "the real mechanism is missing {fact}");
+		}
+	}
+
+	#[test]
+	fn the_empty_state_is_one_line_and_has_no_number() {
+		let line = session_line(None);
+		assert_eq!(line, NO_SESSION);
+		assert!(!line.chars().any(|c| c.is_ascii_digit()), "empty state must not show a number");
+		assert!(!line.contains('—'));
+	}
+
+	#[test]
+	fn an_attached_session_names_itself() {
+		assert_eq!(session_line(Some("sess-42")), "已连接会话 sess-42");
+	}
 }

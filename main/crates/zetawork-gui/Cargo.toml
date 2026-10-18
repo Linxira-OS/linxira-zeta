@@ -40,6 +40,9 @@ chrono = "0.4"
 serde_json = "1"
 # The project registry both surfaces share (~/.zeta/projects.json).
 workbench-projects = { path = "../workbench-projects" }
+# The desktop mark: decode the committed RGBA raster beside this crate (see
+# `src/icons.rs`). The screenshot encoder uses the same crate.
+png = "0.18"
 
 # ── 后台驻留与通知 (lifecycle rulings) ────────────────────────────────────
 #
@@ -76,8 +79,5 @@ zbus = { version = "5", optional = true }
 
 
 [dev-dependencies]
-# `tests/shots.rs` writes headless PNG screenshots; the rasterizer it uses is in
-# `tests/support/raster.rs`, and only the encoder comes from a crate.
-png = "0.18"
 # A registry test needs a real directory it may remove itself.
 tempfile = "3"

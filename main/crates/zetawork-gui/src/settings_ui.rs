@@ -462,7 +462,7 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 		},
 		Section::About => {
 			head(ui, "关于");
-			plain_row(ui, "zetawork", "纯 Rust 桌面工作台 · 界面规格 v2（GUI / TUI）", crate::VERSION);
+			about_identity(ui, shell);
 			plain_row(ui, "界面规格", "本实现按 temp/zetawork-ui-mock 的 v2 规格绘制", "GUI / TUI");
 			plain_row(ui, shell.fonts.cjk_line().as_str(), "界面与终端的中文字形来源", "只读");
 			plain_row(ui, shell.fonts.mono_line().as_str(), "编辑器等宽字体", "只读");
@@ -752,6 +752,37 @@ fn language_row(ui: &mut Ui, shell: &mut Shell) {
 			);
 		},
 		shell,
+	);
+}
+
+/// The 关于 page's identity: the desktop mark, the name and the version.
+///
+/// The mark is the same committed raster the window and taskbar use, so the
+/// About page cannot drift from the icon the OS shows.
+fn about_identity(ui: &mut Ui, shell: &mut Shell) {
+	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 72.0), Sense::hover());
+	let icon = Rect::from_min_size(pos2(rect.min.x + 2.0, rect.min.y + 10.0), vec2(48.0, 48.0));
+	if let Some(texture) = shell.app_icon_texture(ui.ctx()) {
+		ui.painter().image(
+			texture.id(),
+			icon,
+			Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+			Color32::WHITE,
+		);
+	}
+	ui.painter().text(
+		pos2(icon.max.x + 14.0, rect.min.y + 25.0),
+		egui::Align2::LEFT_CENTER,
+		"zetawork",
+		FontId::new(18.0, egui::FontFamily::Proportional),
+		theme::TEXT,
+	);
+	ui.painter().text(
+		pos2(icon.max.x + 14.0, rect.min.y + 45.0),
+		egui::Align2::LEFT_CENTER,
+		format!("版本 {} · 纯 Rust 桌面工作台", crate::VERSION),
+		FontId::new(11.5, egui::FontFamily::Proportional),
+		theme::TEXT_3,
 	);
 }
 
