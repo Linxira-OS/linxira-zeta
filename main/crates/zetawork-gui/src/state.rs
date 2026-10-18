@@ -302,13 +302,17 @@ pub struct SessionTab {
 	/// The shell a 终端 page would run; `None` for the seeded sample tabs and
 	/// for pages that are not terminals.
 	pub shell: Option<crate::shells::ShellKind>,
+	/// The command a fresh 终端 page types into its shell once the PTY is up.
+	/// The project `+` sets it to `zetacode`, which is what makes that
+	/// workspace a zetacode pane rather than a plain shell.
+	pub command: Option<String>,
 	/// The open document of an 编辑器 page.
 	pub doc: Option<EditorDoc>,
 }
 
 impl SessionTab {
 	pub fn new(id: String, kind: SessionKind, title: String) -> Self {
-		Self { id, kind, title, shell: None, doc: None }
+		Self { id, kind, title, shell: None, command: None, doc: None }
 	}
 
 	pub fn is_term(&self) -> bool {
@@ -451,9 +455,8 @@ pub struct Workspace {
 	/// with no dot — *not* as a plausible member of the seven. Nothing in this
 	/// build observes a workspace: there is no session state machine (see
 	/// [`crate::notify::MISSING_SIGNALS`]) and no PTY host
-	/// ([`Pane::shell_pid`]). Only the seeded sample projects carry a state,
-	/// and those exist to show the vocabulary, which is why their section head
-	/// says `示例项目`.
+	/// ([`Pane::shell_pid`]), so every workspace — 本机, a registered project,
+	/// a freshly created one — carries `None`.
 	pub run_state: Option<RunState>,
 }
 
@@ -486,6 +489,10 @@ impl CenterPage {
 pub struct Project {
 	pub id: String,
 	pub name: String,
+	/// The directory this project is rooted at: the process directory for the
+	/// 本机 pseudo-entry, the registered path otherwise. New workspaces and the
+	/// zetacode pane start here.
+	pub path: PathBuf,
 	pub workspaces: Vec<Workspace>,
 }
 
@@ -517,6 +524,17 @@ pub struct AppState {
 	/// syncs it from the settings file every frame; `None` = 本机默认.
 	pub default_shell: Option<crate::shells::ShellKind>,
 	pub projects: Vec<Project>,
+	/// The shared project registry (`~/.zeta/projects.json`). `projects`
+	/// mirrors it plus the 本机 pseudo-entry; project mutations write through
+	/// here so the GUI and the TUI see one list.
+	pub registry: workbench_projects::Registry,
+	/// The inline rename editor: `(project id, working text)`.
+	pub renaming_project: Option<(String, String)>,
+	/// The inline 添加项目 path editor; `None` = closed.
+	pub adding_project: Option<String>,
+	/// The two inline editors ask for keyboard focus once, when they open.
+	rename_focus: bool,
+	add_focus: bool,
 	pub toast: Option<(String, Instant)>,
 	/// The open `+` picker, and what a pick opens into.
 	picker: Option<PickerTarget>,
@@ -551,6 +569,11 @@ impl Default for AppState {
 			tui_pane: None,
 			default_shell: None,
 			projects: Vec::new(),
+			registry: workbench_projects::Registry::empty_at(workbench_projects::default_path()),
+			renaming_project: None,
+			adding_project: None,
+			rename_focus: false,
+			add_focus: false,
 			toast: None,
 			picker: None,
 			settings_open: false,
@@ -563,11 +586,36 @@ impl Default for AppState {
 }
 
 impl AppState {
-	/// A shell seeded with the spec's sample projects plus the directory the
-	/// shell was started in (see [`crate::seed`]).
+	/// A shell seeded from `~/.zeta/projects.json` plus the directory the shell
+	/// was started in (the 本机 pseudo-entry, which is not a registration).
+	///
+	/// A malformed registry is reported through the shell's toast and the
+	/// shell opens with an empty in-memory list; the file is left untouched, so
+	/// a later project action is what decides whether it is replaced.
 	pub fn seeded(cwd: &std::path::Path) -> Self {
+		let registry = match workbench_projects::Registry::load() {
+			Ok(registry) => registry,
+			Err(error) => {
+				let mut state = Self::seeded_with_registry(
+					cwd,
+					workbench_projects::Registry::empty_at(workbench_projects::default_path()),
+				);
+				state.show(Notice(format!("项目注册表读取失败：{error}")));
+				return state;
+			},
+		};
+		Self::seeded_with_registry(cwd, registry)
+	}
+
+	/// A shell over an explicit registry — the test seam, and what `seeded`
+	/// uses once the file has been read.
+	pub fn seeded_with_registry(
+		cwd: &std::path::Path,
+		registry: workbench_projects::Registry,
+	) -> Self {
 		let mut state = Self::default();
-		state.projects = crate::seed::projects(cwd);
+		state.projects = crate::seed::projects(cwd, registry.list());
+		state.registry = registry;
 		state.active_project = state.projects.first().map(|p| p.id.clone());
 		state.active_workspace = state
 			.active_project
@@ -699,6 +747,182 @@ impl AppState {
 		tab
 	}
 
+	// ── the project registry ──────────────────────────────────────────
+
+	/// 本机 is a pseudo-project: it always exists and is never a registry row,
+	/// so it has no rename/remove action.
+	pub fn is_local_project(id: &str) -> bool {
+		id == "p-local"
+	}
+
+	/// Start the inline rename editor on a registered project.
+	pub fn begin_rename_project(&mut self, id: &str) {
+		if let Some(project) = self.project(id) {
+			if Self::is_local_project(id) {
+				return;
+			}
+			self.renaming_project = Some((id.to_owned(), project.name.clone()));
+			self.rename_focus = true;
+		}
+	}
+
+	/// `(id, working text)` of the open rename editor.
+	pub fn renaming(&self) -> Option<(&str, &str)> {
+		self
+			.renaming_project
+			.as_ref()
+			.map(|(id, text)| (id.as_str(), text.as_str()))
+	}
+
+	pub fn set_rename_text(&mut self, text: String) {
+		if let Some((_, current)) = self.renaming_project.as_mut() {
+			*current = text;
+		}
+	}
+
+	pub fn take_rename_focus(&mut self) -> bool {
+		std::mem::take(&mut self.rename_focus)
+	}
+
+	pub fn cancel_rename_project(&mut self) {
+		self.renaming_project = None;
+		self.rename_focus = false;
+	}
+
+	/// Commit the rename editor: the registry is written first, and the GUI's
+	/// copy follows only when that write succeeded.
+	pub fn commit_rename_project(&mut self) -> Notice {
+		let Some((id, text)) = self.renaming_project.clone() else {
+			return Notice(String::new());
+		};
+		let name = text.trim().to_owned();
+		if name.is_empty() {
+			return Notice("项目名不能为空".to_owned());
+		}
+		match self.registry.rename(&id, &name) {
+			Ok(()) => {
+				if let Some(project) = self.projects.iter_mut().find(|project| project.id == id) {
+					let previous = project.name.clone();
+					project.name = name.clone();
+					for workspace in &mut project.workspaces {
+						if workspace.name == previous {
+							workspace.name = name.clone();
+						}
+					}
+				}
+				self.renaming_project = None;
+				self.rename_focus = false;
+				Notice(format!("已重命名为 {name}"))
+			},
+			Err(error) => Notice(format!("重命名失败：{error}")),
+		}
+	}
+
+	/// Open the inline 添加项目 path editor.
+	pub fn begin_add_project(&mut self) {
+		self.adding_project = Some(String::new());
+		self.add_focus = true;
+	}
+
+	pub fn adding(&self) -> Option<&str> {
+		self.adding_project.as_deref()
+	}
+
+	pub fn set_add_text(&mut self, text: String) {
+		if let Some(current) = self.adding_project.as_mut() {
+			*current = text;
+		}
+	}
+
+	pub fn take_add_focus(&mut self) -> bool {
+		std::mem::take(&mut self.add_focus)
+	}
+
+	pub fn cancel_add_project(&mut self) {
+		self.adding_project = None;
+		self.add_focus = false;
+	}
+
+	/// Commit the path editor. The path itself is what decides success: a
+	/// missing directory or a duplicate is reported, never registered.
+	pub fn commit_add_project(&mut self) -> Notice {
+		let Some(text) = self.adding_project.clone() else {
+			return Notice(String::new());
+		};
+		let text = text.trim().to_owned();
+		if text.is_empty() {
+			return Notice("请输入项目目录".to_owned());
+		}
+		self.add_project(Path::new(&text))
+	}
+
+	/// Register a directory and append it to the shell's project list.
+	pub fn add_project(&mut self, path: &Path) -> Notice {
+		match self.registry.add(path) {
+			Ok(row) => {
+				let project = crate::seed::registered_project(&row);
+				self.active_project = Some(row.id.clone());
+				self.active_workspace = project.workspaces.first().map(|w| w.id.clone());
+				self.projects.push(project);
+				self.adding_project = None;
+				self.add_focus = false;
+				self.center_page = CenterPage::Workspace;
+				self.tui_pane = None;
+				Notice(format!("已添加项目：{}", row.name))
+			},
+			Err(error) => Notice(format!("添加项目失败：{error}")),
+		}
+	}
+
+	/// Remove one registration from the shared file and from the shell's list.
+	/// The directory and any conversation history are untouched.
+	pub fn remove_project(&mut self, id: &str) -> Notice {
+		if Self::is_local_project(id) {
+			return Notice("本机 是当前目录，不在项目注册表里".to_owned());
+		}
+		let name = self.project(id).map(|project| project.name.clone());
+		let workspace_ids: Vec<String> = self
+			.project(id)
+			.map(|project| {
+				project
+					.workspaces
+					.iter()
+					.map(|workspace| workspace.id.clone())
+					.collect()
+			})
+			.unwrap_or_default();
+		match self.registry.remove(id) {
+			Ok(false) => Notice(format!("注册表里没有这个项目：{id}")),
+			Ok(true) => {
+				self.projects.retain(|project| project.id != id);
+				if self
+					.active_workspace
+					.as_deref()
+					.is_some_and(|active| workspace_ids.iter().any(|id| id == active))
+				{
+					self.active_workspace = None;
+				}
+				if self.active_project.as_deref() == Some(id) {
+					self.active_project = self.projects.first().map(|project| project.id.clone());
+					if self.active_workspace.is_none() {
+						self.active_workspace = self
+							.active_project
+							.as_ref()
+							.and_then(|id| self.project(id))
+							.and_then(|project| project.workspaces.first())
+							.map(|workspace| workspace.id.clone());
+					}
+					self.tui_pane = None;
+				}
+				Notice(format!(
+					"已从注册表移除 {}（目录未删除）",
+					name.unwrap_or_else(|| id.to_owned())
+				))
+			},
+			Err(error) => Notice(format!("移除项目失败：{error}")),
+		}
+	}
+
 	// ── selection ──────────────────────────────────────────────────────
 
 	/// Selecting a project also selects one of its workspaces (the first when
@@ -763,27 +987,48 @@ impl AppState {
 		self.new_workspace_with(project_id, None)
 	}
 
+	/// The project row's `+`: a workspace over the project directory whose
+	/// first terminal types `zetacode` into its shell at that path.
+	pub fn new_workspace_zetacode(&mut self, project_id: &str) -> Notice {
+		self.new_workspace_inner(project_id, None, true)
+	}
+
 	/// ＋新建大标签页, with the `+` picker's choice as the new workspace's first
 	/// page. A refused creation leaves no residue — the tab is only built once
 	/// the caps have passed.
 	pub fn new_workspace_with(&mut self, project_id: &str, entry: Option<&PickerEntry>) -> Notice {
+		self.new_workspace_inner(project_id, entry, false)
+	}
+
+	fn new_workspace_inner(
+		&mut self,
+		project_id: &str,
+		entry: Option<&PickerEntry>,
+		zetacode: bool,
+	) -> Notice {
 		let Some(pos) = self.projects.iter().position(|p| p.id == project_id) else {
 			return Notice(format!("没有这个项目：{project_id}"));
 		};
 		if self.projects[pos].workspaces.len() >= MAX_WORKSPACES_PER_PROJECT {
 			return Notice(format!("每个项目最多 {MAX_WORKSPACES_PER_PROJECT} 个工作区（大标签页）"));
 		}
-		let project_name = self.projects[pos].name.clone();
+		let project_path = self.projects[pos].path.clone();
 		let name = format!("新工作区 {}", self.projects[pos].workspaces.len() + 1);
 		let id = self.fresh_id("ws");
 		let pane_id = self.fresh_id("pane");
-		let tab = self.tab_for(entry);
+		let mut tab = self.tab_for(entry);
+		if zetacode {
+			tab.command = Some("zetacode".to_owned());
+			tab.title = "zetacode".to_owned();
+		}
 		let panes = vec![Pane { id: pane_id, active: tab.id.clone(), tabs: vec![tab] }];
 		self.projects[pos].workspaces.push(Workspace {
 			id: id.clone(),
 			name,
 			branch: "main".to_owned(),
-			path: format!("~/{project_name}/新工作区"),
+			// The workspace is the project directory itself: the terminal's
+			// cwd, the file tree and zetacode all start where the project is.
+			path: project_path.display().to_string(),
 			cols: 1,
 			panes,
 			// Nothing observes a workspace the user just created, so it has no
@@ -1277,7 +1522,16 @@ mod tests {
 
 	/// A workspace with `cols` columns and the spec's default two panes.
 	fn state() -> AppState {
-		AppState::seeded(std::path::Path::new("."))
+		static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+		let unique = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+		AppState::seeded_with_registry(
+			std::path::Path::new("."),
+			workbench_projects::Registry::empty_at(
+				std::env::temp_dir()
+					.join(format!("zetawork-gui-state-tests-{}-{unique}", std::process::id()))
+					.join("projects.json"),
+			),
+		)
 	}
 
 	#[test]
@@ -1298,9 +1552,9 @@ mod tests {
 	}
 
 	#[test]
-	fn seeds_the_spec_projects_and_opens_the_first_workspace() {
+	fn seeds_the_local_project_and_opens_the_first_workspace() {
 		let state = state();
-		assert_eq!(state.projects.len(), 4, "三个示例项目 + 本机");
+		assert_eq!(state.projects.len(), 1, "本机 is the only project without registrations");
 		assert!(state.active_project().is_some());
 		assert!(state.active_workspace().is_some());
 		assert_eq!(state.active_workspace().unwrap().panes.len(), 2);
@@ -1415,6 +1669,13 @@ mod tests {
 	#[test]
 	fn opening_a_workspace_selects_its_project() {
 		let mut state = state();
+		let dir = tempfile::tempdir().expect("temp dir");
+		for name in ["alpha", "beta"] {
+			let path = dir.path().join(name);
+			std::fs::create_dir_all(&path).unwrap();
+			let notice = state.add_project(&path);
+			assert!(notice.0.contains("已添加项目"), "{name}: {}", notice.0);
+		}
 		let target = state.projects[1].workspaces[0].id.clone();
 		assert!(state.select_workspace(&target).0.is_empty());
 		assert_eq!(state.active_project.as_deref(), Some(state.projects[1].id.as_str()));
@@ -1422,12 +1683,9 @@ mod tests {
 		// A project that does not contain the active workspace moves to its first.
 		let other = state.projects[2].id.clone();
 		assert!(state.select_project(&other).0.is_empty());
-		assert!(
-			state
-				.active_workspace()
-				.unwrap()
-				.id
-				.starts_with(&state.projects[2].workspaces[0].id)
+		assert_eq!(
+			state.active_workspace().unwrap().id.as_str(),
+			state.projects[2].workspaces[0].id.as_str()
 		);
 	}
 

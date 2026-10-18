@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The 设置 modal: native egui, six sections, persisted immediately.
+//! The 设置 modal: native egui, eight sections, persisted immediately.
 //!
 //! Opened from the left column's foot (or `Ctrl+,`), it dims the window and
 //! shows the spec's dialog: a category nav on the left, one row per setting on
@@ -14,6 +14,7 @@
 
 use egui::{Align, Color32, CornerRadius, FontId, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
+use crate::ManageTarget;
 use crate::Shell;
 use crate::icons::{Icon, paint};
 use crate::settings::{
@@ -31,6 +32,7 @@ fn section_icon(section: Section) -> Icon {
 		Section::Editor => Icon::Code,
 		Section::Terminal => Icon::Term,
 		Section::Keys => Icon::Keyboard,
+		Section::Projects => Icon::Folder,
 		Section::Manage => Icon::FolderPlus,
 		Section::About => Icon::Info,
 	}
@@ -424,6 +426,31 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 					},
 					shell,
 				);
+			}
+		},
+		Section::Projects => {
+			head(ui, "项目注册表 · ~/.zeta/projects.json");
+			hint(ui, "GUI 与 TUI 读同一份注册表。移除只删除注册，不删除目录，也不删除会话历史。");
+			if shell.state.registry.is_empty() {
+				hint(ui, "尚未注册项目。左侧 项目 一节的 ＋ 可以选择一个目录。");
+			} else {
+				let rows: Vec<(String, String, String, usize)> = shell
+					.state
+					.registry
+					.list()
+					.iter()
+					.map(|row| {
+						let workspaces = shell
+							.state
+							.project(&row.id)
+							.map(|project| project.workspaces.len())
+							.unwrap_or(0);
+						(row.id.clone(), row.name.clone(), row.path.display().to_string(), workspaces)
+					})
+					.collect();
+				for (id, name, path, workspaces) in rows {
+					project_registry_row(ui, shell, &id, &name, &path, workspaces);
+				}
 			}
 		},
 		Section::Manage => {
@@ -1147,6 +1174,61 @@ fn select_string(ui: &mut Ui, id: &str, value: &mut String, options: &[&str]) {
 		});
 }
 
+/// One row of the 项目 registry page: name, path, the shell's workspace count
+/// and the remove action. Removal writes the shared file immediately.
+fn project_registry_row(
+	ui: &mut Ui,
+	shell: &mut Shell,
+	id: &str,
+	name: &str,
+	path: &str,
+	workspaces: usize,
+) {
+	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 58.0), Sense::click());
+	ui.painter()
+		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
+	ui.painter().rect_stroke(
+		rect,
+		CornerRadius::same(theme::R_PANEL),
+		Stroke::new(
+			1.0_f32,
+			if response.hovered() {
+				theme::BORDER_2
+			} else {
+				theme::BORDER
+			},
+		),
+		egui::StrokeKind::Inside,
+	);
+	ui.painter().text(
+		pos2(rect.min.x + 14.0, rect.center().y - 9.0),
+		egui::Align2::LEFT_CENTER,
+		name,
+		FontId::new(13.0, egui::FontFamily::Proportional),
+		theme::TEXT,
+	);
+	ui.painter().text(
+		pos2(rect.min.x + 14.0, rect.center().y + 10.0),
+		egui::Align2::LEFT_CENTER,
+		path,
+		FontId::new(11.0, egui::FontFamily::Monospace),
+		theme::TEXT_3,
+	);
+	ui.painter().text(
+		pos2(rect.max.x - 78.0, rect.center().y),
+		egui::Align2::RIGHT_CENTER,
+		format!("{workspaces} 个工作区"),
+		FontId::new(11.5, egui::FontFamily::Proportional),
+		theme::TEXT_3,
+	);
+	let button = Rect::from_center_size(pos2(rect.max.x - 40.0, rect.center().y), vec2(56.0, 26.0));
+	if ui.put(button, egui::Button::new("移除")).clicked() {
+		let id = id.to_owned();
+		shell.state.act(|state| state.remove_project(&id));
+	}
+	ui.add_space(8.0);
+}
+
 /// A `.manage-card`: an icon, a title, a hint, and a chevron.
 fn manage_card(
 	ui: &mut Ui,
@@ -1154,7 +1236,7 @@ fn manage_card(
 	title: &str,
 	hint_text: &str,
 	icon: Icon,
-	action: &str,
+	action: ManageTarget,
 ) {
 	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 64.0), Sense::click());
 	ui.painter()
@@ -1202,6 +1284,13 @@ fn manage_card(
 	);
 	ui.add_space(8.0);
 	if response.clicked() {
-		shell.state.show(crate::state::Notice(action.to_owned()));
+		match action {
+			ManageTarget::Projects => {
+				shell.state.settings_section = Section::Projects;
+			},
+			ManageTarget::Notice(message) => {
+				shell.state.show(crate::state::Notice(message.to_owned()));
+			},
+		}
 	}
 }

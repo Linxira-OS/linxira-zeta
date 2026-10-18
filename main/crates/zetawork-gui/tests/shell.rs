@@ -15,8 +15,17 @@ use zetawork_gui::settings::{self, Density, MonoFont, Settings, Theme};
 use zetawork_gui::state::{AppState, MAX_WORKSPACES_PER_PROJECT};
 
 fn shell() -> Shell {
+	Shell::with_state(seeded_state(), Settings::default())
+}
+
+/// A state over an empty registry file in this process's temp directory, so a
+/// test never reads or writes the user's `~/.zeta/projects.json`.
+fn seeded_state() -> AppState {
 	let cwd = std::env::current_dir().expect("cwd");
-	Shell::with_state(AppState::seeded(&cwd), Settings::default())
+	let path = std::env::temp_dir()
+		.join(format!("zetawork-gui-tests-{}", std::process::id()))
+		.join("projects.json");
+	AppState::seeded_with_registry(&cwd, workbench_projects::Registry::empty_at(path))
 }
 
 /// Every piece of state a view is expected to show, as comparable strings.
@@ -80,7 +89,7 @@ fn settings_round_trip_and_corruption_fallback() {
 
 #[test]
 fn seventh_big_tab_is_refused() {
-	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let mut state = seeded_state();
 	let project = state.projects[0].id.clone();
 	while state.projects[0].workspaces.len() < MAX_WORKSPACES_PER_PROJECT {
 		let notice = state.new_workspace(&project);
@@ -95,7 +104,7 @@ fn seventh_big_tab_is_refused() {
 
 #[test]
 fn a_pane_and_a_workspace_keep_their_last_child() {
-	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let mut state = seeded_state();
 	let ws_id = state.active_workspace().unwrap().id.clone();
 	let pane_id = state.workspace(&ws_id).unwrap().panes[0].id.clone();
 
@@ -139,7 +148,7 @@ fn a_pane_and_a_workspace_keep_their_last_child() {
 
 #[test]
 fn three_columns_is_the_ceiling() {
-	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let mut state = seeded_state();
 	let ws_id = state.active_workspace().unwrap().id.clone();
 	assert!(state.set_cols(3).0.is_empty());
 	assert_eq!(state.visible_panes().len(), 3);
@@ -288,7 +297,7 @@ fn the_picker_lists_the_hosts_shells_and_every_page() {
 
 #[test]
 fn a_new_big_tab_opens_a_terminal_and_a_pick_opens_what_was_picked() {
-	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let mut state = seeded_state();
 	let project = state.active_project.clone().unwrap();
 
 	// The default: one pane, one 终端 page, one column.
@@ -325,7 +334,7 @@ fn a_new_big_tab_opens_a_terminal_and_a_pick_opens_what_was_picked() {
 
 #[test]
 fn a_shell_pick_records_that_shell_on_the_terminal_page() {
-	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let mut state = seeded_state();
 	let Some(shell) = zetawork_gui::shells::detect().into_iter().next() else {
 		// A host with no shell at all cannot exercise this; the picker test
 		// above still covers the listing rule.
@@ -402,7 +411,7 @@ fn the_editor_page_opens_and_saves_a_real_file() {
 }
 
 #[test]
-fn the_right_column_has_four_tabs_and_seven_settings_sections() {
+fn the_right_column_has_four_tabs_and_eight_settings_sections() {
 	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 4);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
@@ -410,11 +419,11 @@ fn the_right_column_has_four_tabs_and_seven_settings_sections() {
 	);
 	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are the
 	// one section the design drafts do not have, and the six they fix keep
-	// their own order behind it.
-	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 7);
+	// their own order behind it. 项目 is the registry page the 管理 card opens.
+	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 8);
 	assert_eq!(
 		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
-		["常规", "外观", "编辑器", "终端", "快捷键", "管理", "关于"]
+		["常规", "外观", "编辑器", "终端", "快捷键", "项目", "管理", "关于"]
 	);
 	assert_eq!(zetawork_gui::settings::Section::ALL[0], zetawork_gui::settings::Section::General);
 	assert_eq!(zetawork_gui::settings::Section::General.key(), "general");
@@ -432,7 +441,7 @@ fn the_total_panel_is_the_first_big_tab_and_what_opens() {
 	assert_eq!(CenterPage::Workspace.label(), "", "a workspace tab carries its own name");
 	assert_eq!(MAX_SUBS_PER_PANE, 8, "子页上限 8, from the contract");
 
-	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let mut state = seeded_state();
 	assert_eq!(state.center_page, CenterPage::Total, "the strip's first tab is what opens");
 
 	// 总面板 is a page, not a workspace: switching to it leaves the open
@@ -449,32 +458,27 @@ fn the_total_panel_is_the_first_big_tab_and_what_opens() {
 	assert!(notice.0.is_empty(), "{}", notice.0);
 	assert_eq!(state.center_page, CenterPage::Workspace);
 
-	// The sample projects carry one of the contract's seven states each — they
-	// are demo data, and their section head says `示例项目` — and they do not
-	// all read the same word. The **real** project (本机, the user's own
-	// directory) must carry none: nothing in this build observes a workspace, so
-	// a state there would be invented.
-	let states: Vec<_> = state
-		.projects
-		.iter()
-		.flat_map(|p| p.workspaces.iter())
-		.filter_map(|w| w.run_state)
-		.collect();
-	assert!(!states.is_empty(), "the sample projects show the vocabulary");
-	assert!(
-		states
-			.iter()
-			.all(|state| zetawork_gui::status::RunState::ALL.contains(state))
-	);
-	assert!(states.iter().any(|state| *state != states[0]), "the 状态 column is not degenerate");
+	// Nothing observes a workspace's state in this build: the 本机 pseudo-entry
+	// and every workspace the user creates read `—` rather than a word from the
+	// seven that nothing produced.
 	let local = state
 		.projects
 		.iter()
 		.find(|p| p.id == "p-local")
-		.expect("the real project is seeded");
+		.expect("the local pseudo-project is seeded");
 	assert!(
 		local.workspaces.iter().all(|w| w.run_state.is_none()),
 		"the real project's state is not observed, so it is not claimed"
+	);
+	assert_eq!(
+		state
+			.projects
+			.iter()
+			.flat_map(|p| p.workspaces.iter())
+			.filter_map(|w| w.run_state)
+			.count(),
+		0,
+		"no hard-coded sample state survives"
 	);
 
 	// A workspace created from the ＋ is in the same position: `—`, not a guess.
@@ -586,7 +590,7 @@ fn the_usage_entry_opens_the_embedded_stats_container() {
 
 #[test]
 fn the_status_bar_collapses_and_comes_back() {
-	let mut state = AppState::seeded(&std::env::current_dir().unwrap());
+	let mut state = seeded_state();
 	assert!(state.statusbar_visible());
 	assert!(state.toggle_statusbar().0.contains("收起"));
 	assert!(!state.statusbar_visible());
@@ -665,4 +669,67 @@ fn an_agent_ui_request_raises_a_notification_through_the_shell() {
 	assert_eq!(seen, Some(Trigger::NeedsInput));
 	assert!(shell.state.needs_redraw, "the poll asks for a repaint");
 	assert!(shell.agents.pane(&tab).expect("pane").awaiting_input());
+}
+
+/// The project registry is shared state: adding writes the file, removing
+/// clears the row and **never** touches the directory, and the project row's
+/// `+` opens a workspace whose first terminal runs `zetacode` at that path.
+#[test]
+fn project_registry_add_rename_remove_and_zetacode_workspace() {
+	use zetawork_gui::state::SessionKind;
+
+	let dir = tempfile::tempdir().expect("temp dir");
+	let project_dir = dir.path().join("demo");
+	std::fs::create_dir_all(&project_dir).unwrap();
+	let registry_path = dir.path().join(".zeta").join("projects.json");
+	let mut state = AppState::seeded_with_registry(
+		&std::env::current_dir().unwrap(),
+		workbench_projects::Registry::empty_at(&registry_path),
+	);
+	assert_eq!(state.projects.len(), 1, "本机 alone");
+
+	let notice = state.add_project(&project_dir);
+	assert!(notice.0.contains("已添加项目"), "{}", notice.0);
+	let id = state
+		.registry
+		.list()
+		.first()
+		.expect("registered")
+		.id
+		.clone();
+	assert_eq!(state.projects.len(), 2, "本机 + the registration");
+	let canonical = std::fs::canonicalize(&project_dir).expect("canonical");
+	assert_eq!(state.projects[1].path, canonical, "the path is the registration's");
+	assert_eq!(state.active_project.as_deref(), Some(id.as_str()));
+
+	// A second registration of the same directory is refused, not replaced.
+	let refused = state.add_project(&project_dir);
+	assert!(refused.0.contains("already registered"), "{}", refused.0);
+	assert_eq!(state.registry.len(), 1);
+
+	// Rename writes the shared file and the GUI row together.
+	state.begin_rename_project(&id);
+	state.set_rename_text("演示项目 2".to_owned());
+	let notice = state.commit_rename_project();
+	assert!(notice.0.contains("演示项目 2"), "{}", notice.0);
+	assert_eq!(state.registry.get(&id).unwrap().name, "演示项目 2");
+	assert_eq!(state.project(&id).unwrap().name, "演示项目 2");
+
+	// The `+` spawns a zetacode pane at the project path.
+	let notice = state.new_workspace_zetacode(&id);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let workspace = state.active_workspace().expect("the new workspace opens");
+	assert_eq!(workspace.path, canonical.display().to_string());
+	let tab = workspace.panes[0].active_tab().expect("a tab");
+	assert_eq!(tab.kind, SessionKind::Term, "the pane is a terminal");
+	assert_eq!(tab.command.as_deref(), Some("zetacode"));
+
+	// Removing the registration keeps the directory and any history.
+	let notice = state.remove_project(&id);
+	assert!(notice.0.contains("目录未删除"), "{}", notice.0);
+	assert!(project_dir.is_dir(), "the directory survives");
+	assert!(state.projects.iter().all(|project| project.id != id));
+	assert!(state.registry.is_empty());
+	let reloaded = workbench_projects::Registry::load_from(&registry_path).expect("reload");
+	assert!(reloaded.is_empty(), "the remove reached the shared file");
 }

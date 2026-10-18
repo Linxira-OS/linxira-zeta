@@ -56,7 +56,14 @@ fn shots_dir() -> PathBuf {
 /// editor and the other the terminal.
 fn ready_shell() -> Shell {
 	let cwd = std::env::current_dir().expect("cwd");
-	let state = AppState::seeded(&cwd);
+	let state = AppState::seeded_with_registry(
+		&cwd,
+		workbench_projects::Registry::empty_at(
+			std::env::temp_dir()
+				.join(format!("zetawork-gui-shots-{}", std::process::id()))
+				.join("projects.json"),
+		),
+	);
 	Shell::with_state(state, Settings::default())
 }
 
@@ -327,15 +334,15 @@ fn close_ask_screenshot() {
 
 /// `13-workspace-state-words.png` — the 状态词表 two ways at once: the left
 /// column's rows (dot plus word) for the open project, and the 总面板's 状态
-/// column behind them, which is the only place all the projects' states are
-/// visible together — hence the first 大标签页.
+/// column behind them. Nothing in this build observes a workspace, so the
+/// honest value is `—`; the shot shows that, not an invented sample state.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn workspace_state_words_screenshot() {
 	let mut shell = ready_shell();
 	shell.state.left_collapsed = false;
-	// 项目 1 is the one with two different states on its two workspaces.
-	let notice = shell.state.select_project("p1");
+	// 本机 is the only project without registrations; its row carries `—`.
+	let notice = shell.state.select_project("p-local");
 	assert!(notice.0.is_empty(), "{}", notice.0);
 	// The centre stays on 总面板, so one shot shows both surfaces.
 	shell.state.show_total();

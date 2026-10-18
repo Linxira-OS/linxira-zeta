@@ -143,6 +143,84 @@ pub fn render_view(frame: &mut Frame, area: Rect, slot: &Slot) {
 	);
 }
 
+/// The projects view: the shared registry as a project → workspace tree.
+///
+/// The registry stores registrations, not workspaces, so each project's child
+/// line is the default workspace every project opens over its own path — the
+/// same one the GUI's project `+` creates. `selected` is the row `j`/`k`
+/// moved; `x`/Delete removes that registration (never the directory).
+pub fn render_projects(
+	frame: &mut Frame,
+	area: Rect,
+	registry: &workbench_projects::Registry,
+	error: Option<&str>,
+	selected: usize,
+) {
+	let block = Block::default()
+		.borders(Borders::ALL)
+		.border_type(BorderType::Rounded)
+		.border_style(Style::default().fg(Color::DarkGray))
+		.title(Line::from(Span::styled(
+			" 📁 projects ",
+			Style::default()
+				.fg(Color::White)
+				.add_modifier(Modifier::BOLD),
+		)));
+	let inner = block.inner(area);
+	frame.render_widget(Clear, area);
+	frame.render_widget(block, area);
+	let mut lines = vec![Line::from(Span::styled(
+		format!(" ~/.zeta/projects.json · {} 个项目", registry.len()),
+		Style::default().fg(Color::Gray),
+	))];
+	if let Some(error) = error {
+		lines.push(Line::from(Span::styled(
+			format!(" 读取失败：{error}"),
+			Style::default().fg(Color::Red),
+		)));
+	}
+	lines.push(Line::from(""));
+	if registry.is_empty() {
+		lines.push(Line::from(Span::styled(" 尚未注册项目。", Style::default().fg(Color::DarkGray))));
+		lines.push(Line::from(Span::styled(
+			" 在 GUI 的 项目 一节按目录添加。",
+			Style::default().fg(Color::DarkGray),
+		)));
+	}
+	for (index, project) in registry.list().iter().enumerate() {
+		let active = index == selected;
+		lines.push(Line::from(Span::styled(
+			format!("{} 📁 {}", if active { "▏" } else { " " }, project.name),
+			if active {
+				Style::default()
+					.fg(Color::White)
+					.add_modifier(Modifier::BOLD)
+			} else {
+				Style::default().fg(Color::Gray)
+			},
+		)));
+		lines.push(Line::from(Span::styled(
+			format!("     {}", project.path.display()),
+			Style::default().fg(Color::DarkGray),
+		)));
+		lines.push(Line::from(Span::styled(
+			"     └ 默认工作区 · zetacode",
+			Style::default().fg(Color::DarkGray),
+		)));
+	}
+	lines.push(Line::from(""));
+	lines.push(Line::from(Span::styled(
+		" j/k 选择 · x 移除注册（目录保留）",
+		Style::default().fg(Color::DarkGray),
+	)));
+	frame.render_widget(
+		Paragraph::new(lines)
+			.wrap(Wrap { trim: false })
+			.style(Style::default().bg(Color::Reset)),
+		inner,
+	);
+}
+
 /// One button row: the active marker, the icon and the title, padded to the
 /// column so the highlight reads as a row and not as a label.
 fn button_line(slot: &Slot, active: bool, width: u16) -> Line<'static> {
@@ -214,15 +292,15 @@ mod tests {
 	}
 
 	#[test]
-	fn the_default_rail_draws_three_buttons_then_the_plus() {
+	fn the_default_rail_draws_four_buttons_then_the_plus() {
 		let registry = slots::default_registry();
 		let (lines, strip) = draw(&registry, None, 60, 20);
-		assert_eq!(strip.buttons.len(), 3, "exactly the three default slots");
-		assert_eq!(strip.plus.y, 3, "the `+` sits directly under the buttons");
+		assert_eq!(strip.buttons.len(), 4, "exactly the four default slots");
+		assert_eq!(strip.plus.y, 4, "the `+` sits directly under the buttons");
 		assert!(lines[strip.plus.y as usize].contains("+ manage buttons"));
 		assert_eq!(
 			button_titles(&lines, &strip),
-			["🔍 search", "☰ tasks", "⏱ automation"],
+			["🔍 search", "☰ tasks", "⏱ automation", "📁 projects"],
 			"drawn top-down in config order"
 		);
 		assert!(
@@ -240,9 +318,9 @@ mod tests {
 			.expect("builtin");
 		registry[index].visible = false;
 		let (lines, strip) = draw(&registry, None, 60, 20);
-		assert_eq!(strip.buttons.len(), 2);
-		assert_eq!(button_titles(&lines, &strip), ["🔍 search", "☰ tasks"]);
-		assert_eq!(strip.plus.y, 2);
+		assert_eq!(strip.buttons.len(), 3);
+		assert_eq!(button_titles(&lines, &strip), ["🔍 search", "☰ tasks", "📁 projects"]);
+		assert_eq!(strip.plus.y, 3);
 		assert!(!lines.iter().any(|line| line.contains("automation")));
 	}
 
@@ -260,7 +338,7 @@ mod tests {
 		let (lines, strip) = draw(&registry, Some(registry[index - 2].builtin), 60, 20);
 		assert_eq!(
 			button_titles(&lines, &strip),
-			["🔍 search", "📱 mobile", "☰ tasks", "⏱ automation"],
+			["🔍 search", "📱 mobile", "☰ tasks", "⏱ automation", "📁 projects"],
 			"the strip is the master list filtered by visibility, not the builtin table order"
 		);
 		assert!(
@@ -302,6 +380,54 @@ mod tests {
 		assert!(text.contains("id=mobile"), "and states the slot it belongs to");
 		assert!(text.contains("a zeta web page (web-ui)"), "with its real data source");
 		assert!(text.contains("the view body is not"), "and says plainly that P0 draws no body");
+	}
+
+	#[test]
+	fn the_projects_view_reads_the_shared_registry() {
+		fn text_of(registry: &workbench_projects::Registry) -> String {
+			let mut terminal = Terminal::new(TestBackend::new(64, 14)).expect("terminal");
+			terminal
+				.draw(|frame| {
+					let area = frame.area();
+					render_projects(frame, area, registry, None, 0);
+				})
+				.expect("draw");
+			let buffer = terminal.backend().buffer().clone();
+			buffer
+				.content
+				.chunks(buffer.area.width as usize)
+				.map(|row| row.iter().map(|cell| cell.symbol()).collect::<String>())
+				.collect::<Vec<_>>()
+				.join("\n")
+		}
+
+		let dir = tempfile::tempdir().expect("temp dir");
+		let path = dir.path().join("projects.json");
+		std::fs::write(
+			&path,
+			"{\"version\":1,\"projects\":[{\"id\":\"p1\",\"name\":\"演示\",\"path\":\"C:/work/demo\",\"addedAt\":1}]}",
+		)
+		.expect("write registry");
+		let registry = workbench_projects::Registry::load_from(&path).expect("load");
+		// A wide glyph leaves its second buffer cell blank, so compare with
+		// every space removed — the same normalization the strip tests use.
+		let text: String = text_of(&registry)
+			.chars()
+			.filter(|ch| !ch.is_whitespace())
+			.collect();
+		assert!(text.contains("📁projects"), "the frame is titled by the view:\n{text}");
+		assert!(text.contains("~/.zeta/projects.json"), "and names the shared file");
+		assert!(text.contains("演示"), "the registered name is drawn");
+		assert!(text.contains("work") && text.contains("demo"), "so is its path");
+		assert!(text.contains("默认工作区·zetacode"), "with the workspace child line");
+		assert!(text.contains("x移除注册"), "and the remove key");
+
+		let empty = workbench_projects::Registry::empty_at(dir.path().join("none.json"));
+		let text: String = text_of(&empty)
+			.chars()
+			.filter(|ch| !ch.is_whitespace())
+			.collect();
+		assert!(text.contains("尚未注册项目"), "an empty registry says so: {text}");
 	}
 
 	#[test]

@@ -564,6 +564,17 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 	shell
 		.terminals
 		.ensure(tab.id.as_str(), origin.as_deref(), cwd.clone(), columns, rows);
+	// A project's `+` opens a zetacode pane: once the backend exists, type the
+	// command into it at the workspace path. The serve backend queues it on the
+	// socket; the local PTY below sends it after its spawn.
+	if let Some(command) = tab.command.as_deref() {
+		if !shell.launched_commands.contains(&tab.id) && !shell.terminals.is_local(&tab.id) {
+			let line = format!("{command}\r");
+			if shell.terminals.send_bytes(&tab.id, line.as_bytes()) {
+				shell.launched_commands.insert(tab.id.clone());
+			}
+		}
+	}
 	let status = shell
 		.terminals
 		.label(tab.id.as_str())
@@ -579,6 +590,14 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 	if shell.terminals.is_local(tab.id.as_str())
 		&& shell.live.ensure(tab.id.as_str(), columns, rows, cwd)
 	{
+		if let Some(command) = tab.command.as_deref() {
+			if !shell.launched_commands.contains(&tab.id) {
+				shell
+					.live
+					.send_text(tab.id.as_str(), &format!("{command}\r"));
+				shell.launched_commands.insert(tab.id.clone());
+			}
+		}
 		let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 		if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
 			paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);

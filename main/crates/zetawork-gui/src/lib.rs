@@ -90,31 +90,36 @@ pub const BINDINGS: [(&str, &str, &str); 5] = [
 	("切换侧栏", "显示或隐藏左右侧栏", "Ctrl B"),
 ];
 
+/// What a 管理 card opens when clicked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ManageTarget {
+	/// The registry page: registered projects, their paths, workspace counts
+	/// and the remove action.
+	Projects,
+	/// A surface this slice does not have yet; the card shows the reason.
+	Notice(&'static str),
+}
+
 /// The 管理 cards, each naming what it would open.
-pub const MANAGE_CARDS: [(&str, &str, Icon, &str); 4] = [
-	(
-		"管理项目与工作区",
-		"重命名、移动或删除项目与工作区",
-		Icon::FolderPlus,
-		"管理项目：项目注册表尚未接入（未来数据源：zetawork 项目注册表）",
-	),
+pub const MANAGE_CARDS: [(&str, &str, Icon, ManageTarget); 4] = [
+	("管理项目与工作区", "重命名、打开或移除已注册的项目", Icon::FolderPlus, ManageTarget::Projects),
 	(
 		"管理账户与授权",
 		"登录方式、设备与访问令牌",
 		Icon::Check,
-		"管理账户：授权存储尚未接入（未来数据源：zetacode 授权存储）",
+		ManageTarget::Notice("管理账户：授权存储尚未接入（未来数据源：zetacode 授权存储）"),
 	),
 	(
 		"数据与存储",
 		"缓存与日志的占用情况",
 		Icon::Stage,
-		"数据与存储：尚未接入（未来数据源：~/.zeta 缓存统计）",
+		ManageTarget::Notice("数据与存储：尚未接入（未来数据源：~/.zeta 缓存统计）"),
 	),
 	(
 		"扩展与 Agent",
 		"已安装的 Agent 运行器与扩展",
 		Icon::Term,
-		"扩展与 Agent：尚未接入（未来数据源：zetacode 扩展注册表）",
+		ManageTarget::Notice("扩展与 Agent：尚未接入（未来数据源：zetacode 扩展注册表）"),
 	),
 ];
 
@@ -144,6 +149,9 @@ pub struct Shell {
 	pub term_buffers: BufferCache,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
+	/// Tabs whose one-shot launch command (`zetacode`, from a project's `+`)
+	/// has already been typed into their shell.
+	pub launched_commands: std::collections::HashSet<String>,
 	/// The serve-backed alternative for terminal tabs ([`terminal_service`]):
 	/// a PTY in `zetacode serve` reached over the gateway's WebSocket.
 	pub terminals: terminal_service::TerminalHost,
@@ -263,6 +271,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			launched_commands: std::collections::HashSet::new(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
@@ -315,6 +324,7 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
+			launched_commands: std::collections::HashSet::new(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
@@ -758,9 +768,12 @@ impl Shell {
 						ctx.request_repaint();
 					}
 				},
-				terminal_service::HostEvent::Failed { .. } => {
+				terminal_service::HostEvent::Failed { tab } => {
 					// The reason lives in the pane's status line; no second
-					// notice for the same event.
+					// notice for the same event. The tab is about to fall back
+					// to the local PTY, so a queued launch command has to be
+					// typed again once that shell exists.
+					self.launched_commands.remove(&tab);
 					self.state.needs_redraw = true;
 				},
 				terminal_service::HostEvent::Ended { tab, reason } => {

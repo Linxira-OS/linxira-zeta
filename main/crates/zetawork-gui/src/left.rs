@@ -9,13 +9,14 @@
 //! widgets, because the project list has to fill exactly the space between the
 //! nav and the foot row no matter how many projects there are.
 
+use std::path::Path;
+
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::Shell;
 use crate::icons::Icon;
 use crate::icons::icon_button;
-use crate::seed;
-use crate::state::{NavItem, Project, Workspace};
+use crate::state::{AppState, NavItem, Project, Workspace};
 use crate::theme;
 use crate::widgets::{
 	foot_button, nav_row, status_dot, status_tooltip, status_word, truncated_mono, truncated_text,
@@ -125,7 +126,8 @@ fn nav_region(ui: &mut Ui, shell: &mut Shell) {
 	}
 }
 
-/// The 项目 section: the sample-data note, then one group per project.
+/// The 项目 section: the section head, the inline add editor when open, then
+/// one group per project.
 fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter().line_segment(
@@ -133,8 +135,9 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 28.0));
-	let note = Rect::from_min_size(pos2(rect.min.x, head.max.y), vec2(rect.width(), 20.0));
-	let list = Rect::from_min_max(pos2(rect.min.x, note.max.y), rect.max);
+	// The head is painted, not allocated; move the layout cursor past it so
+	// the inline add editor starts under the section head.
+	let _ = ui.allocate_exact_size(head.size(), Sense::hover());
 	ui.painter().text(
 		pos2(head.min.x + 12.0, head.center().y),
 		egui::Align2::LEFT_CENTER,
@@ -146,19 +149,19 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 		pos2(head.max.x - 30.0, head.center().y - 10.0),
 		vec2(20.0, 20.0),
 	)));
-	if icon_button(&mut add, Icon::Plus, 20.0, false, "添加项目").clicked() {
-		shell.state.show(crate::state::Notice(
-			"添加项目：项目注册表尚未接入（未来数据源：zetawork 项目注册表）".to_owned(),
-		));
+	if icon_button(&mut add, Icon::Plus, 20.0, shell.state.adding().is_some(), "添加项目").clicked()
+	{
+		if shell.state.adding().is_some() {
+			shell.state.cancel_add_project();
+		} else {
+			shell.state.begin_add_project();
+		}
 	}
-	truncated_text(
-		ui,
-		pos2(note.min.x + 12.0, note.center().y),
-		seed::SAMPLE_NOTE,
-		10.5,
-		theme::TEXT_3,
-		note.width() - 20.0,
-	);
+	let mut top = head.max.y;
+	if shell.state.adding().is_some() {
+		top = add_project_row(ui, shell) + 4.0;
+	}
+	let list = Rect::from_min_max(pos2(rect.min.x, top), rect.max);
 	let mut list_ui = ui.new_child(egui::UiBuilder::new().max_rect(list));
 	egui::ScrollArea::vertical()
 		.id_salt("zetawork-left-projects")
@@ -171,23 +174,71 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 		});
 }
 
-/// One project: its head (toggle + ＋新建工作区) and its workspaces.
+/// The inline 添加项目 path editor: a real directory path, committed with
+/// Enter (or ✓) and thrown away with Esc.
+fn add_project_row(ui: &mut Ui, shell: &mut Shell) -> f32 {
+	let (area, _) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), Sense::hover());
+	let field = Rect::from_min_max(
+		pos2(area.min.x + 8.0, area.min.y + 3.0),
+		pos2(area.max.x - 54.0, area.max.y - 3.0),
+	);
+	let mut text = shell.state.adding().unwrap_or_default().to_owned();
+	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
+	let response = child.add(
+		egui::TextEdit::singleline(&mut text)
+			.hint_text("项目目录")
+			.desired_width(field.width()),
+	);
+	if shell.state.take_add_focus() {
+		response.request_focus();
+	}
+	if response.changed() {
+		shell.state.set_add_text(text);
+	}
+	let mut ok = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
+		pos2(area.max.x - 48.0, area.center().y - 10.0),
+		vec2(20.0, 20.0),
+	)));
+	if icon_button(&mut ok, Icon::Check, 20.0, false, "添加").clicked() {
+		shell.state.act(|state| state.commit_add_project());
+	}
+	let mut cancel = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
+		pos2(area.max.x - 26.0, area.center().y - 10.0),
+		vec2(20.0, 20.0),
+	)));
+	if icon_button(&mut cancel, Icon::X, 20.0, false, "取消").clicked() {
+		shell.state.cancel_add_project();
+	}
+	let enter = child.input(|input| input.key_pressed(egui::Key::Enter));
+	let escape = child.input(|input| input.key_pressed(egui::Key::Escape));
+	if enter {
+		shell.state.act(|state| state.commit_add_project());
+	} else if escape {
+		shell.state.cancel_add_project();
+	}
+	area.max.y
+}
+
+/// One project: its head (toggle, name, hover actions) and its workspaces.
+///
+/// The ⋯ menu and the `+` are drawn dim until the row is hovered; the menu is
+/// kept alive by egui's popup memory, so moving the pointer into an open menu
+/// does not close it even when the row is no longer hovered.
 fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 	let project: Project = shell.state.projects[index].clone();
+	let local = AppState::is_local_project(&project.id);
 	let active_project = shell.state.active_project.as_deref() == Some(project.id.as_str());
+	let renaming = shell
+		.state
+		.renaming()
+		.is_some_and(|(id, _)| id == project.id);
 	let (head_rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), Sense::hover());
-	let toggle_rect =
-		Rect::from_min_max(head_rect.min, pos2(head_rect.max.x - 26.0, head_rect.max.y));
-	let toggle = ui.interact(toggle_rect, ui.id().with(("proj", index)), Sense::click());
-	if toggle.hovered() {
-		ui.painter()
-			.rect_filled(toggle_rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
-	}
+	let row_hovered = ui.rect_contains_pointer(head_rect);
 	let caret =
 		Rect::from_center_size(pos2(head_rect.min.x + 12.0, head_rect.center().y), vec2(12.0, 12.0));
 	crate::icons::paint(
 		ui.painter(),
-		if active_project {
+		if active_project || renaming {
 			Icon::ChevronDown
 		} else {
 			Icon::ChevronRight
@@ -196,32 +247,131 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 		theme::TEXT_3,
 		2.0,
 	);
-	truncated_text(
-		ui,
-		pos2(caret.max.x + 5.0, head_rect.center().y),
-		&project.name,
-		12.0,
-		if active_project {
-			theme::TEXT
-		} else {
+	if renaming {
+		let mut text = shell
+			.state
+			.renaming()
+			.map(|(_, text)| text.to_owned())
+			.unwrap_or_default();
+		let field = Rect::from_min_max(
+			pos2(caret.max.x + 5.0, head_rect.min.y + 3.0),
+			pos2(head_rect.max.x - 8.0, head_rect.max.y - 3.0),
+		);
+		let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
+		let response = child.add(
+			egui::TextEdit::singleline(&mut text)
+				.frame(false)
+				.desired_width(field.width()),
+		);
+		if shell.state.take_rename_focus() {
+			response.request_focus();
+		}
+		if response.changed() {
+			shell.state.set_rename_text(text);
+		}
+		let enter = child.input(|input| input.key_pressed(egui::Key::Enter));
+		let escape = child.input(|input| input.key_pressed(egui::Key::Escape));
+		if enter {
+			shell.state.act(|state| state.commit_rename_project());
+		} else if escape {
+			shell.state.cancel_rename_project();
+		}
+	} else {
+		let toggle_rect =
+			Rect::from_min_max(head_rect.min, pos2(head_rect.max.x - 52.0, head_rect.max.y));
+		let toggle = ui.interact(toggle_rect, ui.id().with(("proj", index)), Sense::click());
+		if toggle.hovered() {
+			ui.painter().rect_filled(
+				toggle_rect,
+				CornerRadius::same(theme::R_CONTROL),
+				theme::PANEL_3,
+			);
+		}
+		truncated_text(
+			ui,
+			pos2(caret.max.x + 5.0, head_rect.center().y),
+			&project.name,
+			12.0,
+			if active_project {
+				theme::TEXT
+			} else {
+				theme::TEXT_2
+			},
+			toggle_rect.width() - 32.0,
+		);
+		if toggle.clicked() {
+			shell.state.act(|state| state.select_project(&project.id));
+		}
+		// The hover actions: ⋯ for a registration, `+` for every project row.
+		let ink = if row_hovered {
 			theme::TEXT_2
-		},
-		toggle_rect.width() - 32.0,
-	);
-	if toggle.clicked() {
-		shell.state.act(|s| s.select_project(&project.id));
-	}
-	let mut plus = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
-		pos2(head_rect.max.x - 24.0, head_rect.center().y - 10.0),
-		vec2(20.0, 20.0),
-	)));
-	if icon_button(&mut plus, Icon::Plus, 20.0, false, "新建工作区").clicked() {
-		let id = project.id.clone();
-		shell.state.act(|s| s.new_workspace(&id));
+		} else {
+			theme::TEXT_3.gamma_multiply(0.45)
+		};
+		if !local {
+			let more_rect = Rect::from_min_size(
+				pos2(head_rect.max.x - 48.0, head_rect.center().y - 10.0),
+				vec2(20.0, 20.0),
+			);
+			let more = ui.interact(more_rect, ui.id().with(("proj-more", index)), Sense::click());
+			if more.hovered() {
+				ui.painter().rect_filled(
+					more_rect,
+					CornerRadius::same(theme::R_CONTROL),
+					theme::PANEL_3,
+				);
+			}
+			ui.painter().text(
+				many_rect_center(more_rect),
+				egui::Align2::CENTER_CENTER,
+				"⋯",
+				egui::FontId::new(13.0, egui::FontFamily::Proportional),
+				ink,
+			);
+			let mut rename = false;
+			let mut open_folder = false;
+			let mut remove = false;
+			let _ = egui::Popup::menu(&more)
+				.id(ui.id().with(("proj-menu", index)))
+				.show(|ui| {
+					ui.set_min_width(180.0);
+					if ui.button("重命名").clicked() {
+						rename = true;
+						ui.close();
+					}
+					if ui.button("在文件管理器中打开").clicked() {
+						open_folder = true;
+						ui.close();
+					}
+					if ui.button("从注册表移除").clicked() {
+						remove = true;
+						ui.close();
+					}
+				});
+			if rename {
+				shell.state.begin_rename_project(&project.id);
+			}
+			if open_folder {
+				open_in_file_manager(shell.probe, &project.path);
+			}
+			if remove {
+				let id = project.id.clone();
+				shell.state.act(|state| state.remove_project(&id));
+			}
+		}
+		let mut plus = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
+			pos2(head_rect.max.x - 24.0, head_rect.center().y - 10.0),
+			vec2(20.0, 20.0),
+		)));
+		if icon_button(&mut plus, Icon::Plus, 20.0, false, "新建工作区（zetacode）").clicked()
+		{
+			let id = project.id.clone();
+			shell.state.act(|state| state.new_workspace_zetacode(&id));
+		}
 	}
 	// A project that is not open is collapsed, exactly as `.proj.collapsed`
 	// hides `.ws-list`; clicking its head opens it.
-	if !active_project {
+	if !active_project && !renaming {
 		ui.add_space(4.0);
 		return;
 	}
@@ -229,6 +379,37 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 		workspace_row(ui, shell, workspace.clone());
 	}
 	ui.add_space(4.0);
+}
+
+fn many_rect_center(rect: Rect) -> egui::Pos2 {
+	pos2(rect.center().x, rect.center().y - 1.0)
+}
+
+/// Open a registered project's directory in the host file manager. Only a
+/// real run (not a headless test shell) spawns anything.
+fn open_in_file_manager(probe: bool, path: &Path) {
+	if !probe {
+		return;
+	}
+	#[cfg(target_os = "windows")]
+	let mut command = {
+		let mut command = std::process::Command::new("explorer.exe");
+		command.arg(path);
+		command
+	};
+	#[cfg(target_os = "macos")]
+	let mut command = {
+		let mut command = std::process::Command::new("open");
+		command.arg(path);
+		command
+	};
+	#[cfg(all(unix, not(target_os = "macos")))]
+	let mut command = {
+		let mut command = std::process::Command::new("xdg-open");
+		command.arg(path);
+		command
+	};
+	let _ = command.spawn();
 }
 
 /// `.ws-btn`: name + branch chip, with the accent bar when it is the open one.
