@@ -272,6 +272,10 @@ pub fn truncated_mono(
 }
 
 /// The one honest line a panel shows when it has no data source yet.
+///
+/// Both lines are clipped to the card's own width: a note whose headline
+/// carries a tool's error (a `fatal:` dump, a missing path) must end in an
+/// ellipsis at the panel edge, never be painted past it.
 pub fn empty_note(ui: &mut Ui, headline: &str, source: &str) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 62.0), Sense::hover());
 	let painter = ui.painter();
@@ -282,18 +286,21 @@ pub fn empty_note(ui: &mut Ui, headline: &str, source: &str) {
 		Stroke::new(1.0_f32, theme::BORDER),
 		egui::StrokeKind::Inside,
 	);
-	painter.text(
-		pos2(rect.min.x + 10.0, rect.min.y + 12.0),
-		Align2::LEFT_TOP,
+	let available = (rect.width() - 20.0).max(0.0);
+	truncated_text(
+		ui,
+		pos2(rect.min.x + 10.0, rect.min.y + 20.0),
 		headline,
-		FontId::new(12.5, egui::FontFamily::Proportional),
+		12.5,
 		theme::TEXT_2,
+		available,
 	);
-	painter.text(
-		pos2(rect.min.x + 10.0, rect.min.y + 32.0),
-		Align2::LEFT_TOP,
-		format!("未来数据源：{source}"),
-		FontId::new(11.5, egui::FontFamily::Proportional),
+	truncated_text(
+		ui,
+		pos2(rect.min.x + 10.0, rect.min.y + 38.0),
+		&format!("未来数据源：{source}"),
+		11.5,
 		theme::TEXT_3,
+		available,
 	);
 }
