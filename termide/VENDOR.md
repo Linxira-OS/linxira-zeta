@@ -18,6 +18,7 @@
 | 24 | `crates/panel-terminal/src/lib.rs`(`Terminal::try_wait`) | **子进程退出查询**：`is_alive` 由读线程 EOF 驱动，而 ConPTY 在 Windows 上客户端退出时不发 EOF（实测 4 s 内恒 true）⇒ 增加 `pub fn try_wait()` 直接问 child（`portable_pty::Child::try_wait`），供 zetawork GUI 的「会话结束」信号使用 | 上游无此物 | **保留**（Zeta 2026-10-17：GUI 真 PTY 需要平台无关的退出信号） | 2026-10-17 |
 
 | 25 | `crates/panel-terminal/src/lib.rs`(`Terminal::send_bytes`) | **原始按键写入**：GUI 拥有键盘，需要把按键/控制序列直接写进 PTY；私有的 `send_input` 暴露为 `send_bytes` | 上游无此物 | **保留**（Zeta 2026-10-17：GUI 输入转发） | 2026-10-17 |
+| 26 | `crates/agent-recall/src/sessions.rs`、`crates/ui/src/fuzzy.rs`、`crates/panel-outline/src/alatyr.rs` | **新 toolchain 的 clippy 修**：两处 `sort_by(|a,b| b.1.cmp(&a.1))` 改 `sort_by_key(Reverse(..))`；Alatyr 的 `loop { let Some(x) = .. else { break } }` 改 `while let` | 上游未动 | **保留**（Zeta 2026-10-18：`cargo clippy --workspace --all-targets -- -D warnings` 在 Linux 上把这三个 lint 当错误，vendor 快照自身的 CI 早于新 lint；语义等价，仅形态改写） | 2026-10-18 |
 
 ## 与仓库其余部分的关系
 
