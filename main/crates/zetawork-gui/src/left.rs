@@ -325,10 +325,6 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 	ui.add_space(4.0);
 }
 
-fn many_rect_center(rect: Rect) -> egui::Pos2 {
-	pos2(rect.center().x, rect.center().y - 1.0)
-}
-
 /// Open a registered project's directory in the host file manager. Only a
 /// real run (not a headless test shell) spawns anything.
 fn open_in_file_manager(probe: bool, path: &Path) {
