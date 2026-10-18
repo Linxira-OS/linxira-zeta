@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-18
+
 ### Fixed
 
 - Fixed a failing `mnemopi` CLI command or MCP memory call dropping the embeddings of memories it had just stored ([#15804](https://github.com/can1357/oh-my-pi/pull/15804) by [@yuzu-octopus](https://github.com/yuzu-octopus))

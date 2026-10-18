@@ -1,13 +1,6 @@
 ## [Unreleased]
 
-### Fixed
-
-- Usage recorded at $0 for a model whose catalog price changes on a date (Gemini 4 Argon, Devin SWE-2) is now priced at the rate in force on the request's date, instead of staying $0 like peak/off-peak tariff usage ([#15620](https://github.com/can1357/oh-my-pi/pull/15620) by [@eggpeat](https://github.com/eggpeat))
-- Providers → Subscription windows no longer mixes Codex 5-hour and 7-day quotas across plans: Team and weekly-only (ProLite) accounts now share the 7-day row, the 5-hour row counts only accounts that have one, and labels no longer flip with whichever account reported last ([#15664](https://github.com/can1357/oh-my-pi/issues/15664))
-
-- Fixed usage stats pricing Google Antigravity and MiniMax Token Plan models at $0 when their catalog rows carry no price; they now use the catalog's pricing peer, as `xai-oauth` already did ([#16092](https://github.com/can1357/oh-my-pi/pull/16092) by [@H4vC](https://github.com/H4vC))
-
-## [1.2.0] - 2026-10-12
+## [1.3.0] - 2026-10-18
 
 ### Added
 
@@ -16,9 +9,20 @@
 
 ### Changed
 
+- Reworked the "emotional pressure" detection layer: added a Chinese and voice-input dictionary (no word boundaries and no punctuation reliance, since Chinese input often comes from speech transcription and profanity frequently appears as homophones), added emphasis signals (full-width exclamation runs, repeated characters, repeated words) for judging anger, and added a cross-language signal — **an entire message repeating the previous one**. It no longer relies on emoji (users barely type them; only models emit them); the English dictionary is unchanged. The judging prompt is now language-neutral and tolerates mixed Chinese/English within a single message.
+
+### Fixed
+
+- Usage recorded at $0 for a model whose catalog price changes on a date (Gemini 4 Argon, Devin SWE-2) is now priced at the rate in force on the request's date, instead of staying $0 like peak/off-peak tariff usage ([#15620](https://github.com/can1357/oh-my-pi/pull/15620) by [@eggpeat](https://github.com/eggpeat))
+- Providers → Subscription windows no longer mixes Codex 5-hour and 7-day quotas across plans: Team and weekly-only (ProLite) accounts now share the 7-day row, the 5-hour row counts only accounts that have one, and labels no longer flip with whichever account reported last ([#15664](https://github.com/can1357/oh-my-pi/issues/15664))
+- Fixed usage stats pricing Google Antigravity and MiniMax Token Plan models at $0 when their catalog rows carry no price; they now use the catalog's pricing peer, as `xai-oauth` already did ([#16092](https://github.com/can1357/oh-my-pi/pull/16092) by [@H4vC](https://github.com/H4vC))
+
+## [1.2.0] - 2026-10-12
+
+### Changed
+
 - Improved dashboard responsiveness and efficiency by reducing unnecessary data refreshes and re-rendering, speeding up session synchronization, database access, package imports, and usage, model, and time-series requests, and avoiding repeated downloads of unchanged traces.
 - Dashboard requests are now cancelled when no longer needed, improving responsiveness when switching sessions or closing trace views during loading.
-- Reworked the "emotional pressure" detection layer: added a Chinese and voice-input dictionary (no word boundaries and no punctuation reliance, since Chinese input often comes from speech transcription and profanity frequently appears as homophones), added emphasis signals (full-width exclamation runs, repeated characters, repeated words) for judging anger, and added a cross-language signal — **an entire message repeating the previous one**. It no longer relies on emoji (users barely type them; only models emit them); the English dictionary is unchanged. The judging prompt is now language-neutral and tolerates mixed Chinese/English within a single message.
 
 ## [1.1.25] - 2026-10-03
 

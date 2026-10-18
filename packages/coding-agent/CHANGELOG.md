@@ -1,9 +1,10 @@
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-18
+
 ### Breaking Changes
 
 - Extension `ui.approve()` hosts receive an optional `session` choice label and answer `"once"`, `"session"`, or `"deny"` instead of a boolean
-
 - Removed `display()` from eval in both Python and JavaScript; `print` (and `console.log` in JavaScript) covers it
 
 ### Added
@@ -31,12 +32,10 @@
 - Added `lsp.requestTimeout` setting to configure wait durations for language server diagnostics and requests
 - Added `POST /api/channels/send` to the `zeta serve` gateway: any process outside the server (the desktop shell, a script) can push one IM message through a running WeChat/Feishu/Telegram channel with `{channelId, to, text}`; 404 when that channel is not running here, 400 when the peer is not paired (WeChat needs a `context_token` from an earlier inbound), 500 when the platform refused. Same access gate as `/api/channels/status` — loopback passes, a non-loopback caller needs `remote.token`.
 - Added `omp auth-gateway serve --clients=<file>`: per-client bearer tokens, each limited to listed models and broker OAuth accounts with no fallback to other accounts or API keys, re-read while serving ([#5098](https://github.com/can1357/oh-my-pi/issues/5098), [#15900](https://github.com/can1357/oh-my-pi/pull/15900) by [@alphastorm](https://github.com/alphastorm))
-
 - Added `imageCountBudget` to custom models and `modelOverrides` in models.yml, so a custom gateway can state its host's image limit instead of the default of 5; past that limit the oldest images were dropped on every new image, which rewrote the provider's prompt cache ([#15002](https://github.com/can1357/oh-my-pi/issues/15002), [#15969](https://github.com/can1357/oh-my-pi/pull/15969) by [@aramalipoor](https://github.com/aramalipoor))
 - The status line names the active profile next to the `π` brand (`π-work`), so sessions from different profiles are distinguishable at a glance; the default profile is unchanged ([#15622](https://github.com/can1357/oh-my-pi/pull/15622) by [@matthewrball](https://github.com/matthewrball))
 - Added opt-in `prewalk.auto` (`off`, `suggest`, or `on`): the native judge decides per task whether to arm a prewalk handoff to `prewalk.autoTarget`, and the next task starts back on the planning model ([#16026](https://github.com/can1357/oh-my-pi/pull/16026) by [@taibenvenuti](https://github.com/taibenvenuti))
 - Added `/seance` and the task `seance` agent: consult a saved session read-only, in place, without resuming it or copying its artifacts; pick the source and an optional model from pickers, and send follow-ups to the consultant ([#15036](https://github.com/can1357/oh-my-pi/pull/15036) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy))
-
 - Added `statusLine.segmentOptions.pi.showProfile`: set it to `false` to hide the profile name next to the `π` brand, for example when each profile already has its own theme ([#16063](https://github.com/can1357/oh-my-pi/pull/16063) by [@shgew](https://github.com/shgew))
 - Added `sharpshooter.minPromptLength` (default 16, minimum 2) to control the shortest prompt Sharpshooter extracts decisions from ([#16043](https://github.com/can1357/oh-my-pi/pull/16043) by [@bigHippoZz](https://github.com/bigHippoZz))
 - Added `advisor.continueSeverity` (`nit`, `concern`, `blocker`) to choose the minimum advisor note severity that wakes the agent after it finished with a final answer; lower-severity notes stay as a card at the end of the transcript
@@ -69,14 +68,15 @@
 - Agents now send `todo` updates alongside their next tool call instead of spending a separate model turn on them ([#15402](https://github.com/can1357/oh-my-pi/pull/15402) by [@will-bogusz](https://github.com/will-bogusz))
 - The Shared Language Servers setting now says what it does: each connection gets its own server, and a released one is reused while another omp instance keeps the project's mux running ([#14633](https://github.com/can1357/oh-my-pi/pull/14633) by [@jorgoose](https://github.com/jorgoose))
 - Memories saved explicitly through the extension `memory.save` API are now stored as `stated` rather than `unknown`, so they rank as deliberate memories in Mnemopi recall ([#13824](https://github.com/can1357/oh-my-pi/pull/13824) by [@sjawhar](https://github.com/sjawhar))
-
 - Tool approval prompts list Approve, Approve `<tool>` for this session, and Deny again: with an empty composer, pick with the arrow keys and Enter; typing in the composer denies and steers instead, and the Deny row reads "Deny and send message" while you do
-
 - With a first-party Anthropic model on the official API selected, the interactive UI opens the API connection at startup, on model switch, and when you start typing, so the next turn skips connection setup; third-party gateways and custom endpoints are never probed ([#16044](https://github.com/can1357/oh-my-pi/pull/16044) by [@H4vC](https://github.com/H4vC))
 - The API connection warm-up now covers every built-in provider (Copilot, OpenAI, Gemini, OpenRouter, …), not only Anthropic: between turns it keeps the connection your last request used open, through the configured proxy and CA settings, so the next turn skips connection setup; custom `models.yml` providers, built-in providers pointed at a gateway, and local servers are never probed ([#16086](https://github.com/can1357/oh-my-pi/pull/16086) by [@H4vC](https://github.com/H4vC))
 - Snapcompact now shows an imaged `read` result's indentation as count brackets (`[»2]` two tabs, `[·4]` four spaces) and keeps its `[path#TAG]` header as text, so edits from imaged reads keep the right indentation and tag ([#15899](https://github.com/can1357/oh-my-pi/pull/15899) by [@apoc](https://github.com/apoc))
 - A custom model's explicit `contextWindow` or `maxTokens` in `models.yml` now wins over the catalog's limit rules for that model id, which previously overwrote it ([#16094](https://github.com/can1357/oh-my-pi/pull/16094) by [@H4vC](https://github.com/H4vC))
 - An advisor `concern` raised after the agent's final answer now continues the run by default instead of waiting at the end of the transcript; set `advisor.continueSeverity` to `blocker` for the previous behavior
+- **⚠️ Storage key namespace change (migration needed)**: the Redis session store's default key prefix changes from `omp:sessions:` to `zeta:sessions:`, and the SQL session store's default table name from `omp_session_files` to `zeta_session_files`. Existing deployments on the defaults will no longer see their history — migrate by renaming the old keys/table to the new names, or explicitly write the old prefix back in config. Both are pure renames with no format change.
+- **⚠️ OAuth callback protocol handler renamed**: macOS LaunchServices, the Windows registry, and Linux desktop entries may still hold registrations for the old identifiers (`dev.omp.oauth-callback.*` / `omp OAuth Callback` / `omp-auth`) pointing at paths that no longer exist. Running one OAuth login after upgrading writes the new registration; if stale entries remain, remove them in the OS's "default apps / protocol associations" settings.
+- **SDK rename (no compatibility alias)**: `sdk/go/omp-rpc`, `sdk/python/omp-rpc`, and `sdk/rust/omp-rpc` become `zeta-rpc`; the Python package `omp_rpc` → `zeta_rpc`, the Go package `omprpc` → `zetarpc`. All three are `gen:rpc`-generated and committed, at version 0.1.0 (pre-1.0), and were never published to any registry, so no `omp-rpc` transitional alias is provided. The Go module path is also corrected: it previously pointed at the upstream repo `github.com/can1357/oh-my-pi/sdk/go/...`, and is now `github.com/Linxira-OS/linxira-zeta/sdk/go/zeta-rpc`.
 
 ### Fixed
 
@@ -246,7 +246,6 @@
 - Fixed browser `uploadFile` in Chrome reporting success with no file attached when the element opens no file chooser and nothing on the page reads the dropped files; it now fails and says what to target ([#15919](https://github.com/can1357/oh-my-pi/pull/15919) by [@will-bogusz](https://github.com/will-bogusz))
 - Relay mode: when Chrome detaches omp from a tab it drives (a password manager's inline menu loading in the page), the call fails at once saying why and omp reattaches to the same tab, instead of every later call timing out and reopening failing with `No page targets available` ([#15920](https://github.com/can1357/oh-my-pi/pull/15920) by [@will-bogusz](https://github.com/will-bogusz))
 - Fixed the macOS `computer` tool letting the display sleep and lock in a turn that went 5 minutes without a desktop action; it now keeps the display awake until the turn ends or asks for your answer, then lets it sleep ([#15762](https://github.com/can1357/oh-my-pi/pull/15762) by [@will-bogusz](https://github.com/will-bogusz))
-
 - Fixed the Isolate Subagents setting description implying that all tasks run isolated; each task must opt in with `isolated: true` ([#15987](https://github.com/can1357/oh-my-pi/issues/15987)).
 - Fixed `read` labeling re-encoded images with the display format instead of the source file's format; it now identifies both when they differ ([#15890](https://github.com/can1357/oh-my-pi/issues/15890)).
 - Fixed `omp -p` and `task` subagents reporting a clean finish with an earlier answer when a context overflow could not be compacted enough to retry; the overflow error is now the run's outcome ([#15897](https://github.com/can1357/oh-my-pi/pull/15897) by [@nhthung](https://github.com/nhthung))
@@ -262,7 +261,6 @@
 - Fixed `ast_grep` reporting a clean "No matches found" for a pattern that does not parse in the target language (e.g. a bare C# identifier); it now lists the pattern's ERROR node as a parse issue ([#15950](https://github.com/can1357/oh-my-pi/issues/15950))
 - Fixed `--resume <id>` and session listings skipping transcripts placed in the session directory as symlinks ([#15878](https://github.com/can1357/oh-my-pi/issues/15878), [#15884](https://github.com/can1357/oh-my-pi/pull/15884) by [@peda-cos](https://github.com/peda-cos))
 - Fixed sessions with a deferred-connecting MCP server listing every routed MCP tool twice, once as a mount notice and once in route guidance ([#15982](https://github.com/can1357/oh-my-pi/pull/15982) by [@zcyoung2000](https://github.com/zcyoung2000))
-
 - Fixed Claude Opus 5.5 replies sent between tool calls (for example an answer to a question asked mid-task) being folded into the "Thought" block; they now show as normal reply text in the transcript, print mode, ACP clients, and HTML exports
 - Fixed the shell's `du --time=ctime` (also `status`) printing `???` on Windows; it now shows the last write time, as `stat` already does for the status-change time
 - Fixed the shell's `rmdir dir/.` on Windows removing `dir` (and `rmdir x/..` the parent); like POSIX it now fails with `Invalid argument` / `Directory not empty`
@@ -300,12 +298,16 @@
 - Fixed MCP OAuth login requesting every scope in an authorization server's catalogue when the protected resource advertises no scopes; `/mcp reauth` now falls back to configured scopes or authorization-server defaults ([#15996](https://github.com/can1357/oh-my-pi/pull/15996) by [@unclesamwk](https://github.com/unclesamwk)).
 - Fixed the incomplete-todo stop reminder firing (and resuming work) when the agent's final message asks for permission or a decision before a closing status line, through "If you confirm, I'll…"/"Separately, tell me…"-style requests, or with a non-English question followed by another sentence ([#15986](https://github.com/can1357/oh-my-pi/issues/15986))
 - Fixed context-file `@` imports failing to load paths containing backslash-escaped spaces ([#16090](https://github.com/can1357/oh-my-pi/issues/16090))
+- Fixed `read` serving a stale archive listing when an archive was rewritten in place with the same size and a restored mtime: the reader cache identified files by inode/mtime/ctime/size only, and on filesystems whose timestamps advance in steps coarser than the gap between the two writes the inode reports the same ctime, so the rewrite was invisible. The cache now also fingerprints the head and tail of the file.
+- The terminal tab title no longer falls back to `omp` when there is no session name; it uses `zeta`.
+- Collab replication snapshots restore upstream v18.8.4's no-copy contract (live header + entries), with host and sentinel in sync.
+- Deduplicated a repeated `[1.1.27]` section header in the CHANGELOG, fixing changelog parsing.
+- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
 
 ### Removed
 
 - Removed the unused `editor.handoffSession` setting (and its row in `zetacode config`): `/editor` hands the session to the editor on the command line, so nothing read the key.
 - Removed Codex Code Mode and its `providers.openai-codex.codeMode` / `providers.openai-codex.codeModeDirectTools` settings; Codex models always use the full direct tool surface.
-
 - Removed the built-in `rs-parking-lot` rule; Rust edits using `std::sync::{Mutex, RwLock}` with `.lock().unwrap()` are no longer steered to `parking_lot`
 
 ## [1.2.1] - 2026-10-13
@@ -343,18 +345,10 @@
 - Brand-surface regression fix: an upstream `chore: branding` commit (`d35a9067233`, 2026-09-24) came in with the v18.8.x merge and reverted model-visible prompts and user-visible CLI text to `omp` — the system prompt's first line (from which the model calls itself "omp's coding assistant"), the `cfg://`/browser/ida/isolation-error/security/cleanse/live/commit prompts, help and example text (`zetacode bench`, etc.), the `text-predict`/`tiny worker`/`lsp mux`/RPC wire process banners, and the related `docs/` pages all return to Zeta naming. `brand-rules.ts` gains 6 MUST_CONTAIN + 4 MUST_NOT_CONTAIN guards; the CHANGELOG is exempt per the "released entries are immutable" convention ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
 - The CLI's canonical command name is fixed as `zetacode` (the four-product standard names — zetawork / zetacode / zetaide / zetaeditor, no hyphens): `--help` usage and examples, the `update` banner, the `--resume` hint, profile alias generation, and all per-command help and docs now use the standard name. `zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` remain npm bin compatibility aliases with unchanged behavior; shims and asset filenames (`zeta-c.cmd`, etc.) are unaffected.
 - **Full upstream brand-residue sweep**: every upstream identifier the product exposes is renamed to Zeta, including OS/browser-visible parts — the macOS bundle id and app name (`dev.zeta.oauth-callback.*` / `Zeta OAuth Callback.app`), the Windows HKCU registry transaction name, the Linux desktop entry and `zeta-auth` protocol, the file-descriptor URL scheme (`zeta-descriptor://`), the file-lock prefix, and the XDG state directory; process titles (`zetacode lsp mux`), the IDA daemon name (`zeta.ida.*`), named-pipe and socket paths, User-Agent, the AWS STS `RoleSessionName`, telemetry metric and TUI semantic roles, and the custom element name of exported HTML. The session-recording format extension changes `.ompcast` → `.zetacast`. Dev wrappers and link scripts become `scripts/zetacode` / `scripts/link-zetacode.sh` and no longer write `omp` into the global bin.
-- **⚠️ Storage key namespace change (migration needed)**: the Redis session store's default key prefix changes from `omp:sessions:` to `zeta:sessions:`, and the SQL session store's default table name from `omp_session_files` to `zeta_session_files`. Existing deployments on the defaults will no longer see their history — migrate by renaming the old keys/table to the new names, or explicitly write the old prefix back in config. Both are pure renames with no format change.
-- **⚠️ OAuth callback protocol handler renamed**: macOS LaunchServices, the Windows registry, and Linux desktop entries may still hold registrations for the old identifiers (`dev.omp.oauth-callback.*` / `omp OAuth Callback` / `omp-auth`) pointing at paths that no longer exist. Running one OAuth login after upgrading writes the new registration; if stale entries remain, remove them in the OS's "default apps / protocol associations" settings.
-- **SDK rename (no compatibility alias)**: `sdk/go/omp-rpc`, `sdk/python/omp-rpc`, and `sdk/rust/omp-rpc` become `zeta-rpc`; the Python package `omp_rpc` → `zeta_rpc`, the Go package `omprpc` → `zetarpc`. All three are `gen:rpc`-generated and committed, at version 0.1.0 (pre-1.0), and were never published to any registry, so no `omp-rpc` transitional alias is provided. The Go module path is also corrected: it previously pointed at the upstream repo `github.com/can1357/oh-my-pi/sdk/go/...`, and is now `github.com/Linxira-OS/linxira-zeta/sdk/go/zeta-rpc`.
 
 ### Fixed
 
 - Fixed the spelling split between the two sides of the tiny worker banner: the worker printed `omp tiny worker listening on` while the title-client filtered for `zeta tiny worker listening on ` (never matching, so the banner line that should be filtered kept leaking in). Both sides now use `zetacode`, and the `text-predict`/`lsp mux` process identifiers and the IDA named-pipe prefix are aligned too ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
-- Fixed `read` serving a stale archive listing when an archive was rewritten in place with the same size and a restored mtime: the reader cache identified files by inode/mtime/ctime/size only, and on filesystems whose timestamps advance in steps coarser than the gap between the two writes the inode reports the same ctime, so the rewrite was invisible. The cache now also fingerprints the head and tail of the file.
-- The terminal tab title no longer falls back to `omp` when there is no session name; it uses `zeta`.
-- Collab replication snapshots restore upstream v18.8.4's no-copy contract (live header + entries), with host and sentinel in sync.
-- Deduplicated a repeated `[1.1.27]` section header in the CHANGELOG, fixing changelog parsing.
-- Published tarballs now carry real dependency versions instead of Bun's `catalog:` protocol (1.1.0 installs failed with "Unsupported URL Type catalog:").
 
 ## [1.1.27] - 2026-10-07
 

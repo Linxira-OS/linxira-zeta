@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-18
+
 ### Added
 
 - Added `TspPickerMark.icon`: an icon a picker mark draws instead of its initials when the terminal has it (`provider:<id>` names a model provider's logo)
