@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.11.3
+## Integrated through: v18.12.1
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -44,6 +44,26 @@ two-parent tag merge.
   validation).
 
 
+
+## v18.12.1 incremental merge (Zeta — branch `sync/omp-release/v18.12.0`; merge commit `c232ef358b7`)
+
+- **Baseline**: v18.11.3 (peeled `96894a6147d`) — `git merge-base` before the merge
+  resolved to exactly this commit, so the diff was upstream v18.11.3 → v18.12.1 only.
+- **Source tag**: v18.12.1, remote peeled `291e055836c` (verified with `git ls-remote`
+  before the merge). Merge parents: `d927fb9d70a` (Zeta `main`) + `291e055836c`.
+- **Zeta starting commit**: `d927fb9d70a`.
+- **Conflicts**: 120, resolved by class — 63 functional (upstream semantics, Zeta-only
+  surface replayed), 48 test files taken wholesale from upstream, 4 documentation files
+  from upstream, 3 lockfiles (`Cargo.lock`, `bun.lock`, `MODULE.bazel.lock`) from upstream
+  then refreshed.
+- **Post-merge structural fixes**: catalog/version line realigned to `1.2.1`
+  (`bun scripts/set-version.ts 1.2.1` + `cargo metadata` + `bun install`); the Cargo lock
+  had pulled `pi-edit`/`pi-natives`/`pi-voice`/`pi-predict`/`pi-iso`/`pi-shell` to `18.12.1`.
+- **Checks**: `check-version-consistency` (1.2.1), brand-check, zeta-sentinels,
+  scope-imports, license-map, lsp-servers, shared-infra, local-ci-parity, `check:ts` — all
+  exit 0. `check-merge-lineage` reports an intact lineage.
+- **Landing**: squashed into `main` as the sync branch merge `3bdf45d6143`, pushed with the
+  rest of the local batch as `ab8a88bef97`.
 
 ## v18.11.3 incremental merge (Zeta — branch `sync/omp-release/v18.11.3`; merge commit `24c3da1c56b`)
 
