@@ -175,7 +175,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | Surface | Canonical | Guard |
 |---|---|---|
 | CLI 终端标题品牌字符 | `ζ`（title-generator.ts） | 上游重引 `π` 即恢复 + 两测试 |
-| CLI welcome/splash/outro 字符画 | 标准工具生成（2026-10-14 规格，`scripts/brand/logo-art.ts`）：mark = FIGlet `ANSI Shadow` 的 `Z`（`Ζ` 的 ASCII 形，即 `ZETA_LOGO`）+ 主行 `Zeta`（`ANSI Shadow`，`ZETA_WORDMARK`）+ 次行 `Linxira-Zeta`（`mini`，`ZETA_SUBLINE`），版本 `v<version>` 在字标下；native/splash 面的字标文本为 `Zeta` / `Linxira-Zeta` | 不接受上游 `PI_LOGO`/`omp` wordmark/π art；`bun scripts/brand/generate-logo-art.ts` 生成、`brand-check.ts` 校验三个常量与生成脚本输出逐字一致（手改一个字符即红）；`brand-rules.ts` MUST_CONTAIN 与 `zeta-sentinels.ts` 同时钉标志与字标的确切行 |
+| CLI welcome/splash/outro 字符画（**2026-10-18 用户定稿，永久冻结**） | 标准工具生成（2026-10-14 规格，`scripts/brand/logo-art.ts`）：mark = FIGlet `ANSI Shadow` 的 `Z`（`Ζ` 的 ASCII 形，即 `ZETA_LOGO`）+ 主行 `Zeta`（`ANSI Shadow`，`ZETA_WORDMARK`）+ 次行 `Linxira-Zeta`（`mini`，`ZETA_SUBLINE`），版本 `v<version>` 在字标下；native/splash 面的字标文本为 `Zeta` / `Linxira-Zeta` | 不接受上游 `PI_LOGO`/`omp` wordmark/π art；`bun scripts/brand/generate-logo-art.ts` 生成、`brand-check.ts` 校验三个常量与生成脚本输出逐字一致（手改一个字符即红）；`brand-rules.ts` MUST_CONTAIN 与 `zeta-sentinels.ts` 同时钉标志与字标的确切行 |
 | `icon.omp` unicode 预设（symbols.ts） | `ζ`（ascii 预设 `zeta`） | 重引 `π`/`pi` 即恢复；nerd 预设 `U+F0D57` 保留（v18.0.10 决议） |
 | `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
 | latex-to-unicode π 条目 | `π` | 保留——数学转换 |
@@ -197,6 +197,12 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | **`OMP_*` 环境变量（2026-10-10 裁定：暂不改）** | 保持 `OMP_*` | **190 个变量、约 2000 处引用**，且多数是 `docs/environment-variables.md` 里文档化的用户配置项。一次性改名会（a）破坏用户现有配置与脚本（b）要求生产者/消费者同时改，漏一处即静默失效（2026-10-10 的 `bin: "omp"` 夹具事故就是这个成因）。正确路径是**读旧写新**的分阶段迁移，需独立方案与守卫后再动。`brand-check` 现有规则**不覆盖** env 名，故合并不会误扫，也不会误报 |
 | 品牌残留守卫 | `bun scripts/brand/brand-check.ts`（已进 CI check job） | 机械规则进 `scripts/brand/brand-rules.ts`，散文只留判断 |
 | 产品前门（README/logo/名称/主页/安装文档） | Zeta 产品面 | 完整合并后单独 branding-overlay commit |
+
+**启动字符画定稿（2026-10-18 用户裁定）**：`packages/tui/src/prompt/welcome.ts` 的
+`ZETA_LOGO` / `ZETA_WORDMARK` / `ZETA_SUBLINE` 与 `scripts/brand/logo-art.ts` 的输出**就是
+最终稿，永久冻结**——不再讨论字形美观、不再换字体、不再改宽度或渐变。合并带回了别的画就
+按本表恢复；任何"字符画看起来断了/像别的字"的判断一律作废，除非用户**再次明确要求**修改。
+判据仍是 `brand-check` 的逐字校验（手改一个字符即红）。
 
 ## Post-Merge Release-Surface Checklist (merge damage classes)
 
