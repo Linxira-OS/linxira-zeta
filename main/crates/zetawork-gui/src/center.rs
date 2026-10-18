@@ -7,20 +7,18 @@
 //! project). Below it the tool strip drives 新建终端 / 分屏 / 列数, and the body
 //! is either the pane grid or, with no workspace open, the welcome panel.
 //!
-//! The three pane bodies are where the honest line lives: the terminal blits a
-//! real ratatui `Buffer` (see [`crate::blit`]), the editor colours the spec's
-//! sample code, and the diff draws the spec's hunk rows — and each one starts
-//! with a `[占位]` banner naming the data source it will read once that exists.
+//! Every pane body reads real data: the terminal blits the live PTY's ratatui
+//! `Buffer` (see [`crate::blit`]), the editor reads and writes a real file, and
+//! the diff draws the workspace's real `git diff`.
 
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::Shell;
 use crate::agent::RowKind;
-use crate::agent_sessions::{EMPTY_HINT, Link};
-use crate::blit::{BufferCache, GridMetrics, paint_buffer_with, paint_cursor};
+use crate::agent_sessions::Link;
+use crate::blit::{GridMetrics, paint_buffer_with};
 use crate::git::DiffKind;
 use crate::icons::{Icon, icon_button, paint};
-use crate::seed;
 use crate::state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab};
 use crate::theme;
 use crate::widgets::{Chip, chip, empty_note, truncated_mono, truncated_text};
@@ -496,7 +494,7 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	};
 	let tab = tab.clone();
 	match tab.kind {
-		SessionKind::Term => term_body(ui, shell, pane, &tab, seed::TermKind::of(&tab.id)),
+		SessionKind::Term => term_body(ui, shell, pane, &tab),
 		SessionKind::Editor => editor_body(ui, shell, pane, &tab),
 		SessionKind::Diff => diff_body(ui, shell, pane),
 		SessionKind::Git => crate::right::git_panel(ui, shell, pane.id.as_str()),
@@ -507,7 +505,7 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 }
 
 /// A terminal pane: the `.termsub` chip row over a blitted ratatui buffer.
-fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind: seed::TermKind) {
+fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
 		.rect_filled(rect, CornerRadius::ZERO, theme::TERM_BG);
@@ -556,14 +554,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 	let metrics =
 		GridMetrics::for_panel(ui.ctx(), term_grid, f32::from(shell.settings.terminal_size));
 	let columns = metrics.cols.max(1);
-	let path = shell
-		.state
-		.active_workspace()
-		.map(|ws| ws.path.clone())
-		.unwrap_or_default();
-	let branch = shell.state.branch_label().to_owned();
-	let shell_name = tab.shell.map(|kind| kind.label().to_owned());
-	// A serve-backed PTY replaces the seeded transcript when the gateway is
+	// A serve-backed PTY replaces the in-process one when the gateway is
 	// reachable; otherwise the in-process PTY below does. `ensure` picks once
 	// per tab, so a mid-stream failure moves it to `Local` permanently.
 	let rows = metrics.rows.max(1);
@@ -589,7 +580,9 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 	// about to show this grid, and its status line names the shell that
 	// actually started — which only exists after the spawn.
 	if shell.terminals.is_local(tab.id.as_str()) {
-		shell.live.ensure(tab.id.as_str(), columns, rows, cwd);
+		shell
+			.live
+			.ensure(tab.id.as_str(), columns, rows, cwd, tab.shell);
 	}
 	let status = terminal_status(shell, tab);
 	let reason = shell.terminals.reason(&tab.id).map(str::to_owned);
@@ -609,45 +602,10 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab, kind
 			return;
 		}
 	}
-	// The banner (which an unstarted terminal page owes the user) adds three
-	// lines, plus one more when the page names a shell.
-	let banner_rows = 3 + usize::from(shell_name.is_some());
-	let lines = seed::transcript(kind, &path, &branch).len() + banner_rows;
-	let rows = (lines as u16 + 1).max(metrics.rows);
-	let key = format!("{}|{columns}x{rows}|{:?}|{:?}", tab.id, kind, tab.shell);
-	let paint_settings = shell.settings;
-	let buffer = shell.term_buffers.get_or_render(key, || {
-		seed::term_buffer(columns, rows, kind, &path, &branch, shell_name.as_deref())
-	});
-	// One id per session tab: two panes rendering the same widget from the same
-	// call site would otherwise share one scroll state (and egui warns about the
-	// second use of the id).
-	egui::ScrollArea::vertical()
-		.id_salt(("zetawork-term", tab.id.as_str()))
-		.auto_shrink([false, false])
-		.show(ui, |ui| {
-			let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
-			let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
-			let metrics = GridMetrics {
-				origin: rect.min,
-				font: metrics.font.clone(),
-				cell_w: metrics.cell_w,
-				cell_h: metrics.cell_h,
-				cols: columns,
-				rows,
-				font_size: metrics.font_size,
-			};
-			paint_buffer_with(ui.painter(), buffer, &metrics, theme::TERM_TEXT);
-			// The cursor sits on the sample's last prompt line, drawn in the style
-			// the 设置 modal picked.
-			let last = (lines as u16).saturating_sub(1);
-			paint_cursor(
-				ui.painter(),
-				&metrics,
-				ratatui::layout::Position { x: 2, y: last },
-				paint_settings.cursor,
-			);
-		});
+	// Neither backend produced a grid: the spawn failed. One quiet line says
+	// so; nothing is invented in its place.
+	let mut notice = ui.new_child(egui::UiBuilder::new().max_rect(term_grid.shrink(10.0)));
+	empty_note(&mut notice, "终端没有启动");
 	paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 }
 
@@ -764,7 +722,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let (pane_id, tab_id) = (pane.id.clone(), tab.id.clone());
 
 	let Some(doc) = shell.state.doc_mut(&pane_id, &tab_id) else {
-		empty_note(ui, "这个编辑器标签页没有打开文件", "右栏 文件树 里点一个文件，或 ＋ 里选 编辑器");
+		empty_note(ui, "还没有打开文件");
 		return;
 	};
 	// Split borrows: the text buffer goes to the widget, the flags stay here.
@@ -902,91 +860,6 @@ fn language_label(extension: &str) -> &'static str {
 	}
 }
 
-/// The spec's `hl()`: comments, strings, numbers, keywords, identifiers.
-///
-/// The spec does it with one regex; the same split is done here in two passes
-/// (cut a trailing `//` comment, then walk the code with a string-state
-/// machine) so the result is a list of coloured spans without pulling a regex
-/// engine in.
-///
-/// Nothing calls this yet: the 编辑器 page edits a real buffer through
-/// [`egui::TextEdit`], and colouring it would mean rebuilding a layout job for
-/// the whole file every frame. It stays for the read-only code views (the IDE
-/// page and the diff page's context lines) that want the spec's palette.
-#[allow(dead_code)]
-fn highlight(line: &str, default_ink: Color32) -> Vec<(String, Color32)> {
-	use crate::theme::syntax;
-	let (code, comment) = split_comment(line);
-	let mut spans: Vec<(String, Color32)> = Vec::new();
-	let mut word = String::new();
-	let mut string: Option<char> = None;
-	let flush = |word: &mut String, spans: &mut Vec<(String, Color32)>| {
-		if word.is_empty() {
-			return;
-		}
-		let color = if seed::KEYWORDS.contains(&word.as_str()) {
-			syntax::KEYWORD
-		} else if word.chars().all(|ch| ch.is_ascii_digit() || ch == '_') {
-			syntax::NUMBER
-		} else {
-			syntax::IDENT
-		};
-		spans.push((std::mem::take(word), color));
-	};
-	for ch in code.chars() {
-		if let Some(quote) = string {
-			word.push(ch);
-			if ch == quote {
-				string = None;
-				spans.push((std::mem::take(&mut word), syntax::STRING));
-			}
-			continue;
-		}
-		match ch {
-			'"' | '\'' => {
-				flush(&mut word, &mut spans);
-				string = Some(ch);
-				word.push(ch);
-			},
-			ch if ch.is_alphanumeric() || ch == '_' => word.push(ch),
-			ch => {
-				flush(&mut word, &mut spans);
-				spans.push((ch.to_string(), default_ink));
-			},
-		}
-	}
-	flush(&mut word, &mut spans);
-	if !comment.is_empty() {
-		spans.push((comment, syntax::COMMENT));
-	}
-	spans
-}
-
-/// `line` split at the first `//` that is not inside a string literal.
-fn split_comment(line: &str) -> (String, String) {
-	let chars: Vec<char> = line.chars().collect();
-	let mut string: Option<char> = None;
-	let mut index = 0;
-	while index < chars.len() {
-		let ch = chars[index];
-		if let Some(quote) = string {
-			if ch == '\\' {
-				index += 1;
-			} else if ch == quote {
-				string = None;
-			}
-		} else if ch == '"' || ch == '\'' {
-			string = Some(ch);
-		} else if ch == '/' && chars.get(index + 1) == Some(&'/') {
-			let code: String = chars[..index].iter().collect();
-			let comment: String = chars[index..].iter().collect();
-			return (code, comment);
-		}
-		index += 1;
-	}
-	(line.to_owned(), String::new())
-}
-
 /// A 差异比较器 page: the active workspace's real `git diff`, read-only.
 ///
 /// The rows come straight from the cached diff text (no per-frame row list):
@@ -1023,19 +896,19 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	let result = shell.diff_result();
 	let Some(result) = result else {
 		let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
-		empty_note(&mut child, "先打开一个工作区", "工作区目录里的 git 仓库");
+		empty_note(&mut child, "先打开一个工作区");
 		return;
 	};
 	let text = match result {
 		Ok(text) if text.trim().is_empty() => {
 			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
-			empty_note(&mut child, "与 HEAD 没有差异", "git diff --no-color HEAD（只读）");
+			empty_note(&mut child, "与 HEAD 没有差异");
 			return;
 		},
 		Ok(text) => text,
 		Err(error) => {
 			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
-			empty_note(&mut child, &format!("无法读取 git diff：{error}"), "工作区目录里的 git 仓库");
+			empty_note(&mut child, &format!("无法读取 git diff：{error}"));
 			return;
 		},
 	};
@@ -1173,7 +1046,7 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	}
 
 	if pane.session.is_none() {
-		empty_note(&mut child, "尚未连接 agent 会话", EMPTY_HINT);
+		empty_note(&mut child, "还没有连接会话");
 		return;
 	}
 
@@ -1235,7 +1108,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 			return;
 		},
 		None => {
-			empty_note(ui, "这个页面没有 zetacode 程序", "随包的 zetacode");
+			empty_note(ui, "这个页面没有 zetacode 程序");
 			return;
 		},
 	};
@@ -1343,9 +1216,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 			.layout(Layout::left_to_right(Align::Center)),
 	);
 	if wide_button(&mut open_btn, Icon::Plus, "添加项目", false).clicked() {
-		shell.state.show(crate::state::Notice(
-			"添加项目：项目注册表尚未接入（未来数据源：zetawork 项目注册表）".to_owned(),
-		));
+		shell.state.begin_add_project();
 	}
 	let mut new_btn = ui.new_child(
 		egui::UiBuilder::new()
@@ -1361,9 +1232,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 				shell.state.act(|s| s.new_workspace(&project));
 			},
 			None => {
-				shell.state.show(crate::state::Notice(
-					"创建工作区：先添加一个项目（项目注册表尚未接入）".to_owned(),
-				));
+				shell.state.begin_add_project();
 			},
 		}
 	}
@@ -1445,10 +1314,6 @@ fn wide_button(ui: &mut Ui, icon: Icon, label: &str, primary: bool) -> egui::Res
 	}
 	response
 }
-
-/// The buffer cache lives on the shell so a pane does not re-render its sample
-/// transcript every frame.
-pub type TermBuffers = BufferCache;
 
 /// How many grid columns a string occupies: the *display* width, so a wide CJK
 /// glyph counts as two. Every width estimate in the shell goes through this,

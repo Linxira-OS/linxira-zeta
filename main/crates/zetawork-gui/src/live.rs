@@ -146,7 +146,12 @@ static PANE_CONFIG: std::sync::LazyLock<std::sync::Arc<Config>> =
 /// where the user can see it.
 ///
 /// `None` means the spawn failed.
-fn spawn_local(rows: u16, cols: u16, cwd: Option<PathBuf>) -> Option<(Terminal, String)> {
+fn spawn_local(
+	rows: u16,
+	cols: u16,
+	cwd: Option<PathBuf>,
+	shell: Option<crate::shells::ShellKind>,
+) -> Option<(Terminal, String)> {
 	#[cfg(windows)]
 	{
 		let installed = crate::shells::detect();
@@ -156,16 +161,33 @@ fn spawn_local(rows: u16, cols: u16, cwd: Option<PathBuf>) -> Option<(Terminal, 
 				.find(|shell| shell.kind == kind)
 				.map(|shell| shell.path.as_path())
 		};
+		// The tab's own shell (设置 → 终端 的 默认 Shell, or the `+` picker's
+		// row) wins when that family is installed; otherwise the chain below
+		// decides.
+		let requested = shell.and_then(find);
 		// termide trusts `$SHELL` only when it is an absolute Windows path
 		// (`MSYS` exports `/usr/bin/bash`, which a native binary cannot run).
 		let shell_env = std::env::var_os("SHELL")
 			.map(PathBuf::from)
 			.filter(|path| path.to_string_lossy().contains(':') && path.exists());
-		let plan = local_shell_plan(
-			shell_env.as_deref(),
-			find(crate::shells::ShellKind::Pwsh),
-			find(crate::shells::ShellKind::PowerShell),
-		);
+		let plan = match requested {
+			Some(path) => {
+				let stem = path
+					.file_stem()
+					.and_then(|stem| stem.to_str())
+					.unwrap_or("");
+				if is_powershell(stem) {
+					LocalShell::PowerShell { program: path.to_path_buf() }
+				} else {
+					LocalShell::Path(path.to_path_buf())
+				}
+			},
+			None => local_shell_plan(
+				shell_env.as_deref(),
+				find(crate::shells::ShellKind::Pwsh),
+				find(crate::shells::ShellKind::PowerShell),
+			),
+		};
 		let (term, command) = match plan {
 			LocalShell::Auto => {
 				let program = installed
@@ -192,11 +214,17 @@ fn spawn_local(rows: u16, cols: u16, cwd: Option<PathBuf>) -> Option<(Terminal, 
 	}
 	#[cfg(not(windows))]
 	{
-		let program = crate::shells::detect()
-			.first()
-			.map(|shell| shell.path.to_string_lossy().into_owned())
-			.unwrap_or_else(|| "自动检测的 shell".to_owned());
-		Some((Terminal::new_with_cwd(rows, cols, cwd).ok()?, program))
+		let installed = crate::shells::detect();
+		let requested = shell
+			.and_then(|kind| installed.iter().find(|shell| shell.kind == kind))
+			.or_else(|| installed.first());
+		match requested {
+			Some(shell) => {
+				let program = shell.path.to_string_lossy().into_owned();
+				(Terminal::new_with_shell(rows, cols, &program, cwd).ok()?, program)
+			},
+			None => None,
+		}
 	}
 }
 
@@ -241,7 +269,14 @@ impl LiveSessions {
 	/// Spawn the PTY for `tab` when it has none, and resize it when the grid
 	/// changed. `false` means the spawn failed (no shell, no PTY) — the caller
 	/// keeps its placeholder and says so.
-	pub fn ensure(&mut self, tab: &str, cols: u16, rows: u16, cwd: Option<PathBuf>) -> bool {
+	pub fn ensure(
+		&mut self,
+		tab: &str,
+		cols: u16,
+		rows: u16,
+		cwd: Option<PathBuf>,
+		shell: Option<crate::shells::ShellKind>,
+	) -> bool {
 		if let Some(live) = self.tabs.get_mut(tab) {
 			if live.cols != cols || live.rows != rows {
 				let _ = live.term.resize(rows, cols);
@@ -250,7 +285,7 @@ impl LiveSessions {
 			}
 			return true;
 		}
-		match spawn_local(rows, cols, cwd) {
+		match spawn_local(rows, cols, cwd, shell) {
 			Some((term, command)) => {
 				// The PTY child's pid is the one thing termide reports, and its
 				// argv is the single command line this side handed over.

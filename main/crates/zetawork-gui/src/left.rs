@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! The left column (`aside.side-left`) and its collapsed rail.
 //!
-//! Content order is the spec's: brand head, 主导航, 项目 (the project → workspace
+//! Content order is the spec's: brand head, 项目 (the project → workspace
 //! list), then the foot row with 设置 / 帮助 / 聚焦. Collapsing swaps the column
 //! for the thin `rail.rail-left` strip that carries only the expand button.
 //!
@@ -16,10 +16,10 @@ use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 use crate::Shell;
 use crate::icons::Icon;
 use crate::icons::icon_button;
-use crate::state::{AppState, NavItem, Project, Workspace};
+use crate::state::{AppState, Project, Workspace};
 use crate::theme;
 use crate::widgets::{
-	foot_button, nav_row, status_dot, status_tooltip, status_word, truncated_mono, truncated_text,
+	foot_button, status_dot, status_tooltip, status_word, truncated_mono, truncated_text,
 };
 
 /// Width of the open column (`--side-left-w`).
@@ -31,19 +31,6 @@ pub const RAIL_WIDTH: f32 = 44.0;
 const HEAD_H: f32 = 44.0;
 /// Height of the foot row.
 const FOOT_H: f32 = 46.0;
-/// Height of one nav row.
-const NAV_ROW_H: f32 = 30.0;
-
-fn nav_icon(item: NavItem) -> Icon {
-	match item {
-		NavItem::Search => Icon::Search,
-		NavItem::Tasks => Icon::Tasks,
-		NavItem::Automations => Icon::Zap,
-		// R20: hidden this round, but the slot keeps its icon for the day it
-		// comes back.
-		NavItem::Mobile => Icon::Hamburger,
-	}
-}
 
 /// The open column.
 pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
@@ -55,21 +42,11 @@ pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
 		Stroke::new(1.0_f32, theme::BORDER),
 	);
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), HEAD_H));
-	let nav = Rect::from_min_size(
-		pos2(rect.min.x, head.max.y),
-		vec2(rect.width(), NAV_ROW_H * NavItem::visible().count() as f32 + 10.0),
-	);
 	let foot =
 		Rect::from_min_size(pos2(rect.min.x, rect.max.y - FOOT_H), vec2(rect.width(), FOOT_H));
-	let list = Rect::from_min_max(pos2(rect.min.x, nav.max.y), pos2(rect.max.x, foot.min.y));
+	let list = Rect::from_min_max(pos2(rect.min.x, head.max.y), pos2(rect.max.x, foot.min.y));
 	let mut head_ui = ui.new_child(egui::UiBuilder::new().max_rect(head));
 	head_region(&mut head_ui, shell);
-	let mut nav_ui = ui.new_child(
-		egui::UiBuilder::new()
-			.max_rect(nav)
-			.layout(Layout::top_down(Align::Min)),
-	);
-	nav_region(&mut nav_ui, shell);
 	let mut list_ui = ui.new_child(egui::UiBuilder::new().max_rect(list));
 	projects_region(&mut list_ui, shell);
 	let mut foot_ui = ui.new_child(egui::UiBuilder::new().max_rect(foot));
@@ -95,34 +72,6 @@ fn head_region(ui: &mut Ui, shell: &mut Shell) {
 	)));
 	if icon_button(&mut collapse, Icon::ChevronLeft, 24.0, false, "收起左侧栏").clicked() {
 		shell.state.toggle_left();
-	}
-}
-
-/// `.nav` — 搜索 / 任务 / 自动化.
-fn nav_region(ui: &mut Ui, shell: &mut Shell) {
-	ui.add_space(5.0);
-	let rect = ui.max_rect();
-	// `add_space` moved the cursor, so the rows start below it rather than at
-	// the region's top.
-	let inner = Rect::from_min_max(
-		pos2(rect.min.x + 8.0, ui.cursor().top()),
-		pos2(rect.max.x - 8.0, rect.max.y),
-	);
-	let mut child = ui.new_child(
-		egui::UiBuilder::new()
-			.max_rect(inner)
-			.layout(Layout::top_down(Align::Min)),
-	);
-	for item in NavItem::visible() {
-		let active = shell.state.nav == item;
-		if nav_row(&mut child, nav_icon(item), item.label(), item.trailing(), active).clicked() {
-			shell.state.nav = item;
-			shell.state.show(crate::state::Notice(format!(
-				"{}：尚未接入（未来数据源：{}）",
-				item.label(),
-				item.source()
-			)));
-		}
 	}
 }
 

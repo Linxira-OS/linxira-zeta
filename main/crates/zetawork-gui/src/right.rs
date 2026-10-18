@@ -10,7 +10,7 @@
 
 use std::collections::HashSet;
 
-use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
+use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::Shell;
 use crate::fsread::DirNode;
@@ -124,7 +124,7 @@ fn files_panel(ui: &mut Ui, shell: &mut Shell) {
 		path_rect.width() - 12.0,
 	);
 	if let Some(error) = shell.tree.error.clone() {
-		empty_note(ui, &error, "工作区目录（可读的本地路径）");
+		empty_note(ui, &error);
 		return;
 	}
 	let changed: HashSet<String> = shell
@@ -140,7 +140,7 @@ fn files_panel(ui: &mut Ui, shell: &mut Shell) {
 		.unwrap_or_default();
 	let root = shell.tree.root().cloned();
 	let Some(root) = root else {
-		empty_note(ui, "先打开一个工作区", "左侧的项目 → 工作区");
+		empty_note(ui, "先打开一个工作区");
 		return;
 	};
 	let root_path = std::path::PathBuf::from(&path);
@@ -266,19 +266,9 @@ fn tree_rows(
 
 // ── 历史 · Agent 对话 ─────────────────────────────────────────────────────
 
-fn history_panel(ui: &mut Ui, shell: &mut Shell) {
-	panel_head(ui, "历史 · Agent 对话", |ui| {
-		if icon_button(ui, Icon::Plus, 20.0, false, "新会话").clicked() {
-			shell.state.show(crate::state::Notice(
-				"新会话：会话宿主尚未接入（未来数据源：zetacode 会话）".to_owned(),
-			));
-		}
-	});
-	empty_note(
-		ui,
-		"还没有对话记录",
-		"zetacode 会话存储（~/.zeta/agent/agent.db）与 zetacode stats /api/sessions",
-	);
+fn history_panel(ui: &mut Ui, _shell: &mut Shell) {
+	panel_head(ui, "历史 · Agent 对话", |_ui| {});
+	empty_note(ui, "还没有对话记录");
 }
 
 // ── Git 状态 ──────────────────────────────────────────────────────────────
@@ -297,16 +287,11 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 	}
 	let status = shell.git.clone();
 	let Some(status) = status else {
-		empty_note(ui, "正在读取 git 状态…", "git status/log/rev-list（只读）");
+		empty_note(ui, "正在读取 git 状态…");
 		return;
 	};
 	if let Some(error) = &status.error {
-		empty_note(
-			ui,
-			&format!("无法读取 git 状态：{}", short_git_error(error)),
-			"工作区目录里的 git 仓库",
-		);
-		readonly_hint(ui);
+		empty_note(ui, &format!("无法读取 git 状态：{}", short_git_error(error)));
 		return;
 	}
 	egui::ScrollArea::vertical()
@@ -314,45 +299,7 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 		.auto_shrink([false, false])
 		.show(ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 4.0;
-			// 创建 PR — the spec's green button, disabled: this slice does not push.
-			let (rect, response) =
-				ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
-			ui.painter().rect_filled(
-				rect,
-				CornerRadius::same(theme::R_PANEL),
-				theme::PR_GREEN.gamma_multiply(0.45),
-			);
-			paint(
-				ui.painter(),
-				Icon::GitPr,
-				Rect::from_center_size(pos2(rect.center().x - 26.0, rect.center().y), vec2(15.0, 15.0)),
-				Color32::from_gray(0xdd),
-				1.6,
-			);
-			ui.painter().text(
-				pos2(rect.center().x + 6.0, rect.center().y),
-				egui::Align2::CENTER_CENTER,
-				"创建 PR",
-				egui::FontId::new(13.0, egui::FontFamily::Proportional),
-				Color32::from_gray(0xdd),
-			);
-			let _ = response.on_hover_text("本切片只读：创建 PR 未接入（未来：gh pr create）");
-
 			branch_row(ui, &status);
-			readonly_hint(ui);
-
-			let (message_rect, _) =
-				ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::hover());
-			let mut message = shell.git_message.clone();
-			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(message_rect));
-			child.add_enabled(
-				false,
-				egui::TextEdit::multiline(&mut message)
-					.hint_text("提交信息（本切片只读）")
-					.desired_width(f32::INFINITY)
-					.desired_rows(2),
-			);
-			shell.git_message = message;
 
 			group(ui, "更改", status.changed.len(), "M", true, |ui| {
 				for file in &status.changed {
@@ -596,18 +543,6 @@ fn short_git_error(error: &str) -> String {
 	let mut short: String = detail.chars().take(19).collect();
 	short.push('…');
 	short
-}
-
-fn readonly_hint(ui: &mut Ui) {
-	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
-	truncated_text(
-		ui,
-		pos2(rect.min.x + 4.0, rect.min.y + 10.0),
-		"本切片只读：暂存 / 提交 / 创建 PR 未接入（未来：git add、git commit、gh pr create）",
-		11.0,
-		theme::WARN,
-		rect.width() - 8.0,
-	);
 }
 
 fn branch_row(ui: &mut Ui, status: &crate::git::GitStatus) {

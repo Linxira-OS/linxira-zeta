@@ -3,23 +3,19 @@
 //!
 //! Opened from the left column's foot (or `Ctrl+,`), it dims the window and
 //! shows the spec's dialog: a category nav on the left, one row per setting on
-//! the right (label, hint, control). Every control that *can* take effect here
-//! does — theme, density, reduced motion, the editor's font/size/wrap/gutter,
-//! the terminal's size and cursor shape — and the two that need a PTY host
-//! (默认 Shell, 启动时自动连接) are drawn disabled with the reason, rather than
-//! pretending.
+//! the right (label, hint, control). Every control writes the value it shows —
+//! theme, density, reduced motion, the editor's font/size/wrap/gutter, and the
+//! terminal's default shell and size.
 //!
 //! The 关于 section carries the one honest row about scope: zetacode's own
 //! settings are per-workspace and are edited by zetacode, not here.
 
 use egui::{Align, Color32, CornerRadius, FontId, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
-use crate::ManageTarget;
 use crate::Shell;
 use crate::icons::{Icon, paint};
 use crate::settings::{
-	CloseAction, CursorStyle, Density, Language, MonoFont, NotifyPolicy, Section, Settings,
-	ShellChoice, Theme,
+	CloseAction, Density, MonoFont, NotifyPolicy, Section, Settings, ShellChoice, Theme,
 };
 use crate::theme;
 use crate::widgets::{truncated_mono, truncated_text};
@@ -233,20 +229,6 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 				"第二次运行 zetawork（本构建没有编译托盘）"
 			};
 			plain_row(ui, "驻留状态", residency, wake);
-			for (_, why) in crate::notify::MISSING_SIGNALS {
-				plain_row(ui, "通知缺信号", why, "未接入");
-			}
-			// The IM fallback's own state: the gateway route is real
-			// (`POST /api/channels/send`), the destination is what is missing.
-			match &shell.im_target {
-				Some(target) => plain_row(
-					ui,
-					"IM 回落",
-					&format!("{}/api/channels/send · {}", target.origin, target.channel_id),
-					"已接线",
-				),
-				None => plain_row(ui, "IM 回落", crate::notify::MISSING_TARGET, "未接线"),
-			}
 			for note in shell.lifecycle.notes.iter().chain(shell.tray.note.iter()) {
 				plain_row(ui, "驻留提示", note, "降级");
 			}
@@ -282,7 +264,6 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 				},
 				shell,
 			);
-			language_row(ui, shell);
 			row(
 				ui,
 				"减少动态效果",
@@ -356,7 +337,6 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 		},
 		Section::Terminal => {
 			head(ui, "终端");
-			hint(ui, "PTY 宿主尚未接入：默认 Shell 会记在新建的终端页上，等终端宿主接入后生效。");
 			row(
 				ui,
 				"默认 Shell",
@@ -389,31 +369,6 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 				},
 				shell,
 			);
-			row(
-				ui,
-				"光标样式",
-				"终端光标的形状",
-				|ui, shell| {
-					let before = shell.settings.cursor;
-					let mut value = before;
-					select(ui, "cursor", &mut value, &CursorStyle::ALL, |cursor| cursor.label());
-					if value != before {
-						shell.settings.cursor = value;
-					}
-				},
-				shell,
-			);
-			row(
-				ui,
-				"启动时自动连接",
-				"打开工作区时连接本地 agent",
-				|ui, shell| {
-					let mut value = shell.settings.terminal_autoconnect;
-					disabled_switch(ui, value);
-					let _ = &mut value;
-				},
-				shell,
-			);
 		},
 		Section::Keys => {
 			head(ui, "快捷键");
@@ -434,7 +389,7 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			head(ui, "项目注册表 · ~/.zeta/projects.json");
 			hint(ui, "GUI 与 TUI 读同一份注册表。移除只删除注册，不删除目录，也不删除会话历史。");
 			if shell.state.registry.is_empty() {
-				hint(ui, "尚未注册项目。左侧 项目 一节的 ＋ 可以选择一个目录。");
+				hint(ui, "还没有注册项目。左侧 项目 一节的 ＋ 可以选择一个目录。");
 			} else {
 				let rows: Vec<(String, String, String, usize)> = shell
 					.state
@@ -458,9 +413,15 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 		Section::Manage => {
 			head(ui, "管理");
 			providers_section(ui, shell);
-			for (title, hint_text, icon, action) in crate::MANAGE_CARDS {
-				manage_card(ui, shell, title, hint_text, icon, action);
-			}
+			manage_card(
+				ui,
+				"管理项目与工作区",
+				"重命名、打开或移除已注册的项目",
+				Icon::FolderPlus,
+				Section::Projects,
+				shell,
+			);
+			data_storage_row(ui);
 		},
 		Section::About => {
 			head(ui, "关于");
@@ -732,31 +693,6 @@ fn small_button(ui: &mut Ui, label: &str) -> egui::Response {
 	response
 }
 
-/// The 界面语言 row: the spec offers three, only one is wired, and the row says
-/// so instead of offering a control that changes nothing.
-fn language_row(ui: &mut Ui, shell: &mut Shell) {
-	row(
-		ui,
-		"界面语言",
-		"菜单与提示的显示语言（其他语言尚未接入：界面文案目前只有简体中文）",
-		|ui, shell| {
-			// Only 简体中文 is wired: a stored `en`/`ja` is normalised here, so
-			// the disabled control never shows a choice the file does not have.
-			if !shell.settings.language.wired() {
-				shell.settings.language = Language::SimplifiedChinese;
-			}
-			disabled_select(
-				ui,
-				"language",
-				&Language::SimplifiedChinese,
-				&Language::ALL,
-				|language| language.label(),
-			);
-		},
-		shell,
-	);
-}
-
 /// The 关于 page's identity: the desktop mark, the name and the version.
 ///
 /// The mark is the same committed raster the window and taskbar use, so the
@@ -988,29 +924,6 @@ fn select<T: PartialEq + Copy, S: Into<String>>(
 				ui.selectable_value(value, *option, text);
 			}
 		});
-}
-
-/// A combo box that cannot be changed, with its current value shown.
-fn disabled_select<T: Copy + PartialEq, S: Into<String>>(
-	ui: &mut Ui,
-	id: &str,
-	value: &T,
-	options: &[T],
-	label: impl Fn(T) -> S,
-) {
-	ui.add_enabled_ui(false, |ui| {
-		let mut value: T = *value;
-		let selected: String = label(value).into();
-		egui::ComboBox::from_id_salt(id)
-			.selected_text(selected)
-			.width(180.0)
-			.show_ui(ui, |ui| {
-				for option in options {
-					let text: String = label(*option).into();
-					ui.selectable_value(&mut value, *option, text);
-				}
-			});
-	});
 }
 
 /// A `.switch`: 38×22, the knob sliding 16pt.
@@ -1354,14 +1267,15 @@ fn project_registry_row(
 	ui.add_space(8.0);
 }
 
-/// A `.manage-card`: an icon, a title, a hint, and a chevron.
+/// A `.manage-card`: an icon, a title, a hint, and a chevron; it switches the
+/// modal to `target`'s section.
 fn manage_card(
 	ui: &mut Ui,
-	shell: &mut Shell,
 	title: &str,
 	hint_text: &str,
 	icon: Icon,
-	action: ManageTarget,
+	target: Section,
+	shell: &mut Shell,
 ) {
 	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 64.0), Sense::click());
 	ui.painter()
@@ -1409,13 +1323,23 @@ fn manage_card(
 	);
 	ui.add_space(8.0);
 	if response.clicked() {
-		match action {
-			ManageTarget::Projects => {
-				shell.state.settings_section = Section::Projects;
-			},
-			ManageTarget::Notice(message) => {
-				shell.state.show(crate::state::Notice(message.to_owned()));
-			},
-		}
+		shell.state.settings_section = target;
+	}
+}
+
+/// 数据与存储: the real size of `~/.zeta`, or one quiet line when it is absent.
+fn data_storage_row(ui: &mut Ui) {
+	let Some(home) = home_dir() else {
+		plain_row(ui, "数据与存储", "找不到用户目录（USERPROFILE / HOME 都为空）", "");
+		return;
+	};
+	match crate::workspace_memory::zeta_usage(&home) {
+		Some((files, dirs, bytes)) => plain_row(
+			ui,
+			"数据与存储 · ~/.zeta",
+			&format!("{files} 个文件 · {dirs} 个目录"),
+			&crate::workspace_memory::bytes_label(bytes),
+		),
+		None => plain_row(ui, "数据与存储 · ~/.zeta", "还没有 ~/.zeta", ""),
 	}
 }

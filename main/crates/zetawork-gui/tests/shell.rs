@@ -457,10 +457,6 @@ fn the_right_column_has_four_tabs_and_eight_settings_sections() {
 	);
 	assert_eq!(zetawork_gui::settings::Section::ALL[0], zetawork_gui::settings::Section::General);
 	assert_eq!(zetawork_gui::settings::Section::General.key(), "general");
-	// The left column keeps 手机版's slot but does not draw it (R20).
-	assert_eq!(zetawork_gui::state::NavItem::ALL.len(), 4);
-	assert_eq!(zetawork_gui::state::NavItem::visible().count(), 3);
-	assert!(zetawork_gui::state::NavItem::Mobile.hidden());
 }
 
 #[test]

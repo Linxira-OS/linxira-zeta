@@ -11,8 +11,7 @@
 //! | ③ | a session failed or ended | **the agent SSE stream's `not-running` edge**, raised as `Trigger::Idle`; a transport failure itself still has no signal ([`MISSING_SIGNALS`]) |
 //!
 //! ② and ③ keep their [`Trigger`] variants and the delivery path they take;
-//! the triggers that still lack a source are listed in [`MISSING_SIGNALS`] so
-//! the shell can *say* so instead of drawing a control that does nothing.
+//! the trigger that still lacks a source is recorded in [`MISSING_SIGNALS`].
 //!
 //! # The fallback chain
 //!
@@ -22,10 +21,9 @@
 //!    (compiled only with the `os-notify` feature; see the crate manifest).
 //! 2. **IM 渠道** — `POST /api/channels/send` on the serve instance
 //!    `~/.zeta/serve.json` published, the gateway's write entry for the WeChat /
-//!    飞书 / Telegram senders ([`MESSAGING_SOURCES`]). The route needs the chat as
-//!    well as the address, and the chat is pairing data this shell does not read
-//!    yet — see [`MISSING_TARGET`] — so this step runs only once a
-//!    [`MessagingTarget`] exists.
+//!    飞书 / Telegram senders ([`MESSAGING_SOURCES`]). The route needs the chat
+//!    as well as the address, so this step runs only when a caller supplies a
+//!    [`MessagingTarget`].
 //! 3. **状态栏留痕** — always available: the status bar shows `通知：<标题>` and
 //!    clicking it goes to the workspace the notification was about.
 //!
@@ -38,16 +36,6 @@ use std::time::{Duration, Instant};
 
 use crate::settings::NotifyPolicy;
 use crate::stats::{authority_of, host_of, scheme_of};
-
-/// Why the IM step cannot run yet: the gateway's write entry needs `channelId`
-/// and `to`, and this shell has no pairing data to fill them with. The peer
-/// bindings belong to the serve process — `~/.zeta/web.yml` holds
-/// `channels.wechat.peerTokens` and the bot-session registry — and nothing in
-/// this build reads that file, so the fallback stops at the status bar's trace
-/// rather than sending the user's session state to a guessed recipient. Drawn in
-/// 设置 → 常规 next to [`MISSING_SIGNALS`].
-pub const MISSING_TARGET: &str =
-	"缺 channelId + to（渠道与 peer 的配对信息由 serve 进程持有：~/.zeta/web.yml，本壳未读）";
 
 /// Why a notification exists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,9 +69,8 @@ impl Trigger {
 	}
 }
 
-/// Why a notification trigger still has no source, when it has none. Drawn in
-/// 设置 → 常规 so the gap is visible in the product rather than only in a commit
-/// message.
+/// Why a notification trigger still has no source, when it has none — the
+/// gap this build records rather than papering over with a dead toggle.
 pub const MISSING_SIGNALS: [(Trigger, &str); 1] =
 	[(Trigger::Failed, "Agent 事件流的失败/断开还没有通知信号（needs input 与跑完已接 SSE）")];
 
@@ -246,10 +233,8 @@ pub fn trace_hint(trace: &Trace) -> String {
 			MESSAGING_SOURCES.join(" / ")
 		)),
 		Some(Err(why)) => text.push_str(&format!("\nIM 回落失败：{why}")),
-		None => text.push_str(&format!(
-			"\nIM 回落未发起（{}）：{MISSING_TARGET}",
-			MESSAGING_SOURCES.join(" / ")
-		)),
+		// No target: no IM step ran, so the hint says nothing about one.
+		None => {},
 	}
 	text
 }
@@ -526,8 +511,8 @@ mod tests {
 
 	#[test]
 	fn a_notification_is_never_dropped() {
-		// Without a target (the shell's state today — see MISSING_TARGET) the
-		// chain can only run the OS route and then the trace.
+		// Without a target the chain can only run the OS route and then the
+		// trace.
 		let trace = emit(message(), None);
 		assert_eq!(trace.message.trigger, Trigger::Idle);
 		assert_ne!(trace.delivery, Delivery::Im, "no target: no IM step");
@@ -536,8 +521,7 @@ mod tests {
 		}
 		assert_eq!(trace.message.trace_line(), "通知：会话 1 已空闲");
 		let hint = trace_hint(&trace);
-		assert!(hint.contains("WeChat"), "the IM fallback is named");
-		assert!(hint.contains(MISSING_TARGET), "and says what it is missing");
+		assert!(!hint.contains("IM 回落"), "no IM step ran, so none is named");
 	}
 
 	#[test]
@@ -671,10 +655,9 @@ mod tests {
 	}
 
 	#[test]
-	fn the_missing_triggers_and_the_missing_target_are_named() {
-		// The triggers with no signal source are listed, so the settings
-		// surface can say so instead of offering a dead toggle. NeedsInput is
-		// no longer one of them: the agent SSE stream raises it.
+	fn the_missing_triggers_are_named() {
+		// The triggers with no signal source are recorded. NeedsInput is no
+		// longer one of them: the agent SSE stream raises it.
 		assert_eq!(MISSING_SIGNALS.len(), 1);
 		assert!(
 			MISSING_SIGNALS
@@ -686,6 +669,5 @@ mod tests {
 				.iter()
 				.any(|(trigger, _)| *trigger == Trigger::Failed)
 		);
-		assert!(MISSING_TARGET.contains("channelId"));
 	}
 }

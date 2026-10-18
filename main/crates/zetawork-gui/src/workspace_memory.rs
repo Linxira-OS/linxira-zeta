@@ -90,7 +90,7 @@ impl Report {
 }
 
 /// Format a byte count the way the settings row can read at a glance.
-fn bytes_label(bytes: u64) -> String {
+pub(crate) fn bytes_label(bytes: u64) -> String {
 	const KIB: f64 = 1024.0;
 	const MIB: f64 = KIB * 1024.0;
 	let bytes = bytes as f64;
@@ -299,6 +299,19 @@ fn measure_dir(dir: &Path) -> (usize, usize, u64) {
 		}
 	}
 	(files, dirs, bytes)
+}
+
+/// What `~/.zeta` currently occupies, as `(files, dirs, bytes)`; `None` when
+/// the directory does not exist.
+///
+/// This is a real read of the one tree the shell and the agent share, and the
+/// 管理 section's 数据与存储 row shows exactly this number.
+pub fn zeta_usage(home: &Path) -> Option<(usize, usize, u64)> {
+	let root = home.join(".zeta");
+	match std::fs::symlink_metadata(&root) {
+		Ok(metadata) if metadata.is_dir() => Some(measure_dir(&root)),
+		_ => None,
+	}
 }
 
 #[cfg(test)]
