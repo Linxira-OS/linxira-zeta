@@ -50,7 +50,11 @@ pub fn record(pid: u32, argv: &[&str]) {
 	let argv: Vec<String> = argv.iter().map(|arg| (*arg).to_owned()).collect();
 	let mut line = format_record(pid, std::process::id(), &argv);
 	line.push('\n');
-	if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+	if let Ok(mut file) = std::fs::OpenOptions::new()
+		.create(true)
+		.append(true)
+		.open(path)
+	{
 		let _ = file.write_all(line.as_bytes());
 	}
 }
@@ -63,7 +67,11 @@ pub fn record_command(pid: u32, command: &std::process::Command) {
 		return;
 	}
 	let mut argv = vec![command.get_program().to_string_lossy().into_owned()];
-	argv.extend(command.get_args().map(|arg| arg.to_string_lossy().into_owned()));
+	argv.extend(
+		command
+			.get_args()
+			.map(|arg| arg.to_string_lossy().into_owned()),
+	);
 	let argv: Vec<&str> = argv.iter().map(String::as_str).collect();
 	record(pid, &argv);
 }
@@ -84,10 +92,7 @@ mod tests {
 	#[test]
 	fn a_quote_in_an_argument_stays_inside_the_json_array() {
 		let argv = [r#"C:\a"b\z.exe"#.to_owned()];
-		assert_eq!(
-			format_record(1, 2, &argv),
-			r#"pid=1 ppid=2 argv=["C:\\a\"b\\z.exe"]"#
-		);
+		assert_eq!(format_record(1, 2, &argv), r#"pid=1 ppid=2 argv=["C:\\a\"b\\z.exe"]"#);
 	}
 
 	#[test]

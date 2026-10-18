@@ -479,14 +479,14 @@ impl InputBar {
             Some(i) if !pressed => {
                 let area = self.field_areas.get(i).copied()?;
                 (
-                mouse
-                    .column
-                    .clamp(area.x, area.x + area.width.saturating_sub(1)),
-                mouse
-                    .row
-                    .clamp(area.y, area.y + area.height.saturating_sub(1)),
-            )
-            },
+                    mouse
+                        .column
+                        .clamp(area.x, area.x + area.width.saturating_sub(1)),
+                    mouse
+                        .row
+                        .clamp(area.y, area.y + area.height.saturating_sub(1)),
+                )
+            }
             _ => (mouse.column, mouse.row),
         };
         for i in 0..self.field_areas.len() {
@@ -989,7 +989,8 @@ fn render_multiline(
     let cursor = ta.cursor();
     let cursor_vi = visual
         .iter()
-        .enumerate().rfind(|(_, (row, start, _))| *row == cursor.row && *start <= cursor.col)
+        .enumerate()
+        .rfind(|(_, (row, start, _))| *row == cursor.row && *start <= cursor.col)
         .map(|(i, _)| i)
         .unwrap_or(0);
     let height = area.height as usize;

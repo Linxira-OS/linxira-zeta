@@ -91,10 +91,8 @@ const UI_CJK: &[(&str, u32)] = &[
 ];
 
 #[cfg(target_os = "macos")]
-const UI_CJK: &[(&str, u32)] = &[
-	("/System/Library/Fonts/PingFang.ttc", 0),
-	("/Library/Fonts/Arial Unicode.ttf", 0),
-];
+const UI_CJK: &[(&str, u32)] =
+	&[("/System/Library/Fonts/PingFang.ttc", 0), ("/Library/Fonts/Arial Unicode.ttf", 0)];
 
 #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
 const UI_CJK: &[(&str, u32)] = &[];
@@ -128,9 +126,7 @@ impl Fonts {
 	pub fn cjk_line(&self) -> String {
 		let ui = face_name(self.cjk_ui.as_ref());
 		match (self.cjk_ui.as_ref(), self.cjk_mono.as_ref()) {
-			(None, None) => {
-				"CJK 字体：未找到（中文会显示为方块；产品需内置一款授权字体）".to_owned()
-			},
+			(None, None) => "CJK 字体：未找到（中文会显示为方块；产品需内置一款授权字体）".to_owned(),
 			(Some(_), None) => {
 				format!("CJK 字体：界面 {ui} · 等宽 未找到固定宽度中文字体（全角对齐可能漂移）")
 			},
@@ -138,10 +134,9 @@ impl Fonts {
 				"CJK 字体：界面 未找到（中文会显示为方块） · 等宽 {}",
 				face_name(self.cjk_mono.as_ref())
 			),
-			(Some(_), Some(_)) => format!(
-				"CJK 字体：界面 {ui} · 等宽 {}",
-				face_name(self.cjk_mono.as_ref())
-			),
+			(Some(_), Some(_)) => {
+				format!("CJK 字体：界面 {ui} · 等宽 {}", face_name(self.cjk_mono.as_ref()))
+			},
 		}
 	}
 
@@ -165,7 +160,10 @@ fn face_name(face: Option<&(PathBuf, u32)>) -> String {
 }
 
 fn candidates(entries: &[(&str, u32)]) -> Vec<(PathBuf, u32)> {
-	entries.iter().map(|(path, index)| (PathBuf::from(path), *index)).collect()
+	entries
+		.iter()
+		.map(|(path, index)| (PathBuf::from(path), *index))
+		.collect()
 }
 
 /// The UI (proportional) CJK candidates, in preference order.
@@ -314,12 +312,18 @@ pub fn install(ctx: &egui::Context, settings: &Settings) -> Fonts {
 
 	// Proportional: the UI face after egui's stock interface fonts.
 	{
-		let family = definitions.families.entry(FontFamily::Proportional).or_default();
+		let family = definitions
+			.families
+			.entry(FontFamily::Proportional)
+			.or_default();
 		family.extend(ui_faces.iter().map(|name| (*name).to_owned()));
 	}
 	// Monospace: the fixed-pitch face first, then the UI face as last resort.
 	{
-		let family = definitions.families.entry(FontFamily::Monospace).or_default();
+		let family = definitions
+			.families
+			.entry(FontFamily::Monospace)
+			.or_default();
 		family.extend(mono_faces.iter().map(|name| (*name).to_owned()));
 	}
 
@@ -387,11 +391,7 @@ mod tests {
 	#[test]
 	fn windows_fixed_pitch_candidates_start_with_simsun_then_nsimsun() {
 		let fixed = fixed_pitch_cjk_candidates();
-		assert_eq!(
-			fixed[0],
-			(PathBuf::from(r"C:\Windows\Fonts\simsun.ttc"), 0),
-			"SimSun is first"
-		);
+		assert_eq!(fixed[0], (PathBuf::from(r"C:\Windows\Fonts\simsun.ttc"), 0), "SimSun is first");
 		assert_eq!(
 			fixed[1],
 			(PathBuf::from(r"C:\Windows\Fonts\simsun.ttc"), 1),
@@ -399,7 +399,13 @@ mod tests {
 		);
 		let names: Vec<String> = fixed
 			.iter()
-			.map(|(path, _)| path.file_name().unwrap().to_string_lossy().to_ascii_lowercase())
+			.map(|(path, _)| {
+				path
+					.file_name()
+					.unwrap()
+					.to_string_lossy()
+					.to_ascii_lowercase()
+			})
 			.collect();
 		let sarasa = names.iter().position(|name| name.contains("sarasamono"));
 		let noto = names.iter().position(|name| name.contains("notosansmono"));
@@ -414,10 +420,19 @@ mod tests {
 		let fixed = fixed_pitch_cjk_candidates();
 		let names: Vec<String> = fixed
 			.iter()
-			.map(|(path, _)| path.file_name().unwrap().to_string_lossy().to_ascii_lowercase())
+			.map(|(path, _)| {
+				path
+					.file_name()
+					.unwrap()
+					.to_string_lossy()
+					.to_ascii_lowercase()
+			})
 			.collect();
 		assert!(names[0].contains("sarasamono"));
-		let sarasa = names.iter().position(|name| name.contains("sarasamono")).unwrap();
+		let sarasa = names
+			.iter()
+			.position(|name| name.contains("sarasamono"))
+			.unwrap();
 		let noto = names.iter().position(|name| name.contains("notosansmono"));
 		let wqy = names.iter().position(|name| name.contains("wqy-zenhei"));
 		if let Some(noto) = noto {

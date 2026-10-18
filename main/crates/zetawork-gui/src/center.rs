@@ -1123,10 +1123,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		.live
 		.ensure_program(tab.id.as_str(), columns, rows, cwd, &path)
 	{
-		missing_body(
-			ui,
-			&format!("无法启动随包的 zetacode：{}（PTY 创建失败）", path.display()),
-		);
+		missing_body(ui, &format!("无法启动随包的 zetacode：{}（PTY 创建失败）", path.display()));
 		return;
 	}
 	let area = ratatui::layout::Rect::new(0, 0, columns, rows);

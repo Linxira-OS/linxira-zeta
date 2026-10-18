@@ -310,10 +310,17 @@ fn a_zetacode_pick_opens_a_page_that_runs_the_shipped_binary_without_typing() {
 		.expect("the picked page opens");
 	assert_eq!(tab.kind, SessionKind::Zetacode);
 	assert_eq!(tab.command, None, "the page types nothing into a shell");
-	match tab.program.as_ref().expect("the program was resolved with the tab") {
+	match tab
+		.program
+		.as_ref()
+		.expect("the program was resolved with the tab")
+	{
 		Launch::Binary(path) => {
 			assert!(path.is_file(), "a resolved binary is a file: {}", path.display());
-			let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
+			let name = path
+				.file_name()
+				.and_then(|name| name.to_str())
+				.unwrap_or("");
 			assert!(
 				Companion::Zetacode.executable_names().contains(&name),
 				"{name} is one of the shipped zetacode names"

@@ -164,7 +164,6 @@ fn read_loop(replies: File, pending: Pending, closed: Arc<AtomicBool>) {
 
 #[cfg(test)]
 mod tests {
-    
 
     /// A fake browser on the far end of two pipes: answers every command with
     /// its method name, and an error for `Fail.me`.

@@ -419,11 +419,9 @@ pub(super) fn toggle_field(config: &mut Config, tab: SettingsTab, index: usize) 
             1 => config.lsp.auto_completion = !config.lsp.auto_completion,
             _ => {}
         },
-        SettingsTab::FileManager
-            if index == 2 => {
-                config.file_manager.dir_size_in_wide_view =
-                    !config.file_manager.dir_size_in_wide_view;
-            }
+        SettingsTab::FileManager if index == 2 => {
+            config.file_manager.dir_size_in_wide_view = !config.file_manager.dir_size_in_wide_view;
+        }
         _ => {}
     }
 }

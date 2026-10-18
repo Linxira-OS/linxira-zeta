@@ -161,7 +161,7 @@ impl SessionKind {
 			Self::Diff => "git diff --no-color HEAD（只读）",
 			Self::Git => "git status / log（只读）",
 			Self::Zetacode => "随包的 zetacode（packages/coding-agent/dist/zeta）",
-						Self::Ide => "termide panel-editor（termide-panel-ide）",
+			Self::Ide => "termide panel-editor（termide-panel-ide）",
 			Self::Agent => "zetacode serve 的 SSE 会话流（/api/agent/<id>/events）",
 		}
 	}

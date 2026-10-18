@@ -206,7 +206,11 @@ pub fn candidates(exe_dir: &Path, companion: Companion) -> Vec<PathBuf> {
 				for name in companion.dev_names() {
 					push_unique(
 						&mut out,
-						ancestor.join("packages").join("coding-agent").join("dist").join(name),
+						ancestor
+							.join("packages")
+							.join("coding-agent")
+							.join("dist")
+							.join(name),
 					);
 				}
 			},
@@ -214,7 +218,11 @@ pub fn candidates(exe_dir: &Path, companion: Companion) -> Vec<PathBuf> {
 				for name in companion.dev_names() {
 					push_unique(
 						&mut out,
-						ancestor.join("termide").join("target").join("release").join(name),
+						ancestor
+							.join("termide")
+							.join("target")
+							.join("release")
+							.join(name),
 					);
 				}
 				for package in scoped_packages(&ancestor.join("main").join("npm"), "") {
@@ -239,7 +247,10 @@ pub fn resolve_in(exe_dir: &Path, companion: Companion) -> Result<PathBuf, Vec<P
 
 /// The exact sentence a pane shows when nothing shipped was found.
 pub fn missing_sentence(companion: Companion, searched: &[PathBuf]) -> String {
-	let paths: Vec<String> = searched.iter().map(|path| path.display().to_string()).collect();
+	let paths: Vec<String> = searched
+		.iter()
+		.map(|path| path.display().to_string())
+		.collect();
 	format!("未找到随包的 {}：{}", companion.name(), paths.join(", "))
 }
 
@@ -247,8 +258,11 @@ pub fn missing_sentence(companion: Companion, searched: &[PathBuf]) -> String {
 /// install cannot open it.
 pub fn resolve(companion: Companion) -> Result<PathBuf, String> {
 	let missing = |detail: String| format!("未找到随包的 {}：{}", companion.name(), detail);
-	let exe = std::env::current_exe().map_err(|err| missing(format!("无法定位运行目录（{err}）")))?;
-	let exe_dir = exe.parent().ok_or_else(|| missing("无法定位运行目录".to_owned()))?;
+	let exe =
+		std::env::current_exe().map_err(|err| missing(format!("无法定位运行目录（{err}）")))?;
+	let exe_dir = exe
+		.parent()
+		.ok_or_else(|| missing("无法定位运行目录".to_owned()))?;
 	resolve_in(exe_dir, companion).map_err(|searched| missing_sentence(companion, &searched))
 }
 
@@ -538,7 +552,9 @@ fn run_zetacode(args: &[String]) -> Result<(String, String), String> {
 	cmd.creation_flags(CREATE_NO_WINDOW);
 
 	let argv = args.join(" ");
-	let child = cmd.spawn().map_err(|err| format!("{shown} {argv}: {err}"))?;
+	let child = cmd
+		.spawn()
+		.map_err(|err| format!("{shown} {argv}: {err}"))?;
 	crate::spawn_probe::record_command(child.id(), &cmd);
 	let output = child
 		.wait_with_output()
@@ -1037,7 +1053,11 @@ mod tests {
 
 		// `main/npm` ships zetawork, not zetacode: it must never be accepted
 		// for the coding agent (that was the old launch bug).
-		let main_bin = root.join("main").join("npm").join("main-windows-x64").join("bin");
+		let main_bin = root
+			.join("main")
+			.join("npm")
+			.join("main-windows-x64")
+			.join("bin");
 		fs::create_dir_all(&main_bin).unwrap();
 		fs::write(main_bin.join("zeta.exe"), b"zetawork").unwrap();
 		assert!(
@@ -1120,7 +1140,11 @@ mod tests {
 			.join("ide-windows-x64")
 			.join("bin");
 		let release = root.join("termide").join("target").join("release");
-		let main_bin = root.join("main").join("npm").join("ide-windows-x64").join("bin");
+		let main_bin = root
+			.join("main")
+			.join("npm")
+			.join("ide-windows-x64")
+			.join("bin");
 		for dir in [&exe_dir, &leaf, &release, &main_bin] {
 			fs::create_dir_all(dir).unwrap();
 		}
