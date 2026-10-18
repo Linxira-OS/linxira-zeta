@@ -326,11 +326,16 @@ impl App {
         // Get current project root as starting directory
         let initial_dir = self.project_root.clone();
 
+        // 新建项目 starts on the Windows drive page: without it a user at any
+        // volume root has no row that leads to another volume (a drive root
+        // has no parent). Other platforms start in the current project, where
+        // `/` is always reachable.
         let modal = DirectoryPickerModal::new(
             initial_dir,
             t.projects_new().to_string(),
             t.directory_picker_create().to_string(),
         )
+        .starting_at_drives()
         .with_keybindings(&self.state.config.file_manager.keybindings);
         self.state.set_pending_action(
             PendingAction::NewProject,

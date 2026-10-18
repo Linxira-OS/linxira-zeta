@@ -13,6 +13,11 @@ crossterm.workspace = true
 ratatui.workspace = true
 unicode-width.workspace = true
 
+[target.'cfg(windows)'.dependencies]
+# The directory picker's drive page asks Windows which volumes exist; the
+# workspace already pins this crate for the other Windows-side crates.
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+
 # Workspace crates
 termide-clipboard = { path = "../clipboard" }
 termide-core = { path = "../core" }

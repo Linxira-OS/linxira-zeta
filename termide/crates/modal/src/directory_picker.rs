@@ -83,6 +83,10 @@ pub struct DirectoryPickerModal {
     scroll_offset: usize,
     /// Whether directories whose name starts with `.` are listed.
     show_hidden: bool,
+    /// Windows only: the list shows the mounted volumes (`C:\`, `D:\`, …)
+    /// instead of one directory's children. Entering a volume leaves the page;
+    /// `go_parent` from a volume root returns to it.
+    at_drives: bool,
     button_focused: bool,
     selected_button: usize,
     last_list_area: Option<Rect>,
@@ -113,6 +117,7 @@ impl DirectoryPickerModal {
             cursor: 0,
             scroll_offset: 0,
             show_hidden: false,
+            at_drives: false,
             button_focused: false,
             selected_button: 0,
             last_list_area: None,
@@ -139,8 +144,63 @@ impl DirectoryPickerModal {
         self
     }
 
+    /// Start on the Windows drive page: the user picks a volume first
+    /// (`C:\`, `D:\`, …) and drills down from there. A no-op away from
+    /// Windows, where every mount is already reachable from `/`.
+    #[must_use]
+    pub fn starting_at_drives(mut self) -> Self {
+        #[cfg(windows)]
+        {
+            self.at_drives = true;
+            self.load_drives();
+        }
+        self
+    }
+
+    /// Mounted volumes, in drive-letter order. Empty off Windows.
+    pub fn drives() -> Vec<PathBuf> {
+        #[cfg(windows)]
+        {
+            let mask = unsafe { windows_sys::Win32::Storage::FileSystem::GetLogicalDrives() };
+            (0..26u32)
+                .filter(|bit| mask & (1 << bit) != 0)
+                .map(|bit| {
+                    let letter = (b'A' + bit as u8) as char;
+                    PathBuf::from(format!("{letter}:\\"))
+                })
+                .collect()
+        }
+        #[cfg(not(windows))]
+        {
+            Vec::new()
+        }
+    }
+
+    /// The drive page: one row per mounted volume.
+    fn load_drives(&mut self) {
+        self.entries.clear();
+        self.cursor = 0;
+        self.scroll_offset = 0;
+        self.cached_width = None;
+        for drive in Self::drives() {
+            let name = drive.display().to_string();
+            self.entries.push(DirEntry {
+                name,
+                full_path: drive,
+                depth: 0,
+                expanded: Some(false),
+            });
+        }
+        self.recompute_visible();
+    }
+
     /// Get the currently selected path
     fn selected_path(&self) -> PathBuf {
+        if self.at_drives {
+            // A volume itself is not a project directory: confirm keeps the
+            // caller's path until the user drills into one.
+            return self.current_dir.clone();
+        }
         if let Some(&tree_idx) = self.visible_indices.get(self.cursor) {
             let entry = &self.entries[tree_idx];
             if entry.expanded.is_none() {
@@ -614,9 +674,19 @@ impl DirectoryPickerModal {
 
     /// Go to parent directory (reload tree root)
     fn go_parent(&mut self) {
+        if self.at_drives {
+            return;
+        }
         if let Some(parent) = self.current_dir.parent() {
             self.current_dir = parent.to_path_buf();
             self.load_root();
+            return;
+        }
+        // A volume root has no parent; on Windows its parent is the drive page.
+        #[cfg(windows)]
+        if !Self::drives().is_empty() {
+            self.at_drives = true;
+            self.load_drives();
         }
     }
 }
@@ -904,6 +974,7 @@ impl Modal for DirectoryPickerModal {
                         } else {
                             // Navigate into: make selected dir the new root
                             self.current_dir = self.entries[tree_idx].full_path.clone();
+                            self.at_drives = false;
                             self.load_root();
                         }
                     }
@@ -1375,6 +1446,29 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn the_drive_page_lists_the_mounted_volumes_and_entering_one_leaves_it() {
+        let drives = DirectoryPickerModal::drives();
+        assert!(!drives.is_empty(), "a Windows host always has a boot volume");
+        let root = scratch("drives");
+        let mut modal = DirectoryPickerModal::new(root.clone(), String::new(), String::new())
+            .starting_at_drives();
+        assert!(modal.at_drives);
+        let names = names(&modal);
+        assert_eq!(names.len(), drives.len(), "{names:?}");
+        assert!(names.iter().any(|name| name.ends_with(":\\")), "{names:?}");
+
+        // Enter drills into the volume under the cursor and leaves the page;
+        // Backspace from a volume root comes back to it.
+        press(&mut modal, KeyCode::Enter);
+        assert!(!modal.at_drives);
+        assert!(modal.current_dir.as_os_str().len() > 1);
+        press(&mut modal, KeyCode::Backspace);
+        assert!(modal.at_drives, "a volume root's parent is the drive page");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn new_folder_button_opens_the_name_row() {
         let root = scratch("button");
@@ -1408,7 +1502,12 @@ mod tests {
 
         assert!(screen.contains("▶ newdir"), "{screen}");
         // The path line (cut on the left when long) ends in the typed name.
-        assert!(screen.contains("/newdir"), "{screen}");
+        // The separator is the host's: this assertion used to hard-code `/`
+        // and failed on a Windows checkout (`…\newdir`).
+        assert!(
+            screen.contains("/newdir") || screen.contains("\\newdir"),
+            "{screen}"
+        );
         assert!(screen.contains("[ Go ]"));
         assert!(screen.contains("[ New folder ]"));
         assert!(screen.contains("[ Cancel ]"));
