@@ -1450,7 +1450,10 @@ mod tests {
     #[test]
     fn the_drive_page_lists_the_mounted_volumes_and_entering_one_leaves_it() {
         let drives = DirectoryPickerModal::drives();
-        assert!(!drives.is_empty(), "a Windows host always has a boot volume");
+        assert!(
+            !drives.is_empty(),
+            "a Windows host always has a boot volume"
+        );
         let root = scratch("drives");
         let mut modal = DirectoryPickerModal::new(root.clone(), String::new(), String::new())
             .starting_at_drives();
