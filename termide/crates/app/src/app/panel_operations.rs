@@ -515,7 +515,7 @@ impl App {
     /// Update terminal window title to reflect current project root.
     pub(super) fn update_terminal_title(&self) {
         let path = self.project_root.display().to_string();
-        let title = format!("Termide: {}", termide_core::util::shorten_home_path(&path));
+        let title = format!("zetaide: {}", termide_core::util::shorten_home_path(&path));
         if let Err(e) = crossterm::execute!(std::io::stdout(), crossterm::terminal::SetTitle(title))
         {
             log::debug!("failed to set terminal title: {e}");

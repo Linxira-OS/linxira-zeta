@@ -20,6 +20,7 @@
 | 25 | `crates/panel-terminal/src/lib.rs`(`Terminal::send_bytes`) | **原始按键写入**：GUI 拥有键盘，需要把按键/控制序列直接写进 PTY；私有的 `send_input` 暴露为 `send_bytes` | 上游无此物 | **保留**（Zeta 2026-10-17：GUI 输入转发） | 2026-10-17 |
 | 26 | `crates/agent-recall/src/sessions.rs`、`crates/ui/src/fuzzy.rs`、`crates/panel-outline/src/alatyr.rs` | **新 toolchain 的 clippy 修**：两处 `sort_by(|a,b| b.1.cmp(&a.1))` 改 `sort_by_key(Reverse(..))`；Alatyr 的 `loop { let Some(x) = .. else { break } }` 改 `while let` | 上游未动 | **保留**（Zeta 2026-10-18：`cargo clippy --workspace --all-targets -- -D warnings` 在 Linux 上把这三个 lint 当错误，vendor 快照自身的 CI 早于新 lint；语义等价，仅形态改写） | 2026-10-18 |
 | 27 | `crates/modal/src/directory_picker.rs` | **Windows 盘符页**：新增 `at_drives`/`drives()`/`starting_at_drives()`，`GetLogicalDrives()` 列出挂载卷；`新建项目` 从盘符页开始，卷根按 Backspace 回到盘符页；另把该文件里写死 `/newdir` 的渲染断言改成接受宿主分隔符（Windows checkout 上原本必红） | 上游无盘符页（unix 上 `/` 可达全部挂载） | **保留**（Zeta 2026-10-19：用户要求 Windows 上从 C/D/E/F 开始找目录） | 2026-10-19 |
+| 28 | `src/main.rs`、`src/editor_entry.rs`、`crates/app/src/app/panel_operations.rs` | **窗口标题品牌面**：`Termide: <path>` → `zetaide: <path>`（启动、建/换项目、reattach 三处），字面量；`crates/ui-render/src/theme_dropdown.rs` 另补一条命中测试（每行可见主题的点击必须映射回该行） | 上游写的是自家产品名 Termide | **保留**（Zeta 2026-10-19：终端标签页标题是用户可见品牌面，产品名是 zetaide；命中测试是鼠标路径唯一覆盖） | 2026-10-19 |
 
 ## 与仓库其余部分的关系
 

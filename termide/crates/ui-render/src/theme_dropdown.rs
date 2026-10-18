@@ -195,6 +195,29 @@ mod tests {
         ThemeDropdown::new(&names, 0, 20, 2, theme).render(&mut buf2);
     }
 
+    // The mouse path has no other coverage: prove that every visible row's
+    // click maps back to that row, at the same geometry the renderer uses.
+    #[test]
+    fn item_at_maps_each_visible_row_to_its_theme() {
+        use super::theme_dropdown_geometry;
+        let names = names(30);
+        let screen = Rect::new(0, 0, 80, 24);
+        let geometry = theme_dropdown_geometry(&names, 0, 20, 2, screen);
+        let area = geometry.area;
+        let first = geometry.scroll_offset;
+        for row in 0..geometry.visible_count() {
+            let index = first + row;
+            let y = area.y + 1 + row as u16;
+            assert_eq!(
+                geometry.item_at(area.x + 2, y),
+                Some(index),
+                "row {row} (theme {index}) at y={y} in {area:?}"
+            );
+        }
+        // Outside the box is not a click on a theme.
+        assert_eq!(geometry.item_at(area.x.saturating_sub(2), area.y), None);
+    }
+
     #[test]
     fn render_handles_tiny_terminal() {
         let theme = Theme::get_by_name("default");

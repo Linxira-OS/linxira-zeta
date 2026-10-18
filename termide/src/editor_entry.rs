@@ -211,7 +211,7 @@ pub fn run(
     let keyboard_enhanced = keyboard_caps.kitty_full;
 
     let title = format!(
-        "Termide: {}",
+        "zetaide: {}",
         termide_core::util::shorten_home_path(
             &std::env::current_dir()
                 .map(|p| p.display().to_string())
