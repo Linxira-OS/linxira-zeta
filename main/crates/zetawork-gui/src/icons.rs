@@ -343,3 +343,140 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, tooltip: &s
 pub fn paint_marker(ui: &Ui, icon: Icon, rect: egui::Rect, color: Color32) {
 	paint(ui.painter(), icon, rect, color, 1.5);
 }
+
+// ── 应用图标 ──────────────────────────────────────────────────────────────
+//
+// The desktop mark is the repository's `assets/icon.svg`, rasterized once at
+// 256×256 into `assets/icon.png` beside this crate (so a clean build needs no
+// SVG renderer and no network). The PNG is committed full-bleed and the
+// rounded corners are masked here, by [`rounded_alpha`], at the same radius
+// the shell uses for cards — scaled from the 48 pt size the 关于 page draws it
+// at, so the 32 px taskbar and the 256 px window raster read the same.
+
+/// The committed raster of the repository's `assets/icon.svg`.
+pub const APP_ICON_PNG: &[u8] = include_bytes!("../assets/icon.png");
+
+/// The size, in points, at which the 关于 page draws [`APP_ICON_PNG`]. The
+/// card radius below is `theme::R_PANEL` at this size, then proportional.
+pub const APP_ICON_DESIGN_SIZE: f32 = 48.0;
+
+/// Corner radius, in pixels, for an icon raster `size` pixels wide.
+///
+/// `theme::R_PANEL` is the radius every card in the shell uses; scaling it by
+/// the icon's own size keeps the silhouette identical at 32 px (taskbar), 48 pt
+/// (关于) and the 256 px window raster, rather than turning the 256 px one into
+/// a square block or a stadium.
+pub fn app_icon_corner_radius(size: u32) -> f32 {
+	(size as f32 * f32::from(theme::R_PANEL) / APP_ICON_DESIGN_SIZE)
+		.round()
+		.max(1.0)
+}
+
+/// Decode a PNG into unmultiplied RGBA. `None` for data this build cannot
+/// render — the caller then leaves the window on egui's default mark instead of
+/// panicking over a corrupt asset.
+pub fn decode_icon_png(png: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
+	let mut decoder = png::Decoder::new(std::io::Cursor::new(png));
+	decoder.set_transformations(png::Transformations::normalize_to_color8());
+	let mut reader = decoder.read_info().ok()?;
+	let mut buffer = vec![0; reader.output_buffer_size()?];
+	let info = reader.next_frame(&mut buffer).ok()?;
+	buffer.truncate(info.buffer_size());
+	let rgba = match info.color_type {
+		png::ColorType::Rgba => buffer,
+		png::ColorType::Rgb => {
+			let mut rgba = Vec::with_capacity(buffer.len() / 3 * 4);
+			for pixel in buffer.chunks_exact(3) {
+				rgba.extend_from_slice(&[pixel[0], pixel[1], pixel[2], 255]);
+			}
+			rgba
+		},
+		_ => return None,
+	};
+	Some((rgba, info.width, info.height))
+}
+
+/// Mask `rgba`'s alpha with a rounded rectangle of `radius` pixels.
+///
+/// The corner test is a signed distance to the rounded rect, so edge pixels get
+/// one pixel of coverage instead of a jagged staircase. Pixels outside the
+/// shape become fully transparent; the shape's own ink is untouched.
+pub fn rounded_alpha(rgba: &mut [u8], width: u32, height: u32, radius: f32) {
+	let (w, h) = (width as f32, height as f32);
+	let radius = radius.clamp(0.0, w.min(h) / 2.0);
+	let (half_w, half_h) = (w / 2.0, h / 2.0);
+	for y in 0..height {
+		for x in 0..width {
+			let px = x as f32 + 0.5 - half_w;
+			let py = y as f32 + 0.5 - half_h;
+			let qx = px.abs() - (half_w - radius);
+			let qy = py.abs() - (half_h - radius);
+			let outside = (qx.max(0.0).powi(2) + qy.max(0.0).powi(2)).sqrt();
+			let distance = outside + qx.max(qy).min(0.0) - radius;
+			let coverage = (0.5 - distance).clamp(0.0, 1.0);
+			let alpha = ((y * width + x) * 4 + 3) as usize;
+			if let Some(value) = rgba.get_mut(alpha) {
+				*value = (f32::from(*value) * coverage).round() as u8;
+			}
+		}
+	}
+}
+
+/// The window, taskbar and 关于 icon: the committed raster with its corners
+/// rounded.
+pub fn app_icon() -> Option<egui::IconData> {
+	let (mut rgba, width, height) = decode_icon_png(APP_ICON_PNG)?;
+	rounded_alpha(&mut rgba, width, height, app_icon_corner_radius(width));
+	Some(egui::IconData { rgba, width, height })
+}
+
+/// [`app_icon`] as the texture source the 关于 page draws.
+pub fn app_icon_image() -> Option<egui::ColorImage> {
+	let icon = app_icon()?;
+	Some(egui::ColorImage::from_rgba_unmultiplied(
+		[icon.width as usize, icon.height as usize],
+		&icon.rgba,
+	))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn the_committed_raster_is_rgba_and_square() {
+		let (rgba, width, height) = decode_icon_png(APP_ICON_PNG).expect("committed icon decodes");
+		assert_eq!((width, height), (256, 256));
+		assert_eq!(rgba.len(), (width * height * 4) as usize);
+	}
+
+	#[test]
+	fn the_corner_radius_follows_the_shell_card_radius() {
+		assert_eq!(app_icon_corner_radius(48), f32::from(theme::R_PANEL));
+		// Proportional at every size, and never a square corner.
+		assert_eq!(app_icon_corner_radius(96), f32::from(theme::R_PANEL) * 2.0);
+		assert!(app_icon_corner_radius(32) >= 1.0);
+		assert_eq!(app_icon_corner_radius(256), 32.0);
+	}
+
+	#[test]
+	fn corners_are_masked_and_the_middle_survives() {
+		let mut pixels = vec![255u8; 16 * 16 * 4];
+		rounded_alpha(&mut pixels, 16, 16, 4.0);
+		let alpha = |x: u32, y: u32| pixels[((y * 16 + x) * 4 + 3) as usize];
+		assert_eq!(alpha(0, 0), 0, "the corner is outside the rounded rect");
+		assert_eq!(alpha(15, 15), 0);
+		assert_eq!(alpha(8, 8), 255, "the centre keeps its alpha");
+		assert_eq!(alpha(8, 0), 255, "the straight top edge is opaque");
+	}
+
+	#[test]
+	fn the_app_icon_has_no_square_corner() {
+		let icon = app_icon().expect("committed icon decodes");
+		let alpha = |x: u32, y: u32| icon.rgba[((y * icon.width + x) * 4 + 3) as usize];
+		for (x, y) in [(0, 0), (255, 0), (0, 255), (255, 255)] {
+			assert_eq!(alpha(x, y), 0, "corner ({x}, {y}) must be transparent");
+		}
+		assert_eq!(alpha(128, 16), 255, "the top edge stays part of the mark");
+	}
+}

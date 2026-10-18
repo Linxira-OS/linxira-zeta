@@ -130,6 +130,8 @@ pub struct Shell {
 	/// What `settings` was when the style and fonts were last applied.
 	applied: Settings,
 	pub fonts: Fonts,
+	/// The 关于 page's mark, uploaded from the committed raster on first draw.
+	app_icon: Option<egui::TextureHandle>,
 	/// The active workspace's tree; `tree_ws` is the workspace it belongs to.
 	pub tree: FileTree,
 	tree_ws: String,
@@ -260,6 +262,7 @@ impl Shell {
 			settings,
 			applied: settings,
 			fonts,
+			app_icon: None,
 			tree: FileTree::load(std::path::Path::new(".")),
 			tree_ws: String::new(),
 			git: None,
@@ -313,6 +316,7 @@ impl Shell {
 			settings,
 			applied: settings,
 			fonts: Fonts::default(),
+			app_icon: None,
 			tree: FileTree::load(std::path::Path::new(".")),
 			tree_ws: String::new(),
 			git: None,
@@ -349,6 +353,20 @@ impl Shell {
 	}
 
 	// ── the read-only readers ──────────────────────────────────────────
+
+	/// The 关于 page's mark: uploaded once from the committed raster.
+	///
+	/// The texture is created on first draw rather than in `new`, because the
+	/// headless constructor (used by the screenshots and the tests) has no
+	/// context yet.
+	pub fn app_icon_texture(&mut self, ctx: &Context) -> Option<egui::TextureHandle> {
+		if self.app_icon.is_none() {
+			self.app_icon = crate::icons::app_icon_image().map(|image| {
+				ctx.load_texture("zetawork-app-icon", image, egui::TextureOptions::LINEAR)
+			});
+		}
+		self.app_icon.clone()
+	}
 
 	/// Point the file tree and the git status at the active workspace.
 	fn sync_readers(&mut self) {
@@ -1026,15 +1044,19 @@ pub fn run() -> eframe::Result<()> {
 	if lifecycle::another_instance_is_running() {
 		return Ok(());
 	}
-	let options = eframe::NativeOptions {
-		viewport: egui::ViewportBuilder::default()
-			.with_title(APP_TITLE)
-			.with_decorations(false)
-			.with_inner_size([1440.0, 900.0])
-			.with_min_inner_size([900.0, 560.0])
-			.with_resizable(true),
-		..Default::default()
-	};
+	let mut viewport = egui::ViewportBuilder::default()
+		.with_title(APP_TITLE)
+		.with_decorations(false)
+		.with_inner_size([1440.0, 900.0])
+		.with_min_inner_size([900.0, 560.0])
+		.with_resizable(true);
+	// The window icon is what Windows uses for the taskbar button and Alt-Tab
+	// as well as the frame, so one `with_icon` wires both. The raster is the
+	// repository's `assets/icon.svg`, rounded like a card (see `icons`).
+	if let Some(icon) = icons::app_icon() {
+		viewport = viewport.with_icon(icon);
+	}
+	let options = eframe::NativeOptions { viewport, ..Default::default() };
 	eframe::run_native(APP_TITLE, options, Box::new(|cc| Ok(Box::new(Shell::new(cc)))))
 }
 

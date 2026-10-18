@@ -350,3 +350,16 @@ fn workspace_state_words_screenshot() {
 	assert!(bytes.len() > 4096);
 	write("13-workspace-state-words.png", &bytes);
 }
+
+/// `14-about.png` — 设置 → 关于: the desktop mark the window and taskbar use,
+/// the version, and the scope rows.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn about_settings_screenshot() {
+	let mut shell = ready_shell();
+	shell.state.open_settings();
+	shell.state.settings_section = zetawork_gui::settings::Section::About;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("14-about.png", &bytes);
+}
