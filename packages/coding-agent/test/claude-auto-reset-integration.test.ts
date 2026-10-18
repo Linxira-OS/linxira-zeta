@@ -8,6 +8,7 @@ import type {
 } from "@linxiraos/pi-ai";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import * as envApiKey from "@linxiraos/pi-ai/env-api-key";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { runUsageCommand } from "@linxiraos/zeta/cli/usage-cli";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -765,6 +766,8 @@ describe("Claude saved-reset trigger integration", () => {
 				else process.env[key] = value;
 			}
 			__resetDirsFromEnvForTests();
+			// The CLI's ModelRegistry opened `<agentDir>/models.db`; Windows cannot delete it while open.
+			closeModelCache();
 		}
 	});
 

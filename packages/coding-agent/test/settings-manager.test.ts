@@ -13,7 +13,7 @@ import { bindEffects } from "@linxiraos/zeta/config/registry";
 
 import * as discovery from "@linxiraos/zeta/discovery";
 import { editVariantForModel } from "@linxiraos/zeta/utils/edit-mode";
-import MODEL_PRIO from "../src/priority.json" with { type: "json" };
+import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { getAgentDbPath, getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
 import * as fileLock from "@linxiraos/pi-utils/file-lock";
@@ -1810,6 +1810,7 @@ describe("Settings", () => {
 			expectedChains: Record<string, string[]>,
 		];
 
+		const MODEL_PRIO = roleDefaultModels();
 		const webExaCandidates = ["web/exa", ...MODEL_PRIO.web.filter(selector => selector !== "web/exa")];
 		const webOrderedHead = [
 			"google-gemini-cli/gemini-2.5-flash",

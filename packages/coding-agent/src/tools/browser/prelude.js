@@ -28,7 +28,7 @@
 	const invoke = async (action, options) => {
 		const response = await globalThis.__zeta_prelude__("browser", { ...options, action });
 		if (response && typeof response.text === "string" && response.text.length > 0) {
-			globalThis.__zeta_display__(response.text);
+			globalThis.__zeta_log__("log", response.text);
 		}
 		return response && typeof response.details === "object" && response.details !== null ? response.details : {};
 	};

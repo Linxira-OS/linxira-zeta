@@ -46,6 +46,7 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { convertToLlm, wrapSteeringForModel } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import { requestBodyText } from "@linxiraos/pi-ai/utils/request-body";
 import { TempDir } from "@linxiraos/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
@@ -1244,7 +1245,7 @@ describe("AgentSession message pipeline", () => {
 						...options,
 						apiKey: "test-key",
 						fetch: async (_url, init) => {
-							bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+							bodies.push(JSON.parse(requestBodyText(init) ?? "{}") as Record<string, unknown>);
 							// Exercise the real encoder but stop at the HTTP boundary, without inference.
 							return new Response(JSON.stringify({ error: { message: "Request captured" } }), { status: 400 });
 						},
@@ -1451,7 +1452,7 @@ describe("AgentSession message pipeline", () => {
 						...options,
 						apiKey: "test-key",
 						fetch: async (_url, init) => {
-							bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+							bodies.push(JSON.parse(requestBodyText(init) ?? "{}") as Record<string, unknown>);
 							return new Response(JSON.stringify({ error: { message: "Request captured" } }), { status: 400 });
 						},
 					}),

@@ -36,6 +36,8 @@
 - Fixed leaked DeepSeek DSML markup reaching saved history from reasoning blocks and from turns that also made a valid tool call ([#15485](https://github.com/can1357/oh-my-pi/issues/15485))
 - Cancelling an `ask` after a background job finishes now reports the user cancellation instead of telling the model to retry a skipped tool ([#15985](https://github.com/can1357/oh-my-pi/issues/15985))
 
+- Fixed Cursor turns failing with `PROVIDER_ERROR` when a follow-up (a finished background job, a late diagnostic, a reminder) arrived while the previous turn was still streaming ([#15821](https://github.com/can1357/oh-my-pi/pull/15821) by [@robfeldmann](https://github.com/robfeldmann))
+
 ## [1.2.0] - 2026-10-12
 
 - 版本线推进至 1.2.0；本版无独立用户可见变化。

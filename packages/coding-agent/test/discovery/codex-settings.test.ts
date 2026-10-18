@@ -7,6 +7,7 @@ import { type Settings as SettingsCapabilityItem, settingsCapability } from "@li
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { loadCapability } from "@linxiraos/zeta/discovery";
 import { cfgPersonality } from "@linxiraos/zeta/session/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { removeWithRetries } from "@linxiraos/pi-utils";
 
 describe("Codex config.toml settings", () => {
@@ -30,6 +31,8 @@ describe("Codex config.toml settings", () => {
 	afterEach(async () => {
 		clearFsCache();
 		resetSettingsForTest();
+		// `Settings.init` opened `<agentDir>/agent.db`; Windows cannot delete it while open.
+		AgentStorage.close();
 		vi.restoreAllMocks();
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
@@ -56,7 +59,7 @@ describe("Codex config.toml settings", () => {
 		]);
 	});
 
-	test("applies matching Zeta settings from project config.toml", async () => {
+	test("applies matching zetacode settings from project config.toml", async () => {
 		const agentDir = path.join(root, "agent");
 		const projectConfig = path.join(project, ".codex", "config.toml");
 		await fs.mkdir(agentDir, { recursive: true });

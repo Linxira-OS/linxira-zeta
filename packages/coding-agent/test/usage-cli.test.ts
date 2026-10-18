@@ -10,6 +10,7 @@ import {
 	type UsageResetCredit,
 } from "@linxiraos/pi-ai";
 import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@linxiraos/pi-utils";
 import {
 	buildRedactionMap,
@@ -1824,6 +1825,8 @@ describe("zetacode usage reset", () => {
 			else process.env[key] = value;
 		}
 		__resetDirsFromEnvForTests();
+		// The command's ModelRegistry opened `<agentDir>/models.db`; Windows cannot delete it while open.
+		closeModelCache();
 		tempDir.removeSync();
 	});
 

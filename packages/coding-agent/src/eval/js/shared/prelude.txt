@@ -568,9 +568,6 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 		hard: async () => Boolean((await __budgetSnap()).hard),
 	};
 
-	const display = value => {
-		globalThis.__zeta_display__(value);
-	};
 
 	const formatArgs = args => args.map(arg => (typeof arg === "string" ? arg : arg));
 
@@ -639,7 +636,6 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 
 	globalThis.console = consoleBridge;
 	globalThis.print = consoleBridge.log;
-	globalThis.display = display;
 	globalThis.tool = tool;
 	globalThis.completion = completion;
 	globalThis.output = output;

@@ -7,6 +7,7 @@ import { createAgentSession } from "@linxiraos/zeta/sdk";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TempDir } from "@linxiraos/pi-utils";
+import { requestBodyText } from "@linxiraos/pi-ai/utils/request-body";
 import { asGlobalFetch } from "./helpers/fetch-mock";
 
 interface MessagesRequest {
@@ -124,7 +125,7 @@ describe("AgentSession Anthropic native compaction", () => {
 				if (!String(input).startsWith("https://api.anthropic.com/v1/messages")) {
 					throw new Error(`Unexpected request to ${String(input)}`);
 				}
-				requests.push(JSON.parse(String(init?.body)));
+				requests.push(JSON.parse(requestBodyText(init) ?? "{}"));
 				return respond(requests.length);
 			}),
 		);

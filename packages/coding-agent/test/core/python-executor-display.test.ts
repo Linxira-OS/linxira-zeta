@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { executePythonWithKernel } from "@linxiraos/zeta/eval/py/executor";
-import type { KernelDisplayOutput } from "@linxiraos/zeta/eval/py/kernel";
+import type { EvalDisplayOutput } from "@linxiraos/zeta/eval/types";
 import { FakeKernel } from "./helpers";
 
 describe("executePythonWithKernel display outputs", () => {
 	it("aggregates display outputs in order", async () => {
-		const outputs: KernelDisplayOutput[] = [
-			{ type: "json", data: { foo: "bar" } },
+		const outputs: EvalDisplayOutput[] = [
+			{ type: "view", text: "{'foo': 'bar'}", view: { kind: "json", value: { foo: "bar" } } },
 			{ type: "image", data: "abc", mimeType: "image/png" },
 		];
 

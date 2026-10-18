@@ -18,6 +18,7 @@ import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
 import type { AssistantMessage, CacheRetention, Context, Message, Model, ModelSpec } from "@linxiraos/pi-ai/types";
 import { markPerCallContextMessage } from "@linxiraos/pi-ai/utils/block-symbols";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { requestBodyText } from "@linxiraos/pi-ai/utils/request-body";
 
 const MODEL_SPEC: ModelSpec<"anthropic-messages"> = {
 	id: "claude-sonnet-4-5",
@@ -59,7 +60,7 @@ async function captureWireBody(
 ): Promise<MessageCreateParams> {
 	let body: MessageCreateParams | undefined;
 	const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {
-		body = JSON.parse(String(init?.body ?? "{}")) as MessageCreateParams;
+		body = JSON.parse(requestBodyText(init) ?? "{}") as MessageCreateParams;
 		return new Response(
 			JSON.stringify({ type: "error", error: { type: "invalid_request_error", message: "captured" } }),
 			{ status: 400, headers: { "Content-Type": "application/json" } },
@@ -644,6 +645,7 @@ describe("anthropic head caching (general API-key path)", () => {
 		expect(flapCached).toContain(last - 1);
 		expect(flapCached).not.toContain(last);
 	});
+
 	it("allocates additional decimation checkpoints when head breakpoints are absent", async () => {
 		const messages: Message[] = [];
 		for (let i = 1; i <= 35; i++) {

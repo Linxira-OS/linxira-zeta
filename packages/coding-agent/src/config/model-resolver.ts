@@ -26,6 +26,7 @@ import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { ModelRoleLookup } from "@linxiraos/pi-tui/overlays/model-browser";
 import type { Api, Effort, KnownProvider, Model, ModelSpec } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
+import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
 import { resolveBareVariantSelector, resolveVariantSelector } from "@linxiraos/pi-catalog/compat/collapse";
 import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
 import { collapseVariantId, stripThinkingVariantSuffix } from "@linxiraos/pi-catalog/compat/taxonomy";
@@ -38,8 +39,6 @@ import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-model
 import { fuzzyMatch } from "@linxiraos/pi-tui";
 import { logger } from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
-import MODEL_PRIO from "../priority.json" with { type: "json" };
-import { M } from "../i18n";
 import {
 	AUTO_THINKING,
 	type ConfiguredThinkingLevel,
@@ -58,6 +57,7 @@ import {
 	type ModelRole,
 } from "./model-roles";
 import type { Settings } from "./settings";
+import { M } from "../i18n";
 
 import { cfgDisabledProviders, cfgEnabledModels, cfgModelProviderOrder } from "./model-settings";
 import { cfgRetryFallbackChains } from "../session/settings";
@@ -1105,7 +1105,7 @@ function shouldInheritDefaultBeforePriority(role: ModelRole): boolean {
 }
 
 /**
- * Roles that have no priority.json chain of their own reuse another role's
+ * Roles that have no catalog default chain (`roleDefaultModels()`) reuse another role's
  * list. The advisor — a second-opinion reviewer — uses a configured `slow`
  * role before that list, but never inherits the primary's model when `slow`
  * is unset, so it stays a distinct strong model out of the box. The `tiny`
@@ -1114,7 +1114,7 @@ function shouldInheritDefaultBeforePriority(role: ModelRole): boolean {
  * The `memory` role first reuses a configured/effective `tiny` role, then the
  * same `smol` priority list.
  */
-const ROLE_PRIORITY_ALIAS: Partial<Record<ModelRole, keyof typeof MODEL_PRIO>> = {
+const ROLE_PRIORITY_ALIAS: Partial<Record<ModelRole, string>> = {
 	advisor: "slow",
 	memory: "smol",
 	tiny: "smol",
@@ -1140,7 +1140,8 @@ function hasOwnKey<T extends object>(value: T, key: PropertyKey): key is keyof T
 export function rolePriorityDefaults(role: string): string[] {
 	const alias = hasOwnKey(ROLE_PRIORITY_ALIAS, role) ? ROLE_PRIORITY_ALIAS[role] : undefined;
 	const key = alias ?? role;
-	return hasOwnKey(MODEL_PRIO, key) ? normalizeModelPatternList(MODEL_PRIO[key]) : [];
+	const defaults = roleDefaultModels();
+	return hasOwnKey(defaults, key) ? normalizeModelPatternList([...defaults[key]]) : [];
 }
 
 /** Resolve aliases inside a configured pattern list without leaking cycles to model matching. */
@@ -2506,7 +2507,7 @@ export async function findSmolModel(
 	}
 
 	// 2. Try priority chain
-	for (const pattern of MODEL_PRIO.smol) {
+	for (const pattern of roleDefaultModels().smol) {
 		// Try exact match with provider prefix
 		const providerMatch = availableModels.find(m => `${m.provider}/${m.id}`.toLowerCase() === pattern);
 		if (providerMatch) return providerMatch;
@@ -2546,7 +2547,7 @@ export async function findSlowModel(
 	}
 
 	// 2. Try priority chain
-	for (const pattern of MODEL_PRIO.slow) {
+	for (const pattern of roleDefaultModels().slow) {
 		// Try exact match first
 		const exactMatch = parseModelPattern(pattern, availableModels, undefined).model;
 		if (exactMatch) return exactMatch;

@@ -3,7 +3,7 @@
 		const defined = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined));
 		const response = await globalThis.__zeta_prelude__("ratchet", { ...defined, flow, action });
 		if (response && typeof response.text === "string" && response.text.length > 0) {
-			globalThis.__zeta_display__(response.text);
+			globalThis.__zeta_log__("log", response.text);
 		}
 		return response && typeof response === "object" ? response.details : undefined;
 	};

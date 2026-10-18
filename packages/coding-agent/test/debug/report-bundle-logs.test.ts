@@ -23,7 +23,7 @@ function restoreEnv(name: string, value: string | undefined): void {
 async function isolateLogsRoot(root: string): Promise<void> {
 	if (process.platform === "linux" || process.platform === "darwin") {
 		const xdgStateHome = path.join(root, "state");
-		await fs.mkdir(path.join(xdgStateHome, "omp"), { recursive: true });
+		await fs.mkdir(path.join(xdgStateHome, "zeta"), { recursive: true });
 		process.env.XDG_STATE_HOME = xdgStateHome;
 	} else {
 		process.env.HOME = root;

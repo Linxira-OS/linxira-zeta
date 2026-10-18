@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AgentBusyError, type AgentTelemetryConfig, type Tracer } from "@linxiraos/pi-agent-core";
 import { type AssistantMessage, Effort } from "@linxiraos/pi-ai";
+import { kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ExtensionActions, LoadExtensionsResult } from "@linxiraos/zeta/extensibility/extensions/types";
 import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
@@ -123,7 +124,7 @@ describe("runSubprocess yield reminders", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@linxiraos/zeta").ModelRegistry,
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 
@@ -198,7 +199,7 @@ describe("runSubprocess yield reminders", () => {
 		const createAgentSessionSpy = mockCreateAgentSession(session);
 		const modelRegistry = {
 			refresh: async () => {},
-		} as unknown as import("@linxiraos/zeta").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 		const refreshSpy = vi.spyOn(modelRegistry, "refresh");
 
 		await runSubprocess({ ...baseOptions, id: "subagent-skip-refresh", modelRegistry });
@@ -599,6 +600,60 @@ describe("runSubprocess yield reminders", () => {
 		expect(prompts).toHaveLength(1);
 		expect(result.exitCode).toBe(0);
 		expect(result.output).toBe(report);
+	});
+
+	it("returns only the text after Cursor's last server-resolved tool call", async () => {
+		const report = "## Result\nThe auth lookup is complete.";
+		const session = createMockSession(({ emit, state }) => {
+			const edit = {
+				type: "toolCall" as const,
+				id: "tool-edit",
+				name: "edit",
+				arguments: { path: "src/auth.ts" },
+				[kCursorExecResolved]: true as const,
+			};
+			const read = {
+				type: "toolCall" as const,
+				id: "tool-read",
+				name: "read",
+				arguments: { path: "src/auth.ts" },
+				[kCursorExecResolved]: true as const,
+			};
+			const final: AssistantMessage = {
+				...createAssistantStopMessage(""),
+				api: "cursor-agent",
+				provider: "cursor",
+				content: [{ type: "text", text: "Checking auth." }, edit, read, { type: "text", text: report }],
+			};
+			state.messages.push(final);
+			emit({ type: "message_end", message: final });
+			emit({ type: "agent_end", messages: [final] });
+		});
+		mockCreateAgentSession(session);
+
+		const result = await runSubprocess({ ...baseOptions, id: "subagent-cursor-final", structured: false });
+
+		expect(result.exitCode).toBe(0);
+		expect(result.output).toBe(report);
+	});
+
+	it("rejects prose after a locally runnable tool call in a stop turn", async () => {
+		const session = createMockSession(({ emit, state }) => {
+			const unfinished = createAssistantStopMessage("");
+			unfinished.content = [
+				{ type: "toolCall", id: "tool-read", name: "read", arguments: { path: "src/auth.ts" } },
+				{ type: "text", text: "The auth lookup is complete." },
+			];
+			state.messages.push(unfinished);
+			emit({ type: "message_end", message: unfinished });
+			emit({ type: "agent_end", messages: [unfinished] });
+		});
+		mockCreateAgentSession(session);
+
+		const result = await runSubprocess({ ...baseOptions, id: "subagent-local-tool-prose", structured: false });
+
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toBe(SUBAGENT_WARNING_EMPTY_MESSAGE);
 	});
 
 	it("fails an unstructured run that ends without a final message", async () => {
@@ -1070,7 +1125,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			refresh: async () => {},
 			getAvailable: () => [{ provider: "openai", id: "gpt-4o", name: "GPT-4o" }],
-		} as unknown as import("@linxiraos/zeta").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 
 		await runSubprocess({
 			...baseOptions,
@@ -1213,7 +1268,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: fakeAuthStorage,
 			refresh: async () => {},
-		} as unknown as import("@linxiraos/zeta").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 
 		await runSubprocess({ ...baseOptions, id: "subagent-registry-only", modelRegistry });
 
@@ -1229,7 +1284,7 @@ describe("runSubprocess yield reminders", () => {
 		const modelRegistry = {
 			authStorage: registryStorage,
 			refresh: async () => {},
-		} as unknown as import("@linxiraos/zeta").ModelRegistry;
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry;
 
 		const result = await runSubprocess({
 			...baseOptions,
@@ -1301,7 +1356,7 @@ describe("runSubprocess telemetry propagation", () => {
 		settings: Settings.isolated(),
 		modelRegistry: {
 			refresh: async () => {},
-		} as unknown as import("@linxiraos/zeta").ModelRegistry,
+		} as unknown as import("@linxiraos/zeta/config/model-registry").ModelRegistry,
 		enableLsp: false,
 	};
 

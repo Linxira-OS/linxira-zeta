@@ -1,3 +1,4 @@
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
 import type { Component } from "../tui";
 import { Text } from "../components/text";
 import type { Theme } from "../theme/theme";
@@ -13,13 +14,11 @@ import {
 	toPathList,
 } from "../render/render-utils";
 import { classifyGroupedLines, describeGroupedOutput, groupLineIndicesByBlank } from "./grouped-file-output";
-import { getLanguageFromPath } from "../lang-from-path";
 import { code, compact, node, span } from "../native/describe";
 import type { NativeChild } from "../native/node";
 import { errorText, noteText, resultText, toolHead } from "./native-view";
 import type { OutputMeta } from "./output-meta";
-import { tuiText, tuiTextFmt } from "../i18n";
-import type { RenderResultOptions, ToolRenderer, NativeToolView } from "./renderer";
+import type { NativeToolView, RenderResultContextOptions, RenderResultOptions, ToolRenderer } from "./renderer";
 
 /** Display metadata returned by ast-grep. */
 export interface AstGrepToolDetails {
@@ -61,8 +60,7 @@ export const astGrepToolRenderer = {
 	renderCall(args: AstGrepRenderArgs, _options: RenderResultOptions, uiTheme: Theme): Component {
 		const meta: string[] = [];
 		const scopePaths = toPathList(args.path ?? args.paths);
-		if (scopePaths.length)
-			meta.push(tuiTextFmt("gpInLabelFmt", `in ${scopePaths.join(", ")}`, scopePaths.join(", ")));
+		if (scopePaths.length) meta.push(`in ${scopePaths.join(", ")}`);
 		if (args.skip !== undefined && args.skip > 0) meta.push(`skip:${args.skip}`);
 
 		const description = args.pat ?? "?";
@@ -72,15 +70,14 @@ export const astGrepToolRenderer = {
 
 	renderResult(
 		result: { content: Array<{ type: string; text?: string }>; details?: AstGrepToolDetails; isError?: boolean },
-		options: RenderResultOptions,
+		options: RenderResultContextOptions,
 		uiTheme: Theme,
 		args?: AstGrepRenderArgs,
 	): Component {
 		const details = result.details;
 
 		if (result.isError) {
-			const errorText =
-				result.content?.find(c => c.type === "text")?.text || tuiText("glUnknownError", "Unknown error");
+			const errorText = result.content?.find(c => c.type === "text")?.text || "Unknown error";
 			return new Text(formatErrorMessage(errorText, uiTheme), 0, 0);
 		}
 
@@ -91,33 +88,23 @@ export const astGrepToolRenderer = {
 
 		if (matchCount === 0) {
 			const description = args?.pat;
-			const meta = [tuiText("agrpZeroMatches", "0 matches")];
-			if (details?.scopePath) meta.push(tuiTextFmt("gpInLabelFmt", `in ${details.scopePath}`, details.scopePath));
-			if (filesSearched > 0) meta.push(tuiTextFmt("agrpSearchedFmt", `searched ${filesSearched}`, filesSearched));
+			const meta = ["0 matches"];
+			if (details?.scopePath) meta.push(`in ${details.scopePath}`);
+			if (filesSearched > 0) meta.push(`searched ${filesSearched}`);
 			const header = renderStatusLine({ icon: "warning", title: "AST Grep", description, meta }, uiTheme);
-			const lines = [header, formatEmptyMessage(tuiText("agrpNoMatches", "No matches found"), uiTheme)];
+			const lines = [header, formatEmptyMessage("No matches found", uiTheme)];
 			if (details?.parseErrors?.length) {
-				lines.push(
-					uiTheme.fg(
-						"warning",
-						tuiText("agrpMisScoped", "Query may be mis-scoped; narrow `path` before concluding absence"),
-					),
-				);
+				lines.push(uiTheme.fg("warning", "Query may be mis-scoped; narrow `path` before concluding absence"));
 				appendParseErrorsBulletList(lines, details.parseErrors, uiTheme, details.parseErrorsTotal);
 			}
 			return new Text(lines.join("\n"), 0, 0);
 		}
 
-		const matchMeta =
-			matchCount === 1
-				? tuiText("agrpMatchOne", "1 match")
-				: tuiTextFmt("agrpMatchManyFmt", "%d matches", matchCount);
-		const fileMeta =
-			fileCount === 1 ? tuiText("agrpFileOne", "1 file") : tuiTextFmt("agrpFileManyFmt", "%d files", fileCount);
-		const meta = [matchMeta, fileMeta];
-		if (details?.scopePath) meta.push(tuiTextFmt("gpInLabelFmt", `in ${details.scopePath}`, details.scopePath));
-		meta.push(tuiTextFmt("agrpSearchedFmt", `searched ${filesSearched}`, filesSearched));
-		if (limitReached) meta.push(uiTheme.fg("warning", tuiText("tLimitReached", "limit reached")));
+		const summaryParts = [formatCount("match", matchCount), formatCount("file", fileCount)];
+		const meta = [...summaryParts];
+		if (details?.scopePath) meta.push(`in ${details.scopePath}`);
+		meta.push(`searched ${filesSearched}`);
+		if (limitReached) meta.push(uiTheme.fg("warning", "limit reached"));
 		const description = args?.pat;
 		const header = renderStatusLine(
 			{
@@ -136,6 +123,20 @@ export const astGrepToolRenderer = {
 		// Resolve hyperlinks over the whole output so nested directory headers
 		// reconstruct across the blank-line groups the tree list collapses by.
 		const contexts = classifyGroupedLines(allLines, details?.cwd ?? details?.searchPath, details?.searchPath);
+		// The displayed lines are sanitized, but OSC 8 destinations must retain the
+		// original path bytes. Only substitute targets for headers already linked
+		// by the sanitized output; never let raw text create additional links.
+		const rawDetails = options.renderContext?.rawDetails;
+		const rawContent =
+			isRecord(rawDetails) && typeof rawDetails.displayContent === "string" ? rawDetails.displayContent : undefined;
+		const rawLines = rawContent?.split("\n");
+		const rawCwd = isRecord(rawDetails) && typeof rawDetails.cwd === "string" ? rawDetails.cwd : undefined;
+		const rawSearchPath =
+			isRecord(rawDetails) && typeof rawDetails.searchPath === "string" ? rawDetails.searchPath : undefined;
+		const rawContexts =
+			rawContent !== undefined && rawLines?.length === allLines.length && sanitizeText(rawContent) === textContent
+				? classifyGroupedLines(rawLines, rawCwd ?? rawSearchPath, rawSearchPath)
+				: undefined;
 		// Style lazily: the collapsed tree list only renders the first few groups,
 		// so a large result never styles/hyperlinks rows nobody sees.
 		const styledLines: (string | undefined)[] = Array.from({ length: allLines.length }, () => undefined);
@@ -144,13 +145,18 @@ export const astGrepToolRenderer = {
 			if (cached !== undefined) return cached;
 			const line = allLines[index]!;
 			const ctx = contexts[index]!;
+			const rawContext = rawContexts?.[index];
+			const target =
+				ctx.headerPath && rawContext?.kind === ctx.kind && rawContext.depth === ctx.depth
+					? (rawContext.headerPath ?? ctx.headerPath)
+					: ctx.headerPath;
 			let styled: string;
 			if (ctx.kind === "dir") {
 				const accent = uiTheme.fg("accent", line);
-				styled = ctx.headerPath ? fileHyperlink(ctx.headerPath, accent) : accent;
+				styled = target ? fileHyperlink(target, accent) : accent;
 			} else if (ctx.kind === "file") {
 				const tinted = uiTheme.fg(ctx.depth === 1 ? "accent" : "dim", line);
-				styled = ctx.headerPath ? fileHyperlink(ctx.headerPath, tinted) : tinted;
+				styled = target ? fileHyperlink(target, tinted) : tinted;
 			} else {
 				styled = uiTheme.fg(line.startsWith("  meta:") ? "dim" : "toolOutput", line);
 			}
@@ -174,9 +180,7 @@ export const astGrepToolRenderer = {
 
 		const extraLines: string[] = [];
 		if (limitReached) {
-			extraLines.push(
-				uiTheme.fg("warning", tuiText("agrpLimitNarrowPath", "limit reached; narrow path or use skip")),
-			);
+			extraLines.push(uiTheme.fg("warning", "limit reached; narrow path or use skip"));
 		}
 		if (details?.parseErrors?.length) {
 			extraLines.push(
@@ -274,7 +278,7 @@ export const astGrepToolRenderer = {
 		return {
 			head,
 			body: compact<NativeChild>([
-				...describeGroupedOutput(kept, { lang: getLanguageFromPath }),
+				...describeGroupedOutput(kept),
 				limitReached && noteText("limit reached; narrow path or use skip", "warning"),
 				parseNote,
 			]),
