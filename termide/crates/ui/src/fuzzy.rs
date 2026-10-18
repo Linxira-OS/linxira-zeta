@@ -129,7 +129,7 @@ pub fn rank(scores: impl IntoIterator<Item = Option<u32>>) -> Vec<usize> {
         .enumerate()
         .filter_map(|(index, score)| score.map(|score| (index, score)))
         .collect();
-    hits.sort_by(|a, b| b.1.cmp(&a.1));
+    hits.sort_by_key(|hit| std::cmp::Reverse(hit.1));
     hits.into_iter().map(|(index, _)| index).collect()
 }
 

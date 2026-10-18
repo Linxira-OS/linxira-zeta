@@ -519,7 +519,9 @@ pub fn search(
         })
         .collect();
     // Newest first, so a fork's copy of an entry yields to the newer log.
-    files.sort_by(|a, b| b.1.cmp(&a.1));
+    // `Reverse` keeps the descending order clippy's `sort_by_key` shape asks
+    // for (`Option<SystemTime>` is `Copy`).
+    files.sort_by_key(|file| std::cmp::Reverse(file.1));
     let live: HashSet<&PathBuf> = files.iter().map(|(path, _, _)| path).collect();
     let stale: Vec<PathBuf> = cache
         .files

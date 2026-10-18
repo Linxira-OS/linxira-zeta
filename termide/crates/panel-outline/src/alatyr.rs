@@ -277,10 +277,7 @@ fn skip_modifiers(tokens: &[Token], source: &str, start: usize) -> (usize, bool)
     let mut index = start;
     let mut has_test = false;
 
-    loop {
-        let Some(token) = tokens.get(index) else {
-            break;
-        };
+    while let Some(token) = tokens.get(index) {
         if token.kind == TokenKind::Word
             && matches!(&source[token.start..token.end], "pub" | "mut" | "comptime")
         {

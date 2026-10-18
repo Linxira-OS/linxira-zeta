@@ -38,7 +38,9 @@ pub struct Corners {
 	/// Set on the first frame that has a window. It gates the call itself:
 	/// repeating `DwmSetWindowAttribute` every frame makes the compositor
 	/// restyle the frame continuously and takes the window procedure down
-	/// (`0xC000041D`) a minute or two in.
+	/// (`0xC000041D`) a minute or two in. Windows-only, like the call it gates:
+	/// on other targets nothing would ever read it (`-D warnings` says so).
+	#[cfg(windows)]
 	applied: bool,
 	/// Whether the compositor accepted the preference. A fact, not a gate — a
 	/// build that refuses it keeps square corners and must not be retried.
