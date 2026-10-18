@@ -148,13 +148,20 @@ impl DirectoryPickerModal {
     /// (`C:\`, `D:\`, …) and drills down from there. A no-op away from
     /// Windows, where every mount is already reachable from `/`.
     #[must_use]
-    pub fn starting_at_drives(mut self) -> Self {
+    pub fn starting_at_drives(self) -> Self {
         #[cfg(windows)]
         {
-            self.at_drives = true;
-            self.load_drives();
+            let mut this = self;
+            this.at_drives = true;
+            this.load_drives();
+            this
         }
-        self
+        #[cfg(not(windows))]
+        {
+            // Every mount is reachable from `/` here, so the drive page has
+            // nothing to offer and the picker opens where it was told to.
+            self
+        }
     }
 
     /// Mounted volumes, in drive-letter order. Empty off Windows.
@@ -177,6 +184,7 @@ impl DirectoryPickerModal {
     }
 
     /// The drive page: one row per mounted volume.
+    #[cfg(windows)]
     fn load_drives(&mut self) {
         self.entries.clear();
         self.cursor = 0;
@@ -680,13 +688,17 @@ impl DirectoryPickerModal {
         if let Some(parent) = self.current_dir.parent() {
             self.current_dir = parent.to_path_buf();
             self.load_root();
-            return;
-        }
-        // A volume root has no parent; on Windows its parent is the drive page.
-        #[cfg(windows)]
-        if !Self::drives().is_empty() {
-            self.at_drives = true;
-            self.load_drives();
+        } else {
+            // A volume root has no parent; on Windows its parent is the drive
+            // page. Written as an `else` branch so the non-Windows build has no
+            // trailing statement to lint.
+            #[cfg(windows)]
+            {
+                if !Self::drives().is_empty() {
+                    self.at_drives = true;
+                    self.load_drives();
+                }
+            }
         }
     }
 }
