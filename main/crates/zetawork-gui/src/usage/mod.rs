@@ -1,25 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The 用量 panel: the stats the `packages/stats` server already holds, drawn
-//! natively by egui.
+//! The 用量 container: the stats the `packages/stats` server already holds.
 //!
-//! The left column's foot opens this container (the global roll-up). The right
-//! column's 用量 tab is a different page — the active conversation's own
-//! usage, see [`crate::conversation`]. The data here comes from the stats
-//! server `zetacode serve` runs on
-//! loopback — the origin is discovered from `~/.zeta/serve.json` (see
-//! [`crate::stats`]) and the three requests are `/api/stats/overview`,
-//! `/api/stats/costs` and `/api/status` (see [`api`], whose module docs carry
-//! the live response shape).
+//! The left column's foot opens this container — the global roll-up. On Windows
+//! the container body is a real WebView2 child window that loads the dashboard
+//! `zetacode serve` serves (see [`crate::embed`]) and follows the container's
+//! rectangle. This module is the *fallback*: when the child cannot attach —
+//! another target, a missing WebView2 runtime, a failed attach — the same
+//! endpoint's JSON is fetched and painted natively here, and the address bar
+//! carries the reason in one line. The right column's 用量 tab is a different
+//! page — the active conversation's own usage, see [`crate::conversation`].
 //!
-//! # No WebView, no invented numbers
+//! The data comes from the stats server `zetacode serve` runs on loopback —
+//! the origin is discovered from `~/.zeta/serve.json` (see [`crate::stats`])
+//! and the three requests are `/api/stats/overview`, `/api/stats/costs` and
+//! `/api/status` (see [`api`], whose module docs carry the live response
+//! shape).
 //!
-//! egui has no web view, so this panel is not an embedded browser: it fetches
-//! the same JSON the dashboard's client reads and paints cards, a token bar
-//! chart and an agent-type table itself. The fetch runs on a worker thread and
-//! the last answer stays cached, so opening the modal or switching ranges never
-//! blocks the window. When nothing is listening, the body is one line —
-//! [`absent_line`] — naming `zetacode serve` and the URL; there is no
-//! placeholder prose and no number that did not come from the server.
+//! # No invented numbers
+//!
+//! The native panel is not a browser: it fetches the same JSON the dashboard's
+//! client reads and paints cards, a token bar chart and an agent-type table
+//! itself. The fetch runs on a worker thread and the last answer stays cached,
+//! so opening the modal or switching ranges never blocks the window. When
+//! nothing is listening, the body is one line — [`absent_line`] — naming
+//! `zetacode serve` and the URL; there is no placeholder prose and no number
+//! that did not come from the server.
 
 mod api;
 
@@ -226,17 +231,31 @@ struct Action {
 	close: bool,
 	reload: bool,
 	select: Option<Range>,
+	/// The container body in physical pixels; `Some` means the WebView2 child
+	/// drew it and must be placed there.
+	embed: Option<crate::embed::PixelRect>,
 }
 
 /// Draw the container, if it is open.
 pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 	if !shell.state.usage_view_open() {
+		// Unmap the WebView2 child: a hidden container must not leave a child
+		// window holding keyboard focus.
+		shell.embed.hide();
 		return;
 	}
 	let _ = shell.usage.poll();
 	let origin = shell.stats.origin().to_owned();
 	let url = shell.stats.usage_url().to_owned();
 	let address = shell.stats.describe();
+	// `None` while the child window is live; otherwise the one line saying why
+	// the native panel is drawing instead.
+	let fallback = shell.embed.failure().map(str::to_owned);
+	let embedded = fallback.is_none();
+	let address = match &fallback {
+		Some(reason) => format!("{address} · 嵌入不可用：{reason}"),
+		None => address,
+	};
 	shell.usage.ensure(&origin);
 	let usage = &shell.usage;
 	if usage.loading() {
@@ -353,17 +372,33 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 						Stroke::new(1.0_f32, theme::BORDER),
 						egui::StrokeKind::Inside,
 					);
-					let mut body_ui = ui.new_child(egui::UiBuilder::new().max_rect(inner));
-					panel(
-						&mut body_ui,
-						inner.shrink2(vec2(12.0, 10.0)),
-						usage,
-						&origin,
-						&url,
-						&mut action,
-					);
+					if embedded {
+						// The child covers the body; one point of the drawn
+						// border is left visible around it.
+						action.embed = Some(crate::embed::PixelRect::from_points(
+							inner.shrink(1.0),
+							ui.ctx().pixels_per_point(),
+						));
+					} else {
+						let mut body_ui = ui.new_child(egui::UiBuilder::new().max_rect(inner));
+						panel(
+							&mut body_ui,
+							inner.shrink2(vec2(12.0, 10.0)),
+							usage,
+							&origin,
+							&url,
+							&mut action,
+						);
+					}
 				});
 		});
+	// Place/hide the child after the frame has computed the body rectangle.
+	// `set_bounds` runs every frame; the host skips it when the rect is
+	// unchanged.
+	match action.embed {
+		Some(rect) => shell.embed.show(rect),
+		None => shell.embed.hide(),
+	}
 	if let Some(range) = action.select {
 		shell.usage.select(range, &origin);
 	}

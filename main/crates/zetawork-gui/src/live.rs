@@ -221,7 +221,7 @@ fn spawn_local(
 		match requested {
 			Some(shell) => {
 				let program = shell.path.to_string_lossy().into_owned();
-				(Terminal::new_with_shell(rows, cols, &program, cwd).ok()?, program)
+				Some((Terminal::new_with_shell(rows, cols, &program, cwd).ok()?, program))
 			},
 			None => None,
 		}

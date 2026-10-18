@@ -15,9 +15,9 @@
 //! ([`parse_serve`] — no `serde_json` in this module and no new dependency), the
 //! loopback check that keeps the shell off remote pages
 //! ([`StatsEndpoint::is_loopback`]), and the display line in
-//! [`StatsEndpoint::describe`]. The numbers themselves are read by
-//! [`crate::usage`], which speaks HTTP to this origin and paints the JSON
-//! natively; there is no embedded browser, so no WebView is involved.
+//! [`StatsEndpoint::describe`]. The URL is what the 用量 container's WebView2
+//! child loads ([`crate::embed`]); [`crate::usage`] reads the same origin's JSON
+//! as the native fallback when no child can attach.
 //!
 //! Everything degrades: a missing, unreadable, non-UTF-8 or malformed
 //! `serve.json` yields [`DEFAULT_STATS_URL`] with [`EndpointSource::Default`].
