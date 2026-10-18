@@ -86,6 +86,25 @@ triage 表、推送门槛）在根 `AGENTS.md`，本文只放操作步骤与工�
 - **Tag 逐文件契约 resolve 的对照基准是 `v<tag>` 版本**，不是 `omp-upstream/main`
   ——main 上可能有未进 tag 的中间态，拿它对照会把未经 release 的行为当契约。
 
+## 冲突分级：内容性 vs 功能性（2026-10-18 立规）
+
+**动手 resolve 之前，先把冲突按路径分级并报出表格（数量 + 文件清单）。** 顺序错的代价是
+把"上游新增的特性描述"当成"我们的文档"留在旧版本，或者把功能性冲突用文案替换糊过去。
+
+| 类别 | 判据 | 处理 |
+|---|---|---|
+| **内容性：文档/描述** | `docs/**`、上游 `*.md` | **取上游**（新增特性说明必须移过来），随后按品牌规则重放我们的命名/资产替换；**绝不**保留旧版本文档 |
+| **内容性：测试契约** | `**/test/**`、`test/*.test.ts` | 整文件取上游（上游同时改了实现与测试，成对收），再按源码实际符号做 `.omp→.zeta` 与运行时全局名对账 |
+| **功能性：代码** | `packages/**/src/**`、`crates/**` | 上游语义优先；随后从 `git show main:<path>` 重放 Zeta-only 增量（mode API、sdk sinks、IRC auto-reply、`__zeta_*`、`ZETA_*`、UA、CLI 提示等，producer+consumer 成对） |
+| **根清单与锁文件** | `Cargo.toml`、`Cargo.lock`、`bun.lock`、`MODULE.bazel.lock` | 单一 owner 处理：版本线保留 Zeta（`1.2.x`），依赖面取上游后重生成；`Cargo.lock` 动过必须刷 `MODULE.bazel.lock` |
+
+要点：
+
+- **增量也要取上游。** "不冲突"不是唯一条件——冲突时上游新增的文档、资产、描述同样必须
+  整体移入，再从 `main` 重放我们的改写；把上游文档整份丢回旧版属损伤。
+- **分级表进账本。** `document/upstream-sync.md` 记录每轮的分类计数与特殊判定，下一轮直接对照。
+- 分类完成后才算开始 resolve；任何"先解几个看看"的做法都禁止。
+
 ## 品牌 overlay 与守卫使用
 
 品牌残留工作分两层：**机械规则进脚本**（`scripts/brand/brand-rules.ts` 是唯一
