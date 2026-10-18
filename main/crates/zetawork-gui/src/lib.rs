@@ -15,10 +15,9 @@
 //! The GUI is [`center::workspace`]. The TUI is the terminal binary and is
 //! never rendered here.
 //!
-//! What is real in this slice: the file tree ([`fsread`]), the git status
-//! ([`git`]), the process's own memory (the status bar), and every state
-//! transition. What is not: the pane bodies, which are labelled placeholders
-//! naming their future source, and everything that would write to a repository.
+//! Everything the shell draws is read from real state: the file tree
+//! ([`fsread`]), the git status ([`git`]), the live PTY grids ([`live`]), the
+//! process's own memory (the status bar), and every state transition.
 
 pub mod agent;
 pub mod agent_events;
@@ -61,11 +60,9 @@ use std::time::Instant;
 use eframe::egui;
 use egui::{Context, ViewportCommand};
 
-use crate::blit::BufferCache;
 use crate::fonts::Fonts;
 use crate::fsread::FileTree;
 use crate::git::GitStatus;
-use crate::icons::Icon;
 use crate::settings::Settings;
 use crate::state::AppState;
 
@@ -76,10 +73,6 @@ pub const APP_SUBTITLE: &str = "工作台";
 /// 关于 shows this.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// The status bar's throughput column has no source in this slice, and says so.
-pub const THROUGHPUT_HINT: &str =
-	"模型吞吐：需要活动会话（未来数据源：zetacode stats /api/stats/overview）";
-
 /// The 快捷键 section: label, hint, the keys this build actually binds.
 pub const BINDINGS: [(&str, &str, &str); 5] = [
 	// 工作区 and 大标签页 are the same level, so this reads as the draft's
@@ -89,39 +82,6 @@ pub const BINDINGS: [(&str, &str, &str); 5] = [
 	("新建终端", "在当前面板新建一个终端", "Ctrl ⇧ T"),
 	("打开设置", "打开本设置面板", "Ctrl ,"),
 	("切换侧栏", "显示或隐藏左右侧栏", "Ctrl B"),
-];
-
-/// What a 管理 card opens when clicked.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ManageTarget {
-	/// The registry page: registered projects, their paths, workspace counts
-	/// and the remove action.
-	Projects,
-	/// A surface this slice does not have yet; the card shows the reason.
-	Notice(&'static str),
-}
-
-/// The 管理 cards, each naming what it would open.
-pub const MANAGE_CARDS: [(&str, &str, Icon, ManageTarget); 4] = [
-	("管理项目与工作区", "重命名、打开或移除已注册的项目", Icon::FolderPlus, ManageTarget::Projects),
-	(
-		"管理账户与授权",
-		"登录方式、设备与访问令牌",
-		Icon::Check,
-		ManageTarget::Notice("管理账户：授权存储尚未接入（未来数据源：zetacode 授权存储）"),
-	),
-	(
-		"数据与存储",
-		"缓存与日志的占用情况",
-		Icon::Stage,
-		ManageTarget::Notice("数据与存储：尚未接入（未来数据源：~/.zeta 缓存统计）"),
-	),
-	(
-		"扩展与 Agent",
-		"已安装的 Agent 运行器与扩展",
-		Icon::Term,
-		ManageTarget::Notice("扩展与 Agent：尚未接入（未来数据源：zetacode 扩展注册表）"),
-	),
 ];
 
 /// The shell: state plus the read-only readers and caches around it.
@@ -141,15 +101,11 @@ pub struct Shell {
 	pub git: Option<GitStatus>,
 	git_ws: String,
 	git_at: Option<Instant>,
-	/// The git panel's (disabled) commit message box.
-	pub git_message: String,
 	/// The active workspace's `git diff HEAD`, read when a 差异比较器 page shows
 	/// it; `diff_ws`/`diff_at` are the workspace and the time it was read.
 	pub diff: Option<Result<String, String>>,
 	diff_ws: String,
 	diff_at: Option<Instant>,
-	/// Rendered terminal cell grids.
-	pub term_buffers: BufferCache,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
 	/// Tabs whose one-shot launch command (`zetacode`, from a project's `+`)
@@ -162,8 +118,6 @@ pub struct Shell {
 	pub agents: agent_sessions::AgentSessions,
 	/// Per-tab IDE pages (`termide-panel-ide`), rendered like the terminal.
 	pub pages: page::Pages,
-	/// 模型吞吐 has no source; `None` renders as `—`.
-	pub throughput: Option<String>,
 	/// The `+` picker's rows for this host, read once when the picker opens.
 	pub picker_entries: Vec<state::PickerEntry>,
 	/// Where the open picker hangs from.
@@ -191,12 +145,6 @@ pub struct Shell {
 	/// it, which is the fallback chain's last link (after the OS route and the
 	/// IM one).
 	pub last_trace: Option<notify::Trace>,
-	/// The IM fallback's destination: the gateway origin from
-	/// `~/.zeta/serve.json` plus the chat to post to. `None` — the state this
-	/// build is in — because the chat is pairing data the serve process owns
-	/// (`~/.zeta/web.yml`), see [`notify::MISSING_TARGET`]; the fallback then
-	/// stops at the status bar's trace instead of guessing a recipient.
-	pub im_target: Option<notify::MessagingTarget>,
 	memory: Memory,
 	resizing: chrome::ResizeState,
 }
@@ -271,17 +219,14 @@ impl Shell {
 			git: None,
 			git_ws: String::new(),
 			git_at: None,
-			git_message: String::new(),
 			diff: None,
 			diff_ws: String::new(),
 			diff_at: None,
-			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
 			launched_commands: std::collections::HashSet::new(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
-			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
@@ -299,10 +244,6 @@ impl Shell {
 			tray: tray::Tray::new(&cc.egui_ctx),
 			workspace_memory: None,
 			last_trace: None,
-			// `~/.zeta/serve.json` names the serve origin, but no file this
-			// shell reads names the chat to send to (`notify::MISSING_TARGET`),
-			// so the IM fallback has no destination here either.
-			im_target: None,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		};
@@ -326,17 +267,14 @@ impl Shell {
 			git: None,
 			git_ws: String::new(),
 			git_at: None,
-			git_message: String::new(),
 			diff: None,
 			diff_ws: String::new(),
 			diff_at: None,
-			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
 			launched_commands: std::collections::HashSet::new(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
-			throughput: None,
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
@@ -351,7 +289,6 @@ impl Shell {
 			tray: tray::Tray::disabled(),
 			workspace_memory: None,
 			last_trace: None,
-			im_target: None,
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		}
@@ -873,7 +810,7 @@ impl Shell {
 		if !notify::should_fire(self.settings.notify, self.foreground(ctx)) {
 			return None;
 		}
-		let trace = notify::emit(message, self.im_target.as_ref());
+		let trace = notify::emit(message, None);
 		self.last_trace = Some(trace);
 		// The status bar draws the trace; a repaint makes it appear at once even
 		// with no input, which is the one frame the background state is allowed.

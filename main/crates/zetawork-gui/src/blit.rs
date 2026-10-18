@@ -293,37 +293,6 @@ pub fn paint_buffer_with(
 	}
 }
 
-/// The single cell a cursor sits on, drawn after the blit (the styles come
-/// from 设置 → 终端 → 光标样式).
-pub fn paint_cursor(
-	painter: &Painter,
-	metrics: &GridMetrics,
-	at: Position,
-	style: crate::settings::CursorStyle,
-) {
-	let area = Rect { x: at.x, y: at.y, width: 1, height: 1 };
-	if area.right() > metrics.cols || area.bottom() > metrics.rows {
-		return;
-	}
-	let origin = pos2(
-		metrics.origin.x + f32::from(area.x) * metrics.cell_w,
-		metrics.origin.y + f32::from(area.y) * metrics.cell_h,
-	);
-	let full = ERect::from_min_size(origin, egui::vec2(metrics.cell_w, metrics.cell_h));
-	let rect = match style {
-		crate::settings::CursorStyle::Block => full,
-		crate::settings::CursorStyle::Underline => ERect::from_min_size(
-			pos2(full.min.x, full.max.y - (metrics.cell_h * 0.12).max(1.5)),
-			egui::vec2(metrics.cell_w, (metrics.cell_h * 0.12).max(1.5)),
-		),
-		crate::settings::CursorStyle::Bar => ERect::from_min_size(
-			full.min,
-			egui::vec2((metrics.cell_w * 0.14).max(1.5), metrics.cell_h),
-		),
-	};
-	painter.rect_filled(rect, CornerRadius::ZERO, crate::theme::ACCENT_2);
-}
-
 /// `Color::Reset` background means "leave the panel background alone".
 fn background_of(cell: &ratatui::buffer::Cell) -> Option<Color32> {
 	match cell.bg {
@@ -336,37 +305,6 @@ fn foreground_of(cell: &ratatui::buffer::Cell, default_fg: Color32) -> Color32 {
 	match cell.fg {
 		Color::Reset => default_fg,
 		other => color32(other),
-	}
-}
-
-/// A tiny cache of rendered cell grids, keyed by everything that changes them.
-///
-/// A terminal pane re-renders its sample transcript on every frame otherwise,
-/// which would allocate a fresh `Buffer` per frame for content that has not
-/// changed. The cache is bounded (the shell can show at most three panes at
-/// once) and least-recently-used.
-#[derive(Default)]
-pub struct BufferCache {
-	entries: Vec<(String, Buffer)>,
-}
-
-impl BufferCache {
-	/// How many rendered grids one shell keeps around.
-	pub const CAPACITY: usize = 4;
-
-	/// The buffer for `key`, rendering it with `render` on a miss.
-	pub fn get_or_render(&mut self, key: String, render: impl FnOnce() -> Buffer) -> &Buffer {
-		if let Some(index) = self.entries.iter().position(|(cached, _)| *cached == key) {
-			let entry = self.entries.remove(index);
-			self.entries.push(entry);
-		} else {
-			let buffer = render();
-			self.entries.push((key, buffer));
-			if self.entries.len() > Self::CAPACITY {
-				self.entries.remove(0);
-			}
-		}
-		&self.entries.last().expect("just pushed").1
 	}
 }
 

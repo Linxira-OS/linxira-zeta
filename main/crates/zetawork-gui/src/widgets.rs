@@ -45,7 +45,7 @@ pub fn status_word(ui: &Ui, at: Pos2, state: Option<RunState>, size: f32, availa
 pub fn status_tooltip(state: Option<RunState>) -> String {
 	match state {
 		Some(state) => format!("{} — {}", state.word(), state.meaning()),
-		None => "状态未接线：还没有会话状态源，所以这里不显示七个状态中的任何一个".to_owned(),
+		None => "还没有会话状态".to_owned(),
 	}
 }
 
@@ -107,60 +107,6 @@ pub fn badge(ui: &mut Ui, label: &str, warn: bool) {
 		ink,
 	);
 }
-
-/// A `.navitem`: icon, label, trailing counter, active surface.
-pub fn nav_row(
-	ui: &mut Ui,
-	icon: Icon,
-	label: &str,
-	trailing: Option<(&str, bool)>,
-	active: bool,
-) -> Response {
-	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
-	let hovered = response.hovered();
-	if active {
-		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::ACCENT_DIM);
-	} else if hovered {
-		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
-	}
-	let ink = if active {
-		theme::TUI_ACTIVE_TEXT
-	} else {
-		theme::TEXT_2
-	};
-	let icon_ink = if active {
-		theme::ACCENT_2
-	} else {
-		theme::TEXT_3
-	};
-	let icon_rect =
-		Rect::from_center_size(pos2(rect.min.x + 16.0, rect.center().y), vec2(16.0, 16.0));
-	paint(ui.painter(), icon, icon_rect, icon_ink, 1.6);
-	let mut right = rect.max.x - 8.0;
-	if let Some((text, mono)) = trailing {
-		let font = if mono {
-			FontId::new(11.0, egui::FontFamily::Monospace)
-		} else {
-			FontId::new(11.0, egui::FontFamily::Proportional)
-		};
-		let galley = ui
-			.painter()
-			.layout_no_wrap(text.to_owned(), font, theme::TEXT_3);
-		right -= galley.size().x;
-		ui.painter().galley(
-			pos2(right, rect.center().y - galley.size().y / 2.0),
-			galley,
-			theme::TEXT_3,
-		);
-		right -= 6.0;
-	}
-	let available = right - (rect.min.x + 30.0);
-	truncated_text(ui, pos2(rect.min.x + 30.0, rect.center().y), label, 13.0, ink, available);
-	response
-}
-
 /// A `.footbtn`: icon over a short label, used by 设置 / 帮助 / 聚焦.
 pub fn foot_button(ui: &mut Ui, icon: Icon, label: &str) -> Response {
 	let font = FontId::new(12.0, egui::FontFamily::Proportional);
@@ -271,13 +217,13 @@ pub fn truncated_mono(
 		.galley(pos2(at.x, at.y - galley.size().y / 2.0), galley, color);
 }
 
-/// The one honest line a panel shows when it has no data source yet.
+/// The one quiet line a panel shows when it has nothing to list.
 ///
-/// Both lines are clipped to the card's own width: a note whose headline
-/// carries a tool's error (a `fatal:` dump, a missing path) must end in an
-/// ellipsis at the panel edge, never be painted past it.
-pub fn empty_note(ui: &mut Ui, headline: &str, source: &str) {
-	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 62.0), Sense::hover());
+/// The line is clipped to the card's own width: a note whose headline carries a
+/// tool's error (a `fatal:` dump, a missing path) must end in an ellipsis at the
+/// panel edge, never be painted past it.
+pub fn empty_note(ui: &mut Ui, headline: &str) {
+	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), Sense::hover());
 	let painter = ui.painter();
 	painter.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
 	painter.rect_stroke(
@@ -289,18 +235,10 @@ pub fn empty_note(ui: &mut Ui, headline: &str, source: &str) {
 	let available = (rect.width() - 20.0).max(0.0);
 	truncated_text(
 		ui,
-		pos2(rect.min.x + 10.0, rect.min.y + 20.0),
+		pos2(rect.min.x + 10.0, rect.center().y),
 		headline,
 		12.5,
 		theme::TEXT_2,
-		available,
-	);
-	truncated_text(
-		ui,
-		pos2(rect.min.x + 10.0, rect.min.y + 38.0),
-		&format!("未来数据源：{source}"),
-		11.5,
-		theme::TEXT_3,
 		available,
 	);
 }

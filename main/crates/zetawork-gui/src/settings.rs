@@ -160,45 +160,6 @@ impl Density {
 	}
 }
 
-/// 界面语言. Only 简体中文 is wired to interface text in this slice; the other
-/// two values are stored so the choice is not lost, and the row says so.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Language {
-	#[default]
-	SimplifiedChinese,
-	English,
-	Japanese,
-}
-
-impl Language {
-	pub const ALL: [Self; 3] = [Self::SimplifiedChinese, Self::English, Self::Japanese];
-
-	pub fn label(self) -> &'static str {
-		match self {
-			Self::SimplifiedChinese => "简体中文",
-			Self::English => "English",
-			Self::Japanese => "日本語",
-		}
-	}
-
-	/// Is the interface actually translated for this choice?
-	pub fn wired(self) -> bool {
-		self == Self::SimplifiedChinese
-	}
-
-	fn key(self) -> &'static str {
-		match self {
-			Self::SimplifiedChinese => "zh-CN",
-			Self::English => "en",
-			Self::Japanese => "ja",
-		}
-	}
-
-	fn from_key(key: &str) -> Option<Self> {
-		Self::ALL.into_iter().find(|value| value.key() == key)
-	}
-}
-
 /// 等宽字体. The names are the spec's; a family that is not installed falls
 /// back to the CJK grid face (see [`crate::fonts`]).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -273,39 +234,6 @@ impl ShellChoice {
 				.into_iter()
 				.find(|kind| kind.key() == key),
 		)
-	}
-}
-
-/// 光标样式, drawn by the terminal pane's blit.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum CursorStyle {
-	#[default]
-	Block,
-	Underline,
-	Bar,
-}
-
-impl CursorStyle {
-	pub const ALL: [Self; 3] = [Self::Block, Self::Underline, Self::Bar];
-
-	pub fn label(self) -> &'static str {
-		match self {
-			Self::Block => "方块",
-			Self::Underline => "下划线",
-			Self::Bar => "竖线",
-		}
-	}
-
-	fn key(self) -> &'static str {
-		match self {
-			Self::Block => "block",
-			Self::Underline => "underline",
-			Self::Bar => "bar",
-		}
-	}
-
-	fn from_key(key: &str) -> Option<Self> {
-		Self::ALL.into_iter().find(|value| value.key() == key)
 	}
 }
 
@@ -403,7 +331,6 @@ impl NotifyPolicy {
 pub struct Settings {
 	pub theme: Theme,
 	pub density: Density,
-	pub language: Language,
 	pub reduce_motion: bool,
 	pub mono_font: MonoFont,
 	/// Editor text size in points: 12, 13, 14 or 16.
@@ -413,8 +340,6 @@ pub struct Settings {
 	pub shell: ShellChoice,
 	/// Terminal text size in points: 12, 13 or 14.
 	pub terminal_size: u8,
-	pub cursor: CursorStyle,
-	pub terminal_autoconnect: bool,
 	/// 关闭窗口时.
 	pub close_action: CloseAction,
 	/// 开机自启. Stored so the choice survives, and reported as not wired until
@@ -429,7 +354,6 @@ impl Default for Settings {
 		Self {
 			theme: Theme::Dark,
 			density: Density::Standard,
-			language: Language::SimplifiedChinese,
 			reduce_motion: false,
 			mono_font: MonoFont::CascadiaCode,
 			editor_size: 13,
@@ -437,8 +361,6 @@ impl Default for Settings {
 			editor_line_numbers: true,
 			shell: ShellChoice::default(),
 			terminal_size: 13,
-			cursor: CursorStyle::Block,
-			terminal_autoconnect: true,
 			close_action: CloseAction::MinimizeToBackground,
 			auto_start: false,
 			notify: NotifyPolicy::BackgroundOnly,
@@ -456,10 +378,9 @@ impl Settings {
 
 /// The keys this file owns, with their canonical inline comment (the same
 /// shape `zeta-main`'s writer uses).
-const MANAGED: [(&str, &str); 15] = [
+const MANAGED: [(&str, &str); 12] = [
 	("theme", "dark | light | system"),
 	("density", "compact | standard | spacious"),
-	("language", "zh-CN | en | ja (only zh-CN is wired)"),
 	("reduce_motion", "turn off panel and list transitions"),
 	("editor_font", "cascadia-code | jetbrains-mono | consolas"),
 	("editor_size", "12 | 13 | 14 | 16"),
@@ -467,8 +388,6 @@ const MANAGED: [(&str, &str); 15] = [
 	("editor_line_numbers", "show the gutter in the editor pane"),
 	("shell", "default | powershell | pwsh | cmd | bash | git-bash | wsl"),
 	("terminal_size", "12 | 13 | 14"),
-	("cursor_style", "block | underline | bar"),
-	("terminal_autoconnect", "connect the local agent when a workspace opens"),
 	("close_action", "background | quit | ask"),
 	("auto_start", "start zetawork when the user logs in"),
 	("notify", "off | background | always"),
@@ -542,7 +461,6 @@ fn read(text: &str) -> Settings {
 		match key.trim() {
 			"theme" => settings.theme = Theme::from_key(value).unwrap_or_default(),
 			"density" => settings.density = Density::from_key(value).unwrap_or_default(),
-			"language" => settings.language = Language::from_key(value).unwrap_or_default(),
 			"reduce_motion" => settings.reduce_motion = truthy(value).unwrap_or_default(),
 			"editor_font" => settings.mono_font = MonoFont::from_key(value).unwrap_or_default(),
 			"editor_size" => settings.editor_size = size(value, &Settings::EDITOR_SIZES).unwrap_or(13),
@@ -552,8 +470,6 @@ fn read(text: &str) -> Settings {
 			"terminal_size" => {
 				settings.terminal_size = size(value, &Settings::TERMINAL_SIZES).unwrap_or(13)
 			},
-			"cursor_style" => settings.cursor = CursorStyle::from_key(value).unwrap_or_default(),
-			"terminal_autoconnect" => settings.terminal_autoconnect = truthy(value).unwrap_or(true),
 			"close_action" => settings.close_action = CloseAction::from_key(value).unwrap_or_default(),
 			"auto_start" => settings.auto_start = truthy(value).unwrap_or(false),
 			"notify" => settings.notify = NotifyPolicy::from_key(value).unwrap_or_default(),
@@ -668,7 +584,6 @@ fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str)
 	let value = match key {
 		"theme" => settings.theme.key().to_owned(),
 		"density" => settings.density.key().to_owned(),
-		"language" => settings.language.key().to_owned(),
 		"reduce_motion" => settings.reduce_motion.to_string(),
 		"editor_font" => settings.mono_font.key().to_owned(),
 		"editor_size" => settings.editor_size.to_string(),
@@ -676,8 +591,6 @@ fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str)
 		"editor_line_numbers" => settings.editor_line_numbers.to_string(),
 		"shell" => settings.shell.key().to_owned(),
 		"terminal_size" => settings.terminal_size.to_string(),
-		"cursor_style" => settings.cursor.key().to_owned(),
-		"terminal_autoconnect" => settings.terminal_autoconnect.to_string(),
 		"close_action" => settings.close_action.key().to_owned(),
 		"auto_start" => settings.auto_start.to_string(),
 		"notify" => settings.notify.key().to_owned(),
@@ -720,7 +633,6 @@ mod tests {
 		let written = Settings {
 			theme: Theme::Light,
 			density: Density::Spacious,
-			language: Language::Japanese,
 			reduce_motion: true,
 			mono_font: MonoFont::Consolas,
 			editor_size: 16,
@@ -728,8 +640,6 @@ mod tests {
 			editor_line_numbers: false,
 			shell: ShellChoice(Some(crate::shells::ShellKind::Pwsh)),
 			terminal_size: 12,
-			cursor: CursorStyle::Underline,
-			terminal_autoconnect: false,
 			// The lifecycle keys must round-trip too, and with values that are
 			// *not* their defaults, or a write that dropped them would still
 			// pass.
@@ -783,7 +693,6 @@ mod tests {
 		assert_eq!(settings.density, Density::Compact, "a good value survives");
 		assert_eq!(settings.mono_font, MonoFont::Consolas, "a good value survives");
 		assert_eq!(settings.terminal_size, 14, "a bare px suffix is accepted");
-		assert_eq!(settings.language, Language::SimplifiedChinese);
 		let _ = std::fs::remove_dir_all(&dir);
 	}
 

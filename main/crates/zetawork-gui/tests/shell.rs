@@ -427,10 +427,6 @@ fn the_right_column_has_four_tabs_and_eight_settings_sections() {
 	);
 	assert_eq!(zetawork_gui::settings::Section::ALL[0], zetawork_gui::settings::Section::General);
 	assert_eq!(zetawork_gui::settings::Section::General.key(), "general");
-	// The left column keeps 手机版's slot but does not draw it (R20).
-	assert_eq!(zetawork_gui::state::NavItem::ALL.len(), 4);
-	assert_eq!(zetawork_gui::state::NavItem::visible().count(), 3);
-	assert!(zetawork_gui::state::NavItem::Mobile.hidden());
 }
 
 #[test]
@@ -575,7 +571,6 @@ fn the_usage_entry_opens_the_embedded_stats_container() {
 		.is_loopback()
 	);
 	assert!(zetawork_gui::usage::endpoint_line(&shell).contains(&url));
-	assert!(!zetawork_gui::stats::CONTAINER_OBSTACLE.is_empty());
 	// The right column's 上下文用量 tab opens the same container.
 	shell.state.close_usage();
 	shell

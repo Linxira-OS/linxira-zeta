@@ -28,10 +28,6 @@ use crate::agent::{Effect, Frame, SessionView};
 use crate::agent_events::{AgentEvents, Event};
 use crate::notify::{Message, Trigger};
 
-/// What the empty pane says: how to attach to a gateway session.
-pub const EMPTY_HINT: &str = "在 zetacode serve 打开的 agent 会话里找到会话 id，填到上面点「连接」。\
-本页读取 GET /api/agent/<id>/events（SSE）；连接失败时这里会显示 serve 报告的原因。";
-
 /// The link between one pane and the gateway.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Link {

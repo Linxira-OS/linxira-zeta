@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Where the native stats page lives, and what the shell's embedded container
-//! honestly cannot do yet.
+//! Where the native stats page lives.
 //!
 //! The left column's 用量 entry and the right column's 上下文用量 tab open the
 //! same page: the dashboard served by `packages/stats`, whose `src/server.ts`
@@ -15,9 +14,8 @@
 //! ([`parse_serve`] — no `serde_json` in this module and no new dependency), the
 //! loopback check that keeps the container off remote pages
 //! ([`StatsEndpoint::is_loopback`]), and the display line in
-//! [`StatsEndpoint::describe`]. What is not: the embedded browser itself. egui
-//! has no web view — see [`CONTAINER_OBSTACLE`] — so the container paints this
-//! URL and its provenance, and no numbers.
+//! [`StatsEndpoint::describe`]. The container itself opens the page in the host
+//! browser; the GUI draws no usage numbers of its own.
 //!
 //! Everything degrades: a missing, unreadable, non-UTF-8 or malformed
 //! `serve.json` yields [`DEFAULT_STATS_URL`] with [`EndpointSource::Default`].
@@ -214,19 +212,6 @@ impl StatsEndpoint {
 		}
 	}
 }
-
-/// One honest paragraph naming exactly what is missing for a real embedded
-/// browser in this shell.
-///
-/// Rendered verbatim by the 用量 and 上下文用量 panes, next to the URL from
-/// [`StatsEndpoint::describe`], so the placeholder explains itself instead of
-/// inventing numbers.
-pub const CONTAINER_OBSTACLE: &str = "egui/eframe 没有网页视图控件：窗口里的一切都是 egui 在单块 GPU 表面上自绘的，没有控件能渲染 HTML；要在本窗口内显示 \
-	packages/stats 的看板，必须挂一个系统原生浏览器控件——Windows 上就是 WebView2，用 webview2-com / wry 把它的 HWND 以子窗口方式挂到 eframe 窗口上（\
-	CreateCoreWebView2Controller + put_ParentWindow）——而本 crate 没有链接 WebView2 绑定或 wry 一类的封装（Cargo.toml 里只有 egui/eframe/ratatui/\
-	sysinfo/chrono/serde_json/png/unicode-width）。窗口还是无边框的，标题栏由 chrome 模块用 egui 自绘，所以原生子窗口得自己在每帧和每次缩放时避开这条标题栏，\
-	并自行处理层级、裁剪与 DPI，还要目标机装有 WebView2 运行时——这些都还没实现。因此 用量 和 上下文用量 两个入口目前只画出发现的地址、它的来源和它本该显示的内容，\
-	没有编造的统计数字。";
 
 /// The endpoint for a given user home; the file read is
 /// `<home>/.zeta/serve.json`.
@@ -854,13 +839,5 @@ mod tests {
 			info: parse_serve(SERVE_FIXTURE),
 		};
 		assert_eq!(stray.describe(), "http://127.0.0.1:3847 · 默认端口（未发现 ~/.zeta/serve.json）");
-	}
-
-	#[test]
-	fn container_obstacle_names_what_is_missing() {
-		assert!(CONTAINER_OBSTACLE.len() > 80, "the paragraph explains itself");
-		for expected in ["egui", "WebView2", "HWND", "无边框", "没有编造的统计数字"] {
-			assert!(CONTAINER_OBSTACLE.contains(expected), "must name {expected}");
-		}
 	}
 }

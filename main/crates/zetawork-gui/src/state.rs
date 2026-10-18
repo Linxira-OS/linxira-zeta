@@ -44,66 +44,6 @@ pub const MAX_SUBS_PER_PANE: usize = 8;
 /// How long a toast stays on screen.
 pub const TOAST_TTL: Duration = Duration::from_millis(1800);
 
-/// The left column's navigation entries.
-///
-/// The spec lists four (搜索 / 任务 / 自动化 / 手机版). The fourth is **hidden this
-/// round** (R20: the mobile entry has no design yet, so it is not drawn in the
-/// GUI or in the TUI) — but its slot stays in [`NavItem::ALL`], so bringing it
-/// back is deleting the [`NavItem::hidden`] filter and nothing else.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum NavItem {
-	#[default]
-	Search,
-	Tasks,
-	Automations,
-	Mobile,
-}
-
-impl NavItem {
-	pub const ALL: [Self; 4] = [Self::Search, Self::Tasks, Self::Automations, Self::Mobile];
-
-	pub fn label(self) -> &'static str {
-		match self {
-			Self::Search => "搜索",
-			Self::Tasks => "任务",
-			Self::Automations => "自动化",
-			Self::Mobile => "手机版",
-		}
-	}
-
-	/// The trailing `.nav-count` text, and whether it is a key hint.
-	pub fn trailing(self) -> Option<(&'static str, bool)> {
-		match self {
-			Self::Search => Some(("⌘K", true)),
-			Self::Tasks => Some(("3", false)),
-			Self::Automations => None,
-			Self::Mobile => Some(("预览", false)),
-		}
-	}
-
-	/// What backs this entry. None of them has a data source yet, so clicking
-	/// one says so instead of opening an empty page.
-	pub fn source(self) -> &'static str {
-		match self {
-			Self::Search => "zetawork 全局搜索（文件 + 会话 + 命令索引）",
-			Self::Tasks => "zetawork 任务队列（agent 任务与后台进程）",
-			Self::Automations => "zetawork 自动化规则引擎",
-			Self::Mobile => "zetawork 手机端（设备配对 + 远程工作台视图）",
-		}
-	}
-
-	/// R20: 手机版 is not drawn this round. The row keeps its place in
-	/// [`NavItem::ALL`]; flipping this to `false` is the whole change.
-	pub fn hidden(self) -> bool {
-		self == Self::Mobile
-	}
-
-	/// The entries the column actually draws, in order.
-	pub fn visible() -> impl Iterator<Item = Self> {
-		Self::ALL.into_iter().filter(|item| !item.hidden())
-	}
-}
-
 /// The right column's four panels — the spec's 文件树 / 历史 / Git / 上下文用量.
 ///
 /// The context tab shows the *current* session's context (path + branch +
@@ -209,11 +149,11 @@ impl SessionKind {
 	/// What backs this page, or what is still missing behind it.
 	pub fn source(self) -> &'static str {
 		match self {
-			Self::Term => "本机 shell（PTY 宿主尚未接入）",
+			Self::Term => "本机 shell（真实 PTY：本进程或 zetacode serve）",
 			Self::Editor => "工作区里的真实文件（读 + 写）",
 			Self::Diff => "git diff --no-color HEAD（只读）",
 			Self::Git => "git status / log（只读）",
-			Self::Ide => "termide panel-editor（本 crate 尚未链接）",
+			Self::Ide => "termide panel-editor（termide-panel-ide）",
 			Self::Agent => "zetacode serve 的 SSE 会话流（/api/agent/<id>/events）",
 		}
 	}
@@ -517,8 +457,6 @@ pub struct AppState {
 	/// because the TUI view shows the same group.
 	pub commits_open: bool,
 	pub settings_section: Section,
-	/// The left column's selected nav entry.
-	pub nav: NavItem,
 	/// The focused terminal box in the TUI view; `None` = none focused.
 	pub tui_pane: Option<String>,
 	/// The shell a new 终端 page records (设置 → 终端 的 默认 Shell). The shell
@@ -566,7 +504,6 @@ impl Default for AppState {
 			active_workspace: None,
 			commits_open: true,
 			settings_section: Section::Appearance,
-			nav: NavItem::Search,
 			tui_pane: None,
 			default_shell: None,
 			projects: Vec::new(),

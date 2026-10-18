@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! The footer `.statusbar`: workspace · branch · ↑↓ · 更改 · memory ·
-//! throughput · clock.
+//! clock.
 //!
 //! Every number here is either read from the running process or from `git`.
-//! Model throughput has no source in this slice, so it renders as `—` with a
-//! tooltip naming what would feed it, rather than the spec's sample `301 t/s`.
 
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
@@ -85,8 +83,6 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 				// session it says so instead of drawing a plausible number.
 				let context = shell.state.context_label().to_owned();
 				item(ui, None, &context, true, CONTEXT_HINT);
-				let throughput = shell.throughput.clone().unwrap_or_else(|| "—".to_owned());
-				item(ui, None, &throughput, true, crate::THROUGHPUT_HINT);
 				item(ui, None, &shell.memory_label(), true, "本进程常驻内存（sysinfo）");
 			});
 		});

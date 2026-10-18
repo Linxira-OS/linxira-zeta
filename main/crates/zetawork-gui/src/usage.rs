@@ -7,14 +7,12 @@
 //! the URL is discovered from `~/.zeta/serve.json` (see [`crate::stats`]) and
 //! shown here, never invented.
 //!
-//! # What this container is, and what it is not
+//! # What this container is
 //!
-//! It is the *container and the wiring*: the endpoint, the address, the reload,
-//! and the frame the page will be painted into. It is **not** a web view yet —
-//! see [`crate::stats::CONTAINER_OBSTACLE`] for exactly what is missing. Until
-//! that lands, this dialog shows the URL, the endpoint's provenance, what the
-//! stats page renders, and nothing that would look like a number it does not
-//! have.
+//! The endpoint, the address bar with its provenance, a reload, and a button
+//! that opens the page in the host browser. This window hosts no web view, so
+//! the container draws no numbers of its own: the stats page is the only
+//! renderer of usage figures.
 
 use egui::{Align, CornerRadius, FontId, Layout, Order, Rect, Sense, Stroke, pos2, vec2};
 
@@ -24,15 +22,6 @@ use crate::theme;
 
 /// The dialog's size, clamped to the window.
 const DIALOG: [f32; 2] = [980.0, 620.0];
-
-/// The three blocks the native stats dashboard renders, named so the container
-/// says what will appear in the frame instead of drawing numbers it does not
-/// have. (The page itself is `packages/stats`'s dashboard.)
-const DASHBOARD_SECTIONS: [&str; 3] = [
-	"顶部汇总卡片（今日输入 / 输出 token、平均吞吐、当前上下文占用）",
-	"近 12 小时用量柱图（按小时聚合）",
-	"会话明细表（会话 / 时间 / 输入 / 输出 / 首字延迟）",
-];
 
 /// The URL this container loads.
 pub fn url(shell: &Shell) -> &str {
@@ -55,8 +44,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 	let mut reload = false;
 	let address = endpoint_line(shell);
 	let url = url(shell).to_owned();
-	let dashboard = DASHBOARD_SECTIONS;
-	let obstacle = crate::stats::CONTAINER_OBSTACLE;
+	let probe = shell.probe;
 	egui::Area::new(egui::Id::new("zetawork-usage"))
 		.order(Order::Foreground)
 		.fixed_pos(screen.min)
@@ -161,7 +149,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 						egui::StrokeKind::Inside,
 					);
 					let mut body_ui = ui.new_child(egui::UiBuilder::new().max_rect(inner));
-					embed_placeholder(&mut body_ui, &url, dashboard, obstacle);
+					frame_content(&mut body_ui, &url, probe);
 				});
 		});
 	if reload {
@@ -172,78 +160,52 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 	}
 }
 
-/// What the frame holds until a web view can paint the page itself: the honest
-/// statement of the missing piece, plus what the page will show.
-fn embed_placeholder(ui: &mut egui::Ui, url: &str, sections: [&str; 3], obstacle: &str) {
+/// The frame's content: the endpoint is real, and the page itself opens in the
+/// host browser — this window hosts no web view, so it shows no numbers of its
+/// own.
+fn frame_content(ui: &mut egui::Ui, url: &str, probe: bool) {
 	let rect = ui.max_rect();
-	let mut y = rect.min.y + 22.0;
+	let centre = rect.center();
 	ui.painter().text(
-		pos2(rect.min.x + 20.0, y),
-		egui::Align2::LEFT_TOP,
-		"嵌入式视图尚未接线",
-		FontId::new(15.0, egui::FontFamily::Proportional),
-		theme::WARN,
-	);
-	y += 26.0;
-	for line in wrap(obstacle, 92) {
-		ui.painter().text(
-			pos2(rect.min.x + 20.0, y),
-			egui::Align2::LEFT_TOP,
-			line,
-			FontId::new(12.0, egui::FontFamily::Proportional),
-			theme::TEXT_2,
-		);
-		y += 19.0;
-	}
-	y += 12.0;
-	ui.painter().text(
-		pos2(rect.min.x + 20.0, y),
-		egui::Align2::LEFT_TOP,
-		format!("WebView2 载入后，这个框里就是 {url} 这个页面："),
-		FontId::new(12.0, egui::FontFamily::Proportional),
+		pos2(centre.x, centre.y - 20.0),
+		egui::Align2::CENTER_CENTER,
+		url,
+		FontId::new(12.0, egui::FontFamily::Monospace),
 		theme::TEXT_2,
 	);
-	y += 24.0;
-	for section in sections {
-		let dot = Rect::from_min_size(pos2(rect.min.x + 24.0, y + 5.0), vec2(6.0, 6.0));
-		ui.painter()
-			.rect_filled(dot, CornerRadius::same(2), theme::ACCENT);
-		ui.painter().text(
-			pos2(rect.min.x + 40.0, y),
-			egui::Align2::LEFT_TOP,
-			section,
-			FontId::new(12.0, egui::FontFamily::Proportional),
-			theme::TEXT_3,
-		);
-		y += 20.0;
+	let button = Rect::from_center_size(pos2(centre.x, centre.y + 22.0), vec2(150.0, 30.0));
+	if ui
+		.put(button, egui::Button::new("在浏览器中打开"))
+		.clicked()
+	{
+		open_in_browser(probe, url);
 	}
-	ui.painter().text(
-		pos2(rect.min.x + 20.0, rect.max.y - 18.0),
-		egui::Align2::LEFT_BOTTOM,
-		"此框不显示任何数字：用量数字只由 stats 页面自己渲染。",
-		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
-	);
 }
 
-/// Break `text` into lines of at most `cols` characters, at spaces where it can.
-fn wrap(text: &str, cols: usize) -> Vec<String> {
-	let mut lines = Vec::new();
-	let mut line = String::new();
-	for word in text.split_whitespace() {
-		let too_long = !line.is_empty() && line.chars().count() + 1 + word.chars().count() > cols;
-		if too_long {
-			lines.push(std::mem::take(&mut line));
-		}
-		if !line.is_empty() {
-			line.push(' ');
-		}
-		line.push_str(word);
+/// Open `url` in the host browser. Only a real run spawns anything.
+fn open_in_browser(probe: bool, url: &str) {
+	if !probe {
+		return;
 	}
-	if !line.is_empty() {
-		lines.push(line);
-	}
-	lines
+	#[cfg(windows)]
+	let mut command = {
+		let mut command = std::process::Command::new("cmd");
+		command.args(["/C", "start", "", url]);
+		command
+	};
+	#[cfg(target_os = "macos")]
+	let mut command = {
+		let mut command = std::process::Command::new("open");
+		command.arg(url);
+		command
+	};
+	#[cfg(all(unix, not(target_os = "macos")))]
+	let mut command = {
+		let mut command = std::process::Command::new("xdg-open");
+		command.arg(url);
+		command
+	};
+	let _ = command.spawn();
 }
 
 /// A small outlined button, as the address bar's actions use.
