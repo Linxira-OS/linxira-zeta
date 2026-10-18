@@ -2219,3 +2219,20 @@ ydResultSubmitted
 ydRetryHint
 ydSubmitHint
 ydUnserializableSchema
+# grep result strings: the catalogue entries exist (en/zh/messages) but the
+# tool still formats its summaries with English literals (src/tools/grep.ts).
+# Parked here by the v18.12.1 merge; wiring them is its own i18n pass.
+tLimitReached
+agrpZeroMatches
+agrpNoMatches
+agrpMisScoped
+gpInLabelFmt
+grepMatchOne
+grepMatchManyFmt
+grepFileOne
+grepFileManyFmt
+agrpSearchedFmt
+agrpMatchOne
+agrpMatchManyFmt
+agrpFileOne
+agrpFileManyFmt

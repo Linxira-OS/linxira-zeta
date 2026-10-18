@@ -62,6 +62,9 @@ const SKIP_DIRECTORIES: Record<string, true> = {
 	__pycache__: true,
 	".mimosa": true,
 	".zed": true,
+	// Session plan state (gitignored): a local plan file naming a key is not a
+	// call site, and counting it made this guard pass or fail per machine.
+	".zcode": true,
 };
 
 const SCANNED_EXTENSIONS: Record<string, true> = {
