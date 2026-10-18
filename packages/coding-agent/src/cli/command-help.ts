@@ -47,7 +47,8 @@ export const collabHelp = {
 } satisfies CommandMetadata;
 
 export const clipHelp = {
-	description: "Upload a /record recording to live.omp.sh as a public clip and print its URL",
+	description:
+		"Unavailable in Zeta: `/record --upload` and `zetacode clip` cannot send recordings anywhere because no upload server ships; recordings stay local for `zetacode play`",
 } satisfies CommandMetadata;
 
 export const commitHelp = { description: "Generate a commit message and update changelogs" } satisfies CommandMetadata;
@@ -149,7 +150,8 @@ export const setupHelp = {
 export const shellHelp = { description: "Interactive shell console" } satisfies CommandMetadata;
 
 export const skillHelp = {
-	description: "Install, search, publish, and manage skills on the Skillshare registry (skills.omp.sh)",
+	description:
+		"Install, search, publish, and manage skills; extra skills come from the npm package @linxiraos/linxira-skills (npm i -g @linxiraos/linxira-skills), or configure your own registry URL",
 } satisfies CommandMetadata;
 
 export const sshHelp = { description: "Manage SSH host configurations" } satisfies CommandMetadata;
@@ -157,7 +159,8 @@ export const sshHelp = { description: "Manage SSH host configurations" } satisfi
 export const statsHelp = { description: "View usage statistics" } satisfies CommandMetadata;
 
 export const streamHelp = {
-	description: "Broadcast local zetacode session screens and chat to your public live channel",
+	description:
+		"Broadcast local zetacode session screens and chat to a live channel (requires your own compatible server in stream.serverUrl; none ships with Zeta)",
 } satisfies CommandMetadata;
 
 export const tinyModelsHelp = {

@@ -249,7 +249,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `browser-relay` | Run the local CDP relay used by Eval's browser API to drive your own Chrome tabs. | [computer use](./computer-use.md) |
 | `cleanse` | Detect and fix project diagnostics with weighted parallel subagents. | |
 | `collab` | List active local Collab hosts without exposing URLs; `collab link <instanceId\|pid>` retrieves a control link (`--view` for view-only). Requires `collab.enabled` and a relay you control. | [collab](./collab.md) |
-| `clip` | Upload a `/record` recording to live.omp.sh as a public clip and print its URL. | |
+| `clip` | Clip uploads are unavailable in Zeta: no upload server ships, so `/record --upload` and `zetacode clip` refuse and recordings stay local (`zetacode play`). | [stream](./stream.md#clips) |
 | `commit` | Generate a commit message and update changelogs. | |
 | `completions` | Print a shell completion script (bash, zsh, or fish). | |
 | `compress` | Rewrite a text file into the dense prompt register, reporting what it drops. | |
@@ -277,10 +277,10 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `shell` | Interactive shell console. | |
 | `read` | Show what the read tool will return for a path, URL, or internal URI. (The [`read` tool](./tools/read.md) is a separate agent tool.) | |
 | `render` | Draw a session's entire thread through the production transcript pipeline (with repaint timing). | |
-| `skill`, `skills` | Install, search, publish, and manage skills on skills.omp.sh. | [skills](./skills.md) |
+| `skill`, `skills` | Install, search, publish, and manage skills; extra skills come from the npm package `@linxiraos/linxira-skills` (`npm i -g @linxiraos/linxira-skills`), or a configured registry URL. | [skills](./skills.md#extra-skills-from-npm) |
 | `ssh` | Manage SSH host configurations. | |
 | `stats` | View usage statistics. | |
-| `stream` | Broadcast local OMP session screens and chat to a public live channel. | |
+| `stream` | Broadcast local zetacode session screens and chat to a live channel; no server ships, so set `stream.serverUrl` to your own compatible server. | [stream](./stream.md) |
 | `update` | Check for and install updates; `--canary`/`--stable` switch release channels. | |
 | `usage` | Show provider usage limits for every authenticated account, flagging saved resets close to expiry; `usage clients` breaks token burn down per client (with `--days`), `usage invalidate` drops cached reports, `usage accounts` lists each OAuth account's provider and identity key (the key `task.agentAccountPools` and broker account pools take; no tokens, `--json` supported), and `usage reset` lists each Codex and Claude account's saved rate-limit resets by `<provider>/<credential id>` (`--json`, `--redact`) and `usage reset <provider>/<credential id>` spends one, also from an auth-broker client. | [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence), [saved resets](./settings.md#saved-reset-auto-consumption) |
 | `tiny-models` | Download tiny local models for session titles, memory, and word completion. | [local models](./local-models.md) |

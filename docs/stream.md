@@ -1,16 +1,22 @@
 # Stream: Livestream Your Terminal
 
-`zetacode stream` broadcasts your omp sessions to `live.omp.sh/<username>` — a Twitch-style page with the live terminal and a chat column. Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
+> **Stream hosting does not ship with Zeta.** There is no default stream
+> server, `zetacode clip` and `/record --upload` are disabled, and no recording
+> leaves your machine. The wire protocol is still implemented: set
+> `stream.serverUrl` to a compatible server you run yourself to use
+> `zetacode stream`, and use `zetacode play` for local recordings.
+
+`zetacode stream` broadcasts your omp sessions to a Twitch-style page with the live terminal and a chat column, served by the stream server you configure (`stream.serverUrl`). Viewers see exactly what your terminal shows (minus secrets); they cannot type into the session.
 
 Stream is independent from [Collab](collab.md). Collab replicates the session itself (entries, events, prompts) to guests who can drive the agent; Stream sends only rendered screen rows, one way, to an audience.
 
 ## Quick start
 
-Streaming needs a stencil.so account. Sign in once from any omp session with `/login` → **Stencil (invite only)**; the credential is stored with your other logins and refreshed automatically. For scripts and local development, `STENCIL_API_KEY=<token>` overrides the stored credential; `STENCIL_AUTH_URL` re-bases the sign-in (`auth.stencil.so`) and `STENCIL_BASE_URL` the Stencil API (`api.stencil.so`) at a local server.
+Streaming needs a server that implements the stream wire protocol (see [Server](#server)); a server that authenticates hosts with a stencil.so account accepts the same credential. Sign in once from any omp session with `/login` → **Stencil (invite only)**; the credential is stored with your other logins and refreshed automatically. For scripts and local development, `STENCIL_API_KEY=<token>` overrides the stored credential; `STENCIL_AUTH_URL` re-bases the sign-in (`auth.stencil.so`) and `STENCIL_BASE_URL` the Stencil API (`api.stencil.so`) at a local server.
 
 Your Stencil username is the channel. The server derives it from the bearer token, so `zetacode stream` takes no channel argument.
 
-In the directory you work in:
+In the directory you work in, with `stream.serverUrl` pointing at your server:
 
 ```
 zetacode stream --title "Refactoring the parser"
@@ -19,7 +25,7 @@ zetacode stream --title "Refactoring the parser"
 prints
 
 ```
-● live.omp.sh/your_username  "Refactoring the parser"
+● <server>/your_username  "Refactoring the parser"
   waiting for sessions in /work/proj …
 ```
 
@@ -51,7 +57,7 @@ On a terminal, `zetacode stream` is a full-screen chat console: header with the 
 | `--server <url>`          | Stream server base (default: `stream.serverUrl`)                                 |
 | `--no-tui`                | Line-log console instead of the full-screen chat                                 |
 | `STENCIL_API_KEY`         | Bearer token override; otherwise the `/login` Stencil credential is used         |
-| `stream.serverUrl`        | Default server, `https://live.omp.sh`                                            |
+| `stream.serverUrl`        | Stream server base URL; **no default** — set it to your own compatible server   |
 | `stream.redactPatterns`   | Extra regular expressions masked from every streamed row                         |
 
 ## What leaves the machine
@@ -95,15 +101,17 @@ Playback requires an interactive terminal and runs on the normal screen: the rec
 
 ### Clips
 
+**Clip upload is unavailable in Zeta.** `zetacode clip` and `/record --upload` exit with an error before any network work; there is no clip host to send a recording to. Recordings stay local, and `zetacode play` replays them:
+
 ```
-zetacode clip                                          # newest recording
-zetacode clip <file> -t "Streaming the lexer" -d "…"   # title and description
+zetacode play                      # newest recording
+zetacode play <file> -s 2 -i 1     # 2× speed, pauses capped at 1s
 ```
 
-`zetacode clip` uploads a recording to `live.omp.sh` with the same Stencil credential as `zetacode stream` and prints its page, `live.omp.sh/c/<id>`. `--server <url>` overrides `stream.serverUrl`; titles are limited to 120 characters and descriptions to 5000. The page plays the clip in the live viewer's terminal pane, with the title, description, and a comment thread underneath; signing in with Stencil lets viewers comment and the owner edit the title and description. Rows were already redacted when recorded; nothing is re-read from your machine at upload time.
+`CLIP_UPLOAD_ENABLED` in `src/stream/clip-upload.ts` is the single gate; it stays `false` until real clip hosting ships. The upload implementation and wire types remain for a future or self-hosted server, but no default server exists.
 
 ## Server
 
-`live.omp.sh` is a small Go service (stencil `apps/live`): channel directory (`GET /api/channels`, `GET /api/channels/<name>`), homepage previews (`GET /api/channels/<name>/preview` — the first pane's viewport, never counted as a viewer), an identity-derived host socket (`/ws/host`), viewer sockets (`/ws/watch/<name>`), chat with per-viewer rate limiting, and the web UI (terminal rows render in the full Berkeley Mono Nerd Font served from `/fonts/`). Wire shapes live in `@linxiraos/pi-wire/stream`.
+Zeta does not ship the stream service. `@linxiraos/pi-wire/stream` defines the wire contract a self-hosted server implements: channel directory (`GET /api/channels`, `GET /api/channels/<name>`), homepage previews (`GET /api/channels/<name>/preview` — the first pane's viewport, never counted as a viewer), a host socket (`/ws/host`), viewer sockets (`/ws/watch/<name>`), chat with per-viewer rate limiting, and route paths for the web UI and clip pages. `STREAM_ROUTES` lists every path; nothing here implies a default host.
 
-Hosts authenticate with the stencil.so bearer (`Authorization: Bearer …` on the host socket); the server verifies it against the issuer's JWKS (`LIVE_ISSUER`, `LIVE_TOKEN_AUDIENCE`) or, for local development, a static `LIVE_DEBUG_TOKENS` list paired with `STENCIL_API_KEY`. It derives each host channel directly from the authenticated Stencil username, so viewers always find an account at `live.omp.sh/<username>`. Viewers stay anonymous.
+Hosts authenticate with the stencil.so bearer (`Authorization: Bearer …` on the host socket); a Stencil-authenticating server verifies it against the issuer's JWKS (`LIVE_ISSUER`, `LIVE_TOKEN_AUDIENCE`) or, for local development, a static `LIVE_DEBUG_TOKENS` list paired with `STENCIL_API_KEY`. It derives each host channel directly from the authenticated Stencil username, so viewers find the account at `<server>/<username>`. Viewers stay anonymous.
