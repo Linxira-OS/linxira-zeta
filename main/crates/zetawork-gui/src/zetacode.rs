@@ -74,7 +74,12 @@ impl Companion {
 		#[cfg(windows)]
 		{
 			match self {
-				Self::Zetacode => &["zetacode.exe", "zeta.exe", "zetacode", "zeta"],
+				// `zeta.exe` beside the shell is the **workbench** (its own
+				// binary), not the CLI: resolving it here made a zetacode page
+				// run an old zetawork. The CLI answers to `zetacode` only; a
+				// checkout's `packages/coding-agent/dist/zeta.exe` is reached
+				// through `dev_names`, where the path names the program.
+				Self::Zetacode => &["zetacode.exe", "zetacode"],
 				Self::Zetaide => &["zetaide.exe", "termide.exe", "zetaide", "termide"],
 			}
 		}
@@ -83,7 +88,8 @@ impl Companion {
 			match self {
 				Self::Zetacode => &[
 					"zetacode",
-					"zeta",
+					// No bare `zeta`: that is the workbench's index bin.
+
 					"zeta-linux-x64",
 					"zeta-linux-arm64",
 					"zeta-darwin-x64",
@@ -853,6 +859,38 @@ mod tests {
 		let _ = fs::remove_dir_all(&dir);
 		fs::create_dir_all(&dir).unwrap();
 		dir
+	}
+
+	#[test]
+	fn the_workbench_is_never_resolved_as_zetacode() {
+		// A workbench binary sits in the same directory as the GUI (and, in an
+		// npm install, in the leaf beside it). Taking it for the CLI is how a
+		// zetacode page started an old zetawork instead of the current CLI.
+		let names = Companion::Zetacode.executable_names();
+		assert!(
+			!names.iter().any(|name| name.eq_ignore_ascii_case("zeta.exe") || name.eq_ignore_ascii_case("zeta")),
+			"the workbench's own names must not count as zetacode: {names:?}"
+		);
+		assert!(names.iter().any(|name| name.starts_with("zetacode")));
+
+		let scratch = tempfile::tempdir().expect("scratch dir");
+		let dir = scratch.path();
+		std::fs::write(dir.join("zeta.exe"), b"workbench").expect("write decoy");
+		std::fs::write(dir.join("zetacode.exe"), b"cli").expect("write cli");
+		let found = candidates(dir, Companion::Zetacode);
+		// Beside the shell (and in its `bin/`) only `zetacode` counts. The
+		// checkout's `packages/coding-agent/dist/zeta.exe` stays legal: that
+		// directory is the CLI's own build, not the workbench's neighbour.
+		for beside in [dir.to_path_buf(), dir.join("bin")] {
+			assert!(
+				!found.contains(&beside.join("zeta.exe")),
+				"the workbench beside the GUI must not be a candidate: {found:?}"
+			);
+		}
+		assert!(
+			found.iter().any(|path| path.file_name().is_some_and(|name| name == "zetacode.exe")),
+			"the real CLI beside the GUI is: {found:?}"
+		);
 	}
 
 	#[test]
