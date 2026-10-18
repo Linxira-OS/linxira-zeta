@@ -9276,6 +9276,7 @@ dependencies = [
  "termide-panel-terminal",
  "tray-icon",
  "unicode-width",
+ "windows-sys 0.61.2",
  "workbench-projects",
  "wry",
  "zbus",

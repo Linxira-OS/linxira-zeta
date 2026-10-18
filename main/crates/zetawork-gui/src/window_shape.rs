@@ -35,9 +35,14 @@ use crate::embed::NativeWindow;
 /// run once per change instead of once per frame.
 #[derive(Default)]
 pub struct Corners {
-	/// Set once the compositor accepted the request: the call must not repeat
-	/// every frame.
+	/// Set on the first frame that has a window. It gates the call itself:
+	/// repeating `DwmSetWindowAttribute` every frame makes the compositor
+	/// restyle the frame continuously and takes the window procedure down
+	/// (`0xC000041D`) a minute or two in.
 	applied: bool,
+	/// Whether the compositor accepted the preference. A fact, not a gate — a
+	/// build that refuses it keeps square corners and must not be retried.
+	pub rounded: bool,
 }
 
 impl Corners {
@@ -69,7 +74,8 @@ impl Corners {
 			return;
 		};
 		let hwnd = win32.hwnd.get() as windows_sys::Win32::Foundation::HWND;
-		self.applied = unsafe { prefer_round_corners(hwnd) };
+		self.applied = true;
+		self.rounded = unsafe { prefer_round_corners(hwnd) };
 	}
 }
 
