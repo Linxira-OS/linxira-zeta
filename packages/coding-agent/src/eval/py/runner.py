@@ -2186,12 +2186,12 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 
 def _install_builtins(ns: dict) -> None:
-    ns["__omp_emit_status"] = _emit_status
-    ns["__omp_emit_image"] = _emit_image_dict
-    ns["__omp_magic"] = __omp_magic
-    ns["__omp_magic_async"] = __omp_magic_async
-    ns["__omp_magic_cell"] = __omp_magic_cell
-    ns["__omp_shell"] = __omp_shell
+    ns["__zeta_emit_status"] = _emit_status
+    ns["__zeta_emit_image"] = _emit_image_dict
+    ns["__zeta_magic"] = __zeta_magic
+    ns["__zeta_magic_async"] = __zeta_magic_async
+    ns["__zeta_magic_cell"] = __zeta_magic_cell
+    ns["__zeta_shell"] = __zeta_shell
     ns["__zeta_current_run_id__"] = lambda: _CURRENT_RID.get()
 
 

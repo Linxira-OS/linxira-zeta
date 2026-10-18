@@ -8,10 +8,10 @@ if "__zeta_prelude_loaded__" not in globals():
     from urllib.parse import unquote
 
 
-    # __omp_emit_status / __omp_emit_image are injected by runner.py before the
+    # __zeta_emit_status / __zeta_emit_image are injected by runner.py before the
     # prelude executes; they write `status` / `image` frames for the current cell.
-    _emit_status = __omp_emit_status  # type: ignore[name-defined]
-    _emit_image = __omp_emit_image  # type: ignore[name-defined]
+    _emit_status = __zeta_emit_status  # type: ignore[name-defined]
+    _emit_image = __zeta_emit_image  # type: ignore[name-defined]
 
     def env(key: str | None = None, value: str | None = None):
         """Get/set environment variables."""
