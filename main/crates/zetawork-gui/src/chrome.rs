@@ -54,7 +54,8 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 	ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(10.0, 0.0))), |ui| {
 		ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
 			let (mark_rect, _) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::hover());
-			gradient_mark(ui, mark_rect, "Z");
+			let logo = shell.app_icon_texture(ui.ctx());
+			logo_mark(ui, mark_rect, logo.as_ref());
 			ui.add_space(4.0);
 			ui.label(
 				egui::RichText::new("zetawork")
@@ -77,43 +78,21 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 	});
 }
 
-/// The brand mark: a rounded gradient tile with the product's initial, as the
-/// spec's `.mark` / `.welcome .wmark`.
-pub fn gradient_mark(ui: &Ui, rect: Rect, letter: &str) {
-	let painter = ui.painter();
-	painter.rect_filled(rect, CornerRadius::same(5), theme::BRAND_A);
-	// The CSS is a 150° gradient; eight horizontal bands read the same at this
-	// size and need no mesh.
-	let bands = 8;
-	for band in 0..bands {
-		let t0 = band as f32 / bands as f32;
-		let t1 = (band + 1) as f32 / bands as f32;
-		let top = rect.min.y + rect.height() * t0;
-		let bottom = rect.min.y + rect.height() * t1;
-		let band_rect = Rect::from_min_max(
-			pos2(rect.min.x + 1.0, top),
-			pos2(rect.max.x - 1.0, bottom.min(rect.max.y - 1.0)),
-		);
-		if band_rect.height() <= 0.0 {
-			continue;
-		}
-		let mix = band as f32 / (bands - 1) as f32;
-		let color = lerp(theme::BRAND_A, theme::BRAND_B, mix);
-		painter.rect_filled(band_rect, CornerRadius::ZERO, color);
-	}
-	painter.text(
-		rect.center(),
-		egui::Align2::CENTER_CENTER,
-		letter,
-		egui::FontId::new(12.0, egui::FontFamily::Monospace),
-		Color32::from_rgb(0x06, 0x12, 0x1f),
+/// The product logo: the repo's own mark, drawn from the committed raster
+/// ([`crate::icons::APP_ICON_PNG`] via [`crate::icons::app_icon_image`]) — the
+/// same asset the window icon and the 关于 page use, so the shell never
+/// improvises a second brand.
+///
+/// Nothing is drawn when the texture could not be created (a headless context
+/// with no renderer): an empty slot is honest, an invented tile is not.
+pub fn logo_mark(ui: &Ui, rect: Rect, texture: Option<&egui::TextureHandle>) {
+	let Some(texture) = texture else { return };
+	ui.painter().image(
+		texture.id(),
+		rect,
+		Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+		Color32::WHITE,
 	);
-}
-
-#[allow(clippy::needless_range_loop)]
-fn lerp(from: Color32, to: Color32, t: f32) -> Color32 {
-	let mix = |a: u8, b: u8| (f32::from(a) + (f32::from(b) - f32::from(a)) * t).round() as u8;
-	Color32::from_rgb(mix(from.r(), to.r()), mix(from.g(), to.g()), mix(from.b(), to.b()))
 }
 
 /// 最小化 / 最大化(还原) / 关闭.

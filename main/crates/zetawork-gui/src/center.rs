@@ -1191,7 +1191,8 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	let centre = rect.center();
 	let mark = Rect::from_center_size(pos2(centre.x, centre.y - 130.0), vec2(64.0, 64.0));
-	crate::chrome::gradient_mark(ui, mark, "Z");
+	let logo = shell.app_icon_texture(ui.ctx());
+	crate::chrome::logo_mark(ui, mark, logo.as_ref());
 	ui.painter().text(
 		pos2(centre.x, mark.max.y + 18.0),
 		egui::Align2::CENTER_CENTER,
