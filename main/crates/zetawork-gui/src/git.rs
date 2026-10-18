@@ -481,7 +481,9 @@ mod tests {
 
 	#[test]
 	fn parse_diff_names_files_and_classifies_rows() {
-		let text = "diff --git a/notes.txt b/notes.txt\nindex 111..222 100644\n--- a/notes.txt\n+++ b/notes.txt\n@@ -1 +1,2 @@\n-one\n+one changed\n+two\n\\ No newline at end of file\n";
+		let text = "diff --git a/notes.txt b/notes.txt\nindex 111..222 100644\n--- a/notes.txt\n+++ \
+		            b/notes.txt\n@@ -1 +1,2 @@\n-one\n+one changed\n+two\n\\ No newline at end of \
+		            file\n";
 		let rows = parse_diff(text);
 		let kinds: Vec<DiffKind> = rows.iter().map(|row| row.kind).collect();
 		assert_eq!(

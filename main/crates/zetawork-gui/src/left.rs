@@ -2,8 +2,9 @@
 //! The left column (`aside.side-left`) and its collapsed rail.
 //!
 //! Content order is the spec's: brand head, 项目 (the project → workspace
-//! list), then the foot row with 设置 / 帮助 / 聚焦. Collapsing swaps the column
-//! for the thin `rail.rail-left` strip that carries only the expand button.
+//! list), then the foot row with 设置 / 帮助 / 聚焦. Collapsing swaps the
+//! column for the thin `rail.rail-left` strip that carries only the expand
+//! button.
 //!
 //! The regions are laid out from explicit rectangles rather than by stacking
 //! widgets, because the project list has to fill exactly the space between the
@@ -13,13 +14,14 @@ use std::path::Path;
 
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
-use crate::Shell;
-use crate::icons::Icon;
-use crate::icons::icon_button;
-use crate::state::{AppState, Project, Workspace};
-use crate::theme;
-use crate::widgets::{
-	foot_button, status_dot, status_tooltip, status_word, truncated_mono, truncated_text,
+use crate::{
+	Shell,
+	icons::{Icon, icon_button},
+	state::{AppState, Project, Workspace},
+	theme,
+	widgets::{
+		foot_button, status_dot, status_tooltip, status_word, truncated_mono, truncated_text,
+	},
 };
 
 /// Width of the open column (`--side-left-w`).
@@ -431,8 +433,8 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 
 /// `.side-foot`: 设置 + 用量, a spacer, 帮助 and 聚焦.
 ///
-/// The spec's foot carries 设置 and 用量 side by side; both are fixed items (R13:
-/// the foot does not take the slot configuration).
+/// The spec's foot carries 设置 and 用量 side by side; both are fixed items
+/// (R13: the foot does not take the slot configuration).
 fn foot_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter().line_segment(

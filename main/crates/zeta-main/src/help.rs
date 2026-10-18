@@ -78,16 +78,15 @@ its tab.
 
 /// In-app help overlay: keymap + suite map, centered.
 pub fn overlay_text() -> &'static str {
-	"zetawork — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ \
-	 cycle\nrail     click a view button · + manages the buttons · Esc back to the \
-	 panes\npanes    Alt+N shell · Alt+C zetacode · Alt+E editor (built in) · Alt+I zetaide\nAlt+D \
-	 time+calendar · Alt+L layout · Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock \
-	 below)\nAlt+B move pane to its own new tab · Alt+V paste image (path)\nAlt+any other chord is \
-	 forwarded to the pane\nmouse    click tab bar · click pane to focus · drag border = resize\ndrag \
-	 pane title onto a pane = swap / reposition\ndouble-click a tab or pane title = rename (Enter \
-	 save · Esc cancel)\ndock     minimized panes wait at the bottom — click a chip to restore\npaste    \
-	 bracketed paste keeps multi-line clipboard text whole\ngeneral  F1 help · Alt+Q quit\n\nsuite    \
-	 zetacode · zetaide\nmissing  a missing suite tool installs itself into a pane on \
-	 first use\n\nnote     an active IME can swallow Alt combos — use English input\npress F1 or \
-	 Esc to close"
+	"zetawork — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ cycle\nrail     \
+	 click a view button · + manages the buttons · Esc back to the panes\npanes    Alt+N shell · \
+	 Alt+C zetacode · Alt+E editor (built in) · Alt+I zetaide\nAlt+D time+calendar · Alt+L layout · \
+	 Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock below)\nAlt+B move pane to its \
+	 own new tab · Alt+V paste image (path)\nAlt+any other chord is forwarded to the pane\nmouse    \
+	 click tab bar · click pane to focus · drag border = resize\ndrag pane title onto a pane = swap \
+	 / reposition\ndouble-click a tab or pane title = rename (Enter save · Esc cancel)\ndock     \
+	 minimized panes wait at the bottom — click a chip to restore\npaste    bracketed paste keeps \
+	 multi-line clipboard text whole\ngeneral  F1 help · Alt+Q quit\n\nsuite    zetacode · \
+	 zetaide\nmissing  a missing suite tool installs itself into a pane on first use\n\nnote     an \
+	 active IME can swallow Alt combos — use English input\npress F1 or Esc to close"
 }

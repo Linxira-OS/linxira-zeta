@@ -1,24 +1,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The right column: 文件 / 历史 · Agent 对话 / Git 状态, plus its collapsed rail.
+//! The right column: 文件 / 历史 · Agent 对话 / Git 状态, plus its collapsed
+//! rail.
 //!
 //! Two of the three panels read live data: the file tree walks the active
-//! workspace's directory one level at a time (see [`crate::fsread`]) and the git
-//! panel runs read-only `git` (see [`crate::git`]). The history panel has no
-//! source yet, so it shows one card that says so. Nothing in this column writes
-//! to the repository: 暂存 / 提交 / 创建 PR exist as the spec draws them, and are
-//! disabled with a line naming what would back them.
+//! workspace's directory one level at a time (see [`crate::fsread`]) and the
+//! git panel runs read-only `git` (see [`crate::git`]). The history panel has
+//! no source yet, so it shows one card that says so. Nothing in this column
+//! writes to the repository: 暂存 / 提交 / 创建 PR exist as the spec draws
+//! them, and are disabled with a line naming what would back them.
 
 use std::collections::HashSet;
 
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
-use crate::Shell;
-use crate::conversation;
-use crate::fsread::DirNode;
-use crate::icons::{Icon, icon_button, paint};
-use crate::state::RightTab;
-use crate::theme;
-use crate::widgets::{badge, empty_note, panel_head, truncated_mono, truncated_text};
+use crate::{
+	Shell, conversation,
+	fsread::DirNode,
+	icons::{Icon, icon_button, paint},
+	state::RightTab,
+	theme,
+	widgets::{badge, empty_note, panel_head, truncated_mono, truncated_text},
+};
 
 /// Width of the open column (`--side-right-w`).
 pub const WIDTH: f32 = 324.0;

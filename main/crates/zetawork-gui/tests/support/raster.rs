@@ -22,9 +22,10 @@
 
 use std::collections::HashMap;
 
-use egui::Color32;
-use egui::epaint::{ClippedPrimitive, Primitive, TextureId, Vertex};
-use egui::{ColorImage, ImageData, TexturesDelta};
+use egui::{
+	Color32, ColorImage, ImageData, TexturesDelta,
+	epaint::{ClippedPrimitive, Primitive, TextureId, Vertex},
+};
 
 /// The textures egui has handed out so far (only the font atlas, in practice).
 #[derive(Default)]

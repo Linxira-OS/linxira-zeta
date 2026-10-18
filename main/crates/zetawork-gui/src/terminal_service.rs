@@ -5,7 +5,8 @@
 //! The local [`crate::live`] pane owns a PTY in this process. This module is
 //! the other backend: the PTY lives in the gateway (so it survives the window,
 //! and the TUI and GUI can attach to the same shell), and the pane reaches it
-//! through the routes `packages/coding-agent/src/server/web-gateway/terminal.ts`
+//! through the routes
+//! `packages/coding-agent/src/server/web-gateway/terminal.ts`
 //! already implements.
 //!
 //! One attach is three hand-rolled HTTP/1.1 steps, all on a background thread:
@@ -13,7 +14,8 @@
 //! 1. `POST /api/terminal/ensure` with the pane's `cwd` and a stable
 //!    `instanceId` (the session tab id) returns `{id, ticket, …}`;
 //! 2. `GET /api/terminal/<id>/ws` upgrades to a WebSocket ([`crate::ws`]),
-//!    carrying the one-time `ticket` as a query parameter when serve issued one;
+//!    carrying the one-time `ticket` as a query parameter when serve issued
+//!    one;
 //! 3. `POST /api/terminal/<id>/resize` matches the pane's grid, and again on
 //!    every geometry change.
 //!
@@ -28,15 +30,16 @@
 //! back to [`crate::live`]. The reason is kept and drawn in the pane's status
 //! line, once, instead of leaving the user with a blank grid.
 
-use std::collections::BTreeMap;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::{Receiver, Sender, channel};
-use std::thread;
-use std::time::Duration;
+use std::{
+	collections::BTreeMap,
+	io::{Read, Write},
+	path::{Path, PathBuf},
+	sync::mpsc::{Receiver, Sender, channel},
+	thread,
+	time::Duration,
+};
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use ratatui::{buffer::Buffer, layout::Rect};
 use serde_json::{Value, json};
 use unicode_width::UnicodeWidthChar;
 
@@ -160,9 +163,8 @@ fn post_json(origin: &str, path: &str, body: &str) -> Result<(u16, String), Stri
 		.set_write_timeout(Some(HTTP_TIMEOUT))
 		.map_err(|error| format!("设置写超时失败：{error}"))?;
 	let request = format!(
-		"POST {path} HTTP/1.1\r\nHost: {authority}\r\n\
-		 Content-Type: application/json\r\nContent-Length: {}\r\n\
-		 Connection: close\r\n\r\n{body}",
+		"POST {path} HTTP/1.1\r\nHost: {authority}\r\nContent-Type: \
+		 application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
 		body.len()
 	);
 	stream

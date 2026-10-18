@@ -5,19 +5,19 @@
 //! `packages/stats`, whose
 //! `src/server.ts` binds `127.0.0.1:3847` by default, answers the dashboard at
 //! `/` and the JSON the panels aggregate under `/api/stats/*`. The live address
-//! is published by `zetacode serve` in `~/.zeta/serve.json` (`statsUrl`, next to
-//! `webUrl`, `gatewayUrl`, `version`, `pid`, …), so this module reads that file
-//! once and turns it into a [`StatsEndpoint`]: the URL to read, and where it
-//! came from.
+//! is published by `zetacode serve` in `~/.zeta/serve.json` (`statsUrl`, next
+//! to `webUrl`, `gatewayUrl`, `version`, `pid`, …), so this module reads that
+//! file once and turns it into a [`StatsEndpoint`]: the URL to read, and where
+//! it came from.
 //!
 //! What is real here: the file read ([`discover_in`] / [`discover`]), the
 //! hand-rolled extraction of the five fields this module cares about
-//! ([`parse_serve`] — no `serde_json` in this module and no new dependency), the
-//! loopback check that keeps the shell off remote pages
+//! ([`parse_serve`] — no `serde_json` in this module and no new dependency),
+//! the loopback check that keeps the shell off remote pages
 //! ([`StatsEndpoint::is_loopback`]), and the display line in
 //! [`StatsEndpoint::describe`]. The URL is what the 用量 container's WebView2
-//! child loads ([`crate::embed`]); [`crate::usage`] reads the same origin's JSON
-//! as the native fallback when no child can attach.
+//! child loads ([`crate::embed`]); [`crate::usage`] reads the same origin's
+//! JSON as the native fallback when no child can attach.
 //!
 //! Everything degrades: a missing, unreadable, non-UTF-8 or malformed
 //! `serve.json` yields [`DEFAULT_STATS_URL`] with [`EndpointSource::Default`].
@@ -167,9 +167,9 @@ impl StatsEndpoint {
 	/// One line for the UI: the URL plus where it came from, naming the serving
 	/// `zetacode serve` version and pid when the file published them.
 	///
-	/// The default wording is “未发现 ~/.zeta/serve.json”, which covers a missing
-	/// file *and* one that is present but unreadable or malformed — the endpoint
-	/// does not record which of those it hit.
+	/// The default wording is “未发现 ~/.zeta/serve.json”, which covers a
+	/// missing file *and* one that is present but unreadable or malformed —
+	/// the endpoint does not record which of those it hit.
 	pub fn describe(&self) -> String {
 		let mut text = format!("{} · ", self.url);
 		match (self.source, self.info.as_ref()) {
@@ -413,15 +413,15 @@ impl<'a> Cursor<'a> {
 	/// surrogate when this one is a high surrogate.
 	fn unicode_escape(&mut self) -> Option<char> {
 		let high = self.hex4()?;
-		if (0xD800..=0xDBFF).contains(&high) {
+		if (0xd800..=0xdbff).contains(&high) {
 			if !(self.eat(b'\\') && self.eat(b'u')) {
 				return None;
 			}
 			let low = self.hex4()?;
-			if !(0xDC00..=0xDFFF).contains(&low) {
+			if !(0xdc00..=0xdfff).contains(&low) {
 				return None;
 			}
-			return char::from_u32(0x1_0000 + ((high - 0xD800) << 10) + (low - 0xDC00));
+			return char::from_u32(0x1_0000 + ((high - 0xd800) << 10) + (low - 0xdc00));
 		}
 		// `None` for a lone low surrogate, which no well-formed body contains.
 		char::from_u32(high)
@@ -577,8 +577,10 @@ mod tests {
 	const SERVE_FIXTURE: &str = "{
 \t\"pid\": 29232,
 \t\"webUrl\": \"http://127.0.0.1:30141\",
-\t\"statsUrl\": \"http://127.0.0.1:3847\",
-\t\"gatewayUrl\": \"http://127.0.0.1:30142\",
+\t\"statsUrl\": \
+	                             \"http://127.0.0.1:3847\",
+\t\"gatewayUrl\": \"http://127.0.0.1:30142\",\
+	                             
 \t\"version\": \"1.2.1\",
 \t\"startedAt\": \"2026-10-15T07:21:08.595Z\",
 \t\"cwd\": \"C:\\\\Users\\\\ETPau\\\\AppData\\\\Local\\\\Programs\\\\Zeta\",
@@ -615,8 +617,8 @@ mod tests {
 	#[test]
 	fn parse_serve_tolerates_odd_whitespace_and_escapes() {
 		// Spaces, tabs, CRLF and newlines in every grammatical position.
-		let body = "\r\n \t{\n\t \"statsUrl\"\t:  \"http://127.0.0.1:3847\" ,\r\n\
-			\"pid\" :29232,\n\t\"version\":\"1.2.1\"\n } \t\n";
+		let body = "\r\n \t{\n\t \"statsUrl\"\t:  \"http://127.0.0.1:3847\" ,\r\n\"pid\" \
+		            :29232,\n\t\"version\":\"1.2.1\"\n } \t\n";
 		let info = parse_serve(body).expect("whitespace must not matter");
 		assert_eq!(info.stats_url, "http://127.0.0.1:3847");
 		assert_eq!(info.pid, Some(29232));

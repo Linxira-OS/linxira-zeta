@@ -21,11 +21,12 @@
 //! its index-based tab ids are not, and reusing an id after a close would make
 //! lookups ambiguous).
 
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::{
+	path::{Path, PathBuf},
+	time::{Duration, Instant},
+};
 
-use crate::settings::Section;
-use crate::status::RunState;
+use crate::{settings::Section, status::RunState};
 
 /// The most workspaces (大标签页) one project may hold.
 ///
@@ -95,9 +96,10 @@ impl RightTab {
 /// What a session tab renders.
 ///
 /// 终端 is the default: a new 大标签页 and a new pane both open one. The other
-/// five are pages the GUI draws itself (R23) — 编辑器, 差异比较器 and Git read real
-/// data; zetaide is the termide panel editor, which this build does not host
-/// yet and says so on the page; Agent 会话 reads a gateway session's SSE stream.
+/// five are pages the GUI draws itself (R23) — 编辑器, 差异比较器 and Git read
+/// real data; zetaide is the termide panel editor, which this build does not
+/// host yet and says so on the page; Agent 会话 reads a gateway session's SSE
+/// stream.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SessionKind {
 	/// A terminal page. The shell it would run is recorded on the tab.
@@ -378,8 +380,9 @@ impl Pane {
 	///
 	/// **Always `None` in this build**, and deliberately so: the GUI has no PTY
 	/// host yet, so no page owns a process. This is the one place that changes
-	/// when one lands — [`crate::lifecycle::pane_is_busy`] and the busy→idle edge
-	/// detector already ask here, and nothing invents a number in the meantime.
+	/// when one lands — [`crate::lifecycle::pane_is_busy`] and the busy→idle
+	/// edge detector already ask here, and nothing invents a number in the
+	/// meantime.
 	pub fn shell_pid(&self) -> Option<u32> {
 		None
 	}
@@ -694,8 +697,8 @@ impl AppState {
 
 	/// One new session tab, from a picker row or from the default (终端).
 	///
-	/// The default 终端 records the 设置 → 终端 的 默认 Shell, so the tool strip's
-	/// 新建终端 and a fresh 大标签页 agree with the settings file.
+	/// The default 终端 records the 设置 → 终端 的 默认 Shell, so the tool
+	/// strip's 新建终端 and a fresh 大标签页 agree with the settings file.
 	fn tab_for(&mut self, entry: Option<&PickerEntry>) -> SessionTab {
 		let id = self.fresh_id("tab");
 		let Some(entry) = entry else {
@@ -1745,7 +1748,8 @@ mod tests {
 		assert!(state.select_workspace(&target).0.is_empty());
 		assert_eq!(state.active_project.as_deref(), Some(state.projects[1].id.as_str()));
 		assert_eq!(state.active_workspace.as_deref(), Some(target.as_str()));
-		// A project that does not contain the active workspace moves to its first.
+		// A project that does not contain the active workspace moves to its
+		// first.
 		let other = state.projects[2].id.clone();
 		assert!(state.select_project(&other).0.is_empty());
 		assert_eq!(

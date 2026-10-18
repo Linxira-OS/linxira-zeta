@@ -26,17 +26,18 @@
 //!   honest "session ended" signal this side owns;
 //! * **title** — the child's OSC 0/2 title, for pane naming.
 //!
-//! Input forwarding is wired for the focused pane (`Shell::forward_terminal_input`
-//! → [`LiveSessions::send_bytes`]); [`LiveSessions::ensure_program`] is how a
-//! companion page (zetacode) runs its own binary in this PTY instead of a shell.
+//! Input forwarding is wired for the focused pane
+//! (`Shell::forward_terminal_input` → [`LiveSessions::send_bytes`]);
+//! [`LiveSessions::ensure_program`] is how a companion page (zetacode) runs its
+//! own binary in this PTY instead of a shell.
 
-use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use termide_core::panel::{Panel, PanelConfig, RenderContext, ThemeColors};
-use termide_core::{Config, Theme};
+use ratatui::{buffer::Buffer, layout::Rect};
+use termide_core::{
+	Config, Theme,
+	panel::{Panel, PanelConfig, RenderContext, ThemeColors},
+};
 use termide_panel_terminal::Terminal;
 
 /// One spawned pane: the PTY, the geometry it was last sized to, and the
@@ -483,7 +484,8 @@ mod tests {
 		);
 		assert!(live.pid("t").is_some(), "a spawned PTY knows its shell pid");
 
-		// Pump until the child wrote something (bounded: a slow CI box, not a hang).
+		// Pump until the child wrote something (bounded: a slow CI box, not a
+		// hang).
 		let mut saw_output = false;
 		let mut ended = false;
 		for _ in 0..400 {

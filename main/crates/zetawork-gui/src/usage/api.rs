@@ -52,9 +52,11 @@
 //! a non-JSON body is an error, and [`FetchError::Connect`] is the one outcome
 //! the panel renders as “stats 服务未启动”.
 
-use std::io::{Read as _, Write as _};
-use std::net::ToSocketAddrs as _;
-use std::time::{Duration, SystemTime};
+use std::{
+	io::{Read as _, Write as _},
+	net::ToSocketAddrs as _,
+	time::{Duration, SystemTime},
+};
 
 use serde_json::{Map, Value};
 
@@ -324,8 +326,8 @@ pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
 		.set_write_timeout(Some(TIMEOUT))
 		.map_err(|error| FetchError::Io(format!("设置写超时失败：{error}")))?;
 	let request = format!(
-		"GET {path} HTTP/1.1\r\nHost: {authority}\r\nAccept: application/json\r\n\
-		 Connection: close\r\n\r\n"
+		"GET {path} HTTP/1.1\r\nHost: {authority}\r\nAccept: application/json\r\nConnection: \
+		 close\r\n\r\n"
 	);
 	stream
 		.write_all(request.as_bytes())
@@ -577,8 +579,10 @@ fn uint(map: &Map<String, Value>, key: &str) -> u64 {
 
 #[cfg(test)]
 mod tests {
-	use std::io::{Read, Write};
-	use std::net::{TcpListener, TcpStream};
+	use std::{
+		io::{Read, Write},
+		net::{TcpListener, TcpStream},
+	};
 
 	use super::*;
 
@@ -686,8 +690,8 @@ mod tests {
 				}
 				served += 1;
 				let response = format!(
-					"HTTP/1.1 {status}\r\nContent-Type: application/json\r\n\
-					 Content-Length: {}\r\nConnection: close\r\n\r\n",
+					"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: \
+					 {}\r\nConnection: close\r\n\r\n",
 					body.len()
 				);
 				let _ = stream.write_all(response.as_bytes());
@@ -720,8 +724,8 @@ mod tests {
 					("404 Not Found", b"{\"error\":\"not found\"}".as_slice())
 				};
 				let response = format!(
-					"HTTP/1.1 {status}\r\nContent-Type: application/json\r\n\
-					 Content-Length: {}\r\nConnection: close\r\n\r\n",
+					"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: \
+					 {}\r\nConnection: close\r\n\r\n",
 					body.len()
 				);
 				let _ = stream.write_all(response.as_bytes());

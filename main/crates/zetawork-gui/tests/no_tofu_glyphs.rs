@@ -8,11 +8,17 @@
 //! style rule (comments and module docs may name the glyphs to explain why they
 //! are banned).
 
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+	fs,
+	path::{Path, PathBuf},
+};
 
 /// Faces we tested (the host CJK face + egui's stocks) have none of these.
-const BANNED: [char; 6] = ['◐', '▾', '▸', '✓', '✕', '✗'];
+///
+/// `⋯` (U+22EF) is here because it shipped as a box: the 大标签页 and project
+/// row drew the character for their 更多 affordance, and the window rendered
+/// tofu. Both now paint three dots (`icons::paint_more`).
+const BANNED: [char; 7] = ['◐', '▾', '▸', '✓', '✕', '✗', '⋯'];
 
 fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
 	for entry in fs::read_dir(dir).expect("read the source directory") {
@@ -52,7 +58,8 @@ fn rendered_strings_never_use_a_missing_glyph() {
 	let hits: Vec<String> = sources.iter().flat_map(|file| offenders(file)).collect();
 	assert!(
 		hits.is_empty(),
-		"these lines render a codepoint the bundled faces lack (paint it with widgets::status_dot, or use an ASCII caret):\n{}",
+		"these lines render a codepoint the bundled faces lack (paint it with widgets::status_dot, \
+		 or use an ASCII caret):\n{}",
 		hits.join("\n")
 	);
 }

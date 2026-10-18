@@ -13,8 +13,10 @@
 
 use std::path::Path;
 
-use crate::git;
-use crate::state::{Pane, Project, SessionKind, SessionTab, Workspace};
+use crate::{
+	git,
+	state::{Pane, Project, SessionKind, SessionTab, Workspace},
+};
 
 /// The heading 本机's pseudo-project gets.
 pub const LOCAL_PROJECT: &str = "本机";
@@ -81,7 +83,10 @@ pub fn registered_project(entry: &workbench_projects::Project) -> Project {
 			id: ws_id.clone(),
 			// A renamed workspace keeps its name across launches: the registry
 			// owns it, so the TUI reads the same one.
-			name: entry.workspace_name.clone().unwrap_or_else(|| entry.name.clone()),
+			name: entry
+				.workspace_name
+				.clone()
+				.unwrap_or_else(|| entry.name.clone()),
 			branch,
 			path: entry.path.display().to_string(),
 			cols: 1,

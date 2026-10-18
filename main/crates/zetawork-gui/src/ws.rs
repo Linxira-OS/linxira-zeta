@@ -21,13 +21,17 @@
 //! and fall back to its in-process PTY. Loopback only: the gateway holds the
 //! PTY, and this client never speaks TLS.
 
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, Sender, channel};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+	io::{BufRead, BufReader, Read, Write},
+	net::{SocketAddr, TcpStream, ToSocketAddrs},
+	sync::{
+		Arc, Mutex,
+		atomic::{AtomicU64, Ordering},
+		mpsc::{Receiver, Sender, channel},
+	},
+	thread,
+	time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 /// How long the upgrade may take before it is a fallback, not a terminal.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(3);
@@ -105,12 +109,8 @@ pub fn connect(origin: &str, path: &str) -> Result<(Client, Receiver<Event>), St
 
 	let key = base64(&random_key());
 	let request = format!(
-		"GET {path} HTTP/1.1\r\n\
-		 Host: {authority}\r\n\
-		 Upgrade: websocket\r\n\
-		 Connection: Upgrade\r\n\
-		 Sec-WebSocket-Key: {key}\r\n\
-		 Sec-WebSocket-Version: 13\r\n\r\n"
+		"GET {path} HTTP/1.1\r\nHost: {authority}\r\nUpgrade: websocket\r\nConnection: \
+		 Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"
 	);
 	stream
 		.write_all(request.as_bytes())
@@ -314,7 +314,7 @@ fn pump(
 				let _ = write_frame(writer, 0x8, &frame.payload);
 				return Ok(());
 			},
-			9 => write_frame(writer, 0xA, &frame.payload)?,
+			9 => write_frame(writer, 0xa, &frame.payload)?,
 			10 => {},
 			other => return Err(format!("不支持的 WebSocket opcode {other}")),
 		}

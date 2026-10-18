@@ -24,8 +24,7 @@
 //! asset**; the 关于 section names whichever files were actually used, so a
 //! missing face is visible rather than silent.
 
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use egui::{FontData, FontDefinitions, FontFamily};
 

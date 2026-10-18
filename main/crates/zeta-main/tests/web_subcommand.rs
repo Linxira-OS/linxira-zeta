@@ -24,11 +24,13 @@
 //! it the test reports why and passes, instead of failing for a missing
 //! prerequisite it cannot install.
 
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::time::{Duration, Instant};
+use std::{
+	io::{Read, Write},
+	net::{TcpListener, TcpStream},
+	path::{Path, PathBuf},
+	process::{Child, Command, Stdio},
+	time::{Duration, Instant},
+};
 
 /// How long the workbench + stub may take to come up before the probe fails.
 const READY_TIMEOUT: Duration = Duration::from_secs(30);

@@ -13,10 +13,12 @@
 //! to the pane's tick (it can tell Closed from a live stream), so this module
 //! never sleeps.
 
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
-use std::sync::mpsc::{Receiver, Sender, channel};
-use std::thread;
+use std::{
+	io::{BufRead, BufReader, Read, Write},
+	net::TcpStream,
+	sync::mpsc::{Receiver, Sender, channel},
+	thread,
+};
 
 use crate::agent::Frame;
 
@@ -54,7 +56,8 @@ impl AgentEvents {
 		thread::spawn(move || {
 			match stream(&address, &session, &sender) {
 				Ok(()) => {
-					// A closed receiver means the pane is gone; nothing to report then.
+					// A closed receiver means the pane is gone; nothing to report
+					// then.
 					let _ = sender.send(Event::Closed);
 				},
 				Err(error) => {
@@ -76,10 +79,8 @@ fn stream(address: &str, session: &str, sender: &Sender<Event>) -> std::io::Resu
 	let mut socket = TcpStream::connect(address)?;
 	write!(
 		socket,
-		"GET /api/agent/{session}/events HTTP/1.1\r\n\
-		 Host: {address}\r\n\
-		 Accept: text/event-stream\r\n\
-		 Connection: keep-alive\r\n\r\n"
+		"GET /api/agent/{session}/events HTTP/1.1\r\nHost: {address}\r\nAccept: \
+		 text/event-stream\r\nConnection: keep-alive\r\n\r\n"
 	)?;
 	let mut reader = BufReader::new(socket);
 
@@ -195,10 +196,13 @@ impl<R: BufRead> Read for Chunked<R> {
 
 #[cfg(test)]
 mod tests {
+	use std::{
+		io::Read,
+		net::TcpListener,
+		time::{Duration, Instant},
+	};
+
 	use super::*;
-	use std::io::Read;
-	use std::net::TcpListener;
-	use std::time::{Duration, Instant};
 
 	/// One fake SSE endpoint: answers the request with a chunked stream carrying
 	/// `frames`, then closes.
@@ -209,7 +213,8 @@ mod tests {
 			let (mut socket, _) = listener.accept().expect("accept");
 			let mut request = [0u8; 1024];
 			let _ = socket.read(&mut request);
-			let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
+			let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: \
+			            chunked\r\n\r\n";
 			socket.write_all(head.as_bytes()).expect("head");
 			let chunk = format!("{:x}\r\n{frames}\r\n0\r\n\r\n", frames.len());
 			socket.write_all(chunk.as_bytes()).expect("chunk");

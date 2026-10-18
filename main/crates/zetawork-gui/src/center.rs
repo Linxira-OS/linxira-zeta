@@ -4,8 +4,8 @@
 //!
 //! The strip shows **the active project's workspaces** — 大标签页 *is* 工作区 —
 //! so clicking one opens it and its ✕ closes it (refused on the last one of a
-//! project). Below it the tool strip drives 新建终端 / 分屏 / 列数, and the body
-//! is either the pane grid or, with no workspace open, the welcome panel.
+//! project). Below it the tool strip drives 新建终端 / 分屏 / 列数, and the
+//! body is either the pane grid or, with no workspace open, the welcome panel.
 //!
 //! Every pane body reads real data: the terminal blits the live PTY's ratatui
 //! `Buffer` (see [`crate::blit`]), the editor reads and writes a real file, and
@@ -13,16 +13,18 @@
 
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
-use crate::Shell;
-use crate::agent::RowKind;
-use crate::agent_sessions::Link;
-use crate::blit::{GridMetrics, paint_buffer_with};
-use crate::git::DiffKind;
-use crate::icons::{Icon, icon_button, paint};
-use crate::state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab};
-use crate::theme;
-use crate::widgets::{Chip, chip, empty_note, truncated_mono, truncated_text};
-use crate::zetacode::Launch;
+use crate::{
+	Shell,
+	agent::RowKind,
+	agent_sessions::Link,
+	blit::{GridMetrics, paint_buffer_with},
+	git::DiffKind,
+	icons::{Icon, icon_button, paint},
+	state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab},
+	theme,
+	widgets::{Chip, chip, empty_note, truncated_mono, truncated_text},
+	zetacode::Launch,
+};
 
 /// The pane grid, or the welcome panel when no workspace is open.
 pub fn workspace(ui: &mut Ui, shell: &mut Shell) {
@@ -760,8 +762,8 @@ fn paint_terminal_status(ui: &mut Ui, area: Rect, status: &str, tab: &str, reaso
 /// The buffer is the file's text; Ctrl+S (or the footer's 保存) writes it back
 /// through [`crate::state::EditorDoc::save`]. The gutter numbers come from the
 /// text layout itself — one number per visual line, continuation rows of a
-/// wrapped line sharing their line's number — so 自动换行 and 显示行号 agree even
-/// when a long line breaks.
+/// wrapped line sharing their line's number — so 自动换行 and 显示行号 agree
+/// even when a long line breaks.
 fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
@@ -1306,9 +1308,10 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 			.max_rect(Rect::from_center_size(pos2(centre.x + 80.0, cta_y), vec2(140.0, 34.0)))
 			.layout(Layout::left_to_right(Align::Center)),
 	);
-	// 创建工作区 is the draft's label for this button, and creating a workspace in
-	// the active project is exactly what it can really do. `active_project` on
-	// the state is the project's **id**, which is what `new_workspace` takes.
+	// 创建工作区 is the draft's label for this button, and creating a workspace
+	// in the active project is exactly what it can really do.
+	// `active_project` on the state is the project's **id**, which is what
+	// `new_workspace` takes.
 	if wide_button(&mut new_btn, Icon::Plus, "创建工作区", true).clicked() {
 		match shell.state.active_project.clone() {
 			Some(project) => {

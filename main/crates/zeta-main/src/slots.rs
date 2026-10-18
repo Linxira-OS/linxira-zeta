@@ -389,10 +389,12 @@ id = tasks
 where = rail
 kind = builtin
 title = \" 任务 \"
-icon = \"#\"    # a quoted value, then a comment
+icon = \"#\"    # \
+		            a quoted value, then a comment
 visible = TRUE
 order = 1
-url = \"http://127.0.0.1:30141/embed/tasks?chrome=none\"
+url = \"http://127.0.0.1:30141/embed/tasks?chrome=none\"\
+		            
 future_field = 42
 ";
 		let slots = parse(text);

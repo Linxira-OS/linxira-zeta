@@ -9,10 +9,11 @@
 
 use std::path::PathBuf;
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use termide_core::KeyChord;
-use termide_core::panel::{Panel, PanelConfig, RenderContext, ThemeColors};
+use ratatui::{buffer::Buffer, layout::Rect};
+use termide_core::{
+	KeyChord,
+	panel::{Panel, PanelConfig, RenderContext, ThemeColors},
+};
 use termide_panel_ide::IdePage;
 
 /// Per-tab IDE pages, keyed by session tab id.

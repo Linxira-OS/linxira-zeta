@@ -9,10 +9,11 @@
 //! * the CJK width rule (`中a文b` → the `a` lands two columns later);
 //! * the GUI and the TUI read the same state.
 
-use zetawork_gui::Shell;
-use zetawork_gui::blit;
-use zetawork_gui::settings::{self, Density, MonoFont, Settings, Theme};
-use zetawork_gui::state::{AppState, MAX_WORKSPACES_PER_PROJECT};
+use zetawork_gui::{
+	Shell, blit,
+	settings::{self, Density, MonoFont, Settings, Theme},
+	state::{AppState, MAX_WORKSPACES_PER_PROJECT},
+};
 
 fn shell() -> Shell {
 	Shell::with_state(seeded_state(), Settings::default())
@@ -158,7 +159,7 @@ fn three_columns_is_the_ceiling() {
 
 #[test]
 fn a_wide_glyph_claims_two_cells_and_the_next_ascii_lands_on_column_two() {
-	let (buffer, _, _) = blit::render(12, 2, |frame| {
+	let (buffer, ..) = blit::render(12, 2, |frame| {
 		let area = frame.area();
 		frame.render_widget(ratatui::widgets::Paragraph::new("中a文b"), area);
 	});
@@ -288,8 +289,9 @@ fn the_picker_lists_the_hosts_shells_and_every_page() {
 			assert!(!entry.detail().is_empty(), "a shell row names its path");
 		}
 	}
-	// 本机 has at least one of the six families on Windows; on any other host the
-	// list may legitimately be empty, so only the ordering rule is asserted.
+	// 本机 has at least one of the six families on Windows; on any other host
+	// the list may legitimately be empty, so only the ordering rule is
+	// asserted.
 	let kinds: Vec<&str> = shells.iter().map(|entry| entry.group()).collect();
 	assert!(kinds.iter().all(|group| *group == "本机 Shell"), "shells come first");
 	assert!(entries.iter().any(|entry| entry.group() == "页面"));
@@ -297,8 +299,10 @@ fn the_picker_lists_the_hosts_shells_and_every_page() {
 
 #[test]
 fn a_zetacode_pick_opens_a_page_that_runs_the_shipped_binary_without_typing() {
-	use zetawork_gui::state::{PickerEntry, PickerTarget, SessionKind};
-	use zetawork_gui::zetacode::{Companion, Launch};
+	use zetawork_gui::{
+		state::{PickerEntry, PickerTarget, SessionKind},
+		zetacode::{Companion, Launch},
+	};
 
 	let mut state = seeded_state();
 	state.open_picker(PickerTarget::BigTab);
@@ -467,9 +471,10 @@ fn the_right_column_has_four_tabs_and_eight_settings_sections() {
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
 		["文件树", "历史 · Agent 对话", "Git 状态", "用量"]
 	);
-	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are the
-	// one section the design drafts do not have, and the six they fix keep
-	// their own order behind it. 项目 is the registry page the 管理 card opens.
+	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are
+	// the one section the design drafts do not have, and the six they fix
+	// keep their own order behind it. 项目 is the registry page the 管理 card
+	// opens.
 	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 8);
 	assert_eq!(
 		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
@@ -553,7 +558,7 @@ fn the_settings_modal_reaches_all_three_targets() {
 	}"#;
 	let options = zetawork_gui::zetacode::parse_config_list(fixture).expect("fixture parses");
 	let cache = zetawork_gui::settings_ui::ZetacodeCache::loaded(options);
-	for (key, _, _) in zetawork_gui::settings_ui::ZetacodeCache::ROWS {
+	for (key, ..) in zetawork_gui::settings_ui::ZetacodeCache::ROWS {
 		assert!(cache.value(key).is_some(), "the row {key} has a value");
 	}
 	assert_eq!(
@@ -562,7 +567,7 @@ fn the_settings_modal_reaches_all_three_targets() {
 	);
 	// The key set is the one the real CLI reports: probe it when it is there.
 	if let Ok(real) = zetawork_gui::zetacode::config_list() {
-		for (key, _, _) in zetawork_gui::settings_ui::ZetacodeCache::ROWS {
+		for (key, ..) in zetawork_gui::settings_ui::ZetacodeCache::ROWS {
 			assert!(
 				zetawork_gui::zetacode::option(&real, key).is_some(),
 				"{key} is not in `zetacode config list`"
@@ -578,7 +583,9 @@ fn the_settings_modal_reaches_all_three_targets() {
 	let catalog = dir.join(".zeta").join("agent").join("models.yml");
 	std::fs::write(
 		&catalog,
-		"{\n  \"providers\": {\n    \"zai\": {\n      \"baseUrl\": \"https://api.z.ai/v1\",\n      \"api\": \"openai-completions\",\n      \"apiKey\": \"ZAI_API_KEY\",\n      \"models\": []\n    }\n  }\n}\n",
+		"{\n  \"providers\": {\n    \"zai\": {\n      \"baseUrl\": \"https://api.z.ai/v1\",\n      \
+		 \"api\": \"openai-completions\",\n      \"apiKey\": \"ZAI_API_KEY\",\n      \"models\": \
+		 []\n    }\n  }\n}\n",
 	)
 	.unwrap();
 	let mut providers = zetawork_gui::settings_ui::ProviderCache::default();
@@ -616,7 +623,7 @@ fn the_usage_entry_opens_the_embedded_stats_container() {
 		zetawork_gui::stats::StatsEndpoint {
 			url: url.clone(),
 			source: zetawork_gui::stats::EndpointSource::Default,
-			info: None
+			info: None,
 		}
 		.is_loopback()
 	);
@@ -668,8 +675,10 @@ fn escape_closes_the_modal_before_anything_else() {
 /// One fake SSE endpoint for the shell-level agent test: a plain body with
 /// `frames`, half-closed after the write so the reader sees the stream end.
 fn fake_agent_serve(frames: &'static str) -> String {
-	use std::io::{Read, Write};
-	use std::net::{Shutdown, TcpListener};
+	use std::{
+		io::{Read, Write},
+		net::{Shutdown, TcpListener},
+	};
 
 	let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
 	let address = listener.local_addr().expect("addr").to_string();
@@ -690,12 +699,11 @@ fn fake_agent_serve(frames: &'static str) -> String {
 fn an_agent_ui_request_raises_a_notification_through_the_shell() {
 	use std::time::{Duration, Instant};
 
-	use zetawork_gui::notify::Trigger;
-	use zetawork_gui::settings::NotifyPolicy;
-	use zetawork_gui::state::SessionKind;
+	use zetawork_gui::{notify::Trigger, settings::NotifyPolicy, state::SessionKind};
 
 	let origin = fake_agent_serve(
-		"data: {\"type\":\"extension_ui_request\",\"id\":\"r1\",\"method\":\"confirm\",\"title\":\"允许执行？\"}\n\n",
+		"data: {\"type\":\"extension_ui_request\",\"id\":\"r1\",\"method\":\"confirm\",\"title\":\"\
+		 允许执行？\"}\n\n",
 	);
 	let mut shell = shell();
 	shell.settings.notify = NotifyPolicy::Always;
@@ -793,4 +801,105 @@ fn project_registry_add_rename_remove_and_plain_workspace() {
 	assert!(state.registry.is_empty());
 	let reloaded = workbench_projects::Registry::load_from(&registry_path).expect("reload");
 	assert!(reloaded.is_empty(), "the remove reached the shared file");
+}
+
+// --- 大标签页 rename ---
+
+/// A shell with one *registered* project, so the workspace rename has a
+/// registry row to write. The registry is a temp file: the test never touches
+/// `~/.zeta/projects.json`.
+fn registered_state() -> (AppState, tempfile::TempDir) {
+	let dir = tempfile::tempdir().expect("temp dir");
+	let project = dir.path().join("demo");
+	std::fs::create_dir_all(&project).expect("project dir");
+	let mut registry = workbench_projects::Registry::empty_at(dir.path().join("projects.json"));
+	registry.add(&project).expect("register the project");
+	let cwd = std::env::current_dir().expect("cwd");
+	let state = AppState::seeded_with_registry(&cwd, registry);
+	(state, dir)
+}
+
+#[test]
+fn a_tab_rename_is_stored_in_the_registry_and_survives_a_reseed() {
+	let (mut state, dir) = registered_state();
+	let project_id = state
+		.projects
+		.iter()
+		.find(|project| project.id != "p-local")
+		.map(|project| project.id.clone())
+		.expect("the registered project is seeded");
+	state.select_project(&project_id);
+	let workspace = state
+		.active_workspace()
+		.expect("the project's workspace")
+		.id
+		.clone();
+	assert!(
+		state.can_rename_workspace(&workspace),
+		"a registered project's seeded workspace is renamable"
+	);
+
+	state.begin_rename_workspace(&workspace);
+	state.set_workspace_rename_text("预览".to_owned());
+	let notice = state.commit_rename_workspace();
+	assert_eq!(notice.0, "已重命名为 预览");
+	assert_eq!(state.workspace(&workspace).map(|ws| ws.name.as_str()), Some("预览"));
+
+	// The registry is the store: a fresh load names the workspace the same way.
+	let reloaded = workbench_projects::Registry::load_from(dir.path().join("projects.json"))
+		.expect("reload the registry");
+	let entry = reloaded
+		.get(&project_id)
+		.expect("the project is still there");
+	assert_eq!(entry.workspace_name.as_deref(), Some("预览"));
+	let seeded = zetawork_gui::state::AppState::seeded_with_registry(
+		&state.active_project().expect("project").path,
+		reloaded,
+	);
+	let names: Vec<&str> = seeded
+		.projects
+		.iter()
+		.filter(|p| p.id == project_id)
+		.flat_map(|p| p.workspaces.iter().map(|ws| ws.name.as_str()))
+		.collect();
+	assert_eq!(names, vec!["预览"], "the seeded workspace keeps the name");
+}
+
+#[test]
+fn a_workspace_the_registry_cannot_name_says_so_instead_of_forgetting() {
+	let (mut state, _dir) = registered_state();
+	let project = state
+		.projects
+		.iter()
+		.find(|project| project.id != "p-local")
+		.map(|project| project.id.clone())
+		.expect("the registered project");
+	state.select_project(&project);
+	// A second 大标签页 is this run's own: no registry row describes it.
+	state.new_workspace(&project);
+	let workspace = state.active_workspace().expect("the new tab").id.clone();
+	assert!(!state.can_rename_workspace(&workspace));
+	state.begin_rename_workspace(&workspace);
+	state.set_workspace_rename_text("临时".to_owned());
+	let notice = state.commit_rename_workspace();
+	assert_eq!(notice.0, "已重命名为 临时（仅本次运行）");
+	assert_eq!(state.workspace(&workspace).map(|ws| ws.name.as_str()), Some("临时"));
+}
+
+#[test]
+fn a_tab_rename_refuses_an_empty_name() {
+	let (mut state, _dir) = registered_state();
+	let project = state
+		.projects
+		.iter()
+		.find(|project| project.id != "p-local")
+		.map(|project| project.id.clone())
+		.expect("the registered project");
+	state.select_project(&project);
+	let workspace = state.active_workspace().expect("workspace").id.clone();
+	state.begin_rename_workspace(&workspace);
+	state.set_workspace_rename_text("   ".to_owned());
+	let notice = state.commit_rename_workspace();
+	assert_eq!(notice.0, "标签页名不能为空");
+	assert!(state.renaming_workspace().is_some(), "the editor stays open");
 }

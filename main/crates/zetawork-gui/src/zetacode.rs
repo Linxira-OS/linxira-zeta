@@ -32,7 +32,6 @@
 //! file this module writes, only through [`write_provider_field`], and only
 //! when the edit actually changes the bytes.
 
-use serde_json::{Map, Value};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt as _;
 use std::{
@@ -40,6 +39,8 @@ use std::{
 	path::{Path, PathBuf},
 	process::{Command, Stdio},
 };
+
+use serde_json::{Map, Value};
 
 /// `CREATE_NO_WINDOW`, so spawning `zetacode` never flashes a console.
 #[cfg(windows)]

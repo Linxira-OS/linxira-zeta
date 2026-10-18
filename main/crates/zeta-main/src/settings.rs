@@ -232,8 +232,8 @@ const MANAGED: [(&str, &str); 4] = [
 	("close_confirmation", "ask before closing panes that run programs"),
 ];
 
-const HEADER: &str = "# zeta workbench settings — hand-edited values are overwritten by the \
-                      Settings surface\n";
+const HEADER: &str =
+	"# zeta workbench settings — hand-edited values are overwritten by the Settings surface\n";
 
 /// The file text for a settings + registry pair.
 ///

@@ -2,10 +2,10 @@
 //! Which shells exist on this host, and where their executables live — the data
 //! source behind the shell picker's `+` menu. The search is a pure filesystem
 //! walk driven by a [`Probe`]: the `PATH` text, `%COMSPEC%`, `%SystemRoot%`,
-//! `%ProgramFiles%`, `%LOCALAPPDATA%` and the one file test all come in from the
-//! caller, so the whole thing runs against a temp directory in a test without
-//! touching the real host. [`detect`] is the thin wrapper that fills a probe in
-//! from this process's environment and [`std::path::Path::is_file`].
+//! `%ProgramFiles%`, `%LOCALAPPDATA%` and the one file test all come in from
+//! the caller, so the whole thing runs against a temp directory in a test
+//! without touching the real host. [`detect`] is the thin wrapper that fills a
+//! probe in from this process's environment and [`std::path::Path::is_file`].
 //!
 //! Real here: the `PATH` scan, the `%COMSPEC%` and `%SystemRoot%\System32`
 //! registrations, the known Git for Windows install roots, and the split that
@@ -15,8 +15,9 @@
 //! Not here: nothing is spawned and no candidate is ever executed to ask it its
 //! version, no registry key and no `where.exe`/`command -v` is consulted, and a
 //! shell installed off `PATH` and outside the known Git roots is simply not
-//! reported. Every answer is "this file is a file right now", so a shell that is
-//! uninstalled between two probes is reported by the first and not the second.
+//! reported. Every answer is "this file is a file right now", so a shell that
+//! is uninstalled between two probes is reported by the first and not the
+//! second.
 
 use std::{
 	ffi::OsStr,
@@ -202,8 +203,9 @@ fn same_path(a: &Path, b: &Path) -> bool {
 ///
 /// First hit wins, in this order:
 ///
-/// - `PowerShell`: `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`,
-///   then `powershell.exe`/`powershell` on `PATH`.
+/// - `PowerShell`:
+///   `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, then
+///   `powershell.exe`/`powershell` on `PATH`.
 /// - `Pwsh`: `pwsh.exe`/`pwsh` on `PATH`.
 /// - `Cmd`: `%COMSPEC%`, then `%SystemRoot%\System32\cmd.exe`, then `cmd.exe`.
 /// - `Bash`: the first `bash.exe`/`bash` on `PATH` outside a Git install.
@@ -344,10 +346,12 @@ pub fn detect() -> Vec<Shell> {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use std::{ffi::OsString, fs};
 
-	/// A fresh, empty directory under the system temp dir; the caller removes it.
+	use super::*;
+
+	/// A fresh, empty directory under the system temp dir; the caller removes
+	/// it.
 	fn temp_dir(tag: &str) -> PathBuf {
 		let dir =
 			std::env::temp_dir().join(format!("zetawork-gui-shells-{tag}-{}", std::process::id()));

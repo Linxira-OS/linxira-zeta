@@ -200,8 +200,8 @@ fn run_suite_tool(tool: Option<&'static suite::SuiteTool>, passthrough: &[String
 	let candidates = shell::resolve_bin_candidates(tool.bins);
 	let Some(mut cmd) = shell::plan_exec(&candidates, passthrough) else {
 		eprintln!(
-			"zetawork: found {} but no native runner for its shim on this machine — launch the workbench \
-			 (`zetawork`) and split a pane instead.",
+			"zetawork: found {} but no native runner for its shim on this machine — launch the \
+			 workbench (`zetawork`) and split a pane instead.",
 			path.display()
 		);
 		return ExitCode::FAILURE;

@@ -6,10 +6,12 @@
 
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
-use crate::Shell;
-use crate::icons::{Icon, paint};
-use crate::state::RightTab;
-use crate::theme;
+use crate::{
+	Shell,
+	icons::{Icon, paint},
+	state::RightTab,
+	theme,
+};
 
 /// Draw the status bar. Call from a `TopBottomPanel::bottom` of
 /// [`theme::STATUSBAR_H`].

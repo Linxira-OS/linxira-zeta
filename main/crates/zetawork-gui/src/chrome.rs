@@ -4,18 +4,20 @@
 //! The window is frameless (`decorations: false`), so the shell owes the user
 //! three things the OS would otherwise draw: a title bar, the window buttons,
 //! and a working resize border. The title bar carries the brand, the current
-//! workspace/branch, the 视图 GUI/TUI switch, and 最小化 / 最大化(还原) / 关闭 —
-//! which is also why the right column starts *below* it rather than at the top
-//! edge: the top-right strip belongs to the window controls.
+//! workspace/branch, the 视图 GUI/TUI switch, and 最小化 / 最大化(还原) / 关闭
+//! — which is also why the right column starts *below* it rather than at the
+//! top edge: the top-right strip belongs to the window controls.
 
 use egui::{
 	Align, Color32, CornerRadius, Id, Layout, Order, Rect, Sense, Stroke, Ui, ViewportCommand, pos2,
 	vec2,
 };
 
-use crate::Shell;
-use crate::icons::{Icon, paint};
-use crate::theme;
+use crate::{
+	Shell,
+	icons::{Icon, paint},
+	theme,
+};
 
 /// Height of the window-control buttons; the width is Windows-like.
 const CONTROL_W: f32 = 44.0;
@@ -98,15 +100,15 @@ pub fn logo_mark(ui: &Ui, rect: Rect, texture: Option<&egui::TextureHandle>) {
 /// 最小化 / 最大化(还原) / 关闭.
 ///
 /// 视图 GUI/TUI is not here: it switches what the *centre* draws, so it lives
-/// at the end of the centre's 大标签页 strip (`center::big_tabs`), which is where
-/// the information-surface draft puts it.
+/// at the end of the centre's 大标签页 strip (`center::big_tabs`), which is
+/// where the information-surface draft puts it.
 fn window_controls(ui: &mut Ui, shell: &mut Shell) {
 	let maximized = ui.ctx().input(|i| i.viewport().maximized.unwrap_or(false));
 	let height = ui.available_height().max(theme::TITLE_BAR_H);
 	let close = chrome_button(ui, Icon::X, "关闭", true, height);
 	if close.clicked() {
-		// 关闭窗口时 decides: 最小化到后台 / 退出应用 / 每次询问. The title bar has
-		// no policy of its own — see `crate::lifecycle::request_close`.
+		// 关闭窗口时 decides: 最小化到后台 / 退出应用 / 每次询问. The title bar
+		// has no policy of its own — see `crate::lifecycle::request_close`.
 		crate::lifecycle::request_close(ui.ctx(), shell);
 	}
 	let maximize_icon = if maximized {
@@ -202,8 +204,8 @@ pub fn resize_borders(ctx: &egui::Context, state: &mut ResizeState, modal_open: 
 		(_, true, true, _) => Dir::NorthEast,
 		(true, _, _, true) => Dir::SouthWest,
 		(_, true, _, true) => Dir::SouthEast,
-		(true, _, _, _) => Dir::West,
-		(_, true, _, _) => Dir::East,
+		(true, ..) => Dir::West,
+		(_, true, ..) => Dir::East,
 		(_, _, true, _) => Dir::North,
 		(_, _, _, true) => Dir::South,
 		_ => return,

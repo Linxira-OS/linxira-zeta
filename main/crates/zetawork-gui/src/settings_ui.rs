@@ -12,14 +12,16 @@
 
 use egui::{Align, Color32, CornerRadius, FontId, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
-use crate::Shell;
-use crate::icons::{Icon, paint};
-use crate::settings::{
-	CloseAction, Density, MonoFont, NotifyPolicy, Section, Settings, ShellChoice, Theme,
+use crate::{
+	Shell,
+	icons::{Icon, paint},
+	settings::{
+		CloseAction, Density, MonoFont, NotifyPolicy, Section, Settings, ShellChoice, Theme,
+	},
+	theme,
+	widgets::{truncated_mono, truncated_text},
+	zetacode,
 };
-use crate::theme;
-use crate::widgets::{truncated_mono, truncated_text};
-use crate::zetacode;
 
 /// Which nav icon a section gets.
 fn section_icon(section: Section) -> Icon {
@@ -38,8 +40,8 @@ fn section_icon(section: Section) -> Icon {
 /// Draw the modal, if it is open. Applied changes are persisted through
 /// [`crate::Shell::apply_settings`].
 pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
-	// `modal_open` also covers the 用量 container and the `+` picker; this dialog
-	// is only drawn for its own flag, or it would appear under them.
+	// `modal_open` also covers the 用量 container and the `+` picker; this
+	// dialog is only drawn for its own flag, or it would appear under them.
 	if !shell.state.settings_open() {
 		return;
 	}
@@ -483,9 +485,9 @@ fn zetacode_control(key: &str) -> ZetacodeControl {
 /// The zetacode rows of the 编辑器 section (设置 target ②).
 ///
 /// The values come from `zetacode config list --json` and a change goes back
-/// through `zetacode config set`, on a worker thread — zetacode's own CLI writes
-/// its own file. A key that is absent from the list is drawn disabled with the
-/// reason, never as a switch that does nothing.
+/// through `zetacode config set`, on a worker thread — zetacode's own CLI
+/// writes its own file. A key that is absent from the list is drawn disabled
+/// with the reason, never as a switch that does nothing.
 fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
 	head(ui, "zetacode 选项 · ~/.zeta/agent/config.yml");
 	if shell.probe && shell.remote.options().is_empty() && !shell.remote.loading() {
@@ -577,13 +579,14 @@ fn shell_choices(detected: &[crate::shells::Shell]) -> Vec<ShellChoice> {
 	choices
 }
 
-/// 服务商配置 (设置 target ③): the desktop app's provider catalog, read from and
-/// written to `~/.zeta/agent/models.yml`.
+/// 服务商配置 (设置 target ③): the desktop app's provider catalog, read from
+/// and written to `~/.zeta/agent/models.yml`.
 ///
 /// Each provider exposes its `baseUrl` as an editable line, saved back into the
-/// same file with every other byte preserved ([`zetacode::write_provider_field`]).
-/// Providers with no `baseUrl`, and the whole catalog when it cannot be read,
-/// are reported rather than shown as empty rows.
+/// same file with every other byte preserved
+/// ([`zetacode::write_provider_field`]). Providers with no `baseUrl`, and the
+/// whole catalog when it cannot be read, are reported rather than shown as
+/// empty rows.
 fn providers_section(ui: &mut Ui, shell: &mut Shell) {
 	let home = home_dir();
 	shell.providers.ensure(home.as_deref());
@@ -741,7 +744,8 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 	let targets = home_dir().map(|home| crate::workspace_memory::owned_paths(&home, &paths));
 	let hint_text = match &targets {
 		Some(targets) => format!(
-			"删除 {} 个路径：~/.zeta/zetawork/workspaces 与各项目会话日志；保留 projects.json、项目目录与 agent 配置",
+			"删除 {} 个路径：~/.zeta/zetawork/workspaces 与各项目会话日志；保留 \
+			 projects.json、项目目录与 agent 配置",
 			targets.len()
 		),
 		None => "找不到用户目录（USERPROFILE / HOME 都为空），无法定位 ~/.zeta".to_owned(),

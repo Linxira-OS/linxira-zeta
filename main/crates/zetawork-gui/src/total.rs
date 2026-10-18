@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! 总面板 — the centre strip's **first** 大标签页.
 //!
-//! The contract's ruling (`mock-override.js`, "功能分派"): 总面板 lives in 中间区
-//! 第 1 个大标签页 and is **所有项目合并一张表** — it is a table, not a statistics
-//! page, and it is not one of the workspaces (a workspace is a 大标签页 of its
-//! own, listed after it).
+//! The contract's ruling (`mock-override.js`, "功能分派"): 总面板 lives in
+//! 中间区 第 1 个大标签页 and is **所有项目合并一张表** — it is a table, not a
+//! statistics page, and it is not one of the workspaces (a workspace is a
+//! 大标签页 of its own, listed after it).
 //!
 //! ```text
 //! 项目   工作区    分支      状态            ±行        未提交
@@ -19,17 +19,19 @@
 //! A row is drawn from the state itself — project, workspace, branch and run
 //! state are all known without touching the disk. The two git columns are the
 //! only ones with a data source, and that source is per workspace: the shell
-//! keeps one snapshot, for the workspace that is open. Every other row therefore
-//! shows `—` rather than a plausible number, and the column heads say what would
-//! have to be read. Clicking a row opens that workspace, which is how a `—` row
-//! gets its numbers.
+//! keeps one snapshot, for the workspace that is open. Every other row
+//! therefore shows `—` rather than a plausible number, and the column heads say
+//! what would have to be read. Clicking a row opens that workspace, which is
+//! how a `—` row gets its numbers.
 
 use egui::{Align2, CornerRadius, FontId, Rect, Sense, Stroke, pos2, vec2};
 
-use crate::Shell;
-use crate::state::Notice;
-use crate::theme;
-use crate::widgets::{status_dot, status_word, truncated_mono, truncated_text};
+use crate::{
+	Shell,
+	state::Notice,
+	theme,
+	widgets::{status_dot, status_word, truncated_mono, truncated_text},
+};
 
 /// The columns, in the contract's order and with their share of the width.
 const COLUMNS: [(&str, f32); 6] = [
@@ -43,13 +45,15 @@ const COLUMNS: [(&str, f32); 6] = [
 
 /// `.pad11` — the table's padding inside the page.
 const PAD: [f32; 2] = [14.0, 12.0];
-/// The height of the head row and of a data row (`.t th` / `.t td`, padding 6+8).
+/// The height of the head row and of a data row (`.t th` / `.t td`, padding
+/// 6+8).
 const ROW_H: f32 = 26.0;
 
 /// The foot line, word for word from the contract's 总面板 page.
 pub const NOTE: &str = "总面板：所有项目一张表 —— 哪个工作区在哪个项目下、绑哪条分支、多少没提交";
 
-/// The tooltip on the two git columns: they are the only cells that need a read.
+/// The tooltip on the two git columns: they are the only cells that need a
+/// read.
 const GIT_HINT: &str =
 	"±行 / 未提交：只读取已打开工作区的 git 快照（git status、diff --numstat），其余行等开机再读";
 

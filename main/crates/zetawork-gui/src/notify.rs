@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! 通知: which background edge reaches the user, by what route, and what happens
-//! when the route is not there.
+//! 通知: which background edge reaches the user, by what route, and what
+//! happens when the route is not there.
 //!
 //! # The three triggers
 //!
@@ -20,22 +20,26 @@
 //! 1. **系统通知** — Windows toast / Linux `org.freedesktop.Notifications`
 //!    (compiled only with the `os-notify` feature; see the crate manifest).
 //! 2. **IM 渠道** — `POST /api/channels/send` on the serve instance
-//!    `~/.zeta/serve.json` published, the gateway's write entry for the WeChat /
-//!    飞书 / Telegram senders ([`MESSAGING_SOURCES`]). The route needs the chat
-//!    as well as the address, so this step runs only when a caller supplies a
-//!    [`MessagingTarget`].
-//! 3. **状态栏留痕** — always available: the status bar shows `通知：<标题>` and
-//!    clicking it goes to the workspace the notification was about.
+//!    `~/.zeta/serve.json` published, the gateway's write entry for the WeChat
+//!    / 飞书 / Telegram senders ([`MESSAGING_SOURCES`]). The route needs the
+//!    chat as well as the address, so this step runs only when a caller
+//!    supplies a [`MessagingTarget`].
+//! 3. **状态栏留痕** — always available: the status bar shows `通知：<标题>`
+//!    and clicking it goes to the workspace the notification was about.
 //!
 //! Every step is additive: a route that is unavailable hands over to the next
 //! one, and the trace always happens, so a notification is never silently lost.
 
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::time::{Duration, Instant};
+use std::{
+	io::{Read, Write},
+	net::TcpStream,
+	time::{Duration, Instant},
+};
 
-use crate::settings::NotifyPolicy;
-use crate::stats::{authority_of, host_of, scheme_of};
+use crate::{
+	settings::NotifyPolicy,
+	stats::{authority_of, host_of, scheme_of},
+};
 
 /// Why a notification exists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -120,11 +124,12 @@ pub struct MessagingTarget {
 impl MessagingTarget {
 	/// A target on `origin`, or `None` when this shell must not post there.
 	///
-	/// A notification body is the user's own session state, so the destination is
-	/// restricted the way the 用量 container's page is: plain `http`, loopback
-	/// host (`127.0.0.1` / `localhost` / `[::1]`), explicit port. A remote host, a
-	/// TLS origin (this crate has no TLS client), a bare host with no port and a
-	/// non-web scheme are all refused here rather than dialled.
+	/// A notification body is the user's own session state, so the destination
+	/// is restricted the way the 用量 container's page is: plain `http`,
+	/// loopback host (`127.0.0.1` / `localhost` / `[::1]`), explicit port. A
+	/// remote host, a TLS origin (this crate has no TLS client), a bare host
+	/// with no port and a non-web scheme are all refused here rather than
+	/// dialled.
 	pub fn new(origin: &str, channel_id: &str, to: &str) -> Option<Self> {
 		let (_, _, authority) = post_endpoint(origin)?;
 		if channel_id.trim().is_empty() || to.trim().is_empty() {
@@ -186,9 +191,9 @@ pub fn should_fire(policy: NotifyPolicy, foreground: bool) -> bool {
 
 /// Raise one notification and return the trace to keep.
 ///
-/// Never fails: with the OS route unavailable this returns a [`Delivery::Trace`]
-/// carrying the reason — and, when `target` is given, the IM step's own answer —
-/// so the shell always has something to show.
+/// Never fails: with the OS route unavailable this returns a
+/// [`Delivery::Trace`] carrying the reason — and, when `target` is given, the
+/// IM step's own answer — so the shell always has something to show.
 pub fn emit(message: Message, target: Option<&MessagingTarget>) -> Trace {
 	let os = os_notify(&message);
 	// The IM step is the OS route's fallback, so it is not attempted once the
@@ -204,8 +209,9 @@ pub fn emit(message: Message, target: Option<&MessagingTarget>) -> Trace {
 /// Which route carried the notification, from what each route did.
 ///
 /// `im` is `None` both when the shell has no target and when the OS route
-/// already took the message, so this is the whole chain in one place: ① 系统通知
-/// → ② IM 渠道 → ③ 状态栏留痕, which is the trace every caller holds anyway.
+/// already took the message, so this is the whole chain in one place: ①
+/// 系统通知 → ② IM 渠道 → ③ 状态栏留痕, which is the trace every caller holds
+/// anyway.
 fn route(os: &Result<(), String>, im: &Option<Result<(), String>>) -> (Delivery, String) {
 	match os {
 		Ok(()) => (Delivery::Os, String::new()),
@@ -327,8 +333,8 @@ fn post_im_message(origin: &str, body: &str) -> Result<(), String> {
 		.set_read_timeout(Some(IM_TIMEOUT))
 		.map_err(|error| format!("设置读超时失败：{error}"))?;
 	let request = format!(
-		"POST /api/channels/send HTTP/1.1\r\nHost: {authority}\r\n\
-		 Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+		"POST /api/channels/send HTTP/1.1\r\nHost: {authority}\r\nContent-Type: \
+		 application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
 		body.len()
 	);
 	stream
@@ -386,8 +392,9 @@ fn os_notify(message: &Message) -> Result<(), String> {
 /// Linux: straight onto the session bus, `org.freedesktop.Notifications`.
 ///
 /// The `Notify` call is the one every desktop implements; `timeout` of `-1`
-/// means "the daemon's default". A missing daemon (no `DBUS_SESSION_BUS_ADDRESS`,
-/// no notification host) fails here and hands over to the trace.
+/// means "the daemon's default". A missing daemon (no
+/// `DBUS_SESSION_BUS_ADDRESS`, no notification host) fails here and hands over
+/// to the trace.
 #[cfg(all(feature = "os-notify", target_os = "linux"))]
 fn os_notify(message: &Message) -> Result<(), String> {
 	let connection =
@@ -421,9 +428,9 @@ fn os_notify(_message: &Message) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+	use std::{net::TcpListener, sync::mpsc};
+
 	use super::*;
-	use std::net::TcpListener;
-	use std::sync::mpsc;
 
 	fn message() -> Message {
 		Message {
@@ -434,9 +441,9 @@ mod tests {
 		}
 	}
 
-	/// A loopback listener that answers one request with `status` and reports the
-	/// request it read. The notification's HTTP path is one of the few things in
-	/// this crate a headless test can exercise end to end.
+	/// A loopback listener that answers one request with `status` and reports
+	/// the request it read. The notification's HTTP path is one of the few
+	/// things in this crate a headless test can exercise end to end.
 	fn fake_gateway(status: &'static str, body: &'static str) -> (String, mpsc::Receiver<String>) {
 		let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
 		let port = listener.local_addr().expect("local addr").port();
@@ -470,7 +477,8 @@ mod tests {
 				}
 				let _ = tx.send(String::from_utf8_lossy(&request).into_owned());
 				let answer = format!(
-					"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+					"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: \
+					 {}\r\nConnection: close\r\n\r\n{body}",
 					body.len()
 				);
 				let _ = stream.write_all(answer.as_bytes());
@@ -479,7 +487,8 @@ mod tests {
 		(format!("http://127.0.0.1:{port}"), rx)
 	}
 
-	/// Offset just past a request's blank line, `None` until the headers are all in.
+	/// Offset just past a request's blank line, `None` until the headers are all
+	/// in.
 	fn headers_end(bytes: &[u8]) -> Option<usize> {
 		bytes
 			.windows(4)
@@ -646,7 +655,8 @@ mod tests {
 		let ok = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}";
 		assert_eq!(status_of(ok), Some(200));
 		assert_eq!(error_of(ok), None);
-		let refused = "HTTP/1.1 400 Bad Request\r\nContent-Length: 41\r\n\r\n{\"error\":\"Missing to: no peer to send to\"}";
+		let refused = "HTTP/1.1 400 Bad Request\r\nContent-Length: 41\r\n\r\n{\"error\":\"Missing \
+		               to: no peer to send to\"}";
 		assert_eq!(status_of(refused), Some(400));
 		assert_eq!(error_of(refused).as_deref(), Some("Missing to: no peer to send to"));
 		assert_eq!(status_of("HTTP/1.1 204 No Content"), Some(204));

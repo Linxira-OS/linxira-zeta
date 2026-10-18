@@ -256,9 +256,11 @@ pub use win::EmbedHost;
 
 #[cfg(windows)]
 mod win {
-	use std::sync::Arc;
-	use std::sync::atomic::{AtomicBool, Ordering};
-	use std::sync::mpsc::Receiver;
+	use std::sync::{
+		Arc,
+		atomic::{AtomicBool, Ordering},
+		mpsc::Receiver,
+	};
 
 	use super::{NativeWindow, PixelRect};
 
@@ -367,8 +369,8 @@ mod stub {
 	use super::PixelRect;
 
 	/// The one line the container shows instead of a child window here.
-	pub const REASON: &str = "WebView2 embedding is Windows-only in this build (wry is a \
-	                          cfg(windows) dependency)";
+	pub const REASON: &str =
+		"WebView2 embedding is Windows-only in this build (wry is a cfg(windows) dependency)";
 
 	/// Non-Windows stub: the crate builds and the UI runs, but the 用量
 	/// container falls back to the native panel.

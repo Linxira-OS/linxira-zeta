@@ -10,17 +10,19 @@ use egui::{
 	Align2, Color32, CornerRadius, FontId, Pos2, Rect, Response, Sense, Stroke, Ui, pos2, vec2,
 };
 
-use crate::icons::{Icon, paint};
-use crate::status::RunState;
-use crate::theme;
+use crate::{
+	icons::{Icon, paint},
+	status::RunState,
+	theme,
+};
 
 /// The 状态词表's dot: a 7 pt disc in the state's own ink.
 ///
 /// `None` draws **nothing**: an unknown state is not a colour, and a dim disc
 /// would read as one of the seven. The colour and the word both come from
-/// [`RunState`], so the left column's workspace rows and the 总面板's 状态 column
-/// cannot drift apart — which is the whole reason this is here rather than
-/// painted twice.
+/// [`RunState`], so the left column's workspace rows and the 总面板's 状态
+/// column cannot drift apart — which is the whole reason this is here rather
+/// than painted twice.
 pub fn status_dot(ui: &Ui, centre: Pos2, state: Option<RunState>) {
 	let Some(state) = state else {
 		return;
@@ -271,8 +273,8 @@ pub fn truncated_mono(
 /// The one quiet line a panel shows when it has nothing to list.
 ///
 /// The line is clipped to the card's own width: a note whose headline carries a
-/// tool's error (a `fatal:` dump, a missing path) must end in an ellipsis at the
-/// panel edge, never be painted past it.
+/// tool's error (a `fatal:` dump, a missing path) must end in an ellipsis at
+/// the panel edge, never be painted past it.
 pub fn empty_note(ui: &mut Ui, headline: &str) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), Sense::hover());
 	let painter = ui.painter();

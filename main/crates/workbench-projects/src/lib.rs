@@ -25,12 +25,13 @@
 //! atomic (a sibling temporary file renamed over the registry), so a crash
 //! leaves either the old file or the new one.
 
-use std::collections::HashSet;
-use std::fmt;
-use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+	collections::HashSet,
+	fmt, fs,
+	io::Write,
+	path::{Path, PathBuf},
+	time::{SystemTime, UNIX_EPOCH},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -396,7 +397,7 @@ mod tests {
 
 	#[test]
 	fn a_missing_file_is_an_empty_registry() {
-		let (dir, _, _) = fixture();
+		let (dir, ..) = fixture();
 		let registry = Registry::load_from(dir.path().join("nothing.json")).expect("missing is fine");
 		assert!(registry.is_empty());
 		assert!(registry.list().is_empty());
@@ -476,7 +477,7 @@ mod tests {
 
 	#[test]
 	fn a_malformed_file_is_reported_and_left_alone() {
-		let (dir, _, _) = fixture();
+		let (dir, ..) = fixture();
 		let path = dir.path().join(".zeta").join("projects.json");
 		fs::create_dir_all(path.parent().expect("parent")).expect("config dir");
 		let garbage = "{ \"version\": 1, \"projects\": [ {";
@@ -488,7 +489,7 @@ mod tests {
 
 	#[test]
 	fn an_unknown_version_is_reported() {
-		let (dir, _, _) = fixture();
+		let (dir, ..) = fixture();
 		let path = dir.path().join(".zeta").join("projects.json");
 		fs::create_dir_all(path.parent().expect("parent")).expect("config dir");
 		fs::write(&path, "{\"version\": 99, \"projects\": []}").expect("write");
@@ -500,14 +501,13 @@ mod tests {
 
 	#[test]
 	fn a_duplicate_id_in_the_file_is_malformed() {
-		let (dir, _, _) = fixture();
+		let (dir, ..) = fixture();
 		let path = dir.path().join(".zeta").join("projects.json");
 		fs::create_dir_all(path.parent().expect("parent")).expect("config dir");
 		fs::write(
 			&path,
-			"{\"version\":1,\"projects\":[\
-			 {\"id\":\"same\",\"name\":\"a\",\"path\":\"/a\",\"addedAt\":0},\
-			 {\"id\":\"same\",\"name\":\"b\",\"path\":\"/b\",\"addedAt\":0}]}",
+			"{\"version\":1,\"projects\":[{\"id\":\"same\",\"name\":\"a\",\"path\":\"/a\",\"addedAt\"\
+			 :0},{\"id\":\"same\",\"name\":\"b\",\"path\":\"/b\",\"addedAt\":0}]}",
 		)
 		.expect("write");
 		assert!(matches!(Registry::load_from(&path), Err(Error::Malformed { .. })));

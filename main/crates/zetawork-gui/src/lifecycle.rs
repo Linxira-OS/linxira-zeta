@@ -5,13 +5,15 @@
 //!
 //! The maintainer's rulings (2026-10-16, extended 2026-10-17) fix four things:
 //!
-//! 1. **`关闭窗口时`** — `最小化到后台` (default) / `退出应用` / `每次询问`. The ask
-//!    modal carries exactly **one** checkbox, `记住我的选择，不再询问`: ticked, the
-//!    choice overwrites `close_action` and the modal never appears again; left
-//!    clear, it applies to this close only and the next close asks again.
+//! 1. **`关闭窗口时`** — `最小化到后台` (default) / `退出应用` / `每次询问`.
+//!    The ask modal carries exactly **one** checkbox, `记住我的选择，不再询问`:
+//!    ticked, the choice overwrites `close_action` and the modal never appears
+//!    again; left clear, it applies to this close only and the next close asks
+//!    again.
 //! 2. **后台态资源策略** — no frames, so no terminal blit and no offscreen
-//!    raster; the RSS/clock poll drops to [`BACKGROUND_POLL`]. The session state
-//!    machine and the agent children stay alive: nothing here touches them.
+//!    raster; the RSS/clock poll drops to [`BACKGROUND_POLL`]. The session
+//!    state machine and the agent children stay alive: nothing here touches
+//!    them.
 //! 3. **唤回** — a dock icon is not the only way back. A second launch has to
 //!    find the first one, which is what [`Lifecycle::claim`] is for.
 //! 4. **忙/闲边沿** — a pane is busy when its shell has live children; a
@@ -20,8 +22,8 @@
 //!
 //! # The single-instance mechanism, and why it is a socket
 //!
-//! [`claim`] is a **loopback TCP socket**, not a named mutex and not a lock file
-//! on its own:
+//! [`claim`] is a **loopback TCP socket**, not a named mutex and not a lock
+//! file on its own:
 //!
 //! * a Windows named mutex needs `CreateMutexW` through the `windows` crate,
 //!   which is a platform dependency for one bit of state;
@@ -43,16 +45,17 @@
 //! | loopback `bind` is refused by policy | claim `Unavailable`, start normally, record the OS message |
 //! | `~/.zeta` cannot be written | the lock file is skipped; the default port is used |
 
-use std::io::{BufRead, BufReader, ErrorKind, Write};
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::{
+	io::{BufRead, BufReader, ErrorKind, Write},
+	net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream},
+	path::PathBuf,
+	time::{Duration, Instant},
+};
 
 use egui::{Context, ViewportCommand};
 use sysinfo::{Pid, ProcessesToUpdate, System};
 
-use crate::Shell;
-use crate::settings::CloseAction;
+use crate::{Shell, settings::CloseAction};
 
 /// The line a second launch sends.
 pub const ACTIVATE: &str = "zetawork-activate/1";
@@ -100,9 +103,9 @@ impl CloseDecision {
 	}
 }
 
-/// The 每次询问 modal's state. Exactly one checkbox, by ruling: the maintainer's
-/// two candidate boxes (`维持上一次的选择` + `不要再展示`) are the same idea folded
-/// into one, so there is deliberately no second field here.
+/// The 每次询问 modal's state. Exactly one checkbox, by ruling: the
+/// maintainer's two candidate boxes (`维持上一次的选择` + `不要再展示`) are the
+/// same idea folded into one, so there is deliberately no second field here.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct AskState {
 	/// 记住我的选择，不再询问.
@@ -136,8 +139,8 @@ pub enum Claim {
 
 /// Ask whoever holds `addr` to show their window.
 ///
-/// Blocking for at most [`HANDSHAKE_TIMEOUT`], so a launch is never held up by a
-/// port with nothing behind it.
+/// Blocking for at most [`HANDSHAKE_TIMEOUT`], so a launch is never held up by
+/// a port with nothing behind it.
 pub fn probe(addr: SocketAddr) -> Probe {
 	let Ok(mut stream) = TcpStream::connect_timeout(&addr, HANDSHAKE_TIMEOUT) else {
 		return Probe::Silent;
@@ -212,8 +215,8 @@ fn write_lock(port: u16) -> std::io::Result<()> {
 /// Try to become the single instance.
 ///
 /// The order matters: **probe before bind**. Binding first would make a second
-/// launch look like a squatter to itself, and the lock file is only a hint about
-/// which port to try.
+/// launch look like a squatter to itself, and the lock file is only a hint
+/// about which port to try.
 pub fn claim() -> Claim {
 	let default = SocketAddr::from((Ipv4Addr::LOCALHOST, PORT));
 	let published = lock_port().filter(|port| *port != 0);

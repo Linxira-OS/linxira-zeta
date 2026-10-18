@@ -2,10 +2,10 @@
 //! 托盘: the icon and its menu.
 //!
 //! Compiled only with the `tray` feature (see the crate manifest). Without it
-//! [`compiled_in`] is false, [`Tray::new`] returns a tray that records why it is
-//! not there, and **closing the window still goes to the background** — the tray
-//! is an extra way back, never the only one. [`crate::lifecycle`] is the way
-//! back that always works.
+//! [`compiled_in`] is false, [`Tray::new`] returns a tray that records why it
+//! is not there, and **closing the window still goes to the background** — the
+//! tray is an extra way back, never the only one. [`crate::lifecycle`] is the
+//! way back that always works.
 //!
 //! # Why the event handlers only wake the shell
 //!
@@ -18,9 +18,10 @@
 //! # The degrade chain
 //!
 //! `TrayIconBuilder::build` fails where there is no host for it: Linux without
-//! `libayatana-appindicator3` or without a StatusNotifier host, and any headless
-//! session. The failure is recorded in [`Tray::note`] and shown in 设置 → 常规, so
-//! "there is no tray" is visible in the product instead of being a mystery.
+//! `libayatana-appindicator3` or without a StatusNotifier host, and any
+//! headless session. The failure is recorded in [`Tray::note`] and shown in
+//! 设置 → 常规, so "there is no tray" is visible in the product instead of
+//! being a mystery.
 
 /// The menu's first item: bring the window back.
 pub const ID_SHOW: &str = "zetawork-show";

@@ -484,7 +484,8 @@ mod tests {
 		let path = dir.path().join("projects.json");
 		std::fs::write(
 			&path,
-			"{\"version\":1,\"projects\":[{\"id\":\"p1\",\"name\":\"演示\",\"path\":\"C:/work/demo\",\"addedAt\":1}]}",
+			"{\"version\":1,\"projects\":[{\"id\":\"p1\",\"name\":\"演示\",\"path\":\"C:/work/demo\",\
+			 \"addedAt\":1}]}",
 		)
 		.expect("write registry");
 		let registry = workbench_projects::Registry::load_from(&path).expect("load");

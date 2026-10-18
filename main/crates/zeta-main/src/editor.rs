@@ -17,14 +17,18 @@
 //! wired in this slice. The pane header says so out loud
 //! ([`LSP_NOTICE`]) — it never pretends a language service is running.
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{
+	path::{Path, PathBuf},
+	sync::Arc,
+};
 
 use anyhow::Result;
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
+use ratatui::{
+	buffer::Buffer,
+	layout::Rect,
+	style::{Color, Modifier, Style},
+	text::{Line, Span},
+};
 use termide_core::{Panel, PanelConfig, RenderContext, ThemeColors};
 use termide_panel_editor::{Editor, EditorConfig};
 use termide_theme::Theme;

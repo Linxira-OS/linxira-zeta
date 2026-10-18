@@ -28,23 +28,25 @@
 
 mod api;
 
+use std::{
+	sync::mpsc::{Receiver, TryRecvError, channel},
+	time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
+
 /// The one loopback `GET` this crate owns, shared with the conversation page's
 /// live-window probe (`crate::conversation`).
 pub(crate) use api::get as http_get;
-
-use std::sync::mpsc::{Receiver, TryRecvError, channel};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-
+pub use api::{CostRow, Costs, FetchError, Overview, Range, SeriesPoint, ServiceStatus, Snapshot};
 use egui::{
 	Align, Align2, Color32, CornerRadius, FontId, Layout, Order, Rect, Sense, Stroke, pos2, vec2,
 };
 
-use crate::Shell;
-use crate::icons::{Icon, icon_button};
-use crate::theme;
-use crate::widgets::{truncated_text, truncated_text_center, truncated_text_right};
-
-pub use api::{CostRow, Costs, FetchError, Overview, Range, SeriesPoint, ServiceStatus, Snapshot};
+use crate::{
+	Shell,
+	icons::{Icon, icon_button},
+	theme,
+	widgets::{truncated_text, truncated_text_center, truncated_text_right},
+};
 
 /// The dialog's size, clamped to the window.
 const DIALOG: [f32; 2] = [980.0, 620.0];
@@ -1137,8 +1139,8 @@ mod tests {
 					STATUS
 				};
 				let response = format!(
-					"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\
-					 Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+					"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \
+					 {}\r\nConnection: close\r\n\r\n{body}",
 					body.len()
 				);
 				let _ = std::io::Write::write_all(&mut stream, response.as_bytes());

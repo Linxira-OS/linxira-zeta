@@ -13,8 +13,9 @@
 //! cargo +1.91.1-x86_64-pc-windows-gnu test -p zetawork-gui --test shots -- --ignored --nocapture
 //! ```
 //!
-//! The PNGs land in `<worktree>/shots/` (i.e. `temp/zetawork-gui-shell/shots/`),
-//! which is inside the git-ignored `temp/` tree.
+//! The PNGs land in `<worktree>/shots/` (i.e.
+//! `temp/zetawork-gui-shell/shots/`), which is inside the git-ignored `temp/`
+//! tree.
 
 #[path = "support/raster.rs"]
 mod raster;
@@ -22,9 +23,7 @@ mod raster;
 use std::path::PathBuf;
 
 use egui::{Color32, Rect, pos2, vec2};
-use zetawork_gui::settings::Settings;
-use zetawork_gui::state::AppState;
-use zetawork_gui::{Shell, fonts, theme};
+use zetawork_gui::{Shell, fonts, settings::Settings, state::AppState, theme};
 
 /// The window size the screenshots pretend the user has.
 const SIZE: [f32; 2] = [1440.0, 900.0];
@@ -66,8 +65,8 @@ fn ready_shell() -> Shell {
 	Shell::with_state(state, Settings::default())
 }
 
-/// Select the active workspace's 大标签页, so a shot that is about the pane grid
-/// shows the pane grid: the shipped default opens on 总面板 instead.
+/// Select the active workspace's 大标签页, so a shot that is about the pane
+/// grid shows the pane grid: the shipped default opens on 总面板 instead.
 fn workspace_page(shell: &mut Shell) {
 	shell
 		.state
@@ -169,8 +168,9 @@ fn picker_screenshot() {
 	write("04-new-pane-picker.png", &bytes);
 }
 
-/// `05-editor-diff-git.png` — three panes: the 编辑器 page with a real file open,
-/// the 差异比较器 page with the workspace's real `git diff`, and the Git page.
+/// `05-editor-diff-git.png` — three panes: the 编辑器 page with a real file
+/// open, the 差异比较器 page with the workspace's real `git diff`, and the Git
+/// page.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn gui_pages_screenshot() {
@@ -259,8 +259,8 @@ fn settings_remote_sections_screenshot() {
 	assert!(bytes.len() > 4096);
 	write("07-settings-zetacode.png", &bytes);
 
-	// The provider rows read `~/.zeta/agent/models.yml`; in this headless run the
-	// real catalog is read (read-only) and the drafts are seeded from it.
+	// The provider rows read `~/.zeta/agent/models.yml`; in this headless run
+	// the real catalog is read (read-only) and the drafts are seeded from it.
 	shell.state.settings_section = zetawork_gui::settings::Section::Manage;
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
@@ -268,8 +268,8 @@ fn settings_remote_sections_screenshot() {
 }
 
 /// `09-total-panel.png` — 总面板, the strip's first 大标签页 and what the shell
-/// opens on: every project in one table, with the 状态 column from the contract's
-/// 状态词表.
+/// opens on: every project in one table, with the 状态 column from the
+/// contract's 状态词表.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
 fn total_panel_screenshot() {
@@ -361,8 +361,8 @@ fn lifecycle_settings_screenshot() {
 fn close_ask_screenshot() {
 	let mut shell = ready_shell();
 	workspace_page(&mut shell);
-	// 关闭窗口时 = 每次询问, plus the modal's own state, so the shot shows exactly
-	// what the ruling describes: three buttons and one checkbox.
+	// 关闭窗口时 = 每次询问, plus the modal's own state, so the shot shows
+	// exactly what the ruling describes: three buttons and one checkbox.
 	shell.settings.close_action = zetawork_gui::settings::CloseAction::Ask;
 	shell.lifecycle.ask = Some(zetawork_gui::lifecycle::AskState { remember: true });
 	let bytes = shoot(&mut shell, 3);

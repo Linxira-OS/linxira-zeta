@@ -6,9 +6,10 @@ use ratatui::layout::Rect;
 use termide_core::Panel;
 use termide_panel_terminal::Terminal;
 
-use crate::layout::{Axis, PaneNode, Side};
-
-use crate::suite::{CODING_BINS, IDE_BINS};
+use crate::{
+	layout::{Axis, PaneNode, Side},
+	suite::{CODING_BINS, IDE_BINS},
+};
 
 /// What a pane runs — drives the pane label and the menu entries.
 #[derive(Clone, PartialEq, Eq, Debug)]

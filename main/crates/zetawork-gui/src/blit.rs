@@ -30,16 +30,16 @@
 //! that was painted as a blank would stamp a hole over the glyph's second half
 //! and shift everything after it.
 
-use std::cell::RefCell;
-use std::convert::Infallible;
-use std::rc::Rc;
+use std::{cell::RefCell, convert::Infallible, rc::Rc};
 
 use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Painter, Pos2, Rect as ERect, Ui};
-use ratatui::backend::{Backend, ClearType, WindowSize};
-use ratatui::buffer::Buffer;
-use ratatui::layout::{Position, Rect, Size};
-use ratatui::style::Color;
-use ratatui::{Frame, Terminal};
+use ratatui::{
+	Frame, Terminal,
+	backend::{Backend, ClearType, WindowSize},
+	buffer::Buffer,
+	layout::{Position, Rect, Size},
+	style::Color,
+};
 use unicode_width::UnicodeWidthStr;
 
 /// Font family whose ASCII advance is half its CJK advance (installed by
@@ -250,7 +250,8 @@ pub fn painted_cells(buffer: &Buffer, row: u16, max_cols: u16) -> Vec<(u16, &str
 	painted
 }
 
-/// Paint a ratatui [`Buffer`] as a cell grid, one [`painted_cells`] run per row.
+/// Paint a ratatui [`Buffer`] as a cell grid, one [`painted_cells`] run per
+/// row.
 pub fn paint_buffer(ui: &Ui, buffer: &Buffer, metrics: &GridMetrics, default_fg: Color32) {
 	let painter: Painter = ui.painter_at(ERect::from_min_size(metrics.origin, metrics.size()));
 	paint_buffer_with(&painter, buffer, metrics, default_fg);
@@ -378,14 +379,15 @@ fn pos2(x: f32, y: f32) -> Pos2 {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use ratatui::widgets::Paragraph;
+
+	use super::*;
 
 	/// The acceptance test for the width rule: a wide glyph claims two columns
 	/// and the next ASCII cell lands two columns later.
 	#[test]
 	fn a_wide_glyph_claims_two_columns_and_the_next_ascii_lands_on_column_two() {
-		let (buffer, _, _) = render(12, 2, |frame| {
+		let (buffer, ..) = render(12, 2, |frame| {
 			let area = frame.area();
 			frame.render_widget(Paragraph::new("中a文b"), area);
 		});
@@ -403,7 +405,7 @@ mod tests {
 
 	#[test]
 	fn ascii_only_lines_advance_one_column_per_cell() {
-		let (buffer, _, _) = render(8, 2, |frame| {
+		let (buffer, ..) = render(8, 2, |frame| {
 			let area = frame.area();
 			frame.render_widget(Paragraph::new("abcdef"), area);
 		});
@@ -414,7 +416,7 @@ mod tests {
 
 	#[test]
 	fn clipping_a_row_never_reports_a_cell_past_the_limit() {
-		let (buffer, _, _) = render(12, 2, |frame| {
+		let (buffer, ..) = render(12, 2, |frame| {
 			let area = frame.area();
 			frame.render_widget(Paragraph::new("中中中中中中"), area);
 		});

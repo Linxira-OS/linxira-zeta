@@ -10,9 +10,9 @@
 //! ```
 //!
 //! [`Shell`] owns everything the shell knows ([`state::AppState`], the
-//! persisted [`settings::Settings`], the read-only file tree and git status, the
-//! terminal blit cache) and drives the panels in [`eframe::App::update`]. The
-//! The GUI is [`center::workspace`]. The TUI is the terminal binary and is
+//! persisted [`settings::Settings`], the read-only file tree and git status,
+//! the terminal blit cache) and drives the panels in [`eframe::App::update`].
+//! The The GUI is [`center::workspace`]. The TUI is the terminal binary and is
 //! never rendered here.
 //!
 //! Everything the shell draws is read from real state: the file tree
@@ -58,17 +58,12 @@ pub mod workspace_memory;
 pub mod ws;
 pub mod zetacode;
 
-use std::path::PathBuf;
-use std::time::Instant;
+use std::{path::PathBuf, time::Instant};
 
 use eframe::egui;
 use egui::{Context, ViewportCommand};
 
-use crate::fonts::Fonts;
-use crate::fsread::FileTree;
-use crate::git::GitStatus;
-use crate::settings::Settings;
-use crate::state::AppState;
+use crate::{fonts::Fonts, fsread::FileTree, git::GitStatus, settings::Settings, state::AppState};
 
 /// The window title and the title bar's brand.
 pub const APP_TITLE: &str = "zetawork";
@@ -117,7 +112,8 @@ pub struct Shell {
 	/// The serve-backed alternative for terminal tabs ([`terminal_service`]):
 	/// a PTY in `zetacode serve` reached over the gateway's WebSocket.
 	pub terminals: terminal_service::TerminalHost,
-	/// Every [`state::SessionKind::Agent`] tab's gateway link ([`agent_sessions`]).
+	/// Every [`state::SessionKind::Agent`] tab's gateway link
+	/// ([`agent_sessions`]).
 	pub agents: agent_sessions::AgentSessions,
 	/// Per-tab IDE pages (`termide-panel-ide`), rendered like the terminal.
 	pub pages: page::Pages,
@@ -137,7 +133,8 @@ pub struct Shell {
 	/// The active conversation's usage, for the right column's 用量 page and
 	/// the status bar's 上文 column ([`conversation::ConversationCache`]).
 	pub conversation: conversation::ConversationCache,
-	/// zetacode's own options (设置 target ②), read and written off the UI thread.
+	/// zetacode's own options (设置 target ②), read and written off the UI
+	/// thread.
 	pub remote: settings_ui::ZetacodeCache,
 	/// The desktop app's provider catalog (设置 target ③).
 	pub providers: settings_ui::ProviderCache,
@@ -935,7 +932,8 @@ impl Shell {
 		if git_tab || self.git.is_none() {
 			let _ = self.git_for_active();
 		}
-		// Same rule for the diff: read it only while a 差异比较器 page can see it.
+		// Same rule for the diff: read it only while a 差异比较器 page can see
+		// it.
 		let diff_page = self.state.visible_panes().iter().any(|pane| {
 			pane
 				.active_tab()
@@ -1056,11 +1054,7 @@ pub fn run() -> eframe::Result<()> {
 		Ok("glow") => eframe::Renderer::Glow,
 		_ => eframe::Renderer::Wgpu,
 	};
-	let options = eframe::NativeOptions {
-		viewport,
-		renderer,
-		..Default::default()
-	};
+	let options = eframe::NativeOptions { viewport, renderer, ..Default::default() };
 	eframe::run_native(APP_TITLE, options, Box::new(|cc| Ok(Box::new(Shell::new(cc)))))
 }
 

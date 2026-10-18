@@ -23,16 +23,20 @@
 //! a drive letter, a space or a CJK segment resolves to the directory the
 //! agent actually wrote.
 
-use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
-use std::sync::mpsc::{Receiver, TryRecvError, channel};
-use std::time::{Duration, Instant};
+use std::{
+	io::{BufRead, BufReader},
+	path::{Path, PathBuf},
+	sync::mpsc::{Receiver, TryRecvError, channel},
+	time::{Duration, Instant},
+};
 
 use chrono::TimeZone as _;
 use serde_json::{Map, Value};
 
-use crate::agent_sessions::AgentSessions;
-use crate::state::{AppState, SessionKind};
+use crate::{
+	agent_sessions::AgentSessions,
+	state::{AppState, SessionKind},
+};
 
 /// The page's whole empty state. One line, no number, no promise of one.
 pub const NO_SESSION: &str = "这一页没有会话";
@@ -325,7 +329,8 @@ pub fn resolve(state: &AppState, agents: &AgentSessions, roots: &SessionRoots) -
 	Some(Resolved { origin: Origin::LatestLog, summary })
 }
 
-/// The status bar's 上文 column: `上文 37%` with a real share, `上文 —` without.
+/// The status bar's 上文 column: `上文 37%` with a real share, `上文 —`
+/// without.
 pub fn status_label(percent: Option<f64>) -> String {
 	match percent {
 		Some(percent) => format!("上文 {percent:.0}%"),

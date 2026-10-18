@@ -20,16 +20,19 @@
 //! appended, and each key falling back to its default **independently** — so a
 //! hand-edited or half-written file only loses what it lost.
 
-use std::fmt;
-use std::path::{Path, PathBuf};
+use std::{
+	fmt,
+	path::{Path, PathBuf},
+};
 
 /// One of the 设置 modal's eight categories, in the order the modal lists them.
 ///
 /// 常规 comes first and is the one section the design drafts do not have: the
-/// drafts were drawn before the lifecycle rulings (关闭窗口时 / 开机自启 / 通知),
-/// so the six they fix (外观 / 编辑器 / 终端 / 快捷键 / 管理 / 关于) keep their order
-/// behind it rather than being renumbered. 项目 is the registry page the 管理
-/// card opens: the list of registered projects plus the remove action.
+/// drafts were drawn before the lifecycle rulings (关闭窗口时 / 开机自启 /
+/// 通知), so the six they fix (外观 / 编辑器 / 终端 / 快捷键 / 管理 / 关于)
+/// keep their order behind it rather than being renumbered. 项目 is the
+/// registry page the 管理 card opens: the list of registered projects plus the
+/// remove action.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Section {
 	/// 生命周期：关闭窗口时 / 开机自启 / 通知.
@@ -196,10 +199,10 @@ impl MonoFont {
 
 /// 默认 Shell: which shell a new 终端 page runs.
 ///
-/// `None` means 本机默认 — the first shell [`crate::shells::detect`] finds on this
-/// host. The value is stored by [`crate::shells::ShellKind::key`], so the file
-/// stays readable by hand and an unknown key falls back to the default instead
-/// of failing the whole file.
+/// `None` means 本机默认 — the first shell [`crate::shells::detect`] finds on
+/// this host. The value is stored by [`crate::shells::ShellKind::key`], so the
+/// file stays readable by hand and an unknown key falls back to the default
+/// instead of failing the whole file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ShellChoice(pub Option<crate::shells::ShellKind>);
 
@@ -371,7 +374,6 @@ impl Default for Settings {
 impl Settings {
 	/// The editor size choices the row offers, as the spec lists them.
 	pub const EDITOR_SIZES: [u8; 4] = [12, 13, 14, 16];
-
 	/// The terminal size choices the row offers.
 	pub const TERMINAL_SIZES: [u8; 3] = [12, 13, 14];
 }
@@ -393,8 +395,8 @@ const MANAGED: [(&str, &str); 12] = [
 	("notify", "off | background | always"),
 ];
 
-const HEADER: &str = "# zetawork settings — rewritten by the 设置 surface; other lines are kept \
-                      verbatim\n";
+const HEADER: &str =
+	"# zetawork settings — rewritten by the 设置 surface; other lines are kept verbatim\n";
 
 /// `~/.zeta/zetawork.toml`, next to the TUI's `workbench.toml`.
 pub fn settings_path() -> PathBuf {
@@ -684,7 +686,8 @@ mod tests {
 		// line is not an assignment at all, and the rest is fine.
 		std::fs::write(
 			&path,
-			"# hand written\ntheme = 不是主题\neditor_size = 99\ndensity = compact\n = = =\neditor_font = consolas\nterminal_size = 14px\n",
+			"# hand written\ntheme = 不是主题\neditor_size = 99\ndensity = compact\n = = \
+			 =\neditor_font = consolas\nterminal_size = 14px\n",
 		)
 		.unwrap();
 		let settings = load_from(&path);
@@ -700,7 +703,8 @@ mod tests {
 	fn foreign_lines_comments_and_crlf_survive_a_rewrite() {
 		let dir = temp_dir("preserve");
 		let path = dir.join("zetawork.toml");
-		let original = "# mine\r\ntheme = light          # keep this note\r\nunknown_key = 42\r\n\r\n[other]\r\ninner = true\r\n";
+		let original = "# mine\r\ntheme = light          # keep this note\r\nunknown_key = \
+		                42\r\n\r\n[other]\r\ninner = true\r\n";
 		std::fs::write(&path, original).unwrap();
 		let mut settings = load_from(&path);
 		assert_eq!(settings.theme, Theme::Light, "a # comment does not swallow the value");

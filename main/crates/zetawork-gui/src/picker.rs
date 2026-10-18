@@ -6,19 +6,21 @@
 //! both answer the same question (R23): *what can I put in the centre?* The
 //! answer is read from this host, not from a fixed list: every shell
 //! [`crate::shells::detect`] really finds (`pwsh`, Windows PowerShell, `cmd`,
-//! `bash`, Git Bash, WSL), then every page the GUI draws itself (编辑器, 差异比较器,
-//! Git, zetaide).
+//! `bash`, Git Bash, WSL), then every page the GUI draws itself (编辑器,
+//! 差异比较器, Git, zetaide).
 //!
-//! The rows are built once, when the picker opens ([`crate::Shell::open_picker`]),
-//! so a PATH scan never runs per frame.
+//! The rows are built once, when the picker opens
+//! ([`crate::Shell::open_picker`]), so a PATH scan never runs per frame.
 
 use egui::{Align, Color32, CornerRadius, FontId, Layout, Order, Rect, Sense, Stroke, pos2, vec2};
 
-use crate::Shell;
-use crate::icons::{Icon, paint};
-use crate::state::{PickerEntry, PickerTarget, SessionKind};
-use crate::theme;
-use crate::widgets::{truncated_mono, truncated_text};
+use crate::{
+	Shell,
+	icons::{Icon, paint},
+	state::{PickerEntry, PickerTarget, SessionKind},
+	theme,
+	widgets::{truncated_mono, truncated_text},
+};
 
 /// Width of the popup.
 const WIDTH: f32 = 320.0;

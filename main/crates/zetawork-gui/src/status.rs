@@ -119,9 +119,10 @@ impl RunState {
 	/// The ink the dot and the word are drawn in.
 	///
 	/// Five come straight from the mock's dot rules; the two that have none
-	/// (`◔ unconfirmed` and `‖ interrupted`) take the neutral inks: `unconfirmed`
-	/// stays legible because it is a *trust* signal — the agent claims it is
-	/// finished and it is not verified — while `interrupted` recedes one step.
+	/// (`◔ unconfirmed` and `‖ interrupted`) take the neutral inks:
+	/// `unconfirmed` stays legible because it is a *trust* signal — the agent
+	/// claims it is finished and it is not verified — while `interrupted`
+	/// recedes one step.
 	pub fn ink(self) -> Color32 {
 		match self {
 			Self::Perm => theme::WARN,
@@ -155,8 +156,9 @@ impl RunState {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use std::collections::HashSet;
+
+	use super::*;
 
 	/// The contract's table: word, meaning and key, verbatim. The *icon* is not
 	/// pinned here — `widgets::status_dot` paints it, so no codepoint can turn

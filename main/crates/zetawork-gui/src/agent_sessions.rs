@@ -24,9 +24,11 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::agent::{Effect, Frame, SessionView};
-use crate::agent_events::{AgentEvents, Event};
-use crate::notify::{Message, Trigger};
+use crate::{
+	agent::{Effect, Frame, SessionView},
+	agent_events::{AgentEvents, Event},
+	notify::{Message, Trigger},
+};
 
 /// The link between one pane and the gateway.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -344,10 +346,12 @@ fn summarize_request(request: &Value) -> String {
 
 #[cfg(test)]
 mod tests {
-	use std::io::{Read, Write};
-	use std::net::{Shutdown, TcpListener};
-	use std::thread;
-	use std::time::{Duration, Instant};
+	use std::{
+		io::{Read, Write},
+		net::{Shutdown, TcpListener},
+		thread,
+		time::{Duration, Instant},
+	};
 
 	use super::*;
 
@@ -398,7 +402,8 @@ mod tests {
 	#[test]
 	fn a_frame_from_a_fake_serve_reaches_the_reducer_and_its_effect() {
 		let origin = fake_serve(
-			"data: {\"type\":\"extension_ui_request\",\"id\":\"r1\",\"method\":\"confirm\",\"title\":\"允许执行？\"}\n\n",
+			"data: {\"type\":\"extension_ui_request\",\"id\":\"r1\",\"method\":\"confirm\",\"title\":\
+			 \"允许执行？\"}\n\n",
 		);
 		let mut sessions = AgentSessions::default();
 		sessions.connect("t1", &origin, "s1").expect("thread start");
@@ -439,10 +444,10 @@ mod tests {
 	#[test]
 	fn needs_input_and_the_finished_edge_each_notify_exactly_once() {
 		let origin = fake_serve(
-			"data: {\"type\":\"connected\",\"sessionId\":\"s1\"}\n\n\
-			 data: {\"type\":\"running\"}\n\n\
-			 data: {\"type\":\"extension_ui_request\",\"id\":\"r1\",\"method\":\"confirm\",\"title\":\"允许执行？\"}\n\n\
-			 data: {\"type\":\"not-running\"}\n\n",
+			"data: {\"type\":\"connected\",\"sessionId\":\"s1\"}\n\ndata: \
+			 {\"type\":\"running\"}\n\ndata: \
+			 {\"type\":\"extension_ui_request\",\"id\":\"r1\",\"method\":\"confirm\",\"title\":\"\
+			 允许执行？\"}\n\ndata: {\"type\":\"not-running\"}\n\n",
 		);
 		let mut sessions = AgentSessions::default();
 		sessions.connect("t1", &origin, "s1").expect("thread start");

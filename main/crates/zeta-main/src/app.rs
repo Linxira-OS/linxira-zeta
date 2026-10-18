@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-use std::{io::Stdout, time::Duration, time::Instant};
+use std::{
+	io::Stdout,
+	time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use crossterm::event::{
@@ -1865,11 +1868,12 @@ impl Workspace {
 		])
 		.split(size);
 
-		// The rail owns the left column for the whole body height, so the 大标签页
-		// strip belongs to the centre column only — the nesting the GUI already
-		// draws (left column | centre with its big tabs | right column). The
-		// strip used to span the full width with the rail starting a row lower,
-		// which put the workspace level outside the column it belongs to.
+		// The rail owns the left column for the whole body height, so the
+		// 大标签页 strip belongs to the centre column only — the nesting
+		// the GUI already draws (left column | centre with its big tabs |
+		// right column). The strip used to span the full width with the
+		// rail starting a row lower, which put the workspace level outside
+		// the column it belongs to.
 		let body = Rect {
 			x: size.x,
 			y: rows[1].y,
