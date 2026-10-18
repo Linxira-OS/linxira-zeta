@@ -20,10 +20,13 @@
  * Retained exited records are dropped with an `expired` signal, and an explicit
  * DELETE emits `session_ended` (reason `killed`) before the PTY is reaped.
  *
- * The default program is the framework workbench `zetawork` (npm bins `zeta` /
- * `zetawork`); when it is not installed the session falls back to the platform
- * shell and reports `fallbackReason` so the UI can say so out loud instead of
- * hiding the substitution.
+ * The default program is the **platform shell** — a terminal is the system's
+ * shell, not one of our own surfaces. The workbench (`zetawork`) is opt-in
+ * (`program: "workbench"`); when it is asked for and missing, the session falls
+ * back to the shell and reports `fallbackReason` so the UI can say so out loud
+ * instead of hiding the substitution. (The default used to be the workbench,
+ * discovered through `PATH`: on a machine with an older npm install that both
+ * replaced the user's shell and started the old workbench.)
  *
  * Data plane: GET /api/terminal/:id/ws (WebSocket upgrade). Browsers cannot
  * attach `Authorization`/`X-Zeta-Token` headers to a WebSocket, so the upgrade
@@ -340,6 +343,8 @@ class TerminalManager {
 		col?: number;
 		/** Slot to claim; `ensure` supplies one, a bare create allocates "default". */
 		instanceId?: string;
+		/** `shell` (default) or the opt-in `workbench`. */
+		program?: "shell" | "workbench";
 	}): Promise<{ ok: true; session: TerminalSession; ticket: string; injected: boolean } | TerminalFailure> {
 		this.#pruneTickets();
 		const resolved = this.#resolveCwd(options.cwd);
@@ -365,7 +370,7 @@ class TerminalManager {
 			};
 		}
 
-		const program = resolveSessionProgram(defaultProbeContext());
+		const program = resolveSessionProgram(defaultProbeContext(), { program: options.program });
 		if (!program)
 			return { ok: false, status: 500, code: "no_program", error: "no terminal shell found on this system" };
 
@@ -436,6 +441,8 @@ class TerminalManager {
 		line?: number;
 		col?: number;
 		replace?: boolean;
+		/** `shell` (default) or the opt-in `workbench`. */
+		program?: "shell" | "workbench";
 	}): Promise<
 		{ ok: true; session: TerminalSession; ticket: string; reused: boolean; injected: boolean } | TerminalFailure
 	> {
@@ -723,12 +730,23 @@ function windowsShimWrapper(command: string, ctx: OpenProbeContext): { command: 
 }
 
 /**
- * Program for a new PTY: the workbench when `zetawork` resolves through the
- * shared discovery tiers, else the platform shell with `fallbackReason` set.
- * Null only when neither exists (no shell on the machine).
+ * Program for a new PTY.
+ *
+ * The platform shell is the default and the normal answer: a terminal page is
+ * the system's terminal. `program: "workbench"` is the opt-in that runs the
+ * framework workbench instead — and only then is a missing workbench a
+ * `fallbackReason`, because only then was something substituted.
+ *
+ * Null when the requested program and no shell exist (nothing can run).
  */
-export function resolveSessionProgram(ctx: OpenProbeContext = defaultProbeContext()): SessionProgram | null {
-	const workbench = discoverBin(ZETAWORK_BINS, { env: ctx.env, platform: ctx.platform, exists: ctx.exists });
+export function resolveSessionProgram(
+	ctx: OpenProbeContext = defaultProbeContext(),
+	options: { program?: "shell" | "workbench" } = {},
+): SessionProgram | null {
+	const wantsWorkbench = options.program === "workbench";
+	const workbench = wantsWorkbench
+		? discoverBin(ZETAWORK_BINS, { env: ctx.env, platform: ctx.platform, exists: ctx.exists })
+		: null;
 	if (workbench) {
 		const wrapped = windowsShimWrapper(workbench, ctx);
 		return {
@@ -752,7 +770,7 @@ export function resolveSessionProgram(ctx: OpenProbeContext = defaultProbeContex
 		label: shell.label,
 		command: shell.command,
 		args: shellSpawnArgs(shell),
-		fallbackReason: "workbench-not-found",
+		fallbackReason: wantsWorkbench ? "workbench-not-found" : null,
 	};
 }
 
@@ -859,6 +877,7 @@ export async function handleTerminalEnsure(req: Request): Promise<Response> {
 		line: intOrUndefined(body.line),
 		col: intOrUndefined(body.col),
 		replace: body.replace === true,
+		program: body.program === "workbench" ? "workbench" : undefined,
 	});
 	if (!result.ok) {
 		return failurePayload(result, result.code === "terminal_limit" ? { limit: MAX_LIVE_TERMINALS } : {});

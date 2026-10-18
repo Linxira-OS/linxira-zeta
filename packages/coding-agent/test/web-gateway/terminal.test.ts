@@ -195,7 +195,7 @@ describe("buildZetaIdeCommand", () => {
 	});
 });
 
-// --- session program (workbench first, shell fallback) ---
+// --- session program (shell default, workbench opt-in) ---
 
 describe("resolveSessionProgram", () => {
 	const probe = (overrides: Partial<OpenProbeContext> = {}): OpenProbeContext => ({
@@ -206,8 +206,22 @@ describe("resolveSessionProgram", () => {
 		...overrides,
 	});
 
-	test("prefers the workbench when zetawork resolves", () => {
+	test("defaults to the platform shell even when a workbench is installed", () => {
+		// A terminal page is the system's terminal. The workbench used to win
+		// here, discovered through PATH — on a machine with an older npm install
+		// that both replaced the user's shell and started the old workbench.
 		const program = resolveSessionProgram(probe());
+		expect(program).toEqual({
+			kind: "shell",
+			label: "zsh",
+			command: "/bin/zsh",
+			args: [],
+			fallbackReason: null,
+		});
+	});
+
+	test("runs the workbench only when it is asked for", () => {
+		const program = resolveSessionProgram(probe(), { program: "workbench" });
 		expect(program).toEqual({
 			kind: "workbench",
 			label: "zetawork",
@@ -217,8 +231,10 @@ describe("resolveSessionProgram", () => {
 		});
 	});
 
-	test("falls back to the platform shell and says why", () => {
-		const program = resolveSessionProgram(probe({ exists: (candidate: string) => candidate === "/bin/zsh" }));
+	test("a requested workbench that is missing falls back to the shell and says why", () => {
+		const program = resolveSessionProgram(probe({ exists: (candidate: string) => candidate === "/bin/zsh" }), {
+			program: "workbench",
+		});
 		expect(program?.kind).toBe("shell");
 		expect(program?.command).toBe("/bin/zsh");
 		expect(program?.fallbackReason).toBe("workbench-not-found");
@@ -229,6 +245,7 @@ describe("resolveSessionProgram", () => {
 		// only fallback the discovery loop probes is the bare `zeta` launcher.
 		const program = resolveSessionProgram(
 			probe({ exists: (candidate: string) => candidate === "/bin/zeta" || candidate === "/bin/bash" }),
+			{ program: "workbench" },
 		);
 		expect(program?.kind).toBe("workbench");
 		expect(program?.command).toBe("/bin/zeta");
@@ -236,12 +253,15 @@ describe("resolveSessionProgram", () => {
 	});
 
 	test("Windows npm shims (.cmd) are started through cmd.exe", () => {
-		const program = resolveSessionProgram({
-			platform: "win32",
-			env: { PATH: "C:\\npm", ComSpec: "C:\\WINDOWS\\system32\\cmd.exe" },
-			exists: (candidate: string) => candidate === "C:\\npm\\zetawork.cmd",
-			now: () => 0,
-		});
+		const program = resolveSessionProgram(
+			{
+				platform: "win32",
+				env: { PATH: "C:\\npm", ComSpec: "C:\\WINDOWS\\system32\\cmd.exe" },
+				exists: (candidate: string) => candidate === "C:\\npm\\zetawork.cmd",
+				now: () => 0,
+			},
+			{ program: "workbench" },
+		);
 		// ConPTY cannot exec a script: spawn cmd.exe with `/c <shim>` (#148).
 		expect(program).toEqual({
 			kind: "workbench",
@@ -252,7 +272,7 @@ describe("resolveSessionProgram", () => {
 		});
 	});
 
-	test("returns null when neither the workbench nor a shell exists", () => {
+	test("returns null when no shell exists", () => {
 		expect(resolveSessionProgram(probe({ exists: () => false }))).toBeNull();
 	});
 });
@@ -581,6 +601,8 @@ describe("terminal ensure (P1 slots)", () => {
 		id: string;
 		instance: string;
 		program: "workbench" | "shell";
+		/** The shell the session runs (the program label when it is the shell). */
+		shell: string;
 		fallbackReason: string | null;
 		reused: boolean;
 		injected: boolean;
@@ -723,16 +745,21 @@ describe("terminal ensure (P1 slots)", () => {
 		expect(fakePtys.length).toBe(0);
 	});
 
-	test("ensure reports the workbench program and the shell fallback", async () => {
+	test("ensure defaults to the system shell, and runs the workbench only on request", async () => {
 		await setup();
 		installFakePty();
 		const cwd = await makeCwd();
-		// The PTY backend is faked but program resolution is real: whichever way
-		// this machine resolves, the payload must state it.
+		// The PTY backend is faked but program resolution is real.
 		const body = await ensureOk({ cwd, instanceId: "t1" });
-		expect(["workbench", "shell"]).toContain(body.program);
-		expect(body.fallbackReason).toBe(body.program === "shell" ? "workbench-not-found" : null);
+		expect(body.program).toBe("shell");
+		expect(body.fallbackReason).toBeNull();
+		expect(body.shell.length).toBeGreaterThan(0);
 		expect(fakePtys[0].spec.application.length).toBeGreaterThan(0);
+
+		// Opting in states the outcome: the workbench, or the shell plus why.
+		const workbench = await ensureOk({ cwd, instanceId: "t2", program: "workbench" });
+		expect(["workbench", "shell"]).toContain(workbench.program);
+		expect(workbench.fallbackReason).toBe(workbench.program === "shell" ? "workbench-not-found" : null);
 	});
 });
 
