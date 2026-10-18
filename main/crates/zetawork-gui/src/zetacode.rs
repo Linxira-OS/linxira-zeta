@@ -875,24 +875,31 @@ mod tests {
 		);
 		assert!(names.iter().any(|name| name.starts_with("zetacode")));
 
+		// The names are per platform (`zetacode` on unix, `zetacode.exe` on
+		// Windows), so the fixture uses the list's own first entry rather than
+		// a hard-coded Windows spelling; the decoy is the workbench's name on
+		// this platform. The Linux leg caught the hard-coded version.
+		let cli = names[0];
+		let workbench = if cfg!(windows) { "zeta.exe" } else { "zeta" };
+
 		let scratch = tempfile::tempdir().expect("scratch dir");
 		let dir = scratch.path();
-		std::fs::write(dir.join("zeta.exe"), b"workbench").expect("write decoy");
-		std::fs::write(dir.join("zetacode.exe"), b"cli").expect("write cli");
+		std::fs::write(dir.join(workbench), b"workbench").expect("write decoy");
+		std::fs::write(dir.join(cli), b"cli").expect("write cli");
 		let found = candidates(dir, Companion::Zetacode);
-		// Beside the shell (and in its `bin/`) only `zetacode` counts. The
-		// checkout's `packages/coding-agent/dist/zeta.exe` stays legal: that
+		// Beside the shell (and in its `bin/`) only the CLI's own name counts.
+		// The checkout's `packages/coding-agent/dist/zeta` stays legal: that
 		// directory is the CLI's own build, not the workbench's neighbour.
 		for beside in [dir.to_path_buf(), dir.join("bin")] {
 			assert!(
-				!found.contains(&beside.join("zeta.exe")),
+				!found.contains(&beside.join(workbench)),
 				"the workbench beside the GUI must not be a candidate: {found:?}"
 			);
 		}
 		assert!(
 			found
 				.iter()
-				.any(|path| path.file_name().is_some_and(|name| name == "zetacode.exe")),
+				.any(|path| path.file_name().is_some_and(|name| name == cli)),
 			"the real CLI beside the GUI is: {found:?}"
 		);
 	}
