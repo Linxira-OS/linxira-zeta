@@ -151,8 +151,12 @@ fn run_git(path: &Path, args: &[&str]) -> Result<String, String> {
 	#[cfg(windows)]
 	cmd.creation_flags(CREATE_NO_WINDOW);
 
-	let output = cmd
-		.output()
+	let child = cmd
+		.spawn()
+		.map_err(|err| format!("git {}: {}", args.join(" "), err))?;
+	crate::spawn_probe::record_command(child.id(), &cmd);
+	let output = child
+		.wait_with_output()
 		.map_err(|err| format!("git {}: {}", args.join(" "), err))?;
 	if !output.status.success() {
 		let stderr = String::from_utf8_lossy(&output.stderr);

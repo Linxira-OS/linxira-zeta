@@ -26,9 +26,9 @@
 //!   honest "session ended" signal this side owns;
 //! * **title** — the child's OSC 0/2 title, for pane naming.
 //!
-//! Input forwarding is not wired yet: the GUI has no focused-pane keyboard
-//! path, and inventing one here would be a second input model. The PTY is
-//! writable through [`LiveSessions::send_text`] the moment that path lands.
+//! Input forwarding is wired for the focused pane (`Shell::forward_terminal_input`
+//! → [`LiveSessions::send_bytes`]); [`LiveSessions::ensure_program`] is how a
+//! companion page (zetacode) runs its own binary in this PTY instead of a shell.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -252,6 +252,11 @@ impl LiveSessions {
 		}
 		match spawn_local(rows, cols, cwd) {
 			Some((term, command)) => {
+				// The PTY child's pid is the one thing termide reports, and its
+				// argv is the single command line this side handed over.
+				if let Some(pid) = term.shell_pid() {
+					crate::spawn_probe::record(pid, &[command.as_str()]);
+				}
 				self.tabs.insert(
 					tab.to_owned(),
 					Live { term, command, cols, rows, title: None, ended: false },
@@ -259,6 +264,41 @@ impl LiveSessions {
 				true
 			},
 			None => false,
+		}
+	}
+
+	/// Spawn the PTY for `tab` running `program` **itself** — a shipped
+	/// companion binary, with no shell in between. Resizes like [`Self::ensure`]
+	/// when the tab already has a terminal; `false` means the spawn failed.
+	pub fn ensure_program(
+		&mut self,
+		tab: &str,
+		cols: u16,
+		rows: u16,
+		cwd: Option<PathBuf>,
+		program: &std::path::Path,
+	) -> bool {
+		if let Some(live) = self.tabs.get_mut(tab) {
+			if live.cols != cols || live.rows != rows {
+				let _ = live.term.resize(rows, cols);
+				live.cols = cols;
+				live.rows = rows;
+			}
+			return true;
+		}
+		let command = program.to_string_lossy().into_owned();
+		match Terminal::new_with_shell(rows, cols, &command, cwd) {
+			Ok(term) => {
+				if let Some(pid) = term.shell_pid() {
+					crate::spawn_probe::record(pid, &[command.as_str()]);
+				}
+				self.tabs.insert(
+					tab.to_owned(),
+					Live { term, command, cols, rows, title: None, ended: false },
+				);
+				true
+			},
+			Err(_) => false,
 		}
 	}
 
@@ -285,13 +325,6 @@ impl LiveSessions {
 		};
 		live.term.render(area, buf, &ctx);
 		true
-	}
-
-	/// Type into the pane (paste path; the keyboard path is not wired yet).
-	pub fn send_text(&mut self, tab: &str, text: &str) {
-		if let Some(live) = self.tabs.get_mut(tab) {
-			let _ = live.term.paste_text(text);
-		}
 	}
 
 	/// Forget a closed tab's terminal. Dropping the `Terminal` closes the PTY,

@@ -41,6 +41,7 @@ pub mod seed;
 pub mod settings;
 pub mod settings_ui;
 pub mod shells;
+pub mod spawn_probe;
 pub mod state;
 pub mod stats;
 pub mod status;
@@ -152,9 +153,6 @@ pub struct Shell {
 	pub term_buffers: BufferCache,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
-	/// Tabs whose one-shot launch command (`zetacode`, from a project's `+`)
-	/// has already been typed into their shell.
-	pub launched_commands: std::collections::HashSet<String>,
 	/// The serve-backed alternative for terminal tabs ([`terminal_service`]):
 	/// a PTY in `zetacode serve` reached over the gateway's WebSocket.
 	pub terminals: terminal_service::TerminalHost,
@@ -277,7 +275,6 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
-			launched_commands: std::collections::HashSet::new(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
@@ -332,7 +329,6 @@ impl Shell {
 			diff_at: None,
 			term_buffers: BufferCache::default(),
 			live: live::LiveSessions::default(),
-			launched_commands: std::collections::HashSet::new(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
@@ -766,8 +762,9 @@ impl Shell {
 	/// Drain every serve-backed terminal once.
 	///
 	/// Output and `Opened` repaint. A transport failure is the fallback edge:
-	/// the tab becomes [`terminal_service::Backend::Local`] and its status line
-	/// names the reason, so the in-process PTY takes over on the next frame.
+	/// the tab becomes [`terminal_service::Backend::Local`], its status line
+	/// collapses to one sentence, and the tooltip keeps the full reason, so the
+	/// in-process PTY takes over on the next frame.
 	/// A serve-side exit (`exit` / `session_ended`) keeps the final grid and
 	/// raises the same notification the local PTY's exit does.
 	pub fn poll_terminals(&mut self, ctx: &Context) {
@@ -791,12 +788,10 @@ impl Shell {
 						ctx.request_repaint();
 					}
 				},
-				terminal_service::HostEvent::Failed { tab } => {
-					// The reason lives in the pane's status line; no second
-					// notice for the same event. The tab is about to fall back
-					// to the local PTY, so a queued launch command has to be
-					// typed again once that shell exists.
-					self.launched_commands.remove(&tab);
+				terminal_service::HostEvent::Failed { tab: _ } => {
+					// The backend is already `Local`; the status line carries
+					// the one sentence and the tooltip the full reason. No
+					// second notice for the same event.
 					self.state.needs_redraw = true;
 				},
 				terminal_service::HostEvent::Ended { tab, reason } => {

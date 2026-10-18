@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! zetacode's own options, and the desktop app's provider (服务商) catalog.
+//! zetacode's own options, the desktop app's provider (服务商) catalog, and
+//! where the shipped companion binaries live.
 //!
 //! The 设置 modal has two rows that belong to zetacode rather than to
 //! zetawork: the option list `zetacode config list --json` prints (backed by
@@ -7,9 +8,16 @@
 //! `<home>/.zeta/agent/models.yml` that the desktop app reads to reach a
 //! model. This module is the real backend for both.
 //!
+//! [`Companion`] answers the other question the GUI asks itself: *which
+//! `zetacode` / `zetaide` do I start?* Only the ones this install ships —
+//! next to the GUI, in the npm platform leaves beside it, or in the checkout a
+//! dev build came from. `PATH` is never consulted (a global npm install is a
+//! different, older program), and when nothing is found [`resolve`] returns
+//! the exact sentence the pane shows.
+//!
 //! # What is real
 //!
-//! [`config_list`] and [`set`] spawn the real `zetacode` binary — never a
+//! [`config_list`] and [`set`] spawn the real [`resolve`]d binary — never a
 //! shell, stdin closed, both pipes captured, no console window on Windows —
 //! and hand back exactly what it printed. [`parse_config_list`] and
 //! [`parse_providers`] are the parsers behind them, and
@@ -37,120 +45,220 @@ use std::{
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-/// The CLI this module drives.
-const CLI: &str = "zetacode";
-
-/// The executable names to try, in order: the `.exe` Windows ships first, then
-/// the bare name (a shim, or a unix install).
-pub fn executable_names() -> &'static [&'static str] {
-	#[cfg(windows)]
-	{
-		&["zetacode.exe", "zetacode"]
-	}
-	#[cfg(not(windows))]
-	{
-		&["zetacode"]
-	}
-}
-
-/// The command line to type into a shell: quoted only when the path needs it.
-pub fn command_for(path: &Path) -> String {
-	let text = path.to_string_lossy();
-	if text.chars().any(|c| c.is_whitespace()) {
-		format!("\"{text}\"")
-	} else {
-		text.into_owned()
-	}
-}
-
-/// Candidate directories, in resolution order: the running GUI's own directory
-/// first, then the shipped npm layouts, then `PATH`.
+/// A binary zetawork ships and starts itself.
 ///
-/// The function is pure: it only builds the list; [`resolve_in`] decides which
-/// entry is a file.
-pub fn search_dirs(exe_dir: &Path, npm_bins: &[PathBuf], path_dirs: &[PathBuf]) -> Vec<PathBuf> {
-	let mut out = Vec::with_capacity(1 + npm_bins.len() + path_dirs.len());
-	for dir in std::iter::once(exe_dir)
-		.chain(npm_bins.iter().map(PathBuf::as_path))
-		.chain(path_dirs.iter().map(PathBuf::as_path))
-	{
-		if !out.iter().any(|seen: &PathBuf| seen == dir) {
-			out.push(dir.to_path_buf());
+/// Resolution never consults `PATH`: a global npm install is an older program
+/// with a different UI, and starting it instead of the shipped one is exactly
+/// the bug this enum exists to prevent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Companion {
+	/// The coding-agent CLI the GUI's zetacode page runs.
+	Zetacode,
+	/// The terminal IDE (`zetaide`, shipped as `termide`).
+	Zetaide,
+}
+
+impl Companion {
+	/// The name the user knows it by; the missing-binary sentence uses it.
+	pub fn name(self) -> &'static str {
+		match self {
+			Self::Zetacode => "zetacode",
+			Self::Zetaide => "zetaide",
 		}
 	}
-	out
-}
 
-/// Every candidate file for `dirs`, names in [`executable_names`] order.
-pub fn candidates(dirs: &[PathBuf]) -> Vec<PathBuf> {
-	let mut out = Vec::with_capacity(dirs.len() * executable_names().len());
-	for dir in dirs {
-		for name in executable_names() {
-			out.push(dir.join(name));
+	/// The file names that count as this companion, the platform spelling
+	/// first. `zeta` is the coding agent's built binary, `termide` is the
+	/// zetaide the `@linxiraos/ide*` leaves ship.
+	pub fn executable_names(self) -> &'static [&'static str] {
+		#[cfg(windows)]
+		{
+			match self {
+				Self::Zetacode => &["zetacode.exe", "zeta.exe", "zetacode", "zeta"],
+				Self::Zetaide => &["zetaide.exe", "termide.exe", "zetaide", "termide"],
+			}
 		}
-	}
-	out
-}
-
-/// The `main/npm/<package>/bin` directories of a source checkout, found by
-/// walking up from the running executable.
-///
-/// A shipped GUI is extracted next to the packages, so `zetacode.exe` sits in
-/// the same directory (checked before this list). A dev build runs from
-/// `main/target/debug`, four levels below the checkout root, which is why the
-/// walk exists rather than one relative path.
-pub fn npm_bin_dirs(exe_dir: &Path) -> Vec<PathBuf> {
-	let mut out = Vec::new();
-	for ancestor in exe_dir.ancestors() {
-		for npm in [ancestor.join("main").join("npm"), ancestor.join("npm")] {
-			let Ok(entries) = std::fs::read_dir(&npm) else {
-				continue;
-			};
-			for entry in entries.flatten() {
-				let bin = entry.path().join("bin");
-				if bin.is_dir() && !out.contains(&bin) {
-					out.push(bin);
-				}
+		#[cfg(not(windows))]
+		{
+			match self {
+				Self::Zetacode => &[
+					"zetacode",
+					"zeta",
+					"zeta-linux-x64",
+					"zeta-linux-arm64",
+					"zeta-darwin-x64",
+					"zeta-darwin-arm64",
+				],
+				Self::Zetaide => &[
+					"zetaide",
+					"termide",
+					"termide-linux-x64",
+					"termide-linux-arm64",
+					"termide-darwin-x64",
+					"termide-darwin-arm64",
+				],
 			}
 		}
 	}
-	out
-}
 
-/// The first candidate that exists, checked in [`search_dirs`] order.
-pub fn resolve_in(exe_dir: &Path, npm_bins: &[PathBuf], path_dirs: &[PathBuf]) -> Option<PathBuf> {
-	candidates(&search_dirs(exe_dir, npm_bins, path_dirs))
-		.into_iter()
-		.find(|candidate| candidate.is_file())
-}
+	/// The `@linxiraos/<prefix>*` package-name prefix the npm platform leaves
+	/// are published under (zetacode: `zeta*`, zetaide: `ide*`).
+	fn scope_prefix(self) -> &'static str {
+		match self {
+			Self::Zetacode => "zeta",
+			Self::Zetaide => "ide",
+		}
+	}
 
-/// Resolve the shipped `zetacode` for this process.
-///
-/// The GUI's own directory wins over `PATH` on purpose: a machine with an older
-/// global install must still open the binary that shipped with this GUI.
-pub fn resolve() -> Option<PathBuf> {
-	let exe = std::env::current_exe().ok()?;
-	let exe_dir = exe.parent()?;
-	let npm_bins = npm_bin_dirs(exe_dir);
-	let path_dirs: Vec<PathBuf> = std::env::var_os("PATH")
-		.map(|path| std::env::split_paths(&path).collect())
-		.unwrap_or_default();
-	resolve_in(exe_dir, &npm_bins, &path_dirs)
-}
-
-/// The command a new zetacode pane types into its shell: the resolved shipped
-/// binary when there is one, the bare [`CLI`] otherwise (so the pane still
-/// opens, and its status line says it fell back to `PATH`).
-pub fn resolved_command() -> String {
-	match resolve() {
-		Some(path) => command_for(&path),
-		None => CLI.to_owned(),
+	/// The names a checkout's dev build is known by.
+	fn dev_names(self) -> &'static [&'static str] {
+		#[cfg(windows)]
+		{
+			match self {
+				Self::Zetacode => &["zeta.exe", "zeta"],
+				Self::Zetaide => &["termide.exe", "termide"],
+			}
+		}
+		#[cfg(not(windows))]
+		{
+			match self {
+				Self::Zetacode => &["zeta"],
+				Self::Zetaide => &["termide", "termide-linux-x64", "termide-linux-arm64"],
+			}
+		}
 	}
 }
 
-/// True when `command` was resolved to an absolute path rather than `PATH`.
-pub fn is_resolved(command: &str) -> bool {
-	Path::new(command.trim_matches('"')).is_absolute()
+/// What a companion page's PTY runs: the resolved shipped binary, or the one
+/// sentence explaining that this install ships none.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Launch {
+	/// Run this binary directly — no shell, nothing typed into one.
+	Binary(PathBuf),
+	/// Nothing shipped was found; show this sentence in the pane.
+	Missing(String),
+}
+
+/// The package directories under `scope` whose name starts with `prefix`, in
+/// name order so the candidate list is stable between runs.
+/// `prefix` empty keeps every directory.
+fn scoped_packages(scope: &Path, prefix: &str) -> Vec<PathBuf> {
+	let Ok(entries) = std::fs::read_dir(scope) else {
+		return Vec::new();
+	};
+	let mut found: Vec<PathBuf> = entries
+		.flatten()
+		.map(|entry| entry.path())
+		.filter(|path| path.is_dir())
+		.filter(|path| {
+			prefix.is_empty()
+				|| path
+					.file_name()
+					.and_then(|name| name.to_str())
+					.is_some_and(|name| name.starts_with(prefix))
+		})
+		.collect();
+	found.sort();
+	found
+}
+
+fn push_unique(out: &mut Vec<PathBuf>, path: PathBuf) {
+	if !out.contains(&path) {
+		out.push(path);
+	}
+}
+
+/// Every file this build would accept for `companion`, in resolution order.
+///
+/// 1. next to the running GUI — its own directory, then a `bin/` under it;
+/// 2. the npm platform leaves one level up: `<exe>/../node_modules/`
+///    `@linxiraos/{zeta,ide}*/bin/*`;
+/// 3. a source checkout, walking up from the GUI's own directory:
+///    `packages/coding-agent/dist/zeta(.exe)` for zetacode and
+///    `termide/target/release/termide(.exe)` / `main/npm/<package>/bin` for
+///    zetaide.
+///
+/// `PATH` is not a candidate: the only accepted programs are the ones this
+/// install ships.
+pub fn candidates(exe_dir: &Path, companion: Companion) -> Vec<PathBuf> {
+	let mut out = Vec::new();
+	// 1. The GUI's own directory and its `bin/`.
+	for dir in [exe_dir.to_path_buf(), exe_dir.join("bin")] {
+		for name in companion.executable_names() {
+			push_unique(&mut out, dir.join(name));
+		}
+	}
+	// 2. The npm platform leaves installed next to this install.
+	if let Some(scope) = exe_dir
+		.parent()
+		.map(|dir| dir.join("node_modules").join("@linxiraos"))
+	{
+		for package in scoped_packages(&scope, companion.scope_prefix()) {
+			for name in companion.executable_names() {
+				push_unique(&mut out, package.join("bin").join(name));
+			}
+		}
+	}
+	// 3. The source checkout this binary was built from.
+	for ancestor in exe_dir.ancestors() {
+		match companion {
+			Companion::Zetacode => {
+				for name in companion.dev_names() {
+					push_unique(
+						&mut out,
+						ancestor.join("packages").join("coding-agent").join("dist").join(name),
+					);
+				}
+			},
+			Companion::Zetaide => {
+				for name in companion.dev_names() {
+					push_unique(
+						&mut out,
+						ancestor.join("termide").join("target").join("release").join(name),
+					);
+				}
+				for package in scoped_packages(&ancestor.join("main").join("npm"), "") {
+					for name in companion.executable_names() {
+						push_unique(&mut out, package.join("bin").join(name));
+					}
+				}
+			},
+		}
+	}
+	out
+}
+
+/// The first candidate that is a file, or every path that was searched.
+pub fn resolve_in(exe_dir: &Path, companion: Companion) -> Result<PathBuf, Vec<PathBuf>> {
+	let searched = candidates(exe_dir, companion);
+	match searched.iter().find(|path| path.is_file()) {
+		Some(path) => Ok(path.clone()),
+		None => Err(searched),
+	}
+}
+
+/// The exact sentence a pane shows when nothing shipped was found.
+pub fn missing_sentence(companion: Companion, searched: &[PathBuf]) -> String {
+	let paths: Vec<String> = searched.iter().map(|path| path.display().to_string()).collect();
+	format!("未找到随包的 {}：{}", companion.name(), paths.join(", "))
+}
+
+/// Resolve `companion` for this process, or the sentence explaining why the
+/// install cannot open it.
+pub fn resolve(companion: Companion) -> Result<PathBuf, String> {
+	let missing = |detail: String| format!("未找到随包的 {}：{}", companion.name(), detail);
+	let exe = std::env::current_exe().map_err(|err| missing(format!("无法定位运行目录（{err}）")))?;
+	let exe_dir = exe.parent().ok_or_else(|| missing("无法定位运行目录".to_owned()))?;
+	resolve_in(exe_dir, companion).map_err(|searched| missing_sentence(companion, &searched))
+}
+
+/// Resolve `companion` for a new page: the binary to run, or the sentence the
+/// pane shows instead.
+pub fn launch(companion: Companion) -> Launch {
+	match resolve(companion) {
+		Ok(path) => Launch::Binary(path),
+		Err(sentence) => Launch::Missing(sentence),
+	}
 }
 
 /// One option `zetacode config list` reports.
@@ -409,13 +517,19 @@ pub fn write_provider_field(
 	fs::write(&path, edited).map_err(|err| format!("{}: {err}", path.display()))
 }
 
-/// Run `zetacode <args>…`, returning `(stdout, stderr)` with `\r` stripped.
+/// Run the shipped `zetacode <args>…`, returning `(stdout, stderr)` with `\r`
+/// stripped.
 ///
-/// stdin is closed and both pipes are captured; on Windows the child gets
-/// [`CREATE_NO_WINDOW`]. A non-zero exit is an `Err` carrying the stderr text,
-/// so callers can show what the CLI complained about.
+/// The binary is the one this install ships ([`resolve`]) — never a `PATH`
+/// lookup, so the settings modal cannot silently drive an older global npm
+/// install. stdin is closed and both pipes are captured; on Windows the child
+/// gets [`CREATE_NO_WINDOW`]. A non-zero exit is an `Err` carrying the stderr
+/// text, so callers can show what the CLI complained about; a missing binary is
+/// the resolution sentence.
 fn run_zetacode(args: &[String]) -> Result<(String, String), String> {
-	let mut cmd = Command::new(CLI);
+	let program = resolve(Companion::Zetacode)?;
+	let shown = program.display().to_string();
+	let mut cmd = Command::new(&program);
 	cmd.args(args);
 	cmd.stdin(Stdio::null())
 		.stdout(Stdio::piped())
@@ -424,7 +538,11 @@ fn run_zetacode(args: &[String]) -> Result<(String, String), String> {
 	cmd.creation_flags(CREATE_NO_WINDOW);
 
 	let argv = args.join(" ");
-	let output = cmd.output().map_err(|err| format!("{CLI} {argv}: {err}"))?;
+	let child = cmd.spawn().map_err(|err| format!("{shown} {argv}: {err}"))?;
+	crate::spawn_probe::record_command(child.id(), &cmd);
+	let output = child
+		.wait_with_output()
+		.map_err(|err| format!("{shown} {argv}: {err}"))?;
 	let stdout = String::from_utf8_lossy(&output.stdout).replace('\r', "");
 	let stderr = String::from_utf8_lossy(&output.stderr).replace('\r', "");
 	if !output.status.success() {
@@ -434,7 +552,7 @@ fn run_zetacode(args: &[String]) -> Result<(String, String), String> {
 		} else {
 			detail
 		};
-		return Err(format!("{CLI} {argv}: {detail}"));
+		return Err(format!("{shown} {argv}: {detail}"));
 	}
 	Ok((stdout, stderr))
 }
@@ -895,84 +1013,125 @@ mod tests {
 	}
 
 	#[test]
-	fn resolution_order_is_exe_dir_then_npm_bins_then_path() {
-		let exe = PathBuf::from("gui");
-		let npm = vec![PathBuf::from("pkg").join("bin")];
-		let path = vec![PathBuf::from("path")];
-		let dirs = search_dirs(&exe, &npm, &path);
-		assert_eq!(dirs, vec![exe.clone(), npm[0].clone(), path[0].clone()]);
-
-		let files = candidates(&dirs);
-		let names = executable_names();
-		assert_eq!(files.len(), dirs.len() * names.len());
-		assert_eq!(files[0], exe.join(names[0]), "the running GUI's own directory wins");
-		assert_eq!(
-			files[names.len()],
-			npm[0].join(names[0]),
-			"the shipped npm layout is checked before PATH"
-		);
-		assert_eq!(files[2 * names.len()], path[0].join(names[0]), "PATH is the last resort");
-	}
-
-	#[test]
-	fn resolve_in_takes_the_first_real_file_in_that_order() {
-		let root = temp_dir("resolve-order");
-		let exe_dir = root.join("gui");
-		let npm_bin = root.join("npm").join("bin");
-		let path_dir = root.join("path");
-		for dir in [&exe_dir, &npm_bin, &path_dir] {
+	fn the_candidate_list_is_gui_then_npm_leaves_then_the_checkout() {
+		let root = temp_dir("candidate-order");
+		let exe_dir = root.join("app");
+		let leaf = root
+			.join("node_modules")
+			.join("@linxiraos")
+			.join("zeta-win32-x64")
+			.join("bin");
+		let dist = root.join("packages").join("coding-agent").join("dist");
+		for dir in [&exe_dir, &leaf, &dist] {
 			fs::create_dir_all(dir).unwrap();
 		}
-		let name = executable_names()[0];
-		let from_path = path_dir.join(name);
-		let from_npm = npm_bin.join(name);
-		let from_exe = exe_dir.join(name);
+		let names = Companion::Zetacode.executable_names();
+		let all = candidates(&exe_dir, Companion::Zetacode);
+		assert_eq!(all[0], exe_dir.join(names[0]), "next to the GUI wins");
+		assert_eq!(all[names.len()], exe_dir.join("bin").join(names[0]), "then its bin/");
+		assert!(all.contains(&leaf.join(names[0])), "the npm platform leaf: {all:?}");
+		assert!(
+			all.contains(&dist.join(Companion::Zetacode.dev_names()[0])),
+			"the checkout's dist: {all:?}"
+		);
 
-		fs::write(&from_path, b"path").unwrap();
-		assert_eq!(
-			resolve_in(&exe_dir, std::slice::from_ref(&npm_bin), std::slice::from_ref(&path_dir)),
-			Some(from_path)
+		// `main/npm` ships zetawork, not zetacode: it must never be accepted
+		// for the coding agent (that was the old launch bug).
+		let main_bin = root.join("main").join("npm").join("main-windows-x64").join("bin");
+		fs::create_dir_all(&main_bin).unwrap();
+		fs::write(main_bin.join("zeta.exe"), b"zetawork").unwrap();
+		assert!(
+			!candidates(&exe_dir, Companion::Zetacode).contains(&main_bin.join("zeta.exe")),
+			"main/npm is zetawork, not zetacode"
 		);
-		fs::write(&from_npm, b"npm").unwrap();
-		assert_eq!(
-			resolve_in(&exe_dir, std::slice::from_ref(&npm_bin), std::slice::from_ref(&path_dir)),
-			Some(from_npm)
-		);
-		fs::write(&from_exe, b"exe").unwrap();
-		assert_eq!(
-			resolve_in(&exe_dir, std::slice::from_ref(&npm_bin), std::slice::from_ref(&path_dir)),
-			Some(from_exe),
-			"the co-located binary wins even with a PATH install"
-		);
-		assert_eq!(resolve_in(&root.join("nowhere"), &[], &[]), None);
 		let _ = fs::remove_dir_all(&root);
 	}
 
 	#[test]
-	fn npm_bin_dirs_walk_up_to_the_checkouts_main_npm() {
-		let root = temp_dir("npm-walk");
-		let bin = root
-			.join("main")
-			.join("npm")
-			.join("main-windows-x64")
+	fn resolution_takes_the_first_existing_shipped_file() {
+		let root = temp_dir("resolve-order");
+		let exe_dir = root.join("app");
+		let leaf = root
+			.join("node_modules")
+			.join("@linxiraos")
+			.join("zeta-win32-x64")
 			.join("bin");
-		fs::create_dir_all(&bin).unwrap();
-		let exe_dir = root.join("main").join("target").join("debug");
-		fs::create_dir_all(&exe_dir).unwrap();
-		let found = npm_bin_dirs(&exe_dir);
-		assert!(found.contains(&bin), "{found:?}");
+		let dist = root.join("packages").join("coding-agent").join("dist");
+		for dir in [&exe_dir, &leaf, &dist] {
+			fs::create_dir_all(dir).unwrap();
+		}
+		let name = Companion::Zetacode.executable_names()[0];
+		let dev = Companion::Zetacode.dev_names()[0];
+
+		// Nothing shipped: the error names everything that was searched.
+		let searched = resolve_in(&exe_dir, Companion::Zetacode).expect_err("nothing to run");
+		assert!(searched.iter().all(|path| !path.is_file()));
+		assert!(searched.contains(&exe_dir.join(name)), "{searched:?}");
+
+		// The checkout a dev build came from.
+		fs::write(dist.join(dev), b"zeta").unwrap();
+		assert_eq!(
+			resolve_in(&exe_dir, Companion::Zetacode),
+			Ok(dist.join(dev)),
+			"a dev build finds the checkout"
+		);
+		// An installed npm platform leaf outranks the checkout.
+		fs::write(leaf.join(name), b"leaf").unwrap();
+		assert_eq!(
+			resolve_in(&exe_dir, Companion::Zetacode),
+			Ok(leaf.join(name)),
+			"the npm leaf outranks the checkout"
+		);
+		// The binary next to the GUI outranks everything.
+		fs::write(exe_dir.join(name), b"exe").unwrap();
+		assert_eq!(
+			resolve_in(&exe_dir, Companion::Zetacode),
+			Ok(exe_dir.join(name)),
+			"the co-located binary wins"
+		);
 		let _ = fs::remove_dir_all(&root);
 	}
 
 	#[test]
-	#[cfg(windows)]
-	fn command_for_quotes_only_when_the_path_has_whitespace() {
-		assert_eq!(command_for(Path::new(r"C:\tools\zetacode.exe")), r"C:\tools\zetacode.exe");
-		assert_eq!(
-			command_for(Path::new(r"C:\Program Files\zeta\zetacode.exe")),
-			"\"C:\\Program Files\\zeta\\zetacode.exe\""
-		);
-		assert!(is_resolved(r"C:\tools\zetacode.exe"));
-		assert!(!is_resolved("zetacode"));
+	fn a_missing_companion_names_every_searched_path() {
+		let root = temp_dir("missing");
+		let exe_dir = root.join("app");
+		fs::create_dir_all(&exe_dir).unwrap();
+		let searched = resolve_in(&exe_dir, Companion::Zetacode).expect_err("nothing shipped");
+		let sentence = missing_sentence(Companion::Zetacode, &searched);
+		assert!(sentence.starts_with("未找到随包的 zetacode："), "{sentence}");
+		for path in &searched {
+			assert!(
+				sentence.contains(&path.display().to_string()),
+				"{} missing from {sentence}",
+				path.display()
+			);
+		}
+		let _ = fs::remove_dir_all(&root);
+	}
+
+	#[test]
+	fn zetaide_resolves_from_its_own_leaves_the_checkout_and_main_npm() {
+		let root = temp_dir("zetaide");
+		let exe_dir = root.join("app");
+		let leaf = root
+			.join("node_modules")
+			.join("@linxiraos")
+			.join("ide-windows-x64")
+			.join("bin");
+		let release = root.join("termide").join("target").join("release");
+		let main_bin = root.join("main").join("npm").join("ide-windows-x64").join("bin");
+		for dir in [&exe_dir, &leaf, &release, &main_bin] {
+			fs::create_dir_all(dir).unwrap();
+		}
+		let name = Companion::Zetaide.executable_names()[0];
+		let dev = Companion::Zetaide.dev_names()[0];
+
+		assert!(candidates(&exe_dir, Companion::Zetaide).contains(&main_bin.join(name)));
+		fs::write(release.join(dev), b"termide").unwrap();
+		assert_eq!(resolve_in(&exe_dir, Companion::Zetaide), Ok(release.join(dev)));
+		fs::write(leaf.join(name), b"leaf").unwrap();
+		assert_eq!(resolve_in(&exe_dir, Companion::Zetaide), Ok(leaf.join(name)));
+		let _ = fs::remove_dir_all(&root);
 	}
 }

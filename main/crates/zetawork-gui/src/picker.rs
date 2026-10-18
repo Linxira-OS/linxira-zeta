@@ -34,6 +34,7 @@ fn page_icon(kind: SessionKind) -> Icon {
 		SessionKind::Editor => Icon::Code,
 		SessionKind::Diff => Icon::Diff,
 		SessionKind::Git => Icon::GitBranch,
+		SessionKind::Zetacode => Icon::Term,
 		SessionKind::Ide => Icon::Term,
 		SessionKind::Agent => Icon::History,
 	}
