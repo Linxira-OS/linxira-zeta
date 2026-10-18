@@ -55,7 +55,7 @@ reddens the GitHub run too.
 | `termide_tests` | `termide_tests` | fmt / check / clippy / nextest (zetaide) |
 | `main_tests` | `main_tests` | fmt / check / clippy + `cargo nextest run` (GitHub has no nextest, registered in `ENTRY_EXCEPTIONS`) |
 | `web_desktop_tests` | `desktop_tests` | the desktop contract suites + the CLI's Web UI launcher resolution |
-| `release_*`, `release_metadata`, `release_gate`, `desktop_linux`, `desktop_windows`, `native_addons_cross` | — | excluded by design: release chain, release-gated packaging, Windows/macOS legs |
+| `release_*`, `release_metadata`, `release_gate`, `native_addons_cross` | — | excluded by design: release chain (1.3.0 起桌面与工作台 TUI 已退出发布面), Windows/macOS legs |
 
 Local-only jobs: `preflight` (tag guard) and `toolchains` (persistent toolchain
 store + `bun install`).

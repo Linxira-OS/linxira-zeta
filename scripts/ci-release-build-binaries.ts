@@ -116,25 +116,13 @@ const targets: ReleaseTarget[] = [
 	// main_tests/termide_tests jobs compile under). The win32 assets
 	// cross-build on the Linux runner: cargo via the GNU target.
 	//
-	// One target per (product, platform): the staged tree
-	// (`packages/coding-agent/binaries/`) and the release archives must carry
-	// zetawork, zetacode and zetaide for both platforms, so a GUI unpacking
-	// any of them finds all three products beside `zetawork`. `zeta-cli-*`
-	// legs (above) are zetacode; the two families below are zetawork/zetaide.
-	// scripts/check-workbench-bundles.ts fails when a product/platform pair
-	// disappears from this table.
-	{
-		kind: "product",
-		id: "zeta-work-linux-x64",
-		product: "work",
-		platform: "linux",
-	},
-	{
-		kind: "product",
-		id: "zeta-work-win-x64",
-		product: "work",
-		platform: "win32",
-	},
+	// One target per (product, platform) the release ships: `zeta-cli-*`
+	// legs (above) are zetacode, the family below is zetaide. The zeta-work-*
+	// legs were removed with the 1.3.0 TUI hold (user ruling 2026-10-19);
+	// re-adding them means putting the matrix legs and the guard's COMMANDS
+	// list back in the same change.
+	// scripts/check-workbench-bundles.ts fails when a shipped product/platform
+	// pair disappears from this table, and when an unshipped one reappears.
 	{
 		kind: "product",
 		id: "zeta-ide-linux-x64",

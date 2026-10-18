@@ -103,7 +103,7 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			},
 			{
 				job: "release_product_binaries",
-				why: "bare zeta-work/zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-work-*/zeta-ide-* assets (the zeta-editor-* legs retired 2026-10-16 with the vendored TTT payload)",
+				why: "bare zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-ide-* assets (the zeta-work-* legs left with the 1.3.0 TUI hold, the zeta-editor-* legs retired 2026-10-16)",
 			},
 			{
 				job: "web_ui_build",
@@ -112,14 +112,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			{
 				job: "web_desktop_tests",
 				why: "PR-path test job for the desktop contract suite + the CLI's Web UI launcher resolution (v1.2.1 shipped `npx zeta-web` 404 with the desktop adopting the corpse, because both live in release-only jobs); upstream has no counterpart, so a merge trimming ci.yml would re-open that hole",
-			},
-			{
-				job: "desktop_linux",
-				why: "Zeta-only desktop Linux packaging; release_github preflight expects zeta-desktop-* assets (damage classes 7+10)",
-			},
-			{
-				job: "desktop_windows",
-				why: "Zeta-only desktop Windows packaging; release_github preflight expects zeta-desktop-* assets (damage classes 7+10)",
 			},
 			{
 				job: "release_native_leaves",
@@ -144,14 +136,6 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "Zeta-only ide package publish (renamed from release_work_packages in 7d588b2503b; damage class 7 追记)",
 			},
 			{
-				job: "release_main_packages",
-				why: "Zeta-only workbench package publish; wired 2026-09-30 after npm trusted publishing was configured for main-publish.yml (manual 1.1.21 bootstrap preceded)",
-			},
-			{
-				job: "release_web_ui_packages",
-				why: "Zeta-only web-ui publish leg (@linxiraos/zeta-web, wired 2026-10-14). It runs inside ci.yml rather than a dedicated workflow file because npm binds a trusted publisher to the workflow FILE that executes the publish, and web-ui must never carry its own workflow (GitHub only executes root workflows). Losing this job silently freezes the published web UI at the last version that shipped while the gateway moves on",
-			},
-			{
 				job: "release_plugin_packages",
 				why: "Zeta-only official-plugin publish leg (@linxiraos/pi-messenger). Before it existed the plugin had no CI publish path at all: it was last shipped by hand via scripts/publish-missing-packages.ts, so the repo version (1.2.1) and the npm version (1.1.1) had drifted apart while the manifest kept advertising a publish that never happened. It packs the plugin directory as-authored rather than riding release_npm's workspace table, because that table's `typescript` kind emits declarations this source-shipped plugin cannot consume. Losing this job silently returns the plugin to the hand-publish regime",
 			},
@@ -159,20 +143,8 @@ export const CI_SURFACE: WorkflowSurface[] = [
 		needsEdges: [
 			{
 				job: "release_github",
-				needs: [
-					"release_metadata",
-					"release_gate",
-					"release_binary",
-					"release_product_binaries",
-					"desktop_linux",
-					"desktop_windows",
-				],
-				why: "damage class 10: publishing before the desktop jobs upload yields 0 zeta-desktop-* installer assets",
-			},
-			{
-				job: "desktop_linux",
-				needs: ["release_metadata", "native_addons"],
-				why: "desktop packaging consumes release detection and the zeta natives binaries",
+				needs: ["release_metadata", "release_gate", "release_binary", "release_product_binaries"],
+				why: "damage class 10: every family the release uploads must be built and uploaded before the release is created (1.3.0: zeta-cli-* and zeta-ide-*)",
 			},
 			{
 				job: "web_desktop_tests",
@@ -180,19 +152,9 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "the job's `bun test` legs import coding-agent modules whose import chain reaches the native addon; without the artifact wiring the legs die in the loader (first run of the job failed exactly there)",
 			},
 			{
-				job: "desktop_windows",
-				needs: ["release_metadata", "native_addons", "native_addons_cross"],
-				why: "native_addons_cross uploads the native-addons artifact desktop_windows downloads; needsing only the x64 job raced the upload (damage class 10, two release runs lost to it)",
-			},
-			{
-				job: "release_web_ui_packages",
-				needs: ["release_metadata", "release_gate"],
-				why: "release_metadata supplies is-release (the web UI must never publish from an ordinary push) and release_gate carries the release-state prerequisite — `check`'s guard steps gate publishing. Same shape as release_main_packages / release_ide_packages; no build-artifact edge is needed because the tarball's `.next` is produced inside the job",
-			},
-			{
 				job: "release_plugin_packages",
 				needs: ["release_metadata", "release_gate"],
-				why: "same two edges as release_web_ui_packages: is-release keeps the plugin off ordinary pushes, and release_gate is the release-state prerequisite (`check`'s guard steps must pass before anything publishes). No build-artifact edge: the plugin ships source, packed inside the job from the tagged tree, so there is no upload to race",
+				why: "same two edges as the other publish legs: is-release keeps the plugin off ordinary pushes, and release_gate is the release-state prerequisite (`check`'s guard steps must pass before anything publishes). No build-artifact edge: the plugin ships source, packed inside the job from the tagged tree, so there is no upload to race",
 			},
 		],
 		artifactRules: [

@@ -407,17 +407,24 @@ Where each command lives per install shape (`<root>` = the npm prefix's
 | Shape | Windows x64 | Linux x64 |
 | --- | --- | --- |
 | npm install | `<root>/main-windows-x64/bin/zeta.exe`<br>`<root>/ide-windows-x64/bin/termide.exe`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) | `<root>/main-linux-x64/bin/zeta-linux-x64`<br>`<root>/ide-linux-x64/bin/termide-linux-x64`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) |
-| Staged runtime / release archives | `zeta-work-win-x64.exe`, `zeta-ide-win-x64.exe`, `zeta-cli-windows-x64.exe` | `zeta-work-linux-x64`, `zeta-ide-linux-x64`, `zeta-cli-linux-x64` |
+| Staged runtime / release archives | `zeta-ide-win-x64.exe`, `zeta-cli-windows-x64.exe` | `zeta-ide-linux-x64`, `zeta-cli-linux-x64` |
 
 The staged-runtime row is `packages/coding-agent/binaries/` — the one directory
 `scripts/ci-release-build-binaries.ts` stages every product into and
-`release_github` uploads from, so the GUI finds zetacode/zetaide beside
-`zetawork` after unpacking (the pacman PKGBUILDs consume the same three
-assets). Because an `optionalDependencies` pin never fails an install,
-`release_main_packages` publishes **after** `release_npm` (zetacode) and
-`release_ide_packages` (zetaide) — a launcher that lands first exists only as an
-install with two missing commands. `scripts/check-workbench-bundles.ts` gates
-the declaration and every step above (both CI mirrors run it).
+`release_github` uploads from.
+
+**Release surface from 1.3.0 (user ruling 2026-10-19).** The workbench TUI is
+held back: `zeta-work-*` binaries, the Electron desktop (`zeta-desktop-*`) and
+the `@linxiraos/main` / `@linxiraos/zeta-web` npm legs are **not** published.
+What ships: `zeta-cli-*` (zetacode), `zeta-ide-*` (zetaide), the
+`@linxiraos/{zeta,ide,editor}` distributions with their platform leaves and
+natives, and the official plugin packages. `@linxiraos/main` keeps its
+in-tree manifests and companion pins (the launcher still installs zetaide
+beside zetacode when republished by hand through `main-publish.yml`), and
+`scripts/check-workbench-bundles.ts` enforces the shipped subset: a staged
+`zetawork` leg, or a `zeta-work-*` upload, is a failure — re-adding either
+means restoring the matrix legs and the guard's `COMMANDS` entry in the same
+change.
 
 ### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
 

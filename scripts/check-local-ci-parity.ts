@@ -44,15 +44,8 @@ const EXCLUDED: Record<string, string> = {
 	release_native_leaves: "release chain",
 	release_github: "release chain",
 	release_npm: "release chain",
-	release_main_packages: "release chain",
 	release_ide_packages: "release chain",
-	release_web_ui_packages: "release chain",
 	release_plugin_packages: "release chain",
-	// GitHub gates both desktop jobs on `is-release == 'true'`; the packaging
-	// half (electron-builder + smoke + artifact upload) is release work. The
-	// local mirror still covers the desktop contracts through `desktop_tests`.
-	desktop_linux: "release-gated on GitHub (mirrored in part by desktop_tests)",
-	desktop_windows: "release-gated on GitHub; Windows leg",
 	native_addons_cross: "cross-target leg (darwin/win32 arm64)",
 };
 

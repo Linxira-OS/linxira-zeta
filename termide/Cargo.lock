@@ -5354,6 +5354,7 @@ dependencies = [
  "termide-theme",
  "termide-ui",
  "unicode-width",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

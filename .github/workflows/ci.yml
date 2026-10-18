@@ -432,8 +432,8 @@ jobs:
 
    # Cheap web/desktop contracts — a *test* job, so it carries no release gate
    # and no gating on `is-release`: it must run in both modes. It exists because
-   # `desktop_linux`/`desktop_windows` are release-only for their build+smoke
-   # legs (they need packaging and the natives embed sentinel), so the desktop's
+   # The Electron desktop's build+smoke legs retired with the 1.3.0 release
+   # surface (user ruling 2026-10-19); the desktop's
    # own contract suite — and anything that exercises the npm-installed CLI's Web
    # UI resolution — had no PR-time signal at all. v1.2.1 shipped through that
    # hole: the npm fallback asked `npx` for the unscoped `zeta-web` (the published
@@ -442,8 +442,7 @@ jobs:
    # corpse over and over.
    #
    # Nothing here publishes or packs: the job is test-only, deliberately
-   # separate from the publish chain (desktop_linux/windows keep their
-   # release-only packaging gates), and it runs in both CI modes.
+   # separate from the publish chain, and it runs in both CI modes.
    web_desktop_tests:
       name: Test web/desktop contracts
       # `bun test` pulls coding-agent modules in, whose import chain reaches the
@@ -1248,18 +1247,6 @@ jobs:
                - {
                     os: ubuntu-22.04,
                     platform: linux,
-                    target_id: zeta-work-linux-x64,
-                    artifact: zeta-work-linux-x64,
-                 }
-               - {
-                    os: ubuntu-22.04,
-                    platform: win32,
-                    target_id: zeta-work-win-x64,
-                    artifact: zeta-work-win-x64.exe,
-                 }
-               - {
-                    os: ubuntu-22.04,
-                    platform: linux,
                     target_id: zeta-ide-linux-x64,
                     artifact: zeta-ide-linux-x64,
                  }
@@ -1321,149 +1308,6 @@ jobs:
    # they prove the pipeline compiles and smokes; at release the artifacts
    # feed release_github as installer assets. Linux/Windows reuse the
    # native_addons artifact; macOS builds its own addon (no cross-hosted
-   desktop_linux:
-      name: Build and smoke desktop (Linux)
-      runs-on: ubuntu-22.04
-      needs: [release_metadata, native_addons]
-      # Release-only: the PR path fetches npm-leaf natives (@latest), whose
-      # version lags the workspace line between releases and fails the
-      # desktop embed sentinel check. Release runs build their own addons,
-      # so the sentinel holds there.
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() && needs.native_addons.result == 'success' }}
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-         - uses: ./.github/actions/bun-install
-         - uses: ./.github/actions/native-artifacts
-           with:
-              targets: linux-x64-baseline linux-x64-modern
-         - name: Install Web UI dependencies
-           working-directory: web-ui
-           run: npm ci
-         - name: Install desktop dependencies
-           working-directory: desktop
-           run: npm ci
-         - name: Test desktop platform contracts
-           working-directory: desktop
-           run: npm test
-         - name: Build Linux desktop artifact
-           working-directory: desktop
-           run: npm run dist
-         - name: Guard smoke against lagging npm natives
-           if: github.event_name == 'pull_request'
-           id: natives_guard
-           shell: bash
-           run: |
-              set -euo pipefail
-              # The release line's authoritative source is packages/utils/package.json
-              # (same file check-version-consistency.ts reads); the root manifest is a
-              # private workspace and carries no version field.
-              workspace_version="$(node -p "require('./packages/utils/package.json').version")"
-              published_version="$(npm view @linxiraos/pi-natives-linux-x64 version)"
-              if [ "$published_version" != "$workspace_version" ]; then
-                 echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
-              else
-                 echo "run_smoke=1" >> "$GITHUB_OUTPUT"
-              fi
-         - name: Smoke Linux desktop artifact
-           if: github.event_name != 'pull_request' || steps.natives_guard.outputs.run_smoke == '1'
-           run: |
-              set -euo pipefail
-              app_dir="$(find temp/desktop/release -mindepth 1 -maxdepth 1 -type d -name 'zeta-desktop-*-linux-x64' -print -quit)"
-              test -n "$app_dir"
-              npm --prefix desktop run smoke -- --app "$(realpath "$app_dir")"
-         - name: Upload Linux desktop artifacts
-           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-           with:
-              name: zeta-desktop-linux
-              path: |
-                 temp/desktop/release/*.tar.gz
-                 temp/desktop/release/*.deb
-                 temp/desktop/release/*.AppImage
-              if-no-files-found: error
-              retention-days: 1
-
-   desktop_windows:
-      name: Build and smoke desktop (Windows)
-      runs-on: windows-2022
-      # native_addons_cross, not native_addons, uploads the `native-addons`
-      # artifact this job downloads (win32-x64 is a cross target). Waiting only
-      # on the x64 job raced the upload — two release runs in a row died with
-      # "Artifact not found for name: native-addons" (damage class 10).
-      needs: [release_metadata, native_addons, native_addons_cross]
-      # Release-only: same reason as desktop_linux (see above).
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() && needs.native_addons.result == 'success' && needs.native_addons_cross.result == 'success' }}
-      timeout-minutes: 40
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-         - uses: ./.github/actions/bun-install
-         - uses: ./.github/actions/native-artifacts
-           with:
-              targets: win32-x64-baseline
-         - name: Verify Bun is available to Windows desktop build
-           shell: pwsh
-           run: bun --version
-         - name: Install Web UI dependencies
-           working-directory: web-ui
-           run: npm ci
-         - name: Install desktop dependencies
-           working-directory: desktop
-           run: npm ci
-         - name: Test desktop platform contracts
-           working-directory: desktop
-           run: npm test
-         - name: Build Windows desktop artifact
-           working-directory: desktop
-           # The runner's junctioned profile dirs (C:\Users\runneradmin\
-           # Application Data -> AppData\Roaming) raise EPERM when webpack
-           # walks them during next build. Point the profile vars at empty
-           # dirs so nothing traces through the junctions.
-           env:
-              APPDATA: ${{ runner.temp }}/desktop-profile
-              USERPROFILE: ${{ runner.temp }}/desktop-profile
-              HOME: ${{ runner.temp }}/desktop-profile
-           run: |
-              New-Item -ItemType Directory -Force "$env:APPDATA" | Out-Null
-              npm run dist
-         - name: Guard smoke against lagging npm natives
-           if: github.event_name == 'pull_request'
-           id: natives_guard
-           shell: bash
-           run: |
-              set -euo pipefail
-              # The release line's authoritative source is packages/utils/package.json
-              # (same file check-version-consistency.ts reads); the root manifest is a
-              # private workspace and carries no version field.
-              workspace_version="$(node -p "require('./packages/utils/package.json').version")"
-              published_version="$(npm view @linxiraos/pi-natives-win32-x64 version)"
-              if [ "$published_version" != "$workspace_version" ]; then
-                 echo "::warning::npm natives leaf (${published_version}) lags the workspace release line (${workspace_version}); the packaged runtime would fail the loader sentinel check. PR desktop smoke is skipped — push/tag runs build addons from source and stay fully gated."
-              else
-                 echo "run_smoke=1" >> "$GITHUB_OUTPUT"
-              fi
-         - name: Smoke Windows desktop artifact
-           if: github.event_name != 'pull_request' || steps.natives_guard.outputs.run_smoke == '1'
-           shell: pwsh
-           env:
-              BINARY: binaries/${{ matrix.binary }}
-           run: |
-              $app = Get-ChildItem temp/desktop/release -Directory | Where-Object Name -Like "zeta-desktop-*-win-x64" | Select-Object -First 1
-              if ($null -eq $app) { throw "Windows desktop artifact not found" }
-              npm --prefix desktop run smoke -- --app $app.FullName
-         - name: Upload Windows desktop artifacts
-           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-           with:
-              name: zeta-desktop-win
-              path: |
-                 temp/desktop/release/*.zip
-                 temp/desktop/release/*.exe
-              if-no-files-found: error
-              retention-days: 1
 
    # Publishes the @linxiraos/pi-natives-<tag> leaf packages once validation
    # passes and every binary built. Runs on one linux runner: leaf publishing
@@ -1474,10 +1318,8 @@ jobs:
       if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
-         needs.desktop_linux.result == 'success' &&
-         needs.desktop_windows.result == 'success' &&
          !inputs.skip_npm }}
-      needs: [release_metadata, release_gate, release_binary, desktop_linux, desktop_windows]
+      needs: [release_metadata, release_gate, release_binary]
       runs-on: ubuntu-22.04
       # id-token lets npm mint the OIDC token for trusted publishing; the
       # NODE_AUTH_TOKEN below is the fallback for unconfigured packages.
@@ -1543,13 +1385,11 @@ jobs:
          needs.release_gate.result == 'success' &&
          needs.release_binary.result == 'success' &&
          needs.release_product_binaries.result == 'success' &&
-         needs.desktop_linux.result == 'success' &&
-         needs.desktop_windows.result == 'success' &&
          !inputs.skip_npm }}
-      # v1.1.18 damage class 10 recurrence: without the desktop deps this job
-      # started while desktop builds were still running, found 0
-      # zeta-desktop-* installers, and the validation aborted the release.
-      needs: [release_metadata, release_gate, release_binary, release_product_binaries, desktop_linux, desktop_windows]
+      # 1.3.0: the Electron desktop and the workbench TUI left the release
+      # surface (user ruling 2026-10-19); this job now waits only for what it
+      # actually uploads.
+      needs: [release_metadata, release_gate, release_binary, release_product_binaries]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1570,13 +1410,6 @@ jobs:
            with:
               pattern: zeta-binary-*
               path: packages/coding-agent/binaries
-              merge-multiple: true
-         # Desktop installers/archives from the three desktop jobs.
-         - name: Download desktop artifacts
-           uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-           with:
-              pattern: zeta-desktop-*
-              path: temp/desktop/release
               merge-multiple: true
          # Dependency-free build (bun APIs + zip only), so no `bun install`
          # is needed on this runner.
@@ -1605,20 +1438,11 @@ jobs:
                 echo "::error::Expected at least 3 zeta-cli-* binaries, found $count"
                 missing=1
               fi
-              product_count=$(ls packages/coding-agent/binaries/zeta-work-* packages/coding-agent/binaries/zeta-ide-* 2>/dev/null | wc -l)
-              if [ "$product_count" -lt 4 ]; then
-                # Product matrix: zetawork linux+win, zetaide linux+win
-                # (release_product_binaries). The whole suite ships for both
-                # platforms, so an unpacked workbench finds zetacode/zetaide
-                # beside zetawork.
-                echo "::error::Expected at least 4 zeta-work-*/zeta-ide-* product binaries, found $product_count"
-                missing=1
-              fi
-              desktop_count=$(find temp/desktop/release -type f \( -name 'zeta-desktop-*.zip' -o -name 'zeta-desktop-*.exe' -o -name 'zeta-desktop-*.deb' -o -name 'zeta-desktop-*.AppImage' -o -name 'zeta-desktop-*.tar.gz' \) 2>/dev/null | wc -l)
-              if [ "$desktop_count" -lt 5 ]; then
-                # win32 zip+nsis-exe and linux tar.gz+deb+AppImage; macOS is
-                # still paused (document/release.md).
-                echo "::error::Expected at least 5 zeta-desktop-* installers/archives, found $desktop_count"
+              product_count=$(ls packages/coding-agent/binaries/zeta-ide-* 2>/dev/null | wc -l)
+              if [ "$product_count" -lt 2 ]; then
+                # Product matrix: zetaide linux+win only (release_product_binaries).
+                # 1.3.0 dropped the zeta-work-* legs with the TUI.
+                echo "::error::Expected at least 2 zeta-ide-* product binaries, found $product_count"
                 missing=1
               fi
               exit $missing
@@ -1629,10 +1453,8 @@ jobs:
            run: |
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
-                packages/coding-agent/binaries/zeta-work-* \
                 packages/coding-agent/binaries/zeta-ide-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
-                temp/desktop/release/zeta-desktop-* \
                 LICENSE \
                 THIRD-PARTY-NOTICES.txt
          - name: Create GitHub Release
@@ -1642,10 +1464,8 @@ jobs:
               prerelease: ${{ needs.release_metadata.outputs.channel == 'canary' }}
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
-                 packages/coding-agent/binaries/zeta-work-*
                  packages/coding-agent/binaries/zeta-ide-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
-                 temp/desktop/release/zeta-desktop-*
                  LICENSE
                  THIRD-PARTY-NOTICES.txt
                  SHA256SUMS.txt
@@ -1789,9 +1609,9 @@ jobs:
    # The zeta workspace (main/) Rust gate — fmt / check / clippy / nextest,
    # mirroring termide_tests. Self-skips when main/ is untouched; a manual
    # dispatch always runs the full gate. Gates the workspace tree, not the
-   # Zeta release (release_gate does not depend on it). release_main_packages
-   # dispatches main-publish.yml since 2026-09-30 (manual 1.1.21 bootstrap
-   # preceded; npm trusted publishing is configured for these names).
+   # Zeta release (release_gate does not depend on it). The workbench's npm
+   # distribution is not published from 1.3.0 (user ruling 2026-10-19); its
+   # main-publish.yml stays for manual republishes of already-released lines.
 
    main_tests:
       name: Test main workspace (zeta workbench)
@@ -1910,44 +1730,14 @@ jobs:
    # commands (optionalDependencies skip silently). Hence the needs below —
    # scripts/check-workbench-bundles.ts holds this edge.
 
-   release_main_packages:
-      name: Publish main npm packages
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.release_gate.result == 'success' &&
-         !inputs.skip_npm }}
-      needs: [release_metadata, release_gate, release_npm, release_ide_packages]
-      runs-on: ubuntu-22.04
-      permissions:
-         contents: read
-         actions: write
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - name: Dispatch main-publish.yml and wait for it
-           env:
-              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-           run: |
-              set -euo pipefail
-              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}"
-              rid=""
-              for _ in $(seq 1 30); do
-                 sleep 10
-                 rid=$(gh run list --workflow=main-publish.yml --branch "${GITHUB_REF_NAME}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
-                 [ -n "$rid" ] && break
-              done
-              if [ -z "$rid" ]; then
-                 echo "::error::main-publish run never appeared"
-                 exit 1
-              fi
-              gh run watch "$rid" --exit-status --interval 15
 
    # Publishes the vendored termide (zetaide) npm distribution
    # (@linxiraos/ide plus its windows/linux x64 platform leaves) on release
    # tags via npm trusted publishing, dispatching the dedicated
    # ide-publish.yml so the OIDC claim matches the workflow binding (same
    # lesson as v1.1.19's editor E404). Does not gate the GitHub release
-   # itself (same policy as the other package legs), but does gate
-   # release_main_packages (the workbench pins @linxiraos/ide).
+   # itself (same policy as the other package legs). 1.3.0 ships zetaide, so
+   # this leg stays in the release chain.
 
    release_ide_packages:
       name: Publish ide npm packages
@@ -2011,53 +1801,6 @@ jobs:
    # publish path, which preflights `npm view <name>@<version>` and skips a
    # version already on the registry (and treats npm's E409 /
    # "previously published versions" output as already published).
-   release_web_ui_packages:
-      name: Publish web-ui npm package
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.release_gate.result == 'success' &&
-         !inputs.skip_npm }}
-      needs: [release_metadata, release_gate]
-      runs-on: ubuntu-22.04
-      # id-token: write lets npm mint the GitHub OIDC token it exchanges for a
-      # short-lived publish token (trusted publishing + provenance);
-      # NODE_AUTH_TOKEN below is only the fallback for a package npm has no
-      # trusted-publisher entry for.
-      permissions:
-         id-token: write
-         contents: read
-      steps:
-         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-           with:
-              node-version: "24"
-              registry-url: "https://registry.npmjs.org"
-              cache: npm
-              cache-dependency-path: web-ui/package-lock.json
-         # Same trusted-publishing floor as the sibling publish jobs: the npm
-         # CLI that performs the publish must speak OIDC (>= 11.5.1).
-         - name: Ensure npm supports trusted publishing
-           run: npm install -g npm@11.17.0
-         # No `bun install --frozen-lockfile` here (unlike release_npm): this
-         # path only packs a self-contained npm directory, and
-         # ci-release-publish.ts's own imports are node builtins — the
-         # main/ide publish workflows run the same pack path the same
-         # way, without a workspace install.
-         - name: Install web-ui dependencies
-           working-directory: web-ui
-           run: npm ci
-         # The published tarball's `files` list ships `.next`; build it here so
-         # the pack that follows can never ship a stale or missing build.
-         - name: Build web-ui
-           working-directory: web-ui
-           run: npm run build
-         - name: Publish web-ui package
-           env:
-              # Fallback auth: setup-node wrote an .npmrc referencing
-              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
-              # publisher for the package (or on a first publish).
-              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-           run: bun run ci:release:publish-web-ui
 
    # Publishes the official plugins (`@linxiraos/pi-messenger`) on release tags
    # via npm trusted publishing. Unlike web-ui there is no build to run: an
@@ -2079,8 +1822,8 @@ jobs:
    # `.github/workflows/ci.yml` (document/release.md) — a first publish with no
    # matching trusted publisher fails `PUT 404` (the v1.1.9 native-leaf lesson).
    #
-   # needs: [release_metadata, release_gate] mirrors release_web_ui_packages and
-   # the vendored main/ide publish jobs — release_metadata supplies
+   # needs: [release_metadata, release_gate] mirrors the other publish legs —
+   # release_metadata supplies
    # is-release (this job must not run on ordinary pushes) and release_gate
    # carries the release-state prerequisite: `check`'s guard steps run on a
    # release run, and publishing before they pass must be impossible. No
@@ -2100,7 +1843,7 @@ jobs:
          !inputs.skip_npm }}
       needs: [release_metadata, release_gate]
       runs-on: ubuntu-22.04
-      # Same OIDC split as release_web_ui_packages: id-token: write lets npm
+      # Same OIDC split as the other publish legs: id-token: write lets npm
       # exchange the GitHub OIDC token for a short-lived publish token (trusted
       # publishing + provenance); NODE_AUTH_TOKEN below is only the fallback for
       # a name npm has no trusted-publisher entry for.
