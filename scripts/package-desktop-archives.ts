@@ -2,26 +2,42 @@
 /**
  * Package the zetawork desktop app for release.
  *
- * Two shapes, both built on the Linux runner from artifacts that
- * `ci-release-build-binaries.ts` already produced:
+ * Every shape is built on the Linux runner from artifacts that
+ * `ci-release-build-binaries.ts` already produced. Asset names carry the
+ * numeric version (the `v` of a release tag is stripped):
  *
- *   windows  `zetawork-windows-x64.zip`
- *            `zetawork-gui.exe` + `WebView2Loader.dll`. The loader is a real
- *            runtime dependency — the PE imports `WebView2Loader.dll` — and it
- *            ships inside the `webview2-com-sys` crate, so it is copied from
- *            the cargo registry of the same build.
+ *   windows  `zetawork-<version>-windows-x64.zip`
+ *            `zetawork-gui.exe` + `WebView2Loader.dll` only. The loader is a
+ *            real runtime dependency — the PE imports `WebView2Loader.dll` —
+ *            and it ships inside the `webview2-com-sys` crate, so it is copied
+ *            from the cargo registry of the same build (or from the artifact
+ *            the Windows product leg staged beside the exe).
+ *
+ *   windows-installer
+ *            `zetawork-<version>-setup-x64.exe` (NSIS, per-user install).
+ *            GUI + `zetacode.exe` + `zetaide.exe` + `zetawork.exe` +
+ *            `WebView2Loader.dll`, all beside each other in
+ *            `%LOCALAPPDATA%\Programs\zetawork`, which is what
+ *            `main/crates/zetawork-gui/src/zetacode.rs` companion discovery
+ *            expects. `makensis` must be on PATH (the release job apt-installs
+ *            `nsis`); it cannot run on the Windows dev box.
  *
  *   linux    `zetawork-<version>-1-x86_64.pkg.tar.zst` (Arch, `pacman -U`)
  *            and `zetawork-<version>-x86_64.AppImage`.
- *            The GUI binary is installed OFF PATH (`/usr/lib/zetawork/`), so
- *            the desktop app does not add a fourth command; the TUI binary is
- *            the `zetawork` command. The AppImage carries the GUI plus the
- *            desktop entry.
+ *            The GUI and both companions are installed OFF PATH
+ *            (`/usr/lib/zetawork/`), so the desktop app does not add a fourth
+ *            command; the TUI binary is the `zetawork` command. The AppImage
+ *            carries the same payload plus the desktop entry.
  *
  * Usage:
- *   bun scripts/package-desktop-archives.ts windows --exe <path> --out <dir>
- *   bun scripts/package-desktop-archives.ts linux   --version 1.3.1 \
- *       --gui <path> --tui <path> --out <dir>
+ *   bun scripts/package-desktop-archives.ts windows --version v1.3.2 \
+ *       --exe <gui.exe> --dll <WebView2Loader.dll> --out <dir>
+ *   bun scripts/package-desktop-archives.ts windows-installer --version v1.3.2 \
+ *       --gui <gui.exe> --tui <zetawork.exe> --agent <zetacode.exe> \
+ *       --ide <zetaide.exe> --dll <WebView2Loader.dll> --out <dir>
+ *   bun scripts/package-desktop-archives.ts linux --version v1.3.2 \
+ *       --gui <gui> --tui <zetawork> --agent <zetacode> --ide <zetaide> \
+ *       --out <dir>
  */
 
 import * as fs from "node:fs/promises";
@@ -35,6 +51,43 @@ function arg(name: string): string | undefined {
 	if (index >= 0) return process.argv[index + 1];
 	const inline = process.argv.find(value => value.startsWith(`--${name}=`));
 	return inline?.split("=", 2)[1];
+}
+
+/** Asset names are versioned with the numeric version: no leading `v`. */
+export function normalizeVersion(raw: string): string {
+	return raw.trim().replace(/^v/, "");
+}
+
+/** The four release assets, so the packaging script and the guards agree. */
+export interface DesktopAssetNames {
+	installer: string;
+	windowsZip: string;
+	appImage: string;
+	archPackage: string;
+}
+
+export function desktopAssetNames(version: string): DesktopAssetNames {
+	const numeric = normalizeVersion(version);
+	return {
+		installer: `zetawork-${numeric}-setup-x64.exe`,
+		windowsZip: `zetawork-${numeric}-windows-x64.zip`,
+		appImage: `zetawork-${numeric}-x86_64.AppImage`,
+		archPackage: `zetawork-${numeric}-1-x86_64.pkg.tar.zst`,
+	};
+}
+
+/**
+ * `--version` is authoritative, but a packaging dry run has no release tag;
+ * fall back to the workspace version so the dry run still produces a coherent
+ * (versioned) asset name.
+ */
+async function resolveVersion(): Promise<string> {
+	const fromArg = arg("version")?.trim();
+	const raw =
+		fromArg || (JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8")).version as string);
+	const version = normalizeVersion(raw);
+	if (!version) throw new Error("--version is empty");
+	return version;
 }
 
 async function run(command: string[], cwd = repoRoot, env: Record<string, string> = {}): Promise<void> {
@@ -164,22 +217,33 @@ async function writeZip(entries: Array<{ name: string; file: string }>, outPath:
 	await fs.writeFile(outPath, Buffer.concat([...locals, directory, end]));
 }
 
+async function resolveLoader(staged: string | undefined): Promise<string> {
+	if (!staged) return findWebView2Loader();
+	const loader = path.resolve(staged);
+	await mustExist(loader);
+	return loader;
+}
+
+/**
+ * GUI-only zip: exactly the shell and its loader. The companions ship in the
+ * NSIS installer; the zip keeps its legacy "launch the desktop app" shape.
+ */
 async function packageWindows(): Promise<void> {
+	const version = await resolveVersion();
 	const exe = arg("exe") ?? "packages/coding-agent/binaries/zetawork-gui-win-x64.exe";
 	const outDir = path.resolve(arg("out") ?? "packages/coding-agent/binaries");
 	await mustExist(exe);
 	// The archives job builds nothing, so it has no cargo registry; the Windows
 	// product leg stages the loader beside its artifact and passes it here.
-	const staged = arg("dll");
-	const loader = staged ? path.resolve(staged) : await findWebView2Loader();
-	await mustExist(loader);
+	const loader = await resolveLoader(arg("dll"));
 	console.log(`Using WebView2 loader: ${loader}`);
 
 	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-win-"));
 	await fs.copyFile(exe, path.join(stage, "zetawork-gui.exe"));
 	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
 
-	const archive = path.join(outDir, "zetawork-windows-x64.zip");
+	await fs.mkdir(outDir, { recursive: true });
+	const archive = path.join(outDir, desktopAssetNames(version).windowsZip);
 	await writeZip(
 		[
 			{ name: "zetawork-gui.exe", file: path.join(stage, "zetawork-gui.exe") },
@@ -188,6 +252,47 @@ async function packageWindows(): Promise<void> {
 		archive,
 	);
 	console.log(`wrote ${archive}`);
+}
+
+/**
+ * NSIS installer: the whole suite beside each other in a per-user directory.
+ * `installer.nsi` does the Windows work; this function only stages the four
+ * executables (+ the loader) and invokes `makensis` with the version and paths.
+ */
+async function packageWindowsInstaller(): Promise<void> {
+	const version = await resolveVersion();
+	const names = desktopAssetNames(version);
+	const gui = arg("gui") ?? "packages/coding-agent/binaries/zetawork-gui-win-x64.exe";
+	const tui = arg("tui") ?? "packages/coding-agent/binaries/zeta-work-win-x64.exe";
+	const agent = arg("agent") ?? "packages/coding-agent/binaries/zeta-cli-windows-x64.exe";
+	const ide = arg("ide") ?? "packages/coding-agent/binaries/zeta-ide-win-x64.exe";
+	const outDir = path.resolve(arg("out") ?? "packages/coding-agent/binaries");
+	for (const file of [gui, tui, agent, ide]) await mustExist(file);
+	const loader = await resolveLoader(arg("dll"));
+
+	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-nsis-"));
+	await fs.copyFile(gui, path.join(stage, "zetawork-gui.exe"));
+	await fs.copyFile(tui, path.join(stage, "zetawork.exe"));
+	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
+	await fs.copyFile(ide, path.join(stage, "zetaide.exe"));
+	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
+
+	await fs.mkdir(outDir, { recursive: true });
+	const outFile = path.join(outDir, names.installer);
+	const script = path.join(repoRoot, "scripts", "packaging", "windows", "installer.nsi");
+	await mustExist(script);
+	await run(
+		[
+			Bun.env.MAKENSIS ?? "makensis",
+			`-DAPP_VERSION=${version}`,
+			`-DSOURCE_DIR=${stage}`,
+			`-DOUT_FILE=${outFile}`,
+			script,
+		],
+		repoRoot,
+	);
+	await mustExist(outFile);
+	console.log(`wrote ${outFile}`);
 }
 
 /** Desktop entry + icon the AppImage and the Arch package share. */
@@ -217,13 +322,13 @@ async function writeIcon(file: string): Promise<void> {
 }
 
 async function packageLinux(): Promise<void> {
-	const version = arg("version");
+	const version = await resolveVersion();
 	const gui = arg("gui") ?? "packages/coding-agent/binaries/zetawork-gui-linux-x64";
 	const tui = arg("tui") ?? "packages/coding-agent/binaries/zeta-work-linux-x64";
+	const agent = arg("agent") ?? "packages/coding-agent/binaries/zeta-cli-linux-x64";
+	const ide = arg("ide") ?? "packages/coding-agent/binaries/zeta-ide-linux-x64";
 	const outDir = path.resolve(arg("out") ?? "packages/coding-agent/binaries");
-	if (!version) throw new Error("--version is required for the linux archives");
-	await mustExist(gui);
-	await mustExist(tui);
+	for (const file of [gui, tui, agent, ide]) await mustExist(file);
 
 	const work = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-linux-"));
 	const appDir = path.join(work, "zetawork.AppDir");
@@ -232,8 +337,17 @@ async function packageLinux(): Promise<void> {
 	await fs.mkdir(path.join(appDir, "usr", "share", "applications"), { recursive: true });
 	await fs.mkdir(path.join(appDir, "usr", "share", "icons", "hicolor", "128x128", "apps"), { recursive: true });
 
-	await fs.copyFile(gui, path.join(appDir, "usr", "lib", "zetawork", "zetawork-gui"));
-	await fs.chmod(path.join(appDir, "usr", "lib", "zetawork", "zetawork-gui"), 0o755);
+	// GUI + companions beside each other; the TUI stays the only PATH command.
+	const payload: Array<[string, string]> = [
+		[gui, "zetawork-gui"],
+		[agent, "zetacode"],
+		[ide, "zetaide"],
+	];
+	for (const [source, name] of payload) {
+		const target = path.join(appDir, "usr", "lib", "zetawork", name);
+		await fs.copyFile(source, target);
+		await fs.chmod(target, 0o755);
+	}
 	await fs.copyFile(tui, path.join(appDir, "usr", "bin", "zetawork"));
 	await fs.chmod(path.join(appDir, "usr", "bin", "zetawork"), 0o755);
 	await fs.writeFile(path.join(appDir, "usr", "share", "applications", "zetawork.desktop"), desktopEntry());
@@ -260,7 +374,8 @@ async function packageLinux(): Promise<void> {
 		await run(["curl", "-fsSL", "-o", tool, url]);
 		await fs.chmod(tool, 0o755);
 	}
-	const appimage = path.join(outDir, `zetawork-${version}-x86_64.AppImage`);
+	await fs.mkdir(outDir, { recursive: true });
+	const appimage = path.join(outDir, desktopAssetNames(version).appImage);
 	await run([tool, "-n", "--appimage-extract-and-run", appDir, appimage].filter(Boolean) as string[], work, {
 		ARCH: "x86_64",
 	});
@@ -273,6 +388,9 @@ async function packageLinux(): Promise<void> {
 	await fs.mkdir(pkgDir, { recursive: true });
 	await fs.copyFile(gui, path.join(pkgDir, "zetawork-gui"));
 	await fs.copyFile(tui, path.join(pkgDir, "zetawork"));
+	await fs.copyFile(agent, path.join(pkgDir, "zetacode"));
+	await fs.copyFile(ide, path.join(pkgDir, "zetaide"));
+	await fs.copyFile(path.join(repoRoot, "LICENSE"), path.join(pkgDir, "LICENSE"));
 	await fs.copyFile(
 		path.join(repoRoot, "scripts", "packaging", "arch", "zetawork.desktop"),
 		path.join(pkgDir, "zetawork.desktop"),
@@ -298,19 +416,24 @@ async function packageLinux(): Promise<void> {
 	]);
 	const produced = (await fs.readdir(pkgDir)).find(name => name.endsWith(".pkg.tar.zst"));
 	if (!produced) throw new Error("makepkg produced no .pkg.tar.zst");
+	const expected = desktopAssetNames(version).archPackage;
+	if (produced !== expected) throw new Error(`makepkg produced ${produced}, expected ${expected}`);
 	await fs.copyFile(path.join(pkgDir, produced), path.join(outDir, produced));
 	console.log(`wrote ${path.join(outDir, produced)}`);
 }
 
-const mode = process.argv[2];
-try {
-	if (mode === "windows") await packageWindows();
-	else if (mode === "linux") await packageLinux();
-	else {
-		console.error("Usage: package-desktop-archives.ts <windows|linux> [options]");
-		process.exit(2);
+if (import.meta.main) {
+	const mode = process.argv[2];
+	try {
+		if (mode === "windows") await packageWindows();
+		else if (mode === "windows-installer") await packageWindowsInstaller();
+		else if (mode === "linux") await packageLinux();
+		else {
+			console.error("Usage: package-desktop-archives.ts <windows|windows-installer|linux> [options]");
+			process.exit(2);
+		}
+	} catch (error) {
+		console.error(`packaging failed: ${(error as Error).message}`);
+		process.exit(1);
 	}
-} catch (error) {
-	console.error(`packaging failed: ${(error as Error).message}`);
-	process.exit(1);
 }

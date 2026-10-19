@@ -1136,7 +1136,8 @@ jobs:
    # core npm) is gated on release_gate downstream.
    release_binary:
       name: "Release binary: ${{ matrix.target_id }}"
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+      if: ${{ !cancelled() &&
+         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) &&
          needs.native_addons.result == 'success' &&
          needs.native_addons_cross.result == 'success' }}
       needs: [release_metadata, native_addons, native_addons_cross]
@@ -1353,11 +1354,16 @@ jobs:
    # assembled here rather than inside a matrix leg. Sources are the same
    # `zeta-binary-*` artifacts release_github downloads.
    release_desktop_archives:
-      name: Package zetawork desktop archives
+      name: Package zetawork desktop installer & archives
+      # Needs the CLI leg too: the installer and both Linux packages carry
+      # `zetacode` (zeta-binary-linux-x64 / zeta-binary-win32-x64) beside the
+      # GUI, alongside zetaide (zeta-binary-zeta-ide-{linux,win}-x64) and the
+      # TUI (zeta-binary-zeta-work-{linux,win}-x64).
       if: ${{ always() && !cancelled() &&
          (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) &&
+         needs.release_binary.result == 'success' &&
          needs.release_product_binaries.result == 'success' }}
-      needs: [release_metadata, release_product_binaries]
+      needs: [release_metadata, release_binary, release_product_binaries]
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -1368,13 +1374,25 @@ jobs:
               path: packages/coding-agent/binaries
               merge-multiple: true
          # mksquashfs for appimagetool; docker is preinstalled on the runner and
-         # the Arch package is built inside archlinux/base-devel.
-         - name: Install AppImage tooling
-           run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zsync
-         - name: Package the Windows desktop app
+         # the Arch package is built inside archlinux/base-devel. NSIS builds
+         # the per-user Windows installer (`makensis`).
+         - name: Install AppImage and NSIS tooling
+           run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zsync nsis
+         - name: Package the Windows desktop app (GUI-only zip)
            run: |
               bun scripts/package-desktop-archives.ts windows \
+                --version "${{ needs.release_metadata.outputs.release-tag }}" \
                 --exe packages/coding-agent/binaries/zetawork-gui-win-x64.exe \
+                --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
+                --out packages/coding-agent/binaries
+         - name: Package the Windows installer (NSIS, with companions)
+           run: |
+              bun scripts/package-desktop-archives.ts windows-installer \
+                --version "${{ needs.release_metadata.outputs.release-tag }}" \
+                --gui packages/coding-agent/binaries/zetawork-gui-win-x64.exe \
+                --tui packages/coding-agent/binaries/zeta-work-win-x64.exe \
+                --agent packages/coding-agent/binaries/zeta-cli-windows-x64.exe \
+                --ide packages/coding-agent/binaries/zeta-ide-win-x64.exe \
                 --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
                 --out packages/coding-agent/binaries
          - name: Package the Linux desktop app
@@ -1383,13 +1401,16 @@ jobs:
                 --version "${{ needs.release_metadata.outputs.release-tag }}" \
                 --gui packages/coding-agent/binaries/zetawork-gui-linux-x64 \
                 --tui packages/coding-agent/binaries/zeta-work-linux-x64 \
+                --agent packages/coding-agent/binaries/zeta-cli-linux-x64 \
+                --ide packages/coding-agent/binaries/zeta-ide-linux-x64 \
                 --out packages/coding-agent/binaries
-         - name: Upload desktop archives
+         - name: Upload desktop installer & archives
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
            with:
               name: zeta-binary-zetawork-archives
               path: |
-                 packages/coding-agent/binaries/zetawork-windows-x64.zip
+                 packages/coding-agent/binaries/zetawork-*-setup-x64.exe
+                 packages/coding-agent/binaries/zetawork-*-windows-x64.zip
                  packages/coding-agent/binaries/zetawork-*.AppImage
                  packages/coding-agent/binaries/zetawork-*.pkg.tar.zst
               if-no-files-found: error
@@ -1538,10 +1559,15 @@ jobs:
                 echo "::error::Expected at least 2 zeta-work-* product binaries, found $work_count"
                 missing=1
               fi
+              # Desktop assets carry the numeric version: the tag's leading `v`
+              # is packaging metadata, never part of an asset name.
+              version="${{ needs.release_metadata.outputs.release-tag }}"
+              version="${version#v}"
               for archive in \
-                packages/coding-agent/binaries/zetawork-windows-x64.zip \
-                packages/coding-agent/binaries/zetawork-"${{ needs.release_metadata.outputs.release-tag }}"-x86_64.AppImage \
-                packages/coding-agent/binaries/zetawork-"${{ needs.release_metadata.outputs.release-tag }}"-1-x86_64.pkg.tar.zst; do
+                packages/coding-agent/binaries/zetawork-"$version"-setup-x64.exe \
+                packages/coding-agent/binaries/zetawork-"$version"-windows-x64.zip \
+                packages/coding-agent/binaries/zetawork-"$version"-x86_64.AppImage \
+                packages/coding-agent/binaries/zetawork-"$version"-1-x86_64.pkg.tar.zst; do
                 if [ ! -f "$archive" ]; then
                   echo "::error::Missing desktop archive: $archive"
                   missing=1
@@ -1556,7 +1582,10 @@ jobs:
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
                 packages/coding-agent/binaries/zeta-work-* \
-                packages/coding-agent/binaries/zetawork-* \
+                packages/coding-agent/binaries/zetawork-*-setup-x64.exe \
+                packages/coding-agent/binaries/zetawork-*-windows-x64.zip \
+                packages/coding-agent/binaries/zetawork-*.AppImage \
+                packages/coding-agent/binaries/zetawork-*.pkg.tar.zst \
                 packages/coding-agent/binaries/zeta-ide-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 LICENSE \
@@ -1569,7 +1598,8 @@ jobs:
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
                  packages/coding-agent/binaries/zeta-work-*
-                 packages/coding-agent/binaries/zetawork-windows-x64.zip
+                 packages/coding-agent/binaries/zetawork-*-setup-x64.exe
+                 packages/coding-agent/binaries/zetawork-*-windows-x64.zip
                  packages/coding-agent/binaries/zetawork-*.AppImage
                  packages/coding-agent/binaries/zetawork-*.pkg.tar.zst
                  packages/coding-agent/binaries/zeta-ide-*

@@ -125,10 +125,10 @@ plugins/official/pi-messenger`，把插件目录原样打包）发布——两�
 
    同一决定落在 CI：`desktop_mac` / `release_binary_hosted` /
    `release_github_verify` / `release_brew` 四个 job 删除，darwin/ARM 矩阵
-   leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` **恢复为常驻
-   发布 job**（v1.1.16 起桌面安装包是 release 的固定资产：win zip+nsis-exe、
-   linux tar.gz+deb+AppImage；`release_github` 依赖两个 desktop job 的产物，
-   见下方损伤类别 5）。
+   leg 与 leaf tag 全部移除。`desktop_linux` / `desktop_windows` 也已删除：
+   桌面产物的唯一打包点是 Zeta-only 的 `release_desktop_archives`
+   （Windows NSIS 安装器 + GUI-only zip、Linux AppImage + Arch 包），
+   `release_github` 依赖该 job 的产物（见下方损伤类别 5）。
 
    **方向注记（未实施）**：CLI 与桌面将来可能拆分版本线独立发布——桌面追稳定
    （低频、大版本），CLI 高频快跑。届时 tag/repo 级拆分（如 `cli-vX.Y.Z` 与
@@ -430,23 +430,28 @@ except two deliberate holes:
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | zetacode         | `zeta-cli-{linux-x64,linux-musl-x64,windows-x64.exe}`                                                                            | `@linxiraos/zeta`                             |
 | zetawork TUI     | `zeta-work-{linux-x64,win-x64.exe}`                                                                                              | `@linxiraos/main` + the two leaves            |
-| zetawork desktop | `zetawork-windows-x64.zip` (exe + `WebView2Loader.dll`), `zetawork-<ver>-1-x86_64.pkg.tar.zst`, `zetawork-<ver>-x86_64.AppImage` | **none** — the GUI never enters the npm chain |
+| zetawork desktop | `zetawork-<ver>-setup-x64.exe` (NSIS: GUI + `zetacode.exe` + `zetaide.exe` + `zetawork.exe` + `WebView2Loader.dll`), `zetawork-<ver>-windows-x64.zip` (GUI + loader only), `zetawork-<ver>-1-x86_64.pkg.tar.zst` (TUI on PATH, GUI + companions in `/usr/lib/zetawork`), `zetawork-<ver>-x86_64.AppImage` (same payload) | **none** — the GUI never enters the npm chain |
 | zetaide          | `zeta-ide-{linux-x64,win-x64.exe}`                                                                                               | `@linxiraos/ide`                              |
 | editor           | — (cloud component)                                                                                                              | `@linxiraos/editor`                           |
 | official plugins | —                                                                                                                                | `@linxiraos/pi-messenger`                     |
 
 The Electron desktop (`zeta-desktop-*`) is gone for good; "desktop" means
-`zetawork`'s GUI mode only. Linux ships the **Arch package** (`.pkg.tar.zst`,
-`pacman -U`) as its primary form and the AppImage as the portable one — a raw
-Linux zip is not the story, and flatpak is out of scope. The GUI binary is
-installed off PATH (`/usr/lib/zetawork/zetawork-gui`, launched by the desktop
-entry), so the product keeps exactly three commands: `zetawork`, `zetacode`,
-`zetaide`; bare `zeta` prints the help that names them.
+`zetawork`'s GUI mode only. Windows ships an NSIS per-user installer
+(`$LOCALAPPDATA\Programs\zetawork`) that installs the GUI, both companions and
+the TUI beside each other, plus the legacy GUI-only zip (exe +
+`WebView2Loader.dll`) for users who already manage the companions themselves.
+Linux ships the **Arch package** (`.pkg.tar.zst`, `pacman -U`) as its primary
+form and the AppImage as the portable one — a raw Linux zip is not the story,
+and flatpak is out of scope. Both Linux shapes install the GUI and the two
+companions off PATH (`/usr/lib/zetawork/`, launched by the desktop entry), so
+the product keeps exactly three commands: `zetawork`, `zetacode`, `zetaide`;
+bare `zeta` prints the help that names them.
 
-`release_desktop_archives` (Zeta-only job) builds the three archives from both
-Linux legs; `release_github` waits on it, and
-`scripts/check-workbench-bundles.ts` fails when a shippable leg disappears or
-an upload family exists that the release does not create.
+`release_desktop_archives` (Zeta-only job) builds the Windows installer + zip
+and the two Linux packages from the CLI and product legs; `release_github`
+waits on it, and `scripts/check-workbench-bundles.ts` fails when a shippable
+leg disappears or an upload family exists that the release does not create.
+Every asset name carries the numeric version (`v` stripped).
 
 ### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
 

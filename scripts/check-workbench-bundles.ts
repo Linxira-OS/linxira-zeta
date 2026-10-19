@@ -277,9 +277,12 @@ for (const family of [
 	`${STAGED_DIR}/zeta-cli-*`,
 	`${STAGED_DIR}/zeta-work-*`,
 	`${STAGED_DIR}/zeta-ide-*`,
-	// The desktop app uploads only its three archives; the raw GUI binaries and
-	// the staged WebView2 loader stay build artifacts, never release assets.
-	`${STAGED_DIR}/zetawork-windows-x64.zip`,
+	// The desktop app uploads only its four archives (NSIS installer + the
+	// legacy GUI-only zip + AppImage + Arch package); the raw GUI binaries, the
+	// staged companions and the WebView2 loader stay build artifacts, never
+	// release assets.
+	`${STAGED_DIR}/zetawork-*-setup-x64.exe`,
+	`${STAGED_DIR}/zetawork-*-windows-x64.zip`,
 	`${STAGED_DIR}/zetawork-*.AppImage`,
 	`${STAGED_DIR}/zetawork-*.pkg.tar.zst`,
 ]) {
