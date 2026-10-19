@@ -1,8 +1,8 @@
 ## [Unreleased]
 
-- 版本线推进至 1.3.1；本版无独立用户可见变化。
+## [1.3.1] - 2026-10-19
 
-## [1.3.0] - 2026-10-18
+- 版本线推进至 1.3.1；本版无独立用户可见变化。
 
 ### Added
 
@@ -12,6 +12,8 @@
 ### Changed
 
 - Reworked the "emotional pressure" detection layer: added a Chinese and voice-input dictionary (no word boundaries and no punctuation reliance, since Chinese input often comes from speech transcription and profanity frequently appears as homophones), added emphasis signals (full-width exclamation runs, repeated characters, repeated words) for judging anger, and added a cross-language signal — **an entire message repeating the previous one**. It no longer relies on emoji (users barely type them; only models emit them); the English dictionary is unchanged. The judging prompt is now language-neutral and tolerates mixed Chinese/English within a single message.
+
+## [1.3.0] - 2026-10-18
 
 ### Fixed
 

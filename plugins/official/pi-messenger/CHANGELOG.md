@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-19
+
 $1## [1.3.0] - 2026-10-18
 
 - **`/editor` spawns the built-in editor and hands it the context on the command line**: the payload is now the vendored TermIDE editor-only entry (`termide-editor`, shipped in `@linxiraos/editor`'s platform leaves), which takes `FILE[:line[:col]]... [DIRECTORY]` positionally — so `/editor` (and its optional target argument) passes the workspace as the project root and any `file:line:col` the user asked for, instead of writing `~/.zeta/handoff.json`. The handoff module, the `editor.handoffSession` read and the `git rev-parse` root probe are gone with it; `editor.autoInstall` still installs the package on demand.
