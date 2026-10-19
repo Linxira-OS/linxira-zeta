@@ -216,12 +216,18 @@ function normalizeProfile(raw: unknown, filePath: string, expectedName?: string)
 			if (value.skills !== undefined && !Array.isArray(value.skills)) {
 				throw new Error(`Invalid Team profile JSON at ${filePath}: role ${name}.skills must be an array`);
 			}
+			if (value.tools !== undefined && !Array.isArray(value.tools)) {
+				throw new Error(`Invalid Team profile JSON at ${filePath}: role ${name}.tools must be an array`);
+			}
 			roles[roleName] = {
 				...(typeof value.description === "string" ? { description: value.description } : {}),
 				...(typeof value.model === "string" ? { model: value.model } : {}),
 				...(typeof value.thinking === "string" ? { thinking: value.thinking } : {}),
 				...(Array.isArray(value.skills)
 					? { skills: value.skills.filter((skill): skill is string => typeof skill === "string") }
+					: {}),
+				...(Array.isArray(value.tools)
+					? { tools: value.tools.filter((tool): tool is string => typeof tool === "string") }
 					: {}),
 				...(typeof value.prompt === "string" ? { prompt: value.prompt } : {}),
 				...(typeof value.promptSource === "string" ? { promptSource: value.promptSource } : {}),

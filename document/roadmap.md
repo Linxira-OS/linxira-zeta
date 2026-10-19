@@ -686,12 +686,22 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   让位机制,tuiText(key,fallback) 宿主注入 i18n。
 - **teamagent 修正(pi-messenger 插件审计,2026-10-02)**:①user scope 目录
   (getAgentDir()/agents)、②project scope opt-in + trust 门控、⑤重启提示失实
-  ——三项均已修并带测试。**④仍开放,是真 bug**:role 写入端发的是 kebab 键
-  `thinking-level:`(`plugins/official/pi-messenger/teamagent-command.ts:72`),而发现端
-  读 `thinkingLevel`/`thinking`(`packages/coding-agent/src/discovery/helpers.ts:361-368`),
-  角色的 thinking level 被静默丢弃。③(非编辑角色缺 tools 最小权限)仍是未验证项。
-  小项:usage 文案、--user/--project 冲突不报错、零测试覆盖、.pi 品牌路径残留
-  (crew/team/*)。随 feat 分支落地,不经 dev/*。
+  ——三项均已修并带测试。**④已修(2026-10-20 复核)**:role 写入端发的是规范键
+  `thinking:`(`plugins/official/pi-messenger/teamagent-command.ts:83`),发现端同时接受
+  `thinkingLevel` 与 legacy `thinking`
+  (`packages/coding-agent/src/discovery/helpers.ts:367-374`),双读者往返有测试覆盖
+  (`plugins/official/pi-messenger/tests/teamagent-command.test.ts:137-172`)。
+  **③已修**:非编辑角色写入子代理文件时默认带最小工具白名单
+  `NON_EDITING_ROLE_TOOLS`(`teamagent-command.ts:38`,与 plan mode 的
+  `PLAN_MODE_TOOLS`——`packages/coding-agent/src/task/structured-subagent.ts:237`——
+  同值;插件独立发布,故本地定义),`renderAgentMarkdown` 输出 `tools: [...]`
+  (同文件 :85),`addTeamAgent` 对非编辑角色兜底、显式 `role.tools` 优先
+  (`teamagent-command.ts:126-132`),crew 镜像回读保留该键
+  (`crew/team/subagent-roles.ts:75`)。小项:usage 文案已列 `agents` 与 `--project`
+  (`teamagent-command.ts:240-251`)、`--user`+`--project` 冲突改为报错
+  (同文件 :256-261)、未知子命令提示列真实动词(同文件 :351-353)、测试覆盖补齐——
+  均已修。`.pi` 路径仅剩 legacy 迁移读取(`crew/utils/install.ts:26-28`、
+  `crew/utils/migrations.ts:60,104`),不在 `crew/team/*`。随 feat 分支落地,不经 dev/*。
 - **rail 拖拽排序**:`@dnd-kit/*` 已在 `web-ui/package.json` 声明却从未使用
   (`useSortable`/`arrayMove`/`DndContext` 全库零命中);实际出货的是排序菜单,且
   没有持久化任何顺序。要么接线 dnd-kit + localStorage 持久化,要么删掉未用的依赖

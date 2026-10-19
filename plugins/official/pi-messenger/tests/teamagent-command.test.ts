@@ -170,4 +170,77 @@ describe("teamagent command", () => {
 		expect(parsed.thinkingLevel).toBe("high");
 		expect(parsed.autoloadSkills).toEqual(["testing", "api"]);
 	});
+
+	it("renders a tool allowlist that agent discovery parses", async () => {
+		const { renderAgentMarkdown } = await loadModule();
+		// Runtime import: `@linxiraos/pi-utils` snapshots os.homedir() at module
+		// load, so readers must load after beforeEach points it at the temp root.
+		const { parseAgent } = await import("@linxiraos/zeta/task/agents");
+
+		const content = renderAgentMarkdown({
+			name: "scout",
+			description: "Read-only recon",
+			tools: ["read", "grep"],
+		});
+
+		expect(content).toContain('tools: ["read","grep"]');
+		const parsed = parseAgent("inline.md", content, "project");
+		expect(parsed.tools).toEqual(["read", "grep"]);
+	});
+
+	it("defaults non-editing roles to the minimal allowlist and leaves editing roles unrestricted", async () => {
+		const { addTeamAgent, NON_EDITING_ROLE_TOOLS } = await loadModule();
+
+		const planner = addTeamAgent({ name: "planner", description: "Plan only" }, "project", cwd);
+		expect(planner.ok).toBe(true);
+		const plannerContent = fs.readFileSync(planner.filePath!, "utf8");
+		expect(plannerContent).toContain(`tools: ${JSON.stringify([...NON_EDITING_ROLE_TOOLS])}`);
+
+		const worker = addTeamAgent({ name: "worker", description: "Implementation agent" }, "project", cwd);
+		expect(worker.ok).toBe(true);
+		expect(fs.readFileSync(worker.filePath!, "utf8")).not.toContain("tools:");
+
+		// The crew mirror (which feeds /teamagent add on later runs) keeps the
+		// allowlist instead of silently dropping it. Runtime import for the same
+		// home-snapshot reason as the CLI reader above.
+		const { discoverSubagentRoles } = await import("../crew/team/subagent-roles.ts");
+		const mirrored = discoverSubagentRoles(cwd, { homeDir: path.join(root, "empty-home") });
+		expect(mirrored.planner?.tools).toEqual([...NON_EDITING_ROLE_TOOLS]);
+	});
+
+	it("rejects --user together with --project instead of preferring --user", async () => {
+		const { registerTeamAgentCommand } = await loadModule();
+		const { pi, sent, handlers } = createMockPi();
+		registerTeamAgentCommand(pi as never);
+
+		await handlers[0]("add worker --user --project", { cwd });
+
+		expect(sent).toHaveLength(1);
+		expect(sent[0].content).toContain("Cannot combine --user and --project");
+		expect(fs.existsSync(path.join(agentDir, "agents", "worker.md"))).toBe(false);
+		expect(fs.existsSync(path.join(cwd, ".zeta", "agents", "worker.md"))).toBe(false);
+	});
+
+	it("documents agents and --project in the usage text", async () => {
+		const { registerTeamAgentCommand } = await loadModule();
+		const { pi, sent, handlers } = createMockPi();
+		registerTeamAgentCommand(pi as never);
+
+		await handlers[0]("", { cwd });
+
+		expect(sent).toHaveLength(1);
+		expect(sent[0].content).toContain("/teamagent agents");
+		expect(sent[0].content).toContain("--project");
+		expect(sent[0].content).toContain("--user");
+	});
+
+	it("names the real verbs when the subcommand is unknown", async () => {
+		const { registerTeamAgentCommand } = await loadModule();
+		const { pi, sent, handlers } = createMockPi();
+		registerTeamAgentCommand(pi as never);
+
+		await handlers[0]("nope", { cwd });
+
+		expect(sent[0].content).toContain("roles, status, profile.list, charter.show, agents, add or remove");
+	});
 });

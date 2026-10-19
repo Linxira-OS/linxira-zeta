@@ -15,6 +15,8 @@ export interface TeamRoleDefinition {
 	model?: string;
 	thinking?: string;
 	skills?: string[];
+	/** Tool allowlist written into the agent file; absent = runtime defaults. */
+	tools?: string[];
 	prompt?: string;
 	promptSource?: string;
 }
