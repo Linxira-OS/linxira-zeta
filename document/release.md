@@ -73,11 +73,21 @@ Build time belongs in the changelog and the git tag, not the version.
   floor (current: 12.2.0). The trusted-publisher entry on
   npmjs.com must match the workflow filename exactly (`.github/workflows/ci.yml`)
   and the repo (Linxira-OS/linxira-zeta). OIDC publishes automatically attach
-  provenance. Long-lived `NPM_TOKEN`/`NODE_AUTH_TOKEN` are a temporary
-  fallback only: npm now requires 2FA for all publishes, bypass-2FA granular
-  tokens lose direct publish in January 2027, and staged publishing (`npm
-stage publish` + maintainer 2FA approval) is the recommended pairing for
-  CI-originated publishes. Every published package uses the `@linxiraos/*` name —
+  provenance.
+- **No npm tokens, ever (2026-10-19 裁定).** `NPM_TOKEN`/`NODE_AUTH_TOKEN` are
+  not used anywhere in this repository: npm is retiring token publishes
+  (2FA-bypass tokens lose direct publish in January 2027, account changes from
+  August 2026) and a long-lived token in CI is a credential nobody can rotate
+  safely. Every publish goes through trusted publishing (GitHub OIDC,
+  `id-token: write`).
+- **Trusted publishing is a two-step handshake, per package.** Adding the entry
+  in the npm UI leaves it `Pending validation` with a deadline (v1.3.0:
+  `@linxiraos/pi-messenger`, window to 2026-10-21 03:11 UTC); the entry must be
+  exercised by one successful publish inside that window or it flips to
+  `Expired` — and an expired entry is what a failing publish looks like
+  (`404 Not Found - PUT ...`). A brand-new package is bootstrapped **by hand**
+  (`npm publish` from a maintainer with 2FA), then the repository + workflow
+  file is configured in the npm UI, and only then does CI publish it. Every published package uses the `@linxiraos/*` name —
   no `@linxiraos/*` or legacy names, and no `.zeta` compatibility packages.
 - **The `@linxiraos` publish chain is live** (v1.0.9 published 2026-08-19 via
   trusted publishing).

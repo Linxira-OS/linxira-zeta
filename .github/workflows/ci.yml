@@ -1341,8 +1341,9 @@ jobs:
          !inputs.skip_npm }}
       needs: [release_metadata, release_gate, release_binary]
       runs-on: ubuntu-22.04
-      # id-token lets npm mint the OIDC token for trusted publishing; the
-      # NODE_AUTH_TOKEN below is the fallback for unconfigured packages.
+      # id-token is the only publish credential: npm tokens were removed
+      # 2026-10-19 (trusted publishing only; a package needs a validated
+      # trusted-publisher entry before this job can publish it).
       permissions:
          id-token: write
          contents: read
@@ -1388,11 +1389,6 @@ jobs:
               path: packages/natives/native
               merge-multiple: true
          - name: Publish native leaf packages
-           env:
-              # Fallback auth: setup-node wrote an .npmrc referencing
-              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
-              # publisher for the package (or on a first publish).
-              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: |
               set -euo pipefail
               for tag in linux-x64 win32-x64; do
@@ -1504,9 +1500,10 @@ jobs:
       needs: [release_metadata, release_binary, release_native_leaves]
       runs-on: ubuntu-22.04
       # `id-token: write` lets npm mint the GitHub OIDC token it exchanges for a
-      # short-lived publish token (trusted publishing + provenance). When a
-      # package has no matching trusted publisher configured, npm silently falls
-      # back to NODE_AUTH_TOKEN below — which also covers first-ever publishes.
+      # short-lived publish token (trusted publishing + provenance). There is no
+      # token fallback any more (2026-10-19 rule): an unconfigured package fails
+      # the publish, and a new package is bootstrapped by publishing it by hand
+      # once, then adding the trusted-publisher entry in the npm UI.
       permissions:
          id-token: write
          contents: read
@@ -1545,11 +1542,6 @@ jobs:
            with:
               targets: linux-x64-baseline linux-x64-modern
          - name: Publish to npm
-           env:
-              # Fallback auth: setup-node wrote an .npmrc referencing
-              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
-              # publisher for the package (or on a first publish).
-              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: bun run ci:release:publish
 
    # Vendored TermIDE (zetaide) upstream test contract, mirroring what the
@@ -1873,14 +1865,14 @@ jobs:
          !inputs.skip_npm }}
       needs: [release_metadata, release_gate]
       runs-on: ubuntu-22.04
-      # Token-only publish, on purpose. The runtime line has npm trusted
-      # publishers configured, so `id-token: write` works there; the plugin name
-      # does not, and npm does NOT fall back to NODE_AUTH_TOKEN after an OIDC
-      # 404 — v1.3.0 failed with `404 Not Found - PUT
-      # https://registry.npmjs.org/@linxiraos%2fpi-messenger`. Without the OIDC
-      # permission npm publishes straight with the granular token, which owns
-      # the package (same maintainers as the rest of the scope).
+      # Trusted publishing only (2026-10-19 rule): npm tokens are gone, every
+      # publish authenticates through the GitHub OIDC id-token. The npm
+      # trusted-publisher entry is a two-step handshake — adding it in the UI
+      # leaves it "Pending validation" and it must be exercised by one
+      # successful publish inside the window npm shows (otherwise it flips to
+      # "Expired"; that is what produced v1.3.0's `PUT 404`).
       permissions:
+         id-token: write
          contents: read
       steps:
          - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -1899,9 +1891,4 @@ jobs:
          # ci-release-publish.ts's own imports are node builtins. Nothing in the
          # plugin resolves at pack time — it publishes the source it ships.
          - name: Publish official plugin packages
-           env:
-              # Fallback auth: setup-node wrote an .npmrc referencing
-              # NODE_AUTH_TOKEN; npm uses it only when OIDC has no trusted
-              # publisher for the package (or on a first publish).
-              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: bun run ci:release:publish-plugin

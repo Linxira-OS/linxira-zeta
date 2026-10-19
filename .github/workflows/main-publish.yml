@@ -33,6 +33,4 @@ jobs:
          - name: Ensure npm supports trusted publishing
            run: npm install -g npm@11.17.0
          - name: Publish main packages
-           env:
-              NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
            run: bun scripts/ci-release-publish.ts --main
