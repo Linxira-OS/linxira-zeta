@@ -3,18 +3,21 @@
 /**
  * Session tabs — React binding for the pure model in `lib/session-tabs.ts`.
  *
- * PR A keeps the tab list in memory only (no localStorage, no restore): the
- * shell owns a single instance whose state is the sole source of truth for
- * "which sessions are open, in what order, and which one is active". PR B adds
- * the persistence layer on top of this same API (`initialState` + a save
- * effect) without changing the call sites.
+ * The shell owns a single instance whose state is the sole source of truth for
+ * "which sessions are open, in what order, and which one is active". Persistence
+ * lives outside this hook: `lib/session-tabs-persist` decodes the stored view
+ * list, the caller passes it as `initialState`, and a save effect writes the
+ * state back. Restored tabs are ordinary cold tabs — no session is contacted
+ * until the tab is activated.
  */
 import { useCallback, useState } from "react";
 
 import {
 	activateTab,
+	closeOtherTabs,
 	closeTab,
 	closeTabs,
+	closeTabsToRight,
 	draftTab,
 	evictionCandidate,
 	insertTab,
@@ -51,6 +54,10 @@ export interface UseSessionTabsResult {
 	activate(tabId: string): void;
 	close(tabId: string): void;
 	closeMany(tabIds: readonly string[]): void;
+	/** Right-click menu: drop every other tab, keeping this one active. */
+	closeOthers(tabId: string): void;
+	/** Right-click menu: drop the tabs after this one in strip order. */
+	closeRight(tabId: string): void;
 	closeSessionTabs(sessionId: string): void;
 	update(tabId: string, patch: Partial<Omit<SessionTab, "id">>): void;
 	/** Reorder primitive (HTML5 DnD / keyboard in PR C). */
@@ -107,6 +114,8 @@ export function useSessionTabs(options: UseSessionTabsOptions = {}): UseSessionT
 	const activate = useCallback((tabId: string) => setState(prev => activateTab(prev, tabId)), []);
 	const close = useCallback((tabId: string) => setState(prev => closeTab(prev, tabId)), []);
 	const closeMany = useCallback((tabIds: readonly string[]) => setState(prev => closeTabs(prev, tabIds)), []);
+	const closeOthers = useCallback((tabId: string) => setState(prev => closeOtherTabs(prev, tabId)), []);
+	const closeRight = useCallback((tabId: string) => setState(prev => closeTabsToRight(prev, tabId)), []);
 	const closeSessionTabs = useCallback(
 		(sessionId: string) =>
 			setState(prev => closeTabs(prev, prev.tabs.filter(tab => tab.sessionId === sessionId).map(tab => tab.id))),
@@ -127,6 +136,8 @@ export function useSessionTabs(options: UseSessionTabsOptions = {}): UseSessionT
 		activate,
 		close,
 		closeMany,
+		closeOthers,
+		closeRight,
 		closeSessionTabs,
 		update,
 		reorder,

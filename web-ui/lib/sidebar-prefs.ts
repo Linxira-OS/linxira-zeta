@@ -317,6 +317,38 @@ export function collapseProject(path: string, collapsed: boolean): ZetaSidebarPr
 	});
 }
 
+/**
+ * Project order for `projectSort === "manual"`.
+ *
+ * `ProjectMeta.order` is written by `reorderProjects` for every project the
+ * user placed — pinned or not — so it is authoritative for all of them.
+ * Projects without an explicit position (a project discovered after the last
+ * drag) trail the placed ones, ordered pinned-first, then the active project,
+ * then their incoming order (the sort itself is stable). Pinning alone never
+ * outranks an explicit manual position.
+ */
+export function orderProjectsManually(
+	paths: readonly string[],
+	projectMeta: Record<string, ProjectMeta | undefined>,
+	selectedProject: string | null,
+): string[] {
+	const orderOf = (path: string): number | null => {
+		const value = projectMeta[path]?.order;
+		return typeof value === "number" && Number.isFinite(value) ? value : null;
+	};
+	const pinnedRank = (path: string): number => (projectMeta[path]?.pinned === true ? 0 : 1);
+	return [...paths].sort((a, b) => {
+		const orderA = orderOf(a);
+		const orderB = orderOf(b);
+		if (orderA !== null || orderB !== null) {
+			if (orderA === null) return 1;
+			if (orderB === null) return -1;
+			if (orderA !== orderB) return orderA - orderB;
+		}
+		return pinnedRank(a) - pinnedRank(b) || (a === selectedProject ? -1 : b === selectedProject ? 1 : 0);
+	});
+}
+
 export function reorderProjects(orderedPaths: readonly string[]): ZetaSidebarPrefs {
 	return updatePrefs((p) => {
 		orderedPaths.forEach((path, i) => {

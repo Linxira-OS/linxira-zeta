@@ -87,10 +87,12 @@ import {
 	EMPTY_TAB_META,
 	findTabBySessionId,
 	isTabRunning,
+	selectRunningTabIds,
 	selectStreamingTabIds,
 	type SessionTab,
 	type TabRuntimeMeta,
 } from "@/lib/session-tabs";
+import { readPersistedSessionTabs, writePersistedSessionTabs } from "@/lib/session-tabs-persist";
 
 type SessionCopyField = "file" | "id";
 
@@ -238,7 +240,16 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 	// `selectedSession` / `newSessionCwd` / `activeCwd` below are *derived* from
 	// the active tab so every existing consumer (dock panels, sidebar highlight,
 	// top bar) keeps reading one value.
-	const sessionTabs = useSessionTabs();
+	//
+	// Restore happens in a lazy initializer: the shell is client-rendered (the
+	// static route's `useSearchParams` boundary bails to the browser), so the
+	// stored list is available before the first paint and hydration stays
+	// identical. A corrupt / unknown-version payload decodes to null, i.e. the
+	// empty shell, and the first save rewrites the key. Panel mode neither
+	// restores nor saves: it is a single-session surface mounted by a host and
+	// must not overwrite the full shell's tab list.
+	const [restoredTabs] = useState(() => (panel ? null : readPersistedSessionTabs()));
+	const sessionTabs = useSessionTabs({ initialState: restoredTabs ?? undefined });
 	const { tabs, activeTabId, activeTab } = sessionTabs;
 	const { runningSessionIds } = useRunningSessionIds();
 	// Runtime-only per-tab metadata (stats, context, branch tree, plan, run
@@ -1081,17 +1092,75 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 		[t],
 	);
 
+	// Persist the view list — order, active id and cold tab metadata only. Every
+	// change here is user-visible (open/close/activate/reorder), and the payload
+	// is a few KB, so no debounce is needed.
+	useEffect(() => {
+		if (panel) return;
+		writePersistedSessionTabs({ tabs, activeTabId });
+	}, [panel, tabs, activeTabId]);
+
 	// --- Tab strip plumbing -------------------------------------------------
 	// Sessions whose stream may stay open: the active tab, plus the two most
 	// recently used *running* background tabs (browser connection budget).
-	const runningTabIds = useMemo(() => runningTabIdsFrom(tabMeta), [tabMeta]);
+	// The running badge reads the same two consumed signals as the stream
+	// budget: a tab's own SSE state, plus the shared running poll (which is what
+	// covers a restored tab whose ChatWindow was never mounted). No request is
+	// added for the badge.
+	const runningTabIds = useMemo(
+		() => selectRunningTabIds({ tabs, runningSessionIds, runningTabIds: runningTabIdsFrom(tabMeta) }),
+		[tabMeta, tabs, runningSessionIds],
+	);
 	const streamingTabIds = useMemo(
 		() => selectStreamingTabIds({ tabs, activeTabId, runningSessionIds, runningTabIds }),
 		[tabs, activeTabId, runningSessionIds, runningTabIds],
 	);
 
 	const handleActivateTab = useCallback((tabId: string) => sessionTabs.activate(tabId), [sessionTabs]);
-	const handleCloseTab = useCallback((tabId: string) => sessionTabs.close(tabId), [sessionTabs]);
+
+	/**
+	 * Draft guard for every close path (×, middle-click, context menu): ask once
+	 * when the tabs being closed hold unsent text. A running turn is *not* a
+	 * reason to ask — closing a tab never reaches the gateway, so the run keeps
+	 * going, and an interruption would only train the user to dismiss prompts.
+	 */
+	const confirmDiscardDrafts = useCallback(
+		(tabIds: readonly string[]): boolean => {
+			if (tabIds.length === 0) return true;
+			const drafts = tabsRef.current.tabs.filter(tab => tabIds.includes(tab.id) && hasUnsavedDraft(tab));
+			if (drafts.length === 0) return true;
+			const message =
+				drafts.length === 1
+					? t("tabs.confirmCloseDraftFmt", { title: tabTitle(drafts[0]) })
+					: t("tabs.confirmCloseDraftsFmt", { count: drafts.length });
+			return window.confirm(message);
+		},
+		[t, tabTitle],
+	);
+
+	const handleCloseTab = useCallback(
+		(tabId: string) => {
+			if (confirmDiscardDrafts([tabId])) sessionTabs.close(tabId);
+		},
+		[confirmDiscardDrafts, sessionTabs],
+	);
+	const handleCloseOtherTabs = useCallback(
+		(tabId: string) => {
+			const others = tabsRef.current.tabs.filter(tab => tab.id !== tabId).map(tab => tab.id);
+			if (confirmDiscardDrafts(others)) sessionTabs.closeOthers(tabId);
+		},
+		[confirmDiscardDrafts, sessionTabs],
+	);
+	const handleCloseTabsRight = useCallback(
+		(tabId: string) => {
+			const current = tabsRef.current.tabs;
+			const index = current.findIndex(tab => tab.id === tabId);
+			if (index < 0) return;
+			const right = current.slice(index + 1).map(tab => tab.id);
+			if (confirmDiscardDrafts(right)) sessionTabs.closeRight(tabId);
+		},
+		[confirmDiscardDrafts, sessionTabs],
+	);
 
 	// The URL always names the active tab's session (`?session=`), or is bare for
 	// a draft — the same contract as the pre-tab shell, and the deep link the
@@ -2518,6 +2587,8 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 							titleFor={tabTitle}
 							onActivateTab={handleActivateTab}
 							onCloseTab={handleCloseTab}
+							onCloseOthers={handleCloseOtherTabs}
+							onCloseRight={handleCloseTabsRight}
 							onNewTab={() => handleNewSession(activeCwd ?? "")}
 							isMobile={isMobile}
 						/>

@@ -129,6 +129,8 @@ lib/
   types.ts            shared TypeScript types
   normalize.ts        normalizeToolCalls() — field name mismatch between file format and our types
   worktree.ts         project/worktree resolution and git worktree operations
+  session-tabs.ts     pure session-tab model: open/activate/close family/LRU/stream budget
+  session-tabs-persist.ts  localStorage codec for the tab strip (validate, cap, restore)
 
 components/
   AppShell.tsx        layout + URL state + tab management; feeds the shell slots
@@ -162,6 +164,8 @@ hooks/
   useDragDrop.ts      shared drag/drop state
   useIsMobile.ts      responsive breakpoint hook
   useTheme.ts         theme state
+  useSessionTabs.ts   session-tab binding over `lib/session-tabs.ts` (restore + close family)
+  useRunningSessionIds.tsx app-wide "which sessions are running" poll (sidebar + tab strip)
 ```
 
 ---
@@ -199,6 +203,26 @@ hooks/
 - The host needs no message bridge: the mode, session and workspace all arrive as
   URL state (`/panel?session=<id>`, `/plugins/view/<plugin>/<page>?mode=panel`),
   so mounting a surface is one URL.
+
+### Session tabs (`lib/session-tabs*.ts`, `hooks/useSessionTabs.ts`, `shell/SessionTabBar.tsx`)
+
+- A tab is a **view**: closing one only drops the view (the gateway has no
+  "end session"), so no close path ever aborts a running turn and a running tab
+  is not a reason to ask for confirmation. The only close confirmation is for
+  **unsent draft text** (`lib/draft-store`, keyed by `draftKeyForTab`): one
+  prompt per close action, however many drafted tabs it would discard.
+- The strip is persisted under `zeta-web:session-tabs-v1` as the view list
+  only — order, active id and tab metadata (no messages, no runtime meta). The
+  codec validates every field and ignores unknown schema versions; a payload
+  over the 12-tab cap is trimmed least-recently-active first, except the active
+  tab.
+- Restored tabs are **cold**: runtime metadata starts empty, so only the active
+  tab's `ChatWindow` mounts and issues requests; every other restored tab stays
+  request-free until activated. `panel` mode neither restores nor saves (it must
+  not overwrite the full shell's list).
+- The running dot reads two already-consumed signals only: each tab's own SSE
+  state plus the shared running poll (`selectRunningTabIds`). The poll is what
+  covers a restored tab that was never mounted.
 
 ### Web plugin pages (`lib/plugin-pages.ts`, `app/plugins/view/…`)
 

@@ -76,3 +76,34 @@ test("the /panel route pins the mode instead of relying on a query parameter", a
 
 	assert.match(route, /<AppShell mode="panel" \/>/);
 });
+
+test("session tabs restore from the persisted view list and save back", () => {
+	// The stored list is decoded before the first render, and restored tabs are
+	// ordinary cold tabs (the hook mounts only the active tab's ChatWindow).
+	assert.match(source, /const \[restoredTabs\] = useState\(\(\) => \(panel \? null : readPersistedSessionTabs\(\)\)\)/);
+	assert.match(source, /const sessionTabs = useSessionTabs\(\{ initialState: restoredTabs \?\? undefined \}\)/);
+	assert.match(source, /writePersistedSessionTabs\(\{ tabs, activeTabId \}\)/);
+	// Panel mode is a host-mounted single-session surface: it must never
+	// overwrite the full shell's tab list.
+	assert.match(source, /useEffect\(\(\) => \{\n\t\tif \(panel\) return;\n\t\twritePersistedSessionTabs/);
+});
+
+test("every close path asks before discarding an unsent draft", () => {
+	assert.match(source, /const confirmDiscardDrafts = useCallback/);
+	assert.match(source, /hasUnsavedDraft\(tab\)/);
+	assert.match(source, /tabs\.confirmCloseDraftFmt/);
+	assert.match(source, /tabs\.confirmCloseDraftsFmt/);
+	assert.match(source, /if \(confirmDiscardDrafts\(\[tabId\]\)\) sessionTabs\.close\(tabId\)/);
+	assert.match(source, /if \(confirmDiscardDrafts\(others\)\) sessionTabs\.closeOthers\(tabId\)/);
+	assert.match(source, /if \(confirmDiscardDrafts\(right\)\) sessionTabs\.closeRight\(tabId\)/);
+});
+
+test("the tab strip receives the right-click close family", () => {
+	const tabsSlot = slotBody("tabs");
+	assert.ok(tabsSlot, "tab strip slot must exist");
+	assert.match(tabsSlot, /onCloseOthers=\{handleCloseOtherTabs\}/);
+	assert.match(tabsSlot, /onCloseRight=\{handleCloseTabsRight\}/);
+	// The running badge is fed from the shared poll as well, so a restored cold
+	// tab shows it without a new request.
+	assert.match(source, /selectRunningTabIds\(\{ tabs, runningSessionIds, runningTabIds: runningTabIdsFrom\(tabMeta\) \}\)/);
+});

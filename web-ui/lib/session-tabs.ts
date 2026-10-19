@@ -223,6 +223,21 @@ export function closeTab(state: SessionTabsState, tabId: string): SessionTabsSta
 	return closeTabs(state, [tabId]);
 }
 
+/** "Close other tabs": drop every tab but `tabId`, which stays active. */
+export function closeOtherTabs(state: SessionTabsState, tabId: string): SessionTabsState {
+	if (!state.tabs.some(tab => tab.id === tabId)) return state;
+	const closing = state.tabs.filter(tab => tab.id !== tabId).map(tab => tab.id);
+	return activateTab(closeTabs(state, closing), tabId);
+}
+
+/** "Close tabs to the right": drop the tabs after `tabId` in strip order. */
+export function closeTabsToRight(state: SessionTabsState, tabId: string): SessionTabsState {
+	const index = state.tabs.findIndex(tab => tab.id === tabId);
+	if (index < 0) return state;
+	const closing = state.tabs.slice(index + 1).map(tab => tab.id);
+	return closing.length > 0 ? closeTabs(state, closing) : state;
+}
+
 export function updateTab(
 	state: SessionTabsState,
 	tabId: string,
@@ -280,6 +295,26 @@ export interface StreamBudgetInput {
 export function isTabRunning(tab: SessionTab, input: Omit<StreamBudgetInput, "tabs" | "activeTabId" | "maxBackgroundStreams">): boolean {
 	if (input.runningTabIds?.has(tab.id)) return true;
 	return Boolean(tab.sessionId && input.runningSessionIds.has(tab.sessionId));
+}
+
+/**
+ * Tabs that should show the running badge.
+ *
+ * Two already-consumed signals only: the tabs whose own `ChatWindow` reports a
+ * live run (SSE), plus the shared running poll, which names sessions — that is
+ * what covers a restored/cold tab, whose ChatWindow was never mounted and which
+ * therefore never reported a run. No extra request is made for the badge.
+ */
+export function selectRunningTabIds(input: {
+	tabs: readonly SessionTab[];
+	runningSessionIds: ReadonlySet<string>;
+	runningTabIds?: ReadonlySet<string>;
+}): Set<string> {
+	const ids = new Set<string>(input.runningTabIds ?? []);
+	for (const tab of input.tabs) {
+		if (tab.sessionId && input.runningSessionIds.has(tab.sessionId)) ids.add(tab.id);
+	}
+	return ids;
 }
 
 /**

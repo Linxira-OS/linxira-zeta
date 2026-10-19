@@ -3,20 +3,24 @@
 /**
  * Session tab strip — one tab per open session/draft, above the chat area.
  *
- * PR A covers the skeleton: activate, close, new, plus the running dot. The
- * right-click close family (close others / to the right / close and abort),
- * the attention flash, drag-to-reorder and the keyboard roving tabindex land in
- * PR B/C; the ARIA roles below are already the ones PR C will drive.
+ * Covers: activate, close, new, the running dot and the right-click close
+ * family (close / close others / close to the right). Closing is always a view
+ * operation — it never aborts a turn — and the *confirmation* for a tab that
+ * holds unsent text belongs to the shell, which owns the draft store; this
+ * component only reports the tab id. Drag-to-reorder, the attention flash and
+ * the keyboard roving tabindex land in PR C; the ARIA roles below are already
+ * the ones PR C will drive.
  *
  * Visual language follows `components/TabBar.tsx` (the file tab strip inside the
  * dock's files panel): 36px strip, hover-revealed ×, middle-click closes. The
  * two strips never merge — one lists sessions, the other files.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useI18n } from "@/hooks/useI18n";
 import { getFileName } from "@/lib/file-paths";
 import type { SessionTab } from "@/lib/session-tabs";
+import { FloatingMenu, type FloatingMenuItem } from "@/components/sidebar/FloatingMenu";
 
 interface Props {
 	tabs: readonly SessionTab[];
@@ -29,6 +33,10 @@ interface Props {
 	titleFor: (tab: SessionTab) => string;
 	onActivateTab: (tabId: string) => void;
 	onCloseTab: (tabId: string) => void;
+	/** Right-click "close other tabs": the shell applies the draft guard. */
+	onCloseOthers: (tabId: string) => void;
+	/** Right-click "close tabs to the right": the shell applies the draft guard. */
+	onCloseRight: (tabId: string) => void;
 	onNewTab: () => void;
 	isMobile: boolean;
 }
@@ -41,11 +49,39 @@ export function SessionTabBar({
 	titleFor,
 	onActivateTab,
 	onCloseTab,
+	onCloseOthers,
+	onCloseRight,
 	onNewTab,
 	isMobile,
 }: Props) {
 	const { t } = useI18n();
 	const [hoveredTabId, setHoveredTabId] = useState<string | null>(null);
+	// Right-click menu: the tab it was opened on plus the pointer position.
+	const [menu, setMenu] = useState<{ tabId: string; point: { x: number; y: number } } | null>(null);
+	const menuTabIndex = menu ? tabs.findIndex(tab => tab.id === menu.tabId) : -1;
+	const menuItems = useMemo<FloatingMenuItem[]>(() => {
+		// A menu whose tab was closed in the meantime simply has no items.
+		if (!menu || menuTabIndex < 0) return [];
+		return [
+			{
+				key: "close",
+				label: t("tabs.close"),
+				onSelect: () => onCloseTab(menu.tabId),
+			},
+			{
+				key: "close-others",
+				label: t("tabs.closeOthers"),
+				disabled: tabs.length <= 1,
+				onSelect: () => onCloseOthers(menu.tabId),
+			},
+			{
+				key: "close-right",
+				label: t("tabs.closeRight"),
+				disabled: menuTabIndex < 0 || menuTabIndex >= tabs.length - 1,
+				onSelect: () => onCloseRight(menu.tabId),
+			},
+		];
+	}, [menu, menuTabIndex, onCloseOthers, onCloseRight, onCloseTab, t, tabs]);
 
 	// Tabs are the only cross-project surface in the shell, so when more than one
 	// project is open the strip names the project in front of the title.
@@ -82,6 +118,10 @@ export function SessionTabBar({
 							tabIndex={isActive ? 0 : -1}
 							data-session-tab={tab.id}
 							onClick={() => onActivateTab(tab.id)}
+							onContextMenu={e => {
+								e.preventDefault();
+								setMenu({ tabId: tab.id, point: { x: e.clientX, y: e.clientY } });
+							}}
 							onMouseDown={e => {
 								if (e.button === 1) e.preventDefault();
 							}}
@@ -221,6 +261,13 @@ export function SessionTabBar({
 			>
 				+
 			</button>
+			<FloatingMenu
+				open={menu !== null}
+				point={menu?.point ?? null}
+				onClose={() => setMenu(null)}
+				label={t("tabs.menuLabel")}
+				items={menuItems}
+			/>
 		</div>
 	);
 }

@@ -151,3 +151,65 @@ test("project meta writers (collapse / alias / pin) persist into P2", async () =
 	assert.equal(storage.getItem("zeta-web:sidebar-pinned-projects"), null);
 	restore();
 });
+
+test("manual project order uses ProjectMeta.order for unpinned projects too", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	const paths = ["/p/a", "/p/b", "/p/c"];
+	// Only the drag-to-reorder writer produces `order`; none of these is pinned.
+	const meta = { "/p/a": { order: 2 }, "/p/b": { order: 0 }, "/p/c": { order: 1 } };
+	assert.deepEqual(mod.orderProjectsManually(paths, meta, "/p/a"), ["/p/b", "/p/c", "/p/a"]);
+	restore();
+});
+
+test("manual project order: placed projects lead, unplaced ones trail pinned-first", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	const meta = {
+		"/p/placed": { order: 5, pinned: false },
+		"/p/pinned": { pinned: true },
+		"/p/selected": {},
+		"/p/plain": {},
+	};
+	assert.deepEqual(
+		mod.orderProjectsManually(["/p/plain", "/p/pinned", "/p/selected", "/p/placed"], meta, "/p/selected"),
+		["/p/placed", "/p/pinned", "/p/selected", "/p/plain"],
+	);
+	// No orders at all: pinned first, then the active project, then input order.
+	assert.deepEqual(mod.orderProjectsManually(["/p/plain", "/p/pinned"], { "/p/pinned": { pinned: true } }, "/p/plain"), [
+		"/p/pinned",
+		"/p/plain",
+	]);
+	restore();
+});
+
+test("manual project order keeps explicit positions even across a pinned/unpinned mix", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	const meta = {
+		"/p/pinned-low": { pinned: true, order: 1 },
+		"/p/free": { order: 0 },
+	};
+	assert.deepEqual(mod.orderProjectsManually(["/p/pinned-low", "/p/free"], meta, "/p/pinned-low"), [
+		"/p/free",
+		"/p/pinned-low",
+	]);
+	// Non-finite order values are not positions.
+	assert.deepEqual(mod.orderProjectsManually(["/p/a", "/p/b"], { "/p/a": { order: Number.NaN } }, null), ["/p/a", "/p/b"]);
+	restore();
+});
+
+test("reorderProjects writes an order for every project, pinned or not", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	mod.pinProject("/p/pinned", true);
+	mod.reorderProjects(["/p/b", "/p/pinned", "/p/a"]);
+	const prefs = mod.loadSidebarPrefs();
+	assert.equal(prefs.projectSort, "manual");
+	assert.deepEqual(mod.orderProjectsManually(["/p/a", "/p/b", "/p/pinned"], prefs.projectMeta, null), [
+		"/p/b",
+		"/p/pinned",
+		"/p/a",
+	]);
+	restore();
+});
