@@ -21,11 +21,21 @@ import * as path from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@linxiraos/zeta";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import * as teamStore from "./crew/team/store.ts";
+import { isNonEditingTeamRole } from "./crew/utils/team-roles.ts";
 import { isProjectAgentsTrusted } from "./config.ts";
 import { getProjectConfigPath } from "./paths.ts";
 
 /** Reserved names the agent parser rejects; mirrored so we fail early. */
 const RESERVED_NAMES = new Set(["main", "sub"]);
+
+/**
+ * Minimal tool allowlist for roles that inspect without editing. Mirrors the
+ * task plan-mode allowlist (`PLAN_MODE_TOOLS` in
+ * packages/coding-agent/src/task/structured-subagent.ts); it stays local
+ * because this plugin ships standalone and must not require a newer
+ * coding-agent build. An explicit role.tools value still wins.
+ */
+export const NON_EDITING_ROLE_TOOLS = ["read", "grep", "glob", "web_search"] as const;
 
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -65,12 +75,14 @@ export function renderAgentMarkdown(role: {
 	model?: string;
 	thinking?: string;
 	skills?: string[];
+	tools?: string[];
 	prompt?: string;
 }): string {
 	const lines: string[] = ["---", `name: ${yamlString(role.name)}`, `description: ${yamlString(role.description)}`];
 	if (role.model) lines.push(`model: ${yamlString(role.model)}`);
 	if (role.thinking) lines.push(`thinking: ${yamlString(role.thinking)}`);
 	if (role.skills && role.skills.length > 0) lines.push(`autoloadSkills: ${yamlString(role.skills)}`);
+	if (role.tools && role.tools.length > 0) lines.push(`tools: ${yamlString(role.tools)}`);
 	lines.push("---", "");
 	lines.push(role.prompt?.trim() || `You are the ${role.name} role. ${role.description}`);
 	return `${lines.join("\n")}\n`;
@@ -84,7 +96,15 @@ export interface AddResult {
 
 /** Write one role as an agent file. Refuses reserved/invalid names up front. */
 export function addTeamAgent(
-	role: { name: string; description: string; model?: string; thinking?: string; skills?: string[]; prompt?: string },
+	role: {
+		name: string;
+		description: string;
+		model?: string;
+		thinking?: string;
+		skills?: string[];
+		tools?: string[];
+		prompt?: string;
+	},
 	scope: "project" | "user",
 	cwd: string,
 ): AddResult {
@@ -103,8 +123,15 @@ export function addTeamAgent(
 	if (fs.existsSync(filePath)) {
 		return { ok: false, message: `${name} already exists at ${filePath}. Remove it first to replace it.` };
 	}
+	// Non-editing crew roles are read-only by contract; without an allowlist the
+	// spawned agent would inherit every tool. An explicit role.tools wins.
+	const tools = role.tools?.length
+		? role.tools
+		: isNonEditingTeamRole(name)
+			? [...NON_EDITING_ROLE_TOOLS]
+			: undefined;
 	fs.mkdirSync(dir, { recursive: true });
-	fs.writeFileSync(filePath, renderAgentMarkdown({ ...role, name }), "utf8");
+	fs.writeFileSync(filePath, renderAgentMarkdown({ ...role, name, tools }), "utf8");
 	return { ok: true, message: `Registered ${name} (${scope} scope)`, filePath };
 }
 
@@ -216,17 +243,23 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 						"  /teamagent profile.list         team profiles",
 						"  /teamagent charter.show         print the charter",
 						"  /teamagent agents               list registered subagents",
-						"  /teamagent add <role> [--user]   register a crew role as a spawnable subagent",
-						"  /teamagent remove <name> [--user]",
+						"  /teamagent add <role> [--project|--user]   register a crew role as a spawnable subagent",
+						"  /teamagent remove <name> [--project|--user]",
 						"",
-						"Default scope is the project (<cwd>/.zeta/agents, requires \"trustProjectAgents\": true in",
-						"  <cwd>/.zeta/pi-messenger.json); --user writes ~/.zeta/agent/agents.",
+						"Scope defaults to the project (<cwd>/.zeta/agents, requires \"trustProjectAgents\": true",
+						"  in <cwd>/.zeta/pi-messenger.json); --project names that default explicitly and",
+						"  --user writes ~/.zeta/agent/agents. --user and --project cannot be combined.",
 					].join("\n"),
 				);
 				return;
 			}
 
 			const userScope = rest.includes("--user");
+			const projectScope = rest.includes("--project");
+			if (userScope && projectScope) {
+				reply("Cannot combine --user and --project: choose one scope. Omitting both uses the project scope.");
+				return;
+			}
 			const positional = rest.filter(a => a !== "--user" && a !== "--project");
 			const scope = userScope ? "user" : "project";
 
@@ -260,7 +293,7 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 			if (verb === "add") {
 				const roleName = positional[0];
 				if (!roleName) {
-					reply("Usage: /teamagent add <role> [--user]");
+					reply("Usage: /teamagent add <role> [--project|--user]");
 					return;
 				}
 				if (scope === "project" && !isProjectAgentsTrusted(ctx.cwd)) {
@@ -289,6 +322,7 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 						model: role.model,
 						thinking: role.thinking,
 						skills: role.skills,
+						tools: role.tools,
 					},
 					scope,
 					ctx.cwd,
@@ -307,7 +341,7 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 			if (verb === "remove") {
 				const name = positional[0];
 				if (!name) {
-					reply("Usage: /teamagent remove <name> [--user]");
+					reply("Usage: /teamagent remove <name> [--project|--user]");
 					return;
 				}
 				const result = removeTeamAgent(name, scope, ctx.cwd);
@@ -315,7 +349,9 @@ export function registerTeamAgentCommand(pi: ExtensionAPI): void {
 				return;
 			}
 
-			reply(`Unknown subcommand "${verb}". Use add, list or remove.`);
+			reply(
+				`Unknown subcommand "${verb}". Use roles, status, profile.list, charter.show, agents, add or remove.`,
+			);
 		},
 	});
 }
