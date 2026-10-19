@@ -3,6 +3,7 @@ import type { AssistantMessage, ImageContent, TextContent } from "@linxiraos/pi-
 import * as AIError from "@linxiraos/pi-ai/error";
 import { raceWithSignal } from "@linxiraos/pi-ai/utils/abort";
 import { logger } from "@linxiraos/pi-utils";
+import { isEvalStateContext } from "../eval/state";
 import {
 	collectNativeReplayRegexSecretValues,
 	obfuscateNativeReplay,
@@ -253,13 +254,6 @@ interface CatchupWaiter {
 	finish: (caughtUp: boolean) => void;
 	timer?: NodeJS.Timeout;
 }
-
-/**
- * Synthetic message `AgentSession.#withEvalStateContext` appends at the tail of
- * every display-context rebuild; its slot moves each time, so
- * {@link AdvisorRuntime.rebaseDeliveredPrefix} does not align on it.
- */
-const EVAL_STATE_CONTEXT_TYPE = "eval-state-context";
 
 interface DeliveredMessage {
 	message: AgentMessage;
@@ -736,7 +730,7 @@ export class AdvisorRuntime {
 		const rebased: DeliveredMessage[] = [];
 		for (const delivered of this.#deliveredPrefix) {
 			const message = delivered.message;
-			if (message.role === "custom" && message.customType === EVAL_STATE_CONTEXT_TYPE) continue;
+			if (isEvalStateContext(message)) continue;
 			const current = all[rebased.length];
 			if (current === undefined) return;
 			const fingerprint = fingerprintMessage(current);

@@ -38,6 +38,7 @@ import { handleSecurityCommand } from "./helpers/security";
 import type { ParsedSlashCommand, SlashCommandSpec, TuiSlashCommandRuntime } from "./types";
 
 import {
+	cfgComputerBackgroundFallback,
 	cfgComputerDisplay,
 	cfgComputerEnabled,
 	cfgComputerMaxHeight,
@@ -299,6 +300,7 @@ function formatComputerUseStatus(session: AgentSession): string {
 		display: cfgComputerDisplay.get(session.settings),
 		maxWidth: cfgComputerMaxWidth.get(session.settings),
 		maxHeight: cfgComputerMaxHeight.get(session.settings),
+		backgroundFallback: cfgComputerBackgroundFallback.get(session.settings),
 	};
 	return [
 		M.ccComputerUseStateFmt.replace("%s", enabled ? M.stateEnabled : M.stateDisabled),
@@ -306,7 +308,8 @@ function formatComputerUseStatus(session: AgentSession): string {
 		M.ccComputerConfiguredFmt
 			.replace("%s", String(configured.display))
 			.replace("%s", String(configured.maxWidth))
-			.replace("%s", String(configured.maxHeight)),
+			.replace("%s", String(configured.maxHeight))
+			.replace("%s", String(configured.backgroundFallback)),
 	].join(" · ");
 }
 

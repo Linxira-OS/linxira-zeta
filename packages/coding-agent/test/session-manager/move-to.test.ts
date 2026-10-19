@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
 import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
-import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { resolveResumableSession } from "@linxiraos/zeta/session/session-listing";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { stripOuterDoubleQuotes } from "@linxiraos/zeta/tools/path-utils";
@@ -76,7 +76,7 @@ describe("SessionManager.moveTo", () => {
 
 	afterEach(async () => {
 		// Title changes open history.db under testAgentDir; Windows cannot delete an open file.
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

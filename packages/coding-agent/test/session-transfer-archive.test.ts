@@ -6,7 +6,7 @@ import * as path from "node:path";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { BlobStore, isBlobRef } from "@linxiraos/zeta/session/blob-store";
 import type { FileEntry, SessionHeader } from "@linxiraos/zeta/session/session-entries";
-import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { findSessionFiles } from "@linxiraos/zeta/session/session-listing";
 import { loadEntriesFromFile, resolveBlobRefsInEntries } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -56,7 +56,7 @@ describe("omp session pack/unpack archive", () => {
 	});
 
 	afterEach(async () => {
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

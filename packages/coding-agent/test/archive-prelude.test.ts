@@ -12,7 +12,7 @@ import type {
 import { createArchivePrelude } from "@linxiraos/zeta/archive/prelude-definition";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
-import { recordSessionRecap, resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex, recordSessionRecap } from "@linxiraos/zeta/session/session-index";
 import { sessionDirForCwd } from "@linxiraos/zeta/session/session-paths";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
@@ -63,13 +63,13 @@ beforeEach(() => {
 	app = path.join(root, "app");
 	lib = path.join(root, "lib");
 	HistoryStorage.close();
-	resetSessionIndexForTests();
+	closeSessionIndex();
 	setAgentDir(path.join(root, "agent"));
 });
 
 afterEach(() => {
 	HistoryStorage.close();
-	resetSessionIndexForTests();
+	closeSessionIndex();
 	if (originalAgentDir) {
 		setAgentDir(originalAgentDir);
 	} else {

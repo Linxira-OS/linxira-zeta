@@ -625,7 +625,7 @@ export const en = {
 	ccAdvisorCountFmt: "(%s advisors)",
 	ccComputerUseStateFmt: "Computer use: %s",
 	ccPreludeStateFmt: "prelude: %s",
-	ccComputerConfiguredFmt: "configured: display=%s, maxWidth=%s, maxHeight=%s",
+	ccComputerConfiguredFmt: "configured: display=%s, maxWidth=%s, maxHeight=%s, backgroundFallback=%s",
 	ccLabelModel: "Model:",
 	ccBgJobsUnavailable: "Async background jobs are unavailable in this session.",
 	ccBgJobsTitle: "Background Jobs",

@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { getRecentSessions } from "@linxiraos/zeta/session/session-listing";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { getConfigRootDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { makeAssistantMessage } from "../session-manager/helpers";
 
@@ -25,11 +25,11 @@ describe("recent sessions title index", () => {
 		cwd = path.join(testAgentDir, "cwd");
 		fs.mkdirSync(cwd, { recursive: true });
 		setAgentDir(testAgentDir);
-		resetSessionIndexForTests();
+		closeSessionIndex();
 	});
 
 	afterEach(() => {
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {

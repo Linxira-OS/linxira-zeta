@@ -670,7 +670,7 @@ export interface Messages {
 	ccAdvisorCountFmt: string;
 	ccComputerUseStateFmt: string; // "Computer use: %s" status diagnostic, %s = stateEnabled/stateDisabled
 	ccPreludeStateFmt: string; // "prelude: %s" status diagnostic, %s = stateActive/stateInactive
-	ccComputerConfiguredFmt: string; // "configured: display=%s, maxWidth=%s, maxHeight=%s"
+	ccComputerConfiguredFmt: string; // "configured: display=%s, maxWidth=%s, maxHeight=%s, backgroundFallback=%s"
 	ccLabelModel: string;
 	ccBgJobsUnavailable: string;
 	ccBgJobsTitle: string;

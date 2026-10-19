@@ -625,7 +625,7 @@ export const zh = {
 	ccAdvisorCountFmt: "（%s 个 Advisor）",
 	ccComputerUseStateFmt: "计算机使用：%s",
 	ccPreludeStateFmt: "prelude：%s",
-	ccComputerConfiguredFmt: "配置：display=%s，maxWidth=%s，maxHeight=%s",
+	ccComputerConfiguredFmt: "配置：display=%s，maxWidth=%s，maxHeight=%s，backgroundFallback=%s",
 	ccLabelModel: "模型：",
 	ccBgJobsUnavailable: "本会话不可用异步后台任务。",
 	ccBgJobsTitle: "后台任务",

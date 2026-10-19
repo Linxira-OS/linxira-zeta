@@ -20,7 +20,7 @@ import {
 } from "@linxiraos/zeta/modes/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
-import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { initTheme } from "@linxiraos/pi-tui/theme";
@@ -62,7 +62,7 @@ describe("cfg:// approval prompt wiring", () => {
 		setProjectDir(originalProject);
 		AgentStorage.close();
 		HistoryStorage.close();
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		closeModelCache();
 		await fs.rm(tmp, { recursive: true, force: true });
 	});
