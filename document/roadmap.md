@@ -573,6 +573,28 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **跨工作区多主代理消息（2026-10-20 取证，仅登记，做法待定）**:当前 agent 间消息
+  **只在单进程内**成立——`IrcBus.global()` 与 `AgentRegistry.global()` 都是进程内单例
+  （`packages/coding-agent/src/irc/bus.ts:39-46`、
+  `packages/coding-agent/src/registry/agent-registry.ts:131-135`），主代理身份是单一常量
+  `MAIN_AGENT_ID`（`packages/coding-agent/src/registry/agent-registry.ts:16-17` 从
+  `@linxiraos/pi-tui` 重导出）。IRC 层没有任何跨进程通道：在 `packages/coding-agent/src/irc`
+  下 grep `socket|net.connect|process.send|BroadcastChannel` **零命中**。`agent://` 写入也
+  绕开 HTTP `POST /api/agent/<sessionId>`
+  （路由 `packages/coding-agent/src/server/web-gateway.ts:478-481` →
+  `handleAgentCommand`），直接走进程内 handler + `executeSend`
+  （`packages/coding-agent/src/internal-urls/agent-protocol.ts:149,172-192`）；Collab
+  （`packages/coding-agent/src/collab/`，独立 relay 通道）同样不是这条路径的载体。
+  因此两个工作区各自的主代理互相不可见，需要新增跨进程总线（IPC/socket/relay）或复用到
+  gateway 的转发层。**接口先行**的增量正在 `feat/agent-interfaces` 分支
+  （worktree `temp/agent-interfaces`）开发；本条只定口径，不排期。
+
+- **`document/agent-team-plugin.md` 悬空引用（2026-10-20 取证）**:`document/plugin-system.md:213`
+  把「agent-team 完整开发规格（编排器 / `team_*` 工具 / 人设群聊 / Web pages）」指向
+  `document/agent-team-plugin.md`，但该文件**不存在**（`ls document/agent-team-plugin.md`
+  → No such file or directory）。补写规格或把链接改指到现有文档，二者择一，未定；
+  在补齐前该链接保持悬空。
+
 - **双看板：agent 的 todo 与用户的 board（2026-10-18 用户定方向，仅登记，设计待线下推敲）**：
   - **agent todo** 保持现状：`todo` 工具、会话内、agent 自己维护，任务完成即翻页。
   - **用户看板**是长期、跨工作区、可编辑的那一层：三列 Todo/Doing/Done，卡片含标题、
@@ -666,8 +688,18 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   需显式 -i 钥匙,本仓曾 shallow 需先 unshallow)。
 
 - **v18.8.8 合并后专项排查产出（2026-10-11）**：
-  - **待设计**：④tracking 架构项（`status.json` 无锁、`actions.jsonl` 无上限、
-    `summaries/` 无面板、`updatedAt` 取请求时刻）。
+  - **tracking 架构项（原④，2026-10-20 复核：四项均已实现）**：`status.json` 的
+    读改写走项目租约 `withFileLock(trackingLockPath(dir))`
+    （`packages/coding-agent/src/tools/tracking.ts:289-305`，锁键 :193-200，
+    临时文件+rename 原子写 :202-220）；`actions.jsonl` 由 `RotatingFileSink`
+    按 5 MiB / 3 份轮转（`packages/coding-agent/src/tools/tracking-actions-log.ts:17-21,40-41`），
+    读取端走有界尾读（同文件 :77-110）；`summaries/` 已有面板子页
+    （`web-ui/components/TrackingPanel.tsx:34,42,203`，服务端
+    `packages/coding-agent/src/server/web-gateway/tracking.ts:183`）；`updatedAt`
+    改为内容派生——取被服务文件 mtime 最大值
+    （`packages/coding-agent/src/server/web-gateway/tracking.ts:156-175`，响应装配 :192）。
+    **真实残留**：`sessions/`/`summaries/`/`plans/` 的 markdown 仍无条数/字节上限且
+    整篇读入（`readMarkdownDir`，同文件 :127-148），面板一次拉全量。
   - **文档漂移（已收尾）**：版本线叙述已全树对齐到机制——稳定符号
     `pi_natives_build_version()` + `__piNativesBuildVersion` 构建期值戳，逐版本
     哨兵名（含 set-version 的改名步骤）已无残留；涉及 AGENTS.md、
@@ -686,11 +718,13 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   让位机制,tuiText(key,fallback) 宿主注入 i18n。
 - **teamagent 修正(pi-messenger 插件审计,2026-10-02)**:①user scope 目录
   (getAgentDir()/agents)、②project scope opt-in + trust 门控、⑤重启提示失实
-  ——三项均已修并带测试。**④仍开放,是真 bug**:role 写入端发的是 kebab 键
-  `thinking-level:`(`plugins/official/pi-messenger/teamagent-command.ts:72`),而发现端
-  读 `thinkingLevel`/`thinking`(`packages/coding-agent/src/discovery/helpers.ts:361-368`),
-  角色的 thinking level 被静默丢弃。③(非编辑角色缺 tools 最小权限)仍是未验证项。
-  小项:usage 文案、--user/--project 冲突不报错、零测试覆盖、.pi 品牌路径残留
+  ——三项均已修并带测试。**④已修（2026-10-20 复核）**:role 写入端现在发的是规范键
+  `thinking:`(`plugins/official/pi-messenger/teamagent-command.ts:72`),发现端同时接受
+  `thinkingLevel` 与 legacy `thinking`(`packages/coding-agent/src/discovery/helpers.ts:367-374`),
+  双读者往返有测试覆盖
+  (`plugins/official/pi-messenger/tests/teamagent-command.test.ts:137-172`)。
+  ③(非编辑角色缺 tools 最小权限)仍是未验证项。
+  小项:usage 文案、--user/--project 冲突不报错、.pi 品牌路径残留
   (crew/team/*)。随 feat 分支落地,不经 dev/*。
 - **rail 拖拽排序**:`@dnd-kit/*` 已在 `web-ui/package.json` 声明却从未使用
   (`useSortable`/`arrayMove`/`DndContext` 全库零命中);实际出货的是排序菜单,且

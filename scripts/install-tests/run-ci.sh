@@ -182,7 +182,7 @@ mkdir -p "$TARBALL_APP_DIR"
 
    # Write overrides so bun resolves inter-package deps from tarballs, not the registry
    # (the version under test has not necessarily been published yet).
-   node -e "
+   bun -e "
 		const pkg = JSON.parse(require('fs').readFileSync('package.json', 'utf8'));
 		pkg.overrides = {
 			'@linxiraos/pi-utils': '$utils_tgz',
