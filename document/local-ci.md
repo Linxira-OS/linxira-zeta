@@ -40,7 +40,7 @@ reddens the GitHub run too.
 | GitHub CI job | Local mirror | Notes |
 | --- | --- | --- |
 | `check` | `check` | type check + brand/sentinel/CI-surface/scope/release-asset guards + i18n guards + collab web build + **parity guard** |
-| `web_ui_build` | `web_ui_build` | npm ci / tsc / lint / build |
+| `web_ui_build` | `web_ui_build` | npm ci / tsc / lint / build; the mirror runs the Linux leg of ci.yml's `ubuntu-22.04 + windows-2022` matrix |
 | `bazel_lock` | `bazel_lock` | crate-coverage guard + `--check`; no failure-refresh/upload (GitHub-side convenience, registered in `ENTRY_EXCEPTIONS`) |
 | `rust_validate` | `rust_validate` | bazel `test //crates/...`, three clippy scopes, rustfmt |
 | `native_addons` | `native_addons` | linux-x64 pair only, built straight into `packages/natives/native/` (no artifact round-trip, registered in `ENTRY_EXCEPTIONS`) |
