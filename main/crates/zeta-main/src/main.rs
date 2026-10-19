@@ -2,6 +2,8 @@
 mod app;
 mod busy;
 mod editor;
+mod files;
+mod git;
 mod help;
 mod layout;
 mod rail;
