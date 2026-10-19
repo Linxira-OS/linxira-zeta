@@ -74,6 +74,10 @@ on:
             description: "Skip npm publish"
             type: boolean
             default: false
+         publish_plugins:
+            description: "Publish only the official plugin packages (validates a pending npm trusted publisher)"
+            type: boolean
+            default: false
 
 # Release runs publish a `v*` tag pushed atomically with main HEAD; sharing
 # the cheap branch-wide `CI-refs/heads/main` group meant a later main push
@@ -1705,9 +1709,16 @@ jobs:
 
    release_editor_packages:
       name: Publish editor npm packages
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
-         needs.release_gate.result == 'success' &&
-         !inputs.skip_npm }}
+      # `publish_plugins` is the single-package escape hatch: npm validates a
+      # newly added trusted-publisher entry only when that package is actually
+      # published through it, and the window is short (v1.3.0: to 2026-10-21
+      # 03:11 UTC). A dispatch with this input runs nothing but this job, so an
+      # already-released version line can complete a package that the release
+      # run lost — without re-cutting the tag.
+      if: ${{ always() && !cancelled() && !inputs.skip_npm &&
+         (inputs.publish_plugins ||
+         (needs.release_metadata.outputs.is-release == 'true' &&
+         needs.release_gate.result == 'success')) }}
       # npm Trusted Publisher binds the workflow file that EXECUTES the
       # publish. A `uses:` call keeps editor-publish.yml as the callee, but
       # the OIDC claim still names the caller (ci.yml) — v1.1.19's E404. So
