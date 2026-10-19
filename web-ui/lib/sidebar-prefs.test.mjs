@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createJiti } from "jiti";
+import { defaultWorkspaceFirst } from "./default-workspace.ts";
 
 const jiti = createJiti(import.meta.url);
 
@@ -211,5 +212,61 @@ test("reorderProjects writes an order for every project, pinned or not", async (
 		"/p/pinned",
 		"/p/a",
 	]);
+	restore();
+});
+
+test("moveProjectOrder covers forward, backward, no-op and out-of-range moves", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	const paths = ["/p/a", "/p/b", "/p/c", "/p/d"];
+
+	// Dragging down and up, dnd-kit arrayMove semantics.
+	assert.deepEqual(mod.moveProjectOrder(paths, 0, 2), ["/p/b", "/p/c", "/p/a", "/p/d"]);
+	assert.deepEqual(mod.moveProjectOrder(paths, 3, 1), ["/p/a", "/p/d", "/p/b", "/p/c"]);
+	assert.deepEqual(mod.moveProjectOrder(paths, 1, 3), ["/p/a", "/p/c", "/p/d", "/p/b"]);
+	// Edges.
+	assert.deepEqual(mod.moveProjectOrder(paths, 0, 3), ["/p/b", "/p/c", "/p/d", "/p/a"]);
+	assert.deepEqual(mod.moveProjectOrder(paths, 3, 0), ["/p/d", "/p/a", "/p/b", "/p/c"]);
+	// No-op and invalid indices return an unchanged copy.
+	for (const [from, to] of [
+		[1, 1],
+		[-1, 2],
+		[2, 4],
+		[4, 2],
+		[1.5, 2],
+		[0, Number.NaN],
+	]) {
+		assert.deepEqual(mod.moveProjectOrder(paths, from, to), paths);
+	}
+	assert.deepEqual(mod.moveProjectOrder([], 0, 0), []);
+	assert.deepEqual(mod.moveProjectOrder(["/p/only"], 0, 0), ["/p/only"]);
+	// The input is never mutated (a drag event must not corrupt the source list).
+	assert.deepEqual(paths, ["/p/a", "/p/b", "/p/c", "/p/d"]);
+	restore();
+});
+
+test("manual-mode precedence survives a drag: default first, pinned and active preserved", async () => {
+	const storage = makeStorage();
+	const { mod, restore } = await loadModule(storage);
+	const defaultWorkspace = "/home/u/.zeta/workspace";
+	const paths = [defaultWorkspace, "/p/pinned", "/p/active", "/p/free"];
+	mod.pinProject("/p/pinned", true);
+
+	// Drag /p/free to the head of the list (the rendered list starts with the
+	// default workspace, which is fixed and cannot be the drag source).
+	const moved = mod.moveProjectOrder(paths, 3, 0);
+	assert.deepEqual(moved, ["/p/free", defaultWorkspace, "/p/pinned", "/p/active"]);
+	mod.reorderProjects(moved);
+	const prefs = mod.loadSidebarPrefs();
+	assert.equal(prefs.projectSort, "manual");
+	// Pinning survives the write; the default workspace wins the display order.
+	assert.equal(prefs.projectMeta["/p/pinned"].pinned, true);
+	const displayed = defaultWorkspaceFirst(
+		mod.orderProjectsManually(["/p/active", "/p/free", "/p/pinned", defaultWorkspace], prefs.projectMeta, "/p/active"),
+		defaultWorkspace,
+	);
+	assert.deepEqual(displayed, [defaultWorkspace, "/p/free", "/p/pinned", "/p/active"]);
+	// The active project is still selected regardless of where it was dragged.
+	assert.ok(displayed.includes("/p/active"));
 	restore();
 });

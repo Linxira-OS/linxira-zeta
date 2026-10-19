@@ -43,8 +43,10 @@ test("new-session entry falls back to the default workspace before null cwd", ()
 test("project group actions live in the hover cluster, not a permanent row", async () => {
 	const listSource = await readFile(new URL("./sidebar/SidebarProjectsList.tsx", import.meta.url), "utf8");
 	assert.doesNotMatch(listSource, /sidebar-group-actions/);
-	assert.match(listSource, /opacity: active \? 1 : 0/);
-	assert.match(listSource, /pointerEvents: active \? "auto" : "none"/);
+	// Visible on hover/focus, and kept visible while its row is being dragged.
+	assert.match(listSource, /const clusterVisible = active \|\| isDragging;/);
+	assert.match(listSource, /opacity: clusterVisible \? 1 : 0/);
+	assert.match(listSource, /pointerEvents: clusterVisible \? "auto" : "none"/);
 });
 
 test("no time-bucket grouping remains in the project list path", async () => {

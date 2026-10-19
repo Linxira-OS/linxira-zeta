@@ -358,6 +358,21 @@ export function reorderProjects(orderedPaths: readonly string[]): ZetaSidebarPre
 	});
 }
 
+/**
+ * Move one project from index `from` to index `to` (dnd-kit `arrayMove`
+ * semantics), without mutating the input. Non-integer or out-of-range indices
+ * and no-op moves return a copy unchanged, so a stale drag event can never
+ * corrupt the persisted order.
+ */
+export function moveProjectOrder(paths: readonly string[], from: number, to: number): string[] {
+	const next = [...paths];
+	if (!Number.isInteger(from) || !Number.isInteger(to)) return next;
+	if (from < 0 || to < 0 || from >= next.length || to >= next.length || from === to) return next;
+	const [moved] = next.splice(from, 1);
+	next.splice(to, 0, moved as string);
+	return next;
+}
+
 /** Test seam: reset the in-memory cache (node:test isolation). */
 export function resetPrefsCacheForTest(): void {
 	cached = null;

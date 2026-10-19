@@ -44,6 +44,7 @@ import {
 	collapseProject,
 	orderProjectsManually,
 	pinProject,
+	reorderProjects,
 	setProjectAlias as setProjectAliasPref,
 	type SessionSort,
 	type ProjectSort,
@@ -61,7 +62,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useI18n } from "@/hooks/useI18n";
 import type { TranslationParams } from "@/lib/i18n/types";
 import { sendAgentCommand } from "@/lib/agent-client";
-import { defaultWorkspacePath, isSameWorkspacePath, withDefaultWorkspace } from "@/lib/default-workspace";
+import { defaultWorkspacePath, defaultWorkspaceFirst, isSameWorkspacePath, withDefaultWorkspace } from "@/lib/default-workspace";
 import "@/lib/pi-desktop";
 
 interface Props {
@@ -1362,9 +1363,7 @@ export function SessionSidebar({
 				ordered = [...recentProjects];
 		}
 		// The seeded default workspace outranks every sort mode.
-		const orderedProjects = defaultWorkspace
-			? [defaultWorkspace, ...ordered.filter(p => !isSameWorkspacePath(p, defaultWorkspace))]
-			: ordered;
+		const orderedProjects = defaultWorkspaceFirst(ordered, defaultWorkspace);
 		return orderedProjects.map(project => ({
 			project,
 			count: counts.get(project) ?? 0,
@@ -1921,6 +1920,13 @@ export function SessionSidebar({
 						onProjectSortClick={e =>
 							setProjSortMenu({ anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect() })
 						}
+						onReorderProjects={orderedPaths => {
+							// Dragging is the order intent: persist it, flip the menu to
+							// manual, and bump the prefs snapshot the groups sort from.
+							reorderProjects(orderedPaths);
+							setProjSort("manual");
+							setPrefsVersion(v => v + 1);
+						}}
 						onDeleteProjectSessions={project => requestProjectDelete(project)}
 						onOpenTerminal={project => {
 							void fetch("/api/open", {
