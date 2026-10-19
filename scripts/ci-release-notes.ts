@@ -226,6 +226,31 @@ async function resolvePublishedFloorTag(targetVersion: string): Promise<string |
 	return candidates[0]?.replace(/^v/, "") ?? null;
 }
 
+/**
+ * GitHub rejects a release body over 125 KB, and the v1.3.0 roll-forward
+ * landed at 190 KB — one package alone carried 293 entries from the OMP merge.
+ * Keep the first `MAX_ENTRIES_PER_PACKAGE` bullets (headings included, so the
+ * shape survives) and point at the changelog for the rest.
+ */
+const MAX_ENTRIES_PER_PACKAGE = 40;
+
+function clipEntries(merged: string, entries: number, pkgDir: string, version: string): string {
+	if (entries <= MAX_ENTRIES_PER_PACKAGE) return merged;
+	const kept: string[] = [];
+	let seen = 0;
+	for (const line of merged.split("\n")) {
+		if (/^[-*] /.test(line)) {
+			if (seen === MAX_ENTRIES_PER_PACKAGE) break;
+			seen += 1;
+		}
+		kept.push(line);
+	}
+	// Glob paths carry the host separator; the URL must not (`packages\ai`).
+	const rel = pkgDir.replace(/\\/g, "/");
+	const url = `https://github.com/${REPO}/blob/v${version}/${rel}/CHANGELOG.md`;
+	return `${kept.join("\n")}\n\n— and ${entries - seen} more entries: [\`${rel}/CHANGELOG.md\`](${url})`;
+}
+
 async function main(): Promise<void> {
 	const tagInput = process.argv[2] ?? process.env.GITHUB_REF_NAME ?? "";
 	if (!tagInput) {
@@ -259,7 +284,13 @@ async function main(): Promise<void> {
 		if (merged === "") continue;
 		const pkgDir = changelogPath.replace(/[/\\]CHANGELOG\.md$/, "");
 		const name = await loadPackageName(pkgDir);
-		sections.push(`## ${name}\n\n${merged}`);
+		// Folded: a roll-forward across silent tags produces a body of 100 KB+
+		// that pushes the download links off-screen (v1.3.0 was 125 KB). The
+		// summary keeps the package and its entry count visible.
+		const entries = merged.split("\n").filter(line => /^[-*] /.test(line)).length;
+		sections.push(
+			`<details>\n<summary><strong>${name}</strong> — ${entries} ${entries === 1 ? "entry" : "entries"}</summary>\n\n## ${name}\n\n${clipEntries(merged, entries, pkgDir, version)}\n\n</details>`,
+		);
 	}
 
 	if (sections.length === 0) {
@@ -276,41 +307,35 @@ async function main(): Promise<void> {
 }
 
 /**
- * Build the release asset index appended to the release body: the desktop
- * installers/archives (`zeta-desktop-<version>-<os>-<arch>.<ext>`, matching
- * `desktop/electron-builder.yml` `artifactName`), the CLI binaries
- * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles),
- * and the bare product binaries (`zeta-work-*` / `zeta-ide-*`
- * from the release_product_binaries job; the `zeta-editor-*` assets retired
- * 2026-10-16), then the remaining
- * release assets (`LICENSE`, `SHA256SUMS.txt`, `THIRD-PARTY-NOTICES.txt`, and
- * the browser relay extension).
+ * Build the release asset index appended to the release body: the CLI binaries
+ * (`zeta-cli-<target>`, matching `ci-release-build-binaries.ts` outfiles), the
+ * bare product binaries (`zeta-ide-*` from the release_product_binaries job),
+ * then the remaining release assets (`LICENSE`, `SHA256SUMS.txt`,
+ * `THIRD-PARTY-NOTICES.txt`, and the browser relay extension).
  * Every line links to its `releases/download` URL so release assets stay
  * discoverable from the notes without scripting.
+ *
+ * 1.3.0 removed the Electron desktop (`zeta-desktop-*`) and the workbench TUI
+ * (`zeta-work-*`) from the release surface. The list is what `release_github`
+ * actually uploads — v1.3.0 shipped notes that linked five desktop installers
+ * and two `zeta-work-*` binaries that never existed, so keep this in lock-step
+ * with that job's `files:` list.
  */
 function buildAssetSections(version: string): string {
 	const releaseTag = `v${version}`;
 	const link = (name: string): string =>
 		`- [\`${name}\`](https://github.com/${REPO}/releases/download/${releaseTag}/${name})`;
 
-	const desktopAssets = [
-		`zeta-desktop-${version}-linux-x86_64.AppImage`,
-		`zeta-desktop-${version}-linux-amd64.deb`,
-		`zeta-desktop-${version}-linux-x64.tar.gz`,
-		`zeta-desktop-${version}-win-x64.zip`,
-		`zeta-desktop-${version}-win-x64.exe`,
-	];
 	const cliAssets = ["zeta-cli-linux-x64", "zeta-cli-linux-musl-x64", "zeta-cli-windows-x64.exe"];
 	// Bare product binaries from the release_product_binaries job; the
-	// distribution PKGBUILDs fetch these URLs verbatim. The workbench suite
-	// ships on both platforms: zetawork + zetacode (zeta-cli-*) + zetaide.
-	const productAssets = ["zeta-work-linux-x64", "zeta-work-win-x64.exe", "zeta-ide-linux-x64", "zeta-ide-win-x64.exe"];
+	// distribution PKGBUILDs fetch these URLs verbatim.
+	const productAssets = ["zeta-ide-linux-x64", "zeta-ide-win-x64.exe"];
 	// Remaining release_github assets: root license, third-party notices, the
 	// checksum manifest, and the browser relay extension. Keep in sync with
 	// that job's `files:` list.
 	const miscAssets = ["LICENSE", "SHA256SUMS.txt", "THIRD-PARTY-NOTICES.txt", "zeta-browser-relay-extension.zip"];
 
-	return `## Desktop installers\n\n${desktopAssets.map(link).join("\n")}\n\n## CLI binaries\n\n${cliAssets.map(link).join("\n")}\n\n## Product binaries\n\n${productAssets.map(link).join("\n")}\n\n## Other assets\n\n${miscAssets.map(link).join("\n")}`;
+	return `## CLI binaries\n\n${cliAssets.map(link).join("\n")}\n\n## Product binaries\n\n${productAssets.map(link).join("\n")}\n\n## Other assets\n\n${miscAssets.map(link).join("\n")}`;
 }
 
 if (import.meta.main) {
