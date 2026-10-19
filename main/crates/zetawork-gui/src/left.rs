@@ -10,6 +10,7 @@
 //! widgets, because the project list has to fill exactly the space between the
 //! nav and the foot row no matter how many projects there are.
 
+use crate::t;
 use std::path::Path;
 
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
@@ -72,7 +73,7 @@ fn head_region(ui: &mut Ui, shell: &mut Shell) {
 		pos2(rect.max.x - 32.0, rect.center().y - 12.0),
 		vec2(24.0, 24.0),
 	)));
-	if icon_button(&mut collapse, Icon::ChevronLeft, 24.0, false, "收起左侧栏").clicked() {
+	if icon_button(&mut collapse, Icon::ChevronLeft, 24.0, false, t!("收起左侧栏")).clicked() {
 		shell.state.toggle_left();
 	}
 }
@@ -92,7 +93,7 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 	ui.painter().text(
 		pos2(head.min.x + 12.0, head.center().y),
 		egui::Align2::LEFT_CENTER,
-		"项目",
+		t!("项目"),
 		egui::FontId::new(11.0, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
@@ -100,7 +101,8 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 		pos2(head.max.x - 30.0, head.center().y - 10.0),
 		vec2(20.0, 20.0),
 	)));
-	if icon_button(&mut add, Icon::Plus, 20.0, shell.state.adding().is_some(), "添加项目").clicked()
+	if icon_button(&mut add, Icon::Plus, 20.0, shell.state.adding().is_some(), t!("添加项目"))
+		.clicked()
 	{
 		if shell.state.adding().is_some() {
 			shell.state.cancel_add_project();
@@ -137,7 +139,7 @@ fn add_project_row(ui: &mut Ui, shell: &mut Shell) -> f32 {
 	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
 	let response = child.add(
 		egui::TextEdit::singleline(&mut text)
-			.hint_text("项目目录")
+			.hint_text(t!("项目目录"))
 			.desired_width(field.width()),
 	);
 	if shell.state.take_add_focus() {
@@ -150,14 +152,14 @@ fn add_project_row(ui: &mut Ui, shell: &mut Shell) -> f32 {
 		pos2(area.max.x - 48.0, area.center().y - 10.0),
 		vec2(20.0, 20.0),
 	)));
-	if icon_button(&mut ok, Icon::Check, 20.0, false, "添加").clicked() {
+	if icon_button(&mut ok, Icon::Check, 20.0, false, t!("添加")).clicked() {
 		shell.state.act(|state| state.commit_add_project());
 	}
 	let mut cancel = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
 		pos2(area.max.x - 26.0, area.center().y - 10.0),
 		vec2(20.0, 20.0),
 	)));
-	if icon_button(&mut cancel, Icon::X, 20.0, false, "取消").clicked() {
+	if icon_button(&mut cancel, Icon::X, 20.0, false, t!("取消")).clicked() {
 		shell.state.cancel_add_project();
 	}
 	let enter = child.input(|input| input.key_pressed(egui::Key::Enter));
@@ -280,15 +282,15 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 				.id(ui.id().with(("proj-menu", index)))
 				.show(|ui| {
 					ui.set_min_width(180.0);
-					if ui.button("重命名").clicked() {
+					if ui.button(t!("重命名")).clicked() {
 						rename = true;
 						ui.close();
 					}
-					if ui.button("在文件管理器中打开").clicked() {
+					if ui.button(t!("在文件管理器中打开")).clicked() {
 						open_folder = true;
 						ui.close();
 					}
-					if ui.button("从注册表移除").clicked() {
+					if ui.button(t!("从注册表移除")).clicked() {
 						remove = true;
 						ui.close();
 					}
@@ -308,7 +310,7 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 			pos2(head_rect.max.x - 24.0, head_rect.center().y - 10.0),
 			vec2(20.0, 20.0),
 		)));
-		if icon_button(&mut plus, Icon::Plus, 20.0, false, "新建工作区").clicked() {
+		if icon_button(&mut plus, Icon::Plus, 20.0, false, t!("新建工作区")).clicked() {
 			let id = project.id.clone();
 			shell.state.act(|state| state.new_workspace(&id));
 		}
@@ -446,10 +448,10 @@ fn foot_region(ui: &mut Ui, shell: &mut Shell) {
 			.max_rect(inner)
 			.layout(Layout::left_to_right(Align::Center)),
 	);
-	if foot_button(&mut left, Icon::Gear, "设置").clicked() {
+	if foot_button(&mut left, Icon::Gear, t!("设置")).clicked() {
 		shell.state.open_settings();
 	}
-	if foot_button(&mut left, Icon::List, "用量").clicked() {
+	if foot_button(&mut left, Icon::List, t!("用量")).clicked() {
 		open_usage(shell);
 	}
 	let mut right = ui.new_child(
@@ -485,7 +487,7 @@ pub fn left_rail(ui: &mut Ui, shell: &mut Shell) {
 		egui::UiBuilder::new()
 			.max_rect(Rect::from_min_size(pos2(rect.min.x + 6.0, rect.min.y + 8.0), vec2(32.0, 32.0))),
 	);
-	if icon_button(&mut child, Icon::Hamburger, 32.0, false, "展开左侧栏").clicked() {
+	if icon_button(&mut child, Icon::Hamburger, 32.0, false, t!("展开左侧栏")).clicked() {
 		shell.state.toggle_left();
 	}
 }

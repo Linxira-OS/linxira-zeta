@@ -10,10 +10,12 @@
 //! The 关于 section carries the one honest row about scope: zetacode's own
 //! settings are per-workspace and are edited by zetacode, not here.
 
+use crate::t;
 use egui::{Align, Color32, CornerRadius, FontId, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::{
 	Shell,
+	i18n::Lang,
 	icons::{Icon, paint},
 	settings::{
 		CloseAction, Density, MonoFont, NotifyPolicy, Section, Settings, ShellChoice, Theme,
@@ -78,7 +80,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 					ui.painter().text(
 						pos2(head.min.x + 14.0, head.center().y),
 						egui::Align2::LEFT_CENTER,
-						"设置",
+						t!("设置"),
 						FontId::new(14.0, egui::FontFamily::Proportional),
 						theme::TEXT,
 					);
@@ -86,10 +88,40 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 						[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
 						Stroke::new(1.0_f32, theme::BORDER),
 					);
+					// The app menu's language switch: the label carries the current
+					// language, the menu offers both. Changing it is a settings write
+					// like any other, so `apply_settings` persists `lang` in turn.
+					let mut lang_ui =
+						ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
+							pos2(head.max.x - 190.0, head.min.y + 12.0),
+							vec2(140.0, 28.0),
+						)));
+					let language = shell.settings.lang;
+					let language_button = lang_ui.add(
+						egui::Button::new(
+							egui::RichText::new(t!("语言：{}", language.label())).size(11.5),
+						)
+						.frame(false)
+						.min_size(vec2(120.0, 24.0)),
+					);
+					let _ = egui::Popup::menu(&language_button).show(|ui| {
+						ui.set_min_width(120.0);
+						for lang in [Lang::Zh, Lang::En] {
+							if ui
+								.selectable_label(shell.settings.lang == lang, lang.label())
+								.clicked()
+							{
+								shell.settings.lang = lang;
+								Lang::set_current(lang);
+								ui.close();
+							}
+						}
+					});
 					let mut close_ui = ui.new_child(egui::UiBuilder::new().max_rect(
 						Rect::from_min_size(pos2(head.max.x - 42.0, head.min.y + 12.0), vec2(28.0, 28.0)),
 					));
-					if crate::icons::icon_button(&mut close_ui, Icon::X, 28.0, false, "关闭").clicked()
+					if crate::icons::icon_button(&mut close_ui, Icon::X, 28.0, false, t!("关闭"))
+						.clicked()
 					{
 						close = true;
 					}
@@ -170,11 +202,11 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 	ui.add_space(20.0);
 	match section {
 		Section::General => {
-			head(ui, "常规");
+			head(ui, t!("常规"));
 			row(
 				ui,
-				"关闭窗口时",
-				"标题栏关闭键的行为；最小化到后台时会话与后台任务继续运行",
+				t!("关闭窗口时"),
+				t!("标题栏关闭键的行为；最小化到后台时会话与后台任务继续运行"),
 				|ui, shell| {
 					let before = shell.settings.close_action;
 					let mut value = before;
@@ -187,8 +219,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"开机自启",
-				"登录时启动 zetawork（需要安装自启项，本构建只记录这个选择）",
+				t!("开机自启"),
+				t!("登录时启动 zetawork（需要安装自启项，本构建只记录这个选择）"),
 				|ui, shell| {
 					let mut value = shell.settings.auto_start;
 					if switch(ui, &mut value) {
@@ -199,8 +231,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"通知",
-				"后台任务空闲、需要输入或失败时的提示；仅后台 = 只在窗口不在前台时提示",
+				t!("通知"),
+				t!("后台任务空闲、需要输入或失败时的提示；仅后台 = 只在窗口不在前台时提示"),
 				|ui, shell| {
 					let before = shell.settings.notify;
 					let mut value = before;
@@ -216,32 +248,32 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			// it is what the process is actually doing, so a degraded run is
 			// visible instead of silent.
 			let residency = if shell.lifecycle.background {
-				"正在后台运行"
+				t!("正在后台运行")
 			} else {
-				"窗口在前台"
+				t!("窗口在前台")
 			};
 			// Two separate facts: whether an icon exists, and how the window
 			// comes back. The tray can be missing with the feature compiled in
 			// (no StatusNotifier host), so ask the tray, not the build.
 			let wake = if shell.tray.available() {
-				"托盘图标 + 第二次运行"
+				t!("托盘图标 + 第二次运行")
 			} else if crate::tray::compiled_in() {
-				"第二次运行 zetawork（托盘图标没建起来，见下面的驻留提示）"
+				t!("第二次运行 zetawork（托盘图标没建起来，见下面的驻留提示）")
 			} else {
-				"第二次运行 zetawork（本构建没有编译托盘）"
+				t!("第二次运行 zetawork（本构建没有编译托盘）")
 			};
-			plain_row(ui, "驻留状态", residency, wake);
+			plain_row(ui, t!("驻留状态"), residency, wake);
 			for note in shell.lifecycle.notes.iter().chain(shell.tray.note.iter()) {
-				plain_row(ui, "驻留提示", note, "降级");
+				plain_row(ui, t!("驻留提示"), note, t!("降级"));
 			}
 			workspace_memory_row(ui, shell);
 		},
 		Section::Appearance => {
-			head(ui, "外观");
+			head(ui, t!("外观"));
 			row(
 				ui,
-				"主题",
-				"界面整体配色方案",
+				t!("主题"),
+				t!("界面整体配色方案"),
 				|ui, shell| {
 					let before = shell.settings.theme;
 					let mut value = before;
@@ -254,8 +286,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"信息密度",
-				"控制面板与列表的行距",
+				t!("信息密度"),
+				t!("控制面板与列表的行距"),
 				|ui, shell| {
 					let before = shell.settings.density;
 					let mut value = before;
@@ -268,8 +300,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"减少动态效果",
-				"关闭面板与列表的过渡动画",
+				t!("减少动态效果"),
+				t!("关闭面板与列表的过渡动画"),
 				|ui, shell| {
 					let mut value = shell.settings.reduce_motion;
 					if switch(ui, &mut value) {
@@ -280,11 +312,11 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 		},
 		Section::Editor => {
-			head(ui, "编辑器");
+			head(ui, t!("编辑器"));
 			row(
 				ui,
-				"等宽字体",
-				"编辑器与终端使用的字体",
+				t!("等宽字体"),
+				t!("编辑器与终端使用的字体"),
 				|ui, shell| {
 					let before = shell.settings.mono_font;
 					let mut value = before;
@@ -297,8 +329,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"字号",
-				"编辑器文本大小",
+				t!("字号"),
+				t!("编辑器文本大小"),
 				|ui, shell| {
 					let before = shell.settings.editor_size;
 					let mut value = before;
@@ -313,8 +345,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"自动换行",
-				"长行在视口内折行显示",
+				t!("自动换行"),
+				t!("长行在视口内折行显示"),
 				|ui, shell| {
 					let mut value = shell.settings.editor_wrap;
 					if switch(ui, &mut value) {
@@ -325,8 +357,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"显示行号",
-				"在左侧显示行号栏",
+				t!("显示行号"),
+				t!("在左侧显示行号栏"),
 				|ui, shell| {
 					let mut value = shell.settings.editor_line_numbers;
 					if switch(ui, &mut value) {
@@ -338,11 +370,11 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			zetacode_options(ui, shell);
 		},
 		Section::Terminal => {
-			head(ui, "终端");
+			head(ui, t!("终端"));
 			row(
 				ui,
-				"默认 Shell",
-				"新建终端时启动的程序（本机探测）",
+				t!("默认 Shell"),
+				t!("新建终端时启动的程序（本机探测）"),
 				|ui, shell| {
 					let detected = crate::shells::detect();
 					let before = shell.settings.shell;
@@ -357,8 +389,8 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 			row(
 				ui,
-				"终端字号",
-				"终端输出文本大小",
+				t!("终端字号"),
+				t!("终端输出文本大小"),
 				|ui, shell| {
 					let before = shell.settings.terminal_size;
 					let mut value = before;
@@ -373,9 +405,11 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 		},
 		Section::Keys => {
-			head(ui, "快捷键");
-			hint(ui, "本机把规格里的 ⌘ 映射为 Ctrl；TUI 视图用 Tab 切换面板、q 退出。");
+			head(ui, t!("快捷键"));
+			hint(ui, t!("本机把规格里的 ⌘ 映射为 Ctrl；TUI 视图用 Tab 切换面板、q 退出。"));
 			for (label, hint_text, keys) in crate::BINDINGS {
+				let label = crate::i18n::tr(label);
+				let hint_text = crate::i18n::tr(hint_text);
 				row(
 					ui,
 					label,
@@ -388,10 +422,10 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			}
 		},
 		Section::Projects => {
-			head(ui, "项目注册表 · ~/.zeta/projects.json");
-			hint(ui, "GUI 与 TUI 读同一份注册表。移除只删除注册，不删除目录，也不删除会话历史。");
+			head(ui, t!("项目注册表 · ~/.zeta/projects.json"));
+			hint(ui, t!("GUI 与 TUI 读同一份注册表。移除只删除注册，不删除目录，也不删除会话历史。"));
 			if shell.state.registry.is_empty() {
-				hint(ui, "还没有注册项目。左侧 项目 一节的 ＋ 可以选择一个目录。");
+				hint(ui, t!("还没有注册项目。左侧 项目 一节的 ＋ 可以选择一个目录。"));
 			} else {
 				let rows: Vec<(String, String, String, usize)> = shell
 					.state
@@ -413,12 +447,12 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			}
 		},
 		Section::Manage => {
-			head(ui, "管理");
+			head(ui, t!("管理"));
 			providers_section(ui, shell);
 			manage_card(
 				ui,
-				"管理项目与工作区",
-				"重命名、打开或移除已注册的项目",
+				t!("管理项目与工作区"),
+				t!("重命名、打开或移除已注册的项目"),
 				Icon::FolderPlus,
 				Section::Projects,
 				shell,
@@ -426,11 +460,16 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			data_storage_row(ui);
 		},
 		Section::About => {
-			head(ui, "关于");
+			head(ui, t!("关于"));
 			about_identity(ui, shell);
-			plain_row(ui, "界面规格", "本实现按 temp/zetawork-ui-mock 的 v2 规格绘制", "GUI / TUI");
-			plain_row(ui, shell.fonts.cjk_line().as_str(), "界面与等宽中文字形来源", "只读");
-			plain_row(ui, shell.fonts.mono_line().as_str(), "编辑器等宽字体", "只读");
+			plain_row(
+				ui,
+				t!("界面规格"),
+				t!("本实现按 temp/zetawork-ui-mock 的 v2 规格绘制"),
+				"GUI / TUI",
+			);
+			plain_row(ui, shell.fonts.cjk_line().as_str(), t!("界面与等宽中文字形来源"), t!("只读"));
+			plain_row(ui, shell.fonts.mono_line().as_str(), t!("编辑器等宽字体"), t!("只读"));
 			scope_rows(ui);
 		},
 	}
@@ -442,27 +481,27 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 fn scope_rows(ui: &mut Ui) {
 	plain_row(
 		ui,
-		"zetawork 自己",
-		"外观 / 编辑器 / 终端 / 快捷键 四节写 ~/.zeta/zetawork.toml",
-		"读写",
+		t!("zetawork 自己"),
+		t!("外观 / 编辑器 / 终端 / 快捷键 四节写 ~/.zeta/zetawork.toml"),
+		t!("读写"),
 	);
 	plain_row(
 		ui,
-		"zetacode 的选项",
-		"编辑器 一节里的 5 项，经 zetacode config set 写 ~/.zeta/agent/config.yml",
-		"读写",
+		t!("zetacode 的选项"),
+		t!("编辑器 一节里的 5 项，经 zetacode config set 写 ~/.zeta/agent/config.yml"),
+		t!("读写"),
 	);
 	plain_row(
 		ui,
-		"桌面应用的服务商配置",
-		"管理 一节里的 providers，写 ~/.zeta/agent/models.yml",
-		"读写",
+		t!("桌面应用的服务商配置"),
+		t!("管理 一节里的 providers，写 ~/.zeta/agent/models.yml"),
+		t!("读写"),
 	);
 	plain_row(
 		ui,
-		"用量",
-		"左栏底部的 用量 打开 stats 页面容器（地址来自 ~/.zeta/serve.json）",
-		"容器",
+		t!("用量"),
+		t!("左栏底部的 用量 打开 stats 页面容器（地址来自 ~/.zeta/serve.json）"),
+		t!("容器"),
 	);
 }
 
@@ -489,7 +528,7 @@ fn zetacode_control(key: &str) -> ZetacodeControl {
 /// writes its own file. A key that is absent from the list is drawn disabled
 /// with the reason, never as a switch that does nothing.
 fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
-	head(ui, "zetacode 选项 · ~/.zeta/agent/config.yml");
+	head(ui, t!("zetacode 选项 · ~/.zeta/agent/config.yml"));
 	if shell.probe && shell.remote.options().is_empty() && !shell.remote.loading() {
 		shell.remote.start_load();
 	}
@@ -497,13 +536,13 @@ fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
 		hint(ui, &status);
 	}
 	if let Some(error) = shell.remote.error().map(str::to_owned) {
-		hint(ui, &format!("读取失败：{error}"));
+		hint(ui, &t!("读取失败：{}", error));
 	}
 	if shell.remote.options().is_empty() && !shell.remote.loading() {
 		plain_row(
 			ui,
-			"zetacode 选项未读取",
-			"经 zetacode config list --json 读取（Node CLI，约 1.5 秒）",
+			t!("zetacode 选项未读取"),
+			t!("经 zetacode config list --json 读取（Node CLI，约 1.5 秒）"),
 			"",
 		);
 		let (rect, response) =
@@ -519,7 +558,7 @@ fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
 		ui.painter().text(
 			rect.center(),
 			egui::Align2::CENTER_CENTER,
-			"读取 zetacode 选项",
+			t!("读取 zetacode 选项"),
 			FontId::new(12.5, egui::FontFamily::Proportional),
 			if response.hovered() {
 				theme::TEXT
@@ -536,12 +575,12 @@ fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
 		let control = zetacode_control(key);
 		row(
 			ui,
-			label,
-			hint_text,
+			crate::i18n::tr(label),
+			crate::i18n::tr(hint_text),
 			move |ui, shell| {
 				let Some(current) = shell.remote.value(key).map(str::to_owned) else {
 					disabled_switch(ui, false);
-					hint(ui, &format!("{key} 没有值（未设置）"));
+					hint(ui, &t!("{} 没有值（未设置）", key));
 					return;
 				};
 				match control {
@@ -590,14 +629,14 @@ fn shell_choices(detected: &[crate::shells::Shell]) -> Vec<ShellChoice> {
 fn providers_section(ui: &mut Ui, shell: &mut Shell) {
 	let home = home_dir();
 	shell.providers.ensure(home.as_deref());
-	head(ui, "服务商配置 · ~/.zeta/agent/models.yml");
+	head(ui, t!("服务商配置 · ~/.zeta/agent/models.yml"));
 	if let Some(error) = shell.providers.error().map(str::to_owned) {
-		hint(ui, &format!("读取失败：{error}"));
+		hint(ui, &t!("读取失败：{}", error));
 		return;
 	}
 	let count = shell.providers.providers().len();
 	if count == 0 {
-		hint(ui, "models.yml 里没有 providers 条目");
+		hint(ui, t!("models.yml 里没有 providers 条目"));
 		return;
 	}
 	for index in 0..count {
@@ -612,7 +651,7 @@ fn providers_section(ui: &mut Ui, shell: &mut Shell) {
 		};
 		let seed = base_url.clone();
 		let row_label = format!("{id} · {api}");
-		let row_hint = format!("{models} · baseUrl 写回 models.yml");
+		let row_hint = t!("{} · baseUrl 写回 models.yml", models);
 		let save_id = id.clone();
 		row(
 			ui,
@@ -629,7 +668,7 @@ fn providers_section(ui: &mut Ui, shell: &mut Shell) {
 							.font(font)
 							.hint_text("baseUrl"),
 					);
-					if small_button(ui, "保存").clicked() {
+					if small_button(ui, t!("保存")).clicked() {
 						save = Some(draft.clone());
 					}
 				}
@@ -637,11 +676,11 @@ fn providers_section(ui: &mut Ui, shell: &mut Shell) {
 					let notice = match home_dir() {
 						Some(home) => {
 							match zetacode::write_provider_field(&home, &save_id, "baseUrl", &value) {
-								Ok(()) => format!("已写入 models.yml：{save_id}.baseUrl"),
-								Err(error) => format!("写入失败：{error}"),
+								Ok(()) => t!("已写入 models.yml：{}.baseUrl", save_id),
+								Err(error) => t!("写入失败：{}", error),
 							}
 						},
-						None => "找不到用户目录（USERPROFILE / HOME 都为空）".to_owned(),
+						None => t!("找不到用户目录（USERPROFILE / HOME 都为空）").to_owned(),
 					};
 					shell.providers.reload(home_dir().as_deref());
 					shell.clear_drafts();
@@ -652,7 +691,10 @@ fn providers_section(ui: &mut Ui, shell: &mut Shell) {
 		);
 	}
 	if base_urls_missing(shell) > 0 {
-		hint(ui, "个别 provider 没有 baseUrl：models.yml 里的 apiKey 指向环境变量，缺项不补默认值。");
+		hint(
+			ui,
+			t!("个别 provider 没有 baseUrl：models.yml 里的 apiKey 指向环境变量，缺项不补默认值。"),
+		);
 	}
 }
 
@@ -721,7 +763,7 @@ fn about_identity(ui: &mut Ui, shell: &mut Shell) {
 	ui.painter().text(
 		pos2(icon.max.x + 14.0, rect.min.y + 45.0),
 		egui::Align2::LEFT_CENTER,
-		format!("版本 {} · 纯 Rust 桌面工作台", crate::VERSION),
+		t!("版本 {} · 纯 Rust 桌面工作台", crate::VERSION),
 		FontId::new(11.5, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
@@ -743,12 +785,11 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 		.collect();
 	let targets = home_dir().map(|home| crate::workspace_memory::owned_paths(&home, &paths));
 	let hint_text = match &targets {
-		Some(targets) => format!(
-			"删除 {} 个路径：~/.zeta/zetawork/workspaces 与各项目会话日志；保留 \
-			 projects.json、项目目录与 agent 配置",
+		Some(targets) => t!(
+			"删除 {} 个路径：~/.zeta/zetawork/workspaces 与各项目会话日志；保留 projects.json、项目目录与 agent 配置",
 			targets.len()
 		),
-		None => "找不到用户目录（USERPROFILE / HOME 都为空），无法定位 ~/.zeta".to_owned(),
+		None => t!("找不到用户目录（USERPROFILE / HOME 都为空），无法定位 ~/.zeta").to_owned(),
 	};
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::hover());
 	ui.painter().line_segment(
@@ -758,7 +799,7 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 14.0),
 		egui::Align2::LEFT_TOP,
-		"清除所有工作区记忆",
+		t!("清除所有工作区记忆"),
 		FontId::new(13.0, egui::FontFamily::Proportional),
 		theme::TEXT,
 	);
@@ -773,7 +814,7 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 		control.min.x - rect.min.x - 12.0,
 	);
 	if ui
-		.put(control, egui::Button::new(egui::RichText::new("清除所有工作区记忆").size(12.0)))
+		.put(control, egui::Button::new(egui::RichText::new(t!("清除所有工作区记忆")).size(12.0)))
 		.clicked()
 	{
 		if let Some(home) = home_dir() {
@@ -1063,12 +1104,12 @@ impl ZetacodeCache {
 			return;
 		}
 		self.error = None;
-		self.status = Some("正在读取 zetacode 选项…".to_owned());
+		self.status = Some(t!("正在读取 zetacode 选项…").to_owned());
 		self.job = Some(spawn(move || {
 			let result = zetacode::config_list();
 			let notice = match &result {
-				Ok(options) => format!("已读取 {} 项 zetacode 选项", options.len()),
-				Err(error) => format!("读取 zetacode 选项失败：{error}"),
+				Ok(options) => t!("已读取 {} 项 zetacode 选项", options.len()),
+				Err(error) => t!("读取 zetacode 选项失败：{}", error),
 			};
 			(result, notice)
 		}));
@@ -1080,12 +1121,12 @@ impl ZetacodeCache {
 			return;
 		}
 		let (key, value) = (key.to_owned(), value.to_owned());
-		self.status = Some(format!("正在写入 {key} = {value}…"));
+		self.status = Some(t!("正在写入 {} = {}…", key, value));
 		self.job = Some(spawn(move || {
 			let written = zetacode::set(&key, &value);
 			let notice = match &written {
-				Ok(_) => format!("已写入 zetacode 配置：{key} = {value}"),
-				Err(error) => format!("写入 zetacode 配置失败：{error}"),
+				Ok(_) => t!("已写入 zetacode 配置：{} = {}", key, value),
+				Err(error) => t!("写入 zetacode 配置失败：{}", error),
 			};
 			let listed = if written.is_ok() {
 				zetacode::config_list()
@@ -1175,7 +1216,7 @@ impl ProviderCache {
 		}
 		self.loaded = Some(match home {
 			Some(home) => zetacode::read_providers(home),
-			None => Err("找不到用户目录（USERPROFILE / HOME 都为空）".to_owned()),
+			None => Err(t!("找不到用户目录（USERPROFILE / HOME 都为空）").to_owned()),
 		});
 	}
 
@@ -1259,12 +1300,12 @@ fn project_registry_row(
 	ui.painter().text(
 		pos2(rect.max.x - 78.0, rect.center().y),
 		egui::Align2::RIGHT_CENTER,
-		format!("{workspaces} 个工作区"),
+		t!("{} 个工作区", workspaces),
 		FontId::new(11.5, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
 	let button = Rect::from_center_size(pos2(rect.max.x - 40.0, rect.center().y), vec2(56.0, 26.0));
-	if ui.put(button, egui::Button::new("移除")).clicked() {
+	if ui.put(button, egui::Button::new(t!("移除"))).clicked() {
 		let id = id.to_owned();
 		shell.state.act(|state| state.remove_project(&id));
 	}
@@ -1334,16 +1375,16 @@ fn manage_card(
 /// 数据与存储: the real size of `~/.zeta`, or one quiet line when it is absent.
 fn data_storage_row(ui: &mut Ui) {
 	let Some(home) = home_dir() else {
-		plain_row(ui, "数据与存储", "找不到用户目录（USERPROFILE / HOME 都为空）", "");
+		plain_row(ui, t!("数据与存储"), t!("找不到用户目录（USERPROFILE / HOME 都为空）"), "");
 		return;
 	};
 	match crate::workspace_memory::zeta_usage(&home) {
 		Some((files, dirs, bytes)) => plain_row(
 			ui,
-			"数据与存储 · ~/.zeta",
-			&format!("{files} 个文件 · {dirs} 个目录"),
+			t!("数据与存储 · ~/.zeta"),
+			&t!("{} 个文件 · {} 个目录", files, dirs),
 			&crate::workspace_memory::bytes_label(bytes),
 		),
-		None => plain_row(ui, "数据与存储 · ~/.zeta", "还没有 ~/.zeta", ""),
+		None => plain_row(ui, t!("数据与存储 · ~/.zeta"), t!("还没有 ~/.zeta"), ""),
 	}
 }

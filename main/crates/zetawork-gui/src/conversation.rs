@@ -23,6 +23,7 @@
 //! a drive letter, a space or a CJK segment resolves to the directory the
 //! agent actually wrote.
 
+use crate::t;
 use std::{
 	io::{BufRead, BufReader},
 	path::{Path, PathBuf},
@@ -66,8 +67,8 @@ impl Origin {
 	/// The word the page shows next to the conversation.
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Pane => PANE_SOURCE,
-			Self::LatestLog => LATEST_SOURCE,
+			Self::Pane => crate::i18n::tr(PANE_SOURCE),
+			Self::LatestLog => crate::i18n::tr(LATEST_SOURCE),
 		}
 	}
 }
@@ -190,7 +191,7 @@ impl UsageSummary {
 			format!("${cost:.2}")
 		};
 		if self.unpriced > 0 {
-			text.push_str(&format!(" · {} 条未定价", self.unpriced));
+			text.push_str(&t!(" · {} 条未定价", self.unpriced));
 		}
 		Some(text)
 	}
@@ -333,8 +334,8 @@ pub fn resolve(state: &AppState, agents: &AgentSessions, roots: &SessionRoots) -
 /// without.
 pub fn status_label(percent: Option<f64>) -> String {
 	match percent {
-		Some(percent) => format!("上文 {percent:.0}%"),
-		None => "上文 —".to_owned(),
+		Some(percent) => t!("上文 {}%", format!("{percent:.0}")),
+		None => t!("上文 —").to_owned(),
 	}
 }
 

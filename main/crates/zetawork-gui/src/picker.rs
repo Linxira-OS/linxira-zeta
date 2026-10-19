@@ -12,6 +12,7 @@
 //! The rows are built once, when the picker opens
 //! ([`crate::Shell::open_picker`]), so a PATH scan never runs per frame.
 
+use crate::t;
 use egui::{Align, Color32, CornerRadius, FontId, Layout, Order, Rect, Sense, Stroke, pos2, vec2};
 
 use crate::{
@@ -53,8 +54,8 @@ fn entry_icon(entry: &PickerEntry) -> Icon {
 /// The dialog's own title, per target.
 fn title(target: &PickerTarget) -> &'static str {
 	match target {
-		PickerTarget::BigTab => "新建大标签页 · 选择要打开的内容",
-		PickerTarget::Pane(_) => "新建标签页 · 选择要打开的内容",
+		PickerTarget::BigTab => t!("新建大标签页 · 选择要打开的内容"),
+		PickerTarget::Pane(_) => t!("新建标签页 · 选择要打开的内容"),
 	}
 }
 
@@ -123,7 +124,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 				truncated_text(
 					&panel,
 					pos2(rect.min.x + 12.0, y + ROW_H / 2.0),
-					"本机没有探测到任何 shell",
+					t!("本机没有探测到任何 shell"),
 					12.5,
 					theme::WARN,
 					WIDTH - 24.0,
@@ -182,7 +183,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 				// is a page.
 				let chip = match entry {
 					PickerEntry::Shell(shell) => shell.kind.label(),
-					PickerEntry::Page(_) => "页面",
+					PickerEntry::Page(_) => t!("页面"),
 				};
 				let font = FontId::new(10.5, egui::FontFamily::Monospace);
 				let galley = panel

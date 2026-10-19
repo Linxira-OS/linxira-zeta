@@ -4,6 +4,7 @@
 //!
 //! Every number here is either read from the running process or from `git`.
 
+use crate::t;
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::{
@@ -27,11 +28,11 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 		ui.horizontal_centered(|ui| {
 			ui.spacing_mut().item_spacing.x = 2.0;
 			let workspace = shell.state.workspace_label().to_owned();
-			if item(ui, Some(Icon::Folder), &workspace, false, "回到首页").clicked() {
+			if item(ui, Some(Icon::Folder), &workspace, false, t!("回到首页")).clicked() {
 				shell.state.go_home();
 			}
 			let branch = shell.state.branch_label().to_owned();
-			let git_response = item(ui, Some(Icon::GitBranch), &branch, true, "打开 Git 状态");
+			let git_response = item(ui, Some(Icon::GitBranch), &branch, true, t!("打开 Git 状态"));
 			if git_response.clicked() {
 				shell.state.set_right_tab(RightTab::Git);
 			}
@@ -44,13 +45,13 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 				.filter(|g| g.error.is_none())
 				.map(|_| format!("↑{ahead} ↓{behind}"))
 				.unwrap_or_else(|| "↑— ↓—".to_owned());
-			item(ui, None, &counts, true, "与上游的差异（git rev-list --left-right）");
+			item(ui, None, &counts, true, t!("与上游的差异（git rev-list --left-right）"));
 			let changes = if shell.git.as_ref().is_some_and(|g| g.error.is_none()) {
 				format!("{tracked}")
 			} else {
 				"—".to_owned()
 			};
-			if badge_item(ui, &changes, "更改").clicked() {
+			if badge_item(ui, &changes, t!("更改")).clicked() {
 				shell.state.set_right_tab(RightTab::Git);
 			}
 
@@ -76,15 +77,15 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 			}
 
 			ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-				if item(ui, None, "关闭", false, "收起状态栏").clicked() {
+				if item(ui, None, t!("关闭"), false, t!("收起状态栏")).clicked() {
 					shell.state.act(|state| state.toggle_statusbar());
 				}
-				item(ui, None, &clock(), true, "本地时间");
+				item(ui, None, &clock(), true, t!("本地时间"));
 				// 上文: the active conversation's share of its window, the same
 				// figure the right column's 用量 page draws. Unknown stays `—`.
 				let context = crate::conversation::status_label(shell.conversation.percent());
-				item(ui, None, &context, true, CONTEXT_HINT);
-				item(ui, None, &shell.memory_label(), true, "本进程常驻内存（sysinfo）");
+				item(ui, None, &context, true, crate::i18n::tr(CONTEXT_HINT));
+				item(ui, None, &shell.memory_label(), true, t!("本进程常驻内存（sysinfo）"));
 			});
 		});
 	});
@@ -108,7 +109,7 @@ pub fn strip(ui: &mut Ui, shell: &mut Shell) {
 	);
 	let button = Rect::from_center_size(pos2(rect.center().x, rect.center().y), vec2(40.0, 14.0));
 	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(button));
-	if chrome_like_button(&mut child, "展开状态栏").clicked() {
+	if chrome_like_button(&mut child, t!("展开状态栏")).clicked() {
 		shell.state.act(|state| state.toggle_statusbar());
 	}
 }
@@ -208,5 +209,5 @@ fn badge_item(ui: &mut Ui, count: &str, label: &str) -> egui::Response {
 			theme::TEXT_3
 		},
 	);
-	response.on_hover_text("打开 Git 状态")
+	response.on_hover_text(t!("打开 Git 状态"))
 }
