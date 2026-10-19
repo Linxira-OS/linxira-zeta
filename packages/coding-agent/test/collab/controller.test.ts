@@ -35,7 +35,7 @@ import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
-import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 import * as utils from "@linxiraos/pi-utils";
@@ -256,7 +256,7 @@ afterEach(async () => {
 	// session index), and models.db under tmp/agent; Windows cannot delete open files.
 	AgentStorage.close();
 	HistoryStorage.close();
-	resetSessionIndexForTests();
+	closeSessionIndex();
 	closeModelCache();
 	await fs.rm(tmp, { recursive: true, force: true });
 });

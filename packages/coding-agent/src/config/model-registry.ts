@@ -416,7 +416,7 @@ export class ModelRegistry {
 	#ompOriginProviders: Set<string> = new Set();
 	#ompConfigProviders: Set<string> = new Set();
 	#ompCompatConfig: ModelsConfig | undefined;
-	/** Test seam: upstream agent dir override; undefined = default `~/.omp/agent`. */
+	/** Test seam: upstream agent dir override; undefined = default `~/.zeta/agent`. */
 	#ompAgentDir: string | undefined;
 	/** mtime fingerprint of the upstream files at last static load; drives reload detection. */
 	#lastOmpCompatFingerprint: string | null = null;
@@ -564,7 +564,7 @@ export class ModelRegistry {
 			cacheDbPath?: string;
 			/**
 			 * Upstream OMP agent directory for the read-only compatibility probe.
-			 * Defaults to `~/.omp/agent`; tests point this at a fixture directory.
+			 * Defaults to `~/.zeta/agent`; tests point this at a fixture directory.
 			 */
 			ompAgentDir?: string;
 			fetch?: FetchImpl;

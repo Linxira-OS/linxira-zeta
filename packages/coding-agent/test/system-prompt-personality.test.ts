@@ -4,7 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { Personality } from "@linxiraos/zeta/session/settings";
 import { buildSystemPrompt } from "@linxiraos/zeta/system-prompt";
-import { getAgentDir, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { __resetDirsFromEnvForTests, removeSyncWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { restoreEnvValue } from "./helpers/settings-test-state";
 
 const EMPTY_TREE = {
 	rootPath: "",
@@ -18,8 +19,6 @@ const EMPTY_TREE = {
 const DEFAULT_PRESET_MARKER = "Evidence-first terse engineer";
 const OVERRIDE = "Follow ASD-STE100 Simplified Technical English for all responses.";
 
-const originalAgentDir = getAgentDir();
-
 // PERSONALITY.md contract (issue #8528): `<agentDir>/PERSONALITY.md` replaces
 // the selected preset's text in the personality block; `none` still omits the
 // block (subagents always run with `none`); an empty file falls back to the
@@ -27,15 +26,24 @@ const originalAgentDir = getAgentDir();
 describe("PERSONALITY.md override", () => {
 	let tempDir = "";
 	let tempAgentDir = "";
+	let originalAgentDirEnv: string | undefined;
+	let originalOmpProfileEnv: string | undefined;
+	let originalZetaProfileEnv: string | undefined;
 
 	beforeEach(() => {
+		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
+		originalOmpProfileEnv = process.env.OMP_PROFILE;
+		originalZetaProfileEnv = process.env.ZETA_PROFILE;
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-personality-"));
 		tempAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-personality-agent-"));
 		setAgentDir(tempAgentDir);
 	});
 
 	afterEach(() => {
-		setAgentDir(originalAgentDir);
+		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
+		restoreEnvValue("OMP_PROFILE", originalOmpProfileEnv);
+		restoreEnvValue("ZETA_PROFILE", originalZetaProfileEnv);
+		__resetDirsFromEnvForTests();
 		removeSyncWithRetries(tempDir);
 		removeSyncWithRetries(tempAgentDir);
 	});

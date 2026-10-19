@@ -19,7 +19,7 @@ import {
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
 import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
-import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TaskTool } from "@linxiraos/zeta/task";
 import type { ToolSession } from "@linxiraos/zeta/tools";
@@ -480,7 +480,7 @@ afterEach(async () => {
 	resetSettingsForTest();
 
 	// Renames index titles in the process-wide `<agentDir>/history.db`; Windows cannot delete it while open.
-	resetSessionIndexForTests();
+	closeSessionIndex();
 	for (const root of cleanupRoots.splice(0)) {
 		await fs.promises.rm(root, { recursive: true, force: true });
 	}

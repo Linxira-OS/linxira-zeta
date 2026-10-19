@@ -32,7 +32,7 @@ describe("Claude plugin MCP timeout compatibility", () => {
 		process.env.HOME = tempDir;
 		vi.spyOn(os, "homedir").mockReturnValue(tempDir);
 		// Point the agent dir at a temp dir so user-scope discovery (native MCP
-		// config, skills, etc.) cannot read the real ~/.omp/agent profile.
+		// config, skills, etc.) cannot read the real ~/.zeta/agent profile.
 		setAgentDir(testAgentDir);
 		enableProvider("claude-plugins");
 	});

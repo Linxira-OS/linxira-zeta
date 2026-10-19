@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createSessionManager } from "@linxiraos/zeta/main";
-import { resetSessionIndexForTests } from "@linxiraos/zeta/session/session-index";
+import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { loadEntriesFromFile } from "@linxiraos/zeta/session/session-loader";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import {
@@ -30,7 +30,7 @@ describe("resuming a session that moved away", () => {
 	});
 
 	afterEach(async () => {
-		resetSessionIndexForTests();
+		closeSessionIndex();
 		if (originalAgentDir) {
 			setAgentDir(originalAgentDir);
 		} else {
