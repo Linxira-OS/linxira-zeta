@@ -413,6 +413,26 @@ When authorized to create or edit a contributor-submitted PR, follow the checkli
 - For user-facing changes, MUST follow the [Changelog](#changelog) attribution rules. Internal issue fixes keep their issue links. For external contributions, add the PR link and contributor credit after GitHub assigns the number, then push the entry before marking the changelog checklist item complete.
 - MUST read back the published PR description after creating or editing it. Check only verified checklist items; explain skipped or inapplicable checks in `Testing`.
 
+## Parallel Agent Branches (2026-10-20 用户立规)
+
+多子代理并行开发的标准流程，**每一条都是硬规则**：
+
+1. **每个子代理自建 worktree + 分支**（`temp/<topic>` ← `feat/*`/`fix/*`/`chore/*`），
+   根 checkout 始终干净停在 `main`；子代理不得推送、不得合并 `main`、不得打 tag。
+2. **本地先合、跑通测试**：父代理把各分支按依赖顺序合入一个
+   `chore/integration-<version>` 分支，解决冲突后跑本地门禁——
+   `check-version-consistency`、`check-ci-surface`、`check-workbench-bundles`、
+   `check-scope-imports`、`brand-check`、`bun run check:ts`、`cargo fmt --all -- --check`
+   （用 `main/rust-toolchain.toml` 钉的 1.97.1）——以及受影响套件的测试。
+3. **推分支、跑 CI**：本地绿才推 `chore/integration-<version>`，并用
+   `gh workflow run ci.yml --ref <branch>` 跑**一次**分支 CI；CI 覆盖本地做不到的
+   多系统/原生构建/打包面（`makensis`、`appimagetool`、`makepkg`、bazel natives）。
+4. **新功能必须带测试**：没有对应测试的功能改动不进整合分支；环境性失败必须在
+   报告里给出「基线同样红」的证据，不得以 `skip` 或删除断言换取绿。
+5. **zetacode 新特性必须写进 `docs/`**：`docs/` 是随产品打包的运行时文档
+   （`zeta://docs`）。新的 CLI 子命令/标志、扩展 API、工具、内部 URL 面都要在
+   `docs/` 对应文件补齐，不能只留在 CHANGELOG 或代码注释里。
+
 ## Feature Branch Workflow (mandatory)
 
 Any new-direction development (new features, new surfaces, refactors that are
