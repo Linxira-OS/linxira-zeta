@@ -4,7 +4,29 @@
 
 ### OMP 同步基线
 
-- 待定。
+- v18.12.1 → v18.12.2（620 提交 / 269 文件；真双亲合并 `aa4e88b275d`，
+  仅比 tag 间差异，Zeta 侧 URL/素材/品牌面按 tag 增量重放，不整树覆盖）。
+
+### 1.3.1
+
+- **工作台 TUI 回到发布面**：`zeta-work-{linux-x64,win-x64}` 重新随 release 下发，
+  `@linxiraos/main` 与两个平台叶包恢复走 npm（叶包内嵌二进制按 1.3.1 重编提交）；
+  `zetacode` / `zetaide` 的资产与包保持原状。
+- **桌面应用首次进发布链**：`zetawork-windows-x64.zip`（`zetawork-gui.exe` +
+  `WebView2Loader.dll`，后者从构建所用 `webview2-com-sys` 直接取出）、
+  `zetawork-<ver>-1-x86_64.pkg.tar.zst`（Arch，`pacman -U` 安装）、
+  `zetawork-<ver>-x86_64.AppImage`。Linux 以发行版包为主形态，zip 不再是 Linux 首选；
+  flatpak 不做。GUI 不进 npm，二进制装在 PATH 之外（`/usr/lib/zetawork/zetawork-gui`），
+  对外仍只有 `zetawork` / `zetacode` / `zetaide` 三个命令。
+- **GUI 中英文切换**：新增内容寻址的 i18n 表（`t!` 宏，中文为源文本，461 条 UI 字符串），
+  语言存 `~/.zeta/zetawork.toml` 的 `lang = zh|en`，设置头部菜单即时切换；中文输出逐字不变。
+- **TUI 文件/分支页**：工作台 TUI 左栏新增真实 `files` 与 `git` 页（懒加载目录树、
+  分支与工作区状态、最近提交），键位与既有列表一致；`search/tasks/automation/mobile`
+  仍是占位。
+- **资源采样 crate `sysmon`**：CPU/内存/磁盘/网络 + GPU 三档探测（Windows PDH →
+  Linux sysfs → NVML），拿不到显示不可用，不阻塞 UI。
+- **插件发布修复**：`@linxiraos/pi-messenger@1.3.0` 走 OIDC trusted publishing 成功
+  （此前 422 因 `repository.url` 指向 upstream）；仓库内不再存在任何 npm token。
 
 ### 新增
 
