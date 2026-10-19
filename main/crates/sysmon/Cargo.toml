@@ -1,0 +1,18 @@
+[package]
+name = "sysmon"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Host CPU, memory, disk, network, and GPU sampling for the Zeta workbench"
+publish = false
+
+[dependencies]
+sysinfo = "0.31"
+
+[target.'cfg(windows)'.dependencies]
+# PDH (Performance Data Helper) exposes the GPU Engine / GPU Adapter Memory
+# counters. windows-sys keeps the dependency surface to raw FFI bindings, which
+# matches the workspace's existing use of it (termide-system-monitor).
+windows-sys = { version = "0.59", features = ["Win32_System_Performance"] }
