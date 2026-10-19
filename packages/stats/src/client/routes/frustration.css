@@ -121,3 +121,16 @@
 	justify-content: flex-end;
 	gap: 6px;
 }
+
+/* Model-side summary: section header above the stat tiles. */
+.frustration-model-summary {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.frustration-model-notes {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}

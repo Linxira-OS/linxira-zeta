@@ -415,6 +415,7 @@ async function syncAllSessionsLocked(
 		pendingRows +=
 			result.stats.length +
 			result.userStats.length +
+			result.assistantTexts.length +
 			result.userLinks.length +
 			result.toolCalls.length +
 			result.toolResults.length;

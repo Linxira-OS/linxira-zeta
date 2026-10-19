@@ -12,7 +12,10 @@
  * `installStatsTestIsolation` snapshots and clears `XDG_*_HOME` plus
  * `PI_CONFIG_DIR` for the test, points the agent directory at a fresh
  * `TempDir`, closes the stats DB handle, and tears everything back down in the
- * matching `afterEach`.
+ * matching `afterEach`. It also sets `ZETA_CONFIG_DIR`, the variable
+ * `dirs.ts` actually resolves the config root from: without it
+ * `getStatsDbPath()` stays on the developer's real `~/.zeta/stats.db` and
+ * every test in the process shares it.
  */
 import { afterEach, beforeEach } from "bun:test";
 import * as os from "node:os";
@@ -30,18 +33,24 @@ export interface StatsTestIsolation {
 export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 	const originalAgentDir = getAgentDir();
 	let originalConfigDir: string | undefined;
+	let originalZetaConfigDir: string | undefined;
 	const originalXdg: Record<string, string | undefined> = {};
 	let tempDir: TempDir | null = null;
 
 	beforeEach(() => {
 		tempDir = TempDir.createSync(prefix);
 		originalConfigDir = process.env.PI_CONFIG_DIR;
+		originalZetaConfigDir = process.env.ZETA_CONFIG_DIR;
 		for (const key of XDG_KEYS) {
 			originalXdg[key] = process.env[key];
 			delete process.env[key];
 		}
 		const configDir = path.relative(os.homedir(), tempDir.join("config"));
 		process.env.PI_CONFIG_DIR = configDir;
+		// `getStatsDbPath()` resolves from the config root, which `dirs.ts` reads
+		// from ZETA_CONFIG_DIR (PI_CONFIG_DIR is the legacy name). Without this,
+		// every test in a process shares the developer's real `~/.zeta/stats.db`.
+		process.env.ZETA_CONFIG_DIR = configDir;
 		setAgentDir(path.join(os.homedir(), configDir, "agent"));
 	});
 
@@ -54,6 +63,11 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 			delete process.env.PI_CONFIG_DIR;
 		} else {
 			process.env.PI_CONFIG_DIR = originalConfigDir;
+		}
+		if (originalZetaConfigDir === undefined) {
+			delete process.env.ZETA_CONFIG_DIR;
+		} else {
+			process.env.ZETA_CONFIG_DIR = originalZetaConfigDir;
 		}
 		for (const key of XDG_KEYS) {
 			const prior = originalXdg[key];

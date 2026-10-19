@@ -16,6 +16,7 @@ import { classifyModel } from "@linxiraos/pi-catalog/compat/taxonomy";
 import { getSessionsDir, isEnoent, readLines } from "@linxiraos/pi-utils";
 import type {
 	AgentType,
+	AssistantTextStats,
 	MessageStatsInput,
 	SessionEntry,
 	SessionMessageEntry,
@@ -26,7 +27,8 @@ import type {
 	UserMessageLink,
 	UserMessageStats,
 } from "./types";
-import { computeUserMessageMetrics, judgeProse } from "./user-metrics";
+import { computeAssistantMessageMetrics } from "./model-metrics";
+import { analysisProse, computeUserMessageMetrics } from "./user-metrics";
 
 /** Basename of an advisor agent's transcript inside a session artifacts dir. */
 const ADVISOR_TRANSCRIPT_BASENAME = "__advisor.jsonl";
@@ -112,19 +114,28 @@ function isToolResultMessage(entry: SessionEntry): entry is SessionMessageEntry 
 }
 
 /**
+ * Concatenate the `text` content blocks of a message payload, skipping every
+ * other block type (thinking/reasoning, tool calls, tool results, images).
+ */
+function extractTextBlocks(content: unknown): string {
+	if (!Array.isArray(content)) return "";
+	const parts: string[] = [];
+	for (const block of content) {
+		if (!block || typeof block !== "object" || !("type" in block)) continue;
+		const type = block.type;
+		if (type !== "text" || !("text" in block)) continue;
+		const text = block.text;
+		if (typeof text === "string") parts.push(text);
+	}
+	return parts.join("");
+}
+
+/**
  * Extract plain text from a user message content payload.
  */
 function extractUserText(content: unknown): string {
 	if (typeof content === "string") return content;
-	if (!Array.isArray(content)) return "";
-	const parts: string[] = [];
-	for (const block of content) {
-		if (block && typeof block === "object" && (block as { type?: unknown }).type === "text") {
-			const text = (block as { text?: unknown }).text;
-			if (typeof text === "string") parts.push(text);
-		}
-	}
-	return parts.join("");
+	return extractTextBlocks(content);
 }
 
 /**
@@ -141,7 +152,7 @@ function extractUserStats(
 	const text = extractUserText(msg.content);
 	if (!text.trim()) return null;
 	const metrics = computeUserMessageMetrics(text, { prevText });
-	const prose = judgeProse(text);
+	const prose = analysisProse(text);
 	const ts = Date.parse(entry.timestamp);
 	return {
 		sessionFile,
@@ -162,6 +173,53 @@ function extractUserStats(
 		unsupportedScript: metrics.unsupportedScript,
 		prose,
 		proseHash: prose ? Bun.hash(prose).toString(16) : "",
+	};
+}
+
+/**
+ * Build the model-side analysis row for an assistant turn. Only `text` blocks
+ * are read: thinking/reasoning blocks are the model's scratchpad, not what it
+ * said to the user (see {@link extractTextBlocks}). Returns null for turns
+ * without text or without an attributable model/provider: a tool-call-only
+ * reply has nothing to analyze, and an unattributable turn cannot join a
+ * per-model aggregate.
+ */
+function extractAssistantTextStats(
+	sessionFile: string,
+	folder: string,
+	entry: SessionMessageEntry,
+	agentType: AgentType,
+	prevProse: string,
+	toolErrors: number,
+): AssistantTextStats | null {
+	const msg = entry.message as AssistantMessage;
+	if (msg?.role !== "assistant") return null;
+	if (typeof msg.model !== "string" || typeof msg.provider !== "string") return null;
+	const text = extractTextBlocks(msg.content);
+	if (!text.trim()) return null;
+	const prose = analysisProse(text);
+	// A reply that was nothing but code/markup has no analysis body to store.
+	if (!prose) return null;
+	const metrics = computeAssistantMessageMetrics(prose, { prevText: prevProse, toolErrors });
+	return {
+		sessionFile,
+		entryId: entry.id,
+		folder,
+		timestamp: coerceEntryTimestamp(msg.timestamp, entry),
+		model: msg.model,
+		provider: msg.provider,
+		agentType,
+		chars: metrics.chars,
+		words: metrics.words,
+		selfBlame: metrics.selfBlame,
+		restatement: metrics.restatement,
+		hedge: metrics.hedge,
+		verbose: metrics.verbose,
+		toolErrors: metrics.toolErrors,
+		toolSpiral: metrics.toolSpiral,
+		collapse: metrics.collapse,
+		unsupportedScript: metrics.unsupportedScript,
+		prose,
 	};
 }
 
@@ -512,6 +570,7 @@ export interface SessionParserState {
 export interface ParseSessionResult {
 	stats: MessageStatsInput[];
 	userStats: UserMessageStats[];
+	assistantTexts: AssistantTextStats[];
 	userLinks: UserMessageLink[];
 	toolCalls: ToolCallStats[];
 	toolResults: ToolResultLink[];
@@ -557,6 +616,7 @@ export async function parseSessionFile(
 	const agentType = classifyAgentType(sessionPath);
 	const stats: MessageStatsInput[] = [];
 	const userStats: UserMessageStats[] = [];
+	const assistantTexts: AssistantTextStats[] = [];
 	const userLinks: UserMessageLink[] = [];
 	const toolCalls: ToolCallStats[] = [];
 	const toolResults: ToolResultLink[] = [];
@@ -565,6 +625,13 @@ export async function parseSessionFile(
 	// incremental parse starts mid-session, so the first message of a resumed
 	// pass simply carries no predecessor.
 	let prevUserText = "";
+	// Model-side analysis: the previous prose-bearing assistant turn (for
+	// repeated restatement) and the failed tool results since the last
+	// assistant turn (for tool-failure spirals). Both start empty on a resumed
+	// tail read: the first assistant turn of that pass carries no predecessor
+	// and no spiral count, and the next full re-parse fills them in.
+	let prevAssistantText = "";
+	let pendingToolErrors = 0;
 
 	// Reduce each entry immediately so full replays do not retain tool-output/message bodies.
 	const visit = (entry: SessionEntry): void => {
@@ -582,7 +649,10 @@ export async function parseSessionFile(
 		}
 		if (isToolResultMessage(entry)) {
 			const link = extractToolResultLink(sessionPath, entry);
-			if (link) toolResults.push(link);
+			if (link) {
+				toolResults.push(link);
+				if (link.isError) pendingToolErrors++;
+			}
 			return;
 		}
 		if (isModelUsage(entry)) {
@@ -594,6 +664,20 @@ export async function parseSessionFile(
 			const msgStats = extractStats(sessionPath, folder, entry, currentServiceTier, agentType);
 			if (msgStats) stats.push(msgStats);
 			toolCalls.push(...extractToolCalls(sessionPath, folder, entry, agentType));
+			const textStats = extractAssistantTextStats(
+				sessionPath,
+				folder,
+				entry,
+				agentType,
+				prevAssistantText,
+				pendingToolErrors,
+			);
+			if (textStats) {
+				assistantTexts.push(textStats);
+				prevAssistantText = textStats.prose;
+			}
+			// The next assistant turn starts a fresh failure chain.
+			pendingToolErrors = 0;
 			// Persist links even when the user entry was ingested in an earlier tail read.
 			const parentId = entry.parentId;
 			const msg = entry.message;
@@ -646,7 +730,15 @@ export async function parseSessionFile(
 		}
 	} catch (err) {
 		if (isEnoent(err))
-			return { stats: [], userStats: [], userLinks: [], toolCalls: [], toolResults: [], newOffset: fromOffset };
+			return {
+				stats: [],
+				userStats: [],
+				assistantTexts: [],
+				userLinks: [],
+				toolCalls: [],
+				toolResults: [],
+				newOffset: fromOffset,
+			};
 		throw err;
 	}
 
@@ -654,6 +746,7 @@ export async function parseSessionFile(
 	return {
 		stats,
 		userStats,
+		assistantTexts,
 		userLinks,
 		toolCalls,
 		toolResults,

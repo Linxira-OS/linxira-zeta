@@ -460,7 +460,7 @@ const YELLING_THRESHOLD = 0.5;
 // classic shift-key mishit ("!!!111" / "!?!??111") so we count those as
 // part of the same drama burst.
 const DRAMA_RE = /[!?][!?1]{2,}/g;
-const WORD_RE = /\S+/g;
+export const WORD_RE = /\S+/g;
 
 // Anguish/exasperation interjections. Each alternative is a case-insensitive
 // word-bounded pattern. Interjections whose short form collides with normal
@@ -664,7 +664,7 @@ const UNSUPPORTED_SCRIPT_RE =
 const UNSUPPORTED_SCRIPT_SHARE = 0.3;
 
 /** 1 when the prose leans on a script the lexicons do not cover. */
-function detectUnsupportedScript(prose: string): number {
+export function detectUnsupportedScript(prose: string): number {
 	const letters = countMatches(prose, SCRIPT_LETTER_RE);
 	if (letters < 4) return 0;
 	return countMatches(prose, UNSUPPORTED_SCRIPT_RE) / letters > UNSUPPORTED_SCRIPT_SHARE ? 1 : 0;
@@ -689,7 +689,7 @@ function bigrams(normalized: string): Set<string> {
  * the one frustration signal that needs no lexicon and therefore works for
  * any language and survives every transcription error.
  */
-function detectRepeatedMessage(prose: string, prevProse: string): number {
+export function detectRepeatedMessage(prose: string, prevProse: string): number {
 	const current = normalizeForComparison(prose);
 	const previous = normalizeForComparison(prevProse);
 	if (current.length < REPEATED_MESSAGE_MIN_CHARS || previous.length < REPEATED_MESSAGE_MIN_CHARS) return 0;
@@ -731,7 +731,7 @@ const ANSI_ESCAPE_RE = /\x1b\[[0-9;]*[A-Za-z]/g;
 const MAX_PROSE_LINES = 3;
 
 /** Count regex hits without materializing the match array. */
-function countMatches(text: string, re: RegExp): number {
+export function countMatches(text: string, re: RegExp): number {
 	let count = 0;
 	re.lastIndex = 0;
 	while (re.exec(text) !== null) count++;
@@ -782,7 +782,7 @@ function countYellingSentences(text: string): number {
  * Each strip is replaced with a newline so subsequent line counting
  * reflects what was removed instead of merging neighbors.
  */
-function stripStructuredContent(text: string): string {
+export function stripStructuredContent(text: string): string {
 	return text
 		.replace(FENCED_CODE_RE, "\n")
 		.replace(XML_TAG_PAIR_RE, "\n")
@@ -800,11 +800,13 @@ function stripStructuredContent(text: string): string {
 export const PROSE_MAX_CHARS = 4000;
 
 /**
- * The prose a user message contributes to frustration judging: the same
+ * The prose a message contributes to behavioral analysis: the same
  * structured-content strip the regex signals score on, trimmed and capped at
  * {@link PROSE_MAX_CHARS}. Empty when the message was nothing but markup.
+ * Shared by the user-message judge and the model-side analyzer so both store
+ * exactly the same body.
  */
-export function judgeProse(text: string): string {
+export function analysisProse(text: string): string {
 	const prose = stripStructuredContent(text.trim()).trim();
 	return prose.length > PROSE_MAX_CHARS ? prose.slice(0, PROSE_MAX_CHARS) : prose;
 }

@@ -17,8 +17,6 @@
  * `omp-stats` has none and only shows the regex fallback.
  */
 import { type Judge, judgeQuestions, type Model } from "@linxiraos/pi-ai";
-import { compareRevision, parseRevision } from "@linxiraos/pi-catalog/compat/revision";
-import { classifyModel } from "@linxiraos/pi-catalog/compat/taxonomy";
 import { getEffectiveTokenCost } from "@linxiraos/pi-catalog/models";
 import { logger } from "@linxiraos/pi-utils";
 import { getTimeRangeConfig } from "./aggregator";
@@ -33,6 +31,8 @@ import {
 	type PendingProse,
 	upsertFrustrationVerdicts,
 } from "./db";
+import { compareModelIdentity, modelIdentityOf } from "./model-identity";
+import { getModelSideDashboardStats } from "./model-side";
 import questionFile from "./prompts/judge/frustration.json" with { type: "json" };
 import type {
 	FrustrationDashboardStats,
@@ -136,11 +136,8 @@ export function getFrustrationJobStatus(): FrustrationJobStatus {
 export function mergeFrustrationRows(rows: readonly FrustrationModelRow[]): FrustrationModelStats[] {
 	const merged = new Map<string, FrustrationModelStats>();
 	for (const row of rows) {
-		const identity = classifyModel(row.provider ?? "", row.model, { lenient: true });
-		const classified = identity.class !== "unknown" && identity.revision !== undefined;
-		const family = identity.family ?? null;
-		const key = classified ? `${identity.class}/${family ?? ""}/${identity.revision}` : row.model;
-		const existing = merged.get(key);
+		const identity = modelIdentityOf(row.provider, row.model);
+		const existing = merged.get(identity.key);
 		if (existing) {
 			existing.messages += row.messages;
 			existing.judged += row.judged;
@@ -152,15 +149,8 @@ export function mergeFrustrationRows(rows: readonly FrustrationModelRow[]): Frus
 			if (!existing.models.includes(row.model)) existing.models.push(row.model);
 			continue;
 		}
-		const revision = classified ? (identity.revision ?? null) : null;
-		// `4.5.0` → `4.5`, `5.0.0` → `5`.
-		const shortRevision = revision?.replace(/(?:\.0)+$/, "");
-		merged.set(key, {
-			key,
-			label: shortRevision ? [family, shortRevision].filter(Boolean).join(" ") : row.model,
-			modelClass: identity.class,
-			family,
-			revision,
+		merged.set(identity.key, {
+			...identity,
 			models: [row.model],
 			firstSeen: row.firstSeen,
 			messages: row.messages,
@@ -171,23 +161,7 @@ export function mergeFrustrationRows(rows: readonly FrustrationModelRow[]): Frus
 			angry: row.angry,
 		});
 	}
-	return [...merged.values()].sort(compareModelStats);
-}
-
-function compareModelStats(a: FrustrationModelStats, b: FrustrationModelStats): number {
-	const aRevision = a.revision ? parseRevision(a.revision) : undefined;
-	const bRevision = b.revision ? parseRevision(b.revision) : undefined;
-	if (!aRevision || !bRevision) {
-		if (aRevision) return -1;
-		if (bRevision) return 1;
-		return a.firstSeen - b.firstSeen;
-	}
-	if (a.modelClass !== b.modelClass) return a.modelClass < b.modelClass ? -1 : 1;
-	const byRevision = compareRevision(aRevision, bRevision);
-	if (byRevision !== 0) return byRevision;
-	const aFamily = a.family ?? "";
-	const bFamily = b.family ?? "";
-	return aFamily < bFamily ? -1 : aFamily > bFamily ? 1 : 0;
+	return [...merged.values()].sort(compareModelIdentity);
 }
 
 /** Payload of `GET /api/stats/frustration`. */
@@ -197,6 +171,7 @@ export async function getFrustrationDashboardStats(range?: string | null): Promi
 	return {
 		overall: getFrustrationOverall(cutoff),
 		byModel: mergeFrustrationRows(getFrustrationByModel(cutoff)),
+		modelSide: await getModelSideDashboardStats(range),
 		judgeAvailable: judgeProvider !== undefined,
 		job: getFrustrationJobStatus(),
 	};

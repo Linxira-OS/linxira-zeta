@@ -6,17 +6,21 @@ import {
 	getFrustrationEstimate,
 	startFrustrationRun,
 } from "../api";
-import { Chart, type ChartSeries, Legend, useHiddenSeries } from "../charts";
+import { BarList, Chart, type ChartSeries, Legend, TimeChart, useHiddenSeries } from "../charts";
 import { t } from "../i18n";
 import { SERIES_COLORS } from "../data/colors";
 import { formatCost, formatInteger, formatPercent } from "../data/formatters";
 import { useQuery } from "../data/query";
-import { rangeMeta } from "../data/range";
+import { bucketAxis, rangeMeta } from "../data/range";
 import type {
 	FrustrationCounts,
 	FrustrationEstimate,
 	FrustrationJobStatus,
 	FrustrationModelStats,
+	ModelSideCounts,
+	ModelSideModelStats,
+	ModelSideSessionStats,
+	ModelSideTimeSeriesPoint,
 	TimeRange,
 } from "../types";
 import {
@@ -109,6 +113,47 @@ export function FrustrationRoute({ active, range }: FrustrationRouteProps) {
 				}
 			>
 				{data => <FrustrationModelsSection models={data.byModel} stale={stats.stale} />}
+			</QueryView>
+
+			{/* Model side: the same page, second section. Its signals are
+			    language-neutral lexicons computed at ingest, so it needs no
+			    judge run and appears immediately. */}
+			<QueryView query={stats} skeleton={<ChartSkeleton height={96} />}>
+				{data => (
+					<div className="frustration-model-summary" data-stale={stats.stale}>
+						<ModelSideSummary overall={data.modelSide.overall} window={t(meta.windowKey)} />
+					</div>
+				)}
+			</QueryView>
+
+			<QueryView
+				query={stats}
+				skeleton={
+					<Card index={4} title={t("frustration.model-by-model")}>
+						<ChartSkeleton height={300} />
+						<TableSkeleton rows={5} />
+					</Card>
+				}
+			>
+				{data => (
+					<ModelSideModels
+						models={data.modelSide.byModel}
+						series={data.modelSide.series}
+						range={range}
+						stale={stats.stale}
+					/>
+				)}
+			</QueryView>
+
+			<QueryView
+				query={stats}
+				skeleton={
+					<Card index={7} title={t("frustration.model-sessions")}>
+						<TableSkeleton rows={5} />
+					</Card>
+				}
+			>
+				{data => <ModelSideSessions sessions={data.modelSide.bySession} stale={stats.stale} />}
 			</QueryView>
 		</div>
 	);
@@ -497,7 +542,7 @@ function JudgeResultLine({ job }: { job: FrustrationJobStatus }) {
 // ---------------------------------------------------------------------------
 
 /** Chart/filter identity of a model family: `class/family`. */
-function familyKey(row: FrustrationModelStats): string {
+function familyKey(row: { modelClass: string; family: string | null }): string {
 	return `${row.modelClass}/${row.family ?? "unclassified"}`;
 }
 
@@ -520,7 +565,7 @@ function hashString(value: string): number {
  * and probes forward past taken slots, so families present together stay
  * distinct (until the palette runs out) and keep their hue across ranges.
  */
-function assignFamilyColors(models: readonly FrustrationModelStats[]): Map<string, string> {
+function assignFamilyColors(models: readonly { modelClass: string; family: string | null }[]): Map<string, string> {
 	const keys = [...new Set(models.map(familyKey))].sort();
 	const taken = new Set<number>();
 	const colors = new Map<string, string>();
@@ -933,6 +978,396 @@ function FrustrationTable({
 				columns={columns}
 				dense
 				empty={<EmptyState title={t("frustration.no-model-match")} />}
+			/>
+		</Card>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Model side (AI breakdown)
+// ---------------------------------------------------------------------------
+
+function ModelSideSummary({ overall, window }: { overall: ModelSideCounts; window: string }) {
+	const mean = overall.messages > 0 ? (overall.collapse / overall.messages).toFixed(2) : "–";
+	return (
+		<>
+			<div className="card-titles">
+				<h2 className="page-title">{t("frustration.model-side-title")}</h2>
+				<p className="page-description">{t("frustration.model-side-description", { window })}</p>
+			</div>
+			<div className="frustration-model-notes">
+				<StatGrid min={170}>
+					<Stat
+						label={t("frustration.model-turns")}
+						title={t("frustration.model-turns-title")}
+						value={formatInteger(overall.messages)}
+					/>
+					<Stat
+						label={t("frustration.model-breakdown")}
+						title={t("frustration.model-breakdown-title")}
+						value={rate(overall.breakdown, overall.messages)}
+						hint={t("frustration.turns-n", { count: formatInteger(overall.breakdown) })}
+					/>
+					<Stat
+						label={t("frustration.model-mean")}
+						title={t("frustration.model-mean-title")}
+						value={mean}
+						hint={t("frustration.model-hint-mean", { value: mean })}
+					/>
+					<Stat
+						label={t("frustration.model-self-blame")}
+						title={t("frustration.model-self-blame-title")}
+						value={rate(overall.blamed, overall.messages)}
+					/>
+					<Stat
+						label={t("frustration.model-hedge")}
+						title={t("frustration.model-hedge-title")}
+						value={rate(overall.hedged, overall.messages)}
+					/>
+					<Stat
+						label={t("frustration.model-spiral")}
+						title={t("frustration.model-spiral-title")}
+						value={rate(overall.spiraled, overall.messages)}
+					/>
+				</StatGrid>
+				{overall.unscored > 0 && (
+					<p className="micro dim">
+						{t("frustration.model-unscored-line", { count: formatInteger(overall.unscored) })}
+					</p>
+				)}
+			</div>
+		</>
+	);
+}
+
+/** Share of turns carrying a signal, as the 0..100 value a chart axis wants. */
+function signalShare(part: number, whole: number): number {
+	return whole > 0 ? (part / whole) * 100 : 0;
+}
+
+function ModelSideModels({
+	models,
+	series,
+	range,
+	stale,
+}: {
+	models: ModelSideModelStats[];
+	series: ModelSideTimeSeriesPoint[];
+	range: TimeRange;
+	stale: boolean;
+}) {
+	const meta = rangeMeta(range);
+	const familyColors = useMemo(() => assignFamilyColors(models), [models]);
+	const buckets = useMemo(
+		() =>
+			bucketAxis(
+				range,
+				series.map(point => point.timestamp),
+				meta.bucketMs,
+			),
+		[series, range, meta.bucketMs],
+	);
+	const byBucket = useMemo(() => new Map(series.map(point => [point.timestamp, point])), [series]);
+	const chartSeries = useMemo(
+		(): ChartSeries[] => [
+			{
+				key: "breakdown",
+				label: t("frustration.model-legend-breakdown"),
+				color: "var(--chart-primary)",
+				values: buckets.map(bucket => {
+					const point = byBucket.get(bucket);
+					// A bucket without turns is a gap, not a calm 0%.
+					return point && point.messages > 0 ? signalShare(point.breakdown, point.messages) : null;
+				}),
+			},
+		],
+		[buckets, byBucket],
+	);
+	const ranked = useMemo(
+		() =>
+			[...models]
+				.sort(
+					(a, b) =>
+						signalShare(b.breakdown, b.messages) - signalShare(a.breakdown, a.messages) ||
+						b.messages - a.messages,
+				)
+				.slice(0, 12),
+		[models],
+	);
+
+	if (models.length === 0) {
+		return (
+			<Card index={4} title={t("frustration.model-by-model")} stale={stale}>
+				<EmptyState title={t("frustration.model-no-turns")} hint={t("frustration.model-try-longer-range")} />
+			</Card>
+		);
+	}
+
+	return (
+		<>
+			<Card
+				index={4}
+				title={t("frustration.model-by-model")}
+				description={t("frustration.model-by-model-description")}
+				stale={stale}
+			>
+				<BarList
+					max={100}
+					items={ranked.map(row => ({
+						key: row.key,
+						label: row.label,
+						value: signalShare(row.breakdown, row.messages),
+						display: rate(row.breakdown, row.messages),
+						color: familyColors.get(familyKey(row)) ?? SERIES_COLORS[0],
+					}))}
+				/>
+			</Card>
+
+			<Card
+				index={5}
+				title={t("frustration.model-over-time")}
+				description={t("frustration.model-over-time-description")}
+				actions={
+					<Legend
+						items={chartSeries.map(entry => ({
+							key: entry.key,
+							label: entry.label,
+							color: entry.color,
+						}))}
+					/>
+				}
+				stale={stale}
+			>
+				<TimeChart
+					buckets={buckets}
+					bucketMs={meta.bucketMs}
+					series={chartSeries}
+					height={260}
+					yMax={100}
+					format={value => `${value}%`}
+					formatTooltip={value => `${value.toFixed(1)}%`}
+					emptyLabel={t("frustration.model-no-turns")}
+				/>
+			</Card>
+
+			<ModelSideTable rows={models} familyColors={familyColors} stale={stale} />
+		</>
+	);
+}
+
+function ModelSideTable({
+	rows,
+	familyColors,
+	stale,
+}: {
+	rows: ModelSideModelStats[];
+	familyColors: Map<string, string>;
+	stale: boolean;
+}) {
+	const columns = useMemo(
+		(): Column<ModelSideModelStats>[] => [
+			{
+				key: "model",
+				header: t("common.model"),
+				sort: row => row.label,
+				render: row => (
+					<span className="row" title={row.key}>
+						<span
+							className="swatch"
+							style={{ background: familyColors.get(familyKey(row)) ?? SERIES_COLORS[0] }}
+						/>
+						<span className="cell-primary">{row.label}</span>
+					</span>
+				),
+			},
+			{
+				key: "ids",
+				header: t("frustration.column-model-ids"),
+				wrap: true,
+				render: row => <span className="mono micro dim">{row.models.join(", ")}</span>,
+			},
+			{
+				key: "turns",
+				header: t("frustration.column-turns"),
+				align: "right",
+				sort: row => row.messages,
+				render: row => <span className="num">{formatInteger(row.messages)}</span>,
+			},
+			{
+				key: "selfBlame",
+				header: t("frustration.model-self-blame"),
+				align: "right",
+				sort: row => signalShare(row.blamed, row.messages),
+				render: row => (
+					<span className="num" title={t("frustration.turns-n", { count: formatInteger(row.blamed) })}>
+						{rate(row.blamed, row.messages)}
+					</span>
+				),
+			},
+			{
+				key: "restatement",
+				header: t("frustration.model-restatement"),
+				title: t("frustration.model-restatement-title"),
+				align: "right",
+				sort: row => signalShare(row.restated, row.messages),
+				render: row => (
+					<span className="num" title={t("frustration.turns-n", { count: formatInteger(row.restated) })}>
+						{rate(row.restated, row.messages)}
+					</span>
+				),
+			},
+			{
+				key: "hedge",
+				header: t("frustration.model-hedge"),
+				align: "right",
+				sort: row => signalShare(row.hedged, row.messages),
+				render: row => (
+					<span className="num" title={t("frustration.turns-n", { count: formatInteger(row.hedged) })}>
+						{rate(row.hedged, row.messages)}
+					</span>
+				),
+			},
+			{
+				key: "rambling",
+				header: t("frustration.model-rambling"),
+				title: t("frustration.model-rambling-title"),
+				align: "right",
+				sort: row => signalShare(row.verbose, row.messages),
+				render: row => (
+					<span className="num" title={t("frustration.turns-n", { count: formatInteger(row.verbose) })}>
+						{rate(row.verbose, row.messages)}
+					</span>
+				),
+			},
+			{
+				key: "spiral",
+				header: t("frustration.model-spiral"),
+				align: "right",
+				sort: row => signalShare(row.spiraled, row.messages),
+				render: row => (
+					<span className="num" title={t("frustration.turns-n", { count: formatInteger(row.spiraled) })}>
+						{rate(row.spiraled, row.messages)}
+					</span>
+				),
+			},
+			{
+				key: "breakdown",
+				header: t("frustration.model-breakdown"),
+				align: "right",
+				sort: row => signalShare(row.breakdown, row.messages),
+				render: row => (
+					<span className="num" title={t("frustration.turns-n", { count: formatInteger(row.breakdown) })}>
+						{rate(row.breakdown, row.messages)}
+					</span>
+				),
+			},
+			{
+				key: "mean",
+				header: t("frustration.column-mean"),
+				align: "right",
+				sort: row => (row.messages > 0 ? row.collapse / row.messages : 0),
+				render: row => (
+					<span className="num">{row.messages > 0 ? (row.collapse / row.messages).toFixed(2) : "–"}</span>
+				),
+			},
+		],
+		[familyColors],
+	);
+
+	return (
+		<Card
+			index={6}
+			title={t("frustration.model-table-title")}
+			description={t("frustration.model-table-description")}
+			flush
+			stale={stale}
+		>
+			<Table
+				rows={rows}
+				rowKey={row => row.key}
+				columns={columns}
+				dense
+				empty={<EmptyState title={t("frustration.model-no-turns")} />}
+			/>
+		</Card>
+	);
+}
+
+function ModelSideSessions({ sessions, stale }: { sessions: ModelSideSessionStats[]; stale: boolean }) {
+	const columns = useMemo(
+		(): Column<ModelSideSessionStats>[] => [
+			{
+				key: "session",
+				header: t("frustration.column-session"),
+				render: row => (
+					<span className="stack" title={row.sessionFile}>
+						<span className="cell-primary mono micro">
+							{row.sessionFile.split(/[\\/]/).pop() ?? row.sessionFile}
+						</span>
+						<span className="micro dim truncate">{row.folder}</span>
+					</span>
+				),
+			},
+			{
+				key: "models",
+				header: t("common.model"),
+				wrap: true,
+				render: row => <span className="mono micro dim">{row.models.join(", ")}</span>,
+			},
+			{
+				key: "turns",
+				header: t("frustration.column-turns"),
+				align: "right",
+				sort: row => row.messages,
+				render: row => <span className="num">{formatInteger(row.messages)}</span>,
+			},
+			{
+				key: "breakdown",
+				header: t("frustration.model-breakdown"),
+				align: "right",
+				sort: row => signalShare(row.breakdown, row.messages),
+				render: row => (
+					<span className="num" title={t("frustration.turns-n", { count: formatInteger(row.breakdown) })}>
+						{rate(row.breakdown, row.messages)}
+					</span>
+				),
+			},
+			{
+				key: "mean",
+				header: t("frustration.column-mean"),
+				align: "right",
+				sort: row => (row.messages > 0 ? row.collapse / row.messages : 0),
+				render: row => (
+					<span className="num">{row.messages > 0 ? (row.collapse / row.messages).toFixed(2) : "–"}</span>
+				),
+			},
+			{
+				key: "toolErrors",
+				header: t("frustration.column-tool-errors"),
+				align: "right",
+				sort: row => row.toolErrors,
+				render: row => (
+					<span className={row.toolErrors > 0 ? "num tone-bad" : "num"}>{formatInteger(row.toolErrors)}</span>
+				),
+			},
+		],
+		[],
+	);
+
+	return (
+		<Card
+			index={7}
+			title={t("frustration.model-sessions")}
+			description={t("frustration.model-sessions-description")}
+			flush
+			stale={stale}
+		>
+			<Table
+				rows={sessions}
+				rowKey={row => row.sessionFile}
+				columns={columns}
+				dense
+				empty={<EmptyState title={t("frustration.model-no-turns")} />}
 			/>
 		</Card>
 	);
