@@ -187,10 +187,57 @@ export interface UserMessageStats {
 	emphasis: number;
 	/** 1 when the prose leans on a script no lexicon covers; such rows are unscored, not calm. */
 	unsupportedScript: number;
-	/** Judge-facing prose (see `judgeProse`); empty when the message was all markup. */
+	/** Judge-facing prose (see `analysisProse`); empty when the message was all markup. */
 	prose: string;
 	/** Hex `Bun.hash` of `prose`, keying the shared verdict cache; empty when `prose` is. */
 	proseHash: string;
+}
+
+/**
+ * Model-side analysis for one assistant turn: the text body stored for
+ * offline analysis plus the signals computed from it at ingest (see
+ * `model-metrics.ts`). Keyed like `user_messages` by (session_file, entry_id).
+ * Turns without prose (tool-call-only replies) emit no row.
+ */
+export interface AssistantTextStats {
+	/** Database ID */
+	id?: number;
+	/** Session file path */
+	sessionFile: string;
+	/** Assistant message entry ID within the session */
+	entryId: string;
+	/** Folder/project path (extracted from session filename) */
+	folder: string;
+	/** Unix timestamp in ms */
+	timestamp: number;
+	/** Model that produced the turn */
+	model: string;
+	/** Provider that served the turn */
+	provider: string;
+	/** Which agent produced the turn (main agent, task subagent, advisor) */
+	agentType: AgentType;
+	/** Analyzed-prose characters (code and markup stripped, capped) */
+	chars: number;
+	/** Analyzed-prose words */
+	words: number;
+	/** Apology / self-blame markers */
+	selfBlame: number;
+	/** Repeated-restatement markers plus near-duplicate previous turn */
+	restatement: number;
+	/** Hedged fallback markers */
+	hedge: number;
+	/** 1 when the turn is long-winded */
+	verbose: number;
+	/** Failed tool results preceding the turn */
+	toolErrors: number;
+	/** 1 when the preceding failures form a spiral */
+	toolSpiral: number;
+	/** Per-turn aggregate (see `AssistantMessageMetrics`) */
+	collapse: number;
+	/** 1 when the prose leans on a script no lexicon covers */
+	unsupportedScript: number;
+	/** Stored analysis prose (see `analysisProse`); never empty for an emitted row. */
+	prose: string;
 }
 
 /**

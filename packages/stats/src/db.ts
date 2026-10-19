@@ -15,10 +15,13 @@ import { classifyAgentType, type ParseSessionResult, type SessionParserState } f
 import { ensureRollupSchema, getDailyActivityFromRollup } from "./rollup";
 import type {
 	AgentType,
+	AssistantTextStats,
 	DailyActivityPoint,
 	FrustrationCounts,
 	MessageStats,
 	MessageStatsInput,
+	ModelSideCounts,
+	ModelSideTimeSeriesPoint,
 	ToolCallStats,
 	ToolResultLink,
 	UserMessageLink,
@@ -89,6 +92,11 @@ export function currentDb(): Database | null {
 const BACKFILL_COMPLETE = "complete";
 const BACKFILL_PENDING = "pending";
 const USER_MESSAGES_BACKFILL_KEY = "user_messages_v9";
+// Model-side analysis (`assistant_text`) was introduced after every existing
+// database had already burned its session backfills, so it needs its own
+// sentinel: a completed user-message backfill must never leave old sessions
+// without assistant prose forever.
+const ASSISTANT_TEXT_BACKFILL_KEY = "assistant_text_v1";
 const USER_MESSAGE_LINKS_REPAIR_KEY = "user_message_links_v1";
 // v2: the parser also records the served service tier per message, so a full
 // re-parse fills `service_tier` and re-derives ultrafast premium counts that the
@@ -216,6 +224,38 @@ export async function initDb(): Promise<Database> {
 		CREATE INDEX IF NOT EXISTS idx_user_messages_timestamp ON user_messages(timestamp);
 		CREATE INDEX IF NOT EXISTS idx_user_messages_entry_timestamp ON user_messages(entry_id, timestamp);
 		CREATE INDEX IF NOT EXISTS idx_user_messages_timestamp_model ON user_messages(timestamp, model, provider);
+
+		-- Model-side analysis: one row per assistant turn that produced prose.
+		-- Companion to messages (usage, no text) and keyed like user_messages
+		-- so a fork's copied entry is deduplicated the same way. prose is the
+		-- structured-content-stripped body capped at PROSE_MAX_CHARS; thinking
+		-- blocks never reach this table.
+		CREATE TABLE IF NOT EXISTS assistant_text (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			session_file TEXT NOT NULL,
+			entry_id TEXT NOT NULL,
+			folder TEXT NOT NULL,
+			timestamp INTEGER NOT NULL,
+			model TEXT NOT NULL,
+			provider TEXT NOT NULL,
+			agent_type TEXT NOT NULL DEFAULT 'main',
+			chars INTEGER NOT NULL,
+			words INTEGER NOT NULL,
+			self_blame INTEGER NOT NULL DEFAULT 0,
+			restatement INTEGER NOT NULL DEFAULT 0,
+			hedge INTEGER NOT NULL DEFAULT 0,
+			verbose INTEGER NOT NULL DEFAULT 0,
+			tool_errors INTEGER NOT NULL DEFAULT 0,
+			tool_spiral INTEGER NOT NULL DEFAULT 0,
+			collapse INTEGER NOT NULL DEFAULT 0,
+			unsupported_script INTEGER NOT NULL DEFAULT 0,
+			prose TEXT NOT NULL,
+			UNIQUE(session_file, entry_id)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_assistant_text_timestamp ON assistant_text(timestamp);
+		CREATE INDEX IF NOT EXISTS idx_assistant_text_timestamp_model ON assistant_text(timestamp, model, provider);
+		CREATE INDEX IF NOT EXISTS idx_assistant_text_session ON assistant_text(session_file, timestamp);
 
 		-- Judge verdicts keyed by prose hash: identical messages share one verdict,
 		-- and verdicts outlive user_messages re-parses. No backfill wipes this table.
@@ -369,6 +409,7 @@ export async function initDb(): Promise<Database> {
 	}
 	db.run("CREATE INDEX IF NOT EXISTS idx_user_messages_prose_hash ON user_messages(prose_hash)");
 	backfillUserMessages(db);
+	backfillAssistantText(db);
 	backfillToolCalls(db);
 	backfillReingestCosts(db);
 	backfillUnpricedCosts(db);
@@ -734,6 +775,11 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 						"SELECT entry_id, timestamp, model FROM user_messages WHERE session_file = ?",
 					)
 					.all(sessionFile);
+				const texts = database
+					.query<{ entry_id: string; timestamp: number }, [string]>(
+						"SELECT entry_id, timestamp FROM assistant_text WHERE session_file = ?",
+					)
+					.all(sessionFile);
 				const tools = database
 					.query<
 						{ entry_id: string; timestamp: number; tool_call_id: string; result_chars: number | null },
@@ -743,12 +789,15 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 				const replace = result.reset || rebuild;
 				if (replace) {
 					// Only removed owners require another full replay, not an identity-only file replacement.
-					if (!reconcile && (messages.length > 0 || users.length > 0 || tools.length > 0)) {
+					if (!reconcile && (messages.length > 0 || users.length > 0 || texts.length > 0 || tools.length > 0)) {
 						const retainedMessages = new Set(
 							result.stats.map(row => JSON.stringify([row.entryId, row.timestamp])),
 						);
 						const retainedUsers = new Set(
 							result.userStats.map(row => JSON.stringify([row.entryId, row.timestamp])),
+						);
+						const retainedTexts = new Set(
+							result.assistantTexts.map(row => JSON.stringify([row.entryId, row.timestamp])),
 						);
 						const retainedTools = new Set(
 							result.toolCalls.map(row => JSON.stringify([row.entryId, row.timestamp, row.toolCallId])),
@@ -756,6 +805,7 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 						reconcile =
 							messages.some(row => !retainedMessages.has(JSON.stringify([row.entry_id, row.timestamp]))) ||
 							users.some(row => !retainedUsers.has(JSON.stringify([row.entry_id, row.timestamp]))) ||
+							texts.some(row => !retainedTexts.has(JSON.stringify([row.entry_id, row.timestamp]))) ||
 							tools.some(
 								row => !retainedTools.has(JSON.stringify([row.entry_id, row.timestamp, row.tool_call_id])),
 							);
@@ -765,9 +815,11 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 					// IDs and avoid rewriting every table/index for transcripts whose contents did not change.
 					const messageById = new Map(messages.map(row => [row.entry_id, row.timestamp]));
 					const userById = new Map(users.map(row => [row.entry_id, row]));
+					const textById = new Map(texts.map(row => [row.entry_id, row]));
 					const toolById = new Map(tools.map(row => [row.tool_call_id, row]));
 					const absentMessages = new Set(messageById.keys());
 					const absentUsers = new Set(userById.keys());
+					const absentTexts = new Set(textById.keys());
 					const absentTools = new Set(toolById.keys());
 					const stats = result.stats.filter(row => {
 						if (messageById.get(row.entryId) !== row.timestamp) return true;
@@ -777,6 +829,11 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 					const userStats = result.userStats.filter(row => {
 						if (userById.get(row.entryId)?.timestamp !== row.timestamp) return true;
 						absentUsers.delete(row.entryId);
+						return false;
+					});
+					const assistantTexts = result.assistantTexts.filter(row => {
+						if (textById.get(row.entryId)?.timestamp !== row.timestamp) return true;
+						absentTexts.delete(row.entryId);
 						return false;
 					});
 					const toolCalls = result.toolCalls.filter(row => {
@@ -789,6 +846,7 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 						...result,
 						stats,
 						userStats,
+						assistantTexts,
 						toolCalls,
 						// A reused ID needs fresh linkage after its old identity is removed.
 						userLinks: result.userLinks.filter(
@@ -799,7 +857,7 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 						),
 					};
 					// Repair stale owners without invalidating IDs of records still present in the transcript.
-					if (absentMessages.size > 0 || absentUsers.size > 0 || absentTools.size > 0) {
+					if (absentMessages.size > 0 || absentUsers.size > 0 || absentTexts.size > 0 || absentTools.size > 0) {
 						reconcile = true;
 						for (const id of absentMessages) {
 							changes += database
@@ -809,6 +867,11 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 						for (const id of absentUsers) {
 							changes += database
 								.query("DELETE FROM user_messages WHERE session_file = ? AND entry_id = ?")
+								.run(sessionFile, id).changes;
+						}
+						for (const id of absentTexts) {
+							changes += database
+								.query("DELETE FROM assistant_text WHERE session_file = ? AND entry_id = ?")
 								.run(sessionFile, id).changes;
 						}
 						for (const id of absentTools) {
@@ -827,12 +890,19 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 							.query("DELETE FROM user_messages WHERE session_file = ?")
 							.run(sessionFile).changes;
 					}
+					if (texts.length > 0) {
+						changes += database
+							.query("DELETE FROM assistant_text WHERE session_file = ?")
+							.run(sessionFile).changes;
+					}
 					if (tools.length > 0) {
 						changes += database.query("DELETE FROM tool_calls WHERE session_file = ?").run(sessionFile).changes;
 					}
 				}
 			}
 			writes.push(rows);
+			// `processed` keeps its historical meaning (usage + user rows); the
+			// model-side rows are visible through `changes` and batch sizing.
 			const count = rows.stats.length + rows.userStats.length;
 			processed += count;
 			if (count > 0) files++;
@@ -841,6 +911,7 @@ export function applySessionParseResults(sessions: ParsedSession[]): {
 		changes +=
 			insertMessageStats(parsedRows(writes, result => result.stats)) +
 			insertUserMessageStats(parsedRows(writes, result => result.userStats)) +
+			insertAssistantText(parsedRows(writes, result => result.assistantTexts)) +
 			updateUserMessageLinks(parsedRows(writes, result => result.userLinks)) +
 			insertToolCalls(parsedRows(writes, result => result.toolCalls)) +
 			updateToolResults(parsedRows(writes, result => result.toolResults));
@@ -1149,6 +1220,31 @@ function backfillUserMessages(database: Database): void {
 }
 
 /**
+ * One-shot wipe of `assistant_text` + `file_offsets` when the model-side
+ * analysis table is introduced (or its signal definitions bump), so the next
+ * sync re-parses every session and ingests historical assistant text.
+ *
+ * Bounded by construction: the wipe runs exactly once per schema version
+ * (`INSERT OR REPLACE` writes PENDING before the sync starts, and
+ * {@link markSessionBackfillsComplete} writes COMPLETE after it), and the
+ * re-parse reads each transcript once, in the existing worker pool, at the
+ * same cost as any other full ingest. The only lasting cost is the stored
+ * prose itself - one capped row per prose-bearing assistant turn.
+ */
+function backfillAssistantText(database: Database): void {
+	const row = database
+		.query<{ value: string }, [string]>("SELECT value FROM meta WHERE key = ?")
+		.get(ASSISTANT_TEXT_BACKFILL_KEY);
+	if (!shouldResetBackfill(row?.value)) return;
+
+	database.run("DELETE FROM assistant_text");
+	database.run("DELETE FROM file_offsets");
+	database
+		.query("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)")
+		.run(ASSISTANT_TEXT_BACKFILL_KEY, BACKFILL_PENDING);
+}
+
+/**
  * One-shot wipe of `tool_calls` + `file_offsets` when the `tool_calls` table
  * is introduced (or its schema version bumps), so the next sync re-parses
  * every session and ingests historical tool calls. `messages` and
@@ -1335,6 +1431,7 @@ export function markSessionBackfillsComplete(): void {
 	const apply = db.transaction(() => {
 		for (const key of [
 			USER_MESSAGES_BACKFILL_KEY,
+			ASSISTANT_TEXT_BACKFILL_KEY,
 			TOOL_CALLS_BACKFILL_KEY,
 			USER_MESSAGE_LINKS_REPAIR_KEY,
 			PRIORITY_PREMIUM_REQUESTS_BACKFILL_KEY,
@@ -1392,6 +1489,63 @@ export function insertUserMessageStats(stats: Iterable<UserMessageStats>): numbe
 				s.unsupportedScript,
 				s.prose,
 				s.proseHash,
+				// `WHERE NOT EXISTS` binds: skip when a different session_file
+				// already holds this (entry_id, timestamp).
+				s.entryId,
+				s.timestamp,
+				s.sessionFile,
+			);
+			if (result.changes > 0) inserted++;
+		}
+	});
+	insert();
+	return inserted;
+}
+
+/**
+ * Insert model-side assistant turns. Idempotent via UNIQUE(session_file,
+ * entry_id); the `WHERE NOT EXISTS` guard mirrors {@link insertUserMessageStats}
+ * because a fork deep-copies assistant entries into the child transcript under
+ * the same entry id and timestamp.
+ */
+export function insertAssistantText(stats: Iterable<AssistantTextStats>): number {
+	if (!db) return 0;
+
+	const stmt = db.query(`
+		INSERT OR IGNORE INTO assistant_text (
+			session_file, entry_id, folder, timestamp, model, provider, agent_type,
+			chars, words, self_blame, restatement, hedge, verbose,
+			tool_errors, tool_spiral, collapse, unsupported_script, prose
+		)
+		SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+		WHERE NOT EXISTS (
+			SELECT 1 FROM assistant_text
+			WHERE entry_id = ? AND timestamp = ? AND session_file <> ?
+		)
+	`);
+
+	let inserted = 0;
+	const insert = db.transaction(() => {
+		for (const s of stats) {
+			const result = stmt.run(
+				s.sessionFile,
+				s.entryId,
+				s.folder,
+				s.timestamp,
+				s.model,
+				s.provider,
+				s.agentType,
+				s.chars,
+				s.words,
+				s.selfBlame,
+				s.restatement,
+				s.hedge,
+				s.verbose,
+				s.toolErrors,
+				s.toolSpiral,
+				s.collapse,
+				s.unsupportedScript,
+				s.prose,
 				// `WHERE NOT EXISTS` binds: skip when a different session_file
 				// already holds this (entry_id, timestamp).
 				s.entryId,
@@ -1544,6 +1698,171 @@ export function getFrustrationByModel(cutoff?: number | null): FrustrationModelR
 		provider: row.provider,
 		firstSeen: row.first_seen,
 		...toFrustrationCounts(row),
+	}));
+}
+
+// ---------------------------------------------------------------------------
+// Model side (AI breakdown)
+// ---------------------------------------------------------------------------
+
+interface ModelSideCountsRow {
+	messages: number;
+	blamed: number;
+	restated: number;
+	hedged: number;
+	verbose: number;
+	spiraled: number;
+	breakdown: number;
+	collapse: number;
+	words: number;
+	tool_errors: number;
+	unscored: number;
+}
+
+/** Model-side tallies of one responding (model, provider) pair, before identity merging. */
+export interface ModelSideModelRow extends ModelSideCounts {
+	model: string;
+	provider: string;
+	/** Earliest analyzed turn timestamp (ms) in range. */
+	firstSeen: number;
+}
+
+/** Model-side tallies of one session, before the dashboard's top-N cut. */
+export interface ModelSideSessionRow extends ModelSideCounts {
+	sessionFile: string;
+	folder: string;
+	models: string[];
+	firstSeen: number;
+	lastSeen: number;
+}
+
+// Shares are per analyzed turn. `collapse`, `words` and `tool_errors` are
+// additive sums; the UI divides them by `messages` for means.
+const MODEL_SIDE_COUNTS_SQL = `
+	COUNT(*) AS messages,
+	COALESCE(SUM(CASE WHEN a.self_blame > 0 THEN 1 ELSE 0 END), 0) AS blamed,
+	COALESCE(SUM(CASE WHEN a.restatement > 0 THEN 1 ELSE 0 END), 0) AS restated,
+	COALESCE(SUM(CASE WHEN a.hedge > 0 THEN 1 ELSE 0 END), 0) AS hedged,
+	COALESCE(SUM(CASE WHEN a.verbose > 0 THEN 1 ELSE 0 END), 0) AS verbose,
+	COALESCE(SUM(CASE WHEN a.tool_spiral > 0 THEN 1 ELSE 0 END), 0) AS spiraled,
+	COALESCE(SUM(CASE WHEN a.collapse > 0 THEN 1 ELSE 0 END), 0) AS breakdown,
+	COALESCE(SUM(a.collapse), 0) AS collapse,
+	COALESCE(SUM(a.words), 0) AS words,
+	COALESCE(SUM(a.tool_errors), 0) AS tool_errors,
+	COALESCE(SUM(CASE WHEN a.unsupported_script = 1 THEN 1 ELSE 0 END), 0) AS unscored
+`;
+
+function toModelSideCounts(row: ModelSideCountsRow | undefined): ModelSideCounts {
+	return {
+		messages: row?.messages ?? 0,
+		blamed: row?.blamed ?? 0,
+		restated: row?.restated ?? 0,
+		hedged: row?.hedged ?? 0,
+		verbose: row?.verbose ?? 0,
+		spiraled: row?.spiraled ?? 0,
+		breakdown: row?.breakdown ?? 0,
+		collapse: row?.collapse ?? 0,
+		words: row?.words ?? 0,
+		toolErrors: row?.tool_errors ?? 0,
+		unscored: row?.unscored ?? 0,
+	};
+}
+
+/** Model-side tallies over every analyzed assistant turn in range. */
+export function getModelSideOverall(cutoff?: number | null): ModelSideCounts {
+	if (!db) return toModelSideCounts(undefined);
+	const hasCutoff = hasRangeCutoff(cutoff);
+	const stmt = db.query(
+		`SELECT ${MODEL_SIDE_COUNTS_SQL} FROM assistant_text a${hasCutoff ? " WHERE a.timestamp >= ?" : ""}`,
+	);
+	const row = (hasCutoff ? stmt.get(cutoff) : stmt.get()) as ModelSideCountsRow | undefined;
+	return toModelSideCounts(row);
+}
+
+/** Model-side tallies per responding (model, provider) over the range. */
+export function getModelSideByModel(cutoff?: number | null): ModelSideModelRow[] {
+	if (!db) return [];
+	const hasCutoff = hasRangeCutoff(cutoff);
+	const stmt = db.query(`
+		SELECT a.model AS model, a.provider AS provider, MIN(a.timestamp) AS first_seen, ${MODEL_SIDE_COUNTS_SQL}
+		FROM assistant_text a
+		${hasCutoff ? "WHERE a.timestamp >= ?" : ""}
+		GROUP BY a.model, a.provider
+	`);
+	const rows = (hasCutoff ? stmt.all(cutoff) : stmt.all()) as (ModelSideCountsRow & {
+		model: string;
+		provider: string;
+		first_seen: number;
+	})[];
+	return rows.map(row => ({
+		model: row.model,
+		provider: row.provider,
+		firstSeen: row.first_seen,
+		...toModelSideCounts(row),
+	}));
+}
+
+/** Model-side tallies per session, busiest first. */
+export function getModelSideBySession(cutoff?: number | null, limit = 40): ModelSideSessionRow[] {
+	if (!db) return [];
+	const hasCutoff = hasRangeCutoff(cutoff);
+	const stmt = db.query(`
+		SELECT a.session_file AS session_file, a.folder AS folder, GROUP_CONCAT(DISTINCT a.model) AS models,
+			MIN(a.timestamp) AS first_seen, MAX(a.timestamp) AS last_seen, ${MODEL_SIDE_COUNTS_SQL}
+		FROM assistant_text a
+		${hasCutoff ? "WHERE a.timestamp >= ?" : ""}
+		GROUP BY a.session_file, a.folder
+		ORDER BY messages DESC, last_seen DESC
+		LIMIT ?
+	`);
+	const rows = (hasCutoff ? stmt.all(cutoff, limit) : stmt.all(limit)) as (ModelSideCountsRow & {
+		session_file: string;
+		folder: string;
+		models: string | null;
+		first_seen: number;
+		last_seen: number;
+	})[];
+	return rows.map(row => ({
+		sessionFile: row.session_file,
+		folder: row.folder,
+		models: (row.models ?? "").split(",").filter(Boolean),
+		firstSeen: row.first_seen,
+		lastSeen: row.last_seen,
+		...toModelSideCounts(row),
+	}));
+}
+
+/** Model-side tallies per time bucket, ascending. */
+export function getModelSideTimeSeries({
+	cutoff,
+	bucketMs,
+}: {
+	cutoff?: number | null;
+	bucketMs: number;
+}): ModelSideTimeSeriesPoint[] {
+	if (!db) return [];
+	const hasCutoff = hasRangeCutoff(cutoff);
+	const stmt = db.query(`
+		SELECT (a.timestamp / ?) * ? AS bucket, ${MODEL_SIDE_COUNTS_SQL}
+		FROM assistant_text a
+		${hasCutoff ? "WHERE a.timestamp >= ?" : ""}
+		GROUP BY 1
+		ORDER BY 1
+	`);
+	const rows = (
+		hasCutoff ? stmt.all(bucketMs, bucketMs, cutoff) : stmt.all(bucketMs, bucketMs)
+	) as (ModelSideCountsRow & {
+		bucket: number;
+	})[];
+	return rows.map(row => ({
+		timestamp: row.bucket,
+		messages: row.messages,
+		blamed: row.blamed,
+		restated: row.restated,
+		hedged: row.hedged,
+		spiraled: row.spiraled,
+		breakdown: row.breakdown,
+		collapse: row.collapse,
 	}));
 }
 

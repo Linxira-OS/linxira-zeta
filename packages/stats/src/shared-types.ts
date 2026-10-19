@@ -194,6 +194,97 @@ export interface AgentTypeStats {
 }
 
 /**
+ * Model-side tallies over assistant turns. Every field except `messages`,
+ * `collapse`, `words` and `toolErrors` counts turns carrying the signal, so
+ * `blamed / messages` is a share. `collapse` and `words` are sums: their means
+ * are `collapse / messages` and `words / messages`.
+ *
+ * Coverage is textual: only turns that produced prose are analyzed, so
+ * tool-call-only replies and thinking blocks are outside the denominator.
+ * `unscored` counts turns whose prose leans on a script no lexicon covers -
+ * their zero signal counts mean "unscored", not "calm".
+ */
+export interface ModelSideCounts {
+	/** Assistant turns with stored prose. */
+	messages: number;
+	/** Turns with an apology or admission. */
+	blamed: number;
+	/** Turns restating earlier content. */
+	restated: number;
+	/** Turns with a hedged fallback. */
+	hedged: number;
+	/** Turns past the verbosity threshold. */
+	verbose: number;
+	/** Turns following a tool-failure spiral. */
+	spiraled: number;
+	/** Turns with a non-zero per-turn aggregate. */
+	breakdown: number;
+	/** Sum of per-turn aggregate values. */
+	collapse: number;
+	/** Sum of analyzed words. */
+	words: number;
+	/** Sum of failed tool results preceding the turns. */
+	toolErrors: number;
+	/** Turns in a script no lexicon covers. */
+	unscored: number;
+}
+
+/** Model-side tallies for one model version, merged by catalog identity. */
+export interface ModelSideModelStats extends ModelSideCounts {
+	/** Stable key: `class/family/revision` when classified, else the raw model id. */
+	key: string;
+	/** Display label, e.g. `opus 4.5`; the raw model id when unclassified. */
+	label: string;
+	/** Catalog identity class, e.g. `anthropic`; `unknown` when unclassified. */
+	modelClass: string;
+	/** Catalog family within the class, e.g. `opus`. */
+	family: string | null;
+	/** Canonical `major.minor.patch`, e.g. `4.5.0`. */
+	revision: string | null;
+	/** Raw model ids merged into this row. */
+	models: string[];
+	/** Earliest turn timestamp (ms) in range. */
+	firstSeen: number;
+}
+
+/** One bucket of the model-side time series. */
+export interface ModelSideTimeSeriesPoint {
+	/** Bucket start (Unix ms). */
+	timestamp: number;
+	messages: number;
+	breakdown: number;
+	blamed: number;
+	restated: number;
+	hedged: number;
+	spiraled: number;
+	collapse: number;
+}
+
+/** Model-side tallies for one session, busiest first in the dashboard payload. */
+export interface ModelSideSessionStats extends ModelSideCounts {
+	/** Absolute transcript path. */
+	sessionFile: string;
+	/** Project folder the transcript belongs to. */
+	folder: string;
+	/** Distinct model ids in the session. */
+	models: string[];
+	/** Earliest and latest analyzed turn (ms). */
+	firstSeen: number;
+	lastSeen: number;
+}
+
+/** Payload of the model-side section of `GET /api/stats/frustration`. */
+export interface ModelSideDashboardStats {
+	overall: ModelSideCounts;
+	/** Every model with analyzed turns in range. */
+	byModel: ModelSideModelStats[];
+	/** Bucketed trend over the active range. */
+	series: ModelSideTimeSeriesPoint[];
+	/** Sessions with the most analyzed turns, capped for payload size. */
+	bySession: ModelSideSessionStats[];
+}
+
+/**
  * Frustration tallies over a set of user messages. Each message counts once,
  * classified by its cached judge verdict when one exists, else by the regex
  * behavior signals stored at ingest (see `frustration.ts` for both rules).
@@ -269,6 +360,8 @@ export interface FrustrationDashboardStats {
 	overall: FrustrationCounts;
 	/** Every model with messages in range, ordered by class, then revision, then family. */
 	byModel: FrustrationModelStats[];
+	/** Model-side (AI breakdown) analysis alongside the user-side tallies. */
+	modelSide: ModelSideDashboardStats;
 	/** Whether this dashboard host can run the judge (standalone `omp-stats` cannot). */
 	judgeAvailable: boolean;
 	job: FrustrationJobStatus;
