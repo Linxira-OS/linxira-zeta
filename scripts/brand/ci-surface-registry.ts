@@ -108,6 +108,8 @@ export const CI_SURFACE: WorkflowSurface[] = [
 			{
 				job: "release_desktop_archives",
 				why: "Zeta-only: packages the zetawork desktop app (Windows zip with the WebView2 loader, Linux .pkg.tar.zst + AppImage) from the product legs. It needs BOTH Linux legs, so it cannot live inside the matrix; release_github waits on it",
+				job: "release_plugin_packages_manual",
+				why: "Zeta-only: the plugin publish without the release gate, driven by the `publish_plugins` dispatch input. npm validates a trusted-publisher entry only through a real publish and its window is days wide; retries must not queue behind the 40-minute bazel chain. Mutually exclusive with release_plugin_packages",
 			},
 			{
 				job: "web_ui_build",

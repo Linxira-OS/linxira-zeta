@@ -1959,6 +1959,30 @@ jobs:
               fi
               gh run watch "$rid" --exit-status --interval 15
 
+   # The same publish, without the release gate. npm's trusted-publisher entry
+   # is validated by a single successful publish and its window is days wide, so
+   # a retry must not queue behind bazel/native builds. Mutually exclusive with
+   # release_plugin_packages (which requires is-release and the gate).
+   release_plugin_packages_manual:
+      name: Publish official plugin npm packages (manual)
+      if: ${{ !cancelled() && !inputs.skip_npm && inputs.publish_plugins }}
+      needs: [release_metadata]
+      runs-on: ubuntu-22.04
+      permissions:
+         id-token: write
+         contents: read
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
+              registry-url: "https://registry.npmjs.org"
+         - name: Ensure npm supports trusted publishing
+           run: npm install -g npm@11.17.0
+         - name: Publish official plugin packages
+           run: bun run ci:release:publish-plugin
+
    release_plugin_packages:
       name: Publish official plugin npm packages
       # `publish_plugins` is the single-package escape hatch: npm validates a
@@ -1967,10 +1991,9 @@ jobs:
       # 03:11 UTC). A dispatch with this input runs nothing but this job, so an
       # already-released version line can complete a package that the release
       # run lost — without re-cutting the tag.
-      if: ${{ always() && !cancelled() && !inputs.skip_npm &&
-         (inputs.publish_plugins ||
-         (needs.release_metadata.outputs.is-release == 'true' &&
-         needs.release_gate.result == 'success')) }}
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_gate.result == 'success' &&
+         !inputs.skip_npm && !inputs.publish_plugins }}
       needs: [release_metadata, release_gate]
       runs-on: ubuntu-22.04
       # Trusted publishing only (2026-10-19 rule): npm tokens are gone, every

@@ -14,7 +14,7 @@
 		"pi-coding-agent",
 		"pi-package"
 	],
-	"homepage": "https://github.com/nicobailon/pi-messenger#readme",
+	"homepage": "https://github.com/Linxira-OS/linxira-zeta/tree/main/plugins/official/pi-messenger#readme",
 	"bugs": {
 		"url": "https://github.com/nicobailon/pi-messenger/issues"
 	},
@@ -22,7 +22,8 @@
 	"author": "Nico Bailon",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/nicobailon/pi-messenger.git"
+		"url": "git+https://github.com/Linxira-OS/linxira-zeta.git",
+		"directory": "plugins/official/pi-messenger"
 	},
 	"bin": {
 		"pi-messenger": "install.mjs"
