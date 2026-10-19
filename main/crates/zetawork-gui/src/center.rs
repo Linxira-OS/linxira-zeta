@@ -11,6 +11,7 @@
 //! `Buffer` (see [`crate::blit`]), the editor reads and writes a real file, and
 //! the diff draws the workspace's real `git diff`.
 
+use crate::t;
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::{
@@ -185,17 +186,17 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 				.show(|ui| {
 					ui.set_min_width(150.0);
 					let can_rename = shell.state.can_rename_workspace(&workspace.id);
-					let rename = ui.add_enabled(can_rename, egui::Button::new("重命名"));
+					let rename = ui.add_enabled(can_rename, egui::Button::new(t!("重命名")));
 					if rename.clicked() {
 						want_rename = true;
 						ui.close();
 					}
 					if !can_rename {
-						rename.on_disabled_hover_text(
-							"只有注册项目的首个标签页会持久化命名（本机与新建标签页仅在本次运行有效）",
-						);
+						rename.on_disabled_hover_text(t!(
+							"只有注册项目的首个标签页会持久化命名（本机与新建标签页仅在本次运行有效）"
+						));
 					}
-					if ui.button("关闭标签页").clicked() {
+					if ui.button(t!("关闭标签页")).clicked() {
 						want_close = true;
 						ui.close();
 					}
@@ -230,7 +231,7 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 	}
 	let plus_rect = Rect::from_center_size(pos2(x + 14.0, rect.center().y), vec2(28.0, 28.0));
 	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(plus_rect));
-	if icon_button(&mut child, Icon::Plus, 28.0, false, "新建大标签页").clicked() {
+	if icon_button(&mut child, Icon::Plus, 28.0, false, t!("新建大标签页")).clicked() {
 		// The strip's ＋ lists what the centre can show; the pick decides what
 		// the new 大标签页 opens with.
 		shell.open_picker(PickerTarget::BigTab, plus_rect);
@@ -241,8 +242,9 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 		.active_project()
 		.map(|p| p.workspaces.len())
 		.unwrap_or(0);
-	let caps = format!(
-		"大标签页 {count}/{} · 子页上限 {}",
+	let caps = t!(
+		"大标签页 {}/{} · 子页上限 {}",
+		count,
 		crate::state::MAX_WORKSPACES_PER_PROJECT,
 		crate::state::MAX_SUBS_PER_PANE
 	);
@@ -299,10 +301,10 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 			))
 			.layout(Layout::left_to_right(Align::Center)),
 	);
-	if tool_button(&mut left, Icon::Term, "新建终端").clicked() {
+	if tool_button(&mut left, Icon::Term, t!("新建终端")).clicked() {
 		shell.state.act(|s| s.new_term());
 	}
-	if tool_button(&mut left, Icon::Split, "分屏").clicked() {
+	if tool_button(&mut left, Icon::Split, t!("分屏")).clicked() {
 		shell.state.act(|s| s.new_pane());
 	}
 	let mut right = ui.new_child(
@@ -335,9 +337,9 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 				let ink = if on { theme::TEXT } else { theme::TEXT_3 };
 				paint(ui.painter(), Icon::Columns(columns), rect.shrink(6.0), ink, 1.5);
 				let tooltip = match columns {
-					1 => "单列",
-					2 => "两列",
-					_ => "三列",
+					1 => t!("单列"),
+					2 => t!("两列"),
+					_ => t!("三列"),
 				};
 				if response.on_hover_text(tooltip).clicked() {
 					shell.state.act(|s| s.set_cols(columns));
@@ -553,13 +555,13 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 	}
 	let plus = Rect::from_center_size(pos2(strip.max.x - 46.0, strip.center().y), vec2(28.0, 28.0));
 	let mut plus_ui = ui.new_child(egui::UiBuilder::new().max_rect(plus));
-	if icon_button(&mut plus_ui, Icon::Plus, 28.0, false, "新建标签页").clicked() {
+	if icon_button(&mut plus_ui, Icon::Plus, 28.0, false, t!("新建标签页")).clicked() {
 		shell.open_picker(PickerTarget::Pane(pane.id.clone()), plus);
 	}
 	let close_pane =
 		Rect::from_center_size(pos2(strip.max.x - 18.0, strip.center().y), vec2(28.0, 28.0));
 	let mut close_ui = ui.new_child(egui::UiBuilder::new().max_rect(close_pane));
-	if icon_button(&mut close_ui, Icon::X, 28.0, false, "关闭面板").clicked() {
+	if icon_button(&mut close_ui, Icon::X, 28.0, false, t!("关闭面板")).clicked() {
 		let pane_id = pane.id.clone();
 		shell.state.act(|s| s.close_pane(&pane_id));
 	}
@@ -613,7 +615,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	);
 	for session in pane.tabs.iter().filter(|t| t.kind == SessionKind::Term) {
 		let active = session.id == tab.id;
-		let label = format!("终端 {}", session.title.trim_start_matches("终端 "));
+		let label = t!("终端 {}", session.title.trim_start_matches(t!("终端 ")));
 		let response = chip(&mut chips, &label, if active { Chip::Active } else { Chip::Plain });
 		if response.clicked() && !active {
 			shell.state.select_tab(&pane.id, &session.id);
@@ -623,7 +625,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		egui::UiBuilder::new()
 			.max_rect(Rect::from_min_size(pos2(sub.max.x - 30.0, sub.min.y + 5.0), vec2(20.0, 20.0))),
 	);
-	if icon_button(&mut add, Icon::Plus, 20.0, false, "新建终端会话").clicked() {
+	if icon_button(&mut add, Icon::Plus, 20.0, false, t!("新建终端会话")).clicked() {
 		let pane_id = pane.id.clone();
 		shell.state.act(|s| s.add_tab(&pane_id));
 	}
@@ -692,7 +694,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	// Neither backend produced a grid: the spawn failed. One quiet line says
 	// so; nothing is invented in its place.
 	let mut notice = ui.new_child(egui::UiBuilder::new().max_rect(term_grid.shrink(10.0)));
-	empty_note(&mut notice, "终端没有启动");
+	empty_note(&mut notice, t!("终端没有启动"));
 	paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 }
 
@@ -705,7 +707,7 @@ fn terminal_status(shell: &Shell, tab: &SessionTab) -> String {
 	let mut status = shell
 		.terminals
 		.label(&tab.id)
-		.unwrap_or_else(|| "后端：本地 PTY".to_owned());
+		.unwrap_or_else(|| t!("后端：本地 PTY").to_owned());
 	if let Some(spawned) = shell.live.command(&tab.id) {
 		status.push_str(" · ");
 		status.push_str(spawned);
@@ -780,12 +782,12 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		.as_ref()
 		.map(|doc| {
 			if doc.dirty {
-				format!("{} · {}（未保存）", doc.name(), doc.path.display())
+				t!("{} · {}（未保存）", doc.name(), doc.path.display())
 			} else {
 				format!("{} · {}", doc.name(), doc.path.display())
 			}
 		})
-		.unwrap_or_else(|| "未打开文件".to_owned());
+		.unwrap_or_else(|| t!("未打开文件").to_owned());
 	let dirty = tab.doc.as_ref().is_some_and(|doc| doc.dirty);
 	truncated_mono(
 		ui,
@@ -809,7 +811,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let (pane_id, tab_id) = (pane.id.clone(), tab.id.clone());
 
 	let Some(doc) = shell.state.doc_mut(&pane_id, &tab_id) else {
-		empty_note(ui, "还没有打开文件");
+		empty_note(ui, t!("还没有打开文件"));
 		return;
 	};
 	// Split borrows: the text buffer goes to the widget, the flags stay here.
@@ -883,8 +885,8 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		.map(|ext| language_label(&ext))
 		.unwrap_or("Text");
 	let position = match line_col {
-		Some((line, column)) => format!("行 {line}, 列 {column}"),
-		None => format!("{lines} 行"),
+		Some((line, column)) => t!("行 {}, 列 {}", line, column),
+		None => t!("{} 行", lines),
 	};
 	let mut x = foot.min.x + 12.0;
 	for label in [language, "UTF-8", eol, position.as_str()] {
@@ -983,19 +985,19 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	let result = shell.diff_result();
 	let Some(result) = result else {
 		let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
-		empty_note(&mut child, "先打开一个工作区");
+		empty_note(&mut child, t!("先打开一个工作区"));
 		return;
 	};
 	let text = match result {
 		Ok(text) if text.trim().is_empty() => {
 			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
-			empty_note(&mut child, "与 HEAD 没有差异");
+			empty_note(&mut child, t!("与 HEAD 没有差异"));
 			return;
 		},
 		Ok(text) => text,
 		Err(error) => {
 			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
-			empty_note(&mut child, &format!("无法读取 git diff：{error}"));
+			empty_note(&mut child, &t!("无法读取 git diff：{}", error));
 			return;
 		},
 	};
@@ -1075,7 +1077,7 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	let pane = shell.agents.ensure(&tab.id);
 	let title = match pane.session.as_deref() {
 		Some(session) => format!("Agent · {session}"),
-		None => "Agent 会话".to_owned(),
+		None => t!("Agent 会话").to_owned(),
 	};
 	truncated_mono(
 		ui,
@@ -1107,18 +1109,18 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	// The session id is user-supplied: the gateway knows it, this shell does
 	// not guess it.
 	child.horizontal(|ui| {
-		ui.label(egui::RichText::new("会话 id").color(theme::TEXT_3));
+		ui.label(egui::RichText::new(t!("会话 id")).color(theme::TEXT_3));
 		ui.add(
 			egui::TextEdit::singleline(&mut pane.draft)
 				.desired_width(260.0)
 				.font(egui::FontId::new(11.5, egui::FontFamily::Monospace))
 				.hint_text("agent session id"),
 		);
-		if ui.button("连接").clicked() {
+		if ui.button(t!("连接")).clicked() {
 			let draft = pane.draft.clone();
 			let _ = pane.connect(&origin, &draft);
 		}
-		if matches!(pane.link, Link::Live | Link::Connecting) && ui.button("断开").clicked() {
+		if matches!(pane.link, Link::Live | Link::Connecting) && ui.button(t!("断开")).clicked() {
 			pane.disconnect();
 		}
 	});
@@ -1129,19 +1131,19 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		} else {
 			theme::TEXT_3
 		};
-		child.label(egui::RichText::new(format!("原因：{reason}")).color(ink));
+		child.label(egui::RichText::new(t!("原因：{}", reason)).color(ink));
 	}
 
 	if pane.session.is_none() {
-		empty_note(&mut child, "还没有连接会话");
+		empty_note(&mut child, t!("还没有连接会话"));
 		return;
 	}
 
 	if let Some(summary) = pane.request_summary() {
 		let (label, ink) = if pane.awaiting_input() {
-			("等待你的输入", theme::WARN)
+			(t!("等待你的输入"), theme::WARN)
 		} else {
-			("最近一次请求", theme::TEXT_2)
+			(t!("最近一次请求"), theme::TEXT_2)
 		};
 		child.horizontal_wrapped(|ui| {
 			ui.label(egui::RichText::new(label).color(ink).strong());
@@ -1156,16 +1158,16 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		.show(&mut child, |ui| {
 			if rows.is_empty() {
 				ui.label(
-					egui::RichText::new("还没有会话记录；新的 durable entry 会出现在这里。")
+					egui::RichText::new(t!("还没有会话记录；新的 durable entry 会出现在这里。"))
 						.color(theme::TEXT_3),
 				);
 			}
 			for row in rows {
 				let (prefix, ink) = match row.kind {
-					RowKind::User => ("你：", theme::TEXT),
-					RowKind::Assistant => ("助手：", theme::TEXT_2),
-					RowKind::Tool => ("工具：", theme::TEXT_3),
-					RowKind::Error => ("错误：", theme::DEL),
+					RowKind::User => (t!("你："), theme::TEXT),
+					RowKind::Assistant => (t!("助手："), theme::TEXT_2),
+					RowKind::Tool => (t!("工具："), theme::TEXT_3),
+					RowKind::Error => (t!("错误："), theme::DEL),
 					RowKind::Notice => ("· ", theme::TEXT_3),
 				};
 				ui.label(
@@ -1195,7 +1197,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 			return;
 		},
 		None => {
-			empty_note(ui, "这个页面没有 zetacode 程序");
+			empty_note(ui, t!("这个页面没有 zetacode 程序"));
 			return;
 		},
 	};
@@ -1210,7 +1212,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		.live
 		.ensure_program(tab.id.as_str(), columns, rows, cwd, &path)
 	{
-		missing_body(ui, &format!("无法启动随包的 zetacode：{}（PTY 创建失败）", path.display()));
+		missing_body(ui, &t!("无法启动随包的 zetacode：{}（PTY 创建失败）", path.display()));
 		return;
 	}
 	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
@@ -1290,7 +1292,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 	ui.painter().text(
 		pos2(centre.x, mark.max.y + 46.0),
 		egui::Align2::CENTER_CENTER,
-		"从侧边栏中选择一个工作区开始",
+		t!("从侧边栏中选择一个工作区开始"),
 		egui::FontId::new(13.0, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
@@ -1300,7 +1302,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 			.max_rect(Rect::from_center_size(pos2(centre.x - 80.0, cta_y), vec2(140.0, 34.0)))
 			.layout(Layout::left_to_right(Align::Center)),
 	);
-	if wide_button(&mut open_btn, Icon::Plus, "添加项目", false).clicked() {
+	if wide_button(&mut open_btn, Icon::Plus, t!("添加项目"), false).clicked() {
 		shell.state.begin_add_project();
 	}
 	let mut new_btn = ui.new_child(
@@ -1312,7 +1314,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 	// in the active project is exactly what it can really do.
 	// `active_project` on the state is the project's **id**, which is what
 	// `new_workspace` takes.
-	if wide_button(&mut new_btn, Icon::Plus, "创建工作区", true).clicked() {
+	if wide_button(&mut new_btn, Icon::Plus, t!("创建工作区"), true).clicked() {
 		match shell.state.active_project.clone() {
 			Some(project) => {
 				shell.state.act(|s| s.new_workspace(&project));
@@ -1324,7 +1326,8 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 	}
 	// The three shortcuts the build really binds; the draft's own list names
 	// macOS keys and two moves this shell does not have.
-	let shortcuts = [("创建大标签页", "Ctrl N"), ("拆分面板", "Ctrl \\"), ("打开设置", "Ctrl ,")];
+	let shortcuts =
+		[(t!("创建大标签页"), "Ctrl N"), (t!("拆分面板"), "Ctrl \\"), (t!("打开设置"), "Ctrl ,")];
 	let mut y = cta_y + 44.0;
 	for (label, keys) in shortcuts {
 		ui.painter().text(

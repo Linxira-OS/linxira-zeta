@@ -24,6 +24,7 @@
 //! asset**; the 关于 section names whichever files were actually used, so a
 //! missing face is visible rather than silent.
 
+use crate::t;
 use std::{path::PathBuf, sync::Arc};
 
 use egui::{FontData, FontDefinitions, FontFamily};
@@ -125,16 +126,18 @@ impl Fonts {
 	pub fn cjk_line(&self) -> String {
 		let ui = face_name(self.cjk_ui.as_ref());
 		match (self.cjk_ui.as_ref(), self.cjk_mono.as_ref()) {
-			(None, None) => "CJK 字体：未找到（中文会显示为方块；产品需内置一款授权字体）".to_owned(),
-			(Some(_), None) => {
-				format!("CJK 字体：界面 {ui} · 等宽 未找到固定宽度中文字体（全角对齐可能漂移）")
+			(None, None) => {
+				t!("CJK 字体：未找到（中文会显示为方块；产品需内置一款授权字体）").to_owned()
 			},
-			(None, Some(_)) => format!(
+			(Some(_), None) => {
+				t!("CJK 字体：界面 {} · 等宽 未找到固定宽度中文字体（全角对齐可能漂移）", ui)
+			},
+			(None, Some(_)) => t!(
 				"CJK 字体：界面 未找到（中文会显示为方块） · 等宽 {}",
 				face_name(self.cjk_mono.as_ref())
 			),
 			(Some(_), Some(_)) => {
-				format!("CJK 字体：界面 {ui} · 等宽 {}", face_name(self.cjk_mono.as_ref()))
+				t!("CJK 字体：界面 {} · 等宽 {}", ui, face_name(self.cjk_mono.as_ref()))
 			},
 		}
 	}
@@ -142,11 +145,11 @@ impl Fonts {
 	/// One line for 关于: the editor's mono face.
 	pub fn mono_line(&self) -> String {
 		match (&self.mono, &self.mono_missing) {
-			(Some(path), _) => format!("等宽字体：{}", path.display()),
+			(Some(path), _) => t!("等宽字体：{}", path.display()),
 			(None, Some(wanted)) => {
-				format!("等宽字体：{wanted} 未安装，回退到 CJK 等宽字体")
+				t!("等宽字体：{} 未安装，回退到 CJK 等宽字体", wanted)
 			},
-			(None, None) => "等宽字体：回退到 CJK 等宽字体".to_owned(),
+			(None, None) => t!("等宽字体：回退到 CJK 等宽字体").to_owned(),
 		}
 	}
 }
@@ -154,7 +157,7 @@ impl Fonts {
 fn face_name(face: Option<&(PathBuf, u32)>) -> String {
 	match face {
 		Some((path, index)) => format!("{}（face {index}）", path.display()),
-		None => "未找到".to_owned(),
+		None => t!("未找到").to_owned(),
 	}
 }
 

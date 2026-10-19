@@ -28,6 +28,7 @@
 
 mod api;
 
+use crate::t;
 use std::{
 	sync::mpsc::{Receiver, TryRecvError, channel},
 	time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -66,7 +67,7 @@ const MAX_BARS: i64 = 400;
 
 /// The one line the panel shows when nothing is listening.
 pub fn absent_line(url: &str) -> String {
-	format!("stats 服务未启动：zetacode serve 未在监听 {url}")
+	t!("stats 服务未启动：zetacode serve 未在监听 {}", url)
 }
 
 /// The URL this panel reads.
@@ -201,7 +202,7 @@ impl UsageCache {
 			Err(TryRecvError::Empty) => false,
 			Err(TryRecvError::Disconnected) => {
 				self.job = None;
-				self.error = Some(FetchError::Io("读取线程提前结束".to_owned()));
+				self.error = Some(FetchError::Io(t!("读取线程提前结束").to_owned()));
 				true
 			},
 		}
@@ -255,7 +256,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 	let fallback = shell.embed.failure().map(str::to_owned);
 	let embedded = fallback.is_none();
 	let address = match &fallback {
-		Some(reason) => format!("{address} · 嵌入不可用：{reason}"),
+		Some(reason) => t!("{} · 嵌入不可用：{}", address, reason),
 		None => address,
 	};
 	shell.usage.ensure(&origin);
@@ -299,11 +300,11 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 					ui.painter().text(
 						pos2(head.min.x + 14.0, head.center().y),
 						Align2::LEFT_CENTER,
-						"用量统计",
+						t!("用量统计"),
 						FontId::new(14.0, egui::FontFamily::Proportional),
 						theme::TEXT,
 					);
-					let range_hint = format!("{} 的 stats 汇总", usage.range().window());
+					let range_hint = t!("{} 的 stats 汇总", usage.range().window());
 					ui.painter().text(
 						pos2(head.min.x + 86.0, head.center().y),
 						Align2::LEFT_CENTER,
@@ -316,10 +317,11 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 							.max_rect(head.shrink2(vec2(10.0, 12.0)))
 							.layout(Layout::right_to_left(Align::Center)),
 					);
-					if icon_button(&mut head_right, Icon::X, 28.0, false, "关闭").clicked() {
+					if icon_button(&mut head_right, Icon::X, 28.0, false, t!("关闭")).clicked() {
 						action.close = true;
 					}
-					if icon_button(&mut head_right, Icon::Refresh, 28.0, false, "重新读取用量").clicked()
+					if icon_button(&mut head_right, Icon::Refresh, 28.0, false, t!("重新读取用量"))
+						.clicked()
 					{
 						action.reload = true;
 					}
@@ -357,10 +359,10 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 							))
 							.layout(Layout::right_to_left(Align::Center)),
 					);
-					if copy_button(&mut bar_right, "复制地址").clicked() {
+					if copy_button(&mut bar_right, t!("复制地址")).clicked() {
 						ui.ctx().copy_text(url.clone());
 					}
-					if copy_button(&mut bar_right, "复制 API 根").clicked() {
+					if copy_button(&mut bar_right, t!("复制 API 根")).clicked() {
 						ui.ctx().copy_text(format!("{}/api/stats", origin));
 					}
 
@@ -429,7 +431,7 @@ fn panel(
 	ui.painter().text(
 		pos2(row.min.x, row.center().y),
 		Align2::LEFT_CENTER,
-		"区间",
+		t!("区间"),
 		FontId::new(11.5, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
@@ -459,7 +461,7 @@ fn panel(
 		ui.painter().text(
 			pos2(row.max.x, row.center().y),
 			Align2::RIGHT_CENTER,
-			"正在读取…",
+			t!("正在读取…"),
 			FontId::new(10.5, egui::FontFamily::Proportional),
 			theme::TEXT_3,
 		);
@@ -498,7 +500,7 @@ fn panel(
 					ui,
 					rect.max.x,
 					rect.max.y - 4.0,
-					&format!("刷新失败：{}（显示上次数据）", error.message()),
+					&t!("刷新失败：{}（显示上次数据）", error.message()),
 					10.0,
 					theme::WARN,
 					rect.width() * 0.5,
@@ -522,8 +524,8 @@ fn panel(
 			);
 			let (line, color) = match usage.error() {
 				Some(error) if error.is_absent() => (absent_line(url), theme::TEXT_2),
-				Some(error) => (format!("读取 stats 失败：{}", error.message()), theme::WARN),
-				None => (format!("正在读取 {origin} …"), theme::TEXT_3),
+				Some(error) => (t!("读取 stats 失败：{}", error.message()), theme::WARN),
+				None => (t!("正在读取 {} …", origin), theme::TEXT_3),
 			};
 			truncated_text_center(
 				ui,
@@ -549,10 +551,10 @@ fn status_line(snapshot: &Snapshot) -> String {
 			} else {
 				String::new()
 			};
-			parts.push(format!("同步 {}{progress}", status.sync.phase));
+			parts.push(t!("同步 {}{}", status.sync.phase, progress));
 		}
 		if let Some(error) = status.sync.error.as_ref() {
-			parts.push(format!("同步错误 {error}"));
+			parts.push(t!("同步错误 {}", error));
 		}
 	}
 	let at = snapshot
@@ -566,7 +568,7 @@ fn status_line(snapshot: &Snapshot) -> String {
 				.to_string()
 		})
 		.unwrap_or_else(|| "—".to_owned());
-	parts.push(format!("{at} 读取"));
+	parts.push(t!("{} 读取", at));
 	parts.join(" · ")
 }
 
@@ -581,35 +583,35 @@ fn summary_cards(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 		None => "—".to_owned(),
 	};
 	let ttft = match overall.avg_ttft_ms {
-		Some(value) => format!("首字 {value:.0} ms"),
-		None => "首字 —".to_owned(),
+		Some(value) => t!("首字 {} ms", format!("{value:.0}")),
+		None => t!("首字 —").to_owned(),
 	};
 	let cards: [(&str, String, String); 5] = [
 		(
-			"输入 token",
+			t!("输入 token"),
 			compact(overall.total_input_tokens as f64),
-			format!("缓存读 {}", compact(overall.total_cache_read_tokens as f64)),
+			t!("缓存读 {}", compact(overall.total_cache_read_tokens as f64)),
 		),
 		(
-			"输出 token",
+			t!("输出 token"),
 			compact(overall.total_output_tokens as f64),
-			format!("缓存写 {}", compact(overall.total_cache_write_tokens as f64)),
+			t!("缓存写 {}", compact(overall.total_cache_write_tokens as f64)),
 		),
 		(
-			"请求",
+			t!("请求"),
 			format!("{}", overall.total_requests),
-			format!("成功 {} · 失败 {}", overall.successful_requests, overall.failed_requests),
+			t!("成功 {} · 失败 {}", overall.successful_requests, overall.failed_requests),
 		),
 		(
-			"费用",
+			t!("费用"),
 			cost,
 			if overall.unpriced_requests > 0 {
-				format!("未定价 {} 次", overall.unpriced_requests)
+				t!("未定价 {} 次", overall.unpriced_requests)
 			} else {
-				"区间总费用".to_owned()
+				t!("区间总费用").to_owned()
 			},
 		),
-		("平均吞吐", throughput, ttft),
+		(t!("平均吞吐"), throughput, ttft),
 	];
 	for (index, (label, value, sub)) in cards.iter().enumerate() {
 		let card_rect = Rect::from_min_size(
@@ -722,7 +724,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 	ui.painter().text(
 		pos2(rect.min.x + 10.0, rect.min.y + 8.0),
 		Align2::LEFT_TOP,
-		format!("token 用量 · {}", range.window()),
+		t!("token 用量 · {}", range.window()),
 		FontId::new(11.5, egui::FontFamily::Proportional),
 		theme::TEXT_2,
 	);
@@ -750,7 +752,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 		ui.painter().text(
 			plot.center(),
 			Align2::CENTER_CENTER,
-			"此区间没有 token 记录",
+			t!("此区间没有 token 记录"),
 			FontId::new(11.0, egui::FontFamily::Proportional),
 			theme::TEXT_3,
 		);
@@ -776,7 +778,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 				CornerRadius::ZERO,
 				theme::PANEL_3,
 			);
-			detail = Some(format!(
+			detail = Some(t!(
 				"{} · {} token · {} 次请求 · {}",
 				bucket_text(bar.timestamp, bucket_ms),
 				compact(bar.tokens as f64),
@@ -834,17 +836,17 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 4.0),
 		Align2::LEFT_TOP,
-		"按 Agent 类型",
+		t!("按 Agent 类型"),
 		FontId::new(11.5, egui::FontFamily::Proportional),
 		theme::TEXT_2,
 	);
 	let header = Rect::from_min_size(pos2(rect.min.x, rect.min.y + 20.0), vec2(rect.width(), 18.0));
 	let columns = [
-		("类型", 0.0, Align2::LEFT_CENTER),
-		("请求", 0.46, Align2::RIGHT_CENTER),
-		("输入", 0.62, Align2::RIGHT_CENTER),
-		("输出", 0.78, Align2::RIGHT_CENTER),
-		("费用", 1.0, Align2::RIGHT_CENTER),
+		(t!("类型"), 0.0, Align2::LEFT_CENTER),
+		(t!("请求"), 0.46, Align2::RIGHT_CENTER),
+		(t!("输入"), 0.62, Align2::RIGHT_CENTER),
+		(t!("输出"), 0.78, Align2::RIGHT_CENTER),
+		(t!("费用"), 1.0, Align2::RIGHT_CENTER),
 	];
 	for (label, fraction, align) in columns {
 		let x = rect.min.x + rect.width() * fraction;
@@ -868,7 +870,7 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 		ui.painter().text(
 			pos2(rect.center().x, header.max.y + 22.0),
 			Align2::CENTER_CENTER,
-			"此区间没有 agent 类型记录",
+			t!("此区间没有 agent 类型记录"),
 			FontId::new(10.5, egui::FontFamily::Proportional),
 			theme::TEXT_3,
 		);
@@ -928,7 +930,7 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 		ui.painter().text(
 			pos2(rect.min.x, rect.max.y - 6.0),
 			Align2::LEFT_BOTTOM,
-			format!("另有 {hidden} 类未显示"),
+			t!("另有 {} 类未显示", hidden),
 			FontId::new(9.5, egui::FontFamily::Proportional),
 			theme::TEXT_3,
 		);

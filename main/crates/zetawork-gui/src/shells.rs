@@ -19,6 +19,7 @@
 //! is uninstalled between two probes is reported by the first and not the
 //! second.
 
+use crate::t;
 use std::{
 	ffi::OsStr,
 	path::{Path, PathBuf},
@@ -79,12 +80,12 @@ impl ShellKind {
 	/// One honest line about what this family is, for the picker's row.
 	pub fn note(self) -> &'static str {
 		match self {
-			Self::PowerShell => "Windows PowerShell 5.1（系统自带）",
+			Self::PowerShell => t!("Windows PowerShell 5.1（系统自带）"),
 			Self::Pwsh => "PowerShell 7+",
-			Self::Cmd => "命令提示符",
-			Self::Bash => "MSYS/Cygwin/Git 附带的 bash",
-			Self::GitBash => "Git for Windows 附带的 bash",
-			Self::Wsl => "WSL 发行版宿主",
+			Self::Cmd => t!("命令提示符"),
+			Self::Bash => t!("MSYS/Cygwin/Git 附带的 bash"),
+			Self::GitBash => t!("Git for Windows 附带的 bash"),
+			Self::Wsl => t!("WSL 发行版宿主"),
 		}
 	}
 

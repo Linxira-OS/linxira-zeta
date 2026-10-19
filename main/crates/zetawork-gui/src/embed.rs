@@ -35,6 +35,7 @@
 //! inside the container and resize with it.
 
 use crate::stats::{self, StatsEndpoint};
+use crate::t;
 
 /// The longest platform error the container shows before eliding it. The panel
 /// has one line, not a log.
@@ -145,7 +146,12 @@ impl EmbedState {
 		if self.host.is_some() && self.failure.is_none() {
 			return None;
 		}
-		Some(self.failure.as_deref().unwrap_or(NO_WINDOW))
+		Some(
+			self
+				.failure
+				.as_deref()
+				.unwrap_or_else(|| crate::i18n::tr(NO_WINDOW)),
+		)
 	}
 
 	/// True when the child window is attached and owns the container body.
@@ -240,7 +246,7 @@ impl EmbedState {
 fn one_line(reason: &str) -> String {
 	let first = reason.lines().next().unwrap_or_default().trim();
 	let first = if first.is_empty() {
-		"未知错误"
+		t!("未知错误")
 	} else {
 		first
 	};

@@ -30,6 +30,7 @@
 //! Every step is additive: a route that is unavailable hands over to the next
 //! one, and the trace always happens, so a notification is never silently lost.
 
+use crate::t;
 use std::{
 	io::{Read, Write},
 	net::TcpStream,
@@ -57,9 +58,9 @@ pub enum Trigger {
 impl Trigger {
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Idle => "后台任务已空闲",
-			Self::NeedsInput => "等待你的输入",
-			Self::Failed => "会话失败或结束",
+			Self::Idle => t!("后台任务已空闲"),
+			Self::NeedsInput => t!("等待你的输入"),
+			Self::Failed => t!("会话失败或结束"),
 		}
 	}
 
@@ -96,7 +97,7 @@ pub struct Message {
 impl Message {
 	/// The `通知：…` line the status bar shows.
 	pub fn trace_line(&self) -> String {
-		format!("通知：{}", self.title)
+		t!("通知：{}", self.title)
 	}
 
 	/// The text an IM channel carries: the title and the body, which is what a
@@ -159,9 +160,9 @@ pub enum Delivery {
 impl Delivery {
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Os => "系统通知",
-			Self::Im => "IM 渠道",
-			Self::Trace => "状态栏留痕",
+			Self::Os => t!("系统通知"),
+			Self::Im => t!("IM 渠道"),
+			Self::Trace => t!("状态栏留痕"),
 		}
 	}
 }
@@ -224,21 +225,25 @@ fn route(os: &Result<(), String>, im: &Option<Result<(), String>>) -> (Delivery,
 
 /// The status bar's tooltip for a trace.
 pub fn trace_hint(trace: &Trace) -> String {
-	let mut text = format!(
+	let mut text = t!(
 		"{} · {} · 目标：{}",
 		trace.message.trigger.label(),
 		trace.delivery.label(),
-		trace.message.target.as_deref().unwrap_or("（无）")
+		trace.message.target.as_deref().unwrap_or(t!("（无）"))
 	);
 	if !trace.detail.is_empty() {
-		text.push_str(&format!("\n系统通知不可用：{}", trace.detail));
+		text.push_str(&t!("\n系统通知不可用：{}", trace.detail));
 	}
 	match &trace.im {
-		Some(Ok(())) => text.push_str(&format!(
+		Some(Ok(())) => text.push_str(&t!(
 			"\nIM 回落：已由网关 POST /api/channels/send 投出（{}）",
-			MESSAGING_SOURCES.join(" / ")
+			MESSAGING_SOURCES
+				.iter()
+				.map(|source| crate::i18n::tr(source))
+				.collect::<Vec<_>>()
+				.join(" / ")
 		)),
-		Some(Err(why)) => text.push_str(&format!("\nIM 回落失败：{why}")),
+		Some(Err(why)) => text.push_str(&t!("\nIM 回落失败：{}", why)),
 		// No target: no IM step ran, so the hint says nothing about one.
 		None => {},
 	}
@@ -323,15 +328,15 @@ fn post_endpoint(origin: &str) -> Option<(&str, u16, &str)> {
 /// text is carried along so the trace can say what it said.
 fn post_im_message(origin: &str, body: &str) -> Result<(), String> {
 	let (host, port, authority) =
-		post_endpoint(origin).ok_or_else(|| format!("{origin} 不是本机 http 地址，未投递"))?;
+		post_endpoint(origin).ok_or_else(|| t!("{} 不是本机 http 地址，未投递", origin))?;
 	let mut stream = TcpStream::connect((host, port))
-		.map_err(|error| format!("连接 {host}:{port} 失败：{error}"))?;
+		.map_err(|error| t!("连接 {}:{} 失败：{}", host, port, error))?;
 	stream
 		.set_write_timeout(Some(IM_TIMEOUT))
-		.map_err(|error| format!("设置写超时失败：{error}"))?;
+		.map_err(|error| t!("设置写超时失败：{}", error))?;
 	stream
 		.set_read_timeout(Some(IM_TIMEOUT))
-		.map_err(|error| format!("设置读超时失败：{error}"))?;
+		.map_err(|error| t!("设置读超时失败：{}", error))?;
 	let request = format!(
 		"POST /api/channels/send HTTP/1.1\r\nHost: {authority}\r\nContent-Type: \
 		 application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -339,19 +344,19 @@ fn post_im_message(origin: &str, body: &str) -> Result<(), String> {
 	);
 	stream
 		.write_all(request.as_bytes())
-		.map_err(|error| format!("发送请求失败：{error}"))?;
+		.map_err(|error| t!("发送请求失败：{}", error))?;
 	// `Connection: close` + a read to EOF: the answer's length is never guessed.
 	let mut response = String::new();
 	stream
 		.read_to_string(&mut response)
-		.map_err(|error| format!("读取应答失败：{error}"))?;
-	let status = status_of(&response).ok_or_else(|| "应答没有状态行".to_owned())?;
+		.map_err(|error| t!("读取应答失败：{}", error))?;
+	let status = status_of(&response).ok_or_else(|| t!("应答没有状态行").to_owned())?;
 	if status == 200 {
 		return Ok(());
 	}
 	Err(match error_of(&response) {
-		Some(why) => format!("网关返回 {status}：{why}"),
-		None => format!("网关返回 {status}"),
+		Some(why) => t!("网关返回 {}：{}", status, why),
+		None => t!("网关返回 {}", status),
 	})
 }
 
@@ -398,7 +403,7 @@ fn os_notify(message: &Message) -> Result<(), String> {
 #[cfg(all(feature = "os-notify", target_os = "linux"))]
 fn os_notify(message: &Message) -> Result<(), String> {
 	let connection =
-		zbus::blocking::Connection::session().map_err(|error| format!("D-Bus 会话总线：{error}"))?;
+		zbus::blocking::Connection::session().map_err(|error| t!("D-Bus 会话总线：{}", error))?;
 	let _: () = connection
 		.call_method(
 			Some("org.freedesktop.Notifications"),
@@ -423,7 +428,7 @@ fn os_notify(message: &Message) -> Result<(), String> {
 /// Every other configuration: say why, so the caller falls back.
 #[cfg(not(all(feature = "os-notify", any(target_os = "windows", target_os = "linux"))))]
 fn os_notify(_message: &Message) -> Result<(), String> {
-	Err("本构建未启用 os-notify（或该系统没有实现）".to_owned())
+	Err(t!("本构建未启用 os-notify（或该系统没有实现）").to_owned())
 }
 
 #[cfg(test)]

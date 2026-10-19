@@ -8,6 +8,7 @@
 //! — which is also why the right column starts *below* it rather than at the
 //! top edge: the top-right strip belongs to the window controls.
 
+use crate::t;
 use egui::{
 	Align, Color32, CornerRadius, Id, Layout, Order, Rect, Sense, Stroke, Ui, ViewportCommand, pos2,
 	vec2,
@@ -69,7 +70,7 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 			ui.painter().circle_filled(dot.center(), 3.5, theme::ADD);
 			ui.add_space(6.0);
 			ui.label(
-				egui::RichText::new(crate::APP_SUBTITLE)
+				egui::RichText::new(crate::i18n::tr(crate::APP_SUBTITLE))
 					.size(11.5)
 					.color(theme::TEXT_3),
 			);
@@ -105,7 +106,7 @@ pub fn logo_mark(ui: &Ui, rect: Rect, texture: Option<&egui::TextureHandle>) {
 fn window_controls(ui: &mut Ui, shell: &mut Shell) {
 	let maximized = ui.ctx().input(|i| i.viewport().maximized.unwrap_or(false));
 	let height = ui.available_height().max(theme::TITLE_BAR_H);
-	let close = chrome_button(ui, Icon::X, "关闭", true, height);
+	let close = chrome_button(ui, Icon::X, t!("关闭"), true, height);
 	if close.clicked() {
 		// 关闭窗口时 decides: 最小化到后台 / 退出应用 / 每次询问. The title bar
 		// has no policy of its own — see `crate::lifecycle::request_close`.
@@ -117,15 +118,15 @@ fn window_controls(ui: &mut Ui, shell: &mut Shell) {
 		Icon::Maximize
 	};
 	let label = if maximized {
-		"向下还原"
+		t!("向下还原")
 	} else {
-		"最大化"
+		t!("最大化")
 	};
 	let toggle = chrome_button(ui, maximize_icon, label, false, height);
 	if toggle.clicked() {
 		toggle_maximize(ui);
 	}
-	let minimize = chrome_button(ui, Icon::Minimize, "最小化", false, height);
+	let minimize = chrome_button(ui, Icon::Minimize, t!("最小化"), false, height);
 	if minimize.clicked() {
 		ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
 	}

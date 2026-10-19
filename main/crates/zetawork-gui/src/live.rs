@@ -31,6 +31,7 @@
 //! [`LiveSessions::ensure_program`] is how a companion page (zetacode) runs its
 //! own binary in this PTY instead of a shell.
 
+use crate::t;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use ratatui::{buffer::Buffer, layout::Rect};
@@ -194,7 +195,7 @@ fn spawn_local(
 				let program = installed
 					.first()
 					.map(|shell| shell.path.to_string_lossy().into_owned())
-					.unwrap_or_else(|| "自动检测的 shell".to_owned());
+					.unwrap_or_else(|| t!("自动检测的 shell").to_owned());
 				(Terminal::new_with_cwd(rows, cols, cwd).ok()?, program)
 			},
 			LocalShell::Path(path) => {

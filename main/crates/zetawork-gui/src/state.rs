@@ -21,6 +21,7 @@
 //! its index-based tab ids are not, and reusing an id after a close would make
 //! lookups ambiguous).
 
+use crate::t;
 use std::{
 	path::{Path, PathBuf},
 	time::{Duration, Instant},
@@ -75,20 +76,20 @@ impl RightTab {
 	/// The panel head, spelled as the spec spells it.
 	pub fn title(self) -> &'static str {
 		match self {
-			Self::Files => "文件树",
-			Self::History => "历史 · Agent 对话",
-			Self::Git => "Git 状态",
-			Self::Usage => "用量",
+			Self::Files => t!("文件树"),
+			Self::History => t!("历史 · Agent 对话"),
+			Self::Git => t!("Git 状态"),
+			Self::Usage => t!("用量"),
 		}
 	}
 
 	/// The live source this panel reads, or reports as missing.
 	pub fn source(self) -> &'static str {
 		match self {
-			Self::Files => "工作区目录（本地 read_dir）",
-			Self::History => "zetacode 会话存储（~/.zeta/agent/agent.db）",
-			Self::Git => "git status / log / rev-list（只读）",
-			Self::Usage => "活动会话的日志（~/.zeta/agent/sessions）",
+			Self::Files => t!("工作区目录（本地 read_dir）"),
+			Self::History => t!("zetacode 会话存储（~/.zeta/agent/agent.db）"),
+			Self::Git => t!("git status / log / rev-list（只读）"),
+			Self::Usage => t!("活动会话的日志（~/.zeta/agent/sessions）"),
 		}
 	}
 }
@@ -132,22 +133,22 @@ impl SessionKind {
 	/// The kind's own name, as the picker and the tab tooltips spell it.
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Term => "终端",
-			Self::Editor => "编辑器",
-			Self::Diff => "差异比较器",
+			Self::Term => t!("终端"),
+			Self::Editor => t!("编辑器"),
+			Self::Diff => t!("差异比较器"),
 			Self::Git => "Git",
 			Self::Zetacode => "zetacode",
 			Self::Ide => "zetaide",
-			Self::Agent => "Agent 会话",
+			Self::Agent => t!("Agent 会话"),
 		}
 	}
 
 	/// The title a freshly opened tab of this kind gets.
 	pub fn tab_title(self) -> &'static str {
 		match self {
-			Self::Term => "终端",
-			Self::Editor => "编辑器",
-			Self::Diff => "改动",
+			Self::Term => t!("终端"),
+			Self::Editor => t!("编辑器"),
+			Self::Diff => t!("改动"),
 			Self::Git => "Git",
 			Self::Zetacode => "zetacode",
 			Self::Ide => "zetaide",
@@ -158,13 +159,13 @@ impl SessionKind {
 	/// What backs this page, or what is still missing behind it.
 	pub fn source(self) -> &'static str {
 		match self {
-			Self::Term => "本机 shell（真实 PTY：本进程或 zetacode serve）",
-			Self::Editor => "工作区里的真实文件（读 + 写）",
-			Self::Diff => "git diff --no-color HEAD（只读）",
-			Self::Git => "git status / log（只读）",
-			Self::Zetacode => "随包的 zetacode（packages/coding-agent/dist/zeta）",
+			Self::Term => t!("本机 shell（真实 PTY：本进程或 zetacode serve）"),
+			Self::Editor => t!("工作区里的真实文件（读 + 写）"),
+			Self::Diff => t!("git diff --no-color HEAD（只读）"),
+			Self::Git => t!("git status / log（只读）"),
+			Self::Zetacode => t!("随包的 zetacode（packages/coding-agent/dist/zeta）"),
 			Self::Ide => "termide panel-editor（termide-panel-ide）",
-			Self::Agent => "zetacode serve 的 SSE 会话流（/api/agent/<id>/events）",
+			Self::Agent => t!("zetacode serve 的 SSE 会话流（/api/agent/<id>/events）"),
 		}
 	}
 }
@@ -315,8 +316,8 @@ impl PickerEntry {
 	/// The picker's group heading for this row.
 	pub fn group(&self) -> &'static str {
 		match self {
-			Self::Shell(_) => "本机 Shell",
-			Self::Page(_) => "页面",
+			Self::Shell(_) => t!("本机 Shell"),
+			Self::Page(_) => t!("页面"),
 		}
 	}
 
@@ -438,7 +439,7 @@ impl CenterPage {
 	/// The strip's label for this page.
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Total => "总面板",
+			Self::Total => t!("总面板"),
 			Self::Workspace => "",
 		}
 	}
@@ -560,7 +561,7 @@ impl AppState {
 					cwd,
 					workbench_projects::Registry::empty_at(workbench_projects::default_path()),
 				);
-				state.show(Notice(format!("项目注册表读取失败：{error}")));
+				state.show(Notice(t!("项目注册表读取失败：{}", error)));
 				return state;
 			},
 		};
@@ -633,7 +634,7 @@ impl AppState {
 		self
 			.active_workspace()
 			.map(|w| w.name.as_str())
-			.unwrap_or("未选择工作区")
+			.unwrap_or(t!("未选择工作区"))
 	}
 
 	/// The status bar's branch column: `—` with nothing open.
@@ -689,7 +690,7 @@ impl AppState {
 				if number <= 1 {
 					SessionKind::Term.tab_title().to_owned()
 				} else {
-					format!("终端 {number}")
+					t!("终端 {}", number)
 				},
 			)],
 		}
@@ -770,7 +771,7 @@ impl AppState {
 		};
 		let name = text.trim().to_owned();
 		if name.is_empty() {
-			return Notice("项目名不能为空".to_owned());
+			return Notice(t!("项目名不能为空").to_owned());
 		}
 		match self.registry.rename(&id, &name) {
 			Ok(()) => {
@@ -785,9 +786,9 @@ impl AppState {
 				}
 				self.renaming_project = None;
 				self.rename_focus = false;
-				Notice(format!("已重命名为 {name}"))
+				Notice(t!("已重命名为 {}", name))
 			},
-			Err(error) => Notice(format!("重命名失败：{error}")),
+			Err(error) => Notice(t!("重命名失败：{}", error)),
 		}
 	}
 
@@ -851,7 +852,7 @@ impl AppState {
 		};
 		let name = text.trim().to_owned();
 		if name.is_empty() {
-			return Notice("标签页名不能为空".to_owned());
+			return Notice(t!("标签页名不能为空").to_owned());
 		}
 		let Some(project_id) = self
 			.projects
@@ -861,7 +862,7 @@ impl AppState {
 		else {
 			self.renaming_workspace = None;
 			self.rename_focus = false;
-			return Notice("这个标签页已经关闭".to_owned());
+			return Notice(t!("这个标签页已经关闭").to_owned());
 		};
 		if !self.can_rename_workspace(&id) {
 			// Only the seeded workspace is stored by the registry; anything
@@ -877,7 +878,7 @@ impl AppState {
 			}
 			self.renaming_workspace = None;
 			self.rename_focus = false;
-			return Notice(format!("已重命名为 {name}（仅本次运行）"));
+			return Notice(t!("已重命名为 {}（仅本次运行）", name));
 		}
 		match self.registry.rename_workspace(&project_id, &name) {
 			Ok(()) => {
@@ -891,9 +892,9 @@ impl AppState {
 				}
 				self.renaming_workspace = None;
 				self.rename_focus = false;
-				Notice(format!("已重命名为 {name}"))
+				Notice(t!("已重命名为 {}", name))
 			},
-			Err(error) => Notice(format!("重命名失败：{error}")),
+			Err(error) => Notice(t!("重命名失败：{}", error)),
 		}
 	}
 
@@ -930,7 +931,7 @@ impl AppState {
 		};
 		let text = text.trim().to_owned();
 		if text.is_empty() {
-			return Notice("请输入项目目录".to_owned());
+			return Notice(t!("请输入项目目录").to_owned());
 		}
 		self.add_project(Path::new(&text))
 	}
@@ -947,9 +948,9 @@ impl AppState {
 				self.add_focus = false;
 				self.center_page = CenterPage::Workspace;
 				self.tui_pane = None;
-				Notice(format!("已添加项目：{}", row.name))
+				Notice(t!("已添加项目：{}", row.name))
 			},
-			Err(error) => Notice(format!("添加项目失败：{error}")),
+			Err(error) => Notice(t!("添加项目失败：{}", error)),
 		}
 	}
 
@@ -957,7 +958,7 @@ impl AppState {
 	/// The directory and any conversation history are untouched.
 	pub fn remove_project(&mut self, id: &str) -> Notice {
 		if Self::is_local_project(id) {
-			return Notice("本机 是当前目录，不在项目注册表里".to_owned());
+			return Notice(t!("本机 是当前目录，不在项目注册表里").to_owned());
 		}
 		let name = self.project(id).map(|project| project.name.clone());
 		let workspace_ids: Vec<String> = self
@@ -971,7 +972,7 @@ impl AppState {
 			})
 			.unwrap_or_default();
 		match self.registry.remove(id) {
-			Ok(false) => Notice(format!("注册表里没有这个项目：{id}")),
+			Ok(false) => Notice(t!("注册表里没有这个项目：{}", id)),
 			Ok(true) => {
 				self.projects.retain(|project| project.id != id);
 				if self
@@ -993,12 +994,9 @@ impl AppState {
 					}
 					self.tui_pane = None;
 				}
-				Notice(format!(
-					"已从注册表移除 {}（目录未删除）",
-					name.unwrap_or_else(|| id.to_owned())
-				))
+				Notice(t!("已从注册表移除 {}（目录未删除）", name.unwrap_or_else(|| id.to_owned())))
 			},
-			Err(error) => Notice(format!("移除项目失败：{error}")),
+			Err(error) => Notice(t!("移除项目失败：{}", error)),
 		}
 	}
 
@@ -1008,7 +1006,7 @@ impl AppState {
 	/// the previously active one is not in it), exactly as v2 does.
 	pub fn select_project(&mut self, id: &str) -> Notice {
 		let Some(project) = self.project(id) else {
-			return Notice(format!("没有这个项目：{id}"));
+			return Notice(t!("没有这个项目：{}", id));
 		};
 		let project_id = project.id.clone();
 		let keeps = project
@@ -1026,7 +1024,7 @@ impl AppState {
 
 	pub fn select_workspace(&mut self, id: &str) -> Notice {
 		let Some(owner) = self.project_of(id).map(|p| p.id.clone()) else {
-			return Notice(format!("没有这个工作区：{id}"));
+			return Notice(t!("没有这个工作区：{}", id));
 		};
 		self.active_workspace = Some(id.to_owned());
 		self.active_project = Some(owner);
@@ -1079,13 +1077,13 @@ impl AppState {
 
 	fn new_workspace_inner(&mut self, project_id: &str, entry: Option<&PickerEntry>) -> Notice {
 		let Some(pos) = self.projects.iter().position(|p| p.id == project_id) else {
-			return Notice(format!("没有这个项目：{project_id}"));
+			return Notice(t!("没有这个项目：{}", project_id));
 		};
 		if self.projects[pos].workspaces.len() >= MAX_WORKSPACES_PER_PROJECT {
-			return Notice(format!("每个项目最多 {MAX_WORKSPACES_PER_PROJECT} 个工作区（大标签页）"));
+			return Notice(t!("每个项目最多 {} 个工作区（大标签页）", MAX_WORKSPACES_PER_PROJECT));
 		}
 		let project_path = self.projects[pos].path.clone();
-		let name = format!("新工作区 {}", self.projects[pos].workspaces.len() + 1);
+		let name = t!("新工作区 {}", self.projects[pos].workspaces.len() + 1);
 		let id = self.fresh_id("ws");
 		let pane_id = self.fresh_id("pane");
 		let tab = self.tab_for(entry);
@@ -1113,13 +1111,13 @@ impl AppState {
 	/// ✕ on a 大标签页. The last workspace of a project cannot be closed.
 	pub fn close_workspace(&mut self, ws_id: &str) -> Notice {
 		let Some(project) = self.project_of(ws_id).map(|p| p.id.clone()) else {
-			return Notice(format!("没有这个工作区：{ws_id}"));
+			return Notice(t!("没有这个工作区：{}", ws_id));
 		};
 		let Some(pos) = self.projects.iter().position(|p| p.id == project) else {
 			return Notice(String::new());
 		};
 		if self.projects[pos].workspaces.len() <= 1 {
-			return Notice("每个项目至少保留一个工作区".to_owned());
+			return Notice(t!("每个项目至少保留一个工作区").to_owned());
 		}
 		self.projects[pos].workspaces.retain(|w| w.id != ws_id);
 		if self.active_workspace.as_deref() == Some(ws_id) {
@@ -1144,15 +1142,17 @@ impl AppState {
 	/// IDE page's "open the diff" event both come through here).
 	pub fn add_tab_of(&mut self, pane_id: &str, kind: SessionKind, title: String) -> Notice {
 		if self.pane_mut(pane_id).is_none() {
-			return Notice(format!("没有这个面板：{pane_id}"));
+			return Notice(t!("没有这个面板：{}", pane_id));
 		}
 		let id = self.fresh_id("tab");
 		let Some(pane) = self.pane_mut(pane_id) else {
 			return Notice(String::new());
 		};
 		if pane.tabs.len() >= MAX_SUBS_PER_PANE {
-			return Notice(format!(
-				"每个面板最多 {MAX_SUBS_PER_PANE} 个子页（子页上限 {MAX_SUBS_PER_PANE}）"
+			return Notice(t!(
+				"每个面板最多 {} 个子页（子页上限 {}）",
+				MAX_SUBS_PER_PANE,
+				MAX_SUBS_PER_PANE
 			));
 		}
 		pane.tabs.push(SessionTab::new(id.clone(), kind, title));
@@ -1162,21 +1162,23 @@ impl AppState {
 
 	pub fn add_tab(&mut self, pane_id: &str) -> Notice {
 		if self.pane_mut(pane_id).is_none() {
-			return Notice(format!("没有这个面板：{pane_id}"));
+			return Notice(t!("没有这个面板：{}", pane_id));
 		}
 		let id = self.fresh_id("tab");
 		let Some(pane) = self.pane_mut(pane_id) else {
 			return Notice(String::new());
 		};
 		if pane.tabs.len() >= MAX_SUBS_PER_PANE {
-			return Notice(format!(
-				"每个面板最多 {MAX_SUBS_PER_PANE} 个子页（子页上限 {MAX_SUBS_PER_PANE}）"
+			return Notice(t!(
+				"每个面板最多 {} 个子页（子页上限 {}）",
+				MAX_SUBS_PER_PANE,
+				MAX_SUBS_PER_PANE
 			));
 		}
 		let n = pane.term_count() + 1;
 		pane
 			.tabs
-			.push(SessionTab::new(id.clone(), SessionKind::Term, format!("终端 {n}")));
+			.push(SessionTab::new(id.clone(), SessionKind::Term, t!("终端 {}", n)));
 		pane.active = id;
 		Notice(String::new())
 	}
@@ -1184,10 +1186,10 @@ impl AppState {
 	/// ✕ on a session tab: refused when it would empty the pane.
 	pub fn close_tab(&mut self, pane_id: &str, tab_id: &str) -> Notice {
 		let Some(pane) = self.pane_mut(pane_id) else {
-			return Notice(format!("没有这个面板：{pane_id}"));
+			return Notice(t!("没有这个面板：{}", pane_id));
 		};
 		if pane.tabs.len() <= 1 {
-			return Notice("至少保留一个小标签页".to_owned());
+			return Notice(t!("至少保留一个小标签页").to_owned());
 		}
 		pane.tabs.retain(|tab| tab.id != tab_id);
 		if pane.active == tab_id {
@@ -1201,7 +1203,7 @@ impl AppState {
 	/// ＋ in a pane's tab strip, with a page kind: opens that page as a tab.
 	pub fn open_page(&mut self, pane_id: &str, kind: SessionKind) -> Notice {
 		if self.pane_mut(pane_id).is_none() {
-			return Notice(format!("没有这个面板：{pane_id}"));
+			return Notice(t!("没有这个面板：{}", pane_id));
 		}
 		let tab = self.tab_for(Some(&PickerEntry::Page(kind)));
 		self.push_tab(pane_id, tab)
@@ -1211,7 +1213,7 @@ impl AppState {
 	/// 终端 page that records it.
 	pub fn open_shell(&mut self, pane_id: &str, shell: crate::shells::Shell) -> Notice {
 		if self.pane_mut(pane_id).is_none() {
-			return Notice(format!("没有这个面板：{pane_id}"));
+			return Notice(t!("没有这个面板：{}", pane_id));
 		}
 		let tab = self.tab_for(Some(&PickerEntry::Shell(shell)));
 		self.push_tab(pane_id, tab)
@@ -1219,11 +1221,13 @@ impl AppState {
 
 	fn push_tab(&mut self, pane_id: &str, tab: SessionTab) -> Notice {
 		let Some(pane) = self.pane_mut(pane_id) else {
-			return Notice(format!("没有这个面板：{pane_id}"));
+			return Notice(t!("没有这个面板：{}", pane_id));
 		};
 		if pane.tabs.len() >= MAX_SUBS_PER_PANE {
-			return Notice(format!(
-				"每个面板最多 {MAX_SUBS_PER_PANE} 个子页（子页上限 {MAX_SUBS_PER_PANE}）"
+			return Notice(t!(
+				"每个面板最多 {} 个子页（子页上限 {}）",
+				MAX_SUBS_PER_PANE,
+				MAX_SUBS_PER_PANE
 			));
 		}
 		pane.active = tab.id.clone();
@@ -1238,7 +1242,7 @@ impl AppState {
 	/// path that is a directory is refused rather than opened as empty.
 	pub fn open_file(&mut self, pane_id: &str, path: &Path) -> Notice {
 		let Some(doc) = EditorDoc::open_file(path) else {
-			return Notice(format!("{} 是目录，编辑器只打开文件", path.display()));
+			return Notice(t!("{} 是目录，编辑器只打开文件", path.display()));
 		};
 		let existing = self.pane_mut(pane_id).and_then(|pane| {
 			pane
@@ -1260,7 +1264,7 @@ impl AppState {
 		let notice = self.push_tab(pane_id, tab);
 		if notice.0.is_empty() {
 			if let Some(error) = io_error {
-				return Notice(format!("打不开文件：{error}"));
+				return Notice(t!("打不开文件：{}", error));
 			}
 		}
 		notice
@@ -1283,12 +1287,12 @@ impl AppState {
 	/// Write one editor buffer back to its file.
 	pub fn save_editor(&mut self, pane_id: &str, tab_id: &str) -> Notice {
 		let Some(doc) = self.doc_mut(pane_id, tab_id) else {
-			return Notice("这个标签页没有打开文件".to_owned());
+			return Notice(t!("这个标签页没有打开文件").to_owned());
 		};
 		let path = doc.path.display().to_string();
 		match doc.save() {
-			Ok(()) => Notice(format!("已保存 {path}")),
-			Err(error) => Notice(format!("保存失败：{error}")),
+			Ok(()) => Notice(t!("已保存 {}", path)),
+			Err(error) => Notice(t!("保存失败：{}", error)),
 		}
 	}
 
@@ -1320,9 +1324,9 @@ impl AppState {
 			}
 		}
 		if !failed.is_empty() {
-			return Notice(format!("保存失败：{}", failed.join("；")));
+			return Notice(t!("保存失败：{}", failed.join("；")));
 		}
-		Notice(format!("已保存 {saved} 个文件"))
+		Notice(t!("已保存 {} 个文件", saved))
 	}
 
 	/// Open the ＋ picker for a target: the 大标签页 strip, or one pane.
@@ -1346,7 +1350,7 @@ impl AppState {
 			None => Notice(String::new()),
 			Some(PickerTarget::BigTab) => {
 				let Some(project) = self.active_project.clone() else {
-					return Notice("先选择一个项目".to_owned());
+					return Notice(t!("先选择一个项目").to_owned());
 				};
 				self.new_workspace_with(&project, Some(entry))
 			},
@@ -1379,9 +1383,9 @@ impl AppState {
 	pub fn toggle_statusbar(&mut self) -> Notice {
 		self.statusbar_open = !self.statusbar_open;
 		if self.statusbar_open {
-			Notice("状态栏已展开".to_owned())
+			Notice(t!("状态栏已展开").to_owned())
 		} else {
-			Notice("状态栏已收起".to_owned())
+			Notice(t!("状态栏已收起").to_owned())
 		}
 	}
 
@@ -1394,11 +1398,11 @@ impl AppState {
 	/// 分屏: one more pane, refused past three.
 	pub fn new_pane(&mut self) -> Notice {
 		let Some(ws_id) = self.active_workspace.clone() else {
-			return Notice("先打开一个工作区".to_owned());
+			return Notice(t!("先打开一个工作区").to_owned());
 		};
 		let current = self.workspace(&ws_id).map(|ws| ws.panes.len()).unwrap_or(0);
 		if current >= MAX_PANES {
-			return Notice(format!("最多分屏 {MAX_PANES} 列"));
+			return Notice(t!("最多分屏 {} 列", MAX_PANES));
 		}
 		let pane_id = self.fresh_id("pane");
 		let pane = self.basic_pane(&pane_id, current + 1);
@@ -1413,13 +1417,13 @@ impl AppState {
 	/// ✕ on a pane: refused when it is the workspace's only one.
 	pub fn close_pane(&mut self, pane_id: &str) -> Notice {
 		let Some(ws_id) = self.active_workspace.clone() else {
-			return Notice("先打开一个工作区".to_owned());
+			return Notice(t!("先打开一个工作区").to_owned());
 		};
 		let Some(ws) = self.workspace_mut(&ws_id) else {
 			return Notice(String::new());
 		};
 		if ws.panes.len() <= 1 {
-			return Notice("至少保留一个面板".to_owned());
+			return Notice(t!("至少保留一个面板").to_owned());
 		}
 		ws.panes.retain(|pane| pane.id != pane_id);
 		ws.cols = ws.cols.min(ws.panes.len() as u8).max(1);
@@ -1433,7 +1437,7 @@ impl AppState {
 			.and_then(|ws| ws.panes.first())
 			.map(|pane| pane.id.clone())
 		else {
-			return Notice("先打开一个工作区".to_owned());
+			return Notice(t!("先打开一个工作区").to_owned());
 		};
 		self.add_tab(&pane_id)
 	}
@@ -1441,7 +1445,7 @@ impl AppState {
 	/// 列数 1 · 2 · 3: creates the panes the requested column count needs.
 	pub fn set_cols(&mut self, cols: u8) -> Notice {
 		let Some(ws_id) = self.active_workspace.clone() else {
-			return Notice("先打开一个工作区".to_owned());
+			return Notice(t!("先打开一个工作区").to_owned());
 		};
 		let cols = cols.clamp(1, MAX_PANES as u8);
 		let current = self.workspace(&ws_id).map(|ws| ws.panes.len()).unwrap_or(0);
@@ -1481,7 +1485,7 @@ impl AppState {
 	pub fn focus_mode(&mut self) -> Notice {
 		self.left_collapsed = true;
 		self.right_collapsed = true;
-		Notice("已聚焦当前窗口".to_owned())
+		Notice(t!("已聚焦当前窗口").to_owned())
 	}
 
 	pub fn toggle_left(&mut self) {
@@ -1525,7 +1529,7 @@ impl AppState {
 	}
 
 	pub fn help(&mut self) -> Notice {
-		self.toast("帮助：⌘K 搜索 · ⌘B 切换侧栏 · 设置内可管理项目")
+		self.toast(t!("帮助：⌘K 搜索 · ⌘B 切换侧栏 · 设置内可管理项目"))
 	}
 
 	/// Run one state action and show whatever it had to say.

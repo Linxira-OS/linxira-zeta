@@ -28,6 +28,7 @@
 //! neutral inks instead of a new colour being invented — see
 //! [`RunState::ink`].
 
+use crate::t;
 use egui::Color32;
 
 use crate::theme;
@@ -80,13 +81,13 @@ impl RunState {
 	/// What the state means, word for word from the contract's table.
 	pub fn meaning(self) -> &'static str {
 		match self {
-			Self::Perm => "在等你批准（最高优先级，盖过其它）",
-			Self::Fail => "失败",
-			Self::Work => "正在干",
-			Self::Mon => "后台值守（等外部信号 / 定时任务）",
-			Self::Unc => "说自己干完了，但没验证 —— 不等于 done",
-			Self::Int => "中途被打断",
-			Self::Done => "完成且已确认",
+			Self::Perm => t!("在等你批准（最高优先级，盖过其它）"),
+			Self::Fail => t!("失败"),
+			Self::Work => t!("正在干"),
+			Self::Mon => t!("后台值守（等外部信号 / 定时任务）"),
+			Self::Unc => t!("说自己干完了，但没验证 —— 不等于 done"),
+			Self::Int => t!("中途被打断"),
+			Self::Done => t!("完成且已确认"),
 		}
 	}
 

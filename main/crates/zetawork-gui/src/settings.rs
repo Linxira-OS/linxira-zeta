@@ -20,10 +20,13 @@
 //! appended, and each key falling back to its default **independently** — so a
 //! hand-edited or half-written file only loses what it lost.
 
+use crate::t;
 use std::{
 	fmt,
 	path::{Path, PathBuf},
 };
+
+use crate::i18n::Lang;
 
 /// One of the 设置 modal's eight categories, in the order the modal lists them.
 ///
@@ -62,14 +65,14 @@ impl Section {
 	/// The nav label.
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::General => "常规",
-			Self::Appearance => "外观",
-			Self::Editor => "编辑器",
-			Self::Terminal => "终端",
-			Self::Keys => "快捷键",
-			Self::Projects => "项目",
-			Self::Manage => "管理",
-			Self::About => "关于",
+			Self::General => t!("常规"),
+			Self::Appearance => t!("外观"),
+			Self::Editor => t!("编辑器"),
+			Self::Terminal => t!("终端"),
+			Self::Keys => t!("快捷键"),
+			Self::Projects => t!("项目"),
+			Self::Manage => t!("管理"),
+			Self::About => t!("关于"),
 		}
 	}
 
@@ -102,9 +105,9 @@ impl Theme {
 
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Dark => "深色（默认）",
-			Self::Light => "浅色",
-			Self::System => "跟随系统",
+			Self::Dark => t!("深色（默认）"),
+			Self::Light => t!("浅色"),
+			Self::System => t!("跟随系统"),
 		}
 	}
 
@@ -135,9 +138,9 @@ impl Density {
 
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Compact => "紧凑",
-			Self::Standard => "标准",
-			Self::Spacious => "宽松",
+			Self::Compact => t!("紧凑"),
+			Self::Standard => t!("标准"),
+			Self::Spacious => t!("宽松"),
 		}
 	}
 
@@ -212,7 +215,7 @@ impl ShellChoice {
 	/// The label the 设置 modal shows.
 	pub fn label(self) -> String {
 		match self.0 {
-			None => "本机默认".to_owned(),
+			None => t!("本机默认").to_owned(),
 			Some(kind) => format!("{} · {}", kind.label(), kind.program()),
 		}
 	}
@@ -262,9 +265,9 @@ impl CloseAction {
 
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::MinimizeToBackground => "最小化到后台",
-			Self::Quit => "退出应用",
-			Self::Ask => "每次询问",
+			Self::MinimizeToBackground => t!("最小化到后台"),
+			Self::Quit => t!("退出应用"),
+			Self::Ask => t!("每次询问"),
 		}
 	}
 
@@ -299,9 +302,9 @@ impl NotifyPolicy {
 
 	pub fn label(self) -> &'static str {
 		match self {
-			Self::Off => "关",
-			Self::BackgroundOnly => "仅后台",
-			Self::Always => "总是",
+			Self::Off => t!("关"),
+			Self::BackgroundOnly => t!("仅后台"),
+			Self::Always => t!("总是"),
 		}
 	}
 
@@ -333,6 +336,8 @@ impl NotifyPolicy {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Settings {
 	pub theme: Theme,
+	/// 界面语言. Defaults to Chinese, the language every literal is authored in.
+	pub lang: Lang,
 	pub density: Density,
 	pub reduce_motion: bool,
 	pub mono_font: MonoFont,
@@ -356,6 +361,7 @@ impl Default for Settings {
 	fn default() -> Self {
 		Self {
 			theme: Theme::Dark,
+			lang: Lang::Zh,
 			density: Density::Standard,
 			reduce_motion: false,
 			mono_font: MonoFont::CascadiaCode,
@@ -380,8 +386,9 @@ impl Settings {
 
 /// The keys this file owns, with their canonical inline comment (the same
 /// shape `zeta-main`'s writer uses).
-const MANAGED: [(&str, &str); 12] = [
+const MANAGED: [(&str, &str); 13] = [
 	("theme", "dark | light | system"),
+	("lang", "zh | en"),
 	("density", "compact | standard | spacious"),
 	("reduce_motion", "turn off panel and list transitions"),
 	("editor_font", "cascadia-code | jetbrains-mono | consolas"),
@@ -462,6 +469,7 @@ fn read(text: &str) -> Settings {
 			.trim_matches('"');
 		match key.trim() {
 			"theme" => settings.theme = Theme::from_key(value).unwrap_or_default(),
+			"lang" => settings.lang = Lang::from_key(value).unwrap_or_default(),
 			"density" => settings.density = Density::from_key(value).unwrap_or_default(),
 			"reduce_motion" => settings.reduce_motion = truthy(value).unwrap_or_default(),
 			"editor_font" => settings.mono_font = MonoFont::from_key(value).unwrap_or_default(),
@@ -585,6 +593,7 @@ fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str)
 		.unwrap_or("");
 	let value = match key {
 		"theme" => settings.theme.key().to_owned(),
+		"lang" => settings.lang.key().to_owned(),
 		"density" => settings.density.key().to_owned(),
 		"reduce_motion" => settings.reduce_motion.to_string(),
 		"editor_font" => settings.mono_font.key().to_owned(),
@@ -606,12 +615,15 @@ impl fmt::Display for Settings {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(
 			f,
-			"{} · {} · {} · 编辑器 {}px · 终端 {}px",
-			self.theme.label(),
-			self.density.label(),
-			self.mono_font.label(),
-			self.editor_size,
-			self.terminal_size
+			"{}",
+			t!(
+				"{} · {} · {} · 编辑器 {}px · 终端 {}px",
+				self.theme.label(),
+				self.density.label(),
+				self.mono_font.label(),
+				self.editor_size,
+				self.terminal_size
+			)
 		)
 	}
 }
@@ -634,6 +646,7 @@ mod tests {
 		let path = dir.join("zetawork.toml");
 		let written = Settings {
 			theme: Theme::Light,
+			lang: Lang::En,
 			density: Density::Spacious,
 			reduce_motion: true,
 			mono_font: MonoFont::Consolas,

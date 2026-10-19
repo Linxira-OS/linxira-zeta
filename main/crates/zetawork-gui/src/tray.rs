@@ -93,12 +93,12 @@ impl Tray {
 impl Tray {
 	/// No tray in this build.
 	pub fn new(_ctx: &egui::Context) -> Self {
-		Self { note: Some(NOTE_NO_FEATURE.to_owned()) }
+		Self { note: Some(crate::i18n::tr(NOTE_NO_FEATURE).to_owned()) }
 	}
 
 	/// The headless constructor: identical, and named for the caller's intent.
 	pub fn disabled() -> Self {
-		Self { note: Some(NOTE_NO_FEATURE.to_owned()) }
+		Self { note: Some(crate::i18n::tr(NOTE_NO_FEATURE).to_owned()) }
 	}
 }
 
@@ -111,14 +111,14 @@ impl Tray {
 
 		let mut tray = Self { icon: None, sessions: None, shown_count: None, note: None };
 
-		let show = MenuItem::with_id(ID_SHOW, "显示窗口", true, None);
-		let sessions = MenuItem::with_id(ID_SESSIONS, "运行中会话 0", false, None);
-		let quit = MenuItem::with_id(ID_QUIT, "退出 zetawork", true, None);
+		let show = MenuItem::with_id(ID_SHOW, t!("显示窗口"), true, None);
+		let sessions = MenuItem::with_id(ID_SESSIONS, t!("运行中会话 0"), false, None);
+		let quit = MenuItem::with_id(ID_QUIT, t!("退出 zetawork"), true, None);
 		let menu =
 			match Menu::with_items(&[&show, &sessions, &PredefinedMenuItem::separator(), &quit]) {
 				Ok(menu) => menu,
 				Err(error) => {
-					tray.note = Some(format!("托盘菜单建不起来（{error}）"));
+					tray.note = Some(t!("托盘菜单建不起来（{}）", error));
 					return tray;
 				},
 			};
@@ -137,13 +137,13 @@ impl Tray {
 		let icon = match tray_icon::Icon::from_rgba(mark_rgba(MARK_SIZE), MARK_SIZE, MARK_SIZE) {
 			Ok(icon) => icon,
 			Err(error) => {
-				tray.note = Some(format!("托盘图标画不出来（{error}）"));
+				tray.note = Some(t!("托盘图标画不出来（{}）", error));
 				return tray;
 			},
 		};
 		match tray_icon::TrayIcon::builder()
 			.with_id("zetawork")
-			.with_tooltip("zetawork — 工作台在后台运行")
+			.with_tooltip(t!("zetawork — 工作台在后台运行"))
 			.with_icon(icon)
 			.with_menu(Box::new(menu))
 			.build()
@@ -155,7 +155,7 @@ impl Tray {
 			Err(error) => {
 				// Linux without libayatana-appindicator3 / a StatusNotifier
 				// host lands here, and so does a headless session.
-				tray.note = Some(format!("托盘图标建不起来（{error}）"));
+				tray.note = Some(t!("托盘图标建不起来（{}）", error));
 			},
 		}
 		tray
@@ -163,7 +163,12 @@ impl Tray {
 
 	/// The headless constructor: no tray, and a note saying so.
 	pub fn disabled() -> Self {
-		Self { icon: None, sessions: None, shown_count: None, note: Some(NOTE_NO_FEATURE.to_owned()) }
+		Self {
+			icon: None,
+			sessions: None,
+			shown_count: None,
+			note: Some(crate::i18n::tr(NOTE_NO_FEATURE).to_owned()),
+		}
 	}
 
 	/// Keep the 运行中会话数 line current. Only writes when the number moved, so
@@ -173,7 +178,7 @@ impl Tray {
 			return;
 		}
 		if let Some(item) = self.sessions.as_ref() {
-			item.set_text(format!("运行中会话 {count}"));
+			item.set_text(t!("运行中会话 {}", count));
 		}
 		self.shown_count = Some(count);
 	}

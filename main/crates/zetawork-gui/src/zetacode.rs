@@ -33,6 +33,7 @@
 //! when the edit actually changes the bytes.
 
 #[cfg(windows)]
+use crate::t;
 use std::os::windows::process::CommandExt as _;
 use std::{
 	fs,
@@ -257,18 +258,17 @@ pub fn missing_sentence(companion: Companion, searched: &[PathBuf]) -> String {
 		.iter()
 		.map(|path| path.display().to_string())
 		.collect();
-	format!("未找到随包的 {}：{}", companion.name(), paths.join(", "))
+	t!("未找到随包的 {}：{}", companion.name(), paths.join(", "))
 }
 
 /// Resolve `companion` for this process, or the sentence explaining why the
 /// install cannot open it.
 pub fn resolve(companion: Companion) -> Result<PathBuf, String> {
-	let missing = |detail: String| format!("未找到随包的 {}：{}", companion.name(), detail);
-	let exe =
-		std::env::current_exe().map_err(|err| missing(format!("无法定位运行目录（{err}）")))?;
+	let missing = |detail: String| t!("未找到随包的 {}：{}", companion.name(), detail);
+	let exe = std::env::current_exe().map_err(|err| missing(t!("无法定位运行目录（{}）", err)))?;
 	let exe_dir = exe
 		.parent()
-		.ok_or_else(|| missing("无法定位运行目录".to_owned()))?;
+		.ok_or_else(|| missing(t!("无法定位运行目录").to_owned()))?;
 	resolve_in(exe_dir, companion).map_err(|searched| missing_sentence(companion, &searched))
 }
 
@@ -303,7 +303,7 @@ impl ZetacodeOption {
 		self
 			.value
 			.clone()
-			.unwrap_or_else(|| "（未设置）".to_string())
+			.unwrap_or_else(|| t!("（未设置）").to_string())
 	}
 }
 
@@ -327,9 +327,9 @@ impl Provider {
 	/// The provider's model count as a label for the modal's 服务商 row.
 	pub fn models_label(&self) -> String {
 		if self.models == 0 {
-			"无模型".to_string()
+			t!("无模型").to_string()
 		} else {
-			format!("{} 个模型", self.models)
+			t!("{} 个模型", self.models)
 		}
 	}
 }

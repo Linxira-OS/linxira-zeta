@@ -34,6 +34,7 @@
 //! owned and removes only that. A caller with a different home (the tests) gets
 //! a different tree and nothing else.
 
+use crate::t;
 use std::path::{Component, Path, PathBuf};
 
 /// The directory the GUI owns for saved workspace state.
@@ -73,9 +74,9 @@ impl Report {
 	/// The one-line result the settings row shows.
 	pub fn summary(&self) -> String {
 		if self.is_empty() {
-			return "没有找到工作区记忆（工作区状态与项目会话日志都已为空）".to_owned();
+			return t!("没有找到工作区记忆（工作区状态与项目会话日志都已为空）").to_owned();
 		}
-		let mut text = format!(
+		let mut text = t!(
 			"已清除 {} 个路径 · {} 个文件 · {} 个目录 · {}",
 			self.paths.len(),
 			self.files,
@@ -83,7 +84,7 @@ impl Report {
 			bytes_label(self.bytes)
 		);
 		if !self.errors.is_empty() {
-			text.push_str(&format!(" · {} 个未能删除", self.errors.len()));
+			text.push_str(&t!(" · {} 个未能删除", self.errors.len()));
 		}
 		text
 	}
@@ -237,7 +238,7 @@ pub fn clear_workspace_memory(home: &Path, workspace_paths: &[PathBuf]) -> Repor
 		if !path.starts_with(&owned_root) {
 			report
 				.errors
-				.push((path, "不在 ~/.zeta 内，已跳过".to_owned()));
+				.push((path, t!("不在 ~/.zeta 内，已跳过").to_owned()));
 			continue;
 		}
 		let metadata = match std::fs::symlink_metadata(&path) {

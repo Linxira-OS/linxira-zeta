@@ -30,6 +30,7 @@
 //! that was painted as a blank would stamp a hole over the glyph's second half
 //! and shift everything after it.
 
+use crate::t;
 use std::{cell::RefCell, convert::Infallible, rc::Rc};
 
 use egui::{Align2, Color32, CornerRadius, FontFamily, FontId, Painter, Pos2, Rect as ERect, Ui};
@@ -206,9 +207,13 @@ impl GridMetrics {
 
 	/// `rows × cols` of the derived grid, for the pane's diagnostic line.
 	pub fn describe(&self) -> String {
-		format!(
-			"{}×{} 格 · 单元 {:.2}×{:.2}pt · 字体 {:.0}pt",
-			self.cols, self.rows, self.cell_w, self.cell_h, self.font_size
+		t!(
+			"{}×{} 格 · 单元 {}×{}pt · 字体 {}pt",
+			self.cols,
+			self.rows,
+			format!("{:.2}", self.cell_w),
+			format!("{:.2}", self.cell_h),
+			format!("{:.0}", self.font_size)
 		)
 	}
 }

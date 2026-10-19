@@ -6,6 +6,7 @@
 //! spec's stylesheet spells it once, instead of repeating the geometry in every
 //! panel.
 
+use crate::t;
 use egui::{
 	Align2, Color32, CornerRadius, FontId, Pos2, Rect, Response, Sense, Stroke, Ui, pos2, vec2,
 };
@@ -47,7 +48,7 @@ pub fn status_word(ui: &Ui, at: Pos2, state: Option<RunState>, size: f32, availa
 pub fn status_tooltip(state: Option<RunState>) -> String {
 	match state {
 		Some(state) => format!("{} — {}", state.word(), state.meaning()),
-		None => "还没有会话状态".to_owned(),
+		None => t!("还没有会话状态").to_owned(),
 	}
 }
 

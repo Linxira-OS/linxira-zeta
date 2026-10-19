@@ -52,6 +52,7 @@
 //! a non-JSON body is an error, and [`FetchError::Connect`] is the one outcome
 //! the panel renders as “stats 服务未启动”.
 
+use crate::t;
 use std::{
 	io::{Read as _, Write as _},
 	net::ToSocketAddrs as _,
@@ -90,9 +91,9 @@ impl Range {
 	/// The button label.
 	pub fn label(self) -> &'static str {
 		match self {
-			Range::Today => "今天",
-			Range::SevenDays => "7 天",
-			Range::ThirtyDays => "30 天",
+			Range::Today => t!("今天"),
+			Range::SevenDays => t!("7 天"),
+			Range::ThirtyDays => t!("30 天"),
 		}
 	}
 
@@ -108,9 +109,9 @@ impl Range {
 	/// The window in words, for the chart's title.
 	pub fn window(self) -> &'static str {
 		match self {
-			Range::Today => "近 24 小时",
-			Range::SevenDays => "近 7 天",
-			Range::ThirtyDays => "近 30 天",
+			Range::Today => t!("近 24 小时"),
+			Range::SevenDays => t!("近 7 天"),
+			Range::ThirtyDays => t!("近 30 天"),
 		}
 	}
 
@@ -258,12 +259,12 @@ impl FetchError {
 	/// One line naming the failure without inventing a reason.
 	pub fn message(&self) -> String {
 		match self {
-			Self::Address(why) => format!("地址不可读取：{why}"),
-			Self::Connect(why) => format!("连接失败：{why}"),
-			Self::Io(why) => format!("读取应答失败：{why}"),
-			Self::Status(code, body) if body.is_empty() => format!("stats 返回 HTTP {code}"),
-			Self::Status(code, body) => format!("stats 返回 HTTP {code}：{body}"),
-			Self::Decode(why) => format!("stats 应答无法解析：{why}"),
+			Self::Address(why) => t!("地址不可读取：{}", why),
+			Self::Connect(why) => t!("连接失败：{}", why),
+			Self::Io(why) => t!("读取应答失败：{}", why),
+			Self::Status(code, body) if body.is_empty() => t!("stats 返回 HTTP {}", code),
+			Self::Status(code, body) => t!("stats 返回 HTTP {}：{}", code, body),
+			Self::Decode(why) => t!("stats 应答无法解析：{}", why),
 		}
 	}
 }
@@ -293,14 +294,14 @@ fn query_path(path: &str, range: &str) -> String {
 pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
 	let (host, port, authority) = endpoint(origin)?;
 	if !path.starts_with('/') {
-		return Err(FetchError::Address(format!("{path} 不是以 / 开头的路径")));
+		return Err(FetchError::Address(t!("{} 不是以 / 开头的路径", path)));
 	}
 	let addresses: Vec<std::net::SocketAddr> = (host, port)
 		.to_socket_addrs()
-		.map_err(|error| FetchError::Connect(format!("解析 {host}:{port} 失败：{error}")))?
+		.map_err(|error| FetchError::Connect(t!("解析 {}:{} 失败：{}", host, port, error)))?
 		.collect();
 	if addresses.is_empty() {
-		return Err(FetchError::Connect(format!("{host}:{port} 没有可用地址")));
+		return Err(FetchError::Connect(t!("{}:{} 没有可用地址", host, port)));
 	}
 	// `localhost` can resolve to `::1` first while the server binds
 	// `127.0.0.1`; try each address before calling the server absent.
@@ -317,30 +318,30 @@ pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
 	}
 	let mut stream = stream.ok_or_else(|| {
 		let error = last.map(|error| error.to_string()).unwrap_or_default();
-		FetchError::Connect(format!("连接 {host}:{port} 失败：{error}"))
+		FetchError::Connect(t!("连接 {}:{} 失败：{}", host, port, error))
 	})?;
 	stream
 		.set_read_timeout(Some(TIMEOUT))
-		.map_err(|error| FetchError::Io(format!("设置读超时失败：{error}")))?;
+		.map_err(|error| FetchError::Io(t!("设置读超时失败：{}", error)))?;
 	stream
 		.set_write_timeout(Some(TIMEOUT))
-		.map_err(|error| FetchError::Io(format!("设置写超时失败：{error}")))?;
+		.map_err(|error| FetchError::Io(t!("设置写超时失败：{}", error)))?;
 	let request = format!(
 		"GET {path} HTTP/1.1\r\nHost: {authority}\r\nAccept: application/json\r\nConnection: \
 		 close\r\n\r\n"
 	);
 	stream
 		.write_all(request.as_bytes())
-		.map_err(|error| FetchError::Io(format!("发送请求失败：{error}")))?;
+		.map_err(|error| FetchError::Io(t!("发送请求失败：{}", error)))?;
 	let mut bytes = Vec::new();
 	stream
 		.read_to_end(&mut bytes)
-		.map_err(|error| FetchError::Io(format!("读取应答失败：{error}")))?;
+		.map_err(|error| FetchError::Io(t!("读取应答失败：{}", error)))?;
 	let Some((head, body)) = split_response(&bytes) else {
-		return Err(FetchError::Io("应答没有空行分隔的头部与正文".to_owned()));
+		return Err(FetchError::Io(t!("应答没有空行分隔的头部与正文").to_owned()));
 	};
 	let head = String::from_utf8_lossy(head);
-	let code = status_of(&head).ok_or_else(|| FetchError::Io("应答没有状态行".to_owned()))?;
+	let code = status_of(&head).ok_or_else(|| FetchError::Io(t!("应答没有状态行").to_owned()))?;
 	let body = if head
 		.to_ascii_lowercase()
 		.contains("transfer-encoding: chunked")
@@ -353,27 +354,27 @@ pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
 		let text = String::from_utf8_lossy(&body);
 		return Err(FetchError::Status(code, snippet(text.trim())));
 	}
-	String::from_utf8(body).map_err(|error| FetchError::Decode(format!("应答不是 UTF-8：{error}")))
+	String::from_utf8(body).map_err(|error| FetchError::Decode(t!("应答不是 UTF-8：{}", error)))
 }
 
 /// `(host, port, authority)` for a loopback `http` origin; anything else —
 /// `https`, a remote host, a missing port — is refused before a socket opens.
 fn endpoint(origin: &str) -> Result<(&str, u16, &str), FetchError> {
 	let scheme = crate::stats::scheme_of(origin)
-		.ok_or_else(|| FetchError::Address(format!("{origin} 没有 scheme")))?;
+		.ok_or_else(|| FetchError::Address(t!("{} 没有 scheme", origin)))?;
 	if !scheme.eq_ignore_ascii_case("http") {
-		return Err(FetchError::Address(format!("{origin} 不是 http 地址")));
+		return Err(FetchError::Address(t!("{} 不是 http 地址", origin)));
 	}
 	let authority = crate::stats::authority_of(origin)
-		.ok_or_else(|| FetchError::Address(format!("{origin} 没有主机名")))?;
+		.ok_or_else(|| FetchError::Address(t!("{} 没有主机名", origin)))?;
 	let host = crate::stats::host_of(authority);
 	if !(host == "127.0.0.1" || host == "::1" || host.eq_ignore_ascii_case("localhost")) {
-		return Err(FetchError::Address(format!("{host} 不是本机回环地址")));
+		return Err(FetchError::Address(t!("{} 不是本机回环地址", host)));
 	}
 	let port = authority
 		.rsplit_once(':')
 		.and_then(|(_, port)| port.parse::<u16>().ok())
-		.ok_or_else(|| FetchError::Address(format!("{authority} 没有端口")))?;
+		.ok_or_else(|| FetchError::Address(t!("{} 没有端口", authority)))?;
 	Ok((host, port, authority))
 }
 
@@ -401,19 +402,19 @@ fn dechunk(mut rest: &[u8]) -> Result<Vec<u8>, FetchError> {
 	let mut out = Vec::new();
 	loop {
 		let line_end =
-			find(rest, b"\r\n").ok_or_else(|| FetchError::Io("分块应答缺少长度行".to_owned()))?;
+			find(rest, b"\r\n").ok_or_else(|| FetchError::Io(t!("分块应答缺少长度行").to_owned()))?;
 		let line = &rest[..line_end];
 		let hex = line.split(|byte| *byte == b';').next().unwrap_or(b"");
-		let hex =
-			std::str::from_utf8(hex).map_err(|_| FetchError::Io("分块长度不是 ASCII".to_owned()))?;
+		let hex = std::str::from_utf8(hex)
+			.map_err(|_| FetchError::Io(t!("分块长度不是 ASCII").to_owned()))?;
 		let size = usize::from_str_radix(hex.trim(), 16)
-			.map_err(|_| FetchError::Io(format!("分块长度 {hex:?} 无效")))?;
+			.map_err(|_| FetchError::Io(t!("分块长度 {} 无效", format!("{hex:?}"))))?;
 		rest = &rest[line_end + 2..];
 		if size == 0 {
 			return Ok(out);
 		}
 		if rest.len() < size {
-			return Err(FetchError::Io("分块比声明的长度短".to_owned()));
+			return Err(FetchError::Io(t!("分块比声明的长度短").to_owned()));
 		}
 		out.extend_from_slice(&rest[..size]);
 		rest = &rest[size..];
@@ -434,12 +435,12 @@ fn snippet(text: &str) -> String {
 /// Decode `/api/stats/overview`.
 pub fn decode_overview(body: &str) -> Result<Overview, String> {
 	let value: Value =
-		serde_json::from_str(body).map_err(|error| format!("overview 不是 JSON：{error}"))?;
-	let root = value.as_object().ok_or("overview 的顶层不是对象")?;
+		serde_json::from_str(body).map_err(|error| t!("overview 不是 JSON：{}", error))?;
+	let root = value.as_object().ok_or(t!("overview 的顶层不是对象"))?;
 	let overall = root
 		.get("overall")
 		.and_then(Value::as_object)
-		.ok_or("overview 缺少 overall 对象")?;
+		.ok_or(t!("overview 缺少 overall 对象"))?;
 	Ok(Overview {
 		overall: Overall {
 			total_requests: uint(overall, "totalRequests"),
@@ -472,8 +473,8 @@ pub fn decode_overview(body: &str) -> Result<Overview, String> {
 /// Decode `/api/stats/costs`.
 pub fn decode_costs(body: &str) -> Result<Costs, String> {
 	let value: Value =
-		serde_json::from_str(body).map_err(|error| format!("costs 不是 JSON：{error}"))?;
-	let root = value.as_object().ok_or("costs 的顶层不是对象")?;
+		serde_json::from_str(body).map_err(|error| t!("costs 不是 JSON：{}", error))?;
+	let root = value.as_object().ok_or(t!("costs 的顶层不是对象"))?;
 	Ok(Costs {
 		rows: array(root, "costSeries")
 			.iter()
@@ -485,8 +486,8 @@ pub fn decode_costs(body: &str) -> Result<Costs, String> {
 /// Decode `/api/status`.
 pub fn decode_status(body: &str) -> Result<ServiceStatus, String> {
 	let value: Value =
-		serde_json::from_str(body).map_err(|error| format!("status 不是 JSON：{error}"))?;
-	let root = value.as_object().ok_or("status 的顶层不是对象")?;
+		serde_json::from_str(body).map_err(|error| t!("status 不是 JSON：{}", error))?;
+	let root = value.as_object().ok_or(t!("status 的顶层不是对象"))?;
 	let sync = root.get("sync").and_then(Value::as_object);
 	Ok(ServiceStatus {
 		version: uint(root, "version"),

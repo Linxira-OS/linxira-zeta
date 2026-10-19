@@ -9,6 +9,7 @@
 //! writes to the repository: 暂存 / 提交 / 创建 PR exist as the spec draws
 //! them, and are disabled with a line naming what would back them.
 
+use crate::t;
 use std::collections::HashSet;
 
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
@@ -61,7 +62,7 @@ pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 			)
 			.layout(Layout::right_to_left(Align::Center)),
 	);
-	if icon_button(&mut collapse, Icon::ChevronRight, 26.0, false, "关闭右侧栏").clicked() {
+	if icon_button(&mut collapse, Icon::ChevronRight, 26.0, false, t!("关闭右侧栏")).clicked() {
 		shell.state.toggle_right();
 	}
 	let panel = Rect::from_min_max(pos2(rect.min.x, head.max.y), rect.max);
@@ -108,7 +109,7 @@ pub fn right_rail(ui: &mut Ui, shell: &mut Shell) {
 
 fn files_panel(ui: &mut Ui, shell: &mut Shell) {
 	panel_head(ui, RightTab::Files.title(), |ui| {
-		if icon_button(ui, Icon::Refresh, 20.0, false, "重新读取目录").clicked() {
+		if icon_button(ui, Icon::Refresh, 20.0, false, t!("重新读取目录")).clicked() {
 			shell.reload_tree();
 		}
 	});
@@ -143,7 +144,7 @@ fn files_panel(ui: &mut Ui, shell: &mut Shell) {
 		.unwrap_or_default();
 	let root = shell.tree.root().cloned();
 	let Some(root) = root else {
-		empty_note(ui, "先打开一个工作区");
+		empty_note(ui, t!("先打开一个工作区"));
 		return;
 	};
 	let root_path = std::path::PathBuf::from(&path);
@@ -254,7 +255,7 @@ fn tree_rows(
 					},
 					None => shell
 						.state
-						.show(crate::state::Notice("先打开一个工作区，再打开文件".to_owned())),
+						.show(crate::state::Notice(t!("先打开一个工作区，再打开文件").to_owned())),
 				}
 			}
 		}
@@ -270,8 +271,8 @@ fn tree_rows(
 // ── 历史 · Agent 对话 ─────────────────────────────────────────────────────
 
 fn history_panel(ui: &mut Ui, _shell: &mut Shell) {
-	panel_head(ui, "历史 · Agent 对话", |_ui| {});
-	empty_note(ui, "还没有对话记录");
+	panel_head(ui, t!("历史 · Agent 对话"), |_ui| {});
+	empty_note(ui, t!("还没有对话记录"));
 }
 
 // ── Git 状态 ──────────────────────────────────────────────────────────────
@@ -281,7 +282,7 @@ fn history_panel(ui: &mut Ui, _shell: &mut Shell) {
 /// `key` distinguishes the scroll state of the two places it is drawn.
 pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 	panel_head(ui, RightTab::Git.title(), |ui| {
-		if icon_button(ui, Icon::Refresh, 20.0, false, "重新读取 git 状态").clicked() {
+		if icon_button(ui, Icon::Refresh, 20.0, false, t!("重新读取 git 状态")).clicked() {
 			shell.refresh_git();
 		}
 	});
@@ -290,11 +291,11 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 	}
 	let status = shell.git.clone();
 	let Some(status) = status else {
-		empty_note(ui, "正在读取 git 状态…");
+		empty_note(ui, t!("正在读取 git 状态…"));
 		return;
 	};
 	if let Some(error) = &status.error {
-		empty_note(ui, &format!("无法读取 git 状态：{}", short_git_error(error)));
+		empty_note(ui, &t!("无法读取 git 状态：{}", short_git_error(error)));
 		return;
 	}
 	egui::ScrollArea::vertical()
@@ -304,13 +305,13 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 			ui.spacing_mut().item_spacing.y = 4.0;
 			branch_row(ui, &status);
 
-			group(ui, "更改", status.changed.len(), "M", true, |ui| {
+			group(ui, t!("更改"), status.changed.len(), "M", true, |ui| {
 				for file in &status.changed {
 					file_row(ui, &file.path, Some((file.insertions, file.deletions)), Some("M"));
 				}
 			});
 			if !status.untracked.is_empty() {
-				group(ui, "未跟踪文件", status.untracked.len(), "U", false, |ui| {
+				group(ui, t!("未跟踪文件"), status.untracked.len(), "U", false, |ui| {
 					for file in &status.untracked {
 						file_row(ui, &file.path, None, Some("U"));
 					}
@@ -318,7 +319,7 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 			}
 			let commits_open = shell.state.commits_open;
 			let commits: Vec<crate::git::GitCommit> = status.commits.clone();
-			let head = group(ui, "提交", commits.len(), "", true, |ui| {
+			let head = group(ui, t!("提交"), commits.len(), "", true, |ui| {
 				if commits_open {
 					for commit in &commits {
 						commit_row(ui, commit);
@@ -339,7 +340,7 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 /// order lives in [`crate::conversation::resolve`].
 fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 	panel_head(ui, RightTab::Usage.title(), |ui| {
-		if icon_button(ui, Icon::Refresh, 20.0, false, "重新读取会话用量").clicked() {
+		if icon_button(ui, Icon::Refresh, 20.0, false, t!("重新读取会话用量")).clicked() {
 			shell.conversation.invalidate();
 		}
 	});
@@ -368,7 +369,7 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 			truncated_mono(
 				ui,
 				pos2(scope.min.x + 4.0, scope.min.y + 24.0),
-				&format!("分支 {branch}"),
+				&t!("分支 {}", branch),
 				11.0,
 				theme::TEXT_3,
 				scope.width() - 8.0,
@@ -381,7 +382,7 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 					truncated_text(
 						ui,
 						pos2(row.min.x + 4.0, row.center().y),
-						conversation::NO_SESSION,
+						crate::i18n::tr(conversation::NO_SESSION),
 						11.5,
 						theme::TEXT_3,
 						row.width() - 8.0,
@@ -403,22 +404,22 @@ fn usage_card(ui: &mut Ui, resolved: &conversation::Resolved) {
 		.show(ui, |ui| {
 			ui.set_width(ui.available_width());
 			ui.spacing_mut().item_spacing.y = 1.0;
-			usage_row(ui, "会话", summary.id.as_deref().unwrap_or("—"), true);
-			usage_row(ui, "标题", summary.title.as_deref().unwrap_or("—"), false);
-			usage_row(ui, "输入", &format!("{} tokens", grouped(summary.input)), true);
-			usage_row(ui, "输出", &format!("{} tokens", grouped(summary.output)), true);
-			usage_row(ui, "总计", &format!("{} tokens", grouped(summary.total)), true);
+			usage_row(ui, t!("会话"), summary.id.as_deref().unwrap_or("—"), true);
+			usage_row(ui, t!("标题"), summary.title.as_deref().unwrap_or("—"), false);
+			usage_row(ui, t!("输入"), &format!("{} tokens", grouped(summary.input)), true);
+			usage_row(ui, t!("输出"), &format!("{} tokens", grouped(summary.output)), true);
+			usage_row(ui, t!("总计"), &format!("{} tokens", grouped(summary.total)), true);
 			let cost = summary.cost_text().unwrap_or_else(|| {
 				if summary.usage_entries > 0 {
-					"未定价"
+					t!("未定价")
 				} else {
 					"—"
 				}
 				.to_owned()
 			});
-			usage_row(ui, "费用", &cost, true);
-			usage_row(ui, "模型", summary.model.as_deref().unwrap_or("—"), true);
-			usage_row(ui, "最后一条", summary.last_text().as_deref().unwrap_or("—"), true);
+			usage_row(ui, t!("费用"), &cost, true);
+			usage_row(ui, t!("模型"), summary.model.as_deref().unwrap_or("—"), true);
+			usage_row(ui, t!("最后一条"), summary.last_text().as_deref().unwrap_or("—"), true);
 			ui.add_space(6.0);
 			context_share(ui, summary);
 		});
@@ -427,7 +428,7 @@ fn usage_card(ui: &mut Ui, resolved: &conversation::Resolved) {
 		ui.painter().text(
 			pos2(row.min.x + 4.0, row.center().y),
 			egui::Align2::LEFT_CENTER,
-			"会话日志里还没有 usage 条目",
+			t!("会话日志里还没有 usage 条目"),
 			egui::FontId::new(11.0, egui::FontFamily::Proportional),
 			theme::TEXT_3,
 		);
@@ -441,7 +442,7 @@ fn context_share(ui: &mut Ui, summary: &conversation::UsageSummary) {
 	ui.painter().text(
 		pos2(head.min.x + 2.0, head.center().y),
 		egui::Align2::LEFT_CENTER,
-		"上下文",
+		t!("上下文"),
 		egui::FontId::new(11.0, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
@@ -465,7 +466,7 @@ fn context_share(ui: &mut Ui, summary: &conversation::UsageSummary) {
 			ui.painter().text(
 				pos2(row.min.x + 2.0, row.center().y),
 				egui::Align2::LEFT_CENTER,
-				"窗口未知，不显示占比",
+				t!("窗口未知，不显示占比"),
 				egui::FontId::new(10.5, egui::FontFamily::Proportional),
 				theme::TEXT_3,
 			);
@@ -553,13 +554,13 @@ fn grouped(value: u64) -> String {
 /// else is cut to a fixed budget with an ellipsis.
 fn short_git_error(error: &str) -> String {
 	for (needle, phrase) in [
-		("cwd does not exist", "目录不存在"),
-		("cannot change to", "目录不存在"),
-		("does not exist", "目录不存在"),
-		("not a git repository", "不是 git 仓库"),
-		("ambiguous argument", "还没有提交"),
-		("unknown revision", "还没有提交"),
-		("permission denied", "没有权限"),
+		("cwd does not exist", t!("目录不存在")),
+		("cannot change to", t!("目录不存在")),
+		("does not exist", t!("目录不存在")),
+		("not a git repository", t!("不是 git 仓库")),
+		("ambiguous argument", t!("还没有提交")),
+		("unknown revision", t!("还没有提交")),
+		("permission denied", t!("没有权限")),
 	] {
 		if error.contains(needle) {
 			return phrase.to_owned();
@@ -594,7 +595,7 @@ fn branch_row(ui: &mut Ui, status: &crate::git::GitStatus) {
 		.upstream
 		.as_ref()
 		.map(|name| format!("→ {name}"))
-		.unwrap_or_else(|| "无上游分支".to_owned());
+		.unwrap_or_else(|| t!("无上游分支").to_owned());
 	truncated_mono(
 		ui,
 		pos2(rect.min.x + 23.0 + 120.0, rect.center().y),

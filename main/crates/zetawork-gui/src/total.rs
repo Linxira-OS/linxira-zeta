@@ -24,6 +24,7 @@
 //! what would have to be read. Clicking a row opens that workspace, which is
 //! how a `—` row gets its numbers.
 
+use crate::t;
 use egui::{Align2, CornerRadius, FontId, Rect, Sense, Stroke, pos2, vec2};
 
 use crate::{
@@ -104,7 +105,7 @@ pub fn page(ui: &mut egui::Ui, shell: &mut Shell) {
 		shell.state.act(|state| {
 			let notice = state.select_workspace(&id);
 			if notice.0.is_empty() {
-				Notice(format!("已打开「{name}」"))
+				Notice(t!("已打开「{}」", name))
 			} else {
 				notice
 			}
@@ -118,7 +119,7 @@ pub fn page(ui: &mut egui::Ui, shell: &mut Shell) {
 		ui.painter().text(
 			pos2(inner.min.x, note_y),
 			Align2::LEFT_TOP,
-			NOTE,
+			crate::i18n::tr(NOTE),
 			FontId::new(11.0, egui::FontFamily::Proportional),
 			theme::TEXT_3,
 		);
@@ -143,14 +144,21 @@ fn head_row(ui: &egui::Ui, rect: Rect, widths: &[f32; 6]) {
 	);
 	let mut x = rect.min.x;
 	for (index, (label, _)) in COLUMNS.iter().enumerate() {
-		truncated_text(ui, pos2(x, rect.center().y), label, 11.5, theme::TEXT_2, widths[index] - 8.0);
+		truncated_text(
+			ui,
+			pos2(x, rect.center().y),
+			crate::i18n::tr(label),
+			11.5,
+			theme::TEXT_2,
+			widths[index] - 8.0,
+		);
 		if *label == "±行" {
 			ui.interact(
 				Rect::from_min_size(pos2(x, rect.min.y), vec2(widths[index], rect.height())),
 				ui.id().with("total-git-hint"),
 				Sense::hover(),
 			)
-			.on_hover_text(GIT_HINT);
+			.on_hover_text(crate::i18n::tr(GIT_HINT));
 		}
 		x += widths[index];
 	}

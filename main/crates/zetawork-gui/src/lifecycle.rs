@@ -45,6 +45,7 @@
 //! | loopback `bind` is refused by policy | claim `Unavailable`, start normally, record the OS message |
 //! | `~/.zeta` cannot be written | the lock file is skipped; the default port is used |
 
+use crate::t;
 use std::{
 	io::{BufRead, BufReader, ErrorKind, Write},
 	net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream},
@@ -235,19 +236,18 @@ pub fn claim() -> Claim {
 		Probe::Squat | Probe::Silent => {},
 	}
 	let mut notes = Vec::new();
-	for addr in [default] {
-		match TcpListener::bind(addr) {
-			Ok(listener) => {
-				let _ = listener.set_nonblocking(true);
-				if let Ok(port) = listener.local_addr().map(|addr| addr.port()) {
-					if let Err(error) = write_lock(port) {
-						notes.push(format!("单实例锁文件写不进（{error}）"));
-					}
+	let addr = default;
+	match TcpListener::bind(addr) {
+		Ok(listener) => {
+			let _ = listener.set_nonblocking(true);
+			if let Ok(port) = listener.local_addr().map(|addr| addr.port()) {
+				if let Err(error) = write_lock(port) {
+					notes.push(t!("单实例锁文件写不进（{}）", error));
 				}
-				return Claim::Owner(listener);
-			},
-			Err(error) => notes.push(format!("回环端口 {addr} 绑定失败（{error}）")),
-		}
+			}
+			return Claim::Owner(listener);
+		},
+		Err(error) => notes.push(t!("回环端口 {} 绑定失败（{}）", addr, error)),
 	}
 	Claim::Unavailable(notes.join("；"))
 }
@@ -399,7 +399,7 @@ impl Lifecycle {
 				// happens on a race: two launches a few milliseconds apart.
 				self
 					.notes
-					.push("另一个 zetawork 刚刚启动（单实例竞态）".to_owned());
+					.push(t!("另一个 zetawork 刚刚启动（单实例竞态）").to_owned());
 			},
 			Claim::Unavailable(reason) => self.notes.push(reason),
 		}
@@ -511,31 +511,31 @@ pub fn modal(ctx: &Context, shell: &mut Shell) {
 					ui.set_min_width(360.0);
 					ui.vertical(|ui| {
 						ui.label(
-							egui::RichText::new("关闭窗口")
+							egui::RichText::new(t!("关闭窗口"))
 								.size(14.0)
 								.strong()
 								.color(crate::theme::TEXT),
 						);
 						ui.label(
-							egui::RichText::new("会话与后台任务仍在运行，选择怎么处理这个窗口。")
+							egui::RichText::new(t!("会话与后台任务仍在运行，选择怎么处理这个窗口。"))
 								.size(12.0)
 								.color(crate::theme::TEXT_2),
 						);
 						ui.add_space(12.0);
 						ui.horizontal(|ui| {
-							if ui.button("最小化到后台").clicked() {
+							if ui.button(t!("最小化到后台")).clicked() {
 								answer = Some(CloseDecision::Background);
 							}
-							if ui.button("退出应用").clicked() {
+							if ui.button(t!("退出应用")).clicked() {
 								answer = Some(CloseDecision::Quit);
 							}
-							if ui.button("取消").clicked() {
+							if ui.button(t!("取消")).clicked() {
 								cancel = true;
 							}
 						});
 						ui.add_space(8.0);
 						if let Some(ask) = shell.lifecycle.ask.as_mut() {
-							ui.checkbox(&mut ask.remember, "记住我的选择，不再询问");
+							ui.checkbox(&mut ask.remember, t!("记住我的选择，不再询问"));
 						}
 					});
 				});

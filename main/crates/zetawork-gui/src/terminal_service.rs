@@ -30,6 +30,7 @@
 //! back to [`crate::live`]. The reason is kept and drawn in the pane's status
 //! line, once, instead of leaving the user with a blank grid.
 
+use crate::t;
 use std::{
 	collections::BTreeMap,
 	io::{Read, Write},
@@ -120,13 +121,10 @@ pub(crate) fn ensure(origin: &str, cwd: &Path, instance: &str) -> Result<Attach,
 	.to_string();
 	let (status, body) = post_json(origin, "/api/terminal/ensure", &body)?;
 	if status != 200 {
-		return Err(format!("serve 拒绝终端 attach（{status}）：{}", error_text(&body)));
+		return Err(t!("serve 拒绝终端 attach（{}）：{}", status, error_text(&body)));
 	}
 	parse_attach(&body).ok_or_else(|| {
-		format!(
-			"serve 的终端 attach 应答没有 id：{}",
-			body.trim().chars().take(160).collect::<String>()
-		)
+		t!("serve 的终端 attach 应答没有 id：{}", body.trim().chars().take(160).collect::<String>())
 	})
 }
 
@@ -140,7 +138,7 @@ fn post_resize(origin: &str, id: &str, cols: u16, rows: u16) -> Result<(), Strin
 	if status == 200 {
 		Ok(())
 	} else {
-		Err(format!("serve 拒绝 resize（{status}）：{}", error_text(&body)))
+		Err(t!("serve 拒绝 resize（{}）：{}", status, error_text(&body)))
 	}
 }
 
@@ -158,10 +156,10 @@ fn post_json(origin: &str, path: &str, body: &str) -> Result<(u16, String), Stri
 	let mut stream = ws::dial(&host, port, HTTP_TIMEOUT)?;
 	stream
 		.set_read_timeout(Some(HTTP_TIMEOUT))
-		.map_err(|error| format!("设置读超时失败：{error}"))?;
+		.map_err(|error| t!("设置读超时失败：{}", error))?;
 	stream
 		.set_write_timeout(Some(HTTP_TIMEOUT))
-		.map_err(|error| format!("设置写超时失败：{error}"))?;
+		.map_err(|error| t!("设置写超时失败：{}", error))?;
 	let request = format!(
 		"POST {path} HTTP/1.1\r\nHost: {authority}\r\nContent-Type: \
 		 application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
@@ -169,17 +167,17 @@ fn post_json(origin: &str, path: &str, body: &str) -> Result<(u16, String), Stri
 	);
 	stream
 		.write_all(request.as_bytes())
-		.map_err(|error| format!("发送 {path} 失败：{error}"))?;
+		.map_err(|error| t!("发送 {} 失败：{}", path, error))?;
 	let mut response = String::new();
 	stream
 		.read_to_string(&mut response)
-		.map_err(|error| format!("读取 {path} 应答失败：{error}"))?;
+		.map_err(|error| t!("读取 {} 应答失败：{}", path, error))?;
 	let status = response
 		.lines()
 		.next()
 		.and_then(|line| line.split_whitespace().nth(1))
 		.and_then(|status| status.parse().ok())
-		.ok_or_else(|| format!("{path} 的应答没有状态行"))?;
+		.ok_or_else(|| t!("{} 的应答没有状态行", path))?;
 	let body = response
 		.split_once("\r\n\r\n")
 		.map(|(_, body)| body.to_owned())
@@ -380,17 +378,17 @@ fn attach_thread(
 					};
 					let reason = match kind {
 						"exit" => match value.get("exitCode").and_then(Value::as_i64) {
-							Some(code) => format!("serve 终端已退出（code {code}）"),
-							None => "serve 终端已退出".to_owned(),
+							Some(code) => t!("serve 终端已退出（code {}）", code),
+							None => t!("serve 终端已退出").to_owned(),
 						},
 						"session_ended" => {
 							let why = value
 								.get("reason")
 								.and_then(Value::as_str)
 								.unwrap_or("unknown");
-							format!("serve 结束了终端会话（{why}）")
+							t!("serve 结束了终端会话（{}）", why)
 						},
-						other => format!("serve 终端结束（{other}）"),
+						other => t!("serve 终端结束（{}）", other),
 					};
 					ended = true;
 					if events.send(Raw::Ended(reason)).is_err() {
@@ -405,7 +403,7 @@ fn attach_thread(
 			},
 			ws::Event::Closed => {
 				if !ended {
-					let _ = events.send(Raw::Failed("serve 的终端 WebSocket 已关闭".to_owned()));
+					let _ = events.send(Raw::Failed(t!("serve 的终端 WebSocket 已关闭").to_owned()));
 				}
 				return;
 			},
@@ -465,7 +463,7 @@ impl TerminalHost {
 			None => Pane {
 				service: None,
 				backend: Backend::Local,
-				reason: Some("未发现 ~/.zeta/serve.json 的 webUrl".to_owned()),
+				reason: Some(t!("未发现 ~/.zeta/serve.json 的 webUrl").to_owned()),
 			},
 		};
 		self.panes.insert(tab.to_owned(), pane);
@@ -482,10 +480,10 @@ impl TerminalHost {
 	pub fn label(&self, tab: &str) -> Option<String> {
 		let pane = self.panes.get(tab)?;
 		Some(match pane.backend {
-			Backend::Connecting => "后端：serve · 连接中…".to_owned(),
-			Backend::Service => "后端：serve".to_owned(),
-			Backend::Ended => "后端：serve · 会话已结束".to_owned(),
-			Backend::Local => "serve 未应答，已回落本地 PTY".to_owned(),
+			Backend::Connecting => t!("后端：serve · 连接中…").to_owned(),
+			Backend::Service => t!("后端：serve").to_owned(),
+			Backend::Ended => t!("后端：serve · 会话已结束").to_owned(),
+			Backend::Local => t!("serve 未应答，已回落本地 PTY").to_owned(),
 		})
 	}
 

@@ -30,6 +30,7 @@ pub mod embed;
 pub mod fonts;
 pub mod fsread;
 pub mod git;
+pub mod i18n;
 pub mod icons;
 pub mod left;
 pub mod lifecycle;
@@ -214,6 +215,7 @@ impl Shell {
 	/// Build the shell: fonts, style, settings, seed data, first reads.
 	pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
 		let settings = settings::load();
+		crate::i18n::Lang::set_current(settings.lang);
 		theme::apply(&cc.egui_ctx, &settings);
 		let fonts = fonts::install(&cc.egui_ctx, &settings);
 		let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -269,6 +271,7 @@ impl Shell {
 
 	/// A shell over an explicit state (tests, and the headless checks).
 	pub fn with_state(state: AppState, settings: Settings) -> Self {
+		crate::i18n::Lang::set_current(settings.lang);
 		Self {
 			state,
 			settings,
@@ -490,6 +493,9 @@ impl Shell {
 	/// Apply style + fonts, and persist. Called from `update` whenever a
 	/// control changed a value.
 	pub fn apply_settings(&mut self, ctx: &Context) {
+		if self.settings.lang != self.applied.lang {
+			crate::i18n::Lang::set_current(self.settings.lang);
+		}
 		let fonts_changed = self.settings.mono_font != self.applied.mono_font;
 		theme::apply(ctx, &self.settings);
 		if fonts_changed {
@@ -498,7 +504,7 @@ impl Shell {
 		if let Err(error) = settings::save(self.settings) {
 			self
 				.state
-				.show(crate::state::Notice(format!("设置保存失败：{error}")));
+				.show(crate::state::Notice(t!("设置保存失败：{}", error)));
 		}
 		self.applied = self.settings;
 	}
@@ -613,8 +619,8 @@ impl Shell {
 			let workspace = self.state.workspace_label().to_owned();
 			let message = notify::Message {
 				trigger: notify::Trigger::Idle,
-				title: format!("{workspace} · {id} 已空闲"),
-				body: "该面板的子进程都退出了".to_owned(),
+				title: t!("{} · {} 已空闲", workspace, id),
+				body: t!("该面板的子进程都退出了").to_owned(),
 				target: self.state.active_workspace.clone(),
 			};
 			// The trace is the return value; the status bar reads it from the
@@ -672,7 +678,7 @@ impl Shell {
 				if let termide_core::event::PanelEvent::OpenGitDiff { commit_hash: None, .. } = event {
 					let pane = pane_id.clone();
 					self.state.act(|state| {
-						state.add_tab_of(&pane, state::SessionKind::Diff, "改动".to_owned())
+						state.add_tab_of(&pane, state::SessionKind::Diff, t!("改动").to_owned())
 					});
 				}
 			}
@@ -713,8 +719,8 @@ impl Shell {
 			let workspace = self.state.workspace_label().to_owned();
 			let message = notify::Message {
 				trigger: notify::Trigger::Failed,
-				title: format!("{workspace} · {tab} 已退出"),
-				body: "终端子进程已结束".to_owned(),
+				title: t!("{} · {} 已退出", workspace, tab),
+				body: t!("终端子进程已结束").to_owned(),
 				target: self.state.active_workspace.clone(),
 			};
 			let _ = self.raise_notification(ctx, message);
@@ -760,7 +766,7 @@ impl Shell {
 					let workspace = self.state.workspace_label().to_owned();
 					let message = notify::Message {
 						trigger: notify::Trigger::Failed,
-						title: format!("{workspace} · {tab} 已退出"),
+						title: t!("{} · {} 已退出", workspace, tab),
 						body: reason,
 						target: self.state.active_workspace.clone(),
 					};
