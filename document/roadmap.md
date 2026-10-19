@@ -738,8 +738,6 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   (`useSortable`/`arrayMove`/`DndContext` 全库零命中);实际出货的是排序菜单,且
   没有持久化任何顺序。要么接线 dnd-kit + localStorage 持久化,要么删掉未用的依赖
   (随 U6 SidePane 框架一起评估)。
-- **web_ui_build windows-2022 恢复**:跟踪 vercel/next.js#40760 家族上游
-  修复,可修则 revert matrix 裁剪提交。
 - **TUI 套件命名定稿与 zeta 工作台(2026-09-30 用户裁定,取代上方的
   "TUI 三件套整合设计"旧条;命名口径 2026-10-15 收口)**:产品形态 =
   `zetawork` 打开**嵌套终端工作台**

@@ -392,23 +392,30 @@ jobs:
          - name: Build collab web
            run: bun run collab:web:build
 
-   # Standalone web-ui build matrix (Appendix A §7 / simplify-and-plan-surface
-   # §11): npm-only project — no bun-install, no native addons, no Rust. Catches
-   # platform-specific breakage in the Next build that the single-Linux `check`
-   # job cannot see. windows-2022 is deferred: `next build` hits an upstream
-   # Next/webpack bug on the runner (EPERM scandir of the junctioned
-   # 'C:\Users\...\Application Data' during compile, vercel/next.js#40760
-   # family) that outputFileTracingRoot does not cover; re-add once upstream
-   # fixes the compile-phase glob.
+   # Standalone web-ui build matrix: npm-only project — no bun-install, no
+   # native addons, no Rust. Catches platform-specific breakage in the Next
+   # build that the single-Linux `check` job cannot see.
+   #
+   # windows-2022 (restored 2026-10-20): the leg was cut on 2026-09-22 when
+   # `next build` hit upstream's compile-phase EPERM scandir of the runner's
+   # junctioned 'C:\Users\...\Application Data' (vercel/next.js#40760 family).
+   # web-ui/next.config.ts pins outputFileTracingRoot to the web-ui directory
+   # (b33e55684b6), which bounds tracing — though at cut time it did not cover
+   # the compile-phase glob — and the desktop ships on Windows, so a Windows
+   # consumer exists and this leg is its only PR-time build signal.
+   # Remove it again only for a *reproduced upstream* EPERM: a windows-2022
+   # run whose Build step dies in Next's compile-phase glob with the tracing
+   # root pinned, plus an open upstream issue. A red caused by our own code is
+   # a bug to fix, never a reason to cut the leg.
    web_ui_build:
       name: Web UI build (${{ matrix.os }})
       runs-on: ${{ matrix.os }}
       strategy:
          fail-fast: false
          matrix:
-            # macOS dropped from the release surface (2026-10-01): the web-ui
-            # build is platform-independent and no darwin consumer exists.
-            os: [ubuntu-22.04]
+            # macOS dropped from the release surface (2026-10-01): no darwin
+            # consumer exists. windows-2022 is back — see the block header.
+            os: [ubuntu-22.04, windows-2022]
       defaults:
          run:
             working-directory: web-ui
