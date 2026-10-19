@@ -168,7 +168,11 @@ async function packageWindows(): Promise<void> {
 	const exe = arg("exe") ?? "packages/coding-agent/binaries/zetawork-gui-win-x64.exe";
 	const outDir = path.resolve(arg("out") ?? "packages/coding-agent/binaries");
 	await mustExist(exe);
-	const loader = await findWebView2Loader();
+	// The archives job builds nothing, so it has no cargo registry; the Windows
+	// product leg stages the loader beside its artifact and passes it here.
+	const staged = arg("dll");
+	const loader = staged ? path.resolve(staged) : await findWebView2Loader();
+	await mustExist(loader);
 	console.log(`Using WebView2 loader: ${loader}`);
 
 	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-win-"));

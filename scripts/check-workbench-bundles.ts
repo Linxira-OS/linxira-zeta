@@ -277,7 +277,11 @@ for (const family of [
 	`${STAGED_DIR}/zeta-cli-*`,
 	`${STAGED_DIR}/zeta-work-*`,
 	`${STAGED_DIR}/zeta-ide-*`,
-	`${STAGED_DIR}/zetawork-*`,
+	// The desktop app uploads only its three archives; the raw GUI binaries and
+	// the staged WebView2 loader stay build artifacts, never release assets.
+	`${STAGED_DIR}/zetawork-windows-x64.zip`,
+	`${STAGED_DIR}/zetawork-*.AppImage`,
+	`${STAGED_DIR}/zetawork-*.pkg.tar.zst`,
 ]) {
 	if (!uploaded.includes(family))
 		problems.push(`${GITHUB_WORKFLOW_REL}: Create GitHub Release does not upload ${family}`);

@@ -1260,8 +1260,18 @@ jobs:
             include:
                - { os: ubuntu-22.04, platform: linux, target_id: zeta-work-linux-x64, artifact: zeta-work-linux-x64 }
                - { os: ubuntu-22.04, platform: win32, target_id: zeta-work-win-x64, artifact: zeta-work-win-x64.exe }
-               - { os: ubuntu-22.04, platform: linux, target_id: zetawork-gui-linux-x64, artifact: zetawork-gui-linux-x64 }
-               - { os: ubuntu-22.04, platform: win32, target_id: zetawork-gui-win-x64, artifact: zetawork-gui-win-x64.exe }
+               - {
+                    os: ubuntu-22.04,
+                    platform: linux,
+                    target_id: zetawork-gui-linux-x64,
+                    artifact: zetawork-gui-linux-x64,
+                 }
+               - {
+                    os: ubuntu-22.04,
+                    platform: win32,
+                    target_id: zetawork-gui-win-x64,
+                    artifact: zetawork-gui-win-x64.exe,
+                 }
                - { os: ubuntu-22.04, platform: linux, target_id: zeta-ide-linux-x64, artifact: zeta-ide-linux-x64 }
                - { os: ubuntu-22.04, platform: win32, target_id: zeta-ide-win-x64, artifact: zeta-ide-win-x64.exe }
       runs-on: ${{ matrix.os }}
@@ -1324,11 +1334,18 @@ jobs:
            run: |
               runtime_dir="$(mktemp -d)"
               HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/${{ matrix.artifact }}" --version
+         # wry links WebView2Loader.dll dynamically; the archives job has no
+         # cargo registry of its own, so the loader travels with this leg.
+         - name: Stage the WebView2 loader beside the desktop binary
+           if: matrix.target_id == 'zetawork-gui-win-x64'
+           run: |
+              dll=$(ls "$CARGO_HOME"/registry/src/*/webview2-com-sys-*/x64/WebView2Loader.dll | head -1)
+              cp "$dll" "packages/coding-agent/binaries/${{ matrix.target_id }}.dll"
          - name: Upload release product binary artifact
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
            with:
               name: zeta-binary-${{ matrix.target_id }}
-              path: packages/coding-agent/binaries/${{ matrix.artifact }}
+              path: packages/coding-agent/binaries/${{ matrix.target_id }}*
               if-no-files-found: error
 
    # The desktop app and the Arch/AppImage packaging need artifacts from BOTH
@@ -1355,7 +1372,11 @@ jobs:
          - name: Install AppImage tooling
            run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zsync
          - name: Package the Windows desktop app
-           run: bun scripts/package-desktop-archives.ts windows --exe packages/coding-agent/binaries/zetawork-gui-win-x64.exe --out packages/coding-agent/binaries
+           run: |
+              bun scripts/package-desktop-archives.ts windows \
+                --exe packages/coding-agent/binaries/zetawork-gui-win-x64.exe \
+                --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
+                --out packages/coding-agent/binaries
          - name: Package the Linux desktop app
            run: |
               bun scripts/package-desktop-archives.ts linux \
@@ -1548,7 +1569,9 @@ jobs:
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
                  packages/coding-agent/binaries/zeta-work-*
-                 packages/coding-agent/binaries/zetawork-*
+                 packages/coding-agent/binaries/zetawork-windows-x64.zip
+                 packages/coding-agent/binaries/zetawork-*.AppImage
+                 packages/coding-agent/binaries/zetawork-*.pkg.tar.zst
                  packages/coding-agent/binaries/zeta-ide-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  LICENSE

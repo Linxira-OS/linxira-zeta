@@ -117,6 +117,12 @@ export function legalPayloadFiles(license: string | undefined): string[] {
 	switch (license) {
 		case "MIT":
 			return [MIT_LICENSE, THIRD_PARTY_NOTICES];
+		// The workbench suite (`@linxiraos/main` + its leaves) is AGPL: `main/`
+		// is its own workspace with its own LICENSE, which the license map
+		// enforces (document/release.md). Same payload shape as MIT: the
+		// package's own LICENSE, plus the repository's third-party notices.
+		case "AGPL-3.0-only":
+			return [MIT_LICENSE, THIRD_PARTY_NOTICES];
 		default:
 			throw new Error(`Unsupported package license: ${license ?? "<missing>"}`);
 	}
