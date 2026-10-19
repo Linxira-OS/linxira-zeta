@@ -453,7 +453,11 @@ mod tests {
 
 		let (settings, reread) = read_file(&path);
 		assert_eq!(reread, registry, "the hidden state survives the file");
-		assert_eq!(visible_ids(&reread), ["tasks", "projects"], "exactly the two left visible");
+		assert_eq!(
+			visible_ids(&reread),
+			["tasks", "projects", "files", "git"],
+			"exactly the four left visible"
+		);
 		assert_eq!(settings, Settings::default(), "the preferences ride along untouched");
 
 		// And the rewrite is idempotent: a second save of the same state is a
@@ -484,7 +488,7 @@ mod tests {
 			let (_, slots) = read_file(&path);
 			assert_eq!(
 				visible_ids(&slots),
-				["search", "tasks", "automation", "projects"],
+				["search", "tasks", "automation", "projects", "files", "git"],
 				"{tag} must boot on the shipped defaults"
 			);
 			assert_eq!(slots, slots::default_registry(), "{tag} yields the shipped registry");

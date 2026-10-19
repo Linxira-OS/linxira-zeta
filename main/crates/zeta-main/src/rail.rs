@@ -22,6 +22,8 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
+use crate::files::FileTree;
+use crate::git::{GitView, Head, State};
 use crate::slots::Slot;
 
 /// Column width when the frame has room. The design's left column is 26–58
@@ -300,6 +302,210 @@ pub fn render_projects(
 	);
 }
 
+/// The files view: the active workspace as a lazy tree.
+///
+/// The selected row is highlighted and kept in view; the footer carries the
+/// key model and, when a directory was cut at [`crate::files::MAX_DIR_ENTRIES`]
+/// or the row budget ran out, says so. An unreadable root or an empty
+/// workspace renders a line — never a blank frame with no explanation.
+pub fn render_files(frame: &mut Frame, area: Rect, tree: &FileTree) {
+	let block = Block::default()
+		.borders(Borders::ALL)
+		.border_type(BorderType::Rounded)
+		.border_style(Style::default().fg(Color::DarkGray))
+		.title(Line::from(Span::styled(
+			" 📂 files ",
+			Style::default()
+				.fg(Color::White)
+				.add_modifier(Modifier::BOLD),
+		)));
+	let inner = block.inner(area);
+	frame.render_widget(Clear, area);
+	frame.render_widget(block, area);
+	if inner.width == 0 || inner.height == 0 {
+		return;
+	}
+
+	// Header: the workspace root. Footer: the keys, or the cap notice.
+	let header = Rect { x: inner.x, y: inner.y, width: inner.width, height: 1 };
+	frame.render_widget(
+		Paragraph::new(Line::from(Span::styled(
+			format!(" {}", tree.root().display()),
+			Style::default().fg(Color::Gray),
+		))),
+		header,
+	);
+	let hint_height = u16::from(inner.height > 1);
+	let body = Rect {
+		x: inner.x,
+		y: inner.y + 1,
+		width: inner.width,
+		height: inner.height.saturating_sub(1 + hint_height),
+	};
+
+	let mut lines = Vec::new();
+	if let Some(error) = tree.error() {
+		lines.push(Line::from(Span::styled(format!(" {error}"), Style::default().fg(Color::Red))));
+	} else if tree.rows().is_empty() {
+		lines.push(Line::from(Span::styled(" （空目录）", Style::default().fg(Color::DarkGray))));
+	}
+	for (index, row) in tree.rows().iter().enumerate() {
+		let marker = if row.is_dir {
+			if row.expanded { "▾" } else { "▸" }
+		} else {
+			" "
+		};
+		let label = format!("{}{marker} {}", "  ".repeat(row.depth), row.name);
+		let selected = index == tree.selected();
+		let style = if selected {
+			Style::default()
+				.fg(Color::White)
+				.add_modifier(Modifier::BOLD)
+		} else if row.is_dir {
+			Style::default().fg(Color::Cyan)
+		} else {
+			Style::default().fg(Color::Gray)
+		};
+		lines.push(Line::from(Span::styled(
+			format!("{}{label}", if selected { "▏" } else { " " }),
+			style,
+		)));
+	}
+	let offset = tree
+		.selected()
+		.saturating_sub(body.height.saturating_sub(1) as usize) as u16;
+	frame.render_widget(
+		Paragraph::new(lines)
+			.scroll((offset, 0))
+			.style(Style::default().bg(Color::Reset)),
+		body,
+	);
+
+	if inner.height > 1 {
+		let mut hint = String::from(" ↑/↓ j/k 移动 · →/Enter 展开/打开 · ← 收起 · r 刷新");
+		if tree.truncated() {
+			hint.push_str(&format!(
+				" · 已截断（目录 {} 条 / 总计 {} 行）",
+				crate::files::MAX_DIR_ENTRIES,
+				crate::files::MAX_ROWS
+			));
+		}
+		frame.render_widget(
+			Paragraph::new(Line::from(Span::styled(hint, Style::default().fg(Color::DarkGray)))),
+			Rect { x: inner.x, y: inner.bottom() - 1, width: inner.width, height: 1 },
+		);
+	}
+}
+
+/// The git view: branch, working-tree counters and recent commits.
+///
+/// `scroll` is the page's vertical offset (`j`/`k` in the app); it is clamped
+/// here so a reload that shortened the list can never scroll past the last
+/// line. Detached HEAD reads `detached HEAD <hash>`, an absent repository and
+/// an absent git each get their own plain line.
+pub fn render_git(frame: &mut Frame, area: Rect, view: &GitView, scroll: usize) {
+	let block = Block::default()
+		.borders(Borders::ALL)
+		.border_type(BorderType::Rounded)
+		.border_style(Style::default().fg(Color::DarkGray))
+		.title(Line::from(Span::styled(
+			" ⎇ git ",
+			Style::default()
+				.fg(Color::White)
+				.add_modifier(Modifier::BOLD),
+		)));
+	let inner = block.inner(area);
+	frame.render_widget(Clear, area);
+	frame.render_widget(block, area);
+	if inner.width == 0 || inner.height == 0 {
+		return;
+	}
+
+	let gray = Style::default().fg(Color::Gray);
+	let dim = Style::default().fg(Color::DarkGray);
+	let mut lines: Vec<Line<'static>> = Vec::new();
+	match view.state.as_ref() {
+		None => lines.push(Line::from(Span::styled(" 尚未读取", dim))),
+		Some(State::GitMissing) => lines.push(Line::from(Span::styled(
+			" git 未找到（PATH 上没有 git）",
+			Style::default().fg(Color::Red),
+		))),
+		Some(State::NotRepository) => lines.push(Line::from(Span::styled(
+			" 不是 git 仓库（not a git repository）",
+			Style::default().fg(Color::Yellow),
+		))),
+		Some(State::Error(error)) => lines.push(Line::from(Span::styled(
+			format!(" git 失败：{error}"),
+			Style::default().fg(Color::Red),
+		))),
+		Some(State::Ready(status)) => {
+			let head = match &status.head {
+				Head::Branch(name) => format!(" 分支 {name}"),
+				Head::Detached(Some(hash)) => format!(" detached HEAD {hash}"),
+				Head::Detached(None) => " detached HEAD".to_string(),
+				Head::NoCommits(name) => format!(" {name} · 尚无提交"),
+			};
+			lines.push(Line::from(Span::styled(
+				head,
+				Style::default()
+					.fg(Color::White)
+					.add_modifier(Modifier::BOLD),
+			)));
+			lines.push(Line::from(Span::styled(
+				format!(
+					" 暂存 {} · 未暂存 {} · 未跟踪 {}",
+					status.staged, status.unstaged, status.untracked
+				),
+				gray,
+			)));
+			lines.push(Line::from(""));
+			lines.push(Line::from(Span::styled(" 工作区", Style::default().fg(Color::White))));
+			if status.files.is_empty() {
+				lines.push(Line::from(Span::styled("  干净", dim)));
+			}
+			for file in &status.files {
+				let style = if file.untracked {
+					Style::default().fg(Color::Cyan)
+				} else if file.staged && file.unstaged {
+					Style::default().fg(Color::Yellow)
+				} else if file.staged {
+					Style::default().fg(Color::Green)
+				} else {
+					Style::default().fg(Color::Red)
+				};
+				lines.push(Line::from(Span::styled(format!("  {} {}", file.code, file.path), style)));
+			}
+			if status.truncated {
+				lines.push(Line::from(Span::styled(
+					format!("  … 仅列前 {} 个，共 {} 个变更", crate::git::FILE_LIMIT, status.total),
+					dim,
+				)));
+			}
+			lines.push(Line::from(""));
+			lines.push(Line::from(Span::styled(" 最近提交", Style::default().fg(Color::White))));
+			if view.commits.is_empty() {
+				lines.push(Line::from(Span::styled("  （尚无提交）", dim)));
+			}
+			for commit in &view.commits {
+				lines.push(Line::from(vec![
+					Span::styled(format!("  {} ", commit.hash), Style::default().fg(Color::Yellow)),
+					Span::styled(commit.subject.clone(), gray),
+				]));
+			}
+		},
+	}
+	lines.push(Line::from(""));
+	lines.push(Line::from(Span::styled(" j/k 滚动 · r 刷新 · Esc 返回", dim)));
+
+	let offset = scroll.min(lines.len().saturating_sub(1)) as u16;
+	frame.render_widget(
+		Paragraph::new(lines)
+			.scroll((offset, 0))
+			.style(Style::default().bg(Color::Reset)),
+		inner,
+	);
+}
+
 /// One button row: the active marker, the icon and the title, padded to the
 /// column so the highlight reads as a row and not as a label.
 fn button_line(slot: &Slot, active: bool, width: u16) -> Line<'static> {
@@ -371,15 +577,15 @@ mod tests {
 	}
 
 	#[test]
-	fn the_default_rail_draws_four_buttons_then_the_plus() {
+	fn the_default_rail_draws_six_buttons_then_the_plus() {
 		let registry = slots::default_registry();
 		let (lines, strip) = draw(&registry, None, 60, 20);
-		assert_eq!(strip.buttons.len(), 4, "exactly the four default slots");
-		assert_eq!(strip.plus.y, 4, "the `+` sits directly under the buttons");
+		assert_eq!(strip.buttons.len(), 6, "exactly the six default slots");
+		assert_eq!(strip.plus.y, 6, "the `+` sits directly under the buttons");
 		assert!(lines[strip.plus.y as usize].contains("+ manage buttons"));
 		assert_eq!(
 			button_titles(&lines, &strip),
-			["🔍 search", "☰ tasks", "⏱ automation", "📁 projects"],
+			["🔍 search", "☰ tasks", "⏱ automation", "📁 projects", "📂 files", "⎇ git"],
 			"drawn top-down in config order"
 		);
 		assert!(
@@ -397,9 +603,12 @@ mod tests {
 			.expect("builtin");
 		registry[index].visible = false;
 		let (lines, strip) = draw(&registry, None, 60, 20);
-		assert_eq!(strip.buttons.len(), 3);
-		assert_eq!(button_titles(&lines, &strip), ["🔍 search", "☰ tasks", "📁 projects"]);
-		assert_eq!(strip.plus.y, 3);
+		assert_eq!(strip.buttons.len(), 5);
+		assert_eq!(
+			button_titles(&lines, &strip),
+			["🔍 search", "☰ tasks", "📁 projects", "📂 files", "⎇ git"]
+		);
+		assert_eq!(strip.plus.y, 5);
 		assert!(!lines.iter().any(|line| line.contains("automation")));
 	}
 
@@ -417,7 +626,7 @@ mod tests {
 		let (lines, strip) = draw(&registry, Some(registry[index - 2].builtin), 60, 20);
 		assert_eq!(
 			button_titles(&lines, &strip),
-			["🔍 search", "📱 mobile", "☰ tasks", "⏱ automation", "📁 projects"],
+			["🔍 search", "📱 mobile", "☰ tasks", "⏱ automation", "📁 projects", "📂 files", "⎇ git"],
 			"the strip is the master list filtered by visibility, not the builtin table order"
 		);
 		assert!(
@@ -516,6 +725,93 @@ mod tests {
 			.filter(|ch| !ch.is_whitespace())
 			.collect();
 		assert!(text.contains("尚未注册项目"), "an empty registry says so: {text}");
+	}
+
+	#[test]
+	fn the_files_view_survives_an_empty_workspace() {
+		fn text_of(tree: &FileTree) -> String {
+			let mut terminal = Terminal::new(TestBackend::new(64, 12)).expect("terminal");
+			terminal
+				.draw(|frame| {
+					let area = frame.area();
+					render_files(frame, area, tree);
+				})
+				.expect("draw");
+			let buffer = terminal.backend().buffer().clone();
+			buffer
+				.content
+				.chunks(buffer.area.width as usize)
+				.map(|row| row.iter().map(|cell| cell.symbol()).collect::<String>())
+				.collect::<Vec<_>>()
+				.join("\n")
+		}
+
+		let dir = tempfile::tempdir().expect("temp dir");
+		let mut tree = FileTree::new(dir.path().to_path_buf());
+		tree.reload();
+		let text: String = text_of(&tree)
+			.chars()
+			.filter(|ch| !ch.is_whitespace())
+			.collect();
+		assert!(text.contains("📂files"), "the frame is titled by the view:\n{text}");
+		assert!(text.contains("（空目录）"), "an empty workspace says so instead of drawing nothing");
+		assert!(text.contains("↑/↓j/k移动"), "the key model is always visible");
+
+		let mut missing = FileTree::new(dir.path().join("gone"));
+		missing.reload();
+		let text: String = text_of(&missing)
+			.chars()
+			.filter(|ch| !ch.is_whitespace())
+			.collect();
+		assert!(text.contains("gone"), "an unreadable root still names the path it tried");
+		assert!(!text.contains("（空目录）"), "an unreadable root is not reported as empty: {text}");
+	}
+
+	#[test]
+	fn the_git_view_degrades_and_shows_a_detached_head() {
+		fn text_of(view: &GitView) -> String {
+			let mut terminal = Terminal::new(TestBackend::new(72, 20)).expect("terminal");
+			terminal
+				.draw(|frame| {
+					let area = frame.area();
+					render_git(frame, area, view, 0);
+				})
+				.expect("draw");
+			let buffer = terminal.backend().buffer().clone();
+			buffer
+				.content
+				.chunks(buffer.area.width as usize)
+				.map(|row| row.iter().map(|cell| cell.symbol()).collect::<String>())
+				.collect::<Vec<_>>()
+				.join("\n")
+		}
+
+		let not_repo = GitView { state: Some(State::NotRepository), commits: Vec::new() };
+		let text: String = text_of(&not_repo)
+			.chars()
+			.filter(|ch| !ch.is_whitespace())
+			.collect();
+		assert!(text.contains("不是git仓库"), "a non-repository gets a clear line:\n{text}");
+
+		let missing = GitView { state: Some(State::GitMissing), commits: Vec::new() };
+		let text: String = text_of(&missing)
+			.chars()
+			.filter(|ch| !ch.is_whitespace())
+			.collect();
+		assert!(text.contains("git未找到"), "an absent git gets a clear line: {text}");
+
+		let detached = GitView {
+			state: Some(State::Ready(crate::git::parse_status("## HEAD (no branch)\nM  a.rs\n"))),
+			commits: vec![crate::git::Commit { hash: "abc1234".into(), subject: "a commit".into() }],
+		};
+		let text: String = text_of(&detached)
+			.chars()
+			.filter(|ch| !ch.is_whitespace())
+			.collect();
+		assert!(text.contains("detachedHEAD"), "detached HEAD is named: {text}");
+		assert!(text.contains("暂存1"), "the counters are drawn");
+		assert!(text.contains("abc1234"), "the recent commit hash is drawn");
+		assert!(text.contains("acommit"), "and its subject");
 	}
 
 	#[test]
