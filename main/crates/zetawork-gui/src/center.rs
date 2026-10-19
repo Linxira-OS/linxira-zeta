@@ -1208,15 +1208,41 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		.state
 		.active_workspace()
 		.map(|ws| std::path::PathBuf::from(&ws.path));
-	if !shell
-		.live
-		.ensure_program(tab.id.as_str(), columns, rows, cwd, &path)
+	// The gateway owns the PTY when it is reachable, so the same coding-agent
+	// session is attachable from the TUI and the browser and outlives this
+	// window (the page is a client, never an owner). The in-process PTY stays
+	// the fallback, and the status line says which one is running.
+	let origin = if shell.probe {
+		shell
+			.stats
+			.info
+			.as_ref()
+			.and_then(|info| info.web_url.clone())
+	} else {
+		None
+	};
+	shell.terminals.ensure_program(
+		tab.id.as_str(),
+		origin.as_deref(),
+		cwd.clone(),
+		columns,
+		rows,
+		Some("zetacode"),
+	);
+	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
+	if shell.terminals.is_local(tab.id.as_str())
+		&& !shell
+			.live
+			.ensure_program(tab.id.as_str(), columns, rows, cwd, &path)
 	{
 		missing_body(ui, &t!("无法启动随包的 zetacode：{}（PTY 创建失败）", path.display()));
 		return;
 	}
-	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
 	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
+	if shell.terminals.render(tab.id.as_str(), area, &mut grid_buf) {
+		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+		return;
+	}
 	if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
 		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
 	}

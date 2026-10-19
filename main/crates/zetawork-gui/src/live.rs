@@ -149,6 +149,35 @@ static PANE_CONFIG: std::sync::LazyLock<std::sync::Arc<Config>> =
 /// where the user can see it.
 ///
 /// `None` means the spawn failed.
+/// Environment for every local pane: `PATH` with this install's companion
+/// directories in front, so a typed `zetacode` in the pane is the build beside
+/// this GUI rather than whatever npm installed last (the 1.3.0 report), plus
+/// nothing else — the rest of the environment is inherited.
+fn pane_env() -> Vec<(String, String)> {
+	let dirs = std::env::current_exe()
+		.ok()
+		.and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+		.map(|dir| crate::zetacode::companion_dirs(&dir))
+		.unwrap_or_default();
+	if dirs.is_empty() {
+		return Vec::new();
+	}
+	let sep = if cfg!(windows) { ';' } else { ':' };
+	let mut path = dirs
+		.iter()
+		.map(|dir| dir.display().to_string())
+		.collect::<Vec<_>>()
+		.join(&sep.to_string());
+	if let Some(rest) = std::env::var_os("PATH") {
+		let rest = rest.to_string_lossy();
+		if !rest.is_empty() {
+			path.push(sep);
+			path.push_str(&rest);
+		}
+	}
+	vec![("PATH".to_owned(), path)]
+}
+
 fn spawn_local(
 	rows: u16,
 	cols: u16,
@@ -191,24 +220,25 @@ fn spawn_local(
 				find(crate::shells::ShellKind::PowerShell),
 			),
 		};
+		let env = pane_env();
 		let (term, command) = match plan {
 			LocalShell::Auto => {
 				let program = installed
 					.first()
 					.map(|shell| shell.path.to_string_lossy().into_owned())
 					.unwrap_or_else(|| t!("自动检测的 shell").to_owned());
-				(Terminal::new_with_cwd(rows, cols, cwd).ok()?, program)
+				(Terminal::new_with_cwd_env(rows, cols, cwd, &env).ok()?, program)
 			},
 			LocalShell::Path(path) => {
 				let program = path.to_string_lossy().into_owned();
-				(Terminal::new_with_shell(rows, cols, &program, cwd).ok()?, program)
+				(Terminal::new_with_shell_env(rows, cols, &program, cwd, &env).ok()?, program)
 			},
 			LocalShell::PowerShell { program } => {
 				let program = program.to_string_lossy().into_owned();
-				// `new_with_shell` passes its own `-NoLogo` and sets the cwd;
+				// `new_with_shell_env` passes its own `-NoLogo` and sets the cwd;
 				// no `-Command` is involved, so nothing is echoed or repainted.
 				(
-					Terminal::new_with_shell(rows, cols, &program, cwd).ok()?,
+					Terminal::new_with_shell_env(rows, cols, &program, cwd, &env).ok()?,
 					format!("{program} -NoLogo"),
 				)
 			},
@@ -224,7 +254,8 @@ fn spawn_local(
 		match requested {
 			Some(shell) => {
 				let program = shell.path.to_string_lossy().into_owned();
-				Some((Terminal::new_with_shell(rows, cols, &program, cwd).ok()?, program))
+				let env = pane_env();
+				Some((Terminal::new_with_shell_env(rows, cols, &program, cwd, &env).ok()?, program))
 			},
 			None => None,
 		}
@@ -325,7 +356,7 @@ impl LiveSessions {
 			return true;
 		}
 		let command = program.to_string_lossy().into_owned();
-		match Terminal::new_with_shell(rows, cols, &command, cwd) {
+		match Terminal::new_with_shell_env(rows, cols, &command, cwd, &pane_env()) {
 			Ok(term) => {
 				if let Some(pid) = term.shell_pid() {
 					crate::spawn_probe::record(pid, &[command.as_str()]);

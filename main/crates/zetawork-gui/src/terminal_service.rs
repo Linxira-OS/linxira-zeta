@@ -113,12 +113,13 @@ pub(crate) fn parse_attach(body: &str) -> Option<Attach> {
 }
 
 /// `POST /api/terminal/ensure` and read its `{id, ticket}` answer.
-pub(crate) fn ensure(origin: &str, cwd: &Path, instance: &str) -> Result<Attach, String> {
-	let body = json!({
-		"cwd": cwd.to_string_lossy(),
-		"instanceId": instance,
-	})
-	.to_string();
+pub(crate) fn ensure(
+	origin: &str,
+	cwd: &Path,
+	instance: &str,
+	program: Option<&str>,
+) -> Result<Attach, String> {
+	let body = ensure_body(cwd, instance, program);
 	let (status, body) = post_json(origin, "/api/terminal/ensure", &body)?;
 	if status != 200 {
 		return Err(t!("serve 拒绝终端 attach（{}）：{}", status, error_text(&body)));
@@ -126,6 +127,20 @@ pub(crate) fn ensure(origin: &str, cwd: &Path, instance: &str) -> Result<Attach,
 	parse_attach(&body).ok_or_else(|| {
 		t!("serve 的终端 attach 应答没有 id：{}", body.trim().chars().take(160).collect::<String>())
 	})
+}
+
+/// The `ensure` request body. `program` is the gateway's closed companion set
+/// — a name, never a path: serve resolves it against its own install, so a
+/// client cannot ask the gateway to run an arbitrary executable.
+fn ensure_body(cwd: &Path, instance: &str, program: Option<&str>) -> String {
+	let mut body = json!({
+		"cwd": cwd.to_string_lossy(),
+		"instanceId": instance,
+	});
+	if let Some(program) = program {
+		body["program"] = Value::String(program.to_owned());
+	}
+	body.to_string()
 }
 
 /// `POST /api/terminal/<id>/resize`. A failure is not fatal to the attach; the
@@ -240,14 +255,26 @@ impl ServiceTerminal {
 	/// Start attaching on a background thread. The dial itself is never on the
 	/// UI thread, so an unreachable serve cannot freeze the window; its refusal
 	/// arrives as [`Event::Failed`].
-	pub fn attach(origin: &str, cwd: Option<PathBuf>, instance: &str, cols: u16, rows: u16) -> Self {
+	pub fn attach(
+		origin: &str,
+		cwd: Option<PathBuf>,
+		instance: &str,
+		cols: u16,
+		rows: u16,
+		program: Option<&str>,
+	) -> Self {
 		let (event_tx, events) = channel();
 		let (commands, command_rx) = channel();
 		let origin = origin.to_owned();
 		let cwd =
 			cwd.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-		let instance = instance.to_owned();
-		thread::spawn(move || attach_thread(origin, cwd, instance, cols, rows, event_tx, command_rx));
+		let request = Request {
+			origin,
+			cwd,
+			instance: instance.to_owned(),
+			program: program.map(str::to_owned),
+		};
+		thread::spawn(move || attach_thread(request, cols, rows, event_tx, command_rx));
 		Self {
 			screen: Screen::new(cols as usize, rows as usize),
 			events,
@@ -315,16 +342,24 @@ impl Drop for ServiceTerminal {
 }
 
 /// The attach thread: ensure, upgrade, resize, then pump events forever.
-fn attach_thread(
+/// Everything one attach needs to name: where serve is, what directory the
+/// PTY starts in, which slot it claims, and which program it runs.
+pub(crate) struct Request {
 	origin: String,
 	cwd: PathBuf,
 	instance: String,
+	program: Option<String>,
+}
+
+fn attach_thread(
+	request: Request,
 	cols: u16,
 	rows: u16,
 	events: Sender<Raw>,
 	commands: Receiver<Command>,
 ) {
-	let attach = match ensure(&origin, &cwd, &instance) {
+	let Request { origin, cwd, instance, program } = request;
+	let attach = match ensure(&origin, &cwd, &instance, program.as_deref()) {
 		Ok(attach) => attach,
 		Err(reason) => {
 			let _ = events.send(Raw::Failed(reason));
@@ -448,6 +483,22 @@ impl TerminalHost {
 		cols: u16,
 		rows: u16,
 	) {
+		self.ensure_program(tab, origin, cwd, cols, rows, None);
+	}
+
+	/// [`Self::ensure`] for a page that runs a shipped companion instead of a
+	/// shell (`"zetacode"` / `"zetaide"` — the gateway's closed set). A
+	/// companion page never falls back to a shell: the page says which program
+	/// it is.
+	pub fn ensure_program(
+		&mut self,
+		tab: &str,
+		origin: Option<&str>,
+		cwd: Option<PathBuf>,
+		cols: u16,
+		rows: u16,
+		program: Option<&str>,
+	) {
 		if let Some(pane) = self.panes.get_mut(tab) {
 			if let Some(service) = pane.service.as_mut() {
 				service.resize(cols, rows);
@@ -456,7 +507,14 @@ impl TerminalHost {
 		}
 		let pane = match origin.filter(|origin| !origin.trim().is_empty()) {
 			Some(origin) => Pane {
-				service: Some(ServiceTerminal::attach(origin, cwd, &instance_id(tab), cols, rows)),
+				service: Some(ServiceTerminal::attach(
+					origin,
+					cwd,
+					&instance_id(tab),
+					cols,
+					rows,
+					program,
+				)),
 				backend: Backend::Connecting,
 				reason: None,
 			},
@@ -975,6 +1033,18 @@ impl Screen {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn the_ensure_body_names_a_companion_and_never_a_path() {
+		let cwd = std::path::Path::new("/tmp/ws");
+		let shell = ensure_body(cwd, "tab-1", None);
+		assert!(!shell.contains("program"), "a shell page omits the field: {shell}");
+		let companion = ensure_body(cwd, "tab-1", Some("zetacode"));
+		let value: Value = serde_json::from_str(&companion).unwrap();
+		assert_eq!(value["program"], "zetacode");
+		assert_eq!(value["instanceId"], "tab-1");
+		assert_eq!(value["cwd"], "/tmp/ws");
+	}
 
 	#[test]
 	fn a_zero_prefixed_frame_is_control_and_everything_else_is_pty_bytes() {

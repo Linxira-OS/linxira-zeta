@@ -53,7 +53,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { WebSocketHandler } from "bun";
 import { PtySession } from "@linxiraos/pi-natives";
-import { defaultProbeContext, discoverBin, pathImpl, type OpenProbeContext } from "../../utils/bin-discovery";
+import {
+	defaultProbeContext,
+	discoverBin,
+	pathImpl,
+	ZETA_BIN_DIR_ENV,
+	type OpenProbeContext,
+} from "../../utils/bin-discovery";
 import { hostIsLoopback, isAllowedOrigin } from "../web-gateway";
 import { ZETA_IDE_BINS, resolveTerminal, type ResolvedTerminal } from "./open";
 
@@ -82,12 +88,18 @@ const INSTANCE_ID_RE = /^[A-Za-z0-9._-]{1,64}$/;
  */
 export const ZETAWORK_BINS = ["zetawork", "zeta"] as const;
 
+/** The coding-agent binary; a companion terminal page runs exactly this. */
+export const ZETACODE_BINS = ["zetacode"] as const;
+
+/** Every program an `ensure` may ask for — a closed set, never a client path. */
+export type TerminalProgram = "shell" | "workbench" | "zetacode" | "zetaide";
+
 /** Why a session runs a plain shell instead of the workbench. */
 export type SessionFallbackReason = "workbench-not-found";
 
 /** Interactive program the PTY starts: the workbench, or the shell fallback. */
 export interface SessionProgram {
-	kind: "workbench" | "shell";
+	kind: "workbench" | "shell" | "zetacode" | "zetaide";
 	/** Status-bar label: the resolved bin basename, or the shell label. */
 	label: string;
 	/** Absolute executable for the PTY. */
@@ -231,9 +243,9 @@ export interface TerminalInfo {
 	cwd: string;
 	/** Slot key half allocated by the UI (`DEFAULT_TERMINAL_INSTANCE` if none). */
 	instance: string;
-	/** Whether the session runs the workbench or the shell fallback. */
-	program: "workbench" | "shell";
-	/** Why the shell fallback happened; null for a workbench session. */
+	/** Which program the PTY runs (a shell, the workbench, or a companion). */
+	program: TerminalProgram;
+	/** Why the shell fallback happened; null when the requested program ran. */
 	fallbackReason: SessionFallbackReason | null;
 	exited: boolean;
 	exitCode: number | null;
@@ -343,8 +355,8 @@ class TerminalManager {
 		col?: number;
 		/** Slot to claim; `ensure` supplies one, a bare create allocates "default". */
 		instanceId?: string;
-		/** `shell` (default) or the opt-in `workbench`. */
-		program?: "shell" | "workbench";
+		/** `shell` (default), the opt-in `workbench`, or a shipped companion. */
+		program?: TerminalProgram;
 	}): Promise<{ ok: true; session: TerminalSession; ticket: string; injected: boolean } | TerminalFailure> {
 		this.#pruneTickets();
 		const resolved = this.#resolveCwd(options.cwd);
@@ -400,7 +412,7 @@ class TerminalManager {
 			application: program.command,
 			args: [...program.args],
 			cwd,
-			env: { ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" } as Record<string, string>,
+			env: paneEnv({ ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" }, defaultProbeContext()),
 			cols: 80,
 			rows: 24,
 			onData: chunk => this.#broadcast(session, chunk),
@@ -441,8 +453,8 @@ class TerminalManager {
 		line?: number;
 		col?: number;
 		replace?: boolean;
-		/** `shell` (default) or the opt-in `workbench`. */
-		program?: "shell" | "workbench";
+		/** `shell` (default), the opt-in `workbench`, or a shipped companion. */
+		program?: TerminalProgram;
 	}): Promise<
 		{ ok: true; session: TerminalSession; ticket: string; reused: boolean; injected: boolean } | TerminalFailure
 	> {
@@ -741,8 +753,27 @@ function windowsShimWrapper(command: string, ctx: OpenProbeContext): { command: 
  */
 export function resolveSessionProgram(
 	ctx: OpenProbeContext = defaultProbeContext(),
-	options: { program?: "shell" | "workbench" } = {},
+	options: { program?: TerminalProgram } = {},
 ): SessionProgram | null {
+	// A companion page (`zetacode` / `zetaide`) is the only reason a session
+	// runs something other than a shell: the page itself is that program, so a
+	// missing companion is a failure, never a silent shell substitution.
+	const companion = options.program === "zetacode" || options.program === "zetaide" ? options.program : null;
+	if (companion) {
+		const bins = companion === "zetaide" ? ZETA_IDE_BINS : ZETACODE_BINS;
+		const found = discoverBin(bins, { env: ctx.env, platform: ctx.platform, exists: ctx.exists });
+		if (!found) return null;
+		const wrapped = windowsShimWrapper(found, ctx);
+		return {
+			kind: companion,
+			label: pathImpl(ctx.platform)
+				.basename(found)
+				.replace(/\.(cmd|bat|exe)$/i, ""),
+			command: wrapped?.command ?? found,
+			args: wrapped?.args ?? [],
+			fallbackReason: null,
+		};
+	}
 	const wantsWorkbench = options.program === "workbench";
 	const workbench = wantsWorkbench
 		? discoverBin(ZETAWORK_BINS, { env: ctx.env, platform: ctx.platform, exists: ctx.exists })
@@ -772,6 +803,63 @@ export function resolveSessionProgram(
 		args: shellSpawnArgs(shell),
 		fallbackReason: wantsWorkbench ? "workbench-not-found" : null,
 	};
+}
+
+// --- pane PATH ---
+
+/**
+ * Command names this product owns. A pane that types one of these must reach
+ * the build that owns the pane, not whatever npm installed last: the 1.3.0
+ * report was a pane running `zetacode` 1.2.1 from a global install while the
+ * gateway beside it was 1.3.1.
+ */
+const COMPANION_COMMANDS = new Set(["zetacode", "zetawork", "zeta", "zetaide"]);
+
+/** Env keys are case-insensitive on Windows; keep the spelling in use. */
+function pathKeyOf(env: NodeJS.ProcessEnv): string {
+	for (const key of Object.keys(env)) {
+		if (key.toUpperCase() === "PATH") return key;
+	}
+	return "PATH";
+}
+
+/**
+ * Directories to put at the front of a pane's `PATH`, highest priority first.
+ *
+ * 1. `ZETA_BIN_DIR` entries — the documented explicit override;
+ * 2. the directory of the running executable, when it is one of ours. A
+ *    compiled `zetacode` sits beside `zetaide`/`zetawork` from the same
+ *    install, so this is the companion directory without a second lookup.
+ *
+ * Empty for a development run (`bun src/cli.ts`), where `process.execPath` is
+ * the Bun binary and prepending its directory would mean nothing.
+ */
+export function companionPathDirs(ctx: OpenProbeContext, execPath: string = process.execPath): string[] {
+	const impl = pathImpl(ctx.platform);
+	const dirs: string[] = [];
+	const add = (dir: string): void => {
+		const trimmed = dir.trim();
+		if (trimmed && !dirs.includes(trimmed)) dirs.push(trimmed);
+	};
+	for (const entry of (ctx.env[ZETA_BIN_DIR_ENV] ?? "").split(impl.delimiter)) add(entry);
+	const own = impl.basename(execPath).replace(/\.(exe|cmd|bat)$/i, "");
+	if (COMPANION_COMMANDS.has(own.toLowerCase())) add(impl.dirname(execPath));
+	return dirs;
+}
+
+/** The environment a pane's PTY starts with: `base`, with `PATH` prefixed. */
+export function paneEnv(
+	base: NodeJS.ProcessEnv,
+	ctx: OpenProbeContext,
+	execPath: string = process.execPath,
+): Record<string, string> {
+	const env: Record<string, string> = { ...(base as Record<string, string>) };
+	const dirs = companionPathDirs(ctx, execPath);
+	if (dirs.length === 0) return env;
+	const key = pathKeyOf(env);
+	const rest = env[key] ?? "";
+	env[key] = [...dirs, ...(rest ? [rest] : [])].join(pathImpl(ctx.platform).delimiter);
+	return env;
 }
 
 // --- zetaide injection ---
@@ -868,6 +956,11 @@ export async function handleTerminalCreate(req: Request): Promise<Response> {
  * `replace` (explicit user action, e.g. the file-chip flow) discards the slot's
  * live session first so the new spawn carries the injected command.
  */
+/** Closed set: the gateway never runs a path a client supplied. */
+export function isTerminalProgram(value: unknown): value is TerminalProgram {
+	return value === "shell" || value === "workbench" || value === "zetacode" || value === "zetaide";
+}
+
 export async function handleTerminalEnsure(req: Request): Promise<Response> {
 	const body = await readJsonBody(req);
 	const result = await manager.ensure({
@@ -877,7 +970,7 @@ export async function handleTerminalEnsure(req: Request): Promise<Response> {
 		line: intOrUndefined(body.line),
 		col: intOrUndefined(body.col),
 		replace: body.replace === true,
-		program: body.program === "workbench" ? "workbench" : undefined,
+		program: isTerminalProgram(body.program) ? body.program : undefined,
 	});
 	if (!result.ok) {
 		return failurePayload(result, result.code === "terminal_limit" ? { limit: MAX_LIVE_TERMINALS } : {});

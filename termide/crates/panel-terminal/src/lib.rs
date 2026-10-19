@@ -323,6 +323,19 @@ impl Terminal {
         Self::spawn_shell(rows, cols, shell_path, cwd, &[])
     }
 
+    /// Like [`Terminal::new_with_shell`], with `env` applied on top of the
+    /// inherited environment (the workbench uses it to put its own companion
+    /// binaries in front of `PATH`).
+    pub fn new_with_shell_env(
+        rows: u16,
+        cols: u16,
+        shell_path: &str,
+        cwd: Option<std::path::PathBuf>,
+        env: &[(String, String)],
+    ) -> Result<Self> {
+        Self::spawn_shell(rows, cols, shell_path, cwd, env)
+    }
+
     fn spawn_shell(
         rows: u16,
         cols: u16,

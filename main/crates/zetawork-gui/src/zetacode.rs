@@ -187,6 +187,26 @@ fn push_unique(out: &mut Vec<PathBuf>, path: PathBuf) {
 ///
 /// `PATH` is not a candidate: the only accepted programs are the ones this
 /// install ships.
+/// Directories whose companions a pane's `PATH` must see first: the parents of
+/// the binaries this install actually ships, in resolution order.
+///
+/// Empty when nothing resolves, which is the honest answer for a source build
+/// with no `dist/` — the pane then keeps the host `PATH` unchanged.
+pub fn companion_dirs(exe_dir: &Path) -> Vec<PathBuf> {
+	let mut out = Vec::new();
+	for companion in [Companion::Zetacode, Companion::Zetaide] {
+		for path in candidates(exe_dir, companion) {
+			if !path.is_file() {
+				continue;
+			}
+			if let Some(parent) = path.parent() {
+				push_unique(&mut out, parent.to_path_buf());
+			}
+		}
+	}
+	out
+}
+
 pub fn candidates(exe_dir: &Path, companion: Companion) -> Vec<PathBuf> {
 	let mut out = Vec::new();
 	// 1. The GUI's own directory and its `bin/`.
@@ -1113,6 +1133,27 @@ mod tests {
 			!candidates(&exe_dir, Companion::Zetacode).contains(&main_bin.join("zeta.exe")),
 			"main/npm is zetawork, not zetacode"
 		);
+		let _ = fs::remove_dir_all(&root);
+	}
+
+	#[test]
+	fn companion_dirs_lists_only_directories_that_ship_a_binary() {
+		let root = temp_dir("companion-dirs");
+		let exe_dir = root.join("app");
+		let leaf = root
+			.join("node_modules")
+			.join("@linxiraos")
+			.join("zeta-win32-x64")
+			.join("bin");
+		fs::create_dir_all(&leaf).unwrap();
+		let names = Companion::Zetacode.executable_names();
+
+		// Nothing on disk: no directory claims a companion that is not there.
+		assert!(companion_dirs(&exe_dir).is_empty());
+
+		fs::write(leaf.join(names[0]), b"zetacode").unwrap();
+		let dirs = companion_dirs(&exe_dir);
+		assert_eq!(dirs, vec![leaf.clone()], "only the real parent, in order");
 		let _ = fs::remove_dir_all(&root);
 	}
 

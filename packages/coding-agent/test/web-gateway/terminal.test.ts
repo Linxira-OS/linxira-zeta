@@ -31,6 +31,9 @@ import {
 	resetTerminalManagerForTests,
 	resolveSessionProgram,
 	sessionSlotKey,
+	isTerminalProgram,
+	companionPathDirs,
+	paneEnv,
 	setPtyBackendForTests,
 	terminalWebSocketHandler,
 	shellSpawnArgs,
@@ -278,6 +281,87 @@ describe("resolveSessionProgram", () => {
 });
 
 // --- REST surface ---
+
+describe("companion session programs", () => {
+	const probe = (exists: (candidate: string) => boolean): OpenProbeContext => ({
+		platform: "linux",
+		env: { PATH: "/opt/zeta" },
+		exists,
+		now: () => 0,
+	});
+
+	test("a companion page runs the shipped binary, never a shell", () => {
+		const ctx = probe(candidate => candidate === "/opt/zeta/zetacode");
+		expect(resolveSessionProgram(ctx, { program: "zetacode" })).toEqual({
+			kind: "zetacode",
+			label: "zetacode",
+			command: "/opt/zeta/zetacode",
+			args: [],
+			fallbackReason: null,
+		});
+	});
+
+	test("a missing companion is a failure, not a shell page", () => {
+		// The page says "zetacode"; a shell behind it would be a lie.
+		expect(
+			resolveSessionProgram(
+				probe(() => false),
+				{ program: "zetaide" },
+			),
+		).toBeNull();
+	});
+
+	test("the program set is closed", () => {
+		expect(isTerminalProgram("zetacode")).toBe(true);
+		expect(isTerminalProgram("/usr/bin/evil")).toBe(false);
+		expect(isTerminalProgram(null)).toBe(false);
+	});
+});
+
+describe("pane PATH", () => {
+	const probe = (env: NodeJS.ProcessEnv = {}, platform: NodeJS.Platform = "linux"): OpenProbeContext => ({
+		platform,
+		env,
+		exists: () => false,
+		now: () => 0,
+	});
+
+	test("a compiled companion executable leads its own directory onto PATH", () => {
+		// The pane's `zetacode` must be the build that owns the pane: the
+		// reported bug was a 1.2.1 global copy winning over the 1.3.x gateway.
+		const ctx = probe({ PATH: "/usr/bin:/bin" });
+		expect(companionPathDirs(ctx, "/opt/zeta/bin/zetacode")).toEqual(["/opt/zeta/bin"]);
+		expect(paneEnv({ PATH: "/usr/bin:/bin" }, ctx, "/opt/zeta/bin/zetacode").PATH).toBe(
+			"/opt/zeta/bin:/usr/bin:/bin",
+		);
+	});
+
+	test("ZETA_BIN_DIR wins over the executable's own directory", () => {
+		const ctx = probe({ PATH: "/usr/bin", ZETA_BIN_DIR: "/custom/bin:/other/bin" });
+		expect(companionPathDirs(ctx, "/opt/zeta/bin/zetacode")).toEqual(["/custom/bin", "/other/bin", "/opt/zeta/bin"]);
+	});
+
+	test("a development run leaves PATH alone", () => {
+		// `bun src/cli.ts` has the Bun binary as execPath; its directory is not
+		// a companion directory and must not be prepended.
+		const ctx = probe({ PATH: "/usr/bin" });
+		expect(companionPathDirs(ctx, "/usr/local/bin/bun")).toEqual([]);
+		expect(paneEnv({ PATH: "/usr/bin" }, ctx, "/usr/local/bin/bun").PATH).toBe("/usr/bin");
+	});
+
+	test("Windows keeps its `Path` spelling and `;` separator", () => {
+		const ctx = probe({ Path: "C:\\Windows\\system32" }, "win32");
+		const env = paneEnv({ Path: "C:\\Windows\\system32" }, ctx, "C:\\Zeta\\zetacode.exe");
+		expect(Object.keys(env)).toContain("Path");
+		expect(Object.keys(env)).not.toContain("PATH");
+		expect(env.Path).toBe("C:\\Zeta;C:\\Windows\\system32");
+	});
+
+	test("an empty PATH still gets the prefix without a trailing separator", () => {
+		const ctx = probe({});
+		expect(paneEnv({}, ctx, "/opt/zeta/zetacode").PATH).toBe("/opt/zeta");
+	});
+});
 
 describe("terminal REST", () => {
 	test("create returns id/shell/ticket; list reflects it; delete removes it", async () => {
