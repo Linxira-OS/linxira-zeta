@@ -249,6 +249,8 @@ import {
 	obfuscateProviderContext,
 } from "../secrets/message-transform";
 import type { SecretObfuscator } from "../secrets/obfuscator";
+import { createAgentMessenger } from "../irc/facade";
+import { createAgentDirectory } from "../registry/agent-directory";
 import { type AgentRef, AgentRegistry } from "../registry/agent-registry";
 import { cfgSecretsEnabled } from "../secrets/settings";
 import { releaseSharpshooterSession } from "../sharpshooter/backend";
@@ -9276,6 +9278,10 @@ export class AgentSession implements SettingsScope {
 			// Used only when the session has no extension runner. `createAgentSession` always builds
 			// one (carrying the real identity), so only hand-constructed sessions land here.
 			agent: TOP_LEVEL_AGENT,
+			// No runner to inject a registry/bus: fall back to the process globals,
+			// exactly like the runner's own defaults.
+			agents: createAgentDirectory(AgentRegistry.global()),
+			messaging: createAgentMessenger(),
 
 			model: this.model ?? undefined,
 			models: createExtensionModelQuery(this.#modelRegistry, this.settings, () => this.model ?? undefined),

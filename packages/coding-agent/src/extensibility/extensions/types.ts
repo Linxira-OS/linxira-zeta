@@ -1,4 +1,6 @@
 import type { Settings } from "../../config/settings";
+import type { AgentMessenger } from "../../irc/facade";
+import type { AgentDirectory } from "../../registry/agent-directory";
 import type { PluginStorage } from "../plugins/types";
 /**
  * Extension system types.
@@ -747,6 +749,17 @@ export interface ExtensionContext {
 	openPlanReview(): Promise<boolean>;
 	/** Identity of the agent this session runs: the top-level session or a subagent. */
 	agent: ExtensionAgentIdentity;
+	/**
+	 * Read-only directory of agents in this process (the main session plus
+	 * subagents). Descriptors are session-free snapshots, so holding one never
+	 * keeps a disposed agent reachable.
+	 */
+	readonly agents: AgentDirectory;
+	/**
+	 * Cross-agent messaging over the same bus the `irc` tools use: send,
+	 * wait, and mailbox access. No extra transport and no delivery policy.
+	 */
+	readonly messaging: AgentMessenger;
 	/**
 	 * Whether the current project/workspace is trusted. ZETA performs no
 	 * project-trust gating — project-level settings and extensions load

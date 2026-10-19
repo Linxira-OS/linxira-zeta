@@ -27,6 +27,7 @@ import type { ChannelId } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
+import type { WorkspaceRef } from "../registry/agent-directory";
 import { createAgentSession } from "../sdk";
 import type { AgentSession } from "../session/agent-session";
 import type { AgentSessionEvent } from "../session/agent-session-events";
@@ -181,6 +182,38 @@ export class SessionRouter {
 	resolveDir(workspace: string): string | undefined {
 		if (path.isAbsolute(workspace)) return workspace;
 		return this.#aliases.get(workspace);
+	}
+
+	/** Registered workspaces as session-free references (read-only snapshot). */
+	listWorkspaces(): WorkspaceRef[] {
+		return this.list().map(entry => ({ dir: entry.path, alias: entry.alias }));
+	}
+
+	/**
+	 * Resolve an alias, an absolute directory, or a partial reference to its
+	 * canonical {@link WorkspaceRef}. Unknown aliases return `undefined`; an
+	 * absolute directory is accepted as-is, matching {@link resolveDir}. This
+	 * is a pure lookup and never touches a live session.
+	 */
+	resolveWorkspace(ref: WorkspaceRef | string): WorkspaceRef | undefined {
+		if (typeof ref === "string") {
+			const dir = this.resolveDir(ref);
+			if (!dir) return undefined;
+			const alias = path.isAbsolute(ref) ? this.#aliasForDir(dir) : ref;
+			return alias === undefined ? { dir } : { dir, alias };
+		}
+		const dir = this.resolveDir(ref.alias ?? ref.dir);
+		if (!dir) return undefined;
+		const alias = ref.alias ?? this.#aliasForDir(dir);
+		return alias === undefined ? { dir } : { dir, alias };
+	}
+
+	/** Alias registered for an exact directory, if any. */
+	#aliasForDir(dir: string): string | undefined {
+		for (const [alias, registered] of this.#aliases) {
+			if (registered === dir) return alias;
+		}
+		return undefined;
 	}
 
 	/** Open (or re-open) a directory as a workspace session; persists alias + path. */
