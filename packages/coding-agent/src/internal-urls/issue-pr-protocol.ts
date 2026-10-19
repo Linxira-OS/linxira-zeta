@@ -32,7 +32,19 @@ import {
 	parsePositiveDecimalInt,
 	resolveDefaultRepoMemoized,
 } from "../tools/gh";
+import type { PrDiffPayload } from "../tools/gh-pr-diff";
 import { type CacheStatus, formatFreshnessNote } from "../tools/github-cache";
+import { cfgGiteaEnabled } from "../tools/settings";
+import {
+	formatRepoRef as formatTeaRepoRef,
+	giteaHostKey,
+	parseRepoRef as parseTeaRepoRef,
+	resolveTeaLogins,
+	tryResolveCurrentRepo as tryResolveCurrentTeaRepo,
+} from "../tools/tea-common";
+import { fetchTeaPullDiff, listTeaIssues, listTeaPulls, renderTeaIssue, renderTeaPull } from "../tools/tea-issue-pr";
+import type { TeaIssue, TeaPullRequest } from "../tools/tea-types";
+import { gitea } from "../utils/gitea";
 import { github } from "../utils/github";
 import type { InternalResource, InternalUrl, ProtocolHandler, ResolveContext, SchemeSpec } from "./types";
 
@@ -254,6 +266,60 @@ function resolveCwd(context: ResolveContext | undefined): string {
 	return process.cwd();
 }
 
+/**
+ * Hosts the Gitea runner can serve: configured `tea` logins plus the cwd
+ * checkout's Gitea remote (already matched against those logins). Populated
+ * from process state only — there is no separate host config file.
+ */
+async function resolveGiteaHosts(cwd: string, signal?: AbortSignal): Promise<Set<string>> {
+	const hosts = new Set<string>();
+	try {
+		for (const login of await resolveTeaLogins(cwd, signal)) {
+			const url = giteaHostKey(login.url);
+			const ssh = giteaHostKey(login.ssh_host);
+			if (url) hosts.add(url);
+			if (ssh) hosts.add(ssh);
+		}
+	} catch {
+		// Unauthenticated `tea`: the checkout lookup below also fails, which
+		// leaves the GitHub path in charge.
+	}
+	const current = await tryResolveCurrentTeaRepo(cwd, signal);
+	const currentRef = current ? parseTeaRepoRef(current) : undefined;
+	if (currentRef?.host) hosts.add(currentRef.host.toLowerCase());
+	return hosts;
+}
+
+/**
+ * Pick the Gitea backend for a parsed `issue://` / `pr://` reference.
+ *
+ * - `gitea.enabled` off or `tea` absent → never (GitHub behavior unchanged).
+ * - `<host>/` prefix → Gitea only when that host is a configured instance;
+ *   otherwise the prefix keeps meaning GitHub Enterprise.
+ * - no host → Gitea when the checkout's Gitea remote resolves, using that
+ *   instance's host for an explicit `owner/repo`; else GitHub's default repo.
+ */
+async function resolveGiteaRoute(
+	parsedRepo: string | undefined,
+	context: ResolveContext | undefined,
+): Promise<string | undefined> {
+	const settings = context?.settings;
+	if (settings === undefined || !cfgGiteaEnabled.get(settings) || !gitea.available()) {
+		return undefined;
+	}
+	const cwd = resolveCwd(context);
+	const explicit = parsedRepo ? parseTeaRepoRef(parsedRepo) : undefined;
+	if (explicit?.host && parsedRepo) {
+		const hosts = await resolveGiteaHosts(cwd, context?.signal);
+		return hosts.has(explicit.host.toLowerCase()) ? parsedRepo : undefined;
+	}
+	const current = await tryResolveCurrentTeaRepo(cwd, context?.signal);
+	if (!current) return undefined;
+	const currentRef = parseTeaRepoRef(current);
+	if (explicit) return formatTeaRepoRef(currentRef.host, explicit.slug);
+	return current;
+}
+
 async function resolveListRepo(
 	scheme: Scheme,
 	parsedRepo: string | undefined,
@@ -352,6 +418,17 @@ async function fetchAndRenderList(
 			: await github.json<Array<PrListItem>>(cwd, args, context?.signal, {
 					repoProvided: true,
 				});
+	return buildListResource(scheme, repo, options, items, url, `Live listing for ${repo}`);
+}
+
+function buildListResource(
+	scheme: Scheme,
+	repo: string,
+	options: ParsedList,
+	items: Array<IssueListItem | PrListItem>,
+	url: InternalUrl,
+	note: string,
+): InternalResource {
 	const header =
 		scheme === "issue"
 			? `# Issues in ${repo} (${options.state}, up to ${options.limit})`
@@ -366,8 +443,53 @@ async function fetchAndRenderList(
 		content: rendered,
 		contentType: "text/markdown",
 		size: Buffer.byteLength(rendered, "utf-8"),
-		notes: [`Live listing for ${repo}`],
+		notes: [note],
 	};
+}
+
+function mapTeaIssue(item: TeaIssue): IssueListItem {
+	return {
+		number: item.number,
+		title: item.title,
+		state: item.state,
+		author: item.user ? { login: item.user.login } : null,
+		labels: item.labels?.map(label => ({ name: label.name })),
+		createdAt: item.created_at ?? undefined,
+		updatedAt: item.updated_at ?? undefined,
+		url: item.html_url,
+	};
+}
+
+function mapTeaPull(item: TeaPullRequest): PrListItem {
+	return {
+		...mapTeaIssue(item),
+		// `merged` is a boolean field on Gitea pulls, not a state.
+		state: item.merged ? "merged" : item.state,
+		isDraft: item.draft,
+		baseRefName: item.base?.ref,
+		headRefName: item.head?.ref,
+	};
+}
+
+async function fetchAndRenderTeaList(
+	scheme: Scheme,
+	repo: string,
+	options: ParsedList,
+	url: InternalUrl,
+	context: ResolveContext | undefined,
+): Promise<InternalResource> {
+	const cwd = resolveCwd(context);
+	const listOptions = {
+		state: options.state,
+		limit: options.limit,
+		author: options.author,
+		label: options.label,
+	};
+	const items =
+		scheme === "issue"
+			? (await listTeaIssues(cwd, repo, listOptions, context?.signal)).map(mapTeaIssue)
+			: (await listTeaPulls(cwd, repo, listOptions, context?.signal)).map(mapTeaPull);
+	return buildListResource(scheme, repo, options, items, url, `Live Gitea listing for ${repo}`);
 }
 
 interface BuildSingleArgs {
@@ -420,26 +542,37 @@ async function fetchAndRenderPrDiff(
 	url: InternalUrl,
 	parsed: ParsedPrDiff,
 	context: ResolveContext | undefined,
+	giteaRepo?: string,
 ): Promise<InternalResource> {
 	const cwd = resolveCwd(context);
 	let repo = parsed.repo;
-	if (!repo) {
-		try {
-			repo = await resolveDefaultRepoMemoized(cwd, context?.signal);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			throw new Error(
-				`pr://${parsed.number}/diff could not resolve a default repo from the current session: ${message}\nUse pr://<owner>/<repo>/${parsed.number}/diff.`,
-			);
+	let lookup: { payload: PrDiffPayload; status: CacheStatus; fetchedAt: number };
+	if (giteaRepo !== undefined) {
+		repo = giteaRepo;
+		lookup = {
+			payload: await fetchTeaPullDiff(cwd, giteaRepo, parsed.number, context?.signal),
+			status: "miss",
+			fetchedAt: Date.now(),
+		};
+	} else {
+		if (!repo) {
+			try {
+				repo = await resolveDefaultRepoMemoized(cwd, context?.signal);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				throw new Error(
+					`pr://${parsed.number}/diff could not resolve a default repo from the current session: ${message}\nUse pr://<owner>/<repo>/${parsed.number}/diff.`,
+				);
+			}
 		}
+		lookup = await getOrFetchPrDiff({
+			cwd,
+			repo,
+			number: parsed.number,
+			signal: context?.signal,
+			settings: context?.settings,
+		});
 	}
-	const lookup = await getOrFetchPrDiff({
-		cwd,
-		repo,
-		number: parsed.number,
-		signal: context?.signal,
-		settings: context?.settings,
-	});
 	const files = lookup.payload.files;
 	const freshness = formatFreshnessNote(lookup.status, lookup.fetchedAt);
 
@@ -516,8 +649,12 @@ export class IssueProtocolHandler implements ProtocolHandler {
 			throw new Error("aborted");
 		}
 		const parsed = parseUrl(url, "issue");
+		const giteaRepo = await resolveGiteaRoute(parsed.repo, context);
 		if (parsed.kind === "list") {
 			try {
+				if (giteaRepo !== undefined) {
+					return await fetchAndRenderTeaList("issue", giteaRepo, parsed, url, context);
+				}
 				return await fetchAndRenderList("issue", parsed, url, context);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
@@ -530,6 +667,24 @@ export class IssueProtocolHandler implements ProtocolHandler {
 			throw new Error(`Invalid issue:// URL: unexpected variant '${parsed.kind}'`);
 		}
 		try {
+			if (giteaRepo !== undefined) {
+				const rendered = await renderTeaIssue(
+					resolveCwd(context),
+					giteaRepo,
+					parsed.number,
+					parsed.comments,
+					context?.signal,
+				);
+				return buildSingleResource({
+					url,
+					scheme: "issue",
+					parsed,
+					rendered,
+					status: "miss",
+					fetchedAt: Date.now(),
+					repo: giteaRepo,
+				});
+			}
 			const lookup = await getOrFetchIssue({
 				cwd: resolveCwd(context),
 				repo: parsed.repo,
@@ -565,8 +720,12 @@ export class PrProtocolHandler implements ProtocolHandler {
 			throw new Error("aborted");
 		}
 		const parsed = parseUrl(url, "pr");
+		const giteaRepo = await resolveGiteaRoute(parsed.repo, context);
 		if (parsed.kind === "list") {
 			try {
+				if (giteaRepo !== undefined) {
+					return await fetchAndRenderTeaList("pr", giteaRepo, parsed, url, context);
+				}
 				return await fetchAndRenderList("pr", parsed, url, context);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
@@ -575,10 +734,33 @@ export class PrProtocolHandler implements ProtocolHandler {
 		}
 		if (parsed.kind === "pr-diff") {
 			try {
-				return await fetchAndRenderPrDiff(url, parsed, context);
+				return await fetchAndRenderPrDiff(url, parsed, context, giteaRepo);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				throw new Error(`pr:// diff resolution failed: ${message}`);
+			}
+		}
+		if (giteaRepo !== undefined) {
+			try {
+				const rendered = await renderTeaPull(
+					resolveCwd(context),
+					giteaRepo,
+					parsed.number,
+					parsed.comments,
+					context?.signal,
+				);
+				return buildSingleResource({
+					url,
+					scheme: "pr",
+					parsed,
+					rendered,
+					status: "miss",
+					fetchedAt: Date.now(),
+					repo: giteaRepo,
+				});
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				throw new Error(`pr:// resolution failed: ${message}`);
 			}
 		}
 		const cwd = resolveCwd(context);

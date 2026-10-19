@@ -59,9 +59,18 @@ const TEA_OPS = [
 	"pr_merge",
 	"release_list",
 	"release_create",
+	"run_watch",
 ] as const;
 
-const TEA_READ_OPS = ["repo_view", "issue_view", "issue_list", "pr_view", "pr_list", "release_list"] as const;
+const TEA_READ_OPS = [
+	"repo_view",
+	"issue_view",
+	"issue_list",
+	"pr_view",
+	"pr_list",
+	"release_list",
+	"run_watch",
+] as const;
 
 function createSession(
 	cwd: string = "/tmp/test",

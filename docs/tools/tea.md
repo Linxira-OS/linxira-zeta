@@ -8,6 +8,8 @@
 - Key collaborators:
   - `packages/coding-agent/src/tools/tea-common.ts` — `[host/]owner/repo` parsing, tea-login (instance) resolution, cwd → Gitea remote resolution with a process-lifetime cache, git worktree helpers, result building.
   - `packages/coding-agent/src/tools/tea-types.ts` — pure types: tool input, result details, Gitea API projections (repo/issue/PR/release/user/run).
+  - `packages/coding-agent/src/tools/tea-issue-pr.ts` — `issue://`/`pr://` reads, listings, and diff passthrough against the Gitea API.
+  - `packages/coding-agent/src/tools/tea-run-watch.ts` — `run_watch` polling for Gitea Actions runs (the `gh run watch` analog).
   - `packages/coding-agent/src/utils/gitea.ts` — `tea` process wrapper (`gitea.run/json/text()`), non-interactive env, 5-minute deadline, 8 MiB captured-output cap, auth/context failure mapping.
   - `@linxiraos/pi-tui/tools/gh-format` — shared `pushLine`/`formatShortSha` field rendering.
   - `@linxiraos/pi-natives/vcs` — git operations (`requireGit()`: fetch/branch/worktree/config).
@@ -17,13 +19,13 @@
 
 - `gitea.enabled` defaults to `false`; enable the tea tool in **Settings → Tools** before use.
 - The tool is discoverable and strict-schema, and is created only when `tea` is available on `PATH`. Authentication is per named login: `tea login add` configures instance + token; the CLI is checked when an operation runs.
-- `repo_view`, `issue_view`, `issue_list`, `pr_view`, `pr_list`, and `release_list` request read approval. `repo_create`, `issue_create`, `pr_create`, `pr_checkout`, `pr_merge`, and `release_create` request execution approval.
+- `repo_view`, `issue_view`, `issue_list`, `pr_view`, `pr_list`, `release_list`, and `run_watch` request read approval. `repo_create`, `issue_create`, `pr_create`, `pr_checkout`, `pr_merge`, and `release_create` request execution approval.
 
 ## Inputs
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `op` | `"repo_view" \| "repo_create" \| "issue_view" \| "issue_list" \| "issue_create" \| "pr_view" \| "pr_list" \| "pr_create" \| "pr_checkout" \| "pr_merge" \| "release_list" \| "release_create"` | Yes | Dispatch selector. `TeaTool.execute()` switches only on this field. |
+| `op` | `"repo_view" \| "repo_create" \| "issue_view" \| "issue_list" \| "issue_create" \| "pr_view" \| "pr_list" \| "pr_create" \| "pr_checkout" \| "pr_merge" \| "release_list" \| "release_create" \| "run_watch"` | Yes | Dispatch selector. `TeaTool.execute()` switches only on this field. |
 | `repo` | `string` | No | `[host/]owner/repo` override. Unlike `gh`, the host segment is never assumed away: it is matched against configured `tea` logins to pin the instance. Omitted ops resolve the current checkout's Gitea remote (memoized per cwd). |
 | `login` | `string` | No | Explicit `tea` login name — the analog of `gh`'s `--hostname`. Wins over host matching; without either, `tea`'s default login is used. |
 | `name` | `string` | No | Required by `repo_create`: new repository name. |
@@ -49,12 +51,14 @@
 | `mergeTitle` | `string` | No | `pr_merge` merge commit title. |
 | `mergeMessage` | `string` | No | `pr_merge` merge commit message. |
 | `force` | `boolean` | No | `pr_checkout`: reset an existing `pr-<number>` branch to the PR head. |
+| `run` | `number` | No | Required by `run_watch`: Gitea Actions run id to poll until it reaches a terminal state. |
 
 ## Outputs
 
 - `content`: one text block per op. List ops render one `# <index> [state] title` entry per item with indented fields; empty lists are marked `useless: true`.
 - `sourceUrl`: set whenever the entity has a web URL (`html_url`).
-- `details`: `repo`, `issue`, `pr`, `url`, `branch`, `worktreePath`, `remote`, `remoteBranch`, `headSha` (merge commit after `pr_merge`), and `checkouts` for `pr_checkout`.
+- `details`: `repo`, `issue`, `pr`, `url`, `branch`, `worktreePath`, `remote`, `remoteBranch`, `headSha` (merge commit after `pr_merge`), `checkouts` for `pr_checkout`, and `runId`/`runStatus`/`runConclusion` for `run_watch`.
+- `run_watch` streams one snapshot per poll via `onUpdate` and returns the final snapshot with the observed status transitions (`queued → in_progress → completed (success)`).
 
 ## Flow
 1. `TeaTool.createIf()` exposes the tool only when `gitea.available()` finds `tea` on `PATH`; the `gitea.enabled` setting gates it in `resolveBuiltinToolPlan`.
@@ -71,7 +75,8 @@
    - `issue_create`/`pr_create` parse the `#<n>` marker from tea's output (falling back to an exact-title search) and read the entity back;
    - `pr_merge` re-reads the PR and errors unless `merged` is true;
    - `release_create` re-reads `/releases/tags/{tag}`.
-8. `pr_checkout` resolves PR metadata first, then enters `withRepoLock()` before any git mutation. It fetches `refs/pull/<N>/head` (falling back to the head branch for remotes without pull refs), refuses to proceed when the fetched commit differs from the API-reported head, creates/resets the `pr-<N>` branch (`force` required to reset), configures branch tracking (fork PRs get no push config), and adds a dedicated worktree — the working tree is never touched. Reused worktrees short-circuit.
+8. `run_watch` resolves the repo context once, maps the host to `--login`, and polls `GET /repos/{slug}/actions/runs/{run}` through `tea api`. Polls run every 3s for the first minute and every 15s afterwards (the `gh run watch` cadence); each poll emits an `onUpdate` snapshot and distinct status/conclusion pairs are accumulated into a transitions line. The watch ends when the run reaches `completed` (or an instance that folds `success`/`failure` into `status`), and honors the caller's `AbortSignal` at every iteration.
+9. `pr_checkout` resolves PR metadata first, then enters `withRepoLock()` before any git mutation. It fetches `refs/pull/<N>/head` (falling back to the head branch for remotes without pull refs), refuses to proceed when the fetched commit differs from the API-reported head, creates/resets the `pr-<N>` branch (`force` required to reset), configures branch tracking (fork PRs get no push config), and adds a dedicated worktree — the working tree is never touched. Reused worktrees short-circuit.
 
 ## Modes / Variants
 
@@ -104,6 +109,17 @@
 
 `pr_checkout` errors when no local git remote points at the resolved slug, when the fetched commit does not match the API-reported head, or when `pr-<n>` exists at a different commit without `force`.
 
+### `run_watch`
+
+| Aspect | Value |
+| --- | --- |
+| Required fields | `run` |
+| Optional fields | `repo`, `login` |
+| `tea` command | `tea api [--login <name>] /repos/<slug>/actions/runs/<run>` per poll |
+| Output | Streaming snapshots (`# Watching Gitea Actions Run #<id>` + workflow/title/branch/commit/status/conclusion/timestamps/URL/poll/transitions), then a final `# Gitea Actions Run #<id>` block ending in `Run succeeded.` / `Run failed.` / `Run finished.` `sourceUrl = html_url`. |
+
+Terminal states: `status=completed` with a success conclusion (`success`, `neutral`, `skipped`) or failure conclusion (`failure`, `timed_out`, `cancelled`, `canceled`, `action_required`, `startup_failure`). Instances that report `status=success|failure` directly are accepted as terminal too.
+
 ### `release_list` / `release_create`
 
 | Aspect | Value |
@@ -112,6 +128,16 @@
 | Optional fields | `repo`, `login`; list: `limit`; create: `title`, `body` (notes), `target`, `draft`, `prerelease` |
 | `tea` command | list: `tea api /repos/<slug>/releases?limit=`; create: `tea releases create <tag> [--title] [--note] [--target] [--draft] [--prerelease] --repo <slug>` + tags readback |
 | Output | List: tag/name entries with draft/prerelease/target/author/published/asset counts. Create: `# Created Release <tag>` summary. |
+
+## `issue://` / `pr://` routing
+
+When `gitea.enabled` is on and `tea` is installed, the internal URL schemes resolve through this tool's Gitea runner instead of `gh`:
+
+- **Host-prefixed URLs** (`issue://gitea.example.com/owner/repo/12`, `pr://gitea.example.com/owner/repo/7/diff/all`) use Gitea only when the host matches a configured `tea` login (or the checkout's Gitea remote host). Any other host keeps its existing GitHub Enterprise meaning, so enabling Gitea never redirects a GHE URL.
+- **Bare URLs** (`issue://12`, `pr://12/diff`, `issue://owner/repo`) use the checkout's Gitea remote when one resolves (the same git-remote + login-host detection as `repo` omission); with no Gitea remote they keep using the GitHub default repo.
+- Supported shapes are identical to the GitHub path: single reads, listings (`?state=&limit=&author=&label=`) and `pr://<n>/diff[/all|/<i>]`. Listings call `GET /repos/{slug}/issues?type=issues` / `/pulls`; `state=merged` becomes `state=closed` plus a client-side `merged` filter. Diffs call `GET /repos/{slug}/pulls/{n}.diff` and are split locally into per-file sections.
+- A host prefix always reaches the API as a host-qualified ref (`host/owner/repo`); the host segment selects `--login`, never a global default.
+- Setting `gitea.enabled=false` leaves every URL on the existing GitHub path, byte for byte.
 
 ## Limits
 
