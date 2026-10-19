@@ -191,7 +191,7 @@ rust_shared_library(
         "//bazel/triples:aarch64-pc-windows-msvc": ["-Ctarget-feature=+crt-static"],
         "//conditions:default": [],
     }),
-    version = "1.3.0",
+    version = "1.3.1",
     deps = all_crate_deps(normal = True) + [
         "//crates/pi-ast",
         "//crates/pi-builtins",
