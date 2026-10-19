@@ -34,15 +34,21 @@ pub struct Builtin {
 	pub source: &'static str,
 }
 
-/// The builtin rail set, in default order. Five views; search · tasks ·
-/// automation and **projects** show by default, `mobile` is kept in the list
-/// but starts hidden (its design is not settled yet — one line re-shows it).
+/// The builtin rail set, in default order. Seven views; search · tasks ·
+/// automation · projects · **files** and **git** show by default, `mobile` is
+/// kept in the list but starts hidden (its design is not settled yet — one
+/// line re-shows it).
+///
+/// `files` and `git` are the terminal mirrors of the GUI's own real surfaces
+/// (`fsread` / `git`): a lazy tree of the active workspace and the workspace's
+/// branch, working-tree status and recent commits. They carry no settings or
+/// provider pane — those belong to zetacode and the GUI.
 ///
 /// There is deliberately no usage/statistics view here: zetacode's own input
 /// box already shows the current conversation's usage, and the global usage
 /// lives behind `zetacode`'s `/stats`. The terminal form carries no usage
 /// surface of its own.
-pub const BUILTINS: [Builtin; 5] = [
+pub const BUILTINS: [Builtin; 7] = [
 	Builtin {
 		id: "search",
 		title: "search",
@@ -77,6 +83,20 @@ pub const BUILTINS: [Builtin; 5] = [
 		icon: "📁",
 		default_visible: true,
 		source: "~/.zeta/projects.json — the same registry the GUI reads",
+	},
+	Builtin {
+		id: "files",
+		title: "files",
+		icon: "📂",
+		default_visible: true,
+		source: "the active workspace directory — a lazy file tree (the GUI's fsread surface)",
+	},
+	Builtin {
+		id: "git",
+		title: "git",
+		icon: "⎇",
+		default_visible: true,
+		source: "the active workspace's git branch, working-tree status and recent commits",
 	},
 ];
 
@@ -337,14 +357,22 @@ mod tests {
 	}
 
 	#[test]
-	fn defaults_show_the_four_builtin_views_in_order() {
+	fn defaults_show_the_six_builtin_views_in_order() {
 		let slots = default_registry();
-		assert_eq!(ids(&slots), ["search", "tasks", "automation", "mobile", "projects"]);
-		assert_eq!(visible_ids(&slots), ["search", "tasks", "automation", "projects"]);
+		assert_eq!(
+			ids(&slots),
+			["search", "tasks", "automation", "mobile", "projects", "files", "git"]
+		);
+		assert_eq!(
+			visible_ids(&slots),
+			["search", "tasks", "automation", "projects", "files", "git"]
+		);
 		assert_eq!(slots[0].order, 0);
-		assert_eq!(slots[4].order, 4, "orders are dense and 0-based");
+		assert_eq!(slots[6].order, 6, "orders are dense and 0-based");
 		assert!(!slots[3].visible, "mobile is listed but hidden out of the box");
 		assert!(slots[4].visible, "projects shows out of the box");
+		assert!(slots[5].visible, "files shows out of the box");
+		assert!(slots[6].visible, "git shows out of the box");
 	}
 
 	#[test]
@@ -353,7 +381,7 @@ mod tests {
 		assert_eq!(ids(&parse("shell = \"auto\"\n")), ids(&default_registry()), "no section at all");
 		assert_eq!(
 			visible_ids(&parse("[[right]]\nid = \"files\"\nurl = \"http://x\"\n")),
-			["search", "tasks", "automation", "projects"],
+			["search", "tasks", "automation", "projects", "files", "git"],
 			"a right-column page is not ours to validate"
 		);
 	}
@@ -373,10 +401,13 @@ order = 3
 ";
 		let slots = parse(text);
 		assert_eq!(ids(&slots)[0], "mobile", "order 0 wins");
-		assert_eq!(visible_ids(&slots), ["mobile", "tasks", "automation", "projects"]);
+		assert_eq!(
+			visible_ids(&slots),
+			["mobile", "tasks", "automation", "projects", "files", "git"]
+		);
 		assert_eq!(
 			slots.iter().map(|s| s.order).collect::<Vec<_>>(),
-			[0, 1, 2, 3, 4],
+			[0, 1, 2, 3, 4, 5, 6],
 			"the registry stays densely numbered"
 		);
 	}
@@ -425,7 +456,7 @@ future_field = 42
 			let slots = parse(case);
 			assert_eq!(
 				visible_ids(&slots),
-				["search", "tasks", "automation", "projects"],
+				["search", "tasks", "automation", "projects", "files", "git"],
 				"input {case:?} must fall back to the shipped defaults"
 			);
 			assert_eq!(slots.len(), BUILTINS.len());
@@ -448,8 +479,11 @@ future_field = 42
 	fn moving_an_entry_rewrites_the_order_keys() {
 		let mut slots = default_registry();
 		assert!(move_up(&mut slots, 3));
-		assert_eq!(ids(&slots), ["search", "tasks", "mobile", "automation", "projects"]);
-		assert_eq!(slots.iter().map(|s| s.order).collect::<Vec<_>>(), [0, 1, 2, 3, 4]);
+		assert_eq!(
+			ids(&slots),
+			["search", "tasks", "mobile", "automation", "projects", "files", "git"]
+		);
+		assert_eq!(slots.iter().map(|s| s.order).collect::<Vec<_>>(), [0, 1, 2, 3, 4, 5, 6]);
 		assert!(!move_up(&mut slots, 0), "the first row cannot move up");
 		assert!(move_down(&mut slots, 0));
 		assert_eq!(ids(&slots)[0], "tasks");

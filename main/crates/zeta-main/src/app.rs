@@ -234,6 +234,12 @@ pub struct Workspace {
 	local: crate::rail::LocalWorkspace,
 	/// Selected row of the projects view (an index into [`Registry::list`]).
 	project_row: usize,
+	/// The `files` page: a lazy tree over [`LocalWorkspace::dir`].
+	files: crate::files::FileTree,
+	/// The `git` page: branch/status/commits, read when the page opens.
+	git: crate::git::GitView,
+	/// Vertical offset of the git page (`j`/`k`); the renderer clamps it.
+	git_scroll: usize,
 	notice: Option<String>,
 	/// Hit regions recorded by the last draw, in paint order (later wins).
 	hits: Vec<(Rect, Hit)>,
@@ -381,6 +387,7 @@ impl Workspace {
 				.unwrap_or_else(|| std::path::PathBuf::from(".")),
 		);
 		let first = Tab::new_shell(cwd)?;
+		let files = crate::files::FileTree::new(local.dir.clone());
 		let (projects, projects_error) = match workbench_projects::Registry::load() {
 			Ok(registry) => (registry, None),
 			Err(error) => (
@@ -414,6 +421,9 @@ impl Workspace {
 			projects_error,
 			local,
 			project_row: 0,
+			files,
+			git: crate::git::GitView::default(),
+			git_scroll: 0,
 			notice: None,
 			hits: Vec::new(),
 			last_pane_areas: Vec::new(),
@@ -457,6 +467,23 @@ impl Workspace {
 	fn push_hit(&mut self, rect: Rect, hit: Hit) {
 		if rect.width > 0 && rect.height > 0 {
 			self.hits.push((rect, hit));
+		}
+	}
+
+	/// Load the data a rail view needs when its button turns it on.
+	///
+	/// `files` keeps an already-read tree (expansions survive a trip to another
+	/// view; `r` re-reads the disk), while `git` is read fresh every time the
+	/// page opens because branch and status change outside the app. The
+	/// placeholder views have no data and do nothing here.
+	fn show_slot(&mut self, builtin: usize) {
+		match slots::BUILTINS.get(builtin).map(|builtin| builtin.id) {
+			Some("files") => self.files.ensure_loaded(),
+			Some("git") => {
+				self.git = crate::git::GitView::load(&self.local.dir);
+				self.git_scroll = 0;
+			},
+			_ => {},
 		}
 	}
 
@@ -645,6 +672,61 @@ impl Workspace {
 		if matches!(key.code, KeyCode::Esc) && self.active_slot.is_some() {
 			self.active_slot = None;
 			return Ok(false);
+		}
+		// The files view owns the tree keys while it is on. Enter hands a file
+		// to the same open/edit path terminal links use; directories toggle.
+		// `r` re-reads the disk (a directory may have changed while away).
+		if self.active_slot == crate::slots::index_of("files") {
+			match key.code {
+				KeyCode::Char('j') | KeyCode::Down => {
+					self.files.next();
+					return Ok(false);
+				},
+				KeyCode::Char('k') | KeyCode::Up => {
+					self.files.previous();
+					return Ok(false);
+				},
+				KeyCode::Char('l') | KeyCode::Right => {
+					self.files.right();
+					return Ok(false);
+				},
+				KeyCode::Char('h') | KeyCode::Left => {
+					self.files.left();
+					return Ok(false);
+				},
+				KeyCode::Enter => {
+					if let crate::files::Activate::Open(path) = self.files.activate() {
+						self.active_slot = None;
+						self.open_path_in_editor(path, None, None, None);
+					}
+					return Ok(false);
+				},
+				KeyCode::Char('r') => {
+					self.files.reload();
+					return Ok(false);
+				},
+				_ => {},
+			}
+		}
+		// The git view scrolls with j/k and re-reads with r; everything else
+		// (including Esc above) keeps the workbench's usual meaning.
+		if self.active_slot == crate::slots::index_of("git") {
+			match key.code {
+				KeyCode::Char('j') | KeyCode::Down => {
+					self.git_scroll = self.git_scroll.saturating_add(1);
+					return Ok(false);
+				},
+				KeyCode::Char('k') | KeyCode::Up => {
+					self.git_scroll = self.git_scroll.saturating_sub(1);
+					return Ok(false);
+				},
+				KeyCode::Char('r') => {
+					self.git = crate::git::GitView::load(&self.local.dir);
+					self.git_scroll = 0;
+					return Ok(false);
+				},
+				_ => {},
+			}
 		}
 		// The projects view owns j/k/x while it is on: it is a list of
 		// registrations, and removing one edits the shared file immediately.
@@ -1294,6 +1376,9 @@ impl Workspace {
 				} else {
 					Some(builtin)
 				};
+				if self.active_slot.is_some() {
+					self.show_slot(builtin);
+				}
 			},
 			Hit::RailPlus => self.open_overlay(Overlay::Slots),
 			Hit::SlotRow(row) => self.toggle_slot(row),
@@ -1954,6 +2039,10 @@ impl Workspace {
 					self.projects_error.as_deref(),
 					self.project_row,
 				);
+			} else if slot.id() == "files" {
+				rail::render_files(frame, content, &self.files);
+			} else if slot.id() == "git" {
+				rail::render_git(frame, content, &self.git, self.git_scroll);
 			} else {
 				rail::render_view(frame, content, &slot);
 			}
