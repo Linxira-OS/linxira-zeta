@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-19
+
 - Version line moves to 1.3.2 with the rest of the suite; no user-visible change in this package.
 
 ## [1.3.1] - 2026-10-19

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-19
+
 ### Added
 
 - `zetacode update --desktop` manages the zetawork desktop app: `--check` prints one JSON line (`current`, `latest`, `available`, `asset`, `url`, `size`, `digest`) and the plain form downloads the Windows setup executable, verifies its SHA-256 and runs it silently
