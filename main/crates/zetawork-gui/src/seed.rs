@@ -16,6 +16,7 @@ use std::path::Path;
 use crate::{
 	git,
 	state::{Pane, Project, SessionKind, SessionTab, Workspace},
+	t,
 };
 
 /// The heading 本机's pseudo-project gets.
@@ -58,7 +59,7 @@ pub fn local_project(cwd: &Path) -> Project {
 	workspace.panes = default_panes("ws-local");
 	Project {
 		id: "p-local".to_owned(),
-		name: LOCAL_PROJECT.to_owned(),
+		name: crate::i18n::tr(LOCAL_PROJECT).to_owned(),
 		path: cwd.to_path_buf(),
 		workspaces: vec![workspace],
 	}
@@ -109,7 +110,7 @@ pub fn default_panes(ws_id: &str) -> Vec<Pane> {
 	vec![Pane {
 		id: pane_id,
 		active: term_id.clone(),
-		tabs: vec![SessionTab::new(term_id, SessionKind::Term, "终端 1".to_owned())],
+		tabs: vec![SessionTab::new(term_id, SessionKind::Term, t!("终端 {}", 1))],
 	}]
 }
 
