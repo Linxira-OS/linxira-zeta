@@ -171,11 +171,8 @@ describe("teamagent command", () => {
 		expect(parsed.autoloadSkills).toEqual(["testing", "api"]);
 	});
 
-	it("renders a tool allowlist that agent discovery parses", async () => {
+	it("renders a tool allowlist that the crew mirror reads back", async () => {
 		const { renderAgentMarkdown } = await loadModule();
-		// Runtime import: `@linxiraos/pi-utils` snapshots os.homedir() at module
-		// load, so readers must load after beforeEach points it at the temp root.
-		const { parseAgent } = await import("@linxiraos/zeta/task/agents");
 
 		const content = renderAgentMarkdown({
 			name: "scout",
@@ -183,9 +180,18 @@ describe("teamagent command", () => {
 			tools: ["read", "grep"],
 		});
 
+		// The rendered frontmatter is the contract the core discovery parser
+		// consumes (`parseFrontmatter` normalises kebab keys); assert the exact
+		// line here and read it back through the plugin's own mirror parser,
+		// which does not drag the published `@linxiraos/zeta` runtime into this
+		// standalone Vitest run.
 		expect(content).toContain('tools: ["read","grep"]');
-		const parsed = parseAgent("inline.md", content, "project");
-		expect(parsed.tools).toEqual(["read", "grep"]);
+		const dir = path.join(cwd, ".zeta", "agents");
+		fs.mkdirSync(dir, { recursive: true });
+		fs.writeFileSync(path.join(dir, "scout.md"), content);
+		const { discoverSubagentRoles } = await import("../crew/team/subagent-roles.ts");
+		const roles = discoverSubagentRoles(cwd, { homeDir: path.join(root, "empty-home") });
+		expect(roles.scout?.tools).toEqual(["read", "grep"]);
 	});
 
 	it("defaults non-editing roles to the minimal allowlist and leaves editing roles unrestricted", async () => {
