@@ -42,6 +42,7 @@ import {
 	updatePrefs,
 	markSessionRead,
 	collapseProject,
+	orderProjectsManually,
 	pinProject,
 	setProjectAlias as setProjectAliasPref,
 	type SessionSort,
@@ -1352,18 +1353,11 @@ export function SessionSidebar({
 				ordered = [...recentProjects].sort((a, b) => (latest.get(b) ?? 0) - (latest.get(a) ?? 0));
 				break;
 			}
-			case "manual": {
-				// Pinned first (prefs order), then current project, then recency.
-				const prefsNow = loadSidebarPrefs();
-				const pinRank = (p: string) => {
-					const m = prefsNow.projectMeta[p];
-					return m?.pinned ? (m.order ?? 0) : 1e9;
-				};
-				ordered = [...recentProjects].sort(
-					(a, b) => pinRank(a) - pinRank(b) || (a === selectedProject ? -1 : b === selectedProject ? 1 : 0),
-				);
+			case "manual":
+				// `ProjectMeta.order` for every project, pinned or not (it is what
+				// the drag-to-reorder path writes); unplaced projects trail.
+				ordered = orderProjectsManually(recentProjects, prefs.projectMeta, selectedProject);
 				break;
-			}
 			default:
 				ordered = [...recentProjects];
 		}
@@ -1376,7 +1370,7 @@ export function SessionSidebar({
 			count: counts.get(project) ?? 0,
 			isDefault: defaultWorkspace !== null && isSameWorkspacePath(project, defaultWorkspace),
 		}));
-	}, [recentProjects, selectedProject, activeNonTempSessions, projSort, allSessions, defaultWorkspace]);
+	}, [recentProjects, selectedProject, activeNonTempSessions, projSort, allSessions, defaultWorkspace, prefs]);
 
 	// Local session search (data is fully in memory — no backend round trip).
 	const searchQuery = sessionSearch.trim().toLowerCase();

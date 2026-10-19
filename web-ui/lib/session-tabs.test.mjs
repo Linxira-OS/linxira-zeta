@@ -3,8 +3,10 @@ import test from "node:test";
 
 import {
 	activateTab,
+	closeOtherTabs,
 	closeTab,
 	closeTabs,
+	closeTabsToRight,
 	draftKeyForTab,
 	draftTab,
 	EMPTY_TABS_STATE,
@@ -14,6 +16,7 @@ import {
 	isTabRunning,
 	MAX_BACKGROUND_STREAMS,
 	reorderTabs,
+	selectRunningTabIds,
 	selectStreamingTabIds,
 	sessionTab,
 
@@ -119,6 +122,47 @@ test("closeTabs drops every listed tab and re-homes the active one", () => {
 	assert.equal(next.activeTabId, "t:a");
 });
 
+function threeTabs() {
+	let state = insertTab(EMPTY_TABS_STATE, tabA(1));
+	state = insertTab(state, tabB(2));
+	return insertTab(state, sessionTab({ id: "s-c", cwd: "/repo/c" }, { title: "C", now: 3, id: "t:c" }));
+}
+
+test("close other tabs keeps the target tab active", () => {
+	const state = threeTabs();
+	const next = closeOtherTabs(state, "t:a");
+	assert.deepEqual(
+		next.tabs.map(t => t.id),
+		["t:a"],
+	);
+	assert.equal(next.activeTabId, "t:a");
+	assert.equal(closeOtherTabs(state, "t:missing"), state);
+});
+
+test("close tabs to the right follows strip order and the close-successor rule", () => {
+	const state = threeTabs();
+	const next = closeTabsToRight(state, "t:a");
+	assert.deepEqual(
+		next.tabs.map(t => t.id),
+		["t:a"],
+	);
+	assert.equal(next.activeTabId, "t:a");
+
+	// Closing from the middle drops only the right-hand tab; the active tab
+	// (left of it) is untouched.
+	const active = activateTab(state, "t:b", 10);
+	const middle = closeTabsToRight(active, "t:b");
+	assert.deepEqual(
+		middle.tabs.map(t => t.id),
+		["t:a", "t:b"],
+	);
+	assert.equal(middle.activeTabId, "t:b");
+
+	// Nothing to the right: the state is returned unchanged.
+	assert.equal(closeTabsToRight(state, "t:c"), state);
+	assert.equal(closeTabsToRight(state, "t:missing"), state);
+});
+
 test("updateTab patches one tab and findTabBySessionId locates it", () => {
 	const state = insertTab(EMPTY_TABS_STATE, tabA(1));
 	const next = updateTab(state, "t:a", { title: "Renamed", sessionId: "s-a2" });
@@ -155,6 +199,25 @@ test("isTabRunning reads both the shared poll and the tab's live run state", () 
 	assert.equal(isTabRunning(tabA(), { runningSessionIds: new Set(), runningTabIds: new Set(["t:a"]) }), true);
 	// Drafts have no server session, so only their own live run state counts.
 	assert.equal(isTabRunning(draftTab("/repo/c", { title: "New", explicitNew: true, id: "t:d" }), { runningSessionIds: new Set(["s-a"]) }), false);
+});
+
+test("running badge covers cold tabs through the shared poll, without a new signal", () => {
+	const tabs = [tabA(), tabB(), draftTab("/repo/c", { title: "New", explicitNew: true, id: "t:d" })];
+	const ids = selectRunningTabIds({
+		tabs,
+		// t:a is running per the gateway poll; t:b reported a live run itself.
+		runningSessionIds: new Set(["s-a"]),
+		runningTabIds: new Set(["t:b"]),
+	});
+	assert.deepEqual([...ids].sort(), ["t:a", "t:b"]);
+
+	// The poll alone can only name session tabs.
+	assert.deepEqual([...selectRunningTabIds({ tabs, runningSessionIds: new Set(["s-b"]) })], ["t:b"]);
+	// Draft tabs have no session, so only their own run state can badge them.
+	assert.deepEqual([...selectRunningTabIds({ tabs, runningSessionIds: new Set(["s-a"]), runningTabIds: new Set(["t:d"]) })].sort(), [
+		"t:a",
+		"t:d",
+	]);
 });
 
 test("stream budget: active always streams, idle background tabs never do", () => {

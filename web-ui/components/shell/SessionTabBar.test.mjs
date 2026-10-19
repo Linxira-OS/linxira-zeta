@@ -39,6 +39,8 @@ function render(props) {
 				titleFor: entry => entry.title,
 				onActivateTab: () => {},
 				onCloseTab: () => {},
+				onCloseOthers: () => {},
+				onCloseRight: () => {},
 				onNewTab: () => {},
 				isMobile: false,
 				...props,
@@ -99,4 +101,13 @@ test("a single project hides the project prefix, two projects show it", () => {
 test("tab title attribute carries the workspace and session id", () => {
 	const markup = render({ tabs: [tab("t:a", { sessionId: "sess-1" })], activeTabId: "t:a" });
 	assert.match(markup, /title="t:a\n\/repo\nsess-1"/);
+});
+
+test("the strip exposes the right-click close family", async () => {
+	const { readFile } = await import("node:fs/promises");
+	const source = await readFile(new URL("./SessionTabBar.tsx", import.meta.url), "utf8");
+	assert.match(source, /onContextMenu=\{e => \{\n\t+e\.preventDefault\(\);/);
+	assert.match(source, /t\("tabs\.closeOthers"\)/);
+	assert.match(source, /t\("tabs\.closeRight"\)/);
+	assert.match(source, /disabled: tabs\.length <= 1/);
 });
