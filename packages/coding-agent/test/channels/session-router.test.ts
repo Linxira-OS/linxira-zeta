@@ -102,6 +102,20 @@ describe("SessionRouter", () => {
 		expect(webConfig.getWorkspaces().map(e => e.path)).toEqual([dir1, dir2]);
 	});
 
+	test("listWorkspaces/resolveWorkspace expose read-only refs without a live session", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "zeta-repo1-"));
+		cleanups.push(() => rm(dir, { recursive: true, force: true }));
+		const router = await makeRouter([dir]);
+		const alias = path.basename(dir);
+
+		expect(router.listWorkspaces()).toEqual([{ dir, alias }]);
+		expect(router.resolveWorkspace(alias)).toEqual({ dir, alias });
+		expect(router.resolveWorkspace(dir)).toEqual({ dir, alias });
+		expect(router.resolveWorkspace({ dir })).toEqual({ dir, alias });
+		expect(router.resolveWorkspace("missing")).toBeUndefined();
+		expect(router.resolveWorkspace({ dir: join(dir, "nowhere"), alias: "missing" })).toBeUndefined();
+	});
+
 	test("run() delegates a task and prefixes the reply with the workspace name", async () => {
 		const dir1 = await mkdtemp(join(tmpdir(), "zeta-repo1-"));
 		const dir2 = await mkdtemp(join(tmpdir(), "zeta-repo2-"));

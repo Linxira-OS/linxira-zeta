@@ -34,8 +34,11 @@ import { Settings, withActiveSettings } from "../../config/settings";
 import type { LocalProtocolOptions } from "../../internal-urls/local-protocol";
 import type { MemoryRuntimeContext } from "../../memory-backend";
 import { type Theme, theme } from "@linxiraos/pi-tui/theme";
+import { type AgentMessenger, createAgentMessenger } from "../../irc/facade";
+import { IrcBus } from "../../irc/bus";
+import { type AgentDirectory, createAgentDirectory } from "../../registry/agent-directory";
+import { AgentRegistry, MAIN_AGENT_ID } from "../../registry/agent-registry";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
-import { MAIN_AGENT_ID } from "../../registry/agent-registry";
 import type { SessionManager } from "../../session/session-manager";
 import { addFileDeleteFallback, addFileWriteFallback } from "../../tools/file-write-fallback";
 import type { BranchHandler, NavigateTreeHandler, NewSessionHandler } from "../session-handler-types";
@@ -538,6 +541,8 @@ export class ExtensionRunner {
 	#openPlanReviewFn: NonNullable<ExtensionContextActions["openPlanReview"]> = async () => false;
 	#getMemoryFn?: () => MemoryRuntimeContext | undefined;
 	#createAnnotations?: ExtensionAnnotationsFactory;
+	readonly #agents: AgentDirectory;
+	readonly #messaging: AgentMessenger;
 	#commandDiagnostics: Array<{ type: string; message: string; path: string }> = [];
 	#toolRegistrationScope = new AsyncLocalStorage<ToolRegistrationScope>();
 	#toolRegistrationBarrier: Promise<void> | undefined;
@@ -749,11 +754,17 @@ export class ExtensionRunner {
 		private readonly agent: ExtensionAgentIdentity = TOP_LEVEL_AGENT,
 		/** Builds `ctx.annotations`; supplied by the host that wires the bundled `/annotate` command. */
 		createAnnotations?: ExtensionAnnotationsFactory,
+		/** Registry backing `ctx.agents`; defaults to the process-global registry. */
+		registry?: AgentRegistry,
+		/** Bus backing `ctx.messaging`; defaults to the process-global bus. */
+		bus?: IrcBus,
 	) {
 		this.#uiContext = noOpUIContext;
 		this.#getMemoryFn = getMemory;
 		this.#createAnnotations = createAnnotations;
 		this.#getAsyncJobSnapshotFn = getAsyncJobSnapshot ?? (() => null);
+		this.#agents = createAgentDirectory(registry ?? AgentRegistry.global());
+		this.#messaging = createAgentMessenger(bus ?? IrcBus.global());
 	}
 
 	/**
@@ -1435,6 +1446,8 @@ export class ExtensionRunner {
 			modelRegistry: this.modelRegistry,
 			isProjectTrusted: () => true,
 			agent,
+			agents: this.#agents,
+			messaging: this.#messaging,
 			get model() {
 				return getModel();
 			},

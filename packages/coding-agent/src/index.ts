@@ -30,6 +30,10 @@ export * from "./extensibility/skills";
 // Slash commands
 export { type FileSlashCommand, loadSlashCommands as discoverSlashCommands } from "./extensibility/slash-commands";
 export type * from "./lsp";
+// Cross-agent interfaces (directory + messenger) and their message types
+export * from "./irc/facade";
+export type { IrcDeliveryReceipt, IrcMessage } from "@linxiraos/pi-tui/tools/irc";
+export * from "./registry/agent-directory";
 // Main entry point
 export * from "./main";
 // Run modes for programmatic SDK usage
