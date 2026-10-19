@@ -423,18 +423,30 @@ The staged-runtime row is `packages/coding-agent/binaries/` — the one director
 `scripts/ci-release-build-binaries.ts` stages every product into and
 `release_github` uploads from.
 
-**Release surface from 1.3.0 (user ruling 2026-10-19).** The workbench TUI is
-held back: `zeta-work-*` binaries, the Electron desktop (`zeta-desktop-*`) and
-the `@linxiraos/main` / `@linxiraos/zeta-web` npm legs are **not** published.
-What ships: `zeta-cli-*` (zetacode), `zeta-ide-*` (zetaide), the
-`@linxiraos/{zeta,ide,editor}` distributions with their platform leaves and
-natives, and the official plugin packages. `@linxiraos/main` keeps its
-in-tree manifests and companion pins (the launcher still installs zetaide
-beside zetacode when republished by hand through `main-publish.yml`), and
-`scripts/check-workbench-bundles.ts` enforces the shipped subset: a staged
-`zetawork` leg, or a `zeta-work-*` upload, is a failure — re-adding either
-means restoring the matrix legs and the guard's `COMMANDS` entry in the same
-change.
+**Release surface from 1.3.1 (user ruling 2026-10-18).** Everything ships
+except two deliberate holes:
+
+| Product | Release assets | npm |
+| --- | --- | --- |
+| zetacode | `zeta-cli-{linux-x64,linux-musl-x64,windows-x64.exe}` | `@linxiraos/zeta` |
+| zetawork TUI | `zeta-work-{linux-x64,win-x64.exe}` | `@linxiraos/main` + the two leaves |
+| zetawork desktop | `zetawork-windows-x64.zip` (exe + `WebView2Loader.dll`), `zetawork-<ver>-1-x86_64.pkg.tar.zst`, `zetawork-<ver>-x86_64.AppImage` | **none** — the GUI never enters the npm chain |
+| zetaide | `zeta-ide-{linux-x64,win-x64.exe}` | `@linxiraos/ide` |
+| editor | — (cloud component) | `@linxiraos/editor` |
+| official plugins | — | `@linxiraos/pi-messenger` |
+
+The Electron desktop (`zeta-desktop-*`) is gone for good; "desktop" means
+`zetawork`'s GUI mode only. Linux ships the **Arch package** (`.pkg.tar.zst`,
+`pacman -U`) as its primary form and the AppImage as the portable one — a raw
+Linux zip is not the story, and flatpak is out of scope. The GUI binary is
+installed off PATH (`/usr/lib/zetawork/zetawork-gui`, launched by the desktop
+entry), so the product keeps exactly three commands: `zetawork`, `zetacode`,
+`zetaide`; bare `zeta` prints the help that names them.
+
+`release_desktop_archives` (Zeta-only job) builds the three archives from both
+Linux legs; `release_github` waits on it, and
+`scripts/check-workbench-bundles.ts` fails when a shippable leg disappears or
+an upload family exists that the release does not create.
 
 ### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
 
