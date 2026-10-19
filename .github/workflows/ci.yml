@@ -1316,8 +1316,11 @@ jobs:
          # setup (zeta/termide flag parse), so a bare runner probe is
          # safe. Windows assets are cross-built — nothing on the Linux
          # runner can exec them (same policy as the zeta-cli-* win32-x64 leg).
+         # The desktop app has no CLI surface: `--version` opens a window and
+         # dies headless (WinitEventLoop: no DISPLAY). Its smoke is the archive
+         # job, which runs the packaged build's own checks.
          - name: Smoke release product binary
-           if: matrix.platform == 'linux'
+           if: matrix.platform == 'linux' && !startsWith(matrix.target_id, 'zetawork-gui-')
            run: |
               runtime_dir="$(mktemp -d)"
               HOME="$runtime_dir/home" XDG_DATA_HOME="$runtime_dir/xdg" "packages/coding-agent/binaries/${{ matrix.artifact }}" --version
