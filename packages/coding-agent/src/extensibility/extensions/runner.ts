@@ -41,6 +41,7 @@ import { AgentRegistry, MAIN_AGENT_ID } from "../../registry/agent-registry";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
 import type { SessionManager } from "../../session/session-manager";
 import { addFileDeleteFallback, addFileWriteFallback } from "../../tools/file-write-fallback";
+import { translatePluginMessage } from "../plugins/locales";
 import type { BranchHandler, NavigateTreeHandler, NewSessionHandler } from "../session-handler-types";
 import { accumulateToolCallResult, buildAggregatedToolCallResult } from "../shared-events";
 import { ManagedTimers } from "./managed-timers";
@@ -267,6 +268,25 @@ function createHandlerUIContext(
 			return delegated;
 		},
 	});
+}
+
+/**
+ * Bind `ctx.t()` to one extension's catalogues without spreading the context:
+ * the runner context is shared across extensions, so overriding `t` on a
+ * prototype-scoped copy keeps each plugin's strings from leaking into another
+ * extension's handlers. Extensions without catalogues keep the host default
+ * (`fallback ?? key`).
+ */
+function withExtensionCatalog(ctx: ExtensionContext, extension: Extension): ExtensionContext {
+	const catalog = extension.localeCatalog;
+	if (!catalog) return ctx;
+	const scoped: ExtensionContext = Object.create(ctx);
+	Object.defineProperty(scoped, "t", {
+		value: (key: string, fallback?: string) => translatePluginMessage(catalog.tables, key, fallback),
+		enumerable: true,
+		configurable: true,
+	});
+	return scoped;
 }
 
 /**
@@ -908,7 +928,7 @@ export class ExtensionRunner {
 				this.#fileFallbackDisposers.push(
 					addFileWriteFallback(async req => {
 						if (this.#suspendedExtensions.has(ext)) return false;
-						const ctx = this.createContext();
+						const ctx = this.scopeContextToExtension(this.createContext(), ext.path);
 						for (const handler of ext.fileWriteFallbackHandlers) {
 							try {
 								if (await handler(req, ctx)) return true;
@@ -927,7 +947,7 @@ export class ExtensionRunner {
 				this.#fileFallbackDisposers.push(
 					addFileDeleteFallback(async req => {
 						if (this.#suspendedExtensions.has(ext)) return false;
-						const ctx = this.createContext();
+						const ctx = this.scopeContextToExtension(this.createContext(), ext.path);
 						for (const handler of ext.fileDeleteFallbackHandlers) {
 							try {
 								if (await handler(req, ctx)) return true;
@@ -1442,6 +1462,10 @@ export class ExtensionRunner {
 			getAsyncJobSnapshot: () => this.#getAsyncJobSnapshotFn(),
 			hasUI: this.hasUI(),
 			cwd: this.cwd,
+			// Extensions with a plugin catalogue get a scoped `t` (see
+			// `withExtensionCatalog`); loose extensions fall back to the caller's
+			// text so `ctx.t()` is always callable.
+			t: (key: string, fallback?: string) => fallback ?? key,
 			sessionManager: this.sessionManager,
 			modelRegistry: this.modelRegistry,
 			isProjectTrusted: () => true,
@@ -1540,9 +1564,23 @@ export class ExtensionRunner {
 		for (const dispose of this.#fileFallbackDisposers.splice(0)) dispose();
 	}
 
-	createCommandContext(): ExtensionCommandContext {
+	/**
+	 * Bind `ctx.t()` to the catalogues of the extension at `extensionPath`.
+	 * Used by dispatch sites that do not carry the `Extension` object (tool
+	 * adapters, slash commands, shortcuts). A loose extension or one shipping
+	 * no catalogues keeps the base context unchanged.
+	 */
+	scopeContextToExtension(ctx: ExtensionContext, extensionPath: string | undefined): ExtensionContext {
+		if (!extensionPath) return ctx;
+		const extension = this.getLoadedExtensions().find(
+			candidate => candidate.path === extensionPath || candidate.resolvedPath === extensionPath,
+		);
+		return extension ? withExtensionCatalog(ctx, extension) : ctx;
+	}
+
+	createCommandContext(extensionPath?: string): ExtensionCommandContext {
 		return {
-			...this.createContext(),
+			...this.scopeContextToExtension(this.createContext(), extensionPath),
 			getContextUsage: () => this.#getContextUsageFn(),
 			waitForIdle: () => this.#waitForIdleFn(),
 			newSession: options => this.#newSessionHandler(options),
@@ -1596,7 +1634,7 @@ export class ExtensionRunner {
 						let result: R | undefined;
 						try {
 							const handlerContext = createHandlerContext(
-								ctx,
+								withExtensionCatalog(ctx, ext),
 								handlerSignal,
 								event.type === "tool_call" ? budget : undefined,
 							);

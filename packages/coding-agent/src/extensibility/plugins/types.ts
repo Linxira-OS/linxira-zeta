@@ -46,6 +46,22 @@ export interface PluginManifest {
 
 	/** Settings schema for plugin configuration */
 	settings?: Record<string, PluginSettingSchema>;
+
+	/**
+	 * Message catalogues exposed to this plugin's extensions as `ctx.t()`.
+	 *
+	 * Each value is a path (relative to the plugin root) to a flat
+	 * `Record<string, string>` JSON file. Declaring an entry overrides the
+	 * conventional `locales/<tag>.json` location; omitting this field entirely
+	 * falls back to those conventional files when they exist.
+	 */
+	locales?: PluginLocalePaths;
+}
+
+/** Catalogue file paths per host language for a plugin's `ctx.t()` strings. */
+export interface PluginLocalePaths {
+	zh?: string;
+	en?: string;
 }
 
 /**

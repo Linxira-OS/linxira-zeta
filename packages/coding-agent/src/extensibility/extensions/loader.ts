@@ -39,7 +39,8 @@ import { getAllPluginExtensionPaths } from "../plugins/loader";
 
 import { resolvePath, withHostGuard } from "../utils";
 import type { PluginStorage } from "../plugins/types";
-import { resolvePluginStorage } from "../plugins/loader";
+import { resolvePluginLocaleCatalog, resolvePluginStorage } from "../plugins/loader";
+import type { PluginLocaleCatalog } from "../plugins/locales";
 import type { ComposerShapeDefinition } from "@linxiraos/pi-tui/overlays/composer-shape-registry";
 import type {
 	AssistantThinkingRenderer,
@@ -245,7 +246,7 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 			handler: RegisteredCommand["handler"];
 		},
 	): void {
-		this.extension.commands.set(name, { name, ...options });
+		this.extension.commands.set(name, { name, ...options, extensionPath: this.extension.path });
 	}
 
 	setLabel(label: string): void {
@@ -377,10 +378,11 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 /**
  * Create an Extension object with empty collections.
  */
-function createExtension(extensionPath: string, resolvedPath: string): Extension {
+function createExtension(extensionPath: string, resolvedPath: string, localeCatalog?: PluginLocaleCatalog): Extension {
 	return {
 		path: extensionPath,
 		resolvedPath,
+		localeCatalog,
 		handlers: new Map(),
 		tools: new Map(),
 		toolRegistrationListeners: new Set(),
@@ -455,6 +457,7 @@ async function bindExtension(
 	try {
 		const extension = createExtension(extensionPath, imported.resolvedPath);
 		const storage = await resolvePluginStorage(cwd, imported.resolvedPath);
+		extension.localeCatalog = await resolvePluginLocaleCatalog(cwd, imported.resolvedPath);
 		const api = new ConcreteExtensionAPI(PiCodingAgent, extension, runtime, cwd, eventBus, storage);
 		await withHostGuard(() => runExtensionFactory(factory, api, runtime));
 

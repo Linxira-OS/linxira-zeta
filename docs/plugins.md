@@ -61,7 +61,35 @@ is exactly the set a session can load. A `zeta`-only manifest loads; so does an
 `omp`-only or `pi`-only one; a package declaring several is read as the most
 specific one.
 
-The keys the loader consumes are `extensions` (module entry points) and `features`; the runtime also reads `settings` (schema for `zetacode plugin config`). `tools`, `hooks`, and `commands` manifest keys are resolved by `resolvePluginToolPaths`/`resolvePluginHookPaths`/`resolvePluginCommandPaths`, but nothing in the product calls them — a plugin contributes its tools/commands/hooks by registering them from an `extensions` module. `skills` is likewise **not** an implemented manifest key: a plugin's skills are found by directory convention (`<plugin>/skills/<name>/SKILL.md`), which is why the official plugin's `"skills": ["./skills"]` entry is inert but its skill still loads.
+The keys the loader consumes are `extensions` (module entry points) and `features`; the runtime also reads `settings` (schema for `zetacode plugin config`) and `locales` (message catalogues for `ctx.t()`, see below). `tools`, `hooks`, and `commands` manifest keys are resolved by `resolvePluginToolPaths`/`resolvePluginHookPaths`/`resolvePluginCommandPaths`, but nothing in the product calls them — a plugin contributes its tools/commands/hooks by registering them from an `extensions` module. `skills` is likewise **not** an implemented manifest key: a plugin's skills are found by directory convention (`<plugin>/skills/<name>/SKILL.md`), which is why the official plugin's `"skills": ["./skills"]` entry is inert but its skill still loads.
+
+### Plugin i18n: `ctx.t()`
+
+A plugin ships message catalogues as flat `Record<string, string>` JSON files and declares them in its manifest:
+
+```json
+{
+  "name": "@linxiraos/example-plugin",
+  "version": "1.0.0",
+  "zeta": {
+    "version": "1.0.0",
+    "extensions": ["./index.ts"],
+    "locales": { "zh": "locales/zh.json", "en": "locales/en.json" }
+  }
+}
+```
+
+```json
+// locales/zh.json
+{ "greeting": "你好", "farewell": "再见" }
+```
+
+- `locales` maps the host languages (`zh`, `en`) to paths relative to the plugin root. A path that is not a string is a manifest error: the loader reports `` `locales.zh` must be a string path to a JSON catalogue, got number `` and ignores the declaration. Unsupported language tags are rejected the same way.
+- When `locales` is absent, the loader probes the conventional `locales/zh.json` and `locales/en.json` for each language, matching the official plugin template. A per-language declaration overrides that language's conventional path.
+- The files are read once per plugin and cached with plugin discovery. Malformed JSON, a non-object root, or a non-string value is logged as a warning and that catalogue is skipped; the plugin still loads.
+- Every extension loaded from the plugin gets `ctx.t(key, fallback?)` in event handlers, tool `execute`, commands, and shortcuts. The catalogue is the **owning plugin's**: a second plugin's catalogues never leak into the first extension's context. Loose extensions (`settings.extensions`, `-e`, inline factories) have no catalogue.
+- Lookup order is current host language → `en` → `fallback` → `key`. The host language is read on every call, so `/language` takes effect immediately without reloading plugins or re-reading the JSON files.
+- Plugins that ship no `locales/` (and no `locales` manifest key) are unchanged: `ctx.t("k", "text")` returns `"text"`, and `ctx.t("k")` returns `"k"`.
 
 ## Managing plugins
 
