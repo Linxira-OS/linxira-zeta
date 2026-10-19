@@ -793,20 +793,19 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   en+zh 词典、ASR 优先词典、不依赖 emoji、词典未覆盖脚本显示为未评分);judge 提示词已改
   改为语言中立且适配单条消息内混语言。
 
-- **插件宿主 i18n 机制(2026-10-13 用户裁决;官方插件标准的 `locales/{zh,en}.json` 同步降级为预留)**:
-  官方插件标准模板里的 `locales/{zh,en}.json` + 宿主注入 `t()` **只有文档、没有实现**——
-  `ExtensionAPI`/`ExtensionContext`(`packages/coding-agent/src/extensibility/extensions/types.ts`)
-  无 i18n / `t` 成员,`PluginManifest`
-  (`packages/coding-agent/src/extensibility/plugins/types.ts:27`)无 `locales` 字段,
-  `plugins/loader.ts`/`manager.ts`/`parser.ts` 均不读 `locales/*.json`。故标准措辞已统一降级为
-  **预留目录**(新建插件可选携带,存量插件豁免;`plugins/official/README.md`、
-  `plugins/official/INDEX.md`、`document/plugin-system.md` 三处同步,本轮只改文档、不动实现)。
-  **待开发三步**:① `ExtensionContext.t()` 注入;② 清单 `locales` 字段与解析;③ loader 读取
-  `locales/*.json` 并按宿主语言选表(语言源现成:`packages/coding-agent/src/i18n` 的
-  `currentLanguage()`/`M`)。**前置事实**:pi-messenger 的用户可见字符串目前全是硬编码
-  (overlay / 命令 / 工具描述 / handler 文案,11 个文件量级、约 200+ 条字面量),抽取前必须
-  先划清「用户可见 UI 文案」与「模型可见提示词(工具 description、crew/skills)」的边界——
-  后者本地化会改变模型行为。
+- **~~插件宿主 i18n 机制~~ 已实现(2026-10-20)**:原待开发三步全部落地——①
+  `ExtensionContext.t(key, fallback?)` 按扩展注入(`extensions/runner.ts` 的
+  `withExtensionCatalog`/`scopeContextToExtension`,覆盖 handler、tool、command、
+  shortcut);② `PluginManifest.locales?: { zh?, en? }` 及解析
+  (`plugins/types.ts`、`plugins/parser.ts` 的 `parsePluginLocales`,非字符串路径报明确
+  错误);③ loader 读取 `locales/*.json`(`plugins/locales.ts`,清单未声明时回落约定
+  路径、按插件缓存、坏 JSON 只告警),查找顺序「当前语言 → en → fallback → key」,
+  语言实时读取,`/language` 切换无需重载。`docs/plugins.md`、
+  `document/plugin-system.md`、`plugins/official/README.md` 已从「预留」改为实现契约。
+  **仍排队**:pi-messenger 的用户可见字符串抽取(overlay / 命令 / 工具描述 / handler
+  文案,11 个文件量级、约 200+ 条字面量)+ zh 条目;抽取前必须划清「用户可见 UI 文案」
+  与「模型可见提示词(工具 description、crew/skills)」的边界——后者本地化会改变模型
+  行为。
 
 - **上游 2.0 评估：被推迟的三项(2026-10-13 用户裁决)**:完整决策记录见
   `document/upstream-2.0-evaluation.md`。统一后端方向已定为「局部对齐 + 发现即复用」

@@ -1,7 +1,7 @@
 # 官方插件标准模板
 
 官方插件位于 `plugins/official/<plugin-id>/`，每个插件必须携带以下文件
-（`locales/` 除外：预留目录，机制未实现，见下）。
+（`locales/` 为可选的 i18n 字符串表，机制已实现，见下）。
 完整目录说明见 `document/plugin-system.md`；登记表见 `INDEX.md`。
 安装、启用与在会话中如何生效的运行期文档见 [`docs/plugins.md`](../../docs/plugins.md)，
 `pi-messenger` 的逐插件使用页见 [`docs/plugins/pi-messenger.md`](../../docs/plugins/pi-messenger.md)。
@@ -13,25 +13,67 @@ plugins/official/<plugin-id>/
 ├── src/ 或入口 index.ts         # 扩展工厂：registerTool / registerCommand
 ├── crew/agents/*.md             # 团队代理定义（agent-team 等）
 ├── skills/                      # 自带 skills
-├── locales/{zh,en}.json         # i18n 字符串表（预留目录：宿主 i18n 机制未实现，见下）
+├── locales/{zh,en}.json         # 可选：i18n 字符串表，经宿主 ctx.t() 读取（见下）
 ├── README.md / CHANGELOG.md
 └── tests/
 ```
 
-## `locales/` 与宿主 i18n（预留；机制未实现）
+## `locales/` 与宿主 i18n（已实现）
 
-标准模板里的 `locales/{zh,en}.json` 是**预留目录**。宿主 i18n 机制——宿主注入
-`t()`（`ExtensionContext.t()`）+ 清单 `locales` 字段 + loader 读取
-`locales/*.json`——**尚未实现**，仓库内只有文档约定（本文件、
-`document/plugin-system.md`）。因此：
+标准模板里的 `locales/{zh,en}.json` 是**插件宿主 i18n 的字符串表**：插件在
+`package.json` 的 `zeta`（或 `omp`/`pi`）清单里声明路径，宿主把
+`ctx.t(key, fallback?)` 注入给该插件扩展的 event handler / tool / command /
+shortcut 上下文。
 
-- 新建插件**可选**携带 `locales/{zh,en}.json`，为机制落地做准备；
-- 存量插件**豁免**：`plugins/official/pi-messenger` 的用户可见字符串目前仍是英文
-  硬编码（overlay / 命令 / 工具描述 / handler 文案），尚未抽出。
+```json
+// package.json
+{
+  "name": "@linxiraos/example-plugin",
+  "version": "1.0.0",
+  "zeta": {
+    "version": "1.0.0",
+    "extensions": ["./index.ts"],
+    "locales": { "zh": "locales/zh.json", "en": "locales/en.json" }
+  }
+}
+```
 
-机制本身登记在 `document/roadmap.md` 的 Deferred Queue。**在机制落地之前，
-"必须携带 locales" 不是插件准入的硬要求**，`INDEX.md` 的登记表也不因缺少
-`locales/` 而拒绝收录。
+```json
+// locales/zh.json —— 平坦的 Record<string, string>
+{ "greeting": "你好" }
+```
+
+```ts
+export default function (pi: ExtensionAPI) {
+  pi.registerCommand("greet", {
+    // Command descriptions are read at registration time; use ctx.t in the handler.
+    description: "Greet the user",
+    handler: async (_args, ctx) => {
+      ctx.ui.notify(ctx.t("greeting", "Hello"));
+    },
+  });
+}
+```
+
+约定与边界：
+
+- 清单 `locales` 的值是相对插件根的字符串路径；非字符串/空值/未知语言标签会被
+  loader 判为无效并给出明确错误。省略该字段时，宿主回落到约定的
+  `locales/zh.json`、`locales/en.json`，所以按标准模板放文件即可生效。
+- 文件必须是平坦 `Record<string, string>`。缺失文件静默回落；JSON 损坏或值不是
+  字符串时记 warning 并跳过该语言的表，插件照常加载。
+- 查找顺序：当前宿主语言 → `en` → `fallback` → `key`。语言每次调用实时读取，
+  `/language` 切换立即生效，无需重载插件。
+- 字符串表按插件隔离：插件 A 的扩展看不到插件 B 的条目。非插件来源的扩展
+  （`settings.extensions`、`-e`、inline factory）没有字符串表，`t()` 直接返回
+  `fallback` 或键名。
+- 新建插件**推荐**携带 `locales/{zh,en}.json`；存量插件（如
+  `plugins/official/pi-messenger`）**豁免**，其英文硬编码文案的抽取仍按计划推进。
+  "必须携带 locales" 仍不是插件准入的硬要求，`INDEX.md` 登记表不因缺少
+  `locales/` 而拒绝收录。
+
+运行期说明见 [`docs/plugins.md`](../../docs/plugins.md#plugin-i18n-ct)，
+设计契约见 [`document/plugin-system.md`](../../document/plugin-system.md#插件宿主-i18n已实现)。
 
 ## 依赖改写（常驻构建步骤）
 

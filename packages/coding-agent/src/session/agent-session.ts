@@ -9245,7 +9245,7 @@ export class AgentSession implements SettingsScope {
 		onRouted?.();
 
 		// Get command context from extension runner (includes session control methods)
-		const ctx = this.#extensionRunner.createCommandContext();
+		const ctx = this.#extensionRunner.createCommandContext(command.extensionPath);
 
 		try {
 			await this.#extensionRunner.runScoped(() => command.handler(args, ctx));
@@ -9272,6 +9272,7 @@ export class AgentSession implements SettingsScope {
 			mode: "print",
 			hasUI: false,
 			cwd: this.sessionManager.getCwd(),
+			t: (key: string, fallback?: string) => fallback ?? key,
 			sessionManager: this.sessionManager,
 			modelRegistry: this.#modelRegistry,
 			isProjectTrusted: () => true,

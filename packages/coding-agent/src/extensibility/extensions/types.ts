@@ -1,6 +1,7 @@
 import type { Settings } from "../../config/settings";
 import type { AgentMessenger } from "../../irc/facade";
 import type { AgentDirectory } from "../../registry/agent-directory";
+import type { PluginLocaleCatalog } from "../plugins/locales";
 import type { PluginStorage } from "../plugins/types";
 /**
  * Extension system types.
@@ -704,6 +705,17 @@ export interface ExtensionContext {
 	cwd: string;
 	/** Session manager (read-only) */
 	sessionManager: ReadonlySessionManager;
+	/**
+	 * Translate a key from the owning plugin's message catalogues
+	 * (`ctx.t("some.key", "English fallback")`). Lookup order is the current
+	 * host language, then `en`, then `fallback`, then the key itself.
+	 *
+	 * The catalogue is the one shipped by the plugin that owns this extension;
+	 * an extension from another plugin, or a loose extension file, never sees
+	 * another plugin's strings. The language is read per call, so `/language`
+	 * switches take effect without reloading plugins.
+	 */
+	t(key: string, fallback?: string): string;
 	/** Model registry for API key resolution */
 	modelRegistry: ModelRegistry;
 	/** Calling session's `local://` root mapping for external tool bridges. */
@@ -1628,6 +1640,8 @@ export interface RegisteredCommand {
 	description?: string | (() => string);
 	getArgumentCompletions?: (argumentPrefix: string) => AutocompleteItem[] | null;
 	handler: (args: string, ctx: ExtensionCommandContext) => Promise<void>;
+	/** Extension that registered the command; scopes `ctx.t()` to its plugin catalogues. */
+	extensionPath?: string;
 }
 
 // ============================================================================
@@ -2242,6 +2256,8 @@ export interface Extension {
 	path: string;
 	resolvedPath: string;
 	label?: string;
+	/** Catalogues from the owning plugin, bound to this extension's `ctx.t()`; absent for loose extensions. */
+	localeCatalog?: PluginLocaleCatalog;
 	handlers: Map<string, HandlerFn[]>;
 	tools: Map<string, RegisteredTool<any, any>>;
 	toolRegistrationListeners?: Set<ToolRegistrationListener>;

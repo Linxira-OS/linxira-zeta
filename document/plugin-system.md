@@ -41,7 +41,7 @@ plugins/
 │   │   ├── package.json          # @linxiraos/*，peer 全部指向 @linxiraos/*
 │   │   ├── src/                  # 扩展工厂源码（registerTool / registerCommand）
 │   │   ├── crew/ skills/ README.md CHANGELOG.md tests/
-│   │   ├── locales/              # 预留：宿主 i18n 机制未实现（见设计决议）
+│   │   ├── locales/              # 插件 i18n 字符串表（locales/{zh,en}.json，见下文）
 │   └── INDEX.md                  # 官方插件追踪文档（类别、来源、兼容性）
 └── community/                    # 社区：只有元数据指针文件，不放代码
     ├── <plugin-id>.json|.toml    # 上游仓库地址 + 依赖处理说明 + 准入 CI 证明
@@ -71,6 +71,47 @@ plugins/
 - 机器可读清单字段以 JSON 为主；TOML 用于偏配置/人设类条目（persona、agent
   定义），两者等价、可互转，解析器二选一。
 - 官方/社区集合的菜单与追踪文档用 markdown（人类可读、可叙述兼容性）。
+
+## 插件宿主 i18n（已实现）
+
+插件把用户可见字符串放进 JSON 字符串表，由宿主注入 `t()` 读取。实现位于
+`packages/coding-agent/src/extensibility/plugins/locales.ts`（loader）与
+`extensibility/extensions/runner.ts`（按扩展注入 `ctx.t()`）。
+
+```json
+// package.json
+{
+  "name": "@linxiraos/example-plugin",
+  "version": "1.0.0",
+  "zeta": {
+    "version": "1.0.0",
+    "extensions": ["./index.ts"],
+    "locales": { "zh": "locales/zh.json", "en": "locales/en.json" }
+  }
+}
+```
+
+```json
+// locales/zh.json —— 必须是平坦的 Record<string, string>
+{ "greeting": "你好" }
+```
+
+- 清单字段：`locales?: { zh?: string; en?: string }`，值为相对插件根的路径。
+  loader 解析时校验：非字符串路径、空路径、未知语言标签都会产出明确错误
+  （例如 `` `locales.zh` must be a string path to a JSON catalogue, got number ``），
+  该声明按无效处理。未声明 `locales` 时回落到约定的
+  `locales/{zh,en}.json`；声明了某语言则覆盖该语言的约定路径。
+- 加载：每个插件只读一次并按插件根缓存（随插件发现缓存一起失效）。缺失文件
+  静默回落；清单声明了但读不到、JSON 损坏、根不是对象、值非字符串时记 warning
+  并跳过该语言的表——插件本身照常加载。
+- 注入：`ctx.t(key, fallback?)` 出现在该插件扩展的 event handler、tool
+  `execute`、command、shortcut 上下文里，绑定的是**该扩展所属插件**的字符串表，
+  不会把别的插件的文案泄漏进来。非插件来源的扩展（`settings.extensions`、
+  `-e`、inline factory）没有字符串表。
+- 查找顺序：当前宿主语言 → `en` → 调用方 `fallback` → `key`。语言每次调用实时
+  读取，`/language` 切换立即生效，不重载插件、不重读 JSON。
+- 未携带 `locales/` 的插件行为不变：`ctx.t("k", "text")` 返回 `"text"`，
+  `ctx.t("k")` 返回 `"k"`。
 
 ## 依赖关系规则
 
@@ -144,7 +185,7 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
   ├── src/ 或入口 index.ts         # 扩展工厂：registerTool / registerCommand
   ├── crew/agents/*.md             # 团队代理定义
   ├── skills/                      # 自带 skills
-  ├── locales/                     # 预留：宿主 i18n 机制未实现（见设计决议）
+  ├── locales/                     # 插件 i18n 字符串表（locales/{zh,en}.json，见下文）
   ├── README.md / CHANGELOG.md
   └── tests/
   ```
@@ -194,13 +235,14 @@ P0 agent-team（无 UI）—— 基座，前置中的前置
 - web 显示面（team agent 特有）：成员名册、消息流、文件预留、任务看板、
   messenger 设置——全部走 manifest v2 `pages` + gateway `/api/plugin-assets` iframe
   动态插入。
-- i18n（**机制未实现，暂缓**）：约定是插件侧字符串表（manifest 声明
-  `locales/{lang}.json`）+ 宿主注入 `t()`，但宿主 i18n 机制——`ExtensionContext.t()`
-  注入 + 清单 `locales` 字段 + loader 读取 `locales/*.json`——**至今没有实现**。
-  因此 `locales/` 目前只是**预留目录**：新建插件可选携带，存量插件豁免；
+- i18n（**机制已落地，文案抽取仍暂缓**）：插件在 `package.json` 的
+  `zeta`/`omp`/`pi` 清单里声明 `locales: { zh, en }`（相对插件根的 JSON 路径；
+  未声明时回落到 `locales/{zh,en}.json`），宿主把 `ctx.t(key, fallback?)` 注入给
+  该插件扩展的 handler / tool / command / shortcut，按「当前语言 → en →
+  fallback → key」查找，语言实时读取、`/language` 切换无需重载插件。细节见
+  [「插件宿主 i18n」](#插件宿主-i18n已实现)。
   messenger 现有英文硬编码文案（overlay / 命令 / 工具描述 / handler 文案）的抽出 +
-  zh 条目随之暂缓（抽面前先确定"用户可见 UI 文案"与"模型可见提示词"的边界）。
-  机制本身登记在 `document/roadmap.md` 的 Deferred Queue。
+  zh 条目仍然暂缓（抽取前先确定"用户可见 UI 文案"与"模型可见提示词"的边界）。
 
 ## 未决问题（2026-08-26 更新）
 

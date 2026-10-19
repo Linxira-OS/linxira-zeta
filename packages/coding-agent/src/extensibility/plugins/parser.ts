@@ -1,3 +1,5 @@
+import type { PluginLocalePaths } from "./types";
+
 /**
  * Feature bracket parser for plugin specifiers.
  *
@@ -104,4 +106,56 @@ export function extractPackageName(specifier: string): string {
 	}
 	// Unscoped: name@version -> name
 	return npmSpecifier.replace(/@[^@]+$/, "");
+}
+
+/** Language tags a plugin manifest may declare a message catalogue for. */
+export const PLUGIN_LOCALE_TAGS = ["zh", "en"] as const;
+
+export type PluginLocaleTag = (typeof PLUGIN_LOCALE_TAGS)[number];
+
+const PLUGIN_LOCALE_TAG_SET: Readonly<Record<PluginLocaleTag, true>> = { zh: true, en: true };
+
+/** Outcome of validating a manifest's `locales` declaration. */
+export type PluginLocalesParseResult = { ok: true; locales: PluginLocalePaths } | { ok: false; error: string };
+
+function describeLocaleValue(value: unknown): string {
+	if (value === null) return "null";
+	if (Array.isArray(value)) return "an array";
+	return typeof value;
+}
+
+/**
+ * Validate a plugin manifest's `locales` field.
+ *
+ * The declaration must map supported language tags to catalogue file paths:
+ * `{ "zh": "locales/zh.json", "en": "locales/en.json" }`. Anything else is
+ * reported as a parse error naming the offending entry, so a typo in a
+ * manifest surfaces as a diagnostic instead of silently disabling translation.
+ */
+export function parsePluginLocales(value: unknown): PluginLocalesParseResult {
+	if (value === undefined) return { ok: true, locales: {} };
+	if (value === null || typeof value !== "object" || Array.isArray(value)) {
+		return { ok: false, error: `\`locales\` must be an object, got ${describeLocaleValue(value)}` };
+	}
+
+	const locales: PluginLocalePaths = {};
+	for (const [tag, entry] of Object.entries(value as Record<string, unknown>)) {
+		if (!Object.hasOwn(PLUGIN_LOCALE_TAG_SET, tag)) {
+			return {
+				ok: false,
+				error: `\`locales.${tag}\` is not a supported language (expected one of: ${PLUGIN_LOCALE_TAGS.join(", ")})`,
+			};
+		}
+		if (typeof entry !== "string") {
+			return {
+				ok: false,
+				error: `\`locales.${tag}\` must be a string path to a JSON catalogue, got ${describeLocaleValue(entry)}`,
+			};
+		}
+		if (entry.trim() === "") {
+			return { ok: false, error: `\`locales.${tag}\` must not be empty` };
+		}
+		locales[tag as PluginLocaleTag] = entry;
+	}
+	return { ok: true, locales };
 }

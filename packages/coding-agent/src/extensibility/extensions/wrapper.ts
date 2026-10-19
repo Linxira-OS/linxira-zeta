@@ -126,12 +126,15 @@ export class RegisteredToolAdapter implements AgentTool<any, any, any> {
 			params,
 			signal,
 			onUpdate,
-			this.runner.createContext(undefined, {
-				toolName: this.registeredTool.definition.name,
-				context,
-				signal,
-				onUpdate,
-			}),
+			this.runner.scopeContextToExtension(
+				this.runner.createContext(undefined, {
+					toolName: this.registeredTool.definition.name,
+					context,
+					signal,
+					onUpdate,
+				}),
+				this.registeredTool.extensionPath,
+			),
 		);
 	}
 }

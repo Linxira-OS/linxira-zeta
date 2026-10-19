@@ -3,6 +3,7 @@
 export * from "./doctor";
 export * from "./git-url";
 export * from "./loader";
+export * from "./locales";
 export * from "./manager";
 export * from "./marketplace";
 export * from "./parser";

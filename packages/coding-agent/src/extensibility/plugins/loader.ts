@@ -23,6 +23,7 @@ import { getConfigDirPaths } from "../../config";
 import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { findExtensionDirectoryIndex, resolveExtensionDirectory } from "../extensions/directory-resolution";
 import { installLegacyPiSpecifierShim } from "./legacy-pi-compat";
+import { clearPluginLocaleCache, loadPluginLocaleCatalog, type PluginLocaleCatalog } from "./locales";
 import { normalizePluginRuntimeConfig, readPluginRuntimeConfig } from "./runtime-config";
 import {
 	type InstalledPlugin,
@@ -66,6 +67,7 @@ function enabledPluginsCacheKey(cwd: string, home?: string): string {
 
 function clearEnabledPluginsCache(): void {
 	enabledPluginsCache.clear();
+	clearPluginLocaleCache();
 }
 
 registerPluginCacheInvalidator(clearEnabledPluginsCache);
@@ -335,6 +337,18 @@ async function loadEnabledPlugins(cwd: string, home?: string): Promise<ScopedIns
 // Path Resolution
 // =============================================================================
 
+async function findOwningPlugin(
+	cwd: string,
+	extensionPath: string,
+	opts: { home?: string } = {},
+): Promise<InstalledPlugin | undefined> {
+	const resolved = path.resolve(extensionPath);
+	return (await getEnabledPlugins(cwd, opts)).find(candidate => {
+		const rel = path.relative(candidate.path, resolved);
+		return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+	});
+}
+
 /**
  * Storage roots for the plugin that owns `extensionPath`, or `undefined` when
  * the path is not a manifest entry of an enabled plugin (top-level extension,
@@ -347,12 +361,21 @@ export async function resolvePluginStorage(
 	extensionPath: string,
 	opts: { home?: string } = {},
 ): Promise<PluginStorage | undefined> {
-	const resolved = path.resolve(extensionPath);
-	const plugin = (await getEnabledPlugins(cwd, opts)).find(candidate => {
-		const rel = path.relative(candidate.path, resolved);
-		return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
-	});
-	return plugin?.storage;
+	return (await findOwningPlugin(cwd, extensionPath, opts))?.storage;
+}
+
+/**
+ * Message catalogues of the plugin that owns `extensionPath`, or `undefined`
+ * when the path belongs to a loose extension or the plugin ships none. The
+ * extension loader turns this into the extension's `ctx.t()`.
+ */
+export async function resolvePluginLocaleCatalog(
+	cwd: string,
+	extensionPath: string,
+	opts: { home?: string } = {},
+): Promise<PluginLocaleCatalog | undefined> {
+	const plugin = await findOwningPlugin(cwd, extensionPath, opts);
+	return plugin ? await loadPluginLocaleCatalog(plugin) : undefined;
 }
 
 const MANIFEST_ENTRY_MODULE_EXTENSIONS = [".ts", ".js", ".mjs", ".cjs"];
