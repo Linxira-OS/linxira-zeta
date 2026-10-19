@@ -121,7 +121,6 @@ impl Canvas {
 }
 
 /// Draw every primitive onto a fresh canvas of `size_points` (scaled by `ppp`).
-#[allow(clippy::chunks_exact_to_as_chunks)]
 pub fn render(
 	primitives: &[ClippedPrimitive],
 	textures: &Textures,

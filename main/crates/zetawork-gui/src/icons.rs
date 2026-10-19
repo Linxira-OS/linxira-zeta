@@ -389,7 +389,6 @@ pub fn app_icon_corner_radius(size: u32) -> f32 {
 /// Decode a PNG into unmultiplied RGBA. `None` for data this build cannot
 /// render — the caller then leaves the window on egui's default mark instead of
 /// panicking over a corrupt asset.
-#[allow(clippy::chunks_exact_to_as_chunks)]
 pub fn decode_icon_png(png: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
 	let mut decoder = png::Decoder::new(std::io::Cursor::new(png));
 	decoder.set_transformations(png::Transformations::normalize_to_color8());
