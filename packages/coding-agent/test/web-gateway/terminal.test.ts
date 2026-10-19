@@ -363,6 +363,29 @@ describe("pane PATH", () => {
 	});
 });
 
+describe("pane spawn environment", () => {
+	test("a created pane's PTY gets ZETA_BIN_DIR in front of PATH", async () => {
+		// The wiring, not just the helper: the session the gateway spawns must
+		// carry the prefixed PATH, or a typed `zetacode` resolves elsewhere.
+		await setup();
+		installFakePty();
+		const saved = process.env.ZETA_BIN_DIR;
+		process.env.ZETA_BIN_DIR = "/opt/zeta/bin";
+		try {
+			const response = await createTerminal({ cwd: process.cwd() });
+			expect(response.status).toBe(200);
+			const env = fakePtys.at(-1)?.spec.env ?? {};
+			const key = Object.keys(env).find(candidate => candidate.toUpperCase() === "PATH") ?? "";
+			const delimiter = process.platform === "win32" ? ";" : ":";
+			expect(env[key]?.startsWith(`/opt/zeta/bin${delimiter}`)).toBe(true);
+			expect(env[key]?.slice(`/opt/zeta/bin${delimiter}`.length)).toBe(process.env[key] ?? "");
+		} finally {
+			if (saved === undefined) delete process.env.ZETA_BIN_DIR;
+			else process.env.ZETA_BIN_DIR = saved;
+		}
+	});
+});
+
 describe("terminal REST", () => {
 	test("create returns id/shell/ticket; list reflects it; delete removes it", async () => {
 		await setup();
