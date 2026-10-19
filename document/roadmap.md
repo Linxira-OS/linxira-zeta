@@ -596,6 +596,18 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   - **仍未开发（沿用旧登记）**：Vim/Emacs 兼容层、Docker Manager、Go Test Runner、
     PDF Viewer（仅 GUI 可选，TUI 永不渲染）。
 
+- **任务面板 = 官方插件（2026-10-18/19 用户定方向，仅登记，设计待推敲）**：
+  一个**对 agent 可见、以工具暴露**的任务面板，**多仓库**——一个面板可以绑定多个
+  repo，同一份任务视图跨仓库聚合；面板本体做成 **official 插件**（`plugins/official/`），
+  **由 GUI 自动激活**（开面板即装/启，不要求用户手动启用）。
+  - 与「双看板」条目的关系：board 是**用户的**长期层，agent todo 是**会话**层；
+    任务面板是**跨仓库的编排层**，三者不合并成一套数据结构。
+  - 未定项（动手前必须定）：①「工具暴露」的确切形态——`task_*` 工具集合（list/create/
+    update/assign）还是单一 `task` 工具带 action；②多仓库绑定存在哪（项目注册表
+    `projects.json` 还是面板自己的 `tasks.yml`），以及 repo 移动/改名后的失效语义；
+    ③面板数据的真源（文件在 `.zeta/tasks/`，可 diff 可手改，与 board 同口径）；
+    ④`disable` 语义——用户显式关掉后，GUI 自动激活是否还成立（默认：**用户显式
+    关闭即不复活**）。
 - **OpenDesigner 官方兼容(2026-10-15 用户登记,后期)**:用户考虑把
   [`nexu-io/open-design`](https://github.com/nexu-io/open-design)(中文说明见其
   `docs/i18n/README.zh-CN.md`)**迁进 zetawork 的设置面**,目标是**后期加入
