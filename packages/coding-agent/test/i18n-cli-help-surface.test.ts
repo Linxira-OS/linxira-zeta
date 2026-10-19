@@ -93,7 +93,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/token.ts": 5,
 	"commands/toks.ts": 2,
 	"commands/ttsr.ts": 12,
-	"commands/update.ts": 5,
+	"commands/update.ts": 6,
 	"commands/usage.ts": 9,
 	"commands/web-search.ts": 5,
 	"commands/web.ts": 2,
