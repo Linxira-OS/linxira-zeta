@@ -37,6 +37,7 @@ unicode-width = "0.2.2"
 # number the shell can honestly show without a live session. The busy-pane
 # probe (a pane is busy when its shell has live children) uses the same crate.
 sysinfo = "0.31"
+sysmon = { path = "../sysmon" }
 # The status bar's clock (local time).
 chrono = "0.4"
 # The 设置 modal's zetacode-option rows parse `zetacode config list --json`, and

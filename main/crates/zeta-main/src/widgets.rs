@@ -419,3 +419,268 @@ pub fn clipboard_capture(state: &mut WidgetState) {
 		state.clipboard.truncate(20);
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Resources
+// ---------------------------------------------------------------------------
+
+/// Host resources from [`sysmon`]: CPU, memory, GPU and the top processes.
+///
+/// The same [`sysmon::Snapshot`] backs the GUI's 资源 page; this renderer is
+/// the terminal's, so it keeps to one line per figure and a fixed-column
+/// process table. It draws nothing but what the snapshot contains: a missing
+/// GPU reading is `—`, and before the worker's first reading the pane says
+/// `sampling…` instead of inventing zeros.
+pub fn render_resources(snapshot: Option<&sysmon::Snapshot>, area: Rect, buf: &mut Buffer) {
+	if area.height == 0 || area.width < 18 {
+		return;
+	}
+	let dim = Style::default().fg(Color::DarkGray);
+	let Some(snapshot) = snapshot else {
+		buf.set_line(area.x, area.y, &Line::from(Span::styled(" sampling…", dim)), area.width);
+		return;
+	};
+
+	let mut row = area.y;
+	let bottom = area.bottom();
+	let next_row = |row: &mut u16| -> bool {
+		if *row + 1 > bottom {
+			return false;
+		}
+		*row += 1;
+		true
+	};
+
+	gauge_line(
+		buf,
+		area,
+		row,
+		"CPU",
+		snapshot.cpu_percent / 100.0,
+		&format!("{:.1}%", snapshot.cpu_percent),
+		dim,
+	);
+	if !next_row(&mut row) {
+		return;
+	}
+	gauge_line(
+		buf,
+		area,
+		row,
+		"MEM",
+		snapshot.memory_percent() / 100.0,
+		&format!("{}/{}", bytes_label(snapshot.memory_used), bytes_label(snapshot.memory_total)),
+		dim,
+	);
+	if !next_row(&mut row) {
+		return;
+	}
+
+	if snapshot.gpus.is_empty() {
+		buf.set_line(
+			area.x,
+			row,
+			&Line::from(vec![Span::styled("GPU ", dim), Span::styled("no probe answered", dim)]),
+			area.width,
+		);
+		if !next_row(&mut row) {
+			return;
+		}
+	} else {
+		for gpu in &snapshot.gpus {
+			let Some(percent) = gpu.utilization_percent else {
+				buf.set_line(
+					area.x,
+					row,
+					&Line::from(vec![
+						Span::styled(format!("{:<4}", "GPU"), dim),
+						Span::styled(format!("{:>5}  ", "—"), dim),
+						Span::styled(short(&gpu.name, area.width as usize - 10), dim),
+					]),
+					area.width,
+				);
+				if !next_row(&mut row) {
+					return;
+				}
+				continue;
+			};
+			gauge_line(buf, area, row, "GPU", percent / 100.0, &format!("{percent:.0}%"), dim);
+			if !next_row(&mut row) {
+				return;
+			}
+			let detail = match gpu.memory_used {
+				Some(memory) => {
+					format!(
+						"     {} · {}",
+						short(&gpu.name, area.width as usize / 2),
+						bytes_label(memory)
+					)
+				},
+				None => format!("     {}", short(&gpu.name, area.width as usize - 5)),
+			};
+			buf.set_line(area.x, row, &Line::from(Span::styled(detail, dim)), area.width);
+			if !next_row(&mut row) {
+				return;
+			}
+		}
+	}
+
+	if !next_row(&mut row) {
+		return;
+	}
+	buf.set_line(area.x, row, &Line::from(Span::styled("PROCESSES · BY CPU", dim)), area.width);
+	if !next_row(&mut row) {
+		return;
+	}
+	buf.set_line(
+		area.x,
+		row,
+		&Line::from(Span::styled(format!("{:>6} {:>6} {:>8}  NAME", "PID", "CPU%", "MEM"), dim)),
+		area.width,
+	);
+	if !next_row(&mut row) {
+		return;
+	}
+	if snapshot.processes.is_empty() {
+		buf.set_line(
+			area.x,
+			row,
+			&Line::from(Span::styled(" no process could be read", dim)),
+			area.width,
+		);
+		return;
+	}
+	for process in &snapshot.processes {
+		if row + 1 > bottom {
+			break;
+		}
+		let name_width = (area.width as usize).saturating_sub(25).max(1);
+		let row_line = Line::from(vec![
+			Span::styled(format!("{:>6} ", process.pid), dim),
+			Span::styled(
+				format!("{:>6.1} ", process.cpu_percent),
+				if process.cpu_percent >= 25.0 {
+					Style::default().add_modifier(Modifier::BOLD)
+				} else {
+					Style::default()
+				},
+			),
+			Span::styled(format!("{:>8}  ", bytes_label(process.memory_bytes)), dim),
+			Span::raw(short(&process.name, name_width)),
+		]);
+		buf.set_line(area.x, row, &row_line, area.width);
+		row += 1;
+	}
+}
+
+/// A `LABEL ████░░░░ value` line: the bar is the share, the text the reading.
+fn gauge_line(
+	buf: &mut Buffer,
+	area: Rect,
+	row: u16,
+	label: &str,
+	fraction: f32,
+	value: &str,
+	dim: Style,
+) {
+	let value_len = value.chars().count();
+	let bar_width = (area.width as usize)
+		.saturating_sub(label.len() + value_len + 3)
+		.clamp(4, 24);
+	let filled = ((fraction.clamp(0.0, 1.0)) * bar_width as f32).round() as usize;
+	let line = Line::from(vec![
+		Span::styled(format!("{label:<4}"), dim),
+		Span::styled("█".repeat(filled), Style::default().fg(Color::Cyan)),
+		Span::styled("░".repeat(bar_width - filled), dim),
+		Span::raw(format!(" {value}")),
+	]);
+	buf.set_line(area.x, row, &line, area.width);
+}
+
+/// `1536` → `1.5 KiB` (binary units, one decimal).
+fn bytes_label(bytes: u64) -> String {
+	const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+	let mut value = bytes as f64;
+	let mut unit = 0;
+	while value >= 1024.0 && unit + 1 < UNITS.len() {
+		value /= 1024.0;
+		unit += 1;
+	}
+	if unit == 0 {
+		format!("{bytes} B")
+	} else {
+		format!("{value:.1} {}", UNITS[unit])
+	}
+}
+
+/// Fit `text` into `width` columns, ending in an ellipsis when cut.
+fn short(text: &str, width: usize) -> String {
+	if text.chars().count() <= width {
+		return text.to_owned();
+	}
+	let mut cut: String = text.chars().take(width.saturating_sub(1)).collect();
+	cut.push('…');
+	cut
+}
+
+#[cfg(test)]
+mod tests {
+	use std::time::SystemTime;
+
+	use ratatui::{buffer::Buffer, layout::Rect};
+	use sysmon::{ProcessSample, Snapshot};
+
+	use super::render_resources;
+
+	fn snapshot() -> Snapshot {
+		Snapshot {
+			cpu_percent: 42.5,
+			memory_used: 8 * 1024 * 1024 * 1024,
+			memory_total: 16 * 1024 * 1024 * 1024,
+			disks: Vec::new(),
+			net_rx_bytes: 0,
+			net_tx_bytes: 0,
+			gpus: Vec::new(),
+			processes: vec![ProcessSample {
+				pid: 1234,
+				name: "hi.exe".to_owned(),
+				cpu_percent: 12.5,
+				memory_bytes: 64 * 1024 * 1024,
+			}],
+			sampled_at: SystemTime::UNIX_EPOCH,
+		}
+	}
+
+	fn text_of(buffer: &Buffer) -> String {
+		let area = buffer.area;
+		(area.y..area.bottom())
+			.map(|y| {
+				(area.x..area.right())
+					.map(|x| buffer[(x, y)].symbol())
+					.collect::<String>()
+			})
+			.collect::<Vec<_>>()
+			.join("\n")
+	}
+
+	#[test]
+	fn the_resources_pane_draws_the_snapshot() {
+		let area = Rect::new(0, 0, 48, 12);
+		let mut buffer = Buffer::empty(area);
+		render_resources(Some(&snapshot()), area, &mut buffer);
+		let text = text_of(&buffer);
+		assert!(text.contains("CPU"));
+		assert!(text.contains("42.5%"));
+		assert!(text.contains("8.0 GiB/16.0 GiB"));
+		assert!(text.contains("hi.exe"));
+		assert!(text.contains("12.5"));
+	}
+
+	#[test]
+	fn the_resources_pane_says_it_is_still_sampling() {
+		let area = Rect::new(0, 0, 30, 4);
+		let mut buffer = Buffer::empty(area);
+		render_resources(None, area, &mut buffer);
+		assert!(text_of(&buffer).contains("sampling…"));
+	}
+}

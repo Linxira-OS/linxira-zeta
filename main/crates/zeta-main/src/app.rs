@@ -254,6 +254,8 @@ pub struct Workspace {
 	drag: Option<Drag>,
 	last_frame: Rect,
 	widgets: WidgetState,
+	/// The 资源 widget pane's background sampler.
+	resources: crate::resources::Resources,
 	/// Pending close awaiting confirmation of busy panes (Yes replays it).
 	confirm: Option<ConfirmClose>,
 	/// Inline rename modal, when open (tab or pane page name).
@@ -433,6 +435,7 @@ impl Workspace {
 			drag: None,
 			last_frame: Rect::default(),
 			widgets: WidgetState::default(),
+			resources: crate::resources::Resources::default(),
 			confirm: None,
 			rename: None,
 			last_click: None,
@@ -812,6 +815,9 @@ impl Workspace {
 				},
 				KeyCode::Char('p') | KeyCode::Char('P') => {
 					self.split_active(PaneKind::Pomodoro, None);
+				},
+				KeyCode::Char('r') | KeyCode::Char('R') => {
+					self.split_active(PaneKind::Resources, None);
 				},
 				KeyCode::Char('l') | KeyCode::Char('L') => self.cycle_preset(),
 				KeyCode::Char('o') | KeyCode::Char('O') => {
@@ -1529,23 +1535,26 @@ impl Workspace {
 				self.split_active(PaneKind::Clipboard, None);
 			},
 			(1, 7) => {
+				self.split_active(PaneKind::Resources, None);
+			},
+			(1, 8) => {
 				let cwd = launch_cwd();
 				let tab = self.active();
 				if let Some(pane) = tab.panes.get_mut(tab.active) {
 					let _ = pane.open_page(PaneKind::Shell, 24, 80, cwd);
 				}
 			},
-			(1, 8) => {
+			(1, 9) => {
 				let tab = self.active();
 				let idx = tab.active;
 				tab.minimize_pane(idx);
 			},
-			(1, 9) => self.promote_pane_to_tab(),
-			(1, 10) => {
+			(1, 10) => self.promote_pane_to_tab(),
+			(1, 11) => {
 				let idx = self.active().active;
 				self.close_pane_at(idx);
 			},
-			(1, 11) => {
+			(1, 12) => {
 				let pane = self.active().active;
 				let page = self.active().panes.get(pane).map(|p| p.page).unwrap_or(0);
 				self.open_rename(RenameTarget::Page { pane, page });
@@ -1861,6 +1870,18 @@ impl Workspace {
 
 	fn tick(&mut self) {
 		self.widgets.pomodoro.tick();
+		// 资源 samples on its own thread; poll it while one of the active
+		// tab's visible pages is the resources widget, and stop it otherwise.
+		let resources_visible = self.tabs[self.active_tab].panes.iter().any(|pane| {
+			pane
+				.active_page()
+				.is_some_and(|page| page.kind == PaneKind::Resources)
+		});
+		if resources_visible {
+			self.resources.refresh();
+		} else {
+			self.resources.idle();
+		}
 		let mut notices = Vec::new();
 		let mut dead_tabs: Vec<usize> = Vec::new();
 		for (tab_idx, tab) in self.tabs.iter_mut().enumerate() {
@@ -2057,6 +2078,7 @@ impl Workspace {
 				let mut deferred: Vec<(Rect, Hit)> = Vec::new();
 				let mut push_deferred = |rect: Rect, hit: Hit| deferred.push((rect, hit));
 				let widgets_state = self.widgets.clone();
+				let resources_snapshot = self.resources.snapshot();
 				let tab = &mut self.tabs[self.active_tab];
 				for (pane_id, area) in rects.iter().copied() {
 					let display_name = tab.pane_display_name(pane_id);
@@ -2179,6 +2201,9 @@ impl Workspace {
 							},
 							Some(PaneKind::Clipboard) => {
 								widgets::render_clipboard(&widgets_state, inner, frame.buffer_mut())
+							},
+							Some(PaneKind::Resources) => {
+								widgets::render_resources(resources_snapshot, inner, frame.buffer_mut())
 							},
 							_ => {},
 						}

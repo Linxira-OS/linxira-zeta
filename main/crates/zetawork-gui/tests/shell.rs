@@ -465,11 +465,11 @@ fn the_editor_page_opens_and_saves_a_real_file() {
 }
 
 #[test]
-fn the_right_column_has_four_tabs_and_eight_settings_sections() {
-	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 4);
+fn the_right_column_has_five_tabs_and_eight_settings_sections() {
+	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 5);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
-		["文件树", "历史 · Agent 对话", "Git 状态", "用量"]
+		["文件树", "历史 · Agent 对话", "Git 状态", "用量", "资源"]
 	);
 	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are
 	// the one section the design drafts do not have, and the six they fix

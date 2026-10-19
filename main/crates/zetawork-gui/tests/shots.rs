@@ -389,6 +389,36 @@ fn workspace_state_words_screenshot() {
 	write("13-workspace-state-words.png", &bytes);
 }
 
+/// `15-resources-page.png` — the right column's 资源 page: the live CPU /
+/// memory gauges and the process table, sampled by `sysmon`. The shot waits
+/// for the worker's first reading (it lands after sysinfo's minimum CPU
+/// interval) instead of drawing the empty state.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn resources_page_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	shell
+		.state
+		.set_right_tab(zetawork_gui::state::RightTab::Resources);
+	assert!(!shell.state.right_collapsed, "opening the tab expands the column");
+	let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+	while shell.resources.refresh().is_none() {
+		assert!(std::time::Instant::now() < deadline, "the resource sampler published no snapshot");
+		std::thread::sleep(std::time::Duration::from_millis(25));
+	}
+	assert!(
+		shell
+			.resources
+			.snapshot()
+			.is_some_and(|snapshot| !snapshot.processes.is_empty()),
+		"the process table has real rows"
+	);
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("15-resources-page.png", &bytes);
+}
+
 /// `14-about.png` — 设置 → 关于: the desktop mark the window and taskbar use,
 /// the version, and the scope rows.
 #[test]

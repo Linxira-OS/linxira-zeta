@@ -72,6 +72,7 @@ pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 		RightTab::History => history_panel(&mut child, shell),
 		RightTab::Git => git_panel(&mut child, shell, "right"),
 		RightTab::Usage => usage_panel(&mut child, shell),
+		RightTab::Resources => crate::resources::panel(&mut child, shell),
 	}
 }
 
@@ -81,6 +82,7 @@ fn tab_icon(tab: RightTab) -> Icon {
 		RightTab::History => Icon::History,
 		RightTab::Git => Icon::GitBranch,
 		RightTab::Usage => Icon::List,
+		RightTab::Resources => Icon::Activity,
 	}
 }
 
@@ -95,7 +97,7 @@ pub fn right_rail(ui: &mut Ui, shell: &mut Shell) {
 	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()
-			.max_rect(Rect::from_min_size(pos2(rect.min.x + 6.0, rect.min.y + 8.0), vec2(32.0, 110.0)))
+			.max_rect(Rect::from_min_size(pos2(rect.min.x + 6.0, rect.min.y + 8.0), vec2(32.0, 180.0)))
 			.layout(Layout::top_down(Align::Center)),
 	);
 	for tab in RightTab::ALL {

@@ -51,6 +51,8 @@ pub enum Icon {
 	History,
 	/// The 用量 expander (`.iconbtn[data-act=open-usage]`) — a bulleted list.
 	List,
+	/// 资源 — a heartbeat/pulse line.
+	Activity,
 	/// Custom chrome (the spec's mock has no window frame).
 	Minimize,
 	Maximize,
@@ -229,6 +231,9 @@ pub fn paint(painter: &egui::Painter, icon: Icon, rect: egui::Rect, color: Color
 			poly(&[(20.0, 15.0), (20.0, 18.0), (18.0, 20.0), (15.0, 20.0)]);
 			poly(&[(9.0, 20.0), (6.0, 20.0), (4.0, 18.0), (4.0, 15.0)]);
 			circle(12.0, 12.0, 2.4);
+		},
+		Icon::Activity => {
+			poly(&[(3.0, 12.0), (7.0, 12.0), (10.0, 6.0), (14.0, 18.0), (17.0, 12.0), (21.0, 12.0)]);
 		},
 		Icon::Refresh => {
 			arc(12.0, 12.0, 8.0, 160.0, 380.0);

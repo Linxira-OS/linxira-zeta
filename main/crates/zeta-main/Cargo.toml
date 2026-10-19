@@ -21,6 +21,7 @@ png = "0.18"
 crossterm.workspace = true
 ratatui.workspace = true
 sysinfo = "0.31"
+sysmon = { path = "../sysmon" }
 
 termide-core.workspace = true
 termide-config.workspace = true

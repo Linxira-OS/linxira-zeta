@@ -46,7 +46,8 @@ pub const MAX_SUBS_PER_PANE: usize = 8;
 /// How long a toast stays on screen.
 pub const TOAST_TTL: Duration = Duration::from_millis(1800);
 
-/// The right column's four panels — the spec's 文件树 / 历史 / Git / 用量.
+/// The right column's five panels — the spec's 文件树 / 历史 / Git / 用量 plus
+/// the host 资源 reading.
 ///
 /// The 用量 tab shows the *active conversation's* own usage and follows the
 /// active pane/tab; the global roll-up lives in the 用量 container the left
@@ -68,10 +69,12 @@ pub enum RightTab {
 	History,
 	Git,
 	Usage,
+	/// Host CPU/memory/GPU and the process list, sampled by `sysmon`.
+	Resources,
 }
 
 impl RightTab {
-	pub const ALL: [Self; 4] = [Self::Files, Self::History, Self::Git, Self::Usage];
+	pub const ALL: [Self; 5] = [Self::Files, Self::History, Self::Git, Self::Usage, Self::Resources];
 
 	/// The panel head, spelled as the spec spells it.
 	pub fn title(self) -> &'static str {
@@ -80,6 +83,7 @@ impl RightTab {
 			Self::History => t!("历史 · Agent 对话"),
 			Self::Git => t!("Git 状态"),
 			Self::Usage => t!("用量"),
+			Self::Resources => t!("资源"),
 		}
 	}
 
@@ -90,6 +94,7 @@ impl RightTab {
 			Self::History => t!("zetacode 会话存储（~/.zeta/agent/agent.db）"),
 			Self::Git => t!("git status / log / rev-list（只读）"),
 			Self::Usage => t!("活动会话的日志（~/.zeta/agent/sessions）"),
+			Self::Resources => t!("sysmon（CPU / 内存 / GPU / 进程）"),
 		}
 	}
 }
