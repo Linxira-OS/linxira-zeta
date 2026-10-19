@@ -400,6 +400,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "程序状态（OSC 7501）",
 		description: "通过 OSC 7501 上报智能体正在工作、等待你输入、已完成或失败，供终端标签页指示器与智能体收件箱使用",
 	},
+	"tui.completeScrollback": {
+		label: "完整回滚",
+		description:
+			"把被增高的 HUD 或对话框挤出屏幕的记录行直接送入回滚区；缩回时记录与输入框之间会留空行，直到新输出填满",
+	},
 	"tui.textSizing": {
 		label: "大标题（Kitty）",
 		description:
@@ -1388,6 +1393,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"computer.maxHeight": {
 		label: "Computer 截图高度",
 		description: "合成截图的最大高度（像素）",
+	},
+	"computer.backgroundFallback": {
+		label: "后台路由回退",
+		description:
+			"窗口输入的后台路由不可用时的行为：改用接管并把焦点还给你的应用（macOS；其它平台即普通接管），或选择拒绝——拒绝同时禁止 agent 自行抢占前台或打开 macOS 菜单",
 	},
 	"checkpoint.enabled": {
 		label: "检查点/回退（Checkpoint/Rewind）",
@@ -4373,6 +4383,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "Anthropic",
 		description: "Claude 的原生 web_search 工具（使用 Anthropic OAuth 或 ANTHROPIC_API_KEY）",
 	},
+	"computer.backgroundFallback::takeover": {
+		label: "接管",
+		description: "仅该次调用短暂把目标窗口提到前台，随后把焦点还给你的应用（macOS 上即使你还在打字）",
+	},
+	"computer.backgroundFallback::refuse": {
+		label: "拒绝",
+		description:
+			"让该次调用失败；不做任何接管，同时拒绝 agent 自身的接管、置前、激活式打开、桌面输入与 macOS 菜单（右键菜单、弹出菜单与菜单按钮在打开时会占据键盘）",
+	},
+	"providers.webSearchOrder::deepseek": {
+		label: "DeepSeek",
+	},
 	"providers.webSearchOrder::codex": {
 		label: "OpenAI",
 		description: "OpenAI 的原生 web_search（通过 /login openai-codex 使用 ChatGPT OAuth）",
@@ -5283,6 +5305,9 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"find.enabled::off": {
 		label: "关闭",
 		description: "禁用 find 工具",
+	},
+	"providers.webSearchExclude::deepseek": {
+		label: "DeepSeek",
 	},
 	"providers.webSearchExclude::openai": {
 		label: "OpenAI API",

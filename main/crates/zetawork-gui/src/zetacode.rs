@@ -32,8 +32,8 @@
 //! file this module writes, only through [`write_provider_field`], and only
 //! when the edit actually changes the bytes.
 
-#[cfg(windows)]
 use crate::t;
+#[cfg(windows)]
 use std::os::windows::process::CommandExt as _;
 use std::{
 	fs,

@@ -31,6 +31,7 @@
 //! [`LiveSessions::ensure_program`] is how a companion page (zetacode) runs its
 //! own binary in this PTY instead of a shell.
 
+#[cfg(windows)]
 use crate::t;
 use std::{collections::BTreeMap, path::PathBuf};
 
