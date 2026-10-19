@@ -27,6 +27,7 @@ pub const MENUS: &[(&str, &[&str])] = &[
 			"🕒 Time · calendar",
 			"🍅 Pomodoro",
 			"📋 Clipboard",
+			"📊 Resources",
 			"➕ New subtab",
 			"🗕 Minimize pane",
 			"🗗 Move pane to new tab",

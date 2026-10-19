@@ -66,4 +66,15 @@ fn main() {
 			);
 		}
 	}
+
+	println!("processes (top {} by CPU):", snapshot.processes.len());
+	for process in &snapshot.processes {
+		println!(
+			"  {:>7}  {:>6.1}%  {:>10}  {}",
+			process.pid,
+			process.cpu_percent,
+			bytes(process.memory_bytes),
+			process.name
+		);
+	}
 }

@@ -271,6 +271,35 @@ pub fn truncated_mono(
 		.galley(pos2(at.x, at.y - galley.size().y / 2.0), galley, color);
 }
 
+/// [`truncated_mono`] ending at `right` instead of starting at `left` — the
+/// right-hand numbers of a row.
+pub fn truncated_mono_right(
+	ui: &Ui,
+	right: f32,
+	centre_y: f32,
+	text: &str,
+	size: f32,
+	color: Color32,
+	available: f32,
+) {
+	let font = FontId::new(size, egui::FontFamily::Monospace);
+	let mut text = text.to_owned();
+	let mut galley = ui
+		.painter()
+		.layout_no_wrap(text.clone(), font.clone(), color);
+	if galley.size().x > available && available > 8.0 {
+		while !text.is_empty() && galley.size().x > available {
+			text.pop();
+			galley = ui
+				.painter()
+				.layout_no_wrap(format!("{text}…"), font.clone(), color);
+		}
+	}
+	let width = galley.size().x;
+	ui.painter()
+		.galley(pos2(right - width, centre_y - galley.size().y / 2.0), galley, color);
+}
+
 /// The one quiet line a panel shows when it has nothing to list.
 ///
 /// The line is clipped to the card's own width: a note whose headline carries a

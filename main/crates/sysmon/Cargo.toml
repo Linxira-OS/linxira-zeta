@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Host CPU, memory, disk, network, and GPU sampling for the Zeta workbench"
+description = "Host CPU, memory, disk, network, GPU, and process sampling for the Zeta workbench"
 publish = false
 
 [dependencies]

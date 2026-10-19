@@ -3,8 +3,9 @@
 //!
 //! [`Sampler`] owns the platform state and returns a [`Snapshot`] per call.
 //! Counters that are only meaningful as a rate (CPU usage, GPU utilisation,
-//! network bytes) are kept between calls so each snapshot describes the
-//! interval since the previous one rather than a process-lifetime absolute.
+//! network bytes, per-process CPU) are kept between calls so each snapshot
+//! describes the interval since the previous one rather than a
+//! process-lifetime absolute.
 //!
 //! ```no_run
 //! use std::time::Duration;
@@ -21,13 +22,20 @@
 //! `nvidia-smi`; call it off the UI thread.
 
 mod gpu;
+mod monitor;
+mod process;
 
 use std::collections::HashMap;
 use std::time::SystemTime;
 
-use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, Networks, RefreshKind, System};
+use sysinfo::{
+	CpuRefreshKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, ProcessesToUpdate,
+	RefreshKind, System,
+};
 
 pub use gpu::{GpuSource, GpuUsage};
+pub use monitor::Monitor;
+pub use process::{ProcessSample, TOP_PROCESSES};
 
 /// Usage of one mounted filesystem.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -75,6 +83,8 @@ pub struct Snapshot {
 	pub net_tx_bytes: u64,
 	/// GPU readings; empty when no probe tier could answer.
 	pub gpus: Vec<GpuUsage>,
+	/// Heaviest CPU users, sorted by CPU ([`TOP_PROCESSES`] at most).
+	pub processes: Vec<ProcessSample>,
 	/// Wall-clock time at which the snapshot was taken.
 	pub sampled_at: SystemTime,
 }
@@ -121,8 +131,13 @@ impl Sampler {
 				.with_cpu(CpuRefreshKind::new().with_cpu_usage())
 				.with_memory(MemoryRefreshKind::new().with_ram()),
 		);
-		// Prime the CPU delta; the first `sample` needs a second point.
+		// Prime the CPU and per-process deltas; the first `sample` needs a
+		// second point.
 		system.refresh_cpu_usage();
+		system.refresh_processes_specifics(
+			ProcessesToUpdate::All,
+			ProcessRefreshKind::new().with_cpu().with_memory(),
+		);
 
 		let disks = Disks::new_with_refreshed_list();
 		let networks = Networks::new_with_refreshed_list();
@@ -147,6 +162,23 @@ impl Sampler {
 			RefreshKind::new()
 				.with_cpu(CpuRefreshKind::new().with_cpu_usage())
 				.with_memory(MemoryRefreshKind::new().with_ram()),
+		);
+		system.refresh_processes_specifics(
+			ProcessesToUpdate::All,
+			ProcessRefreshKind::new().with_cpu().with_memory(),
+		);
+		let processes = process::top_cpu(
+			system
+				.processes()
+				.iter()
+				.map(|(pid, process)| ProcessSample {
+					pid: pid.as_u32(),
+					name: process.name().to_string_lossy().into_owned(),
+					cpu_percent: process.cpu_usage(),
+					memory_bytes: process.memory(),
+				})
+				.collect(),
+			TOP_PROCESSES,
 		);
 
 		disks.refresh();
@@ -178,6 +210,7 @@ impl Sampler {
 			net_rx_bytes,
 			net_tx_bytes,
 			gpus: gpu.sample(),
+			processes,
 			sampled_at,
 		}
 	}
@@ -215,7 +248,7 @@ mod tests {
 	use std::collections::HashMap;
 	use std::time::SystemTime;
 
-	use super::{DiskUsage, NetTotal, Sampler, Snapshot, accumulate_network_delta};
+	use super::{DiskUsage, NetTotal, Sampler, Snapshot, TOP_PROCESSES, accumulate_network_delta};
 
 	fn snapshot(memory_used: u64, memory_total: u64) -> Snapshot {
 		Snapshot {
@@ -226,6 +259,7 @@ mod tests {
 			net_rx_bytes: 0,
 			net_tx_bytes: 0,
 			gpus: Vec::new(),
+			processes: Vec::new(),
 			sampled_at: SystemTime::UNIX_EPOCH,
 		}
 	}
@@ -283,6 +317,16 @@ mod tests {
 		assert!(first.memory_used <= first.memory_total);
 		assert!((0.0..=100.0).contains(&first.cpu_percent));
 		assert!((0.0..=100.0).contains(&first.memory_percent()));
+
+		assert!(!first.processes.is_empty(), "the host runs at least one process");
+		assert!(first.processes.len() <= TOP_PROCESSES);
+		assert!(
+			first
+				.processes
+				.windows(2)
+				.all(|pair| pair[0].cpu_percent >= pair[1].cpu_percent),
+			"processes are sorted by CPU"
+		);
 
 		let second = sampler.sample();
 		assert!(second.memory_used <= second.memory_total);

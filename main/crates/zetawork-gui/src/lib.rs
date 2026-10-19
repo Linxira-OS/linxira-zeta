@@ -38,6 +38,7 @@ pub mod live;
 pub mod notify;
 pub mod page;
 pub mod picker;
+pub mod resources;
 pub mod right;
 pub mod seed;
 pub mod settings;
@@ -134,6 +135,9 @@ pub struct Shell {
 	/// The active conversation's usage, for the right column's 用量 page and
 	/// the status bar's 上文 column ([`conversation::ConversationCache`]).
 	pub conversation: conversation::ConversationCache,
+	/// The right column's 资源 page: host CPU/memory/GPU and the process list
+	/// ([`resources::ResourceCache`]).
+	pub resources: resources::ResourceCache,
 	/// zetacode's own options (设置 target ②), read and written off the UI
 	/// thread.
 	pub remote: settings_ui::ZetacodeCache,
@@ -245,6 +249,7 @@ impl Shell {
 			embed: embed::EmbedState::default(),
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
+			resources: resources::ResourceCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
@@ -297,6 +302,7 @@ impl Shell {
 			embed: embed::EmbedState::default(),
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
+			resources: resources::ResourceCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			drafts: Vec::new(),
@@ -909,9 +915,20 @@ impl Shell {
 			// alive is the point of hiding instead of closing.
 			self.memory.set_interval(lifecycle::BACKGROUND_POLL);
 			self.memory.sample_if_stale();
+			self.resources.idle();
 			return;
 		}
 		self.memory.set_interval(Memory::INTERVAL);
+		// 资源 owns a background sampler and asks for the next frame itself;
+		// closing the page (or the column) stops the worker.
+		let resources_tab =
+			!self.state.right_collapsed && self.state.right_tab == state::RightTab::Resources;
+		if resources_tab {
+			self.resources.refresh();
+			ctx.request_repaint_after(crate::resources::REFRESH);
+		} else {
+			self.resources.idle();
+		}
 		if self.settings_changed() {
 			self.apply_settings(ctx);
 		}

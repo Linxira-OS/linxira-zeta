@@ -19,10 +19,11 @@ pub enum PaneKind {
 	Editor,
 	Ide,
 	/// Native workbench widgets (no child process): time+calendar dashboard,
-	/// pomodoro timer, clipboard history.
+	/// pomodoro timer, clipboard history, host resources.
 	Time,
 	Pomodoro,
 	Clipboard,
+	Resources,
 	/// A raw command line typed into the pane's shell (used by presets and
 	/// ad-hoc commands).
 	Command(String),
@@ -45,6 +46,7 @@ impl PaneKind {
 			PaneKind::Time => "time · calendar".into(),
 			PaneKind::Pomodoro => "🍅 pomodoro".into(),
 			PaneKind::Clipboard => "📋 clipboard".into(),
+			PaneKind::Resources => "📊 resources".into(),
 			PaneKind::Command(cmd) => cmd.clone(),
 			PaneKind::Install { tool, .. } => format!("install · {tool}"),
 		}
@@ -52,7 +54,10 @@ impl PaneKind {
 
 	/// Native widget panes carry no child process.
 	pub fn is_widget(&self) -> bool {
-		matches!(self, PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard)
+		matches!(
+			self,
+			PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard | PaneKind::Resources
+		)
 	}
 
 	/// Panes the workbench renders itself, with no child process: the
@@ -106,6 +111,7 @@ impl PaneKind {
 			| PaneKind::Time
 			| PaneKind::Pomodoro
 			| PaneKind::Clipboard
+			| PaneKind::Resources
 			| PaneKind::Editor => None,
 			PaneKind::Command(line) => Some(line.clone()),
 			PaneKind::Install { command, .. } => Some(command.clone()),
@@ -652,6 +658,16 @@ mod tests {
 			name: None,
 			cwd: None,
 		}
+	}
+
+	#[test]
+	fn the_resources_pane_is_a_widget_with_no_child_process() {
+		assert!(PaneKind::Resources.is_widget());
+		assert!(PaneKind::Resources.is_embedded());
+		assert_eq!(PaneKind::Resources.label(), "📊 resources");
+		let mut pane = Pane::new(PaneKind::Resources, 24, 80, None).expect("widget pane");
+		assert!(pane.is_widget());
+		assert!(pane.as_terminal().is_none(), "no PTY child to reap");
 	}
 
 	#[test]

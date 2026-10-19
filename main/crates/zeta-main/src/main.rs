@@ -7,6 +7,7 @@ mod git;
 mod help;
 mod layout;
 mod rail;
+mod resources;
 mod settings;
 mod shell;
 mod slots;
