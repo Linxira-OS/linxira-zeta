@@ -298,7 +298,10 @@ jobs:
          - name: Upstream merge lineage guard
            run: |
               set -euo pipefail
-              git fetch --unshallow --tags origin 2>/dev/null || git fetch --tags origin
+              # --force: a re-cut tag (the v1.3.0 realignment) makes the runner's own
+              # tag differ from origin's, and a plain --tags fetch refuses with
+              # `would clobber existing tag` before the lineage check can even run.
+              git fetch --force --unshallow --tags origin 2>/dev/null || git fetch --force --tags origin
               git remote add omp-upstream https://github.com/can1357/oh-my-pi.git 2>/dev/null || true
               baseline=$(sed -n 's/.*\*\*Integrated through\*\*: *`\(v[0-9.]*\)`.*/\1/p' document/upstream-sync.md | head -n1)
               if [ -n "$baseline" ]; then
