@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-19
+
+### Fixed
+
+- A pane's PTY now starts with this install's companion directory in front of `PATH` (the running executable's own directory, plus `ZETA_BIN_DIR`): typing `zetacode` in a terminal reaches the build the gateway runs, not an older global npm copy
+- `POST /api/terminal/ensure` accepts `program: "zetacode" | "zetaide"` from the closed set: a companion page attaches to the same `zetacode serve` session as the TUI and the browser instead of spawning a private process, and a missing companion fails the page rather than silently running a shell
+
 ## [1.3.1] - 2026-10-19
 
 ### Added

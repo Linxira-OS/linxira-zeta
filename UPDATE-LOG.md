@@ -2,6 +2,17 @@
 
 ## 下一版本（Unreleased）
 
+### 1.3.2
+
+- **终端页与 companion 页都跑随包二进制**：pane 的 PTY 在 `PATH` 最前面注入本
+  install 的 companion 目录（运行中二进制所在目录 + `ZETA_BIN_DIR`），键入
+  `zetacode` 不再命中旧的全局 npm 副本；GUI 的本地回退 PTY 走同一规则
+  （`panel-terminal::new_with_shell_env`，`termide/VENDOR.md` 偏离 29）。
+- **zetacode 页挂网关**：`ensure` 接受封闭集合 `program: "zetacode" | "zetaide"`，
+  companion 页成为 `zetacode serve` 的客户端（与 TUI/浏览器共享会话、窗口关闭后
+  存活），serve 不可达时回落本地 PTY；缺 companion 时页面报错，不静默换 shell。
+- 路线图登记「任务面板 = 官方插件（多仓库绑定、GUI 自动激活）」，评审前不动工。
+
 ### OMP 同步基线
 
 - v18.12.1 → v18.12.2（620 提交 / 269 文件；真双亲合并 `aa4e88b275d`，
