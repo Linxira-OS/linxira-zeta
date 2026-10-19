@@ -46,6 +46,7 @@ const EXCLUDED: Record<string, string> = {
 	release_npm: "release chain",
 	release_ide_packages: "release chain",
 	release_plugin_packages: "release chain",
+	release_plugin_packages_manual: "release chain",
 	native_addons_cross: "cross-target leg (darwin/win32 arm64)",
 };
 
