@@ -350,8 +350,11 @@ pub fn render_files(frame: &mut Frame, area: Rect, tree: &FileTree) {
 		lines.push(Line::from(Span::styled(" （空目录）", Style::default().fg(Color::DarkGray))));
 	}
 	for (index, row) in tree.rows().iter().enumerate() {
+		// ASCII carets: the bundled faces have no U+25BE/U+25B8, and
+		// tests/no_tofu_glyphs.rs (in zetawork-gui, which scans this tree too)
+		// fails the release when a rendered codepoint is missing.
 		let marker = if row.is_dir {
-			if row.expanded { "▾" } else { "▸" }
+			if row.expanded { "v" } else { ">" }
 		} else {
 			" "
 		};
