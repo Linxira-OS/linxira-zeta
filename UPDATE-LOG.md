@@ -20,6 +20,17 @@
   companion 页成为 `zetacode serve` 的客户端（与 TUI/浏览器共享会话、窗口关闭后
   存活），serve 不可达时回落本地 PTY；缺 companion 时页面报错，不静默换 shell。
 - 路线图登记「任务面板 = 官方插件（多仓库绑定、GUI 自动激活）」，评审前不动工。
+- **桌面安装包**：Windows 发 NSIS 安装器 `zetawork-<ver>-setup-x64.exe`（GUI +
+  `zetacode` + `zetaide` + `zetawork` 一并装进 `%LOCALAPPDATA%\Programs\zetawork`，
+  开始菜单快捷方式、卸载项、安装前结束占用进程），同时保留**只含 GUI** 的
+  `zetawork-<ver>-windows-x64.zip`；Arch `.pkg.tar.zst` 与 AppImage 也带上两个 companion。
+  资产名一律用不带 `v` 的版本号；release preflight 要求安装器/zip/AppImage/pkg 四件齐全。
+- **资源面板**：GUI 右栏与 TUI 各新增一页——CPU/内存/GPU 占比与按 CPU 排序的进程表，
+  共用 `main/crates/sysmon` 的采样器与工作线程（UI 线程不做阻塞读）。
+- **Web UI 会话标签与项目拖拽**：标签持久化/恢复、关闭其他/关闭右侧、草稿关闭确认、
+  后台运行徽章；项目列表可拖拽重排并落盘（`ProjectMeta.order`，manual 模式）。
+- **扩展 API 与 tea 二期**：扩展上下文新增 `ctx.agents`（只读名册）与 `ctx.messaging`
+  （send/wait/inbox）；`tea` 支持 Gitea 的 `issue://`/`pr://` 与 `run_watch`。
 
 ### OMP 同步基线
 

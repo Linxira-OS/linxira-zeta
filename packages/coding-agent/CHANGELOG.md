@@ -1,6 +1,12 @@
 ## [Unreleased]
 
-## [1.3.2] - 2026-10-19
+## [1.3.2] - 2026-10-20
+
+### Added
+
+- `zetacode update --desktop` manages the zetawork desktop app: `--check` prints one JSON line (`current`, `latest`, `available`, `asset`, `url`, `size`, `digest`) and the plain form downloads the Windows setup executable, verifies its SHA-256 and runs it silently
+- `tea` gained the Gitea half of the internal-URL family: `issue://`/`pr://` (including `pr://N/diff[/all|/<i>]`) resolve against a configured Gitea instance when the host or the checkout's remote is one, and a new `run_watch` op polls a Gitea Actions run the way `gh run watch` does
+- Extensions receive `ctx.agents` (read-only roster: `list()`, `get(id)`) and `ctx.messaging` (`send`/`wait`/`inbox` over the IRC bus, with the session lifecycle attached), so a plugin no longer needs deep imports for peer coordination
 
 ### Fixed
 
