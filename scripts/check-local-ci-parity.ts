@@ -41,10 +41,12 @@ const EXCLUDED: Record<string, string> = {
 	release_gate: "release chain",
 	release_binary: "release chain",
 	release_product_binaries: "release chain",
+	release_desktop_archives: "release chain",
 	release_native_leaves: "release chain",
 	release_github: "release chain",
 	release_npm: "release chain",
 	release_ide_packages: "release chain",
+	release_main_packages: "release chain",
 	release_plugin_packages: "release chain",
 	native_addons_cross: "cross-target leg (darwin/win32 arm64)",
 };

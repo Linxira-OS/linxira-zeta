@@ -109,7 +109,7 @@ Build time belongs in the changelog and the git tag, not the version.
   **必须**把 trusted publisher 绑到 `.github/workflows/ci.yml`：`pi-channels`
   由 `release_npm`（workspace `packages` 表，`ci-release-publish.ts`）发布，
   `pi-messenger` 由 `release_plugin_packages`（`ci-release-publish.ts --plugin
-  plugins/official/pi-messenger`，把插件目录原样打包）发布——两个腿都在
+plugins/official/pi-messenger`，把插件目录原样打包）发布——两个腿都在
   `ci.yml` 内，不在任何独立 workflow 里。注意 `pi-messenger` 在 npm 上停在
   1.1.1（上一次手工补发），首次随线发布是它绑定关系的第一道实战检验。
   editor 三包 `@linxiraos/editor` / `@linxiraos/editor-windows-x64` /
@@ -149,64 +149,64 @@ Build time belongs in the changelog and the git tag, not the version.
 
 - CI is **dual-mode**. `release_metadata` resolves one output, `is-release`,
   and every job branches on it:
-  - **Ordinary mode** (push/PR whose HEAD carries no `v*` tag): the full test
-    fan-out runs — `check`, `rust_validate`, `test_workspace`,
-    `test_coding_agent_singleton/native/ui/runtime`, `test_ts_native`,
-    `test_smoke`, `install_methods`.
-  - **Release mode** (`is-release == 'true'`): the test-type jobs above
-    (`rust_validate` / `test_workspace` / the `test_coding_agent_*` buckets /
-    `test_ts_native` / `test_smoke`) are **skipped** via
-    `needs: [release_metadata]` +
-    `if: needs.release_metadata.outputs.is-release != 'true'`; the run goes
-    straight to the guard job `check` (its workspace type-check step skipped) +
-    `bazel_lock` + `native_addons`(+`native_addons_cross`) +
-    `install_methods` → `release_gate` → build/publish. `release_gate` counts
-    only `failure`/`cancelled` in `needs.*.result`, so skipped test jobs never
-    block or greenwash it.
+   - **Ordinary mode** (push/PR whose HEAD carries no `v*` tag): the full test
+     fan-out runs — `check`, `rust_validate`, `test_workspace`,
+     `test_coding_agent_singleton/native/ui/runtime`, `test_ts_native`,
+     `test_smoke`, `install_methods`.
+   - **Release mode** (`is-release == 'true'`): the test-type jobs above
+     (`rust_validate` / `test_workspace` / the `test_coding_agent_*` buckets /
+     `test_ts_native` / `test_smoke`) are **skipped** via
+     `needs: [release_metadata]` +
+     `if: needs.release_metadata.outputs.is-release != 'true'`; the run goes
+     straight to the guard job `check` (its workspace type-check step skipped) +
+     `bazel_lock` + `native_addons`(+`native_addons_cross`) +
+     `install_methods` → `release_gate` → build/publish. `release_gate` counts
+     only `failure`/`cancelled` in `needs.*.result`, so skipped test jobs never
+     block or greenwash it.
 - Precise trigger discipline (push is a quality gate, never a publish path):
-  - `push` to `main` runs quality checks only; it never publishes. Only a
-    release run — a `v*` tag at HEAD detected by `release_metadata` — enters
-    the build/publish chain.
-  - Because the release run **skips the tests**, a green push run on the
-    **release source commit** (the pre-bump `main` HEAD the release is cut
-    from) is a hard precondition before the tag may land. `scripts/release-v2.ts`
-    enforces this mechanically: it verifies that commit's push run (`gh run
-    watch` on the headSha+`event=push` run, poll ≥60 s, max 90 min) and aborts
-    without tagging on anything but success — including when no run registers
-    (never a silent pass). The bump commit only rewrites versions/CHANGELOG, so
-    re-running the suite on it is pure waste; the source commit's green run
-    proves the shipped code. Escape hatch: `--no-ci-wait` skips the
-    source-commit check (when its greenness is already established).
-  - The bump/tag phase runs **no test jobs**: the atomic push's release run has
-    `is-release == 'true'`, so the test buckets are skipped — they ran once on
-    the source commit. Tests are never re-run for a version bump.
-  - The release run lands in the **no-cancel** `release-<sha>` concurrency group
-    because its HEAD is the bump commit (`chore: bump version to …`), so a later
-    main push cannot cancel it. A tag that does **not** ride a bump commit (e.g.
-    a tag placed on a release-PR merge commit and pushed with main) would fall
-    into the cancellable `CI-refs/heads/main` group and be cancelled — so never
-    push to main while a release run is in flight, and cut releases only through
-    `release-v2.ts` (or dispatch a standalone tag with `gh workflow run`).
-  - `.github/**` **is** in the `on.push` / `on.pull_request` path filters, so a
-    workflow/config change triggers the full run like any other change (it is
-    not self-trigger-exempt). A manual `workflow_dispatch` remains the way to
-    re-run, or to run with `skip_npm` — never dispatch half-done work.
-  - Release runs are entered only through two channels:
-     1. `bun scripts/release-v2.ts <version>` — verify the release source
-        commit's push run is green → atomic branch+tag push (the branch push
-        carries the tag ⇒ release mode: tests skipped, straight to build +
-        publish). No separate dispatch: the atomic push **is** the release run.
-     2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-mode
-        dispatch that skips publishing (re-runs / 补发).
-  - **Pushing the tag itself triggers nothing**: `on.push` lists `branches:`
-    only, never `tags:`. A release run is always a *re-run of that commit's push
-    run* (or the equivalent dispatch above), which is what lets `release_metadata`
-    see the tag sitting on HEAD and flip the run into release mode. Fixing a bug
-    mid-release therefore means moving the tag onto the commit that carries the
-    fix and re-running that commit — the "retagged" case the comments in
-    `ci.yml`'s `on.push` path list exist for. Never retag onto a commit whose
-    push run was not green: the release run skips the tests, so that SHA's green
-    push run is the only proof they ever passed.
+   - `push` to `main` runs quality checks only; it never publishes. Only a
+     release run — a `v*` tag at HEAD detected by `release_metadata` — enters
+     the build/publish chain.
+   - Because the release run **skips the tests**, a green push run on the
+     **release source commit** (the pre-bump `main` HEAD the release is cut
+     from) is a hard precondition before the tag may land. `scripts/release-v2.ts`
+     enforces this mechanically: it verifies that commit's push run (`gh run
+watch` on the headSha+`event=push` run, poll ≥60 s, max 90 min) and aborts
+     without tagging on anything but success — including when no run registers
+     (never a silent pass). The bump commit only rewrites versions/CHANGELOG, so
+     re-running the suite on it is pure waste; the source commit's green run
+     proves the shipped code. Escape hatch: `--no-ci-wait` skips the
+     source-commit check (when its greenness is already established).
+   - The bump/tag phase runs **no test jobs**: the atomic push's release run has
+     `is-release == 'true'`, so the test buckets are skipped — they ran once on
+     the source commit. Tests are never re-run for a version bump.
+   - The release run lands in the **no-cancel** `release-<sha>` concurrency group
+     because its HEAD is the bump commit (`chore: bump version to …`), so a later
+     main push cannot cancel it. A tag that does **not** ride a bump commit (e.g.
+     a tag placed on a release-PR merge commit and pushed with main) would fall
+     into the cancellable `CI-refs/heads/main` group and be cancelled — so never
+     push to main while a release run is in flight, and cut releases only through
+     `release-v2.ts` (or dispatch a standalone tag with `gh workflow run`).
+   - `.github/**` **is** in the `on.push` / `on.pull_request` path filters, so a
+     workflow/config change triggers the full run like any other change (it is
+     not self-trigger-exempt). A manual `workflow_dispatch` remains the way to
+     re-run, or to run with `skip_npm` — never dispatch half-done work.
+   - Release runs are entered only through two channels:
+      1. `bun scripts/release-v2.ts <version>` — verify the release source
+         commit's push run is green → atomic branch+tag push (the branch push
+         carries the tag ⇒ release mode: tests skipped, straight to build +
+         publish). No separate dispatch: the atomic push **is** the release run.
+      2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-mode
+         dispatch that skips publishing (re-runs / 补发).
+   - **Pushing the tag itself triggers nothing**: `on.push` lists `branches:`
+     only, never `tags:`. A release run is always a _re-run of that commit's push
+     run_ (or the equivalent dispatch above), which is what lets `release_metadata`
+     see the tag sitting on HEAD and flip the run into release mode. Fixing a bug
+     mid-release therefore means moving the tag onto the commit that carries the
+     fix and re-running that commit — the "retagged" case the comments in
+     `ci.yml`'s `on.push` path list exist for. Never retag onto a commit whose
+     push run was not green: the release run skips the tests, so that SHA's green
+     push run is the only proof they ever passed.
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
   gated on `release_gate` (release-state validation: the `check` guard job —
   brand/sentinel/CI-surface/scope guards — plus lockfile freshness, native
@@ -218,7 +218,7 @@ Build time belongs in the changelog and the git tag, not the version.
   workflow file — the npm trusted-publisher binding must name `ci.yml`).
 - `check:ts` (and the rest of the local pre-commit gates) remain mandatory
   before every merge/release regardless of mode — the dual-mode skip only
-  removes the *duplicated CI* run, never the local gate. On a release run the
+  removes the _duplicated CI_ run, never the local gate. On a release run the
   `check` job still runs its guard steps; only its workspace type-check step is
   skipped (it duplicates the source commit's push run).
 - Test-suite failures in a push run are environment flakes (e.g. singleton
@@ -298,21 +298,21 @@ Rules:
 每次 release 合并后、push tag 前逐类核对（v1.1.9 首跑即验证：每一类都曾打断发布链）。
 按 v1.1.9 实际断裂点编码为机械检查，写入 AGENTS.md Post-Merge Checklist 的 release 面补充：
 
-| #   | 损伤类别                                                                                                                                               | 症状                                                                                           | 机械守卫                                                                                                                                                                  |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Release asset 名漂移：build 脚本改名（如 `omp-browser-relay-extension.zip` → `zeta-browser-relay-extension.zip`）而 ci.yml 仍引旧名                    | `Generate checksums` 步骤 ENOENT，GH Release 不创建，下游 verify/brew/npm 全 skipped           | checksums 前的 `Preflight release assets` 步骤；改名任何 release asset 时全库 grep 旧名                                                                                   |
-| 2   | Artifact 名漂移：upload/download 的 artifact key（`zeta-binary-*`、`native-addons-*`）两侧不一致                                                       | download 步骤空集或 digest 错误                                                                | upload/download `pattern` 成对核对                                                                                                                                        |
-| 3   | 新 leaf 包（`@linxiraos/pi-natives-<tag>`）首次发布时 npm 侧无 trusted publisher / 无权限 → `PUT 404`                                                  | `Publish native leaf packages` 失败；主包因 `optionalDependencies` 锁步被 gating 全部不发      | 发版前 npmjs.com 逐包配置 trusted publisher；本地补发用 `scripts/publish-missing-packages.ts`                                                                             |
-| 4   | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致                                                                                         | `bun-install` 全 job 死 / `check-version-consistency` 报错                                     | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖）                                                                                   |
-| 5   | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0` | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建 | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链                                                                     |
-| 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                      | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版） |
-| 7   | 手动版本 bump 漏 npm 平台叶包 / 漏叶包 pin（v1.1.16 只 bump launcher；v1.2.0 的 `editor/npm/editor` launcher 升到 1.2.0 而 `optionalDependencies` 的 `@linxiraos/editor-{windows,linux}-x64` 仍钉 1.1.28，PR #119 手工修）                | `release_editor_packages` 重发已存在版本 → npm 409，run 红；launcher 装出的却是上一版二进制（pin 落后不报错，只在用户侧炸） | 全部路径统一走 `scripts/npm-distributions.ts` 注册表：`release-v2.ts` Step 2f / `set-version.ts` Step 3b 同时改 launcher + 叶包 + pins；bump 后 `release-v2.ts` preflight 与 `bun scripts/check-version-consistency.ts` 都会校验 pins；新增发行版必须登记进注册表（未登记的 `@linxiraos/*` pin 直接判红）。**2026-10-16 追记**：`editor/npm/editor` 发行版随 TTT 载荷退场，`npm-distributions.ts` 现只剩 `main` + `termide`；本条的机制与规则不变 |
-| 8   | release worktree 重解析 lockfile vs CI frozen 安装的不对称（v1.2.0）：`release-v2.ts` 会 `rm -f bun.lock && bun install` 重解析，而每个 CI job 都是 `--frozen-lockfile`，于是类型类依赖的 caret 要到发布时才被抬版本（`@types/bun` 1.4.2 → 1.4.3 放宽 `Subprocess.signalCode`） | Step 8 `bun run check:ts` 在发布机上首次报错——CI 从未见过该版本（不是"CI 没跑类型检查"：`check` job 一直在跑，只是跑的是旧 types） | 类型依赖写死版本：catalog 里的 `@types/*` 全部精确钉版（与已精确的 `@types/bun` 一致），升级走单独 PR，让 CI 的 frozen 安装与 `check:ts` 真正看到新版本 |
-| 9   | 发布 run 被取消（v1.2.0 事故）：tag 落在**非 bump 提交**（如 release PR 的 merge 提交）上并随 main 推送 → concurrency 谓词认不出它是发布 run → 落进可取消的 `CI-refs/heads/main` 组，后续 main 推送把它取消，tag 留下但 GitHub Release / npm 未发 | 发布 run 中途变 `cancelled`；tag 在、Release 缺失或 npm 缺包 | 发布一律走 `release-v2.ts`（tag 必落在 bump 提交上，`chore: bump version to …` 主题即免取消组的判据）；**发布 run 运行期间禁止向 main 推送**；单独补 tag 用 `gh workflow run ci.yml --ref main`（dispatch 在免取消组）；**不要**给 `on.push` 加 `tags: ["v*"]`（同一 SHA 会多出 tag-ref run，重复发布） |
-| 10  | 矩阵↔`ASSETS` 脱节（v1.2.0 收尾）**——机制已退役 2026-10-14，见类别 11**：`scripts/ci-build-upload.ts` 的 `ASSETS` 表键多于 `release_binary` 真正构建的那几条腿——三条 arm64（`zeta-cli-linux-arm64`/`-linux-musl-arm64`/`-windows-arm64.exe`）有键无腿，而 arm64 目标仍在 build 脚本里（可构建、未发布） | 发布链**最后一环** `Publish to build.stencil.so` 硬失败：`error: missing release binaries: zeta-cli-linux-arm64, zeta-cli-linux-musl-arm64, zeta-cli-windows-arm64.exe`；此时 GitHub Release 与 npm 都已发出，只有 stencil 镜像缺失，run 红在 tag 之后 | ~~上传器 `ASSETS` 表与矩阵两方向硬拦~~ 随上传器一并删除；`scripts/check-release-asset-names.ts` 现只校 CLI 目标 ↔ `release_binary` 矩阵 ↔ 更新器资产名（类别 1/2 的三面） |
-| 11  | 发布到上游 OMP 基础设施（stencil）：发布链最后一环 `Publish to build.stencil.so` 按设计只接受 `can1357`/`stencil-hq` 的仓库，本 fork 永久无权限（v1.2.0、v1.2.1 同一环连续两次把 run 打红） | `error: create build: HTTP 403 {"error":"only repositories of can1357 or stencil-hq may publish omp builds, not Linxira-OS/linxira-zeta"}`；此时 GitHub Release 与 npm 已发出，run 红在 tag 之后、流程尾部 | **规则：Zeta 不向上游构建服务器发布，发行资产只进自己的 GitHub Release**（更新器消费 `zeta-cli-*`）。步骤与 `scripts/ci-build-upload.ts` 已删除；`check-ci-surface.ts` 禁止 `ci-build-upload`/`build.stencil.so` 出现在 workflow（含注释），`check-shared-infra.ts` 把端点标为 `replaced`（`files: []`）——复活即红 |
-| 12  | web-ui（`@linxiraos/zeta-web`）发布腿缺失（2026-10-14 修复）：包已在 npm 上（停在 1.1.5）却不在任何发布路径上——web-ui 不是根 workspace 成员、ci.yml 无对应 job、`set-version.ts` / `release-v2.ts` 也不 bump 它，于是 gateway 一路前进而 Web UI 冻结 | npm 上 `zeta-web` 长期落后产品线；`zeta serve` 在无 repo web-ui 时回退到 npm 安装，装出的是旧 Web UI 对上新网关（网关 API 漂移即炸） | 发布腿 = ci.yml 的 `release_web_ui_packages`（发布前自带 `npm ci` + `next build`：tarball 的 `files` 含 `.next`，裸 `npm publish` 会发出缺失/陈旧的构建）；版本随线由 `set-version.ts` / `release-v2.ts` 一起 bump（`web-ui/package.json` + 其 `package-lock.json`）；**npm 侧 trusted publisher 必须绑 `.github/workflows/ci.yml`**——npm 按"执行发布的 workflow 文件名"匹配，而 web-ui 永不自带 workflow（子目录 workflow 不会被触发），见下方逐包清单；重跑安全：publish 前 `npm view <pkg>@<ver>` 命中即跳过 |
-| 13  | 发布腿缺失（第二种形态，2026-10-14 修复）：包在 Zeta 版本线（`ALL_PACKAGES`）上，却不接进任何发布腿——`@linxiraos/pi-channels` 的行被 **c9b8c2d1413（Merge tag 'v18.3.3' into dev/main）** 的冲突解决从 `ci-release-publish.ts` 的 `packages` 表里整行删掉（`0cd00b412ba` 的 merge-damage 修复没把它捞回来），`@linxiraos/pi-messenger` 则从未接过 CI 发布腿（最后一次发版是本地手工 `scripts/publish-missing-packages.ts` 补发） | 两个包在 npm 上长期落后产品线（`pi-channels` 停 1.1.20、`pi-messenger` 停 1.1.1），而仓库版本线一路 bump；用户装到的 `@linxiraos/pi-channels` / `@linxiraos/pi-messenger` 与仓库里的运行时不是同一版（网关/扩展协议漂移即炸） | `pi-channels` 的发布腿 = workspace `packages` 表（`release_npm` 内的 `ci-release-publish.ts`，恢复原行）；`pi-messenger` 的发布腿 = `ci.yml` 的 `release_plugin_packages`（`--plugin plugins/official/pi-messenger` 原样打包插件目录；workspace 表的 `typescript` kind 会做插件消费不了的 declaration emit，故不走该表）；两条腿都登记进 `scripts/brand/ci-surface-registry.ts` 的 `requiresAll` + `needsEdges`（删 job 即 `check-ci-surface.ts` 红）；两者都在 `check-version-consistency.ts` / `set-version.ts` / `release-v2.ts` 的 `ALL_PACKAGES` 里，所以版本线一 bump 就同时校验两包 |
+| #   | 损伤类别                                                                                                                                                                                                                                                                                                                                                                                                                         | 症状                                                                                                                                                                                                                                                   | 机械守卫                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Release asset 名漂移：build 脚本改名（如 `omp-browser-relay-extension.zip` → `zeta-browser-relay-extension.zip`）而 ci.yml 仍引旧名                                                                                                                                                                                                                                                                                              | `Generate checksums` 步骤 ENOENT，GH Release 不创建，下游 verify/brew/npm 全 skipped                                                                                                                                                                   | checksums 前的 `Preflight release assets` 步骤；改名任何 release asset 时全库 grep 旧名                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 2   | Artifact 名漂移：upload/download 的 artifact key（`zeta-binary-*`、`native-addons-*`）两侧不一致                                                                                                                                                                                                                                                                                                                                 | download 步骤空集或 digest 错误                                                                                                                                                                                                                        | upload/download `pattern` 成对核对                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 3   | 新 leaf 包（`@linxiraos/pi-natives-<tag>`）首次发布时 npm 侧无 trusted publisher / 无权限 → `PUT 404`                                                                                                                                                                                                                                                                                                                            | `Publish native leaf packages` 失败；主包因 `optionalDependencies` 锁步被 gating 全部不发                                                                                                                                                              | 发版前 npmjs.com 逐包配置 trusted publisher；本地补发用 `scripts/publish-missing-packages.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 4   | 版本线漂移（旧病，保留）：catalog/manifest/sentinel 版本不一致                                                                                                                                                                                                                                                                                                                                                                   | `bun-install` 全 job 死 / `check-version-consistency` 报错                                                                                                                                                                                             | `bun scripts/check-version-consistency.ts` + `bun run check:ts`（AGENTS.md 门槛已覆盖）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 5   | desktop 组装竞态（v1.1.16）：`release_github` 未依赖 desktop jobs，启动时 `zeta-desktop-*` artifacts 尚未上传，下载 0 个安装包，preflight 报 `found 0`                                                                                                                                                                                                                                                                           | `Preflight release assets` 报 `Expected at least 5 zeta-desktop-*, found 0`，GH Release 不创建                                                                                                                                                         | `release_github.needs` 必须含 `desktop_linux` + `desktop_windows`；desktop jobs 改动时核对该 needs 链                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 6   | preflight 期待与矩阵脱节：裁剪/恢复平台时只改构建侧，未同步校验侧                                                                                                                                                                                                                                                                                                                                                                | 稳定报 `Expected at least N ..., found M`；或更糟——校验被删后**静默缺资产**发布                                                                                                                                                                        | 裁剪/恢复任何平台时三处同步：preflight 期待数、checksums glob、release `files:` glob；**严禁删除校验来让发布链通过**（v1.1.16 曾误删 desktop 校验，掩盖断链并漏发桌面版）                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 7   | 手动版本 bump 漏 npm 平台叶包 / 漏叶包 pin（v1.1.16 只 bump launcher；v1.2.0 的 `editor/npm/editor` launcher 升到 1.2.0 而 `optionalDependencies` 的 `@linxiraos/editor-{windows,linux}-x64` 仍钉 1.1.28，PR #119 手工修）                                                                                                                                                                                                       | `release_editor_packages` 重发已存在版本 → npm 409，run 红；launcher 装出的却是上一版二进制（pin 落后不报错，只在用户侧炸）                                                                                                                            | 全部路径统一走 `scripts/npm-distributions.ts` 注册表：`release-v2.ts` Step 2f / `set-version.ts` Step 3b 同时改 launcher + 叶包 + pins；bump 后 `release-v2.ts` preflight 与 `bun scripts/check-version-consistency.ts` 都会校验 pins；新增发行版必须登记进注册表（未登记的 `@linxiraos/*` pin 直接判红）。**2026-10-16 追记**：`editor/npm/editor` 发行版随 TTT 载荷退场，`npm-distributions.ts` 现只剩 `main` + `termide`；本条的机制与规则不变                                                                                                                                          |
+| 8   | release worktree 重解析 lockfile vs CI frozen 安装的不对称（v1.2.0）：`release-v2.ts` 会 `rm -f bun.lock && bun install` 重解析，而每个 CI job 都是 `--frozen-lockfile`，于是类型类依赖的 caret 要到发布时才被抬版本（`@types/bun` 1.4.2 → 1.4.3 放宽 `Subprocess.signalCode`）                                                                                                                                                  | Step 8 `bun run check:ts` 在发布机上首次报错——CI 从未见过该版本（不是"CI 没跑类型检查"：`check` job 一直在跑，只是跑的是旧 types）                                                                                                                     | 类型依赖写死版本：catalog 里的 `@types/*` 全部精确钉版（与已精确的 `@types/bun` 一致），升级走单独 PR，让 CI 的 frozen 安装与 `check:ts` 真正看到新版本                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 9   | 发布 run 被取消（v1.2.0 事故）：tag 落在**非 bump 提交**（如 release PR 的 merge 提交）上并随 main 推送 → concurrency 谓词认不出它是发布 run → 落进可取消的 `CI-refs/heads/main` 组，后续 main 推送把它取消，tag 留下但 GitHub Release / npm 未发                                                                                                                                                                                | 发布 run 中途变 `cancelled`；tag 在、Release 缺失或 npm 缺包                                                                                                                                                                                           | 发布一律走 `release-v2.ts`（tag 必落在 bump 提交上，`chore: bump version to …` 主题即免取消组的判据）；**发布 run 运行期间禁止向 main 推送**；单独补 tag 用 `gh workflow run ci.yml --ref main`（dispatch 在免取消组）；**不要**给 `on.push` 加 `tags: ["v*"]`（同一 SHA 会多出 tag-ref run，重复发布）                                                                                                                                                                                                                                                                                    |
+| 10  | 矩阵↔`ASSETS` 脱节（v1.2.0 收尾）**——机制已退役 2026-10-14，见类别 11**：`scripts/ci-build-upload.ts` 的 `ASSETS` 表键多于 `release_binary` 真正构建的那几条腿——三条 arm64（`zeta-cli-linux-arm64`/`-linux-musl-arm64`/`-windows-arm64.exe`）有键无腿，而 arm64 目标仍在 build 脚本里（可构建、未发布）                                                                                                                          | 发布链**最后一环** `Publish to build.stencil.so` 硬失败：`error: missing release binaries: zeta-cli-linux-arm64, zeta-cli-linux-musl-arm64, zeta-cli-windows-arm64.exe`；此时 GitHub Release 与 npm 都已发出，只有 stencil 镜像缺失，run 红在 tag 之后 | ~~上传器 `ASSETS` 表与矩阵两方向硬拦~~ 随上传器一并删除；`scripts/check-release-asset-names.ts` 现只校 CLI 目标 ↔ `release_binary` 矩阵 ↔ 更新器资产名（类别 1/2 的三面）                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 11  | 发布到上游 OMP 基础设施（stencil）：发布链最后一环 `Publish to build.stencil.so` 按设计只接受 `can1357`/`stencil-hq` 的仓库，本 fork 永久无权限（v1.2.0、v1.2.1 同一环连续两次把 run 打红）                                                                                                                                                                                                                                      | `error: create build: HTTP 403 {"error":"only repositories of can1357 or stencil-hq may publish omp builds, not Linxira-OS/linxira-zeta"}`；此时 GitHub Release 与 npm 已发出，run 红在 tag 之后、流程尾部                                             | **规则：Zeta 不向上游构建服务器发布，发行资产只进自己的 GitHub Release**（更新器消费 `zeta-cli-*`）。步骤与 `scripts/ci-build-upload.ts` 已删除；`check-ci-surface.ts` 禁止 `ci-build-upload`/`build.stencil.so` 出现在 workflow（含注释），`check-shared-infra.ts` 把端点标为 `replaced`（`files: []`）——复活即红                                                                                                                                                                                                                                                                         |
+| 12  | web-ui（`@linxiraos/zeta-web`）发布腿缺失（2026-10-14 修复）：包已在 npm 上（停在 1.1.5）却不在任何发布路径上——web-ui 不是根 workspace 成员、ci.yml 无对应 job、`set-version.ts` / `release-v2.ts` 也不 bump 它，于是 gateway 一路前进而 Web UI 冻结                                                                                                                                                                             | npm 上 `zeta-web` 长期落后产品线；`zeta serve` 在无 repo web-ui 时回退到 npm 安装，装出的是旧 Web UI 对上新网关（网关 API 漂移即炸）                                                                                                                   | 发布腿 = ci.yml 的 `release_web_ui_packages`（发布前自带 `npm ci` + `next build`：tarball 的 `files` 含 `.next`，裸 `npm publish` 会发出缺失/陈旧的构建）；版本随线由 `set-version.ts` / `release-v2.ts` 一起 bump（`web-ui/package.json` + 其 `package-lock.json`）；**npm 侧 trusted publisher 必须绑 `.github/workflows/ci.yml`**——npm 按"执行发布的 workflow 文件名"匹配，而 web-ui 永不自带 workflow（子目录 workflow 不会被触发），见下方逐包清单；重跑安全：publish 前 `npm view <pkg>@<ver>` 命中即跳过                                                                            |
+| 13  | 发布腿缺失（第二种形态，2026-10-14 修复）：包在 Zeta 版本线（`ALL_PACKAGES`）上，却不接进任何发布腿——`@linxiraos/pi-channels` 的行被 **c9b8c2d1413（Merge tag 'v18.3.3' into dev/main）** 的冲突解决从 `ci-release-publish.ts` 的 `packages` 表里整行删掉（`0cd00b412ba` 的 merge-damage 修复没把它捞回来），`@linxiraos/pi-messenger` 则从未接过 CI 发布腿（最后一次发版是本地手工 `scripts/publish-missing-packages.ts` 补发） | 两个包在 npm 上长期落后产品线（`pi-channels` 停 1.1.20、`pi-messenger` 停 1.1.1），而仓库版本线一路 bump；用户装到的 `@linxiraos/pi-channels` / `@linxiraos/pi-messenger` 与仓库里的运行时不是同一版（网关/扩展协议漂移即炸）                          | `pi-channels` 的发布腿 = workspace `packages` 表（`release_npm` 内的 `ci-release-publish.ts`，恢复原行）；`pi-messenger` 的发布腿 = `ci.yml` 的 `release_plugin_packages`（`--plugin plugins/official/pi-messenger` 原样打包插件目录；workspace 表的 `typescript` kind 会做插件消费不了的 declaration emit，故不走该表）；两条腿都登记进 `scripts/brand/ci-surface-registry.ts` 的 `requiresAll` + `needsEdges`（删 job 即 `check-ci-surface.ts` 红）；两者都在 `check-version-consistency.ts` / `set-version.ts` / `release-v2.ts` 的 `ALL_PACKAGES` 里，所以版本线一 bump 就同时校验两包 |
 
 **stencil 上传的退役（`Publish to build.stencil.so` ↔ `scripts/ci-build-upload.ts`，2026-10-14）**：
 这曾是发布链的最后一环，也是最"哑"的一环——`build.stencil.so` 是 OMP 上游的构建服务器，按设计只
@@ -367,12 +367,12 @@ so a straggler fails with `ETARGET` (the 1.0.6/1.0.7 era shipped
 
 Always move the version with a script:
 
-| Script                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Script                                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `bun scripts/set-version.ts <version> [--dry-run]` | Move the whole version line. Touches the 15 published `@linxiraos/*` packages, the root `workspaces.catalog` keys, the Cargo workspace version, `desktop/package.json` + its lockfile, the vendored npm distributions (editor / main / termide: launcher, platform leaves, **and** the launcher's exact `optionalDependencies` pins — a stale pin silently installs the previous release's binary), and the standalone web-ui snapshot (`web-ui/package.json` + the `web-ui/package-lock.json` root/`packages[""]` version; the manifest declares no `@linxiraos/*` dependency, so there is no range to move). `release-v2.ts` bumps the same set (`VERSION_ONLY_PACKAGES`) so a tag run never republishes a stale web UI. **Does not** touch changelogs, commit, tag or push. |
-| `bun scripts/sync-versions.ts`                     | Re-sync every `@linxiraos/*` dependency range to the current package versions.                                                                                                                                                                                                                                                                                                                                     |
-| `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives stamp, desktop app, vendored npm distribution leaf pins, README badge). Run before tagging.                                                                                                                                                                                                                                              |
-| `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, verify the release source commit's push run is green, atomic branch+tag push (`--no-ci-wait` skips the source-commit check).                                                                                                                 |
+| `bun scripts/sync-versions.ts`                     | Re-sync every `@linxiraos/*` dependency range to the current package versions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `bun scripts/check-version-consistency.ts`         | Verify the line is consistent (packages, catalog, Rust workspace, natives stamp, desktop app, vendored npm distribution leaf pins, README badge). Run before tagging.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `bun scripts/release-v2.ts <version>`              | The real release: preflight, bump, changelog, consistency check, fixed-subject commit, verify the release source commit's push run is green, atomic branch+tag push (`--no-ci-wait` skips the source-commit check).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 Rules:
 
@@ -414,27 +414,39 @@ payload). No binary is duplicated between packages.
 Where each command lives per install shape (`<root>` = the npm prefix's
 `node_modules/@linxiraos`):
 
-| Shape | Windows x64 | Linux x64 |
-| --- | --- | --- |
-| npm install | `<root>/main-windows-x64/bin/zeta.exe`<br>`<root>/ide-windows-x64/bin/termide.exe`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) | `<root>/main-linux-x64/bin/zeta-linux-x64`<br>`<root>/ide-linux-x64/bin/termide-linux-x64`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) |
-| Staged runtime / release archives | `zeta-ide-win-x64.exe`, `zeta-cli-windows-x64.exe` | `zeta-ide-linux-x64`, `zeta-cli-linux-x64` |
+| Shape                             | Windows x64                                                                                                                      | Linux x64                                                                                                                                |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| npm install                       | `<root>/main-windows-x64/bin/zeta.exe`<br>`<root>/ide-windows-x64/bin/termide.exe`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) | `<root>/main-linux-x64/bin/zeta-linux-x64`<br>`<root>/ide-linux-x64/bin/termide-linux-x64`<br>`<root>/zeta/dist/cli.js` (bin `zetacode`) |
+| Staged runtime / release archives | `zeta-ide-win-x64.exe`, `zeta-cli-windows-x64.exe`                                                                               | `zeta-ide-linux-x64`, `zeta-cli-linux-x64`                                                                                               |
 
 The staged-runtime row is `packages/coding-agent/binaries/` — the one directory
 `scripts/ci-release-build-binaries.ts` stages every product into and
 `release_github` uploads from.
 
-**Release surface from 1.3.0 (user ruling 2026-10-19).** The workbench TUI is
-held back: `zeta-work-*` binaries, the Electron desktop (`zeta-desktop-*`) and
-the `@linxiraos/main` / `@linxiraos/zeta-web` npm legs are **not** published.
-What ships: `zeta-cli-*` (zetacode), `zeta-ide-*` (zetaide), the
-`@linxiraos/{zeta,ide,editor}` distributions with their platform leaves and
-natives, and the official plugin packages. `@linxiraos/main` keeps its
-in-tree manifests and companion pins (the launcher still installs zetaide
-beside zetacode when republished by hand through `main-publish.yml`), and
-`scripts/check-workbench-bundles.ts` enforces the shipped subset: a staged
-`zetawork` leg, or a `zeta-work-*` upload, is a failure — re-adding either
-means restoring the matrix legs and the guard's `COMMANDS` entry in the same
-change.
+**Release surface from 1.3.1 (user ruling 2026-10-18).** Everything ships
+except two deliberate holes:
+
+| Product          | Release assets                                                                                                                   | npm                                           |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| zetacode         | `zeta-cli-{linux-x64,linux-musl-x64,windows-x64.exe}`                                                                            | `@linxiraos/zeta`                             |
+| zetawork TUI     | `zeta-work-{linux-x64,win-x64.exe}`                                                                                              | `@linxiraos/main` + the two leaves            |
+| zetawork desktop | `zetawork-windows-x64.zip` (exe + `WebView2Loader.dll`), `zetawork-<ver>-1-x86_64.pkg.tar.zst`, `zetawork-<ver>-x86_64.AppImage` | **none** — the GUI never enters the npm chain |
+| zetaide          | `zeta-ide-{linux-x64,win-x64.exe}`                                                                                               | `@linxiraos/ide`                              |
+| editor           | — (cloud component)                                                                                                              | `@linxiraos/editor`                           |
+| official plugins | —                                                                                                                                | `@linxiraos/pi-messenger`                     |
+
+The Electron desktop (`zeta-desktop-*`) is gone for good; "desktop" means
+`zetawork`'s GUI mode only. Linux ships the **Arch package** (`.pkg.tar.zst`,
+`pacman -U`) as its primary form and the AppImage as the portable one — a raw
+Linux zip is not the story, and flatpak is out of scope. The GUI binary is
+installed off PATH (`/usr/lib/zetawork/zetawork-gui`, launched by the desktop
+entry), so the product keeps exactly three commands: `zetawork`, `zetacode`,
+`zetaide`; bare `zeta` prints the help that names them.
+
+`release_desktop_archives` (Zeta-only job) builds the three archives from both
+Linux legs; `release_github` waits on it, and
+`scripts/check-workbench-bundles.ts` fails when a shippable leg disappears or
+an upload family exists that the release does not create.
 
 ### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
 

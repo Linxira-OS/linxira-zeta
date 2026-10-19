@@ -25,7 +25,7 @@ interface ProductBinaryTarget {
 	kind: "product";
 	/** Release asset name — hyphenated product + platform, no extra suffix. */
 	id: string;
-	product: "work" | "ide";
+	product: "work" | "gui" | "ide";
 	platform: "linux" | "win32";
 }
 
@@ -117,12 +117,36 @@ const targets: ReleaseTarget[] = [
 	// cross-build on the Linux runner: cargo via the GNU target.
 	//
 	// One target per (product, platform) the release ships: `zeta-cli-*`
-	// legs (above) are zetacode, the family below is zetaide. The zeta-work-*
-	// legs were removed with the 1.3.0 TUI hold (user ruling 2026-10-19);
-	// re-adding them means putting the matrix legs and the guard's COMMANDS
-	// list back in the same change.
-	// scripts/check-workbench-bundles.ts fails when a shipped product/platform
-	// pair disappears from this table, and when an unshipped one reappears.
+	// legs (above) are zetacode; `zeta-work-*` is the zetawork TUI and
+	// `zetawork-gui-*` the desktop app (1.3.1 restored both after the 1.3.0
+	// hold). scripts/check-workbench-bundles.ts fails when a shipped
+	// product/platform pair disappears from this table and when an unshipped
+	// one reappears, so this list, the matrix legs and that guard move
+	// together.
+	{
+		kind: "product",
+		id: "zeta-work-linux-x64",
+		product: "work",
+		platform: "linux",
+	},
+	{
+		kind: "product",
+		id: "zeta-work-win-x64",
+		product: "work",
+		platform: "win32",
+	},
+	{
+		kind: "product",
+		id: "zetawork-gui-linux-x64",
+		product: "gui",
+		platform: "linux",
+	},
+	{
+		kind: "product",
+		id: "zetawork-gui-win-x64",
+		product: "gui",
+		platform: "win32",
+	},
 	{
 		kind: "product",
 		id: "zeta-ide-linux-x64",
@@ -140,6 +164,9 @@ const targets: ReleaseTarget[] = [
 /** Cargo workspace roots per Rust product: package to build, produced bin. */
 const CARGO_PRODUCTS: Record<ProductBinaryTarget["product"], { dir: string; pkg: string; bin: string }> = {
 	work: { dir: "main", pkg: "zeta-main", bin: "zeta" },
+	// The desktop app is a separate binary in the same workspace; it is never
+	// placed on PATH by the installers (no fourth command).
+	gui: { dir: "main", pkg: "zetawork-gui", bin: "zetawork-gui" },
 	ide: { dir: "termide", pkg: "termide", bin: "termide" },
 };
 

@@ -78,6 +78,10 @@ on:
             description: "Publish only the official plugin packages (validates a pending npm trusted publisher)"
             type: boolean
             default: false
+         build_desktop_archives:
+            description: "Run release_product_binaries + release_desktop_archives without a tag (packaging dry run)"
+            type: boolean
+            default: false
 
 # Release runs publish a `v*` tag pushed atomically with main HEAD; sharing
 # the cheap branch-wide `CI-refs/heads/main` group meant a later main push
@@ -1245,12 +1249,19 @@ jobs:
    # rebuilt with, no Windows runner needed).
    release_product_binaries:
       name: "Release product binary: ${{ matrix.target_id }}"
-      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() }}
+      # `build_desktop_archives` is the packing dry run: the archives job needs
+      # both Linux legs, and neither can be exercised without a real build.
+      if: ${{ !cancelled() &&
+         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) }}
       needs: [release_metadata]
       strategy:
          fail-fast: false
          matrix:
             include:
+               - { os: ubuntu-22.04, platform: linux, target_id: zeta-work-linux-x64, artifact: zeta-work-linux-x64 }
+               - { os: ubuntu-22.04, platform: win32, target_id: zeta-work-win-x64, artifact: zeta-work-win-x64.exe }
+               - { os: ubuntu-22.04, platform: linux, target_id: zetawork-gui-linux-x64, artifact: zetawork-gui-linux-x64 }
+               - { os: ubuntu-22.04, platform: win32, target_id: zetawork-gui-win-x64, artifact: zetawork-gui-win-x64.exe }
                - { os: ubuntu-22.04, platform: linux, target_id: zeta-ide-linux-x64, artifact: zeta-ide-linux-x64 }
                - { os: ubuntu-22.04, platform: win32, target_id: zeta-ide-win-x64, artifact: zeta-ide-win-x64.exe }
       runs-on: ${{ matrix.os }}
@@ -1315,6 +1326,48 @@ jobs:
            with:
               name: zeta-binary-${{ matrix.target_id }}
               path: packages/coding-agent/binaries/${{ matrix.artifact }}
+              if-no-files-found: error
+
+   # The desktop app and the Arch/AppImage packaging need artifacts from BOTH
+   # Linux legs (GUI + TUI binaries build in separate matrix jobs), so they are
+   # assembled here rather than inside a matrix leg. Sources are the same
+   # `zeta-binary-*` artifacts release_github downloads.
+   release_desktop_archives:
+      name: Package zetawork desktop archives
+      if: ${{ always() && !cancelled() &&
+         (needs.release_metadata.outputs.is-release == 'true' || inputs.build_desktop_archives) &&
+         needs.release_product_binaries.result == 'success' }}
+      needs: [release_metadata, release_product_binaries]
+      runs-on: ubuntu-22.04
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+           with:
+              pattern: zeta-binary-*
+              path: packages/coding-agent/binaries
+              merge-multiple: true
+         # mksquashfs for appimagetool; docker is preinstalled on the runner and
+         # the Arch package is built inside archlinux/base-devel.
+         - name: Install AppImage tooling
+           run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zsync
+         - name: Package the Windows desktop app
+           run: bun scripts/package-desktop-archives.ts windows --exe packages/coding-agent/binaries/zetawork-gui-win-x64.exe --out packages/coding-agent/binaries
+         - name: Package the Linux desktop app
+           run: |
+              bun scripts/package-desktop-archives.ts linux \
+                --version "${{ needs.release_metadata.outputs.release-tag }}" \
+                --gui packages/coding-agent/binaries/zetawork-gui-linux-x64 \
+                --tui packages/coding-agent/binaries/zeta-work-linux-x64 \
+                --out packages/coding-agent/binaries
+         - name: Upload desktop archives
+           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+           with:
+              name: zeta-binary-zetawork-archives
+              path: |
+                 packages/coding-agent/binaries/zetawork-windows-x64.zip
+                 packages/coding-agent/binaries/zetawork-*.AppImage
+                 packages/coding-agent/binaries/zetawork-*.pkg.tar.zst
               if-no-files-found: error
 
    # Desktop shells (Electron embedding the standalone web-ui + a compiled
@@ -1399,7 +1452,7 @@ jobs:
       # 1.3.0: the Electron desktop and the workbench TUI left the release
       # surface (user ruling 2026-10-19); this job now waits only for what it
       # actually uploads.
-      needs: [release_metadata, release_gate, release_binary, release_product_binaries]
+      needs: [release_metadata, release_gate, release_binary, release_product_binaries, release_desktop_archives]
       runs-on: ubuntu-22.04
       permissions:
          contents: write
@@ -1451,10 +1504,25 @@ jobs:
               product_count=$(ls packages/coding-agent/binaries/zeta-ide-* 2>/dev/null | wc -l)
               if [ "$product_count" -lt 2 ]; then
                 # Product matrix: zetaide linux+win only (release_product_binaries).
-                # 1.3.0 dropped the zeta-work-* legs with the TUI.
                 echo "::error::Expected at least 2 zeta-ide-* product binaries, found $product_count"
                 missing=1
               fi
+              work_count=$(ls packages/coding-agent/binaries/zeta-work-* 2>/dev/null | wc -l)
+              if [ "$work_count" -lt 2 ]; then
+                # 1.3.1 restored the workbench TUI (zeta-work-* linux+win) after
+                # the 1.3.0 hold; the npm line ships with it.
+                echo "::error::Expected at least 2 zeta-work-* product binaries, found $work_count"
+                missing=1
+              fi
+              for archive in \
+                packages/coding-agent/binaries/zetawork-windows-x64.zip \
+                packages/coding-agent/binaries/zetawork-"${{ needs.release_metadata.outputs.release-tag }}"-x86_64.AppImage \
+                packages/coding-agent/binaries/zetawork-"${{ needs.release_metadata.outputs.release-tag }}"-1-x86_64.pkg.tar.zst; do
+                if [ ! -f "$archive" ]; then
+                  echo "::error::Missing desktop archive: $archive"
+                  missing=1
+                fi
+              done
               exit $missing
          # Generated after every other release asset is in place and before
          # the release is created, so SHA256SUMS.txt itself ships as an asset
@@ -1463,6 +1531,8 @@ jobs:
            run: |
               bun run ci:release:checksums SHA256SUMS.txt \
                 packages/coding-agent/binaries/zeta-cli-* \
+                packages/coding-agent/binaries/zeta-work-* \
+                packages/coding-agent/binaries/zetawork-* \
                 packages/coding-agent/binaries/zeta-ide-* \
                 packages/browser-relay/dist/zeta-browser-relay-extension.zip \
                 LICENSE \
@@ -1474,6 +1544,8 @@ jobs:
               prerelease: ${{ needs.release_metadata.outputs.channel == 'canary' }}
               files: |
                  packages/coding-agent/binaries/zeta-cli-*
+                 packages/coding-agent/binaries/zeta-work-*
+                 packages/coding-agent/binaries/zetawork-*
                  packages/coding-agent/binaries/zeta-ide-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
                  LICENSE
@@ -1851,6 +1923,42 @@ jobs:
    # `npm view @linxiraos/pi-messenger@<version>` and skips a version already on
    # the registry (and treats npm's E409 / "previously published versions"
    # output as already published).
+   # 1.3.1 restores the workbench npm line (user ruling 2026-10-18: the GUI
+   # stays out of npm, the TUI does not). The leaves carry committed binaries,
+   # so main-publish.yml packs the tree as committed — it never rebuilds.
+   release_main_packages:
+      name: Publish zetawork npm packages
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && !cancelled() &&
+         needs.release_gate.result == 'success' &&
+         needs.release_npm.result == 'success' &&
+         needs.release_ide_packages.result == 'success' &&
+         !inputs.skip_npm }}
+      needs: [release_metadata, release_gate, release_npm, release_ide_packages]
+      runs-on: ubuntu-22.04
+      permissions:
+         contents: read
+         actions: write
+      steps:
+         - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+         - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+         - name: Dispatch main-publish.yml and wait for it
+           env:
+              GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+           run: |
+              set -euo pipefail
+              gh workflow run main-publish.yml --ref "${GITHUB_REF_NAME}"
+              rid=""
+              for _ in $(seq 1 30); do
+                 sleep 10
+                 rid=$(gh run list --workflow=main-publish.yml --branch "${GITHUB_REF_NAME}" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+                 [ -n "$rid" ] && break
+              done
+              if [ -z "$rid" ]; then
+                 echo "::error::main-publish run never appeared"
+                 exit 1
+              fi
+              gh run watch "$rid" --exit-status --interval 15
+
    release_plugin_packages:
       name: Publish official plugin npm packages
       # `publish_plugins` is the single-package escape hatch: npm validates a
