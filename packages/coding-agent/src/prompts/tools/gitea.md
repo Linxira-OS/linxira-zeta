@@ -1,4 +1,4 @@
-`tea` op wrapper for self-hosted Gitea (and gitea.com): repos, issues, PRs, releases. Reads via the Gitea API through `tea api`; creates verify by readback.
+`tea` op wrapper for self-hosted Gitea (and gitea.com): repos, issues, PRs, releases, and Actions runs. Reads via the Gitea API through `tea api`; creates verify by readback.
 
 <instruction>
 Select via `op`.
@@ -10,6 +10,7 @@ Select via `op`.
 - `pr_checkout`: PR → dedicated git worktree, never the working tree; `force=true` resets an existing `pr-<N>` branch.
 - `pr_merge`: `style` one of merge (default), rebase, squash, rebase-merge; verified merged via readback.
 - `release_create`: `tag` required; created for an existing or new tag; verified by readback.
+- `run_watch`: `run` (Gitea Actions run id) required; polls the run through `tea api`, streams status transitions, and returns at a terminal state.
 - `state`: `open` (default) / `closed` / `all`; `limit` 1–50 (default 20).
 </instruction>
 

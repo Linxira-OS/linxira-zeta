@@ -211,7 +211,8 @@ export function resetTeaLoginsCache(): void {
 	teaLoginsCache = undefined;
 }
 
-function loginHostKey(value: string | undefined): string | undefined {
+/** Normalize a login URL / SSH host to the host key a repo ref matches against. */
+export function giteaHostKey(value: string | undefined): string | undefined {
 	const normalized = normalizeOptionalString(value);
 	if (!normalized) return undefined;
 	return normalized
@@ -258,7 +259,7 @@ export async function resolveLoginArgs(
 		return [];
 	}
 	for (const entry of logins) {
-		if (loginHostKey(entry.url) === host || loginHostKey(entry.ssh_host) === host) {
+		if (giteaHostKey(entry.url) === host || giteaHostKey(entry.ssh_host) === host) {
 			const name = normalizeOptionalString(entry.name);
 			if (name) return ["--login", name];
 		}
@@ -286,8 +287,8 @@ async function resolveRepoFromCwd(cwd: string, signal?: AbortSignal): Promise<st
 	const logins = await resolveTeaLogins(cwd, signal).catch(() => [] as TeaLogin[]);
 	const loginHosts = new Set<string>();
 	for (const login of logins) {
-		const url = loginHostKey(login.url);
-		const ssh = loginHostKey(login.ssh_host);
+		const url = giteaHostKey(login.url);
+		const ssh = giteaHostKey(login.ssh_host);
 		if (url) loginHosts.add(url);
 		if (ssh) loginHosts.add(ssh);
 	}

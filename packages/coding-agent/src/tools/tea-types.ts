@@ -19,7 +19,8 @@ export type TeaOp =
 	| "pr_checkout"
 	| "pr_merge"
 	| "release_list"
-	| "release_create";
+	| "release_create"
+	| "run_watch";
 
 export interface TeaInput {
 	op: TeaOp;
@@ -71,6 +72,8 @@ export interface TeaInput {
 	mergeMessage?: string;
 	/** pr_checkout: reset an existing `pr-<number>` branch. */
 	force?: boolean;
+	/** run_watch: Gitea Actions run id to poll until it reaches a terminal state. */
+	run?: number;
 }
 
 /** Structured metadata attached to tea tool results for the TUI renderer. */
@@ -87,6 +90,9 @@ export interface TeaToolDetails {
 	remoteBranch?: string;
 	headSha?: string;
 	checkouts?: TeaCheckoutSummary[];
+	runId?: number;
+	runStatus?: string;
+	runConclusion?: string;
 }
 
 /** Worktree outcome summary for a pr_checkout result. */

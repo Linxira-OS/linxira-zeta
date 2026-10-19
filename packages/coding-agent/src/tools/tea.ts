@@ -45,6 +45,7 @@ import {
 	type TeaRepoContext,
 	type TeaRepoRef,
 } from "./tea-common";
+import { executeTeaRunWatch } from "./tea-run-watch";
 import { throwIfAborted } from "./tool-errors";
 import type {
 	TeaCheckoutSummary,
@@ -66,6 +67,7 @@ const TEA_READONLY_OPS: Record<string, true> = {
 	pr_view: true,
 	pr_list: true,
 	release_list: true,
+	run_watch: true,
 };
 
 const TEA_MERGE_STYLES: Record<string, true> = {
@@ -79,7 +81,7 @@ const TEA_PR_FETCH_TIMEOUT_MS = 30 * 60 * 1000;
 
 const teaSchema = type({
 	op: type(
-		"'repo_view' | 'repo_create' | 'issue_view' | 'issue_list' | 'issue_create' | 'pr_view' | 'pr_list' | 'pr_create' | 'pr_checkout' | 'pr_merge' | 'release_list' | 'release_create'",
+		"'repo_view' | 'repo_create' | 'issue_view' | 'issue_list' | 'issue_create' | 'pr_view' | 'pr_list' | 'pr_create' | 'pr_checkout' | 'pr_merge' | 'release_list' | 'release_create' | 'run_watch'",
 	).describe("tea operation"),
 	"repo?": type("string").describe("[host/]owner/repo; host names the Gitea instance"),
 	"login?": type("string").describe("tea login name selecting the Gitea instance"),
@@ -106,6 +108,7 @@ const teaSchema = type({
 	"mergeTitle?": type("string").describe("pr_merge: merge commit title"),
 	"mergeMessage?": type("string").describe("pr_merge: merge commit message"),
 	"force?": type("boolean").describe("pr_checkout: reset an existing pr-N branch"),
+	"run?": type("number").describe("run_watch: Gitea Actions run id to poll until terminal"),
 });
 
 type TeaToolInput = typeof teaSchema.infer;
@@ -949,7 +952,7 @@ export class TeaTool implements AgentTool<typeof teaSchema, TeaToolDetails> {
 		_toolCallId: string,
 		params: TeaToolInput,
 		signal?: AbortSignal,
-		_onUpdate?: AgentToolUpdateCallback<TeaToolDetails>,
+		onUpdate?: AgentToolUpdateCallback<TeaToolDetails>,
 		_context?: AgentToolContext,
 	): Promise<AgentToolResult<TeaToolDetails>> {
 		return untilAborted(signal, async () => {
@@ -978,6 +981,8 @@ export class TeaTool implements AgentTool<typeof teaSchema, TeaToolDetails> {
 					return executeReleaseList(this.session, params, signal);
 				case "release_create":
 					return executeReleaseCreate(this.session, params, signal);
+				case "run_watch":
+					return executeTeaRunWatch(this.session, params, signal, onUpdate);
 			}
 		});
 	}
