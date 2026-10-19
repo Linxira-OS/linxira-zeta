@@ -21,6 +21,7 @@
 //! and fall back to its in-process PTY. Loopback only: the gateway holds the
 //! PTY, and this client never speaks TLS.
 
+use crate::t;
 use std::{
 	io::{BufRead, BufReader, Read, Write},
 	net::{SocketAddr, TcpStream, ToSocketAddrs},
@@ -71,10 +72,10 @@ impl Client {
 		let mut stream = self
 			.writer
 			.lock()
-			.map_err(|_| "WebSocket 写锁已中毒".to_owned())?;
+			.map_err(|_| t!("WebSocket 写锁已中毒").to_owned())?;
 		stream
 			.write_all(&frame)
-			.map_err(|error| format!("写入 WebSocket 失败：{error}"))
+			.map_err(|error| t!("写入 WebSocket 失败：{}", error))
 	}
 
 	/// Close the socket: a close frame when the stream still accepts it, then
@@ -84,11 +85,11 @@ impl Client {
 		let mut stream = self
 			.writer
 			.lock()
-			.map_err(|_| "WebSocket 写锁已中毒".to_owned())?;
+			.map_err(|_| t!("WebSocket 写锁已中毒").to_owned())?;
 		let _ = stream.write_all(&client_frame(0x8, &[]));
 		stream
 			.shutdown(std::net::Shutdown::Both)
-			.map_err(|error| format!("关闭 WebSocket 失败：{error}"))
+			.map_err(|error| t!("关闭 WebSocket 失败：{}", error))
 	}
 }
 
@@ -102,10 +103,10 @@ pub fn connect(origin: &str, path: &str) -> Result<(Client, Receiver<Event>), St
 	let mut stream = dial(&host, port, HANDSHAKE_TIMEOUT)?;
 	stream
 		.set_read_timeout(Some(HANDSHAKE_TIMEOUT))
-		.map_err(|error| format!("设置握手读超时失败：{error}"))?;
+		.map_err(|error| t!("设置握手读超时失败：{}", error))?;
 	stream
 		.set_write_timeout(Some(HANDSHAKE_TIMEOUT))
-		.map_err(|error| format!("设置握手写超时失败：{error}"))?;
+		.map_err(|error| t!("设置握手写超时失败：{}", error))?;
 
 	let key = base64(&random_key());
 	let request = format!(
@@ -114,11 +115,11 @@ pub fn connect(origin: &str, path: &str) -> Result<(Client, Receiver<Event>), St
 	);
 	stream
 		.write_all(request.as_bytes())
-		.map_err(|error| format!("发送 WebSocket 握手失败：{error}"))?;
+		.map_err(|error| t!("发送 WebSocket 握手失败：{}", error))?;
 	let mut reader = BufReader::new(
 		stream
 			.try_clone()
-			.map_err(|error| format!("复制 WebSocket 套接字失败：{error}"))?,
+			.map_err(|error| t!("复制 WebSocket 套接字失败：{}", error))?,
 	);
 	handshake(&mut reader, &key)?;
 
@@ -126,10 +127,10 @@ pub fn connect(origin: &str, path: &str) -> Result<(Client, Receiver<Event>), St
 	// turn an idle terminal into a stream of failures.
 	stream
 		.set_read_timeout(None)
-		.map_err(|error| format!("清除读超时失败：{error}"))?;
+		.map_err(|error| t!("清除读超时失败：{}", error))?;
 	stream
 		.set_write_timeout(Some(WRITE_TIMEOUT))
-		.map_err(|error| format!("设置写超时失败：{error}"))?;
+		.map_err(|error| t!("设置写超时失败：{}", error))?;
 
 	let writer = Arc::new(Mutex::new(stream));
 	let (sender, events) = channel();
@@ -145,26 +146,22 @@ pub fn connect(origin: &str, path: &str) -> Result<(Client, Receiver<Event>), St
 pub(crate) fn origin_endpoint(origin: &str) -> Result<(String, u16, String), String> {
 	let rest = origin
 		.strip_prefix("http://")
-		.ok_or_else(|| format!("{origin} 不是 http:// 地址（本机网关不走 TLS）"))?;
+		.ok_or_else(|| t!("{} 不是 http:// 地址（本机网关不走 TLS）", origin))?;
 	let authority = rest.trim_end_matches('/').split('/').next().unwrap_or(rest);
 	if authority.is_empty() {
-		return Err(format!("{origin} 没有主机名"));
+		return Err(t!("{} 没有主机名", origin));
 	}
 	let (host, port) = if let Some(inner) = authority.strip_prefix('[') {
 		let (host, tail) = inner
 			.split_once(']')
-			.ok_or_else(|| format!("{origin} 的 IPv6 地址不完整"))?;
+			.ok_or_else(|| t!("{} 的 IPv6 地址不完整", origin))?;
 		let port = match tail.strip_prefix(':') {
-			Some(port) => port
-				.parse()
-				.map_err(|_| format!("{origin} 的端口不是数字"))?,
+			Some(port) => port.parse().map_err(|_| t!("{} 的端口不是数字", origin))?,
 			None => 80,
 		};
 		(host.to_owned(), port)
 	} else if let Some((host, port)) = authority.rsplit_once(':') {
-		let port = port
-			.parse()
-			.map_err(|_| format!("{origin} 的端口不是数字"))?;
+		let port = port.parse().map_err(|_| t!("{} 的端口不是数字", origin))?;
 		(host.to_owned(), port)
 	} else {
 		(authority.to_owned(), 80)
@@ -177,10 +174,10 @@ pub(crate) fn origin_endpoint(origin: &str) -> Result<(String, u16, String), Str
 pub(crate) fn dial(host: &str, port: u16, timeout: Duration) -> Result<TcpStream, String> {
 	let addresses: Vec<SocketAddr> = (host, port)
 		.to_socket_addrs()
-		.map_err(|error| format!("解析 {host}:{port} 失败：{error}"))?
+		.map_err(|error| t!("解析 {}:{} 失败：{}", host, port, error))?
 		.collect();
 	if addresses.is_empty() {
-		return Err(format!("{host}:{port} 没有可用地址"));
+		return Err(t!("{}:{} 没有可用地址", host, port));
 	}
 	let mut last = None;
 	for address in addresses {
@@ -190,7 +187,7 @@ pub(crate) fn dial(host: &str, port: u16, timeout: Duration) -> Result<TcpStream
 		}
 	}
 	let error = last.map(|error| error.to_string()).unwrap_or_default();
-	Err(format!("连接 {host}:{port} 失败：{error}"))
+	Err(t!("连接 {}:{} 失败：{}", host, port, error))
 }
 
 /// Validate the `101` answer and the accept hash; a `403`/`404` is reported
@@ -199,12 +196,12 @@ fn handshake(reader: &mut BufReader<TcpStream>, key: &str) -> Result<(), String>
 	let mut status = String::new();
 	reader
 		.read_line(&mut status)
-		.map_err(|error| format!("读取 WebSocket 握手应答失败：{error}"))?;
+		.map_err(|error| t!("读取 WebSocket 握手应答失败：{}", error))?;
 	if status.is_empty() {
-		return Err("WebSocket 握手没有应答".to_owned());
+		return Err(t!("WebSocket 握手没有应答").to_owned());
 	}
 	if !status.contains(" 101 ") {
-		return Err(format!("serve 拒绝 WebSocket 升级：{}", status.trim()));
+		return Err(t!("serve 拒绝 WebSocket 升级：{}", status.trim()));
 	}
 	let expected = accept_for(key);
 	let mut upgrade = false;
@@ -214,10 +211,10 @@ fn handshake(reader: &mut BufReader<TcpStream>, key: &str) -> Result<(), String>
 		let mut line = String::new();
 		if reader
 			.read_line(&mut line)
-			.map_err(|error| format!("读取 WebSocket 握手头失败：{error}"))?
+			.map_err(|error| t!("读取 WebSocket 握手头失败：{}", error))?
 			== 0
 		{
-			return Err("WebSocket 握手头提前结束".to_owned());
+			return Err(t!("WebSocket 握手头提前结束").to_owned());
 		}
 		let line = line.trim_end_matches(['\r', '\n']);
 		if line.is_empty() {
@@ -237,15 +234,15 @@ fn handshake(reader: &mut BufReader<TcpStream>, key: &str) -> Result<(), String>
 		}
 	}
 	if !upgrade {
-		return Err("serve 的握手应答缺少 Upgrade: websocket".to_owned());
+		return Err(t!("serve 的握手应答缺少 Upgrade: websocket").to_owned());
 	}
 	if !connection {
-		return Err("serve 的握手应答缺少 Connection: Upgrade".to_owned());
+		return Err(t!("serve 的握手应答缺少 Connection: Upgrade").to_owned());
 	}
 	match accept {
 		Some(accept) if accept == expected => Ok(()),
-		Some(_) => Err("serve 的 Sec-WebSocket-Accept 与客户端密钥不匹配".to_owned()),
-		None => Err("serve 的握手应答缺少 Sec-WebSocket-Accept".to_owned()),
+		Some(_) => Err(t!("serve 的 Sec-WebSocket-Accept 与客户端密钥不匹配").to_owned()),
+		None => Err(t!("serve 的握手应答缺少 Sec-WebSocket-Accept").to_owned()),
 	}
 }
 
@@ -277,7 +274,7 @@ fn pump(
 	loop {
 		if reader
 			.fill_buf()
-			.map_err(|error| format!("读取 WebSocket 失败：{error}"))?
+			.map_err(|error| t!("读取 WebSocket 失败：{}", error))?
 			.is_empty()
 		{
 			return Ok(());
@@ -287,7 +284,7 @@ fn pump(
 			// Continuation: append to the message being assembled.
 			0 => {
 				let Some((start, mut payload)) = fragment.take() else {
-					return Err("收到没有起始帧的 continuation".to_owned());
+					return Err(t!("收到没有起始帧的 continuation").to_owned());
 				};
 				payload.extend_from_slice(&frame.payload);
 				if frame.fin {
@@ -300,7 +297,7 @@ fn pump(
 			},
 			1 | 2 => {
 				if fragment.is_some() {
-					return Err("上一条分片消息尚未结束".to_owned());
+					return Err(t!("上一条分片消息尚未结束").to_owned());
 				}
 				if frame.fin {
 					if sender.send(Event::Binary(frame.payload)).is_err() {
@@ -316,7 +313,7 @@ fn pump(
 			},
 			9 => write_frame(writer, 0xa, &frame.payload)?,
 			10 => {},
-			other => return Err(format!("不支持的 WebSocket opcode {other}")),
+			other => return Err(t!("不支持的 WebSocket opcode {}", other)),
 		}
 	}
 }
@@ -335,7 +332,7 @@ pub(crate) fn parse_server_frame<R: Read>(reader: &mut R) -> Result<Frame, Strin
 	let mut head = [0u8; 2];
 	reader
 		.read_exact(&mut head)
-		.map_err(|error| format!("读取 WebSocket 帧头失败：{error}"))?;
+		.map_err(|error| t!("读取 WebSocket 帧头失败：{}", error))?;
 	let fin = head[0] & 0x80 != 0;
 	let opcode = head[0] & 0x0f;
 	let masked = head[1] & 0x80 != 0;
@@ -345,29 +342,29 @@ pub(crate) fn parse_server_frame<R: Read>(reader: &mut R) -> Result<Frame, Strin
 			let mut bytes = [0u8; 2];
 			reader
 				.read_exact(&mut bytes)
-				.map_err(|error| format!("读取 WebSocket 帧长失败：{error}"))?;
+				.map_err(|error| t!("读取 WebSocket 帧长失败：{}", error))?;
 			u64::from(u16::from_be_bytes(bytes))
 		},
 		127 => {
 			let mut bytes = [0u8; 8];
 			reader
 				.read_exact(&mut bytes)
-				.map_err(|error| format!("读取 WebSocket 帧长失败：{error}"))?;
+				.map_err(|error| t!("读取 WebSocket 帧长失败：{}", error))?;
 			u64::from_be_bytes(bytes)
 		},
 		len => len,
 	};
 	if len > MAX_FRAME_BYTES as u64 {
-		return Err(format!("WebSocket 帧过大：{len} 字节"));
+		return Err(t!("WebSocket 帧过大：{} 字节", len));
 	}
 	if !matches!(opcode, 0 | 1 | 2 | 8 | 9 | 10) {
-		return Err(format!("不支持的 WebSocket opcode {opcode}"));
+		return Err(t!("不支持的 WebSocket opcode {}", opcode));
 	}
 	let mask = if masked {
 		let mut mask = [0u8; 4];
 		reader
 			.read_exact(&mut mask)
-			.map_err(|error| format!("读取 WebSocket 掩码失败：{error}"))?;
+			.map_err(|error| t!("读取 WebSocket 掩码失败：{}", error))?;
 		Some(mask)
 	} else {
 		None
@@ -375,7 +372,7 @@ pub(crate) fn parse_server_frame<R: Read>(reader: &mut R) -> Result<Frame, Strin
 	let mut payload = vec![0u8; len as usize];
 	reader
 		.read_exact(&mut payload)
-		.map_err(|error| format!("读取 WebSocket 载荷失败：{error}"))?;
+		.map_err(|error| t!("读取 WebSocket 载荷失败：{}", error))?;
 	if let Some(mask) = mask {
 		for (index, byte) in payload.iter_mut().enumerate() {
 			*byte ^= mask[index % 4];
@@ -415,10 +412,10 @@ fn write_frame(writer: &Arc<Mutex<TcpStream>>, opcode: u8, payload: &[u8]) -> Re
 	let frame = client_frame(opcode, payload);
 	let mut stream = writer
 		.lock()
-		.map_err(|_| "WebSocket 写锁已中毒".to_owned())?;
+		.map_err(|_| t!("WebSocket 写锁已中毒").to_owned())?;
 	stream
 		.write_all(&frame)
-		.map_err(|error| format!("写入 WebSocket 失败：{error}"))
+		.map_err(|error| t!("写入 WebSocket 失败：{}", error))
 }
 
 /// `Sec-WebSocket-Accept` for a client key (RFC 6455 §4.2.2).

@@ -20,6 +20,7 @@
 //! [`SessionKind::Agent`]: crate::state::SessionKind::Agent
 //! [`poll`]: AgentSessions::poll
 
+use crate::t;
 use std::collections::BTreeMap;
 
 use serde_json::Value;
@@ -50,11 +51,11 @@ impl Link {
 	/// The short word the pane's header and the TUI box show.
 	pub fn label(&self) -> &'static str {
 		match self {
-			Self::Detached => "未连接",
-			Self::Connecting => "连接中",
-			Self::Live => "已连接",
-			Self::Ended => "流已结束",
-			Self::Failed(_) => "连接失败",
+			Self::Detached => t!("未连接"),
+			Self::Connecting => t!("连接中"),
+			Self::Live => t!("已连接"),
+			Self::Ended => t!("流已结束"),
+			Self::Failed(_) => t!("连接失败"),
 		}
 	}
 
@@ -111,7 +112,7 @@ impl AgentPane {
 	pub fn connect(&mut self, origin: &str, session: &str) -> Result<(), String> {
 		let session = session.trim();
 		if session.is_empty() {
-			let reason = "会话 id 为空".to_owned();
+			let reason = t!("会话 id 为空").to_owned();
 			self.error = Some(reason.clone());
 			self.link = Link::Failed(reason.clone());
 			return Err(reason);
@@ -195,14 +196,14 @@ impl AgentUpdate {
 			return None;
 		};
 		let session = if self.session.is_empty() {
-			"（未命名会话）"
+			t!("（未命名会话）")
 		} else {
 			self.session.as_str()
 		};
 		let title = match trigger {
-			Trigger::NeedsInput => format!("Agent {session} 等待你的输入"),
-			Trigger::Idle => format!("Agent {session} 已跑完"),
-			Trigger::Failed => format!("Agent {session} 失败或结束"),
+			Trigger::NeedsInput => t!("Agent {} 等待你的输入", session),
+			Trigger::Idle => t!("Agent {} 已跑完", session),
+			Trigger::Failed => t!("Agent {} 失败或结束", session),
 		};
 		Some(Message { trigger: *trigger, title, body: body.clone(), target })
 	}
@@ -283,9 +284,9 @@ impl AgentSessions {
 					Event::Closed => {
 						let was_live = pane.link == Link::Live;
 						let reason = if was_live {
-							"事件流已结束".to_owned()
+							t!("事件流已结束").to_owned()
 						} else {
-							"事件流已关闭（serve 未返回 200，或连接提前断开）".to_owned()
+							t!("事件流已关闭（serve 未返回 200，或连接提前断开）").to_owned()
 						};
 						pane.link = if was_live {
 							Link::Ended

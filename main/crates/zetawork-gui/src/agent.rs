@@ -15,6 +15,7 @@
 //! There is no I/O here: the transport (SSE reader) lives beside the socket
 //! code the shell already owns, so every mapping is testable headlessly.
 
+use crate::t;
 use serde_json::{Value, json};
 
 /// One SSE frame the gateway sends (`agents.ts`).
@@ -127,7 +128,7 @@ impl SessionView {
 					.get("title")
 					.or_else(|| request.get("method"))
 					.and_then(Value::as_str)
-					.unwrap_or("等待你的输入")
+					.unwrap_or(t!("等待你的输入"))
 					.to_owned();
 				self.pending = Some(request);
 				vec![
@@ -164,7 +165,7 @@ impl SessionView {
 				if finished {
 					effects.push(Effect::Notify {
 						trigger: crate::notify::Trigger::Idle,
-						body: "这一轮跑完了".to_owned(),
+						body: t!("这一轮跑完了").to_owned(),
 					});
 				}
 				effects
