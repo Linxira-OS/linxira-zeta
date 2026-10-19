@@ -17,6 +17,10 @@ export default class Update extends Command {
 		plugins: Flags.boolean({ char: "l", description: "Update installed plugins", default: false }),
 		canary: Flags.boolean({ description: "Switch to the canary channel and update", default: false }),
 		stable: Flags.boolean({ description: "Switch back to the stable channel", default: false }),
+		desktop: Flags.boolean({
+			description: "Update the zetawork desktop app from its Windows installer",
+			default: false,
+		}),
 	};
 
 	static examples = [
@@ -36,6 +40,7 @@ export default class Update extends Command {
 			await updateCli.runUpdateCommand({
 				force: flags.force,
 				check: flags.check,
+				desktop: flags.desktop,
 				channel: flags.canary ? "canary" : flags.stable ? "stable" : undefined,
 			});
 		}

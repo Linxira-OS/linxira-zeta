@@ -14,12 +14,16 @@ import {
 	buildNpmInstallArgs,
 	buildNpmUpdateEnv,
 	buildRenameCleanupPackages,
+	checkDesktopUpdate,
+	type DesktopUpdateCheck,
+	desktopInstallerName,
 	defaultBinaryName,
 	downloadVerifiedBinary,
 	type InstalledVersionVerification,
 	isMuslLinuxForTest,
 	managedInstallName,
 	type ManagerUpdateSteps,
+	installDesktopUpdate,
 	migrateRenamedInstall,
 	parseReportedVersion,
 	parseUpdateArgs,
@@ -29,6 +33,7 @@ import {
 	replaceBinaryForUpdate,
 	resolveBunGlobalNodeModulesDirFromLocations,
 	resolveReleaseBinaryAsset,
+	selectDesktopInstaller,
 	selectFallbackBinaryAsset,
 	resolveReleaseDist,
 	resolveReleaseRename,
@@ -139,7 +144,12 @@ describe("update command plugin dispatch", () => {
 		const command = new Update(["--check", "--force"], TEST_CONFIG);
 		await command.run();
 
-		expect(updateSpy).toHaveBeenCalledWith({ force: true, check: true, channel: undefined });
+		expect(updateSpy).toHaveBeenCalledWith({
+			force: true,
+			check: true,
+			desktop: false,
+			channel: undefined,
+		});
 		expect(pluginSpy).not.toHaveBeenCalled();
 	});
 });
@@ -150,6 +160,7 @@ describe("parseUpdateArgs", () => {
 			force: false,
 			check: false,
 			plugins: true,
+			desktop: false,
 			channel: undefined,
 		});
 	});
@@ -164,6 +175,143 @@ describe("parseUpdateArgs", () => {
 		expect(() => parseUpdateArgs(["update", "--canary", "--stable"])).toThrow(
 			"--canary and --stable are mutually exclusive",
 		);
+	});
+
+	it("parses the desktop target", () => {
+		expect(parseUpdateArgs(["update", "--desktop", "--check"])?.desktop).toBe(true);
+		expect(parseUpdateArgs(["update", "--check"])?.desktop).toBe(false);
+	});
+});
+
+describe("desktop updates", () => {
+	const installerUrl = (version: string) =>
+		`https://github.com/Linxira-OS/linxira-zeta/releases/download/v${version}/${desktopInstallerName(version)}`;
+	const digest = `sha256:${"a".repeat(64)}`;
+
+	function desktopRelease(version: string, overrides: Record<string, unknown> = {}) {
+		return {
+			tag_name: `v${version}`,
+			draft: false,
+			prerelease: false,
+			assets: [
+				{
+					name: desktopInstallerName(version),
+					state: "uploaded",
+					size: 1024,
+					digest,
+					browser_download_url: installerUrl(version),
+				},
+			],
+			...overrides,
+		};
+	}
+
+	function listing(releases: unknown[]): typeof fetch {
+		return Object.assign(async () => Response.json(releases), {
+			preconnect: globalThis.fetch.preconnect,
+		}) as unknown as typeof fetch;
+	}
+
+	function check(overrides: Partial<DesktopUpdateCheck> = {}): DesktopUpdateCheck {
+		return {
+			current: "1.3.1",
+			latest: "1.3.2",
+			available: true,
+			asset: desktopInstallerName("1.3.2"),
+			url: installerUrl("1.3.2"),
+			size: 1024,
+			digest,
+			...overrides,
+		};
+	}
+
+	it("uses the installer name the packaging script publishes", () => {
+		expect(desktopInstallerName("v1.3.2")).toBe("zetawork-1.3.2-setup-x64.exe");
+	});
+
+	it("selects the newest release whose installer is published", () => {
+		const asset = selectDesktopInstaller([
+			desktopRelease("1.2.0"),
+			desktopRelease("1.3.0"),
+			// Newer tag, but its installer is not attached yet.
+			desktopRelease("1.3.2", { assets: [] }),
+		]);
+		expect(asset?.version).toBe("1.3.0");
+		expect(asset?.url).toBe(installerUrl("1.3.0"));
+	});
+
+	it("reports availability by comparing the running version", async () => {
+		const newer = await checkDesktopUpdate({
+			current: "1.3.1",
+			githubToken: "",
+			fetchImpl: listing([desktopRelease("1.3.1"), desktopRelease("1.3.2")]),
+		});
+		expect(newer).toEqual(check());
+		const same = await checkDesktopUpdate({
+			current: "1.3.2",
+			githubToken: "",
+			fetchImpl: listing([desktopRelease("1.3.2")]),
+		});
+		expect(same.available).toBe(false);
+	});
+
+	it("refuses to install when the running version is not older", async () => {
+		let spawned = false;
+		await expect(
+			installDesktopUpdate(check({ current: "1.3.2", available: false }), {
+				spawnInstaller: () => {
+					spawned = true;
+				},
+			}),
+		).rejects.toThrow("not newer");
+		expect(spawned).toBe(false);
+	});
+
+	it("deletes a download whose digest does not match and runs nothing", async () => {
+		const dir = await makeTempDir();
+		const targetPath = path.join(dir, "installer.exe");
+		const payload = "installer bytes";
+		const fetchImpl = Object.assign(async () => new Response(payload), {
+			preconnect: globalThis.fetch.preconnect,
+		}) as unknown as typeof fetch;
+		let spawned = false;
+		await expect(
+			installDesktopUpdate(check({ size: Buffer.byteLength(payload), digest: `sha256:${"b".repeat(64)}` }), {
+				targetPath,
+				fetchImpl,
+				spawnInstaller: () => {
+					spawned = true;
+				},
+			}),
+		).rejects.toThrow("digest mismatch");
+		expect(spawned).toBe(false);
+		expect(nodeFs.existsSync(targetPath)).toBe(false);
+	});
+
+	it("runs a verified installer silently through the injected spawner", async () => {
+		const dir = await makeTempDir();
+		const targetPath = path.join(dir, "installer.exe");
+		const payload = "installer bytes";
+		const fetchImpl = Object.assign(async () => new Response(payload), {
+			preconnect: globalThis.fetch.preconnect,
+		}) as unknown as typeof fetch;
+		let launched: string | undefined;
+		const result = await installDesktopUpdate(
+			check({
+				size: Buffer.byteLength(payload),
+				digest: `sha256:${Bun.SHA256.hash(payload, "hex")}`,
+			}),
+			{
+				targetPath,
+				fetchImpl,
+				spawnInstaller: installer => {
+					launched = installer;
+				},
+			},
+		);
+		expect(result.installer).toBe(targetPath);
+		expect(launched).toBe(targetPath);
+		expect(nodeFs.readFileSync(targetPath, "utf8")).toBe(payload);
 	});
 });
 describe("GitHub update credentials", () => {

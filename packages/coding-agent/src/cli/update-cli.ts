@@ -344,6 +344,53 @@ export function selectFallbackBinaryAsset(
 }
 
 /**
+ * Release asset name of the zetawork desktop NSIS installer.
+ *
+ * Mirrors `desktopAssetNames(...).installer` in
+ * `scripts/package-desktop-archives.ts` (mode `windows-installer`): the
+ * numeric version, no `v`, and the per-user setup shape. The desktop app has
+ * no TLS client of its own, so this asset is what it asks the shipped
+ * `zetacode` to fetch.
+ */
+export function desktopInstallerName(version: string): string {
+	return `zetawork-${version.trim().replace(/^v/, "")}-setup-x64.exe`;
+}
+
+/**
+ * Newest published release that ships the desktop installer, or undefined
+ * when the listing holds none.
+ *
+ * Unlike {@link selectFallbackBinaryAsset}, the asset name is derived from
+ * each release's own tag (`zetawork-<tag>-setup-x64.exe`), so the same
+ * listing can be walked without the caller knowing the version in advance.
+ * Drafts, off-channel prereleases, and releases whose installer is missing or
+ * still uploading are skipped in favor of the next published one.
+ */
+export function selectDesktopInstaller(
+	releases: unknown,
+	options: { allowPrerelease?: boolean } = {},
+): ReleaseBinaryAsset | undefined {
+	if (!Array.isArray(releases)) return undefined;
+	const candidates: Array<{ tag: string; release: unknown }> = [];
+	for (const release of releases) {
+		if (!isRecord(release)) continue;
+		const tag = release.tag_name;
+		if (typeof tag !== "string" || !/^v\d/.test(tag)) continue;
+		candidates.push({ tag, release });
+	}
+	candidates.sort((a, b) => compareVersions(b.tag.slice(1), a.tag.slice(1)));
+	for (const { tag, release } of candidates) {
+		try {
+			return resolveReleaseBinaryAsset(release, tag, desktopInstallerName(tag.slice(1)), options);
+		} catch {
+			// Draft, off-channel prerelease, or an installer still uploading:
+			// keep walking down to an older published release.
+		}
+	}
+	return undefined;
+}
+
+/**
  * Transport for every updater network call: the caller's fetch (or the global
  * one) with `NODE_EXTRA_CA_CERTS` merged in — the same TLS contract
  * `transportFetch` gives inference. The updater used bare `fetch`, so on a
@@ -435,6 +482,69 @@ async function getReleaseBinaryAsset(
 	return fallback;
 }
 
+/** What `zetacode update --desktop --check` prints on stdout. */
+export interface DesktopUpdateCheck {
+	/** The running desktop app's version. */
+	current: string;
+	/** The newest published desktop release on GitHub. */
+	latest: string;
+	available: boolean;
+	/** Installer file name, `zetawork-<latest>-setup-x64.exe`. */
+	asset: string;
+	url: string;
+	size: number;
+	digest: string;
+}
+
+/** Newest published desktop installer from the GitHub release listing. */
+async function getDesktopInstaller(
+	fetchImpl: Fetch = fetch,
+	githubToken?: string,
+	allowPrerelease = false,
+): Promise<ReleaseBinaryAsset> {
+	const token = githubToken ?? (await resolveGitHubToken());
+	const listing = await fetchReleaseMetadata(
+		`${GITHUB_API}/repos/${REPO}/releases?per_page=${RELEASE_LISTING_PAGE_SIZE}`,
+		releaseFetch(fetchImpl),
+		token,
+	);
+	if (!listing.ok) {
+		throw new Error(`Failed to list GitHub releases: ${listing.statusText}`);
+	}
+	const asset = selectDesktopInstaller(await listing.json(), { allowPrerelease });
+	if (!asset) {
+		throw new Error(
+			"No published GitHub release ships a desktop installer (zetawork-<version>-setup-x64.exe); retry once the release finishes publishing",
+		);
+	}
+	return asset;
+}
+
+/**
+ * Check the desktop app's release. `current` is the running GUI's version
+ * (`zetawork --version`), which the shipped CLI's own VERSION mirrors.
+ */
+export async function checkDesktopUpdate(
+	options: {
+		current?: string;
+		fetchImpl?: Fetch;
+		githubToken?: string;
+		allowPrerelease?: boolean;
+	} = {},
+): Promise<DesktopUpdateCheck> {
+	const asset = await getDesktopInstaller(options.fetchImpl, options.githubToken, options.allowPrerelease);
+	const current = options.current ?? VERSION;
+	return {
+		current,
+		latest: asset.version,
+		available: compareVersions(asset.version, current) > 0,
+		asset: desktopInstallerName(asset.version),
+		url: asset.url,
+		size: asset.size,
+		digest: asset.digest,
+	};
+}
+
 export interface VerifiedBinaryDownloadOptions {
 	url: string;
 	targetPath: string;
@@ -505,6 +615,56 @@ export async function downloadVerifiedBinary(options: VerifiedBinaryDownloadOpti
 	}
 }
 
+/**
+ * Start the downloaded NSIS installer in silent mode (`/S`), detached from
+ * this process so the CLI can exit while the install continues. The
+ * per-user install path is the installer's own default (no `/D`).
+ */
+function spawnDesktopInstaller(installerPath: string): void {
+	const child = Bun.spawn([installerPath, "/S"], {
+		detached: true,
+		stdio: ["ignore", "ignore", "ignore"],
+		windowsHide: true,
+	});
+	child.unref();
+}
+
+export interface DesktopInstallResult {
+	/** The verified installer that is now running. */
+	installer: string;
+}
+
+/**
+ * Download, verify, and launch the NSIS installer for `check`.
+ *
+ * Refuses when `check.latest` is not newer than `check.current`: the desktop
+ * app never installs a release it is already running. Size and digest come
+ * from the release metadata `checkDesktopUpdate` read, so a tampered or
+ * truncated download is deleted instead of executed.
+ */
+export async function installDesktopUpdate(
+	check: DesktopUpdateCheck,
+	options: {
+		targetPath?: string;
+		fetchImpl?: Fetch;
+		spawnInstaller?: (installerPath: string) => void;
+	} = {},
+): Promise<DesktopInstallResult> {
+	if (!check.available) {
+		throw new Error(`zetawork ${check.latest} is not newer than ${check.current}; refusing to install`);
+	}
+	const installer = options.targetPath ?? path.join(os.tmpdir(), desktopInstallerName(check.latest));
+	await downloadVerifiedBinary({
+		url: check.url,
+		targetPath: installer,
+		expectedSize: check.size,
+		expectedDigest: check.digest,
+		fetchImpl: options.fetchImpl,
+	});
+	(options.spawnInstaller ?? spawnDesktopInstaller)(installer);
+	return { installer };
+}
+
 /** Result from running the installed binary and parsing its reported version. */
 export interface InstalledVersionVerification {
 	ok: boolean;
@@ -525,9 +685,15 @@ export interface BinaryReplacementOptions {
  * Parse update subcommand arguments.
  * Returns undefined if not an update command.
  */
-export function parseUpdateArgs(
-	args: string[],
-): { force: boolean; check: boolean; plugins: boolean; channel?: UpdateChannel } | undefined {
+export function parseUpdateArgs(args: string[]):
+	| {
+			force: boolean;
+			check: boolean;
+			plugins: boolean;
+			desktop: boolean;
+			channel?: UpdateChannel;
+	  }
+	| undefined {
 	if (args.length === 0 || args[0] !== "update") {
 		return undefined;
 	}
@@ -540,6 +706,7 @@ export function parseUpdateArgs(
 		force: args.includes("--force") || args.includes("-f"),
 		check: args.includes("--check") || args.includes("-c"),
 		plugins: args.includes("--plugins") || args.includes("-l"),
+		desktop: args.includes("--desktop"),
 		channel: canary ? "canary" : stable ? "stable" : undefined,
 	};
 }
@@ -2320,13 +2487,57 @@ function persistChannel(channel: UpdateChannel): void {
 }
 
 /**
+ * `zetacode update --desktop`: update the zetawork desktop app from its NSIS
+ * installer.
+ *
+ * The GUI owns no TLS client, so this branch is the only path its update
+ * control uses: `--check` prints one JSON object on stdout (nothing else),
+ * and a plain run downloads the installer, verifies its digest, starts it
+ * silently, and exits.
+ */
+async function runDesktopUpdate(opts: { check: boolean; channel?: UpdateChannel }): Promise<void> {
+	if (process.platform !== "win32") {
+		console.error(chalk.red("--desktop updates are only supported on Windows"));
+		process.exit(1);
+	}
+	let result: DesktopUpdateCheck;
+	try {
+		result = await checkDesktopUpdate({ allowPrerelease: opts.channel === "canary" });
+	} catch (err) {
+		console.error(chalk.red(`Failed to check for desktop updates: ${err}`));
+		process.exit(1);
+	}
+	if (opts.check) {
+		console.log(JSON.stringify(result));
+		return;
+	}
+	if (!result.available) {
+		const icon = theme?.status?.success ?? "✔";
+		console.log(chalk.green(`${icon} Already up to date`));
+		return;
+	}
+	try {
+		const { installer } = await installDesktopUpdate(result);
+		console.log(chalk.cyan(`Downloaded zetawork ${result.latest} to ${installer}; starting the installer.`));
+	} catch (err) {
+		console.error(chalk.red(`Desktop update failed: ${err}`));
+		process.exit(1);
+	}
+}
+
+/**
  * Run the update command.
  */
 export async function runUpdateCommand(opts: {
 	force: boolean;
 	check: boolean;
+	desktop?: boolean;
 	channel?: UpdateChannel;
 }): Promise<void> {
+	if (opts.desktop) {
+		await runDesktopUpdate(opts);
+		return;
+	}
 	const ompPath = resolveOmpPath();
 	const manager = ompPath ? await managedInstallName(ompPath) : undefined;
 	if (manager) {
@@ -2458,6 +2669,7 @@ ${chalk.bold("Options:")}
   -l, --plugins   Update installed plugins
   --canary        Switch to the canary channel and update
   --stable        Switch back to the stable channel
+  --desktop       Update the zetawork desktop app from its Windows installer
 
 ${chalk.bold("Examples:")}
   ${CLI_BIN_NAME} update              Update to latest version
@@ -2465,5 +2677,7 @@ ${chalk.bold("Examples:")}
   ${CLI_BIN_NAME} update --force      Force reinstall
   ${CLI_BIN_NAME} update -l           Update installed plugins
   ${CLI_BIN_NAME} update --canary    Switch to the canary channel and update
+  ${CLI_BIN_NAME} update --desktop --check   Print the desktop update as JSON
+  ${CLI_BIN_NAME} update --desktop    Download and run the desktop installer
 `);
 }

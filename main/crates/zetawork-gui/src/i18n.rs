@@ -706,6 +706,31 @@ static EN: &[(&str, &str)] = &[
 	("（未命名会话）", "(unnamed session)"),
 	("（未设置）", "(unset)"),
 	("语言：{}", "Language: {}"),
+	("检查更新", "Check for updates"),
+	("正在检查…", "Checking…"),
+	("有更新 {}", "Update {} available"),
+	("更新失败", "Update failed"),
+	("更新", "Update"),
+	("当前版本", "Current version"),
+	("最新版本", "Latest version"),
+	("安装包", "Installer"),
+	("大小", "Size"),
+	("摘要", "Digest"),
+	("安装", "Install"),
+	("重试", "Retry"),
+	("已是最新版本", "Already up to date"),
+	("正在下载并启动安装程序…", "Downloading and starting the installer…"),
+	("安装程序已启动，zetawork 将退出", "Installer started; zetawork will quit"),
+	("启动时检查更新", "Check for updates on startup"),
+	(
+		"打开窗口时经 zetacode 查询 GitHub 发行版；默认关闭，不产生后台网络请求",
+		"Ask GitHub for releases through zetacode when the window opens; off by default, so startup makes no network request",
+	),
+	(
+		"当前版本不低于最新版本，不能安装",
+		"The running version is not older than the latest one; nothing to install",
+	),
+	("更新检查失败：{}", "Update check failed: {}"),
 	("飞书", "Feishu"),
 	("{} · {} · 目标：{}", "{} · {} · target: {}"),
 ];
@@ -727,7 +752,7 @@ pub fn tr(zh: &'static str) -> &'static str {
 }
 
 /// [`tr`] with the language supplied instead of read from the global cell.
-fn tr_in(lang: Lang, zh: &'static str) -> &'static str {
+pub(crate) fn tr_in(lang: Lang, zh: &'static str) -> &'static str {
 	if lang == Lang::Zh {
 		return zh;
 	}
@@ -744,7 +769,7 @@ pub fn tf(zh: &'static str, args: &[String]) -> String {
 }
 
 /// [`tf`] with the language supplied instead of read from the global cell.
-fn tf_in(lang: Lang, zh: &'static str, args: &[String]) -> String {
+pub(crate) fn tf_in(lang: Lang, zh: &'static str, args: &[String]) -> String {
 	if lang == Lang::Zh {
 		return fill(zh, args);
 	}

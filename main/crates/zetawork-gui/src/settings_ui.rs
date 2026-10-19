@@ -243,6 +243,18 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 				},
 				shell,
 			);
+			row(
+				ui,
+				t!("启动时检查更新"),
+				t!("打开窗口时经 zetacode 查询 GitHub 发行版；默认关闭，不产生后台网络请求"),
+				|ui, shell| {
+					let mut value = shell.settings.update_check_on_start;
+					if switch(ui, &mut value) {
+						shell.settings.update_check_on_start = value;
+					}
+				},
+				shell,
+			);
 			// 后台驻留的实况: the single-instance mechanism, the tray, and the
 			// triggers with no signal source yet. None of this is a control —
 			// it is what the process is actually doing, so a degraded run is
