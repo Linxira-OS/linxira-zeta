@@ -27,3 +27,13 @@ export function withDefaultWorkspace(projects: readonly string[], defaultWorkspa
     ? [...projects]
     : [defaultWorkspace, ...projects];
 }
+
+/**
+ * Put the default workspace at the head of an ordered list, whatever the sort
+ * mode (and even when a drag placed it elsewhere). Identity is separator /
+ * trailing-slash insensitive. Returns a new array.
+ */
+export function defaultWorkspaceFirst(projects: readonly string[], defaultWorkspace: string | null): string[] {
+  if (!defaultWorkspace) return [...projects];
+  return [defaultWorkspace, ...projects.filter(p => !isSameWorkspacePath(p, defaultWorkspace))];
+}

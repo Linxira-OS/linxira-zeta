@@ -224,6 +224,23 @@ hooks/
   state plus the shared running poll (`selectRunningTabIds`). The poll is what
   covers a restored tab that was never mounted.
 
+### Project drag-to-reorder (`components/sidebar/SidebarProjectsList.tsx`)
+
+- Rows are `useSortable` items inside one `DndContext` + vertical
+  `SortableContext`. The grip button in the hover cluster is the activator; the
+  row's main button stays a plain click target. Pointer drag starts only after
+  5px of movement; the keyboard sensor lifts with Space/Enter, moves with the
+  arrow keys and cancels with Escape.
+- A drop moves the rendered path list (`moveProjectOrder`, array-move
+  semantics) into `reorderProjects(...)`, which writes `ProjectMeta.order` for
+  every project (pinned or not) and sets `projectSort` to `manual`. The drag
+  itself is the ordering intent — there is no separate "unlock manual order"
+  step in the sort menu.
+- Precedence is preserved: the seeded default workspace is fixed first (it has
+  no handle), pin flags and the selected project are never rewritten by a
+  reorder, and a drop on the default workspace lands the dragged project
+  directly after it.
+
 ### Web plugin pages (`lib/plugin-pages.ts`, `app/plugins/view/…`)
 
 - A user-registered **web plugin** contributes pages as static files inside its own

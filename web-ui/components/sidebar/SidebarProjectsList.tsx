@@ -8,9 +8,22 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+	closestCenter,
+	DndContext,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+	type Announcements,
+	type DragEndEvent,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useI18n } from "@/hooks/useI18n";
 import { getFileName } from "@/lib/file-paths";
+import { moveProjectOrder } from "@/lib/sidebar-prefs";
 
 export interface ProjectGroup {
 	project: string;
@@ -45,10 +58,12 @@ interface SidebarProjectsListProps {
 	onProjectContextMenu?: (e: React.MouseEvent, project: string) => void;
 	/** ↑↓ button on a group header → project-sort popover. */
 	onProjectSortClick?: (e: React.MouseEvent) => void;
+	/** Drag-to-reorder result (rendered order, default workspace first). */
+	onReorderProjects?: (orderedPaths: string[]) => void;
 }
 
-/** Reserved cluster width: 5×22px buttons + gaps — rows never reflow on hover. */
-const CLUSTER_WIDTH = 126;
+/** Reserved cluster width: 6×22px buttons + gaps — rows never reflow on hover. */
+const CLUSTER_WIDTH = 150;
 
 const ACTION_BUTTON_STYLE = {
 	display: "flex",
@@ -100,8 +115,25 @@ function ProjectGroupRow({
 	const { t } = useI18n();
 	const [active, setActive] = useState(false);
 	const showSessions = !collapsed && group.count > 0;
+	// The seeded default workspace is a fixed anchor: it stays first, so it can
+	// receive a drop but is never a drag source (no handle is rendered).
+	const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+		id: group.project,
+		disabled: group.isDefault ? { draggable: true, droppable: false } : false,
+		attributes: { roleDescription: t("sidebar.projects.reorderRole") },
+	});
+	const clusterVisible = active || isDragging;
 	return (
-		<div>
+		<div
+			ref={setNodeRef}
+			style={{
+				transform: CSS.Transform.toString(transform),
+				transition,
+				opacity: isDragging ? 0.65 : 1,
+				position: "relative",
+				zIndex: isDragging ? 1 : undefined,
+			}}
+		>
 			<div
 				onMouseEnter={() => setActive(true)}
 				onMouseLeave={() => setActive(false)}
@@ -244,12 +276,35 @@ function ProjectGroupRow({
 						flexShrink: 0,
 						width: CLUSTER_WIDTH,
 						justifyContent: "flex-end",
-						opacity: active ? 1 : 0,
+						opacity: clusterVisible ? 1 : 0,
 						transition: "opacity 0.12s",
-						pointerEvents: active ? "auto" : "none",
+						pointerEvents: clusterVisible ? "auto" : "none",
 					}}
 					onClick={e => e.stopPropagation()}
 				>
+					{!group.isDefault && (
+						<button
+							ref={setActivatorNodeRef}
+							{...attributes}
+							{...listeners}
+							aria-label={t("sidebar.projects.reorderHandle")}
+							title={t("sidebar.projects.reorderHandle")}
+							style={{
+								...ACTION_BUTTON_STYLE,
+								cursor: isDragging ? "grabbing" : "grab",
+								touchAction: "none",
+							}}
+						>
+							<svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" aria-hidden="true">
+								<circle cx="2.5" cy="2" r="1.3" />
+								<circle cx="7.5" cy="2" r="1.3" />
+								<circle cx="2.5" cy="6" r="1.3" />
+								<circle cx="7.5" cy="6" r="1.3" />
+								<circle cx="2.5" cy="10" r="1.3" />
+								<circle cx="7.5" cy="10" r="1.3" />
+							</svg>
+						</button>
+					)}
 					{onProjectSortClick && (
 						<button
 							aria-label={t("sidebar.display.projectSort")}
@@ -347,29 +402,71 @@ export function SidebarProjectsList({
 	onOpenTerminal,
 	onProjectContextMenu,
 	onProjectSortClick,
+	onReorderProjects,
 }: SidebarProjectsListProps) {
+	const { t } = useI18n();
+	const sensors = useSensors(
+		// A small activation distance keeps plain clicks on the row (and on the
+		// handle) working; the drag only starts after real pointer movement.
+		useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	);
+	const projectPaths = groups.map(pg => pg.project);
+	const announcements = useMemo<Announcements>(() => {
+		const nameOf = (id: string | number): string => {
+			const path = String(id);
+			return projectAliases?.[path] ?? getFileName(path);
+		};
+		return {
+			onDragStart: ({ active }) => t("sidebar.projects.dragStart", { name: nameOf(active.id) }),
+			onDragOver: ({ active, over }) =>
+				over
+					? t("sidebar.projects.dragOver", { name: nameOf(active.id), over: nameOf(over.id) })
+					: t("sidebar.projects.dragStart", { name: nameOf(active.id) }),
+			onDragEnd: ({ active }) => t("sidebar.projects.dragEnd", { name: nameOf(active.id) }),
+			onDragCancel: ({ active }) => t("sidebar.projects.dragCancel", { name: nameOf(active.id) }),
+		};
+	}, [t, projectAliases]);
+	const handleDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const from = projectPaths.indexOf(String(active.id));
+		const to = projectPaths.indexOf(String(over.id));
+		if (from < 0 || to < 0) return;
+		onReorderProjects?.(moveProjectOrder(projectPaths, from, to));
+	};
 	return (
-		<>
-			{groups.map(pg => (
-				<ProjectGroupRow
-					key={pg.project}
-					group={pg}
-					isCurrent={pg.project === selectedProject}
-					branch={pg.project === selectedProject ? (branchFor?.(pg.project) ?? null) : null}
-					alias={projectAliases?.[pg.project]}
-					collapsed={collapsedProjects.has(pg.project)}
-					onToggleCollapse={onToggleCollapse}
-					onSwitchProject={onSwitchProject}
-					onNewSessionInProject={onNewSessionInProject}
-					onDeleteProjectSessions={onDeleteProjectSessions}
-					onOpenTerminal={onOpenTerminal}
-					onProjectContextMenu={onProjectContextMenu}
-					onProjectSortClick={onProjectSortClick}
-					renderProjectMenu={renderProjectMenu}
-					renderProjectSessions={renderProjectSessions}
-					renderProjectFooter={renderProjectFooter}
-				/>
-			))}
-		</>
+		<DndContext
+			sensors={sensors}
+			collisionDetection={closestCenter}
+			onDragEnd={handleDragEnd}
+			accessibility={{
+				announcements,
+				screenReaderInstructions: { draggable: t("sidebar.projects.dragInstructions") },
+			}}
+		>
+			<SortableContext items={projectPaths} strategy={verticalListSortingStrategy}>
+				{groups.map(pg => (
+					<ProjectGroupRow
+						key={pg.project}
+						group={pg}
+						isCurrent={pg.project === selectedProject}
+						branch={pg.project === selectedProject ? (branchFor?.(pg.project) ?? null) : null}
+						alias={projectAliases?.[pg.project]}
+						collapsed={collapsedProjects.has(pg.project)}
+						onToggleCollapse={onToggleCollapse}
+						onSwitchProject={onSwitchProject}
+						onNewSessionInProject={onNewSessionInProject}
+						onDeleteProjectSessions={onDeleteProjectSessions}
+						onOpenTerminal={onOpenTerminal}
+						onProjectContextMenu={onProjectContextMenu}
+						onProjectSortClick={onProjectSortClick}
+						renderProjectMenu={renderProjectMenu}
+						renderProjectSessions={renderProjectSessions}
+						renderProjectFooter={renderProjectFooter}
+					/>
+				))}
+			</SortableContext>
+		</DndContext>
 	);
 }
