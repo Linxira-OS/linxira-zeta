@@ -106,6 +106,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "bare zeta-ide binary build/upload for distribution repackaging; release_github preflight expects zeta-ide-* assets (the zeta-work-* legs left with the 1.3.0 TUI hold, the zeta-editor-* legs retired 2026-10-16)",
 			},
 			{
+				job: "release_desktop_archives",
+				why: "Zeta-only: packages the zetawork desktop app (Windows zip with the WebView2 loader, Linux .pkg.tar.zst + AppImage) from the product legs. It needs BOTH Linux legs, so it cannot live inside the matrix; release_github waits on it",
+			},
+			{
 				job: "web_ui_build",
 				why: "Zeta-only web-ui pipeline job, absent upstream; silently lost in the squash-sync era (damage class 7)",
 			},
@@ -122,6 +126,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				why: "GitHub release assembly; the desktop-asset preflight lives here (damage class 10)",
 			},
 			{ job: "release_npm", why: "npm publish of the zeta CLI package" },
+			{
+				job: "release_main_packages",
+				why: "Zeta-only workbench npm publish (@linxiraos/main + leaves) via main-publish.yml; restored with the 1.3.1 TUI re-ship after the 1.3.0 hold, and ordered after both companion lines so a release never publishes a workbench whose peers lag",
+			},
 			{
 				job: "release_editor_packages",
 				why: "Zeta-only editor package publish — the @linxiraos/editor distribution (the built-in editor's termide-editor payload, which took the name over from the retired TTT editor on 2026-10-17); v18.4.3 merge dropped it, breaking tag-triggered publishing (damage class 7 追记)",
@@ -143,7 +151,13 @@ export const CI_SURFACE: WorkflowSurface[] = [
 		needsEdges: [
 			{
 				job: "release_github",
-				needs: ["release_metadata", "release_gate", "release_binary", "release_product_binaries"],
+				needs: [
+					"release_metadata",
+					"release_gate",
+					"release_binary",
+					"release_product_binaries",
+					"release_desktop_archives",
+				],
 				why: "damage class 10: every family the release uploads must be built and uploaded before the release is created (1.3.0: zeta-cli-* and zeta-ide-*)",
 			},
 			{

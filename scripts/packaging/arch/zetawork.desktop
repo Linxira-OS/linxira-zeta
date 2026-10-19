@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=zetawork
+Comment=Zeta workbench — projects, terminals and the coding agent
+Exec=zetawork-gui %U
+Icon=zetawork
+Terminal=false
+Categories=Development;
+StartupWMClass=zetawork-gui

@@ -71,20 +71,24 @@ const WORKBENCH_LEAVES: Record<string, string> = {
 const PRODUCT_COMMANDS: Record<string, string> = {
 	work: "zetawork",
 	ide: "zetaide",
+	// The desktop app is not a command: it ships as `zetawork-*` archives
+	// (zip on Windows, .pkg.tar.zst + AppImage on Linux) and its binary is
+	// installed off PATH. Mapping it here keeps the per-platform staging
+	// check honest without advertising a fourth command.
+	gui: "zetawork-desktop",
 };
 
 const PLATFORMS = ["linux", "win32"] as const;
 /**
- * The commands the release stages for both platforms. 1.3.0 holds the
- * workbench TUI back (user ruling 2026-10-19): `zetawork` is still built in
- * this tree and its npm launcher still pins its companions, but the release
- * publishes neither `zeta-work-*` nor `@linxiraos/main`. Re-adding it means
- * putting the product legs back in `ci-release-build-binaries.ts`, the
- * `release_product_binaries` matrix and this list in the same change.
+ * The commands the release stages for both platforms. 1.3.1 restored the
+ * workbench TUI after the 1.3.0 hold (user ruling 2026-10-18): `zetawork`
+ * ships as `zeta-work-*`, and the desktop app ships beside it. The list, the
+ * product legs in `ci-release-build-binaries.ts` and the
+ * `release_product_binaries` matrix move together.
  */
-const COMMANDS = ["zetacode", "zetaide"] as const;
+const COMMANDS = ["zetacode", "zetawork", "zetaide"] as const;
 /** Products this release does NOT ship; a staged leg for one is a failure. */
-const UNSHIPPED_COMMANDS = ["zetawork"] as const;
+const UNSHIPPED_COMMANDS = [] as const;
 
 interface Manifest {
 	name?: string;
@@ -269,19 +273,19 @@ for (const target of productTargets) {
 // 3. Release archives — every family uploads, after the companions publish.
 const uploadSpec = githubJobs.release_github?.steps?.find(step => step.name === "Create GitHub Release")?.with?.files;
 const uploaded = typeof uploadSpec === "string" ? uploadSpec : "";
-for (const family of [`${STAGED_DIR}/zeta-cli-*`, `${STAGED_DIR}/zeta-ide-*`]) {
+for (const family of [
+	`${STAGED_DIR}/zeta-cli-*`,
+	`${STAGED_DIR}/zeta-work-*`,
+	`${STAGED_DIR}/zeta-ide-*`,
+	`${STAGED_DIR}/zetawork-*`,
+]) {
 	if (!uploaded.includes(family))
 		problems.push(`${GITHUB_WORKFLOW_REL}: Create GitHub Release does not upload ${family}`);
 }
-if (uploaded.includes(`${STAGED_DIR}/zeta-work-*`)) {
-	problems.push(
-		`${GITHUB_WORKFLOW_REL}: Create GitHub Release uploads zeta-work-* — the workbench TUI is not in this release`,
-	);
-}
 
-// The workbench launcher is not published from 1.3.0, so no ordering edge is
-// required for it; the companion jobs themselves must still exist, because
-// `@linxiraos/main`'s pins are checked below against the tree that ships.
+// The workbench npm line ships again in 1.3.1, so its companion jobs must be
+// ordering edges of release_github, not just present: a release that uploads
+// the workbench binaries while the npm line lags is a half-release.
 for (const companionJob of ["release_npm", "release_ide_packages"]) {
 	if (!githubJobs[companionJob]) {
 		problems.push(`${GITHUB_WORKFLOW_REL}: the companion publish job ${companionJob} is missing`);

@@ -1,0 +1,28 @@
+# Maintainer: Zeta Team
+# zetawork — the workbench (TUI + desktop app) for Arch Linux.
+#
+# Built by `scripts/package-desktop-archives.ts linux`, which stages the
+# binaries beside this file and runs makepkg inside an archlinux/base-devel
+# container. Install the result with `pacman -U zetawork-<ver>-1-x86_64.pkg.tar.zst`.
+pkgname=zetawork
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Zeta workbench — projects, terminals and the coding agent"
+arch=('x86_64')
+url="https://github.com/Linxira-OS/linxira-zeta"
+license=('AGPL-3.0-only')
+# egui/eframe render through wgpu (Vulkan) and fall back to GL; the TUI needs a
+# terminal only. wry is Windows-only in this tree, so no webkit2gtk here.
+depends=('glibc' 'gcc-libs' 'libglvnd' 'libxkbcommon' 'libx11' 'wayland' 'vulkan-icd-loader')
+source=('zetawork' 'zetawork-gui' 'zetawork.desktop' 'zetawork.png')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+package() {
+  # The TUI is the `zetawork` command; the desktop binary stays off PATH so
+  # the product does not grow a fourth command.
+  install -Dm755 "$srcdir/zetawork" "$pkgdir/usr/bin/zetawork"
+  install -Dm755 "$srcdir/zetawork-gui" "$pkgdir/usr/lib/zetawork/zetawork-gui"
+  install -Dm644 "$srcdir/zetawork.desktop" "$pkgdir/usr/share/applications/zetawork.desktop"
+  install -Dm644 "$srcdir/zetawork.png" \
+    "$pkgdir/usr/share/icons/hicolor/128x128/apps/zetawork.png"
+}
