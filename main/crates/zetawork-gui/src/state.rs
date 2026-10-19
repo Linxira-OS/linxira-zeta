@@ -502,6 +502,8 @@ pub struct AppState {
 	settings_open: bool,
 	/// The 用量 container (the embedded stats page) is open.
 	usage_open: bool,
+	/// The 更新 modal (the desktop app's self-update) is open.
+	update_open: bool,
 	/// The status bar is drawn; 关闭 collapses it.
 	statusbar_open: bool,
 	/// A background producer (the agent SSE poll) changed what the frame would
@@ -539,6 +541,7 @@ impl Default for AppState {
 			picker: None,
 			settings_open: false,
 			usage_open: false,
+			update_open: false,
 			statusbar_open: true,
 			needs_redraw: false,
 			next_id: 1,
@@ -1334,6 +1337,7 @@ impl AppState {
 		self.picker = Some(target);
 		self.settings_open = false;
 		self.usage_open = false;
+		self.update_open = false;
 	}
 
 	pub fn close_picker(&mut self) {
@@ -1368,6 +1372,7 @@ impl AppState {
 		self.usage_open = true;
 		self.settings_open = false;
 		self.picker = None;
+		self.update_open = false;
 	}
 
 	pub fn close_usage(&mut self) {
@@ -1504,6 +1509,10 @@ impl AppState {
 
 	/// Escape: close the topmost overlay, else leave the TUI view.
 	pub fn escape(&mut self) -> bool {
+		if self.update_open {
+			self.update_open = false;
+			return true;
+		}
 		if self.picker.is_some() {
 			self.picker = None;
 			return true;
@@ -1566,10 +1575,27 @@ impl AppState {
 
 	// ── the settings modal ─────────────────────────────────────────────
 
-	/// Any overlay is on screen: the 设置 modal, the 用量 container, or a `+`
-	/// picker. The resize border stands down while one is.
+	/// Any overlay is on screen: the 设置 modal, the 用量 container, the 更新
+	/// dialog, or a `+` picker. The resize border stands down while one is.
 	pub fn modal_open(&self) -> bool {
-		self.settings_open || self.usage_open || self.picker.is_some()
+		self.settings_open || self.usage_open || self.update_open || self.picker.is_some()
+	}
+
+	/// Specifically the 更新 modal.
+	pub fn update_open(&self) -> bool {
+		self.update_open
+	}
+
+	/// Open the 更新 modal over the frame; the status bar is the only entry.
+	pub fn open_update(&mut self) {
+		self.update_open = true;
+		self.settings_open = false;
+		self.usage_open = false;
+		self.picker = None;
+	}
+
+	pub fn close_update(&mut self) {
+		self.update_open = false;
 	}
 
 	/// Specifically the 设置 modal.
@@ -1581,6 +1607,7 @@ impl AppState {
 		self.settings_open = true;
 		self.usage_open = false;
 		self.picker = None;
+		self.update_open = false;
 	}
 
 	pub fn close_modal(&mut self) {

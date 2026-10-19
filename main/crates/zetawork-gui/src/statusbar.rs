@@ -80,6 +80,14 @@ pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 				if item(ui, None, t!("关闭"), false, t!("收起状态栏")).clicked() {
 					shell.state.act(|state| state.toggle_statusbar());
 				}
+				// 更新: the label is derived from the last check (检查更新 /
+				// 正在检查… / 有更新 <ver> / 更新失败), never free-form. The
+				// click opens the modal and starts a check if none ever ran.
+				let update = shell.updates.label();
+				if item(ui, None, &update, false, t!("检查更新")).clicked() {
+					shell.state.open_update();
+					shell.start_update_check();
+				}
 				item(ui, None, &clock(), true, t!("本地时间"));
 				// 上文: the active conversation's share of its window, the same
 				// figure the right column's 用量 page draws. Unknown stays `—`.

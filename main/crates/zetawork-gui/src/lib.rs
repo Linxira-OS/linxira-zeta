@@ -52,6 +52,8 @@ pub mod terminal_service;
 pub mod theme;
 pub mod total;
 pub mod tray;
+pub mod update_ui;
+pub mod updates;
 pub mod usage;
 pub mod widgets;
 pub mod window_shape;
@@ -139,6 +141,9 @@ pub struct Shell {
 	pub remote: settings_ui::ZetacodeCache,
 	/// The desktop app's provider catalog (设置 target ③).
 	pub providers: settings_ui::ProviderCache,
+	/// The 更新 control: the desktop app's own release check and installer,
+	/// run through the shipped `zetacode` off the UI thread.
+	pub updates: updates::UpdateCache,
 	/// The `baseUrl` drafts the provider rows edit, keyed by provider id.
 	pub drafts: Vec<(String, String)>,
 	/// True when this shell is a real run: only then may it spawn `zetacode`.
@@ -247,6 +252,7 @@ impl Shell {
 			conversation: conversation::ConversationCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
+			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
 			probe: true,
 			lifecycle: {
@@ -299,6 +305,7 @@ impl Shell {
 			conversation: conversation::ConversationCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
+			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
 			probe: false,
 			// A headless shell never claims the singleton and never builds a
@@ -823,6 +830,16 @@ impl Shell {
 		}
 	}
 
+	/// 检查更新: start the release check through the shipped `zetacode`.
+	///
+	/// A headless shell (`probe == false`) never spawns the CLI, so the tests
+	/// and the screenshots can open the modal without a process.
+	pub fn start_update_check(&mut self) {
+		if self.probe {
+			self.updates.start_check();
+		}
+	}
+
 	/// Raise one notification through the policy and the fallback chain.
 	///
 	/// Returns the trace when it went out, so the caller (and the tests) can see
@@ -929,6 +946,22 @@ impl Shell {
 		if let Some(notice) = self.remote.poll() {
 			self.state.show(state::Notice(notice));
 		}
+		// 更新: the startup check runs at most once and only in a real run
+		// (`update.check_on_start`, off by default). A landed job reports once;
+		// a started installer quits, so the NSIS installer can replace the
+		// files this process owns.
+		if self.settings.update_check_on_start {
+			self.updates.check_on_start(self.probe);
+		}
+		match self.updates.poll() {
+			Some(updates::Event::Checked) => ctx.request_repaint(),
+			Some(updates::Event::Failed) => self.state.needs_redraw = true,
+			Some(updates::Event::Installed) => {
+				self.lifecycle.quitting = true;
+				ctx.send_viewport_cmd(ViewportCommand::Close);
+			},
+			None => {},
+		}
 		// git is read when the git panel is looking at it, and once after a
 		// workspace change so the status bar and the file tree's markers are
 		// real too. Six `git` invocations per refresh are not worth spending
@@ -1019,6 +1052,7 @@ impl Shell {
 		lifecycle::modal(ctx, self);
 		usage::container(ctx, self);
 		picker::popup(ctx, self);
+		update_ui::modal(ctx, self);
 		if let Some(text) = self.state.live_toast() {
 			let text = text.to_owned();
 			chrome::toast(ctx, &text);

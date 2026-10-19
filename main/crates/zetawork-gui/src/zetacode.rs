@@ -566,7 +566,7 @@ pub fn write_provider_field(
 /// gets [`CREATE_NO_WINDOW`]. A non-zero exit is an `Err` carrying the stderr
 /// text, so callers can show what the CLI complained about; a missing binary is
 /// the resolution sentence.
-fn run_zetacode(args: &[String]) -> Result<(String, String), String> {
+pub(crate) fn run_zetacode(args: &[String]) -> Result<(String, String), String> {
 	let program = resolve(Companion::Zetacode)?;
 	let shown = program.display().to_string();
 	let mut cmd = Command::new(&program);

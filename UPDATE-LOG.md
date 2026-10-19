@@ -4,6 +4,14 @@
 
 ### 1.3.2
 
+- **桌面应用内更新**：状态栏右侧新增「检查更新」（`检查更新` / `正在检查…` /
+  `有更新 <ver>` / `更新失败`），经随包 `zetacode update --desktop --check` 读取
+  GitHub 发行版 —— GUI 仍不持有 TLS 客户端。弹窗显示当前版本、最新版本、安装包、
+  大小与 SHA-256；「安装」经 `zetacode update --desktop` 下载、校验后以 `/S`
+  静默运行 NSIS 安装器并退出。`zetacode update` 新增 `--desktop` 目标模式；
+  `update.check_on_start`（`~/.zeta/zetawork.toml`，默认 false）控制启动检查。
+- **`zetawork --version` 快速路径**：在创建窗口前打印 `zetawork <version>` 并退出，
+  供发布冒烟与更新比较使用。
 - **终端页与 companion 页都跑随包二进制**：pane 的 PTY 在 `PATH` 最前面注入本
   install 的 companion 目录（运行中二进制所在目录 + `ZETA_BIN_DIR`），键入
   `zetacode` 不再命中旧的全局 npm 副本；GUI 的本地回退 PTY 走同一规则

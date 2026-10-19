@@ -355,6 +355,10 @@ pub struct Settings {
 	pub auto_start: bool,
 	/// 通知.
 	pub notify: NotifyPolicy,
+	/// `update.check_on_start`: ask the shipped `zetacode` for the newest
+	/// desktop release when the window opens. Off by default — opening the app
+	/// must not make a network request the user did not ask for.
+	pub update_check_on_start: bool,
 }
 
 impl Default for Settings {
@@ -373,6 +377,7 @@ impl Default for Settings {
 			close_action: CloseAction::MinimizeToBackground,
 			auto_start: false,
 			notify: NotifyPolicy::BackgroundOnly,
+			update_check_on_start: false,
 		}
 	}
 }
@@ -386,7 +391,7 @@ impl Settings {
 
 /// The keys this file owns, with their canonical inline comment (the same
 /// shape `zeta-main`'s writer uses).
-const MANAGED: [(&str, &str); 13] = [
+const MANAGED: [(&str, &str); 14] = [
 	("theme", "dark | light | system"),
 	("lang", "zh | en"),
 	("density", "compact | standard | spacious"),
@@ -400,6 +405,7 @@ const MANAGED: [(&str, &str); 13] = [
 	("close_action", "background | quit | ask"),
 	("auto_start", "start zetawork when the user logs in"),
 	("notify", "off | background | always"),
+	("update.check_on_start", "ask GitHub for a desktop release when the window opens"),
 ];
 
 const HEADER: &str =
@@ -483,6 +489,7 @@ fn read(text: &str) -> Settings {
 			"close_action" => settings.close_action = CloseAction::from_key(value).unwrap_or_default(),
 			"auto_start" => settings.auto_start = truthy(value).unwrap_or(false),
 			"notify" => settings.notify = NotifyPolicy::from_key(value).unwrap_or_default(),
+			"update.check_on_start" => settings.update_check_on_start = truthy(value).unwrap_or(false),
 			_ => {},
 		}
 	}
@@ -605,6 +612,7 @@ fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str)
 		"close_action" => settings.close_action.key().to_owned(),
 		"auto_start" => settings.auto_start.to_string(),
 		"notify" => settings.notify.key().to_owned(),
+		"update.check_on_start" => settings.update_check_on_start.to_string(),
 		_ => String::new(),
 	};
 	let comment = comment.unwrap_or(fallback);
@@ -661,6 +669,7 @@ mod tests {
 			close_action: CloseAction::Ask,
 			auto_start: true,
 			notify: NotifyPolicy::Always,
+			update_check_on_start: true,
 		};
 		save_to(&path, written).unwrap();
 		assert_eq!(load_from(&path), written, "{}", std::fs::read_to_string(&path).unwrap());

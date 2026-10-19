@@ -55,6 +55,7 @@ fn fingerprint(state: &AppState) -> Vec<String> {
 	out.push(format!("center:{:?}", state.center_page));
 	out.push(format!("status:{:?}", state.active_workspace().and_then(|w| w.run_state)));
 	out.push(format!("collapsed:{}/{}", state.left_collapsed, state.right_collapsed));
+	out.push(format!("modal:{}", state.modal_open()));
 	out
 }
 
@@ -174,10 +175,14 @@ fn a_wide_glyph_claims_two_cells_and_the_next_ascii_lands_on_column_two() {
 #[test]
 fn a_frame_never_changes_the_state_it_draws() {
 	let mut shell = shell();
+	// With the 更新 modal open as well: drawing it must not close it, start a
+	// job, or touch anything else.
+	shell.state.open_update();
 	let before = fingerprint(&shell.state);
 	let ctx = egui::Context::default();
 	render_frame(&ctx, &mut shell);
 	assert_eq!(fingerprint(&shell.state), before, "drawing changes no data");
+	assert!(shell.state.update_open(), "the modal is still open");
 }
 
 /// The TUI's centre box has the same two pages the GUI's strip has, and the
@@ -205,6 +210,18 @@ fn render_frame(ctx: &egui::Context, shell: &mut Shell) {
 			output.shapes.len()
 		);
 	}
+}
+
+#[test]
+fn a_headless_shell_never_spawns_the_updater() {
+	let mut shell = shell();
+	assert!(!shell.probe, "the test constructor is headless");
+	shell.start_update_check();
+	shell.state.open_update();
+	let ctx = egui::Context::default();
+	render_frame(&ctx, &mut shell);
+	assert!(!shell.updates.busy(), "probe: false starts no CLI");
+	assert!(shell.updates.update().is_none());
 }
 
 #[test]
@@ -249,6 +266,23 @@ fn the_whole_frame_draws_in_every_arrangement() {
 	shell.state.open_usage();
 	render_frame(&ctx, &mut shell);
 	shell.state.close_usage();
+	// The 更新 modal: first with no answer (the empty state), then with a
+	// check result. `Shell::with_state` has `probe == false`, so neither frame
+	// spawns a CLI.
+	shell.state.open_update();
+	render_frame(&ctx, &mut shell);
+	shell.updates =
+		zetawork_gui::updates::UpdateCache::loaded(zetawork_gui::updates::DesktopUpdate {
+			current: "1.3.1".to_owned(),
+			latest: "1.3.2".to_owned(),
+			available: true,
+			asset: "zetawork-1.3.2-setup-x64.exe".to_owned(),
+			url: "https://example.invalid/zetawork-1.3.2-setup-x64.exe".to_owned(),
+			size: 129_436_672,
+			digest: format!("sha256:{}", "a".repeat(64)),
+		});
+	render_frame(&ctx, &mut shell);
+	shell.state.close_update();
 	shell.state.act(|state| state.toggle_statusbar());
 	render_frame(&ctx, &mut shell);
 	shell.state.act(|state| state.toggle_statusbar());
