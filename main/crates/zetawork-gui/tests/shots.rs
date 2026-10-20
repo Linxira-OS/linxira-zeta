@@ -485,3 +485,64 @@ fn about_settings_screenshot() {
 	assert!(bytes.len() > 4096);
 	write("14-about.png", &bytes);
 }
+
+/// `16-im-channels.png` — 设置 → IM 渠道: the three channel rows, the WeChat
+/// QR (encoded locally from a page URL, the gateway's non-image form), the
+/// workspace registry and bindings, and the credential editors.
+///
+/// The view is a fixture, not a live gateway: the shot must not need
+/// `zetacode serve`. It is the exact wire shape `GET /api/channels/status` +
+/// `GET /api/web-config` + `GET /api/channels/wechat/qrcode` produce.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn im_channels_settings_screenshot() {
+	let status = r#"{"channels":[
+		{"id":"wechat","running":true},
+		{"id":"feishu","running":true},
+		{"id":"telegram","running":true}
+	]}"#;
+	let config = r#"{
+		"channels":{
+			"wechat":{"enabled":true,"workspaceRoot":"/work/alpha","botToken":"••••"},
+			"feishu":{"enabled":true,"workspaceRoot":"/work/beta","appId":"cli_a1b2","appSecret":"••••","domain":"feishu"},
+			"telegram":{"enabled":true,"workspaceRoot":"/work/gamma","botToken":"••••"}
+		},
+		"remote":{
+			"workspaces":[
+				{"alias":"alpha","path":"/work/alpha"},
+				{"alias":"beta","path":"/work/beta"},
+				{"alias":"gamma","path":"/work/gamma"}
+			],
+			"sessionMappings":[
+				{"platform":"feishu","chatId":"oc_alpha","workspaceAlias":"alpha"},
+				{"platform":"telegram","chatId":"42","workspaceAlias":"beta"},
+				{"platform":"wechat","chatId":"wx_gamma","workspaceAlias":"gamma"}
+			]
+		}
+	}"#;
+	// A page URL, not an image: the exact fallback the web UI's external QR
+	// renderer covers, here encoded by `qrcodegen` and drawn by the pane.
+	let qr =
+		r#"{"pending":true,"qrcodeUrl":"https://liteapp.weixin.qq.com/q/7b1a","status":"wait"}"#;
+	let view = zetawork_gui::channels::decode_view(status, config, Some(qr))
+		.expect("the fixture is the gateway's shape");
+	let mut shell = ready_shell();
+	shell.state.open_settings();
+	shell.state.settings_section = zetawork_gui::settings::Section::Channels;
+	shell.channels.show_fixture(view);
+	let bytes = shoot(&mut shell, 4);
+	assert!(bytes.len() > 4096);
+	// The QR is a real raster, not a placeholder rectangle: the fixture's page
+	// URL has no image bytes, so this is the local encoder's output.
+	assert!(
+		shell.channels.qr_error().is_none(),
+		"QR generation failed: {:?}",
+		shell.channels.qr_error()
+	);
+	assert_eq!(
+		shell.channels.qr_source(),
+		Some(zetawork_gui::channels::QrSource::Encoded),
+		"the fixture's page URL must render through the local encoder"
+	);
+	write("16-im-channels.png", &bytes);
+}

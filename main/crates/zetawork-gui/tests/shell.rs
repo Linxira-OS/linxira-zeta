@@ -499,7 +499,7 @@ fn the_editor_page_opens_and_saves_a_real_file() {
 }
 
 #[test]
-fn the_right_column_has_six_tabs_and_eight_settings_sections() {
+fn the_right_column_has_six_tabs_and_nine_settings_sections() {
 	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 6);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
@@ -508,14 +508,16 @@ fn the_right_column_has_six_tabs_and_eight_settings_sections() {
 	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are
 	// the one section the design drafts do not have, and the six they fix
 	// keep their own order behind it. 项目 is the registry page the 管理 card
-	// opens.
-	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 8);
+	// opens; IM 渠道 is the fourth remote target (the web desktop's channel
+	// surface, transplanted into the GUI).
+	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 9);
 	assert_eq!(
 		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
-		["常规", "外观", "编辑器", "终端", "快捷键", "项目", "管理", "关于"]
+		["常规", "外观", "编辑器", "终端", "IM 渠道", "快捷键", "项目", "管理", "关于"]
 	);
 	assert_eq!(zetawork_gui::settings::Section::ALL[0], zetawork_gui::settings::Section::General);
 	assert_eq!(zetawork_gui::settings::Section::General.key(), "general");
+	assert_eq!(zetawork_gui::settings::Section::Channels.key(), "channels");
 }
 
 #[test]

@@ -25,6 +25,7 @@ pub mod agent_sessions;
 pub mod blit;
 pub mod board;
 pub mod center;
+pub mod channels;
 pub mod chrome;
 pub mod conversation;
 pub mod embed;
@@ -43,6 +44,7 @@ pub mod resources;
 pub mod right;
 pub mod seed;
 pub mod settings;
+pub mod settings_channels;
 pub mod settings_ui;
 pub mod shells;
 pub mod spawn_probe;
@@ -148,6 +150,9 @@ pub struct Shell {
 	pub remote: settings_ui::ZetacodeCache,
 	/// The desktop app's provider catalog (设置 target ③).
 	pub providers: settings_ui::ProviderCache,
+	/// 设置 → IM 渠道: the last `/api/channels/status` + `web-config` view, its
+	/// QR texture, and the short-lived worker jobs behind them.
+	pub channels: settings_channels::ChannelsPanel,
 	/// The 更新 control: the desktop app's own release check and installer,
 	/// run through the shipped `zetacode` off the UI thread.
 	pub updates: updates::UpdateCache,
@@ -261,6 +266,7 @@ impl Shell {
 			board: board::BoardCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
+			channels: settings_channels::ChannelsPanel::default(),
 			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
 			probe: true,
@@ -316,6 +322,7 @@ impl Shell {
 			board: board::BoardCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
+			channels: settings_channels::ChannelsPanel::default(),
 			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
 			probe: false,
@@ -912,6 +919,12 @@ impl Shell {
 		// run finished" are exactly the edges a hidden window exists to tell the
 		// user about. The round trip is non-blocking (`try_iter`).
 		self.poll_agents(ctx);
+		// 设置 → IM 渠道: the pane polls the gateway only while it is the open
+		// section; a closed modal starts no request.
+		let channels_visible = self.state.settings_open()
+			&& self.state.settings_section == crate::settings::Section::Channels;
+		self.channels.set_visible(channels_visible);
+		self.channels.tick(ctx, self.probe);
 		// The right column's 用量 page follows the active pane/tab; the cache
 		// re-reads the journal only when that source changes (or once a
 		// second), so a long transcript is not parsed every frame. The live

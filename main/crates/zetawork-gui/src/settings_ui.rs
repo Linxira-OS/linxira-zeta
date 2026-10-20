@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The 设置 modal: native egui, eight sections, persisted immediately.
+//! The 设置 modal: native egui, nine sections, persisted immediately.
 //!
 //! Opened from the left column's foot (or `Ctrl+,`), it dims the window and
 //! shows the spec's dialog: a category nav on the left, one row per setting on
@@ -32,6 +32,7 @@ fn section_icon(section: Section) -> Icon {
 		Section::Appearance => Icon::Sun,
 		Section::Editor => Icon::Code,
 		Section::Terminal => Icon::Term,
+		Section::Channels => Icon::List,
 		Section::Keys => Icon::Keyboard,
 		Section::Projects => Icon::Folder,
 		Section::Manage => Icon::FolderPlus,
@@ -416,6 +417,7 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 				shell,
 			);
 		},
+		Section::Channels => crate::settings_channels::section(ui, shell),
 		Section::Keys => {
 			head(ui, t!("快捷键"));
 			hint(ui, t!("本机把规格里的 ⌘ 映射为 Ctrl；TUI 视图用 Tab 切换面板、q 退出。"));
@@ -721,7 +723,7 @@ fn base_urls_missing(shell: &Shell) -> usize {
 }
 
 /// A small outlined button, for a row's action.
-fn small_button(ui: &mut Ui, label: &str) -> egui::Response {
+pub(crate) fn small_button(ui: &mut Ui, label: &str) -> egui::Response {
 	let font = FontId::new(11.5, egui::FontFamily::Proportional);
 	let galley = ui
 		.painter()
@@ -873,7 +875,7 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 	}
 }
 
-fn head(ui: &mut Ui, title: &str) {
+pub(crate) fn head(ui: &mut Ui, title: &str) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
 	ui.painter().text(
 		pos2(rect.min.x, rect.center().y),
@@ -952,7 +954,7 @@ fn plain_row(ui: &mut Ui, label: &str, hint_text: &str, value: &str) {
 	);
 }
 
-fn hint(ui: &mut Ui, text: &str) {
+pub(crate) fn hint(ui: &mut Ui, text: &str) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), Sense::hover());
 	ui.painter().text(
 		pos2(rect.min.x, rect.center().y),
@@ -984,7 +986,7 @@ fn select<T: PartialEq + Copy, S: Into<String>>(
 }
 
 /// A `.switch`: 38×22, the knob sliding 16pt.
-fn switch(ui: &mut Ui, value: &mut bool) -> bool {
+pub(crate) fn switch(ui: &mut Ui, value: &mut bool) -> bool {
 	let (rect, response) = ui.allocate_exact_size(vec2(38.0, 22.0), Sense::click());
 	if response.clicked() {
 		*value = !*value;

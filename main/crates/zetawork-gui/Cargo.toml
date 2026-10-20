@@ -48,6 +48,14 @@ workbench-projects = { path = "../workbench-projects" }
 # The desktop mark: decode the committed RGBA raster beside this crate (see
 # `src/icons.rs`). The screenshot encoder uses the same crate.
 png = "0.18"
+# IM 渠道's WeChat login QR: the gateway may return image bytes a `data:` URL
+# carries, so decode PNG/JPEG (the two the WeChat CDN serves); anything else is
+# re-encoded from the URL text. `image` is already in the workspace lock through
+# eframe's screenshot path; these two features are the smallest set this needs.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+# The QR fallback encoder. Pure Rust, no build script, no C toolchain — it
+# builds on the ubuntu-22.04 CI legs exactly like the rest of this tree.
+qrcodegen = "1.8"
 
 # ── 后台驻留与通知 (lifecycle rulings) ────────────────────────────────────
 #
