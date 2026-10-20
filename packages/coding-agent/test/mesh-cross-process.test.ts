@@ -115,7 +115,7 @@ describe("mesh cross-process (S1)", () => {
 				"cross-process write",
 				{
 					session: {
-						agentRegistry: { get: () => undefined },
+						agentRegistry: { get: () => undefined, resolveMainAlias: () => undefined },
 						getAgentId: () => "Main",
 						enableIrc: true,
 						taskDepth: 1,

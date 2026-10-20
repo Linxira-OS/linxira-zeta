@@ -3,7 +3,7 @@ import { prompt } from "@linxiraos/pi-utils";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import parentIrcSteerTemplate from "../prompts/steering/parent-irc.md" with { type: "text" };
 import ircIncomingTemplate from "../prompts/system/irc-incoming.md" with { type: "text" };
-import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
+import { AgentRegistry, isRootAgentRef } from "../registry/agent-registry";
 import type { AgentSessionEvent } from "./agent-session-events";
 import { escapeHarnessTags } from "./harness-tags";
 import type { CustomMessage } from "./messages";
@@ -182,11 +182,17 @@ export class IrcBridge {
 		if (this.#host.isDisposed()) throw new Error("Recipient session is disposed.");
 		const streaming = this.#host.isStreaming();
 		const planModeIdle = !streaming && this.#host.planModeEnabled();
-		const fromParent = AgentRegistry.global().get(msg.to)?.parentId === msg.from;
+		const recipient = AgentRegistry.global().get(msg.to);
+		const fromParent = recipient?.parentId === msg.from;
 		// An idle subagent runs a monitored wake turn whose output is relayed
-		// back to the sender (task executor `relayWakeTurnOutput`); the main
-		// agent and mid-turn asides have no such relay.
-		const relayOnStop = !streaming && !planModeIdle && msg.to !== MAIN_AGENT_ID && msg.wakeRelay !== true;
+		// back to the sender (task executor `relayWakeTurnOutput`); a top-level
+		// session (either the workspace main or an additional root) and mid-turn
+		// asides have no such relay.
+		const relayOnStop =
+			!streaming &&
+			!planModeIdle &&
+			!(recipient !== undefined && isRootAgentRef(recipient)) &&
+			msg.wakeRelay !== true;
 		// The body is agent-authored (a peer's message, or a wake relay's
 		// `<task-result>` around a subagent's output), so it must not close the
 		// harness envelope it is rendered into or open a forged one, e.g. a parent

@@ -58,8 +58,14 @@ IM peer ──sessionMappings──▶ workspace(alias) ──session──▶ m
 
 - agent id 全局格式：`<workspace-id>/<agent-id>`，workspace-id 默认取
   `sha1(realpath(workspaceRoot))[:12]`，可由 workspace 别名覆盖（别名唯一性由
-  `web-config.workspaces` 保证）。进程内 id 保持不变（`MAIN_AGENT_ID`、子代理 id），
-  加前缀只发生在跨进程边界，`agent://` 写法因此向后兼容：无前缀即本进程。
+  `web-config.workspaces` 保证）。进程内 id 保持稳定：进程的**第一个/唯一**顶层会话
+  用 `MAIN_AGENT_ID`，之后每个顶层会话（`zeta serve` 的 bot 会话、web-UI 聊天、
+  router 打开的工作区）用**自己的 session id**——同一进程内 id 永远唯一，
+  `register()` 对重复 id 直接抛错而不是顶替上一个会话；子代理 id 与 parent 关系不变。
+  加 workspace 前缀只发生在跨进程边界，`agent://` 写法因此向后兼容：无前缀即本进程；
+  `agent://main` 解析到**调用方所在 workspace 的 main**（调用方自己就是 main 时为
+  自投递错误，绝不命中别的 workspace 的同名 root），本进程没有该 main 时按
+  `<workspace-id>/main` 走 mesh。
 - 目录记录字段：`{ id, workspaceId, workspaceAlias, workspaceRoot, pid, endpoint,
   role, status, updatedAt }`。status ∈ `running | idle | parked | gone`。
   实现另加两个**可选**字段（向后兼容，不改变上面的口径）：`agents?: {id, role,

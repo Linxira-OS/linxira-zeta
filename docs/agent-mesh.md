@@ -21,6 +21,12 @@ A cross-process address is `<workspace>/<agent>`:
 | Directory name | `zeta-repo/Main` | basename of the workspace root |
 
 - A bare id such as `Main` is **in-process only**, exactly as before.
+- `agent://main` (any case) names the main agent of *the caller's own
+  workspace*: the workspace's first root session, which keeps `Main` in a lone
+  process. Additional top-level sessions in one process each own a distinct id
+  (their session id), so they no longer displace each other. A caller that is
+  itself that main gets a self-send error; a workspace whose main lives in
+  another process resolves `<workspace-id>/main` over the mesh.
 - Several workspaces can share a directory name. Addressing by that name then
   fails with an explicit *ambiguous* error listing the candidates — the mesh
   never picks one.

@@ -216,7 +216,10 @@ export async function executeSend(
 	signal?: AbortSignal,
 ): Promise<AgentToolResult<CoordinationDetails>> {
 	const { registry, senderId, settings, sessionFileHint } = deps;
-	const to = params.to?.trim();
+	const requestedTo = params.to?.trim();
+	// `main` (any case) means the caller's own workspace main. Normalize before
+	// the self check and the await filter so `await` matches the reply's `from`.
+	const to = requestedTo ? (registry.resolveMainAlias(requestedTo, senderId) ?? requestedTo) : requestedTo;
 	const message = params.message?.trim();
 	if (!to) {
 		return hubErrorResult('`to` is required for op="send".', { op: "send", from: senderId });
@@ -396,7 +399,10 @@ export async function executeMessageWait(
 ): Promise<AgentToolResult<CoordinationDetails>> {
 	const { registry, senderId } = deps;
 	const { timeoutMs } = params;
-	const from = params.from?.trim() || undefined;
+	const requestedFrom = params.from?.trim() || undefined;
+	// `wait from:"main"` must match the canonical id the workspace main replies
+	// with, exactly like a send to the alias.
+	const from = requestedFrom ? (registry.resolveMainAlias(requestedFrom, senderId) ?? requestedFrom) : undefined;
 	const remote = from !== undefined && isWorkspaceAddress(from);
 	const mesh = remote ? getMeshNode() : undefined;
 	const controller = new AbortController();

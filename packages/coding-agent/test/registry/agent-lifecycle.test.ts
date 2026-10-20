@@ -485,6 +485,9 @@ describe("AgentLifecycleManager", () => {
 		expect(oldSession.disposeCalls()).toBe(1);
 
 		const replacementSession = makeSessionStub();
+		// A replacement generation takes the id only after the old ref is
+		// released: `register` never overwrites a live id.
+		expect(registry.unregister("cas-Sub", oldRef)).toBe(true);
 		const replacement = registerIdleSub("cas-Sub", replacementSession.session, "/tmp/replacement.jsonl");
 		lifecycle.adopt("cas-Sub", { idleTtlMs: 0 }, replacement);
 		expect(registry.setStatus("cas-Sub", "aborted", oldRef)).toBe(false);

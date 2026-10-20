@@ -172,6 +172,7 @@ import mcpXdevGuidanceTemplate from "./prompts/system/mcp-xdev-guidance.md" with
 import lateDiagnosticTemplate from "./prompts/tools/lsp-late-diagnostic.md" with { type: "text" };
 import { AgentLifecycleManager } from "./registry/agent-lifecycle";
 import { type AgentKind, type AgentRef, AgentRegistry, MAIN_AGENT_ID } from "./registry/agent-registry";
+import { resolveSessionWorkspaceId } from "./registry/workspace-identity";
 import {
 	buildSecretObfuscator,
 	deobfuscateSessionContext,
@@ -2335,7 +2336,7 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	const scopedAsyncJobManager = asyncJobManager ?? options.asyncJobManager;
 
 	const agentRegistry = options.agentRegistry ?? AgentRegistry.global();
-	const resolvedAgentId = options.agentId ?? options.parentTaskPrefix ?? MAIN_AGENT_ID;
+	let resolvedAgentId = options.agentId ?? options.parentTaskPrefix ?? MAIN_AGENT_ID;
 	const resolvedAgentDisplayName = options.agentDisplayName ?? agentKind;
 	let registeredAgentRef: AgentRef | undefined;
 	/**
@@ -3514,6 +3515,62 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			}
 		}
 
+		// Pre-register in the agent registry BEFORE building the system prompt and
+		// the extension runner, so that subagents launched in the same parallel
+		// batch can see each other in their initial `# IRC Peers` block (rendered
+		// inside `rebuildSystemPrompt`) and `ctx.agent.id` names the real id. The
+		// session reference is attached after construction below.
+		//
+		// A top-level session mints its id here: the process's lone/first root
+		// keeps MAIN_AGENT_ID, and every later root registers under its session
+		// id. Without that, `zeta serve`'s coordinator, bot sessions and web-UI
+		// chats all registered as `Main` and the last one silently displaced the
+		// rest (broadcast and `agent://main` then excluded the others).
+		const registrationInput = {
+			id: resolvedAgentId,
+			displayName: resolvedAgentDisplayName,
+			kind: agentKind,
+			parentId: options.parentAgentId,
+			workspaceId: options.parentAgentId
+				? agentRegistry.get(options.parentAgentId)?.workspaceId
+				: resolveSessionWorkspaceId(cwd),
+			session: null,
+			sessionFile: sessionManager.getSessionFile() ?? null,
+			status: "running" as const,
+		};
+		if (options.expectedAgentRef !== undefined) {
+			registeredAgentRef = agentRegistry.registerIfAvailable(registrationInput, options.expectedAgentRef);
+		} else if (isSubagentSession) {
+			registeredAgentRef = agentRegistry.register(registrationInput);
+		} else {
+			registeredAgentRef = agentRegistry.registerRoot({
+				...registrationInput,
+				id: options.agentId,
+				sessionId: sessionManager.getSessionId(),
+			});
+			resolvedAgentId = registeredAgentRef.id;
+		}
+		if (!registeredAgentRef && options.expectedAgentRef === null) {
+			// A fresh spawn collided with an existing id. If that id is held by a
+			// provably-dead parked corpse — no live session, no reviver — reclaim it
+			// so this new generation can take the id instead of failing forever at
+			// construction. Without this, one such corpse (isolated-run park,
+			// interrupted construction) poisons the id for the whole process (#8490).
+			// The reclaim is gated by the lifecycle owner and only touches the
+			// registry it manages; the corpse's transcript stays at history://.
+			const stale = agentRegistry.get(resolvedAgentId);
+			const lifecycle = AgentLifecycleManager.global();
+			if (stale && lifecycle.manages(agentRegistry) && (await lifecycle.reclaimDeadCorpse(resolvedAgentId, stale))) {
+				registeredAgentRef = agentRegistry.registerIfAvailable(registrationInput, null);
+			}
+		}
+		if (!registeredAgentRef) {
+			throw new Error(`Agent "${resolvedAgentId}" is already owned by another session generation.`);
+		}
+		// A reused parked ref remains parked until the new AgentSession is fully
+		// constructed and attached. Startup failure therefore leaves it revivable.
+		hasRegistered = options.expectedAgentRef === undefined || options.expectedAgentRef === null;
+
 		// The runner is created unconditionally — even with zero extensions loaded — because the
 		// `ExtensionToolWrapper` installed below is the only place the per-tool approval gate runs.
 		// A conditional runner means the approval system silently disappears for users with no
@@ -4285,44 +4342,6 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 				initialToolNames.push(name);
 			}
 		}
-
-		// Pre-register in the global agent registry BEFORE building the system prompt,
-		// so that subagents launched in the same parallel batch can see each other in
-		// their initial `# IRC Peers` block (rendered inside `rebuildSystemPrompt`).
-		// The session reference is attached after construction below.
-		const registrationInput = {
-			id: resolvedAgentId,
-			displayName: resolvedAgentDisplayName,
-			kind: agentKind,
-			parentId: options.parentAgentId,
-			session: null,
-			sessionFile: sessionManager.getSessionFile() ?? null,
-			status: "running" as const,
-		};
-		registeredAgentRef =
-			options.expectedAgentRef === undefined
-				? agentRegistry.register(registrationInput)
-				: agentRegistry.registerIfAvailable(registrationInput, options.expectedAgentRef);
-		if (!registeredAgentRef && options.expectedAgentRef === null) {
-			// A fresh spawn collided with an existing id. If that id is held by a
-			// provably-dead parked corpse — no live session, no reviver — reclaim it
-			// so this new generation can take the id instead of failing forever at
-			// construction. Without this, one such corpse (isolated-run park,
-			// interrupted construction) poisons the id for the whole process (#8490).
-			// The reclaim is gated by the lifecycle owner and only touches the
-			// registry it manages; the corpse's transcript stays at history://.
-			const stale = agentRegistry.get(resolvedAgentId);
-			const lifecycle = AgentLifecycleManager.global();
-			if (stale && lifecycle.manages(agentRegistry) && (await lifecycle.reclaimDeadCorpse(resolvedAgentId, stale))) {
-				registeredAgentRef = agentRegistry.registerIfAvailable(registrationInput, null);
-			}
-		}
-		if (!registeredAgentRef) {
-			throw new Error(`Agent "${resolvedAgentId}" is already owned by another session generation.`);
-		}
-		// A reused parked ref remains parked until the new AgentSession is fully
-		// constructed and attached. Startup failure therefore leaves it revivable.
-		hasRegistered = options.expectedAgentRef === undefined || options.expectedAgentRef === null;
 
 		// Partition the initial enabled set for the xd:// transport. Tool instances
 		// remain in the canonical map; only presentation names move between layers.

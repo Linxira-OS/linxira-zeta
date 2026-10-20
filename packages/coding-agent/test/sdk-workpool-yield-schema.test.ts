@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -65,6 +65,12 @@ describe("SDK workpool yield schema", () => {
 		authStorage = await AuthStorage.create(path.join(registryDir, "auth.db"));
 		authStorage.keys.setRuntime("openai", "test-key");
 		modelRegistry = new ModelRegistry(authStorage);
+	});
+
+	// Reusing an agent id across the dialect runs is only legal after the
+	// previous session released it; dispose per test instead of at the end.
+	afterEach(async () => {
+		for (const session of sessions.splice(0)) await session.dispose().catch(() => {});
 	});
 
 	afterAll(async () => {

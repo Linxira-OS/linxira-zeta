@@ -416,11 +416,11 @@ export class MeshNode {
 		const localId = this.stripLocalAddress(envelope.to);
 		if (!localId) return { ok: false, error: `"${envelope.to}" is not owned by workspace ${this.workspaceId}.` };
 		if (this.#seen.has(envelope.id)) return { ok: true, outcome: "injected" };
-		const agent = this.#localEntries().find(candidate => candidate.id === localId);
+		const agent = this.#localAgent(localId);
 
 		if (envelope.kind === "wake") {
 			if (!agent) return { ok: false, error: `Unknown agent "${localId}".` };
-			await this.#drainAgent(localId, true);
+			await this.#drainAgent(agent.id, true);
 			this.#remember(envelope.id);
 			return { ok: true, outcome: "queued" };
 		}
@@ -434,18 +434,18 @@ export class MeshNode {
 			};
 		}
 		if (agent.status === "parked" || agent.status === "gone") {
-			await this.#mailbox.enqueue(this.workspaceId, localId, envelope);
-			await this.#drainAgent(localId, true);
+			await this.#mailbox.enqueue(this.workspaceId, agent.id, envelope);
+			await this.#drainAgent(agent.id, true);
 			this.#remember(envelope.id);
 			return { ok: true, outcome: "queued" };
 		}
-		const result = await this.#options.deliver(envelope, localId);
+		const result = await this.#options.deliver(envelope, agent.id);
 		if (result.outcome !== "failed") this.#remember(envelope.id);
 		return { ok: result.outcome !== "failed", outcome: result.outcome, ...(result.error && { error: result.error }) };
 	}
 
 	async #sendLocal(envelope: MeshEnvelope, localId: string, raw: string): Promise<MeshSendResult> {
-		const agent = this.#localEntries().find(candidate => candidate.id === localId);
+		const agent = this.#localAgent(localId);
 		if (!agent) {
 			return {
 				to: raw,
@@ -456,11 +456,11 @@ export class MeshNode {
 			};
 		}
 		if (agent.status === "running" || agent.status === "idle") {
-			const result = await this.#options.deliver(envelope, localId);
+			const result = await this.#options.deliver(envelope, agent.id);
 			if (result.outcome !== "failed") return { to: raw, outcome: result.outcome };
 		}
-		await this.#mailbox.enqueue(this.workspaceId, localId, envelope);
-		await this.#drainAgent(localId, true);
+		await this.#mailbox.enqueue(this.workspaceId, agent.id, envelope);
+		await this.#drainAgent(agent.id, true);
 		return { to: raw, outcome: "queued" };
 	}
 
@@ -561,6 +561,18 @@ export class MeshNode {
 			role: agent.role ?? "main",
 			status: agent.status,
 		}));
+	}
+
+	/**
+	 * Local agent for an incoming id. `main` is the documented alias for the
+	 * workspace's main agent, so it matches `Main` regardless of case; every
+	 * other id matches exactly.
+	 */
+	#localAgent(localId: string): MeshAgentEntry | undefined {
+		const entries = this.#localEntries();
+		const exact = entries.find(candidate => candidate.id === localId);
+		if (exact || localId.toLowerCase() !== "main") return exact;
+		return entries.find(candidate => candidate.id.toLowerCase() === "main");
 	}
 
 	#aggregateStatus(agents: MeshAgentEntry[]): MeshAgentStatus {
