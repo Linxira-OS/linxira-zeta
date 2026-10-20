@@ -53,6 +53,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { WebSocketHandler } from "bun";
 import { PtySession } from "@linxiraos/pi-natives";
+import { VERSION } from "@linxiraos/pi-utils";
 import {
 	defaultProbeContext,
 	discoverBin,
@@ -357,6 +358,12 @@ class TerminalManager {
 		instanceId?: string;
 		/** `shell` (default), the opt-in `workbench`, or a shipped companion. */
 		program?: TerminalProgram;
+		/**
+		 * `TERM_PROGRAM_VERSION` the pane's child sees. The desktop shell sends
+		 * its own version; anything else falls back to this gateway's version
+		 * (see {@link paneTerminalEnv}).
+		 */
+		termProgramVersion?: string;
 	}): Promise<{ ok: true; session: TerminalSession; ticket: string; injected: boolean } | TerminalFailure> {
 		this.#pruneTickets();
 		const resolved = this.#resolveCwd(options.cwd);
@@ -412,7 +419,11 @@ class TerminalManager {
 			application: program.command,
 			args: [...program.args],
 			cwd,
-			env: paneEnv({ ...process.env, TERM: "xterm-256color", COLORTERM: "truecolor" }, defaultProbeContext()),
+			// A serve-attached pane's child inherits *this* process's env, not
+			// `panel-terminal`'s `set_env`, so the terminal identity is stated
+			// here. Without `TERM_PROGRAM=zetawork` a hosted `zetacode` picks no
+			// image protocol (see `packages/tui/src/terminal-capabilities.ts`).
+			env: paneEnv(paneChildEnv(process.env, options.termProgramVersion), defaultProbeContext()),
 			cols: 80,
 			rows: 24,
 			onData: chunk => this.#broadcast(session, chunk),
@@ -455,6 +466,8 @@ class TerminalManager {
 		replace?: boolean;
 		/** `shell` (default), the opt-in `workbench`, or a shipped companion. */
 		program?: TerminalProgram;
+		/** Forwarded to the spawned PTY as `TERM_PROGRAM_VERSION` (see {@link create}). */
+		termProgramVersion?: string;
 	}): Promise<
 		{ ok: true; session: TerminalSession; ticket: string; reused: boolean; injected: boolean } | TerminalFailure
 	> {
@@ -862,6 +875,78 @@ export function paneEnv(
 	return env;
 }
 
+/**
+ * Fallback `TERM_PROGRAM_VERSION` for a pane whose caller named none: this
+ * gateway's own version. A literal would go stale at the next bump.
+ */
+export const FALLBACK_TERM_PROGRAM_VERSION = VERSION;
+
+/** Semver-ish, one line, no control bytes: what a PTY env can carry safely. */
+const TERM_PROGRAM_VERSION_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$/;
+
+/**
+ * The version a pane's child is told. The desktop shell supplies its own
+ * (`CARGO_PKG_VERSION`), because *it* paints the pane; a caller that names
+ * nothing (the web UI, tests) gets this gateway's version rather than a
+ * hardcoded string that would drift from the release.
+ */
+export function termProgramVersion(requested: unknown): string {
+	if (typeof requested === "string") {
+		const trimmed = requested.trim();
+		if (TERM_PROGRAM_VERSION_RE.test(trimmed)) return trimmed;
+	}
+	return FALLBACK_TERM_PROGRAM_VERSION;
+}
+
+/**
+ * Terminal identity every pane PTY inherits.
+ *
+ * The child is a TUI hosted by a terminal we own — the desktop shell's pane
+ * (or the web UI's xterm.js view of the same PTY). `panel-terminal` stamps
+ * this identity on the panes it spawns itself, but a serve-attached pane's
+ * child inherits the gateway's process env, so the gateway must state it.
+ * Without `TERM_PROGRAM=zetawork` the hosted `zetacode` resolves no image
+ * protocol and prints `[Image: …]` instead of painting. `COLORTERM` is what
+ * makes it emit truecolor SGR rather than 256-colour approximations.
+ */
+export function paneTerminalEnv(version: unknown): Record<string, string> {
+	return {
+		TERM: "xterm-256color",
+		COLORTERM: "truecolor",
+		TERM_PROGRAM: "zetawork",
+		TERM_PROGRAM_VERSION: termProgramVersion(version),
+	};
+}
+
+/**
+ * Per-session markers an outer emulator leaks into the gateway process. A
+ * hosted TUI checks these **before** `TERM_PROGRAM`, so inheriting one would
+ * make `zetacode` speak that emulator's protocol instead of the pane's.
+ * `panel-terminal` strips the same list for the panes it spawns itself; the
+ * serve path must match or a pane's protocol depends on where `serve` was
+ * started.
+ */
+export const LEAKED_TERMINAL_MARKERS = [
+	"WT_SESSION",
+	"KITTY_WINDOW_ID",
+	"GHOSTTY_RESOURCES_DIR",
+	"WEZTERM_PANE",
+	"ITERM_SESSION_ID",
+	"VSCODE_PID",
+	"ALACRITTY_WINDOW_ID",
+] as const;
+
+/**
+ * The environment a pane's child inherits before `PATH` is prefixed: the
+ * gateway process's env with this pane's terminal identity stamped on top and
+ * every outer-emulator marker removed.
+ */
+export function paneChildEnv(base: NodeJS.ProcessEnv, version: unknown): NodeJS.ProcessEnv {
+	const env: NodeJS.ProcessEnv = { ...base, ...paneTerminalEnv(version) };
+	for (const marker of LEAKED_TERMINAL_MARKERS) delete env[marker];
+	return env;
+}
+
 // --- zetaide injection ---
 
 export interface ZetaIdeTarget {
@@ -945,6 +1030,7 @@ export async function handleTerminalCreate(req: Request): Promise<Response> {
 		file: typeof body.file === "string" ? body.file : undefined,
 		line: intOrUndefined(body.line),
 		col: intOrUndefined(body.col),
+		termProgramVersion: typeof body.termProgramVersion === "string" ? body.termProgramVersion : undefined,
 	});
 	if (!result.ok) return failurePayload(result);
 	return json(sessionPayload(result.session, result.ticket, { injected: result.injected }));
@@ -971,6 +1057,7 @@ export async function handleTerminalEnsure(req: Request): Promise<Response> {
 		col: intOrUndefined(body.col),
 		replace: body.replace === true,
 		program: isTerminalProgram(body.program) ? body.program : undefined,
+		termProgramVersion: typeof body.termProgramVersion === "string" ? body.termProgramVersion : undefined,
 	});
 	if (!result.ok) {
 		return failurePayload(result, result.code === "terminal_limit" ? { limit: MAX_LIVE_TERMINALS } : {});

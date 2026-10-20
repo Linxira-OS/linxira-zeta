@@ -5,6 +5,7 @@ mod clipboard;
 mod input_encoding;
 pub mod kitty;
 mod link_detection;
+pub mod reports;
 #[cfg(target_os = "macos")]
 mod macos_proc;
 mod mouse;

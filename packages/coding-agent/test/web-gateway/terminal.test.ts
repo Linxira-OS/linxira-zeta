@@ -33,8 +33,13 @@ import {
 	sessionSlotKey,
 	isTerminalProgram,
 	companionPathDirs,
+	FALLBACK_TERM_PROGRAM_VERSION,
+	LEAKED_TERMINAL_MARKERS,
+	paneChildEnv,
 	paneEnv,
+	paneTerminalEnv,
 	setPtyBackendForTests,
+	termProgramVersion,
 	terminalWebSocketHandler,
 	shellSpawnArgs,
 	type TerminalPtyFactory,
@@ -363,6 +368,38 @@ describe("pane PATH", () => {
 	});
 });
 
+describe("pane terminal identity", () => {
+	test("the pane env states the workbench and the caller's version", () => {
+		// A serve-attached pane's child inherits the gateway's env, so the
+		// identity must be stamped here or zetacode resolves no image protocol.
+		expect(paneTerminalEnv("1.3.2")).toEqual({
+			TERM: "xterm-256color",
+			COLORTERM: "truecolor",
+			TERM_PROGRAM: "zetawork",
+			TERM_PROGRAM_VERSION: "1.3.2",
+		});
+	});
+
+	test("an outer emulator's session markers never reach the child", () => {
+		// `TERM_PROGRAM` is checked after these markers, so an inherited
+		// VSCODE_PID/KITTY_WINDOW_ID would outrank the pane's own identity.
+		const base: NodeJS.ProcessEnv = { PATH: "/usr/bin" };
+		for (const marker of LEAKED_TERMINAL_MARKERS) base[marker] = "outer";
+		const env = paneChildEnv(base, "1.3.2");
+		for (const marker of LEAKED_TERMINAL_MARKERS) expect(env[marker]).toBeUndefined();
+		expect(env.TERM_PROGRAM).toBe("zetawork");
+		expect(env.PATH).toBe("/usr/bin");
+	});
+
+	test("an absent or malformed version falls back to the gateway's own", () => {
+		// Not a literal: the fallback follows the package version at build time.
+		expect(termProgramVersion(undefined)).toBe(FALLBACK_TERM_PROGRAM_VERSION);
+		expect(termProgramVersion("")).toBe(FALLBACK_TERM_PROGRAM_VERSION);
+		expect(termProgramVersion("1.2.3\nevil")).toBe(FALLBACK_TERM_PROGRAM_VERSION);
+		expect(termProgramVersion("1.3.2-rc.1+abc")).toBe("1.3.2-rc.1+abc");
+	});
+});
+
 describe("pane spawn environment", () => {
 	test("a created pane's PTY gets ZETA_BIN_DIR in front of PATH", async () => {
 		// The wiring, not just the helper: the session the gateway spawns must
@@ -383,6 +420,40 @@ describe("pane spawn environment", () => {
 			if (saved === undefined) delete process.env.ZETA_BIN_DIR;
 			else process.env.ZETA_BIN_DIR = saved;
 		}
+	});
+
+	test("a created pane's child sees the workbench identity and the caller's version", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+
+		const response = await createTerminal({ cwd, termProgramVersion: "9.8.7" });
+		expect(response.status).toBe(200);
+		const env = fakePtys.at(-1)?.spec.env ?? {};
+		expect(env.TERM_PROGRAM).toBe("zetawork");
+		expect(env.TERM_PROGRAM_VERSION).toBe("9.8.7");
+		expect(env.COLORTERM).toBe("truecolor");
+		expect(env.TERM).toBe("xterm-256color");
+	});
+
+	test("without a caller version the pane carries the gateway's, never a stale literal", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+
+		const response = await handleTerminalEnsure(
+			new Request("http://127.0.0.1/api/terminal/ensure", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ cwd, instanceId: "identity" }),
+			}),
+		);
+		expect(response.status).toBe(200);
+		const env = fakePtys.at(-1)?.spec.env ?? {};
+		expect(env.TERM_PROGRAM).toBe("zetawork");
+		expect(env.TERM_PROGRAM_VERSION).toBe(FALLBACK_TERM_PROGRAM_VERSION);
 	});
 });
 

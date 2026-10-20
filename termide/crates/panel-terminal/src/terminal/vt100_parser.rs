@@ -330,9 +330,7 @@ impl Perform for VtPerformer {
                 // hosted TUI can print "zetawork 0.41.0" instead of guessing.
                 if c == 'q' {
                     drop(screen);
-                    self.write_response(
-                        format!("\x1bP>|zetawork({})\x1b\\", env!("CARGO_PKG_VERSION")).as_bytes(),
-                    );
+                    self.write_response(crate::reports::xtversion().as_bytes());
                     return;
                 }
             }
@@ -356,7 +354,7 @@ impl Perform for VtPerformer {
             match c {
                 'c' => {
                     drop(screen);
-                    self.write_response(b"\x1b[?1;2c");
+                    self.write_response(crate::reports::PRIMARY_DA);
                     return;
                 }
                 // Window manipulation reports. A hosted TUI asks these three
@@ -369,23 +367,8 @@ impl Perform for VtPerformer {
                         .and_then(|p| p.first())
                         .copied()
                         .unwrap_or(0);
-                    let (cell_w, cell_h) = screen.cell_px;
-                    let rows = screen.rows;
-                    let cols = screen.cols;
-                    let known = cell_w > 0 && cell_h > 0;
-                    let reply = match param {
-                        // 14 t: window size in pixels.
-                        14 if known => Some(format!(
-                            "\x1b[4;{};{}t",
-                            rows as u32 * u32::from(cell_h),
-                            cols as u32 * u32::from(cell_w)
-                        )),
-                        // 16 t: the cell itself, in pixels.
-                        16 if known => Some(format!("\x1b[6;{};{}t", cell_h, cell_w)),
-                        // 18 t: the text area in character cells.
-                        18 => Some(format!("\x1b[8;{};{}t", rows, cols)),
-                        _ => None,
-                    };
+                    let reply =
+                        crate::reports::window_report(param, screen.rows, screen.cols, screen.cell_px);
                     drop(screen);
                     if let Some(reply) = reply {
                         self.write_response(reply.as_bytes());

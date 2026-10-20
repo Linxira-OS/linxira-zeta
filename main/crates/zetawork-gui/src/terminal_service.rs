@@ -24,6 +24,15 @@
 //! distinction, and [`Screen`] parses the VT stream into the same ratatui
 //! `Buffer` the local pane blits. Inbound stdin goes out as text frames.
 //!
+//! Query replies (`CSI 16 t` / `14 t` / `18 t`, DA1, XTVERSION) are the one
+//! thing a read-only screen would drop. The pane paints the child's pixels,
+//! so it owns the answers: the parser records them in [`Screen`], and
+//! [`ServiceTerminal::poll`] writes each one back through the same stdin
+//! command channel keyboard input uses — exactly once per query. The bytes
+//! come from [`termide_panel_terminal::reports`], the same source the local
+//! PTY's emulator answers from, so a pane behaves identically on both
+//! backends.
+//!
 //! Failure is explicit, never silent: the attach thread reports
 //! [`Event::Failed`] with the transport's own reason and [`TerminalHost`]
 //! switches that tab to [`Backend::Local`], which is what makes the pane fall
@@ -42,7 +51,10 @@ use std::{
 
 use ratatui::{buffer::Buffer, layout::Rect};
 use serde_json::{Value, json};
-use termide_panel_terminal::kitty::{self, ApcScanner, Step};
+use termide_panel_terminal::{
+	kitty::{self, ApcScanner, Step},
+	reports,
+};
 use unicode_width::UnicodeWidthChar;
 
 use crate::ws;
@@ -133,10 +145,15 @@ pub(crate) fn ensure(
 /// The `ensure` request body. `program` is the gateway's closed companion set
 /// — a name, never a path: serve resolves it against its own install, so a
 /// client cannot ask the gateway to run an arbitrary executable.
+///
+/// `termProgramVersion` is this shell's own version: the PTY lives in serve,
+/// but *this* window paints its pixels, so the child's `TERM_PROGRAM_VERSION`
+/// must name the desktop app that owns the pane, not the gateway build.
 fn ensure_body(cwd: &Path, instance: &str, program: Option<&str>) -> String {
 	let mut body = json!({
 		"cwd": cwd.to_string_lossy(),
 		"instanceId": instance,
+		"termProgramVersion": crate::VERSION,
 	});
 	if let Some(program) = program {
 		body["program"] = Value::String(program.to_owned());
@@ -236,6 +253,7 @@ pub enum Event {
 }
 
 /// The pane-visible commands the attach thread executes.
+#[derive(Debug, PartialEq, Eq)]
 enum Command {
 	Input(Vec<u8>),
 	Resize(u16, u16),
@@ -306,6 +324,13 @@ impl ServiceTerminal {
 					events.push(Event::Failed(reason));
 				},
 			}
+		}
+		// The parser answers the child's queries; each answer leaves the screen
+		// once. Writing it back through `Input` is the same text frame keyboard
+		// input takes, so it reaches the gateway's `writeInput` PTY path.
+		let replies = self.screen.take_replies();
+		if !replies.is_empty() {
+			let _ = self.commands.send(Command::Input(replies));
 		}
 		events
 	}
@@ -712,6 +737,9 @@ struct Screen {
 	apc: ApcScanner,
 	/// The pane's cell in device pixels, reported by the painter.
 	cell_px: (u16, u16),
+	/// Query replies (`CSI 16 t` and friends) produced while parsing output,
+	/// waiting for one write back to the PTY.
+	replies: Vec<u8>,
 }
 
 impl Screen {
@@ -732,7 +760,14 @@ impl Screen {
 			graphics: kitty::Graphics::new(),
 			apc: ApcScanner::new(),
 			cell_px: (0, 0),
+			replies: Vec::new(),
 		}
+	}
+
+	/// Payload collected since the last call, empty when no query arrived.
+	/// Taking is what guarantees each reply is written to the PTY once.
+	fn take_replies(&mut self) -> Vec<u8> {
+		std::mem::take(&mut self.replies)
 	}
 
 	/// Keep the top-left of the old grid when the pane resizes.
@@ -987,6 +1022,28 @@ impl Screen {
 				self.cursor_x = x.min(self.cols - 1);
 				self.cursor_y = y.min(self.rows - 1);
 			},
+			// XTVERSION names the terminal the child is really talking to.
+			b'q' if raw.first() == Some(&b'>') => {
+				self.replies.extend_from_slice(reports::xtversion().as_bytes());
+			},
+			// DA1. `CSI > c` is the secondary-attributes query, which this
+			// emulator answers the same way the local one does: not at all.
+			b'c' if raw.first() != Some(&b'>') => {
+				self.replies.extend_from_slice(reports::PRIMARY_DA);
+			},
+			// Window manipulation. A hosted TUI asks these before it rasterizes
+			// an image; the answers come from the same cell metrics the local
+			// emulator reports, so both backends rasterize at one density.
+			b't' if !matches!(raw.first(), Some(&b'>') | Some(&b'<')) => {
+				let param = params.first().copied().unwrap_or(0);
+				if let Ok(param) = u16::try_from(param) {
+					if let Some(reply) =
+						reports::window_report(param, self.rows, self.cols, self.cell_px)
+					{
+						self.replies.extend_from_slice(reply.as_bytes());
+					}
+				}
+			},
 			// Private modes: the alternate screen is cleared on entry/exit, but
 			// its save/restore is not modelled and SGR colours are not drawn.
 			b'h' | b'l' if private => {
@@ -994,7 +1051,7 @@ impl Screen {
 					self.clear();
 				}
 			},
-			b'm' | b'h' | b'l' | b'r' | b'n' | b'c' => {},
+			b'm' | b'h' | b'l' | b'r' | b'n' => {},
 			_ => {},
 		}
 	}
@@ -1108,6 +1165,9 @@ mod tests {
 		assert_eq!(value["program"], "zetacode");
 		assert_eq!(value["instanceId"], "tab-1");
 		assert_eq!(value["cwd"], "/tmp/ws");
+		// The pane's child is told this *shell's* version: the PTY is serve's,
+		// the pixels are the desktop window's.
+		assert_eq!(value["termProgramVersion"], crate::VERSION);
 	}
 
 	#[test]
@@ -1172,6 +1232,152 @@ mod tests {
 		screen.feed(b"a\r\nb\r\nc");
 		assert_eq!(screen.line(0), "b");
 		assert_eq!(screen.line(1), "c");
+	}
+
+	#[test]
+	fn the_five_terminal_queries_get_the_local_backend_replies() {
+		let mut screen = Screen::new(80, 24);
+		screen.cell_px = (12, 24);
+		screen.feed(b"\x1b[16t\x1b[14t\x1b[18t\x1b[c\x1b[>q");
+		let mut expected = Vec::new();
+		expected.extend_from_slice(b"\x1b[6;24;12t");
+		expected.extend_from_slice(b"\x1b[4;576;960t");
+		expected.extend_from_slice(b"\x1b[8;24;80t");
+		expected.extend_from_slice(reports::PRIMARY_DA);
+		expected.extend_from_slice(reports::xtversion().as_bytes());
+		assert_eq!(screen.take_replies(), expected);
+	}
+
+	#[test]
+	fn without_a_measured_cell_the_pixel_reports_stay_silent() {
+		// A pane whose renderer has not reported a cell owns no pixels; the
+		// client keeps its own fallback instead of being told a lie.
+		let mut screen = Screen::new(80, 24);
+		screen.feed(b"\x1b[16t\x1b[14t\x1b[18t\x1b[c\x1b[>q");
+		let mut expected = Vec::new();
+		expected.extend_from_slice(b"\x1b[8;24;80t");
+		expected.extend_from_slice(reports::PRIMARY_DA);
+		expected.extend_from_slice(reports::xtversion().as_bytes());
+		assert_eq!(screen.take_replies(), expected);
+
+		// The first frame's measurement makes the same queries answerable.
+		screen.cell_px = (12, 24);
+		screen.feed(b"\x1b[16t");
+		assert_eq!(screen.take_replies(), b"\x1b[6;24;12t");
+	}
+
+	#[test]
+	fn a_serve_pane_writes_each_query_reply_to_the_pty_once() {
+		let (event_tx, events) = channel();
+		let (commands, command_rx) = channel();
+		let mut service = ServiceTerminal {
+			screen: Screen::new(80, 24),
+			events,
+			commands,
+			cols: 80,
+			rows: 24,
+			alive: true,
+		};
+		service.screen.cell_px = (12, 24);
+		event_tx
+			.send(Raw::Output(b"\x1b[16t\x1b[14t\x1b[18t\x1b[c\x1b[>q".to_vec()))
+			.unwrap();
+
+		assert_eq!(service.poll(), vec![Event::Output]);
+		let mut expected = Vec::new();
+		expected.extend_from_slice(b"\x1b[6;24;12t");
+		expected.extend_from_slice(b"\x1b[4;576;960t");
+		expected.extend_from_slice(b"\x1b[8;24;80t");
+		expected.extend_from_slice(reports::PRIMARY_DA);
+		expected.extend_from_slice(reports::xtversion().as_bytes());
+		assert_eq!(command_rx.try_recv(), Ok(Command::Input(expected)));
+
+		// One frame caps the replies: neither the same tick nor a later one
+		// repeats them.
+		assert_eq!(command_rx.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty));
+		assert!(service.poll().is_empty());
+		assert_eq!(command_rx.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty));
+	}
+
+	#[test]
+	fn each_query_on_a_serve_pane_produces_its_reply_exactly_once() {
+		let queries: Vec<(&[u8], Vec<u8>)> = vec![
+			(b"\x1b[16t", b"\x1b[6;24;12t".to_vec()),
+			(b"\x1b[14t", b"\x1b[4;576;960t".to_vec()),
+			(b"\x1b[18t", b"\x1b[8;24;80t".to_vec()),
+			(b"\x1b[c", reports::PRIMARY_DA.to_vec()),
+			(b"\x1b[>q", reports::xtversion().into_bytes()),
+		];
+		for (query, expected) in queries {
+			let (event_tx, events) = channel();
+			let (commands, command_rx) = channel();
+			let mut service = ServiceTerminal {
+				screen: Screen::new(80, 24),
+				events,
+				commands,
+				cols: 80,
+				rows: 24,
+				alive: true,
+			};
+			service.screen.cell_px = (12, 24);
+			event_tx.send(Raw::Output(query.to_vec())).unwrap();
+
+			assert_eq!(service.poll(), vec![Event::Output]);
+			assert_eq!(command_rx.try_recv(), Ok(Command::Input(expected)), "reply for {query:?}");
+			assert_eq!(
+				command_rx.try_recv(),
+				Err(std::sync::mpsc::TryRecvError::Empty),
+				"{query:?} was answered twice"
+			);
+			assert!(service.poll().is_empty());
+			assert_eq!(
+				command_rx.try_recv(),
+				Err(std::sync::mpsc::TryRecvError::Empty),
+				"{query:?} was answered again on a later tick"
+			);
+		}
+	}
+
+	#[test]
+	fn both_backends_answer_a_query_with_the_same_bytes_and_only_once() {
+		use std::io::Write as _;
+		use std::sync::{Arc, Mutex, RwLock};
+		use termide_panel_terminal::{StreamParser, TerminalScreen};
+
+		struct Capture(Arc<Mutex<Vec<u8>>>);
+		impl std::io::Write for Capture {
+			fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+				self.0.lock().unwrap().extend_from_slice(bytes);
+				Ok(bytes.len())
+			}
+			fn flush(&mut self) -> std::io::Result<()> {
+				Ok(())
+			}
+		}
+
+		const QUERIES: &[u8] = b"\x1b[16t\x1b[14t\x1b[18t\x1b[c\x1b[>q";
+		let captured = Arc::new(Mutex::new(Vec::new()));
+		let screen = Arc::new(RwLock::new(TerminalScreen::new(24, 80)));
+		screen.write().unwrap().cell_px = (12, 24);
+		let writer: Arc<Mutex<Box<dyn std::io::Write + Send>>> =
+			Arc::new(Mutex::new(Box::new(Capture(Arc::clone(&captured)))));
+		let mut local = StreamParser::new(writer, Arc::clone(&screen));
+		local.feed(QUERIES);
+		local.flush();
+		let local_replies = captured.lock().unwrap().clone();
+
+		let mut remote = Screen::new(80, 24);
+		remote.cell_px = (12, 24);
+		remote.feed(QUERIES);
+		assert_eq!(
+			remote.take_replies(),
+			local_replies,
+			"the serve backend must answer exactly what the local emulator answers"
+		);
+		assert!(
+			remote.take_replies().is_empty(),
+			"the same bytes are already answered; a second poll is not a second answer"
+		);
 	}
 
 	#[test]
