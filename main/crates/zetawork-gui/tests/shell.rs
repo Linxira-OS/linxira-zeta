@@ -499,7 +499,7 @@ fn the_editor_page_opens_and_saves_a_real_file() {
 }
 
 #[test]
-fn the_right_column_has_five_tabs_and_eight_settings_sections() {
+fn the_right_column_has_five_tabs_and_nine_settings_sections() {
 	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 5);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
@@ -509,13 +509,17 @@ fn the_right_column_has_five_tabs_and_eight_settings_sections() {
 	// the one section the design drafts do not have, and the six they fix
 	// keep their own order behind it. 项目 is the registry page the 管理 card
 	// opens.
-	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 8);
+	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 9);
 	assert_eq!(
 		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
-		["常规", "外观", "编辑器", "终端", "快捷键", "项目", "管理", "关于"]
+		["全部设置", "常规", "外观", "编辑器", "终端", "快捷键", "项目", "管理", "关于"]
 	);
-	assert_eq!(zetawork_gui::settings::Section::ALL[0], zetawork_gui::settings::Section::General);
+	// 全部设置 is the complete schema; the eight hand-built sections behind it
+	// only carry what is GUI-native and what is not a schema key.
+	assert_eq!(zetawork_gui::settings::Section::ALL[0], zetawork_gui::settings::Section::All);
+	assert_eq!(zetawork_gui::settings::Section::ALL[1], zetawork_gui::settings::Section::General);
 	assert_eq!(zetawork_gui::settings::Section::General.key(), "general");
+	assert_eq!(zetawork_gui::settings::Section::All.key(), "all");
 }
 
 #[test]

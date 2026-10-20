@@ -28,6 +28,7 @@ use crate::{
 /// Which nav icon a section gets.
 fn section_icon(section: Section) -> Icon {
 	match section {
+		Section::All => Icon::Gear,
 		Section::General => Icon::Info,
 		Section::Appearance => Icon::Sun,
 		Section::Editor => Icon::Code,
@@ -201,6 +202,7 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 	let section = shell.state.settings_section;
 	ui.add_space(20.0);
 	match section {
+		Section::All => schema_section(ui, shell),
 		Section::General => {
 			head(ui, t!("常规"));
 			row(
@@ -486,6 +488,336 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 		},
 	}
 	ui.add_space(24.0);
+}
+
+/// 全部设置: zetacode's complete schema, drawn from `GET /api/settings`.
+///
+/// The tree is tab → group → row, exactly as the gateway publishes it. The
+/// search box filters the whole tree; switching tabs or languages re-reads
+/// the localized labels through [`crate::settings_schema::SchemaCache`].
+fn schema_section(ui: &mut Ui, shell: &mut Shell) {
+	head(ui, t!("全部设置"));
+	let (tab_count, setting_count) = shell
+		.schema
+		.catalog()
+		.map(|catalog| (catalog.tabs.len(), catalog.entries.len()))
+		.unwrap_or((0, 0));
+	let source = t!(
+		"来自网关 GET /api/settings · {} 个标签页 · {} 项设置 · 与 CLI /settings 同一份 schema",
+		tab_count,
+		setting_count
+	);
+	head(ui, &source);
+	ui.add_space(8.0);
+
+	// Search, the in-flight line and the retry control.
+	ui.horizontal(|ui| {
+		ui.add(
+			egui::TextEdit::singleline(&mut shell.schema.query)
+				.hint_text(t!("搜索设置…"))
+				.desired_width(260.0),
+		);
+		if !shell.schema.query.is_empty() && ui.button(t!("清除")).clicked() {
+			shell.schema.query.clear();
+		}
+		if shell.schema.loading() {
+			ui.label(t!("正在读取设置…"));
+		}
+		if shell.schema.error().is_some() && ui.button(t!("重试")).clicked() {
+			if let Some(origin) = shell.stats.gateway_origin() {
+				let gateway: std::sync::Arc<dyn crate::settings_schema::Gateway> =
+					std::sync::Arc::new(crate::settings_schema::HttpGateway::new(origin));
+				shell.schema.reload(gateway, shell.settings.lang);
+			}
+		}
+	});
+	if let Some(error) = shell.schema.error() {
+		let line = t!("设置网关错误：{}", error);
+		hint(ui, &line);
+	}
+	ui.add_space(6.0);
+
+	if shell.schema.catalog().is_none() {
+		let line = if shell.schema.loading() {
+			t!("正在读取 zetacode 的设置 schema…")
+		} else {
+			t!("还没有读到设置 schema；确认 `zetacode serve` 在运行，然后按 重试。")
+		};
+		plain_row(ui, t!("设置 schema"), line, "GET /api/settings");
+		ui.add_space(16.0);
+		return;
+	}
+
+	// The tab strip, with the match count per tab while searching.
+	let query = shell.schema.query.clone();
+	let views: Vec<(String, String, usize)> = match shell.schema.catalog() {
+		Some(catalog) => catalog
+			.tree(&query)
+			.iter()
+			.map(|tab| (tab.id.to_owned(), tab.label.to_owned(), tab.row_count()))
+			.collect(),
+		None => Vec::new(),
+	};
+	if views.is_empty() {
+		plain_row(ui, t!("没有匹配的设置"), t!("试试别的词，或按 清除 回到全部设置"), "");
+		ui.add_space(16.0);
+		return;
+	}
+	let active = shell
+		.schema
+		.tab
+		.clone()
+		.filter(|id| views.iter().any(|(candidate, _, _)| candidate == id))
+		.unwrap_or_else(|| views[0].0.clone());
+	shell.schema.tab = Some(active.clone());
+	ui.horizontal_wrapped(|ui| {
+		for (id, label, count) in &views {
+			let text = if query.trim().is_empty() {
+				label.clone()
+			} else {
+				format!("{label} · {count}")
+			};
+			if ui.selectable_label(*id == active, text).clicked() {
+				shell.schema.tab = Some(id.clone());
+			}
+		}
+	});
+	ui.add_space(6.0);
+
+	// Clone only the active tab's rows, so drawing a frame does not copy the
+	// whole schema and the cache can still be borrowed mutably by the controls.
+	let groups: Vec<(Option<String>, Vec<crate::settings_schema::Entry>)> = {
+		let catalog = shell.schema.catalog();
+		catalog
+			.map(|catalog| catalog.tree(&query))
+			.and_then(|tree| {
+				tree.into_iter().find(|tab| tab.id == active).map(|tab| {
+					tab.groups
+						.into_iter()
+						.map(|group| {
+							(group.label, group.entries.into_iter().cloned().collect::<Vec<_>>())
+						})
+						.collect::<Vec<_>>()
+				})
+			})
+			.unwrap_or_default()
+	};
+	for (index, (label, entries)) in groups.into_iter().enumerate() {
+		let heading = label.unwrap_or_else(|| t!("未分组").to_owned());
+		egui::CollapsingHeader::new(egui::RichText::new(heading).size(12.5))
+			.id_salt(format!("zetawork-schema-{active}-{index}"))
+			.default_open(true)
+			.show(ui, |ui| {
+				for entry in entries {
+					let row_entry = entry.clone();
+					row(
+						ui,
+						&entry.label,
+						&entry.description,
+						move |ui, shell| {
+							schema_control(ui, shell, &row_entry);
+						},
+						shell,
+					);
+				}
+			});
+	}
+	ui.add_space(16.0);
+}
+
+/// One typed control for a schema row.
+fn schema_control(ui: &mut Ui, shell: &mut Shell, entry: &crate::settings_schema::Entry) {
+	use crate::settings_schema::ControlKind;
+	match entry.kind {
+		ControlKind::Toggle => {
+			let mut value = entry.value.as_bool().unwrap_or(false);
+			if switch(ui, &mut value) {
+				schema_write(shell, &entry.path, serde_json::json!(value));
+			}
+		},
+		ControlKind::Select => schema_select(ui, shell, entry),
+		ControlKind::Number => schema_text(ui, shell, entry, TextKind::Number),
+		// The gateway sends no `editor` hint, so an object/array-valued `text`
+		// row (fallback chains, approval rules) is edited as JSON; a scalar
+		// one is a plain string and must not be quoted.
+		ControlKind::Text => {
+			let kind = if entry.value.is_object() || entry.value.is_array() {
+				TextKind::Json
+			} else {
+				TextKind::Plain
+			};
+			schema_text(ui, shell, entry, kind)
+		},
+		ControlKind::Secret => schema_secret(ui, shell, entry),
+		ControlKind::MultiSelect => schema_multi(ui, shell, entry),
+		ControlKind::ProviderLimits | ControlKind::ModelRoles => {
+			schema_text(ui, shell, entry, TextKind::Json)
+		},
+	}
+}
+
+fn schema_select(ui: &mut Ui, shell: &mut Shell, entry: &crate::settings_schema::Entry) {
+	let mut current = match &entry.value {
+		serde_json::Value::String(text) => text.clone(),
+		other => other.to_string(),
+	};
+	let before = current.clone();
+	let options: Vec<(String, String)> = if entry.options.is_empty() {
+		entry
+			.values
+			.iter()
+			.map(|value| (value.clone(), entry.option_label(value)))
+			.collect()
+	} else {
+		entry
+			.options
+			.iter()
+			.map(|option| (option.value.clone(), option.label.clone()))
+			.collect()
+	};
+	if options.is_empty() {
+		// A runtime submenu (the gateway sends no choices): show the current
+		// value, not an empty combo box that looks like a bug.
+		ui.label(egui::RichText::new(entry.display_value()).size(11.5));
+		return;
+	}
+	egui::ComboBox::from_id_salt(format!("zetawork-schema-select-{}", entry.path))
+		.selected_text(entry.option_label(&current))
+		.width(200.0)
+		.show_ui(ui, |ui| {
+			for (value, label) in &options {
+				ui.selectable_value(&mut current, value.clone(), label);
+			}
+		});
+	if current != before {
+		schema_write(shell, &entry.path, serde_json::json!(current));
+	}
+}
+
+/// What a free-form field parses as on commit.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TextKind {
+	Plain,
+	Number,
+	Json,
+}
+
+fn schema_text(
+	ui: &mut Ui,
+	shell: &mut Shell,
+	entry: &crate::settings_schema::Entry,
+	kind: TextKind,
+) {
+	let mut text = shell.schema.draft(entry).clone();
+	let response = ui.add(
+		egui::TextEdit::singleline(&mut text)
+			.desired_width(220.0)
+			.font(egui::FontId::new(11.5, egui::FontFamily::Monospace)),
+	);
+	if response.changed() {
+		shell.schema.set_draft(&entry.path, text.clone());
+	}
+	if !response.lost_focus() || text == entry.display_value() {
+		return;
+	}
+	let value = match kind {
+		TextKind::Plain => serde_json::json!(text),
+		TextKind::Number => match number_value(&text) {
+			Some(value) => value,
+			None => return,
+		},
+		TextKind::Json => match serde_json::from_str::<serde_json::Value>(&text) {
+			Ok(value) => value,
+			Err(_) => return,
+		},
+	};
+	schema_write(shell, &entry.path, value);
+}
+
+/// A number keeps its integer shape unless the text really has a fraction.
+fn number_value(text: &str) -> Option<serde_json::Value> {
+	let text = text.trim();
+	if let Ok(integer) = text.parse::<i64>() {
+		return Some(serde_json::json!(integer));
+	}
+	text
+		.parse::<f64>()
+		.ok()
+		.filter(|float| float.is_finite())
+		.map(|float| serde_json::json!(float))
+}
+
+fn schema_secret(ui: &mut Ui, shell: &mut Shell, entry: &crate::settings_schema::Entry) {
+	// The stored value is never read: the gateway sends the mask and the field
+	// starts empty, so only a newly typed value can reach a request.
+	ui.label(
+		egui::RichText::new(crate::settings_schema::MASK)
+			.monospace()
+			.size(11.5)
+			.color(theme::TEXT_2),
+	)
+	.on_hover_text(t!("已保存的凭据不会显示明文"));
+	let mut text = shell.schema.draft(entry).clone();
+	let response = ui.add(
+		egui::TextEdit::singleline(&mut text)
+			.password(true)
+			.hint_text(t!("输入新值"))
+			.desired_width(140.0),
+	);
+	if response.changed() {
+		shell.schema.set_draft(&entry.path, text.clone());
+	}
+	let ready = !text.trim().is_empty();
+	if ui
+		.add_enabled(ready, egui::Button::new(t!("保存")))
+		.clicked()
+	{
+		schema_write(shell, &entry.path, serde_json::json!(text));
+	}
+}
+
+fn schema_multi(ui: &mut Ui, shell: &mut Shell, entry: &crate::settings_schema::Entry) {
+	let mut selected: Vec<String> = entry
+		.value
+		.as_array()
+		.map(|values| {
+			values
+				.iter()
+				.filter_map(|value| value.as_str().map(str::to_owned))
+				.collect()
+		})
+		.unwrap_or_default();
+	let mut changed = false;
+	for option in &entry.options {
+		let mut on = selected.iter().any(|value| value == &option.value);
+		if ui.checkbox(&mut on, &option.label).changed() {
+			if on {
+				selected.push(option.value.clone());
+			} else {
+				selected.retain(|value| value != &option.value);
+			}
+			changed = true;
+		}
+	}
+	if changed {
+		schema_write(shell, &entry.path, serde_json::json!(selected));
+	}
+}
+
+/// Send one value through `PUT /api/settings`, then re-read the catalog.
+fn schema_write(shell: &mut Shell, path: &str, value: serde_json::Value) {
+	let Some(origin) = shell.stats.gateway_origin() else {
+		shell.schema.set_error(
+			t!("未发现网关地址（~/.zeta/serve.json 的 webUrl）；设置 schema 需要 zetacode serve 运行")
+				.to_owned(),
+		);
+		return;
+	};
+	let gateway: std::sync::Arc<dyn crate::settings_schema::Gateway> =
+		std::sync::Arc::new(crate::settings_schema::HttpGateway::new(origin));
+	shell
+		.schema
+		.start_write(gateway, shell.settings.lang, path, value);
 }
 
 /// The 关于 section's scope rows: which of the three targets this modal can
@@ -898,22 +1230,21 @@ fn row(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
 		Stroke::new(1.0_f32, theme::BORDER),
 	);
-	ui.painter().text(
-		pos2(rect.min.x, rect.min.y + 14.0),
-		egui::Align2::LEFT_TOP,
-		label,
-		FontId::new(13.0, egui::FontFamily::Proportional),
-		theme::TEXT,
-	);
-	ui.painter().text(
-		pos2(rect.min.x, rect.min.y + 32.0),
-		egui::Align2::LEFT_TOP,
-		hint_text,
-		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
-	);
 	let control_rect =
 		Rect::from_min_size(pos2(rect.max.x - 240.0, rect.min.y + 12.0), vec2(240.0, 32.0));
+	// Schema descriptions come from the CLI and can be a full sentence; clip
+	// them at the control instead of painting underneath it. Short hints from
+	// the native sections are unchanged.
+	let text_width = (control_rect.min.x - rect.min.x - 12.0).max(40.0);
+	truncated_text(ui, pos2(rect.min.x, rect.min.y + 20.0), label, 13.0, theme::TEXT, text_width);
+	truncated_text(
+		ui,
+		pos2(rect.min.x, rect.min.y + 38.0),
+		hint_text,
+		11.5,
+		theme::TEXT_3,
+		text_width,
+	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()
 			.max_rect(control_rect)

@@ -731,7 +731,49 @@ static EN: &[(&str, &str)] = &[
 		"The running version is not older than the latest one; nothing to install",
 	),
 	("更新检查失败：{}", "Update check failed: {}"),
+	("更新检查失败：worker 已退出", "Update check failed: the worker exited"),
+	("更新检查的输出无法解析：{}", "The update check output could not be parsed: {}"),
 	("飞书", "Feishu"),
+	// 全部设置 (settings_schema.rs + settings_ui.rs)
+	("全部设置", "All settings"),
+	("未分组", "Ungrouped"),
+	("搜索设置…", "Search settings…"),
+	("清除", "Clear"),
+	("设置 schema", "Settings schema"),
+	("正在读取设置…", "Reading settings…"),
+	("正在读取 zetacode 的设置 schema…", "Reading zetacode's settings schema…"),
+	("没有匹配的设置", "No matching settings"),
+	(
+		"试试别的词，或按 清除 回到全部设置",
+		"Try another word, or press Clear to return to all settings",
+	),
+	(
+		"还没有读到设置 schema；确认 `zetacode serve` 在运行，然后按 重试。",
+		"The settings schema has not loaded yet; check that `zetacode serve` is running, then press Retry.",
+	),
+	(
+		"来自网关 GET /api/settings · {} 个标签页 · {} 项设置 · 与 CLI /settings 同一份 schema",
+		"From the gateway GET /api/settings · {} tabs · {} settings · the same schema as the CLI /settings",
+	),
+	("设置网关错误：{}", "Settings gateway error: {}"),
+	(
+		"未发现网关地址（~/.zeta/serve.json 的 webUrl）；设置 schema 需要 zetacode serve 运行",
+		"No gateway address (webUrl in ~/.zeta/serve.json) was found; the settings schema needs zetacode serve running",
+	),
+	("输入新值", "Enter a new value"),
+	("已保存的凭据不会显示明文", "Saved credentials are never shown in clear"),
+	("读取设置失败（{}）：{}", "Reading settings failed ({}): {}"),
+	("写入设置失败（{}）：{}", "Writing the setting failed ({}): {}"),
+	("设置 schema 不是 JSON：{}", "The settings schema is not JSON: {}"),
+	("设置 schema 不是对象", "The settings schema is not an object"),
+	("设置 schema 缺少 {} 数组", "The settings schema is missing the {} array"),
+	("tabs[{}] 不是对象", "tabs[{}] is not an object"),
+	("groups 不是对象", "groups is not an object"),
+	("groups.{} 不是数组", "groups.{} is not an array"),
+	("groups.{}[{}] 不是字符串", "groups.{}[{}] is not a string"),
+	("{} 不是对象", "{} is not an object"),
+	("{} 缺少 {}", "{} is missing {}"),
+	("（无错误说明）", "(no error message)"),
 	("{} · {} · 目标：{}", "{} · {} · target: {}"),
 ];
 
@@ -902,6 +944,163 @@ mod tests {
 			assert_eq!(placeholders(zh), placeholders(en), "placeholder drift in {zh:?} → {en:?}");
 			assert!(!en.is_empty(), "empty translation for {zh:?}");
 		}
+	}
+
+	/// Walk every `.rs` file under `src/` (the guard must see a new module
+	/// without anyone remembering to add it here).
+	fn rust_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+		let Ok(entries) = std::fs::read_dir(dir) else {
+			return;
+		};
+		for entry in entries.flatten() {
+			let path = entry.path();
+			if path.is_dir() {
+				rust_files(&path, out);
+			} else if path.extension().is_some_and(|extension| extension == "rs") {
+				out.push(path);
+			}
+		}
+	}
+
+	/// The literal body of every `t!("…")` in `source`.
+	///
+	/// The `t` must not be the tail of an identifier: `format!(` and
+	/// `assert!(` end in `t!(` too, and a format string is not a translation
+	/// key. This is the rule that keeps format arguments out of the guard —
+	/// not a list of exempt strings.
+	fn t_literals(source: &str) -> Vec<&str> {
+		let bytes = source.as_bytes();
+		let mut out = Vec::new();
+		let mut index = 0;
+		while index + 1 < bytes.len() {
+			let tail_of_identifier =
+				index > 0 && (bytes[index - 1].is_ascii_alphanumeric() || bytes[index - 1] == b'_');
+			if bytes[index] != b't' || bytes[index + 1] != b'!' || tail_of_identifier {
+				index += 1;
+				continue;
+			}
+			let mut cursor = index + 2;
+			while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+				cursor += 1;
+			}
+			// `t!( "…" )` and `t!("…")` are the same call; the `(` is optional
+			// in the scan because only the literal is compared.
+			if cursor < bytes.len() && bytes[cursor] == b'(' {
+				cursor += 1;
+				while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+					cursor += 1;
+				}
+			}
+			if cursor >= bytes.len() || bytes[cursor] != b'"' {
+				index += 1;
+				continue;
+			}
+			let start = cursor + 1;
+			let mut end = start;
+			let mut escaped = false;
+			while end < bytes.len() {
+				match bytes[end] {
+					b'\\' if !escaped => escaped = true,
+					b'"' if !escaped => break,
+					_ => escaped = false,
+				}
+				end += 1;
+			}
+			if end < bytes.len() {
+				out.push(&source[start..end]);
+				index = end + 1;
+			} else {
+				index += 1;
+			}
+		}
+		out
+	}
+
+	/// A literal that carries a CJK codepoint is UI text and needs a row;
+	/// an ASCII literal is an identifier, a path or a format fragment and is
+	/// never looked up. The rule is by content, never by an allowlist.
+	fn contains_cjk(text: &str) -> bool {
+		text.chars().any(|character| {
+			matches!(
+				character as u32,
+				0x2E80..=0x9FFF | 0xF900..=0xFAFF | 0xFE30..=0xFE4F | 0xFF00..=0xFFEF
+			)
+		})
+	}
+
+	/// Decode the escapes the macro's `literal` can carry, so the extracted
+	/// key is the exact string `tr` looks up.
+	fn unescape(literal: &str) -> String {
+		let mut out = String::with_capacity(literal.len());
+		let mut chars = literal.chars();
+		while let Some(character) = chars.next() {
+			if character != '\\' {
+				out.push(character);
+				continue;
+			}
+			match chars.next() {
+				Some('n') => out.push('\n'),
+				Some('r') => out.push('\r'),
+				Some('t') => out.push('\t'),
+				Some('0') => out.push('\0'),
+				Some(escaped) => out.push(escaped),
+				None => out.push('\\'),
+			}
+		}
+		out
+	}
+
+	/// The mechanical guard: every ``t!("…")`` whose literal contains CJK has
+	/// an English row.
+	///
+	/// It is content-driven in both directions: new UI text is covered the
+	/// moment it is written, and there is no list to update when a module is
+	/// added or a string changes. The count floor makes a broken scan fail
+	/// instead of reporting a green zero-key run, the same shape as
+	/// `scripts/check-i18n-consistency.ts` for the TUI catalogue.
+	#[test]
+	fn every_cjk_t_key_has_an_english_row() {
+		let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+		let mut files = Vec::new();
+		rust_files(&root, &mut files);
+		assert!(files.len() > 10, "the guard found {} source files", files.len());
+
+		let mut keys = std::collections::BTreeSet::new();
+		let mut missing = Vec::new();
+		for file in &files {
+			let source = std::fs::read_to_string(file)
+				.unwrap_or_else(|error| panic!("read {}: {error}", file.display()));
+			for literal in t_literals(&source) {
+				let key = unescape(literal);
+				if !contains_cjk(&key) {
+					continue;
+				}
+				keys.insert(key.clone());
+				if !EN.iter().any(|(zh, _)| *zh == key.as_str()) {
+					missing.push(format!("{}: t!({key:?})", file.display()));
+				}
+			}
+		}
+		assert!(keys.len() >= 100, "only {} CJK keys found — the scan scope is broken", keys.len());
+		assert!(
+			missing.is_empty(),
+			"{} CJK t! key(s) have no English row:\n{}",
+			missing.len(),
+			missing.join("\n")
+		);
+	}
+
+	#[test]
+	fn the_guard_ignores_format_macros_that_end_in_t() {
+		let source = r#"let a = format!("未翻译的格式串"); let b = t!("设置");"#;
+		assert_eq!(t_literals(source), ["设置"]);
+	}
+
+	#[test]
+	fn the_guard_sees_the_rows_it_checks() {
+		assert!(contains_cjk("设置") && !contains_cjk("GET /api/settings"));
+		assert_eq!(unescape(r#"a\"b"#), "a\"b");
+		assert_eq!(unescape("a\\nb"), "a\nb");
 	}
 
 	#[test]

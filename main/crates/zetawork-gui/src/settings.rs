@@ -38,6 +38,12 @@ use crate::i18n::Lang;
 /// remove action.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Section {
+	/// 全部设置: zetacode's complete schema, read from `GET /api/settings`.
+	///
+	/// It is the one complete surface; the hand-built sections behind it only
+	/// carry what is GUI-native (window lifecycle, appearance, keys) or what
+	/// is not a schema key at all (the project registry, updates, providers).
+	All,
 	/// 生命周期：关闭窗口时 / 开机自启 / 通知.
 	#[default]
 	General,
@@ -51,7 +57,8 @@ pub enum Section {
 }
 
 impl Section {
-	pub const ALL: [Self; 8] = [
+	pub const ALL: [Self; 9] = [
+		Self::All,
 		Self::General,
 		Self::Appearance,
 		Self::Editor,
@@ -65,6 +72,7 @@ impl Section {
 	/// The nav label.
 	pub fn label(self) -> &'static str {
 		match self {
+			Self::All => t!("全部设置"),
 			Self::General => t!("常规"),
 			Self::Appearance => t!("外观"),
 			Self::Editor => t!("编辑器"),
@@ -79,6 +87,7 @@ impl Section {
 	/// The `data-sec` key the spec uses.
 	pub fn key(self) -> &'static str {
 		match self {
+			Self::All => "all",
 			Self::General => "general",
 			Self::Appearance => "appearance",
 			Self::Editor => "editor",
