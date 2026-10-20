@@ -107,11 +107,10 @@ describe("write agent:// messaging", () => {
 		registerPeer("Sibling");
 		const delivered: IrcMessage[] = [];
 		const relayed: unknown[] = [];
-		registry.register({
-			id: "Main",
-			displayName: "Main",
-			kind: "main",
-			session: {
+		// Attach to the registered Main ref: a duplicate registration is rejected,
+		// and this test is about the relay view, not registry replacement.
+		expect(
+			registry.attachSession("Main", {
 				deliverIrcMessage: async (message: IrcMessage) => {
 					delivered.push(message);
 					return "injected";
@@ -119,8 +118,8 @@ describe("write agent:// messaging", () => {
 				emitIrcRelayObservation: (record: unknown) => {
 					relayed.push(record);
 				},
-			} as AgentSession,
-		});
+			} as AgentSession),
+		).toBe(true);
 		const result = await new WriteTool(makeSession({ senderId: "Sender" })).execute("broadcast", {
 			path: "agent://all",
 			content: "one update",

@@ -1124,18 +1124,14 @@ describe("persisted subagent revival", () => {
 			expect(observer).toBeDefined();
 
 			const delivered: IrcMessage[] = [];
-			AgentRegistry.global().register({
-				id: "Main",
-				displayName: "Main",
-				kind: "main",
-				status: "idle",
-				session: {
+			expect(
+				AgentRegistry.global().attachSession("Main", {
 					deliverIrcMessage: async (msg: IrcMessage) => {
 						delivered.push(msg);
 						return "injected" as const;
 					},
-				} as unknown as AgentSession,
-			});
+				} as unknown as AgentSession),
+			).toBe(true);
 			const bus = IrcBus.global();
 			const finish = observer?.([wakeRecord("Main")]);
 			await bus.send({ from: ref.id, to: "Main", body: "on it" });

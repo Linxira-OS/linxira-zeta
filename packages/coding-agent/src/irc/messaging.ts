@@ -48,7 +48,10 @@ export async function executeSend(
 	params: { to: string; message: string },
 ): Promise<AgentToolResult<CoordinationDetails>> {
 	const { registry, senderId, sessionFileHint } = deps;
-	const to = params.to.trim();
+	const requestedTo = params.to.trim();
+	// `main` (any case) means the caller's own workspace main. Normalize before
+	// the self check and the await filter so `await` matches the reply's `from`.
+	const to = registry.resolveMainAlias(requestedTo, senderId) ?? requestedTo;
 	const message = params.message;
 	if (!to) return coordinationErrorResult("A recipient is required.", { op: "send", from: senderId });
 	if (!message.trim())

@@ -480,18 +480,22 @@ export class SessionRouter {
 		body: string,
 	): Promise<{ ok: boolean; error?: string }> {
 		const coordinatorId = this.#coordinator.getAgentId?.() ?? MAIN_AGENT_ID;
+		// `@agent use main` (any case) names this process's workspace main, which
+		// may be the coordinator itself; normalize before the direct branch so it
+		// is not routed through the bus as a self-send.
+		const resolvedTarget = AgentRegistry.global().resolveMainAlias(target, coordinatorId) ?? target;
 		try {
-			if (target === coordinatorId) {
+			if (resolvedTarget === coordinatorId) {
 				await this.#coordinator.deliverIrcMessage({
 					id: `${channelId}:${peer}:${Date.now()}`,
 					from: "user",
-					to: target,
+					to: resolvedTarget,
 					body,
 					ts: Date.now(),
 				});
 				return { ok: true };
 			}
-			const receipt = await IrcBus.global().send({ from: coordinatorId, to: target, body });
+			const receipt = await IrcBus.global().send({ from: coordinatorId, to: resolvedTarget, body });
 			return receipt.outcome === "failed" ? { ok: false, error: receipt.error } : { ok: true };
 		} catch (error) {
 			return { ok: false, error: error instanceof Error ? error.message : String(error) };

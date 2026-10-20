@@ -8,7 +8,7 @@ import { getRoleInfo } from "../config/model-roles";
 import type { Settings } from "../config/settings";
 import { IrcBus } from "../irc/bus";
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
-import { type AgentRef, AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
+import { type AgentRef, AgentRegistry, isRootAgentRef } from "../registry/agent-registry";
 import { registerPersistedSubagents, sessionFileBelongsToRoot } from "../registry/persisted-agents";
 import { normalizeAssistantUsage, parseSessionEntries } from "../session/session-loader";
 
@@ -70,9 +70,12 @@ export function sumSubagentTreeCost(args: {
 	const { observers, rootSessionFile, sessionCosts } = args;
 	const rows: AgentRef[] = [];
 	const observedById = new Map<string, ObservableSession>();
+	// Multiple top-level sessions share the registry; every root is its own
+	// billing root, and a root's own advisors are billed by its status line.
+	const rootIds = new Set(args.refs.filter(isRootAgentRef).map(ref => ref.id));
 	for (const ref of args.refs) {
-		if (ref.id === MAIN_AGENT_ID) continue;
-		if (ref.kind === "advisor" && (ref.parentId ?? MAIN_AGENT_ID) === MAIN_AGENT_ID) continue;
+		if (isRootAgentRef(ref)) continue;
+		if (ref.kind === "advisor" && (ref.parentId === undefined || rootIds.has(ref.parentId))) continue;
 		const observed = observers.getSession(ref.id);
 		const inTree = ref.sessionFile
 			? rootSessionFile !== undefined && sessionFileBelongsToRoot(ref.sessionFile, rootSessionFile)

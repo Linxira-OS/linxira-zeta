@@ -14,6 +14,7 @@ import {
 	type AgentHistorySummary,
 	type AgentMetricsSummary,
 	type AgentRegistry,
+	isRootAgentRef,
 	MAIN_AGENT_ID,
 } from "./agent-registry";
 import { getAgentTombstonePath } from "./agent-tombstone";
@@ -660,11 +661,15 @@ export async function registerPersistedSubagents(
 	const vibeOwnedIds = await readPersistedVibeChildIds(sessionFile, shouldContinue);
 	if (!shouldContinue()) return;
 	const root = sessionFile.slice(0, -6);
+	// Attribute restored children/advisors to THIS transcript's root, not to the
+	// constant main id: a process can host several top-level sessions, and each
+	// keeps its own subagent parentage (and advisor ids) under its own id.
+	const ownerId = registry.list().find(ref => isRootAgentRef(ref) && ref.sessionFile === sessionFile)?.id;
 	const transcripts: PersistedTranscript[] = [];
 	await registerPersistedSubagentsFromDir(
 		registry,
 		root,
-		undefined,
+		ownerId,
 		vibeOwnedIds,
 		transcripts,
 		shouldContinue,
@@ -739,27 +744,34 @@ async function registerPersistedSubagentsFromDir(
 			if (existing?.sessionFile !== sessionFile) {
 				const metadata = await readPersistedAgentMetadata(sessionFile);
 				if (!shouldContinue()) return;
-				// The id is reused across `/new`; refresh it to the current session's file.
+				// The id is reused across `/new`; refresh it to the current session's
+				// file. Another scan of the same tree may claim the id while the
+				// metadata read yielded, so only take the id when it is really free
+				// (registration never replaces an owner).
 				if (existing) registry.unregister(advisorId);
-				registry.register({
-					id: advisorId,
-					displayName,
-					kind: "advisor",
-					parentId: owner,
-					session: null,
-					sessionFile,
-					activity: metadata.activity,
-					createdAt: metadata.createdAt,
-					lastActivity: metadata.lastActivity,
-					history: { ...metadata.history, readOnly: true },
-					status: "parked",
-				});
+				const registered = registry.registerIfAvailable(
+					{
+						id: advisorId,
+						displayName,
+						kind: "advisor",
+						parentId: owner,
+						session: null,
+						sessionFile,
+						activity: metadata.activity,
+						createdAt: metadata.createdAt,
+						lastActivity: metadata.lastActivity,
+						history: { ...metadata.history, readOnly: true },
+						status: "parked",
+					},
+					null,
+				);
+				if (!registered) continue;
 				owned?.set(advisorId, sessionFile);
 				transcripts.push({
 					id: advisorId,
 					sessionFile,
-					createdAt: metadata.createdAt,
-					lastActivity: metadata.lastActivity,
+					createdAt: registered.createdAt,
+					lastActivity: registered.lastActivity,
 				});
 			} else if (existing) {
 				owned?.set(advisorId, sessionFile);

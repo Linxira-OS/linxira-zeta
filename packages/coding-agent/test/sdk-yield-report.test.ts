@@ -36,9 +36,10 @@ async function harness(
 		input?: Record<string, unknown>;
 		outputSchema?: unknown;
 		text?: string;
+		agentId?: string;
 	} = {},
 ) {
-	const { doneOnly = false, delayed = false } = options;
+	const { doneOnly = false, delayed = false, agentId = "report-child" } = options;
 	const root = TempDir.createSync("@pi-yield-report-");
 	roots.push(root);
 	const auth = createInMemoryAuthStorage();
@@ -73,8 +74,8 @@ async function harness(
 		skipPythonPreflight: true,
 		requireYieldTool: true,
 		toolNames: ["yield"],
-		parentTaskPrefix: "report-child",
-		agentId: "report-child",
+		parentTaskPrefix: agentId,
+		agentId,
 		taskDepth: 1,
 		outputSchema: options.outputSchema,
 		extensions: delayed
@@ -190,7 +191,9 @@ describe("SDK data-less yield report", () => {
 	});
 
 	it("never borrows another child's report", async () => {
-		const { session: other } = await harness();
+		// Distinct roots, as production guarantees: two live sessions never share
+		// an agent id, and each keeps its own report source.
+		const { session: other } = await harness({ agentId: "report-child-other" });
 		other.agent.replaceMessages([createAssistantMessage("Other child's report")]);
 		const { session } = await harness();
 		session.agent.replaceMessages([{ role: "user", content: "Work", timestamp: Date.now() }]);

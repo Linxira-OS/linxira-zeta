@@ -3779,12 +3779,11 @@ export class AgentSession implements SettingsScope {
 	 *
 	 * Cleanup runs against this session's scoped manager: running jobs are
 	 * cancelled, finished rows are evicted with their pending deliveries, and any
-	 * async-result follow-up already queued for injection is dropped. Subagents have
-	 * unique agent ids and inherit the parent's manager to clean up their own
-	 * jobs. A secondary in-process top-level session gets no scoped manager,
-	 * because it defaults to `MAIN_AGENT_ID`; reaching through the global
-	 * singleton would tear down the owning primary session's bash/task jobs at
-	 * dispose time (issue #1923).
+	 * async-result follow-up already queued for injection is dropped. Subagents and
+	 * every top-level session own distinct agent ids (additional roots use their
+	 * session id), so this only ever cancels the caller's own jobs; reaching
+	 * through a shared manager with a shared id was what tore down another
+	 * session's bash/task jobs at dispose time (issue #1923).
 	 *
 	 * No-op when no manager is reachable or this session has no agent id.
 	 */

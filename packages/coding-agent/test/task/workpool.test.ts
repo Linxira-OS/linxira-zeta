@@ -105,13 +105,12 @@ function execution(id: string, output?: string): StructuredSubagentResult {
 }
 
 function markIdle(id: string): void {
-	AgentRegistry.global().register({
-		id,
-		displayName: id,
-		kind: "sub",
-		status: "idle",
-		session: null,
-	});
+	// The worker id survives across batches; a still-registered ref moves back to
+	// idle instead of being re-registered (duplicate ids are rejected).
+	const registry = AgentRegistry.global();
+	if (!registry.setStatus(id, "idle")) {
+		registry.register({ id, displayName: id, kind: "sub", status: "idle", session: null });
+	}
 }
 
 async function until(predicate: () => boolean): Promise<void> {

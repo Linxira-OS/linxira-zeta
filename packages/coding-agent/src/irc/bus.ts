@@ -12,8 +12,10 @@
 import { type IrcDeliveryReceipt, type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
-import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
+import { AgentRegistry, isMainAgentAlias, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { getMeshNode } from "../mesh/global";
+import { formatMeshAddress } from "../mesh/envelope";
+import type { MeshNode } from "../mesh/mesh-node";
 import type { CustomMessage } from "../session/messages";
 
 interface IrcWaiter {
@@ -128,27 +130,42 @@ export class IrcBus {
 		const mesh = getMeshNode();
 		// `agent://<id>` is accepted anywhere agent ids are; strip the scheme
 		// before the local lookup so a scheme-prefixed local id still resolves.
-		const requested = message.to.startsWith("agent://") ? message.to.slice("agent://".length) : message.to;
+		const requestedRaw = message.to.startsWith("agent://") ? message.to.slice("agent://".length) : message.to;
+		// `main` names the main agent of the caller's own workspace — not a
+		// same-named root of another workspace, and not a silent self-delivery
+		// when the caller is that main. Resolve locally first; a workspace whose
+		// main lives in another process is addressed through the mesh by id.
+		let requested = requestedRaw;
+		if (isMainAgentAlias(requestedRaw)) {
+			const caller = this.#registry.get(message.from);
+			const main = this.#registry.workspaceMain(caller?.workspaceId);
+			if (main) {
+				requested = main.id;
+			} else if (mesh) {
+				const address = formatMeshAddress(caller?.workspaceId ?? mesh.workspaceId, "main");
+				// Routing back into this process would re-enter this same alias,
+				// find no live main, and bounce through the mailbox drain queue
+				// forever. A local workspace with no live main is a local failure.
+				if (mesh.stripLocalAddress(address) === undefined) {
+					return await this.#sendOverMesh(mesh, message, address);
+				}
+			}
+		}
 		const localTarget = mesh?.stripLocalAddress(requested);
 		const target = localTarget ?? requested;
 		const ref = this.#registry.get(target);
 		if (!ref) {
 			if (mesh && localTarget === undefined && mesh.isCrossProcessAddress(requested)) {
-				const result = await mesh.send({
-					from: message.from,
-					to: requested,
-					body: message.body,
-					...(message.replyTo !== undefined && { replyTo: message.replyTo }),
-				});
-				return result.outcome === "failed"
-					? { to: requested, outcome: "failed", error: result.error }
-					: { to: requested, outcome: result.outcome };
+				return await this.#sendOverMesh(mesh, message, requested);
 			}
 			return {
 				to: message.to,
 				outcome: "failed",
 				error: `Unknown agent "${requested}" — check the subagent roster or read history:// for known peers.`,
 			};
+		}
+		if (target === message.from) {
+			return { to: target, outcome: "failed", error: "Cannot send a message to yourself." };
 		}
 		if (ref.status === "aborted") {
 			return {
@@ -233,6 +250,19 @@ export class IrcBus {
 				error: error instanceof Error ? error.message : String(error),
 			};
 		}
+	}
+
+	/** Send one message through the mesh and normalize the receipt. */
+	async #sendOverMesh(mesh: MeshNode, message: IrcMessage, to: string): Promise<IrcDeliveryReceipt> {
+		const result = await mesh.send({
+			from: message.from,
+			to,
+			body: message.body,
+			...(message.replyTo !== undefined && { replyTo: message.replyTo }),
+		});
+		return result.outcome === "failed"
+			? { to, outcome: "failed", error: result.error }
+			: { to, outcome: result.outcome };
 	}
 
 	/**
