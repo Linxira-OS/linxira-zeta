@@ -367,8 +367,12 @@ impl Perform for VtPerformer {
                         .and_then(|p| p.first())
                         .copied()
                         .unwrap_or(0);
-                    let reply =
-                        crate::reports::window_report(param, screen.rows, screen.cols, screen.cell_px);
+                    let reply = crate::reports::window_report(
+                        param,
+                        screen.rows,
+                        screen.cols,
+                        screen.cell_px,
+                    );
                     drop(screen);
                     if let Some(reply) = reply {
                         self.write_response(reply.as_bytes());

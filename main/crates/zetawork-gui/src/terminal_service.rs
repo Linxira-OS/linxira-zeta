@@ -1024,7 +1024,9 @@ impl Screen {
 			},
 			// XTVERSION names the terminal the child is really talking to.
 			b'q' if raw.first() == Some(&b'>') => {
-				self.replies.extend_from_slice(reports::xtversion().as_bytes());
+				self
+					.replies
+					.extend_from_slice(reports::xtversion().as_bytes());
 			},
 			// DA1. `CSI > c` is the secondary-attributes query, which this
 			// emulator answers the same way the local one does: not at all.
