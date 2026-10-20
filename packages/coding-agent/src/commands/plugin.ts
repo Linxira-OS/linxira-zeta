@@ -20,6 +20,7 @@ const ACTIONS: PluginAction[] = [
 	"marketplace",
 	"discover",
 	"upgrade",
+	"panel",
 ];
 
 export default class Plugin extends Command {
@@ -27,7 +28,7 @@ export default class Plugin extends Command {
 	static aliases = ["plugins"];
 	static args = {
 		action: Args.string({
-			description: "Plugin action",
+			description: "Plugin action (panel: print one declarative panel's data)",
 			required: false,
 			options: ACTIONS,
 		}),

@@ -473,6 +473,60 @@ fn board_page_screenshot() {
 	write("16-board-page.png", &bytes);
 }
 
+/// `16-plugin-panels.png` — the right column's 插件 page: the shipped example
+/// plugin's `list` panel, drawn natively from the same `plugin.json` the parser
+/// validates and the same `data/tasks.json` the plugin's tool reads.
+///
+/// The data is seeded, not fetched: a screenshot run has no `zetacode` to spawn,
+/// so the shot proves the *rendering* path (`decode` → rows → native rows). The
+/// tool call itself is covered by
+/// `packages/coding-agent/test/plugin-example-panel.test.ts`.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn plugin_panels_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	let plugin_root =
+		PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../plugins/official/example-panel");
+	let manifest =
+		std::fs::read_to_string(plugin_root.join("plugin.json")).expect("example plugin.json");
+	let panels = zetawork_gui::plugin_panels::parse_manifest(&manifest, "example-panel")
+		.expect("the declaration parses");
+	assert_eq!(panels.len(), 4, "list, form, chart, html");
+	let data =
+		std::fs::read_to_string(plugin_root.join("data/tasks.json")).expect("example tasks.json");
+	let tasks: serde_json::Value = serde_json::from_str(&data).expect("tasks json");
+	let rows = serde_json::json!({
+		"rows": tasks.get("tasks").cloned().unwrap_or_default(),
+	});
+	let decoded =
+		zetawork_gui::plugin_panels::decode(&panels[0], &rows).expect("the list panel decodes");
+	shell.plugins.panels = panels;
+	shell.plugin_data.seed("example-panel/tasks", Ok(decoded));
+	shell
+		.state
+		.set_right_tab(zetawork_gui::state::RightTab::Plugin);
+	assert!(!shell.state.right_collapsed);
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("16-plugin-panels.png", &bytes);
+
+	// The chart panel is the second native drawing the shot proves: switch to
+	// it and count the same data by state, exactly what the tool returns.
+	let chart = zetawork_gui::plugin_panels::decode(
+		&shell.plugins.panels[2],
+		&serde_json::json!({"points":[{"label":"todo","value":2},{"label":"doing","value":2},{"label":"done","value":2}]}),
+	)
+	.expect("the chart panel decodes");
+	shell
+		.plugin_data
+		.seed("example-panel/throughput", Ok(chart));
+	shell.plugin_selection.panel = Some("throughput".to_owned());
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("17-plugin-chart.png", &bytes);
+}
+
 /// `14-about.png` — 设置 → 关于: the desktop mark the window and taskbar use,
 /// the version, and the scope rows.
 #[test]

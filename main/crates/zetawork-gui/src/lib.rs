@@ -41,6 +41,7 @@ pub mod notify;
 pub mod page;
 pub mod pdf;
 pub mod picker;
+pub mod plugin_panels;
 pub mod resources;
 pub mod right;
 pub mod seed;
@@ -149,6 +150,15 @@ pub struct Shell {
 	pub resources: resources::ResourceCache,
 	/// The right column's 看板 page: `.zeta/board/` cards ([`board::BoardCache`]).
 	pub board: board::BoardCache,
+	/// The plugin layer: every installed plugin's declarative panels
+	/// ([`plugin_panels::Registry`]), which one the column shows, and the data
+	/// fetched for it.
+	pub plugins: plugin_panels::Registry,
+	pub plugin_selection: plugin_panels::Selection,
+	pub plugin_data: plugin_panels::PanelCache,
+	/// The `html` panel's WebView2 child: the same embedder the 用量 container
+	/// uses, pointed at `<webUrl>/plugins/view/<plugin>/<entry>`.
+	pub plugin_page: embed::EmbedState,
 	/// zetacode's own options (设置 target ②), read and written off the UI
 	/// thread.
 	pub remote: settings_ui::ZetacodeCache,
@@ -272,6 +282,10 @@ impl Shell {
 			conversation: conversation::ConversationCache::default(),
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
+			plugins: plugin_panels::discover_in(&plugin_panels::home()),
+			plugin_selection: plugin_panels::Selection::default(),
+			plugin_data: plugin_panels::PanelCache::default(),
+			plugin_page: embed::EmbedState::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			channels: settings_channels::ChannelsPanel::default(),
@@ -330,6 +344,13 @@ impl Shell {
 			conversation: conversation::ConversationCache::default(),
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
+			// A headless shell reads nothing: a test seeds `plugins` itself
+			// (`plugin_panels::Registry` from a fixture), so a machine's real
+			// plugin directory cannot change what a test asserts.
+			plugins: plugin_panels::Registry::default(),
+			plugin_selection: plugin_panels::Selection::default(),
+			plugin_data: plugin_panels::PanelCache::default(),
+			plugin_page: embed::EmbedState::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			channels: settings_channels::ChannelsPanel::default(),
@@ -347,6 +368,61 @@ impl Shell {
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		}
+	}
+
+	// ── the plugin layer ───────────────────────────────────────────────
+
+	/// Re-read the installed plugins' panel declarations (the 插件 page's 刷新).
+	///
+	/// The data cache and the web child are dropped with it: both are keyed to
+	/// what the previous registry said, and a plugin installed while the window
+	/// was open must not inherit another plugin's answer or URL.
+	pub fn reload_plugins(&mut self) {
+		self.plugins = plugin_panels::discover_in(&plugin_panels::home());
+		self.plugin_selection = plugin_panels::Selection::default();
+		self.plugin_data = plugin_panels::PanelCache::default();
+		self.plugin_page.hide();
+	}
+
+	/// The web-ui origin an `html` panel pages through, when `zetacode serve`
+	/// published one and it is on this machine.
+	///
+	/// A child window must never load a remote page, so a `webUrl` pointing off
+	/// the machine is refused here exactly like [`embed::page_url`] refuses it
+	/// for the dashboard.
+	pub fn web_origin(&self) -> Option<String> {
+		let url = self.stats.info.as_ref()?.web_url.as_ref()?;
+		let authority = url
+			.split_once("://")?
+			.1
+			.split(['/', '?', '#'])
+			.next()
+			.unwrap_or_default();
+		let host = authority
+			.rsplit_once(':')
+			.map_or(authority, |(host, _)| host)
+			.trim_matches(['[', ']']);
+		let loopback = host == "127.0.0.1" || host == "::1" || host.eq_ignore_ascii_case("localhost");
+		if !loopback || !(url.starts_with("http://") || url.starts_with("https://")) {
+			return None;
+		}
+		Some(url.trim_end_matches('/').to_owned())
+	}
+
+	/// The URL the plugin column's web child should load this frame.
+	///
+	/// `None` unless the 插件 page is open on an `html` panel and a loopback
+	/// web-ui origin is known — the same “degrade to a sentence” shape the 用量
+	/// container uses.
+	pub fn plugin_page_url(&self) -> Option<String> {
+		if self.state.right_collapsed || self.state.right_tab != state::RightTab::Plugin {
+			return None;
+		}
+		let mut selection = self.plugin_selection.clone();
+		let panel = selection.resolve(&self.plugins)?;
+		let entry = panel.page()?.to_owned();
+		let origin = self.web_origin()?;
+		Some(plugin_panels::page_url(&origin, &panel.plugin, &entry))
 	}
 
 	// ── the read-only readers ──────────────────────────────────────────
@@ -905,6 +981,13 @@ impl eframe::App for Shell {
 		if self.state.usage_view_open() {
 			let url = embed::page_url(&self.stats);
 			self.embed.prepare(&*frame, url);
+		}
+		// The 插件 page's `html` panel is the other embedded page. It shares the
+		// window but not the child: one embedder per surface, so closing one
+		// never unmaps the other.
+		match self.plugin_page_url() {
+			Some(url) => self.plugin_page.prepare(&*frame, &url),
+			None => self.plugin_page.hide(),
 		}
 		self.draw(ctx);
 	}
