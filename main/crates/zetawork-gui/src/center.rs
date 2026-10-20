@@ -18,7 +18,7 @@ use crate::{
 	Shell,
 	agent::RowKind,
 	agent_sessions::Link,
-	blit::{GridMetrics, paint_buffer_with},
+	blit::{GridMetrics, paint_buffer_with, paint_images},
 	git::DiffKind,
 	icons::{Icon, icon_button, paint},
 	state::{CenterPage, EditorDoc, Pane, PickerTarget, SessionKind, SessionTab},
@@ -644,6 +644,10 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		Rect::from_min_max(grid.min, pos2(grid.max.x, (grid.max.y - status_h).max(grid.min.y)));
 	let metrics =
 		GridMetrics::for_panel(ui.ctx(), term_grid, f32::from(shell.settings.terminal_size));
+	// Device-pixel cell size. Both backends get it before their child can ask
+	// (`CSI 16 t`), and the image painter lays placements out with the same
+	// number, so a client's raster lands 1:1.
+	let cell_px = sync_cell_pixels(ui, shell, tab.id.as_str(), &metrics);
 	let columns = metrics.cols.max(1);
 	// A serve-backed PTY replaces the in-process one when the gateway is
 	// reachable; otherwise the in-process PTY below does. `ensure` picks once
@@ -680,7 +684,18 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
 	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 	if shell.terminals.render(tab.id.as_str(), area, &mut grid_buf) {
-		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+		let images = shell.terminals.graphics(tab.id.as_str());
+		paint_terminal_grid(
+			ui,
+			shell,
+			tab.id.as_str(),
+			&metrics,
+			columns,
+			rows,
+			&grid_buf,
+			&images,
+			cell_px,
+		);
 		paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 		return;
 	}
@@ -688,7 +703,18 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	if shell.live.contains(tab.id.as_str()) {
 		let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 		if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
-			paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+			let images = shell.live.graphics(tab.id.as_str());
+			paint_terminal_grid(
+				ui,
+				shell,
+				tab.id.as_str(),
+				&metrics,
+				columns,
+				rows,
+				&grid_buf,
+				&images,
+				cell_px,
+			);
 			paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 			return;
 		}
@@ -721,10 +747,17 @@ fn terminal_status(shell: &Shell, tab: &SessionTab) -> String {
 /// caller has already reserved the area.
 fn paint_terminal_grid(
 	ui: &mut Ui,
+	shell: &mut Shell,
+	pane: &str,
 	metrics: &GridMetrics,
 	columns: u16,
 	rows: u16,
 	buf: &ratatui::buffer::Buffer,
+	images: &[(
+		termide_panel_terminal::kitty::Placement,
+		std::sync::Arc<termide_panel_terminal::kitty::Image>,
+	)],
+	cell_px: (u16, u16),
 ) {
 	let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
 	let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
@@ -737,7 +770,26 @@ fn paint_terminal_grid(
 		rows,
 		font_size: metrics.font_size,
 	};
-	paint_buffer_with(ui.painter(), buf, &grid, theme::TERM_TEXT);
+	let scale = ui.ctx().pixels_per_point();
+	let painter = ui.painter();
+	// z<0 goes down first, under the glyphs; the rest goes over them. Kitty's
+	// plain placements (z=0, every one this client sends) are above the text by
+	// definition, and the rows they cover hold the spaces the client reserved.
+	paint_images(painter, &mut shell.images, pane, images, &grid, cell_px, scale, true);
+	paint_buffer_with(painter, buf, &grid, theme::TERM_TEXT);
+	paint_images(painter, &mut shell.images, pane, images, &grid, cell_px, scale, false);
+}
+
+/// Measure the pane's cell in device pixels and hand it to both backends.
+///
+/// The serve backend and the in-process PTY answer the same queries, so both
+/// must know the size before their child's first `CSI 16 t` — which is why
+/// this runs before either `ensure`.
+fn sync_cell_pixels(ui: &Ui, shell: &mut Shell, tab: &str, metrics: &GridMetrics) -> (u16, u16) {
+	let cell = crate::blit::cell_device_px(metrics, ui.ctx().pixels_per_point());
+	shell.live.set_cell_pixels(cell.0, cell.1);
+	shell.terminals.set_cell_pixels(tab, cell.0, cell.1);
+	cell
 }
 
 /// The pane's backend line, at the bottom of the terminal body.
@@ -1204,6 +1256,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		},
 	};
 	let metrics = GridMetrics::for_panel(ui.ctx(), rect, f32::from(shell.settings.terminal_size));
+	let cell_px = sync_cell_pixels(ui, shell, tab.id.as_str(), &metrics);
 	let columns = metrics.cols.max(1);
 	let rows = metrics.rows.max(1);
 	let cwd = shell
@@ -1242,11 +1295,33 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	}
 	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
 	if shell.terminals.render(tab.id.as_str(), area, &mut grid_buf) {
-		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+		let images = shell.terminals.graphics(tab.id.as_str());
+		paint_terminal_grid(
+			ui,
+			shell,
+			tab.id.as_str(),
+			&metrics,
+			columns,
+			rows,
+			&grid_buf,
+			&images,
+			cell_px,
+		);
 		return;
 	}
 	if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
-		paint_terminal_grid(ui, &metrics, columns, rows, &grid_buf);
+		let images = shell.live.graphics(tab.id.as_str());
+		paint_terminal_grid(
+			ui,
+			shell,
+			tab.id.as_str(),
+			&metrics,
+			columns,
+			rows,
+			&grid_buf,
+			&images,
+			cell_px,
+		);
 	}
 }
 

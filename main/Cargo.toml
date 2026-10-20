@@ -16,6 +16,8 @@ repository = "https://github.com/Linxira-OS/linxira-zeta"
 
 [workspace.dependencies]
 anyhow = "1.0"
+# The terminal image tests build Kitty APC payloads from their PNG fixtures.
+base64 = "0.23"
 crossterm = "0.29"
 ratatui = "0.30.0"
 

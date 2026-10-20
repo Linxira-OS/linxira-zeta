@@ -6964,8 +6964,10 @@ name = "termide-panel-terminal"
 version = "0.41.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "crossterm",
  "dunce",
+ "image",
  "libc",
  "log",
  "nix 0.29.0",
@@ -9591,6 +9593,7 @@ dependencies = [
 name = "zetawork-gui"
 version = "1.3.2"
 dependencies = [
+ "base64 0.23.1",
  "chrono",
  "crossterm",
  "eframe",
