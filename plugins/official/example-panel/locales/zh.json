@@ -1,0 +1,21 @@
+{
+	"tool.description": "返回示例插件的面板数据：任务列表、设置表单，或按状态统计的任务数。",
+	"command.description": "打印示例插件的任务统计，或打开它的说明页",
+	"command.invite": "在 web UI 中打开 /plugins/view/example-panel/pages/index.html 查看浏览器路由。",
+	"command.counts": "{count} 个任务：{todo} 待办、{doing} 进行中、{done} 已完成",
+	"panel.tasks": "任务",
+	"panel.settings": "设置",
+	"panel.throughput": "按状态统计",
+	"panel.guide": "说明",
+	"state.todo": "待办",
+	"state.doing": "进行中",
+	"state.done": "已完成",
+	"settings.dataFile": "数据文件",
+	"settings.taskCount": "任务数",
+	"settings.locales": "语言表",
+	"settings.panelSource": "面板数据工具",
+	"column.id": "编号",
+	"column.title": "标题",
+	"column.owner": "负责人",
+	"column.state": "状态"
+}

@@ -1,6 +1,6 @@
 # Plugins
 
-Zeta loads three different things that are all called "plugins". They share the same install roots and several of the same providers, but they have different manifests, different install commands, and different things they can contribute to a session. This page is the overview; [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) is the per-plugin usage page for the official plugin, and [`marketplace.md`](./marketplace.md) covers marketplace catalogs and the source formats.
+Zeta loads three different things that are all called "plugins". They share the same install roots and several of the same providers, but they have different manifests, different install commands, and different things they can contribute to a session. This page is the overview; [`writing-a-plugin.md`](./writing-a-plugin.md) is the author's guide to a plugin's three layers (behaviour, declarative panels, web pages), [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) is the per-plugin usage page for the official plugin, and [`marketplace.md`](./marketplace.md) covers marketplace catalogs and the source formats.
 
 Everything on this page was verified by running the commands against a source checkout. The exact evidence (including verbatim output) is in the per-plugin page and in each section below.
 
@@ -286,6 +286,7 @@ is `~/.zeta/plugins/zeta-plugins.lock.json`:
 
 ## See also
 
+- [`writing-a-plugin.md`](./writing-a-plugin.md) — authoring a plugin: manifest, tools, declarative panels, web pages, locales
 - [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) — activating the official plugin, with the commands and output of a working install
 - [`marketplace.md`](./marketplace.md) — catalogs, `name@marketplace`, scopes, upgrade rules
 - [`extension-loading.md`](./extension-loading.md) — extension-module discovery and resolution order

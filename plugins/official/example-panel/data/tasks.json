@@ -1,0 +1,10 @@
+{
+	"tasks": [
+		{ "id": "T-1", "title": "Write the manifest", "owner": "east", "state": "done" },
+		{ "id": "T-2", "title": "Render the list panel", "owner": "east", "state": "done" },
+		{ "id": "T-3", "title": "Render the form panel", "owner": "north", "state": "doing" },
+		{ "id": "T-4", "title": "Render the chart panel", "owner": "north", "state": "doing" },
+		{ "id": "T-5", "title": "Open the web page", "owner": "south", "state": "todo" },
+		{ "id": "T-6", "title": "Zip it for the release", "owner": "south", "state": "todo" }
+	]
+}

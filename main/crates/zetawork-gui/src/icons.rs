@@ -53,6 +53,8 @@ pub enum Icon {
 	List,
 	/// 资源 — a heartbeat/pulse line.
 	Activity,
+	/// 插件 — a plug: two prongs into a body, and its cable.
+	Plugin,
 	/// Custom chrome (the spec's mock has no window frame).
 	Minimize,
 	Maximize,
@@ -231,6 +233,12 @@ pub fn paint(painter: &egui::Painter, icon: Icon, rect: egui::Rect, color: Color
 			poly(&[(20.0, 15.0), (20.0, 18.0), (18.0, 20.0), (15.0, 20.0)]);
 			poly(&[(9.0, 20.0), (6.0, 20.0), (4.0, 18.0), (4.0, 15.0)]);
 			circle(12.0, 12.0, 2.4);
+		},
+		Icon::Plugin => {
+			frame(6.0, 8.0, 12.0, 9.0, 2.0);
+			line((9.0, 8.0), (9.0, 4.0));
+			line((15.0, 8.0), (15.0, 4.0));
+			line((12.0, 17.0), (12.0, 21.0));
 		},
 		Icon::Activity => {
 			poly(&[(3.0, 12.0), (7.0, 12.0), (10.0, 6.0), (14.0, 18.0), (17.0, 12.0), (21.0, 12.0)]);

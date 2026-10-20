@@ -1542,6 +1542,12 @@ jobs:
          # is needed on this runner.
          - name: Build browser relay artifacts
            run: bun run --cwd packages/browser-relay build
+         # The example plugin ships as a *runnable environment*, not a source
+         # tarball: the script stages the directory, `git init`s it with one
+         # pinned-commit, and zips it. Bun APIs only (no install needed), same
+         # as the relay build above.
+         - name: Build example plugin zip
+           run: bun scripts/build-example-plugin-zip.ts
          # Preflight: every release asset must exist before checksums hash it.
          # A stale asset-name reference (e.g. the v1.1.9 run where ci.yml still
          # pointed at omp-browser-relay-extension.zip after the build script
@@ -1569,6 +1575,15 @@ jobs:
               if [ "$product_count" -lt 2 ]; then
                 # Product matrix: zetaide linux+win only (release_product_binaries).
                 echo "::error::Expected at least 2 zeta-ide-* product binaries, found $product_count"
+                missing=1
+              fi
+              plugin_zips=$(ls plugins/dist/zeta-plugin-example-*.zip 2>/dev/null | wc -l)
+              if [ "$plugin_zips" -lt 1 ]; then
+                # The example-plugin environment (zeta-plugin-example-<version>.zip)
+                # is the distributable teaching asset; a rename in
+                # scripts/build-example-plugin-zip.ts must fail here, not after
+                # checksums have hashed it.
+                echo "::error::Expected at least 1 plugins/dist/zeta-plugin-example-*.zip, found $plugin_zips"
                 missing=1
               fi
               work_count=$(ls packages/coding-agent/binaries/zeta-work-* 2>/dev/null | wc -l)
@@ -1623,6 +1638,7 @@ jobs:
                  packages/coding-agent/binaries/zetawork-*.pkg.tar.zst
                  packages/coding-agent/binaries/zeta-ide-*
                  packages/browser-relay/dist/zeta-browser-relay-extension.zip
+                 plugins/dist/zeta-plugin-example-*.zip
                  LICENSE
                  THIRD-PARTY-NOTICES.txt
                  SHA256SUMS.txt

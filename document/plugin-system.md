@@ -113,6 +113,110 @@ plugins/
 - 未携带 `locales/` 的插件行为不变：`ctx.t("k", "text")` 返回 `"text"`，
   `ctx.t("k")` 返回 `"k"`。
 
+## 三层模型（2026-10-20）
+
+插件产物固定为三层。混为一谈会得出"要么全原生重写、要么永远 iframe"的错误结论；
+分层的判据是**插件产物是哪一类**，不是插件用什么语言写的。
+
+```mermaid
+graph LR
+  P[插件目录<br/>plugin.json + TS 源码 + HTML] --> B[① 行为<br/>工具/命令/钩子]
+  P --> D[② 声明式面板<br/>ui.panels: list/form/chart]
+  P --> H[③ web 页<br/>pages/*.html]
+  B --> CORE[会话进程内<br/>任何前端都消费]
+  D --> NATIVE[Rust 宿主原生渲染<br/>zetawork GUI 右栏「插件」]
+  H --> WEBUI[web-ui 插件宿主<br/>/plugins/view/&lt;plugin&gt;/&lt;page&gt;]
+  WEBUI --> WV[GUI 插件栏 webview<br/>同一 URL]
+```
+
+| 层 | 产物 | 执行/渲染方 | 依赖 | 例子 |
+|---|---|---|---|---|
+| ① 行为 | 工具、命令、钩子、消息 | 会话进程内的 TS 扩展；GUI/TUI/CLI 都通过 Host 消费 | 无前端依赖 | `example_panel_data`、`/example-panel` |
+| ② 声明式面板 | `plugin.json` 的 `ui.panels`（`list`/`form`/`chart`） | 有原生渲染器的宿主（`main/crates/zetawork-gui/src/plugin_panels.rs`） | 不需要 `zetacode serve`、不需要 webview | 任务表、设置表单、状态柱状图 |
+| ③ web 页 | 插件包内任意 `.html` | web-ui 插件宿主（`web-ui/lib/plugin-pages.ts` + `/api/plugin-assets`），GUI 的插件栏用 webview 打开同一 URL | 需要 web-ui（由 `zetacode serve` 起） | `pages/index.html` |
+
+### 选层决策表
+
+| 你要做的事 | 选哪层 | 依据 |
+|---|---|---|
+| 模型/用户要触发的**动作**（读写文件、调 API、编排代理） | ① 行为（工具或命令） | 这是插件唯一能改变状态的地方；前端只消费 |
+| 想在自己的**窗口里看到结构化数据**（表格/键值/图表） | ② 声明式面板 | 声明即可原生绘制：原生主题、无 webview、无第二个 HTTP 服务、启动即用 |
+| 需要**任意 HTML/JS/CSS**、第三方图形库、或已有网页 | ③ web 页 | 任意页面无法原生化；这是 OMP 生态兼容面 |
+| 想同时要原生面板和网页 | ①+②+③ 同时声明 | 同一个插件可以三层齐全（`example-panel` 就是） |
+| 目标前端是 TUI（`zeta-main`）或 IDE（`termide`/`zetaide`） | 都不选 | 这两个前端**没有**插件层（见下），插件不为它们加钩子 |
+
+**判据**：能不能原生，取决于**面板是不是声明式**，而不是取决于插件用什么语言写的。
+第三方插件不写 Rust；Rust 只是宿主。
+
+### ② 的清单契约
+
+```jsonc
+// plugin.json
+{
+  "ui": {
+    "panels": [
+      { "id": "tasks", "title": "Tasks", "kind": "list",
+        "source": { "tool": "example_panel_data", "args": { "panel": "tasks" } },
+        "columns": ["id", "title", "owner", "state"] },
+      { "id": "settings", "title": "Settings", "kind": "form",
+        "source": { "tool": "example_panel_data", "args": { "panel": "settings" } } },
+      { "id": "throughput", "title": "Tasks by state", "kind": "chart",
+        "source": { "tool": "example_panel_data", "args": { "panel": "throughput" } } },
+      { "id": "guide", "title": "Guide", "kind": "html", "entry": "pages/index.html" }
+    ]
+  }
+}
+```
+
+- `kind`：`list` | `form` | `chart` | `html`，别的值一律拒绝。
+- 前三种**必须**有 `source: { tool, args? }`：一次**工具调用**，不是 HTTP 路由。
+  两个理由：(a) 生产数据的那段代码本来就以工具形式注册，不需要第二个发布面；
+  (b) 面板必须在 `zetacode serve` 没起来时也能画 —— 前端不依赖 HTTP 适配器是
+  本仓的分层规矩（`document/architecture-layers.md` §2.4）。网关仍然是浏览器
+  访问同一插件的路径，它不是桌面面板的前置条件。
+- `html` **必须**有 `entry`（插件包内相对路径、`.html`），且**不得**声明
+  `source`；`entry` 就是 web-ui 已经寻址的 `<page>`，所以 html 面板复用
+  `/plugins/view/<plugin>/<entry>`，不另造 URL 方案。
+- `columns` 只对 `list` 有意义；`id` 必须匹配 `[a-z0-9][a-z0-9-]*` 且插件内唯一。
+- 校验有两处，都必须拒绝同一批形状并点名出错条目（如
+  `` `ui.panels[2].kind` must be one of: list, form, chart, html — got "table" ``）：
+  TS 侧 `parsePluginUi`（`packages/coding-agent/src/extensibility/plugins/parser.ts`），
+  Rust 侧 `plugin_panels::parse_manifest`。清单在包 `package.json` 的 `zeta` 块里声明
+  `ui` 也合法（`PluginManifest.ui`），loader 校验失败时记 warning 并丢弃该块，插件
+  照常加载 —— 与 `locales` 的处置一致。
+- 兼容性：未声明 `ui` 的插件行为与今天完全一致（无面板、无渲染路径）。
+
+### ② 的数据契约（工具返回的 `details`）
+
+| `kind` | `details` 形状 | 渲染 |
+|---|---|---|
+| `list` | `{ "rows": [{ "<column>": 标量 }] }` | 每行一个对象，按 `columns` 取格子；缺列显示 `—` |
+| `form` | `{ "fields": [{ "key", "label", "value" }] }` | 只读键值行；`label` 由插件用 `ctx.t()` 本地化 |
+| `chart` | `{ "points": [{ "label", "value": number }] }` | 水平柱状图，按声明顺序 |
+
+### 宿主行为（zetawork GUI）
+
+- 右栏新增「插件」页（`state::RightTab::Plugin`）：一行插件选择条 + 一行面板
+  选择条，选中即渲染。面板从两个真实安装根发现：`~/.zeta/agent/plugins/<plugin>/`
+  （直接投放）与 `~/.zeta/plugins/node_modules[/@scope]/<plugin>/`（npm 安装），
+  读 `plugin.json`，没有 `ui` 时回落到 `package.json` 的 `zeta.ui`。
+- 声明式面板：宿主调 `zetacode plugins panel <plugin> <panel> --json`（同一工具
+  注册面），把返回的 `details` 画成原生控件；数据在 `probe` 为真时才去取，
+  取不到就显示原因，不编造行。
+- `html` 面板：宿主把右栏 body 的矩形交给已有的 WebView2 子窗口
+  （`main/crates/zetawork-gui/src/embed.rs`），地址是
+  `<webUrl>/plugins/view/<plugin>/<entry>`；`webUrl` 来自 `~/.zeta/serve.json`，
+  没有就明说 web-ui 未启动 —— 与「用量」容器的回落一致。
+
+### 明确不做
+
+- `zetacode`/`zetaide`（termide）**没有**插件层：不加插件钩子、不发现插件面板。
+  `main/crates/zeta-main/tests/no_plugin_layer.rs` 与
+  `termide/` 的源码扫描把这个约束钉成测试，防止静默回归。
+- `zetawork` TUI 同样**没有**插件层（本期不做）：
+  `main/crates/zeta-main/tests/no_plugin_layer.rs` 一并断言。
+- 插件不写 Rust；不在本期做插件市场/跨机 mesh。
+
 ## 依赖关系规则
 
 - 任何上游插件集成进 Zeta 前，必须把 `@earendil-works/*`（以及任何上游运行时

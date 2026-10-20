@@ -1,0 +1,35 @@
+{
+	"id": "example-panel",
+	"name": "Example Panel",
+	"description": "A teaching plugin: three declarative panels a native host draws, one web page for the browser, one tool, and an en/zh locale pair.",
+	"source": "https://github.com/linxira-os/zeta/tree/main/plugins/official/example-panel",
+	"publish": "@linxiraos/example-panel",
+	"install": "npm",
+	"compat": { "zeta": "^1.3.0" },
+	"unuse": false,
+	"category": "official",
+	"ui": {
+		"panels": [
+			{
+				"id": "tasks",
+				"title": "Tasks",
+				"kind": "list",
+				"source": { "tool": "example_panel_data", "args": { "panel": "tasks" } },
+				"columns": ["id", "title", "owner", "state"]
+			},
+			{
+				"id": "settings",
+				"title": "Settings",
+				"kind": "form",
+				"source": { "tool": "example_panel_data", "args": { "panel": "settings" } }
+			},
+			{
+				"id": "throughput",
+				"title": "Tasks by state",
+				"kind": "chart",
+				"source": { "tool": "example_panel_data", "args": { "panel": "throughput" } }
+			},
+			{ "id": "guide", "title": "Guide", "kind": "html", "entry": "pages/index.html" }
+		]
+	}
+}

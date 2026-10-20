@@ -11,6 +11,7 @@
 
 | 插件 id | 名称 | 类别 | 来源 | 兼容记录 | 状态 |
 |---|---|---|---|---|---|
+| `example-panel` | Example Panel | 教学示例（三层插件：工具 + 声明式面板 + web 页） | 仓内自研（`plugins/official/example-panel`） | 三层产物齐全：工具 `example_panel_data`、`plugin.json` 的 `list`/`form`/`chart` 面板、`pages/index.html`；i18n `locales/{en,zh}.json` 键完全对齐；冒烟：`bun test packages/coding-agent/test/plugin-example-panel.test.ts`（真实扩展加载器 + 真实 locale loader）；可分发环境：`bun scripts/build-example-plugin-zip.ts` | 已收录；随发布线上传 `zeta-plugin-example-<version>.zip` |
 | `pi-messenger` | Messenger | inter-agent messaging | https://github.com/nicobailon/pi-messenger | 上游 commit/SHA：`未记录`；改写：`@earendil-works/pi-coding-agent`→`@linxiraos/zeta`，其余 `@earendil-works/*`→`@linxiraos/*`（逐名映射见 `README.md`）；加载/工具注册冒烟：`未记录`（最近一次源码变更随 Zeta 1.1.24 发布，见 `UPDATE-LOG.md`）；已知不兼容：web/桌面（`!ctx.hasUI`）无 overlay 显示面，需独立显示面 | 已迁入 `plugins/official/pi-messenger/`（`plugins/*` 已是根 workspace 成员，版本随 Zeta 发布线） |
 
 ## 类别

@@ -1,0 +1,18 @@
+{
+	"name": "@linxiraos/example-panel",
+	"version": "1.0.0",
+	"description": "Teaching plugin for Zeta's three plugin layers: behaviour (tool), declarative panels (list/form/chart), and a web-ui HTML page.",
+	"type": "module",
+	"license": "MIT",
+	"zeta": {
+		"version": "1.0.0",
+		"extensions": ["./index.ts"],
+		"locales": {
+			"en": "locales/en.json",
+			"zh": "locales/zh.json"
+		}
+	},
+	"scripts": {
+		"test": "bun test test"
+	}
+}

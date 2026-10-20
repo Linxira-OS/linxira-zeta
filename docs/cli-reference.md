@@ -267,7 +267,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `join` | Join a shared collab session (same as `/join`); refuses to start while `collab.enabled` is off. | [collab](./collab.md) |
 | `login` | Log in to a model provider from the terminal (counterpart of `/login`). | |
 | `models` | List, search, and refresh available models. | [models](./models.md) |
-| `plugin`, `plugins` | Manage plugins (install, uninstall, list, etc.). | [plugins](./plugins.md), [extensions](./extensions.md), [marketplace](./marketplace.md) |
+| `plugin`, `plugins` | Manage plugins (install, uninstall, list, etc.); `plugins panel <plugin> <panel>` prints one declarative panel's data as a native host draws it. | [plugins](./plugins.md), [writing a plugin](./writing-a-plugin.md), [extensions](./extensions.md), [marketplace](./marketplace.md) |
 | `play` | Replay a `/record` recording in the terminal; Space pauses and `q` quits. | |
 | `predict` | Compare word-completion engines' live ghost text for a prompt. | |
 | `ps` | List and control daemon-supervised background processes (logs, stop, kill, restart). | |

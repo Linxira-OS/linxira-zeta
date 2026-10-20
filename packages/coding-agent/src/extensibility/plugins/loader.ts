@@ -24,6 +24,7 @@ import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from
 import { findExtensionDirectoryIndex, resolveExtensionDirectory } from "../extensions/directory-resolution";
 import { installLegacyPiSpecifierShim } from "./legacy-pi-compat";
 import { clearPluginLocaleCache, loadPluginLocaleCatalog, type PluginLocaleCatalog } from "./locales";
+import { parsePluginUi } from "./parser";
 import { normalizePluginRuntimeConfig, readPluginRuntimeConfig } from "./runtime-config";
 import {
 	type InstalledPlugin,
@@ -245,6 +246,21 @@ async function collectPluginsAtRoot(
 			continue;
 		}
 		manifest.version = pluginPkg.version;
+
+		// A `ui` declaration the host cannot render is dropped with a named
+		// warning, exactly like a bad `locales` block: the plugin still loads,
+		// and the panel host never sees a half-understood declaration. A plugin
+		// that declares no `ui` is left untouched — no `ui` key is added — so a
+		// manifest without panels reads exactly as it did before panels existed.
+		if (manifest.ui !== undefined) {
+			const ui = parsePluginUi(manifest.ui);
+			if (ui.ok) {
+				manifest.ui = ui.ui;
+			} else {
+				logger.warn("plugins: invalid ui declaration", { name, error: ui.error });
+				manifest.ui = undefined;
+			}
+		}
 
 		const runtimeState = runtimeConfig.plugins[name];
 

@@ -18,6 +18,47 @@ plugins/official/<plugin-id>/
 └── tests/
 ```
 
+## 示例走查：`example-panel`（三层插件的完整样板）
+
+`plugins/official/example-panel/` 是标准模板的**可运行实例**，也是三层插件的
+教学样板。它同时携带三层产物，因此可以逐层核对"插件产物落在哪个前端"：
+
+| 层 | 该插件里的东西 | 谁渲染 / 谁执行 | 怎么看 |
+|---|---|---|---|
+| 行为 | 工具 `example_panel_data`、命令 `/example-panel` | 会话进程内的 TS 扩展 | 模型调用工具；命令打印任务统计 |
+| 声明式面板 | `plugin.json` 的 `ui.panels`：`list` / `form` / `chart` | 有原生渲染器的宿主（zetawork GUI 右栏「插件」页） | 面板由 Rust 原生绘制，无 webview、无第二个 HTTP 服务 |
+| web 页 | `pages/index.html` | web-ui 插件宿主；GUI 的插件栏用 webview 打开同一 URL | `/plugins/view/example-panel/pages/index.html` |
+
+逐层读法：
+
+1. **行为**：`index.ts` 的工厂只做两件事 —— `registerTool`（面板的数据源）与
+   `registerCommand`（用户入口）。数据只有一份：`data/tasks.json`。
+2. **声明式面板**：`plugin.json` 里每个声明式面板用
+   `source: { tool, args }` 指向一次工具调用，**不指向 HTTP 路由**。理由是
+   生产数据的那段代码本来就以工具形式存在，而且面板必须在 `zetacode serve`
+   没起来时也能画（桌面不依赖 HTTP 适配器）。工具返回的 `details` 形状即渲染
+   契约：`list → { rows }`、`form → { fields: [{key,label,value}] }`、
+   `chart → { points: [{label,value}] }`。
+3. **web 页**：`pages/index.html` 是纯静态页，由 web-ui 的
+   `/api/plugin-assets/<plugin>/<page>` 提供，宿主页
+   `/plugins/view/<plugin>/<page>` 用 iframe 挂载，页面可继续调用 `/api/*`。
+   `kind: "html"` 的面板就指向这个既有 URL 方案，不另造 scheme。
+4. **i18n**：`package.json` 的 `zeta.locales` 声明 `locales/{en,zh}.json`；
+   工具的 `ctx.t()` 让 `form` 面板的字段标签跟随宿主语言（清单里的 `title`
+   是静态数据，保持语言中立）。
+5. **测试**：插件自带 `test/example-panel.test.ts`（零依赖，解压即可
+   `bun test`），宿主侧另有
+   `packages/coding-agent/test/plugin-example-panel.test.ts`（真实扩展加载器 +
+   真实 locale loader + 工具执行）。
+6. **分发**：`bun scripts/build-example-plugin-zip.ts` 产出
+   `zeta-plugin-example-<version>.zip` —— 解压后是完整环境（`git init` + 一个
+   提交、README、AGENTS.md、清单、源码），丢进 `~/.zeta/agent/plugins` 即安装。
+
+新建官方插件时，直接以该目录为起点：删掉 `data/` 的示例数据、换掉 `id` 与
+工具名，三层产物与这份 README 的检查表保持不变。设计契约见
+[`document/plugin-system.md`](../../document/plugin-system.md#三层模型2026-10-20)，
+用户侧写作指南见 [`docs/writing-a-plugin.md`](../../docs/writing-a-plugin.md)。
+
 ## `locales/` 与宿主 i18n（已实现）
 
 标准模板里的 `locales/{zh,en}.json` 是**插件宿主 i18n 的字符串表**：插件在

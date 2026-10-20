@@ -30,10 +30,25 @@
  */
 
 import { $, Glob } from "bun";
+import { readFileSync } from "node:fs";
 import { compareVersions } from "../packages/utils/src/version";
 
 const changelogGlob = new Glob("packages/*/CHANGELOG.md");
 const REPO = process.env.OMP_REPO ?? process.env.GITHUB_REPOSITORY ?? "Linxira-OS/linxira-zeta";
+
+/**
+ * The example-plugin environment's asset name. It carries the *plugin's* own
+ * version (its release line is separate from the product's), so it is read
+ * from the plugin package rather than derived from `version` — the release
+ * job takes it from `scripts/build-example-plugin-zip.ts`, the same file.
+ */
+const EXAMPLE_PLUGIN_ZIP = `zeta-plugin-example-${
+	(
+		JSON.parse(readFileSync(new URL("../plugins/official/example-panel/package.json", import.meta.url), "utf8")) as {
+			version: string;
+		}
+	).version
+}.zip`;
 
 // Canonical ordering used by `fix-changelogs`; unknown categories sort
 // alphabetically after these.
@@ -331,9 +346,15 @@ function buildAssetSections(version: string): string {
 	// distribution PKGBUILDs fetch these URLs verbatim.
 	const productAssets = ["zeta-ide-linux-x64", "zeta-ide-win-x64.exe"];
 	// Remaining release_github assets: root license, third-party notices, the
-	// checksum manifest, and the browser relay extension. Keep in sync with
-	// that job's `files:` list.
-	const miscAssets = ["LICENSE", "SHA256SUMS.txt", "THIRD-PARTY-NOTICES.txt", "zeta-browser-relay-extension.zip"];
+	// checksum manifest, the browser relay extension, and the example-plugin
+	// environment. Keep in sync with that job's `files:` list.
+	const miscAssets = [
+		"LICENSE",
+		"SHA256SUMS.txt",
+		"THIRD-PARTY-NOTICES.txt",
+		"zeta-browser-relay-extension.zip",
+		EXAMPLE_PLUGIN_ZIP,
+	];
 
 	return `## CLI binaries\n\n${cliAssets.map(link).join("\n")}\n\n## Product binaries\n\n${productAssets.map(link).join("\n")}\n\n## Other assets\n\n${miscAssets.map(link).join("\n")}`;
 }

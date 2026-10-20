@@ -451,7 +451,7 @@ except two deliberate holes:
 | zetawork desktop | `zetawork-<ver>-setup-x64.exe` (NSIS: GUI + `zetacode.exe` + `zetaide.exe` + `zetawork.exe` + `WebView2Loader.dll`), `zetawork-<ver>-windows-x64.zip` (GUI + loader only), `zetawork-<ver>-1-x86_64.pkg.tar.zst` (TUI on PATH, GUI + companions in `/usr/lib/zetawork`), `zetawork-<ver>-x86_64.AppImage` (same payload) | **none** — the GUI never enters the npm chain |
 | zetaide          | `zeta-ide-{linux-x64,win-x64.exe}`                                                                                               | `@linxiraos/ide`                              |
 | editor           | — (cloud component)                                                                                                              | `@linxiraos/editor`                           |
-| official plugins | —                                                                                                                                | `@linxiraos/pi-messenger`                     |
+| official plugins | `zeta-plugin-example-<ver>.zip`（三层插件教学环境：`scripts/build-example-plugin-zip.ts`，解压即含 `git` 历史） | `@linxiraos/pi-messenger`（`example-panel` 本期只以 zip 分发，不进 npm 发布腿） |
 
 The Electron desktop (`zeta-desktop-*`) is gone for good; "desktop" means
 `zetawork`'s GUI mode only. Windows ships an NSIS per-user installer

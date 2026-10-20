@@ -4,11 +4,20 @@
  * Handles `zetacode plugin <command>` subcommands for plugin lifecycle management.
  */
 
+import * as fs from "node:fs";
 import * as path from "node:path";
-import { APP_NAME, CLI_BIN_NAME, getPluginsNodeModules, getProjectDir } from "@linxiraos/pi-utils";
+import {
+	APP_NAME,
+	CLI_BIN_NAME,
+	getAgentDir,
+	getPluginsDir,
+	getPluginsNodeModules,
+	getProjectDir,
+} from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { resolveOrDefaultProjectRegistryPath } from "../discovery/helpers";
 import { PluginManager, parseSettingValue, validateSetting } from "../extensibility/plugins";
+import { readCatalogue, readPanelData } from "../extensibility/plugins/panels";
 import { setInstalledPluginEnabled } from "../extensibility/plugins/toggle";
 import {
 	getInstalledPluginsRegistryPath,
@@ -37,7 +46,8 @@ export type PluginAction =
 	| "disable"
 	| "marketplace"
 	| "discover"
-	| "upgrade";
+	| "upgrade"
+	| "panel";
 
 export interface PluginCommandArgs {
 	action: PluginAction;
@@ -72,6 +82,7 @@ const VALID_ACTIONS: PluginAction[] = [
 	"marketplace",
 	"discover",
 	"upgrade",
+	"panel",
 ];
 
 /**
@@ -189,6 +200,9 @@ export async function runPluginCommand(cmd: PluginCommandArgs): Promise<void> {
 			break;
 		case "upgrade":
 			await handleUpgrade(manager, cmd.args, cmd.flags);
+			break;
+		case "panel":
+			await handlePanel(manager, cmd.args, cmd.flags);
 			break;
 	}
 }
@@ -996,6 +1010,117 @@ async function handleConfig(
  * install path; deduped by resolved package name using the same active-scope
  * precedence as runtime loading.
  */
+/**
+ * Find the plugin a panel host asked for, by any name it answers to: the
+ * catalogue id (`plugin.json`), the package name, the package's basename, or its
+ * directory.
+ *
+ * Two sources, in this order: the plugin manager's view (an npm install, a
+ * `plugin link`, a marketplace install — anything recorded in the lockfile or
+ * the plugins `package.json`), then a plain directory scan of the same roots
+ * the native host reads (`~/.zeta/agent/plugins`, `~/.zeta/plugins/node_modules`).
+ * The second one matters because a *dropped-in* plugin — the shape the
+ * distributable example ships as — is a complete environment with no install
+ * bookkeeping, and a panel host that can see its `plugin.json` must be able to
+ * run its tool.
+ */
+async function findPanelPlugin(
+	manager: PluginManager,
+	wanted: string,
+): Promise<{ name: string; path: string } | undefined> {
+	const needle = wanted.trim().toLowerCase();
+	if (!needle) return undefined;
+	const answers = (dir: string, name: string): boolean => {
+		const aliases = new Set([name, path.basename(dir), readCatalogue(dir).id]);
+		return [...aliases].some(alias => alias.toLowerCase() === needle);
+	};
+	for (const plugin of await manager.list()) {
+		if (answers(plugin.path, plugin.name)) return { name: plugin.name, path: plugin.path };
+	}
+	for (const dir of droppedInPluginDirs()) {
+		if (answers(dir, path.basename(dir))) return { name: path.basename(dir), path: dir };
+	}
+	return undefined;
+}
+
+/** Directories under the plugin roots that look like a plugin package. */
+function droppedInPluginDirs(): string[] {
+	const roots = [path.join(getAgentDir(), "plugins"), path.join(getPluginsDir(), "node_modules")];
+	const dirs: string[] = [];
+	const push = (dir: string): void => {
+		let isDir = false;
+		try {
+			isDir = fs.statSync(dir).isDirectory();
+		} catch {
+			return;
+		}
+		if (!isDir) return;
+		if (fs.existsSync(path.join(dir, "plugin.json")) || fs.existsSync(path.join(dir, "package.json"))) dirs.push(dir);
+	};
+	for (const root of roots) {
+		let entries;
+		try {
+			entries = fs.readdirSync(root, { withFileTypes: true });
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			if (!entry.isDirectory() || entry.name === "node_modules" || entry.name.startsWith(".")) continue;
+			if (!entry.name.startsWith("@")) {
+				push(path.join(root, entry.name));
+				continue;
+			}
+			// A scope directory: `node_modules/@scope/<plugin>`.
+			let scoped;
+			try {
+				scoped = fs.readdirSync(path.join(root, entry.name), { withFileTypes: true });
+			} catch {
+				continue;
+			}
+			for (const inner of scoped) {
+				if (inner.isDirectory()) push(path.join(root, entry.name, inner.name));
+			}
+		}
+	}
+	return dirs;
+}
+
+/**
+ * `zetacode plugins panel <plugin> <panel> [--json]` — run one declarative
+ * panel's data tool and print its result.
+ *
+ * This is the call a native host makes: the desktop's plugin column runs
+ * exactly this and draws `details`. It goes through the same extension loader
+ * and the same per-plugin locale catalogue a session uses, so a panel cannot
+ * show different data from the tool it names.
+ */
+async function handlePanel(manager: PluginManager, args: string[], flags: { json?: boolean }): Promise<void> {
+	const [pluginId, panelId] = args;
+	if (!pluginId || !panelId) {
+		console.error(`Usage: ${CLI_BIN_NAME} plugins panel <plugin> <panel> [--json]`);
+		process.exit(1);
+		return;
+	}
+	const plugin = await findPanelPlugin(manager, pluginId);
+	if (!plugin) {
+		console.error(`Plugin not installed: ${pluginId}`);
+		process.exit(1);
+		return;
+	}
+	try {
+		const result = await readPanelData(plugin.path, panelId);
+		if (flags.json) {
+			console.log(JSON.stringify(result));
+			return;
+		}
+		console.log(`${result.plugin} · ${result.panel} (${result.kind})`);
+		console.log(JSON.stringify(result.data, null, 2));
+	} catch (error) {
+		console.error(error instanceof Error ? error.message : String(error));
+		process.exit(1);
+	}
+}
+
 async function collectPluginsForValidation(manager: PluginManager): Promise<InstalledPlugin[]> {
 	const byName = new Map<string, InstalledPlugin>();
 	for (const plugin of await manager.list()) {
@@ -1121,6 +1246,7 @@ ${chalk.bold("Commands:")}
   disable <pkg>                  Disable plugin without uninstalling
   marketplace <cmd>            Manage marketplace sources (add, remove, update, list)
   discover [marketplace]        Browse available marketplace plugins
+  panel <plugin> <panel>        Print one declarative panel's data (what a native host draws)
 
 ${chalk.bold("Feature Syntax:")}
   pkg                Install with default features

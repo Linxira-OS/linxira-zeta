@@ -56,6 +56,21 @@ export interface PluginManifest {
 	 * falls back to those conventional files when they exist.
 	 */
 	locales?: PluginLocalePaths;
+
+	/**
+	 * Declarative UI: the panels a host with a native renderer may draw.
+	 *
+	 * A panel is either declarative (`list`/`form`/`chart`, data from one tool
+	 * call the host makes) or a web page (`html`, the plugin's own file served
+	 * by the web-ui page host). The native renderer is the desktop's property:
+	 * the manifest only says *what* to render, never how — so a plugin written
+	 * in any language gets a native panel exactly when its panel is
+	 * declarative.
+	 *
+	 * Omitting `ui` keeps a plugin byte-for-byte what it is today: no panel,
+	 * no rendering path.
+	 */
+	ui?: PluginUi;
 }
 
 /** Catalogue file paths per host language for a plugin's `ctx.t()` strings. */
@@ -63,6 +78,82 @@ export interface PluginLocalePaths {
 	zh?: string;
 	en?: string;
 }
+
+/**
+ * The `ui` block of a plugin manifest: what the host may draw for this plugin.
+ */
+export interface PluginUi {
+	/** Panels in declaration order; the host shows them in that order. */
+	panels?: PluginPanel[];
+}
+
+/**
+ * How a declarative panel gets its data: one tool call the host makes.
+ *
+ * A tool call — not an HTTP route — because the data producer already exists
+ * as a tool registration, and because a panel must render without `zetacode
+ * serve` running (the desktop's layer contract: front ends do not depend on
+ * the HTTP adapter). The gateway stays the browser's path to the same plugin;
+ * it is not a prerequisite for the desktop's own panels.
+ */
+export interface PluginPanelToolSource {
+	/** Name of the tool the plugin registers (e.g. `example_panel_data`). */
+	tool: string;
+	/** Arguments passed to that tool; omitted means `{}`. */
+	args?: Record<string, unknown>;
+}
+
+/** Panel kinds the native renderer understands. */
+export type PluginPanelKind = "list" | "form" | "chart" | "html";
+
+/** The fields every panel declares. */
+interface PluginPanelBase {
+	/** Stable id, `[a-z0-9][a-z0-9-]*`, unique within the plugin. */
+	id: string;
+	/** Panel head text, already localized by the plugin when it has locales. */
+	title: string;
+}
+
+/** A table: one row per result, one cell per declared column. */
+export interface PluginListPanel extends PluginPanelBase {
+	kind: "list";
+	source: PluginPanelToolSource;
+	/** Ordered keys, one column each; omitted means the row's own key order. */
+	columns?: string[];
+}
+
+/** A read-only key/value form: labels the host draws, values from the tool. */
+export interface PluginFormPanel extends PluginPanelBase {
+	kind: "form";
+	source: PluginPanelToolSource;
+}
+
+/** A bar chart over `{ label, value }` points. */
+export interface PluginChartPanel extends PluginPanelBase {
+	kind: "chart";
+	source: PluginPanelToolSource;
+}
+
+/**
+ * A web page: the host opens `/plugins/view/<plugin>/<page>` for this plugin.
+ *
+ * `entry` is the page path the web-ui host already addresses, so an html panel
+ * adds no second URL scheme — it points at the one that exists.
+ */
+export interface PluginHtmlPanel extends PluginPanelBase {
+	kind: "html";
+	/** Path to the `.html` file inside the plugin package, POSIX separators. */
+	entry: string;
+}
+
+/** One declared panel. */
+export type PluginPanel = PluginListPanel | PluginFormPanel | PluginChartPanel | PluginHtmlPanel;
+
+/** Kinds whose data comes from a tool call (`source`). */
+export const PLUGIN_DECLARATIVE_PANEL_KINDS = ["list", "form", "chart"] as const;
+
+/** Every panel kind a manifest may declare. */
+export const PLUGIN_PANEL_KINDS = [...PLUGIN_DECLARATIVE_PANEL_KINDS, "html"] as const;
 
 /**
  * The `package.json` keys a plugin may declare its manifest under, most

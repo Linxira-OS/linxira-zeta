@@ -46,22 +46,22 @@ pub const MAX_SUBS_PER_PANE: usize = 8;
 /// How long a toast stays on screen.
 pub const TOAST_TTL: Duration = Duration::from_millis(1800);
 
-/// The right column's five panels — the spec's 文件树 / 历史 / Git / 用量 plus
-/// the host 资源 reading.
+/// The right column's six panels — the spec's 文件树 / 历史 / Git / 用量, the
+/// host 资源 reading, and the native plugin panels.
 ///
 /// The 用量 tab shows the *active conversation's* own usage and follows the
 /// active pane/tab; the global roll-up lives in the 用量 container the left
 /// column's foot opens. The two are deliberately different data sources.
 ///
-/// # The reserved slot
+/// # The plugin slot
 ///
-/// R13/R14 put web-based plugin pages in *this* column (Rust-side plugins are
-/// out). Nothing of that is built this round and nothing here forecloses it:
-/// a plugin panel becomes one more variant of this enum plus one arm in
-/// [`crate::right::right_column`], whose body is handed a plain `Rect` — which
-/// is exactly what a WebView2 child window needs to be parented into. The
-/// column's width is the spec's `--side-right-w` ([`crate::right::WIDTH`],
-/// 324pt), so a page laid out for the sidebar fits without a second layout.
+/// R13/R14 reserved this column for plugin pages; the reservation is now
+/// filled. [`RightTab::Plugin`] draws a plugin's **declarative** panels
+/// natively ([`crate::plugin_panels`]) and hands an `html` panel the body's
+/// rectangle for a WebView2 child ([`crate::embed`]), which is why the column
+/// width is the spec's `--side-right-w` ([`crate::right::WIDTH`], 324pt). The
+/// two plugin layers meet here and nowhere else: `zeta-main` (TUI) and
+/// `termide`/`zetaide` have no plugin layer at all.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RightTab {
 	#[default]
@@ -71,10 +71,13 @@ pub enum RightTab {
 	Usage,
 	/// Host CPU/memory/GPU and the process list, sampled by `sysmon`.
 	Resources,
+	/// The plugin layer: a plugin's declarative panels, drawn natively.
+	Plugin,
 }
 
 impl RightTab {
-	pub const ALL: [Self; 5] = [Self::Files, Self::History, Self::Git, Self::Usage, Self::Resources];
+	pub const ALL: [Self; 6] =
+		[Self::Files, Self::History, Self::Git, Self::Usage, Self::Resources, Self::Plugin];
 
 	/// The panel head, spelled as the spec spells it.
 	pub fn title(self) -> &'static str {
@@ -84,6 +87,7 @@ impl RightTab {
 			Self::Git => t!("Git 状态"),
 			Self::Usage => t!("用量"),
 			Self::Resources => t!("资源"),
+			Self::Plugin => t!("插件"),
 		}
 	}
 
@@ -95,6 +99,7 @@ impl RightTab {
 			Self::Git => t!("git status / log / rev-list（只读）"),
 			Self::Usage => t!("活动会话的日志（~/.zeta/agent/sessions）"),
 			Self::Resources => t!("sysmon（CPU / 内存 / GPU / 进程）"),
+			Self::Plugin => t!("插件清单（~/.zeta/agent/plugins/*/plugin.json）"),
 		}
 	}
 }

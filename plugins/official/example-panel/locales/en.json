@@ -1,0 +1,21 @@
+{
+	"tool.description": "Return the example plugin's panel data: the task list, the settings form, or the task counts by state.",
+	"command.description": "Print the example plugin's task counts, or open its guide page",
+	"command.invite": "Open /plugins/view/example-panel/pages/index.html in the web UI for the browser route.",
+	"command.counts": "{count} tasks: {todo} todo, {doing} doing, {done} done",
+	"panel.tasks": "Tasks",
+	"panel.settings": "Settings",
+	"panel.throughput": "Tasks by state",
+	"panel.guide": "Guide",
+	"state.todo": "todo",
+	"state.doing": "doing",
+	"state.done": "done",
+	"settings.dataFile": "Data file",
+	"settings.taskCount": "Tasks",
+	"settings.locales": "Locales",
+	"settings.panelSource": "Panel data tool",
+	"column.id": "ID",
+	"column.title": "Title",
+	"column.owner": "Owner",
+	"column.state": "State"
+}
