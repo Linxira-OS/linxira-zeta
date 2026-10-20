@@ -1283,8 +1283,7 @@ mod tests {
 
 	#[test]
 	fn the_selection_stays_on_its_panel_and_repairs_when_it_disappears() {
-		let mut registry = Registry::default();
-		registry.panels = fixture_panels();
+		let registry = Registry { panels: fixture_panels(), ..Registry::default() };
 		let mut selection =
 			Selection { plugin: Some("gone".to_owned()), panel: Some("throughput".to_owned()) };
 		let panel = selection

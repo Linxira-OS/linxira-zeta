@@ -343,7 +343,7 @@ impl Binding {
 }
 
 /// Everything the 设置 pane draws, from three GETs.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct View {
 	pub channels: [ChannelConfig; 3],
 	pub runtime: [Runtime; 3],
@@ -352,17 +352,6 @@ pub struct View {
 	pub qr: QrState,
 }
 
-impl Default for View {
-	fn default() -> Self {
-		Self {
-			channels: Default::default(),
-			runtime: Default::default(),
-			workspaces: Vec::new(),
-			bindings: Vec::new(),
-			qr: QrState::default(),
-		}
-	}
-}
 
 impl View {
 	pub fn channel(&self, id: ChannelId) -> &ChannelConfig {

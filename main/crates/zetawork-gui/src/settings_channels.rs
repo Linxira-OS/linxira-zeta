@@ -53,7 +53,11 @@ struct QrTexture {
 /// The finished work of one worker thread.
 enum Event {
 	/// A full or live read, and whether a commit produced it.
-	View { result: Result<View, String>, from_commit: bool, generation: u64 },
+	View {
+		result: Result<Box<View>, String>,
+		from_commit: bool,
+		generation: u64,
+	},
 	/// A QR bitmap for `url`.
 	Qr { url: String, result: Result<QrImage, String> },
 	/// One send result.
@@ -246,7 +250,7 @@ impl ChannelsPanel {
 				Ok(transport) => channels::commit_many(&transport, &fields),
 				Err(error) => Err(error),
 			};
-			let _ = tx.send(Event::View { result, from_commit: true, generation });
+			let _ = tx.send(Event::View { result: result.map(Box::new), from_commit: true, generation });
 		});
 	}
 
@@ -331,9 +335,7 @@ impl ChannelsPanel {
 			return None;
 		}
 		{
-			let Some(origin) = self.ensure_origin() else {
-				return None;
-			};
+			let origin = self.ensure_origin()?;
 			let (tx, rx) = mpsc::channel();
 			self.jobs.push(rx);
 			self.qr_pending = Some(url.to_owned());
@@ -379,7 +381,7 @@ impl ChannelsPanel {
 				}
 				channels::load(&transport)
 			})();
-			let _ = tx.send(Event::View { result, from_commit: true, generation });
+			let _ = tx.send(Event::View { result: result.map(Box::new), from_commit: true, generation });
 		});
 	}
 
@@ -431,7 +433,7 @@ impl ChannelsPanel {
 				Ok(transport) => channels::load(&transport),
 				Err(error) => Err(error),
 			};
-			let _ = tx.send(Event::View { result, from_commit, generation });
+			let _ = tx.send(Event::View { result: result.map(Box::new), from_commit, generation });
 		});
 	}
 
@@ -451,7 +453,11 @@ impl ChannelsPanel {
 				Ok(transport) => channels::refresh_live(&transport, &mut view).map(|()| view),
 				Err(error) => Err(error),
 			};
-			let _ = tx.send(Event::View { result, from_commit: false, generation });
+			let _ = tx.send(Event::View {
+				result: result.map(Box::new),
+				from_commit: false,
+				generation,
+			});
 		});
 	}
 
@@ -486,6 +492,7 @@ impl ChannelsPanel {
 				}
 				match result {
 					Ok(view) => {
+						let view = *view;
 						// A confirmed QR writes the WeChat bot token into
 						// web.yml; the live poll does not re-read the config, so
 						// ask for one full read on the next idle tick.
@@ -754,7 +761,7 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, index: usize, workspace: &Works
 	ui.painter().text(
 		pos2(rect.min.x, rect.center().y),
 		egui::Align2::LEFT_CENTER,
-		&t!("工作区 {}", index + 1),
+		t!("工作区 {}", index + 1),
 		FontId::new(11.5, egui::FontFamily::Proportional),
 		theme::TEXT,
 	);
