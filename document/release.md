@@ -198,6 +198,24 @@ watch` on the headSha+`event=push` run, poll ≥60 s, max 90 min) and aborts
          publish). No separate dispatch: the atomic push **is** the release run.
       2. `gh workflow run ci.yml --ref main` with `skip_npm` — a release-mode
          dispatch that skips publishing (re-runs / 补发).
+   - **A tag alone does not start the run.** `ci.yml` listens on
+     `push.branches` only (no `tags:` filter); a release run exists because the
+     branch push that carries the tag lands on `main` and `release_metadata`
+     then sees the tag at HEAD. When the branch is *already* at that commit (a
+     driver interrupted after pushing the bump, or a re-cut onto the current
+     HEAD), the tag push generates no event and there is no run at all: start
+     it with `gh workflow run ci.yml --ref <tag>`, which sets
+     `github.ref = refs/tags/v…` and therefore `is-release=true` (1.3.2 ran as
+     dispatch `39348637261` for exactly this reason).
+   - **Verify npm by the exact version, not by "publish printed a plus line".**
+     `npm publish` exits 0 for the big tarballs (`@linxiraos/zeta` ≈ 32 MB,
+     `@linxiraos/main` with the platform leaves) several minutes before the
+     registry serves them — the write goes through npm's scan queue, so
+     `npm view <pkg>@<version>` and the `/-/<pkg>-<version>.tgz` URL 404 in the
+     meantime while the smaller packages are already live (1.3.2: the pi-*
+     line was visible immediately, `zeta`/`main` appeared ~15 min later).
+     Absence right after the run is not a publish failure; re-poll before
+     re-publishing, or the retry will collide with the queued write.
    - **Pushing the tag itself triggers nothing**: `on.push` lists `branches:`
      only, never `tags:`. A release run is always a _re-run of that commit's push
      run_ (or the equivalent dispatch above), which is what lets `release_metadata`
