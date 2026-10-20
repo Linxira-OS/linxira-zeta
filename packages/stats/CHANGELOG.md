@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Added
+
+- Model-side AI breakdown beside the user-frustration metrics: per-model turn and token counts are shown in the dashboard
+
+### Removed
+
+- Two suites that imported symbols no longer present in the tree
+
 ## [1.3.2] - 2026-10-19
 
 - Version line moves to 1.3.2 with the rest of the suite; no user-visible change in this package.

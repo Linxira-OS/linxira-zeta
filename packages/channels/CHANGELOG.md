@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+- Channel config writes go through a read-modify-write under one file lock with a shared reader, and the runtime lock is published atomically (temp file + link), so concurrent `login`/`serve`/settings writers no longer drop keys
+- `channels.reportPolicy` is read from settings instead of being inert, and a session-only route mapping is cleaned up when its session ends
+
 ## [1.3.2] - 2026-10-19
 
 - Version line moves to 1.3.2 with the rest of the suite; no user-visible change in this package.

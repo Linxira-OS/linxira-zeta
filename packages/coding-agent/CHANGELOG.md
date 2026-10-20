@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+### Added
+
+- Cross-process agent mesh: `MeshNode` advertises a workspace in the mesh directory, messages travel over a loopback socket (POSIX) or named pipe (Windows) with a per-workspace token, and agents address each other as `<workspaceId>/<agentId>` (aliases and directory names resolve, ambiguity is an error). Offline peers get an atomic mailbox write plus a wake, and a mutual wait returns `peer-waiting-on-you` instead of deadlocking both sessions (`@agent list`, `@agent use`, `@team`)
+- `zetacode channels status|login|logout|enable|disable` (and `--json`): the CLI hosts IM channels itself, prints a terminal QR for the WeChat login state machine, and shares one instance lock with `serve`
+- A default workspace is initialised on first use: `git init`, `.zeta/settings.json` with `memory.backend = mnemopi`, an `AGENTS.md` and a `PERSONA.md`, and the first commit — idempotent, and the persona is injected into the prompt after the personality block
+- Plugins may declare native GUI panels in their manifest (`ui.panels[]`: `list`, `form`, `chart`, `html`); `zetacode plugins panel <plugin> <panel> --json` feeds the desktop shell, and HTML panels are served through `/plugins/view/…`
+- A user board lives in `.zeta/board/` (markdown with front matter) with gateway endpoints under `/api/board*`, a GUI right-column tab and a TUI pane
+- Remote access: `zetacode serve` gained `--host`, `--tls`, `--tls-cert`, `--tls-key` and `--allow-plain-http` (plain HTTP off-loopback is refused), a pairing QR, and SHA-256-hashed tokens that can be rotated and revoked; failed auth is limited to 10 attempts per 60 s per address
+- Settings are scoped per session working directory: `Settings.sessionForCwd(cwd)` keeps the project layer with its own repo, live sessions reload after a write, and `GET /api/settings` accepts `x-zeta-cwd`
+- `channels.reportPolicy` decides whether a channel session reports into its IM thread
+
+### Fixed
+
+- `web.yml` writes are read-modify-write under one file lock with a shared config reader, so a channel login and a settings save no longer lose each other's keys; the instance lock is published atomically
+- Every top-level session registers its own agent id (a second root no longer replaces a live `main`), `agent://main` resolves inside the caller's workspace, and the roster and billing views exclude all roots
+- A pane's PTY starts with the workbench terminal identity (`TERM_PROGRAM=zetawork`, its version, `COLORTERM=truecolor`) and leaked outer-emulator markers stripped, for both the in-process and the `serve`-attached backends
+
 ## [1.3.2] - 2026-10-19
 
 ### Added

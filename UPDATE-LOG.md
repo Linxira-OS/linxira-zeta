@@ -2,6 +2,59 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.0
+
+- **用户看板**：`.zeta/board/` 下每张卡是一份带 front-matter 的 markdown，GUI 右栏
+  新增「看板」页（表单增删改、列间移动）、TUI 新增看板窗格，网关提供
+  `/api/board*` 与交接接口（termide vendored 偏离 30：`panel-ide` 的 `todo.rs`
+  由 `board.rs` 取代）。
+- **GUI PDF 阅读器**：`SessionKind::Pdf` + `pdf.rs`（hayro 纯 Rust 解码 → vello
+  位图 → egui 纹理），翻页/缩放/适配/重读与错误提示齐全；TUI **永不**渲染 PDF
+  （有守卫测试钉住）。
+- **终端图形**：桌面内嵌终端实现 kitty 图形协议子集（`a=t/T/p/d/q`、`m=1` 分块、
+  PNG/RGBA、`c`/`r`、`C=1`、`z`、`q`），按上报的**设备像素** 1:1 贴合单元格绘制；
+  同时回答 `CSI 16 t`/`14 t`/`18 t`、DA1 与 XTVERSION，并以 `TERM_PROGRAM=zetawork`
+  自报身份（本地 PTY 与 `serve` 挂载两条路径一致）。
+- **移动端远程访问**：`zetacode serve` 新增 `--host`/`--tls`/`--tls-cert`/`--tls-key`/
+  `--allow-plain-http`（非回环明文 HTTP 直接拒绝），配对二维码（SVG）、令牌轮换与
+  吊销（SHA-256 存储）、401 门禁与失败限流（60 秒 10 次 → 429）；web-ui 懒加载媒体
+  并支持 PWA。
+- **GUI 设置 → IM 渠道**：二维码登录生命周期、本地 `qrcodegen` 回退、凭据掩码、
+  工作区/别名/会话映射编辑；`PUT /api/web-config` 现在接受 `[{alias,path}]` 与
+  `SessionMapping[]`，不再整文件重写丢键。
+- **默认工作区**：首次使用时初始化 `git init` + `.zeta/settings.json`
+  （`memory.backend = mnemopi`）+ `AGENTS.md` + `PERSONA.md` + 首次提交，幂等；
+  `PERSONA.md` 注入到 personality 块之后；`@status` 汇总；新增
+  `channels.reportPolicy` 设置。
+- **跨进程 Agent 网格**：新增 `src/mesh/{transport,directory,mailbox,mesh-node,mutual-wait}.ts`，
+  回环 socket（POSIX）/ 命名管道（Windows）+ 每工作区令牌握手，NDJSON、1 MiB 上限、
+  心跳与 `gone` 判定、离线信箱 + wake + 去重；地址形如 `<workspaceId>/<agentId>`
+  （别名与目录名可解析，歧义报错）；互相等待返回 `peer-waiting-on-you` 而不死锁。
+  CLI：`@agent list`、`@agent use`、`@team`。根会话各自持有独立 id，`agent://main`
+  只解析到调用方工作区。
+- **CLI 内托管 IM 渠道**：`zetacode channels status|login|logout|enable|disable`
+  （`--json`），终端二维码（UTF-8 半块），微信登录状态机；与 `serve` 共用
+  `instance-lock.ts`；新增 `session-host.ts`，交互式与 `--print` 都能托管运行时。
+- **插件三层的第二层**：插件清单可声明 `ui.panels[]`（`list`/`form`/`chart`/`html`），
+  GUI 以原生控件绘制前三类、HTML 面板走 `/plugins/view/…` webview；`zetacode
+  plugins panel <plugin> <panel> --json` 供自动化读取；示例插件
+  `plugins/official/example-panel/` 提供三面板 + 一页面 + 一工具 + 中英词条，发布链
+  产出 `zeta-plugin-example-<ver>.zip`。`zetaide`/工作台 TUI 不带插件面（守卫测试）。
+- **GUI「全部设置」与中英双语**：`settings_schema.rs` 按 schema 生成标签页/分组/类型化
+  控件/搜索/掩码，写入后回读确认，切语言整页重取；新增 i18n 守卫测试（每个中文
+  `t!` 键必须有 en 行）。
+- **架构文档**：`document/architecture-layers.md`（core ← host ← 前端，HTTP 只是适配器，
+  迁移顺序）、`document/agent-mesh.md`、`document/agent-mesh-scenarios.md`、
+  `document/default-workspace-scenarios.md`、`document/personal-account-channels.md`；
+  README 重写为中英双语锚点导航 + 仓库分层地图。
+
+- **修复（本轮审计发现）**：设置按会话工作目录隔离（`Settings.sessionForCwd`，写后
+  热重载，`x-zeta-cwd` 传递）；`web.yml` 读改写 + 文件锁 + 共享读取器、实例锁原子发布；
+  渠道 `reportPolicy` 与 `sessionMappings.mode` 真正生效；发布链补齐
+  `release_web_ui_packages`、单点数叶包源、`cargo-workspace-lock` 全量重写、
+  叶包 `.stamp.json` 新鲜度守卫；`mesh` 互相等待的两端都能拿到答复（此前快的一方
+  答完即撤回，慢的一方整段阻塞）。
+
 ### 1.3.2
 
 - **桌面应用内更新**：状态栏右侧新增「检查更新」（`检查更新` / `正在检查…` /

@@ -55,13 +55,20 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Desktop installers (1.3.2)                     | `scripts/packaging/windows/installer.nsi` + `scripts/packaging/*`           | NSIS `zetawork-<ver>-setup-x64.exe` (GUI + companions, per-user), GUI-only `-windows-x64.zip`, Arch `.pkg.tar.zst` and AppImage with companions            |
 | In-app GUI updater (1.3.2)                     | `main/crates/zetawork-gui/src/updates.rs` + `zetacode update --desktop`     | Status-bar item; the download/verify/silent-install runs through the shipped `zetacode` because the GUI holds no TLS client                                         |
 | Resource panel (1.3.2)                         | `main/crates/sysmon` + GUI `RightTab::Resources` + TUI `PaneKind::Resources` | CPU/memory/GPU gauges and a CPU-ranked process table sampled on a worker thread, shared by both surfaces                                                       |
-| User board (双看板·用户层) (1.3.3)             | `termide/crates/panel-ide/src/board.rs` + GUI `RightTab::Board` + TUI `PaneKind::Board` + `src/server/web-gateway/board.ts` | Three-column Todo/Doing/Done board of markdown cards under `<project>/.zeta/board/`; GUI/TUI/IDE edit the same files; gateway CRUD + `handoff` brief; docs/board.md. Agent `todo` stays session-scoped and separate |
+| User board (双看板·用户层) (1.4.0)             | `termide/crates/panel-ide/src/board.rs` + GUI `RightTab::Board` + TUI `PaneKind::Board` + `src/server/web-gateway/board.ts` | Three-column Todo/Doing/Done board of markdown cards under `<project>/.zeta/board/`; GUI/TUI/IDE edit the same files; gateway CRUD + `handoff` brief; docs/board.md. Agent `todo` stays session-scoped and separate |
 | Web-ui session tabs + rail drag (1.3.2)        | `web-ui/lib/session-tabs-persist.ts`, `SidebarProjectsList.tsx`             | Tab persistence/restore, close-family + draft confirm, running badge; project reorder by drag persisted as manual order                                        |
 | Plugin i18n (1.3.2)                            | `src/extensibility/plugins/locales.ts` + `ExtensionContext.t`               | Manifest `locales` (or `locales/<tag>.json`), per-extension binding, current → en → fallback → key                                                            |
 | Extension peer APIs (1.3.2)                    | `src/registry/agent-directory.ts`, `src/irc/facade.ts`                     | `ctx.agents` roster and `ctx.messaging` send/wait/inbox so a plugin no longer deep-imports the IRC bus                                                        |
 | Gitea half of `tea` (1.3.2)                    | `src/tools/tea-issue-pr.ts`, `issue-pr-protocol.ts`                        | `issue://`/`pr://` resolve against a Gitea host; `run_watch` polls a Gitea Actions run                                                                        |
 | Model-side frustration metrics (1.3.2)         | `packages/stats/src/model-side.ts`, `model-metrics.ts`                     | assistant prose stored per turn (`assistant_text`), en+zh lexicons + tool-spiral signals, second section of the frustration route                               |
-| GUI PDF page (1.3.3)                           | `main/crates/zetawork-gui/src/pdf.rs` + `SessionKind::Pdf`                 | hayro (pure Rust) rasterizes pages to egui textures; opened from the file tree or an explicit path; scrolling, paging, zoom, error states. **GUI only** — the TUI refuses `.pdf` (`docs/gui-pdf-viewer.md`) |
+| GUI PDF page (1.4.0)                           | `main/crates/zetawork-gui/src/pdf.rs` + `SessionKind::Pdf`                 | hayro (pure Rust) rasterizes pages to egui textures; opened from the file tree or an explicit path; scrolling, paging, zoom, error states. **GUI only** — the TUI refuses `.pdf` (`docs/gui-pdf-viewer.md`) |
+| Agent mesh (1.4.0)                             | `packages/coding-agent/src/mesh/`                                           | Cross-process mesh: loopback socket / named pipe with a per-workspace token, `<workspaceId>/<agentId>` addressing, heartbeat + `gone`, offline mailbox + wake, mutual-wait probe that answers both sides; `@agent list`/`@agent use`/`@team`; `document/agent-mesh.md` |
+| CLI-hosted IM channels (1.4.0)                 | `packages/coding-agent/src/channels/cli.ts`, `src/cli-commands/channels.ts` | `zetacode channels` `status`/`login`/`logout`/`enable`/`disable` (+`--json`), terminal QR (UTF-8 half blocks), WeChat login state machine, one instance lock shared with `serve`, `session-host.ts` for interactive and `--print` |
+| Default workspace bootstrap (1.4.0)            | `packages/coding-agent/src/default-workspace/`                              | First use: `git init`, `.zeta/settings.json` (`memory.backend = mnemopi`), `AGENTS.md`, `PERSONA.md`, first commit; idempotent; persona injected after the personality block; `document/default-workspace-scenarios.md` |
+| Declarative plugin panels (1.4.0)              | `src/extensibility/plugins/ui.ts` + GUI `plugin_panels.rs` + `pages/plugins/view` | Manifest `ui.panels[]` (`list`/`form`/`chart`/`html`); GUI draws the first three natively, HTML panels run in a webview; `zetacode plugins panel`; example plugin + `zeta-plugin-example-<ver>.zip`; zetaide/TUI carry no plugin surface |
+| Workbench terminal graphics (1.4.0)            | `termide/crates/panel-terminal/src/kitty.rs`, `reports.rs` + GUI `blit.rs`   | Kitty graphics subset (PNG/RGBA, chunks, c/r, C=1, z, q) painted 1:1 at device-pixel cell metrics; the five capability queries answered by both the local PTY and the `serve` backend; `TERM_PROGRAM=zetawork` |
+| GUI settings schema + i18n (1.4.0)             | `main/crates/zetawork-gui/src/settings_schema.rs` + `i18n.rs`               | 「全部设置」 generated from `GET /api/settings` (tabs/groups/typed controls/search/masking), PUT then re-GET, language switch re-fetches; guard test requires an en row for every CJK `t!` key |
+| Session-scoped settings + config durability (1.4.0) | `src/config/settings.ts` (`sessionForCwd`), `src/config/web-config.ts`  | A session keeps its own project settings layer and reloads after a write; `web.yml` writes are read-modify-write under one lock with a shared reader; channel instance lock published atomically; `channels.reportPolicy` honoured |
 
 ## Priorities
 
@@ -88,7 +95,8 @@ These exist today (headline capabilities are marked in the root `README.md`):
 - **术语与层级（用户口径）**：**项目 → 工作区**，且 **工作区 = 一个大标签页**；`工作区 1-1`
   读作「项目一 · 第一个大标签页」；每个大标签页下若干**子页面 / 面板**；第一个大标签页 = **总面板**
   （所有项目合并一张表）。
-- **右栏要接 HTML 插件宿主**；但**插件目前只登记进本文档，不暴露、不开发**（见 Deferred Queue）。
+- **右栏插件宿主**：已落地（1.4.0）——同一右栏既画声明式原生面板（`list`/`form`/`chart`），
+  也把 `html` 面板送进 webview；`zetaide` 与工作台 TUI 不承载插件面（守卫测试钉住）。
 - **TUI 只保基本功能**：不再加需求，减法为主；后续投入全在 GUI。
 - **内置编辑器要"像专业编辑器"，但不要代码补全**（能力缺口审计后逐项登记）。
 
@@ -208,7 +216,7 @@ termide 的 Rust 编辑器核心**（`panel-editor` + `lsp` + `highlight` + `buf
    Color Picker。
 
 **不做**（只登记 Deferred Queue）：Vim/Emacs 兼容层、Docker Manager、Go Test Runner（我们不写
-Go）、cheat-sheet/http-client 类玩具。**PDF** 已落地为 GUI 页（1.3.3，见 Shipped；TUI 永不渲染，
+Go）、cheat-sheet/http-client 类玩具。**PDF** 已落地为 GUI 页（1.4.0，见 Shipped；TUI 永不渲染，
 已由 `zeta-main` 的 `the_workbench_never_renders_a_pdf` 钉住）。
 
 参考物：`temp/ttt`（TTT 上游原版，`github.com/eugenioenko/ttt`）的形态与
@@ -566,7 +574,7 @@ carried-over requirement.
 - **Vim / Emacs 兼容层**（TTT `vim`/`emacs`）：独立工程，人群小；需要时再做。
 - **Docker Manager**（容器/镜像/卷）：重、与 coding agent 工作流无直接关系。
 - **Go Test Runner**：我们不写 Go（TTT 已退场），不做。
-- ~~**PDF Viewer**~~ DONE (1.3.3): GUI 文档页（`SessionKind::Pdf` + `pdf.rs`，hayro 纯 Rust
+- ~~**PDF Viewer**~~ DONE (1.4.0): GUI 文档页（`SessionKind::Pdf` + `pdf.rs`，hayro 纯 Rust
   光栅化），从文件树/显式路径打开；TUI 仍永不渲染（`zeta-main` 拒绝 `.pdf`，测试
   `the_workbench_never_renders_a_pdf`）。说明见 `docs/gui-pdf-viewer.md`。
 - **cheat-sheet / http-client**：玩具型，不做。
@@ -593,6 +601,21 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **本轮审计遗留（2026-10-20，均已定位、均未做）**：
+  - **WeChat 登录状态机有四处实现**：`packages/coding-agent/src/channels/wechat-login.ts`（CLI）、
+    `main/crates/zetawork-gui/src/channels.rs`（GUI 轮询）、`src/server/web-gateway/` 的渠道
+    路由与 web-ui 面板各判一次 stage，词汇一致但迁移规则各写一遍。收口需要一处"归一化 +
+    迁移"实现，前端只消费结果；属于重构，不改行为。
+  - **`@status` 只做投影、不做校验**：`@status` 汇总的层信息来自 `Settings.sessionForCwd`，
+    但用户层/项目层的**写入**仍只落一层（见上一条记忆设置），面板没有层级选择器；
+    两侧要一起改才有意义。
+  - **`@workspace use` 的 mode 校验**：`switchToWorkspace` 只校验 `resolveDir(alias)`，
+    不区分 `sessionMappings.mode`；在 mixed 配置下，一个无会话映射的工作区别名会静默切到
+    direct 模式而不是报错。需要一条明确的产品口径（报错 / 落到 relay）再动。
+  - **IM 与 CLI 的会话命令词汇不一致**：IM 侧是 `!session use <id|n>`
+    （`src/channels/workspace-router.ts:612`），CLI 侧 `/session` 只有
+    `info`/`delete`/`pin` 等子命令，没有 `use`；两套命令面各记一套动词，是否统一属
+    命令面复核，未定。
 - **记忆设置的写入层级（2026-10-20 定现状，仅登记）**:设置面板与 `/settings` 写
   `memory.backend` 时只落用户层（`~/.zeta/agent/settings.json` 或 `config.yml`），
   面板没有"用户层 / 项目层"选择器。项目层目前的操作路径是直接编辑
@@ -602,21 +625,10 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   仍保持 `off`。要在面板里补项目层写入，需要把 `config/settings.ts` 的项目保存路径从
   仅 `modelRoles` 泛化到任意键（含删除 tombstone 与 watcher 语义），不是界面层的小改。
 
-- **跨工作区多主代理消息（2026-10-20 取证，仅登记，做法待定）**:当前 agent 间消息
-  **只在单进程内**成立——`IrcBus.global()` 与 `AgentRegistry.global()` 都是进程内单例
-  （`packages/coding-agent/src/irc/bus.ts:39-46`、
-  `packages/coding-agent/src/registry/agent-registry.ts:131-135`），主代理身份是单一常量
-  `MAIN_AGENT_ID`（`packages/coding-agent/src/registry/agent-registry.ts:16-17` 从
-  `@linxiraos/pi-tui` 重导出）。IRC 层没有任何跨进程通道：在 `packages/coding-agent/src/irc`
-  下 grep `socket|net.connect|process.send|BroadcastChannel` **零命中**。`agent://` 写入也
-  绕开 HTTP `POST /api/agent/<sessionId>`
-  （路由 `packages/coding-agent/src/server/web-gateway.ts:478-481` →
-  `handleAgentCommand`），直接走进程内 handler + `executeSend`
-  （`packages/coding-agent/src/internal-urls/agent-protocol.ts:149,172-192`）；Collab
-  （`packages/coding-agent/src/collab/`，独立 relay 通道）同样不是这条路径的载体。
-  因此两个工作区各自的主代理互相不可见，需要新增跨进程总线（IPC/socket/relay）或复用到
-  gateway 的转发层。**接口先行**的增量正在 `feat/agent-interfaces` 分支
-  （worktree `temp/agent-interfaces`）开发；本条只定口径，不排期。
+- ~~**跨工作区多主代理消息**~~ DONE (1.4.0)：跨进程网格已落地（回环 socket / 命名管道 +
+  每工作区令牌、`<workspaceId>/<agentId>` 地址、心跳与 `gone`、离线信箱 + wake、
+  互相等待两端都能拿到 `peer-waiting-on-you`）。见文首 Shipped 表的 Agent mesh 行与
+  `document/agent-mesh.md`。
 
 - **`document/agent-team-plugin.md` 悬空引用（2026-10-20 取证）**:`document/plugin-system.md:213`
   把「agent-team 完整开发规格（编排器 / `team_*` 工具 / 人设群聊 / Web pages）」指向
@@ -629,13 +641,13 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   - **值得做**：① **资源面板**（CPU、内存、GPU 占比 + 进程列表按 CPU 排序）——`termide`
     已有 `system-monitor` crate，缺的是面板与接线；② **看板 Board**（三列
     Todo/Doing/Done，带标签）——把现有 TODO 扫描器（`panel-ide/todo.rs`）升级成看板，
-    而不是另写一套解析。**① 与 ② 均已在 1.3.3 交付**，见文首 Shipped 表（资源面板 1.3.2、
-    用户看板 1.3.3）。
+    而不是另写一套解析。**① 与 ② 均已在 1.4.0 交付**，见文首 Shipped 表（资源面板 1.3.2、
+    用户看板 1.4.0）。
   - **已有、不重复**：SQL（`panel-db`）、Markdown/HTML/Mermaid/图片/Outline/诊断/文件
     管理器/Git diff·log·status/终端/编辑器。
   - **明确不做**：Notebook（重、与 zetacode eval 重复）；Stencil 式 Git 图与提交泳道
     （用户裁决"华而不实"，我们的 Git 中心保持现状）。
-  - **已落地**：资源面板（1.3.2）；**PDF Viewer**（1.3.3）——GUI 文档页
+  - **已落地**：资源面板（1.3.2）；**PDF Viewer**（1.4.0）——GUI 文档页
     （`SessionKind::Pdf` + `main/crates/zetawork-gui/src/pdf.rs`，hayro 纯 Rust
     光栅化），从文件树/显式路径打开；TUI 永不渲染（见 `docs/gui-pdf-viewer.md`）。
   - **仍未开发（沿用旧登记）**：Vim/Emacs 兼容层、Docker Manager、Go Test Runner。
