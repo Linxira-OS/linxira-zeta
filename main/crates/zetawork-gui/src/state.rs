@@ -102,10 +102,10 @@ impl RightTab {
 /// What a session tab renders.
 ///
 /// 终端 is the default: a new 大标签页 and a new pane both open one. The other
-/// five are pages the GUI draws itself (R23) — 编辑器, 差异比较器 and Git read
+/// pages are pages the GUI draws itself (R23) — 编辑器, 差异比较器 and Git read
 /// real data; zetaide is the termide panel editor, which this build does not
 /// host yet and says so on the page; Agent 会话 reads a gateway session's SSE
-/// stream.
+/// stream; PDF is [`crate::pdf`], opened from a file rather than the picker.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SessionKind {
 	/// A terminal page. The shell it would run is recorded on the tab.
@@ -128,6 +128,12 @@ pub enum SessionKind {
 	/// the **needs input** and **run finished** notifications
 	/// ([`crate::agent_sessions`]).
 	Agent,
+	/// A PDF opened from the file tree, rasterized by [`crate::pdf`].
+	///
+	/// GUI-only by product ruling: the TUI never renders PDF, and this page is
+	/// the one place a PDF is drawn. It carries a path, never a picker entry —
+	/// there is no PDF to open without a file.
+	Pdf,
 }
 
 impl SessionKind {
@@ -145,6 +151,7 @@ impl SessionKind {
 			Self::Zetacode => "zetacode",
 			Self::Ide => "zetaide",
 			Self::Agent => t!("Agent 会话"),
+			Self::Pdf => t!("PDF 阅读器"),
 		}
 	}
 
@@ -158,6 +165,7 @@ impl SessionKind {
 			Self::Zetacode => "zetacode",
 			Self::Ide => "zetaide",
 			Self::Agent => "Agent",
+			Self::Pdf => "PDF",
 		}
 	}
 
@@ -171,6 +179,7 @@ impl SessionKind {
 			Self::Zetacode => t!("随包的 zetacode（packages/coding-agent/dist/zeta）"),
 			Self::Ide => "termide panel-editor（termide-panel-ide）",
 			Self::Agent => t!("zetacode serve 的 SSE 会话流（/api/agent/<id>/events）"),
+			Self::Pdf => t!("硬盘上的真实 PDF（hayro 光栅化，只读）"),
 		}
 	}
 }
@@ -249,6 +258,18 @@ impl EditorDoc {
 	}
 }
 
+/// Whether `path` is a PDF by extension (case-insensitive).
+///
+/// The GUI's file-open path is shared by the file tree and any explicit path
+/// ([`AppState::open_file`]): this is the one predicate that routes a file to
+/// the PDF page instead of the editor.
+pub fn is_pdf(path: &Path) -> bool {
+	path
+		.extension()
+		.and_then(|ext| ext.to_str())
+		.is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
+}
+
 /// One session tab inside a pane.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SessionTab {
@@ -273,11 +294,14 @@ pub struct SessionTab {
 	pub program: Option<crate::zetacode::Launch>,
 	/// The open document of an 编辑器 page.
 	pub doc: Option<EditorDoc>,
+	/// The file of a [`SessionKind::Pdf`] page. The parsed document and its
+	/// textures live in [`crate::pdf::PdfCache`], keyed by this tab's id.
+	pub pdf: Option<PathBuf>,
 }
 
 impl SessionTab {
 	pub fn new(id: String, kind: SessionKind, title: String) -> Self {
-		Self { id, kind, title, shell: None, command: None, program: None, doc: None }
+		Self { id, kind, title, shell: None, command: None, program: None, doc: None, pdf: None }
 	}
 
 	pub fn is_term(&self) -> bool {
@@ -1243,12 +1267,16 @@ impl AppState {
 		Notice(String::new())
 	}
 
-	/// Open a real file in a pane's 编辑器 page.
+	/// Open a real file in a pane: an 编辑器 page for text, a PDF page for
+	/// `.pdf`.
 	///
 	/// A file that is already open in that pane is *activated*, not reloaded:
 	/// an unsaved buffer is the user's work and is never silently discarded. A
 	/// path that is a directory is refused rather than opened as empty.
 	pub fn open_file(&mut self, pane_id: &str, path: &Path) -> Notice {
+		if is_pdf(path) {
+			return self.open_pdf(pane_id, path);
+		}
 		let Some(doc) = EditorDoc::open_file(path) else {
 			return Notice(t!("{} 是目录，编辑器只打开文件", path.display()));
 		};
@@ -1276,6 +1304,36 @@ impl AppState {
 			}
 		}
 		notice
+	}
+
+	/// Open a PDF in a pane's [`SessionKind::Pdf`] page.
+	///
+	/// The tab carries the path; the document is parsed when the page first
+	/// draws ([`crate::pdf::PdfCache`]), so a malformed file explains itself on
+	/// the page (with its path) rather than as a toast that scrolls away. A
+	/// PDF already open in that pane is activated, not reloaded.
+	pub fn open_pdf(&mut self, pane_id: &str, path: &Path) -> Notice {
+		if path.is_dir() {
+			return Notice(t!("{} 是目录，PDF 页只打开文件", path.display()));
+		}
+		let existing = self.pane_mut(pane_id).and_then(|pane| {
+			pane
+				.tabs
+				.iter()
+				.find(|tab| tab.kind == SessionKind::Pdf && tab.pdf.as_deref() == Some(path))
+				.map(|tab| tab.id.clone())
+		});
+		if let Some(tab_id) = existing {
+			self.select_tab(pane_id, &tab_id);
+			return Notice(String::new());
+		}
+		let title = path
+			.file_name()
+			.map(|name| name.to_string_lossy().into_owned())
+			.unwrap_or_else(|| path.display().to_string());
+		let mut tab = SessionTab::new(self.fresh_id("tab"), SessionKind::Pdf, title);
+		tab.pdf = Some(path.to_path_buf());
+		self.push_tab(pane_id, tab)
 	}
 
 	/// One session tab, mutably.

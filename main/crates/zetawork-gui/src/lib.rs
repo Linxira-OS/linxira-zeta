@@ -37,6 +37,7 @@ pub mod lifecycle;
 pub mod live;
 pub mod notify;
 pub mod page;
+pub mod pdf;
 pub mod picker;
 pub mod resources;
 pub mod right;
@@ -121,6 +122,8 @@ pub struct Shell {
 	pub agents: agent_sessions::AgentSessions,
 	/// Per-tab IDE pages (`termide-panel-ide`), rendered like the terminal.
 	pub pages: page::Pages,
+	/// Every [`state::SessionKind::Pdf`] tab's parsed document and textures.
+	pub pdfs: pdf::PdfCache,
 	/// The `+` picker's rows for this host, read once when the picker opens.
 	pub picker_entries: Vec<state::PickerEntry>,
 	/// Where the open picker hangs from.
@@ -248,6 +251,7 @@ impl Shell {
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
+			pdfs: pdf::PdfCache::default(),
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
@@ -302,6 +306,7 @@ impl Shell {
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
+			pdfs: pdf::PdfCache::default(),
 			picker_entries: Vec::new(),
 			picker_anchor: None,
 			stats: crate::stats::discover(),
@@ -907,6 +912,19 @@ impl Shell {
 		// run finished" are exactly the edges a hidden window exists to tell the
 		// user about. The round trip is non-blocking (`try_iter`).
 		self.poll_agents(ctx);
+		// PDF documents and their textures belong to their tabs: a closed tab
+		// must not keep a parsed file (or its bitmaps) alive.
+		let pdf_tabs: Vec<String> = self
+			.state
+			.projects
+			.iter()
+			.flat_map(|project| project.workspaces.iter())
+			.flat_map(|workspace| workspace.panes.iter())
+			.flat_map(|pane| pane.tabs.iter())
+			.filter(|tab| tab.kind == state::SessionKind::Pdf)
+			.map(|tab| tab.id.clone())
+			.collect();
+		self.pdfs.retain(&pdf_tabs);
 		// The right column's 用量 page follows the active pane/tab; the cache
 		// re-reads the journal only when that source changes (or once a
 		// second), so a long transcript is not parsed every frame. The live

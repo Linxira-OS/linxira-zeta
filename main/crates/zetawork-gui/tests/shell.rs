@@ -937,3 +937,60 @@ fn a_tab_rename_refuses_an_empty_name() {
 	assert_eq!(notice.0, "标签页名不能为空");
 	assert!(state.renaming_workspace().is_some(), "the editor stays open");
 }
+
+#[test]
+fn opening_a_pdf_goes_to_the_pdf_page_not_the_editor() {
+	use zetawork_gui::state::SessionKind;
+
+	let mut state = seeded_state();
+	let pane = state.visible_panes()[0].id.clone();
+	let fixture =
+		std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/two-pages.pdf");
+	let notice = state.open_file(&pane, &fixture);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tab = state.visible_panes()[0]
+		.active_tab()
+		.expect("a tab")
+		.clone();
+	assert_eq!(tab.kind, SessionKind::Pdf);
+	assert_eq!(tab.pdf.as_deref(), Some(fixture.as_path()));
+	assert!(tab.doc.is_none(), "the editor buffer is untouched");
+	assert_eq!(tab.title, "two-pages.pdf");
+
+	// The same path activates the open tab instead of adding a second one.
+	let tabs = state.visible_panes()[0].tabs.len();
+	assert!(state.open_file(&pane, &fixture).0.is_empty());
+	assert_eq!(state.visible_panes()[0].tabs.len(), tabs);
+
+	// A text file still lands in the editor, so the dispatch is by extension
+	// and not "every file is a PDF now".
+	let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+	assert!(state.open_file(&pane, &manifest).0.is_empty());
+	let tab = state.visible_panes()[0].active_tab().expect("a tab");
+	assert_eq!(tab.kind, SessionKind::Editor);
+	assert!(tab.pdf.is_none());
+}
+
+#[test]
+fn a_pdf_tab_refuses_a_directory_and_names_its_file() {
+	use zetawork_gui::state::SessionKind;
+
+	let mut state = seeded_state();
+	let pane = state.visible_panes()[0].id.clone();
+	let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+	let refused = state.open_pdf(&pane, &dir);
+	assert!(refused.0.contains("是目录"), "{}", refused.0);
+	assert_eq!(state.visible_panes()[0].tabs.len(), 1, "nothing was opened");
+
+	// A malformed file still opens a page: the page carries the parse error,
+	// which is the viewer's error state (see `pdf::PdfDoc::error`).
+	let bad = std::env::temp_dir().join(format!("zetawork-pdf-bad-{}.pdf", std::process::id()));
+	std::fs::write(&bad, b"not a pdf").expect("write");
+	let notice = state.open_pdf(&pane, &bad);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tab = state.visible_panes()[0].active_tab().expect("a tab");
+	assert_eq!(tab.kind, SessionKind::Pdf);
+	let doc = zetawork_gui::pdf::PdfDoc::open(&bad);
+	assert!(doc.error().is_some(), "the page reports the parse failure");
+	let _ = std::fs::remove_file(&bad);
+}

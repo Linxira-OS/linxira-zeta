@@ -48,6 +48,9 @@ workbench-projects = { path = "../workbench-projects" }
 # The desktop mark: decode the committed RGBA raster beside this crate (see
 # `src/icons.rs`). The screenshot encoder uses the same crate.
 png = "0.18"
+# The PDF page's rasterizer: pure Rust — no C/C++ toolchain and no system PDF
+# library, so the ubuntu-22.04 CI and every installer lane build it unchanged.
+hayro = "0.8.0"
 
 # ── 后台驻留与通知 (lifecycle rulings) ────────────────────────────────────
 #

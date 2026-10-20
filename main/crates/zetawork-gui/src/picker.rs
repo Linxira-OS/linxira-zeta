@@ -40,6 +40,7 @@ fn page_icon(kind: SessionKind) -> Icon {
 		SessionKind::Zetacode => Icon::Term,
 		SessionKind::Ide => Icon::Term,
 		SessionKind::Agent => Icon::History,
+		SessionKind::Pdf => Icon::File,
 	}
 }
 

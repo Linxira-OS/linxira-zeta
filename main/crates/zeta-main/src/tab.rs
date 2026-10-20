@@ -611,6 +611,29 @@ pub fn link_target_text(path: &std::path::Path, line: Option<u32>, col: Option<u
 	text
 }
 
+/// The workbench's PDF rule: a `.pdf` is never rendered here.
+///
+/// PDF rendering is GUI-only (`zetawork`'s PDF page rasterizes pages to
+/// bitmaps). This text workbench has no PDF page and will not grow one: handing
+/// the bytes to the embedded editor would draw a page's compressed stream as
+/// line noise, which is not a viewer. So the open path refuses the file and
+/// says where it does work, instead of pretending. The test
+/// `the_workbench_never_renders_a_pdf` pins both halves: this refusal, and the
+/// absence of a PDF pane kind.
+pub fn pdf_handoff_notice(path: &std::path::Path) -> Option<String> {
+	let is_pdf = path
+		.extension()
+		.and_then(|ext| ext.to_str())
+		.is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"));
+	is_pdf.then(|| {
+		format!(
+			"{} is a PDF — this workbench never renders PDF; open it in zetawork's GUI PDF page or \
+			 the system browser",
+			path.display()
+		)
+	})
+}
+
 /// Shell line that opens `target_text` in the suite IDE (`zetaide`), or
 /// `None` when it is not on PATH. The workbench's own editor pane is the
 /// in-process panel, so there is no editor command to fall back to.
@@ -938,5 +961,62 @@ mod tests {
 		};
 		let target = link_target_text(std::path::Path::new("C:/repo/a b.rs"), Some(4), Some(2));
 		assert_eq!(format!("zetaide {}", shell.quote_arg(&target)), "zetaide 'C:/repo/a b.rs:4:2'");
+	}
+
+	/// PDF is a GUI-only surface (zetawork's PDF page); this workbench never
+	/// renders one. Both halves of that ruling are pinned here, because "we
+	/// don't call the renderer" is not the same as "there is no renderer":
+	///
+	/// 1. the open path refuses a `.pdf` (any extension case) with a sentence
+	///    naming what it is, and does not touch a text file;
+	/// 2. no page kind, widget or dependency in this crate can rasterize a PDF
+	///    — there is no PDF page kind and no rasterizer in the manifest.
+	#[test]
+	fn the_workbench_never_renders_a_pdf() {
+		use std::path::Path;
+
+		for name in ["paper.pdf", "PAPER.PDF", "scan.Pdf"] {
+			let notice = pdf_handoff_notice(Path::new(name)).expect("a PDF is refused");
+			assert!(notice.contains(name), "the sentence names the file: {notice}");
+			assert!(notice.contains("never renders PDF"), "{notice}");
+		}
+		for name in ["notes.txt", "README", "pdf.rs", "manual.pdf.txt"] {
+			assert!(pdf_handoff_notice(Path::new(name)).is_none(), "{name} is not a PDF");
+		}
+
+		let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+		let mut scanned = 0usize;
+		for entry in std::fs::read_dir(&src).expect("src directory").flatten() {
+			let path = entry.path();
+			if path.extension().is_none_or(|ext| ext != "rs") {
+				continue;
+			}
+			let source = std::fs::read_to_string(&path).expect("read source");
+			let product = source
+				.split("\n#[cfg(test)]")
+				.next()
+				.unwrap_or(&source)
+				.to_lowercase();
+			for renderer in ["hayro", "pdfium", "mupdf", "lopdf", "pdf_render", "pdf-extract"] {
+				assert!(
+					!product.contains(renderer),
+					"{} names a PDF renderer ({renderer}); PDF is GUI-only",
+					path.display()
+				);
+			}
+			scanned += 1;
+		}
+		assert!(scanned > 10, "the scan found the crate: {scanned} files");
+
+		let manifest =
+			std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml"))
+				.expect("manifest");
+		let manifest = manifest.to_lowercase();
+		for dependency in ["hayro", "pdfium", "mupdf", "lopdf", "pdf-render"] {
+			assert!(
+				!manifest.contains(dependency),
+				"{dependency} must not be a dependency of the TUI"
+			);
+		}
 	}
 }

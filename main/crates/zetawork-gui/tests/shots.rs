@@ -431,3 +431,49 @@ fn about_settings_screenshot() {
 	assert!(bytes.len() > 4096);
 	write("14-about.png", &bytes);
 }
+
+/// `16-pdf-viewer.png` — the PDF page over the committed fixture: page one of
+/// the two-page A4 sheet, rasterized by hayro and painted as an egui texture.
+///
+/// The assertion that matters is the PNG, not the tab: the shell draws the
+/// real texture produced by [`zetawork_gui::pdf`], and `shoot` rasterizes the
+/// real frame. A viewer that only claimed to render would produce a blank
+/// sheet here.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn pdf_viewer_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/two-pages.pdf");
+	let pane = shell.state.visible_panes()[0].id.clone();
+	let notice = shell.state.open_file(&pane, &fixture);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let tab = shell.state.visible_panes()[0]
+		.active_tab()
+		.expect("the PDF tab is active");
+	assert_eq!(tab.kind, zetawork_gui::state::SessionKind::Pdf);
+	assert_eq!(tab.pdf.as_deref(), Some(fixture.as_path()));
+	let tab_id = tab.id.clone();
+	let bytes = shoot(&mut shell, 4);
+	assert!(bytes.len() > 4096);
+	// The page really rasterized: the shell kept the document and measured its
+	// first render.
+	let doc = shell
+		.pdfs
+		.get(&tab_id)
+		.expect("the tab's document is cached");
+	assert!(doc.error().is_none(), "{:?}", doc.error());
+	assert_eq!(doc.page_count(), 2);
+	assert!(
+		doc.last_render()
+			.is_some_and(|took| took.as_secs_f64() < 10.0),
+		"the fixture rendered: {:?}",
+		doc.last_render()
+	);
+	println!(
+		"[pdf] open fixture: {} bytes, first render {:?}",
+		std::fs::metadata(&fixture).expect("fixture").len(),
+		doc.last_render()
+	);
+	write("16-pdf-viewer.png", &bytes);
+}

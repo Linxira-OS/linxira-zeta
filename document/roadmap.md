@@ -58,6 +58,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Extension peer APIs (1.3.2)                    | `src/registry/agent-directory.ts`, `src/irc/facade.ts`                     | `ctx.agents` roster and `ctx.messaging` send/wait/inbox so a plugin no longer deep-imports the IRC bus                                                        |
 | Gitea half of `tea` (1.3.2)                    | `src/tools/tea-issue-pr.ts`, `issue-pr-protocol.ts`                        | `issue://`/`pr://` resolve against a Gitea host; `run_watch` polls a Gitea Actions run                                                                        |
 | Model-side frustration metrics (1.3.2)         | `packages/stats/src/model-side.ts`, `model-metrics.ts`                     | assistant prose stored per turn (`assistant_text`), en+zh lexicons + tool-spiral signals, second section of the frustration route                               |
+| GUI PDF page (1.3.3)                           | `main/crates/zetawork-gui/src/pdf.rs` + `SessionKind::Pdf`                 | hayro (pure Rust) rasterizes pages to egui textures; opened from the file tree or an explicit path; scrolling, paging, zoom, error states. **GUI only** — the TUI refuses `.pdf` (`docs/gui-pdf-viewer.md`) |
 
 ## Priorities
 
@@ -204,7 +205,8 @@ termide 的 Rust 编辑器核心**（`panel-editor` + `lsp` + `highlight` + `buf
    Color Picker。
 
 **不做**（只登记 Deferred Queue）：Vim/Emacs 兼容层、Docker Manager、Go Test Runner（我们不写
-Go）、cheat-sheet/http-client 类玩具。**PDF** 仅 GUI 可选后置（TUI 永不渲染；默认用系统浏览器）。
+Go）、cheat-sheet/http-client 类玩具。**PDF** 已落地为 GUI 页（1.3.3，见 Shipped；TUI 永不渲染，
+已由 `zeta-main` 的 `the_workbench_never_renders_a_pdf` 钉住）。
 
 参考物：`temp/ttt`（TTT 上游原版，`github.com/eugenioenko/ttt`）的形态与
 `community-plugins.json`（45 条 = 24 `lsp-*` + 7 `formatter-*` + 14 功能插件）。
@@ -556,7 +558,9 @@ carried-over requirement.
 - **Vim / Emacs 兼容层**（TTT `vim`/`emacs`）：独立工程，人群小；需要时再做。
 - **Docker Manager**（容器/镜像/卷）：重、与 coding agent 工作流无直接关系。
 - **Go Test Runner**：我们不写 Go（TTT 已退场），不做。
-- **PDF Viewer**：仅 GUI 语义可行（TUI 无法有意义渲染）；默认交给系统浏览器，可选后置。
+- ~~**PDF Viewer**~~ DONE (1.3.3): GUI 文档页（`SessionKind::Pdf` + `pdf.rs`，hayro 纯 Rust
+  光栅化），从文件树/显式路径打开；TUI 仍永不渲染（`zeta-main` 拒绝 `.pdf`，测试
+  `the_workbench_never_renders_a_pdf`）。说明见 `docs/gui-pdf-viewer.md`。
 - **cheat-sheet / http-client**：玩具型，不做。
 
 ### 许可分层（2026-10-18 定稿）
@@ -623,8 +627,10 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
     管理器/Git diff·log·status/终端/编辑器。
   - **明确不做**：Notebook（重、与 zetacode eval 重复）；Stencil 式 Git 图与提交泳道
     （用户裁决"华而不实"，我们的 Git 中心保持现状）。
-  - **仍未开发（沿用旧登记）**：Vim/Emacs 兼容层、Docker Manager、Go Test Runner、
-    PDF Viewer（仅 GUI 可选，TUI 永不渲染）。
+  - **已落地**：资源面板（1.3.2）；**PDF Viewer**（1.3.3）——GUI 文档页
+    （`SessionKind::Pdf` + `main/crates/zetawork-gui/src/pdf.rs`，hayro 纯 Rust
+    光栅化），从文件树/显式路径打开；TUI 永不渲染（见 `docs/gui-pdf-viewer.md`）。
+  - **仍未开发（沿用旧登记）**：Vim/Emacs 兼容层、Docker Manager、Go Test Runner。
 
 - **任务面板 = 官方插件（2026-10-18/19 用户定方向，仅登记，设计待推敲）**：
   一个**对 agent 可见、以工具暴露**的任务面板，**多仓库**——一个面板可以绑定多个
