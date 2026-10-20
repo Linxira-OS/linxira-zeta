@@ -688,13 +688,15 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		paint_terminal_grid(
 			ui,
 			shell,
-			tab.id.as_str(),
-			&metrics,
-			columns,
-			rows,
-			&grid_buf,
-			&images,
-			cell_px,
+			TerminalFrame {
+				pane: tab.id.as_str(),
+				metrics: &metrics,
+				columns,
+				rows,
+				buf: &grid_buf,
+				images: &images,
+				cell_px,
+			},
 		);
 		paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 		return;
@@ -707,13 +709,15 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 			paint_terminal_grid(
 				ui,
 				shell,
-				tab.id.as_str(),
-				&metrics,
-				columns,
-				rows,
-				&grid_buf,
-				&images,
-				cell_px,
+				TerminalFrame {
+					pane: tab.id.as_str(),
+					metrics: &metrics,
+					columns,
+					rows,
+					buf: &grid_buf,
+					images: &images,
+					cell_px,
+				},
 			);
 			paint_terminal_status(ui, grid, &status, &tab.id, reason.as_deref());
 			return;
@@ -743,22 +747,25 @@ fn terminal_status(shell: &Shell, tab: &SessionTab) -> String {
 	status
 }
 
-/// Paint one rendered terminal grid into the pane and return nothing: the
-/// caller has already reserved the area.
-fn paint_terminal_grid(
-	ui: &mut Ui,
-	shell: &mut Shell,
-	pane: &str,
-	metrics: &GridMetrics,
+/// One rendered terminal frame: the grid buffer, the images placed in it, and
+/// the geometry the pane lays it out with.
+struct TerminalFrame<'a> {
+	pane: &'a str,
+	metrics: &'a GridMetrics,
 	columns: u16,
 	rows: u16,
-	buf: &ratatui::buffer::Buffer,
-	images: &[(
+	buf: &'a ratatui::buffer::Buffer,
+	images: &'a [(
 		termide_panel_terminal::kitty::Placement,
 		std::sync::Arc<termide_panel_terminal::kitty::Image>,
 	)],
 	cell_px: (u16, u16),
-) {
+}
+
+/// Paint one rendered terminal grid into the pane and return nothing: the
+/// caller has already reserved the area.
+fn paint_terminal_grid(ui: &mut Ui, shell: &mut Shell, frame: TerminalFrame<'_>) {
+	let TerminalFrame { pane, metrics, columns, rows, buf, images, cell_px } = frame;
 	let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
 	let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
 	let grid = GridMetrics {
@@ -775,9 +782,10 @@ fn paint_terminal_grid(
 	// z<0 goes down first, under the glyphs; the rest goes over them. Kitty's
 	// plain placements (z=0, every one this client sends) are above the text by
 	// definition, and the rows they cover hold the spaces the client reserved.
-	paint_images(painter, &mut shell.images, pane, images, &grid, cell_px, scale, true);
+	let pass = crate::blit::ImagePass { grid: &grid, cell_px, pixels_per_point: scale };
+	paint_images(painter, &mut shell.images, pane, images, pass, true);
 	paint_buffer_with(painter, buf, &grid, theme::TERM_TEXT);
-	paint_images(painter, &mut shell.images, pane, images, &grid, cell_px, scale, false);
+	paint_images(painter, &mut shell.images, pane, images, pass, false);
 }
 
 /// Measure the pane's cell in device pixels and hand it to both backends.
@@ -1299,13 +1307,15 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		paint_terminal_grid(
 			ui,
 			shell,
-			tab.id.as_str(),
-			&metrics,
-			columns,
-			rows,
-			&grid_buf,
-			&images,
-			cell_px,
+			TerminalFrame {
+				pane: tab.id.as_str(),
+				metrics: &metrics,
+				columns,
+				rows,
+				buf: &grid_buf,
+				images: &images,
+				cell_px,
+			},
 		);
 		return;
 	}
@@ -1314,13 +1324,15 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		paint_terminal_grid(
 			ui,
 			shell,
-			tab.id.as_str(),
-			&metrics,
-			columns,
-			rows,
-			&grid_buf,
-			&images,
-			cell_px,
+			TerminalFrame {
+				pane: tab.id.as_str(),
+				metrics: &metrics,
+				columns,
+				rows,
+				buf: &grid_buf,
+				images: &images,
+				cell_px,
+			},
 		);
 	}
 }

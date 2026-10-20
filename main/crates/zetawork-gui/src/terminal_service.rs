@@ -1342,7 +1342,6 @@ mod tests {
 
 	#[test]
 	fn both_backends_answer_a_query_with_the_same_bytes_and_only_once() {
-		use std::io::Write as _;
 		use std::sync::{Arc, Mutex, RwLock};
 		use termide_panel_terminal::{StreamParser, TerminalScreen};
 

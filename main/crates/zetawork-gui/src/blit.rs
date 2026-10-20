@@ -361,6 +361,15 @@ impl ImageTextures {
 	}
 }
 
+/// One frame's geometry for the image passes: the grid the cells were laid
+/// out in, the device-pixel cell size, and the window scale.
+#[derive(Clone, Copy)]
+pub struct ImagePass<'a> {
+	pub grid: &'a GridMetrics,
+	pub cell_px: (u16, u16),
+	pub pixels_per_point: f32,
+}
+
 /// Paint one pane's Kitty placements into the grid.
 ///
 /// `behind` selects the z<0 half (painted before the text) or the z>=0 half
@@ -378,11 +387,10 @@ pub fn paint_images(
 		termide_panel_terminal::kitty::Placement,
 		std::sync::Arc<termide_panel_terminal::kitty::Image>,
 	)],
-	metrics: &GridMetrics,
-	cell_px: (u16, u16),
-	pixels_per_point: f32,
+	pass: ImagePass<'_>,
 	behind: bool,
 ) {
+	let ImagePass { grid: metrics, cell_px, pixels_per_point } = pass;
 	// Prune even when nothing is on screen: an image the terminal deleted must
 	// not keep its texture alive (the pane may still have painted it last frame).
 	let alive: std::collections::HashSet<u32> = placements

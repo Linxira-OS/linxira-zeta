@@ -785,7 +785,9 @@ fn kitty_image_shot() {
 				rows: 24,
 				font_size: 13.0,
 			};
-			paint_images(&painter, &mut cache, "shot", &placements, &metrics, CELL, PP, false);
+			let pass =
+				zetawork_gui::blit::ImagePass { grid: &metrics, cell_px: CELL, pixels_per_point: PP };
+			paint_images(&painter, &mut cache, "shot", &placements, pass, false);
 		},
 	);
 	textures.apply(&output.textures_delta);
