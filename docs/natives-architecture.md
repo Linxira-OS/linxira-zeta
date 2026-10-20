@@ -65,7 +65,7 @@ Filename fallback is:
 - baseline x64: `-baseline.node`, then unsuffixed `.node`;
 - non-x64: unsuffixed `.node` only.
 
-The published core package contains loader JS, declarations, and metadata but no `.node` files. Release publishing generates `@linxiraos/pi-natives-<platform>-<arch>` optional-dependency leaf packages and injects them at the same version into the core manifest. `LEAF_TARGETS` in `gen-npm-packages.ts` is the authoritative publish target list.
+The published core package contains loader JS, declarations, and metadata but no `.node` files. Release publishing generates `@linxiraos/pi-natives-<platform>-<arch>` optional-dependency leaf packages and injects them at the same version into the core manifest. `SHIPPED_LEAF_TAGS` in `gen-npm-packages.ts` is the authoritative publish target list (`linux-x64`, `win32-x64`); `LEAF_TARGETS` also carries the buildable tags that have no npm leaf, so a local build on darwin/arm64 keeps a package name to write.
 
 ### Candidate ownership and order
 

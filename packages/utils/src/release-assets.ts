@@ -27,6 +27,41 @@ const RELEASE_OS: Partial<Record<NodeJS.Platform, string>> = {
 
 const RELEASE_ARCH: Record<string, string> = { x64: "x64", arm64: "arm64" };
 
+/**
+ * CLI assets a release actually publishes — the `release_binary` matrix in
+ * `.github/workflows/ci.yml`. The build script can still produce a darwin or
+ * arm64 leg (`scripts/ci-release-build-binaries.ts` keeps those targets
+ * buildable), but a leg the matrix does not build has no asset: the updater
+ * must never compute its name, or `zetacode update` downloads a 404.
+ *
+ * `scripts/check-release-asset-names.ts` holds this set equal to the matrix's
+ * `binary_path` basenames, so a platform trim updates one list.
+ */
+export const SHIPPED_CLI_ASSETS: readonly string[] = [
+	"zeta-cli-linux-x64",
+	"zeta-cli-linux-musl-x64",
+	"zeta-cli-windows-x64.exe",
+];
+
+/**
+ * {@link releaseCliAssetName} restricted to the shipped matrix: undefined means
+ * this host has no standalone binary release, so the caller must not build a
+ * download URL at all.
+ */
+export function shippedCliAssetName(
+	platform: NodeJS.Platform,
+	arch: string,
+	options: { musl?: boolean } = {},
+): string | undefined {
+	let name: string;
+	try {
+		name = releaseCliAssetName(platform, arch, options);
+	} catch {
+		return undefined;
+	}
+	return SHIPPED_CLI_ASSETS.includes(name) ? name : undefined;
+}
+
 /** Release asset for a CLI binary, e.g. `zeta-cli-windows-x64.exe`. */
 export function releaseCliAssetName(platform: NodeJS.Platform, arch: string, options: { musl?: boolean } = {}): string {
 	const os = RELEASE_OS[platform];

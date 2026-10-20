@@ -38,6 +38,16 @@
  * Also asserts this guard runs in both CI mirrors (GitHub + Gitea), so a
  * mirror edit cannot quietly drop it.
  *
+ * Payload freshness: the leaves ship committed binaries whose manifest version
+ * moves with each release, so existence alone proved nothing — a leaf could
+ * publish the previous release's workbench under the new version. Each binary
+ * now carries a `bin/<binary>.stamp.json` (`version` + `sha256`, written by
+ * `bun scripts/stamp-workbench-leaves.ts`); this guard fails on a missing
+ * stamp, a stamp older than the manifest, or a hash that no longer matches the
+ * committed bytes. It also holds the three release-asset surfaces (upload,
+ * checksums, preflight) to one list, so the example-plugin zip and the four
+ * desktop archives cannot fall out of one of them.
+ *
  * Static and hermetic: reads manifests, two scripts and two workflows. No
  * network, no build.
  *
@@ -46,6 +56,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { parse } from "yaml";
+import { leafStampProblem, STAMP_SUFFIX } from "./workbench-leaves";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const LAUNCHER_REL = "main/npm/main/package.json";
@@ -204,8 +215,45 @@ for (const leaf of leafPins) {
 		continue;
 	}
 	const exe = os[0] === "win32" ? `${WORKBENCH_LEAVES[parentDir]}.exe` : `${WORKBENCH_LEAVES[parentDir]}-linux-x64`;
-	if (!fs.existsSync(path.join(ROOT, leaf.dir, "bin", exe))) {
+	const binaryPath = path.join(ROOT, leaf.dir, "bin", exe);
+	if (!fs.existsSync(binaryPath)) {
 		problems.push(`${leaf.dir}/bin/${exe}: missing — the leaf ships no binary for its platform`);
+	} else {
+		// Freshness, not existence: the manifest version moves on every release
+		// bump, the committed binary does not. A leaf published without a
+		// rebuild hands that platform the previous release's workbench under a
+		// new version number, and nothing on npm's side notices.
+		// `bun scripts/stamp-workbench-leaves.ts` writes the stamp beside the
+		// binary it hashed.
+		const stampPath = `${binaryPath}${STAMP_SUFFIX}`;
+		if (!fs.existsSync(stampPath)) {
+			problems.push(
+				`${leaf.dir}/bin/${exe}${STAMP_SUFFIX}: missing — rebuild the binary and run bun scripts/stamp-workbench-leaves.ts`,
+			);
+		} else {
+			let stamp: { version?: string; sha256?: string } | undefined;
+			try {
+				stamp = JSON.parse(fs.readFileSync(stampPath, "utf8")) as typeof stamp;
+			} catch {
+				problems.push(`${leaf.dir}/bin/${exe}${STAMP_SUFFIX}: unreadable JSON`);
+			}
+			if (stamp) {
+				const actual = new Bun.CryptoHasher("sha256").update(fs.readFileSync(binaryPath)).digest("hex");
+				const stale = leafStampProblem(stamp, leafManifest.version ?? "", actual);
+				if (stale) problems.push(`${leaf.dir}/bin/${exe}: ${stale}`);
+			}
+		}
+		// The workbench TUI embeds its crate version (`zetawork --version`);
+		// termide reports its own upstream crate version, so only the main
+		// leaves have a line marker to compare.
+		if (parentDir === "main/npm/main" && leafManifest.version) {
+			const marker = Buffer.from(`zetawork ${leafManifest.version}`);
+			if (!fs.readFileSync(binaryPath).includes(marker)) {
+				problems.push(
+					`${leaf.dir}/bin/${exe}: does not embed "zetawork ${leafManifest.version}" — the binary belongs to another version line`,
+				);
+			}
+		}
 	}
 	if (!Array.isArray(leafManifest.files) || !leafManifest.files.includes("bin")) {
 		problems.push(`${rel}: files does not include "bin" — npm would publish the leaf without its binary`);
@@ -273,21 +321,76 @@ for (const target of productTargets) {
 // 3. Release archives — every family uploads, after the companions publish.
 const uploadSpec = githubJobs.release_github?.steps?.find(step => step.name === "Create GitHub Release")?.with?.files;
 const uploaded = typeof uploadSpec === "string" ? uploadSpec : "";
-for (const family of [
-	`${STAGED_DIR}/zeta-cli-*`,
-	`${STAGED_DIR}/zeta-work-*`,
-	`${STAGED_DIR}/zeta-ide-*`,
-	// The desktop app uploads only its four archives (NSIS installer + the
-	// legacy GUI-only zip + AppImage + Arch package); the raw GUI binaries, the
-	// staged companions and the WebView2 loader stay build artifacts, never
-	// release assets.
-	`${STAGED_DIR}/zetawork-*-setup-x64.exe`,
-	`${STAGED_DIR}/zetawork-*-windows-x64.zip`,
-	`${STAGED_DIR}/zetawork-*.AppImage`,
-	`${STAGED_DIR}/zetawork-*.pkg.tar.zst`,
-]) {
-	if (!uploaded.includes(family))
-		problems.push(`${GITHUB_WORKFLOW_REL}: Create GitHub Release does not upload ${family}`);
+
+// 3b. The three release-asset surfaces must agree: what `Create GitHub
+// Release` uploads, what "Generate checksums" hashes, and what
+// "Preflight release assets" refuses to start without. A family missing from
+// one of them is invisible until the release run itself: an upload with no
+// checksum ships an unverifiable asset, and a preflight that does not name it
+// lets the release proceed with a half-built tree.
+const checksumStep = githubJobs.release_github?.steps?.find(step => step.name === "Generate checksums")?.run ?? "";
+const preflightStep =
+	githubJobs.release_github?.steps?.find(step => step.name === "Preflight release assets")?.run ?? "";
+const RELEASE_ASSET_SURFACES: ReadonlyArray<{ family: string; checksum: string; preflight: string }> = [
+	{ family: `${STAGED_DIR}/zeta-cli-*`, checksum: `${STAGED_DIR}/zeta-cli-*`, preflight: `${STAGED_DIR}/zeta-cli-*` },
+	{
+		family: `${STAGED_DIR}/zeta-work-*`,
+		checksum: `${STAGED_DIR}/zeta-work-*`,
+		preflight: `${STAGED_DIR}/zeta-work-*`,
+	},
+	{ family: `${STAGED_DIR}/zeta-ide-*`, checksum: `${STAGED_DIR}/zeta-ide-*`, preflight: `${STAGED_DIR}/zeta-ide-*` },
+	// Desktop archives are version-pinned in the preflight (the tag's leading
+	// `v` is not part of the name) and globbed in the other two surfaces.
+	{
+		family: `${STAGED_DIR}/zetawork-*-setup-x64.exe`,
+		checksum: `${STAGED_DIR}/zetawork-*-setup-x64.exe`,
+		preflight: `-setup-x64.exe`,
+	},
+	{
+		family: `${STAGED_DIR}/zetawork-*-windows-x64.zip`,
+		checksum: `${STAGED_DIR}/zetawork-*-windows-x64.zip`,
+		preflight: `-windows-x64.zip`,
+	},
+	{
+		family: `${STAGED_DIR}/zetawork-*.AppImage`,
+		checksum: `${STAGED_DIR}/zetawork-*.AppImage`,
+		preflight: `.AppImage`,
+	},
+	{
+		family: `${STAGED_DIR}/zetawork-*.pkg.tar.zst`,
+		checksum: `${STAGED_DIR}/zetawork-*.pkg.tar.zst`,
+		preflight: `.pkg.tar.zst`,
+	},
+	{
+		family: "packages/browser-relay/dist/zeta-browser-relay-extension.zip",
+		checksum: "packages/browser-relay/dist/zeta-browser-relay-extension.zip",
+		preflight: "packages/browser-relay/dist/zeta-browser-relay-extension.zip",
+	},
+	// The example-plugin environment ships as a release asset (a runnable
+	// teaching artifact, not a source tarball) and is produced by
+	// scripts/build-example-plugin-zip.ts as `zeta-plugin-example-<version>.zip`.
+	{
+		family: "plugins/dist/zeta-plugin-example-*.zip",
+		checksum: "plugins/dist/zeta-plugin-example-*.zip",
+		preflight: "plugins/dist/zeta-plugin-example-*.zip",
+	},
+	{ family: "LICENSE", checksum: "LICENSE", preflight: "LICENSE" },
+	{ family: "THIRD-PARTY-NOTICES.txt", checksum: "THIRD-PARTY-NOTICES.txt", preflight: "THIRD-PARTY-NOTICES.txt" },
+];
+for (const asset of RELEASE_ASSET_SURFACES) {
+	if (!uploaded.includes(asset.family)) {
+		problems.push(`${GITHUB_WORKFLOW_REL}: Create GitHub Release does not upload ${asset.family}`);
+	}
+	if (!checksumStep.includes(asset.checksum)) {
+		problems.push(
+			`${GITHUB_WORKFLOW_REL}: Generate checksums does not hash ${asset.checksum} — the uploaded asset ships without a SHA256SUMS entry`,
+		);
+	}
+	if (!preflightStep.includes(asset.preflight)) {
+		problems.push(
+			`${GITHUB_WORKFLOW_REL}: Preflight release assets does not check ${asset.preflight} — a missing asset is only discovered after checksums`,
+		);
+	}
 }
 
 // The workbench npm line ships again in 1.3.1, so its companion jobs must be
@@ -332,6 +435,6 @@ if (problems.length > 0) {
 }
 console.log(
 	`Workbench bundles OK: zetawork ${lineVersion} installs ${companionPins.map(pin => pin.name).join(" + ")}; ` +
-		`${leafPins.length} platform leaves pinned, ${COMMANDS.length} commands × ${PLATFORMS.length} platforms staged in ${STAGED_DIR}/ and uploaded; ` +
-		"publish ordered after both companion legs",
+		`${leafPins.length} platform leaves pinned and stamped at ${lineVersion}, ${COMMANDS.length} commands × ${PLATFORMS.length} platforms staged in ${STAGED_DIR}/ and uploaded; ` +
+		`${RELEASE_ASSET_SURFACES.length} release assets consistent across upload/checksums/preflight; publish ordered after both companion legs`,
 );

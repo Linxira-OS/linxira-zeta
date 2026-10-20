@@ -49,6 +49,11 @@ Current capability groups in the generated API include:
   - `darwin-x64`
   - `darwin-arm64`
   - `win32-x64`
+  The loader accepts these because a source checkout can build any of them
+  locally. Only `linux-x64` and `win32-x64` are *published* as npm leaf
+  packages (`SHIPPED_LEAF_TAGS` in `packages/natives/scripts/gen-npm-packages.ts`);
+  the core manifest pins exactly those, so an install never resolves a leaf
+  that does not exist.
 - x64 can use CPU variants:
   - `modern` (AVX2-capable)
   - `baseline` (fallback)

@@ -149,6 +149,10 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				job: "release_plugin_packages",
 				why: "Zeta-only official-plugin publish leg (@linxiraos/pi-messenger). Before it existed the plugin had no CI publish path at all: it was last shipped by hand via scripts/publish-missing-packages.ts, so the repo version (1.2.1) and the npm version (1.1.1) had drifted apart while the manifest kept advertising a publish that never happened. It packs the plugin directory as-authored rather than riding release_npm's workspace table, because that table's `typescript` kind emits declarations this source-shipped plugin cannot consume. Losing this job silently returns the plugin to the hand-publish regime",
 			},
+			{
+				job: "release_web_ui_packages",
+				why: "Zeta-only web-ui publish leg (@linxiraos/zeta-web). web-ui rides the release version (release-v2.ts VERSION_ONLY_PACKAGES) but is not a Bun workspace member, so release_npm never sees it: without this job every release bumped @linxiraos/zeta-web's version in the tree while npm kept the previous one, and `zeta serve` fell back to an npm install of a Web UI older than the gateway it talks to (damage class 12). It must stay in ci.yml — npm binds a trusted publisher to the workflow FILE that publishes, and GitHub only executes root workflows",
+			},
 		],
 		needsEdges: [
 			{
@@ -171,6 +175,11 @@ export const CI_SURFACE: WorkflowSurface[] = [
 				job: "release_plugin_packages",
 				needs: ["release_metadata", "release_gate"],
 				why: "same two edges as the other publish legs: is-release keeps the plugin off ordinary pushes, and release_gate is the release-state prerequisite (`check`'s guard steps must pass before anything publishes). No build-artifact edge: the plugin ships source, packed inside the job from the tagged tree, so there is no upload to race",
+			},
+			{
+				job: "release_web_ui_packages",
+				needs: ["release_metadata", "release_gate"],
+				why: "same two edges as the other vendored publish legs: is-release keeps web-ui off ordinary pushes (its npm version must move only on a release), and release_gate is the release-state prerequisite. No artifact edge: `npm ci` + `next build` inside the job produce everything the tarball ships, so nothing can race an upload",
 			},
 		],
 		artifactRules: [

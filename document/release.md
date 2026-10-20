@@ -96,7 +96,8 @@ Build time belongs in the changelog and the git tag, not the version.
   token 无新包首发权限 → `PUT 404`）。新包第一次发布前，在 npmjs.com 上为该包
   （或账号级默认）配置 Publishing access：Repository `Linxira-OS/linxira-zeta`、
   Workflow filename `.github/workflows/ci.yml`、Environment 留空。逐包清单 =
-  `workspaces.catalog` 的 `@linxiraos/*` 13 个键 + 6 个 `pi-natives-<tag>` leaf +
+  `workspaces.catalog` 的 `@linxiraos/*` 13 个键 + 2 个已发布 `pi-natives-<tag>`
+  leaf（`linux-x64` / `win32-x64`，见 `SHIPPED_LEAF_TAGS`）+
   `zeta-web` / `pi-messenger`。新 leaf 包出现时同步补 npm 配置。
   `@linxiraos/zeta-web` 自 2026-10-14 起随发布线（不再是独立线）：发布腿是
   ci.yml 的 `release_web_ui_packages`，所以它的 trusted publisher **必须**绑
@@ -225,6 +226,14 @@ watch` on the headSha+`event=push` run, poll ≥60 s, max 90 min) and aborts
      `ci.yml`'s `on.push` path list exist for. Never retag onto a commit whose
      push run was not green: the release run skips the tests, so that SHA's green
      push run is the only proof they ever passed.
+   - **The path filters must cover every commit a release can tag.** The source
+     commit's push run is a precondition (`release-v2.ts` waits up to 90
+     minutes for it), so a final commit that touches only docs, the README,
+     `UPDATE-LOG.md` or the flake/nix packaging would match no filter, produce
+     no run, and time the wait out with nothing to wait for. `docs/**`,
+     `document/**`, `README.md`, `UPDATE-LOG.md`, `nix/**`, `flake.nix` and
+     `flake.lock` are listed for exactly that reason — keep them when trimming
+     the lists.
 - Publish jobs (`release_github`, `release_native_leaves`, `release_npm`) are
   gated on `release_gate` (release-state validation: the `check` guard job —
   brand/sentinel/CI-surface/scope guards — plus lockfile freshness, native
@@ -414,6 +423,19 @@ Rules:
 - `scripts/release.ts` is the v1 script, retained only for its shared helpers
   (`selectLatestZetaTag`, `validateExplicitVersion`, `watchCI`) and its
   `watch` mode. Do not use it to cut a release.
+- The workbench platform leaves (`main/npm/main-*`, `termide/npm/ide-*`) ship
+  a **committed** binary, and their manifest version moves with the bump. After
+  rebuilding a leaf binary, run `bun scripts/stamp-workbench-leaves.ts` and
+  commit the stamp beside the binary: `scripts/check-workbench-bundles.ts`
+  fails when the stamp is missing, names a version older than the manifest, or
+  hashes different bytes — the release must never publish a binary built for
+  the previous line under the new version. (A binary rebuilt *ahead* of the
+  manifest is fine: that is this repo's ritual, the bump commit catches the
+  manifest up.)
+- `release-v2.ts` rewrites **every** member of the `main/` Cargo workspace in
+  `main/Cargo.lock` (not just `zeta-main`): a straggler makes
+  `cargo build --locked` in `main/` refuse to run, which takes the workbench
+  build legs down with it.
 
 The changelog-side pre-tag gate (`[Unreleased]` completeness, no upstream
 version sections, `UPDATE-LOG.md` entry) lives in

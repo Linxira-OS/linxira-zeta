@@ -983,17 +983,23 @@ describe("update-cli npm rename contract", () => {
 
 	it("removes the old agent package and its natives companions when both names moved", () => {
 		const packages = { pkg: "@new/omp", natives: "@new/natives" };
+		expect(buildRenameCleanupPackages(packages, "win32-x64")).toEqual([
+			"@linxiraos/zeta",
+			"@linxiraos/pi-natives",
+			"@linxiraos/pi-natives-win32-x64",
+		]);
+		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta", "@linxiraos/pi-natives"]);
+		// Unshipped leaf tags have no global to clean up: the old install never
+		// had one, because the release never published it.
 		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual([
 			"@linxiraos/zeta",
 			"@linxiraos/pi-natives",
-			"@linxiraos/pi-natives-darwin-arm64",
 		]);
-		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta", "@linxiraos/pi-natives"]);
 	});
 
 	it("keeps the natives packages on an agent-only rename so cleanup cannot strip the addon the new install pinned", () => {
 		const packages = { pkg: "@new/omp", natives: "@linxiraos/pi-natives" };
-		expect(buildRenameCleanupPackages(packages, "darwin-arm64")).toEqual(["@linxiraos/zeta"]);
+		expect(buildRenameCleanupPackages(packages, "win32-x64")).toEqual(["@linxiraos/zeta"]);
 		expect(buildRenameCleanupPackages(packages, "linux-arm")).toEqual(["@linxiraos/zeta"]);
 	});
 });
@@ -1119,17 +1125,28 @@ describe("update-cli bun install command", () => {
 		]);
 	});
 
-	it("pins the native addon core and the platform-specific leaf to the same version so the loader sentinel cannot drift on supported tags", () => {
+	it("pins the native addon core and the platform-specific leaf to the same version so the loader sentinel cannot drift on shipped tags", () => {
 		// Regression: bun install -g <pkg>@<v> would update only the top-level
 		// package, leaving @linxiraos/pi-natives and @linxiraos/pi-natives-<tag>
 		// at their previous version. The next launch then loaded a stale .node
 		// file and aborted at validateLoadedBindings with `The .node file on
 		// disk is from a different release than this loader`. See
 		// https://github.com/can1357/zeta/issues/1824.
-		for (const tag of ["linux-x64", "linux-arm64", "darwin-x64", "darwin-arm64", "win32-x64", "win32-arm64"]) {
+		//
+		// Only the leaves the release publishes exist on npm
+		// (`SHIPPED_LEAF_TAGS`): pinning a tag no job publishes turns the update
+		// into an ETARGET install failure.
+		for (const tag of ["linux-x64", "win32-x64"]) {
 			const args = buildBunInstallArgs("15.9.0", tag);
 			expect(args).toContain("@linxiraos/pi-natives@15.9.0");
 			expect(args).toContain(`@linxiraos/pi-natives-${tag}@15.9.0`);
+		}
+		// Buildable but unshipped since the 2026-10-01 platform trim: the loader
+		// still supports the tag, the npm line does not carry a leaf for it.
+		for (const tag of ["linux-arm64", "darwin-x64", "darwin-arm64", "win32-arm64"]) {
+			const args = buildBunInstallArgs("15.9.0", tag);
+			expect(args).toContain("@linxiraos/pi-natives@15.9.0");
+			expect(args.some(arg => arg.startsWith("@linxiraos/pi-natives-"))).toBe(false);
 		}
 	});
 
@@ -1610,8 +1627,11 @@ describe("update-cli release binary integrity", () => {
 		await withPlatformAsync("win32", async () => {
 			expect(defaultBinaryName()).toBe(`zeta-cli-windows-${process.arch}.exe`);
 		});
+		// darwin left the release surface (2026-10-01): the build script still
+		// declares the leg, but no release carries the asset, so the updater
+		// must resolve no name at all instead of a download that 404s.
 		await withPlatformAsync("darwin", async () => {
-			expect(defaultBinaryName()).toBe(`zeta-cli-darwin-${process.arch}`);
+			expect(defaultBinaryName()).toBeUndefined();
 		});
 	});
 

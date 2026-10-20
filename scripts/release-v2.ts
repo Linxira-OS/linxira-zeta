@@ -27,6 +27,7 @@ import { runChangelogFixer } from "./fix-changelogs";
  * match.
  */
 import { generateNixBunDeps, normalizeLockfileVersion } from "./gen-nix-bun";
+import { mainWorkspaceMembers, pinnedWorkspaceVersions, rewriteWorkspaceVersions } from "./cargo-workspace-lock";
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS } from "./npm-distributions";
 import { selectLatestZetaTag, validateExplicitVersion, watchCI } from "./release";
 
@@ -223,6 +224,22 @@ async function assertConsistency(version: string): Promise<void> {
 	const cargoVersion = cargoToml.match(/^\s*version = "([^"]+)"/m)?.[1];
 	if (cargoVersion !== version) problems.push(`Cargo.toml workspace: ${cargoVersion} != ${version}`);
 
+	// main/ is its own workspace: the manifest AND every member entry in its
+	// lock must ride the line, or the release ships a tree whose
+	// `cargo build --locked` refuses to run (only zeta-main used to be patched).
+	const mainToml = await Bun.file("main/Cargo.toml").text();
+	const mainVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(mainToml)?.[1];
+	if (mainVersion !== version) problems.push(`main/Cargo.toml workspace: ${mainVersion} != ${version}`);
+	const mainMembers = mainWorkspaceMembers();
+	const mainLocked = pinnedWorkspaceVersions(
+		await Bun.file("main/Cargo.lock").text(),
+		mainMembers.map(m => m.name),
+	);
+	for (const member of mainMembers) {
+		const pinned = mainLocked.get(member.name);
+		if (pinned !== version) problems.push(`main/Cargo.lock ${member.name}: ${pinned ?? "<absent>"} != ${version}`);
+	}
+
 	// v18.3.3+ mechanism: no per-release sentinel name — verify the stamp
 	// mechanism symbols instead (same list as the Step-2c check below).
 	for (const [file, needle] of [
@@ -249,7 +266,7 @@ async function assertConsistency(version: string): Promise<void> {
 		process.exit(1);
 	}
 	console.log(
-		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/natives-stamp/npm leaf pins OK, tag absent`,
+		`  Consistency: ${ALL_PACKAGES.length} packages == ${version}, desktop/catalog/Cargo/main-workspace-lock/natives-stamp/npm leaf pins OK, tag absent`,
 	);
 }
 
@@ -561,9 +578,17 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	// rides the same release line (mirror of Step 2b/2d for main/).
 	console.log("Updating main workbench Cargo workspace...");
 	await $`sd '^ *version = "[^"]+"' ${`version = "${version}"`} main/Cargo.toml`;
-	const mainCargoLock = await Bun.file("main/Cargo.lock").text();
-	const updatedMainLock = mainCargoLock.replace(/^(name = "zeta-main"\r?\n\s*version = ")[^"]+/gm, `$1${version}`);
-	await Bun.write("main/Cargo.lock", updatedMainLock);
+	// EVERY member rides the line, not just zeta-main: `cargo build --locked`
+	// in main/ refuses a lock whose sibling crates (`zetawork-gui`, `sysmon`,
+	// `workbench-projects`) still carry the previous version.
+	const mainMembers = mainWorkspaceMembers();
+	const mainLock = rewriteWorkspaceVersions(
+		await Bun.file("main/Cargo.lock").text(),
+		mainMembers.map(m => m.name),
+		version,
+	);
+	await Bun.write("main/Cargo.lock", mainLock.lock);
+	console.log(`  main/Cargo.lock: ${mainLock.rewritten.length} workspace members -> ${version}`);
 
 	// Step 3: desktop shell (package.json + package-lock.json root version).
 	console.log("Updating desktop version...");

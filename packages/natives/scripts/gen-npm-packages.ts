@@ -48,6 +48,20 @@ export interface GenerateNpmPackagesInput {
 	tags?: readonly string[];
 }
 
+/**
+ * Platform tags a release actually publishes. The full {@link LEAF_TARGETS}
+ * list stays buildable (a developer can package a darwin leaf locally), but
+ * only these tags exist on npm: `release_native_leaves` publishes exactly
+ * them, `prepareNativeCorePackage` pins exactly them in the core manifest's
+ * `optionalDependencies`, and `zetacode update` pins exactly them. A pin for a
+ * tag no job publishes makes every install on that platform fail with ETARGET.
+ *
+ * Counts and shrinks with the bazel target lists (`NATIVES_X64_TARGETS` /
+ * `NATIVES_CROSS_TARGETS` in ci.yml); `scripts/check-release-chain.test.ts`
+ * holds the three lists equal.
+ */
+export const SHIPPED_LEAF_TAGS: readonly string[] = ["linux-x64", "win32-x64"];
+
 export const LEAF_TARGETS: readonly LeafTarget[] = [
 	{ tag: "linux-x64", os: "linux", cpu: "x64" },
 	{ tag: "linux-arm64", os: "linux", cpu: "arm64" },
