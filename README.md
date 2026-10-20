@@ -10,6 +10,8 @@
   <a href="https://github.com/Linxira-OS/linxira-zeta/actions"><img src="https://img.shields.io/github/actions/workflow/status/Linxira-OS/linxira-zeta/ci.yml?style=flat-square" alt="CI"></a>
 </p>
 
+**English** · [简体中文](#简体中文)
+
 Zeta is a terminal workbench suite: one workspace that tiles real terminals,
 plus the tools that live inside them — a coding agent, an editor, a terminal
 IDE, and a file manager. Linux is the primary platform; Windows x64 is
@@ -30,6 +32,55 @@ off to `zetacode` and `zetaide`, and its editor pane is built in (the
 `@linxiraos/editor` package name and its publish chain are reserved for that
 pane's binary payload; nothing is published under it today and it declares no
 command of its own).
+
+## Repository Map
+
+The product has four layers and one rule: **the runtime depends on nothing
+above it, and no front-end depends on another front-end.** The HTTP gateway is
+an adapter, not the hub — it exists so a browser can talk to the runtime, not
+because anything else needs it. `document/architecture-layers.md` is the full
+contract; this is the orientation.
+
+| Layer | Where | What it does |
+| --- | --- | --- |
+| Core runtime | `packages/coding-agent/src/` (+ `packages/agent`, `packages/ai`, `packages/tui`, `packages/channels`, `packages/stats`) | Sessions, tools, extensions/plugins, memory, skills, IRC/mesh. Runs in-process; no HTTP, no UI. |
+| Host | `packages/coding-agent/src/server/` (`zeta-server.ts`), `packages/coding-agent/src/channels/` | Wires a session to its workspace, IM channels, the router, config and the default workspace. Nothing here serves HTTP. |
+| Front-ends | `main/crates/zeta-main` (TUI), `main/crates/zetawork-gui` (GUI), `packages/coding-agent/src/commands/` (CLI), `web-ui/` (browser) | Each one is a client of the host. IM bots are a front-end too. |
+| HTTP adapter | `packages/coding-agent/src/server/web-gateway/` | REST/SSE/WS over the host. `zetacode serve` starts it; the browser UI and remote phones consume it. |
+
+Where each directory belongs:
+
+| Path | Contents |
+| --- | --- |
+| `packages/` | The published runtime packages (`@linxiraos/*`): coding-agent, ai, agent, tui, catalog, stats, channels, wire, mnemopi, natives, utils, omptype, browser-relay, collab-web. |
+| `main/` | **zetawork**, its own Cargo workspace: the TUI (`crates/zeta-main`), the native GUI (`crates/zetawork-gui`), and `crates/sysmon` (shared system sampling). |
+| `termide/` | Vendored TermIDE panel library — the panels both workbenches embed — plus the `zetaide` entry (`@linxiraos/ide`). Deviations from the vendored snapshot are logged in `termide/VENDOR.md`. |
+| `editor/` | The built-in editor pane's npm face. The payload is a `termide-editor` binary; the package declares no command. |
+| `crates/` | Rust runtime crates compiled as native addons (`pi-natives`, `pi-ast`, `pi-diff`, `pi-builtins`, …), built by Bazel. |
+| `web-ui/` | The browser UI (a diverged OMP Web snapshot, npm-managed, not a root workspace package). Two jobs only: chat in a browser, and hosting HTML plugin pages. |
+| `desktop/` | The retiring Electron shell. No new code; the desktop product is zetawork's GUI. |
+| `plugins/` | `official/` first-party plugins (source in-tree, `INDEX.md` registry) and `community/` pointer files. |
+| `docs/` | Runtime documentation shipped with the product (`zeta://docs`). |
+| `document/` | Internal engineering docs: architecture contracts, merge playbook, release mechanics, roadmap. Never packaged. |
+| `scripts/` | Build, release, packaging and the mechanical guards CI runs. |
+| `sdk/` | Protocol SDKs (`rust/`, `python/`, `go/`) for embedding the runtime. |
+| `python/robomp/` | The containerised agent runner. |
+| `infra/`, `bazel/`, `nix/`, `patches/`, `lsp/`, `skills/`, `assets/`, `types/` | Build infrastructure, toolchain files, patch set, LSP server table, bundled skills, image assets, ambient type shims. |
+
+### Plugin layers
+
+A plugin is TypeScript, but what it *shows* is a choice of layer. Pick by what
+the surface needs, not by what the plugin is written in:
+
+| Layer | Surface | Use it for |
+| --- | --- | --- |
+| Behaviour | Any front-end (tools, commands, hooks, messaging) | Work the agent performs. Rendered by nobody; identical in every client. |
+| Declarative panel | zetawork GUI, natively | Lists, forms, charts: the GUI draws them with its own widgets and theme. |
+| HTML page | web-ui, and zetawork's plugin column via a webview | Rich or third-party pages that cannot be expressed declaratively. |
+
+`zetaide` has **no** plugin layer, and the workbench TUI does not host plugin
+surfaces — a plugin that needs the terminal reaches it through the agent's own
+tools instead.
 
 ## Quick Start
 
@@ -255,6 +306,31 @@ removed 2026-10-16 and stays credited in source history).
 Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，加上活在工作区里的
 工具——编码 Agent、编辑器、终端 IDE 和文件管理器。Linux 是主力平台；
 支持 Windows x64;不提供 macOS 构建。
+
+### 目录与分层
+
+产品分四层，依赖单向：核心运行时 → Host → 前端 → HTTP 适配器。HTTP 只是适配器，
+不是中枢；浏览器 UI 和远程手机是它的消费者，其它前端不依赖它
+（完整契约见 `document/architecture-layers.md`）。
+
+| 路径 | 是什么 |
+| --- | --- |
+| `packages/` | 运行时包（`@linxiraos/*`）：coding-agent、ai、agent、tui、catalog、stats、channels、wire、mnemopi、natives 等 |
+| `main/` | **zetawork**：TUI（`crates/zeta-main`）、原生 GUI（`crates/zetawork-gui`）、共享采样（`crates/sysmon`） |
+| `termide/` | vendored TermIDE 面板库 + `zetaide`；对快照的偏离登记在 `termide/VENDOR.md` |
+| `editor/` | 内置编辑器面板的 npm 面（载荷是 `termide-editor` 二进制，不声明命令） |
+| `crates/` | 原生 Rust 运行时 crate（`pi-natives` 等），由 Bazel 构建 |
+| `web-ui/` | 浏览器 UI（OMP Web 分叉快照）：只负责浏览器里的对话 + HTML 插件宿主 |
+| `desktop/` | 待退役 Electron 壳（桌面产品是 zetawork GUI） |
+| `plugins/` | `official/`（第一方插件源码 + `INDEX.md` 登记）与 `community/`（指针文件） |
+| `docs/` | 随产品打包的运行时文档（`zeta://docs`）；`document/` 是内部工程文档，不打包 |
+| `scripts/` | 构建、发布、打包与 CI 守卫 |
+| `sdk/`、`python/robomp/` | 协议 SDK（rust/python/go）、容器化 Agent 运行器 |
+
+插件分三层，按"要显示在哪个面"选，而不是按插件用什么语言写：**行为**（工具/命令/钩子，
+所有前端一致）、**声明式面板**（zetawork GUI 原生渲染：列表/表单/图表）、**HTML 页**
+（web-ui，以及 zetawork 插件栏的 webview）。`zetaide` 没有插件层，工作台 TUI 也不托管
+插件面板。
 
 ### 套件
 
