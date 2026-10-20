@@ -22,7 +22,7 @@
 
 ### S1 飞书 → 另一个仓库的工作区（跨进程，对方在跑）
 - 触发：飞书群里用户发「帮我在 zeta 仓库查一下 CI 为什么红」。
-- 解析：`(channel=feishu, peer=chat_123)` → `chatBindings` → `workspaceAlias=zeta`
+- 解析：`(channel=feishu, peer=chat_123)` → `remote.sessionMappings` → `workspaceAlias=zeta`
   → 该 workspace 的 main agent（id `zeta/<MAIN_AGENT_ID>`）。
 - 投递：mesh 直投（对方 `status=running|idle`），等 `ack`。
 - 用户看到：飞书里先有「已转给 zeta 的主代理」，处理完原会话收到回答。
@@ -50,7 +50,7 @@
 
 ### S4 IM 会话改绑目标（`@agent use`）
 - 触发：飞书里 `@agent list` 看到两个工作区，`@agent use zeta/<main>`。
-- 行为：写运行时覆盖，优先级高于 `chatBindings` 与渠道默认（与
+- 行为：写运行时覆盖，优先级高于 `remote.sessionMappings` 与渠道默认（与
   `session-router.ts:288-320` 既有顺序一致）；之后该 peer 的消息都投给新目标；
   `@agent use` 不带参数 = 清回默认。
 - 验收：`session-router-agent-target.test.ts` — 覆盖生效、清除回落、非法 id 报候选。
@@ -81,6 +81,6 @@
 ## 3. 与其它在途工作的关系
 
 - `feat/gui-im-channels`：GUI 的「IM 渠道」页负责配置与扫码；它读的是同一份
-  `web-config`（`workspaces` / `chatBindings`），不引入第二份真源。
+  `web-config`（`workspaces` / `remote.sessionMappings`），不引入第二份真源。
 - `document/agent-team-plugin.md`：编排层规格，只用 `ctx.agents` / `ctx.messaging`。
 - 本文件的 S1–S7 是验收口径；改口径必须先改这里。

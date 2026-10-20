@@ -13,7 +13,7 @@
 | 旧安装迁移 | 老 `zeta-bot.jsonl` 迁到默认工作区并改写 web.yml 的 `relay` 登记（`zeta-server.ts:264-272`） |
 | coordinator 是保留别名 | `session-router.ts:40`（`COORDINATOR_ALIAS`）、`web-config.ts:378`（`"main"` 为 relay 保留别名） |
 | 会话路由三档 | `resolveRoute()`：运行期覆盖 → 持久映射 → 渠道默认 `workspaceRoot` → **relay coordinator**（`session-router.ts:285-301`） |
-| 每会话 direct/relay 模式 | `chatBindings.mode: "direct" \| "relay"`（`web-config.ts:67-68`），relay 会话是登记表里不可删的一条（:77-86） |
+| 每会话 direct/relay 模式 | `remote.sessionMappings[*].mode: "direct" \| "relay"`（`web-config.ts:67-68`），relay 会话是登记表里不可删的一条（:77-86） |
 | IM 指令切空间 | `@workspace open/use`、`*<alias>`（`session-router.ts:16`、:288-320） |
 | bot 主动给用户发消息 | `channel_send` 工具（`tools/channel-send.ts`）+ `POST /api/channels/send`（`web-gateway.ts:199-200`） |
 | 跨空间跑一次任务 | `workspace_run` 工具（`tools/workspace-run.ts`） |

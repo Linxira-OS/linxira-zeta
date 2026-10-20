@@ -9,8 +9,8 @@
 
 | 术语 | 含义 | 真源 |
 |---|---|---|
-| **workspace** | 一个工作目录 + 其会话容器。别名（alias）是用户在 IM/GUI 里叫它的名字 | `web-config.ts` 的 `workspaces`（alias → 绝对目录）、`channels.workspaceRoot`（渠道默认） |
-| **peer / chat** | IM 侧的一个对话（微信 wxid、飞书 chat_id、Telegram chat id） | `web-config.ts` 的 `chatBindings`（peer → alias） |
+| **workspace** | 一个工作目录 + 其会话容器。别名（alias）是用户在 IM/GUI 里叫它的名字 | `web-config.ts` 的 `remote.workspaces`（`alias → 绝对目录`，:45-51）、`channels.workspaceRoot`（渠道默认） |
+| **peer / chat** | IM 侧的一个对话（微信 wxid、飞书 chat_id、Telegram chat id） | `web-config.ts` 的 `remote.sessionMappings`（peer → alias，:54-70） |
 | **agent** | 一次可寻址的运行实体，有 id、所属 workspace、角色（main / subagent / team member） | `src/registry/agent-registry.ts`（进程内）、本文件的 mesh 目录（跨进程） |
 | **main agent** | 一个会话/工作区的顶层代理，id 为 `MAIN_AGENT_ID`（进程内唯一，见 §3） | `agent-registry.ts:16-17` |
 | **team** | 由编排插件创建的一组 agent + 它们的任务与收件箱 | `document/agent-team-plugin.md` |
@@ -19,7 +19,7 @@
 四者的关系是一条链，不是四套模型：
 
 ```
-IM peer ──chatBindings──▶ workspace(alias) ──session──▶ main agent ──mesh──▶ 另一个 main agent
+IM peer ──sessionMappings──▶ workspace(alias) ──session──▶ main agent ──mesh──▶ 另一个 main agent
                                                      └─team──▶ member agents
 ```
 
@@ -30,7 +30,7 @@ IM peer ──chatBindings──▶ workspace(alias) ──session──▶ main
   reconnect,unbind}`、`/api/channels/send`（路由见 `server/web-gateway.ts:195-200`）。
 - IM 工作区路由已完整：`SessionRouter`（`channels/session-router.ts:92`）支持
   `@workspace open <path> [alias]`、`@workspace use`、`*<alias>` 快捷方式，优先级
-  运行期覆盖 → `chatBindings` → 渠道默认 `workspaceRoot`（同文件 :288-320），
+  运行期覆盖 → `remote.sessionMappings` → 渠道默认 `workspaceRoot`（同文件 :288-320），
   `bindingsForPlatform()` 供设置面列出绑定（:374）。
 - 扩展面：`ctx.agents`（只读名册）+ `ctx.messaging`（send/wait/inbox），已随
   `feat/agent-interfaces` 落地（`registry/agent-directory.ts`、`irc/facade.ts`）。
