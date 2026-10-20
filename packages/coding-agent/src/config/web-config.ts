@@ -14,6 +14,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, isEnoent, logger } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
+import { generateRemoteToken, hashRemoteToken, MASKED_TOKEN } from "../utils/remote-token";
 
 export const WEB_CONFIG_FILENAME = "web.yml";
 
@@ -95,6 +96,17 @@ export interface BotSessionEntry {
 	createdAt: string;
 }
 
+/**
+ * Built-in TLS listener for `zetacode serve`. Paths point at a PEM certificate
+ * chain and its private key; `enabled` forces TLS even when a reverse proxy
+ * would otherwise terminate it (and refuses to start without both paths).
+ */
+export interface RemoteTlsConfig {
+	enabled?: boolean;
+	cert?: string;
+	key?: string;
+}
+
 export interface WebConfigData {
 	tray: {
 		minimizeToTray: boolean;
@@ -111,6 +123,19 @@ export interface WebConfigData {
 	remote: {
 		host?: string;
 		token?: string;
+		/** Public base URL a phone can reach (reverse proxy / tunnel / LAN
+		 *  origin). Used as the pairing QR base; never used for binding. */
+		publicUrl?: string;
+		/** Opt-in to a plaintext listener on a non-loopback bind. Without it,
+		 *  serve refuses to expose HTTP beyond loopback. */
+		allowPlainHttp?: boolean;
+		/** Built-in TLS listener (PEM cert + key paths). */
+		tls?: RemoteTlsConfig;
+		/** SHA-256 hashes of tokens that were rotated away or explicitly
+		 *  revoked. Hashes, never the secrets themselves. */
+		revokedTokens?: string[];
+		/** ISO timestamp of the last rotation/revocation (informational). */
+		tokenUpdatedAt?: string;
 		/** Registered remote workspaces — legacy entries are bare paths,
 		 *  current entries are `{ alias, path }` objects. */
 		workspaces?: Array<string | RemoteWorkspace>;
@@ -167,6 +192,11 @@ const KNOWN_PATHS: Record<string, LeafType> = {
 	"channels.telegram.botToken": "string",
 	"remote.host": "string",
 	"remote.token": "string",
+	"remote.publicUrl": "string",
+	"remote.allowPlainHttp": "boolean",
+	"remote.tls.enabled": "boolean",
+	"remote.tls.cert": "string",
+	"remote.tls.key": "string",
 	"remote.workspaces": "strings",
 	"remote.showBotSessions": "boolean",
 };
@@ -318,12 +348,12 @@ export class WebConfig {
 				const leaf = segments[segments.length - 1];
 				const value = current[leaf];
 				if (typeof value === "string" && value !== "") {
-					current[leaf] = "••••";
+					current[leaf] = MASKED_TOKEN;
 				} else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
 					// Record leaves (e.g. wechat peerTokens) mask every value.
 					for (const key of Object.keys(value as Record<string, unknown>)) {
 						if (typeof (value as Record<string, unknown>)[key] === "string") {
-							(value as Record<string, unknown>)[key] = "••••";
+							(value as Record<string, unknown>)[key] = MASKED_TOKEN;
 						}
 					}
 				}
@@ -339,6 +369,51 @@ export class WebConfig {
 		validateValue(leafType, value);
 		setByPath(this.#data as unknown as Record<string, unknown>, pathToSet.split("."), value);
 		await this.#write();
+	}
+
+	/** The live remote-access token, or `undefined` when none is configured. */
+	getRemoteToken(): string | undefined {
+		const token = this.#data.remote.token?.trim();
+		return token && token !== MASKED_TOKEN ? token : undefined;
+	}
+
+	/** Hashes of rotated-away / revoked tokens. */
+	getRevokedTokenHashes(): string[] {
+		return [...(this.#data.remote.revokedTokens ?? [])];
+	}
+
+	/**
+	 * Replace the active token and revoke the previous one in a single write.
+	 * The caller receives the new plaintext token once (the config only ever
+	 * stores hashes for retired tokens).
+	 */
+	async rotateRemoteToken(): Promise<string> {
+		const previous = this.getRemoteToken();
+		const next = generateRemoteToken();
+		if (previous) this.#revokeHash(hashRemoteToken(previous));
+		this.#data.remote.token = next;
+		this.#data.remote.tokenUpdatedAt = new Date().toISOString();
+		await this.#write();
+		return next;
+	}
+
+	/**
+	 * Revoke one token. Revoking the active token also clears it, so the next
+	 * access-gate check fails closed until a new token is configured.
+	 */
+	async revokeRemoteToken(token: string): Promise<void> {
+		const candidate = token.trim();
+		if (candidate === "") throw new Error("Expected a token to revoke");
+		this.#revokeHash(hashRemoteToken(candidate));
+		if (this.getRemoteToken() === candidate) this.#data.remote.token = undefined;
+		this.#data.remote.tokenUpdatedAt = new Date().toISOString();
+		await this.#write();
+	}
+
+	#revokeHash(hash: string): void {
+		const hashes = this.#data.remote.revokedTokens ?? [];
+		if (!hashes.includes(hash)) hashes.push(hash);
+		this.#data.remote.revokedTokens = hashes;
 	}
 
 	/** Replace the whole workspace list and persist. */

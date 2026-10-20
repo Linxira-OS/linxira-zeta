@@ -12,12 +12,13 @@
  *   even with a cross-site `Origin` header (an attacker's page cannot read or
  *   send the token, so it is not a CSRF vector).
  */
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { hostIsLoopback, webGatewayFetch } from "../../src/server/web-gateway";
+import { resetRemoteAccessForTests } from "../../src/server/web-gateway/remote-access";
 
 const ENV_KEYS = ["ZETA_CODING_AGENT_DIR"];
 const savedEnv = new Map<string, string | undefined>();
@@ -70,31 +71,35 @@ describe("hostIsLoopback (socket peer address)", () => {
 });
 
 describe("webGatewayFetch access gate", () => {
+	beforeEach(() => {
+		resetRemoteAccessForTests();
+	});
+
 	test("loopback socket address passes even with a spoofed Host header (B1)", async () => {
 		await setup();
 		const res = await webGatewayFetch(gatewayRequest({ Host: "127.0.0.1" }), "127.0.0.1");
-		// Gate passed (route is unknown → 404, not 403).
+		// Gate passed (route is unknown → 404, not 401/403).
 		expect(res.status).toBe(404);
 	});
 
 	test("spoofed loopback Host header without a socket address is rejected (B1)", async () => {
 		await setup();
 		const res = await webGatewayFetch(gatewayRequest({ Host: "127.0.0.1" }), undefined);
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(401);
 	});
 
 	test("0.0.0.0 socket address is rejected without a token (M1)", async () => {
 		await setup();
 		const res = await webGatewayFetch(gatewayRequest(), "0.0.0.0");
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(401);
 	});
 
 	test("non-loopback socket requires the configured token (remote access)", async () => {
 		await setup("secret123");
 		const noToken = await webGatewayFetch(gatewayRequest(), "192.168.1.5");
-		expect(noToken.status).toBe(403);
+		expect(noToken.status).toBe(401);
 		const badToken = await webGatewayFetch(gatewayRequest({ "x-zeta-token": "wrong" }), "192.168.1.5");
-		expect(badToken.status).toBe(403);
+		expect(badToken.status).toBe(401);
 		const goodToken = await webGatewayFetch(gatewayRequest({ authorization: "Bearer secret123" }), "192.168.1.5");
 		expect(goodToken.status).toBe(404);
 	});

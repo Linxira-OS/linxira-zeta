@@ -35,7 +35,8 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | ACP collaboration builtins                     | `slash-commands/acp-builtins.ts`                                            | Agent Client Protocol session commands                                                                                                                   |
 | Local stats dashboard                          | `zetacode stats` (`packages/stats`)                                         | Local observability                                                                                                                                      |
 | IM channels (WeChat / Feishu / Telegram)       | `packages/channels` + `src/channels/`                                       | `ChatChannel`/`ChannelHost` interface, session router, `channel_send`/`workspace_run`/`im_control` tools, WeChat iLink QR login                          |
-| Remote token auth + LAN exposure               | `src/server/web-gateway.ts` (`authorizedForAccess`)                         | Non-loopback bind via `ZETA_SERVE_HOSTNAME` + `remote.token` (Bearer / `X-Zeta-Token` on every `/api/*`), CSRF origin guard, `docs/remote-workspaces.md` |
+| Remote token auth + LAN/WAN exposure           | `src/server/serve-access.ts`, `src/server/web-gateway.ts`                   | `--host` → `remote.host` → `ZETA_SERVE_HOSTNAME`; built-in TLS (`--tls-cert`/`--tls-key`, `remote.tls`); plaintext beyond loopback refused unless `--allow-plain-http`; `remote.token` (Bearer / `X-Zeta-Token` on every `/api/*`), CSRF guard, per-peer rate limit, rotation/revocation, pairing QR; `docs/remote-workspaces.md` |
+| Mobile web UI (PWA + lazy media)               | `web-ui/public/`, `web-ui/lib/lazy-media.ts`                                | Manifest + offline-shell service worker (`/api/*` never cached); deferred `/api/blobs/:hash` images fetched on viewport proximity through the authenticated fetch path |
 | Web-ui open-in-app buttons + update check      | `src/server/web-gateway/open.ts`, `web-ui/components/AppShell.tsx`          | `POST /api/open` (terminal / explorer / editors), `GET /api/open/options`, update check/download/install                                                 |
 | Web-ui quick model import                      | `src/server/web-gateway/models.ts`                                          | `GET /api/models/import?base=<url>` OpenAI-compatible discovery into `models.yml`                                                                        |
 | Web-ui stats iframe                            | `web-ui/components/StatsDashboard.tsx`                                      | AppShell Stats tab rendering `NEXT_PUBLIC_STATS_URL`                                                                                                     |
@@ -493,29 +494,34 @@ Phone control of the desktop agent over the user's own network path. **No
 embedded tunneling**: users bring their own port mapping, server, or frp; Zeta's
 job is to make the served endpoint safe to expose and the UI phone-first.
 
-Shipped foundation: non-loopback bind via `ZETA_SERVE_HOSTNAME` with the
-`remote.token` gate (`authorizedForAccess` — Bearer / `X-Zeta-Token` on every
-`/api/*`, CSRF origin guard), token rows in SettingsPanel, and
-`docs/remote-workspaces.md`; IM channels (WeChat/Feishu/Telegram — see
-Shipped); full conversation reconstruction over REST + SSE
-(`/api/sessions/:id/context`, `/api/agent/:id/events`), including thinking
-blocks and inline media.
+Shipped foundation: non-loopback bind with the `remote.token` gate
+(`authorizedForAccess` — Bearer / `X-Zeta-Token` on every `/api/*`, CSRF origin
+guard), token rows in SettingsPanel, and `docs/remote-workspaces.md`; IM
+channels (WeChat/Feishu/Telegram — see Shipped); full conversation
+reconstruction over REST + SSE (`/api/sessions/:id/context`,
+`/api/agent/:id/events`), including thinking blocks and inline media.
 
-Remaining:
+Shipped (this wave):
 
-1. **Exposure hardening**: a `--host` flag on `zetacode serve` (today env-only);
-   optional built-in TLS listener (`Bun.serve tls`) plus documented
-   reverse-proxy (caddy/nginx) recipes — never silent plain-HTTP beyond the
-   LAN; a pairing QR in settings/desktop encoding `URL + token` (reuse
-   `utils/qrcode.ts`) so the phone pairs by scanning; token rotation/revocation
-   and rate limiting on the auth gate for WAN exposure.
-2. **Lazy media for mobile**: the blob-store read endpoint is in place —
-   `GET /api/blobs/:hash` (web-gateway) serves `~/.zeta/agent/blobs` for
-   fetch-back. Remaining: wire lazy fetch-back into web-ui
-   (`useAgentSession` still only sends `?deferMedia`).
-3. **Mobile web-ui**: PWA manifest + service worker (installable, offline
-   shell) on top of the existing responsive pass; voice input rides the native
-   IME (zero work) — an optional Web Speech API mic button can come later.
+1. **Exposure hardening** — `--host` on `zetacode serve` (flag → `remote.host`
+   → `ZETA_SERVE_HOSTNAME` → loopback); built-in TLS listener
+   (`--tls-cert`/`--tls-key`, `remote.tls`, env) with a non-loopback plaintext
+   bind refused unless `--allow-plain-http`; pairing QR in Settings → Web →
+   Remote Access (`URL#zeta-token=…`, rendered by the dependency-free QR
+   encoder); token rotation/revocation with persisted SHA-256 revocations and a
+   per-peer failure limiter (10 failures / 60 s → 429) on the gate, which now
+   answers 401 for a bad/revoked token. Reverse-proxy recipes (Caddy, nginx) in
+   `docs/remote-workspaces.md`.
+2. **Lazy media for mobile** — `GET /api/blobs/:hash` wired into the web UI:
+   `MediaImage` fetches deferred images on viewport proximity through the
+   authenticated fetch path and renders an object URL (an `<img src>` cannot
+   carry `X-Zeta-Token` on a remote origin), with an LRU object-URL cache.
+3. **Mobile web-ui** — manifest + icon set + service worker (offline shell,
+   `/api/*` never cached), registered only in a production secure context;
+   voice input rides the native IME (zero work).
+
+Deferred:
+
 4. **Android shell (later)**: a thin WebView wrapper of the same web-ui build
    pointing at a user-configured URL only — no business logic, no tunneling,
    and no new workflow file (checks live in the root `ci.yml`).

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
+    <title>Zeta — offline</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111827;
+        --fg: #e5e7eb;
+        --muted: #9ca3af;
+        --accent: #22d3ee;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 32px 24px;
+        text-align: center;
+      }
+      .mark {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background:
+          linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(167, 139, 250, 0.22)),
+          #0b1220;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+      h1 {
+        font-size: 17px;
+        font-weight: 600;
+        margin: 0;
+      }
+      p {
+        margin: 0;
+        max-width: 30ch;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+      button {
+        margin-top: 8px;
+        padding: 9px 18px;
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(148, 163, 184, 0.1);
+        color: var(--fg);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">Z</div>
+      <h1>Zeta is offline</h1>
+      <p>The shell is installed, but the agent service on your machine is not reachable right now.</p>
+      <button type="button" onclick="location.reload()">Retry</button>
+    </main>
+  </body>
+</html>

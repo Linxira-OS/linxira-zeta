@@ -53,6 +53,8 @@ import {
 	handleOAuthProviders,
 } from "./web-gateway/auth";
 import { handleBlobGet } from "./web-gateway/blobs";
+import { checkRemoteAccess } from "./web-gateway/remote-access";
+import { isRemoteTokenAccepted } from "../utils/remote-token";
 import { handleChannelSend } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
@@ -101,6 +103,11 @@ import {
 import { handleGetTracking, handleTrackingEvents } from "./web-gateway/tracking";
 import { handleUpdateCheck, handleUpdateDownload, handleUpdateInstall } from "./web-gateway/update";
 import { handleWebConfigGet, handleWebConfigPut } from "./web-gateway/web-config";
+import {
+	handleRemotePairingGet,
+	handleRemoteTokenRevokePost,
+	handleRemoteTokenRotatePost,
+} from "./web-gateway/pairing";
 import {
 	handleTerminalCreate,
 	handleTerminalDelete,
@@ -190,6 +197,10 @@ const TRACKING_RE = /^\/api\/tracking\/?$/;
 const TRACKING_EVENTS_RE = /^\/api\/tracking\/events$/;
 const PLAN_RE = /^\/api\/plan$/;
 const WEB_CONFIG_RE = /^\/api\/web-config$/;
+// Remote access: pairing QR + token lifecycle (settings → Remote Access).
+const REMOTE_PAIRING_RE = /^\/api\/remote\/pairing$/;
+const REMOTE_TOKEN_ROTATE_RE = /^\/api\/remote\/token\/rotate$/;
+const REMOTE_TOKEN_REVOKE_RE = /^\/api\/remote\/token\/revoke$/;
 const DOCS_RE = /^\/api\/docs\/([A-Za-z0-9._/-]+)$/;
 const BLOB_RE = /^\/api\/blobs\/([^/]+)$/;
 const CHANNELS_WECHAT_QR_RE = /^\/api\/channels\/wechat\/qrcode$/;
@@ -251,18 +262,18 @@ export function hostIsLoopback(_req: Request, remoteAddr?: string): boolean {
  * Access control: loopback requests (the local web UI, desktop shell, dev
  * proxy) pass without a token; any request that arrives from a non-loopback
  * socket (LAN IP, tunnel, reverse proxy, 0.0.0.0 bind) must present the
- * configured `remote.token`. With no token configured, non-loopback access
- * is denied outright — so exposing the port cannot yield an unauthenticated
- * control plane.
+ * configured `remote.token` — and that token must not be revoked/rotated away.
+ * With no token configured, non-loopback access is denied outright, so
+ * exposing the port cannot yield an unauthenticated control plane.
+ *
+ * Rate limiting lives in {@link checkRemoteAccess}; this predicate is the
+ * token-only check used where a boolean answer is enough (the stats route).
  */
 export async function authorizedForAccess(req: Request, remoteAddr?: string): Promise<boolean> {
 	if (hostIsLoopback(req, remoteAddr)) return true;
 	const config = await WebConfig.load();
-	const token = config.getData().remote.token;
-	if (!token || token === "••••") return false;
-	const provided =
-		req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? req.headers.get("x-zeta-token") ?? "";
-	return provided === token;
+	const provided = req.headers.get("authorization") ?? req.headers.get("x-zeta-token");
+	return isRemoteTokenAccepted(config.getData().remote, provided);
 }
 
 /** In-process fetch handler; ZetaServer dispatches to this directly. */
@@ -272,10 +283,12 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	// timers are unref'd and the guard keeps it once-per-process).
 	scheduleTrashSweep();
 
-	// Access control: non-loopback clients need the remote token.
+	// Access control: non-loopback clients need the remote token. The gate adds
+	// rate limiting and revocation on top (see web-gateway/remote-access.ts).
 	const loopback = hostIsLoopback(req, remoteAddr);
-	if (!loopback && !(await authorizedForAccess(req, remoteAddr))) {
-		return json({ error: "Forbidden: remote access requires the configured remote token" }, 403);
+	if (!loopback) {
+		const denied = await checkRemoteAccess(req, remoteAddr ?? "unknown");
+		if (denied) return denied;
 	}
 
 	// CSRF: reject cross-site browser requests before any side effect. A valid
@@ -684,6 +697,21 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (WEB_CONFIG_RE.test(pathname)) {
 		if (req.method === "GET") return handleWebConfigGet(req);
 		if (req.method === "PUT") return handleWebConfigPut(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (REMOTE_PAIRING_RE.test(pathname)) {
+		if (req.method === "GET") return handleRemotePairingGet(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (REMOTE_TOKEN_ROTATE_RE.test(pathname)) {
+		if (req.method === "POST") return handleRemoteTokenRotatePost(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (REMOTE_TOKEN_REVOKE_RE.test(pathname)) {
+		if (req.method === "POST") return handleRemoteTokenRevokePost(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

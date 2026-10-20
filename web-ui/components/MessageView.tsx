@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { MarkdownBody } from "./MarkdownBody";
+import { MediaImage } from "./MediaImage";
 import { hasProseKeyword, rainbowMagicKeywords } from "@/lib/rainbow";
 import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/hooks/useI18n";
@@ -1342,14 +1343,15 @@ function BlockView({
   }
   if (block.type === "image") {
     // Assistant-native images (image generation, and the blob-URL form the
-    // gateway now emits for tool results).
+    // gateway now emits for tool results). Blob URLs are fetched back on
+    // demand through the authenticated path — see components/MediaImage.tsx.
     const src = imageSource(block as ImageContent);
     if (!src) return null;
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <MediaImage
         src={src}
         alt=""
+        placeholderSize={{ width: 320, height: 180 }}
         style={{
           maxWidth: 480,
           maxHeight: 480,
@@ -1714,11 +1716,11 @@ function ToolCallBlock({
           }}
         >
           {resultImages.map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <MediaImage
               key={i}
               src={src}
               alt=""
+              placeholderSize={{ width: 200, height: 120 }}
               style={{
                 maxWidth: 320,
                 maxHeight: 320,

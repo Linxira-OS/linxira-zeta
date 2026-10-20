@@ -42,7 +42,9 @@ import type { AgentSession } from "../session/agent-session";
 import { SessionManager } from "../session/session-manager";
 import { openPath } from "../utils/open";
 import { clearServeRegistration, writeServeRegistration } from "./serve-registry";
-import { authorizedForAccess, startWebGateway, type WebGatewayInstance, webGatewayFetch } from "./web-gateway";
+import type { ServeTlsPaths } from "./serve-access";
+import { hostIsLoopback, startWebGateway, webGatewayFetch, type WebGatewayInstance } from "./web-gateway";
+import { checkRemoteAccess } from "./web-gateway/remote-access";
 import { classifySendError, registerChannelSend } from "./web-gateway/channels";
 import {
 	handleTerminalWsUpgrade,
@@ -63,8 +65,15 @@ import { setBotSessionDispose } from "./web-gateway/running-sessions";
 export interface ZetaServerOptions {
 	/** 主服务器端口，默认 30141 */
 	port?: number;
-	/** Public HTTP bind hostname. Non-loopback binds still require remote.token. */
+	/** Public HTTP(S) bind hostname. Non-loopback binds still require remote.token. */
 	host?: string;
+	/**
+	 * Built-in TLS listener (PEM certificate chain + private key). When set the
+	 * main listener speaks HTTPS and every reported URL uses `https://`.
+	 */
+	tls?: ServeTlsPaths | null;
+	/** Explicit opt-in for a plaintext non-loopback bind. */
+	allowPlainHttp?: boolean;
 	/** Stats Dashboard 端口，默认 3847 */
 	statsPort?: number;
 	/** 是否自动打开浏览器 */
@@ -173,9 +182,9 @@ function isLoopbackHostname(hostname: string): boolean {
 	return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized);
 }
 
-export function formatServerUrl(hostname: string, port: number): string {
+export function formatServerUrl(hostname: string, port: number, scheme: "http" | "https" = "http"): string {
 	const urlHostname = hostname.includes(":") && !hostname.startsWith("[") ? `[${hostname}]` : hostname;
-	return `http://${urlHostname}:${port}`;
+	return `${scheme}://${urlHostname}:${port}`;
 }
 /**
  * 向目标 URL 代理转发请求。
@@ -332,6 +341,8 @@ export class ZetaServer {
 		this.#options = {
 			port: options.port ?? 30141,
 			host: options.host ?? process.env.ZETA_SERVE_HOSTNAME ?? "127.0.0.1",
+			tls: options.tls ?? null,
+			allowPlainHttp: options.allowPlainHttp ?? false,
 			statsPort: options.statsPort ?? 3847,
 			// 默认不打开系统浏览器：服务仅监听端口，由 UI 壳（Electron/web-ui）消费。
 			noBrowser: options.noBrowser ?? true,
@@ -342,11 +353,19 @@ export class ZetaServer {
 		};
 	}
 
+	/** Scheme of the main listener; TLS turns the reported URLs HTTPS. */
+	get scheme(): "http" | "https" {
+		return this.#options.tls ? "https" : "http";
+	}
+
 	get url(): string {
-		return formatServerUrl(this.#options.host, this.#options.port);
+		return formatServerUrl(this.#options.host, this.#options.port, this.scheme);
 	}
 
 	get statsUrl(): string {
+		// The Stats Dashboard is a separate plain-HTTP service; only the main
+		// listener gets TLS. Web UI access to it goes through `/api/stats` on the
+		// main listener, so advertising `https` here would be a false promise.
 		return formatServerUrl(this.#options.host, this.#options.statsPort);
 	}
 
@@ -363,6 +382,26 @@ export class ZetaServer {
 
 		try {
 			const { statsPort, webOnly, statsOnly } = this.#options;
+
+			// API-boundary guard: the CLI resolves exposure before it gets here,
+			// but `startZetaServer`/`ZetaServer.start` are also a programmatic API.
+			// A non-loopback listener without a live token, or plaintext beyond
+			// loopback without an explicit opt-in, must fail before any child
+			// process or socket exists — never a silently unsafe endpoint.
+			if (!isLoopbackHostname(this.#options.host)) {
+				const config = await WebConfig.load();
+				if (!config.getRemoteToken()) {
+					throw new Error(
+						`Refusing to listen on ${this.#options.host} without remote.token: every non-loopback request would be rejected. Configure Settings → Remote Access first.`,
+					);
+				}
+				const plaintextAllowed = this.#options.allowPlainHttp || config.getData().remote.allowPlainHttp === true;
+				if (!this.#options.tls && !plaintextAllowed) {
+					throw new Error(
+						`Refusing plain HTTP on non-loopback host ${this.#options.host}: configure a TLS certificate/key, use a TLS reverse proxy, or explicitly allow plaintext.`,
+					);
+				}
+			}
 
 			// 1. Start Stats Dashboard (always when not statsOnly — zetacode web
 			//    single-mode also serves it for the Stats iframe tab)
@@ -1028,18 +1067,28 @@ export class ZetaServer {
 		// only for dev-mode Next access.
 		const gatewayRunning = !this.#options.statsOnly;
 		// Loopback by default; operators may explicitly expose the server to the
-		// LAN (or WAN) via env. A non-loopback bind MUST pair with a configured
-		// remote token or every API request is rejected by the access gate.
+		// LAN (or WAN) via `--host`/`remote.host`/`ZETA_SERVE_HOSTNAME`. A
+		// non-loopback bind MUST pair with a configured remote token or every
+		// API request is rejected by the access gate, and the serve command
+		// already refuses a plaintext exposure without an explicit opt-in.
 		const hostname = this.#options.host;
 		if (!isLoopbackHostname(hostname)) {
-			logger.warn("正在非 loopback 地址监听 —— 必须配置 remote.token，否则所有 API 请求将被拒绝", {
-				hostname,
-			});
+			logger.warn(
+				this.#options.tls
+					? "正在非 loopback 地址以 HTTPS 监听 —— 远程客户端必须携带 remote.token"
+					: "正在非 loopback 地址以明文 HTTP 监听 —— 远程客户端必须携带 remote.token，且应通过 TLS 反向代理暴露",
+				{ hostname },
+			);
 		}
 
 		const server = Bun.serve<TerminalWsData>({
 			port,
 			hostname,
+			// Built-in TLS: the certificate/key were validated by the serve
+			// command before this point (both present, both readable).
+			...(this.#options.tls
+				? { tls: { cert: Bun.file(this.#options.tls.cert), key: Bun.file(this.#options.tls.key) } }
+				: {}),
 			// Agent streams are Server-Sent Events and may stay quiet between turns.
 			idleTimeout: 0,
 			// Terminal data plane (spec §15): the one WebSocket surface; auth
@@ -1059,16 +1108,15 @@ export class ZetaServer {
 				const route = classifyRequest(req, webUiPort, gatewayRunning);
 
 				switch (route.type) {
-					case "stats":
-						return (await authorizedForAccess(req, remoteAddr))
-							? proxyRequest(req, statsInternal)
-							: new Response(
-									JSON.stringify({ error: "Forbidden: remote access requires the configured remote token" }),
-									{
-										status: 403,
-										headers: { "Content-Type": "application/json" },
-									},
-								);
+					case "stats": {
+						// The stats dashboard is a separate service but shares the same
+						// exposure: loopback passes, everyone else needs a live token and
+						// hits the same rate-limited gate.
+						const denied = hostIsLoopback(req, remoteAddr)
+							? null
+							: await checkRemoteAccess(req, remoteAddr ?? "unknown");
+						return denied ?? proxyRequest(req, statsInternal);
+					}
 					case "gateway":
 						return webGatewayFetch(req, remoteAddr);
 					case "webui":

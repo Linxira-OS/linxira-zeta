@@ -3,7 +3,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { installRemoteTokenFetch } from "@/lib/remote-token";
+import { installRemoteTokenFetch, setRemoteToken } from "@/lib/remote-token";
+import { consumePairingFragment } from "@/lib/pairing";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow, planTitleFromPath } from "./ChatWindow";
 import { TerminalView, type TerminalFileRequest } from "./TerminalView";
@@ -194,6 +195,19 @@ interface TabBindings {
 		activeLeafId: string | null,
 		onLeafChange: (leafId: string | null) => void,
 	) => void;
+}
+
+/**
+ * Pairing runs at module evaluation, before the first render/effect: a phone
+ * opening `#zeta-token=…` must have the token in `localStorage` before any
+ * child effect fires an `/api/*` request. Guarded for the server render and
+ * for non-browser test imports.
+ */
+if (typeof window !== "undefined") {
+	consumePairingFragment(window.location, {
+		setToken: setRemoteToken,
+		replaceUrl: url => window.history.replaceState(window.history.state, "", url),
+	});
 }
 
 /**

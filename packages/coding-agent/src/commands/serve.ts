@@ -12,10 +12,12 @@
 import { CLI_BIN_NAME, logger, VERSION } from "@linxiraos/pi-utils";
 import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
+import { WebConfig } from "../config/web-config";
+import { formatAccessUrl, resolveServeAccess } from "../server/serve-access";
 import { discoverServeInstance, planServeStart, serveRegistryPath } from "../server/serve-registry";
 import { ensureAgentDirEnv } from "../server/web-gateway";
 import type { ServeIdentity } from "../server/web-gateway/identity";
-import { formatServerUrl, startZetaServer, type ZetaServerInstance } from "../server/zeta-server";
+import { startZetaServer, type ZetaServerInstance } from "../server/zeta-server";
 
 /** Identity lines shared by the reuse / mismatch reports. */
 function reportInstance(identity: ServeIdentity): void {
@@ -47,7 +49,21 @@ export default class Serve extends Command {
 			default: 30141,
 		}),
 		host: Flags.string({
-			description: "Public bind hostname (non-loopback requires remote.token)",
+			description: "Public bind hostname (non-loopback requires remote.token + TLS or --allow-plain-http)",
+		}),
+		tls: Flags.boolean({
+			description: "Force the built-in TLS listener (requires --tls-cert and --tls-key)",
+			default: false,
+		}),
+		"tls-cert": Flags.string({
+			description: "PEM certificate chain for the built-in TLS listener",
+		}),
+		"tls-key": Flags.string({
+			description: "PEM private key for the built-in TLS listener",
+		}),
+		"allow-plain-http": Flags.boolean({
+			description: "Allow a plaintext non-loopback bind (default: refused; use TLS or a TLS reverse proxy)",
+			default: false,
 		}),
 		"gateway-port": Flags.integer({
 			char: "g",
@@ -86,10 +102,34 @@ export default class Serve extends Command {
 
 		console.log(chalk.bold(`\n  ${CLI_BIN_NAME} Serve\n`));
 
+		// Exposure before discovery: host/TLS come from the flag > web.yml >
+		// env chain, and a configuration that would expose the control plane
+		// unsafely is refused here, before any child process or socket.
+		const webConfig = await WebConfig.load();
+		const access = resolveServeAccess({
+			flags: {
+				host: flags.host,
+				tls: flags.tls,
+				tlsCert: flags["tls-cert"],
+				tlsKey: flags["tls-key"],
+				allowPlainHttp: flags["allow-plain-http"],
+			},
+			config: webConfig.getData(),
+			env: process.env,
+		});
+		if (!access.ok) {
+			console.log(chalk.red(`  Refusing to start: ${access.error}\n`));
+			process.exitCode = 1;
+			return;
+		}
+		for (const warning of access.warnings) {
+			console.log(chalk.yellow(`  Warning: ${warning}`));
+		}
+
 		// Discovery before binding: an instance already holding this port is
 		// reused (same version) or refused (different version) — never fought
 		// over with a raw EADDRINUSE.
-		const targetUrl = formatServerUrl(flags.host ?? process.env.ZETA_SERVE_HOSTNAME ?? "127.0.0.1", webPort);
+		const targetUrl = formatAccessUrl(access.access, webPort);
 		const discovery = await discoverServeInstance({ targetUrl });
 		const plan = planServeStart({ discovery, targetUrl, currentVersion: VERSION });
 
@@ -173,7 +213,9 @@ export default class Serve extends Command {
 		try {
 			instance = await startZetaServer({
 				port: webPort,
-				host: flags.host,
+				host: access.access.host,
+				tls: access.access.tls,
+				allowPlainHttp: access.access.allowPlainHttp,
 				statsPort,
 				gatewayPort,
 				noBrowser,
@@ -190,6 +232,13 @@ export default class Serve extends Command {
 			}
 			if (!statsOnly && instance.gatewayUrl) {
 				console.log(chalk.green(`  Web Gateway:      ${instance.gatewayUrl}`));
+			}
+			if (!access.access.loopback) {
+				console.log(
+					chalk.dim(
+						`\n  Exposed on ${access.access.host} (${access.access.scheme.toUpperCase()}). Pair a phone from Settings → Remote Access (QR carries the URL and token).`,
+					),
+				);
 			}
 
 			console.log(chalk.dim(`\n  Press Ctrl+C to stop all services\n`));
