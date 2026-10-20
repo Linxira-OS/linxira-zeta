@@ -32,10 +32,16 @@
  *   - every `outfile` basename must live in `packages/coding-agent/binaries/`;
  *   - every `binary_path` the release matrix builds must be a CLI outfile
  *     basename;
- *   - the updater's names and the CLI outfile basenames must be the same set —
- *     a name only one side knows is a 404 or an unreachable build;
- *   - the updater must delegate to `releaseCliAssetName(` and must not rebuild
- *     the name from `CLI_BIN_NAME`;
+ *   - the updater's shipped names (`SHIPPED_CLI_ASSETS`) and the release
+ *     matrix's `binary_path` basenames must be the same set — a name only one
+ *     side knows is a 404 or an unreachable build;
+ *   - every candidate name the updater could compute (each platform × arch,
+ *     musl included) must resolve through `shippedCliAssetName(` to a shipped
+ *     asset or to nothing — an unshipped name must never reach a URL, or
+ *     `zetacode update` downloads a 404 (darwin/arm64 after the 2026-10-01
+ *     trim);
+ *   - the updater must delegate to `releaseCliAssetName(` /
+ *     `shippedCliAssetName(` and must not rebuild the name from `CLI_BIN_NAME`;
  *   - CLI targets the matrix does not build today are reported, not failed:
  *     the build matrix is the authority on what ships (macOS left the release
  *     surface on 2026-10-01; the arm64 targets stay buildable so a future
@@ -47,7 +53,7 @@
  * Usage: bun scripts/check-release-asset-names.ts   (gate mode; exit 0/1)
  */
 import * as path from "node:path";
-import { releaseCliAssetName } from "../packages/utils/src/release-assets";
+import { releaseCliAssetName, SHIPPED_CLI_ASSETS, shippedCliAssetName } from "../packages/utils/src/release-assets";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const BINARIES_DIR = "packages/coding-agent/binaries";
@@ -128,9 +134,17 @@ for (const name of shipped) {
 //    GitHub for `zetacode-<os>-<arch>` while releases carried `zeta-cli-*`, so
 //    self-update 404'd on every platform (v1.1.27 / main).
 const updaterSource = await read(UPDATER_FILE);
-if (!updaterSource.includes("releaseCliAssetName(")) {
+// The updater asks for a name only through the shipped gate: a bare
+// `releaseCliAssetName(` call can produce darwin/arm64 names the matrix never
+// builds (the 404 this guard exists for).
+if (updaterSource.includes("releaseCliAssetName(")) {
 	problems.push(
-		`${UPDATER_FILE}: no \`releaseCliAssetName(\` call — the updater must derive its download name from ${"packages/utils/src/release-assets.ts"}`,
+		`${UPDATER_FILE}: calls \`releaseCliAssetName(\` directly — go through \`shippedCliAssetName(\` so an unshipped platform yields no download name at all`,
+	);
+}
+if (!updaterSource.includes("shippedCliAssetName(")) {
+	problems.push(
+		`${UPDATER_FILE}: no \`shippedCliAssetName(\` call — the updater must gate its fallback on the shipped matrix, not on a name it can compute`,
 	);
 }
 // Source text of the drift itself, assembled so it does not read as a live
@@ -140,24 +154,54 @@ if (updaterSource.includes("$" + "{CLI_BIN_NAME}-")) {
 		`${UPDATER_FILE}: builds an asset name from CLI_BIN_NAME — assets keep the package's file-name face (zeta-cli-*), not the command name`,
 	);
 }
-const updaterNames = new Set<string>();
+if (!updaterSource.includes("shippedCliAssetName(")) {
+	problems.push(
+		`${UPDATER_FILE}: no \`shippedCliAssetName(\` call — the updater must gate its fallback on the shipped matrix, not on a name it can compute`,
+	);
+}
+// Every name the updater could ask for, per platform × arch, then through the
+// shipped gate. An unshipped name resolving to a string is the 404 bug: the
+// release built no such asset (darwin/arm64 after the 2026-10-01 trim).
 for (const platform of PLATFORMS) {
 	for (const arch of ARCHES) {
-		updaterNames.add(releaseCliAssetName(platform, arch));
-		if (platform === "linux") updaterNames.add(releaseCliAssetName(platform, arch, { musl: true }));
+		for (const musl of [false, true]) {
+			if (musl && platform !== "linux") continue;
+			const candidate = releaseCliAssetName(platform, arch, { musl });
+			const gated = shippedCliAssetName(platform, arch, { musl });
+			if (gated !== undefined && !buildable.has(gated)) {
+				problems.push(
+					`${UPDATER_FILE}: the updater downloads \`${gated}\`, which no \`kind: "cli"\` target in ${TARGETS_FILE} builds — that fallback 404s`,
+				);
+			}
+			if (gated === undefined && shipped.includes(candidate)) {
+				problems.push(
+					`packages/utils/src/release-assets.ts: \`${candidate}\` is shipped but the shipped gate drops it — the updater would never download it`,
+				);
+			}
+			if (gated !== undefined && !shipped.includes(gated)) {
+				problems.push(
+					`${UPDATER_FILE}: the updater offers \`${gated}\`, which the ${RELEASE_JOB} matrix never builds — that fallback 404s`,
+				);
+			}
+		}
 	}
 }
-for (const name of updaterNames) {
-	if (!buildable.has(name)) {
+// The single source of truth and the matrix must be the same set, both ways.
+const shippedSet = new Set(shipped);
+for (const name of SHIPPED_CLI_ASSETS) {
+	if (!shippedSet.has(name)) {
 		problems.push(
-			`${UPDATER_FILE}: the updater downloads \`${name}\`, which no \`kind: "cli"\` target in ${TARGETS_FILE} builds — that fallback 404s`,
+			`${WORKFLOW_FILE}: \`${RELEASE_JOB}\` does not build \`${name}\`, but the updater lists it as shipped (packages/utils/src/release-assets.ts)`,
 		);
 	}
+	if (!buildable.has(name)) {
+		problems.push(`${TARGETS_FILE}: \`${name}\` is listed as shipped but no \`kind: "cli"\` target builds it`);
+	}
 }
-for (const name of buildable) {
-	if (!updaterNames.has(name)) {
+for (const name of shipped) {
+	if (!SHIPPED_CLI_ASSETS.includes(name)) {
 		problems.push(
-			`${TARGETS_FILE}: \`${name}\` is built but no updater name maps to it — self-update cannot install that build`,
+			`${WORKFLOW_FILE}: \`${RELEASE_JOB}\` builds \`${name}\`, but the updater's shipped set does not list it — self-update cannot install that build`,
 		);
 	}
 }
@@ -169,7 +213,7 @@ if (problems.length > 0) {
 }
 const buildableNotShipped = [...buildable].filter(name => !shipped.includes(name)).sort();
 console.log(
-	`Release asset names OK: ${buildable.size} CLI target(s) ↔ ${updaterNames.size} updater name(s); ` +
+	`Release asset names OK: ${buildable.size} CLI target(s), ${shipped.length} shipped ↔ ${SHIPPED_CLI_ASSETS.length} updater name(s); ` +
 		`${RELEASE_JOB} builds ${shipped.length} (${[...shipped].sort().join(", ")})`,
 );
 if (buildableNotShipped.length > 0) {

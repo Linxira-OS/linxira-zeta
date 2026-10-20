@@ -30,6 +30,7 @@
 import { Glob } from "bun";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { mainWorkspaceMembers, pinnedWorkspaceVersions } from "./cargo-workspace-lock";
 import { distributionManifests, distributionPins, NPM_DISTRIBUTIONS, NPM_MANIFEST_GLOB } from "./npm-distributions";
 
 const root = path.resolve(import.meta.dir, "..");
@@ -136,6 +137,14 @@ function main(): void {
 	const mainToml = fs.readFileSync(path.join(root, "main", "Cargo.toml"), "utf8");
 	const mainVersion = /\[workspace\.package\][^[]*?version = "([^"]+)"/s.exec(mainToml)?.[1];
 	if (mainVersion !== expected) problems.push(`main/Cargo.toml workspace: ${mainVersion} != ${expected}`);
+	// ...and so does every member entry in its lock. A bump that rewrote only
+	// zeta-main left `cargo build --locked` in main/ refusing to run on the
+	// three siblings (`zetawork-gui`, `sysmon`, `workbench-projects`).
+	const mainLock = fs.readFileSync(path.join(root, "main", "Cargo.lock"), "utf8");
+	for (const member of mainWorkspaceMembers()) {
+		const pinned = pinnedWorkspaceVersions(mainLock, [member.name]).get(member.name);
+		if (pinned !== expected) problems.push(`main/Cargo.lock ${member.name}: ${pinned ?? "<absent>"} != ${expected}`);
+	}
 
 	// Bazel-face crate versions: the hand-written crates/*/BUILD.bazel targets
 	// carry a `version` attr printed in bazel logs/cache keys; a stale one is
@@ -295,7 +304,7 @@ function main(): void {
 		process.exit(1);
 	}
 	console.log(
-		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace + natives stamp + desktop + npm distribution leaf/companion pins + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
+		`Version line consistent at ${expected}: ${ALL_PACKAGES.length} packages + ${CATALOG_KEYS.length} catalog keys + Cargo + main workspace (+ its Cargo.lock members) + natives stamp + desktop + npm distribution leaf/companion pins + README badge + crates/*/BUILD.bazel + Cargo.lock members (verified)`,
 	);
 }
 

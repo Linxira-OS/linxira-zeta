@@ -49,7 +49,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { $ } from "bun";
-import { generateNpmPackages, LEAF_TARGETS } from "../packages/natives/scripts/gen-npm-packages.ts";
+import { generateNpmPackages, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages.ts";
 import { fixEmitExtensions } from "./fix-emit-extensions.ts";
 
 export interface PublishPackage {
@@ -343,10 +343,14 @@ export async function applyPublishBin(pkgRelDir: string, write: boolean): Promis
 	return manifest;
 }
 
-function buildNativeOptionalDependencies(version: string): JsonObject {
+export function buildNativeOptionalDependencies(version: string): JsonObject {
 	const optionalDependencies: JsonObject = {};
-	for (const target of LEAF_TARGETS) {
-		optionalDependencies[`@linxiraos/pi-natives-${target.tag}`] = version;
+	// Only the leaves `release_native_leaves` publishes: a pin for a tag no job
+	// ships makes `npm install` on that platform fail with ETARGET instead of
+	// falling back to the embedded/loader path (the linux-arm64 bug: the
+	// manifest advertised six leaves while two existed).
+	for (const tag of SHIPPED_LEAF_TAGS) {
+		optionalDependencies[`@linxiraos/pi-natives-${tag}`] = version;
 	}
 	return optionalDependencies;
 }
@@ -633,6 +637,12 @@ export async function runPublishJobs(
 const PUBLISH_CONCURRENCY = 6;
 
 async function publishNativeLeafPackage(tag: string): Promise<string[]> {
+	if (!SHIPPED_LEAF_TAGS.includes(tag)) {
+		throw new Error(
+			`Native leaf tag "${tag}" is not shipped — release_native_leaves publishes ${SHIPPED_LEAF_TAGS.join(", ")}. ` +
+				"Publishing a leaf the core manifest does not pin leaves an orphan package on npm.",
+		);
+	}
 	const pkg = packages.find(candidate => candidate.kind === "native");
 	if (!pkg) throw new Error("No native package configured");
 	const pkgDir = path.join(repoRoot, pkg.dir);

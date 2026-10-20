@@ -35,7 +35,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { $ } from "bun";
-import { LEAF_TARGETS } from "../packages/natives/scripts/gen-npm-packages.ts";
+import { LEAF_TARGETS, SHIPPED_LEAF_TAGS } from "../packages/natives/scripts/gen-npm-packages.ts";
 import { compareVersions } from "../packages/utils/src/version.ts";
 import { packages } from "./ci-release-publish.ts";
 
@@ -158,10 +158,11 @@ async function collectTargets(): Promise<{ names: string[]; repoFromManifest: st
 			seen.add(manifest.name);
 			names.push(manifest.name);
 		}
-		// Native leaves are generated per platform at release time; each is its
-		// own published package and needs its own trusted-publisher link.
+		// Native leaves are generated per platform at release time; each shipped
+		// one is its own published package and needs its own trusted-publisher
+		// link (a leaf the release does not publish needs none).
 		if (pkg.kind === "native") {
-			for (const target of LEAF_TARGETS) {
+			for (const target of LEAF_TARGETS.filter(candidate => SHIPPED_LEAF_TAGS.includes(candidate.tag))) {
 				const leaf = `@linxiraos/pi-natives-${target.tag}`;
 				if (!seen.has(leaf)) {
 					seen.add(leaf);
@@ -261,7 +262,7 @@ function nativeLeafName(tag: string): string {
 
 function nativeLeafTargetForPackage(name: string): NativeLeafTarget | null {
 	for (const target of LEAF_TARGETS) {
-		if (nativeLeafName(target.tag) === name) return target;
+		if (SHIPPED_LEAF_TAGS.includes(target.tag) && nativeLeafName(target.tag) === name) return target;
 	}
 	return null;
 }

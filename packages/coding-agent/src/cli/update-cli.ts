@@ -19,7 +19,7 @@ import {
 	getProjectDir,
 	isCompiledBinary,
 	isEnoent,
-	releaseCliAssetName,
+	shippedCliAssetName,
 	VERSION,
 	wrapFetchForExtraCa,
 } from "@linxiraos/pi-utils";
@@ -63,20 +63,18 @@ const BINARY_DOWNLOAD_TIMEOUT_MS = 15 * 60_000;
 const NATIVES_PACKAGE = "@linxiraos/pi-natives";
 
 /**
- * Platform tags the release pipeline publishes as
- * `@linxiraos/pi-natives-<tag>` leaves. Mirrors `SUPPORTED_PLATFORMS` in
- * `packages/natives/native/loader-state.js` and `LEAF_TARGETS` in
- * `packages/natives/scripts/gen-npm-packages.ts`; kept here as the local
- * source of truth so the update path stays free of cross-package imports.
+ * Platform tags the release pipeline actually publishes as
+ * `@linxiraos/pi-natives-<tag>` leaves (`SHIPPED_LEAF_TAGS` in
+ * `packages/natives/scripts/gen-npm-packages.ts`, published by the
+ * `release_native_leaves` job). The loader still supports every tag in
+ * `packages/natives/native/loader-state.js` — a locally built darwin/arm64
+ * addon keeps working — but only a shipped leaf exists on npm, and pinning a
+ * package that was never published makes `bun install`/`npm install` fail with
+ * ETARGET instead of updating. Kept here as the local source of truth so the
+ * update path stays free of cross-package imports; `scripts/check-release-chain.ts`
+ * holds it equal to the shipped list.
  */
-const SUPPORTED_NATIVE_TAGS: ReadonlySet<string> = new Set([
-	"linux-x64",
-	"linux-arm64",
-	"darwin-x64",
-	"darwin-arm64",
-	"win32-x64",
-	"win32-arm64",
-]);
+export const SHIPPED_NATIVE_TAGS: ReadonlySet<string> = new Set(["linux-x64", "win32-x64"]);
 
 function currentNativeTag(): string {
 	return `${process.platform}-${process.arch}`;
@@ -1505,7 +1503,7 @@ export function isMuslLinuxForTest(options: Required<MuslDetectionOptions>): boo
 
 /**
  * Asset name this machine's binary fallback downloads — the published
- * `zeta-cli-<os>-<arch>[.exe]` release asset ({@link releaseCliAssetName}),
+ * `zeta-cli-<os>-<arch>[.exe]` release asset ({@link shippedCliAssetName}),
  * exported because updater-vs-release naming is a contract pinned by
  * `scripts/check-release-asset-names.ts`, not an implementation detail.
  *
@@ -1513,9 +1511,13 @@ export function isMuslLinuxForTest(options: Required<MuslDetectionOptions>): boo
  * text and the `--version` report, while assets keep the package's file-name
  * face. Building the asset name from `CLI_BIN_NAME` made every fallback
  * download ask GitHub for a `zetacode-*` asset no release carries (v1.1.27).
+ *
+ * Undefined when this host has no shipped CLI asset (darwin, arm64, non-musl
+ * linux variants the `release_binary` matrix does not build): the caller must
+ * refuse the binary path instead of computing a name that 404s.
  */
-export function defaultBinaryName(): string {
-	return releaseCliAssetName(process.platform, process.arch, { musl: isMuslLinux() });
+export function defaultBinaryName(): string | undefined {
+	return shippedCliAssetName(process.platform, process.arch, { musl: isMuslLinux() });
 }
 
 /**
@@ -1774,7 +1776,7 @@ function buildVersionedPackageInstallArgs(
 	packages: ReleasePackages,
 ): string[] {
 	const args = [`${packages.pkg}@${expectedVersion}`, `${packages.natives}@${expectedVersion}`];
-	if (SUPPORTED_NATIVE_TAGS.has(nativeTag)) {
+	if (SHIPPED_NATIVE_TAGS.has(nativeTag)) {
 		args.push(`${packages.natives}-${nativeTag}@${expectedVersion}`);
 	}
 	return args;
@@ -1808,7 +1810,7 @@ function buildVersionedPackageInstallArgs(
  * (`The .node file on disk is from a different release than this loader`).
  * Listing the natives explicitly forces bun to replace them in lock-step.
  * The leaf is added only on tags the release pipeline actually publishes
- * ({@link SUPPORTED_NATIVE_TAGS}) so unsupported platforms still fail with
+ * ({@link SHIPPED_NATIVE_TAGS}) so unsupported platforms still fail with
  * the original "no matching version" message instead of `EBADPLATFORM`.
  * See #1824.
  *
@@ -1922,7 +1924,7 @@ export function buildRenameCleanupPackages(
 	nativeTag: string = currentNativeTag(),
 ): string[] {
 	const old = [PACKAGE, NATIVES_PACKAGE];
-	if (SUPPORTED_NATIVE_TAGS.has(nativeTag)) {
+	if (SHIPPED_NATIVE_TAGS.has(nativeTag)) {
 		old.push(`${NATIVES_PACKAGE}-${nativeTag}`);
 	}
 	const newLeaf = `${packages.natives}-${nativeTag}`;
@@ -2255,6 +2257,14 @@ export async function updateViaBinaryAt(
 ): Promise<void> {
 	if (options.validateExistingTarget) await validateExistingUpdateTarget(targetPath);
 	const binaryName = options.binaryName ?? defaultBinaryName();
+	if (!binaryName) {
+		// No shipped asset for this host: refuse instead of a guaranteed 404.
+		throw new Error(
+			`No standalone ${CLI_BIN_NAME} binary is published for ${process.platform}-${process.arch}. ` +
+				"Update through the package manager that installed this copy, or reinstall with: " +
+				installerHint(),
+		);
+	}
 	// Unique per attempt so two overlapping `zetacode update` runs never share a temp
 	// or backup path. A fixed temp name (`<binary>.new`) let the second run's
 	// pre-download unlink delete the first run's still-downloading temp file; the
@@ -2356,6 +2366,13 @@ export async function updateViaShimTakeover(
 	} = {},
 ): Promise<void> {
 	const binaryName = options.binaryName ?? defaultBinaryName();
+	if (!binaryName) {
+		throw new Error(
+			`No standalone ${CLI_BIN_NAME} binary is published for ${process.platform}-${process.arch}. ` +
+				"Update through the package manager that installed this copy, or reinstall with: " +
+				installerHint(),
+		);
+	}
 	const launcherDir = path.dirname(shimPath);
 	const exePath = path.join(launcherDir, `${CLI_BIN_NAME}.exe`);
 	const attempt = `${Date.now()}.${process.pid}.${updateAttemptSeq++}`;
@@ -2611,6 +2628,20 @@ export async function runUpdateCommand(opts: {
 			await updateViaHomebrew(release.version, opts.force);
 		} else if (target.method === "mise") {
 			await updateViaMise(release.version, opts.force);
+		} else if ((forceBinary || target.method === "binary") && defaultBinaryName() === undefined) {
+			// No release asset for this host: the download would 404. Say so
+			// instead of computing an asset name no release carries.
+			console.log(
+				chalk.yellow(
+					`No standalone ${CLI_BIN_NAME} binary is published for ${process.platform}-${process.arch} in ${release.version}.`,
+				),
+			);
+			console.log(
+				chalk.dim(
+					`Update through the package manager that installed this copy, or reinstall with: ${installerHint()}`,
+				),
+			);
+			return;
 		} else if (target.method === "bun" || target.method === "npm") {
 			if (forceBinary) {
 				// Reachable in forced mode only through a Windows script
