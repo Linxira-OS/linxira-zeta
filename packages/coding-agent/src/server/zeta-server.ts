@@ -138,6 +138,12 @@ const NEXT_OWNED_API_PREFIXES = [
 	"/api/worktrees",
 	"/api/file-index",
 	"/api/webui/",
+	// Plugin pages are Next-owned: discovery (`/api/plugin-pages`) and the
+	// package's own assets (`/api/plugin-assets/<plugin>/<path>`). Without
+	// these two the gateway answers 404 — it has no handler for either — so
+	// the HTML plugin host only worked when Next served `/api` directly.
+	"/api/plugin-pages",
+	"/api/plugin-assets/",
 ];
 
 /**
