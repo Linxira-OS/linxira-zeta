@@ -84,3 +84,13 @@
   `web-config`（`workspaces` / `remote.sessionMappings`），不引入第二份真源。
 - `document/agent-team-plugin.md`：编排层规格，只用 `ctx.agents` / `ctx.messaging`。
 - 本文件的 S1–S7 是验收口径；改口径必须先改这里。
+
+## 4. 实现备注（不改验收口径）
+
+- S1–S4、S6、S7 的自动化测试随本次落地；S5 的 `team-routing.test.ts` 与 team 插件
+  同批，本次只钉住 seam（`@team` → 主持 agent 的解析 + 假 host agent 测试）。
+- 运行时面默认在 config root 下（`run/`、`mailboxes/`）；config root 不同的进程可
+  用 `ZETA_MESH_ROOT` 指向同一个共享目录。Windows 命名管道名带 mesh-root 摘要。
+- 目录记录额外携带 `agents` / `waits` 两个可选字段（`@agent list` 与 S6 探测需要）。
+- `parked|gone` 都回 `queued`（S3 要求）；"未知 workspace" 才是报错 + 候选。
+

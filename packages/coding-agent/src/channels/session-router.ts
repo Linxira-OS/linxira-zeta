@@ -29,6 +29,9 @@ import type { BotSessionEntry, WebConfig } from "../config/web-config";
 import { hasWorkspacePersona, workspaceMemoryBackend } from "../default-workspace";
 import { cfgChannelsReportPolicy } from "../tools/settings";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
+import { IrcBus } from "../irc/bus";
+import { getMeshNode } from "../mesh/global";
+import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import type { WorkspaceRef } from "../registry/agent-directory";
 import { createAgentSession } from "../sdk";
 import type { AgentSession } from "../session/agent-session";
@@ -88,6 +91,23 @@ export interface ChatStatusSnapshot {
 	reportPolicy: string;
 }
 
+/** One addressable agent as the IM bridge sees it (local or another workspace's). */
+export interface AgentTargetInfo {
+	/** Address accepted by `@agent use` (`<workspaceId>/<agentId>`, or a bare local id). */
+	address: string;
+	id: string;
+	role: string;
+	status: string;
+	workspaceAlias?: string;
+	local: boolean;
+}
+
+/** Where one chat's next message should go. */
+export type ChatRouteTarget =
+	| { kind: "agent"; target: string; local: boolean }
+	| { kind: "workspace"; alias: string }
+	| { kind: "relay" };
+
 /** Map a reply language to the system-prompt / message directive line. */
 export function languageDirectiveLine(lang: "zh" | "en"): string {
 	return lang === "en" ? "Reply in English." : "Reply in Simplified Chinese.";
@@ -142,6 +162,14 @@ export class SessionRouter {
 	readonly #directReplies = new Map<string, DirectReply>();
 	/** Runtime (non-persisted) per-chat route override: "channel:peer" → alias. */
 	readonly #runtimeBindings = new Map<string, string>();
+	/** Runtime per-chat agent override from `@agent use` / `@team` (highest precedence). */
+	readonly #agentBindings = new Map<string, string>();
+	/** Cross-process agent roster; defaults to the mesh node plus this process's registry. */
+	readonly #listAgentTargets?: () => Promise<AgentTargetInfo[]> | AgentTargetInfo[];
+	/** Team plugin seam: team name → the address of its host agent. */
+	readonly #resolveTeamHost?: (name: string) => string | undefined;
+	/** Team plugin seam: names usable with `@team`. */
+	readonly #teamNames?: () => string[];
 	#stopping = false;
 
 	constructor(options: {
@@ -159,6 +187,12 @@ export class SessionRouter {
 		createBotSessionRuntime?: (entry: BotSessionEntry) => Promise<AgentSession>;
 		/** Natural-language IM control sink forwarded to bot sessions. */
 		imControl?: (sessionKey: string, params: ImControlParams) => Promise<ImControlResult>;
+		/** Cross-process agent roster for `@agent list` / `@agent use`. */
+		listAgentTargets?: () => Promise<AgentTargetInfo[]> | AgentTargetInfo[];
+		/** Team plugin seam: team name → host agent address (see `@team`). */
+		resolveTeamHost?: (name: string) => string | undefined;
+		/** Team plugin seam: available team names. */
+		listTeams?: () => string[];
 	}) {
 		this.#coordinator = options.coordinator;
 		this.#webConfig = options.webConfig;
@@ -169,6 +203,9 @@ export class SessionRouter {
 		this.#workspaceRun = options.workspaceRun;
 		this.#createBotSessionRuntime = options.createBotSessionRuntime;
 		this.#imControl = options.imControl;
+		this.#listAgentTargets = options.listAgentTargets;
+		this.#resolveTeamHost = options.resolveTeamHost;
+		this.#teamNames = options.listTeams;
 		// Load persisted aliases into the in-memory index.
 		for (const entry of this.#webConfig.getWorkspaces()) {
 			this.#aliases.set(entry.alias, entry.path);
@@ -319,6 +356,148 @@ export class SessionRouter {
 		return "direct";
 	}
 
+	// ------------------------------------------------------------------
+	// Agent targets (`@agent list`, `@agent use`, `@team`)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Agents this router can address: this process's roster plus every live
+	 * mesh peer. Local entries keep their bare id; remote entries carry the
+	 * `<workspaceId>/<agentId>` address.
+	 */
+	async listAgentTargets(): Promise<AgentTargetInfo[]> {
+		if (this.#listAgentTargets) return await this.#listAgentTargets();
+		const mesh = getMeshNode();
+		if (mesh) {
+			return (await mesh.agents()).map(agent => ({
+				address: agent.address,
+				id: agent.id,
+				role: agent.role,
+				status: agent.status,
+				...(agent.workspaceAlias !== undefined && { workspaceAlias: agent.workspaceAlias }),
+				local: agent.local,
+			}));
+		}
+		return AgentRegistry.global()
+			.list()
+			.filter(ref => ref.kind !== "advisor")
+			.map(ref => ({
+				address: ref.id,
+				id: ref.id,
+				role: ref.kind,
+				status: ref.status,
+				local: true,
+			}));
+	}
+
+	/**
+	 * Set (or clear, with no selector) the runtime agent override for one chat.
+	 * An unknown selector reports the candidates; an ambiguous one (several
+	 * workspaces own the same bare id) is an explicit error, never a guess.
+	 */
+	async setAgentTarget(
+		channelId: ChannelId,
+		peer: string,
+		selector?: string,
+	): Promise<{ ok: true; target: string } | { ok: false; error: string }> {
+		const key = `${channelId}:${peer}`;
+		const cleaned = selector?.trim();
+		if (!cleaned) {
+			this.#agentBindings.delete(key);
+			return { ok: true, target: "" };
+		}
+		const normalized = cleaned.startsWith("agent://") ? cleaned.slice("agent://".length) : cleaned;
+		const candidates = await this.listAgentTargets();
+		// A full address is unambiguous by construction — and an unprefixed id
+		// matching exactly one candidate keeps today's in-process behavior.
+		const exact = candidates.find(candidate => candidate.address === normalized);
+		if (exact) {
+			this.#agentBindings.set(key, exact.address);
+			return { ok: true, target: exact.address };
+		}
+		// Bare ids and alias-qualified ids both resolve here; several owners is
+		// an explicit ambiguity, never an arbitrary pick.
+		const matches = candidates.filter(
+			candidate => candidate.id === normalized || candidate.address.endsWith(`/${normalized}`),
+		);
+		if (matches.length === 1) {
+			this.#agentBindings.set(key, matches[0]!.address);
+			return { ok: true, target: matches[0]!.address };
+		}
+		if (matches.length > 1) {
+			return {
+				ok: false,
+				error: `Ambiguous agent "${cleaned}": ${matches.map(candidate => candidate.address).join(", ")}. Use a workspace-qualified id.`,
+			};
+		}
+		const available = candidates.map(candidate => candidate.address);
+		return {
+			ok: false,
+			error:
+				available.length > 0
+					? `Unknown agent "${cleaned}". Available: ${available.join(", ")}.`
+					: `Unknown agent "${cleaned}". No agents are visible.`,
+		};
+	}
+
+	/** Runtime agent override for one chat, if any. */
+	agentTargetFor(channelId: ChannelId, peer: string): string | undefined {
+		return this.#agentBindings.get(`${channelId}:${peer}`);
+	}
+
+	/** Team names the plugin exposed (empty until the team plugin lands). */
+	listTeams(): string[] {
+		return this.#teamNames?.() ?? [];
+	}
+
+	/** Address of a team's host agent, or undefined when the team is unknown. */
+	resolveTeamHost(name: string): string | undefined {
+		return this.#resolveTeamHost?.(name);
+	}
+
+	/**
+	 * One resolution for the inbound bridge: the `@agent use` override wins,
+	 * then the existing workspace precedence (runtime → chatBindings → channel
+	 * default), then the relay coordinator.
+	 */
+	async resolveChatTarget(channelId: ChannelId, peer: string): Promise<ChatRouteTarget> {
+		const agent = this.agentTargetFor(channelId, peer);
+		if (agent) return { kind: "agent", target: agent, local: !agent.includes("/") };
+		const binding = await this.bindingFor(channelId, peer);
+		if (!binding || binding === COORDINATOR_ALIAS) return { kind: "relay" };
+		return { kind: "workspace", alias: binding };
+	}
+
+	/**
+	 * Deliver one IM message to an agent target. The sender is this process's
+	 * main agent, so replies surface in the relay conversation; a local target
+	 * is injected directly, a remote one goes through the mesh.
+	 */
+	async deliverToAgent(
+		target: string,
+		channelId: ChannelId,
+		peer: string,
+		body: string,
+	): Promise<{ ok: boolean; error?: string }> {
+		const coordinatorId = this.#coordinator.getAgentId?.() ?? MAIN_AGENT_ID;
+		try {
+			if (target === coordinatorId) {
+				await this.#coordinator.deliverIrcMessage({
+					id: `${channelId}:${peer}:${Date.now()}`,
+					from: "user",
+					to: target,
+					body,
+					ts: Date.now(),
+				});
+				return { ok: true };
+			}
+			const receipt = await IrcBus.global().send({ from: coordinatorId, to: target, body });
+			return receipt.outcome === "failed" ? { ok: false, error: receipt.error } : { ok: true };
+		} catch (error) {
+			return { ok: false, error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
 	/** Resolve the effective workspace alias for one chat ("" = relay coordinator). */
 	async bindingFor(channelId: ChannelId, peer: string): Promise<string | null> {
 		const runtime = this.#runtimeBindings.get(`${channelId}:${peer}`);
@@ -404,6 +583,7 @@ export class SessionRouter {
 	/** Remove a chat's persisted + runtime binding. */
 	async unbindChat(channelId: ChannelId, peer: string): Promise<boolean> {
 		this.#runtimeBindings.delete(`${channelId}:${peer}`);
+		this.#agentBindings.delete(`${channelId}:${peer}`);
 		return this.#webConfig.removeSessionMapping(channelId, peer);
 	}
 

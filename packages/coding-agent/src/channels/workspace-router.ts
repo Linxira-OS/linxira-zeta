@@ -55,6 +55,8 @@ export interface WorkspaceRouterDeps {
 }
 
 const PREFIXES = ["@workspace", "!workspace"];
+const AGENT_PREFIXES = ["@agent", "!agent"];
+const TEAM_PREFIXES = ["@team", "!team"];
 const PLAN_PREFIXES = ["@plan", "!plan"];
 const HELLO_PREFIXES = ["!hello", "!helo"];
 const SESSION_PREFIXES = ["!session", "@session"];
@@ -128,6 +130,18 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			);
 			return true;
 		}
+	}
+
+	// `@agent ...` — cross-process agent targeting (`@agent list` / `@agent use`).
+	if (AGENT_PREFIXES.some(prefix => lower === prefix || lower.startsWith(`${prefix} `))) {
+		await runAgentCommand(trimmed, deps);
+		return true;
+	}
+
+	// `@team <name>` — route this chat to a team's host agent.
+	if (TEAM_PREFIXES.some(prefix => lower === prefix || lower.startsWith(`${prefix} `))) {
+		await runTeamCommand(trimmed, deps);
+		return true;
 	}
 
 	// `!session ...` — default-space bot session management (zero AI).
@@ -214,6 +228,10 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 					"  bind <alias>                — persist this chat → workspace binding",
 					"  unbind                      — remove this chat's binding",
 					"  bindings                    — list bindings for this platform",
+					"Agent / team routing:",
+					"  @agent list                 — agents visible here (local + other workspaces)",
+					"  @agent use <id>             — route this chat to an agent (no id clears it)",
+					"  @team <name>                — hand this chat to a team's host agent",
 					"Shorthands: *<alias> (direct), *relay / *back / *main (relay)",
 				].join("\n"),
 			);
@@ -443,6 +461,97 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 			}
 			return true;
 	}
+}
+
+/**
+ * `@agent list` / `@agent use [<id>]` — the IM bridge onto mesh addresses.
+ * `use` writes the highest-precedence runtime override for this chat; no id
+ * clears it and falls back to the workspace binding.
+ */
+async function runAgentCommand(body: string, deps: WorkspaceRouterDeps): Promise<void> {
+	const router = deps.router;
+	if (!router) {
+		await deps.sendText("No workspace router in this mode.");
+		return;
+	}
+	const rest = body.replace(/^[@!]agent\s*/i, "").trim();
+	const [command, ...args] = rest.split(/\s+/).filter(Boolean);
+	switch ((command ?? "").toLowerCase()) {
+		case "":
+		case "help":
+			await deps.sendText(
+				[
+					"@agent list              — agents visible here (local + registered workspaces)",
+					"@agent use <id>          — route this chat to that agent",
+					"@agent use               — clear the override (workspace binding resumes)",
+					"Ids: <workspaceId>/<agentId>, a workspace alias, or a bare local id.",
+				].join("\n"),
+			);
+			return;
+		case "list": {
+			const agents = await router.listAgentTargets();
+			const target = router.agentTargetFor(deps.channelId as never, deps.peer);
+			const lines = agents.length > 0 ? ["Agents:"] : ["Agents: none visible."];
+			for (const agent of agents) {
+				const where = agent.local
+					? "local"
+					: `workspace ${agent.workspaceAlias ?? agent.address.slice(0, agent.address.indexOf("/"))}`;
+				lines.push(`  - ${agent.address} [${agent.role} · ${agent.status}] — ${where}`);
+			}
+			const binding = await router.bindingFor(deps.channelId as never, deps.peer);
+			lines.push(target ? `This chat → agent [${target}]` : thisChatLine(binding));
+			await deps.sendText(lines.join("\n"));
+			return;
+		}
+		case "use": {
+			const selector = args.join(" ").trim();
+			const result = await router.setAgentTarget(deps.channelId as never, deps.peer, selector || undefined);
+			if (!result.ok) {
+				await deps.sendText(result.error);
+				return;
+			}
+			await deps.sendText(
+				selector
+					? `Direct mode: this chat now talks to agent [${result.target}]. Send @agent use with no id to clear.`
+					: "Agent override cleared; routing falls back to this chat's workspace binding.",
+			);
+			return;
+		}
+		default:
+			await deps.sendText(`Unknown @agent command "${command}". Type @agent help for usage.`);
+	}
+}
+
+/**
+ * `@team <name>` — route this chat to a team's host agent. The team plugin
+ * owns the mapping; with no teams registered the reply names the empty set
+ * rather than pretending the team exists.
+ */
+async function runTeamCommand(body: string, deps: WorkspaceRouterDeps): Promise<void> {
+	const router = deps.router;
+	if (!router) {
+		await deps.sendText("No workspace router in this mode.");
+		return;
+	}
+	const name = body.replace(/^[@!]team\s*/i, "").trim();
+	const teams = router.listTeams();
+	if (!name || name.toLowerCase() === "list") {
+		await deps.sendText(teams.length > 0 ? `Teams: ${teams.join(", ")}` : "No teams are registered yet.");
+		return;
+	}
+	const host = router.resolveTeamHost(name);
+	if (!host) {
+		await deps.sendText(
+			`Unknown team "${name}". ${teams.length > 0 ? `Available teams: ${teams.join(", ")}.` : "No teams are registered yet."}`,
+		);
+		return;
+	}
+	const result = await router.setAgentTarget(deps.channelId as never, deps.peer, host);
+	if (!result.ok) {
+		await deps.sendText(result.error);
+		return;
+	}
+	await deps.sendText(`This chat now routes to team [${name}] via host agent [${result.target}].`);
 }
 
 /** Switch this chat to direct mode with a workspace (runtime, not persisted). */

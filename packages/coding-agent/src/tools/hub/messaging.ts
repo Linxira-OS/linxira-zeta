@@ -18,6 +18,9 @@ import { formatDuration } from "@linxiraos/pi-utils";
 import type { Settings } from "../../config/settings";
 
 import { IrcAwaitTargetStopped, IrcBus } from "../../irc/bus";
+import { getMeshNode } from "../../mesh/global";
+import { isWorkspaceAddress } from "../../mesh/envelope";
+import { raceMutualWait, type MutualWaitStatus } from "../../mesh/mutual-wait";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 
 import { type AgentRegistry, MAIN_AGENT_ID } from "../../registry/agent-registry";
@@ -235,7 +238,7 @@ export async function executeSend(
 	// Discovery can retarget parked refs to the caller's root, but cannot
 	// replace a live peer. Never gate live control messages on filesystem
 	// discovery: the recipient may be waiting for this message to finish work.
-	if (!isBroadcast && sessionFileHint) {
+	if (!isBroadcast && sessionFileHint && !isWorkspaceAddress(to)) {
 		const recipient = registry.get(to);
 		if (!recipient || recipient.status === "parked") {
 			await ensurePersistedRoster(registry, sessionFileHint);
@@ -250,10 +253,15 @@ export async function executeSend(
 	let removeAwaitAbortListener: (() => void) | undefined;
 	const waiting = params.await
 		? bus
-				.wait(senderId, { from: to }, timeoutMs ?? DEFAULT_IRC_TIMEOUT_MS, awaitAbort?.signal, {
-					drainPending: false,
-					liveness: { registry, senderId },
-				})
+				.wait(
+					senderId,
+					{ from: to },
+					timeoutMs ?? DEFAULT_IRC_TIMEOUT_MS,
+					awaitAbort?.signal,
+					isWorkspaceAddress(to)
+						? { drainPending: false }
+						: { drainPending: false, liveness: { registry, senderId } },
+				)
 				.then(
 					message => ({ message, error: null as Error | null }),
 					error => ({
@@ -373,7 +381,14 @@ export async function executeSend(
 	}
 }
 
-/** Pure message wait: no jobs in play, block on the bus with peer liveness for `timeoutMs`. */
+/**
+ * Pure message wait: no jobs in play, block on the bus with peer liveness for
+ * `timeoutMs`.
+ *
+ * A wait on a cross-process peer registers itself in the mesh directory and
+ * races a deadlock probe (S6): when that peer is itself waiting on this agent,
+ * the wait returns `peer-waiting-on-you` instead of freezing both sessions.
+ */
 export async function executeMessageWait(
 	deps: { registry: AgentRegistry; senderId: string },
 	params: { from?: string; timeoutMs: number },
@@ -382,10 +397,50 @@ export async function executeMessageWait(
 	const { registry, senderId } = deps;
 	const { timeoutMs } = params;
 	const from = params.from?.trim() || undefined;
+	const remote = from !== undefined && isWorkspaceAddress(from);
+	const mesh = remote ? getMeshNode() : undefined;
+	const controller = new AbortController();
+	const forwardAbort = (): void => {
+		controller.abort(signal?.reason instanceof Error ? signal.reason : new Error("IRC wait aborted"));
+	};
+	if (signal?.aborted) forwardAbort();
+	else signal?.addEventListener("abort", forwardAbort, { once: true });
 	try {
-		const waited = await IrcBus.global().wait(senderId, { from }, timeoutMs, signal, {
-			liveness: { registry, senderId },
-		});
+		const wait = IrcBus.global().wait(
+			senderId,
+			{ from },
+			timeoutMs,
+			controller.signal,
+			remote ? undefined : { liveness: { registry, senderId } },
+		);
+		let waited: IrcMessage | null | MutualWaitStatus;
+		if (mesh && from) {
+			try {
+				const on = await mesh.canonicalAddress(from);
+				waited = await raceMutualWait(mesh, senderId, on, wait);
+			} catch {
+				// Resolution or the probe failed (unknown peer, directory I/O):
+				// fall back to the ordinary wait rather than failing the call.
+				waited = await wait;
+			}
+		} else {
+			waited = await wait;
+		}
+		if (waited === "peer-waiting-on-you") {
+			controller.abort(new Error("mutual wait"));
+			wait.catch(() => {});
+			return {
+				content: [
+					{
+						type: "text",
+						text:
+							`${from} is waiting on you — returning instead of blocking to avoid a deadlock. ` +
+							"Answer it, then wait again.",
+					},
+				],
+				details: { op: "wait", from: senderId, status: "peer-waiting-on-you" },
+			};
+		}
 		if (!waited) {
 			const filterNote = from ? ` from ${from}` : "";
 			return {
@@ -401,6 +456,8 @@ export async function executeMessageWait(
 			throw error;
 		}
 		return hubErrorResult(error instanceof Error ? error.message : String(error), { op: "wait", from: senderId });
+	} finally {
+		signal?.removeEventListener("abort", forwardAbort);
 	}
 }
 

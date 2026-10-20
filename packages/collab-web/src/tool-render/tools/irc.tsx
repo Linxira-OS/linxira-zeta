@@ -76,12 +76,13 @@ function parsePeers(value: unknown): IrcPeer[] {
 	return out.sort((a, b) => (PEER_STATUS_ORDER[a.status] ?? 9) - (PEER_STATUS_ORDER[b.status] ?? 9));
 }
 
-/** Mirrors the TUI's outcomeColor: woken=success, revived=warning, injected=accent, failed=error. */
+/** Mirrors the TUI's outcomeColor: woken=success, revived/queued=warning, injected=accent, failed=error. */
 function outcomeTone(outcome: string): Tone | undefined {
 	switch (outcome) {
 		case "woken":
 			return "ok";
 		case "revived":
+		case "queued":
 			return "warn";
 		case "injected":
 			return "accent";

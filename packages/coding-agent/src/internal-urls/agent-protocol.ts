@@ -26,6 +26,7 @@ import { type AgentRef, AgentRegistry } from "../registry/agent-registry";
 import { type AgentMessage } from "@linxiraos/pi-agent-core";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
 import { executeSend, isIrcEnabled } from "../irc/messaging";
+import { getMeshNode } from "../mesh/global";
 import agentPromptDoc from "../prompts/internal-urls/agent.md" with { type: "text" };
 import agentProgressTemplate from "../prompts/tools/agent-url-progress.md" with { type: "text" };
 import agentSupersededTemplate from "../prompts/tools/agent-url-superseded.md" with { type: "text" };
@@ -182,9 +183,19 @@ export class AgentProtocolHandler implements ProtocolHandler {
 		) {
 			throw new Error("Peer messaging is unavailable in this session.");
 		}
-		const to = url.rawHost || url.hostname;
-		if (!to) throw new Error("agent:// URL requires a recipient: agent://<id>");
-		if (hasPathExtraction(url)) {
+		const host = url.rawHost || url.hostname;
+		if (!host) throw new Error("agent:// URL requires a recipient: agent://<id>");
+		// `agent://<workspace>/<agent>` is the cross-process address form, and it
+		// is only meaningful when a mesh node can resolve that workspace. Without
+		// one, a trailing segment keeps its historical meaning: a JSON-path
+		// suffix, which writes reject.
+		const pathSegments = url.pathname.split("/").filter(Boolean);
+		let to = host;
+		if (pathSegments.length === 1) {
+			const candidate = `${host}/${decodeURIComponent(pathSegments[0]!)}`;
+			if (getMeshNode()?.isCrossProcessAddress(candidate)) to = candidate;
+			else throw new Error("agent:// message target cannot have a JSON-path suffix.");
+		} else if (pathSegments.length > 1) {
 			throw new Error("agent:// message target cannot have a JSON-path suffix.");
 		}
 		if (!content.trim()) throw new Error("agent:// messages require non-empty content.");

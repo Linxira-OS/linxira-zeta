@@ -13,7 +13,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { logger, VERSION } from "@linxiraos/pi-utils";
+import { getConfigRootDir, logger, VERSION } from "@linxiraos/pi-utils";
 import type { ChannelId, ChatImage } from "../channels";
 import {
 	type ChannelRuntime,
@@ -31,15 +31,19 @@ import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "../
 import { type ImControlParams, type ImControlResult, runImControl } from "../channels/im-control";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
-import { COORDINATOR_ALIAS, SessionRouter } from "../channels/session-router";
+import { SessionRouter } from "../channels/session-router";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { WebConfig } from "../config/web-config";
 import { defaultCoordinatorWorkspace, initializeDefaultWorkspace } from "../default-workspace";
+import { IrcBus } from "../irc/bus";
+import { MeshNode } from "../mesh/mesh-node";
+import { getMeshNode, setMeshNode } from "../mesh/global";
 import { currentLanguage } from "../i18n";
 import { humanizePlanTitle, planFileUrlForSlug, planSlugFromSupplied } from "../plan-mode/approved-plan";
 import type { PlanWorkflow } from "../plan-mode/state";
 import type { AgentSession } from "../session/agent-session";
+import { AgentRegistry } from "../registry/agent-registry";
 import { SessionManager } from "../session/session-manager";
 import { openPath } from "../utils/open";
 import { clearServeRegistration, writeServeRegistration } from "./serve-registry";
@@ -331,6 +335,8 @@ export class ZetaServer {
 	/** Coordinator session shared by the router and every channel runtime. */
 	#channelCoordinator: AgentSession | null = null;
 	#router: SessionRouter | null = null;
+	/** Machine-local mesh presence; null when this process runs standalone. */
+	#mesh: MeshNode | null = null;
 	/** Remote plan-approval pending state, keyed by `${channelId}:${peer}`. The
 	 *  plan is approved against the session that produced it (relay coordinator
 	 *  or a bot session). */
@@ -430,6 +436,7 @@ export class ZetaServer {
 			// coordinator is the single shared session all clients consume.
 			if (!statsOnly) {
 				await this.#ensureMainSession();
+				await this.#startMesh();
 			}
 
 			// 2d. Start IM channels when requested or any web.yml channel is enabled.
@@ -488,6 +495,14 @@ export class ZetaServer {
 		registerRestartChannels(null);
 		registerMainSessionId(null);
 		this.#channelCoordinator = null;
+
+		if (this.#mesh) {
+			await this.#mesh.stop().catch(error => {
+				logger.warn("mesh: shutdown failed", { error: String(error) });
+			});
+			this.#mesh = null;
+			setMeshNode(undefined);
+		}
 
 		if (this.#router) {
 			await this.#router.stopAll().catch(() => {});
@@ -666,6 +681,57 @@ export class ZetaServer {
 		await this.#router.ensureRelaySession(coordinatorFile);
 		// Web-UI bot-session deletion reaches the live runtime through this hook.
 		setBotSessionDispose(id => this.#router?.deleteBotSession(id));
+	}
+
+	/**
+	 * Join the machine-local mesh. Failure is non-fatal: a standalone serve
+	 * process keeps its single-process behavior, while the log names the
+	 * process that owns the endpoint.
+	 */
+	async #startMesh(): Promise<void> {
+		if (this.#mesh || getMeshNode()) return;
+		try {
+			const config = await WebConfig.load();
+			const registry = AgentRegistry.global();
+			const node = await MeshNode.start({
+				workspaceRoot: defaultCoordinatorWorkspace(),
+				configRoot: getConfigRootDir(),
+				role: "main",
+				localAgents: () =>
+					registry
+						.list()
+						.filter(ref => ref.kind !== "advisor" && ref.status !== "aborted")
+						.map(ref => ({
+							id: ref.id,
+							role: ref.kind === "main" ? "main" : "sub",
+							status:
+								ref.status === "running" || ref.status === "idle" || ref.status === "parked"
+									? ref.status
+									: "gone",
+						})),
+				deliver: async (envelope, localAgentId) => {
+					const receipt = await IrcBus.global().send({
+						from: envelope.from,
+						to: localAgentId,
+						body: envelope.body,
+						...(envelope.replyTo !== undefined && { replyTo: envelope.replyTo }),
+					});
+					return { outcome: receipt.outcome, ...(receipt.error !== undefined && { error: receipt.error }) };
+				},
+				workspaceAliases: () => config.getWorkspaces().map(entry => ({ alias: entry.alias, path: entry.path })),
+			});
+			this.#mesh = node;
+			setMeshNode(node);
+			logger.info("mesh: joined", {
+				workspaceId: node.workspaceId,
+				alias: node.workspaceAlias,
+				endpoint: node.endpoint,
+			});
+		} catch (error) {
+			logger.warn("mesh: not joined (continuing standalone)", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
 	}
 
 	/** channel_send tool sink shared by the coordinator and every bot session. */
@@ -1016,11 +1082,23 @@ export class ZetaServer {
 			getChatModel: () => this.#getChatModel(channelId, peer),
 		});
 		if (consumed) return;
-		// Direct-mode chats are bound to a workspace; everything else goes
-		// to the chat's active bot session, then the relay coordinator.
-		const binding = router ? await router.bindingFor(channelId, peer) : null;
-		if (binding && binding !== COORDINATOR_ALIAS && router) {
-			const result = await router.deliverDirect(binding, channelId, peer, body);
+		// `@agent use` wins; then direct-mode workspace bindings; everything
+		// else goes to the chat's active bot session, then the relay coordinator.
+		const route = router ? await router.resolveChatTarget(channelId, peer) : ({ kind: "relay" } as const);
+		if (route.kind === "agent" && router) {
+			const result = await router.deliverToAgent(route.target, channelId, peer, body);
+			if (!result.ok) {
+				logger.warn("Agent-target injection failed", { channel: channelId, error: result.error });
+				await runtime.sendText(
+					channelId,
+					peer,
+					`Failed to reach agent ${route.target}: ${result.error ?? "unknown error"}`,
+				);
+			}
+			return;
+		}
+		if (route.kind === "workspace" && router) {
+			const result = await router.deliverDirect(route.alias, channelId, peer, body);
 			if (!result.ok) {
 				logger.warn("Direct-mode injection failed", {
 					channel: channelId,
