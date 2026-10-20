@@ -58,6 +58,19 @@
 
 Computer-use 在 Linux 的实测路径：X11/XWayland 走 `XSendEvent` → XI2-MPX → `uinput`；Wayland 走 `libei` + portal 授权；元素树走 AT-SPI（Qt 应用需 `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`，否则只能力靠截图定位）。
 
+### 微信官方 iLink bot 的真实边界（2026-10-20 核实）
+
+- 官方标准是 `Tencent/openclaw-weixin` 的 iLink Bot 协议：**二维码登录 + 1:1 会话**，
+  纯 HTTP，Linux 可跑。我们 `packages/channels` 的微信适配器走的就是这条。
+- **不支持群聊**。官方协议文档自己写明"`group_id` 等字段只表示类型定义包含该字段，
+  不保证插件支持对应功能"（`docs/protocol_zh_CN.md`，消息模型小节）；官方仓库有四个
+  未关闭的功能请求在要这个能力：#42「能否支持微信群聊」、#152「支持将 openclaw 拉入
+  微信群」、#236、#327。个人微信客户端也没有"把机器人拉进群"的入口。
+- 主动消息受限：用户 24 小时无交互则 `context_token` 失效；有效会话内机器人主动消息
+  上限 10 条；`sendmessage` 另有频率限制（issues #202、#270）。
+- 结论：**微信"进群"只有真号一条路**（computer-use；hook 仅 Windows/macOS）。iLink bot
+  只做 1:1 助理与私聊入口。
+
 取舍：QQ 走协议桥（快、全，封号风险由用户自担）；微信走 computer-use（慢、需前台或授权，但不注入进程）。两者都只是输入通道，上层复用会话路由、默认工作区、人设、记忆。
 
 ## 4. 未决（需要用户拍板，不擅自实现）
