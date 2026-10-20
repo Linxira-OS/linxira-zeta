@@ -3173,6 +3173,7 @@ function AppShellContent({ shellMode: pinnedMode }: { shellMode?: ShellMode }) {
 				open={settingsConfigOpen}
 				onClose={() => setSettingsConfigOpen(false)}
 				onOpenModelsConfig={() => setModelsConfigOpen(true)}
+				cwd={activeCwd ?? selectedSession?.cwd ?? newSessionCwd ?? null}
 			/>
 			{skillsConfigOpen && (activeCwd ?? selectedSession?.cwd ?? newSessionCwd) && (
 				<SkillsConfig

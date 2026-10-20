@@ -872,6 +872,8 @@ export const enLocale: LocalePlugin = {
 		"settings.saved": "Saved ✓",
 		"settings.secret-kept": "Saved — leave blank to keep unchanged",
 		"settings.configure-via-cli": "Configure via CLI: /settings",
+		"settings.project-override": "Project override",
+		"settings.overridden-by-fmt": "A {layer} layer still supplies this value for the active workspace.",
 		"settings.retry": "Retry",
 		"settings.load-failed-fmt": "Failed to load settings: {error}",
 		"settings.save-failed-fmt": "Save failed: {error}",

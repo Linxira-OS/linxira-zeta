@@ -860,6 +860,8 @@ export const zhCNLocale: LocalePlugin = {
 		"settings.saved": "已保存 ✓",
 		"settings.secret-kept": "已保存，留空保持不变",
 		"settings.configure-via-cli": "通过 CLI 配置：/settings",
+		"settings.project-override": "项目覆盖",
+		"settings.overridden-by-fmt": "当前工作区的该值仍由 {layer} 层提供。",
 		"settings.retry": "重试",
 		"settings.load-failed-fmt": "设置加载失败：{error}",
 		"settings.save-failed-fmt": "保存失败：{error}",

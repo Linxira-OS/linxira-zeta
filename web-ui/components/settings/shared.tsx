@@ -1236,6 +1236,8 @@ interface SettingRowProps {
 	pending: boolean;
 	revealed: boolean;
 	terminalNote: boolean;
+	/** Layer still shadowing the saved global value, when the last save reported one. */
+	overriddenBy?: string;
 	/** Non-empty query turns on match highlighting for label/description. */
 	highlight?: string;
 	onCommit: (value: unknown) => void;
@@ -1251,6 +1253,7 @@ function SettingRow({
 	pending,
 	revealed,
 	terminalNote,
+	overriddenBy,
 	highlight,
 	onCommit,
 	onDraft,
@@ -1414,6 +1417,23 @@ function SettingRow({
 			<div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
 				<span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
 					<SettingsHighlight text={entry.label} query={highlight} />
+					{overriddenBy === "project" && (
+						<span
+							title={t("settings.overridden-by-fmt", { layer: overriddenBy })}
+							style={{
+								marginLeft: 8,
+								padding: "1px 6px",
+								borderRadius: 999,
+								border: "1px solid var(--zeta-alias-border)",
+								fontSize: 10.5,
+								fontWeight: 500,
+								color: "var(--zeta-alias-text-muted)",
+								whiteSpace: "nowrap",
+							}}
+						>
+							{t("settings.project-override")}
+						</span>
+					)}
 				</span>
 				{!wide && (
 					<div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -1487,7 +1507,7 @@ export interface SettingsDataState {
 	renderRow: (entry: SettingEntry, highlight?: string) => React.ReactNode;
 }
 
-export function useSettingsData(enabled = true): SettingsDataState {
+export function useSettingsData(enabled = true, cwd?: string | null): SettingsDataState {
 	const { locale, setLocale, t } = useI18n();
 	const [data, setData] = useState<SettingsResponse | null>(null);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -1497,26 +1517,32 @@ export function useSettingsData(enabled = true): SettingsDataState {
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [pending, setPending] = useState<Record<string, boolean>>({});
 	const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+	/** Per-path layer still shadowing the global value written by the last save. */
+	const [overridden, setOverridden] = useState<Record<string, string>>({});
 
 	const lang = settingsLang(locale);
 
-	const load = useCallback(async (fetchLang: "en" | "zh") => {
-		setLoadError(null);
-		try {
-			const next = await fetchSettings(fetchLang);
-			setData(next);
-			setValues(Object.fromEntries(next.settings.map((s): [string, unknown] => [s.path, s.value])));
-			setDrafts({});
-			setErrors({});
-			setActiveTab(cur =>
-				cur === "web" || cur === "docs" || next.tabs.some(tab => tab.id === cur)
-					? cur
-					: (next.tabs[0]?.id ?? "appearance"),
-			);
-		} catch (err) {
-			setLoadError(err instanceof Error ? err.message : String(err));
-		}
-	}, []);
+	const load = useCallback(
+		async (fetchLang: "en" | "zh") => {
+			setLoadError(null);
+			try {
+				const next = await fetchSettings(fetchLang, cwd);
+				setData(next);
+				setValues(Object.fromEntries(next.settings.map((s): [string, unknown] => [s.path, s.value])));
+				setDrafts({});
+				setErrors({});
+				setOverridden({});
+				setActiveTab(cur =>
+					cur === "web" || cur === "docs" || next.tabs.some(tab => tab.id === cur)
+						? cur
+						: (next.tabs[0]?.id ?? "appearance"),
+				);
+			} catch (err) {
+				setLoadError(err instanceof Error ? err.message : String(err));
+			}
+		},
+		[cwd],
+	);
 
 	useEffect(() => {
 		if (!enabled) return;
@@ -1532,8 +1558,16 @@ export function useSettingsData(enabled = true): SettingsDataState {
 				return next;
 			});
 			try {
-				await updateSetting(path, value);
-				setValues(v => ({ ...v, [path]: value }));
+				const result = await updateSetting(path, value, cwd);
+				// The panel shows the effective value, not the raw global value just
+				// written: a project layer may still shadow it (flagged below).
+				setValues(v => ({ ...v, [path]: result.value !== undefined ? result.value : value }));
+				setOverridden(prev => {
+					const next = { ...prev };
+					if (result.overriddenBy) next[path] = result.overriddenBy;
+					else delete next[path];
+					return next;
+				});
 				if (path === "language") {
 					const nextLocale = value === "zh" ? "zh-CN" : "en";
 					try {
@@ -1553,7 +1587,7 @@ export function useSettingsData(enabled = true): SettingsDataState {
 				});
 			}
 		},
-		[setLocale],
+		[cwd, setLocale],
 	);
 
 	const renderRow = (entry: SettingEntry, highlight?: string) => {
@@ -1596,6 +1630,7 @@ export function useSettingsData(enabled = true): SettingsDataState {
 				pending={pending[entry.path] === true}
 				revealed={revealed[entry.path] === true}
 				terminalNote={isTerminalEffect(entry.path)}
+				overriddenBy={overridden[entry.path]}
 				highlight={highlight}
 				onCommit={next => void commit(entry.path, next)}
 				onDraft={text => setDrafts(d => ({ ...d, [entry.path]: text }))}
@@ -1614,7 +1649,7 @@ export function useSettingsData(enabled = true): SettingsDataState {
 		entriesFor,
 		groupsFor: (tab: string) => data?.groups[tab] ?? [],
 		commit,
-		reload: () => void syncGatewayState().then(() => load(lang)),
+		reload: () => void syncGatewayState(cwd).then(() => load(lang)),
 		renderRow,
 	};
 }

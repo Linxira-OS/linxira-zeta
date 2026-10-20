@@ -650,7 +650,7 @@ async function sendStatus(deps: WorkspaceRouterDeps): Promise<void> {
 				`路由: ${snapshot.route === "direct" ? `direct [${snapshot.workspaceAlias ?? "?"}]` : "relay (main)"}`,
 			);
 			lines.push(`人设: ${snapshot.personaActive ? "生效" : "未生效"}`);
-			lines.push(`记忆: ${snapshot.memoryBackend}`);
+			lines.push(`记忆: ${snapshot.memoryBackend} (${snapshot.memoryBackendSource})`);
 			lines.push(`汇报策略: ${snapshot.reportPolicy}`);
 		}
 		const workspaces = router.list();

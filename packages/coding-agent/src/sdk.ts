@@ -1790,18 +1790,27 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 	registerSshCleanup();
 	registerEvalCleanup();
 
-	const settings = await (options.settings ??
-		options.settingsManager ??
-		logger.time("settings", Settings.init, { cwd, agentDir }));
-	// Discovery provider toggles and process-wide setting effects (theme, request limits, …)
-	// follow the newest holder: each top-level session holds both on its settings until disposed,
-	// then hands them back to the previous holder. Subagents and helper sessions never take them,
-	// so a parent's live edits keep reaching discovery and effects.
+	// The process singleton is initialized once (it owns effects and the config-file
+	// watcher); the session then gets a cwd-scoped view so its project layer — memory
+	// backend, model roles, provider policy — follows THIS session's workspace instead
+	// of the first session's. Explicit callers (ACP factories, tests, extensions) keep
+	// the instance they pass.
+	const suppliedSettings = options.settings ?? options.settingsManager;
+	const processSettings = suppliedSettings
+		? undefined
+		: await logger.time("settings", Settings.init, { cwd, agentDir });
+	const settings = await (suppliedSettings ??
+		logger.time("settings:scope", (dir: string) => processSettings!.sessionForCwd(dir), cwd));
+	// Discovery provider toggles follow the newest top-level session's settings (project
+	// provider policy is per session). Process-wide effects (theme, request limits, …) stay
+	// on the process singleton when this session runs a cwd clone, so a project view never
+	// drives machine-wide state.
 	const bindsProcessState = options.bindProcessState !== false && !options.parentTaskPrefix && !options.taskDepth;
 	const restoreProviderToggles = bindsProcessState
 		? logger.time("initializeWithSettings", initializeWithSettings, settings)
 		: undefined;
-	const unbindSessionEffects = bindsProcessState ? bindEffects(settings) : undefined;
+	const effectsSettings = processSettings ?? settings;
+	const unbindSessionEffects = bindsProcessState ? bindEffects(effectsSettings) : undefined;
 	// Until the session is handed back (its dispose wrapper then owns the process-state holds
 	// and the credential listener), any startup failure below releases them.
 	using startupCleanup = new DisposableStack();
