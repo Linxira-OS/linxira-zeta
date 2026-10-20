@@ -419,6 +419,60 @@ fn resources_page_screenshot() {
 	write("15-resources-page.png", &bytes);
 }
 
+/// `16-board-page.png` — the right column's 看板 page over a project that has
+/// real cards on disk: three columns (Todo / Doing / Done) and at least one
+/// card with its tags, owner and due. The cards are hand-written markdown, so
+/// the shot also proves the page reads the same files an editor would.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn board_page_screenshot() {
+	let home = tempfile::tempdir().expect("home");
+	let project = home.path().join("project");
+	let board = project.join(".zeta").join("board");
+	std::fs::create_dir_all(&board).expect("board dir");
+	std::fs::write(
+		board.join("fix-the-parser.md"),
+		"---\ntitle: Fix the parser\ncolumn: todo\ntags: [rust, parser]\nassignee: user\ndue: 2026-11-01\n---\n\nHand this one to an agent.\n",
+	)
+	.expect("todo card");
+	std::fs::write(
+		board.join("ship-the-board.md"),
+		"---\ntitle: Ship the board\ncolumn: doing\ntags: [ui]\nassignee: agent\n---\n\nGUI + TUI + gateway.\n",
+	)
+	.expect("doing card");
+	std::fs::write(
+		board.join("docs-card.md"),
+		"---\ntitle: Document the format\ncolumn: done\nassignee: user\n---\n",
+	)
+	.expect("done card");
+
+	let state = AppState::seeded_with_registry(
+		&project,
+		workbench_projects::Registry::empty_at(home.path().join("projects.json")),
+	);
+	let mut shell = Shell::with_state(state, Settings::default());
+	workspace_page(&mut shell);
+	shell
+		.state
+		.set_right_tab(zetawork_gui::state::RightTab::Board);
+	assert!(!shell.state.right_collapsed, "opening the tab expands the column");
+	shell.board.refresh(&project, std::time::Instant::now());
+	assert_eq!(shell.board.cards().len(), 3, "the three hand-written cards load");
+	assert_eq!(
+		shell
+			.board
+			.cards()
+			.iter()
+			.filter(|card| card.column == termide_panel_ide::board::Column::Doing)
+			.count(),
+		1,
+		"a card lives in Doing"
+	);
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("16-board-page.png", &bytes);
+}
+
 /// `14-about.png` — 设置 → 关于: the desktop mark the window and taskbar use,
 /// the version, and the scope rows.
 #[test]

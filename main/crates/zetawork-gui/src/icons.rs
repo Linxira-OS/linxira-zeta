@@ -53,6 +53,8 @@ pub enum Icon {
 	List,
 	/// 资源 — a heartbeat/pulse line.
 	Activity,
+	/// 看板 — three columns with a card in each.
+	Board,
 	/// Custom chrome (the spec's mock has no window frame).
 	Minimize,
 	Maximize,
@@ -234,6 +236,11 @@ pub fn paint(painter: &egui::Painter, icon: Icon, rect: egui::Rect, color: Color
 		},
 		Icon::Activity => {
 			poly(&[(3.0, 12.0), (7.0, 12.0), (10.0, 6.0), (14.0, 18.0), (17.0, 12.0), (21.0, 12.0)]);
+		},
+		Icon::Board => {
+			frame(3.5, 4.5, 4.5, 15.0, 1.0);
+			frame(9.75, 4.5, 4.5, 15.0, 1.0);
+			frame(16.0, 4.5, 4.5, 15.0, 1.0);
 		},
 		Icon::Refresh => {
 			arc(12.0, 12.0, 8.0, 160.0, 380.0);

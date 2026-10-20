@@ -256,6 +256,8 @@ pub struct Workspace {
 	widgets: WidgetState,
 	/// The 资源 widget pane's background sampler.
 	resources: crate::resources::Resources,
+	/// The 看板 widget pane's cards and selection.
+	board: crate::board::Board,
 	/// Pending close awaiting confirmation of busy panes (Yes replays it).
 	confirm: Option<ConfirmClose>,
 	/// Inline rename modal, when open (tab or pane page name).
@@ -436,6 +438,7 @@ impl Workspace {
 			last_frame: Rect::default(),
 			widgets: WidgetState::default(),
 			resources: crate::resources::Resources::default(),
+			board: crate::board::Board::default(),
 			confirm: None,
 			rename: None,
 			last_click: None,
@@ -444,6 +447,16 @@ impl Workspace {
 
 	fn active(&mut self) -> &mut Tab {
 		&mut self.tabs[self.active_tab]
+	}
+
+	/// The directory the active 工作区 was opened on: the project root the
+	/// board reads (`<root>/.zeta/board/`).
+	fn workspace_root(&self) -> Option<std::path::PathBuf> {
+		self
+			.tabs
+			.get(self.active_tab)
+			.and_then(|tab| tab.cwd.clone())
+			.or_else(launch_cwd)
 	}
 
 	/// `x` in the projects view: remove one registration. The directory and
@@ -819,6 +832,9 @@ impl Workspace {
 				KeyCode::Char('r') | KeyCode::Char('R') => {
 					self.split_active(PaneKind::Resources, None);
 				},
+				KeyCode::Char('k') | KeyCode::Char('K') => {
+					self.split_active(PaneKind::Board, None);
+				},
 				KeyCode::Char('l') | KeyCode::Char('L') => self.cycle_preset(),
 				KeyCode::Char('o') | KeyCode::Char('O') => {
 					let tab = self.active();
@@ -861,6 +877,23 @@ impl Workspace {
 	/// claim — fall through here, so the child (zetacode and friends) sees
 	/// them.
 	fn forward_key(&mut self, key: KeyEvent) {
+		// The 看板 pane owns its keys while it is the active page: j/k select,
+		// h/l move a card between columns (writing the file), e edits the
+		// title, r re-reads. Modified chords stay with the workbench/PTY.
+		let is_board = self
+			.tabs
+			.get(self.active_tab)
+			.and_then(|tab| tab.panes.get(tab.active))
+			.and_then(|pane| pane.active_page())
+			.is_some_and(|page| page.kind == PaneKind::Board);
+		if is_board {
+			if let Some(root) = self.workspace_root() {
+				self.board.set_root(root);
+			}
+			if self.board.handle_key(key) {
+				return;
+			}
+		}
 		let chord = KeyChord::new(key, &self.normalizer);
 		let events = {
 			let tab = self.active();
@@ -1538,23 +1571,26 @@ impl Workspace {
 				self.split_active(PaneKind::Resources, None);
 			},
 			(1, 8) => {
+				self.split_active(PaneKind::Board, None);
+			},
+			(1, 9) => {
 				let cwd = launch_cwd();
 				let tab = self.active();
 				if let Some(pane) = tab.panes.get_mut(tab.active) {
 					let _ = pane.open_page(PaneKind::Shell, 24, 80, cwd);
 				}
 			},
-			(1, 9) => {
+			(1, 10) => {
 				let tab = self.active();
 				let idx = tab.active;
 				tab.minimize_pane(idx);
 			},
-			(1, 10) => self.promote_pane_to_tab(),
-			(1, 11) => {
+			(1, 11) => self.promote_pane_to_tab(),
+			(1, 12) => {
 				let idx = self.active().active;
 				self.close_pane_at(idx);
 			},
-			(1, 12) => {
+			(1, 13) => {
 				let pane = self.active().active;
 				let page = self.active().panes.get(pane).map(|p| p.page).unwrap_or(0);
 				self.open_rename(RenameTarget::Page { pane, page });
@@ -1882,6 +1918,16 @@ impl Workspace {
 		} else {
 			self.resources.idle();
 		}
+		// 看板 re-reads its directory at most once a second while visible, so
+		// a card edited in another editor shows up without pressing r.
+		let board_visible = self.tabs[self.active_tab].panes.iter().any(|pane| {
+			pane
+				.active_page()
+				.is_some_and(|page| page.kind == PaneKind::Board)
+		});
+		if board_visible {
+			self.board.poll();
+		}
 		let mut notices = Vec::new();
 		let mut dead_tabs: Vec<usize> = Vec::new();
 		for (tab_idx, tab) in self.tabs.iter_mut().enumerate() {
@@ -1959,6 +2005,11 @@ impl Workspace {
 	fn draw(&mut self, frame: &mut ratatui::Frame) {
 		let size = frame.area();
 		self.last_frame = size;
+		// The 看板 page reads the active 工作区's board; a tab switch or a new
+		// workspace changes that root and re-reads once.
+		if let Some(root) = self.workspace_root() {
+			self.board.set_root(root);
+		}
 		self.hits.clear();
 		let dock_h = if self.tabs[self.active_tab].minimized.is_empty() {
 			0
@@ -2079,6 +2130,7 @@ impl Workspace {
 				let mut push_deferred = |rect: Rect, hit: Hit| deferred.push((rect, hit));
 				let widgets_state = self.widgets.clone();
 				let resources_snapshot = self.resources.snapshot();
+				let board_state = &self.board;
 				let tab = &mut self.tabs[self.active_tab];
 				for (pane_id, area) in rects.iter().copied() {
 					let display_name = tab.pane_display_name(pane_id);
@@ -2204,6 +2256,9 @@ impl Workspace {
 							},
 							Some(PaneKind::Resources) => {
 								widgets::render_resources(resources_snapshot, inner, frame.buffer_mut())
+							},
+							Some(PaneKind::Board) => {
+								widgets::render_board(board_state, inner, frame.buffer_mut())
 							},
 							_ => {},
 						}

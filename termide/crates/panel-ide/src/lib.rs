@@ -28,18 +28,18 @@
 //! Rendering is a `ratatui::Buffer`, so the desktop shell hosts the *same* page
 //! through `Panel::render` → blit — the terminal panel already proves that road.
 
+pub mod board;
 mod colors;
 mod formatters;
 mod notepad;
 mod ports;
 mod spell;
-mod todo;
 
+pub use board::BoardPanel;
 pub use colors::ColorPickerPanel;
 pub use notepad::NotepadPanel;
 pub use ports::PortsPanel;
 pub use spell::SpellPanel;
-pub use todo::TodoPanel;
 
 use std::any::Any;
 use std::path::PathBuf;
@@ -189,7 +189,7 @@ enum Drag {
 enum LeftView {
     Changes,
     History,
-    Todo,
+    Board,
     Ports,
 }
 
@@ -227,8 +227,8 @@ pub struct IdePage {
     git_log: Option<Box<dyn Panel>>,
     /// Which view the lower-left pane shows.
     view: LeftView,
-    /// The TODO list, created on first switch (`Ctrl+T`).
-    todo: Option<Box<dyn Panel>>,
+    /// The user board (`.zeta/board/`), created on first switch (`Ctrl+T`).
+    board: Option<Box<dyn Panel>>,
     /// The listening-ports list, created on first switch (`Ctrl+O`).
     ports: Option<Box<dyn Panel>>,
     /// The file the history view was narrowed to (the active tab's file).
@@ -257,7 +257,7 @@ impl IdePage {
             ])),
             git_log: None,
             view: LeftView::Changes,
-            todo: None,
+            board: None,
             ports: None,
             history_filter: None,
             focus: Focus::Editor,
@@ -318,14 +318,14 @@ impl IdePage {
         true
     }
 
-    /// Swap the lower-left pane between changes and the TODO list.
-    pub fn toggle_todo_view(&mut self) -> bool {
-        if self.view != LeftView::Todo {
-            if self.todo.is_none() {
+    /// Swap the lower-left pane between changes and the user board.
+    pub fn toggle_board_view(&mut self) -> bool {
+        if self.view != LeftView::Board {
+            if self.board.is_none() {
                 let root = self.repo.clone().unwrap_or_else(|| PathBuf::from("."));
-                self.todo = Some(Box::new(todo::TodoPanel::new(root)));
+                self.board = Some(Box::new(board::BoardPanel::new(root)));
             }
-            self.view = LeftView::Todo;
+            self.view = LeftView::Board;
         } else {
             self.view = LeftView::Changes;
         }
@@ -345,9 +345,9 @@ impl IdePage {
                     return log.as_mut();
                 }
             }
-            LeftView::Todo => {
-                if let Some(todo) = self.todo.as_mut() {
-                    return todo.as_mut();
+            LeftView::Board => {
+                if let Some(board) = self.board.as_mut() {
+                    return board.as_mut();
                 }
             }
             LeftView::Ports => {
@@ -553,8 +553,8 @@ impl Panel for IdePage {
         if let Some(log) = self.git_log.as_mut() {
             log.prepare_render(theme, config);
         }
-        if let Some(todo) = self.todo.as_mut() {
-            todo.prepare_render(theme, config);
+        if let Some(board) = self.board.as_mut() {
+            board.prepare_render(theme, config);
         }
         if let Some(ports) = self.ports.as_mut() {
             ports.prepare_render(theme, config);
@@ -774,7 +774,7 @@ impl Panel for IdePage {
             }
             (KeyCode::Char('m'), true) => self.format_active(),
             (KeyCode::Char('t'), true) => {
-                self.toggle_todo_view();
+                self.toggle_board_view();
                 vec![PanelEvent::NeedsRedraw]
             }
             (KeyCode::Char('o'), true) => {
@@ -828,8 +828,8 @@ impl Panel for IdePage {
         if let Some(log) = self.git_log.as_mut() {
             events.extend(log.tick());
         }
-        if let Some(todo) = self.todo.as_mut() {
-            events.extend(todo.tick());
+        if let Some(board) = self.board.as_mut() {
+            events.extend(board.tick());
         }
         if let Some(ports) = self.ports.as_mut() {
             events.extend(ports.tick());
@@ -1206,10 +1206,10 @@ mod tests {
         );
         page.toggle_git_view();
         assert_eq!(page.view, LeftView::Changes, "the second toggle goes back");
-        page.toggle_todo_view();
-        assert_eq!(page.view, LeftView::Todo);
-        assert!(page.todo.is_some(), "the TODO list is created lazily");
-        page.toggle_todo_view();
+        page.toggle_board_view();
+        assert_eq!(page.view, LeftView::Board);
+        assert!(page.board.is_some(), "the board is created lazily");
+        page.toggle_board_view();
         assert_eq!(page.view, LeftView::Changes, "the second toggle goes back");
         page.toggle_ports_view();
         assert_eq!(page.view, LeftView::Ports);

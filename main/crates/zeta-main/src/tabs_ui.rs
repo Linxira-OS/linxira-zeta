@@ -28,6 +28,7 @@ pub const MENUS: &[(&str, &[&str])] = &[
 			"🍅 Pomodoro",
 			"📋 Clipboard",
 			"📊 Resources",
+			"🗂 Board",
 			"➕ New subtab",
 			"🗕 Minimize pane",
 			"🗗 Move pane to new tab",

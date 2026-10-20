@@ -51,6 +51,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 | `api/skills/*`（5 条）、`api/plugins` | Gateway（`DefaultResourceLoader`/`DefaultPackageManager`） | W4 ✅ |
 | `api/channels/status`、`api/channels/wechat/{qrcode,reconnect,unbind}` | Gateway（`../channels` 的模块级桥） | ✅ 读面 + 微信登录/解绑；`qrcode` 仅 `GET`，其余仅 `POST` |
 | `api/channels/send` | Gateway（新增，非迁移；`web-gateway/channels.ts` + `zeta-server.ts` 的 `registerChannelSend`） | ✅ **IM 写入口**：`{channelId,to,text}`（= 运行时 `ChatChannel.sendText` 的三个参数），200 带回执 / 400 缺字段或 peer 未配对 / 404 渠道未运行 / 500 平台拒绝；仅 `POST`（其余 405）。鉴权同 `channels/status` |
+| `api/board`、`api/board/[id]`、`[id]/move`、`[id]/handoff` | Gateway（新增，非迁移；`web-gateway/board.ts`） | ✅ 用户看板 CRUD：卡片 = `<cwd>/.zeta/board/<id>.md`，列表/单读/创建/更新/移动/删除 + `handoff` 返回 brief（**不代起会话**）；`assign: true` 记 `assignee: agent`。非法 id/字段/日期 400、缺卡 404、文件存在但无法解析 422 `{error:"not a card",reason}`；见 `docs/board.md` |
 | `api/tracking`、`api/tracking/events`（SSE） | Gateway（`tracking.ts`） | ✅ `zeta serve` 进程内分派（`classifyRequest`，不依赖 Next rewrite）；dev/standalone 经 Next rewrite |
 | `api/fs/*`、`api/files/*`、`api/cwd/*`、`api/git/*`、`api/home`、`api/default-cwd`、`api/worktrees`、`api/file-index` | **留在 Next**（纯 Node，无 runtime import）；其中 `api/git/{branches,checkout,branch}` 是**请求期网关代理**（`app/api/git/*` → `resolveGatewayUrl()`） | — |
 

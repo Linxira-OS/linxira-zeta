@@ -53,6 +53,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | Desktop installers (1.3.2)                     | `scripts/packaging/windows/installer.nsi` + `scripts/packaging/*`           | NSIS `zetawork-<ver>-setup-x64.exe` (GUI + companions, per-user), GUI-only `-windows-x64.zip`, Arch `.pkg.tar.zst` and AppImage with companions            |
 | In-app GUI updater (1.3.2)                     | `main/crates/zetawork-gui/src/updates.rs` + `zetacode update --desktop`     | Status-bar item; the download/verify/silent-install runs through the shipped `zetacode` because the GUI holds no TLS client                                         |
 | Resource panel (1.3.2)                         | `main/crates/sysmon` + GUI `RightTab::Resources` + TUI `PaneKind::Resources` | CPU/memory/GPU gauges and a CPU-ranked process table sampled on a worker thread, shared by both surfaces                                                       |
+| User board (双看板·用户层) (1.3.3)             | `termide/crates/panel-ide/src/board.rs` + GUI `RightTab::Board` + TUI `PaneKind::Board` + `src/server/web-gateway/board.ts` | Three-column Todo/Doing/Done board of markdown cards under `<project>/.zeta/board/`; GUI/TUI/IDE edit the same files; gateway CRUD + `handoff` brief; docs/board.md. Agent `todo` stays session-scoped and separate |
 | Web-ui session tabs + rail drag (1.3.2)        | `web-ui/lib/session-tabs-persist.ts`, `SidebarProjectsList.tsx`             | Tab persistence/restore, close-family + draft confirm, running badge; project reorder by drag persisted as manual order                                        |
 | Plugin i18n (1.3.2)                            | `src/extensibility/plugins/locales.ts` + `ExtensionContext.t`               | Manifest `locales` (or `locales/<tag>.json`), per-extension binding, current → en → fallback → key                                                            |
 | Extension peer APIs (1.3.2)                    | `src/registry/agent-directory.ts`, `src/irc/facade.ts`                     | `ctx.agents` roster and `ctx.messaging` send/wait/inbox so a plugin no longer deep-imports the IRC bus                                                        |
@@ -603,22 +604,13 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   → No such file or directory）。补写规格或把链接改指到现有文档，二者择一，未定；
   在补齐前该链接保持悬空。
 
-- **双看板：agent 的 todo 与用户的 board（2026-10-18 用户定方向，仅登记，设计待线下推敲）**：
-  - **agent todo** 保持现状：`todo` 工具、会话内、agent 自己维护，任务完成即翻页。
-  - **用户看板**是长期、跨工作区、可编辑的那一层：三列 Todo/Doing/Done，卡片含标题、
-    标签、负责人（用户/agent）、截止；**用户可以在面板里直接编辑**，也可以把一张卡
-    "交给 agent"——用卡片内容作为 brief 起一个 zetacode 会话，agent 改状态时回写卡片。
-  - 存储：项目内 `.zeta/board/` 下的 markdown 卡片（可 diff、可手工编辑），面板解析与
-    写入同一份文件，不引入第二套真源；离开面板也能用编辑器改。
-  - 定位参照 plan-ultra 的"长期目标"层，但**权威在用户**：plan 由 agent 起草，board 由
-    用户起草。
-  - 与看板面板同一实现：`panel-ide/todo.rs` 升级为 Board，agent todo 不并入该面板。
 - **面板补齐（2026-10-18 评估 Stencil Term 面板集，仅登记）**：参考其 Git / 看板 /
   SQL / Notebook / 资源五个面板，结论如下——
   - **值得做**：① **资源面板**（CPU、内存、GPU 占比 + 进程列表按 CPU 排序）——`termide`
-    已有 `system-monitor` crate，缺的是面板与接线；② **看板 Board**（TODO.md 三列
+    已有 `system-monitor` crate，缺的是面板与接线；② **看板 Board**（三列
     Todo/Doing/Done，带标签）——把现有 TODO 扫描器（`panel-ide/todo.rs`）升级成看板，
-    而不是另写一套解析。
+    而不是另写一套解析。**① 与 ② 均已在 1.3.3 交付**，见文首 Shipped 表（资源面板 1.3.2、
+    用户看板 1.3.3）。
   - **已有、不重复**：SQL（`panel-db`）、Markdown/HTML/Mermaid/图片/Outline/诊断/文件
     管理器/Git diff·log·status/终端/编辑器。
   - **明确不做**：Notebook（重、与 zetacode eval 重复）；Stencil 式 Git 图与提交泳道
@@ -630,7 +622,7 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   一个**对 agent 可见、以工具暴露**的任务面板，**多仓库**——一个面板可以绑定多个
   repo，同一份任务视图跨仓库聚合；面板本体做成 **official 插件**（`plugins/official/`），
   **由 GUI 自动激活**（开面板即装/启，不要求用户手动启用）。
-  - 与「双看板」条目的关系：board 是**用户的**长期层，agent todo 是**会话**层；
+  - 与「用户看板」（见文首 Shipped 表）的关系：board 是**用户的**长期层，agent todo 是**会话**层；
     任务面板是**跨仓库的编排层**，三者不合并成一套数据结构。
   - 未定项（动手前必须定）：①「工具暴露」的确切形态——`task_*` 工具集合（list/create/
     update/assign）还是单一 `task` 工具带 action；②多仓库绑定存在哪（项目注册表

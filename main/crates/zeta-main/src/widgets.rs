@@ -15,6 +15,7 @@ use ratatui::{
 	style::{Color, Modifier, Style},
 	text::{Line, Span},
 };
+use termide_panel_ide::board::Column;
 
 /// Shared, workspace-lifetime state for interactive widgets. Cloned per draw
 /// frame (small); mutations go through the mouse path which owns `&mut self`.
@@ -613,6 +614,138 @@ fn bytes_label(bytes: u64) -> String {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Board
+// ---------------------------------------------------------------------------
+
+/// The user board: three columns of `.zeta/board/` cards. The same files back
+/// the GUI's 看板 page, the IDE page's board and the gateway; this renderer
+/// draws them as the TUI's wide page, one column per [`Column`].
+///
+/// Selection is a reversed title; the title editor (`e`) and the last write's
+/// outcome share the bottom line, which the columns do not draw over.
+pub fn render_board(board: &crate::board::Board, area: Rect, buf: &mut Buffer) {
+	if area.height < 3 || area.width < 24 {
+		return;
+	}
+	let dim = Style::default().fg(Color::DarkGray);
+	let footer = board.edit_buffer().is_some() || board.status().is_some();
+	let bottom = if footer {
+		area.bottom().saturating_sub(2)
+	} else {
+		area.bottom()
+	};
+
+	let gap = 1u16;
+	let column_width = area.width.saturating_sub(2 * gap) / 3;
+	if column_width < 6 {
+		return;
+	}
+
+	for (column_index, column) in Column::ALL.iter().enumerate() {
+		let x = area.x + column_index as u16 * (column_width + gap);
+		let width = column_width.min(area.right().saturating_sub(x));
+		if width == 0 {
+			continue;
+		}
+		if column_index > 0 {
+			for row in area.y..bottom {
+				buf.set_stringn(x - 1, row, "│", 1, dim);
+			}
+		}
+		let cards: Vec<_> = board
+			.cards()
+			.iter()
+			.filter(|card| card.column == *column)
+			.collect();
+		buf.set_line(
+			x,
+			area.y,
+			&Line::from(vec![
+				Span::styled(
+					format!(" {} ", column.label()),
+					Style::default().add_modifier(Modifier::BOLD),
+				),
+				Span::styled(cards.len().to_string(), dim),
+			]),
+			width,
+		);
+		if cards.is_empty() {
+			buf.set_line(x, area.y + 1, &Line::from(Span::styled(" —", dim)), width);
+			continue;
+		}
+		let mut row = area.y + 1;
+		for card in cards {
+			if row + 1 > bottom {
+				break;
+			}
+			let selected = board.selected_id() == Some(card.id.as_str());
+			let title_style = if selected {
+				Style::default().add_modifier(Modifier::REVERSED | Modifier::BOLD)
+			} else {
+				Style::default().add_modifier(Modifier::BOLD)
+			};
+			let label = format!(" {}", card.title);
+			buf.set_line(
+				x,
+				row,
+				&Line::from(Span::styled(short(&label, width as usize - 1), title_style)),
+				width,
+			);
+			if row + 1 > bottom {
+				break;
+			}
+			let mut facts = Vec::new();
+			if !card.tags.is_empty() {
+				facts.push(format!("#{}", card.tags.join(" #")));
+			}
+			facts.push(format!("@{}", card.assignee.label()));
+			if let Some(due) = card.due.as_deref() {
+				facts.push(due.to_owned());
+			}
+			let meta = format!(" {}", facts.join(" · "));
+			buf.set_line(
+				x,
+				row + 1,
+				&Line::from(Span::styled(short(&meta, width as usize), dim)),
+				width,
+			);
+			row += 2;
+		}
+	}
+
+	if board.cards().is_empty() {
+		buf.set_line(
+			area.x,
+			area.y + 2,
+			&Line::from(Span::styled(" no cards yet · <project>/.zeta/board/*.md", dim)),
+			area.width,
+		);
+	}
+
+	let footer_row = area.bottom().saturating_sub(1);
+	if let Some(buffer) = board.edit_buffer() {
+		let hint = Style::default().add_modifier(Modifier::BOLD);
+		buf.set_line(
+			area.x,
+			footer_row,
+			&Line::from(vec![
+				Span::styled(" title: ", hint),
+				Span::raw(buffer.to_owned()),
+				Span::styled("▏ enter saves · esc cancels", dim),
+			]),
+			area.width,
+		);
+	} else if let Some(status) = board.status() {
+		buf.set_line(
+			area.x,
+			footer_row,
+			&Line::from(Span::styled(format!(" {status}"), dim)),
+			area.width,
+		);
+	}
+}
+
 /// Fit `text` into `width` columns, ending in an ellipsis when cut.
 fn short(text: &str, width: usize) -> String {
 	if text.chars().count() <= width {
@@ -630,7 +763,7 @@ mod tests {
 	use ratatui::{buffer::Buffer, layout::Rect};
 	use sysmon::{ProcessSample, Snapshot};
 
-	use super::render_resources;
+	use super::{render_board, render_resources};
 
 	fn snapshot() -> Snapshot {
 		Snapshot {
@@ -682,5 +815,45 @@ mod tests {
 		let mut buffer = Buffer::empty(area);
 		render_resources(None, area, &mut buffer);
 		assert!(text_of(&buffer).contains("sampling…"));
+	}
+
+	#[test]
+	fn the_board_pane_draws_three_columns_and_a_card() {
+		let dir = tempfile::tempdir().expect("temp dir");
+		let mut new = termide_panel_ide::board::NewCard::titled("A card");
+		new.tags = vec!["rust".to_owned()];
+		termide_panel_ide::board::create_card(dir.path(), new).expect("card");
+		termide_panel_ide::board::create_card(
+			dir.path(),
+			termide_panel_ide::board::NewCard {
+				column: termide_panel_ide::board::Column::Done,
+				..termide_panel_ide::board::NewCard::titled("Finished")
+			},
+		)
+		.expect("second card");
+		let mut state = crate::board::Board::default();
+		state.set_root(dir.path().to_path_buf());
+
+		let area = Rect::new(0, 0, 90, 12);
+		let mut buffer = Buffer::empty(area);
+		render_board(&state, area, &mut buffer);
+		let text = text_of(&buffer);
+		assert!(text.contains("Todo"), "the Todo column is drawn: {text}");
+		assert!(text.contains("Doing"), "the Doing column is drawn");
+		assert!(text.contains("Done"), "the Done column is drawn");
+		assert!(text.contains("A card"));
+		assert!(text.contains("Finished"));
+		assert!(text.contains("#rust"));
+	}
+
+	#[test]
+	fn an_empty_board_names_the_directory_it_reads() {
+		let dir = tempfile::tempdir().expect("temp dir");
+		let mut state = crate::board::Board::default();
+		state.set_root(dir.path().to_path_buf());
+		let area = Rect::new(0, 0, 90, 8);
+		let mut buffer = Buffer::empty(area);
+		render_board(&state, area, &mut buffer);
+		assert!(text_of(&buffer).contains(".zeta/board"));
 	}
 }
