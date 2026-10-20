@@ -28,6 +28,10 @@ IM peer ──chatBindings──▶ workspace(alias) ──session──▶ main
 - 渠道运行时装在 `zeta serve` 进程内（`packages/channels`），三个适配器 WeChat /
   Feishu / Telegram；对外 REST：`/api/channels/status`、`/api/channels/wechat/{qrcode,
   reconnect,unbind}`、`/api/channels/send`（路由见 `server/web-gateway.ts:195-200`）。
+- CLI 前端：普通会话（TUI 或 `--print`）在 web.yml 启用渠道或传 `--channels` 时
+  直接托管同一份 `startChannels`（无 HTTP），`zetacode channels status|login|logout|
+  enable|disable` 读写同一份 web.yml；`<agent dir>/run/channels.lock` 保证同一 bot
+  只有一个宿主（先启动者胜出，后来者明确拒绝）。见 `docs/channels.md`。
 - IM 工作区路由已完整：`SessionRouter`（`channels/session-router.ts:92`）支持
   `@workspace open <path> [alias]`、`@workspace use`、`*<alias>` 快捷方式，优先级
   运行期覆盖 → `chatBindings` → 渠道默认 `workspaceRoot`（同文件 :288-320），

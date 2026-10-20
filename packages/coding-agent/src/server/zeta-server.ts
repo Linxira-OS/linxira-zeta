@@ -28,6 +28,7 @@ import {
 	startChannels,
 	WeChatChannel,
 } from "../channels";
+import { acquireChannelLock, channelLockPath, type ChannelLockHandle } from "../channels/instance-lock";
 import { type ImControlParams, type ImControlResult, runImControl } from "../channels/im-control";
 import { approveRemotePlan, type PlanApproveMode } from "../channels/plan-approval";
 import { renderPlanToPng } from "../channels/plan-image";
@@ -313,6 +314,8 @@ export class ZetaServer {
 	#statsServer: { stop: () => void } | null = null;
 	#gateway: WebGatewayInstance | null = null;
 	#channelRuntime: ChannelRuntime | null = null;
+	/** Single-instance guard shared with normal CLI/TUI hosts. */
+	#channelLock: ChannelLockHandle | null = null;
 	/** Live runtime read by the message closures (survives runtime restarts). */
 	#channelRuntimeRef: ChannelRuntime | null = null;
 	/** Coordinator session shared by the router and every channel runtime. */
@@ -441,15 +444,7 @@ export class ZetaServer {
 		registerServeInstanceUrls(null);
 		clearServeRegistration();
 
-		if (this.#channelRuntime) {
-			await this.#channelRuntime.stop().catch(() => {});
-			this.#channelRuntime = null;
-			this.#channelRuntimeRef = null;
-			setPendingWechatQr(null);
-			registerWechatReconnect(null);
-			registerWechatUnbind(null);
-			registerChannelSend(null);
-		}
+		await this.#stopChannelRuntime();
 		registerRestartChannels(null);
 		registerMainSessionId(null);
 		this.#channelCoordinator = null;
@@ -674,6 +669,10 @@ export class ZetaServer {
 			await this.#channelRuntime.stop().catch(() => {});
 			this.#channelRuntime = null;
 		}
+		if (this.#channelLock) {
+			await this.#channelLock.release().catch(() => {});
+			this.#channelLock = null;
+		}
 		this.#channelRuntimeRef = null;
 		setPendingWechatQr(null);
 		registerWechatReconnect(null);
@@ -693,58 +692,85 @@ export class ZetaServer {
 		const coordinator = this.#channelCoordinator;
 		if (!coordinator) throw new Error("IM coordinator is not started");
 		await this.#stopChannelRuntime();
-		this.#channelRuntime = await startChannels(
-			coordinator,
-			webConfig,
-			(channelId, peer, body) => {
-				const runtime = this.#channelRuntimeRef;
-				if (!runtime) return;
+		// Claim the shared bot lock before binding any adapter. A normal CLI/TUI
+		// session that already hosts these channels wins; this process stays up
+		// without listeners instead of stealing updates from it.
+		const acquired = await acquireChannelLock({
+			lockPath: channelLockPath(path.dirname(webConfig.path)),
+			metadata: {
+				pid: process.pid,
+				host: "serve",
+				cwd: process.cwd(),
+				sessionId: coordinator.sessionManager.getSessionId(),
+				channels: [],
+			},
+		});
+		if (!acquired.ok) {
+			logger.warn("IM channels not started", { error: acquired.message });
+			return;
+		}
+		this.#channelLock = acquired.lock;
+		let runtime: ChannelRuntime;
+		try {
+			runtime = await startChannels(
+				coordinator,
+				webConfig,
+				(channelId, peer, body) => {
+					const runtime = this.#channelRuntimeRef;
+					if (!runtime) return;
 
-				// Remote plan-approval replies: while a plan is awaiting
-				// approval on this peer, an exact "1"-"4" reply resolves it
-				// instead of reaching the session.
-				const pendingKey = `${channelId}:${peer}`;
-				const pendingPlan = this.#pendingPlanApproval.get(pendingKey);
-				if (pendingPlan) {
-					// Expired approvals no longer intercept replies — the plan
-					// may reference a stale file; treat the reply as a message.
-					if (Date.now() > pendingPlan.expiresAt) {
-						this.#pendingPlanApproval.delete(pendingKey);
-					} else {
-						const mode = parsePlanApprovalReply(body);
-						if (mode) {
+					// Remote plan-approval replies: while a plan is awaiting
+					// approval on this peer, an exact "1"-"4" reply resolves it
+					// instead of reaching the session.
+					const pendingKey = `${channelId}:${peer}`;
+					const pendingPlan = this.#pendingPlanApproval.get(pendingKey);
+					if (pendingPlan) {
+						// Expired approvals no longer intercept replies — the plan
+						// may reference a stale file; treat the reply as a message.
+						if (Date.now() > pendingPlan.expiresAt) {
 							this.#pendingPlanApproval.delete(pendingKey);
-							void this.#executePendingPlanApproval(
-								channelId,
-								peer,
-								pendingPlan.planFilePath,
-								mode,
-								runtime,
-								pendingPlan.session,
-							);
-							return;
+						} else {
+							const mode = parsePlanApprovalReply(body);
+							if (mode) {
+								this.#pendingPlanApproval.delete(pendingKey);
+								void this.#executePendingPlanApproval(
+									channelId,
+									peer,
+									pendingPlan.planFilePath,
+									mode,
+									runtime,
+									pendingPlan.session,
+								);
+								return;
+							}
 						}
 					}
-				}
 
-				void (async () => {
-					try {
-						await this.#routeInboundMessage(channelId as ChannelId, peer, body, runtime);
-					} catch (error) {
-						// Never drop a message silently: log the failure so a broken
-						// route (workspace session, bot session, relay) is visible in
-						// ~/.zeta/logs instead of the chat going quiet.
-						logger.error("Channel message routing failed", {
-							channel: channelId,
-							peer,
-							error: error instanceof Error ? error.message : String(error),
-						});
-					}
-				})();
-			},
-			payload => setPendingWechatQr(payload),
-		);
-		this.#channelRuntimeRef = this.#channelRuntime;
+					void (async () => {
+						try {
+							await this.#routeInboundMessage(channelId as ChannelId, peer, body, runtime);
+						} catch (error) {
+							// Never drop a message silently: log the failure so a broken
+							// route (workspace session, bot session, relay) is visible in
+							// ~/.zeta/logs instead of the chat going quiet.
+							logger.error("Channel message routing failed", {
+								channel: channelId,
+								peer,
+								error: error instanceof Error ? error.message : String(error),
+							});
+						}
+					})();
+				},
+				payload => setPendingWechatQr(payload),
+			);
+		} catch (error) {
+			await this.#channelLock?.release().catch(() => {});
+			this.#channelLock = null;
+			throw error;
+		}
+		this.#channelRuntime = runtime;
+		await this.#channelLock?.update({ channels: [...runtime.channels.keys()] });
+		this.#channelRuntimeRef = runtime;
 		registerChannelStatus(() =>
 			["wechat", "feishu", "telegram"].map(id => ({
 				id: id as ChannelId,

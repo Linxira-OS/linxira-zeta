@@ -1,14 +1,15 @@
 /**
- * Channel bootstrapping for `zetacode serve` (web/desktop mode only).
+ * Channel bootstrapping shared by `zetacode serve` and normal CLI/TUI
+ * sessions.
  *
  * Enables every channel marked `enabled` in the web config and routes its
- * inbound messages into the coordinator session through `ChannelHost`.
- * Channels missing required credentials are skipped with a warning — a
- * misconfigured channel must never prevent the server from starting.
+ * inbound messages into the host session through `ChannelHost`. Channels
+ * missing required credentials are skipped with a warning — a misconfigured
+ * channel must never prevent the host from starting.
  *
- * The CLI never imports this module: `zeta`/`zeta --interactive` sessions
- * don't create a ZetaServer, so no channel listeners exist there and
- * `channel_send`/`workspace_run` stay unavailable.
+ * The runtime is transport-agnostic: it needs only the `ChannelSession`
+ * contract, so `zetacode` (interactive or `--print`) hosts it directly when a
+ * channel is enabled, and `channel_send` becomes available there too.
  */
 
 import { logger } from "@linxiraos/pi-utils";

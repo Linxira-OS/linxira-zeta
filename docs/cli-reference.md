@@ -146,6 +146,7 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | `--auto-approve`, `--yolo` | Force yolo tier approval; explicit tool/user policies and provider safety checks still apply. |
 | `--advisor` | Enable the advisor runtime (passively reviews each turn and injects notes). See [advisor / watchdog](./advisor-watchdog.md). |
 | `--max-time <duration>` | Stop the session after this duration (e.g. `600`, `10m`, `1h`). |
+| `--channels` | Host the IM channel runtime in this session; channels still need to be enabled in `web.yml`. See [IM channels](./channels.md). |
 
 #### Extensions, hooks, skills, and rules
 
@@ -247,6 +248,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |
 | `bench` | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model. | |
 | `browser-relay` | Run the local CDP relay used by Eval's browser API to drive your own Chrome tabs. | [computer use](./computer-use.md) |
+| `channels` | Inspect, pair, and toggle IM channels (WeChat/Feishu/Telegram) without a browser: `status`, `login wechat` (terminal QR), `logout`, `enable`, `disable`; `--json` on every subcommand. | [IM channels](./channels.md) |
 | `cleanse` | Detect and fix project diagnostics with weighted parallel subagents. | |
 | `collab` | List active local Collab hosts without exposing URLs; `collab link <instanceId\|pid>` retrieves a control link (`--view` for view-only). Requires `collab.enabled` and a relay you control. | [collab](./collab.md) |
 | `clip` | Clip uploads are unavailable in Zeta: no upload server ships, so `/record --upload` and `zetacode clip` refuse and recordings stay local (`zetacode play`). | [stream](./stream.md#clips) |
