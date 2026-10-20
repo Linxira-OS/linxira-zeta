@@ -9269,6 +9269,7 @@ dependencies = [
  "termide-core",
  "termide-keyboard",
  "termide-panel-editor",
+ "termide-panel-ide",
  "termide-panel-terminal",
  "termide-theme",
  "unicode-width",

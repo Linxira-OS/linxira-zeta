@@ -71,10 +71,13 @@ pub enum RightTab {
 	Usage,
 	/// Host CPU/memory/GPU and the process list, sampled by `sysmon`.
 	Resources,
+	/// The user board: three columns of `.zeta/board/` cards.
+	Board,
 }
 
 impl RightTab {
-	pub const ALL: [Self; 5] = [Self::Files, Self::History, Self::Git, Self::Usage, Self::Resources];
+	pub const ALL: [Self; 6] =
+		[Self::Files, Self::History, Self::Git, Self::Usage, Self::Resources, Self::Board];
 
 	/// The panel head, spelled as the spec spells it.
 	pub fn title(self) -> &'static str {
@@ -84,6 +87,7 @@ impl RightTab {
 			Self::Git => t!("Git 状态"),
 			Self::Usage => t!("用量"),
 			Self::Resources => t!("资源"),
+			Self::Board => t!("看板"),
 		}
 	}
 
@@ -95,6 +99,7 @@ impl RightTab {
 			Self::Git => t!("git status / log / rev-list（只读）"),
 			Self::Usage => t!("活动会话的日志（~/.zeta/agent/sessions）"),
 			Self::Resources => t!("sysmon（CPU / 内存 / GPU / 进程）"),
+			Self::Board => t!(".zeta/board（markdown 卡片，与网关同一份文件）"),
 		}
 	}
 }

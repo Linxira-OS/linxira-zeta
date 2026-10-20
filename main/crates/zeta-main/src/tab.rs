@@ -19,11 +19,14 @@ pub enum PaneKind {
 	Editor,
 	Ide,
 	/// Native workbench widgets (no child process): time+calendar dashboard,
-	/// pomodoro timer, clipboard history, host resources.
+	/// pomodoro timer, clipboard history, host resources, the user board.
 	Time,
 	Pomodoro,
 	Clipboard,
 	Resources,
+	/// The user board: `.zeta/board/` cards, the same files the GUI's 看板
+	/// page and the gateway read and write.
+	Board,
 	/// A raw command line typed into the pane's shell (used by presets and
 	/// ad-hoc commands).
 	Command(String),
@@ -47,6 +50,7 @@ impl PaneKind {
 			PaneKind::Pomodoro => "🍅 pomodoro".into(),
 			PaneKind::Clipboard => "📋 clipboard".into(),
 			PaneKind::Resources => "📊 resources".into(),
+			PaneKind::Board => "🗂 board".into(),
 			PaneKind::Command(cmd) => cmd.clone(),
 			PaneKind::Install { tool, .. } => format!("install · {tool}"),
 		}
@@ -56,7 +60,11 @@ impl PaneKind {
 	pub fn is_widget(&self) -> bool {
 		matches!(
 			self,
-			PaneKind::Time | PaneKind::Pomodoro | PaneKind::Clipboard | PaneKind::Resources
+			PaneKind::Time
+				| PaneKind::Pomodoro
+				| PaneKind::Clipboard
+				| PaneKind::Resources
+				| PaneKind::Board
 		)
 	}
 
@@ -112,6 +120,7 @@ impl PaneKind {
 			| PaneKind::Pomodoro
 			| PaneKind::Clipboard
 			| PaneKind::Resources
+			| PaneKind::Board
 			| PaneKind::Editor => None,
 			PaneKind::Command(line) => Some(line.clone()),
 			PaneKind::Install { command, .. } => Some(command.clone()),
@@ -666,6 +675,16 @@ mod tests {
 		assert!(PaneKind::Resources.is_embedded());
 		assert_eq!(PaneKind::Resources.label(), "📊 resources");
 		let mut pane = Pane::new(PaneKind::Resources, 24, 80, None).expect("widget pane");
+		assert!(pane.is_widget());
+		assert!(pane.as_terminal().is_none(), "no PTY child to reap");
+	}
+
+	#[test]
+	fn the_board_pane_is_a_widget_with_no_child_process() {
+		assert!(PaneKind::Board.is_widget());
+		assert!(PaneKind::Board.is_embedded());
+		assert_eq!(PaneKind::Board.label(), "🗂 board");
+		let mut pane = Pane::new(PaneKind::Board, 24, 80, None).expect("widget pane");
 		assert!(pane.is_widget());
 		assert!(pane.as_terminal().is_none(), "no PTY child to reap");
 	}

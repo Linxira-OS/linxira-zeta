@@ -73,6 +73,7 @@ pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 		RightTab::Git => git_panel(&mut child, shell, "right"),
 		RightTab::Usage => usage_panel(&mut child, shell),
 		RightTab::Resources => crate::resources::panel(&mut child, shell),
+		RightTab::Board => crate::board::panel(&mut child, shell),
 	}
 }
 
@@ -83,6 +84,7 @@ fn tab_icon(tab: RightTab) -> Icon {
 		RightTab::Git => Icon::GitBranch,
 		RightTab::Usage => Icon::List,
 		RightTab::Resources => Icon::Activity,
+		RightTab::Board => Icon::Board,
 	}
 }
 

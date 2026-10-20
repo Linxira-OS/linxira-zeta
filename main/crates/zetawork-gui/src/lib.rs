@@ -23,6 +23,7 @@ pub mod agent;
 pub mod agent_events;
 pub mod agent_sessions;
 pub mod blit;
+pub mod board;
 pub mod center;
 pub mod chrome;
 pub mod conversation;
@@ -140,6 +141,8 @@ pub struct Shell {
 	/// The right column's 资源 page: host CPU/memory/GPU and the process list
 	/// ([`resources::ResourceCache`]).
 	pub resources: resources::ResourceCache,
+	/// The right column's 看板 page: `.zeta/board/` cards ([`board::BoardCache`]).
+	pub board: board::BoardCache,
 	/// zetacode's own options (设置 target ②), read and written off the UI
 	/// thread.
 	pub remote: settings_ui::ZetacodeCache,
@@ -255,6 +258,7 @@ impl Shell {
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
 			resources: resources::ResourceCache::default(),
+			board: board::BoardCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			updates: updates::UpdateCache::default(),
@@ -309,6 +313,7 @@ impl Shell {
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
 			resources: resources::ResourceCache::default(),
+			board: board::BoardCache::default(),
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			updates: updates::UpdateCache::default(),
@@ -945,6 +950,23 @@ impl Shell {
 			ctx.request_repaint_after(crate::resources::REFRESH);
 		} else {
 			self.resources.idle();
+		}
+		// 看板 re-reads the workspace's board at most once a second while the
+		// page is visible, so a card hand-edited on disk shows up without
+		// leaving the page. The edit form freezes the re-read (see
+		// [`board::BoardCache::refresh`]).
+		let board_tab = !self.state.right_collapsed && self.state.right_tab == state::RightTab::Board;
+		if board_tab {
+			if let Some(root) = self
+				.state
+				.active_workspace()
+				.map(|workspace| workspace.path.clone())
+			{
+				self
+					.board
+					.refresh(std::path::Path::new(&root), std::time::Instant::now());
+				ctx.request_repaint_after(crate::board::REFRESH);
+			}
 		}
 		if self.settings_changed() {
 			self.apply_settings(ctx);

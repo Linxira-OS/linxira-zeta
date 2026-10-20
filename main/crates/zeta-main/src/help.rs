@@ -28,9 +28,9 @@ KEYS (inside the workspace)
   Alt+I    pane: zetaide           Alt+←/→  prev/next tab
   Alt+S    pane: shell             Alt+O    focus next pane
   Alt+D    pane: time+calendar     Alt+R    pane: resources (CPU/mem/GPU)
-  Alt+L    cycle pane layout       Alt+M    minimize focused pane
-  Alt+B    pane → new tab          Alt+Q    quit
-  Alt+V    paste image as path     F1       help overlay
+  Alt+K    pane: board (kanban)    Alt+L    cycle pane layout
+  Alt+M    minimize focused pane   Alt+B    pane → new tab
+  Alt+V    paste image as path     Alt+Q    quit · F1 help overlay
 
   Any other Alt chord is forwarded to the focused pane — unbound host
   combinations (zetacode's own Alt shortcuts) reach the child.
@@ -80,7 +80,7 @@ its tab.
 pub fn overlay_text() -> &'static str {
 	"zetawork — help\n\ntabs     Alt+T new · Alt+W close · Alt+1..9 jump · Alt+←/→ cycle\nrail     \
 	 click a view button · + manages the buttons · Esc back to the panes\npanes    Alt+N shell · \
-	 Alt+C zetacode · Alt+E editor (built in) · Alt+I zetaide\nAlt+D time+calendar · Alt+R resources · Alt+L layout · \
+	 Alt+C zetacode · Alt+E editor (built in) · Alt+I zetaide\nAlt+D time+calendar · Alt+R resources · Alt+K board · Alt+L layout · \
 	 Alt+O next pane\nAlt+X close pane · Alt+M minimize pane (dock below)\nAlt+B move pane to its \
 	 own new tab · Alt+V paste image (path)\nAlt+any other chord is forwarded to the pane\nmouse    \
 	 click tab bar · click pane to focus · drag border = resize\ndrag pane title onto a pane = swap \

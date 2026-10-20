@@ -53,6 +53,15 @@ import {
 	handleOAuthProviders,
 } from "./web-gateway/auth";
 import { handleBlobGet } from "./web-gateway/blobs";
+import {
+	handleBoardCreate,
+	handleBoardDelete,
+	handleBoardGet,
+	handleBoardHandoff,
+	handleBoardList,
+	handleBoardMove,
+	handleBoardUpdate,
+} from "./web-gateway/board";
 import { handleChannelSend } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
@@ -198,6 +207,14 @@ const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
 const CHANNELS_STATUS_RE = /^\/api\/channels\/status$/;
 // The only write route in the channels family; see web-gateway/channels.ts.
 const CHANNELS_SEND_RE = /^\/api\/channels\/send$/;
+// The user board (`.zeta/board/`): one file per card. The `move` and
+// `handoff` forms are tested before the bare id, and the id pattern cannot
+// contain `/`, `.`-leading or `..`, so a request cannot leave the directory.
+const BOARD_ID_PART = "[A-Za-z0-9_-][A-Za-z0-9._-]*";
+const BOARD_RE = /^\/api\/board$/;
+const BOARD_MOVE_RE = new RegExp(`^/api/board/(${BOARD_ID_PART})/move$`);
+const BOARD_HANDOFF_RE = new RegExp(`^/api/board/(${BOARD_ID_PART})/handoff$`);
+const BOARD_ID_RE = new RegExp(`^/api/board/(${BOARD_ID_PART})$`);
 
 function json(data: unknown, status = 200): Response {
 	return Response.json(data, { status });
@@ -735,6 +752,32 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 		} catch (error) {
 			return json({ error: error instanceof Error ? error.message : String(error) }, 500);
 		}
+	}
+
+	if (BOARD_RE.test(pathname)) {
+		if (req.method === "GET") return handleBoardList(req);
+		if (req.method === "POST") return handleBoardCreate(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const boardMove = capture(pathname, BOARD_MOVE_RE);
+	if (boardMove) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleBoardMove(req, boardMove[0]);
+	}
+
+	const boardHandoff = capture(pathname, BOARD_HANDOFF_RE);
+	if (boardHandoff) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleBoardHandoff(req, boardHandoff[0]);
+	}
+
+	const boardCard = capture(pathname, BOARD_ID_RE);
+	if (boardCard) {
+		if (req.method === "GET") return handleBoardGet(req, boardCard[0]);
+		if (req.method === "PATCH") return handleBoardUpdate(req, boardCard[0]);
+		if (req.method === "DELETE") return handleBoardDelete(req, boardCard[0]);
+		return json({ error: "Method not allowed" }, 405);
 	}
 
 	if (pathname.startsWith("/api/")) {

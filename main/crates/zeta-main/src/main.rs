@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 mod app;
+mod board;
 mod busy;
 mod editor;
 mod files;
