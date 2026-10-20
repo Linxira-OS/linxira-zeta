@@ -23,6 +23,7 @@ import {
 	type WebConfigData,
 } from "@/lib/settings-client";
 import { DocsPanel } from "../DocsPanel";
+import { RemotePairingPanel } from "./RemotePairing";
 
 // Tabs with full inline editing. The remaining tabs render read-only rows
 // (label + current value) with a CLI /settings hint until a later phase.
@@ -615,6 +616,7 @@ function WebSettingsSection({
 	savedFlash,
 	t,
 	onCommit,
+	onRemoteTokenChanged,
 	highlight,
 }: {
 	data: WebConfigData;
@@ -623,6 +625,7 @@ function WebSettingsSection({
 	savedFlash: string | null;
 	t: (key: string) => string;
 	onCommit: (path: string, value: unknown) => Promise<boolean>;
+	onRemoteTokenChanged: (token: string | null) => void;
 	highlight?: string;
 }) {
 	// WeChat QR-login progress surfaced by the gateway (see /api/channels/wechat/qrcode).
@@ -798,6 +801,18 @@ function WebSettingsSection({
 						</div>,
 						"remote.token",
 					)}
+					{row(
+						t("web-remote-pairing"),
+						t("web-remote-pairing-desc"),
+						<span style={{ fontSize: 11.5, color: "var(--zeta-alias-text-dim)" }}>
+							{data.remote.token ? t("web-remote-pairing-configured") : t("web-remote-pairing-unconfigured")}
+						</span>,
+					)}
+					<RemotePairingPanel
+						hasToken={Boolean(data.remote.token && data.remote.token !== "")}
+						t={t}
+						onTokenChanged={onRemoteTokenChanged}
+					/>
 					{row(
 						t("web-show-bot-sessions"),
 						t("web-show-bot-sessions-desc"),
@@ -1683,6 +1698,10 @@ function WebTabContent({ web, highlight }: { web: SettingsWebConfigState; highli
 					savedFlash={web.savedFlash}
 					t={t}
 					onCommit={web.commit}
+					onRemoteTokenChanged={token => {
+						setRemoteToken(token ?? undefined);
+						void web.reload();
+					}}
 					highlight={highlight}
 				/>
 			</>

@@ -172,7 +172,129 @@ operations persist.
 
 ## Remote access
 
-The serve process binds `127.0.0.1` by default. Binding to a non-loopback
-address (via `ZETA_SERVE_HOSTNAME`) logs a prominent warning: you **must**
-configure `remote.token` in `web.yml`, or every API request from a
-non-loopback host is rejected by the access gate.
+Phone-first access is served by the same `zetacode serve` process. Nothing
+leaves your machine except the requests your phone makes to the endpoint you
+choose — bring your own port mapping, tunnel (frp, Tailscale, Cloudflare
+Tunnel), or reverse proxy.
+
+```bash
+# loopback only (default): open http://127.0.0.1:30141
+zetacode serve
+
+# LAN/WAN bind — requires a remote token, and TLS unless you opt out:
+zetacode serve --host 0.0.0.0 --tls-cert ./cert.pem --tls-key ./key.pem
+
+# behind a TLS reverse proxy (proxy terminates TLS, zeta stays plaintext on
+# a private interface — the proxy recipe below is the secure path):
+zetacode serve --host 127.0.0.1
+```
+
+### Bind source order
+
+`--host` → `remote.host` (`web.yml`) → `ZETA_SERVE_HOSTNAME` → `127.0.0.1`.
+The same value is printed in the startup banner and recorded in
+`~/.zeta/serve.json`; discovery/reuse compares that URL, so a plaintext and a
+TLS instance of the same port are distinct.
+
+### TLS
+
+`--tls-cert` / `--tls-key` (or `remote.tls.cert` / `remote.tls.key` in
+`web.yml`, or `ZETA_SERVE_TLS_CERT` / `ZETA_SERVE_TLS_KEY`) turn the main
+listener into `Bun.serve({ tls })`. Both files must exist or serve refuses to
+start. `--tls` / `remote.tls.enabled` force TLS and refuse to start without a
+certificate/key pair — useful to catch a missing mount in a service unit.
+
+A non-loopback bind is **refused** when it would be plaintext, unless you pass
+`--allow-plain-http` (or set `remote.allowPlainHttp: true`). That is the "never
+silent plain HTTP beyond the LAN" rule: the token travels in a header, so
+plaintext exposure is a deliberate own-network choice. The startup banner
+warns when it is used.
+
+`remote.publicUrl` (e.g. `https://zeta.example.com`) names the URL phones
+should use when you are behind a proxy or tunnel; the pairing QR uses it.
+It is never used for binding.
+
+### Pairing a phone
+
+Settings → Web → **Remote Access** → **Show QR**. The gateway builds
+`https://<reachable host>:<port>/#zeta-token=<token>` and renders it with the
+dependency-free QR encoder. Scanning it opens the web UI; the token is stored
+in `localStorage` and removed from the address bar before the first API call.
+The QR is only shown to an authenticated caller (loopback or a valid token)
+and the response is `no-store`.
+
+- **Rotate token** mints a new 32-byte token, writes it to `web.yml`, and
+  records the old one's SHA-256 in `remote.revokedTokens`. The old token is
+  rejected immediately (401) — every paired device must scan the new code.
+- **Revoke token** disables remote access: it adds the hash to
+  `remote.revokedTokens` and clears `remote.token`, so non-loopback callers
+  get 401 until a new token is configured.
+
+Token checks are hash-compared against the revoked list as well as the active
+token, so a config file that still shows an old value cannot re-enable it.
+
+### Access gate and rate limiting
+
+The gate keys on the **socket peer address**, never the client-supplied `Host`
+header:
+
+| Caller | Result |
+| --- | --- |
+| loopback (`127.0.0.1`, `::1`, `localhost`) | passes, local UI/desktop |
+| non-loopback + valid, non-revoked token | passes |
+| non-loopback + missing/wrong/revoked token | **401** + `WWW-Authenticate: Bearer` |
+| cross-site `Origin` from an unauthenticated loopback browser | **403** (CSRF guard) |
+| peer with ≥10 failed attempts in 60 s | **429** + `Retry-After: 60` |
+
+The limiter is per-peer, in-memory (a serve restart clears it), and blocks
+even a correct token while active — brute-forcing cannot use the rate limit
+as an oracle. A successful authentication clears that peer's history.
+
+### Reverse-proxy recipes
+
+Caddy (automatic certificates, WebSocket/SSE pass through):
+
+```caddyfile
+zeta.example.com {
+	reverse_proxy 127.0.0.1:30141
+}
+```
+
+nginx:
+
+```nginx
+server {
+	listen 443 ssl http2;
+	server_name zeta.example.com;
+
+	ssl_certificate     /etc/letsencrypt/live/zeta.example.com/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/zeta.example.com/privkey.pem;
+
+	location / {
+		proxy_pass http://127.0.0.1:30141;
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_buffering off;        # SSE: /api/agent/:id/events
+		proxy_read_timeout 1h;
+	}
+}
+```
+
+SSE (`/api/agent/:id/events`, `/api/tracking/events`) requires buffering off
+and a long read timeout; do not enable gzip on `text/event-stream`. Leave
+`remote.token` configured even behind a proxy: the proxy adds TLS, not
+authentication.
+
+### Mobile behavior
+
+- History loads send `?deferMedia`, so screenshots arrive as
+  `/api/blobs/<sha256>` URLs and are fetched per image only when they scroll
+  near the viewport (through authenticated `fetch`, then rendered from an
+  object URL). The SSE stream stays text-first; images the agent generates
+  during a turn render as they arrive.
+- The web UI ships a manifest + service worker: installable to the home
+  screen with an offline shell page. `/api/*` is never cached. Registration
+  only happens in a production build over HTTPS (or localhost).
+- Voice input uses the phone's own IME; no extra permission is requested.
+

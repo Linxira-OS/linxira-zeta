@@ -35,8 +35,11 @@ function toolResultsWith(content) {
   ]);
 }
 
-test("a deferred tool-result image renders from its blob URL, without expanding the tool block", () => {
+test("a deferred tool-result image waits for an authenticated blob fetch, not a raw <img src>", () => {
   // What a `deferMedia` history load now emits: the blob URL, not a notice.
+  // The phone cannot use a bare <img src> here — the remote gate needs the
+  // X-Zeta-Token header, so MediaImage fetches the bytes and renders the
+  // object URL once the element is near the viewport.
   const html = render(
     React.createElement(MessageView, {
       message: toolCallMessage,
@@ -47,7 +50,8 @@ test("a deferred tool-result image renders from its blob URL, without expanding 
     }),
   );
 
-  assert.match(html, /<img[^>]+src="\/api\/blobs\/abc123"/);
+  assert.match(html, /data-zeta-media="deferred"/);
+  assert.doesNotMatch(html, /<img[^>]+src="\/api\/blobs\//);
 });
 
 test("a live tool-result image renders from its inline base64", () => {

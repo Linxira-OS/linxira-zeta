@@ -103,6 +103,7 @@ const nextConfig: NextConfig = {
 				{ source: "/api/skills/:path*", destination: `${gateway}/api/skills/:path*` },
 				{ source: "/api/plugins/:path*", destination: `${gateway}/api/plugins/:path*` },
 				{ source: "/api/web-config/:path*", destination: `${gateway}/api/web-config/:path*` },
+				{ source: "/api/remote/:path*", destination: `${gateway}/api/remote/:path*` },
 				{ source: "/api/channels/:path*", destination: `${gateway}/api/channels/:path*` },
 				{ source: "/api/tracking/:path*", destination: `${gateway}/api/tracking/:path*` },
 				{ source: "/api/open/:path*", destination: `${gateway}/api/open/:path*` },

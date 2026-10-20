@@ -1,4 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import {
 	classifyRequest,
 	formatServerUrl,
@@ -28,6 +32,18 @@ describe("ZetaServer host URLs", () => {
 	it("reports the configured public host and brackets IPv6 literals", () => {
 		expect(new ZetaServer({ host: "192.168.1.5", port: 30141 }).url).toBe("http://192.168.1.5:30141");
 		expect(formatServerUrl("::1", 30141)).toBe("http://[::1]:30141");
+	});
+
+	it("switches the main origin to https when a TLS listener is configured", () => {
+		const server = new ZetaServer({
+			host: "zeta.example",
+			port: 30141,
+			tls: { cert: "/certs/fullchain.pem", key: "/certs/key.pem" },
+		});
+		expect(server.scheme).toBe("https");
+		expect(server.url).toBe("https://zeta.example:30141");
+		// The stats dashboard is a separate plain-HTTP service.
+		expect(server.statsUrl).toBe("http://zeta.example:3847");
 	});
 });
 
@@ -71,5 +87,37 @@ describe("parsePlanApprovalReply", () => {
 		expect(parsePlanApprovalReply("5")).toBeNull();
 		expect(parsePlanApprovalReply("12")).toBeNull();
 		expect(parsePlanApprovalReply("go ahead")).toBeNull();
+	});
+});
+
+describe("ZetaServer exposure guard", () => {
+	async function withConfig(yaml: string | null, run: () => Promise<void>): Promise<void> {
+		const dir = await mkdtemp(join(tmpdir(), "zeta-server-exposure-"));
+		const previous = process.env.ZETA_CODING_AGENT_DIR;
+		process.env.ZETA_CODING_AGENT_DIR = dir;
+		if (yaml !== null) await writeFile(join(dir, "web.yml"), yaml, "utf8");
+		refreshDirsFromEnv();
+		try {
+			await run();
+		} finally {
+			if (previous === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
+			else process.env.ZETA_CODING_AGENT_DIR = previous;
+			refreshDirsFromEnv();
+			await rm(dir, { recursive: true, force: true });
+		}
+	}
+
+	it("refuses a non-loopback listener without a remote token before opening any socket", async () => {
+		await withConfig(null, async () => {
+			const server = new ZetaServer({ host: "0.0.0.0", port: 1, statsOnly: true });
+			await expect(server.start()).rejects.toThrow(/remote\.token/);
+		});
+	});
+
+	it("refuses plaintext beyond loopback without the explicit opt-in", async () => {
+		await withConfig("remote:\n  token: tok\n", async () => {
+			const server = new ZetaServer({ host: "0.0.0.0", port: 1, statsOnly: true });
+			await expect(server.start()).rejects.toThrow(/plain HTTP/);
+		});
 	});
 });

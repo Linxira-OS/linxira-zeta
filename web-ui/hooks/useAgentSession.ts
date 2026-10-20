@@ -762,6 +762,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       let messagesLoaded = false;
       try {
         if (showLoading) setLoading(true);
+        // `deferMedia` keeps history small: the gateway rewrites large
+        // tool-result images to `GET /api/blobs/<sha256>` sources. The bytes are
+        // fetched per image, on demand, by `components/MediaImage.tsx` through
+        // `lib/lazy-media.ts` (an `<img src>` cannot carry the remote token on
+        // a non-loopback origin).
         const params = new URLSearchParams({
           deferThinking: "1",
           deferMedia: "1",
