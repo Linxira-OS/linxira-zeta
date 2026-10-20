@@ -5716,8 +5716,10 @@ name = "termide-panel-terminal"
 version = "0.41.0"
 dependencies = [
  "anyhow",
+ "base64",
  "crossterm",
  "dunce",
+ "image",
  "libc",
  "log",
  "nix 0.29.0",

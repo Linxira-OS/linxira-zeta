@@ -691,3 +691,126 @@ fn settings_all_schema_screenshots() {
 	}
 	zetawork_gui::i18n::Lang::set_current(zetawork_gui::i18n::Lang::Zh);
 }
+
+/// `11-kitty-image.png` — a terminal image, drawn end to end through the
+/// emulator the pane runs.
+///
+/// A hosted TUI (zetacode) transmits its raster as a kitty APC; the emulator
+/// decodes it, places it in cells and reports where it goes in device pixels;
+/// the pane's own painter ([`paint_images`], the same call `center.rs` makes)
+/// draws it. The PNG is the artifact — the pixel assertions are the evidence
+/// that the painted rectangle covers exactly the device pixels the emulator
+/// measured: 10 × 5 cells of 12 × 24 px at 2× DPI, anchored at the cell the
+/// cursor was parked on (row 4, column 6 in the client's 1-based CSI).
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn kitty_image_shot() {
+	use std::io::{Result as IoResult, Write};
+	use std::sync::{Arc, Mutex, RwLock};
+
+	use base64::Engine;
+	use zetawork_gui::blit::{GridMetrics, ImageTextures, grid_font_for, paint_images};
+
+	/// Writes back whatever the emulator replies (nothing, for `q=2`).
+	struct Capture(Arc<Mutex<Vec<u8>>>);
+	impl Write for Capture {
+		fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+			self.0.lock().unwrap().extend_from_slice(buf);
+			Ok(buf.len())
+		}
+		fn flush(&mut self) -> IoResult<()> {
+			Ok(())
+		}
+	}
+
+	/// The committed 2×2 PNG: red, green / blue, white.
+	const PNG: &[u8] = include_bytes!("../testdata/kitty-2x2.png");
+	/// The device-pixel cell the GUI reports (`GridMetrics` × pixels-per-point).
+	const CELL: (u16, u16) = (12, 24);
+	const PX: [f32; 2] = [240.0, 160.0];
+
+	let replies = Arc::new(Mutex::new(Vec::new()));
+	let screen = Arc::new(RwLock::new(termide_panel_terminal::TerminalScreen::new(24, 80)));
+	screen.write().unwrap().cell_px = CELL;
+	let writer =
+		Arc::new(Mutex::new(Box::new(Capture(Arc::clone(&replies))) as Box<dyn Write + Send>));
+	let mut stream = termide_panel_terminal::StreamParser::new(writer, Arc::clone(&screen));
+
+	let data = base64::engine::general_purpose::STANDARD.encode(PNG);
+	stream.feed(b"\x1b[4;6H");
+	stream.feed(format!("\x1b_Ga=T,f=100,i=7,c=10,r=5,q=2;{data}\x1b\\").as_bytes());
+	stream.flush();
+	assert!(replies.lock().unwrap().is_empty(), "q=2 asks for no reply");
+
+	let placements = screen.read().unwrap().graphics.placements();
+	assert_eq!(placements.len(), 1, "the emulator placed the transmitted image");
+	let (placement, image) = &placements[0];
+	assert_eq!((image.width, image.height), (2, 2), "the PNG decoded");
+	let rect = placement.rect(image, CELL);
+	assert_eq!((rect.x, rect.y, rect.width, rect.height), (60, 72, 120, 120));
+
+	// The pane's painter, at the window's own scale.
+	let ctx = egui::Context::default();
+	let settings = Settings::default();
+	theme::apply(&ctx, &settings);
+	fonts::install(&ctx, &settings);
+	// `Context::pixels_per_point()` only reports the applied scale after a
+	// frame, so the shot owns the scale it asked for.
+	const PP: f32 = 2.0;
+	ctx.set_pixels_per_point(PP);
+	// A pane's grid: where the painter put it, its cell metrics, and the size
+	// it was given. The font needs the first frame, so the metrics are built in
+	// it (as `center.rs` does from a live `Ui`).
+	const ORIGIN: (f32, f32) = (10.0, 20.0);
+	let mut cache = ImageTextures::default();
+	let mut textures = raster::Textures::default();
+	let output = ctx.run(
+		egui::RawInput {
+			screen_rect: Some(Rect::from_min_size(pos2(0.0, 0.0), vec2(PX[0], PX[1]))),
+			..Default::default()
+		},
+		|ctx| {
+			let painter = ctx.layer_painter(egui::LayerId::background());
+			painter.rect_filled(
+				Rect::from_min_size(pos2(0.0, 0.0), vec2(PX[0], PX[1])),
+				0.0,
+				theme::TERM_BG,
+			);
+			let metrics = GridMetrics {
+				origin: pos2(ORIGIN.0, ORIGIN.1),
+				font: grid_font_for(ctx, 13.0),
+				cell_w: 8.0,
+				cell_h: 16.0,
+				cols: 80,
+				rows: 24,
+				font_size: 13.0,
+			};
+			paint_images(&painter, &mut cache, "shot", &placements, &metrics, CELL, PP, false);
+		},
+	);
+	textures.apply(&output.textures_delta);
+	assert_eq!(output.pixels_per_point, PP, "the frame renders at the scale the shot asked for");
+	let primitives = ctx.tessellate(output.shapes, output.pixels_per_point);
+	let canvas = raster::render(&primitives, &textures, PX, PP, theme::TERM_BG);
+
+	// Device pixels: the grid origin is in points, the placement in device px.
+	let origin = (ORIGIN.0 * PP, ORIGIN.1 * PP);
+	assert_eq!((origin.0 + rect.x as f32, origin.1 + rect.y as f32), (80.0, 112.0));
+	let at = |x: usize, y: usize| canvas.pixels[y * canvas.width + x];
+	// 2×2 source scaled with NEAREST: four 60×60 quadrants, no filtering.
+	assert_eq!(at(90, 120), [255, 0, 0, 255], "top-left quadrant is red");
+	assert_eq!(at(190, 120), [0, 255, 0, 255], "top-right quadrant is green");
+	assert_eq!(at(90, 220), [0, 0, 255, 255], "bottom-left quadrant is blue");
+	assert_eq!(at(190, 220), [255, 255, 255, 255], "bottom-right quadrant is white");
+	// One pixel outside each edge is the pane's own background: the image is
+	// clipped to its rect, not smeared past it.
+	let bg = [theme::TERM_BG.r(), theme::TERM_BG.g(), theme::TERM_BG.b(), 255];
+	assert_eq!(at(79, 120), bg, "nothing paints left of the rect");
+	assert_eq!(at(200, 120), bg, "nothing paints right of the rect");
+	assert_eq!(at(120, 111), bg, "nothing paints above the rect");
+	assert_eq!(at(120, 232), bg, "nothing paints below the rect");
+
+	let bytes = canvas.to_png();
+	assert!(bytes.len() > 256, "a real raster is not a handful of bytes");
+	write("11-kitty-image.png", &bytes);
+}

@@ -11,8 +11,6 @@ use std::collections::VecDeque;
 use std::sync::LazyLock;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-pub use vt100_parser::VtPerformer;
-
 /// Static lookup table for 256-color palette.
 ///
 /// Computing 256-color values on every call was causing overhead during
@@ -305,6 +303,18 @@ pub struct TerminalScreen {
     /// The child's OSC 0/2 window title; an empty OSC 0/2 clears it to `None`.
     /// Polled by the host app for pane naming.
     pub title: Option<String>,
+    /// The renderer's cell measured in **device** pixels (width, height), or
+    /// `(0, 0)` while the renderer has not reported one.
+    ///
+    /// This is the size the child's queries answer with (`CSI 16 t`, `CSI 14 t`)
+    /// and the size a Kitty placement's cell extents multiply out to, so the
+    /// client rasterizes at exactly the density the surface paints at instead
+    /// of guessing (zetacode otherwise assumes 9×18 and every image is
+    /// resampled). The GUI derives it from the grid font and the window's
+    /// pixels-per-point; a plain terminal pane never reports one.
+    pub cell_px: (u16, u16),
+    /// Kitty graphics the child transmitted (see [`crate::kitty`]).
+    pub graphics: crate::kitty::Graphics,
 }
 
 impl TerminalScreen {
@@ -353,6 +363,8 @@ impl TerminalScreen {
             current_hyperlink: None,
             hyperlinks: Vec::new(),
             title: None,
+            cell_px: (0, 0),
+            graphics: crate::kitty::Graphics::new(),
         }
     }
 
@@ -425,6 +437,9 @@ impl TerminalScreen {
     pub fn switch_to_alt_screen(&mut self) {
         if !self.use_alt_screen {
             self.use_alt_screen = true;
+            // Placements belong to the screen they were made on; a full-screen
+            // app starts with a clean graphics layer.
+            self.graphics.clear();
             self.wrap_pending = false;
             self.reset_scroll_region();
             // Clear alt buffer
@@ -440,6 +455,9 @@ impl TerminalScreen {
     pub fn switch_to_main_screen(&mut self) {
         if self.use_alt_screen {
             self.use_alt_screen = false;
+            // The alt screen's placements do not outlive it, and the main
+            // screen's own were cleared on entry: the client re-places.
+            self.graphics.clear();
             self.wrap_pending = false;
             self.reset_scroll_region();
         }
@@ -747,6 +765,9 @@ impl TerminalScreen {
                 wrapped.insert(bottom, false);
             }
         }
+
+        // Kitty graphics ride the scrolled text (see `Graphics::scroll_up`).
+        self.graphics.scroll_up(top, bottom);
     }
 
     /// Set scroll region (DECSTBM). top/bottom are 1-based per VT100 spec.

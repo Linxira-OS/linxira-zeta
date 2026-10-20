@@ -23,14 +23,26 @@
 use std::collections::HashMap;
 
 use egui::{
-	Color32, ColorImage, ImageData, TexturesDelta,
+	Color32, ColorImage, ImageData, TextureFilter, TextureOptions, TexturesDelta,
 	epaint::{ClippedPrimitive, Primitive, TextureId, Vertex},
 };
 
-/// The textures egui has handed out so far (only the font atlas, in practice).
+/// One texture and the filtering the caller asked for.
+///
+/// The GPU backends honour [`TextureOptions`]; so does this rasterizer, because
+/// a kitty image asks for `NEAREST` precisely so an upscaled raster keeps hard
+/// pixel edges — sampling it bilinearly would make the screenshot lie about
+/// what the window shows.
+pub struct Tex {
+	image: ColorImage,
+	options: TextureOptions,
+}
+
+/// The textures egui has handed out so far (the font atlas plus any terminal
+/// image).
 #[derive(Default)]
 pub struct Textures {
-	images: HashMap<TextureId, ColorImage>,
+	images: HashMap<TextureId, Tex>,
 }
 
 impl Textures {
@@ -41,10 +53,12 @@ impl Textures {
 			let ImageData::Color(patch) = &image_delta.image;
 			match image_delta.pos {
 				None => {
-					self.images.insert(*id, (**patch).clone());
+					self
+						.images
+						.insert(*id, Tex { image: (**patch).clone(), options: image_delta.options });
 				},
 				Some([x0, y0]) => {
-					if let Some(target) = self.images.get_mut(id) {
+					if let Some(target) = self.images.get_mut(id).map(|tex| &mut tex.image) {
 						for y in 0..patch.size[1] {
 							for x in 0..patch.size[0] {
 								let (tx, ty) = (x0 + x, y0 + y);
@@ -63,7 +77,7 @@ impl Textures {
 		}
 	}
 
-	fn get(&self, id: TextureId) -> Option<&ColorImage> {
+	fn get(&self, id: TextureId) -> Option<&Tex> {
 		self.images.get(&id)
 	}
 }
@@ -159,7 +173,7 @@ pub fn render(
 /// Barycentric triangle fill with per-vertex colour and bilinear texturing.
 fn fill(
 	canvas: &mut Canvas,
-	texture: Option<&ColorImage>,
+	texture: Option<&Tex>,
 	clip: [f32; 4],
 	ppp: f32,
 	a: Vertex,
@@ -233,11 +247,26 @@ fn edge(a: [f32; 2], b: [f32; 2], p: [f32; 2]) -> f32 {
 	(p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])
 }
 
-/// Bilinear sample of a premultiplied RGBA texture, in normalized coordinates.
-fn sample(image: &ColorImage, uv: [f32; 2]) -> [f32; 4] {
+/// Sample a premultiplied RGBA texture, in normalized coordinates: nearest
+/// when the texture asks for it, otherwise bilinear.
+fn sample(texture: &Tex, uv: [f32; 2]) -> [f32; 4] {
+	let image = &texture.image;
 	let (w, h) = (image.size[0], image.size[1]);
 	if w == 0 || h == 0 {
 		return [1.0; 4];
+	}
+	if matches!(texture.options.magnification, TextureFilter::Nearest)
+		|| matches!(texture.options.minification, TextureFilter::Nearest)
+	{
+		let x = (uv[0] * w as f32).floor().clamp(0.0, w as f32 - 1.0) as usize;
+		let y = (uv[1] * h as f32).floor().clamp(0.0, h as f32 - 1.0) as usize;
+		let pixel = image.pixels[y * w + x];
+		return [
+			f32::from(pixel.r()),
+			f32::from(pixel.g()),
+			f32::from(pixel.b()),
+			f32::from(pixel.a()),
+		];
 	}
 	let x = (uv[0] * w as f32 - 0.5).clamp(0.0, w as f32 - 1.0);
 	let y = (uv[1] * h as f32 - 0.5).clamp(0.0, h as f32 - 1.0);

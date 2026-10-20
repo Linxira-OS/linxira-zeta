@@ -109,6 +109,9 @@ zbus = { version = "5", optional = true }
 [dev-dependencies]
 # A registry test needs a real directory it may remove itself.
 tempfile = "3"
+# The terminal image test frames its committed PNG fixture as a kitty APC
+# payload, exactly as a hosted TUI transmits it.
+base64.workspace = true
 # The 看板 screenshot asserts the column a hand-written card loads into; the
 # page's own module is the shared board model in this crate's dependencies.
 termide-panel-ide.workspace = true

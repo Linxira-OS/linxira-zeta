@@ -7,7 +7,7 @@
 
 use std::io::Write;
 use std::sync::{Arc, Mutex, RwLock};
-use vte::{Params, Perform};
+use vte::{Params, Parser, Perform};
 
 use super::{
     csi_handlers::{handle_cursor_movement, handle_private_sequence, handle_sgr},
@@ -69,6 +69,119 @@ impl VtPerformer {
             let _ = writer.write_all(data);
             let _ = writer.flush();
         }
+    }
+
+    /// Apply one completed graphics APC (`ESC _ ... ESC \`).
+    ///
+    /// The APC body is removed from the VT stream by
+    /// [`crate::kitty::ApcScanner`] before it reaches vte; this is where it
+    /// meets the screen. Pending print operations are applied first: the
+    /// cursor they leave behind is the cell the placement anchors to.
+    pub fn apc(&mut self, payload: &[u8]) {
+        if payload.first() != Some(&b'G') {
+            return;
+        }
+        let mut screen = match self.screen.write() {
+            Ok(screen) => screen,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        apply_ops(&mut self.pending_ops, &mut screen);
+        let cursor = screen.cursor;
+        // `Graphics::apc` takes the payload with its leading `G`.
+        let reply = screen.graphics.apc(payload, cursor);
+        screen.dirty = true;
+        drop(screen);
+        if let Some(reply) = reply {
+            if let Some(sequence) = reply.sequence() {
+                self.write_response(&sequence);
+            }
+        }
+    }
+
+    /// Reject an APC the scanner refused as too large: build the error from
+    /// the payload's leading bytes so the child still hears about it.
+    pub fn apc_oversized(&mut self, head: &[u8]) {
+        let reply = {
+            let mut screen = match self.screen.write() {
+                Ok(screen) => screen,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            screen.graphics.oversized(head)
+        };
+        if let Some(reply) = reply {
+            if let Some(sequence) = reply.sequence() {
+                self.write_response(&sequence);
+            }
+        }
+    }
+}
+
+/// Apply batched screen operations to a held screen, the way an inline flush
+/// in a dispatcher does.
+fn apply_ops(pending_ops: &mut Vec<ScreenOp>, screen: &mut TerminalScreen) {
+    if pending_ops.is_empty() {
+        return;
+    }
+    for op in pending_ops.drain(..) {
+        match op {
+            ScreenOp::PutChar(ch) => screen.put_char(ch),
+            ScreenOp::Newline => screen.newline(),
+            ScreenOp::CarriageReturn => screen.carriage_return(),
+            ScreenOp::Backspace => screen.backspace(),
+            ScreenOp::Tab => screen.tab(),
+        }
+    }
+    screen.dirty = true;
+}
+
+/// One PTY byte stream: the VT parser, the graphics APC scanner, and the
+/// performer that applies both to one screen.
+///
+/// The reader thread owns one of these for the life of the child; exposing it
+/// also lets a host (or a test) feed child output without a PTY.
+pub struct StreamParser {
+    parser: Parser,
+    apc: crate::kitty::ApcScanner,
+    performer: VtPerformer,
+}
+
+impl StreamParser {
+    pub fn new(writer: crate::SharedWriter, screen: Arc<RwLock<TerminalScreen>>) -> Self {
+        Self {
+            parser: Parser::new(),
+            apc: crate::kitty::ApcScanner::new(),
+            performer: VtPerformer {
+                writer,
+                screen,
+                pending_ops: Vec::with_capacity(8192),
+            },
+        }
+    }
+
+    /// Feed PTY bytes.
+    ///
+    /// Graphics APCs are cut out of the byte stream (their base64 payload is
+    /// never syntax) and applied to the screen directly; every other byte goes
+    /// through the VT parser.
+    pub fn feed(&mut self, bytes: &[u8]) {
+        use crate::kitty::Step;
+        for byte in bytes {
+            match self.apc.feed(*byte) {
+                Step::Forward => self.parser.advance(&mut self.performer, *byte),
+                Step::Replay => {
+                    self.parser.advance(&mut self.performer, 0x1b);
+                    self.parser.advance(&mut self.performer, *byte);
+                }
+                Step::Hold | Step::Start | Step::Swallowed => {}
+                Step::Payload => self.performer.apc(self.apc.payload()),
+                Step::TooLarge => self.performer.apc_oversized(self.apc.head()),
+            }
+        }
+    }
+
+    /// Apply the print operations batched since the last flush.
+    pub fn flush(&mut self) {
+        self.performer.flush();
     }
 }
 
@@ -212,6 +325,16 @@ impl Perform for VtPerformer {
                     screen.dirty = true;
                     return;
                 }
+                // XTVERSION: the one query a client uses to name the
+                // terminal. Reply in the DCS form every emulator uses, so a
+                // hosted TUI can print "zetawork 0.41.0" instead of guessing.
+                if c == 'q' {
+                    drop(screen);
+                    self.write_response(
+                        format!("\x1bP>|zetawork({})\x1b\\", env!("CARGO_PKG_VERSION")).as_bytes(),
+                    );
+                    return;
+                }
             }
 
             if !intermediates.is_empty() && intermediates[0] == b'<' && c == 'u' {
@@ -233,7 +356,40 @@ impl Perform for VtPerformer {
             match c {
                 'c' => {
                     drop(screen);
-                    self.write_response(b"\x1b[?62c");
+                    self.write_response(b"\x1b[?1;2c");
+                    return;
+                }
+                // Window manipulation reports. A hosted TUI asks these three
+                // before it rasterizes an image: without an answer it assumes
+                // 9×18 cells and every picture is resampled into blur.
+                't' => {
+                    let param = params
+                        .iter()
+                        .next()
+                        .and_then(|p| p.first())
+                        .copied()
+                        .unwrap_or(0);
+                    let (cell_w, cell_h) = screen.cell_px;
+                    let rows = screen.rows;
+                    let cols = screen.cols;
+                    let known = cell_w > 0 && cell_h > 0;
+                    let reply = match param {
+                        // 14 t: window size in pixels.
+                        14 if known => Some(format!(
+                            "\x1b[4;{};{}t",
+                            rows as u32 * u32::from(cell_h),
+                            cols as u32 * u32::from(cell_w)
+                        )),
+                        // 16 t: the cell itself, in pixels.
+                        16 if known => Some(format!("\x1b[6;{};{}t", cell_h, cell_w)),
+                        // 18 t: the text area in character cells.
+                        18 => Some(format!("\x1b[8;{};{}t", rows, cols)),
+                        _ => None,
+                    };
+                    drop(screen);
+                    if let Some(reply) = reply {
+                        self.write_response(reply.as_bytes());
+                    }
                     return;
                 }
                 'J' => {
@@ -754,6 +910,12 @@ impl Perform for VtPerformer {
                         screen.cursor.0 -= 1;
                     }
                 }
+                // DECSC / DECRC. A client that places a kitty image above the
+                // line it writes (`ESC 7` + CUU, APC, `ESC 8`) relies on the
+                // restore: without it the cursor stays on the image's row and
+                // the following text overwrites it.
+                b'7' => screen.save_cursor(),
+                b'8' => screen.restore_cursor(),
                 _ => {}
             }
             screen.dirty = true;
@@ -952,7 +1114,129 @@ mod tests {
         feed(&mut performer, b"\x1b[c");
         feed(&mut performer, b"\x1b[6n");
 
-        assert_eq!(&*capture.lock().unwrap(), b"\x1b[?62c\x1b[2;3R");
+        assert_eq!(&*capture.lock().unwrap(), b"\x1b[?1;2c\x1b[2;3R");
+    }
+
+    #[test]
+    fn identity_and_cell_geometry_replies_name_the_workbench() {
+        let (mut performer, capture, screen) = performer();
+        screen.write().unwrap().cell_px = (12, 24);
+
+        feed(&mut performer, b"\x1b[16t");
+        feed(&mut performer, b"\x1b[14t");
+        feed(&mut performer, b"\x1b[18t");
+        feed(&mut performer, b"\x1b[>q");
+
+        // 80 cols × 12 px = 960, 24 rows × 24 px = 576; the text area is 24×80
+        // cells; XTVERSION names the terminal the client is really talking to.
+        assert_eq!(
+            &*capture.lock().unwrap(),
+            concat!(
+                "\x1b[6;24;12t",
+                "\x1b[4;576;960t",
+                "\x1b[8;24;80t",
+                "\x1bP>|zetawork(",
+                env!("CARGO_PKG_VERSION"),
+                ")\x1b\\"
+            )
+            .as_bytes()
+        );
+    }
+
+    #[test]
+    fn cell_size_queries_stay_unanswered_until_the_renderer_reports_a_cell() {
+        // A pane painted by a native terminal owns no pixels: silence is honest,
+        // and the client keeps its own fallback instead of being told a lie.
+        let (mut performer, capture, screen) = performer();
+        assert_eq!(screen.read().unwrap().cell_px, (0, 0));
+
+        feed(&mut performer, b"\x1b[16t\x1b[14t");
+        assert!(capture.lock().unwrap().is_empty());
+
+        screen.write().unwrap().cell_px = (9, 18);
+        feed(&mut performer, b"\x1b[16t");
+        assert_eq!(&*capture.lock().unwrap(), b"\x1b[6;18;9t");
+    }
+
+    #[test]
+    fn a_kitty_apc_is_cut_out_of_the_stream_and_placed_at_the_cursor() {
+        let capture = Arc::new(Mutex::new(Vec::new()));
+        let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
+        screen.write().unwrap().cell_px = (12, 24);
+        let writer = Arc::new(Mutex::new(
+            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
+        ));
+        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+
+        // 1×1 red RGBA at row 2, column 3 (1-based CSI), 3×2 cells, then text.
+        stream.feed(b"\x1b[2;3H");
+        stream.feed(b"\x1b_Ga=T,f=32,i=42,c=3,r=2,s=1,v=1,q=0;/wAA/w==\x1b\\");
+        stream.feed(b"X");
+        stream.flush();
+
+        {
+            let screen = screen.read().unwrap();
+            let placements = screen.graphics.placements();
+            assert_eq!(placements.len(), 1);
+            let (placement, image) = &placements[0];
+            assert_eq!((placement.row, placement.column), (1, 2));
+            assert_eq!(
+                placement.rect(image, screen.cell_px),
+                crate::kitty::Rect {
+                    x: 24,
+                    y: 24,
+                    width: 36,
+                    height: 48
+                }
+            );
+            assert_eq!(image.rgba, vec![255, 0, 0, 255]);
+        }
+        // The payload is never printed, and the cursor never moved: `X` lands
+        // in the placement's own cell.
+        assert_eq!(row_text(&screen, 1), "  X");
+        assert_eq!(&*capture.lock().unwrap(), b"\x1b_Gi=42;OK\x1b\\");
+    }
+
+    #[test]
+    fn an_image_placed_over_the_cursor_line_restores_the_cursor() {
+        // What the client emits for a block's last line: save, step up to the
+        // block's first row, place the image there, restore, keep writing.
+        let capture = Arc::new(Mutex::new(Vec::new()));
+        let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
+        screen.write().unwrap().cell_px = (12, 24);
+        let writer = Arc::new(Mutex::new(
+            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
+        ));
+        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+
+        stream.feed(b"\x1b[5;1H");
+        stream.feed(b"\x1b7\x1b[2A");
+        stream.feed(b"\x1b_Ga=T,f=32,i=8,c=2,r=3,s=1,v=1,q=2;/wAA/w==\x1b\\");
+        stream.feed(b"\x1b8X");
+        stream.flush();
+
+        let placements = screen.read().unwrap().graphics.placements();
+        assert_eq!(placements.len(), 1);
+        // Row 5 (1-based) minus the two CUU steps lands on row 2, 0-based.
+        assert_eq!((placements[0].0.row, placements[0].0.column), (2, 0));
+        // The restore put the cursor back on row 4, so the text lands there and
+        // not over the placement.
+        assert_eq!(row_text(&screen, 4), "X");
+        assert_eq!(row_text(&screen, 2), "");
+    }
+
+    #[test]
+    fn a_deleted_kitty_image_leaves_nothing_to_paint() {
+        let capture = Arc::new(Mutex::new(Vec::new()));
+        let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
+        let writer = Arc::new(Mutex::new(
+            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
+        ));
+        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+        stream.feed(b"\x1b_Ga=T,f=32,i=5,c=2,r=2,s=1,v=1,q=2;/wAA/w==\x1b\\");
+        assert_eq!(screen.read().unwrap().graphics.placements().len(), 1);
+        stream.feed(b"\x1b_Ga=d,d=I,i=5,q=2\x1b\\");
+        assert!(screen.read().unwrap().graphics.placements().is_empty());
     }
 
     fn row_links(screen: &Arc<RwLock<TerminalScreen>>, row: usize) -> Vec<Option<u32>> {

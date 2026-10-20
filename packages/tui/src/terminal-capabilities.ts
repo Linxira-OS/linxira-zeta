@@ -66,6 +66,7 @@ export type TerminalId =
 	| "rio"
 	| "tern"
 	| "monstar"
+	| "zetawork"
 	| "base"
 	| "trueColor";
 
@@ -656,6 +657,15 @@ const KNOWN_TERMINALS = Object.freeze({
 	// activating it focuses the Monstar window. The BEL path uses omp's own
 	// `notify-send` fallback instead, which cannot focus a window.
 	monstar: new TerminalInfo("monstar", ImageProtocol.Kitty, true, true, NotifyProtocol.Osc9, false, false, false, 2),
+	// zetawork is the workbench GUI's own terminal pane (`termide`
+	// `panel-terminal`): it sets TERM_PROGRAM=zetawork and renders Kitty
+	// graphics itself — direct placement only, no Unicode placeholders, which
+	// is why the id is not in the placeholder allowlist. It answers the cell
+	// size query (CSI 16 t) with its real device-pixel cell, so images are
+	// rasterized at the density the surface paints at. Its emulator renders
+	// OSC 8 links itself; notifications stay on BEL because the GUI has no
+	// notifier.
+	zetawork: new TerminalInfo("zetawork", ImageProtocol.Kitty, true, true),
 });
 
 /** Resolve terminal identity from environment markers used by common emulators. */
@@ -678,6 +688,7 @@ export function detectTerminalId(env: NodeJS.ProcessEnv = Bun.env): TerminalId {
 		if (caseEq(program, "rio")) return "rio";
 		if (caseEq(program, "tern")) return "tern";
 		if (caseEq(program, "monstar")) return "monstar";
+		if (caseEq(program, "zetawork")) return "zetawork";
 		return null;
 	}
 

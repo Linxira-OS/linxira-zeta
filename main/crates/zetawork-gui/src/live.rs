@@ -281,9 +281,42 @@ pub struct LiveSessions {
 	tabs: BTreeMap<String, Live>,
 	config: PanelConfig,
 	theme: ThemeColors,
+	/// Device-pixel cell size the panes paint with, `(0, 0)` until the first
+	/// frame measures it. Every spawned terminal is told before its child can
+	/// ask (see [`LiveSessions::set_cell_pixels`]).
+	cell_px: (u16, u16),
 }
 
 impl LiveSessions {
+	/// Report the renderer's device-pixel cell size.
+	///
+	/// The emulator answers `CSI 16 t`/`CSI 14 t` and lays out Kitty placements
+	/// from it, so this is what makes an image rasterized by the child land on
+	/// exactly the pixels the pane paints. Applied to every live terminal (a
+	/// font-size change must reach them too) and remembered for later spawns.
+	pub fn set_cell_pixels(&mut self, width_px: u16, height_px: u16) {
+		self.cell_px = (width_px, height_px);
+		for live in self.tabs.values_mut() {
+			live.term.set_cell_pixels(width_px, height_px);
+		}
+	}
+
+	/// The Kitty placements this tab's emulator currently shows, with their
+	/// decoded pixels (see [`termide_panel_terminal::Terminal::graphics`]).
+	pub fn graphics(
+		&self,
+		tab: &str,
+	) -> Vec<(
+		termide_panel_terminal::kitty::Placement,
+		std::sync::Arc<termide_panel_terminal::kitty::Image>,
+	)> {
+		self
+			.tabs
+			.get(tab)
+			.map(|live| live.term.graphics())
+			.unwrap_or_default()
+	}
+
 	pub fn contains(&self, tab: &str) -> bool {
 		self.tabs.contains_key(tab)
 	}
@@ -319,8 +352,12 @@ impl LiveSessions {
 			}
 			return true;
 		}
+		let cell = self.cell_px;
 		match spawn_local(rows, cols, cwd, shell) {
-			Some((term, command)) => {
+			Some((mut term, command)) => {
+				// Before the child runs a byte: its `CSI 16 t` must not race the
+				// first frame's measurement.
+				term.set_cell_pixels(cell.0, cell.1);
 				// The PTY child's pid is the one thing termide reports, and its
 				// argv is the single command line this side handed over.
 				if let Some(pid) = term.shell_pid() {
@@ -357,7 +394,9 @@ impl LiveSessions {
 		}
 		let command = program.to_string_lossy().into_owned();
 		match Terminal::new_with_shell_env(rows, cols, &command, cwd, &pane_env()) {
-			Ok(term) => {
+			Ok(mut term) => {
+				let cell = self.cell_px;
+				term.set_cell_pixels(cell.0, cell.1);
 				if let Some(pid) = term.shell_pid() {
 					crate::spawn_probe::record(pid, &[command.as_str()]);
 				}
@@ -373,7 +412,7 @@ impl LiveSessions {
 
 	/// Render the terminal into `buf` at `area` with the TUI's own panel code.
 	pub fn render(&mut self, tab: &str, area: Rect, buf: &mut Buffer) -> bool {
-		let Self { tabs, config, theme } = self;
+		let Self { tabs, config, theme, .. } = self;
 		let Some(live) = tabs.get_mut(tab) else {
 			return false;
 		};

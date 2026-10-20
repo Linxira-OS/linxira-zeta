@@ -42,6 +42,7 @@ use std::{
 
 use ratatui::{buffer::Buffer, layout::Rect};
 use serde_json::{Value, json};
+use termide_panel_terminal::kitty::{self, ApcScanner, Step};
 use unicode_width::UnicodeWidthChar;
 
 use crate::ws;
@@ -331,6 +332,17 @@ impl ServiceTerminal {
 	pub fn render(&self, area: Rect, buf: &mut Buffer) {
 		self.screen.render(area, buf);
 	}
+
+	/// Report the pane's device-pixel cell size: the remote screen lays out
+	/// the Kitty placements it parses with exactly this unit.
+	pub fn set_cell_pixels(&mut self, width_px: u16, height_px: u16) {
+		self.screen.cell_px = (width_px, height_px);
+	}
+
+	/// The Kitty placements the remote child transmitted, with their pixels.
+	pub fn graphics(&self) -> Vec<(kitty::Placement, std::sync::Arc<kitty::Image>)> {
+		self.screen.graphics.placements()
+	}
 }
 
 impl Drop for ServiceTerminal {
@@ -454,6 +466,11 @@ fn attach_thread(
 #[derive(Default)]
 pub struct TerminalHost {
 	panes: BTreeMap<String, Pane>,
+	/// Device-pixel cell size the panes paint with, `(0, 0)` until the first
+	/// frame measures it. Remembered here so an attach that starts later still
+	/// knows the size before the remote child asks (see
+	/// [`Self::set_cell_pixels`]).
+	cell_px: (u16, u16),
 }
 
 struct Pane {
@@ -505,18 +522,13 @@ impl TerminalHost {
 			}
 			return;
 		}
+		let cell = self.cell_px;
 		let pane = match origin.filter(|origin| !origin.trim().is_empty()) {
-			Some(origin) => Pane {
-				service: Some(ServiceTerminal::attach(
-					origin,
-					cwd,
-					&instance_id(tab),
-					cols,
-					rows,
-					program,
-				)),
-				backend: Backend::Connecting,
-				reason: None,
+			Some(origin) => {
+				let mut service =
+					ServiceTerminal::attach(origin, cwd, &instance_id(tab), cols, rows, program);
+				service.set_cell_pixels(cell.0, cell.1);
+				Pane { service: Some(service), backend: Backend::Connecting, reason: None }
 			},
 			None => Pane {
 				service: None,
@@ -569,6 +581,32 @@ impl TerminalHost {
 			},
 			None => false,
 		}
+	}
+
+	/// Report the renderer's device-pixel cell size for `tab`.
+	///
+	/// The remote PTY's child answers `CSI 16 t` here, not in the gateway's
+	/// process, so this is the only place the size can reach it. Remembered for
+	/// panes that attach later.
+	pub fn set_cell_pixels(&mut self, tab: &str, width_px: u16, height_px: u16) {
+		self.cell_px = (width_px, height_px);
+		if let Some(service) = self
+			.panes
+			.get_mut(tab)
+			.and_then(|pane| pane.service.as_mut())
+		{
+			service.set_cell_pixels(width_px, height_px);
+		}
+	}
+
+	/// The Kitty placements this tab's remote screen holds, with their pixels.
+	pub fn graphics(&self, tab: &str) -> Vec<(kitty::Placement, std::sync::Arc<kitty::Image>)> {
+		self
+			.panes
+			.get(tab)
+			.and_then(|pane| pane.service.as_ref())
+			.map(ServiceTerminal::graphics)
+			.unwrap_or_default()
 	}
 
 	/// Send stdin through serve. `true` means the event was consumed, whether
@@ -668,6 +706,12 @@ struct Screen {
 	parser: Parser,
 	csi: Vec<u8>,
 	utf8: Vec<u8>,
+	/// Kitty graphics the child transmitted. Inline images are not text, so
+	/// they are cut out of the VT stream before it reaches the grid.
+	graphics: kitty::Graphics,
+	apc: ApcScanner,
+	/// The pane's cell in device pixels, reported by the painter.
+	cell_px: (u16, u16),
 }
 
 impl Screen {
@@ -685,6 +729,9 @@ impl Screen {
 			parser: Parser::Ground,
 			csi: Vec::new(),
 			utf8: Vec::new(),
+			graphics: kitty::Graphics::new(),
+			apc: ApcScanner::new(),
+			cell_px: (0, 0),
 		}
 	}
 
@@ -715,7 +762,24 @@ impl Screen {
 
 	fn feed(&mut self, bytes: &[u8]) {
 		for &byte in bytes {
-			self.byte(byte);
+			match self.apc.feed(byte) {
+				Step::Forward => self.byte(byte),
+				// Not an APC after all: the held ESC was never parsed.
+				Step::Replay => {
+					self.byte(0x1b);
+					self.byte(byte);
+				},
+				// The `ESC _` of an APC was consumed; the grid parser never saw
+				// it, so it is already in ground state.
+				Step::Hold | Step::Start | Step::Swallowed => {},
+				Step::Payload => {
+					let cursor = (self.cursor_y, self.cursor_x);
+					self.graphics.apc(self.apc.payload(), cursor);
+				},
+				Step::TooLarge => {
+					self.graphics.oversized(self.apc.head());
+				},
+			}
 		}
 	}
 

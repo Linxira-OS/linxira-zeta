@@ -3,6 +3,7 @@
 
 mod clipboard;
 mod input_encoding;
+pub mod kitty;
 mod link_detection;
 #[cfg(target_os = "macos")]
 mod macos_proc;
@@ -19,6 +20,11 @@ mod windows_proc;
 mod hyperlink;
 
 pub use terminal_info::TerminalInfo;
+// The emulator itself, for a host that feeds the byte stream (the GUI's
+// serve backend parses remote PTY bytes, and the image tests drive the same
+// path a PTY would). `Terminal` is the owning wrapper around these two.
+pub use terminal::vt100_parser::StreamParser;
+pub use terminal::TerminalScreen;
 
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -35,8 +41,7 @@ use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
-use terminal::{Cell, CellStyle, KeyboardProtocolMode, MouseTrackingMode, TerminalScreen};
-use vte::Parser;
+use terminal::{Cell, CellStyle, KeyboardProtocolMode, MouseTrackingMode};
 
 use termide_config::{Config, TerminalKeybindings};
 use termide_core::{
@@ -192,15 +197,35 @@ impl Terminal {
         // hosted TUIs (zetacode) can light up workbench-only behavior — the
         // OSC 8 hyperlink emitter gates on exactly this probe.
         cmd.env("ZETA_WORKBENCH", "1");
-        // Strip outer-terminal identity variables. Panes run *inside* the
-        // workbench, but CommandBuilder::new seeds the child env from the
-        // process that launched the IDE; a leaked TERM_PROGRAM /
-        // WT_SESSION / COLORTERM would make hosted TUIs (zetacode) think
-        // they talk to that outer terminal and pick the wrong image
-        // protocol. The workbench identity is expressed by ZETA_WORKBENCH.
-        cmd.env_remove("TERM_PROGRAM");
-        cmd.env_remove("WT_SESSION");
-        cmd.env_remove("COLORTERM");
+        // Our own terminal identity, replacing whatever the *launcher* leaked.
+        // Panes run inside the workbench, but `CommandBuilder::new` seeds the
+        // child env from the process that launched the IDE; an inherited
+        // TERM_PROGRAM / COLORTERM would make hosted TUIs (zetacode) think
+        // they talk to that outer terminal and pick the wrong image protocol.
+        // The workbench is a real terminal for its children: it renders Kitty
+        // graphics itself and answers the standard pixel-size queries (see
+        // `crate::kitty` and the `t` arm of the CSI dispatcher), so it states
+        // that identity instead of hiding behind `ZETA_WORKBENCH` alone.
+        cmd.env("TERM_PROGRAM", "zetawork");
+        cmd.env("TERM_PROGRAM_VERSION", env!("CARGO_PKG_VERSION"));
+        cmd.env("COLORTERM", "truecolor");
+        // Every other emulator's per-session marker says "that terminal above
+        // us is the renderer", which is exactly what is no longer true — and a
+        // leaked marker outranks TERM_PROGRAM in a hosted TUI's detection
+        // (KITTY_WINDOW_ID would make zetacode pick kitty anyway, but an
+        // ITERM_SESSION_ID would make it pick iTerm2's image protocol, which
+        // this emulator does not speak).
+        for leaked in [
+            "WT_SESSION",
+            "KITTY_WINDOW_ID",
+            "GHOSTTY_RESOURCES_DIR",
+            "WEZTERM_PANE",
+            "ITERM_SESSION_ID",
+            "VSCODE_PID",
+            "ALACRITTY_WINDOW_ID",
+        ] {
+            cmd.env_remove(leaked);
+        }
     }
 
     /// Spawn a PTY reader thread that feeds output into the terminal screen.
@@ -215,21 +240,15 @@ impl Terminal {
         let is_alive_clone = Arc::clone(is_alive);
         let has_new_data_clone = Arc::clone(has_new_data);
         thread::spawn(move || {
-            let mut parser = Parser::new();
+            let mut stream =
+                terminal::vt100_parser::StreamParser::new(writer, Arc::clone(&screen_clone));
             let mut buf = [0u8; 16384];
-            let mut performer = terminal::VtPerformer {
-                writer,
-                screen: Arc::clone(&screen_clone),
-                pending_ops: Vec::with_capacity(8192),
-            };
 
             loop {
                 match reader.read(&mut buf) {
                     Ok(n) if n > 0 => {
-                        for byte in &buf[..n] {
-                            parser.advance(&mut performer, *byte);
-                        }
-                        performer.flush();
+                        stream.feed(&buf[..n]);
+                        stream.flush();
                         has_new_data_clone.store(true, Ordering::Release);
                     }
                     Ok(_) => break,
@@ -488,11 +507,12 @@ impl Terminal {
 
     /// Resize terminal
     pub fn resize(&mut self, rows: u16, cols: u16) -> Result<()> {
+        let cell = self.cell_pixels();
         self.size = PtySize {
             rows,
             cols,
-            pixel_width: 0,
-            pixel_height: 0,
+            pixel_width: self.pixel_extent(cols, cell.0),
+            pixel_height: self.pixel_extent(rows, cell.1),
         };
 
         if let Ok(pty) = self.pty.lock() {
@@ -580,6 +600,66 @@ impl Terminal {
     /// signal) asks the child directly. `None` means it is still running.
     pub fn try_wait(&mut self) -> Option<portable_pty::ExitStatus> {
         self.child.try_wait().ok().flatten()
+    }
+
+    /// Record the renderer's cell size in **device** pixels.
+    ///
+    /// Zeta deviation (2026-10-20): the GUI owns the pixel surface, so only it
+    /// knows how large one cell really is. The screen answers the child's
+    /// `CSI 16 t` (`CSI 6;<h>;<w>t`) and `CSI 14 t` from this value, and the
+    /// PTY's `winsize` carries the matching pixel size — a hosted TUI that
+    /// asks either way rasterizes at the density the surface paints at. A pane
+    /// rendered by a native terminal never reports one and keeps `(0, 0)`,
+    /// which leaves the queries unanswered rather than lying.
+    pub fn set_cell_pixels(&mut self, width_px: u16, height_px: u16) {
+        let changed = {
+            let mut screen = self.write_screen();
+            if screen.cell_px == (width_px, height_px) {
+                false
+            } else {
+                screen.cell_px = (width_px, height_px);
+                true
+            }
+        };
+        if changed {
+            self.sync_pixel_size();
+        }
+    }
+
+    /// The renderer's cell size in device pixels, `(0, 0)` when unreported.
+    pub fn cell_pixels(&self) -> (u16, u16) {
+        self.read_screen().cell_px
+    }
+
+    /// Every Kitty image placement the child made, with its decoded pixels.
+    ///
+    /// The image `Arc`s are shared with the screen's store, so a renderer can
+    /// keep a texture alive across frames without copying the RGBA. Placements
+    /// are in screen cells; multiply by the cell size the renderer paints with
+    /// (see [`Self::cell_pixels`]) for device pixels.
+    pub fn graphics(&self) -> Vec<(crate::kitty::Placement, Arc<crate::kitty::Image>)> {
+        self.read_screen().graphics.placements()
+    }
+
+    /// Push the cell size into the PTY's `winsize`.
+    fn sync_pixel_size(&mut self) {
+        let cell = self.cell_pixels();
+        let size = PtySize {
+            rows: self.size.rows,
+            cols: self.size.cols,
+            pixel_width: self.pixel_extent(self.size.cols, cell.0),
+            pixel_height: self.pixel_extent(self.size.rows, cell.1),
+        };
+        self.size = size;
+        if let Ok(pty) = self.pty.lock() {
+            let _ = pty.resize(size);
+        }
+    }
+
+    /// A rows/columns count times a cell extent, clamped to `u16` (the field
+    /// the PTY API uses).
+    fn pixel_extent(&self, cells: u16, cell_px: u16) -> u16 {
+        (u32::from(cells) * u32::from(cell_px)).min(u32::from(u16::MAX)) as u16
     }
 
     /// Get terminal info for status bar
@@ -1839,14 +1919,18 @@ mod env_tests {
     /// child environment from the process that launched the IDE. A leaked
     /// `TERM_PROGRAM` / `WT_SESSION` / `COLORTERM` makes hosted TUIs
     /// (zetacode) detect the outer terminal and pick the wrong image
-    /// protocol, so `set_env` must strip all three while keeping the
-    /// workbench marker.
+    /// protocol. The workbench therefore states its **own** identity — it
+    /// renders Kitty graphics and answers the pixel-size queries — instead of
+    /// hiding behind the marker alone; only `WT_SESSION` is stripped, because
+    /// it names the Windows Terminal above us, not this pane.
     #[test]
-    fn pane_env_strips_outer_terminal_identity() {
+    fn pane_env_replaces_outer_terminal_identity_with_the_workbench() {
         let outer = [
             ("TERM_PROGRAM", "vscode"),
             ("WT_SESSION", "some-guid"),
             ("COLORTERM", "truecolor"),
+            ("KITTY_WINDOW_ID", "1"),
+            ("ITERM_SESSION_ID", "w0t0p0"),
         ];
         for (key, value) in outer {
             std::env::set_var(key, value);
@@ -1856,20 +1940,42 @@ mod env_tests {
             Terminal::set_env(&mut cmd, std::path::Path::new("/tmp"));
             (
                 cmd.get_env("TERM_PROGRAM").map(OsStr::to_owned),
+                cmd.get_env("TERM_PROGRAM_VERSION").map(OsStr::to_owned),
                 cmd.get_env("WT_SESSION").map(OsStr::to_owned),
                 cmd.get_env("COLORTERM").map(OsStr::to_owned),
                 cmd.get_env("ZETA_WORKBENCH").map(OsStr::to_owned),
                 cmd.get_env("TERM").map(OsStr::to_owned),
+                cmd.get_env("KITTY_WINDOW_ID").map(OsStr::to_owned),
+                cmd.get_env("ITERM_SESSION_ID").map(OsStr::to_owned),
             )
         });
         for (key, _) in outer {
             std::env::remove_var(key);
         }
-        let (term_program, wt_session, colorterm, workbench, term) = result.unwrap();
-        assert_eq!(term_program, None, "TERM_PROGRAM leaked into the pane");
-        assert_eq!(wt_session, None, "WT_SESSION leaked into the pane");
-        assert_eq!(colorterm, None, "COLORTERM leaked into the pane");
+        let (term_program, version, wt_session, colorterm, workbench, term, kitty, iterm) =
+            result.unwrap();
+        assert_eq!(
+            term_program.as_deref(),
+            Some(OsStr::new("zetawork")),
+            "the pane says it is the workbench, not the launcher"
+        );
+        assert_eq!(
+            version.as_deref(),
+            Some(OsStr::new(env!("CARGO_PKG_VERSION"))),
+            "the version is this crate's"
+        );
+        assert_eq!(wt_session, None, "WT_SESSION names the outer terminal");
+        assert_eq!(
+            colorterm.as_deref(),
+            Some(OsStr::new("truecolor")),
+            "the pane renders 24-bit colour itself"
+        );
         assert_eq!(workbench.as_deref(), Some(OsStr::new("1")));
         assert!(term.is_some(), "TERM must stay set for the child shell");
+        assert_eq!(kitty, None, "a leaked kitty id outranks our own identity");
+        assert_eq!(
+            iterm, None,
+            "a leaked iTerm2 id would pick the wrong protocol"
+        );
     }
 }

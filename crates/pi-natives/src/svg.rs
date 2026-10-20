@@ -162,6 +162,36 @@ mod tests {
 	}
 
 	#[test]
+	fn rasterizes_a_1000_unit_drawing_at_the_cell_size_the_emulator_reports() {
+		// The workbench answers `CSI 16 t` with a 12×24 device-pixel cell. A
+		// 1000-unit drawing spans one terminal row per 16 units and two columns
+		// per row (`svg-figure.ts`), so it must land on 125 × 63 cells and be
+		// rasterized at `columns × cellW` device pixels: any other density is
+		// resampled by the terminal and every glyph edge blurs.
+		let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><rect width="1000" height="1000" fill="red"/></svg>"#;
+		let cell = SvgCell { width_px: 12, height_px: 24 };
+		const UNITS_PER_ROW: f64 = 16.0;
+		let columns = (1000.0 * 2.0 / UNITS_PER_ROW) as u32;
+		let rows = (1000.0 / UNITS_PER_ROW).ceil() as u32;
+		let scale = f64::from(cell.height_px) / UNITS_PER_ROW;
+		let png = rasterize_svg_sync(
+			svg,
+			columns * u32::from(cell.width_px),
+			rows * u32::from(cell.height_px),
+			scale,
+			Some(cell),
+		)
+		.expect("SVG should rasterize");
+		let image = image::load_from_memory(&png).expect("result should be PNG");
+		// 1000 units × 1.5 px/unit = 1500 px exactly; the height pads to the
+		// 63rd whole row (62.5 rows of drawing), never shrinks to fit.
+		assert_eq!(columns, 125);
+		assert_eq!(rows, 63);
+		assert_eq!((image.width(), image.height()), (columns * 12, rows * 24));
+		assert_eq!((image.width(), image.height()), (1500, 1512));
+	}
+
+	#[test]
 	fn rejects_unbounded_render_surface() {
 		let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#;
 		let error =

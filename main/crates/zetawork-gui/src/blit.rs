@@ -299,6 +299,162 @@ pub fn paint_buffer_with(
 	}
 }
 
+/// The grid's cell in **device** pixels: the font metrics the painter uses,
+/// scaled by the window's pixels-per-point.
+///
+/// This is the number the emulator answers `CSI 16 t` with, and the unit a
+/// Kitty placement's `c`/`r` extents multiply out to, so a raster drawn at
+/// `columns × cell.0` lands on exactly that many physical pixels.
+pub fn cell_device_px(metrics: &GridMetrics, pixels_per_point: f32) -> (u16, u16) {
+	let scale = if pixels_per_point > 0.0 {
+		pixels_per_point
+	} else {
+		1.0
+	};
+	let round = |points: f32| (points * scale).round().clamp(0.0, f32::from(u16::MAX)) as u16;
+	(round(metrics.cell_w).max(1), round(metrics.cell_h).max(1))
+}
+
+/// GPU textures for the Kitty images a pane is showing, keyed by pane and id.
+///
+/// An image is uploaded once per revision (the emulator bumps it on every
+/// retransmit), so a repaint of a `a=p` placement costs nothing. Entries whose
+/// image the terminal deleted are dropped at the end of the pane's paint pass.
+#[derive(Default)]
+pub struct ImageTextures {
+	entries: std::collections::HashMap<(String, u32), (u64, egui::TextureHandle)>,
+}
+
+impl ImageTextures {
+	fn texture(
+		&mut self,
+		ctx: &egui::Context,
+		pane: &str,
+		image: &termide_panel_terminal::kitty::Image,
+	) -> egui::TextureHandle {
+		let key = (pane.to_owned(), image.id);
+		if let Some((revision, texture)) = self.entries.get(&key) {
+			if *revision == image.revision {
+				return texture.clone();
+			}
+		}
+		let pixels = egui::ColorImage::from_rgba_unmultiplied(
+			[image.width as usize, image.height as usize],
+			&image.rgba,
+		);
+		// NEAREST keeps a raster drawn at the cell size pixel-exact: nothing is
+		// filtered on the way to the screen, which is the whole point of
+		// answering the density query.
+		let texture = ctx.load_texture(
+			format!("kitty-{pane}-{}", image.id),
+			pixels,
+			egui::TextureOptions::NEAREST,
+		);
+		self.entries.insert(key, (image.revision, texture.clone()));
+		texture
+	}
+
+	fn retain(&mut self, pane: &str, alive: &std::collections::HashSet<u32>) {
+		self
+			.entries
+			.retain(|(key_pane, id), _| key_pane != pane || alive.contains(id));
+	}
+}
+
+/// Paint one pane's Kitty placements into the grid.
+///
+/// `behind` selects the z<0 half (painted before the text) or the z>=0 half
+/// (after it); the whole pass is clipped to the grid the cells were laid out
+/// in, so an image that overhangs the pane never paints over its neighbours.
+/// The destination rectangle comes from the emulator's cell math
+/// ([`termide_panel_terminal::kitty::Placement::rect`]), which is device
+/// pixels; dividing by the window scale places it 1:1, and the source crop is
+/// applied as a UV rectangle so a scrolled placement shows the right slice.
+pub fn paint_images(
+	painter: &Painter,
+	cache: &mut ImageTextures,
+	pane: &str,
+	placements: &[(
+		termide_panel_terminal::kitty::Placement,
+		std::sync::Arc<termide_panel_terminal::kitty::Image>,
+	)],
+	metrics: &GridMetrics,
+	cell_px: (u16, u16),
+	pixels_per_point: f32,
+	behind: bool,
+) {
+	// Prune even when nothing is on screen: an image the terminal deleted must
+	// not keep its texture alive (the pane may still have painted it last frame).
+	let alive: std::collections::HashSet<u32> = placements
+		.iter()
+		.map(|(placement, _)| placement.image)
+		.collect();
+	cache.retain(pane, &alive);
+	if placements.is_empty() {
+		return;
+	}
+	let grid = ERect::from_min_size(metrics.origin, metrics.size());
+	let clipped = painter.with_clip_rect(painter.clip_rect().intersect(grid));
+	let mut ordered: Vec<&(_, _)> = placements
+		.iter()
+		.filter(|(p, _)| (p.z < 0) == behind)
+		.collect();
+	ordered.sort_by_key(|(placement, _)| placement.z);
+	for (placement, image) in ordered {
+		if image.width == 0 || image.height == 0 {
+			continue;
+		}
+		let destination = image_rect(metrics, cell_px, placement, image, pixels_per_point);
+		if destination.width() <= 0.0 || destination.height() <= 0.0 {
+			continue;
+		}
+		let uv = source_uv(placement, image);
+		let texture = cache.texture(painter.ctx(), pane, image);
+		clipped.image(texture.id(), destination, uv, Color32::WHITE);
+	}
+}
+
+/// The rectangle one placement is drawn into, in **points** (egui's unit).
+///
+/// The emulator gives device pixels; dividing by the window scale is what
+/// makes a raster drawn at the reported cell density land 1:1 on physical
+/// pixels instead of being resampled.
+pub fn image_rect(
+	metrics: &GridMetrics,
+	cell_px: (u16, u16),
+	placement: &termide_panel_terminal::kitty::Placement,
+	image: &termide_panel_terminal::kitty::Image,
+	pixels_per_point: f32,
+) -> ERect {
+	let scale = if pixels_per_point > 0.0 {
+		pixels_per_point
+	} else {
+		1.0
+	};
+	let rect = placement.rect(image, cell_px);
+	ERect::from_min_size(
+		pos2(metrics.origin.x + rect.x as f32 / scale, metrics.origin.y + rect.y as f32 / scale),
+		egui::vec2(rect.width as f32 / scale, rect.height as f32 / scale),
+	)
+}
+
+/// The source slice of the image a placement shows, as normalized UVs.
+fn source_uv(
+	placement: &termide_panel_terminal::kitty::Placement,
+	image: &termide_panel_terminal::kitty::Image,
+) -> ERect {
+	let crop = placement.crop;
+	if crop.width == 0 || crop.height == 0 {
+		return ERect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+	}
+	let (w, h) = (image.width.max(1) as f32, image.height.max(1) as f32);
+	let x0 = (crop.x as f32 / w).clamp(0.0, 1.0);
+	let y0 = (crop.y as f32 / h).clamp(0.0, 1.0);
+	let x1 = ((crop.x + crop.width) as f32 / w).clamp(0.0, 1.0);
+	let y1 = ((crop.y + crop.height) as f32 / h).clamp(0.0, 1.0);
+	ERect::from_min_max(pos2(x0, y0), pos2(x1, y1))
+}
+
 /// `Color::Reset` background means "leave the panel background alone".
 fn background_of(cell: &ratatui::buffer::Cell) -> Option<Color32> {
 	match cell.bg {
@@ -384,9 +540,45 @@ fn pos2(x: f32, y: f32) -> Pos2 {
 
 #[cfg(test)]
 mod tests {
+	use std::io::{Result as IoResult, Write};
+	use std::sync::{Arc, Mutex, RwLock};
+
+	use base64::Engine;
 	use ratatui::widgets::Paragraph;
 
 	use super::*;
+
+	/// A 2×2 PNG (red, green / blue, white) committed beside this crate; the
+	/// image test transmits it through the terminal emulator the pane uses.
+	const KITTY_PNG: &[u8] = include_bytes!("../testdata/kitty-2x2.png");
+
+	/// A sink for the replies a terminal writes back to its child.
+	struct Capture(Arc<Mutex<Vec<u8>>>);
+
+	impl Write for Capture {
+		fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+			self.0.lock().unwrap().extend_from_slice(buf);
+			Ok(buf.len())
+		}
+
+		fn flush(&mut self) -> IoResult<()> {
+			Ok(())
+		}
+	}
+
+	/// The grid the painter is handed in a real pane: `origin` where the pane
+	/// put it, cell metrics from the grid font, and the window's scale.
+	fn grid(cell_w: f32, cell_h: f32) -> GridMetrics {
+		GridMetrics {
+			origin: pos2(100.0, 200.0),
+			font: egui::FontId::monospace(13.0),
+			cell_w,
+			cell_h,
+			cols: 80,
+			rows: 24,
+			font_size: 13.0,
+		}
+	}
 
 	/// The acceptance test for the width rule: a wide glyph claims two columns
 	/// and the next ASCII cell lands two columns later.
@@ -442,6 +634,79 @@ mod tests {
 		});
 		assert!(visible, "ratatui shows the cursor unless asked to hide it");
 		assert_eq!(cursor, Position { x: 4, y: 1 });
+	}
+
+	/// The end-to-end evidence for terminal images: a kitty APC from a
+	/// committed PNG goes through the same emulator the pane runs, and the
+	/// rectangle the painter would draw covers exactly the device pixels the
+	/// emulator measured — 10×5 cells of 12×24 px at 1.5× DPI.
+	#[test]
+	fn a_kitty_image_paints_the_device_pixels_the_emulator_measured() {
+		let replies = Arc::new(Mutex::new(Vec::new()));
+		let screen = Arc::new(RwLock::new(termide_panel_terminal::TerminalScreen::new(24, 80)));
+		// What `sync_cell_pixels` reports each frame, and what `CSI 16 t`
+		// answers with: the real device-pixel cell of the grid font.
+		screen.write().unwrap().cell_px = (12, 24);
+		let writer =
+			Arc::new(Mutex::new(Box::new(Capture(Arc::clone(&replies))) as Box<dyn Write + Send>));
+		let mut stream = termide_panel_terminal::StreamParser::new(writer, Arc::clone(&screen));
+
+		// A hosted TUI reserves rows, parks the cursor on the block's first row
+		// (row 4, column 6 in 1-based CSI) and transmits+displays the raster,
+		// exactly as `encodeKitty` does.
+		let payload = base64::engine::general_purpose::STANDARD.encode(KITTY_PNG);
+		stream.feed(b"\x1b[4;6H");
+		stream.feed(format!("\x1b_Ga=T,f=100,i=7,c=10,r=5,q=2;{payload}\x1b\\").as_bytes());
+		stream.feed(b"after");
+		stream.flush();
+
+		assert!(replies.lock().unwrap().is_empty(), "q=2 asks for no reply");
+		let placements = screen.read().unwrap().graphics.placements();
+		assert_eq!(placements.len(), 1, "one placement, painted above the grid");
+		let (placement, image) = &placements[0];
+		assert_eq!((image.width, image.height), (2, 2), "the PNG decoded");
+		assert_eq!((placement.row, placement.column), (3, 5), "anchored at the cursor");
+
+		// The text after the APC stays on the placement's own row: the image
+		// never moves the cursor.
+		let text: String = {
+			let screen = screen.read().unwrap();
+			let mut text = String::new();
+			for cell in &screen.active_buffer()[3] {
+				cell.push_text(&mut text);
+			}
+			text.trim_end().to_owned()
+		};
+		assert_eq!(text, "     after", "C=1 leaves the cursor where it was");
+
+		let cell_px = (12, 24);
+		let ppp = 1.5_f32;
+		let metrics = grid(8.0, 16.0);
+		let painted = image_rect(&metrics, cell_px, placement, image, ppp);
+		// Back to device pixels, measured from the grid's own origin (which is
+		// itself in points and scales with the window): the assertion is the
+		// evidence that the raster lands where the emulator said it would.
+		let device = ERect::from_min_size(
+			pos2(painted.min.x * ppp, painted.min.y * ppp),
+			egui::vec2(painted.width() * ppp, painted.height() * ppp),
+		);
+		assert_eq!(
+			(
+				device.min.x - metrics.origin.x * ppp,
+				device.min.y - metrics.origin.y * ppp,
+				device.width(),
+				device.height()
+			),
+			(5.0 * 12.0, 3.0 * 24.0, 10.0 * 12.0, 5.0 * 24.0),
+			"the image covers exactly 10x5 device-pixel cells"
+		);
+		assert_eq!((painted.min.x, painted.min.y), (140.0, 248.0), "points = px / scale");
+		// And the renderer's own cell report is the number the child asked for.
+		assert_eq!(cell_device_px(&metrics, ppp), (12, 24), "12x24 device pixels per cell");
+
+		// A delete frees the placement, so the next frame paints nothing there.
+		stream.feed(b"\x1b_Ga=d,d=I,i=7,q=2\x1b\\");
+		assert!(screen.read().unwrap().graphics.placements().is_empty());
 	}
 
 	#[test]

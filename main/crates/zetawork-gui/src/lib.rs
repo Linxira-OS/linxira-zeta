@@ -119,6 +119,9 @@ pub struct Shell {
 	diff_at: Option<Instant>,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
+	/// GPU textures for the Kitty images terminal panes show, keyed by pane and
+	/// image id so a repaint reuses the upload ([`blit::ImageTextures`]).
+	pub images: blit::ImageTextures,
 	/// The serve-backed alternative for terminal tabs ([`terminal_service`]):
 	/// a PTY in `zetacode serve` reached over the gateway's WebSocket.
 	pub terminals: terminal_service::TerminalHost,
@@ -270,6 +273,7 @@ impl Shell {
 			diff_ws: String::new(),
 			diff_at: None,
 			live: live::LiveSessions::default(),
+			images: blit::ImageTextures::default(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
@@ -332,6 +336,7 @@ impl Shell {
 			diff_ws: String::new(),
 			diff_at: None,
 			live: live::LiveSessions::default(),
+			images: blit::ImageTextures::default(),
 			terminals: terminal_service::TerminalHost::default(),
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),

@@ -143,6 +143,26 @@ describe("detectTerminalId", () => {
 		expect(detectTerminalId({ TERM_PROGRAM: "WarpTerminal", COLORTERM: "truecolor" })).toBe("warp");
 	});
 
+	it("recognizes the workbench's own pane and selects Kitty graphics from env alone", () => {
+		// `termide`'s panel-terminal sets TERM_PROGRAM=zetawork for every PTY it
+		// spawns; the GUI renders Kitty direct placements itself, so the protocol
+		// is known before any DA probe — exactly like a real kitty window.
+		const env = {
+			TERM: "xterm-256color",
+			TERM_PROGRAM: "zetawork",
+			TERM_PROGRAM_VERSION: "0.41.0",
+			COLORTERM: "truecolor",
+			ZETA_WORKBENCH: "1",
+		};
+		expect(detectTerminalId(env)).toBe("zetawork");
+		const info = getTerminalInfo("zetawork");
+		expect(info.imageProtocol).toBe(ImageProtocol.Kitty);
+		expect(info.trueColor).toBe(true);
+		expect(info.hyperlinks).toBe(true);
+		// Detection alone resolves the protocol: no probe result required.
+		expect(resolveImageProtocol("zetawork", env, true)).toBe(ImageProtocol.Kitty);
+	});
+
 	it("recognizes Monstar by TERM and routes notifications through OSC 9", () => {
 		// Monstar exports TERM=monstar and COLORTERM=truecolor. The trueColor
 		// fallback uses BEL plus an action-less notify-send toast, so a click
