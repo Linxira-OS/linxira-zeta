@@ -42,7 +42,8 @@ use serde_json::Value;
 
 /// The catalogue file a plugin's panels are declared in.
 pub const MANIFEST_FILE: &str = "plugin.json";
-/// The package manifest's `zeta`/`omp`/`pi` keys, read when `plugin.json` has no `ui`.
+/// The package manifest's zeta / legacy omp / pi key families, read when
+/// `plugin.json` has no `ui`.
 pub const PACKAGE_MANIFEST_KEYS: [&str; 3] = ["zeta", "omp", "pi"];
 /// Every panel kind a manifest may declare.
 pub const PANEL_KINDS: [&str; 4] = ["list", "form", "chart", "html"];
@@ -328,7 +329,7 @@ pub fn parse_manifest(json: &str, fallback_id: &str) -> Result<Vec<Panel>, Strin
 	}
 }
 
-/// Validate a package.json body's `zeta`/`omp`/`pi` manifest `ui` block.
+/// Validate a package.json body's zeta / legacy omp / pi manifest `ui` block.
 ///
 /// A plugin may declare its panels in either manifest; the native host reads
 /// both so the TS side's [`PluginManifest.ui`] is not a second, unread spelling.
