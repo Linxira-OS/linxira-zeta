@@ -4249,6 +4249,27 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"channels.reportPolicy": {
+		type: "enum",
+		values: ["all", "summary", "silent"] as const,
+		default: "summary",
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "Report Policy",
+			description: "How the relay coordinator forwards delegated work to the IM user",
+			options: [
+				{ value: "all", label: "All", description: "Forward every delegated report" },
+				{
+					value: "summary",
+					label: "Summary",
+					description: "Forward one merged summary on stage completion or failure",
+				},
+				{ value: "silent", label: "Silent", description: "Keep reports in the session until the user asks" },
+			],
+		},
+	},
+
 	"todo.reminders": {
 		type: "boolean",
 		default: true,

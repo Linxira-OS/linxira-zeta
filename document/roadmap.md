@@ -589,6 +589,15 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **记忆设置的写入层级（2026-10-20 定现状，仅登记）**:设置面板与 `/settings` 写
+  `memory.backend` 时只落用户层（`~/.zeta/agent/settings.json` 或 `config.yml`），
+  面板没有"用户层 / 项目层"选择器。项目层目前的操作路径是直接编辑
+  `<repo>/.zeta/settings.json`（`{"memory":{"backend":"mnemopi"}}`，见
+  `docs/memory.md#project-scoped-memory`）。默认工作区不受此限：`zeta serve` 首次启动
+  直接把 `memory.backend: mnemopi` 写进 `~/.zeta/workspace/.zeta/settings.json`，用户层
+  仍保持 `off`。要在面板里补项目层写入，需要把 `config/settings.ts` 的项目保存路径从
+  仅 `modelRoles` 泛化到任意键（含删除 tombstone 与 watcher 语义），不是界面层的小改。
+
 - **跨工作区多主代理消息（2026-10-20 取证，仅登记，做法待定）**:当前 agent 间消息
   **只在单进程内**成立——`IrcBus.global()` 与 `AgentRegistry.global()` 都是进程内单例
   （`packages/coding-agent/src/irc/bus.ts:39-46`、

@@ -532,6 +532,18 @@ async function sendStatus(deps: WorkspaceRouterDeps): Promise<void> {
 			const active = activeId ? router.botSession(activeId) : undefined;
 			lines.push(active ? `当前路由: bot 会话 [${active.name}]` : "当前路由: relay 协调者 (main)");
 		}
+		const snapshot = await router.statusSnapshot?.(deps.channelId as never, deps.peer);
+		if (snapshot) {
+			lines.push(
+				`当前工作区: ${snapshot.workspaceDir}${snapshot.workspaceAlias ? ` [${snapshot.workspaceAlias}]` : " (main)"}`,
+			);
+			lines.push(
+				`路由: ${snapshot.route === "direct" ? `direct [${snapshot.workspaceAlias ?? "?"}]` : "relay (main)"}`,
+			);
+			lines.push(`人设: ${snapshot.personaActive ? "生效" : "未生效"}`);
+			lines.push(`记忆: ${snapshot.memoryBackend}`);
+			lines.push(`汇报策略: ${snapshot.reportPolicy}`);
+		}
 		const workspaces = router.list();
 		lines.push(
 			workspaces.length === 0

@@ -1326,6 +1326,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"启用 channel_send / workspace_run，让 agent 向远程 IM 用户推送进度并委派其他工作区任务（仅 web/桌面模式）",
 	},
+	"channels.reportPolicy": {
+		label: "汇报策略",
+		description: "relay 协调者如何把委派工作的结果转给 IM 用户",
+	},
 	"todo.reminders": {
 		label: "待办提醒",
 		description: "提醒智能体在停止前完成待办",
@@ -3736,6 +3740,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tools.approvalMode::yolo": {
 		label: "Yolo",
 		description: "自动批准读取、写入和执行工具。用户策略仍可要求确认或阻止调用。",
+	},
+	"channels.reportPolicy::all": {
+		label: "全部",
+		description: "每条委派汇报都转发给用户",
+	},
+	"channels.reportPolicy::summary": {
+		label: "摘要",
+		description: "阶段完成或失败时转发一条合并摘要",
+	},
+	"channels.reportPolicy::silent": {
+		label: "静默",
+		description: "汇报只留在会话里，用户询问时才说",
 	},
 	"todo.remindersMax::1": {
 		label: "1 次",
