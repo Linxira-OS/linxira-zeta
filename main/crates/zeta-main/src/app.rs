@@ -1677,6 +1677,13 @@ impl Workspace {
 			None => path,
 		};
 
+		// PDF is GUI-only: the workbench has no PDF page and never renders one.
+		// Say so instead of dumping a page's byte stream into the text editor.
+		if let Some(notice) = crate::tab::pdf_handoff_notice(&path) {
+			self.notice = Some(notice);
+			return;
+		}
+
 		// Build the editor *before* splitting so a failure never leaves an
 		// empty editor pane behind.
 		match crate::editor::open_editor(&path) {

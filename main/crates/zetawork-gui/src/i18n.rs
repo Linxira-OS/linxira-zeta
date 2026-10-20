@@ -857,6 +857,25 @@ static EN: &[(&str, &str)] = &[
 	("待办", "Todo"),
 	("进行中", "In progress"),
 	("完成", "Done"),
+	// ── PDF page (`pdf.rs`, `state.rs`) ──────────────────────────────
+	("PDF", "PDF"),
+	("PDF 阅读器", "PDF reader"),
+	("这个标签页没有打开 PDF", "this tab has no PDF open"),
+	("这一页没有可渲染的内容", "this page has nothing to render"),
+	("这一页渲染失败", "this page failed to render"),
+	("重新读取 PDF", "Re-read the PDF"),
+	("适应宽度", "Fit width"),
+	("下一页", "Next page"),
+	("上一页", "Previous page"),
+	("{} / {}", "{} / {}"),
+	("打不开 PDF：{}", "Cannot open the PDF: {}"),
+	("不是有效的 PDF（{}）：{}", "Not a valid PDF ({}): {}"),
+	("没有第 {} 页", "there is no page {}"),
+	("硬盘上的真实 PDF（hayro 光栅化，只读）", "a real PDF on disk (hayro raster, read-only)"),
+	("{} 是目录，PDF 页只打开文件", "{} is a directory; the PDF page opens files"),
+	("{} × {} pt", "{} × {} pt"),
+	("渲染 {} ms", "rendered in {} ms"),
+	("hayro（纯 Rust 光栅化）", "hayro (pure-Rust rasterizer)"),
 ];
 
 /// The lookup table, built once from [`EN`].

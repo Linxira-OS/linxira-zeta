@@ -479,6 +479,7 @@ fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 			SessionKind::Zetacode => Icon::Term,
 			SessionKind::Ide => Icon::Term,
 			SessionKind::Agent => Icon::History,
+			SessionKind::Pdf => Icon::File,
 		};
 		let is_active = tab.id == pane.active;
 		let text_width = (display_cols(&tab.title) as f32 * 7.2).min(120.0);
@@ -590,6 +591,7 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		SessionKind::Zetacode => zetacode_body(ui, shell, &tab),
 		SessionKind::Ide => ide_body(ui, shell, &tab),
 		SessionKind::Agent => agent_body(ui, shell, &tab),
+		SessionKind::Pdf => crate::pdf::body(ui, shell, &tab),
 	}
 }
 
