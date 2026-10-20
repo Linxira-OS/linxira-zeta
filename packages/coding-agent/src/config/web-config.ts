@@ -142,7 +142,7 @@ const SECRET_PATHS: Record<string, true> = {
 	"remote.token": true,
 };
 
-type LeafType = "boolean" | "string" | "domain" | "strings" | "record";
+type LeafType = "boolean" | "string" | "domain" | "strings" | "record" | "workspaces" | "mappings";
 
 /** Known dot paths → expected leaf type (for PUT validation). */
 const KNOWN_PATHS: Record<string, LeafType> = {
@@ -167,7 +167,8 @@ const KNOWN_PATHS: Record<string, LeafType> = {
 	"channels.telegram.botToken": "string",
 	"remote.host": "string",
 	"remote.token": "string",
-	"remote.workspaces": "strings",
+	"remote.workspaces": "workspaces",
+	"remote.sessionMappings": "mappings",
 	"remote.showBotSessions": "boolean",
 };
 
@@ -211,6 +212,89 @@ function validateValue(leafType: LeafType, value: unknown): void {
 				throw new Error("Expected a record of strings");
 			}
 			return;
+		case "workspaces":
+			validateWorkspaces(value);
+			return;
+		case "mappings":
+			validateSessionMappings(value);
+			return;
+	}
+}
+
+/** Non-empty strings with no surrounding whitespace surprises. */
+function requiredText(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const trimmed = value.trim();
+	return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * `remote.workspaces`: the alias registry the IM router reads. Accepts the
+ * legacy bare-path form (`["/dir"]`) and the current `{alias, path}` form, so a
+ * write from a GUI does not have to know which one the file already held.
+ *
+ * The alias rules mirror {@link WebConfig.setWorkspaceEntry}: non-empty, not
+ * the reserved `main`, and an absolute directory.
+ */
+function validateWorkspaces(value: unknown): void {
+	if (!Array.isArray(value)) throw new Error("Expected an array of workspaces");
+	const aliases = new Set<string>();
+	for (const entry of value) {
+		if (typeof entry === "string") {
+			if (!path.isAbsolute(entry)) throw new Error("Workspace paths must be absolute");
+			continue;
+		}
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+			throw new Error("Expected a workspace path or an {alias, path} object");
+		}
+		const record = entry as Record<string, unknown>;
+		const alias = requiredText(record.alias);
+		const dir = requiredText(record.path);
+		if (!alias || !dir) throw new Error("Each workspace needs a non-empty alias and path");
+		if (alias === "main") throw new Error('"main" is the reserved alias of the relay coordinator');
+		if (!path.isAbsolute(dir)) throw new Error("Workspace paths must be absolute");
+		if (aliases.has(alias)) throw new Error(`Duplicate workspace alias: ${alias}`);
+		aliases.add(alias);
+	}
+}
+
+/** The channel ids a mapping may name (the router's `SessionMapping.platform`). */
+const CHANNEL_PLATFORMS: Record<string, true> = {
+	wechat: true,
+	feishu: true,
+	telegram: true,
+};
+
+/**
+ * `remote.sessionMappings`: the per-chat bindings the router consults. Each
+ * entry needs a known platform, a chat id and the alias it routes to; the
+ * optional fields (`userId`, `chatType`, `connectionId`, `mode`, `lang`,
+ * `sessionId`) keep their types, and unknown keys are preserved untouched.
+ */
+function validateSessionMappings(value: unknown): void {
+	if (!Array.isArray(value)) throw new Error("Expected an array of session mappings");
+	for (const entry of value) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+			throw new Error("Expected a session mapping object");
+		}
+		const record = entry as Record<string, unknown>;
+		if (typeof record.platform !== "string" || !Object.hasOwn(CHANNEL_PLATFORMS, record.platform)) {
+			throw new Error('Expected platform "wechat", "feishu" or "telegram"');
+		}
+		if (!requiredText(record.chatId)) throw new Error("Each binding needs a chatId");
+		if (!requiredText(record.workspaceAlias)) throw new Error("Each binding needs a workspaceAlias");
+		for (const key of ["connectionId", "chatType", "userId", "sessionId"]) {
+			const field = record[key];
+			if (field !== undefined && typeof field !== "string") {
+				throw new Error(`Expected ${key} to be a string`);
+			}
+		}
+		if (record.mode !== undefined && record.mode !== "direct" && record.mode !== "relay") {
+			throw new Error('Expected mode to be "direct" or "relay"');
+		}
+		if (record.lang !== undefined && record.lang !== "zh" && record.lang !== "en") {
+			throw new Error('Expected lang to be "zh" or "en"');
+		}
 	}
 }
 
