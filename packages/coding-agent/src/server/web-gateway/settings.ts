@@ -9,11 +9,15 @@
  *
  * PUT /api/settings — persist a single setting through the same channel the
  * CLI uses (`Settings.set()` + `flush()`), so the next CLI/desktop session
- * sees the change without a restart.
+ * sees the change without a restart. The write itself goes through an isolated
+ * instance (it must not replay this process's runtime overrides into the file),
+ * then the process-global instance and every live session re-read the layers —
+ * a `serve` process holds both, so a saved value reaches the running session
+ * immediately.
  *
- * Like the skills/plugins handlers, all mutations use an isolated Settings
- * instance so the gateway never touches the process-global settings singleton
- * owned by the CLI session.
+ * GET reads with the caller's `x-zeta-cwd`, so the panel shows the effective
+ * value for the workspace it is editing, project overrides included; PUT echoes
+ * `provenance`/`overriddenBy` so the panel can flag a shadowing project layer.
  */
 
 import { cfgAdvisorEnabled } from "../../advisor/settings";
@@ -22,7 +26,7 @@ import { cfgDefaultThinkingLevel, cfgRetryUsageAwareFallback } from "../../sessi
 import { cfgMemoryBackend } from "../../memory-backend/settings";
 import { cfgPlanEnabled } from "../../plan-mode/settings";
 import { getAgentDir } from "@linxiraos/pi-utils/dirs";
-import { Settings } from "../../config/settings";
+import { reloadLiveSettingsInstances, Settings, type SettingProvenance } from "../../config/settings";
 import {
 	SETTING_TABS,
 	TAB_GROUPS,
@@ -42,7 +46,7 @@ import {
 	type SettingPath,
 } from "../../config/settings-schema";
 import { orderedSettings } from "../../config/all-settings";
-import { lookup } from "../../config/registry";
+import { type AnySetting, lookup } from "../../config/registry";
 import { ZH_GROUP_LABELS, ZH_OPTION_TEXTS, ZH_SETTING_TEXTS, ZH_TAB_LABELS } from "../../config/settings-zh";
 import { getSharedAuthStorage, refreshSharedModelRegistry } from "./auth";
 import { WebConfig } from "../../config/web-config";
@@ -377,9 +381,38 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 		const settings = await Settings.loadIsolated({ cwd, agentDir });
 		settings.writeValue(setting, body.value, "global");
 		await settings.flush();
-		return json({ ok: true });
+		// The file is written; make the running process observe it. The isolated
+		// instance cannot tell us that on its own — its layers predate the reload
+		// the live instances are about to do, so re-read before reporting.
+		await reloadLiveSettingsInstances();
+		const provenance = setting.provenance(settings);
+		return json({
+			ok: true,
+			// Effective value for the caller's cwd, which may still be a project
+			// override rather than the value just written to the global layer.
+			value: readSetting(settings, path),
+			provenance,
+			overriddenBy: shadowedBy(setting, provenance),
+		});
 	} catch (error) {
 		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+}
+
+/**
+ * The layer that still supplies the effective value after a global write, for
+ * the panel's "project override" chip; `undefined` when the write applies.
+ */
+function shadowedBy(setting: AnySetting, provenance: SettingProvenance): string | undefined {
+	switch (provenance) {
+		case "env":
+			return setting.envName ?? "env";
+		case "project":
+		case "overlay":
+		case "runtime":
+			return provenance;
+		default:
+			return undefined;
 	}
 }
 
@@ -398,9 +431,10 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 export async function handleSettingsReload(req: Request): Promise<Response> {
 	if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 	try {
-		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
-		const agentDir = getAgentDir();
-		await Settings.loadIsolated({ cwd, agentDir });
+		// Re-read the live instance(s), not a throwaway: the caller is asking the
+		// running process — and every session it hosts — to pick up changes made
+		// by another process or by hand.
+		await reloadLiveSettingsInstances();
 		const webConfig = await WebConfig.load();
 		await webConfig.reload();
 		const authStorage = await getSharedAuthStorage();

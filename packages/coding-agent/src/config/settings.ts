@@ -1318,6 +1318,24 @@ export class Settings {
 	}
 
 	/**
+	 * Settings view for a session rooted at `cwd`: this instance when it already
+	 * covers that directory, otherwise an independent {@link cloneForCwd}.
+	 *
+	 * Session hosts call this instead of `Settings.init({ cwd })` — the init
+	 * singleton is resolved once per process, so reusing it for every session
+	 * would apply the first session's project layer (`.zeta/`, memory backend,
+	 * model roles) to sessions in every other repository. The process singleton
+	 * stays the one that owns process-wide effects and the config-file watcher;
+	 * only the project layer follows the session.
+	 *
+	 * @throws Error when a configured value fails its definition's `validate` check.
+	 */
+	async sessionForCwd(cwd: string): Promise<Settings> {
+		if (path.normalize(cwd) === this.#cwd) return this;
+		return await this.cloneForCwd(cwd);
+	}
+
+	/**
 	 * Re-read the current global, project, and explicit overlay layers from disk
 	 * without replacing this instance or discarding runtime overrides.
 	 *
@@ -3997,6 +4015,32 @@ function clearBoundSettingsMethods(): void {
 
 export function isSettingsInitialized(): boolean {
 	return globalInstance !== null;
+}
+
+/**
+ * Re-read every live disk-backed settings instance in this process: the global
+ * singleton plus each session's cwd-scoped clone (`Settings.sessionForCwd`).
+ * Hosts that persist settings out of band — the web gateway's PUT and
+ * `/api/settings/reload`, which write through an isolated instance — call this
+ * so open sessions observe the change without a restart. An instance whose
+ * source fails to parse or validate keeps its last good layers; the failure is
+ * logged and the other instances still refresh.
+ */
+export async function reloadLiveSettingsInstances(): Promise<void> {
+	const instances = new Set<Settings>();
+	for (const ref of liveSettingsInstances) {
+		const instance = ref.deref();
+		if (instance) instances.add(instance);
+	}
+	await Promise.all(
+		[...instances].map(async instance => {
+			try {
+				await instance.reloadFromDisk();
+			} catch (error) {
+				logger.warn("Settings: failed to reload a live instance", { error: String(error) });
+			}
+		}),
+	);
 }
 
 /**

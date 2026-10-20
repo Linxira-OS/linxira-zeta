@@ -50,9 +50,19 @@ export function settingsLang(locale: string): "en" | "zh" {
   return locale === "zh-CN" ? "zh" : "en";
 }
 
-/** Fetch the settings catalog for a language. */
-export async function fetchSettings(lang: "en" | "zh"): Promise<SettingsResponse> {
-  const res = await fetch(`/api/settings?lang=${encodeURIComponent(lang)}`);
+/**
+ * Headers identifying the workspace the panel is showing. The gateway resolves
+ * the project layer from `x-zeta-cwd`, so GET reports the values a session in
+ * that workspace actually runs with (not just the global layer), and PUT can
+ * report which layer still shadows the write.
+ */
+function scopeHeaders(cwd: string | null | undefined): Record<string, string> {
+  return cwd ? { "x-zeta-cwd": cwd } : {};
+}
+
+/** Fetch the settings catalog for a language, scoped to `cwd` when known. */
+export async function fetchSettings(lang: "en" | "zh", cwd?: string | null): Promise<SettingsResponse> {
+  const res = await fetch(`/api/settings?lang=${encodeURIComponent(lang)}`, { headers: scopeHeaders(cwd) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as SettingsResponse;
 }
@@ -63,15 +73,29 @@ export async function fetchSettings(lang: "en" | "zh"): Promise<SettingsResponse
  * processes (CLI, another window) become visible to this client's re-fetch.
  * Best-effort: a failed sync must not block the client-side reload.
  */
-export async function syncGatewayState(): Promise<void> {
-  await fetch("/api/settings/reload", { method: "POST" }).catch(() => {});
+export async function syncGatewayState(cwd?: string | null): Promise<void> {
+  await fetch("/api/settings/reload", { method: "POST", headers: scopeHeaders(cwd) }).catch(() => {});
 }
 
-/** Persist a single setting value; throws Error with the server message on failure. */
-export async function updateSetting(path: string, value: unknown): Promise<void> {
+/** What a successful write reports back: the effective value and its layer. */
+export interface SettingWriteResult {
+  /** Effective value after the write (may still be a project override). */
+  value?: unknown;
+  /** Layer that supplied it: project/global/overlay/runtime/env/default. */
+  provenance?: string;
+  /** Layer still shadowing the saved global value, when any. */
+  overriddenBy?: string;
+}
+
+/**
+ * Persist a single setting value; throws Error with the server message on
+ * failure. The gateway reloads the live instance and every open session before
+ * answering, so the result describes the value those sessions now read.
+ */
+export async function updateSetting(path: string, value: unknown, cwd?: string | null): Promise<SettingWriteResult> {
   const res = await fetch("/api/settings", {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...scopeHeaders(cwd) },
     body: JSON.stringify({ path, value }),
   });
   if (!res.ok) {
@@ -86,6 +110,7 @@ export async function updateSetting(path: string, value: unknown): Promise<void>
     }
     throw new Error(message);
   }
+  return (await res.json()) as SettingWriteResult;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

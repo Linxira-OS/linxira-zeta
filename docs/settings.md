@@ -44,6 +44,10 @@ The canonical global file is YAML at `config.yml`; `config.yaml` is accepted as 
 
 Use the interactive `/settings` panel inside a session, or the `zetacode config` command from a shell. The CLI reads effective values including setting environment variables. The panel shows and edits merged settings-layer values, not environment-supplied values; descriptions note active env overrides so env credentials are never pre-filled or persisted. Ordinary persistent writes land in the **global** file; model-selector role changes are the exception when `modelRoleStorage: project` (see [Where writes go](#where-writes-go)).
 
+The web settings panel (Web UI → Settings) is scoped to the workspace you are viewing: it sends that directory as `x-zeta-cwd` on both reads and writes. Reads therefore show the value a session rooted there actually uses, including a project layer (`.zeta/settings.json`, `.zeta/config.yml`, or another discovery provider) that overrides the global file. Writes still go to the global layer. When a project, `--config`, runtime, or environment value keeps shadowing the saved value, the write response reports `provenance` and `overriddenBy` (for example `overriddenBy: "project"`), and the panel marks the row with a **Project override** chip.
+
+Each session is created with its own view of the project layer for its cwd, while one process-global instance owns process effects (theme, request limits) and the config-file watcher. `zetacode serve` arms that watcher at startup and, on `POST /api/settings/reload`, re-reads the global instance and every open session, so an edit from another process reaches running sessions without a restart.
+
 ```bash
 zetacode config list                 # all settings with current effective values
 zetacode config list --json          # same, machine-readable

@@ -34,6 +34,7 @@ import { renderPlanToPng } from "../channels/plan-image";
 import { SessionRouter } from "../channels/session-router";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
+import { Settings } from "../config/settings";
 import { WebConfig } from "../config/web-config";
 import { defaultCoordinatorWorkspace, initializeDefaultWorkspace } from "../default-workspace";
 import { IrcBus } from "../irc/bus";
@@ -442,6 +443,13 @@ export class ZetaServer {
 			// coordinator is the single shared session all clients consume.
 			if (!statsOnly) {
 				await this.#ensureMainSession();
+				// Serve is the long-lived owner of the settings files. Its sessions
+				// each hold a cwd-scoped view (`Settings.sessionForCwd`), so the
+				// process-global instance is the only one that can watch the global
+				// layer and fan a hand/CLI edit out; arm it once the coordinator has
+				// initialized it.
+				const globalSettings = await Settings.current;
+				globalSettings?.startWatching();
 				await this.#startMesh();
 			}
 
@@ -501,6 +509,10 @@ export class ZetaServer {
 		registerRestartChannels(null);
 		registerMainSessionId(null);
 		this.#channelCoordinator = null;
+		// The process may outlive this server (programmatic start/stop in tests
+		// and embedders); leave no config watcher armed behind it.
+		const globalSettings = await Settings.current?.catch(() => null);
+		globalSettings?.stopWatching();
 
 		if (this.#mesh) {
 			await this.#mesh.stop().catch(error => {

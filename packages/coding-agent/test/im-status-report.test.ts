@@ -110,4 +110,35 @@ describe("IM status report (D8)", () => {
 		expect(status.personaActive).toBe(false);
 		expect(status.memoryBackend).toBe("off");
 	});
+
+	test("@status follows the settings merge when the project files disagree", async () => {
+		// The legacy project file opts in; `config.yml` is merged on top of it and
+		// turns memory off. A hand-rolled file probe would report mnemopi.
+		fs.mkdirSync(path.join(repo, ".zeta"), { recursive: true });
+		fs.writeFileSync(
+			path.join(repo, ".zeta", "settings.json"),
+			JSON.stringify({ memory: { backend: "mnemopi" } }),
+			"utf8",
+		);
+		fs.writeFileSync(path.join(repo, ".zeta", "config.yml"), "memory:\n  backend: off\n", "utf8");
+		expect((await router.bindChat("telegram", "peer-3", "repo")).ok).toBe(true);
+
+		const status = await router.statusSnapshot("telegram", "peer-3");
+		expect(status.memoryBackend).toBe("off");
+		expect(status.memoryBackendSource).toBe("project");
+
+		sent.length = 0;
+		await routeWorkspaceCommand("@status", "peer-3", {
+			router,
+			channelId: "telegram",
+			peer: "peer-3",
+			sendText: async text => {
+				sent.push(text);
+			},
+			planRequest: async () => {},
+			fallback: async () => {},
+			channelStatus: () => [{ id: "telegram", running: true }],
+		});
+		expect(sent.join("\n")).toContain("记忆: off (project)");
+	});
 });

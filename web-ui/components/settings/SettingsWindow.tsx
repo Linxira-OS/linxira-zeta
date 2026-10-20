@@ -32,6 +32,12 @@ export interface SettingsWindowProps {
 	open: boolean;
 	onClose: () => void;
 	onOpenModelsConfig: () => void;
+	/**
+	 * Workspace whose settings the panel reflects. Sent as `x-zeta-cwd`, so the
+	 * gateway merges that project's layer: the panel shows the value a session in
+	 * this workspace actually uses, and flags a project override after a save.
+	 */
+	cwd?: string | null;
 }
 
 interface NavEntry {
@@ -80,10 +86,10 @@ const WEB_SEARCH_KEYS = [
 	"web-channel-telegram",
 ];
 
-export function SettingsWindow({ open, onClose, onOpenModelsConfig }: SettingsWindowProps) {
+export function SettingsWindow({ open, onClose, onOpenModelsConfig, cwd }: SettingsWindowProps) {
 	const isMobile = useIsMobile();
 	const { t } = useI18n();
-	const settings = useSettingsData(open);
+	const settings = useSettingsData(open, cwd);
 	const web = useWebConfigState(open);
 	const [query, setQuery] = useState("");
 	const q = query.trim().toLowerCase();

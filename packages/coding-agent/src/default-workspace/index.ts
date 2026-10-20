@@ -19,7 +19,6 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { YAML } from "bun";
 import { logger } from "@linxiraos/pi-utils";
 
 /** Workspace directory name under the config root. */
@@ -98,30 +97,6 @@ async function readNonEmptyFile(filePath: string): Promise<string | null> {
 		}
 		return null;
 	}
-}
-
-/**
- * Project-layer memory backend for a workspace directory, or `"off"` when the
- * workspace does not opt in. This reports the project layer only; the user
- * layer stays `off` by contract, and other repositories inherit that default.
- * Both project files are checked: `.zeta/settings.json` first, then
- * `.zeta/config.yml`.
- */
-export function workspaceMemoryBackend(workspaceDir: string): string {
-	const candidates = [workspaceSettingsPath(workspaceDir), path.join(workspaceDir, ".zeta", "config.yml")];
-	for (const filePath of candidates) {
-		try {
-			const raw = fs.readFileSync(filePath, "utf8");
-			const parsed = (filePath.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw)) as {
-				memory?: { backend?: unknown };
-			};
-			const backend = parsed?.memory?.backend;
-			if (typeof backend === "string" && backend.trim()) return backend;
-		} catch {
-			// Missing or malformed lower-priority file; fall through.
-		}
-	}
-	return "off";
 }
 
 /** Official agent-facing document written into a fresh default workspace. */

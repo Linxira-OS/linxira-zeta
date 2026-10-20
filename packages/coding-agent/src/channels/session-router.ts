@@ -26,8 +26,10 @@ import * as path from "node:path";
 import type { ChannelId } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
-import { hasWorkspacePersona, workspaceMemoryBackend } from "../default-workspace";
+import { Settings, type SettingProvenance } from "../config/settings";
+import { hasWorkspacePersona } from "../default-workspace";
 import { cfgChannelsReportPolicy } from "../tools/settings";
+import { cfgMemoryBackend } from "../memory-backend/settings";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 import { IrcBus } from "../irc/bus";
 import { getMeshNode } from "../mesh/global";
@@ -85,8 +87,10 @@ export interface ChatStatusSnapshot {
 	workspaceDir: string;
 	/** Whether the default-workspace persona applies to that directory. */
 	personaActive: boolean;
-	/** Project-layer memory backend (`off` when the workspace does not opt in). */
+	/** Effective memory backend for the workspace (`off` when nothing enables it). */
 	memoryBackend: string;
+	/** Layer that supplied {@link memoryBackend}: `project`, `global`, `overlay`, `runtime`, `env`, or `default`. */
+	memoryBackendSource: SettingProvenance;
 	/** Relay report policy for delegated work. */
 	reportPolicy: string;
 }
@@ -530,12 +534,33 @@ export class SessionRouter {
 		const binding = await this.bindingFor(channelId, peer);
 		const directDir = binding && binding !== COORDINATOR_ALIAS ? this.resolveDir(binding) : undefined;
 		const workspaceDir = directDir ?? this.#defaultCwd;
+		// Resolve through the settings layers, exactly like a session would: the
+		// process singleton (global + --config + runtime) re-scoped to this
+		// workspace, or a read-only load when the router runs without one. The
+		// project layer's own file order is the discovery provider's, never a
+		// hand-rolled `settings.json`-before-`config.yml` probe.
+		let memoryBackend = "off";
+		let memoryBackendSource: SettingProvenance = "default";
+		try {
+			const global = await Settings.current?.catch(() => null);
+			const settings = global
+				? await global.sessionForCwd(workspaceDir)
+				: await Settings.loadReadOnly({ cwd: workspaceDir });
+			memoryBackend = cfgMemoryBackend.get(settings);
+			memoryBackendSource = settings.getProvenance(cfgMemoryBackend);
+		} catch (error) {
+			logger.warn("Could not resolve the workspace memory setting", {
+				workspaceDir,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
 		return {
 			route: directDir ? "direct" : "relay",
 			workspaceAlias: directDir ? binding : null,
 			workspaceDir,
 			personaActive: await hasWorkspacePersona(workspaceDir),
-			memoryBackend: workspaceMemoryBackend(workspaceDir),
+			memoryBackend,
+			memoryBackendSource,
 			reportPolicy: this.#coordinator.settings ? cfgChannelsReportPolicy.get(this.#coordinator.settings) : "summary",
 		};
 	}

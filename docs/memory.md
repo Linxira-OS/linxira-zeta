@@ -83,11 +83,17 @@ To enable memory for **one repository only**, write the project layer directly:
 { "memory": { "backend": "mnemopi" } }
 ```
 
-The user layer stays `off`, so sibling repositories are unaffected. The
-settings panel and `/settings` currently persist only the user layer; there is
-no GUI scope switch yet, so the file above is the exact edit path. Storage is
+The user layer stays `off`, so sibling repositories are unaffected. Every
+session resolves its own cwd's layers: one `serve` process can hold a
+`mnemopi` session in the default workspace and an `off` session in another
+repository at the same time. The web settings panel follows the active
+workspace when it reads — it shows the effective value and flags a project
+override after a save — but writes still land in the user layer; to enable
+memory for one repository, the file above remains the edit path. Storage is
 already per-project: `getMemoryRoot` maps a cwd to `memories/<encoded cwd>`
 under the agent directory, so one repository never reads another's rows.
+`@status` reports the effective backend and the layer that supplied it
+(for example `记忆: mnemopi (project)`).
 
 The default workspace (`~/.zeta/workspace`) is the only directory shipped with
 this project-layer opt-in; see
