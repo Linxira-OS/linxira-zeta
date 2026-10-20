@@ -35,7 +35,10 @@ const DESKTOP_LABELS: Record<string, Record<string, string>> = {
 /** GET /api/web-config — full merged structure with secrets masked. */
 export async function handleWebConfigGet(req: Request): Promise<Response> {
 	try {
-		const config = await WebConfig.load();
+		// One instance per process: the PUT handler mutates this same snapshot,
+		// and `reload` picks up writes made by another process (CLI, adapters).
+		const config = await WebConfig.shared();
+		await config.reload();
 		const masked = config.getMasked();
 		// The desktop shell passes its Electron locale (e.g. `zh-CN`) so the tray
 		// and app menu can be localized through the same gateway it already
@@ -62,7 +65,10 @@ export async function handleWebConfigPut(req: Request): Promise<Response> {
 		if (!isKnownWebConfigPath(body.path)) {
 			return json({ error: `Unknown web config path: ${String(body.path)}` }, 400);
 		}
-		const config = await WebConfig.load();
+		// `set` is a read-modify-write under the config lock, so a concurrent
+		// adapter write (peer tokens, credentials) is not erased and a stale
+		// snapshot cannot resurrect a rotated token.
+		const config = await WebConfig.shared();
 		try {
 			await config.set(body.path, body.value);
 		} catch (error) {

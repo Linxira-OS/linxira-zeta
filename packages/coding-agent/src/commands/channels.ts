@@ -9,6 +9,7 @@
  * when a channel is enabled (see `channels/session-host.ts`).
  */
 
+import * as path from "node:path";
 import type { ChannelId } from "@linxiraos/pi-channels";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { Args, CliUsageError, Command, Flags } from "@linxiraos/pi-utils/cli";
@@ -21,6 +22,7 @@ import {
 	logoutChannel,
 	setChannelEnabled,
 } from "../channels/channel-status";
+import { acquireChannelLock, channelLockPath } from "../channels/instance-lock";
 import { renderTerminalQr } from "../channels/qr-terminal";
 import {
 	runWechatLogin,
@@ -183,63 +185,89 @@ export default class Channels extends Command {
 					process.exitCode = 1;
 					return;
 				}
-				const timeoutSeconds = Math.max(1, flags.timeout ?? 180);
-				let lastRendered = "";
-				let result: WechatLoginResult;
-				try {
-					result = await runWechatLogin({
-						webConfig,
-						timeoutMs: timeoutSeconds * 1_000,
-						onQrCode: payload => {
-							if (flags.json) return;
-							const display = wechatQrDisplayPayload(payload);
-							if (payload.status === "confirmed") return;
-							if (payload.status === "expired") {
-								process.stderr.write(chalk.yellow("QR expired; fetching a fresh one...\n"));
-								return;
-							}
-							if (display !== "" && display !== lastRendered) {
-								lastRendered = display;
-								const qr = renderTerminalQr(display, {
-									columns: process.stdout.columns,
-									color: Boolean(process.stdout.isTTY) && !process.env.NO_COLOR,
-								});
-								process.stdout.write(`\nScan this QR code with WeChat:\n\n${qr.lines.join("\n")}\n\n`);
-								if (qr.kind === "fallback") {
-									process.stderr.write(chalk.dim(`(rendered as text: ${qr.reason})\n`));
-								}
-							}
-						},
-						onState: state => {
-							if (!flags.json && state === "scanned") {
-								process.stderr.write(chalk.dim("Scanned — confirm in WeChat.\n"));
-							}
-						},
-					});
-				} catch (error) {
-					const message = error instanceof Error ? error.message : String(error);
-					if (flags.json) writeJson({ channel, state: "error", timeoutSeconds, error: message });
-					else process.stderr.write(chalk.red(`WeChat login failed: ${message}\n`));
+				// A QR login rewrites the bot credentials a host binds, so it takes
+				// the same single-instance lock as a host: a second login (or a
+				// login racing a running host) would fight over the same bot.
+				const acquired = await acquireChannelLock({
+					lockPath: channelLockPath(path.dirname(webConfig.path)),
+					metadata: {
+						pid: process.pid,
+						host: "cli",
+						cwd: process.cwd(),
+						channels: [channel],
+					},
+				});
+				if (!acquired.ok) {
+					if (flags.json) writeJson({ channel, state: "locked", error: acquired.message });
+					else process.stderr.write(chalk.red(`${acquired.message}\n`));
 					process.exitCode = 1;
 					return;
 				}
-				if (flags.json) {
-					writeJson({
-						channel,
-						state: result.state,
-						qrcode: result.qrcode ? wechatQrDisplayPayload(result.qrcode) : null,
-						timeoutSeconds,
-						credentialsPersisted: result.credentialsPersisted,
-						...(result.error ? { error: result.error } : {}),
-					});
-				} else if (result.state === "connected") {
-					console.log(chalk.green(`\nWeChat connected. Credentials saved to ${webConfig.path}.`));
-				} else {
-					process.stderr.write(chalk.red(`\nWeChat login ${loginStateLabel(result.state)}.\n`));
+				try {
+					await this.#loginWechat(channel, flags.json === true, Math.max(1, flags.timeout ?? 180), webConfig);
+				} finally {
+					await acquired.lock.release();
 				}
-				if (result.state !== "connected") process.exitCode = 1;
 				return;
 			}
 		}
+	}
+
+	/** The WeChat QR login body (lock already held by {@link run}). */
+	async #loginWechat(channel: ChannelId, json: boolean, timeoutSeconds: number, webConfig: WebConfig): Promise<void> {
+		let lastRendered = "";
+		let result: WechatLoginResult;
+		try {
+			result = await runWechatLogin({
+				webConfig,
+				timeoutMs: timeoutSeconds * 1_000,
+				onQrCode: payload => {
+					if (json) return;
+					const display = wechatQrDisplayPayload(payload);
+					if (payload.status === "confirmed") return;
+					if (payload.status === "expired") {
+						process.stderr.write(chalk.yellow("QR expired; fetching a fresh one...\n"));
+						return;
+					}
+					if (display !== "" && display !== lastRendered) {
+						lastRendered = display;
+						const qr = renderTerminalQr(display, {
+							columns: process.stdout.columns,
+							color: Boolean(process.stdout.isTTY) && !process.env.NO_COLOR,
+						});
+						process.stdout.write(`\nScan this QR code with WeChat:\n\n${qr.lines.join("\n")}\n\n`);
+						if (qr.kind === "fallback") {
+							process.stderr.write(chalk.dim(`(rendered as text: ${qr.reason})\n`));
+						}
+					}
+				},
+				onState: state => {
+					if (!json && state === "scanned") {
+						process.stderr.write(chalk.dim("Scanned — confirm in WeChat.\n"));
+					}
+				},
+			});
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (json) writeJson({ channel, state: "error", timeoutSeconds, error: message });
+			else process.stderr.write(chalk.red(`WeChat login failed: ${message}\n`));
+			process.exitCode = 1;
+			return;
+		}
+		if (json) {
+			writeJson({
+				channel,
+				state: result.state,
+				qrcode: result.qrcode ? wechatQrDisplayPayload(result.qrcode) : null,
+				timeoutSeconds,
+				credentialsPersisted: result.credentialsPersisted,
+				...(result.error ? { error: result.error } : {}),
+			});
+		} else if (result.state === "connected") {
+			console.log(chalk.green(`\nWeChat connected. Credentials saved to ${webConfig.path}.`));
+		} else {
+			process.stderr.write(chalk.red(`\nWeChat login ${loginStateLabel(result.state)}.\n`));
+		}
+		if (result.state !== "connected") process.exitCode = 1;
 	}
 }

@@ -160,6 +160,8 @@ export class SessionRouter {
 	#activeRun: ActiveRun | null = null;
 	/** Direct-mode reply bindings: workspace dir → waiting chat. */
 	readonly #directReplies = new Map<string, DirectReply>();
+	/** `channels.reportPolicy: summary` buffers progress reports per chat until the stage ends. */
+	readonly #pendingReports = new Map<string, string[]>();
 	/** Runtime (non-persisted) per-chat route override: "channel:peer" → alias. */
 	readonly #runtimeBindings = new Map<string, string>();
 	/** Runtime per-chat agent override from `@agent use` / `@team` (highest precedence). */
@@ -339,9 +341,12 @@ export class SessionRouter {
 	}
 
 	/**
-	 * Resolve where one inbound chat message should go.
-	 * Precedence: runtime override (from `@workspace use` / `*alias`) → persisted
-	 * session mapping → channel default `workspaceRoot` → relay coordinator.
+	 * The route one inbound message takes, resolved once: the runtime override
+	 * (`@workspace use` / `*alias`) wins, then the persisted chat mapping, then
+	 * the channel default `workspaceRoot`, else the relay coordinator.
+	 * `mode: "relay"` on the persisted mapping outranks the alias it carries:
+	 * the row means "this chat belongs to the coordinator", even when an earlier
+	 * direct binding left an alias behind.
 	 */
 	async resolveRoute(channelId: ChannelId, peer: string): Promise<"direct" | "relay"> {
 		const binding = await this.bindingFor(channelId, peer);
@@ -457,14 +462,15 @@ export class SessionRouter {
 
 	/**
 	 * One resolution for the inbound bridge: the `@agent use` override wins,
-	 * then the existing workspace precedence (runtime → chatBindings → channel
-	 * default), then the relay coordinator.
+	 * then {@link resolveRoute} — the documented decision point, which also
+	 * materializes a direct workspace session — then the relay coordinator.
 	 */
 	async resolveChatTarget(channelId: ChannelId, peer: string): Promise<ChatRouteTarget> {
 		const agent = this.agentTargetFor(channelId, peer);
 		if (agent) return { kind: "agent", target: agent, local: !agent.includes("/") };
 		const binding = await this.bindingFor(channelId, peer);
 		if (!binding || binding === COORDINATOR_ALIAS) return { kind: "relay" };
+		if ((await this.resolveRoute(channelId, peer)) === "relay") return { kind: "relay" };
 		return { kind: "workspace", alias: binding };
 	}
 
@@ -503,6 +509,9 @@ export class SessionRouter {
 		const runtime = this.#runtimeBindings.get(`${channelId}:${peer}`);
 		if (runtime) return runtime;
 		const mapping = this.#webConfig.findSessionMapping(channelId, peer);
+		// `mode: "relay"` is the chat's persisted decision to live in the
+		// coordinator; it outranks the alias the same row may still carry.
+		if (mapping?.mode === "relay") return COORDINATOR_ALIAS;
 		// A mapping may carry only lang/sessionId (from !lang / !session use) with
 		// no workspaceAlias — those must NOT shadow the channel-default
 		// workspaceRoot fallback below.
@@ -521,6 +530,72 @@ export class SessionRouter {
 		return null;
 	}
 
+	/** `channels.reportPolicy` — how delegated work reaches the IM user (D4). */
+	#reportPolicy(): "all" | "summary" | "silent" {
+		return this.#coordinator.settings ? cfgChannelsReportPolicy.get(this.#coordinator.settings) : "summary";
+	}
+
+	/**
+	 * Report one delegated-work event to the IM user, honoring
+	 * `channels.reportPolicy`:
+	 * - `all` forwards every report as it arrives;
+	 * - `summary` (default) buffers progress and forwards one merged message on
+	 *   the stage's completion or failure;
+	 * - `silent` forwards nothing — the report stays in the coordinator's
+	 *   transcript until the user asks.
+	 *
+	 * Reports that cannot be attributed to a chat are never pushed anywhere.
+	 */
+	async reportDelegation(
+		channelId: ChannelId,
+		peer: string,
+		stage: "progress" | "completion" | "failure",
+		text: string,
+	): Promise<"sent" | "buffered" | "suppressed"> {
+		const key = `${channelId}:${peer}`;
+		const policy = this.#reportPolicy();
+		if (policy === "silent") {
+			this.#pendingReports.delete(key);
+			return "suppressed";
+		}
+		if (policy === "all") {
+			this.#pendingReports.delete(key);
+			await this.#sendText(channelId, peer, text);
+			return "sent";
+		}
+		const buffered = this.#pendingReports.get(key) ?? [];
+		if (stage === "progress") {
+			buffered.push(text);
+			this.#pendingReports.set(key, buffered);
+			return "buffered";
+		}
+		this.#pendingReports.delete(key);
+		await this.#sendText(channelId, peer, buffered.length > 0 ? [...buffered, text].join("\n\n") : text);
+		return "sent";
+	}
+
+	/**
+	 * Forward one report to the chat that triggered the delegation. A report
+	 * that cannot be delivered is logged, never fatal: the delegation itself
+	 * already succeeded and its reply still reaches the coordinator.
+	 */
+	async #forwardReport(
+		chat: { channelId: ChannelId; peer: string } | null,
+		stage: "progress" | "completion" | "failure",
+		text: string,
+	): Promise<"sent" | "buffered" | "suppressed"> {
+		if (!chat) return "suppressed";
+		try {
+			return await this.reportDelegation(chat.channelId, chat.peer, stage, text);
+		} catch (error) {
+			logger.warn("Delegated report forwarding failed", {
+				channel: chat.channelId,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			return "suppressed";
+		}
+	}
+
 	/**
 	 * Everything the IM status surface reports for one chat: landing workspace,
 	 * direct/relay route, persona activation, project-layer memory backend, and
@@ -536,7 +611,7 @@ export class SessionRouter {
 			workspaceDir,
 			personaActive: await hasWorkspacePersona(workspaceDir),
 			memoryBackend: workspaceMemoryBackend(workspaceDir),
-			reportPolicy: this.#coordinator.settings ? cfgChannelsReportPolicy.get(this.#coordinator.settings) : "summary",
+			reportPolicy: this.#reportPolicy(),
 		};
 	}
 
@@ -588,7 +663,7 @@ export class SessionRouter {
 	}
 
 	/** List every persisted binding for one platform. */
-	bindingsForPlatform(channelId: ChannelId): { chatId: string; workspaceAlias: string; mode?: string }[] {
+	bindingsForPlatform(channelId: ChannelId): { chatId: string; workspaceAlias?: string; mode?: string }[] {
 		return this.#webConfig
 			.getSessionMappings()
 			.filter(mapping => mapping.platform === channelId)
@@ -964,6 +1039,10 @@ export class SessionRouter {
 	/**
 	 * Deliver a subtask to a workspace session and wait for its final reply.
 	 * `workspace` is an absolute path, a registered alias, or the coordinator.
+	 *
+	 * The delegation's start and outcome are reports to the IM user, forwarded
+	 * according to `channels.reportPolicy` (see {@link reportDelegation}); the
+	 * reply is still returned to the coordinator as the tool result.
 	 */
 	async run(workspace: string, task: string): Promise<{ reply: string }> {
 		// Coordinating alias: delegate to the coordinator itself.
@@ -984,6 +1063,11 @@ export class SessionRouter {
 			return { reply: "workspace_run: another delegation is already in flight; wait for it to finish" };
 		}
 
+		// The delegation reports to the chat that triggered it; a CLI/web-ui
+		// delegation has none and is never pushed anywhere.
+		const chat = this.#getLastInbound();
+		await this.#forwardReport(chat, "progress", `[${path.basename(dir)}] delegated: ${task}`);
+
 		const msg: IrcMessage = {
 			id: Snowflake.next(),
 			from: coordinatorId,
@@ -992,10 +1076,12 @@ export class SessionRouter {
 			ts: Date.now(),
 		};
 
+		let timedOut = false;
 		const { promise, resolve } = Promise.withResolvers<string>();
 		const timer = setTimeout(() => {
 			if (this.#activeRun?.resolve === resolve) {
 				this.#activeRun = null;
+				timedOut = true;
 				resolve(`[${path.basename(dir)}] (no reply within ${RUN_TIMEOUT_MS / 60_000} minutes)`);
 			}
 		}, RUN_TIMEOUT_MS);
@@ -1007,11 +1093,15 @@ export class SessionRouter {
 			clearTimeout(timer);
 			this.#activeRun = null;
 			const detail = error instanceof Error ? error.message : String(error);
-			return { reply: `workspace_run: delegation to "${workspace}" failed: ${detail}` };
+			const reply = `workspace_run: delegation to "${workspace}" failed: ${detail}`;
+			await this.#forwardReport(chat, "failure", reply);
+			return { reply };
 		}
 
 		const text = await promise;
-		return { reply: `[${path.basename(dir)}] ${text}` };
+		const reply = `[${path.basename(dir)}] ${text}`;
+		await this.#forwardReport(chat, timedOut ? "failure" : "completion", reply);
+		return { reply };
 	}
 
 	/** Resolve `channel_send` opts to a concrete channel + peer; null when unavailable. */
@@ -1044,6 +1134,7 @@ export class SessionRouter {
 		this.#sessions.clear();
 		this.#aliases.clear();
 		this.#directReplies.clear();
+		this.#pendingReports.clear();
 		for (const [id, handle] of [...this.#botSessions.entries()]) {
 			handle.unsubscribe();
 			this.#botDirectReplies.delete(id);

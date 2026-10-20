@@ -2320,8 +2320,9 @@ export async function runRootCommand(
 
 		// IM channels are hosted by this session when web.yml enables one or
 		// `--channels` is passed. The config is loaded once here so the
-		// `channel_send` sink exists before the session's tool registry is built.
-		const sessionChannelsWebConfig = isProtocolMode ? null : await logger.time("loadWebConfig", WebConfig.load);
+		// `channel_send` sink exists before the session's tool registry is built;
+		// it is the process-wide instance every mutator re-reads under the lock.
+		const sessionChannelsWebConfig = isProtocolMode ? null : await logger.time("loadWebConfig", WebConfig.shared);
 		const sessionChannelsPlan = sessionChannelsWebConfig
 			? resolveChannelHosting(sessionChannelsWebConfig, parsedArgs.channels === true)
 			: { shouldStart: false, source: "none" as const, enabled: [] };
