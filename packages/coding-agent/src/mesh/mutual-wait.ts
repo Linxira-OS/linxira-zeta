@@ -9,7 +9,7 @@
  */
 
 import { logger } from "@linxiraos/pi-utils";
-import { MESH_MUTUAL_WAIT_POLL_MS } from "./types";
+import { MESH_MUTUAL_WAIT_GRACE_MS, MESH_MUTUAL_WAIT_POLL_MS } from "./types";
 
 /** The slice of `MeshNode` this helper needs (kept structural to avoid a cycle). */
 export interface MutualWaitSource {
@@ -27,13 +27,16 @@ export type MutualWaitStatus = "peer-waiting-on-you";
  *
  * The probe resolves as soon as the peer's registration becomes visible, so
  * the caller returns within roughly one poll interval of both sides waiting.
+ * The registration then survives one grace window, so a peer that polls just
+ * after this side answered still sees it and answers the same way instead of
+ * blocking for its full timeout.
  */
 export async function raceMutualWait<T>(
 	source: MutualWaitSource,
 	localAgentId: string,
 	on: string,
 	wait: Promise<T>,
-	options: { pollMs?: number } = {},
+	options: { pollMs?: number; graceMs?: number } = {},
 ): Promise<T | MutualWaitStatus> {
 	// Publishing the wait is a directory write; it must never sit in front of a
 	// wait's own timeout on a loaded filesystem. Both calls update the node's
@@ -63,13 +66,26 @@ export async function raceMutualWait<T>(
 		}
 	};
 	timer = setTimeout(() => void poll(), pollMs);
+	let answered = false;
 	try {
-		return await Promise.race([wait, detected]);
+		const outcome = await Promise.race([wait, detected]);
+		answered = outcome === "peer-waiting-on-you";
+		return outcome;
 	} finally {
 		stopped = true;
 		clearTimeout(timer);
-		void source.endWait(localAgentId, on).catch(error => {
-			logger.debug("mesh: could not withdraw wait", { localAgentId, on, error: String(error) });
-		});
+		const withdraw = (): void => {
+			void source.endWait(localAgentId, on).catch(error => {
+				logger.debug("mesh: could not withdraw wait", { localAgentId, on, error: String(error) });
+			});
+		};
+		if (!answered) {
+			withdraw();
+		} else {
+			// Outlive the write of the answer: the peer's poll lands on its own
+			// cadence, and a registration that vanished first is unobservable.
+			const grace = setTimeout(withdraw, options.graceMs ?? MESH_MUTUAL_WAIT_GRACE_MS);
+			grace.unref?.();
+		}
 	}
 }

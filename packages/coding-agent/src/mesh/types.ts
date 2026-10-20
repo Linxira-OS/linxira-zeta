@@ -27,6 +27,17 @@ export const MESH_MUTUAL_WAIT_POLL_MS = 50;
 /** A wait registration older than this is ignored by the deadlock probe. */
 export const MESH_WAIT_TTL_MS = 60_000;
 
+/**
+ * How long a wait stays published after the probe answered it.
+ *
+ * The answer is only useful if the *other* side can observe it. Withdrawing the
+ * registration the instant we return makes the outcome one-sided: the faster
+ * prober sees the peer, answers, and disappears, so the peer's next poll finds
+ * nothing and blocks for its whole timeout. Keeping the registration for one
+ * grace window makes both sides answer.
+ */
+export const MESH_MUTUAL_WAIT_GRACE_MS = 1_000;
+
 /** Offline mailbox retention for workspaces whose process is `gone`. */
 export const MESH_MAILBOX_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 

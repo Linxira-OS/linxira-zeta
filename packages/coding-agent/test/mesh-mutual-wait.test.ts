@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
+import { raceMutualWait } from "../src/mesh/mutual-wait";
 import { spawnMeshChild, tempDir, type MeshChild } from "./mesh/helpers";
 
 describe("mesh mutual wait (S6)", () => {
@@ -62,4 +63,35 @@ describe("mesh mutual wait (S6)", () => {
 		const result = await a.next<{ kind: string }>("WAIT", 20_000);
 		expect(result.kind).toBe("timeout");
 	}, 90_000);
+
+	// The probe must answer *both* sides. Whoever resolves first cannot withdraw
+	// its registration before the peer's next poll, or only one agent learns about
+	// the deadlock and the other blocks out its whole timeout (seen on a loaded
+	// filesystem, where the two poll cadences drift apart by seconds).
+	test("the side that answers first leaves its registration visible to the peer", async () => {
+		const published = new Map<string, string>();
+		const source = {
+			async beginWait(agent: string, on: string) {
+				published.set(agent, on);
+			},
+			async endWait(agent: string, on: string) {
+				if (published.get(agent) === on) published.delete(agent);
+			},
+			async peerWaitingOn(agent: string, _on: string) {
+				return [...published].some(([peer, target]) => peer !== agent && target === agent);
+			},
+		};
+		const never = new Promise<never>(() => {});
+
+		// `a` polls slowly, so it cannot possibly observe `b` before `b` answered.
+		const a = raceMutualWait(source, "a", "b", never, { pollMs: 300 });
+		await Bun.sleep(60);
+		const b = raceMutualWait(source, "b", "a", never);
+		expect(await b).toBe("peer-waiting-on-you");
+		expect(await a).toBe("peer-waiting-on-you");
+
+		// The answered registration does not linger forever.
+		await Bun.sleep(1_500);
+		expect([...published.keys()]).toEqual([]);
+	}, 20_000);
 });
