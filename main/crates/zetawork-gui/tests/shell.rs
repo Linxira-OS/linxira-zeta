@@ -516,18 +516,7 @@ fn the_right_column_has_seven_tabs_and_ten_settings_sections() {
 	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 10);
 	assert_eq!(
 		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
-		[
-			"全部设置",
-			"常规",
-			"外观",
-			"编辑器",
-			"终端",
-			"IM 渠道",
-			"快捷键",
-			"项目",
-			"管理",
-			"关于"
-		]
+		["全部设置", "常规", "外观", "编辑器", "终端", "IM 渠道", "快捷键", "项目", "管理", "关于"]
 	);
 	// 全部设置 is the complete schema; the eight hand-built sections behind it
 	// only carry what is GUI-native and what is not a schema key.

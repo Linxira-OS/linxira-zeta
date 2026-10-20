@@ -484,6 +484,11 @@ jobs:
          # 品牌扫描的"只报告"裁决（两种结果都 exit 0）以及 `--gates-only` 真跳过测试。
          - name: Unit-test the merge gate
            run: bun test scripts/merge-gate.test.ts
+         # Same reason as GitHub: the release-chain contract is static (reads
+         # manifests, the lock and ci.yml), so the mirror runs it beside the
+         # other gate unit tests.
+         - name: Unit-test the release chain
+           run: bun test scripts/release-chain.test.ts
          # 镜像 GitHub `check` job：pi-messenger 的 vitest 套件在 bun workspace 之外
          #（根 `plugins/*` glob 到 `plugins/official` 为止），任何 bucket 都跑不到它。
          # 因此这里自带依赖安装（package.json 声明 vitest，包内 .gitignore 已忽略

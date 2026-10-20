@@ -133,7 +133,9 @@ export function RemotePairingPanel({
               width: 188,
               height: 188,
               padding: 8,
-              background: "#ffffff",
+              // A pairing QR must stay white on every theme for scanners; the
+              // L1 static token is the only legal place for the value.
+              background: "var(--zeta-static-neutral-0)",
               borderRadius: 8,
               flexShrink: 0,
             }}

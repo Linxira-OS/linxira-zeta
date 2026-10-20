@@ -78,16 +78,15 @@ pub enum RightTab {
 }
 
 impl RightTab {
-	pub const ALL: [Self; 7] =
-		[
-			Self::Files,
-			Self::History,
-			Self::Git,
-			Self::Usage,
-			Self::Resources,
-			Self::Board,
-			Self::Plugin,
-		];
+	pub const ALL: [Self; 7] = [
+		Self::Files,
+		Self::History,
+		Self::Git,
+		Self::Usage,
+		Self::Resources,
+		Self::Board,
+		Self::Plugin,
+	];
 
 	/// The panel head, spelled as the spec spells it.
 	pub fn title(self) -> &'static str {
