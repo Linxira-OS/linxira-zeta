@@ -181,6 +181,8 @@ export interface CoordinationDetails {
 	cancelled?: { id: string; status: CancelStatus }[];
 	/** Running subagents not represented by a job row in this result. */
 	agents?: AgentActivitySnapshot[];
+	/** `wait` returned early because blocking would deadlock (mesh S6). */
+	status?: "peer-waiting-on-you";
 }
 
 /** Hub result details: coordination snapshots or launch (process) state. */
@@ -269,7 +271,7 @@ export interface IrcMessage {
 /** Delivery outcome for one peer recipient. */
 export interface IrcDeliveryReceipt {
 	to: string;
-	outcome: "injected" | "woken" | "revived" | "failed";
+	outcome: "injected" | "woken" | "revived" | "queued" | "failed";
 	error?: string;
 }
 /** Broker-facing launch parameters; the hub adapts its `ps` op to `list` before calling in. */
@@ -990,6 +992,7 @@ function outcomeColor(outcome: IrcDeliveryReceipt["outcome"]): ToolUIColor {
 		case "woken":
 			return "success";
 		case "revived":
+		case "queued":
 			return "warning";
 		case "injected":
 			return "accent";

@@ -13,6 +13,7 @@ import { type IrcDeliveryReceipt, type IrcMessage } from "@linxiraos/pi-tui/tool
 import { logger, Snowflake } from "@linxiraos/pi-utils";
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
 import { AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
+import { getMeshNode } from "../mesh/global";
 import type { CustomMessage } from "../session/messages";
 
 interface IrcWaiter {
@@ -121,27 +122,47 @@ export class IrcBus {
 		message: IrcMessage,
 		opts?: { expectsReply?: boolean; suppressRelay?: boolean },
 	): Promise<IrcDeliveryReceipt> {
-		const ref = this.#registry.get(message.to);
+		// Cross-process addressing is opt-in by shape: an unprefixed id is
+		// resolved in this process exactly as before, and with no mesh node
+		// installed (CLI, single-process hosts) nothing here changes.
+		const mesh = getMeshNode();
+		// `agent://<id>` is accepted anywhere agent ids are; strip the scheme
+		// before the local lookup so a scheme-prefixed local id still resolves.
+		const requested = message.to.startsWith("agent://") ? message.to.slice("agent://".length) : message.to;
+		const localTarget = mesh?.stripLocalAddress(requested);
+		const target = localTarget ?? requested;
+		const ref = this.#registry.get(target);
 		if (!ref) {
+			if (mesh && localTarget === undefined && mesh.isCrossProcessAddress(requested)) {
+				const result = await mesh.send({
+					from: message.from,
+					to: requested,
+					body: message.body,
+					...(message.replyTo !== undefined && { replyTo: message.replyTo }),
+				});
+				return result.outcome === "failed"
+					? { to: requested, outcome: "failed", error: result.error }
+					: { to: requested, outcome: result.outcome };
+			}
 			return {
 				to: message.to,
 				outcome: "failed",
-				error: `Unknown agent "${message.to}" — check the subagent roster or read history:// for known peers.`,
+				error: `Unknown agent "${requested}" — check the subagent roster or read history:// for known peers.`,
 			};
 		}
 		if (ref.status === "aborted") {
 			return {
-				to: message.to,
+				to: target,
 				outcome: "failed",
-				error: `Agent "${message.to}" was hard-aborted and cannot be messaged or revived. Its transcript remains readable at history://${message.to}.`,
+				error: `Agent "${target}" was hard-aborted and cannot be messaged or revived. Its transcript remains readable at history://${target}.`,
 			};
 		}
 		// Advisor refs are observability-only transcripts, never messageable peers.
 		if (ref.kind === "advisor") {
 			return {
-				to: message.to,
+				to: target,
 				outcome: "failed",
-				error: `Agent "${message.to}" is a read-only advisor transcript and cannot be messaged.`,
+				error: `Agent "${target}" is a read-only advisor transcript and cannot be messaged.`,
 			};
 		}
 
@@ -156,14 +177,13 @@ export class IrcBus {
 		const lifecycle = this.#lifecycle();
 		const lifecycleOwnsRegistry = lifecycle.manages(this.#registry);
 		const needsLifecycleGate =
-			ref.status === "parked" ||
-			(lifecycleOwnsRegistry && (lifecycle.isParking(message.to) || lifecycle.has(message.to)));
+			ref.status === "parked" || (lifecycleOwnsRegistry && (lifecycle.isParking(target) || lifecycle.has(target)));
 
 		const priorSession = ref.session;
 		let revived = false;
 		if (needsLifecycleGate) {
 			try {
-				const liveSession = await lifecycle.ensureLive(message.to);
+				const liveSession = await lifecycle.ensureLive(target);
 				// Revival = we did not keep the same live instance (parked start, or
 				// park completed and a fresh session was rebuilt).
 				revived = !priorSession || liveSession !== priorSession;
@@ -171,40 +191,44 @@ export class IrcBus {
 				// Not revivable / released / revive failed. Do not buffer: a permanent
 				// failure must not inflate unread counts or pretend delivery is pending.
 				return {
-					to: message.to,
+					to: target,
 					outcome: "failed",
 					error: error instanceof Error ? error.message : String(error),
 				};
 			}
 		}
 
+		// An address qualified with this workspace is delivered under the local
+		// id so the recipient sees the same id it uses in-process.
+		const deliveryMessage = target === message.to ? message : { ...message, to: target };
+
 		// A pending `wait` from the recipient consumes the message directly —
 		// it is returned from their irc tool call and never hits the inbox or
 		// the session injection path.
-		const waiter = this.#takeMatchingWaiter(message.to, message.from);
+		const waiter = this.#takeMatchingWaiter(target, message.from);
 		if (waiter) {
-			waiter.resolve(message);
-			if (!opts?.suppressRelay) this.#relayToMainUi(message);
-			return { to: message.to, outcome: revived ? "revived" : "injected" };
+			waiter.resolve(deliveryMessage);
+			if (!opts?.suppressRelay) this.#relayToMainUi(deliveryMessage);
+			return { to: target, outcome: revived ? "revived" : "injected" };
 		}
 
-		const session = this.#registry.get(message.to)?.session;
+		const session = this.#registry.get(target)?.session;
 		if (!session) {
-			return { to: message.to, outcome: "failed", error: `Agent "${message.to}" has no live session.` };
+			return { to: target, outcome: "failed", error: `Agent "${target}" has no live session.` };
 		}
 
 		try {
-			const delivery = await session.deliverIrcMessage(message);
-			if (!opts?.suppressRelay) this.#relayToMainUi(message);
-			return { to: message.to, outcome: revived ? "revived" : delivery };
+			const delivery = await session.deliverIrcMessage(deliveryMessage);
+			if (!opts?.suppressRelay) this.#relayToMainUi(deliveryMessage);
+			return { to: target, outcome: revived ? "revived" : delivery };
 		} catch (error) {
 			// Live hand-off failed (e.g. recipient disposed mid-shutdown): buffer
 			// the message so a later `wait`/`inbox` from the recipient can still
 			// pick it up. The receipt stays "failed" — the recipient has not
 			// seen it.
-			this.#enqueue(message);
+			this.#enqueue(deliveryMessage);
 			return {
-				to: message.to,
+				to: target,
 				outcome: "failed",
 				error: error instanceof Error ? error.message : String(error),
 			};

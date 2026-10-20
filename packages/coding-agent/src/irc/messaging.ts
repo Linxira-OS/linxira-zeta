@@ -2,6 +2,7 @@ import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import type { CoordinationDetails } from "@linxiraos/pi-tui/tools/wait";
 import type { Settings } from "../config/settings";
+import { isWorkspaceAddress } from "../mesh/envelope";
 import { IrcBus } from "./bus";
 import { type AgentRegistry, MAIN_AGENT_ID } from "../registry/agent-registry";
 import { ensurePersistedRoster } from "../registry/persisted-agents";
@@ -55,8 +56,9 @@ export async function executeSend(
 	if (to === senderId)
 		return coordinationErrorResult("Cannot send a message to yourself.", { op: "send", from: senderId, to });
 	const isBroadcast = to === "all";
-	// Restore parked recipients only when needed; never delay delivery to a live peer.
-	if (!isBroadcast && sessionFileHint) {
+	// Restore parked recipients only when needed; never delay delivery to a live
+	// peer. A cross-process address is not in this process's roster at all.
+	if (!isBroadcast && sessionFileHint && !isWorkspaceAddress(to)) {
 		const recipient = registry.get(to);
 		if (!recipient || recipient.status === "parked") await ensurePersistedRoster(registry, sessionFileHint);
 	}
@@ -90,9 +92,11 @@ export async function executeSend(
 		text =
 			receipt.outcome === "failed"
 				? `Failed: ${to} ${unavailable ? "is not running" : "could not receive the message"}. ${receipt.error ?? ""}`.trimEnd()
-				: receipt.outcome === "revived"
-					? `Queued for ${to} (was parked; revived).`
-					: `Delivered to ${to}.`;
+				: receipt.outcome === "queued"
+					? `Queued for ${to} — that workspace is offline; the message will be delivered when its process starts.`
+					: receipt.outcome === "revived"
+						? `Queued for ${to} (was parked; revived).`
+						: `Delivered to ${to}.`;
 	}
 	return {
 		content: [{ type: "text", text }],

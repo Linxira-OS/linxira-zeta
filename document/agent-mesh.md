@@ -58,12 +58,19 @@ IM peer ──chatBindings──▶ workspace(alias) ──session──▶ main
   加前缀只发生在跨进程边界，`agent://` 写法因此向后兼容：无前缀即本进程。
 - 目录记录字段：`{ id, workspaceId, workspaceAlias, workspaceRoot, pid, endpoint,
   role, status, updatedAt }`。status ∈ `running | idle | parked | gone`。
+  实现另加两个**可选**字段（向后兼容，不改变上面的口径）：`agents?: {id, role,
+  status}[]` 给 `@agent list` 提供 per-agent 状态；`waits?: {agentId, on, since}[]`
+  给 S6 的互等探测提供跨进程视图。
 
 ### 4.2 传输
 
 - 每个进程起一个 **loopback-only** Unix socket（POSIX）/ 命名管道（Windows），
-  路径 `<config>/run/mesh-<workspaceId>.sock`（Windows `\\.\pipe\zeta-mesh-<workspaceId>`），
-  权限 0600，未认证即拒。
+  路径 `<config>/run/mesh-<workspaceId>.sock`。POSIX 权限 0600；Windows 命名管道
+  是机器全局的，路径改为 `\\.\pipe\zeta-mesh-<meshRoot摘要>-<workspaceId>`，避免
+  两个隔离的 config root 撞名。
+- "未认证即拒"的机制：启动时生成 `<config>/run/mesh/<workspaceId>.token`（0600），
+  客户端必须在该连接的第一帧 `hello` 里携带它；缺失/错误即关闭连接。token 只在
+  owner 可读的文件里，不写进目录记录。
 - 目录文件 `<config>/run/mesh/<workspaceId>.json`，进程启动写、心跳刷新（10 s）、
   退出删除；陈旧条目（心跳超过 60 s 或 pid 不存在）按 `gone` 处理并在下次枚举时清掉。
 - 信封：`{ v: 1, id, from, to, kind: "message" | "wake" | "ack", body, sentAt,
@@ -71,13 +78,18 @@ IM peer ──chatBindings──▶ workspace(alias) ──session──▶ main
   inbox 语义不依赖它。
 - 跨机（远程工作区）不在本期：endpoint 字段预留 `tcp://`，但只允许在 `remote.token`
   配置存在时开启，且默认关闭。
+- `ZETA_MESH_ROOT` 可以把整个运行时面（`run/` 与 `mailboxes/`）指向一个共享目录，
+  让 config root 不同的两个 `serve` 仍能互相发现；不设时就是 config root。
 
 ### 4.3 投递与唤醒
 
-- `send`：目标 `running|idle` → 直投 socket 并等 `ack`；`parked` → 写对方收件箱
+- `send`：目标 `running|idle` → 直投 socket 并等 `ack`；`parked|gone` → 写对方收件箱
   `<config>/mailboxes/<workspaceId>/<agentId>/`（一消息一文件，原子 rename），并投
-  `wake`；`gone` → 报错并返回候选（同 workspace 的其他 agent）。
-- 收件箱在 agent 下次启动/醒来时按 `sentAt` 顺序注入，注入后移到 `delivered/`。
+  `wake`，回 `queued`。**口径修正**：原稿对 `gone` 写"报错并返回候选"，但 S3 的
+  "进程退出、目录条目还在"正是 `gone`，验收要求它 `queued`；"未知 workspace" 才
+  报错并返回候选。两者冲突时以 S3 的可恢复语义为准。
+- 收件箱在 agent 下次启动/醒来时按 `sentAt` 顺序注入，注入后移到 `delivered/`；
+  `delivered/` 同时是按 `id` 去重的凭据。`gone` 超过 30 天的收件箱按策略清理并记日志。
 - 既有 `ctx.messaging` 的 API 面不变：`send/wait/inbox` 只是 mesh 之上的本地代理；
   单进程时零额外 I/O（走原 `IrcBus` 快路径）。
 
@@ -88,11 +100,12 @@ IM 指令面在 `SessionRouter` 现有的 `@workspace` 族上加两条，语义�
 | IM 指令 | 行为 |
 |---|---|
 | `@agent list` | 列出可见 agent（本工作区 + 已登记的其他工作区），带 `role/status` |
-| `@agent use <id>` | 把当前 (channel, peer) 的后续消息路由到该 agent（写入运行时覆盖，同 `@workspace use` 的优先级） |
+| `@agent use <id>` | 把当前 (channel, peer) 的后续消息路由到该 agent（写入运行时覆盖，同 `@workspace use` 的优先级）；不带 id = 清除覆盖、回落到 workspace 绑定 |
 | `@team <name>` | 交给该团队的主持 agent（成员与任务由编排插件管理） |
 
 桥的落点是 mesh 的 `send`，不是另写一条路径：IM 消息 → router 解析出目标 agent →
-mesh 投递。目标不存在时按 §4.3 的候选列表回话。
+mesh 投递。目标不存在或别名有歧义时按 §4.3 的候选列表回话；未知 team 回可用 team
+列表（team 插件尚未落地时该列表为空）。
 
 ### 4.5 teamagent（编排层）
 
@@ -108,5 +121,5 @@ peer 绑到某个 team"这一条，通过 `@team <name>` 复用同一套路由�
 - 安全：socket 0600 + 目录文件仅 owner 可读；不接受 `to` 里的路径片段；envelope 有
   大小上限（1 MiB）与 `v` 版本门。
 - 崩溃恢复：进程崩溃留下的 socket/目录条目由下一次枚举清理；收件箱不会因崩溃丢失
-  （写入是原子 rename）。
+  （写入是原子 rename）。实现把"陈旧"定义为心跳超过 60 s 或 pid 不存在。
 - 不做：跨机隧道、agent 迁移、按 agent 的细粒度权限（用户 YOLO 默认不变）。

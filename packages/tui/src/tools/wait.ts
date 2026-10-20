@@ -131,6 +131,12 @@ export interface CoordinationDetails {
 	agents?: AgentActivitySnapshot[];
 	/** `wait` was cut short by steering, a peer message, or a completion notice that injects next. */
 	interrupted?: boolean;
+	/**
+	 * `wait` returned early without a message because continuing would deadlock:
+	 * the peer it was waiting on is itself waiting on this agent. Both sides can
+	 * keep working — answer the peer, then wait again.
+	 */
+	status?: "peer-waiting-on-you";
 }
 
 // =============================================================================
