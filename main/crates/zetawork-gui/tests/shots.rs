@@ -545,6 +545,8 @@ fn im_channels_settings_screenshot() {
 		"the fixture's page URL must render through the local encoder"
 	);
 	write("16-im-channels.png", &bytes);
+}
+
 /// `16-pdf-viewer.png` — the PDF page over the committed fixture: page one of
 /// the two-page A4 sheet, rasterized by hayro and painted as an egui texture.
 ///
