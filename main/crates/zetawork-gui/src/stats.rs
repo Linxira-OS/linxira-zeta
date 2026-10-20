@@ -195,6 +195,15 @@ impl StatsEndpoint {
 		text
 	}
 
+	/// The web gateway's origin (`webUrl`) — the one that serves `/api/*`.
+	///
+	/// `origin()` is the stats dashboard (`statsUrl`), which is a different
+	/// listener; a settings request sent there would 404. `None` when no
+	/// `serve.json` published a web URL, i.e. nothing is serving the API.
+	pub fn gateway_origin(&self) -> Option<&str> {
+		self.info.as_ref()?.web_url.as_deref().map(url_origin)
+	}
+
 	/// True only for a page this machine serves itself: host `127.0.0.1`,
 	/// `localhost` or `[::1]`, over `http` or `https`.
 	///

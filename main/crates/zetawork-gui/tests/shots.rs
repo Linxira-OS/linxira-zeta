@@ -592,3 +592,48 @@ fn pdf_viewer_screenshot() {
 	);
 	write("16-pdf-viewer.png", &bytes);
 }
+
+/// `16-settings-all-en.png` / `17-settings-all-zh.png` — the schema-driven
+/// 全部设置 section, once per language, over the real catalog the gateway
+/// publishes (ten tabs, every control kind, a masked credential). The two
+/// shots exist to make the two claims visible: labels/groups/options are
+/// fetched in the UI language, and the schema surface is wider than the eight
+/// hand-built sections (`> 8` tabs below).
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn settings_all_schema_screenshots() {
+	for (lang, body, name) in [
+		(
+			zetawork_gui::i18n::Lang::En,
+			include_str!("fixtures/settings-catalog-en.json"),
+			"16-settings-all-en.png",
+		),
+		(
+			zetawork_gui::i18n::Lang::Zh,
+			include_str!("fixtures/settings-catalog-zh.json"),
+			"17-settings-all-zh.png",
+		),
+	] {
+		let mut shell = ready_shell();
+		shell.schema = zetawork_gui::settings_schema::SchemaCache::fixture(body, lang)
+			.expect("the catalog fixture parses");
+		{
+			let catalog = shell.schema.catalog().expect("the fixture parses");
+			assert_eq!(catalog.tabs.len(), 10, "the schema has ten tabs");
+			assert!(
+				catalog.tabs.len() > zetawork_gui::settings::Section::ALL.len() - 1,
+				"the schema surface is wider than the eight hand-built sections"
+			);
+			assert!(catalog.entries.len() > 300, "the real catalog is not a toy fixture");
+		}
+		shell.settings.lang = lang;
+		zetawork_gui::i18n::Lang::set_current(lang);
+		shell.state.open_settings();
+		shell.state.settings_section = zetawork_gui::settings::Section::All;
+		shell.schema.tab = Some("appearance".to_owned());
+		let bytes = shoot(&mut shell, 3);
+		assert!(bytes.len() > 4096);
+		write(name, &bytes);
+	}
+	zetawork_gui::i18n::Lang::set_current(zetawork_gui::i18n::Lang::Zh);
+}

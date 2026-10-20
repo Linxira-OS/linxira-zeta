@@ -46,6 +46,7 @@ pub mod right;
 pub mod seed;
 pub mod settings;
 pub mod settings_channels;
+pub mod settings_schema;
 pub mod settings_ui;
 pub mod shells;
 pub mod spawn_probe;
@@ -156,6 +157,9 @@ pub struct Shell {
 	/// 设置 → IM 渠道: the last `/api/channels/status` + `web-config` view, its
 	/// QR texture, and the short-lived worker jobs behind them.
 	pub channels: settings_channels::ChannelsPanel,
+	/// 全部设置: zetacode's complete schema from `GET /api/settings`, with
+	/// the language it was read in and the rows' text drafts.
+	pub schema: settings_schema::SchemaCache,
 	/// The 更新 control: the desktop app's own release check and installer,
 	/// run through the shipped `zetacode` off the UI thread.
 	pub updates: updates::UpdateCache,
@@ -271,6 +275,7 @@ impl Shell {
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			channels: settings_channels::ChannelsPanel::default(),
+			schema: settings_schema::SchemaCache::default(),
 			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
 			probe: true,
@@ -328,6 +333,7 @@ impl Shell {
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			channels: settings_channels::ChannelsPanel::default(),
+			schema: settings_schema::SchemaCache::default(),
 			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
 			probe: false,
@@ -1001,6 +1007,45 @@ impl Shell {
 		}
 		if self.settings_changed() {
 			self.apply_settings(ctx);
+		}
+		// 全部设置: the catalog is fetched while the section is open. `ensure`
+		// is a no-op once the stored catalog belongs to the current language,
+		// so the draw loop cannot hammer the gateway; a language switch makes
+		// `loaded_lang` differ and re-fetches the localized labels.
+		if self.state.settings_open() && self.state.settings_section == crate::settings::Section::All
+		{
+			match self.stats.gateway_origin() {
+				Some(origin) => {
+					let gateway: std::sync::Arc<dyn crate::settings_schema::Gateway> =
+						std::sync::Arc::new(crate::settings_schema::HttpGateway::new(origin));
+					self.schema.ensure(gateway, self.settings.lang);
+				},
+				// `statsUrl` is the dashboard, not the API. Guessing it would
+				// turn a missing `webUrl` into a misleading 404 from another
+				// listener. A cache that already holds this language (the
+				// headless screenshots) needs no gateway and gets no error.
+				None => {
+					if self.schema.catalog().is_none()
+						|| self.schema.loaded_lang() != Some(self.settings.lang)
+					{
+						self.schema.set_error(
+							t!(
+								"未发现网关地址（~/.zeta/serve.json 的 webUrl）；设置 schema 需要 zetacode serve 运行"
+							)
+							.to_owned(),
+						);
+					}
+				},
+			}
+		}
+		if self.schema.poll() {
+			ctx.request_repaint();
+		}
+		// The gateway round trip runs on a worker; keep frames coming while it
+		// is in flight, or an idle window would show the spinner until the next
+		// mouse move.
+		if self.schema.loading() {
+			ctx.request_repaint_after(std::time::Duration::from_millis(120));
 		}
 		self.memory.sample_if_stale();
 		if !self.forward_terminal_input(ctx) {
