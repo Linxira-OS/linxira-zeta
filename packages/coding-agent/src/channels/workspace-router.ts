@@ -441,7 +441,9 @@ export async function routeWorkspaceCommand(body: string, _peer: string, deps: W
 				await deps.sendText(
 					[
 						`Bindings for ${deps.channelId}:`,
-						...bindings.map(b => `  chat ${b.chatId} → ${b.workspaceAlias} (${b.mode ?? "direct"})`),
+						...bindings.map(
+							b => `  chat ${b.chatId} → ${b.workspaceAlias ?? "(session)"} (${b.mode ?? "direct"})`,
+						),
 					].join("\n"),
 				);
 			}
@@ -584,6 +586,9 @@ async function switchToWorkspace(deps: WorkspaceRouterDeps, alias: string): Prom
 async function useRelay(deps: WorkspaceRouterDeps): Promise<void> {
 	if (!deps.router) return;
 	await deps.router.setRuntimeBinding(deps.channelId as never, deps.peer, COORDINATOR_ALIAS);
+	// Relay means the coordinator, so an active default-space bot session must
+	// not keep capturing this chat's next message.
+	await deps.router.clearActiveBotSession(deps.channelId as never, deps.peer);
 	await deps.sendText("Relay mode: messages now go through the coordinator (main).");
 }
 

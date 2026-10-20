@@ -606,7 +606,7 @@ export class ZetaServer {
 	 */
 	async #ensureMainSession(webConfig?: WebConfig): Promise<void> {
 		if (this.#channelCoordinator) return;
-		const config = webConfig ?? (await WebConfig.load());
+		const config = webConfig ?? (await WebConfig.shared());
 		// The coordinator is anchored in the stable default workspace, not the
 		// serve process cwd (desktop installs launch from the app install dir):
 		// its persisted transcript lives in the workspace's session dir so the
@@ -795,7 +795,8 @@ export class ZetaServer {
 		// even when no channel was enabled at serve start.
 		registerRestartChannels(async () => this.#restartChannels());
 		try {
-			const webConfig = await WebConfig.load();
+			const webConfig = await WebConfig.shared();
+			await webConfig.reload();
 			await this.#ensureMainSession(webConfig);
 			await this.#startChannelRuntime(webConfig);
 		} catch (error) {
@@ -946,7 +947,8 @@ export class ZetaServer {
 	/** Live channel config re-apply: stop + re-start per the fresh web.yml. */
 	async #restartChannels(): Promise<void> {
 		try {
-			const webConfig = await WebConfig.load();
+			const webConfig = await WebConfig.shared();
+			await webConfig.reload();
 			await this.#ensureMainSession(webConfig);
 			await this.#startChannelRuntime(webConfig);
 		} catch (error) {

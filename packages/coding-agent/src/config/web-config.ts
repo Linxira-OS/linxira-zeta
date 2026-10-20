@@ -15,6 +15,7 @@ import * as path from "node:path";
 import { getAgentDir, isEnoent, logger } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { generateRemoteToken, hashRemoteToken, MASKED_TOKEN } from "../utils/remote-token";
+import { withFileLock } from "./file-lock";
 
 export const WEB_CONFIG_FILENAME = "web.yml";
 
@@ -63,8 +64,10 @@ export interface SessionMapping {
 	chatId: string;
 	/** Optional user id; empty matches any user in the chat. */
 	userId?: string;
-	/** The workspace alias this chat is bound to. */
-	workspaceAlias: string;
+	/** The workspace alias this chat is bound to. Absent on the session-only
+	 *  rows `!lang` / `!session use` write (a chat can remember its language
+	 *  and bot-session pointer without being bound to a workspace). */
+	workspaceAlias?: string;
 	/** "direct" = talk to the bound workspace directly; "relay" = go through the coordinator. */
 	mode?: "direct" | "relay";
 	/** Default-space bot session this chat is currently using (see `remote.botSessions`). */
@@ -296,36 +299,88 @@ const CHANNEL_PLATFORMS: Record<string, true> = {
 };
 
 /**
- * `remote.sessionMappings`: the per-chat bindings the router consults. Each
- * entry needs a known platform, a chat id and the alias it routes to; the
- * optional fields (`userId`, `chatType`, `connectionId`, `mode`, `lang`,
- * `sessionId`) keep their types, and unknown keys are preserved untouched.
+ * `remote.sessionMappings`: the per-chat bindings the router consults. A row
+ * needs a known platform, a chat id, and at least one of a workspace alias (a
+ * routing binding), a reply language, or a bot-session pointer — the
+ * session-only rows `!lang` / `!session use` write are legitimate and must
+ * survive a GUI whole-array PUT, while a row carrying none of them is
+ * rejected. The optional fields (`userId`, `chatType`, `connectionId`, `mode`,
+ * `lang`, `sessionId`) keep their types, and unknown keys are preserved.
  */
+function mappingProblem(entry: unknown): string | null {
+	if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+		return "Expected a session mapping object";
+	}
+	const record = entry as Record<string, unknown>;
+	if (typeof record.platform !== "string" || !Object.hasOwn(CHANNEL_PLATFORMS, record.platform)) {
+		return 'Expected platform "wechat", "feishu" or "telegram"';
+	}
+	if (!requiredText(record.chatId)) return "Each binding needs a chatId";
+	if (record.workspaceAlias !== undefined && record.workspaceAlias !== "" && !requiredText(record.workspaceAlias)) {
+		return "Expected workspaceAlias to be a non-empty string";
+	}
+	const hasAlias = requiredText(record.workspaceAlias) !== null;
+	if (!hasAlias && !requiredText(record.lang) && !requiredText(record.sessionId)) {
+		return "Each binding needs a workspaceAlias, lang or sessionId";
+	}
+	for (const key of ["connectionId", "chatType", "userId", "sessionId"]) {
+		const field = record[key];
+		if (field !== undefined && typeof field !== "string") {
+			return `Expected ${key} to be a string`;
+		}
+	}
+	if (record.mode !== undefined && record.mode !== "direct" && record.mode !== "relay") {
+		return 'Expected mode to be "direct" or "relay"';
+	}
+	if (record.lang !== undefined && record.lang !== "zh" && record.lang !== "en") {
+		return 'Expected lang to be "zh" or "en"';
+	}
+	return null;
+}
+
 function validateSessionMappings(value: unknown): void {
 	if (!Array.isArray(value)) throw new Error("Expected an array of session mappings");
 	for (const entry of value) {
-		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
-			throw new Error("Expected a session mapping object");
-		}
-		const record = entry as Record<string, unknown>;
-		if (typeof record.platform !== "string" || !Object.hasOwn(CHANNEL_PLATFORMS, record.platform)) {
-			throw new Error('Expected platform "wechat", "feishu" or "telegram"');
-		}
-		if (!requiredText(record.chatId)) throw new Error("Each binding needs a chatId");
-		if (!requiredText(record.workspaceAlias)) throw new Error("Each binding needs a workspaceAlias");
-		for (const key of ["connectionId", "chatType", "userId", "sessionId"]) {
-			const field = record[key];
-			if (field !== undefined && typeof field !== "string") {
-				throw new Error(`Expected ${key} to be a string`);
-			}
-		}
-		if (record.mode !== undefined && record.mode !== "direct" && record.mode !== "relay") {
-			throw new Error('Expected mode to be "direct" or "relay"');
-		}
-		if (record.lang !== undefined && record.lang !== "zh" && record.lang !== "en") {
-			throw new Error('Expected lang to be "zh" or "en"');
-		}
+		const problem = mappingProblem(entry);
+		if (problem !== null) throw new Error(problem);
 	}
+}
+
+/** The live remote token in a data snapshot, or `undefined` when none is configured. */
+function liveRemoteToken(data: WebConfigData): string | undefined {
+	const token = data.remote.token?.trim();
+	return token && token !== MASKED_TOKEN ? token : undefined;
+}
+
+/** Record a token hash in the snapshot's revoked list (hashes only, never secrets). */
+function revokeTokenHash(data: WebConfigData, hash: string): void {
+	const hashes = data.remote.revokedTokens ?? [];
+	if (!hashes.includes(hash)) hashes.push(hash);
+	data.remote.revokedTokens = hashes;
+}
+
+/** Workspace entries of a snapshot, normalizing legacy bare-path rows to `{alias, path}`. */
+function workspaceEntries(data: WebConfigData): RemoteWorkspace[] {
+	return (data.remote.workspaces ?? []).map(entry =>
+		typeof entry === "string"
+			? { alias: path.basename(entry), path: entry }
+			: { alias: entry.alias, path: entry.path },
+	);
+}
+
+/**
+ * Drop mapping rows this version can no longer validate (an older build wrote
+ * session-only rows the GUI's whole-array PUT rejects) so a write heals the
+ * file instead of carrying invalid rows forward.
+ */
+function dropUnpersistableMappings(data: WebConfigData): boolean {
+	const mappings = data.remote.sessionMappings;
+	if (!mappings) return false;
+	const kept = mappings.filter(entry => mappingProblem(entry) === null);
+	if (kept.length === mappings.length) return false;
+	if (kept.length === 0) delete data.remote.sessionMappings;
+	else data.remote.sessionMappings = kept;
+	return true;
 }
 
 function setByPath(obj: Record<string, unknown>, segments: readonly string[], value: unknown): void {
@@ -364,13 +419,22 @@ function deepMerge(base: WebConfigData, overlay: unknown): WebConfigData {
 }
 
 /**
- * Loads and persists `~/.zeta/agent/web.yml`. A fresh instance per request —
- * like `Settings.loadIsolated` — so concurrent gateway callers never share a
- * stale in-memory copy.
+ * Loads and persists `~/.zeta/agent/web.yml`.
+ *
+ * An instance is a read snapshot (the channel adapters and the router hold one
+ * for a whole process); every mutation is a read-modify-write under the config
+ * file lock: the freshest on-disk data is loaded, the change is applied to it,
+ * and the result is written back atomically. Two writers — a running adapter
+ * and a gateway request, in this process or another — therefore never drop
+ * each other's keys, and a stale snapshot can never write a rotated or revoked
+ * `remote.token` back to disk. {@link reload} refreshes a snapshot;
+ * {@link shared} hands out the one instance per path per process.
  */
 export class WebConfig {
 	readonly #filePath: string;
 	#data: WebConfigData;
+	/** One instance per absolute path, so serve + gateway mutate one snapshot. */
+	static readonly #shared = new Map<string, Promise<WebConfig>>();
 
 	private constructor(filePath: string, data: WebConfigData) {
 		this.#filePath = filePath;
@@ -384,6 +448,28 @@ export class WebConfig {
 
 	/** Load from disk, deep-merging defaults; a missing/corrupt file falls back to defaults. */
 	static async load(filePath = WebConfig.defaultPath()): Promise<WebConfig> {
+		return new WebConfig(filePath, await WebConfig.#read(filePath));
+	}
+
+	/**
+	 * The one instance for `filePath` in this process. `serve` holds it for its
+	 * adapters and the gateway for its handlers, so a PUT is visible to the
+	 * running router without a reload and writers share one lock holder.
+	 */
+	static shared(filePath = WebConfig.defaultPath()): Promise<WebConfig> {
+		const existing = WebConfig.#shared.get(filePath);
+		if (existing) return existing;
+		const pending = WebConfig.load(filePath);
+		WebConfig.#shared.set(filePath, pending);
+		return pending;
+	}
+
+	/** Forget the shared instances (tests, or after the agent dir moves). */
+	static resetShared(): void {
+		WebConfig.#shared.clear();
+	}
+
+	static async #read(filePath: string): Promise<WebConfigData> {
 		let raw: unknown = {};
 		try {
 			const content = await Bun.file(filePath).text();
@@ -401,7 +487,7 @@ export class WebConfig {
 				});
 			}
 		}
-		return new WebConfig(filePath, deepMerge(DEFAULT_DATA, raw));
+		return deepMerge(DEFAULT_DATA, raw);
 	}
 
 	get path(): string {
@@ -446,19 +532,24 @@ export class WebConfig {
 		return masked;
 	}
 
-	/** Set one known dot path (e.g. `channels.wechat.enabled`) and persist. */
+	/**
+	 * Set one known dot path (e.g. `channels.wechat.enabled`) and persist.
+	 * The write starts from the on-disk file under the config lock, so keys
+	 * another writer changed meanwhile are preserved.
+	 */
 	async set(pathToSet: string, value: unknown): Promise<void> {
 		const leafType = KNOWN_PATHS[pathToSet];
 		if (leafType === undefined) throw new Error(`Unknown web config path: ${pathToSet}`);
 		validateValue(leafType, value);
-		setByPath(this.#data as unknown as Record<string, unknown>, pathToSet.split("."), value);
-		await this.#write();
+		await this.#mutate(data => {
+			setByPath(data as unknown as Record<string, unknown>, pathToSet.split("."), value);
+			return { changed: true, value: undefined };
+		});
 	}
 
 	/** The live remote-access token, or `undefined` when none is configured. */
 	getRemoteToken(): string | undefined {
-		const token = this.#data.remote.token?.trim();
-		return token && token !== MASKED_TOKEN ? token : undefined;
+		return liveRemoteToken(this.#data);
 	}
 
 	/** Hashes of rotated-away / revoked tokens. */
@@ -469,16 +560,18 @@ export class WebConfig {
 	/**
 	 * Replace the active token and revoke the previous one in a single write.
 	 * The caller receives the new plaintext token once (the config only ever
-	 * stores hashes for retired tokens).
+	 * stores hashes for retired tokens). The previous token is read from disk
+	 * under the config lock, so a rotation never revokes a stale value.
 	 */
 	async rotateRemoteToken(): Promise<string> {
-		const previous = this.getRemoteToken();
-		const next = generateRemoteToken();
-		if (previous) this.#revokeHash(hashRemoteToken(previous));
-		this.#data.remote.token = next;
-		this.#data.remote.tokenUpdatedAt = new Date().toISOString();
-		await this.#write();
-		return next;
+		return this.#mutate(data => {
+			const previous = liveRemoteToken(data);
+			const next = generateRemoteToken();
+			if (previous) revokeTokenHash(data, hashRemoteToken(previous));
+			data.remote.token = next;
+			data.remote.tokenUpdatedAt = new Date().toISOString();
+			return { changed: true, value: next };
+		});
 	}
 
 	/**
@@ -488,34 +581,28 @@ export class WebConfig {
 	async revokeRemoteToken(token: string): Promise<void> {
 		const candidate = token.trim();
 		if (candidate === "") throw new Error("Expected a token to revoke");
-		this.#revokeHash(hashRemoteToken(candidate));
-		if (this.getRemoteToken() === candidate) this.#data.remote.token = undefined;
-		this.#data.remote.tokenUpdatedAt = new Date().toISOString();
-		await this.#write();
-	}
-
-	#revokeHash(hash: string): void {
-		const hashes = this.#data.remote.revokedTokens ?? [];
-		if (!hashes.includes(hash)) hashes.push(hash);
-		this.#data.remote.revokedTokens = hashes;
+		await this.#mutate(data => {
+			revokeTokenHash(data, hashRemoteToken(candidate));
+			if (liveRemoteToken(data) === candidate) data.remote.token = undefined;
+			data.remote.tokenUpdatedAt = new Date().toISOString();
+			return { changed: true, value: undefined };
+		});
 	}
 
 	/** Replace the whole workspace list and persist. */
 	async setWorkspaces(workspaces: string[]): Promise<void> {
-		if (workspaces.some(item => typeof item !== "string")) throw new Error("Expected an array of strings");
-		this.#data.remote.workspaces = [...workspaces];
-		await this.#write();
+		if (!Array.isArray(workspaces) || workspaces.some(item => typeof item !== "string")) {
+			throw new Error("Expected an array of strings");
+		}
+		await this.#mutate(data => {
+			data.remote.workspaces = [...workspaces];
+			return { changed: true, value: undefined };
+		});
 	}
 
 	/** Normalized workspace entries (legacy bare-path entries get alias = basename). */
 	getWorkspaces(): RemoteWorkspace[] {
-		const entries = this.#data.remote.workspaces ?? [];
-		return entries.map(entry => {
-			if (typeof entry === "string") {
-				return { alias: path.basename(entry), path: entry };
-			}
-			return { alias: entry.alias, path: entry.path };
-		});
+		return workspaceEntries(this.#data);
 	}
 
 	/** Resolve an alias or absolute path to a workspace entry. */
@@ -536,26 +623,32 @@ export class WebConfig {
 		if (!cleanAlias) return { ok: false, error: "Workspace alias must not be empty" };
 		if (cleanAlias === "main") return { ok: false, error: '"main" is the reserved alias of the relay coordinator' };
 		if (!path.isAbsolute(dir)) return { ok: false, error: "Workspace path must be absolute" };
-		const entries = this.getWorkspaces();
-		const existing = entries.find(entry => entry.alias === cleanAlias);
-		if (existing && existing.path !== dir) {
-			return { ok: false, error: `Alias "${cleanAlias}" is already bound to ${existing.path}` };
-		}
-		const next = entries.filter(entry => entry.alias !== cleanAlias);
-		next.push({ alias: cleanAlias, path: dir });
-		this.#data.remote.workspaces = next;
-		await this.#write();
-		return { ok: true, alias: cleanAlias };
+		return this.#mutate<{ ok: true; alias: string } | { ok: false; error: string }>(data => {
+			const entries = workspaceEntries(data);
+			const existing = entries.find(entry => entry.alias === cleanAlias);
+			if (existing && existing.path !== dir) {
+				return {
+					changed: false,
+					value: { ok: false as const, error: `Alias "${cleanAlias}" is already bound to ${existing.path}` },
+				};
+			}
+			data.remote.workspaces = [
+				...entries.filter(entry => entry.alias !== cleanAlias),
+				{ alias: cleanAlias, path: dir },
+			];
+			return { changed: true, value: { ok: true as const, alias: cleanAlias } };
+		});
 	}
 
 	/** Remove a workspace entry by alias and persist. */
 	async removeWorkspaceEntry(alias: string): Promise<boolean> {
-		const entries = this.getWorkspaces();
-		const next = entries.filter(entry => entry.alias !== alias);
-		if (next.length === entries.length) return false;
-		this.#data.remote.workspaces = next;
-		await this.#write();
-		return true;
+		return this.#mutate(data => {
+			const entries = workspaceEntries(data);
+			const next = entries.filter(entry => entry.alias !== alias);
+			if (next.length === entries.length) return { changed: false, value: false };
+			data.remote.workspaces = next;
+			return { changed: true, value: true };
+		});
 	}
 
 	/** Persisted per-chat session mappings. */
@@ -589,61 +682,77 @@ export class WebConfig {
 
 	/** Add or replace one session mapping and persist. */
 	async setSessionMapping(mapping: SessionMapping): Promise<void> {
-		const entries = this.getSessionMappings();
-		const next = entries.filter(
-			entry =>
-				!(
-					entry.platform === mapping.platform &&
-					entry.chatId === mapping.chatId &&
-					entry.userId === mapping.userId
-				),
-		);
-		next.push(mapping);
-		this.#data.remote.sessionMappings = next;
-		await this.#write();
+		validateSessionMappings([mapping]);
+		await this.#mutate(data => {
+			const entries = data.remote.sessionMappings ?? [];
+			const next = entries.filter(
+				entry =>
+					!(
+						entry.platform === mapping.platform &&
+						entry.chatId === mapping.chatId &&
+						entry.userId === mapping.userId
+					),
+			);
+			next.push(mapping);
+			data.remote.sessionMappings = next;
+			return { changed: true, value: undefined };
+		});
 	}
 
 	/** Remove a session mapping and persist. */
 	async removeSessionMapping(platform: SessionMapping["platform"], chatId: string, userId?: string): Promise<boolean> {
-		const entries = this.getSessionMappings();
-		const next = entries.filter(
-			entry => !(entry.platform === platform && entry.chatId === chatId && entry.userId === userId),
-		);
-		if (next.length === entries.length) return false;
-		this.#data.remote.sessionMappings = next;
-		await this.#write();
-		return true;
+		return this.#mutate(data => {
+			const entries = data.remote.sessionMappings ?? [];
+			const next = entries.filter(
+				entry => !(entry.platform === platform && entry.chatId === chatId && entry.userId === userId),
+			);
+			if (next.length === entries.length) return { changed: false, value: false };
+			data.remote.sessionMappings = next;
+			return { changed: true, value: true };
+		});
 	}
 
 	/**
 	 * Merge fields into a chat's session mapping, creating a chat-level mapping
 	 * (no user id) when none exists. `null` deletes a field, `undefined` leaves
 	 * it untouched. Used by `!session use` / `!lang` and the workspace router.
+	 *
+	 * A row that ends up carrying only its platform and chat id says nothing,
+	 * so it is dropped rather than persisted as a row the GUI's whole-array PUT
+	 * would reject.
 	 */
 	async updateChatMapping(
 		platform: SessionMapping["platform"],
 		chatId: string,
 		patch: { sessionId?: string | null; lang?: "zh" | "en" | null; workspaceAlias?: string | null },
 	): Promise<void> {
-		const entries = this.getSessionMappings();
-		const existing = entries.find(
-			entry => entry.platform === platform && entry.chatId === chatId && entry.userId === undefined,
-		);
-		const next = entries.filter(
-			entry => !(entry.platform === platform && entry.chatId === chatId && entry.userId === undefined),
-		);
-		const merged = { ...(existing ?? { platform, chatId }) };
-		for (const [key, value] of Object.entries(patch)) {
-			if (value === undefined) continue;
-			if (value === null) {
-				delete (merged as Record<string, unknown>)[key];
-			} else {
-				(merged as Record<string, unknown>)[key] = value;
+		await this.#mutate(data => {
+			const entries = data.remote.sessionMappings ?? [];
+			const existing = entries.find(
+				entry => entry.platform === platform && entry.chatId === chatId && entry.userId === undefined,
+			);
+			const next = entries.filter(
+				entry => !(entry.platform === platform && entry.chatId === chatId && entry.userId === undefined),
+			);
+			const merged = { ...(existing ?? { platform, chatId }) };
+			for (const [key, value] of Object.entries(patch)) {
+				if (value === undefined) continue;
+				if (value === null) {
+					delete (merged as Record<string, unknown>)[key];
+				} else {
+					(merged as Record<string, unknown>)[key] = value;
+				}
 			}
-		}
-		next.push(merged as SessionMapping);
-		this.#data.remote.sessionMappings = next;
-		await this.#write();
+			if (mappingProblem(merged) !== null) {
+				// Nothing left worth remembering: drop the row (if it existed).
+				if (!existing) return { changed: false, value: undefined };
+				data.remote.sessionMappings = next;
+				return { changed: true, value: undefined };
+			}
+			next.push(merged as SessionMapping);
+			data.remote.sessionMappings = next;
+			return { changed: true, value: undefined };
+		});
 	}
 
 	/** Registered default-space bot sessions. */
@@ -668,19 +777,23 @@ export class WebConfig {
 
 	/** Register (or replace) one bot session entry and persist. */
 	async upsertBotSession(entry: BotSessionEntry): Promise<void> {
-		const next = this.getBotSessions().filter(existing => existing.id !== entry.id);
-		next.push(entry);
-		this.#data.remote.botSessions = next;
-		await this.#write();
+		await this.#mutate(data => {
+			const next = (data.remote.botSessions ?? []).filter(existing => existing.id !== entry.id);
+			next.push(entry);
+			data.remote.botSessions = next;
+			return { changed: true, value: undefined };
+		});
 	}
 
 	/** Remove a bot session entry and persist. Returns false when absent. */
 	async removeBotSession(id: string): Promise<boolean> {
-		const next = this.getBotSessions().filter(entry => entry.id !== id);
-		if (next.length === this.getBotSessions().length) return false;
-		this.#data.remote.botSessions = next;
-		await this.#write();
-		return true;
+		return this.#mutate(data => {
+			const entries = data.remote.botSessions ?? [];
+			const next = entries.filter(entry => entry.id !== id);
+			if (next.length === entries.length) return { changed: false, value: false };
+			data.remote.botSessions = next;
+			return { changed: true, value: true };
+		});
 	}
 
 	/** Whether the web-ui sidebar shows relay/bot sessions. */
@@ -690,24 +803,43 @@ export class WebConfig {
 
 	/** Drop every chat's `sessionId` pointer to a deleted bot session. */
 	async clearChatSessionReferences(sessionId: string): Promise<void> {
-		const entries = this.getSessionMappings();
-		const referenced = entries.filter(entry => entry.sessionId === sessionId);
-		if (referenced.length === 0) return;
-		this.#data.remote.sessionMappings = entries.map(entry => {
-			if (entry.sessionId !== sessionId) return entry;
-			const { sessionId: _drop, ...rest } = entry;
-			return rest;
+		await this.#mutate(data => {
+			const entries = data.remote.sessionMappings ?? [];
+			if (!entries.some(entry => entry.sessionId === sessionId)) return { changed: false, value: undefined };
+			data.remote.sessionMappings = entries.map(entry => {
+				if (entry.sessionId !== sessionId) return entry;
+				const { sessionId: _drop, ...rest } = entry;
+				return rest;
+			});
+			return { changed: true, value: undefined };
 		});
-		await this.#write();
 	}
 
-	/** Re-read the file from disk, discarding in-memory changes. */
+	/** Re-read the file from disk (under the config lock), discarding in-memory changes. */
 	async reload(): Promise<void> {
-		const fresh = await WebConfig.load(this.#filePath);
-		this.#data = fresh.#data;
+		await withFileLock(this.#filePath, async () => {
+			this.#data = await WebConfig.#read(this.#filePath);
+		});
 	}
 
-	async #write(): Promise<void> {
+	/**
+	 * Apply one mutation as a read-modify-write under the config file lock.
+	 * The mutation edits the freshest on-disk snapshot and reports whether it
+	 * changed anything; the snapshot becomes this instance's view afterwards,
+	 * so a long-lived holder sees its own write without a reload.
+	 */
+	async #mutate<T>(mutation: (data: WebConfigData) => { changed: boolean; value: T }): Promise<T> {
+		return withFileLock(this.#filePath, async () => {
+			const data = await WebConfig.#read(this.#filePath);
+			const { changed, value } = mutation(data);
+			const healed = dropUnpersistableMappings(data);
+			if (changed || healed) await this.#write(data);
+			this.#data = data;
+			return value;
+		});
+	}
+
+	async #write(data: WebConfigData): Promise<void> {
 		const dir = path.dirname(this.#filePath);
 		await fs.promises.mkdir(dir, { recursive: true });
 		const tempPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`;
@@ -716,7 +848,7 @@ export class WebConfig {
 			const handle = await fs.promises.open(tempPath, "wx", 0o600);
 			removeTemp = true;
 			try {
-				await handle.writeFile(YAML.stringify(this.#data, null, 2), "utf8");
+				await handle.writeFile(YAML.stringify(data, null, 2), "utf8");
 				await handle.sync();
 			} finally {
 				await handle.close();

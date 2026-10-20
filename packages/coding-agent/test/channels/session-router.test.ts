@@ -220,6 +220,28 @@ describe("SessionRouter", () => {
 		expect(await router2.resolveRoute("wechat", "peer-b")).toBe("relay");
 	});
 
+	test("mode: relay on a persisted mapping outranks its alias", async () => {
+		const dir1 = await mkdtemp(join(tmpdir(), "zeta-repo1-"));
+		cleanups.push(() => rm(dir1, { recursive: true, force: true }));
+
+		const router = await makeRouter([dir1]);
+		const alias = path.basename(dir1);
+		await webConfig.setSessionMapping({
+			platform: "wechat",
+			chatId: "peer-c",
+			workspaceAlias: alias,
+			mode: "relay",
+		});
+
+		expect(await router.resolveRoute("wechat", "peer-c")).toBe("relay");
+		expect(await router.resolveChatTarget("wechat", "peer-c")).toEqual({ kind: "relay" });
+
+		// An explicit runtime switch (`@workspace use`) still wins.
+		await router.setRuntimeBinding("wechat", "peer-c", alias);
+		expect(await router.resolveRoute("wechat", "peer-c")).toBe("direct");
+		expect(await router.resolveChatTarget("wechat", "peer-c")).toEqual({ kind: "workspace", alias });
+	});
+
 	test("deliverDirect injects into the bound session and routes its reply to the chat", async () => {
 		const dir1 = await mkdtemp(join(tmpdir(), "zeta-repo1-"));
 		cleanups.push(() => rm(dir1, { recursive: true, force: true }));

@@ -82,4 +82,38 @@ describe("web-config workspace routing writes", () => {
 			config.set("remote.sessionMappings", [{ platform: "irc", chatId: "x", workspaceAlias: "alpha" }]),
 		).rejects.toThrow(/platform/);
 	});
+
+	it("accepts the session-only rows !lang / !session use write", async () => {
+		const config = await WebConfig.load(file);
+		await config.updateChatMapping("feishu", "oc_2", { lang: "zh" });
+		await config.updateChatMapping("feishu", "oc_2", { sessionId: "abc123" });
+
+		const rows = (await WebConfig.load(file)).getSessionMappings();
+		expect(rows).toEqual([{ platform: "feishu", chatId: "oc_2", lang: "zh", sessionId: "abc123" }]);
+		// The GUI's whole-array PUT of exactly this array must be accepted.
+		await expect(config.set("remote.sessionMappings", rows)).resolves.toBeUndefined();
+	});
+
+	it("rejects a row that carries no alias, language or session", async () => {
+		const config = await WebConfig.load(file);
+		await expect(config.set("remote.sessionMappings", [{ platform: "feishu", chatId: "oc_3" }])).rejects.toThrow(
+			/workspaceAlias, lang or sessionId/,
+		);
+	});
+
+	it("drops rows that would fail validation instead of persisting them", async () => {
+		// An older build wrote this row; the next write heals the file.
+		await Bun.write(
+			file,
+			JSON.stringify({
+				remote: { sessionMappings: [{ platform: "feishu", chatId: "oc_4" }] },
+			}),
+		);
+		const config = await WebConfig.load(file);
+		await config.set("tray.autostart", true);
+
+		const rows = (await WebConfig.load(file)).getSessionMappings();
+		expect(rows).toEqual([]);
+		await expect((await WebConfig.load(file)).set("remote.sessionMappings", rows)).resolves.toBeUndefined();
+	});
 });

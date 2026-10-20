@@ -12,6 +12,11 @@
  * The same file is the observation point for `zetacode channels status`, so
  * the command does not need a second live registry (and the gateway continues
  * to read the in-process runtime).
+ *
+ * Publishing is atomic (the payload is written to a private temp file and
+ * hard-linked into place), so a reader never observes a half-written lock and
+ * mistakes it for a stale one; a lock that does read as unparseable is retried
+ * briefly before it is replaced.
  */
 
 import { randomUUID } from "node:crypto";
@@ -20,6 +25,12 @@ import * as path from "node:path";
 import type { ChannelId } from "@linxiraos/pi-channels";
 
 export const CHANNEL_LOCK_FILENAME = "channels.lock";
+
+/** Attempts (15 ms apart) while a contender keeps replacing the lock file. */
+const MAX_ACQUIRE_ATTEMPTS = 40;
+/** Attempts (15 ms apart) to wait out a lock file that is momentarily unparseable. */
+const MALFORMED_RETRIES = 5;
+const RETRY_DELAY_MS = 15;
 
 export interface ChannelLockMetadata {
 	version: 1;
@@ -41,6 +52,8 @@ export interface ChannelLockSnapshot {
 	metadata: ChannelLockMetadata;
 	/** False for a lock left behind by a dead process (status reports it as stale). */
 	alive: boolean;
+	/** The file could not be parsed (mid-write by an older writer, or corrupt). */
+	malformed?: boolean;
 }
 
 export interface ChannelLockHandle {
@@ -125,14 +138,86 @@ export async function readChannelLock(
 				channels: [],
 			},
 			alive: false,
+			malformed: true,
 		};
 	}
 	return { metadata, alive: (options.isAlive ?? isProcessAlive)(metadata.pid) };
 }
 
+/** Error codes a filesystem without hard links reports for `link`. */
+const NO_HARD_LINK_CODES: Record<string, true> = {
+	EPERM: true,
+	ENOTSUP: true,
+	EOPNOTSUPP: true,
+	ENOSYS: true,
+	EXDEV: true,
+};
+
+/**
+ * Publish a complete lock payload at `lockPath`, atomically and only when no
+ * lock exists. The payload is written and fsync'd in a private temp file that
+ * is then hard-linked into place: `link` refuses with EEXIST when another
+ * process already published, and readers never observe a partial file (which
+ * they would otherwise misjudge as stale and steal).
+ *
+ * Filesystems without hard links (exFAT, some network mounts) fall back to an
+ * exclusive create — still race-free, but readers can briefly see the empty
+ * file, which the acquisition loop's unparseable retry absorbs.
+ */
+async function publishLockFile(lockPath: string, payload: string): Promise<boolean> {
+	const tempPath = `${lockPath}.${process.pid}.${randomUUID()}.tmp`;
+	try {
+		const handle = await fs.open(tempPath, "wx", 0o600);
+		try {
+			await handle.writeFile(payload, "utf8");
+			await handle.sync();
+		} finally {
+			await handle.close();
+		}
+		try {
+			await fs.link(tempPath, lockPath);
+			return true;
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException).code;
+			if (code === "EEXIST") return false;
+			if (code === undefined || !Object.hasOwn(NO_HARD_LINK_CODES, code)) throw error;
+		}
+	} finally {
+		await fs.rm(tempPath, { force: true }).catch(() => {});
+	}
+	// Reached only when this filesystem cannot hard-link: exclusive create is
+	// the only atomic primitive left.
+	try {
+		await fs.writeFile(lockPath, payload, { encoding: "utf8", mode: 0o600, flag: "wx" });
+		return true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+		throw error;
+	}
+}
+
+/** Replace an existing lock payload atomically (readers see old or new, never a mix). */
+async function replaceLockFile(lockPath: string, payload: string): Promise<void> {
+	const tempPath = `${lockPath}.${process.pid}.${randomUUID()}.tmp`;
+	try {
+		const handle = await fs.open(tempPath, "wx", 0o600);
+		try {
+			await handle.writeFile(payload, "utf8");
+			await handle.sync();
+		} finally {
+			await handle.close();
+		}
+		await fs.rename(tempPath, lockPath);
+	} finally {
+		await fs.rm(tempPath, { force: true }).catch(() => {});
+	}
+}
+
 /**
  * Take the lock. `instanceId` is generated unless a caller supplies one (tests
- * and the serve host pass their own). A stale or malformed lock is replaced.
+ * and the serve host pass their own). A lock held by a dead pid is replaced;
+ * a lock that reads as unparseable is retried briefly first, because it may be
+ * another process's in-flight publish rather than garbage.
  */
 export async function acquireChannelLock(options: {
 	lockPath: string;
@@ -150,16 +235,11 @@ export async function acquireChannelLock(options: {
 		...(options.metadata.sessionId ? { sessionId: options.metadata.sessionId } : {}),
 		channels: [...options.metadata.channels],
 	};
+	const payload = `${JSON.stringify(metadata, null, 2)}\n`;
 	await fs.mkdir(path.dirname(options.lockPath), { recursive: true });
 
-	for (let attempt = 0; attempt < 3; attempt++) {
-		try {
-			const handle = await fs.open(options.lockPath, "wx", 0o600);
-			try {
-				await handle.writeFile(`${JSON.stringify(metadata, null, 2)}\n`, "utf8");
-			} finally {
-				await handle.close();
-			}
+	for (let attempt = 0; attempt < MAX_ACQUIRE_ATTEMPTS; attempt++) {
+		if (await publishLockFile(options.lockPath, payload)) {
 			return {
 				ok: true,
 				lock: {
@@ -167,10 +247,7 @@ export async function acquireChannelLock(options: {
 					metadata,
 					async update(patch) {
 						Object.assign(metadata, patch);
-						await fs.writeFile(options.lockPath, `${JSON.stringify(metadata, null, 2)}\n`, {
-							encoding: "utf8",
-							mode: 0o600,
-						});
+						await replaceLockFile(options.lockPath, `${JSON.stringify(metadata, null, 2)}\n`);
 					},
 					async release() {
 						const current = await readChannelLock(options.lockPath, options);
@@ -179,22 +256,30 @@ export async function acquireChannelLock(options: {
 					},
 				},
 			};
-		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-			const holder = await readChannelLock(options.lockPath, options);
-			if (holder === null) continue; // raced with a release; retry
-			if (holder.alive) {
-				return {
-					ok: false,
-					holder,
-					message:
-						`IM channels are already hosted by pid ${holder.metadata.pid} (${holder.metadata.host}` +
-						`${holder.metadata.startedAt ? `, started ${holder.metadata.startedAt}` : ""}). ` +
-						"Stop that process first; two hosts would double-bind the same bot.",
-				};
-			}
-			await fs.unlink(options.lockPath).catch(() => {});
 		}
+		const holder = await readChannelLock(options.lockPath, options);
+		if (holder === null) {
+			// Raced with a release between the publish attempt and the read.
+			await Bun.sleep(RETRY_DELAY_MS);
+			continue;
+		}
+		if (holder.alive) {
+			return {
+				ok: false,
+				holder,
+				message:
+					`IM channels are already hosted by pid ${holder.metadata.pid} (${holder.metadata.host}` +
+					`${holder.metadata.startedAt ? `, started ${holder.metadata.startedAt}` : ""}). ` +
+					"Stop that process first; two hosts would double-bind the same bot.",
+			};
+		}
+		if (holder.malformed && attempt < MALFORMED_RETRIES) {
+			// Possibly a lock still being published by an older writer: wait it
+			// out instead of unlinking a lock another process is taking.
+			await Bun.sleep(RETRY_DELAY_MS);
+			continue;
+		}
+		await fs.unlink(options.lockPath).catch(() => {});
 	}
 	return {
 		ok: false,
