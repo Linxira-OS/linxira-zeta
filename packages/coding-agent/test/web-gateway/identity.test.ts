@@ -102,6 +102,7 @@ describe("identity route over the gateway", () => {
 	});
 
 	test("a non-loopback caller still needs the remote token", async () => {
-		expect((await webGatewayFetch(request("GET"), "192.168.1.9")).status).toBe(403);
+		// Missing credentials are 401; a wrong or revoked token is 401 too.
+		expect((await webGatewayFetch(request("GET"), "192.168.1.9")).status).toBe(401);
 	});
 });

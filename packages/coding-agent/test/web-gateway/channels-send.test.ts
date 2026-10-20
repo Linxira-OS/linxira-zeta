@@ -186,7 +186,8 @@ describe("POST /api/channels/send", () => {
 		// Non-loopback with no token configured, and a cross-site browser
 		// request on loopback: both are refused before the sink is reached.
 		const remote = await webGatewayFetch(send(body), "192.168.1.5");
-		expect(remote.status).toBe(403);
+		// No token: unauthenticated (401). The cross-site case below is 403.
+		expect(remote.status).toBe(401);
 		const crossSite = await webGatewayFetch(
 			new Request("http://127.0.0.1/api/channels/send", {
 				method: "POST",

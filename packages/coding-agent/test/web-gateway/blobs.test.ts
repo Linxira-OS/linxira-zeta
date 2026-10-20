@@ -80,7 +80,9 @@ describe("gateway blob reads", () => {
 		await setup("blob-token");
 		const stored = await new BlobStore(getBlobsDir()).put(Buffer.from("remote bytes"));
 
-		expect((await webGatewayFetch(request(stored.hash), "192.168.1.5")).status).toBe(403);
+		// Missing credentials are 401 (unauthenticated); 403 is reserved for a
+		// caller that authenticated and still may not read this.
+		expect((await webGatewayFetch(request(stored.hash), "192.168.1.5")).status).toBe(401);
 		const authorized = await webGatewayFetch(
 			request(stored.hash, "GET", { "x-zeta-token": "blob-token" }),
 			"192.168.1.5",
