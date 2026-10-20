@@ -47,6 +47,19 @@
 4. **能力矩阵要写在渠道清单里**：群消息/私聊/@提及/空间动态 四项分别标注 A/B/C 是否支持，
    避免用户以为官方机器人也能发动态。
 
+
+## 5. Linux 具体形态（2026-10-20 调查，事实）
+
+| 目标 | 可行手段 | 状态 |
+|---|---|---|
+| QQ | OneBot 11 桥：Lagrange（纯协议，Linux 原生无界面）或 NapCat（`NapNeko/NapCat-Docker` 镜像） | **可做，先做这个** |
+| 微信 | 官方 Linux 客户端是 Qt 应用，无协议面、无可用 hook；`wangrongding/wechat-bot` 依赖 wechaty 的 Web/pad 协议（Web 已基本不可登录，padlocal 付费且停更） | 只有 computer-use |
+| 空间/朋友圈动态 | 协议面都没有发动态接口 | 只有 computer-use |
+
+Computer-use 在 Linux 的实测路径：X11/XWayland 走 `XSendEvent` → XI2-MPX → `uinput`；Wayland 走 `libei` + portal 授权；元素树走 AT-SPI（Qt 应用需 `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`，否则只能力靠截图定位）。
+
+取舍：QQ 走协议桥（快、全，封号风险由用户自担）；微信走 computer-use（慢、需前台或授权，但不注入进程）。两者都只是输入通道，上层复用会话路由、默认工作区、人设、记忆。
+
 ## 4. 未决（需要用户拍板，不擅自实现）
 
 - 是否在仓内维护 `onebot` / `wechat-bridge` 适配器，还是只发布"桥的协议规格 + 示例脚本"（后者零封号责任）。
