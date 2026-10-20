@@ -69,6 +69,30 @@ autolearn:
 
 With the local backend active, `learn` saves explicit durable lessons to the project's `learned.md`. Lessons are newest-first, deduplicated, secret-redacted, capped at 100 entries, and injected starting with the next session; a `learn` call does not mutate the active session's prompt-cache prefix. Each lesson's content is capped at 2,000 characters and optional context at 400 characters. Structured memory search, `recall`, `retain`, `reflect`, and `memory_edit` are not available for the local backend.
 
+## Project-scoped memory
+
+`memory.backend` is resolved per session cwd. The layers, highest priority
+first, are: runtime override → `--config` overlay → project
+(`<cwd>/.zeta/settings.json`, `<cwd>/.zeta/config.yml`, `.claude/settings.json`)
+→ user (`~/.zeta/agent/settings.json` / `config.yml`) → schema default `off`.
+
+To enable memory for **one repository only**, write the project layer directly:
+
+```json
+// <repo>/.zeta/settings.json
+{ "memory": { "backend": "mnemopi" } }
+```
+
+The user layer stays `off`, so sibling repositories are unaffected. The
+settings panel and `/settings` currently persist only the user layer; there is
+no GUI scope switch yet, so the file above is the exact edit path. Storage is
+already per-project: `getMemoryRoot` maps a cwd to `memories/<encoded cwd>`
+under the agent directory, so one repository never reads another's rows.
+
+The default workspace (`~/.zeta/workspace`) is the only directory shipped with
+this project-layer opt-in; see
+[Default workspace](./default-workspace.md#memory).
+
 ## How it works
 
 Local summary memories are built by a background pipeline that runs at startup; `/memory enqueue` marks consolidation work that the next startup picks up. The pipeline is skipped for subagents and for sessions that are not persisted to a session file.

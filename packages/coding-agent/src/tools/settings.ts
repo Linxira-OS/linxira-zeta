@@ -1173,6 +1173,33 @@ export const cfgChannelsEnabled = register({
 });
 
 /**
+ * How the relay coordinator reports delegated work back to the IM user:
+ * `all` forwards every report, `summary` (default) only stage completions and
+ * failures, `silent` keeps reports in the session until the user asks.
+ */
+export const cfgChannelsReportPolicy = register({
+	id: "channels.reportPolicy",
+	type: "enum",
+	values: ["all", "summary", "silent"] as const,
+	default: "summary",
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "Report Policy",
+		description: "How the relay coordinator forwards delegated work to the IM user",
+		options: [
+			{ value: "all", label: "All", description: "Forward every delegated report" },
+			{
+				value: "summary",
+				label: "Summary",
+				description: "Forward one merged summary on stage completion or failure",
+			},
+			{ value: "silent", label: "Silent", description: "Keep reports in the session until the user asks" },
+		],
+	},
+});
+
+/**
  * Window for a peer `await` in the hub messaging surface. 0 disables the
  * timeout and waits for the peer to stop instead.
  */

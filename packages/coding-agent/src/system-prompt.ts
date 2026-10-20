@@ -19,6 +19,7 @@ import { expandAtImports } from "./discovery/at-imports";
 import type { EvalPreludeDefinition } from "./eval/preludes";
 import { SkillDescriptionCatalog } from "./extensibility/skill-descriptions";
 import { loadSkills, type Skill } from "./extensibility/skills";
+import { loadWorkspacePersona } from "./default-workspace";
 import { InternalUrlRouter } from "./internal-urls/router";
 import type { SchemeHost } from "./internal-urls/types";
 import activeRepoContextTemplate from "./prompts/system/active-repo-context.md" with { type: "text" };
@@ -814,6 +815,9 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 			: logger
 					.time("loadPersonalityOverride", loadPersonalityOverride)
 					.then(override => override ?? bundledPersonality);
+	// Workspace persona is scoped to the default workspace: `loadWorkspacePersona`
+	// returns null for every other cwd, and for a missing/empty file.
+	const workspacePersonaPromise = logger.time("loadWorkspacePersona", () => loadWorkspacePersona(resolvedCwd));
 
 	const [
 		resolvedCustomPrompt,
@@ -824,6 +828,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		workspaceTree,
 		activeRepoContext,
 		personalityBlock,
+		workspacePersona,
 	] = await Promise.all([
 		withDeadline(
 			"customPrompt",
@@ -847,6 +852,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		withDeadline("buildWorkspaceTree", workspaceTreePromise, prepDefaults.workspaceTree),
 		withDeadline("resolveActiveRepoContext", activeRepoContextPromise, prepDefaults.activeRepoContext),
 		withDeadline("loadPersonalityOverride", personalityPromise, bundledPersonality),
+		workspacePersonaPromise,
 	]);
 	clearTimeout(deadlineTimer);
 	const agentsMdFiles = Array.from(new Set(workspaceTree.agentsMdFiles)).sort().slice(0, AGENTS_MD_LIMIT);
@@ -1022,6 +1028,14 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		rendered = prompt.render(systemPromptTemplate, data);
 	}
 	const systemPrompt = [rendered];
+	// The workspace persona follows the global `personality` block rendered into
+	// the template above, so it can override the global communication style.
+	// `loadWorkspacePersona` is cwd-scoped: other repositories get nothing.
+	if (workspacePersona) {
+		systemPrompt.push(
+			`## Persona (default workspace)\n\nThe following persona is scoped to the default workspace. It follows the global personality block above and may override its style.\n\n${workspacePersona}`,
+		);
+	}
 	for (const prelude of evalPreludes) {
 		const guidance = prelude.guidance?.trim();
 		if (guidance) systemPrompt.push(guidance);

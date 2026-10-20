@@ -11,7 +11,6 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { logger, VERSION } from "@linxiraos/pi-utils";
@@ -35,6 +34,7 @@ import { COORDINATOR_ALIAS, SessionRouter } from "../channels/session-router";
 import { routeWorkspaceCommand } from "../channels/workspace-router";
 import { spawnWebUi } from "../commands/web-ui-launcher";
 import { WebConfig } from "../config/web-config";
+import { defaultCoordinatorWorkspace, initializeDefaultWorkspace } from "../default-workspace";
 import { currentLanguage } from "../i18n";
 import { humanizePlanTitle, planFileUrlForSlug, planSlugFromSupplied } from "../plan-mode/approved-plan";
 import type { PlanWorkflow } from "../plan-mode/state";
@@ -256,10 +256,11 @@ export function parsePlanApprovalReply(body: string): PlanApproveMode | null {
  * session. The serve process cwd is whatever directory launched it — on
  * desktop installs the app install dir, which is not a meaningful workspace
  * and left the default workspace invisible in the web UI project list.
+ *
+ * The implementation lives in `../default-workspace` so the system-prompt
+ * builder can scope the workspace persona without importing the server.
  */
-export function defaultCoordinatorWorkspace(): string {
-	return path.join(os.homedir(), ".zeta", "workspace");
-}
+export { defaultCoordinatorWorkspace } from "../default-workspace";
 
 /**
  * Resolve (and if needed relocate) the coordinator transcript. Installs that
@@ -547,6 +548,24 @@ export class ZetaServer {
 		// itself surfaces as the default project in the UI.
 		const defaultWorkspace = defaultCoordinatorWorkspace();
 		fs.mkdirSync(defaultWorkspace, { recursive: true });
+		// Make the default workspace a real, self-explaining repo (git, official
+		// AGENTS.md, persona, project-layer memory). Additive and idempotent: a
+		// second startup writes nothing, and user edits are never overwritten.
+		try {
+			const init = await initializeDefaultWorkspace({ workspace: defaultWorkspace });
+			if (init.created.length > 0 || init.committed) {
+				logger.info("Default workspace initialised", {
+					workspace: init.workspace,
+					created: init.created,
+					committed: init.committed,
+				});
+			}
+		} catch (error) {
+			logger.warn("Default workspace initialisation failed; continuing", {
+				workspace: defaultWorkspace,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
 		const coordinatorFile = await resolveCoordinatorFile(defaultWorkspace, process.cwd(), config);
 		const { session, realSessionId } = await startRpcSession(
 			"__zeta_serve_coordinator__",

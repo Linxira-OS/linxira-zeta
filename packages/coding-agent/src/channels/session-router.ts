@@ -26,6 +26,8 @@ import * as path from "node:path";
 import type { ChannelId } from "@linxiraos/pi-channels";
 import { isEnoent, logger, Snowflake } from "@linxiraos/pi-utils";
 import type { BotSessionEntry, WebConfig } from "../config/web-config";
+import { hasWorkspacePersona, workspaceMemoryBackend } from "../default-workspace";
+import { cfgChannelsReportPolicy } from "../tools/settings";
 import type { IrcMessage } from "@linxiraos/pi-tui/tools/hub";
 import type { WorkspaceRef } from "../registry/agent-directory";
 import { createAgentSession } from "../sdk";
@@ -68,6 +70,22 @@ interface SessionHandle {
 /** A registered default-space bot session plus its live runtime. */
 interface BotSessionHandle extends SessionHandle {
 	entry: BotSessionEntry;
+}
+
+/** Everything `@status` answers about the current chat's landing point. */
+export interface ChatStatusSnapshot {
+	/** `relay` = coordinator (default workspace); `direct` = bound workspace. */
+	route: "direct" | "relay";
+	/** Bound workspace alias, null for the relay coordinator. */
+	workspaceAlias: string | null;
+	/** Effective workspace directory for this chat. */
+	workspaceDir: string;
+	/** Whether the default-workspace persona applies to that directory. */
+	personaActive: boolean;
+	/** Project-layer memory backend (`off` when the workspace does not opt in). */
+	memoryBackend: string;
+	/** Relay report policy for delegated work. */
+	reportPolicy: string;
 }
 
 /** Map a reply language to the system-prompt / message directive line. */
@@ -322,6 +340,25 @@ export class SessionRouter {
 			if (opened.ok) return opened.alias;
 		}
 		return null;
+	}
+
+	/**
+	 * Everything the IM status surface reports for one chat: landing workspace,
+	 * direct/relay route, persona activation, project-layer memory backend, and
+	 * the relay report policy.
+	 */
+	async statusSnapshot(channelId: ChannelId, peer: string): Promise<ChatStatusSnapshot> {
+		const binding = await this.bindingFor(channelId, peer);
+		const directDir = binding && binding !== COORDINATOR_ALIAS ? this.resolveDir(binding) : undefined;
+		const workspaceDir = directDir ?? this.#defaultCwd;
+		return {
+			route: directDir ? "direct" : "relay",
+			workspaceAlias: directDir ? binding : null,
+			workspaceDir,
+			personaActive: await hasWorkspacePersona(workspaceDir),
+			memoryBackend: workspaceMemoryBackend(workspaceDir),
+			reportPolicy: this.#coordinator.settings ? cfgChannelsReportPolicy.get(this.#coordinator.settings) : "summary",
+		};
 	}
 
 	/** Set a runtime (non-persisted) route override for one chat. */
