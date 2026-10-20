@@ -53,11 +53,7 @@ struct QrTexture {
 /// The finished work of one worker thread.
 enum Event {
 	/// A full or live read, and whether a commit produced it.
-	View {
-		result: Result<Box<View>, String>,
-		from_commit: bool,
-		generation: u64,
-	},
+	View { result: Result<Box<View>, String>, from_commit: bool, generation: u64 },
 	/// A QR bitmap for `url`.
 	Qr { url: String, result: Result<QrImage, String> },
 	/// One send result.
@@ -250,7 +246,8 @@ impl ChannelsPanel {
 				Ok(transport) => channels::commit_many(&transport, &fields),
 				Err(error) => Err(error),
 			};
-			let _ = tx.send(Event::View { result: result.map(Box::new), from_commit: true, generation });
+			let _ =
+				tx.send(Event::View { result: result.map(Box::new), from_commit: true, generation });
 		});
 	}
 
@@ -381,7 +378,8 @@ impl ChannelsPanel {
 				}
 				channels::load(&transport)
 			})();
-			let _ = tx.send(Event::View { result: result.map(Box::new), from_commit: true, generation });
+			let _ =
+				tx.send(Event::View { result: result.map(Box::new), from_commit: true, generation });
 		});
 	}
 
@@ -453,11 +451,8 @@ impl ChannelsPanel {
 				Ok(transport) => channels::refresh_live(&transport, &mut view).map(|()| view),
 				Err(error) => Err(error),
 			};
-			let _ = tx.send(Event::View {
-				result: result.map(Box::new),
-				from_commit: false,
-				generation,
-			});
+			let _ =
+				tx.send(Event::View { result: result.map(Box::new), from_commit: false, generation });
 		});
 	}
 

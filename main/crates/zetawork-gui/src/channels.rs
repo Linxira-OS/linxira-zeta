@@ -352,7 +352,6 @@ pub struct View {
 	pub qr: QrState,
 }
 
-
 impl View {
 	pub fn channel(&self, id: ChannelId) -> &ChannelConfig {
 		&self.channels[id.index()]
