@@ -83,6 +83,20 @@ Computer-use 在 Linux 的实测路径：X11/XWayland 走 `XSendEvent` → XI2-M
 | 群机器人 webhook | **只能往群里推**，收不到消息 | 「消息推送（原群机器人）」 |
 | 客户群（外部微信用户） | 应用可创建/改群；读全部消息需**会话内容存档**（企业开通 + 成员同意），智能机器人能否进客户群 **[待验证]** | 「会话内容存档」「客户群」 |
 
+### 企业微信官方 AI 开放能力（`work.weixin.qq.com/nl/index/aici`，2026-10-20 核实）
+
+官方路子是 **CLI + Skill**，不是自建协议：
+
+- 安装：`npm install -g @wecom/cli`，再 `npx skills add WecomTeam/wecom-cli -y -g`（或整套 `WecomTeam/wecom-unified`，MIT，Linux/macOS/Windows）。
+- 授权：`wecom-cli auth init` 默认**扫码**，配置在 `~/.config/wecom`；也可 `--manual` 填 Bot ID/Secret。
+- 命令模型由服务端 discovery 下发：`wecom-cli <service> [resource] <method>`，service 覆盖
+  `message`/`mail`/`doc`/`sheet`/`smartsheet`/`smartpage`/`calendar`/`meeting`/`todo`/`disk`/`contact`/`media`/`identity`。
+- 消息能力：向**机器人最近对话过的单聊/群聊**主动推送（`message aibot sessions list` 列会话），支持 Markdown/图片/文件/语音/视频。
+- **它只负责"发/办公操作"，不负责收**。收消息仍要智能机器人的回调 URL 或长连接。
+
+所以我们的分工：**入站**由我们自己的适配器实现智能机器人回调/长连接（群 @ → 会话路由）；
+**出站与办公能力**直接把 `wecom-cli` 作为可选 skill/工具给 agent，不重复实现邮件/文档/日程。
+
 结论：**企业微信群是唯一有官方"AI 进群"通道的地方**，且只覆盖 @ 触发；个人微信群没有。
 个人微信 1:1 用 iLink bot，进群与朋友圈只能真号（computer-use，企业微信 Linux 客户端同样可驱动）。
 
