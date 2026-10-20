@@ -17,152 +17,159 @@ import { destructiveButtonStyle, outlineButtonStyle, SettingsCard } from "./shar
 import { setRemoteToken } from "@/lib/remote-token";
 
 interface PairingInfo {
-  url: string;
-  svg: string;
+	url: string;
+	svg: string;
 }
 
 export function RemotePairingPanel({
-  hasToken,
-  t,
-  onTokenChanged,
+	hasToken,
+	t,
+	onTokenChanged,
 }: {
-  hasToken: boolean;
-  t: (key: string) => string;
-  onTokenChanged: (token: string | null) => void;
+	hasToken: boolean;
+	t: (key: string) => string;
+	onTokenChanged: (token: string | null) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [pairing, setPairing] = useState<PairingInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+	const [open, setOpen] = useState(false);
+	const [pairing, setPairing] = useState<PairingInfo | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	const [notice, setNotice] = useState<string | null>(null);
+	const [busy, setBusy] = useState(false);
 
-  const loadPairing = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await fetch("/api/remote/pairing");
-      const body = (await res.json()) as PairingInfo & { error?: string };
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-      setPairing({ url: body.url, svg: body.svg });
-    } catch (err) {
-      setPairing(null);
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }, []);
+	const loadPairing = useCallback(async () => {
+		setError(null);
+		try {
+			const res = await fetch("/api/remote/pairing");
+			const body = (await res.json()) as PairingInfo & { error?: string };
+			if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+			setPairing({ url: body.url, svg: body.svg });
+		} catch (err) {
+			setPairing(null);
+			setError(err instanceof Error ? err.message : String(err));
+		}
+	}, []);
 
-  useEffect(() => {
-    if (!open || !hasToken) return;
-    void loadPairing();
-  }, [open, hasToken, loadPairing]);
+	useEffect(() => {
+		if (!open || !hasToken) return;
+		void loadPairing();
+	}, [open, hasToken, loadPairing]);
 
-  const rotate = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await fetch("/api/remote/token/rotate", { method: "POST" });
-      const body = (await res.json()) as { token?: string; error?: string };
-      if (!res.ok || typeof body.token !== "string") {
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      onTokenChanged(body.token);
-      setNotice(t("web-remote-rotate-done"));
-      setOpen(true);
-      await loadPairing();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }, [loadPairing, onTokenChanged, t]);
+	const rotate = useCallback(async () => {
+		setBusy(true);
+		setError(null);
+		setNotice(null);
+		try {
+			const res = await fetch("/api/remote/token/rotate", { method: "POST" });
+			const body = (await res.json()) as { token?: string; error?: string };
+			if (!res.ok || typeof body.token !== "string") {
+				throw new Error(body.error ?? `HTTP ${res.status}`);
+			}
+			onTokenChanged(body.token);
+			setNotice(t("web-remote-rotate-done"));
+			setOpen(true);
+			await loadPairing();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setBusy(false);
+		}
+	}, [loadPairing, onTokenChanged, t]);
 
-  const revoke = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await fetch("/api/remote/token/revoke", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ all: true }),
-      });
-      const body = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-      setRemoteToken(undefined);
-      onTokenChanged(null);
-      setPairing(null);
-      setOpen(false);
-      setNotice(t("web-remote-revoke-done"));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }, [onTokenChanged, t]);
+	const revoke = useCallback(async () => {
+		setBusy(true);
+		setError(null);
+		setNotice(null);
+		try {
+			const res = await fetch("/api/remote/token/revoke", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ all: true }),
+			});
+			const body = (await res.json()) as { error?: string };
+			if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+			setRemoteToken(undefined);
+			onTokenChanged(null);
+			setPairing(null);
+			setOpen(false);
+			setNotice(t("web-remote-revoke-done"));
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setBusy(false);
+		}
+	}, [onTokenChanged, t]);
 
-  return (
-    <SettingsCard>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" style={outlineButtonStyle} disabled={busy} onClick={() => setOpen(v => !v)}>
-          {open ? t("web-remote-pairing-hide") : t("web-remote-pairing-show")}
-        </button>
-        <button type="button" style={outlineButtonStyle} disabled={busy} onClick={() => void rotate()}>
-          {t("web-remote-rotate")}
-        </button>
-        <button type="button" style={destructiveButtonStyle} disabled={busy || !hasToken} onClick={() => void revoke()}>
-          {t("web-remote-revoke")}
-        </button>
-      </div>
-      <div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)", lineHeight: 1.5 }}>
-        {t("web-remote-pairing-desc")}
-      </div>
-      {error && (
-        <div style={{ fontSize: 11.5, color: "var(--zeta-alias-status-error)" }}>
-          {t("web-remote-action-failed")}
-          {error}
-        </div>
-      )}
-      {notice && <div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>{notice}</div>}
-      {open && !hasToken && (
-        <div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>{t("web-remote-pairing-unavailable")}</div>
-      )}
-      {open && pairing && (
-        <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div
-            aria-label={t("web-remote-pairing-qr")}
-            style={{
-              width: 188,
-              height: 188,
-              padding: 8,
-              // A pairing QR must stay white on every theme for scanners; the
-              // L1 static token is the only legal place for the value.
-              background: "var(--zeta-static-neutral-0)",
-              borderRadius: 8,
-              flexShrink: 0,
-            }}
-            // The markup is generated by the local gateway from a fixed template
-            // (paths + rect); the payload appears only in the generated URL text.
-            dangerouslySetInnerHTML={{ __html: pairing.svg }}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
-              {t("web-remote-pairing-url")}
-            </span>
-            <code
-              style={{
-                fontSize: 11,
-                color: "var(--zeta-alias-text-muted)",
-                wordBreak: "break-all",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {pairing.url}
-            </code>
-            <span style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)", lineHeight: 1.45 }}>
-              {t("web-remote-pairing-hint")}
-            </span>
-          </div>
-        </div>
-      )}
-    </SettingsCard>
-  );
+	return (
+		<SettingsCard>
+			<div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+				<button type="button" style={outlineButtonStyle} disabled={busy} onClick={() => setOpen(v => !v)}>
+					{open ? t("web-remote-pairing-hide") : t("web-remote-pairing-show")}
+				</button>
+				<button type="button" style={outlineButtonStyle} disabled={busy} onClick={() => void rotate()}>
+					{t("web-remote-rotate")}
+				</button>
+				<button
+					type="button"
+					style={destructiveButtonStyle}
+					disabled={busy || !hasToken}
+					onClick={() => void revoke()}
+				>
+					{t("web-remote-revoke")}
+				</button>
+			</div>
+			<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)", lineHeight: 1.5 }}>
+				{t("web-remote-pairing-desc")}
+			</div>
+			{error && (
+				<div style={{ fontSize: 11.5, color: "var(--zeta-alias-status-error)" }}>
+					{t("web-remote-action-failed")}
+					{error}
+				</div>
+			)}
+			{notice && <div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>{notice}</div>}
+			{open && !hasToken && (
+				<div style={{ fontSize: 11.5, color: "var(--zeta-alias-text-muted)" }}>
+					{t("web-remote-pairing-unavailable")}
+				</div>
+			)}
+			{open && pairing && (
+				<div style={{ display: "flex", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+					<div
+						aria-label={t("web-remote-pairing-qr")}
+						style={{
+							width: 188,
+							height: 188,
+							padding: 8,
+							// A pairing QR must stay white on every theme for scanners; the
+							// L1 static token is the only legal place for the value.
+							background: "var(--zeta-static-neutral-0)",
+							borderRadius: 8,
+							flexShrink: 0,
+						}}
+						// The markup is generated by the local gateway from a fixed template
+						// (paths + rect); the payload appears only in the generated URL text.
+						dangerouslySetInnerHTML={{ __html: pairing.svg }}
+					/>
+					<div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+						<span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--zeta-alias-text)" }}>
+							{t("web-remote-pairing-url")}
+						</span>
+						<code
+							style={{
+								fontSize: 11,
+								color: "var(--zeta-alias-text-muted)",
+								wordBreak: "break-all",
+								fontFamily: "var(--font-mono)",
+							}}
+						>
+							{pairing.url}
+						</code>
+						<span style={{ fontSize: 11, color: "var(--zeta-alias-text-dim)", lineHeight: 1.45 }}>
+							{t("web-remote-pairing-hint")}
+						</span>
+					</div>
+				</div>
+			)}
+		</SettingsCard>
+	);
 }
