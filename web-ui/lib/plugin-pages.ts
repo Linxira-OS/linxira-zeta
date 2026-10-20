@@ -77,12 +77,31 @@ export interface PluginAsset {
 export type PluginAssetFailure = { ok: false; status: 404 | 403; error: string };
 export type PluginAssetResult = ({ ok: true } & PluginAsset) | PluginAssetFailure;
 
+/**
+ * Split a `;`/`:`-separated root list without cutting Windows drive letters in
+ * half: `C:\plugins;D:\other` splits on `;`, and the `C:` pair is rejoined
+ * because the colon there belongs to the drive, not to the separator.
+ */
+function splitRootList(raw: string): string[] {
+	const fragments = raw.split(/[;:]/);
+	const entries: string[] = [];
+	for (let index = 0; index < fragments.length; index++) {
+		const fragment = fragments[index];
+		if (/^[A-Za-z]$/.test(fragment.trim()) && index + 1 < fragments.length) {
+			entries.push(`${fragment}:${fragments[index + 1]}`);
+			index++;
+			continue;
+		}
+		entries.push(fragment);
+	}
+	return entries.map(entry => entry.trim()).filter(Boolean);
+}
+
 /** Plugin install roots: the agent-dir `plugins/` tree plus any env override. */
 export function pluginRoots(env: NodeJS.ProcessEnv = process.env): string[] {
 	const roots = [path.join(getAgentDir(), "plugins")];
-	for (const entry of (env[PLUGIN_ROOTS_ENV] ?? "").split(/[;:]/)) {
-		const trimmed = entry.trim();
-		if (trimmed && !roots.includes(trimmed)) roots.push(trimmed);
+	for (const entry of splitRootList(env[PLUGIN_ROOTS_ENV] ?? "")) {
+		if (!roots.includes(entry)) roots.push(entry);
 	}
 	return roots;
 }
