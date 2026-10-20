@@ -88,6 +88,8 @@ export interface Args {
 	skills?: string[];
 	noRules?: boolean;
 	noTitle?: boolean;
+	/** Host the IM channel runtime in this session (also enabled per-channel in web.yml). */
+	channels?: boolean;
 	/** RPC modes only: run extensions without a UI; `rpc-ui` tool UI remains enabled. */
 	noUi?: boolean;
 	autoApprove?: boolean;
@@ -379,6 +381,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.noRules = true;
 		} else if (arg === "--no-title") {
 			result.noTitle = true;
+		} else if (arg === "--channels") {
+			result.channels = true;
 		} else if (arg === "--no-ui") {
 			result.noUi = true;
 		} else if (arg === "--auto-approve" || arg === "--yolo") {

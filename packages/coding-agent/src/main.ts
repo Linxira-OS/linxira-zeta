@@ -45,6 +45,8 @@ import { installCollabTipsGate } from "./collab/tips";
 import { applyStartupCwd } from "./cli/startup-cwd";
 import { getLatestRelease, isSourceCheckout, managedInstallName } from "./cli/update-cli";
 import { findConfigFile } from "./config";
+import { resolveChannelHosting } from "./channels/channel-status";
+import { sendFromSessionChannel, startSessionChannels } from "./channels/session-host";
 import { ModelRegistry } from "./config/model-registry";
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import {
@@ -62,6 +64,7 @@ import { ModelsConfigFile } from "./config/models-config";
 import { serviceTierSettingToTier } from "./config/service-tier";
 import { all, combine, type ProtocolHost, type SettingValueOf } from "./config/registry";
 import { Settings, settings } from "./config/settings";
+import { WebConfig } from "./config/web-config";
 import { initializeWithSettings } from "./discovery";
 import {
 	clearPluginRootsAndCaches,
@@ -2315,6 +2318,14 @@ export async function runRootCommand(
 			clearPluginRootsCache: clearPluginRootsAndCaches,
 		});
 
+		// IM channels are hosted by this session when web.yml enables one or
+		// `--channels` is passed. The config is loaded once here so the
+		// `channel_send` sink exists before the session's tool registry is built.
+		const sessionChannelsWebConfig = isProtocolMode ? null : await logger.time("loadWebConfig", WebConfig.load);
+		const sessionChannelsPlan = sessionChannelsWebConfig
+			? resolveChannelHosting(sessionChannelsWebConfig, parsedArgs.channels === true)
+			: { shouldStart: false, source: "none" as const, enabled: [] };
+
 		const sessionOptions = await logger.time(
 			"buildSessionOptions",
 			buildSessionOptions,
@@ -2324,6 +2335,9 @@ export async function runRootCommand(
 			modelRegistry,
 			settingsInstance,
 		);
+		if (sessionChannelsPlan.shouldStart) {
+			sessionOptions.channelSend = opts => sendFromSessionChannel(opts);
+		}
 		sessionOptions.authStorage = authStorage;
 		sessionOptions.modelRegistry = modelRegistry;
 		sessionOptions.hasUI = isInteractive || mode === "rpc-ui";
@@ -2688,95 +2702,123 @@ export async function runRootCommand(
 				postmortem.register("settings-file-watcher", () => settingsInstance.stopWatching(), { exitOnly: true });
 			}
 
-			if (mode === "rpc" || mode === "rpc-ui") {
-				// Branch-only protocol runner: keep RPC host code out of normal interactive startup.
-				const runRpcMode: RunRpcMode = (await import("./modes/rpc/rpc-mode")).runRpcMode;
-				stopStartupWatchdog();
-				logger.endTiming();
-				await runRpcMode(session, {
-					setToolUIContext: mode === "rpc-ui" ? setToolUIContext : undefined,
-					headless: parsedArgs.noUi === true,
-					subagentEventBus,
-					input: rpcInput,
-				});
-			} else if (isInteractive) {
-				const versionCheckPromise = checkForNewVersion(VERSION).catch(() => undefined);
-				const startupChangelog = await startupChangelogPromise;
+			// Start the runtime against this live session (interactive and
+			// headless/print alike). `startChannels` needs only the ChannelSession
+			// contract; the lock prevents a second session/serve from double-binding.
+			const sessionChannels =
+				sessionChannelsWebConfig && sessionChannelsPlan.shouldStart
+					? await startSessionChannels({
+							session,
+							webConfig: sessionChannelsWebConfig,
+							flag: parsedArgs.channels === true,
+							sessionId: session.sessionManager.getSessionId(),
+						}).catch(error => ({
+							started: false as const,
+							reason: "start-failed" as const,
+							message: error instanceof Error ? error.message : String(error),
+							channels: sessionChannelsPlan.enabled,
+						}))
+					: null;
+			if (sessionChannels && !sessionChannels.started) {
+				process.stderr.write(`${chalk.yellow(`Warning: IM channels not started: ${sessionChannels.message}\n`)}`);
+			}
 
-				const modelScopeNotification = buildModelScopeNotification(
-					scopedModels,
-					cfgStartupQuiet.get(settingsInstance),
-				);
-				if (modelScopeNotification) {
-					// Routed through the TUI (not stdout): the startup capture owns the
-					// terminal in raw mode here, and the TUI's first clearScrollback paint
-					// would wipe a pre-TUI line anyway.
-					notifs.push(modelScopeNotification);
-				}
-
-				const pythonEvalWarning = await pythonEvalWarningPromise;
-				if (pythonEvalWarning) {
-					notifs.push({ kind: "warn", message: pythonEvalWarning });
-				}
-
-				if ($env.PI_TIMING) {
-					logger.printTimings();
-					if (logger.shouldExitAfterTimings()) {
-						process.exit(0);
-					}
-				}
-				const startupLease = takeStartupComposerLease();
-				try {
+			try {
+				if (mode === "rpc" || mode === "rpc-ui") {
+					// Branch-only protocol runner: keep RPC host code out of normal interactive startup.
+					const runRpcMode: RunRpcMode = (await import("./modes/rpc/rpc-mode")).runRpcMode;
 					stopStartupWatchdog();
 					logger.endTiming();
-					await runInteractiveMode(
-						session,
-						VERSION,
-						startupChangelog,
-						notifs,
-						versionCheckPromise,
-						initialArgs.messages,
-						setToolUIContext,
-						lspServers,
-						mcpManager,
-						Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork || foreignSource),
-						deps.forceSetupWizard === true,
-						showStartupSplash,
-						eventBus,
+					await runRpcMode(session, {
+						setToolUIContext: mode === "rpc-ui" ? setToolUIContext : undefined,
+						headless: parsedArgs.noUi === true,
 						subagentEventBus,
+						input: rpcInput,
+					});
+				} else if (isInteractive) {
+					const versionCheckPromise = checkForNewVersion(VERSION).catch(() => undefined);
+					const startupChangelog = await startupChangelogPromise;
+
+					const modelScopeNotification = buildModelScopeNotification(
+						scopedModels,
+						cfgStartupQuiet.get(settingsInstance),
+					);
+					if (modelScopeNotification) {
+						// Routed through the TUI (not stdout): the startup capture owns the
+						// terminal in raw mode here, and the TUI's first clearScrollback paint
+						// would wipe a pre-TUI line anyway.
+						notifs.push(modelScopeNotification);
+					}
+
+					const pythonEvalWarning = await pythonEvalWarningPromise;
+					if (pythonEvalWarning) {
+						notifs.push({ kind: "warn", message: pythonEvalWarning });
+					}
+
+					if ($env.PI_TIMING) {
+						logger.printTimings();
+						if (logger.shouldExitAfterTimings()) {
+							process.exit(0);
+						}
+					}
+					const startupLease = takeStartupComposerLease();
+					try {
+						stopStartupWatchdog();
+						logger.endTiming();
+						await runInteractiveMode(
+							session,
+							VERSION,
+							startupChangelog,
+							notifs,
+							versionCheckPromise,
+							initialArgs.messages,
+							setToolUIContext,
+							lspServers,
+							mcpManager,
+							Boolean(parsedArgs.continue || parsedArgs.resume || parsedArgs.fork || foreignSource),
+							deps.forceSetupWizard === true,
+							showStartupSplash,
+							eventBus,
+							subagentEventBus,
+							initialMessage,
+							initialImages,
+							parsedArgs.join,
+							startDeferredStartupWork,
+							startupLease,
+							initialArgs.goal,
+							parsedArgs.restore ? () => restoreSession(session, { eventBus, subagentEventBus }) : undefined,
+						);
+					} finally {
+						startupLease?.dispose();
+					}
+				} else {
+					// Branch-only single-shot runner: keep print-mode code out of normal interactive startup.
+					stopStartupWatchdog();
+					// PI_TIMING prints the tree after the run; otherwise stop recording now so a
+					// long `-p` run's subagents do not keep growing it.
+					if (!$env.PI_TIMING) logger.endTiming();
+					const runPrintMode: RunPrintMode = (await import("./modes/print-mode")).runPrintMode;
+					const exitCode = await runPrintMode(session, {
+						mode,
+						messages: initialArgs.messages,
 						initialMessage,
 						initialImages,
-						parsedArgs.join,
-						startDeferredStartupWork,
-						startupLease,
-						initialArgs.goal,
-						parsedArgs.restore ? () => restoreSession(session, { eventBus, subagentEventBus }) : undefined,
-					);
-				} finally {
-					startupLease?.dispose();
+						printThoughts: initialArgs.printThoughts,
+						planYolo: parsedArgs.planYolo,
+						mcpManager,
+					});
+					if ($env.PI_TIMING) {
+						logger.printTimings();
+					}
+					// Print mode exits through postmortem.quit (process.exit), so the
+					// surrounding finally would never run; stop channels first.
+					if (sessionChannels?.started) await sessionChannels.host.stop().catch(() => {});
+					await disposeSessionQuietly(session);
+					stopThemeWatcher();
+					await postmortem.quit(exitCode);
 				}
-			} else {
-				// Branch-only single-shot runner: keep print-mode code out of normal interactive startup.
-				stopStartupWatchdog();
-				// PI_TIMING prints the tree after the run; otherwise stop recording now so a
-				// long `-p` run's subagents do not keep growing it.
-				if (!$env.PI_TIMING) logger.endTiming();
-				const runPrintMode: RunPrintMode = (await import("./modes/print-mode")).runPrintMode;
-				const exitCode = await runPrintMode(session, {
-					mode,
-					messages: initialArgs.messages,
-					initialMessage,
-					initialImages,
-					printThoughts: initialArgs.printThoughts,
-					planYolo: parsedArgs.planYolo,
-					mcpManager,
-				});
-				if ($env.PI_TIMING) {
-					logger.printTimings();
-				}
-				await disposeSessionQuietly(session);
-				stopThemeWatcher();
-				await postmortem.quit(exitCode);
+			} finally {
+				if (sessionChannels?.started) await sessionChannels.host.stop().catch(() => {});
 			}
 		}
 	} catch (error) {

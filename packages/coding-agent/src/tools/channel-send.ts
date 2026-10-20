@@ -2,9 +2,9 @@
  * channel_send — agent-initiated push to an IM channel.
  *
  * The agent decides which information is worth forwarding; working tool
- * output (read/write/bash/…) is NOT automatically sent. Only available
- * in web/desktop mode (serve --channels or a channel enabled in web.yml).
- * CLI-only sessions have no channel runtime so isToolAllowed rejects it.
+ * output (read/write/bash/…) is NOT automatically sent. Available when the
+ * session hosts a channel runtime: `zetacode serve --channels`, a channel
+ * enabled in web.yml, or a normal session started with `--channels`.
  */
 
 import type { AgentTool, AgentToolResult } from "@linxiraos/pi-agent-core";
