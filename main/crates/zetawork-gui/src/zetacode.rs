@@ -45,7 +45,7 @@ use serde_json::{Map, Value};
 
 /// `CREATE_NO_WINDOW`, so spawning `zetacode` never flashes a console.
 #[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+pub(crate) const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// A binary zetawork ships and starts itself.
 ///

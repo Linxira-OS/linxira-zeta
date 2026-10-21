@@ -22,6 +22,7 @@
 pub mod agent;
 pub mod agent_events;
 pub mod agent_sessions;
+pub mod backend;
 pub mod blit;
 pub mod board;
 pub mod center;
@@ -134,6 +135,12 @@ pub struct Shell {
 	/// The serve-backed alternative for terminal tabs ([`terminal_service`]):
 	/// a PTY in `zetacode serve` reached over the gateway's WebSocket.
 	pub terminals: terminal_service::TerminalHost,
+	/// The backend this window ensures on launch: a live daemon when one is
+	/// there, otherwise one started through `zetacode daemon` ([`backend`]).
+	pub backend: backend::BackendHost,
+	/// The backend epoch the attached terminals were last reconnected at.
+	/// A restart (or a crash + retry) bumps it in [`backend::BackendHost`].
+	backend_epoch: u64,
 	/// Every [`state::SessionKind::Agent`] tab's gateway link
 	/// ([`agent_sessions`]).
 	pub agents: agent_sessions::AgentSessions,
@@ -291,6 +298,12 @@ impl Shell {
 			live: live::LiveSessions::default(),
 			images: blit::ImageTextures::default(),
 			terminals: terminal_service::TerminalHost::default(),
+			backend: {
+				let mut backend = backend::BackendHost::default();
+				backend.ensure();
+				backend
+			},
+			backend_epoch: 0,
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
 			pdfs: pdf::PdfCache::default(),
@@ -358,6 +371,8 @@ impl Shell {
 			live: live::LiveSessions::default(),
 			images: blit::ImageTextures::default(),
 			terminals: terminal_service::TerminalHost::default(),
+			backend: backend::BackendHost::default(),
+			backend_epoch: 0,
 			agents: agent_sessions::AgentSessions::default(),
 			pages: page::Pages::default(),
 			pdfs: pdf::PdfCache::default(),
@@ -1130,9 +1145,47 @@ impl eframe::App for Shell {
 		}
 		self.draw(ctx);
 	}
+
+	/// Quitting leaves the daemon running only when 设置 asked for that;
+	/// otherwise a backend this window started is stopped. The stop is a
+	/// detached child, so shutdown never waits on it.
+	fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+		self.backend.shutdown(self.settings.keep_backend_on_quit);
+	}
 }
 
 impl Shell {
+	/// Drain the backend worker, and re-attach the terminal tabs when the
+	/// backend address changed (a 设置 restart, or a retry after a crash).
+	///
+	/// The worker is polled with `try_recv`; nothing here waits on a process
+	/// or a socket. A changed epoch refreshes `serve.json` and asks
+	/// [`terminal_service::TerminalHost::reconnect`] to dial the new address
+	/// for every tab that had been attached.
+	fn poll_backend(&mut self, ctx: &Context) {
+		let changed = self.backend.poll();
+		if changed {
+			if self.backend.phase() == crate::backend::Phase::Ready {
+				// `daemon start` publishes `serve.json`; re-read it so the
+				// stats/usage origins follow the backend this window ensured.
+				self.stats = crate::stats::discover();
+				if self.backend.epoch() != self.backend_epoch {
+					self.backend_epoch = self.backend.epoch();
+					let origin = self.backend.web_origin().map(str::to_owned);
+					let reattached = self.terminals.reconnect(origin.as_deref());
+					if reattached > 0 {
+						let notice = crate::t!("后台服务已就绪，{} 个终端标签已重新附着", reattached);
+						self.state.show(crate::state::Notice(notice));
+					}
+				}
+			}
+			ctx.request_repaint();
+		}
+		if self.backend.phase().busy() {
+			ctx.request_repaint_after(std::time::Duration::from_millis(150));
+		}
+	}
+
 	/// The per-frame work that is not drawing: settings, the memory sample,
 	/// keys, the read-only readers.
 	pub fn tick(&mut self, ctx: &Context) {
@@ -1148,6 +1201,7 @@ impl Shell {
 		if polled.quitting {
 			return;
 		}
+		self.poll_backend(ctx);
 		// Agent panes are polled in the background too: "needs input" and "the
 		// run finished" are exactly the edges a hidden window exists to tell the
 		// user about. The round trip is non-blocking (`try_iter`).
@@ -1157,7 +1211,11 @@ impl Shell {
 		// a collapsed column lists nothing, so it does not poll. Headless
 		// shells seed `state.conversations` instead.
 		let gateway = if self.probe {
-			self.stats.gateway_origin().map(str::to_owned)
+			self
+				.backend
+				.gateway_origin()
+				.or_else(|| self.stats.gateway_origin())
+				.map(str::to_owned)
 		} else {
 			None
 		};
@@ -1372,6 +1430,7 @@ impl Shell {
 			.show_separator_line(false)
 			.frame(no_margin)
 			.show(ctx, |ui| chrome::title_bar(ui, self));
+		crate::backend::banner(ctx, self);
 		let height = if self.state.statusbar_visible() {
 			theme::STATUSBAR_H
 		} else {

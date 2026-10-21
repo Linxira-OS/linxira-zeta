@@ -662,11 +662,13 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	// A headless shell (`Shell::with_state`, every test) must not dial a live
 	// gateway: only a real run may own a serve attach.
 	let origin = if shell.probe {
-		shell
-			.stats
-			.info
-			.as_ref()
-			.and_then(|info| info.web_url.clone())
+		shell.backend.web_origin().map(str::to_owned).or_else(|| {
+			shell
+				.stats
+				.info
+				.as_ref()
+				.and_then(|info| info.web_url.clone())
+		})
 	} else {
 		None
 	};
@@ -1264,13 +1266,15 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		});
 }
 
-/// A zetacode page: the shipped CLI, run as the pane's own process.
+/// A zetacode page: the shipped CLI, attached to the backend when one is up.
 ///
-/// The binary was resolved when the tab was created and the PTY spawns it
-/// directly in the workspace directory — there is no shell between the two,
-/// so nothing is echoed or started by accident. A missing install draws the
-/// sentence naming every path that was searched instead of pretending to be a
-/// terminal.
+/// The binary was resolved when the tab was created. With a backend, the
+/// gateway hosts the PTY for this workspace and runs the CLI there, where its
+/// bare launch attaches to that workspace's newest backend session instead of
+/// starting a second agent; the in-process process is the fallback. Either
+/// way the status line names what is behind the grid, and a missing install
+/// draws the sentence naming every path that was searched instead of
+/// pretending to be a terminal.
 fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
@@ -1286,7 +1290,19 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 			return;
 		},
 	};
-	let metrics = GridMetrics::for_panel(ui.ctx(), rect, f32::from(shell.settings.terminal_size));
+	// The status line is this page's attach report: the workspace session it
+	// attached to, or the local process it fell back to. It lives below the
+	// grid for the same reason a terminal page's does, so a fallback is never
+	// silent.
+	let status_h = if rect.height() > crate::terminal_service::STATUS_HEIGHT + 32.0 {
+		crate::terminal_service::STATUS_HEIGHT
+	} else {
+		0.0
+	};
+	let grid_rect =
+		Rect::from_min_max(rect.min, pos2(rect.max.x, (rect.max.y - status_h).max(rect.min.y)));
+	let metrics =
+		GridMetrics::for_panel(ui.ctx(), grid_rect, f32::from(shell.settings.terminal_size));
 	let cell_px = sync_cell_pixels(ui, shell, tab.id.as_str(), &metrics);
 	let image_mode = terminal_image_mode(shell);
 	shell.terminals.set_images_enabled(image_mode.decodes());
@@ -1296,16 +1312,20 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		.state
 		.active_workspace()
 		.map(|ws| std::path::PathBuf::from(&ws.path));
-	// The gateway owns the PTY when it is reachable, so the same coding-agent
-	// session is attachable from the TUI and the browser and outlives this
-	// window (the page is a client, never an owner). The in-process PTY stays
-	// the fallback, and the status line says which one is running.
+	// The zetacode page is a **client** of the backend, not an owner: when a
+	// backend is reachable the gateway hosts the PTY and runs the shipped CLI
+	// in the workspace directory, where its bare launch attaches to that
+	// workspace's newest session (the attach client from
+	// `docs/cli-reference.md`). The in-process process is only the fallback,
+	// and the status line says which one is running.
 	let origin = if shell.probe {
-		shell
-			.stats
-			.info
-			.as_ref()
-			.and_then(|info| info.web_url.clone())
+		shell.backend.web_origin().map(str::to_owned).or_else(|| {
+			shell
+				.stats
+				.info
+				.as_ref()
+				.and_then(|info| info.web_url.clone())
+		})
 	} else {
 		None
 	};
@@ -1317,6 +1337,8 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		rows,
 		Some("zetacode"),
 	);
+	let status = terminal_status(shell, tab);
+	let reason = shell.terminals.reason(&tab.id).map(str::to_owned);
 	let area = ratatui::layout::Rect::new(0, 0, columns, rows);
 	if shell.terminals.is_local(tab.id.as_str())
 		&& !shell
@@ -1324,6 +1346,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 			.ensure_program(tab.id.as_str(), columns, rows, cwd, &path)
 	{
 		missing_body(ui, &t!("无法启动随包的 zetacode：{}（PTY 创建失败）", path.display()));
+		paint_terminal_status(ui, rect, &status, &tab.id, reason.as_deref());
 		return;
 	}
 	let mut grid_buf = ratatui::buffer::Buffer::empty(area);
@@ -1343,6 +1366,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 				cell_px,
 			},
 		);
+		paint_terminal_status(ui, rect, &status, &tab.id, reason.as_deref());
 		return;
 	}
 	if shell.live.render(tab.id.as_str(), area, &mut grid_buf) {
@@ -1361,7 +1385,14 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 				cell_px,
 			},
 		);
+		paint_terminal_status(ui, rect, &status, &tab.id, reason.as_deref());
+		return;
 	}
+	// Neither backend produced a grid yet: one quiet line, never an invented
+	// process.
+	let mut notice = ui.new_child(egui::UiBuilder::new().max_rect(grid_rect.shrink(10.0)));
+	empty_note(&mut notice, t!("zetacode 没有启动"));
+	paint_terminal_status(ui, rect, &status, &tab.id, reason.as_deref());
 }
 
 /// A companion page's whole body when there is nothing to run: the exact

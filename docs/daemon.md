@@ -104,3 +104,46 @@ command that removes it; nothing is installed silently.
 `uninstall-autostart` disables the entry where the platform has a supervisor
 and removes the file; it does not stop a backend that is already running — use
 `zetacode daemon stop` for that.
+
+## The desktop app
+
+`zetawork` (the egui desktop shell) owns the backend instead of hoping one is
+running. On launch it asks this command surface, on a worker thread:
+
+1. `zetacode daemon status --json` — a live backend (whatever its `source`) is
+   connected to as-is; nothing is started beside it;
+2. no live backend — `zetacode daemon start` starts the daemon path described
+   above, and the shell waits for the record (up to 20 s).
+
+The state is visible: a banner across the top of the window says *starting*,
+*failed* (with 重试) or *stopped*, and the same state is a row in 设置 → 常规
+together with 启动 / 重启 / 停止 (that row names the running pid and `webUrl`
+when the backend is ready, which needs no banner). The health check and every daemon command run
+off the UI thread; a slow or missing `zetacode` never blocks a frame.
+
+A `zetacode` tab is a **client** of the backend, not a second agent: when the
+backend is reachable the gateway hosts the PTY for the workspace and runs the
+shipped CLI there, which attaches to that workspace's newest backend session
+(the attach client described in
+[Backend attach](./cli-reference.md#backend-attach)). If the attach cannot be
+made, the tab falls back to running the CLI locally and its status line says
+so — the fallback is never silent.
+
+Restarting or stopping from that settings row reconnects every attached
+terminal and tab to the address the restarted daemon publishes; the
+conversation list keeps its last snapshot while the backend is away, and a
+backend that disappears after it was ready surfaces as a banner instead of a
+frozen pane.
+
+### Quitting
+
+`backend.keep_on_quit` (设置 → 常规 → 退出后保留后台服务, default `false`)
+decides what quitting does:
+
+| Setting | Backend this window started | Backend already live when the window opened |
+| --- | --- | --- |
+| `false` (default) | `zetacode daemon stop` | left alone |
+| `true` | left running | left alone |
+
+The stop is spawned detached, so closing the app never waits for the daemon to
+exit.

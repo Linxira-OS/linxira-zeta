@@ -415,6 +415,26 @@ fn close_ask_screenshot() {
 	write("12-close-behaviour.png", &bytes);
 }
 
+/// `20-backend-banner.png` — the backend state banner after a simulated
+/// crash: the sentence names the dead process and the retry that resolves it,
+/// instead of a pane freezing on a socket that will never answer.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn backend_banner_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	shell
+		.backend
+		.observe(zetawork_gui::backend::Signal::Starting);
+	shell
+		.backend
+		.observe(zetawork_gui::backend::Signal::Crashed("后台进程已退出（pid 4812）".to_owned()));
+	assert!(shell.backend.banner().is_some(), "a crash keeps the banner on screen");
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("20-backend-banner.png", &bytes);
+}
+
 /// `13-workspace-state-words.png` — the 状态词表 two ways at once: the left
 /// column's rows (dot plus word) for the open project, and the 总面板's 状态
 /// column behind them. Nothing in this build observes a workspace, so the
