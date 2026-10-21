@@ -31,6 +31,7 @@ import {
 	type ResumeDirectory,
 	type ResumeScopeKind,
 } from "../resume";
+import type { ResumeSourceLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import { toggleProjectPin } from "../resume/preferences";
 import type { SessionStorage } from "../session/session-storage";
 import { toggleSessionPin } from "../session/session-pins";
@@ -115,7 +116,7 @@ export interface LiveResumePickerSourceOptions {
 }
 
 /** Host bridge shared with the native renderer: `directory` + `buildView`. */
-export class LiveResumePickerSource implements ResumeTreeSource {
+export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLike {
 	readonly initialScope: ResumeTreeScope;
 	readonly deleteMode: ResumeTreeDeleteMode;
 	/** Latest directory; null until the first scan finishes. */

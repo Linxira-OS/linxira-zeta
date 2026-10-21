@@ -2811,6 +2811,11 @@ export const zh = {
 	ssCurrentMark: "当前",
 	ssTitleWithScopeFmt: "%s（%s）",
 	ssFooterHintLineFmt: "[Del/⌫ 删除 · Enter 选择 · Tab %s · Esc 取消]",
+	resumePinAction: "固定",
+	resumeUnpinAction: "取消固定",
+	resumeRefreshAction: "刷新",
+	resumeDeleteTrash: "移到回收站",
+	resumeDeletePermanent: "删除",
 
 	// ── History search (history-search.ts) ─────────────────────────────────
 	hsTitle: "历史",

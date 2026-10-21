@@ -42,6 +42,8 @@ export interface SessionInfo {
 	messageCount: number;
 	/** Persisted assistant turns; zero means the agent never replied (0-turn session). */
 	assistantTurns?: number;
+	/** Last model recorded in the session (`provider/modelId`), when one was persisted. */
+	model?: string;
 	/** File size in bytes on disk; used for compact list rendering. */
 	size: number;
 	firstMessage: string;
@@ -295,6 +297,21 @@ function countAssistantMarkers(content: string): number {
 	return countRoleMarkers(content, "assistant");
 }
 
+/** The last `model_change`/`model_usage` record's model id in `entries`, if any. */
+function latestModelName(entries: readonly Record<string, unknown>[]): string | undefined {
+	for (let index = entries.length - 1; index >= 0; index--) {
+		const entry = entries[index]!;
+		if (
+			(entry.type === "model_change" || entry.type === "model_usage") &&
+			typeof entry.model === "string" &&
+			entry.model.length > 0
+		) {
+			return entry.model;
+		}
+	}
+	return undefined;
+}
+
 function extractFirstDisplayMessageFromPrefix(content: string): string | undefined {
 	let fallback: string | undefined;
 	let index = content.indexOf('"role"');
@@ -468,6 +485,11 @@ async function scanSessionFile(
 		}
 
 		firstMessage ||= extractFirstDisplayMessageFromPrefix(content) ?? "";
+		// The suffix is the file's tail, so its last model record supersedes any
+		// in the prefix window; fall back to the prefix when the tail has none.
+		const model =
+			(withStatus ? latestModelName(parseJsonlLenient<Record<string, unknown>>(suffix)) : undefined) ??
+			latestModelName(entries);
 		const messageCount = Math.max(parsedMessageCount, countMessageMarkers(content));
 		// Either bounded window may hold the only copy of an assistant record,
 		// and neither may: a >prefix record before a >suffix tail leaves the
@@ -491,6 +513,7 @@ async function scanSessionFile(
 			modified: mtime,
 			messageCount,
 			assistantTurns,
+			...(model ? { model } : {}),
 			size,
 			firstMessage: firstMessage || "(no messages)",
 			allMessagesText: allMessages.length > 0 ? allMessages.join(" ") : firstMessage,

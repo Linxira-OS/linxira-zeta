@@ -2856,6 +2856,11 @@ export const en = {
 	ssCurrentMark: "current",
 	ssTitleWithScopeFmt: "%s (%s)",
 	ssFooterHintLineFmt: "[Del/⌫ delete · Enter select · Tab %s · Esc cancel]",
+	resumePinAction: "Pin",
+	resumeUnpinAction: "Unpin",
+	resumeRefreshAction: "Refresh",
+	resumeDeleteTrash: "Move to trash",
+	resumeDeletePermanent: "Delete",
 
 	// ── History search (history-search.ts) ─────────────────────────────────
 	hsTitle: "History",
