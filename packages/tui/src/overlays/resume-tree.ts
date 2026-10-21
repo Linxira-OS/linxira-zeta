@@ -509,6 +509,8 @@ export class ResumeTreeComponent implements Component {
 	#selectedKey: string | undefined;
 	#scrollOffset = 0;
 	#deleteTarget: ResumeTreeConversationRow | null = null;
+	/** Keys pressed on the skeleton while the host's first scan is in flight. */
+	#pendingKeys: string[] | undefined;
 	#busy = false;
 	#notice: string | undefined;
 	#expandedOnce = false;
@@ -815,6 +817,27 @@ export class ResumeTreeComponent implements Component {
 		if (this.#busy) return;
 		if (matchesKey(keyData, "ctrl+c")) {
 			this.onExit();
+			return;
+		}
+		// The host's first scan may still be in flight: the skeleton has no rows,
+		// so acting on the key now would silently drop it. Hold keys until the
+		// load lands, then replay them against the loaded rows.
+		if (this.#pendingKeys) {
+			this.#pendingKeys.push(keyData);
+			return;
+		}
+		if (this.#viewFor() === null && this.#source.isLoading?.() && this.#source.refresh) {
+			const pending: string[] = [keyData];
+			this.#pendingKeys = pending;
+			void this.#source.refresh().then(() => {
+				// A later refresh may have replaced this queue; its own replay owns it.
+				if (this.#pendingKeys !== pending) return;
+				this.#pendingKeys = undefined;
+				this.invalidate();
+				this.#rebuild();
+				this.onRequestRender?.();
+				for (const key of pending) this.handleInput(key);
+			});
 			return;
 		}
 		if (this.#deleteTarget) {
