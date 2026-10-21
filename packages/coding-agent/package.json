@@ -437,6 +437,14 @@
       "types": "./src/registry/*.ts",
       "import": "./src/registry/*.ts"
     },
+    "./resume": {
+      "types": "./src/resume/index.ts",
+      "import": "./src/resume/index.ts"
+    },
+    "./resume/*": {
+      "types": "./src/resume/*.ts",
+      "import": "./src/resume/*.ts"
+    },
     "./secrets": {
       "types": "./src/secrets/index.ts",
       "import": "./src/secrets/index.ts"
