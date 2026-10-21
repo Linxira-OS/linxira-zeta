@@ -31,6 +31,7 @@ import {
 	resetTerminalManagerForTests,
 	resolveSessionProgram,
 	sessionSlotKey,
+	shutdownTerminalManager,
 	isTerminalProgram,
 	companionPathDirs,
 	FALLBACK_TERM_PROGRAM_VERSION,
@@ -586,6 +587,24 @@ describe("terminal REST", () => {
 		expect(body.terminals.find(term => term.id === created.id)).toBeUndefined();
 		// Ticket issuance for a dropped session 404s.
 		expect(handleTerminalTicket(created.id).status).toBe(404);
+	});
+
+	test("gateway shutdown reaps every live PTY (SIGTERM path)", async () => {
+		await setup();
+		installFakePty();
+		const cwd = await mkdtemp(join(tmpdir(), "zeta-term-cwd-"));
+		cleanups.push(() => rm(cwd, { recursive: true, force: true }));
+		await createTerminal({ cwd });
+		await createTerminal({ cwd, file: "README.md" });
+		expect(fakePtys).toHaveLength(2);
+		expect(fakePtys.every(pty => !pty.killed)).toBe(true);
+
+		// What `serve`'s SIGTERM handler reaches through the gateway shutdown.
+		shutdownTerminalManager();
+
+		expect(fakePtys.every(pty => pty.killed)).toBe(true);
+		const body = (await (await handleTerminalList()).json()) as { terminals: unknown[] };
+		expect(body.terminals).toEqual([]);
 	});
 });
 

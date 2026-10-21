@@ -40,6 +40,14 @@ the section reports the counts it actually received in its header line.
 - **退出后保留后台服务** is `backend.keep_on_quit` (default `false`). With it
   off, quitting stops a backend this window started. A backend that was already
   live when the window opened is never stopped by the window.
+- **Start Backend at Login** (`backend.autostart`, default `false`) is the
+  gateway-driven checkbox in 全部设置 → 交互 → 启动与更新. It writes the same
+  global key `~/.zeta/agent/config.yml` through `PUT /api/settings`; the window
+  holds no copy of the value. It is visible only in the bundled install form.
+  Checking it records the decision, it does not install the OS component:
+  `zetacode daemon install-autostart` does, and the installed unit/task
+  consults this setting (see [Autostart](./daemon.md#autostart); three-minute
+  delay; disable/force-stop from systemd or Task Scheduler).
 
 A restart re-dials every attached terminal and `zetacode` tab against the
 address the restarted daemon publishes; the conversation list keeps its last

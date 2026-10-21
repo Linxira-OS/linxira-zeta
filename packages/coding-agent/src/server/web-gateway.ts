@@ -126,6 +126,7 @@ import {
 	handleTerminalTicket,
 	handleTerminalWsUpgrade,
 	isTerminalWsUpgradeRequest,
+	shutdownTerminalManager,
 	terminalWebSocketHandler,
 	type TerminalWsData,
 } from "./web-gateway/terminal";
@@ -862,6 +863,10 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 		port: server.port ?? gatewayPort,
 		url: `http://127.0.0.1:${server.port ?? gatewayPort}`,
 		shutdown: async () => {
+			// Kill embedded PTYs first: their shells/agents are children of this
+			// process, and a graceful SIGTERM must not leave them holding the
+			// workspace after the listener is gone.
+			shutdownTerminalManager();
 			server.stop(true);
 		},
 	};

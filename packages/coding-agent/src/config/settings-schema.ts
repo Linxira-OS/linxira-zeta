@@ -360,6 +360,22 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// Registry entry lives in `autostart/settings.ts`; this schema twin keeps
+	// it in the web/desktop settings panel (`getPathsForTab`). The value is
+	// read from the global user config only — a project layer cannot start a
+	// machine-wide service.
+	"backend.autostart": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "interaction",
+			group: "Startup & Updates",
+			label: "Start Backend at Login",
+			description:
+				"Run the background backend (zetacode daemon) with the system, three minutes after boot/login. Bundled app only; install the OS component with `zetacode daemon install-autostart`.",
+		},
+	},
+
 	// Power assertions: macOS IOKit, Linux login1/ScreenSaver, Windows execution state.
 	"power.sleepPrevention": {
 		type: "enum",

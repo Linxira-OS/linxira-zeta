@@ -70,40 +70,128 @@ Daemon records live under `<config root>/run` (`~/.zeta/run` by default):
 	"autostart": {
 		"platform": "linux",
 		"supported": true,
-		"installed": false,
-		"path": "/home/me/.config/systemd/user/zetacode-daemon.service"
+		"installed": true,
+		"enabled": true,
+		"active": false,
+		"path": "/home/me/.config/systemd/user/zetacode-daemon.timer",
+		"setting": true,
+		"installForm": "bundled"
 	}
 }
 ```
 
 `source` is `daemon` (our record), `instance-lock` (record lost but the lock is
-live), or `serve-registry` (a foreground `serve` or an autostart entry). For a
-stopped backend, `running` is `false`; `stale: true` means a dead pid's records
-are still on disk and `stop` will remove them. `port` is the web port.
+live), or `serve-registry` (a foreground `serve` or an OS-supervised backend).
+For a stopped backend, `running` is `false`; `stale: true` means a dead pid's
+records are still on disk and `stop` will remove them. `port` is the web port.
+
+`autostart.installed`, `autostart.enabled` and `autostart.active` come from the
+OS (`systemctl --user show` / `Get-ScheduledTask`), never from `daemon.json` or
+`serve.json`: our pid file cannot know that the user disabled the timer or
+ended the task. `setting` is the global `backend.autostart` value, and
+`installForm` is `bundled` or `npm`.
 
 ## Autostart
 
-`install-autostart` **installs and prints** the exact file it wrote plus the
-command that removes it; nothing is installed silently.
+Autostart is a real per-user OS component, installed only by the bundled app.
+The npm/source form (a script or `node_modules` shim, i.e. `PI_COMPILED` is not
+`true`) is refused: `install-autostart` writes **no** unit, task, registry
+entry, or setting, and exits non-zero with a message naming the bundled app as
+the only supported form. `detectInstallForm()` in
+`packages/coding-agent/src/autostart/install-form.ts` is the single decision;
+`daemon status`, the refusal and the docs all use it.
 
-- **Linux:** a user systemd unit at
-  `$XDG_CONFIG_HOME/systemd/user/zetacode-daemon.service` (default
-  `~/.config/systemd/user/…`), running `zetacode serve --no-browser …` and
-  appending output to the daemon log. The command runs
-  `systemctl --user daemon-reload` and
-  `systemctl --user enable --now zetacode-daemon.service`. Undo:
-  `systemctl --user disable --now zetacode-daemon.service`, delete the unit,
-  `systemctl --user daemon-reload`.
-- **Windows:** a current-user logon entry at
-  `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\zetacode-daemon.cmd`.
-  It starts the backend with `start "" /b` and appends output to the daemon
-  log. Undo: delete that file, or run `zetacode daemon uninstall-autostart`.
-- **macOS:** reported as unsupported. Run `zetacode daemon start` at login or
-  add a launchd agent yourself.
+### The setting
 
-`uninstall-autostart` disables the entry where the platform has a supervisor
-and removes the file; it does not stop a backend that is already running — use
-`zetacode daemon stop` for that.
+`backend.autostart` (default `false`) is the decision “start the backend with
+the system”. It lives in the **global user config only**
+(`~/.zeta/agent/config.yml`); a project `.zeta/config.yml` or a `--config`
+overlay is deliberately ignored, so checking out a repository cannot make the
+machine start a service. It is also the checkbox **Start Backend at Login**
+in the desktop app's settings surface (`PUT /api/settings` with path
+`backend.autostart`), which writes the same file — there is no GUI-only state.
+
+The setting alone installs nothing. `install-autostart` is the explicit
+command; it writes the component and sets the setting to `true`.
+`uninstall-autostart` disables/removes the component and sets it to `false`.
+The installed component consults the setting at start-up:
+
+- Linux: `ExecCondition=… daemon autostart-enabled` (exit 0 only when the
+  global value is true).
+- Windows: the task runs `serve --autostart`, which exits quietly when the
+  global value is false.
+
+So editing the config to `false` disables the OS-triggered start without
+removing the component. Pointing the setting at `true` does not resurrect a
+component the OS has disabled: `daemon start` never calls `enable`, `schtasks
+/Change`, or any installer, and the units/task are created with
+`Restart=no` / no restart-on-failure, so nothing respawns itself.
+
+### Linux: systemd user service + timer
+
+`install-autostart` writes two files under
+`$XDG_CONFIG_HOME/systemd/user` (default `~/.config/systemd/user`):
+
+- `zetacode-daemon.service` — `Type=exec`, runs `zetacode serve --no-browser …`
+  in the foreground, `Restart=no`, `KillMode=control-group`;
+- `zetacode-daemon.timer` — `OnBootSec=3min` **and** `OnStartupSec=3min`, so
+  the backend starts three minutes after boot or login.
+
+Both names are visible in `systemctl --user list-timers` /
+`systemctl --user status zetacode-daemon.service`. Installation runs
+`systemctl --user daemon-reload` and
+`systemctl --user enable --now zetacode-daemon.timer`.
+
+**Lingering:** a user manager normally exists only while the user is logged in.
+Starting the backend at boot, before login, additionally needs
+`loginctl enable-linger $USER` (a privileged, one-time change). Without it the
+timer fires three minutes after login.
+
+Disable or force-stop from the OS (this also wins over the config; `daemon
+start` will not re-enable it):
+
+```sh
+systemctl --user disable --now zetacode-daemon.timer
+systemctl --user stop zetacode-daemon.service   # force-stop the running backend
+systemctl --user status zetacode-daemon.service
+```
+
+`uninstall-autostart` runs `disable --now`, stops the service, deletes both
+files, and reloads systemd.
+
+### Windows: Task Scheduler
+
+`install-autostart` writes a task definition to
+`%LOCALAPPDATA%\Zeta\autostart\zetacode-backend.xml` and registers it through
+the Task Scheduler API (`Register-ScheduledTask -Xml … -Force`), which creates
+a task that runs as the current user without elevation. `schtasks /Create
+/SC ONLOGON` is deliberately not used: that form demands an elevated shell.
+The task:
+
+- is registered for the current user (`InteractiveToken`,
+  `RunLevel=LeastPrivilege`) with **no elevation requirement** and no stored
+  password;
+- has a logon trigger with `<Delay>PT3M</Delay>` — three minutes after sign-in;
+- appears in Task Scheduler as **Zeta Backend Autostart** and is controllable
+  there (Run, End, Disable, Delete).
+
+Force-stop / disable from the OS:
+
+```bat
+schtasks /End /TN "Zeta Backend Autostart"
+schtasks /Change /TN "Zeta Backend Autostart" /DISABLE
+schtasks /Delete /TN "Zeta Backend Autostart" /F
+```
+
+`uninstall-autostart` deletes the task and removes the XML. Task Scheduler
+owns the `serve` process, so ending the task releases the ports; the normal
+`serve` shutdown path (SIGTERM/SIGINT, and `daemon stop`) also reaps the
+Web UI child and every gateway PTY before exiting.
+
+### macOS
+
+Reported as unsupported. Run `zetacode daemon start` at login or add a launchd
+agent yourself.
 
 ## The desktop app
 

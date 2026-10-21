@@ -21,6 +21,7 @@
  */
 
 import { cfgAdvisorEnabled } from "../../advisor/settings";
+import { detectInstallForm } from "../../autostart/install-form";
 import { cfgAutolearnEnabled } from "../../autolearn/settings";
 import { cfgDefaultThinkingLevel, cfgRetryUsageAwareFallback } from "../../session/settings";
 import { cfgMemoryBackend } from "../../memory-backend/settings";
@@ -343,16 +344,33 @@ export async function handleSettingsGet(req: Request): Promise<Response> {
 		) as Record<SettingTab, string[]>;
 
 		const settingsList: SettingsEntryDto[] = [];
+		// `backend.autostart` is a global-only decision; the panel shows the
+		// global layer so a project override can never masquerade as the value
+		// the installed unit will consult.
+		const globalBackend = settings.getGlobalSettings() as { backend?: { autostart?: unknown } };
 		for (const tab of SETTING_TABS) {
 			const order = TAB_GROUPS[tab];
 			const entries = getPathsForTab(tab)
 				.map(path => pathToEntry(path, settings, zh))
 				.filter((entry): entry is SettingsEntryDto => entry !== null)
+				.map(entry =>
+					entry.path === "backend.autostart"
+						? { ...entry, value: globalBackend.backend?.autostart === true }
+						: entry,
+				)
 				.sort((a, b) => groupRank(a, order) - groupRank(b, order));
 			settingsList.push(...entries);
 		}
 
-		return json({ tabs, groups, settings: settingsList });
+		// Autostart is a bundled-app capability: the npm/source form must not
+		// offer a checkbox that cannot install anything. Same detector as the
+		// installer refusal and `daemon status`.
+		const filtered =
+			detectInstallForm() === "bundled"
+				? settingsList
+				: settingsList.filter(entry => entry.path !== "backend.autostart");
+
+		return json({ tabs, groups, settings: filtered });
 	} catch (error) {
 		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
 	}
@@ -374,6 +392,9 @@ export async function handleSettingsPut(req: Request): Promise<Response> {
 		const setting = lookup(path);
 		if (!setting || !hasUi(path)) {
 			return json({ error: `Setting has no UI metadata: ${path}` }, 400);
+		}
+		if (path === "backend.autostart" && detectInstallForm() !== "bundled") {
+			return json({ error: "Autostart is only supported for the bundled Zeta desktop app." }, 400);
 		}
 
 		const cwd = req.headers.get("x-zeta-cwd") ?? process.cwd();
