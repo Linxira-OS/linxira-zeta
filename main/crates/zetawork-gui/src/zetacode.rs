@@ -557,6 +557,18 @@ pub fn write_provider_field(
 	fs::write(&path, edited).map_err(|err| format!("{}: {err}", path.display()))
 }
 
+/// Mark a `zetacode` child as running inside the workbench terminal.
+///
+/// The agent's declarative-panel gate reads the same `ZETA_WORKBENCH=1` probe a
+/// `termide` pane carries. The GUI itself may have been launched from an
+/// ordinary shell, and its children inherit that shell's environment, so the
+/// panel-data call (and every other `zetacode` command the shell drives) would
+/// otherwise look like a plain terminal. The workbench is the panel host; its
+/// children are inside by construction.
+fn mark_workbench_child(cmd: &mut Command) {
+	cmd.env("ZETA_WORKBENCH", "1");
+}
+
 /// Run the shipped `zetacode <args>…`, returning `(stdout, stderr)` with `\r`
 /// stripped.
 ///
@@ -571,6 +583,7 @@ pub(crate) fn run_zetacode(args: &[String]) -> Result<(String, String), String> 
 	let shown = program.display().to_string();
 	let mut cmd = Command::new(&program);
 	cmd.args(args);
+	mark_workbench_child(&mut cmd);
 	cmd.stdin(Stdio::null())
 		.stdout(Stdio::piped())
 		.stderr(Stdio::piped());
@@ -1247,5 +1260,20 @@ mod tests {
 		fs::write(leaf.join(name), b"leaf").unwrap();
 		assert_eq!(resolve_in(&exe_dir, Companion::Zetaide), Ok(leaf.join(name)));
 		let _ = fs::remove_dir_all(&root);
+	}
+
+	#[test]
+	fn spawned_children_carry_the_workbench_marker() {
+		// The panel gate reads `ZETA_WORKBENCH=1`; a GUI launched from an
+		// ordinary shell must set it on the child or its own panel data call
+		// would be refused as "outside the workbench".
+		let mut cmd = Command::new("zetacode");
+		mark_workbench_child(&mut cmd);
+		let marker = cmd
+			.get_envs()
+			.find(|(key, _)| *key == std::ffi::OsStr::new("ZETA_WORKBENCH"))
+			.and_then(|(_, value)| value)
+			.map(|value| value.to_string_lossy().into_owned());
+		assert_eq!(marker.as_deref(), Some("1"));
 	}
 }

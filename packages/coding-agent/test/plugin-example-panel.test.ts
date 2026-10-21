@@ -24,6 +24,9 @@ import { setLanguage } from "../src/i18n";
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 const PLUGIN_ROOT = path.join(REPO_ROOT, "plugins", "official", "example-panel");
 const PLUGIN_ENTRY = path.join(PLUGIN_ROOT, "index.ts");
+// The panel surface is gated on running inside the workbench terminal; this
+// suite exercises the host path, so it states that identity explicitly.
+const WORKBENCH_ENV = { ZETA_WORKBENCH: "1" };
 
 const catalogued = JSON.parse(fs.readFileSync(path.join(PLUGIN_ROOT, "plugin.json"), "utf8")) as {
 	id: string;
@@ -82,21 +85,21 @@ describe("example-panel through the host", () => {
 			"tasks",
 			"--json",
 		]);
-		const tasks = await readPanelData(PLUGIN_ROOT, "tasks");
+		const tasks = await readPanelData(PLUGIN_ROOT, "tasks", { env: WORKBENCH_ENV });
 		expect(tasks.plugin).toBe("example-panel");
 		expect(tasks.kind).toBe("list");
 		expect((tasks.data as { rows: Array<Record<string, string>> }).rows.length).toBeGreaterThan(0);
 
-		const chart = await readPanelData(PLUGIN_ROOT, "throughput");
+		const chart = await readPanelData(PLUGIN_ROOT, "throughput", { env: WORKBENCH_ENV });
 		expect(chart.kind).toBe("chart");
 		expect((chart.data as { points: Array<{ value: number }> }).points).toHaveLength(3);
 
 		// The html kind runs nothing: it reports the page the host navigates to.
-		const page = await readPanelData(PLUGIN_ROOT, "guide");
+		const page = await readPanelData(PLUGIN_ROOT, "guide", { env: WORKBENCH_ENV });
 		expect(page.kind).toBe("html");
 		expect(page.data).toEqual({ entry: "pages/index.html" });
 
-		await expect(readPanelData(PLUGIN_ROOT, "nope")).rejects.toThrow(/has no panel "nope"/);
+		await expect(readPanelData(PLUGIN_ROOT, "nope", { env: WORKBENCH_ENV })).rejects.toThrow(/has no panel "nope"/);
 	});
 
 	test("the tool returns localized panel data through the plugin's catalogue", async () => {

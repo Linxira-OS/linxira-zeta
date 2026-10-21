@@ -133,6 +133,15 @@ Where you see them: the desktop shell (zetawork GUI) has a 插件 page in the
 right column. Pick your plugin, pick a panel, and it is drawn natively. The
 `html` panel opens your page in that same column.
 
+Panels are a workbench surface, so the agent only reports them when it is
+running inside a Zetawork terminal: a local pane (`ZETA_WORKBENCH=1`) or a
+pane attached to `zetacode serve` (`TERM_PROGRAM=zetawork`). In a plain
+terminal the declaration reads as "no panels" — `zetacode plugins panel` says
+so by name — while your plugin's tools, hooks and commands keep working.
+Set `PI_FORCE_PLUGIN_PANELS=1` to see the panels outside the workbench for
+debugging. `ui` validation only runs when the gate is open, so an invalid block
+is not reported from a plain terminal.
+
 ## 4. A web page
 
 Any `.html`/`.htm` file in your package is mountable:

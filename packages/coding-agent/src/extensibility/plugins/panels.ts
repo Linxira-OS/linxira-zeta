@@ -20,6 +20,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionContext } from "../../extensibility/extensions/types";
 import { loadExtensions } from "../../extensibility/extensions/loader";
+import { PANELS_INACTIVE_MESSAGE, panelActivation } from "./activation";
 import { loadPluginLocaleCatalog } from "./locales";
 import { parsePluginUi } from "./parser";
 import {
@@ -90,12 +91,29 @@ function readPackageJson(file: string): (PluginPackageJson & { name?: unknown })
 }
 
 /**
+ * The environment a panel read is evaluated in.
+ *
+ * `env` is injectable so a host that already holds an environment snapshot — a
+ * spawned CLI, a test — gates on the same observation instead of re-reading a
+ * process-global that may have moved.
+ */
+export interface PanelReadOptions {
+	env?: NodeJS.ProcessEnv;
+}
+
+/**
  * Read and validate a plugin's panel declaration.
  *
  * Resolution order: `plugin.json` `ui`, then the package manifest's `zeta.ui`.
  * A plugin that declares neither has no panels — not an error.
+ *
+ * Outside the workbench terminal a declaration is deliberately invisible:
+ * this returns "no panels" rather than an error, because nothing is wrong with
+ * the plugin — it simply has no host that can draw it here. {@link readPanelData}
+ * is the explicit request path and does report the gate by name.
  */
-export function readPanelDeclaration(pluginRoot: string): PanelDeclaration {
+export function readPanelDeclaration(pluginRoot: string, options: PanelReadOptions = {}): PanelDeclaration {
+	if (!panelActivation(options.env).enabled) return { ok: true, ui: {} };
 	const catalogueFile = path.join(pluginRoot, "plugin.json");
 	const catalogue = readJson(catalogueFile);
 	if (catalogue && typeof catalogue === "object" && "ui" in catalogue) {
@@ -141,11 +159,12 @@ export function panelCommandArgs(pluginId: string, panelId: string): string[] {
 export async function readPanelData(
 	pluginRoot: string,
 	panelId: string,
-	options: { cwd?: string; storage?: PluginStorage } = {},
+	options: { cwd?: string; storage?: PluginStorage; env?: NodeJS.ProcessEnv } = {},
 ): Promise<PluginPanelData> {
+	if (!panelActivation(options.env).enabled) throw new Error(PANELS_INACTIVE_MESSAGE);
 	const root = path.resolve(pluginRoot);
 	const pluginId = readCatalogue(root).id;
-	const declaration = readPanelDeclaration(root);
+	const declaration = readPanelDeclaration(root, { env: options.env });
 	if (!declaration.ok) throw new Error(declaration.error);
 	const panel = declaration.ui.panels?.find(candidate => candidate.id === panelId);
 	if (!panel) {
