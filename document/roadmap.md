@@ -633,6 +633,14 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   仍保持 `off`。要在面板里补项目层写入，需要把 `config/settings.ts` 的项目保存路径从
   仅 `modelRoles` 泛化到任意键（含删除 tombstone 与 watcher 语义），不是界面层的小改。
 
+- **桌宠（pet）——旁路产品，接口面只此一份（2026-10-21 裁定）**：桌宠不随
+  Zeta 版本线发布，版本独立（`@linxiraos/pet`），我们**只对外暴露接口**、不内嵌实现。
+  契约见 `document/pet-interface.md`：状态文件 + 命令通道，配置归属**默认工作区**，
+  移动默认自主、工作区可按需下发目标点。素材生产走「文生图角色表 → 图生视频 →
+  抠像/抽帧 → 图集」，可复用 `dsh-pet`（MIT）的提示词配方与 `simiao-dsh-pet`（MIT，
+  仅脚本与文档）的批量驱动方案；两者生成的**素材不在 MIT 范围**，不可入库。
+  Deferred：素材批量生成器与运行时本体要单独立项。
+
 - ~~**跨工作区多主代理消息**~~ DONE (1.4.0)：跨进程网格已落地（回环 socket / 命名管道 +
   每工作区令牌、`<workspaceId>/<agentId>` 地址、心跳与 `gone`、离线信箱 + wake、
   互相等待两端都能拿到 `peer-waiting-on-you`）。见文首 Shipped 表的 Agent mesh 行与
