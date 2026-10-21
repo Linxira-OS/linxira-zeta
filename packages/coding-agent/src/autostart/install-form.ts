@@ -35,7 +35,11 @@ export function detectInstallForm(options: DetectInstallFormOptions = {}): Insta
 	const marker = options.marker ?? process.env.PI_COMPILED;
 	if (marker !== undefined && marker !== "") return marker === "true" ? "bundled" : "npm";
 
-	const execName = path.basename(options.execPath ?? process.execPath);
+	// The path may describe the other platform (a Windows install inspected from
+	// Linux, or the reverse), so pick the separator by shape, not by host.
+	const execPath = options.execPath ?? process.execPath;
+	const execName =
+		/[\\/]/.test(execPath) && execPath.includes("\\") ? path.win32.basename(execPath) : path.basename(execPath);
 	if (BUNDLED_EXECUTABLE.test(execName)) return "bundled";
 
 	const script = (options.argv ?? process.argv)[1];

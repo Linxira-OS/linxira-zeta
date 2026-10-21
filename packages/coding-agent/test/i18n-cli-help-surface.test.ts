@@ -81,7 +81,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/read.ts": 1,
 	"commands/render.ts": 7,
 	"commands/say.ts": 6,
-	"commands/serve.ts": 12,
+	"commands/serve.ts": 13,
 	"commands/session.ts": 5,
 	"commands/settings.ts": 5,
 	"commands/setup.ts": 3,
