@@ -22,6 +22,7 @@ import {
 import { getConfigDirPaths } from "../../config";
 import { registerPluginCacheInvalidator, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import { findExtensionDirectoryIndex, resolveExtensionDirectory } from "../extensions/directory-resolution";
+import { panelActivation } from "./activation";
 import { installLegacyPiSpecifierShim } from "./legacy-pi-compat";
 import { clearPluginLocaleCache, loadPluginLocaleCatalog, type PluginLocaleCatalog } from "./locales";
 import { parsePluginUi } from "./parser";
@@ -63,7 +64,11 @@ installLegacyPiSpecifierShim();
 const enabledPluginsCache = new Map<string, Promise<ScopedInstalledPlugin[]>>();
 
 function enabledPluginsCacheKey(cwd: string, home?: string): string {
-	return `${path.resolve(cwd)}\0${home === undefined ? "" : path.resolve(home)}`;
+	// The `ui` gate is part of the result: the same roots read differently
+	// inside and outside the workbench (or under the force switch), so a cache
+	// entry taken outside must not answer an inside read.
+	const panels = panelActivation().enabled ? "panels" : "no-panels";
+	return `${path.resolve(cwd)}\0${home === undefined ? "" : path.resolve(home)}\0${panels}`;
 }
 
 function clearEnabledPluginsCache(): void {
@@ -252,13 +257,22 @@ async function collectPluginsAtRoot(
 		// and the panel host never sees a half-understood declaration. A plugin
 		// that declares no `ui` is left untouched — no `ui` key is added — so a
 		// manifest without panels reads exactly as it did before panels existed.
+		//
+		// Panel declarations are also gated on the workbench terminal: outside
+		// it there is no renderer and no panel-data caller, so the declaration
+		// is invisible (dropped without a warning — the plugin is not broken,
+		// it just has no host here). `PI_FORCE_PLUGIN_PANELS` bypasses the gate.
 		if (manifest.ui !== undefined) {
-			const ui = parsePluginUi(manifest.ui);
-			if (ui.ok) {
-				manifest.ui = ui.ui;
-			} else {
-				logger.warn("plugins: invalid ui declaration", { name, error: ui.error });
+			if (!panelActivation().enabled) {
 				manifest.ui = undefined;
+			} else {
+				const ui = parsePluginUi(manifest.ui);
+				if (ui.ok) {
+					manifest.ui = ui.ui;
+				} else {
+					logger.warn("plugins: invalid ui declaration", { name, error: ui.error });
+					manifest.ui = undefined;
+				}
 			}
 		}
 
