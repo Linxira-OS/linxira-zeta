@@ -652,7 +652,6 @@ export interface Messages {
 	resumeMenuOpen: string; // open in file manager
 	resumeMenuWorkspace: string; // workspace
 	resumeMenuConversation: string; // conversation
-	resumeEditHint: string; // Enter saves · Esc cancels
 	resumeRenameHint: string; // Enter saves · Esc cancels
 	resumeRenameWorkspaceTitle: string; // Rename workspace
 	resumeRenameConversationTitle: string; // Rename conversation

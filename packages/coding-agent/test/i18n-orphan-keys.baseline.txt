@@ -1907,7 +1907,6 @@ ssSaveHint
 ssSearchHint
 ssSectionsFocusedHint
 ssSelectHint
-ssTitleResume
 ssTitleSettings
 ssTitleWithScopeFmt
 ssToggleHint

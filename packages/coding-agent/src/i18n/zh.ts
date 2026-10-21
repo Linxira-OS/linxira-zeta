@@ -614,7 +614,6 @@ export const zh = {
 	resumeMenuOpen: "在文件管理器中打开",
 	resumeMenuWorkspace: "工作区",
 	resumeMenuConversation: "会话",
-	resumeEditHint: "回车保存 · Esc 取消",
 	resumeRenameHint: "回车保存 · Esc 取消",
 	resumeRenameWorkspaceTitle: "重命名工作区",
 	resumeRenameConversationTitle: "重命名会话",

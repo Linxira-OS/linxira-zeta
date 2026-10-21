@@ -614,7 +614,6 @@ export const en = {
 	resumeMenuOpen: "open in file manager",
 	resumeMenuWorkspace: "workspace",
 	resumeMenuConversation: "conversation",
-	resumeEditHint: "Enter saves · Esc cancels",
 	resumeRenameHint: "Enter saves · Esc cancels",
 	resumeRenameWorkspaceTitle: "Rename workspace",
 	resumeRenameConversationTitle: "Rename conversation",

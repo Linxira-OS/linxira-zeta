@@ -657,7 +657,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	},
 	{
 		file: "packages/coding-agent/src/slash-commands/builtin-lifecycle.ts",
-		symbol: 'Usage: /delete yes — would delete',
+		symbol: "Usage: /delete yes — would delete",
 		why: "The refusal text names the session that would have been deleted; it is the only user-visible proof that a refused `/delete` did nothing.",
 	},
 	{
