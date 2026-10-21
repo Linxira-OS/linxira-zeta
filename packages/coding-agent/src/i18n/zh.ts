@@ -606,6 +606,8 @@ export const zh = {
 	resumeFooterDoubleClick: "双击恢复",
 	resumeFooterWheel: "滚轮滚动",
 	resumeFooterMenu: "菜单",
+	resumeFooterPaths: "完整路径",
+	resumeFullPathsWorkspaceHint: "完整路径只在此工作区之外有意义 — 按 Tab 后再按 f",
 	resumeMenuRename: "重命名",
 	resumeMenuCollapse: "折叠",
 	resumeMenuExpand: "展开",

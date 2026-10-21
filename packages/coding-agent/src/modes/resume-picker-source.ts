@@ -79,6 +79,7 @@ export async function loadResumePickerState(agentDir: string = getAgentDir()): P
 			collapsedProjects: stringList(record.collapsedProjects),
 			expandedProjects: stringList(record.expandedProjects),
 			collapsedWorkspaces: stringList(record.collapsedWorkspaces),
+			...(typeof record.fullPaths === "boolean" ? { fullPaths: record.fullPaths } : {}),
 		};
 	} catch (error) {
 		if (!isEnoent(error)) logger.warn("Failed to read resume picker state", { error });
@@ -105,6 +106,7 @@ export async function saveResumePickerState(
 		collapsedProjects: [...(state.collapsedProjects ?? [])],
 		expandedProjects: [...(state.expandedProjects ?? [])],
 		collapsedWorkspaces: [...(state.collapsedWorkspaces ?? [])],
+		fullPaths: state.fullPaths === true,
 	};
 	try {
 		await fs.writeFile(temporaryPath, JSON.stringify(payload, null, "\t"), { encoding: "utf-8", mode: 0o600 });
@@ -191,6 +193,7 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 			collapsedProjects: [...(this.#state.collapsedProjects ?? [])],
 			expandedProjects: [...(this.#state.expandedProjects ?? [])],
 			collapsedWorkspaces: [...(this.#state.collapsedWorkspaces ?? [])],
+			fullPaths: this.#state.fullPaths === true,
 		};
 	}
 
