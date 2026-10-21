@@ -1,10 +1,8 @@
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-21
+
 - Added a `zetawork` terminal id that resolves to the Kitty image protocol from the environment alone, so images render in the desktop app's own terminal
-
-## [1.3.2] - 2026-10-19
-
-- Version line moves to 1.3.2 with the rest of the suite; no user-visible change in this package.
 
 ## [9.5.0] - 2026-02-01
 
@@ -188,6 +186,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.3.2] - 2026-10-19
+
+- Version line moves to 1.3.2 with the rest of the suite; no user-visible change in this package.
 
 ## [1.3.1] - 2026-10-19
 

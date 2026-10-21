@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-21
+
 ### Added
 
 - Model-side AI breakdown beside the user-frustration metrics: per-model turn and token counts are shown in the dashboard

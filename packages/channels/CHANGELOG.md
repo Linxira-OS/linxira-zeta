@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-21
+
 - Feishu and Telegram log in with credentials as well as the WeChat QR: credentials are validated before they are written (Feishu tenant token plus bot info, Telegram `getMe`), secrets are masked in errors, and unbinding clears exactly the fields that channel owns
 
 - Channel config writes go through a read-modify-write under one file lock with a shared reader, and the runtime lock is published atomically (temp file + link), so concurrent `login`/`serve`/settings writers no longer drop keys

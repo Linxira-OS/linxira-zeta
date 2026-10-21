@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-21
+
 ### Added
 
 - Cross-process agent mesh: `MeshNode` advertises a workspace in the mesh directory, messages travel over a loopback socket (POSIX) or named pipe (Windows) with a per-workspace token, and agents address each other as `<workspaceId>/<agentId>` (aliases and directory names resolve, ambiguity is an error). Offline peers get an atomic mailbox write plus a wake, and a mutual wait returns `peer-waiting-on-you` instead of deadlocking both sessions (`@agent list`, `@agent use`, `@team`)
