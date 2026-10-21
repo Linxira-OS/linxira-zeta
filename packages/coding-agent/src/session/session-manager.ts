@@ -4500,10 +4500,18 @@ export class SessionManager {
 		return sortPinnedFirst(filterSessionsForPicker(await listSessions(dir, storage, siblingDirs), pinned), pinned);
 	}
 
-	/** Picker-facing cross-project list, same empty-session rule as {@link listForPicker}. */
-	static async listAllForPicker(storage: SessionStorage = new FileSessionStorage()): Promise<SessionInfo[]> {
+	/**
+	 * Picker-facing cross-project list, same empty-session rule as
+	 * {@link listForPicker}. `sessionsRoot` picks the directory tree to scan so a
+	 * process writing to a custom session root lists its own sessions, not the
+	 * default agent root's.
+	 */
+	static async listAllForPicker(
+		storage: SessionStorage = new FileSessionStorage(),
+		sessionsRoot?: string,
+	): Promise<SessionInfo[]> {
 		const pinned = await loadPinnedSessionIds();
-		return sortPinnedFirst(filterSessionsForPicker(await listAllSessions(storage), pinned), pinned);
+		return sortPinnedFirst(filterSessionsForPicker(await listAllSessions(storage, sessionsRoot), pinned), pinned);
 	}
 }
 

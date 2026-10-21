@@ -675,6 +675,8 @@ export class ResumeTreeComponent implements Component {
 	#selectedKey: string | undefined;
 	#scrollOffset = 0;
 	#deleteTarget: ResumeTreeConversationRow | null = null;
+	/** Keys pressed on the skeleton while the host's first scan is in flight. */
+	#pendingKeys: string[] | undefined;
 	#busy = false;
 	#notice: string | undefined;
 	#expandedOnce = false;
@@ -841,7 +843,10 @@ export class ResumeTreeComponent implements Component {
 			return;
 		}
 		if (!this.#selectedKey || !flat.some(entry => rowIdentity(entry.row) === this.#selectedKey)) {
-			this.#selectedKey = rowIdentity(flat[0]!.row);
+			// Open on something actionable: headers only fold, so a picker that
+			// starts on a project header makes Enter and Delete look dead.
+			const firstConversation = flat.find(entry => entry.row.type === "conversation") ?? flat[0]!;
+			this.#selectedKey = rowIdentity(firstConversation.row);
 		}
 		this.#clampScroll();
 	}
@@ -1326,7 +1331,6 @@ export class ResumeTreeComponent implements Component {
 	}
 
 	handleInput(keyData: string): void {
-		if (this.#busy) return;
 		if (keyData.startsWith("\x1b[<")) {
 			this.handleMouse(keyData);
 			return;
@@ -1335,6 +1339,28 @@ export class ResumeTreeComponent implements Component {
 			this.onExit();
 			return;
 		}
+		// The host's first scan may still be in flight: the skeleton has no rows,
+		// so acting on the key now would silently drop it. Hold keys until the
+		// load lands, then replay them against the loaded rows.
+		if (this.#pendingKeys) {
+			this.#pendingKeys.push(keyData);
+			return;
+		}
+		if (!this.#edit && !this.#menu && this.#source.isLoading?.() && this.#source.refresh) {
+			const pending: string[] = [keyData];
+			this.#pendingKeys = pending;
+			void this.#source.refresh().then(() => {
+				// A later refresh may have replaced this queue; its own replay owns it.
+				if (this.#pendingKeys !== pending) return;
+				this.#pendingKeys = undefined;
+				this.invalidate();
+				this.#rebuild();
+				this.onRequestRender?.();
+				for (const key of pending) this.handleInput(key);
+			});
+			return;
+		}
+		if (this.#busy) return;
 		if (this.#edit) {
 			this.#handleEditKey(keyData);
 			return;

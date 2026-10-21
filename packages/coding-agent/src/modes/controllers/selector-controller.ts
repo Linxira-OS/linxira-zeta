@@ -85,6 +85,7 @@ import { isUserRequestEntry } from "@linxiraos/pi-tui/chat/transcript-entry";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
 import { readSessionInfo, type SessionInfo } from "../../session/session-listing";
 import { SessionManager } from "../../session/session-manager";
+import { resolveManagedSessionRoot } from "../../session/session-paths";
 import { loadPinnedSessionIds } from "../../session/session-pins";
 import { FileSessionStorage } from "../../session/session-storage";
 import { toLogoutAccounts, listLogoutAccounts, logoutCredential } from "../../slash-commands/helpers/logout";
@@ -2166,13 +2167,20 @@ export class SelectorController {
 			if (!onSelect) {
 				// The three-level resume tree loads its directory after the overlay
 				// paints (scope control + skeleton first), then fills project,
-				// workspace and conversation rows from the local model.
+				// workspace and conversation rows from the local model. It enumerates
+				// this process's own sessions: the owning sessions root when the dir
+				// is one bucket under it, else the dir's own list (a custom
+				// `--session-dir` writes session files straight into the directory).
 				const initialState = await loadResumePickerState();
+				const cwd = this.ctx.sessionManager.getCwd();
+				const sessionDir = this.ctx.sessionManager.getSessionDir();
+				const sessionsRoot = resolveManagedSessionRoot(sessionDir, cwd);
 				const resumeSource = new LiveResumePickerSource({
 					initialScope: initialState.scope,
 					initialState,
-					workspacePath: this.ctx.sessionManager.getCwd(),
+					workspacePath: cwd,
 					deleteMode: "trash",
+					...(sessionsRoot ? { sessionsRoot } : { sessions: () => SessionManager.listForPicker(cwd, sessionDir) }),
 					currentSessionPath,
 					deleteConversation: async conversation => deleteWithTrash(conversation.session as SessionInfo),
 				});

@@ -36,6 +36,7 @@ import {
 } from "../resume";
 import type { ResumeSourceLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import { setWorkspaceAlias, toggleProjectPin, toggleWorkspacePin } from "../resume/preferences";
+import type { SessionInfo } from "../session/session-listing";
 import { FileSessionStorage, type SessionStorage } from "../session/session-storage";
 import { toggleSessionPin } from "../session/session-pins";
 import { replaceFileAtomically } from "../utils/atomic-file";
@@ -159,6 +160,18 @@ export interface LiveResumePickerSourceOptions {
 	deleteConversation: (conversation: ResumeTreeConversation) => Promise<boolean>;
 	/** `trash` for the in-session picker, `permanent` for `--resume`. */
 	deleteMode: ResumeTreeDeleteMode;
+	/**
+	 * Sessions root to scan. Defaults to the agent sessions dir; an in-session
+	 * picker passes the root that owns its own session dir so sessions written
+	 * under `--session-dir` stay listed.
+	 */
+	sessionsRoot?: string;
+	/**
+	 * Explicit session list for a session dir that is not a bucket layout (a
+	 * custom `--session-dir` writes its files straight into the directory, so
+	 * scanning it as a root finds nothing). Re-read on every refresh.
+	 */
+	sessions?: () => Promise<readonly SessionInfo[]>;
 	storage?: SessionStorage;
 	agentDir?: string;
 }
@@ -265,9 +278,12 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 	async #scan(): Promise<void> {
 		this.#loading = true;
 		this.#loadError = undefined;
-		this.#scanWarningNames = await unreadableSessionDirs(getSessionsDir());
+		const sessionsRoot = this.#options.sessionsRoot ?? (this.#options.sessions ? undefined : getSessionsDir());
+		this.#scanWarningNames = sessionsRoot ? await unreadableSessionDirs(sessionsRoot) : [];
 		try {
+			const sessions = await this.#options.sessions?.();
 			this.directory = await loadResumeDirectory({
+				...(sessions ? { sessions } : { sessionsRoot }),
 				...(this.#options.storage ? { storage: this.#options.storage } : {}),
 				...(this.#options.agentDir ? { agentDir: this.#options.agentDir } : {}),
 				...(this.#options.workspacePath ? { defaultWorkspace: this.#options.workspacePath } : {}),

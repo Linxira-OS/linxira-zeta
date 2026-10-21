@@ -362,6 +362,8 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 export interface LoadResumeDirectoryOptions extends Omit<BuildResumeDirectoryOptions, "sessions"> {
 	/** Explicit session list; otherwise `SessionManager.listAllForPicker`. */
 	sessions?: readonly SessionInfo[];
+	/** Sessions root to scan when `sessions` is absent; defaults to the agent sessions dir. */
+	sessionsRoot?: string;
 	storage?: SessionStorage;
 	/** Agent/config dir override for pins and preferences (tests, profiles). */
 	agentDir?: string;
@@ -376,7 +378,7 @@ export interface LoadResumeDirectoryOptions extends Omit<BuildResumeDirectoryOpt
  */
 export async function loadResumeDirectory(options: LoadResumeDirectoryOptions = {}): Promise<ResumeDirectory> {
 	const [sessions, pinnedIds, preferences] = await Promise.all([
-		options.sessions ?? SessionManager.listAllForPicker(options.storage),
+		options.sessions ?? SessionManager.listAllForPicker(options.storage, options.sessionsRoot),
 		options.pinnedIds ?? loadPinnedSessionIds(options.agentDir),
 		options.preferences ?? loadResumePreferences(options.agentDir, options.preferencesOptions),
 	]);
