@@ -56,6 +56,8 @@ pub const UNBIND_PATH: &str = "/api/channels/wechat/unbind";
 pub const SEND_PATH: &str = "/api/channels/send";
 /// `GET`/`PUT /api/web-config` — `~/.zeta/agent/web.yml`, secrets masked.
 pub const CONFIG_PATH: &str = "/api/web-config";
+/// `POST /api/channels/credentials` — validate, then save, a pasted credential.
+pub const CREDENTIALS_PATH: &str = "/api/channels/credentials";
 
 /// How long one loopback request may take. The gateway answers these routes
 /// in-process; the same 3 s budget keeps a wedged listener from freezing the
@@ -223,6 +225,108 @@ impl ChannelConfig {
 			app_secret: SecretState::parse(object.get("appSecret")),
 			bot_token: SecretState::parse(object.get("botToken")),
 			domain: domain.to_owned(),
+		}
+	}
+}
+
+/// The bot identity a platform reported after validating a credential.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct CredentialIdentity {
+	pub id: String,
+	pub name: String,
+	/// Telegram `@username`, without the `@`.
+	pub username: Option<String>,
+}
+
+impl CredentialIdentity {
+	fn parse(value: Option<&Value>) -> Self {
+		let text = |key: &str| {
+			value
+				.and_then(|object| object.get(key))
+				.and_then(Value::as_str)
+				.map(str::trim)
+				.unwrap_or_default()
+				.to_owned()
+		};
+		let username = text("username");
+		Self {
+			id: text("id"),
+			name: text("name"),
+			username: (!username.is_empty()).then_some(username),
+		}
+	}
+
+	/// The identity line the pane shows; it never contains a secret.
+	pub fn label(&self) -> String {
+		let name = if self.name.is_empty() { &self.id } else { &self.name };
+		match &self.username {
+			Some(username) => format!("{name} (@{username})"),
+			None if !self.id.is_empty() && self.id != *name => format!("{name} ({})", self.id),
+			None => name.clone(),
+		}
+	}
+}
+
+/// The credential form's state machine: empty → validating → saved/failed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CredentialStage {
+	#[default]
+	Empty,
+	Validating,
+	Saved,
+	Failed,
+}
+
+/// What one channel's credential form is doing, in words.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct CredentialForm {
+	pub stage: CredentialStage,
+	pub identity: Option<CredentialIdentity>,
+	pub error: Option<String>,
+}
+
+impl CredentialForm {
+	/// A second click while the platform is being asked must not start a
+	/// second validation.
+	pub fn can_submit(&self) -> bool {
+		self.stage != CredentialStage::Validating
+	}
+
+	pub fn begin(&mut self) {
+		self.stage = CredentialStage::Validating;
+		self.identity = None;
+		self.error = None;
+	}
+
+	pub fn saved(&mut self, identity: CredentialIdentity) {
+		self.stage = CredentialStage::Saved;
+		self.identity = Some(identity);
+		self.error = None;
+	}
+
+	pub fn failed(&mut self, error: impl Into<String>) {
+		self.stage = CredentialStage::Failed;
+		self.identity = None;
+		self.error = Some(error.into());
+	}
+
+	pub fn reset(&mut self) {
+		*self = Self::default();
+	}
+
+	/// The one line under the form: the state word, plus identity or reason.
+	pub fn line(&self) -> String {
+		match self.stage {
+			CredentialStage::Empty => t!("未验证").to_owned(),
+			CredentialStage::Validating => t!("验证中…").to_owned(),
+			CredentialStage::Saved => match &self.identity {
+				Some(identity) => t!("已验证：{}", identity.label()),
+				None => t!("已验证").to_owned(),
+			},
+			CredentialStage::Failed => match &self.error {
+				Some(error) => t!("验证失败：{}", error),
+				None => t!("验证失败").to_owned(),
+			},
 		}
 	}
 }
@@ -928,6 +1032,39 @@ pub fn send(transport: &dyn Transport, channel: ChannelId, peer: &str, text: &st
 		},
 		Err(error) => SendOutcome { failure: Some(SendFailure::Failed), detail: error },
 	}
+}
+
+/// `POST /api/channels/credentials`: the gateway asks the platform, saves the
+/// credential only when the platform accepted it, and answers the bot identity.
+///
+/// `fields` are the form's non-empty drafts keyed by the gateway's body names
+/// (`appId`, `appSecret`, `domain`, `botToken`). Omitted fields fall back to the
+/// stored credential, so a blank secret re-validates instead of erasing.
+pub fn validate_credentials(
+	transport: &dyn Transport,
+	channel: ChannelId,
+	fields: &[(String, Value)],
+) -> Result<CredentialIdentity, String> {
+	let mut body = serde_json::Map::new();
+	body.insert("channel".to_owned(), Value::String(channel.key().to_owned()));
+	for (key, value) in fields {
+		body.insert(key.clone(), value.clone());
+	}
+	let reply = transport.request(
+		"POST",
+		CREDENTIALS_PATH,
+		Some(&Value::Object(body).to_string()),
+	)?;
+	if !(200..300).contains(&reply.status) {
+		return Err(reply_error(&reply));
+	}
+	let parsed: Value = serde_json::from_str(&reply.body)
+		.map_err(|_| t!("网关返回的不是 JSON").to_owned())?;
+	let identity = CredentialIdentity::parse(parsed.get("identity"));
+	if identity.id.is_empty() && identity.name.is_empty() {
+		return Err(t!("网关没有返回机器人身份").to_owned());
+	}
+	Ok(identity)
 }
 
 // ── the QR ────────────────────────────────────────────────────────────────
@@ -1682,6 +1819,71 @@ mod tests {
 		let outcome = send(&ok, ChannelId::Feishu, "oc_1", "hi");
 		assert!(outcome.is_ok());
 		assert!(outcome.line().contains("oc_1"));
+	}
+
+	#[test]
+	fn the_credential_form_walks_empty_validating_saved_and_failed() {
+		let mut form = CredentialForm::default();
+		assert_eq!(form.stage, CredentialStage::Empty);
+		assert_eq!(form.line(), "未验证");
+		assert!(form.can_submit());
+
+		form.begin();
+		assert_eq!(form.stage, CredentialStage::Validating);
+		assert!(!form.can_submit(), "a second click must not start a second check");
+		assert_eq!(form.line(), "验证中…");
+
+		form.saved(CredentialIdentity {
+			id: "ou_1".to_owned(),
+			name: "Zeta".to_owned(),
+			username: None,
+		});
+		assert_eq!(form.stage, CredentialStage::Saved);
+		assert!(form.can_submit());
+		assert_eq!(form.line(), "已验证：Zeta (ou_1)");
+
+		form.failed("app secret invalid");
+		assert_eq!(form.stage, CredentialStage::Failed);
+		assert!(form.line().starts_with("验证失败："));
+		assert!(form.line().contains("app secret invalid"));
+
+		form.reset();
+		assert_eq!(form.stage, CredentialStage::Empty);
+	}
+
+	#[test]
+	fn a_credential_validation_posts_the_drafts_and_reports_the_identity() {
+		let stub = Stub::default().reply(
+			"POST",
+			CREDENTIALS_PATH,
+			200,
+			r#"{"ok":true,"channel":"telegram","state":"connected","identity":{"id":"42","name":"Zeta","username":"zeta_bot"},"credentialsPersisted":true}"#,
+		);
+		let identity = validate_credentials(
+			&stub,
+			ChannelId::Telegram,
+			&[("botToken".to_owned(), Value::String("123:ABC".to_owned()))],
+		)
+		.expect("validates");
+		assert_eq!(identity.label(), "Zeta (@zeta_bot)");
+
+		let (method, path, body) = stub.seen().pop().expect("one request");
+		assert_eq!((method.as_str(), path.as_str()), ("POST", CREDENTIALS_PATH));
+		let body: Value = serde_json::from_str(body.as_deref().expect("body")).expect("JSON");
+		assert_eq!(body["channel"], "telegram");
+		assert_eq!(body["botToken"], "123:ABC");
+	}
+
+	#[test]
+	fn a_rejected_credential_carries_the_gateways_reason() {
+		let stub = Stub::default().reply(
+			"POST",
+			CREDENTIALS_PATH,
+			400,
+			r#"{"channel":"feishu","state":"error","error":"Feishu rejected the app credentials: app secret invalid"}"#,
+		);
+		let error = validate_credentials(&stub, ChannelId::Feishu, &[]).expect_err("rejected");
+		assert!(error.contains("app secret invalid"));
 	}
 
 	#[test]

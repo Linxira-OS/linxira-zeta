@@ -28,8 +28,8 @@ use serde_json::Value;
 use crate::{
 	Shell,
 	channels::{
-		self, Binding, ChannelId, HttpTransport, QrImage, QrStage, SendOutcome, Transport, View,
-		Workspace,
+		self, Binding, ChannelId, CredentialForm, CredentialIdentity, HttpTransport, QrImage,
+		QrStage, SendOutcome, Transport, View, Workspace,
 	},
 	settings_ui::{head, hint, small_button, switch},
 	t, theme,
@@ -58,6 +58,8 @@ enum Event {
 	Qr { url: String, result: Result<QrImage, String> },
 	/// One send result.
 	Sent(SendOutcome),
+	/// One credential validation (the gateway saved it when it is `Ok`).
+	Credentials { channel: ChannelId, result: Result<CredentialIdentity, String> },
 }
 
 /// The pane's state. `Default` is the inert panel a headless shell gets.
@@ -92,6 +94,8 @@ pub struct ChannelsPanel {
 	send_text: String,
 	send_result: Option<SendOutcome>,
 	binding_channel: Option<ChannelId>,
+	/// Feishu/Telegram credential forms, indexed by [`ChannelId::index`].
+	credentials: [CredentialForm; 3],
 	/// Bumped by every authoritative read (full load, commit, action); a live
 	/// poll that started under an older generation is discarded, so it cannot
 	/// overwrite a newer config with its stale clone.
@@ -249,6 +253,54 @@ impl ChannelsPanel {
 			let _ =
 				tx.send(Event::View { result: result.map(Box::new), from_commit: true, generation });
 		});
+	}
+
+	/// The form state for one credential channel (empty before a validation).
+	pub fn credential_form(&self, channel: ChannelId) -> &CredentialForm {
+		&self.credentials[channel.index()]
+	}
+
+	/// Validate a pasted (or stored) credential through the gateway, then show
+	/// the platform's bot identity. The gateway does the save; the panel only
+	/// re-reads the config afterwards.
+	pub fn validate_credentials(&mut self, channel: ChannelId, fields: Vec<(String, Value)>) {
+		if !self.credentials[channel.index()].can_submit() {
+			return;
+		}
+		let Some(origin) = self.ensure_origin() else {
+			return;
+		};
+		self.credentials[channel.index()].begin();
+		self.error = None;
+		self.notice = None;
+		let (tx, rx) = mpsc::channel();
+		self.jobs.push(rx);
+		std::thread::spawn(move || {
+			let result = match HttpTransport::new(&origin) {
+				Ok(transport) => channels::validate_credentials(&transport, channel, &fields),
+				Err(error) => Err(error),
+			};
+			let _ = tx.send(Event::Credentials { channel, result });
+		});
+	}
+
+	/// 解绑 for a credential channel: empty the stored secret fields (the
+	/// domain is not a credential) and forget the form state. WeChat keeps its
+	/// adapter `unbind`; it never reaches this path.
+	pub fn unbind_credentials(&mut self, channel: ChannelId) {
+		self.credentials[channel.index()].reset();
+		let prefix = format!("{}.", channel.key());
+		self.edits.retain(|(key, _)| !key.starts_with(&prefix));
+		match channel {
+			ChannelId::Feishu => self.commit_fields(vec![
+				("channels.feishu.appId".to_owned(), Value::String(String::new())),
+				("channels.feishu.appSecret".to_owned(), Value::String(String::new())),
+			]),
+			ChannelId::Telegram => {
+				self.commit("channels.telegram.botToken", Value::String(String::new()))
+			},
+			ChannelId::Wechat => {},
+		}
 	}
 
 	/// 重新连接: a fresh WeChat QR login.
@@ -542,6 +594,23 @@ impl ChannelsPanel {
 				}
 			},
 			Event::Sent(outcome) => self.send_result = Some(outcome),
+			Event::Credentials { channel, result } => match result {
+				Ok(identity) => {
+					let who = identity.label();
+					self.credentials[channel.index()].saved(identity);
+					self.notice = Some((true, t!("已验证并保存：{}", who)));
+					// The drafts were just written to web.yml; drop this
+					// channel's so the next frame seeds from the read-back.
+					let prefix = format!("{}.", channel.key());
+					self.edits.retain(|(key, _)| !key.starts_with(&prefix));
+					// An authoritative full read shows the new SecretState.
+					self.last_full = None;
+				},
+				Err(error) => {
+					self.credentials[channel.index()].failed(error.clone());
+					self.notice = Some((false, t!("验证失败：{}", error)));
+				},
+			},
 		}
 	}
 
@@ -935,7 +1004,10 @@ fn add_binding_row(ui: &mut Ui, shell: &mut Shell, view: &View) {
 /// Feishu and Telegram credentials, with one explicit save.
 fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 	head(ui, t!("凭据"));
-	hint(ui, t!("保存后经 PUT /api/web-config 写入，再从 GET 重新读取；留空的秘密字段保持不变。"));
+	hint(
+		ui,
+		t!("先向平台验证，成功才写入 web.yml；留空的秘密字段用已保存的值验证。"),
+	);
 
 	let feishu = view.channel(ChannelId::Feishu).clone();
 	compact_note(ui, t!("飞书 / Lark"));
@@ -979,7 +1051,9 @@ fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 		},
 		shell,
 	);
-	if credential_save_row(ui, t!("保存飞书凭据")) {
+	let form = shell.channels.credential_form(ChannelId::Feishu).clone();
+	let (save, unbind) = credential_actions(ui, t!("验证并保存飞书凭据"), form.can_submit());
+	if save {
 		let app_id = shell
 			.channels
 			.edit("feishu.appId", &feishu.app_id)
@@ -996,17 +1070,29 @@ fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 			.trim()
 			.to_owned();
 		let mut fields: Vec<(String, Value)> = Vec::new();
-		if app_id != feishu.app_id {
-			fields.push(("channels.feishu.appId".to_owned(), Value::String(app_id)));
+		if !app_id.is_empty() {
+			fields.push(("appId".to_owned(), Value::String(app_id)));
 		}
 		if !secret.is_empty() {
-			fields.push(("channels.feishu.appSecret".to_owned(), Value::String(secret)));
+			fields.push(("appSecret".to_owned(), Value::String(secret)));
 		}
-		if domain != feishu.domain {
-			fields.push(("channels.feishu.domain".to_owned(), Value::String(domain)));
+		if !domain.is_empty() {
+			fields.push(("domain".to_owned(), Value::String(domain)));
 		}
-		shell.channels.commit_fields(fields);
+		shell.channels.validate_credentials(ChannelId::Feishu, fields);
 	}
+	if unbind {
+		shell.channels.unbind_credentials(ChannelId::Feishu);
+	}
+	compact_note_colored(
+		ui,
+		&form.line(),
+		match form.stage {
+			channels::CredentialStage::Failed => theme::WARN,
+			channels::CredentialStage::Saved => theme::TEXT_2,
+			_ => theme::TEXT_3,
+		},
+	);
 
 	let telegram = view.channel(ChannelId::Telegram).clone();
 	compact_note(ui, "Telegram");
@@ -1019,27 +1105,51 @@ fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 		},
 		shell,
 	);
-	if credential_save_row(ui, t!("保存 Telegram 凭据")) {
+	let form = shell.channels.credential_form(ChannelId::Telegram).clone();
+	let (save, unbind) = credential_actions(ui, t!("验证并保存 Telegram 凭据"), form.can_submit());
+	if save {
 		let token = shell
 			.channels
 			.edit("telegram.botToken", "")
 			.trim()
 			.to_owned();
-		if !token.is_empty() {
-			shell
-				.channels
-				.commit("channels.telegram.botToken", Value::String(token));
-		}
+		let fields: Vec<(String, Value)> = if token.is_empty() {
+			Vec::new()
+		} else {
+			vec![("botToken".to_owned(), Value::String(token))]
+		};
+		shell.channels.validate_credentials(ChannelId::Telegram, fields);
 	}
+	if unbind {
+		shell.channels.unbind_credentials(ChannelId::Telegram);
+	}
+	compact_note_colored(
+		ui,
+		&form.line(),
+		match form.stage {
+			channels::CredentialStage::Failed => theme::WARN,
+			channels::CredentialStage::Saved => theme::TEXT_2,
+			_ => theme::TEXT_3,
+		},
+	);
 }
 
-fn credential_save_row(ui: &mut Ui, label: &str) -> bool {
+/// The two actions a credential form has: validate-and-save, and unbind.
+fn credential_actions(ui: &mut Ui, label: &str, enabled: bool) -> (bool, bool) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 28.0), Sense::hover());
-	ui.put(
-		Rect::from_min_size(pos2(rect.min.x, rect.min.y + 2.0), vec2(120.0, 24.0)),
-		Button::new(egui::RichText::new(label).size(11.0)),
-	)
-	.clicked()
+	let mut child = ui.new_child(
+		egui::UiBuilder::new()
+			.max_rect(Rect::from_min_size(
+				pos2(rect.min.x, rect.min.y + 2.0),
+				vec2(rect.width(), 24.0),
+			))
+			.layout(Layout::left_to_right(Align::Center)),
+	);
+	let save = child
+		.add_enabled(enabled, Button::new(egui::RichText::new(label).size(10.5)))
+		.clicked();
+	let unbind = small_button(&mut child, t!("解绑")).clicked();
+	(save, unbind)
 }
 
 /// Send a test message through `POST /api/channels/send`; the failure kind is
