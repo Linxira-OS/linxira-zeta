@@ -188,7 +188,7 @@ interface ThinkingEntry {
 }
 
 interface ProviderEntry {
-  origin?: "omp";
+  origin?: "omp" | "user" | "web";
   baseUrl?: string;
   api?: string;
   apiKey?: string;
@@ -532,9 +532,11 @@ function ProviderDetail({
   const selectShownRef = useRef<HTMLInputElement>(null);
   useEffect(() => setEditingName(name), [name]);
   const isOmpOrigin = provider.origin === "omp";
+  const isUserOrigin = provider.origin === "user";
+  const isReadOnly = isOmpOrigin || isUserOrigin;
 
   const set = <K extends keyof ProviderEntry>(k: K, v: ProviderEntry[K]) => {
-    if (isOmpOrigin) return;
+    if (isReadOnly) return;
     onChange({ ...provider, [k]: v });
   };
 
@@ -651,7 +653,18 @@ function ProviderDetail({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <fieldset
+      disabled={isReadOnly}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        border: "none",
+        padding: 0,
+        margin: 0,
+        minInlineSize: 0,
+      }}
+    >
       <div
         style={{
           display: "flex",
@@ -667,7 +680,7 @@ function ProviderDetail({
           }}
         >
           <SectionTitle>{t("provider")}</SectionTitle>
-          {isOmpOrigin && (
+          {isReadOnly && (
             <span
               style={{
                 padding: "1px 6px",
@@ -678,11 +691,11 @@ function ProviderDetail({
                 whiteSpace: "nowrap",
               }}
             >
-              {t("models.originOmp")}
+              {isUserOrigin ? "From models.yml" : t("models.originOmp")}
             </span>
           )}
         </div>
-        {!isOmpOrigin && (
+        {!isReadOnly && (
           <button
             onClick={onDelete}
             style={{
@@ -700,6 +713,19 @@ function ProviderDetail({
         )}
       </div>
 
+      {isUserOrigin && (
+        <div
+          style={{
+            fontSize: 11,
+            lineHeight: 1.4,
+            color: "var(--zeta-alias-text-muted)",
+          }}
+        >
+          Defined in your hand-written models.yml — this panel cannot change
+          it. Edit that file directly to update this provider.
+        </div>
+      )}
+
       <Field label={t("models.providerName")}>
         <TextInput
           value={editingName}
@@ -710,7 +736,7 @@ function ProviderDetail({
         {editingName !== name && editingName.trim() && (
           <button
             onClick={() => {
-              if (isOmpOrigin) return;
+              if (isReadOnly) return;
               onRename(editingName.trim());
             }}
             style={{
@@ -1023,7 +1049,7 @@ function ProviderDetail({
           onChange={(v) => set("compat", v)}
         />
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -3571,20 +3597,27 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
     });
   }, []);
 
-  const deleteProvider = useCallback((name: string) => {
-    setConfig((prev) => {
-      const providers = { ...prev.providers };
-      delete providers[name];
-      return { ...prev, providers };
-    });
-    setConfig((prev) => {
-      const remaining = Object.keys(prev.providers ?? {});
-      setSelection(
-        remaining.length > 0 ? { type: "provider", name: remaining[0] } : null,
-      );
-      return prev;
-    });
-  }, []);
+  const deleteProvider = useCallback(
+    (name: string) => {
+      const origin = config.providers?.[name]?.origin;
+      if (origin === "user" || origin === "omp") return;
+      setConfig((prev) => {
+        const providers = { ...prev.providers };
+        delete providers[name];
+        return { ...prev, providers };
+      });
+      setConfig((prev) => {
+        const remaining = Object.keys(prev.providers ?? {});
+        setSelection(
+          remaining.length > 0
+            ? { type: "provider", name: remaining[0] }
+            : null,
+        );
+        return prev;
+      });
+    },
+    [config.providers],
+  );
 
   const addModel = useCallback((providerName: string) => {
     setConfig((prev) => {
@@ -3670,10 +3703,21 @@ export function ModelsConfig({ onClose }: { onClose: () => void }) {
     setSaveError(null);
     setSavedOk(false);
     try {
+      // Only providers this panel owns go back: hand-written (user) and
+      // upstream OMP entries are read-only and must never reach the PUT body.
+      const providers = Object.fromEntries(
+        Object.entries(config.providers ?? {})
+          .filter(([, p]) => p.origin !== "user" && p.origin !== "omp")
+          .map(([name, p]) => {
+            const clean = { ...p };
+            delete clean.origin;
+            return [name, clean];
+          }),
+      );
       const res = await fetch("/api/models-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify({ providers }),
       });
       const d = (await res.json()) as { success?: boolean; error?: string };
       if (!res.ok || d.error) setSaveError(d.error ?? `HTTP ${res.status}`);

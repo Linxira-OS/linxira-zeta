@@ -32,6 +32,26 @@ Legacy behavior still present:
 - If both YAML files are missing and `models.json` exists at the same location, it is migrated to `models.yml`.
 - Explicit `.json` / `.jsonc` config paths are still supported when passed programmatically to `ModelRegistry`.
 
+## Two layers: hand-written and web panel
+
+The user's hand-written file (`models.yml`, or `models.yaml` when only that exists) is **read-only to Zeta**.
+The web `ModelsConfig` panel owns a sibling file in the same directory:
+
+- `~/.zeta/agent/models.web.yml` — written only by the gateway, using the same YAML schema.
+
+The effective configuration is the hand-written layer first, then the panel layer for providers the
+hand-written layer does not define:
+
+- **The hand-written file always wins for a provider it defines.** A panel entry with the same provider
+  name is ignored, so a stale browser tab can never shadow it.
+- `GET /api/models-config` returns the merged view, with `origin: "user"` or `origin: "web"` on each
+  provider (upstream OMP mirrors still carry `origin: "omp"`).
+- `PUT /api/models-config` and `GET /api/models/import` write only `models.web.yml`; they never rewrite
+  the hand-written file. A provider whose origin is `user` (or whose name exists in the hand-written
+  layer) is refused and listed in the response's `ignored` array.
+- An invalid panel layer is logged and ignored; it never prevents startup and never hides the
+  hand-written layer.
+
 ## `models.yml` / `models.yaml` shape
 
 ```yaml

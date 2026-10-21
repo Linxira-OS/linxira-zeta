@@ -12,7 +12,7 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, isEnoent, logger } from "@linxiraos/pi-utils";
+import { getAgentDir, isEnoent, logger, resolveYamlConfigReadPath } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
 import { generateRemoteToken, hashRemoteToken, MASKED_TOKEN } from "../utils/remote-token";
 import { withFileLock } from "./file-lock";
@@ -472,7 +472,8 @@ export class WebConfig {
 	static async #read(filePath: string): Promise<WebConfigData> {
 		let raw: unknown = {};
 		try {
-			const content = await Bun.file(filePath).text();
+			const readPath = resolveYamlConfigReadPath(filePath);
+			const content = await Bun.file(readPath).text();
 			const parsed = YAML.parse(content) as unknown;
 			if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
 				raw = parsed;

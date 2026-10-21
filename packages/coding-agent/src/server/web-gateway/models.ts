@@ -23,7 +23,12 @@ import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../../config/model-registry";
 import { cfgEnabledModels, cfgModelRoles } from "../../config/model-settings";
 import { ModelsConfigFile } from "../../config/models-config";
-import { stringifyYamlConfig } from "@linxiraos/pi-utils/yaml-config";
+import {
+	loadModelsLayers,
+	mergeModelsConfigs,
+	modelsConfigOrigins,
+	writeModelsWebConfig,
+} from "../../config/models-config-layers";
 import { Settings } from "../../config/settings";
 import { getSharedAuthStorage, getSharedModelRegistry, refreshSharedModelRegistry } from "./auth";
 
@@ -247,9 +252,15 @@ export function stripOmpOriginProviders(providers: Record<string, unknown>): voi
 	}
 }
 
-export async function handleModelsConfigGet(): Promise<Response> {
-	const result = ModelsConfigFile.tryLoad();
-	const base = result.status === "ok" ? result.value : { providers: {} };
+export async function handleModelsConfigGet(modelsPath: string = ModelsConfigFile.path()): Promise<Response> {
+	const layers = loadModelsLayers(modelsPath);
+	const merged = mergeModelsConfigs(layers.user, layers.web) ?? { providers: {} };
+	const origins = modelsConfigOrigins(layers.user, layers.web);
+	const providers: Record<string, unknown> = {};
+	for (const [name, provider] of Object.entries(merged.providers ?? {})) {
+		providers[name] = isRecord(provider) ? { ...provider, origin: origins[name] } : provider;
+	}
+	const base = { ...merged, providers };
 	try {
 		const registry = await getSharedModelRegistry();
 		return json({ ...base, providers: mergeOmpProviderMirrors(base, registry.getOmpCompatConfig()) });
@@ -258,16 +269,46 @@ export async function handleModelsConfigGet(): Promise<Response> {
 	}
 }
 
-export async function handleModelsConfigPut(req: Request): Promise<Response> {
+export async function handleModelsConfigPut(
+	req: Request,
+	modelsPath: string = ModelsConfigFile.path(),
+): Promise<Response> {
 	try {
 		const body = (await req.json()) as Record<string, unknown>;
-		if (body.providers && typeof body.providers === "object" && !Array.isArray(body.providers)) {
-			stripOmpOriginProviders(body.providers as Record<string, unknown>);
+		const layers = loadModelsLayers(modelsPath);
+		if (!layers.webPath) {
+			return json({ error: `Cannot write the panel model layer beside ${modelsPath}` }, 400);
 		}
-		await Bun.write(ModelsConfigFile.path(), stringifyYamlConfig(body));
+		const incoming = isRecord(body.providers) ? body.providers : {};
+		const webProviders: Record<string, unknown> = {};
+		const ignored: string[] = [];
+		for (const [name, provider] of Object.entries(incoming)) {
+			if (!isRecord(provider)) {
+				ignored.push(name);
+				continue;
+			}
+			// A stale browser tab must not shadow a hand-written provider, even
+			// when it forgot the `origin: "user"` marker.
+			if (provider.origin === "user" || Object.hasOwn(layers.user?.providers ?? {}, name)) {
+				ignored.push(name);
+				continue;
+			}
+			if (provider.origin === "omp") continue;
+			const { origin: _origin, ...config } = provider;
+			webProviders[name] = config;
+		}
+		writeModelsWebConfig(layers.webPath, webProviders);
 		ModelsConfigFile.invalidate();
 		await refreshSharedModelRegistry();
-		return json({ success: true });
+		return json({
+			success: true,
+			...(ignored.length > 0
+				? {
+						ignored,
+						message: `Ignored ${ignored.join(", ")}: defined in the hand-written ${layers.userPath}; edit that file instead.`,
+					}
+				: {}),
+		});
 	} catch (error) {
 		return json({ error: errorMessage(error) }, 500);
 	}
@@ -306,7 +347,10 @@ export async function handleModelsDefaultPut(req: Request): Promise<Response> {
 // models already present (same id under that provider) are skipped.
 // ---------------------------------------------------------------------------
 
-export async function handleModelsImport(req: Request): Promise<Response> {
+export async function handleModelsImport(
+	req: Request,
+	modelsPath: string = ModelsConfigFile.path(),
+): Promise<Response> {
 	if (req.method !== "GET") return json({ error: "Method not allowed" }, 405);
 	const base = new URL(req.url).searchParams.get("base")?.trim();
 	if (!base) return json({ error: "Missing base URL" }, 400);
@@ -349,9 +393,19 @@ export async function handleModelsImport(req: Request): Promise<Response> {
 	const providerName = parsedBase.hostname;
 	if (!providerName) return json({ error: "Invalid base URL", stage: "fetch" }, 400);
 
-	const loaded = ModelsConfigFile.tryLoad();
-	const config = loaded.status === "ok" ? loaded.value : { providers: {} };
-	const providers = (config.providers ?? {}) as Record<string, Record<string, unknown>>;
+	const layers = loadModelsLayers(modelsPath);
+	if (!layers.webPath) {
+		return json({ error: `Cannot write the panel model layer beside ${modelsPath}` }, 400);
+	}
+	if (Object.hasOwn(layers.user?.providers ?? {}, providerName)) {
+		return json(
+			{ error: `Provider ${providerName} is defined in the hand-written models file; edit that file instead` },
+			409,
+		);
+	}
+	const providers: Record<string, Record<string, unknown>> = {
+		...(layers.web?.providers as Record<string, Record<string, unknown>> | undefined),
+	};
 
 	const existingProvider = providers[providerName];
 	const existingModels = Array.isArray(existingProvider?.models) ? existingProvider.models : [];
@@ -379,7 +433,7 @@ export async function handleModelsImport(req: Request): Promise<Response> {
 				models: fresh,
 			};
 		}
-		await Bun.write(ModelsConfigFile.path(), stringifyYamlConfig(config));
+		writeModelsWebConfig(layers.webPath, providers);
 		ModelsConfigFile.invalidate();
 		await refreshSharedModelRegistry();
 	}

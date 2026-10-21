@@ -24,6 +24,7 @@ import {
 	isEnoent,
 	logger,
 	MAIN_CONFIG_FILENAMES,
+	resolveYamlConfigReadPath,
 	tryParseJson,
 } from "@linxiraos/pi-utils";
 import { YAML } from "bun";
@@ -183,7 +184,10 @@ async function readSettingsExtensions(settingsPath: string): Promise<string[] | 
 	return readExtensionsArray(parsed?.extensions);
 }
 
-/** Project native config filename; matches the single `.zeta/config.yml` the settings loader reads. */
+/**
+ * Project native config filename; the settings loader reads `.zeta/config.yml`
+ * and its legacy `.yaml` sibling, which {@link resolveYamlConfigReadPath} covers.
+ */
 const PROJECT_CONFIG_FILENAMES = ["config.yml"] as const;
 
 interface YamlExtensions {
@@ -193,11 +197,12 @@ interface YamlExtensions {
 
 /**
  * Read the first present YAML config filename, matching the settings loader's
- * `config.yml` before `config.yaml` selection.
+ * `config.yml` before `config.yaml` selection. A canonical `.yml` that is absent
+ * but whose `.yaml` sibling exists is read from the sibling.
  */
 async function readYamlExtensions(scopeDir: string, filenames: readonly string[]): Promise<YamlExtensions> {
 	for (const filename of filenames) {
-		const content = await readFile(path.join(scopeDir, filename));
+		const content = await readFile(resolveYamlConfigReadPath(path.join(scopeDir, filename)));
 		if (content === null) continue;
 		let parsed: unknown;
 		try {
