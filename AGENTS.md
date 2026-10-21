@@ -58,6 +58,15 @@ future design:
 Zeta integrates OMP only at complete, official OMP release tags. This is a
 hard release-boundary rule, not a suggestion.
 
+**Cadence: on demand (2026-10-21 owner ruling).** There is no scheduled tag
+sync. A sync happens only when a specific upstream fix or feature is needed,
+and then still as a complete tag merge under every rule below — never a partial
+diff, cherry-pick, branch merge or "just this file". The probe that answers
+"is anything needed" lives in `document/upstream-sync.md` (latest: v18.12.5,
+842 commits / 656 files, nothing release-blocking for 1.4.0). Brand, scope and
+CI sentinels stay in force: they guard merge mistakes, not the cadence. The
+accepted cost is that a long gap makes the next merge large.
+
 - The user must name the exact upstream tag (for example, `v17.2.11`). Never
   infer a "latest" release or substitute `omp-upstream/main`.
 - **Follow the remote tag; a moved tag is not an escalation.** Verify the exact
