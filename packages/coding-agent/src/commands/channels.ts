@@ -23,6 +23,7 @@ import {
 	setChannelEnabled,
 } from "../channels/channel-status";
 import { acquireChannelLock, channelLockPath } from "../channels/instance-lock";
+import { formatCredentialIdentity, runCredentialLogin, type CredentialLoginResult } from "../channels/credential-login";
 import { renderTerminalQr } from "../channels/qr-terminal";
 import {
 	runWechatLogin,
@@ -72,6 +73,49 @@ function loginStateLabel(state: WechatLoginState): string {
 	}
 }
 
+/**
+ * Read one line from the terminal, without echoing it when `secret` is true.
+ * A non-interactive stdin yields `""`; the caller turns that into a usage
+ * error instead of hanging on a pipe that will never answer.
+ */
+async function promptFor(label: string, secret: boolean): Promise<string> {
+	const stdin = process.stdin;
+	if (!stdin.isTTY) return "";
+	process.stdout.write(label);
+	return await new Promise<string>(resolve => {
+		let value = "";
+		const finish = (result: string): void => {
+			stdin.setRawMode(false);
+			stdin.pause();
+			stdin.off("data", onData);
+			process.stdout.write("\n");
+			resolve(result.trim());
+		};
+		const onData = (chunk: Buffer): void => {
+			for (const char of chunk.toString("utf8")) {
+				if (char === "\r" || char === "\n") {
+					finish(value);
+					return;
+				}
+				if (char === "\u0003") {
+					process.exitCode = 130;
+					finish("");
+					return;
+				}
+				if (char === "\u007f" || char === "\b") {
+					value = value.slice(0, -1);
+					continue;
+				}
+				value += char;
+				if (!secret) process.stdout.write(char);
+			}
+		};
+		if (secret) stdin.setRawMode(true);
+		stdin.resume();
+		stdin.on("data", onData);
+	});
+}
+
 export default class Channels extends Command {
 	static description = channelsHelp.description;
 
@@ -93,11 +137,20 @@ export default class Channels extends Command {
 			description: "Seconds to wait for a WeChat scan (login; default 180)",
 			default: 180,
 		}),
+		"app-id": Flags.string({ description: "Feishu app id (login feishu)" }),
+		"app-secret": Flags.string({ description: "Feishu app secret (login feishu)" }),
+		domain: Flags.string({
+			description: "Feishu deployment: feishu or lark (login feishu)",
+			options: ["feishu", "lark"],
+		}),
+		token: Flags.string({ description: "Telegram bot token (login telegram)" }),
 	};
 
 	static examples = [
 		`# Is a bot running, and which channels are enabled?\n  ${CLI_BIN_NAME} channels status --json`,
 		`# Pair WeChat from this terminal (no browser)\n  ${CLI_BIN_NAME} channels login wechat`,
+		`# Validate a Feishu app credential, then save it\n  ${CLI_BIN_NAME} channels login feishu --app-id cli_… --app-secret …`,
+		`# Validate a Telegram bot token with getMe, then save it\n  ${CLI_BIN_NAME} channels login telegram --token 123:ABC`,
 		`# Forget WeChat credentials and peer bindings\n  ${CLI_BIN_NAME} channels logout wechat`,
 		`# Enable a channel for the next CLI/TUI session or serve run\n  ${CLI_BIN_NAME} channels enable telegram`,
 	];
@@ -179,10 +232,17 @@ export default class Channels extends Command {
 			case "login": {
 				const channel = requireChannel(action, args.channel);
 				if (channel !== "wechat") {
-					const message = `${channel} has no QR login; set its credentials in web.yml or the GUI.`;
-					if (flags.json) writeJson({ channel, state: "unsupported", error: message });
-					else process.stderr.write(`${chalk.yellow(`${message}\n`)}`);
-					process.exitCode = 1;
+					await this.#loginCredentials(
+						channel,
+						{
+							json: flags.json === true,
+							appId: flags["app-id"],
+							appSecret: flags["app-secret"],
+							domain: flags.domain as "feishu" | "lark" | undefined,
+							token: flags.token,
+						},
+						webConfig,
+					);
 					return;
 				}
 				// A QR login rewrites the bot credentials a host binds, so it takes
@@ -267,6 +327,84 @@ export default class Channels extends Command {
 			console.log(chalk.green(`\nWeChat connected. Credentials saved to ${webConfig.path}.`));
 		} else {
 			process.stderr.write(chalk.red(`\nWeChat login ${loginStateLabel(result.state)}.\n`));
+		}
+		if (result.state !== "connected") process.exitCode = 1;
+	}
+
+	/**
+	 * Feishu / Telegram pair with a pasted credential, not a QR code. The
+	 * platform validates it before anything is written; the same words as the
+	 * WeChat flow are used (`connected`, `error`, `timeout`).
+	 */
+	async #loginCredentials(
+		channel: Exclude<ChannelId, "wechat">,
+		options: {
+			json: boolean;
+			appId?: string;
+			appSecret?: string;
+			domain?: "feishu" | "lark";
+			token?: string;
+		},
+		webConfig: WebConfig,
+	): Promise<void> {
+		const stored = webConfig.getData();
+		const label = channel === "feishu" ? "Feishu" : "Telegram";
+		let result: CredentialLoginResult;
+
+		if (channel === "feishu") {
+			const saved = stored.channels.feishu;
+			const appId =
+				options.appId?.trim() ||
+				saved.appId?.trim() ||
+				(options.json ? "" : await promptFor("Feishu App ID: ", false));
+			const appSecret =
+				options.appSecret?.trim() ||
+				saved.appSecret?.trim() ||
+				(options.json ? "" : await promptFor("Feishu App Secret: ", true));
+			if (!appId || !appSecret) {
+				throw new CliUsageError(
+					`Missing Feishu credentials. Usage: ${CLI_BIN_NAME} channels login feishu --app-id <id> --app-secret <secret>`,
+				);
+			}
+			if (!options.json) process.stdout.write(chalk.dim("Validating with Feishu…\n"));
+			result = await runCredentialLogin(channel, {
+				webConfig,
+				appId,
+				appSecret,
+				domain: options.domain ?? saved.domain ?? "feishu",
+			});
+		} else {
+			const saved = stored.channels.telegram;
+			const token =
+				options.token?.trim() ||
+				saved.botToken?.trim() ||
+				(options.json ? "" : await promptFor("Telegram bot token: ", true));
+			if (!token) {
+				throw new CliUsageError(
+					`Missing Telegram bot token. Usage: ${CLI_BIN_NAME} channels login telegram --token <token>`,
+				);
+			}
+			if (!options.json) process.stdout.write(chalk.dim("Validating with Telegram (getMe)…\n"));
+			result = await runCredentialLogin(channel, { webConfig, botToken: token });
+		}
+
+		if (options.json) {
+			writeJson({
+				channel,
+				state: result.state,
+				identity: result.identity,
+				credentialsPersisted: result.credentialsPersisted,
+				...(result.error ? { error: result.error } : {}),
+			});
+		} else if (result.state === "connected") {
+			const who = formatCredentialIdentity(result.identity);
+			console.log(
+				chalk.green(`\n${label} connected${who ? ` as ${who}` : ""}. Credentials saved to ${webConfig.path}.`),
+			);
+		} else {
+			process.stderr.write(
+				chalk.red(`\n${label} login ${result.state === "timeout" ? "timed out" : "failed"}: ${result.error}\n`),
+			);
 		}
 		if (result.state !== "connected") process.exitCode = 1;
 	}

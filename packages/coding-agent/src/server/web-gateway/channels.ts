@@ -35,7 +35,11 @@
  * {@link registerChannelSend} and clears it when the runtime stops.
  */
 
+import { logger } from "@linxiraos/pi-utils";
 import type { ChannelId } from "../../channels";
+import { triggerRestartChannels } from "../../channels";
+import { runCredentialLogin } from "../../channels/credential-login";
+import { WebConfig } from "../../config/web-config";
 
 /** Why a send did not happen, in the runtime's terms. */
 export type ChannelSendFailure =
@@ -135,4 +139,64 @@ export async function handleChannelSend(req: Request): Promise<Response> {
 		case "failed":
 			return json({ error: outcome.message }, 500);
 	}
+}
+
+/**
+ * `POST /api/channels/credentials` — validate, then save, a Feishu app
+ * credential or a Telegram bot token.
+ *
+ * The GUI and the CLI call the same `runCredentialLogin`: the platform must
+ * accept the credential before `web.yml` changes, and the response carries the
+ * bot identity the platform reported so the surface can show who was paired.
+ * A rejected credential is a caller error (400); a platform timeout is 504.
+ *
+ * Body: `{ channel: "feishu", appId?, appSecret?, domain? }` or
+ * `{ channel: "telegram", botToken? }`. Omitted fields fall back to the values
+ * already stored, so "re-validate what is saved" is the same route.
+ */
+export async function handleChannelCredentials(req: Request): Promise<Response> {
+	let body: unknown;
+	try {
+		body = await req.json();
+	} catch {
+		return json({ error: "Invalid JSON body" }, 400);
+	}
+	if (body === null || typeof body !== "object" || Array.isArray(body)) {
+		return json({ error: "Invalid JSON body: expected an object" }, 400);
+	}
+	const record = body as Record<string, unknown>;
+	const channel = requiredText(record.channel);
+	if (channel !== "feishu" && channel !== "telegram") {
+		return json({ error: 'channel must be "feishu" or "telegram"' }, 400);
+	}
+	const field = (key: string): string | undefined => requiredText(record[key]) ?? undefined;
+
+	const result = await runCredentialLogin(channel, {
+		webConfig: await WebConfig.shared(),
+		appId: field("appId"),
+		appSecret: field("appSecret"),
+		domain: record.domain === "lark" ? "lark" : record.domain === "feishu" ? "feishu" : undefined,
+		botToken: field("botToken"),
+	});
+	if (result.state !== "connected") {
+		return json(
+			{ channel, state: result.state, error: result.error ?? "Credential validation failed" },
+			result.state === "timeout" ? 504 : 400,
+		);
+	}
+	// The running serve process binds the old credential; make it re-read the
+	// config now instead of after a restart, exactly like a PUT /api/web-config.
+	void triggerRestartChannels()?.catch(error => {
+		// The credential is already saved; a restart failure is a log line.
+		logger.warn("Channel restart after credential change failed", {
+			error: error instanceof Error ? error.message : String(error),
+		});
+	});
+	return json({
+		ok: true,
+		channel,
+		state: result.state,
+		identity: result.identity,
+		credentialsPersisted: result.credentialsPersisted,
+	});
 }

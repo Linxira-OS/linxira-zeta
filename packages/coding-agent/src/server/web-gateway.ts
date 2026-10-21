@@ -64,7 +64,7 @@ import {
 } from "./web-gateway/board";
 import { checkRemoteAccess } from "./web-gateway/remote-access";
 import { isRemoteTokenAccepted } from "../utils/remote-token";
-import { handleChannelSend } from "./web-gateway/channels";
+import { handleChannelCredentials, handleChannelSend } from "./web-gateway/channels";
 import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
@@ -218,6 +218,7 @@ const CHANNELS_WECHAT_UNBIND_RE = /^\/api\/channels\/wechat\/unbind$/;
 const CHANNELS_STATUS_RE = /^\/api\/channels\/status$/;
 // The only write route in the channels family; see web-gateway/channels.ts.
 const CHANNELS_SEND_RE = /^\/api\/channels\/send$/;
+const CHANNELS_CREDENTIALS_RE = /^\/api\/channels\/credentials$/;
 // The user board (`.zeta/board/`): one file per card. The `move` and
 // `handoff` forms are tested before the bare id, and the id pattern cannot
 // contain `/`, `.`-leading or `..`, so a request cannot leave the directory.
@@ -749,6 +750,11 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (CHANNELS_SEND_RE.test(pathname)) {
 		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 		return handleChannelSend(req);
+	}
+
+	if (CHANNELS_CREDENTIALS_RE.test(pathname)) {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return handleChannelCredentials(req);
 	}
 
 	if (CHANNELS_WECHAT_QR_RE.test(pathname)) {
