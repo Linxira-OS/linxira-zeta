@@ -794,7 +794,7 @@ fn project_registry_add_rename_remove_and_plain_workspace() {
 		&std::env::current_dir().unwrap(),
 		workbench_projects::Registry::empty_at(&registry_path),
 	);
-	assert_eq!(state.projects.len(), 1, "本机 alone");
+	assert_eq!(state.projects.len(), 2, "本机 plus the system 默认项目");
 
 	let notice = state.add_project(&project_dir);
 	assert!(notice.0.contains("已添加项目"), "{}", notice.0);
@@ -805,7 +805,7 @@ fn project_registry_add_rename_remove_and_plain_workspace() {
 		.expect("registered")
 		.id
 		.clone();
-	assert_eq!(state.projects.len(), 2, "本机 + the registration");
+	assert_eq!(state.projects.len(), 3, "本机, the registration, and the system 默认项目");
 	let canonical = std::fs::canonicalize(&project_dir).expect("canonical");
 	assert_eq!(state.projects[1].path, canonical, "the path is the registration's");
 	assert_eq!(state.active_project.as_deref(), Some(id.as_str()));

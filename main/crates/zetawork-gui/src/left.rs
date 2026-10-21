@@ -18,6 +18,7 @@ use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 use crate::{
 	Shell,
 	icons::{Icon, icon_button},
+	sessions::Conversation,
 	state::{AppState, Project, Workspace},
 	theme,
 	widgets::{
@@ -34,6 +35,12 @@ pub const RAIL_WIDTH: f32 = 44.0;
 const HEAD_H: f32 = 44.0;
 /// Height of the foot row.
 const FOOT_H: f32 = 46.0;
+/// Height of the 默认项目 pinned head.
+const PIN_HEAD_H: f32 = 26.0;
+/// Height of a workspace row.
+const WORKSPACE_ROW_H: f32 = 30.0;
+/// Height of one conversation row.
+const CONVERSATION_ROW_H: f32 = 24.0;
 
 /// The open column.
 pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
@@ -78,8 +85,12 @@ fn head_region(ui: &mut Ui, shell: &mut Shell) {
 	}
 }
 
-/// The 项目 section: the section head, the inline add editor when open, then
-/// one group per project.
+/// The 项目 section: the section head, the inline add editor when open, the
+/// pinned 默认项目 block, then one group per normal project inside the scroll.
+///
+/// The pinned block is drawn **outside** [`egui::ScrollArea`], so it stays on
+/// screen while the project list scrolls — that is the whole reason the two
+/// regions are rectangles here rather than one stack.
 fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter().line_segment(
@@ -114,6 +125,9 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 	if shell.state.adding().is_some() {
 		top = add_project_row(ui, shell) + 4.0;
 	}
+	if shell.state.default_project().is_some() {
+		top = pinned_region(ui, shell, top) + 4.0;
+	}
 	let list = Rect::from_min_max(pos2(rect.min.x, top), rect.max);
 	let mut list_ui = ui.new_child(egui::UiBuilder::new().max_rect(list));
 	egui::ScrollArea::vertical()
@@ -125,6 +139,84 @@ fn projects_region(ui: &mut Ui, shell: &mut Shell) {
 				project_group(ui, shell, index);
 			}
 		});
+}
+
+/// The fixed 默认项目 block: its one system workspace and every pinned
+/// conversation, above the scrolling project list.
+///
+/// The block is bounded to half of the space left under the section head (and
+/// never taller than what is left), so a project with a long history cannot
+/// push the rest of the tree off the column. When the rows outgrow that bound
+/// they scroll *inside* the block, while the block itself stays put.
+fn pinned_region(ui: &mut Ui, shell: &mut Shell, top: f32) -> f32 {
+	let outer = ui.max_rect();
+	let available = (outer.max.y - top).max(0.0);
+	let pinned_count = shell
+		.state
+		.conversations
+		.iter()
+		.filter(|entry| entry.pinned)
+		.count();
+	let desired =
+		PIN_HEAD_H + WORKSPACE_ROW_H + pinned_count as f32 * CONVERSATION_ROW_H + 6.0;
+	let height = desired.min((available * 0.5).max(96.0)).min(available);
+	if height <= 0.0 {
+		return top;
+	}
+	let area = Rect::from_min_max(pos2(outer.min.x, top), pos2(outer.max.x, top + height));
+	let mut block = ui.new_child(egui::UiBuilder::new().max_rect(area));
+	block.spacing_mut().item_spacing.y = 2.0;
+
+	let (head, _) =
+		block.allocate_exact_size(vec2(block.available_width(), PIN_HEAD_H), Sense::hover());
+	ui.painter().rect_filled(
+		Rect::from_min_size(pos2(area.min.x + 8.0, head.center().y - 7.0), vec2(2.0, 14.0)),
+		CornerRadius::same(1),
+		theme::ACCENT,
+	);
+	truncated_text(
+		ui,
+		pos2(area.min.x + 16.0, head.center().y),
+		t!("默认项目"),
+		11.5,
+		theme::TEXT_2,
+		head.width() - 70.0,
+	);
+	ui.painter().text(
+		pos2(area.max.x - 12.0, head.center().y),
+		egui::Align2::RIGHT_CENTER,
+		t!("固定"),
+		egui::FontId::new(10.0, egui::FontFamily::Proportional),
+		theme::TEXT_3,
+	);
+
+	if let Some(workspace) = shell.state.default_workspace().cloned() {
+		workspace_row(&mut block, shell, workspace);
+	}
+	let rest = Rect::from_min_max(pos2(area.min.x, block.cursor().min.y), area.max);
+	if rest.height() <= 0.0 {
+		return area.max.y;
+	}
+	let mut rest_ui = block.new_child(egui::UiBuilder::new().max_rect(rest));
+	egui::ScrollArea::vertical()
+		.id_salt("zetawork-left-pinned")
+		.auto_shrink([false, false])
+		.show(&mut rest_ui, |ui| {
+			ui.spacing_mut().item_spacing.y = 2.0;
+			let clicked = {
+				let mut clicked = None;
+				for conversation in shell.state.pinned_conversations() {
+					if let Some(id) = conversation_row(ui, &shell.state, conversation) {
+						clicked = Some(id);
+					}
+				}
+				clicked
+			};
+			if let Some(id) = clicked {
+				shell.state.act(|state| state.open_conversation(&id));
+			}
+		});
+	area.max.y
 }
 
 /// The inline 添加项目 path editor: a real directory path, committed with
@@ -179,6 +271,11 @@ fn add_project_row(ui: &mut Ui, shell: &mut Shell) -> f32 {
 /// does not close it even when the row is no longer hovered.
 fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 	let project: Project = shell.state.projects[index].clone();
+	// 默认项目 is drawn by `pinned_region`, above the scroll: drawing it here
+	// as well would list the same sessions twice.
+	if AppState::is_system_project(&project.id) {
+		return;
+	}
 	let local = AppState::is_local_project(&project.id);
 	let active_project = shell.state.active_project.as_deref() == Some(project.id.as_str());
 	let renaming = shell
@@ -323,6 +420,18 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 	}
 	for workspace in &project.workspaces {
 		workspace_row(ui, shell, workspace.clone());
+		let clicked = {
+			let mut clicked = None;
+			for conversation in shell.state.conversations_in(&workspace.id) {
+				if let Some(id) = conversation_row(ui, &shell.state, conversation) {
+					clicked = Some(id);
+				}
+			}
+			clicked
+		};
+		if let Some(id) = clicked {
+			shell.state.act(|state| state.open_conversation(&id));
+		}
 	}
 	ui.add_space(4.0);
 }
@@ -373,6 +482,10 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
 	}
 	let chip_width = 24.0 + crate::center::display_cols(&workspace.branch) as f32 * 6.2;
+	// The conversation `+` keeps its own slot on the right at all times (the
+	// chip is shifted left by it), so hovering does not move the branch text.
+	const PLUS_W: f32 = 20.0;
+	let right = rect.max.x - 8.0 - PLUS_W;
 	// The run state: the dot in front of the name carries its colour, and the
 	// word sits before the branch chip. The **name outranks the word** — a row
 	// whose name has been squeezed to `…` tells you nothing, and the dot plus
@@ -381,9 +494,9 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 	// dot; the tooltip says why.
 	let state = workspace.run_state;
 	let word_width = 3.0_f32.max(crate::center::display_cols("unconfirmed") as f32 * 6.2) + 8.0;
-	let show_word = rect.width() - 30.0 - chip_width - word_width - 8.0 >= 64.0;
+	let show_word = right - rect.min.x - 30.0 - chip_width - word_width - 8.0 >= 64.0;
 	let name_available =
-		rect.width() - 30.0 - chip_width - if show_word { word_width } else { 0.0 } - 8.0;
+		right - rect.min.x - 30.0 - chip_width - if show_word { word_width } else { 0.0 } - 8.0;
 	let response = response.on_hover_text(status_tooltip(state));
 	status_dot(ui, pos2(rect.min.x + 13.0, rect.center().y), state);
 	truncated_text(
@@ -397,16 +510,14 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 	if show_word {
 		status_word(
 			ui,
-			pos2(rect.max.x - 12.0 - chip_width - word_width, rect.center().y),
+			pos2(right - chip_width - word_width, rect.center().y),
 			state,
 			11.0,
 			word_width - 4.0,
 		);
 	}
-	let chip_rect = Rect::from_min_size(
-		pos2(rect.max.x - 8.0 - chip_width, rect.center().y - 9.0),
-		vec2(chip_width, 18.0),
-	);
+	let chip_rect =
+		Rect::from_min_size(pos2(right - chip_width, rect.center().y - 9.0), vec2(chip_width, 18.0));
 	ui.painter()
 		.rect_filled(chip_rect, CornerRadius::same(4), theme::CHIP_BRANCH_BG);
 	ui.painter().rect_stroke(
@@ -423,9 +534,73 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 		theme::CHIP_BRANCH_INK,
 		chip_width - 12.0,
 	);
-	if response.clicked() {
+	let plus_rect = Rect::from_min_size(
+		pos2(rect.max.x - 6.0 - PLUS_W, rect.center().y - 10.0),
+		vec2(PLUS_W, 20.0),
+	);
+	let plus =
+		ui.interact(plus_rect, ui.id().with(("ws-new-conversation", &workspace.id)), Sense::click());
+	if response.hovered() || plus.hovered() {
+		ui.painter()
+			.rect_filled(plus_rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+	}
+	crate::icons::paint(
+		ui.painter(),
+		Icon::Plus,
+		plus_rect.shrink(4.0),
+		if plus.hovered() {
+			theme::TEXT
+		} else {
+			theme::TEXT_3
+		},
+		1.6,
+	);
+	let create = plus.on_hover_text(t!("新建会话")).clicked();
+	if create {
+		shell.create_conversation(&workspace.id);
+	} else if response.clicked() {
 		let id = workspace.id.clone();
 		shell.state.act(|s| s.select_workspace(&id));
+	}
+}
+
+/// One conversation row: the session's title, a running dot, and a click that
+/// opens it in the centre.
+///
+/// A conversation the default project owns is pinned (it is drawn above the
+/// scroll), but the row itself is the same: pinned rows are never archived or
+/// hidden, so there is no second, dimmer treatment for them.
+fn conversation_row(ui: &mut Ui, state: &AppState, conversation: &Conversation) -> Option<String> {
+	let (rect, response) =
+		ui.allocate_exact_size(vec2(ui.available_width(), CONVERSATION_ROW_H), Sense::click());
+	let selected = state
+		.active_session_tab()
+		.is_some_and(|tab| tab.session.as_deref() == Some(conversation.id.as_str()));
+	if selected {
+		ui.painter()
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_4);
+	} else if response.hovered() {
+		ui.painter()
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+	}
+	let indent = rect.min.x + 34.0;
+	if conversation.running {
+		ui.painter()
+			.circle_filled(pos2(indent - 8.0, rect.center().y), 3.0, theme::ADD);
+	}
+	let available = (rect.max.x - indent - 8.0).max(24.0);
+	truncated_text(
+		ui,
+		pos2(indent, rect.center().y),
+		conversation.display_title(),
+		12.0,
+		if selected { theme::TEXT } else { theme::TEXT_2 },
+		available,
+	);
+	if response.clicked() {
+		Some(conversation.id.clone())
+	} else {
+		None
 	}
 }
 

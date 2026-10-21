@@ -36,6 +36,13 @@ use crate::{settings::Section, status::RunState};
 /// (toast) rather than silent.
 pub const MAX_WORKSPACES_PER_PROJECT: usize = 6;
 
+/// The system-owned 默认项目's id. It has no registry row and cannot be renamed
+/// or removed; its conversations are the left column's pinned block.
+pub const DEFAULT_PROJECT_ID: &str = "p-default";
+
+/// The 默认项目's one workspace.
+pub const DEFAULT_WORKSPACE_ID: &str = "ws-default";
+
 /// A workspace shows at most three panes, in one to three columns.
 pub const MAX_PANES: usize = 3;
 
@@ -313,11 +320,28 @@ pub struct SessionTab {
 	/// The file of a [`SessionKind::Pdf`] page. The parsed document and its
 	/// textures live in [`crate::pdf::PdfCache`], keyed by this tab's id.
 	pub pdf: Option<PathBuf>,
+	/// The gateway session an [`SessionKind::Agent`] page shows.
+	///
+	/// `None` for a page the user opened by hand (the id is then typed into
+	/// the pane) and for every other kind. A conversation picked in the left
+	/// column carries its id here, so the centre pane attaches to that session
+	/// instead of asking for an id the tree already knows.
+	pub session: Option<String>,
 }
 
 impl SessionTab {
 	pub fn new(id: String, kind: SessionKind, title: String) -> Self {
-		Self { id, kind, title, shell: None, command: None, program: None, doc: None, pdf: None }
+		Self {
+			id,
+			kind,
+			title,
+			shell: None,
+			command: None,
+			program: None,
+			doc: None,
+			pdf: None,
+			session: None,
+		}
 	}
 
 	pub fn is_term(&self) -> bool {
@@ -502,6 +526,22 @@ pub struct Project {
 	pub workspaces: Vec<Workspace>,
 }
 
+/// One gateway conversation and the workspace that owns it.
+///
+/// The tree is project → workspace → conversation, so the assignment is
+/// computed once per list (and when a workspace is added), not per frame: a
+/// workspace owns every session whose `cwd` is inside its root, and the
+/// **deepest** matching root wins when workspaces nest.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConversationEntry {
+	pub conversation: crate::sessions::Conversation,
+	/// The owning workspace; `None` when no workspace root contains the cwd.
+	pub workspace_id: Option<String>,
+	/// True for a session owned by the system 默认项目. Those are the pinned
+	/// rows and are never archived or hidden.
+	pub pinned: bool,
+}
+
 /// One refused action, shown as a toast. An empty notice means "nothing to
 /// say" and is not rendered.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -528,6 +568,10 @@ pub struct AppState {
 	/// syncs it from the settings file every frame; `None` = 本机默认.
 	pub default_shell: Option<crate::shells::ShellKind>,
 	pub projects: Vec<Project>,
+	/// The gateway's conversations, each already assigned to the workspace
+	/// whose root contains its cwd. Refreshed by [`crate::Shell`] from
+	/// `GET /api/sessions`; the state only groups and opens them.
+	pub conversations: Vec<ConversationEntry>,
 	/// The shared project registry (`~/.zeta/projects.json`). `projects`
 	/// mirrors it plus the 本机 pseudo-entry; project mutations write through
 	/// here so the GUI and the TUI see one list.
@@ -576,6 +620,7 @@ impl Default for AppState {
 			tui_pane: None,
 			default_shell: None,
 			projects: Vec::new(),
+			conversations: Vec::new(),
 			registry: workbench_projects::Registry::empty_at(workbench_projects::default_path()),
 			renaming_project: None,
 			renaming_workspace: None,
@@ -777,10 +822,181 @@ impl AppState {
 		id == "p-local"
 	}
 
+	/// 默认项目 is system-owned: no registry row, no rename, no removal, and no
+	/// second workspace. Its conversations are the pinned block.
+	pub fn is_system_project(id: &str) -> bool {
+		id == DEFAULT_PROJECT_ID
+	}
+
+	/// The system-owned 默认项目, when the shell was seeded with it.
+	pub fn default_project(&self) -> Option<&Project> {
+		self.project(DEFAULT_PROJECT_ID)
+	}
+
+	/// The 默认项目's one workspace.
+	pub fn default_workspace(&self) -> Option<&Workspace> {
+		self
+			.default_project()
+			.and_then(|project| project.workspaces.first())
+	}
+
+	// ── gateway conversations ──────────────────────────────────────────
+
+	/// Replace the gateway's conversation list and assign each session to the
+	/// workspace that owns it.
+	///
+	/// A workspace owns the sessions whose cwd is inside its root; the deepest
+	/// root wins when workspaces nest. A session no workspace claims is kept
+	/// with `workspace_id: None` and is **not** listed — guessing a home for it
+	/// would put another project's work under the wrong node.
+	pub fn set_conversations(&mut self, mut rows: Vec<crate::sessions::Conversation>) {
+		rows.sort_by(|a, b| {
+			b.modified_ms
+				.cmp(&a.modified_ms)
+				.then_with(|| a.id.cmp(&b.id))
+		});
+		let roots: Vec<(String, String, PathBuf, usize)> = self
+			.projects
+			.iter()
+			.flat_map(|project| {
+				project.workspaces.iter().map(move |workspace| {
+					let root = crate::workspace_memory::canonical(Path::new(&workspace.path));
+					let depth = root.components().count();
+					(workspace.id.clone(), project.id.clone(), root, depth)
+				})
+			})
+			.collect();
+		let mut entries = Vec::with_capacity(rows.len());
+		for conversation in rows {
+			let cwd = crate::workspace_memory::canonical(&conversation.cwd);
+			let mut owner: Option<(usize, &str, &str)> = None;
+			for (workspace_id, project_id, root, depth) in &roots {
+				if crate::workspace_memory::relative_within(root, &cwd).is_none() {
+					continue;
+				}
+				if owner.is_none_or(|(best, ..)| *depth > best) {
+					owner = Some((*depth, workspace_id, project_id));
+				}
+			}
+			let (workspace_id, pinned) = match owner {
+				Some((_, workspace_id, project_id)) => {
+					(Some(workspace_id.to_owned()), project_id == DEFAULT_PROJECT_ID)
+				},
+				None => (None, false),
+			};
+			entries.push(ConversationEntry { conversation, workspace_id, pinned });
+		}
+		self.conversations = entries;
+	}
+
+	/// Re-assign the existing conversations after a project or workspace was
+	/// added: a root that did not exist when the list was read must claim the
+	/// sessions under it.
+	fn regroup_conversations(&mut self) {
+		if self.conversations.is_empty() {
+			return;
+		}
+		let rows = std::mem::take(&mut self.conversations)
+			.into_iter()
+			.map(|entry| entry.conversation)
+			.collect();
+		self.set_conversations(rows);
+	}
+
+	/// The conversations a workspace owns, newest first.
+	pub fn conversations_in(&self, workspace_id: &str) -> Vec<&crate::sessions::Conversation> {
+		self
+			.conversations
+			.iter()
+			.filter(|entry| entry.workspace_id.as_deref() == Some(workspace_id))
+			.map(|entry| &entry.conversation)
+			.collect()
+	}
+
+	/// The pinned rows: every conversation of the system 默认项目.
+	pub fn pinned_conversations(&self) -> Vec<&crate::sessions::Conversation> {
+		self
+			.conversations
+			.iter()
+			.filter(|entry| entry.pinned)
+			.map(|entry| &entry.conversation)
+			.collect()
+	}
+
+	/// One conversation by gateway session id.
+	pub fn conversation(&self, id: &str) -> Option<&ConversationEntry> {
+		self
+			.conversations
+			.iter()
+			.find(|entry| entry.conversation.id == id)
+	}
+
+	/// Open a conversation in the centre: select the owning workspace, then
+	/// focus an existing `Agent` tab for that session or open one.
+	pub fn open_conversation(&mut self, id: &str) -> Notice {
+		let Some(entry) = self.conversation(id).cloned() else {
+			return Notice(t!("网关里没有这个会话：{}", id));
+		};
+		let Some(workspace_id) = entry.workspace_id.clone() else {
+			return Notice(t!("没有工作区包含这个会话的目录：{}", entry.conversation.cwd.display()));
+		};
+		self.attach_conversation(&workspace_id, id, entry.conversation.display_title())
+	}
+
+	/// Show `session_id` under `workspace_id`.
+	///
+	/// The tab carries the id ([`SessionTab::session`]); the shell's frame loop
+	/// is what attaches it to the gateway. Opening the same session twice
+	/// focuses the tab that already shows it instead of stacking duplicates.
+	pub fn attach_conversation(
+		&mut self,
+		workspace_id: &str,
+		session_id: &str,
+		title: &str,
+	) -> Notice {
+		if session_id.trim().is_empty() {
+			return Notice(t!("会话 id 为空").to_owned());
+		}
+		let notice = self.select_workspace(workspace_id);
+		if !notice.0.is_empty() {
+			return notice;
+		}
+		let existing = self.workspace(workspace_id).and_then(|workspace| {
+			workspace.panes.iter().find_map(|pane| {
+				pane
+					.tabs
+					.iter()
+					.find(|tab| {
+						tab.kind == SessionKind::Agent && tab.session.as_deref() == Some(session_id)
+					})
+					.map(|tab| (pane.id.clone(), tab.id.clone()))
+			})
+		});
+		if let Some((pane_id, tab_id)) = existing {
+			self.select_tab(&pane_id, &tab_id);
+			self.tui_pane = Some(pane_id);
+			return Notice(String::new());
+		}
+		let Some(pane_id) = self
+			.workspace(workspace_id)
+			.and_then(|workspace| workspace.panes.first())
+			.map(|pane| pane.id.clone())
+		else {
+			return Notice(t!("这个工作区没有面板").to_owned());
+		};
+		let mut tab = SessionTab::new(self.fresh_id("tab"), SessionKind::Agent, title.to_owned());
+		tab.session = Some(session_id.to_owned());
+		let notice = self.push_tab(&pane_id, tab);
+		if notice.0.is_empty() {
+			self.tui_pane = Some(pane_id);
+		}
+		notice
+	}
+
 	/// Start the inline rename editor on a registered project.
 	pub fn begin_rename_project(&mut self, id: &str) {
 		if let Some(project) = self.project(id) {
-			if Self::is_local_project(id) {
+			if Self::is_local_project(id) || Self::is_system_project(id) {
 				return;
 			}
 			self.renaming_project = Some((id.to_owned(), project.name.clone()));
@@ -862,7 +1078,7 @@ impl AppState {
 		else {
 			return false;
 		};
-		if Self::is_local_project(&project.id) {
+		if Self::is_local_project(&project.id) || Self::is_system_project(&project.id) {
 			return false;
 		}
 		project
@@ -991,11 +1207,19 @@ impl AppState {
 				let project = crate::seed::registered_project(&row);
 				self.active_project = Some(row.id.clone());
 				self.active_workspace = project.workspaces.first().map(|w| w.id.clone());
-				self.projects.push(project);
+				// Registered projects sit before the system 默认项目, which the
+				// left column pins regardless of its position here.
+				let at = self
+					.projects
+					.iter()
+					.position(|project| Self::is_system_project(&project.id))
+					.unwrap_or(self.projects.len());
+				self.projects.insert(at, project);
 				self.adding_project = None;
 				self.add_focus = false;
 				self.center_page = CenterPage::Workspace;
 				self.tui_pane = None;
+				self.regroup_conversations();
 				Notice(t!("已添加项目：{}", row.name))
 			},
 			Err(error) => Notice(t!("添加项目失败：{}", error)),
@@ -1005,6 +1229,9 @@ impl AppState {
 	/// Remove one registration from the shared file and from the shell's list.
 	/// The directory and any conversation history are untouched.
 	pub fn remove_project(&mut self, id: &str) -> Notice {
+		if Self::is_system_project(id) {
+			return Notice(t!("默认项目是系统内置的，不能删除").to_owned());
+		}
 		if Self::is_local_project(id) {
 			return Notice(t!("本机 是当前目录，不在项目注册表里").to_owned());
 		}
@@ -1124,6 +1351,9 @@ impl AppState {
 	}
 
 	fn new_workspace_inner(&mut self, project_id: &str, entry: Option<&PickerEntry>) -> Notice {
+		if Self::is_system_project(project_id) {
+			return Notice(t!("默认项目是系统内置的，工作区固定为默认工作区").to_owned());
+		}
 		let Some(pos) = self.projects.iter().position(|p| p.id == project_id) else {
 			return Notice(t!("没有这个项目：{}", project_id));
 		};
@@ -1153,6 +1383,7 @@ impl AppState {
 		self.active_workspace = Some(id);
 		self.center_page = CenterPage::Workspace;
 		self.tui_pane = None;
+		self.regroup_conversations();
 		Notice(String::new())
 	}
 
@@ -1732,11 +1963,12 @@ mod tests {
 	#[test]
 	fn seeds_the_local_project_and_opens_the_first_workspace() {
 		let state = state();
-		assert_eq!(state.projects.len(), 1, "本机 is the only project without registrations");
+		assert_eq!(state.projects.len(), 2, "本机 and the system 默认项目");
 		assert!(state.active_project().is_some());
 		assert!(state.active_workspace().is_some());
 		assert_eq!(state.active_workspace().unwrap().panes.len(), 1);
 		assert_eq!(state.active_cols(), 1);
+		assert!(state.default_project().is_some(), "the pinned project is seeded");
 	}
 
 	#[test]
@@ -1876,6 +2108,177 @@ mod tests {
 		assert!(state.visible_panes().is_empty());
 		assert_eq!(state.workspace_label(), "未选择工作区");
 		assert_eq!(state.branch_label(), "—");
+	}
+
+	fn conversation(
+		id: &str,
+		cwd: std::path::PathBuf,
+		modified_ms: i64,
+	) -> crate::sessions::Conversation {
+		crate::sessions::Conversation {
+			id: id.to_owned(),
+			cwd,
+			title: id.to_owned(),
+			modified_ms,
+			message_count: 1,
+			running: false,
+		}
+	}
+
+	#[test]
+	fn the_default_project_is_system_owned() {
+		let mut state = state();
+		let default = state.default_project().expect("seeded").clone();
+		assert!(AppState::is_system_project(&default.id));
+		assert_eq!(default.workspaces.len(), 1, "the default workspace is fixed");
+
+		let notice = state.remove_project(&default.id);
+		assert!(notice.0.contains("系统内置"), "{notice:?}");
+		assert!(state.project(&default.id).is_some(), "removal changes nothing");
+
+		state.begin_rename_project(&default.id);
+		assert!(state.renaming().is_none(), "the default project has no rename editor");
+
+		let notice = state.new_workspace(&default.id);
+		assert!(notice.0.contains("系统内置"), "{notice:?}");
+		assert_eq!(state.default_project().unwrap().workspaces.len(), 1);
+	}
+
+	#[test]
+	fn conversations_group_under_the_deepest_workspace_root() {
+		let dir = tempfile::tempdir().expect("temp dir");
+		let alpha = dir.path().join("alpha");
+		let inner = alpha.join("inner");
+		let beta = dir.path().join("beta");
+		for path in [&alpha, &inner, &beta] {
+			std::fs::create_dir_all(path).unwrap();
+		}
+		let mut state = state();
+		for path in [&alpha, &inner, &beta] {
+			assert!(state.add_project(path).0.contains("已添加项目"));
+		}
+		let workspace_id = |state: &AppState, path: &std::path::Path| {
+			let canonical = std::fs::canonicalize(path).expect("canonical");
+			state
+				.projects
+				.iter()
+				.find(|project| project.path == canonical)
+				.unwrap()
+				.workspaces[0]
+				.id
+				.clone()
+		};
+		let alpha_ws = workspace_id(&state, &alpha);
+		let inner_ws = workspace_id(&state, &inner);
+		let beta_ws = workspace_id(&state, &beta);
+		state.set_conversations(vec![
+			conversation("a", alpha.join("src"), 300),
+			conversation("inner", inner.join("deep"), 200),
+			conversation("b", beta.clone(), 100),
+			conversation("root", alpha.clone(), 400),
+			conversation("outside", dir.path().join("elsewhere"), 50),
+		]);
+		let ids = |list: Vec<&crate::sessions::Conversation>| {
+			list
+				.into_iter()
+				.map(|row| row.id.clone())
+				.collect::<Vec<_>>()
+		};
+		assert_eq!(
+			ids(state.conversations_in(&alpha_ws)),
+			vec!["root".to_owned(), "a".to_owned()],
+			"the nested workspace claims its own session; newest first"
+		);
+		assert_eq!(ids(state.conversations_in(&inner_ws)), vec!["inner".to_owned()]);
+		assert_eq!(ids(state.conversations_in(&beta_ws)), vec!["b".to_owned()]);
+		let outside = state.conversation("outside").expect("kept");
+		assert!(outside.workspace_id.is_none(), "no root contains it");
+		assert!(outside.pinned == false);
+		// A session at the root itself belongs to the root, not to its child.
+		assert_eq!(
+			state.conversation("root").unwrap().workspace_id.as_deref(),
+			Some(alpha_ws.as_str())
+		);
+	}
+
+	#[test]
+	fn default_project_conversations_are_pinned() {
+		let mut state = state();
+		let default = state.default_project().expect("seeded").clone();
+		let root = std::path::PathBuf::from(&default.workspaces[0].path);
+		let local = state.projects[0].path.clone();
+		state.set_conversations(vec![
+			conversation("p1", root.join("nested"), 100),
+			conversation("p2", root.clone(), 200),
+			conversation("normal", local, 300),
+		]);
+		let pinned: Vec<String> = state
+			.pinned_conversations()
+			.into_iter()
+			.map(|row| row.id.clone())
+			.collect();
+		assert_eq!(pinned, vec!["p2".to_owned(), "p1".to_owned()], "newest first");
+		assert_eq!(
+			state.pinned_conversations().len(),
+			state.conversations_in(DEFAULT_WORKSPACE_ID).len(),
+			"every default-workspace conversation is pinned"
+		);
+		let local_ws = state.projects[0].workspaces[0].id.clone();
+		assert_eq!(state.conversations_in(&local_ws).len(), 1);
+		assert!(
+			state
+				.conversations
+				.iter()
+				.filter(|entry| entry.pinned)
+				.all(|entry| entry.workspace_id.as_deref() == Some(DEFAULT_WORKSPACE_ID))
+		);
+	}
+
+	#[test]
+	fn opening_a_conversation_selects_its_workspace_and_reuses_the_tab() {
+		let dir = tempfile::tempdir().expect("temp dir");
+		let project_path = dir.path().join("alpha");
+		std::fs::create_dir_all(project_path.join("src")).unwrap();
+		let mut state = state();
+		assert!(state.add_project(&project_path).0.contains("已添加项目"));
+		state.set_conversations(vec![conversation("c1", project_path.join("src"), 1)]);
+		let workspace = state
+			.conversation("c1")
+			.unwrap()
+			.workspace_id
+			.clone()
+			.unwrap();
+		assert!(state.open_conversation("c1").0.is_empty());
+		assert_eq!(state.active_workspace.as_deref(), Some(workspace.as_str()));
+		assert_eq!(state.center_page, CenterPage::Workspace);
+		let tab = state.active_session_tab().expect("the conversation tab");
+		assert_eq!(tab.kind, SessionKind::Agent);
+		assert_eq!(tab.session.as_deref(), Some("c1"));
+		let first = tab.id.clone();
+		// The same conversation focuses the same tab; it does not stack another.
+		assert!(state.open_conversation("c1").0.is_empty());
+		let agent_tabs = state
+			.workspace(&workspace)
+			.unwrap()
+			.panes
+			.iter()
+			.flat_map(|pane| pane.tabs.iter())
+			.filter(|tab| tab.session.as_deref() == Some("c1"))
+			.count();
+		assert_eq!(agent_tabs, 1);
+		assert_eq!(state.active_session_tab().unwrap().id, first);
+	}
+
+	#[test]
+	fn a_conversation_opens_in_the_default_workspace_without_a_registration() {
+		let mut state = state();
+		assert!(state.registry.is_empty(), "no project exists in the registry");
+		let notice = state.attach_conversation(DEFAULT_WORKSPACE_ID, "s1", "新会话");
+		assert!(notice.0.is_empty(), "{}", notice.0);
+		assert_eq!(state.active_workspace.as_deref(), Some(DEFAULT_WORKSPACE_ID));
+		let tab = state.active_session_tab().expect("the conversation tab");
+		assert_eq!(tab.kind, SessionKind::Agent);
+		assert_eq!(tab.session.as_deref(), Some("s1"));
 	}
 
 	#[test]

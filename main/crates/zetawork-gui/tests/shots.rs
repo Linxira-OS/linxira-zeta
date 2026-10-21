@@ -141,6 +141,51 @@ fn workspace_screenshot() {
 	write("01-workspace-single-pane.png", &bytes);
 }
 
+/// `18-default-project-conversations.png` — the left column's three levels:
+/// the pinned 默认项目 block (default workspace + its conversations) above the
+/// scrolling project list, and 本机's workspace with its own conversations
+/// below. The sessions are seeded, not fetched: a shot must not need
+/// `zetacode serve`.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn default_project_conversations_screenshot() {
+	use zetawork_gui::sessions::Conversation;
+
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	let default = shell
+		.state
+		.default_workspace()
+		.expect("the system project is seeded")
+		.path
+		.clone();
+	let local = shell.state.projects[0].path.clone();
+	let row = |id: &str, cwd: PathBuf, title: &str, modified_ms: i64, running: bool| Conversation {
+		id: id.to_owned(),
+		cwd,
+		title: title.to_owned(),
+		modified_ms,
+		message_count: 4,
+		running,
+	};
+	shell.state.set_conversations(vec![
+		row(
+			"sess-default-3",
+			PathBuf::from(&default).join("notes"),
+			"整理默认工作区的笔记",
+			1_792_569_600_000,
+			true,
+		),
+		row("sess-default-2", PathBuf::from(&default), "初始化默认工作区", 1_792_560_000_000, false),
+		row("sess-default-1", PathBuf::from(&default), "欢迎使用 Zeta", 1_792_500_000_000, false),
+		row("sess-local-1", local, "修复解析器", 1_792_400_000_000, false),
+	]);
+	shell.state.left_collapsed = false;
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("18-default-project-conversations.png", &bytes);
+}
+
 /// `03-settings-modal.png` — the 设置 modal over the GUI view.
 #[test]
 #[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
