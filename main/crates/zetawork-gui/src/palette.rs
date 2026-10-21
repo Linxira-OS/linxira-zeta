@@ -431,7 +431,10 @@ pub fn keys(ctx: &egui::Context, shell: &mut Shell) -> bool {
 		}
 	}
 	let chosen = if enter {
-		shell.state.palette().and_then(|palette| palette.chosen().cloned())
+		shell
+			.state
+			.palette()
+			.and_then(|palette| palette.chosen().cloned())
 	} else {
 		None
 	};
@@ -468,8 +471,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 		.order(Order::Foreground)
 		.fixed_pos(rect.min)
 		.show(ctx, |ui| {
-			let (backdrop, backdrop_response) =
-				ui.allocate_exact_size(screen.size(), Sense::click());
+			let (backdrop, backdrop_response) = ui.allocate_exact_size(screen.size(), Sense::click());
 			if backdrop_response.clicked() {
 				close = true;
 			}
@@ -501,23 +503,16 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 			crate::icons::paint(
 				field_ui.painter(),
 				Icon::Search,
-				Rect::from_center_size(
-					pos2(field.min.x + 22.0, field.center().y),
-					vec2(15.0, 15.0),
-				),
+				Rect::from_center_size(pos2(field.min.x + 22.0, field.center().y), vec2(15.0, 15.0)),
 				theme::TEXT_3,
 				1.5,
 			);
 			field_ui.add_space(22.0);
-			let edit = egui::TextEdit::singleline(&mut shell
-				.state
-				.palette_mut()
-				.expect("open")
-				.query)
-			.hint_text(t!("跳转到项目、工作区、会话、文件，或运行一个桌面动作"))
-			.frame(false)
-			.desired_width(field.width() - 60.0)
-			.font(egui::TextStyle::Body);
+			let edit = egui::TextEdit::singleline(&mut shell.state.palette_mut().expect("open").query)
+				.hint_text(t!("跳转到项目、工作区、会话、文件，或运行一个桌面动作"))
+				.frame(false)
+				.desired_width(field.width() - 60.0)
+				.font(egui::TextStyle::Body);
 			let response = field_ui.add(edit);
 			response.request_focus();
 			painter.line_segment(
@@ -574,10 +569,8 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 						let item = &items[*index];
 						if item.section != section {
 							section = item.section;
-							let (head, _) = ui.allocate_exact_size(
-								vec2(ui.available_width(), 20.0),
-								Sense::hover(),
-							);
+							let (head, _) =
+								ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::hover());
 							ui.painter().text(
 								pos2(head.min.x + 14.0, head.center().y),
 								egui::Align2::LEFT_CENTER,
@@ -586,10 +579,8 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 								theme::TEXT_3,
 							);
 						}
-						let (row, response) = ui.allocate_exact_size(
-							vec2(ui.available_width(), ROW_H),
-							Sense::click(),
-						);
+						let (row, response) =
+							ui.allocate_exact_size(vec2(ui.available_width(), ROW_H), Sense::click());
 						let active = position == selected;
 						if active {
 							ui.painter().rect_filled(
@@ -719,8 +710,7 @@ mod tests {
 
 	#[test]
 	fn files_come_from_git_and_from_a_walk_without_a_repository() {
-		let root =
-			std::env::temp_dir().join(format!("zetawork-gui-palette-{}", std::process::id()));
+		let root = std::env::temp_dir().join(format!("zetawork-gui-palette-{}", std::process::id()));
 		let _ = std::fs::remove_dir_all(&root);
 		std::fs::create_dir_all(root.join("src")).unwrap();
 		std::fs::write(root.join("src/main.rs"), "fn main() {}\n").unwrap();
@@ -748,7 +738,8 @@ mod tests {
 
 	#[test]
 	fn a_project_row_dispatches_to_the_project_selection() {
-		let dir = std::env::temp_dir().join(format!("zetawork-gui-palette-state-{}", std::process::id()));
+		let dir =
+			std::env::temp_dir().join(format!("zetawork-gui-palette-state-{}", std::process::id()));
 		let _ = std::fs::remove_dir_all(&dir);
 		std::fs::create_dir_all(&dir).unwrap();
 		let state = AppState::seeded_with_registry(

@@ -258,7 +258,11 @@ impl CredentialIdentity {
 
 	/// The identity line the pane shows; it never contains a secret.
 	pub fn label(&self) -> String {
-		let name = if self.name.is_empty() { &self.id } else { &self.name };
+		let name = if self.name.is_empty() {
+			&self.id
+		} else {
+			&self.name
+		};
 		match &self.username {
 			Some(username) => format!("{name} (@{username})"),
 			None if !self.id.is_empty() && self.id != *name => format!("{name} ({})", self.id),
@@ -1050,16 +1054,13 @@ pub fn validate_credentials(
 	for (key, value) in fields {
 		body.insert(key.clone(), value.clone());
 	}
-	let reply = transport.request(
-		"POST",
-		CREDENTIALS_PATH,
-		Some(&Value::Object(body).to_string()),
-	)?;
+	let reply =
+		transport.request("POST", CREDENTIALS_PATH, Some(&Value::Object(body).to_string()))?;
 	if !(200..300).contains(&reply.status) {
 		return Err(reply_error(&reply));
 	}
-	let parsed: Value = serde_json::from_str(&reply.body)
-		.map_err(|_| t!("网关返回的不是 JSON").to_owned())?;
+	let parsed: Value =
+		serde_json::from_str(&reply.body).map_err(|_| t!("网关返回的不是 JSON").to_owned())?;
 	let identity = CredentialIdentity::parse(parsed.get("identity"));
 	if identity.id.is_empty() && identity.name.is_empty() {
 		return Err(t!("网关没有返回机器人身份").to_owned());

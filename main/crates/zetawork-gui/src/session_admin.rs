@@ -248,7 +248,11 @@ fn encode_segment(text: &str) -> String {
 ///
 /// Pinning is the only reorder; within each group the gateway's newest-first
 /// order is preserved. A query uses the same matching rules as 历史.
-pub fn visible<'a>(rows: &'a [Conversation], query: &str, pins: &[String]) -> Vec<&'a Conversation> {
+pub fn visible<'a>(
+	rows: &'a [Conversation],
+	query: &str,
+	pins: &[String],
+) -> Vec<&'a Conversation> {
 	let mut rows: Vec<&Conversation> = rows
 		.iter()
 		.filter(|row| crate::history::matches(row, query))
@@ -298,8 +302,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 		.order(Order::Foreground)
 		.fixed_pos(rect.min)
 		.show(ctx, |ui| {
-			let (backdrop, backdrop_response) =
-				ui.allocate_exact_size(screen.size(), Sense::click());
+			let (backdrop, backdrop_response) = ui.allocate_exact_size(screen.size(), Sense::click());
 			if backdrop_response.clicked() {
 				close = true;
 			}
@@ -372,7 +375,11 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 				if crate::widgets::chip(
 					&mut tabs_ui,
 					tab.label(),
-					if active { crate::widgets::Chip::Active } else { crate::widgets::Chip::Plain },
+					if active {
+						crate::widgets::Chip::Active
+					} else {
+						crate::widgets::Chip::Plain
+					},
 				)
 				.clicked()
 				{
@@ -420,15 +427,17 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 					}
 					for row in &filtered {
 						let pinned = shell.state.is_pinned(&row.id);
-						let group = if pinned { t!("已置顶") } else { t!("全部会话") };
+						let group = if pinned {
+							t!("已置顶")
+						} else {
+							t!("全部会话")
+						};
 						if group != section {
 							section = group;
 							section_head(ui, group);
 						}
-						let (row_rect, response) = ui.allocate_exact_size(
-							vec2(ui.available_width(), 42.0),
-							Sense::click(),
-						);
+						let (row_rect, response) =
+							ui.allocate_exact_size(vec2(ui.available_width(), 42.0), Sense::click());
 						if response.hovered() {
 							ui.painter().rect_filled(
 								row_rect.shrink2(vec2(8.0, 1.0)),
@@ -447,12 +456,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 						truncated_mono(
 							ui,
 							pos2(row_rect.min.x + 16.0, row_rect.center().y + 8.0),
-							&t!(
-								"{} · {} 条消息 · {}",
-								row.cwd.display(),
-								row.message_count,
-								row.id
-							),
+							&t!("{} · {} 条消息 · {}", row.cwd.display(), row.message_count, row.id),
 							9.5,
 							theme::TEXT_3,
 							row_rect.width() - 200.0,
@@ -460,13 +464,11 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 						// Actions, painted as three small buttons at the right.
 						let button = |ui: &mut egui::Ui, label: &str, active: bool| -> bool {
 							ui.add(
-								egui::Button::new(
-									egui::RichText::new(label).size(10.5).color(if active {
-										theme::ACCENT_2
-									} else {
-										theme::TEXT_2
-									}),
-								)
+								egui::Button::new(egui::RichText::new(label).size(10.5).color(if active {
+									theme::ACCENT_2
+								} else {
+									theme::TEXT_2
+								}))
 								.frame(true)
 								.min_size(vec2(54.0, 20.0)),
 							)
@@ -484,8 +486,15 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 						let mut acted = false;
 						match shell.session_admin.tab {
 							Tab::Active => {
-								if button(&mut actions, if pinned { t!("取消置顶") } else { t!("置顶") }, pinned)
-								{
+								if button(
+									&mut actions,
+									if pinned {
+										t!("取消置顶")
+									} else {
+										t!("置顶")
+									},
+									pinned,
+								) {
 									pin = Some(row.id.clone());
 									acted = true;
 								}
@@ -543,7 +552,10 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 	}
 	if let Some(id) = restore {
 		let origin = shell.sessions.origin().map(str::to_owned);
-		match shell.session_admin.request_unarchive(origin.as_deref(), &id) {
+		match shell
+			.session_admin
+			.request_unarchive(origin.as_deref(), &id)
+		{
 			Ok(()) => shell.session_admin.notice = Some((true, t!("正在恢复…").to_owned())),
 			Err(error) => shell.session_admin.notice = Some((false, error)),
 		}
@@ -556,7 +568,11 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 /// Pin or unpin, and persist the change when this is a real run.
 pub fn toggle_pin(shell: &mut Shell, id: &str) {
 	let now = shell.state.toggle_session_pin(id);
-	let line = if now { t!("已置顶") } else { t!("已取消置顶") };
+	let line = if now {
+		t!("已置顶")
+	} else {
+		t!("已取消置顶")
+	};
 	shell.session_admin.notice = Some((true, line.to_owned()));
 	if shell.probe {
 		if let Err(error) =
@@ -603,7 +619,10 @@ mod tests {
 			.map(|row| row.id.as_str())
 			.collect();
 		assert_eq!(ids, ["pinned-old", "newest", "middle"]);
-		let none: Vec<&str> = visible(&rows, "", &[]).iter().map(|row| row.id.as_str()).collect();
+		let none: Vec<&str> = visible(&rows, "", &[])
+			.iter()
+			.map(|row| row.id.as_str())
+			.collect();
 		assert_eq!(none, ["newest", "middle", "pinned-old"]);
 		assert_eq!(visible(&rows, "session middle", &pins).len(), 1);
 		assert!(visible(&rows, "zzz", &pins).is_empty());
@@ -621,13 +640,23 @@ mod tests {
 	fn a_request_needs_an_origin_and_an_id() {
 		let mut admin = Admin::default();
 		assert!(admin.request_archive(None, "x").is_err());
-		assert!(admin.request_archive(Some("http://127.0.0.1:9"), "  ").is_err());
+		assert!(
+			admin
+				.request_archive(Some("http://127.0.0.1:9"), "  ")
+				.is_err()
+		);
 		// A loopback that is not listening still spawns a worker; the failure
 		// is reported through poll rather than here.
-		assert!(admin
-			.request_archive(Some("http://127.0.0.1:9"), "x")
-			.is_ok());
-		assert!(admin.request_archive(Some("http://127.0.0.1:9"), "y").is_err());
+		assert!(
+			admin
+				.request_archive(Some("http://127.0.0.1:9"), "x")
+				.is_ok()
+		);
+		assert!(
+			admin
+				.request_archive(Some("http://127.0.0.1:9"), "y")
+				.is_err()
+		);
 		assert!(admin.is_busy("x"));
 	}
 

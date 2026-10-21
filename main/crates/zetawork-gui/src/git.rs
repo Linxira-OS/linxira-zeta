@@ -497,7 +497,8 @@ impl Worktree {
 		if self.detached {
 			return t!("（分离 HEAD）").to_owned();
 		}
-		self.path
+		self
+			.path
 			.file_name()
 			.map(|name| name.to_string_lossy().into_owned())
 			.unwrap_or_else(|| self.path.display().to_string())
@@ -647,8 +648,7 @@ pub fn add_worktree(repo: &Path, branch: &str) -> Result<PathBuf, String> {
 	if path.exists() {
 		return Err(t!("工作树目录已存在：{}", path.display()));
 	}
-	std::fs::create_dir_all(&parent)
-		.map_err(|error| t!("创建工作树根目录失败：{}", error))?;
+	std::fs::create_dir_all(&parent).map_err(|error| t!("创建工作树根目录失败：{}", error))?;
 	let create = !branch_exists(&root, branch);
 	let args = worktree_add_args(branch, &path, create);
 	let refs: Vec<&str> = args.iter().map(String::as_str).collect();

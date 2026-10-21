@@ -419,7 +419,8 @@ describe("autostart installers", () => {
 		});
 		expect(plan.supported).toBe(true);
 		expect(plan.path).toBe(
-			path.join(
+			// The plan is a Windows path regardless of the host running the test.
+			path.win32.join(
 				"C:\\Users\\me\\AppData\\Roaming",
 				"Microsoft",
 				"Windows",

@@ -973,16 +973,12 @@ fn history_page_screenshot() {
 		),
 		row("sess-history-2", PathBuf::from(&default), "初始化默认工作区", 3 * 3_600_000, false),
 		row("sess-history-3", local, "修复解析器的历史会话", 30 * 3_600_000, false),
-		row(
-			"sess-history-4",
-			PathBuf::from(&default),
-			"欢迎使用 Zeta",
-			3 * 86_400_000,
-			false,
-		),
+		row("sess-history-4", PathBuf::from(&default), "欢迎使用 Zeta", 3 * 86_400_000, false),
 	]);
 	shell.state.pinned_sessions = vec!["sess-history-2".to_owned()];
-	shell.state.set_right_tab(zetawork_gui::state::RightTab::History);
+	shell
+		.state
+		.set_right_tab(zetawork_gui::state::RightTab::History);
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096);
 	write("19-history-page.png", &bytes);

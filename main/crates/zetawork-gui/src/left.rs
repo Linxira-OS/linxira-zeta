@@ -167,8 +167,7 @@ fn pinned_region(ui: &mut Ui, shell: &mut Shell, top: f32) -> f32 {
 		.iter()
 		.filter(|entry| entry.pinned)
 		.count();
-	let desired =
-		PIN_HEAD_H + WORKSPACE_ROW_H + pinned_count as f32 * CONVERSATION_ROW_H + 6.0;
+	let desired = PIN_HEAD_H + WORKSPACE_ROW_H + pinned_count as f32 * CONVERSATION_ROW_H + 6.0;
 	let height = desired.min((available * 0.5).max(96.0)).min(available);
 	if height <= 0.0 {
 		return top;

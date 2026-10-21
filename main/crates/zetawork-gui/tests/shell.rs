@@ -507,17 +507,7 @@ fn the_right_column_has_nine_tabs_and_eleven_settings_sections() {
 	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 9);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
-		[
-			"文件树",
-			"历史 · Agent 对话",
-			"Git 状态",
-			"用量",
-			"资源",
-			"看板",
-			"跟踪",
-			"工作树",
-			"插件",
-		]
+		["文件树", "历史 · Agent 对话", "Git 状态", "用量", "资源", "看板", "跟踪", "工作树", "插件",]
 	);
 	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are
 	// the one section the design drafts do not have, and the six they fix

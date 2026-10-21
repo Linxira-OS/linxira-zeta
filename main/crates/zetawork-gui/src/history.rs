@@ -54,19 +54,14 @@ pub fn matches(conversation: &crate::sessions::Conversation, query: &str) -> boo
 	let title = conversation.title.to_lowercase();
 	let id = conversation.id.to_lowercase();
 	let cwd = conversation.cwd.to_string_lossy().to_lowercase();
-	query
-		.split_whitespace()
-		.all(|token| {
-			let token = token.to_lowercase();
-			title.contains(&token) || id.contains(&token) || cwd.contains(&token)
-		})
+	query.split_whitespace().all(|token| {
+		let token = token.to_lowercase();
+		title.contains(&token) || id.contains(&token) || cwd.contains(&token)
+	})
 }
 
 /// The rows the page shows, in the order it shows them.
-pub fn filter<'a>(
-	entries: &'a [ConversationEntry],
-	query: &str,
-) -> Vec<&'a ConversationEntry> {
+pub fn filter<'a>(entries: &'a [ConversationEntry], query: &str) -> Vec<&'a ConversationEntry> {
 	entries
 		.iter()
 		.filter(|entry| matches(&entry.conversation, query))
@@ -137,8 +132,14 @@ pub fn project_label(shell: &Shell, entry: &ConversationEntry) -> String {
 /// The page.
 pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 	panel_head(ui, RightTab::History.title(), |ui| {
-		if crate::icons::icon_button(ui, crate::icons::Icon::Refresh, 20.0, false, t!("重新读取会话列表"))
-			.clicked()
+		if crate::icons::icon_button(
+			ui,
+			crate::icons::Icon::Refresh,
+			20.0,
+			false,
+			t!("重新读取会话列表"),
+		)
+		.clicked()
 		{
 			shell.sessions.refresh_now();
 		}
@@ -193,8 +194,10 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 				if label != day {
 					day = label;
 					if !day.is_empty() {
-						let (rect, _) = ui
-							.allocate_exact_size(egui::vec2(ui.available_width(), 22.0), egui::Sense::hover());
+						let (rect, _) = ui.allocate_exact_size(
+							egui::vec2(ui.available_width(), 22.0),
+							egui::Sense::hover(),
+						);
 						ui.painter().text(
 							egui::pos2(rect.min.x + 10.0, rect.center().y),
 							egui::Align2::LEFT_CENTER,
@@ -225,10 +228,8 @@ fn row(
 	now_ms: i64,
 ) -> Option<String> {
 	let conversation = &entry.conversation;
-	let (rect, response) = ui.allocate_exact_size(
-		egui::vec2(ui.available_width(), 38.0),
-		egui::Sense::click(),
-	);
+	let (rect, response) =
+		ui.allocate_exact_size(egui::vec2(ui.available_width(), 38.0), egui::Sense::click());
 	if response.hovered() {
 		ui.painter().rect_filled(
 			rect.shrink2(egui::vec2(4.0, 0.0)),
@@ -262,11 +263,8 @@ fn row(
 		rect.width() - 70.0,
 	);
 	if conversation.running {
-		ui.painter().circle_filled(
-			egui::pos2(rect.max.x - 14.0, rect.center().y),
-			3.0,
-			theme::ADD,
-		);
+		ui.painter()
+			.circle_filled(egui::pos2(rect.max.x - 14.0, rect.center().y), 3.0, theme::ADD);
 	} else {
 		let time = short_time(conversation.modified_ms, now_ms);
 		crate::widgets::truncated_mono_right(
@@ -331,7 +329,10 @@ mod tests {
 			entry(conversation("a", "Old parser", "/w/b", 1_000)),
 		];
 		let rows = filter(&entries, "parser");
-		let ids: Vec<&str> = rows.iter().map(|entry| entry.conversation.id.as_str()).collect();
+		let ids: Vec<&str> = rows
+			.iter()
+			.map(|entry| entry.conversation.id.as_str())
+			.collect();
 		assert_eq!(ids, ["b", "a"], "filtering never reorders");
 		assert_eq!(filter(&entries, "").len(), 3);
 	}

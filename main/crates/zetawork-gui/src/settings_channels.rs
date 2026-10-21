@@ -1004,10 +1004,7 @@ fn add_binding_row(ui: &mut Ui, shell: &mut Shell, view: &View) {
 /// Feishu and Telegram credentials, with one explicit save.
 fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 	head(ui, t!("凭据"));
-	hint(
-		ui,
-		t!("先向平台验证，成功才写入 web.yml；留空的秘密字段用已保存的值验证。"),
-	);
+	hint(ui, t!("先向平台验证，成功才写入 web.yml；留空的秘密字段用已保存的值验证。"));
 
 	let feishu = view.channel(ChannelId::Feishu).clone();
 	compact_note(ui, t!("飞书 / Lark"));
@@ -1079,7 +1076,9 @@ fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 		if !domain.is_empty() {
 			fields.push(("domain".to_owned(), Value::String(domain)));
 		}
-		shell.channels.validate_credentials(ChannelId::Feishu, fields);
+		shell
+			.channels
+			.validate_credentials(ChannelId::Feishu, fields);
 	}
 	if unbind {
 		shell.channels.unbind_credentials(ChannelId::Feishu);
@@ -1118,7 +1117,9 @@ fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 		} else {
 			vec![("botToken".to_owned(), Value::String(token))]
 		};
-		shell.channels.validate_credentials(ChannelId::Telegram, fields);
+		shell
+			.channels
+			.validate_credentials(ChannelId::Telegram, fields);
 	}
 	if unbind {
 		shell.channels.unbind_credentials(ChannelId::Telegram);

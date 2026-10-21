@@ -65,16 +65,16 @@ pub mod status;
 pub mod statusbar;
 pub mod terminal_service;
 pub mod theme;
-pub mod tracking;
 pub mod total;
+pub mod tracking;
 pub mod tray;
 pub mod update_ui;
 pub mod updates;
 pub mod usage;
 pub mod widgets;
 pub mod window_shape;
-pub mod worktrees;
 pub mod workspace_memory;
+pub mod worktrees;
 pub mod ws;
 pub mod zetacode;
 
@@ -363,8 +363,7 @@ impl Shell {
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		};
-		shell.state.pinned_sessions =
-			sessions::load_pins_from(&sessions::pins_path());
+		shell.state.pinned_sessions = sessions::load_pins_from(&sessions::pins_path());
 		shell.sync_readers();
 		// One read up front so the status bar's ↑↓ / 更改 columns are real
 		// from the first frame instead of `—`.
@@ -561,7 +560,9 @@ impl Shell {
 		// The workspace row's branch chip is the checkout's own answer: a
 		// `git switch` in a terminal, or a worktree switch, shows up here.
 		if !status.branch.is_empty() {
-			self.state.set_workspace_branch(&workspace_id, &status.branch);
+			self
+				.state
+				.set_workspace_branch(&workspace_id, &status.branch);
 		}
 		self.git = Some(status);
 		self.git_ws = workspace_id;
@@ -1298,9 +1299,10 @@ impl Shell {
 		let now = std::time::Instant::now();
 		// The list feeds the left column, the 历史 page and 会话管理; any of
 		// them being open keeps it fresh.
-		let history_open = !self.state.right_collapsed
-			&& self.state.right_tab == state::RightTab::History;
-		self.sessions
+		let history_open =
+			!self.state.right_collapsed && self.state.right_tab == state::RightTab::History;
+		self
+			.sessions
 			.tick(now, !self.state.left_collapsed || history_open || self.state.sessions_open);
 		for event in self.sessions.poll(now) {
 			match event {
@@ -1493,9 +1495,8 @@ impl Shell {
 		// ⌘K / Ctrl-K opens the palette from anywhere — including a focused
 		// terminal, whose PTY would otherwise swallow the chord. It never opens
 		// over another modal.
-		let palette_hotkey = ctx.input(|input| {
-			input.modifiers.command && input.key_pressed(egui::Key::K)
-		});
+		let palette_hotkey =
+			ctx.input(|input| input.modifiers.command && input.key_pressed(egui::Key::K));
 		if palette_hotkey && !self.state.modal_open() {
 			self.open_palette();
 		}

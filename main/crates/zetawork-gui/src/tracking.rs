@@ -120,7 +120,8 @@ pub fn parse_status(json: &str) -> Result<Status, String> {
 			.get(key)
 			.and_then(Value::as_array)
 			.map(|rows| {
-				rows.iter()
+				rows
+					.iter()
 					.filter_map(Value::as_str)
 					.map(str::trim)
 					.filter(|row| !row.is_empty())
@@ -133,14 +134,13 @@ pub fn parse_status(json: &str) -> Result<Status, String> {
 		.get("phases")
 		.and_then(Value::as_array)
 		.map(|rows| {
-			rows.iter()
+			rows
+				.iter()
 				.filter_map(|row| {
 					let name = row.get("name")?.as_str()?.trim();
 					let status = row.get("status")?.as_str()?.trim();
-					(!name.is_empty()).then(|| Phase {
-						name: name.to_owned(),
-						status: status.to_owned(),
-					})
+					(!name.is_empty())
+						.then(|| Phase { name: name.to_owned(), status: status.to_owned() })
 				})
 				.collect()
 		})
@@ -195,7 +195,10 @@ pub fn read_markdown_dir(dir: &Path) -> Vec<Doc> {
 			entries
 				.flatten()
 				.filter(|entry| {
-					entry.file_type().map(|kind| kind.is_file()).unwrap_or(false)
+					entry
+						.file_type()
+						.map(|kind| kind.is_file())
+						.unwrap_or(false)
 						&& entry
 							.file_name()
 							.to_string_lossy()
@@ -306,13 +309,8 @@ pub enum Tab {
 }
 
 impl Tab {
-	pub const ALL: [Self; 5] = [
-		Self::Overview,
-		Self::Status,
-		Self::Plans,
-		Self::Summaries,
-		Self::Sessions,
-	];
+	pub const ALL: [Self; 5] =
+		[Self::Overview, Self::Status, Self::Plans, Self::Summaries, Self::Sessions];
 
 	pub fn label(self) -> &'static str {
 		match self {
@@ -380,8 +378,14 @@ impl TrackingCache {
 /// The page.
 pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 	panel_head(ui, RightTab::Tracking.title(), |ui| {
-		if crate::icons::icon_button(ui, crate::icons::Icon::Refresh, 20.0, false, t!("重新读取跟踪文档"))
-			.clicked()
+		if crate::icons::icon_button(
+			ui,
+			crate::icons::Icon::Refresh,
+			20.0,
+			false,
+			t!("重新读取跟踪文档"),
+		)
+		.clicked()
 		{
 			shell.tracking.reload();
 		}
@@ -410,7 +414,11 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 			let response = crate::widgets::chip(
 				ui,
 				tab.label(),
-				if active { crate::widgets::Chip::Active } else { crate::widgets::Chip::Plain },
+				if active {
+					crate::widgets::Chip::Active
+				} else {
+					crate::widgets::Chip::Plain
+				},
 			);
 			if response.clicked() {
 				chosen = Some(tab);
@@ -455,10 +463,8 @@ fn status_view(ui: &mut egui::Ui, status: &Status) {
 	if !status.phases.is_empty() {
 		heading(ui, t!("待办阶段"));
 		for phase in &status.phases {
-			let (rect, _) = ui.allocate_exact_size(
-				egui::vec2(ui.available_width(), 20.0),
-				egui::Sense::hover(),
-			);
+			let (rect, _) =
+				ui.allocate_exact_size(egui::vec2(ui.available_width(), 20.0), egui::Sense::hover());
 			truncated_text(
 				ui,
 				egui::pos2(rect.min.x + 10.0, rect.center().y),
@@ -547,7 +553,11 @@ pub fn markdown(ui: &mut egui::Ui, text: &str) {
 					egui::Label::new(
 						egui::RichText::new(text)
 							.size(12.0 + (3 - level) as f32)
-							.color(if level == 1 { theme::TEXT } else { theme::TEXT_2 })
+							.color(if level == 1 {
+								theme::TEXT
+							} else {
+								theme::TEXT_2
+							})
 							.strong(),
 					)
 					.wrap(),
@@ -558,10 +568,7 @@ pub fn markdown(ui: &mut egui::Ui, text: &str) {
 					ui.add_space(6.0);
 					ui.label(egui::RichText::new("•").size(11.5).color(theme::TEXT_3));
 					ui.add(
-						egui::Label::new(
-							egui::RichText::new(text).size(11.5).color(theme::TEXT),
-						)
-						.wrap(),
+						egui::Label::new(egui::RichText::new(text).size(11.5).color(theme::TEXT)).wrap(),
 					);
 				});
 			},
@@ -582,10 +589,8 @@ pub fn markdown(ui: &mut egui::Ui, text: &str) {
 				ui.horizontal_top(|ui| {
 					ui.add_space(6.0);
 					ui.add(
-						egui::Label::new(
-							egui::RichText::new(text).size(11.5).color(theme::TEXT_2),
-						)
-						.wrap(),
+						egui::Label::new(egui::RichText::new(text).size(11.5).color(theme::TEXT_2))
+							.wrap(),
 					);
 				});
 			},
@@ -663,8 +668,7 @@ mod tests {
 
 	#[test]
 	fn reads_a_real_tracking_directory_newest_first() {
-		let root =
-			std::env::temp_dir().join(format!("zetawork-gui-tracking-{}", std::process::id()));
+		let root = std::env::temp_dir().join(format!("zetawork-gui-tracking-{}", std::process::id()));
 		let _ = std::fs::remove_dir_all(&root);
 		assert!(read(&root).is_empty(), "a missing directory is an empty page");
 

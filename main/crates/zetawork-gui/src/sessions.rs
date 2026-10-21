@@ -130,9 +130,7 @@ pub fn decode(body: &str) -> Result<Vec<Conversation>, String> {
 					.and_then(Value::as_str)
 					.map(str::trim)
 					.filter(|text| {
-						!text.is_empty()
-							&& *text != "(no messages)"
-							&& *text != "(archived session)"
+						!text.is_empty() && *text != "(no messages)" && *text != "(archived session)"
 					})
 			})
 			.unwrap_or_default()
@@ -203,7 +201,8 @@ pub fn parse_pins(text: &str) -> Vec<String> {
 		return Vec::new();
 	};
 	let mut seen = HashSet::new();
-	rows.iter()
+	rows
+		.iter()
 		.filter_map(Value::as_str)
 		.map(str::trim)
 		.filter(|id| !id.is_empty())
@@ -224,8 +223,8 @@ pub fn save_pins_to(path: &Path, ids: &[String]) -> Result<(), String> {
 	if let Some(dir) = path.parent() {
 		std::fs::create_dir_all(dir).map_err(|error| t!("创建配置目录失败：{}", error))?;
 	}
-	let body = serde_json::to_string_pretty(ids)
-		.map_err(|error| t!("序列化置顶列表失败：{}", error))?;
+	let body =
+		serde_json::to_string_pretty(ids).map_err(|error| t!("序列化置顶列表失败：{}", error))?;
 	std::fs::write(path, format!("{body}\n")).map_err(|error| t!("写入置顶列表失败：{}", error))
 }
 

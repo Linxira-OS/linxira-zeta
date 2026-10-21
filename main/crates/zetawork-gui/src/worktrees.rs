@@ -169,8 +169,14 @@ impl WorktreeCache {
 /// The page.
 pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 	panel_head(ui, RightTab::Worktrees.title(), |ui| {
-		if crate::icons::icon_button(ui, crate::icons::Icon::Refresh, 20.0, false, t!("重新读取工作树"))
-			.clicked()
+		if crate::icons::icon_button(
+			ui,
+			crate::icons::Icon::Refresh,
+			20.0,
+			false,
+			t!("重新读取工作树"),
+		)
+		.clicked()
 		{
 			shell.worktrees.reload(Instant::now());
 		}
@@ -234,10 +240,8 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 						crate::workspace_memory::canonical(Path::new(&workspace.path)) == row.path
 					})
 					.unwrap_or(false);
-				let (rect, response) = ui.allocate_exact_size(
-					egui::vec2(ui.available_width(), 40.0),
-					egui::Sense::click(),
-				);
+				let (rect, response) =
+					ui.allocate_exact_size(egui::vec2(ui.available_width(), 40.0), egui::Sense::click());
 				if response.hovered() {
 					ui.painter().rect_filled(
 						rect.shrink2(egui::vec2(4.0, 0.0)),
@@ -295,10 +299,8 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 				}
 				if response.secondary_clicked() && index > 0 {
 					shell.worktrees.pending_remove = Some(row.path.clone());
-					shell.worktrees.notice = Some((
-						false,
-						t!("再次点击该行以移除工作树 {}", row.path.display()),
-					));
+					shell.worktrees.notice =
+						Some((false, t!("再次点击该行以移除工作树 {}", row.path.display())));
 				}
 			}
 		});
@@ -321,11 +323,7 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 				.hint_text(t!("分支名，例如 feat/worktree"))
 				.desired_width(ui.available_width() - 70.0),
 		);
-		if ui
-			.button(t!("新建"))
-			.clicked()
-			&& !shell.worktrees.draft.trim().is_empty()
-		{
+		if ui.button(t!("新建")).clicked() && !shell.worktrees.draft.trim().is_empty() {
 			create(shell, &dir);
 		}
 	});
@@ -353,8 +351,7 @@ fn switch(shell: &mut Shell, path: &Path) {
 		.unwrap_or_else(|| git::read_status(path, 0).branch);
 	let notice = shell.retarget_workspace(path, &branch);
 	if notice.0.is_empty() {
-		shell.worktrees.notice =
-			Some((true, t!("已切换到工作树 {}", row.label())));
+		shell.worktrees.notice = Some((true, t!("已切换到工作树 {}", row.label())));
 		shell.worktrees.refresh(path, Instant::now());
 		shell.refresh_git();
 	} else {
@@ -411,8 +408,7 @@ fn remove_worktree(shell: &mut Shell, path: &Path, dir: &Path) {
 			// git refuses a dirty checkout; the next click on the same row
 			// forces it, which is the confirmation the web UI also asks for.
 			shell.worktrees.pending_remove = Some(path.to_path_buf());
-			shell.worktrees.notice =
-				Some((false, t!("{}（再次点击该行强制移除）", error)));
+			shell.worktrees.notice = Some((false, t!("{}（再次点击该行强制移除）", error)));
 		},
 	}
 	shell.worktrees.reload(Instant::now());
@@ -462,7 +458,10 @@ mod tests {
 			.workspace_id
 			.clone()
 			.expect("the local workspace owns the directory");
-		let title = state.conversations[0].conversation.display_title().to_owned();
+		let title = state.conversations[0]
+			.conversation
+			.display_title()
+			.to_owned();
 		state.attach_conversation(&ws_id, "s1", &title);
 		assert_eq!(
 			conversation_dir(&state),
@@ -490,7 +489,9 @@ mod tests {
 		assert_eq!(cache.rows().len(), 2);
 		assert_eq!(cache.repo(), Some(Path::new("/work/zeta")));
 		assert!(
-			cache.switch_target(Path::new("/work/zeta-worktrees/feat-x")).is_none(),
+			cache
+				.switch_target(Path::new("/work/zeta-worktrees/feat-x"))
+				.is_none(),
 			"switching to where the conversation already is is a no-op"
 		);
 		let target = cache
@@ -539,7 +540,11 @@ mod tests {
 		let project = state.active_project().expect("a project").id.clone();
 		state.new_workspace(&project);
 		let project_row = state.project(&project).expect("the project");
-		let fresh = project_row.workspaces.last().expect("a new workspace").clone();
+		let fresh = project_row
+			.workspaces
+			.last()
+			.expect("a new workspace")
+			.clone();
 		let expected = crate::git::read_status(&repo, 0).branch;
 		assert_eq!(fresh.branch, expected, "the branch is read from git, not typed in");
 		assert!(!fresh.branch.is_empty());
