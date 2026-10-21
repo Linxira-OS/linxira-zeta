@@ -83,6 +83,16 @@ export interface Args {
 	pluginDirs?: string[];
 	print?: boolean;
 	printThoughts?: boolean;
+	/** Route a print/RPC launch through a running `zetacode serve` backend instead of a local session. */
+	backend?: boolean;
+	/** Attach the interactive TUI to the running backend's newest session in this cwd. */
+	attach?: boolean;
+	/** Attach the interactive TUI to a specific backend session id. */
+	attachSession?: string;
+	/** Force a fresh backend session in the current cwd instead of reusing one. */
+	attachNew?: boolean;
+	/** Explicit backend gateway URL (`ZETA_GATEWAY_URL` overrides discovery when unset). */
+	backendUrl?: string;
 	export?: string;
 	noSkills?: boolean;
 	skills?: string[];
@@ -373,6 +383,12 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.print = true;
 		} else if (arg === "--print-thoughts") {
 			result.printThoughts = true;
+		} else if (arg === "--backend") {
+			result.backend = true;
+		} else if (arg === "--attach") {
+			result.attach = true;
+		} else if (arg === "--attach-new") {
+			result.attachNew = true;
 		} else if (arg === "--no-extensions") {
 			result.noExtensions = true;
 		} else if (arg === "--no-skills") {

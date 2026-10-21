@@ -246,6 +246,19 @@ function safeAbort(label: string, fn: () => void): void {
 const LEFT_DOUBLE_TAP_MIN_GAP_MS = 40;
 const LEFT_DOUBLE_TAP_MAX_GAP_MS = 500;
 
+/** Commands that stay local while the model session lives on a backend. */
+const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
+	exit: true,
+	quit: true,
+	help: true,
+	hotkeys: true,
+	theme: true,
+	settings: true,
+	copy: true,
+	export: true,
+	dump: true,
+};
+
 export class InputController {
 	constructor(
 		private ctx: InteractiveModeContext,
@@ -564,6 +577,14 @@ export class InputController {
 				// no-op.
 				if (this.ctx.collabGuest.state?.isStreaming || this.ctx.loadingAnimation) {
 					this.ctx.collabGuest.sendAbort();
+				}
+				return;
+			}
+			if (this.ctx.backendAttach) {
+				// Backend-attached Esc: abort the backend turn. The local replica is
+				// an idle mirror, so the native session abort path would no-op.
+				if (this.ctx.backendAttach.streaming || this.ctx.loadingAnimation) {
+					this.ctx.backendAttach.sendAbort();
 				}
 				return;
 			}
@@ -1064,6 +1085,32 @@ export class InputController {
 				return;
 			}
 			if (bareSlashCommand) text = bareSlashCommand.command;
+
+			// Backend-attached session: model prompts and interactive work belong
+			// to the backend. Only local display commands stay local; everything
+			// else is answered by the backend stream.
+			const backendAttach = this.ctx.backendAttach;
+			if (backendAttach) {
+				const verb = text.startsWith("/") ? text.slice(1).split(/\s+/, 1)[0] : undefined;
+				const localCommand = verb !== undefined && BACKEND_ATTACH_LOCAL_COMMANDS[verb] === true;
+				if (verb !== undefined && !localCommand) {
+					this.ctx.showStatus(`${text.split(/\s+/, 1)[0]} is not available while attached to the backend`);
+					this.ctx.editor.setText("");
+					return;
+				}
+				if (!localCommand) {
+					if (text.startsWith("!") || parsePythonCommandInput(text)) {
+						this.ctx.showStatus("Local execution is not available while attached to the backend");
+						this.ctx.editor.setText("");
+						return;
+					}
+					const images = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
+					if (!text.trim() && !images) return;
+					this.ctx.editor.clearDraft(text);
+					backendAttach.sendPrompt(text, images);
+					return;
+				}
+			}
 
 			// Handle built-in slash commands
 			if (text) {
@@ -1879,6 +1926,19 @@ export class InputController {
 		// Focused subagent session: follow-ups go to it; non-chat input is gated.
 		if (this.ctx.focusedAgentId && !this.ctx.approvalOwnsComposer) {
 			await this.#submitToFocusedSession(text, "followUp");
+			return;
+		}
+
+		// Backend-attached sessions queue follow-ups on the backend. Local
+		// builtins/skills never run there.
+		if (this.ctx.backendAttach) {
+			if (text.startsWith("/") || text.startsWith("!") || parsePythonCommandInput(text)) {
+				this.ctx.showStatus("Only plain messages can be sent while attached to the backend");
+				return;
+			}
+			this.ctx.editor.clearDraft();
+			if (!text.trim() && !images?.length) return;
+			this.ctx.backendAttach.sendPrompt(text, images, "followUp");
 			return;
 		}
 

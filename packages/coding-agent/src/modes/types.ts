@@ -5,6 +5,7 @@ import type { Component, Container, EditorTheme, KeyId, Loader, TUI, Spacer, Tex
 import type { TspText } from "@linxiraos/pi-wire";
 import type { StatusNotice } from "@linxiraos/pi-tui/chrome/status-notice";
 import type { CollabController } from "../collab/controller";
+import type { BackendAttachLink } from "../backend/attach-link";
 import type { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import type { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
@@ -20,7 +21,13 @@ import type {
 	ExtensionWidgetContent,
 	ExtensionWidgetOptions,
 } from "../extensibility/extensions";
-import type { CompactOptions, PlanReviewChoice, PlanReviewRequestedEvent } from "../extensibility/extensions/types";
+import type {
+	CompactOptions,
+	ExtensionAskDialogQuestion,
+	ExtensionAskDialogResult,
+	PlanReviewChoice,
+	PlanReviewRequestedEvent,
+} from "../extensibility/extensions/types";
 import type { Skill } from "../extensibility/skills";
 import type { MCPManager } from "../mcp";
 import type { PlanApprovalDetails } from "../plan-mode/approved-plan";
@@ -195,6 +202,8 @@ export interface InteractiveModeContext {
 	/** Owned room; use {@link collabController}.host for current-session reuse and links. */
 	collabHost?: CollabHost;
 	collabGuest?: CollabGuestLink;
+	/** Live client link to a session owned by a running `zetacode serve` backend. */
+	backendAttach?: BackendAttachLink;
 	eventController: EventController;
 	eventBus?: EventBus;
 	/** Root-scoped bus carrying this session tree's `task:subagent:*` frames. */
@@ -659,6 +668,11 @@ export interface InteractiveModeContext {
 		dialogOptions?: ExtensionUIDialogOptions,
 		editorOptions?: { promptStyle?: boolean },
 	): Promise<string | undefined>;
+	/** Present the structured `ask` dialog used by backend/remote extension requests. */
+	showAskDialog(
+		questions: ExtensionAskDialogQuestion[],
+		dialogOptions?: ExtensionUIDialogOptions,
+	): Promise<ExtensionAskDialogResult | undefined>;
 	hideHookEditor(): void;
 	showHookNotify(message: string, type?: "info" | "warning" | "error"): void;
 	showHookCustom<T>(

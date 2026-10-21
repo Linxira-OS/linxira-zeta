@@ -116,6 +116,23 @@ export const launchHelp = {
 			description: "With --mode rpc or rpc-ui: run extensions headless (rpc-ui tool UI remains enabled)",
 		}),
 		"print-thoughts": Flags.boolean({ description: "Include thinking blocks in print mode text output" }),
+		backend: Flags.boolean({
+			description:
+				"Route a print launch through a running `zetacode serve` backend (default: own the session in-process)",
+		}),
+		attach: Flags.boolean({
+			description:
+				"Attach the TUI to the running backend's newest session in this directory (the bare `zetacode` default)",
+		}),
+		"attach-session": Flags.string({
+			description: "Attach the TUI to this backend session id (implies --attach)",
+		}),
+		"attach-new": Flags.boolean({
+			description: "Force a fresh backend session in this directory instead of reusing the newest one",
+		}),
+		"backend-url": Flags.string({
+			description: "Backend gateway URL (default: ZETA_GATEWAY_URL, the serve registry, then 127.0.0.1:30142)",
+		}),
 		"max-time": Flags.string({ description: "Stop the session after this duration (e.g., 600, 10m, 1h)" }),
 		"auto-approve": Flags.boolean({
 			aliases: ["yolo"],
