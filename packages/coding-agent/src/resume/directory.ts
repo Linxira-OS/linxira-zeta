@@ -43,6 +43,12 @@ export interface BuildResumeDirectoryOptions {
 	resolveProject?: ResumeProjectResolver;
 	/** Additional project roots to keep listed with zero conversations. */
 	registeredProjects?: readonly string[];
+	/**
+	 * Drop subagent sessions before grouping, so counts and every picker view
+	 * describe main-agent conversations only. Defaults to false for callers
+	 * that need the raw classified model.
+	 */
+	filterSubagents?: boolean;
 }
 
 function missingProjectInfo(cwd: string): ProjectInfo {
@@ -97,15 +103,26 @@ function createProject(key: string, root: string, isDefault: boolean, preference
 	};
 }
 
-function createWorkspace(key: string, directory: string, projectKey: string, info: ProjectInfo): ResumeWorkspace {
+function createWorkspace(
+	key: string,
+	directory: string,
+	projectKey: string,
+	info: ProjectInfo,
+	preferences: ResumePreferences,
+): ResumeWorkspace {
+	const preference = preferences.workspaces?.[key] ?? {};
+	const alias = preference.alias?.trim() || null;
+	const name = projectName(directory);
 	return {
 		key,
 		path: directory,
-		name: projectName(directory),
+		name,
+		alias,
+		displayName: alias ?? name,
 		projectKey,
 		branch: info.branch,
 		isWorktree: info.isWorktree,
-		pinned: false,
+		pinned: preference.pinned === true,
 		lastActivity: null,
 		conversations: [],
 		counts: { conversations: 0, pinnedConversations: 0 },
@@ -176,11 +193,12 @@ function linkConversationParents(conversations: readonly ResumeConversation[]): 
  */
 function disambiguateProjectNames(projects: readonly ResumeProject[]): void {
 	const counts = new Map<string, number>();
-	for (const project of projects) counts.set(project.displayName, (counts.get(project.displayName) ?? 0) + 1);
+	for (const project of projects) counts.set(project.name, (counts.get(project.name) ?? 0) + 1);
 	if (![...counts.values()].some(count => count > 1)) return;
 	const used = new Set(projects.map(project => project.displayName));
 	for (const project of projects) {
-		if ((counts.get(project.displayName) ?? 0) < 2) continue;
+		// Every same-named project gets the tag; none keeps the bare name.
+		if ((counts.get(project.name) ?? 0) < 2) continue;
 		const normalized = project.root.replace(/[\\/]+$/, "");
 		const parent = path.basename(path.dirname(normalized));
 		if (!parent) continue;
@@ -201,12 +219,15 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 	const defaultWorkspace = options.defaultWorkspace ?? defaultCoordinatorWorkspace();
 	const defaultWorkspaceKey = resumePathKey(defaultWorkspace);
 	const resolver = options.resolveProject ?? resolveProject;
+	const sessions = options.filterSubagents
+		? options.sessions.filter(session => !(session.parentSessionPath && session.agent?.trim()))
+		: options.sessions;
 
 	const cwds = new Set<string>([defaultWorkspace]);
 	for (const projectRoot of options.registeredProjects ?? []) {
 		if (projectRoot) cwds.add(projectRoot);
 	}
-	for (const session of options.sessions) {
+	for (const session of sessions) {
 		if (session.cwd) cwds.add(session.cwd);
 	}
 
@@ -239,7 +260,7 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 		const key = resumePathKey(directory);
 		let workspace = bucket.workspaces.get(key);
 		if (!workspace) {
-			workspace = createWorkspace(key, directory, bucket.project.key, infoFor(directory));
+			workspace = createWorkspace(key, directory, bucket.project.key, infoFor(directory), preferences);
 			bucket.workspaces.set(key, workspace);
 		}
 		return workspace;
@@ -256,7 +277,7 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 	const defaultBucket = ensureProject(defaultProjectRoot);
 	ensureWorkspace(defaultBucket, defaultWorkspace);
 
-	for (const session of options.sessions) {
+	for (const session of sessions) {
 		const cwd = session.cwd || defaultWorkspace;
 		const info = infoFor(cwd);
 		const projectRoot = info.projectRoot || cwd;
@@ -297,7 +318,9 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 		const project = bucket.project;
 		for (const workspace of bucket.workspaces.values()) {
 			workspace.conversations.sort(compareResumeConversations);
-			workspace.pinned = workspace.conversations.some(conversation => conversation.pinned);
+			workspace.pinned =
+				preferences.workspaces?.[workspace.key]?.pinned === true ||
+				workspace.conversations.some(conversation => conversation.pinned);
 			workspace.lastActivity = latestActivity(workspace.conversations);
 			workspace.counts = {
 				conversations: workspace.conversations.length,

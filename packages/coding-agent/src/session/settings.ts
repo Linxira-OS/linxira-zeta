@@ -73,29 +73,6 @@ export const cfgPowerSleepPrevention = register({
 	},
 });
 
-export const cfgResumeSubagents = register({
-	id: "resume.subagents",
-	type: "enum",
-	values: ["grouped", "inline", "hidden"] as const,
-	default: "grouped",
-	ui: {
-		tab: "interaction",
-		group: "Resume",
-		label: "Subagents in Resume",
-		description:
-			"How subagent sessions appear in the resume picker. Grouped collapses them into one summary row under their parent conversation; inline lists them as normal rows; hidden omits them (the footer still reports the count).",
-		options: [
-			{
-				value: "grouped",
-				label: "Grouped",
-				description: "One collapsed summary row under the parent conversation",
-			},
-			{ value: "inline", label: "Inline", description: "Flat rows alongside regular conversations" },
-			{ value: "hidden", label: "Hidden", description: "Omit subagent rows from the tree" },
-		],
-	},
-});
-
 export const cfgPrewalkEnabled = register({
 	id: "prewalk.enabled",
 	type: "boolean",

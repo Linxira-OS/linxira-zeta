@@ -159,7 +159,7 @@ import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session
 import { cfgAdvisorSyncBacklog } from "../../advisor/settings";
 import { cfgBranchSummaryEnabled } from "../../session/context-settings";
 import { cfgCycleOrder, cfgDisabledProviders, cfgModelRoleStorage } from "../../config/model-settings";
-import { cfgDefaultThinkingLevel, cfgResumeSubagents, cfgRetryFallbackChains } from "../../session/settings";
+import { cfgDefaultThinkingLevel, cfgRetryFallbackChains } from "../../session/settings";
 import {
 	cfgStatusLineCompactThinkingLevel,
 	cfgStatusLineContextLine,
@@ -2173,7 +2173,6 @@ export class SelectorController {
 					initialState,
 					workspacePath: this.ctx.sessionManager.getCwd(),
 					deleteMode: "trash",
-					subagents: cfgResumeSubagents.get(this.ctx.settings),
 					currentSessionPath,
 					deleteConversation: async conversation => deleteWithTrash(conversation.session as SessionInfo),
 				});

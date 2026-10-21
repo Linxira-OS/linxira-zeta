@@ -55,7 +55,6 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	"Magic Keywords": "魔法关键词",
 	"Startup & Updates": "启动与更新",
 	"Power (macOS)": "电源（macOS）",
-	Resume: "恢复",
 	Agent: "智能体",
 	Git: "Git 仓库",
 	Compaction: "压缩",
@@ -107,11 +106,6 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	autoResume: {
 		label: "自动恢复",
 		description: "自动恢复当前目录中的最近会话",
-	},
-	"resume.subagents": {
-		label: "恢复列表中的子代理",
-		description:
-			"子代理会话在恢复选择器中的显示方式。分组会在父会话下折叠为一行摘要；内联按普通会话平铺；隐藏会省略它们（页脚仍显示数量）。",
 	},
 	"backend.autostart": {
 		label: "登录时启动后台服务",
@@ -5397,18 +5391,6 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"providers.webSearchExclude::ollama": {
 		label: "Ollama",
-	},
-	"resume.subagents::grouped": {
-		label: "分组",
-		description: "在父会话下折叠为一行摘要",
-	},
-	"resume.subagents::inline": {
-		label: "内联",
-		description: "与普通会话一起平铺显示",
-	},
-	"resume.subagents::hidden": {
-		label: "隐藏",
-		description: "从树中省略子代理行",
 	},
 };
 

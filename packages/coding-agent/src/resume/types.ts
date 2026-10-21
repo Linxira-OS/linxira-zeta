@@ -44,6 +44,10 @@ export interface ResumeWorkspace {
 	key: string;
 	path: string;
 	name: string;
+	/** User-configured workspace alias, or null. */
+	alias: string | null;
+	/** Alias when set, otherwise `name`. The directory name never changes. */
+	displayName: string;
 	projectKey: string;
 	/** Checked-out branch when the checkout is a git worktree. */
 	branch: string | null;
@@ -117,20 +121,21 @@ export interface ResumeProjectPreferences {
 	lastOpened?: number;
 }
 
+/** One workspace's persisted preferences, keyed by its canonical path. */
+export interface ResumeWorkspacePreferences {
+	/** Display alias; the directory name never changes. */
+	alias?: string;
+	pinned?: boolean;
+}
+
 export interface ResumePreferences {
 	version: 1;
 	projects: Record<string, ResumeProjectPreferences>;
+	/** Workspace overrides keyed by canonical workspace path. */
+	workspaces?: Record<string, ResumeWorkspacePreferences>;
 }
 
 export type ResumeScopeKind = "workspace" | "project" | "all";
-
-/**
- * How subagent conversations appear in the picker:
- * - `grouped`: one collapsed summary row under the parent conversation (default)
- * - `inline`: flat rows alongside their parent
- * - `hidden`: omitted entirely (counts still report them as hidden)
- */
-export type ResumeSubagentsMode = "grouped" | "inline" | "hidden";
 
 export interface ResumeScope {
 	kind: ResumeScopeKind;
@@ -186,16 +191,13 @@ export interface ResumeConversationRow {
 	conversation: ResumeConversation;
 	projectKey: string;
 	workspaceKey: string;
-	/** 2 for a top-level conversation; deeper for grouped subagents. */
-	depth: number;
+	depth: 2;
 	pinned: boolean;
 	current: boolean;
 	/** Relevance score; 0 when the row is only visible because it is pinned. */
 	score: number;
 	/** True when a free-text search would have hidden this pinned row. */
 	pinnedOnly: boolean;
-	/** Grouped subagent rows nested under this conversation (recursively). */
-	subagents: ResumeConversationRow[];
 }
 
 export type ResumeViewRow = ResumeProjectRow | ResumeWorkspaceRow | ResumeConversationRow;
@@ -210,8 +212,6 @@ export interface ResumeViewCounts {
 	totalConversations: number;
 	totalWorkspaces: number;
 	totalProjects: number;
-	/** Subagent conversations omitted by `resume.subagents: hidden`. */
-	hiddenSubagents: number;
 }
 
 /** Pure renderer input: ordered rows plus the scope/query that produced it. */

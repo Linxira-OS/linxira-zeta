@@ -20,7 +20,6 @@ import { theme } from "../theme/theme";
 import { shortenPath } from "../render/render-utils";
 
 export type ResumeScopeKindLike = "workspace" | "project" | "all";
-export type ResumeSubagentsModeLike = "grouped" | "inline" | "hidden";
 
 export interface ResumeScopeLike {
 	readonly kind: ResumeScopeKindLike;
@@ -90,6 +89,8 @@ export interface ResumeWorkspaceLike {
 	readonly key: string;
 	readonly path: string;
 	readonly name: string;
+	readonly alias?: string | null;
+	readonly displayName?: string;
 	readonly projectKey: string;
 	readonly branch: string | null;
 	readonly isWorktree?: boolean;
@@ -169,7 +170,6 @@ export interface ResumeConversationRowLike {
 	readonly current: boolean;
 	readonly score?: number;
 	readonly pinnedOnly?: boolean;
-	readonly subagents?: readonly ResumeConversationRowLike[];
 }
 
 export type ResumeViewRowLike = ResumeProjectRowLike | ResumeWorkspaceRowLike | ResumeConversationRowLike;
@@ -182,7 +182,6 @@ export interface ResumeViewCountsLike {
 	readonly totalConversations: number;
 	readonly totalWorkspaces?: number;
 	readonly totalProjects?: number;
-	readonly hiddenSubagents?: number;
 }
 
 export interface ResumeViewLike {
@@ -219,8 +218,6 @@ export interface ResumeSourceLike {
 	readonly initialScope?: ResumeScopeKindLike;
 	readonly deleteMode?: "trash" | "permanent";
 	buildView(options: ResumeViewOptionsLike): ResumeViewLike | null;
-	/** `resume.subagents`; grouped when absent. */
-	subagentsMode?(): ResumeSubagentsModeLike;
 	scopeSummary?(): ResumeScopeSummaryLike;
 	persistScope?(scope: ResumeScopeKindLike): void | Promise<void>;
 	refresh?(): Promise<void>;
@@ -442,9 +439,10 @@ export function resumePickerOrder(view: ResumeViewLike): (string | TspPickerGrou
 					(row.key === view.currentWorkspaceKey ||
 						view.referenceBranch === undefined ||
 						branch !== view.referenceBranch);
+				const name = row.workspace.displayName ?? row.workspace.alias ?? row.workspace.name;
 				order.push({
 					group: `workspace:${row.key}`,
-					label: showBranch ? `${row.workspace.name} · ${branch}` : row.workspace.name,
+					label: showBranch ? `${name} · ${branch}` : name,
 					count: row.conversationCount,
 				});
 				break;
@@ -530,8 +528,6 @@ export interface ResumePickerModel {
 	readonly total: number;
 	/** Conversations the filter hides (the ANSI tree stays on screen while filtering). */
 	readonly hidden: number;
-	/** Subagent conversations folded away by `resume.subagents`. */
-	readonly hiddenSubagents: number;
 	readonly empty: string;
 	readonly placeholder: string;
 }
@@ -564,14 +560,13 @@ export function buildResumePickerModel(
 	});
 	if (!filtered) return undefined;
 	const hidden = options.hidden ?? new Set<string>();
-	const mode = source.subagentsMode?.() ?? "grouped";
-	const view = withoutFlatSubagents(resumeViewWithout(filtered, hidden), mode);
+	const view = resumeViewWithout(filtered, hidden);
 	const catalogueView =
 		options.query.length === 0
 			? filtered
 			: source.buildView({ scope: options.scope, query: "", currentSessionPath: options.currentSessionPath });
 	if (!catalogueView) return undefined;
-	const catalogue = withoutFlatSubagents(resumeViewWithout(catalogueView, hidden), mode);
+	const catalogue = resumeViewWithout(catalogueView, hidden);
 	const referenceBranch = referenceBranchOf(source.directory, options.currentSessionPath);
 	const { items, byPath } = resumePickerItems(catalogue, source.directory, {
 		showCwd: options.showCwd,
@@ -579,13 +574,6 @@ export function buildResumePickerModel(
 		referenceBranch,
 	});
 	const conversations = viewConversations(catalogue);
-	const hiddenSubagents =
-		mode === "inline"
-			? 0
-			: Math.max(
-					viewConversations(filtered).filter(row => row.conversation.isSubagent).length,
-					filtered.counts.hiddenSubagents ?? 0,
-				);
 	return {
 		view,
 		catalogue,
@@ -597,30 +585,8 @@ export function buildResumePickerModel(
 		current: conversations.filter(row => row.conversation.current || row.current).map(row => row.conversation.path),
 		total: conversations.length,
 		hidden: Math.max(0, conversations.length - viewConversations(view).length),
-		hiddenSubagents,
 		empty: resumeEmptyText(view),
 		placeholder: resumePlaceholder(source, options.scope),
-	};
-}
-
-/**
- * The native picker has no tree, so `grouped` and `hidden` both leave the
- * parent cards alone; the caller reports the hidden count. `inline` keeps the
- * flat rows.
- */
-function withoutFlatSubagents(view: ResumeViewLike, mode: ResumeSubagentsModeLike): ResumeViewLike {
-	if (mode === "inline") return view;
-	const conversations = viewConversations(view).filter(row => !row.conversation.isSubagent);
-	const rows = view.rows.filter(row => row.type !== "conversation" || !row.conversation.isSubagent);
-	return {
-		...view,
-		rows,
-		conversations,
-		counts: {
-			...view.counts,
-			conversations: conversations.length,
-			hiddenSubagents: view.counts.hiddenSubagents ?? 0,
-		},
 	};
 }
 
@@ -706,7 +672,7 @@ export function resumeConversationPreview(
 		node("text", { text: conversationLabel(conversation), role: "zeta.picker.title" }),
 		kv([
 			["Project", project?.displayName],
-			["Workspace", workspace?.name],
+			["Workspace", workspace?.displayName ?? workspace?.name],
 			["Branch", workspace?.branch ?? undefined],
 			["Status", statusSpans(conversation.status)],
 			["Model", model],

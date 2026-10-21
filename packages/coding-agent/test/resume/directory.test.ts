@@ -147,6 +147,56 @@ describe("resume directory", () => {
 		expect(fork.parentKey).toBe(parent.key);
 	});
 
+	it("filters subagents out of the picker directory and its counts", async () => {
+		const parentPath = "/resume-test/sessions/parent.jsonl";
+		const directory = await buildDirectory({
+			sessions: [
+				makeSession({ id: "parent", cwd: REPO_A, modified: T + 1_000 }),
+				makeSession({
+					id: "sub",
+					cwd: REPO_A,
+					modified: T + 2_000,
+					parent: parentPath,
+					agent: "scout",
+				}),
+				makeSession({
+					id: "only-sub",
+					cwd: REPO_B,
+					modified: T + 3_000,
+					parent: parentPath,
+					agent: "task",
+				}),
+			],
+			registeredProjects: [REPO_B],
+			filterSubagents: true,
+			preferences: { version: 1, projects: {} },
+			pinnedIds: pinnedSet(),
+		});
+		expect(directory.conversations.map(conversation => conversation.id)).toEqual(["parent"]);
+		const repoA = directory.projects.find(project => project.key === resumePathKey(REPO_A))!;
+		const repoB = directory.projects.find(project => project.key === resumePathKey(REPO_B))!;
+		expect(repoA.counts.conversations).toBe(1);
+		expect(repoB.counts.conversations).toBe(0);
+		expect(repoB.workspaces).toHaveLength(0);
+	});
+
+	it("applies workspace aliases and pins from preferences", async () => {
+		const directory = await buildDirectory({
+			sessions: [makeSession({ id: "a1", cwd: REPO_A, modified: T + 1_000, title: "One" })],
+			preferences: {
+				version: 1,
+				projects: {},
+				workspaces: { [resumePathKey(REPO_A)]: { alias: "Main checkout", pinned: true } },
+			},
+			pinnedIds: pinnedSet(),
+		});
+		const workspace = directory.workspaces.find(candidate => candidate.key === resumePathKey(REPO_A))!;
+		expect(workspace.alias).toBe("Main checkout");
+		expect(workspace.displayName).toBe("Main checkout");
+		expect(workspace.name).toBe("repo-a");
+		expect(workspace.pinned).toBe(true);
+	});
+
 	it("appends the parent folder when two projects share a name", async () => {
 		const first = "/resume-test/alpha/zeta";
 		const second = "/resume-test/beta/zeta";

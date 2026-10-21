@@ -1902,12 +1902,14 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 						`/ ${tuiText("resumeFooterSearch", "search")}`,
 						`r ${tuiText("resumeFooterRefresh", "refresh")}`,
 						`p/P ${tuiText("resumeFooterPin", "pin")}`,
+						`m ${tuiText("resumeFooterMenu", "menu")}`,
 						`${cancel} ${tuiText("resumeFooterClose", "clear/close")}`,
 					],
 					[
 						tuiText("resumeFooterClick", "click select"),
 						tuiText("resumeFooterDoubleClick", "double-click resume"),
 						tuiText("resumeFooterWheel", "wheel scroll"),
+						`⋯ ${tuiText("resumeFooterMenu", "menu")}`,
 					],
 				)
 			: theme.fg(
@@ -2053,15 +2055,10 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		actions.push(
 			pickerAction("close", "Close", boundKeys("app.interrupt", ["escape"])[0] ?? "escape", { end: true }),
 		);
-		const hiddenParts = [
-			model.hidden > 0
+		const banner =
+			!loading && !errorOpen && model.hidden > 0
 				? tuiTextFmt("resumeHiddenByFilterFmt", "%d conversations hidden by filter", model.hidden)
-				: "",
-			model.hiddenSubagents > 0
-				? tuiTextFmt("resumeHiddenSubagentsFmt", "%d subagents hidden", model.hiddenSubagents)
-				: "",
-		].filter(Boolean);
-		const banner = !loading && !errorOpen && hiddenParts.length > 0 ? hiddenParts.join(" · ") : undefined;
+				: undefined;
 		const title = this.#pickerTitle;
 		const folder = this.#scopeLabel === false ? undefined : (this.#scopeLabel ?? path.basename(getProjectDir()));
 		const result = picker(

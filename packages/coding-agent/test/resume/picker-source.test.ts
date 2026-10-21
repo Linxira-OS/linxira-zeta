@@ -3,6 +3,9 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { buildResumeDirectory, resumePathKey } from "@linxiraos/zeta/resume";
+import { parseTitleSlotFromContent, serializeTitleSlot } from "@linxiraos/zeta/session/session-title-slot";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import type { ResumeTreeConversation } from "@linxiraos/pi-tui/overlays/resume-tree";
 import {
 	LiveResumePickerSource,
 	loadResumePickerScope,
@@ -55,7 +58,6 @@ describe("resume picker scope persistence", () => {
 				collapsedProjects: ["/one"],
 				expandedProjects: ["/two"],
 				collapsedWorkspaces: ["/three"],
-				expandedSubagents: ["parent"],
 			},
 			agentDir,
 		);
@@ -67,7 +69,6 @@ describe("resume picker scope persistence", () => {
 			collapsedProjects: ["/one"],
 			expandedProjects: ["/two"],
 			collapsedWorkspaces: ["/three"],
-			expandedSubagents: ["parent"],
 		});
 	});
 
@@ -89,12 +90,11 @@ describe("resume picker scope persistence", () => {
 });
 
 describe("live resume source", () => {
-	function make(subagents?: "grouped" | "inline" | "hidden") {
+	function make() {
 		return new LiveResumePickerSource({
 			initialScope: "all",
 			deleteMode: "trash",
 			agentDir,
-			...(subagents ? { subagents } : {}),
 			deleteConversation: async () => true,
 		});
 	}
@@ -113,24 +113,76 @@ describe("live resume source", () => {
 		expect(source.scopeSummary().projectName).toBeTruthy();
 	});
 
-	it("exposes resume.subagents and the restored picker state", async () => {
+	it("restores and persists the picker state", async () => {
 		const source = new LiveResumePickerSource({
 			initialScope: "all",
-			initialState: { scope: "project", expandedSubagents: ["parent"] },
-			subagents: "hidden",
+			initialState: { scope: "project", collapsedWorkspaces: ["/one"] },
 			deleteMode: "trash",
 			agentDir,
 			deleteConversation: async () => true,
 		});
 		expect(source.initialScope).toBe("project");
-		expect(source.subagentsMode()).toBe("hidden");
-		expect(source.pickerState().expandedSubagents).toEqual(["parent"]);
-		await source.persistPickerState({ scope: "all", expandedSubagents: ["next"] });
+		expect(source.pickerState().collapsedWorkspaces).toEqual(["/one"]);
+		await source.persistPickerState({ scope: "all", collapsedWorkspaces: ["/two"] });
 		expect(await loadResumePickerState(agentDir)).toMatchObject({
 			scope: "all",
-			expandedSubagents: ["next"],
+			collapsedWorkspaces: ["/two"],
 		});
-		expect(make().subagentsMode()).toBe("grouped");
+	});
+
+	it("renames the persisted session title", async () => {
+		const file = path.join(agentDir, "rename-session.jsonl");
+		const updatedAt = "2026-01-01T00:00:00.000Z";
+		await fs.writeFile(
+			file,
+			`${serializeTitleSlot({ title: "Old title", source: "auto", updatedAt })}${JSON.stringify({
+				type: "session",
+				id: "rename-test",
+				cwd: REPO_A,
+				timestamp: updatedAt,
+			})}\n`,
+			"utf-8",
+		);
+		const source = new LiveResumePickerSource({
+			initialScope: "all",
+			deleteMode: "trash",
+			agentDir,
+			storage: new FileSessionStorage(),
+			deleteConversation: async () => true,
+		});
+		const conversation = {
+			path: file,
+			id: "rename-test",
+			session: { path: file, id: "rename-test", cwd: REPO_A, modified: new Date(updatedAt) },
+		} as unknown as ResumeTreeConversation;
+		expect(source.canRenameConversation(conversation)).toBe(true);
+		expect(await source.renameConversation(conversation, "  New title  ")).toBe(true);
+		const slot = parseTitleSlotFromContent(await fs.readFile(file, "utf-8"));
+		expect(slot?.title).toBe("New title");
+		expect(slot?.source).toBe("user");
+	});
+
+	it("filters subagent sessions and their counts from the picker directory", async () => {
+		const source = make();
+		source.directory = await buildResumeDirectory({
+			sessions: [
+				makeSession({ id: "parent", cwd: REPO_A, modified: T + 1_000 }),
+				makeSession({
+					id: "sub",
+					cwd: REPO_A,
+					modified: T + 2_000,
+					parent: "/resume-test/sessions/parent.jsonl",
+					agent: "scout",
+				}),
+			],
+			pinnedIds: pinnedSet(),
+			preferences: { version: 1, projects: {} },
+			filterSubagents: true,
+			resolveProject: staticResolver(STANDARD_PROJECTS),
+			defaultWorkspace: REPO_A,
+		});
+		expect(source.directory.conversations.map(conversation => conversation.id)).toEqual(["parent"]);
+		expect(source.directory.projects.find(project => project.root === REPO_A)?.counts.conversations).toBe(1);
 	});
 
 	it("accepts the model's structured scope object as well as a bare kind", async () => {

@@ -640,11 +640,17 @@ export interface Messages {
 	resumeFooterRefresh: string; // refresh
 	resumeFooterPin: string; // pin
 	resumeFooterClose: string; // clear/close
-	resumeSubagentsFmt: string; // subagents ×%d
-	resumeHiddenSubagentsFmt: string; // %d subagents hidden
 	resumeFooterClick: string; // click select
 	resumeFooterDoubleClick: string; // double-click resume
 	resumeFooterWheel: string; // wheel scroll
+	resumeFooterMenu: string; // menu
+	resumeMenuRename: string; // rename
+	resumeMenuCollapse: string; // collapse
+	resumeMenuExpand: string; // expand
+	resumeMenuOpen: string; // open in file manager
+	resumeMenuWorkspace: string; // workspace
+	resumeMenuConversation: string; // conversation
+	resumeEditHint: string; // Enter saves · Esc cancels
 
 	// compaction summary / handoff / branch dividers
 	csLabelCompacted: string; // compacted

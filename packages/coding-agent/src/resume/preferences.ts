@@ -21,7 +21,7 @@ import { withFileLock } from "@linxiraos/pi-utils/file-lock";
 import { defaultCoordinatorWorkspace } from "../default-workspace";
 import { replaceFileAtomically } from "../utils/atomic-file";
 import { resumePathKey, sameResumePath } from "./paths";
-import type { ResumePreferences, ResumeProjectPreferences } from "./types";
+import type { ResumePreferences, ResumeProjectPreferences, ResumeWorkspacePreferences } from "./types";
 
 export const RESUME_PREFERENCES_FILENAME = "resume-projects.json";
 export const RESUME_PREFERENCES_VERSION = 1;
@@ -33,6 +33,17 @@ export function resumePreferencesPath(agentDir: string = getAgentDir()): string 
 
 function emptyPreferences(): ResumePreferences {
 	return { version: RESUME_PREFERENCES_VERSION, projects: {} };
+}
+
+function sanitizeWorkspacePreference(value: unknown): ResumeWorkspacePreferences | null {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+	const result: ResumeWorkspacePreferences = {};
+	if ("pinned" in value && typeof value.pinned === "boolean") result.pinned = value.pinned;
+	if ("alias" in value && typeof value.alias === "string") {
+		const alias = value.alias.trim();
+		if (alias) result.alias = alias;
+	}
+	return Object.keys(result).length > 0 ? result : null;
 }
 
 function sanitizeProjectPreference(value: unknown): ResumeProjectPreferences | null {
@@ -69,7 +80,22 @@ export function normalizeResumePreferences(value: unknown): ResumePreferences {
 		if (!preference) continue;
 		normalized[key] = { ...normalized[key], ...preference };
 	}
-	return { version: RESUME_PREFERENCES_VERSION, projects: normalized };
+	const workspaces: Record<string, ResumeWorkspacePreferences> = {};
+	const rawWorkspaces = "workspaces" in value ? value.workspaces : undefined;
+	if (typeof rawWorkspaces === "object" && rawWorkspaces !== null && !Array.isArray(rawWorkspaces)) {
+		for (const [rawKey, rawPreference] of Object.entries(rawWorkspaces)) {
+			const key = resumePathKey(rawKey);
+			if (!key) continue;
+			const preference = sanitizeWorkspacePreference(rawPreference);
+			if (!preference) continue;
+			workspaces[key] = { ...workspaces[key], ...preference };
+		}
+	}
+	return {
+		version: RESUME_PREFERENCES_VERSION,
+		projects: normalized,
+		...(Object.keys(workspaces).length > 0 ? { workspaces } : {}),
+	};
 }
 
 export interface LoadResumePreferencesOptions {
@@ -195,6 +221,40 @@ export async function setProjectAlias(
 	agentDir: string = getAgentDir(),
 ): Promise<void> {
 	await setProjectPreference(projectKey, { alias: alias ?? undefined }, agentDir);
+}
+
+/** Set (or clear with null/empty) a workspace's display alias. */
+export async function setWorkspaceAlias(
+	workspaceKey: string,
+	alias: string | null,
+	agentDir: string = getAgentDir(),
+): Promise<void> {
+	const key = resumePathKey(workspaceKey);
+	if (!key) throw new Error("A workspace key is required");
+	await updateResumePreferences(preferences => {
+		const workspaces = (preferences.workspaces ??= {});
+		const next: ResumeWorkspacePreferences = { ...workspaces[key] };
+		const trimmed = alias?.trim();
+		if (trimmed) next.alias = trimmed;
+		else delete next.alias;
+		if (Object.keys(next).length > 0) workspaces[key] = next;
+		else delete workspaces[key];
+		if (Object.keys(workspaces).length === 0) delete preferences.workspaces;
+		return preferences;
+	}, agentDir);
+}
+
+/** Toggle a workspace's pin; returns the new pinned state. */
+export async function toggleWorkspacePin(workspaceKey: string, agentDir: string = getAgentDir()): Promise<boolean> {
+	const key = resumePathKey(workspaceKey);
+	let pinned = false;
+	await updateResumePreferences(preferences => {
+		const workspaces = (preferences.workspaces ??= {});
+		pinned = !(workspaces[key]?.pinned ?? false);
+		workspaces[key] = { ...workspaces[key], pinned };
+		return preferences;
+	}, agentDir);
+	return pinned;
 }
 
 /** Persist a project's collapsed state. */

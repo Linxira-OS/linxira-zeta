@@ -10,7 +10,9 @@ import {
 	setProjectAlias,
 	setProjectCollapsed,
 	setProjectPreference,
+	setWorkspaceAlias,
 	toggleProjectPin,
+	toggleWorkspacePin,
 	unregisterProject,
 } from "@linxiraos/zeta/resume";
 import { DEFAULT_WORKSPACE, EMPTY_PROJECT, REPO_A, REPO_B } from "./helpers";
@@ -49,6 +51,17 @@ describe("resume preferences", () => {
 		await setProjectCollapsed(REPO_A, false, agentDir);
 		const updated = await loadResumePreferences(agentDir);
 		expect(updated.projects[resumePathKey(REPO_A)]).toEqual({ collapsed: false });
+	});
+
+	it("round-trips a workspace alias and pin keyed by canonical path", async () => {
+		await setWorkspaceAlias(REPO_A, " Main checkout ", agentDir);
+		expect(await toggleWorkspacePin(REPO_A, agentDir)).toBe(true);
+		const loaded = await loadResumePreferences(agentDir);
+		expect(loaded.workspaces?.[resumePathKey(REPO_A)]).toEqual({ alias: "Main checkout", pinned: true });
+
+		await setWorkspaceAlias(REPO_A, null, agentDir);
+		const cleared = await loadResumePreferences(agentDir);
+		expect(cleared.workspaces?.[resumePathKey(REPO_A)]).toEqual({ pinned: true });
 	});
 
 	it("seeds the default project as pinned and registered", async () => {

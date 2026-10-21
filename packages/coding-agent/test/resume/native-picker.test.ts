@@ -48,21 +48,16 @@ const sessions = [
 	}),
 ];
 
-function source(directory: ResumeDirectory, subagents?: "grouped" | "inline" | "hidden"): ResumeSourceLike {
-	return {
-		directory,
-		buildView: options => buildResumeView(directory, options),
-		...(subagents ? { subagentsMode: () => subagents } : {}),
-	};
+function source(directory: ResumeDirectory): ResumeSourceLike {
+	return { directory, buildView: options => buildResumeView(directory, options) };
 }
 
 function make(
 	directory: ResumeDirectory,
 	extra: Record<string, unknown> = {},
 	onSelect?: (session: SessionInfo) => void,
-	subagents?: "grouped" | "inline" | "hidden",
 ) {
-	const built = source(directory, subagents);
+	const built = source(directory);
 	return new SessionSelectorComponent(
 		directory.conversations.map(conversation => conversation.session),
 		selected => onSelect?.(selected),
@@ -443,38 +438,21 @@ describe("resume picker preview and pointer", () => {
 	});
 });
 
-describe("resume picker subagent modes", () => {
-	async function directoryWithSubagent(): Promise<ResumeDirectory> {
+describe("resume picker subagent filtering", () => {
+	it("never lists subagent sessions and counts only main agents", async () => {
 		const child = {
 			...session("sub", REPO_A, "Scout child", T + 5_000),
 			parentSessionPath: sessions[0]!.path,
 			agent: "scout",
 		};
-		return buildDirectory({ sessions: [...sessions, child], pinnedIds: pinnedSet() });
-	}
-
-	it("folds subagents away by default and reports the count", async () => {
-		const directory = await directoryWithSubagent();
+		const directory = await buildDirectory({
+			sessions: [...sessions, child],
+			filterSubagents: true,
+			pinnedIds: pinnedSet(),
+		});
 		const selector = make(directory);
 		const p = props(selector.describe(withPicker));
 		expect(items(p).map(entry => entry.id)).not.toContain("/resume-test/sessions/sub.jsonl");
-		expect(String(p.message)).toContain("1 subagents hidden");
-	});
-
-	it("lists subagents inline when configured", async () => {
-		const directory = await directoryWithSubagent();
-		const selector = make(directory, {}, undefined, "inline");
-		const p = props(selector.describe(withPicker));
-		expect(items(p).map(entry => entry.id)).toContain("/resume-test/sessions/sub.jsonl");
-		expect(String(p.message)).not.toContain("subagents hidden");
-	});
-
-	it("hides subagents entirely in hidden mode", async () => {
-		const directory = await directoryWithSubagent();
-		const selector = make(directory, {}, undefined, "hidden");
-		const p = props(selector.describe(withPicker));
-		expect(items(p).map(entry => entry.id)).not.toContain("/resume-test/sessions/sub.jsonl");
 		expect(p.order?.filter(row => typeof row === "string")).not.toContain("/resume-test/sessions/sub.jsonl");
-		expect(String(p.message)).toContain("1 subagents hidden");
 	});
 });

@@ -18,7 +18,6 @@ import { theme } from "../theme/theme";
 import type { ThemeColor } from "../theme/theme";
 
 export type ResumeTreeScope = "workspace" | "project" | "all";
-export type ResumeTreeSubagentsMode = "grouped" | "inline" | "hidden";
 
 /** Persisted picker state (v2 file): scope plus local expansion. */
 export interface ResumeTreePickerState {
@@ -26,7 +25,6 @@ export interface ResumeTreePickerState {
 	collapsedProjects?: readonly string[];
 	expandedProjects?: readonly string[];
 	collapsedWorkspaces?: readonly string[];
-	expandedSubagents?: readonly string[];
 }
 export type ResumeTreeStatus = "complete" | "interrupted" | "aborted" | "error" | "pending" | "unknown";
 export type ResumeTreeDeleteMode = "trash" | "permanent";
@@ -70,6 +68,10 @@ export interface ResumeTreeWorkspace {
 	key: string;
 	path: string;
 	name: string;
+	/** User-configured alias, or null. The directory name never changes. */
+	alias?: string | null;
+	/** Alias when set, otherwise `name`. */
+	displayName?: string;
 	projectKey: string;
 	branch: string | null;
 	pinned: boolean;
@@ -118,35 +120,17 @@ export interface ResumeTreeConversationRow {
 	conversation: ResumeTreeConversation;
 	projectKey: string;
 	workspaceKey: string;
-	/** 2 for a top-level conversation; deeper for grouped subagents. */
-	depth?: number;
 	pinned: boolean;
 	current: boolean;
 	pinnedOnly?: boolean;
-	/** Grouped subagent rows nested under this conversation. */
-	subagents?: readonly ResumeTreeConversationRow[];
 }
 
-/** The collapsed/expanded summary row placed under a parent conversation. */
-export interface ResumeTreeSubagentsRow {
-	type: "subagents";
-	key: string;
-	parentKey: string;
-	projectKey: string;
-	depth: number;
-	count: number;
-	expanded: boolean;
-}
-
-/** Rows the model produces (the summary row is synthesized by the tree). */
-export type ResumeTreeModelRow = ResumeTreeProjectRow | ResumeTreeWorkspaceRow | ResumeTreeConversationRow;
-
-export type ResumeTreeRow = ResumeTreeModelRow | ResumeTreeSubagentsRow;
+export type ResumeTreeRow = ResumeTreeProjectRow | ResumeTreeWorkspaceRow | ResumeTreeConversationRow;
 
 export interface ResumeTreeView {
 	scope: { kind: ResumeTreeScope; projectKey?: string; workspaceKey?: string };
 	query: { raw: string; terms?: readonly string[] };
-	rows: readonly ResumeTreeModelRow[];
+	rows: readonly ResumeTreeRow[];
 	conversations?: readonly ResumeTreeConversationRow[];
 	counts: {
 		conversations: number;
@@ -155,7 +139,6 @@ export interface ResumeTreeView {
 		totalConversations: number;
 		totalWorkspaces?: number;
 		totalProjects?: number;
-		hiddenSubagents?: number;
 	};
 	/** Branch of the current session's workspace, when known. */
 	referenceBranch?: string | null;
@@ -186,8 +169,6 @@ export interface ResumeTreeSource {
 	pickerState?(): ResumeTreePickerState;
 	/** Persist scope + expansion together (preferred over `persistScope`). */
 	persistPickerState?(state: ResumeTreePickerState): void | Promise<void>;
-	/** `resume.subagents`; grouped when absent. */
-	subagentsMode?(): ResumeTreeSubagentsMode;
 	/** Re-read the directory; resolves once `buildView` reflects the new state. */
 	refresh?(): Promise<void>;
 	/** Partial scan failures (unreadable project folders) while rows are still listed. */
@@ -197,6 +178,14 @@ export interface ResumeTreeSource {
 	isLoading?(): boolean;
 	pinConversation?(conversation: ResumeTreeConversation, pinned: boolean): Promise<void>;
 	pinProject?(project: ResumeTreeProject, pinned: boolean): Promise<void>;
+	pinWorkspace?(workspace: ResumeTreeWorkspace, pinned: boolean): Promise<void>;
+	/** Set the workspace display alias (directory name never changes). */
+	renameWorkspace?(workspace: ResumeTreeWorkspace, alias: string | null): Promise<void>;
+	openWorkspace?(workspace: ResumeTreeWorkspace): void | Promise<void>;
+	/** Rename the persisted session title; resolves false on refusal/failure. */
+	renameConversation?(conversation: ResumeTreeConversation, title: string): Promise<boolean>;
+	/** False hides the conversation rename action (read-only/foreign session). */
+	canRenameConversation?(conversation: ResumeTreeConversation): boolean;
 	/** Scopes without a project header (workspace/project) resolve the project here. */
 	projectByKey?(key: string): ResumeTreeProject | undefined;
 	deleteConversation?(conversation: ResumeTreeConversation): Promise<boolean>;
@@ -347,6 +336,13 @@ function conversationCountText(row: { conversationCount: number; totalConversati
 	return tuiTextFmt("resumeConversationCountOfFmt", "%d of %d conversations", visible, row.totalConversationCount);
 }
 
+/** Fixed indentation: project 0 → workspace 1 step → conversation 2 steps. */
+const PROJECT_INDENT = 0;
+const WORKSPACE_INDENT = 2;
+const CONVERSATION_INDENT = 4;
+/** Two columns at the right edge: a space plus the menu affordance. */
+const MENU_WIDTH = 2;
+
 /** Stable right-hand column widths for the conversation list. */
 export interface ConversationColumns {
 	status: number;
@@ -369,19 +365,23 @@ function conversationFlags(row: ResumeTreeConversationRow): { text: string; tone
 	const flags: { text: string; tone: ThemeColor }[] = [];
 	if (row.current) flags.push({ text: tuiText(CURRENT_LABEL_KEY, "current"), tone: "accent" });
 	if (row.conversation.fork) flags.push({ text: tuiText("ssForkLabel", "fork"), tone: "dim" });
-	if (row.conversation.isSubagent && row.conversation.agentName) {
-		flags.push({ text: row.conversation.agentName, tone: "muted" });
-	}
 	if (row.pinned) flags.push({ text: tuiText(PINNED_LABEL_KEY, "pinned"), tone: "accent" });
 	return flags;
 }
 
+/** Width of the status column, fixed across rows so every title starts together. */
+export function statusColumnWidth(): number {
+	let width = 0;
+	for (const status of ["complete", "interrupted", "aborted", "error", "pending"] as const) {
+		width = Math.max(width, visibleWidth(statusWord(status)?.text ?? ""));
+	}
+	return width;
+}
+
 /** Column widths across every visible conversation row, so columns stay put while scrolling. */
 export function conversationColumns(rows: readonly ResumeTreeConversationRow[], now?: number): ConversationColumns {
-	const widths: ConversationColumns = { status: 0, turns: 0, age: 0, flags: 0 };
+	const widths: ConversationColumns = { status: statusColumnWidth(), turns: 0, age: 0, flags: 0 };
 	for (const row of rows) {
-		const status = statusWord(row.conversation.status)?.text ?? "";
-		widths.status = Math.max(widths.status, visibleWidth(status));
 		widths.turns = Math.max(widths.turns, visibleWidth(conversationTurns(row)));
 		widths.age = Math.max(widths.age, visibleWidth(conversationAge(row, now)));
 		const flags = conversationFlags(row)
@@ -392,10 +392,15 @@ export function conversationColumns(rows: readonly ResumeTreeConversationRow[], 
 	return widths;
 }
 
+/** `⋯` at the right edge of a menu-bearing row. */
+function menuAffordance(): string {
+	return theme.fg("muted", "⋯");
+}
+
 /**
- * One dense conversation row, `status · title · turns · age · flags`, with the
- * metadata right-aligned in stable columns. Narrow widths drop flags, then
- * age, then turns; status and the title always survive.
+ * One dense conversation row: `status | title | turns | age | flags | ⋯`.
+ * The status cell and every metadata column have fixed widths computed once
+ * per frame; the title is the only flexible cell, and nothing ever wraps.
  */
 export function renderConversationRow(
 	row: ResumeTreeConversationRow,
@@ -408,14 +413,13 @@ export function renderConversationRow(
 ): string {
 	const selected = options.selected;
 	const cursor = selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
-	const depth = row.depth ?? 2;
-	const indent = padding(Math.max(0, depth * 2));
+	const indent = padding(CONVERSATION_INDENT);
 	const columns = options.columns ?? conversationColumns([row], options.now);
 	const status = statusWord(row.conversation.status);
 	const flags = conversationFlags(row);
-	const parts: { id: "turns" | "age" | "flags"; text: string; width: number }[] = [
-		{ id: "turns", text: padStartVisible(conversationTurns(row), columns.turns), width: columns.turns },
-		{ id: "age", text: padStartVisible(conversationAge(row, options.now), columns.age), width: columns.age },
+	const parts: { id: "turns" | "age" | "flags"; text: string }[] = [
+		{ id: "turns", text: padStartVisible(conversationTurns(row), columns.turns) },
+		{ id: "age", text: padStartVisible(conversationAge(row, options.now), columns.age) },
 	];
 	if (flags.length > 0) {
 		parts.push({
@@ -424,47 +428,36 @@ export function renderConversationRow(
 				flags.map(flag => theme.fg(flag.tone, flag.text)).join(` ${theme.fg("dim", theme.sep.dot)} `),
 				columns.flags,
 			),
-			width: columns.flags,
 		});
 	}
 	const available = Math.max(1, options.width - visibleWidth(cursor) - visibleWidth(indent));
-	const gap = 2;
-	// Keep the status column (when the row has one) plus a readable title.
-	// Flags go first, then turns, then age; the title always survives.
+	const statusWidth = columns.status + 2; // word + two-column gutter
+	const menu = menuAffordance();
+	// Drop metadata only when the title would otherwise be unreadable, in
+	// priority order: flags, turns, age. The menu glyph never drops.
 	const dropOrder: ("flags" | "turns" | "age")[] = ["flags", "turns", "age"];
-	while (
-		parts.length > 0 &&
-		visibleWidth(parts.map(part => part.text).join(` ${theme.fg("dim", theme.sep.dot)} `)) + gap + 10 >
-			available - columns.status
-	) {
+	const joinParts = () => parts.map(part => part.text).join(` ${theme.fg("dim", theme.sep.dot)} `);
+	while (parts.length > 0 && statusWidth + 8 + visibleWidth(joinParts()) + MENU_WIDTH + 1 > available) {
 		const id = dropOrder.shift();
 		if (!id) break;
 		const index = parts.findIndex(part => part.id === id);
 		if (index >= 0) parts.splice(index, 1);
 	}
-	const right = parts.map(part => part.text).join(` ${theme.fg("dim", theme.sep.dot)} `);
-	const statusText = status ? theme.fg(status.tone, padStartVisible(status.text, columns.status)) : "";
-	const statusWidth = status ? columns.status + (columns.status > 0 ? 1 : 0) : 0;
-	const titleWidth = Math.max(1, available - statusWidth - visibleWidth(right) - (right ? gap : 0));
+	const metadata = joinParts();
+	const right = metadata ? `${metadata} ${menu}` : menu;
+	const titleWidth = Math.max(1, available - statusWidth - visibleWidth(right) - 1);
 	const title = truncateToWidth(row.conversation.title || row.conversation.id, titleWidth);
-	const left = `${statusText}${statusText ? " " : ""}${title}`;
+	const statusText = status ? theme.fg(status.tone, padStartVisible(status.text, columns.status)) : "";
+	const left = `${statusText}${" ".repeat(Math.max(0, statusWidth - visibleWidth(statusText)))}${title}`;
 	const line = alignRow("", left, right, available);
 	const rendered = selected ? theme.bold(line) : line;
-	return `${cursor}${indent}${rendered}`;
+	return truncateToWidth(`${cursor}${indent}${rendered}`, options.width);
 }
 
-/** The `↳ subagents ×N` summary row (collapsed unless the user expanded it). */
-export function renderSubagentsRow(row: ResumeTreeSubagentsRow, options: { width: number; selected: boolean }): string {
-	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
-	const indent = padding(Math.max(0, row.depth * 2));
-	const fold = row.expanded ? "▾" : "▸";
-	const label = tuiTextFmt("resumeSubagentsFmt", "subagents ×%d", row.count);
-	const text = `${theme.fg("dim", "↳")} ${theme.fg("muted", fold)} ${theme.fg(options.selected ? "accent" : "muted", label)}`;
-	const available = Math.max(1, options.width - visibleWidth(cursor) - visibleWidth(indent));
-	return `${cursor}${indent}${truncateToWidth(text, available)}`;
-}
-
-/** One rendered workspace row: name (branch only when it adds information), count. */
+/**
+ * One workspace sub-header, indented one visible step: a coloured fold+name,
+ * a branch chip when it adds information, and right-aligned counts + `⋯`.
+ */
 export function renderWorkspaceRow(
 	row: ResumeTreeWorkspaceRow,
 	options: {
@@ -476,30 +469,34 @@ export function renderWorkspaceRow(
 	},
 ): string {
 	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
-	const indent = padding(2);
+	const indent = padding(WORKSPACE_INDENT);
 	const fold = options.collapsed ? "▸" : "▾";
-	const name = row.workspace.name || row.workspace.path;
+	const name = row.workspace.displayName || row.workspace.alias || row.workspace.name || row.workspace.path;
 	const branch = shouldShowBranch(row.workspace.branch, options.referenceBranch, options.current === true, name)
-		? theme.fg("dim", ` ${theme.sep.dot} ${row.workspace.branch}`)
+		? ` ${theme.fg("warning", `[${row.workspace.branch}]`)}`
 		: "";
-	const left = `${fold} ${options.selected ? theme.fg("accent", name) : name}${branch}`;
+	const nameStyled = theme.bold(theme.fg("accent", name));
+	const left = `${theme.fg("muted", fold)} ${nameStyled}${branch}`;
 	const count = theme.fg("dim", conversationCountText(row));
-	const right = row.workspace.path
-		? `${theme.fg("dim", resumePathTail(row.workspace.path))} ${theme.fg("dim", theme.sep.dot)} ${count}`
-		: count;
-	return alignRowVariants(cursor, indent + left, [right, count], options.width);
+	const menu = menuAffordance();
+	return alignRow(cursor, indent + left, `${count} ${menu}`, options.width);
 }
 
-/** One rendered project header: pin marker, name, counts, last activity. */
+/**
+ * Project section header: pin + name + path tag on the left, counts/workspaces/
+ * age right-aligned. The caller draws a full-width rule under it.
+ */
 export function renderProjectRow(
 	row: ResumeTreeProjectRow,
 	options: { width: number; selected: boolean; collapsed: boolean; now?: number },
 ): string {
 	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
+	const indent = padding(PROJECT_INDENT);
 	const fold = options.collapsed ? "▸" : "▾";
 	const pin = row.pinned ? `${theme.icon.pin} ` : "";
 	const name = row.project.displayName || row.project.name;
-	const left = `${fold} ${pin}${options.selected ? theme.fg("accent", name) : name}`;
+	const pathTag = ` ${theme.fg("dim", `(${resumePathTail(row.project.root)})`)}`;
+	const left = `${theme.fg("muted", fold)} ${pin}${theme.bold(theme.fg("accent", name))}${pathTag}`;
 	const workspaces =
 		row.totalWorkspaceCount === 1
 			? tuiText("resumeWorkspaceCountOne", "1 workspace")
@@ -512,7 +509,12 @@ export function renderProjectRow(
 		.filter(Boolean)
 		.join(` ${theme.fg("dim", theme.sep.dot)} `);
 	const compact = [count, theme.fg("dim", workspaces)].filter(Boolean).join(` ${theme.fg("dim", theme.sep.dot)} `);
-	return alignRowVariants(cursor, left, [right, compact, count], options.width);
+	return alignRowVariants(cursor, indent + left, [right, compact, count], options.width);
+}
+
+/** Full-width rule closing a project section header. */
+export function renderProjectRule(width: number): string {
+	return truncateToWidth(theme.fg("dim", theme.boxRound.horizontal.repeat(Math.max(0, width))), width);
 }
 
 /** A scope-segment hit range on the header line, in tree-local columns. */
@@ -596,13 +598,32 @@ export interface ResumeTreeState {
 	collapsedProjects: Set<string>;
 	expandedProjects: Set<string>;
 	collapsedWorkspaces: Set<string>;
-	/** Parents whose grouped subagent summary is expanded. */
-	expandedSubagents?: Set<string>;
 }
 
-/** The summary row for a conversation's grouped subagents. */
-export function subagentsRowKey(parentKey: string): string {
-	return `subagents:${parentKey}`;
+type ResumeTreeMenuKind = "workspace" | "conversation";
+type ResumeTreeMenuAction = "rename" | "toggle" | "open" | "pin" | "delete";
+
+interface ResumeTreeMenuItem {
+	id: ResumeTreeMenuAction;
+	label: string;
+	disabled?: boolean;
+}
+
+interface ResumeTreeMenu {
+	kind: ResumeTreeMenuKind;
+	rowKey: string;
+	items: ResumeTreeMenuItem[];
+	index: number;
+	workspace?: ResumeTreeWorkspace;
+	conversation?: ResumeTreeConversation;
+}
+
+interface ResumeTreeEdit {
+	rowKey: string;
+	kind: ResumeTreeMenuKind;
+	value: string;
+	workspace?: ResumeTreeWorkspace;
+	conversation?: ResumeTreeConversation;
 }
 
 /** Flatten model rows under the current local collapse state (headers always stay). */
@@ -610,29 +631,8 @@ export function flattenResumeRows(
 	rows: readonly ResumeTreeRow[],
 	state: ResumeTreeState,
 	searching: boolean,
-	mode: ResumeTreeSubagentsMode = "grouped",
 ): FlatRow[] {
 	const flat: FlatRow[] = [];
-	const pushConversation = (row: ResumeTreeConversationRow, parentKey: string) => {
-		flat.push({ row, parentKey });
-		const children = row.subagents ?? [];
-		if (mode !== "grouped" || children.length === 0) return;
-		const expanded = searching || (state.expandedSubagents?.has(row.key) ?? false);
-		flat.push({
-			row: {
-				type: "subagents",
-				key: subagentsRowKey(row.key),
-				parentKey: row.key,
-				projectKey: row.projectKey,
-				depth: (row.depth ?? 2) + 1,
-				count: children.length,
-				expanded,
-			},
-			parentKey: row.key,
-		});
-		if (!expanded) return;
-		for (const child of children) pushConversation(child, row.key);
-	};
 	let collapsedProject: string | undefined;
 	let collapsedWorkspace: string | undefined;
 	for (const row of rows) {
@@ -649,11 +649,7 @@ export function flattenResumeRows(
 			continue;
 		}
 		if (collapsedProject || collapsedWorkspace) continue;
-		if (row.type === "subagents") {
-			flat.push({ row, parentKey: row.parentKey });
-			continue;
-		}
-		pushConversation(row, row.workspaceKey);
+		flat.push({ row, parentKey: row.workspaceKey });
 	}
 	return flat;
 }
@@ -670,7 +666,6 @@ export class ResumeTreeComponent implements Component {
 		collapsedProjects: new Set(),
 		expandedProjects: new Set(),
 		collapsedWorkspaces: new Set(),
-		expandedSubagents: new Set(),
 	};
 	#scope: ResumeTreeScope;
 	#view: ResumeTreeView | null = null;
@@ -683,8 +678,14 @@ export class ResumeTreeComponent implements Component {
 	#busy = false;
 	#notice: string | undefined;
 	#expandedOnce = false;
+	#menu: ResumeTreeMenu | undefined;
+	#edit: ResumeTreeEdit | undefined;
 	/** Row hit map captured from the last render (`row → action`). */
 	#hitRows = new Map<number, { kind: "conversation" | "toggle"; key: string }>();
+	/** Lines whose last column is the row's `⋯` menu affordance. */
+	#menuHits = new Map<number, { kind: ResumeTreeMenuKind; key: string; start: number }>();
+	/** Menu item lines captured from the last render. */
+	#menuItemHits = new Map<number, number>();
 	/** Scope-segment hit ranges on the header line. */
 	#scopeHits: ResumeScopeHit[] = [];
 	/** Local line/column offset of this component inside the fullscreen frame. */
@@ -711,17 +712,11 @@ export class ResumeTreeComponent implements Component {
 			for (const key of restored.collapsedProjects ?? []) this.#state.collapsedProjects.add(key);
 			for (const key of restored.expandedProjects ?? []) this.#state.expandedProjects.add(key);
 			for (const key of restored.collapsedWorkspaces ?? []) this.#state.collapsedWorkspaces.add(key);
-			for (const key of restored.expandedSubagents ?? []) this.#state.expandedSubagents!.add(key);
 		}
 		this.#search = new Input();
 		this.#search.prompt = "/ ";
 		this.#search.onSubmit = () => this.#activate();
 		this.#search.onEscape = () => this.#clearSearch();
-	}
-
-	/** `resume.subagents`, read through the host source. */
-	#subagentsMode(): ResumeTreeSubagentsMode {
-		return this.#source.subagentsMode?.() ?? "grouped";
 	}
 
 	/** Persist scope + local expansion together (the host owns the file). */
@@ -731,7 +726,6 @@ export class ResumeTreeComponent implements Component {
 			collapsedProjects: [...this.#state.collapsedProjects],
 			expandedProjects: [...this.#state.expandedProjects],
 			collapsedWorkspaces: [...this.#state.collapsedWorkspaces],
-			expandedSubagents: [...(this.#state.expandedSubagents ?? [])],
 		};
 		if (this.#source.persistPickerState) void this.#source.persistPickerState(state);
 		else void this.#source.persistScope?.(this.#scope);
@@ -813,7 +807,7 @@ export class ResumeTreeComponent implements Component {
 		const view = this.#viewFor();
 		if (!view) return [];
 		const searching = view.query.raw.trim().length > 0;
-		return flattenResumeRows(view.rows, this.#state, searching, this.#subagentsMode());
+		return flattenResumeRows(view.rows, this.#state, searching);
 	}
 
 	#viewFor(): ResumeTreeView | null {
@@ -875,14 +869,24 @@ export class ResumeTreeComponent implements Component {
 		return Math.max(3, this.#getTerminalRows() - 9);
 	}
 
+	/** Rendered line count for one row: a project header carries a rule under it. */
+	#rowLines(row: ResumeTreeRow): number {
+		return row.type === "project" ? 2 : 1;
+	}
+
 	#clampScroll(): void {
 		const flat = this.#visibleRows();
 		const height = this.#listHeight();
 		const index = this.#selectedIndex(flat);
-		if (index < this.#scrollOffset) this.#scrollOffset = index;
-		else if (index >= this.#scrollOffset + height) this.#scrollOffset = index - height + 1;
-		const max = Math.max(0, flat.length - height);
-		if (this.#scrollOffset > max) this.#scrollOffset = max;
+		let start = Math.min(this.#scrollOffset, index);
+		const linesFrom = (from: number, to: number) => {
+			let total = 0;
+			for (let cursor = from; cursor < to; cursor++) total += this.#rowLines(flat[cursor]!.row);
+			return total;
+		};
+		while (start < index && linesFrom(start, index) + this.#rowLines(flat[index]!.row) > height) start++;
+		if (start > index) start = index;
+		this.#scrollOffset = Math.max(0, Math.min(start, Math.max(0, flat.length - 1)));
 	}
 
 	#selectRow(row: ResumeTreeRow): void {
@@ -893,28 +897,19 @@ export class ResumeTreeComponent implements Component {
 		this.#toggleCollapse(row);
 	}
 
-	#toggleCollapse(row: ResumeTreeProjectRow | ResumeTreeWorkspaceRow | ResumeTreeSubagentsRow): void {
+	#toggleCollapse(row: ResumeTreeProjectRow | ResumeTreeWorkspaceRow): void {
 		if (row.type === "project") {
 			const expanded = !projectCollapsed(row, this.#state);
 			this.#state.collapsedProjects.delete(row.key);
 			this.#state.expandedProjects.delete(row.key);
 			if (expanded) this.#state.collapsedProjects.add(row.key);
 			else this.#state.expandedProjects.add(row.key);
-		} else if (row.type === "workspace") {
-			if (this.#state.collapsedWorkspaces.has(row.key)) this.#state.collapsedWorkspaces.delete(row.key);
-			else this.#state.collapsedWorkspaces.add(row.key);
+		} else if (this.#state.collapsedWorkspaces.has(row.key)) {
+			this.#state.collapsedWorkspaces.delete(row.key);
 		} else {
-			this.#toggleSubagents(row.parentKey);
+			this.#state.collapsedWorkspaces.add(row.key);
 		}
 		this.#persistState();
-		this.#clampScroll();
-		this.onRequestRender?.();
-	}
-
-	#toggleSubagents(parentKey: string): void {
-		const expanded = this.#state.expandedSubagents!;
-		if (expanded.has(parentKey)) expanded.delete(parentKey);
-		else expanded.add(parentKey);
 		this.#clampScroll();
 		this.onRequestRender?.();
 	}
@@ -928,11 +923,6 @@ export class ResumeTreeComponent implements Component {
 		const row = entry.row;
 		if (row.type === "conversation") {
 			this.#selectedKey = `workspace:${row.workspaceKey}`;
-			return;
-		}
-		if (row.type === "subagents") {
-			if (row.expanded) this.#toggleSubagents(row.parentKey);
-			else this.#selectedKey = `conversation:${row.parentKey}`;
 			return;
 		}
 		if (row.type === "workspace") {
@@ -956,15 +946,6 @@ export class ResumeTreeComponent implements Component {
 		const entry = flat[index];
 		if (!entry) return;
 		const row = entry.row;
-		if (row.type === "subagents") {
-			if (!row.expanded) {
-				this.#toggleSubagents(row.parentKey);
-				return;
-			}
-			const child = flat[index + 1];
-			if (child?.row.type === "conversation") this.#selectedKey = rowIdentity(child.row);
-			return;
-		}
 		if (row.type === "project") {
 			if (projectCollapsed(row, this.#state)) {
 				this.#state.collapsedProjects.delete(row.key);
@@ -982,6 +963,236 @@ export class ResumeTreeComponent implements Component {
 			}
 			const child = flat[index + 1];
 			if (child?.row.type === "conversation") this.#selectedKey = rowIdentity(child.row);
+		}
+	}
+
+	/** Open the small action menu for a workspace or conversation row. */
+	#openMenu(row: ResumeTreeWorkspaceRow | ResumeTreeConversationRow): void {
+		const isWorkspace = row.type === "workspace";
+		const items: ResumeTreeMenuItem[] = [];
+		if (isWorkspace) {
+			items.push({
+				id: "rename",
+				label: tuiText("resumeMenuRename", "rename"),
+				disabled: !this.#source.renameWorkspace,
+			});
+			items.push({
+				id: "toggle",
+				label: this.#state.collapsedWorkspaces.has(row.key)
+					? tuiText("resumeMenuExpand", "expand")
+					: tuiText("resumeMenuCollapse", "collapse"),
+			});
+			items.push({
+				id: "open",
+				label: tuiText("resumeMenuOpen", "open in file manager"),
+				disabled: !this.#source.openWorkspace,
+			});
+			items.push({
+				id: "pin",
+				label: row.workspace.pinned ? tuiText("resumeUnpinAction", "Unpin") : tuiText("resumePinAction", "Pin"),
+				disabled: !this.#source.pinWorkspace,
+			});
+		} else {
+			items.push({
+				id: "rename",
+				label: tuiText("resumeMenuRename", "rename"),
+				disabled:
+					!this.#source.renameConversation || this.#source.canRenameConversation?.(row.conversation) === false,
+			});
+			items.push({
+				id: "pin",
+				label: row.pinned ? tuiText("resumeUnpinAction", "Unpin") : tuiText("resumePinAction", "Pin"),
+				disabled: !this.#source.pinConversation,
+			});
+			items.push({
+				id: "delete",
+				label:
+					this.#source.deleteMode === "trash"
+						? tuiText("resumeDeleteTrash", "Move to trash")
+						: tuiText("resumeDeletePermanent", "Delete"),
+				disabled: !this.#source.deleteConversation,
+			});
+		}
+		this.#menu = {
+			kind: isWorkspace ? "workspace" : "conversation",
+			rowKey: rowIdentity(row),
+			items,
+			index: Math.max(
+				0,
+				items.findIndex(item => !item.disabled),
+			),
+			...(isWorkspace ? { workspace: row.workspace } : { conversation: row.conversation }),
+		};
+		this.#searchFocused = false;
+		this.onRequestRender?.();
+	}
+
+	/** Open the menu for the selected row (`m`, or the right-edge affordance). */
+	#openSelectedMenu(): void {
+		const flat = this.#visibleRows();
+		const row = flat[this.#selectedIndex(flat)]?.row;
+		if (row?.type === "workspace" || row?.type === "conversation") this.#openMenu(row);
+	}
+
+	#moveMenuItem(delta: 1 | -1): void {
+		const menu = this.#menu;
+		if (!menu) return;
+		if (menu.items.every(item => item.disabled)) return;
+		let index = menu.index;
+		for (let attempt = 0; attempt < menu.items.length; attempt++) {
+			index = (index + delta + menu.items.length) % menu.items.length;
+			if (!menu.items[index]!.disabled) break;
+		}
+		menu.index = index;
+		this.onRequestRender?.();
+	}
+
+	async #runMenuItem(): Promise<void> {
+		const menu = this.#menu;
+		if (!menu) return;
+		const item = menu.items[menu.index];
+		if (!item || item.disabled) return;
+		this.#menu = undefined;
+		if (item.id === "rename") {
+			this.#startEdit(menu);
+			return;
+		}
+		const flat = this.#visibleRows();
+		const entry = flat.find(candidate => rowIdentity(candidate.row) === menu.rowKey);
+		const row = entry?.row;
+		if (item.id === "toggle" && row?.type === "workspace") {
+			this.#toggleCollapse(row);
+			return;
+		}
+		if (item.id === "open" && menu.workspace) {
+			await this.#source.openWorkspace?.(menu.workspace);
+			this.onRequestRender?.();
+			return;
+		}
+		if (item.id === "pin") {
+			await this.#pinRow(menu);
+			return;
+		}
+		if (item.id === "delete" && row?.type === "conversation") {
+			this.#deleteTarget = row;
+			this.onRequestRender?.();
+		}
+	}
+
+	async #pinRow(menu: ResumeTreeMenu): Promise<void> {
+		if (menu.kind === "workspace" && menu.workspace) {
+			await this.#source.pinWorkspace?.(menu.workspace, !menu.workspace.pinned);
+		} else if (menu.conversation) {
+			await this.#source.pinConversation?.(menu.conversation, !menu.conversation.pinned);
+		}
+		await this.#refreshAfterMutation();
+	}
+
+	#startEdit(menu: ResumeTreeMenu): void {
+		if (menu.kind === "workspace" && menu.workspace) {
+			const workspace = menu.workspace;
+			this.#edit = {
+				rowKey: menu.rowKey,
+				kind: "workspace",
+				value: workspace.alias ?? workspace.name,
+				workspace,
+			};
+		} else if (menu.conversation) {
+			const conversation = menu.conversation;
+			this.#edit = {
+				rowKey: menu.rowKey,
+				kind: "conversation",
+				value: conversation.title || conversation.id,
+				conversation,
+			};
+		}
+		this.#searchFocused = false;
+		this.onRequestRender?.();
+	}
+
+	async #commitEdit(): Promise<void> {
+		const edit = this.#edit;
+		if (!edit) return;
+		this.#edit = undefined;
+		const value = edit.value.trim();
+		if (edit.kind === "workspace" && edit.workspace) {
+			await this.#source.renameWorkspace?.(edit.workspace, value || null);
+		} else if (edit.conversation) {
+			if (!value || !(await this.#source.renameConversation?.(edit.conversation, value))) {
+				this.onRequestRender?.();
+				return;
+			}
+		}
+		await this.#refreshAfterMutation();
+	}
+
+	async #refreshAfterMutation(): Promise<void> {
+		if (this.#busy) return;
+		this.#busy = true;
+		try {
+			await this.#source.refresh?.();
+			this.invalidate();
+			this.#rebuild();
+		} catch (error) {
+			this.#notice = tuiTextFmt(
+				"ssErrorPrefixFmt",
+				"Error: %s",
+				error instanceof Error ? error.message : String(error),
+			);
+		} finally {
+			this.#busy = false;
+			this.onRequestRender?.();
+		}
+	}
+
+	/** Edit mode owns every key: tree bindings must not fire while typing. */
+	#handleEditKey(keyData: string): void {
+		const edit = this.#edit;
+		if (!edit) return;
+		if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
+			void this.#commitEdit();
+			return;
+		}
+		if (matchesAppInterrupt(keyData) || matchesKey(keyData, "escape")) {
+			this.#edit = undefined;
+			this.onRequestRender?.();
+			return;
+		}
+		if (matchesKey(keyData, "backspace") || keyData === "\x7f") {
+			edit.value = [...edit.value].slice(0, -1).join("");
+			this.onRequestRender?.();
+			return;
+		}
+		// Printable characters only (including a pasted run); arrows/tab/function
+		// keys stay inert because their sequences carry control bytes.
+		if (
+			keyData.length > 0 &&
+			!keyData.startsWith("\x1b") &&
+			[...keyData].every(char => char >= " " && char !== "\x7f")
+		) {
+			edit.value += keyData;
+			this.onRequestRender?.();
+		}
+	}
+
+	#handleMenuKey(keyData: string): void {
+		const menu = this.#menu;
+		if (!menu) return;
+		if (matchesSelectUp(keyData)) {
+			this.#moveMenuItem(-1);
+			return;
+		}
+		if (matchesSelectDown(keyData)) {
+			this.#moveMenuItem(1);
+			return;
+		}
+		if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
+			void this.#runMenuItem();
+			return;
+		}
+		if (matchesAppInterrupt(keyData) || matchesKey(keyData, "escape") || keyData === "m") {
+			this.#menu = undefined;
+			this.onRequestRender?.();
 		}
 	}
 
@@ -1059,6 +1270,7 @@ export class ResumeTreeComponent implements Component {
 	}
 
 	#routeMouse(event: SgrMouseEvent, offset: { row?: number; col?: number }): boolean {
+		if (this.#edit) return true;
 		if (event.wheel !== null) {
 			this.#move(event.wheel * 3);
 			this.onRequestRender?.();
@@ -1067,9 +1279,28 @@ export class ResumeTreeComponent implements Component {
 		if (!event.leftClick) return true;
 		const line = event.row - (offset.row ?? this.#lineOffset);
 		const column = event.col - (offset.col ?? this.#columnOffset);
+		if (this.#menu) {
+			const itemIndex = this.#menuItemHits.get(line);
+			if (itemIndex !== undefined) {
+				this.#menu.index = itemIndex;
+				void this.#runMenuItem();
+				return true;
+			}
+			this.#menu = undefined;
+		}
 		if (line === 0) {
 			const segment = this.#scopeHits.find(hit => column >= hit.start && column <= hit.end);
 			if (segment) this.setScope(segment.kind);
+			return true;
+		}
+		const menuHit = this.#menuHits.get(line);
+		if (menuHit && column >= menuHit.start) {
+			const flat = this.#visibleRows();
+			const entry = flat.find(candidate => rowIdentity(candidate.row) === menuHit.key);
+			if (entry && (entry.row.type === "workspace" || entry.row.type === "conversation")) {
+				this.#selectedKey = menuHit.key;
+				this.#openMenu(entry.row);
+			}
 			return true;
 		}
 		const hit = this.#hitRows.get(line);
@@ -1082,9 +1313,7 @@ export class ResumeTreeComponent implements Component {
 		this.#clampScroll();
 		if (hit.kind === "toggle") {
 			const row = entry.row;
-			if (row.type === "project" || row.type === "workspace" || row.type === "subagents") {
-				this.#toggleCollapse(row);
-			}
+			if (row.type === "project" || row.type === "workspace") this.#toggleCollapse(row);
 			return true;
 		}
 		const now = Date.now();
@@ -1104,6 +1333,18 @@ export class ResumeTreeComponent implements Component {
 		}
 		if (matchesKey(keyData, "ctrl+c")) {
 			this.onExit();
+			return;
+		}
+		if (this.#edit) {
+			this.#handleEditKey(keyData);
+			return;
+		}
+		if (this.#menu) {
+			this.#handleMenuKey(keyData);
+			return;
+		}
+		if (!this.#searchFocused && keyData === "m") {
+			this.#openSelectedMenu();
 			return;
 		}
 		if (this.#deleteTarget) {
@@ -1194,6 +1435,8 @@ export class ResumeTreeComponent implements Component {
 						this.#scope === "workspace" ? summary.workspaceName : summary.projectName,
 					);
 		this.#hitRows = new Map();
+		this.#menuHits = new Map();
+		this.#menuItemHits = new Map();
 		const scopeHeader = renderScopeHeaderHits(this.#scope, summary, width);
 		this.#scopeHits = scopeHeader.hits;
 		this.#lineOffset = 0;
@@ -1260,17 +1503,7 @@ export class ResumeTreeComponent implements Component {
 				),
 			);
 		}
-		const hiddenSubagents = view.counts.hiddenSubagents ?? 0;
-		if (hiddenSubagents > 0) {
-			lines.push(
-				truncateToWidth(
-					theme.fg("dim", `  ${tuiTextFmt("resumeHiddenSubagentsFmt", "%d subagents hidden", hiddenSubagents)}`),
-					width,
-				),
-			);
-		}
-		const mode = this.#subagentsMode();
-		const flat = flattenResumeRows(view.rows, this.#state, searching, mode);
+		const flat = flattenResumeRows(view.rows, this.#state, searching);
 		if (flat.length === 0) {
 			lines.push(...this.#emptyState(view, searching, width));
 			return lines;
@@ -1278,16 +1511,22 @@ export class ResumeTreeComponent implements Component {
 		const selectedIndex = this.#selectedIndex(flat);
 		const height = this.#listHeight();
 		this.#clampScroll();
-		const end = Math.min(flat.length, this.#scrollOffset + height);
 		const now = Date.now();
 		const conversationRows = flat
 			.map(entry => entry.row)
 			.filter((row): row is ResumeTreeConversationRow => row.type === "conversation");
 		const columns = conversationColumns(conversationRows, now);
-		for (let index = this.#scrollOffset; index < end; index++) {
+		const bodyStart = lines.length;
+		for (let index = this.#scrollOffset; index < flat.length; index++) {
+			if (lines.length - bodyStart >= height && index !== selectedIndex) break;
 			const row = flat[index]!.row;
 			const selected = index === selectedIndex;
+			const editing = this.#edit?.rowKey === rowIdentity(row);
 			const lineIndex = lines.length;
+			if (editing && this.#edit) {
+				lines.push(this.#renderEditLine(row, this.#edit.value, width));
+				continue;
+			}
 			if (row.type === "project") {
 				this.#hitRows.set(lineIndex, { kind: "toggle", key: rowIdentity(row) });
 				lines.push(
@@ -1298,8 +1537,12 @@ export class ResumeTreeComponent implements Component {
 						now,
 					}),
 				);
+				const ruleIndex = lines.length;
+				this.#hitRows.set(ruleIndex, { kind: "toggle", key: rowIdentity(row) });
+				lines.push(renderProjectRule(width));
 			} else if (row.type === "workspace") {
 				this.#hitRows.set(lineIndex, { kind: "toggle", key: rowIdentity(row) });
+				this.#menuHits.set(lineIndex, { kind: "workspace", key: rowIdentity(row), start: Math.max(0, width - 1) });
 				lines.push(
 					renderWorkspaceRow(row, {
 						width,
@@ -1309,15 +1552,48 @@ export class ResumeTreeComponent implements Component {
 						current: view.currentWorkspaceKey === row.key,
 					}),
 				);
-			} else if (row.type === "subagents") {
-				this.#hitRows.set(lineIndex, { kind: "toggle", key: rowIdentity(row) });
-				lines.push(renderSubagentsRow(row, { width, selected }));
 			} else {
 				this.#hitRows.set(lineIndex, { kind: "conversation", key: rowIdentity(row) });
+				this.#menuHits.set(lineIndex, {
+					kind: "conversation",
+					key: rowIdentity(row),
+					start: Math.max(0, width - 1),
+				});
 				lines.push(renderConversationRow(row, { width, selected, now, columns }));
 			}
 		}
+		if (this.#edit) {
+			lines.push(
+				truncateToWidth(theme.fg("dim", `  ${tuiText("resumeEditHint", "Enter saves · Esc cancels")}`), width),
+			);
+		}
+		if (this.#menu) {
+			const menu = this.#menu;
+			const kindLabel =
+				menu.kind === "workspace"
+					? tuiText("resumeMenuWorkspace", "workspace")
+					: tuiText("resumeMenuConversation", "conversation");
+			lines.push(truncateToWidth(`  ${theme.fg("accent", `┌ ${kindLabel}`)}`, width));
+			menu.items.forEach((item, itemIndex) => {
+				const itemLine = lines.length;
+				this.#menuItemHits.set(itemLine, itemIndex);
+				const cursor = itemIndex === menu.index ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
+				const label = item.disabled ? theme.fg("dim", item.label) : item.label;
+				const marker = itemIndex === menu.index ? theme.fg("accent", "›") : padding(1);
+				lines.push(truncateToWidth(`  │ ${cursor}${marker} ${label}`, width));
+			});
+			lines.push(truncateToWidth(`  ${theme.fg("dim", "└ Esc")}`, width));
+		}
 		return lines;
+	}
+
+	/** The row being renamed, rendered in place as an editable single line. */
+	#renderEditLine(row: ResumeTreeRow, value: string, width: number): string {
+		const cursor = theme.fg("accent", `${theme.nav.cursor} `);
+		const indent = padding(row.type === "workspace" ? WORKSPACE_INDENT : CONVERSATION_INDENT);
+		const marker = theme.fg("accent", "✎");
+		const caret = theme.fg("accent", "▌");
+		return truncateToWidth(`${cursor}${indent}${marker} ${value}${caret}`, width);
 	}
 
 	#emptyState(view: ResumeTreeView, searching: boolean, width: number): string[] {

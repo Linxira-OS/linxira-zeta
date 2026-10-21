@@ -187,7 +187,6 @@ import {
 	cfgHideThinkingBlock,
 	cfgOmitThinking,
 	cfgPrewalkEnabled,
-	cfgResumeSubagents,
 } from "./session/settings";
 import { cfgDisabledProviders, cfgEnabledModels } from "./config/model-settings";
 import { cfgTaskAgentIdleTtlMs } from "./task/settings";
@@ -237,7 +236,6 @@ async function loadSessionPicker(): Promise<SessionPicker> {
 					initialState,
 					workspacePath,
 					deleteMode,
-					subagents: cfgResumeSubagents.get(settings),
 					deleteConversation: async conversation => {
 						await storage.deleteSessionWithArtifacts(conversation.session.path);
 						return true;

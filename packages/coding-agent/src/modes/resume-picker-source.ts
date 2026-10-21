@@ -10,6 +10,7 @@
  */
 
 import type { Dirent } from "node:fs";
+import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getAgentDir, isEnoent, logger } from "@linxiraos/pi-utils";
@@ -23,6 +24,7 @@ import type {
 	ResumeTreeScopeSummary,
 	ResumeTreeSource,
 	ResumeTreeView,
+	ResumeTreeWorkspace,
 } from "@linxiraos/pi-tui/overlays/resume-tree";
 
 import {
@@ -31,13 +33,13 @@ import {
 	resolveResumeScope,
 	type ResumeDirectory,
 	type ResumeScopeKind,
-	type ResumeSubagentsMode,
 } from "../resume";
 import type { ResumeSourceLike } from "@linxiraos/pi-tui/overlays/resume-picker";
-import { toggleProjectPin } from "../resume/preferences";
-import type { SessionStorage } from "../session/session-storage";
+import { setWorkspaceAlias, toggleProjectPin, toggleWorkspacePin } from "../resume/preferences";
+import { FileSessionStorage, type SessionStorage } from "../session/session-storage";
 import { toggleSessionPin } from "../session/session-pins";
 import { replaceFileAtomically } from "../utils/atomic-file";
+import { openPath } from "../utils/open";
 
 /**
  * Picker state carries an explicit schema version. The old
@@ -77,7 +79,6 @@ export async function loadResumePickerState(agentDir: string = getAgentDir()): P
 			collapsedProjects: stringList(record.collapsedProjects),
 			expandedProjects: stringList(record.expandedProjects),
 			collapsedWorkspaces: stringList(record.collapsedWorkspaces),
-			expandedSubagents: stringList(record.expandedSubagents),
 		};
 	} catch (error) {
 		if (!isEnoent(error)) logger.warn("Failed to read resume picker state", { error });
@@ -104,7 +105,6 @@ export async function saveResumePickerState(
 		collapsedProjects: [...(state.collapsedProjects ?? [])],
 		expandedProjects: [...(state.expandedProjects ?? [])],
 		collapsedWorkspaces: [...(state.collapsedWorkspaces ?? [])],
-		expandedSubagents: [...(state.expandedSubagents ?? [])],
 	};
 	try {
 		await fs.writeFile(temporaryPath, JSON.stringify(payload, null, "\t"), { encoding: "utf-8", mode: 0o600 });
@@ -159,8 +159,6 @@ export interface LiveResumePickerSourceOptions {
 	deleteConversation: (conversation: ResumeTreeConversation) => Promise<boolean>;
 	/** `trash` for the in-session picker, `permanent` for `--resume`. */
 	deleteMode: ResumeTreeDeleteMode;
-	/** `resume.subagents`; grouped when omitted. */
-	subagents?: ResumeSubagentsMode;
 	storage?: SessionStorage;
 	agentDir?: string;
 }
@@ -193,12 +191,7 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 			collapsedProjects: [...(this.#state.collapsedProjects ?? [])],
 			expandedProjects: [...(this.#state.expandedProjects ?? [])],
 			collapsedWorkspaces: [...(this.#state.collapsedWorkspaces ?? [])],
-			expandedSubagents: [...(this.#state.expandedSubagents ?? [])],
 		};
-	}
-
-	subagentsMode(): ResumeSubagentsMode {
-		return this.#options.subagents ?? "grouped";
 	}
 
 	isLoading(): boolean {
@@ -239,7 +232,6 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 			scope,
 			query: input.query,
 			currentSessionPath: input.currentSessionPath ?? this.currentSessionPath(),
-			subagents: this.subagentsMode(),
 		}) as ResumeTreeView;
 	}
 
@@ -280,6 +272,9 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 				...(this.#options.agentDir ? { agentDir: this.#options.agentDir } : {}),
 				...(this.#options.workspacePath ? { defaultWorkspace: this.#options.workspacePath } : {}),
 				currentSessionPath: this.currentSessionPath(),
+				// The picker lists main-agent sessions only; classification stays
+				// in the model for callers that want the raw directory.
+				filterSubagents: true,
 			});
 		} catch (error) {
 			this.#loadError = error instanceof Error ? error.message : String(error);
@@ -320,5 +315,49 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 
 	async deleteConversation(conversation: ResumeTreeConversation): Promise<boolean> {
 		return this.#options.deleteConversation(conversation);
+	}
+
+	async renameWorkspace(workspace: ResumeTreeWorkspace, alias: string | null): Promise<void> {
+		await setWorkspaceAlias(workspace.key, alias, this.#options.agentDir);
+	}
+
+	async pinWorkspace(workspace: ResumeTreeWorkspace, pinned: boolean): Promise<void> {
+		if (workspace.pinned === pinned) return;
+		await toggleWorkspacePin(workspace.key, this.#options.agentDir);
+	}
+
+	openWorkspace(workspace: ResumeTreeWorkspace): void {
+		openPath(workspace.path);
+	}
+
+	/**
+	 * A session file the process cannot write (read-only mount, foreign source
+	 * copied in read-only) must not offer rename. The check is cheap and keeps
+	 * a failed write out of the menu path.
+	 */
+	canRenameConversation(conversation: ResumeTreeConversation): boolean {
+		try {
+			fsSync.accessSync(conversation.path, fsSync.constants.W_OK);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	async renameConversation(conversation: ResumeTreeConversation, title: string): Promise<boolean> {
+		const trimmed = title.trim();
+		if (!trimmed || !this.canRenameConversation(conversation)) return false;
+		const storage = this.#options.storage ?? new FileSessionStorage();
+		try {
+			await storage.updateSessionTitle(conversation.path, {
+				title: trimmed,
+				source: "user",
+				updatedAt: new Date().toISOString(),
+			});
+			return true;
+		} catch (error) {
+			logger.warn("Failed to rename the resume conversation", { error });
+			return false;
+		}
 	}
 }
