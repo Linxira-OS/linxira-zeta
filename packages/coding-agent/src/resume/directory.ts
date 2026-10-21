@@ -146,6 +146,52 @@ function countPinned(conversations: readonly ResumeConversation[]): number {
 }
 
 /**
+ * Resolve each conversation's parent reference (a session path or id) to the
+ * parent conversation's key and collect subagent children under their parent.
+ * A reference outside the directory still yields a stable key, so a subagent
+ * whose parent was deleted is not silently re-parented.
+ */
+function linkConversationParents(conversations: readonly ResumeConversation[]): void {
+	const byId = new Map<string, ResumeConversation>();
+	const byPath = new Map<string, ResumeConversation>();
+	for (const conversation of conversations) {
+		byId.set(conversation.id, conversation);
+		byPath.set(resumePathKey(conversation.path), conversation);
+	}
+	for (const conversation of conversations) {
+		const reference = conversation.session.parentSessionPath;
+		if (!reference) continue;
+		const parent = byPath.get(resumePathKey(reference)) ?? byId.get(reference);
+		conversation.parentKey = parent?.key ?? resumePathKey(reference);
+		if (parent && conversation.isSubagent) parent.subagents.push(conversation);
+	}
+	for (const conversation of conversations) {
+		if (conversation.subagents.length > 1) conversation.subagents.sort(compareResumeConversations);
+	}
+}
+
+/**
+ * Append each duplicated project's parent folder to its display name, so two
+ * checkouts both named `zeta` are distinguishable without changing identity.
+ */
+function disambiguateProjectNames(projects: readonly ResumeProject[]): void {
+	const counts = new Map<string, number>();
+	for (const project of projects) counts.set(project.displayName, (counts.get(project.displayName) ?? 0) + 1);
+	if (![...counts.values()].some(count => count > 1)) return;
+	const used = new Set(projects.map(project => project.displayName));
+	for (const project of projects) {
+		if ((counts.get(project.displayName) ?? 0) < 2) continue;
+		const normalized = project.root.replace(/[\\/]+$/, "");
+		const parent = path.basename(path.dirname(normalized));
+		if (!parent) continue;
+		let candidate = `${project.displayName} (${parent})`;
+		for (let suffix = 2; used.has(candidate); suffix++) candidate = `${project.displayName} (${parent} ${suffix})`;
+		used.add(candidate);
+		project.displayName = candidate;
+	}
+}
+
+/**
  * Build the complete directory. Pure with respect to the injected resolver and
  * inputs: no filesystem reads beyond git metadata discovery.
  */
@@ -216,6 +262,8 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 		const projectRoot = info.projectRoot || cwd;
 		const bucket = ensureProject(projectRoot);
 		const workspace = ensureWorkspace(bucket, cwd);
+		const agentName = session.agent?.trim() || undefined;
+		const hasParent = Boolean(session.parentSessionPath);
 		const conversation: ResumeConversation = {
 			session,
 			key: session.id || resumePathKey(session.path),
@@ -230,7 +278,12 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 			status: session.status,
 			pinned: pinnedIds.has(session.id),
 			current: sameResumePath(session.path, options.currentSessionPath),
-			fork: Boolean(session.parentSessionPath),
+			// A subagent carries both a parent and the agent marker; a user fork
+			// carries the parent alone and must stay a `fork`.
+			isSubagent: hasParent && agentName !== undefined,
+			...(agentName ? { agentName } : {}),
+			fork: hasParent && agentName === undefined,
+			subagents: [],
 			messageCount: session.messageCount,
 		};
 		workspace.conversations.push(conversation);
@@ -264,7 +317,10 @@ export async function buildResumeDirectory(options: BuildResumeDirectoryOptions)
 		conversations.push(...project.conversations);
 	}
 
+	linkConversationParents(conversations);
+
 	const sortedProjects = sortProjects(projects);
+	disambiguateProjectNames(sortedProjects);
 	return {
 		projects: sortedProjects,
 		workspaces: sortedProjects.flatMap(project => project.workspaces),

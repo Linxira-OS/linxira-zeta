@@ -187,6 +187,7 @@ import {
 	cfgHideThinkingBlock,
 	cfgOmitThinking,
 	cfgPrewalkEnabled,
+	cfgResumeSubagents,
 } from "./session/settings";
 import { cfgDisabledProviders, cfgEnabledModels } from "./config/model-settings";
 import { cfgTaskAgentIdleTtlMs } from "./task/settings";
@@ -229,11 +230,14 @@ async function loadSessionPicker(): Promise<SessionPicker> {
 			},
 			loadAllSessions: () => SessionManager.listAllForPicker(storage),
 			loadResumeSource: async (deleteMode, workspacePath) => {
-				const { LiveResumePickerSource, loadResumePickerScope } = await import("./modes/resume-picker-source");
+				const { LiveResumePickerSource, loadResumePickerState } = await import("./modes/resume-picker-source");
+				const initialState = await loadResumePickerState();
 				return new LiveResumePickerSource({
-					initialScope: await loadResumePickerScope(),
+					initialScope: initialState.scope,
+					initialState,
 					workspacePath,
 					deleteMode,
+					subagents: cfgResumeSubagents.get(settings),
 					deleteConversation: async conversation => {
 						await storage.deleteSessionWithArtifacts(conversation.session.path);
 						return true;

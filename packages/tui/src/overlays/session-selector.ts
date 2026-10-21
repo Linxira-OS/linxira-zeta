@@ -1439,8 +1439,34 @@ export interface SessionSelectorOptions<T extends SessionSelectorEntry = Session
 }
 
 /**
- * Component that renders a session selector with optional confirmation dialog
+ * One footer line: key hints left, mouse hints right. Hints drop from the end
+ * of the key list first, then the mouse list truncates, so the line always
+ * fits the panel's inner width.
  */
+function composeFooter(width: number, keys: readonly string[], mouse: readonly string[]): string {
+	const contentWidth = Math.max(1, width - 4);
+	const rightText = mouse.join(` ${theme.sep.dot} `);
+	const right = theme.fg("dim", `[${rightText}]`);
+	const rightWidth = visibleWidth(right);
+	const kept = [...keys];
+	const leftText = () => theme.fg("muted", `[${kept.join(` ${theme.sep.dot} `)}]`);
+	const gap = 2;
+	while (kept.length > 0 && visibleWidth(leftText()) + gap + rightWidth > contentWidth) kept.pop();
+	const left = kept.length > 0 ? leftText() : "";
+	if (!left)
+		return truncateToWidth(
+			rightWidth > contentWidth ? right : `${" ".repeat(Math.max(0, contentWidth - rightWidth))}${right}`,
+			contentWidth,
+		);
+	const room = contentWidth - visibleWidth(left) - gap;
+	if (room < rightWidth) {
+		const truncated = truncateToWidth(right, Math.max(0, room));
+		return truncateToWidth(left + " ".repeat(gap) + truncated, contentWidth);
+	}
+	return left + " ".repeat(contentWidth - visibleWidth(left) - rightWidth) + right;
+}
+
+/** Component that renders a session selector with optional confirmation dialog. */
 export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSelectorEntry> extends OverlayPanel {
 	#sessionList: SessionList<T>;
 	/**
@@ -1572,7 +1598,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		onExit: () => void,
 		options: SessionSelectorOptions<T> = {},
 	) {
-		super(options.title ?? "Resume Session");
+		super(options.title ?? tuiText("ssTitleResume", "Resume Session"));
 
 		this.#messageContainer = new Container();
 		this.#onDelete = options.onDelete;
@@ -1584,7 +1610,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		this.#globalSessions = options.allSessions ?? null;
 		this.#getTerminalRows = options.getTerminalRows ?? (() => 24);
 		this.#fillHeight = options.fillHeight ?? false;
-		this.#title = options.title ?? "Resume Session";
+		this.#title = options.title ?? tuiText("ssTitleResume", "Resume Session");
 		this.#actionLabel = options.actionLabel ?? "Resume";
 		this.#pickerTitle = options.title;
 		this.#standalone = options.standalone ?? false;
@@ -1867,9 +1893,22 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	#footerLines(width: number): string[] {
 		const cancel = interruptKey();
 		const hint = this.#resumeTree
-			? theme.fg(
-					"muted",
-					`[${formatKeyHint("enter")} resume · ${formatKeyHints(["delete", "backspace"])} delete · ${formatKeyHint("tab")} ${tuiText("resumeScopeAll", "all projects")} · / ${tuiText("resumeFooterSearch", "search")} · r ${tuiText("resumeFooterRefresh", "refresh")} · p/P ${tuiText("resumeFooterPin", "pin")} · ${cancel} ${tuiText("resumeFooterClose", "clear/close")}]`,
+			? composeFooter(
+					width,
+					[
+						`${formatKeyHint("enter")} resume`,
+						`${formatKeyHints(["delete", "backspace"])} delete`,
+						`${formatKeyHint("tab")} ${tuiText("resumeFooterScope", "scope")}`,
+						`/ ${tuiText("resumeFooterSearch", "search")}`,
+						`r ${tuiText("resumeFooterRefresh", "refresh")}`,
+						`p/P ${tuiText("resumeFooterPin", "pin")}`,
+						`${cancel} ${tuiText("resumeFooterClose", "clear/close")}`,
+					],
+					[
+						tuiText("resumeFooterClick", "click select"),
+						tuiText("resumeFooterDoubleClick", "double-click resume"),
+						tuiText("resumeFooterWheel", "wheel scroll"),
+					],
 				)
 			: theme.fg(
 					"muted",
@@ -2014,10 +2053,15 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		actions.push(
 			pickerAction("close", "Close", boundKeys("app.interrupt", ["escape"])[0] ?? "escape", { end: true }),
 		);
-		const banner =
-			!loading && !errorOpen && model.hidden > 0
+		const hiddenParts = [
+			model.hidden > 0
 				? tuiTextFmt("resumeHiddenByFilterFmt", "%d conversations hidden by filter", model.hidden)
-				: undefined;
+				: "",
+			model.hiddenSubagents > 0
+				? tuiTextFmt("resumeHiddenSubagentsFmt", "%d subagents hidden", model.hiddenSubagents)
+				: "",
+		].filter(Boolean);
+		const banner = !loading && !errorOpen && hiddenParts.length > 0 ? hiddenParts.join(" · ") : undefined;
 		const title = this.#pickerTitle;
 		const folder = this.#scopeLabel === false ? undefined : (this.#scopeLabel ?? path.basename(getProjectDir()));
 		const result = picker(
@@ -2415,7 +2459,13 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	 * pointer. Mouse is inert while the delete-confirmation dialog is open.
 	 */
 	#handleMouse(data: string): void {
-		if (this.#confirmationDialog || this.#resumeTree) return;
+		if (this.#confirmationDialog) return;
+		if (this.#resumeTree) {
+			// The panel paints the tree inside `│ ` … ` │`; rows start at
+			// #listLineOffset and the first content column is 2.
+			this.#resumeTree.handleMouse(data, { row: this.#listLineOffset, col: 2 });
+			return;
+		}
 		routeSgrMouseInput(data, event => {
 			if (event.wheel !== null) {
 				this.#sessionList.handleWheel(event.wheel);

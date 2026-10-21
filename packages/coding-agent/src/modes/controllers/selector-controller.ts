@@ -147,7 +147,7 @@ import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@linxiraos/
 import { type BranchVariantPath, RewindSelectorComponent } from "@linxiraos/pi-tui/overlays/rewind-selector";
 import { SessionAccountSelectorComponent } from "@linxiraos/pi-tui/overlays/session-account-selector";
 import { SessionSelectorComponent, type SessionSelectorOptions } from "@linxiraos/pi-tui/overlays/session-selector";
-import { LiveResumePickerSource, loadResumePickerScope } from "../resume-picker-source";
+import { LiveResumePickerSource, loadResumePickerState } from "../resume-picker-source";
 import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
 import { TranscriptBlock } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
@@ -159,7 +159,7 @@ import type { SessionObserverRegistry } from "@linxiraos/pi-tui/overlays/session
 import { cfgAdvisorSyncBacklog } from "../../advisor/settings";
 import { cfgBranchSummaryEnabled } from "../../session/context-settings";
 import { cfgCycleOrder, cfgDisabledProviders, cfgModelRoleStorage } from "../../config/model-settings";
-import { cfgDefaultThinkingLevel, cfgRetryFallbackChains } from "../../session/settings";
+import { cfgDefaultThinkingLevel, cfgResumeSubagents, cfgRetryFallbackChains } from "../../session/settings";
 import {
 	cfgStatusLineCompactThinkingLevel,
 	cfgStatusLineContextLine,
@@ -2167,11 +2167,13 @@ export class SelectorController {
 				// The three-level resume tree loads its directory after the overlay
 				// paints (scope control + skeleton first), then fills project,
 				// workspace and conversation rows from the local model.
-				const initialScope = await loadResumePickerScope();
+				const initialState = await loadResumePickerState();
 				const resumeSource = new LiveResumePickerSource({
-					initialScope,
+					initialScope: initialState.scope,
+					initialState,
 					workspacePath: this.ctx.sessionManager.getCwd(),
 					deleteMode: "trash",
+					subagents: cfgResumeSubagents.get(this.ctx.settings),
 					currentSessionPath,
 					deleteConversation: async conversation => deleteWithTrash(conversation.session as SessionInfo),
 				});

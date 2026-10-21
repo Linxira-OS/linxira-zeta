@@ -128,6 +128,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Startup & Updates",
 		"Power",
 		"Agent",
+		"Resume",
 		"Git",
 		"Skills",
 	],

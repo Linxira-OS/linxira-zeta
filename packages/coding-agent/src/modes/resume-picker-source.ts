@@ -17,6 +17,7 @@ import { getSessionsDir } from "@linxiraos/pi-utils/dirs";
 import type {
 	ResumeTreeConversation,
 	ResumeTreeDeleteMode,
+	ResumeTreePickerState,
 	ResumeTreeProject,
 	ResumeTreeScope,
 	ResumeTreeScopeSummary,
@@ -30,6 +31,7 @@ import {
 	resolveResumeScope,
 	type ResumeDirectory,
 	type ResumeScopeKind,
+	type ResumeSubagentsMode,
 } from "../resume";
 import type { ResumeSourceLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import { toggleProjectPin } from "../resume/preferences";
@@ -37,7 +39,13 @@ import type { SessionStorage } from "../session/session-storage";
 import { toggleSessionPin } from "../session/session-pins";
 import { replaceFileAtomically } from "../utils/atomic-file";
 
-export const RESUME_PICKER_STATE_FILENAME = "resume-picker-state.json";
+/**
+ * Picker state carries an explicit schema version. The old
+ * `resume-picker-state.json` shape is deliberately never read or migrated: a
+ * stale file is ignored and the next write creates this one.
+ */
+export const RESUME_PICKER_STATE_FILENAME = "resume-picker-state.v2.json";
+export const RESUME_PICKER_STATE_VERSION = 2;
 
 function resumePickerStatePath(agentDir: string = getAgentDir()): string {
 	return path.join(agentDir, RESUME_PICKER_STATE_FILENAME);
@@ -47,31 +55,69 @@ function isScope(value: unknown): value is ResumeTreeScope {
 	return value === "workspace" || value === "project" || value === "all";
 }
 
-/** The last scope chosen in any picker; a missing/corrupt file means workspace. */
-export async function loadResumePickerScope(agentDir: string = getAgentDir()): Promise<ResumeTreeScope> {
-	try {
-		const parsed: unknown = JSON.parse(await fs.readFile(resumePickerStatePath(agentDir), "utf-8"));
-		if (typeof parsed === "object" && parsed !== null && "scope" in parsed && isScope(parsed.scope)) {
-			return parsed.scope;
-		}
-	} catch (error) {
-		if (!isEnoent(error)) logger.warn("Failed to read resume picker state", { error });
-	}
-	return "workspace";
+function stringList(value: unknown): string[] {
+	return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 }
 
-/** Persist the chosen scope atomically so both pickers remember it across opens. */
-export async function saveResumePickerScope(scope: ResumeTreeScope, agentDir: string = getAgentDir()): Promise<void> {
+const EMPTY_PICKER_STATE: ResumeTreePickerState = { scope: "workspace" };
+
+/**
+ * Read the v2 picker state. Missing, unreadable, wrong-version or corrupt
+ * files all fall back to the default (workspace scope, nothing expanded); the
+ * legacy file is not consulted.
+ */
+export async function loadResumePickerState(agentDir: string = getAgentDir()): Promise<ResumeTreePickerState> {
+	try {
+		const parsed: unknown = JSON.parse(await fs.readFile(resumePickerStatePath(agentDir), "utf-8"));
+		if (typeof parsed !== "object" || parsed === null) return { ...EMPTY_PICKER_STATE };
+		const record = parsed as Record<string, unknown>;
+		if (record.version !== RESUME_PICKER_STATE_VERSION) return { ...EMPTY_PICKER_STATE };
+		return {
+			scope: isScope(record.scope) ? record.scope : "workspace",
+			collapsedProjects: stringList(record.collapsedProjects),
+			expandedProjects: stringList(record.expandedProjects),
+			collapsedWorkspaces: stringList(record.collapsedWorkspaces),
+			expandedSubagents: stringList(record.expandedSubagents),
+		};
+	} catch (error) {
+		if (!isEnoent(error)) logger.warn("Failed to read resume picker state", { error });
+		return { ...EMPTY_PICKER_STATE };
+	}
+}
+
+/** The last scope chosen in any picker; a missing/corrupt file means workspace. */
+export async function loadResumePickerScope(agentDir: string = getAgentDir()): Promise<ResumeTreeScope> {
+	return (await loadResumePickerState(agentDir)).scope;
+}
+
+/** Persist the picker state atomically so both pickers remember it across opens. */
+export async function saveResumePickerState(
+	state: ResumeTreePickerState,
+	agentDir: string = getAgentDir(),
+): Promise<void> {
 	const filePath = resumePickerStatePath(agentDir);
 	const temporaryPath = `${filePath}.${process.pid}.tmp`;
 	await fs.mkdir(agentDir, { recursive: true });
+	const payload = {
+		version: RESUME_PICKER_STATE_VERSION,
+		scope: state.scope,
+		collapsedProjects: [...(state.collapsedProjects ?? [])],
+		expandedProjects: [...(state.expandedProjects ?? [])],
+		collapsedWorkspaces: [...(state.collapsedWorkspaces ?? [])],
+		expandedSubagents: [...(state.expandedSubagents ?? [])],
+	};
 	try {
-		await fs.writeFile(temporaryPath, JSON.stringify({ scope }, null, "\t"), { encoding: "utf-8", mode: 0o600 });
+		await fs.writeFile(temporaryPath, JSON.stringify(payload, null, "\t"), { encoding: "utf-8", mode: 0o600 });
 		await replaceFileAtomically(temporaryPath, filePath);
 	} catch (error) {
 		await fs.rm(temporaryPath, { force: true }).catch(() => {});
 		throw error;
 	}
+}
+
+/** Persist only the scope, keeping the other state fields at their defaults. */
+export async function saveResumePickerScope(scope: ResumeTreeScope, agentDir: string = getAgentDir()): Promise<void> {
+	await saveResumePickerState({ scope }, agentDir);
 }
 
 /**
@@ -104,6 +150,8 @@ async function unreadableSessionDirs(sessionsRoot: string): Promise<string[]> {
 
 export interface LiveResumePickerSourceOptions {
 	initialScope: ResumeTreeScope;
+	/** Full v2 picker state (scope + expansion); wins over `initialScope`. */
+	initialState?: ResumeTreePickerState;
 	currentSessionPath?: () => string | undefined;
 	/** The checkout "this workspace" means; defaults to the coordinator workspace. */
 	workspacePath?: string;
@@ -111,13 +159,15 @@ export interface LiveResumePickerSourceOptions {
 	deleteConversation: (conversation: ResumeTreeConversation) => Promise<boolean>;
 	/** `trash` for the in-session picker, `permanent` for `--resume`. */
 	deleteMode: ResumeTreeDeleteMode;
+	/** `resume.subagents`; grouped when omitted. */
+	subagents?: ResumeSubagentsMode;
 	storage?: SessionStorage;
 	agentDir?: string;
 }
 
 /** Host bridge shared with the native renderer: `directory` + `buildView`. */
 export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLike {
-	readonly initialScope: ResumeTreeScope;
+	initialScope: ResumeTreeScope;
 	readonly deleteMode: ResumeTreeDeleteMode;
 	/** Latest directory; null until the first scan finishes. */
 	directory: ResumeDirectory | null = null;
@@ -127,11 +177,28 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 	#loadError: string | undefined;
 	#scanWarningNames: string[] = [];
 	#inFlight: Promise<void> | undefined;
+	#state: ResumeTreePickerState;
 
 	constructor(options: LiveResumePickerSourceOptions) {
 		this.#options = options;
-		this.initialScope = options.initialScope;
+		this.initialScope = options.initialState?.scope ?? options.initialScope;
 		this.deleteMode = options.deleteMode;
+		this.#state = options.initialState ? { ...options.initialState } : { scope: this.initialScope };
+	}
+
+	pickerState(): ResumeTreePickerState {
+		return {
+			...this.#state,
+			scope: this.initialScope,
+			collapsedProjects: [...(this.#state.collapsedProjects ?? [])],
+			expandedProjects: [...(this.#state.expandedProjects ?? [])],
+			collapsedWorkspaces: [...(this.#state.collapsedWorkspaces ?? [])],
+			expandedSubagents: [...(this.#state.expandedSubagents ?? [])],
+		};
+	}
+
+	subagentsMode(): ResumeSubagentsMode {
+		return this.#options.subagents ?? "grouped";
 	}
 
 	isLoading(): boolean {
@@ -172,6 +239,7 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 			scope,
 			query: input.query,
 			currentSessionPath: input.currentSessionPath ?? this.currentSessionPath(),
+			subagents: this.subagentsMode(),
 		}) as ResumeTreeView;
 	}
 
@@ -221,12 +289,19 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 		}
 	}
 
-	async persistScope(scope: ResumeTreeScope): Promise<void> {
+	/** Persist the whole picker state (scope + local expansion). */
+	async persistPickerState(state: ResumeTreePickerState): Promise<void> {
+		this.#state = { ...state };
+		this.initialScope = state.scope;
 		try {
-			await saveResumePickerScope(scope, this.#options.agentDir);
+			await saveResumePickerState(this.pickerState(), this.#options.agentDir);
 		} catch (error) {
-			logger.warn("Failed to persist the resume picker scope", { error });
+			logger.warn("Failed to persist the resume picker state", { error });
 		}
+	}
+
+	async persistScope(scope: ResumeTreeScope): Promise<void> {
+		await this.persistPickerState({ ...this.pickerState(), scope });
 	}
 
 	async pinConversation(conversation: ResumeTreeConversation, pinned: boolean): Promise<void> {

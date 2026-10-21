@@ -23,6 +23,10 @@ export interface SessionFixture {
 	created?: number;
 	pinned?: boolean;
 	fork?: boolean;
+	/** Agent marker: with `fork: true` this makes the session a subagent. */
+	agent?: string;
+	/** Explicit parent session path/id (overrides the synthetic one). */
+	parent?: string;
 	status?: SessionInfo["status"];
 	messageCount?: number;
 }
@@ -35,7 +39,9 @@ export function makeSession(fixture: SessionFixture): SessionInfo {
 		id: fixture.id,
 		cwd: fixture.cwd,
 		title: fixture.title,
-		parentSessionPath: fixture.fork ? `/resume-test/sessions/parent-${fixture.id}.jsonl` : undefined,
+		parentSessionPath:
+			fixture.parent ?? (fixture.fork ? `/resume-test/sessions/parent-${fixture.id}.jsonl` : undefined),
+		...(fixture.agent ? { agent: fixture.agent } : {}),
 		created,
 		modified,
 		messageCount: fixture.messageCount ?? 2,

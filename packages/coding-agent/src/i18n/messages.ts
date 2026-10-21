@@ -635,10 +635,16 @@ export interface Messages {
 	resumeConfirmKeys: string; // y confirm · n cancel
 	resumeScanWarningFmt: string; // Some conversation folders could not be read: %s. Showing what was found.
 	resumeRetryHint: string; // r retries
+	resumeFooterScope: string; // scope
 	resumeFooterSearch: string; // search
 	resumeFooterRefresh: string; // refresh
 	resumeFooterPin: string; // pin
 	resumeFooterClose: string; // clear/close
+	resumeSubagentsFmt: string; // subagents ×%d
+	resumeHiddenSubagentsFmt: string; // %d subagents hidden
+	resumeFooterClick: string; // click select
+	resumeFooterDoubleClick: string; // double-click resume
+	resumeFooterWheel: string; // wheel scroll
 
 	// compaction summary / handoff / branch dividers
 	csLabelCompacted: string; // compacted

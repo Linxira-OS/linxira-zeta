@@ -6,8 +6,11 @@ import { buildResumeDirectory, resumePathKey } from "@linxiraos/zeta/resume";
 import {
 	LiveResumePickerSource,
 	loadResumePickerScope,
+	loadResumePickerState,
 	RESUME_PICKER_STATE_FILENAME,
+	RESUME_PICKER_STATE_VERSION,
 	saveResumePickerScope,
+	saveResumePickerState,
 } from "../../src/modes/resume-picker-source";
 import { makeSession, pinnedSet, REPO_A, REPO_B, staticResolver, STANDARD_PROJECTS } from "./helpers";
 
@@ -45,6 +48,40 @@ describe("resume picker scope persistence", () => {
 		expect(await loadResumePickerScope(agentDir)).toBe("all");
 	});
 
+	it("round-trips expansion state under the v2 file name", async () => {
+		await saveResumePickerState(
+			{
+				scope: "project",
+				collapsedProjects: ["/one"],
+				expandedProjects: ["/two"],
+				collapsedWorkspaces: ["/three"],
+				expandedSubagents: ["parent"],
+			},
+			agentDir,
+		);
+		const raw = JSON.parse(await fs.readFile(path.join(agentDir, RESUME_PICKER_STATE_FILENAME), "utf-8"));
+		expect(raw.version).toBe(RESUME_PICKER_STATE_VERSION);
+		const state = await loadResumePickerState(agentDir);
+		expect(state).toMatchObject({
+			scope: "project",
+			collapsedProjects: ["/one"],
+			expandedProjects: ["/two"],
+			collapsedWorkspaces: ["/three"],
+			expandedSubagents: ["parent"],
+		});
+	});
+
+	it("ignores the legacy state file instead of migrating it", async () => {
+		await fs.rm(path.join(agentDir, RESUME_PICKER_STATE_FILENAME), { force: true });
+		await fs.writeFile(path.join(agentDir, "resume-picker-state.json"), JSON.stringify({ scope: "all" }), "utf-8");
+		expect(await loadResumePickerState(agentDir)).toEqual({ scope: "workspace" });
+		await saveResumePickerScope("project", agentDir);
+		expect(await loadResumePickerScope(agentDir)).toBe("project");
+		// The legacy file is left untouched.
+		const legacy = JSON.parse(await fs.readFile(path.join(agentDir, "resume-picker-state.json"), "utf-8"));
+		expect(legacy.scope).toBe("all");
+	});
+
 	it("degrades to workspace on a corrupt state file", async () => {
 		await fs.writeFile(path.join(agentDir, RESUME_PICKER_STATE_FILENAME), "{not json", "utf-8");
 		expect(await loadResumePickerScope(agentDir)).toBe("workspace");
@@ -52,11 +89,12 @@ describe("resume picker scope persistence", () => {
 });
 
 describe("live resume source", () => {
-	function make() {
+	function make(subagents?: "grouped" | "inline" | "hidden") {
 		return new LiveResumePickerSource({
 			initialScope: "all",
 			deleteMode: "trash",
 			agentDir,
+			...(subagents ? { subagents } : {}),
 			deleteConversation: async () => true,
 		});
 	}
@@ -73,6 +111,26 @@ describe("live resume source", () => {
 		expect(workspace?.conversations?.length).toBe(1);
 		expect(source.scopeSummary().counts.all).toBe(2);
 		expect(source.scopeSummary().projectName).toBeTruthy();
+	});
+
+	it("exposes resume.subagents and the restored picker state", async () => {
+		const source = new LiveResumePickerSource({
+			initialScope: "all",
+			initialState: { scope: "project", expandedSubagents: ["parent"] },
+			subagents: "hidden",
+			deleteMode: "trash",
+			agentDir,
+			deleteConversation: async () => true,
+		});
+		expect(source.initialScope).toBe("project");
+		expect(source.subagentsMode()).toBe("hidden");
+		expect(source.pickerState().expandedSubagents).toEqual(["parent"]);
+		await source.persistPickerState({ scope: "all", expandedSubagents: ["next"] });
+		expect(await loadResumePickerState(agentDir)).toMatchObject({
+			scope: "all",
+			expandedSubagents: ["next"],
+		});
+		expect(make().subagentsMode()).toBe("grouped");
 	});
 
 	it("accepts the model's structured scope object as well as a bare kind", async () => {

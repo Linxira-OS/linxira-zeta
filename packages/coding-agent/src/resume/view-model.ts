@@ -18,6 +18,7 @@ import type {
 	ResumeQuery,
 	ResumeScope,
 	ResumeScopeInput,
+	ResumeSubagentsMode,
 	ResumeView,
 	ResumeViewCounts,
 	ResumeViewRow,
@@ -279,6 +280,8 @@ export interface BuildResumeViewOptions {
 	scope?: ResumeScopeInput;
 	query?: string | ResumeQuery;
 	currentSessionPath?: string;
+	/** `resume.subagents`; grouped (default) nests children, hidden omits them. */
+	subagents?: ResumeSubagentsMode;
 }
 
 interface WorkspaceMatches {
@@ -324,6 +327,7 @@ function toConversationRow(
 	projectKey: string,
 	workspaceKey: string,
 	current: boolean,
+	depth = 2,
 ): ResumeConversationRow {
 	return {
 		type: "conversation",
@@ -331,11 +335,12 @@ function toConversationRow(
 		conversation: match.conversation,
 		projectKey,
 		workspaceKey,
-		depth: 2,
+		depth,
 		pinned: match.conversation.pinned,
 		current,
 		score: match.score,
 		pinnedOnly: match.pinnedOnly,
+		subagents: [],
 	};
 }
 
@@ -365,6 +370,61 @@ function workspaceRow(workspaceMatches: WorkspaceMatches, projectKey: string): R
 		conversationCount: workspaceMatches.matches.length,
 		totalConversationCount: workspaceMatches.workspace.counts.conversations,
 	};
+}
+
+interface GroupedRows {
+	rows: ResumeViewRow[];
+	hiddenSubagents: number;
+}
+
+/**
+ * Apply `resume.subagents` to the flat matched rows. `inline` leaves them
+ * alone; `hidden` drops subagent conversations and reports the count; grouped
+ * nests each subagent under its parent (recursively) and leaves only roots as
+ * top-level rows. A subagent whose parent is outside the current scope stays
+ * visible as a root so a search match can never disappear.
+ */
+function groupSubagentRows(rows: readonly ResumeViewRow[], mode: ResumeSubagentsMode): GroupedRows {
+	if (mode === "inline") return { rows: [...rows], hiddenSubagents: 0 };
+	if (mode === "hidden") {
+		let hiddenSubagents = 0;
+		const kept = rows.filter(row => {
+			if (row.type !== "conversation" || !row.conversation.isSubagent) return true;
+			hiddenSubagents += 1;
+			return false;
+		});
+		return { rows: kept, hiddenSubagents };
+	}
+
+	const conversationRows = rows.filter((row): row is ResumeConversationRow => row.type === "conversation");
+	const byKey = new Map(conversationRows.map(row => [row.key, row]));
+	const childrenByParent = new Map<string, ResumeConversationRow[]>();
+	for (const row of conversationRows) {
+		if (!row.conversation.isSubagent) continue;
+		const parentKey = row.conversation.parentKey;
+		if (!parentKey || parentKey === row.key || !byKey.has(parentKey)) continue;
+		const children = childrenByParent.get(parentKey) ?? [];
+		children.push(row);
+		childrenByParent.set(parentKey, children);
+	}
+	const attached = new Set<string>();
+	const attach = (row: ResumeConversationRow, depth: number, ancestors: Set<string>): ResumeConversationRow => {
+		row.depth = depth;
+		row.subagents = [];
+		for (const child of childrenByParent.get(row.key) ?? []) {
+			if (ancestors.has(child.key)) continue;
+			ancestors.add(child.key);
+			attached.add(child.key);
+			row.subagents.push(attach(child, depth + 1, ancestors));
+			ancestors.delete(child.key);
+		}
+		return row;
+	};
+	for (const row of conversationRows) {
+		if (attached.has(row.key)) continue;
+		attach(row, 2, new Set([row.key]));
+	}
+	return { rows: rows.filter(row => row.type !== "conversation" || !attached.has(row.key)), hiddenSubagents: 0 };
 }
 
 /**
@@ -487,15 +547,44 @@ export function buildResumeView(directory: ResumeDirectory, options: BuildResume
 		}
 	}
 
-	const conversationRows = rows.filter((row): row is ResumeConversationRow => row.type === "conversation");
+	const matchedConversations = rows.filter((row): row is ResumeConversationRow => row.type === "conversation");
+	const grouped = groupSubagentRows(rows, options.subagents ?? "grouped");
+	const conversationRows = collectConversationRows(grouped.rows);
 	const counts: ResumeViewCounts = {
-		conversations: conversationRows.length,
+		conversations: matchedConversations.length,
 		workspaces: scope.kind === "all" ? rows.filter(row => row.type === "workspace").length : visibleWorkspaces,
 		projects: scope.kind === "all" ? rows.filter(row => row.type === "project").length : visibleProjects,
 		pinnedConversations,
 		totalConversations,
 		totalWorkspaces,
 		totalProjects,
+		hiddenSubagents: grouped.hiddenSubagents,
 	};
-	return { scope, query, rows, conversations: conversationRows, counts };
+	const currentConversation = directory.conversations.find(conversation =>
+		options.currentSessionPath ? sameResumePath(conversation.path, options.currentSessionPath) : conversation.current,
+	);
+	const currentWorkspace = currentConversation
+		? directory.workspaces.find(workspace => workspace.key === currentConversation.workspaceKey)
+		: undefined;
+	return {
+		scope,
+		query,
+		rows: grouped.rows,
+		conversations: conversationRows,
+		counts,
+		referenceBranch: currentWorkspace?.branch ?? null,
+		...(currentWorkspace ? { currentWorkspaceKey: currentWorkspace.key } : {}),
+	};
+}
+
+/** Conversation rows in visual order, descending into grouped subagents. */
+function collectConversationRows(rows: readonly ResumeViewRow[]): ResumeConversationRow[] {
+	const out: ResumeConversationRow[] = [];
+	const visit = (row: ResumeViewRow) => {
+		if (row.type !== "conversation") return;
+		out.push(row);
+		for (const child of row.subagents) visit(child);
+	};
+	for (const row of rows) visit(row);
+	return out;
 }

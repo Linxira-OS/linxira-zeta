@@ -48,16 +48,21 @@ const sessions = [
 	}),
 ];
 
-function source(directory: ResumeDirectory): ResumeSourceLike {
-	return { directory, buildView: options => buildResumeView(directory, options) };
+function source(directory: ResumeDirectory, subagents?: "grouped" | "inline" | "hidden"): ResumeSourceLike {
+	return {
+		directory,
+		buildView: options => buildResumeView(directory, options),
+		...(subagents ? { subagentsMode: () => subagents } : {}),
+	};
 }
 
 function make(
 	directory: ResumeDirectory,
 	extra: Record<string, unknown> = {},
 	onSelect?: (session: SessionInfo) => void,
+	subagents?: "grouped" | "inline" | "hidden",
 ) {
-	const built = source(directory);
+	const built = source(directory, subagents);
 	return new SessionSelectorComponent(
 		directory.conversations.map(conversation => conversation.session),
 		selected => onSelect?.(selected),
@@ -167,7 +172,10 @@ describe("resume picker sections and facts", () => {
 			view.rows.flatMap(row => {
 				if (row.type === "project") return [row.project.displayName];
 				if (row.type === "workspace") {
-					return [row.workspace.branch ? `${row.workspace.name} · ${row.workspace.branch}` : row.workspace.name];
+					const branch = row.workspace.branch;
+					const show =
+						branch !== null && (row.key === view.currentWorkspaceKey || branch !== view.referenceBranch);
+					return [show ? `${row.workspace.name} · ${branch}` : row.workspace.name];
 				}
 				return [];
 			}),
@@ -205,14 +213,16 @@ describe("resume picker sections and facts", () => {
 		]);
 	});
 
-	it("replaces the file-size fact with turns and adds branch and model", async () => {
+	it("replaces the file-size fact with turns and model, and omits a branch repeated by the workspace", async () => {
 		const selector = make(await standardDirectory());
 		const p = props(selector.describe(withPicker));
 		const alpha = item(p, sessions[0]!.path);
-		expect(alpha.facts).toMatchObject({ turns: 7, branch: "main", model: "anthropic/claude-x" });
+		expect(alpha.facts).toMatchObject({ turns: 7, model: "anthropic/claude-x" });
+		expect(alpha.facts?.branch).toBeUndefined();
 		expect(alpha.facts).not.toHaveProperty("size");
 		const beta = item(p, sessions[1]!.path);
-		expect(beta.facts).toMatchObject({ turns: 2, branch: "main", model: "openai/gpt-x" });
+		expect(beta.facts).toMatchObject({ turns: 2, model: "openai/gpt-x" });
+		expect(beta.facts?.branch).toBeUndefined();
 		expect(beta.dot).toBe("error");
 	});
 
@@ -430,5 +440,41 @@ describe("resume picker preview and pointer", () => {
 		expect(props(selector.describe(withPicker)).order?.filter(row => typeof row === "string")).not.toContain(
 			sessions[0]!.path,
 		);
+	});
+});
+
+describe("resume picker subagent modes", () => {
+	async function directoryWithSubagent(): Promise<ResumeDirectory> {
+		const child = {
+			...session("sub", REPO_A, "Scout child", T + 5_000),
+			parentSessionPath: sessions[0]!.path,
+			agent: "scout",
+		};
+		return buildDirectory({ sessions: [...sessions, child], pinnedIds: pinnedSet() });
+	}
+
+	it("folds subagents away by default and reports the count", async () => {
+		const directory = await directoryWithSubagent();
+		const selector = make(directory);
+		const p = props(selector.describe(withPicker));
+		expect(items(p).map(entry => entry.id)).not.toContain("/resume-test/sessions/sub.jsonl");
+		expect(String(p.message)).toContain("1 subagents hidden");
+	});
+
+	it("lists subagents inline when configured", async () => {
+		const directory = await directoryWithSubagent();
+		const selector = make(directory, {}, undefined, "inline");
+		const p = props(selector.describe(withPicker));
+		expect(items(p).map(entry => entry.id)).toContain("/resume-test/sessions/sub.jsonl");
+		expect(String(p.message)).not.toContain("subagents hidden");
+	});
+
+	it("hides subagents entirely in hidden mode", async () => {
+		const directory = await directoryWithSubagent();
+		const selector = make(directory, {}, undefined, "hidden");
+		const p = props(selector.describe(withPicker));
+		expect(items(p).map(entry => entry.id)).not.toContain("/resume-test/sessions/sub.jsonl");
+		expect(p.order?.filter(row => typeof row === "string")).not.toContain("/resume-test/sessions/sub.jsonl");
+		expect(String(p.message)).toContain("1 subagents hidden");
 	});
 });

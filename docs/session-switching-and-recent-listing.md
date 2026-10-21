@@ -144,6 +144,28 @@ Flow:
 
 `/resume <id-prefix>` resolves local then global matches and switches directly. `/resume @claude` and `/resume @codex` instead open read-only-source import pickers: the selected foreign transcript is persisted as an OMP session, then switched to; deletion, history augmentation, and all-project scope are not offered in those pickers.
 
+## Resume tree (three-level picker)
+
+When the host supplies a resume source, the ANSI picker renders a project → workspace → conversation tree instead of the flat list. Its rows are dense single lines with the title in a flexible column and `turns · age · flags` right-aligned in stable columns (narrow terminals drop flags, then turns, then age). The branch appears on the workspace row only when it differs from the current workspace's branch (or when it is the current workspace's), and duplicate project names get their parent folder appended (`zeta (work)`).
+
+### Subagent sessions
+
+A conversation is a subagent when its session header carries `parentSession` **and** its `session_init` record carries `agent` (`scout`, `task`, `sonic`, …). A user fork has `parentSession` without the agent marker and stays a `fork`. `resume.subagents` controls how subagents appear:
+
+| Value     | Rendering                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------- |
+| `grouped` | Default. One collapsed `↳ subagents ×N` summary row under the parent conversation; `←`/`→` or a click expands it and shows the children one level deeper. |
+| `inline`  | Flat rows alongside ordinary conversations, exactly like before grouping existed.              |
+| `hidden`  | Omitted from the tree; the picker line reports how many were hidden.                            |
+
+The value is global by default and a project config may override it. Searching expands grouped summaries so a matching child is visible.
+
+### Mouse and persistence
+
+The picker accepts SGR mouse reports while it owns the alternate screen: a single click selects a conversation, a double click resumes it, clicking a project/workspace/subagent header collapses or expands it, the wheel scrolls three rows, and clicking a scope segment switches scope. Every keyboard binding keeps working; the footer lists keys on the left and mouse hints on the right.
+
+Scope and local expansion live in `resume-picker-state.v2.json` under the agent directory (`{ version: 2, scope, collapsedProjects, expandedProjects, collapsedWorkspaces, expandedSubagents }`). The older `resume-picker-state.json` shape is ignored, never read or migrated; the v2 file is written on the next change and the legacy file is left untouched. A missing, corrupt, or wrong-version file falls back to workspace scope with everything collapsed.
+
 ## Session selector component behavior
 
 `SessionList` supports:

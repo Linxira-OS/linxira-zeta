@@ -360,6 +360,28 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"resume.subagents": {
+		type: "enum",
+		values: ["grouped", "inline", "hidden"] as const,
+		default: "grouped",
+		ui: {
+			tab: "interaction",
+			group: "Resume",
+			label: "Subagents in Resume",
+			description:
+				"How subagent sessions appear in the resume picker. Grouped collapses them into one summary row under their parent conversation; inline lists them as normal rows; hidden omits them (the footer still reports the count).",
+			options: [
+				{
+					value: "grouped",
+					label: "Grouped",
+					description: "One collapsed summary row under the parent conversation",
+				},
+				{ value: "inline", label: "Inline", description: "Flat rows alongside regular conversations" },
+				{ value: "hidden", label: "Hidden", description: "Omit subagent rows from the tree" },
+			],
+		},
+	},
+
 	// Registry entry lives in `autostart/settings.ts`; this schema twin keeps
 	// it in the web/desktop settings panel (`getPathsForTab`). The value is
 	// read from the global user config only — a project layer cannot start a

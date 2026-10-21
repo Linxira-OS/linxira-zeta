@@ -20,6 +20,7 @@ import { theme } from "../theme/theme";
 import { shortenPath } from "../render/render-utils";
 
 export type ResumeScopeKindLike = "workspace" | "project" | "all";
+export type ResumeSubagentsModeLike = "grouped" | "inline" | "hidden";
 
 export interface ResumeScopeLike {
 	readonly kind: ResumeScopeKindLike;
@@ -77,6 +78,11 @@ export interface ResumeConversationLike {
 	readonly pinned: boolean;
 	readonly current: boolean;
 	readonly fork: boolean;
+	/** Subagent marker from `session_init.agent`; forks never set it. */
+	readonly isSubagent?: boolean;
+	readonly agentName?: string;
+	readonly parentKey?: string;
+	readonly subagents?: readonly ResumeConversationLike[];
 	readonly messageCount: number;
 }
 
@@ -158,11 +164,12 @@ export interface ResumeConversationRowLike {
 	readonly conversation: ResumeConversationLike;
 	readonly projectKey: string;
 	readonly workspaceKey: string;
-	readonly depth?: 2;
+	readonly depth?: number;
 	readonly pinned: boolean;
 	readonly current: boolean;
 	readonly score?: number;
 	readonly pinnedOnly?: boolean;
+	readonly subagents?: readonly ResumeConversationRowLike[];
 }
 
 export type ResumeViewRowLike = ResumeProjectRowLike | ResumeWorkspaceRowLike | ResumeConversationRowLike;
@@ -175,6 +182,7 @@ export interface ResumeViewCountsLike {
 	readonly totalConversations: number;
 	readonly totalWorkspaces?: number;
 	readonly totalProjects?: number;
+	readonly hiddenSubagents?: number;
 }
 
 export interface ResumeViewLike {
@@ -184,6 +192,8 @@ export interface ResumeViewLike {
 	/** Conversation rows; the ANSI tree leaves it out and read `rows` instead. */
 	readonly conversations?: readonly ResumeConversationRowLike[];
 	readonly counts: ResumeViewCountsLike;
+	readonly referenceBranch?: string | null;
+	readonly currentWorkspaceKey?: string;
 }
 
 export interface ResumeViewOptionsLike {
@@ -209,6 +219,8 @@ export interface ResumeSourceLike {
 	readonly initialScope?: ResumeScopeKindLike;
 	readonly deleteMode?: "trash" | "permanent";
 	buildView(options: ResumeViewOptionsLike): ResumeViewLike | null;
+	/** `resume.subagents`; grouped when absent. */
+	subagentsMode?(): ResumeSubagentsModeLike;
 	scopeSummary?(): ResumeScopeSummaryLike;
 	persistScope?(scope: ResumeScopeKindLike): void | Promise<void>;
 	refresh?(): Promise<void>;
@@ -366,6 +378,8 @@ export interface ResumeItemOptions {
 	/** Show each conversation's working directory (multi-worktree scopes). */
 	readonly showCwd?: boolean;
 	readonly now?: number;
+	/** Branch of the current workspace; a repeated branch stays off the cards. */
+	readonly referenceBranch?: string | null;
 }
 
 /** One conversation card: the existing facts plus turns, branch and model. */
@@ -383,7 +397,13 @@ export function resumePickerItem(
 	const when = pickerDate(conversation.modified);
 	const detail = options.showCwd && conversation.cwd ? cwdSpans(conversation.cwd) : title ? message : undefined;
 	const dot = statusTone(conversation.status);
-	const branch = workspace?.branch ?? undefined;
+	// The workspace header already names its branch. Repeat it only when this
+	// card differs from the current workspace's branch, or is the current one.
+	const branch =
+		workspace?.branch &&
+		(conversation.current || options.referenceBranch === undefined || workspace.branch !== options.referenceBranch)
+			? workspace.branch
+			: undefined;
 	const model = conversation.session.model;
 	return {
 		id: conversation.path,
@@ -414,13 +434,21 @@ export function resumePickerOrder(view: ResumeViewLike): (string | TspPickerGrou
 					count: row.conversationCount,
 				});
 				break;
-			case "workspace":
+			case "workspace": {
+				const branch = row.workspace.branch;
+				const showBranch =
+					branch !== null &&
+					branch !== undefined &&
+					(row.key === view.currentWorkspaceKey ||
+						view.referenceBranch === undefined ||
+						branch !== view.referenceBranch);
 				order.push({
 					group: `workspace:${row.key}`,
-					label: row.workspace.branch ? `${row.workspace.name} · ${row.workspace.branch}` : row.workspace.name,
+					label: showBranch ? `${row.workspace.name} · ${branch}` : row.workspace.name,
 					count: row.conversationCount,
 				});
 				break;
+			}
 			case "conversation":
 				order.push(row.conversation.path);
 				break;
@@ -502,6 +530,8 @@ export interface ResumePickerModel {
 	readonly total: number;
 	/** Conversations the filter hides (the ANSI tree stays on screen while filtering). */
 	readonly hidden: number;
+	/** Subagent conversations folded away by `resume.subagents`. */
+	readonly hiddenSubagents: number;
 	readonly empty: string;
 	readonly placeholder: string;
 }
@@ -534,18 +564,28 @@ export function buildResumePickerModel(
 	});
 	if (!filtered) return undefined;
 	const hidden = options.hidden ?? new Set<string>();
-	const view = resumeViewWithout(filtered, hidden);
+	const mode = source.subagentsMode?.() ?? "grouped";
+	const view = withoutFlatSubagents(resumeViewWithout(filtered, hidden), mode);
 	const catalogueView =
 		options.query.length === 0
 			? filtered
 			: source.buildView({ scope: options.scope, query: "", currentSessionPath: options.currentSessionPath });
 	if (!catalogueView) return undefined;
-	const catalogue = resumeViewWithout(catalogueView, hidden);
+	const catalogue = withoutFlatSubagents(resumeViewWithout(catalogueView, hidden), mode);
+	const referenceBranch = referenceBranchOf(source.directory, options.currentSessionPath);
 	const { items, byPath } = resumePickerItems(catalogue, source.directory, {
 		showCwd: options.showCwd,
 		now: options.now,
+		referenceBranch,
 	});
 	const conversations = viewConversations(catalogue);
+	const hiddenSubagents =
+		mode === "inline"
+			? 0
+			: Math.max(
+					viewConversations(filtered).filter(row => row.conversation.isSubagent).length,
+					filtered.counts.hiddenSubagents ?? 0,
+				);
 	return {
 		view,
 		catalogue,
@@ -557,9 +597,43 @@ export function buildResumePickerModel(
 		current: conversations.filter(row => row.conversation.current || row.current).map(row => row.conversation.path),
 		total: conversations.length,
 		hidden: Math.max(0, conversations.length - viewConversations(view).length),
+		hiddenSubagents,
 		empty: resumeEmptyText(view),
 		placeholder: resumePlaceholder(source, options.scope),
 	};
+}
+
+/**
+ * The native picker has no tree, so `grouped` and `hidden` both leave the
+ * parent cards alone; the caller reports the hidden count. `inline` keeps the
+ * flat rows.
+ */
+function withoutFlatSubagents(view: ResumeViewLike, mode: ResumeSubagentsModeLike): ResumeViewLike {
+	if (mode === "inline") return view;
+	const conversations = viewConversations(view).filter(row => !row.conversation.isSubagent);
+	const rows = view.rows.filter(row => row.type !== "conversation" || !row.conversation.isSubagent);
+	return {
+		...view,
+		rows,
+		conversations,
+		counts: {
+			...view.counts,
+			conversations: conversations.length,
+			hiddenSubagents: view.counts.hiddenSubagents ?? 0,
+		},
+	};
+}
+
+/** Branch of the current session's workspace, when the directory knows it. */
+function referenceBranchOf(
+	directory: ResumeDirectoryLike,
+	currentSessionPath: string | undefined,
+): string | null | undefined {
+	const current = currentSessionPath
+		? directory.conversations.find(conversation => conversation.path === currentSessionPath)
+		: directory.conversations.find(conversation => conversation.current);
+	if (!current) return undefined;
+	return directory.workspaces.find(workspace => workspace.key === current.workspaceKey)?.branch;
 }
 
 /** True when the view carries any filter (free text or structured token). */

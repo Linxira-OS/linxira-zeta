@@ -21,6 +21,55 @@ function writeSession(storage: MemorySessionStorage, file: string, firstPrompt: 
 	);
 }
 
+function writeParentedSession(
+	storage: MemorySessionStorage,
+	file: string,
+	options: { agent?: string; systemPrompt?: string },
+): void {
+	const records: Record<string, unknown>[] = [
+		{
+			type: "session",
+			id: `id-${file.split("/").at(-1)}`,
+			cwd: "/repo",
+			title: "Parented",
+			timestamp: "2026-06-27T00:00:00.000Z",
+			parentSession: "/sessions/project/parent.jsonl",
+		},
+	];
+	if (options.agent) {
+		records.push({
+			type: "session_init",
+			systemPrompt: options.systemPrompt ?? "system",
+			task: "do work",
+			tools: [],
+			agent: options.agent,
+		});
+	}
+	records.push({ type: "message", message: { role: "user", content: "prompt" } });
+	storage.writeTextSync(file, `${records.map(record => JSON.stringify(record)).join("\n")}\n`);
+}
+
+describe("session listing subagent marker", () => {
+	it("reads session_init.agent for a subagent and leaves a plain fork unmarked", async () => {
+		const storage = new MemorySessionStorage();
+		writeParentedSession(storage, `${SESSION_DIR}/scout.jsonl`, { agent: "scout" });
+		writeParentedSession(storage, `${SESSION_DIR}/fork.jsonl`, {});
+		const sessions = await listSessions(SESSION_DIR, storage);
+		expect(sessions.find(session => session.path.endsWith("scout.jsonl"))?.agent).toBe("scout");
+		expect(sessions.find(session => session.path.endsWith("fork.jsonl"))?.agent).toBeUndefined();
+	});
+
+	it("finds the marker past the listing prefix window", async () => {
+		const storage = new MemorySessionStorage();
+		writeParentedSession(storage, `${SESSION_DIR}/wide.jsonl`, {
+			agent: "task",
+			systemPrompt: "x".repeat(10_000),
+		});
+		const sessions = await listSessions(SESSION_DIR, storage);
+		expect(sessions[0]?.agent).toBe("task");
+	});
+});
+
 describe("session listing scan cache", () => {
 	it("serves an unchanged file from cache without re-reading it", async () => {
 		const storage = new MemorySessionStorage();

@@ -530,6 +530,7 @@ import {
 } from "./session-manager";
 import { SessionMemory, type SessionMemoryHost } from "./session-memory";
 import { buildSessionMetadata } from "./session-metadata";
+import { createPetStateWriter } from "./pet-state";
 import { SessionProviderBoundary, type SessionProviderBoundaryHost } from "./session-provider-boundary";
 import { SessionStatsTracker, type SessionStatsTrackerHost } from "./session-stats";
 import { SessionTools, type SessionToolsHost } from "./session-tools";
@@ -1052,6 +1053,8 @@ export class AgentSession implements SettingsScope {
 	/** Last (enable, providerId) tuple resolved by `#syncAppendOnlyContext` — used to skip no-op invalidations. */
 	#lastAppendOnlyResolution?: { enable: boolean; providerId: string | undefined };
 	#eventListeners: AgentSessionEventListener[] = [];
+	/** Mirrors the lifecycle into the separately installed pet; a no-op without it. */
+	readonly #petState = createPetStateWriter();
 	#activeToolExecutionUpdates = new Map<string, Extract<AgentSessionEvent, { type: "tool_execution_update" }>>();
 	#runStateListeners = new Set<(state: "running" | "idle") => void>();
 	/** Epoch ms the current run went `running`; undefined while idle. */
@@ -4700,6 +4703,7 @@ export class AgentSession implements SettingsScope {
 	}
 
 	#processAgentEvent = async (event: AgentEvent): Promise<void> => {
+		this.#petState(event);
 		const eventPromptGeneration = this.#promptGeneration;
 		if (event.type === "agent_end" && this.#activeAgentContinue) {
 			this.#activeAgentContinue.turnEnded = true;

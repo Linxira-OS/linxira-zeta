@@ -7,14 +7,21 @@ import {
 	renderConversationRow,
 	renderProjectRow,
 	renderScopeHeader,
+	renderScopeHeaderHits,
+	renderSubagentsRow,
 	renderWorkspaceRow,
+	shouldShowBranch,
 	type ResumeTreeConversation,
 	type ResumeTreeConversationRow,
 	type ResumeTreeProject,
 	type ResumeTreeProjectRow,
+	type ResumeTreeModelRow,
+	type ResumeTreePickerState,
 	type ResumeTreeRow,
 	type ResumeTreeScope,
 	type ResumeTreeSource,
+	type ResumeTreeSubagentsMode,
+	type ResumeTreeSubagentsRow,
 	type ResumeTreeView,
 	type ResumeTreeWorkspace,
 	type ResumeTreeWorkspaceRow,
@@ -131,7 +138,23 @@ function conversationRow(
 	};
 }
 
-function view(rows: ResumeTreeRow[], overrides: Partial<ResumeTreeView["counts"]> = {}, raw = ""): ResumeTreeView {
+/** A parent conversation with one grouped subagent child. */
+function subagentPair(): { parent: ResumeTreeConversationRow; child: ResumeTreeConversationRow } {
+	const child = conversationRow("child", "Scout run", {
+		depth: 3,
+		conversation: {
+			...conversation("child", "Scout run"),
+			isSubagent: true,
+			agentName: "scout",
+			parentKey: "parent",
+		},
+	});
+	const parent = conversationRow("parent", "Parent conversation");
+	parent.subagents = [child];
+	return { parent, child };
+}
+
+function view(rows: ResumeTreeModelRow[], overrides: Partial<ResumeTreeView["counts"]> = {}, raw = ""): ResumeTreeView {
 	const conversations = rows.filter((row): row is ResumeTreeConversationRow => row.type === "conversation");
 	return {
 		scope: { kind: "all" },
@@ -153,9 +176,12 @@ function fakeSource(
 		deleteMode?: "trash" | "permanent";
 		viewFor?: (scope: ResumeTreeScope, query: string) => ResumeTreeView | null;
 		warningNames?: readonly string[];
+		subagentsMode?: ResumeTreeSubagentsMode;
+		pickerState?: ResumeTreePickerState;
 	} = {},
 ) {
 	const persisted: ResumeTreeScope[] = [];
+	const persistedStates: ResumeTreePickerState[] = [];
 	const queries: string[] = [];
 	const pins: string[] = [];
 	let refreshes = 0;
@@ -177,6 +203,11 @@ function fakeSource(
 		persistScope: scope => {
 			persisted.push(scope);
 		},
+		persistPickerState: state => {
+			persistedStates.push(state);
+		},
+		...(options.pickerState ? { pickerState: () => options.pickerState! } : {}),
+		subagentsMode: () => options.subagentsMode ?? "grouped",
 		refresh: async () => {
 			refreshes += 1;
 		},
@@ -193,6 +224,7 @@ function fakeSource(
 	return {
 		source,
 		persisted,
+		persistedStates,
 		queries,
 		pins,
 		get refreshes() {
@@ -227,25 +259,30 @@ describe("resume tree rows", () => {
 			plainText(renderConversationRow(row, { width, selected: false, now: T + 2 * HOUR })),
 		);
 		expect(golden).toEqual([
-			"  " + "    " + "done  ·  Alpha feature work with …",
-			"  " + "    " + "done  ·  Alpha feature work with a long title  ·  2 hours ago  ·  4 turns",
-			"  " + "    " + "done  ·  Alpha feature work with a long title  ·  2 hours ago  ·  4 turns",
+			"  " + "    " + "done Alpha feature w…  2 hours ago",
+			"  " + "    " + "done Alpha feature work with a long title          4 turns  ·  2 hours ago",
+			"  " +
+				"    " +
+				"done Alpha feature work with a long title                                                  4 turns  ·  2 hours ago",
 		]);
 		expect(
 			widths.map(width => plainText(renderWorkspaceRow(workspaceRow, { width, selected: false, collapsed: false }))),
 		).toEqual([
-			"  " + "  " + "▾ feat/tree  ·  2 conversations",
-			"  " + "  " + "▾ feat/tree  ·  packages/app  ·  2 conversations",
-			"  " + "  " + "▾ feat/tree  ·  packages/app  ·  2 conversations",
+			"  " + "  " + "▾ app  ·  feat/tree  2 conversations",
+			"  " + "  " + "▾ app  ·  feat/tree                         packages/app  ·  2 conversations",
+			"  " +
+				"  " +
+				"▾ app  ·  feat/tree                                                                 packages/app  ·  2 conversations",
 		]);
 		expect(
 			widths.map(width =>
 				plainText(renderProjectRow(projectRow, { width, selected: false, collapsed: false, now: T + HOUR })),
 			),
 		).toEqual([
-			"  " + "▾ 📌 repo  ·  2 conversations",
-			"  " + "▾ 📌 repo  ·  2 conversations  ·  1 workspace  ·  1 hour ago",
-			"  " + "▾ 📌 repo  ·  2 conversations  ·  1 workspace  ·  1 hour ago",
+			"  " + "▾ 📌 repo              2 conversations",
+			"  " + "▾ 📌 repo                       2 conversations  ·  1 workspace  ·  1 hour ago",
+			"  " +
+				"▾ 📌 repo                                                               2 conversations  ·  1 workspace  ·  1 hour ago",
 		]);
 	});
 
@@ -255,6 +292,58 @@ describe("resume tree rows", () => {
 		expect(result.startsWith("/home")).toBe(true);
 		expect(result.endsWith("session-selector.ts")).toBe(true);
 		expect(result.length).toBeLessThanOrEqual(40);
+	});
+
+	it("keeps grouped subagents collapsed until expanded", () => {
+		const { parent, child } = subagentPair();
+		const collapsed = flattenResumeRows(
+			[parent],
+			{ collapsedProjects: new Set(), expandedProjects: new Set(), collapsedWorkspaces: new Set() },
+			false,
+			"grouped",
+		);
+		expect(collapsed.map(entry => entry.row.type)).toEqual(["conversation", "subagents"]);
+		expect(collapsed[1]!.row).toMatchObject({ type: "subagents", count: 1, expanded: false });
+
+		const expanded = flattenResumeRows(
+			[parent],
+			{
+				collapsedProjects: new Set(),
+				expandedProjects: new Set(),
+				collapsedWorkspaces: new Set(),
+				expandedSubagents: new Set(["parent"]),
+			},
+			false,
+			"grouped",
+		);
+		expect(expanded.map(entry => entry.row.type)).toEqual(["conversation", "subagents", "conversation"]);
+		expect(expanded[2]!.row).toBe(child);
+		expect(
+			plainText(renderSubagentsRow(expanded[1]!.row as ResumeTreeSubagentsRow, { width: 80, selected: false })),
+		).toContain("subagents ×1");
+	});
+
+	it("leaves inline and hidden modes to the view model", () => {
+		const { parent, child } = subagentPair();
+		const state = {
+			collapsedProjects: new Set<string>(),
+			expandedProjects: new Set<string>(),
+			collapsedWorkspaces: new Set<string>(),
+		};
+		expect(flattenResumeRows([parent, child], state, false, "inline").map(entry => entry.row.type)).toEqual([
+			"conversation",
+			"conversation",
+		]);
+		expect(flattenResumeRows([parent], state, false, "hidden").map(entry => entry.row.type)).toEqual([
+			"conversation",
+		]);
+	});
+
+	it("shows a branch only when it differs from the current workspace", () => {
+		expect(shouldShowBranch("main", "main", false)).toBe(false);
+		expect(shouldShowBranch("feat/x", "main", false)).toBe(true);
+		expect(shouldShowBranch("main", "main", true)).toBe(true);
+		expect(shouldShowBranch("app", undefined, false, "app")).toBe(false);
 	});
 
 	it("renders the scope control with counts and shortens the selected tab", () => {
@@ -342,7 +431,7 @@ describe("resume tree component", () => {
 		expect(component.scope).toBe("workspace");
 		component.handleInput("\x1b[Z");
 		expect(component.scope).toBe("all");
-		expect(source.persisted).toEqual(["project", "all", "workspace", "all"]);
+		expect(source.persistedStates.map(state => state.scope)).toEqual(["project", "all", "workspace", "all"]);
 	});
 
 	it("follows the scope in the search placeholder", () => {
@@ -440,6 +529,75 @@ describe("resume tree component", () => {
 		expect(searching.cancelled()).toBe(1);
 	});
 
+	it("hit-tests mouse clicks, double clicks, headers, wheel and scope segments", () => {
+		const mouse = (button: number, col: number, row: number) => `\x1b[<${button};${col + 1};${row + 1}M`;
+		const many = Array.from({ length: 8 }, (_, index) => conversationRow(`c${index + 1}`, `Row ${index + 1}`));
+		const { component, selected } = make(view(many), { initialScope: "workspace", searchFocused: false });
+		component.render(80);
+
+		// Click selects only; keyboard still resumes the clicked row.
+		component.handleInput(mouse(0, 5, 4));
+		component.handleInput("\r");
+		expect(selected.map(entry => entry.id)).toEqual(["c2"]);
+
+		// A double click resumes directly.
+		const double = make(view(many), { initialScope: "workspace", searchFocused: false });
+		double.component.render(80);
+		double.component.handleInput(mouse(0, 5, 3));
+		double.component.handleInput(mouse(0, 5, 3));
+		expect(double.selected.map(entry => entry.id)).toEqual(["c1"]);
+
+		// Wheel moves three rows; the keyboard keeps working afterwards.
+		const wheel = make(view(many), { initialScope: "workspace", searchFocused: false });
+		wheel.component.render(80);
+		wheel.component.handleInput(mouse(65, 5, 1));
+		wheel.component.handleInput("\r");
+		expect(wheel.selected.map(entry => entry.id)).toEqual(["c4"]);
+
+		// Clicking a scope segment switches scope.
+		const scope = make(view(many), { initialScope: "workspace", searchFocused: false });
+		scope.component.render(80);
+		const summary = { workspaceName: "app", projectName: "repo", counts: { workspace: 8, project: 8, all: 8 } };
+		const projectHit = renderScopeHeaderHits("workspace", summary, 80).hits.find(hit => hit.kind === "project")!;
+		scope.component.handleInput(mouse(0, projectHit.start, 0));
+		expect(scope.component.scope).toBe("project");
+	});
+
+	it("toggles a grouped subagent summary by click and by the arrow keys", () => {
+		const { parent } = subagentPair();
+		const { component } = make(view([parent]), { searchFocused: false });
+		const clickSummary = "\x1b[<0;3;5M"; // 0-based line 4: parent, summary
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Scout run");
+		component.handleInput(clickSummary);
+		expect(plainText(component.render(80).join("\n"))).toContain("Scout run");
+		component.handleInput(clickSummary);
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Scout run");
+
+		// Keys reach the same summary: select it with ↓, then expand with →.
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[C");
+		expect(plainText(component.render(80).join("\n"))).toContain("Scout run");
+		component.handleInput("\x1b[D");
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Scout run");
+	});
+
+	it("reports hidden subagents and honors each resume.subagents mode", () => {
+		const { parent } = subagentPair();
+		const hidden = make(view([parent], { hiddenSubagents: 1 }), { subagentsMode: "hidden", searchFocused: false });
+		const hiddenText = plainText(hidden.component.render(80).join("\n"));
+		expect(hiddenText).toContain("1 subagents hidden");
+
+		const inline = make(view([parent, subagentPair().child]), { subagentsMode: "inline", searchFocused: false });
+		const inlineText = plainText(inline.component.render(80).join("\n"));
+		expect(inlineText).toContain("Scout run");
+		expect(inlineText).not.toContain("subagents ×");
+
+		const grouped = make(view([parent]), { searchFocused: false });
+		const groupedText = plainText(grouped.component.render(80).join("\n"));
+		expect(groupedText).toContain("subagents ×1");
+		expect(groupedText).not.toContain("Scout run");
+	});
+
 	it("words delete after what actually happens and confirms before deleting", () => {
 		const trash = make(view(rows), { searchFocused: false });
 		trash.component.handleInput("\x1b[B");
@@ -481,6 +639,52 @@ describe("resume tree component", () => {
 		expect(plainText(selector.render(80).join("\n"))).toContain("Move");
 		selector.dispose();
 		expect(selected).toHaveLength(0);
+	});
+
+	it("splits the footer into key hints on the left and mouse hints on the right", () => {
+		const source = fakeSource(view(rows), { initialScope: "workspace" });
+		const selector = new SessionSelectorComponent<SessionSelectorEntry>(
+			[],
+			() => {},
+			() => {},
+			() => {},
+			{
+				resumeSource: source.source,
+				getTerminalRows: () => 24,
+			} as SessionSelectorOptions<SessionSelectorEntry> & { resumeSource: ResumeTreeSource },
+		);
+		for (const width of [80, 120]) {
+			const rendered = selector.render(width).map(plainText);
+			const footer = rendered.find(line => line.includes("click select"));
+			expect(footer).toBeDefined();
+			expect(footer!).toContain("wheel scroll");
+			expect(footer!.length).toBeLessThanOrEqual(width);
+			expect(footer!.indexOf("resume")).toBeLessThan(footer!.indexOf("click select"));
+		}
+		selector.dispose();
+	});
+
+	it("routes mouse reports from the selector into the tree without breaking keys", () => {
+		const source = fakeSource(view([conversationRow("a1", "Alpha"), conversationRow("a2", "Beta")]), {
+			initialScope: "workspace",
+		});
+		const selected: SessionSelectorEntry[] = [];
+		const selector = new SessionSelectorComponent<SessionSelectorEntry>(
+			[],
+			session => selected.push(session),
+			() => {},
+			() => {},
+			{
+				resumeSource: source.source,
+				getTerminalRows: () => 24,
+			} as SessionSelectorOptions<SessionSelectorEntry> & { resumeSource: ResumeTreeSource },
+		);
+		selector.render(80);
+		// Tree line 3 (screen row 4 with the panel chrome) is the first row.
+		selector.handleInput("\x1b[<0;5;6M");
+		selector.handleInput("\r");
+		expect(selected.map(entry => entry.id)).toEqual(["a1"]);
+		selector.dispose();
 	});
 
 	it("keeps every rendered line inside the requested width", () => {

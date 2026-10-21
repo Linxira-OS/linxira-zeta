@@ -35,8 +35,14 @@ export interface SessionInfo {
 	/** Working directory where the session was started. Empty string for old sessions. */
 	cwd: string;
 	title?: string;
-	/** Path to the parent session (if this session was forked). */
+	/** Path to the parent session (if this session was forked or spawned as a subagent). */
 	parentSessionPath?: string;
+	/**
+	 * Agent definition name recorded in the session's `session_init` entry
+	 * (`scout`, `task`, …). Present only for subagent sessions; a user fork
+	 * carries `parentSessionPath` without it.
+	 */
+	agent?: string;
 	created: Date;
 	modified: Date;
 	messageCount: number;
@@ -68,6 +74,12 @@ export interface RecentSessionInfo {
 }
 
 const SESSION_LIST_PREFIX_BYTES = 4096;
+/**
+ * Wider head window read only for parented sessions whose `session_init` did
+ * not fit in the listing prefix (a large system prompt pushes it past 4 KiB).
+ * The marker is what separates a subagent from a user fork.
+ */
+const SESSION_LIST_INIT_PREFIX_BYTES = 65_536;
 /**
  * Tail window read to derive {@link SessionStatus}. Large enough to capture a
  * typical final assistant turn (thinking + text); when the final message exceeds
@@ -375,6 +387,16 @@ function parseSessionListHeaderLine(line: string, titleOverride?: string | null)
 	};
 }
 
+/** The agent definition recorded by a subagent's first `session_init` entry. */
+function sessionAgentFromEntries(entries: readonly Record<string, unknown>[]): string | undefined {
+	for (const entry of entries) {
+		if (entry.type !== "session_init") continue;
+		const agent = typeof entry.agent === "string" ? entry.agent.trim() : "";
+		if (agent) return agent;
+	}
+	return undefined;
+}
+
 function parseSessionListHeader(
 	content: string,
 	entries: Array<Record<string, unknown>>,
@@ -453,6 +475,20 @@ async function scanSessionFile(
 			return undefined;
 		}
 
+		// Subagent sessions carry a `session_init.agent` marker; a user fork has
+		// `parentSession` alone. The marker normally sits in the prefix, but a
+		// large system prompt can push it past it, so parented sessions retry
+		// once with a wider head window.
+		let agent = sessionAgentFromEntries(entries);
+		if (!agent && header.parentSession && stat.size > SESSION_LIST_PREFIX_BYTES) {
+			try {
+				const [extended] = await storage.readTextSlices(file, SESSION_LIST_INIT_PREFIX_BYTES, 0);
+				agent = sessionAgentFromEntries(parseJsonlLenient<Record<string, unknown>>(extended));
+			} catch {
+				// Unreadable extra window: treat the session as a plain fork.
+			}
+		}
+
 		let parsedMessageCount = 0;
 		let assistantTurns = 0;
 		let firstMessage = "";
@@ -509,6 +545,7 @@ async function scanSessionFile(
 			cwd: header.cwd ?? "",
 			title: header.title ?? shortSummary,
 			parentSessionPath: header.parentSession,
+			...(agent ? { agent } : {}),
 			created: new Date(header.timestamp ?? ""),
 			modified: mtime,
 			messageCount,

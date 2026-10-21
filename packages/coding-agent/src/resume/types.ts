@@ -27,6 +27,14 @@ export interface ResumeConversation {
 	current: boolean;
 	/** True when this conversation was forked from another session. */
 	fork: boolean;
+	/** True when this session was spawned as a subagent (`session_init.agent` + parent). */
+	isSubagent: boolean;
+	/** Agent definition recorded for a subagent session (`scout`, `task`, …). */
+	agentName?: string;
+	/** Resolved key of the parent conversation, for forks and subagents. */
+	parentKey?: string;
+	/** Direct subagent children, sorted like their siblings. Empty for normal conversations. */
+	subagents: ResumeConversation[];
 	messageCount: number;
 }
 
@@ -116,6 +124,14 @@ export interface ResumePreferences {
 
 export type ResumeScopeKind = "workspace" | "project" | "all";
 
+/**
+ * How subagent conversations appear in the picker:
+ * - `grouped`: one collapsed summary row under the parent conversation (default)
+ * - `inline`: flat rows alongside their parent
+ * - `hidden`: omitted entirely (counts still report them as hidden)
+ */
+export type ResumeSubagentsMode = "grouped" | "inline" | "hidden";
+
 export interface ResumeScope {
 	kind: ResumeScopeKind;
 	/** Alias for `workspaceKey` or `projectKey`, depending on `kind`. */
@@ -170,13 +186,16 @@ export interface ResumeConversationRow {
 	conversation: ResumeConversation;
 	projectKey: string;
 	workspaceKey: string;
-	depth: 2;
+	/** 2 for a top-level conversation; deeper for grouped subagents. */
+	depth: number;
 	pinned: boolean;
 	current: boolean;
 	/** Relevance score; 0 when the row is only visible because it is pinned. */
 	score: number;
 	/** True when a free-text search would have hidden this pinned row. */
 	pinnedOnly: boolean;
+	/** Grouped subagent rows nested under this conversation (recursively). */
+	subagents: ResumeConversationRow[];
 }
 
 export type ResumeViewRow = ResumeProjectRow | ResumeWorkspaceRow | ResumeConversationRow;
@@ -191,13 +210,19 @@ export interface ResumeViewCounts {
 	totalConversations: number;
 	totalWorkspaces: number;
 	totalProjects: number;
+	/** Subagent conversations omitted by `resume.subagents: hidden`. */
+	hiddenSubagents: number;
 }
 
-/** Pure renderer input: ordered rows plus the scope/query that produced them. */
+/** Pure renderer input: ordered rows plus the scope/query that produced it. */
 export interface ResumeView {
 	scope: ResumeScope;
 	query: ResumeQuery;
 	rows: ResumeViewRow[];
 	conversations: ResumeConversationRow[];
 	counts: ResumeViewCounts;
+	/** Branch of the current session's workspace, when one is known. */
+	referenceBranch?: string | null;
+	/** Workspace key of the current session, when one is known. */
+	currentWorkspaceKey?: string;
 }

@@ -114,6 +114,63 @@ describe("resume directory", () => {
 		expect(repoA?.conversations.map(conversation => conversation.id)).toEqual(["a1", "wt1", "a2"]);
 	});
 
+	it("classifies subagents by the session_init.agent marker and keeps plain forks", async () => {
+		const parentPath = "/resume-test/sessions/parent.jsonl";
+		const directory = await buildDirectory({
+			sessions: [
+				makeSession({ id: "parent", cwd: REPO_A, modified: T + 1_000, title: "Parent" }),
+				makeSession({
+					id: "sub",
+					cwd: REPO_A,
+					modified: T + 2_000,
+					title: "Scout run",
+					parent: parentPath,
+					agent: "scout",
+				}),
+				makeSession({ id: "fork", cwd: REPO_A, modified: T + 3_000, title: "Fork", parent: parentPath }),
+			],
+			preferences: { version: 1, projects: {} },
+			pinnedIds: pinnedSet(),
+		});
+		const parent = directory.conversations.find(conversation => conversation.id === "parent")!;
+		const sub = directory.conversations.find(conversation => conversation.id === "sub")!;
+		const fork = directory.conversations.find(conversation => conversation.id === "fork")!;
+
+		expect(sub.isSubagent).toBe(true);
+		expect(sub.fork).toBe(false);
+		expect(sub.agentName).toBe("scout");
+		expect(sub.parentKey).toBe(parent.key);
+		expect(parent.subagents.map(conversation => conversation.id)).toEqual(["sub"]);
+
+		expect(fork.isSubagent).toBe(false);
+		expect(fork.fork).toBe(true);
+		expect(fork.parentKey).toBe(parent.key);
+	});
+
+	it("appends the parent folder when two projects share a name", async () => {
+		const first = "/resume-test/alpha/zeta";
+		const second = "/resume-test/beta/zeta";
+		const directory = await buildDirectory({
+			sessions: [
+				makeSession({ id: "z1", cwd: first, modified: T + 1_000, title: "One" }),
+				makeSession({ id: "z2", cwd: second, modified: T + 2_000, title: "Two" }),
+			],
+			preferences: { version: 1, projects: {} },
+			pinnedIds: pinnedSet(),
+			resolveProject: cwd => ({
+				projectRoot: cwd,
+				branch: "main",
+				isWorktree: false,
+				isTopLevel: false,
+			}),
+		});
+		const names = directory.projects
+			.filter(project => project.displayName.startsWith("zeta"))
+			.map(project => project.displayName)
+			.sort();
+		expect(names).toEqual(["zeta (alpha)", "zeta (beta)"]);
+	});
+
 	it("carries project aliases and collapse state from preferences", async () => {
 		const directory = await buildDirectory({
 			sessions: [],
