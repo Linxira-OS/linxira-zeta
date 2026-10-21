@@ -259,6 +259,49 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 				},
 				shell,
 			);
+			// 后台服务: the daemon the window ensures on launch. The row is
+			// the control surface for it — restart and stop run through the
+			// same worker the startup probe uses, so neither blocks a frame.
+			let backend_phase = shell.backend.phase();
+			let backend_status = shell.backend.status_line();
+			row(
+				ui,
+				t!("后台服务"),
+				&backend_status,
+				|ui, shell| {
+					if !backend_phase.busy() && ui.button(t!("重启")).clicked() {
+						shell.backend.restart();
+					}
+					if backend_phase == crate::backend::Phase::Ready && ui.button(t!("停止")).clicked()
+					{
+						shell.backend.stop();
+					}
+					if matches!(
+						backend_phase,
+						crate::backend::Phase::Failed
+							| crate::backend::Phase::Stopped
+							| crate::backend::Phase::Idle
+					) && ui.button(t!("启动")).clicked()
+					{
+						shell.backend.retry();
+					}
+				},
+				shell,
+			);
+			row(
+				ui,
+				t!("退出后保留后台服务"),
+				t!(
+					"退出应用时不停止由本窗口启动的后台服务（zetacode daemon）；已运行的别的实例永远不会被停止"
+				),
+				|ui, shell| {
+					let mut value = shell.settings.keep_backend_on_quit;
+					if switch(ui, &mut value) {
+						shell.settings.keep_backend_on_quit = value;
+					}
+				},
+				shell,
+			);
 			// 后台驻留的实况: the single-instance mechanism, the tray, and the
 			// triggers with no signal source yet. None of this is a control —
 			// it is what the process is actually doing, so a degraded run is

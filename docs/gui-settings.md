@@ -11,7 +11,7 @@ contract is in [Web UI API](./web-ui/api.md).
 | Surface | Source of truth | What lives there |
 | --- | --- | --- |
 | 全部设置 (`Section::All`) | `GET /api/settings` on the running web gateway (`webUrl` in `~/.zeta/serve.json`; `statsUrl` is a different listener) | The complete zetacode/desktop schema: 10 tabs, 64 groups, 356 rows on this tree, of which 319 are visible (37 are hidden by their schema conditions; 393 keys carry UI metadata, and the remaining 37 have no control shape — arrays and numbers without declared choices stay config-file-only, exactly as in the CLI). Bool, enum/submenu, number, string, path-like string, credential, multiselect, provider-limit and model-role controls. |
-| The eight native sections | `~/.zeta/zetawork.toml` (`settings.rs`, 14 managed keys) and process state | 常规 (close policy, autostart, notifications, update check, residency), 外观 (theme, density, motion), 编辑器 (font, size, wrap, gutter + the five `zetacode config set` rows), 终端 (shell, font size), 快捷键, 项目 (the shared registry), 管理 (providers, storage), 关于 (scope, fonts, version). |
+| The eight native sections | `~/.zeta/zetawork.toml` (`settings.rs`, 15 managed keys) and process state | 常规 (close policy, autostart, notifications, update check, backend lifecycle, residency), 外观 (theme, density, motion), 编辑器 (font, size, wrap, gutter + the five `zetacode config set` rows), 终端 (shell, font size), 快捷键, 项目 (the shared registry), 管理 (providers, storage), 关于 (scope, fonts, version). |
 | IM 渠道, 远程访问 | The gateway's `/api/channels/*`, `/api/web-config` and `/api/remote/*`; the files are `~/.zeta/agent/web.yml` (plus the channel runtimes in `zetacode serve`) | The web desktop's channel surface (status, WeChat QR login, credentials, routing, send test) and the remote-access surface (bind host, public URL, TLS files, plain-HTTP opt-in, token rotate/revoke, pairing QR). Neither writes `zetawork.toml`. |
 
 The native sections stay because they control things the schema does not own:
@@ -27,6 +27,24 @@ Rows whose schema condition is false arrive with `visible: false` and are not
 drawn. Rows without UI metadata (for example arrays with no declared choices)
 are not in the payload at all — the gateway and the CLI agree on that set, and
 the section reports the counts it actually received in its header line.
+
+## Backend lifecycle
+
+`常规` also owns the background backend the window ensures on launch
+([daemon](./daemon.md#the-desktop-app)):
+
+- **后台服务** shows the live state (starting / running with pid and `webUrl` /
+  stopped / failed) and carries 启动, 重启 and 停止. Each action runs the same
+  `zetacode daemon` command the CLI exposes, on a worker thread; the frame
+  never waits for it.
+- **退出后保留后台服务** is `backend.keep_on_quit` (default `false`). With it
+  off, quitting stops a backend this window started. A backend that was already
+  live when the window opened is never stopped by the window.
+
+A restart re-dials every attached terminal and `zetacode` tab against the
+address the restarted daemon publishes; the conversation list keeps its last
+snapshot while the backend is away. A backend that disappears after it was
+ready surfaces as the state banner, not as a frozen pane.
 
 ## Reading and writing
 

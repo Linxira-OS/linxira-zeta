@@ -513,6 +513,16 @@ struct Pane {
 	service: Option<ServiceTerminal>,
 	backend: Backend,
 	reason: Option<String>,
+	/// What an attach needs to be repeated: the workspace directory, the
+	/// companion program and the grid. A reconnect after a backend restart
+	/// uses exactly these, with the address the backend published.
+	cwd: Option<PathBuf>,
+	program: Option<String>,
+	cols: u16,
+	rows: u16,
+	/// True once a serve attach was attempted. A pane that fell back to the
+	/// local PTY is still re-dialled when the backend comes back.
+	ever_attached: bool,
 }
 
 /// A terminal event tagged with its session tab.
@@ -562,14 +572,28 @@ impl TerminalHost {
 		let pane = match origin.filter(|origin| !origin.trim().is_empty()) {
 			Some(origin) => {
 				let mut service =
-					ServiceTerminal::attach(origin, cwd, &instance_id(tab), cols, rows, program);
+					ServiceTerminal::attach(origin, cwd.clone(), &instance_id(tab), cols, rows, program);
 				service.set_cell_pixels(cell.0, cell.1);
-				Pane { service: Some(service), backend: Backend::Connecting, reason: None }
+				Pane {
+					service: Some(service),
+					backend: Backend::Connecting,
+					reason: None,
+					cwd,
+					program: program.map(str::to_owned),
+					cols,
+					rows,
+					ever_attached: true,
+				}
 			},
 			None => Pane {
 				service: None,
 				backend: Backend::Local,
 				reason: Some(t!("未发现 ~/.zeta/serve.json 的 webUrl").to_owned()),
+				cwd,
+				program: program.map(str::to_owned),
+				cols,
+				rows,
+				ever_attached: false,
 			},
 		};
 		self.panes.insert(tab.to_owned(), pane);
@@ -586,19 +610,24 @@ impl TerminalHost {
 
 	/// The pane's status line: which backend, in **one short sentence**.
 	///
-	/// A fallback always reads the same sentence. The transport's own text
-	/// (`serve 拒绝终端 attach（400）：cwd does not exist`, a WebSocket close
-	/// reason) is not a status line — it is not something the user can act on
-	/// at a glance, and printing it made the line longer than the pane. The
-	/// full reason stays on the host ([`Self::reason`]), which the pane shows
-	/// in a tooltip.
+	/// A companion page (`program: "zetacode"`) says whether it is attached to
+	/// the workspace's backend session; its fallback names the local process it
+	/// started instead, so an attach that never happened is never silent. The
+	/// transport's own text (`serve 拒绝终端 attach（400）…`) is not a status
+	/// line — the full reason stays on the host ([`Self::reason`]) and the pane
+	/// shows it as a tooltip.
 	pub fn label(&self, tab: &str) -> Option<String> {
 		let pane = self.panes.get(tab)?;
-		Some(match pane.backend {
-			Backend::Connecting => t!("后端：serve · 连接中…").to_owned(),
-			Backend::Service => t!("后端：serve").to_owned(),
-			Backend::Ended => t!("后端：serve · 会话已结束").to_owned(),
-			Backend::Local => t!("serve 未应答，已回落本地 PTY").to_owned(),
+		let companion = pane.program.is_some();
+		Some(match (companion, pane.backend) {
+			(false, Backend::Connecting) => t!("后端：serve · 连接中…").to_owned(),
+			(false, Backend::Service) => t!("后端：serve").to_owned(),
+			(false, Backend::Ended) => t!("后端：serve · 会话已结束").to_owned(),
+			(false, Backend::Local) => t!("serve 未应答，已回落本地 PTY").to_owned(),
+			(true, Backend::Connecting) => t!("后端：serve · 附着工作区会话中…").to_owned(),
+			(true, Backend::Service) => t!("后端：serve · 已附着工作区会话").to_owned(),
+			(true, Backend::Ended) => t!("后端：serve · 会话已结束").to_owned(),
+			(true, Backend::Local) => t!("无法附着后端会话，已回落本地进程").to_owned(),
 		})
 	}
 
@@ -606,6 +635,40 @@ impl TerminalHost {
 	/// tooltip. `None` when the pane is on serve or never tried it.
 	pub fn reason(&self, tab: &str) -> Option<&str> {
 		self.panes.get(tab)?.reason.as_deref()
+	}
+
+	/// Re-dial every tab that had been attached, after the backend restarted
+	/// or came back from a crash.
+	///
+	/// The pane’s last attempt (cwd, program, grid) is the plan: the
+	/// remote screen is dropped, the tab returns to `Connecting`, and the
+	/// stored reason is cleared. A tab whose session had ended stays ended —
+	/// re-attaching it would resurrect a session the backend already closed.
+	/// Returns how many tabs were re-dialled.
+	pub fn reconnect(&mut self, origin: Option<&str>) -> usize {
+		let Some(origin) = origin.filter(|origin| !origin.trim().is_empty()) else {
+			return 0;
+		};
+		let mut count = 0;
+		for (tab, pane) in self.panes.iter_mut() {
+			if !pane.ever_attached || pane.backend == Backend::Ended {
+				continue;
+			}
+			let mut service = ServiceTerminal::attach(
+				origin,
+				pane.cwd.clone(),
+				&instance_id(tab),
+				pane.cols,
+				pane.rows,
+				pane.program.as_deref(),
+			);
+			service.set_cell_pixels(self.cell_px.0, self.cell_px.1);
+			pane.service = Some(service);
+			pane.backend = Backend::Connecting;
+			pane.reason = None;
+			count += 1;
+		}
+		count
 	}
 
 	/// True when this tab must use [`crate::live`]'s in-process PTY.
@@ -1465,5 +1528,78 @@ mod tests {
 		pane.reason = Some(raw.to_owned());
 		assert_eq!(host.label("tab1").as_deref(), Some("serve 未应答，已回落本地 PTY"));
 		assert_eq!(host.reason("tab1"), Some(raw), "the tooltip keeps the raw reason");
+	}
+
+	#[test]
+	fn a_companion_page_never_falls_back_silently() {
+		let mut host = TerminalHost::default();
+		host.ensure_program(
+			"tab1",
+			Some("http://127.0.0.1:30141"),
+			Some(PathBuf::from("/work/ws")),
+			80,
+			24,
+			Some("zetacode"),
+		);
+		assert_eq!(
+			host.label("tab1").as_deref(),
+			Some("后端：serve · 附着工作区会话中…"),
+			"a zetacode tab names the workspace session it is attaching to"
+		);
+		let pane = host.panes.get_mut("tab1").expect("pane");
+		pane.backend = Backend::Local;
+		pane.reason = Some("serve 拒绝终端 attach（400）：cwd does not exist".to_owned());
+		assert_eq!(
+			host.label("tab1").as_deref(),
+			Some("无法附着后端会话，已回落本地进程"),
+			"the fallback is in the tab status, never silent"
+		);
+	}
+
+	#[test]
+	fn a_backend_restart_redials_every_attached_tab() {
+		let mut host = TerminalHost::default();
+		let cwd = Some(PathBuf::from("/work/ws"));
+		host.ensure_program(
+			"tab1",
+			Some("http://127.0.0.1:30141"),
+			cwd.clone(),
+			80,
+			24,
+			Some("zetacode"),
+		);
+		host.ensure_program("tab2", Some("http://127.0.0.1:30141"), cwd.clone(), 80, 24, None);
+		// tab2 had attached, then its transport failed and it fell back.
+		{
+			let pane = host.panes.get_mut("tab2").expect("pane");
+			pane.backend = Backend::Local;
+			pane.reason = Some("serve 的终端 WebSocket 已关闭".to_owned());
+		}
+		// tab3 never attached (no origin), so it is not re-dialled.
+		host.ensure("tab3", None, None, 80, 24);
+
+		assert_eq!(host.reconnect(Some("http://127.0.0.1:30142")), 2, "both attached tabs");
+		assert_eq!(host.label("tab1").as_deref(), Some("后端：serve · 附着工作区会话中…"));
+		assert_eq!(
+			host.label("tab2").as_deref(),
+			Some("后端：serve · 连接中…"),
+			"a fallback that had attached is re-dialled"
+		);
+		assert_eq!(host.reason("tab2"), None, "the old failure reason is cleared");
+		assert!(host.is_local("tab3"), "a tab that never attached stays local");
+		assert_eq!(host.reconnect(None), 0, "no address means nothing to dial");
+	}
+
+	#[test]
+	fn an_ended_session_is_not_resurrected_by_a_reconnect() {
+		let mut host = TerminalHost::default();
+		host.ensure_program("tab1", Some("http://127.0.0.1:30141"), None, 80, 24, Some("zetacode"));
+		host.panes.get_mut("tab1").expect("pane").backend = Backend::Ended;
+		assert_eq!(host.reconnect(Some("http://127.0.0.1:30142")), 0);
+		assert_eq!(
+			host.label("tab1").as_deref(),
+			Some("后端：serve · 会话已结束"),
+			"the final screen stays and no new session is created"
+		);
 	}
 }

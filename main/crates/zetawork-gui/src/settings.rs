@@ -379,6 +379,11 @@ pub struct Settings {
 	/// desktop release when the window opens. Off by default — opening the app
 	/// must not make a network request the user did not ask for.
 	pub update_check_on_start: bool,
+	/// `backend.keep_on_quit`: leave the background backend (`zetacode
+	/// daemon`) running when the app quits. Off by default: a daemon this
+	/// window started is stopped with it, and one that was already running is
+	/// never touched.
+	pub keep_backend_on_quit: bool,
 }
 
 impl Default for Settings {
@@ -398,6 +403,7 @@ impl Default for Settings {
 			auto_start: false,
 			notify: NotifyPolicy::BackgroundOnly,
 			update_check_on_start: false,
+			keep_backend_on_quit: false,
 		}
 	}
 }
@@ -411,7 +417,7 @@ impl Settings {
 
 /// The keys this file owns, with their canonical inline comment (the same
 /// shape `zeta-main`'s writer uses).
-const MANAGED: [(&str, &str); 14] = [
+const MANAGED: [(&str, &str); 15] = [
 	("theme", "dark | light | system"),
 	("lang", "zh | en"),
 	("density", "compact | standard | spacious"),
@@ -426,6 +432,7 @@ const MANAGED: [(&str, &str); 14] = [
 	("auto_start", "start zetawork when the user logs in"),
 	("notify", "off | background | always"),
 	("update.check_on_start", "ask GitHub for a desktop release when the window opens"),
+	("backend.keep_on_quit", "leave the background backend running after zetawork quits"),
 ];
 
 const HEADER: &str =
@@ -510,6 +517,7 @@ fn read(text: &str) -> Settings {
 			"auto_start" => settings.auto_start = truthy(value).unwrap_or(false),
 			"notify" => settings.notify = NotifyPolicy::from_key(value).unwrap_or_default(),
 			"update.check_on_start" => settings.update_check_on_start = truthy(value).unwrap_or(false),
+			"backend.keep_on_quit" => settings.keep_backend_on_quit = truthy(value).unwrap_or(false),
 			_ => {},
 		}
 	}
@@ -633,6 +641,7 @@ fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str)
 		"auto_start" => settings.auto_start.to_string(),
 		"notify" => settings.notify.key().to_owned(),
 		"update.check_on_start" => settings.update_check_on_start.to_string(),
+		"backend.keep_on_quit" => settings.keep_backend_on_quit.to_string(),
 		_ => String::new(),
 	};
 	let comment = comment.unwrap_or(fallback);
@@ -690,6 +699,7 @@ mod tests {
 			auto_start: true,
 			notify: NotifyPolicy::Always,
 			update_check_on_start: true,
+			keep_backend_on_quit: true,
 		};
 		save_to(&path, written).unwrap();
 		assert_eq!(load_from(&path), written, "{}", std::fs::read_to_string(&path).unwrap());
