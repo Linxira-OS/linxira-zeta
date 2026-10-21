@@ -184,6 +184,9 @@ impl Logger {
 /// Global logger instance that persists for the application lifetime.
 static LOGGER: OnceLock<Mutex<Logger>> = OnceLock::new();
 
+/// The session log's path, readable without the logger's mutex.
+static LOG_FILE: OnceLock<PathBuf> = OnceLock::new();
+
 /// Static logger for registration with log crate
 static TERMIDE_LOGGER: TermideLogger = TermideLogger;
 
@@ -233,10 +236,21 @@ fn get_logger() -> &'static Mutex<Logger> {
 /// * `max_entries` - Maximum number of log entries to keep in memory
 /// * `min_level` - Minimum log level to record (Debug, Info, Warn, Error)
 pub fn init(file_path: PathBuf, max_entries: usize, min_level: LogLevel) {
+    let _ = LOG_FILE.set(file_path.clone());
     LOGGER.get_or_init(|| Mutex::new(Logger::new(file_path, max_entries, min_level)));
     // Register with log crate (ignore error if already set)
     let _ = log::set_logger(&TERMIDE_LOGGER);
     log::set_max_level(log_level_to_filter(min_level));
+}
+
+/// The log file this process writes to, once [`init`] has run.
+///
+/// Kept outside the logger's mutex: the panic hook calls this while the
+/// panicking thread may itself hold that mutex, and a lock there would
+/// deadlock the only code able to report the crash.
+#[must_use]
+pub fn file_path() -> Option<PathBuf> {
+    LOG_FILE.get().cloned()
 }
 
 /// Get the total number of log entries

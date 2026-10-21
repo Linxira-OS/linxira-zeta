@@ -4918,6 +4918,7 @@ dependencies = [
  "termide-i18n",
  "termide-keyboard",
  "termide-layout",
+ "termide-logger",
  "termide-panel-editor",
  "termide-panel-file-manager",
  "termide-panel-terminal",

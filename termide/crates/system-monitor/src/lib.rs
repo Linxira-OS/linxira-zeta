@@ -80,6 +80,7 @@ struct NetworkState {
     last_refresh: Instant,
 }
 
+#[cfg(unix)]
 struct MountCacheEntry {
     canonical_path: std::path::PathBuf,
     device: Option<String>,

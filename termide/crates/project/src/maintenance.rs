@@ -701,10 +701,12 @@ path = "/old/style/path"
     fn test_project_dir_mapping() {
         let project = Path::new("/home/user/project");
         let project_dir = ProjectLayout::get_project_dir(project).unwrap();
-        // Should contain "projects/home/user/project"
-        let path_str = project_dir.to_string_lossy();
-        assert!(path_str.contains(crate::PROJECTS_DIR));
-        assert!(path_str.ends_with("home/user/project"));
+        // Should contain "projects/home/user/project" (separators follow the
+        // host, so compare path components rather than the rendered string).
+        assert!(project_dir
+            .components()
+            .any(|component| component.as_os_str() == std::ffi::OsStr::new(crate::PROJECTS_DIR)));
+        assert!(project_dir.ends_with("home/user/project"));
     }
 
     #[test]
