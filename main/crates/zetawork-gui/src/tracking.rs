@@ -177,15 +177,15 @@ pub fn read(root: &Path) -> Docs {
 	if !dir.is_dir() {
 		return Docs::default();
 	}
-	let mut docs = Docs::default();
-	docs.index = std::fs::read_to_string(dir.join("INDEX.md")).ok();
-	docs.status = std::fs::read_to_string(dir.join("status.json"))
-		.ok()
-		.and_then(|text| parse_status(&text).ok());
-	docs.plans = read_markdown_dir(&dir.join("plans"));
-	docs.summaries = read_markdown_dir(&dir.join("summaries"));
-	docs.sessions = read_markdown_dir(&dir.join("sessions"));
-	docs
+	Docs {
+		index: std::fs::read_to_string(dir.join("INDEX.md")).ok(),
+		status: std::fs::read_to_string(dir.join("status.json"))
+			.ok()
+			.and_then(|text| parse_status(&text).ok()),
+		plans: read_markdown_dir(&dir.join("plans")),
+		summaries: read_markdown_dir(&dir.join("summaries")),
+		sessions: read_markdown_dir(&dir.join("sessions")),
+	}
 }
 
 /// Newest-first `.md` files of `dir`. A missing directory is empty.
@@ -323,7 +323,7 @@ impl Tab {
 	}
 
 	/// The documents this tab lists.
-	pub fn docs<'a>(self, docs: &'a Docs) -> &'a [Doc] {
+	pub fn docs(self, docs: &Docs) -> &[Doc] {
 		match self {
 			Self::Plans => &docs.plans,
 			Self::Summaries => &docs.summaries,

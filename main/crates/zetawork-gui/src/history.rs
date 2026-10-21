@@ -207,7 +207,7 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 						);
 					}
 				}
-				if let Some(id) = row(ui, shell, entry, &pinned, now_ms) {
+				if let Some(id) = row(ui, shell, entry, pinned, now_ms) {
 					open = Some(id);
 				}
 			}
@@ -252,7 +252,7 @@ fn row(
 		meta.push_str(&t!(" · {} 条消息", conversation.message_count));
 	}
 	if is_pinned {
-		meta.push_str(&t!(" · 已置顶"));
+		meta.push_str(t!(" · 已置顶"));
 	}
 	truncated_mono(
 		ui,
@@ -278,7 +278,7 @@ fn row(
 		);
 	}
 	let clicked = response.clicked();
-	response.on_hover_text(&t!(
+	response.on_hover_text(t!(
 		"{}\n{}\n{}",
 		conversation.display_title(),
 		conversation.cwd.display(),

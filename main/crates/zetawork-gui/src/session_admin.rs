@@ -68,6 +68,9 @@ pub enum Event {
 	Failed(String),
 }
 
+/// One in-flight archive/restore: (session id, archived?, result).
+type OpReceiver = Receiver<(String, bool, Result<(), String>)>;
+
 /// The modal's state.
 #[derive(Default)]
 pub struct Admin {
@@ -77,7 +80,7 @@ pub struct Admin {
 	error: Option<String>,
 	loaded_at: Option<Instant>,
 	load: Option<Receiver<Result<Vec<Conversation>, String>>>,
-	op: Option<Receiver<(String, bool, Result<(), String>)>>,
+	op: Option<OpReceiver>,
 	/// The session whose archive/restore is in flight.
 	busy: Option<String>,
 	/// The modal's first frame: give the search field the keyboard once.

@@ -2334,7 +2334,7 @@ mod tests {
 		assert_eq!(ids(state.conversations_in(&beta_ws)), vec!["b".to_owned()]);
 		let outside = state.conversation("outside").expect("kept");
 		assert!(outside.workspace_id.is_none(), "no root contains it");
-		assert!(outside.pinned == false);
+		assert!(!outside.pinned);
 		// A session at the root itself belongs to the root, not to its child.
 		assert_eq!(
 			state.conversation("root").unwrap().workspace_id.as_deref(),

@@ -726,10 +726,9 @@ pub fn banner(ctx: &egui::Context, shell: &mut crate::Shell) {
 					ui.add(egui::Spinner::new().size(12.0));
 				}
 				ui.label(egui::RichText::new(text).size(12.0).color(ink));
-				if matches!(phase, Phase::Failed | Phase::Stopped) {
-					if ui.button(t!("重试")).clicked() {
-						shell.backend.retry();
-					}
+				if matches!(phase, Phase::Failed | Phase::Stopped) && ui.button(t!("重试")).clicked()
+				{
+					shell.backend.retry();
 				}
 			});
 		});
@@ -755,7 +754,7 @@ mod tests {
 		assert_eq!(machine.begin(), Applied { changed: true, reconnect: false });
 		assert_eq!(machine.phase(), Phase::Starting);
 		let applied = machine.apply(Signal::Live(info("http://127.0.0.1:30141")));
-		assert_eq!(applied.changed, true);
+		assert!(applied.changed);
 		assert_eq!(machine.phase(), Phase::Ready);
 		assert!(!machine.started_by_us(), "connecting to a live backend is not starting one");
 		assert_eq!(machine.quit_action(false), QuitAction::LeaveForeign);

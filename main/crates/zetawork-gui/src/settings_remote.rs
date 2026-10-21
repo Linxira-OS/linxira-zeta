@@ -450,7 +450,7 @@ fn bind_section(ui: &mut Ui, shell: &mut Shell, view: &RemoteView) {
 		.clone();
 	if save_button(
 		ui,
-		&t!("保存绑定"),
+		t!("保存绑定"),
 		(host.as_str(), public_url.as_str()) != (view.host.as_str(), view.public_url.as_str()),
 	) {
 		shell
@@ -482,7 +482,7 @@ fn tls_section(ui: &mut Ui, shell: &mut Shell, view: &RemoteView) {
 	let cert = shell.remote_access.edit("tls-cert", &view.tls_cert).clone();
 	let key = shell.remote_access.edit("tls-key", &view.tls_key).clone();
 	let changed = (cert.as_str(), key.as_str()) != (view.tls_cert.as_str(), view.tls_key.as_str());
-	if save_button(ui, &t!("保存 TLS"), changed) {
+	if save_button(ui, t!("保存 TLS"), changed) {
 		shell
 			.remote_access
 			.save(remote_access::tls_fields(view.tls_enabled, &cert, &key));

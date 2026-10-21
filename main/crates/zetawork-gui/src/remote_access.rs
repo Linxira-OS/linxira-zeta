@@ -459,7 +459,6 @@ mod tests {
 
 	#[test]
 	fn rotate_returns_the_one_time_token_and_revoke_sends_all() {
-		let pairing = r#"{"url":"https://zeta.example","token":"new","payload":"zeta://pair?t=new"}"#;
 		let stub = Stub::new(&[
 			(200, r#"{"ok":true,"token":"new-token"}"#),
 			(200, r#"{"ok":true,"activeTokenRevoked":true}"#),
