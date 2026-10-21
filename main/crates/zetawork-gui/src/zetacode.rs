@@ -429,6 +429,21 @@ pub fn set(key: &str, value: &str) -> Result<String, String> {
 	Ok(format!("{stdout}{stderr}"))
 }
 
+/// The argv of `zetacode daemon restart`, pure so a test can pin it.
+pub fn daemon_restart_argv() -> Vec<String> {
+	vec!["daemon".to_owned(), "restart".to_owned()]
+}
+
+/// Restart the background daemon with the shipped `zetacode`.
+///
+/// The command is the documented lifecycle verb (`docs/daemon.md`); it is run
+/// without a shell, so the output is the daemon's own. Its stdout and stderr
+/// are both returned because `daemon status`-style commands report on stderr.
+pub fn daemon_restart() -> Result<String, String> {
+	let (stdout, stderr) = run_zetacode(&daemon_restart_argv())?;
+	Ok(format!("{stdout}{stderr}"))
+}
+
 /// `<home>/.zeta/agent/models.yml`, the agent dir's provider catalog.
 pub fn models_yml_path(home: &Path) -> PathBuf {
 	home.join(".zeta").join("agent").join("models.yml")
@@ -1275,5 +1290,10 @@ mod tests {
 			.and_then(|(_, value)| value)
 			.map(|value| value.to_string_lossy().into_owned());
 		assert_eq!(marker.as_deref(), Some("1"));
+	}
+
+	#[test]
+	fn the_palette_runs_the_documented_daemon_verb() {
+		assert_eq!(daemon_restart_argv(), ["daemon", "restart"]);
 	}
 }

@@ -10,13 +10,14 @@
 //!
 //! ```text
 //! GET /api/sessions
-//! {"sessions":[{"id":"01a…","cwd":"/work/alpha","title":"Fix the parser",
+//! {"sessions":[{"id":"01a…","cwd":"/work/alpha","name":"Fix the parser",
 //!   "modified":"2026-10-21T08:12:44.000Z","messageCount":12,
 //!   "firstMessage":"Fix the parser",…}],
 //!  "runningSessionIds":["01a…"]}
 //! ```
 //!
-//! [`decode`] keeps only the fields the tree draws and sorts newest first. A
+//! [`decode`] keeps only the fields the tree draws (the gateway's `name`, or
+//! its older `title`, or the first message) and sorts newest first. A
 //! session with no `cwd` is kept (the gateway knows it) but no workspace can
 //! claim it; [`crate::state::AppState::set_conversations`] is what decides
 //! membership by the workspace root.
@@ -44,6 +45,9 @@ pub const REFRESH: Duration = Duration::from_secs(5);
 
 /// `GET /api/sessions`.
 pub const SESSIONS_PATH: &str = "/api/sessions";
+
+/// `GET /api/sessions/archived` — the archive tree, newest first.
+pub const ARCHIVED_PATH: &str = "/api/sessions/archived";
 
 /// `POST /api/agent/new`; `type: ensure_session` creates without prompting.
 pub const NEW_SESSION_PATH: &str = "/api/agent/new";
@@ -115,9 +119,9 @@ pub fn decode(body: &str) -> Result<Vec<Conversation>, String> {
 			.and_then(Value::as_str)
 			.unwrap_or_default()
 			.trim();
-		let title = session
-			.get("title")
-			.and_then(Value::as_str)
+		let title = ["name", "title"]
+			.iter()
+			.find_map(|key| session.get(*key).and_then(Value::as_str))
 			.map(str::trim)
 			.filter(|title| !title.is_empty())
 			.or_else(|| {
@@ -125,7 +129,11 @@ pub fn decode(body: &str) -> Result<Vec<Conversation>, String> {
 					.get("firstMessage")
 					.and_then(Value::as_str)
 					.map(str::trim)
-					.filter(|text| !text.is_empty() && *text != "(no messages)")
+					.filter(|text| {
+						!text.is_empty()
+							&& *text != "(no messages)"
+							&& *text != "(archived session)"
+					})
 			})
 			.unwrap_or_default()
 			.to_owned();
@@ -157,6 +165,83 @@ pub fn decode(body: &str) -> Result<Vec<Conversation>, String> {
 			.then_with(|| a.id.cmp(&b.id))
 	});
 	Ok(rows)
+}
+
+/// Decode a `GET /api/sessions/archived` body.
+///
+/// The archive lists the same `SessionInfo` shape as the live list, so the
+/// decoder is shared; the only difference the GUI cares about is that
+/// `messageCount` is reported as 0 there (the archive does not re-read
+/// transcripts) — which is the truth the row shows.
+pub fn decode_archived(body: &str) -> Result<Vec<Conversation>, String> {
+	decode(body)
+}
+
+/// `~/.zeta/zetawork-session-pins.json` — the conversations the user pinned.
+///
+/// Pins are a view preference of this GUI, so they live beside
+/// `zetawork.toml` rather than in zetacode's own config. The file is one JSON
+/// array of session ids; anything else is ignored, which keeps a hand-edited
+/// file from breaking the list.
+pub fn pins_path() -> PathBuf {
+	let home = std::env::var_os("USERPROFILE")
+		.or_else(|| std::env::var_os("HOME"))
+		.map(PathBuf::from)
+		.unwrap_or_else(|| PathBuf::from("."));
+	home.join(".zeta").join("zetawork-session-pins.json")
+}
+
+/// Parse the pins file: a JSON array, or `{"pinned":[...]}`.
+pub fn parse_pins(text: &str) -> Vec<String> {
+	let Ok(value) = serde_json::from_str::<Value>(text) else {
+		return Vec::new();
+	};
+	let rows = value
+		.as_array()
+		.or_else(|| value.get("pinned").and_then(Value::as_array));
+	let Some(rows) = rows else {
+		return Vec::new();
+	};
+	let mut seen = HashSet::new();
+	rows.iter()
+		.filter_map(Value::as_str)
+		.map(str::trim)
+		.filter(|id| !id.is_empty())
+		.filter(|id| seen.insert((*id).to_owned()))
+		.map(str::to_owned)
+		.collect()
+}
+
+/// Read the pins file. A missing or malformed file is no pins, not an error.
+pub fn load_pins_from(path: &Path) -> Vec<String> {
+	std::fs::read_to_string(path)
+		.map(|text| parse_pins(&text))
+		.unwrap_or_default()
+}
+
+/// Write the pins file, creating `~/.zeta` when needed.
+pub fn save_pins_to(path: &Path, ids: &[String]) -> Result<(), String> {
+	if let Some(dir) = path.parent() {
+		std::fs::create_dir_all(dir).map_err(|error| t!("创建配置目录失败：{}", error))?;
+	}
+	let body = serde_json::to_string_pretty(ids)
+		.map_err(|error| t!("序列化置顶列表失败：{}", error))?;
+	std::fs::write(path, format!("{body}\n")).map_err(|error| t!("写入置顶列表失败：{}", error))
+}
+
+/// Toggle one id, newest pins last. Returns the new pinned state.
+pub fn toggle_pin(ids: &mut Vec<String>, id: &str) -> bool {
+	let id = id.trim();
+	if id.is_empty() {
+		return false;
+	}
+	if let Some(index) = ids.iter().position(|pinned| pinned == id) {
+		ids.remove(index);
+		false
+	} else {
+		ids.push(id.to_owned());
+		true
+	}
 }
 
 /// One ISO-8601 timestamp as milliseconds since the epoch.
@@ -222,6 +307,11 @@ impl SessionCache {
 	/// Why the last read failed, when it did.
 	pub fn error(&self) -> Option<&str> {
 		self.error.as_deref()
+	}
+
+	/// Mark the snapshot stale so the next [`Self::tick`] re-reads it now.
+	pub fn refresh_now(&mut self) {
+		self.loaded_at = None;
 	}
 
 	/// Seed the cache (tests and the headless screenshots).
@@ -434,5 +524,51 @@ mod tests {
 	fn create_requires_a_gateway_origin() {
 		let mut cache = SessionCache::default();
 		assert!(cache.request_create("ws-default", Path::new(".")).is_err());
+	}
+
+	#[test]
+	fn the_gateway_name_wins_over_the_first_message() {
+		let body = r#"{"sessions":[
+			{"id":"named","cwd":"/w","name":"Release notes","firstMessage":"hello"},
+			{"id":"titled","cwd":"/w","title":"Old title"},
+			{"id":"archived","cwd":"/w","firstMessage":"(archived session)"}
+		]}"#;
+		let rows = decode(body).expect("decodes");
+		let by_id = |id: &str| rows.iter().find(|row| row.id == id).expect("the row");
+		assert_eq!(by_id("named").title, "Release notes");
+		assert_eq!(by_id("titled").title, "Old title", "the older field is still read");
+		assert_eq!(by_id("archived").title, "", "the archive placeholder is not a title");
+		assert_eq!(by_id("archived").display_title(), t!("新会话"));
+	}
+
+	#[test]
+	fn archived_rows_decode_through_the_same_shape() {
+		let body = r#"{"sessions":[{"id":"a1","cwd":"/work/alpha","name":"Old work","modified":"2026-10-19T08:00:00.000Z","messageCount":0}]}"#;
+		let rows = decode_archived(body).expect("decodes");
+		assert_eq!(rows.len(), 1);
+		assert_eq!(rows[0].title, "Old work");
+		assert_eq!(rows[0].message_count, 0);
+	}
+
+	#[test]
+	fn pins_toggle_and_round_trip_through_a_file() {
+		let dir = std::env::temp_dir().join(format!("zetawork-gui-pins-{}", std::process::id()));
+		let _ = std::fs::remove_dir_all(&dir);
+		let path = dir.join("pins.json");
+		assert!(load_pins_from(&path).is_empty(), "a missing file is no pins");
+
+		let mut ids = Vec::new();
+		assert!(toggle_pin(&mut ids, "a"));
+		assert!(toggle_pin(&mut ids, "b"));
+		assert!(!toggle_pin(&mut ids, "a"), "the second click unpins");
+		assert_eq!(ids, ["b"]);
+		toggle_pin(&mut ids, "a");
+		save_pins_to(&path, &ids).expect("the file is written");
+		assert_eq!(load_pins_from(&path), ["b", "a"], "order is preserved");
+
+		assert_eq!(parse_pins(r#"{"pinned":["x","x"," "]}"#), ["x"]);
+		assert!(parse_pins("not json").is_empty());
+		assert!(!toggle_pin(&mut ids, "  "));
+		let _ = std::fs::remove_dir_all(&dir);
 	}
 }

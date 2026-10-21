@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The right column: 文件 / 历史 · Agent 对话 / Git 状态, plus its collapsed
-//! rail.
+//! The right column: 文件 / 历史 / Git 状态 / 用量 / 资源 / 看板 / 跟踪 /
+//! 工作树 / 插件, plus its collapsed rail.
 //!
-//! Two of the three panels read live data: the file tree walks the active
-//! workspace's directory one level at a time (see [`crate::fsread`]) and the
-//! git panel runs `git` (see [`crate::git`]) — reads for the status, plus the
-//! two explicit branch actions the 分支 group offers (switch, create). The
-//! history panel has no source yet, so it shows one card that says so.
-//! 暂存 / 提交 / 创建 PR exist as the spec draws them, and are disabled with a
-//! line naming what would back them.
+//! Every panel reads live data: the file tree walks the active workspace's
+//! directory one level at a time ([`crate::fsread`]), the git panel runs `git`
+//! ([`crate::git`]) with the branch actions the 分支 group offers, 历史
+//! filters the gateway's conversation list ([`crate::history`]), 跟踪 reads
+//! `.zeta/tracking/` ([`crate::tracking`]), and 工作树 reads the active
+//! conversation's checkouts ([`crate::worktrees`]). 暂存 / 提交 / 创建 PR
+//! exist as the spec draws them, and are disabled with a line naming what
+//! would back them.
 
 use crate::t;
 use std::collections::HashSet;
@@ -70,11 +71,13 @@ pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(panel));
 	match shell.state.right_tab {
 		RightTab::Files => files_panel(&mut child, shell),
-		RightTab::History => history_panel(&mut child, shell),
+		RightTab::History => crate::history::panel(&mut child, shell),
 		RightTab::Git => git_panel(&mut child, shell, "right"),
 		RightTab::Usage => usage_panel(&mut child, shell),
 		RightTab::Resources => crate::resources::panel(&mut child, shell),
 		RightTab::Board => crate::board::panel(&mut child, shell),
+		RightTab::Tracking => crate::tracking::panel(&mut child, shell),
+		RightTab::Worktrees => crate::worktrees::panel(&mut child, shell),
 		RightTab::Plugin => crate::plugin_panels::panel(&mut child, shell),
 	}
 }
@@ -87,6 +90,8 @@ fn tab_icon(tab: RightTab) -> Icon {
 		RightTab::Usage => Icon::List,
 		RightTab::Resources => Icon::Activity,
 		RightTab::Board => Icon::Board,
+		RightTab::Tracking => Icon::Tasks,
+		RightTab::Worktrees => Icon::Split,
 		RightTab::Plugin => Icon::Plugin,
 	}
 }
@@ -102,7 +107,10 @@ pub fn right_rail(ui: &mut Ui, shell: &mut Shell) {
 	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()
-			.max_rect(Rect::from_min_size(pos2(rect.min.x + 6.0, rect.min.y + 8.0), vec2(32.0, 212.0)))
+			.max_rect(Rect::from_min_size(
+				pos2(rect.min.x + 6.0, rect.min.y + 8.0),
+				vec2(32.0, 36.0 * RightTab::ALL.len() as f32),
+			))
 			.layout(Layout::top_down(Align::Center)),
 	);
 	for tab in RightTab::ALL {
@@ -276,11 +284,6 @@ fn tree_rows(
 }
 
 // ── 历史 · Agent 对话 ─────────────────────────────────────────────────────
-
-fn history_panel(ui: &mut Ui, _shell: &mut Shell) {
-	panel_head(ui, t!("历史 · Agent 对话"), |_ui| {});
-	empty_note(ui, t!("还没有对话记录"));
-}
 
 // ── Git 状态 ──────────────────────────────────────────────────────────────
 

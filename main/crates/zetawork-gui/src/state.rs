@@ -53,8 +53,9 @@ pub const MAX_SUBS_PER_PANE: usize = 8;
 /// How long a toast stays on screen.
 pub const TOAST_TTL: Duration = Duration::from_millis(1800);
 
-/// The right column's six panels — the spec's 文件树 / 历史 / Git / 用量, the
-/// host 资源 reading, and the native plugin panels.
+/// The right column's nine panels — the spec's 文件树 / 历史 / Git / 用量, the
+/// host 资源 reading, the user 看板, the project 跟踪 documents, the
+/// conversation's 工作树, and the native plugin panels.
 ///
 /// The 用量 tab shows the *active conversation's* own usage and follows the
 /// active pane/tab; the global roll-up lives in the 用量 container the left
@@ -80,18 +81,24 @@ pub enum RightTab {
 	Resources,
 	/// The user board: three columns of `.zeta/board/` cards.
 	Board,
+	/// The project's tracking documents: `.zeta/tracking/`.
+	Tracking,
+	/// The conversation's git worktrees: list, create, switch, remove.
+	Worktrees,
 	/// The plugin layer: a plugin's declarative panels, drawn natively.
 	Plugin,
 }
 
 impl RightTab {
-	pub const ALL: [Self; 7] = [
+	pub const ALL: [Self; 9] = [
 		Self::Files,
 		Self::History,
 		Self::Git,
 		Self::Usage,
 		Self::Resources,
 		Self::Board,
+		Self::Tracking,
+		Self::Worktrees,
 		Self::Plugin,
 	];
 
@@ -104,6 +111,8 @@ impl RightTab {
 			Self::Usage => t!("用量"),
 			Self::Resources => t!("资源"),
 			Self::Board => t!("看板"),
+			Self::Tracking => t!("跟踪"),
+			Self::Worktrees => t!("工作树"),
 			Self::Plugin => t!("插件"),
 		}
 	}
@@ -117,6 +126,8 @@ impl RightTab {
 			Self::Usage => t!("活动会话的日志（~/.zeta/agent/sessions）"),
 			Self::Resources => t!("sysmon（CPU / 内存 / GPU / 进程）"),
 			Self::Board => t!(".zeta/board（markdown 卡片，与网关同一份文件）"),
+			Self::Tracking => t!(".zeta/tracking（INDEX.md / status.json / plans / summaries）"),
+			Self::Worktrees => t!("git worktree list / add / remove（只读列表 + 三个显式动作）"),
 			Self::Plugin => t!("插件清单（~/.zeta/agent/plugins/*/plugin.json）"),
 		}
 	}
@@ -591,6 +602,13 @@ pub struct AppState {
 	pub toast: Option<(String, Instant)>,
 	/// The open `+` picker, and what a pick opens into.
 	picker: Option<PickerTarget>,
+	/// The command palette's open state, query and ranked rows.
+	palette: Option<crate::palette::Palette>,
+	/// The 会话管理 modal is open.
+	pub sessions_open: bool,
+	/// Conversations the user pinned, oldest pin first. Loaded from
+	/// `~/.zeta/zetawork-session-pins.json` and written back on a toggle.
+	pub pinned_sessions: Vec<String>,
 	settings_open: bool,
 	/// The 用量 container (the embedded stats page) is open.
 	usage_open: bool,
@@ -633,6 +651,9 @@ impl Default for AppState {
 			add_focus: false,
 			toast: None,
 			picker: None,
+			palette: None,
+			sessions_open: false,
+			pinned_sessions: Vec::new(),
 			settings_open: false,
 			usage_open: false,
 			update_open: false,
@@ -1370,10 +1391,18 @@ impl AppState {
 		let pane_id = self.fresh_id("pane");
 		let tab = self.tab_for(entry);
 		let panes = vec![Pane { id: pane_id, active: tab.id.clone(), tabs: vec![tab] }];
+		let branch = {
+			let status = crate::git::read_status(&project_path, 0);
+			if status.branch.trim().is_empty() {
+				"—".to_owned()
+			} else {
+				status.branch
+			}
+		};
 		self.projects[pos].workspaces.push(Workspace {
 			id: id.clone(),
 			name,
-			branch: "main".to_owned(),
+			branch,
 			// The workspace is the project directory itself: the terminal's
 			// cwd, the file tree and zetacode all start where the project is.
 			path: project_path.display().to_string(),
@@ -1800,6 +1829,60 @@ impl AppState {
 
 	// ── misc UI verbs ──────────────────────────────────────────────────
 
+	/// Is this conversation pinned by the user?
+	pub fn is_pinned(&self, id: &str) -> bool {
+		self.pinned_sessions.iter().any(|pinned| pinned == id)
+	}
+
+	/// Toggle one conversation's pin; returns the new state.
+	pub fn toggle_session_pin(&mut self, id: &str) -> bool {
+		crate::sessions::toggle_pin(&mut self.pinned_sessions, id)
+	}
+
+	/// Point a workspace at another checkout and take its branch.
+	///
+	/// The caller passes a branch read from git, never a typed one. The panes
+	/// already open keep their running processes — a PTY cannot be moved — but
+	/// everything that starts from the workspace root (the file tree, git, a
+	/// new terminal, zetacode) reads the new path from the next frame.
+	pub fn retarget_workspace(&mut self, path: &Path, branch: &str) -> Notice {
+		let Some(ws_id) = self.active_workspace.clone() else {
+			return Notice(t!("没有打开的工作区").to_owned());
+		};
+		self.retarget(ws_id, path, branch)
+	}
+
+	/// The explicit-id form of [`Self::retarget_workspace`].
+	pub fn retarget(&mut self, ws_id: String, path: &Path, branch: &str) -> Notice {
+		if path.as_os_str().is_empty() {
+			return Notice(t!("工作树目录为空").to_owned());
+		}
+		let Some(workspace) = self.workspace_mut(&ws_id) else {
+			return Notice(t!("没有这个工作区：{}", ws_id));
+		};
+		workspace.path = path.display().to_string();
+		if !branch.trim().is_empty() {
+			workspace.branch = branch.trim().to_owned();
+		}
+		// A conversation's membership is by directory, so moving the workspace
+		// re-groups the list against the new root.
+		self.regroup_conversations();
+		Notice(String::new())
+	}
+
+	/// The branch a workspace's checkout reports, written by the git reader.
+	pub fn set_workspace_branch(&mut self, ws_id: &str, branch: &str) {
+		let branch = branch.trim();
+		if branch.is_empty() {
+			return;
+		}
+		if let Some(workspace) = self.workspace_mut(ws_id) {
+			if workspace.branch != branch {
+				workspace.branch = branch.to_owned();
+			}
+		}
+	}
+
 	/// 聚焦当前窗口: collapse both columns.
 	pub fn focus_mode(&mut self) -> Notice {
 		self.left_collapsed = true;
@@ -1823,6 +1906,14 @@ impl AppState {
 
 	/// Escape: close the topmost overlay, else leave the TUI view.
 	pub fn escape(&mut self) -> bool {
+		if self.palette.is_some() {
+			self.close_palette();
+			return true;
+		}
+		if self.sessions_open {
+			self.sessions_open = false;
+			return true;
+		}
 		if self.update_open {
 			self.update_open = false;
 			return true;
@@ -1890,9 +1981,55 @@ impl AppState {
 	// ── the settings modal ─────────────────────────────────────────────
 
 	/// Any overlay is on screen: the 设置 modal, the 用量 container, the 更新
-	/// dialog, or a `+` picker. The resize border stands down while one is.
+	/// dialog, a `+` picker, the command palette or 会话管理. The resize border
+	/// stands down while one is.
 	pub fn modal_open(&self) -> bool {
-		self.settings_open || self.usage_open || self.update_open || self.picker.is_some()
+		self.settings_open
+			|| self.usage_open
+			|| self.update_open
+			|| self.picker.is_some()
+			|| self.palette.is_some()
+			|| self.sessions_open
+	}
+
+	// ── the command palette ────────────────────────────────────────────
+
+	/// Show the palette with a row set the shell built off the UI thread.
+	pub fn open_palette(&mut self, palette: crate::palette::Palette) {
+		self.picker = None;
+		self.settings_open = false;
+		self.usage_open = false;
+		self.update_open = false;
+		self.sessions_open = false;
+		self.palette = Some(palette);
+	}
+
+	pub fn palette(&self) -> Option<&crate::palette::Palette> {
+		self.palette.as_ref()
+	}
+
+	pub fn palette_mut(&mut self) -> Option<&mut crate::palette::Palette> {
+		self.palette.as_mut()
+	}
+
+	pub fn close_palette(&mut self) {
+		self.palette = None;
+	}
+
+	/// Open or close 会话管理.
+	pub fn toggle_sessions_admin(&mut self) {
+		self.sessions_open = !self.sessions_open;
+		if self.sessions_open {
+			self.palette = None;
+			self.settings_open = false;
+			self.picker = None;
+		}
+	}
+
+	/// Open 设置 on one section (the palette's 远程访问 action).
+	pub fn open_settings_section(&mut self, section: Section) {
+		self.open_settings();
+		self.settings_section = section;
 	}
 
 	/// Specifically the 更新 modal.
