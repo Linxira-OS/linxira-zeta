@@ -220,6 +220,11 @@ export const commands: CommandEntry[] = [
 		aliases: ["server"],
 	},
 	{
+		name: "daemon",
+		load: () => import("./commands/daemon").then(m => m.default),
+		help: commandHelp.daemonHelp,
+	},
+	{
 		name: "share",
 		load: () => import("./commands/share").then(m => m.default),
 		help: commandHelp.shareHelp,

@@ -69,6 +69,11 @@ export const compressHelp = {
 
 export const configHelp = { description: "Manage configuration settings" } satisfies CommandMetadata;
 
+export const daemonHelp = {
+	description:
+		"Manage the background backend (serve) lifecycle: status, start, stop, restart, logs, and per-user autostart",
+} satisfies CommandMetadata;
+
 export const dryBalanceHelp = {
 	description: "Dry-run OAuth account balancing across random session ids",
 } satisfies CommandMetadata;
