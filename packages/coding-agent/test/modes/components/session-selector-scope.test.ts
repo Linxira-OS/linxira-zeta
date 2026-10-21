@@ -46,8 +46,8 @@ describe("SessionSelectorComponent scope toggle", () => {
 			},
 		);
 
-		// Folder scope: header says current folder, no foreign cwd column.
-		expect(selector.render(120).join("\n")).toContain("(current folder)");
+		// Workspace scope: header says so, no foreign cwd column.
+		expect(selector.render(120).join("\n")).toContain("(this workspace)");
 		expect(selector.render(120).join("\n")).not.toContain("other-project");
 
 		selector.handleInput(TAB);
@@ -61,7 +61,7 @@ describe("SessionSelectorComponent scope toggle", () => {
 		// Toggling back returns to folder scope without reloading.
 		selector.handleInput(TAB);
 		await Bun.sleep(0);
-		expect(selector.render(120).join("\n")).toContain("(current folder)");
+		expect(selector.render(120).join("\n")).toContain("(this workspace)");
 		expect(loads).toBe(1);
 
 		// Re-entering all scope reuses the cached global list.
@@ -94,7 +94,7 @@ describe("SessionSelectorComponent scope toggle", () => {
 		expect(selector.render(120).join("\n")).toContain("(all projects)");
 		selector.handleInput(TAB);
 		const rendered = selector.render(120).join("\n");
-		expect(rendered).toContain("(current folder)");
+		expect(rendered).toContain("(this workspace)");
 		expect(rendered).toContain("/work/repo-wt");
 	});
 
@@ -137,11 +137,11 @@ describe("SessionSelectorComponent scope toggle", () => {
 
 		const rendered = selector.render(120).join("\n");
 		// Header stays scoped to the cwd so the user is never silently shown
-		// other projects' sessions just because the current folder is empty.
-		expect(rendered).toContain("(current folder)");
+		// other projects' sessions just because the current workspace is empty.
+		expect(rendered).toContain("(this workspace)");
 		expect(rendered).not.toContain("(all projects)");
 		expect(rendered).not.toContain("other-project");
-		expect(rendered).toContain("No sessions in current folder");
+		expect(rendered).toContain("No sessions found");
 	});
 
 	it("marks forked child sessions in the rendered list", () => {
