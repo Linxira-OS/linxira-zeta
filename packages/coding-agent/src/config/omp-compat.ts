@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { JSONC, YAML } from "bun";
-import { logger } from "@linxiraos/pi-utils";
+import { logger, resolveYamlConfigReadPath } from "@linxiraos/pi-utils";
 import { type ModelsConfig, ModelsConfigSchema } from "./models-config-schema";
 
 /**
@@ -64,7 +64,8 @@ function parseOmpModelsConfig(content: string): ModelsConfig | undefined {
 }
 
 function loadOmpModelsConfig(agentDir: string): ModelsConfig | undefined {
-	const ymlPath = path.join(agentDir, "models.yml");
+	// Upstream writes `models.yml`; accept its `.yaml` sibling when only that exists.
+	const ymlPath = resolveYamlConfigReadPath(path.join(agentDir, "models.yml"));
 	let content: string;
 	try {
 		content = fs.readFileSync(ymlPath, "utf8");

@@ -137,6 +137,7 @@ import {
 	type ProviderValidationModel,
 	validateProviderConfiguration,
 } from "./models-config";
+import { loadModelsLayers, mergeModelsConfigs, modelsWebConfigPath } from "./models-config-layers";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
 import { type OmpCompatSnapshot, defaultOmpAgentDir, probeOmpCompat } from "./omp-compat";
 import { type Settings, settings } from "./settings";
@@ -361,6 +362,7 @@ export class ModelRegistry {
 	#configWarnings: string[] = [];
 	#modelsConfigFile: ConfigFile<ModelsConfig>;
 	#lastStaticLoadMtime: number | null = null;
+	#lastWebConfigMtime: number | null = null;
 	#registeredProviderSources: Set<string> = new Set();
 	#providerDiscoveryStates: Map<string, ProviderDiscoveryState> = new Map();
 	#cacheDbPath?: string;
@@ -712,7 +714,10 @@ export class ModelRegistry {
 			await this.#backgroundRefresh;
 			changed = true;
 		}
-		if (this.#modelsConfigFile.getMtimeMs() !== this.#lastStaticLoadMtime) {
+		if (
+			this.#modelsConfigFile.getMtimeMs() !== this.#lastStaticLoadMtime ||
+			this.#modelsWebConfigMtime() !== this.#lastWebConfigMtime
+		) {
 			await this.refresh("offline");
 			changed = true;
 		}
@@ -934,9 +939,12 @@ export class ModelRegistry {
 
 	#reloadStaticModels(options?: { force?: boolean; preserveRuntimeDiscovery?: boolean }): void {
 		const currentMtime = this.#modelsConfigFile.getMtimeMs();
+		const currentWebMtime = this.#modelsWebConfigMtime();
 		const currentOmpFingerprint = this.#ompCompatFingerprint();
 		const staticConfigUnchanged =
-			currentMtime === this.#lastStaticLoadMtime && currentOmpFingerprint === this.#lastOmpCompatFingerprint;
+			currentMtime === this.#lastStaticLoadMtime &&
+			currentWebMtime === this.#lastWebConfigMtime &&
+			currentOmpFingerprint === this.#lastOmpCompatFingerprint;
 		if (!options?.force && currentMtime !== null && staticConfigUnchanged) {
 			// Models config unchanged since last load; reloading would be redundant.
 			return;
@@ -1078,6 +1086,7 @@ export class ModelRegistry {
 			this.#applyHardcodedModelPolicies(this.#loadCachedDiscoverableModels()),
 		);
 		this.#lastStaticLoadMtime = this.#modelsConfigFile.getMtimeMs();
+		this.#lastWebConfigMtime = this.#modelsWebConfigMtime();
 	}
 
 	/**
@@ -1212,7 +1221,7 @@ export class ModelRegistry {
 		if (this.#ignoreLocalModelConfig) return null;
 		const agentDir = this.#ompAgentDir ?? defaultOmpAgentDir();
 		const parts = [agentDir];
-		for (const name of ["models.yml", "agent.db"]) {
+		for (const name of ["models.yml", "models.yaml", "agent.db"]) {
 			try {
 				parts.push(String(fs.statSync(path.join(agentDir, name)).mtimeMs));
 			} catch {
@@ -1912,9 +1921,9 @@ export class ModelRegistry {
 			// Explicit config (upstream OMP compatibility overlay) — no file I/O.
 			return this.#buildCustomModelsResult(sourceConfig);
 		}
-		const { value, error, status } = this.#modelsConfigFile.tryLoad();
+		const layers = loadModelsLayers(this.#modelsConfigFile.path());
 
-		if (status === "error") {
+		if (layers.userError) {
 			return {
 				models: [],
 				overrides: new Map(),
@@ -1922,10 +1931,12 @@ export class ModelRegistry {
 				keylessProviders: new Set(),
 				discoverableProviders: [],
 				configuredProviders: new Set(),
-				error,
+				error: layers.userError,
 				found: true,
 			};
-		} else if (status === "not-found") {
+		}
+		const merged = mergeModelsConfigs(layers.user, layers.web);
+		if (!merged) {
 			return {
 				models: [],
 				overrides: new Map(),
@@ -1936,7 +1947,7 @@ export class ModelRegistry {
 				found: false,
 			};
 		}
-		return this.#buildCustomModelsResult(value);
+		return this.#buildCustomModelsResult(merged);
 	}
 
 	#buildCustomModelsResult(value: ModelsConfig): CustomModelsResult {
@@ -2249,9 +2260,23 @@ export class ModelRegistry {
 		return providerConfig.provider;
 	}
 
+	/** Panel-layer mtime, or null when the path is not YAML or the layer is absent. */
+	#modelsWebConfigMtime(): number | null {
+		const modelsPath = this.#modelsConfigFile.path();
+		if (!modelsPath.endsWith(".yml") && !modelsPath.endsWith(".yaml")) return null;
+		try {
+			return fs.statSync(modelsWebConfigPath(modelsPath)).mtimeMs;
+		} catch {
+			return null;
+		}
+	}
+
 	#isDiscoveryCacheOlderThanModelsConfig(cacheUpdatedAt: number): boolean {
-		const configMtime = this.#modelsConfigFile.getMtimeMs();
-		return configMtime !== null && cacheUpdatedAt < Math.floor(configMtime);
+		const configMtime = Math.max(
+			this.#modelsConfigFile.getMtimeMs() ?? Number.NEGATIVE_INFINITY,
+			this.#modelsWebConfigMtime() ?? Number.NEGATIVE_INFINITY,
+		);
+		return Number.isFinite(configMtime) && cacheUpdatedAt < Math.floor(configMtime);
 	}
 
 	async #discoverProviderModels(

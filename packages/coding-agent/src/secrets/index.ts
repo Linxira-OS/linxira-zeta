@@ -1,7 +1,13 @@
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CONFIG_DIR_NAME, getSecretPlaceholderKeyPath, isEnoent, logger } from "@linxiraos/pi-utils";
+import {
+	CONFIG_DIR_NAME,
+	getSecretPlaceholderKeyPath,
+	isEnoent,
+	logger,
+	resolveYamlConfigReadPath,
+} from "@linxiraos/pi-utils";
 
 import { YAML } from "bun";
 import { type SecretEntry, SecretObfuscator } from "./obfuscator";
@@ -294,8 +300,9 @@ export async function buildSecretObfuscator(
 }
 
 async function loadSecretsFile(filePath: string): Promise<SecretEntry[]> {
+	const readPath = resolveYamlConfigReadPath(filePath);
 	try {
-		const text = await Bun.file(filePath).text();
+		const text = await Bun.file(readPath).text();
 		const raw = YAML.parse(text);
 		if (!Array.isArray(raw)) {
 			logger.warn("secrets.yml must be a YAML array", { path: filePath });
