@@ -8,7 +8,9 @@ are all front-ends onto it.
 
 ```sh
 zetacode channels status [--json]
-zetacode channels login <channel> [--json] [--timeout <seconds>]
+zetacode channels login wechat [--json] [--timeout <seconds>]
+zetacode channels login feishu [--app-id <id>] [--app-secret <secret>] [--domain feishu|lark] [--json]
+zetacode channels login telegram [--token <bot-token>] [--json]
 zetacode channels logout <channel> [--json]
 zetacode channels enable <channel> [--json]
 zetacode channels disable <channel> [--json]
@@ -99,17 +101,70 @@ Payload handling:
 }
 ```
 
-Feishu and Telegram have no QR login; the command reports that their
-credentials belong in `web.yml` or the GUI.
+Feishu and Telegram authenticate a bot with a pasted credential, not a QR
+code; see the next section.
+
+## `login feishu` / `login telegram` (validated bot credentials)
+
+```sh
+zetacode channels login feishu [--app-id <id>] [--app-secret <secret>] [--domain feishu|lark] [--json]
+zetacode channels login telegram [--token <bot-token>] [--json]
+```
+
+Missing flags are prompted for on a TTY (the secret is not echoed). With
+`--json`, or when stdin is not a TTY, a missing credential is a usage error
+instead of a prompt.
+
+Both commands validate the credential against the platform **before writing
+anything**:
+
+- Feishu: `POST /open-apis/auth/v3/tenant_access_token/internal` on
+  `open.feishu.cn` (or `open.larksuite.com` with `--domain lark`), then
+  `GET /open-apis/bot/v3/info` with that token. The reported identity is the
+  app name and `open_id`.
+- Telegram: `GET /bot<token>/getMe`. The reported identity is the bot's first
+  name, `@username` when present, and its bot id.
+
+A blank or absent flag field falls back to the value already stored in
+`web.yml`, so re-running the command validates the saved credential. Only after
+the platform accepts it are `channels.feishu.appId`, `appSecret`, and `domain`,
+or `channels.telegram.botToken`, written. A rejected or timed-out credential
+writes nothing.
+
+`--json` emits one object with the same state words as the WeChat login (no
+`scanned`):
+
+```json
+{
+	"channel": "telegram",
+	"state": "connected",
+	"identity": { "id": "123456789", "name": "build-bot", "username": "build_bot" },
+	"credentialsPersisted": true
+}
+```
+
+`state` is `connected`, `error`, or `timeout`; failures also carry `error`.
+Platform error text is redacted (any submitted or stored secret is replaced by
+`••••`) — secrets are never echoed. `GET /api/web-config` masks both secrets as
+`••••` like every other stored credential.
+
+The GUI equivalent is **Settings → IM 渠道 → 凭据**: a **Validate and save**
+button per channel, disabled while a check runs, showing 未验证 while empty,
+验证中… while validating, then 已验证：<bot> or 验证失败：<reason>. It posts
+`{ channel, appId?, appSecret?, domain?, botToken? }` to
+`/api/channels/credentials`; the gateway validates against the platform, saves,
+and asks a running `serve` to restart its channels. A blank secret re-validates
+the stored one.
 
 ## `logout`, `enable`, `disable`
 
 `logout wechat` calls the adapter's `unbind`: it asks the server to reset the
 channel, then clears the bot token, iLink ids, and peer tokens. It still clears
-local credentials when the reset request cannot reach the network. `logout
-feishu` / `logout telegram` empty the corresponding secret fields. A process
-already hosting that channel keeps its in-memory connection until it stops (the
-GUI's in-process unbind is immediate); restart the host to apply the logout.
+local credentials when the reset request cannot reach the network.
+`logout feishu` clears `channels.feishu.appId` and `appSecret` (the `domain`
+stays); `logout telegram` clears `channels.telegram.botToken`. A process already hosting
+that channel keeps its in-memory connection until it stops (the GUI's
+in-process unbind is immediate); restart the host to apply the logout.
 
 `enable` / `disable` persist `channels.<id>.enabled`. Enabling means "the next
 host starts this channel"; a process already hosting the runtime keeps its
@@ -155,9 +210,9 @@ compete with `channels login wechat`); pair first, then restart the session.
 | GUI settings page           | Reads/writes the same `web.yml` and `GET /api/channels/wechat/qrcode` for its QR; a CLI login is visible there and vice versa. |
 
 The gateway routes (`/api/channels/status`, `/api/channels/send`,
-`/api/channels/wechat/{qrcode,reconnect,unbind}`) are unchanged: they read the
-in-process serve runtime. They are one more front-end, not a second state
-store.
+`/api/channels/credentials`, `/api/channels/wechat/{qrcode,reconnect,unbind}`)
+are unchanged: they read the in-process serve runtime. They are one more
+front-end, not a second state store.
 
 ## Examples
 
@@ -167,6 +222,12 @@ zetacode channels status
 
 # Pair WeChat with no browser
 zetacode channels login wechat --timeout 120
+
+# Validate a Feishu app credential, then save it
+zetacode channels login feishu --app-id cli_xxx --app-secret xxx
+
+# Validate a Telegram bot token with getMe, then save it
+zetacode channels login telegram --token 123456:ABC-DEF
 
 # Start the TUI with the bot hosted even if web.yml enables nothing
 zetacode --channels
