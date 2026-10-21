@@ -23,6 +23,7 @@ import { getAgentDir } from "@linxiraos/pi-utils/dirs";
 import { ModelRegistry } from "../../config/model-registry";
 import { cfgEnabledModels, cfgModelRoles } from "../../config/model-settings";
 import { ModelsConfigFile } from "../../config/models-config";
+import { stringifyYamlConfig } from "@linxiraos/pi-utils/yaml-config";
 import { Settings } from "../../config/settings";
 import { getSharedAuthStorage, getSharedModelRegistry, refreshSharedModelRegistry } from "./auth";
 
@@ -263,7 +264,7 @@ export async function handleModelsConfigPut(req: Request): Promise<Response> {
 		if (body.providers && typeof body.providers === "object" && !Array.isArray(body.providers)) {
 			stripOmpOriginProviders(body.providers as Record<string, unknown>);
 		}
-		await Bun.write(ModelsConfigFile.path(), JSON.stringify(body, null, 2));
+		await Bun.write(ModelsConfigFile.path(), stringifyYamlConfig(body));
 		ModelsConfigFile.invalidate();
 		await refreshSharedModelRegistry();
 		return json({ success: true });
@@ -378,7 +379,7 @@ export async function handleModelsImport(req: Request): Promise<Response> {
 				models: fresh,
 			};
 		}
-		await Bun.write(ModelsConfigFile.path(), JSON.stringify(config, null, 2));
+		await Bun.write(ModelsConfigFile.path(), stringifyYamlConfig(config));
 		ModelsConfigFile.invalidate();
 		await refreshSharedModelRegistry();
 	}
