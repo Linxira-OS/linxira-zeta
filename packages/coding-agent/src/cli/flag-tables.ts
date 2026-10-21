@@ -119,6 +119,12 @@ export const STRING_SETTERS: Record<string, StringSetter> = {
 	"--cwd": (result, value) => {
 		result.cwd = value;
 	},
+	"--attach-session": (result, value) => {
+		result.attachSession = value;
+	},
+	"--backend-url": (result, value) => {
+		result.backendUrl = value;
+	},
 	"--config": (result, value) => {
 		result.config = [...(result.config ?? []), value];
 	},
@@ -324,6 +330,9 @@ export const VALUELESS_FLAGS: ReadonlySet<string> = new Set([
 	"--plan-yolo",
 	"--print",
 	"--print-thoughts",
+	"--backend",
+	"--attach",
+	"--attach-new",
 	"--no-extensions",
 	"--no-skills",
 	"--no-rules",

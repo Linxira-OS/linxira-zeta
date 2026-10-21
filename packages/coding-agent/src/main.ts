@@ -38,6 +38,7 @@ import {
 } from "./cli/args";
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
+import { resolveStartupTransport, type ResolvedBackendTarget } from "./backend/attach-intent";
 import { buildInitialMessage } from "./cli/initial-message";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
@@ -655,6 +656,7 @@ async function runInteractiveMode(
 	startupLease?: ComposerLease,
 	startupGoal?: string,
 	startupRestore?: () => Promise<RestoreOutcome>,
+	backendTarget?: ResolvedBackendTarget,
 ): Promise<void> {
 	// Install the host text source for @linxiraos/pi-tui before the first
 	// interactive render: every `tuiText` lookup (welcome box and tips, setup
@@ -723,6 +725,19 @@ async function runInteractiveMode(
 			}),
 		);
 		startDeferredStartupWork?.();
+
+		if (backendTarget) {
+			const { BackendAttachLink } = await import("./backend/attach-link");
+			const link = new BackendAttachLink(mode, backendTarget);
+			try {
+				await link.join();
+			} catch (error) {
+				await link.detach().catch(() => undefined);
+				mode.showWarning(
+					`Could not attach to the backend (${error instanceof Error ? error.message : String(error)}); continuing in-process.`,
+				);
+			}
+		}
 
 		if (setupWizard && playStartupSplash) {
 			await setupWizard.runStartupSplash(mode);
@@ -835,7 +850,11 @@ async function runInteractiveMode(
 			// before this dispatch runs (the composer accepts input as soon as the
 			// first turn starts): the CLI message queues into that turn instead of
 			// dying with AgentBusyError.
-			await session.prompt(initialMessage, { images: initialImages, streamingBehavior: "steer" });
+			if (mode.backendAttach) {
+				mode.backendAttach.sendPrompt(initialMessage, initialImages);
+			} else {
+				await session.prompt(initialMessage, { images: initialImages, streamingBehavior: "steer" });
+			}
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 			mode.showError(errorMessage);
@@ -845,7 +864,8 @@ async function runInteractiveMode(
 	for (const message of initialMessages) {
 		try {
 			using _keepalive = new EventLoopKeepalive();
-			await session.prompt(message, { streamingBehavior: "steer" });
+			if (mode.backendAttach) mode.backendAttach.sendPrompt(message);
+			else await session.prompt(message, { streamingBehavior: "steer" });
 		} catch (error: unknown) {
 			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
 			mode.showError(errorMessage);
@@ -1928,6 +1948,46 @@ export async function runRootCommand(
 		const autoPrint =
 			(pipedInput !== undefined || !stdinIsTerminal) && !parsedArgs.print && parsedArgs.mode === undefined;
 		const isInteractive = !parsedArgs.print && !autoPrint && parsedArgs.mode === undefined;
+		// Backend attachment is decided before any local session exists: a bare
+		// interactive launch turns into a client of the running serve process;
+		// a missing backend falls back to the in-process session below.
+		const transport = await resolveStartupTransport(parsedArgs, rawArgs, { interactive: isInteractive });
+		const backendAttachTarget = transport.kind === "backend" ? transport.target : undefined;
+		if (!backendAttachTarget && (parsedArgs.attach === true || parsedArgs.attachSession !== undefined)) {
+			process.stderr.write(
+				`${chalk.yellow("Warning: --attach requested but no running `zetacode serve` backend was reachable; continuing in-process.\n")}`,
+			);
+		}
+		if (parsedArgs.backend === true && !isProtocolMode && !isInteractive) {
+			const fileResult = await logger.time("processFileArguments", () =>
+				processFileArguments(parsedArgs.fileArgs, { autoResizeImages: true }),
+			);
+			const initial = buildInitialMessage({
+				parsed: parsedArgs,
+				fileText: fileResult.text.length > 0 ? fileResult.text : undefined,
+				fileImages: fileResult.images.length > 0 ? fileResult.images : undefined,
+				stdinContent: pipedInput,
+			});
+			const prompts = [initial.initialMessage, ...parsedArgs.messages].filter(
+				(message): message is string => message !== undefined,
+			);
+			const { runBackendPrintMode } = await import("./backend/print");
+			const exitCode = await runBackendPrintMode({
+				intent: {
+					sessionId: parsedArgs.attachSession,
+					newSession: parsedArgs.attachNew === true,
+					url: parsedArgs.backendUrl,
+					explicit: true,
+				},
+				cwd,
+				messages: prompts,
+				images: initial.initialImages,
+				mode: mode === "json" ? "json" : "text",
+				printThoughts: parsedArgs.printThoughts,
+				onNotice: line => process.stderr.write(`${line}\n`),
+			});
+			process.exit(exitCode);
+		}
 		// Before session resolution: resume, fork, and import act on these same
 		// startup-parse flags, so rejecting later would leave forked or imported
 		// transcripts (or an opened picker) behind a usage error.
@@ -2788,6 +2848,7 @@ export async function runRootCommand(
 							startupLease,
 							initialArgs.goal,
 							parsedArgs.restore ? () => restoreSession(session, { eventBus, subagentEventBus }) : undefined,
+							backendAttachTarget,
 						);
 					} finally {
 						startupLease?.dispose();

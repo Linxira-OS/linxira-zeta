@@ -175,7 +175,38 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | --- | --- |
 | `--mode <mode>` | Output/transport mode: `text` (default), `json`, `rpc`, `acp`, or `rpc-ui`. See [output modes](#output-modes---mode). |
 | `--print`, `-p` | Process prompts non-interactively and exit. |
+| `--backend` | Route a print launch through a running `zetacode serve` backend instead of owning the session in-process. |
 | `--no-ui` | With `rpc`/`rpc-ui`, make extensions headless without disabling rpc-ui tool UI. |
+
+#### Backend attach
+
+`zetacode serve` already hosts sessions for the web UI. A bare interactive
+`zetacode` becomes a client of that backend when one is reachable:
+
+- no arguments → attach to the most recently modified backend session whose
+  `cwd` is the current directory (create one when none exists);
+- no reachable backend → today's in-process session, unchanged (a missing
+  `serve` never makes the CLI unusable).
+
+| Flag | Description |
+| --- | --- |
+| `--attach` | Attach the TUI to the newest backend session in this directory. |
+| `--attach-session <id>` | Attach to a specific backend session, across all repositories. |
+| `--attach-new` | Create and attach to a fresh backend session in this directory instead of reusing one. |
+| `--backend-url <url>` | Gateway URL to probe (default: `ZETA_GATEWAY_URL`, the serve registry, then `http://127.0.0.1:30142`). |
+
+`zetacode attach --list` prints every backend session across repositories
+(id, cwd, modified time, name/status), `zetacode attach <id>` attaches the
+plain terminal client, and `zetacode attach --new` creates a session in the
+current (or `--cwd`) directory.
+
+The TUI keeps its renderer: the backend session is mirrored into a local
+replica so transcript replay, the status line, and dialogs behave natively.
+Prompts, aborts, extension dialogs (`select`/`confirm`/`input`/`editor`/
+`ask`), and plan approval travel over the gateway RPC surface. Client-only
+actions such as opening files and clipboard writes stay local and are not
+forwarded to the backend. Detaching closes the event stream and never stops
+the backend or its session.
 
 #### Information
 
@@ -243,6 +274,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | --- | --- | --- |
 | `launch` | Start a coding session (the default command). | [Launch flags](#launch-flags) |
 | `acp` | Run zetacode as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
+| `attach` | Attach a terminal to a running session over the web gateway (`--list`, `--new`, `<session-id>`). | this page → [Backend attach](#backend-attach) |
 | `auth-broker` | Manage the zetacode auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `auth-gateway` | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |

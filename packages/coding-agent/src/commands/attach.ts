@@ -13,8 +13,10 @@
  * `mode_exit` / `set_model_role`); anything else is a follow-up message.
  */
 
+import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { isRecord, readLines } from "@linxiraos/pi-utils";
+import { BackendClient, sortSessionsNewestFirst } from "../backend/client";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { attachHelp as commandHelp } from "../cli/command-help";
 import { M } from "../i18n";
@@ -153,6 +155,24 @@ const HELP_TEXT = `Commands:
 Anything else is sent as a follow-up message to the shared session.
 `;
 
+/** Print every backend session, across repositories, newest first. */
+async function printSessionList(client: BackendClient): Promise<void> {
+	const { sessions, runningSessionIds } = await client.listSessions({ archived: false });
+	const running = new Set(runningSessionIds ?? []);
+	if (sessions.length === 0) {
+		process.stdout.write("No sessions.\n");
+		return;
+	}
+	for (const session of sortSessionsNewestFirst(sessions)) {
+		const marks = [running.has(session.id) ? "running" : "", session.temp ? "temp" : ""].filter(Boolean);
+		const suffix = marks.length > 0 ? `  [${marks.join(", ")}]` : "";
+		const name = session.name?.trim() || session.firstMessage?.split("\n")[0]?.trim() || "(untitled)";
+		process.stdout.write(
+			`${session.id}  ${session.cwd || "?"}  ${session.modified ?? session.created ?? ""}  ${name}${suffix}\n`,
+		);
+	}
+}
+
 export default class Attach extends Command {
 	static description = commandHelp.description;
 	static args = {
@@ -165,12 +185,26 @@ export default class Attach extends Command {
 		url: Flags.string({
 			description: `Web gateway base URL (default ${DEFAULT_GATEWAY_URL}; env ZETA_GATEWAY_URL overrides)`,
 		}),
+		list: Flags.boolean({ description: "List backend sessions across all repositories and exit" }),
+		new: Flags.boolean({
+			description: "Create a fresh session in the current (or --cwd) directory and attach to it",
+		}),
+		cwd: Flags.string({ description: "Working directory for --new (default: current directory)" }),
 	};
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Attach);
 		const baseUrl = (flags.url ?? process.env.ZETA_GATEWAY_URL ?? DEFAULT_GATEWAY_URL).replace(/\/+$/, "");
-		const sessionId = args["session-id"] ?? (await resolveSharedSessionId(baseUrl));
+		const client = new BackendClient(baseUrl);
+		if (flags.list) {
+			await printSessionList(client);
+			return;
+		}
+		let sessionId = args["session-id"];
+		if (!sessionId && flags.new) {
+			sessionId = await client.createSession(path.resolve(flags.cwd ?? process.cwd()));
+		}
+		sessionId ??= await resolveSharedSessionId(baseUrl);
 
 		// Initial AgentState v2 snapshot.
 		const stateRes = await fetch(`${baseUrl}/api/agent/${encodeURIComponent(sessionId)}`);

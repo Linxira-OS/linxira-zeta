@@ -70,6 +70,7 @@ import chalk from "@linxiraos/pi-utils/chalk";
 import { M } from "../i18n";
 import { pickTableChart } from "../auto-graph/planner";
 import { restartArgv } from "../cli/flag-tables";
+import type { BackendAttachLink } from "../backend/attach-link";
 import type { CollabGuestLink } from "../collab/guest";
 import { CollabController } from "../collab/controller";
 import type { CollabHost } from "../collab/host";
@@ -91,6 +92,8 @@ import type {
 } from "../extensibility/extensions";
 import type {
 	CompactOptions,
+	ExtensionAskDialogQuestion,
+	ExtensionAskDialogResult,
 	PlanReviewChoice,
 	PlanReviewOption,
 	PlanReviewRequestedEvent,
@@ -1549,6 +1552,8 @@ export class InteractiveMode implements InteractiveModeContext {
 	/** Owned room; use {@link collabController}.host for current-session reuse and links. */
 	collabHost?: CollabHost;
 	collabGuest?: CollabGuestLink;
+	/** Live client link to a session owned by a running `zetacode serve` backend. */
+	backendAttach?: BackendAttachLink;
 	#streamPublisher: StreamPublisher | undefined;
 	#recorder: SessionRecorder | undefined;
 	#recorderStarting = false;
@@ -8938,6 +8943,13 @@ export class InteractiveMode implements InteractiveModeContext {
 		editorOptions?: { promptStyle?: boolean },
 	): Promise<string | undefined> {
 		return this.#extensionUiController.showHookEditor(title, prefill, dialogOptions, editorOptions);
+	}
+
+	showAskDialog(
+		questions: ExtensionAskDialogQuestion[],
+		dialogOptions?: ExtensionUIDialogOptions,
+	): Promise<ExtensionAskDialogResult | undefined> {
+		return this.#extensionUiController.showAskDialog(questions, dialogOptions);
 	}
 
 	hideHookEditor(): void {
