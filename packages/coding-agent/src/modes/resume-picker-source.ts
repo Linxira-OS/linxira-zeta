@@ -31,11 +31,13 @@ import {
 	buildResumeView,
 	loadResumeDirectory,
 	resolveResumeScope,
+	sameResumePath,
 	type ResumeDirectory,
 	type ResumeScopeKind,
 } from "../resume";
 import type { ResumeSourceLike } from "@linxiraos/pi-tui/overlays/resume-picker";
 import { setWorkspaceAlias, toggleProjectPin, toggleWorkspacePin } from "../resume/preferences";
+import { SessionManager } from "../session/session-manager";
 import { FileSessionStorage, type SessionStorage } from "../session/session-storage";
 import { toggleSessionPin } from "../session/session-pins";
 import { replaceFileAtomically } from "../utils/atomic-file";
@@ -159,6 +161,8 @@ export interface LiveResumePickerSourceOptions {
 	workspacePath?: string;
 	/** Confirmed delete action; wording comes from `deleteMode`. */
 	deleteConversation: (conversation: ResumeTreeConversation) => Promise<boolean>;
+	/** Rename the live session through its own manager, avoiding a second writer. */
+	renameCurrentSession?: (title: string) => Promise<string | null>;
 	/** `trash` for the in-session picker, `permanent` for `--resume`. */
 	deleteMode: ResumeTreeDeleteMode;
 	storage?: SessionStorage;
@@ -320,8 +324,10 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 		return this.#options.deleteConversation(conversation);
 	}
 
-	async renameWorkspace(workspace: ResumeTreeWorkspace, alias: string | null): Promise<void> {
-		await setWorkspaceAlias(workspace.key, alias, this.#options.agentDir);
+	async renameWorkspace(workspace: ResumeTreeWorkspace, alias: string | null): Promise<string | null> {
+		const trimmed = alias?.trim() || null;
+		await setWorkspaceAlias(workspace.key, trimmed, this.#options.agentDir);
+		return trimmed ?? workspace.name;
 	}
 
 	async pinWorkspace(workspace: ResumeTreeWorkspace, pinned: boolean): Promise<void> {
@@ -347,20 +353,21 @@ export class LiveResumePickerSource implements ResumeTreeSource, ResumeSourceLik
 		}
 	}
 
-	async renameConversation(conversation: ResumeTreeConversation, title: string): Promise<boolean> {
+	async renameConversation(conversation: ResumeTreeConversation, title: string): Promise<string | null> {
 		const trimmed = title.trim();
-		if (!trimmed || !this.canRenameConversation(conversation)) return false;
-		const storage = this.#options.storage ?? new FileSessionStorage();
+		if (!trimmed || !this.canRenameConversation(conversation)) return null;
 		try {
-			await storage.updateSessionTitle(conversation.path, {
-				title: trimmed,
-				source: "user",
-				updatedAt: new Date().toISOString(),
-			});
-			return true;
+			if (this.currentSessionPath() && sameResumePath(conversation.path, this.currentSessionPath()!)) {
+				return (await this.#options.renameCurrentSession?.(trimmed)) ?? null;
+			}
+			return await SessionManager.setSessionNameAtPath(
+				conversation.path,
+				trimmed,
+				this.#options.storage ?? new FileSessionStorage(),
+			);
 		} catch (error) {
 			logger.warn("Failed to rename the resume conversation", { error });
-			return false;
+			return null;
 		}
 	}
 }

@@ -156,15 +156,21 @@ Indentation stops at two visible steps, so subagent nesting can never push rows 
 
 ### Full paths
 
-`f` toggles absolute paths in project and all-project scopes: the project header path tag, workspace paths and each conversation's cwd switch from parent/name tails to the platform's own spelling (`D:\CODE\proj`, `\\server\share\proj`, `/home/user/proj`, `/mnt/c/CODE/proj`). The separator and root are chosen from the path's shape, not the host, and long paths truncate from the left with a middle ellipsis so the tail stays readable. In workspace scope the path is redundant, so `f` shows a one-line hint instead of changing the setting; the footer lists the key only in project/all scopes. The choice persists across opens.
+`Ctrl+F` toggles absolute paths in project and all-project scopes: the project header path tag, workspace paths and each conversation's cwd switch from parent/name tails to the platform's own spelling (`D:\CODE\proj`, `\\server\share\proj`, `/home/user/proj`, `/mnt/c/CODE/proj`). The separator and root are chosen from the path's shape, not the host, and long paths truncate from the left with a middle ellipsis so the tail stays readable. Unmodified printable keys always type into the search field, so the toggle has no bare-letter binding. In workspace scope the path is redundant, so the key shows a one-line hint instead of changing the setting; the footer lists it only in project/all scopes. The choice persists across opens.
 
 ### Main-agent sessions only
 
 A conversation is a subagent when its session header carries `parentSession` **and** its `session_init` record carries `agent` (`scout`, `task`, `sonic`, …); a user fork has the parent but no agent marker and stays a `fork`. The classification stays in the model, but the picker directory filters subagents out before grouping, so they never appear in the tree and a project whose only sessions are subagents counts zero conversations.
 
-### Row menus, rename and inline editing
+### Row menus and rename
 
-`m` on a workspace or conversation row opens a small action menu; the row also exposes a clickable `⋯` at its right edge. Workspace actions are rename, collapse/expand, open in the file manager, and pin. Conversation actions are rename, pin, and delete; rename is disabled for a session file the process cannot write. Workspace rename stores an alias in `resume-projects.json` (keyed by the workspace's canonical path; the directory name never changes). Conversation rename writes the session's own `title` record, so the transcript header and the picker agree. Rename edits in place: type into the row, Enter commits, Esc cancels, and no tree key fires while editing.
+`m` on a workspace or conversation row opens a small action menu; the row also exposes a clickable `⋯` at its right edge. Workspace actions are rename, collapse/expand, open in the file manager, and pin. Conversation actions are rename, pin, and delete. `Ctrl+R` renames the selected row directly: a conversation or workspace opens the rename box, while a project header is inert. Rename is disabled for a session file the process cannot write.
+
+The rename box is its own sub-input, not the search field: the search text stays untouched while it is open, every key goes to the box (including `/`, `m`, `p`, `f`, `r` and Tab), Enter commits, Esc cancels, and `Ctrl+C` still exits the picker. Clickable `Confirm`/`Cancel` buttons mirror Enter/Esc; clicking elsewhere leaves the box open. Empty or whitespace-only names are rejected without closing the box. Workspace rename stores an alias in `resume-projects.json` (keyed by the workspace's canonical path; the directory name never changes). Conversation rename goes through the same session-title path as `/rename` (`SessionManager.setSessionNameAtPath`, which delegates to `setSessionName` with a user source); the live session uses its own manager. After either rename the picker re-reads the listing and verifies the row shows the stored name, surfacing a one-line notice if it does not.
+
+### Delete safety
+
+Plain Enter only resumes a conversation or folds a header; it never deletes. Deletion requires `Ctrl+Enter` or the Delete key on a selected conversation, or the row menu's delete item, and always opens a modal confirmation. The modal states whether the entry goes to the trash (in-session picker) or is deleted permanently (`--resume`) and offers clickable `Confirm`/`Cancel` buttons; only `y` or Enter while that modal is focused confirms, and Esc or `n` cancels. A plain mouse click never deletes. The modal owns every key while open.
 
 ### Mouse and persistence
 

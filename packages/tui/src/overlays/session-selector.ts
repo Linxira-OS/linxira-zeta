@@ -1898,9 +1898,10 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 					[
 						...(this.#resumeTree.scope === "workspace"
 							? []
-							: [`f ${tuiText("resumeFooterPaths", "full paths")}`]),
+							: [`^f ${tuiText("resumeFooterPaths", "full paths")}`]),
 						`${formatKeyHint("enter")} resume`,
-						`${formatKeyHints(["delete", "backspace"])} delete`,
+						`^r ${tuiText("resumeMenuRename", "rename")}`,
+						`${formatKeyHint("delete")} delete`,
 						`${formatKeyHint("tab")} ${tuiText("resumeFooterScope", "scope")}`,
 						`/ ${tuiText("resumeFooterSearch", "search")}`,
 						`r ${tuiText("resumeFooterRefresh", "refresh")}`,
