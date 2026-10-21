@@ -8,6 +8,8 @@
  * keeps its in-memory fast path.
  */
 
+import type { MeshGear } from "./gears";
+
 /** Envelope schema version; a receiver rejects anything else. */
 export const MESH_PROTOCOL_VERSION = 1;
 
@@ -99,6 +101,10 @@ export interface MeshDirectoryRecord {
 	updatedAt: number;
 	agents?: MeshAgentEntry[];
 	waits?: MeshWaitEntry[];
+	/** Inbound call gear this workspace advertises (mirrors its project setting). */
+	inboundGear?: MeshGear;
+	/** Outbound call gear this workspace advertises (mirrors its project setting). */
+	outboundGear?: MeshGear;
 }
 
 /** One enumerated directory entry, with staleness resolved. */

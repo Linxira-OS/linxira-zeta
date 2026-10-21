@@ -16,7 +16,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { Snowflake, logger } from "@linxiraos/pi-utils";
+import { isDefaultWorkspace } from "../default-workspace";
 import { MeshDirectory, isPidAlive } from "./directory";
+import { type GearParty, type MeshGears, evaluateGearCall, gearAllows, readWorkspaceGears } from "./gears";
 import {
 	type ParsedAddress,
 	formatMeshAddress,
@@ -94,6 +96,11 @@ export interface MeshNodeOptions {
 	mailboxRetentionMs?: number;
 	/** Clock/pid seams for tests. */
 	pidAlive?: (pid: number) => boolean;
+	/**
+	 * This workspace's messaging gears. Defaults to reading the workspace's
+	 * project settings; tests and embedders may inject a provider.
+	 */
+	gears?: () => MeshGears | Promise<MeshGears>;
 }
 
 /** Bounded receipt cache so a late retry cannot deliver the same id twice. */
@@ -242,6 +249,13 @@ export class MeshNode {
 		}
 
 		if (targetWorkspaceId === this.workspaceId) {
+			const sender = this.#localParty(input.from);
+			const targetParty = this.#localParty(parsed.agent);
+			if (sender?.role === "main" && targetParty?.role === "main") {
+				const gears = await this.#gears();
+				const denial = await this.#gearDenial(sender, targetParty, gears, gears.inbound);
+				if (denial) return { to: raw, outcome: "failed", error: denial };
+			}
 			return await this.#sendLocal(envelope, parsed.agent, raw);
 		}
 
@@ -258,6 +272,14 @@ export class MeshNode {
 						.join(", ")}.`,
 				};
 			}
+			const targetRole = agent?.role ?? target.record.role;
+			const denial = await this.#gearDenialForTarget(input.from, {
+				workspaceId: targetWorkspaceId,
+				isDefaultWorkspace: isDefaultWorkspace(target.record.workspaceRoot),
+				role: targetRole,
+				address: envelope.to,
+			});
+			if (denial) return { to: raw, outcome: "failed", error: denial };
 			if (agent?.status === "running" || agent?.status === "idle" || agent === undefined) {
 				const result = await this.#deliverOverSocket(envelope, target.record);
 				if (result) return { to: raw, outcome: result.outcome, ...(result.error && { error: result.error }) };
@@ -266,6 +288,16 @@ export class MeshNode {
 			// path is the only one that cannot lose the message.
 			await this.#queue(envelope, target.record);
 			return { to: raw, outcome: "queued" };
+		}
+
+		if (target) {
+			const denial = await this.#gearDenialForTarget(input.from, {
+				workspaceId: targetWorkspaceId,
+				isDefaultWorkspace: isDefaultWorkspace(target.record.workspaceRoot),
+				role: target.record.role,
+				address: envelope.to,
+			});
+			if (denial) return { to: raw, outcome: "failed", error: denial };
 		}
 
 		await this.#mailbox.enqueue(targetWorkspaceId, parsed.agent, envelope);
@@ -433,6 +465,8 @@ export class MeshNode {
 					.join(", ")}.`,
 			};
 		}
+		const inboundDenial = await this.#inboundDenial(envelope, agent);
+		if (inboundDenial) return { ok: false, error: inboundDenial };
 		if (agent.status === "parked" || agent.status === "gone") {
 			await this.#mailbox.enqueue(this.workspaceId, agent.id, envelope);
 			await this.#drainAgent(agent.id, true);
@@ -527,6 +561,7 @@ export class MeshNode {
 
 	async #drainNow(localId: string, force: boolean): Promise<void> {
 		const pending = await this.#mailbox.pending(this.workspaceId, localId);
+		const localAgent = this.#localEntries().find(candidate => candidate.id === localId);
 		for (const envelope of pending) {
 			if (this.#seen.has(envelope.id)) {
 				// Already injected through the direct path; a retry that raced the
@@ -535,8 +570,20 @@ export class MeshNode {
 				continue;
 			}
 			if (!force) {
-				const agent = this.#localEntries().find(candidate => candidate.id === localId);
-				if (!agent || (agent.status !== "running" && agent.status !== "idle")) return;
+				if (!localAgent || (localAgent.status !== "running" && localAgent.status !== "idle")) return;
+			}
+			if (localAgent) {
+				const denial = await this.#inboundDenial(envelope, localAgent);
+				if (denial) {
+					logger.warn("mesh: dropping mailbox message refused by the inbound gear", {
+						workspaceId: this.workspaceId,
+						agentId: localId,
+						from: envelope.from,
+						error: denial,
+					});
+					await this.#mailbox.markDelivered(this.workspaceId, localId, envelope);
+					continue;
+				}
 			}
 			const result = await this.#options.deliver(envelope, localId);
 			if (result.outcome === "failed") return;
@@ -583,6 +630,7 @@ export class MeshNode {
 
 	async #writeRecord(): Promise<void> {
 		const agents = this.#localEntries();
+		const gears = await this.#gears().catch(() => ({ inbound: "closed" as const, outbound: "closed" as const }));
 		const record: MeshDirectoryRecord = {
 			id: this.addressFor(agents[0]?.id ?? "main"),
 			workspaceId: this.workspaceId,
@@ -595,6 +643,8 @@ export class MeshNode {
 			updatedAt: this.#now(),
 			agents,
 			waits: [...this.#waits.values()],
+			inboundGear: gears.inbound,
+			outboundGear: gears.outbound,
 		};
 		await this.#directory.write(record);
 	}
@@ -613,6 +663,82 @@ export class MeshNode {
 			selector === this.workspaceId ||
 			selector === this.workspaceAlias ||
 			selector === path.basename(this.workspaceRoot)
+		);
+	}
+
+	/** This process's workspace gears, from injected options or its project settings. */
+	async #gears(): Promise<MeshGears> {
+		return this.#options.gears ? await this.#options.gears() : await readWorkspaceGears(this.workspaceRoot);
+	}
+
+	/** Party for one of this process's local agents, if `raw` names it. */
+	#localParty(raw: string): GearParty | undefined {
+		const parsed = tryParseMeshAddress(raw);
+		if (parsed?.workspace !== undefined && !this.#isOwnWorkspace(parsed.workspace)) return undefined;
+		const agent = parsed ? this.#localAgent(parsed.agent) : undefined;
+		if (!agent) return undefined;
+		return {
+			workspaceId: this.workspaceId,
+			isDefaultWorkspace: isDefaultWorkspace(this.workspaceRoot),
+			role: agent.role,
+			address: this.addressFor(agent.id),
+		};
+	}
+
+	/**
+	 * Error when this process's outbound gear or `target`'s inbound gear refuses
+	 * the call. `targetInbound` is the target's published gear; when a peer does
+	 * not publish one yet, only the outbound direction is checked here and the
+	 * receiver applies its own inbound gear.
+	 */
+	#gearDenial(
+		sender: GearParty,
+		target: GearParty,
+		gears: MeshGears,
+		targetInbound: MeshGears["inbound"] | undefined,
+	): string | undefined {
+		const decision = evaluateGearCall({
+			sender,
+			target,
+			senderOutbound: gears.outbound,
+			targetInbound: targetInbound ?? "open",
+		});
+		return decision.allowed ? undefined : decision.error;
+	}
+
+	/** {@link #gearDenial} for a send, reading the target's advertised inbound gear. */
+	async #gearDenialForTarget(from: string, target: GearParty): Promise<string | undefined> {
+		const sender = this.#localParty(from);
+		if (!sender || sender.role !== "main" || target.role !== "main") return undefined;
+		const gears = await this.#gears();
+		const targetInbound =
+			target.workspaceId === this.workspaceId
+				? gears.inbound
+				: (await this.#directory.read(target.workspaceId))?.inboundGear;
+		return this.#gearDenial(sender, target, gears, targetInbound);
+	}
+
+	/**
+	 * Error when this workspace's inbound gear refuses `envelope.from`. Applied
+	 * to direct deliveries and mailbox drains, so an offline message queued
+	 * before a gear tightened cannot bypass the current setting.
+	 */
+	async #inboundDenial(envelope: MeshEnvelope, localAgent: MeshAgentEntry): Promise<string | undefined> {
+		if (localAgent.role !== "main" || envelope.kind !== "message") return undefined;
+		const from = tryParseMeshAddress(envelope.from);
+		if (!from?.workspace || this.#isOwnWorkspace(from.workspace)) return undefined;
+		const record = await this.#directory.read(from.workspace);
+		const role = record?.agents?.find(candidate => candidate.id === from.agent)?.role ?? record?.role ?? "main";
+		const gears = await this.#gears();
+		const allowed = gearAllows(gears.inbound, {
+			sameWorkspace: false,
+			otherRole: role,
+			otherIsDefaultWorkspace: record ? isDefaultWorkspace(record.workspaceRoot) : false,
+		});
+		if (allowed) return undefined;
+		return (
+			`Workspace ${this.workspaceId}'s inbound messaging gear "${gears.inbound}" refuses calls from ` +
+			`${envelope.from} (${role}, workspace ${from.workspace}).`
 		);
 	}
 

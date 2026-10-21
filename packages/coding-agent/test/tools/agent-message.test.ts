@@ -102,9 +102,35 @@ describe("write agent:// messaging", () => {
 		await expect(new AgentProtocolHandler().resolve(new URL("agent://all") as never)).rejects.toThrow("write-only");
 	});
 
-	it("does not duplicate a child broadcast in the main session's relay view", async () => {
+	it("refuses a child broadcast: a subagent may only message its spawning main", async () => {
 		registerPeer("Sender");
 		registerPeer("Sibling");
+		const delivered: IrcMessage[] = [];
+		expect(
+			registry.attachSession("Main", {
+				deliverIrcMessage: async (message: IrcMessage) => {
+					delivered.push(message);
+					return "injected";
+				},
+				emitIrcRelayObservation: () => {},
+			} as unknown as AgentSession),
+		).toBe(true);
+		const result = await new WriteTool(makeSession({ senderId: "Sender" })).execute("broadcast", {
+			path: "agent://all",
+			content: "one update",
+		});
+		expect(result.isError).toBeTrue();
+		expect(result.content[0]).toMatchObject({
+			text: expect.stringContaining("broadcast is not available"),
+		});
+		expect(delivered).toEqual([]);
+		expect(received.get("Sibling")).toEqual([]);
+	});
+
+	it("does not duplicate a main broadcast in the main session's relay view", async () => {
+		registerPeer("Sender");
+		registerPeer("Sibling");
+		registry.register({ id: "PeerMain", displayName: "PeerMain", kind: "main", session: null });
 		const delivered: IrcMessage[] = [];
 		const relayed: unknown[] = [];
 		// Attach to the registered Main ref: a duplicate registration is rejected,
@@ -118,13 +144,13 @@ describe("write agent:// messaging", () => {
 				emitIrcRelayObservation: (record: unknown) => {
 					relayed.push(record);
 				},
-			} as AgentSession),
+			} as unknown as AgentSession),
 		).toBe(true);
-		const result = await new WriteTool(makeSession({ senderId: "Sender" })).execute("broadcast", {
+		const result = await new WriteTool(makeSession({ senderId: "PeerMain" })).execute("broadcast", {
 			path: "agent://all",
 			content: "one update",
 		});
-		expect(result.content[0]).toMatchObject({ text: expect.stringContaining("2 of 2 peer(s)") });
+		expect(result.content[0]).toMatchObject({ text: expect.stringContaining("3 of 3 peer(s)") });
 		expect(delivered.map(message => message.body)).toEqual(["one update"]);
 		expect(received.get("Sibling")?.map(message => message.body)).toEqual(["one update"]);
 		expect(relayed).toEqual([]);

@@ -9,6 +9,7 @@ import { rm } from "node:fs/promises";
 import * as path from "node:path";
 import { MeshDirectory } from "../src/mesh/directory";
 import { MeshNode } from "../src/mesh/mesh-node";
+import { OPEN_MESH_GEARS } from "../src/mesh/gears";
 import { meshPaths, workspaceIdFor } from "../src/mesh/paths";
 import { parseMeshAddress } from "../src/mesh/envelope";
 import type { MeshDirectoryRecord } from "../src/mesh/types";
@@ -31,6 +32,7 @@ describe("mesh address resolution (S2)", () => {
 			workspaceAlias: "self",
 			localAgents: () => [{ id: "Main", role: "main", status: "idle" }],
 			deliver: async () => ({ outcome: "injected" }),
+			gears: () => OPEN_MESH_GEARS,
 			pidAlive: () => true,
 			workspaceAliases: () => [{ alias: "delta", path: "/z/delta" }],
 		});

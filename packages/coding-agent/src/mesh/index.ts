@@ -17,6 +17,27 @@ export {
 	validateEnvelope,
 } from "./envelope";
 export { MeshMailbox } from "./mailbox";
+export {
+	CLOSED_MESH_GEARS,
+	MESH_GEAR_VALUES,
+	MESH_INBOUND_GEAR_SETTING,
+	MESH_OUTBOUND_GEAR_SETTING,
+	OPEN_MESH_GEARS,
+	type GearCall,
+	type GearDecision,
+	type GearParty,
+	type GearSettingsSource,
+	type MeshGear,
+	type MeshGears,
+	defaultGearsForRoot,
+	evaluateGearCall,
+	gearAllows,
+	gearsFromProjectLayer,
+	gearsFromSettings,
+	isMeshGear,
+	normalizeGear,
+	readWorkspaceGears,
+} from "./gears";
 export { type MeshNodeOptions, type MeshLocalAgent, type MeshDeliverResult, MeshNode } from "./mesh-node";
 export { type MutualWaitSource, type MutualWaitStatus, raceMutualWait } from "./mutual-wait";
 export {

@@ -58,6 +58,62 @@ write(path="agent://zeta/Main", content="...")
 once even if delivery is retried. Mail for a workspace whose process has been
 gone for more than 30 days is evicted and the eviction is logged.
 
+A workspace hosted by the **same process** (for example a `serve` process that
+opened a second repository) is delivered locally, even when the address carries
+its workspace prefix. It is not an offline peer, so nothing is queued into a
+mailbox.
+
+## Messaging rules
+
+### Subagents message only their spawning main
+
+A subagent may message exactly one peer: the main agent that spawned it
+(nested subagents walk up the parent chain to that root main). It can never
+message another main, another subagent, or an address in another workspace.
+Broadcast is not available to subagents. The delivery path enforces this, so
+the restriction is not just a tool-prompt convention.
+
+A subagent message to its spawning main is always delivered, even when that
+workspace's gears are `closed`: the rule above is the only permission a
+subagent has.
+
+### Workspace gears
+
+Main agents have two independent gears, stored **per workspace** in the project
+settings layer (`.zeta/settings.json` or `.zeta/config.yml`):
+
+```yaml
+mesh:
+  inboundGear: closed   # may others call me?
+  outboundGear: closed  # may I call others?
+```
+
+The gears, from closed to open:
+
+| Gear | Outbound: may call | Inbound: accepts |
+|---|---|---|
+| `closed` | nothing outside the workspace | nobody outside the workspace |
+| `repo-main-agents` | the default workspace's main agent | the default workspace's main agent |
+| `repo-all` | main agents of any workspace | main agents of any workspace |
+| `cross-repo-except-default` | any agent of another repository, except the default workspace's subagents | any agent of another repository, except the default workspace's subagents |
+| `open` | every workspace, including the default workspace's subagents | every workspace, including the default workspace's subagents |
+
+Both directions must permit a call: the sender's outbound gear **and** the
+target's inbound gear. A permissive sender therefore cannot bypass a `closed`
+target. Same-workspace messaging is structural — a main may always reach its
+own subagents, and a subagent may always reach its spawning main.
+
+Every repository starts `closed` in both directions. The **default workspace**
+(`~/.zeta/workspace`) runs `open` in both directions, so it may call everyone
+and everyone may call it. A repository that only accepts `repo-main-agents`
+still accepts the default workspace's main agent; a `closed` repository accepts
+nobody.
+
+Gears are advertised in the workspace's mesh directory record, so a sender can
+fail fast with a clear error. The receiving process re-checks its own settings
+on every direct delivery and every mailbox drain: tightening the inbound gear
+drops mail that was queued under the old setting instead of injecting it later.
+
 ## IM bridge
 
 From a bound chat (Feishu/WeChat/Telegram):
@@ -107,7 +163,7 @@ peer, then wait again. Both agents stay usable.
 - Single machine only. Cross-machine tunnels are out of scope; a remote
   workspace may only use a `tcp://` endpoint in a later release, and only when
   `remote.token` is configured.
-- No agent migration and no per-agent permissions — the existing YOLO default
-  applies unchanged.
+- No agent migration and no per-agent permissions — gears are per workspace, and
+  the existing YOLO default applies unchanged inside a workspace.
 - A process that does not join the mesh keeps exactly the old single-process
   behavior; no message path changes when the mesh is absent.

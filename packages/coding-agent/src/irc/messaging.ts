@@ -59,6 +59,15 @@ export async function executeSend(
 	if (to === senderId)
 		return coordinationErrorResult("Cannot send a message to yourself.", { op: "send", from: senderId, to });
 	const isBroadcast = to === "all";
+	if (isBroadcast) {
+		const sender = registry.get(senderId);
+		if (sender?.kind === "sub" && sender.parentId !== undefined) {
+			return coordinationErrorResult(
+				"Subagents may only message the main agent that spawned them; broadcast is not available.",
+				{ op: "send", from: senderId, to },
+			);
+		}
+	}
 	// Restore parked recipients only when needed; never delay delivery to a live
 	// peer. A cross-process address is not in this process's roster at all.
 	if (!isBroadcast && sessionFileHint && !isWorkspaceAddress(to)) {

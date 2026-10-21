@@ -11,11 +11,14 @@
 
 import { type IrcDeliveryReceipt, type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
+import * as path from "node:path";
 import { AgentLifecycleManager } from "../registry/agent-lifecycle";
-import { AgentRegistry, isMainAgentAlias, MAIN_AGENT_ID } from "../registry/agent-registry";
+import { AgentRegistry, isMainAgentAlias, MAIN_AGENT_ID, type AgentRef } from "../registry/agent-registry";
 import { getMeshNode } from "../mesh/global";
-import { formatMeshAddress } from "../mesh/envelope";
+import { formatMeshAddress, tryParseMeshAddress } from "../mesh/envelope";
+import { evaluateGearCall, gearsFromSettings, type GearParty } from "../mesh/gears";
 import type { MeshNode } from "../mesh/mesh-node";
+import { isDefaultWorkspace } from "../default-workspace";
 import type { CustomMessage } from "../session/messages";
 
 interface IrcWaiter {
@@ -131,11 +134,20 @@ export class IrcBus {
 		// `agent://<id>` is accepted anywhere agent ids are; strip the scheme
 		// before the local lookup so a scheme-prefixed local id still resolves.
 		const requestedRaw = message.to.startsWith("agent://") ? message.to.slice("agent://".length) : message.to;
+		// A workspace-qualified target can name another workspace hosted by this
+		// same process (`serve` runs sessions for several roots). Resolve it
+		// locally first: it is not remote, so it must not fall through to an
+		// offline mailbox. This is separate from the mesh's own-workspace strip.
+		let requested = requestedRaw;
+		const parsedRequested = tryParseMeshAddress(requestedRaw);
+		if (parsedRequested?.workspace) {
+			const local = this.#localWorkspaceRef(parsedRequested.workspace, parsedRequested.agent);
+			if (local) requested = local.id;
+		}
 		// `main` names the main agent of the caller's own workspace — not a
 		// same-named root of another workspace, and not a silent self-delivery
 		// when the caller is that main. Resolve locally first; a workspace whose
 		// main lives in another process is addressed through the mesh by id.
-		let requested = requestedRaw;
 		if (isMainAgentAlias(requestedRaw)) {
 			const caller = this.#registry.get(message.from);
 			const main = this.#registry.workspaceMain(caller?.workspaceId);
@@ -154,6 +166,9 @@ export class IrcBus {
 		const localTarget = mesh?.stripLocalAddress(requested);
 		const target = localTarget ?? requested;
 		const ref = this.#registry.get(target);
+		const senderRef = this.#registry.get(message.from);
+		const subagentError = this.#subagentSendError(senderRef, ref, requested);
+		if (subagentError) return { to: target, outcome: "failed", error: subagentError };
 		if (!ref) {
 			if (mesh && localTarget === undefined && mesh.isCrossProcessAddress(requested)) {
 				return await this.#sendOverMesh(mesh, message, requested);
@@ -215,6 +230,9 @@ export class IrcBus {
 			}
 		}
 
+		const gearError = await this.#gearError(senderRef, this.#registry.get(target) ?? ref, target);
+		if (gearError) return { to: target, outcome: "failed", error: gearError };
+
 		// An address qualified with this workspace is delivered under the local
 		// id so the recipient sees the same id it uses in-process.
 		const deliveryMessage = target === message.to ? message : { ...message, to: target };
@@ -250,6 +268,90 @@ export class IrcBus {
 				error: error instanceof Error ? error.message : String(error),
 			};
 		}
+	}
+
+	/**
+	 * The main agent that spawned `ref`: walk nested `parentId` links to the
+	 * root, which is the only agent a subagent may message.
+	 */
+	#spawningMainId(ref: AgentRef): string | undefined {
+		const seen = new Set<string>();
+		let current = ref;
+		while (current.parentId !== undefined && !seen.has(current.parentId)) {
+			seen.add(current.parentId);
+			const parent = this.#registry.get(current.parentId);
+			if (!parent) return current.parentId;
+			current = parent;
+		}
+		return current.kind === "main" && current.parentId === undefined ? current.id : undefined;
+	}
+
+	/** Hard rule 1: a subagent may only message the main agent that spawned it. */
+	#subagentSendError(
+		sender: AgentRef | undefined,
+		targetRef: AgentRef | undefined,
+		requested: string,
+	): string | undefined {
+		if (!sender || sender.kind !== "sub" || sender.parentId === undefined) return undefined;
+		const mainId = this.#spawningMainId(sender);
+		if (mainId === undefined) {
+			return `Subagent "${sender.id}" has no resolvable spawning main agent, so it may not message "${requested}".`;
+		}
+		const sameWorkspace =
+			sender.workspaceId === undefined ||
+			targetRef?.workspaceId === undefined ||
+			sender.workspaceId === targetRef.workspaceId;
+		if (targetRef?.id === mainId && sameWorkspace) return undefined;
+		return (
+			`Subagent "${sender.id}" may only message its spawning main agent "${mainId}"; ` +
+			`sending to "${requested}" is not allowed.`
+		);
+	}
+
+	/** A ref for `workspace`/`agentId` when that workspace is hosted by this process. */
+	#localWorkspaceRef(workspace: string, agentId: string): AgentRef | undefined {
+		const ref = this.#registry.get(agentId);
+		if (!ref?.workspaceId) return undefined;
+		if (ref.workspaceId === workspace) return ref;
+		const cwd = ref.session?.settings?.getCwd();
+		if (cwd && path.basename(cwd) === workspace) return ref;
+		return undefined;
+	}
+
+	/**
+	 * Gear failure for a local main→main call. A source without a project layer
+	 * (an extension-provided session, a test fake) has no gears, so the
+	 * historical in-process behavior is preserved.
+	 */
+	async #gearError(
+		sender: AgentRef | undefined,
+		target: AgentRef | undefined,
+		targetId: string,
+	): Promise<string | undefined> {
+		if (!sender || !target || sender.kind !== "main" || target.kind !== "main") return undefined;
+		if (!sender.workspaceId || !target.workspaceId) return undefined;
+		const senderGears = gearsFromSettings(sender.session?.settings);
+		const targetGears = gearsFromSettings(target.session?.settings);
+		if (!senderGears || !targetGears) return undefined;
+		const senderParty: GearParty = {
+			workspaceId: sender.workspaceId,
+			isDefaultWorkspace: isDefaultWorkspace(sender.session?.settings?.getCwd()),
+			role: "main",
+			address: sender.id,
+		};
+		const targetParty: GearParty = {
+			workspaceId: target.workspaceId,
+			isDefaultWorkspace: isDefaultWorkspace(target.session?.settings?.getCwd()),
+			role: "main",
+			address: targetId,
+		};
+		const decision = evaluateGearCall({
+			sender: senderParty,
+			target: targetParty,
+			senderOutbound: senderGears.outbound,
+			targetInbound: targetGears.inbound,
+		});
+		return decision.allowed ? undefined : decision.error;
 	}
 
 	/** Send one message through the mesh and normalize the receipt. */

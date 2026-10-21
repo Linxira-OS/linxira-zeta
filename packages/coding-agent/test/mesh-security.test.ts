@@ -9,6 +9,7 @@ import * as net from "node:net";
 import { readFile, rm, stat } from "node:fs/promises";
 import * as path from "node:path";
 import { MeshNode } from "../src/mesh/mesh-node";
+import { OPEN_MESH_GEARS } from "../src/mesh/gears";
 import { meshPaths } from "../src/mesh/paths";
 import { readMeshToken, sendMeshEnvelope } from "../src/mesh/transport";
 import { validateEnvelope } from "../src/mesh/envelope";
@@ -31,6 +32,7 @@ describe("mesh security (S7)", () => {
 			...(id !== undefined && { workspaceId: id }),
 			localAgents: () => [{ id: "Main", role: "main", status: "idle" }],
 			deliver: async () => ({ outcome: "injected" }),
+			gears: () => OPEN_MESH_GEARS,
 		});
 		cleanups.push(() => node.stop());
 		return node;

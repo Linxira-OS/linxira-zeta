@@ -26,6 +26,7 @@ import {
 } from "../blob-broker/destinations";
 import { DEFAULT_LIVE_VOICE, LIVE_VOICE_OPTIONS, LIVE_VOICE_VALUES } from "../live/voices";
 import { MAGIC_KEYWORDS, type MagicKeywordId } from "../modes/magic-keywords";
+import { MESH_GEAR_VALUES } from "../mesh/gears";
 import {
 	COMPACTION_METHOD_CHOICES,
 	type CompactionMethod,
@@ -5719,6 +5720,70 @@ export const SETTINGS_SCHEMA = {
 					value: "smart",
 					label: "Smart",
 					description: "Mechanical + small-model classification of text-only stops",
+				},
+			],
+		},
+	},
+
+	"mesh.inboundGear": {
+		type: "enum",
+		values: MESH_GEAR_VALUES,
+		default: "closed",
+		ui: {
+			tab: "interaction",
+			group: "Agent",
+			label: "Inbound Messaging Gear",
+			description:
+				"Which other workspaces may call this workspace's main agent. Stored in this workspace's project settings; the default workspace is always open.",
+			options: [
+				{ value: "closed", label: "Closed", description: "No calls from other workspaces (default)" },
+				{
+					value: "repo-main-agents",
+					label: "Default Main Only",
+					description: "Only the default workspace's main agent may call in",
+				},
+				{ value: "repo-all", label: "Main Agents", description: "Main agents of any workspace may call in" },
+				{
+					value: "cross-repo-except-default",
+					label: "Cross-Repo (Except Default)",
+					description: "Any agent of another repository may call in, except the default workspace's subagents",
+				},
+				{
+					value: "open",
+					label: "Open",
+					description: "Every workspace may call in, including the default workspace's subagents",
+				},
+			],
+		},
+	},
+
+	"mesh.outboundGear": {
+		type: "enum",
+		values: MESH_GEAR_VALUES,
+		default: "closed",
+		ui: {
+			tab: "interaction",
+			group: "Agent",
+			label: "Outbound Messaging Gear",
+			description:
+				"Which other workspaces this workspace's main agent may call. Stored in this workspace's project settings; the default workspace is always open.",
+			options: [
+				{ value: "closed", label: "Closed", description: "No calls to other workspaces (default)" },
+				{
+					value: "repo-main-agents",
+					label: "Default Main Only",
+					description: "May call the default workspace's main agent",
+				},
+				{ value: "repo-all", label: "Main Agents", description: "May call main agents of any workspace" },
+				{
+					value: "cross-repo-except-default",
+					label: "Cross-Repo (Except Default)",
+					description: "May call any agent of another repository, except the default workspace's subagents",
+				},
+				{
+					value: "open",
+					label: "Open",
+					description: "May call every workspace, including the default workspace's subagents",
 				},
 			],
 		},

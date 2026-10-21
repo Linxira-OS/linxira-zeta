@@ -20,6 +20,7 @@
 import * as fs from "node:fs";
 import * as readline from "node:readline";
 import { MeshNode } from "../../src/mesh/mesh-node";
+import { OPEN_MESH_GEARS } from "../../src/mesh/gears";
 import { raceMutualWait } from "../../src/mesh/mutual-wait";
 import type { MeshEnvelope } from "../../src/mesh/types";
 
@@ -87,6 +88,9 @@ async function main(): Promise<void> {
 		...(options.alias !== undefined && { workspaceAlias: options.alias }),
 		...(options.id !== undefined && { workspaceId: options.id }),
 		role: "main",
+		// These scenarios cover transport behavior; the per-workspace gear
+		// policy has its own suite and starts a repository closed by default.
+		gears: () => OPEN_MESH_GEARS,
 		// Test processes share this machine with the whole suite; a loaded
 		// machine must not turn a live delivery into a false offline queue.
 		ackTimeoutMs: options.ackMs ?? 15_000,

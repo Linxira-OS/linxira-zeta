@@ -1851,6 +1851,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "检测意外停止",
 		description: "使用小模型检测助手说会继续却未调用工具就停止的情况；自动提示它继续。",
 	},
+	"mesh.inboundGear": {
+		label: "入站消息挡位",
+		description: "哪些其他工作区可以调用本工作区的主智能体。保存在本工作区的项目设置中；默认工作区始终开放。",
+	},
+	"mesh.outboundGear": {
+		label: "出站消息挡位",
+		description: "本工作区的主智能体可以调用哪些其他工作区。保存在本工作区的项目设置中；默认工作区始终开放。",
+	},
 	"providers.unexpectedStopModel": {
 		label: "意外停止模型",
 		description: "意外停止检测的分类器：默认为在线（/models 中的 TINY 角色，否则 smol），或本地设备端模型。",
@@ -5070,6 +5078,46 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"features.unexpectedStopDetection::smart": {
 		label: "智能",
 		description: "机械检测 + 小模型对纯文本停止的分类",
+	},
+	"mesh.inboundGear::closed": {
+		label: "关闭",
+		description: "不接受其他工作区的调用（默认）",
+	},
+	"mesh.inboundGear::repo-main-agents": {
+		label: "仅默认主智能体",
+		description: "只有默认工作区的主智能体可以呼入",
+	},
+	"mesh.inboundGear::repo-all": {
+		label: "主智能体",
+		description: "任何工作区的主智能体都可以呼入",
+	},
+	"mesh.inboundGear::cross-repo-except-default": {
+		label: "跨仓（默认除外）",
+		description: "其他仓库的任意智能体可以呼入，但默认工作区的子智能体除外",
+	},
+	"mesh.inboundGear::open": {
+		label: "开放",
+		description: "所有工作区都可以呼入，包括默认工作区的子智能体",
+	},
+	"mesh.outboundGear::closed": {
+		label: "关闭",
+		description: "不向其他工作区发起调用（默认）",
+	},
+	"mesh.outboundGear::repo-main-agents": {
+		label: "仅默认主智能体",
+		description: "可以调用默认工作区的主智能体",
+	},
+	"mesh.outboundGear::repo-all": {
+		label: "主智能体",
+		description: "可以调用任何工作区的主智能体",
+	},
+	"mesh.outboundGear::cross-repo-except-default": {
+		label: "跨仓（默认除外）",
+		description: "可以调用其他仓库的任意智能体，但默认工作区的子智能体除外",
+	},
+	"mesh.outboundGear::open": {
+		label: "开放",
+		description: "可以调用所有工作区，包括默认工作区的子智能体",
 	},
 	"providers.unexpectedStopModel::online": {
 		label: "在线（TINY 角色，否则 @smol）",
