@@ -94,6 +94,7 @@ pub struct App {
     restore_projects: bool,
     /// Terminal capabilities this process was started with. Kept so that a
     /// reattach can re-enter exactly the modes startup entered.
+    #[cfg(unix)]
     keyboard_caps: termide_keyboard::KeyboardCaps,
     /// Focus signature (group index, active panel name) from the previous
     /// input, used to detect when focus moves to a git panel so it can be
@@ -184,6 +185,7 @@ impl App {
             title_click_tracker: ClickTracker::new(),
             command_palette_actions: None,
             normalizer: termide_keyboard::KeyNormalizer::default(),
+            #[cfg(unix)]
             keyboard_caps: termide_keyboard::KeyboardCaps::default(),
             persist_layout: true,
             saved_open_projects: None,
@@ -280,6 +282,7 @@ impl App {
             title_click_tracker: ClickTracker::new(),
             command_palette_actions: None,
             normalizer: termide_keyboard::KeyNormalizer::new(caps),
+            #[cfg(unix)]
             keyboard_caps: caps,
             persist_layout: true,
             saved_open_projects: None,

@@ -236,6 +236,120 @@ fn restore_terminal() {
     termide_core::leave_terminal_modes();
 }
 
+/// Where a panic report is appended when the session log is not available.
+///
+/// `dirs::data_dir()` is `%APPDATA%` on Windows and `~/.local/share` on Unix,
+/// the same root the project layouts live under, so the report survives a
+/// panic before the logger (and its per-project session log) exists.
+fn panic_fallback_path() -> Option<std::path::PathBuf> {
+    dirs::data_dir().map(|dir| dir.join("termide").join("panic.log"))
+}
+
+/// Append `report` to `path`, creating the parent directory first.
+fn append_panic_report(path: &std::path::Path, report: &str) -> bool {
+    use std::io::Write;
+    if let Some(parent) = path.parent() {
+        if std::fs::create_dir_all(parent).is_err() {
+            return false;
+        }
+    }
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .and_then(|mut file| file.write_all(report.as_bytes()))
+        .is_ok()
+}
+
+/// The text a panic is filed and printed with: what failed, where, and a
+/// backtrace captured even when `RUST_BACKTRACE` is unset (the user did not
+/// ask for a crash, so the environment cannot be relied on to record one).
+fn format_panic_report(message: &str, location: Option<&std::panic::Location<'_>>) -> String {
+    let thread_name = std::thread::current();
+    let thread_name = thread_name.name().unwrap_or("<unnamed>");
+    let location = location
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "<unknown>".to_string());
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or_default();
+    let backtrace = std::backtrace::Backtrace::force_capture();
+    format!(
+        "\n=== zetaide panic at {timestamp} (thread '{thread_name}') ===\n\
+         {message}\n\
+         location: {location}\n\
+         backtrace:\n{backtrace}\n"
+    )
+}
+
+/// The panic message as text; payloads may be a `&str` or a `String`.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("<panic payload was not a string>")
+}
+
+/// Write the report to the session log and the fallback, returning the files
+/// that accepted it.
+fn write_panic_report(report: &str) -> Vec<std::path::PathBuf> {
+    let mut written = Vec::new();
+    if let Some(path) = termide_logger::file_path() {
+        if append_panic_report(&path, report) {
+            written.push(path);
+        }
+    }
+    if let Some(path) = panic_fallback_path() {
+        if !written.contains(&path) && append_panic_report(&path, report) {
+            written.push(path);
+        }
+    }
+    written
+}
+
+/// Install the panic hook that turns a crash into a surviving report.
+///
+/// A TUI panic happens with the terminal in raw mode inside the alternate
+/// screen: the message is drawn on a screen that is then restored, so the
+/// user sees the window close and nothing else. This hook appends the
+/// message, location and a forced backtrace to the session log and the
+/// fallback before restoring the terminal, then prints it to stderr.
+///
+/// Only the main thread is captured. Panel construction and agent workers
+/// run under `join()`/`catch_unwind` boundaries that already handle a panic;
+/// restoring the terminal from one of those threads would yank the alternate
+/// screen out from under a running UI, so they keep upstream's default
+/// reporting and the join still decides what happens.
+fn install_panic_hook() {
+    let main_thread = std::thread::current().id();
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        if std::thread::current().id() != main_thread {
+            default_hook(info);
+            return;
+        }
+        let report = format_panic_report(panic_message(info.payload()), info.location());
+        let written = write_panic_report(&report);
+        // Restore first: leaving the alternate screen clears the UI, and the
+        // report is the only record left of what happened.
+        restore_terminal();
+        // `eprintln!` panics when stderr is gone (a closed console); the hook
+        // must never panic while unwinding, so the write errors are dropped.
+        use std::io::Write;
+        let mut stderr = std::io::stderr().lock();
+        let _ = writeln!(stderr, "{report}");
+        for path in written {
+            let _ = writeln!(
+                stderr,
+                "zetaide: panic report written to {}",
+                path.display()
+            );
+        }
+    }));
+}
+
 /// Move to the project `--restore` starts in, when the saved set names one
 /// other than the working directory. Returns where it moved from and to, so
 /// the move reaches the journal once the logger is up; `None` when the launch
@@ -436,14 +550,10 @@ fn main() -> Result<()> {
         std::process::exit(code);
     }
 
-    // Install panic handler that restores terminal before printing the panic.
-    // Without this, a panic leaves the terminal in raw mode + alternate screen,
-    // which looks like a frozen blank screen (especially over SSH).
-    let default_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        restore_terminal();
-        default_hook(info);
-    }));
+    // Install the panic hook that restores the terminal and files a report
+    // before the alternate screen is left. Without it a panic looks like a
+    // window that closed instantly, with no record anywhere.
+    install_panic_hook();
 
     // Detect terminal capabilities first (before loading themes)
     let caps = init_terminal_caps();
@@ -572,7 +682,10 @@ fn main() -> Result<()> {
     // Saved layouts of a termide older than the projects rename. Only the
     // process that goes on to run the UI does this, so its report reaches
     // the journal with the config warnings below.
-    let migration_notes = termide_project::migrate_legacy_layouts();
+    let mut migration_notes = termide_project::migrate_legacy_layouts();
+    // Layouts saved before the project key kept its volume: file the ones
+    // this drive can prove it owns, warn about the rest.
+    migration_notes.extend(termide_project::migrate_rootless_layouts(&project_root));
 
     // Check for git on the system
     let git_available = check_git_available();
@@ -715,6 +828,35 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod panic_report_tests {
+    use super::{append_panic_report, format_panic_report};
+
+    /// The report carries the three things a silent close hides: the message,
+    /// its source location, and a captured backtrace.
+    #[test]
+    fn panic_report_names_the_message_location_and_backtrace() {
+        let report = format_panic_report("boom", Some(std::panic::Location::caller()));
+        assert!(report.contains("boom"), "{report}");
+        assert!(report.contains("location: "), "{report}");
+        assert!(report.contains("backtrace:"), "{report}");
+        assert!(report.contains("zetaide panic"), "{report}");
+    }
+
+    /// Reports append rather than replace, so a second crash does not erase
+    /// the first one's evidence.
+    #[test]
+    fn panic_reports_append_to_the_fallback_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("termide").join("panic.log");
+
+        assert!(append_panic_report(&path, "first\n"));
+        assert!(append_panic_report(&path, "second\n"));
+
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "first\nsecond\n");
+    }
 }
 
 #[cfg(test)]

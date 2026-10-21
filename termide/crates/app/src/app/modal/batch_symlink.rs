@@ -1,11 +1,14 @@
 //! Symlink creation for batch file operations.
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::path::Path;
+use std::path::PathBuf;
 
 use super::super::App;
 use termide_ui::path_utils;
 
+#[cfg(unix)]
 fn relative_path_from(base_dir: &Path, target: &Path) -> Option<PathBuf> {
     use std::path::Component;
 
@@ -41,6 +44,7 @@ fn relative_path_from(base_dir: &Path, target: &Path) -> Option<PathBuf> {
     }
 }
 
+#[cfg(unix)]
 fn symlink_target_path(
     source: &Path,
     link_path: &Path,

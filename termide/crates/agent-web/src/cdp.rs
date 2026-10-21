@@ -7,6 +7,11 @@
 //! page carries its `sessionId` at the top level. Events are not delivered;
 //! callers poll page state instead, which keeps this a request/reply channel.
 
+// The pipe transport is Unix-only: `spawn_with_pipe` on Windows returns
+// "not supported" without ever constructing a `Cdp`, so the reader below is
+// dead code there and the Windows clippy gate (-D warnings) fails on it.
+#![cfg_attr(not(unix), allow(dead_code))]
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
