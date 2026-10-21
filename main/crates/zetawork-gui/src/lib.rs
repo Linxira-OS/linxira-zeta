@@ -33,6 +33,7 @@ pub mod embed;
 pub mod fonts;
 pub mod fsread;
 pub mod git;
+pub mod history;
 pub mod i18n;
 pub mod icons;
 pub mod left;
@@ -40,6 +41,7 @@ pub mod lifecycle;
 pub mod live;
 pub mod notify;
 pub mod page;
+pub mod palette;
 pub mod pdf;
 pub mod picker;
 pub mod plugin_panels;
@@ -48,6 +50,7 @@ pub mod resources;
 pub mod right;
 pub mod ring;
 pub mod seed;
+pub mod session_admin;
 pub mod sessions;
 pub mod settings;
 pub mod settings_channels;
@@ -62,6 +65,7 @@ pub mod status;
 pub mod statusbar;
 pub mod terminal_service;
 pub mod theme;
+pub mod tracking;
 pub mod total;
 pub mod tray;
 pub mod update_ui;
@@ -69,6 +73,7 @@ pub mod updates;
 pub mod usage;
 pub mod widgets;
 pub mod window_shape;
+pub mod worktrees;
 pub mod workspace_memory;
 pub mod ws;
 pub mod zetacode;
@@ -88,7 +93,7 @@ pub const APP_SUBTITLE: &str = "工作台";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The 快捷键 section: label, hint, the keys this build actually binds.
-pub const BINDINGS: [(&str, &str, &str); 5] = [
+pub const BINDINGS: [(&str, &str, &str); 6] = [
 	// 工作区 and 大标签页 are the same level, so this reads as the draft's
 	// 创建大标签页 while binding the key this build binds.
 	("创建大标签页", "在当前项目下新建一个工作区（= 一个新大标签页）", "Ctrl N"),
@@ -96,6 +101,7 @@ pub const BINDINGS: [(&str, &str, &str); 5] = [
 	("新建终端", "在当前面板新建一个终端", "Ctrl ⇧ T"),
 	("打开设置", "打开本设置面板", "Ctrl ,"),
 	("切换侧栏", "显示或隐藏左右侧栏", "Ctrl B"),
+	("命令面板", "打开命令面板：跳转项目、工作区、会话、文件，或运行桌面动作", "Ctrl K"),
 ];
 
 /// The shell: state plus the read-only readers and caches around it.
@@ -167,6 +173,17 @@ pub struct Shell {
 	/// The gateway's conversation list (`GET /api/sessions`) behind the left
 	/// column's workspace → conversation nodes ([`sessions`]).
 	pub sessions: sessions::SessionCache,
+	/// The right column's 历史 page: the search box for the same list
+	/// ([`history`]).
+	pub history: history::HistoryView,
+	/// The right column's 跟踪 page: `.zeta/tracking/` ([`tracking`]).
+	pub tracking: tracking::TrackingCache,
+	/// The right column's 工作树 page ([`worktrees`]).
+	pub worktrees: worktrees::WorktreeCache,
+	/// The 会话管理 modal: archive list, its requests, and the pins write.
+	pub session_admin: session_admin::Admin,
+	/// The palette's `zetacode daemon restart` worker.
+	pub palette_job: Option<palette::Job>,
 	/// The right column's 资源 page: host CPU/memory/GPU and the process list
 	/// ([`resources::ResourceCache`]).
 	pub resources: resources::ResourceCache,
@@ -314,6 +331,11 @@ impl Shell {
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
 			sessions: sessions::SessionCache::default(),
+			history: history::HistoryView::default(),
+			tracking: tracking::TrackingCache::default(),
+			worktrees: worktrees::WorktreeCache::default(),
+			session_admin: session_admin::Admin::default(),
+			palette_job: None,
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
 			plugins: plugin_panels::discover_in(&plugin_panels::home()),
@@ -341,6 +363,8 @@ impl Shell {
 			memory: Memory::new(),
 			resizing: chrome::ResizeState::default(),
 		};
+		shell.state.pinned_sessions =
+			sessions::load_pins_from(&sessions::pins_path());
 		shell.sync_readers();
 		// One read up front so the status bar's ↑↓ / 更改 columns are real
 		// from the first frame instead of `—`.
@@ -383,6 +407,11 @@ impl Shell {
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
 			sessions: sessions::SessionCache::default(),
+			history: history::HistoryView::default(),
+			tracking: tracking::TrackingCache::default(),
+			worktrees: worktrees::WorktreeCache::default(),
+			session_admin: session_admin::Admin::default(),
+			palette_job: None,
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
 			// A headless shell reads nothing: a test seeds `plugins` itself
@@ -526,10 +555,35 @@ impl Shell {
 			self.git = None;
 			return;
 		};
+		let workspace_id = workspace.id.clone();
 		let path = PathBuf::from(&workspace.path);
-		self.git = Some(git::read_status(&path, 8));
-		self.git_ws = workspace.id.clone();
+		let status = git::read_status(&path, 8);
+		// The workspace row's branch chip is the checkout's own answer: a
+		// `git switch` in a terminal, or a worktree switch, shows up here.
+		if !status.branch.is_empty() {
+			self.state.set_workspace_branch(&workspace_id, &status.branch);
+		}
+		self.git = Some(status);
+		self.git_ws = workspace_id;
 		self.git_at = Some(Instant::now());
+	}
+
+	/// Point the active workspace at another checkout (the 工作树 page).
+	///
+	/// The workspace's id does not change when its path does, so the readers
+	/// keyed by id are invalidated here rather than in `sync_readers`.
+	pub fn retarget_workspace(&mut self, path: &std::path::Path, branch: &str) -> state::Notice {
+		let notice = self.state.retarget_workspace(path, branch);
+		if notice.0.is_empty() {
+			self.tree_ws.clear();
+			self.git_ws.clear();
+			self.diff_ws.clear();
+			self.git_at = None;
+			self.git_notice = None;
+			self.reload_tree();
+			self.refresh_git();
+		}
+		notice
 	}
 
 	/// Switch the active workspace's worktree to `branch`.
@@ -611,6 +665,27 @@ impl Shell {
 	}
 
 	// ── the ＋ picker, the diff page, the 用量 container ─────────────────
+
+	/// Open the command palette over the current state.
+	///
+	/// The two lists that need I/O — the active workspace's files and its
+	/// branches — are read once here, on the user's click, not per frame.
+	pub fn open_palette(&mut self) {
+		let root = self
+			.state
+			.active_workspace()
+			.map(|workspace| PathBuf::from(&workspace.path));
+		let files = root
+			.as_deref()
+			.map(|root| palette::collect_files(root, 2000))
+			.unwrap_or_default();
+		let branches = root
+			.as_deref()
+			.and_then(|root| git::read_branches(root).ok())
+			.unwrap_or_default();
+		let palette = palette::build(&self.state, &files, &branches);
+		self.state.open_palette(palette);
+	}
 
 	/// Open the `+` picker above the button that asked for it.
 	///
@@ -1219,9 +1294,14 @@ impl Shell {
 		} else {
 			None
 		};
-		self.sessions.set_origin(gateway);
+		self.sessions.set_origin(gateway.clone());
 		let now = std::time::Instant::now();
-		self.sessions.tick(now, !self.state.left_collapsed);
+		// The list feeds the left column, the 历史 page and 会话管理; any of
+		// them being open keeps it fresh.
+		let history_open = !self.state.right_collapsed
+			&& self.state.right_tab == state::RightTab::History;
+		self.sessions
+			.tick(now, !self.state.left_collapsed || history_open || self.state.sessions_open);
 		for event in self.sessions.poll(now) {
 			match event {
 				sessions::Event::Updated => {
@@ -1242,6 +1322,30 @@ impl Shell {
 			}
 		}
 		self.attach_conversation_tabs();
+		// 会话管理: the archive list and its one in-flight mutation.
+		self
+			.session_admin
+			.tick(gateway.as_deref(), self.state.sessions_open, now);
+		for event in self.session_admin.poll(now) {
+			match event {
+				session_admin::Event::Archived => {},
+				session_admin::Event::DidArchive(id) => {
+					self.session_admin.notice = Some((true, t!("已归档 {}", id)));
+					self.sessions.refresh_now();
+				},
+				session_admin::Event::DidUnarchive(id) => {
+					self.session_admin.notice = Some((true, t!("已恢复 {}", id)));
+					self.sessions.refresh_now();
+				},
+				session_admin::Event::Failed(error) => {
+					self.session_admin.notice = Some((false, error));
+				},
+			}
+		}
+		// The palette's daemon restart is one-off: report it once and drop it.
+		if let Some(line) = palette::poll_job(self) {
+			self.state.show(state::Notice(line));
+		}
 		// 设置 → IM 渠道: the pane polls the gateway only while it is the open
 		// section; a closed modal starts no request.
 		let channels_visible = self.state.settings_open()
@@ -1323,6 +1427,26 @@ impl Shell {
 				ctx.request_repaint_after(crate::board::REFRESH);
 			}
 		}
+		// 跟踪 reads the active workspace's `.zeta/tracking/` at most once a
+		// second while the page is visible.
+		if !self.state.right_collapsed && self.state.right_tab == state::RightTab::Tracking {
+			if let Some(root) = self
+				.state
+				.active_workspace()
+				.map(|workspace| std::path::PathBuf::from(&workspace.path))
+			{
+				self.tracking.refresh(&root, now);
+				ctx.request_repaint_after(tracking::REFRESH);
+			}
+		}
+		// 工作树 follows the active conversation's directory, read on the same
+		// TTL.
+		if !self.state.right_collapsed && self.state.right_tab == state::RightTab::Worktrees {
+			if let Some(dir) = worktrees::conversation_dir(&self.state) {
+				self.worktrees.refresh(&dir, now);
+				ctx.request_repaint_after(worktrees::REFRESH);
+			}
+		}
 		if self.settings_changed() {
 			self.apply_settings(ctx);
 		}
@@ -1366,7 +1490,16 @@ impl Shell {
 			ctx.request_repaint_after(std::time::Duration::from_millis(120));
 		}
 		self.memory.sample_if_stale();
-		if !self.forward_terminal_input(ctx) {
+		// ⌘K / Ctrl-K opens the palette from anywhere — including a focused
+		// terminal, whose PTY would otherwise swallow the chord. It never opens
+		// over another modal.
+		let palette_hotkey = ctx.input(|input| {
+			input.modifiers.command && input.key_pressed(egui::Key::K)
+		});
+		if palette_hotkey && !self.state.modal_open() {
+			self.open_palette();
+		}
+		if !palette::keys(ctx, self) && !self.forward_terminal_input(ctx) {
 			self.handle_keys(ctx);
 		}
 		self.sync_readers();
@@ -1486,6 +1619,8 @@ impl Shell {
 		lifecycle::modal(ctx, self);
 		usage::container(ctx, self);
 		picker::popup(ctx, self);
+		session_admin::modal(ctx, self);
+		palette::popup(ctx, self);
 		update_ui::modal(ctx, self);
 		if let Some(text) = self.state.live_toast() {
 			let text = text.to_owned();

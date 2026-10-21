@@ -499,13 +499,25 @@ fn the_editor_page_opens_and_saves_a_real_file() {
 }
 
 #[test]
-fn the_right_column_has_seven_tabs_and_ten_settings_sections() {
-	// 看板 is the user board; 插件 is the plugin layer (declarative panels drawn
-	// natively — the `html` kind is the only one that leaves the process).
-	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 7);
+fn the_right_column_has_nine_tabs_and_eleven_settings_sections() {
+	// 看板 is the user board; 跟踪 reads `.zeta/tracking/`; 工作树 is the
+	// conversation's checkouts; 插件 is the plugin layer (declarative panels
+	// drawn natively — the `html` kind is the only one that leaves the
+	// process).
+	assert_eq!(zetawork_gui::state::RightTab::ALL.len(), 9);
 	assert_eq!(
 		zetawork_gui::state::RightTab::ALL.map(|tab| tab.title()),
-		["文件树", "历史 · Agent 对话", "Git 状态", "用量", "资源", "看板", "插件"]
+		[
+			"文件树",
+			"历史 · Agent 对话",
+			"Git 状态",
+			"用量",
+			"资源",
+			"看板",
+			"跟踪",
+			"工作树",
+			"插件",
+		]
 	);
 	// 常规 comes first: the lifecycle rulings (关闭窗口时 / 开机自启 / 通知) are
 	// the one section the design drafts do not have, and the six they fix

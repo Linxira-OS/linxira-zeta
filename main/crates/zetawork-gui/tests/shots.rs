@@ -935,3 +935,71 @@ fn kitty_image_shot() {
 	assert!(bytes.len() > 256, "a real raster is not a handful of bytes");
 	write("11-kitty-image.png", &bytes);
 }
+
+/// `19-history-page.png` — the right column's 历史 page: the gateway's session
+/// list, newest first, grouped by day, with the search box. The rows are
+/// seeded (a shot must not need `zetacode serve`); the page itself reads the
+/// same cache the left column does.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn history_page_screenshot() {
+	use zetawork_gui::sessions::Conversation;
+
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	let default = shell
+		.state
+		.default_workspace()
+		.expect("the system project is seeded")
+		.path
+		.clone();
+	let local = shell.state.projects[0].path.clone();
+	let now = chrono::Local::now().timestamp_millis();
+	let row = |id: &str, cwd: PathBuf, title: &str, ago: i64, running: bool| Conversation {
+		id: id.to_owned(),
+		cwd,
+		title: title.to_owned(),
+		modified_ms: now - ago,
+		message_count: 6,
+		running,
+	};
+	shell.state.set_conversations(vec![
+		row(
+			"sess-history-1",
+			PathBuf::from(&default).join("notes"),
+			"整理默认工作区的笔记",
+			12 * 60_000,
+			true,
+		),
+		row("sess-history-2", PathBuf::from(&default), "初始化默认工作区", 3 * 3_600_000, false),
+		row("sess-history-3", local, "修复解析器的历史会话", 30 * 3_600_000, false),
+		row(
+			"sess-history-4",
+			PathBuf::from(&default),
+			"欢迎使用 Zeta",
+			3 * 86_400_000,
+			false,
+		),
+	]);
+	shell.state.pinned_sessions = vec!["sess-history-2".to_owned()];
+	shell.state.set_right_tab(zetawork_gui::state::RightTab::History);
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("19-history-page.png", &bytes);
+}
+
+/// `20-command-palette.png` — ⌘K open over the workspace, listing the shell's
+/// own rows: actions, projects, workspaces, conversations and files.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn command_palette_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	shell.open_palette();
+	if let Some(palette) = shell.state.palette_mut() {
+		palette.selected = 1;
+	}
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096);
+	write("20-command-palette.png", &bytes);
+}

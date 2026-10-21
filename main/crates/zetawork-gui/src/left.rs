@@ -76,6 +76,16 @@ fn head_region(ui: &mut Ui, shell: &mut Shell) {
 	);
 	ui.painter()
 		.circle_filled(pos2(name_x + 60.0, rect.center().y), 3.5, theme::ADD);
+	// 会话管理: the cross-project list, opened over the frame.
+	let mut manage = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
+		pos2(rect.max.x - 60.0, rect.center().y - 12.0),
+		vec2(24.0, 24.0),
+	)));
+	if icon_button(&mut manage, Icon::List, 24.0, false, t!("会话管理：搜索、置顶、归档与恢复"))
+		.clicked()
+	{
+		shell.state.toggle_sessions_admin();
+	}
 	let mut collapse = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
 		pos2(rect.max.x - 32.0, rect.center().y - 12.0),
 		vec2(24.0, 24.0),
