@@ -223,24 +223,21 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue([session]);
 		const OriginalSelector = SessionSelector.SessionSelectorComponent;
 		const selectionPromises: Promise<void>[] = [];
-		vi.spyOn(SessionSelector, "SessionSelectorComponent").mockImplementation(
-			((
-				sessions: SessionInfo[],
-				onSelect: (session: SessionInfo) => void,
-				onCancel: () => void,
-				onExit: () => void,
-				options: SessionSelector.SessionSelectorOptions<SessionInfo>,
-			) =>
-				new OriginalSelector<SessionInfo>(
-					sessions,
-					selected => {
-						selectionPromises.push(onSelect(selected) as unknown as Promise<void>);
-					},
-					onCancel,
-					onExit,
-					options,
-				)) as never,
-		);
+		// `/resume` opens the three-level picker, whose tree owns Enter; drive the
+		// controller's selection callback directly, which is what the preflight
+		// flush/retry contract observes.
+		let selectSession: ((session: SessionInfo) => void) | undefined;
+		vi.spyOn(SessionSelector, "SessionSelectorComponent").mockImplementation(((
+			sessions: SessionInfo[],
+			onSelect: (session: SessionInfo) => void,
+			onCancel: () => void,
+			onExit: () => void,
+			options: SessionSelector.SessionSelectorOptions<SessionInfo>,
+		) => {
+			const pick = (selected: SessionInfo) => selectionPromises.push(onSelect(selected) as unknown as Promise<void>);
+			selectSession = pick;
+			return new OriginalSelector<SessionInfo>(sessions, pick, onCancel, onExit, options);
+		}) as never);
 		const { ctx, switchSession, editor, hide, setFocus, flush, getSelector } = createResumeContext();
 		flush.mockRejectedValueOnce(new Error("disk full"));
 		const controller = new SelectorController(ctx);
@@ -248,7 +245,7 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 		const selector = getSelector();
 		expect(selector).toBeDefined();
 
-		selector!.handleInput("\n");
+		selectSession!(session);
 		expect(selectionPromises).toHaveLength(1);
 		await selectionPromises[0];
 
@@ -256,7 +253,7 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 		expect(setFocus).not.toHaveBeenCalledWith(editor);
 		expect(switchSession).not.toHaveBeenCalled();
 
-		selector!.handleInput("\n");
+		selectSession!(session);
 		expect(selectionPromises).toHaveLength(2);
 		await selectionPromises[1];
 		expect(switchSession).toHaveBeenCalledTimes(1);
@@ -279,24 +276,20 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue([session]);
 		const OriginalSelector = SessionSelector.SessionSelectorComponent;
 		let selectionPromise: Promise<void> | undefined;
-		vi.spyOn(SessionSelector, "SessionSelectorComponent").mockImplementation(
-			((
-				sessions: SessionInfo[],
-				onSelect: (session: SessionInfo) => void,
-				onCancel: () => void,
-				onExit: () => void,
-				options: SessionSelector.SessionSelectorOptions<SessionInfo>,
-			) =>
-				new OriginalSelector<SessionInfo>(
-					sessions,
-					selected => {
-						selectionPromise = onSelect(selected) as unknown as Promise<void>;
-					},
-					onCancel,
-					onExit,
-					options,
-				)) as never,
-		);
+		let selectSession: ((session: SessionInfo) => void) | undefined;
+		vi.spyOn(SessionSelector, "SessionSelectorComponent").mockImplementation(((
+			sessions: SessionInfo[],
+			onSelect: (session: SessionInfo) => void,
+			onCancel: () => void,
+			onExit: () => void,
+			options: SessionSelector.SessionSelectorOptions<SessionInfo>,
+		) => {
+			const pick = (selected: SessionInfo) => {
+				selectionPromise = onSelect(selected) as unknown as Promise<void>;
+			};
+			selectSession = pick;
+			return new OriginalSelector<SessionInfo>(sessions, pick, onCancel, onExit, options);
+		}) as never);
 		const { ctx, switchSession, editor, hide, setFocus, getSelector } = createResumeContext();
 		const switchError = new Error("switch failed");
 		switchSession.mockRejectedValue(switchError);
@@ -305,7 +298,7 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 		const selector = getSelector();
 		expect(selector).toBeDefined();
 
-		selector!.handleInput("\n");
+		selectSession!(session);
 		expect(selectionPromise).toBeDefined();
 		await selectionPromise;
 

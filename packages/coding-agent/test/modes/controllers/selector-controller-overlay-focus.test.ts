@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
+import * as SessionSelector from "@linxiraos/pi-tui/overlays/session-selector";
 import type { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
 import { initTheme } from "@linxiraos/pi-tui/theme";
@@ -131,6 +132,21 @@ describe("SelectorController session replacement overlay", () => {
 			allMessagesText: "first second",
 		};
 		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue([session]);
+		// `/resume` now opens the three-level picker, whose own tree takes Enter:
+		// drive the controller's selection callback directly, which is what the
+		// overlay/focus contract under test observes.
+		let selectSession: ((session: SessionInfo) => void) | undefined;
+		const OriginalSelector = SessionSelector.SessionSelectorComponent;
+		vi.spyOn(SessionSelector, "SessionSelectorComponent").mockImplementation(((
+			sessions: SessionInfo[],
+			onSelect: (session: SessionInfo) => void,
+			onCancel: () => void,
+			onExit: () => void,
+			options: never,
+		) => {
+			selectSession = onSelect;
+			return new OriginalSelector<SessionInfo>(sessions, onSelect, onCancel, onExit, options);
+		}) as never);
 
 		const overlayHidden = Promise.withResolvers<void>();
 		const hide = vi.fn(() => overlayHidden.resolve());
@@ -166,14 +182,18 @@ describe("SelectorController session replacement overlay", () => {
 		});
 		await controller.showSessionSelector();
 		expect(selector).toBeDefined();
-		selector!.handleInput("\n");
+		expect(selectSession).toBeDefined();
+		selectSession!(session);
 		await resumeStarted.promise;
 
 		expect(handleResume).toHaveBeenCalledWith(session.path);
 		expect(hide).not.toHaveBeenCalled();
 
 		// The selector remains mounted until resume finishes, but it must not accept
-		// a second selection or cancel the overlay during that interval.
+		// a second selection or cancel the overlay during that interval. The
+		// controller locks the component before switching, so raw keys are dropped
+		// by the component itself; a direct callback call is what the lock exists
+		// to make unreachable from the UI.
 		selector!.handleInput("\n");
 		selector!.handleInput("\x1b");
 		expect(handleResume).toHaveBeenCalledTimes(1);
