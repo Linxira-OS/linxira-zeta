@@ -87,4 +87,41 @@ describe("session listing scan cache", () => {
 		expect(await listSessions(SESSION_DIR, storage)).toEqual([]);
 		expect(readSpy).toHaveBeenCalledTimes(1);
 	});
+
+	it("reports the last persisted model from the prefix and the tail window", async () => {
+		const storage = new MemorySessionStorage();
+		const header = JSON.stringify({
+			type: "session",
+			id: "model-id",
+			cwd: "/repo",
+			timestamp: "2026-06-27T00:00:00.000Z",
+		});
+		const user = JSON.stringify({ type: "message", message: { role: "user", content: "hello" } });
+		const first = `${SESSION_DIR}/modeled.jsonl`;
+		storage.writeTextSync(
+			first,
+			[header, JSON.stringify({ type: "model_change", model: "provider/first" }), user, ""].join("\n"),
+		);
+		const [info] = await listSessions(SESSION_DIR, storage);
+		expect(info?.model).toBe("provider/first");
+
+		// A change deep in the transcript only lands in the suffix window.
+		const long = `${SESSION_DIR}/modeled-late.jsonl`;
+		const filler = Array.from({ length: 40 }, () =>
+			JSON.stringify({ type: "message", message: { role: "assistant", content: "x".repeat(200) } }),
+		);
+		storage.writeTextSync(
+			long,
+			[
+				JSON.stringify({ type: "session", id: "late-id", cwd: "/repo", timestamp: "2026-06-27T00:00:00.000Z" }),
+				JSON.stringify({ type: "model_change", model: "provider/first" }),
+				user,
+				...filler,
+				JSON.stringify({ type: "model_change", model: "provider/late" }),
+				"",
+			].join("\n"),
+		);
+		const late = await listSessions(SESSION_DIR, storage);
+		expect(late.find(session => session.id === "late-id")?.model).toBe("provider/late");
+	});
 });

@@ -1918,11 +1918,6 @@ ssSaveHint
 ssSearchHint
 ssSectionsFocusedHint
 ssSelectHint
-ssStatusAborted
-ssStatusDone
-ssStatusError
-ssStatusInterrupted
-ssStatusPending
 ssTitleResume
 ssTitleSettings
 ssTitleWithScopeFmt

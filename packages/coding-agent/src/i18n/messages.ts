@@ -2821,6 +2821,27 @@ export interface Messages {
 	ssTitleWithScopeFmt: string; // "%s (%s)"
 	ssFooterHintLineFmt: string; // "[Del/⌫ delete · Enter select · Tab %s · Esc cancel]"
 
+	// ── Resume picker (native picker + ANSI resume tree) ───────────────────
+	resumeLoading: string;
+	resumeSearchAll: string;
+	resumeSearchInWorkspace: string;
+	resumeSearchInProject: string;
+	resumeNoMatchFmt: string;
+	resumeHiddenByFilterFmt: string;
+	resumeDeleteTrashFmt: string;
+	resumeDeletePermanentFmt: string;
+	resumePinAction: string;
+	resumeUnpinAction: string;
+	resumeRefreshAction: string;
+	resumeScopeWorkspace: string;
+	resumeScopeProject: string;
+	resumeScopeAll: string;
+	resumeEmptyWorkspace: string;
+	resumeEmptyProject: string;
+	resumeEmptyAll: string;
+	resumeDeleteTrash: string;
+	resumeDeletePermanent: string;
+
 	// ── History search (history-search.ts) ─────────────────────────────────
 	hsTitle: string; // "History"
 	hsNoMatchingHistory: string;

@@ -1,5 +1,6 @@
 import { logger } from "@linxiraos/pi-utils";
 import {
+	type ResumeSourceLike,
 	SessionSelectorComponent,
 	type SessionSelectorEntry,
 	type SessionHistoryMatcher,
@@ -24,6 +25,10 @@ export interface SessionPickerOptions<T extends SessionSelectorEntry = SessionSe
 	allowGlobalScope?: boolean;
 	historySearch?: boolean;
 	pinnedIds?: ReadonlySet<string>;
+	/** The host's resume model; when set, the native picker renders the project tree. */
+	resumeSource?: ResumeSourceLike;
+	/** Delete wording: in-session moves to trash, `--resume` deletes permanently. */
+	deleteMode?: "trash" | "permanent";
 }
 
 /**
@@ -73,6 +78,8 @@ export async function selectSession<T extends SessionSelectorEntry>(
 					scopeLabel: options.scopeLabel,
 					showCwd: options.showCwd,
 					pinnedIds,
+					resumeSource: options.resumeSource,
+					deleteMode: options.deleteMode,
 				},
 			);
 			selector.setOnRequestRender(() => ui.requestRender());

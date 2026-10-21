@@ -29,6 +29,19 @@ import {
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "../native/node";
 import { hintsRow, type NativeHint, overlayCard } from "../native/overlay";
 import { plainText } from "../native/spans";
+import { tuiText, tuiTextFmt } from "../i18n";
+import {
+	buildResumePickerModel,
+	nextResumeScope,
+	type ResumeDirectoryLike,
+	type ResumePickerModel,
+	type ResumeScopeInputLike,
+	type ResumeScopeKindLike,
+	type ResumeSourceLike,
+	resumeConversationContext,
+	resumeConversationPreview,
+	resumeScopeLabel,
+} from "./resume-picker";
 import { theme } from "../theme/theme";
 import { contentRowWidth } from "../chrome/selector-helpers";
 import { matchesAppInterrupt, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
@@ -52,6 +65,19 @@ export interface SessionSelectorEntry {
 }
 import { shortenPath } from "../render/render-utils";
 import { HookSelectorComponent } from "./hook-selector";
+
+export type {
+	ResumeConversationLike,
+	ResumeDirectoryLike,
+	ResumeProjectLike,
+	ResumeQueryLike,
+	ResumeScopeInputLike,
+	ResumeScopeKindLike,
+	ResumeSourceLike,
+	ResumeViewLike,
+	ResumeViewRowLike,
+	ResumeWorkspaceLike,
+} from "./resume-picker";
 import { bottomBorder, OverlayPanel, row, topBorder } from "../chrome/overlay-box";
 import { MenuSelection, getMenuWindow } from "../components/menu-selection";
 import { formatKeyHint, formatKeyHints } from "../app-keybindings";
@@ -563,6 +589,12 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		| undefined;
 	/** Bumped when the session set itself changes (scope switch, delete): the picker catalogue's memo key. */
 	#datasetVersion = 0;
+	/**
+	 * Resume-model mode: the component owns the visible order (built from the
+	 * resume view), so this list only mirrors it and search filtering happens
+	 * in the model instead of here.
+	 */
+	#resumeDriven = false;
 	/** The picker catalogue (every session in scope), rebuilt only when the set, markers or minute change. */
 	#pickerCatalogue: SessionCatalogue | undefined;
 	/** Paths upserted through `itemsAdd` (history badges) since the catalogue was last sent. */
@@ -641,6 +673,26 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		this.#menu.setSelectedIndex(0);
 		this.#filterSessions(this.#searchInput.getValue());
 		this.#selectCurrentSession();
+	}
+
+	/**
+	 * Resume-model mode: the given sessions are already the model's ordered,
+	 * filtered view, so mirror them and keep the selection when it survives.
+	 */
+	syncSessions(sessions: readonly T[], preferredPath?: string | null): void {
+		this.#resumeDriven = true;
+		if (this.#menu.visibleItems === sessions && (preferredPath == null || this.#menu.selectedKey === preferredPath)) {
+			return;
+		}
+		const selected = preferredPath ?? this.#menu.selectedKey;
+		const keep = selected && sessions.some(session => session.path === selected) ? selected : sessions[0]?.path;
+		this.#menu.setItems(sessions, keep);
+	}
+
+	/** Search query changed while resume-driven: the model rebuilds the rows, not this list. */
+	#resumeQueryChanged(): void {
+		this.#itemsVersion++;
+		this.onRequestRender?.();
 	}
 
 	#filterSessions(query: string): void {
@@ -799,9 +851,16 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 
 	removeSession(sessionPath: string): void {
 		const index = this.#allSessions.findIndex(s => s.path === sessionPath);
-		if (index === -1) return;
-		this.#datasetVersion++;
-		this.#allSessions.splice(index, 1);
+		if (index !== -1) {
+			this.#datasetVersion++;
+			this.#allSessions.splice(index, 1);
+		}
+		if (this.#resumeDriven) {
+			// The host owns the resume view; the picker hides the path itself.
+			const remain = this.#menu.visibleItems.filter(session => session.path !== sessionPath);
+			this.#menu.setItems(remain, remain[0]?.path);
+			return;
+		}
 		// Re-filter to update the composed result set
 		this.#filterSessions(this.#searchInput.getValue());
 		// Adjust selection if we deleted the last item or beyond
@@ -856,6 +915,10 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 	/** Empty the search query (the empty state's "Clear search"). */
 	clearSearch(): void {
 		this.#searchInput.setValue("");
+		if (this.#resumeDriven) {
+			this.#resumeQueryChanged();
+			return;
+		}
 		this.#filterSessions("");
 	}
 
@@ -1325,7 +1388,8 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		}
 		// Pass everything else to search input
 		this.#searchInput.handleInput(keyData);
-		this.#filterSessions(this.#searchInput.getValue());
+		if (this.#resumeDriven) this.#resumeQueryChanged();
+		else this.#filterSessions(this.#searchInput.getValue());
 	}
 }
 
@@ -1336,6 +1400,17 @@ export interface SessionSelectorOptions<T extends SessionSelectorEntry = Session
 	loadAllSessions?: () => Promise<T[]>;
 	/** Preloaded all-projects list; cached so the first Tab toggle is instant. */
 	allSessions?: T[];
+	/**
+	 * The host's resume model (project → workspace → conversation) and its
+	 * pure view builder. When set, the native `picker` describes the resume
+	 * tree instead of the flat day-grouped list; the ANSI path is unchanged.
+	 */
+	resumeSource?: ResumeSourceLike;
+	/**
+	 * What delete does to the session file: an in-session picker moves it to
+	 * the trash, `--resume` deletes it permanently. Wording only.
+	 */
+	deleteMode?: "trash" | "permanent";
 	/** Picker heading; defaults to "Resume Session". */
 	title?: string;
 	/** Primary action label; defaults to "Resume" (ANSI footer defaults to "select"). */
@@ -1414,6 +1489,43 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	/** The native picker shows `#message`'s error until the next key or pointer event. */
 	#pickerErrorOpen = false;
 	readonly #standalone: boolean;
+	/** The host's resume model; absent keeps the flat day-grouped picker. */
+	readonly #resumeSource?: ResumeSourceLike;
+	/** The live session's path, used to resolve unfixed resume scopes and mark `current`. */
+	readonly #getCurrentSessionPath: () => string | undefined;
+	/** Delete wording: in-session moves to the trash, `--resume` deletes permanently. */
+	readonly #deleteMode: "trash" | "permanent";
+	/** The active resume scope (workspace → project → all); expanded keys pin the current group. */
+	#resumeScope: ResumeScopeInputLike;
+	/** Conversations deleted in this view; the directory is host-owned and not rebuilt here. */
+	readonly #resumeHidden = new Set<string>();
+	#resumeModelMemo:
+		| {
+				source: ResumeSourceLike;
+				directory: ResumeDirectoryLike | null;
+				query: string;
+				scopeKey: string;
+				currentPath: string | undefined;
+				hidden: number;
+				showCwd: boolean;
+				model: ResumePickerModel | undefined;
+		  }
+		| undefined;
+	#resumeSessionsMemo: { model: ResumePickerModel; sessions: readonly T[] } | undefined;
+	#resumeLoadingMemo:
+		| { source: ResumeSourceLike; error: string | undefined; query: string; cursor: number; node: NativeNode }
+		| undefined;
+	#resumePickerMemo:
+		| {
+				model: ResumePickerModel;
+				preview: readonly NativeChild[];
+				choice: DeleteChoice<T> | null;
+				errorOpen: boolean;
+				message: SessionPickerMessage | undefined;
+				selected: string | null;
+				node: NativeNode;
+		  }
+		| undefined;
 	/** A caller's heading for the picker head; the default `/resume` picker has none (the search names it). */
 	readonly #pickerTitle: string | undefined;
 	/** The open delete confirmation's two answers, for the picker's confirm strip. */
@@ -1468,6 +1580,12 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		this.#actionLabel = options.actionLabel ?? "Resume";
 		this.#pickerTitle = options.title;
 		this.#standalone = options.standalone ?? false;
+		this.#resumeSource = options.resumeSource;
+		this.#resumeScope = options.resumeSource?.initialScope ?? "workspace";
+		this.#deleteMode = options.deleteMode ?? options.resumeSource?.deleteMode ?? "permanent";
+		const currentSessionPath = options.currentSessionPath;
+		this.#getCurrentSessionPath =
+			typeof currentSessionPath === "function" ? currentSessionPath : () => currentSessionPath;
 		this.#scopeLabel = options.scopeLabel;
 		this.title = this.#headerLabel();
 		// One spacer of breathing room; OverlayPanel supplies the two outer
@@ -1500,7 +1618,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			onExit();
 		};
 		this.#sessionList.onRequestRender = () => this.#onRequestRender?.();
-		if (this.#onDelete) {
+		if (this.#onDelete || this.#resumeSource?.deleteConversation) {
 			this.#sessionList.onDeleteRequest = (session: T) => {
 				this.#showDeleteConfirmation(session);
 			};
@@ -1510,6 +1628,9 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				void this.#toggleScope();
 			};
 		}
+		// The resume picker's Tab cycles the three-way scope; it replaces the
+		// folder/all toggle so the keys and the segmented control agree.
+		if (this.#resumeSource) this.#sessionList.onToggleScope = () => this.#cycleResumeScope();
 		this.#contentSlot = new Container();
 		this.#contentSlot.addChild(this.#sessionList);
 		this.addChild(this.#contentSlot);
@@ -1583,6 +1704,20 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		super.dispose();
 	}
 
+	/** True when some deleter is wired (the host callback or the resume source). */
+	#canDelete(): boolean {
+		return this.#onDelete !== undefined || this.#resumeSource?.deleteConversation !== undefined;
+	}
+
+	/** Delete through the host callback, else the resume source's conversation entry. */
+	#deleteSession(session: T): Promise<boolean> {
+		if (this.#onDelete) return this.#onDelete(session);
+		const source = this.#resumeSource;
+		if (!source?.deleteConversation || !source.directory) return Promise.resolve(false);
+		const context = resumeConversationContext(source.directory, session.path);
+		return Promise.resolve(context ? source.deleteConversation(context.conversation) : false);
+	}
+
 	#clearError(): void {
 		this.#messageContainer.clear();
 		this.#message = undefined;
@@ -1609,11 +1744,12 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			this.#onRequestRender?.();
 		};
 		const answer = async (option: string) => {
-			if (option === "Yes" && this.#onDelete) {
+			if (option === "Yes" && this.#canDelete()) {
 				this.#clearError();
 				try {
-					const deleted = await this.#onDelete(session);
+					const deleted = await this.#deleteSession(session);
 					if (deleted) {
+						this.#resumeHidden.add(session.path);
 						this.#sessionList.removeSession(session.path);
 						this.#folderSessions = this.#folderSessions.filter(s => s.path !== session.path);
 						if (this.#globalSessions) {
@@ -1753,6 +1889,283 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	}
 
 	/**
+	 * Resume-model sheet: the model's project/workspace sections (or its
+	 * workspace sections in project scope), three-way scope tabs with counts,
+	 * conversation cards with turns/branch/model facts, the resume-tree
+	 * preview and the same action bar the ANSI footer carries (resume, delete,
+	 * pin, refresh, scope, close).
+	 */
+	#describeResumePicker(): NativeNode {
+		const source = this.#resumeSource!;
+		const list = this.#sessionList;
+		const model = this.#resumeModel();
+		if (!model) return this.#describeResumeLoading(source);
+		list.syncSessions(this.#resumeSessions(model), list.selectedSession?.path ?? model.selected);
+		const selected = list.selectedSession?.path ?? null;
+		const preview = this.#previewFor(list.selectedSession, session => {
+			const context = source.directory ? resumeConversationContext(source.directory, session.path) : undefined;
+			return context ? resumeConversationPreview(context.conversation, context.project, context.workspace) : [];
+		});
+		const message = this.#message;
+		const errorOpen = this.#pickerErrorOpen && message?.kind === "error";
+		const choice = this.#deleteChoice;
+		const memo = this.#resumePickerMemo;
+		if (
+			memo?.model === model &&
+			memo.preview === preview &&
+			memo.choice === choice &&
+			memo.errorOpen === errorOpen &&
+			memo.message === message &&
+			memo.selected === selected
+		) {
+			return memo.node;
+		}
+		const loading = message?.kind === "loading";
+		const kind = model.view.scope.kind;
+		const selectedConversation =
+			selected && source.directory ? resumeConversationContext(source.directory, selected) : undefined;
+		const actions = [pickerAction("resume", this.#actionLabel, "enter", { primary: true })];
+		if (this.#canDelete()) {
+			actions.push(
+				pickerAction(
+					"delete",
+					this.#deleteMode === "trash"
+						? tuiText("resumeDeleteTrash", "Move to trash")
+						: tuiText("resumeDeletePermanent", "Delete"),
+					"backspace",
+				),
+			);
+		}
+		if (source.pinConversation && selectedConversation) {
+			actions.push(
+				pickerAction(
+					"pin",
+					selectedConversation.conversation.pinned
+						? tuiText("resumeUnpinAction", "Unpin")
+						: tuiText("resumePinAction", "Pin"),
+					"p",
+				),
+			);
+		}
+		if (source.refresh) actions.push(pickerAction("refresh", tuiText("resumeRefreshAction", "Refresh"), "r"));
+		if (list.onToggleScope) actions.push(pickerAction("scope", resumeScopeLabel(nextResumeScope(kind)), "tab"));
+		actions.push(
+			pickerAction("close", "Close", boundKeys("app.interrupt", ["escape"])[0] ?? "escape", { end: true }),
+		);
+		const banner =
+			!loading && !errorOpen && model.hidden > 0
+				? tuiTextFmt("resumeHiddenByFilterFmt", "%d conversations hidden by filter", model.hidden)
+				: undefined;
+		const title = this.#pickerTitle;
+		const folder = this.#scopeLabel === false ? undefined : (this.#scopeLabel ?? path.basename(getProjectDir()));
+		const result = picker(
+			{
+				...(title ? { title, ...(folder ? { subtitle: folder } : {}) } : {}),
+				icon: "history",
+				noun: "conversations",
+				size: this.#standalone ? "screen" : "lg",
+				layout: "cards",
+				preview: "side",
+				query: list.searchInput.getValue(),
+				cursor: list.searchInput.getCursor(),
+				placeholder: model.placeholder,
+				tabs: model.tabs,
+				tab: kind,
+				columns: [
+					{ id: "when", format: "time" },
+					{ id: "turns", format: "num" },
+					{ id: "branch", format: "dim", priority: 1 },
+					{ id: "model", format: "dim", priority: 2 },
+				],
+				items: model.items,
+				order: model.order,
+				...(model.hits ? { hits: model.hits } : {}),
+				selected,
+				current: model.current,
+				total: model.total,
+				actions,
+				state: loading ? "loading" : errorOpen ? "error" : "ready",
+				...((loading || errorOpen) && message ? { message: message.text } : banner ? { message: banner } : {}),
+				empty: model.empty,
+				confirm: choice
+					? {
+							text:
+								this.#deleteMode === "trash"
+									? tuiTextFmt("resumeDeleteTrashFmt", "Move “%s” to trash?", sessionLabel(choice.session))
+									: tuiTextFmt(
+											"resumeDeletePermanentFmt",
+											"Permanently delete “%s”?",
+											sessionLabel(choice.session),
+										),
+							act: "delete-confirm",
+							label:
+								this.#deleteMode === "trash"
+									? tuiText("resumeDeleteTrash", "Move to trash")
+									: tuiText("resumeDeletePermanent", "Delete"),
+						}
+					: null,
+			},
+			preview,
+		);
+		this.#resumePickerMemo = { model, preview, choice, errorOpen, message, selected, node: result };
+		return result;
+	}
+
+	/** Skeleton sheet while the host's directory scan is still running (or failed). */
+	#describeResumeLoading(source: ResumeSourceLike): NativeNode {
+		const list = this.#sessionList;
+		const error = this.#message?.kind === "error" ? this.#message.text : source.loadError?.();
+		const query = list.searchInput.getValue();
+		const cursor = list.searchInput.getCursor();
+		const memo = this.#resumeLoadingMemo;
+		if (memo?.source === source && memo.error === error && memo.query === query && memo.cursor === cursor) {
+			return memo.node;
+		}
+		const title = this.#pickerTitle;
+		const node = picker({
+			...(title ? { title } : {}),
+			icon: "history",
+			noun: "conversations",
+			size: this.#standalone ? "screen" : "lg",
+			layout: "cards",
+			preview: "none",
+			query,
+			cursor,
+			items: [],
+			order: [],
+			selected: null,
+			actions: [
+				pickerAction("close", "Close", boundKeys("app.interrupt", ["escape"])[0] ?? "escape", { end: true }),
+			],
+			state: error ? "error" : "loading",
+			message: error ?? tuiText("resumeLoading", "Loading conversations…"),
+		});
+		this.#resumeLoadingMemo = { source, error, query, cursor, node };
+		return node;
+	}
+
+	/** The memoized resume model for the active scope, query and directory snapshot. */
+	#resumeModel(): ResumePickerModel | undefined {
+		const source = this.#resumeSource!;
+		const query = this.#sessionList.searchInput.getValue();
+		const currentPath = this.#getCurrentSessionPath();
+		const scope = this.#resumeScope;
+		const scopeKey =
+			typeof scope === "string" ? scope : `${scope.kind}:${scope.projectKey ?? ""}:${scope.workspaceKey ?? ""}`;
+		const kind = typeof scope === "string" ? scope : scope.kind;
+		const showCwd = kind !== "workspace";
+		const cached = this.#resumeModelMemo;
+		if (
+			cached?.source === source &&
+			cached.directory === source.directory &&
+			cached.query === query &&
+			cached.scopeKey === scopeKey &&
+			cached.currentPath === currentPath &&
+			cached.hidden === this.#resumeHidden.size &&
+			cached.showCwd === showCwd
+		) {
+			return cached.model;
+		}
+		const model = buildResumePickerModel(source, {
+			scope,
+			query,
+			currentSessionPath: currentPath,
+			hidden: this.#resumeHidden,
+			showCwd,
+			preferredPath: this.#sessionList.selectedSession?.path,
+		});
+		this.#resumeModelMemo = {
+			source,
+			directory: source.directory,
+			query,
+			scopeKey,
+			currentPath,
+			hidden: this.#resumeHidden.size,
+			showCwd,
+			model,
+		};
+		return model;
+	}
+
+	/** The view's sessions as list entries; rebuilt only when the view itself changes. */
+	#resumeSessions(model: ResumePickerModel): readonly T[] {
+		const memo = this.#resumeSessionsMemo;
+		if (memo?.model === model) return memo.sessions;
+		const sessions = (model.view.conversations ?? []).map(row => row.conversation.session as unknown as T);
+		this.#resumeSessionsMemo = { model, sessions };
+		return sessions;
+	}
+
+	#invalidateResume(): void {
+		this.#resumeModelMemo = undefined;
+		this.#resumeSessionsMemo = undefined;
+		this.#resumePickerMemo = undefined;
+	}
+
+	/** Pin/unpin the selected conversation, then re-read the directory. */
+	#toggleResumePin(): void {
+		const source = this.#resumeSource;
+		const pin = source?.pinConversation;
+		const path = this.#sessionList.selectedSession?.path;
+		if (!source || !pin || !path || !source.directory) return;
+		const context = resumeConversationContext(source.directory, path);
+		if (!context) return;
+		void (async () => {
+			await pin.call(source, context.conversation, !context.conversation.pinned);
+			await source.refresh?.();
+			this.#invalidateResume();
+			this.#onRequestRender?.();
+		})().catch((error: unknown) => {
+			this.#showError(error instanceof Error ? error.message : String(error));
+			this.#onRequestRender?.();
+		});
+	}
+
+	/** Re-scan the directory, showing the loading line meanwhile. */
+	#refreshResume(): void {
+		const source = this.#resumeSource;
+		const refresh = source?.refresh;
+		if (!source || !refresh) return;
+		this.#message = { kind: "loading", text: tuiText("resumeLoading", "Loading conversations…") };
+		this.#invalidateResume();
+		this.#onRequestRender?.();
+		void (async () => {
+			await refresh.call(source);
+			if (this.#message?.kind === "loading") this.#message = undefined;
+			this.#invalidateResume();
+			this.#onRequestRender?.();
+		})().catch((error: unknown) => {
+			this.#showError(error instanceof Error ? error.message : String(error));
+			this.#onRequestRender?.();
+		});
+	}
+
+	/** Tab / the scope button: workspace → project → all → workspace. */
+	#cycleResumeScope(): void {
+		const current = this.#resumeModel()?.view.scope;
+		this.#setResumeScope(
+			nextResumeScope(
+				current?.kind ?? (typeof this.#resumeScope === "string" ? this.#resumeScope : this.#resumeScope.kind),
+			),
+		);
+	}
+
+	/** Switch the three-way scope, pinning the group the current scope resolved to. */
+	#setResumeScope(kind: ResumeScopeKindLike): void {
+		const current = this.#resumeModel()?.view.scope;
+		if (kind === "all") this.#resumeScope = "all";
+		else if (kind === "project") {
+			this.#resumeScope = current?.projectKey ? { kind, projectKey: current.projectKey } : kind;
+		} else {
+			this.#resumeScope =
+				current?.kind === "workspace" && current.workspaceKey ? { kind, workspaceKey: current.workspaceKey } : kind;
+		}
+		void this.#resumeSource?.persistScope?.(kind);
+		this.#invalidateResume();
+		this.#onRequestRender?.();
+	}
+
+	/**
 	 * `lg` cards sheet (`screen` for the standalone app): sessions grouped by
 	 * day (ranked flat while searching), the selected session's preview, the
 	 * delete confirm strip, and the actions of the keys Enter, Delete/Backspace,
@@ -1760,6 +2173,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	 * Untitled unless the caller named it; the placeholder says the scope.
 	 */
 	#describePicker(): NativeNode {
+		if (this.#resumeSource) return this.#describeResumePicker();
 		const list = this.#sessionList;
 		const view = list.pickerView();
 		const preview = this.#previewFor(list.selectedSession);
@@ -1840,7 +2254,14 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	 * selection, then only after the selection has rested
 	 * {@link PREVIEW_SETTLE_MS} (the old preview stays meanwhile).
 	 */
-	#previewFor(target: T | undefined): readonly NativeChild[] {
+	#previewFor(
+		target: T | undefined,
+		build: (session: T) => readonly NativeChild[] = session =>
+			sessionPreview(
+				session,
+				session.parentSessionPath ? this.#sessionList.parentLabel(session.parentSessionPath) : undefined,
+			),
+	): readonly NativeChild[] {
 		const shown = this.#preview;
 		if (shown && shown.session === target) return shown.nodes;
 		if (shown && target !== this.#previewSettled) {
@@ -1855,12 +2276,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			}
 			return shown.nodes;
 		}
-		const nodes = target
-			? sessionPreview(
-					target,
-					target.parentSessionPath ? this.#sessionList.parentLabel(target.parentSessionPath) : undefined,
-				)
-			: [];
+		const nodes = target ? build(target) : [];
 		this.#preview = { session: target, nodes };
 		return nodes;
 	}
@@ -1882,12 +2298,16 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		}
 		if (ev.act === "delete-confirm") choice?.confirm();
 		else if (ev.act === "cancel") choice?.cancel();
-		else if (ev.act === "close") {
+		else if (ev.act === "tab") {
+			if (this.#resumeSource && ev.value) this.#setResumeScope(ev.value as ResumeScopeKindLike);
+		} else if (ev.act === "close") {
 			if (choice) choice.cancel();
 			else list.onCancel?.();
 		} else if (choice) return;
 		else if (ev.act === "resume") list.resumeSelected();
 		else if (ev.act === "delete") list.requestDelete();
+		else if (ev.act === "pin") this.#toggleResumePin();
+		else if (ev.act === "refresh") this.#refreshResume();
 		else if (ev.act === "scope") {
 			list.onToggleScope?.();
 		} else if (ev.act === "clear") list.clearSearch();
