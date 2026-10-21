@@ -133,7 +133,7 @@ pub fn session_dir_name(project: &Path, home: &Path, temp_root: &Path) -> String
 /// while a missing path keeps its ordinary spelling; left alone, the two would
 /// never compare equal. The prefix is stripped so an existing home and a
 /// removed project still share their components.
-fn canonical(path: &Path) -> PathBuf {
+pub(crate) fn canonical(path: &Path) -> PathBuf {
 	let path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
 	#[cfg(windows)]
 	{
@@ -150,7 +150,7 @@ fn canonical(path: &Path) -> PathBuf {
 
 /// `path` relative to `root` when it is inside it, with Windows' case
 /// insensitivity honoured for the prefix but not for the rest.
-fn relative_within(root: &Path, path: &Path) -> Option<PathBuf> {
+pub(crate) fn relative_within(root: &Path, path: &Path) -> Option<PathBuf> {
 	let root_components: Vec<_> = root.components().collect();
 	let path_components: Vec<_> = path.components().collect();
 	if path_components.len() < root_components.len() {

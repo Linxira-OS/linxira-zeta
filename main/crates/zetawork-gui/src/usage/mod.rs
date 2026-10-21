@@ -37,6 +37,7 @@ use std::{
 /// The one loopback `GET` this crate owns, shared with the conversation page's
 /// live-window probe (`crate::conversation`).
 pub(crate) use api::get as http_get;
+pub(crate) use api::post_json as http_post;
 pub use api::{CostRow, Costs, FetchError, Overview, Range, SeriesPoint, ServiceStatus, Snapshot};
 use egui::{
 	Align, Align2, Color32, CornerRadius, FontId, Layout, Order, Rect, Sense, Stroke, pos2, vec2,

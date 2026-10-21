@@ -45,6 +45,7 @@ pub mod plugin_panels;
 pub mod resources;
 pub mod right;
 pub mod seed;
+pub mod sessions;
 pub mod settings;
 pub mod settings_channels;
 pub mod settings_schema;
@@ -148,6 +149,9 @@ pub struct Shell {
 	/// The active conversation's usage, for the right column's 用量 page and
 	/// the status bar's 上文 column ([`conversation::ConversationCache`]).
 	pub conversation: conversation::ConversationCache,
+	/// The gateway's conversation list (`GET /api/sessions`) behind the left
+	/// column's workspace → conversation nodes ([`sessions`]).
+	pub sessions: sessions::SessionCache,
 	/// The right column's 资源 page: host CPU/memory/GPU and the process list
 	/// ([`resources::ResourceCache`]).
 	pub resources: resources::ResourceCache,
@@ -284,6 +288,7 @@ impl Shell {
 			embed: embed::EmbedState::default(),
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
+			sessions: sessions::SessionCache::default(),
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
 			plugins: plugin_panels::discover_in(&plugin_panels::home()),
@@ -347,6 +352,7 @@ impl Shell {
 			embed: embed::EmbedState::default(),
 			usage: usage::UsageCache::default(),
 			conversation: conversation::ConversationCache::default(),
+			sessions: sessions::SessionCache::default(),
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
 			// A headless shell reads nothing: a test seeds `plugins` itself
@@ -940,6 +946,69 @@ impl Shell {
 		}
 	}
 
+	/// Attach every `Agent` tab that carries a gateway session id.
+	///
+	/// A conversation opened from the left column records its id on the tab
+	/// ([`state::SessionTab::session`]); this is what turns that into the SSE
+	/// link the centre pane reads. A tab whose pane is already on that session
+	/// is left alone, so a failed link is not retried every frame — the page's
+	/// own 连接 button is the retry.
+	pub fn attach_conversation_tabs(&mut self) {
+		if !self.probe {
+			return;
+		}
+		let Some(origin) = self.stats.gateway_origin().map(str::to_owned) else {
+			return;
+		};
+		let pending: Vec<(String, String)> = self
+			.state
+			.projects
+			.iter()
+			.flat_map(|project| project.workspaces.iter())
+			.flat_map(|workspace| workspace.panes.iter())
+			.flat_map(|pane| pane.tabs.iter())
+			.filter_map(|tab| {
+				if tab.kind != state::SessionKind::Agent {
+					return None;
+				}
+				tab.session
+					.as_ref()
+					.map(|session| (tab.id.clone(), session.clone()))
+			})
+			.collect();
+		for (tab, session) in pending {
+			let on_session = self
+				.agents
+				.pane(&tab)
+				.is_some_and(|pane| pane.session.as_deref() == Some(session.as_str()));
+			if on_session {
+				continue;
+			}
+			let _ = self.agents.connect(&tab, &origin, &session);
+			self.state.needs_redraw = true;
+		}
+	}
+
+	/// Create a conversation in `workspace_id` through the gateway and open it
+	/// when the answer lands.
+	///
+	/// The request is the gateway's `ensure_session`: an empty durable session
+	/// in the workspace directory, with nothing prompted into it. The default
+	/// workspace takes the same path, so a conversation there needs no
+	/// registered project.
+	pub fn create_conversation(&mut self, workspace_id: &str) -> state::Notice {
+		let Some(workspace) = self.state.workspace(workspace_id) else {
+			return self
+				.state
+				.toast(crate::t!("没有这个工作区：{}", workspace_id));
+		};
+		let path = PathBuf::from(&workspace.path);
+		match self.sessions.request_create(workspace_id, &path) {
+			Ok(()) => self.state.toast(crate::t!("正在新建会话…")),
+			Err(error) => self.state.toast(error),
+		}
+	}
+
 	/// 检查更新: start the release check through the shipped `zetacode`.
 	///
 	/// A headless shell (`probe == false`) never spawns the CLI, so the tests
@@ -1018,6 +1087,38 @@ impl Shell {
 		// run finished" are exactly the edges a hidden window exists to tell the
 		// user about. The round trip is non-blocking (`try_iter`).
 		self.poll_agents(ctx);
+		// The left column's tree reads the gateway's session list. Only a real
+		// run opens the socket (`probe`), and only while the column is open:
+		// a collapsed column lists nothing, so it does not poll. Headless
+		// shells seed `state.conversations` instead.
+		let gateway = if self.probe {
+			self.stats.gateway_origin().map(str::to_owned)
+		} else {
+			None
+		};
+		self.sessions.set_origin(gateway);
+		let now = std::time::Instant::now();
+		self.sessions.tick(now, !self.state.left_collapsed);
+		for event in self.sessions.poll(now) {
+			match event {
+				sessions::Event::Updated => {
+					let rows = self.sessions.rows().to_vec();
+					self.state.set_conversations(rows);
+				},
+				// The rows on screen stay; the column's header carries the
+				// reason when it has no list at all.
+				sessions::Event::LoadFailed(_) => {},
+				sessions::Event::Created { workspace, session } => {
+					let title = crate::t!("新会话").to_owned();
+					let notice = self.state.attach_conversation(&workspace, &session, &title);
+					self.state.show(notice);
+				},
+				sessions::Event::CreateFailed(error) => {
+					self.state.show(state::Notice(error));
+				},
+			}
+		}
+		self.attach_conversation_tabs();
 		// 设置 → IM 渠道: the pane polls the gateway only while it is the open
 		// section; a closed modal starts no request.
 		let channels_visible = self.state.settings_open()

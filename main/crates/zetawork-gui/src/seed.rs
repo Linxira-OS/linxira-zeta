@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! The shell's starting data: the pseudo-project for the directory the shell
-//! was started in and one project per registration in `~/.zeta/projects.json`.
+//! was started in, one project per registration in `~/.zeta/projects.json`,
+//! and the system-owned 默认项目.
 //!
 //! Everything here reflects real state:
 //!
@@ -9,24 +10,90 @@
 //!   from `git`.
 //! * Every other project comes from the shared registry
 //!   ([`workbench_projects`]); its path is a directory the user registered.
+//! * 默认项目 holds the agent's stable default workspace (`~/.zeta/workspace`,
+//!   or `ZETA_DEFAULT_WORKSPACE`). It is system-owned: it has no registry row,
+//!   cannot be renamed or removed, and its conversations are the pinned block
+//!   at the top of the left column.
 //! * A fresh workspace opens **one** pane holding one real terminal page.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
 	git,
-	state::{Pane, Project, SessionKind, SessionTab, Workspace},
+	state::{
+		DEFAULT_PROJECT_ID, DEFAULT_WORKSPACE_ID, Pane, Project, SessionKind, SessionTab, Workspace,
+	},
 	t,
 };
 
 /// The heading 本机's pseudo-project gets.
 pub const LOCAL_PROJECT: &str = "本机";
 
-/// Every start: 本机 first, then one project per registry row.
+/// The directory name of the agent's default workspace under `~/.zeta`.
+pub const DEFAULT_WORKSPACE_DIRNAME: &str = "workspace";
+
+/// Every start: 本机, then one project per registry row, then 默认项目.
+///
+/// The default project is stored last so the launch selection and the registry
+/// order stay exactly as they were; the left column pins its section at the
+/// top instead of relying on this vector's order (see [`crate::left`]).
 pub fn projects(cwd: &Path, registered: &[workbench_projects::Project]) -> Vec<Project> {
 	let mut projects = vec![local_project(cwd)];
 	projects.extend(registered.iter().map(registered_project));
+	projects.push(default_project());
 	projects
+}
+
+/// The agent's stable default workspace root.
+///
+/// Mirrors `packages/coding-agent/src/default-workspace/index.ts`: an explicit
+/// `ZETA_DEFAULT_WORKSPACE` wins, otherwise `~/.zeta/workspace`. When neither
+/// `USERPROFILE` nor `HOME` names a home, the process directory is the anchor —
+/// the GUI still needs a path, and a path that is visible is better than an
+/// invented one.
+pub fn default_workspace_root() -> PathBuf {
+	if let Some(root) = std::env::var_os("ZETA_DEFAULT_WORKSPACE")
+		.map(PathBuf::from)
+		.filter(|path| !path.as_os_str().is_empty())
+	{
+		return root;
+	}
+	let home = std::env::var_os("USERPROFILE")
+		.or_else(|| std::env::var_os("HOME"))
+		.map(PathBuf::from)
+		.filter(|path| !path.as_os_str().is_empty())
+		.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+	home.join(".zeta").join(DEFAULT_WORKSPACE_DIRNAME)
+}
+
+/// The system-owned 默认项目: one fixed workspace over the agent's default
+/// workspace root.
+///
+/// Nothing here creates the directory — `zetacode serve` owns that — and a
+/// missing root is not an error: the row still exists, because the default
+/// workspace is the landing point whether or not it has been initialised yet.
+pub fn default_project() -> Project {
+	let root = default_workspace_root();
+	let status = git::read_status(&root, 0);
+	let branch = if status.branch.is_empty() {
+		"—".to_owned()
+	} else {
+		status.branch.clone()
+	};
+	Project {
+		id: DEFAULT_PROJECT_ID.to_owned(),
+		name: t!("默认项目").to_owned(),
+		path: root.clone(),
+		workspaces: vec![Workspace {
+			id: DEFAULT_WORKSPACE_ID.to_owned(),
+			name: t!("默认工作区").to_owned(),
+			branch,
+			path: root.display().to_string(),
+			cols: 1,
+			panes: default_panes(DEFAULT_WORKSPACE_ID),
+			run_state: None,
+		}],
+	}
 }
 
 /// The project for the directory the shell runs in: real path, real branch.
@@ -122,12 +189,22 @@ mod tests {
 	fn the_local_pseudo_project_comes_first_and_reads_its_branch() {
 		let cwd = std::env::current_dir().unwrap();
 		let projects = projects(&cwd, &[]);
-		assert_eq!(projects.len(), 1, "本机 与 no registrations");
+		assert_eq!(projects.len(), 2, "本机 plus the system default project");
 		assert_eq!(projects[0].name, LOCAL_PROJECT);
 		assert_eq!(projects[0].workspaces[0].path, cwd.display().to_string());
 		assert!(!projects[0].workspaces[0].branch.is_empty());
 		assert_eq!(projects[0].workspaces[0].panes.len(), 1, "a fresh workspace opens one pane");
 		assert_eq!(projects[0].workspaces[0].cols, 1);
+		assert_eq!(projects[1].id, DEFAULT_PROJECT_ID);
+		assert_eq!(projects[1].name, "默认项目");
+		assert_eq!(projects[1].workspaces.len(), 1, "one fixed default workspace");
+		assert_eq!(projects[1].workspaces[0].id, DEFAULT_WORKSPACE_ID);
+		assert_eq!(projects[1].path, default_workspace_root());
+		assert!(
+			projects[1].workspaces[0].panes.len() == 1
+				&& projects[1].workspaces[0].panes[0].tabs.len() == 1,
+			"the default workspace opens one terminal"
+		);
 	}
 
 	#[test]

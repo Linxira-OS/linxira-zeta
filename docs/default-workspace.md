@@ -23,6 +23,28 @@ never guessed — the chat stays on relay.
 persona is active, the workspace's memory backend (project layer), and the
 relay report policy.
 
+## In the GUI
+
+The desktop shell (`zetawork`) lists everything as **project → workspace →
+conversation**. Conversations are gateway sessions, read from
+`GET /api/sessions`; a workspace owns the sessions whose `cwd` is inside its
+root, and the deepest matching root wins when workspaces nest.
+
+The default workspace is the **默认项目** pinned at the top of the left column:
+
+- the project is system-owned — it has no `~/.zeta/projects.json` row, and it
+  cannot be renamed, removed, or given a second workspace;
+- its one workspace is the 默认工作区 over `~/.zeta/workspace`;
+- every conversation under it is pinned above the scrolling project list and
+  stays visible while that list scrolls. Pinned conversations cannot be
+  archived or hidden; they open and are created like any other;
+- creating a conversation there is the gateway's `ensure_session` with the
+  default workspace as `cwd`, so no project has to be registered first.
+
+The default project is seeded last in the state vector (so the launch
+selection stays the shell's own directory); the column's pinned block is what
+puts it first on screen.
+
 ## Initialisation
 
 On `zeta serve` startup the default workspace is created if missing, then:

@@ -292,6 +292,25 @@ fn query_path(path: &str, range: &str) -> String {
 
 /// One HTTP/1.1 `GET`, hand-rolled over `TcpStream`.
 pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
+	request(origin, "GET", path, None)
+}
+
+/// One HTTP/1.1 `POST` of a JSON body, on the same loopback rules as [`get`].
+///
+/// The one caller is the conversation list's “new session” (`POST
+/// /api/agent/new`); the gateway answers with JSON, so the body is returned
+/// verbatim and decoded by the caller.
+pub fn post_json(origin: &str, path: &str, body: &str) -> Result<String, FetchError> {
+	request(origin, "POST", path, Some(body))
+}
+
+/// One hand-rolled HTTP/1.1 request; `body` makes it a `POST` with JSON.
+fn request(
+	origin: &str,
+	method: &str,
+	path: &str,
+	body: Option<&str>,
+) -> Result<String, FetchError> {
 	let (host, port, authority) = endpoint(origin)?;
 	if !path.starts_with('/') {
 		return Err(FetchError::Address(t!("{} 不是以 / 开头的路径", path)));
@@ -326,10 +345,18 @@ pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
 	stream
 		.set_write_timeout(Some(TIMEOUT))
 		.map_err(|error| FetchError::Io(t!("设置写超时失败：{}", error)))?;
-	let request = format!(
-		"GET {path} HTTP/1.1\r\nHost: {authority}\r\nAccept: application/json\r\nConnection: \
-		 close\r\n\r\n"
+	let mut request = format!(
+		"{method} {path} HTTP/1.1\r\nHost: {authority}\r\nAccept: application/json\r\nConnection: \
+		 close\r\n"
 	);
+	if let Some(body) = body {
+		request.push_str("Content-Type: application/json\r\n");
+		request.push_str(&format!("Content-Length: {}\r\n", body.len()));
+	}
+	request.push_str("\r\n");
+	if let Some(body) = body {
+		request.push_str(body);
+	}
 	stream
 		.write_all(request.as_bytes())
 		.map_err(|error| FetchError::Io(t!("发送请求失败：{}", error)))?;
@@ -337,7 +364,7 @@ pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
 	stream
 		.read_to_end(&mut bytes)
 		.map_err(|error| FetchError::Io(t!("读取应答失败：{}", error)))?;
-	let Some((head, body)) = split_response(&bytes) else {
+	let Some((head, response_body)) = split_response(&bytes) else {
 		return Err(FetchError::Io(t!("应答没有空行分隔的头部与正文").to_owned()));
 	};
 	let head = String::from_utf8_lossy(head);
@@ -346,9 +373,9 @@ pub fn get(origin: &str, path: &str) -> Result<String, FetchError> {
 		.to_ascii_lowercase()
 		.contains("transfer-encoding: chunked")
 	{
-		dechunk(body)?
+		dechunk(response_body)?
 	} else {
-		body.to_vec()
+		response_body.to_vec()
 	};
 	if code != 200 {
 		let text = String::from_utf8_lossy(&body);
