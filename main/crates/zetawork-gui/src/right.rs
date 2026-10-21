@@ -4,15 +4,16 @@
 //!
 //! Two of the three panels read live data: the file tree walks the active
 //! workspace's directory one level at a time (see [`crate::fsread`]) and the
-//! git panel runs read-only `git` (see [`crate::git`]). The history panel has
-//! no source yet, so it shows one card that says so. Nothing in this column
-//! writes to the repository: 暂存 / 提交 / 创建 PR exist as the spec draws
-//! them, and are disabled with a line naming what would back them.
+//! git panel runs `git` (see [`crate::git`]) — reads for the status, plus the
+//! two explicit branch actions the 分支 group offers (switch, create). The
+//! history panel has no source yet, so it shows one card that says so.
+//! 暂存 / 提交 / 创建 PR exist as the spec draws them, and are disabled with a
+//! line naming what would back them.
 
 use crate::t;
 use std::collections::HashSet;
 
-use egui::{Align, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
+use egui::{Align, Color32, CornerRadius, Layout, Pos2, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::{
 	Shell, conversation,
@@ -20,7 +21,7 @@ use crate::{
 	icons::{Icon, icon_button, paint},
 	state::RightTab,
 	theme,
-	widgets::{badge, empty_note, panel_head, truncated_mono, truncated_text},
+	widgets::{badge, empty_note, panel_head, truncated_mono, truncated_mono_right, truncated_text},
 };
 
 /// Width of the open column (`--side-right-w`).
@@ -310,6 +311,19 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 		.show(ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 4.0;
 			branch_row(ui, &status);
+			branches_group(ui, shell, &status);
+			if let Some((ok, line)) = shell.git_notice.clone() {
+				let (notice, _) =
+					ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::hover());
+				truncated_text(
+					ui,
+					pos2(notice.min.x + 4.0, notice.center().y),
+					&line,
+					11.0,
+					if ok { theme::TEXT_2 } else { theme::WARN },
+					notice.width() - 8.0,
+				);
+			}
 
 			group(ui, t!("更改"), status.changed.len(), "M", true, |ui| {
 				for file in &status.changed {
@@ -357,6 +371,7 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 		.unwrap_or_default();
 	let branch = shell.state.branch_label().to_owned();
 	let resolved = shell.conversation.resolved().cloned();
+	let report = shell.conversation.context_report().cloned();
 	egui::ScrollArea::vertical()
 		.id_salt("zetawork-usage")
 		.auto_shrink([false, false])
@@ -381,7 +396,7 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 				scope.width() - 8.0,
 			);
 			match &resolved {
-				Some(resolved) => usage_card(ui, resolved),
+				Some(resolved) => usage_card(ui, resolved, report.as_ref()),
 				None => {
 					let (row, _) =
 						ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
@@ -399,7 +414,11 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 }
 
 /// The source chip plus every figure the active conversation has.
-fn usage_card(ui: &mut Ui, resolved: &conversation::Resolved) {
+fn usage_card(
+	ui: &mut Ui,
+	resolved: &conversation::Resolved,
+	report: Option<&conversation::ContextReport>,
+) {
 	let summary = &resolved.summary;
 	source_chip(ui, resolved.source_line());
 	egui::Frame::new()
@@ -427,7 +446,7 @@ fn usage_card(ui: &mut Ui, resolved: &conversation::Resolved) {
 			usage_row(ui, t!("模型"), summary.model.as_deref().unwrap_or("—"), true);
 			usage_row(ui, t!("最后一条"), summary.last_text().as_deref().unwrap_or("—"), true);
 			ui.add_space(6.0);
-			context_share(ui, summary);
+			context_share(ui, summary, report);
 		});
 	if summary.usage_entries == 0 {
 		let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
@@ -441,9 +460,86 @@ fn usage_card(ui: &mut Ui, resolved: &conversation::Resolved) {
 	}
 }
 
-/// The context share: a bar and `tokens / window · percent`, or tokens alone.
-fn context_share(ui: &mut Ui, summary: &conversation::UsageSummary) {
-	let tokens = grouped(summary.context_tokens());
+/// One arc of the context ring: a category, its tokens and its colour.
+struct RingSlice {
+	label: &'static str,
+	tokens: u64,
+	color: Color32,
+}
+
+/// The ring's composition, from the live report when there is one.
+///
+/// The report's categories are the live tokenizer's estimate of what is in the
+/// window; a journal-only conversation has no split, so it gets a single
+/// `上下文` arc. When the categories do not add up to `used` the remainder is
+/// shown as `其他` instead of stretching the arcs to hide it.
+fn ring_slices(used: u64, report: Option<&conversation::ContextReport>) -> Vec<RingSlice> {
+	let Some(report) = report.filter(|report| !report.categories.is_empty()) else {
+		return vec![RingSlice { label: t!("上下文"), tokens: used, color: theme::ACCENT }];
+	};
+	let mut slices: Vec<RingSlice> = report
+		.categories
+		.iter()
+		.filter(|(_, tokens)| *tokens > 0)
+		.map(|(id, tokens)| RingSlice {
+			label: category_label(id),
+			tokens: *tokens,
+			color: category_color(id),
+		})
+		.collect();
+	let counted: u64 = slices.iter().map(|slice| slice.tokens).sum();
+	if used > counted {
+		slices.push(RingSlice { label: t!("其他"), tokens: used - counted, color: theme::TEXT_3 });
+	}
+	if slices.is_empty() {
+		slices.push(RingSlice { label: t!("上下文"), tokens: used, color: theme::ACCENT });
+	}
+	slices
+}
+
+/// The label of one gateway context category (`systemPrompt`, …).
+fn category_label(id: &str) -> &'static str {
+	match id {
+		"systemPrompt" => t!("系统提示"),
+		"systemTools" => t!("系统工具"),
+		"systemContext" => t!("系统上下文"),
+		"skills" => t!("技能"),
+		"messages" => t!("消息"),
+		_ => t!("其他"),
+	}
+}
+
+/// A category's arc colour; the ring uses the same palette as the rest of the
+/// column, so the legend needs no second key.
+fn category_color(id: &str) -> Color32 {
+	match id {
+		"systemPrompt" => theme::ACCENT,
+		"systemTools" => theme::CYAN,
+		"systemContext" => theme::PURPLE,
+		"skills" => theme::ADD,
+		"messages" => theme::ACCENT_2,
+		_ => theme::TEXT_3,
+	}
+}
+
+/// The context share: a ring segmented by composition, and the figures beside
+/// it. The ring replaces the old percentage bar; the numbers are unchanged.
+fn context_share(
+	ui: &mut Ui,
+	summary: &conversation::UsageSummary,
+	report: Option<&conversation::ContextReport>,
+) {
+	let used = report
+		.map(|report| report.used)
+		.filter(|used| *used > 0)
+		.unwrap_or_else(|| summary.context_tokens());
+	let window = report
+		.map(|report| report.window)
+		.filter(|window| *window > 0)
+		.or(summary.window);
+	let percent = report
+		.map(|report| report.percent())
+		.or_else(|| summary.percent());
 	let (head, _) = ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::hover());
 	ui.painter().text(
 		pos2(head.min.x + 2.0, head.center().y),
@@ -452,11 +548,11 @@ fn context_share(ui: &mut Ui, summary: &conversation::UsageSummary) {
 		egui::FontId::new(11.0, egui::FontFamily::Proportional),
 		theme::TEXT_3,
 	);
-	let value = match (summary.window, summary.percent()) {
+	let value = match (window, percent) {
 		(Some(window), Some(percent)) => {
-			format!("{tokens} / {} · {percent:.0}%", grouped(window))
+			format!("{} / {} · {percent:.0}%", grouped(used), grouped(window))
 		},
-		_ => format!("{tokens} tokens"),
+		_ => format!("{} tokens", grouped(used)),
 	};
 	ui.painter().text(
 		pos2(head.max.x - 2.0, head.center().y),
@@ -465,9 +561,11 @@ fn context_share(ui: &mut Ui, summary: &conversation::UsageSummary) {
 		egui::FontId::new(11.0, egui::FontFamily::Monospace),
 		theme::TEXT_2,
 	);
-	match summary.percent() {
-		Some(percent) => usage_bar(ui, (percent / 100.0) as f32),
-		None => {
+	match (window, percent) {
+		(Some(window), Some(percent)) => {
+			draw_context_ring(ui, used, window, percent as f32, report);
+		},
+		_ => {
 			let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 18.0), Sense::hover());
 			ui.painter().text(
 				pos2(row.min.x + 2.0, row.center().y),
@@ -478,6 +576,184 @@ fn context_share(ui: &mut Ui, summary: &conversation::UsageSummary) {
 			);
 		},
 	}
+}
+
+/// Draw the ring, its threshold tick and the legend.
+///
+/// The arc sweep is `tokens / window`: the unused remainder stays the track, so
+/// the ring's filled fraction is the real share. Hovering the ring lists every
+/// arc's tokens, which is the detail a 104 px ring cannot carry inline.
+fn draw_context_ring(
+	ui: &mut Ui,
+	used: u64,
+	window: u64,
+	percent: f32,
+	report: Option<&conversation::ContextReport>,
+) {
+	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 128.0), Sense::hover());
+	let diameter = 104.0_f32;
+	let center = pos2(rect.min.x + 8.0 + diameter / 2.0, rect.center().y);
+	let outer = diameter / 2.0;
+	let inner = outer - 10.0;
+	let middle = (outer + inner) / 2.0;
+	let thickness = outer - inner;
+	let threshold = report
+		.and_then(|report| report.threshold_percent)
+		.map(|percent| percent as f32);
+	let tone = crate::ring::tone(percent, threshold);
+	let slices = ring_slices(used, report);
+	let sweeps = crate::ring::segment_sweeps(
+		&slices.iter().map(|slice| slice.tokens).collect::<Vec<_>>(),
+		window,
+	);
+	let painter = ui.painter();
+
+	// The track: what the window looks like with nothing in it.
+	let track: Vec<Pos2> = (0..=72)
+		.map(|index| {
+			crate::ring::on_circle(
+				center,
+				middle,
+				crate::ring::START_DEG + 360.0 * index as f32 / 72.0,
+			)
+		})
+		.collect();
+	painter.add(egui::Shape::line(track, Stroke::new(thickness, theme::PANEL_4)));
+
+	let mut start = crate::ring::START_DEG;
+	for (slice, sweep) in slices.iter().zip(sweeps) {
+		if sweep > 0.2 {
+			let steps = ((sweep / 6.0).ceil() as usize).max(2);
+			let points: Vec<Pos2> = (0..=steps)
+				.map(|index| {
+					crate::ring::on_circle(center, middle, start + sweep * index as f32 / steps as f32)
+				})
+				.collect();
+			let color = match tone {
+				crate::ring::RingTone::Normal => slice.color,
+				crate::ring::RingTone::Near => theme::WARN,
+				crate::ring::RingTone::Over => theme::DEL,
+			};
+			painter.add(egui::Shape::line(points, Stroke::new(thickness, color)));
+		}
+		start += sweep;
+	}
+
+	// The threshold tick: a live report's own compaction point, or nothing
+	// when the runtime did not name one (the ring still changes tone, but the
+	// page does not invent a line the session would not compact at).
+	if let Some(threshold) = threshold {
+		let angle = crate::ring::angle_at(threshold);
+		let (from, to) = crate::ring::threshold_tick(center, outer, inner, angle);
+		painter.line_segment(
+			[from, to],
+			Stroke::new(
+				1.5_f32,
+				if tone == crate::ring::RingTone::Over {
+					theme::TEXT
+				} else {
+					theme::TEXT_2
+				},
+			),
+		);
+	}
+
+	let ink = match tone {
+		crate::ring::RingTone::Normal => theme::TEXT,
+		crate::ring::RingTone::Near => theme::WARN,
+		crate::ring::RingTone::Over => theme::DEL,
+	};
+	painter.text(
+		pos2(center.x, center.y - 6.0),
+		egui::Align2::CENTER_CENTER,
+		format!("{percent:.0}%"),
+		egui::FontId::new(19.0, egui::FontFamily::Monospace),
+		ink,
+	);
+	painter.text(
+		pos2(center.x, center.y + 12.0),
+		egui::Align2::CENTER_CENTER,
+		t!("已用"),
+		egui::FontId::new(9.5, egui::FontFamily::Proportional),
+		theme::TEXT_3,
+	);
+
+	// The legend: one row per arc, then the threshold when one is known.
+	let legend_x = center.x + outer + 14.0;
+	let mut top = rect.center().y - (slices.len() as f32 * 17.0 + 16.0) / 2.0;
+	for slice in &slices {
+		let share = if window > 0 {
+			slice.tokens as f32 / window as f32 * 100.0
+		} else {
+			0.0
+		};
+		painter.circle_filled(
+			pos2(legend_x + 3.0, top + 7.0),
+			3.0,
+			if tone == crate::ring::RingTone::Normal {
+				slice.color
+			} else {
+				ink
+			},
+		);
+		truncated_text(
+			ui,
+			pos2(legend_x + 12.0, top + 7.0),
+			slice.label,
+			10.5,
+			theme::TEXT_2,
+			rect.max.x - legend_x - 54.0,
+		);
+		painter.text(
+			pos2(rect.max.x - 4.0, top + 7.0),
+			egui::Align2::RIGHT_CENTER,
+			format!("{share:.0}%"),
+			egui::FontId::new(10.0, egui::FontFamily::Monospace),
+			theme::TEXT_3,
+		);
+		top += 17.0;
+	}
+	if let Some(threshold) = threshold {
+		truncated_text(
+			ui,
+			pos2(legend_x, top + 7.0),
+			&t!("压缩阈值 {}%", format!("{threshold:.0}")),
+			10.0,
+			theme::TEXT_3,
+			rect.max.x - legend_x - 4.0,
+		);
+	}
+
+	// Hover detail: every arc's tokens, which the 104 px ring cannot show.
+	let details: Vec<(String, String)> = slices
+		.iter()
+		.map(|slice| {
+			let share = if window > 0 {
+				slice.tokens as f32 / window as f32 * 100.0
+			} else {
+				0.0
+			};
+			(slice.label.to_owned(), format!("{} tokens · {share:.1}%", grouped(slice.tokens)))
+		})
+		.collect();
+	let hover = t!("已用 {} / {} tokens", grouped(used), grouped(window));
+	response.on_hover_ui(|ui| {
+		ui.label(egui::RichText::new(hover.as_str()).monospace().size(11.0));
+		for (label, detail) in &details {
+			ui.label(
+				egui::RichText::new(format!("{label} · {detail}"))
+					.size(11.0)
+					.color(theme::TEXT_2),
+			);
+		}
+		if let Some(threshold) = threshold {
+			ui.label(
+				egui::RichText::new(t!("压缩阈值 {}%", format!("{threshold:.0}")))
+					.size(10.5)
+					.color(theme::TEXT_3),
+			);
+		}
+	});
 }
 
 /// One label/value row of the card.
@@ -518,25 +794,6 @@ fn source_chip(ui: &mut Ui, label: &str) {
 		egui::FontId::new(10.5, egui::FontFamily::Monospace),
 		theme::CHIP_BRANCH_INK,
 	);
-}
-
-/// A thin context bar; the fill is the real share, never a placeholder.
-fn usage_bar(ui: &mut Ui, fraction: f32) {
-	let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 10.0), Sense::hover());
-	let rect = Rect::from_min_size(
-		pos2(row.min.x + 2.0, row.center().y - 3.0),
-		vec2((row.width() - 4.0).max(1.0), 6.0),
-	);
-	ui.painter()
-		.rect_filled(rect, CornerRadius::same(3), theme::PANEL_4);
-	let filled = (rect.width() * fraction.clamp(0.0, 1.0)).max(0.0);
-	if filled > 0.0 {
-		ui.painter().rect_filled(
-			Rect::from_min_size(rect.min, vec2(filled, rect.height())),
-			CornerRadius::same(3),
-			theme::ACCENT,
-		);
-	}
 }
 
 /// `1234567` → `1,234,567` (the token rows read as counts, not identifiers).
@@ -584,6 +841,121 @@ fn short_git_error(error: &str) -> String {
 	let mut short: String = detail.chars().take(19).collect();
 	short.push('…');
 	short
+}
+
+/// 分支: the local and remote branches, and the create field.
+///
+/// A click on a row switches the worktree; the row for the current branch is
+/// inert (it would be a no-op switch). Remote rows create a local branch that
+/// tracks them (see [`crate::git::switch_args`]), which is why they are shown
+/// with their full `origin/…` name instead of an invented local one.
+fn branches_group(ui: &mut Ui, shell: &mut Shell, status: &crate::git::GitStatus) {
+	let branches = status.branches.clone();
+	let open = shell.state.branches_open;
+	let head = group(ui, t!("分支"), branches.len(), "", true, |ui| {
+		if !open {
+			return;
+		}
+		if branches.is_empty() {
+			let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::hover());
+			truncated_text(
+				ui,
+				pos2(row.min.x + 22.0, row.center().y),
+				t!("没有读到分支列表"),
+				11.0,
+				theme::TEXT_3,
+				row.width() - 30.0,
+			);
+		}
+		for branch in &branches {
+			branch_list_row(ui, shell, branch);
+		}
+		new_branch_row(ui, shell);
+	});
+	if head.clicked() {
+		shell.state.branches_open = !shell.state.branches_open;
+	}
+}
+
+/// One branch row: a dot for the current branch, the name, and either 当前 or
+/// the remote marker. Clicking a non-current row switches to it.
+fn branch_list_row(ui: &mut Ui, shell: &mut Shell, branch: &crate::git::GitBranch) {
+	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
+	if response.hovered() && !branch.current {
+		ui.painter()
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+	}
+	let dot = pos2(rect.min.x + 20.0, rect.center().y);
+	if branch.current {
+		ui.painter().circle_filled(dot, 3.5, theme::ACCENT_2);
+	} else {
+		ui.painter()
+			.circle_stroke(dot, 3.0, Stroke::new(1.2_f32, theme::TEXT_3));
+	}
+	truncated_mono(
+		ui,
+		pos2(rect.min.x + 30.0, rect.center().y),
+		&branch.name,
+		11.5,
+		if branch.current {
+			theme::TEXT
+		} else {
+			theme::TEXT_2
+		},
+		rect.width() - 90.0,
+	);
+	let tail = if branch.current {
+		t!("当前")
+	} else if branch.remote {
+		t!("远程")
+	} else {
+		""
+	};
+	if !tail.is_empty() {
+		truncated_mono_right(
+			ui,
+			rect.max.x - 6.0,
+			rect.center().y,
+			tail,
+			10.0,
+			if branch.current {
+				theme::ACCENT_2
+			} else {
+				theme::TEXT_3
+			},
+			60.0,
+		);
+	}
+	if response.clicked() && !branch.current {
+		shell.switch_git_branch(branch);
+	}
+}
+
+/// The 新建分支 field: a name and a 创建 button, both inert until the name is
+/// one `git switch -c` accepts.
+fn new_branch_row(ui: &mut Ui, shell: &mut Shell) {
+	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), Sense::hover());
+	let mut child = ui.new_child(
+		egui::UiBuilder::new()
+			.max_rect(rect.shrink2(vec2(4.0, 2.0)))
+			.layout(Layout::left_to_right(Align::Center)),
+	);
+	child.add(
+		egui::TextEdit::singleline(&mut shell.git_branch_draft)
+			.hint_text(t!("新分支名"))
+			.desired_width(rect.width() - 78.0)
+			.font(egui::FontId::new(11.0, egui::FontFamily::Monospace)),
+	);
+	let ready = crate::git::valid_branch_name(&shell.git_branch_draft);
+	if child
+		.add_enabled(ready, egui::Button::new(egui::RichText::new(t!("创建")).size(11.0)))
+		.clicked()
+	{
+		let name = shell.git_branch_draft.trim().to_owned();
+		if shell.create_git_branch(&name) {
+			shell.git_branch_draft.clear();
+		}
+	}
 }
 
 fn branch_row(ui: &mut Ui, status: &crate::git::GitStatus) {

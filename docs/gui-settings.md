@@ -12,13 +12,16 @@ contract is in [Web UI API](./web-ui/api.md).
 | --- | --- | --- |
 | 全部设置 (`Section::All`) | `GET /api/settings` on the running web gateway (`webUrl` in `~/.zeta/serve.json`; `statsUrl` is a different listener) | The complete zetacode/desktop schema: 10 tabs, 64 groups, 356 rows on this tree, of which 319 are visible (37 are hidden by their schema conditions; 393 keys carry UI metadata, and the remaining 37 have no control shape — arrays and numbers without declared choices stay config-file-only, exactly as in the CLI). Bool, enum/submenu, number, string, path-like string, credential, multiselect, provider-limit and model-role controls. |
 | The eight native sections | `~/.zeta/zetawork.toml` (`settings.rs`, 14 managed keys) and process state | 常规 (close policy, autostart, notifications, update check, residency), 外观 (theme, density, motion), 编辑器 (font, size, wrap, gutter + the five `zetacode config set` rows), 终端 (shell, font size), 快捷键, 项目 (the shared registry), 管理 (providers, storage), 关于 (scope, fonts, version). |
+| IM 渠道, 远程访问 | The gateway's `/api/channels/*`, `/api/web-config` and `/api/remote/*`; the files are `~/.zeta/agent/web.yml` (plus the channel runtimes in `zetacode serve`) | The web desktop's channel surface (status, WeChat QR login, credentials, routing, send test) and the remote-access surface (bind host, public URL, TLS files, plain-HTTP opt-in, token rotate/revoke, pairing QR). Neither writes `zetawork.toml`. |
 
 The native sections stay because they control things the schema does not own:
 the window lifecycle, egui's own theme and fonts, the shell to spawn when the
 user opens a terminal, the project registry, and the desktop updater. The
 schema section is the single place a zetacode setting can be found; a setting
 that has UI metadata in `settings-schema.ts` is rendered here, so no setting is
-reachable only from `web-ui`.
+reachable only from `web-ui`. One of those rows is `terminal.imageMode`, which
+the terminal pane reads back from the cached catalog (see
+[Terminal graphics](./gui-terminal-graphics.md#the-image-switch)).
 
 Rows whose schema condition is false arrive with `visible: false` and are not
 drawn. Rows without UI metadata (for example arrays with no declared choices)
@@ -126,6 +129,33 @@ content-based, not an allowlist:
 On this tree the guard sees 513 distinct CJK keys against 518 rows, with zero
 missing. Add a new `t!("…")` string and the test fails until the English row
 exists.
+
+## 远程访问
+
+The pane is the GUI port of the gateway's remote-access surface; it has no
+model or file of its own (`remote_access.rs` parses, `settings_remote.rs`
+draws and schedules the jobs).
+
+| Action | Route |
+| --- | --- |
+| Read host, public URL, TLS files, plain-HTTP opt-in, token state | `GET /api/web-config` |
+| Write one field | `PUT /api/web-config {path, value}` — `remote.host`, `remote.publicUrl`, `remote.tls.{enabled,cert,key}`, `remote.allowPlainHttp` |
+| Pairing code | `GET /api/remote/pairing` → `{url, token, payload, svg}`; the GUI encodes `payload` locally with `qrcodegen` and ignores `svg` |
+| Mint a token | `POST /api/remote/token/rotate` |
+| Drop every token | `POST /api/remote/token/revoke {all:true}` |
+
+The config's token is masked by the gateway (`••••`); the pane keeps only
+"The token" as a two-state word (已保存 / 未设置) and never reads the value.
+The rotate answer is the one place a plaintext token exists in this process:
+it is shown in a read-only field with 复制 and 知道了, and it is dropped on the
+next read. The pairing payload embeds the token, so `Pairing`'s `Debug`
+redacts it and no row renders it — it goes straight into the local encoder.
+The QR is never fetched from a third party.
+
+Reads happen when the pane opens and after every write; there is no poll.
+Failures keep the previous view and show the gateway's `error` text, and a
+write is never optimistic: the whole view is re-read and the drafts re-seeded
+from the answer.
 
 ## Native settings file
 

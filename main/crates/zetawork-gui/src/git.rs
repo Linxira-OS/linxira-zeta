@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Read-only git introspection for the shell's status strip: which branch the
-//! worktree is on, how far it drifted from its upstream, what is dirty and what
-//! landed lately. Every answer is a real, read-only `git` invocation through
-//! [`std::process::Command`] — never a shell, never a write — and every failure
-//! degrades to an empty [`GitStatus`] whose `error` says what went wrong, so a
-//! pane can paint a placeholder instead of panicking.
+//! Git introspection for the shell's status strip: which branch the worktree
+//! is on, how far it drifted from its upstream, what is dirty, what landed
+//! lately, and which branches exist. Reading is a real, read-only `git`
+//! invocation through [`std::process::Command`] — never a shell — and every
+//! failure degrades to an empty [`GitStatus`] whose `error` says what went
+//! wrong, so a pane can paint a placeholder instead of panicking.
+//!
+//! The two branch actions ([`switch_branch`], [`create_branch`]) are the one
+//! place this module writes: the user clicked a row or submitted a name, and
+//! the argv is built by [`switch_args`]/[`create_args`] so the command a test
+//! asserts is exactly the command the shell runs. Their failure text is git's.
 //!
 //! Captured output is normalised by stripping `\r`, so the parsers below are
 //! platform-independent; porcelain `-z` (NUL-separated, with an extra path
 //! field for renames) is parsed by hand.
+
+use crate::t;
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt as _;
@@ -36,6 +43,144 @@ pub struct GitFile {
 	pub insertions: u32,
 	/// Lines removed by this path, `0` for binary files.
 	pub deletions: u32,
+}
+
+/// One branch `git for-each-ref` reported.
+///
+/// `name` is the short ref the user sees: `main` for a local branch,
+/// `origin/main` for a remote-tracking one. A remote branch's checkout target
+/// is derived by [`switch_args`], never by the caller.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GitBranch {
+	/// `%(refname:short)`, e.g. `main` or `origin/main`.
+	pub name: String,
+	/// True for `refs/remotes/…`.
+	pub remote: bool,
+	/// True for the branch `HEAD` points at (the local one only).
+	pub current: bool,
+	/// `%(upstream:short)` for a local branch, `None` when it has none.
+	pub upstream: Option<String>,
+}
+
+/// The refs, and the field order, [`read_branches`] asks git for.
+///
+/// A symref (`refs/remotes/origin/HEAD`) is git's alias for another branch, not
+/// a branch a user can check out, and `for-each-ref` marks it with a non-empty
+/// `%(symref)`; [`parse_branches`] drops those rows.
+const BRANCH_ARGS: [&str; 4] = [
+	"for-each-ref",
+	"--format=%(refname)%00%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(symref)",
+	"refs/heads",
+	"refs/remotes",
+];
+
+/// Parse `BRANCH_ARGS` output into branches, locals first.
+///
+/// Each line is five NUL-separated fields:
+/// `full ref`, `short name`, `HEAD` (`*` on the current local branch),
+/// `upstream:short`, `symref`. Symrefs and detached/empty names are dropped;
+/// a local branch sorts before a remote one, then by name.
+fn parse_branches(text: &str) -> Vec<GitBranch> {
+	let mut branches = Vec::new();
+	for line in text.lines() {
+		let fields: Vec<&str> = line.split('\0').collect();
+		if fields.len() < 5 {
+			continue;
+		}
+		let full = fields[0].trim();
+		let name = fields[1].trim();
+		if name.is_empty() || !fields[4].trim().is_empty() {
+			continue;
+		}
+		let remote = full.starts_with("refs/remotes/");
+		if !remote && !full.starts_with("refs/heads/") {
+			continue;
+		}
+		let upstream = fields[3].trim();
+		branches.push(GitBranch {
+			name: name.to_owned(),
+			remote,
+			current: !remote && fields[2].trim() == "*",
+			upstream: (!upstream.is_empty()).then(|| upstream.to_owned()),
+		});
+	}
+	branches.sort_by(|a, b| a.remote.cmp(&b.remote).then_with(|| a.name.cmp(&b.name)));
+	branches
+}
+
+/// List the repository's local and remote-tracking branches.
+pub fn read_branches(path: &Path) -> Result<Vec<GitBranch>, String> {
+	run_git(path, &BRANCH_ARGS).map(|out| parse_branches(&out))
+}
+
+/// The `git switch` argv for one branch, without the `-C <path>` prefix.
+///
+/// A local branch is switched to directly. A remote-tracking branch has no
+/// local ref to switch to, so a local branch of the same name (everything after
+/// the remote's first `/`) is created and told to track it — the explicit form
+/// of git's DWIM, and the one that still works when two remotes carry the same
+/// branch name.
+pub fn switch_args(branch: &GitBranch) -> Vec<String> {
+	if !branch.remote {
+		return vec!["switch".to_owned(), branch.name.clone()];
+	}
+	let local = branch
+		.name
+		.split_once('/')
+		.map(|(_, rest)| rest)
+		.filter(|rest| !rest.is_empty())
+		.unwrap_or(branch.name.as_str());
+	vec![
+		"switch".to_owned(),
+		"-c".to_owned(),
+		local.to_owned(),
+		"--track".to_owned(),
+		branch.name.clone(),
+	]
+}
+
+/// The `git switch` argv that creates `name` and checks it out.
+pub fn create_args(name: &str) -> Vec<String> {
+	vec!["switch".to_owned(), "-c".to_owned(), name.trim().to_owned()]
+}
+
+/// Is `name` something `git switch -c` will accept?
+///
+/// This is `git check-ref-format --branch`'s rule for the cases a user can
+/// type, checked without spawning a process so the button can be disabled
+/// before a round trip: non-empty, no leading `-`, no whitespace/control
+/// characters, no `..`, `@{`, `//`, and no leading/trailing `/` or `.`.
+pub fn valid_branch_name(name: &str) -> bool {
+	let name = name.trim();
+	if name.is_empty() || name == "@" || name.starts_with('-') {
+		return false;
+	}
+	if name.starts_with('/') || name.ends_with('/') || name.ends_with('.') {
+		return false;
+	}
+	if name.ends_with(".lock") || name.contains("..") || name.contains("//") || name.contains("@{") {
+		return false;
+	}
+	!name
+		.chars()
+		.any(|ch| ch.is_whitespace() || ch.is_control() || "~^:?*[\\".contains(ch))
+}
+
+/// Switch the worktree at `path` to `branch`, printing git's own failure text.
+pub fn switch_branch(path: &Path, branch: &GitBranch) -> Result<String, String> {
+	let args = switch_args(branch);
+	let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+	run_git(path, &refs)
+}
+
+/// Create `name` from `HEAD` and switch to it.
+pub fn create_branch(path: &Path, name: &str) -> Result<String, String> {
+	if !valid_branch_name(name) {
+		return Err(t!("分支名无效：{}", name.trim()));
+	}
+	let args = create_args(name);
+	let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+	run_git(path, &refs)
 }
 
 /// One commit of the log tail.
@@ -72,6 +217,10 @@ pub struct GitStatus {
 	pub deletions: u32,
 	/// Newest first, at most `limit` entries.
 	pub commits: Vec<GitCommit>,
+	/// Local branches first, then remote-tracking branches, each group in
+	/// name order. Empty when the listing failed; the panel then offers only
+	/// the current branch, as it did before.
+	pub branches: Vec<GitBranch>,
 	/// `Some(..)` means the snapshot failed: the fields above are empty and
 	/// this carries the failing command and its message.
 	pub error: Option<String>,
@@ -131,6 +280,9 @@ pub fn read_status(path: &Path, limit: usize) -> GitStatus {
 	let log = ["log", "-n", n.as_str(), "--pretty=format:%h%x09%s%x09%D%x09%p"];
 	if let Ok(out) = run_git(path, &log) {
 		status.commits = parse_log(&out);
+	}
+	if let Ok(out) = run_git(path, &BRANCH_ARGS) {
+		status.branches = parse_branches(&out);
 	}
 
 	status.elapsed_ms = elapsed_ms(started);
@@ -477,6 +629,77 @@ mod tests {
 			"seed",
 		]);
 		path
+	}
+
+	#[test]
+	fn branches_parse_locals_remotes_and_symrefs() {
+		let text = "refs/heads/main\0main\0*\0origin/main\0\n\
+		            refs/heads/feat/x\0feat/x\0 \0\0\n\
+		            refs/remotes/origin/HEAD\0origin/HEAD\0\0\0refs/remotes/origin/main\n\
+		            refs/remotes/origin/dev\0origin/dev\0\0\0\n";
+		let branches = parse_branches(text);
+		let names: Vec<&str> = branches.iter().map(|b| b.name.as_str()).collect();
+		assert_eq!(names, ["feat/x", "main", "origin/dev"], "locals first, then remotes");
+		assert!(branches[1].current, "HEAD marks the current local branch");
+		assert!(!branches[0].current);
+		assert_eq!(branches[1].upstream.as_deref(), Some("origin/main"));
+		assert!(branches[2].remote);
+		assert!(
+			branches.iter().all(|branch| branch.name != "origin/HEAD"),
+			"a symref is not a checkable branch"
+		);
+		assert!(parse_branches("garbage\n\n").is_empty());
+	}
+
+	#[test]
+	fn branch_commands_name_the_target_explicitly() {
+		let local =
+			GitBranch { name: "feat/x".into(), remote: false, current: false, upstream: None };
+		assert_eq!(switch_args(&local), ["switch", "feat/x"]);
+
+		let remote =
+			GitBranch { name: "origin/dev".into(), remote: true, current: false, upstream: None };
+		assert_eq!(
+			switch_args(&remote),
+			["switch", "-c", "dev", "--track", "origin/dev"],
+			"a remote branch gets a local branch that tracks it"
+		);
+
+		assert_eq!(create_args(" release/1.2 "), ["switch", "-c", "release/1.2"]);
+		assert!(valid_branch_name("feat/x-1"));
+		for bad in ["", " ", "-x", "a b", "a..b", "a//b", "x.lock", "a~b", "a^b", "@{u}", "/x"] {
+			assert!(!valid_branch_name(bad), "{bad:?} must be refused");
+		}
+	}
+
+	#[test]
+	fn branch_actions_work_on_a_real_repository() {
+		let repo = scratch_repo("branches");
+		let before = read_branches(&repo).expect("a repository has branches");
+		assert_eq!(before.len(), 1, "one local branch after the seed commit");
+		assert!(before[0].current);
+
+		create_branch(&repo, "feat/from-test").expect("branch creation must succeed");
+		let after = read_branches(&repo).expect("branches re-read");
+		let created = after
+			.iter()
+			.find(|branch| branch.name == "feat/from-test")
+			.expect("the new branch is listed");
+		assert!(created.current, "the new branch is checked out");
+		let previous = after
+			.iter()
+			.find(|branch| branch.name == before[0].name)
+			.expect("the seed branch is still there");
+		assert!(!previous.current, "the previous branch is no longer current");
+
+		switch_branch(&repo, previous).expect("switching back must succeed");
+		assert!(
+			read_branches(&repo)
+				.expect("branches re-read")
+				.iter()
+				.any(|branch| branch.current && branch.name == before[0].name)
+		);
+		let _ = std::fs::remove_dir_all(&repo);
 	}
 
 	#[test]

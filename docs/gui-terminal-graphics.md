@@ -58,6 +58,25 @@ switches to the alternate screen.
 Not implemented: `U=1` (unicode placeholders). A client that can fall back to a
 direct `a=p` placement does that instead; one that cannot stays text-only.
 
+## The image switch
+
+`terminal.imageMode` (设置 → 全部设置 → 外观 → Images, values `auto`, `on`,
+`off`, default `auto`) decides whether a pane decodes and paints placements:
+
+| Value | Pane behaviour |
+| --- | --- |
+| `auto` | Enabled. The pane renders images itself, so there is no outer emulator whose capability could be detected; the state exists for a future probe. |
+| `on` | Enabled, pinned. |
+| `off` | The APC is stripped from the grid but its payload is not decoded, and no placement is painted or uploaded as a texture. |
+
+The value is read from the same `GET /api/settings` catalog 全部设置 edits —
+there is no second copy in `zetawork.toml`. `center.rs` publishes the mode to
+both backends each frame: the serve backend (`terminal_service.rs`) skips
+`Graphics::apc` while the mode is off, and the painter skips both image passes
+and drops that pane's textures. On the in-process backend the emulator still
+parses the escape (it owns deletion semantics), but the GUI uploads and paints
+nothing.
+
 ## The two paths
 
 A pane attaches to the PTY `zetacode serve` owns when the gateway is reachable,

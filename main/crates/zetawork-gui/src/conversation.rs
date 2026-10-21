@@ -51,8 +51,13 @@ pub const LATEST_SOURCE: &str = "最新会话";
 /// How often the cache re-reads the journal while the same source is active.
 const REFRESH: Duration = Duration::from_secs(1);
 
-/// How often a live window lookup may be retried after it failed.
-const WINDOW_RETRY: Duration = Duration::from_secs(30);
+/// How often the live context report is re-read while an Agent pane is
+/// attached. The ring's composition and threshold move as the turn runs, so a
+/// one-shot read (the old window hint) would leave it stale after one message.
+const REPORT_EVERY: Duration = Duration::from_secs(5);
+
+/// How often a failed report lookup may be retried.
+const REPORT_RETRY: Duration = Duration::from_secs(30);
 
 /// Where one conversation came from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -203,6 +208,79 @@ impl UsageSummary {
 			.timestamp_millis_opt(ms)
 			.single()
 			.map(|time| time.format("%m-%d %H:%M:%S").to_string())
+	}
+}
+
+/// The live context a compaction threshold and a composition ring need.
+///
+/// This is the `context` object of `GET /api/agent/<id>/context`, the route the
+/// web UI's context panel reads. Only fields the ring draws are kept; the
+/// session's cumulative counters stay out, because the journal already owns
+/// them and mixing the two sources in one figure would be a lie.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ContextReport {
+	/// Estimated tokens occupying the window.
+	pub used: u64,
+	/// The model's context window, as the live session reports it.
+	pub window: u64,
+	/// `(category id, estimated tokens)`, in the gateway's panel order.
+	pub categories: Vec<(String, u64)>,
+	/// The auto-compaction threshold as a percentage, when configured.
+	pub threshold_percent: Option<f64>,
+	/// The same threshold in tokens, when configured.
+	pub threshold_tokens: Option<u64>,
+}
+
+impl ContextReport {
+	/// Parse the `{running:true, context:{…}}` body; `None` when the session
+	/// is not live or the window is unknown (a zero window cannot yield a
+	/// share, and a ring with no share would invent one).
+	pub fn from_body(body: &str) -> Option<Self> {
+		let value: Value = serde_json::from_str(body).ok()?;
+		if value.get("running").and_then(Value::as_bool) == Some(false) {
+			return None;
+		}
+		let context = value.get("context")?;
+		let window = context.get("contextWindow").and_then(Value::as_u64)?;
+		if window == 0 {
+			return None;
+		}
+		let used = context
+			.get("usedTokens")
+			.and_then(Value::as_u64)
+			.unwrap_or(0)
+			.min(window);
+		let categories = context
+			.get("categories")
+			.and_then(Value::as_array)
+			.map(|categories| {
+				categories
+					.iter()
+					.filter_map(|category| {
+						let id = category.get("id").and_then(Value::as_str)?.to_owned();
+						let tokens = category.get("tokens").and_then(Value::as_u64)?;
+						Some((id, tokens))
+					})
+					.collect()
+			})
+			.unwrap_or_default();
+		let compaction = context.get("compaction");
+		let threshold_percent = compaction
+			.and_then(|compaction| compaction.get("thresholdPercent"))
+			.and_then(Value::as_f64)
+			.filter(|percent| *percent > 0.0 && *percent <= 100.0);
+		let threshold_tokens = compaction
+			.and_then(|compaction| compaction.get("thresholdTokens"))
+			.and_then(Value::as_u64);
+		Some(Self { used, window, categories, threshold_percent, threshold_tokens })
+	}
+
+	/// The share of the window in use, 0–100.
+	pub fn percent(&self) -> f64 {
+		if self.window == 0 {
+			return 0.0;
+		}
+		(self.used as f64 / self.window as f64 * 100.0).clamp(0.0, 100.0)
 	}
 }
 
@@ -404,16 +482,17 @@ pub struct ConversationCache {
 	resolved: Option<Resolved>,
 	key: Option<String>,
 	last_read: Option<Instant>,
-	/// A window learned from `/api/agent/<id>/context`, keyed by session.
-	window_hint: Option<(String, u64)>,
-	probe: Option<WindowProbe>,
+	/// The newest report learned from `/api/agent/<id>/context`, keyed by the
+	/// session it describes.
+	live_report: Option<(String, ContextReport)>,
+	probe: Option<ReportProbe>,
 	last_probe: Option<(String, Instant)>,
 }
 
 #[derive(Debug)]
-struct WindowProbe {
+struct ReportProbe {
 	session: String,
-	window: Receiver<Option<u64>>,
+	report: Receiver<Option<ContextReport>>,
 }
 
 impl Default for ConversationCache {
@@ -424,7 +503,7 @@ impl Default for ConversationCache {
 			resolved: None,
 			key: None,
 			last_read: None,
-			window_hint: None,
+			live_report: None,
 			probe: None,
 			last_probe: None,
 		}
@@ -438,7 +517,7 @@ impl ConversationCache {
 		self.invalidate();
 	}
 
-	/// The web gateway origin the live window probe may dial.
+	/// The web gateway origin the live context probe may dial.
 	pub fn set_origin(&mut self, origin: Option<String>) {
 		self.origin = origin;
 	}
@@ -454,8 +533,20 @@ impl ConversationCache {
 		self.resolved.as_ref()
 	}
 
+	/// The live composition/threshold report for the conversation on screen,
+	/// or `None` when the session is not live or the report belongs to
+	/// another one (`/api/agent/<id>/context` only describes live sessions).
+	pub fn context_report(&self) -> Option<&ContextReport> {
+		let (session, report) = self.live_report.as_ref()?;
+		let resolved = self.resolved.as_ref()?;
+		(resolved.summary.id.as_deref() == Some(session.as_str())).then_some(report)
+	}
+
 	/// The share the status bar's 上文 column should show.
 	pub fn percent(&self) -> Option<f64> {
+		if let Some(report) = self.context_report() {
+			return Some(report.percent());
+		}
 		self.resolved.as_ref()?.summary.percent()
 	}
 
@@ -474,42 +565,40 @@ impl ConversationCache {
 			self.resolved = resolve(state, agents, &roots);
 			self.key = Some(key);
 			self.last_read = Some(now);
-			self.apply_window_hint();
+			self.apply_report();
 		}
-		self.poll_window();
-		self.start_window_probe(state, agents, now);
+		self.poll_report();
+		self.start_report_probe(state, agents, now);
 	}
 
 	/// A journal may not record the model window; the live gateway does. Fold
 	/// a learned window into the same conversation, never into another one.
-	fn apply_window_hint(&mut self) {
-		let Some((session, window)) = self.window_hint.as_ref() else {
+	fn apply_report(&mut self) {
+		let Some((session, report)) = self.live_report.as_ref() else {
 			return;
 		};
 		let Some(resolved) = self.resolved.as_mut() else {
 			return;
 		};
-		if resolved.origin == Origin::Pane
-			&& resolved.summary.id.as_deref() == Some(session.as_str())
-			&& resolved.summary.window.is_none()
+		if resolved.origin == Origin::Pane && resolved.summary.id.as_deref() == Some(session.as_str())
 		{
-			resolved.summary.window = Some(*window);
+			resolved.summary.window = Some(report.window);
 		}
 	}
 
-	fn poll_window(&mut self) {
+	fn poll_report(&mut self) {
 		let outcome = self
 			.probe
 			.as_ref()
-			.map(|probe| (probe.session.clone(), probe.window.try_recv()));
+			.map(|probe| (probe.session.clone(), probe.report.try_recv()));
 		let Some((session, result)) = outcome else {
 			return;
 		};
 		match result {
-			Ok(Some(window)) => {
-				self.window_hint = Some((session, window));
+			Ok(Some(report)) => {
+				self.live_report = Some((session, report));
 				self.probe = None;
-				self.apply_window_hint();
+				self.apply_report();
 			},
 			Ok(None) | Err(TryRecvError::Disconnected) => self.probe = None,
 			Err(TryRecvError::Empty) => {},
@@ -517,8 +606,9 @@ impl ConversationCache {
 	}
 
 	/// Start one non-blocking `GET /api/agent/<id>/context` for the attached
-	/// session. Only the window is taken: the token figures stay the journal's.
-	fn start_window_probe(&mut self, state: &AppState, agents: &AgentSessions, now: Instant) {
+	/// session. The report provides the window, the category composition and
+	/// the compaction threshold; the journal's token sums stay the summary's.
+	fn start_report_probe(&mut self, state: &AppState, agents: &AgentSessions, now: Instant) {
 		if self.probe.is_some() {
 			return;
 		}
@@ -528,29 +618,36 @@ impl ConversationCache {
 		let Some(session) = attached_session(state, agents) else {
 			return;
 		};
-		if self
-			.window_hint
+		// A live report is refreshed on a slow cadence; a failure is backed off
+		// further so an older gateway (one without the route) is not polled
+		// every frame.
+		let have_report = self
+			.live_report
 			.as_ref()
-			.is_some_and(|(seen, _)| seen == &session)
+			.is_some_and(|(seen, _)| seen == &session);
+		let wait = if have_report {
+			REPORT_EVERY
+		} else {
+			REPORT_RETRY
+		};
+		if self
+			.last_probe
+			.as_ref()
+			.is_some_and(|(seen, at)| seen == &session && now.saturating_duration_since(*at) < wait)
 		{
-			return;
-		}
-		if self.last_probe.as_ref().is_some_and(|(seen, at)| {
-			seen == &session && now.saturating_duration_since(*at) < WINDOW_RETRY
-		}) {
 			return;
 		}
 		let path = format!("/api/agent/{session}/context");
 		let origin = origin.to_owned();
-		let (sender, window) = channel();
+		let (sender, report) = channel();
 		std::thread::spawn(move || {
-			let window = crate::usage::http_get(&origin, &path)
+			let report = crate::usage::http_get(&origin, &path)
 				.ok()
-				.and_then(|body| decode_context_window(&body));
-			let _ = sender.send(window);
+				.and_then(|body| decode_context_report(&body));
+			let _ = sender.send(report);
 		});
 		self.last_probe = Some((session.clone(), now));
-		self.probe = Some(WindowProbe { session, window });
+		self.probe = Some(ReportProbe { session, report });
 	}
 }
 
@@ -563,14 +660,10 @@ fn attached_session(state: &AppState, agents: &AgentSessions) -> Option<String> 
 		.and_then(|pane| pane.session.clone())
 }
 
-/// `GET /api/agent/<id>/context` → its `context.contextWindow`, when live.
-fn decode_context_window(body: &str) -> Option<u64> {
-	let value: Value = serde_json::from_str(body).ok()?;
-	value
-		.get("context")
-		.and_then(|context| context.get("contextWindow"))
-		.and_then(Value::as_u64)
-		.filter(|window| *window > 0)
+/// `GET /api/agent/<id>/context` — the report parser lives on the type, since
+/// the ring reads more than the window.
+fn decode_context_report(body: &str) -> Option<ContextReport> {
+	ContextReport::from_body(body)
 }
 
 /// The active pane + tab + attached session, as one comparable string.
@@ -843,13 +936,37 @@ mod tests {
 	}
 
 	#[test]
-	fn a_live_context_report_supplies_only_the_window() {
-		assert_eq!(
-			decode_context_window(r#"{"running":true,"context":{"contextWindow":200000}}"#),
-			Some(200_000)
-		);
-		assert_eq!(decode_context_window(r#"{"running":false,"tools":[]}"#), None);
-		assert_eq!(decode_context_window(r#"{"running":true,"context":{"contextWindow":0}}"#), None);
+	fn a_live_context_report_carries_composition_and_threshold() {
+		let body = r#"{"running":true,"context":{
+			"contextWindow":200000,
+			"usedTokens":50000,
+			"categories":[
+				{"id":"systemPrompt","tokens":8000},
+				{"id":"systemTools","tokens":12000},
+				{"id":"messages","tokens":30000}
+			],
+			"compaction":{"enabled":true,"thresholdTokens":180000,"thresholdPercent":90.0}
+		}}"#;
+		let report = decode_context_report(body).expect("a live report parses");
+		assert_eq!(report.window, 200_000);
+		assert_eq!(report.used, 50_000);
+		assert_eq!(report.percent(), 25.0);
+		assert_eq!(report.categories.len(), 3);
+		assert_eq!(report.categories[2], ("messages".to_owned(), 30_000));
+		assert_eq!(report.threshold_percent, Some(90.0));
+		assert_eq!(report.threshold_tokens, Some(180_000));
+
+		// A report without a threshold keeps the ring's marker off; an
+		// oversized `usedTokens` cannot produce a share above 100.
+		let plain = decode_context_report(
+			r#"{"running":true,"context":{"contextWindow":1000,"usedTokens":4000}}"#,
+		)
+		.expect("window is known");
+		assert_eq!(plain.percent(), 100.0);
+		assert!(plain.threshold_percent.is_none());
+
+		assert!(decode_context_report(r#"{"running":false,"tools":[]}"#).is_none());
+		assert!(decode_context_report(r#"{"running":true,"context":{"contextWindow":0}}"#).is_none());
 	}
 
 	#[test]

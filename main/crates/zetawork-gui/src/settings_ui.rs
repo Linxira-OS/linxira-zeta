@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The 设置 modal: native egui, nine sections, persisted immediately.
+//! The 设置 modal: native egui, eleven sections, persisted immediately.
 //!
 //! Opened from the left column's foot (or `Ctrl+,`), it dims the window and
 //! shows the spec's dialog: a category nav on the left, one row per setting on
@@ -34,6 +34,7 @@ fn section_icon(section: Section) -> Icon {
 		Section::Editor => Icon::Code,
 		Section::Terminal => Icon::Term,
 		Section::Channels => Icon::List,
+		Section::Remote => Icon::Focus,
 		Section::Keys => Icon::Keyboard,
 		Section::Projects => Icon::Folder,
 		Section::Manage => Icon::FolderPlus,
@@ -420,6 +421,7 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			);
 		},
 		Section::Channels => crate::settings_channels::section(ui, shell),
+		Section::Remote => crate::settings_remote::section(ui, shell),
 		Section::Keys => {
 			head(ui, t!("快捷键"));
 			hint(ui, t!("本机把规格里的 ⌘ 映射为 Ctrl；TUI 视图用 Tab 切换面板、q 退出。"));
@@ -1256,7 +1258,7 @@ fn row(
 }
 
 /// A row with static text on the right (关于 and 快捷键).
-fn plain_row(ui: &mut Ui, label: &str, hint_text: &str, value: &str) {
+pub(crate) fn plain_row(ui: &mut Ui, label: &str, hint_text: &str, value: &str) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 52.0), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],

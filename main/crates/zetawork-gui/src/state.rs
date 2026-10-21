@@ -521,6 +521,9 @@ pub struct AppState {
 	/// Whether the git panel's 提交 group is expanded. Kept in the state
 	/// because the TUI view shows the same group.
 	pub commits_open: bool,
+	/// Whether the git panel's 分支 group is expanded. Open by default: the
+	/// group is the panel's only interactive part.
+	pub branches_open: bool,
 	pub settings_section: Section,
 	/// The focused terminal box in the TUI view; `None` = none focused.
 	pub tui_pane: Option<String>,
@@ -572,6 +575,7 @@ impl Default for AppState {
 			active_project: None,
 			active_workspace: None,
 			commits_open: true,
+			branches_open: true,
 			settings_section: Section::Appearance,
 			tui_pane: None,
 			default_shell: None,

@@ -42,11 +42,14 @@ pub mod page;
 pub mod pdf;
 pub mod picker;
 pub mod plugin_panels;
+pub mod remote_access;
 pub mod resources;
 pub mod right;
+pub mod ring;
 pub mod seed;
 pub mod settings;
 pub mod settings_channels;
+pub mod settings_remote;
 pub mod settings_schema;
 pub mod settings_ui;
 pub mod shells;
@@ -112,6 +115,11 @@ pub struct Shell {
 	pub git: Option<GitStatus>,
 	git_ws: String,
 	git_at: Option<Instant>,
+	/// The last branch action's line: `true` = switched, `false` = git's own
+	/// refusal. `None` until the panel performs one.
+	pub git_notice: Option<(bool, String)>,
+	/// The 新建分支 field's text, owned by the shell so it survives a frame.
+	pub git_branch_draft: String,
 	/// The active workspace's `git diff HEAD`, read when a 差异比较器 page shows
 	/// it; `diff_ws`/`diff_at` are the workspace and the time it was read.
 	pub diff: Option<Result<String, String>>,
@@ -170,6 +178,8 @@ pub struct Shell {
 	/// 设置 → IM 渠道: the last `/api/channels/status` + `web-config` view, its
 	/// QR texture, and the short-lived worker jobs behind them.
 	pub channels: settings_channels::ChannelsPanel,
+	/// 设置 → 远程访问: the bind/TLS/token/pairing view and its worker jobs.
+	pub remote_access: settings_remote::RemotePanel,
 	/// 全部设置: zetacode's complete schema from `GET /api/settings`, with
 	/// the language it was read in and the rows' text drafts.
 	pub schema: settings_schema::SchemaCache,
@@ -269,6 +279,8 @@ impl Shell {
 			git: None,
 			git_ws: String::new(),
 			git_at: None,
+			git_notice: None,
+			git_branch_draft: String::new(),
 			diff: None,
 			diff_ws: String::new(),
 			diff_at: None,
@@ -293,6 +305,7 @@ impl Shell {
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			channels: settings_channels::ChannelsPanel::default(),
+			remote_access: settings_remote::RemotePanel::default(),
 			schema: settings_schema::SchemaCache::default(),
 			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
@@ -332,6 +345,8 @@ impl Shell {
 			git: None,
 			git_ws: String::new(),
 			git_at: None,
+			git_notice: None,
+			git_branch_draft: String::new(),
 			diff: None,
 			diff_ws: String::new(),
 			diff_at: None,
@@ -359,6 +374,7 @@ impl Shell {
 			remote: settings_ui::ZetacodeCache::default(),
 			providers: settings_ui::ProviderCache::default(),
 			channels: settings_channels::ChannelsPanel::default(),
+			remote_access: settings_remote::RemotePanel::default(),
 			schema: settings_schema::SchemaCache::default(),
 			updates: updates::UpdateCache::default(),
 			drafts: Vec::new(),
@@ -493,6 +509,55 @@ impl Shell {
 		self.git = Some(git::read_status(&path, 8));
 		self.git_ws = workspace.id.clone();
 		self.git_at = Some(Instant::now());
+	}
+
+	/// Switch the active workspace's worktree to `branch`.
+	///
+	/// The branch action is the one write the right column performs; its
+	/// result is kept in [`Self::git_notice`] so the panel can say which
+	/// branch is checked out, or repeat git's refusal verbatim. On success the
+	/// snapshot is re-read immediately: the panel's branch, dirty files and
+	/// commits all belong to the new checkout.
+	pub fn switch_git_branch(&mut self, branch: &git::GitBranch) -> bool {
+		let Some(path) = self.active_workspace_path() else {
+			return false;
+		};
+		match git::switch_branch(&path, branch) {
+			Ok(_) => {
+				self.git_notice = Some((true, t!("已切换到分支 {}", branch.name)));
+				self.refresh_git();
+				true
+			},
+			Err(error) => {
+				self.git_notice = Some((false, error));
+				false
+			},
+		}
+	}
+
+	/// Create `name` from `HEAD` and switch to it.
+	pub fn create_git_branch(&mut self, name: &str) -> bool {
+		let Some(path) = self.active_workspace_path() else {
+			return false;
+		};
+		match git::create_branch(&path, name) {
+			Ok(_) => {
+				self.git_notice = Some((true, t!("已创建并切换到分支 {}", name.trim())));
+				self.refresh_git();
+				true
+			},
+			Err(error) => {
+				self.git_notice = Some((false, error));
+				false
+			},
+		}
+	}
+
+	fn active_workspace_path(&self) -> Option<PathBuf> {
+		self
+			.state
+			.active_workspace()
+			.map(|workspace| PathBuf::from(&workspace.path))
 	}
 
 	/// The git status, read on demand when the git panel is looking at it.
@@ -1024,6 +1089,12 @@ impl Shell {
 			&& self.state.settings_section == crate::settings::Section::Channels;
 		self.channels.set_visible(channels_visible);
 		self.channels.tick(ctx, self.probe);
+		// 远程访问 reads only when its pane opens (no poll); a closed modal
+		// starts no request.
+		let remote_visible = self.state.settings_open()
+			&& self.state.settings_section == crate::settings::Section::Remote;
+		self.remote_access.set_visible(remote_visible);
+		self.remote_access.tick(ctx, self.probe);
 		// PDF documents and their textures belong to their tabs: a closed tab
 		// must not keep a parsed file (or its bitmaps) alive.
 		let pdf_tabs: Vec<String> = self

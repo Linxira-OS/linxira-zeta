@@ -371,6 +371,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "显示内联图片",
 		description: "在终端内联渲染图片",
 	},
+	"terminal.imageMode": {
+		label: "终端图片模式",
+		description:
+			"zetawork 终端窗格是否解码并绘制 Kitty 图片（auto：自动检测；on：始终；off：从不，APC 只剥离不解码）",
+	},
 	"editor.autoInstall": {
 		label: "自动安装编辑器",
 		description: "切换到编辑器时若未安装 @linxiraos/editor 包则自动安装",

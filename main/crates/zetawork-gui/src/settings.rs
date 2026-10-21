@@ -28,7 +28,7 @@ use std::{
 
 use crate::i18n::Lang;
 
-/// One of the 设置 modal's nine categories, in the order the modal lists them.
+/// One of the 设置 modal's eleven categories, in the order the modal lists them.
 ///
 /// 常规 comes first and is the one section the design drafts do not have: the
 /// drafts were drawn before the lifecycle rulings (关闭窗口时 / 开机自启 /
@@ -36,7 +36,8 @@ use crate::i18n::Lang;
 /// keep their order behind it rather than being renumbered. 项目 is the
 /// registry page the 管理 card opens: the list of registered projects plus the
 /// remove action. IM 渠道 is the fourth remote target: the web desktop's
-/// channel surface, transplanted into the GUI.
+/// channel surface, transplanted into the GUI. 远程访问 sits beside it: the
+/// gateway's remote bind host, TLS files, token lifecycle and pairing code.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Section {
 	/// 全部设置: zetacode's complete schema, read from `GET /api/settings`.
@@ -52,6 +53,8 @@ pub enum Section {
 	Editor,
 	Terminal,
 	Channels,
+	/// 远程访问: bind host, TLS, plain-HTTP opt-in, token, pairing QR.
+	Remote,
 	Keys,
 	Projects,
 	Manage,
@@ -59,13 +62,14 @@ pub enum Section {
 }
 
 impl Section {
-	pub const ALL: [Self; 10] = [
+	pub const ALL: [Self; 11] = [
 		Self::All,
 		Self::General,
 		Self::Appearance,
 		Self::Editor,
 		Self::Terminal,
 		Self::Channels,
+		Self::Remote,
 		Self::Keys,
 		Self::Projects,
 		Self::Manage,
@@ -81,6 +85,7 @@ impl Section {
 			Self::Editor => t!("编辑器"),
 			Self::Terminal => t!("终端"),
 			Self::Channels => t!("IM 渠道"),
+			Self::Remote => t!("远程访问"),
 			Self::Keys => t!("快捷键"),
 			Self::Projects => t!("项目"),
 			Self::Manage => t!("管理"),
@@ -97,6 +102,7 @@ impl Section {
 			Self::Editor => "editor",
 			Self::Terminal => "terminal",
 			Self::Channels => "channels",
+			Self::Remote => "remote",
 			Self::Keys => "keys",
 			Self::Projects => "projects",
 			Self::Manage => "manage",
