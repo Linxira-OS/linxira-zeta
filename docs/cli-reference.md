@@ -243,12 +243,14 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | --- | --- | --- |
 | `launch` | Start a coding session (the default command). | [Launch flags](#launch-flags) |
 | `acp` | Run zetacode as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
+| `auth` | Export or import stored provider credentials (API keys and OAuth logins) as JSON: `auth export` prints the document, and `auth import <file\|->` merges it into `agent.db`. | [providers](./providers.md) |
 | `auth-broker` | Manage the zetacode auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `auth-gateway` | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |
+| `anonymize` | Write a shareable copy of a session and its subagents: turn contents redacted, metadata kept, paths and literals replaced by consistent mock tokens (`-o` chooses the output directory). | [session operations](./session-operations-export-share-fork-resume.md) |
 | `bench` | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model. | |
 | `browser-relay` | Run the local CDP relay used by Eval's browser API to drive your own Chrome tabs. | [computer use](./computer-use.md) |
-| `channels` | Inspect, pair, and toggle IM channels (WeChat/Feishu/Telegram) without a browser: `status`, `login wechat` (terminal QR), `logout`, `enable`, `disable`; `--json` on every subcommand. | [IM channels](./channels.md) |
+| `channels` | Inspect, pair, and toggle IM channels (WeChat/Feishu/Telegram) without a browser: `status`, `login wechat` (terminal QR), `login feishu --app-id … --app-secret …` / `login telegram --token …` (validate then save), `logout`, `enable`, `disable`; `--json` on every subcommand. | [IM channels](./channels.md) |
 | `cleanse` | Detect and fix project diagnostics with weighted parallel subagents. | |
 | `collab` | List active local Collab hosts without exposing URLs; `collab link <instanceId\|pid>` retrieves a control link (`--view` for view-only). Requires `collab.enabled` and a relay you control. | [collab](./collab.md) |
 | `clip` | Clip uploads are unavailable in Zeta: no upload server ships, so `/record --upload` and `zetacode clip` refuse and recordings stay local (`zetacode play`). | [stream](./stream.md#clips) |
@@ -275,6 +277,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `ps` | List and control daemon-supervised background processes (logs, stop, kill, restart). | |
 | `say` | Synthesize text with the local TTS engine and play it through the speakers. | [tts tool](./tools/tts.md) |
 | `share` | Share a saved session via an encrypted link (same as the `/share` slash command). | [session operations](./session-operations-export-share-fork-resume.md) |
+| `session` | Hand a session to another machine: `pack <session> <out.tar>`, `unpack <archive.tar> --cwd <dir>` (prints the session file path), or `moved <session> --to <label>` so resuming the local copy later forks. | [session operations](./session-operations-export-share-fork-resume.md) |
 | `setup` | Run onboarding setup or install dependencies for optional features. | |
 | `shell` | Interactive shell console. | |
 | `read` | Show what the read tool will return for a path, URL, or internal URI. (The [`read` tool](./tools/read.md) is a separate agent tool.) | |
@@ -283,6 +286,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `ssh` | Manage SSH host configurations. | |
 | `stats` | View usage statistics. | |
 | `stream` | Broadcast local zetacode session screens and chat to a live channel; no server ships, so set `stream.serverUrl` to your own compatible server. | [stream](./stream.md) |
+| `serve`, `server` | Start the Stats Dashboard and Web UI services without opening a browser. `--host`/`--tls-cert`/`--tls-key` expose them (a non-loopback plaintext bind needs `--allow-plain-http`), `--channels` hosts IM channels, and `--stats-only`/`--web-only` narrow the services. | [serve and web](./zeta-serve-web.md) |
 | `update` | Check for and install updates; `--canary`/`--stable` switch release channels. `--desktop` targets the `zetawork` desktop app instead of the CLI: `zetacode update --desktop --check` prints one JSON line (`current`, `latest`, `available`, `asset`, `url`, `size`, `digest`), and `zetacode update --desktop` downloads the Windows setup executable, verifies its SHA-256, and runs it silently. | |
 | `usage` | Show provider usage limits for every authenticated account, flagging saved resets close to expiry; `usage clients` breaks token burn down per client (with `--days`), `usage invalidate` drops cached reports, `usage accounts` lists each OAuth account's provider and identity key (the key `task.agentAccountPools` and broker account pools take; no tokens, `--json` supported), and `usage reset` lists each Codex and Claude account's saved rate-limit resets by `<provider>/<credential id>` (`--json`, `--redact`) and `usage reset <provider>/<credential id>` spends one, also from an auth-broker client. | [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence), [saved resets](./settings.md#saved-reset-auto-consumption) |
 | `tiny-models` | Download tiny local models for session titles, memory, and word completion. | [local models](./local-models.md) |
@@ -291,10 +295,11 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `ttsr` | Inspect and test Time-Traveling Stream Rules (TTSR). (Covers the CLI command; the [TTSR feature](./ttsr-injection-lifecycle.md) is documented separately.) | |
 | `worktree`, `wt` | Add, list, or clear git worktrees; uses clone-first behavior when enabled. | |
 | `search`, `q`, `web-search` | Test web search providers from the CLI. | [web_search tool](./tools/web_search.md) |
+| `__complete` | **Internal.** Emit shell-completion candidates for the current argv; hidden from help. `zetacode completions` prints the script that calls it. | [completions](#subcommands) |
 
 > `install`, `join`, `browser-relay`, `auth-gateway`, and `tiny-models` are also
 > reachable through related mechanisms (the `plugin` command, the `/join` slash
 > command, and so on). The table lists each as it is registered in
 > `packages/coding-agent/src/cli-commands.ts`.
 
-`__complete` is an internal, hidden subcommand used by shell completion scripts.
+`__complete` is the internal, hidden subcommand behind the shell-completion scripts printed by `zetacode completions`; it is not part of the public CLI surface.
