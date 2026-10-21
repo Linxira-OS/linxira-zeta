@@ -18,7 +18,7 @@ import { initializeDefaultWorkspace } from "../../src/default-workspace";
 import { cfgMemoryBackend } from "../../src/memory-backend/settings";
 import { createAgentSession } from "../../src/sdk";
 import { AgentSessionWrapper, sessions } from "../../src/server/web-gateway/agents";
-import { handleSettingsPut, handleSettingsReload } from "../../src/server/web-gateway/settings";
+import { handleSettingsGet, handleSettingsPut, handleSettingsReload } from "../../src/server/web-gateway/settings";
 import { AuthStorage } from "../../src/session/auth-storage";
 import { SessionManager } from "../../src/session/session-manager";
 
@@ -177,5 +177,61 @@ describe("per-session settings scope", () => {
 		expect(response.status).toBe(200);
 		expect(cfgMemoryBackend.get(session.settings)).toBe("sharpshooter");
 		expect(session.settings.getProvenance(cfgMemoryBackend)).toBe("global");
+	});
+});
+
+describe("backend.autostart in the settings panel", () => {
+	/** Run `fn` with the compiled-binary marker forced to `value`. */
+	async function withInstallForm<T>(value: string, fn: () => Promise<T>): Promise<T> {
+		const previous = process.env.PI_COMPILED;
+		process.env.PI_COMPILED = value;
+		try {
+			return await fn();
+		} finally {
+			if (previous === undefined) delete process.env.PI_COMPILED;
+			else process.env.PI_COMPILED = previous;
+		}
+	}
+
+	function getSettings(cwd: string): Request {
+		return new Request("http://127.0.0.1/api/settings", {
+			headers: { "x-zeta-cwd": cwd },
+		});
+	}
+
+	test("the npm form hides the checkbox and refuses the write", async () => {
+		const repo = tempDir("@pi-scope-autostart-npm-");
+		await withInstallForm("false", async () => {
+			const catalog = (await (await handleSettingsGet(getSettings(repo.path()))).json()) as {
+				settings: Array<{ path: string }>;
+			};
+			expect(catalog.settings.some(entry => entry.path === "backend.autostart")).toBe(false);
+
+			const response = await handleSettingsPut(
+				settingsRequest(repo.path(), { path: "backend.autostart", value: true }),
+			);
+			expect(response.status).toBe(400);
+			const body = (await response.json()) as { error?: string };
+			expect(body.error).toContain("bundled");
+		});
+		// Nothing reached the global config either.
+		expect(fs.existsSync(path.join(getAgentDir(), "config.yml"))).toBe(false);
+	});
+
+	test("the bundled form shows the checkbox and writes the global config", async () => {
+		const repo = tempDir("@pi-scope-autostart-bundled-");
+		await withInstallForm("true", async () => {
+			const catalog = (await (await handleSettingsGet(getSettings(repo.path()))).json()) as {
+				settings: Array<{ path: string; type: string; value: unknown }>;
+			};
+			const entry = catalog.settings.find(candidate => candidate.path === "backend.autostart");
+			expect(entry).toMatchObject({ type: "boolean", value: false });
+
+			const response = await handleSettingsPut(
+				settingsRequest(repo.path(), { path: "backend.autostart", value: true }),
+			);
+			expect(response.status).toBe(200);
+			expect(fs.readFileSync(path.join(getAgentDir(), "config.yml"), "utf8")).toContain("autostart: true");
+		});
 	});
 });

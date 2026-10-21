@@ -18,10 +18,12 @@
  * and also recognises a `serve` instance registered in `serve.json` so a
  * daemon is never started beside a foreground server.
  *
- * Autostart installers write a per-user logon entry (systemd user unit on
- * Linux, Startup-folder script on Windows). They never install silently: the
- * caller prints the exact file and its content, plus the command that removes
- * it. macOS is reported as unsupported.
+ * Autostart is a real per-user OS component, installed only by the bundled
+ * app (`PI_COMPILED=true`): a systemd user service+timer on Linux, a Task
+ * Scheduler task on Windows, both delayed three minutes after boot/login. The
+ * global-only `backend.autostart` setting gates the installed component; the
+ * npm/source form is refused and writes nothing. macOS is reported as
+ * unsupported.
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -32,6 +34,8 @@ import * as path from "node:path";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { Args, CliUsageError, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { CLI_BIN_NAME, getBaseConfigRoot, isCompiledBinary, VERSION } from "@linxiraos/pi-utils";
+import { detectInstallForm, type InstallForm } from "../autostart/install-form";
+import { readBackendAutostartSetting, writeBackendAutostartSetting } from "../autostart/setting";
 import { acquireChannelLock, readChannelLock } from "../channels/instance-lock";
 import { daemonHelp } from "../cli/command-help";
 import { WebConfig } from "../config/web-config";
@@ -93,9 +97,20 @@ export type DaemonStatusSource = "daemon" | "instance-lock" | "serve-registry";
 
 export interface DaemonAutostartStatus {
 	platform: NodeJS.Platform;
+	/** This install form may own an OS autostart component (bundled only). */
 	supported: boolean;
+	/** The unit/task exists according to the OS, not our pid file. */
 	installed: boolean;
+	/** The OS has the unit/task enabled for boot/login. */
+	enabled: boolean;
+	/** The backend service/task is running right now according to the OS. */
+	active: boolean;
 	path: string | null;
+	/** Global-only `backend.autostart` decision (`~/.zeta/agent/config.yml`). */
+	setting: boolean;
+	installForm: InstallForm;
+	/** Why the OS query could not answer, when it could not. */
+	reason?: string;
 }
 
 export interface DaemonStatus {
@@ -141,6 +156,12 @@ export interface DaemonRuntime {
 	readRegistry(): ServeRegistration | null;
 	/** Start the registry probe again after the backend publishes it. */
 	platform: NodeJS.Platform;
+	/** Query the OS about the installed unit/task (injectable in tests). */
+	autostartRunner?: AutostartRunner;
+	/** Injectable global setting read; when omitted, the config file is read. */
+	autostartSetting?: boolean;
+	/** Injectable install-form detection; when omitted, it is detected once. */
+	installForm?: InstallForm;
 }
 
 export interface DaemonStartResult {
@@ -325,26 +346,18 @@ async function spawnBackend(input: SpawnBackendInput): Promise<SpawnedBackend> {
 	}
 }
 
-function autostartPlanForStatus(platform: NodeJS.Platform): DaemonAutostartStatus {
-	const plan = planAutostart({ platform });
-	return {
-		platform,
-		supported: plan.supported,
-		installed: plan.path !== null && existsSync(plan.path),
-		path: plan.path,
-	};
-}
-
 export interface DaemonStatusOptions {
 	paths?: DaemonPaths;
 	runtime?: Partial<DaemonRuntime>;
 	autostart?: DaemonAutostartStatus;
+	/** Injectable OS probe for `autostart`, when `autostart` is not supplied. */
+	autostartRunner?: AutostartRunner;
 }
 
 /**
  * Snapshot the backend without mutating anything. Precedence: our record (it
  * carries the ports), then the instance lock (record lost), then `serve.json`
- * (a foreground `serve` or an autostart-supervised backend).
+ * (a foreground `serve` or an OS-supervised backend).
  */
 export async function daemonStatus(options: DaemonStatusOptions = {}): Promise<DaemonStatus> {
 	const paths = options.paths ?? resolveDaemonPaths();
@@ -352,7 +365,14 @@ export async function daemonStatus(options: DaemonStatusOptions = {}): Promise<D
 	const state = await readDaemonState(paths.state);
 	const lock = await readChannelLock(paths.lock, { isAlive: runtime.isAlive });
 	const registry = runtime.readRegistry();
-	const autostart = options.autostart ?? autostartPlanForStatus(runtime.platform);
+	const autostart =
+		options.autostart ??
+		(await inspectAutostartStatus({
+			platform: runtime.platform,
+			runner: options.autostartRunner ?? runtime.autostartRunner,
+			setting: runtime.autostartSetting,
+			installForm: runtime.installForm,
+		}));
 
 	const status: DaemonStatus = {
 		running: false,
@@ -859,16 +879,36 @@ export async function readDaemonLogTail(logPath: string, lineCount = 80): Promis
 // Autostart
 // ---------------------------------------------------------------------------
 
+/** One file an installer writes (Linux: service + timer; Windows: task XML). */
+export interface AutostartFile {
+	path: string;
+	content: string;
+}
+
+/** A command exactly as the installer/uninstaller runs it (no shell parsing). */
+export interface AutostartCommand {
+	command: string;
+	args: string[];
+}
+
 export interface AutostartPlan {
 	platform: NodeJS.Platform;
+	/** Bundled install form and a supported platform. */
 	supported: boolean;
-	/** The file the installer writes, or null when the platform is unsupported. */
+	installForm: InstallForm;
+	/** Human-readable refusal/unsupported reason, when `supported` is false. */
+	reason?: string;
+	/** Every file the installer writes. */
+	files: AutostartFile[];
+	/** Primary OS artifact (Linux timer unit, Windows task XML), for display. */
 	path: string | null;
 	content: string | null;
-	/** Commands the user can run to remove the entry. */
+	/** Commands the user can run by hand to remove the component. */
 	undo: string | null;
-	/** Commands the installer may run to activate the entry. */
-	activate: string[];
+	/** Commands the installer runs to activate the component. */
+	activate: AutostartCommand[];
+	/** Commands the uninstaller runs to disable and remove it. */
+	disable: AutostartCommand[];
 	notes: string[];
 }
 
@@ -884,15 +924,22 @@ export interface AutostartPlanOptions {
 	logPath?: string;
 	/** Extra `serve` flags to bake into the entry (host/TLS/channels). */
 	serveFlags?: readonly string[];
+	/** Install form; defaults to {@link detectInstallForm}. */
+	installForm?: InstallForm;
+}
+
+/** The only form allowed to write an OS autostart component. */
+export function autostartRefusalMessage(): string {
+	return [
+		"Autostart is only supported for the bundled Zeta desktop app (the compiled",
+		"zetacode binary). This is the npm/source install form, so `daemon",
+		"install-autostart` wrote nothing. Install the bundled app, then run it again.",
+	].join(" ");
 }
 
 function systemdQuote(value: string): string {
 	if (/^[A-Za-z0-9_./:@%+-]+$/.test(value)) return value;
 	return `"${value.replace(/(["\\])/g, "\\$1")}"`;
-}
-
-function cmdQuote(value: string): string {
-	return `"${value.replace(/"/g, '""')}"`;
 }
 
 function autostartPorts(ports: Partial<DaemonPorts> | undefined): DaemonPorts {
@@ -917,12 +964,42 @@ function serveFlagArgs(ports: DaemonPorts, extra: readonly string[] | undefined)
 	];
 }
 
+function xmlEscape(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&apos;");
+}
+
+/** A single-quoted PowerShell literal; `'` is doubled, never interpolated. */
+function psLiteral(value: string): string {
+	return `'${value.replace(/'/g, "''")}'`;
+}
+
+/** Unit names are part of the public surface (`systemctl --user list-timers`). */
+export const LINUX_AUTOSTART_SERVICE = "zetacode-daemon.service";
+export const LINUX_AUTOSTART_TIMER = "zetacode-daemon.timer";
+/** Visible by this name in Task Scheduler / `schtasks /Query`. */
+export const WINDOWS_AUTOSTART_TASK = "Zeta Backend Autostart";
+/** The delay lives in the unit/task, never in a sleep inside the backend. */
+export const AUTOSTART_DELAY_MINUTES = 3;
+
 /**
- * Pure description of the per-user logon entry. Nothing here touches the
- * filesystem, so every platform's installer text is testable in CI.
+ * Pure description of the OS autostart component. Nothing here touches the
+ * filesystem or runs a command, so every platform's text is testable in CI.
+ *
+ * The Linux component is a user service plus a timer that fires it three
+ * minutes after boot (`OnBootSec`) or login (`OnStartupSec`). The service runs
+ * `serve` in the foreground and checks the global setting with
+ * `ExecCondition`, so the OS owns the process (SIGTERM reaches it). Windows is
+ * a Task Scheduler task with a three-minute logon delay, registered for the
+ * current user with `LeastPrivilege`; it runs `serve --autostart`.
  */
 export function planAutostart(options: AutostartPlanOptions = {}): AutostartPlan {
 	const platform = options.platform ?? process.platform;
+	const installForm = options.installForm ?? detectInstallForm();
 	const homeDir = options.homeDir ?? os.homedir();
 	const env = options.env ?? process.env;
 	const ports = autostartPorts(options.ports);
@@ -932,129 +1009,290 @@ export function planAutostart(options: AutostartPlanOptions = {}): AutostartPlan
 			? [options.execPath, ...(options.argv ?? [])]
 			: resolveCliInvocation({ exists: options.exists, argv: options.argv });
 	const args = serveFlagArgs(ports, options.serveFlags);
+	const bundled = installForm === "bundled";
 
 	if (platform === "linux") {
 		const configHome = env.XDG_CONFIG_HOME?.trim() || path.posix.join(homeDir, ".config");
-		const unitPath = path.posix.join(configHome, "systemd", "user", "zetacode-daemon.service");
+		const unitDir = path.posix.join(configHome, "systemd", "user");
+		const servicePath = path.posix.join(unitDir, LINUX_AUTOSTART_SERVICE);
+		const timerPath = path.posix.join(unitDir, LINUX_AUTOSTART_TIMER);
 		const execStart = [...invocation, ...args].map(systemdQuote).join(" ");
-		const content = [
+		const execCondition = [...invocation, "daemon", "autostart-enabled"].map(systemdQuote).join(" ");
+		const service = [
 			"# Installed by `zetacode daemon install-autostart`.",
 			"# Undo: `zetacode daemon uninstall-autostart`.",
 			"[Unit]",
 			`Description=Zeta background backend (${CLI_BIN_NAME} serve)`,
+			`Documentation=man:${CLI_BIN_NAME}(1)`,
 			"After=network-online.target",
 			"Wants=network-online.target",
 			"",
 			"[Service]",
 			"Type=exec",
 			"WorkingDirectory=%h",
+			// The global `backend.autostart` setting is the decision. A failed
+			// condition skips the unit cleanly instead of starting a backend the
+			// user turned off.
+			`ExecCondition=${execCondition}`,
 			`ExecStart=${execStart}`,
-			"Restart=on-failure",
-			"RestartSec=5",
+			// Respect an OS stop/kill: the backend never respawns itself.
+			"Restart=no",
+			"KillMode=control-group",
+			"TimeoutStopSec=20",
 			`StandardOutput=append:${logPath}`,
 			`StandardError=append:${logPath}`,
 			"",
+		].join("\n");
+		const timer = [
+			"# Installed by `zetacode daemon install-autostart`.",
+			"# Undo: `zetacode daemon uninstall-autostart`.",
+			"[Unit]",
+			`Description=Start the Zeta background backend ${AUTOSTART_DELAY_MINUTES} minutes after boot/login`,
+			"",
+			"[Timer]",
+			`OnBootSec=${AUTOSTART_DELAY_MINUTES}min`,
+			`OnStartupSec=${AUTOSTART_DELAY_MINUTES}min`,
+			`Unit=${LINUX_AUTOSTART_SERVICE}`,
+			"Persistent=false",
+			"",
 			"[Install]",
-			"WantedBy=default.target",
+			"WantedBy=timers.target",
 			"",
 		].join("\n");
 		return {
 			platform,
-			supported: true,
-			path: unitPath,
-			content,
+			installForm,
+			supported: bundled,
+			reason: bundled ? undefined : autostartRefusalMessage(),
+			files: [
+				{ path: servicePath, content: service },
+				{ path: timerPath, content: timer },
+			],
+			path: timerPath,
+			content: timer,
 			undo: [
-				"systemctl --user disable --now zetacode-daemon.service",
-				`rm -f ${systemdQuote(unitPath)}`,
+				`systemctl --user disable --now ${LINUX_AUTOSTART_TIMER}`,
+				`systemctl --user stop ${LINUX_AUTOSTART_SERVICE}`,
+				`rm -f ${systemdQuote(servicePath)} ${systemdQuote(timerPath)}`,
 				"systemctl --user daemon-reload",
 			].join("\n"),
-			activate: ["systemctl --user daemon-reload", "systemctl --user enable --now zetacode-daemon.service"],
-			notes: [`Logs go to the systemd journal: journalctl --user -u zetacode-daemon -f`],
+			activate: [
+				{ command: "systemctl", args: ["--user", "daemon-reload"] },
+				{ command: "systemctl", args: ["--user", "enable", "--now", LINUX_AUTOSTART_TIMER] },
+			],
+			disable: [
+				{ command: "systemctl", args: ["--user", "disable", "--now", LINUX_AUTOSTART_TIMER] },
+				{ command: "systemctl", args: ["--user", "stop", LINUX_AUTOSTART_SERVICE] },
+				{ command: "systemctl", args: ["--user", "daemon-reload"] },
+			],
+			notes: [
+				`Units: ${LINUX_AUTOSTART_TIMER} + ${LINUX_AUTOSTART_SERVICE}; inspect with \`systemctl --user list-timers\` and \`systemctl --user status ${LINUX_AUTOSTART_SERVICE}\`.`,
+				"Boot-time start (before anyone logs in) also needs lingering: `loginctl enable-linger $USER` (a privileged, one-time change). Without it the timer fires three minutes after login.",
+				`Logs: ${logPath} (the unit appends stdout/stderr there)`,
+			],
 		};
 	}
 
 	if (platform === "win32") {
-		const appData = env.APPDATA?.trim() || path.win32.join(homeDir, "AppData", "Roaming");
-		const scriptPath = path.win32.join(
-			appData,
-			"Microsoft",
-			"Windows",
-			"Start Menu",
-			"Programs",
-			"Startup",
-			"zetacode-daemon.cmd",
-		);
-		const commandLine = [...invocation, ...args].map(cmdQuote).join(" ");
-		const content = [
-			"@echo off",
-			"rem Installed by `zetacode daemon install-autostart`.",
-			"rem Undo: `zetacode daemon uninstall-autostart` or delete this file.",
-			`start "" /b ${commandLine} >> ${cmdQuote(logPath)} 2>&1`,
+		const localAppData = env.LOCALAPPDATA?.trim() || path.win32.join(homeDir, "AppData", "Local");
+		const xmlPath = path.win32.join(localAppData, "Zeta", "autostart", "zetacode-backend.xml");
+		const userName = env.USERDOMAIN && env.USERNAME ? `${env.USERDOMAIN}\\${env.USERNAME}` : (env.USERNAME ?? "");
+		const workingDirectory = env.USERPROFILE?.trim() || homeDir;
+		const commandLine = [...invocation.slice(1), ...args, "--autostart"];
+		const xml = [
+			'<?xml version="1.0" encoding="UTF-8"?>',
+			'<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">',
+			"\t<RegistrationInfo>",
+			"\t\t<Description>Zeta background backend (zetacode serve), three minutes after sign-in</Description>",
+			`\t\t<URI>\\${xmlEscape(WINDOWS_AUTOSTART_TASK)}</URI>`,
+			"\t</RegistrationInfo>",
+			"\t<Triggers>",
+			"\t\t<LogonTrigger>",
+			"\t\t\t<Enabled>true</Enabled>",
+			...(userName ? [`\t\t\t<UserId>${xmlEscape(userName)}</UserId>`] : []),
+			`\t\t\t<Delay>PT${AUTOSTART_DELAY_MINUTES}M</Delay>`,
+			"\t\t</LogonTrigger>",
+			"\t</Triggers>",
+			"\t<Principals>",
+			'\t\t<Principal id="Author">',
+			...(userName ? [`\t\t\t<UserId>${xmlEscape(userName)}</UserId>`] : []),
+			"\t\t\t<LogonType>InteractiveToken</LogonType>",
+			"\t\t\t<RunLevel>LeastPrivilege</RunLevel>",
+			"\t\t</Principal>",
+			"\t</Principals>",
+			"\t<Settings>",
+			"\t\t<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>",
+			"\t\t<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>",
+			"\t\t<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>",
+			"\t\t<AllowHardTerminate>true</AllowHardTerminate>",
+			"\t\t<StartWhenAvailable>false</StartWhenAvailable>",
+			"\t\t<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>",
+			"\t\t<IdleSettings>",
+			"\t\t\t<StopOnIdleEnd>false</StopOnIdleEnd>",
+			"\t\t\t<RestartOnIdle>false</RestartOnIdle>",
+			"\t\t</IdleSettings>",
+			"\t\t<AllowStartOnDemand>true</AllowStartOnDemand>",
+			"\t\t<Enabled>true</Enabled>",
+			"\t\t<Hidden>false</Hidden>",
+			"\t\t<RunOnlyIfIdle>false</RunOnlyIfIdle>",
+			"\t\t<WakeToRun>false</WakeToRun>",
+			"\t\t<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>",
+			"\t\t<Priority>7</Priority>",
+			"\t</Settings>",
+			'\t<Actions Context="Author">',
+			"\t\t<Exec>",
+			`\t\t\t<Command>${xmlEscape(invocation[0] as string)}</Command>`,
+			`\t\t\t<Arguments>${xmlEscape(commandLine.join(" "))}</Arguments>`,
+			`\t\t\t<WorkingDirectory>${xmlEscape(workingDirectory)}</WorkingDirectory>`,
+			"\t\t</Exec>",
+			"\t</Actions>",
+			"</Task>",
 			"",
 		].join("\r\n");
 		return {
 			platform,
-			supported: true,
-			path: scriptPath,
-			content,
-			undo: `del ${cmdQuote(scriptPath)}`,
-			activate: [],
-			notes: ["The entry runs at the next sign-in; start it now with `zetacode daemon start`."],
+			installForm,
+			supported: bundled,
+			reason: bundled ? undefined : autostartRefusalMessage(),
+			files: [{ path: xmlPath, content: xml }],
+			path: xmlPath,
+			content: xml,
+			undo: `Unregister-ScheduledTask -TaskName ${psLiteral(WINDOWS_AUTOSTART_TASK)} -Confirm:$false\ndel "${xmlPath}"`,
+			activate: [
+				{
+					// `schtasks /Create /SC ONLOGON` demands elevation; registering
+					// the XML through the Task Scheduler API creates a task that runs
+					// as the current user without it.
+					command: "powershell",
+					args: [
+						"-NoProfile",
+						"-NonInteractive",
+						"-Command",
+						`Register-ScheduledTask -TaskName ${psLiteral(WINDOWS_AUTOSTART_TASK)} -Xml (Get-Content -LiteralPath ${psLiteral(xmlPath)} -Raw) -Force | Out-Null`,
+					],
+				},
+			],
+			disable: [
+				{
+					command: "powershell",
+					args: [
+						"-NoProfile",
+						"-NonInteractive",
+						"-Command",
+						`Unregister-ScheduledTask -TaskName ${psLiteral(WINDOWS_AUTOSTART_TASK)} -Confirm:$false`,
+					],
+				},
+			],
+			notes: [
+				`Visible in Task Scheduler as "${WINDOWS_AUTOSTART_TASK}" (Task Scheduler Library, current user). No elevation is required.`,
+				`The task starts ${CLI_BIN_NAME} three minutes after sign-in without a stored password. Disable/End it in Task Scheduler, or run \`schtasks /Change /TN "${WINDOWS_AUTOSTART_TASK}" /DISABLE\`.`,
+			],
 		};
 	}
 
 	return {
 		platform,
+		installForm,
 		supported: false,
+		reason:
+			"macOS autostart is not supported. Run `zetacode daemon start` at login, or add a launchd agent yourself.",
+		files: [],
 		path: null,
 		content: null,
 		undo: null,
 		activate: [],
+		disable: [],
 		notes: [
 			"macOS autostart is not supported. Run `zetacode daemon start` at login, or add a launchd agent yourself.",
 		],
 	};
 }
 
+export interface AutostartCommandResult {
+	ok: boolean;
+	status: number;
+	stdout: string;
+	stderr: string;
+}
+
+/** Runs an OS command; injectable so tests never touch the real scheduler. */
+export type AutostartRunner = (command: string, args: readonly string[]) => AutostartCommandResult;
+
+function runAutostartCommand(command: string, args: readonly string[]): AutostartCommandResult {
+	const result = spawnSync(command, [...args], {
+		windowsHide: true,
+		stdio: ["ignore", "pipe", "pipe"],
+		encoding: "utf8",
+		timeout: 15_000,
+	});
+	return {
+		ok: !result.error && result.status === 0,
+		status: result.status ?? 1,
+		stdout: result.stdout ?? "",
+		stderr: result.stderr ?? (result.error ? String(result.error.message) : ""),
+	};
+}
+
 export interface AutostartInstallResult {
 	plan: AutostartPlan;
-	/** False when the entry was already exactly what we would write. */
+	/** False when every file was already exactly what we would write. */
 	written: boolean;
+	/** True when the install form forbade writing anything. */
+	refused: boolean;
+	message?: string;
 	activation: Array<{ command: string; ok: boolean }>;
 }
 
 export interface AutostartOptions extends AutostartPlanOptions {
 	plan?: AutostartPlan;
-	/** Injectable command runner for activation (systemctl); tests record instead of executing. */
-	run?: (command: string, args: string[]) => { ok: boolean };
+	/** Injectable command runner for activation (systemctl/schtasks). */
+	run?: AutostartRunner;
 }
 
-function defaultRun(command: string, args: string[]): { ok: boolean } {
-	const result = spawnSync(command, args, { windowsHide: true, stdio: "ignore", timeout: 15_000 });
-	return { ok: !result.error && result.status === 0 };
+function runCommands(
+	commands: readonly AutostartCommand[],
+	run: AutostartRunner,
+): Array<{ command: string; ok: boolean }> {
+	return commands.map(entry => {
+		const result = run(entry.command, entry.args);
+		// The disabled label still names every argument the user could run.
+		return { command: [entry.command, ...entry.args].join(" "), ok: result.ok };
+	});
 }
 
 /**
- * Write the autostart entry. Idempotent: an identical file is left untouched
- * (`written: false`), but activation commands still run.
+ * Write every file of the component. Idempotent: identical files are left
+ * untouched (`written: false`), but activation commands still run.
+ *
+ * An npm/source install is refused here as well as in the CLI, so a caller
+ * that forgets the check still writes nothing.
  */
 export async function installAutostart(options: AutostartOptions = {}): Promise<AutostartInstallResult> {
 	const plan = options.plan ?? planAutostart(options);
-	if (!plan.supported || !plan.path || plan.content === null) {
-		return { plan, written: false, activation: [] };
+	if (plan.installForm !== "bundled") {
+		return { plan, written: false, refused: true, message: autostartRefusalMessage(), activation: [] };
 	}
-	const dirname = plan.platform === "win32" ? path.win32.dirname(plan.path) : path.posix.dirname(plan.path);
-	await fs.mkdir(dirname, { recursive: true, mode: 0o700 });
-	const existing = await fs.readFile(plan.path, "utf8").catch(() => null);
-	const written = existing !== plan.content;
-	if (written) await fs.writeFile(plan.path, plan.content, { encoding: "utf8", mode: 0o644 });
-	const run = options.run ?? defaultRun;
-	const activation = plan.activate.map(command => {
-		const [binary, ...args] = command.split(" ");
-		if (!binary) return { command, ok: false };
-		return { command, ok: run(binary, args).ok };
-	});
-	return { plan, written, activation };
+	if (!plan.supported || plan.files.length === 0) {
+		return {
+			plan,
+			written: false,
+			refused: false,
+			message: plan.reason,
+			activation: [],
+		};
+	}
+	const run = options.run ?? runAutostartCommand;
+	let written = false;
+	for (const file of plan.files) {
+		const dirname = plan.platform === "win32" ? path.win32.dirname(file.path) : path.posix.dirname(file.path);
+		await fs.mkdir(dirname, { recursive: true, mode: 0o700 });
+		const existing = await fs.readFile(file.path, "utf8").catch(() => null);
+		if (existing === file.content) continue;
+		await fs.writeFile(file.path, file.content, { encoding: "utf8", mode: 0o644 });
+		written = true;
+	}
+	const activation = runCommands(plan.activate, run);
+	return { plan, written, refused: false, activation };
 }
 
 export interface AutostartUninstallResult {
@@ -1063,32 +1301,177 @@ export interface AutostartUninstallResult {
 	deactivation: Array<{ command: string; ok: boolean }>;
 }
 
-/** Remove the autostart entry (and deactivate it) without touching the daemon. */
+/**
+ * Disable the OS component, remove every file, and leave no enabled unit/task
+ * behind. It does not touch a backend the daemon did not start this way —
+ * `daemon stop` remains the explicit stop.
+ */
 export async function uninstallAutostart(options: AutostartOptions = {}): Promise<AutostartUninstallResult> {
 	const plan = options.plan ?? planAutostart(options);
-	const run = options.run ?? defaultRun;
-	const deactivate =
-		plan.platform === "linux"
-			? ["systemctl --user disable --now zetacode-daemon.service", "systemctl --user daemon-reload"]
-			: [];
-	const deactivation = deactivate.map(command => {
-		const [binary, ...args] = command.split(" ");
-		if (!binary) return { command, ok: false };
-		return { command, ok: run(binary, args).ok };
+	const run = options.run ?? runAutostartCommand;
+	const deactivation = runCommands(plan.disable, run);
+	let removed = false;
+	for (const file of plan.files) {
+		const existed = await fs.stat(file.path).then(
+			() => true,
+			() => false,
+		);
+		if (!existed) continue;
+		await fs.rm(file.path, { force: true }).catch(() => {});
+		removed = true;
+	}
+	return { plan, removed, deactivation };
+}
+
+export interface InspectAutostartOptions {
+	platform?: NodeJS.Platform;
+	runner?: AutostartRunner;
+	/** Injectable global setting; when omitted the global config is read. */
+	setting?: boolean;
+	installForm?: InstallForm;
+	homeDir?: string;
+	env?: NodeJS.ProcessEnv;
+	ports?: Partial<DaemonPorts>;
+}
+
+function parseSystemdShow(stdout: string): Map<string, Record<string, string>> {
+	const units = new Map<string, Record<string, string>>();
+	let current: Record<string, string> | null = null;
+	for (const rawLine of stdout.split(/\r?\n/)) {
+		const line = rawLine.trim();
+		if (line === "") {
+			if (current && current.Id) units.set(current.Id, current);
+			current = null;
+			continue;
+		}
+		const index = line.indexOf("=");
+		if (index <= 0) continue;
+		const key = line.slice(0, index);
+		if (key === "Id" && current?.Id) {
+			units.set(current.Id, current);
+			current = {};
+		}
+		current ??= {};
+		current[key] = line.slice(index + 1);
+	}
+	if (current && current.Id) units.set(current.Id, current);
+	return units;
+}
+
+function firstLine(text: string): string {
+	const line = text.split(/\r?\n/).find(value => value.trim() !== "");
+	return line?.trim() ?? "";
+}
+
+/**
+ * Ask the OS whether the component is installed, enabled and active. This is
+ * deliberately not derived from `daemon.json`: the clock in our own pid file
+ * cannot know that the user disabled the timer or ended the task.
+ */
+export async function inspectAutostartStatus(options: InspectAutostartOptions = {}): Promise<DaemonAutostartStatus> {
+	const platform = options.platform ?? process.platform;
+	const installForm = options.installForm ?? detectInstallForm();
+	const plan = planAutostart({
+		platform,
+		installForm,
+		homeDir: options.homeDir,
+		env: options.env,
+		ports: options.ports,
 	});
-	if (!plan.path) return { plan, removed: false, deactivation };
-	const existed = await fs
-		.rm(plan.path, { force: true })
-		.then(() => true)
-		.catch(() => false);
-	return { plan, removed: existed, deactivation };
+	const setting = options.setting ?? (await readBackendAutostartSetting().catch(() => false));
+	const runner = options.runner ?? runAutostartCommand;
+	const base: DaemonAutostartStatus = {
+		platform,
+		supported: plan.supported,
+		installed: false,
+		enabled: false,
+		active: false,
+		path: plan.path,
+		setting,
+		installForm,
+		...(plan.reason ? { reason: plan.reason } : {}),
+	};
+
+	if (platform === "linux") {
+		// The npm form cannot own a component; do not fork a shell just to be
+		// told so. `daemon uninstall-autostart` still removes stale files.
+		if (installForm !== "bundled") return base;
+		const result = runner("systemctl", [
+			"--user",
+			"show",
+			LINUX_AUTOSTART_TIMER,
+			LINUX_AUTOSTART_SERVICE,
+			"--property=Id,LoadState,UnitFileState,ActiveState",
+			"--no-pager",
+		]);
+		if (!result.ok && result.stdout.trim() === "") {
+			return {
+				...base,
+				reason: firstLine(result.stderr) || "systemctl --user is unavailable",
+			};
+		}
+		const units = parseSystemdShow(result.stdout);
+		const timer = units.get(LINUX_AUTOSTART_TIMER);
+		const service = units.get(LINUX_AUTOSTART_SERVICE);
+		const installed = timer?.LoadState === "loaded" || service?.LoadState === "loaded";
+		const enabled = /^enabled/.test(timer?.UnitFileState ?? "");
+		const active = service?.ActiveState === "active" || service?.ActiveState === "reloading";
+		return {
+			...base,
+			installed,
+			enabled,
+			active,
+			...(installed || base.reason ? {} : { reason: "systemd does not know zetacode-daemon.timer" }),
+		};
+	}
+
+	if (platform === "win32") {
+		if (installForm !== "bundled") return base;
+		const script = [
+			`$n='${WINDOWS_AUTOSTART_TASK}';`,
+			`$t=Get-ScheduledTask -TaskName $n -ErrorAction Stop;`,
+			`[pscustomobject]@{installed=$true;enabled=[bool]$t.Settings.Enabled;state=[string]$t.State}|ConvertTo-Json -Compress`,
+		].join(" ");
+		const result = runner("powershell", ["-NoProfile", "-NonInteractive", "-Command", script]);
+		if (!result.ok) {
+			return {
+				...base,
+				reason: firstLine(result.stderr) || "Task Scheduler does not know the task",
+			};
+		}
+		try {
+			const parsed = JSON.parse(firstLine(result.stdout)) as {
+				enabled?: unknown;
+				state?: unknown;
+			};
+			return {
+				...base,
+				installed: true,
+				enabled: parsed.enabled === true,
+				active: parsed.state === "Running",
+			};
+		} catch {
+			return { ...base, reason: "could not parse the Task Scheduler response" };
+		}
+	}
+
+	return base;
 }
 
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 
-const ACTIONS = ["status", "start", "stop", "restart", "logs", "install-autostart", "uninstall-autostart"] as const;
+const ACTIONS = [
+	"status",
+	"start",
+	"stop",
+	"restart",
+	"logs",
+	"install-autostart",
+	"uninstall-autostart",
+	"autostart-enabled",
+] as const;
 type DaemonAction = (typeof ACTIONS)[number];
 
 function isDaemonAction(value: string): value is DaemonAction {
@@ -1114,12 +1497,22 @@ function printStatus(status: DaemonStatus): void {
 		console.log(chalk.dim("Daemon is not running."));
 	}
 	console.log(chalk.dim(`  Log:          ${status.logPath}`));
-	if (status.autostart.supported) {
-		const state = status.autostart.installed ? "installed" : "not installed";
-		console.log(chalk.dim(`  Autostart:    ${state} (${status.autostart.path})`));
+	const autostart = status.autostart;
+	if (autostart.supported || autostart.installed) {
+		const installed = autostart.installed ? "installed" : "not installed";
+		const enabled = autostart.enabled ? "enabled" : "disabled";
+		const active = autostart.active ? "running" : "stopped";
+		console.log(
+			chalk.dim(
+				`  Autostart:    ${installed}, ${enabled}, ${active}; setting ${autostart.setting ? "on" : "off"} (${autostart.path})`,
+			),
+		);
+	} else if (autostart.installForm === "npm") {
+		console.log(chalk.dim("  Autostart:    unavailable in the npm/source install form (bundled app only)"));
 	} else {
 		console.log(chalk.dim("  Autostart:    unsupported on this platform"));
 	}
+	if (autostart.reason && autostart.supported) console.log(chalk.dim(`                ${autostart.reason}`));
 }
 
 function printStart(result: DaemonStartResult): void {
@@ -1151,14 +1544,21 @@ function printStop(result: DaemonStopResult): void {
 
 function printAutostartInstall(result: AutostartInstallResult): void {
 	const { plan } = result;
-	if (!plan.supported) {
-		process.stderr.write(chalk.yellow(`${plan.notes.join("\n")}\n`));
+	if (result.refused) {
+		process.stderr.write(chalk.red(`${result.message ?? autostartRefusalMessage()}\n`));
 		return;
 	}
-	console.log(result.written ? chalk.green(`Wrote ${plan.path}`) : chalk.dim(`${plan.path} was already up to date.`));
-	console.log(chalk.dim("\n--- file content ---"));
-	process.stdout.write(`${plan.content ?? ""}`);
-	console.log(chalk.dim("--- end ---\n"));
+	if (!plan.supported) {
+		process.stderr.write(chalk.yellow(`${plan.reason ?? plan.notes.join("\n")}\n`));
+		return;
+	}
+	if (!result.written) console.log(chalk.dim("Autostart component was already up to date."));
+	for (const file of plan.files) {
+		console.log(result.written ? chalk.green(`Wrote ${file.path}`) : chalk.dim(`${file.path} (unchanged)`));
+		console.log(chalk.dim("\n--- file content ---"));
+		process.stdout.write(`${file.content}\n`);
+		console.log(chalk.dim("--- end ---\n"));
+	}
 	for (const activation of result.activation) {
 		console.log(
 			activation.ok ? chalk.dim(`$ ${activation.command}`) : chalk.yellow(`$ ${activation.command} (failed)`),
@@ -1166,18 +1566,24 @@ function printAutostartInstall(result: AutostartInstallResult): void {
 	}
 	if (plan.undo) console.log(chalk.dim(`\nUndo:\n${plan.undo}`));
 	for (const note of plan.notes) console.log(chalk.dim(`\n${note}`));
+	console.log(chalk.dim("\nbackend.autostart was set to true in the global user config."));
 }
 
 function printAutostartUninstall(result: AutostartUninstallResult): void {
 	const { plan } = result;
-	if (!plan.supported) {
-		process.stderr.write(chalk.yellow(`${plan.notes.join("\n")}\n`));
+	if (!plan.supported && plan.installForm !== "bundled" && plan.files.length === 0) {
+		process.stderr.write(chalk.yellow(`${plan.reason ?? plan.notes.join("\n")}\n`));
 		return;
 	}
 	for (const command of result.deactivation) {
 		console.log(command.ok ? chalk.dim(`$ ${command.command}`) : chalk.yellow(`$ ${command.command} (failed)`));
 	}
-	console.log(result.removed ? chalk.green(`Removed ${plan.path}`) : chalk.dim(`${plan.path} was not installed.`));
+	if (result.removed) {
+		for (const file of plan.files) console.log(chalk.green(`Removed ${file.path}`));
+	} else {
+		console.log(chalk.dim("The autostart component was not installed."));
+	}
+	console.log(chalk.dim("backend.autostart was set to false in the global user config."));
 }
 
 export default class Daemon extends Command {
@@ -1185,7 +1591,8 @@ export default class Daemon extends Command {
 
 	static args = {
 		action: Args.string({
-			description: "status (default), start, stop, restart, logs, install-autostart, or uninstall-autostart",
+			description:
+				"status (default), start, stop, restart, logs, install-autostart, uninstall-autostart, or autostart-enabled",
 			required: false,
 			options: ACTIONS,
 		}),
@@ -1215,7 +1622,7 @@ export default class Daemon extends Command {
 		`# Is the background backend running, and on which port?\n  ${CLI_BIN_NAME} daemon status --json`,
 		`# Start it detached; repeat calls are no-ops\n  ${CLI_BIN_NAME} daemon start`,
 		`# Tail the backend log\n  ${CLI_BIN_NAME} daemon logs --follow`,
-		`# Install a per-user login entry (prints the exact file)\n  ${CLI_BIN_NAME} daemon install-autostart`,
+		`# Install a per-user OS autostart component (bundled app only; prints every file)\n  ${CLI_BIN_NAME} daemon install-autostart`,
 	];
 
 	async run(): Promise<void> {
@@ -1328,22 +1735,73 @@ export default class Daemon extends Command {
 				return;
 			}
 			case "install-autostart": {
+				const installForm = detectInstallForm();
 				const plan = planAutostart({
 					ports,
 					serveFlags: daemonServeFlags(flags),
+					installForm,
 				});
+				// Refuse before writing anything: no unit, no task, no setting.
+				if (installForm !== "bundled") {
+					const refused: AutostartInstallResult = {
+						plan,
+						written: false,
+						refused: true,
+						message: autostartRefusalMessage(),
+						activation: [],
+					};
+					if (flags.json) writeJson(refused);
+					else printAutostartInstall(refused);
+					process.exitCode = 1;
+					return;
+				}
 				const result = await installAutostart({ plan });
+				if (!result.refused && result.plan.supported) {
+					try {
+						await writeBackendAutostartSetting(true);
+					} catch (error) {
+						process.stderr.write(
+							chalk.yellow(
+								`Warning: the component was installed but backend.autostart could not be written: ${
+									error instanceof Error ? error.message : String(error)
+								}\n`,
+							),
+						);
+					}
+				}
 				if (flags.json) writeJson(result);
 				else printAutostartInstall(result);
-				process.exitCode = plan.supported ? 0 : 1;
+				process.exitCode = result.refused || !result.plan.supported ? 1 : 0;
 				return;
 			}
 			case "uninstall-autostart": {
-				const plan = planAutostart({ ports });
+				const plan = planAutostart({ ports, installForm: detectInstallForm() });
 				const result = await uninstallAutostart({ plan });
+				if (plan.platform === "linux" || plan.platform === "win32") {
+					try {
+						await writeBackendAutostartSetting(false);
+					} catch (error) {
+						process.stderr.write(
+							chalk.yellow(
+								`Warning: the component was removed but backend.autostart could not be written: ${
+									error instanceof Error ? error.message : String(error)
+								}\n`,
+							),
+						);
+					}
+				}
 				if (flags.json) writeJson(result);
 				else printAutostartUninstall(result);
-				process.exitCode = plan.supported ? 0 : 1;
+				process.exitCode = plan.platform === "linux" || plan.platform === "win32" ? 0 : 1;
+				return;
+			}
+			case "autostart-enabled": {
+				// systemd `ExecCondition` entry point: 0 only when the global
+				// setting says the OS component may start the backend.
+				const enabled = await readBackendAutostartSetting().catch(() => false);
+				if (flags.json) writeJson({ enabled });
+				else if (!enabled) console.log(chalk.dim("backend.autostart is off; skipping the background backend."));
+				process.exitCode = enabled ? 0 : 1;
 				return;
 			}
 		}

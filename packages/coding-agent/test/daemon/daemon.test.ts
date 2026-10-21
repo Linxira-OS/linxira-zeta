@@ -14,11 +14,13 @@ import {
 	DAEMON_DEFAULT_STATS_PORT,
 	DAEMON_DEFAULT_WEB_PORT,
 	DAEMON_STATE_FILENAME,
+	type AutostartRunner,
 	type DaemonRuntime,
 	type DaemonState,
 	type DaemonStatus,
 	type SpawnBackendInput,
 	daemonStatus,
+	inspectAutostartStatus,
 	installAutostart,
 	planAutostart,
 	readDaemonLogTail,
@@ -31,6 +33,9 @@ import {
 	uninstallAutostart,
 	writeDaemonState,
 } from "../../src/commands/daemon";
+import { detectInstallForm } from "../../src/autostart/install-form";
+import { readBackendAutostartSetting, writeBackendAutostartSetting } from "../../src/autostart/setting";
+import { Settings } from "../../src/config/settings";
 import type { ServeRegistration } from "../../src/server/serve-registry";
 
 const tempDirs: string[] = [];
@@ -56,6 +61,9 @@ const access = {
 	allowPlainHttp: false,
 };
 
+/** OS probe stub used by status paths that do not inject a full autostart state. */
+const emptyRunner = () => ({ ok: false, status: 1, stdout: "", stderr: "not installed" });
+
 function makeRuntime(
 	overrides: Partial<DaemonRuntime> & { alive?: Set<number>; killed?: Array<[number, string]> } = {},
 ): DaemonRuntime {
@@ -72,6 +80,9 @@ function makeRuntime(
 		spawn: () => ({ pid: 4242, unref: () => {} }),
 		readRegistry: () => null,
 		platform: "linux",
+		autostartRunner: emptyRunner,
+		autostartSetting: false,
+		installForm: "bundled",
 		...overrides,
 	};
 }
@@ -214,7 +225,16 @@ describe("daemon status", () => {
 		const root = await tempRoot();
 		const paths = resolveDaemonPaths({ root });
 		await writeDaemonState(paths.state, stateFor(4242));
-		const autostart = { platform: "linux" as NodeJS.Platform, supported: true, installed: false, path: "/unit" };
+		const autostart = {
+			platform: "linux" as NodeJS.Platform,
+			supported: true,
+			installed: false,
+			enabled: false,
+			active: false,
+			path: "/unit",
+			setting: false,
+			installForm: "bundled" as const,
+		};
 		const status = await daemonStatus({
 			paths,
 			runtime: makeRuntime({ alive: new Set([4242]) }),
@@ -378,10 +398,12 @@ describe("autostart installers", () => {
 		gatewayPort: DAEMON_DEFAULT_GATEWAY_PORT,
 	};
 	const logPath = "/home/me/.zeta/run/daemon.log";
+	const okRunner = { ok: true, status: 0, stdout: "", stderr: "" };
 
-	test("linux writes a user systemd unit", () => {
+	test("linux writes a user service plus a three-minute timer", () => {
 		const plan = planAutostart({
 			platform: "linux",
+			installForm: "bundled",
 			execPath: "/usr/local/bin/zetacode",
 			homeDir: "/home/me",
 			env: {},
@@ -389,84 +411,329 @@ describe("autostart installers", () => {
 			logPath,
 		});
 		expect(plan.supported).toBe(true);
-		expect(plan.path).toBe("/home/me/.config/systemd/user/zetacode-daemon.service");
-		expect(plan.content).toContain("[Unit]");
-		expect(plan.content).toContain("[Service]");
-		expect(plan.content).toContain("Type=exec");
-		expect(plan.content).toContain(
+		expect(plan.path).toBe("/home/me/.config/systemd/user/zetacode-daemon.timer");
+		expect(plan.files.map(file => file.path)).toEqual([
+			"/home/me/.config/systemd/user/zetacode-daemon.service",
+			"/home/me/.config/systemd/user/zetacode-daemon.timer",
+		]);
+		const service = plan.files[0]!.content;
+		expect(service).toContain("[Service]");
+		expect(service).toContain("Type=exec");
+		expect(service).toContain("ExecCondition=/usr/local/bin/zetacode daemon autostart-enabled");
+		expect(service).toContain(
 			"ExecStart=/usr/local/bin/zetacode serve --no-browser --stats-port 3847 --web-port 30141 --gateway-port 30142",
 		);
-		expect(plan.content).toContain(`StandardOutput=append:${logPath}`);
-		expect(plan.content).toContain(`StandardError=append:${logPath}`);
-		expect(plan.content).toContain("[Install]");
-		expect(plan.content).toContain("WantedBy=default.target");
-		expect(plan.undo).toContain("systemctl --user disable --now zetacode-daemon.service");
+		expect(service).toContain("Restart=no");
+		expect(service).not.toContain("Restart=on-failure");
+		expect(service).toContain(`StandardOutput=append:${logPath}`);
+		expect(service).toContain(`StandardError=append:${logPath}`);
+
+		const timer = plan.files[1]!.content;
+		expect(timer).toContain("OnBootSec=3min");
+		expect(timer).toContain("OnStartupSec=3min");
+		expect(timer).toContain("Unit=zetacode-daemon.service");
+		expect(timer).toContain("WantedBy=timers.target");
+		expect(plan.undo).toContain("systemctl --user disable --now zetacode-daemon.timer");
 		expect(plan.undo).toContain("rm -f /home/me/.config/systemd/user/zetacode-daemon.service");
 		expect(plan.activate).toEqual([
-			"systemctl --user daemon-reload",
-			"systemctl --user enable --now zetacode-daemon.service",
+			{ command: "systemctl", args: ["--user", "daemon-reload"] },
+			{ command: "systemctl", args: ["--user", "enable", "--now", "zetacode-daemon.timer"] },
 		]);
+		expect(plan.notes.join("\n")).toContain("linger");
 	});
 
-	test("windows writes a current-user Startup entry", () => {
+	test("windows writes a per-user Task Scheduler definition with a three-minute delay", () => {
+		const env = {
+			LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local",
+			USERDOMAIN: "DESKTOP",
+			USERNAME: "me",
+			USERPROFILE: "C:\\Users\\me",
+		};
 		const plan = planAutostart({
 			platform: "win32",
+			installForm: "bundled",
 			execPath: "C:\\Program Files\\Zeta\\zetacode.exe",
 			homeDir: "C:\\Users\\me",
-			env: { APPDATA: "C:\\Users\\me\\AppData\\Roaming" },
+			env,
 			ports,
 			logPath: "C:\\Users\\me\\.zeta\\run\\daemon.log",
 		});
 		expect(plan.supported).toBe(true);
-		expect(plan.path).toBe(
-			path.join(
-				"C:\\Users\\me\\AppData\\Roaming",
-				"Microsoft",
-				"Windows",
-				"Start Menu",
-				"Programs",
-				"Startup",
-				"zetacode-daemon.cmd",
-			),
-		);
-		expect(plan.content?.startsWith("@echo off\r\n")).toBe(true);
-		expect(plan.content).toContain('"C:\\Program Files\\Zeta\\zetacode.exe"');
-		expect(plan.content).toContain('"serve"');
-		expect(plan.content).toContain('"--web-port" "30141"');
-		expect(plan.content).toContain('>> "C:\\Users\\me\\.zeta\\run\\daemon.log" 2>&1');
-		expect(plan.undo).toContain("del ");
+		expect(plan.path).toBe("C:\\Users\\me\\AppData\\Local\\Zeta\\autostart\\zetacode-backend.xml");
+		const xml = plan.content ?? "";
+		expect(xml).toContain('<Task version="1.4"');
+		expect(xml).toContain("<Delay>PT3M</Delay>");
+		expect(xml).toContain("<UserId>DESKTOP\\me</UserId>");
+		expect(xml).toContain("<LogonType>InteractiveToken</LogonType>");
+		expect(xml).toContain("<RunLevel>LeastPrivilege</RunLevel>");
+		expect(xml).toContain("<Command>C:\\Program Files\\Zeta\\zetacode.exe</Command>");
+		expect(xml).toContain("serve --no-browser --stats-port 3847 --web-port 30141 --gateway-port 30142 --autostart");
+		expect(xml).not.toContain("RestartOnFailure");
+		expect(plan.activate).toHaveLength(1);
+		expect(plan.activate[0]!.command).toBe("powershell");
+		expect(plan.activate[0]!.args.at(-1)).toContain("Register-ScheduledTask");
+		expect(plan.activate[0]!.args.at(-1)).toContain(plan.path!);
+		expect(plan.disable[0]!.args.at(-1)).toContain("Unregister-ScheduledTask");
+	});
+
+	test("the npm form is refused and writes nothing at all", async () => {
+		const home = await tempRoot();
+		const result = await installAutostart({
+			platform: "linux",
+			installForm: "npm",
+			execPath: "/usr/bin/bun",
+			argv: ["/usr/bin/bun", "/app/node_modules/zeta/dist/cli.js"],
+			homeDir: home,
+			env: {},
+			ports,
+			logPath: path.join(home, "run", "daemon.log"),
+			run: () => okRunner,
+		});
+		expect(result.refused).toBe(true);
+		expect(result.written).toBe(false);
+		expect(result.activation).toEqual([]);
+		expect(result.message).toContain("bundled Zeta desktop app");
+		// Nothing in the would-be config home, and no commands ran.
+		expect(await fs.readdir(home)).toEqual([]);
+	});
+
+	test("detects the install form from the marker, with paths only as backup", () => {
+		expect(detectInstallForm({ marker: "true" })).toBe("bundled");
+		expect(
+			detectInstallForm({
+				marker: "false",
+				execPath: "/usr/bin/bun",
+				argv: ["/usr/bin/bun", "/app/node_modules/zeta/dist/cli.js"],
+			}),
+		).toBe("npm");
+		expect(
+			detectInstallForm({ marker: undefined, execPath: "C:\\Program Files\\Zeta\\zetacode.exe", argv: [] }),
+		).toBe("bundled");
 	});
 
 	test("macOS reports unsupported", () => {
-		const plan = planAutostart({ platform: "darwin", homeDir: "/Users/me", env: {} });
+		const plan = planAutostart({ platform: "darwin", installForm: "bundled", homeDir: "/Users/me", env: {} });
 		expect(plan.supported).toBe(false);
 		expect(plan.path).toBeNull();
 		expect(plan.content).toBeNull();
 		expect(plan.notes.join("\n")).toContain("not supported");
 	});
 
-	test("install writes the exact content and uninstall removes it", async () => {
+	test("install writes every file and uninstall disables then removes them", async () => {
 		const home = await tempRoot();
 		const plan = planAutostart({
 			platform: "linux",
+			installForm: "bundled",
 			execPath: "/usr/local/bin/zetacode",
 			homeDir: home,
 			env: {},
 			ports,
 			logPath: path.join(home, "run", "daemon.log"),
 		});
-		const run = () => ({ ok: true });
+		const run = () => okRunner;
 		const installed = await installAutostart({ plan, run });
 		expect(installed.written).toBe(true);
 		expect(installed.activation.every(entry => entry.ok)).toBe(true);
-		expect(await fs.readFile(plan.path as string, "utf8")).toBe(plan.content as string);
+		for (const file of plan.files) {
+			expect(await fs.readFile(file.path, "utf8")).toBe(file.content);
+		}
 
 		const again = await installAutostart({ plan, run });
 		expect(again.written).toBe(false);
 
 		const removed = await uninstallAutostart({ plan, run });
 		expect(removed.removed).toBe(true);
-		expect(await fs.stat(plan.path as string).catch(() => null)).toBeNull();
+		expect(removed.deactivation.every(entry => entry.ok)).toBe(true);
+		for (const file of plan.files) {
+			expect(await fs.stat(file.path).catch(() => null)).toBeNull();
+		}
+	});
+});
+
+describe("autostart OS status", () => {
+	const runner =
+		(stdout: string, ok = true): AutostartRunner =>
+		() => ({
+			ok,
+			status: ok ? 0 : 1,
+			stdout,
+			stderr: ok ? "" : "not installed",
+		});
+
+	test("parses an enabled and running systemd user timer/service", async () => {
+		const status = await inspectAutostartStatus({
+			platform: "linux",
+			homeDir: "/home/me",
+			env: {},
+			setting: true,
+			installForm: "bundled",
+			runner: runner(
+				[
+					"Id=zetacode-daemon.timer",
+					"LoadState=loaded",
+					"UnitFileState=enabled",
+					"ActiveState=active",
+					"",
+					"Id=zetacode-daemon.service",
+					"LoadState=loaded",
+					"UnitFileState=static",
+					"ActiveState=active",
+					"",
+				].join("\n"),
+			),
+		});
+		expect(status.installed).toBe(true);
+		expect(status.enabled).toBe(true);
+		expect(status.active).toBe(true);
+		expect(status.setting).toBe(true);
+		expect(status.supported).toBe(true);
+		expect(status.path).toBe("/home/me/.config/systemd/user/zetacode-daemon.timer");
+	});
+
+	test("reports a disabled timer and stopped service instead of assuming they are on", async () => {
+		const status = await inspectAutostartStatus({
+			platform: "linux",
+			homeDir: "/home/me",
+			setting: false,
+			installForm: "bundled",
+			runner: runner(
+				[
+					"Id=zetacode-daemon.timer",
+					"LoadState=loaded",
+					"UnitFileState=disabled",
+					"ActiveState=inactive",
+					"",
+					"Id=zetacode-daemon.service",
+					"LoadState=loaded",
+					"UnitFileState=static",
+					"ActiveState=inactive",
+					"",
+				].join("\n"),
+			),
+		});
+		expect(status.installed).toBe(true);
+		expect(status.enabled).toBe(false);
+		expect(status.active).toBe(false);
+		expect(status.setting).toBe(false);
+	});
+
+	test("reports a missing systemd unit as not installed", async () => {
+		const status = await inspectAutostartStatus({
+			platform: "linux",
+			installForm: "bundled",
+			runner: runner(
+				["Id=zetacode-daemon.timer", "LoadState=not-found", "UnitFileState=", "ActiveState=inactive", ""].join(
+					"\n",
+				),
+			),
+		});
+		expect(status.installed).toBe(false);
+		expect(status.enabled).toBe(false);
+		expect(status.active).toBe(false);
+	});
+
+	test("parses the Windows task state from Task Scheduler", async () => {
+		const status = await inspectAutostartStatus({
+			platform: "win32",
+			setting: true,
+			installForm: "bundled",
+			env: { LOCALAPPDATA: "C:\\Users\\me\\AppData\\Local" },
+			runner: runner('{"installed":true,"enabled":false,"state":"Ready"}\n'),
+		});
+		expect(status.installed).toBe(true);
+		expect(status.enabled).toBe(false);
+		expect(status.active).toBe(false);
+	});
+
+	test("the npm form is never supported even when the platform is", async () => {
+		const status = await inspectAutostartStatus({
+			platform: "linux",
+			installForm: "npm",
+			runner: runner(""),
+		});
+		expect(status.supported).toBe(false);
+		expect(status.reason).toContain("bundled Zeta desktop app");
+	});
+
+	test("daemon start never enables or installs autostart", async () => {
+		const root = await tempRoot();
+		const paths = resolveDaemonPaths({ root });
+		const calls: Array<{ command: string; args: readonly string[] }> = [];
+		const runtime = makeRuntime({
+			alive: new Set<number>(),
+			autostartRunner: (command, args) => {
+				calls.push({ command, args });
+				return {
+					ok: true,
+					status: 0,
+					stdout: [
+						"Id=zetacode-daemon.timer",
+						"LoadState=loaded",
+						"UnitFileState=disabled",
+						"ActiveState=inactive",
+						"",
+						"Id=zetacode-daemon.service",
+						"LoadState=loaded",
+						"UnitFileState=static",
+						"ActiveState=inactive",
+					].join("\n"),
+					stderr: "",
+				};
+			},
+			spawn: () => ({ pid: 4242, unref: () => {} }),
+		});
+		const result = await startDaemon({
+			paths,
+			runtime,
+			access,
+			webPort: DAEMON_DEFAULT_WEB_PORT,
+			statsPort: DAEMON_DEFAULT_STATS_PORT,
+			gatewayPort: DAEMON_DEFAULT_GATEWAY_PORT,
+			cliInvocation: ["zetacode"],
+			waitReady: async () => "timeout" as const,
+		});
+		expect(result.action).toBe("started");
+		expect(result.status.autostart.enabled).toBe(false);
+		// Only the read-only `systemctl show` probe ran: no enable, no install.
+		expect(calls.every(call => call.command === "systemctl" && call.args.includes("show"))).toBe(true);
+		expect(calls.some(call => call.args.includes("enable"))).toBe(false);
+	});
+});
+
+describe("autostart setting", () => {
+	test("reads the global user config only, never a project layer", async () => {
+		const home = await tempRoot();
+		const agentDir = path.join(home, "agent");
+		const project = path.join(home, "project");
+		await fs.mkdir(agentDir, { recursive: true });
+		await fs.mkdir(path.join(project, ".zeta"), { recursive: true });
+		await fs.writeFile(path.join(agentDir, "config.yml"), "backend:\n  autostart: true\n");
+		await fs.writeFile(path.join(project, ".zeta", "config.yml"), "backend:\n  autostart: false\n");
+
+		const fromGlobal = await Settings.loadReadOnly({ agentDir, cwd: project });
+		expect(await readBackendAutostartSetting({ settings: fromGlobal })).toBe(true);
+
+		await fs.writeFile(path.join(agentDir, "config.yml"), "theme: dark\n");
+		const projectOnly = await Settings.loadReadOnly({ agentDir, cwd: project });
+		expect(await readBackendAutostartSetting({ settings: projectOnly })).toBe(false);
+	});
+
+	test("writes the decision to the global user config", async () => {
+		const home = await tempRoot();
+		const agentDir = path.join(home, "agent");
+		const project = path.join(home, "project");
+		await fs.mkdir(agentDir, { recursive: true });
+		await fs.mkdir(project, { recursive: true });
+
+		const writable = await Settings.loadIsolated({ agentDir, cwd: project });
+		await writeBackendAutostartSetting(true, { settings: writable });
+		await fs.mkdir(path.join(project, ".zeta"), { recursive: true });
+		await fs.writeFile(path.join(project, ".zeta", "config.yml"), "backend:\n  autostart: false\n");
+
+		const reread = await Settings.loadReadOnly({ agentDir, cwd: project });
+		expect(await readBackendAutostartSetting({ settings: reread })).toBe(true);
+		const contents = await fs.readFile(path.join(agentDir, "config.yml"), "utf8");
+		expect(contents).toContain("autostart: true");
 	});
 });
 

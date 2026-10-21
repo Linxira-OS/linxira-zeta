@@ -107,6 +107,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "自动恢复",
 		description: "自动恢复当前目录中的最近会话",
 	},
+	"backend.autostart": {
+		label: "登录时启动后台服务",
+		description:
+			"随系统启动后台服务（zetacode daemon），开机/登录三分钟后启动。仅限打包版；用 `zetacode daemon install-autostart` 安装系统组件。",
+	},
 	"claudeResets.salvageHorizonHours": {
 		label: "重置抢救窗口",
 		description:

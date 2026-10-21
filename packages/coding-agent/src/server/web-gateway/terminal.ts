@@ -682,6 +682,25 @@ class TerminalManager {
 		session.pty?.write(data);
 	}
 
+	/**
+	 * Reap every live PTY. Called when the gateway shuts down (SIGTERM from
+	 * `serve`, `daemon stop`, or the OS ending the task): a shell or embedded
+	 * agent left running would keep the workspace and its child processes
+	 * alive after the backend's port is gone.
+	 */
+	shutdown(): void {
+		for (const session of this.#sessions.values()) {
+			try {
+				session.pty?.kill();
+			} catch {
+				// Already gone.
+			}
+		}
+		this.#sessions.clear();
+		this.#slots.clear();
+		this.#tickets.clear();
+	}
+
 	/** Test hook: drop every session and ticket without killing PTYs. */
 	resetForTests(): void {
 		for (const session of this.#sessions.values()) {
@@ -721,6 +740,15 @@ export function parseFrame(frame: Uint8Array): { control: Record<string, unknown
 }
 
 const manager = new TerminalManager();
+
+/**
+ * Kill every live gateway PTY. The gateway calls this on shutdown so SIGTERM
+ * (or `daemon stop`, or the OS ending the scheduled task) reaps the embedded
+ * shells and agent processes instead of leaving them holding the workspace.
+ */
+export function shutdownTerminalManager(): void {
+	manager.shutdown();
+}
 
 /** Test hook: wipe sessions/tickets so tests start from a clean slate. */
 export function resetTerminalManagerForTests(): void {

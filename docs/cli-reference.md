@@ -290,7 +290,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `completions` | Print a shell completion script (bash, zsh, or fish). | |
 | `compress` | Rewrite a text file into the dense prompt register, reporting what it drops. | |
 | `config` | Manage configuration settings. | [config usage](./config-usage.md), [settings](./settings.md) |
-| `daemon` | Manage the background backend: `status [--json]`, `start`, `stop`, `restart`, `logs`, `install-autostart`, `uninstall-autostart`. `serve` itself stays a foreground command. | [daemon](./daemon.md) |
+| `daemon` | Manage the background backend: `status [--json]`, `start`, `stop`, `restart`, `logs`, `install-autostart`, `uninstall-autostart`. `install-autostart` installs a real per-user OS component (systemd user service+timer / Task Scheduler task, three-minute delay) and is bundled-app only; npm/source installs are refused. The global `backend.autostart` setting gates the installed component. `serve` itself stays a foreground command. | [daemon](./daemon.md) |
 | `dry-balance` | Dry-run OAuth account balancing across random session ids. | |
 | `find` | Semantic search for implementing files and line ranges. | |
 | `gc` | Run storage garbage collection. | |

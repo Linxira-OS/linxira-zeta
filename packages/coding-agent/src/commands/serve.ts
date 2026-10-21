@@ -13,6 +13,7 @@ import { CLI_BIN_NAME, logger, VERSION } from "@linxiraos/pi-utils";
 import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
 import { WebConfig } from "../config/web-config";
+import { readBackendAutostartSetting } from "../autostart/setting";
 import { formatAccessUrl, resolveServeAccess } from "../server/serve-access";
 import { discoverServeInstance, planServeStart, serveRegistryPath } from "../server/serve-registry";
 import { ensureAgentDirEnv } from "../server/web-gateway";
@@ -86,12 +87,30 @@ export default class Serve extends Command {
 			description: "Start IM channels (WeChat/Feishu/Telegram); also enabled when any channel is enabled in web.yml",
 			default: false,
 		}),
+		autostart: Flags.boolean({
+			description:
+				"Installed OS component entry point: exit quietly unless backend.autostart is enabled in the global user config",
+			default: false,
+		}),
 	};
 
 	async run(): Promise<void> {
 		ensureAgentDirEnv();
 
 		const { flags } = await this.parse(Serve);
+
+		// The OS component (systemd timer / Task Scheduler) launches `serve`
+		// with this flag. The global config is the single decision; the unit
+		// never starts a backend the user turned off, and an OS-disabled unit
+		// cannot be re-enabled by this process.
+		if (flags.autostart && !(await readBackendAutostartSetting())) {
+			console.log(
+				chalk.dim(
+					`  ${CLI_BIN_NAME}: backend.autostart is off in the global config; not starting the background backend.`,
+				),
+			);
+			return;
+		}
 
 		const statsPort = flags["stats-port"];
 		const webPort = flags["web-port"];
