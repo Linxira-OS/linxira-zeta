@@ -1,6 +1,31 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.12.1
+## Integrated through: v18.12.2
+
+## Sync cadence: on demand (2026-10-21 ruling)
+
+Zeta no longer schedules upstream tag syncs. A sync happens only when a
+specific upstream fix or feature is needed, and then as a complete tag merge
+under the rules above — never as a partial diff, cherry-pick or branch merge.
+The brand, scope and CI sentinels stay in place: they guard merge mistakes,
+not the cadence. The cost is explicit: the longer a gap, the larger the next
+merge.
+
+### Probe 2026-10-21 (no sync scheduled)
+
+- Local baseline: `v18.12.2` (integrated; `aa4e88b275d`).
+- Upstream latest tag at probe time: `v18.12.5`
+  (`d5cd750e41f`, verified with `git ls-remote --tags omp-upstream`).
+- Delta `v18.12.2..v18.12.5`: **842 commits, 656 files, +34653 −4169**.
+- Content sampled: MCP OAuth discovery restricted to advertised authorization
+  servers and issuer-mismatch handling; credential redaction in debug dumps and
+  in the browser-relay guidance block; an "Ask and remember" approval mode;
+  prompt-cache and computer-use fixes. No CVE/RCE, no data-loss or
+  unrecoverable-state fix, no `BREAKING` marker.
+- Verdict: **nothing release-blocking for 1.4.0**. The window waits for a
+  dedicated on-demand sync after 1.4.0 ships; the security hardening above is
+  the first reason to schedule it.
+
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
