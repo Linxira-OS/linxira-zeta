@@ -594,21 +594,51 @@ export interface Messages {
 	ssStatusError: string; // error
 	ssStatusPending: string; // pending
 	ssNoSessionsFound: string; //   No sessions found
-	ssNoSessionsInFolder: string; //   No sessions in current folder. Press Tab to view all.
 	ssJustNow: string; // just now
 	ssMinuteAgoFmt: string; // %s minute%s ago
 	ssHourAgoFmt: string; // %s hour%s ago
 	ssDayAgo: string; // 1 day ago
 	ssDaysAgoFmt: string; // %s days ago
 	ssForkLabel: string; // fork
-	ssAllProjectsLabel: string; // all projects
-	ssCurrentFolderLabel: string; // current folder
-	ssLoadingAllProjects: string; //   Loading all projects…
 	ssErrorPrefixFmt: string; // Error: %s
 	ssDeleteSessionFmt: string; // Delete session?\n%s
 	ssConfirmYes: string; // Yes
 	ssConfirmNo: string; // No
 	ssFooterHintFmt: string; //   [Del/⌫ delete · Enter select · Tab %s · Esc cancel]
+	resumeScopeWorkspace: string; // this workspace
+	resumeScopeProject: string; // this repository
+	resumeScopeAll: string; // all projects
+	resumeSearchAll: string; // Search all conversations…
+	resumeSearchInWorkspace: string; // Search conversations in %s… (workspace name)
+	resumeSearchInProject: string; // Search conversations in %s… (project name)
+	resumeEmptyWorkspace: string; // No conversations in this workspace.
+	resumeEmptyProject: string; // No conversations in this repository.
+	resumeEmptyAll: string; // No conversations yet.
+	resumeNoMatchFmt: string; // No conversations match “%s”
+	resumeClearSearchHint: string; // Esc clears the search
+	resumeSwitchScopeHint: string; // Tab switches scope
+	resumeHiddenByFilterFmt: string; // %d conversations hidden by filter
+	resumeLoading: string; // Loading conversations…
+	resumeCurrentLabel: string; // current
+	resumePinnedLabel: string; // pinned
+	resumeTurnCountOne: string; // 1 turn
+	resumeTurnCountFmt: string; // %d turns
+	resumeConversationCountOne: string; // 1 conversation
+	resumeConversationCountFmt: string; // %d conversations
+	resumeConversationCountOfFmt: string; // %d of %d conversations
+	resumeWorkspaceCountOne: string; // 1 workspace
+	resumeWorkspaceCountFmt: string; // %d workspaces
+	resumeDeleteTrashFmt: string; // Move “%s” to trash?
+	resumeDeletePermanentFmt: string; // Permanently delete “%s”?
+	resumeDeleteTrashHint: string; // The conversation can be restored from the trash.
+	resumeDeletePermanentHint: string; // This cannot be undone.
+	resumeConfirmKeys: string; // y confirm · n cancel
+	resumeScanWarningFmt: string; // Some conversation folders could not be read: %s. Showing what was found.
+	resumeRetryHint: string; // r retries
+	resumeFooterSearch: string; // search
+	resumeFooterRefresh: string; // refresh
+	resumeFooterPin: string; // pin
+	resumeFooterClose: string; // clear/close
 
 	// compaction summary / handoff / branch dividers
 	csLabelCompacted: string; // compacted

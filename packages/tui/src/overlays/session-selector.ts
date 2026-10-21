@@ -52,10 +52,12 @@ export interface SessionSelectorEntry {
 }
 import { shortenPath } from "../render/render-utils";
 import { HookSelectorComponent } from "./hook-selector";
+import { ResumeTreeComponent, type ResumeTreeSource } from "./resume-tree";
 import { bottomBorder, OverlayPanel, row, topBorder } from "../chrome/overlay-box";
 import { MenuSelection, getMenuWindow } from "../components/menu-selection";
 import { formatKeyHint, formatKeyHints } from "../app-keybindings";
 import { boundKeys, interruptKey } from "../chrome/keybinding-hints";
+import { tuiText } from "../i18n";
 
 /**
  * Themed glyph + colored label for a session's lifecycle status, or `undefined`
@@ -1130,17 +1132,7 @@ class SessionList<T extends SessionSelectorEntry> implements Component {
 		lines.push(""); // Blank line after search
 
 		if (this.#menu.visibleItems.length === 0) {
-			if (this.#showCwd) {
-				lines.push(truncateToWidth(theme.fg("muted", "No sessions found"), width));
-			} else {
-				// "Current folder" scope - hint to try "all"
-				lines.push(
-					truncateToWidth(
-						theme.fg("muted", `No sessions in current folder. Press ${formatKeyHint("tab")} to view all.`),
-						width,
-					),
-				);
-			}
+			lines.push(truncateToWidth(theme.fg("muted", "No sessions found"), width));
 			return lines;
 		}
 
@@ -1377,6 +1369,8 @@ export interface SessionSelectorOptions<T extends SessionSelectorEntry = Session
  */
 export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSelectorEntry> extends OverlayPanel {
 	#sessionList: SessionList<T>;
+	/** ANSI three-level resume tree, mounted when the host supplies the resume model. */
+	#resumeTree: ResumeTreeComponent | undefined;
 	#confirmationDialog: HookSelectorComponent | null = null;
 	// Hosts whichever of `#sessionList` / `#confirmationDialog` is live this
 	// frame. The delete dialog REPLACES the list in this slot rather than being
@@ -1510,14 +1504,39 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				void this.#toggleScope();
 			};
 		}
+		const resumeSource = (options as SessionSelectorOptions<T> & { resumeSource?: ResumeTreeSource }).resumeSource;
+		if (resumeSource) {
+			this.#resumeTree = new ResumeTreeComponent({
+				source: resumeSource,
+				getTerminalRows: options.getTerminalRows,
+				onSelect: conversation => {
+					this.#sessionList.dispose();
+					onSelect(conversation.session as unknown as T);
+				},
+				onCancel: () => {
+					this.#sessionList.dispose();
+					onCancel();
+				},
+				onExit: () => {
+					this.#sessionList.dispose();
+					onExit();
+				},
+			});
+			this.#resumeTree.onRequestRender = () => this.#onRequestRender?.();
+		}
 		this.#contentSlot = new Container();
-		this.#contentSlot.addChild(this.#sessionList);
+		this.#contentSlot.addChild(this.#resumeTree ?? this.#sessionList);
 		this.addChild(this.#contentSlot);
+		if (this.#resumeTree) this.title = this.#title;
 	}
 
 	#headerLabel(): string {
 		if (this.#scopeLabel === false) return this.#title;
-		const scopeLabel = this.#scopeLabel ?? (this.#scope === "all" ? "all projects" : "current folder");
+		const scopeLabel =
+			this.#scopeLabel ??
+			(this.#scope === "all"
+				? tuiText("resumeScopeAll", "all projects")
+				: tuiText("resumeScopeWorkspace", "this workspace"));
 		return `${this.#title} (${scopeLabel})`;
 	}
 
@@ -1534,8 +1553,9 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				if (!this.#loadAllSessions) return;
 				this.#toggling = true;
 				this.#messageContainer.clear();
-				this.#messageContainer.addChild(new Text(theme.fg("muted", "Loading all projects…"), 0, 0));
-				this.#message = { kind: "loading", text: "Loading all projects…" };
+				const loading = tuiText("resumeLoading", "Loading conversations…");
+				this.#messageContainer.addChild(new Text(theme.fg("muted", loading), 0, 0));
+				this.#message = { kind: "loading", text: loading };
 				this.#onRequestRender?.();
 				try {
 					global = await this.#loadAllSessions();
@@ -1562,6 +1582,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 
 	setOnRequestRender(callback: () => void): void {
 		this.#onRequestRender = callback;
+		if (this.#resumeTree) this.#resumeTree.onRequestRender = callback;
 	}
 	/** Ignore input after selection while the host resumes the session. */
 	lockInput(): void {
@@ -1579,6 +1600,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	 */
 	override dispose(): void {
 		this.#sessionList.dispose();
+		this.#resumeTree?.dispose();
 		clearTimeout(this.#previewTimer);
 		super.dispose();
 	}
@@ -1677,13 +1699,16 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 
 	/** Blank · keybinding hint · bottom border. Rendered by {@link render}. */
 	#footerLines(width: number): string[] {
-		const scopeHint = this.#scope === "all" ? "current folder" : "all projects";
-		// Keys mirror SessionList#handleInput; cancel is `app.interrupt` (raw Escape when unbound).
 		const cancel = interruptKey();
-		const hint = theme.fg(
-			"muted",
-			`[${this.#onDelete ? `${formatKeyHints(["delete", "backspace"])} delete · ` : ""}${formatKeyHint("enter")} select · ${formatKeyHint("tab")} ${scopeHint} · ${cancel} cancel]`,
-		);
+		const hint = this.#resumeTree
+			? theme.fg(
+					"muted",
+					`[${formatKeyHint("enter")} resume · ${formatKeyHints(["delete", "backspace"])} delete · ${formatKeyHint("tab")} ${tuiText("resumeScopeAll", "all projects")} · / ${tuiText("resumeFooterSearch", "search")} · r ${tuiText("resumeFooterRefresh", "refresh")} · p/P ${tuiText("resumeFooterPin", "pin")} · ${cancel} ${tuiText("resumeFooterClose", "clear/close")}]`,
+				)
+			: theme.fg(
+					"muted",
+					`[${this.#onDelete ? `${formatKeyHints(["delete", "backspace"])} delete · ` : ""}${formatKeyHint("enter")} select · ${formatKeyHint("tab")} ${this.#scope === "all" ? tuiText("resumeScopeWorkspace", "this workspace") : tuiText("resumeScopeAll", "all projects")} · ${cancel} cancel]`,
+				);
 		return [row("", width), row(hint, width), row("", width), bottomBorder(width)];
 	}
 
@@ -1919,6 +1944,8 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		}
 		if (this.#confirmationDialog) {
 			this.#confirmationDialog.handleInput(keyData);
+		} else if (this.#resumeTree) {
+			this.#resumeTree.handleInput(keyData);
 		} else {
 			this.#sessionList.handleInput(keyData);
 		}
@@ -1931,7 +1958,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	 * pointer. Mouse is inert while the delete-confirmation dialog is open.
 	 */
 	#handleMouse(data: string): void {
-		if (this.#confirmationDialog) return;
+		if (this.#confirmationDialog || this.#resumeTree) return;
 		routeSgrMouseInput(data, event => {
 			if (event.wheel !== null) {
 				this.#sessionList.handleWheel(event.wheel);
@@ -1946,5 +1973,10 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 
 	getSessionList(): SessionList<T> {
 		return this.#sessionList;
+	}
+
+	/** The ANSI resume tree when the host supplied a resume source. */
+	getResumeTree(): ResumeTreeComponent | undefined {
+		return this.#resumeTree;
 	}
 }

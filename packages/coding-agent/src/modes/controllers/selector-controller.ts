@@ -147,6 +147,7 @@ import { type ResetUsageAccount, ResetUsageSelectorComponent } from "@linxiraos/
 import { type BranchVariantPath, RewindSelectorComponent } from "@linxiraos/pi-tui/overlays/rewind-selector";
 import { SessionAccountSelectorComponent } from "@linxiraos/pi-tui/overlays/session-account-selector";
 import { SessionSelectorComponent, type SessionSelectorOptions } from "@linxiraos/pi-tui/overlays/session-selector";
+import { LiveResumePickerSource, loadResumePickerScope } from "../resume-picker-source";
 import { SettingsSelectorComponent } from "@linxiraos/pi-tui/overlays/settings-selector";
 import { TranscriptBlock } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { TreeSelectorComponent } from "@linxiraos/pi-tui/overlays/tree-selector";
@@ -2098,7 +2099,11 @@ export class SelectorController {
 	async showSessionSelector(source?: ForeignSessionSource, onSelect?: SessionPickHandler): Promise<void> {
 		let sessions: SessionInfo[];
 		let onSelectSession: (session: SessionInfo) => Promise<boolean>;
-		let selectorOptions: SessionSelectorOptions<SessionInfo>;
+		let selectorOptions: SessionSelectorOptions<SessionInfo> & {
+			resumeSource?: LiveResumePickerSource;
+			deleteMode?: "trash" | "permanent";
+		};
+		let resumeSourceToLoad: LiveResumePickerSource | undefined;
 
 		if (source) {
 			const sourceName = foreignSessionSourceName(source);
@@ -2144,48 +2149,63 @@ export class SelectorController {
 				showCwd: true,
 			};
 		} else {
-			const [loadedSessions, pinnedIds] = await Promise.all([
-				SessionManager.listForPicker(this.ctx.sessionManager.getCwd(), this.ctx.sessionManager.getSessionDir()),
-				loadPinnedSessionIds(),
-			]);
-			sessions = loadedSessions;
-			const historyStorage = this.ctx.historyStorage;
-			const historyMatcher = historyStorage
-				? (query: string) => historyStorage.matchingSessionIds(query)
-				: undefined;
 			onSelectSession = session => this.handleResumeSession(session.path);
-			selectorOptions = {
-				...(!onSelect
-					? {
-							onDelete: async (session: SessionInfo) => {
-								if (!(await this.#detachActiveSessionBeforeDeletion(session.path))) {
-									return false;
-								}
-								const storage = new FileSessionStorage();
-								try {
-									await storage.moveSessionWithArtifactsToTrash(session.path);
-									return true;
-								} catch (error) {
-									throw new Error(
-										`Failed to delete session: ${error instanceof Error ? error.message : String(error)}`,
-										{ cause: error },
-									);
-								}
-							},
-						}
-					: {
-							title: "Select a Session to Consult",
-							actionLabel: "Select",
-							scopeLabel: false,
-							showCwd: true,
-						}),
-				historyMatcher,
-				loadAllSessions: () => SessionManager.listAllForPicker(),
-				pinnedIds,
-				// Live getter so detach/newSession stays accurate; tolerant of partial
-				// contexts and in-memory sessions (undefined file means no marker).
-				currentSessionPath: () => this.ctx.sessionManager.getSessionFile?.() ?? undefined,
+			const deleteWithTrash = async (session: SessionInfo): Promise<boolean> => {
+				if (!(await this.#detachActiveSessionBeforeDeletion(session.path))) return false;
+				const storage = new FileSessionStorage();
+				try {
+					await storage.moveSessionWithArtifactsToTrash(session.path);
+					return true;
+				} catch (error) {
+					throw new Error(`Failed to delete session: ${error instanceof Error ? error.message : String(error)}`, {
+						cause: error,
+					});
+				}
 			};
+			const currentSessionPath = () => this.ctx.sessionManager.getSessionFile?.() ?? undefined;
+			if (!onSelect) {
+				// The three-level resume tree loads its directory after the overlay
+				// paints (scope control + skeleton first), then fills project,
+				// workspace and conversation rows from the local model.
+				const initialScope = await loadResumePickerScope();
+				const resumeSource = new LiveResumePickerSource({
+					initialScope,
+					workspacePath: this.ctx.sessionManager.getCwd(),
+					deleteMode: "trash",
+					currentSessionPath,
+					deleteConversation: async conversation => deleteWithTrash(conversation.session as SessionInfo),
+				});
+				sessions = [];
+				resumeSourceToLoad = resumeSource;
+				selectorOptions = {
+					onDelete: deleteWithTrash,
+					resumeSource,
+					deleteMode: "trash",
+					// Live getter so detach/newSession stays accurate; tolerant of partial
+					// contexts and in-memory sessions (undefined file means no marker).
+					currentSessionPath,
+				};
+			} else {
+				const [consultSessions, pinnedIds] = await Promise.all([
+					SessionManager.listForPicker(this.ctx.sessionManager.getCwd(), this.ctx.sessionManager.getSessionDir()),
+					loadPinnedSessionIds(),
+				]);
+				const historyStorage = this.ctx.historyStorage;
+				const historyMatcher = historyStorage
+					? (query: string) => historyStorage.matchingSessionIds(query)
+					: undefined;
+				sessions = consultSessions;
+				selectorOptions = {
+					title: "Select a Session to Consult",
+					actionLabel: "Select",
+					scopeLabel: false,
+					showCwd: true,
+					historyMatcher,
+					loadAllSessions: () => SessionManager.listAllForPicker(),
+					pinnedIds,
+					currentSessionPath,
+				};
+			}
 		}
 
 		// Keep the fullscreen picker on the alternate buffer while a selected
@@ -2247,6 +2267,12 @@ export class SelectorController {
 		});
 		this.ctx.ui.setFocus(selector);
 		this.ctx.ui.requestRender();
+		if (resumeSourceToLoad) {
+			void resumeSourceToLoad.refresh().then(() => {
+				selector.getResumeTree()?.invalidate();
+				this.ctx.ui.requestRender();
+			});
+		}
 	}
 
 	#refreshSessionTerminalTitle(): void {

@@ -1,9 +1,11 @@
 import { logger } from "@linxiraos/pi-utils";
 import {
 	SessionSelectorComponent,
-	type SessionSelectorEntry,
 	type SessionHistoryMatcher,
+	type SessionSelectorEntry,
+	type SessionSelectorOptions,
 } from "../overlays/session-selector";
+import type { ResumeTreeSource } from "../overlays/resume-tree";
 import { runStandaloneTui } from "./standalone-picker";
 
 /** Persistence and history capabilities supplied by the session-owning host. */
@@ -12,6 +14,8 @@ export interface SessionPickerHost<T extends SessionSelectorEntry = SessionSelec
 	loadHistoryMatcher?(): SessionHistoryMatcher;
 	deleteSession?(session: T): Promise<boolean>;
 	loadAllSessions?(): Promise<T[]>;
+	/** Builds the three-level resume source for the standalone `--resume` tree. */
+	loadResumeSource?(deleteMode: "trash" | "permanent", workspacePath?: string): Promise<ResumeTreeSource | undefined>;
 }
 
 /** Presentation and capability controls for the standalone session picker. */
@@ -24,6 +28,8 @@ export interface SessionPickerOptions<T extends SessionSelectorEntry = SessionSe
 	allowGlobalScope?: boolean;
 	historySearch?: boolean;
 	pinnedIds?: ReadonlySet<string>;
+	/** Opt into the three-level resume tree; `deleteMode` words the confirm step. */
+	resume?: { deleteMode: "trash" | "permanent"; workspacePath?: string };
 }
 
 /**
@@ -51,6 +57,11 @@ export async function selectSession<T extends SessionSelectorEntry>(
 		}
 	}
 
+	const resumeMode = options.resume?.deleteMode;
+	const resumeSource = resumeMode
+		? await host.loadResumeSource?.(resumeMode, options.resume?.workspacePath)
+		: undefined;
+
 	return runStandaloneTui<T | null>(
 		({ ui, finish }) => {
 			const selector = new SessionSelectorComponent(
@@ -73,7 +84,8 @@ export async function selectSession<T extends SessionSelectorEntry>(
 					scopeLabel: options.scopeLabel,
 					showCwd: options.showCwd,
 					pinnedIds,
-				},
+					...(resumeSource && resumeMode ? { resumeSource, deleteMode: resumeMode } : {}),
+				} as SessionSelectorOptions<T> & { resumeSource?: ResumeTreeSource; deleteMode?: "trash" | "permanent" },
 			);
 			selector.setOnRequestRender(() => ui.requestRender());
 			return selector;

@@ -228,6 +228,18 @@ async function loadSessionPicker(): Promise<SessionPicker> {
 				return true;
 			},
 			loadAllSessions: () => SessionManager.listAllForPicker(storage),
+			loadResumeSource: async (deleteMode, workspacePath) => {
+				const { LiveResumePickerSource, loadResumePickerScope } = await import("./modes/resume-picker-source");
+				return new LiveResumePickerSource({
+					initialScope: await loadResumePickerScope(),
+					workspacePath,
+					deleteMode,
+					deleteConversation: async conversation => {
+						await storage.deleteSessionWithArtifacts(conversation.session.path);
+						return true;
+					},
+				});
+			},
 		});
 	};
 }
@@ -2307,6 +2319,7 @@ export async function runRootCommand(
 			const selectSessionImpl = deps.selectSession ?? (await loadSessionPicker());
 			const selected = await logger.time("selectSession", selectSessionImpl, folderSessions, {
 				allSessions: preloadedAllSessions,
+				resume: { deleteMode: "permanent", workspacePath: cwd },
 			});
 			resumeStartupWatchdog();
 			if (!selected) {
