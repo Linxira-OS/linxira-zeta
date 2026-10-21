@@ -155,6 +155,42 @@ function view(rows: ResumeTreeRow[], overrides: Partial<ResumeTreeView["counts"]
 	};
 }
 
+function renameInView(view: ResumeTreeView | null, key: string, title: string): ResumeTreeView | null {
+	if (!view) return view;
+	const renameRow = <T extends ResumeTreeRow>(row: T): T =>
+		row.type === "conversation" && row.key === key
+			? ({
+					...row,
+					conversation: {
+						...row.conversation,
+						title,
+						session: { ...row.conversation.session, title },
+					},
+				} as T)
+			: row;
+	return {
+		...view,
+		rows: view.rows.map(renameRow),
+		conversations: view.conversations?.map(renameRow),
+	};
+}
+
+function renameWorkspaceInView(view: ResumeTreeView | null, key: string, alias: string | null): ResumeTreeView | null {
+	if (!view) return view;
+	const renameRow = <T extends ResumeTreeRow>(row: T): T =>
+		row.type === "workspace" && row.key === key
+			? ({
+					...row,
+					workspace: {
+						...row.workspace,
+						alias,
+						displayName: alias ?? row.workspace.name,
+					},
+				} as T)
+			: row;
+	return { ...view, rows: view.rows.map(renameRow) };
+}
+
 function fakeSource(
 	initial: ResumeTreeView | null,
 	options: {
@@ -164,6 +200,7 @@ function fakeSource(
 		warningNames?: readonly string[];
 		pickerState?: ResumeTreePickerState;
 		canRename?: boolean;
+		applyRenames?: boolean;
 	} = {},
 ) {
 	const persisted: ResumeTreeScope[] = [];
@@ -172,6 +209,7 @@ function fakeSource(
 	const pins: string[] = [];
 	const renames: string[] = [];
 	const workspaceRenames: string[] = [];
+	const deletes: string[] = [];
 	const opened: string[] = [];
 	let refreshes = 0;
 	let current = initial;
@@ -201,11 +239,16 @@ function fakeSource(
 		},
 		canRenameConversation: () => options.canRename ?? true,
 		renameConversation: async (entry, title) => {
+			if (options.canRename === false) return null;
 			renames.push(`${entry.id}:${title}`);
-			return options.canRename ?? true;
+			if (options.applyRenames) current = renameInView(current, entry.key, title);
+			return title;
 		},
 		renameWorkspace: async (workspace, alias) => {
-			workspaceRenames.push(`${workspace.key}:${alias ?? ""}`);
+			const stored = alias?.trim() || null;
+			workspaceRenames.push(`${workspace.key}:${stored ?? ""}`);
+			if (options.applyRenames) current = renameWorkspaceInView(current, workspace.key, stored);
+			return stored ?? workspace.name;
 		},
 		pinWorkspace: async (workspace, pinned) => {
 			pins.push(`workspace:${workspace.key}:${pinned}`);
@@ -220,7 +263,10 @@ function fakeSource(
 			pins.push(`project:${pinned}`);
 		},
 		projectByKey: key => (key === project.key ? project : undefined),
-		deleteConversation: async () => true,
+		deleteConversation: async conversation => {
+			deletes.push(conversation.id);
+			return true;
+		},
 		scanWarningNames: () => options.warningNames ?? [],
 	};
 	return {
@@ -231,6 +277,7 @@ function fakeSource(
 		pins,
 		renames,
 		workspaceRenames,
+		deletes,
 		opened,
 		get refreshes() {
 			return refreshes;
@@ -519,11 +566,11 @@ describe("resume tree component", () => {
 			const { component, source } = make(view(rows), { initialScope, searchFocused: false });
 			expect(component.fullPaths).toBe(false);
 			expect(plainText(component.render(80).join("\n"))).toContain("(work/repo)");
-			component.handleInput("f");
+			component.handleInput("\x06");
 			expect(component.fullPaths).toBe(true);
 			expect(plainText(component.render(80).join("\n"))).toContain("(/work/repo)");
 			expect(source.persistedStates.at(-1)?.fullPaths).toBe(true);
-			component.handleInput("f");
+			component.handleInput("\x06");
 			expect(component.fullPaths).toBe(false);
 			expect(source.persistedStates.at(-1)?.fullPaths).toBe(false);
 		}
@@ -531,12 +578,12 @@ describe("resume tree component", () => {
 
 	it("does not toggle full paths in workspace scope and explains why", () => {
 		const { component, source } = make(view(rows), { initialScope: "workspace", searchFocused: false });
-		component.handleInput("f");
+		component.handleInput("\x06");
 		expect(component.fullPaths).toBe(false);
 		expect(source.persistedStates).toEqual([]);
 		expect(plainText(component.render(80).join("\n"))).toContain("Full paths matter outside this workspace");
 		component.handleInput("\t"); // project scope
-		component.handleInput("f");
+		component.handleInput("\x06");
 		expect(component.fullPaths).toBe(true);
 		expect(source.persistedStates.at(-1)?.fullPaths).toBe(true);
 	});
@@ -627,18 +674,15 @@ describe("resume tree component", () => {
 		pinning.component.handleInput("\x1b[B");
 		pinning.component.handleInput("\x1b[B");
 		pinning.component.handleInput("p");
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		pinning.component.handleInput("P");
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(pinning.source.pins).toEqual(["a1:true", "project:false"]);
 
 		// r refreshes.
 		const refreshing = make(view(rows), { searchFocused: false });
 		refreshing.component.handleInput("r");
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(refreshing.source.refreshes).toBe(1);
 
 		// / focuses search; Esc clears it, then a second Esc closes.
@@ -686,6 +730,18 @@ describe("resume tree component", () => {
 		expect(scope.component.scope).toBe("project");
 	});
 
+	async function flush(): Promise<void> {
+		for (let index = 0; index < 6; index++) await Promise.resolve();
+	}
+
+	function clickModalButton(component: ResumeTreeComponent, label: string): void {
+		const lines = component.render(80).map(plainText);
+		const line = lines.findIndex(candidate => candidate.includes(label));
+		expect(line).toBeGreaterThanOrEqual(0);
+		const column = lines[line]!.indexOf(label) + 1;
+		component.handleInput(`\x1b[<0;${column};${line + 1}M`);
+	}
+
 	it("opens the workspace menu, renames the alias and runs the other actions", async () => {
 		const { component, source } = make(view(rows), { searchFocused: false });
 		component.handleInput("\x1b[B"); // workspace
@@ -695,8 +751,7 @@ describe("resume tree component", () => {
 		component.handleInput("\r"); // rename
 		component.handleInput(" renamed");
 		component.handleInput("\r");
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(source.workspaceRenames.at(-1)).toBe(`${workspace.key}:app renamed`);
 
 		component.handleInput("m");
@@ -716,8 +771,7 @@ describe("resume tree component", () => {
 		component.handleInput("\x1b[B");
 		component.handleInput("\x1b[B"); // pin
 		component.handleInput("\r");
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(source.pins).toContain(`workspace:${workspace.key}:true`);
 	});
 
@@ -729,8 +783,7 @@ describe("resume tree component", () => {
 		component.handleInput("\r"); // rename
 		component.handleInput(" updated");
 		component.handleInput("\r");
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(source.renames).toEqual(["a1:Alpha updated"]);
 	});
 
@@ -744,26 +797,138 @@ describe("resume tree component", () => {
 		expect(source.renames).toEqual([]);
 	});
 
-	it("isolates every tree key while inline editing", () => {
+	it("types f into search while Ctrl+F toggles full paths", () => {
+		const { component } = make(view(rows), { initialScope: "project", searchFocused: true });
+		component.handleInput("f");
+		const lines = component.render(80).map(plainText);
+		expect(lines[1]).toContain("/ f");
+		expect(component.fullPaths).toBe(false);
+		component.handleInput("\x06");
+		expect(component.fullPaths).toBe(true);
+		expect(component.render(80).map(plainText)[1]).toContain("/ f");
+	});
+
+	it("renames the selected conversation with Ctrl+R", async () => {
+		const { component, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x12");
+		expect(plainText(component.render(80).join("\n"))).toContain("✎ Rename conversation");
+		component.handleInput(" updated");
+		component.handleInput("\r");
+		await flush();
+		expect(source.renames).toEqual(["a1:Alpha updated"]);
+	});
+
+	it("renames the selected workspace with Ctrl+R and leaves projects inert", () => {
+		const { component } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x12"); // project
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Rename");
+		component.handleInput("\x1b[B"); // workspace
+		component.handleInput("\x12");
+		expect(plainText(component.render(80).join("\n"))).toContain("✎ Rename workspace");
+	});
+
+	it("isolates every tree key while the rename box is open", () => {
 		const { component, source } = make(view(rows), { searchFocused: false });
 		component.handleInput("\x1b[B");
 		component.handleInput("\x1b[B");
 		component.handleInput("m");
 		component.handleInput("\r"); // rename conversation
-		component.handleInput("x");
+		component.handleInput("x/m");
 		component.handleInput("\t");
 		component.handleInput("\x1b[C");
 		component.handleInput("\x1b[3~");
 		const rendered = plainText(component.render(80).join("\n"));
-		expect(rendered).toContain("✎ Alphax");
+		expect(rendered).toContain("Alphax/m");
+		expect(rendered).toContain("✎ Rename conversation");
 		expect(rendered).toContain("Enter saves");
-		// Tab did not switch scope and the delete dialog did not open.
+		expect(component.render(80).map(plainText)[1]).toContain("Search all conversations");
+		// Tab did not switch scope and the delete modal did not open.
 		expect(component.scope).toBe("all");
 		expect(rendered).not.toContain("Move “");
 		// Esc cancels without renaming.
 		component.handleInput("\x1b");
 		expect(source.renames).toEqual([]);
 		expect(plainText(component.render(80).join("\n"))).not.toContain("✎");
+	});
+
+	it("keeps the rename box open on an empty name", () => {
+		const { component, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x12");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B"); // move selection before Ctrl+R
+		component.handleInput("\x12");
+		for (let index = 0; index < 5; index++) component.handleInput("\x7f");
+		component.handleInput("\r");
+		const rendered = plainText(component.render(80).join("\n"));
+		expect(rendered).toContain("✎ Rename conversation");
+		expect(rendered).toContain("A name is required");
+		expect(source.renames).toEqual([]);
+	});
+
+	it("disables Ctrl+R rename for a read-only conversation", () => {
+		const { component, source } = make(view(rows), { searchFocused: false, canRename: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x12");
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Rename conversation");
+		expect(source.renames).toEqual([]);
+	});
+
+	it("refreshes and shows the stored conversation name after rename", async () => {
+		const { component, source } = make(view(rows), { searchFocused: false, applyRenames: true });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x12");
+		component.handleInput(" renamed");
+		component.handleInput("\r");
+		await flush();
+		expect(source.refreshes).toBeGreaterThan(0);
+		const rendered = plainText(component.render(80).join("\n"));
+		expect(rendered).toContain("Alpha renamed");
+		expect(rendered).not.toContain("still shows");
+	});
+
+	it("reports a refresh that still shows the old name", async () => {
+		const { component, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x12");
+		component.handleInput(" renamed");
+		component.handleInput("\r");
+		await flush();
+		expect(source.renames).toEqual(["a1:Alpha renamed"]);
+		expect(source.refreshes).toBeGreaterThan(0);
+		expect(plainText(component.render(80).join("\n"))).toContain("still shows “Alpha”");
+	});
+
+	it("refreshes and shows the stored workspace alias after rename", async () => {
+		const { component } = make(view(rows), { searchFocused: false, applyRenames: true });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x12");
+		component.handleInput(" alias");
+		component.handleInput("\r");
+		await flush();
+		const rendered = plainText(component.render(80).join("\n"));
+		expect(rendered).toContain("app alias");
+		expect(rendered).not.toContain("still shows");
+	});
+
+	it("confirms and cancels rename with the box buttons", async () => {
+		const { component, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x12");
+		component.handleInput("!");
+		clickModalButton(component, "[Cancel]");
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Rename conversation");
+
+		component.handleInput("\x12");
+		component.handleInput("!");
+		clickModalButton(component, "[Confirm]");
+		await flush();
+		expect(source.renames).toEqual(["a1:Alpha!"]);
 	});
 
 	it("runs conversation pin and delete from the menu", async () => {
@@ -773,8 +938,7 @@ describe("resume tree component", () => {
 		component.handleInput("m");
 		component.handleInput("\x1b[B"); // pin
 		component.handleInput("\r");
-		await Promise.resolve();
-		await Promise.resolve();
+		await flush();
 		expect(source.pins).toContain("a1:true");
 
 		component.handleInput("m");
@@ -795,22 +959,89 @@ describe("resume tree component", () => {
 		expect(plainText(component.render(80).join("\n"))).toContain("✎");
 	});
 
-	it("words delete after what actually happens and confirms before deleting", () => {
-		const trash = make(view(rows), { searchFocused: false });
-		trash.component.handleInput("\x1b[B");
-		trash.component.handleInput("\x1b[B");
-		trash.component.handleInput("\x1b[3~");
-		const trashText = plainText(trash.component.render(80).join("\n"));
-		expect(trashText).toContain("Move “Alpha” to trash?");
-		expect(trashText).toContain("restored from the trash");
+	it("never deletes from plain Enter", () => {
+		const { component, selected, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\r");
+		expect(selected.map(entry => entry.id)).toEqual(["a1"]);
+		component.handleInput("\x1b[A");
+		component.handleInput("\r"); // workspace header collapses
+		component.handleInput("\r"); // expands again
+		expect(source.deletes).toEqual([]);
 
-		const permanent = make(view(rows), { searchFocused: false, deleteMode: "permanent" });
-		permanent.component.handleInput("\x1b[B");
-		permanent.component.handleInput("\x1b[B");
-		permanent.component.handleInput("\x1b[3~");
-		const permanentText = plainText(permanent.component.render(80).join("\n"));
-		expect(permanentText).toContain("Permanently delete “Alpha”?");
-		expect(permanentText).toContain("cannot be undone");
+		const empty = make(view([]), { searchFocused: false });
+		empty.component.handleInput("\r");
+		expect(empty.source.deletes).toEqual([]);
+	});
+
+	it("opens the trash/permanent modal only from Ctrl+Enter or Delete", async () => {
+		for (const deleteMode of ["trash", "permanent"] as const) {
+			const { component, source } = make(view(rows), { searchFocused: false, deleteMode });
+			component.handleInput("\x1b[B");
+			component.handleInput("\x1b[B");
+			component.handleInput("\x1b[13;5u");
+			const text = plainText(component.render(80).join("\n"));
+			expect(text).toContain(deleteMode === "permanent" ? "Permanently delete “Alpha”?" : "Move “Alpha” to trash?");
+			expect(source.deletes).toEqual([]);
+			component.handleInput("\r");
+			await Promise.resolve();
+			await Promise.resolve();
+			expect(source.deletes).toEqual(["a1"]);
+		}
+
+		const viaDelete = make(view(rows), { searchFocused: false });
+		viaDelete.component.handleInput("\x1b[B");
+		viaDelete.component.handleInput("\x1b[B");
+		viaDelete.component.handleInput("\x1b[3~");
+		expect(plainText(viaDelete.component.render(80).join("\n"))).toContain("Move “Alpha” to trash?");
+		expect(viaDelete.source.deletes).toEqual([]);
+	});
+
+	it("isolates every key while the delete modal is open", () => {
+		const { component, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[13;5u");
+		for (const key of ["/", "m", "\t", "r", "p"]) component.handleInput(key);
+		const rendered = plainText(component.render(80).join("\n"));
+		expect(rendered).toContain("Move “Alpha” to trash?");
+		expect(component.scope).toBe("all");
+		expect(component.render(80).map(plainText)[1]).toContain("Search all conversations");
+		expect(source.deletes).toEqual([]);
+		component.handleInput("n");
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Move “Alpha”");
+		expect(source.deletes).toEqual([]);
+	});
+
+	it("confirms and cancels deletion with modal buttons", async () => {
+		const { component, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[13;5u");
+		clickModalButton(component, "[Cancel]");
+		expect(plainText(component.render(80).join("\n"))).not.toContain("Move “Alpha”");
+		expect(source.deletes).toEqual([]);
+
+		component.handleInput("\x1b[13;5u");
+		clickModalButton(component, "[Confirm]");
+		await flush();
+		expect(source.deletes).toEqual(["a1"]);
+	});
+
+	it("opens the same delete modal from the row menu", async () => {
+		const { component, source } = make(view(rows), { searchFocused: false });
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("m");
+		component.handleInput("\x1b[B");
+		component.handleInput("\x1b[B");
+		component.handleInput("\r");
+		expect(plainText(component.render(80).join("\n"))).toContain("Move “Alpha” to trash?");
+		expect(source.deletes).toEqual([]);
+		component.handleInput("y");
+		await flush();
+		expect(source.deletes).toEqual(["a1"]);
 	});
 
 	it("mounts the ANSI tree through SessionSelectorComponent when a resume source is supplied", () => {
@@ -865,7 +1096,7 @@ describe("resume tree component", () => {
 				.render(width)
 				.map(plainText)
 				.find(line => line.includes("click select"));
-			expect(projectFooter).toContain("f full paths");
+			expect(projectFooter).toContain("^f full paths");
 		}
 		selector.dispose();
 	});

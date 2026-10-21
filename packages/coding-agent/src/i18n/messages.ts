@@ -653,6 +653,16 @@ export interface Messages {
 	resumeMenuWorkspace: string; // workspace
 	resumeMenuConversation: string; // conversation
 	resumeEditHint: string; // Enter saves · Esc cancels
+	resumeRenameHint: string; // Enter saves · Esc cancels
+	resumeRenameWorkspaceTitle: string; // Rename workspace
+	resumeRenameConversationTitle: string; // Rename conversation
+	resumeRenameEmpty: string; // A name is required.
+	resumeRenameFailed: string; // The name was not changed.
+	resumeRenameFailedFmt: string; // Rename failed: %s
+	resumeRenameMismatchFmt: string; // Renamed, but the list still shows “%s”
+	resumeDeleteTitle: string; // Delete conversation
+	resumeConfirmButton: string; // Confirm
+	resumeCancelButton: string; // Cancel
 
 	// compaction summary / handoff / branch dividers
 	csLabelCompacted: string; // compacted

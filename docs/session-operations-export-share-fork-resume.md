@@ -28,7 +28,7 @@ This document describes operator-visible behavior for session export, sharing, c
 | `/new`                                  | Interactive slash command    | Yes (starts an empty conversation)            | Switches identity and materializes a new header in persistent mode                         | None                                                                                |
 | `/fresh`                                | Slash command (TUI/headless) | Yes (provider-facing in-memory id/state only) | No; keeps current session file/header                                                      | None                                                                                |
 | `/clear`                                | Interactive slash command    | Yes (clears live/model conversation context)  | Retains identity/file/history; a lazy session still follows the normal persistence gate    | Appends `reset_boundary`                                                            |
-| `/delete`                               | Interactive slash command    | Yes (starts an empty conversation)            | Attempts to delete the current persisted session and artifacts, then switches to a new one | None                                                                                |
+| `/delete yes`                           | Interactive slash command    | Yes (starts an empty conversation)            | Attempts to delete the current persisted session and artifacts, then switches to a new one | None                                                                                |
 | `/fork`                                 | Interactive slash command    | Yes (active session identity changes)         | Creates new session file and switches current session to it (persistent mode only)         | Copies artifact directory to new session namespace when present                     |
 | `/fork pane`, `/fork window`, `/fork tab` | Interactive slash command  | No (parent session retained)                   | Opens a child OMP process from the flushed current transcript in a multiplexer pane/group (tmux window, Zellij/Herdr/Orca tab, or CMUX workspace) | Child receives a separate forked session                                            |
 | `--fork <id\|path>`                     | CLI startup                  | Yes after session creation                    | Creates a new session fork from the selected source into current cwd/session dir           | Copies source artifacts recursively by default                                      |
@@ -214,10 +214,12 @@ cache identity, advisor spend, and promoted memory context. Workspace roots are
 seeded from current settings, and project instructions are refreshed from disk.
 The TUI leaves a focused subagent view and clears its transcript.
 
-`/delete` uses the same transition with `drop: true`. It requires a session-file
-path, attempts to delete the old JSONL and artifact tree instead of retaining
-them, and still starts a new session if deletion fails. A before-switch hook can
-cancel either operation. Both are rejected while vibe mode is active.
+`/delete yes` uses the same transition with `drop: true`. It requires a
+session-file path, attempts to delete the old JSONL and artifact tree instead of
+retaining them, and still starts a new session if deletion fails. Bare `/delete`
+or any other argument refuses and prints the usage plus the current session
+title; it never deletes. A before-switch hook can cancel the transition. Both
+`/delete yes` and `/new` are rejected while vibe mode is active.
 
 ## Fresh
 
@@ -240,8 +242,8 @@ keeping the conversation you can see.
 
 Because it keeps both the visible and model-facing conversation, `/fresh`
 differs from `/clear` (clear the live/model conversation in place), `/new`
-(start a brand-new empty session), and `/delete` (attempt to delete the current
-session and start a new one). Only `/fresh` preserves the existing conversation
+(start a brand-new empty session), and `/delete yes` (attempt to delete the
+current session and start a new one). Only `/fresh` preserves the existing conversation
 while giving the provider stream state a clean slate.
 
 ## Clear
@@ -271,8 +273,8 @@ command aborts it and waits for it to stop before resetting.
 The TUI clears its rendered transcript after a successful clear. This differs
 from `/fresh`, which rotates provider stream state without clearing the
 conversation; `/new`, which creates a new session identity and transcript file;
-and `/delete`, which attempts to delete the old persisted session before starting
-a new one.
+and `/delete yes`, which attempts to delete the old persisted session before
+starting a new one.
 
 ## BTW history
 
@@ -597,7 +599,7 @@ When session manager is created with `SessionManager.inMemory()` (`--no-session`
 
 - `/share` custom-share failures do not degrade to the default encrypted share flow; they terminate the TUI command with an error.
 - `/export` argument tokenization does not preserve quoted paths with spaces.
-- `/delete` treats deletion as best-effort: it attempts to delete the current
+- `/delete yes` treats deletion as best-effort: it attempts to delete the current
   session JSONL and artifact directory, logs any deletion failure, and still
   creates and switches to a new session. A failed or partial deletion can leave
   the old session or its artifacts on disk, so `/delete` is not a guaranteed

@@ -2182,6 +2182,11 @@ export class SelectorController {
 					deleteMode: "trash",
 					...(sessionsRoot ? { sessionsRoot } : { sessions: () => SessionManager.listForPicker(cwd, sessionDir) }),
 					currentSessionPath,
+					renameCurrentSession: async title => {
+						const manager = this.ctx.sessionManager;
+						const applied = await manager.setSessionName(title, "user");
+						return applied ? (manager.getSessionName() ?? null) : null;
+					},
 					deleteConversation: async conversation => deleteWithTrash(conversation.session as SessionInfo),
 				});
 				sessions = [];

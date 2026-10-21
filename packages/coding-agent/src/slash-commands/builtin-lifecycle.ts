@@ -203,8 +203,15 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "delete",
 		icon: "trash",
 		description: () => M.cmdDrop,
-		handleTui: async (_command, runtime) => {
+		allowArgs: true,
+		inlineHint: "yes",
+		handleTui: async (command, runtime) => {
 			clearSubmittedText(runtime);
+			if (command.args.trim() !== "yes") {
+				const title = runtime.ctx.sessionManager.getSessionName() ?? runtime.ctx.sessionManager.getSessionId();
+				runtime.ctx.showError(`Usage: /delete yes — would delete “${title}”. Nothing was deleted.`);
+				return;
+			}
 			await runtime.ctx.handleDeleteCommand();
 		},
 	},

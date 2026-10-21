@@ -3387,6 +3387,34 @@ export class SessionManager {
 	}
 
 	/**
+	 * Rename a session file that is not necessarily open in this process.
+	 *
+	 * The resume picker uses this path for conversations other than the live
+	 * one; it opens the file and delegates to {@link setSessionName} so the
+	 * same cleaning, user-source precedence and title-slot persistence apply as
+	 * `/rename`. Callers renaming the live session must use the live manager
+	 * instead, because opening its file would contend with that writer.
+	 *
+	 * @returns the stored name, or `null` when the name is empty or rejected.
+	 */
+	static async setSessionNameAtPath(
+		filePath: string,
+		name: string,
+		storage: SessionStorage = new FileSessionStorage(),
+	): Promise<string | null> {
+		const manager = await SessionManager.open(filePath, undefined, storage, {
+			suppressBreadcrumb: true,
+			throwIfMissing: true,
+		});
+		try {
+			const applied = await manager.setSessionName(name, "user");
+			return applied ? (manager.getSessionName() ?? null) : null;
+		} finally {
+			await manager.close();
+		}
+	}
+
+	/**
 	 * Journal an idle recap for this session in history.db. Recaps never enter
 	 * the session file or LLM context; in-memory sessions are not journaled.
 	 */

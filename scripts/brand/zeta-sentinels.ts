@@ -648,4 +648,31 @@ export const ZETA_SENTINELS: Sentinel[] = [
 		symbol: "export const cfgEditorAutoInstall = register({",
 		why: "Zeta-only editor settings handles (added f02d7401fa9, dropped by a merge and only noticed when the official pi-messenger plugin failed to import its /editor command). The plugin's `editor-command.ts` is their only consumer in the tree, so losing them again breaks plugin activation without breaking `check:ts`.",
 	},
+
+	// -- Destructive-action safety (Zeta-only contracts on shared files) -------
+	{
+		file: "packages/coding-agent/src/slash-commands/builtin-lifecycle.ts",
+		symbol: 'if (command.args.trim() !== "yes") {',
+		why: "`/delete` refuses unless the argument is exactly `yes`. Upstream's `/delete` drops the live session on a bare Enter; an upstream merge of this shared file restores that and turns a slip into data loss. The refusal message and its test live beside it.",
+	},
+	{
+		file: "packages/coding-agent/src/slash-commands/builtin-lifecycle.ts",
+		symbol: 'Usage: /delete yes — would delete',
+		why: "The refusal text names the session that would have been deleted; it is the only user-visible proof that a refused `/delete` did nothing.",
+	},
+	{
+		file: "packages/tui/src/overlays/resume-tree.ts",
+		symbol: 'matchesKey(keyData, "ctrl+enter")',
+		why: "The resume picker requests deletion only from Ctrl+Enter (or Delete) and always through the confirmation modal; plain Enter must stay a resume. An upstream-style tree or a careless rewrite here deletes on Enter.",
+	},
+	{
+		file: "packages/coding-agent/src/session/session-manager.ts",
+		symbol: "static async setSessionNameAtPath(",
+		why: "Conversation rename from the picker reuses the `/rename` path (user-sourced name, empty rejected, live session renamed through its own manager). Reimplementing it with a raw title write bypasses those rules.",
+	},
+	{
+		file: "packages/coding-agent/src/modes/resume-picker-source.ts",
+		symbol: "filterSubagents: true,",
+		why: "The picker lists main-agent sessions only; subagent sessions must never render. Dropping this filter floods the list with task/scout children again.",
+	},
 ];

@@ -181,11 +181,11 @@ export interface ResumeTreeSource {
 	pinConversation?(conversation: ResumeTreeConversation, pinned: boolean): Promise<void>;
 	pinProject?(project: ResumeTreeProject, pinned: boolean): Promise<void>;
 	pinWorkspace?(workspace: ResumeTreeWorkspace, pinned: boolean): Promise<void>;
-	/** Set the workspace display alias (directory name never changes). */
-	renameWorkspace?(workspace: ResumeTreeWorkspace, alias: string | null): Promise<void>;
+	/** Set the workspace display alias; resolves the name the picker now shows. */
+	renameWorkspace?(workspace: ResumeTreeWorkspace, alias: string | null): Promise<string | null>;
 	openWorkspace?(workspace: ResumeTreeWorkspace): void | Promise<void>;
-	/** Rename the persisted session title; resolves false on refusal/failure. */
-	renameConversation?(conversation: ResumeTreeConversation, title: string): Promise<boolean>;
+	/** Rename the persisted session title; resolves the stored name or null. */
+	renameConversation?(conversation: ResumeTreeConversation, title: string): Promise<string | null>;
 	/** False hides the conversation rename action (read-only/foreign session). */
 	canRenameConversation?(conversation: ResumeTreeConversation): boolean;
 	/** Scopes without a project header (workspace/project) resolve the project here. */
@@ -708,12 +708,18 @@ interface ResumeTreeMenu {
 	conversation?: ResumeTreeConversation;
 }
 
-interface ResumeTreeEdit {
+interface ResumeTreeRename {
 	rowKey: string;
 	kind: ResumeTreeMenuKind;
 	value: string;
 	workspace?: ResumeTreeWorkspace;
 	conversation?: ResumeTreeConversation;
+}
+
+/** A clickable button range on one rendered line. */
+interface ResumeButtonHit {
+	start: number;
+	end: number;
 }
 
 /** Flatten model rows under the current local collapse state (headers always stay). */
@@ -772,13 +778,16 @@ export class ResumeTreeComponent implements Component {
 	#notice: string | undefined;
 	#expandedOnce = false;
 	#menu: ResumeTreeMenu | undefined;
-	#edit: ResumeTreeEdit | undefined;
+	#rename: ResumeTreeRename | undefined;
 	/** Row hit map captured from the last render (`row → action`). */
 	#hitRows = new Map<number, { kind: "conversation" | "toggle"; key: string }>();
 	/** Lines whose last column is the row's `⋯` menu affordance. */
 	#menuHits = new Map<number, { kind: ResumeTreeMenuKind; key: string; start: number }>();
 	/** Menu item lines captured from the last render. */
 	#menuItemHits = new Map<number, number>();
+	/** Rename/delete modal button ranges, keyed by rendered line. */
+	#renameButtonHits = new Map<number, { confirm?: ResumeButtonHit; cancel?: ResumeButtonHit }>();
+	#deleteButtonHits = new Map<number, { confirm?: ResumeButtonHit; cancel?: ResumeButtonHit }>();
 	/** Scope-segment hit ranges on the header line. */
 	#scopeHits: ResumeScopeHit[] = [];
 	/** Local line/column offset of this component inside the fullscreen frame. */
@@ -1177,7 +1186,7 @@ export class ResumeTreeComponent implements Component {
 		if (!item || item.disabled) return;
 		this.#menu = undefined;
 		if (item.id === "rename") {
-			this.#startEdit(menu);
+			this.#beginRename(menu.kind, menu.rowKey, menu.workspace, menu.conversation);
 			return;
 		}
 		const flat = this.#visibleRows();
@@ -1211,42 +1220,94 @@ export class ResumeTreeComponent implements Component {
 		await this.#refreshAfterMutation();
 	}
 
-	#startEdit(menu: ResumeTreeMenu): void {
-		if (menu.kind === "workspace" && menu.workspace) {
-			const workspace = menu.workspace;
-			this.#edit = {
-				rowKey: menu.rowKey,
-				kind: "workspace",
-				value: workspace.alias ?? workspace.name,
-				workspace,
-			};
-		} else if (menu.conversation) {
-			const conversation = menu.conversation;
-			this.#edit = {
-				rowKey: menu.rowKey,
-				kind: "conversation",
-				value: conversation.title || conversation.id,
-				conversation,
-			};
+	/** Open the rename sub-input for a workspace or conversation row. */
+	#beginRename(
+		kind: ResumeTreeMenuKind,
+		rowKey: string,
+		workspace?: ResumeTreeWorkspace,
+		conversation?: ResumeTreeConversation,
+	): void {
+		if (kind === "workspace") {
+			if (!workspace || !this.#source.renameWorkspace) return;
+		} else if (
+			!conversation ||
+			!this.#source.renameConversation ||
+			this.#source.canRenameConversation?.(conversation) === false
+		) {
+			return;
 		}
+		this.#rename = {
+			rowKey,
+			kind,
+			value: kind === "workspace" ? (workspace!.alias ?? workspace!.name) : conversation!.title || conversation!.id,
+			...(workspace ? { workspace } : {}),
+			...(conversation ? { conversation } : {}),
+		};
+		this.#menu = undefined;
 		this.#searchFocused = false;
+		this.#notice = undefined;
 		this.onRequestRender?.();
 	}
 
-	async #commitEdit(): Promise<void> {
-		const edit = this.#edit;
-		if (!edit) return;
-		this.#edit = undefined;
-		const value = edit.value.trim();
-		if (edit.kind === "workspace" && edit.workspace) {
-			await this.#source.renameWorkspace?.(edit.workspace, value || null);
-		} else if (edit.conversation) {
-			if (!value || !(await this.#source.renameConversation?.(edit.conversation, value))) {
-				this.onRequestRender?.();
-				return;
-			}
+	/** Ctrl+R: rename the selected workspace/conversation; project rows are inert. */
+	#renameSelected(): void {
+		const flat = this.#visibleRows();
+		const row = flat[this.#selectedIndex(flat)]?.row;
+		if (row?.type === "workspace") this.#beginRename("workspace", rowIdentity(row), row.workspace);
+		else if (row?.type === "conversation") {
+			this.#beginRename("conversation", rowIdentity(row), undefined, row.conversation);
 		}
+	}
+
+	async #commitRename(): Promise<void> {
+		const rename = this.#rename;
+		if (!rename || this.#busy) return;
+		const value = rename.value.trim();
+		if (!value) {
+			this.#notice = tuiText("resumeRenameEmpty", "A name is required.");
+			this.onRequestRender?.();
+			return;
+		}
+		let stored: string | null = null;
+		try {
+			stored =
+				rename.kind === "workspace"
+					? ((await this.#source.renameWorkspace?.(rename.workspace!, value)) ?? null)
+					: ((await this.#source.renameConversation?.(rename.conversation!, value)) ?? null);
+		} catch (error) {
+			this.#notice = tuiTextFmt(
+				"resumeRenameFailedFmt",
+				"Rename failed: %s",
+				error instanceof Error ? error.message : String(error),
+			);
+			this.onRequestRender?.();
+			return;
+		}
+		if (stored === null) {
+			this.#notice = tuiText("resumeRenameFailed", "The name was not changed.");
+			this.onRequestRender?.();
+			return;
+		}
+		this.#rename = undefined;
 		await this.#refreshAfterMutation();
+		this.#verifyRename(rename, stored);
+	}
+
+	/** Confirm the refreshed row shows what was stored; otherwise say so. */
+	#verifyRename(rename: ResumeTreeRename, stored: string): void {
+		const row = this.#view?.rows.find(candidate => rowIdentity(candidate) === rename.rowKey);
+		if (!row) return;
+		const shown =
+			row.type === "conversation"
+				? row.conversation.title
+				: row.type === "workspace"
+					? (row.workspace.displayName ?? row.workspace.name)
+					: row.project.displayName;
+		this.#notice =
+			shown !== stored
+				? tuiTextFmt("resumeRenameMismatchFmt", "Renamed, but the list still shows “%s”", shown)
+				: undefined;
+		this.onRequestRender?.();
 	}
 
 	async #refreshAfterMutation(): Promise<void> {
@@ -1268,33 +1329,45 @@ export class ResumeTreeComponent implements Component {
 		}
 	}
 
-	/** Edit mode owns every key: tree bindings must not fire while typing. */
-	#handleEditKey(keyData: string): void {
-		const edit = this.#edit;
-		if (!edit) return;
+	/** The rename box owns every key; the search text is never touched. */
+	#handleRenameKey(keyData: string): void {
+		const rename = this.#rename;
+		if (!rename) return;
 		if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
-			void this.#commitEdit();
+			void this.#commitRename();
 			return;
 		}
 		if (matchesAppInterrupt(keyData) || matchesKey(keyData, "escape")) {
-			this.#edit = undefined;
+			this.#rename = undefined;
 			this.onRequestRender?.();
 			return;
 		}
 		if (matchesKey(keyData, "backspace") || keyData === "\x7f") {
-			edit.value = [...edit.value].slice(0, -1).join("");
+			rename.value = [...rename.value].slice(0, -1).join("");
 			this.onRequestRender?.();
 			return;
 		}
-		// Printable characters only (including a pasted run); arrows/tab/function
-		// keys stay inert because their sequences carry control bytes.
+		// Printable characters (including a pasted run) are literal text: `/`,
+		// `m`, `p`, `f` and `r` keep their letter meaning only outside this box.
 		if (
 			keyData.length > 0 &&
 			!keyData.startsWith("\x1b") &&
 			[...keyData].every(char => char >= " " && char !== "\x7f")
 		) {
-			edit.value += keyData;
+			rename.value += keyData;
 			this.onRequestRender?.();
+		}
+	}
+
+	/** The delete modal owns every key except Ctrl+C (handled globally). */
+	#handleDeleteKey(keyData: string): void {
+		if (matchesAppInterrupt(keyData) || matchesKey(keyData, "escape") || keyData === "n") {
+			this.#deleteTarget = null;
+			this.onRequestRender?.();
+			return;
+		}
+		if (keyData === "y" || matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
+			void this.#confirmDelete();
 		}
 	}
 
@@ -1320,10 +1393,6 @@ export class ResumeTreeComponent implements Component {
 	}
 
 	#activate(): void {
-		if (this.#deleteTarget) {
-			void this.#confirmDelete();
-			return;
-		}
 		const flat = this.#visibleRows();
 		const row = flat[this.#selectedIndex(flat)]?.row;
 		if (row) this.#selectRow(row);
@@ -1393,15 +1462,29 @@ export class ResumeTreeComponent implements Component {
 	}
 
 	#routeMouse(event: SgrMouseEvent, offset: { row?: number; col?: number }): boolean {
-		if (this.#edit) return true;
+		const line = event.row - (offset.row ?? this.#lineOffset);
+		const column = event.col - (offset.col ?? this.#columnOffset);
+		if (this.#rename || this.#deleteTarget) {
+			if (!event.leftClick) return true;
+			const hits = this.#rename ? this.#renameButtonHits : this.#deleteButtonHits;
+			const hit = hits.get(line);
+			if (hit?.confirm && column >= hit.confirm.start && column <= hit.confirm.end) {
+				if (this.#rename) void this.#commitRename();
+				else void this.#confirmDelete();
+			} else if (hit?.cancel && column >= hit.cancel.start && column <= hit.cancel.end) {
+				if (this.#rename) this.#rename = undefined;
+				else this.#deleteTarget = null;
+				this.onRequestRender?.();
+			}
+			// Clicks elsewhere keep the modal open.
+			return true;
+		}
 		if (event.wheel !== null) {
 			this.#move(event.wheel * 3);
 			this.onRequestRender?.();
 			return true;
 		}
 		if (!event.leftClick) return true;
-		const line = event.row - (offset.row ?? this.#lineOffset);
-		const column = event.col - (offset.col ?? this.#columnOffset);
 		if (this.#menu) {
 			const itemIndex = this.#menuItemHits.get(line);
 			if (itemIndex !== undefined) {
@@ -1464,7 +1547,7 @@ export class ResumeTreeComponent implements Component {
 			this.#pendingKeys.push(keyData);
 			return;
 		}
-		if (!this.#edit && !this.#menu && this.#source.isLoading?.() && this.#source.refresh) {
+		if (!this.#rename && !this.#deleteTarget && !this.#menu && this.#source.isLoading?.() && this.#source.refresh) {
 			const pending: string[] = [keyData];
 			this.#pendingKeys = pending;
 			void this.#source.refresh().then(() => {
@@ -1479,8 +1562,16 @@ export class ResumeTreeComponent implements Component {
 			return;
 		}
 		if (this.#busy) return;
-		if (this.#edit) {
-			this.#handleEditKey(keyData);
+		if (this.#rename) {
+			this.#handleRenameKey(keyData);
+			return;
+		}
+		if (this.#deleteTarget) {
+			this.#handleDeleteKey(keyData);
+			return;
+		}
+		if (matchesKey(keyData, "ctrl+r")) {
+			this.#renameSelected();
 			return;
 		}
 		if (this.#menu) {
@@ -1489,15 +1580,6 @@ export class ResumeTreeComponent implements Component {
 		}
 		if (!this.#searchFocused && keyData === "m") {
 			this.#openSelectedMenu();
-			return;
-		}
-		if (this.#deleteTarget) {
-			if (matchesAppInterrupt(keyData) || keyData === "n") {
-				this.#deleteTarget = null;
-				this.onRequestRender?.();
-			} else if (keyData === "y" || matchesKey(keyData, "enter") || keyData === "\n") {
-				void this.#confirmDelete();
-			}
 			return;
 		}
 		if (matchesKey(keyData, "tab")) {
@@ -1532,11 +1614,15 @@ export class ResumeTreeComponent implements Component {
 			this.#expandOrChild();
 			return;
 		}
+		if (matchesKey(keyData, "ctrl+enter") || matchesKey(keyData, "ctrl+return")) {
+			this.#requestDelete();
+			return;
+		}
 		if (matchesKey(keyData, "enter") || matchesKey(keyData, "return") || keyData === "\n") {
 			this.#activate();
 			return;
 		}
-		if (matchesKey(keyData, "delete") || (matchesKey(keyData, "backspace") && this.#search.getValue() === "")) {
+		if (matchesKey(keyData, "delete")) {
 			this.#requestDelete();
 			return;
 		}
@@ -1548,7 +1634,7 @@ export class ResumeTreeComponent implements Component {
 			void this.refresh();
 			return;
 		}
-		if (!this.#searchFocused && keyData === "f") {
+		if (matchesKey(keyData, "ctrl+f")) {
 			this.toggleFullPaths();
 			return;
 		}
@@ -1585,6 +1671,8 @@ export class ResumeTreeComponent implements Component {
 		this.#hitRows = new Map();
 		this.#menuHits = new Map();
 		this.#menuItemHits = new Map();
+		this.#renameButtonHits = new Map();
+		this.#deleteButtonHits = new Map();
 		const scopeHeader = renderScopeHeaderHits(this.#scope, summary, width);
 		this.#scopeHits = scopeHeader.hits;
 		this.#lineOffset = 0;
@@ -1608,24 +1696,13 @@ export class ResumeTreeComponent implements Component {
 			const message = this.#notice ?? error ?? `${warning!} · ${tuiText("resumeRetryHint", "r retries")}`;
 			lines.push(truncateToWidth(theme.fg(error ? "error" : "warning", `  ${message}`), width));
 		}
+		if (this.#rename) {
+			const start = lines.length;
+			lines.push(...this.#renderRenameBox(width, start));
+		}
 		if (this.#deleteTarget) {
-			const target = this.#deleteTarget;
-			const title = target.conversation.title || target.conversation.id;
-			const text =
-				this.#source.deleteMode === "permanent"
-					? tuiTextFmt("resumeDeletePermanentFmt", "Permanently delete “%s”?", title)
-					: tuiTextFmt("resumeDeleteTrashFmt", "Move “%s” to trash?", title);
-			lines.push(truncateToWidth(theme.fg("warning", `  ${text}`), width));
-			lines.push(
-				truncateToWidth(
-					theme.fg(
-						"dim",
-						`  ${this.#source.deleteMode === "permanent" ? tuiText("resumeDeletePermanentHint", "This cannot be undone.") : tuiText("resumeDeleteTrashHint", "The conversation can be restored from the trash.")} · ${tuiText("resumeConfirmKeys", "y confirm · n cancel")}`,
-					),
-					width,
-				),
-			);
-			return lines;
+			const start = lines.length;
+			lines.push(...this.#renderDeleteBox(width, start));
 		}
 		lines.push("");
 		const loading = !view || this.#source.isLoading?.();
@@ -1673,12 +1750,7 @@ export class ResumeTreeComponent implements Component {
 			if (lines.length - bodyStart >= height && index !== selectedIndex) break;
 			const row = flat[index]!.row;
 			const selected = index === selectedIndex;
-			const editing = this.#edit?.rowKey === rowIdentity(row);
 			const lineIndex = lines.length;
-			if (editing && this.#edit) {
-				lines.push(this.#renderEditLine(row, this.#edit.value, width));
-				continue;
-			}
 			if (row.type === "project") {
 				this.#hitRows.set(lineIndex, { kind: "toggle", key: rowIdentity(row) });
 				lines.push(
@@ -1717,11 +1789,6 @@ export class ResumeTreeComponent implements Component {
 				lines.push(renderConversationRow(row, { width, selected, now, columns, fullPaths }));
 			}
 		}
-		if (this.#edit) {
-			lines.push(
-				truncateToWidth(theme.fg("dim", `  ${tuiText("resumeEditHint", "Enter saves · Esc cancels")}`), width),
-			);
-		}
 		if (this.#menu) {
 			const menu = this.#menu;
 			const kindLabel =
@@ -1742,13 +1809,67 @@ export class ResumeTreeComponent implements Component {
 		return lines;
 	}
 
-	/** The row being renamed, rendered in place as an editable single line. */
-	#renderEditLine(row: ResumeTreeRow, value: string, width: number): string {
-		const cursor = theme.fg("accent", `${theme.nav.cursor} `);
-		const indent = padding(row.type === "workspace" ? WORKSPACE_INDENT : CONVERSATION_INDENT);
-		const marker = theme.fg("accent", "✎");
-		const caret = theme.fg("accent", "▌");
-		return truncateToWidth(`${cursor}${indent}${marker} ${value}${caret}`, width);
+	/**
+	 * A small modal box with clickable confirm/cancel buttons. `start` is the
+	 * line index in the current frame; button ranges are recorded for mouse
+	 * hit-testing. Every line is truncated, never wrapped.
+	 */
+	#renderModalBox(
+		title: string,
+		body: readonly string[],
+		width: number,
+		start: number,
+		hits: Map<number, { confirm?: ResumeButtonHit; cancel?: ResumeButtonHit }>,
+	): string[] {
+		const lines = [truncateToWidth(`  ${theme.fg("accent", `┌ ${title}`)}`, width)];
+		for (const line of body) lines.push(truncateToWidth(`  ${theme.fg("dim", "│")} ${line}`, width));
+		const prefix = `  ${theme.fg("dim", "└")} `;
+		const confirm = `[${tuiText("resumeConfirmButton", "Confirm")}]`;
+		const cancel = `[${tuiText("resumeCancelButton", "Cancel")}]`;
+		const confirmStart = visibleWidth(prefix);
+		const confirmEnd = confirmStart + visibleWidth(confirm) - 1;
+		const cancelStart = confirmEnd + 3;
+		const cancelEnd = cancelStart + visibleWidth(cancel) - 1;
+		hits.set(start + 1 + body.length, {
+			confirm: { start: confirmStart, end: confirmEnd },
+			cancel: { start: cancelStart, end: cancelEnd },
+		});
+		lines.push(truncateToWidth(`${prefix}${theme.fg("accent", confirm)}  ${theme.fg("muted", cancel)}`, width));
+		return lines;
+	}
+
+	#renderRenameBox(width: number, start: number): string[] {
+		const rename = this.#rename!;
+		const title =
+			rename.kind === "workspace"
+				? tuiText("resumeRenameWorkspaceTitle", "Rename workspace")
+				: tuiText("resumeRenameConversationTitle", "Rename conversation");
+		return this.#renderModalBox(
+			`✎ ${title}`,
+			[`${rename.value}${theme.fg("accent", "▌")}`, tuiText("resumeRenameHint", "Enter saves · Esc cancels")],
+			width,
+			start,
+			this.#renameButtonHits,
+		);
+	}
+
+	#renderDeleteBox(width: number, start: number): string[] {
+		const target = this.#deleteTarget!;
+		const title = target.conversation.title || target.conversation.id;
+		const permanent = this.#source.deleteMode === "permanent";
+		const question = permanent
+			? tuiTextFmt("resumeDeletePermanentFmt", "Permanently delete “%s”?", title)
+			: tuiTextFmt("resumeDeleteTrashFmt", "Move “%s” to trash?", title);
+		const hint = permanent
+			? tuiText("resumeDeletePermanentHint", "This cannot be undone.")
+			: tuiText("resumeDeleteTrashHint", "The conversation can be restored from the trash.");
+		return this.#renderModalBox(
+			tuiText("resumeDeleteTitle", "Delete conversation"),
+			[question, theme.fg("dim", hint), theme.fg("dim", tuiText("resumeConfirmKeys", "y confirm · n cancel"))],
+			width,
+			start,
+			this.#deleteButtonHits,
+		);
 	}
 
 	#emptyState(view: ResumeTreeView, searching: boolean, width: number): string[] {

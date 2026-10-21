@@ -161,7 +161,8 @@ describe("live resume source", () => {
 			session: { path: file, id: "rename-test", cwd: REPO_A, modified: new Date(updatedAt) },
 		} as unknown as ResumeTreeConversation;
 		expect(source.canRenameConversation(conversation)).toBe(true);
-		expect(await source.renameConversation(conversation, "  New title  ")).toBe(true);
+		expect(await source.renameConversation(conversation, "  New title  ")).toBe("New title");
+		expect(await source.renameConversation(conversation, "   ")).toBeNull();
 		const slot = parseTitleSlotFromContent(await fs.readFile(file, "utf-8"));
 		expect(slot?.title).toBe("New title");
 		expect(slot?.source).toBe("user");
