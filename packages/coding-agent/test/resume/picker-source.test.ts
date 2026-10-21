@@ -58,18 +58,23 @@ describe("resume picker scope persistence", () => {
 				collapsedProjects: ["/one"],
 				expandedProjects: ["/two"],
 				collapsedWorkspaces: ["/three"],
+				fullPaths: true,
 			},
 			agentDir,
 		);
 		const raw = JSON.parse(await fs.readFile(path.join(agentDir, RESUME_PICKER_STATE_FILENAME), "utf-8"));
 		expect(raw.version).toBe(RESUME_PICKER_STATE_VERSION);
+		expect(raw.fullPaths).toBe(true);
 		const state = await loadResumePickerState(agentDir);
 		expect(state).toMatchObject({
 			scope: "project",
 			collapsedProjects: ["/one"],
 			expandedProjects: ["/two"],
 			collapsedWorkspaces: ["/three"],
+			fullPaths: true,
 		});
+		await saveResumePickerState({ scope: "project", fullPaths: false }, agentDir);
+		expect((await loadResumePickerState(agentDir)).fullPaths).toBe(false);
 	});
 
 	it("ignores the legacy state file instead of migrating it", async () => {

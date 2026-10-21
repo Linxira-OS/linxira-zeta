@@ -154,6 +154,10 @@ When the host supplies a resume source, the ANSI picker renders a project → wo
 
 Indentation stops at two visible steps, so subagent nesting can never push rows off the right edge.
 
+### Full paths
+
+`f` toggles absolute paths in project and all-project scopes: the project header path tag, workspace paths and each conversation's cwd switch from parent/name tails to the platform's own spelling (`D:\CODE\proj`, `\\server\share\proj`, `/home/user/proj`, `/mnt/c/CODE/proj`). The separator and root are chosen from the path's shape, not the host, and long paths truncate from the left with a middle ellipsis so the tail stays readable. In workspace scope the path is redundant, so `f` shows a one-line hint instead of changing the setting; the footer lists the key only in project/all scopes. The choice persists across opens.
+
 ### Main-agent sessions only
 
 A conversation is a subagent when its session header carries `parentSession` **and** its `session_init` record carries `agent` (`scout`, `task`, `sonic`, …); a user fork has the parent but no agent marker and stays a `fork`. The classification stays in the model, but the picker directory filters subagents out before grouping, so they never appear in the tree and a project whose only sessions are subagents counts zero conversations.
@@ -166,7 +170,7 @@ A conversation is a subagent when its session header carries `parentSession` **a
 
 The picker accepts SGR mouse reports while it owns the alternate screen: a single click selects a conversation, a double click resumes it, clicking a project/workspace header collapses or expands it, clicking `⋯` opens the row menu, the wheel scrolls three rows, and clicking a scope segment switches scope. Every keyboard binding keeps working; the footer lists keys on the left and mouse hints on the right.
 
-Scope and local expansion live in `resume-picker-state.v2.json` under the agent directory (`{ version: 2, scope, collapsedProjects, expandedProjects, collapsedWorkspaces }`). The older `resume-picker-state.json` shape is ignored, never read or migrated; the v2 file is written on the next change and the legacy file is left untouched. A missing, corrupt, or wrong-version file falls back to workspace scope with everything collapsed.
+Scope, local expansion and the full-path toggle live in `resume-picker-state.v2.json` under the agent directory (`{ version: 2, scope, collapsedProjects, expandedProjects, collapsedWorkspaces, fullPaths }`; `fullPaths` absent means false). The older `resume-picker-state.json` shape is ignored, never read or migrated; the v2 file is written on the next change and the legacy file is left untouched. A missing, corrupt, or wrong-version file falls back to workspace scope with everything collapsed.
 
 ## Session selector component behavior
 

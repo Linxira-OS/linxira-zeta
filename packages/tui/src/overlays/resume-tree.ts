@@ -25,6 +25,8 @@ export interface ResumeTreePickerState {
 	collapsedProjects?: readonly string[];
 	expandedProjects?: readonly string[];
 	collapsedWorkspaces?: readonly string[];
+	/** Absolute paths in the project/workspace/cwd labels; absent means false. */
+	fullPaths?: boolean;
 }
 export type ResumeTreeStatus = "complete" | "interrupted" | "aborted" | "error" | "pending" | "unknown";
 export type ResumeTreeDeleteMode = "trash" | "permanent";
@@ -254,6 +256,13 @@ export function middleEllipsis(text: string, maxWidth: number): string {
 	return `${truncateToWidth(text, head)}${ellipsis}${takeTail(text, tail)}`;
 }
 
+/** Tail that starts at a path segment boundary when one is available. */
+function takePathTail(text: string, width: number): string {
+	const tail = takeTail(text, width);
+	const separator = tail.search(/[\\/]/);
+	return separator > 0 ? tail.slice(separator) : tail;
+}
+
 /** Last `width` columns of `text` (visible width, no ANSI). */
 function takeTail(text: string, width: number): string {
 	if (width <= 0) return "";
@@ -270,13 +279,57 @@ function takeTail(text: string, width: number): string {
 	return out;
 }
 
-/** Basename-first path tail (`…/parent/name`) for workspace rows. */
-export function resumePathTail(value: string): string {
-	const normalized = value.replace(/[\\/]+$/, "");
-	const name = path.basename(normalized);
-	const parent = path.basename(path.dirname(normalized));
+/** Pick the path API from the string's own shape, not the host platform. */
+export function resumePathApi(value: string): typeof path.posix {
+	const windows =
+		/^[A-Za-z]:[\\/]/.test(value) ||
+		value.startsWith("\\\\") ||
+		/^\/\/[^/]/.test(value) ||
+		(value.includes("\\") && !value.startsWith("/"));
+	return windows ? path.win32 : path.posix;
+}
+
+/** Full path spelled with its own platform's separators (drive, UNC or POSIX). */
+export function absoluteResumePath(value: string): string {
+	const api = resumePathApi(value);
+	const normalized = api.normalize(value);
+	return normalized === "." ? value : normalized;
+}
+
+/** Short parent/name tail or the full absolute path, per the picker toggle. */
+export function formatResumePath(value: string, fullPaths: boolean): string {
+	if (!value) return "";
+	if (fullPaths) return absoluteResumePath(value);
+	const normalized = value.replace(/[\\/]+$/, "") || value;
+	const api = resumePathApi(normalized);
+	const name = api.basename(normalized);
+	const parent = api.basename(api.dirname(normalized));
 	if (!parent || parent === name) return name || value;
-	return `${parent}/${name}`;
+	return api.join(parent, name);
+}
+
+/** Basename-first path tail (`parent/name`) keeping the platform separator. */
+export function resumePathTail(value: string): string {
+	return formatResumePath(value, false);
+}
+
+/**
+ * Truncate from the left so the tail stays readable, keeping a drive/UNC root
+ * when there is room for one (`D:\…\repo`, `\\server\share\…\repo`). The
+ * returned string never exceeds `maxWidth` visible columns.
+ */
+export function truncateResumePath(value: string, maxWidth: number): string {
+	const width = Math.max(0, Math.floor(maxWidth));
+	if (width === 0) return "";
+	if (visibleWidth(value) <= width) return value;
+	const ellipsis = "…";
+	if (width === 1) return ellipsis;
+	const root = resumePathApi(value).parse(value).root;
+	if (visibleWidth(root) > 1 && visibleWidth(root) + 2 < width) {
+		const rest = value.slice(root.length).replace(/^[\\/]+/, "");
+		return `${root}${ellipsis}${takePathTail(rest, width - visibleWidth(root) - 1)}`;
+	}
+	return `${ellipsis}${takePathTail(value, width - 1)}`;
 }
 
 /** Left-pad to a stable column width (never truncates). */
@@ -290,14 +343,6 @@ function padStartVisible(text: string, width: number): string {
  * column. When the two cannot both fit, `right` is dropped first so the row
  * never wraps.
  */
-function alignRowVariants(cursor: string, left: string, variants: readonly string[], width: number): string {
-	const available = Math.max(1, width - visibleWidth(cursor));
-	for (const right of variants) {
-		if (right && available - visibleWidth(right) - 2 >= 8) return alignRow(cursor, left, right, width);
-	}
-	return alignRow(cursor, left, "", width);
-}
-
 function alignRow(cursor: string, left: string, right: string, width: number): string {
 	const available = Math.max(1, width - visibleWidth(cursor));
 	const rightWidth = visibleWidth(right);
@@ -308,6 +353,20 @@ function alignRow(cursor: string, left: string, right: string, width: number): s
 		return `${cursor}${leftText}${" ".repeat(fill)}${right}`;
 	}
 	return `${cursor}${truncateToWidth(left, available)}`;
+}
+
+/**
+ * Pick the widest right-hand variant this row can carry and return the space
+ * left for its left-hand content, following {@link alignRow}'s fit rule.
+ */
+function leftBudgetFor(cursor: string, variants: readonly string[], width: number): { right: string; budget: number } {
+	const available = Math.max(1, width - visibleWidth(cursor));
+	for (const right of variants) {
+		if (right && available - visibleWidth(right) - 2 >= 8) {
+			return { right, budget: available - visibleWidth(right) - 2 };
+		}
+	}
+	return { right: "", budget: available };
 }
 
 /**
@@ -409,6 +468,8 @@ export function renderConversationRow(
 		selected: boolean;
 		now?: number;
 		columns?: ConversationColumns;
+		/** Show the conversation cwd as an absolute path instead of omitting it. */
+		fullPaths?: boolean;
 	},
 ): string {
 	const selected = options.selected;
@@ -445,10 +506,22 @@ export function renderConversationRow(
 	}
 	const metadata = joinParts();
 	const right = metadata ? `${metadata} ${menu}` : menu;
-	const titleWidth = Math.max(1, available - statusWidth - visibleWidth(right) - 1);
-	const title = truncateToWidth(row.conversation.title || row.conversation.id, titleWidth);
+	const leftBudget = Math.max(1, available - statusWidth - visibleWidth(right) - 1);
+	// Full mode adds the cwd as a dim detail after the title; the path takes a
+	// bounded share of the flexible area so the title stays readable.
+	const detail = options.fullPaths ? absoluteResumePath(row.conversation.cwd) : "";
+	let detailText = "";
+	let titleWidth = leftBudget;
+	if (detail) {
+		const detailBudget = Math.min(40, Math.floor(leftBudget * 0.45));
+		if (detailBudget >= 8 && leftBudget - detailBudget - 2 >= 8) {
+			detailText = `  ${theme.fg("dim", truncateResumePath(detail, detailBudget))}`;
+			titleWidth = leftBudget - visibleWidth(detailText);
+		}
+	}
+	const title = truncateToWidth(row.conversation.title || row.conversation.id, Math.max(1, titleWidth));
 	const statusText = status ? theme.fg(status.tone, padStartVisible(status.text, columns.status)) : "";
-	const left = `${statusText}${" ".repeat(Math.max(0, statusWidth - visibleWidth(statusText)))}${title}`;
+	const left = `${statusText}${" ".repeat(Math.max(0, statusWidth - visibleWidth(statusText)))}${title}${detailText}`;
 	const line = alignRow("", left, right, available);
 	const rendered = selected ? theme.bold(line) : line;
 	return truncateToWidth(`${cursor}${indent}${rendered}`, options.width);
@@ -466,6 +539,10 @@ export function renderWorkspaceRow(
 		collapsed: boolean;
 		referenceBranch?: string | null;
 		current?: boolean;
+		/** Show absolute workspace paths instead of parent/name tails. */
+		fullPaths?: boolean;
+		/** Workspace scope has no use for the path label; callers can omit it. */
+		showPath?: boolean;
 	},
 ): string {
 	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
@@ -476,10 +553,13 @@ export function renderWorkspaceRow(
 		? ` ${theme.fg("warning", `[${row.workspace.branch}]`)}`
 		: "";
 	const nameStyled = theme.bold(theme.fg("accent", name));
-	const left = `${theme.fg("muted", fold)} ${nameStyled}${branch}`;
-	const count = theme.fg("dim", conversationCountText(row));
-	const menu = menuAffordance();
-	return alignRow(cursor, indent + left, `${count} ${menu}`, options.width);
+	const right = `${theme.fg("dim", conversationCountText(row))} ${menuAffordance()}`;
+	const budget = leftBudgetFor(cursor, [right], options.width);
+	const base = `${theme.fg("muted", fold)} ${nameStyled}${branch}`;
+	const path = options.showPath === false ? "" : formatResumePath(row.workspace.path, options.fullPaths === true);
+	const pathBudget = budget.budget - visibleWidth(indent) - visibleWidth(base) - 2;
+	const pathText = path && pathBudget >= 4 ? `  ${theme.fg("dim", truncateResumePath(path, pathBudget))}` : "";
+	return alignRow(cursor, indent + base + pathText, budget.right, options.width);
 }
 
 /**
@@ -488,15 +568,20 @@ export function renderWorkspaceRow(
  */
 export function renderProjectRow(
 	row: ResumeTreeProjectRow,
-	options: { width: number; selected: boolean; collapsed: boolean; now?: number },
+	options: {
+		width: number;
+		selected: boolean;
+		collapsed: boolean;
+		now?: number;
+		/** Show the absolute project root instead of the parent/name tail. */
+		fullPaths?: boolean;
+	},
 ): string {
 	const cursor = options.selected ? theme.fg("accent", `${theme.nav.cursor} `) : padding(2);
 	const indent = padding(PROJECT_INDENT);
 	const fold = options.collapsed ? "▸" : "▾";
 	const pin = row.pinned ? `${theme.icon.pin} ` : "";
 	const name = row.project.displayName || row.project.name;
-	const pathTag = ` ${theme.fg("dim", `(${resumePathTail(row.project.root)})`)}`;
-	const left = `${theme.fg("muted", fold)} ${pin}${theme.bold(theme.fg("accent", name))}${pathTag}`;
 	const workspaces =
 		row.totalWorkspaceCount === 1
 			? tuiText("resumeWorkspaceCountOne", "1 workspace")
@@ -509,7 +594,12 @@ export function renderProjectRow(
 		.filter(Boolean)
 		.join(` ${theme.fg("dim", theme.sep.dot)} `);
 	const compact = [count, theme.fg("dim", workspaces)].filter(Boolean).join(` ${theme.fg("dim", theme.sep.dot)} `);
-	return alignRowVariants(cursor, indent + left, [right, compact, count], options.width);
+	const budget = leftBudgetFor(cursor, [right, compact, count], options.width);
+	const base = `${indent}${theme.fg("muted", fold)} ${pin}${theme.bold(theme.fg("accent", name))}`;
+	const path = formatResumePath(row.project.root, options.fullPaths === true);
+	const pathBudget = budget.budget - visibleWidth(base) - 3; // ` (` + `)` + a space
+	const pathTag = path && pathBudget >= 3 ? ` ${theme.fg("dim", `(${truncateResumePath(path, pathBudget)})`)}` : "";
+	return alignRow(cursor, base + pathTag, budget.right, options.width);
 }
 
 /** Full-width rule closing a project section header. */
@@ -668,6 +758,7 @@ export class ResumeTreeComponent implements Component {
 		collapsedWorkspaces: new Set(),
 	};
 	#scope: ResumeTreeScope;
+	#fullPaths = false;
 	#view: ResumeTreeView | null = null;
 	#viewQuery = "\0";
 	#viewScope: ResumeTreeScope | null = null;
@@ -711,6 +802,7 @@ export class ResumeTreeComponent implements Component {
 		const restored = options.source.pickerState?.();
 		if (restored) {
 			this.#scope = restored.scope;
+			this.#fullPaths = restored.fullPaths === true;
 			for (const key of restored.collapsedProjects ?? []) this.#state.collapsedProjects.add(key);
 			for (const key of restored.expandedProjects ?? []) this.#state.expandedProjects.add(key);
 			for (const key of restored.collapsedWorkspaces ?? []) this.#state.collapsedWorkspaces.add(key);
@@ -728,6 +820,7 @@ export class ResumeTreeComponent implements Component {
 			collapsedProjects: [...this.#state.collapsedProjects],
 			expandedProjects: [...this.#state.expandedProjects],
 			collapsedWorkspaces: [...this.#state.collapsedWorkspaces],
+			fullPaths: this.#fullPaths,
 		};
 		if (this.#source.persistPickerState) void this.#source.persistPickerState(state);
 		else void this.#source.persistScope?.(this.#scope);
@@ -741,6 +834,30 @@ export class ResumeTreeComponent implements Component {
 
 	get scope(): ResumeTreeScope {
 		return this.#scope;
+	}
+
+	get fullPaths(): boolean {
+		return this.#fullPaths;
+	}
+
+	/**
+	 * Toggle absolute paths. In workspace scope the path is redundant, so the
+	 * key surfaces a one-line hint and leaves the setting untouched; the
+	 * project/all scopes actually flip and persist it.
+	 */
+	toggleFullPaths(): void {
+		if (this.#scope === "workspace") {
+			this.#notice = tuiText(
+				"resumeFullPathsWorkspaceHint",
+				"Full paths matter outside this workspace — press f after Tab",
+			);
+			this.onRequestRender?.();
+			return;
+		}
+		this.#fullPaths = !this.#fullPaths;
+		this.#notice = undefined;
+		this.#persistState();
+		this.onRequestRender?.();
 	}
 
 	/** Adopt a host-refreshed view while keeping selection and collapse state. */
@@ -761,6 +878,7 @@ export class ResumeTreeComponent implements Component {
 	setScope(scope: ResumeTreeScope): void {
 		if (scope === this.#scope) return;
 		this.#scope = scope;
+		this.#notice = undefined;
 		this.invalidate();
 		this.#persistState();
 		this.#rebuild();
@@ -1430,6 +1548,10 @@ export class ResumeTreeComponent implements Component {
 			void this.refresh();
 			return;
 		}
+		if (!this.#searchFocused && keyData === "f") {
+			this.toggleFullPaths();
+			return;
+		}
 		if (!this.#searchFocused && (keyData === "p" || keyData === "P")) {
 			void this.pinSelected(keyData === "P");
 			return;
@@ -1543,6 +1665,10 @@ export class ResumeTreeComponent implements Component {
 			.filter((row): row is ResumeTreeConversationRow => row.type === "conversation");
 		const columns = conversationColumns(conversationRows, now);
 		const bodyStart = lines.length;
+		// Workspace scope shows one workspace, so absolute paths (and even the
+		// path tail) add nothing there; the persisted choice still applies once
+		// the user moves to project/all.
+		const fullPaths = this.#scope !== "workspace" && this.#fullPaths;
 		for (let index = this.#scrollOffset; index < flat.length; index++) {
 			if (lines.length - bodyStart >= height && index !== selectedIndex) break;
 			const row = flat[index]!.row;
@@ -1561,6 +1687,7 @@ export class ResumeTreeComponent implements Component {
 						selected,
 						collapsed: projectCollapsed(row, this.#state) && !searching,
 						now,
+						fullPaths,
 					}),
 				);
 				const ruleIndex = lines.length;
@@ -1576,6 +1703,8 @@ export class ResumeTreeComponent implements Component {
 						collapsed: this.#state.collapsedWorkspaces.has(row.key) && !searching,
 						referenceBranch: view.referenceBranch,
 						current: view.currentWorkspaceKey === row.key,
+						fullPaths,
+						showPath: this.#scope !== "workspace",
 					}),
 				);
 			} else {
@@ -1585,7 +1714,7 @@ export class ResumeTreeComponent implements Component {
 					key: rowIdentity(row),
 					start: Math.max(0, width - 1),
 				});
-				lines.push(renderConversationRow(row, { width, selected, now, columns }));
+				lines.push(renderConversationRow(row, { width, selected, now, columns, fullPaths }));
 			}
 		}
 		if (this.#edit) {

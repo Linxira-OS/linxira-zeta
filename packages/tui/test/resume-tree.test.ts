@@ -1,8 +1,11 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import { plainText } from "../src/native/spans";
+import { visibleWidth } from "../src/utils";
 import {
 	ResumeTreeComponent,
+	absoluteResumePath,
 	flattenResumeRows,
+	formatResumePath,
 	middleEllipsis,
 	renderConversationRow,
 	renderProjectRow,
@@ -12,6 +15,7 @@ import {
 	renderWorkspaceRow,
 	shouldShowBranch,
 	statusColumnWidth,
+	truncateResumePath,
 	type ResumeTreeConversation,
 	type ResumeTreeConversationRow,
 	type ResumeTreeProject,
@@ -269,10 +273,10 @@ describe("resume tree rows", () => {
 			widths.map(width => plainText(renderWorkspaceRow(workspaceRow, { width, selected: false, collapsed: false }))),
 		).toEqual([
 			"  " + "  " + "▾ app [feat/tree]  2 conversations ⋯",
-			"  " + "  " + "▾ app [feat/tree]                                          2 conversations ⋯",
+			"  " + "  " + "▾ app [feat/tree]  packages/app                            2 conversations ⋯",
 			"  " +
 				"  " +
-				"▾ app [feat/tree]                                                                                  2 conversations ⋯",
+				"▾ app [feat/tree]  packages/app                                                                    2 conversations ⋯",
 		]);
 		expect(
 			widths.map(width =>
@@ -309,6 +313,110 @@ describe("resume tree rows", () => {
 		expect(result.startsWith("/home")).toBe(true);
 		expect(result.endsWith("session-selector.ts")).toBe(true);
 		expect(result.length).toBeLessThanOrEqual(40);
+	});
+
+	it("spells full paths with their own platform syntax", () => {
+		expect(absoluteResumePath("D:\\CODE\\proj")).toBe("D:\\CODE\\proj");
+		expect(absoluteResumePath("D:/CODE/proj")).toBe("D:\\CODE\\proj");
+		expect(absoluteResumePath("\\\\server\\share\\proj")).toBe("\\\\server\\share\\proj");
+		expect(absoluteResumePath("//server/share/proj")).toBe("\\\\server\\share\\proj");
+		expect(absoluteResumePath("/home/user/proj")).toBe("/home/user/proj");
+		expect(absoluteResumePath("/mnt/c/CODE/proj")).toBe("/mnt/c/CODE/proj");
+
+		expect(formatResumePath("D:\\CODE\\proj", false)).toBe("CODE\\proj");
+		expect(formatResumePath("\\\\server\\share\\proj", false)).toBe("share\\proj");
+		expect(formatResumePath("/home/user/proj", false)).toBe("user/proj");
+		expect(formatResumePath("/mnt/c/CODE/proj", false)).toBe("CODE/proj");
+	});
+
+	it("truncates full paths from the left at 40, 80 and 120 columns", () => {
+		const windows = "D:\\CODE\\zeta\\packages\\tui\\src\\overlays\\resume-tree.ts";
+		const unc = "\\\\server\\share\\zeta\\packages\\tui\\src\\overlays\\resume-tree.ts";
+		const linux = "/home/user/projects/zeta/packages/tui/src/overlays/resume-tree.ts";
+		for (const path of [windows, unc, linux]) {
+			for (const width of widths) {
+				const rendered = truncateResumePath(path, width);
+				expect(visibleWidth(rendered)).toBeLessThanOrEqual(width);
+				expect(rendered).not.toContain("\n");
+				if (visibleWidth(path) > width) {
+					expect(rendered).toContain("…");
+					expect(rendered.endsWith("resume-tree.ts")).toBe(true);
+				} else {
+					expect(rendered).toBe(path);
+				}
+			}
+		}
+		expect(truncateResumePath(windows, 40).startsWith("D:\\…")).toBe(true);
+		expect(truncateResumePath(unc, 40).startsWith("\\\\server\\share\\…")).toBe(true);
+		expect(truncateResumePath(linux, 40).startsWith("…")).toBe(true);
+	});
+
+	it("applies full paths to project, workspace and cwd labels", () => {
+		const windowsRoot = "D:\\CODE\\zeta";
+		const windowsProject = {
+			...projectRow,
+			key: windowsRoot,
+			project: { ...project, key: windowsRoot, root: windowsRoot, name: "zeta", displayName: "zeta" },
+		};
+		const shortProject = plainText(
+			renderProjectRow(windowsProject, { width: 120, selected: false, collapsed: false, fullPaths: false }),
+		);
+		const fullProject = plainText(
+			renderProjectRow(windowsProject, { width: 120, selected: false, collapsed: false, fullPaths: true }),
+		);
+		expect(shortProject).toContain("(CODE\\zeta)");
+		expect(fullProject).toContain("(D:\\CODE\\zeta)");
+
+		const windowsWorkspace = {
+			...workspaceRow,
+			workspace: { ...workspace, path: "D:\\CODE\\zeta\\packages\\app" },
+		};
+		expect(
+			plainText(renderWorkspaceRow(windowsWorkspace, { width: 120, selected: false, collapsed: false })),
+		).toContain("packages\\app");
+		expect(
+			plainText(
+				renderWorkspaceRow(windowsWorkspace, { width: 120, selected: false, collapsed: false, fullPaths: true }),
+			),
+		).toContain("D:\\CODE\\zeta\\packages\\app");
+
+		const cwdRow = conversationRow("windows", "Windows run", {
+			conversation: { ...conversation("windows", "Windows run"), cwd: "D:\\CODE\\proj" },
+		});
+		expect(plainText(renderConversationRow(cwdRow, { width: 120, selected: false, fullPaths: true }))).toContain(
+			"D:\\CODE\\proj",
+		);
+		expect(plainText(renderConversationRow(cwdRow, { width: 120, selected: false, fullPaths: false }))).not.toContain(
+			"D:\\CODE\\proj",
+		);
+
+		for (const root of [windowsRoot, "\\\\server\\share\\zeta", "/home/user/zeta"]) {
+			const row = {
+				...projectRow,
+				key: root,
+				project: { ...project, key: root, root, name: "zeta", displayName: "zeta" },
+			};
+			for (const width of widths) {
+				const line = plainText(
+					renderProjectRow(row, { width, selected: false, collapsed: false, fullPaths: true }),
+				);
+				expect(line).not.toContain("\n");
+				expect(visibleWidth(line)).toBeLessThanOrEqual(width);
+			}
+		}
+		for (const width of widths) {
+			const lines = [
+				plainText(renderProjectRow(windowsProject, { width, selected: false, collapsed: false, fullPaths: true })),
+				plainText(
+					renderWorkspaceRow(windowsWorkspace, { width, selected: false, collapsed: false, fullPaths: true }),
+				),
+				plainText(renderConversationRow(cwdRow, { width, selected: false, fullPaths: true })),
+			];
+			for (const line of lines) {
+				expect(line).not.toContain("\n");
+				expect(visibleWidth(line)).toBeLessThanOrEqual(width);
+			}
+		}
 	});
 
 	it("shows a branch only when it differs from the current workspace", () => {
@@ -404,6 +512,43 @@ describe("resume tree component", () => {
 		component.handleInput("\x1b[Z");
 		expect(component.scope).toBe("all");
 		expect(source.persistedStates.map(state => state.scope)).toEqual(["project", "all", "workspace", "all"]);
+	});
+
+	it("toggles full paths in project and all scopes and persists the choice", () => {
+		for (const initialScope of ["project", "all"] as const) {
+			const { component, source } = make(view(rows), { initialScope, searchFocused: false });
+			expect(component.fullPaths).toBe(false);
+			expect(plainText(component.render(80).join("\n"))).toContain("(work/repo)");
+			component.handleInput("f");
+			expect(component.fullPaths).toBe(true);
+			expect(plainText(component.render(80).join("\n"))).toContain("(/work/repo)");
+			expect(source.persistedStates.at(-1)?.fullPaths).toBe(true);
+			component.handleInput("f");
+			expect(component.fullPaths).toBe(false);
+			expect(source.persistedStates.at(-1)?.fullPaths).toBe(false);
+		}
+	});
+
+	it("does not toggle full paths in workspace scope and explains why", () => {
+		const { component, source } = make(view(rows), { initialScope: "workspace", searchFocused: false });
+		component.handleInput("f");
+		expect(component.fullPaths).toBe(false);
+		expect(source.persistedStates).toEqual([]);
+		expect(plainText(component.render(80).join("\n"))).toContain("Full paths matter outside this workspace");
+		component.handleInput("\t"); // project scope
+		component.handleInput("f");
+		expect(component.fullPaths).toBe(true);
+		expect(source.persistedStates.at(-1)?.fullPaths).toBe(true);
+	});
+
+	it("restores fullPaths from the picker state", () => {
+		const { component } = make(view(rows), {
+			initialScope: "project",
+			pickerState: { scope: "project", fullPaths: true },
+			searchFocused: false,
+		});
+		expect(component.fullPaths).toBe(true);
+		expect(plainText(component.render(80).join("\n"))).toContain("(/work/repo)");
 	});
 
 	it("keeps the search hint on one line", () => {
@@ -709,9 +854,18 @@ describe("resume tree component", () => {
 			const rendered = selector.render(width).map(plainText);
 			const footer = rendered.find(line => line.includes("click select"));
 			expect(footer).toBeDefined();
-			expect(footer!).toContain("wheel scroll");
+			expect(footer!).toContain("wheel");
 			expect(footer!.length).toBeLessThanOrEqual(width);
 			expect(footer!.indexOf("enter resume")).toBeLessThan(footer!.indexOf("click select"));
+			expect(footer!).not.toContain("full paths");
+		}
+		selector.handleInput("\t");
+		for (const width of [80, 120]) {
+			const projectFooter = selector
+				.render(width)
+				.map(plainText)
+				.find(line => line.includes("click select"));
+			expect(projectFooter).toContain("f full paths");
 		}
 		selector.dispose();
 	});

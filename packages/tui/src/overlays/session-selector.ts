@@ -1896,6 +1896,9 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 			? composeFooter(
 					width,
 					[
+						...(this.#resumeTree.scope === "workspace"
+							? []
+							: [`f ${tuiText("resumeFooterPaths", "full paths")}`]),
 						`${formatKeyHint("enter")} resume`,
 						`${formatKeyHints(["delete", "backspace"])} delete`,
 						`${formatKeyHint("tab")} ${tuiText("resumeFooterScope", "scope")}`,
@@ -1907,8 +1910,8 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 					],
 					[
 						tuiText("resumeFooterClick", "click select"),
-						tuiText("resumeFooterDoubleClick", "double-click resume"),
-						tuiText("resumeFooterWheel", "wheel scroll"),
+						tuiText("resumeFooterDoubleClick", "dbl-click resume"),
+						tuiText("resumeFooterWheel", "wheel"),
 						`⋯ ${tuiText("resumeFooterMenu", "menu")}`,
 					],
 				)

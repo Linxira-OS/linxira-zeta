@@ -641,9 +641,11 @@ export interface Messages {
 	resumeFooterPin: string; // pin
 	resumeFooterClose: string; // clear/close
 	resumeFooterClick: string; // click select
-	resumeFooterDoubleClick: string; // double-click resume
-	resumeFooterWheel: string; // wheel scroll
+	resumeFooterDoubleClick: string; // dbl-click resume
+	resumeFooterWheel: string; // wheel
 	resumeFooterMenu: string; // menu
+	resumeFooterPaths: string; // full paths
+	resumeFullPathsWorkspaceHint: string; // Full paths matter outside this workspace
 	resumeMenuRename: string; // rename
 	resumeMenuCollapse: string; // collapse
 	resumeMenuExpand: string; // expand
