@@ -364,8 +364,16 @@ impl ServiceTerminal {
 		self.screen.cell_px = (width_px, height_px);
 	}
 
+	/// Turn payload decoding on or off (`terminal.imageMode`).
+	pub fn set_images_enabled(&mut self, enabled: bool) {
+		self.screen.decode_images = enabled;
+	}
+
 	/// The Kitty placements the remote child transmitted, with their pixels.
 	pub fn graphics(&self) -> Vec<(kitty::Placement, std::sync::Arc<kitty::Image>)> {
+		if !self.screen.decode_images {
+			return Vec::new();
+		}
 		self.screen.graphics.placements()
 	}
 }
@@ -496,6 +504,9 @@ pub struct TerminalHost {
 	/// knows the size before the remote child asks (see
 	/// [`Self::set_cell_pixels`]).
 	cell_px: (u16, u16),
+	/// True while `terminal.imageMode` is `off`. Remembered for panes that
+	/// attach after the choice was made, like the cell size.
+	images_off: bool,
 }
 
 struct Pane {
@@ -562,6 +573,15 @@ impl TerminalHost {
 			},
 		};
 		self.panes.insert(tab.to_owned(), pane);
+		if self.images_off {
+			if let Some(service) = self
+				.panes
+				.get_mut(tab)
+				.and_then(|pane| pane.service.as_mut())
+			{
+				service.set_images_enabled(false);
+			}
+		}
 	}
 
 	/// The pane's status line: which backend, in **one short sentence**.
@@ -621,6 +641,17 @@ impl TerminalHost {
 			.and_then(|pane| pane.service.as_mut())
 		{
 			service.set_cell_pixels(width_px, height_px);
+		}
+	}
+
+	/// Turn Kitty payload decoding on or off for every pane, now and for
+	/// panes that attach later (`terminal.imageMode` = off).
+	pub fn set_images_enabled(&mut self, enabled: bool) {
+		self.images_off = !enabled;
+		for pane in self.panes.values_mut() {
+			if let Some(service) = pane.service.as_mut() {
+				service.set_images_enabled(enabled);
+			}
 		}
 	}
 
@@ -735,6 +766,10 @@ struct Screen {
 	/// they are cut out of the VT stream before it reaches the grid.
 	graphics: kitty::Graphics,
 	apc: ApcScanner,
+	/// False while 设置 → 全部设置's `terminal.imageMode` is `off`: the APC is
+	/// still stripped from the grid, but its payload is not decoded into an
+	/// image (no allocation, no RGBA store, no texture in the pane).
+	decode_images: bool,
 	/// The pane's cell in device pixels, reported by the painter.
 	cell_px: (u16, u16),
 	/// Query replies (`CSI 16 t` and friends) produced while parsing output,
@@ -759,6 +794,7 @@ impl Screen {
 			utf8: Vec::new(),
 			graphics: kitty::Graphics::new(),
 			apc: ApcScanner::new(),
+			decode_images: true,
 			cell_px: (0, 0),
 			replies: Vec::new(),
 		}
@@ -808,11 +844,15 @@ impl Screen {
 				// it, so it is already in ground state.
 				Step::Hold | Step::Start | Step::Swallowed => {},
 				Step::Payload => {
-					let cursor = (self.cursor_y, self.cursor_x);
-					self.graphics.apc(self.apc.payload(), cursor);
+					if self.decode_images {
+						let cursor = (self.cursor_y, self.cursor_x);
+						self.graphics.apc(self.apc.payload(), cursor);
+					}
 				},
 				Step::TooLarge => {
-					self.graphics.oversized(self.apc.head());
+					if self.decode_images {
+						self.graphics.oversized(self.apc.head());
+					}
 				},
 			}
 		}
@@ -1213,6 +1253,20 @@ mod tests {
 		assert_eq!(ws_path("term-1", None), "/api/terminal/term-1/ws");
 		assert_eq!(ws_path("term-1", Some("")), "/api/terminal/term-1/ws");
 		assert_eq!(ws_path("term-1", Some("abc")), "/api/terminal/term-1/ws?ticket=abc");
+	}
+
+	#[test]
+	fn image_mode_off_stops_decoding_and_still_strips_the_apc() {
+		let mut screen = Screen::new(10, 2);
+		let apc = "\x1b_Ga=T,f=24,s=1,v=1,i=9,q=2;AAAA\x1b\\";
+		screen.decode_images = false;
+		screen.feed(format!("a{apc}b").as_bytes());
+		assert_eq!(screen.line(0), "ab", "the APC is still cut out of the grid");
+		assert!(screen.graphics.placements().is_empty(), "an off mode allocates no image");
+
+		screen.decode_images = true;
+		screen.feed(apc.as_bytes());
+		assert_eq!(screen.graphics.placements().len(), 1, "the same payload decodes when on");
 	}
 
 	#[test]

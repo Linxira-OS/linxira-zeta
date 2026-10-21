@@ -511,12 +511,25 @@ fn the_right_column_has_seven_tabs_and_ten_settings_sections() {
 	// the one section the design drafts do not have, and the six they fix
 	// keep their own order behind it. 项目 is the registry page the 管理 card
 	// opens; IM 渠道 is the fourth remote target (the web desktop's channel
-	// surface, transplanted into the GUI), and 全部设置 is the complete
+	// surface, transplanted into the GUI), 远程访问 is the gateway's own
+	// remote bind/TLS/token/pairing pane, and 全部设置 is the complete
 	// schema-driven surface in front of them.
-	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 10);
+	assert_eq!(zetawork_gui::settings::Section::ALL.len(), 11);
 	assert_eq!(
 		zetawork_gui::settings::Section::ALL.map(|section| section.label()),
-		["全部设置", "常规", "外观", "编辑器", "终端", "IM 渠道", "快捷键", "项目", "管理", "关于"]
+		[
+			"全部设置",
+			"常规",
+			"外观",
+			"编辑器",
+			"终端",
+			"IM 渠道",
+			"远程访问",
+			"快捷键",
+			"项目",
+			"管理",
+			"关于",
+		]
 	);
 	// 全部设置 is the complete schema; the eight hand-built sections behind it
 	// only carry what is GUI-native and what is not a schema key.

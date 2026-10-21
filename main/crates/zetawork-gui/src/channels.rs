@@ -155,7 +155,7 @@ pub enum SecretState {
 }
 
 impl SecretState {
-	fn parse(value: Option<&Value>) -> Self {
+	pub fn parse(value: Option<&Value>) -> Self {
 		match value.and_then(Value::as_str) {
 			Some(text) if !text.trim().is_empty() => Self::Stored,
 			_ => Self::Unset,

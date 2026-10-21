@@ -648,6 +648,8 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	// (`CSI 16 t`), and the image painter lays placements out with the same
 	// number, so a client's raster lands 1:1.
 	let cell_px = sync_cell_pixels(ui, shell, tab.id.as_str(), &metrics);
+	let image_mode = terminal_image_mode(shell);
+	shell.terminals.set_images_enabled(image_mode.decodes());
 	let columns = metrics.cols.max(1);
 	// A serve-backed PTY replaces the in-process one when the gateway is
 	// reachable; otherwise the in-process PTY below does. `ensure` picks once
@@ -695,6 +697,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 				rows,
 				buf: &grid_buf,
 				images: &images,
+				images_enabled: image_mode.paints(),
 				cell_px,
 			},
 		);
@@ -716,6 +719,7 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 					rows,
 					buf: &grid_buf,
 					images: &images,
+					images_enabled: image_mode.paints(),
 					cell_px,
 				},
 			);
@@ -759,13 +763,16 @@ struct TerminalFrame<'a> {
 		termide_panel_terminal::kitty::Placement,
 		std::sync::Arc<termide_panel_terminal::kitty::Image>,
 	)],
+	/// False while `terminal.imageMode` is `off`: the grid paints, the images
+	/// do not (and the serve backend has not decoded them either).
+	images_enabled: bool,
 	cell_px: (u16, u16),
 }
 
 /// Paint one rendered terminal grid into the pane and return nothing: the
 /// caller has already reserved the area.
 fn paint_terminal_grid(ui: &mut Ui, shell: &mut Shell, frame: TerminalFrame<'_>) {
-	let TerminalFrame { pane, metrics, columns, rows, buf, images, cell_px } = frame;
+	let TerminalFrame { pane, metrics, columns, rows, buf, images, images_enabled, cell_px } = frame;
 	let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
 	let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
 	let grid = GridMetrics {
@@ -783,9 +790,25 @@ fn paint_terminal_grid(ui: &mut Ui, shell: &mut Shell, frame: TerminalFrame<'_>)
 	// plain placements (z=0, every one this client sends) are above the text by
 	// definition, and the rows they cover hold the spaces the client reserved.
 	let pass = crate::blit::ImagePass { grid: &grid, cell_px, pixels_per_point: scale };
-	paint_images(painter, &mut shell.images, pane, images, pass, true);
+	if images_enabled {
+		paint_images(painter, &mut shell.images, pane, images, pass, true);
+	} else {
+		// An off mode must not keep last frame's uploads alive.
+		shell.images.drop_pane(pane);
+	}
 	paint_buffer_with(painter, buf, &grid, theme::TERM_TEXT);
-	paint_images(painter, &mut shell.images, pane, images, pass, false);
+	if images_enabled {
+		paint_images(painter, &mut shell.images, pane, images, pass, false);
+	}
+}
+
+/// The pane's image mode, from 全部设置's `terminal.imageMode` row.
+///
+/// The catalog is fetched when 全部设置 is opened; until then the documented
+/// default (`auto`) applies rather than inventing an unread setting. An
+/// unreachable gateway therefore never changes what the pane draws.
+fn terminal_image_mode(shell: &Shell) -> crate::blit::ImageMode {
+	crate::blit::ImageMode::from_catalog(shell.schema.catalog())
 }
 
 /// Measure the pane's cell in device pixels and hand it to both backends.
@@ -1265,6 +1288,8 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	};
 	let metrics = GridMetrics::for_panel(ui.ctx(), rect, f32::from(shell.settings.terminal_size));
 	let cell_px = sync_cell_pixels(ui, shell, tab.id.as_str(), &metrics);
+	let image_mode = terminal_image_mode(shell);
+	shell.terminals.set_images_enabled(image_mode.decodes());
 	let columns = metrics.cols.max(1);
 	let rows = metrics.rows.max(1);
 	let cwd = shell
@@ -1314,6 +1339,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 				rows,
 				buf: &grid_buf,
 				images: &images,
+				images_enabled: image_mode.paints(),
 				cell_px,
 			},
 		);
@@ -1331,6 +1357,7 @@ fn zetacode_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 				rows,
 				buf: &grid_buf,
 				images: &images,
+				images_enabled: image_mode.paints(),
 				cell_px,
 			},
 		);

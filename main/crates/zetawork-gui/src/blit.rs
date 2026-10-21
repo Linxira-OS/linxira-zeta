@@ -315,6 +315,77 @@ pub fn cell_device_px(metrics: &GridMetrics, pixels_per_point: f32) -> (u16, u16
 	(round(metrics.cell_w).max(1), round(metrics.cell_h).max(1))
 }
 
+/// Whether a terminal pane decodes and paints Kitty images.
+///
+/// The value is the zetacode setting `terminal.imageMode`, read through the
+/// same `GET /api/settings` catalog 全部设置 edits; the pane is a zetacode
+/// surface, so the schema in 全部设置 is the only place the choice lives (no
+/// second copy in `zetawork.toml` that could disagree with it).
+///
+/// * [`Self::Auto`] — the pane renders images itself (there is no outer
+///   emulator whose capability could be detected), so auto resolves to
+///   enabled. The value exists as a distinct state so a future capability
+///   probe has a place to say "no" without taking the choice away from users.
+/// * [`Self::On`] — decode and paint, pinning the choice even if a probe is
+///   ever added.
+/// * [`Self::Off`] — stop decoding APC payloads (the `ESC _` sequence is still
+///   stripped from the grid) and stop painting placements.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ImageMode {
+	#[default]
+	Auto,
+	On,
+	Off,
+}
+
+/// The schema path, and the file the gateway writes it to.
+pub const IMAGE_MODE_PATH: &str = "terminal.imageMode";
+
+impl ImageMode {
+	/// Parse the schema value; anything unknown (including a missing row or an
+	/// unreachable gateway) falls back to [`Self::Auto`].
+	pub fn from_key(key: &str) -> Self {
+		match key.trim().to_ascii_lowercase().as_str() {
+			"on" | "true" | "always" => Self::On,
+			"off" | "false" | "never" => Self::Off,
+			_ => Self::Auto,
+		}
+	}
+
+	pub fn key(self) -> &'static str {
+		match self {
+			Self::Auto => "auto",
+			Self::On => "on",
+			Self::Off => "off",
+		}
+	}
+
+	/// The catalog's current value, or [`Self::Auto`] when the catalog is not
+	/// loaded or the row is absent.
+	pub fn from_catalog(catalog: Option<&crate::settings_schema::Catalog>) -> Self {
+		catalog
+			.and_then(|catalog| {
+				catalog
+					.entries
+					.iter()
+					.find(|entry| entry.path == IMAGE_MODE_PATH)
+					.and_then(|entry| entry.value.as_str())
+			})
+			.map(Self::from_key)
+			.unwrap_or_default()
+	}
+
+	/// Should the pane spend work decoding image payloads?
+	pub fn decodes(self) -> bool {
+		self != Self::Off
+	}
+
+	/// Should the pane paint the placements it holds?
+	pub fn paints(self) -> bool {
+		self != Self::Off
+	}
+}
+
 /// GPU textures for the Kitty images a pane is showing, keyed by pane and id.
 ///
 /// An image is uploaded once per revision (the emulator bumps it on every
@@ -358,6 +429,11 @@ impl ImageTextures {
 		self
 			.entries
 			.retain(|(key_pane, id), _| key_pane != pane || alive.contains(id));
+	}
+
+	/// Drop every texture a pane owns (the pane's images were turned off).
+	pub fn drop_pane(&mut self, pane: &str) {
+		self.entries.retain(|(key_pane, _), _| key_pane != pane);
 	}
 }
 
@@ -715,6 +791,28 @@ mod tests {
 		// A delete frees the placement, so the next frame paints nothing there.
 		stream.feed(b"\x1b_Ga=d,d=I,i=7,q=2\x1b\\");
 		assert!(screen.read().unwrap().graphics.placements().is_empty());
+	}
+
+	#[test]
+	fn image_mode_reads_the_schema_and_defaults_to_auto() {
+		assert_eq!(ImageMode::from_key("on"), ImageMode::On);
+		assert_eq!(ImageMode::from_key(" OFF "), ImageMode::Off);
+		assert_eq!(ImageMode::from_key("auto"), ImageMode::Auto);
+		assert_eq!(ImageMode::from_key("garbage"), ImageMode::Auto);
+		assert_eq!(ImageMode::default(), ImageMode::Auto);
+		assert!(ImageMode::Auto.decodes() && ImageMode::Auto.paints());
+		assert!(ImageMode::On.decodes() && ImageMode::On.paints(), "force on is explicit");
+		assert!(!ImageMode::Off.decodes() && !ImageMode::Off.paints(), "off stops decode and paint");
+
+		let catalog = crate::settings_schema::parse_catalog(
+			r#"{"tabs":[{"id":"appearance","label":"Appearance"}],"groups":{},
+			    "settings":[{"path":"terminal.imageMode","type":"enum","label":"Terminal Image Mode",
+			                 "description":"","tab":"appearance","value":"off","default":"auto",
+			                 "values":["auto","on","off"]}]}"#,
+		)
+		.expect("fixture parses");
+		assert_eq!(ImageMode::from_catalog(Some(&catalog)), ImageMode::Off);
+		assert_eq!(ImageMode::from_catalog(None), ImageMode::Auto);
 	}
 
 	#[test]

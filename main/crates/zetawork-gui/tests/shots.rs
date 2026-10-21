@@ -646,6 +646,60 @@ fn im_channels_settings_screenshot() {
 	write("16-im-channels.png", &bytes);
 }
 
+/// `18-remote-access.png` — 设置 → 远程访问: the bind host + public URL, the
+/// TLS switch and its two PEM paths, the plain-HTTP opt-in, the token state
+/// (never the token) and the pairing QR encoded locally from the payload.
+///
+/// The view is a fixture, not a live gateway: the shot must not need
+/// `zetacode serve`. It is the exact shape `GET /api/web-config` +
+/// `GET /api/remote/pairing` produce, with the token already masked.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn remote_access_settings_screenshot() {
+	let config = r#"{
+		"remote":{
+			"host":"0.0.0.0",
+			"publicUrl":"https://zeta.example",
+			"token":"••••",
+			"tokenUpdatedAt":"2026-10-01T00:00:00.000Z",
+			"allowPlainHttp":false,
+			"tls":{"enabled":true,"cert":"C:/certs/cert.pem","key":"C:/certs/key.pem"}
+		}
+	}"#;
+	let pairing = r#"{
+		"url":"https://zeta.example",
+		"token":"·",
+		"payload":"zeta://pair?u=https%3A%2F%2Fzeta.example&t=fixture",
+		"svg":"<svg/>"
+	}"#;
+	let view = zetawork_gui::remote_access::RemoteView::decode(config)
+		.expect("the fixture is the gateway's shape")
+		.with_pairing(pairing);
+	let mut shell = ready_shell();
+	shell.state.open_settings();
+	shell.state.settings_section = zetawork_gui::settings::Section::Remote;
+	shell.remote_access.show_fixture(view);
+	let bytes = shoot(&mut shell, 4);
+	assert!(bytes.len() > 4096);
+	assert!(
+		shell.remote_access.qr_error().is_none(),
+		"QR generation failed: {:?}",
+		shell.remote_access.qr_error()
+	);
+	assert_eq!(
+		shell.remote_access.qr_source(),
+		Some(zetawork_gui::channels::QrSource::Encoded),
+		"the pairing payload must render through the local encoder"
+	);
+	// The pane never renders the token, configured or rotated.
+	let view = shell
+		.remote_access
+		.view()
+		.expect("the fixture view is kept");
+	assert_eq!(view.token, zetawork_gui::remote_access::SecretState::Stored);
+	write("18-remote-access.png", &bytes);
+}
+
 /// `16-pdf-viewer.png` — the PDF page over the committed fixture: page one of
 /// the two-page A4 sheet, rasterized by hayro and painted as an egui texture.
 ///
@@ -720,8 +774,8 @@ fn settings_all_schema_screenshots() {
 			let catalog = shell.schema.catalog().expect("the fixture parses");
 			assert_eq!(catalog.tabs.len(), 10, "the schema has ten tabs");
 			assert!(
-				catalog.tabs.len() > zetawork_gui::settings::Section::ALL.len() - 1,
-				"the schema surface is wider than the eight hand-built sections"
+				catalog.tabs.len() >= zetawork_gui::settings::Section::ALL.len() - 1,
+				"the schema surface is at least as wide as the hand-built sections"
 			);
 			assert!(catalog.entries.len() > 300, "the real catalog is not a toy fixture");
 		}

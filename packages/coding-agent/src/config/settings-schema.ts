@@ -898,6 +898,24 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	// The desktop shell's terminal pane decodes Kitty graphics itself, so its
+	// own capability probe cannot say "unsupported"; this tri-state is what a
+	// user who wants them off (bandwidth, a slow remote link, a screenshot)
+	// can rely on. `auto` currently resolves to on for the desktop pane, which
+	// renders images itself; `on`/`off` pin the choice.
+	"terminal.imageMode": {
+		type: "enum",
+		values: ["auto", "on", "off"] as const,
+		default: "auto",
+		ui: {
+			tab: "appearance",
+			group: "Images",
+			label: "Terminal Image Mode",
+			description:
+				"Whether a zetawork terminal pane decodes and paints Kitty image placements (auto: detect; on: always; off: never, and the APC is stripped without decoding)",
+		},
+	},
+
 	"images.autoResize": {
 		type: "boolean",
 		default: true,
