@@ -77,6 +77,8 @@ export class BackendAttachLink {
 	#wire: AttachWire | undefined;
 	/** Mirrors the replica's own model/thinking switches to the backend. */
 	#unsubscribeLocal: (() => void) | undefined;
+	/** Last mode enablement mirrored from the replica (null before the first read). */
+	#lastModes: Record<"plan" | "goal" | "vibe", boolean | null> = { plan: null, goal: null, vibe: null };
 	replicaPath: string | undefined;
 
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
@@ -148,8 +150,24 @@ export class BackendAttachLink {
 		// The replica is a real session: `/model` and `/thinking` switch it. When
 		// a control plane is attached, the backend owns the turn, so the same
 		// switches must reach it; otherwise the UI and the run disagree.
+		for (const mode of ["plan", "goal", "vibe"] as const) {
+			this.#lastModes[mode] = Boolean(this.#ctx.session.getModeState(mode)?.enabled);
+		}
 		this.#unsubscribeLocal = this.#ctx.session.subscribe(event => {
 			if (!this.#wire) return;
+			if (event.type === "state_version_changed") {
+				// Plan/goal/vibe live on the replica until the run does; every
+				// transition emits this event, so diffing is lossless.
+				for (const mode of ["plan", "goal", "vibe"] as const) {
+					const enabled = Boolean(this.#ctx.session.getModeState(mode)?.enabled);
+					if (this.#lastModes[mode] === enabled) continue;
+					this.#lastModes[mode] = enabled;
+					const wire = this.#wire;
+					void (enabled ? wire.enterMode(mode) : wire.exitMode(mode)).catch(error =>
+						this.#ctx.showWarning(`Backend ${mode} mode switch failed: ${String(error)}`),
+					);
+				}
+			}
 			if (event.type === "model_changed") {
 				const model = this.#ctx.session.model;
 				if (!model) return;

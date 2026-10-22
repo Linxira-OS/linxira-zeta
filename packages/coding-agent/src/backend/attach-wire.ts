@@ -82,6 +82,14 @@ export class AttachWire {
 		return this.#client.call("set_thinking_level", { level }).then(() => undefined);
 	}
 
+	enterMode(mode: "plan" | "goal" | "vibe"): Promise<void> {
+		return this.#client.call("mode_enter", { mode }).then(() => undefined);
+	}
+
+	exitMode(mode: "plan" | "goal" | "vibe"): Promise<void> {
+		return this.#client.call("mode_exit", { mode }).then(() => undefined);
+	}
+
 	/** Answer a dialog fanned out by the backend. */
 	respond(id: string, body: Record<string, unknown>): void {
 		this.#client.notify({ type: "extension_ui_response", id, ...body });

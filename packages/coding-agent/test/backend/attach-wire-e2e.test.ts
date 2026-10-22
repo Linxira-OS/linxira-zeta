@@ -180,6 +180,17 @@ describe("attached TUI over the wire protocol", () => {
 		}
 		expect(backendSession.thinkingLevel).toBe(mode.session.thinkingLevel);
 
+		// Mode switches are state on the replica too; the backend must enter and
+		// leave the same mode or the next turn runs under different rules.
+		await mode.session.enterPlanMode();
+		const planDeadline = Date.now() + 2_000;
+		while (!backendSession.getPlanModeState()?.enabled && Date.now() < planDeadline) await term.waitForRender();
+		expect(backendSession.getPlanModeState()?.enabled).toBe(true);
+		await mode.session.exitPlanMode();
+		const exitDeadline = Date.now() + 2_000;
+		while (backendSession.getPlanModeState()?.enabled && Date.now() < exitDeadline) await term.waitForRender();
+		expect(backendSession.getPlanModeState()?.enabled).toBeUndefined();
+
 		// Backend dialog → TUI selector → answer over the socket settles it.
 		const answered = Promise.withResolvers<Record<string, unknown>>();
 		wrapper.registerUiRequest("tui-dialog", answered.resolve, () => answered.resolve({ cancelled: true }));
