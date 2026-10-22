@@ -609,6 +609,14 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
 
 ## Deferred Queue(未开发的后期规划;开发启动时移入执行计划)
 
+- **Attach 会话生命周期命令仍在 replica 上执行（2026-10-22 登记）**：附着 TUI 的控制面
+  已走 RPC WebSocket（prompt/steer/follow-up/abort、对话框、plan_approve、模型/思考/
+  plan-goal-vibe 镜像），但 `/new`、`/resume`、`/tree`、`/compact`、`/reload` 仍作用于
+  本地 replica。协议侧命令已存在（`new_session`、`open_session`、`switch_session`、
+  `get_entries`、`get_tree`、`compact`、`reload`），缺的是 TUI 选择器/确认流程与
+  `compact` 模式（soft/remote/snapcompact）到协议参数的映射，以及切换后 replica 重建。
+  未做前 `docs/cli-reference.md` 明确标注这些命令须在宿主进程执行。
+
 - **本轮审计遗留（2026-10-20，均已定位、均未做）**：
   - **WeChat 登录状态机有四处实现**：`packages/coding-agent/src/channels/wechat-login.ts`（CLI）、
     `main/crates/zetawork-gui/src/channels.rs`（GUI 轮询）、`src/server/web-gateway/` 的渠道
