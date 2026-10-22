@@ -12,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
 import { RpcSocketClient } from "../../src/backend/rpc-socket";
 import { startWebGateway, type WebGatewayInstance } from "../../src/server/web-gateway";
@@ -92,6 +93,32 @@ describe("rpc over websocket", () => {
 			expect(await answered.promise).toEqual({ confirmed: true });
 			const request = seen.find(frame => frame.type === "extension_ui_request");
 			expect(request?.title).toBe("proceed?");
+		} finally {
+			client.close();
+		}
+	}, 30_000);
+
+	test("state-changing commands land in the live session, not a copy", async () => {
+		const client = await RpcSocketClient.connect({ url: socketUrl() });
+		try {
+			const before = await client.call<{ active: string[] }>("get_tools");
+			await client.call("set_thinking_level", { level: ThinkingLevel.Low });
+			expect(wrapper.getSession().thinkingLevel).toBe(ThinkingLevel.Low);
+			const state = await client.call<{ thinkingLevel?: ThinkingLevel }>("get_state");
+			expect(state.thinkingLevel).toBe(ThinkingLevel.Low);
+
+			expect(wrapper.getSession().getPlanModeState()?.enabled).toBeUndefined();
+			await client.call("mode_enter", { mode: "plan" });
+			expect(wrapper.getSession().getPlanModeState()?.enabled).toBe(true);
+			await client.call("mode_exit", { mode: "plan" });
+			expect(wrapper.getSession().getPlanModeState()?.enabled).toBeUndefined();
+
+			await client.call("set_tools", { toolNames: [] });
+			const cleared = await client.call<{ active: string[] }>("get_tools");
+			expect(cleared.active).toEqual([]);
+			await client.call("set_tools", { toolNames: before.active });
+			const restored = await client.call<{ active: string[] }>("get_tools");
+			expect(restored.active).toEqual(before.active);
 		} finally {
 			client.close();
 		}
