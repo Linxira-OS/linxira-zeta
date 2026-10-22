@@ -32,6 +32,22 @@ for event in events.try_iter() {
 }
 ```
 
+## Attaching to a running backend
+
+`Client::from_io(reader, writer, options)` takes any `Read + Send` / `Write + Send`
+pair, which is how a client attaches to a session owned by `zetacode serve` over
+`ws://127.0.0.1:30142/api/rpc/ws?sessionId=<id>` (see `docs/rpc.md`): the
+WebSocket library of your choice turns messages into lines for the reader and
+sends writer output as one message per line.
+
+```rust
+let (client, events) = Client::from_io(ws_reader, ws_writer, ClientOptions::default())?;
+let state = client.call(&GetStateCommand {})?;
+```
+
+The backend owns the session: dropping the client closes the streams and never
+ends it. Every command, event, host tool and URI works as over stdio.
+
 ## Protocol v2
 
 The ready frame may advertise protocol v2 with the standard limits: 1 MiB frames and 64 MiB after reassembly. In that case the client sends `negotiate_protocol` before `spawn`/`from_io` returns, and `protocol_version()` reports the version in use.

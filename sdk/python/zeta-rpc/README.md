@@ -133,6 +133,25 @@ with RpcClient(
     print(client.get_state().session_id)
 ```
 
+## Attaching to a Running Backend
+
+`RpcClient.attach(read, write)` speaks the same protocol over any newline-delimited
+text-stream pair instead of spawning a process. That is how a client reaches a
+session owned by `zetacode serve` over
+`ws://127.0.0.1:30142/api/rpc/ws?sessionId=<id>` (see `docs/rpc.md`): the
+WebSocket library of your choice feeds one message per line into `read` and
+sends whatever `write` receives.
+
+```python
+client = RpcClient().attach(reader, writer)   # reader: lines in, writer: text + flush()
+state = client.get_state()                    # same generated methods as the process client
+client.stop()                                 # closes the pair; the backend session keeps running
+```
+
+Dialogs (`extension_ui_request` frames) arrive through the normal listeners and
+are answered with `client.respond_extension_ui(...)`. The backend owns the
+session: closing the streams detaches, it never ends the session.
+
 ## Prompt Results
 
 Every accepted `prompt` / `abort_and_prompt` ends with exactly one

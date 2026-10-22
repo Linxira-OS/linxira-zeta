@@ -159,6 +159,25 @@ cursors stay consistent, and falls back to the monolithic `get_messages` when th
 mid-way (`session_busy`, `stale_cursor`); under v1 it sends `get_messages`.
 `Commands.GetMessages` is always the monolithic command.
 
+## Attaching to a running backend
+
+`zetarpc.NewClient(ctx, r, w, options...)` takes any `io.Reader` and
+`io.WriteCloser`, so the same client reaches a session owned by `zetacode serve`
+over `ws://127.0.0.1:30142/api/rpc/ws?sessionId=<id>` (see `docs/rpc.md`): the
+WebSocket library of your choice exposes its messages as lines to `r` and sends
+what is written to `w`.
+
+```go
+client, err := zetarpc.NewClient(ctx, wsReader, wsWriter)
+if err != nil {
+	return err
+}
+defer client.Close() // closes the streams; the backend session keeps running
+```
+
+Command methods, frames, host tools and URIs behave exactly as with `Start`; no
+process is spawned and `Close` never signals one.
+
 ## Tests
 
 ```sh

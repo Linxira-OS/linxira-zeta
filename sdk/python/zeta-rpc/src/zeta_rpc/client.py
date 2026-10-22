@@ -11,7 +11,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generic, Mapping, Sequence, TypeVar, cast
+from typing import Any, Callable, Generic, Mapping, Sequence, TextIO, TypeVar, cast
 
 from ._wire import (
     _TODO_STATUS_VALUES,
@@ -515,6 +515,12 @@ class RpcClient(WireClient):
         )
 
         self._process: subprocess.Popen[str] | None = None
+        # Transport ends: the child's pipes, or the streams handed to `attach()`
+        # (a WebSocket-to-JSONL bridge, a socketpair, a test double).
+        self._stdin: TextIO | None = None
+        self._stdout: TextIO | None = None
+        self._started = False
+        self._stream_mode = False
         self._pgid: int | None = None
         # Children that outlived teardown (SIGKILL still pending against an
         # uninterruptible-sleep process), with their pgids. Every one is kept —
@@ -596,28 +602,10 @@ class RpcClient(WireClient):
             return self._listener_errors.snapshot()
 
     def start(self) -> RpcClient:
-        if self._process is not None:
+        if self._started:
             raise RpcError("RPC client is already started")
 
-        self._ready.clear()
-        self._stopping = False
-        self._closed_error = None
-        self._ready_received = False
-        self._ready_event = None
-        self._protocol_version = 1
-        self._protocol_v2_enabled = False
-        self._frame_decoder = _RpcFrameDecoder()
-        self._events.clear()
-        self._async_errors.clear()
-        self._pending_prompt_ids.clear()
-        self._last_schedule_async_error_index = 0
-        self._session_settled_count = 0
-        self._ui_requests = queue.Queue()
-        with self._state_lock:
-            self._stderr_chunks.clear()
-        with self._state_lock:
-            self._protocol_errors.clear()
-            self._listener_errors.clear()
+        self._reset_session_state()
 
         process = subprocess.Popen(
             list(self._build_command()),
@@ -636,6 +624,9 @@ class RpcClient(WireClient):
             start_new_session=True,
         )
         self._process = process
+        self._stdin = process.stdin
+        self._stdout = process.stdout
+        self._started = True
         self._pgid = _process_group_id(process)
 
         self._stdout_thread = threading.Thread(
@@ -647,6 +638,52 @@ class RpcClient(WireClient):
         self._stdout_thread.start()
         self._stderr_thread.start()
 
+        return self._finish_startup()
+
+    def attach(self, read: TextIO, write: TextIO) -> RpcClient:
+        """Attach to a live backend over an existing JSONL stream pair.
+
+        The pair is whatever carries protocol frames to and from a running
+        server — a WebSocket bridge (one message per line), a socketpair, or a
+        process's pipes. `read` must yield newline-terminated text and `write`
+        must accept text plus `flush()`. The server owns the session: `stop()`
+        closes the pair and never signals a process.
+        """
+        if self._started:
+            raise RpcError("RPC client is already started")
+
+        self._reset_session_state()
+        self._stdin = write
+        self._stdout = read
+        self._stream_mode = True
+        self._started = True
+        self._stdout_thread = threading.Thread(
+            target=self._read_stdout_loop, name="zeta-rpc-stdout", daemon=True
+        )
+        self._stdout_thread.start()
+        return self._finish_startup()
+
+    def _reset_session_state(self) -> None:
+        self._ready.clear()
+        self._stopping = False
+        self._closed_error = None
+        self._ready_received = False
+        self._ready_event = None
+        self._protocol_version = 1
+        self._protocol_v2_enabled = False
+        self._frame_decoder = _RpcFrameDecoder()
+        self._events.clear()
+        self._async_errors.clear()
+        self._pending_prompt_ids.clear()
+        self._last_schedule_async_error_index = 0
+        self._session_settled_count = 0
+        self._ui_requests = queue.Queue()
+        with self._state_lock:
+            self._stderr_chunks.clear()
+            self._protocol_errors.clear()
+            self._listener_errors.clear()
+
+    def _finish_startup(self) -> RpcClient:
         if not self._ready.wait(self._startup_timeout):
             stderr = self.stderr
             self.stop()
@@ -662,7 +699,7 @@ class RpcClient(WireClient):
                 raise error
             if error is not None:
                 raise RpcProcessExitError(
-                    f"RPC process stopped before ready: {error}. Stderr: {stderr}"
+                    f"RPC stream stopped before ready: {error}. Stderr: {stderr}"
                 ) from error
             raise RpcTimeoutError(
                 f"Timed out waiting for RPC ready signal. Stderr: {stderr}"
@@ -702,6 +739,33 @@ class RpcClient(WireClient):
         `reap()` (or `stop()`) again to re-attempt once the child becomes
         killable. Safe to call repeatedly.
         """
+        if self._stream_mode:
+            if not self._started:
+                return True
+            self._stopping = True
+            for pending_call in self._pending_host_tool_calls.values():
+                pending_call.cancel_event.set()
+            for pending_uri in self._pending_host_uri_requests.values():
+                pending_uri.cancel_event.set()
+            for stream in (self._stdin, self._stdout):
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except OSError:
+                        pass
+            self._mark_closed(RpcProcessExitError("RPC stream stopped"))
+            self._pending_host_tool_calls.clear()
+            self._host_tool_dispatch_names.clear()
+            self._pending_host_uri_requests.clear()
+            self._stdin = None
+            self._stdout = None
+            self._started = False
+            self._stream_mode = False
+            if self._stdout_thread is not None:
+                self._stdout_thread.join(timeout=1.0)
+            self._stdout_thread = None
+            return True
+
         process = self._process
         if process is None:
             # Either never started, or a prior stop() retained survivors whose
@@ -752,6 +816,9 @@ class RpcClient(WireClient):
             self._host_tool_dispatch_names.clear()
             self._pending_host_uri_requests.clear()
             self._process = None
+            self._stdin = None
+            self._stdout = None
+            self._started = False
             self._pgid = None
             if not reaped:
                 # Retain the survivor so a later reap()/stop() can observe and
@@ -1022,7 +1089,7 @@ class RpcClient(WireClient):
 
     def set_custom_tools(self, tools: Sequence[HostTool[Any, Any]]) -> tuple[str, ...]:
         self._custom_tools = tuple(tools)
-        if self._process is None:
+        if not self._started:
             return tuple(tool.name for tool in self._custom_tools)
 
         definitions: list[JsonObject] = []
@@ -1046,7 +1113,7 @@ class RpcClient(WireClient):
 
     def set_host_uris(self, host_uris: Sequence[HostUri[Any]]) -> tuple[str, ...]:
         self._host_uris = tuple(host_uris)
-        if self._process is None:
+        if not self._started:
             return tuple(uri.scheme for uri in self._host_uris)
 
         schemes_payload: list[JsonObject] = []
@@ -1440,7 +1507,8 @@ class RpcClient(WireClient):
 
         `timeout` overrides the client's `request_timeout` for this command.
         """
-        process = self._require_process()
+        if not self._started:
+            raise RpcError("RPC client is not started")
         envelope: JsonObject = {"id": request_id, "type": command_type}
         for key, value in payload.items():
             if value is not None or not drop_none:
@@ -1453,7 +1521,7 @@ class RpcClient(WireClient):
             )
 
         try:
-            self._write_json(process, envelope)
+            self._write_json(envelope)
         except BaseException:
             with self._state_lock:
                 self._pending.pop(request_id, None)
@@ -1487,8 +1555,9 @@ class RpcClient(WireClient):
         return _clone_json_object(data)
 
     def _send_notification(self, payload: JsonObject) -> None:
-        process = self._require_process()
-        self._write_json(process, payload)
+        if not self._started:
+            raise RpcError("RPC client is not started")
+        self._write_json(payload)
 
     def _normalize_host_tool_result(self, result: object) -> JsonObject:
         if isinstance(result, str):
@@ -1882,32 +1951,28 @@ class RpcClient(WireClient):
             self._request_id += 1
             return f"req_{self._request_id}"
 
-    def _require_process(self) -> subprocess.Popen[str]:
-        if self._process is None:
-            raise RpcError("RPC client is not started")
-        return self._process
-
-    def _write_json(self, process: subprocess.Popen[str], payload: JsonObject) -> None:
-        if process.stdin is None:
-            raise RpcProcessExitError("RPC process stdin is unavailable")
+    def _write_json(self, payload: JsonObject) -> None:
+        stream = self._stdin
+        if stream is None:
+            raise RpcProcessExitError("RPC stdin is unavailable")
         with self._write_lock:
             try:
-                process.stdin.write(json.dumps(payload))
-                process.stdin.write("\n")
-                process.stdin.flush()
+                stream.write(json.dumps(payload))
+                stream.write("\n")
+                stream.flush()
             except (BrokenPipeError, OSError) as exc:
                 raise RpcProcessExitError(
                     f"Failed to write RPC command: {exc}"
                 ) from exc
 
     def _read_stdout_loop(self) -> None:
-        process = self._process
-        if process is None or process.stdout is None:
+        stream = self._stdout
+        if stream is None:
             return
 
         line_number = 0
         try:
-            for line in process.stdout:
+            for line in stream:
                 line_number += 1
                 stripped = line.strip()
                 if not stripped:
