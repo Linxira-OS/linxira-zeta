@@ -162,11 +162,21 @@ const targets: ReleaseTarget[] = [
 ];
 
 /** Cargo workspace roots per Rust product: package to build, produced bin. */
-const CARGO_PRODUCTS: Record<ProductBinaryTarget["product"], { dir: string; pkg: string; bin: string }> = {
+const CARGO_PRODUCTS: Record<
+	ProductBinaryTarget["product"],
+	{ dir: string; pkg: string; bin: string; features?: string[] }
+> = {
 	work: { dir: "main", pkg: "zeta-main", bin: "zeta" },
 	// The desktop app is a separate binary in the same workspace; it is never
-	// placed on PATH by the installers (no fourth command).
-	gui: { dir: "main", pkg: "zetawork-gui", bin: "zetawork-gui" },
+	// placed on PATH by the installers (no fourth command). Tray and
+	// notifications are optional features, so the release build has to ask for
+	// them explicitly — without this the shipped app has neither.
+	gui: {
+		dir: "main",
+		pkg: "zetawork-gui",
+		bin: "zetawork-gui",
+		features: ["tray", "os-notify"],
+	},
 	ide: { dir: "termide", pkg: "termide", bin: "termide" },
 };
 
@@ -254,7 +264,16 @@ async function buildCargoProduct(target: ProductBinaryTarget): Promise<void> {
 		return;
 	}
 	await runCommand(
-		["cargo", "build", "--release", "--locked", "-p", product.pkg, ...(triple ? ["--target", triple] : [])],
+		[
+			"cargo",
+			"build",
+			"--release",
+			"--locked",
+			"-p",
+			product.pkg,
+			...(product.features?.length ? ["--features", product.features.join(",")] : []),
+			...(triple ? ["--target", triple] : []),
+		],
 		workspaceDir,
 	);
 	// Resolve the built bin the way cargo does: CARGO_TARGET_DIR redirects the

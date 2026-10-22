@@ -164,6 +164,11 @@ async function packageWindows(): Promise<void> {
 	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-win-"));
 	await fs.copyFile(exe, path.join(stage, "zetawork-gui.exe"));
 	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
+	// The installer's own icon and the Add/Remove entry icon.
+	await fs.copyFile(
+		path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.ico"),
+		path.join(stage, "zetawork.ico"),
+	);
 
 	await fs.mkdir(outDir, { recursive: true });
 	const archive = path.join(outDir, desktopAssetNames(version).windowsZip);

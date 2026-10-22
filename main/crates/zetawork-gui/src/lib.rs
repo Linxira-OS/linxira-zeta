@@ -28,6 +28,7 @@ pub mod board;
 pub mod center;
 pub mod channels;
 pub mod chrome;
+pub mod console;
 pub mod conversation;
 pub mod embed;
 pub mod fonts;
@@ -1640,6 +1641,9 @@ impl Shell {
 /// squatter on the port, a wedged process, a refused loopback bind — it starts
 /// normally; every one of those paths is spelled out in [`lifecycle::claim`].
 pub fn run() -> eframe::Result<()> {
+	// Taskbar grouping and notification attribution: one identity for the
+	// shortcut, the window and the toasts (see `console::set_app_user_model_id`).
+	console::set_app_user_model_id("Zeta.Zetawork");
 	if lifecycle::another_instance_is_running() {
 		return Ok(());
 	}

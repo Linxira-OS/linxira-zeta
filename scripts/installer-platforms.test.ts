@@ -14,7 +14,7 @@
  * PATH stub never wins on Windows (the PowerShell guard is exercised there
  * instead).
  */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, it, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -235,4 +235,39 @@ describe("installer platform lists", () => {
 		// Windows PowerShell cold start on a cold CI/dev box, not the assertion.
 		30_000,
 	);
+});
+
+describe("Windows installer contract", () => {
+	const script = fs.readFileSync(path.join(repoRoot, "scripts", "packaging", "windows", "installer.nsi"), "utf8");
+
+	it("offers English and Simplified Chinese with a remembered choice", () => {
+		expect(script).toContain('!insertmacro MUI_LANGUAGE "English"');
+		expect(script).toContain('!insertmacro MUI_LANGUAGE "SimpChinese"');
+		expect(script).toContain("MUI_LANGDLL_DISPLAY");
+		expect(script).toContain('MUI_LANGDLL_REGISTRY_VALUENAME "InstallerLanguage"');
+	});
+
+	it("creates a desktop shortcut by default and gives both shortcuts the app icon", () => {
+		// `/o` would make the section optional-and-unchecked, which is what left
+		// installs with no desktop icon at all.
+		expect(script).not.toContain('Section /o "$(SEC_DESKTOP_NAME)"');
+		expect(script).toContain('Section "$(SEC_DESKTOP_NAME)" SEC_DESKTOP');
+		for (const target of ["$SMPROGRAMS\\zetawork.lnk", "$DESKTOP\\zetawork.lnk"]) {
+			const line = script.split("\n").find(entry => entry.includes(`CreateShortcut "${target}"`));
+			expect(line, target).toBeDefined();
+			expect(line, target).toContain('"$INSTDIR\\zetawork-gui.exe" 0');
+		}
+	});
+
+	it("ships the executable icon and the per-monitor-v2 DPI manifest", () => {
+		expect(script).toContain('!define MUI_ICON "${SOURCE_DIR}');
+		const rc = fs.readFileSync(path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "zetawork-gui.rc"), "utf8");
+		expect(rc).toContain('1 ICON "icon.ico"');
+		expect(rc).toContain('1 24 "zetawork-gui.manifest"');
+		const manifest = fs.readFileSync(
+			path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "zetawork-gui.manifest"),
+			"utf8",
+		);
+		expect(manifest).toContain("PerMonitorV2");
+	});
 });

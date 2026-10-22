@@ -89,6 +89,8 @@ wry = "0.57.0"
 # window gets DWM's rounding, or a rounded region on builds that refuse it.
 windows-sys = { version = "0.61", features = [
 	"Win32_Foundation",
+	"Win32_System_Console",
+	"Win32_UI_Shell",
 	"Win32_Graphics_Dwm",
 	"Win32_Graphics_Gdi",
 	"Win32_UI_WindowsAndMessaging",

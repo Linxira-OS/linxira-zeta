@@ -23,6 +23,8 @@
 //! 设置 → 常规, so "there is no tray" is visible in the product instead of
 //! being a mystery.
 
+use crate::t;
+
 /// The menu's first item: bring the window back.
 pub const ID_SHOW: &str = "zetawork-show";
 
