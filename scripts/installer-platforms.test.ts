@@ -261,7 +261,10 @@ describe("Windows installer contract", () => {
 
 	it("ships the executable icon and the per-monitor-v2 DPI manifest", () => {
 		expect(script).toContain('!define MUI_ICON "${SOURCE_DIR}');
-		const rc = fs.readFileSync(path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "zetawork-gui.rc"), "utf8");
+		const rc = fs.readFileSync(
+			path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "zetawork-gui.rc"),
+			"utf8",
+		);
 		expect(rc).toContain('1 ICON "icon.ico"');
 		expect(rc).toContain('1 24 "zetawork-gui.manifest"');
 		const manifest = fs.readFileSync(
