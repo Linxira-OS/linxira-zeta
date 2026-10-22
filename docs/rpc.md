@@ -105,6 +105,32 @@ Protocol v2 may wrap oversized logical frames from these categories in `rpc_chun
 3. Host tool updates/results (`host_tool_update`, `host_tool_result`)
 4. Host URI results (`host_uri_result`)
 
+## WebSocket Transport
+
+A running backend (`zeta serve`) exposes the same protocol over WebSocket, so a
+client can attach to a session the backend owns:
+
+```
+ws://127.0.0.1:30142/api/rpc/ws?sessionId=<session-id>
+```
+
+- The gateway listener is loopback-only; a remote client has no WS path yet.
+  Loopback upgrades are additionally origin-checked (browser CSRF guard).
+- Frames are identical to stdio: one JSON object per WebSocket text message,
+  inbound and outbound. Framing newlines are not required, and protocol v2
+  chunking works unchanged.
+- The backend owns the session. Closing the socket only detaches the client;
+  the turn keeps running and a later client can attach to the same session.
+- Commands act on the live session (`prompt`, `steer`, `abort`, mode entry and
+  exit, tool selection, reload, state snapshots). A client must not assume it is
+  the only one: another surface may be attached at the same time.
+- Dialog requests (`extension_ui_request`) fan out to every attached surface,
+  web UI included. The first `extension_ui_response` for an id settles the
+  request for all of them; later answers are no-ops.
+- `sessionId` must name a session the backend already hosts. Discovery stays on
+  the REST surface (`GET /api/agent/*`): list sessions, resolve or create one,
+  then open the socket.
+
 ## Request/Response Correlation
 
 All commands accept optional `id?: string`.
