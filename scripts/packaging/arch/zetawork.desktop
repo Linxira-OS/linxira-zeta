@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=zetawork
-Comment=Zeta workbench — projects, terminals and the coding agent
-Exec=zetawork-gui %U
+Name=Linxira Zeta
+Comment=Linxira Zeta — projects, terminals and the coding agent
+Exec=/usr/lib/zetawork/zetawork-gui %U
 Icon=zetawork
 Terminal=false
 Categories=Development;

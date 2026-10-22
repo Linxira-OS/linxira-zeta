@@ -1,29 +1,30 @@
 #!/usr/bin/env bun
 /**
- * Package the zetawork desktop app for release.
+ * Package the Linxira Zeta desktop product for release.
  *
- * Every shape is built on the Linux runner from artifacts that
- * `ci-release-build-binaries.ts` already produced. Asset names carry the
- * numeric version (the `v` of a release tag is stripped):
+ * The four product assets carry the product name (organisation included) and
+ * the numeric version (the `v` of a release tag is stripped). Component
+ * binaries keep their own `zeta-cli-*` / `zeta-ide-*` / `zeta-work-*` names:
+ * they are the small packages, this is the complete one.
  *
- *   windows  `zetawork-<version>-windows-x64.zip`
- *            `zetawork-gui.exe` + `WebView2Loader.dll` only. The loader is a
- *            real runtime dependency — the PE imports `WebView2Loader.dll` —
- *            and it ships inside the `webview2-com-sys` crate, so it is copied
- *            from the cargo registry of the same build (or from the artifact
- *            the Windows product leg staged beside the exe).
+ *   windows  `linxira-zeta-<version>-windows-x64.zip`
+ *            The full portable payload: `zetawork-gui.exe`, `zetacode.exe`,
+ *            `zetaide.exe`, `zetawork.exe` and `WebView2Loader.dll`. A
+ *            portable copy must be able to start its own backend, so it
+ *            carries the companions; the loader is a real runtime dependency
+ *            (the PE imports it) and is copied from the cargo registry of the
+ *            same build.
  *
  *   windows-installer
- *            `zetawork-<version>-setup-x64.exe` (NSIS, per-user install).
- *            GUI + `zetacode.exe` + `zetaide.exe` + `zetawork.exe` +
- *            `WebView2Loader.dll`, all beside each other in
- *            `%LOCALAPPDATA%\Programs\zetawork`, which is what
+ *            `linxira-zeta-<version>-setup-x64.exe` (NSIS, per-user install).
+ *            The same five files beside each other in
+ *            `%LOCALAPPDATA%\Programs\Linxira Zeta`, which is what
  *            `main/crates/zetawork-gui/src/zetacode.rs` companion discovery
  *            expects. `makensis` must be on PATH (the release job apt-installs
  *            `nsis`); it cannot run on the Windows dev box.
  *
- *   linux    `zetawork-<version>-1-x86_64.pkg.tar.zst` (Arch, `pacman -U`)
- *            and `zetawork-<version>-x86_64.AppImage`.
+ *   linux    `linxira-zeta-<version>-1-x86_64.pkg.tar.zst` (Arch, `pacman -U`)
+ *            and `linxira-zeta-<version>-x86_64.AppImage`.
  *            The GUI and both companions are installed OFF PATH
  *            (`/usr/lib/zetawork/`), so the desktop app does not add a fourth
  *            command; the TUI binary is the `zetawork` command. The AppImage
@@ -31,7 +32,8 @@
  *
  * Usage:
  *   bun scripts/package-desktop-archives.ts windows --version v1.3.2 \
- *       --exe <gui.exe> --dll <WebView2Loader.dll> --out <dir>
+ *       --exe <gui.exe> --tui <zetawork.exe> --agent <zetacode.exe> \
+ *       --ide <zetaide.exe> --dll <WebView2Loader.dll> --out <dir>
  *   bun scripts/package-desktop-archives.ts windows-installer --version v1.3.2 \
  *       --gui <gui.exe> --tui <zetawork.exe> --agent <zetacode.exe> \
  *       --ide <zetaide.exe> --dll <WebView2Loader.dll> --out <dir>
@@ -69,10 +71,10 @@ export interface DesktopAssetNames {
 export function desktopAssetNames(version: string): DesktopAssetNames {
 	const numeric = normalizeVersion(version);
 	return {
-		installer: `zetawork-${numeric}-setup-x64.exe`,
-		windowsZip: `zetawork-${numeric}-windows-x64.zip`,
-		appImage: `zetawork-${numeric}-x86_64.AppImage`,
-		archPackage: `zetawork-${numeric}-1-x86_64.pkg.tar.zst`,
+		installer: `linxira-zeta-${numeric}-setup-x64.exe`,
+		windowsZip: `linxira-zeta-${numeric}-windows-x64.zip`,
+		appImage: `linxira-zeta-${numeric}-x86_64.AppImage`,
+		archPackage: `linxira-zeta-${numeric}-1-x86_64.pkg.tar.zst`,
 	};
 }
 
@@ -148,33 +150,38 @@ async function resolveLoader(staged: string | undefined): Promise<string> {
 }
 
 /**
- * GUI-only zip: exactly the shell and its loader. The companions ship in the
- * NSIS installer; the zip keeps its legacy "launch the desktop app" shape.
+ * Portable zip: the whole suite, the same five files the installer lays down.
+ * A portable copy has to be able to start its own backend, so the companions
+ * travel with the shell — a GUI-only archive could not.
  */
 async function packageWindows(): Promise<void> {
 	const version = await resolveVersion();
-	const exe = arg("exe") ?? "packages/coding-agent/binaries/zetawork-gui-win-x64.exe";
+	const gui = arg("exe") ?? "packages/coding-agent/binaries/zetawork-gui-win-x64.exe";
+	const tui = arg("tui") ?? "packages/coding-agent/binaries/zeta-work-win-x64.exe";
+	const agent = arg("agent") ?? "packages/coding-agent/binaries/zeta-cli-windows-x64.exe";
+	const ide = arg("ide") ?? "packages/coding-agent/binaries/zeta-ide-win-x64.exe";
 	const outDir = path.resolve(arg("out") ?? "packages/coding-agent/binaries");
-	await mustExist(exe);
+	for (const file of [gui, tui, agent, ide]) await mustExist(file);
 	// The archives job builds nothing, so it has no cargo registry; the Windows
 	// product leg stages the loader beside its artifact and passes it here.
 	const loader = await resolveLoader(arg("dll"));
 	console.log(`Using WebView2 loader: ${loader}`);
 
-	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-win-"));
-	await fs.copyFile(exe, path.join(stage, "zetawork-gui.exe"));
+	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "linxira-zeta-win-"));
+	await fs.copyFile(gui, path.join(stage, "zetawork-gui.exe"));
+	await fs.copyFile(tui, path.join(stage, "zetawork.exe"));
+	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
+	await fs.copyFile(ide, path.join(stage, "zetaide.exe"));
 	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
-	// The installer's own icon and the Add/Remove entry icon.
-	await fs.copyFile(
-		path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.ico"),
-		path.join(stage, "zetawork.ico"),
-	);
 
 	await fs.mkdir(outDir, { recursive: true });
 	const archive = path.join(outDir, desktopAssetNames(version).windowsZip);
 	await writeZip(
 		[
 			{ name: "zetawork-gui.exe", file: path.join(stage, "zetawork-gui.exe") },
+			{ name: "zetawork.exe", file: path.join(stage, "zetawork.exe") },
+			{ name: "zetacode.exe", file: path.join(stage, "zetacode.exe") },
+			{ name: "zetaide.exe", file: path.join(stage, "zetaide.exe") },
 			{ name: "WebView2Loader.dll", file: path.join(stage, "WebView2Loader.dll") },
 		],
 		archive,
@@ -198,7 +205,7 @@ async function packageWindowsInstaller(): Promise<void> {
 	for (const file of [gui, tui, agent, ide]) await mustExist(file);
 	const loader = await resolveLoader(arg("dll"));
 
-	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-nsis-"));
+	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "linxira-zeta-nsis-"));
 	await fs.copyFile(gui, path.join(stage, "zetawork-gui.exe"));
 	await fs.copyFile(tui, path.join(stage, "zetawork.exe"));
 	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
@@ -227,9 +234,9 @@ async function packageWindowsInstaller(): Promise<void> {
 function desktopEntry(): string {
 	return `[Desktop Entry]
 Type=Application
-Name=zetawork
-Comment=Zeta workbench — projects, terminals and the coding agent
-Exec=zetawork-gui %U
+Name=Linxira Zeta
+Comment=Linxira Zeta — projects, terminals and the coding agent
+Exec=/usr/lib/zetawork/zetawork-gui %U
 Icon=zetawork
 Terminal=false
 Categories=Development;

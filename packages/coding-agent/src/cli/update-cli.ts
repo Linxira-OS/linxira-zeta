@@ -351,7 +351,7 @@ export function selectFallbackBinaryAsset(
  * `zetacode` to fetch.
  */
 export function desktopInstallerName(version: string): string {
-	return `zetawork-${version.trim().replace(/^v/, "")}-setup-x64.exe`;
+	return `linxira-zeta-${version.trim().replace(/^v/, "")}-setup-x64.exe`;
 }
 
 /**
@@ -359,7 +359,7 @@ export function desktopInstallerName(version: string): string {
  * when the listing holds none.
  *
  * Unlike {@link selectFallbackBinaryAsset}, the asset name is derived from
- * each release's own tag (`zetawork-<tag>-setup-x64.exe`), so the same
+ * each release's own tag (`linxira-zeta-<tag>-setup-x64.exe`), so the same
  * listing can be walked without the caller knowing the version in advance.
  * Drafts, off-channel prereleases, and releases whose installer is missing or
  * still uploading are skipped in favor of the next published one.
@@ -487,7 +487,7 @@ export interface DesktopUpdateCheck {
 	/** The newest published desktop release on GitHub. */
 	latest: string;
 	available: boolean;
-	/** Installer file name, `zetawork-<latest>-setup-x64.exe`. */
+	/** Installer file name, `linxira-zeta-<latest>-setup-x64.exe`. */
 	asset: string;
 	url: string;
 	size: number;
@@ -512,7 +512,7 @@ async function getDesktopInstaller(
 	const asset = selectDesktopInstaller(await listing.json(), { allowPrerelease });
 	if (!asset) {
 		throw new Error(
-			"No published GitHub release ships a desktop installer (zetawork-<version>-setup-x64.exe); retry once the release finishes publishing",
+			"No published GitHub release ships a desktop installer (linxira-zeta-<version>-setup-x64.exe); retry once the release finishes publishing",
 		);
 	}
 	return asset;

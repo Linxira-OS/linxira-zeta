@@ -226,7 +226,7 @@ describe("desktop updates", () => {
 	}
 
 	it("uses the installer name the packaging script publishes", () => {
-		expect(desktopInstallerName("v1.3.2")).toBe("zetawork-1.3.2-setup-x64.exe");
+		expect(desktopInstallerName("v1.3.2")).toBe("linxira-zeta-1.3.2-setup-x64.exe");
 	});
 
 	it("selects the newest release whose installer is published", () => {

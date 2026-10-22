@@ -14,7 +14,7 @@
 ; consults PATH.
 ;
 ; Per-user install: no UAC prompt, no machine-wide state.
-; `%LOCALAPPDATA%\Programs\zetawork`, Start Menu shortcut, uninstall entry.
+; `%LOCALAPPDATA%\Programs\Linxira Zeta`, Start Menu shortcut, uninstall entry.
 ; No network access anywhere in this script.
 
 Unicode true
@@ -29,7 +29,7 @@ RequestExecutionLevel user
 ; buttons, headings, the uninstall prompt — come from the language files
 ; instead of NSIS's built-in English.
 !define MUI_LANGDLL_REGISTRY_ROOT "HKCU"
-!define MUI_LANGDLL_REGISTRY_KEY "Software\zetawork"
+!define MUI_LANGDLL_REGISTRY_KEY "Software\LinxiraZeta"
 !define MUI_LANGDLL_REGISTRY_VALUENAME "InstallerLanguage"
 
 !ifndef APP_VERSION
@@ -42,14 +42,14 @@ RequestExecutionLevel user
   !define OUT_FILE "zetawork-setup-x64.exe"
 !endif
 
-!define PRODUCT_NAME "zetawork"
-!define PRODUCT_PUBLISHER "Zeta"
-!define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\zetawork"
+!define PRODUCT_NAME "Linxira Zeta"
+!define PRODUCT_PUBLISHER "Linxira OS"
+!define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\LinxiraZeta"
 
 Name "${PRODUCT_NAME} ${APP_VERSION}"
 OutFile "${OUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\zetawork"
-InstallDirRegKey HKCU "Software\zetawork" "InstallDir"
+InstallDir "$LOCALAPPDATA\Programs\Linxira Zeta"
+InstallDirRegKey HKCU "Software\LinxiraZeta" "InstallDir"
 BrandingText "${PRODUCT_NAME}"
 ShowInstDetails show
 ShowUninstDetails show
@@ -108,7 +108,7 @@ Section "$(SEC_CORE_NAME)" SEC_CORE
   CreateDirectory "$SMPROGRAMS"
   CreateShortcut "$SMPROGRAMS\zetawork.lnk" "$INSTDIR\zetawork-gui.exe" "" "$INSTDIR\zetawork-gui.exe" 0
 
-  WriteRegStr HKCU "Software\zetawork" "InstallDir" "$INSTDIR"
+  WriteRegStr HKCU "Software\LinxiraZeta" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
@@ -150,5 +150,5 @@ Section "Uninstall"
   RMDir "$INSTDIR"
 
   DeleteRegKey HKCU "${UNINSTALL_KEY}"
-  DeleteRegKey HKCU "Software\zetawork"
+  DeleteRegKey HKCU "Software\LinxiraZeta"
 SectionEnd

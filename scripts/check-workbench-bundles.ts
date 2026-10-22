@@ -82,7 +82,8 @@ const WORKBENCH_LEAVES: Record<string, string> = {
 const PRODUCT_COMMANDS: Record<string, string> = {
 	work: "zetawork",
 	ide: "zetaide",
-	// The desktop app is not a command: it ships as `zetawork-*` archives
+	// The desktop app is not a command: it ships inside the `linxira-zeta-*` product
+	// archives
 	// (zip on Windows, .pkg.tar.zst + AppImage on Linux) and its binary is
 	// installed off PATH. Mapping it here keeps the per-platform staging
 	// check honest without advertising a fourth command.
@@ -342,23 +343,23 @@ const RELEASE_ASSET_SURFACES: ReadonlyArray<{ family: string; checksum: string; 
 	// Desktop archives are version-pinned in the preflight (the tag's leading
 	// `v` is not part of the name) and globbed in the other two surfaces.
 	{
-		family: `${STAGED_DIR}/zetawork-*-setup-x64.exe`,
-		checksum: `${STAGED_DIR}/zetawork-*-setup-x64.exe`,
+		family: `${STAGED_DIR}/linxira-zeta-*-setup-x64.exe`,
+		checksum: `${STAGED_DIR}/linxira-zeta-*-setup-x64.exe`,
 		preflight: `-setup-x64.exe`,
 	},
 	{
-		family: `${STAGED_DIR}/zetawork-*-windows-x64.zip`,
-		checksum: `${STAGED_DIR}/zetawork-*-windows-x64.zip`,
+		family: `${STAGED_DIR}/linxira-zeta-*-windows-x64.zip`,
+		checksum: `${STAGED_DIR}/linxira-zeta-*-windows-x64.zip`,
 		preflight: `-windows-x64.zip`,
 	},
 	{
-		family: `${STAGED_DIR}/zetawork-*.AppImage`,
-		checksum: `${STAGED_DIR}/zetawork-*.AppImage`,
+		family: `${STAGED_DIR}/linxira-zeta-*.AppImage`,
+		checksum: `${STAGED_DIR}/linxira-zeta-*.AppImage`,
 		preflight: `.AppImage`,
 	},
 	{
-		family: `${STAGED_DIR}/zetawork-*.pkg.tar.zst`,
-		checksum: `${STAGED_DIR}/zetawork-*.pkg.tar.zst`,
+		family: `${STAGED_DIR}/linxira-zeta-*.pkg.tar.zst`,
+		checksum: `${STAGED_DIR}/linxira-zeta-*.pkg.tar.zst`,
 		preflight: `.pkg.tar.zst`,
 	},
 	{

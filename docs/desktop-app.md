@@ -5,13 +5,14 @@
 
 ## 安装包
 
-- **Windows**：`zetawork-<版本>-setup-x64.exe`，NSIS，**当前用户安装**（无 UAC），
-  默认装到 `%LOCALAPPDATA%\Programs\zetawork`。
+- **Windows**：`linxira-zeta-<版本>-setup-x64.exe`，NSIS，**当前用户安装**（无 UAC），
+  默认装到 `%LOCALAPPDATA%\Programs\Linxira Zeta`。
+  便携版是 `linxira-zeta-<版本>-windows-x64.zip`，同样带四个二进制，解压即可后端自起。
   - 安装界面可选 **English / 简体中文**；首次选择会记住，重装时沿用。
   - 默认创建**开始菜单**和**桌面**快捷方式；不需要桌面的可在组件页取消。
   - 卸载入口在“应用和功能”，同时删除两个快捷方式。
-- **Linux**：`zetawork-<版本>-x86_64.AppImage` 与 `zetawork-<版本>-1-x86_64.pkg.tar.zst`
-  （Arch）。安装后提供 `zetawork.desktop`（`Terminal=false`）和图标。
+- **Linux**：`linxira-zeta-<版本>-x86_64.AppImage` 与 `linxira-zeta-<版本>-1-x86_64.pkg.tar.zst`
+  （Arch）。安装后提供 `linxira-zeta.desktop`（`Exec=/usr/lib/zetawork/zetawork-gui`，`Terminal=false`）和图标。
 - 同目录还会放 `zetacode.exe`、`zetaide.exe`、`zetawork.exe`、`WebView2Loader.dll`，
   无需单独安装。
 
@@ -35,5 +36,5 @@ Linux 上没有 StatusNotifier 宿主时托盘降级为“无托盘”（设置 
 
 ## 卸载
 
-Windows：应用和功能 → zetawork → 卸载（会结束正在运行的 GUI）。
-Linux：删除 AppImage 文件或 `pacman -R zetawork`。
+Windows：应用和功能 → Linxira Zeta → 卸载（会结束正在运行的 GUI）。
+Linux：删除 AppImage 文件或 `pacman -R linxira-zeta`。

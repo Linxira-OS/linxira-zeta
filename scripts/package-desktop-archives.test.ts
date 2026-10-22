@@ -12,10 +12,10 @@ describe("normalizeVersion", () => {
 describe("desktopAssetNames", () => {
 	it("names all four release assets with the numeric version", () => {
 		expect(desktopAssetNames("v1.3.2")).toEqual({
-			installer: "zetawork-1.3.2-setup-x64.exe",
-			windowsZip: "zetawork-1.3.2-windows-x64.zip",
-			appImage: "zetawork-1.3.2-x86_64.AppImage",
-			archPackage: "zetawork-1.3.2-1-x86_64.pkg.tar.zst",
+			installer: "linxira-zeta-1.3.2-setup-x64.exe",
+			windowsZip: "linxira-zeta-1.3.2-windows-x64.zip",
+			appImage: "linxira-zeta-1.3.2-x86_64.AppImage",
+			archPackage: "linxira-zeta-1.3.2-1-x86_64.pkg.tar.zst",
 		});
 	});
 });

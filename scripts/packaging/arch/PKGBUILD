@@ -5,14 +5,14 @@
 # binaries and LICENSE beside this file and runs makepkg inside an
 # archlinux/base-devel container. Install the result with
 # `pacman -U zetawork-<ver>-1-x86_64.pkg.tar.zst`.
-pkgname=zetawork
+pkgname=linxira-zeta
 pkgver=@VERSION@
 pkgrel=1
-pkgdesc="Zeta workbench — projects, terminals and the coding agent"
+pkgdesc="Linxira Zeta — projects, terminals and the coding agent"
 arch=('x86_64')
 url="https://github.com/Linxira-OS/linxira-zeta"
 license=('AGPL-3.0-only')
-provides=('zetawork')
+provides=('zetawork' 'linxira-zeta')
 # egui/eframe render through wgpu (Vulkan) and fall back to GL; the TUI needs a
 # terminal only. wry is Windows-only in this tree, so no webkit2gtk here.
 depends=('glibc' 'gcc-libs' 'libglvnd' 'libxkbcommon' 'libx11' 'wayland' 'vulkan-icd-loader')
@@ -27,8 +27,8 @@ package() {
   install -Dm755 "$srcdir/zetawork-gui" "$pkgdir/usr/lib/zetawork/zetawork-gui"
   install -Dm755 "$srcdir/zetacode" "$pkgdir/usr/lib/zetawork/zetacode"
   install -Dm755 "$srcdir/zetaide" "$pkgdir/usr/lib/zetawork/zetaide"
-  install -Dm644 "$srcdir/zetawork.desktop" "$pkgdir/usr/share/applications/zetawork.desktop"
+  install -Dm644 "$srcdir/zetawork.desktop" "$pkgdir/usr/share/applications/linxira-zeta.desktop"
   install -Dm644 "$srcdir/zetawork.png" \
     "$pkgdir/usr/share/icons/hicolor/128x128/apps/zetawork.png"
-  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/zetawork/LICENSE"
+  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/linxira-zeta/LICENSE"
 }
