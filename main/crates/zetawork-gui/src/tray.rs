@@ -23,6 +23,8 @@
 //! 设置 → 常规, so "there is no tray" is visible in the product instead of
 //! being a mystery.
 
+// Every `t!` below is inside a `tray` block; a default-feature build has none.
+#[cfg(feature = "tray")]
 use crate::t;
 
 /// The menu's first item: bring the window back.
