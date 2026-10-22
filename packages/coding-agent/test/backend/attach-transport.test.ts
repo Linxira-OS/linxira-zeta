@@ -19,7 +19,13 @@ import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import { AgentSessionWrapper, sessions as gatewaySessions } from "../../src/server/web-gateway/agents";
 import { cacheSessionPath } from "../../src/server/web-gateway/sessions";
 import { startWebGateway } from "../../src/server/web-gateway";
-import { BackendClient, pickMostRecentSessionForCwd, sortSessionsNewestFirst } from "../../src/backend/client";
+import {
+	BackendClient,
+	pickMostRecentSessionForCwd,
+	sortSessionsNewestFirst,
+	type BackendEvent,
+} from "../../src/backend/client";
+import { AttachWire } from "../../src/backend/attach-wire";
 import { resolveStartupTransport } from "../../src/backend/attach-intent";
 import { runBackendPrintMode } from "../../src/backend/print";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
@@ -87,6 +93,33 @@ async function createMockBackendSession(cwd: string, sessionDir: string, reply: 
 	return { sessionId, wrapper };
 }
 
+/** Accumulate assistant text and event types until the turn ends. */
+async function collectReply(iterator: AsyncIterator<BackendEvent>): Promise<{ text: string; types: Set<string> }> {
+	let text = "";
+	const types = new Set<string>();
+	while (true) {
+		const next = await iterator.next();
+		if (next.done) break;
+		const event = next.value;
+		types.add(event.type);
+		if (event.type === "message_end") {
+			const message = event.message;
+			if (message && typeof message === "object" && "role" in message && message.role === "assistant") {
+				const content = "content" in message ? message.content : undefined;
+				if (Array.isArray(content)) {
+					for (const block of content) {
+						if (block && typeof block === "object" && "text" in block && typeof block.text === "string") {
+							text += block.text;
+						}
+					}
+				}
+			}
+		}
+		if (event.type === "agent_end") break;
+	}
+	return { text, types };
+}
+
 describe("backend attach transport", () => {
 	test("a second client streams a reply and detaches without stopping the backend", async () => {
 		const cwd = join(agentDir, "workspace");
@@ -145,6 +178,58 @@ describe("backend attach transport", () => {
 		expect(gatewaySessions.get(sessionId)?.isAlive()).toBe(true);
 		const list = await client.listSessions();
 		expect(list.sessions.length).toBeGreaterThanOrEqual(0);
+	});
+
+	test("the attach wire drives the backend session and carries dialogs both ways", async () => {
+		const cwd = join(agentDir, "wire-workspace");
+		await mkdir(cwd, { recursive: true });
+		const { sessionId, wrapper } = await createMockBackendSession(cwd, join(agentDir, "wire-sessions"), "wire reply");
+		const probe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("probe") });
+		const port = probe.port ?? 0;
+		await probe.stop(true);
+		const server = await startWebGateway(port);
+		cleanups.push(() => server.shutdown());
+
+		const dialogFrame = Promise.withResolvers<Record<string, unknown>>();
+		const resolvedFrame = Promise.withResolvers<string>();
+		const wire = await AttachWire.connect({
+			baseUrl: server.url,
+			sessionId,
+			onDialog: frame => dialogFrame.resolve(frame),
+			onDialogResolved: id => resolvedFrame.resolve(id),
+		});
+		cleanups.push(async () => wire.close());
+
+		// Command plane: a prompt submitted over the socket runs the same turn
+		// the SSE mirror streams.
+		const abort = new AbortController();
+		const iterator = new BackendClient(server.url).events(sessionId, { signal: abort.signal });
+		await iterator.next(); // connected
+		const reply = collectReply(iterator);
+		await wire.sendPrompt("please answer over the wire");
+		const { text, types } = await reply;
+		expect(types.has("message_update")).toBe(true);
+		expect(text).toContain("wire reply");
+		abort.abort();
+
+		// Dialog plane: a request fanned out by the session reaches the wire; its
+		// answer settles the wrapper's pending request; the settlement is echoed
+		// back to the wire so a client can drop the card it was showing.
+		const answered = Promise.withResolvers<Record<string, unknown>>();
+		wrapper.registerUiRequest("wire-dialog", answered.resolve, () => answered.resolve({ cancelled: true }));
+		wrapper.dispatchUiRequest({
+			type: "extension_ui_request",
+			id: "wire-dialog",
+			method: "confirm",
+			title: "continue?",
+			message: "the run is waiting",
+		});
+		const delivered = await dialogFrame.promise;
+		expect(delivered.id).toBe("wire-dialog");
+		expect(delivered.method).toBe("confirm");
+		wire.respond("wire-dialog", { confirmed: true });
+		expect(await answered.promise).toEqual({ confirmed: true });
+		expect(await resolvedFrame.promise).toBe("wire-dialog");
 	});
 
 	test("session addressing picks the newest exact-cwd session across repositories", () => {

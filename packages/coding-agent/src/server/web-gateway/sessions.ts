@@ -438,6 +438,19 @@ async function openSessionManager(filePath: string): Promise<SessionManager> {
 	return SessionManager.open(filePath, undefined, undefined, { suppressBreadcrumb: true });
 }
 
+/**
+ * The manager that already owns a live session, when there is one.
+ *
+ * `SessionManager.open` claims the file for writing; opening a second manager
+ * over a live session therefore makes the live writer fork to a new file on
+ * its next append ("open for writing in another zeta process"). Read paths that
+ * only need entries/tree/name must reuse the owner instead.
+ */
+function liveSessionManager(sessionId: string): SessionManager | undefined {
+	const wrapper = getRpcSession(sessionId);
+	return wrapper?.isAlive() ? wrapper.getSession().sessionManager : undefined;
+}
+
 /** Read the session header without opening the manager (no lock). */
 export function readSessionHeader(filePath: string): SessionHeader | null {
 	try {
@@ -577,7 +590,7 @@ export async function handleGetSession(req: Request, sessionId: string): Promise
 			return json({ error: "Session not found" }, 404);
 		}
 
-		const sm = await openSessionManager(filePath);
+		const sm = liveSessionManager(sessionId) ?? (await openSessionManager(filePath));
 		const entries = sm.getEntries();
 		const leafId = sm.getLeafId();
 		const tree = projectTreeForResponse(sm.getTree() as unknown as SessionTreeNode[]);
@@ -634,7 +647,7 @@ export async function handleRenameSession(req: Request, sessionId: string): Prom
 		if (!filePath) {
 			return json({ error: "Session not found" }, 404);
 		}
-		const sm = await openSessionManager(filePath);
+		const sm = liveSessionManager(sessionId) ?? (await openSessionManager(filePath));
 		await sm.setSessionName(name.trim(), "user");
 		invalidateSessionListCache();
 		return json({ ok: true });

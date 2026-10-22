@@ -28,6 +28,7 @@ import {
 } from "../session/session-entries";
 import { FileSessionStorage } from "../session/session-storage";
 import { setSessionTerminalTitle } from "../utils/title-generator";
+import { AttachWire } from "./attach-wire";
 import { BackendClient, type BackendEvent, type BackendSessionDetail, type BackendSessionInfo } from "./client";
 import type { ResolvedBackendTarget } from "./attach-intent";
 
@@ -72,6 +73,8 @@ export class BackendAttachLink {
 	#replicaLease: (() => void) | undefined;
 	#lastSeq = 0;
 	#streaming = false;
+	/** Protocol control plane; absent when the backend predates the WS plane. */
+	#wire: AttachWire | undefined;
 	replicaPath: string | undefined;
 
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
@@ -108,6 +111,28 @@ export class BackendAttachLink {
 			signal: this.#abort.signal,
 		});
 		this.#sessionId = sessionId;
+		// The control plane is the wire protocol. The REST command path stays as
+		// the fallback for a backend without it, and SSE keeps mirroring either
+		// way; only dialogs move to the socket, so they are not presented twice.
+		try {
+			this.#wire = await AttachWire.connect({
+				baseUrl: this.#target.backend.baseUrl,
+				sessionId,
+				onDialog: event => void this.#presentUiRequest(event),
+				onDialogResolved: id => {
+					this.#pendingDialogs.get(id)?.abort.abort();
+					this.#pendingDialogs.delete(id);
+				},
+				onClose: reason => {
+					if (this.#closed) return;
+					this.#wire = undefined;
+					logger.warn("backend attach protocol link closed", { reason });
+					this.#ctx.showStatus("Backend protocol link closed; using the HTTP control plane.", { dim: true });
+				},
+			});
+		} catch (error) {
+			logger.debug("backend attach: protocol link unavailable", { error: String(error) });
+		}
 		const detail = await this.client.getSession(sessionId, this.#abort.signal);
 		await this.#activateReplica(detail);
 		if (this.#closed) return;
@@ -132,6 +157,13 @@ export class BackendAttachLink {
 	 */
 	sendPrompt(text: string, images?: ImageContent[], behavior?: "steer" | "followUp"): void {
 		if (this.#closed) throw new Error("Backend attachment is closed");
+		if (this.#wire) {
+			const effective = behavior ?? (this.#streaming ? "steer" : undefined);
+			void this.#wire.sendPrompt(text, { images, behavior: effective }).catch(error => {
+				this.#ctx.showError(`Backend prompt failed: ${error instanceof Error ? error.message : String(error)}`);
+			});
+			return;
+		}
 		const payload = images && images.length > 0 ? { images } : {};
 		const command = behavior
 			? behavior === "steer"
@@ -148,6 +180,12 @@ export class BackendAttachLink {
 	/** Cancel the backend's in-flight turn. */
 	sendAbort(): void {
 		if (this.#closed) return;
+		if (this.#wire) {
+			void this.#wire.abort().catch(error => {
+				logger.warn("backend attach abort failed", { error: String(error) });
+			});
+			return;
+		}
 		void this.client.send(this.#sessionId, { type: "abort" }).catch(error => {
 			logger.warn("backend attach abort failed", { error: String(error) });
 		});
@@ -157,6 +195,8 @@ export class BackendAttachLink {
 	async detach(): Promise<void> {
 		if (this.#closed) return;
 		this.#closed = true;
+		this.#wire?.close();
+		this.#wire = undefined;
 		this.#abort.abort();
 		for (const dialog of this.#pendingDialogs.values()) dialog.abort.abort();
 		this.#pendingDialogs.clear();
@@ -288,9 +328,11 @@ export class BackendAttachLink {
 				return;
 			}
 			case "extension_ui_request":
-				await this.#presentUiRequest(event);
+				// With a protocol link the socket delivers dialogs directly.
+				if (!this.#wire) await this.#presentUiRequest(event);
 				return;
 			case "extension_ui_resolved": {
+				if (this.#wire) return;
 				const id = typeof event.id === "string" ? event.id : undefined;
 				if (id) {
 					this.#pendingDialogs.get(id)?.abort.abort();
@@ -435,6 +477,10 @@ export class BackendAttachLink {
 	}
 
 	async #respond(id: string, body: Record<string, unknown>): Promise<void> {
+		if (this.#wire) {
+			this.#wire.respond(id, body);
+			return;
+		}
 		await this.client.respondExtensionUi({ id, ...body }, this.#abort.signal);
 	}
 
@@ -452,6 +498,16 @@ export class BackendAttachLink {
 					? "compact"
 					: "cancel";
 		if (!planFilePath) return;
+		if (this.#wire) {
+			await this.#wire
+				.approvePlan(planFilePath, mode)
+				.catch(error =>
+					this.#ctx.showError(
+						`Backend plan approval failed: ${error instanceof Error ? error.message : String(error)}`,
+					),
+				);
+			return;
+		}
 		await this.client
 			.send(this.#sessionId, { type: "plan_approve", planFilePath, mode })
 			.catch(error =>

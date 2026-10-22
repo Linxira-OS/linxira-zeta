@@ -382,6 +382,12 @@ export class AgentSessionWrapper {
 				logger.error("web-gateway: event listener failed", { error: String(error) });
 			}
 		}
+		// Protocol clients (attached TUI, SDK consumers) see the same dialog
+		// lifecycle the SSE listeners do, including a request settled by another
+		// surface; whichever answers first closes the card everywhere.
+		if (event.type === "extension_ui_request" || event.type === "extension_ui_resolved") {
+			for (const listener of this.#protocolListeners) listener(event);
+		}
 	}
 
 	isRunning(): boolean {
@@ -837,9 +843,6 @@ export class AgentSessionWrapper {
 	dispatchUiRequest(request: ExtensionUiRequest): void {
 		if (request.method in ANSWERABLE_UI_METHODS) uiRequestOwners.set(request.id, this.realSessionId);
 		this.#emit(request as unknown as AgentEvent);
-		// Protocol clients (the attached TUI, SDK consumers) see the same dialog
-		// the web UI does; whichever answers first settles it for everyone.
-		for (const listener of this.#protocolListeners) listener(request);
 	}
 
 	/**
