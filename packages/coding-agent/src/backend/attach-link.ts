@@ -75,6 +75,8 @@ export class BackendAttachLink {
 	#streaming = false;
 	/** Protocol control plane; absent when the backend predates the WS plane. */
 	#wire: AttachWire | undefined;
+	/** Mirrors the replica's own model/thinking switches to the backend. */
+	#unsubscribeLocal: (() => void) | undefined;
 	replicaPath: string | undefined;
 
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
@@ -143,6 +145,23 @@ export class BackendAttachLink {
 		void this.#pumpEvents();
 		this.#joined = true;
 		this.#ctx.backendAttach = this;
+		// The replica is a real session: `/model` and `/thinking` switch it. When
+		// a control plane is attached, the backend owns the turn, so the same
+		// switches must reach it; otherwise the UI and the run disagree.
+		this.#unsubscribeLocal = this.#ctx.session.subscribe(event => {
+			if (!this.#wire) return;
+			if (event.type === "model_changed") {
+				const model = this.#ctx.session.model;
+				if (!model) return;
+				void this.#wire
+					.setModel(model.provider, model.id)
+					.catch(error => this.#ctx.showWarning(`Backend model switch failed: ${String(error)}`));
+			} else if (event.type === "thinking_level_changed" && event.thinkingLevel) {
+				void this.#wire
+					.setThinking(event.thinkingLevel)
+					.catch(error => this.#ctx.showWarning(`Backend thinking switch failed: ${String(error)}`));
+			}
+		});
 
 		setSessionTerminalTitle(
 			detail.info?.name ?? detail.info?.firstMessage ?? this.#ctx.sessionManager.getSessionName(),
@@ -197,6 +216,8 @@ export class BackendAttachLink {
 		this.#closed = true;
 		this.#wire?.close();
 		this.#wire = undefined;
+		this.#unsubscribeLocal?.();
+		this.#unsubscribeLocal = undefined;
 		this.#abort.abort();
 		for (const dialog of this.#pendingDialogs.values()) dialog.abort.abort();
 		this.#pendingDialogs.clear();

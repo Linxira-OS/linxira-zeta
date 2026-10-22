@@ -72,6 +72,16 @@ export class AttachWire {
 		return this.#client.call("plan_approve", { planFilePath, mode }).then(() => undefined);
 	}
 
+	/** Apply a model switch to the backend session. */
+	setModel(provider: string, modelId: string): Promise<void> {
+		return this.#client.call("set_model", { provider, modelId }).then(() => undefined);
+	}
+
+	/** Apply a thinking-level switch to the backend session. */
+	setThinking(level: string): Promise<void> {
+		return this.#client.call("set_thinking_level", { level }).then(() => undefined);
+	}
+
 	/** Answer a dialog fanned out by the backend. */
 	respond(id: string, body: Record<string, unknown>): void {
 		this.#client.notify({ type: "extension_ui_response", id, ...body });

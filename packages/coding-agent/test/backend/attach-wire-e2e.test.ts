@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
 import { Agent } from "@linxiraos/pi-agent-core";
+import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { initTheme } from "@linxiraos/pi-tui/theme";
@@ -169,6 +170,15 @@ describe("attached TUI over the wire protocol", () => {
 		// Reading the session detail must not open a second writer over the live
 		// session: the backend keeps saving into the same file.
 		expect(backendManager.getSessionFile()).toBe(sessionFile);
+
+		// `/thinking`-style switches happen on the replica; the backend must end
+		// up on the same level or the next run disagrees with the status line.
+		mode.session.setThinkingLevel(ThinkingLevel.Low);
+		const thinkingDeadline = Date.now() + 2_000;
+		while (backendSession.thinkingLevel !== mode.session.thinkingLevel && Date.now() < thinkingDeadline) {
+			await term.waitForRender();
+		}
+		expect(backendSession.thinkingLevel).toBe(mode.session.thinkingLevel);
 
 		// Backend dialog → TUI selector → answer over the socket settles it.
 		const answered = Promise.withResolvers<Record<string, unknown>>();
