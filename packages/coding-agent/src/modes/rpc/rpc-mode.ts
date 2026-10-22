@@ -50,6 +50,8 @@ import {
 import { requestTextPrediction, textPredictionBackend } from "../../predict/client";
 import { type AgentSession, SessionBusyError } from "../../session/agent-session";
 import type { RestoredQueuedMessage } from "../../session/agent-session-types";
+import type { PlanModeState } from "../../plan-mode/state";
+import type { VibeModeState } from "../../vibe/state";
 import { CACHE_WARMING_MODES } from "../../session/cache-warmer";
 import { findMostRecentNonEmptySession } from "../../session/session-listing";
 import { SKILL_PROMPT_MESSAGE_TYPE, USER_INTERRUPT_LABEL } from "../../session/messages";
@@ -2006,6 +2008,13 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 					})),
 					contextUsage: session.getContextUsage(),
 					goal: session.getGoalModeState() ?? null,
+					// The same per-mode snapshot the TUI banners read; a remote
+					// client needs it to draw plan/goal/vibe without a second protocol.
+					modes: {
+						plan: session.getModeState("plan") as PlanModeState | undefined,
+						goal: session.getGoalModeState() ?? undefined,
+						vibe: session.getModeState("vibe") as VibeModeState | undefined,
+					},
 				};
 				return success(id, "get_state", state);
 			}
@@ -2294,6 +2303,33 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			// =================================================================
 			// Cache warming
 			// =================================================================
+
+			case "mode_enter": {
+				await session.enterMode(command.mode);
+				return success(id, "mode_enter");
+			}
+
+			case "mode_exit": {
+				await session.exitMode(command.mode);
+				return success(id, "mode_exit");
+			}
+
+			case "get_tools": {
+				return success(id, "get_tools", {
+					all: session.getAllToolNames(),
+					active: session.getActiveToolNames(),
+				});
+			}
+
+			case "set_tools": {
+				await session.setActiveToolsByName(command.toolNames);
+				return success(id, "set_tools");
+			}
+
+			case "reload": {
+				await session.reload();
+				return success(id, "reload");
+			}
 
 			case "set_cache_warming": {
 				if (!CACHE_WARMING_MODES.includes(command.mode)) {

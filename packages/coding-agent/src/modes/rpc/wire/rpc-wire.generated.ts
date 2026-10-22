@@ -370,6 +370,8 @@ export interface ModelInfo {
 
 export type QueueMode = "all" | "one-at-a-time";
 
+export type SessionModeId = "plan" | "goal" | "vibe";
+
 export type InterruptMode = "immediate" | "wait";
 
 export type StreamingBehavior = "steer" | "followUp";
@@ -441,6 +443,28 @@ export interface Goal {
 	createdAt: number;
 	updatedAt: number;
 	tokenBudget?: number;
+}
+
+/** Session plan mode: enabled, where its plan lives, and who armed it. */
+export interface PlanModeState {
+	enabled: boolean;
+	planFilePath: string;
+	workflow?: "parallel" | "iterative" | "ultra";
+	reentry?: boolean;
+	enteredBy?: "user" | "agent";
+	objective?: string;
+}
+
+/** Session vibe mode. */
+export interface VibeModeState {
+	enabled: boolean;
+}
+
+/** Every mode's state, the snapshot a client renders its mode banners from. */
+export interface ModeStates {
+	plan?: PlanModeState;
+	goal?: GoalModeState;
+	vibe?: VibeModeState;
 }
 
 /** Session goal mode; `mode` is `"exiting"` while a completed goal unwinds. */
@@ -518,6 +542,7 @@ export interface SessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal mode; null when the session has no goal. */
 	goal?: GoalModeState | null;
+	modes?: ModeStates;
 }
 
 export interface BashResult {
@@ -1665,6 +1690,23 @@ export interface SetAutoCompactionParams {
 	enabled: boolean;
 }
 
+export interface ModeEnterParams {
+	mode: SessionModeId;
+}
+
+export interface ModeExitParams {
+	mode: SessionModeId;
+}
+
+export interface GetToolsResult {
+	all: string[];
+	active: string[];
+}
+
+export interface SetToolsParams {
+	toolNames: string[];
+}
+
 export interface SetCacheWarmingParams {
 	mode: CacheWarmingMode;
 }
@@ -1838,6 +1880,11 @@ export interface RpcWireCommands {
 	set_interrupt_mode: { params: SetInterruptModeParams; result: undefined };
 	compact: { params: CompactParams; result: CompactionResult };
 	set_auto_compaction: { params: SetAutoCompactionParams; result: undefined };
+	mode_enter: { params: ModeEnterParams; result: undefined };
+	mode_exit: { params: ModeExitParams; result: undefined };
+	get_tools: { params: undefined; result: GetToolsResult };
+	set_tools: { params: SetToolsParams; result: undefined };
+	reload: { params: undefined; result: undefined };
 	set_cache_warming: { params: SetCacheWarmingParams; result: SetCacheWarmingResult };
 	set_auto_retry: { params: SetAutoRetryParams; result: undefined };
 	abort_retry: { params: undefined; result: undefined };

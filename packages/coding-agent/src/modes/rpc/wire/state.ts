@@ -11,6 +11,8 @@ const JSON_OBJECT = "Record<string, unknown>";
 
 export const stateDefs = {
 	QueueMode: "'all' | 'one-at-a-time'",
+	// The three session modes the TUI and the gateway both drive (plan/goal/vibe).
+	SessionModeId: "'plan' | 'goal' | 'vibe'",
 	InterruptMode: "'immediate' | 'wait'",
 	StreamingBehavior: "'steer' | 'followUp'",
 	QueuedMessageQueue: "'steering' | 'followUp'",
@@ -66,6 +68,22 @@ export const stateDefs = {
 			updatedAt: "number.integer",
 		},
 		"A tracked goal: its objective, lifecycle status, and resource accounting.",
+	),
+	PlanModeState: doc(
+		{
+			enabled: "boolean",
+			planFilePath: "string",
+			"workflow?": "'parallel' | 'iterative' | 'ultra'",
+			"reentry?": "boolean",
+			"enteredBy?": "'user' | 'agent'",
+			"objective?": "string",
+		},
+		"Session plan mode: enabled, where its plan lives, and who armed it.",
+	),
+	VibeModeState: doc({ enabled: "boolean" }, "Session vibe mode."),
+	ModeStates: doc(
+		{ "plan?": "PlanModeState", "goal?": "GoalModeState", "vibe?": "VibeModeState" },
+		"Every mode's state, the snapshot a client renders its mode banners from.",
 	),
 	GoalModeState: doc(
 		{ enabled: "boolean", mode: "'active' | 'exiting'", "reason?": "'completed'", goal: "Goal" },
@@ -143,6 +161,7 @@ export const stateDefs = {
 		dumpTools: absentAs("ToolDescriptor[]", []),
 		"contextUsage?": "ContextUsage",
 		goal: absentAs(doc("GoalModeState | null", "Current goal mode; null when the session has no goal."), null),
+		"modes?": "ModeStates",
 	},
 
 	BashResult: {

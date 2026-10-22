@@ -2606,6 +2606,27 @@ impl QueueMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SessionModeId {
+	#[serde(rename = "plan")]
+	Plan,
+	#[serde(rename = "goal")]
+	Goal,
+	#[serde(rename = "vibe")]
+	Vibe,
+}
+
+impl SessionModeId {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Plan => "plan",
+			Self::Goal => "goal",
+			Self::Vibe => "vibe",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum InterruptMode {
 	#[serde(rename = "immediate")]
 	Immediate,
@@ -2946,6 +2967,39 @@ pub struct Goal {
 	pub token_budget: Option<i64>,
 }
 
+/// Session plan mode: enabled, where its plan lives, and who armed it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlanModeState {
+	pub enabled: bool,
+	#[serde(rename = "planFilePath")]
+	pub plan_file_path: String,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub workflow: Option<PlanModeStateWorkflow>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub reentry: Option<bool>,
+	#[serde(rename = "enteredBy", default, skip_serializing_if = "Option::is_none")]
+	pub entered_by: Option<PlanModeStateEnteredBy>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub objective: Option<String>,
+}
+
+/// Session vibe mode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VibeModeState {
+	pub enabled: bool,
+}
+
+/// Every mode's state, the snapshot a client renders its mode banners from.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModeStates {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub plan: Option<PlanModeState>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub goal: Option<GoalModeState>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub vibe: Option<VibeModeState>,
+}
+
 /// Session goal mode; `mode` is `"exiting"` while a completed goal unwinds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GoalModeState {
@@ -3110,6 +3164,8 @@ pub struct SessionState {
 	/// Current goal mode; null when the session has no goal.
 	#[serde(default = "default_session_state_goal")]
 	pub goal: Option<GoalModeState>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub modes: Option<ModeStates>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5327,6 +5383,28 @@ pub struct SetAutoCompactionParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModeEnterParams {
+	pub mode: SessionModeId,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModeExitParams {
+	pub mode: SessionModeId,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GetToolsResult {
+	pub all: Vec<String>,
+	pub active: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SetToolsParams {
+	#[serde(rename = "toolNames")]
+	pub tool_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetCacheWarmingParams {
 	pub mode: CacheWarmingMode,
 }
@@ -5686,6 +5764,45 @@ impl AssistantErrorEventReason {
 		match self {
 			Self::Aborted => "aborted",
 			Self::Error => "error",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PlanModeStateWorkflow {
+	#[serde(rename = "parallel")]
+	Parallel,
+	#[serde(rename = "iterative")]
+	Iterative,
+	#[serde(rename = "ultra")]
+	Ultra,
+}
+
+impl PlanModeStateWorkflow {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Parallel => "parallel",
+			Self::Iterative => "iterative",
+			Self::Ultra => "ultra",
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PlanModeStateEnteredBy {
+	#[serde(rename = "user")]
+	User,
+	#[serde(rename = "agent")]
+	Agent,
+}
+
+impl PlanModeStateEnteredBy {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::User => "user",
+			Self::Agent => "agent",
 		}
 	}
 }
@@ -6596,6 +6713,87 @@ pub struct SetAutoCompactionCommand {
 
 impl Command for SetAutoCompactionCommand {
 	const NAME: &'static str = "set_auto_compaction";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = ();
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		let _ = data;
+		Ok(())
+	}
+}
+
+/// Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModeEnterCommand {
+	pub mode: SessionModeId,
+}
+
+impl Command for ModeEnterCommand {
+	const NAME: &'static str = "mode_enter";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = ();
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		let _ = data;
+		Ok(())
+	}
+}
+
+/// Leave a session mode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModeExitCommand {
+	pub mode: SessionModeId,
+}
+
+impl Command for ModeExitCommand {
+	const NAME: &'static str = "mode_exit";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = ();
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		let _ = data;
+		Ok(())
+	}
+}
+
+/// List every tool the session knows and the subset that is active.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct GetToolsCommand {}
+
+impl Command for GetToolsCommand {
+	const NAME: &'static str = "get_tools";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = GetToolsResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<GetToolsResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Replace the active tool set by name.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SetToolsCommand {
+	#[serde(rename = "toolNames")]
+	pub tool_names: Vec<String>,
+}
+
+impl Command for SetToolsCommand {
+	const NAME: &'static str = "set_tools";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = ();
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		let _ = data;
+		Ok(())
+	}
+}
+
+/// Reload the session's agent, tools and settings.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ReloadCommand {}
+
+impl Command for ReloadCommand {
+	const NAME: &'static str = "reload";
 	const TIMEOUT_MS: Option<u64> = None;
 	type Output = ();
 

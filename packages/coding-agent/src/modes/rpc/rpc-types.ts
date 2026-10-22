@@ -22,6 +22,8 @@ import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-se
 import type { LivePhase } from "@linxiraos/pi-tui/apps/live-visualizer";
 import type { RpcMessagesPage } from "./rpc-messages";
 import type { GoalModeState } from "../../goals/state";
+import type { PlanModeState } from "../../plan-mode/state";
+import type { VibeModeState } from "../../vibe/state";
 import type { GoalContinuationOp, GoalContinuationResult } from "../../goals/continuation-controller";
 import type { BtwHistoryRecord } from "../../session/btw-history";
 
@@ -95,6 +97,14 @@ export type RpcCommand =
 	// Compaction
 	| { id?: string; type: "compact"; customInstructions?: string }
 	| { id?: string; type: "set_auto_compaction"; enabled: boolean }
+
+	// Session modes, tool set and reload (the TUI's /plan, /goal, /vibe,
+	// /tool and /reload surfaces; a client drives the same transitions)
+	| { id?: string; type: "mode_enter"; mode: "plan" | "goal" | "vibe" }
+	| { id?: string; type: "mode_exit"; mode: "plan" | "goal" | "vibe" }
+	| { id?: string; type: "get_tools" }
+	| { id?: string; type: "set_tools"; toolNames: string[] }
+	| { id?: string; type: "reload" }
 
 	// Cache warming
 	| { id?: string; type: "set_cache_warming"; mode: CacheWarmingMode }
@@ -194,6 +204,15 @@ export interface RpcSessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal-mode state; `null` when the session has no goal. */
 	goal: GoalModeState | null;
+	/**
+	 * Every mode's state, the same snapshot the TUI's mode banners read. Present
+	 * so a remote client can render plan/goal/vibe without a second protocol.
+	 */
+	modes?: {
+		plan?: PlanModeState;
+		goal?: GoalModeState;
+		vibe?: VibeModeState;
+	};
 }
 
 export interface RpcAvailableSlashCommand {
@@ -523,6 +542,11 @@ export type RpcResponse =
 	// Compaction
 	| { id?: string; type: "response"; command: "compact"; success: true; data: CompactionResult }
 	| { id?: string; type: "response"; command: "set_auto_compaction"; success: true }
+	| { id?: string; type: "response"; command: "mode_enter"; success: true }
+	| { id?: string; type: "response"; command: "mode_exit"; success: true }
+	| { id?: string; type: "response"; command: "get_tools"; success: true; data: { all: string[]; active: string[] } }
+	| { id?: string; type: "response"; command: "set_tools"; success: true }
+	| { id?: string; type: "response"; command: "reload"; success: true }
 
 	// Cache warming
 	| { id?: string; type: "response"; command: "set_cache_warming"; success: true; data: { mode: CacheWarmingMode } }

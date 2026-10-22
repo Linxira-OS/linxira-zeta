@@ -474,6 +474,61 @@
 				"clientOmit": []
 			},
 			{
+				"name": "mode_enter",
+				"doc": "Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.",
+				"params": "ModeEnterParams",
+				"result": null,
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "mode_exit",
+				"doc": "Leave a session mode.",
+				"params": "ModeExitParams",
+				"result": null,
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "get_tools",
+				"doc": "List every tool the session knows and the subset that is active.",
+				"params": null,
+				"result": "GetToolsResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "set_tools",
+				"doc": "Replace the active tool set by name.",
+				"params": "SetToolsParams",
+				"result": null,
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "reload",
+				"doc": "Reload the session's agent, tools and settings.",
+				"params": null,
+				"result": null,
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
 				"name": "set_cache_warming",
 				"doc": "Override cache warming for this session only; returns the effective mode.",
 				"params": "SetCacheWarmingParams",
@@ -2155,6 +2210,14 @@
 			],
 			"type": "string"
 		},
+		"SessionModeId": {
+			"enum": [
+				"plan",
+				"goal",
+				"vibe"
+			],
+			"type": "string"
+		},
 		"InterruptMode": {
 			"enum": [
 				"immediate",
@@ -2410,6 +2473,70 @@
 				"updatedAt"
 			],
 			"description": "A tracked goal: its objective, lifecycle status, and resource accounting."
+		},
+		"PlanModeState": {
+			"type": "object",
+			"properties": {
+				"enabled": {
+					"type": "boolean"
+				},
+				"planFilePath": {
+					"type": "string"
+				},
+				"workflow": {
+					"enum": [
+						"parallel",
+						"iterative",
+						"ultra"
+					],
+					"type": "string"
+				},
+				"reentry": {
+					"type": "boolean"
+				},
+				"enteredBy": {
+					"enum": [
+						"user",
+						"agent"
+					],
+					"type": "string"
+				},
+				"objective": {
+					"type": "string"
+				}
+			},
+			"required": [
+				"enabled",
+				"planFilePath"
+			],
+			"description": "Session plan mode: enabled, where its plan lives, and who armed it."
+		},
+		"VibeModeState": {
+			"type": "object",
+			"properties": {
+				"enabled": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"enabled"
+			],
+			"description": "Session vibe mode."
+		},
+		"ModeStates": {
+			"type": "object",
+			"properties": {
+				"plan": {
+					"$ref": "#/$defs/PlanModeState"
+				},
+				"goal": {
+					"$ref": "#/$defs/GoalModeState"
+				},
+				"vibe": {
+					"$ref": "#/$defs/VibeModeState"
+				}
+			},
+			"description": "Every mode's state, the snapshot a client renders its mode banners from."
 		},
 		"GoalModeState": {
 			"type": "object",
@@ -2671,6 +2798,9 @@
 					],
 					"description": "Current goal mode; null when the session has no goal.",
 					"default": null
+				},
+				"modes": {
+					"$ref": "#/$defs/ModeStates"
 				}
 			},
 			"required": [
@@ -6416,6 +6546,63 @@
 			},
 			"required": [
 				"enabled"
+			]
+		},
+		"ModeEnterParams": {
+			"type": "object",
+			"properties": {
+				"mode": {
+					"$ref": "#/$defs/SessionModeId"
+				}
+			},
+			"required": [
+				"mode"
+			]
+		},
+		"ModeExitParams": {
+			"type": "object",
+			"properties": {
+				"mode": {
+					"$ref": "#/$defs/SessionModeId"
+				}
+			},
+			"required": [
+				"mode"
+			]
+		},
+		"GetToolsResult": {
+			"type": "object",
+			"properties": {
+				"all": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
+				"active": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			},
+			"required": [
+				"all",
+				"active"
+			]
+		},
+		"SetToolsParams": {
+			"type": "object",
+			"properties": {
+				"toolNames": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			},
+			"required": [
+				"toolNames"
 			]
 		},
 		"SetCacheWarmingParams": {

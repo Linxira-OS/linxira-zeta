@@ -237,6 +237,23 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	},
 	{ name: "set_auto_compaction", doc: "Enable or disable auto-compaction.", params: { enabled: "boolean" } },
 	{
+		name: "mode_enter",
+		doc: "Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.",
+		params: { mode: "SessionModeId" },
+	},
+	{
+		name: "mode_exit",
+		doc: "Leave a session mode.",
+		params: { mode: "SessionModeId" },
+	},
+	{
+		name: "get_tools",
+		doc: "List every tool the session knows and the subset that is active.",
+		result: { all: "string[]", active: "string[]" },
+	},
+	{ name: "set_tools", doc: "Replace the active tool set by name.", params: { toolNames: "string[]" } },
+	{ name: "reload", doc: "Reload the session's agent, tools and settings." },
+	{
 		name: "set_cache_warming",
 		doc: "Override cache warming for this session only; returns the effective mode.",
 		params: { mode: "CacheWarmingMode" },

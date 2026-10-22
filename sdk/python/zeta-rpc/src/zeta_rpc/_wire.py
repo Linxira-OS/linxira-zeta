@@ -67,6 +67,11 @@ _QUEUE_MODE_VALUES: Final[frozenset[str]] = frozenset({"all", "one-at-a-time"})
 _decode_queue_mode = cast("Decoder[QueueMode]", literal(_QUEUE_MODE_VALUES))
 
 
+SessionModeId: TypeAlias = Literal["plan", "goal", "vibe"]
+_SESSION_MODE_ID_VALUES: Final[frozenset[str]] = frozenset({"plan", "goal", "vibe"})
+_decode_session_mode_id = cast("Decoder[SessionModeId]", literal(_SESSION_MODE_ID_VALUES))
+
+
 InterruptMode: TypeAlias = Literal["immediate", "wait"]
 _INTERRUPT_MODE_VALUES: Final[frozenset[str]] = frozenset({"immediate", "wait"})
 _decode_interrupt_mode = cast("Decoder[InterruptMode]", literal(_INTERRUPT_MODE_VALUES))
@@ -602,6 +607,31 @@ class Goal:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class PlanModeState:
+    """Session plan mode: enabled, where its plan lives, and who armed it."""
+    enabled: bool
+    plan_file_path: str
+    workflow: Literal["parallel", "iterative", "ultra"] | None = None
+    reentry: bool | None = None
+    entered_by: Literal["user", "agent"] | None = None
+    objective: str | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class VibeModeState:
+    """Session vibe mode."""
+    enabled: bool
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class ModeStates:
+    """Every mode's state, the snapshot a client renders its mode banners from."""
+    plan: PlanModeState | None = None
+    goal: GoalModeState | None = None
+    vibe: VibeModeState | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class GoalModeState:
     """Session goal mode; `mode` is `"exiting"` while a completed goal unwinds."""
     enabled: bool
@@ -675,6 +705,7 @@ class SessionState:
     context_usage: ContextUsage | None = None
     goal: GoalModeState | None = None
     """Current goal mode; null when the session has no goal."""
+    modes: ModeStates | None = None
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -1590,6 +1621,12 @@ class NegotiateProtocolResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class GetToolsResult:
+    all: tuple[str, ...]
+    active: tuple[str, ...]
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class LogoutResult:
     remaining_source: str | None = None
 
@@ -1890,6 +1927,34 @@ def parse_goal(value: object, path: str = "Goal") -> Goal:
     )
 
 
+def parse_plan_mode_state(value: object, path: str = "PlanModeState") -> PlanModeState:
+    payload = expect_object(value, path)
+    return PlanModeState(
+        enabled=required(payload, "enabled", decode_bool, path),
+        plan_file_path=required(payload, "planFilePath", decode_str, path),
+        workflow=optional(payload, "workflow", cast('Decoder[Literal["parallel", "iterative", "ultra"]]', literal(frozenset({"parallel", "iterative", "ultra"}))), path),
+        reentry=optional(payload, "reentry", decode_bool, path),
+        entered_by=optional(payload, "enteredBy", cast('Decoder[Literal["user", "agent"]]', literal(frozenset({"user", "agent"}))), path),
+        objective=optional(payload, "objective", decode_str, path),
+    )
+
+
+def parse_vibe_mode_state(value: object, path: str = "VibeModeState") -> VibeModeState:
+    payload = expect_object(value, path)
+    return VibeModeState(
+        enabled=required(payload, "enabled", decode_bool, path),
+    )
+
+
+def parse_mode_states(value: object, path: str = "ModeStates") -> ModeStates:
+    payload = expect_object(value, path)
+    return ModeStates(
+        plan=optional(payload, "plan", parse_plan_mode_state, path),
+        goal=optional(payload, "goal", parse_goal_mode_state, path),
+        vibe=optional(payload, "vibe", parse_vibe_mode_state, path),
+    )
+
+
 def parse_goal_mode_state(value: object, path: str = "GoalModeState") -> GoalModeState:
     payload = expect_object(value, path)
     return GoalModeState(
@@ -1957,6 +2022,7 @@ def parse_session_state(value: object, path: str = "SessionState") -> SessionSta
         dump_tools=defaulted(payload, "dumpTools", array(parse_tool_descriptor), path, ()),
         context_usage=optional(payload, "contextUsage", parse_context_usage, path),
         goal=defaulted(payload, "goal", nullable(parse_goal_mode_state), path, None),
+        modes=optional(payload, "modes", parse_mode_states, path),
     )
 
 
@@ -3009,6 +3075,14 @@ def parse_negotiate_protocol_result(value: object, path: str = "NegotiateProtoco
     )
 
 
+def parse_get_tools_result(value: object, path: str = "GetToolsResult") -> GetToolsResult:
+    payload = expect_object(value, path)
+    return GetToolsResult(
+        all=required(payload, "all", array(decode_str), path),
+        active=required(payload, "active", array(decode_str), path),
+    )
+
+
 def parse_logout_result(value: object, path: str = "LogoutResult") -> LogoutResult:
     payload = expect_object(value, path)
     return LogoutResult(
@@ -3374,6 +3448,34 @@ class WireClient:
         params: dict[str, object] = {}
         params["enabled"] = enabled
         self._command("set_auto_compaction", params)
+
+    def mode_enter(self, mode: SessionModeId) -> None:
+        """Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run."""
+        params: dict[str, object] = {}
+        params["mode"] = mode
+        self._command("mode_enter", params)
+
+    def mode_exit(self, mode: SessionModeId) -> None:
+        """Leave a session mode."""
+        params: dict[str, object] = {}
+        params["mode"] = mode
+        self._command("mode_exit", params)
+
+    def get_tools(self) -> GetToolsResult:
+        """List every tool the session knows and the subset that is active."""
+        params: dict[str, object] = {}
+        return parse_get_tools_result(self._command("get_tools", params), "get_tools")
+
+    def set_tools(self, tool_names: Sequence[str]) -> None:
+        """Replace the active tool set by name."""
+        params: dict[str, object] = {}
+        params["toolNames"] = list(tool_names)
+        self._command("set_tools", params)
+
+    def reload(self) -> None:
+        """Reload the session's agent, tools and settings."""
+        params: dict[str, object] = {}
+        self._command("reload", params)
 
     def set_cache_warming(self, mode: CacheWarmingMode) -> CacheWarmingMode:
         """Override cache warming for this session only; returns the effective mode."""
@@ -3810,6 +3912,7 @@ __all__ = [
     "FastModeResult",
     "FileMentionItem",
     "FileMentionMessage",
+    "GetToolsResult",
     "Goal",
     "GoalModeState",
     "GoalOp",
@@ -3839,6 +3942,7 @@ __all__ = [
     "MessageUpdateEvent",
     "MessageUpdates",
     "MessagesPage",
+    "ModeStates",
     "ModelChangedEvent",
     "ModelCost",
     "ModelCycleResult",
@@ -3849,6 +3953,7 @@ __all__ = [
     "NotifyUiRequest",
     "OpenSessionResult",
     "OpenUrlUiRequest",
+    "PlanModeState",
     "PromoteQueuedMessageResult",
     "PromptAck",
     "PromptError",
@@ -3873,6 +3978,7 @@ __all__ = [
     "SessionCredits",
     "SessionEntries",
     "SessionInfoUpdateEvent",
+    "SessionModeId",
     "SessionSettledEvent",
     "SessionState",
     "SessionStats",
@@ -3929,6 +4035,7 @@ __all__ = [
     "UsageLimitWrapUp",
     "UserContent",
     "UserMessage",
+    "VibeModeState",
     "WidgetPlacement",
     "parse_abort_and_restore_queue_result",
     "parse_advisor_cost_changed_event",
@@ -3992,6 +4099,7 @@ __all__ = [
     "parse_fast_mode_result",
     "parse_file_mention_item",
     "parse_file_mention_message",
+    "parse_get_tools_result",
     "parse_goal",
     "parse_goal_mode_state",
     "parse_goal_result",
@@ -4014,6 +4122,7 @@ __all__ = [
     "parse_message_start_event",
     "parse_message_update_event",
     "parse_messages_page",
+    "parse_mode_states",
     "parse_model_changed_event",
     "parse_model_cost",
     "parse_model_cycle_result",
@@ -4024,6 +4133,7 @@ __all__ = [
     "parse_notify_ui_request",
     "parse_open_session_result",
     "parse_open_url_ui_request",
+    "parse_plan_mode_state",
     "parse_promote_queued_message_result",
     "parse_prompt_ack",
     "parse_prompt_error",
@@ -4090,4 +4200,5 @@ __all__ = [
     "parse_usage_limit_wrap_up",
     "parse_user_content",
     "parse_user_message",
+    "parse_vibe_mode_state",
 ]

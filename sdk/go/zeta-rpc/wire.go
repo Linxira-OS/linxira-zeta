@@ -1871,6 +1871,27 @@ func (v *QueueMode) UnmarshalJSON(data []byte) error {
 	return unknownValue("QueueMode", s)
 }
 
+type SessionModeId string
+
+const (
+	SessionModeIdPlan SessionModeId = "plan"
+	SessionModeIdGoal SessionModeId = "goal"
+	SessionModeIdVibe SessionModeId = "vibe"
+)
+
+func (v *SessionModeId) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "SessionModeId")
+	if err != nil {
+		return err
+	}
+	switch value := SessionModeId(s); value {
+	case SessionModeIdPlan, SessionModeIdGoal, SessionModeIdVibe:
+		*v = value
+		return nil
+	}
+	return unknownValue("SessionModeId", s)
+}
+
 type InterruptMode string
 
 const (
@@ -2288,6 +2309,121 @@ func (v *Goal) decodeFrom(raw map[string]json.RawMessage) error {
 	return nil
 }
 
+// Session plan mode: enabled, where its plan lives, and who armed it.
+type PlanModeState struct {
+	Enabled      bool                    `json:"enabled"`
+	PlanFilePath string                  `json:"planFilePath"`
+	Workflow     *PlanModeStateWorkflow  `json:"workflow,omitempty"`
+	Reentry      *bool                   `json:"reentry,omitempty"`
+	EnteredBy    *PlanModeStateEnteredBy `json:"enteredBy,omitempty"`
+	Objective    *string                 `json:"objective,omitempty"`
+}
+
+func (v *PlanModeState) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "PlanModeState", v.decodeFrom)
+}
+
+func (v *PlanModeState) decodeFrom(raw map[string]json.RawMessage) error {
+	var out PlanModeState
+	d := fieldDecoder{raw: raw, owner: "PlanModeState"}
+	d.required("enabled", &out.Enabled)
+	d.required("planFilePath", &out.PlanFilePath)
+	d.optional("workflow", &out.Workflow)
+	d.optional("reentry", &out.Reentry)
+	d.optional("enteredBy", &out.EnteredBy)
+	d.optional("objective", &out.Objective)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+type PlanModeStateWorkflow string
+
+const (
+	PlanModeStateWorkflowParallel  PlanModeStateWorkflow = "parallel"
+	PlanModeStateWorkflowIterative PlanModeStateWorkflow = "iterative"
+	PlanModeStateWorkflowUltra     PlanModeStateWorkflow = "ultra"
+)
+
+func (v *PlanModeStateWorkflow) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "PlanModeStateWorkflow")
+	if err != nil {
+		return err
+	}
+	switch value := PlanModeStateWorkflow(s); value {
+	case PlanModeStateWorkflowParallel, PlanModeStateWorkflowIterative, PlanModeStateWorkflowUltra:
+		*v = value
+		return nil
+	}
+	return unknownValue("PlanModeStateWorkflow", s)
+}
+
+type PlanModeStateEnteredBy string
+
+const (
+	PlanModeStateEnteredByUser  PlanModeStateEnteredBy = "user"
+	PlanModeStateEnteredByAgent PlanModeStateEnteredBy = "agent"
+)
+
+func (v *PlanModeStateEnteredBy) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "PlanModeStateEnteredBy")
+	if err != nil {
+		return err
+	}
+	switch value := PlanModeStateEnteredBy(s); value {
+	case PlanModeStateEnteredByUser, PlanModeStateEnteredByAgent:
+		*v = value
+		return nil
+	}
+	return unknownValue("PlanModeStateEnteredBy", s)
+}
+
+// Session vibe mode.
+type VibeModeState struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (v *VibeModeState) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "VibeModeState", v.decodeFrom)
+}
+
+func (v *VibeModeState) decodeFrom(raw map[string]json.RawMessage) error {
+	var out VibeModeState
+	d := fieldDecoder{raw: raw, owner: "VibeModeState"}
+	d.required("enabled", &out.Enabled)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+// Every mode's state, the snapshot a client renders its mode banners from.
+type ModeStates struct {
+	Plan *PlanModeState `json:"plan,omitempty"`
+	Goal *GoalModeState `json:"goal,omitempty"`
+	Vibe *VibeModeState `json:"vibe,omitempty"`
+}
+
+func (v *ModeStates) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "ModeStates", v.decodeFrom)
+}
+
+func (v *ModeStates) decodeFrom(raw map[string]json.RawMessage) error {
+	var out ModeStates
+	d := fieldDecoder{raw: raw, owner: "ModeStates"}
+	d.optional("plan", &out.Plan)
+	d.optional("goal", &out.Goal)
+	d.optional("vibe", &out.Vibe)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 // Session goal mode; `mode` is `"exiting"` while a completed goal unwinds.
 type GoalModeState struct {
 	Enabled bool                 `json:"enabled"`
@@ -2535,7 +2671,8 @@ type SessionState struct {
 	DumpTools    []ToolDescriptor `json:"dumpTools"`
 	ContextUsage *ContextUsage    `json:"contextUsage,omitempty"`
 	// Current goal mode; null when the session has no goal.
-	Goal *GoalModeState `json:"goal"`
+	Goal  *GoalModeState `json:"goal"`
+	Modes *ModeStates    `json:"modes,omitempty"`
 }
 
 func (v *SessionState) UnmarshalJSON(data []byte) error {
@@ -2574,6 +2711,7 @@ func (v *SessionState) decodeFrom(raw map[string]json.RawMessage) error {
 	d.defaulted("dumpTools", &out.DumpTools, `[]`)
 	d.optional("contextUsage", &out.ContextUsage)
 	d.defaulted("goal", &out.Goal, `null`)
+	d.optional("modes", &out.Modes)
 	if d.err != nil {
 		return d.err
 	}
@@ -7134,6 +7272,27 @@ func (v *GetAvailableThinkingLevelsResult) decodeFrom(raw map[string]json.RawMes
 	return nil
 }
 
+type GetToolsResult struct {
+	All    []string `json:"all"`
+	Active []string `json:"active"`
+}
+
+func (v *GetToolsResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "GetToolsResult", v.decodeFrom)
+}
+
+func (v *GetToolsResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out GetToolsResult
+	d := fieldDecoder{raw: raw, owner: "GetToolsResult"}
+	d.required("all", &out.All)
+	d.required("active", &out.Active)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type SetCacheWarmingResult struct {
 	Mode CacheWarmingMode `json:"mode"`
 }
@@ -7827,6 +7986,48 @@ type SetAutoCompactionCommand struct {
 // SetAutoCompaction sends "set_auto_compaction": Enable or disable auto-compaction.
 func (c Commands) SetAutoCompaction(ctx context.Context, p SetAutoCompactionCommand) error {
 	return c.call(ctx, "set_auto_compaction", p, 0, nil)
+}
+
+// ModeEnterCommand holds the parameters of "mode_enter".
+type ModeEnterCommand struct {
+	Mode SessionModeId `json:"mode"`
+}
+
+// ModeEnter sends "mode_enter": Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.
+func (c Commands) ModeEnter(ctx context.Context, p ModeEnterCommand) error {
+	return c.call(ctx, "mode_enter", p, 0, nil)
+}
+
+// ModeExitCommand holds the parameters of "mode_exit".
+type ModeExitCommand struct {
+	Mode SessionModeId `json:"mode"`
+}
+
+// ModeExit sends "mode_exit": Leave a session mode.
+func (c Commands) ModeExit(ctx context.Context, p ModeExitCommand) error {
+	return c.call(ctx, "mode_exit", p, 0, nil)
+}
+
+// GetTools sends "get_tools": List every tool the session knows and the subset that is active.
+func (c Commands) GetTools(ctx context.Context) (GetToolsResult, error) {
+	var out GetToolsResult
+	err := c.call(ctx, "get_tools", nil, 0, &out)
+	return out, err
+}
+
+// SetToolsCommand holds the parameters of "set_tools".
+type SetToolsCommand struct {
+	ToolNames []string `json:"toolNames"`
+}
+
+// SetTools sends "set_tools": Replace the active tool set by name.
+func (c Commands) SetTools(ctx context.Context, p SetToolsCommand) error {
+	return c.call(ctx, "set_tools", p, 0, nil)
+}
+
+// Reload sends "reload": Reload the session's agent, tools and settings.
+func (c Commands) Reload(ctx context.Context) error {
+	return c.call(ctx, "reload", nil, 0, nil)
 }
 
 // SetCacheWarmingCommand holds the parameters of "set_cache_warming".

@@ -269,6 +269,59 @@ describe("RPC Pi-compatible primitives (live server)", () => {
 		});
 	}, 60000);
 
+	test("mode and tool commands drive the same session state a local TUI does", async () => {
+		// The point of these commands is parity: a remote client must be able to
+		// do what /plan, /tool and /reload do in the owning process.
+		await withRpcServer(async (send, next) => {
+			send({ type: "get_tools", id: "tools-before" });
+			const before = await next();
+			expect(before.success).toBe(true);
+			const beforeTools = before.data as { all: unknown; active: unknown };
+			expect(Array.isArray(beforeTools.all)).toBe(true);
+			expect(Array.isArray(beforeTools.active)).toBe(true);
+
+			send({ type: "set_tools", id: "tools-empty", toolNames: [] });
+			expect(await next()).toEqual({
+				id: "tools-empty",
+				type: "response",
+				command: "set_tools",
+				success: true,
+			});
+
+			send({ type: "get_tools", id: "tools-after" });
+			const after = await next();
+			expect((after.data as { active: string[] }).active).toEqual([]);
+
+			send({ type: "mode_enter", id: "plan-on", mode: "plan" });
+			expect(await next()).toEqual({
+				id: "plan-on",
+				type: "response",
+				command: "mode_enter",
+				success: true,
+			});
+
+			send({ type: "get_state", id: "state-plan" });
+			const state = (await next()).data as { modes?: { plan?: { enabled?: boolean } } };
+			expect(state.modes?.plan?.enabled).toBe(true);
+
+			send({ type: "mode_exit", id: "plan-off", mode: "plan" });
+			expect(await next()).toEqual({
+				id: "plan-off",
+				type: "response",
+				command: "mode_exit",
+				success: true,
+			});
+
+			send({ type: "reload", id: "reload-1" });
+			expect(await next()).toEqual({
+				id: "reload-1",
+				type: "response",
+				command: "reload",
+				success: true,
+			});
+		});
+	}, 60000);
+
 	test("set_slow_mode rejects a non-boolean enabled before touching the persisted Claude setting", async () => {
 		await withRpcServer(async (send, next) => {
 			send({ type: "get_state", id: "slow-state" });
