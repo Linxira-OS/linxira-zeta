@@ -994,10 +994,22 @@ describe("closing an OMP-owned page", () => {
 					});
 				});
 				await releaseTab(name, { kill: false });
+				// `Target.closeTarget` acknowledges the close before Chromium drops
+				// the target from `Target.getTargets`; the contract is that the page
+				// goes away, not that it is already gone on the next round trip.
 				const watcher = await browser.browser.target().createCDPSession();
-				const { targetInfos } = await watcher.send("Target.getTargets");
-				await watcher.detach();
-				expect(targetInfos.map(info => info.targetId)).not.toContain(targetId);
+				try {
+					const deadline = Date.now() + 5_000;
+					let present = true;
+					while (present && Date.now() < deadline) {
+						const { targetInfos } = await watcher.send("Target.getTargets");
+						present = targetInfos.some(info => info.targetId === targetId);
+						if (present) await Bun.sleep(25);
+					}
+					expect(present).toBe(false);
+				} finally {
+					await watcher.detach();
+				}
 			} finally {
 				await releaseTab(name, { kill: true });
 				await releaseBrowser(browser, { kill: true });

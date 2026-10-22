@@ -85,8 +85,14 @@ export function desktopAssetNames(version: string): DesktopAssetNames {
  */
 async function resolveVersion(): Promise<string> {
 	const fromArg = arg("version")?.trim();
-	const raw =
-		fromArg || (JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8")).version as string);
+	// The root manifest is private and carries no version; the product version
+	// lives in the package that ships the binary.
+	const manifest = JSON.parse(
+		await fs.readFile(path.join(repoRoot, "packages/coding-agent/package.json"), "utf8"),
+	) as { version?: unknown };
+	const fallback = typeof manifest.version === "string" ? manifest.version : "";
+	const raw = fromArg || fallback;
+	if (!raw) throw new Error("no version: --version is empty and package.json has none");
 	const version = normalizeVersion(raw);
 	if (!version) throw new Error("--version is empty");
 	return version;
