@@ -38,10 +38,7 @@ export const RPC_WS_RE = /^\/api\/rpc\/ws$/;
 
 /** Structural stand-in for `Bun.Server`, same shape the terminal plane uses. */
 export interface RpcWsUpgradeServer {
-	upgrade(
-		req: Request,
-		options: { data: RpcWsData },
-	): boolean;
+	upgrade(req: Request, options: { data: RpcWsData }): boolean;
 }
 
 export function isRpcWsUpgradeRequest(req: Request): boolean {

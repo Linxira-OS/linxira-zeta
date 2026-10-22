@@ -44,10 +44,7 @@ afterAll(async () => {
 	await gateway?.shutdown();
 	// The session still holds its transcript/agent files on Windows; scratch
 	// dirs are disposable and removal is best-effort, never a test failure.
-	const scratch = [
-		work,
-		join(process.env.HOME ?? process.env.USERPROFILE ?? "", process.env.ZETA_CONFIG_DIR ?? ""),
-	];
+	const scratch = [work, join(process.env.HOME ?? process.env.USERPROFILE ?? "", process.env.ZETA_CONFIG_DIR ?? "")];
 	for (const dir of scratch) await rm(dir, { recursive: true, force: true }).catch(() => undefined);
 	delete process.env.ZETA_CONFIG_DIR;
 });

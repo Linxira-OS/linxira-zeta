@@ -130,12 +130,7 @@ import {
 	terminalWebSocketHandler,
 	type TerminalWsData,
 } from "./web-gateway/terminal";
-import {
-	handleRpcWsUpgrade,
-	isRpcWsUpgradeRequest,
-	rpcWebSocketHandler,
-	type RpcWsData,
-} from "./web-gateway/rpc-ws";
+import { handleRpcWsUpgrade, isRpcWsUpgradeRequest, rpcWebSocketHandler, type RpcWsData } from "./web-gateway/rpc-ws";
 
 /** Both data planes share one listener; `kind` routes a socket to its handler. */
 type GatewayWsData = TerminalWsData | RpcWsData;
