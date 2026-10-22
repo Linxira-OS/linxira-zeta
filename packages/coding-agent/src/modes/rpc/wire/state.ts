@@ -29,6 +29,17 @@ export const stateDefs = {
 		"'off' | 'progress' | 'events'",
 		"Forwarded subagent frames: none, lifecycle and progress, or also raw session events.",
 	),
+	ComponentId: "'zetacode' | 'zetawork' | 'zetawork-gui' | 'zetaide'",
+	ComponentInfo: doc(
+		{
+			id: "ComponentId",
+			command: "string",
+			"path?": doc("string", "Resolved absolute executable; absent when not installed."),
+			openable: "boolean",
+			"reason?": doc("string", "Why `component_open` refuses this component."),
+		},
+		"A companion binary shipped with the product (desktop app, IDE, workbench, runtime).",
+	),
 	AgentSource: "'bundled' | 'user' | 'project'",
 	SubagentStatus: "'pending' | 'running' | 'completed' | 'failed' | 'aborted'",
 

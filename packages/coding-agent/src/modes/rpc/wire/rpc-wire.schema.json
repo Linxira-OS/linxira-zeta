@@ -529,6 +529,28 @@
 				"clientOmit": []
 			},
 			{
+				"name": "component_list",
+				"doc": "List the companion components and whether each is installed on this host.",
+				"params": null,
+				"result": "ComponentListResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "component_open",
+				"doc": "Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid.",
+				"params": "ComponentOpenParams",
+				"result": "ComponentOpenResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
 				"name": "set_cache_warming",
 				"doc": "Override cache warming for this session only; returns the effective mode.",
 				"params": "SetCacheWarmingParams",
@@ -2304,6 +2326,43 @@
 			],
 			"type": "string",
 			"description": "Forwarded subagent frames: none, lifecycle and progress, or also raw session events."
+		},
+		"ComponentId": {
+			"enum": [
+				"zetacode",
+				"zetawork",
+				"zetawork-gui",
+				"zetaide"
+			],
+			"type": "string"
+		},
+		"ComponentInfo": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"$ref": "#/$defs/ComponentId"
+				},
+				"command": {
+					"type": "string"
+				},
+				"openable": {
+					"type": "boolean"
+				},
+				"path": {
+					"type": "string",
+					"description": "Resolved absolute executable; absent when not installed."
+				},
+				"reason": {
+					"type": "string",
+					"description": "Why `component_open` refuses this component."
+				}
+			},
+			"required": [
+				"id",
+				"command",
+				"openable"
+			],
+			"description": "A companion binary shipped with the product (desktop app, IDE, workbench, runtime)."
 		},
 		"AgentSource": {
 			"enum": [
@@ -6603,6 +6662,48 @@
 			},
 			"required": [
 				"toolNames"
+			]
+		},
+		"ComponentListResult": {
+			"type": "object",
+			"properties": {
+				"components": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/ComponentInfo"
+					}
+				}
+			},
+			"required": [
+				"components"
+			]
+		},
+		"ComponentOpenParams": {
+			"type": "object",
+			"properties": {
+				"component": {
+					"$ref": "#/$defs/ComponentId"
+				},
+				"args": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
+			},
+			"required": [
+				"component"
+			]
+		},
+		"ComponentOpenResult": {
+			"type": "object",
+			"properties": {
+				"pid": {
+					"type": "integer"
+				}
+			},
+			"required": [
+				"pid"
 			]
 		},
 		"SetCacheWarmingParams": {

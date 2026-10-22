@@ -22,6 +22,7 @@ import { toolWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { $env, isRecord, logger, Snowflake, toError } from "@linxiraos/pi-utils";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
+import { listComponents, openComponent } from "../../components/registry";
 import {
 	type ExtensionAskDialogQuestion,
 	type ExtensionAskDialogResult,
@@ -2356,6 +2357,14 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			case "reload": {
 				await session.reload();
 				return success(id, "reload");
+			}
+
+			case "component_list": {
+				return success(id, "component_list", { components: listComponents() });
+			}
+
+			case "component_open": {
+				return success(id, "component_open", openComponent(command.component, command.args ?? []));
 			}
 
 			case "set_cache_warming": {

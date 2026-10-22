@@ -124,6 +124,11 @@ _SUBAGENT_SUBSCRIPTION_LEVEL_VALUES: Final[frozenset[str]] = frozenset({"off", "
 _decode_subagent_subscription_level = cast("Decoder[SubagentSubscriptionLevel]", literal(_SUBAGENT_SUBSCRIPTION_LEVEL_VALUES))
 
 
+ComponentId: TypeAlias = Literal["zetacode", "zetawork", "zetawork-gui", "zetaide"]
+_COMPONENT_ID_VALUES: Final[frozenset[str]] = frozenset({"zetacode", "zetawork", "zetawork-gui", "zetaide"})
+_decode_component_id = cast("Decoder[ComponentId]", literal(_COMPONENT_ID_VALUES))
+
+
 AgentSource: TypeAlias = Literal["bundled", "user", "project"]
 _AGENT_SOURCE_VALUES: Final[frozenset[str]] = frozenset({"bundled", "user", "project"})
 _decode_agent_source = cast("Decoder[AgentSource]", literal(_AGENT_SOURCE_VALUES))
@@ -551,6 +556,18 @@ class ModelInfo:
     priority: int | None = None
     thinking: ThinkingConfig | None = None
     compat: JsonObject | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class ComponentInfo:
+    """A companion binary shipped with the product (desktop app, IDE, workbench, runtime)."""
+    id: ComponentId
+    command: str
+    openable: bool
+    path: str | None = None
+    """Resolved absolute executable; absent when not installed."""
+    reason: str | None = None
+    """Why `component_open` refuses this component."""
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -1627,6 +1644,16 @@ class GetToolsResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class ComponentListResult:
+    components: tuple[ComponentInfo, ...]
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class ComponentOpenResult:
+    pid: int
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class LogoutResult:
     remaining_source: str | None = None
 
@@ -1863,6 +1890,17 @@ def parse_model_info(value: object, path: str = "ModelInfo") -> ModelInfo:
         priority=optional(payload, "priority", decode_int, path),
         thinking=optional(payload, "thinking", parse_thinking_config, path),
         compat=optional(payload, "compat", decode_json_object, path),
+    )
+
+
+def parse_component_info(value: object, path: str = "ComponentInfo") -> ComponentInfo:
+    payload = expect_object(value, path)
+    return ComponentInfo(
+        id=required(payload, "id", _decode_component_id, path),
+        command=required(payload, "command", decode_str, path),
+        openable=required(payload, "openable", decode_bool, path),
+        path=optional(payload, "path", decode_str, path),
+        reason=optional(payload, "reason", decode_str, path),
     )
 
 
@@ -3083,6 +3121,20 @@ def parse_get_tools_result(value: object, path: str = "GetToolsResult") -> GetTo
     )
 
 
+def parse_component_list_result(value: object, path: str = "ComponentListResult") -> ComponentListResult:
+    payload = expect_object(value, path)
+    return ComponentListResult(
+        components=required(payload, "components", array(parse_component_info), path),
+    )
+
+
+def parse_component_open_result(value: object, path: str = "ComponentOpenResult") -> ComponentOpenResult:
+    payload = expect_object(value, path)
+    return ComponentOpenResult(
+        pid=required(payload, "pid", decode_int, path),
+    )
+
+
 def parse_logout_result(value: object, path: str = "LogoutResult") -> LogoutResult:
     payload = expect_object(value, path)
     return LogoutResult(
@@ -3476,6 +3528,19 @@ class WireClient:
         """Reload the session's agent, tools and settings."""
         params: dict[str, object] = {}
         self._command("reload", params)
+
+    def component_list(self) -> ComponentListResult:
+        """List the companion components and whether each is installed on this host."""
+        params: dict[str, object] = {}
+        return parse_component_list_result(self._command("component_list", params), "component_list")
+
+    def component_open(self, component: ComponentId, *, args: Sequence[str] | None = None) -> ComponentOpenResult:
+        """Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid."""
+        params: dict[str, object] = {}
+        params["component"] = component
+        if args is not None:
+            params["args"] = list(args)
+        return parse_component_open_result(self._command("component_open", params), "component_open")
 
     def set_cache_warming(self, mode: CacheWarmingMode) -> CacheWarmingMode:
         """Override cache warming for this session only; returns the effective mode."""
@@ -3896,6 +3961,10 @@ __all__ = [
     "CommandOutputEvent",
     "CompactionResult",
     "CompactionSummaryMessage",
+    "ComponentId",
+    "ComponentInfo",
+    "ComponentListResult",
+    "ComponentOpenResult",
     "ConfigUpdateEvent",
     "ConfigWarningsChangedEvent",
     "ConfiguredThinkingLevel",
@@ -4086,6 +4155,9 @@ __all__ = [
     "parse_command_output_event",
     "parse_compaction_result",
     "parse_compaction_summary_message",
+    "parse_component_info",
+    "parse_component_list_result",
+    "parse_component_open_result",
     "parse_config_update_event",
     "parse_config_warnings_changed_event",
     "parse_confirm_ui_request",

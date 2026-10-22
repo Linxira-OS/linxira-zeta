@@ -394,6 +394,19 @@ export type SlashCommandSource = "builtin" | "skill" | "extension" | "custom" | 
 /** Forwarded subagent frames: none, lifecycle and progress, or also raw session events. */
 export type SubagentSubscriptionLevel = "off" | "progress" | "events";
 
+export type ComponentId = "zetacode" | "zetawork" | "zetawork-gui" | "zetaide";
+
+/** A companion binary shipped with the product (desktop app, IDE, workbench, runtime). */
+export interface ComponentInfo {
+	id: ComponentId;
+	command: string;
+	openable: boolean;
+	/** Resolved absolute executable; absent when not installed. */
+	path?: string;
+	/** Why `component_open` refuses this component. */
+	reason?: string;
+}
+
 export type AgentSource = "bundled" | "user" | "project";
 
 export type SubagentStatus = "pending" | "running" | "completed" | "failed" | "aborted";
@@ -1707,6 +1720,19 @@ export interface SetToolsParams {
 	toolNames: string[];
 }
 
+export interface ComponentListResult {
+	components: ComponentInfo[];
+}
+
+export interface ComponentOpenParams {
+	component: ComponentId;
+	args?: string[];
+}
+
+export interface ComponentOpenResult {
+	pid: number;
+}
+
 export interface SetCacheWarmingParams {
 	mode: CacheWarmingMode;
 }
@@ -1885,6 +1911,8 @@ export interface RpcWireCommands {
 	get_tools: { params: undefined; result: GetToolsResult };
 	set_tools: { params: SetToolsParams; result: undefined };
 	reload: { params: undefined; result: undefined };
+	component_list: { params: undefined; result: ComponentListResult };
+	component_open: { params: ComponentOpenParams; result: ComponentOpenResult };
 	set_cache_warming: { params: SetCacheWarmingParams; result: SetCacheWarmingResult };
 	set_auto_retry: { params: SetAutoRetryParams; result: undefined };
 	abort_retry: { params: undefined; result: undefined };

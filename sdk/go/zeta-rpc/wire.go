@@ -2109,6 +2109,58 @@ func (v *SubagentSubscriptionLevel) UnmarshalJSON(data []byte) error {
 	return unknownValue("SubagentSubscriptionLevel", s)
 }
 
+type ComponentId string
+
+const (
+	ComponentIdZetacode    ComponentId = "zetacode"
+	ComponentIdZetawork    ComponentId = "zetawork"
+	ComponentIdZetaworkGui ComponentId = "zetawork-gui"
+	ComponentIdZetaide     ComponentId = "zetaide"
+)
+
+func (v *ComponentId) UnmarshalJSON(data []byte) error {
+	s, err := decodeString(data, "ComponentId")
+	if err != nil {
+		return err
+	}
+	switch value := ComponentId(s); value {
+	case ComponentIdZetacode, ComponentIdZetawork, ComponentIdZetaworkGui, ComponentIdZetaide:
+		*v = value
+		return nil
+	}
+	return unknownValue("ComponentId", s)
+}
+
+// A companion binary shipped with the product (desktop app, IDE, workbench, runtime).
+type ComponentInfo struct {
+	ID       ComponentId `json:"id"`
+	Command  string      `json:"command"`
+	Openable bool        `json:"openable"`
+	// Resolved absolute executable; absent when not installed.
+	Path *string `json:"path,omitempty"`
+	// Why `component_open` refuses this component.
+	Reason *string `json:"reason,omitempty"`
+}
+
+func (v *ComponentInfo) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "ComponentInfo", v.decodeFrom)
+}
+
+func (v *ComponentInfo) decodeFrom(raw map[string]json.RawMessage) error {
+	var out ComponentInfo
+	d := fieldDecoder{raw: raw, owner: "ComponentInfo"}
+	d.required("id", &out.ID)
+	d.required("command", &out.Command)
+	d.required("openable", &out.Openable)
+	d.optional("path", &out.Path)
+	d.optional("reason", &out.Reason)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type AgentSource string
 
 const (
@@ -7293,6 +7345,44 @@ func (v *GetToolsResult) decodeFrom(raw map[string]json.RawMessage) error {
 	return nil
 }
 
+type ComponentListResult struct {
+	Components []ComponentInfo `json:"components"`
+}
+
+func (v *ComponentListResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "ComponentListResult", v.decodeFrom)
+}
+
+func (v *ComponentListResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out ComponentListResult
+	d := fieldDecoder{raw: raw, owner: "ComponentListResult"}
+	d.required("components", &out.Components)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+type ComponentOpenResult struct {
+	Pid int64 `json:"pid"`
+}
+
+func (v *ComponentOpenResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "ComponentOpenResult", v.decodeFrom)
+}
+
+func (v *ComponentOpenResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out ComponentOpenResult
+	d := fieldDecoder{raw: raw, owner: "ComponentOpenResult"}
+	d.required("pid", &out.Pid)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type SetCacheWarmingResult struct {
 	Mode CacheWarmingMode `json:"mode"`
 }
@@ -8028,6 +8118,26 @@ func (c Commands) SetTools(ctx context.Context, p SetToolsCommand) error {
 // Reload sends "reload": Reload the session's agent, tools and settings.
 func (c Commands) Reload(ctx context.Context) error {
 	return c.call(ctx, "reload", nil, 0, nil)
+}
+
+// ComponentList sends "component_list": List the companion components and whether each is installed on this host.
+func (c Commands) ComponentList(ctx context.Context) (ComponentListResult, error) {
+	var out ComponentListResult
+	err := c.call(ctx, "component_list", nil, 0, &out)
+	return out, err
+}
+
+// ComponentOpenCommand holds the parameters of "component_open".
+type ComponentOpenCommand struct {
+	Component ComponentId `json:"component"`
+	Args      []string    `json:"args,omitempty"`
+}
+
+// ComponentOpen sends "component_open": Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid.
+func (c Commands) ComponentOpen(ctx context.Context, p ComponentOpenCommand) (ComponentOpenResult, error) {
+	var out ComponentOpenResult
+	err := c.call(ctx, "component_open", p, 0, &out)
+	return out, err
 }
 
 // SetCacheWarmingCommand holds the parameters of "set_cache_warming".

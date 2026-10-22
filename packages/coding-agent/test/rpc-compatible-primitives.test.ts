@@ -322,6 +322,34 @@ describe("RPC Pi-compatible primitives (live server)", () => {
 		});
 	}, 60000);
 
+	test("component commands enumerate the shipped companions and refuse the non-GUI ones", async () => {
+		// The SDK surface every client uses to find the desktop app / IDE on the
+		// host it is attached to; refusal is part of the contract, not an error.
+		await withRpcServer(async (send, next) => {
+			send({ type: "component_list", id: "components" });
+			const listed = await next();
+			expect(listed.id).toBe("components");
+			expect(listed.success).toBe(true);
+			const components = (
+				listed.data as {
+					components: Array<{ id: string; command: string; openable: boolean; path?: string; reason?: string }>;
+				}
+			).components;
+			expect(components.map(component => component.id)).toEqual(["zetacode", "zetawork", "zetawork-gui", "zetaide"]);
+			for (const component of components) {
+				expect(component.command).toBe(component.id);
+				if (!component.openable) expect(typeof component.reason).toBe("string");
+			}
+			expect(components.find(component => component.id === "zetawork-gui")?.openable).toBe(true);
+
+			send({ type: "component_open", id: "open-runtime", component: "zetacode" });
+			const refused = await next();
+			expect(refused.id).toBe("open-runtime");
+			expect(refused.success).toBe(false);
+			expect(String(refused.error)).toContain("cannot be opened");
+		});
+	}, 60000);
+
 	test("set_slow_mode rejects a non-boolean enabled before touching the persisted Claude setting", async () => {
 		await withRpcServer(async (send, next) => {
 			send({ type: "get_state", id: "slow-state" });

@@ -254,6 +254,17 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	{ name: "set_tools", doc: "Replace the active tool set by name.", params: { toolNames: "string[]" } },
 	{ name: "reload", doc: "Reload the session's agent, tools and settings." },
 	{
+		name: "component_list",
+		doc: "List the companion components and whether each is installed on this host.",
+		result: { components: "ComponentInfo[]" },
+	},
+	{
+		name: "component_open",
+		doc: "Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid.",
+		params: { component: "ComponentId", "args?": "string[]" },
+		result: { pid: "number.integer" },
+	},
+	{
 		name: "set_cache_warming",
 		doc: "Override cache warming for this session only; returns the effective mode.",
 		params: { mode: "CacheWarmingMode" },

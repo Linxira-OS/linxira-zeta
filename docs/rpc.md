@@ -186,6 +186,22 @@ Important edge behavior from runtime:
 - `{ id?, type: "cancel_subagent", subagentId: string }`
 - `{ id?, type: "steer_subagent", subagentId: string, message: string }`
 
+### Components
+
+- `{ id?, type: "component_list" }`
+- `{ id?, type: "component_open", component: "zetacode" | "zetawork" | "zetawork-gui" | "zetaide", args?: string[] }`
+
+`component_list` reports the companion components shipped with the product,
+resolved on the host running the backend: beside the running executable
+(Windows zip and installer, AppImage), in `/usr/lib/zetawork` (Arch package),
+or on `PATH` / `ZETA_BIN_DIR`. Each entry carries `id`, `command`, `openable`,
+the resolved `path` when installed, and for non-openable components a `reason`.
+
+`component_open` launches an openable component (`zetawork-gui`, `zetaide`) as
+a detached process and returns its `pid`; the child is not tracked, so closing
+the session does not close the app. The runtime itself and the terminal
+workbench are not openable: they have no detached GUI form.
+
 ### Model
 
 - `{ id?, type: "set_model", provider: string, modelId: string }`

@@ -2854,6 +2854,44 @@ impl SubagentSubscriptionLevel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ComponentId {
+	#[serde(rename = "zetacode")]
+	Zetacode,
+	#[serde(rename = "zetawork")]
+	Zetawork,
+	#[serde(rename = "zetawork-gui")]
+	ZetaworkGui,
+	#[serde(rename = "zetaide")]
+	Zetaide,
+}
+
+impl ComponentId {
+	/// Wire value.
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Zetacode => "zetacode",
+			Self::Zetawork => "zetawork",
+			Self::ZetaworkGui => "zetawork-gui",
+			Self::Zetaide => "zetaide",
+		}
+	}
+}
+
+/// A companion binary shipped with the product (desktop app, IDE, workbench, runtime).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ComponentInfo {
+	pub id: ComponentId,
+	pub command: String,
+	pub openable: bool,
+	/// Resolved absolute executable; absent when not installed.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub path: Option<String>,
+	/// Why `component_open` refuses this component.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AgentSource {
 	#[serde(rename = "bundled")]
 	Bundled,
@@ -5405,6 +5443,23 @@ pub struct SetToolsParams {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ComponentListResult {
+	pub components: Vec<ComponentInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ComponentOpenParams {
+	pub component: ComponentId,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub args: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ComponentOpenResult {
+	pub pid: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetCacheWarmingParams {
 	pub mode: CacheWarmingMode,
 }
@@ -6800,6 +6855,38 @@ impl Command for ReloadCommand {
 	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
 		let _ = data;
 		Ok(())
+	}
+}
+
+/// List the companion components and whether each is installed on this host.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ComponentListCommand {}
+
+impl Command for ComponentListCommand {
+	const NAME: &'static str = "component_list";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = ComponentListResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<ComponentListResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Launch a GUI companion (desktop app or IDE) as a detached process; returns its pid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ComponentOpenCommand {
+	pub component: ComponentId,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub args: Option<Vec<String>>,
+}
+
+impl Command for ComponentOpenCommand {
+	const NAME: &'static str = "component_open";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = ComponentOpenResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<ComponentOpenResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
 	}
 }
 

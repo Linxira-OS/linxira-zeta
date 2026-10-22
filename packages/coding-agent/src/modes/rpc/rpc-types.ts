@@ -34,6 +34,22 @@ import type { BtwHistoryRecord } from "../../session/btw-history";
 /** `set_event_filter` projection: `"full"` keeps both accumulated snapshots in `message_update`, `"delta"` sends only the increment. */
 export type RpcMessageUpdates = "full" | "delta";
 
+/** A companion binary shipped with the product (desktop app, IDE, workbench, runtime). */
+export type RpcComponentId = "zetacode" | "zetawork" | "zetawork-gui" | "zetaide";
+
+/** One component as resolved on the host running the backend. */
+export interface RpcComponentInfo {
+	id: RpcComponentId;
+	/** Installed command name; the same in every layout. */
+	command: string;
+	/** Resolved absolute executable; absent when the component is not installed. */
+	path?: string;
+	/** Whether `component_open` can launch it as a detached GUI process. */
+	openable: boolean;
+	/** Why `component_open` refuses it, when it does. */
+	reason?: string;
+}
+
 export type RpcCommand =
 	// Protocol
 	| { id?: string; type: "negotiate_protocol"; protocolVersion: number }
@@ -97,6 +113,10 @@ export type RpcCommand =
 	// Compaction
 	| { id?: string; type: "compact"; customInstructions?: string }
 	| { id?: string; type: "set_auto_compaction"; enabled: boolean }
+
+	// Companion components (desktop app, IDE, workbench, runtime)
+	| { id?: string; type: "component_list" }
+	| { id?: string; type: "component_open"; component: RpcComponentId; args?: string[] }
 
 	// Session modes, tool set and reload (the TUI's /plan, /goal, /vibe,
 	// /tool and /reload surfaces; a client drives the same transitions)
@@ -547,6 +567,14 @@ export type RpcResponse =
 	| { id?: string; type: "response"; command: "get_tools"; success: true; data: { all: string[]; active: string[] } }
 	| { id?: string; type: "response"; command: "set_tools"; success: true }
 	| { id?: string; type: "response"; command: "reload"; success: true }
+	| {
+			id?: string;
+			type: "response";
+			command: "component_list";
+			success: true;
+			data: { components: RpcComponentInfo[] };
+	  }
+	| { id?: string; type: "response"; command: "component_open"; success: true; data: { pid: number } }
 
 	// Cache warming
 	| { id?: string; type: "response"; command: "set_cache_warming"; success: true; data: { mode: CacheWarmingMode } }
