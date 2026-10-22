@@ -53,6 +53,26 @@ future design:
 - Rules that must hold — credential placement, brand surface, merge discipline —
   are enforced as rules and sentinels, never as prompts-for-permission.
 
+## No Visible Helper Windows (operator decision, 2026-10-22)
+
+A black console frame on the user's screen is a defect, not a detail. Helper
+processes exist for our functionality; the user never needs to watch them.
+
+- **Never spawn a console program from a GUI parent without hiding its window.**
+  Windows: `windowsHide: true` (Node/Bun `spawn`) or `CREATE_NO_WINDOW`
+  (`std::process::Command`). This applies to every background child — the Web UI
+  server, the daemon, git probes, LSP/MCP servers, eval kernels, updaters.
+- **The parent decides, not the child.** "Hide only when the parent has no
+  console" is the floor (see `mcp/transports/stdio.ts`,
+  `eval/py/spawn-options.ts`), and a child that is always background — the
+  `serve` Web UI runtime — is hidden unconditionally.
+- **The shipped binary is its own Bun runtime.** A compiled `zetacode` runs
+  `web-ui` scripts with `BUN_BE_BUN=1` (see
+  `commands/web-ui-launcher.ts`); no Node on the user's machine, and no window.
+- Testing may launch a visible terminal when a human needs to read it; anything
+  the product starts on its own is silent and logged to
+  `~/.zeta/run/daemon.log` (or the session log), never on screen.
+
 ## OMP Release Sync Policy
 
 Zeta integrates OMP only at complete, official OMP release tags. This is a

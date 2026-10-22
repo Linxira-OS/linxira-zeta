@@ -129,6 +129,22 @@ export interface ZetaServerRoute {
  * `status`/`diff` locally, `branches`/`checkout`/`branch` as request-time
  * gateway proxies that follow the injected gateway origin.
  */
+/**
+ * What a browser sees when the backend runs without a Web UI build. Reaching
+ * this page proves the backend is alive; the gateway and the terminal surfaces
+ * keep working.
+ */
+const NO_WEB_UI_PAGE = `<!doctype html><meta charset="utf-8"><title>Linxira Zeta</title>
+<body style="font-family:system-ui;margin:3rem auto;max-width:42rem;line-height:1.65">
+<h1>后端已就绪 · Backend is running</h1>
+<p>此安装未附带网页界面；终端与会话接口照常可用。<br>
+This install ships no Web UI build; the terminal and the session API keep working.</p>
+<ul>
+<li>终端 · Terminal: <code>zetacode</code> attaches to this backend.</li>
+<li>网关 · Gateway: <code>/api/*</code> on this same port.</li>
+</ul>
+</body>`;
+
 const NEXT_OWNED_API_PREFIXES = [
 	"/api/fs/",
 	"/api/files/",
@@ -592,10 +608,16 @@ export class ZetaServer {
 			);
 			logger.info("Web UI backend started", { internalPort: this.#webUiPort });
 		} catch (err) {
+			// Degrade, never abort: the gateway, stats and the coordinator are
+			// what terminals and `attach` consume, and a install that ships no
+			// Web UI build must still have a backend. Port 0 makes every web
+			// route answer the "no Web UI" page instead of proxying a socket
+			// that does not exist.
 			logger.warn("Failed to start Web UI backend", {
 				error: err instanceof Error ? err.message : String(err),
 			});
-			throw err;
+			this.#webUiPort = 0;
+			this.#webUiChild = null;
 		}
 	}
 
@@ -1264,6 +1286,11 @@ export class ZetaServer {
 						return webGatewayFetch(req, remoteAddr);
 					case "webui":
 						return proxyRequest(req, webUiInternal);
+					case "unavailable":
+						return new Response(NO_WEB_UI_PAGE, {
+							status: 503,
+							headers: { "content-type": "text/html; charset=utf-8" },
+						});
 				}
 				// Exhaustive above; a fallback keeps the handler's return type `Response`.
 				return new Response("Not found", { status: 404 });

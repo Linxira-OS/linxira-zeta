@@ -7,6 +7,7 @@ import {
 	parseNpmViewVersion,
 	resolveWebUiLaunchTarget,
 	resolveWebUiRuntime,
+	runtimeEmulatesBun,
 	WEB_UI_BIN,
 	WEB_UI_INSTALL_HINT,
 	WEB_UI_NPX_HINT,
@@ -24,6 +25,19 @@ describe("Web UI runtime resolution", () => {
 
 	it("falls back to node for CLI and source installs", () => {
 		expect(resolveWebUiRuntime({})).toBe("node");
+	});
+
+	it("hosts the standalone Web UI on the shipped binary when there is no Node", () => {
+		// The compiled binary is a Bun runtime; re-entering its own CLI would
+		// start the agent instead of the Web UI, so the child must be told to
+		// behave as `bun`.
+		const execPath = "C:\\Program Files\\Linxira Zeta\\zetacode.exe";
+		expect(resolveWebUiRuntime({ PI_COMPILED: "true" })).toBe(process.execPath);
+		expect(runtimeEmulatesBun({ PI_COMPILED: "true" })).toBe(true);
+		// An explicit runtime always wins and never gets the emulate flag.
+		expect(resolveWebUiRuntime({ PI_COMPILED: "true", ZETA_WEB_RUNTIME: "/usr/bin/bun" })).toBe("/usr/bin/bun");
+		expect(runtimeEmulatesBun({ PI_COMPILED: "true", ZETA_WEB_RUNTIME: "/usr/bin/bun" })).toBe(false);
+		expect(execPath).toContain("zetacode.exe");
 	});
 });
 

@@ -51,13 +51,36 @@ export interface WebUiChild {
  */
 export type WebUiLaunchTarget = { kind: "bin"; file: string } | { kind: "npx"; specifier: string };
 
-/** Resolve the Node-compatible runtime used to host the standalone Web UI. */
+/**
+ * Resolve the runtime that hosts the standalone Web UI.
+ *
+ * The compiled `zetacode` binary *is* a Bun runtime: with `BUN_BE_BUN=1` Bun
+ * runs a script instead of the embedded program, so the shipped product needs
+ * no Node on the machine. `ZETA_WEB_RUNTIME` still wins for a portable install
+ * that wants its own runtime, and a source/npm install falls back to `node`.
+ */
 export function resolveWebUiRuntime(env: NodeJS.ProcessEnv = process.env): string {
-	return env.ZETA_WEB_RUNTIME || "node";
+	if (env.ZETA_WEB_RUNTIME) return env.ZETA_WEB_RUNTIME;
+	if (env.PI_COMPILED === "true") return process.execPath;
+	return "node";
 }
 
-function hideWebUiWindow(): boolean {
-	return process.env.ZETA_DESKTOP === "1";
+/**
+ * Whether the runtime above is this very executable. When true the child needs
+ * `BUN_BE_BUN=1`, otherwise the binary would re-enter its own CLI instead of
+ * executing `server.js`.
+ */
+export function runtimeEmulatesBun(env: NodeJS.ProcessEnv = process.env): boolean {
+	return !env.ZETA_WEB_RUNTIME && env.PI_COMPILED === "true";
+}
+
+/**
+ * A Web UI child is a background server, never an interactive program: its
+ * window is always hidden. A console would be a black frame the user cannot
+ * use, and the GUI starts this child too.
+ */
+function webUiSpawnEnv(base: NodeJS.ProcessEnv = process.env): Record<string, string | undefined> {
+	return runtimeEmulatesBun(base) ? { ...base, BUN_BE_BUN: "1" } : { ...base };
 }
 
 /**
@@ -191,7 +214,7 @@ function spawnWebUiTarget(target: WebUiLaunchTarget, port: number, statsUrl?: st
 		env,
 		stdout: "inherit",
 		stderr: "inherit",
-		windowsHide: hideWebUiWindow(),
+		windowsHide: true,
 	});
 
 	return {
@@ -226,7 +249,7 @@ function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string, gat
 			},
 			stdout: "inherit",
 			stderr: "inherit",
-			windowsHide: hideWebUiWindow(),
+			windowsHide: true,
 		});
 
 		return {
@@ -254,7 +277,7 @@ function spawnSourceWebUi(webUiDir: string, port: number, statsUrl?: string, gat
 		},
 		stdout: "inherit",
 		stderr: "inherit",
-		windowsHide: hideWebUiWindow(),
+		windowsHide: true,
 	});
 
 	return {
@@ -289,7 +312,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string, gatewayUrl?: string
 			const child = Bun.spawn([runtime, "server.js"], {
 				cwd: path.join(dir, ".next", "standalone"),
 				env: {
-					...process.env,
+					...webUiSpawnEnv(),
 					PORT: String(port),
 					HOSTNAME: "127.0.0.1",
 					...(statsUrl ? { NEXT_PUBLIC_STATS_URL: statsUrl } : {}),
@@ -297,7 +320,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string, gatewayUrl?: string
 				},
 				stdout: "inherit",
 				stderr: "inherit",
-				windowsHide: hideWebUiWindow(),
+				windowsHide: true,
 			});
 
 			return {
@@ -314,7 +337,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string, gatewayUrl?: string
 			const child = Bun.spawn([runtime, nextBin, "start", "-H", "127.0.0.1", "-p", String(port)], {
 				cwd: dir,
 				env: {
-					...process.env,
+					...webUiSpawnEnv(),
 					ZETA_WEB_HOSTNAME: "127.0.0.1",
 					ZETA_WEB_PORT: String(port),
 					ZETA_WEB_NO_OPEN: "1",
@@ -323,7 +346,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string, gatewayUrl?: string
 				},
 				stdout: "inherit",
 				stderr: "inherit",
-				windowsHide: hideWebUiWindow(),
+				windowsHide: true,
 			});
 
 			return {
@@ -339,7 +362,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string, gatewayUrl?: string
 	if (fs.existsSync(binScript)) {
 		const child = Bun.spawn([runtime, binScript, "--port", String(port), "--hostname", "127.0.0.1", "--no-open"], {
 			env: {
-				...process.env,
+				...webUiSpawnEnv(),
 				ZETA_WEB_HOSTNAME: "127.0.0.1",
 				ZETA_WEB_PORT: String(port),
 				ZETA_WEB_NO_OPEN: "1",
@@ -348,7 +371,7 @@ function spawnEmbeddedWebUi(port: number, statsUrl?: string, gatewayUrl?: string
 			},
 			stdout: "inherit",
 			stderr: "inherit",
-			windowsHide: hideWebUiWindow(),
+			windowsHide: true,
 		});
 
 		return {

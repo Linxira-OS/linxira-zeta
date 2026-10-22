@@ -82,6 +82,18 @@ describe("ZetaServer routing", () => {
 	it("reports the stats dashboard on its own route", () => {
 		expect(classify("/api/stats/overview").type).toBe("stats");
 	});
+
+	it("keeps serving the backend when no Web UI build exists", () => {
+		// A release without the Web UI payload must still have a backend: the
+		// page and the Next-owned families report 503, everything the terminal
+		// and `attach` use keeps working.
+		const degraded = (path: string) => classifyRequest(new Request(`http://127.0.0.1:30141${path}`), 0, true);
+		expect(degraded("/").type).toBe("unavailable");
+		expect(degraded("/api/fs/directories").type).toBe("unavailable");
+		expect(degraded("/api/sessions").type).toBe("gateway");
+		expect(degraded("/api/agent/running/events").type).toBe("gateway");
+		expect(degraded("/api/stats/overview").type).toBe("stats");
+	});
 });
 
 describe("parsePlanApprovalReply", () => {
