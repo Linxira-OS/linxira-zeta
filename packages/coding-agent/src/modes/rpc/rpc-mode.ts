@@ -13,6 +13,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { Writable } from "node:stream";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Model } from "@linxiraos/pi-ai";
 import { getOAuthProviders } from "@linxiraos/pi-ai/oauth";
@@ -1264,6 +1265,9 @@ export function registerRpcPersistenceSurface(
 }
 
 /** Startup options for {@link runRpcMode}. */
+/** The writable a hosted RPC connection writes frames to (a socket, a pipe, stdout). */
+export type RpcFrameSink = Writable;
+
 export interface RpcModeOptions {
 	/** `--mode rpc-ui`: route tool UI (e.g. ask) over the protocol, independently of headless extensions. */
 	setToolUIContext?: (uiContext: ExtensionUIContext, hasUI: boolean) => void;
@@ -1271,6 +1275,19 @@ export interface RpcModeOptions {
 	headless?: boolean;
 	subagentEventBus?: EventBus;
 	input?: ReadableStream<Uint8Array>;
+	/**
+	 * Where frames are written. Defaults to stdout (the stdio transport). A host
+	 * that multiplexes sessions passes its own sink — one per connection.
+	 */
+	sink?: RpcFrameSink;
+	/**
+	 * Called when the input stream ends (or the writer fails) instead of the
+	 * process exiting. Provided by a multi-session host; the stdio transport
+	 * omits it and keeps the process-exit behaviour.
+	 */
+	onClosed?: (code: number) => void;
+	/** Dispose the session on close. False when the host owns it and keeps it alive. */
+	disposeSession?: boolean;
 	/** Builds `live_start` sessions; defaults to the real {@link LiveSessionController}. */
 	createLiveSession?: RpcLiveSessionFactory;
 }
@@ -1279,7 +1296,7 @@ export interface RpcModeOptions {
  * Run in RPC mode.
  * Listens for JSON commands on stdin, outputs events and responses on stdout.
  */
-export async function runRpcMode(session: AgentSession, options: RpcModeOptions = {}): Promise<never> {
+export async function runRpcMode(session: AgentSession, options: RpcModeOptions = {}): Promise<void> {
 	const { setToolUIContext, headless = false, subagentEventBus, input = claimRpcInput(), createLiveSession } = options;
 	// Signal to RPC clients that the server is ready to accept commands
 	// Suppress terminal notifications: they write \x07 (BEL) or OSC sequences directly to
@@ -1293,9 +1310,15 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	// JS thread and never reports backpressure, so a client that stops reading
 	// stdout froze the whole worker, stdin reader included. An fd write stream
 	// writes from the threadpool and reports backpressure, letting the writer spool.
-	const stdout = process.platform === "win32" ? fs.createWriteStream("", { fd: 1, autoClose: false }) : process.stdout;
+	const stdout =
+		options.sink ??
+		(process.platform === "win32" ? fs.createWriteStream("", { fd: 1, autoClose: false }) : process.stdout);
 	const outputWriter = new RpcOutputWriter(stdout, failure => {
 		logger.error("RPC output delivery failed", { error: String(failure) });
+		if (options.onClosed) {
+			options.onClosed(1);
+			return;
+		}
 		void session.dispose().finally(() => process.exit(1));
 	});
 	outputWriter.write(
@@ -1637,7 +1660,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	 * loss is mirrored on stderr and the exit code is nonzero. A dispose
 	 * rejection with no latched store failure still surfaces to the caller.
 	 */
-	const disposeAndExit = async (): Promise<never> => {
+	const disposeAndExit = async (): Promise<void> => {
 		try {
 			// The process ends regardless; report an unsaved side answer instead of skipping dispose.
 			await btw.close().catch(btwError => {
@@ -1647,7 +1670,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			});
 			// Close the realtime call (microphone, socket) before the session it delegates into.
 			await liveBridge.stop();
-			await session.dispose();
+			if (options.disposeSession !== false) await session.dispose();
 		} catch (error) {
 			if (!persistenceFailure || error !== persistenceFailure) throw error;
 			// The notice frame this failure queued must reach the client before the
@@ -1677,6 +1700,10 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 		// A failure that already reported and then recovered still leaves its notice
 		// queued here, so the success path drains the same queue before it exits.
 		await outputWriter.close();
+		if (options.onClosed) {
+			options.onClosed(0);
+			return;
+		}
 		process.exit(0);
 	};
 
@@ -2675,5 +2702,5 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	// immediately. Returned rather than awaited: `runRpcMode` is typed
 	// `Promise<never>`, and only returning the `Promise<never>` keeps this end
 	// point unreachable for the compiler.
-	return disposeAndExit();
+	await disposeAndExit();
 }

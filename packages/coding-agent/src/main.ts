@@ -195,7 +195,7 @@ import { cfgWorkspaceAdditionalDirectories } from "./session/context-settings";
 
 type RunAcpMode = (createSession: AcpSessionFactory) => Promise<never>;
 type RunPrintMode = (session: AgentSession, options: PrintModeOptions) => Promise<number>;
-type RunRpcMode = (session: AgentSession, options?: RpcModeOptions) => Promise<never>;
+type RunRpcMode = (session: AgentSession, options?: RpcModeOptions) => Promise<void>;
 
 /** Interactive-only graph boundary; login dialogs and overlays load on first real use. */
 async function loadInteractiveModeConstructor() {
