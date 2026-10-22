@@ -130,6 +130,15 @@ import {
 	terminalWebSocketHandler,
 	type TerminalWsData,
 } from "./web-gateway/terminal";
+import {
+	handleRpcWsUpgrade,
+	isRpcWsUpgradeRequest,
+	rpcWebSocketHandler,
+	type RpcWsData,
+} from "./web-gateway/rpc-ws";
+
+/** Both data planes share one listener; `kind` routes a socket to its handler. */
+type GatewayWsData = TerminalWsData | RpcWsData;
 
 const DEFAULT_GATEWAY_PORT = 30142;
 
@@ -841,18 +850,36 @@ export async function startWebGateway(port?: number): Promise<WebGatewayInstance
 		throw new Error(`Invalid ZETA_WEB_GATEWAY_PORT: ${gatewayPort}`);
 	}
 
-	const server = Bun.serve<TerminalWsData>({
+	const server = Bun.serve<GatewayWsData>({
 		hostname: "127.0.0.1",
 		port: gatewayPort,
 		idleTimeout: 0,
-		websocket: terminalWebSocketHandler,
+		websocket: {
+			open(ws) {
+				if (ws.data.kind === "rpc") rpcWebSocketHandler.open(ws);
+				else terminalWebSocketHandler.open?.(ws);
+			},
+			message(ws, message) {
+				if (ws.data.kind === "rpc") rpcWebSocketHandler.message(ws, message);
+				else terminalWebSocketHandler.message?.(ws, message);
+			},
+			close(ws) {
+				if (ws.data.kind === "rpc") rpcWebSocketHandler.close(ws);
+				else terminalWebSocketHandler.close?.(ws, 1000, "");
+			},
+		},
 		fetch: async (req, srv) => {
-			// Terminal data-plane upgrades bypass webGatewayFetch (it can only
-			// return Responses); auth lives in handleTerminalWsUpgrade.
+			// Data-plane upgrades bypass webGatewayFetch (it can only return
+			// Responses); auth lives in each upgrade handler.
 			if (isTerminalWsUpgradeRequest(req)) {
 				const remoteAddr = srv?.requestIP(req)?.address;
 				const response = await handleTerminalWsUpgrade(req, srv, remoteAddr);
 				// Null means the socket was upgraded; the fetch result is moot.
+				return response ?? new Response(null);
+			}
+			if (isRpcWsUpgradeRequest(req)) {
+				const remoteAddr = srv?.requestIP(req)?.address;
+				const response = await handleRpcWsUpgrade(req, srv, remoteAddr);
 				return response ?? new Response(null);
 			}
 			return webGatewayFetch(req, srv?.requestIP(req)?.address);

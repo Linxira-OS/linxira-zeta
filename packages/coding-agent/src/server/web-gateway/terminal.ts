@@ -1132,7 +1132,10 @@ export function isTerminalWsUpgradeRequest(req: Request): boolean {
 	);
 }
 
+/** One socket's data. Both data planes register on the same listener, so the
+ *  shape is shared and `kind` says which handler owns the socket. */
 export interface TerminalWsData {
+	kind?: "terminal" | "rpc";
 	sessionId: string;
 }
 

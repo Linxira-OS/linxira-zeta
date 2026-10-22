@@ -316,6 +316,8 @@ export class AgentSessionWrapper {
 	#destroyed = false;
 	#listeners = new Set<EventListener>();
 	#pendingUiRequests = new Map<string, PendingUiResponse>();
+	/** Attached protocol clients (RPC over WebSocket) that receive dialog frames. */
+	#protocolListeners = new Set<(frame: unknown) => void>();
 	#lastRunningEvent: "running" | "not-running" | null = null;
 	#toolsDisabled = false;
 	#extensionStatuses = new Map<string, string>();
@@ -835,6 +837,21 @@ export class AgentSessionWrapper {
 	dispatchUiRequest(request: ExtensionUiRequest): void {
 		if (request.method in ANSWERABLE_UI_METHODS) uiRequestOwners.set(request.id, this.realSessionId);
 		this.#emit(request as unknown as AgentEvent);
+		// Protocol clients (the attached TUI, SDK consumers) see the same dialog
+		// the web UI does; whichever answers first settles it for everyone.
+		for (const listener of this.#protocolListeners) listener(request);
+	}
+
+	/**
+	 * Attach a protocol client to this session's dialogs. Returns the detach
+	 * function. The client answers through [`resolveUiRequest`], so a reply from
+	 * any surface closes the same pending request.
+	 */
+	subscribeProtocolUi(listener: (frame: unknown) => void): () => void {
+		this.#protocolListeners.add(listener);
+		return () => {
+			this.#protocolListeners.delete(listener);
+		};
 	}
 
 	/** Register a pending extension UI dialog; resolved by extension_ui_response. */
