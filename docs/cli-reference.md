@@ -203,10 +203,13 @@ current (or `--cwd`) directory.
 The TUI keeps its renderer: the backend session is mirrored into a local
 replica so transcript replay, the status line, and dialogs behave natively.
 Prompts, aborts, extension dialogs (`select`/`confirm`/`input`/`editor`/
-`ask`), and plan approval travel over the gateway RPC surface. Client-only
-actions such as opening files and clipboard writes stay local and are not
-forwarded to the backend. Detaching closes the event stream and never stops
-the backend or its session.
+`ask`), and plan approval travel over the session's RPC WebSocket
+(`/api/rpc/ws`, the protocol in [rpc.md](rpc.md#websocket-transport)); the SSE
+stream keeps mirroring turns and dialogs are presented once, whichever surface
+sees the request first wins. A backend without the socket falls back to its
+HTTP command surface. Client-only actions such as opening files and clipboard
+writes stay local and are not forwarded. Detaching closes the socket and the
+event stream and never stops the backend or its session.
 
 #### Information
 
