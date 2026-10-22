@@ -16,7 +16,7 @@ provides=('zetawork' 'linxira-zeta')
 # egui/eframe render through wgpu (Vulkan) and fall back to GL; the TUI needs a
 # terminal only. wry is Windows-only in this tree, so no webkit2gtk here.
 depends=('glibc' 'gcc-libs' 'libglvnd' 'libxkbcommon' 'libx11' 'wayland' 'vulkan-icd-loader')
-source=('zetawork' 'zetawork-gui' 'zetacode' 'zetaide' 'zetawork.desktop' 'zetawork.png' 'LICENSE' 'web-ui')
+source=('zetawork' 'zetawork-gui' 'zetacode' 'zetaide' 'zetawork.desktop' 'zetawork.png' 'LICENSE' 'web-ui.tar.gz')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {

@@ -411,7 +411,11 @@ async function packageLinux(): Promise<void> {
 	await fs.copyFile(tui, path.join(pkgDir, "zetawork"));
 	await fs.copyFile(agent, path.join(pkgDir, "zetacode"));
 	await fs.copyFile(ide, path.join(pkgDir, "zetaide"));
-	await fs.cp(await resolveWebUi(), path.join(pkgDir, "web-ui"), { recursive: true, dereference: true });
+	// makepkg accepts files/archives in `source`, not directories: stage the
+	// portable layout, then hand it over as a tarball.
+	await stageWebUi(pkgDir, await resolveWebUi());
+	await run(["tar", "-czf", path.join(pkgDir, "web-ui.tar.gz"), "-C", pkgDir, "web-ui"]);
+	await fs.rm(path.join(pkgDir, "web-ui"), { recursive: true, force: true });
 	await fs.copyFile(path.join(repoRoot, "LICENSE"), path.join(pkgDir, "LICENSE"));
 	await fs.copyFile(
 		path.join(repoRoot, "scripts", "packaging", "arch", "zetawork.desktop"),
