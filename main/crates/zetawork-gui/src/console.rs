@@ -20,8 +20,10 @@
 pub fn emit_line(text: &str) {
 	use std::io::Write;
 	use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
-	use windows_sys::Win32::System::Console::{ATTACH_PARENT_PROCESS, AttachConsole, GetStdHandle, STD_OUTPUT_HANDLE};
 	use windows_sys::Win32::Storage::FileSystem::WriteFile;
+	use windows_sys::Win32::System::Console::{
+		ATTACH_PARENT_PROCESS, AttachConsole, GetStdHandle, STD_OUTPUT_HANDLE,
+	};
 
 	let mut line = String::with_capacity(text.len() + 2);
 	line.push_str(text);
@@ -30,7 +32,8 @@ pub fn emit_line(text: &str) {
 	// SAFETY: writes from a live buffer to a handle owned by the process.
 	unsafe fn write(handle: *mut core::ffi::c_void, bytes: &[u8]) -> bool {
 		let mut written = 0u32;
-		let ok = WriteFile(handle, bytes.as_ptr(), bytes.len() as u32, &mut written, std::ptr::null_mut());
+		let ok =
+			WriteFile(handle, bytes.as_ptr(), bytes.len() as u32, &mut written, std::ptr::null_mut());
 		ok != 0 && written as usize == bytes.len()
 	}
 
@@ -68,7 +71,10 @@ pub fn emit_line(text: &str) {
 #[cfg(windows)]
 pub fn set_app_user_model_id(id: &str) {
 	use std::os::windows::ffi::OsStrExt;
-	let wide: Vec<u16> = std::ffi::OsStr::new(id).encode_wide().chain(std::iter::once(0)).collect();
+	let wide: Vec<u16> = std::ffi::OsStr::new(id)
+		.encode_wide()
+		.chain(std::iter::once(0))
+		.collect();
 	// SAFETY: the pointer is a NUL-terminated UTF-16 string that outlives the call.
 	unsafe {
 		windows_sys::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(

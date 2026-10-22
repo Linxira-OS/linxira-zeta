@@ -1273,9 +1273,6 @@ impl Shell {
 		}
 	}
 
-	/// The per-frame work that is not drawing: settings, the memory sample,
-	/// keys, the read-only readers.
-
 	/// Start the OS autostart component, or remove it, off the UI thread.
 	///
 	/// The setting alone never installs anything: a Scheduled Task or a systemd
@@ -1286,7 +1283,11 @@ impl Shell {
 		if self.autostart_job.is_some() {
 			return;
 		}
-		let action = if enabled { "install-autostart" } else { "uninstall-autostart" };
+		let action = if enabled {
+			"install-autostart"
+		} else {
+			"uninstall-autostart"
+		};
 		let args = vec!["daemon".to_owned(), action.to_owned()];
 		let (sender, receiver) = std::sync::mpsc::channel();
 		std::thread::spawn(move || {
@@ -1308,7 +1309,9 @@ impl Shell {
 				self.autostart_job = None;
 				let enabled = self.autostart_target;
 				let notice = match (result, enabled) {
-					(Ok(()), true) => crate::t!("已安装开机自启（登录后三分钟启动后台服务）").to_string(),
+					(Ok(()), true) => {
+						crate::t!("已安装开机自启（登录后三分钟启动后台服务）").to_string()
+					},
 					(Ok(()), false) => crate::t!("已移除开机自启").to_string(),
 					(Err(reason), true) => crate::t!("无法安装开机自启：{}", reason),
 					(Err(reason), false) => crate::t!("无法移除开机自启：{}", reason),
@@ -1319,11 +1322,15 @@ impl Shell {
 			Err(std::sync::mpsc::TryRecvError::Empty) => {},
 			Err(std::sync::mpsc::TryRecvError::Disconnected) => {
 				self.autostart_job = None;
-				self.state.show(crate::state::Notice(crate::t!("开机自启命令异常结束").to_string()));
+				self
+					.state
+					.show(crate::state::Notice(crate::t!("开机自启命令异常结束").to_string()));
 			},
 		}
 	}
 
+	/// The per-frame work that is not drawing: settings, the memory sample,
+	/// keys, the read-only readers.
 	pub fn tick(&mut self, ctx: &Context) {
 		// 后台驻留 first: it answers a second launch's activation request and
 		// is the only thing that runs while the window is hidden.
