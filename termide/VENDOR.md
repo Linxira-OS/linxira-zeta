@@ -22,6 +22,8 @@
 | 27 | `crates/modal/src/directory_picker.rs` | **Windows 盘符页**：新增 `at_drives`/`drives()`/`starting_at_drives()`，`GetLogicalDrives()` 列出挂载卷；`新建项目` 从盘符页开始，卷根按 Backspace 回到盘符页；另把该文件里写死 `/newdir` 的渲染断言改成接受宿主分隔符（Windows checkout 上原本必红） | 上游无盘符页（unix 上 `/` 可达全部挂载） | **保留**（Zeta 2026-10-19：用户要求 Windows 上从 C/D/E/F 开始找目录） | 2026-10-19 |
 | 28 | `src/main.rs`、`src/editor_entry.rs`、`crates/app/src/app/panel_operations.rs` | **窗口标题品牌面**：`Termide: <path>` → `zetaide: <path>`（启动、建/换项目、reattach 三处），字面量；`crates/ui-render/src/theme_dropdown.rs` 另补一条命中测试（每行可见主题的点击必须映射回该行） | 上游写的是自家产品名 Termide | **保留**（Zeta 2026-10-19：终端标签页标题是用户可见品牌面，产品名是 zetaide；命中测试是鼠标路径唯一覆盖） | 2026-10-19 |
 
+| 29 | `src/main.rs` | **CLI 展示名**：`#[command(name = "termide", about = "Terminal IDE")]` → `name = "zetaide"`、`about = "Linxira Zeta IDE"`；`--help` 的 `Usage:` 行原本印上游 `termide.exe` | 上游写自家产品名 | **保留**（Zeta 2026-10-22：`zetaide --help` 是对外品牌面，与偏离 28 的窗口标题同一决定） | 2026-10-22 |
+
 ## 与仓库其余部分的关系
 
 - **不是根 Cargo workspace 成员**:根 `Cargo.toml` members 显式列 `crates/*`;termide 自带 `[workspace]`(members `crates/*`,自有 `rust-toolchain.toml` = 1.91.1、`Cargo.lock`)。在 `termide/` 内跑 cargo 命令,与根 workspace 完全隔离。

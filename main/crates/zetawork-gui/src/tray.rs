@@ -24,7 +24,7 @@
 //! being a mystery.
 
 // Every `t!` below is inside a `tray` block; a default-feature build has none.
-#[cfg(feature = "tray")]
+#[cfg(all(feature = "tray", windows))]
 use crate::t;
 
 /// The menu's first item: bring the window back.
@@ -48,7 +48,7 @@ pub fn compiled_in() -> bool {
 }
 
 /// Menu ids clicked since the last drain.
-#[cfg(feature = "tray")]
+#[cfg(all(feature = "tray", windows))]
 pub fn drain_clicks() -> Vec<String> {
 	match CLICKS.lock() {
 		Ok(mut queue) => std::mem::take(&mut *queue),
@@ -59,23 +59,23 @@ pub fn drain_clicks() -> Vec<String> {
 /// The menu queue, shared with the event handler `tray-icon` runs on its own
 /// thread. One static, initialised where it is declared: nothing has to call an
 /// `init`.
-#[cfg(feature = "tray")]
+#[cfg(all(feature = "tray", windows))]
 static CLICKS: std::sync::LazyLock<std::sync::Mutex<Vec<String>>> =
 	std::sync::LazyLock::new(|| std::sync::Mutex::new(Vec::new()));
 
 /// Without the feature there is nothing to drain.
-#[cfg(not(feature = "tray"))]
+#[cfg(not(all(feature = "tray", windows)))]
 pub fn drain_clicks() -> Vec<String> {
 	Vec::new()
 }
 
 /// The tray, or the reason there is none.
 pub struct Tray {
-	#[cfg(feature = "tray")]
+	#[cfg(all(feature = "tray", windows))]
 	icon: Option<tray_icon::TrayIcon>,
-	#[cfg(feature = "tray")]
+	#[cfg(all(feature = "tray", windows))]
 	sessions: Option<tray_icon::menu::MenuItem>,
-	#[cfg(feature = "tray")]
+	#[cfg(all(feature = "tray", windows))]
 	shown_count: Option<usize>,
 	/// Why there is no tray (the feature is off, or building it failed).
 	pub note: Option<String>,
@@ -93,7 +93,7 @@ impl Tray {
 	}
 }
 
-#[cfg(not(feature = "tray"))]
+#[cfg(not(all(feature = "tray", windows)))]
 impl Tray {
 	/// No tray in this build.
 	pub fn new(_ctx: &egui::Context) -> Self {
@@ -106,7 +106,7 @@ impl Tray {
 	}
 }
 
-#[cfg(feature = "tray")]
+#[cfg(all(feature = "tray", windows))]
 impl Tray {
 	/// Build the tray. Every failure path ends in `note`, never in a panic: a
 	/// missing StatusNotifier host must not stop the workbench from running.
@@ -189,14 +189,14 @@ impl Tray {
 }
 
 /// The tray icon's size, in pixels.
-#[cfg(feature = "tray")]
+#[cfg(all(feature = "tray", windows))]
 const MARK_SIZE: u32 = 32;
 
 /// The tray icon: the same gradient mark the title bar draws, at 32×32.
 ///
 /// Generated rather than shipped as a file, so there is no asset to keep in
 /// sync with [`crate::theme::BRAND_A`].
-#[cfg(feature = "tray")]
+#[cfg(all(feature = "tray", windows))]
 fn mark_rgba(size: u32) -> Vec<u8> {
 	let mix = |from: u8, to: u8, t: f32| {
 		(f32::from(from) + (f32::from(to) - f32::from(from)) * t).round() as u8
@@ -232,7 +232,7 @@ pub fn poll(ctx: &egui::Context, shell: &mut crate::Shell) {
 			_ => {},
 		}
 	}
-	#[cfg(feature = "tray")]
+	#[cfg(all(feature = "tray", windows))]
 	{
 		let count = shell.running_sessions();
 		shell.tray.sync_sessions(count);

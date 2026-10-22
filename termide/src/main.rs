@@ -16,7 +16,12 @@ use termide_i18n::init_with_language;
 use termide_theme::{set_ansi16_mode, set_themes_dir};
 
 #[derive(Parser)]
-#[command(name = "termide", version = termide_core::VERSION, about = "Terminal IDE")]
+#[command(
+    name = "zetaide",
+    bin_name = "zetaide",
+    version = termide_core::VERSION,
+    about = "Linxira Zeta IDE"
+)]
 #[command(group(ArgGroup::new("headless").args(["prompt", "recall"])))]
 struct Cli {
     /// Override minimum log level (trace, debug, info, warn, error)

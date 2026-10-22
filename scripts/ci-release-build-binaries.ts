@@ -168,14 +168,15 @@ const CARGO_PRODUCTS: Record<
 > = {
 	work: { dir: "main", pkg: "zeta-main", bin: "zeta" },
 	// The desktop app is a separate binary in the same workspace; it is never
-	// placed on PATH by the installers (no fourth command). Tray and
-	// notifications are optional features, so the release build has to ask for
-	// them explicitly — without this the shipped app has neither.
+	// placed on PATH by the installers (no fourth command). Notifications are
+	// an optional feature on both platforms; the tray is added for the Windows
+	// leg only, because `tray-icon` lives in the Windows-only dependency list
+	// (enabling it on Linux used to break the build outright).
 	gui: {
 		dir: "main",
 		pkg: "zetawork-gui",
 		bin: "zetawork-gui",
-		features: ["tray", "os-notify"],
+		features: ["os-notify"],
 	},
 	ide: { dir: "termide", pkg: "termide", bin: "termide" },
 };
@@ -263,6 +264,10 @@ async function buildCargoProduct(target: ProductBinaryTarget): Promise<void> {
 		console.log(`DRY RUN cargo build --release --locked -p ${product.pkg} [cwd ${product.dir}]`);
 		return;
 	}
+	const features = [...(product.features ?? [])];
+	if (product.pkg === "zetawork-gui" && target.platform === "win32" && !features.includes("tray")) {
+		features.push("tray");
+	}
 	await runCommand(
 		[
 			"cargo",
@@ -271,7 +276,7 @@ async function buildCargoProduct(target: ProductBinaryTarget): Promise<void> {
 			"--locked",
 			"-p",
 			product.pkg,
-			...(product.features?.length ? ["--features", product.features.join(",")] : []),
+			...(features.length ? ["--features", features.join(",")] : []),
 			...(triple ? ["--target", triple] : []),
 		],
 		workspaceDir,

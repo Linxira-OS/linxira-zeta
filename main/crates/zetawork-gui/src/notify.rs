@@ -404,7 +404,9 @@ fn os_notify(message: &Message) -> Result<(), String> {
 fn os_notify(message: &Message) -> Result<(), String> {
 	let connection =
 		zbus::blocking::Connection::session().map_err(|error| t!("D-Bus 会话总线：{}", error))?;
-	let _: () = connection
+	// `Notify` returns the notification id; discard it without forcing the
+	// reply into `()` (which is what the never-compiled Linux branch did).
+	let _reply = connection
 		.call_method(
 			Some("org.freedesktop.Notifications"),
 			"/org/freedesktop/Notifications",
