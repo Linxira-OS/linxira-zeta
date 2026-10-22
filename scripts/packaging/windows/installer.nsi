@@ -62,8 +62,8 @@ ShowUninstDetails show
 
 ; Icon for the installer itself and its Add/Remove entry. The packaging
 ; script stages it beside the executables (`SOURCE_DIR`).
-!define MUI_ICON "${SOURCE_DIR}\\zetawork.ico"
-!define MUI_UNICON "${SOURCE_DIR}\\zetawork.ico"
+!define MUI_ICON "${SOURCE_DIR}/zetawork.ico"
+!define MUI_UNICON "${SOURCE_DIR}/zetawork.ico"
 !define MUI_ABORTWARNING
 
 ; Language selection is the language dialog MUI2 shows from .onInit (there is

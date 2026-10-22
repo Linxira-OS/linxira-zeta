@@ -287,6 +287,11 @@ async function packageWindowsInstaller(): Promise<void> {
 	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
 	await fs.copyFile(ide, path.join(stage, "zetaide.exe"));
 	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
+	// The MUI interface icons are read from the staging dir; the GUI's PE icon
+	// is the product icon, so the installer and the app never drift apart.
+	const icon = path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.ico");
+	await mustExist(icon);
+	await fs.copyFile(icon, path.join(stage, "zetawork.ico"));
 
 	await fs.mkdir(outDir, { recursive: true });
 	const outFile = path.join(outDir, names.installer);
