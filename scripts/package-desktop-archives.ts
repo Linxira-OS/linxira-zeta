@@ -154,6 +154,73 @@ async function resolveLoader(staged: string | undefined): Promise<string> {
  * A portable copy has to be able to start its own backend, so the companions
  * travel with the shell — a GUI-only archive could not.
  */
+/**
+ * Copy the built Web UI into `<stage>/web-ui` in the layout
+ * `spawnEmbeddedWebUi` looks for (`<exe dir>/web-ui/.next/standalone/server.js`).
+ *
+ * Next's standalone output does not contain its own static assets or `public`,
+ * so both are copied **inside** the standalone tree — the server resolves them
+ * relative to its own directory. Without this the shell loads and every asset
+ * 404s.
+ */
+async function stageWebUi(stage: string, source: string): Promise<void> {
+	const standalone = path.join(source, ".next", "standalone");
+	const serverJs = path.join(standalone, "server.js");
+	await mustExist(serverJs);
+	const target = path.join(stage, "web-ui");
+	await fs.cp(path.join(source, ".next", "standalone"), path.join(target, ".next", "standalone"), {
+		recursive: true,
+		// A traced `node_modules` may be a link (a dev tree sharing one install);
+		// the packaged tree must hold real files.
+		dereference: true,
+	});
+	await fs.cp(path.join(source, ".next", "static"), path.join(target, ".next", "standalone", ".next", "static"), {
+		recursive: true,
+		dereference: true,
+	});
+	const publicDir = path.join(source, "public");
+	// `Bun.file()` on a directory is not `exists()`; stat the path instead.
+	const hasPublic = await fs.stat(publicDir).then(
+		stat => stat.isDirectory(),
+		() => false,
+	);
+	if (hasPublic) {
+		await fs.cp(publicDir, path.join(target, ".next", "standalone", "public"), {
+			recursive: true,
+			dereference: true,
+		});
+	}
+}
+
+/** Every file under `dir`, named `prefix/<relative path>` with POSIX separators. */
+async function directoryEntries(dir: string, prefix: string): Promise<{ name: string; file: string }[]> {
+	const out: { name: string; file: string }[] = [];
+	const walk = async (current: string, rel: string): Promise<void> => {
+		const items = await fs.readdir(current, { withFileTypes: true });
+		items.sort((a, b) => a.name.localeCompare(b.name));
+		for (const item of items) {
+			const abs = path.join(current, item.name);
+			const name = rel ? `${rel}/${item.name}` : item.name;
+			if (item.isDirectory()) await walk(abs, name);
+			else if (item.isFile()) out.push({ name: `${prefix}/${name}`, file: abs });
+		}
+	};
+	await walk(dir, "");
+	return out;
+}
+
+/** The `--webui` directory, or a refusal: the product ships the browser UI. */
+async function resolveWebUi(): Promise<string> {
+	const source = path.resolve(arg("webui") ?? "web-ui");
+	const serverJs = path.join(source, ".next", "standalone", "server.js");
+	if (!(await Bun.file(serverJs).exists())) {
+		throw new Error(
+			`no Web UI build at ${serverJs}; run \`NEXT_OUTPUT_STANDALONE=1 npm run build\` in web-ui/ or pass --webui <dir>`,
+		);
+	}
+	return source;
+}
+
 async function packageWindows(): Promise<void> {
 	const version = await resolveVersion();
 	const gui = arg("exe") ?? "packages/coding-agent/binaries/zetawork-gui-win-x64.exe";
@@ -166,6 +233,7 @@ async function packageWindows(): Promise<void> {
 	// product leg stages the loader beside its artifact and passes it here.
 	const loader = await resolveLoader(arg("dll"));
 	console.log(`Using WebView2 loader: ${loader}`);
+	const webUi = await resolveWebUi();
 
 	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "linxira-zeta-win-"));
 	await fs.copyFile(gui, path.join(stage, "zetawork-gui.exe"));
@@ -173,19 +241,19 @@ async function packageWindows(): Promise<void> {
 	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
 	await fs.copyFile(ide, path.join(stage, "zetaide.exe"));
 	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
+	await stageWebUi(stage, webUi);
 
 	await fs.mkdir(outDir, { recursive: true });
 	const archive = path.join(outDir, desktopAssetNames(version).windowsZip);
-	await writeZip(
-		[
-			{ name: "zetawork-gui.exe", file: path.join(stage, "zetawork-gui.exe") },
-			{ name: "zetawork.exe", file: path.join(stage, "zetawork.exe") },
-			{ name: "zetacode.exe", file: path.join(stage, "zetacode.exe") },
-			{ name: "zetaide.exe", file: path.join(stage, "zetaide.exe") },
-			{ name: "WebView2Loader.dll", file: path.join(stage, "WebView2Loader.dll") },
-		],
-		archive,
-	);
+	const entries = [
+		{ name: "zetawork-gui.exe", file: path.join(stage, "zetawork-gui.exe") },
+		{ name: "zetawork.exe", file: path.join(stage, "zetawork.exe") },
+		{ name: "zetacode.exe", file: path.join(stage, "zetacode.exe") },
+		{ name: "zetaide.exe", file: path.join(stage, "zetaide.exe") },
+		{ name: "WebView2Loader.dll", file: path.join(stage, "WebView2Loader.dll") },
+	];
+	for (const entry of await directoryEntries(path.join(stage, "web-ui"), "web-ui")) entries.push(entry);
+	await writeZip(entries, archive);
 	console.log(`wrote ${archive}`);
 }
 
@@ -205,7 +273,9 @@ async function packageWindowsInstaller(): Promise<void> {
 	for (const file of [gui, tui, agent, ide]) await mustExist(file);
 	const loader = await resolveLoader(arg("dll"));
 
+	const webUi = await resolveWebUi();
 	const stage = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "linxira-zeta-nsis-"));
+	await stageWebUi(stage, webUi);
 	await fs.copyFile(gui, path.join(stage, "zetawork-gui.exe"));
 	await fs.copyFile(tui, path.join(stage, "zetawork.exe"));
 	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
@@ -231,12 +301,13 @@ async function packageWindowsInstaller(): Promise<void> {
 }
 
 /** Desktop entry + icon the AppImage and the Arch package share. */
-function desktopEntry(): string {
+function desktopEntry(version?: string): string {
+	const versionLine = version ? `X-AppImage-Version=${normalizeVersion(version)}\n` : "";
 	return `[Desktop Entry]
 Type=Application
 Name=Linxira Zeta
 Comment=Linxira Zeta — projects, terminals and the coding agent
-Exec=/usr/lib/zetawork/zetawork-gui %U
+${versionLine}Exec=/usr/lib/zetawork/zetawork-gui %U
 Icon=zetawork
 Terminal=false
 Categories=Development;
@@ -283,9 +354,10 @@ async function packageLinux(): Promise<void> {
 		await fs.copyFile(source, target);
 		await fs.chmod(target, 0o755);
 	}
+	await stageWebUi(path.join(appDir, "usr", "lib", "zetawork"), await resolveWebUi());
 	await fs.copyFile(tui, path.join(appDir, "usr", "bin", "zetawork"));
 	await fs.chmod(path.join(appDir, "usr", "bin", "zetawork"), 0o755);
-	await fs.writeFile(path.join(appDir, "usr", "share", "applications", "zetawork.desktop"), desktopEntry());
+	await fs.writeFile(path.join(appDir, "usr", "share", "applications", "zetawork.desktop"), desktopEntry(version));
 	await writeIcon(path.join(appDir, "usr", "share", "icons", "hicolor", "128x128", "apps", "zetawork.png"));
 	await fs.writeFile(path.join(appDir, "AppRun"), `#!/bin/sh\nexec "$APPDIR/usr/lib/zetawork/zetawork-gui" "$@"\n`);
 	await fs.chmod(path.join(appDir, "AppRun"), 0o755);
@@ -300,6 +372,9 @@ async function packageLinux(): Promise<void> {
 		path.join(appDir, "usr", "share", "icons", "hicolor", "128x128", "apps", "zetawork.png"),
 		path.join(appDir, "zetawork.png"),
 	);
+	// AppImage integration tools (Shelly included) read the root icon through
+	// `.DirIcon`; a missing one downgrades the entry to a generic icon.
+	await fs.copyFile(path.join(appDir, "zetawork.png"), path.join(appDir, ".DirIcon"));
 
 	// AppImage: appimagetool refuses to run under FUSE in most CI images, so
 	// the runner extracts it (APPIMAGE_EXTRACT_AND_RUN) and we pass -n.
@@ -325,6 +400,7 @@ async function packageLinux(): Promise<void> {
 	await fs.copyFile(tui, path.join(pkgDir, "zetawork"));
 	await fs.copyFile(agent, path.join(pkgDir, "zetacode"));
 	await fs.copyFile(ide, path.join(pkgDir, "zetaide"));
+	await fs.cp(await resolveWebUi(), path.join(pkgDir, "web-ui"), { recursive: true, dereference: true });
 	await fs.copyFile(path.join(repoRoot, "LICENSE"), path.join(pkgDir, "LICENSE"));
 	await fs.copyFile(
 		path.join(repoRoot, "scripts", "packaging", "arch", "zetawork.desktop"),

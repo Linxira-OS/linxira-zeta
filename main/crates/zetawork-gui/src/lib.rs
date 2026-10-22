@@ -185,6 +185,12 @@ pub struct Shell {
 	pub session_admin: session_admin::Admin,
 	/// The palette's `zetacode daemon restart` worker.
 	pub palette_job: Option<palette::Job>,
+	/// The `daemon install-autostart` / `uninstall-autostart` run behind the
+	/// 设置 switch: a scheduled task takes a second, so it never runs on the UI
+	/// thread ([`Shell::apply_autostart`]).
+	autostart_job: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
+	/// The value the running job is installing, echoed in its notice.
+	autostart_target: bool,
 	/// The right column's 资源 page: host CPU/memory/GPU and the process list
 	/// ([`resources::ResourceCache`]).
 	pub resources: resources::ResourceCache,
@@ -337,6 +343,8 @@ impl Shell {
 			worktrees: worktrees::WorktreeCache::default(),
 			session_admin: session_admin::Admin::default(),
 			palette_job: None,
+			autostart_job: None,
+			autostart_target: false,
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
 			plugins: plugin_panels::discover_in(&plugin_panels::home()),
@@ -412,6 +420,8 @@ impl Shell {
 			worktrees: worktrees::WorktreeCache::default(),
 			session_admin: session_admin::Admin::default(),
 			palette_job: None,
+			autostart_job: None,
+			autostart_target: false,
 			resources: resources::ResourceCache::default(),
 			board: board::BoardCache::default(),
 			// A headless shell reads nothing: a test seeds `plugins` itself
@@ -1265,6 +1275,55 @@ impl Shell {
 
 	/// The per-frame work that is not drawing: settings, the memory sample,
 	/// keys, the read-only readers.
+
+	/// Start the OS autostart component, or remove it, off the UI thread.
+	///
+	/// The setting alone never installs anything: a Scheduled Task or a systemd
+	/// user timer is a system change, so the switch drives
+	/// `zetacode daemon install-autostart` (which also writes
+	/// `backend.autostart`) and reports what the CLI said.
+	pub fn apply_autostart(&mut self, enabled: bool) {
+		if self.autostart_job.is_some() {
+			return;
+		}
+		let action = if enabled { "install-autostart" } else { "uninstall-autostart" };
+		let args = vec!["daemon".to_owned(), action.to_owned()];
+		let (sender, receiver) = std::sync::mpsc::channel();
+		std::thread::spawn(move || {
+			let result = crate::zetacode::run_zetacode(&args).map(|_| ());
+			let _ = sender.send(result);
+		});
+		self.autostart_job = Some(receiver);
+		self.autostart_target = enabled;
+	}
+
+	/// Drain the autostart job, if one is running. Called from [`Shell::tick`];
+	/// never waits on the child.
+	fn poll_autostart(&mut self, ctx: &Context) {
+		let Some(receiver) = self.autostart_job.as_ref() else {
+			return;
+		};
+		match receiver.try_recv() {
+			Ok(result) => {
+				self.autostart_job = None;
+				let enabled = self.autostart_target;
+				let notice = match (result, enabled) {
+					(Ok(()), true) => crate::t!("已安装开机自启（登录后三分钟启动后台服务）").to_string(),
+					(Ok(()), false) => crate::t!("已移除开机自启").to_string(),
+					(Err(reason), true) => crate::t!("无法安装开机自启：{}", reason),
+					(Err(reason), false) => crate::t!("无法移除开机自启：{}", reason),
+				};
+				self.state.show(crate::state::Notice(notice));
+				ctx.request_repaint();
+			},
+			Err(std::sync::mpsc::TryRecvError::Empty) => {},
+			Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+				self.autostart_job = None;
+				self.state.show(crate::state::Notice(crate::t!("开机自启命令异常结束").to_string()));
+			},
+		}
+	}
+
 	pub fn tick(&mut self, ctx: &Context) {
 		// 后台驻留 first: it answers a second launch's activation request and
 		// is the only thing that runs while the window is hidden.
@@ -1279,6 +1338,7 @@ impl Shell {
 			return;
 		}
 		self.poll_backend(ctx);
+		self.poll_autostart(ctx);
 		// Agent panes are polled in the background too: "needs input" and "the
 		// run finished" are exactly the edges a hidden window exists to tell the
 		// user about. The round trip is non-blocking (`try_iter`).

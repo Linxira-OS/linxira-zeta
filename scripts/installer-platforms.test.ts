@@ -259,6 +259,27 @@ describe("Windows installer contract", () => {
 		}
 	});
 
+	it("carries the browser UI and removes it on uninstall", () => {
+		// `zetacode serve` hosts web-ui from its own directory; an installer
+		// without the build leaves the backend able to start but the browser UI
+		// missing (the 503 page).
+		expect(script).toContain('File /r "${SOURCE_DIR}/web-ui"');
+		expect(script).toContain('RMDir /r "$INSTDIR\\web-ui"');
+	});
+
+	it("creates no desktop icon or autostart task in a silent install", () => {
+		// Package managers and scripts silent-install with no UI to ask with, so
+		// the defaults must be free of side effects outside the install dir.
+		expect(script).toContain("${If} ${Silent}");
+		expect(script).toContain('${GetOptions} $CMDLINE "/DESKTOP=" $0');
+		expect(script).toContain('${GetOptions} $CMDLINE "/AUTOSTART=" $0');
+	});
+
+	it("installs and removes the autostart component with the shipped CLI", () => {
+		expect(script).toContain('"$INSTDIR\\zetacode.exe" daemon install-autostart');
+		expect(script).toContain('"$INSTDIR\\zetacode.exe" daemon uninstall-autostart');
+	});
+
 	it("ships the executable icon and the per-monitor-v2 DPI manifest", () => {
 		expect(script).toContain('!define MUI_ICON "${SOURCE_DIR}');
 		const rc = fs.readFileSync(

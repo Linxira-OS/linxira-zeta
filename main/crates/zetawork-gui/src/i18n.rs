@@ -583,7 +583,7 @@ static EN: &[(&str, &str)] = &[
 	("界面规格", "UI spec"),
 	(
 		"登录时启动 zetawork（需要安装自启项，本构建只记录这个选择）",
-		"Start zetawork at login (needs an autostart entry; this build only records the choice)",
+		"Start the backend at login (a per-user scheduled task / systemd user timer)",
 	),
 	("目录不存在", "Directory does not exist"),
 	("移除", "Remove"),

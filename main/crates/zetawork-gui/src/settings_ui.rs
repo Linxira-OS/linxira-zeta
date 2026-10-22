@@ -224,11 +224,14 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 			row(
 				ui,
 				t!("开机自启"),
-				t!("登录时启动 zetawork（需要安装自启项，本构建只记录这个选择）"),
+				t!("登录后自动启动后台服务（由当前用户的计划任务/systemd user timer 承载）"),
 				|ui, shell| {
 					let mut value = shell.settings.auto_start;
 					if switch(ui, &mut value) {
 						shell.settings.auto_start = value;
+						// The setting alone changes nothing: the OS component is
+						// installed or removed through the CLI, off this thread.
+						shell.apply_autostart(value);
 					}
 				},
 				shell,

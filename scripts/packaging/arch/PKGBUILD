@@ -16,8 +16,8 @@ provides=('zetawork' 'linxira-zeta')
 # egui/eframe render through wgpu (Vulkan) and fall back to GL; the TUI needs a
 # terminal only. wry is Windows-only in this tree, so no webkit2gtk here.
 depends=('glibc' 'gcc-libs' 'libglvnd' 'libxkbcommon' 'libx11' 'wayland' 'vulkan-icd-loader')
-source=('zetawork' 'zetawork-gui' 'zetacode' 'zetaide' 'zetawork.desktop' 'zetawork.png' 'LICENSE')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+source=('zetawork' 'zetawork-gui' 'zetacode' 'zetaide' 'zetawork.desktop' 'zetawork.png' 'LICENSE' 'web-ui')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # The TUI is the `zetawork` command; the desktop binary and both companions
@@ -27,6 +27,9 @@ package() {
   install -Dm755 "$srcdir/zetawork-gui" "$pkgdir/usr/lib/zetawork/zetawork-gui"
   install -Dm755 "$srcdir/zetacode" "$pkgdir/usr/lib/zetawork/zetacode"
   install -Dm755 "$srcdir/zetaide" "$pkgdir/usr/lib/zetawork/zetaide"
+  # The browser UI build `zetacode serve` hosts; resolved from the binary's own
+  # directory, so it lives beside the companions.
+  cp -a "$srcdir/web-ui" "$pkgdir/usr/lib/zetawork/web-ui"
   install -Dm644 "$srcdir/zetawork.desktop" "$pkgdir/usr/share/applications/linxira-zeta.desktop"
   install -Dm644 "$srcdir/zetawork.png" \
     "$pkgdir/usr/share/icons/hicolor/128x128/apps/zetawork.png"

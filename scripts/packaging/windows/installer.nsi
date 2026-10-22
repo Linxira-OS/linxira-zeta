@@ -8,6 +8,7 @@
 ;   zetaide.exe           companion IDE
 ;   zetawork.exe          the TUI command
 ;   WebView2Loader.dll    dynamic import of the GUI's PE
+;   web-ui/               the browser UI `zetacode serve` hosts
 ;
 ; All of them land beside each other — `main/crates/zetawork-gui/src/
 ; zetacode.rs` resolves the companions from the GUI's own directory and never
@@ -16,6 +17,11 @@
 ; Per-user install: no UAC prompt, no machine-wide state.
 ; `%LOCALAPPDATA%\Programs\Linxira Zeta`, Start Menu shortcut, uninstall entry.
 ; No network access anywhere in this script.
+;
+; Silent contract (`/S`): nothing is created on the desktop and no autostart
+; task is registered unless `/DESKTOP=1` / `/AUTOSTART=1` are passed. Package
+; managers and scripts silent-install us and have no UI to ask with, so the
+; safe default is "no side effects outside the install directory".
 
 Unicode true
 RequestExecutionLevel user
@@ -72,14 +78,20 @@ ShowUninstDetails show
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
-LangString SEC_CORE_NAME ${LANG_ENGLISH} "zetawork (required)"
-LangString SEC_CORE_NAME ${LANG_SIMPCHINESE} "zetawork（必需）"
+LangString SEC_CORE_NAME ${LANG_ENGLISH} "Linxira Zeta (required)"
+LangString SEC_CORE_NAME ${LANG_SIMPCHINESE} "Linxira Zeta（必需）"
 LangString SEC_DESKTOP_NAME ${LANG_ENGLISH} "Desktop shortcut"
 LangString SEC_DESKTOP_NAME ${LANG_SIMPCHINESE} "桌面快捷方式"
 LangString DESC_CORE ${LANG_ENGLISH} "zetawork, its terminal, the coding agent and the IDE, installed side by side for this user."
 LangString DESC_CORE ${LANG_SIMPCHINESE} "zetawork、终端、编码代理与 IDE，安装到当前用户目录。"
-LangString DESC_DESKTOP ${LANG_ENGLISH} "Put a zetawork shortcut on the desktop."
-LangString DESC_DESKTOP ${LANG_SIMPCHINESE} "在桌面创建 zetawork 快捷方式。"
+LangString DESC_DESKTOP ${LANG_ENGLISH} "Put a Linxira Zeta shortcut on the desktop."
+LangString DESC_DESKTOP ${LANG_SIMPCHINESE} "在桌面创建 Linxira Zeta 快捷方式。"
+LangString SEC_AUTOSTART_NAME ${LANG_ENGLISH} "Start the backend at login (recommended)"
+LangString SEC_AUTOSTART_NAME ${LANG_SIMPCHINESE} "开机自动启动后台服务（推荐）"
+LangString DESC_AUTOSTART ${LANG_ENGLISH} "A per-user scheduled task starts the backend three minutes after you sign in, so terminals and browsers can reach it without opening the app. You can turn it off in Settings."
+LangString DESC_AUTOSTART ${LANG_SIMPCHINESE} "登录后三分钟由当前用户的计划任务启动后台服务，终端与浏览器无需先打开应用即可连接。可在设置里关闭。"
+LangString SILENT_NOTE ${LANG_ENGLISH} "Silent install: no desktop shortcut or autostart entry unless /DESKTOP=1 and /AUTOSTART=1 are passed."
+LangString SILENT_NOTE ${LANG_SIMPCHINESE} "静默安装：除非显式传入 /DESKTOP=1 与 /AUTOSTART=1，否则不创建桌面快捷方式与开机自启。"
 
 Function .onInit
   !insertmacro MUI_LANGDLL_DISPLAY
@@ -102,6 +114,9 @@ Section "$(SEC_CORE_NAME)" SEC_CORE
   File "${SOURCE_DIR}/zetaide.exe"
   File "${SOURCE_DIR}/zetawork.exe"
   File "${SOURCE_DIR}/WebView2Loader.dll"
+  ; The browser UI `zetacode serve` hosts, in the layout it resolves from its
+  ; own directory (`web-ui/.next/standalone/server.js`).
+  File /r "${SOURCE_DIR}/web-ui"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
@@ -122,20 +137,49 @@ SectionEnd
 
 ; Checked by default: a desktop app that leaves no desktop icon is not
 ; discoverable, and the section is still there for anyone who wants it off.
+; Silent installs create nothing unless /DESKTOP=1 was passed — a package
+; manager or a script silent-installing us must not decorate the desktop.
 Section "$(SEC_DESKTOP_NAME)" SEC_DESKTOP
+  ${If} ${Silent}
+    ${GetOptions} $CMDLINE "/DESKTOP=" $0
+    ${If} $0 != "1"
+      Goto done_desktop
+    ${EndIf}
+  ${EndIf}
   SetShellVarContext current
   CreateShortcut "$DESKTOP\zetawork.lnk" "$INSTDIR\zetawork-gui.exe" "" "$INSTDIR\zetawork-gui.exe" 0
+  done_desktop:
+SectionEnd
+
+; The OS autostart component the bundle is allowed to own (see
+; `zetacode daemon install-autostart`): a per-user scheduled task, three
+; minutes after login, gated by the `backend.autostart` setting it also writes.
+Section "$(SEC_AUTOSTART_NAME)" SEC_AUTOSTART
+  ${If} ${Silent}
+    ${GetOptions} $CMDLINE "/AUTOSTART=" $0
+    ${If} $0 != "1"
+      Goto done_autostart
+    ${EndIf}
+  ${EndIf}
+  nsExec::ExecToLog '"$INSTDIR\zetacode.exe" daemon install-autostart'
+  Pop $0
+  done_autostart:
 SectionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_CORE} $(DESC_CORE)
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_DESKTOP} $(DESC_DESKTOP)
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC_AUTOSTART} $(DESC_AUTOSTART)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "Uninstall"
   nsExec::ExecToLog 'taskkill /F /IM zetawork-gui.exe'
   Pop $0
   Sleep 300
+
+  ; Remove the OS autostart component before its binary goes away.
+  nsExec::ExecToLog '"$INSTDIR\zetacode.exe" daemon uninstall-autostart'
+  Pop $0
 
   SetShellVarContext current
   Delete "$SMPROGRAMS\zetawork.lnk"
@@ -147,6 +191,7 @@ Section "Uninstall"
   Delete "$INSTDIR\zetawork.exe"
   Delete "$INSTDIR\WebView2Loader.dll"
   Delete "$INSTDIR\uninstall.exe"
+  RMDir /r "$INSTDIR\web-ui"
   RMDir "$INSTDIR"
 
   DeleteRegKey HKCU "${UNINSTALL_KEY}"

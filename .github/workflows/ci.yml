@@ -1427,8 +1427,22 @@ jobs:
          # mksquashfs for appimagetool; docker is preinstalled on the runner and
          # the Arch package is built inside archlinux/base-devel. NSIS builds
          # the per-user Windows installer (`makensis`).
+         - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+           with:
+              node-version: "24"
          - name: Install AppImage and NSIS tooling
            run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools zsync nsis
+         # Every product artifact carries the browser UI: `zetacode serve`
+         # hosts it from `<exe dir>/web-ui`, and the shipped binary is its Bun
+         # runtime (`BUN_BE_BUN=1`), so no Node is needed on the user machine.
+         - name: Build the Web UI (standalone)
+           working-directory: web-ui
+           env:
+              NEXT_OUTPUT_STANDALONE: "1"
+              NEXT_TELEMETRY_DISABLED: "1"
+           run: |
+              npm ci
+              npm run build
          - name: Package the Windows portable product (full payload zip)
            run: |
               bun scripts/package-desktop-archives.ts windows \
@@ -1438,6 +1452,7 @@ jobs:
                 --agent packages/coding-agent/binaries/zeta-cli-windows-x64.exe \
                 --ide packages/coding-agent/binaries/zeta-ide-win-x64.exe \
                 --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
+                --webui web-ui \
                 --out packages/coding-agent/binaries
          - name: Package the Windows installer (NSIS, with companions)
            run: |
@@ -1448,6 +1463,7 @@ jobs:
                 --agent packages/coding-agent/binaries/zeta-cli-windows-x64.exe \
                 --ide packages/coding-agent/binaries/zeta-ide-win-x64.exe \
                 --dll packages/coding-agent/binaries/zetawork-gui-win-x64.dll \
+                --webui web-ui \
                 --out packages/coding-agent/binaries
          - name: Package the Linux desktop app
            run: |
@@ -1457,6 +1473,7 @@ jobs:
                 --tui packages/coding-agent/binaries/zeta-work-linux-x64 \
                 --agent packages/coding-agent/binaries/zeta-cli-linux-x64 \
                 --ide packages/coding-agent/binaries/zeta-ide-linux-x64 \
+                --webui web-ui \
                 --out packages/coding-agent/binaries
          - name: Upload desktop installer & archives
            uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
