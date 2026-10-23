@@ -27,6 +27,16 @@ describe("backend-attach local commands", () => {
 			"status",
 			"usage",
 			"jobs",
+			"model",
+			"modelpreset",
+			"effort",
+			"fast",
+			"slow",
+			"plan",
+			"plan-ultra",
+			"guided-goal",
+			"goal",
+			"vibe",
 		]) {
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(true);
 		}
@@ -41,7 +51,7 @@ describe("backend-attach local commands", () => {
 	it("treats a plain message and a missing verb as not-a-command", () => {
 		expect(isBackendAttachLocalCommand(undefined)).toBe(false);
 		expect(isBackendAttachLocalCommand("")).toBe(false);
-		expect(isBackendAttachLocalCommand("plan")).toBe(false);
+		expect(isBackendAttachLocalCommand("compact")).toBe(false);
 	});
 
 	it("keeps the table to local-only entries", () => {

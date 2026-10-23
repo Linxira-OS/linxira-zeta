@@ -217,7 +217,10 @@ writes stay local and are not forwarded. Commands that only touch the client
 (`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`, `/tracking`,
 `/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`, `/help`,
 `/hotkeys`, `/quit`, `/exit`) run in the attached TUI exactly as they do
-locally; session commands (`/compact`, `/new`, `/resume`, `/fork`, `/reload`,
+locally, and the replica switches that the attach link mirrors — `/model`,
+`/modelpreset`, `/effort`, `/fast`, `/slow`, `/plan`, `/plan-ultra`,
+`/guided-goal`, `/goal`, `/vibe` — open their usual pickers and then send the
+matching wire command. Session commands (`/compact`, `/new`, `/resume`, `/fork`, `/reload`,
 `/queue`, `/mcp`, `/todo`) stay backend-owned and are refused with a status
 line instead of mutating only the replica. Model and thinking-level switches
 made in the attached TUI (for example `/model`) are mirrored to the backend, so

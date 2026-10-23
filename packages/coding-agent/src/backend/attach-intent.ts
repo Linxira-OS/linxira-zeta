@@ -15,6 +15,7 @@
  */
 
 import type { Args } from "../cli/args";
+import { readServeRegistration, serveRegistryPath } from "../server/serve-registry";
 import type { BackendTarget } from "./client";
 import { discoverBackend } from "./client";
 
@@ -79,9 +80,17 @@ export function backendAttachIntent(
 	return intent;
 }
 
+/** Probe retry cadence for a serve that is still coming up. */
+const ATTACH_PROBE_RETRIES = 3;
+const ATTACH_PROBE_RETRY_DELAY_MS = 400;
+
 /**
  * Probe the backend for an intent. Returns undefined when nothing answers;
  * the caller falls back to the in-process session.
+ *
+ * A serve that was started moments ago can miss the first probe (cold module
+ * cache, first bind) while its registration already names it. Retry only in
+ * that case, so a machine without `serve` still falls back immediately.
  */
 export async function resolveBackendTarget(
 	intent: BackendAttachIntent | undefined,
@@ -91,19 +100,32 @@ export async function resolveBackendTarget(
 		fetchImpl?: typeof fetch;
 		registryFile?: string;
 		discover?: typeof discoverBackend;
+		sleepImpl?: (ms: number) => Promise<unknown>;
 	} = {},
 ): Promise<ResolvedBackendTarget | undefined> {
 	if (!intent) return undefined;
 	const discover = options.discover ?? discoverBackend;
-	const backend = await discover({
+	const discoverOptions = {
 		url: intent.url,
 		env: options.env ?? process.env,
 		timeoutMs: options.timeoutMs,
 		fetchImpl: options.fetchImpl,
 		registryFile: options.registryFile,
-	});
-	if (!backend) return undefined;
-	return { ...intent, backend };
+	};
+	const backend = await discover(discoverOptions);
+	if (backend) return { ...intent, backend };
+
+	const registration = readServeRegistration(
+		options.registryFile ?? serveRegistryPath(options.env as NodeJS.ProcessEnv | undefined),
+	);
+	if (!registration) return undefined;
+	const sleep = options.sleepImpl ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
+	for (let attempt = 0; attempt < ATTACH_PROBE_RETRIES; attempt++) {
+		await sleep(ATTACH_PROBE_RETRY_DELAY_MS);
+		const retried = await discover(discoverOptions);
+		if (retried) return { ...intent, backend: retried };
+	}
+	return undefined;
 }
 
 /** Startup transport decision used by the launch path (and its tests). */

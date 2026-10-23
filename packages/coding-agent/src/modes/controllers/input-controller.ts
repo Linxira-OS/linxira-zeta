@@ -284,14 +284,34 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 };
 
 /**
+ * Commands whose effect is a replica state change that `BackendAttachLink`
+ * mirrors over the control plane (`model_changed`, `thinking_level_changed`,
+ * `state_version_changed`). They run locally so the TUI shows the same
+ * selector/picker as a local session; the wire command follows the event.
+ */
+const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
+	model: true,
+	modelpreset: true,
+	effort: true,
+	fast: true,
+	slow: true,
+	plan: true,
+	"plan-ultra": true,
+	"plan-review": true,
+	"guided-goal": true,
+	goal: true,
+	vibe: true,
+};
+
+/**
  * Whether a slash command runs in the attached TUI itself instead of being
- * refused: client-only commands (display, settings, language) plus the local
- * dashboards. Everything else stays backend-owned; model/thinking/mode
- * switches reach the backend through the replica subscription in
- * `BackendAttachLink`.
+ * refused: client-only commands (display, settings, language), the local
+ * dashboards, and the replica changes the attach link mirrors to the backend.
+ * Everything else stays backend-owned.
  */
 export function isBackendAttachLocalCommand(verb: string | undefined): boolean {
-	return verb !== undefined && BACKEND_ATTACH_LOCAL_COMMANDS[verb] === true;
+	if (verb === undefined) return false;
+	return BACKEND_ATTACH_LOCAL_COMMANDS[verb] === true || BACKEND_ATTACH_MIRRORED_COMMANDS[verb] === true;
 }
 
 export class InputController {
