@@ -4,7 +4,8 @@
 settings surfaces. This page says which one owns what, how a value travels to
 disk, and how the UI language reaches both the static strings and the schema
 labels. The user-facing counterpart is [Settings](./settings.md); the gateway
-contract is in [Web UI API](./web-ui/api.md).
+contract is the gateway API (the same one the deferred Web UI consumes; its
+design notes live in [Web UI API](./web-ui/api.md)).
 
 ## Two surfaces, one complete one
 
@@ -19,7 +20,8 @@ the window lifecycle, egui's own theme and fonts, the shell to spawn when the
 user opens a terminal, the project registry, and the desktop updater. The
 schema section is the single place a zetacode setting can be found; a setting
 that has UI metadata in `settings-schema.ts` is rendered here, so no setting is
-reachable only from `web-ui`. One of those rows is `terminal.imageMode`, which
+reachable only from the web settings surface (currently the GUI; the Web UI is
+deferred). One of those rows is `terminal.imageMode`, which
 the terminal pane reads back from the cached catalog (see
 [Terminal graphics](./gui-terminal-graphics.md#the-image-switch)).
 

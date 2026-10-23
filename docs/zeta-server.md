@@ -1,36 +1,44 @@
 # ZetaServer — Unified HTTP Reverse Proxy
 
 ZetaServer is a unified HTTP reverse proxy that exposes the Stats Dashboard and
-Web UI through a single port. It uses `Bun.serve` as the front-end server and
+gateway and (when a build is present) the Web UI through a single port. The
+Web UI's development is **deferred**: this package ships no build, and the web
+port answers a bilingual placeholder page instead. It uses `Bun.serve` as the front-end server and
 proxies requests to the appropriate internal backend.
 
 ## Architecture
 
 ```
 Browser → :30141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:3847)
-                              └─ 其他所有请求 → Web UI Next.js (随机内部端口)
+                              ├─ other /api/* → Web Gateway (:30142)
+                              └─ everything else → Web UI build, when one is
+                                 present (deferred today: placeholder page)
 ```
 
 - **Front-end**: `Bun.serve` on port 30141 (configurable)
-- **Stats Dashboard**: Internal backend on port 3847 (configurable)
-- **Web UI**: Next.js server on a random internal port to avoid conflicts
+- **Stats Dashboard**: internal backend on port 3847 (configurable)
+- **Web Gateway**: internal backend on port 30142
+- **Web UI**: with a build present, a Next.js server on a random internal port;
+  without one (the current default, development deferred), a static bilingual
+  placeholder page served by the front door itself.
 
 ## Routing
 
 | Path prefix | Backend |
 |---|---|
 | `/api/stats`, `/api/sync`, `/api/request/*` | Stats Dashboard |
-| Everything else | Web UI (Next.js) |
+| `/api/*` | Web Gateway |
+| Everything else | Web UI build, or the placeholder page |
 
 ## Usage
 
 ### CLI
 
 ```bash
-# Start both Stats Dashboard and Web UI
+# Start Stats Dashboard + gateway (Web UI port answers the placeholder)
 zetacode serve
 
-# Start only the Web UI
+# Start only the web-facing port
 zetacode web
 
 # Custom ports

@@ -1,5 +1,8 @@
 # Collab: Live Session Sharing
 
+> Browser-hosted collab surfaces (the `https://…/#<link>` forms below) are
+> part of the deferred Web UI; terminal and IM participants work today.
+
 `/collab` shares your running session with other zetacode instances in real time. Guests render the **same session natively in their own TUI** — streaming assistant text, tool-call cards, footer state (cwd, model, context %, cost), ctrl+o expansion, `/dump` — no terminal mirroring. Guests can prompt and interrupt the agent; the host machine runs the agent and all tools.
 
 **Off by default, and it needs a relay you control.** The stream is relayed by a WebSocket server, so zetacode ships with sharing disabled and with no relay configured: `/collab` and `/join` stay out of the command list, the splash does not advertise them, and `collab.autoStart` does nothing until you turn the feature on. Turn it on in `/settings` (group **Collab**) or in your config:
@@ -116,7 +119,7 @@ host[:port]/r/<roomId>#<key>                                     → legacy dire
 https://host[:port]/r/<roomId>.<key>                             → direct relay URL, normalized to wss://
 wss://host[:port]/r/<roomId>.<key>                               → direct websocket relay URL
 ws://localhost:7475/r/<roomId>.<key>                             → direct plain ws, localhost only
-https://host[:port]/#<link>                                      → browser deep link when web UI and relay share a host
+https://host[:port]/#<link>                                      → browser deep link when a web surface and relay share a host (Web UI deferred)
 https://web-host[:port][/<path>]/#<relay-link>                   → browser UI wrapper with relay link in the fragment
 https://web.example/collab/#relay.example.com/r/<roomId>.<key>   → web UI and relay on different hosts
 ```

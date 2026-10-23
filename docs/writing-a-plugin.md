@@ -7,7 +7,7 @@ choose per thing — not per language, not per front end:
 | --- | --- | --- |
 | An action the model or the user can trigger | a **tool** or a **command** in your extension module | the session process, whatever front end is attached |
 | Structured data you want in the desktop's plugin column | a **declarative panel** in `plugin.json` (`list` / `form` / `chart`) | the Rust GUI draws it natively — no webview, no extra service |
-| A page of your own HTML/JS/CSS | an **`.html` file** in your package | web-ui's plugin host, and the GUI's plugin column in a webview |
+| A page of your own HTML/JS/CSS | an **`.html` file** in your package | the GUI's plugin column in a webview (the Web UI's plugin host is deferred with the rest of the Web UI) |
 
 The rule that decides the second and third rows: **a panel can be drawn natively
 when it is declarative**, not when the plugin is written in any particular
@@ -26,7 +26,7 @@ my-plugin/
 ├── index.ts            # the extension factory (tools, commands)
 ├── locales/en.json     # optional: flat key → string tables
 ├── locales/zh.json
-└── pages/index.html    # optional: web-ui page(s)
+└── pages/index.html    # optional: page(s) rendered by the host surface
 ```
 
 `package.json` carries the manifest the loader reads:
@@ -194,7 +194,8 @@ is exactly what the distributable zip is for.
 - No file writes outside `ctx.storage` (or the project's `.zeta/`).
 - No dependency on a particular front end's presence: if `zetacode serve` is
   down, your tool still works and your declarative panels still draw; only the
-  browser page URL needs web-ui.
+  browser page URL needs a host surface (the Web UI is deferred; the GUI
+  plugin column still renders pages).
 
 ## See also
 

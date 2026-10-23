@@ -227,7 +227,9 @@ Refresh behavior after a change: `/reload-plugins` re-runs discovery for skills,
 
 ## Desktop and web UI
 
-The desktop shell and web UI reach plugins over the gateway's `/api/plugins` route (`packages/coding-agent/src/server/web-gateway/plugins.ts`; the bundled Next.js UI in the installed app fetches `GET /api/plugins?cwd=…` and posts actions to the same path). Verified against a running instance:
+The Web UI's development is currently deferred (the package ships a placeholder
+page); the desktop shell and the future Web UI reach plugins over the same
+gateway route (`packages/coding-agent/src/server/web-gateway/plugins.ts`; the bundled Next.js UI in the installed app fetches `GET /api/plugins?cwd=…` and posts actions to the same path). Verified against a running instance:
 
 ```
 $ curl -s "http://127.0.0.1:30142/api/plugins?cwd=$PWD"

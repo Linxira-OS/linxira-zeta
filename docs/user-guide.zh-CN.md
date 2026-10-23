@@ -21,34 +21,30 @@ bun add -g @linxiraos/zeta
 **桌面版：** 安装对应平台的桌面构建。桌面应用运行同一个 `zetacode` 运行时，
 并额外提供系统托盘图标（关闭窗口时最小化到托盘）。
 
-## 启动 Web 界面
+## 启动服务
 
-运行 `zetacode serve` 启动完整栈——Web UI、Web Gateway、Stats Dashboard——
-统一代理到一个端口：
+运行 `zetacode serve` 启动 Stats Dashboard 与 Web Gateway：
 
 ```bash
 zetacode serve
 ```
 
-- Web UI 地址为 `http://127.0.0.1:30141`。
-- Web Gateway 监听 `127.0.0.1:30142`（dev 模式访问）。
-- Stats Dashboard 运行在 `127.0.0.1:3847`。
+- Web Gateway：`127.0.0.1:30142` —— HTTP API，以及终端客户端连接用的按会话
+  RPC WebSocket。
+- Stats Dashboard：`127.0.0.1:3847` —— 用量、费用、请求与工具面板，右上角
+  有 EN ⇄ 中文 切换。
+- Web UI：`127.0.0.1:30141` —— **开发降级（deferred）**。安装包不附带 Web UI
+  构建；该端口返回双语占位页，说明界面正在补齐。后续版本补齐后会由
+  `zetacode serve` 按需从 npm 获取。
 
-`zetacode web` 启动 Web UI（不带桌面壳）。可在 `web.yml` 中配置域名、端口、
-远程访问，以及是否常驻系统托盘。
+终端是主要入口。会话都跑在后端，终端挂接到它所属的工作区与分支：
 
-## 使用 Web 界面
-
-Web UI 以会话（session）为单位组织：
-
-- **新建会话** — 在任意文件夹创建会话；agent 在该目录内工作。
-- **聊天** — 输入消息后回车发送。`/` 打开命令，`@` 附加文件。
-- **Trajectory** — 将消息区切换为分支/轨迹视图。
-- **模型** — 打开侧栏底部的“模型”面板选择提供商与模型，或配置提供商
-  模型。
-- **设置** — 齿轮图标打开设置面板：外观、模型、工具、Web / 消息渠道，
-  以及“关于 / 使用”标签页（即本手册）。
-- **Stats** — Stats 标签页内嵌 Stats Dashboard（用量、费用、会话）。
+```bash
+zetacode                  # 挂接本目录最新的会话
+zetacode attach --list    # 跨仓库列出：id、cwd @ 分支、时间、名称
+zetacode attach <id>      # 纯终端客户端
+zetacode --attach-session <id>   # 在该会话上跑完整 TUI
+```
 
 ## 模型配置
 

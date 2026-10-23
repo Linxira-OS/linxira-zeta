@@ -23,38 +23,32 @@ entry point for the CLI, the web server, and the desktop shell.
 desktop app runs the same `zetacode` runtime and adds a system tray icon
 (minimize to tray on close).
 
-## Starting the web interface
+## Starting the services
 
-Run `zetacode serve` to start the full stack — Web UI, Web Gateway, Stats
-Dashboard — behind one port:
+Run `zetacode serve` to start the Stats Dashboard and the Web Gateway:
 
 ```bash
 zetacode serve
 ```
 
-- The Web UI opens at `http://127.0.0.1:30141`.
-- The Web Gateway listener runs on `127.0.0.1:30142` (dev-mode access).
-- The Stats Dashboard runs on `127.0.0.1:3847`.
+- Web Gateway: `127.0.0.1:30142` — the HTTP API and the per-session RPC
+  WebSocket that terminal clients attach to.
+- Stats Dashboard: `127.0.0.1:3847` — usage, cost, request and tool panels,
+  with an EN ⇄ 中文 switch in the top-right corner.
+- Web UI: `127.0.0.1:30141` — **development is deferred**. The package does not
+  ship a Web UI build; the port answers with a bilingual placeholder page that
+  says the interface is being completed. A later release ships the full Web UI
+  and makes `serve` fetch it from npm on demand.
 
-`zetacode web` starts the Web UI without the desktop shell. In `web.yml` you can
-configure the domain, the port, remote access, and whether the app stays in
-the system tray.
+The terminal is the primary surface. Every session lives on the backend, so a
+terminal attaches to the exact workspace and branch it belongs to:
 
-## Using the web interface
-
-The web UI is organized around sessions:
-
-- **New session** — create a session in any folder; the agent works in that
-  directory.
-- **Chat** — type a message and press Enter. `/` opens commands, `@` attaches
-  files.
-- **Trajectory** — switch the message area to the branch/trajectory view.
-- **Models** — open the Models panel (bottom of the sidebar) to pick the
-  provider and model, or configure provider models.
-- **Settings** — the gear icon opens the settings panel: appearance, model,
-  tools, Web / Bot, and the "About / Usage" tab with this documentation.
-- **Stats** — the Stats tab embeds the Stats Dashboard (usage, costs,
-  sessions).
+```bash
+zetacode                  # attach to this directory's newest session
+zetacode attach --list    # sessions across repositories: id, cwd @ branch, age, name
+zetacode attach <id>      # plain terminal client for one session
+zetacode --attach-session <id>   # full TUI on that session
+```
 
 ## Model configuration
 

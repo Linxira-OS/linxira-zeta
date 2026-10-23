@@ -4,7 +4,8 @@ The desktop shell (`main/crates/zetawork-gui`) exposes the same messaging-channe
 surface as the web desktop. It is the fourth remote target in 设置, next to
 zetacode's own options, the provider catalog, and the IM notification fallback.
 
-The pane reads and writes the same truth source as `web-ui`:
+The pane reads and writes the same gateway truth source the (deferred) Web UI
+was built against:
 
 | Surface | Route | File / runtime |
 |---|---|---|

@@ -156,9 +156,9 @@ output.
 one is active, else the relay coordinator). The finished plan is delivered as
 an image (text fallback) with instructions `回复 1 执行 / 2 压缩后执行 / 3 新会话
 执行 / 4 取消`. A 1-4 reply approves against **the session that produced the
-plan**, with a 30-minute expiry. The same plan also appears in the web UI's
-PlanApproval card for the session — approving there uses the same
-`plan_approve` path.
+plan**, with a 30-minute expiry. Any attached surface (the deferred Web UI
+once it ships, or a companion client) can show the same plan; approving there
+uses the same `plan_approve` path.
 
 ## Persistence
 
@@ -218,8 +218,11 @@ It is never used for binding.
 
 Settings → Web → **Remote Access** → **Show QR**. The gateway builds
 `https://<reachable host>:<port>/#zeta-token=<token>` and renders it with the
-dependency-free QR encoder. Scanning it opens the web UI; the token is stored
-in `localStorage` and removed from the address bar before the first API call.
+dependency-free QR encoder. Scanning it opens a browser surface for the
+gateway; while the Web UI's development is deferred, the web port answers the
+placeholder page, and the token flow applies once a Web UI build is present.
+The token is stored in `localStorage` and removed from the address bar before
+the first API call.
 The QR is only shown to an authenticated caller (loopback or a valid token)
 and the response is `no-store`.
 
@@ -293,8 +296,9 @@ authentication.
   near the viewport (through authenticated `fetch`, then rendered from an
   object URL). The SSE stream stays text-first; images the agent generates
   during a turn render as they arrive.
-- The web UI ships a manifest + service worker: installable to the home
-  screen with an offline shell page. `/api/*` is never cached. Registration
-  only happens in a production build over HTTPS (or localhost).
+- A Web UI build (deferred; not shipped today) carries a manifest + service
+  worker: installable to the home screen with an offline shell page. `/api/*`
+  is never cached. Registration only happens in a production build over HTTPS
+  (or localhost).
 - Voice input uses the phone's own IME; no extra permission is requested.
 

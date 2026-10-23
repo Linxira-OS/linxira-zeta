@@ -154,6 +154,10 @@ The agent prompt instructs the model to:
 
 ## Web UI Integration
 
+> The Web UI's development is currently deferred; the same JSON shapes are
+> served by the gateway and consumed by the desktop shell when a build exists.
+> The terminal does not use this panel.
+
 The gateway serves a point-in-time read at `GET /api/tracking?cwd=<dir>` with
 `{index, status, actions, sessions, summaries, plans, updatedAt}` and an SSE
 stream at `/api/tracking/events` for change notifications. The TrackingPanel

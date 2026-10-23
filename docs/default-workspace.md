@@ -10,7 +10,7 @@ location for non-standard installs and smoke runs against a temp config root.
 
 | Source | Landing point | Route |
 | --- | --- | --- |
-| No repository selected (web UI default chat / new chat without a project) | default workspace | `relay` |
+| No repository selected (gateway default chat — the deferred Web UI would be one client — or a new chat without a project) | default workspace | `relay` |
 | IM bot chat (no `@workspace use` / binding, no channel `workspaceRoot`) | default workspace | `relay` |
 | Explicit repository selection (`@workspace use <alias>`, `@workspace bind <alias>`, or the GUI project picker) | that repository | `direct` |
 

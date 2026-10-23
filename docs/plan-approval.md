@@ -12,7 +12,7 @@ UI and desktop app show the **PlanApproval** card, and IM channels present the
 
 ## The approval choices
 
-| TUI option | Web UI / IM mode | Transcript | Execution brief |
+| TUI option | Gateway / IM mode | Transcript | Execution brief |
 | --- | --- | --- | --- |
 | **Approve and keep context** | `preserve` (IM reply `1`) | kept as-is | plan inlined, "history usable" note |
 | **Approve and compact context** | `compact` (IM reply `2`) | distilled first (plan preserved) | plan inlined on the compacted history |
@@ -63,7 +63,7 @@ The driver is opt-in per run mode through `goal.continuationModes`:
 | Value | Covers | Default |
 | --- | --- | --- |
 | `"interactive"` | TUI sessions | on |
-| `"web"` | web UI / desktop app sessions (the serve gateway) | on |
+| `"web"` | gateway-owned sessions (`serve`, including the deferred Web UI and the desktop shell) | on |
 | `"rpc"` | `--mode rpc`, `--mode rpc-ui` | off |
 
 Removing a value stops automatic continuation for that host only; the approval
@@ -73,7 +73,8 @@ entirely — the plan still executes exactly as before.
 
 ## Managing the goal
 
-The goal survives the execution turn. Use `/goal` (TUI, or the web UI's mode
-controls) to inspect it, and `/goal pause` / `/goal resume` / `/goal drop` to
+The goal survives the execution turn. Use `/goal` in the TUI (the gateway
+exposes the same mode switch to other clients) to inspect it, and `/goal pause`
+/ `/goal resume` / `/goal drop` to
 manage it. IM `!plan` approvals arm the goal too, but IM has no continuation
 driver: the reply menu's execution runs the approved turn and stops there.

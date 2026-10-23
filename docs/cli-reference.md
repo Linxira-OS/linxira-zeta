@@ -180,7 +180,9 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 
 #### Backend attach
 
-`zetacode serve` already hosts sessions for the web UI. A bare interactive
+`zetacode serve` hosts sessions for every gateway client — terminal attaches,
+and the Web UI once a build is present (its development is currently
+deferred; the package ships a placeholder page). A bare interactive
 `zetacode` becomes a client of that backend when one is reachable:
 
 - a backend session is bound to the pair **(workspace directory, git branch)**:
@@ -201,7 +203,7 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | `--backend-url <url>` | Gateway URL to probe (default: `ZETA_GATEWAY_URL`, the serve registry, then `http://127.0.0.1:30142`). |
 
 `zetacode attach --list` prints every backend session across repositories
-(id, cwd, modified time, name/status), `zetacode attach <id>` attaches the
+(id, `cwd @ branch`, modified time, name/status), `zetacode attach <id>` attaches the
 plain terminal client, and `zetacode attach --new` creates a session in the
 current (or `--cwd`) directory.
 
@@ -215,10 +217,11 @@ sees the request first wins. A backend without the socket falls back to its
 HTTP command surface. Client-only actions such as opening files and clipboard
 writes stay local and are not forwarded. Commands that only touch the client
 (`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`, `/tracking`,
-`/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`, `/help`,
-`/hotkeys`, `/quit`, `/exit`) run in the attached TUI exactly as they do
-locally, and the replica switches that the attach link mirrors — `/model`,
-`/modelpreset`, `/effort`, `/fast`, `/slow`, `/plan`, `/plan-ultra`,
+`/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`, `/help`, `/tools`,
+`/context`, `/agents`, `/skills`, `/extensions`, `/status`, `/usage`, `/jobs`,
+`/quit`, `/exit`) run in the attached TUI exactly as they do locally, and the
+replica switches that the attach link mirrors — `/model`, `/modelpreset`,
+`/effort`, `/fast`, `/slow`, `/plan`, `/plan-ultra`, `/plan-review`,
 `/guided-goal`, `/goal`, `/vibe` — open their usual pickers and then send the
 matching wire command. Session commands (`/compact`, `/new`, `/resume`, `/fork`, `/reload`,
 `/queue`, `/mcp`, `/todo`) stay backend-owned and are refused with a status
@@ -338,7 +341,7 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `ssh` | Manage SSH host configurations. | |
 | `stats` | View usage statistics. | |
 | `stream` | Broadcast local zetacode session screens and chat to a live channel; no server ships, so set `stream.serverUrl` to your own compatible server. | [stream](./stream.md) |
-| `serve`, `server` | Start the Stats Dashboard and Web UI services without opening a browser. `--host`/`--tls-cert`/`--tls-key` expose them (a non-loopback plaintext bind needs `--allow-plain-http`), `--channels` hosts IM channels, and `--stats-only`/`--web-only` narrow the services. | [serve and web](./zeta-serve-web.md) |
+| `serve`, `server` | Start the Stats Dashboard and Web Gateway services without opening a browser (the Web UI port answers a placeholder while its development is deferred). `--host`/`--tls-cert`/`--tls-key` expose them (a non-loopback plaintext bind needs `--allow-plain-http`), `--channels` hosts IM channels, and `--stats-only`/`--web-only` narrow the services. | [serve and web](./zeta-serve-web.md) |
 | `update` | Check for and install updates; `--canary`/`--stable` switch release channels. `--desktop` targets the `zetawork` desktop app instead of the CLI: `zetacode update --desktop --check` prints one JSON line (`current`, `latest`, `available`, `asset`, `url`, `size`, `digest`), and `zetacode update --desktop` downloads the Windows setup executable, verifies its SHA-256, and runs it silently. | |
 | `usage` | Show provider usage limits for every authenticated account, flagging saved resets close to expiry; `usage clients` breaks token burn down per client (with `--days`), `usage invalidate` drops cached reports, `usage accounts` lists each OAuth account's provider and identity key (the key `task.agentAccountPools` and broker account pools take; no tokens, `--json` supported), and `usage reset` lists each Codex and Claude account's saved rate-limit resets by `<provider>/<credential id>` (`--json`, `--redact`) and `usage reset <provider>/<credential id>` spends one, also from an auth-broker client. | [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence), [saved resets](./settings.md#saved-reset-auto-consumption) |
 | `tiny-models` | Download tiny local models for session titles, memory, and word completion. | [local models](./local-models.md) |
