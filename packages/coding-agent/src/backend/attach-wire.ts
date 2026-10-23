@@ -27,6 +27,12 @@ export interface AttachWireOptions {
 	onDialog: (frame: BackendEvent) => void;
 	/** Another surface (or a timeout) settled a dialog this client was showing. */
 	onDialogResolved: (id: string) => void;
+	/**
+	 * Output of a builtin slash command the backend executed (compaction result,
+	 * handoff summary, MCP status, …). The mirror's SSE stream does not carry
+	 * this frame, so the attach client renders it itself.
+	 */
+	onCommandOutput?: (text: string) => void;
 	/** The socket ended; the mirror keeps working through its own stream. */
 	onClose?: (reason: string) => void;
 }
@@ -51,6 +57,10 @@ export class AttachWire {
 			}
 			if (frame.type === "extension_ui_resolved" && typeof frame.id === "string") {
 				options.onDialogResolved(frame.id);
+				return;
+			}
+			if (frame.type === "command_output" && typeof frame.text === "string") {
+				options.onCommandOutput?.(frame.text);
 			}
 		});
 		client.onClose(reason => options.onClose?.(reason));
@@ -105,6 +115,11 @@ export class AttachWire {
 	/** Drop the backend's goal and leave goal mode. */
 	dropGoal(): Promise<void> {
 		return this.#client.call("goal", { op: "drop" }).then(() => undefined);
+	}
+
+	/** Ask a side question in the backend's side context. */
+	btw(question: string): Promise<void> {
+		return this.#client.call("btw", { question }).then(() => undefined);
 	}
 
 	/** Answer a dialog fanned out by the backend. */

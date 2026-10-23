@@ -221,11 +221,24 @@ writes stay local and are not forwarded. Commands that only touch the client
 `/context`, `/agents`, `/skills`, `/extensions`, `/status`, `/usage`, `/jobs`,
 `/quit`, `/exit`) run in the attached TUI exactly as they do locally, and the
 replica switches that the attach link mirrors — `/model`, `/modelpreset`,
-`/effort`, `/fast`, `/slow`, `/plan`, `/plan-ultra`, `/plan-review`,
+`/switch`, `/effort`, `/fast`, `/slow`, `/plan`, `/plan-ultra`, `/plan-review`,
 `/guided-goal`, `/goal`, `/vibe` — open their usual pickers and then send the
-matching wire command. Session commands (`/compact`, `/new`, `/resume`, `/fork`, `/reload`,
-`/queue`, `/mcp`, `/todo`) stay backend-owned and are refused with a status
-line instead of mutating only the replica. Model and thinking-level switches
+matching wire command. Every other slash command is **forwarded and executed
+by the backend** with its own session — builtins that have a headless handler
+(`/compact`, `/handoff`, `/session`, `/retry`, `/rename`, `/move`,
+`/fresh`, `/share`, `/mcp`, `/memory`, `/marketplace`, `/todo`, `/dirs`,
+`/add-dir`, `/remove-dir`, `/pin`, `/prewalk`, `/security`, `/plugins`,
+`/forget-approvals`, `/wt`, `/skillful`, `/advisor`, …) plus custom commands
+and prompt templates; the command's output (`command_output`) is printed in
+the attached status line. `/queue <text>` and the `->`/`=>` shorthands land in
+the backend's follow-up queue, and `/btw <question>` opens a side context on
+the backend. `/new` creates a backend session and re-attaches this client to
+it; `/resume <id>` re-attaches to an existing one (ids come from
+`zetacode attach --list`). Only commands that cannot be applied from an attach
+client are refused with a hint: `/fork`, `/branch`, `/tree`, `/clear`,
+`/delete`, `/restart`, `/login`, `/logout`, `/setup`, `/collab`, `/join`,
+`/leave`, `/loop`, `/omfg`, `/cleanse`, `/tan`, `/seance`, `/live`.
+Model and thinking-level switches
 made in the attached TUI (for example `/model`) are mirrored to the backend, so
 the run and the status line never disagree. Detaching closes the socket and the
 event stream and never stops the backend or its session.

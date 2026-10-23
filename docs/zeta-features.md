@@ -23,12 +23,20 @@ starting a private in-process agent.
   (`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`,
   `/tracking`, `/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`,
   `/help`, `/tools`, `/context`, `/agents`, `/skills`, `/extensions`,
-  `/status`, `/usage`, `/jobs`, `/quit`, `/exit`) and mirrors replica switches
-  to the backend (`/model`, `/modelpreset`, `/effort`, `/fast`, `/slow`,
-  `/plan`, `/plan-ultra`, `/plan-review`, `/guided-goal`, `/goal`, `/vibe`).
-  Session/agent commands that have no wire command yet (`/compact`, `/new`,
-  `/resume`, `/fork`, `/queue`, `/mcp`, `/todo`, …) are refused with a status
-  line instead of mutating only the local replica.
+  `/status`, `/usage`, `/jobs`, `/hub`, `/pause`, `/record`, `/open`,
+  `/debug`, `/quit`, `/exit`) and mirrors replica switches to the backend
+  (`/model`, `/modelpreset`, `/switch`, `/effort`, `/fast`, `/slow`, `/plan`,
+  `/plan-ultra`, `/plan-review`, `/guided-goal`, `/goal`, `/vibe`). Every
+  other slash command is executed by the backend against its own session
+  (`/compact`, `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`,
+  `/plugins`, …), and its `command_output` is shown in the attached status
+  line. `/queue` and the `->`/`=>` shorthands fill the backend's follow-up
+  queue; `/btw` uses the backend side context. `/new` creates a backend session
+  and re-attaches this client, and `/resume <id>` re-attaches to an existing
+  one. Only commands that cannot be applied from an attach client are refused,
+  with a hint (`/fork`, `/branch`, `/tree`, `/clear`, `/delete`, `/restart`,
+  `/login`, `/logout`, `/setup`, `/collab`, `/join`, `/leave`, `/loop`,
+  `/omfg`, `/cleanse`, `/tan`, `/seance`, `/live`).
 - **Dialogs** (`select`/`confirm`/`input`/`editor`/`ask`) fan out to every
   attached surface; the first answer wins.
 

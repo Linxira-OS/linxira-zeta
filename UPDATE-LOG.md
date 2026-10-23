@@ -2,6 +2,28 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.1
+- **终端 attach 与本地会话对齐**：早期版本的 attach 只放开少量展示命令，其余斜杠命令
+  一律拒绝，看起来像“连接后少了半套功能”。现在分三层：客户端命令与镜像开关在本地跑
+  （`/language`、`/theme`、`/tool`、`/stats`、`/git`、`/model`、`/effort`、`/switch`…），
+  后端有 headless 处理器的内置命令**转发给后端用自己的会话执行**（`/compact`、
+  `/handoff`、`/session`、`/retry`、`/rename`、`/move`、`/mcp`、`/todo`、`/plugins` 等），
+  命令输出（`command_output`）显示在 attach 的状态行；只有真正不能远程执行的会话切换
+  （`/fork`、`/branch`、`/tree`、`/clear`、`/delete`、`/restart`）与凭据/共享/子代理
+  工作流会带提示地拒绝。
+- **attach 跨目录修复**：客户端与后端会话不在同一目录时，切换副本会被
+  `SESSION_CWD_CHANGE_REJECTED` 拒绝并静默降级成进程内会话；现在 attach 会采纳后端
+  会话的工作区（本地面板显示的就是提示词实际编辑的 checkout）。
+- **会话生命周期**：`/new` 在后端新建会话并让当前 attach 客户端重新挂接；`/resume <id>`
+  挂接到指定后端会话（id 来自 `zetacode attach --list`）；`/queue <text>` 与 `->`/`=>`
+  简写进入后端的 follow-up 队列，`/btw <question>` 走后端侧上下文。
+- **轻量 attach 客户端同规则**：`zetacode attach` 的斜杠命令不再被当作消息发给模型，
+  可执行的交给后端、纯客户端命令与拒绝命令给出明确提示。
+- **Web UI 状态与文档**：Web UI 开发降级，`zetacode serve` 的网页端口返回双语占位页
+  （HTTP 200），文档全面改写为“暂不随包、后续从 npm 按需获取”；新增随包文档
+  `zeta://docs/zeta-features.md` 列出 attach、RPC 控制面、Stats 语言切换、daemon 等
+  Zeta 自有面。Stats 面板提供 EN ⇄ 中文 切换并记忆选择。
+
 ### 1.4.0
 - **`zetacode` 变成客户端 + 后台常驻后端**：直接输入 `zetacode` 不再自己跑一个 agent，
   而是连到本机常驻后端里的会话（当前目录最近的那个，没有就新建），连不上时退回原来

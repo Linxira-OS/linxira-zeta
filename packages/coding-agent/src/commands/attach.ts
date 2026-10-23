@@ -18,6 +18,11 @@ import { createInterface } from "node:readline/promises";
 import { isRecord, readLines } from "@linxiraos/pi-utils";
 import { BackendClient, sortSessionsNewestFirst } from "../backend/client";
 import { workspaceBranch } from "../session/workspace-branch";
+import {
+	backendAttachRefusalHint,
+	isBackendAttachLocalCommand,
+	isBackendAttachRefusedCommand,
+} from "../backend/attach-commands";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { attachHelp as commandHelp } from "../cli/command-help";
 import { M } from "../i18n";
@@ -153,7 +158,9 @@ const HELP_TEXT = `Commands:
   /set-role <role>     Switch to a configured model role (e.g. plan, smol)
   /help                Show this help
   /exit                Detach (Ctrl-C also works)
-Anything else is sent as a follow-up message to the shared session.
+Slash commands run on the backend; plain text is sent as a follow-up message.
+Client-only commands (dashboards, pickers, theme) need the full TUI:
+  zetacode --attach --attach-session <id>
 `;
 
 /** Print every backend session, across repositories, newest first. */
@@ -300,6 +307,32 @@ export default class Attach extends Command {
 						await postCommand(baseUrl, sessionId, { type: "set_model_role", role: argText });
 						break;
 					default:
+						if (line.startsWith("/")) {
+							const verb = line.slice(1).split(/\s+/, 1)[0] ?? "";
+							if (verb === "new" || verb === "resume") {
+								process.stderr.write(
+									`/${verb} starts another attach here: zetacode attach --new, or zetacode attach <id>\n`,
+								);
+								break;
+							}
+							if (isBackendAttachRefusedCommand(verb)) {
+								process.stderr.write(
+									`/${verb} is not available while attached: ${backendAttachRefusalHint(verb)}\n`,
+								);
+								break;
+							}
+							if (isBackendAttachLocalCommand(verb)) {
+								process.stderr.write(
+									`/${verb} is a client-side command; run it in the full TUI (zetacode --attach)\n`,
+								);
+								break;
+							}
+							// Backend-capable builtins (and custom commands) execute with the
+							// backend's own session; a follow-up would be injected as text and
+							// never dispatched.
+							await postCommand(baseUrl, sessionId, { type: "prompt", message: line });
+							break;
+						}
 						await postCommand(baseUrl, sessionId, { type: "follow_up", text: line });
 						break;
 				}

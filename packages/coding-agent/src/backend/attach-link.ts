@@ -133,6 +133,10 @@ export class BackendAttachLink {
 					this.#pendingDialogs.get(id)?.abort.abort();
 					this.#pendingDialogs.delete(id);
 				},
+				onCommandOutput: text => {
+					if (this.#closed) return;
+					this.#ctx.showStatus(text, { dim: true });
+				},
 				onClose: reason => {
 					if (this.#closed) return;
 					this.#wire = undefined;
@@ -278,6 +282,40 @@ export class BackendAttachLink {
 		});
 	}
 
+	/**
+	 * Send a slash command to the backend for execution. Unlike {@link sendPrompt}
+	 * this never steers: a builtin forwarded mid-turn must run in the backend's
+	 * session, not be injected as text into the running turn.
+	 */
+	sendCommand(text: string, images?: ImageContent[]): void {
+		if (this.#closed) throw new Error("Backend attachment is closed");
+		if (this.#wire) {
+			void this.#wire.sendPrompt(text, { images }).catch(error => {
+				this.#ctx.showError(`Backend command failed: ${error instanceof Error ? error.message : String(error)}`);
+			});
+			return;
+		}
+		const payload = images && images.length > 0 ? { images } : {};
+		void this.client.send(this.#sessionId, { type: "prompt", message: text, ...payload }).catch(error => {
+			this.#ctx.showError(`Backend command failed: ${error instanceof Error ? error.message : String(error)}`);
+		});
+	}
+
+	/**
+	 * Ask a side question in the backend's side context (`/btw`). Needs the
+	 * protocol link: the HTTP command surface has no side-context command.
+	 */
+	sendBtw(question: string): void {
+		if (this.#closed) return;
+		if (!this.#wire) {
+			this.#ctx.showError("Side questions need the backend protocol link; reconnect and retry.");
+			return;
+		}
+		void this.#wire.btw(question).catch(error => {
+			this.#ctx.showError(`/btw failed: ${error instanceof Error ? error.message : String(error)}`);
+		});
+	}
+
 	/** Cancel the backend's in-flight turn. */
 	sendAbort(): void {
 		if (this.#closed) return;
@@ -290,6 +328,27 @@ export class BackendAttachLink {
 		void this.client.send(this.#sessionId, { type: "abort" }).catch(error => {
 			logger.warn("backend attach abort failed", { error: String(error) });
 		});
+	}
+
+	/**
+	 * Move this client to another backend session (`/new`, `/resume <id>`). The
+	 * replica is rebuilt and the event stream follows the new id; the previous
+	 * backend session keeps running.
+	 */
+	async reattach(sessionId: string): Promise<void> {
+		if (this.#joined) await this.detach();
+		this.#closed = false;
+		this.#joined = false;
+		this.#abort = new AbortController();
+		this.#knownEntryIds.clear();
+		this.#pendingDialogs.clear();
+		this.#lastSeq = 0;
+		this.#streaming = false;
+		this.#assistantStreamSynced = false;
+		this.#lastModes = { plan: null, goal: null, vibe: null };
+		this.#pausedGoalId = undefined;
+		this.#target = { ...this.#target, sessionId, newSession: false, explicit: true };
+		await this.join();
 	}
 
 	/** Stop mirroring. The backend session keeps running. */
@@ -357,7 +416,15 @@ export class BackendAttachLink {
 		}
 		this.replicaPath = replicaPath;
 
-		const switched = await this.#ctx.session.switchSession(replicaPath, { keepModel: true });
+		// The backend session's workspace is authoritative: a client launched from
+		// another directory must adopt it (local dashboards then read the same
+		// checkout the prompts edit). Without this callback switchSession throws
+		// SESSION_CWD_CHANGE_REJECTED and every cross-directory attach degrades to
+		// an in-process session.
+		const switched = await this.#ctx.session.switchSession(replicaPath, {
+			keepModel: true,
+			onCwdChange: async () => true,
+		});
 		if (switched === false) throw new Error("Backend attach was cancelled while switching sessions");
 		this.#applyContextState(detail);
 		this.#ctx.showStatus(

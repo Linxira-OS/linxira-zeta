@@ -219,4 +219,108 @@ describe("attached TUI over the wire protocol", () => {
 		term.sendInput("\r");
 		expect(await answered.promise).toEqual({ confirmed: true });
 	}, 120_000);
+
+	test("attaches across directories and forwards backend-capable slash commands", async () => {
+		const backendCwd = process.cwd();
+		const localCwd = path.join(tempDir.path(), "elsewhere");
+		await Bun.write(path.join(localCwd, ".keep"), "");
+
+		const model = createMockModel({ handler: { content: ["unused"] } });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime(model.model.provider, "test-key");
+
+		const backendManager = SessionManager.create(
+			backendCwd,
+			path.join(tempDir.path(), "sessions"),
+			new FileSessionStorage(),
+			{ client: "cli" },
+		);
+		backendManager.appendMessage({ role: "user", content: "seed", timestamp: Date.now() } as never);
+		backendSession = new AgentSession({
+			agent: new Agent({
+				initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] },
+				streamFn: model.stream,
+			}),
+			sessionManager: backendManager,
+			settings: Settings.isolated({ "compaction.enabled": false }),
+			modelRegistry: new ModelRegistry(authStorage),
+		});
+		const sessionId = backendManager.getSessionId();
+		const sessionFile = backendManager.getSessionFile();
+		if (!sessionFile) throw new Error("backend session did not create a file");
+		const wrapper = new AgentSessionWrapper(backendSession, sessionId, sessionFile);
+		gatewaySessions.set(sessionId, wrapper);
+		cacheSessionPath(sessionId, sessionFile);
+
+		const probe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("probe") });
+		const port = probe.port ?? 0;
+		await probe.stop(true);
+		gateway = await startWebGateway(port);
+
+		// The client starts in a different workspace than the backend session.
+		localSession = new AgentSession({
+			agent: new Agent({
+				initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] },
+			}),
+			sessionManager: SessionManager.create(localCwd, path.join(tempDir.path(), "local-sessions")),
+			settings: Settings.isolated(),
+			modelRegistry: new ModelRegistry(authStorage),
+		});
+		term = new VirtualTerminal(120, 40);
+		mode = new InteractiveMode(
+			localSession,
+			"test",
+			undefined,
+			() => {},
+			undefined,
+			undefined,
+			undefined,
+			new Composer({ terminal: term }),
+		);
+		await mode.init({ suppressWelcomeIntro: true });
+
+		link = new BackendAttachLink(
+			mode,
+			{
+				backend: { baseUrl: gateway.url, identity: serveIdentity() },
+				sessionId,
+				newSession: false,
+				explicit: true,
+			},
+			{ replicaDir: path.join(tempDir.path(), "replicas") },
+		);
+		// A cross-directory attach adopts the backend workspace instead of
+		// degrading to an in-process session (`SESSION_CWD_CHANGE_REJECTED`).
+		await link.join();
+		expect(link.attached).toBe(true);
+		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
+
+		void mode.getUserInput();
+
+		// A fork needs the backend session replaced; the client refuses it with
+		// the commands that do start another session.
+		term.sendInput("/fork");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/fork")));
+		term.sendInput("\r");
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("/fork is not available while attached")),
+		);
+		const refusal = plainRows(term.getViewport()).join("\n");
+		expect(refusal).toContain("zetacode attach --new");
+		expect(link.attached).toBe(true);
+
+		// A headless-capable builtin runs on the backend; its command_output is
+		// rendered in the attached TUI.
+		term.sendInput("/todo");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/todo")));
+		term.sendInput("\r");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("No todos")));
+		expect(plainRows(term.getViewport()).some(row => row.includes("No todos"))).toBe(true);
+
+		// `/resume <id>` re-attaches the same client to a backend session.
+		await link.reattach(sessionId);
+		expect(link.attached).toBe(true);
+		expect(link.sessionId).toBe(sessionId);
+		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
+	}, 120_000);
 });

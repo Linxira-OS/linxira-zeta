@@ -85,6 +85,12 @@ import {
 	cfgTuiMouse,
 } from "../settings";
 import { cfgHideThinkingBlock } from "../../session/settings";
+import { workspaceBranch } from "../../session/workspace-branch";
+import {
+	backendAttachRefusalHint,
+	isBackendAttachLocalCommand,
+	isBackendAttachRefusedCommand,
+} from "../../backend/attach-commands";
 
 /** Bare words that quit (as `/<word>`) when typed alone into a session with no messages. */
 const BARE_EXIT_WORDS: Record<string, true> = { exit: true, quit: true, q: true };
@@ -250,69 +256,12 @@ function safeAbort(label: string, fn: () => void): void {
 const LEFT_DOUBLE_TAP_MIN_GAP_MS = 40;
 const LEFT_DOUBLE_TAP_MAX_GAP_MS = 500;
 
-/** Commands that stay local while the model session lives on a backend. */
-export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
-	exit: true,
-	quit: true,
-	help: true,
-	hotkeys: true,
-	theme: true,
-	settings: true,
-	copy: true,
-	export: true,
-	dump: true,
-	// Client-side only: the language catalogue, the dynamic-tool settings
-	// (`/tool`, `/time`, `/tracking` write config the backend's settings watcher
-	// re-gates), the changelog, and the local dashboards that read git/stats.
-	language: true,
-	tool: true,
-	time: true,
-	tracking: true,
-	changelog: true,
-	stats: true,
-	git: true,
-	// Read-only dashboards over the mirrored replica: they render the same
-	// surfaces a local session shows and never mutate it.
-	tools: true,
-	context: true,
-	agents: true,
-	skills: true,
-	extensions: true,
-	status: true,
-	usage: true,
-	jobs: true,
-};
-
-/**
- * Commands whose effect is a replica state change that `BackendAttachLink`
- * mirrors over the control plane (`model_changed`, `thinking_level_changed`,
- * `state_version_changed`). They run locally so the TUI shows the same
- * selector/picker as a local session; the wire command follows the event.
- */
-const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
-	model: true,
-	modelpreset: true,
-	effort: true,
-	fast: true,
-	slow: true,
-	plan: true,
-	"plan-ultra": true,
-	"plan-review": true,
-	"guided-goal": true,
-	goal: true,
-	vibe: true,
-};
-
-/**
- * Whether a slash command runs in the attached TUI itself instead of being
- * refused: client-only commands (display, settings, language), the local
- * dashboards, and the replica changes the attach link mirrors to the backend.
- * Everything else stays backend-owned.
- */
-export function isBackendAttachLocalCommand(verb: string | undefined): boolean {
-	if (verb === undefined) return false;
-	return BACKEND_ATTACH_LOCAL_COMMANDS[verb] === true || BACKEND_ATTACH_MIRRORED_COMMANDS[verb] === true;
-}
+export {
+	BACKEND_ATTACH_LOCAL_COMMANDS,
+	backendAttachRefusalHint,
+	isBackendAttachLocalCommand,
+	isBackendAttachRefusedCommand,
+} from "../../backend/attach-commands";
 
 export class InputController {
 	constructor(
@@ -1124,6 +1073,29 @@ export class InputController {
 
 			const queueBody = parseQueueShorthand(text);
 			if (queueBody !== undefined) {
+				if (this.ctx.backendAttach) {
+					// Queue shorthand (`-> message`, `=> message`) targets the backend's
+					// follow-up slot; queueing into the replica would strand the text
+					// after the attach client exits.
+					const body = queueBody.trim();
+					if (!body && !hasInputImages) {
+						this.ctx.showWarning("Usage: /queue <message> (or start a prompt with -> / =>)");
+						return;
+					}
+					const images = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
+					const messages = body ? splitQueuedMessages(body) : [""];
+					for (const [index, message] of messages.entries()) {
+						this.ctx.backendAttach.sendPrompt(message, index === 0 ? images : undefined, "followUp");
+					}
+					this.ctx.editor.clearDraft(text);
+					this.ctx.showStatus(
+						messages.length === 1
+							? "Queued message for the backend's next turn"
+							: `Queued ${messages.length} messages for the backend's next turns`,
+						{ dim: true },
+					);
+					return;
+				}
 				await this.#queueForYield(queueBody, {
 					historyText: text,
 					images: inputImages,
@@ -1144,27 +1116,102 @@ export class InputController {
 			if (bareSlashCommand) text = bareSlashCommand.command;
 
 			// Backend-attached session: model prompts and interactive work belong
-			// to the backend. Only local display commands stay local; everything
-			// else is answered by the backend stream.
+			// to the backend. Local display commands and the mirrored replica
+			// switches run here; backend-capable slash commands are forwarded so the
+			// backend executes them with its own session (the same path ACP uses);
+			// only commands that would swap the session or write credentials the
+			// backend already loaded are refused.
 			const backendAttach = this.ctx.backendAttach;
 			if (backendAttach) {
 				const verb = text.startsWith("/") ? text.slice(1).split(/\s+/, 1)[0] : undefined;
 				const localCommand = isBackendAttachLocalCommand(verb);
 				if (verb !== undefined && !localCommand) {
-					this.ctx.showStatus(`${text.split(/\s+/, 1)[0]} is not available while attached to the backend`);
-					this.ctx.editor.setText("");
-					return;
-				}
-				if (!localCommand) {
+					// Session swaps are the one place a refusal is wrong: create the
+					// backend session and re-attach the replica to it.
+					if (verb === "new") {
+						if (backendAttach.streaming) {
+							this.ctx.showStatus("Wait for the current turn to finish before starting a new session.");
+							this.ctx.editor.setText("");
+							return;
+						}
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								const cwd = this.ctx.sessionManager.getCwd();
+								const id = await backendAttach.client.createSession(cwd, workspaceBranch(cwd));
+								await backendAttach.reattach(id);
+								this.ctx.showStatus(`Started backend session ${id}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(
+									`Could not start a backend session: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						})();
+						return;
+					}
+					if (verb === "resume") {
+						const target = text.slice(`/${verb}`.length).trim();
+						if (!target) {
+							this.ctx.showStatus("Usage: /resume <session id> (list them with `zetacode attach --list`)");
+							this.ctx.editor.setText("");
+							return;
+						}
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								await backendAttach.reattach(target);
+								this.ctx.showStatus(`Attached to backend session ${target}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(
+									`Could not attach to ${target}: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						})();
+						return;
+					}
+					if (isBackendAttachRefusedCommand(verb)) {
+						this.ctx.showStatus(`/${verb} is not available while attached: ${backendAttachRefusalHint(verb)}`);
+						this.ctx.editor.setText("");
+						return;
+					}
 					if (text.startsWith("!") || parsePythonCommandInput(text)) {
 						this.ctx.showStatus("Local execution is not available while attached to the backend");
 						this.ctx.editor.setText("");
 						return;
 					}
 					const images = inputImages && inputImages.length > 0 ? [...inputImages] : undefined;
+					// `/queue <message>` is the TUI shorthand for "run this after the
+					// current turn"; the backend's follow-up queue is the same slot.
+					if (verb === "queue") {
+						const body = text.slice(`/${verb}`.length).trim();
+						if (!body && !images) {
+							this.ctx.showStatus("Usage: /queue <message>");
+							this.ctx.editor.setText("");
+							return;
+						}
+						this.ctx.editor.clearDraft(text);
+						if (body) backendAttach.sendPrompt(body, images, "followUp");
+						return;
+					}
+					// `/btw <question>` answers in a side context; the backend owns that
+					// context, so the question goes over the control plane.
+					if (verb === "btw") {
+						const question = text.slice(`/${verb}`.length).trim();
+						if (!question) {
+							this.ctx.showStatus("Usage: /btw <question>");
+							this.ctx.editor.setText("");
+							return;
+						}
+						this.ctx.editor.clearDraft(text);
+						backendAttach.sendBtw(question);
+						return;
+					}
 					if (!text.trim() && !images) return;
 					this.ctx.editor.clearDraft(text);
-					backendAttach.sendPrompt(text, images);
+					// Slash commands execute on the backend; plain text keeps the
+					// steer/follow-up semantics of a message.
+					if (text.startsWith("/")) backendAttach.sendCommand(text, images);
+					else backendAttach.sendPrompt(text, images);
 					return;
 				}
 			}
