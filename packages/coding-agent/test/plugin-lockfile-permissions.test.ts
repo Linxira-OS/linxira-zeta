@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { PluginManager } from "@linxiraos/zeta/extensibility/plugins/manager";
 import { MarketplaceManager } from "@linxiraos/zeta/extensibility/plugins/marketplace/manager";
 import * as piUtils from "@linxiraos/pi-utils";
-import { removeWithRetries } from "@linxiraos/pi-utils";
+import { PLUGINS_LOCKFILE_CANONICAL, removeWithRetries } from "@linxiraos/pi-utils";
 
 /** POSIX mode bits of a file; meaningless on Windows, where the tests are skipped. */
 async function modeOf(file: string): Promise<number> {
@@ -20,7 +20,9 @@ describe("plugin runtime lockfile permissions", () => {
 	beforeEach(async () => {
 		tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-plugin-lock-"));
 		pluginsDir = path.join(tmpRoot, "plugins");
-		lockfile = path.join(pluginsDir, "omp-plugins.lock.json");
+		// MarketplaceManager derives the runtime lockfile from the canonical Zeta
+		// name beside the installed-plugins registry, not from getPluginsLockfile.
+		lockfile = path.join(pluginsDir, PLUGINS_LOCKFILE_CANONICAL);
 
 		spyOn(piUtils, "getPluginsDir").mockReturnValue(pluginsDir);
 		spyOn(piUtils, "getPluginsLockfile").mockReturnValue(lockfile);

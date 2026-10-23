@@ -11354,21 +11354,15 @@ export class AgentSession implements SettingsScope {
 	 */
 
 	async #refreshTitleAfterReplan(context: string, sessionId: string): Promise<void> {
-		const title = await this.generateTitle(context);
-		if (!title) return;
+		const retitled = await this.#retitle(context);
+		if (!retitled) return;
+		// A session first named without a card (a subagent, a title-model title) gets one here.
+		const title = this.#cardsAutoTitles() ? await this.#cardTitle(retitled) : retitled;
 		if (this.sessionManager.getSessionId() !== sessionId) return;
 		if (!cfgTitleRefreshOnReplan.get(this.settings)) return;
 		if (this.sessionManager.titleSource === "user") return;
-		// A replan refines the same task: the title keeps its card (the title
-		// model names none), so a card terminal's index stays stable.
-		const card = splitCardTitle(this.sessionManager.getSessionName() ?? "");
 		const setSessionName = this.sessionManager.setSessionName as SetSessionNameWithTrigger;
-		await setSessionName.call(
-			this.sessionManager,
-			card ? `${card.icon} ${card.code}: ${title}` : title,
-			"auto",
-			"replan",
-		);
+		await setSessionName.call(this.sessionManager, title, "auto", "replan");
 	}
 
 	/** Currently-applied {@link TITLE_SYSTEM.md} override, or undefined when the
