@@ -22,15 +22,7 @@ import type {
 	ToolStatus,
 } from "@linxiraos/pi-agent-core";
 import { logger, postmortem } from "@linxiraos/pi-utils";
-import {
-	type Attributes,
-	type AttributeValue,
-	type Counter,
-	context,
-	type Histogram,
-	type Meter,
-	metrics,
-} from "@opentelemetry/api";
+import { type Attributes, type Counter, context, type Histogram, type Meter, metrics } from "@opentelemetry/api";
 import { type LogAttributes, logs, type Logger as OtelLogger, SeverityNumber } from "@opentelemetry/api-logs";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-proto";
@@ -424,7 +416,7 @@ function logAttributesFromContext(input: Record<string, unknown> | undefined): L
 	return out;
 }
 
-function logAttributeValue(value: unknown): AttributeValue | undefined {
+function logAttributeValue(value: unknown): string | number | boolean | undefined {
 	if (value === undefined || value === null) return undefined;
 	if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
 	if (value instanceof Error) {
