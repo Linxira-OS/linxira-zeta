@@ -15548,6 +15548,20 @@ export class AgentSession implements SettingsScope {
 		const title = await this.generateTitle(context, undefined, signal);
 		return title && keepTitleCard(this.sessionName, title);
 	}
+
+	/**
+	 * `title` headed by a card the title model names for it, for `/rename` and
+	 * automatic titles that came out plain. `title` unchanged when it already has
+	 * a card, `title.icons` is `boring`, or the card request fails or names no valid card.
+	 */
+	async #cardTitle(title: string, signal?: AbortSignal): Promise<string> {
+		const icons = this.#cardIcons();
+		if (icons === "boring" || splitCardTitle(title)) return title;
+		const cardPrompt = prompt.render(titleCardPrompt, { nerdFonts: icons === "nf+emoji" });
+		const reply = await this.generateTitle(title, cardPrompt, signal);
+		const card = reply ? parseCardReply(reply, icons) : undefined;
+		return card ? formatCardTitle(card, title) : title;
+	}
 }
 
 export { SHUTDOWN_CONSOLIDATE_BUDGET_MS } from "./agent-session-types";

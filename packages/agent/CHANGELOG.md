@@ -1,23 +1,6 @@
 ## [Unreleased]
 
 ## [1.4.0] - 2026-10-21
-## [18.12.4] - 2026-10-20
-
-### Fixed
-
-- Enabled native compaction for supported Bedrock Claude models ([#16343](https://github.com/can1357/oh-my-pi/pull/16343) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy))
-
-## [18.12.3] - 2026-10-19
-
-### Added
-
-- `AgentTool` gained the optional `approvalCacheTargets` hook, which the `always-ask-cached` approval mode uses to check and record per-file grants ([#16049](https://github.com/can1357/oh-my-pi/pull/16049) by [@Peribunt](https://github.com/Peribunt))
-
-### Changed
-
-- Tools with `lenientArgValidation` now receive unknown root arguments that their closed schema would otherwise drop, so they can reject them ([#16317](https://github.com/can1357/oh-my-pi/issues/16317))
-
-## [18.12.2] - 2026-10-18
 
 - Version line moves to 1.4.0 with the rest of the suite; no user-visible change in this package.
 

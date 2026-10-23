@@ -52,6 +52,7 @@ import { formatDoubleTap } from "@linxiraos/pi-tui/key-hint-format";
 import { thinkingLevelWord } from "@linxiraos/pi-tui/status-line/segments";
 import type { TspChecklistItem, TspChecklistPhase, TspSpan, TspText, TspTreeNode } from "@linxiraos/pi-wire";
 import { isInsideTerminalMultiplexer } from "@linxiraos/pi-tui/terminal-capabilities";
+import type { JobWidgetRegistry } from "../job-widgets/types";
 import {
 	$env,
 	adjustHsv,
@@ -1468,6 +1469,20 @@ export class InteractiveMode implements InteractiveModeContext {
 	 * loader recreated by a focus switch keeps the real elapsed time.
 	 */
 	#workingStartedAt = 0;
+	/** The job widget registry this mode repaints on, and how to stop listening to it. */
+	#jobWidgetsListener: { registry: JobWidgetRegistry; unsubscribe: () => void } | undefined;
+	/**
+	 * Repaint whenever a shown job widget changes (the HUD jobs segment, the
+	 * status line's glance), following the root job manager's current registry.
+	 */
+	#syncJobWidgetsListener(): void {
+		const registry = this.session.asyncJobManager?.widgets;
+		if (this.#jobWidgetsListener?.registry === registry) return;
+		this.#jobWidgetsListener?.unsubscribe();
+		this.#jobWidgetsListener = registry
+			? { registry, unsubscribe: registry.subscribe(() => this.ui.requestRender()) }
+			: undefined;
+	}
 	#statusHudNative:
 		| { children: readonly Component[]; todo: NativeNode | undefined; slot: NativeNode | undefined; node: NativeNode }
 		| undefined;

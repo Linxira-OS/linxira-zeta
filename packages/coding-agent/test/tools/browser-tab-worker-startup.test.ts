@@ -4,14 +4,14 @@ import { afterAll, beforeAll, describe, expect, it, spyOn } from "bun:test";
 declare const devicePixelRatio: number;
 declare const window: { open(url: string, target: string, features: string): unknown };
 
-import { Settings } from "@linxiraos/zeta/config/settings";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
 import {
 	acquireBrowser,
 	type BrowserHandle,
 	holdBrowser,
 	releaseBrowser,
-} from "@linxiraos/zeta/tools/browser/registry";
-import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
+} from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
+import type { ReadyInfo, WorkerInbound, WorkerOutbound } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-protocol";
 import {
 	acquireTab,
 	freezeTabsForOwner,
@@ -19,8 +19,8 @@ import {
 	initializeTabWorkerForTest,
 	releaseTab,
 	runInTab,
-} from "@linxiraos/zeta/tools/browser/tab-supervisor";
-import type { ToolSession } from "@linxiraos/zeta/tools/index";
+} from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools/index";
 import type { CDPSession } from "puppeteer-core";
 import { chromiumAvailable, visibleBrowserAvailable } from "./chromium-probe";
 
@@ -661,12 +661,6 @@ describe("browser tabs whose renderer crashed", () => {
 		45_000,
 	);
 
-	// The run's own timer doubles as the crash-detection budget: the page error must
-	// reach the worker (which aborts the run's signal) before it elapses, and only a
-	// run left going reaches the second fetch. Detection takes seconds longer on a
-	// loaded CI runner than on a dev box, so the window stays generous next to the
-	// 2 s a fast machine needs.
-	const LEFT_GOING_WINDOW_MS = 8_000;
 	it.skipIf(!CHROMIUM_AVAILABLE)(
 		"cancels an inline worker's run whose renderer crashed instead of letting it go on after its caller was told",
 		async () => {
@@ -709,16 +703,18 @@ describe("browser tabs whose renderer crashed", () => {
 				// crash takes to land; a run left going passes it into the second fetch, a cancelled one reports it stopped.
 				const origin = `http://127.0.0.1:${server.port}`;
 				const run = runInTab(name, {
-					code: `await fetch("http://127.0.0.1:${server.port}/started"); await wait(${LEFT_GOING_WINDOW_MS}); await fetch("http://127.0.0.1:${server.port}/after-crash");`,
-					timeoutMs: LEFT_GOING_WINDOW_MS + 4_000,
+					code: `await fetch("${origin}/started"); try { await wait(async () => (await fetch("${origin}/gate")).ok, { timeout: 8_000, interval: 20 }); } catch (error) { await fetch("${origin}/stopped"); throw error; } await fetch("${origin}/after-crash");`,
+					timeoutMs: 10_000,
 					session,
 				}).catch((error: unknown) => error);
 				await started.promise;
 				await crashRenderer(browser, url);
 				expect(String(await run)).toContain("the tab could not be reattached and was closed");
-				// A run left going reaches the second fetch when its window elapses; nothing marks that it did not.
-				await Bun.sleep(LEFT_GOING_WINDOW_MS + 500);
-				expect(requests).toBe(0);
+				gateOpen = true;
+				// A run left going passes the 20 ms gate poll at once; a run torn down harder than a cancelled wait
+				// (worker terminated, fetches aborted) never reports, which is no less stopped. Only `continued` is the bug.
+				const reported = await Promise.race([outcome.promise, Bun.sleep(2_000).then(() => "no-report" as const)]);
+				expect(["stopped", "no-report"]).toContain(reported);
 			} finally {
 				await releaseTab(name, { kill: true });
 				if ("browser" in browser && browser.browser.connected) await releaseBrowser(browser, { kill: true });
@@ -948,19 +944,9 @@ describe("browser tabs whose renderer crashed", () => {
 				expect(String(failure)).toContain("its page reloaded");
 				await releaseTab(name, { kill: false });
 				const watcher = await browser.browser.target().createCDPSession();
-				// The release closes the crashed page through a bounded close (5 s), so on a
-				// loaded runner the target can still be listed right after the tab is gone.
-				// Poll instead of reading once; a page that is never closed still fails.
-				const deadline = performance.now() + 7_000;
-				let listed = true;
-				do {
-					const { targetInfos } = await watcher.send("Target.getTargets");
-					listed = targetInfos.some(info => info.targetId === targetId);
-					if (!listed) break;
-					await Bun.sleep(100);
-				} while (performance.now() < deadline);
+				const { targetInfos } = await watcher.send("Target.getTargets");
 				await watcher.detach();
-				expect(listed).toBe(false);
+				expect(targetInfos.map(info => info.targetId)).not.toContain(targetId);
 			} finally {
 				await releaseTab(name, { kill: true });
 				await releaseBrowser(browser, { kill: true });
@@ -1002,22 +988,10 @@ describe("closing an OMP-owned page", () => {
 					});
 				});
 				await releaseTab(name, { kill: false });
-				// `Target.closeTarget` acknowledges the close before Chromium drops
-				// the target from `Target.getTargets`; the contract is that the page
-				// goes away, not that it is already gone on the next round trip.
 				const watcher = await browser.browser.target().createCDPSession();
-				try {
-					const deadline = Date.now() + 5_000;
-					let present = true;
-					while (present && Date.now() < deadline) {
-						const { targetInfos } = await watcher.send("Target.getTargets");
-						present = targetInfos.some(info => info.targetId === targetId);
-						if (present) await Bun.sleep(25);
-					}
-					expect(present).toBe(false);
-				} finally {
-					await watcher.detach();
-				}
+				const { targetInfos } = await watcher.send("Target.getTargets");
+				await watcher.detach();
+				expect(targetInfos.map(info => info.targetId)).not.toContain(targetId);
 			} finally {
 				await releaseTab(name, { kill: true });
 				await releaseBrowser(browser, { kill: true });

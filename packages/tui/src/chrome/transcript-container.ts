@@ -5,7 +5,6 @@ import { renderForScrollback } from "../components/image";
 import { col } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { isNativeSettled, settleNative } from "../native/settle";
-import { TERMINAL } from "../terminal-capabilities";
 import { isUsageRowBlock } from "../overlays/usage-row";
 import { isToolActivityComponent } from "./tool-activity";
 import { directPlacementLift, ImageProtocol, iterm2ImagePayload, TERMINAL } from "../terminal-capabilities";
