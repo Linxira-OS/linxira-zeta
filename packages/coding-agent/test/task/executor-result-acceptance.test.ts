@@ -788,14 +788,19 @@ describe("runSubprocess result acceptance", () => {
 		}
 	});
 
-	/** Wake an idle agent from a peer, play `turn`, and return the relay body the peer receives. */
-	async function peerWakeRelay(turn: (harness: SessionHarness) => void): Promise<string | undefined> {
+	/**
+	 * Wake an idle agent from its spawning main, play `turn`, and return the
+	 * relay body the waker receives. The waker is the spawning main because
+	 * Zeta's mesh rule lets a subagent message only that main (see
+	 * `docs/agent-mesh.md`), and a wake relay is a subagent send.
+	 */
+	async function wokenRelay(turn: (harness: SessionHarness) => void): Promise<string | undefined> {
 		const harness = createHarness();
 		const registry = AgentRegistry.global();
 		registry.register({
-			id: "OtherAgent",
-			displayName: "OtherAgent",
-			kind: "sub",
+			id: "Parent",
+			displayName: "Parent",
+			kind: "main",
 			session: createHarness().session,
 			status: "running",
 		});
@@ -817,12 +822,12 @@ describe("runSubprocess result acceptance", () => {
 				customType: "irc:incoming",
 				content: "is line 42 fine?",
 				display: false,
-				details: { id: "msg-peer", from: "OtherAgent", message: "is line 42 fine?" },
+				details: { id: "msg-peer", from: "Parent", message: "is line 42 fine?" },
 				attribution: "agent",
 				timestamp: Date.now(),
 			} as unknown as AgentMessage,
 		]);
-		const relay = IrcBus.global().wait("OtherAgent", { from: AGENT_ID }, 1000);
+		const relay = IrcBus.global().wait("Parent", { from: AGENT_ID }, 1000);
 		turn(harness);
 		harness.emitAgentEnd();
 		await finish?.(undefined);
@@ -830,7 +835,7 @@ describe("runSubprocess result acceptance", () => {
 	}
 
 	it("relays only a woken agent's final report, not the narration before its tool calls", async () => {
-		const body = await peerWakeRelay(harness => {
+		const body = await wokenRelay(harness => {
 			harness.emitAssistantContent([
 				{ type: "text", text: "Checking." },
 				{ type: "toolCall", id: "read-1", name: "read", arguments: { path: "src/a.ts" } },
@@ -841,7 +846,7 @@ describe("runSubprocess result acceptance", () => {
 	});
 
 	it("does not relay narration that preceded a woken agent's last Cursor-resolved call", async () => {
-		const body = await peerWakeRelay(harness => {
+		const body = await wokenRelay(harness => {
 			const resolvedCall: ToolCall & CursorExecResolvedCarrier = {
 				type: "toolCall",
 				id: "exec-1",

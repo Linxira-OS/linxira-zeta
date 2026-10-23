@@ -338,16 +338,17 @@ function getCommandAliases(cmd: CommandEntry): string[] {
 }
 
 function getStaticCommandDescription(cmd: CommandEntry): string {
-	const description = typeof cmd.description === "function" ? cmd.description() : cmd.description;
+	const raw: unknown = cmd.description;
+	const description = typeof raw === "function" ? (raw as () => string)() : raw;
 	return typeof description === "string" ? description : "";
 }
 
 function getAutocompleteCommandDescription(cmd: CommandEntry): string {
-	const candidate =
+	const candidate: unknown =
 		"getAutocompleteDescription" in cmd && typeof cmd.getAutocompleteDescription === "function"
 			? cmd.getAutocompleteDescription()
 			: cmd.description;
-	const description = typeof candidate === "function" ? candidate() : candidate;
+	const description = typeof candidate === "function" ? (candidate as () => string)() : candidate;
 	return typeof description === "string" && description.length > 0
 		? description
 		: getStaticCommandDescription(cmd);

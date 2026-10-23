@@ -1,4 +1,5 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { currentLanguage, setLanguage } from "../../src/i18n";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { Effort } from "@linxiraos/pi-catalog/effort";
 import type { Model } from "@linxiraos/pi-catalog/types";
@@ -11,7 +12,7 @@ import {
 	executeBuiltinSlashCommand,
 	lookupBuiltinSlashCommand,
 	type SlashCommandRuntime,
-} from "@linxiraos/zeta/slash-commands/builtin-registry";
+} from "../../src/slash-commands/builtin-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
 import { CombinedAutocompleteProvider } from "@linxiraos/pi-tui/autocomplete";
@@ -90,14 +91,27 @@ async function run(h: Harness, args: string): Promise<void> {
 }
 
 describe("/effort slash command", () => {
+	// Fuzzy matching walks the localized description, so pin the catalogue the
+	// English keywords below were written against.
+	const previousLanguage = currentLanguage();
+	beforeAll(() => {
+		setLanguage("en");
+	});
+	afterAll(() => {
+		setLanguage(previousLanguage);
+	});
+
 	it("is found by thinking and intelligence without registering a thinking alias", async () => {
-		const provider = new CombinedAutocompleteProvider([...BUILTIN_SLASH_COMMANDS], process.cwd());
+		const h = harness();
+		const provider = new CombinedAutocompleteProvider(
+			[...buildTuiBuiltinSlashCommands(h.tuiRuntime)],
+			process.cwd(),
+		);
 		for (const query of ["/thinking", "/intelligence"]) {
 			const suggestions = await provider.getSuggestions([query], 0, query.length);
 			const resolved = suggestions?.items.map(item => lookupBuiltinSlashCommand(item.value)?.name);
 			expect(resolved).toContain("effort");
 		}
-		const h = harness();
 		expect(await executeBuiltinSlashCommand("/thinking high", { ...h.tuiRuntime, draftDetached: true })).toBe(false);
 		expect(h.level()).toBeUndefined();
 	});

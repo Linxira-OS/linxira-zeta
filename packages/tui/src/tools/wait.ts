@@ -753,47 +753,6 @@ export function createIrcMessageCard(
 	return Object.assign(component, { describe: () => described });
 }
 
-/**
- * One job row on one line: type badge, id + label, terminal-clocked duration
- * (live while running). The job's output and errors fill the card of the call
- * that started it (`parksAsBackground`), so the row carries no preview.
- */
-function describeJob(job: JobSnapshot, isPartial: boolean): NativeNode {
-	const running = job.status === "running" && isPartial;
-	const label = job.label.trim() !== job.id ? plainText(job.label.split(/\r?\n/)[0] ?? "") : "";
-	const spans: TspSpan[] = [
-		span(plainText(job.id), running ? "accent" : "toolOutput", running ? { fx: "shimmer" } : undefined),
-	];
-	if (label) spans.push(span(` ${label}`, "toolOutput"));
-	if (job.exitCode !== undefined) spans.push(span(` exit ${job.exitCode}`, job.exitCode === 0 ? "muted" : "error"));
-	const tone =
-		job.status === "completed"
-			? "success"
-			: job.status === "failed"
-				? "error"
-				: job.status === "cancelled"
-					? "warning"
-					: "accent";
-	return node(
-		"row",
-		{ role: "zeta.wait.job", tone, gap: "sm" },
-		compact([
-			node("badge", { text: job.type, tone }),
-			text(spans, { truncate: "end", grow: 1 }),
-			job.status === "running" && job.completionPercent !== undefined
-				? node("progress", {
-						value: job.completionPercent / 100,
-						label: `${job.completionPercent}%`,
-						tone: "accent",
-						title: "Agent's own completion estimate",
-					})
-				: undefined,
-			elapsed(job.durationMs, !running),
-		]),
-		job.id,
-	);
-}
-
 function describeJobsResult(
 	result: ToolRenderResult<CoordinationDetails>,
 	isPartial: boolean,

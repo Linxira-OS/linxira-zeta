@@ -331,8 +331,9 @@ describe("job renderer task-result preview", () => {
 				},
 			};
 			const view = waitToolRenderer.describeResult!(result, { expanded: true, isPartial: false });
-			const [job] = view!.body!;
-			expect(job).toMatchObject({ k: "row", p: { role: "zeta.wait.job", tone: "error" } });
+			const tile = byRole(view!.body![0], "zeta.job.tile");
+			expect(tile).toMatchObject({ k: "col", p: { tone: "error" } });
+			expect(byRole(tile, "zeta.job.tile.lead")?.p).toMatchObject({ spans: [{ t: "exit 1", s: "error" }] });
 			const json = JSON.stringify(view);
 			expect(json).toContain("hyperfine --runs 30 bench");
 			expect(json).not.toContain("Benchmark 1");
