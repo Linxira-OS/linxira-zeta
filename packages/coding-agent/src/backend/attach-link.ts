@@ -29,6 +29,7 @@ import {
 import { FileSessionStorage } from "../session/session-storage";
 import { setSessionTerminalTitle } from "../utils/title-generator";
 import { AttachWire } from "./attach-wire";
+import { workspaceBranch } from "../session/workspace-branch";
 import { BackendClient, type BackendEvent, type BackendSessionDetail, type BackendSessionInfo } from "./client";
 import type { ResolvedBackendTarget } from "./attach-intent";
 
@@ -110,8 +111,11 @@ export class BackendAttachLink {
 		if (this.#joined) return;
 		if (this.#ctx.collabGuest) throw new Error("Already in a collab session; /leave first");
 
+		const cwd = this.#ctx.sessionManager.getCwd();
+		const branch = workspaceBranch(cwd);
 		const { sessionId } = await this.client.resolveSession({
-			cwd: this.#ctx.sessionManager.getCwd(),
+			cwd,
+			branch,
 			sessionId: this.#target.sessionId,
 			newSession: this.#target.newSession,
 			signal: this.#abort.signal,
@@ -140,6 +144,16 @@ export class BackendAttachLink {
 			logger.debug("backend attach: protocol link unavailable", { error: String(error) });
 		}
 		const detail = await this.client.getSession(sessionId, this.#abort.signal);
+		// A session belongs to the workspace and branch it was created on. An
+		// explicit id can name another one; say so instead of silently editing a
+		// transcript from a different checkout.
+		const sessionBranch = detail.info?.branch ?? null;
+		const sessionCwd = detail.info?.cwd ?? cwd;
+		if (sessionBranch && branch && sessionBranch !== branch) {
+			this.#ctx.showWarning(
+				`Attached session runs on ${sessionBranch}, this workspace is on ${branch}; prompts still go to the session's ${sessionCwd}.`,
+			);
+		}
 		await this.#activateReplica(detail);
 		if (this.#closed) return;
 
@@ -234,7 +248,8 @@ export class BackendAttachLink {
 			detail.info?.name ?? detail.info?.firstMessage ?? this.#ctx.sessionManager.getSessionName(),
 			detail.info?.cwd ?? this.#ctx.sessionManager.getCwd(),
 		);
-		this.#ctx.showStatus(`Attached to backend session ${sessionId}`, { dim: true });
+		const where = sessionBranch ? ` · ${sessionBranch}` : "";
+		this.#ctx.showStatus(`Attached to backend session ${sessionId}${where}`, { dim: true });
 	}
 
 	/**

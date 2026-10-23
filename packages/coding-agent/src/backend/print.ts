@@ -9,6 +9,7 @@
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
 import { BackendClient, discoverBackend } from "./client";
+import { workspaceBranch } from "../session/workspace-branch";
 import type { BackendAttachIntent } from "./attach-intent";
 
 export interface BackendPrintOptions {
@@ -60,6 +61,7 @@ export async function runBackendPrintMode(options: BackendPrintOptions): Promise
 	const client = new BackendClient(backend.baseUrl, options.fetchImpl);
 	const { sessionId } = await client.resolveSession({
 		cwd: options.cwd,
+		branch: workspaceBranch(options.cwd),
 		sessionId: options.intent.sessionId,
 		newSession: options.intent.newSession,
 	});

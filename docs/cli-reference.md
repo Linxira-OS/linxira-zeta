@@ -183,8 +183,13 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 `zetacode serve` already hosts sessions for the web UI. A bare interactive
 `zetacode` becomes a client of that backend when one is reachable:
 
-- no arguments → attach to the most recently modified backend session whose
-  `cwd` is the current directory (create one when none exists);
+- a backend session is bound to the pair **(workspace directory, git branch)**:
+  no arguments → attach to the most recently modified backend session whose
+  `cwd` and branch match the current directory (create one when that branch has
+  none). Switching branches in the same checkout therefore opens a session for
+  the new branch instead of appending to the old one;
+- `--attach-session <id>` may cross both; when its branch differs from the
+  current one the TUI warns which checkout the prompts will edit;
 - no reachable backend → today's in-process session, unchanged (a missing
   `serve` never makes the CLI unusable).
 

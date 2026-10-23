@@ -54,6 +54,12 @@ export interface SessionHeader {
 	timestamp: string;
 	cwd: string;
 	/**
+	 * Git branch `cwd` sat on when the session was created. Recorded once so a
+	 * terminal that attaches later can bind to the same (workspace, branch)
+	 * pair even after the checkout switched branches.
+	 */
+	branch?: string;
+	/**
 	 * Client that created this session. Absent on sessions written before the
 	 * stamp existed (read them as an unknown client, never as a guess).
 	 */

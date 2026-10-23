@@ -34,6 +34,8 @@ export interface SessionInfo {
 	id: string;
 	/** Working directory where the session was started. Empty string for old sessions. */
 	cwd: string;
+	/** Git branch recorded when the session was created; absent for legacy sessions. */
+	branch?: string;
 	title?: string;
 	/** Path to the parent session (if this session was forked or spawned as a subagent). */
 	parentSessionPath?: string;
@@ -345,6 +347,7 @@ interface SessionListHeader {
 	type: "session";
 	id: string;
 	cwd?: string;
+	branch?: string;
 	title?: string;
 	parentSession?: string;
 	timestamp?: string;
@@ -364,6 +367,7 @@ function sessionListHeaderFromRecord(
 		type: "session",
 		id: record.id,
 		cwd: typeof record.cwd === "string" ? record.cwd : undefined,
+		branch: typeof record.branch === "string" ? record.branch : undefined,
 		title:
 			titleOverride === null
 				? undefined
@@ -381,6 +385,7 @@ function parseSessionListHeaderLine(line: string, titleOverride?: string | null)
 		type: "session",
 		id,
 		cwd: extractStringProperty(line, "cwd"),
+		branch: extractStringProperty(line, "branch"),
 		title: titleOverride === null ? undefined : (titleOverride ?? extractStringProperty(line, "title")),
 		parentSession: extractStringProperty(line, "parentSession"),
 		timestamp: extractStringProperty(line, "timestamp"),
@@ -543,6 +548,7 @@ async function scanSessionFile(
 			path: file,
 			id: header.id,
 			cwd: header.cwd ?? "",
+			...(header.branch ? { branch: header.branch } : {}),
 			title: header.title ?? shortSummary,
 			parentSessionPath: header.parentSession,
 			...(agent ? { agent } : {}),

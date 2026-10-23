@@ -9,7 +9,25 @@ import { BACKEND_ATTACH_LOCAL_COMMANDS, isBackendAttachLocalCommand } from "../s
  */
 describe("backend-attach local commands", () => {
 	it("runs client-side commands locally", () => {
-		for (const verb of ["language", "tool", "theme", "settings", "stats", "git", "changelog", "time", "tracking"]) {
+		for (const verb of [
+			"language",
+			"tool",
+			"theme",
+			"settings",
+			"stats",
+			"git",
+			"changelog",
+			"time",
+			"tracking",
+			"tools",
+			"context",
+			"agents",
+			"skills",
+			"extensions",
+			"status",
+			"usage",
+			"jobs",
+		]) {
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(true);
 		}
 	});

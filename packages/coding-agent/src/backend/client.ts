@@ -49,8 +49,13 @@ export interface BackendSessionInfo {
 	firstMessage?: string;
 	parentSessionId?: string;
 	projectRoot?: string;
+	/** Branch the session's cwd sat on when the backend listed it. */
+	branch?: string;
+	/** Branch of a linked worktree; superseded by `branch` for attachment. */
 	worktreeBranch?: string;
 	temp?: boolean;
+	/** Default-space bot session tag ("relay" | "bot" | "draft"); backend-owned. */
+	tag?: string;
 }
 
 export interface BackendSessionList {
@@ -157,20 +162,32 @@ export function normalizeCwdForCompare(cwd: string): string {
 export function pickMostRecentSessionForCwd(
 	sessions: readonly BackendSessionInfo[],
 	cwd: string,
+	branch?: string | null,
 ): BackendSessionInfo | undefined {
 	const target = normalizeCwdForCompare(cwd);
-	let best: BackendSessionInfo | undefined;
-	for (const session of sessions) {
-		if (!session.cwd || normalizeCwdForCompare(session.cwd) !== target) continue;
-		if (!best) {
-			best = session;
-			continue;
-		}
-		const a = session.modified ?? session.created ?? "";
-		const b = best.modified ?? best.created ?? "";
-		if (a > b) best = session;
-	}
-	return best;
+	const candidates = sessions.filter(
+		// Bot/relay/draft sessions are the backend's own surfaces (IM channel,
+		// shared web chat). A terminal that auto-attaches wants a user session;
+		// an explicit `--attach-session <id>` can still reach them.
+		session => session.cwd !== undefined && normalizeCwdForCompare(session.cwd) === target && !session.tag,
+	);
+	const newest = (list: readonly BackendSessionInfo[]): BackendSessionInfo | undefined =>
+		list.reduce<BackendSessionInfo | undefined>((best, session) => {
+			if (!best) return session;
+			const a = session.modified ?? session.created ?? "";
+			const b = best.modified ?? best.created ?? "";
+			return a > b ? session : best;
+		}, undefined);
+
+	const wanted = branch?.trim();
+	if (!wanted) return newest(candidates);
+	const sameBranch = candidates.filter(session => session.branch === wanted);
+	if (sameBranch.length > 0) return newest(sameBranch);
+	// Sessions written before branch binding carry no branch at all. Adopt the
+	// newest such session so an upgrade keeps its transcript; a cwd that has
+	// sessions on *other* branches means the user switched branches and wants a
+	// fresh session for this one.
+	return candidates.length > 0 && candidates.every(session => !session.branch) ? newest(candidates) : undefined;
 }
 
 /** Sort newest-first for display (`zetacode attach --list`). */
@@ -238,17 +255,21 @@ export class BackendClient {
 		};
 	}
 
-	/** Newest session bound to `cwd`, across all repositories. */
-	async findSessionForCwd(cwd: string, signal?: AbortSignal): Promise<BackendSessionInfo | undefined> {
+	/** Newest session bound to `cwd` and, when given, the same branch. */
+	async findSessionForCwd(
+		cwd: string,
+		branch?: string | null,
+		signal?: AbortSignal,
+	): Promise<BackendSessionInfo | undefined> {
 		const { sessions } = await this.listSessions({ signal });
-		return pickMostRecentSessionForCwd(sessions, cwd);
+		return pickMostRecentSessionForCwd(sessions, cwd, branch);
 	}
 
-	/** Create a session bound to `cwd` in the backend (`ensure_session`). */
-	async createSession(cwd: string, signal?: AbortSignal): Promise<string> {
+	/** Create a session bound to `cwd` and the branch the caller sees (`ensure_session`). */
+	async createSession(cwd: string, branch?: string | null, signal?: AbortSignal): Promise<string> {
 		const response = await this.request("/api/agent/new", {
 			method: "POST",
-			body: JSON.stringify({ cwd, type: "ensure_session" }),
+			body: JSON.stringify({ cwd, type: "ensure_session", ...(branch ? { branch } : {}) }),
 			signal,
 		});
 		const body = (await response.json()) as { sessionId?: unknown; error?: unknown };
@@ -262,14 +283,21 @@ export class BackendClient {
 
 	/** Attach target resolution shared by the TUI and print paths. */
 	async resolveSession(
-		options: { cwd: string; sessionId?: string; newSession?: boolean; signal?: AbortSignal } = { cwd: process.cwd() },
+		options: {
+			cwd: string;
+			/** Branch the client sits on; a session belongs to one (cwd, branch) pair. */
+			branch?: string | null;
+			sessionId?: string;
+			newSession?: boolean;
+			signal?: AbortSignal;
+		} = { cwd: process.cwd() },
 	): Promise<{ sessionId: string; created: boolean }> {
 		if (options.sessionId) return { sessionId: options.sessionId, created: false };
 		if (!options.newSession) {
-			const existing = await this.findSessionForCwd(options.cwd, options.signal);
+			const existing = await this.findSessionForCwd(options.cwd, options.branch, options.signal);
 			if (existing) return { sessionId: existing.id, created: false };
 		}
-		return { sessionId: await this.createSession(options.cwd, options.signal), created: true };
+		return { sessionId: await this.createSession(options.cwd, options.branch, options.signal), created: true };
 	}
 
 	async getSession(sessionId: string, signal?: AbortSignal): Promise<BackendSessionDetail> {

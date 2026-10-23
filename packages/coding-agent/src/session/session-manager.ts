@@ -80,6 +80,7 @@ import {
 	type UsageStatistics,
 } from "./session-entries";
 import { currentRuntimeIdentity, type RuntimeIdentity } from "./runtime-identity";
+import { workspaceBranch } from "./workspace-branch";
 import {
 	filterSessionsForPicker,
 	findMostRecentNonEmptySession,
@@ -2013,6 +2014,7 @@ export class SessionManager {
 			id: this.#sessionId,
 			timestamp,
 			cwd: this.#cwd,
+			branch: workspaceBranch(this.#cwd) ?? undefined,
 			// A session started from inside a client stays that client's session:
 			// `/new`, branch and fork inherit, and only a creator that knows better
 			// passes one explicitly.
@@ -2473,6 +2475,7 @@ export class SessionManager {
 			titleSource: this.#header.titleSource ?? this.#titleSource,
 			timestamp,
 			cwd: this.#cwd,
+			branch: this.#header.branch ?? workspaceBranch(this.#cwd) ?? undefined,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
 			// The fork is the same conversation read by the same client.
 			client: this.#header.client,
@@ -3981,6 +3984,7 @@ export class SessionManager {
 			id: newSessionId,
 			timestamp,
 			cwd: this.#cwd,
+			branch: this.#header.branch ?? workspaceBranch(this.#cwd) ?? undefined,
 			title: this.#sessionName,
 			titleSource: this.#titleSource,
 			parentSession: this.#persist ? sourceSessionFile : undefined,

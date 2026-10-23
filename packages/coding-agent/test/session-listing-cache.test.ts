@@ -59,6 +59,26 @@ describe("session listing subagent marker", () => {
 		expect(sessions.find(session => session.path.endsWith("fork.jsonl"))?.agent).toBeUndefined();
 	});
 
+	it("carries the branch recorded in the session header", async () => {
+		const storage = new MemorySessionStorage();
+		storage.writeTextSync(
+			`${SESSION_DIR}/branchy.jsonl`,
+			[
+				JSON.stringify({
+					type: "session",
+					id: "branchy",
+					cwd: "/repo",
+					branch: "feat-a",
+					timestamp: "2026-06-27T00:00:00.000Z",
+				}),
+				JSON.stringify({ type: "message", message: { role: "user", content: "hi" } }),
+				"",
+			].join("\n"),
+		);
+		const sessions = await listSessions(SESSION_DIR, storage);
+		expect(sessions[0]?.branch).toBe("feat-a");
+	});
+
 	it("finds the marker past the listing prefix window", async () => {
 		const storage = new MemorySessionStorage();
 		writeParentedSession(storage, `${SESSION_DIR}/wide.jsonl`, {

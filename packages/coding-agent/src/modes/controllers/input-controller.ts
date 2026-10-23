@@ -271,6 +271,16 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	changelog: true,
 	stats: true,
 	git: true,
+	// Read-only dashboards over the mirrored replica: they render the same
+	// surfaces a local session shows and never mutate it.
+	tools: true,
+	context: true,
+	agents: true,
+	skills: true,
+	extensions: true,
+	status: true,
+	usage: true,
+	jobs: true,
 };
 
 /**

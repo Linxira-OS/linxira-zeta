@@ -204,6 +204,9 @@ export interface SessionInfo {
 	firstMessage: string;
 	parentSessionId?: string;
 	projectRoot?: string;
+	/** Branch the session's cwd sits on at listing time (null/absent outside git). */
+	branch?: string;
+	/** Branch of a linked worktree; kept for the web UI's worktree grouping. */
 	worktreeBranch?: string;
 	/** Set only for archived listings: the original project cwd. */
 	archivedFrom?: string;

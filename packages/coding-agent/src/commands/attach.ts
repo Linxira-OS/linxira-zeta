@@ -17,6 +17,7 @@ import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { isRecord, readLines } from "@linxiraos/pi-utils";
 import { BackendClient, sortSessionsNewestFirst } from "../backend/client";
+import { workspaceBranch } from "../session/workspace-branch";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { attachHelp as commandHelp } from "../cli/command-help";
 import { M } from "../i18n";
@@ -167,8 +168,10 @@ async function printSessionList(client: BackendClient): Promise<void> {
 		const marks = [running.has(session.id) ? "running" : "", session.temp ? "temp" : ""].filter(Boolean);
 		const suffix = marks.length > 0 ? `  [${marks.join(", ")}]` : "";
 		const name = session.name?.trim() || session.firstMessage?.split("\n")[0]?.trim() || "(untitled)";
+		const branch = session.branch ?? session.worktreeBranch;
+		const workspace = branch ? `${session.cwd || "?"} @ ${branch}` : session.cwd || "?";
 		process.stdout.write(
-			`${session.id}  ${session.cwd || "?"}  ${session.modified ?? session.created ?? ""}  ${name}${suffix}\n`,
+			`${session.id}  ${workspace}  ${session.modified ?? session.created ?? ""}  ${name}${suffix}\n`,
 		);
 	}
 }
@@ -202,7 +205,8 @@ export default class Attach extends Command {
 		}
 		let sessionId = args["session-id"];
 		if (!sessionId && flags.new) {
-			sessionId = await client.createSession(path.resolve(flags.cwd ?? process.cwd()));
+			const cwd = path.resolve(flags.cwd ?? process.cwd());
+			sessionId = await client.createSession(cwd, workspaceBranch(cwd));
 		}
 		sessionId ??= await resolveSharedSessionId(baseUrl);
 

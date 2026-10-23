@@ -192,6 +192,10 @@ async function loadAllSessions(): Promise<SessionInfo[]> {
 			firstMessage: s.firstMessage || "(no messages)",
 			parentSessionId: s.parentSessionPath ? pathToId.get(sessionPathKey(s.parentSessionPath)) : undefined,
 			projectRoot: project?.projectRoot ?? s.cwd,
+			// The branch recorded when the session was created wins: after a
+			// `git checkout` the cwd's current branch is no longer the one this
+			// transcript belongs to. Legacy sessions fall back to the project's.
+			...((s.branch ?? project?.branch) ? { branch: s.branch ?? project?.branch ?? undefined } : {}),
 			...(project?.isWorktree && project.branch ? { worktreeBranch: project.branch } : {}),
 			...(tag ? { tag } : {}),
 			...(s.cwd && isTempCwd(s.cwd) ? { temp: true } : {}),
