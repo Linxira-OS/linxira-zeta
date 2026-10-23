@@ -2,7 +2,7 @@
  * Project-local `tui` tool: run and debug pi-tui apps headlessly. Each session
  * spawns a TypeScript/JavaScript entry or executable on a real PTY: ConPTY on
  * Windows, Bun's controlling terminal on POSIX. `OMP_TUI_DEBUG` points at the
- * local IPC endpoint served by an omp/pi-tui host. Injected input
+ * local IPC endpoint served by a zeta/pi-tui host. Injected input
  * rides the app's own input path, while renderer and component queries inspect
  * the last painted frame.
  *
@@ -235,7 +235,7 @@ function lerpColor(from: number, to: number, t: number): number {
  * Terminal emulation fed every PTY byte: kitty's real core (screen.c +
  * vt-parser.c compiled to wasm via kitty-vt-wasm), so SGR, rewrap-on-resize,
  * scrollback, graphemes, and wide chars behave exactly as in kitty. Any
- * session — omp-tui host or not — can be read as plain text (`snapshot`) or
+ * session — zeta-tui host or not — can be read as plain text (`snapshot`) or
  * rasterized to pixels (`png`). Backs the `screen`/`shot` ops, the socketless
  * `text` fallback, and the after-screenshot on input ops. Query replies the
  * core emits (DA, DECRQSS, XTGETTCAP, OSC color queries) surface on
@@ -692,7 +692,7 @@ function request(
 		return Promise.reject(
 			new Error(
 				`session "${session.name}" has no debug socket — the app is not an ` +
-					"omp-tui host (or exited). screen/raw/send/resize/stop still work.",
+					"zeta-tui host (or exited). screen/raw/send/resize/stop still work.",
 			),
 		);
 	}
@@ -747,7 +747,7 @@ async function stopSession(session: Session): Promise<number | null> {
 		if (session.sock) {
 			await request(session, { op: "quit" }, 2_000);
 		} else if (session.exit === null) {
-			// Non-omp-tui apps have no debug socket; Ctrl-C is the
+			// Non-zeta-tui apps have no debug socket; Ctrl-C is the
 			// conventional quit chord.
 			session.proc.terminal.write("\x03");
 		}
@@ -1003,7 +1003,7 @@ const factory = (omp: ToolHost) => {
 		if (params.file && params.bin) {
 			throw new Error("start takes `file` or `bin`, not both");
 		}
-		// Default target: this repo's own TUI, omp itself.
+		// Default target: this repo's own TUI, zetacode itself.
 		const file = params.bin ? undefined : (params.file ?? "packages/coding-agent/src/cli.ts");
 		const target = file ?? params.bin ?? "";
 		const command = file
@@ -1011,17 +1011,16 @@ const factory = (omp: ToolHost) => {
 			: [target, ...(params.args ?? [])];
 
 		const { cols, rows } = ptyDimensions(params.cols ?? 100, params.rows ?? 30);
-		const dir = mkdtempSync(join(tmpdir(), `omp-tui-${name}-`));
-		const sockPath = join(dir, "debug.sock");
-		const gatePath = join(dir, "spawn.gate");
-		// The PTY data callback closes over `session`; Bun.spawn returns
-		// synchronously and the callback fires on the event loop, so the
-		// binding is assigned before the first chunk can arrive. That forward
-		// reference is why this stays `let` despite the single assignment.
-		// oxlint-disable-next-line prefer-const
-		let session: Session;
-		let proc: Child;
+		const dir = mkdtempSync(join(tmpdir(), `zeta-tui-${name}-`));
 		let screen: Screen | undefined;
+		let session: Session | undefined;
+		// Native output may arrive before the PID promise resumes. Buffer it until
+		// the session and its terminal query-reply sink have both been initialized.
+		const pending: Uint8Array[] = [];
+		const onData = (chunk: Uint8Array) => {
+			if (session) capture(session, chunk);
+			else pending.push(chunk);
+		};
 		try {
 			screen = await Screen.create(cols, rows);
 			const sockPath = ipcEndpoint(dir, "debug");
@@ -1143,7 +1142,7 @@ const factory = (omp: ToolHost) => {
 				text += `\n${screenshotText(shot)}`;
 			} else {
 				text +=
-					"\n(no debug socket: app is not an omp-tui host; `send` injects " +
+					"\n(no debug socket: app is not a zeta-tui host; `send` injects " +
 					"input, `screen` renders the emulated display)" +
 					`\n${session.screen.snapshot()}`;
 			}
@@ -1158,70 +1157,16 @@ const factory = (omp: ToolHost) => {
 			}
 			throw error;
 		}
-		// Route the core's query replies (DA, DECRQSS, OSC color queries) back
-		// to the child: capability probes resolve as on a real terminal.
-		screen.onReply = bytes => proc.terminal.write(bytes);
-		session = {
-			name,
-			target,
-			proc,
-			cols,
-			rows,
-			dir,
-			screen,
-			sock: null,
-			waiters: [],
-			raw: [],
-			rawBytes: 0,
-			exit: null,
-		};
-		proc.exited.then(code => {
-			session.exit = code;
-		});
-		sessions.set(name, session);
-
-		const deadline = Date.now() + (params.timeout ?? 15) * 1000;
-		const connected = await connectSocket(session, sockPath, (params.timeout ?? 15) * 1000);
-		if (session.exit !== null) {
-			const tail = visible(Buffer.concat(session.raw)).slice(-3000);
-			await stopSession(session).catch(() => {});
-			throw new Error(
-				`"${target}" exited immediately (code ${session.exit}).\n` + `terminal tail: ${tail || "(empty)"}`,
-			);
-		}
-		let text = `session "${name}": ${target} pid=${proc.pid} pty=${cols}x${rows}`;
-		if (connected) {
-			// The socket binds at terminal entry, before the first frame
-			// paints; retry until the snapshot exists so `start` reliably
-			// returns the opening screenshot.
-			let shot = await request(session, { op: "text" });
-			while (
-				shot.ok === false &&
-				String(shot.error ?? "").includes("no frame painted yet") &&
-				session.exit === null &&
-				Date.now() < deadline
-			) {
-				await sleep(50);
-				shot = await request(session, { op: "text" });
-			}
-			text += `\n${screenshotText(shot)}`;
-		} else {
-			text +=
-				"\n(no debug socket: app is not an omp-tui host; `send` injects " +
-				"input, `screen` renders the emulated display)" +
-				`\n${session.screen.snapshot()}`;
-		}
-		return text;
 	};
 
 	return {
 		name: "tui",
 		label: "TUI Debug",
 		description:
-			"Run and debug omp/pi-tui apps headlessly on a real PTY plus the " +
-			"OMP_TUI_DEBUG socket. Start defaults to omp itself " +
+			"Run and debug zeta/pi-tui apps headlessly on a real PTY plus the " +
+			"OMP_TUI_DEBUG socket. Start defaults to zetacode itself " +
 			"(packages/coding-agent/src/cli.ts); override with file (a TS/JS entry, e.g. " +
-			'file: "packages/tui/examples/debug-demo.ts") or bin (an executable name/path), plus optional rows/cols and args. Any omp/pi-tui app serves ' +
+			'file: "packages/tui/examples/debug-demo.ts") or bin (an executable name/path), plus optional rows/cols and args. Any zeta/pi-tui app serves ' +
 			"OMP_TUI_DEBUG. Ops: text (viewport screenshot as plain text), screen " +
 			"(plain-text screen from kitty's real terminal core — works for any app, no " +
 			"debug socket needed; peek=N prepends N scrollback lines), frame (full " +
@@ -1249,7 +1194,7 @@ const factory = (omp: ToolHost) => {
 				.string()
 				.optional()
 				.describe(
-					"start: TS/JS entry path relative to cwd (default: packages/coding-agent/src/cli.ts — omp itself)",
+					"start: TS/JS entry path relative to cwd (default: packages/coding-agent/src/cli.ts — zetacode itself)",
 				),
 			bin: omp.zod.string().optional().describe("start: executable name or path"),
 			args: omp.zod.array(omp.zod.string()).optional().describe("start: program argv"),
@@ -1308,7 +1253,7 @@ const factory = (omp: ToolHost) => {
 				}
 				case "shot": {
 					const session = need(params.name);
-					const png = join(tmpdir(), `omp-tui-${session.name}-${Date.now()}.png`);
+					const png = join(tmpdir(), `zeta-tui-${session.name}-${Date.now()}.png`);
 					const bytes = await session.screen.png();
 					writeFileSync(png, bytes);
 					return {
