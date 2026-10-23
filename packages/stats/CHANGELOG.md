@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-23
+
 - The dashboard is fully translated (English / Simplified Chinese) with an EN ⇄ 中文 switch in the top-right corner; the choice is remembered in the browser
 
 ## [1.4.0] - 2026-10-21

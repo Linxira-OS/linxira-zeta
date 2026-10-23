@@ -1,10 +1,8 @@
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-23
+
 - Version alignment with the 1.4.1 release line (no behavioral changes).
-
-## [1.4.0] - 2026-10-21
-
-- Version line moves to 1.4.0 with the rest of the suite; no user-visible change in this package.
 
 ## [9.2.2] - 2026-01-31
 
@@ -135,6 +133,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.4.0] - 2026-10-21
+
+- Version line moves to 1.4.0 with the rest of the suite; no user-visible change in this package.
 
 ## [1.3.2] - 2026-10-19
 
