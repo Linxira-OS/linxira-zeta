@@ -70,7 +70,7 @@ two-parent tag merge.
 
 
 
-## v18.12.6 incremental merge (Zeta — branch `sync/omp-release/v18.12.6`, in progress 2026-10-23)
+## v18.12.6 incremental merge (Zeta — branch `sync/omp-release/v18.12.6`, CI green 2026-10-23; awaiting owner merge sign-off)
 
 - **Baseline**: `v18.12.2` (peeled `1d5aff90b057`) — `git merge-base` before the
   merge resolved to exactly this commit, so only upstream's tag-to-tag increment
@@ -123,11 +123,14 @@ two-parent tag merge.
   - `39939344798` — three jobs red: refreshed lock artifact committed (the
     `3.18.6` hash mismatch), two files not oxfmt-clean, `.zeta` tool cleanup
     referencing a removed `screen` binding.
-  - `39945968837` — one job red: `.zeta/tools/tui.ts` assigned `screen`
-    without declaring it (both the declaration and the `catch` disposal were
-    dropped while removing a duplicate), so the PTY launcher tests reported
-    `screen is not defined`. Fixed by declaring
-    `let screen: Screen | undefined` and disposing it in the cleanup branch.
+  - `39953085121` — one job red: the PTY launcher's data callback still
+    referenced bare `pending`/`onData`; the merge had produced a hybrid of
+    upstream's native `PtySession` path and Zeta's older `Bun.spawn` launcher.
+    Replaced `.zeta/tools/tui.ts` with `v18.12.6:.omp/tools/tui.ts` wholesale
+    (brand + `zeta-tui-` temp-prefix rewrites only), matching the carried
+    `.zeta/tests/tui.test.ts` contract.
+  - `39960952760` (tip `657b9c7a1e7`) — **green: 32 jobs, 0 failed**, release
+    jobs skipped as expected on a non-release branch.
 - **`MODULE.bazel.lock`**: refreshed by the CI `gen-bazel-lock` step and
   committed (`html-to-markdown-rs 3.18.3`); the `Check MODULE.bazel.lock
   freshness` job is green in `39945968837`, and `bazel-lock-drift --check`
