@@ -1948,6 +1948,7 @@ export const en = {
 	acSidebarOn: "Sidebar: on",
 	acSidebarOff: "Sidebar: off",
 	cmdPause: "Freeze all agents (main, subagents, advisor) until resumed",
+	cmdForgetApprovals: "Forget every file and folder approval Ask and remember has recorded",
 	cmdQuit: "Quit the application",
 	cmdMemoryMmDelete: "Delete a mental model from the bank (id required)",
 	cmdMemoryMmReload: "Re-pull the cached <mental_models> block",

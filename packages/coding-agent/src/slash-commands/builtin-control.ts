@@ -88,7 +88,7 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
 		name: "forget-approvals",
 		icon: "trash",
-		description: "Forget every file and folder approval Ask and remember has recorded",
+		description: () => M.cmdForgetApprovals,
 		handle: async (_command, runtime) => {
 			clearApprovalGrants(runtime.settings.getAgentDir());
 			await runtime.output("Remembered approvals forgotten; the next read or write asks again.");

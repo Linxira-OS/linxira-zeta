@@ -1139,6 +1139,21 @@ describe("selector setting side effects", () => {
 		const showError = vi.fn();
 		let picker: { handleInput(data: string): void } | undefined;
 		const settings = Settings.isolated({ cycleOrder: ["smol", "slow"] });
+		const viewSession = {
+			effectiveServiceTier: () => undefined,
+			model: slow,
+			modelRegistry: {
+				getAll: () => [smol, slow],
+				getAvailable: () => [smol, slow],
+				getError: () => undefined,
+				refresh: async () => {},
+			},
+			scopedModels: [{ model: smol }, { model: slow }],
+			getContextUsage: () => undefined,
+			getRoleModelCycle: () => ({ models: quickRoles, currentIndex: 1 }),
+			applyRoleModel,
+			setModelTemporary,
+		};
 		const controller = new SelectorController({
 			ui: {
 				requestRender: vi.fn(),
@@ -1152,21 +1167,8 @@ describe("selector setting side effects", () => {
 			editorContainer: { clear: vi.fn(), addChild: vi.fn(), children: [] },
 			editor: {},
 			settings,
-			session: {
-				effectiveServiceTier: () => undefined,
-				model: slow,
-				modelRegistry: {
-					getAll: () => [smol, slow],
-					getAvailable: () => [smol, slow],
-					getError: () => undefined,
-					refresh: async () => {},
-				},
-				scopedModels: [{ model: smol }, { model: slow }],
-				getContextUsage: () => undefined,
-				getRoleModelCycle: () => ({ models: quickRoles, currentIndex: 1 }),
-				applyRoleModel,
-				setModelTemporary,
-			},
+			session: viewSession,
+			viewSession,
 			statusLine: { invalidate: vi.fn() },
 			updateEditorBorderColor: vi.fn(),
 			keybindings: { getKeys: () => [], getDisplayString: () => "" },

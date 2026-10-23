@@ -2028,6 +2028,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "异步任务并发上限",
 		description: "同时运行的异步（后台）任务的最大数量",
 	},
+	"async.widgets": {
+		label: "实时任务组件",
+		description:
+			"为每个运行中的后台任务绘制实时组件（图表、进度条、状态网格，取自其输出），显示在 wait 卡片、任务胶囊和任务面板中。由 `widget` 模型角色（默认 `smol`）为每个任务写一份规格；后续更新不再调用模型",
+	},
 	"auth.broker.token": {
 		label: "Auth Broker 令牌",
 		description: "连接 auth-broker 时使用的 bearer 令牌",

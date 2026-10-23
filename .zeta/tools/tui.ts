@@ -650,8 +650,7 @@ function connectSocket(session: Session, path: string, timeoutMs: number): Promi
 				timeoutMs: Math.max(1, Math.min(1_000, deadline - Date.now())),
 			});
 		} catch {
-			if (Date.now() >= deadline || session.exit !== null || session.closed)
-				resolve(false);
+			if (Date.now() >= deadline || session.exit !== null || session.closed) resolve(false);
 			else setTimeout(attempt, 150);
 			return;
 		}
@@ -661,7 +660,7 @@ function connectSocket(session: Session, path: string, timeoutMs: number): Promi
 			return;
 		}
 		conn.start(
-			(frame) => {
+			frame => {
 				const waiter = session.waiters.shift();
 				if (!waiter) return;
 				clearTimeout(waiter.timer);
@@ -922,10 +921,7 @@ function gated(gate: string, command: string[]): string[] {
  * Launch an executable directly on ConPTY. Race PID delivery against process
  * completion so a failed spawn cannot leave start waiting for a missing callback.
  */
-async function startWindowsPty(
-	options: PtyArgvStartOptions,
-	onData: (chunk: Uint8Array) => void,
-): Promise<Child> {
+async function startWindowsPty(options: PtyArgvStartOptions, onData: (chunk: Uint8Array) => void): Promise<Child> {
 	const pty = new PtySession();
 	const inputDecoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 	const started = Promise.withResolvers<number>();
@@ -942,7 +938,7 @@ async function startWindowsPty(
 				else started.resolve(pid);
 			},
 		)
-		.then((result) => result.exitCode ?? (result.cancelled ? -9 : 1))
+		.then(result => result.exitCode ?? (result.cancelled ? -9 : 1))
 		.finally(() => {
 			running = false;
 		});
@@ -955,7 +951,7 @@ async function startWindowsPty(
 	try {
 		const pid = await Promise.race([
 			started.promise,
-			exited.then((code) => {
+			exited.then(code => {
 				throw new Error(`PTY exited before reporting its pid (code ${code})`);
 			}),
 		]);
@@ -972,10 +968,9 @@ async function startWindowsPty(
 						try {
 							text = inputDecoder.decode(data);
 						} catch (error) {
-							throw new Error(
-								"Windows PTY input must be valid UTF-8; raw non-UTF-8 bytes are not supported",
-								{ cause: error },
-							);
+							throw new Error("Windows PTY input must be valid UTF-8; raw non-UTF-8 bytes are not supported", {
+								cause: error,
+							});
 						}
 					}
 					pty.write(text);
@@ -996,9 +991,7 @@ async function startWindowsPty(
 // ─── Tool ────────────────────────────────────────────────────────────────────
 
 function ptyDimensions(cols: number, rows: number): PtyDimensions {
-	return process.platform === "win32"
-		? normalizePtyDimensions(cols, rows)
-		: { cols, rows };
+	return process.platform === "win32" ? normalizePtyDimensions(cols, rows) : { cols, rows };
 }
 
 const factory = (omp: ToolHost) => {
@@ -1021,7 +1014,6 @@ const factory = (omp: ToolHost) => {
 		const dir = mkdtempSync(join(tmpdir(), `omp-tui-${name}-`));
 		const sockPath = join(dir, "debug.sock");
 		const gatePath = join(dir, "spawn.gate");
-		const screen = await Screen.create(cols, rows);
 		// The PTY data callback closes over `session`; Bun.spawn returns
 		// synchronously and the callback fires on the event loop, so the
 		// binding is assigned before the first chunk can arrive. That forward
@@ -1080,19 +1072,13 @@ const factory = (omp: ToolHost) => {
 			// screen's duplicate reply to that first query; keep later cursor
 			// reports and any other replies sharing the same output buffer.
 			let hostCursorHandshake = process.platform === "win32";
-			screen.onReply = (bytes) => {
+			screen.onReply = bytes => {
 				if (hostCursorHandshake) {
-					const reply = Buffer.from(
-						bytes.buffer,
-						bytes.byteOffset,
-						bytes.byteLength,
-					).toString();
+					const reply = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString();
 					const cursor = /\x1b\[\d+;\d+R/.exec(reply);
 					if (cursor) {
 						hostCursorHandshake = false;
-						const remaining =
-							reply.slice(0, cursor.index) +
-							reply.slice(cursor.index + cursor[0].length);
+						const remaining = reply.slice(0, cursor.index) + reply.slice(cursor.index + cursor[0].length);
 						if (remaining) proc.terminal.write(remaining);
 						return;
 					}
@@ -1117,10 +1103,10 @@ const factory = (omp: ToolHost) => {
 			};
 			const active = session;
 			proc.exited.then(
-				(code) => {
+				code => {
 					active.exit = code;
 				},
-				(error) => {
+				error => {
 					active.exit = 1;
 					active.exitError = error;
 				},
@@ -1130,17 +1116,12 @@ const factory = (omp: ToolHost) => {
 			sessions.set(name, session);
 
 			const deadline = Date.now() + (params.timeout ?? 15) * 1000;
-			const connected = await connectSocket(
-				session,
-				sockPath,
-				(params.timeout ?? 15) * 1000,
-			);
+			const connected = await connectSocket(session, sockPath, (params.timeout ?? 15) * 1000);
 			if (session.exit !== null) {
 				const tail = visible(Buffer.concat(session.raw)).slice(-3000);
 				if (session.exitError) throw session.exitError;
 				throw new Error(
-					`"${target}" exited immediately (code ${session.exit}).\n` +
-						`terminal tail: ${tail || "(empty)"}`,
+					`"${target}" exited immediately (code ${session.exit}).\n` + `terminal tail: ${tail || "(empty)"}`,
 				);
 			}
 			let text = `session "${name}": ${target} pid=${proc.pid} pty=${cols}x${rows}`;
@@ -1424,10 +1405,7 @@ const factory = (omp: ToolHost) => {
 				}
 				case "resize": {
 					const session = need(params.name);
-					const { cols, rows } = ptyDimensions(
-						params.cols ?? session.cols,
-						params.rows ?? session.rows,
-					);
+					const { cols, rows } = ptyDimensions(params.cols ?? session.cols, params.rows ?? session.rows);
 					session.proc.terminal.resize(cols, rows);
 					session.screen.resize(cols, rows);
 					session.cols = cols;

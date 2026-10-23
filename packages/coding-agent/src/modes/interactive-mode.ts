@@ -437,7 +437,15 @@ import {
 	cfgCompactionIdleTimeoutSeconds,
 	cfgCompactionMethodOrder,
 } from "../session/context-settings";
-import { type JobWidgetEntry, describeJobWidgetMiniSpark, describeJobWidgetsHovercard, jobWidgetGlance, jobWidgetGlanceSpans, jobWidgetSummary, latestJobWidget } from "@linxiraos/pi-tui/tools/job-widget";
+import {
+	type JobWidgetEntry,
+	describeJobWidgetMiniSpark,
+	describeJobWidgetsHovercard,
+	jobWidgetGlance,
+	jobWidgetGlanceSpans,
+	jobWidgetSummary,
+	latestJobWidget,
+} from "@linxiraos/pi-tui/tools/job-widget";
 
 /**
  * Settings with live interactive-UI side effects, keyed by id. One coalesced listener applies

@@ -1,8 +1,9 @@
 {
 	"name": "zeta-tools",
 	"private": true,
-	"description": "Local checkout tooling: pins tui.ts's lazily imported rasterizer (kitty-vt-wasm resolves from the root install's hoisted store).",
+	"description": "Local checkout tooling for .zeta/tools/tui.ts: the lazily imported PTY screen emulator and rasterizer.",
 	"dependencies": {
-		"@napi-rs/canvas": "^1.0.11"
+		"@napi-rs/canvas": "^1.0.11",
+		"kitty-vt-wasm": "^0.2.0"
 	}
 }

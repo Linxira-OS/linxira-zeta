@@ -1,5 +1,10 @@
 import { describe, expect, it, afterEach, beforeEach } from "bun:test";
-import { DEFAULT_RELAY_URL, resolveRelayKind, createBrowserPrelude, resolveBrowserKind } from "@linxiraos/zeta/tools/browser";
+import {
+	DEFAULT_RELAY_URL,
+	resolveRelayKind,
+	createBrowserPrelude,
+	resolveBrowserKind,
+} from "@linxiraos/zeta/tools/browser";
 import type { BrowserKindTag } from "@linxiraos/zeta/tools/browser/registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";

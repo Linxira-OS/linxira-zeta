@@ -70,7 +70,7 @@ describe("/tool slash command", () => {
 	test("an unknown tool name reports the registered categories", async () => {
 		const h = createRuntime();
 		const result = await executeAcpBuiltinSlashCommand("/tool bogus on", h.runtime);
-		expect(result).toEqual({ consumed: true });
+		expect(result).toEqual({ consumed: true, failed: true });
 		expect(h.output).toHaveBeenCalledWith("未知动态工具：bogus。可用：time");
 		expect(h.sendCustomMessage).not.toHaveBeenCalled();
 	});

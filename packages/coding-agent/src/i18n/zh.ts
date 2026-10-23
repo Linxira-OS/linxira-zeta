@@ -1919,6 +1919,7 @@ export const zh = {
 	acSidebarOn: "侧边栏：开启",
 	acSidebarOff: "侧边栏：关闭",
 	cmdPause: "冻结所有代理（主、子、顾问）直到恢复",
+	cmdForgetApprovals: "清除 Ask and remember 记录的全部文件与目录批准",
 	cmdQuit: "退出应用",
 	cmdMemoryMmDelete: "从库中删除心智模型（需要 id）",
 	cmdMemoryMmReload: "重新拉取缓存的 <mental_models> 块",

@@ -10,10 +10,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import type {
-	ExtensionApprovalPrompt,
-	ExtensionUIContext,
-} from "@linxiraos/zeta/extensibility/extensions/types";
+import type { ExtensionApprovalPrompt, ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions/types";
 import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";

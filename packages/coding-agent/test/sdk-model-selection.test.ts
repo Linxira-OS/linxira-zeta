@@ -35,7 +35,11 @@ import {
 import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@linxiraos/zeta/session/session-entries";
-import { type RetryFallbackRole, getRetryFallbackRole, installRetryFallbackRole } from "@linxiraos/zeta/session/retry-fallback-chains";
+import {
+	type RetryFallbackRole,
+	getRetryFallbackRole,
+	installRetryFallbackRole,
+} from "@linxiraos/zeta/session/retry-fallback-chains";
 import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
 import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-context";
 

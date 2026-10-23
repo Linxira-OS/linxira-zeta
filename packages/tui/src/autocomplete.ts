@@ -338,14 +338,19 @@ function getCommandAliases(cmd: CommandEntry): string[] {
 }
 
 function getStaticCommandDescription(cmd: CommandEntry): string {
-	return cmd.description ?? "";
+	const description = typeof cmd.description === "function" ? cmd.description() : cmd.description;
+	return typeof description === "string" ? description : "";
 }
 
 function getAutocompleteCommandDescription(cmd: CommandEntry): string {
-	if ("getAutocompleteDescription" in cmd && typeof cmd.getAutocompleteDescription === "function") {
-		return cmd.getAutocompleteDescription() ?? cmd.description ?? "";
-	}
-	return cmd.description ?? "";
+	const candidate =
+		"getAutocompleteDescription" in cmd && typeof cmd.getAutocompleteDescription === "function"
+			? cmd.getAutocompleteDescription()
+			: cmd.description;
+	const description = typeof candidate === "function" ? candidate() : candidate;
+	return typeof description === "string" && description.length > 0
+		? description
+		: getStaticCommandDescription(cmd);
 }
 
 /**

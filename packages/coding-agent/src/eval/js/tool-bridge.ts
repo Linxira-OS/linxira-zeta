@@ -1,4 +1,9 @@
-import { type AgentTool, type AgentToolResult, validateAgentToolArguments, type AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
+import {
+	type AgentTool,
+	type AgentToolResult,
+	validateAgentToolArguments,
+	type AgentToolUpdateCallback,
+} from "@linxiraos/pi-agent-core";
 import { type ImageContent, toolWireSchema } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";

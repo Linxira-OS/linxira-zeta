@@ -7,7 +7,6 @@ import {
 } from "@linxiraos/pi-utils/acp";
 import { createAcpClientBridge } from "@linxiraos/zeta/modes/acp/acp-client-bridge";
 
-
 const ALLOW_SELECTED: RequestPermissionResponse = { outcome: { outcome: "selected", optionId: "allow_once" } };
 
 const TOOL_CALL = {

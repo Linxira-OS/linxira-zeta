@@ -64,7 +64,9 @@ function harness(options: { reasoning?: boolean; efforts?: readonly Effort[]; ce
 		getAvailableEffortSelectors: () => controls.getAvailableEffortSelectors(),
 	} as unknown as AgentSession;
 	// Real settings: the palette applies per-command configuration gates.
-	const tuiRuntime = { ctx: { session, settings: Settings.isolated({}) } } as unknown as TuiSlashCommandRuntime;
+	const tuiRuntime = {
+		ctx: { session, viewSession: session, settings: Settings.isolated({}) },
+	} as unknown as TuiSlashCommandRuntime;
 	return {
 		outputs,
 		runtime: {

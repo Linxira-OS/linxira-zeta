@@ -1958,6 +1958,7 @@ export interface Messages {
 	acSidebarOn: string;
 	acSidebarOff: string;
 	cmdPause: string;
+	cmdForgetApprovals: string;
 	cmdQuit: string;
 	cmdMemoryMmDelete: string;
 	cmdMemoryMmReload: string;
