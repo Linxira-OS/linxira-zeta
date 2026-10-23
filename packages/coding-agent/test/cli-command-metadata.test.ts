@@ -23,6 +23,14 @@ function captureStdout(render: () => void): string {
 }
 
 describe("CLI command help metadata", () => {
+	it("registers every command the CLI reference documents as a subcommand", () => {
+		// `zetacode attach` is the plain-terminal client for a serve session and
+		// `zetacode attach --list` is the documented way to address one. The
+		// command class existed without a table entry, so the flag parse fell
+		// through to `launch` and the documented surface disappeared.
+		expect(commands.map(entry => entry.name)).toContain("attach");
+	});
+
 	it("renders the same root help as the loaded command classes", async () => {
 		const metadata = new Map<string, CommandMetadata>();
 		const constructors = new Map<string, CommandCtor>();
