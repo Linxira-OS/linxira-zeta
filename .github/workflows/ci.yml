@@ -1015,6 +1015,8 @@ jobs:
            with:
               targets: linux-x64-baseline linux-x64-modern
               stash: ${{ needs.native_addons.outputs.stash }}
+         - name: Install project-local TUI debug tool dependencies
+           run: bun install --cwd .zeta/tools --frozen-lockfile
          - name: Test workspace packages and repo scripts (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -1079,8 +1081,6 @@ jobs:
            with:
               targets: linux-x64-baseline linux-x64-modern
               stash: ${{ needs.native_addons.outputs.stash }}
-         - name: Install project-local TUI debug tool dependencies
-           run: bun install --cwd .zeta/tools --frozen-lockfile
          - name: Test native/TUI/browser-ish packages (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"

@@ -103,10 +103,7 @@ describe("/effort slash command", () => {
 
 	it("is found by thinking and intelligence without registering a thinking alias", async () => {
 		const h = harness();
-		const provider = new CombinedAutocompleteProvider(
-			[...buildTuiBuiltinSlashCommands(h.tuiRuntime)],
-			process.cwd(),
-		);
+		const provider = new CombinedAutocompleteProvider([...buildTuiBuiltinSlashCommands(h.tuiRuntime)], process.cwd());
 		for (const query of ["/thinking", "/intelligence"]) {
 			const suggestions = await provider.getSuggestions([query], 0, query.length);
 			const resolved = suggestions?.items.map(item => lookupBuiltinSlashCommand(item.value)?.name);

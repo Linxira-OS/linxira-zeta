@@ -1152,7 +1152,6 @@ const factory = (omp: ToolHost) => {
 				// Cleanup failures must not mask the launch error being reported.
 				await stopSession(session).catch(() => {});
 			} else {
-				screen?.dispose();
 				rmSync(dir, { recursive: true, force: true });
 			}
 			throw error;

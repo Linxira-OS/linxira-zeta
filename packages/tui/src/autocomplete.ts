@@ -349,9 +349,7 @@ function getAutocompleteCommandDescription(cmd: CommandEntry): string {
 			? cmd.getAutocompleteDescription()
 			: cmd.description;
 	const description = typeof candidate === "function" ? (candidate as () => string)() : candidate;
-	return typeof description === "string" && description.length > 0
-		? description
-		: getStaticCommandDescription(cmd);
+	return typeof description === "string" && description.length > 0 ? description : getStaticCommandDescription(cmd);
 }
 
 /**
