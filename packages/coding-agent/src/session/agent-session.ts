@@ -635,10 +635,8 @@ import {
 	type SessionBeforeSwitchResult,
 	type SessionBeforeTreeResult,
 	type SessionStopEventResult,
-	type ToolExecutionStartEvent,
 	type ToolInfo,
 	type TreePreparation,
-	type TurnStartEvent,
 	emitSessionShutdownEvent,
 	TOP_LEVEL_AGENT,
 } from "../extensibility/extensions";
@@ -833,20 +831,6 @@ type SetSessionNameWithTrigger = (
 	source?: SessionTitleSource,
 	trigger?: SessionNameTrigger,
 ) => Promise<boolean>;
-
-/** A first-message title armed to fork the main reply. */
-interface TitleFork {
-	sessionId: string;
-	/** The message being titled, for the title model if the fork cannot name the session. */
-	input: string;
-	/** The message only points at an attachment the text-only title model cannot see. */
-	attachmentOnly: boolean;
-	/** Gives the session to the title model when the reply never starts. */
-	timer: NodeJS.Timeout;
-	/** Session-lifecycle signal at arming time: interruption cancels the title. */
-	signal: AbortSignal;
-	onAbort: () => void;
-}
 
 interface TitleInput {
 	sessionId: string;
@@ -8882,10 +8866,8 @@ export class AgentSession implements SettingsScope {
 		let queuedNotices: CustomMessage[] = keywordNotices;
 		if (message.customType === SKILL_PROMPT_MESSAGE_TYPE && message.attribution === "user") {
 			const details = message.details;
-			let skillName: string | undefined;
 			let skillArgs = "";
 			if (details && typeof details === "object") {
-				if ("name" in details && typeof details.name === "string") skillName = details.name;
 				if ("args" in details && typeof details.args === "string") skillArgs = details.args;
 			}
 			keywordNotices = this.#createMagicKeywordNotices(skillArgs);
