@@ -2424,3 +2424,39 @@ next merge can replay these three files instead of re-triaging them.
 
 None of the three is an implementation-change request; they are the same upstream tests with their
 observation points moved onto the state each assertion actually depends on.
+
+## v18.12.6 integration and the 1.4.1 release (2026-10-24)
+
+- **Baseline** `v18.12.2` → **source tag** `v18.12.6` (`cf3566a92c…`, verified with
+  `git ls-remote --tags`; remote tag did not move during the merge), integrated as the real
+  two-parent merge `5672359288f` on `sync/omp-release/v18.12.6`; `git merge-base --is-ancestor
+  v18.12.6 HEAD` holds.
+- **CI**: `39960952760` green on `657b9c7a1e7` (32 jobs, release jobs skipped), then the attach
+  batch `40010369359` green on `1dd8e18acf`.
+- **Merge decisions** (all inside the tag merge, upstream semantics for shared code):
+  `html-to-markdown-rs` pinned to `3.18.3` in `Cargo.lock` (3.18.6 changed the default recursion
+  depth 64 → 1024 and the incoming test asserts 64); `MODULE.bazel.lock` refreshed after the pin;
+  `.zeta/tools/tui.ts` adopted wholesale from the upstream `PtySession` implementation; slash
+  command descriptions stay lazy thunks; text-predict accepts newer daemons and retires older ones;
+  replan title refresh uses upstream `#retitle`/`#cardTitle`; plugin lockfile tests use
+  `PLUGINS_LOCKFILE_CANONICAL`; the executor acceptance harness uses the mesh rule.
+- **Zeta-only work after the merge** (documented in `docs/zeta-features.md`):
+  terminal attach command routing (client-local / forwarded headless builtins / refused with hints,
+  `/queue`, `/btw`, `/new`, `/resume <id>`), cross-directory attach adopting the backend workspace,
+  branch-bound session identity, the stats EN ⇄ 中文 switch, and the deferred-Web-UI placeholder.
+- **Landing**: `main` fast-forwarded to `91cac49395e` (scratch check outputs dropped) after the
+  branch run; the release bump `5265a4bc16f` then failed its tag run for two release-surface
+  reasons and was **not** published:
+  1. workbench leaves were still the 1.4.0 builds (`main/npm/main-{windows,linux}-x64/bin`,
+     `termide/npm/ide-*` stamps) — damage class 13. Rebuilt at 1.4.1 (Windows GNU + native Linux),
+     verified the `zetawork 1.4.1` marker, restamped all four leaves in `5ff3275bbe0`→`99824e9edf7`.
+  2. `makepkg` produced a `linxira-zeta-debug` split package that failed the staged-asset name
+     check; the Arch PKGBUILD now sets `options=('!debug')` (the archive ships stripped binaries).
+- **Tooling note**: `gen-bazel-lock` cannot run on this Windows host (symlink privilege, `os error
+  1314`); the lock was refreshed in WSL with bazelisk 9.2.0 and committed separately, so the release
+  script ran with bazel hidden from `PATH` and left the refreshed lock untouched.
+- **Type fix**: `logAttributeValue` in `telemetry-export-otlp.ts` now returns the scalars it
+  actually produces; the fresh install's `@opentelemetry` types rejected the inferred
+  `AttributeValue` union at the `LogAttributes` assignment.
+- **Final tag**: `v1.4.1` re-created on the rebuilt-leaf commit after the failed run; the first
+  tag (`5265a4bc16f`) was deleted and is not published.
