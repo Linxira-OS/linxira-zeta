@@ -1,1 +1,0 @@
-Scope imports OK: 20375 @linxiraos/* specifier(s) resolve (5 allow patterns).

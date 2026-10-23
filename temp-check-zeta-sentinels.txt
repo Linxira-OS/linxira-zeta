@@ -1,1 +1,0 @@
-Zeta sentinels OK: 119 sentinels verified, AGENTS.md → document/merge-review.md
