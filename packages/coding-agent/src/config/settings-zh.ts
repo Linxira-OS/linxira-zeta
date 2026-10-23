@@ -1321,7 +1321,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"tools.approvalMode": {
 		label: "工具审批",
 		description:
-			'工具调用的默认审批行为。"总是询问"仅自动批准只读工具。"写入"自动批准读取和工作区写入工具。"Yolo"自动批准所有层级；用户策略仍可能提示或阻止。',
+			'工具调用的默认审批行为。"总是询问"仅自动批准只读工具。"询问并记住"还会在读取文件前询问，并可记住该文件或文件夹。"写入"自动批准读取和工作区写入工具。"Yolo"自动批准所有层级；用户策略仍可能提示或阻止。',
 	},
 	"todo.enabled": {
 		label: "待办",
@@ -3755,6 +3755,11 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"tools.approvalMode::always-ask": {
 		label: "总是询问",
 		description: "自动批准只读工具；写入和执行工具需要确认。",
+	},
+	"tools.approvalMode::always-ask-cached": {
+		label: "询问并记住",
+		description:
+			"读取或写入文件前都会询问，并记住对该文件或其所在文件夹的答复（本次会话或所有会话）；执行工具仍需确认。",
 	},
 	"tools.approvalMode::write": {
 		label: "写入",
