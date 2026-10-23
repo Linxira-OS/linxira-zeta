@@ -10,6 +10,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 
 /**
  * Regression for issue #5064.

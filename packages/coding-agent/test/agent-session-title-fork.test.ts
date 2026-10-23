@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@linxiraos/pi-agent-core";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import * as ai from "@linxiraos/pi-ai";
 import { createMockModel, type MockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
@@ -10,6 +10,7 @@ import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
+import { TodoTool, type ToolSession } from "@linxiraos/zeta/tools";
 
 let session: AgentSession | undefined;
 let authStorage: AuthStorage | undefined;

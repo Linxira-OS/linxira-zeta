@@ -1,4 +1,4 @@
-import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
+import { type ReadToolDetails, isReadableUrlPath } from "@linxiraos/pi-tui/tools/read";
 import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -2413,11 +2413,40 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 
 					const DEFAULT_LIMIT = this.#defaultLimit;
 					const effectiveLimit = limit ?? (planTargetedRead ? DEFAULT_MAX_LINES : DEFAULT_LIMIT);
-					const maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
-					const selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
+					let maxLinesToCollect = Math.min(effectiveLimit + leadingContext + trailingContext, DEFAULT_MAX_LINES);
+					let selectedLineLimit = effectiveLimit + leadingContext + trailingContext;
 					// Scale byte budget with line limit so the configured line count actually fits.
 					// Assume ~512 bytes/line average; never go below the shared default.
-					const maxBytesForRead = Math.max(DEFAULT_MAX_BYTES, maxLinesToCollect * 512);
+					const budgetFor = (firstLine: number, lineCount: number): number => {
+						const scaled = Math.max(DEFAULT_MAX_BYTES, lineCount * 512);
+						if (located?.spec.artifactStore) return scaled;
+						const threshold = resolveArtifactSpillThreshold(this.session.settings);
+						const prefixWidth =
+							!rawSelector && displayMode.lineNumbers ? String(firstLine + lineCount).length + 1 : 0;
+						const prefixReserve = Math.min(lineCount * prefixWidth, Math.floor(threshold / 2));
+						return Math.min(scaled, threshold - prefixReserve);
+					};
+					const collectWindow = async (
+						firstLine: number,
+						lineCount: number,
+						maxBytes: number,
+						selectedLimit: number,
+					) =>
+						buffered
+							? collectLineWindowFromBuffer(buffered, firstLine, lineCount, maxBytes, selectedLimit)
+							: await streamLinesFromFile(
+									absolutePath,
+									firstLine,
+									lineCount,
+									maxBytes,
+									selectedLimit,
+									undefined,
+									{
+										stopScanAfterCollect: fileSize > SNAPSHOT_MAX_BYTES,
+										seek: tailSeekTo?.(firstLine),
+									},
+								);
+					let maxBytesForRead = budgetFor(startLine, maxLinesToCollect);
 
 					let lineWindow = await collectWindow(startLine, maxLinesToCollect, maxBytesForRead, selectedLineLimit);
 

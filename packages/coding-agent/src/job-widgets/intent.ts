@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@linxiraos/pi-agent-core";
 
 /** How many trailing messages {@link resolveToolCallIntent} looks through. */
 const INTENT_LOOKBACK = 16;

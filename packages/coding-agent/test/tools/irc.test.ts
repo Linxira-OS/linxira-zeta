@@ -1,14 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import { Agent } from "@linxiraos/pi-agent-core";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { type IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { AgentSession, type AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { IrcBridge } from "@linxiraos/zeta/session/irc-bridge";
+import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
+import { attachIrcWakeTurnMonitor } from "@linxiraos/zeta/task/executor";
+import { createSessionDefaults } from "../helpers/session-defaults";
+import { executeSend } from "@linxiraos/zeta/irc/messaging";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+
+type IrcWakeObserver = (records: AgentMessage[]) => ((error?: unknown) => void | Promise<void>) | undefined;
+
+const wakeAgent: AgentDefinition = { name: "task", description: "test", systemPrompt: "test", source: "bundled" };
 
 interface FakeSession {
 	session: AgentSession;

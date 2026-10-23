@@ -12,7 +12,7 @@ import * as path from "node:path";
 
 import { isEnoent, logger, pathIsWithin, PLUGINS_LOCKFILE_CANONICAL } from "@linxiraos/pi-utils";
 import { expandTilde } from "../../../tools/path-utils";
-import { normalizePluginRuntimeConfig, readPluginRuntimeConfig } from "../runtime-config";
+import { normalizePluginRuntimeConfig, readPluginRuntimeConfig, writePluginRuntimeConfig } from "../runtime-config";
 import type { PluginRuntimeConfig, PluginRuntimeState } from "../types";
 
 import { cachePlugin, getCachedPluginPath, isValidVersionForCache } from "./cache";

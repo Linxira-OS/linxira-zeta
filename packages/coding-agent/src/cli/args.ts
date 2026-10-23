@@ -17,6 +17,7 @@ import {
 } from "./flag-tables";
 import { getExtraHelpText } from "./help-extra";
 import { CliUsageError } from "./usage-error";
+import type { ApprovalMode } from "../tools/approval";
 
 export { getExtraHelpText };
 

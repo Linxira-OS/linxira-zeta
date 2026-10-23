@@ -47,7 +47,7 @@ import {
 	invalidateFsScanAfterRename,
 	invalidateFsScanAfterWrite,
 } from "../tools/fs-cache-invalidation";
-import { outputMeta } from "../tools/output-meta";
+import { outputMeta, resolveOutputMaxColumns } from "../tools/output-meta";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { type EditMode } from "@linxiraos/pi-tui/tools/edit";
 import { resolveEditMode } from "../utils/edit-mode";
@@ -83,6 +83,7 @@ import {
 	cfgLspFormatOnWrite,
 	cfgLspRequestTimeout,
 } from "../lsp/settings";
+import { DEFAULT_MAX_COLUMN } from "@linxiraos/pi-tui/tools/streaming-output";
 
 export type {
 	EditRenderContext,

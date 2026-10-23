@@ -9,6 +9,7 @@ import {
 	clampProviderContextImageBytes,
 	clampProviderContextImages,
 } from "@linxiraos/zeta/session/provider-image-budget";
+import { factoryDroidWireBaseUrl } from "@linxiraos/pi-catalog/wire/factory-droid";
 
 const UMANS_MODEL = buildModel({
 	id: "umans-glm-5.2",

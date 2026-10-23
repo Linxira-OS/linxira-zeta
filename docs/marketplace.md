@@ -232,7 +232,7 @@ Invalid catalog JSON or invalid required top-level fields reject the catalog. An
   marketplaces.json              # Registry of added marketplaces
   plugins/
     installed_plugins.json       # User-scoped marketplace plugins (version: 2)
-    zeta-plugins.lock.json       # Runtime enable/feature state
+    zeta-plugins.lock.json       # Runtime enable/feature state and plugin settings
     node_modules/<package>        # Symlink to the cached plugin
     cache/
       marketplaces/<name>/       # Cached marketplace clone/catalog

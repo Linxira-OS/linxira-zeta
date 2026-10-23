@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 import { findFreeCdpPort, relayTargets } from "@linxiraos/zeta/tools/browser/attach";

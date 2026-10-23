@@ -28,7 +28,7 @@ import { describeJobTiles, type JobTile, type JobWidgetView, renderJobTileLines 
 import type { RenderResultOptions, ToolRenderer, ToolActivitySummary } from "./renderer";
 import type { IrcDeliveryReceipt, IrcMessage } from "./irc";
 import type { TspSpan } from "@linxiraos/pi-wire";
-import { card as cardNode, compact, elapsed, md, node, row, span, text } from "../native/describe";
+import { card as cardNode, compact, elapsed, keyed, md, node, row, span, text } from "../native/describe";
 import type { NativeNode } from "../native/node";
 import { OwnerMemo } from "../native/memo";
 import { plainText } from "../native/spans";

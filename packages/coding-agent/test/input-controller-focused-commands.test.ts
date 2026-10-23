@@ -18,6 +18,7 @@ import { InputController } from "@linxiraos/zeta/modes/controllers/input-control
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import manualContinuePrompt from "../src/prompts/system/manual-continue.md" with { type: "text" };
 import { beginSettingsTest, restoreSettingsTestState } from "./helpers/settings-test-state";
+import { Settings } from "@linxiraos/zeta/config/settings";
 
 function createFocusedContext() {
 	let editorText = "";

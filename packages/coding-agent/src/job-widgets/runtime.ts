@@ -6,7 +6,7 @@
  * involved past the spec. Work per refresh is proportional to the new text:
  * series keep bounded rings and per-refresh match buckets.
  */
-import { LineMatcher } from "@oh-my-pi/pi-natives";
+import { LineMatcher } from "@linxiraos/pi-natives";
 import type {
 	JobWidgetBlock,
 	JobWidgetHeadline,
@@ -14,9 +14,9 @@ import type {
 	JobWidgetState,
 	JobWidgetTrend,
 	JobWidgetView,
-} from "@oh-my-pi/pi-tui/tools/job-widget";
-import type { TspTone } from "@oh-my-pi/pi-wire";
-import { sanitizeText, truncate } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui/tools/job-widget";
+import type { TspTone } from "@linxiraos/pi-wire";
+import { sanitizeText, truncate } from "@linxiraos/pi-utils";
 import { formatWidgetNumber, formatWidgetTrend } from "./format";
 import {
 	type JobWidgetAgg,

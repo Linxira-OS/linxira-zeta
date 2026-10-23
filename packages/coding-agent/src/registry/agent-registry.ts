@@ -21,6 +21,7 @@ import type { AgentSession } from "../session/agent-session";
 import { oneLineLabel } from "@linxiraos/pi-tui/tools/task";
 
 import { MAIN_AGENT_ID, type AgentStatus, type AgentMetricsSummary } from "@linxiraos/pi-tui/overlays/agent-hub-types";
+import { AgentAwaits } from "./agent-awaits";
 export { MAIN_AGENT_ID };
 export type { AgentStatus, AgentMetricsSummary };
 

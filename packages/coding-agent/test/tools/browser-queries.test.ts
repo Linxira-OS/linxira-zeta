@@ -5,6 +5,7 @@ import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
 import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { chromiumAvailable } from "./chromium-probe";
+import { TERN_KIT_SOURCE } from "@linxiraos/zeta/tools/browser/tern/page-kit";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();
 const session: ToolSession = {

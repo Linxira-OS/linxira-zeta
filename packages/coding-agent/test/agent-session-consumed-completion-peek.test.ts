@@ -14,6 +14,8 @@ import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { WaitTool } from "@linxiraos/zeta/tools/wait";
 import { TempDir } from "@linxiraos/pi-utils";
+import * as daemonClient from "@linxiraos/zeta/launch/client";
+import type { DaemonBrokerClient } from "@linxiraos/zeta/launch/client";
 
 /**
  * An eval cell awaiting a subagent consumes the subagent's output after the

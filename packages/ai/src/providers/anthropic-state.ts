@@ -1,4 +1,6 @@
 import { isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import { isCatalogEndpointUrl } from "@linxiraos/pi-catalog/compat/catalog-endpoint";
+import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
 import { $env } from "@linxiraos/pi-utils";
 import type { Api, Model, ProviderSessionState } from "../types";
 import { isFoundryEnabled } from "../utils/foundry";

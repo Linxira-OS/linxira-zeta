@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Api, AssistantMessage, Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
@@ -13,6 +16,15 @@ import type { AgentProgress } from "@linxiraos/pi-tui/tools/task";
 import { createSessionDefaults } from "./helpers/session-defaults";
 
 import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
 
 function model(provider: string, id: string): Model<Api> {
 	return buildModel({

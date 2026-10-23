@@ -126,6 +126,7 @@ import {
 } from "./context-settings";
 import { resolveModelCompactionSettings } from "./model-compaction-threshold";
 import { cfgRetry } from "./settings";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
 
 export type CompactionCheckResult = Readonly<{
 	continuationScheduled: boolean;

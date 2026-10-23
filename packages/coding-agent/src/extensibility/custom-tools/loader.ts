@@ -1,6 +1,6 @@
 /**
  * Custom tool loader - loads TypeScript tool modules through the same loader
- * as extensions, so `@oh-my-pi/*` imports resolve to the host's bundled copy
+ * as extensions, so `@linxiraos/*` imports resolve to the host's bundled copy
  * (in the compiled binary there is no other copy to resolve).
  *
  * Dependencies are also injected through CustomToolAPI so tools loaded from

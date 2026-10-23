@@ -15,10 +15,10 @@
  *   every undispatched command.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runPrintMode } from "@oh-my-pi/pi-coding-agent/modes/print-mode";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { runPrintMode } from "@linxiraos/zeta/modes/print-mode";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 interface RetryPrepSpies {
 	prompt: ReturnType<typeof vi.fn>;

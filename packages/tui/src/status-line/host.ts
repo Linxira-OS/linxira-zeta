@@ -1,6 +1,7 @@
 import type { AgentMessage, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { Tool, UsageLimit, UsageReport } from "@linxiraos/pi-ai";
 import type { Model } from "@linxiraos/pi-catalog/types";
+import type { JobWidgetEntry } from "../tools/job-widget";
 import type { CompactionBoundaries } from "./context-usage";
 import type { StatusLineSettings, StatusResetExpiry } from "./types";
 

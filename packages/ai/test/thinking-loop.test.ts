@@ -6,6 +6,7 @@ import { createMockModel, type MockContent, registerMockApi } from "@linxiraos/p
 import { complete, completeSimple, stream, streamSimple } from "@linxiraos/pi-ai/stream";
 import type { Api, AssistantMessage, AssistantMessageEvent, Context, Model } from "@linxiraos/pi-ai/types";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { wrapLeakedThinkingStream } from "@linxiraos/pi-ai/utils/leaked-thinking-stream";
 import {
 	GEMINI_HEADER_RUNAWAY_THRESHOLD,
 	GeminiHeaderRunDetector,

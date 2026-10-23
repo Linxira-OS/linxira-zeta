@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { AssistantMessage } from "@linxiraos/pi-ai";
+import type { AssistantMessage, ToolCall } from "@linxiraos/pi-ai";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
@@ -26,6 +26,7 @@ import { WaitTool } from "@linxiraos/zeta/tools/wait";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { EventBus } from "@linxiraos/zeta/utils/event-bus";
 import { TempDir } from "@linxiraos/pi-utils";
+import { type CursorExecResolvedCarrier, kCursorExecResolved } from "@linxiraos/pi-ai/utils/block-symbols";
 
 const AGENT_ID = "accepted-result";
 

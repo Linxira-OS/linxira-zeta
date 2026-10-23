@@ -27,7 +27,7 @@ import type { ToolSession } from "@linxiraos/zeta/tools";
 import { BashTool } from "@linxiraos/zeta/tools/bash";
 import { computerTurnInFlight, registerComputerController } from "@linxiraos/zeta/tools/computer/supervisor";
 import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@linxiraos/zeta/tools/xdev";
-import { TempDir } from "@linxiraos/pi-utils";
+import { TempDir, withTimeout } from "@linxiraos/pi-utils";
 
 // ---------------------------------------------------------------------------
 // Shared setup

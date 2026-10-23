@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Agent, type AgentEvent } from "@linxiraos/pi-agent-core";
+import { Agent, type AgentEvent, validateAgentToolArguments } from "@linxiraos/pi-agent-core";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { convertOpenAICodexResponsesTools } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import type { Model, Tool, ToolCall } from "@linxiraos/pi-ai/types";

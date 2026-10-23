@@ -7,13 +7,13 @@ import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import type { CompactionMethod } from "@linxiraos/zeta/session/compaction-methods";
+import { type CompactionMethod, resolveSpeculationMethod } from "@linxiraos/zeta/session/compaction-methods";
 import { convertToLlm } from "@linxiraos/zeta/session/messages";
 import { SessionMaintenance, type SessionMaintenanceHost } from "@linxiraos/zeta/session/session-maintenance";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import * as snapcompactModule from "@linxiraos/pi-snapcompact";
 
-import { cfgCompactionMethodOrder } from "@linxiraos/zeta/session/context-settings";
+import { cfgCompactionMethodOrder, cfgCompaction } from "@linxiraos/zeta/session/context-settings";
 
 const CONTEXT_WINDOW = 100_000;
 const THRESHOLD = 50_000;

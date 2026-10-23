@@ -13,8 +13,10 @@ import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
 import type { PrDiffPayload, ViewLookupResult } from "@linxiraos/zeta/tools/gh";
 import * as gh from "@linxiraos/zeta/tools/gh";
 import { parsePrUnifiedDiff } from "@linxiraos/zeta/tools/gh-pr-diff";
+import * as glab from "@linxiraos/zeta/tools/glab-mr";
 import { github } from "@linxiraos/zeta/utils/github";
 import { $ } from "bun";
+import { gitlab } from "@linxiraos/zeta/utils/gitlab";
 
 const SAMPLE_JJ_DIFF = `diff --git a/src/workspace.ts b/src/workspace.ts
 --- a/src/workspace.ts

@@ -7,7 +7,7 @@
  * a registered internal URL (`xd://`, `local://`, …) kept in its normalized
  * form, or a readable web URL kept as written.
  */
-import { isReadableUrlPath } from "@oh-my-pi/pi-tui/tools/read";
+import { isReadableUrlPath } from "@linxiraos/pi-tui/tools/read";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { InternalUrlRouter } from "../internal-urls/router";

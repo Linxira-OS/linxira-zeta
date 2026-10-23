@@ -39,6 +39,7 @@ import {
 	getProjectDir,
 	isCompiledBinary,
 	parseFrontmatter as parseOmpFrontmatter,
+	prompt,
 } from "@linxiraos/pi-utils";
 import { getPackageDir as getOmpPackageDir } from "../config";
 import { formatKeyHints } from "@linxiraos/pi-tui/app-keybindings";
@@ -91,6 +92,7 @@ import type { Skill } from "./skills";
 import { loadSkillsFromDir } from "./skills";
 
 import { cfgDisabledExtensions, cfgExtensions, cfgSkills } from "./settings";
+import legacyAvailableSkillsTemplate from "./legacy-pi-available-skills.md" with { type: "text" };
 
 const TOOL_DEFINITION_MARKER = "__isToolDefinition";
 const LEGACY_BUILTIN_TOOL_MARKER = "__ompLegacyBuiltinTool";

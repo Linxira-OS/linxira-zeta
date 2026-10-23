@@ -670,6 +670,7 @@ async function runInteractiveMode(
 	startupLease?: ComposerLease,
 	startupGoal?: string,
 	startupRestore?: () => Promise<RestoreOutcome>,
+	refreshScopedModelsAfterLogin?: () => Promise<void>,
 	backendTarget?: ResolvedBackendTarget,
 ): Promise<void> {
 	// Install the host text source for @linxiraos/pi-tui before the first
@@ -2881,6 +2882,7 @@ export async function runRootCommand(
 							startupLease,
 							initialArgs.goal,
 							parsedArgs.restore ? () => restoreSession(session, { eventBus, subagentEventBus }) : undefined,
+							refreshScopedModelsAfterLogin,
 							backendAttachTarget,
 						);
 					} finally {

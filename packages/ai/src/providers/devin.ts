@@ -28,7 +28,7 @@ import {
 } from "@linxiraos/pi-catalog/discovery/devin-proto";
 import { create, fromBinary, toBinary } from "@linxiraos/pi-catalog/discovery/protobuf";
 import { calculateCost } from "@linxiraos/pi-catalog/models";
-import { DEVIN_DEFAULT_BASE_URL, devinCliMetadata, devinWireMetadata } from "@linxiraos/pi-catalog/wire/devin";
+import { DEVIN_DEFAULT_BASE_URL, devinCliMetadata } from "@linxiraos/pi-catalog/wire/devin";
 import { decodeDevinUnaryMessage } from "@linxiraos/pi-catalog/wire/devin-proto";
 import { isRecord, logger, parseStreamingJson, parseStreamingJsonThrottled, sanitizeText } from "@linxiraos/pi-utils";
 import * as AIError from "../error";

@@ -8,6 +8,9 @@ import type { DaemonBrokerClient } from "@linxiraos/zeta/launch/client";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import { WaitTool } from "@linxiraos/zeta/tools/wait";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
+import { runEvalWait } from "@linxiraos/zeta/eval/handle-bridge";
 
 function session(manager?: AsyncJobManager, agentId = "Main", launch = false): ToolSession {
 	return {

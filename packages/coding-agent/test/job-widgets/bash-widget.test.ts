@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { procmgr } from "@oh-my-pi/pi-utils";
-import type { JobWidgetView } from "@oh-my-pi/pi-tui/tools/job-widget";
+import { procmgr } from "@linxiraos/pi-utils";
+import type { JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
 import { AsyncJobManager } from "../../src/async/job-manager";
 import { snapshotJobs } from "../../src/async/job-control";
 import { Settings } from "../../src/config/settings";

@@ -23,6 +23,7 @@ import {
 	cfgThemeLight,
 } from "./settings";
 import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-settings";
+import { getOAuthCredentialProvider } from "@linxiraos/pi-ai/oauth";
 
 export { ALL_SCENES, CURRENT_SETUP_VERSION };
 export type { SetupScene, SetupSceneHost } from "@linxiraos/pi-tui/setup/scenes/types";

@@ -3,11 +3,11 @@ import type { GalleryFixture } from "./types";
 
 const GALLERY_DEPS = {
 	"@ai-sdk/anthropic": "^1.2.0",
-	"@oh-my-pi/pi-ai": "workspace:*",
-	"@oh-my-pi/pi-tui": "workspace:*",
+	"@linxiraos/pi-ai": "workspace:*",
+	"@linxiraos/pi-tui": "workspace:*",
 };
 const GALLERY_DEPS_TEXT =
-	"{'@ai-sdk/anthropic': '^1.2.0', '@oh-my-pi/pi-ai': 'workspace:*', '@oh-my-pi/pi-tui': 'workspace:*'}";
+	"{'@ai-sdk/anthropic': '^1.2.0', '@linxiraos/pi-ai': 'workspace:*', '@linxiraos/pi-tui': 'workspace:*'}";
 
 export const shellFixtures: Record<string, GalleryFixture> = {
 	bash: {

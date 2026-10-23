@@ -8,7 +8,19 @@ import { beforeAll, describe, expect, it } from "bun:test";
 import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import { prompt } from "@linxiraos/pi-utils";
 import taskSummaryTemplate from "../../coding-agent/src/prompts/tools/task-summary.md" with { type: "text" };
-import { waitToolRenderer } from "@linxiraos/pi-tui/tools/wait";
+import type { NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { type CoordinationDetails, waitToolRenderer } from "@linxiraos/pi-tui/tools/wait";
+import { decodeBench } from "./fixtures/job-widget-views";
+
+/** Every described node under `children`, depth first. */
+function flatten(children: readonly NativeChild[] | undefined): NativeNode[] {
+	return (children ?? []).flatMap(child => ("k" in child ? [child, ...flatten(child.c)] : []));
+}
+
+/** The first node under `root` with `role`. */
+function byRole(root: NativeChild | undefined, role: string): NativeNode | undefined {
+	return flatten(root ? [root] : []).find(node => node.p && Reflect.get(node.p, "role") === role);
+}
 
 function renderLines(resultText: string): string {
 	const result = {

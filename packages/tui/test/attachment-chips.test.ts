@@ -6,6 +6,7 @@ import { getEditorTheme, initTheme } from "@linxiraos/pi-tui/theme";
 import { ImageBudget } from "@linxiraos/pi-tui";
 import { setKittyGraphics } from "@linxiraos/pi-tui/kitty-graphics";
 import { getCellDimensions, ImageProtocol, setCellDimensions, TERMINAL } from "@linxiraos/pi-tui/terminal-capabilities";
+import { getAvailableSymbolPresets, SYMBOL_PRESETS } from "@linxiraos/pi-tui/theme/symbols";
 import { visibleWidth } from "@linxiraos/pi-tui/utils";
 
 // 2x2 red PNG — real header so the band's dimension probe decodes 2x2.

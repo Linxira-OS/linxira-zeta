@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
 import { resolveStdioSpawnCommand, StdioTransport, writeFrame } from "@linxiraos/zeta/mcp/transports/stdio";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { trackUnhandled } from "./helpers/rejection";
 
 describe("resolveStdioSpawnCommand", () => {
 	it("resolves bare Windows commands through PATHEXT and wraps .cmd shims with cmd.exe", async () => {

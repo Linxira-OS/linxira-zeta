@@ -6,20 +6,20 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { recordApprovalGrant, resolveApproval } from "@oh-my-pi/pi-coding-agent/tools/approval";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { recordApprovalGrant, resolveApproval } from "@linxiraos/zeta/tools/approval";
 import {
 	type ApprovalGrantStore,
 	approvalDirectoryKey,
 	approvalGrantKey,
 	getApprovalGrants,
-} from "@oh-my-pi/pi-coding-agent/tools/approval-cache";
-import { approvalTargetKey, approvalTreeSearchKey } from "@oh-my-pi/pi-coding-agent/tools/approval-targets";
-import { AstGrepTool } from "@oh-my-pi/pi-coding-agent/tools/ast-grep";
-import { GlobTool } from "@oh-my-pi/pi-coding-agent/tools/glob";
-import { GrepTool } from "@oh-my-pi/pi-coding-agent/tools/grep";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { TempDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/tools/approval-cache";
+import { approvalTargetKey, approvalTreeSearchKey } from "@linxiraos/zeta/tools/approval-targets";
+import { AstGrepTool } from "@linxiraos/zeta/tools/ast-grep";
+import { GlobTool } from "@linxiraos/zeta/tools/glob";
+import { GrepTool } from "@linxiraos/zeta/tools/grep";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { TempDir } from "@linxiraos/pi-utils";
 
 /** Minimal tool session for directly exercising a search tool's approval-cache keys. */
 function createToolSession(cwd: string): ToolSession {

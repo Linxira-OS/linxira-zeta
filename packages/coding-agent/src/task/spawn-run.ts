@@ -10,6 +10,9 @@
  */
 import type { AgentToolResult, AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import type { TaskToolDetails } from "@linxiraos/pi-tui/tools/task";
+import { TOOLS_SOURCE_ID } from "../job-widgets/types";
+import { TOOLS_SOURCE_LABEL } from "./widget-inputs";
+import { TextTap } from "../job-widgets/text-tap";
 
 /** Wall-clock stamps a spawn reports to the executor: call time and permit time. */
 export interface SpawnLaunchTiming {

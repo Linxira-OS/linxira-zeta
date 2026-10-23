@@ -5,6 +5,9 @@ import type { ToolSession } from "@linxiraos/zeta/tools";
 import { GrepTool } from "@linxiraos/zeta/tools/grep";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { WriteTool } from "@linxiraos/zeta/tools/write";
+import { AstGrepTool } from "@linxiraos/zeta/tools/ast-grep";
+import { FindTool } from "@linxiraos/zeta/tools/jfind";
+import { GlobTool } from "@linxiraos/zeta/tools/glob";
 
 // Minimal ToolSession stub (block-images.test.ts shape). Approval functions are
 // pure over their args, and the write-execute selector reject throws before any

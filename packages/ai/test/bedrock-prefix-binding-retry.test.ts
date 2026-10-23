@@ -1,9 +1,15 @@
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import { type } from "@linxiraos/pi-omptype";
 import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
 import type { AssistantMessage, Context, Model, Tool } from "@linxiraos/pi-ai/types";
 import { Effort } from "@linxiraos/pi-catalog/effort";
-import { bedrockHappyPathFrames, bedrockTestModel, withSkippedBedrockAuth } from "./helpers/bedrock-stream";
+import { logger } from "@linxiraos/pi-utils";
+import {
+	bedrockEvent,
+	bedrockHappyPathFrames,
+	bedrockTestModel,
+	withSkippedBedrockAuth,
+} from "./helpers/bedrock-stream";
 
 const PREFIX_BINDING_ERROR =
 	'messages.1.content.0: Invalid `signature` in `thinking` block. The block is bound to a different conversation. Remove the block, or set `thinking.block_binding.prefix_mismatch_behavior` to "drop_block". That setting requires the "thinking-binding-controls-2026-08-01" value in the "anthropic-beta" header. The "system" prompt differs from the one this block was created with.';

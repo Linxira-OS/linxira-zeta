@@ -5,6 +5,7 @@ import {
 	resolveFactoryDroidPolicy,
 	resolveFactoryDroidRotation,
 } from "@linxiraos/pi-catalog/compat/factory-droid";
+import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
 import { resolveModelPolicy } from "@linxiraos/pi-catalog/compat/resolve";
 import type { RequestPolicy } from "@linxiraos/pi-catalog/compat/types";
 import type { Effort } from "@linxiraos/pi-catalog/effort";

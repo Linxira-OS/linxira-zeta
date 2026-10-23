@@ -21,7 +21,14 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { inflateSync } from "node:zlib";
 import type * as CanvasModule from "@napi-rs/canvas";
-import { IpcConnection } from "@linxiraos/pi-natives";
+import {
+	IpcConnection,
+	ipcEndpoint,
+	normalizePtyDimensions,
+	type PtyArgvStartOptions,
+	type PtyDimensions,
+	PtySession,
+} from "@linxiraos/pi-natives";
 import type * as KittyVt from "kitty-vt-wasm";
 import type { Color, KittyEvent, KittyTerminal } from "kitty-vt-wasm";
 import { tmpdir } from "node:os";

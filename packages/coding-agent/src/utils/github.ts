@@ -2,6 +2,7 @@ import { $which, isRecord } from "@linxiraos/pi-utils";
 import { REJECT_PROMPT_COMMAND } from "../exec/non-interactive-env";
 import { ToolAbortError, throwIfAborted } from "../tools/tool-errors";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
+import { FORGE_NON_INTERACTIVE_ENV, type ForgeCliResult, type ForgeCliSpec, runForgeCli } from "./forge-cli";
 
 /** Captured result of a completed `gh` invocation. */
 export interface GhCommandResult {

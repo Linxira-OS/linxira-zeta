@@ -6,6 +6,7 @@ import {
 } from "@linxiraos/pi-agent-core/compaction";
 import type { Model } from "@linxiraos/pi-ai";
 import type { CompactionSettings } from "./context-settings";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
 
 /** Choices presented by the ordered compaction-method setting. */
 export const COMPACTION_METHOD_CHOICES = [

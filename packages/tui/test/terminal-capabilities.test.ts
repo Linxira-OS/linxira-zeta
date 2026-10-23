@@ -239,7 +239,7 @@ describe("iTerm2 over SSH", () => {
 			cmd: [
 				process.execPath,
 				"--eval",
-				`import { TERMINAL, TERMINAL_ID } from "@oh-my-pi/pi-tui/terminal-capabilities";
+				`import { TERMINAL, TERMINAL_ID } from "@linxiraos/pi-tui/terminal-capabilities";
 console.log(JSON.stringify({ id: TERMINAL_ID, imageProtocol: TERMINAL.imageProtocol }));`,
 			],
 			env,

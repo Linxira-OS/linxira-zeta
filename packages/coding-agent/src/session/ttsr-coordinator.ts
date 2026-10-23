@@ -15,7 +15,7 @@ import {
 } from "@linxiraos/pi-agent-core";
 import type { AssistantMessage, Judge, ToolCall } from "@linxiraos/pi-ai";
 import { logger, prompt, relativePathWithinRoot, withTimeout } from "@linxiraos/pi-utils";
-import type { Rule } from "../capability/rule";
+import { BUILTIN_DEFAULTS_PROVIDER_ID, type Rule } from "../capability/rule";
 import type { Settings } from "../config/settings";
 import {
 	judgeRules,

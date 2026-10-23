@@ -18,9 +18,11 @@ import {
 	openDb,
 	putCached,
 	resetForTests as resetCacheForTests,
+	resolveGitlabCacheAuthKey,
 } from "@linxiraos/zeta/tools/github-cache";
 import { ToolAbortError, throwIfAborted } from "@linxiraos/zeta/tools/tool-errors";
 import { github } from "@linxiraos/zeta/utils/github";
+import { Database } from "bun:sqlite";
 
 const TEST_REPO = "owner/example";
 const TEST_AUTH_KEY = "test-auth";

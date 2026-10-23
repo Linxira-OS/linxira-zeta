@@ -1,4 +1,4 @@
-import type { LineRange } from "@linxiraos/pi-tui/tools/line-ranges";
+import { type LineRange, mergeLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
 import { parseTailCount } from "./path-utils";
 import { parseLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";

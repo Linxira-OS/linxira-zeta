@@ -5,6 +5,7 @@ import { shutdownHandlerTui } from "./builtin-lifecycle";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
 import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
+import { clearApprovalGrants } from "../tools/approval-cache";
 
 export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{

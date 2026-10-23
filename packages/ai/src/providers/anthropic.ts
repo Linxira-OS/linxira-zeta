@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as tls from "node:tls";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 import { isAnthropicSigningProxyUrl, isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
 import { hostMatchesUrl, isVertexRawPredictUrl, modelMatchesHost } from "@linxiraos/pi-catalog/hosts";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
@@ -44,6 +45,7 @@ import type {
 	ImageContent,
 	Message,
 	Model,
+	ModelSpec,
 	ProviderInputTransformation,
 	ProviderPayload,
 	ProviderSessionState,

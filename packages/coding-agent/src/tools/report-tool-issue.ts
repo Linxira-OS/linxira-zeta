@@ -73,13 +73,52 @@ export function isReportIssueToolCall(toolCall: { name: string; arguments?: Reco
 const MAX_TOOL_BYTES = 128;
 
 /**
+ * Remove the user's identity from grievance text. Reports quote paths and
+ * commands verbatim and leave the machine, so the home directory becomes `~`,
+ * and the login name becomes `<user>` in the forms that name the user: a home
+ * path the first rewrite missed (`/c/Users/<user>`, an encoded session dir
+ * `-Users-<user>-`, `~<user>`), a reverse-DNS label (`com.<user>.app`) and
+ * `<user>@host`. Elsewhere the name is left alone: logins such as `will`,
+ * `node`, `bin` or `test` are also words and directory names. `root` names no
+ * one, so only its home is rewritten.
+ */
+function redactUserIdentity(text: string): string {
+	let redacted = text;
+	const home = os.homedir();
+	// Case-insensitive throughout: Windows and default macOS volumes name the
+	// same home in any case (`c:\users\will`), and over-matching another
+	// casing only hides more.
+	if (home.length > 1) {
+		for (const form of new Set([home, home.replaceAll("\\", "/")])) {
+			const pattern = `(?<![\\p{L}\\p{N}_.-])${RegExp.escape(form)}(?![\\p{L}\\p{N}_-]|\\.[\\p{L}\\p{N}])`;
+			redacted = redacted.replace(new RegExp(pattern, "giu"), "~");
+		}
+	}
+	let user: string | undefined;
+	try {
+		user = os.userInfo().username;
+	} catch {
+		// No passwd entry for the uid (some containers): the home rewrite above still applies.
+	}
+	if (user && user !== "root") {
+		const name = RegExp.escape(user);
+		const pattern = new RegExp(
+			`(?<=(?<![\\p{L}\\p{N}])(?:Users|home)[/\\\\-]|~|(?<![\\p{L}\\p{N}])(?:com|org|net|io|dev)\\.)${name}(?![\\p{L}\\p{N}])|(?<![\\p{L}\\p{N}])${name}(?=@)`,
+			"giu",
+		);
+		redacted = redacted.replace(pattern, "<user>");
+	}
+	return redacted;
+}
+
+/**
  * Clamp a legacy grievance's `tool` field.
  *
  * An over-long `tool` is prose the model put on line 1 instead of a tool name,
  * so the original line is kept at the head of the report and only the stored
  * name is truncated: nothing is lost and the row stops being a poison pill.
  */
-function normalizeGrievance(rawTool: string, rawReport: string): { tool: string; report: string } {
+function clampGrievance(rawTool: string, rawReport: string): { tool: string; report: string } {
 	const tool = redactUserIdentity(rawTool);
 	const report = redactUserIdentity(rawReport);
 	if (Buffer.byteLength(tool, "utf8") <= MAX_TOOL_BYTES) return { tool, report };
@@ -95,7 +134,7 @@ function parseReportIssueBody(text: string): { tool: string; report: string } {
 	if (firstNewline >= 0) {
 		const tool = body.slice(0, firstNewline).trim();
 		const report = body.slice(firstNewline + 1).trim();
-		if (tool && report) return normalizeGrievance(tool, report);
+		if (tool && report) return clampGrievance(tool, report);
 	}
 	// Only a colon followed by whitespace separates, so a URI (`xd://tui`) or an
 	// unspaced argument (`{name:'x'}`) in the tool name stays in the tool name.
@@ -103,7 +142,7 @@ function parseReportIssueBody(text: string): { tool: string; report: string } {
 	if (colon > 0) {
 		const tool = body.slice(0, colon).trim();
 		const report = body.slice(colon + 1).trim();
-		if (tool && report) return normalizeGrievance(tool, report);
+		if (tool && report) return clampGrievance(tool, report);
 	}
 	throw new ToolError(`Invalid report format. ${reportIssueDeviceUsage()}`);
 }

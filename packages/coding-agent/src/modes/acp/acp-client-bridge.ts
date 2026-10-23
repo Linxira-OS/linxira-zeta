@@ -4,7 +4,7 @@
  * `AgentSession`) can route through the client when it advertises the
  * relevant capabilities at `initialize` time.
  */
-import { RequestError } from "@oh-my-pi/pi-utils/acp";
+import { RequestError } from "@linxiraos/pi-utils/acp";
 import type {
 	PermissionOption as AcpPermissionOption,
 	TerminalHandle as AcpTerminalHandle,

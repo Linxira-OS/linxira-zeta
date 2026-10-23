@@ -8,7 +8,7 @@ import {
 	trimBlankEdges,
 } from "@linxiraos/pi-tui/chrome/transcript-container";
 import { initTheme } from "@linxiraos/pi-tui/theme";
-import type { Component } from "@linxiraos/pi-tui";
+import { type Component, ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 
 class Block implements Component {
 	#rows: string[];

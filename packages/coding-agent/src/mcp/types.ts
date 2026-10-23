@@ -1,4 +1,4 @@
-import type { MCPContent, MCPImageContent, MCPResourceContent, MCPTextContent } from "@linxiraos/pi-tui/tools/mcp";
+import type { MCPContent, MCPImageContent, MCPResourceContent, MCPTextContent, MCPProgress } from "@linxiraos/pi-tui/tools/mcp";
 /**
  * MCP (Model Context Protocol) type definitions.
  *

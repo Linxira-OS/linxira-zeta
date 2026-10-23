@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as os from "node:os";
-import type { AgentToolResult } from "@oh-my-pi/pi-agent-core";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import type { CustomToolContext } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/types";
-import { DeferredMCPTool, MCPTool, PROGRESS_UPDATE_INTERVAL_MS } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
+import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import type { CustomToolContext } from "@linxiraos/zeta/extensibility/custom-tools/types";
+import { DeferredMCPTool, MCPTool, PROGRESS_UPDATE_INTERVAL_MS } from "@linxiraos/zeta/mcp/tool-bridge";
 import type {
 	MCPRequestOptions,
 	MCPServerConnection,
 	MCPToolCallResult,
 	MCPTransport,
-} from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { visibleWidth } from "@oh-my-pi/pi-tui";
-import type { MCPProgress, MCPToolDetails } from "@oh-my-pi/pi-tui/tools/mcp";
+} from "@linxiraos/zeta/mcp/types";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { visibleWidth } from "@linxiraos/pi-tui";
+import type { MCPProgress, MCPToolDetails } from "@linxiraos/pi-tui/tools/mcp";
 
 const definition = { name: "progress_tool", inputSchema: { type: "object" as const } };
 const result: MCPToolCallResult = {

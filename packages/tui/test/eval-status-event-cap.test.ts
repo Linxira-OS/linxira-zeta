@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
+import * as os from "node:os";
 import { getThemeByName, type Theme } from "@linxiraos/pi-tui/theme";
 import {
 	type EvalStatusEvent,

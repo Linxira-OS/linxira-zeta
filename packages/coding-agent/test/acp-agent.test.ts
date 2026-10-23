@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { AgentBusyError } from "@linxiraos/pi-agent-core";
-import type { Model } from "@linxiraos/pi-ai";
+import { AuthStorage, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -11,6 +11,7 @@ import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extension
 import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import * as oauthFlowModule from "@linxiraos/zeta/mcp/oauth-flow";
 import {
 	ACP_BOOTSTRAP_RACE_GUARD_MS,
 	AcpAgent,
@@ -18,7 +19,7 @@ import {
 } from "@linxiraos/zeta/modes/acp/acp-agent";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
 import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
-import { SILENT_ABORT_MARKER } from "@linxiraos/zeta/session/messages";
+import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { TaskTool } from "@linxiraos/zeta/task";
@@ -45,6 +46,7 @@ import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp"
 
 import { cfgPlanAutosave, cfgPlanAutosaveDir, cfgPlanEnabled } from "@linxiraos/zeta/plan-mode/settings";
 import { cfgTrackingEnabled } from "@linxiraos/zeta/tools/settings";
+import { Database } from "bun:sqlite";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
 function expectAcpStructure(schema: Validator<unknown>, value: unknown): void {

@@ -1,4 +1,4 @@
-import { type AgentTool, type AgentToolResult, validateAgentToolArguments } from "@linxiraos/pi-agent-core";
+import { type AgentTool, type AgentToolResult, validateAgentToolArguments, type AgentToolUpdateCallback } from "@linxiraos/pi-agent-core";
 import { type ImageContent, toolWireSchema } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
@@ -31,6 +31,7 @@ import { getActiveEvalShadowCell } from "../speculation/runtime-context";
 import { EVAL_WORKPOOL_BRIDGE_NAME, type EvalWorkpoolResult, runEvalWorkpool } from "../workpool-bridge";
 import type { RuntimeCallIdentity } from "./shared/runtime";
 import type { JsStatusEvent } from "./shared/types";
+import { parseMCPProgress } from "@linxiraos/pi-tui/tools/mcp";
 
 /** These tools await delegated subagents/jobs, not the cell runtime's own work. */
 const DELEGATED_WORK_TOOLS = new Set(["task", "wait"]);

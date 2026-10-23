@@ -320,9 +320,9 @@ describe("custom tool host package imports", () => {
 	}
 
 	// Tools live outside any workspace (here a temp dir; in the shipped binary,
-	// anywhere), so `@oh-my-pi/*` and the legacy pi scopes have no node_modules
+	// anywhere), so `@linxiraos/*` and the legacy pi scopes have no node_modules
 	// to resolve from. They must resolve to the host's own copy, as extensions do.
-	it.each(["@oh-my-pi/pi-utils", "@mariozechner/pi-utils"])("resolves %s to the host copy", async specifier => {
+	it.each(["@linxiraos/pi-utils", "@mariozechner/pi-utils"])("resolves %s to the host copy", async specifier => {
 		const toolPath = await writeTool(
 			"host_import.ts",
 			esmTool("host_import_tool", '"logger is " + typeof logger.warn', [`import { logger } from "${specifier}";`]),

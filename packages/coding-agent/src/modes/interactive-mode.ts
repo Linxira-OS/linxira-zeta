@@ -44,7 +44,7 @@ import {
 } from "@linxiraos/pi-tui";
 import type { TerminalAppearanceRequestToken } from "@linxiraos/pi-tui/terminal";
 import type { DescribeContext, NativeChild, NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
-import { col, kbd, node, row, span, text } from "@linxiraos/pi-tui/native/describe";
+import { col, compact, kbd, node, row, span, text, keyed } from "@linxiraos/pi-tui/native/describe";
 import { sameItems } from "@linxiraos/pi-tui/native/memo";
 import { describeSegmentTrack, renderSegmentTrack, type TrackSegment } from "@linxiraos/pi-tui/chrome/segment-track";
 import type { WorkingRowSpec } from "@linxiraos/pi-tui/components/loader";
@@ -437,6 +437,7 @@ import {
 	cfgCompactionIdleTimeoutSeconds,
 	cfgCompactionMethodOrder,
 } from "../session/context-settings";
+import { type JobWidgetEntry, describeJobWidgetMiniSpark, describeJobWidgetsHovercard, jobWidgetGlance, jobWidgetGlanceSpans, jobWidgetSummary, latestJobWidget } from "@linxiraos/pi-tui/tools/job-widget";
 
 /**
  * Settings with live interactive-UI side effects, keyed by id. One coalesced listener applies
@@ -1494,7 +1495,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	#todoHudNative: { checklist: NativeNode; fallback: NativeNode } | undefined;
 	#hudPillsNative: { children: readonly NativeChild[]; node: NativeNode } | undefined;
 	#agentsSegment: RunningSegment | undefined;
-	#jobsSegment: RunningSegment | undefined;
+	#jobsSegment: JobsSegment | undefined;
 	#idleStatusNative: { rate: number | undefined; node: NativeNode } | undefined;
 	/** Gen tok/s for the native composer bar, one decimal (a steadier `rate` target): live while running, else the last reading. */
 	#nativeTokenRate(): number | undefined {

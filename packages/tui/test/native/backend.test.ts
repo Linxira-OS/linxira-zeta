@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { type LogEvent, registerLogSink } from "@linxiraos/pi-utils/logger";
 import { card, md, node } from "@linxiraos/pi-tui/native/describe";
 import type { NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
 import { nativeComponentId } from "@linxiraos/pi-tui/native/reconcile";

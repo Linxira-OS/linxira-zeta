@@ -21,6 +21,7 @@ import {
 import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
 /**
  * Token-dense deterministic word salad: each word is `w` + ≤5 digits, ~7

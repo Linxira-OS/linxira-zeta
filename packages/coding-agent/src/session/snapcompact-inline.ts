@@ -34,6 +34,7 @@ import systemFramesNote from "../prompts/system/snapcompact-system-frames-note.m
 import systemStub from "../prompts/system/snapcompact-system-stub.md" with { type: "text" };
 import toolResultNote from "../prompts/system/snapcompact-toolresult-note.md" with { type: "text" };
 import { BRACKET_CONTEXT_ELLIPSIS } from "../tools/read-format";
+import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
 
 export type SnapcompactSystemPromptMode = "none" | "agents-md" | "all";
 

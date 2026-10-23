@@ -7,6 +7,7 @@
 import { type Component, Markdown } from "../index";
 
 import type { NativeToolHead, NativeToolView, RenderResultOptions } from "./renderer";
+import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { ansi, md } from "../native/describe";
 import type { NativeChild } from "../native/node";

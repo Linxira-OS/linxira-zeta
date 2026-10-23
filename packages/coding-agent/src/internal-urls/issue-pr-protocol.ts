@@ -28,6 +28,7 @@ import {
 	getOrFetchPrDiff,
 	githubIssueJsonWithStateReasonFallback,
 	parsePositiveDecimalInt,
+	type PrDiffFile,
 	resolveDefaultRepoMemoized,
 } from "../tools/gh";
 import type { PrDiffPayload } from "../tools/gh-pr-diff";
@@ -42,9 +43,10 @@ import {
 } from "../tools/tea-common";
 import { fetchTeaPullDiff, listTeaIssues, listTeaPulls, renderTeaIssue, renderTeaPull } from "../tools/tea-issue-pr";
 import type { TeaIssue, TeaPullRequest } from "../tools/tea-types";
+import { AgentRegistry } from "../registry/agent-registry";
 import { gitea } from "../utils/gitea";
 import { github } from "../utils/github";
-import { renderDiffFamilyResource, resolveCwd, splitInternalUrlSegments } from "./forge-diff";
+import { renderDiffFamilyResource, splitInternalUrlSegments } from "./forge-diff";
 import type { InternalResource, InternalUrl, ProtocolHandler, ResolveContext, SchemeSpec } from "./types";
 
 type Scheme = "issue" | "pr";
@@ -511,6 +513,12 @@ function buildSingleResource({
 		size: Buffer.byteLength(content, "utf-8"),
 		notes,
 	};
+}
+
+function formatFileLine(idx: number, file: PrDiffFile, repo: string, prNumber: number): string {
+	const stats = file.changeType === "binary" ? "(binary)" : `+${file.additions} -${file.deletions}`;
+	const rename = file.oldPath ? `  (renamed from ${file.oldPath})` : "";
+	return `${idx}. ${file.path}  ${stats}  [${file.changeType}]${rename}\n   pr://${repo}/${prNumber}/diff/${idx}`;
 }
 
 async function fetchAndRenderPrDiff(

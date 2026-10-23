@@ -29,7 +29,7 @@ import {
 	type SqliteFileIdentity,
 } from "@linxiraos/pi-utils";
 import { getHistoryDbPath } from "@linxiraos/pi-utils/dirs";
-import { getDbBusyTimeoutMs } from "@linxiraos/pi-utils/env";
+import { getDbBusyTimeoutMs, isBunTestRuntime } from "@linxiraos/pi-utils/env";
 import * as logger from "@linxiraos/pi-utils/logger";
 
 const SESSION_INDEX_DDL = `

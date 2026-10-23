@@ -11,10 +11,10 @@ import { describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { runPrintMode } from "@oh-my-pi/pi-coding-agent/modes/print-mode";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { runPrintMode } from "@linxiraos/zeta/modes/print-mode";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function printSession(cwd: string, prompts: string[]): AgentSession {
 	return {

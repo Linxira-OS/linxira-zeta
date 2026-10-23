@@ -12,15 +12,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as mcpClient from "@oh-my-pi/pi-coding-agent/mcp/client";
-import * as oauthDiscovery from "@oh-my-pi/pi-coding-agent/mcp/oauth-discovery";
-import * as oauthFlow from "@oh-my-pi/pi-coding-agent/mcp/oauth-flow";
-import * as openUtil from "@oh-my-pi/pi-coding-agent/utils/open";
-import { handleMcpAcp } from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/mcp";
-import type { ParsedSlashCommand, SlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
-import { cfgMcpEnableProjectConfig } from "@oh-my-pi/pi-coding-agent/mcp/settings";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import * as oauthDiscovery from "@linxiraos/zeta/mcp/oauth-discovery";
+import * as oauthFlow from "@linxiraos/zeta/mcp/oauth-flow";
+import * as openUtil from "@linxiraos/zeta/utils/open";
+import { handleMcpAcp } from "@linxiraos/zeta/slash-commands/helpers/mcp";
+import type { ParsedSlashCommand, SlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
+import { cfgMcpEnableProjectConfig } from "@linxiraos/zeta/mcp/settings";
 import {
 	getConfigRootDir,
 	getMCPConfigPath,
@@ -28,7 +28,7 @@ import {
 	removeWithRetries,
 	setAgentDir,
 	setProjectDir,
-} from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-utils";
 
 const RAW_SERVER_URL = `https://\${MCP_HOST}/mcp`;
 const EXPANDED_SERVER_URL = "https://mcp.example.com/mcp";

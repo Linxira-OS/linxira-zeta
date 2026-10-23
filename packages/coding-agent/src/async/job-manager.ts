@@ -2,6 +2,8 @@ import type { ImageContent } from "@linxiraos/pi-ai";
 import { logger } from "@linxiraos/pi-utils";
 import type { StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
 import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { JobWidgetInputs, JobWidgetRegistry } from "../job-widgets/types";
+import type { PipeStreams } from "@linxiraos/pi-natives";
 
 const DELIVERY_RETRY_BASE_MS = 500;
 const DELIVERY_RETRY_MAX_MS = 30_000;

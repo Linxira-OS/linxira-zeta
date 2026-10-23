@@ -12,6 +12,7 @@ import { createInteractiveModeContext } from "../../helpers/interactive-mode-con
 
 import { cfgCompactionIdleEnabled } from "@linxiraos/zeta/session/context-settings";
 import { cfgRecapEnabled, cfgRecapIdleSeconds } from "@linxiraos/zeta/modes/settings";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
 
 async function flushMicrotasks(): Promise<void> {
 	for (let i = 0; i < 10; i++) {

@@ -1,5 +1,5 @@
 import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
-import { prompt } from "@linxiraos/pi-utils";
+import { prompt, isRecord } from "@linxiraos/pi-utils";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import { M } from "../../../../i18n";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";

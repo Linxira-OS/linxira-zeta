@@ -17,6 +17,8 @@ import {
 } from "@linxiraos/zeta/main";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { createSetupHost } from "@linxiraos/zeta/modes/setup";
 
 function model(id: string): Model<Api> {
 	return buildModel({

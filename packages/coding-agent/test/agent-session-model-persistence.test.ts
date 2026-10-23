@@ -13,7 +13,7 @@ import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-cont
 import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@linxiraos/zeta/session/session-entries";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 import { encodeRawPng } from "@linxiraos/zeta/utils/png-encode";
-import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
+import { AUTO_THINKING, resolveProvisionalAutoLevel } from "@linxiraos/pi-tui/thinking";
 import { TempDir } from "@linxiraos/pi-utils";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { createAssistantMessage } from "./helpers/agent-session-setup";

@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type MCPServer, mcpCapability } from "@oh-my-pi/pi-coding-agent/capability/mcp";
-import { loadCapability } from "@oh-my-pi/pi-coding-agent/discovery";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { type MCPServer, mcpCapability } from "@linxiraos/zeta/capability/mcp";
+import { loadCapability } from "@linxiraos/zeta/discovery";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function loadVscodeMcp(cwd: string) {
 	return loadCapability<MCPServer>(mcpCapability.id, { cwd, providers: ["vscode"] });

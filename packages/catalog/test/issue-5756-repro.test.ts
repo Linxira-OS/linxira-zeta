@@ -15,6 +15,7 @@ import { streamOpenAICompletions } from "@linxiraos/pi-ai/providers/openai-compl
 import type { Context } from "@linxiraos/pi-ai/types";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { Effort } from "@linxiraos/pi-catalog/effort";
+import { calculateCost } from "@linxiraos/pi-catalog/models";
 import { moonshotModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 

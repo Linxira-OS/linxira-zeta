@@ -6,6 +6,7 @@ import { clearCustomApis, registerCustomApi } from "@linxiraos/pi-ai/api-registr
 import { stream, streamSimple } from "@linxiraos/pi-ai/stream";
 import type { AssistantMessage, FetchImpl, Model, ModelSpec } from "@linxiraos/pi-ai/types";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { createRequestDebugSession } from "@linxiraos/pi-ai/utils/request-debug";
 import { transportFetch } from "@linxiraos/pi-ai/utils/transport-fetch";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { removeWithRetries } from "../../utils/src/temp";

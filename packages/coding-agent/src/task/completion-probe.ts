@@ -16,7 +16,7 @@
  * finishes, so without it the estimate stalls near 0% for minutes.
  */
 import { getStreamingPartialJson } from "@linxiraos/pi-ai/utils/block-symbols";
-import { formatDuration, isInteractiveHost, logger, prompt } from "@linxiraos/pi-utils";
+import { formatDuration, isInteractiveHost, logger, prompt, isRecord, sanitizeText } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import completionProbePrompt from "../prompts/system/subagent-completion-probe.md" with { type: "text" };
 import type { AgentSession } from "../session/agent-session";

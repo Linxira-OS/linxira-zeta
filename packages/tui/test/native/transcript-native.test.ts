@@ -10,6 +10,7 @@ import { CompactionSummaryMessageComponent } from "@linxiraos/pi-tui/chat/compac
 import { CustomMessageComponent } from "@linxiraos/pi-tui/chat/custom-message";
 import { EvalExecutionComponent } from "@linxiraos/pi-tui/chat/eval-execution";
 import { LateDiagnosticsMessageComponent } from "@linxiraos/pi-tui/chat/late-diagnostics-message";
+import { SkillMessageComponent } from "@linxiraos/pi-tui/chat/skill-message";
 import { StrippedToolCallsPlaceholder } from "@linxiraos/pi-tui/chat/stripped-tool-calls-placeholder";
 import { stopSharedSpinnerTicker, ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
 import type { TranscriptEntryLike } from "@linxiraos/pi-tui/chat/transcript-entry";

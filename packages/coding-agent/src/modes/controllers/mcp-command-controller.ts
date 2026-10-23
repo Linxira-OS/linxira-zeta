@@ -31,6 +31,7 @@ import {
 	type McpOAuthFlowPresentation,
 	type OAuthFlowResult,
 } from "../../mcp/oauth-reauth";
+import { type OAuthEndpoints } from "../../mcp/oauth-discovery";
 import { connectToServer, disconnectServer, listTools } from "../../mcp/client";
 import {
 	addMCPServer,
@@ -797,89 +798,31 @@ export class MCPCommandController {
 		const { callbacks, release } = this.#oauthFlowCallbacks();
 		try {
 			return await this.#withOAuthEscape((escapeSignal, onClaimed) =>
-				runMcpOAuthFlow(
-					{
-						authUrl,
-						tokenUrl,
-						clientId,
-						clientSecret,
-						scopes,
-						serverUrl: opts?.serverUrl,
-						registrationUrl: opts?.registrationUrl,
-						issuerUrl: opts?.issuerUrl,
-						resource: opts?.resource,
-						stripSameOriginResource: opts?.stripSameOriginResource,
-					},
-					{
-						onAuth: (info: { url: string; launchUrl?: string; instructions?: string }) => {
-							// Show auth URL prominently in chat as one block
-							const block = new TranscriptBlock();
-							this.ctx.present(block);
-							block.addChild(new Text(theme.fg("accent", "━━━ OAuth Authorization Required ━━━"), 1, 0));
-							block.addChild(new Spacer(1));
-							block.addChild(new Text(theme.fg("muted", "Preparing browser authorization..."), 1, 0));
-							block.addChild(new Spacer(1));
-							block.addChild(
-								new Text(
-									theme.fg(
-										"muted",
-										`Waiting for authorization... (Press ${appKey(this.ctx.keybindings, "app.interrupt")} to cancel, 5 minute timeout)`,
-									),
-									1,
-									0,
-								),
-							);
-							block.addChild(new Text(theme.fg("muted", MCP_MANUAL_LOGIN_TIP), 1, 0));
-							block.addChild(new Spacer(1));
-							block.addChild(new Text(theme.fg("accent", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"), 1, 0));
-							// `openPath` is best-effort — it logs spawn failures but never
-							// throws, so we always render the copy-URL fallback beneath the
-							// "attempting to open browser" line and no earlier try/catch is
-							// worth keeping.
-							openPath(info.url);
-							// Stage the FULL authorization URL on the clipboard via OSC 52.
-							// The full URL works from any machine (unlike `launchUrl`, which
-							// only resolves against the ZETA host), and OSC 52 is a
-							// wire-level protocol — the terminal writes it to the user's
-							// LOCAL clipboard even when ZETA is on a remote SSH box.
-							// Best-effort: falls back to the visible copy-URL rows below
-							// whether or not the terminal honors OSC 52.
-							void copyToClipboard(info.url).catch(() => {});
-							block.addChild(new Spacer(1));
-							block.addChild(new Text(theme.fg("success", "→ Attempting to open browser..."), 1, 0));
-							block.addChild(new Spacer(1));
-							block.addChild(new Text(theme.fg("muted", "Alternative if browser did not open:"), 1, 0));
-							block.addChild(new MCPAuthorizationLinkPrompt(info.url, info.launchUrl));
-							this.ctx.ui.requestRender();
-						},
-						onProgress: (message: string) => {
-							this.ctx.present([new Spacer(1), new Text(theme.fg("muted", message), 1, 0)]);
-						},
-						onManualCodeInput: signal => {
-							if (manualInputClaim) return manualInputClaim.promise;
-							const pendingInput = manualInput.tryClaimInput(MCP_MANUAL_INPUT_PROVIDER_ID);
-							if (!pendingInput) {
-								const pendingProvider = manualInput.pendingProviderId ?? "another provider";
-								throw new Error(
-									`OAuth login already in progress for ${pendingProvider}. Complete or cancel it before starting MCP OAuth.`,
-								);
-							}
-							const onAbort = () => pendingInput.clear("Manual MCP OAuth input cancelled");
-							if (signal?.aborted) onAbort();
-							else signal?.addEventListener("abort", onAbort, { once: true });
-							const claim = {
-								clear: pendingInput.clear,
-								promise: pendingInput.promise.finally(() => {
-									signal?.removeEventListener("abort", onAbort);
-									if (manualInputClaim === claim) manualInputClaim = undefined;
-								}),
-							};
-							manualInputClaim = claim;
-							return claim.promise;
-						},
-						signal: oauthTimeout.signal,
-					},
-				),
+				runMcpOAuthFlow({
+					authUrl,
+					tokenUrl,
+					clientId,
+					clientSecret,
+					scopes,
+					serverUrl: opts?.serverUrl,
+					registrationUrl: opts?.registrationUrl,
+					issuerUrl: opts?.issuerUrl,
+					resource: opts?.resource,
+					stripSameOriginResource: opts?.stripSameOriginResource,
+					callbackPort: opts?.callbackPort,
+					callbackPath: opts?.callbackPath,
+					redirectUri: opts?.redirectUri,
+					prompt: opts?.prompt,
+					authStorage: this.ctx.session.modelRegistry.authStorage,
+					signal: opts?.abortSignal ? AbortSignal.any([escapeSignal, opts.abortSignal]) : escapeSignal,
+					flowOwner: this.ctx.oauthManualInput,
+					pendingInput: () =>
+						this.ctx.oauthManualInput.hasPending()
+							? (this.ctx.oauthManualInput.pendingProviderId ?? "another provider")
+							: undefined,
+					onClaimed,
+					...callbacks,
+				}),
 			);
 		} finally {
 			release();

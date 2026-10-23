@@ -7,8 +7,9 @@
  * - format the generic approval prompt body.
  */
 import type { AgentTool, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
+import * as path from "node:path";
 import { replaceTabs } from "@linxiraos/pi-tui";
-import { isRecord, sanitizeText } from "@linxiraos/pi-utils";
+import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { normalizeToLF } from "../edit/normalize";
 import type {
@@ -32,6 +33,8 @@ import {
 	approvalTargetNamesFile,
 	approvalTreeSearchFolderKey,
 } from "./approval-targets";
+import approvalFolderTemplate from "../prompts/tools/approval-folder.md" with { type: "text" };
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 
 export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
 

@@ -165,8 +165,8 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
 - `?q=` image questions are not supported for video.
 
 ### Profiler reports
-- Recognized macOS `sample` call-tree files (`*.sample.txt`) and V8 `.cpuprofile` JSON are rendered as bottleneck summaries rather than raw dumps when valid and at most `32 MiB`.
-- Line selectors page the rendered summary. `:raw` bypasses profile rendering and reads the original file.
+- A whole-file read of a recognized macOS `sample` call-tree file (`*.sample.txt`) or V8 `.cpuprofile` JSON returns a bottleneck summary rather than the raw dump when valid and at most `32 MiB`.
+- The summary is generated text: it has no row numbers, hashline header or `:N` continuation, and one over `tools.artifactSpillThreshold` spills to an artifact like any tool result. Line selectors, tails and `:raw` read the original file, so their line numbers and snapshot tag are the file's.
 - A file that merely has one of those names/extensions but does not parse as the expected report falls through to ordinary text handling.
 
 
@@ -239,7 +239,7 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
 
 ### Internal URLs
 
-- `read` delegates internal and MCP-advertised schemes to `InternalUrlRouter`; the built-in registry currently includes `agent://`, `artifact://`, `attachment://`, `cfg://`, `conflict://`, `history://`, `issue://`, `local://`, `mcp://`, `memory://`, `zeta://`, `pr://`, `proc://`, `rule://`, `security://`, `skill://`, `ssh://`, `vault://`, and `xd://`.
+- `read` delegates internal and MCP-advertised schemes to `InternalUrlRouter`; the built-in registry currently includes `agent://`, `artifact://`, `attachment://`, `cfg://`, `conflict://`, `history://`, `issue://`, `local://`, `mcp://`, `memory://`, `mr://`, `zeta://`, `pr://`, `proc://`, `rule://`, `security://`, `skill://`, `ssh://`, `vault://`, and `xd://`.
    - `security://` is reserved for the ZETA-owned, producer-neutral, read-only security-analysis store.
    - `agent://<id>` reads a subagent's latest completed output, including a successful message-result follow-up after revival that the parent requested or the user typed into the focused subagent session; while a newer turn runs, the previous output is marked superseded. Agents without published output return status and progress. `/key/index` extracts from the latest published JSON result. Peer-woken message replies and cancelled or empty message-result follow-ups do not replace the accepted result, nor do structured wakes without a `yield`. `agent://all` is write-only. Bare `history://` lists registered agents and persisted subagents; `history://<id>` reads a transcript across turns.
    - `proc://` lists caller-visible background jobs (including running agents without job rows) and project services; `proc://<id>` returns status and available output/logs without consuming async-result delivery. Service log files are searchable with `grep proc://<id>`.

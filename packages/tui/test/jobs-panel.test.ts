@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "bun:test";
+import * as os from "node:os";
 import type { DescribeContext, NativeNode, NativeUiEvent } from "@linxiraos/pi-tui/native/node";
 import {
 	type JobsPanelDetail,
@@ -8,6 +9,7 @@ import {
 	type JobsSheetSource,
 } from "@linxiraos/pi-tui/overlays/jobs-panel";
 import { initTheme } from "@linxiraos/pi-tui/theme";
+import { modelEval } from "./fixtures/job-widget-views";
 
 const DOWN = "\x1b[B";
 const UP = "\x1b[A";

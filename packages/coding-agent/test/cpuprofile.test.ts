@@ -9,6 +9,7 @@ import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { parseCpuProfile, renderCpuProfile } from "@linxiraos/zeta/utils/cpuprofile";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { EditTool } from "@linxiraos/zeta/edit";
 
 function frame(functionName: string, url?: string, lineNumber?: number) {
 	return { functionName, url, lineNumber };

@@ -659,6 +659,8 @@ import {
 	cfgThemeDark,
 	cfgThemeLight,
 } from "../modes/settings";
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { JobWidgetEntry } from "@linxiraos/pi-tui/tools/job-widget";
 
 /** Advisor settings whose edit toggles or rebuilds a running advisor. */
 const cfgAdvisorRuntimeInputs = combine({

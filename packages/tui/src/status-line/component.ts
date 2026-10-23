@@ -60,6 +60,9 @@ import type {
 	StatusResetExpiry,
 } from "./types";
 
+/** Sparkline cells the ANSI jobs segment draws after the freshest widget's headline. */
+const JOBS_SEGMENT_SPARK_CELLS = 8;
+
 /** What a click on a native status segment asks zeta to open. */
 export type StatusLineNativeAction = "status.model" | "status.context" | "status.git" | "status.cost" | "status.path";
 

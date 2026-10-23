@@ -1,6 +1,26 @@
 import { describe, expect, it } from "bun:test";
-import type { AgentSideConnection, RequestPermissionRequest } from "@linxiraos/pi-utils/acp";
+import {
+	RequestError,
+	type AgentSideConnection,
+	type RequestPermissionRequest,
+	type RequestPermissionResponse,
+} from "@linxiraos/pi-utils/acp";
 import { createAcpClientBridge } from "@linxiraos/zeta/modes/acp/acp-client-bridge";
+
+
+const ALLOW_SELECTED: RequestPermissionResponse = { outcome: { outcome: "selected", optionId: "allow_once" } };
+
+const TOOL_CALL = {
+	toolCallId: "call-1",
+	toolName: "bash",
+	title: "echo hi",
+	kind: "execute" as const,
+	status: "pending" as const,
+	rawInput: { command: "echo hi" },
+	content: [{ type: "content" as const, content: { type: "text" as const, text: "$ echo hi" } }],
+};
+
+const OPTIONS = [{ optionId: "allow_once", name: "Allow once", kind: "allow_once" as const }];
 
 describe("ACP client bridge permission requests", () => {
 	it("forwards pending tool-call status to session/request_permission", async () => {

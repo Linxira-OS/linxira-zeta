@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspChartProps, TspPropNode } from "@oh-my-pi/pi-wire";
-import type { NativeChild, NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
+import type { TspChartProps, TspPropNode } from "@linxiraos/pi-wire";
+import type { NativeChild, NativeNode } from "@linxiraos/pi-tui/native/node";
+import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import {
 	describeJobTile,
 	describeJobWidget,
@@ -10,8 +10,8 @@ import {
 	type JobWidgetView,
 	renderJobTileLines,
 	renderJobWidgetLines,
-} from "@oh-my-pi/pi-tui/tools/job-widget";
-import { visibleWidth } from "@oh-my-pi/pi-tui/utils";
+} from "@linxiraos/pi-tui/tools/job-widget";
+import { visibleWidth } from "@linxiraos/pi-tui/utils";
 import { ciRun, DECODE_VALUES, decodeBench, FIXTURE_VIEWS, modelEval, trialSweep } from "./fixtures/job-widget-views";
 
 /** Every described node under `root`, depth first. */

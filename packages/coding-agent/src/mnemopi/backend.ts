@@ -46,6 +46,8 @@ import {
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
 import { cfgMnemopiInjectionTokenLimit } from "./settings";
+import { clampThinkingLevelForModel } from "@linxiraos/pi-catalog/model-thinking";
+import { concreteThinkingLevel, shouldDisableReasoning, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 
 // `/diagnose` is the only user of this subpath; load it lazily alongside the
 // loaders in ./state to keep mnemopi off the CLI startup module graph.

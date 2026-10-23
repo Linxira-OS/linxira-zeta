@@ -54,7 +54,7 @@
  */
 
 import type { Api, ImageContent, Message, Model, TextContent } from "@linxiraos/pi-ai";
-import { reachesOfficialEndpoint } from "@linxiraos/pi-ai/providers/anthropic-state";
+import { reachesBudgetedHost } from "@linxiraos/pi-ai/providers/anthropic-state";
 import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
 import {
 	type ImageSize,

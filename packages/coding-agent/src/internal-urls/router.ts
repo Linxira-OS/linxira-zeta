@@ -48,6 +48,7 @@ import type {
 import { VaultProtocolHandler } from "./vault-protocol";
 import { XdProtocolHandler } from "./xd-protocol";
 import { ZetaProtocolHandler } from "./zeta-protocol";
+import { MrProtocolHandler } from "./mr-protocol";
 
 setInternalUrlCompletionHost({
 	completionSchemes: () => InternalUrlRouter.instance().completionSchemes(),

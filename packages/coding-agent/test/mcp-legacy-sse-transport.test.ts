@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { MCPConnectionTimeoutError, connectToServer, listTools } from "@linxiraos/zeta/mcp/client";
 import { isRetriableConnectionError } from "@linxiraos/zeta/mcp/tool-bridge";
-import type { JsonRpcMessage } from "@linxiraos/zeta/mcp/types";
+import type { JsonRpcMessage, JsonRpcRequest } from "@linxiraos/zeta/mcp/types";
 import { withTimeout } from "@linxiraos/pi-utils";
+import { LegacySseTransport } from "@linxiraos/zeta/mcp/transports/sse";
+import type { MCPProgress } from "@linxiraos/pi-tui/tools/mcp";
+import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
 
 const encoder = new TextEncoder();
 let server: Bun.Server<undefined> | null = null;

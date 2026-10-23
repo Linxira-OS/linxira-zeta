@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult } from "@linxiraos/pi-agent-core";
+import type { AgentToolResult, AgentToolContext } from "@linxiraos/pi-agent-core";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ToolSession } from "@linxiraos/zeta/tools";
 import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
 import { demangleSymbol, parseSampleProfile, renderSampleProfile } from "@linxiraos/zeta/utils/sample-profile";
 import { removeWithRetries } from "@linxiraos/pi-utils";
+import { EditTool } from "@linxiraos/zeta/edit";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { wrapToolWithMetaNotice } from "@linxiraos/zeta/tools/output-meta";
 
 const BOX_MEASURE = "_RNvNtCsfMEenOU8j5j_11slab_kernel6layout11box_measure";
 

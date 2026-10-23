@@ -14,8 +14,8 @@
  * shown, and (TUI only) where manual code input comes from.
  */
 import * as path from "node:path";
-import { getMCPConfigPath, getProjectDir } from "@oh-my-pi/pi-utils";
-import type { OAuthController } from "@oh-my-pi/pi-ai/oauth/types";
+import { getMCPConfigPath, getProjectDir } from "@linxiraos/pi-utils";
+import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
 import { expandEnvVarsDeep } from "../discovery/helpers";
 import { connectToServer, disconnectServer } from "./client";
 import { readMCPConfigFile, updateMCPServer } from "./config-writer";

@@ -19,7 +19,10 @@ import type {
 } from "@linxiraos/pi-ai";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { resolveAnthropicCompactionEffort } from "@linxiraos/pi-ai/providers/anthropic";
-import { supportsAnthropicCompaction } from "@linxiraos/pi-ai/providers/anthropic-compaction";
+import {
+	supportsAnthropicCompaction,
+	supportsBedrockConverseCompaction,
+} from "@linxiraos/pi-ai/providers/anthropic-compaction";
 import { isRecord, prompt } from "@linxiraos/pi-utils";
 import { type InstrumentedChatSpanOptions, instrumentedCompleteSimple } from "../telemetry";
 import type { AgentMessage } from "../types";

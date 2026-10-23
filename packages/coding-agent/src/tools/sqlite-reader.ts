@@ -1,4 +1,4 @@
-import { Database, type SQLQueryBindings } from "bun:sqlite";
+import { Database, type SQLQueryBindings, type Statement } from "bun:sqlite";
 import { formatBytes, replaceTabs, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 

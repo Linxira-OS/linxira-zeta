@@ -12,7 +12,7 @@
  * ANSI lines, and never see a rule or a regex.
  */
 
-import type { TspChartMark, TspChartProps, TspPropNode, TspSpan, TspTone } from "@oh-my-pi/pi-wire";
+import type { TspChartMark, TspChartProps, TspPropNode, TspSpan, TspTone } from "@linxiraos/pi-wire";
 import { renderProgressBar } from "../components/progress-bar";
 import { fitSparkValues, renderSparkline } from "../components/sparkline";
 import { col, compact, elapsed, keyed, node, propNode, row, span, stableKey, text } from "../native/describe";

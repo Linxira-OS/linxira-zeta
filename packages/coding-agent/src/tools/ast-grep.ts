@@ -27,7 +27,7 @@ import {
 } from "@linxiraos/pi-tui/tools/grouped-file-output";
 import { formatMatchLine } from "@linxiraos/pi-tui/tools/match-line-format";
 
-import { relativeSearchResultPath, resolveSearchResultPath, resolveToolSearchScope } from "./path-utils";
+import { relativeSearchResultPath, resolveSearchResultPath, resolveToolSearchScope, parseSearchPath, searchPathTier } from "./path-utils";
 import { isRawSelector } from "./read-selector";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
@@ -39,6 +39,7 @@ import {
 	formatCodeFrameLine,
 	formatParseErrors,
 } from "@linxiraos/pi-tui/render/render-utils";
+import { searchApprovalCacheTargets } from "./search-approval-targets";
 
 const astGrepSchema = type({
 	pat: type("string").describe("ast pattern"),

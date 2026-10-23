@@ -1,4 +1,5 @@
 import { isBedrockAnthropicRoute, isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import { isBedrockRouteUrl } from "@linxiraos/pi-catalog/hosts";
 import type { Model } from "../types";
 import type { AnthropicMessagesClientLike } from "./anthropic-client";
 import { normalizeAnthropicBaseUrl, resolveDirectAnthropicBaseUrl } from "./anthropic-state";

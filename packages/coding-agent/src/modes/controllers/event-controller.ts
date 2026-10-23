@@ -85,6 +85,7 @@ import { getCacheWarmingDelayMs } from "../../session/cache-warmer";
 import { cfgCompaction } from "../../session/context-settings";
 import { cfgReadToolResultPreview, cfgToolsApproval, cfgToolsApprovalMode } from "../../tools/settings";
 import { cfgSpeechEnabled, cfgSpeechMode } from "../../tts/settings";
+import { isPromptCachePersistent } from "@linxiraos/pi-catalog/compat/prompt-cache-persistent";
 
 type AgentSessionEventKind = AgentSessionEvent["type"];
 

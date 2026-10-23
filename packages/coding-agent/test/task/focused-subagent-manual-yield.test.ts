@@ -8,7 +8,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { createMockModel, registerMockApi, type MockHandler } from "@linxiraos/pi-ai/providers/mock";
 import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
 import { AsyncJobManager } from "@linxiraos/zeta/async/job-manager";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
@@ -19,6 +19,7 @@ import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { runSubprocess } from "@linxiraos/zeta/task/executor";
 import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "../helpers/agent-session-setup";
+import { IrcBus } from "@linxiraos/zeta/irc/bus";
 
 const AGENT_ID = "FocusedYield";
 const PARENT_ID = "Main";

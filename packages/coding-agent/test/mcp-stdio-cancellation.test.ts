@@ -3,11 +3,11 @@ import type { BunFile } from "bun";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPTransportError } from "@oh-my-pi/pi-coding-agent/mcp/errors";
-import * as mcpTimeout from "@oh-my-pi/pi-coding-agent/mcp/timeout";
-import { StdioTransport } from "@oh-my-pi/pi-coding-agent/mcp/transports/stdio";
-import type { JsonRpcNotification, JsonRpcRequest, MCPStdioServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { MCPTransportError } from "@linxiraos/zeta/mcp/errors";
+import * as mcpTimeout from "@linxiraos/zeta/mcp/timeout";
+import { StdioTransport } from "@linxiraos/zeta/mcp/transports/stdio";
+import type { JsonRpcNotification, JsonRpcRequest, MCPStdioServerConfig } from "@linxiraos/zeta/mcp/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { rejectionOf, trackUnhandled } from "./helpers/rejection";
 
 type Frame = JsonRpcRequest | JsonRpcNotification;

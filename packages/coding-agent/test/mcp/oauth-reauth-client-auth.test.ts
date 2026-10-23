@@ -18,11 +18,11 @@ import { afterEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { MCPManager } from "@oh-my-pi/pi-coding-agent/mcp/manager";
-import * as mcpClient from "@oh-my-pi/pi-coding-agent/mcp/client";
-import { clearMcpClientAuthSurface, reconnectMcpManagerServer } from "@oh-my-pi/pi-coding-agent/mcp/oauth-reauth";
-import type { MCPAuthConfig, MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { MCPManager } from "@linxiraos/zeta/mcp/manager";
+import * as mcpClient from "@linxiraos/zeta/mcp/client";
+import { clearMcpClientAuthSurface, reconnectMcpManagerServer } from "@linxiraos/zeta/mcp/oauth-reauth";
+import type { MCPAuthConfig, MCPServerConfig } from "@linxiraos/zeta/mcp/types";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const staleAuth: MCPAuthConfig = {
 	type: "oauth",

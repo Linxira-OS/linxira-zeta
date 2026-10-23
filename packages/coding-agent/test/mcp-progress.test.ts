@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { StdioTransport } from "@oh-my-pi/pi-coding-agent/mcp/transports/stdio";
-import type { MCPToolCallResult } from "@oh-my-pi/pi-coding-agent/mcp/types";
-import type { MCPProgress } from "@oh-my-pi/pi-tui/tools/mcp";
-import { withTimeout } from "@oh-my-pi/pi-utils";
+import { StdioTransport } from "@linxiraos/zeta/mcp/transports/stdio";
+import type { MCPToolCallResult } from "@linxiraos/zeta/mcp/types";
+import type { MCPProgress } from "@linxiraos/pi-tui/tools/mcp";
+import { withTimeout } from "@linxiraos/pi-utils";
 import { rejectionOf } from "./helpers/rejection";
 
 const transports: StdioTransport[] = [];

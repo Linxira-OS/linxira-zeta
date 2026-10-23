@@ -8,6 +8,7 @@ import type { GhToolDetails } from "@linxiraos/pi-tui/tools/github";
 import type { GhLabel, GhUser } from "./gh-types";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
+import { CwdLookupMemo } from "../utils/forge-cli";
 
 export function normalizeText(value: string | null | undefined): string {
 	return (value ?? "").replaceAll("\r\n", "\n").replaceAll("\r", "\n").replaceAll("\t", "    ").trim();

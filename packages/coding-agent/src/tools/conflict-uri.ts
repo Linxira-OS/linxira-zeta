@@ -24,6 +24,7 @@ import type { ToolSession } from "./index";
 import { formatPathRelativeToCwd } from "./path-utils";
 import { formatTextWithMode, hashlineHeaderContext, prependHashlineHeader } from "./read-format";
 import { maybeWriteSnapshotHeader, stripWriteContent } from "./write-content";
+import { PREVIEW_LIMITS } from "@linxiraos/pi-tui/render/render-utils";
 
 /** A rendered `conflict://<N>[/<scope>]` region. */
 export interface ConflictRegionRead {

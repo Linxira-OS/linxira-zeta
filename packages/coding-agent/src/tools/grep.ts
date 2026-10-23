@@ -50,7 +50,7 @@ import {
 	splitPathAndSelPreferringLiteral,
 } from "./path-utils";
 import { type LineRange, parseLineRanges, selectorLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
-import { splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
+import { splitPathAndSel, isReadableUrlPath } from "@linxiraos/pi-tui/tools/read";
 import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
 import { isRawSelector } from "./read-selector";
 import { formatCodeFrameLine } from "@linxiraos/pi-tui/render/render-utils";
@@ -59,6 +59,7 @@ import { toolResult } from "./tool-result";
 
 import { cfgGrepContextAfter, cfgGrepContextBefore } from "./settings";
 import { cfgTaskDisabledAgents } from "../task/settings";
+import { searchApprovalCacheTargets } from "./search-approval-targets";
 
 const searchSchema = type({
 	pattern: type("string"),

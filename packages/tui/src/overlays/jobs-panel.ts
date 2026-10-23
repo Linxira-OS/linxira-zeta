@@ -6,7 +6,7 @@
  * (cwd, live pids, exit code, artifact) and live output.
  */
 import type { TspSpan, TspTone } from "@linxiraos/pi-wire";
-import { formatDuration } from "@linxiraos/pi-utils";
+import { formatDuration, sanitizeText } from "@linxiraos/pi-utils";
 import type { Component } from "../tui";
 import { matchesSelectCancel, matchesSelectDown, matchesSelectUp } from "../keybinding-matchers";
 import { matchesKey } from "../keys";

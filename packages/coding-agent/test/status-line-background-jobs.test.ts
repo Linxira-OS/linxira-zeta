@@ -8,6 +8,7 @@ import { initTheme, theme } from "@linxiraos/pi-tui/theme";
 import type { AsyncJobSnapshotItem } from "@linxiraos/zeta/session/agent-session";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 import { StatusLineTestComponents } from "./helpers/status-line";
+import type { JobWidgetEntry, JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
 
 let settingsState: SettingsTestState | undefined;
 const statusLines = new StatusLineTestComponents();

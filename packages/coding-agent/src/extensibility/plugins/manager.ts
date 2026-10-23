@@ -23,7 +23,7 @@ import { buildPluginStorage, resolvePluginManifestEntries } from "./loader";
 import { getInstalledPluginsRegistryPath, readInstalledPluginsRegistry } from "./marketplace/registry";
 import { parsePluginId } from "./marketplace/types";
 import { extractPackageName, parsePluginSpec } from "./parser";
-import { normalizePluginRuntimeConfig, readPluginRuntimeConfig } from "./runtime-config";
+import { normalizePluginRuntimeConfig, readPluginRuntimeConfig, writePluginRuntimeConfig } from "./runtime-config";
 import {
 	type DoctorCheck,
 	type DoctorOptions,

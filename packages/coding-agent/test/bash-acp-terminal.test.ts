@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, mock, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
+import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ClientBridge, ClientBridgeTerminalHandle } from "@linxiraos/zeta/session/client-bridge";

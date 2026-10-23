@@ -1,7 +1,9 @@
-import { describe, expect, it } from "bun:test";
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
+import { describe, expect, it, afterEach } from "bun:test";
+import type { AgentMessage, Agent } from "@linxiraos/pi-agent-core";
 import { IrcBridge, type IrcBridgeHost } from "@linxiraos/zeta/session/irc-bridge";
 import type { CustomMessage } from "@linxiraos/zeta/session/messages";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 function makeBridge() {
 	const woken: AgentMessage[][] = [];

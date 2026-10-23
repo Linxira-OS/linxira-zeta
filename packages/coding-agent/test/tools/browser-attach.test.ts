@@ -24,7 +24,7 @@ import {
 	waitForCdp,
 	waitForMainFrame,
 } from "@linxiraos/zeta/tools/browser/attach";
-import { ensureChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
+import { ensureChromiumExecutable, loadPuppeteer } from "@linxiraos/zeta/tools/browser/launch";
 import {
 	acquireBrowser,
 	type BrowserHandle,
@@ -33,7 +33,8 @@ import {
 } from "@linxiraos/zeta/tools/browser/registry";
 import { acquireTab, getTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import { Process, ProcessStatus } from "@linxiraos/pi-natives";
-import type { Browser, HTTPRequest, Page, Target } from "puppeteer-core";
+import { TimeoutError } from "puppeteer-core";
+import type { Browser, ConnectionTransport, HTTPRequest, Page, Target } from "puppeteer-core";
 import { rejectionOf } from "../helpers/rejection";
 import { chromiumAvailable } from "./chromium-probe";
 

@@ -521,6 +521,7 @@ export interface RoleModelCycleResult {
 }
 
 import type { ResolvedRoleModel } from "@linxiraos/pi-tui/overlays/model-picker";
+import type { JobWidgetView } from "@linxiraos/pi-tui/tools/job-widget";
 export type { ResolvedRoleModel } from "@linxiraos/pi-tui/overlays/model-picker";
 
 /** Resolvable role models and the currently active index. */

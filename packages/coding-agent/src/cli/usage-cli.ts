@@ -63,6 +63,7 @@ import {
 } from "../slash-commands/helpers/usage-accounts";
 
 import { cfgRetryUsageReservePct } from "../session/settings";
+import { peakBuckets, renderSparkline } from "@linxiraos/pi-tui/components/sparkline";
 
 const BAR_WIDTH = 28;
 

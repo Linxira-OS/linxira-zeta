@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { AssistantMessage, Message, Model, Usage } from "@linxiraos/pi-ai";
+import type { AssistantMessage, Message, Model, ModelSpec, Usage } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
