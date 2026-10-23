@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- An attached TUI renders the backend's builtin-command output (`command_output`) in its status line and keeps client-only commands, pickers and mirrored switches local
+
 ## [1.4.0] - 2026-10-21
 
 - Added a `zetawork` terminal id that resolves to the Kitty image protocol from the environment alone, so images render in the desktop app's own terminal

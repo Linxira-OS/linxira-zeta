@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+- Attached TUIs now run the same slash commands as a local session: client-local commands and mirrored switches stay local, builtins with a headless handler are forwarded and executed in the backend's own session (`/compact`, `/handoff`, `/session`, `/retry`, `/rename`, `/mcp`, `/todo`, `/plugins`, …) with their output shown in the attached status line, and only session swaps that cannot be applied remotely are refused with a hint
+- `/new` creates a backend session and re-attaches the client to it; `/resume <id>` re-attaches to an existing session; `/queue` and the `->`/`=>` shorthands fill the backend follow-up queue and `/btw` uses the backend side context
+- Cross-directory attach now adopts the backend session's workspace instead of failing with `SESSION_CWD_CHANGE_REJECTED` and silently degrading to an in-process session
+- `zetacode serve` answers the web port with a bilingual placeholder page (HTTP 200) while the Web UI's development is deferred; the docs describe attach, the RPC plane, the daemon and the Web UI status in the packaged `zeta://docs/zeta-features.md` page
+
 ## [1.4.0] - 2026-10-21
 
 ### Added

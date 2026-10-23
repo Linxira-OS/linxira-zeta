@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Version alignment with the 1.4.1 release line (no behavioral changes).
+
 ## [1.4.0] - 2026-10-21
 
 - Version line moves to 1.4.0 with the rest of the suite; no user-visible change in this package.

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Version alignment with the 1.4.1 release line (no behavioral changes).
+
 ## [1.4.0] - 2026-10-21
 
 - Feishu and Telegram log in with credentials as well as the WeChat QR: credentials are validated before they are written (Feishu tenant token plus bot info, Telegram `getMe`), secrets are masked in errors, and unbinding clears exactly the fields that channel owns
