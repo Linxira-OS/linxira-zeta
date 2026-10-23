@@ -52,8 +52,6 @@ const METRIC_OPTIONS = [
 /** Tools stacked individually in the calls chart; the rest fold into "Other". */
 const TOP_TOOLS = 6;
 
-const ATTRIBUTION_NOTE = t("tools.attribution-note");
-
 /** Bucket granularity label for the calls chart description. */
 function bucketUnit(bucketMs: number): string {
 	if (bucketMs < 3_600_000) return t("tools.bucket-5m");
@@ -108,13 +106,13 @@ export function ToolsRoute({ active, range }: ToolsRouteProps) {
 								/>
 								<Stat
 									label={t("tools.attributed-tokens")}
-									title={ATTRIBUTION_NOTE}
+									title={t("tools.attribution-note")}
 									value={formatCompact(Math.round(totals.tokens))}
 									hint={t("tools.tokens-output", { tokens: formatCompact(Math.round(totals.output)) })}
 								/>
 								<Stat
 									label={t("tools.attributed-cost")}
-									title={t("tools.attribution-estimate", { note: ATTRIBUTION_NOTE })}
+									title={t("tools.attribution-estimate", { note: t("tools.attribution-note") })}
 									value={formatEstimatedCost(totals.cost, totals.unpriced)}
 									hint={
 										totals.unpriced > 0
@@ -195,7 +193,7 @@ export function ToolsRoute({ active, range }: ToolsRouteProps) {
 			<Card
 				index={2}
 				title={t("tools.by-tool")}
-				description={t("tools.by-tool-description", { note: ATTRIBUTION_NOTE })}
+				description={t("tools.by-tool-description", { note: t("tools.attribution-note") })}
 				flush
 				stale={tools.stale}
 			>
@@ -432,7 +430,7 @@ function buildToolColumns(
 		{
 			key: "tokens",
 			header: t("tools.attr-tokens"),
-			title: ATTRIBUTION_NOTE,
+			title: t("tools.attribution-note"),
 			align: "right",
 			sort: row => row.totalTokensShare,
 			render: row => (
@@ -445,7 +443,7 @@ function buildToolColumns(
 		{
 			key: "cost",
 			header: t("tools.attr-cost"),
-			title: t("tools.attribution-estimate", { note: ATTRIBUTION_NOTE }),
+			title: t("tools.attribution-estimate", { note: t("tools.attribution-note") }),
 			align: "right",
 			sort: row => row.costShare,
 			render: row => (
@@ -549,7 +547,7 @@ function ToolModelTable({
 			{
 				key: "tokens",
 				header: t("tools.attr-tokens"),
-				title: ATTRIBUTION_NOTE,
+				title: t("tools.attribution-note"),
 				align: "right",
 				sort: row => row.totalTokensShare,
 				render: row => <span className="num">{formatCompact(Math.round(row.totalTokensShare))}</span>,
@@ -557,7 +555,7 @@ function ToolModelTable({
 			{
 				key: "cost",
 				header: t("tools.attr-cost"),
-				title: t("tools.attribution-estimate", { note: ATTRIBUTION_NOTE }),
+				title: t("tools.attribution-estimate", { note: t("tools.attribution-note") }),
 				align: "right",
 				sort: row => row.costShare,
 				render: row => <span className="num">{formatEstimatedCost(row.costShare, row.unpricedRequestsShare)}</span>,

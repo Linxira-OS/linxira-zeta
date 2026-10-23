@@ -11,17 +11,30 @@ function injectedLocale(): string | undefined {
 
 const messages: MessagesByLocale = { en: enLocale.messages, "zh-CN": zhCNLocale.messages };
 
+/** Local override written by the in-page switcher; survives reloads. */
+const LOCALE_STORAGE_KEY = "zeta.stats.locale";
+
+const localeListeners = new Set<() => void>();
+
 let activeLocale: StatsLocale = "en";
 
 // Resolve once at module load. Every `t()` caller imports this module first, so
-// the host language the server injected into `<head>` (or the browser's own
-// preference) is already in effect by the time a component module is evaluated
-// — including module-level label tables such as the range selector's.
+// the stored choice, the host language the server injected into `<head>`, or
+// the browser's own preference is already in effect by the time a component
+// module is evaluated.
 resolveInitialLocale();
 
-/** The locale the dashboard renders in. Fixed at boot; there is no in-page switcher. */
+/** The locale the dashboard renders in. */
 export function getLocale(): StatsLocale {
 	return activeLocale;
+}
+
+/** Subscribe to runtime switches (the topbar toggle); returns the unsubscribe. */
+export function subscribeLocale(listener: () => void): () => void {
+	localeListeners.add(listener);
+	return () => {
+		localeListeners.delete(listener);
+	};
 }
 
 /** Install a locale by tag (`zh`, `zh-CN`, `zh-Hans`; anything else is English). */
@@ -31,10 +44,40 @@ export function setLocale(tag: string | undefined | null): StatsLocale {
 }
 
 /**
- * The locale to boot with: the host's language when `zetacode stats` injected it,
- * then the browser's own preference, then English.
+ * The user's explicit pick from the topbar: install it, remember it, and
+ * re-render every subscriber.
+ */
+export function setUserLocale(tag: string): StatsLocale {
+	const next = setLocale(tag);
+	try {
+		globalThis.localStorage?.setItem(LOCALE_STORAGE_KEY, next);
+	} catch {
+		// Private-mode storage denial only costs the choice at next reload.
+	}
+	for (const listener of [...localeListeners]) listener();
+	return next;
+}
+
+/** A stored topbar choice, when it still parses as a supported locale. */
+function storedLocale(): StatsLocale | undefined {
+	try {
+		const raw = globalThis.localStorage?.getItem(LOCALE_STORAGE_KEY);
+		if (!raw) return undefined;
+		const resolved = resolveLocaleTag(raw);
+		return resolved === "en" || resolved === "zh-CN" ? resolved : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * The locale to boot with: an explicit topbar choice, then the host's language
+ * when `zetacode stats` injected it, then the browser's own preference, then
+ * English.
  */
 export function resolveInitialLocale(): StatsLocale {
+	const stored = storedLocale();
+	if (stored) return setLocale(stored);
 	const injected = injectedLocale();
 	if (injected) return setLocale(injected);
 	if (typeof navigator === "undefined") return "en";

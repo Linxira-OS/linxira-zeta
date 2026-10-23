@@ -81,6 +81,8 @@ export const common = {
 		"shell.light-theme": "Light theme",
 		"shell.range-suffix": "range",
 		"shell.jump-hint": "then letter to jump",
+		"shell.language": "Language",
+		"shell.switch-language": "Switch dashboard language",
 	},
 	"zh-CN": {
 		"common.provider": "服务商",
@@ -153,5 +155,7 @@ export const common = {
 		"shell.light-theme": "浅色主题",
 		"shell.range-suffix": "范围",
 		"shell.jump-hint": "再按字母跳转",
+		"shell.language": "语言",
+		"shell.switch-language": "切换仪表盘语言",
 	},
 } as const;

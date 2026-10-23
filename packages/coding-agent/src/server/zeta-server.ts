@@ -131,19 +131,42 @@ export interface ZetaServerRoute {
  */
 /**
  * What a browser sees when the backend runs without a Web UI build. Reaching
- * this page proves the backend is alive; the gateway and the terminal surfaces
- * keep working.
+ * this page proves the backend is alive; the terminal and the gateway keep
+ * working. The Web UI is deliberately not shipped in the package: a later
+ * release completes it and `zetacode serve` fetches it from npm on demand.
  */
-const NO_WEB_UI_PAGE = `<!doctype html><meta charset="utf-8"><title>Linxira Zeta</title>
-<body style="font-family:system-ui;margin:3rem auto;max-width:42rem;line-height:1.65">
-<h1>后端已就绪 · Backend is running</h1>
-<p>此安装未附带网页界面；终端与会话接口照常可用。<br>
-This install ships no Web UI build; the terminal and the session API keep working.</p>
+export const NO_WEB_UI_PAGE = `<!doctype html><html lang="zh-CN"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Linxira Zeta · Web UI</title>
+<style>
+:root{color-scheme:light dark}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;min-height:100vh;
+display:grid;place-items:center;background:Canvas;color:CanvasText}
+main{max-width:46rem;padding:3rem 1.5rem;line-height:1.7}
+h1{font-size:1.6rem;margin:0 0 .35rem}
+.sub{color:color-mix(in srgb,CanvasText 62%,Canvas);margin:0 0 1.6rem}
+.card{border:1px solid color-mix(in srgb,CanvasText 18%,Canvas);border-radius:14px;padding:1.1rem 1.25rem;
+background:color-mix(in srgb,CanvasText 4%,Canvas)}
+ul{margin:.8rem 0 0;padding-left:1.1rem}
+li{margin:.35rem 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+.tag{display:inline-block;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;
+color:color-mix(in srgb,CanvasText 65%,Canvas);margin-bottom:.6rem}
+</style>
+<main>
+<span class="tag">Linxira Zeta</span>
+<h1>Web UI 正在补齐 · Web UI coming soon</h1>
+<p class="sub">当前版本暂不随包发布 Web UI；完整界面会在后续版本补齐，
+     届时 <code>zetacode serve</code> 会按需从 npm 安装 Web UI。</p>
+<div class="card">
+<p>现在可以继续使用：</p>
 <ul>
-<li>终端 · Terminal: <code>zetacode</code> attaches to this backend.</li>
-<li>网关 · Gateway: <code>/api/*</code> on this same port.</li>
+<li>终端 · Terminal：<code>zetacode</code> 连接到此后端（与本页面同一套会话）。</li>
+<li>网关 · Gateway：同一端口下的 <code>/api/*</code> 与 RPC WebSocket。</li>
+<li>统计 · Stats：<code>zetacode stats</code> 打开本地统计面板。</li>
 </ul>
-</body>`;
+</div>
+</main></html>`;
 
 const NEXT_OWNED_API_PREFIXES = [
 	"/api/fs/",
@@ -1287,8 +1310,10 @@ export class ZetaServer {
 					case "webui":
 						return proxyRequest(req, webUiInternal);
 					case "unavailable":
+						// A deliberate placeholder, not an outage: answer 200 so status
+						// checks and the browser treat it as the page it is.
 						return new Response(NO_WEB_UI_PAGE, {
-							status: 503,
+							status: 200,
 							headers: { "content-type": "text/html; charset=utf-8" },
 						});
 				}

@@ -68,8 +68,6 @@ const TOKEN_MIX = [
 	{ key: "output", label: t("common.output"), color: "var(--chart-secondary)" },
 ] as const;
 
-const SNAPSHOT_HINT = t("providers.snapshot-hint");
-
 interface WindowRef {
 	provider: string;
 	windowKey: string;
@@ -608,7 +606,7 @@ function WindowInsightsTable({
 			limit={12}
 			selectedKey={selected ? `${selected.provider}::${selected.windowKey}` : null}
 			onRowClick={i => onSelect({ provider: i.provider, windowKey: i.windowKey })}
-			empty={<EmptyState title={t("providers.no-snapshots-in-range")} hint={SNAPSHOT_HINT} />}
+			empty={<EmptyState title={t("providers.no-snapshots-in-range")} hint={t("providers.snapshot-hint")} />}
 		/>
 	);
 }
@@ -882,7 +880,7 @@ function WindowUtilizationCard({
 			{insights === null ? (
 				<ChartSkeleton height={260} />
 			) : selected === null ? (
-				<EmptyState title={t("providers.no-snapshots-in-range")} hint={SNAPSHOT_HINT} />
+				<EmptyState title={t("providers.no-snapshots-in-range")} hint={t("providers.snapshot-hint")} />
 			) : (
 				<QueryView query={accounts} skeleton={<ChartSkeleton height={260} />}>
 					{() =>

@@ -251,7 +251,7 @@ const LEFT_DOUBLE_TAP_MIN_GAP_MS = 40;
 const LEFT_DOUBLE_TAP_MAX_GAP_MS = 500;
 
 /** Commands that stay local while the model session lives on a backend. */
-const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
+export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	exit: true,
 	quit: true,
 	help: true,
@@ -261,7 +261,28 @@ const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	copy: true,
 	export: true,
 	dump: true,
+	// Client-side only: the language catalogue, the dynamic-tool settings
+	// (`/tool`, `/time`, `/tracking` write config the backend's settings watcher
+	// re-gates), the changelog, and the local dashboards that read git/stats.
+	language: true,
+	tool: true,
+	time: true,
+	tracking: true,
+	changelog: true,
+	stats: true,
+	git: true,
 };
+
+/**
+ * Whether a slash command runs in the attached TUI itself instead of being
+ * refused: client-only commands (display, settings, language) plus the local
+ * dashboards. Everything else stays backend-owned; model/thinking/mode
+ * switches reach the backend through the replica subscription in
+ * `BackendAttachLink`.
+ */
+export function isBackendAttachLocalCommand(verb: string | undefined): boolean {
+	return verb !== undefined && BACKEND_ATTACH_LOCAL_COMMANDS[verb] === true;
+}
 
 export class InputController {
 	constructor(
@@ -1098,7 +1119,7 @@ export class InputController {
 			const backendAttach = this.ctx.backendAttach;
 			if (backendAttach) {
 				const verb = text.startsWith("/") ? text.slice(1).split(/\s+/, 1)[0] : undefined;
-				const localCommand = verb !== undefined && BACKEND_ATTACH_LOCAL_COMMANDS[verb] === true;
+				const localCommand = isBackendAttachLocalCommand(verb);
 				if (verb !== undefined && !localCommand) {
 					this.ctx.showStatus(`${text.split(/\s+/, 1)[0]} is not available while attached to the backend`);
 					this.ctx.editor.setText("");

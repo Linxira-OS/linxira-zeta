@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { DashboardSection } from "./app/nav";
 import { Shell } from "./app/Shell";
+import { useLocale } from "./i18n/useLocale";
 import { LiveProvider } from "./data/live";
 import { useHashRoute } from "./data/useHashRoute";
 import {
@@ -27,6 +28,9 @@ export default function App() {
 }
 
 function Dashboard() {
+	// A topbar language switch re-renders the whole tree: translated copy is
+	// read through `t()` at render time, including the mounted-but-hidden pages.
+	useLocale();
 	const { section, setSection, range, setRange, session, setSession } = useHashRoute();
 	const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
 	// Stable identity so the drawer's effects don't tear down on every render.

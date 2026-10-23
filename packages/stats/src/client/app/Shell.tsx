@@ -2,9 +2,11 @@ import { Menu } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { rangeMeta, TIME_RANGES } from "../data/range";
 import { t } from "../i18n";
+import { useLocale } from "../i18n/useLocale";
 import { useLiveStatus } from "../data/live";
 import type { TimeRange } from "../types";
 import { Segmented } from "../ui";
+import { LanguageToggle } from "./LanguageToggle";
 import { LiveChip } from "./LiveChip";
 import { type DashboardSection, NAV } from "./nav";
 import { ThemeToggle } from "./ThemeToggle";
@@ -17,18 +19,20 @@ export interface ShellProps {
 	children: ReactNode;
 }
 
-const RANGE_OPTIONS = TIME_RANGES.map((range, i) => ({
-	value: range,
-	label: t(rangeMeta(range).labelKey),
-	title: `${t(rangeMeta(range).windowKey)} (${i + 1})`,
-}));
-
 /**
  * Fixed glass topbar + naked sidebar framing one inset content panel. Owns
  * the global keyboard shortcuts: `1`–`6` pick a range, `g` then a letter jumps
  * to a page.
  */
 export function Shell({ section, onSectionChange, range, onRangeChange, children }: ShellProps) {
+	// Range labels are translated copy, so they are rebuilt on a locale switch
+	// instead of being frozen in a module-level table.
+	useLocale();
+	const rangeOptions = TIME_RANGES.map((range, i) => ({
+		value: range,
+		label: t(rangeMeta(range).labelKey),
+		title: `${t(rangeMeta(range).windowKey)} (${i + 1})`,
+	}));
 	const [menuOpen, setMenuOpen] = useState(false);
 	const scrolled = useScrolled();
 	const { sync } = useLiveStatus();
@@ -87,11 +91,12 @@ export function Shell({ section, onSectionChange, range, onRangeChange, children
 						<LiveChip />
 					</span>
 					<Segmented
-						options={RANGE_OPTIONS}
+						options={rangeOptions}
 						value={range}
 						onChange={onRangeChange}
 						aria-label={t("common.time-range")}
 					/>
+					<LanguageToggle />
 					<ThemeToggle />
 				</div>
 				{progress !== undefined && (

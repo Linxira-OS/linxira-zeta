@@ -208,7 +208,13 @@ Prompts, aborts, extension dialogs (`select`/`confirm`/`input`/`editor`/
 stream keeps mirroring turns and dialogs are presented once, whichever surface
 sees the request first wins. A backend without the socket falls back to its
 HTTP command surface. Client-only actions such as opening files and clipboard
-writes stay local and are not forwarded. Model and thinking-level switches
+writes stay local and are not forwarded. Commands that only touch the client
+(`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`, `/tracking`,
+`/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`, `/help`,
+`/hotkeys`, `/quit`, `/exit`) run in the attached TUI exactly as they do
+locally; session commands (`/compact`, `/new`, `/resume`, `/fork`, `/reload`,
+`/queue`, `/mcp`, `/todo`) stay backend-owned and are refused with a status
+line instead of mutating only the replica. Model and thinking-level switches
 made in the attached TUI (for example `/model`) are mirrored to the backend, so
 the run and the status line never disagree. Detaching closes the socket and the
 event stream and never stops the backend or its session.

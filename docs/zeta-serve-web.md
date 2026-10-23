@@ -3,6 +3,14 @@
 CLI commands for one-click startup of the Stats Dashboard and Web UI, backed by
 ZetaServer's unified reverse proxy.
 
+> **Web UI status (2026-10-24).** The Web UI is deliberately **not shipped**
+> inside the package or the release binaries for now. With no Web UI build
+> present, `zetacode serve` answers the web port with a bilingual placeholder
+> page that says the Web UI is being completed; the terminal attach client and
+> the gateway keep working. A later release completes the Web UI and makes
+> `serve` fetch `@linxiraos/zeta-web` from npm on demand. The Stats Dashboard
+> ships in every build and has an EN ⇄ 中文 switch in its top-right corner.
+
 ## `zetacode serve`
 
 Start both the Stats Dashboard and Web UI simultaneously.
