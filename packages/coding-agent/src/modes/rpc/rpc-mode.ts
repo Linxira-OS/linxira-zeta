@@ -2333,12 +2333,12 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			// =================================================================
 
 			case "mode_enter": {
-				await session.enterMode(command.mode);
+				await session.enterMode(command.mode, command.options);
 				return success(id, "mode_enter");
 			}
 
 			case "mode_exit": {
-				await session.exitMode(command.mode);
+				await session.exitMode(command.mode, command.options);
 				return success(id, "mode_exit");
 			}
 

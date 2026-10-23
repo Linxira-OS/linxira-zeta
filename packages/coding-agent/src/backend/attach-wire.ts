@@ -82,12 +82,29 @@ export class AttachWire {
 		return this.#client.call("set_thinking_level", { level }).then(() => undefined);
 	}
 
-	enterMode(mode: "plan" | "goal" | "vibe"): Promise<void> {
-		return this.#client.call("mode_enter", { mode }).then(() => undefined);
+	enterMode(mode: "plan" | "goal" | "vibe", options?: unknown): Promise<void> {
+		return this.#client
+			.call("mode_enter", options === undefined ? { mode } : { mode, options })
+			.then(() => undefined);
 	}
 
-	exitMode(mode: "plan" | "goal" | "vibe"): Promise<void> {
-		return this.#client.call("mode_exit", { mode }).then(() => undefined);
+	exitMode(mode: "plan" | "goal" | "vibe", options?: unknown): Promise<void> {
+		return this.#client.call("mode_exit", options === undefined ? { mode } : { mode, options }).then(() => undefined);
+	}
+
+	/** Resume the backend's paused goal; refused when there is none. */
+	resumeGoal(): Promise<void> {
+		return this.#client.call("goal", { op: "resume" }).then(() => undefined);
+	}
+
+	/** Pause the backend's active goal and leave goal mode. */
+	pauseGoal(): Promise<void> {
+		return this.#client.call("goal", { op: "pause" }).then(() => undefined);
+	}
+
+	/** Drop the backend's goal and leave goal mode. */
+	dropGoal(): Promise<void> {
+		return this.#client.call("goal", { op: "drop" }).then(() => undefined);
 	}
 
 	/** Answer a dialog fanned out by the backend. */

@@ -239,12 +239,12 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	{
 		name: "mode_enter",
 		doc: "Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.",
-		params: { mode: "SessionModeId" },
+		params: { mode: "SessionModeId", "options?": "unknown" },
 	},
 	{
 		name: "mode_exit",
 		doc: "Leave a session mode.",
-		params: { mode: "SessionModeId" },
+		params: { mode: "SessionModeId", "options?": "unknown" },
 	},
 	{
 		name: "get_tools",

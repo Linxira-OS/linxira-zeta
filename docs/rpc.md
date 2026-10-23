@@ -202,6 +202,33 @@ a detached process and returns its `pid`; the child is not tracked, so closing
 the session does not close the app. The runtime itself and the terminal
 workbench are not openable: they have no detached GUI form.
 
+### Modes and tools
+
+- `{ id?, type: "mode_enter", mode: "plan" | "goal" | "vibe", options?: unknown }`
+- `{ id?, type: "mode_exit", mode: "plan" | "goal" | "vibe", options?: unknown }`
+- `{ id?, type: "get_tools" }` → `data: { all: string[], active: string[] }`
+- `{ id?, type: "set_tools", toolNames: string[] }`
+- `{ id?, type: "reload" }`
+
+`mode_enter`/`mode_exit` are the same transitions the TUI's `/plan`, `/goal`
+and `/vibe` run. `options` carries the mode's entry state so a remote client
+enters the mode with the same parameters instead of the defaults:
+
+| mode | options fields |
+| --- | --- |
+| `plan` | `planFilePath`, `workflow` (`"parallel"`/`"iterative"`/`"ultra"`), `reentry`, `enteredBy` (`"user"`/`"agent"`), `objective` |
+| `goal` | `objective`, `tokenBudget` (positive integer; omitted = unbounded) |
+| `vibe` | — |
+
+A goal entered with `options` creates the goal with that objective and budget;
+`goal resume` remains the way to continue a paused goal. Mode state is read
+back through `get_state.modes` (and the `mode_changed` event on the gateway);
+exiting a mode that is not active is a no-op.
+
+`get_tools`/`set_tools` list and replace the active tool set by name; a name the
+session does not know is refused. `reload` re-reads the agent, tools and
+settings for the live session.
+
 ### Model
 
 - `{ id?, type: "set_model", provider: string, modelId: string }`

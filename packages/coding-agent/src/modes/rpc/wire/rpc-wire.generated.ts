@@ -1705,10 +1705,12 @@ export interface SetAutoCompactionParams {
 
 export interface ModeEnterParams {
 	mode: SessionModeId;
+	options?: unknown;
 }
 
 export interface ModeExitParams {
 	mode: SessionModeId;
+	options?: unknown;
 }
 
 export interface GetToolsResult {

@@ -5423,11 +5423,15 @@ pub struct SetAutoCompactionParams {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModeEnterParams {
 	pub mode: SessionModeId,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub options: Option<Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModeExitParams {
 	pub mode: SessionModeId,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub options: Option<Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6781,6 +6785,8 @@ impl Command for SetAutoCompactionCommand {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModeEnterCommand {
 	pub mode: SessionModeId,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub options: Option<Value>,
 }
 
 impl Command for ModeEnterCommand {
@@ -6798,6 +6804,8 @@ impl Command for ModeEnterCommand {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModeExitCommand {
 	pub mode: SessionModeId,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub options: Option<Value>,
 }
 
 impl Command for ModeExitCommand {

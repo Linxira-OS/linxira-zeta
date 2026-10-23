@@ -46,6 +46,8 @@ export interface PlanModeExitOptions {
 }
 export interface GoalModeEntryOptions {
 	objective?: string;
+	/** Token budget for a newly created goal; ignored when resuming. */
+	tokenBudget?: number;
 	resume?: boolean;
 	silent?: boolean;
 }
@@ -2252,7 +2254,7 @@ export class AgentSession implements SettingsScope {
 		this.#goalModePreviousTools = previousTools;
 		const state = options.resume
 			? await this.goalRuntime.resumeGoal()
-			: await this.goalRuntime.createGoal({ objective: options.objective ?? "" });
+			: await this.goalRuntime.createGoal({ objective: options.objective ?? "", tokenBudget: options.tokenBudget });
 		await this.setActiveToolsByName(goalTools);
 		this.setGoalModeState(state);
 		if (this.isStreaming) {
@@ -2976,9 +2978,10 @@ export class AgentSession implements SettingsScope {
 		this.#modelMentions.syncFromBranch();
 		this.#goalRuntime = new GoalRuntime({
 			getState: () => this.#goalModeState,
-			setState: state => {
-				this.#goalModeState = state;
-			},
+			// Route every goal state commit through the setter: it bumps the
+			// external-state version, which is what mode diffs (gateway, attach)
+			// observe. Assigning the field directly made a drop invisible.
+			setState: state => this.setGoalModeState(state),
 			getCurrentUsage: () => this.#goalUsage(),
 			emit: event => {
 				if (event.type === "goal_updated") {

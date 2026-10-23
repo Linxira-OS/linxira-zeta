@@ -79,6 +79,8 @@ export class BackendAttachLink {
 	#unsubscribeLocal: (() => void) | undefined;
 	/** Last mode enablement mirrored from the replica (null before the first read). */
 	#lastModes: Record<"plan" | "goal" | "vibe", boolean | null> = { plan: null, goal: null, vibe: null };
+	/** Replica goal id last seen paused; a re-enable of that id is a resume. */
+	#pausedGoalId: string | undefined;
 	replicaPath: string | undefined;
 
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
@@ -150,22 +152,69 @@ export class BackendAttachLink {
 		// The replica is a real session: `/model` and `/thinking` switch it. When
 		// a control plane is attached, the backend owns the turn, so the same
 		// switches must reach it; otherwise the UI and the run disagree.
-		for (const mode of ["plan", "goal", "vibe"] as const) {
-			this.#lastModes[mode] = Boolean(this.#ctx.session.getModeState(mode)?.enabled);
-		}
-		this.#unsubscribeLocal = this.#ctx.session.subscribe(event => {
+		const session = this.#ctx.session;
+		this.#lastModes.plan = Boolean(session.getPlanModeState()?.enabled);
+		this.#lastModes.goal = Boolean(session.getGoalModeState()?.enabled);
+		this.#lastModes.vibe = Boolean(session.getVibeModeState()?.enabled);
+		this.#pausedGoalId =
+			session.getGoalModeState()?.goal?.status === "paused" ? session.getGoalModeState()?.goal?.id : undefined;
+		this.#unsubscribeLocal = session.subscribe(event => {
 			if (!this.#wire) return;
 			if (event.type === "state_version_changed") {
 				// Plan/goal/vibe live on the replica until the run does; every
-				// transition emits this event, so diffing is lossless.
-				for (const mode of ["plan", "goal", "vibe"] as const) {
-					const enabled = Boolean(this.#ctx.session.getModeState(mode)?.enabled);
-					if (this.#lastModes[mode] === enabled) continue;
-					this.#lastModes[mode] = enabled;
-					const wire = this.#wire;
-					void (enabled ? wire.enterMode(mode) : wire.exitMode(mode)).catch(error =>
-						this.#ctx.showWarning(`Backend ${mode} mode switch failed: ${String(error)}`),
-					);
+				// transition emits this event, so diffing is lossless. The entry
+				// options travel with the command: without them a goal loses its
+				// objective/budget and a plan loses its file/workflow.
+				const wire = this.#wire;
+				const warn = (mode: string) => (error: unknown) =>
+					this.#ctx.showWarning(`Backend ${mode} mode switch failed: ${String(error)}`);
+
+				const planState = session.getPlanModeState();
+				const planOn = Boolean(planState?.enabled);
+				if (this.#lastModes.plan !== planOn) {
+					this.#lastModes.plan = planOn;
+					void (
+						planOn
+							? wire.enterMode("plan", {
+									planFilePath: planState?.planFilePath,
+									workflow: planState?.workflow,
+									reentry: planState?.reentry,
+									enteredBy: planState?.enteredBy,
+									objective: planState?.objective,
+								})
+							: wire.exitMode("plan")
+					).catch(warn("plan"));
+				}
+
+				const goalState = session.getGoalModeState();
+				const goalOn = Boolean(goalState?.enabled);
+				if (this.#lastModes.goal !== goalOn) {
+					this.#lastModes.goal = goalOn;
+					if (goalOn) {
+						const resuming = goalState?.goal?.id !== undefined && goalState.goal.id === this.#pausedGoalId;
+						this.#pausedGoalId = undefined;
+						void (
+							resuming
+								? wire.resumeGoal()
+								: wire.enterMode("goal", {
+										objective: goalState?.goal?.objective,
+										tokenBudget: goalState?.goal?.tokenBudget,
+									})
+						).catch(warn("goal"));
+					} else if (goalState?.goal?.status === "paused") {
+						// A paused goal keeps its state entry and stays resumable.
+						this.#pausedGoalId = goalState.goal.id;
+						void wire.pauseGoal().catch(warn("goal"));
+					} else {
+						this.#pausedGoalId = undefined;
+						void wire.dropGoal().catch(warn("goal"));
+					}
+				}
+
+				const vibeOn = Boolean(session.getVibeModeState()?.enabled);
+				if (this.#lastModes.vibe !== vibeOn) {
+					this.#lastModes.vibe = vibeOn;
+					void (vibeOn ? wire.enterMode("vibe") : wire.exitMode("vibe")).catch(warn("vibe"));
 				}
 			}
 			if (event.type === "model_changed") {

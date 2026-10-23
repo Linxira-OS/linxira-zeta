@@ -191,6 +191,18 @@ describe("attached TUI over the wire protocol", () => {
 		while (backendSession.getPlanModeState()?.enabled && Date.now() < exitDeadline) await term.waitForRender();
 		expect(backendSession.getPlanModeState()?.enabled).toBeUndefined();
 
+		// A goal is more than a switch: the objective and token budget must reach
+		// the backend or it runs a different goal than the one on screen.
+		await mode.session.enterGoalMode({ objective: "finish attach parity", tokenBudget: 50_000 });
+		const goalDeadline = Date.now() + 2_000;
+		while (!backendSession.getGoalModeState()?.enabled && Date.now() < goalDeadline) await term.waitForRender();
+		expect(backendSession.getGoalModeState()?.goal.objective).toBe("finish attach parity");
+		expect(backendSession.getGoalModeState()?.goal.tokenBudget).toBe(50_000);
+		await mode.session.exitGoalMode();
+		const dropDeadline = Date.now() + 2_000;
+		while (backendSession.getGoalModeState() && Date.now() < dropDeadline) await term.waitForRender();
+		expect(backendSession.getGoalModeState()).toBeUndefined();
+
 		// Backend dialog → TUI selector → answer over the socket settles it.
 		const answered = Promise.withResolvers<Record<string, unknown>>();
 		wrapper.registerUiRequest("tui-dialog", answered.resolve, () => answered.resolve({ cancelled: true }));

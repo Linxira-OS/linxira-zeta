@@ -120,8 +120,8 @@ export type RpcCommand =
 
 	// Session modes, tool set and reload (the TUI's /plan, /goal, /vibe,
 	// /tool and /reload surfaces; a client drives the same transitions)
-	| { id?: string; type: "mode_enter"; mode: "plan" | "goal" | "vibe" }
-	| { id?: string; type: "mode_exit"; mode: "plan" | "goal" | "vibe" }
+	| { id?: string; type: "mode_enter"; mode: "plan" | "goal" | "vibe"; options?: unknown }
+	| { id?: string; type: "mode_exit"; mode: "plan" | "goal" | "vibe"; options?: unknown }
 	| { id?: string; type: "get_tools" }
 	| { id?: string; type: "set_tools"; toolNames: string[] }
 	| { id?: string; type: "reload" }

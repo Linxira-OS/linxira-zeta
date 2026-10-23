@@ -3501,16 +3501,20 @@ class WireClient:
         params["enabled"] = enabled
         self._command("set_auto_compaction", params)
 
-    def mode_enter(self, mode: SessionModeId) -> None:
+    def mode_enter(self, mode: SessionModeId, *, options: JsonValue | None = None) -> None:
         """Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run."""
         params: dict[str, object] = {}
         params["mode"] = mode
+        if options is not None:
+            params["options"] = options
         self._command("mode_enter", params)
 
-    def mode_exit(self, mode: SessionModeId) -> None:
+    def mode_exit(self, mode: SessionModeId, *, options: JsonValue | None = None) -> None:
         """Leave a session mode."""
         params: dict[str, object] = {}
         params["mode"] = mode
+        if options is not None:
+            params["options"] = options
         self._command("mode_exit", params)
 
     def get_tools(self) -> GetToolsResult:

@@ -8080,7 +8080,8 @@ func (c Commands) SetAutoCompaction(ctx context.Context, p SetAutoCompactionComm
 
 // ModeEnterCommand holds the parameters of "mode_enter".
 type ModeEnterCommand struct {
-	Mode SessionModeId `json:"mode"`
+	Mode    SessionModeId   `json:"mode"`
+	Options json.RawMessage `json:"options,omitempty"`
 }
 
 // ModeEnter sends "mode_enter": Enter a session mode (plan, goal or vibe), the same transition the TUI's /plan, /goal and /vibe run.
@@ -8090,7 +8091,8 @@ func (c Commands) ModeEnter(ctx context.Context, p ModeEnterCommand) error {
 
 // ModeExitCommand holds the parameters of "mode_exit".
 type ModeExitCommand struct {
-	Mode SessionModeId `json:"mode"`
+	Mode    SessionModeId   `json:"mode"`
+	Options json.RawMessage `json:"options,omitempty"`
 }
 
 // ModeExit sends "mode_exit": Leave a session mode.

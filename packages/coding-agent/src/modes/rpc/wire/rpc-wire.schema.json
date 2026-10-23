@@ -6612,7 +6612,8 @@
 			"properties": {
 				"mode": {
 					"$ref": "#/$defs/SessionModeId"
-				}
+				},
+				"options": {}
 			},
 			"required": [
 				"mode"
@@ -6623,7 +6624,8 @@
 			"properties": {
 				"mode": {
 					"$ref": "#/$defs/SessionModeId"
-				}
+				},
+				"options": {}
 			},
 			"required": [
 				"mode"
