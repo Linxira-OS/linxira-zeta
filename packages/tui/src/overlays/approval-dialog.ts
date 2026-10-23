@@ -140,11 +140,8 @@ export class ApprovalDialogComponent implements Component {
 		this.#summary = promptDetails(lines);
 		this.#full =
 			options.fullPrompt === undefined ? undefined : promptDetails(sanitizeDisplayLines(options.fullPrompt));
-		this.#choices = [
-			{ label: "Approve", answer: "once" },
-			...(options.session ? [{ label: options.session.label, answer: "session" as const }] : []),
-			{ label: "Deny", answer: "deny" },
-		];
+		this.#choices = this.#buildChoices();
+		this.#choice = this.#choices.findIndex(choice => choice.answer === "once");
 		this.#panel = new OverlayPanel(title, "zeta.overlay.approval");
 		this.#footer.setHeight(1);
 		this.#panel.addChild(this.#body);

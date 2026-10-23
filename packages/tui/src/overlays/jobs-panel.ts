@@ -434,6 +434,7 @@ function describeDetail(
 			? code(command, { lang: "bash", wrap: true, preview: { lines: 4 }, role: "zeta.jobs.command" })
 			: text(job.label, { role: "zeta.jobs.title", wrap: "word" }),
 		facts.length > 0 && node("kv", { items: facts, role: "zeta.jobs.facts" }),
+		detail?.widget && node("col", { role: "zeta.jobs.widget" }, [describeJobWidget(detail.widget)], "widget"),
 		node(
 			"col",
 			{ role: "zeta.jobs.out", gap: "sm" },

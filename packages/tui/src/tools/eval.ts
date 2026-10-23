@@ -724,6 +724,7 @@ function describeStatusEvent(event: EvalStatusEvent, expanded: boolean): NativeN
 			spans.push(span(` ${key}=`, "muted"), span(previewLine(sanitizeText(String(value)), STATUS_VALUE_WIDTH)));
 		}
 	}
+	if (mcpProgress) spans.push(span(` ${formatMCPProgress(mcpProgress, STATUS_VALUE_WIDTH)}`));
 	const line = text(spans, { truncate: "end", role: "zeta.tool.eval.status" });
 	const preview = expanded ? eventString(event.preview)?.trimEnd() : undefined;
 	if (!preview) return line;
