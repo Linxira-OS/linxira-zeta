@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { toModelSpec } from "@oh-my-pi/pi-catalog/provider-models/bundled-references";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
 import { reachesBudgetedHost, reachesOfficialEndpoint } from "../src/providers/anthropic-state";
 import type { Model, ModelSpec } from "../src/types";
 

@@ -288,12 +288,12 @@ describe("job renderer task-result preview", () => {
 			};
 			const view = waitToolRenderer.describeResult!(result, { expanded: true, isPartial });
 			const [strip, agent] = view!.body!;
-			expect(strip).toMatchObject({ k: "row", p: { role: "omp.job.tiles" } });
+			expect(strip).toMatchObject({ k: "row", p: { role: "zeta.job.tiles" } });
 			const [running] = (strip as NativeNode).c ?? [];
-			expect(byRole(running, "omp.job.tile.dot")?.p).toMatchObject({
+			expect(byRole(running, "zeta.job.tile.dot")?.p).toMatchObject({
 				spans: [isPartial ? { t: "●", fx: "pulse" } : { t: "●" }],
 			});
-			expect(flatten(byRole(running, "omp.job.tile.head")?.c).find(node => node.k === "elapsed")).toMatchObject({
+			expect(flatten(byRole(running, "zeta.job.tile.head")?.c).find(node => node.k === "elapsed")).toMatchObject({
 				p: isPartial ? { age: 1200 } : { age: 1200, stopped: 1200 },
 			});
 			expect(agent).toMatchObject({
@@ -466,12 +466,12 @@ describe("job renderer task-result preview", () => {
 			});
 			const [strip] = view!.body! as NativeNode[];
 			const tiles = (strip!.c ?? []) as NativeNode[];
-			expect(tiles.map(tile => byRole(tile, "omp.job.tile.title")?.p)).toMatchObject([
+			expect(tiles.map(tile => byRole(tile, "zeta.job.tile.title")?.p)).toMatchObject([
 				{ spans: [{ t: "Bencher" }] },
 				{ spans: [{ t: "verb-bench · decode throughput" }] },
 			]);
 			const bench = tiles[1]!;
-			expect(byRole(bench, "omp.job.tile.chart")).toBeDefined();
+			expect(byRole(bench, "zeta.job.tile.chart")).toBeDefined();
 			expect(JSON.stringify(tiles[0])).toContain("profiling the decode loop");
 		});
 

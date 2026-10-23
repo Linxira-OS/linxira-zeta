@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { inceptionModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { inceptionModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
+import { TempDir } from "@linxiraos/pi-utils";
 
 // /models publishes per-token decimal strings, but omits reasoning support.
 const chatMetadata = {

@@ -1,7 +1,7 @@
 /**
  * Contract: print mode is automation surface — a dispatched `/mcp reauth`
  * that consumes an input but fails (unknown server, usage error, refused
- * operation) must not exit 0, or `omp -p '/mcp reauth foo'` scripts treat a
+ * operation) must not exit 0, or `zetacode -p '/mcp reauth foo'` scripts treat a
  * failed reauthorization as success. Conversely a consumed reauth that
  * succeeded exits 0 without prompting the model or reprinting the persisted
  * previous turn, and the merged stdin/@file message is never dispatched as a

@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type AuthAccountPolicies, AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai/auth-storage";
-import * as oauthUtils from "@oh-my-pi/pi-ai/registry/oauth";
-import type { OAuthCredentials } from "@oh-my-pi/pi-ai/registry/oauth/types";
-import type { UsageLimit, UsageProvider, UsageReport } from "@oh-my-pi/pi-ai/usage";
+import { type AuthAccountPolicies, AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai/auth-storage";
+import * as oauthUtils from "@linxiraos/pi-ai/registry/oauth";
+import type { OAuthCredentials } from "@linxiraos/pi-ai/registry/oauth/types";
+import type { UsageLimit, UsageProvider, UsageReport } from "@linxiraos/pi-ai/usage";
 
 // Running sessions with a warm automatic pin and `reclaimAbovePct` on the
 // preferred account. The clock advances in short steps so Anthropic pins stay

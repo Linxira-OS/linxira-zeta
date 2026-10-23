@@ -186,8 +186,8 @@ describe("getLatestRelease configured registry", () => {
 		const release = await getLatestRelease({ registries: feed });
 
 		expect(urls).toEqual([
-			"https://npm.corp.example/api/npm/feed/@oh-my-pi%2fpi-coding-agent/latest",
-			"https://npm.corp.example/api/npm/feed/@oh-my-pi%2fpi-coding-agent",
+			"https://npm.corp.example/api/npm/feed/@linxiraos%2fzeta/latest",
+			"https://npm.corp.example/api/npm/feed/@linxiraos%2fzeta",
 		]);
 		expect(release.version).toBe("999.2.0");
 		expect(release.dist).toBe("binary");

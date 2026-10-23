@@ -1,0 +1,1 @@
+check-license-map: ok (97 workbench sources AGPL, 6 vendored trees)

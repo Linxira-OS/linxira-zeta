@@ -1,0 +1,2 @@
+Release asset names OK: 8 CLI target(s), 3 shipped ↔ 3 updater name(s); release_binary builds 3 (zeta-cli-linux-musl-x64, zeta-cli-linux-x64, zeta-cli-windows-x64.exe)
+  buildable but not built by release_binary today: zeta-cli-darwin-arm64, zeta-cli-darwin-x64, zeta-cli-linux-arm64, zeta-cli-linux-musl-arm64, zeta-cli-windows-arm64.exe

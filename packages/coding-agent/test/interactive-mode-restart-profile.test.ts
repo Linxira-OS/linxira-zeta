@@ -13,7 +13,7 @@ it("native restart preserves the active profile and reopens its persisted sessio
 			USERPROFILE: tempDir.path(),
 			OMP_PROFILE: undefined,
 			PI_PROFILE: undefined,
-			PI_CODING_AGENT_DIR: undefined,
+			ZETA_CODING_AGENT_DIR: undefined,
 			PI_CODING_AGENT_SESSION_DIR: undefined,
 			PI_CONFIG_DIR: ".omp",
 			XDG_DATA_HOME: undefined,

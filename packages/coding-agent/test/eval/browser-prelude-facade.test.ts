@@ -92,8 +92,8 @@ function recorderDefinition(session: ToolSession, calls: unknown[]): EvalPrelude
 function recordingFacade() {
 	const calls: unknown[] = [];
 	const context = createContext({
-		__omp_log__: () => {},
-		__omp_prelude__: async (_name: string, parameters: unknown) => {
+		__zeta_log__: () => {},
+		__zeta_prelude__: async (_name: string, parameters: unknown) => {
 			calls.push(parameters);
 			return responseFor(parameters);
 		},
@@ -196,7 +196,7 @@ describe("browser JavaScript facade", () => {
 	it("refuses run args it would drop before anything runs, and still runs empty or null args", async () => {
 		const calls: unknown[] = [];
 		const context = createContext({
-			__omp_log__: () => {},
+			__zeta_log__: () => {},
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				calls.push(parameters);
 				return responseFor(parameters);

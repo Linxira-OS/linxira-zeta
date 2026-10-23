@@ -251,7 +251,7 @@ describe("headless MCP readiness", () => {
 
 	it("dispatches a recovery builtin before the strict gate so reauth can attempt the failed server", async () => {
 		// Regression: the strict readiness gate used to skip every
-		// `promptTextFor` call, so `omp -p '/mcp reauth <name>'` exited before
+		// `promptTextFor` call, so `zetacode -p '/mcp reauth <name>'` exited before
 		// dispatching — the one command that could repair the failed server
 		// never ran. The initial input now dispatches first, and a strict
 		// failure re-evaluates readiness after a local builtin ran.

@@ -354,7 +354,7 @@ describe("dialogs under a native surface", () => {
 				grants: [folder, file],
 				onGrant: clicked,
 			});
-			const list = find(pointed.describe(), node => node.p?.role === "omp.approval.choices")!;
+			const list = find(pointed.describe(), node => node.p?.role === "zeta.approval.choices")!;
 			pointed.handleNativeEvent({ type: "select", key: list.path, item: "grant0" });
 			expect(clicked).toHaveBeenCalledWith(folder, false);
 		} finally {

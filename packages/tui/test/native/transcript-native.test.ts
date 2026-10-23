@@ -231,12 +231,12 @@ describe("native transcript", () => {
 			},
 		});
 		const h = await startWith(h => h.tui.addChild(component));
-		const card = h.find(node => node.p?.role === "omp.skill");
+		const card = h.find(node => node.p?.role === "zeta.skill");
 		expect(card?.p).not.toHaveProperty("collapsible");
 		expect(card?.c?.find(child => child.k === "md")?.p).toMatchObject({
 			text: "Organize the project foundation",
 		});
-		const prompt = h.find(node => node.p?.role === "omp.skill.prompt");
+		const prompt = h.find(node => node.p?.role === "zeta.skill.prompt");
 		expect(prompt?.p).toMatchObject({ collapsible: true, collapsed: true });
 		expect(prompt?.c).toBeUndefined();
 

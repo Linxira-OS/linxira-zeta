@@ -224,10 +224,10 @@ describe("JobsSheet", () => {
 		const sheet = new JobsSheet(source);
 		sheet.handleInput(DOWN);
 		const root = sheet.describe(CX);
-		const detailNode = byRole(root, "omp.jobs.detail")[0]!;
+		const detailNode = byRole(root, "zeta.jobs.detail")[0]!;
 		const roles = (detailNode.c ?? []).map(child => ("k" in child ? prop(child, "role") : undefined));
-		expect(roles.indexOf("omp.jobs.widget")).toBeLessThan(roles.indexOf("omp.jobs.out"));
-		expect(byRole(root, "omp.job.widget.bar")).toHaveLength(3);
+		expect(roles.indexOf("zeta.jobs.widget")).toBeLessThan(roles.indexOf("zeta.jobs.out"));
+		expect(byRole(root, "zeta.job.widget.bar")).toHaveLength(3);
 
 		const lines = sheet.render(100).map(line => Bun.stripANSI(line));
 		const head = lines.findIndex(line => line.includes("eval · tests passed per model"));

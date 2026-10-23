@@ -114,7 +114,7 @@ export class SkillMessageComponent extends Container {
 				{ role: "zeta.skill", tone: "user", head, collapsible: true, collapsed: !this.#expanded },
 				children.length > 0 ? children : [text([span(label, "muted")])],
 			);
-			return card({ role: "omp.skill", tone: "user", head }, children);
+			return card({ role: "zeta.skill", tone: "user", head }, children);
 		});
 	}
 

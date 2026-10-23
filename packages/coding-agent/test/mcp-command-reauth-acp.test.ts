@@ -48,7 +48,7 @@ type SavedServer = {
 };
 
 const originalProjectDir = getProjectDir();
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 
 function restoreEnvValue(name: string, value: string | undefined): void {
@@ -177,7 +177,7 @@ describe("/mcp reauth (ACP dispatcher)", () => {
 			setAgentDir(originalAgentDir);
 		} else {
 			setAgentDir(fallbackAgentDir);
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		}
 		await removeWithRetries(projectDir);
 		await removeWithRetries(agentDir);

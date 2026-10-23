@@ -63,8 +63,8 @@ async function serveDaemon(version: string): Promise<string[]> {
 	return received;
 }
 
-describe("text-predict client against a daemon from another omp version", () => {
-	it("uses a daemon from a newer omp instead of shutting it down", async () => {
+describe("text-predict client against a daemon from another zetacode version", () => {
+	it("uses a daemon from a newer zetacode instead of shutting it down", async () => {
 		// After an in-place upgrade, a session still running the old build must not
 		// stop the daemon every session on the new build is using.
 		const [major] = VERSION.split(".");

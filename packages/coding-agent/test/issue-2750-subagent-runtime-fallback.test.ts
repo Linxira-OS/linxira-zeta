@@ -725,7 +725,7 @@ describe("subagent runtime model resolution", () => {
 
 describe("subagent runtime fallback on a real provider error", () => {
 	const MOCK_API_SOURCE = "test/issue-2750-subagent-runtime-fallback";
-	const ENV_KEYS = ["HOME", "PI_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
+	const ENV_KEYS = ["HOME", "ZETA_CODING_AGENT_DIR", "OMP_PROFILE", "PI_PROFILE"] as const;
 	const OVERLOADED = "overloaded_error: provider returned error 503";
 	let savedEnv: Record<string, string | undefined> = {};
 	let root: string;

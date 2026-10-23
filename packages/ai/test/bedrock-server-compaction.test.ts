@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "bun:test";
-import { streamBedrock } from "@oh-my-pi/pi-ai/providers/amazon-bedrock";
-import { completeSimple } from "@oh-my-pi/pi-ai/stream";
+import { streamBedrock } from "@linxiraos/pi-ai/providers/amazon-bedrock";
+import { completeSimple } from "@linxiraos/pi-ai/stream";
 
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
 
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import {
 	bedrockAnthropicChunkEvent,
 	bedrockHappyPathFrames,
