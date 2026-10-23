@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.12.2
+## Integrated through: v18.12.6
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -68,6 +68,54 @@ two-parent tag merge.
   upstream test contract moved again (this time the `model` spawn argument is owned by seance
   validation).
 
+
+
+## v18.12.6 incremental merge (Zeta — branch `sync/omp-release/v18.12.6`, in progress 2026-10-23)
+
+- **Baseline**: `v18.12.2` (peeled `1d5aff90b057`) — `git merge-base` before the
+  merge resolved to exactly this commit, so only upstream's tag-to-tag increment
+  is applied.
+- **Source tag**: `v18.12.6`, remote peeled `45c35e40c461` (verified with
+  `git ls-remote --tags omp-upstream refs/tags/v18.12.6` before the merge; local
+  tag peeled SHA matched). Merge parents: `95cb38b1945` (Zeta
+  `fix/desktop-shell`, the product tip) + `45c35e40c461`.
+- **Delta** (`git diff v18.12.2 v18.12.6`): **937 commits, 723 files,
+  +41,733 −5,378**; 99 added, 624 modified, 0 deleted, 0 renamed.
+- **Conflicts**: 164 files (`UU` only, no delete/modify, no renames). Policy for
+  this round, per the owner: shared functionality follows upstream semantics;
+  Zeta-only surfaces stay ours; every kept-ours conflict is listed in
+  `temp/merge-report/conflicts-kept-ours.txt` (worktree artifact, not
+  committed). Semantic re-applications actually needed were few: upstream's
+  resumable kills (`irc/bus.ts` + `AgentRegistry.reopen` retiring its exact
+  aborted tombstone), the spill-aware read pager unioned with Zeta's
+  plan-aware limit, `report-tool-issue` keeps the GitHub-Issues transport while
+  taking upstream's `redactUserIdentity`, and TUI semantics (skill card,
+  approval grants, eval MCP progress, jobs widget row) taken from upstream.
+- **Owned surfaces restored**: `AGENTS.md`, root `README.md`,
+  `.github/workflows/ci.yml` (upstream's `.omp/tools` path filters and step were
+  dropped), `scripts/ci-test-ts.ts` (kept Zeta jobs; added `.zeta/tests`),
+  `scripts/ci-update-brew-formula*` (ours; upstream's build-service mirror does
+  not apply), `Cargo.toml` version 1.4.0, package CHANGELOGs ours.
+- **`.omp` surface**: upstream's `.omp/*` stayed deleted; its new
+  `.omp/tests/tui.test.ts` was carried as `.zeta/tests/tui.test.ts` (scope and
+  temp-prefix rewrites) and wired into the CI TS runner.
+- **Generated data**: `packages/catalog/src/compat/rules.json` regenerated from
+  the merged KDL (`bun run gen:compat`, 1091 rules). Only two deltas against
+  upstream v18.12.6: Zeta's auth `originator`, and our Baseten default model.
+  `models.json` already matched upstream byte-for-byte.
+- **Checks (2026-10-23)**: all eight packages `check:types` → 0 errors;
+  `brand-check` → 0 hits; `check-zeta-sentinels` 119; `check-scope-imports`
+  20,375 specifiers; `check-license-map` ok; `check-ci-surface` ok;
+  `check-version-consistency` 1.4.0; attach backend suites 28 pass; TUI/AI
+  suites pass except platform-baseline failures (SIXEL, locale time, Windows
+  symlink EPERM) that fail identically on the pre-merge branch.
+- **Pending before push**: `MODULE.bazel.lock` is stale (crate_universe result
+  must be re-rendered after the `html-to-markdown-rs` 3.18.6 lock bump).
+  `gen:bazel-lock` cannot run in this Windows checkout: cargo-bazel's splice
+  symlink fails with `os error 1314` (no symlink privilege). Refresh on Linux
+  CI and commit the artifact. Local native addon predates the merged bindings
+  (`unreadableDirectories` and other new native symbols are absent); CI's
+  bazel-built natives cover those tests.
 
 
 ## v18.12.1 incremental merge (Zeta — branch `sync/omp-release/v18.12.0`; merge commit `c232ef358b7`)
