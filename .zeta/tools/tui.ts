@@ -1021,6 +1021,7 @@ const factory = (omp: ToolHost) => {
 		// oxlint-disable-next-line prefer-const
 		let session: Session;
 		let proc: Child;
+		let screen: Screen | undefined;
 		try {
 			screen = await Screen.create(cols, rows);
 			const sockPath = ipcEndpoint(dir, "debug");
@@ -1152,6 +1153,7 @@ const factory = (omp: ToolHost) => {
 				// Cleanup failures must not mask the launch error being reported.
 				await stopSession(session).catch(() => {});
 			} else {
+				screen?.dispose();
 				rmSync(dir, { recursive: true, force: true });
 			}
 			throw error;

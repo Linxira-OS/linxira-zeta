@@ -109,13 +109,35 @@ two-parent tag merge.
   `check-version-consistency` 1.4.0; attach backend suites 28 pass; TUI/AI
   suites pass except platform-baseline failures (SIXEL, locale time, Windows
   symlink EPERM) that fail identically on the pre-merge branch.
-- **Pending before push**: `MODULE.bazel.lock` is stale (crate_universe result
-  must be re-rendered after the `html-to-markdown-rs` 3.18.6 lock bump).
-  `gen:bazel-lock` cannot run in this Windows checkout: cargo-bazel's splice
-  symlink fails with `os error 1314` (no symlink privilege). Refresh on Linux
-  CI and commit the artifact. Local native addon predates the merged bindings
-  (`unreadableDirectories` and other new native symbols are absent); CI's
-  bazel-built natives cover those tests.
+- **CI rounds on the sync branch** (one `workflow_dispatch` per fix batch):
+  - `39929553986` — first round: 8 jobs red (12 failing TS files + stale
+    `MODULE.bazel.lock`). Root causes: import-time locale freezing in
+    slash-command descriptions, merge-residual TUI row renderer vs upstream
+    job tiles, `html-to-markdown-rs` drift (regenerated `3.18.6` raises the
+    default depth limit to 1024, so the 64-depth truncation warning the native
+    test asserts never fires; upstream pins `3.18.3`), text-predict accepting
+    only its exact daemon version (upstream keeps a newer daemon alive),
+    replan title refresh bypassing the retitle+card path, the plugin lockfile
+    test reading a non-canonical name, and the `.zeta` tool's duplicated
+    `const screen`.
+  - `39939344798` — three jobs red: refreshed lock artifact committed (the
+    `3.18.6` hash mismatch), two files not oxfmt-clean, `.zeta` tool cleanup
+    referencing a removed `screen` binding.
+  - `39945968837` — one job red: `.zeta/tools/tui.ts` assigned `screen`
+    without declaring it (both the declaration and the `catch` disposal were
+    dropped while removing a duplicate), so the PTY launcher tests reported
+    `screen is not defined`. Fixed by declaring
+    `let screen: Screen | undefined` and disposing it in the cleanup branch.
+- **`MODULE.bazel.lock`**: refreshed by the CI `gen-bazel-lock` step and
+  committed (`html-to-markdown-rs 3.18.3`); the `Check MODULE.bazel.lock
+  freshness` job is green in `39945968837`, and `bazel-lock-drift --check`
+  passes locally. `gen:bazel-lock` still cannot run in this Windows checkout
+  (cargo-bazel splice symlink fails with `os error 1314`); future refreshes
+  take the job's uploaded artifact.
+- **Local native addon**: predates the merged bindings (`unreadableDirectories`
+  and other new native symbols are absent), so native-backed suites and the
+  `.zeta` PTY tool cannot run in this Windows checkout; CI's bazel-built
+  natives cover them.
 
 
 ## v18.12.1 incremental merge (Zeta — branch `sync/omp-release/v18.12.0`; merge commit `c232ef358b7`)
