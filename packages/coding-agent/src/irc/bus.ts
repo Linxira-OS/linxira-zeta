@@ -220,13 +220,6 @@ export class IrcBus {
 		if (target === message.from) {
 			return { to: target, outcome: "failed", error: "Cannot send a message to yourself." };
 		}
-		if (ref.status === "aborted") {
-			return {
-				to: target,
-				outcome: "failed",
-				error: `Agent "${target}" was hard-aborted and cannot be messaged or revived. Its transcript remains readable at history://${target}.`,
-			};
-		}
 		// Advisor refs are observability-only transcripts, never messageable peers.
 		if (ref.kind === "advisor") {
 			return {
@@ -247,7 +240,9 @@ export class IrcBus {
 		const lifecycle = this.#lifecycle();
 		const lifecycleOwnsRegistry = lifecycle.manages(this.#registry);
 		const needsLifecycleGate =
-			ref.status === "parked" || (lifecycleOwnsRegistry && (lifecycle.isParking(target) || lifecycle.has(target)));
+			ref.status === "parked" ||
+			ref.status === "aborted" ||
+			(lifecycleOwnsRegistry && (lifecycle.isParking(target) || lifecycle.has(target)));
 
 		const priorSession = ref.session;
 		let revived = false;

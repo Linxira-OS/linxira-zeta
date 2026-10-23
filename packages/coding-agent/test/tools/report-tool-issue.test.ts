@@ -471,7 +471,8 @@ describe("flushGrievances", () => {
 
 		const result = await flushGrievances(db, pushSettings(), { fetch: mockFetch(fetchSpy) });
 
-		expect(result).toEqual({ pushed: 1, ok: true });
+		expect(result).toMatchObject({ pushed: 1, ok: true });
+		expect(result.urls).toHaveLength(1);
 		expect(sentBody).toMatchObject({
 			entries: [{ tool: "read ~/notes.md", report: "selector dropped ~/notes.md:4" }],
 		});

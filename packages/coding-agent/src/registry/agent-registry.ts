@@ -311,6 +311,10 @@ export class AgentRegistry {
 	reopen(id: string, expected: AgentRef): AgentRef | undefined {
 		const current = this.#refs.get(id);
 		if (current !== expected || current.status !== "aborted" || current.session) return undefined;
+		// This is the one authorized replacement: the caller presented the exact
+		// aborted tombstone it is reviving. Retire it first so the id invariant
+		// (never silently replace a live owner) still holds for every other path.
+		this.#refs.delete(id);
 		return this.register({
 			id,
 			displayName: current.displayName,
