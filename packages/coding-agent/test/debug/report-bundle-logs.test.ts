@@ -9,6 +9,8 @@ const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const originalXdgStateHome = process.env.XDG_STATE_HOME;
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
+const tmpEnvNames = ["TMPDIR", "TMP", "TEMP"] as const;
+const originalTmpEnv = tmpEnvNames.map(name => process.env[name]);
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 let cleanupRoot: string | undefined;
 
@@ -17,7 +19,7 @@ function restoreEnv(name: string, value: string | undefined): void {
 	else process.env[name] = value;
 }
 
-// Points the logs dir at `root`. XDG_STATE_HOME is only honored on Linux/macOS;
+// Points the report dir at `root`. XDG_STATE_HOME is only honored on Linux/macOS;
 // elsewhere the config root follows the home dir, so redirect that instead —
 // otherwise the test reads and writes the user's real ~/.zeta/logs.
 async function isolateLogsRoot(root: string): Promise<void> {
@@ -29,6 +31,7 @@ async function isolateLogsRoot(root: string): Promise<void> {
 		process.env.HOME = root;
 		process.env.USERPROFILE = root;
 	}
+	for (const name of tmpEnvNames) process.env[name] = root;
 	setAgentDir(fallbackAgentDir);
 }
 
@@ -36,6 +39,7 @@ afterEach(async () => {
 	restoreEnv("XDG_STATE_HOME", originalXdgStateHome);
 	restoreEnv("HOME", originalHome);
 	restoreEnv("USERPROFILE", originalUserProfile);
+	tmpEnvNames.forEach((name, index) => restoreEnv(name, originalTmpEnv[index]));
 	if (originalAgentDir) {
 		setAgentDir(originalAgentDir);
 	} else {

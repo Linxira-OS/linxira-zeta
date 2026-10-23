@@ -148,6 +148,7 @@ The variables below supply credentials after runtime/config overrides and stored
 | `devin`                          | `DEVIN_API_KEY`                                                               |
 | `gmi-cloud`                      | `GMI_API_KEY`                                                                 |
 | `huggingface`                    | `HUGGINGFACE_HUB_TOKEN`, then `HF_TOKEN`                                      |
+| `inception`                      | `INCEPTION_API_KEY`                                                           |
 | `moonshot`                       | `MOONSHOT_API_KEY`, then `KIMI_API_KEY`                                       |
 | `stepfun`                        | `STEPFUN_API_KEY`                                                             |
 | `helmcode`                       | `HELMCODE_API_KEY`                                                            |

@@ -53,8 +53,10 @@ async function loadMCPConfig(
 	const warnings: string[] = [];
 
 	const content = await readFile(path);
-	if (!content) {
-		warnings.push(`Failed to read ${path}`);
+	if (content === null) {
+		// Most projects have no .vscode/mcp.json; only one that exists but can't be read is a failure.
+		const missing = await fs.stat(path).then(() => false, isEnoent);
+		if (!missing) warnings.push(`Failed to read ${path}`);
 		return { items, warnings };
 	}
 

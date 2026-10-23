@@ -670,13 +670,18 @@ describe("browser tabs whose renderer crashed", () => {
 	it.skipIf(!CHROMIUM_AVAILABLE)(
 		"cancels an inline worker's run whose renderer crashed instead of letting it go on after its caller was told",
 		async () => {
-			let requests = 0;
+			let gateOpen = false;
 			const started = Promise.withResolvers<void>();
+			// Whichever the run reaches once the gate opens: `stopped` when its wait was cancelled, `continued` when not.
+			const outcome = Promise.withResolvers<"stopped" | "continued">();
 			const server = Bun.serve({
 				port: 0,
 				fetch: request => {
-					if (new URL(request.url).pathname === "/started") started.resolve();
-					else requests++;
+					const { pathname } = new URL(request.url);
+					if (pathname === "/started") started.resolve();
+					else if (pathname === "/gate") return new Response(null, { status: gateOpen ? 200 : 503 });
+					else if (pathname === "/stopped") outcome.resolve("stopped");
+					else outcome.resolve("continued");
 					return new Response("ok");
 				},
 			});
@@ -700,6 +705,9 @@ describe("browser tabs whose renderer crashed", () => {
 					globalThis.Worker = RealWorker;
 				}
 				expect(getTab(name)).toMatchObject({ worker: { mode: "inline" } });
+				// The run holds at a gate the test opens only once its caller was told of the crash, however long the
+				// crash takes to land; a run left going passes it into the second fetch, a cancelled one reports it stopped.
+				const origin = `http://127.0.0.1:${server.port}`;
 				const run = runInTab(name, {
 					code: `await fetch("http://127.0.0.1:${server.port}/started"); await wait(${LEFT_GOING_WINDOW_MS}); await fetch("http://127.0.0.1:${server.port}/after-crash");`,
 					timeoutMs: LEFT_GOING_WINDOW_MS + 4_000,

@@ -298,11 +298,33 @@ export async function callSessionTool(name: string, args: unknown, options: Tool
 		options.signal?.throwIfAborted();
 		if (claimed) return bridgeValueFromToolResult(name, validatedArgs, claimed, options.emitStatus);
 	}
+	let settled = false;
+	const onUpdate: AgentToolUpdateCallback | undefined =
+		options.emitStatus && "mcpServerName" in tool && typeof tool.mcpServerName === "string"
+			? partial => {
+					if (settled || !isRecord(partial.details)) return;
+					const progress = parseMCPProgress(partial.details.progress);
+					if (progress) options.emitStatus?.({ op: "mcp_progress", id: toolCallId, tool: name, ...progress });
+				}
+			: undefined;
 	try {
 		// A delegated-work tool pauses only the cell's runtime-work watchdog; the turn's
 		// signal still reaches it. Without a status sink the pause wrapper is a no-op.
-		const result = await withBridgeTimeoutPause(DELEGATED_WORK_TOOLS.has(name) ? options.emitStatus : undefined, () =>
-			tool.execute(toolCallId, validatedArgs, options.signal, undefined, options.session.getToolContext?.()),
+		const result = await withBridgeTimeoutPause(
+			DELEGATED_WORK_TOOLS.has(name) ? options.emitStatus : undefined,
+			async () => {
+				try {
+					return await tool.execute(
+						toolCallId,
+						validatedArgs,
+						options.signal,
+						onUpdate,
+						options.session.getToolContext?.(),
+					);
+				} finally {
+					settled = true;
+				}
+			},
 		);
 		if (name === "todo") {
 			// A bridged call emits no `todo` toolResult entry, the only thing branch

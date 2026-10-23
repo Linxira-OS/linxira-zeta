@@ -1123,6 +1123,15 @@ export class RpcClient {
 	}
 
 	/**
+	 * Replace the session's todo list; it is recorded on the current branch.
+	 * @returns The normalized phases now in effect
+	 */
+	async setTodos(phases: TodoPhase[]): Promise<TodoPhase[]> {
+		const response = await this.#send({ type: "set_todos", phases });
+		return this.#getData<{ todoPhases: TodoPhase[] }>(response).todoPhases;
+	}
+
+	/**
 	 * Branch from a specific message.
 	 * @returns Object with `text` (the message text) and `cancelled` (if extension cancelled)
 	 */

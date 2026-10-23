@@ -63,6 +63,18 @@ export function supportsAnthropicCompaction(model: Model<"anthropic-messages">, 
 	);
 }
 
+/**
+ * Whether a Bedrock Converse model compacts through a Bedrock Runtime
+ * `InvokeModelWithResponseStream` side request. AWS bedrock-runtime origins
+ * (public, FIPS, PrivateLink) qualify by default; any other `baseUrl` is a
+ * gateway that may implement only Converse, so it needs
+ * `remoteCompaction.enabled: true`. `enabled: false` always opts out.
+ */
+export function supportsBedrockConverseCompaction(model: Model<"bedrock-converse-stream">): boolean {
+	if (model.compat.supportsServerCompaction !== true) return false;
+	return model.remoteCompaction?.enabled ?? (!model.baseUrl || isBedrockRouteUrl(model.baseUrl, "runtime"));
+}
+
 /** Read a caller-owned client's endpoint for request and compaction routing. */
 export function injectedClientBaseUrl(client: AnthropicMessagesClientLike): string | undefined {
 	const candidate = "baseURL" in client ? client.baseURL : undefined;

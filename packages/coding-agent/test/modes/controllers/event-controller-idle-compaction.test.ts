@@ -49,6 +49,7 @@ function createContext(
 		isStreaming?: boolean;
 		runIdleCompaction?: AgentSession["runIdleCompaction"];
 		promptCacheEntry?: AgentSession["promptCacheEntry"];
+		model?: AgentSession["model"];
 		runEphemeralTurn?: AgentSession["runEphemeralTurn"];
 		present?: InteractiveModeContext["present"];
 		sessionName?: string;
@@ -83,7 +84,7 @@ function createContext(
 			runIdleCompaction,
 			promptCacheEntry: options.promptCacheEntry,
 			runEphemeralTurn,
-			model: { provider: "anthropic", id: "claude-sonnet-4-5" },
+			model: options.model ?? { provider: "anthropic", id: "claude-sonnet-4-5" },
 			messages: [createAssistantMessage()],
 			getContextUsage: () => ({ tokens: 210, contextWindow: 1_000, percent: 21 }),
 			getGoalModeState: () => goalState,
@@ -217,6 +218,19 @@ describe("EventController idle compaction teardown", () => {
 		expect(runIdleCompaction).not.toHaveBeenCalled();
 		vi.advanceTimersByTime(1);
 		expect(runIdleCompaction).toHaveBeenCalledTimes(1);
+		controller.dispose();
+	});
+
+	it("never idle-compacts a logged-in Codex session whose prompt cache does not expire", async () => {
+		const runIdleCompaction = vi.fn(async () => {});
+		const codex = getBundledModels("openai-codex").find(model => model.api === "openai-codex-responses");
+		expect(codex).toBeDefined();
+		const context = createContext({ runIdleCompaction, model: codex });
+		const controller = new EventController(context);
+		await controller.handleEvent({ type: "agent_end", messages: [createAssistantMessage()] });
+
+		vi.advanceTimersByTime(3_600_000);
+		expect(runIdleCompaction).not.toHaveBeenCalled();
 		controller.dispose();
 	});
 

@@ -579,8 +579,26 @@ fn persist(report: &str, kind: CrashKind, echo_stderr: bool) {
 }
 
 fn crash_log_path(kind: CrashKind) -> Option<PathBuf> {
-	let dir = logs_dir()?;
+	// Unit tests panic, many on purpose; keep their reports out of the
+	// developer's real logs dir.
+	let dir = if cfg!(test) {
+		test_logs_dir()
+	} else {
+		logs_dir()?
+	};
 	Some(build_crash_log_path(&dir, kind, process::id(), unix_millis()))
+}
+
+/// Crash-report directory of the unit-test build. On Unix the uid suffix keeps
+/// users of a shared `/tmp` from owning each other's directory; Windows' temp
+/// dir is already per-user.
+fn test_logs_dir() -> PathBuf {
+	#[cfg(unix)]
+	// SAFETY: getuid takes no arguments and cannot fail.
+	let name = format!("pi-natives-test-logs-{}", unsafe { libc::getuid() });
+	#[cfg(not(unix))]
+	let name = String::from("pi-natives-test-logs");
+	std::env::temp_dir().join(name)
 }
 
 fn build_crash_log_path(dir: &Path, kind: CrashKind, pid: u32, now_ms: u128) -> PathBuf {
@@ -985,5 +1003,18 @@ mod tests {
 			alloc_log,
 			PathBuf::from("/tmp/pi-natives-test-home/.zeta/logs/native-alloc-99-1.log")
 		);
+	}
+
+	#[test]
+	fn unit_test_crash_reports_stay_out_of_the_real_logs_dir() {
+		let test_logs = test_logs_dir();
+		assert!(test_logs.starts_with(std::env::temp_dir()));
+		// SAFETY: getuid takes no arguments and cannot fail.
+		#[cfg(unix)]
+		assert!(test_logs.ends_with(format!("pi-natives-test-logs-{}", unsafe { libc::getuid() })));
+		for kind in [CrashKind::Panic, CrashKind::Alloc] {
+			let path = crash_log_path(kind).expect("a test build always has a crash log path");
+			assert_eq!(path.parent(), Some(test_logs.as_path()));
+		}
 	}
 }

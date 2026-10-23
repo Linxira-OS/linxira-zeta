@@ -118,6 +118,7 @@ export class InternalUrlRouter {
 		this.register(new VaultProtocolHandler());
 		this.register(new IssueProtocolHandler());
 		this.register(new PrProtocolHandler());
+		this.register(new MrProtocolHandler());
 		this.register(resourceFallback);
 		this.register(new ZetaProtocolHandler());
 		this.register(new XdProtocolHandler());

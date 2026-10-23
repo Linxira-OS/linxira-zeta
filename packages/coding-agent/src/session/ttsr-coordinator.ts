@@ -319,6 +319,7 @@ export class TtsrCoordinator {
 					name: rule.name,
 					path: this.#displayRulePath(rule.path),
 					content: rule.content,
+					builtin: rule._source?.provider === BUILTIN_DEFAULTS_PROVIDER_ID,
 				}),
 			)
 			.join("\n\n");

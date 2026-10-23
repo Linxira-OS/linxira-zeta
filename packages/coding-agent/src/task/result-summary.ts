@@ -7,7 +7,7 @@
  */
 import { prompt } from "@linxiraos/pi-utils";
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
-import { AgentRegistry } from "../registry/agent-registry";
+import { AgentRegistry, isResumable } from "../registry/agent-registry";
 import { escapeHarnessTags } from "../session/harness-tags";
 import { formatBytes, formatDuration } from "@linxiraos/pi-tui/render/render-utils";
 import type { SingleResult } from "@linxiraos/pi-tui/tools/task";

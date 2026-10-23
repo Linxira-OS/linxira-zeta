@@ -1332,6 +1332,95 @@ describe("createAgentSession deferred model pattern resolution", () => {
 		}
 	});
 
+	test("keeps an explicitly empty inherited chain empty for a deferred singleton sharing the default model", async () => {
+		const primary = "runtime-provider/runtime-model";
+		const fallback = "runtime-provider/runtime-fallback-model";
+		const role = "subagent:deferred-empty";
+		const ownerSettings = () => {
+			const settings = Settings.isolated({ "retry.fallbackChains": { default: [fallback] } });
+			settings.setModelRole("default", primary);
+			return settings;
+		};
+		// Live chain lookup on the primary: the persisted role must win over `default`, which shares the model.
+		const chainFor = (session: AgentSession) => {
+			const recovery = new TurnRecovery({
+				model: () => session.model,
+				thinkingLevel: () => undefined,
+				sessionManager: session.sessionManager,
+				settings: session.settings,
+				modelRegistry: session.modelRegistry,
+				configWarnings: [],
+			} as unknown as TurnRecoveryHost);
+			const keys = recovery.retryFallbackChainKeys(primary);
+			const candidates = keys.flatMap(key =>
+				recovery.findRetryFallbackCandidates(key, primary).map(candidate => candidate.raw),
+			);
+			return { keys, candidates };
+		};
+		const sessionManager = SessionManager.create(tempDir, path.join(tempDir, "sessions"));
+		const sessionFile = sessionManager.getSessionFile();
+		if (!sessionFile) throw new Error("Expected a persisted session file");
+		const { session } = await createAgentSession({
+			...buildSessionOptions(primary),
+			settings: ownerSettings(),
+			sessionManager,
+			modelPatternFallbackRole: role,
+			modelPatternDefaultFallbackChain: [],
+		});
+
+		let retryFallback: RetryFallbackRole | undefined;
+		try {
+			expect(chainFor(session)).toEqual({ keys: [role], candidates: [] });
+
+			// A runtime fallback answers; resume must still restore the primary as the default.
+			session.sessionManager.appendModelChange(fallback, EPHEMERAL_MODEL_CHANGE_ROLE, true);
+			session.sessionManager.appendMessage({
+				role: "assistant",
+				content: [{ type: "text", text: "done" }],
+				api: "openai-completions",
+				provider: "runtime-provider",
+				model: "runtime-fallback-model",
+				usage: {
+					input: 1,
+					output: 1,
+					cacheRead: 0,
+					cacheWrite: 0,
+					totalTokens: 2,
+					cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+				},
+				stopReason: "stop",
+				timestamp: Date.now(),
+			});
+			const context = session.sessionManager.buildSessionContext();
+			expect(getRestorableSessionModels(context.models, session.sessionManager.getLastModelChangeRole())).toEqual([
+				primary,
+			]);
+
+			// Switching back to the primary is temporary too; the role's empty chain must still own it.
+			session.sessionManager.appendModelChange(primary, EPHEMERAL_MODEL_CHANGE_ROLE);
+			expect(chainFor(session)).toEqual({ keys: [role], candidates: [] });
+			retryFallback = getRetryFallbackRole(session.settings, role);
+		} finally {
+			await session.dispose();
+		}
+		if (!retryFallback) throw new Error("Expected the deferred role's retry fallback");
+
+		// Cold revival reopens the transcript and reinstalls the persisted role before resuming.
+		const reviveSettings = ownerSettings();
+		installRetryFallbackRole(reviveSettings, role, retryFallback);
+		const { session: revived } = await createAgentSession({
+			...buildSessionOptions(primary),
+			settings: reviveSettings,
+			sessionManager: await SessionManager.open(sessionFile, undefined, undefined, { throwIfMissing: true }),
+		});
+		try {
+			expect(`${revived.model?.provider}/${revived.model?.id}`).toBe(primary);
+			expect(chainFor(revived)).toEqual({ keys: [role], candidates: [] });
+		} finally {
+			await revived.dispose();
+		}
+	});
+
 	test("splits deferred comma-delimited modelPattern and installs fallback chain", async () => {
 		const { session } = await createAgentSession({
 			...buildSessionOptions("runtime-provider/runtime-model,runtime-provider/runtime-fallback-model"),

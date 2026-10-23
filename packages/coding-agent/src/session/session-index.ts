@@ -74,6 +74,11 @@ function closeHandle(): void {
 }
 
 function openSessionIndex(): SessionIndexHandle | undefined {
+	// A test run never writes the user's history.db: under the test runner the
+	// index opens only an agent dir the test chose (`setAgentDir` exports
+	// PI_CODING_AGENT_DIR). Otherwise every test naming a file-backed session
+	// leaves a title row behind in the real index.
+	if (isBunTestRuntime() && !process.env.PI_CODING_AGENT_DIR) return undefined;
 	const dbPath = getHistoryDbPath();
 	// A quarantined history.db is unlinked and recreated at the same path, so
 	// the path alone still matches a handle pinned to the dead inode. Reopen

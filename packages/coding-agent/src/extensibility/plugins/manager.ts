@@ -184,8 +184,8 @@ export class PluginManager {
 	}
 
 	async #saveRuntimeConfig(): Promise<void> {
-		await this.#ensureConfigLoaded();
-		await Bun.write(getPluginsLockfile(), JSON.stringify(this.#runtimeConfig, null, 2));
+		const config = await this.#ensureConfigLoaded();
+		await writePluginRuntimeConfig(getPluginsLockfile(), config);
 	}
 
 	async #loadProjectOverrides(): Promise<ProjectPluginOverrides> {

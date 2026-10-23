@@ -18,12 +18,16 @@ const BLOCKS = [
 ];
 
 const ENV_KEYS = ["TERN_PANE_SOCKET", "TERN_PANE", "PI_BROWSER_TERN", "PI_BROWSER_RELAY"] as const;
-const savedEnv = new Map(ENV_KEYS.map(key => [key, process.env[key]]));
+let savedEnv: Map<string, string | undefined>;
 
 let daemon: FakeDaemon | undefined;
 let relay: RelayServer | undefined;
 let extension: WebSocket | undefined;
 const opened: string[] = [];
+
+beforeEach(() => {
+	savedEnv = new Map(ENV_KEYS.map(key => [key, process.env[key]]));
+});
 
 afterEach(async () => {
 	for (const name of opened.splice(0)) await releaseTab(name, { kill: false }).catch(() => undefined);

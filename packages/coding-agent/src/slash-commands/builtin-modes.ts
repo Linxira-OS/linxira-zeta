@@ -1025,7 +1025,7 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			}));
 		},
 		getTuiAutocompleteDescription: runtime =>
-			`Thinking: ${runtime.ctx.session.configuredThinkingLevel() ?? "model default"}`,
+			`Thinking: ${runtime.ctx.viewSession.configuredThinkingLevel() ?? "model default"}`,
 		handle: async (command, runtime) => {
 			const session = runtime.session;
 			if (!command.args.trim()) {
@@ -1048,18 +1048,19 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		handleTui: (command, runtime) => {
 			clearSubmittedText(runtime);
 			const { ctx } = runtime;
+			const session = ctx.viewSession;
 			if (!command.args.trim()) {
-				if (ctx.session.model?.reasoning) ctx.showThinkingSelector();
-				else ctx.showStatus(noThinkingMessage(ctx.session));
+				if (session.model?.reasoning) ctx.showThinkingSelector();
+				else ctx.showStatus(noThinkingMessage(session));
 				return;
 			}
-			const resolved = resolveThinkingArgument(ctx.session, command.args);
+			const resolved = resolveThinkingArgument(session, command.args);
 			if ("error" in resolved) {
 				ctx.showError(resolved.error);
 				return;
 			}
 			// thinking_level_changed refreshes the status line and editor border.
-			ctx.session.setThinkingLevel(resolved.level);
+			session.setThinkingLevel(resolved.level);
 			ctx.showStatus(`Thinking set to ${resolved.level}.`);
 		},
 	},

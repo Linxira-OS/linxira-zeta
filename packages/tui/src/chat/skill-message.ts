@@ -64,8 +64,7 @@ export class SkillMessageComponent extends Container {
 	}
 
 	handleNativeEvent(event: NativeUiEvent): void {
-		const expanded = rootToggleExpanded(event);
-		if (expanded !== undefined) this.setExpanded(expanded);
+		if (event.type === "toggle" && event.key === "prompt") this.setExpanded(!event.collapsed);
 	}
 
 	/**
@@ -115,6 +114,7 @@ export class SkillMessageComponent extends Container {
 				{ role: "zeta.skill", tone: "user", head, collapsible: true, collapsed: !this.#expanded },
 				children.length > 0 ? children : [text([span(label, "muted")])],
 			);
+			return card({ role: "omp.skill", tone: "user", head }, children);
 		});
 	}
 

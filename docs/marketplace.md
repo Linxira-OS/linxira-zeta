@@ -245,6 +245,8 @@ Invalid catalog JSON or invalid required top-level fields reject the catalog. An
     node_modules/<package>        # Symlink to the cached plugin
 ```
 
+The lockfile also holds plugin settings, including values a plugin marks `secret`, so it is written with owner-only permissions (`0600`).
+
 ## Naming rules
 
 Marketplace and plugin names must:

@@ -936,7 +936,7 @@ export class MarketplaceManager {
 	}
 
 	async #writeRuntimeConfig(scope: "user" | "project", config: PluginRuntimeConfig): Promise<void> {
-		await Bun.write(this.#runtimeLockPath(scope), JSON.stringify(config, null, 2));
+		await writePluginRuntimeConfig(this.#runtimeLockPath(scope), config);
 	}
 
 	async #resolvePluginPackageName(installPath: string, fallbackName: string): Promise<string> {

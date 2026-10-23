@@ -82,7 +82,7 @@ describe("AgentSession queued steer delivery", () => {
 	});
 
 	async function createSession(
-		responses: MockResponse[],
+		responses: MockHandler[],
 		promptTemplates: PromptTemplate[] = [],
 	): Promise<SteerHarness> {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5")!;
@@ -358,6 +358,32 @@ describe("AgentSession queued steer delivery", () => {
 		await run;
 
 		expect(settles).toEqual([false, true]);
+	});
+
+	// A host driving the session to a result (the subagent executor) awaits the
+	// interrupted prompt, then waitForIdle(). The steer's turn is scheduled only as
+	// abort() finishes unwinding; reporting idle before then ended a subagent run on
+	// the interrupted turn and dropped the steer.
+	it("stays busy through an interrupt's unwind until the queued steer is answered", async () => {
+		const turnStarted = Promise.withResolvers<void>();
+		const { session, mock } = await createSession([
+			() => {
+				turnStarted.resolve();
+				return { content: ["slow response"], delayMs: 60_000 };
+			},
+			{ content: ["steered response"] },
+		]);
+
+		const run = session.prompt("hello");
+		await turnStarted.promise;
+		await session.steer("change course");
+		const interrupt = session.abort({ reason: USER_INTERRUPT_LABEL });
+		await run;
+		await session.waitForIdle();
+
+		expect(mock.calls.length).toBe(2);
+		expect(session.getLastAssistantMessage()?.stopReason).toBe("stop");
+		await interrupt;
 	});
 
 	it("settles an interrupt terminally when nothing is queued to resume it", async () => {

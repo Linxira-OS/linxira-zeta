@@ -966,3 +966,12 @@ describe("async speculative compaction", () => {
 		);
 	});
 });
+
+describe("resolveSpeculationMethod", () => {
+	it("speculates past snapcompact when the model's wire strips image input", () => {
+		const settings = cfgCompaction.get(Settings.isolated({ "compaction.methodOrder": ["snapcompact", "soft"] }));
+		// Same declared input; only the second drops images on the wire.
+		expect(resolveSpeculationMethod(getBundledModel("anthropic", "claude-sonnet-4-5"), settings)).toBeUndefined();
+		expect(resolveSpeculationMethod(getBundledModel("venice", "deepseek-v4-1-flash"), settings)).toBe("soft");
+	});
+});

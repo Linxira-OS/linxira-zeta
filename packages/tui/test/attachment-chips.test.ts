@@ -160,3 +160,24 @@ describe("AttachmentChipsBand — Kitty placeholder thumbnails", () => {
 		}
 	});
 });
+
+describe("composer token glyphs", () => {
+	// Chip glyphs sit inside the editable buffer, so the hardware caret column is computed from
+	// their measured width. A text-presentation pictograph (e.g. 🖼 U+1F5BC) measures 1 cell while
+	// emoji-rendering terminals draw it 2, leaving the caret one cell behind per chip (#16270).
+	it("measure the same width whether or not the terminal renders pictographs as emoji", () => {
+		const keys = ["chip.image", "chip.video", "chip.paste", "icon.extensionSkill", "icon.model"] as const;
+		for (const preset of getAvailableSymbolPresets()) {
+			const symbols = SYMBOL_PRESETS[preset];
+			for (const key of keys) {
+				const glyph = symbols[key];
+				const asEmoji = glyph.replace(/\p{Extended_Pictographic}(?!\uFE0F)/gu, "$&\uFE0F");
+				expect({ preset, key, width: visibleWidth(glyph) }).toEqual({
+					preset,
+					key,
+					width: visibleWidth(asEmoji),
+				});
+			}
+		}
+	});
+});

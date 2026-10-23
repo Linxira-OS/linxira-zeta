@@ -1,6 +1,13 @@
 ## [Unreleased]
 
 ## [1.4.0] - 2026-10-21
+## [18.12.4] - 2026-10-20
+
+### Fixed
+
+- Fixed background fact extraction storing only the first 5 facts of a plain-line extractor answer; it now keeps up to 20, matching JSON answers ([#16377](https://github.com/can1357/oh-my-pi/pull/16377) by [@alphastorm](https://github.com/alphastorm))
+
+## [18.11.2] - 2026-10-16
 
 - Version line moves to 1.4.0 with the rest of the suite; no user-visible change in this package.
 

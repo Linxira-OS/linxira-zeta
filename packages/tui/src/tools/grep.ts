@@ -365,7 +365,7 @@ export const grepToolRenderer = {
 			{ icon: "pending", title: "Grep", titleColor: "toolTitle", description: args.pattern || "?", meta },
 			uiTheme,
 		);
-		return new Text(text, 1, 0);
+		return new Text(text, 0, 0);
 	},
 
 	renderResult(
@@ -422,7 +422,6 @@ export const grepToolRenderer = {
 					);
 					return [header, ...listLines].map(l => truncateToWidth(l, width, Ellipsis.Omit));
 				},
-				{ paddingX: 1 },
 			);
 		}
 		const linkTargets = grepLinkTargets(details, options.renderContext?.rawDetails);
@@ -456,7 +455,7 @@ export const grepToolRenderer = {
 			);
 			const lines = [header, formatEmptyMessage(tuiText("gpNoMatches", "No matches found"), uiTheme)];
 			if (missingNote) lines.push(missingNote);
-			return new Text(lines.join("\n"), 1, 0);
+			return new Text(lines.join("\n"), 0, 0);
 		}
 
 		const summaryParts = [formatCount("match", matchCount), formatCount("file", fileCount)];
@@ -514,7 +513,6 @@ export const grepToolRenderer = {
 				);
 				return [header, ...matchLines, ...extraLines].map(l => truncateToWidth(l, width, Ellipsis.Omit));
 			},
-			{ paddingX: 1 },
 		);
 	},
 	describeCall(args: GrepRenderArgs): NativeToolView {

@@ -21,14 +21,12 @@
  *   `gh`.
  */
 import issueDoc from "../prompts/internal-urls/issue.md" with { type: "text" };
-import { AgentRegistry } from "../registry/agent-registry";
 import {
 	formatRepoRef,
 	getOrFetchIssue,
 	getOrFetchPr,
 	getOrFetchPrDiff,
 	githubIssueJsonWithStateReasonFallback,
-	type PrDiffFile,
 	parsePositiveDecimalInt,
 	resolveDefaultRepoMemoized,
 } from "../tools/gh";
@@ -46,6 +44,7 @@ import { fetchTeaPullDiff, listTeaIssues, listTeaPulls, renderTeaIssue, renderTe
 import type { TeaIssue, TeaPullRequest } from "../tools/tea-types";
 import { gitea } from "../utils/gitea";
 import { github } from "../utils/github";
+import { renderDiffFamilyResource, resolveCwd, splitInternalUrlSegments } from "./forge-diff";
 import type { InternalResource, InternalUrl, ProtocolHandler, ResolveContext, SchemeSpec } from "./types";
 
 type Scheme = "issue" | "pr";
@@ -119,25 +118,7 @@ function parseListOptions(url: InternalUrl, scheme: Scheme, repo: string | undef
 
 function parseUrl(url: InternalUrl, scheme: Scheme): Parsed {
 	let host = url.rawHost || url.hostname;
-	const rawPath = url.rawPathname ?? url.pathname;
-	// Strip a single leading slash so we can detect empty internal segments
-	// (e.g. `pr://owner//77` → pathname `//77` → stripped `/77` → ["", "77"]).
-	const stripped = rawPath.startsWith("/") ? rawPath.slice(1) : rawPath;
-	let parts: string[] = [];
-	if (stripped !== "") {
-		for (const seg of stripped.split("/")) {
-			let decoded: string;
-			try {
-				decoded = decodeURIComponent(seg);
-			} catch {
-				throw new Error(`Invalid ${scheme}:// URL: empty or unsafe path segment`);
-			}
-			if (decoded === "" || decoded === "." || decoded === "..") {
-				throw new Error(`Invalid ${scheme}:// URL: empty or unsafe path segment`);
-			}
-			parts.push(seg);
-		}
-	}
+	let parts = splitInternalUrlSegments(url, scheme);
 
 	// Detect a leading `<host>/` prefix. A dotted first segment can only be a
 	// host, because GitHub owner names are alphanumeric-plus-hyphen, so dotted
@@ -530,12 +511,6 @@ function buildSingleResource({
 		size: Buffer.byteLength(content, "utf-8"),
 		notes,
 	};
-}
-
-function formatFileLine(idx: number, file: PrDiffFile, repo: string, prNumber: number): string {
-	const stats = file.changeType === "binary" ? "(binary)" : `+${file.additions} -${file.deletions}`;
-	const rename = file.oldPath ? `  (renamed from ${file.oldPath})` : "";
-	return `${idx}. ${file.path}  ${stats}  [${file.changeType}]${rename}\n   pr://${repo}/${prNumber}/diff/${idx}`;
 }
 
 async function fetchAndRenderPrDiff(

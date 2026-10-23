@@ -97,6 +97,8 @@ export interface AsyncJobInspection {
 	output?: string;
 	/** Artifact holding the full output when `output` is cut. */
 	artifactId?: string;
+	/** The job's live widget (frozen once it settles). */
+	widget?: JobWidgetView;
 }
 
 /** Snapshot of running, recent, and pending-delivery asynchronous jobs. */

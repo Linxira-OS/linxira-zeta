@@ -687,7 +687,7 @@ export async function pickElectronTarget(browser: Browser, options: PickTargetOp
 						);
 					} catch (error) {
 						throwIfAborted(options.signal);
-						if (error instanceof Error && error.name === "TimeoutError") {
+						if (isPuppeteerTimeout(error)) {
 							throw new ToolError(
 								"Selected tab did not become available before omp could attach; retry, or reopen it if it closed",
 							);
@@ -719,7 +719,7 @@ export async function pickElectronTarget(browser: Browser, options: PickTargetOp
 			);
 		} catch (error) {
 			throwIfAborted(options.signal);
-			if (error instanceof Error && error.name === "TimeoutError") {
+			if (isPuppeteerTimeout(error)) {
 				throw new ToolError("No page targets available on the attached browser");
 			}
 			throw error;
