@@ -8,6 +8,9 @@
 pkgname=linxira-zeta
 pkgver=@VERSION@
 pkgrel=1
+# The archive ships pre-stripped release binaries; a -debug split package is
+# not published and would make the staged asset name ambiguous.
+options=('!debug')
 pkgdesc="Linxira Zeta — projects, terminals and the coding agent"
 arch=('x86_64')
 url="https://github.com/Linxira-OS/linxira-zeta"
