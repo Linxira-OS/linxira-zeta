@@ -662,6 +662,16 @@ export interface InteractiveModeContext {
 		dialogOptions?: InteractiveSelectorDialogOptions,
 	): Promise<string | undefined>;
 	hideHookSelector(): void;
+	/**
+	 * Plan review overlay (plan content + approve/compact/refine/cancel). Used
+	 * by a local plan proposal and by the attach client for the backend's.
+	 */
+	showPlanReview(
+		planContent: string,
+		title: string,
+		options: string[],
+		dialogOptions?: { helpText?: string; disabledIndices?: number[] },
+	): Promise<string | undefined>;
 	showHookInput(title: string, placeholder?: string): Promise<string | undefined>;
 	hideHookInput(): void;
 	showHookEditor(

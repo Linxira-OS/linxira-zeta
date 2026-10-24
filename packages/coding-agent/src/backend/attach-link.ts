@@ -74,6 +74,8 @@ export class BackendAttachLink {
 	#replicaLease: (() => void) | undefined;
 	#lastSeq = 0;
 	#streaming = false;
+	/** In-flight `state_changed` refresh (coalesces bursts). */
+	#stateRefresh: Promise<void> | undefined;
 	/** Protocol control plane; absent when the backend predates the WS plane. */
 	#wire: AttachWire | undefined;
 	/** Mirrors the replica's own model/thinking switches to the backend. */
@@ -316,6 +318,74 @@ export class BackendAttachLink {
 		});
 	}
 
+	/**
+	 * Messages with their backend entry ids, oldest first. `/branch` and `/tree`
+	 * pick one of these and rewind the backend transcript to it.
+	 */
+	async userMessages(): Promise<{ entryId: string; role: string; label: string }[]> {
+		const detail = await this.client.getSession(this.#sessionId, this.#abort.signal);
+		const messages = detail.context?.messages ?? [];
+		const entryIds = detail.context?.entryIds ?? [];
+		const out: { entryId: string; role: string; label: string }[] = [];
+		for (const [index, raw] of messages.entries()) {
+			const entryId = entryIds[index];
+			if (!entryId || !raw || typeof raw !== "object") continue;
+			const message = raw as { role?: unknown; content?: unknown };
+			const role = typeof message.role === "string" ? message.role : "message";
+			const text = messageText(message.content).replace(/\s+/g, " ").trim();
+			if (!text) continue;
+			out.push({ entryId, role, label: `${role}: ${text.length > 90 ? `${text.slice(0, 87)}…` : text}` });
+		}
+		return out;
+	}
+
+	/** Fork the backend session at its current leaf (local `/fork`). */
+	async forkSession(): Promise<string> {
+		const detail = await this.client.getSession(this.#sessionId, this.#abort.signal);
+		// `branch()` takes a message entry id (the same id the web-ui sends);
+		// `leafId` may name a non-message tree node and is only a fallback.
+		const entryId = detail.context?.entryIds?.at(-1) ?? detail.leafId;
+		if (!entryId) throw new Error("Backend session has no entry to fork from");
+		const result = (await this.client.send(this.#sessionId, { type: "fork", entryId })) as {
+			cancelled?: boolean;
+			newSessionId?: string;
+		};
+		if (result.cancelled || !result.newSessionId) throw new Error("Backend refused to fork this session");
+		await this.reattach(result.newSessionId);
+		return result.newSessionId;
+	}
+
+	/** Rewind the backend transcript to an entry (local `/branch` and `/tree`). */
+	async navigateTree(entryId: string): Promise<void> {
+		const result = (await this.client.send(this.#sessionId, { type: "navigate_tree", entryId })) as {
+			cancelled?: boolean;
+		};
+		if (result.cancelled) throw new Error("Backend refused to navigate the tree");
+		await this.reattach(this.#sessionId);
+	}
+
+	/** Drop the model context but keep the session id/file (local `/clear`). */
+	async clearContext(): Promise<number> {
+		const result = (await this.client.send(this.#sessionId, { type: "reset_context" })) as {
+			cancelled?: boolean;
+			dropped?: number;
+		};
+		if (result.cancelled) throw new Error("Wait for the current turn to finish before clearing the context");
+		await this.reattach(this.#sessionId);
+		return typeof result.dropped === "number" ? result.dropped : 0;
+	}
+
+	/** Delete this backend session and move to a fresh one (local `/delete yes`). */
+	async deleteSession(): Promise<string> {
+		const result = (await this.client.send(this.#sessionId, { type: "delete_session" })) as {
+			cancelled?: boolean;
+			newSessionId?: string;
+		};
+		if (result.cancelled || !result.newSessionId) throw new Error("Backend refused to delete this session");
+		await this.reattach(result.newSessionId);
+		return result.newSessionId;
+	}
+
 	/** Cancel the backend's in-flight turn. */
 	sendAbort(): void {
 		if (this.#closed) return;
@@ -511,15 +581,24 @@ export class BackendAttachLink {
 				return;
 			}
 			case "plan_proposed":
-				await this.#presentPlanApproval(event);
+				// Do not await: the plan review overlay stays up while the operator
+				// decides, and holding the serialized apply chain would freeze every
+				// later streamed frame (the local TUI detaches the same dispatch).
+				void this.#presentPlanApproval(event);
 				return;
 			case "mode_changed":
 				this.#applyModeEvent(event);
 				return;
 			case "state_changed":
-			case "queue_update":
+				this.#scheduleStateRefresh();
+				return;
 			case "running":
+				this.#streaming = true;
+				return;
 			case "not-running":
+				this.#streaming = false;
+				return;
+			case "queue_update":
 			case "connected_state":
 				return;
 			default:
@@ -598,6 +677,19 @@ export class BackendAttachLink {
 			this.#ctx.ui.requestRender();
 			return;
 		}
+		if (method === "open_url") {
+			// Fire-and-forget OAuth instruction: show the URL (and the local
+			// shortcut when the provider offers one); the pasted code arrives on a
+			// following `input` request.
+			const url = typeof event.url === "string" ? event.url : "";
+			const launchUrl = typeof event.launchUrl === "string" ? event.launchUrl : undefined;
+			const instructions = typeof event.instructions === "string" ? event.instructions : undefined;
+			const lines = [instructions, url, launchUrl && launchUrl !== url ? `Local shortcut: ${launchUrl}` : undefined]
+				.filter((line): line is string => Boolean(line))
+				.join("\n");
+			this.#ctx.showHookNotify(lines || "Complete sign-in in your browser.", "info");
+			return;
+		}
 		if (method === "custom") return; // custom UI components are not part of the TUI client
 
 		const abort = new AbortController();
@@ -654,42 +746,128 @@ export class BackendAttachLink {
 		await this.client.respondExtensionUi({ id, ...body }, this.#abort.signal);
 	}
 
-	/** Plan review over the wire: the TUI picks a mode, the backend executes it. */
+	/**
+	 * Plan review: render the plan itself (the same overlay a local session
+	 * shows) and send the approval over the HTTP command plane, which is the
+	 * only transport that implements `plan_approve`. The RPC socket has no such
+	 * command — sending it there returned "Unknown command" and the operator's
+	 * choice was silently dropped.
+	 */
 	async #presentPlanApproval(event: BackendEvent): Promise<void> {
+		if (this.#closed) return;
 		const planFilePath = typeof event.planFilePath === "string" ? event.planFilePath : undefined;
-		const title = typeof event.title === "string" && event.title ? event.title : "Plan ready";
+		const title = typeof event.title === "string" && event.title ? event.title : "Plan mode - next step";
+		let planContent = "";
+		try {
+			const state = (await this.client.send(this.#sessionId, { type: "get_state" })) as {
+				planContent?: unknown;
+			};
+			if (typeof state.planContent === "string") planContent = state.planContent;
+		} catch (error) {
+			logger.warn("backend attach plan content unavailable", { error: String(error) });
+		}
 		const options = ["Approve and execute", "Approve and compact context", "Refine plan", "Cancel"];
-		const choice = await this.#ctx.showHookSelector(`${title}\n${planFilePath ?? ""}`, options);
+		const choice = await this.#ctx.showPlanReview(planContent, title, options, {
+			helpText: "Esc cancel · edit the plan inline before approving",
+		});
 		if (choice === undefined || choice === "Refine plan") return;
+		if (!planFilePath) {
+			this.#ctx.showError("Backend did not report a plan file path; nothing to approve.");
+			return;
+		}
 		const mode: PlanApproveMode =
 			choice === "Approve and execute"
 				? "preserve"
 				: choice === "Approve and compact context"
 					? "compact"
 					: "cancel";
-		if (!planFilePath) return;
-		if (this.#wire) {
-			await this.#wire
-				.approvePlan(planFilePath, mode)
-				.catch(error =>
-					this.#ctx.showError(
-						`Backend plan approval failed: ${error instanceof Error ? error.message : String(error)}`,
-					),
-				);
-			return;
+		try {
+			await this.client.send(this.#sessionId, { type: "plan_approve", planFilePath, mode });
+		} catch (error) {
+			this.#ctx.showError(`Backend plan approval failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
-		await this.client
-			.send(this.#sessionId, { type: "plan_approve", planFilePath, mode })
-			.catch(error =>
-				this.#ctx.showError(
-					`Backend plan approval failed: ${error instanceof Error ? error.message : String(error)}`,
-				),
-			);
 	}
+
+	/**
+	 * Pull the backend's derived state after `state_changed`: model, thinking,
+	 * todos and the streaming flag are owned by the running session and the
+	 * replica does not learn them from transcript entries alone.
+	 */
+	#scheduleStateRefresh(): void {
+		if (this.#closed || this.#stateRefresh) return;
+		this.#stateRefresh = (async () => {
+			try {
+				const state = (await this.client.send(this.#sessionId, { type: "get_state" })) as {
+					model?: { provider?: string; modelId?: string } | null;
+					thinkingLevel?: string | null;
+					isStreaming?: unknown;
+					todoPhases?: unknown;
+				};
+				if (this.#closed) return;
+				if (typeof state.isStreaming === "boolean") this.#streaming = state.isStreaming;
+				const session = this.#ctx.session;
+				const modelState = state.model;
+				if (modelState?.provider && modelState.modelId) {
+					const model = session.modelRegistry.find(modelState.provider, modelState.modelId);
+					const current = session.agent.state.model;
+					if (model && (current?.id !== model.id || current?.provider !== model.provider)) {
+						session.agent.setModel(model);
+					}
+				}
+				if (typeof state.thinkingLevel === "string") {
+					session.agent.setThinkingLevel(toReasoningEffort(state.thinkingLevel as never));
+				}
+				if (Array.isArray(state.todoPhases)) {
+					session.setTodoPhases(state.todoPhases as never);
+				}
+			} catch (error) {
+				logger.debug("backend attach state refresh failed", { error: String(error) });
+			} finally {
+				this.#stateRefresh = undefined;
+			}
+		})();
+	}
+
+	/** OAuth providers the backend can sign into. */
+	async getLoginProviders(): Promise<{ id: string; name: string; available: boolean; authenticated: boolean }[]> {
+		if (!this.#wire) throw new Error("The backend has no protocol link; cannot list login providers.");
+		return await this.#wire.getLoginProviders();
+	}
+
+	/** Sign in through the backend (dialogs arrive on the wire). */
+	async login(providerId: string): Promise<void> {
+		if (!this.#wire) throw new Error("The backend has no protocol link; cannot sign in.");
+		await this.#wire.login(providerId);
+	}
+
+	async getLogoutAccounts(providerId: string): Promise<{ credentialId: number; label: string }[]> {
+		if (!this.#wire) throw new Error("The backend has no protocol link; cannot list accounts.");
+		return await this.#wire.getLogoutAccounts(providerId);
+	}
+
+	async logout(providerId: string, credentialId: number): Promise<void> {
+		if (!this.#wire) throw new Error("The backend has no protocol link; cannot sign out.");
+		await this.#wire.logout(providerId, credentialId);
+	}
+
+	/** Cancel the backend's in-flight turn. */
 
 	/** Look up a session by id for addressing (`--attach-session`). */
 	static async findSession(client: BackendClient, sessionId: string): Promise<BackendSessionInfo | undefined> {
 		const { sessions } = await client.listSessions();
 		return sessions.find(session => session.id === sessionId);
 	}
+}
+
+/** Plain text of a transcript message content (string or text blocks). */
+function messageText(content: unknown): string {
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	return content
+		.filter(
+			(block): block is { type: string; text: string } =>
+				typeof block === "object" && block !== null && (block as { type?: unknown }).type === "text",
+		)
+		.map(block => block.text)
+		.join("\n");
 }

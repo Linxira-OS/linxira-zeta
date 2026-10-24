@@ -80,9 +80,8 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
 /**
  * Commands an attach client cannot apply to a backend-owned session:
  *
- * - session swaps (`fork`, `branch`, `tree`, `delete`, `clear`, `restart`)
- *   change which session the backend owns, so the client would keep editing
- *   the old one (`new`/`resume` re-attach instead);
+ * - a process restart (`restart`) must be done by the backend's host;
+ * - setup writes credentials the running backend does not reload;
  * - credentials (`login`, `logout`, `setup`) are loaded by the backend at
  *   startup;
  * - sharing (`collab`, `join`, `leave`) belongs to the backend's process;
@@ -90,16 +89,10 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
  *   spawn agents or record on the client.
  */
 export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
-	branch: true,
-	clear: true,
 	collab: true,
-	delete: true,
-	fork: true,
 	join: true,
 	leave: true,
 	live: true,
-	login: true,
-	logout: true,
 	loop: true,
 	omfg: true,
 	cleanse: true,
@@ -107,7 +100,6 @@ export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	seance: true,
 	setup: true,
 	tan: true,
-	tree: true,
 };
 
 /**
@@ -127,11 +119,11 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 
 /** The actionable half of a refusal: which local command does the same thing. */
 export function backendAttachRefusalHint(verb: string): string {
-	if (verb === "fork" || verb === "branch" || verb === "tree") {
-		return "quit and start the session you want: `zetacode attach --new`, `zetacode attach <id>`, or `zetacode --attach-session <id>`";
+	if (verb === "restart") {
+		return "restart the backend from its host: `zetacode daemon restart` (or stop and start `zetacode serve`)";
 	}
-	if (verb === "login" || verb === "logout" || verb === "setup") {
-		return "run it in a standalone `zetacode` terminal (the backend loads credentials at startup)";
+	if (verb === "setup") {
+		return "run `zetacode setup` on the backend host, then restart it so it loads the new credentials";
 	}
 	if (verb === "collab" || verb === "join" || verb === "leave") {
 		return "sharing starts from the process that owns the session";

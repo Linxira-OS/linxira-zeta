@@ -15,6 +15,7 @@
 
 import { randomUUID } from "node:crypto";
 import { statSync } from "node:fs";
+import { unlink } from "node:fs/promises";
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { modelsAreEqual } from "@linxiraos/pi-catalog/models";
 import { logger, Snowflake } from "@linxiraos/pi-utils";
@@ -84,6 +85,8 @@ export type AgentCommand =
 	| { type: "set_model"; provider: string; modelId: string }
 	| { type: "fork"; entryId: string }
 	| { type: "navigate_tree"; entryId: string }
+	| { type: "reset_context" }
+	| { type: "delete_session" }
 	| { type: "set_thinking_level"; level: string }
 	| { type: "compact"; customInstructions?: string }
 	| { type: "set_session_name"; name: string }
@@ -654,6 +657,39 @@ export class AgentSessionWrapper {
 					return { cancelled: result.cancelled };
 				} finally {
 					await this.#goalController.endSessionChange();
+				}
+			}
+			case "reset_context": {
+				// Local `/clear`: drop the model context, keep id/title/file.
+				await this.#goalController.beginSessionChange();
+				try {
+					const result = await this.#inner.resetSessionContext();
+					return result ? { cancelled: false, dropped: result.droppedCount } : { cancelled: true, dropped: 0 };
+				} finally {
+					await this.#goalController.endSessionChange();
+				}
+			}
+			case "delete_session": {
+				// Local `/delete yes`: switch to a fresh session, then drop the old
+				// transcript. The wrapper must rekey before the file disappears so an
+				// old id never resolves to a missing path.
+				const oldFile = this.#inner.sessionFile;
+				await this.#goalController.beginSessionChange();
+				try {
+					const created = await this.#inner.newSession();
+					if (!created) return { cancelled: true };
+					const newSessionId = this.#inner.sessionId;
+					const newFile = this.#inner.sessionFile;
+					if (newSessionId && newFile) {
+						sessions.delete(this.realSessionId);
+						cacheSessionPath(newSessionId, newFile);
+						this.#rekey(newSessionId, newFile);
+					}
+					if (oldFile) await unlink(oldFile).catch(() => undefined);
+					invalidateSessionListCache();
+					return { cancelled: false, newSessionId };
+				} finally {
+					await this.#goalController.endSessionChange({ detachedRun: true });
 				}
 			}
 			case "set_thinking_level":

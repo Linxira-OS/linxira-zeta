@@ -117,6 +117,48 @@ export class AttachWire {
 		return this.#client.call("goal", { op: "drop" }).then(() => undefined);
 	}
 
+	/** Current backend session state (model, thinking, queues, todos, plan). */
+	getState(): Promise<Record<string, unknown>> {
+		return this.#client.call("get_state", undefined) as Promise<Record<string, unknown>>;
+	}
+
+	/** OAuth providers the backend can sign into. */
+	async getLoginProviders(): Promise<{ id: string; name: string; available: boolean; authenticated: boolean }[]> {
+		const result = (await this.#client.call("get_login_providers", undefined)) as {
+			providers?: { id: string; name: string; available: boolean; authenticated: boolean }[];
+		};
+		return result.providers ?? [];
+	}
+
+	/**
+	 * Sign in through the backend. Progress arrives as extension dialogs on this
+	 * socket (`open_url`, `input`), so the attached TUI renders and answers them.
+	 */
+	login(providerId: string): Promise<void> {
+		return this.#client.call("login", { providerId }).then(() => undefined);
+	}
+
+	async getLogoutAccounts(providerId: string): Promise<{ credentialId: number; label: string }[]> {
+		const result = (await this.#client.call("get_logout_accounts", { providerId })) as {
+			accounts?: { credentialId: number; label: string }[];
+		};
+		return result.accounts ?? [];
+	}
+
+	logout(providerId: string, credentialId: number): Promise<void> {
+		return this.#client.call("logout", { providerId, credentialId }).then(() => undefined);
+	}
+
+	/** Rewind the backend transcript to an entry (the local `/branch`/`/tree` op). */
+	navigateTree(entryId: string): Promise<void> {
+		return this.#client.call("branch", { entryId }).then(() => undefined);
+	}
+
+	/** Snapshot the current session into a new one (the local `/fork` op). */
+	fork(entryId?: string): Promise<void> {
+		return this.#client.call("fork", entryId === undefined ? {} : { entryId }).then(() => undefined);
+	}
+
 	/** Ask a side question in the backend's side context. */
 	btw(question: string): Promise<void> {
 		return this.#client.call("btw", { question }).then(() => undefined);

@@ -232,12 +232,16 @@ by the backend** with its own session — builtins that have a headless handler
 and prompt templates; the command's output (`command_output`) is printed in
 the attached status line. `/queue <text>` and the `->`/`=>` shorthands land in
 the backend's follow-up queue, and `/btw <question>` opens a side context on
-the backend. `/new` creates a backend session and re-attaches this client to
-it; `/resume <id>` re-attaches to an existing one (ids come from
-`zetacode attach --list`). Only commands that cannot be applied from an attach
-client are refused with a hint: `/fork`, `/branch`, `/tree`, `/clear`,
-`/delete`, `/restart`, `/login`, `/logout`, `/setup`, `/collab`, `/join`,
-`/leave`, `/loop`, `/omfg`, `/cleanse`, `/tan`, `/seance`, `/live`.
+the backend. Session lifecycle runs on the backend and re-attaches this client:
+`/new` (fresh session), `/resume <id>` (existing session), `/fork`, `/branch`
+and `/tree` (entry picker over the mirrored transcript), `/clear` (drop the
+context, keep the session) and `/delete yes`. `/login` and `/logout` drive the
+backend's OAuth providers and accounts. Only commands whose runtime lives in
+the backend process are refused, with the host action that performs them:
+`/restart` (restart the daemon), `/setup` (run it on the host, then restart),
+`/collab`, `/join`, `/leave` (sharing starts in the owning process) and the
+client-process workflows `/loop`, `/omfg`, `/cleanse`, `/tan`, `/seance`,
+`/live`.
 Model and thinking-level switches
 made in the attached TUI (for example `/model`) are mirrored to the backend, so
 the run and the status line never disagree. Detaching closes the socket and the

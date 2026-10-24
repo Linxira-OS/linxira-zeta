@@ -31,12 +31,15 @@ starting a private in-process agent.
   (`/compact`, `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`,
   `/plugins`, …), and its `command_output` is shown in the attached status
   line. `/queue` and the `->`/`=>` shorthands fill the backend's follow-up
-  queue; `/btw` uses the backend side context. `/new` creates a backend session
-  and re-attaches this client, and `/resume <id>` re-attaches to an existing
-  one. Only commands that cannot be applied from an attach client are refused,
-  with a hint (`/fork`, `/branch`, `/tree`, `/clear`, `/delete`, `/restart`,
-  `/login`, `/logout`, `/setup`, `/collab`, `/join`, `/leave`, `/loop`,
-  `/omfg`, `/cleanse`, `/tan`, `/seance`, `/live`).
+  queue; `/btw` uses the backend side context. Session lifecycle is backend-owned
+  and re-attaches the client: `/new`, `/resume <id>`, `/fork`, `/branch`,
+  `/tree`, `/clear` and `/delete yes`; `/login` and `/logout` drive the
+  backend's providers. Only commands whose runtime lives in the backend process
+  are refused, with the host action that performs them (`/restart`, `/setup`,
+  `/collab`, `/join`, `/leave`, `/loop`, `/omfg`, `/cleanse`, `/tan`,
+  `/seance`, `/live`). Plan approval renders the plan review overlay (plan
+  content, approve/compact/refine/cancel) and executes the approved plan on the
+  backend.
 - **Dialogs** (`select`/`confirm`/`input`/`editor`/`ask`) fan out to every
   attached surface; the first answer wins.
 

@@ -10,12 +10,18 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
+import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { type } from "@linxiraos/pi-omptype";
+import { PROPOSE_DEVICE_NAME } from "@linxiraos/pi-tui/tools/resolve";
 import { Composer } from "@linxiraos/pi-tui/prompt/composer";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
+import { convertToLlm } from "@linxiraos/zeta/session/messages";
+import type { ToolSession } from "../../src/tools";
+import { PROPOSE_DEVICE_PATH, dispatchResolutionDevice } from "../../src/tools/resolve";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
@@ -220,6 +226,141 @@ describe("attached TUI over the wire protocol", () => {
 		expect(await answered.promise).toEqual({ confirmed: true });
 	}, 120_000);
 
+	test("renders the backend's plan review and executes the approved plan", async () => {
+		const cwd = process.cwd();
+		const model = createMockModel({
+			handler: { content: ["unused"] },
+			responses: [
+				{
+					content: [
+						{
+							type: "toolCall",
+							name: "write",
+							arguments: { path: "local://web-plan.md", content: "# Web plan\n\nImplement it.\n" },
+						},
+					],
+				},
+				{
+					content: [{ type: "toolCall", name: "write", arguments: { path: PROPOSE_DEVICE_PATH, content: "web" } }],
+				},
+				{ content: ["Plan submitted."] },
+				{ content: ["Executing the approved plan."] },
+			],
+		});
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime(model.model.provider, "test-key");
+
+		// The fake write tool mirrors the internal-URL write scheme: `local://` lands
+		// in the session artifacts dir, the propose device submits the plan.
+		const writeTool: AgentTool = {
+			name: "write",
+			label: "write",
+			description: "Fake write",
+			parameters: type({}),
+			async execute(_toolCallId, input) {
+				const target = String((input as { path?: unknown }).path ?? "");
+				const content = String((input as { content?: unknown }).content ?? "");
+				if (target === PROPOSE_DEVICE_PATH) {
+					const { result, xdev } = await dispatchResolutionDevice(
+						{
+							peekPlanProposalHandler: () => backendSession!.peekPlanProposalHandler(),
+						} as unknown as ToolSession,
+						PROPOSE_DEVICE_NAME,
+						content,
+					);
+					return { content: result.content, details: { xdev }, isError: result.isError };
+				}
+				const resolved = resolveLocalUrlToPath(target, {
+					getArtifactsDir: () => backendSession!.sessionManager.getArtifactsDir(),
+					getSessionId: () => backendSession!.sessionManager.getSessionId(),
+				});
+				await Bun.write(resolved, content);
+				return { content: [{ type: "text" as const, text: `Wrote ${target}` }] };
+			},
+		};
+
+		const backendManager = SessionManager.create(
+			cwd,
+			path.join(tempDir.path(), "sessions"),
+			new FileSessionStorage(),
+			{ client: "cli" },
+		);
+		backendSession = new AgentSession({
+			agent: new Agent({
+				getApiKey: () => "test-key",
+				initialState: { model: model.model, systemPrompt: ["test"], tools: [writeTool], messages: [] },
+				streamFn: model.stream,
+			}),
+			sessionManager: backendManager,
+			settings: Settings.isolated({ "compaction.enabled": false, "retry.enabled": false }),
+			modelRegistry: new ModelRegistry(authStorage),
+			toolRegistry: new Map<string, AgentTool>([["write", writeTool]]),
+			builtInToolNames: ["write"],
+			advisorTools: [],
+		});
+		const backend = backendSession;
+		const sessionId = backendManager.getSessionId();
+		const sessionFile = backendManager.getSessionFile();
+		if (!sessionFile) throw new Error("backend session did not create a file");
+		const wrapper = new AgentSessionWrapper(backend, sessionId, sessionFile);
+		gatewaySessions.set(sessionId, wrapper);
+		cacheSessionPath(sessionId, sessionFile);
+
+		const probe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("probe") });
+		const port = probe.port ?? 0;
+		await probe.stop(true);
+		gateway = await startWebGateway(port);
+
+		localSession = new AgentSession({
+			agent: new Agent({ initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] } }),
+			sessionManager: SessionManager.create(cwd, path.join(tempDir.path(), "local-sessions")),
+			settings: Settings.isolated(),
+			modelRegistry: new ModelRegistry(authStorage),
+		});
+		term = new VirtualTerminal(140, 50);
+		mode = new InteractiveMode(
+			localSession,
+			"test",
+			undefined,
+			() => {},
+			undefined,
+			undefined,
+			undefined,
+			new Composer({ terminal: term }),
+		);
+		await mode.init({ suppressWelcomeIntro: true });
+		link = new BackendAttachLink(
+			mode,
+			{ backend: { baseUrl: gateway.url, identity: serveIdentity() }, sessionId, newSession: false, explicit: true },
+			{ replicaDir: path.join(tempDir.path(), "replicas") },
+		);
+		await link.join();
+		expect(link.attached).toBe(true);
+
+		// Run the plan turn on the backend; its `plan_proposed` reaches the attach
+		// client over SSE and must open the review overlay with the plan content.
+		await wrapper.send({
+			type: "mode_enter",
+			mode: "plan",
+			options: { initialPrompt: "Draft the web plan" },
+		});
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Approve and execute")));
+		const review = plainRows(term.getViewport()).join("\n");
+		expect(review).toContain("Approve and compact context");
+		expect(review).toContain("Refine plan");
+
+		// Approval dispatches into an idle session; wait for the plan turn's end.
+		const idleDeadline = Date.now() + 20_000;
+		while (backend.isStreaming && Date.now() < idleDeadline) await Bun.sleep(25);
+		expect(backend.isStreaming).toBe(false);
+
+		term.sendInput("\r");
+		await term.waitForRender(() =>
+			plainRows(term.getViewport()).some(row => row.includes("Executing the approved plan.")),
+		);
+		expect(backend.getPlanModeState()).toBeUndefined();
+	}, 120_000);
+
 	test("attaches across directories and forwards backend-capable slash commands", async () => {
 		const backendCwd = process.cwd();
 		const localCwd = path.join(tempDir.path(), "elsewhere");
@@ -297,16 +438,16 @@ describe("attached TUI over the wire protocol", () => {
 
 		void mode.getUserInput();
 
-		// A fork needs the backend session replaced; the client refuses it with
-		// the commands that do start another session.
-		term.sendInput("/fork");
-		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/fork")));
+		// A workflow whose runtime lives in the backend process is refused with
+		// the host action that performs it.
+		term.sendInput("/tan");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/tan")));
 		term.sendInput("\r");
 		await term.waitForRender(() =>
-			plainRows(term.getViewport()).some(row => row.includes("/fork is not available while attached")),
+			plainRows(term.getViewport()).some(row => row.includes("/tan is not available while attached")),
 		);
 		const refusal = plainRows(term.getViewport()).join("\n");
-		expect(refusal).toContain("zetacode attach --new");
+		expect(refusal).toContain("owns the backend session");
 		expect(link.attached).toBe(true);
 
 		// A headless-capable builtin runs on the backend; its command_output is
@@ -322,5 +463,23 @@ describe("attached TUI over the wire protocol", () => {
 		expect(link.attached).toBe(true);
 		expect(link.sessionId).toBe(sessionId);
 		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
+
+		// Auth surfaces: the backend answers provider/account queries over the
+		// socket the same way the local TUI's pickers do.
+		expect(Array.isArray(await link.getLoginProviders())).toBe(true);
+
+		// `/clear` drops the backend context but keeps the session id.
+		const dropped = await link.clearContext();
+		expect(dropped).toBeGreaterThanOrEqual(0);
+		expect(link.sessionId).toBe(sessionId);
+
+		// `/fork` moves both sides to the forked session; `/delete` starts a fresh
+		// one and drops the old transcript.
+		const forked = await link.forkSession();
+		expect(forked).not.toBe(sessionId);
+		expect(link.sessionId).toBe(forked);
+		const replacement = await link.deleteSession();
+		expect(replacement).not.toBe(forked);
+		expect(link.attached).toBe(true);
 	}, 120_000);
 });

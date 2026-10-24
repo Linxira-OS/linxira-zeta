@@ -91,16 +91,19 @@ describe("backend-attach command routing", () => {
 		}
 	});
 
-	it("refuses only commands that would rewrite the backend session locally", () => {
+	it("handles session lifecycle commands through the backend", () => {
+		// `/new`, `/resume`, `/fork`, `/branch`, `/tree`, `/clear`, `/delete`,
+		// `/login` and `/logout` have dedicated attach handlers (HTTP session ops
+		// or RPC auth); they must be neither local nor refused.
+		for (const verb of ["new", "resume", "fork", "branch", "tree", "clear", "delete", "login", "logout"]) {
+			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
+			expect(isBackendAttachRefusedCommand(verb), verb).toBe(false);
+		}
+	});
+
+	it("refuses only commands whose runtime lives in the backend process", () => {
 		for (const verb of [
-			"fork",
-			"branch",
-			"tree",
-			"clear",
-			"delete",
 			"restart",
-			"login",
-			"logout",
 			"setup",
 			"collab",
 			"join",
@@ -131,9 +134,8 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("tells the operator which local command performs the refused action", () => {
-		expect(backendAttachRefusalHint("fork")).toContain("zetacode attach --new");
-		expect(backendAttachRefusalHint("tree")).toContain("--attach-session");
-		expect(backendAttachRefusalHint("login")).toContain("standalone `zetacode` terminal");
+		expect(backendAttachRefusalHint("restart")).toContain("zetacode daemon restart");
+		expect(backendAttachRefusalHint("setup")).toContain("zetacode setup");
 		expect(backendAttachRefusalHint("collab")).toContain("sharing");
 		expect(backendAttachRefusalHint("clear")).toContain("owns the backend session");
 	});

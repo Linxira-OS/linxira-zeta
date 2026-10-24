@@ -1169,6 +1169,150 @@ export class InputController {
 						})();
 						return;
 					}
+					if (verb === "fork") {
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								const id = await backendAttach.forkSession();
+								this.ctx.showStatus(`Forked into backend session ${id}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(`Fork failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "branch" || verb === "tree") {
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								const messages = await backendAttach.userMessages();
+								const picked =
+									verb === "branch" ? messages.filter(message => message.role === "user") : messages;
+								if (picked.length === 0) {
+									this.ctx.showStatus("The backend session has no messages to navigate.");
+									return;
+								}
+								const choice = await this.ctx.showHookSelector(
+									verb === "branch" ? "Rewind to which message?" : "Session tree",
+									picked.map(message => message.label),
+								);
+								const selected = picked[picked.findIndex(message => message.label === choice)];
+								if (!selected) return;
+								await backendAttach.navigateTree(selected.entryId);
+								this.ctx.showStatus(`Rewound the backend session to ${selected.entryId.slice(0, 8)}`, {
+									dim: true,
+								});
+							} catch (error) {
+								this.ctx.showError(
+									`Navigation failed: ${error instanceof Error ? error.message : String(error)}`,
+								);
+							}
+						})();
+						return;
+					}
+					if (verb === "clear") {
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								const dropped = await backendAttach.clearContext();
+								this.ctx.showStatus(
+									`Context reset — ${dropped} message${dropped === 1 ? "" : "s"} dropped; session continues.`,
+									{ dim: true },
+								);
+							} catch (error) {
+								this.ctx.showError(`Clear failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "delete") {
+						const args = text.slice(`/${verb}`.length).trim();
+						if (args !== "yes") {
+							this.ctx.showError(`Usage: /delete yes — deletes this backend session and starts a new one.`);
+							this.ctx.editor.setText("");
+							return;
+						}
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								const id = await backendAttach.deleteSession();
+								this.ctx.showStatus(`Session deleted; started backend session ${id}`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(`Delete failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "login") {
+						const arg = text.slice(`/${verb}`.length).trim();
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								let providerId = arg && !arg.includes("://") ? arg : "";
+								if (!providerId) {
+									const providers = (await backendAttach.getLoginProviders()).filter(
+										provider => provider.available,
+									);
+									if (providers.length === 0) {
+										this.ctx.showStatus("No login providers are available on the backend.");
+										return;
+									}
+									const labels = providers.map(provider =>
+										provider.authenticated
+											? `${provider.name} (${provider.id}) ✓`
+											: `${provider.name} (${provider.id})`,
+									);
+									const choice = await this.ctx.showHookSelector("Sign in to which provider?", labels);
+									const index = labels.indexOf(choice ?? "");
+									if (index < 0) return;
+									providerId = providers[index].id;
+								}
+								await backendAttach.login(providerId);
+								this.ctx.showStatus(`Signed in to ${providerId}.`, { dim: true });
+							} catch (error) {
+								this.ctx.showError(`Login failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
+					if (verb === "logout") {
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							try {
+								const providers = (await backendAttach.getLoginProviders()).filter(
+									provider => provider.authenticated,
+								);
+								if (providers.length === 0) {
+									this.ctx.showStatus("No signed-in providers on the backend.");
+									return;
+								}
+								const labels = providers.map(provider => `${provider.name} (${provider.id})`);
+								const choice = await this.ctx.showHookSelector("Sign out of which provider?", labels);
+								const index = labels.indexOf(choice ?? "");
+								if (index < 0) return;
+								const providerId = providers[index].id;
+								const accounts = await backendAttach.getLogoutAccounts(providerId);
+								if (accounts.length === 0) {
+									this.ctx.showStatus(`No stored credentials for ${providerId}.`);
+									return;
+								}
+								const accountLabels = accounts.map(account => account.label);
+								const accountChoice =
+									accounts.length === 1
+										? accountLabels[0]
+										: await this.ctx.showHookSelector("Sign out of which account?", accountLabels);
+								const accountIndex = accountLabels.indexOf(accountChoice ?? "");
+								if (accountIndex < 0) return;
+								await backendAttach.logout(providerId, accounts[accountIndex].credentialId);
+								this.ctx.showStatus(`Signed out of ${providerId} (${accounts[accountIndex].label}).`, {
+									dim: true,
+								});
+							} catch (error) {
+								this.ctx.showError(`Logout failed: ${error instanceof Error ? error.message : String(error)}`);
+							}
+						})();
+						return;
+					}
 					if (isBackendAttachRefusedCommand(verb)) {
 						this.ctx.showStatus(`/${verb} is not available while attached: ${backendAttachRefusalHint(verb)}`);
 						this.ctx.editor.setText("");
