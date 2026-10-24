@@ -1,6 +1,10 @@
 /**
  * Product gate for `/live` and `Ctrl+L`.
  *
+ * OWNER DECISION (2026-10-25): deferred to the roadmap until explicitly
+ * scheduled. Do not implement a provider-agnostic transport in an unrelated
+ * batch; this file is intentionally dark and the gate is the only surface.
+ *
  * The shipped transport is Codex-specific end to end: the signaling URL, the
  * `gpt-live-1-codex` model, the `openai-codex` OAuth provider and the
  * Frameless Bidi data-channel protocol. A provider-agnostic realtime layer

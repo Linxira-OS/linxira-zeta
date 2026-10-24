@@ -164,6 +164,17 @@
 				"clientOmit": []
 			},
 			{
+				"name": "guided_goal",
+				"doc": "Start the /guided-goal interview in this backend session (same kickoff as the TUI command).",
+				"params": "GuidedGoalParams",
+				"result": "GuidedGoalResult",
+				"nullable": false,
+				"unwrap": "started",
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
 				"name": "goal",
 				"doc": "Read or change goal mode with the lifecycle of the interactive `/goal` command.",
 				"params": "GoalParams",
@@ -2913,6 +2924,11 @@
 					],
 					"description": "Current goal mode; null when the session has no goal.",
 					"default": null
+				},
+				"guidedGoalInterview": {
+					"type": "boolean",
+					"description": "`/guided-goal` interview is active; the client must treat bare \"c\" as text.",
+					"default": false
 				},
 				"modes": {
 					"$ref": "#/$defs/ModeStates"
@@ -6237,6 +6253,31 @@
 			},
 			"required": [
 				"enabled"
+			]
+		},
+		"GuidedGoalParams": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string"
+				},
+				"images": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/ImageContent"
+					}
+				}
+			}
+		},
+		"GuidedGoalResult": {
+			"type": "object",
+			"properties": {
+				"started": {
+					"type": "boolean"
+				}
+			},
+			"required": [
+				"started"
 			]
 		},
 		"GoalParams": {

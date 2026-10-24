@@ -2724,8 +2724,10 @@ type SessionState struct {
 	DumpTools    []ToolDescriptor `json:"dumpTools"`
 	ContextUsage *ContextUsage    `json:"contextUsage,omitempty"`
 	// Current goal mode; null when the session has no goal.
-	Goal  *GoalModeState `json:"goal"`
-	Modes *ModeStates    `json:"modes,omitempty"`
+	Goal *GoalModeState `json:"goal"`
+	// `/guided-goal` interview is active; the client must treat bare "c" as text.
+	GuidedGoalInterview bool        `json:"guidedGoalInterview"`
+	Modes               *ModeStates `json:"modes,omitempty"`
 }
 
 func (v *SessionState) UnmarshalJSON(data []byte) error {
@@ -2764,6 +2766,7 @@ func (v *SessionState) decodeFrom(raw map[string]json.RawMessage) error {
 	d.defaulted("dumpTools", &out.DumpTools, `[]`)
 	d.optional("contextUsage", &out.ContextUsage)
 	d.defaulted("goal", &out.Goal, `null`)
+	d.defaulted("guidedGoalInterview", &out.GuidedGoalInterview, `false`)
 	d.optional("modes", &out.Modes)
 	if d.err != nil {
 		return d.err
@@ -7076,6 +7079,25 @@ func (v *SetSlowModeResult) decodeFrom(raw map[string]json.RawMessage) error {
 	return nil
 }
 
+type GuidedGoalResult struct {
+	Started bool `json:"started"`
+}
+
+func (v *GuidedGoalResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "GuidedGoalResult", v.decodeFrom)
+}
+
+func (v *GuidedGoalResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out GuidedGoalResult
+	d := fieldDecoder{raw: raw, owner: "GuidedGoalResult"}
+	d.required("started", &out.Started)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type SetAskDialogResult struct {
 	Enabled bool `json:"enabled"`
 }
@@ -7884,6 +7906,19 @@ func (c Commands) SetSlowMode(ctx context.Context, p SetSlowModeCommand) (bool, 
 	var out SetSlowModeResult
 	err := c.call(ctx, "set_slow_mode", p, 0, &out)
 	return out.Enabled, err
+}
+
+// GuidedGoalCommand holds the parameters of "guided_goal".
+type GuidedGoalCommand struct {
+	Message *string        `json:"message,omitempty"`
+	Images  []ImageContent `json:"images,omitempty"`
+}
+
+// GuidedGoal sends "guided_goal": Start the /guided-goal interview in this backend session (same kickoff as the TUI command).
+func (c Commands) GuidedGoal(ctx context.Context, p GuidedGoalCommand) (bool, error) {
+	var out GuidedGoalResult
+	err := c.call(ctx, "guided_goal", p, 0, &out)
+	return out.Started, err
 }
 
 // GoalCommand holds the parameters of "goal".

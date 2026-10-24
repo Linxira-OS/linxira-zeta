@@ -843,6 +843,16 @@ export class RpcClient {
 		return this.#getData(response);
 	}
 
+	/** Start the backend session's `/guided-goal` interview (hidden kickoff turn). */
+	async guidedGoal(message?: string, images?: ImageContent[]): Promise<boolean> {
+		const response = await this.#send({
+			type: "guided_goal",
+			...(message === undefined ? {} : { message }),
+			...(images && images.length > 0 ? { images } : {}),
+		});
+		return this.#getData<{ started: boolean }>(response).started;
+	}
+
 	/**
 	 * Start a GPT live voice session bound to this session; resolves once it is connected
 	 * and recording. `instructions` replaces the bundled live prompt (Handlebars:

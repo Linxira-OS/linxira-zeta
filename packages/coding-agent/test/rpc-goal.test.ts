@@ -89,6 +89,14 @@ describe("RPC goal command", () => {
 		expect(state.isStreaming).toBe(false);
 	}, 30_000);
 
+	test("guided_goal starts the backend interview and exposes the goal tool", async () => {
+		const rpc = await start({ continuation: false, script: "idle" });
+		expect(await rpc.guidedGoal("ship it")).toBe(true);
+		const state = await rpc.getState();
+		expect(state.guidedGoalInterview).toBe(true);
+		expect(state.dumpTools?.map(tool => tool.name)).toContain("goal");
+	}, 30_000);
+
 	test("plan mode refuses create and resume", async () => {
 		const rpc = await start({ continuation: true, plan: true });
 		const refused = await rejectionOf(rpc.goal("create", { objective: "not while planning" }));

@@ -555,6 +555,8 @@ export interface SessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal mode; null when the session has no goal. */
 	goal?: GoalModeState | null;
+	/** `/guided-goal` interview is active; the client must treat bare "c" as text. */
+	guidedGoalInterview?: boolean;
 	modes?: ModeStates;
 }
 
@@ -1563,6 +1565,15 @@ export interface SetSlowModeResult {
 	enabled: boolean;
 }
 
+export interface GuidedGoalParams {
+	message?: string;
+	images?: ImageContent[];
+}
+
+export interface GuidedGoalResult {
+	started: boolean;
+}
+
 export interface GoalParams {
 	op: GoalOp;
 	objective?: string;
@@ -1905,6 +1916,7 @@ export interface RpcWireCommands {
 	get_state: { params: undefined; result: SessionState };
 	set_fast_mode: { params: SetFastModeParams; result: FastModeResult };
 	set_slow_mode: { params: SetSlowModeParams; result: SetSlowModeResult };
+	guided_goal: { params: GuidedGoalParams; result: GuidedGoalResult };
 	goal: { params: GoalParams; result: GoalResult };
 	set_ask_dialog: { params: SetAskDialogParams; result: SetAskDialogResult };
 	get_available_commands: { params: undefined; result: GetAvailableCommandsResult };

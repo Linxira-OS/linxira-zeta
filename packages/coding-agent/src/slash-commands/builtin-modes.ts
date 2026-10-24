@@ -543,6 +543,13 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		description: () => M.cmdGuidedGoal,
 		inlineHint: "[rough objective]",
 		allowArgs: true,
+		handle: async (command, runtime) => {
+			await runtime.session.startGuidedGoal({
+				initial: command.args || undefined,
+				images: runtime.images,
+			});
+			return commandConsumed({ agentInvoked: true });
+		},
 		handleTui: async (command, runtime) => {
 			await runWithDetachedModeDraft(command, runtime, () =>
 				runtime.ctx.handleGuidedGoalCommand(command.args || undefined, runtime.input),

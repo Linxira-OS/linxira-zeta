@@ -73,7 +73,13 @@ export interface AgentEvent {
 type EventListener = (event: AgentEvent) => void;
 
 /** Commands that start or extend a turn are refused while draining. */
-const DRAIN_BLOCKED_COMMANDS = new Set<AgentCommand["type"]>(["prompt", "steer", "follow_up", "compact"]);
+const DRAIN_BLOCKED_COMMANDS = new Set<AgentCommand["type"]>([
+	"prompt",
+	"steer",
+	"follow_up",
+	"compact",
+	"guided_goal",
+]);
 
 export type AgentCommand =
 	| {
@@ -86,6 +92,7 @@ export type AgentCommand =
 			/** False when the host is forwarding a slash command, not a user body. */
 			loopBody?: boolean;
 	  }
+	| { type: "guided_goal"; message?: string; images?: unknown[] }
 	| { type: "steer"; text: string; images?: unknown[] }
 	| { type: "follow_up"; text: string; images?: unknown[] }
 	| { type: "abort" }
@@ -223,6 +230,8 @@ export interface AgentState {
 	extensionWidgets: { key: string; lines: string[]; placement: "aboveEditor" | "belowEditor" }[];
 	queuedMessages: { steering: string[]; followUp: string[] };
 	planModeEnabled: boolean;
+	/** True while `/guided-goal` is interviewing; the client must treat bare "c" as text. */
+	guidedGoalInterview: boolean;
 	planFilePath: string | null;
 	/** Plan file body when plan mode is active (web-ui PlanApproval preview). */
 	planContent?: string;
@@ -604,6 +613,7 @@ export class AgentSessionWrapper {
 			})),
 			queuedMessages: { steering: [...queued.steering], followUp: [...queued.followUp] },
 			planModeEnabled: planEnabled,
+			guidedGoalInterview: inner.isGuidedGoalInterviewActive(),
 			planFilePath,
 			planContent,
 			loop: this.#loopController.snapshot(),
@@ -658,6 +668,12 @@ export class AgentSessionWrapper {
 				});
 				return { ok: true };
 			}
+			case "guided_goal":
+				await this.#inner.startGuidedGoal({
+					initial: command.message,
+					images: command.images as ImageContent[] | undefined,
+				});
+				return { ok: true };
 			case "steer":
 				this.#loopController.noteUserPrompt(command.text);
 				await this.#inner.steer(command.text, command.images as ImageContent[] | undefined);

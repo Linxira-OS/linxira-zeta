@@ -84,8 +84,7 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
  *
  * - sharing (`collab`, `join`, `leave`) belongs to the backend's process;
  * - live voice (`live`) binds the backend host's microphone/speaker and has no
- *   client-side audio bridge yet;
- * - guided goal is a TUI interview that still runs only in the owning process.
+ *   client-side audio bridge yet.
  *
  * `/setup` is retired globally, so it is deliberately forwarded: the backend
  * returns the retirement message instead of an attach-specific refusal.
@@ -100,7 +99,6 @@ export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	join: true,
 	leave: true,
 	live: true,
-	"guided-goal": true,
 };
 
 /**
@@ -120,9 +118,6 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 
 /** The actionable half of a refusal: which local command does the same thing. */
 export function backendAttachRefusalHint(verb: string): string {
-	if (verb === "guided-goal") {
-		return "the guided-goal interview is TUI-only; run it from the terminal that owns the backend session";
-	}
 	if (verb === "collab" || verb === "join" || verb === "leave") {
 		return "live sharing is disabled pending review; use /share for a static GitHub transcript";
 	}

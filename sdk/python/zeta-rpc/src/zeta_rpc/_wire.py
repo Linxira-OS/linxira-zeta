@@ -722,6 +722,8 @@ class SessionState:
     context_usage: ContextUsage | None = None
     goal: GoalModeState | None = None
     """Current goal mode; null when the session has no goal."""
+    guided_goal_interview: bool = False
+    """`/guided-goal` interview is active; the client must treat bare "c" as text."""
     modes: ModeStates | None = None
 
 
@@ -2085,6 +2087,7 @@ def parse_session_state(value: object, path: str = "SessionState") -> SessionSta
         dump_tools=defaulted(payload, "dumpTools", array(parse_tool_descriptor), path, ()),
         context_usage=optional(payload, "contextUsage", parse_context_usage, path),
         goal=defaulted(payload, "goal", nullable(parse_goal_mode_state), path, None),
+        guided_goal_interview=defaulted(payload, "guidedGoalInterview", decode_bool, path, False),
         modes=optional(payload, "modes", parse_mode_states, path),
     )
 
@@ -3399,6 +3402,15 @@ class WireClient:
         params: dict[str, object] = {}
         params["enabled"] = enabled
         return required(expect_object(self._command("set_slow_mode", params), "set_slow_mode"), "enabled", decode_bool, "set_slow_mode")
+
+    def guided_goal(self, *, message: str | None = None, images: Sequence[ImageContent] | None = None) -> bool:
+        """Start the /guided-goal interview in this backend session (same kickoff as the TUI command)."""
+        params: dict[str, object] = {}
+        if message is not None:
+            params["message"] = message
+        if images is not None:
+            params["images"] = list(images)
+        return required(expect_object(self._command("guided_goal", params), "guided_goal"), "started", decode_bool, "guided_goal")
 
     def goal(self, op: GoalOp, *, objective: str | None = None, token_budget: int | None = None) -> GoalResult:
         """Read or change goal mode with the lifecycle of the interactive `/goal` command."""

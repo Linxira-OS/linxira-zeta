@@ -1533,6 +1533,18 @@ export class InputController {
 						if (body) backendAttach.sendPrompt(body, images, "followUp");
 						return;
 					}
+					// `/guided-goal` starts an interview in the backend's session; the
+					// backend owns the goal tool and the kickoff turn.
+					if (verb === "guided-goal") {
+						const initial = text.slice(`/${verb}`.length).trim();
+						this.ctx.editor.clearDraft(text);
+						void backendAttach.startGuidedGoal(initial || undefined, images).catch(error => {
+							this.ctx.showError(
+								`Guided goal failed: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						});
+						return;
+					}
 					// `/btw <question>` answers in a side context; the backend owns that
 					// context, so the question goes over the control plane.
 					if (verb === "btw") {

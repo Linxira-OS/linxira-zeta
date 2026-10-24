@@ -78,6 +78,16 @@ export class AttachWire {
 		return this.#client.call(command, { message: text, ...images, ...loopBody }).then(() => undefined);
 	}
 
+	/** Start the backend's `/guided-goal` interview. */
+	startGuidedGoal(message?: string, images?: unknown[]): Promise<void> {
+		return this.#client
+			.call("guided_goal", {
+				...(message ? { message } : {}),
+				...(images && images.length > 0 ? { images } : {}),
+			})
+			.then(() => undefined);
+	}
+
 	abort(): Promise<void> {
 		return this.#client.call("abort").then(() => undefined);
 	}

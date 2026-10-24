@@ -172,6 +172,7 @@ Important edge behavior from runtime:
 - `{ id?, type: "set_fast_mode", enabled: boolean }`
 - `{ id?, type: "set_slow_mode", enabled: boolean }`
 - `{ id?, type: "goal", op: "get" | "create" | "resume" | "pause" | "drop" | "budget", objective?: string, token_budget?: number }`; `op: "budget"` sets the active goal's token limit (`token_budget` omitted clears it), matching `/goal budget`.
+- `{ id?, type: "guided_goal", message?: string, images?: ImageContent[] }` starts the same `/guided-goal` interview the TUI runs: it exposes the `goal` tool, sends the hidden kickoff, and keeps `get_state.guidedGoalInterview` true until a goal is created or the first tool-using turn ends.
 - `{ id?, type: "set_ask_dialog", enabled: boolean }`
 - `{ id?, type: "get_available_commands" }`
 - `{ id?, type: "get_entries", since?: string }`

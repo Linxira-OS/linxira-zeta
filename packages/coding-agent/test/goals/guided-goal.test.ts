@@ -175,6 +175,38 @@ describe("guided goal setup", () => {
 		}
 	});
 
+	it("starts the same interview from the backend session layer", async () => {
+		const harness = await createHarness();
+		try {
+			const promptSpy = vi.spyOn(harness.session, "prompt").mockResolvedValue(true);
+
+			await harness.session.startGuidedGoal({ initial: "ship it" });
+
+			expect(harness.session.isGuidedGoalInterviewActive()).toBe(true);
+			expect(harness.session.getEnabledToolNames()).toContain("goal");
+			expect(promptSpy).toHaveBeenCalledTimes(1);
+			expect(promptSpy.mock.calls[0]?.[0]).toContain("ship it");
+
+			const now = Date.now();
+			harness.session.setGoalModeState({
+				enabled: true,
+				mode: "active",
+				goal: {
+					id: "g1",
+					objective: "Ship it",
+					status: "active",
+					tokensUsed: 0,
+					timeUsedSeconds: 0,
+					createdAt: now,
+					updatedAt: now,
+				},
+			});
+			expect(harness.session.isGuidedGoalInterviewActive()).toBe(false);
+		} finally {
+			await harness.cleanup();
+		}
+	});
+
 	it("asks the agent to elicit the objective when no rough goal is given", async () => {
 		const harness = await createHarness();
 		try {

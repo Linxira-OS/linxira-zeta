@@ -64,6 +64,7 @@ export type RpcCommand =
 			/** False for a forwarded slash command; only user bodies update a waiting loop. */
 			loopBody?: boolean;
 	  }
+	| { id?: string; type: "guided_goal"; message?: string; images?: ImageContent[] }
 	| { id?: string; type: "steer"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "follow_up"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "remove_queued_message"; message: string; queue: "steering" | "followUp" }
@@ -237,6 +238,8 @@ export interface RpcSessionState {
 	contextUsage?: ContextUsage;
 	/** Current goal-mode state; `null` when the session has no goal. */
 	goal: GoalModeState | null;
+	/** True while `/guided-goal` is interviewing; the client must treat bare "c" as text. */
+	guidedGoalInterview?: boolean;
 	/**
 	 * Every mode's state, the same snapshot the TUI's mode banners read. Present
 	 * so a remote client can render plan/goal/vibe without a second protocol.
@@ -432,6 +435,7 @@ export type RpcResponse =
 
 	// Prompting (async - events follow)
 	| { id?: string; type: "response"; command: "prompt"; success: true; data?: { agentInvoked: boolean } }
+	| { id?: string; type: "response"; command: "guided_goal"; success: true; data: { started: boolean } }
 	| { id?: string; type: "response"; command: "steer"; success: true }
 	| { id?: string; type: "response"; command: "follow_up"; success: true }
 	| {

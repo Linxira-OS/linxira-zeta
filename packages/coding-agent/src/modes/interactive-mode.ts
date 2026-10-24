@@ -8862,6 +8862,10 @@ export class InteractiveMode implements InteractiveModeContext {
 		return this.#guidedGoalInterviewActive && !this.goalModeEnabled && !this.goalModePaused;
 	}
 
+	setGuidedGoalInterviewActive(active: boolean): void {
+		this.#guidedGoalInterviewActive = active;
+	}
+
 	handleBtwCopyKey(): Promise<boolean> {
 		return this.#btwController.handleCopy();
 	}

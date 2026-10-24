@@ -56,6 +56,11 @@ export interface GoalModeExitOptions {
 	paused?: boolean;
 	reason?: "completed" | "paused" | "dropped";
 }
+export interface GuidedGoalStartOptions {
+	/** Rough objective typed after `/guided-goal`; omitted means "ask the user". */
+	initial?: string;
+	images?: ImageContent[];
+}
 export interface VibeModeEntryOptions {
 	persistModeChange?: boolean;
 	previousTools?: string[];
@@ -207,6 +212,7 @@ import type { Skill, SkillWarning } from "../extensibility/skills";
 import { expandSlashCommand, type FileSlashCommand, loadSlashCommands } from "../extensibility/slash-commands";
 import { normalizeToolEventInput, resolveToolEventInput } from "../extensibility/tool-event-input";
 import { normalizeGoalObjective } from "../goals/plan-objective";
+import { cfgGoalEnabled } from "../goals/settings";
 import { GoalRuntime } from "../goals/runtime";
 import type { GoalModeState, GoalTokenUsage } from "../goals/state";
 import type { HindsightSessionState } from "../hindsight/state";
@@ -228,6 +234,7 @@ import { listPlanFiles, readPlanFile, resolvePlanFilePath } from "../plan-mode/p
 import { loadOverallPlanReference } from "../plan-mode/plan-handoff";
 import type { PlanModeState, PlanWorkflow } from "../plan-mode/state";
 import goalModeContextPrompt from "../prompts/goals/goal-mode-context.md" with { type: "text" };
+import guidedGoalInterviewPrompt from "../prompts/goals/guided-goal-interview.md" with { type: "text" };
 import goalTodoContextPrompt from "../prompts/goals/goal-todo-context.md" with { type: "text" };
 import anthropicUsageWrapUpPrompt from "../prompts/system/anthropic-usage-wrap-up.md" with { type: "text" };
 import autoContinuePrompt from "../prompts/system/auto-continue.md" with { type: "text" };
@@ -1080,6 +1087,8 @@ export class AgentSession implements SettingsScope {
 	#pendingPlanModelSwitch = false;
 	/** Pre-goal-mode tool snapshot, restored on goal-mode exit. */
 	#goalModePreviousTools: string[] | undefined;
+	/** True while the `/guided-goal` interview runs before a goal exists. */
+	#guidedGoalInterviewActive = false;
 	/** Pre-vibe-mode tool snapshot, restored on vibe exit. */
 	#vibeModePreviousTools: string[] | undefined;
 	/** Vibe worker owner scope for the current session (vibe-mode entry/exit and worker teardown). */
@@ -2281,6 +2290,65 @@ export class AgentSession implements SettingsScope {
 		if (this.isStreaming) {
 			await this.sendGoalModeContext({ deliverAs: "steer" });
 		}
+	}
+
+	/**
+	 * Start the `/guided-goal` interview: expose the goal tool, mark the
+	 * interview active, and send the hidden kickoff as a normal turn. No goal
+	 * exists until the agent creates one from the settled answers. This is the
+	 * backend/headless counterpart of the TUI's `handleGuidedGoalCommand`; both
+	 * share the same validation and prompt.
+	 */
+	async startGuidedGoal(options: GuidedGoalStartOptions = {}): Promise<void> {
+		if (this.#planModeState?.enabled) throw new Error("Exit plan mode first.");
+		if (this.#vibeModeState?.enabled) throw new Error("Exit vibe mode first.");
+		if (!cfgGoalEnabled.get(this.settings)) {
+			throw new Error("Goal mode is disabled. Enable it in settings (goal.enabled).");
+		}
+		const current = this.#goalModeState;
+		if (current?.enabled) {
+			throw new Error("Goal mode is already active. Use /goal to manage it, or /goal drop to start over.");
+		}
+		if (current?.goal?.status === "paused") {
+			throw new Error("Resume the current goal first, or drop it before setting a new objective.");
+		}
+
+		const enabledTools = this.getEnabledToolNames();
+		this.#goalModePreviousTools = enabledTools.filter(name => name !== "goal");
+		if (!enabledTools.includes("goal")) {
+			await this.setActiveToolsByName([...enabledTools, "goal"]);
+		}
+		this.#setGuidedGoalInterviewActive(true);
+		try {
+			const kickoff = prompt.render(guidedGoalInterviewPrompt, {
+				initial: options.initial?.trim() || undefined,
+			});
+			const images = options.images?.length ? options.images : undefined;
+			if (this.isStreaming) {
+				await this.followUp(kickoff, images, { synthetic: true });
+			} else {
+				try {
+					await this.prompt(kickoff, images ? { synthetic: true, images } : { synthetic: true });
+				} catch (error) {
+					if (!(error instanceof AgentBusyError)) throw error;
+					await this.followUp(kickoff, images, { synthetic: true });
+				}
+			}
+		} catch (error) {
+			this.#setGuidedGoalInterviewActive(false);
+			throw error;
+		}
+	}
+
+	/** True while the `/guided-goal` interview runs and no goal exists yet. */
+	isGuidedGoalInterviewActive(): boolean {
+		return this.#guidedGoalInterviewActive;
+	}
+
+	#setGuidedGoalInterviewActive(active: boolean): void {
+		if (this.#guidedGoalInterviewActive === active) return;
+		this.#guidedGoalInterviewActive = active;
+		this.bumpStateVersion();
 	}
 
 	/**
@@ -4791,6 +4859,9 @@ export class AgentSession implements SettingsScope {
 
 	#processAgentEvent = async (event: AgentEvent): Promise<void> => {
 		this.#petState(event);
+		if (this.#guidedGoalInterviewActive && event.type === "agent_end" && event.messages.some(hasAssistantToolCall)) {
+			this.#setGuidedGoalInterviewActive(false);
+		}
 		const eventPromptGeneration = this.#promptGeneration;
 		if (event.type === "agent_end" && this.#activeAgentContinue) {
 			this.#activeAgentContinue.turnEnded = true;
@@ -7967,6 +8038,7 @@ export class AgentSession implements SettingsScope {
 
 	setGoalModeState(state: GoalModeState | undefined): void {
 		this.#goalModeState = state;
+		if (this.#guidedGoalInterviewActive) this.#setGuidedGoalInterviewActive(false);
 		this.bumpStateVersion();
 	}
 
@@ -15540,6 +15612,10 @@ export class AgentSession implements SettingsScope {
 		const card = reply ? parseCardReply(reply, icons) : undefined;
 		return card ? formatCardTitle(card, title) : title;
 	}
+}
+
+function hasAssistantToolCall(message: AgentMessage): boolean {
+	return message.role === "assistant" && message.content.some(block => block.type === "toolCall");
 }
 
 export { SHUTDOWN_CONSOLIDATE_BUDGET_MS } from "./agent-session-types";

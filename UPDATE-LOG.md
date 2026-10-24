@@ -3,6 +3,7 @@
 ## 下一版本（Unreleased）
 
 ### 1.4.2
+- **`/guided-goal` 后端可用**：interview 从 TUI 专属路径下沉到 `AgentSession.startGuidedGoal`，后端 RPC/网关新增 `guided_goal` 指令，attach 客户端转发并在状态中镜像 `guidedGoalInterview`（访谈期间裸 `c` 仍是回答，不会触发模式切换）。后端会话自己激活 `goal` 工具、发送隐藏 kickoff，收到 goal create 或首个工具调用后结束访谈；不再提示“仅限 TUI”。
 - **后端模式开关**：新增全局 `backend.enabled`（默认关闭）与 `backend.workspace`。关闭时
   裸 `zetacode` 永远是本地进程，不探测、不附着、不自动拉起后端；打开时裸启动成为唯一默认
   后端的客户端，后端没跑会明确报错而不是静默降级。新增 `zetacode backend on|off|status|logs`：

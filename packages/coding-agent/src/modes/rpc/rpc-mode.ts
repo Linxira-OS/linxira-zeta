@@ -1818,6 +1818,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 					sessionManager: session.sessionManager,
 					settings: session.settings,
 					cwd: session.sessionManager.getCwd(),
+					images,
 					output: commandOutput => output({ type: "command_output", text: commandOutput }),
 					refreshCommands: emitAvailableCommandsUpdate,
 					reloadPlugins: reloadPluginState,
@@ -2110,6 +2111,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 					})),
 					contextUsage: session.getContextUsage(),
 					goal: session.getGoalModeState() ?? null,
+					guidedGoalInterview: session.isGuidedGoalInterviewActive(),
 					// The same per-mode snapshot the TUI banners read; a remote
 					// client needs it to draw plan/goal/vibe without a second protocol.
 					modes: {
@@ -2142,6 +2144,19 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 					return error(id, "set_slow_mode", "Slow mode is unavailable for the current model.");
 				}
 				return success(id, "set_slow_mode", { enabled: session.isSlowModeEnabled() });
+			}
+
+			case "guided_goal": {
+				try {
+					await session.startGuidedGoal({ initial: command.message, images: command.images });
+					return success(id, "guided_goal", { started: true });
+				} catch (guidedGoalError) {
+					return error(
+						id,
+						"guided_goal",
+						guidedGoalError instanceof Error ? guidedGoalError.message : String(guidedGoalError),
+					);
+				}
 			}
 
 			case "goal": {

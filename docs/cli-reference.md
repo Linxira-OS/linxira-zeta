@@ -252,7 +252,7 @@ replica switches that the attach link mirrors — `/model`, `/modelpreset`,
 `/switch`, `/effort`, `/plan`, `/plan-ultra`, `/plan-review`, `/goal`,
 `/vibe` — open their usual pickers and then send the matching wire command.
 `/fast` and `/slow` are forwarded to the backend's headless handlers;
-`/guided-goal` is refused while attached because its interview is TUI-only.
+`/guided-goal` runs in the backend session: the backend exposes the goal tool, sends the hidden interview kickoff, and the attached TUI mirrors the interview state so bare `c` stays an answer instead of a mode shortcut.
 `/skills`, `/tools`, `/context`, `/usage` and `/jobs` are also forwarded
 because they act on the backend session. `/skills` and `/share` are prompt-only
 entry points: explicit invocation injects the built-in guide, and

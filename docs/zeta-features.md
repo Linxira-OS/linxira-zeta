@@ -35,8 +35,8 @@ backend.
   backend (`/model`, `/modelpreset`, `/switch`, `/effort`, `/plan`,
   `/plan-ultra`, `/plan-review`, `/goal`, `/vibe`). `/fast` and `/slow` are
   forwarded to the backend's headless handlers instead of toggling the
-  replica; `/guided-goal` is refused while attached because its interview is
-  still TUI-only. Every other slash command is executed by the backend against
+  replica; `/guided-goal` starts its interview in the backend session (the
+  attached TUI mirrors the interview flag), so it is no longer refused. Every other slash command is executed by the backend against
   its own session (`/skills`, `/tools`, `/context`, `/usage`, `/jobs`,
   `/compact`, `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`, `/plugins`, …),
   and its `command_output` is shown in the attached status line. `/skills` and

@@ -3205,6 +3205,9 @@ pub struct SessionState {
 	/// Current goal mode; null when the session has no goal.
 	#[serde(default = "default_session_state_goal")]
 	pub goal: Option<GoalModeState>,
+	/// `/guided-goal` interview is active; the client must treat bare "c" as text.
+	#[serde(rename = "guidedGoalInterview", default = "default_session_state_guided_goal_interview")]
+	pub guided_goal_interview: bool,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub modes: Option<ModeStates>,
 }
@@ -5233,6 +5236,19 @@ pub struct SetSlowModeResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GuidedGoalParams {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub message: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub images: Option<Vec<ImageContent>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GuidedGoalResult {
+	pub started: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GoalParams {
 	pub op: GoalOp,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -6090,6 +6106,10 @@ fn default_session_state_goal() -> Option<GoalModeState> {
 	serde_json::from_str("null").expect("valid wire default")
 }
 
+fn default_session_state_guided_goal_interview() -> bool {
+	serde_json::from_str("false").expect("valid wire default")
+}
+
 fn default_token_usage_reasoning() -> i64 {
 	serde_json::from_str("0").expect("valid wire default")
 }
@@ -6355,6 +6375,25 @@ impl Command for SetSlowModeCommand {
 
 	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
 		serde_json::from_value::<SetSlowModeResult>(data.unwrap_or_else(|| Value::Object(Map::new()))).map(|result| result.enabled)
+	}
+}
+
+/// Start the /guided-goal interview in this backend session (same kickoff as the TUI command).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct GuidedGoalCommand {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub message: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub images: Option<Vec<ImageContent>>,
+}
+
+impl Command for GuidedGoalCommand {
+	const NAME: &'static str = "guided_goal";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = bool;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<GuidedGoalResult>(data.unwrap_or_else(|| Value::Object(Map::new()))).map(|result| result.started)
 	}
 }
 

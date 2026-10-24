@@ -20,6 +20,7 @@ describe("gateway drain gate", () => {
 			{ type: "steer", text: "hello" },
 			{ type: "follow_up", text: "hello" },
 			{ type: "compact" },
+			{ type: "guided_goal", message: "ship it" },
 		]) {
 			const response = await handleAgentCommand(
 				new Request("http://localhost/api/agent/session", { method: "POST", body: JSON.stringify(body) }),

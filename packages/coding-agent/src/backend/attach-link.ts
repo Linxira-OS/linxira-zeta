@@ -280,6 +280,20 @@ export class BackendAttachLink {
 		this.#ctx.showStatus(`Attached to backend session ${sessionId}${where}`, { dim: true });
 	}
 
+	/** Start the backend session's `/guided-goal` interview. */
+	async startGuidedGoal(message?: string, images?: ImageContent[]): Promise<void> {
+		if (this.#closed) throw new Error("Backend attachment is closed");
+		if (this.#wire) {
+			await this.#wire.startGuidedGoal(message, images);
+			return;
+		}
+		await this.client.send(this.#sessionId, {
+			type: "guided_goal",
+			...(message ? { message } : {}),
+			...(images && images.length > 0 ? { images } : {}),
+		});
+	}
+
 	/**
 	 * Send user input to the backend. Enter steers a live turn (matching the
 	 * TUI's streaming semantics); Ctrl+Enter queues a follow-up.
@@ -496,6 +510,7 @@ export class BackendAttachLink {
 		await this.#applyChain.catch(() => undefined);
 		this.#replicaLease?.();
 		this.#replicaLease = undefined;
+		this.#ctx.setGuidedGoalInterviewActive(false);
 		this.#ctx.backendAttach = undefined;
 		this.#queue = undefined;
 		this.#ctx.backendQueue = undefined;
@@ -996,6 +1011,7 @@ export class BackendAttachLink {
 					todoPhases?: unknown;
 					queuedMessages?: unknown;
 					modes?: unknown;
+					guidedGoalInterview?: unknown;
 					loop?: unknown;
 				};
 				if (this.#closed) return;
@@ -1016,6 +1032,7 @@ export class BackendAttachLink {
 					session.setTodoPhases(state.todoPhases as never);
 				}
 				this.#applyQueue(state.queuedMessages);
+				this.#ctx.setGuidedGoalInterviewActive(state.guidedGoalInterview === true);
 				if (isRecord(state.modes)) {
 					for (const mode of ["plan", "goal", "vibe"] as const) {
 						const modeState = state.modes[mode];

@@ -104,6 +104,13 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		unwrap: "enabled",
 	},
 	{
+		name: "guided_goal",
+		doc: "Start the /guided-goal interview in this backend session (same kickoff as the TUI command).",
+		params: { "message?": "string", "images?": "ImageContent[]" },
+		result: { started: "boolean" },
+		unwrap: "started",
+	},
+	{
 		name: "goal",
 		doc: "Read or change goal mode with the lifecycle of the interactive `/goal` command.",
 		params: { op: "GoalOp", "objective?": "string", "token_budget?": "number.integer" },
