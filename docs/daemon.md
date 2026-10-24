@@ -16,11 +16,48 @@ zetacode daemon install-autostart
 zetacode daemon uninstall-autostart
 ```
 
-`zetacode` with no arguments is unchanged; attaching is a separate surface.
+`zetacode` with no arguments follows `backend.enabled` (see
+[Backend mode](#backend-mode)); attaching is otherwise a separate surface.
 `start` accepts the same exposure flags as `serve` (`--host`, `--tls`,
 `--tls-cert`, `--tls-key`, `--allow-plain-http`, `--channels`), and the same
 refusals apply: a non-loopback bind still needs `remote.token` and TLS (or an
 explicit plaintext opt-in).
+
+## Backend mode
+
+`backend.enabled` (default `false`) is the machine-wide switch. It is a
+**global-only** setting (`~/.zeta/agent/config.yml`); a project config cannot
+enable a background service.
+
+- **Off** — every bare `zetacode` launch is a local process. Nothing is
+  auto-started, probed, or attached.
+- **On** — a bare `zetacode` becomes a client of the one default backend. If
+  the backend is not running, startup fails with a diagnostic instead of
+  silently opening a local session.
+- **`--standalone`** — force a local process even while the switch is on. It
+  never registers or listens, and may coexist with the backend.
+- Explicit `--attach`, `--attach-session`, `--attach-new`, `--backend`, and
+  `--backend-url` still select backend mode on their own; the switch governs
+  the default, not an explicit request.
+
+```sh
+zetacode backend status [--json]
+zetacode backend on [--workspace <dir>]
+zetacode backend off [--timeout <seconds>] [--force]
+zetacode backend logs
+```
+
+| Action | Behaviour |
+| --- | --- |
+| `on` | Sets `backend.enabled=true`, records `backend.workspace` (default: the stable `~/.zeta/workspace`), and starts the hidden detached backend there. Idempotent: an already-running backend is reported, not duplicated. Refuses when more than one live backend is registered. |
+| `off` | Sets `backend.enabled=false` immediately. New clients become local; running turns are allowed to finish (drained) before the backend is stopped. `--timeout` bounds the wait; `--force` stops immediately. `backend on` during a drain cancels the drain and leaves the backend running. |
+| `status` | Prints the switch, default workspace, backend pid/URLs, and running-session count. `--json` is machine-readable. |
+| `logs` | Prints the tail of the same daemon log. |
+
+The backend runs detached, so closing the terminal that launched it does not
+stop it. Only one backend is expected; a second live registration is an error
+to clean up, not a candidate for automatic selection. `daemon start` remains a
+low-level explicit command; `backend on` is the normal switch.
 
 ## Lifecycle
 
@@ -107,7 +144,8 @@ the only supported form. `detectInstallForm()` in
 the system”. It lives in the **global user config only**
 (`~/.zeta/agent/config.yml`); a project `.zeta/config.yml` or a `--config`
 overlay is deliberately ignored, so checking out a repository cannot make the
-machine start a service. It is also the checkbox **Start Backend at Login**
+machine start a service. `backend.enabled` must also be true: autostart is
+inert while backend mode is off. It is also the checkbox **Start Backend at Login**
 in the desktop app's settings surface (`PUT /api/settings` with path
 `backend.autostart`), which writes the same file — there is no GUI-only state.
 
@@ -116,9 +154,9 @@ command; it writes the component and sets the setting to `true`.
 `uninstall-autostart` disables/removes the component and sets it to `false`.
 The installed component consults the setting at start-up:
 
-- Linux: `ExecCondition=… daemon autostart-enabled` (exit 0 only when the
-  global value is true).
-- Windows: the task runs `serve --autostart`, which exits quietly when the
+- Linux: `ExecCondition=… daemon autostart-enabled` (exit 0 only when both
+  global values are true).
+- Windows: the task runs `serve --autostart`, which exits quietly when either
   global value is false.
 
 So editing the config to `false` disables the OS-triggered start without

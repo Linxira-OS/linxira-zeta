@@ -225,6 +225,11 @@ export const commands: CommandEntry[] = [
 		help: commandHelp.daemonHelp,
 	},
 	{
+		name: "backend",
+		load: () => import("./commands/backend").then(m => m.default),
+		help: commandHelp.backendHelp,
+	},
+	{
 		name: "attach",
 		load: () => import("./commands/attach").then(m => m.default),
 		help: commandHelp.attachHelp,

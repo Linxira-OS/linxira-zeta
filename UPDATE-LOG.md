@@ -3,6 +3,14 @@
 ## 下一版本（Unreleased）
 
 ### 1.4.2
+- **后端模式开关**：新增全局 `backend.enabled`（默认关闭）与 `backend.workspace`。关闭时
+  裸 `zetacode` 永远是本地进程，不探测、不附着、不自动拉起后端；打开时裸启动成为唯一默认
+  后端的客户端，后端没跑会明确报错而不是静默降级。新增 `zetacode backend on|off|status|logs`：
+  `on` 在默认工作区拉起隐藏的 detached 后端（已运行则复用，多于一个活后端直接报错）；
+  `off` 立即关闭开关、让新会话变成本地、拒绝后端新提示词并排空运行中的回合后自动退出，
+  `--force` 才直接停止，排空期间再执行 `on` 会取消排空。`--standalone`（别名 `--local`）
+  强制当前进程本地运行，可与后端并存。自启组件现在同时要求 `backend.autostart` 与
+  `backend.enabled` 为真。
 - **attach 真正连上后端会话**：网关从运行时的 `model_change.model`（`"provider/modelId"`）
   解析模型，而不是读早已不存在的 `provider`/`modelId` 字段；attach 客户端同时容忍空会话
   的空模型。此前每次 attach 都在 `modelRegistry.find(undefined, undefined)` 抛错后静默

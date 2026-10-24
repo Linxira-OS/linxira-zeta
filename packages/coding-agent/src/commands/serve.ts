@@ -14,6 +14,7 @@ import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
 import { WebConfig } from "../config/web-config";
 import { readBackendAutostartSetting } from "../autostart/setting";
+import { readBackendEnabledSetting } from "../backend/setting";
 import { formatAccessUrl, resolveServeAccess } from "../server/serve-access";
 import { discoverServeInstance, planServeStart, serveRegistryPath } from "../server/serve-registry";
 import { registerServeRestartHandler } from "../server/serve-control";
@@ -104,6 +105,14 @@ export default class Serve extends Command {
 		// with this flag. The global config is the single decision; the unit
 		// never starts a backend the user turned off, and an OS-disabled unit
 		// cannot be re-enabled by this process.
+		if (flags.autostart && !(await readBackendEnabledSetting())) {
+			console.log(
+				chalk.dim(
+					`  ${CLI_BIN_NAME}: backend.enabled is off in the global config; not starting the background backend.`,
+				),
+			);
+			return;
+		}
 		if (flags.autostart && !(await readBackendAutostartSetting())) {
 			console.log(
 				chalk.dim(

@@ -61,7 +61,11 @@ export async function runBackendPrintMode(options: BackendPrintOptions): Promise
 		return 1;
 	}
 	if (!target) {
-		process.stderr.write("Error: --backend requested but no running `zetacode serve` backend was reachable.\n");
+		process.stderr.write(
+			options.intent.explicit
+				? "Error: --backend requested but no running `zetacode serve` backend was reachable.\n"
+				: "Error: backend mode is enabled but no default backend is running. Run `zetacode backend on`, or use `--standalone`.\n",
+		);
 		return 1;
 	}
 

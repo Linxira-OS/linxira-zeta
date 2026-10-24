@@ -89,6 +89,7 @@ import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handleGetPlan } from "./web-gateway/plan";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import { getRunningSessionIds } from "./web-gateway/running-sessions";
+import { isGatewayDraining, setGatewayDraining } from "./web-gateway/draining";
 import {
 	handleDeleteProject,
 	handleDeleteSession,
@@ -430,6 +431,22 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 			const sessionId = getMainSessionId();
 			if (!sessionId) return json({ error: "no shared session; start zetacode serve" }, 404);
 			return json({ sessionId });
+		}
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/server/drain") {
+		if (req.method === "GET") return Response.json({ draining: isGatewayDraining() });
+		if (req.method === "POST") {
+			let value = true;
+			try {
+				const body = (await req.json()) as { draining?: unknown };
+				if (typeof body.draining === "boolean") value = body.draining;
+			} catch {
+				// Empty body means "enter drain".
+			}
+			setGatewayDraining(value);
+			return Response.json({ draining: value });
 		}
 		return json({ error: "Method not allowed" }, 405);
 	}

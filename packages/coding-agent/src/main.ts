@@ -44,6 +44,7 @@ import {
 	type ResolvedBackendTarget,
 	type StartupTransport,
 } from "./backend/attach-intent";
+import { readBackendEnabledSetting } from "./backend/setting";
 import { buildInitialMessage } from "./cli/initial-message";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
@@ -1978,24 +1979,36 @@ export async function runRootCommand(
 		const autoPrint =
 			(pipedInput !== undefined || !stdinIsTerminal) && !parsedArgs.print && parsedArgs.mode === undefined;
 		const isInteractive = !parsedArgs.print && !autoPrint && parsedArgs.mode === undefined;
+		const backendEnabled = await readBackendEnabledSetting();
+		const standalone = parsedArgs.standalone === true;
+		const explicitBackend =
+			parsedArgs.backend === true ||
+			parsedArgs.backendUrl !== undefined ||
+			parsedArgs.attach === true ||
+			parsedArgs.attachSession !== undefined ||
+			parsedArgs.attachNew === true;
+		if (standalone && explicitBackend) {
+			process.stderr.write(chalk.red("--standalone cannot be combined with --backend/--attach/--backend-url.\n"));
+			process.exit(1);
+		}
 		// Transport is decided before any local session exists. A bare launch is
-		// a pure local TUI; explicit --attach/--backend must reach a backend or
-		// startup fails, so a client never silently forks a second session.
+		// local unless backend mode is enabled; explicit --attach/--backend must
+		// reach a backend or startup fails, so a client never silently forks a
+		// second session.
 		let transport: StartupTransport;
 		try {
-			transport = await resolveStartupTransport(parsedArgs, rawArgs, { interactive: isInteractive, cwd });
+			transport = await resolveStartupTransport(parsedArgs, rawArgs, {
+				interactive: isInteractive,
+				backendEnabled: backendEnabled && !standalone,
+				cwd,
+			});
 		} catch (error) {
 			if (!(error instanceof BackendAttachError)) throw error;
 			process.stderr.write(`${chalk.red(error.message)}\n`);
 			process.exit(1);
 		}
 		const backendAttachTarget = transport.kind === "backend" ? transport.target : undefined;
-		const forcedBackend =
-			parsedArgs.backend === true ||
-			parsedArgs.backendUrl !== undefined ||
-			parsedArgs.attach === true ||
-			parsedArgs.attachSession !== undefined ||
-			parsedArgs.attachNew === true;
+		const forcedBackend = explicitBackend || (backendEnabled && !standalone && !isInteractive && !isProtocolMode);
 		if (forcedBackend && !isProtocolMode && !isInteractive) {
 			const fileResult = await logger.time("processFileArguments", () =>
 				processFileArguments(parsedArgs.fileArgs, { autoResizeImages: true }),
@@ -2016,7 +2029,7 @@ export async function runRootCommand(
 					sessionId: parsedArgs.attachSession,
 					newSession: parsedArgs.attachNew === true || (parsedArgs.backend === true && !attachExisting),
 					url: parsedArgs.backendUrl,
-					explicit: true,
+					explicit: explicitBackend,
 				},
 				cwd,
 				messages: prompts,

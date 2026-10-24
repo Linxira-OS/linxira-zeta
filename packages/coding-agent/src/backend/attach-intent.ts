@@ -63,16 +63,17 @@ export class BackendAttachError extends Error {
 export function backendAttachIntent(
 	args: Args,
 	_rawArgs: readonly string[],
-	options: { interactive: boolean },
+	options: { interactive: boolean; backendEnabled?: boolean },
 ): BackendAttachIntent | undefined {
 	if (!options.interactive) return undefined;
+	if (args.standalone === true) return undefined;
 	const explicit =
 		args.attach === true ||
 		args.attachSession !== undefined ||
 		args.attachNew === true ||
 		args.backend === true ||
 		args.backendUrl !== undefined;
-	if (!explicit) return undefined;
+	if (!explicit && options.backendEnabled !== true) return undefined;
 	const address = args.attachSession?.trim();
 	// `--backend` means "this launch runs on a backend", not "join whatever
 	// session happens to be newest". Give each terminal its own conversation
@@ -85,7 +86,7 @@ export function backendAttachIntent(
 		...(address ? { sessionId: address } : {}),
 		newSession,
 		...(args.backendUrl ? { url: args.backendUrl } : {}),
-		explicit: true,
+		explicit,
 	};
 }
 
@@ -283,6 +284,8 @@ export async function resolveStartupTransport(
 	rawArgs: readonly string[],
 	options: {
 		interactive: boolean;
+		/** Global backend mode; bare launches attach only when true. */
+		backendEnabled?: boolean;
 		env?: Record<string, string | undefined>;
 		timeoutMs?: number;
 		fetchImpl?: typeof fetch;
@@ -297,11 +300,12 @@ export async function resolveStartupTransport(
 	if (!intent) return { kind: "in-process" };
 	const target = await resolveBackendTarget(intent, options);
 	if (!target) {
-		throw new BackendAttachError(
-			"unavailable",
-			"--attach/--backend was requested but no matching `zetacode serve` backend is reachable. " +
-				"Start one (`zetacode serve`) or run a local session with a bare `zetacode`.",
-		);
+		const message =
+			options.backendEnabled === true && !intent.explicit
+				? "Backend mode is enabled but no default backend is running. Run `zetacode backend on`, or launch with `--standalone` for a local process."
+				: "--attach/--backend was requested but no matching `zetacode serve` backend is reachable. " +
+					"Start one (`zetacode serve`) or run a local session with a bare `zetacode`.";
+		throw new BackendAttachError("unavailable", message);
 	}
 	return { kind: "backend", target };
 }

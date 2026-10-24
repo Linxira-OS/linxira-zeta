@@ -184,4 +184,20 @@ describe("forced backend session ownership", () => {
 			newSession: false,
 		});
 	});
+
+	it("backend mode makes a bare launch a client of the default backend", () => {
+		expect(backendAttachIntent(args(), [], { interactive: true, backendEnabled: true })).toMatchObject({
+			newSession: false,
+			explicit: false,
+		});
+	});
+
+	it("--standalone bypasses backend mode", () => {
+		expect(
+			backendAttachIntent(args({ standalone: true }), ["--standalone"], {
+				interactive: true,
+				backendEnabled: true,
+			}),
+		).toBeUndefined();
+	});
 });

@@ -94,6 +94,8 @@ export interface Args {
 	attachNew?: boolean;
 	/** Explicit backend gateway URL (`ZETA_GATEWAY_URL` overrides discovery when unset). */
 	backendUrl?: string;
+	/** Force a local process even when backend mode is enabled. */
+	standalone?: boolean;
 	export?: string;
 	noSkills?: boolean;
 	skills?: string[];
@@ -386,6 +388,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.printThoughts = true;
 		} else if (arg === "--backend") {
 			result.backend = true;
+		} else if (arg === "--standalone" || arg === "--local") {
+			result.standalone = true;
 		} else if (arg === "--attach") {
 			result.attach = true;
 		} else if (arg === "--attach-new") {

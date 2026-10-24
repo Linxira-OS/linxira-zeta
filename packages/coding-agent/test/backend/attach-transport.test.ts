@@ -297,6 +297,51 @@ describe("backend attach transport", () => {
 		expect(probes).toBe(0);
 	});
 
+	test("backend mode makes a bare launch require the default backend", async () => {
+		await expect(
+			resolveStartupTransport(
+				{
+					messages: [],
+					fileArgs: [],
+					unrecognizedFlags: [],
+					invalidFlagValues: [],
+					unknownFlags: new Map(),
+				},
+				[],
+				{
+					interactive: true,
+					backendEnabled: true,
+					discoverAll: async () => [],
+				},
+			),
+		).rejects.toMatchObject({ code: "unavailable" });
+	});
+
+	test("--standalone stays local even when backend mode is enabled", async () => {
+		let probes = 0;
+		const transport = await resolveStartupTransport(
+			{
+				standalone: true,
+				messages: [],
+				fileArgs: [],
+				unrecognizedFlags: [],
+				invalidFlagValues: [],
+				unknownFlags: new Map(),
+			},
+			["--standalone"],
+			{
+				interactive: true,
+				backendEnabled: true,
+				discoverAll: async () => {
+					probes += 1;
+					return [];
+				},
+			},
+		);
+		expect(transport.kind).toBe("in-process");
+		expect(probes).toBe(0);
+	});
+
 	test("an explicit backend launch fails instead of falling back", async () => {
 		const unreachable = async (): Promise<Response> => {
 			throw new TypeError("fetch failed: connection refused");

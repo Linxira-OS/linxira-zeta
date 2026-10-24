@@ -175,7 +175,7 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | --- | --- |
 | `--mode <mode>` | Output/transport mode: `text` (default), `json`, `rpc`, `acp`, or `rpc-ui`. See [output modes](#output-modes---mode). |
 | `--print`, `-p` | Process prompts non-interactively and exit. |
-| `--backend` | Route a print launch through a running `zetacode serve` backend; for an interactive launch, force attach mode (same as `--attach`). In print mode, `--attach`, `--attach-session`, and `--attach-new` also force the backend route. |
+| `--backend` | Force backend mode regardless of `backend.enabled`. An interactive launch creates a fresh backend session for this terminal (unless `--attach`/`--attach-session` joins one); print mode routes through the backend. In print mode, `--attach`, `--attach-session`, and `--attach-new` also force the backend route. |
 | `--no-ui` | With `rpc`/`rpc-ui`, make extensions headless without disabling rpc-ui tool UI. |
 
 #### Backend attach
@@ -186,13 +186,18 @@ deferred; the package ships a placeholder page).
 
 The two launch modes are explicit:
 
-- **bare `zetacode`** opens a pure local TUI. It owns its session in-process and
-  never attaches to, or shuts down, a backend that happens to be running. This
-  is the single-window mode.
-- **`--attach` / `--attach-session` / `--attach-new` / `--backend`** select
-  backend mode. A matching backend is required: if none is reachable, startup
-  fails with a diagnostic instead of silently opening a second local session.
-  `--backend-url <url>` also implies attach and pins discovery to that instance.
+- **Bare `zetacode`** follows the machine-wide backend switch. With
+  `backend.enabled` off (the default) it opens a pure local TUI: it owns its
+  session in-process and never attaches to, or shuts down, a backend that
+  happens to be running. With the switch on it becomes a client of the single
+  default backend; if none is running, startup fails with a diagnostic.
+- **`--attach` / `--attach-session` / `--attach-new` / `--backend`** explicitly
+  select backend mode regardless of the switch. A matching backend is required:
+  if none is reachable, startup fails instead of silently opening a second local
+  session. `--backend-url <url>` also implies attach and pins discovery to that
+  instance.
+- **`--standalone`** forces a local process even when `backend.enabled` is on.
+  It never registers, listens, or attaches, and can coexist with the backend.
 
 A backend session is bound to the pair **(workspace directory, git branch)**:
 `--attach` reuses the most recently modified session whose `cwd` and branch
@@ -223,6 +228,7 @@ instance and refuses to guess:
 | `--attach-new` | Create and attach to a fresh backend session in this directory instead of reusing one. |
 | `--backend` | Run this launch directly on the backend. Creates a fresh backend session per terminal unless `--attach`/`--attach-session` is also given. Print mode routes through the backend too. |
 | `--backend-url <url>` | Attach to that gateway URL; implies `--attach` (default discovery: `ZETA_GATEWAY_URL`, `ZETA_WEB_GATEWAY_PORT`, every live serve registration, then `http://127.0.0.1:43143`). |
+| `--standalone` / `--local` | Force a local process even when `backend.enabled` is on. Cannot be combined with backend flags. |
 
 `zetacode attach --list` prints every backend session across repositories
 (id, `cwd @ branch`, modified time, name/status), `zetacode attach <id>` attaches the
@@ -368,7 +374,8 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `completions` | Print a shell completion script (bash, zsh, or fish). | |
 | `compress` | Rewrite a text file into the dense prompt register, reporting what it drops. | |
 | `config` | Manage configuration settings. | [config usage](./config-usage.md), [settings](./settings.md) |
-| `daemon` | Manage the background backend: `status [--json]`, `start`, `stop`, `restart`, `logs`, `install-autostart`, `uninstall-autostart`. `install-autostart` installs a real per-user OS component (systemd user service+timer / Task Scheduler task, three-minute delay) and is bundled-app only; npm/source installs are refused. The global `backend.autostart` setting gates the installed component. `serve` itself stays a foreground command. | [daemon](./daemon.md) |
+| `backend` | Machine-wide backend mode: `status [--json]`, `on [--workspace <dir>]`, `off [--timeout <s>] [--force]`, `logs`. `on` enables the switch and starts the one hidden backend in the default workspace; `off` disables new clients, drains running turns, then stops it. | [daemon](./daemon.md#backend-mode) |
+| `daemon` | Low-level background backend: `status [--json]`, `start`, `stop`, `restart`, `logs`, `install-autostart`, `uninstall-autostart`. `install-autostart` installs a real per-user OS component (systemd user service+timer / Task Scheduler task, three-minute delay) and is bundled-app only; npm/source installs are refused. `backend.autostart` **and** `backend.enabled` gate the installed component. `serve` itself stays a foreground command. | [daemon](./daemon.md) |
 | `dry-balance` | Dry-run OAuth account balancing across random session ids. | |
 | `find` | Semantic search for implementing files and line ranges. | |
 | `gc` | Run storage garbage collection. | |

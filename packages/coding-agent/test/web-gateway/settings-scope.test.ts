@@ -218,6 +218,27 @@ describe("backend.autostart in the settings panel", () => {
 		expect(fs.existsSync(path.join(getAgentDir(), "config.yml"))).toBe(false);
 	});
 
+	test("backend mode and workspace display and write the global layer", async () => {
+		const repo = tempDir("@pi-scope-backend-mode-");
+		fs.mkdirSync(path.join(repo.path(), ".zeta"), { recursive: true });
+		fs.writeFileSync(
+			path.join(repo.path(), ".zeta", "config.yml"),
+			"backend:\n  enabled: false\n  workspace: /project\n",
+		);
+		fs.mkdirSync(getAgentDir(), { recursive: true });
+		fs.writeFileSync(path.join(getAgentDir(), "config.yml"), "backend:\n  enabled: true\n  workspace: /global\n");
+
+		const catalog = (await (await handleSettingsGet(getSettings(repo.path()))).json()) as {
+			settings: Array<{ path: string; value: unknown }>;
+		};
+		expect(catalog.settings.find(entry => entry.path === "backend.enabled")?.value).toBe(true);
+		expect(catalog.settings.find(entry => entry.path === "backend.workspace")?.value).toBe("/global");
+
+		const response = await handleSettingsPut(settingsRequest(repo.path(), { path: "backend.enabled", value: false }));
+		expect(response.status).toBe(200);
+		expect(fs.readFileSync(path.join(getAgentDir(), "config.yml"), "utf8")).toContain("enabled: false");
+	});
+
 	test("the bundled form shows the checkbox and writes the global config", async () => {
 		const repo = tempDir("@pi-scope-autostart-bundled-");
 		await withInstallForm("true", async () => {

@@ -74,6 +74,10 @@ export const daemonHelp = {
 		"Manage the background backend (serve) lifecycle: status, start, stop, restart, logs, and per-user autostart",
 } satisfies CommandMetadata;
 
+export const backendHelp = {
+	description: "Enable or disable backend mode and manage the one hidden default backend",
+} satisfies CommandMetadata;
+
 export const dryBalanceHelp = {
 	description: "Dry-run OAuth account balancing across random session ids",
 } satisfies CommandMetadata;

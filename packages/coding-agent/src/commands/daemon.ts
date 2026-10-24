@@ -44,6 +44,7 @@ import {
 } from "@linxiraos/pi-utils";
 import { detectInstallForm, type InstallForm } from "../autostart/install-form";
 import { readBackendAutostartSetting, writeBackendAutostartSetting } from "../autostart/setting";
+import { readBackendEnabledSetting } from "../backend/setting";
 import { acquireChannelLock, readChannelLock } from "../channels/instance-lock";
 import { daemonHelp } from "../cli/command-help";
 import { WebConfig } from "../config/web-config";
@@ -182,7 +183,7 @@ export interface DaemonStartResult {
 }
 
 export interface DaemonStopResult {
-	action: "stopped" | "not-running" | "cleaned-stale" | "failed";
+	action: "stopped" | "not-running" | "cleaned-stale" | "drain-cancelled" | "failed";
 	status: DaemonStatus;
 	pid: number | null;
 	message?: string;
@@ -784,6 +785,56 @@ export interface DaemonStopOptions {
 	runtime?: Partial<DaemonRuntime>;
 	/** Grace period before the hard kill, in seconds (default 10). */
 	timeoutSeconds?: number;
+	/** Wait for running turns to finish before stopping. */
+	drain?: boolean;
+	/** Drain wait limit in seconds; 0/undefined waits until idle. */
+	drainTimeoutSeconds?: number;
+	/** Injectable running-session probe for tests. */
+	fetchRunningSessionIds?: (gatewayUrl: string) => Promise<string[]>;
+	/** Called when a drain check still finds running sessions. */
+	onDrainWait?: (sessionIds: readonly string[]) => void;
+	/** Return true to abort the drain and leave the backend running. */
+	shouldCancel?: () => boolean | Promise<boolean>;
+}
+
+/** Drain was superseded (for example, `backend on` re-enabled mode). */
+export class DrainCancelledError extends Error {
+	constructor() {
+		super("drain cancelled");
+	}
+}
+
+async function fetchRunningSessionIds(gatewayUrl: string): Promise<string[]> {
+	const response = await fetch(`${gatewayUrl.replace(/\/$/, "")}/api/agent/running`, {
+		signal: AbortSignal.timeout(5_000),
+	});
+	if (!response.ok) throw new Error(`running-session probe failed: HTTP ${response.status}`);
+	const body = (await response.json()) as { runningSessionIds?: unknown };
+	return Array.isArray(body.runningSessionIds)
+		? body.runningSessionIds.filter((id): id is string => typeof id === "string")
+		: [];
+}
+
+/** Wait until every active turn has finished; throws on probe failure or timeout. */
+async function drainBackend(gatewayUrl: string, options: DaemonStopOptions, runtime: DaemonRuntime): Promise<void> {
+	const probe = options.fetchRunningSessionIds ?? fetchRunningSessionIds;
+	const deadline =
+		options.drainTimeoutSeconds && options.drainTimeoutSeconds > 0
+			? runtime.now() + options.drainTimeoutSeconds * 1000
+			: undefined;
+	while (true) {
+		if (await options.shouldCancel?.()) throw new DrainCancelledError();
+		const sessionIds = await probe(gatewayUrl);
+		if (sessionIds.length === 0) {
+			if (await options.shouldCancel?.()) throw new DrainCancelledError();
+			return;
+		}
+		if (deadline !== undefined && runtime.now() >= deadline) {
+			throw new Error(`timed out waiting for ${sessionIds.length} running session(s): ${sessionIds.join(", ")}`);
+		}
+		options.onDrainWait?.(sessionIds);
+		await runtime.sleep(1_000);
+	}
 }
 
 /**
@@ -807,6 +858,29 @@ export async function stopDaemon(options: DaemonStopOptions = {}): Promise<Daemo
 	}
 
 	const pid = status.pid as number;
+	if (options.drain && status.gatewayUrl) {
+		try {
+			await drainBackend(status.gatewayUrl, options, runtime);
+			if (await options.shouldCancel?.()) throw new DrainCancelledError();
+		} catch (error) {
+			if (error instanceof DrainCancelledError) {
+				return {
+					action: "drain-cancelled",
+					status: await daemonStatus({ paths, runtime }),
+					pid,
+					message: "Drain cancelled; the backend is still running.",
+					exitCode: 0,
+				};
+			}
+			return {
+				action: "failed",
+				status: await daemonStatus({ paths, runtime }),
+				pid,
+				message: error instanceof Error ? error.message : String(error),
+				exitCode: 1,
+			};
+		}
+	}
 	runtime.kill(pid, "SIGTERM");
 	const gracefulMs = Math.max(0, Math.round((options.timeoutSeconds ?? 10) * 1000));
 	let exited = await waitForExit(pid, runtime, gracefulMs);
@@ -1547,6 +1621,7 @@ function printStop(result: DaemonStopResult): void {
 	else if (result.action === "cleaned-stale")
 		console.log(chalk.dim("Removed stale daemon state; nothing was running."));
 	else if (result.action === "not-running") console.log(chalk.dim("Daemon is not running."));
+	else if (result.action === "drain-cancelled") console.log(chalk.dim(result.message ?? "Drain cancelled."));
 	else process.stderr.write(chalk.red(`${result.message ?? "Failed to stop the daemon."}\n`));
 }
 
@@ -1806,9 +1881,13 @@ export default class Daemon extends Command {
 			case "autostart-enabled": {
 				// systemd `ExecCondition` entry point: 0 only when the global
 				// setting says the OS component may start the backend.
-				const enabled = await readBackendAutostartSetting().catch(() => false);
-				if (flags.json) writeJson({ enabled });
-				else if (!enabled) console.log(chalk.dim("backend.autostart is off; skipping the background backend."));
+				const autostart = await readBackendAutostartSetting().catch(() => false);
+				const backendEnabled = await readBackendEnabledSetting().catch(() => false);
+				const enabled = autostart && backendEnabled;
+				if (flags.json) writeJson({ enabled, autostart, backendEnabled });
+				else if (!backendEnabled)
+					console.log(chalk.dim("backend.enabled is off; skipping the background backend."));
+				else if (!autostart) console.log(chalk.dim("backend.autostart is off; skipping the background backend."));
 				process.exitCode = enabled ? 0 : 1;
 				return;
 			}

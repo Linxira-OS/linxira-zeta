@@ -35,6 +35,12 @@ import {
 } from "../../src/commands/daemon";
 import { detectInstallForm } from "../../src/autostart/install-form";
 import { readBackendAutostartSetting, writeBackendAutostartSetting } from "../../src/autostart/setting";
+import {
+	readBackendEnabledSetting,
+	readBackendWorkspaceSetting,
+	writeBackendEnabledSetting,
+	writeBackendWorkspaceSetting,
+} from "../../src/backend/setting";
 import { Settings } from "../../src/config/settings";
 import type { ServeRegistration } from "../../src/server/serve-registry";
 
@@ -343,6 +349,54 @@ describe("daemon stop", () => {
 		expect(result.pid).toBe(4242);
 		expect(killed[0]?.[0]).toBe(4242);
 		expect(await readDaemonState(paths.state)).toBeNull();
+	});
+
+	test("drains running turns before stopping", async () => {
+		const root = await tempRoot();
+		const paths = resolveDaemonPaths({ root });
+		await writeDaemonState(paths.state, stateFor(4242));
+		await acquireChannelLock({
+			lockPath: paths.lock,
+			metadata: { pid: 4242, host: "serve", cwd: "C:/work", channels: [] },
+		});
+		const alive = new Set([4242]);
+		const killed: Array<[number, string]> = [];
+		const waits: string[][] = [];
+		const probes = [["session-a", "session-b"], ["session-b"], []];
+		const result = await stopDaemon({
+			paths,
+			runtime: makeRuntime({ alive, killed }),
+			drain: true,
+			fetchRunningSessionIds: async () => probes.shift() ?? [],
+			onDrainWait: ids => waits.push([...ids]),
+			timeoutSeconds: 0,
+		});
+		expect(result.action).toBe("stopped");
+		expect(waits).toEqual([["session-a", "session-b"], ["session-b"]]);
+		expect(killed[0]?.[0]).toBe(4242);
+	});
+
+	test("cancels a drain when backend mode is re-enabled", async () => {
+		const root = await tempRoot();
+		const paths = resolveDaemonPaths({ root });
+		await writeDaemonState(paths.state, stateFor(4242));
+		await acquireChannelLock({
+			lockPath: paths.lock,
+			metadata: { pid: 4242, host: "serve", cwd: "C:/work", channels: [] },
+		});
+		const killed: Array<[number, string]> = [];
+		let checks = 0;
+		const result = await stopDaemon({
+			paths,
+			runtime: makeRuntime({ alive: new Set([4242]), killed }),
+			drain: true,
+			fetchRunningSessionIds: async () => ["session-a"],
+			shouldCancel: () => ++checks >= 2,
+			timeoutSeconds: 0,
+		});
+		expect(result.action).toBe("drain-cancelled");
+		expect(result.exitCode).toBe(0);
+		expect(killed).toEqual([]);
 	});
 
 	test("restart stops the old backend and starts a new one", async () => {
@@ -734,6 +788,32 @@ describe("autostart setting", () => {
 		expect(await readBackendAutostartSetting({ settings: reread })).toBe(true);
 		const contents = await fs.readFile(path.join(agentDir, "config.yml"), "utf8");
 		expect(contents).toContain("autostart: true");
+	});
+});
+
+describe("backend mode setting", () => {
+	test("reads and writes enablement and workspace globally only", async () => {
+		const home = await tempRoot();
+		const agentDir = path.join(home, "agent");
+		const project = path.join(home, "project");
+		await fs.mkdir(agentDir, { recursive: true });
+		await fs.mkdir(path.join(project, ".zeta"), { recursive: true });
+		await fs.writeFile(
+			path.join(project, ".zeta", "config.yml"),
+			"backend:\n  enabled: true\n  workspace: /project\n",
+		);
+
+		const projectOnly = await Settings.loadReadOnly({ agentDir, cwd: project });
+		expect(await readBackendEnabledSetting({ settings: projectOnly })).toBe(false);
+		expect(await readBackendWorkspaceSetting({ settings: projectOnly })).toBe("");
+
+		const writable = await Settings.loadIsolated({ agentDir, cwd: project });
+		await writeBackendEnabledSetting(true, { settings: writable });
+		await writeBackendWorkspaceSetting("/workspace", { settings: writable });
+
+		const reread = await Settings.loadReadOnly({ agentDir, cwd: project });
+		expect(await readBackendEnabledSetting({ settings: reread })).toBe(true);
+		expect(await readBackendWorkspaceSetting({ settings: reread })).toBe("/workspace");
 	});
 });
 

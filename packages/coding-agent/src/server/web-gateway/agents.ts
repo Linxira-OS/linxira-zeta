@@ -51,6 +51,7 @@ import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { writeDeviceDispatch } from "../../tools/resolve";
 import { EventBus } from "../../utils/event-bus";
 import type { VibeModeState } from "../../vibe/state";
+import { isGatewayDraining } from "./draining";
 import {
 	addRunningSession,
 	getRunningSessionIds,
@@ -70,6 +71,9 @@ export interface AgentEvent {
 }
 
 type EventListener = (event: AgentEvent) => void;
+
+/** Commands that start or extend a turn are refused while draining. */
+const DRAIN_BLOCKED_COMMANDS = new Set<AgentCommand["type"]>(["prompt", "steer", "follow_up", "compact"]);
 
 export type AgentCommand =
 	| {
@@ -1433,6 +1437,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function handleAgentNew(req: Request): Promise<Response> {
+	if (isGatewayDraining()) return json({ error: "backend is draining; no new sessions" }, 503);
 	try {
 		const body = (await req.json()) as { cwd?: string; type?: string; [key: string]: unknown };
 		const { cwd, ...command } = body;
@@ -1482,6 +1487,9 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 export async function handleAgentCommand(req: Request, sessionId: string): Promise<Response> {
 	try {
 		const body = (await req.json()) as AgentCommand;
+		if (isGatewayDraining() && DRAIN_BLOCKED_COMMANDS.has(body.type)) {
+			return json({ error: "backend is draining; new work is not accepted" }, 503);
+		}
 		const existing = sessions.get(sessionId);
 		if (existing?.isAlive()) {
 			const result = await existing.send(body);

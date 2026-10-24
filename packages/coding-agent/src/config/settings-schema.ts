@@ -376,6 +376,30 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"backend.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "interaction",
+			group: "Startup & Updates",
+			label: "Enable Backend Mode",
+			description:
+				"Use one background backend for this machine. Off: every zetacode launch is a local process. On: launches connect to the default backend.",
+		},
+	},
+
+	"backend.workspace": {
+		type: "string",
+		default: "",
+		ui: {
+			tab: "interaction",
+			group: "Startup & Updates",
+			label: "Backend Default Workspace",
+			description:
+				"Directory the default backend is anchored to when it starts. Empty uses the stable default workspace (`~/.zeta/workspace`).",
+		},
+	},
+
 	// Power assertions: macOS IOKit, Linux login1/ScreenSaver, Windows execution state.
 	"power.sleepPrevention": {
 		type: "enum",

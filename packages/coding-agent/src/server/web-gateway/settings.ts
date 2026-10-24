@@ -344,19 +344,25 @@ export async function handleSettingsGet(req: Request): Promise<Response> {
 		) as Record<SettingTab, string[]>;
 
 		const settingsList: SettingsEntryDto[] = [];
-		// `backend.autostart` is a global-only decision; the panel shows the
+		// Backend lifecycle decisions are global-only; the panel shows the
 		// global layer so a project override can never masquerade as the value
 		// the installed unit will consult.
-		const globalBackend = settings.getGlobalSettings() as { backend?: { autostart?: unknown } };
+		const globalBackend = settings.getGlobalSettings() as {
+			backend?: { autostart?: unknown; enabled?: unknown; workspace?: unknown };
+		};
+		const globalBackendValues: Record<string, unknown> = {
+			"backend.autostart": globalBackend.backend?.autostart === true,
+			"backend.enabled": globalBackend.backend?.enabled === true,
+			"backend.workspace":
+				typeof globalBackend.backend?.workspace === "string" ? globalBackend.backend.workspace : "",
+		};
 		for (const tab of SETTING_TABS) {
 			const order = TAB_GROUPS[tab];
 			const entries = getPathsForTab(tab)
 				.map(path => pathToEntry(path, settings, zh))
 				.filter((entry): entry is SettingsEntryDto => entry !== null)
 				.map(entry =>
-					entry.path === "backend.autostart"
-						? { ...entry, value: globalBackend.backend?.autostart === true }
-						: entry,
+					entry.path in globalBackendValues ? { ...entry, value: globalBackendValues[entry.path] } : entry,
 				)
 				.sort((a, b) => groupRank(a, order) - groupRank(b, order));
 			settingsList.push(...entries);

@@ -42,6 +42,10 @@ the section reports the counts it actually received in its header line.
 - **退出后保留后台服务** is `backend.keep_on_quit` (default `false`). With it
   off, quitting stops a backend this window started. A backend that was already
   live when the window opened is never stopped by the window.
+- **Enable Backend Mode** (`backend.enabled`, default `false`) is the
+  machine-wide switch: off means every bare `zetacode` is a local process; on
+  means it connects to the one hidden backend. **Backend Default Workspace**
+  (`backend.workspace`) is the directory that backend starts in.
 - **Start Backend at Login** (`backend.autostart`, default `false`) is the
   gateway-driven checkbox in 全部设置 → 交互 → 启动与更新. It writes the same
   global key `~/.zeta/agent/config.yml` through `PUT /api/settings`; the window
