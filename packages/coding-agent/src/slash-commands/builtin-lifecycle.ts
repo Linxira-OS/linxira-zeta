@@ -1,5 +1,4 @@
 import { SEANCE_SLASH_COMMAND } from "./seance";
-import { handleCleanseSlashCommand } from "./cleanse";
 import { handleOmfgSlashCommand } from "./omfg";
 import { handleTanSlashCommand } from "./tan";
 import { clearSubmittedText } from "./helpers/draft";
@@ -501,7 +500,10 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		description: () => M.cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents,
 		inlineHint: "[request] [--all]",
 		allowArgs: true,
-		handle: handleCleanseSlashCommand,
+		handle: async (command, runtime) => {
+			const { handleCleanseSlashCommand } = await import("./cleanse");
+			return handleCleanseSlashCommand(command, runtime);
+		},
 		handleTui: async (command, runtime) => {
 			const args = command.text.slice(`/${command.name}`.length).trim();
 			clearSubmittedText(runtime);

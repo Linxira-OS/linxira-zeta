@@ -7,7 +7,7 @@ import type { ExtensionRunner } from "../extensibility/extensions";
 import { getSkillSlashCommandName, type Skill } from "../extensibility/skills";
 import { type FileSlashCommand, loadSlashCommands } from "../extensibility/slash-commands";
 import { ACP_BUILTIN_RESERVED_NAMES, isAcpBuiltinShadowedName } from "./acp-builtins";
-import { resolveCommandDescription } from "./builtin-registry";
+import { resolveCommandDescription } from "./helpers/description";
 import { BUILTIN_SLASH_COMMANDS_INTERNAL } from "./builtin-registry";
 
 export type AvailableSlashCommandSource = "builtin" | "skill" | "extension" | "custom" | "mcp_prompt" | "file";

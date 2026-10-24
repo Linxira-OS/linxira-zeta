@@ -14,7 +14,7 @@ import {
 } from "@linxiraos/pi-tui/prompt/model-mention-autocomplete";
 import { getConfiguredThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
 import { expandTilde } from "../tools/path-utils";
-import { resolveCommandDescription } from "./builtin-registry";
+import { resolveCommandDescription } from "./helpers/description";
 import type { SubcommandDef, TuiSlashCommandRuntime } from "./types";
 
 /** Options shared by the declarative subcommand completers. */

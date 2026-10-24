@@ -163,11 +163,8 @@ import {
 	type WorktreeExitPlan,
 } from "../session/session-worktree";
 import type { ShakeMode } from "../session/shake-types";
-import {
-	BUILTIN_SLASH_COMMAND_RESERVED_NAMES,
-	buildTuiBuiltinSlashCommands,
-	resolveCommandDescription,
-} from "../slash-commands/builtin-registry";
+import { BUILTIN_SLASH_COMMAND_RESERVED_NAMES, buildTuiBuiltinSlashCommands } from "../slash-commands/builtin-registry";
+import { resolveCommandDescription } from "../slash-commands/helpers/description";
 import { buildStaticInlineHint } from "../slash-commands/builtin-completions";
 import {
 	resolveCommandSnapshot,

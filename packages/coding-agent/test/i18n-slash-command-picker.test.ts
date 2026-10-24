@@ -6,9 +6,9 @@ import { buildAcpBuiltinSlashCommands } from "../src/slash-commands/acp-builtins
 import {
 	BUILTIN_SLASH_COMMANDS_INTERNAL,
 	buildTuiBuiltinSlashCommands,
-	resolveCommandDescription,
 	type TuiBuiltinSlashCommand,
 } from "../src/slash-commands/builtin-registry";
+import { resolveCommandDescription } from "../src/slash-commands/helpers/description";
 import {
 	type SlashCommandSnapshot,
 	resolveCommandSnapshot,

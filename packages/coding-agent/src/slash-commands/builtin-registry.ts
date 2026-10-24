@@ -19,6 +19,7 @@ import { BUILTIN_MARKETPLACE_SLASH_COMMANDS, reloadTuiPluginState } from "./buil
 import { BUILTIN_MODE_SLASH_COMMANDS } from "./builtin-modes";
 import { BUILTIN_SESSION_SLASH_COMMANDS } from "./builtin-session";
 import { BUILTIN_SKILLS_SLASH_COMMANDS } from "./builtin-skills";
+import { resolveCommandDescription } from "./helpers/description";
 import { parseSlashCommand } from "./helpers/parse";
 import type {
 	BuiltinSlashCommand,
@@ -62,18 +63,6 @@ for (const command of BUILTIN_SLASH_COMMAND_REGISTRY) {
 	for (const alias of command.aliases ?? []) {
 		BUILTIN_SLASH_COMMAND_LOOKUP.set(alias, command);
 	}
-}
-
-/**
- * Resolve a command description against the catalogue active *now*.
- *
- * Specs declare localized copy as `description: () => M.cmdFoo` so the value
- * follows `/language` at runtime; the plain-string form is still accepted for
- * copy that has no translation (or that is not user-facing). Never cache the
- * result — every consumer that renders a list must call this per read.
- */
-export function resolveCommandDescription(description: string | (() => string)): string {
-	return typeof description === "function" ? description() : description;
 }
 
 export const BUILTIN_SLASH_COMMAND_RESERVED_NAMES: ReadonlySet<string> = new Set(BUILTIN_SLASH_COMMAND_LOOKUP.keys());

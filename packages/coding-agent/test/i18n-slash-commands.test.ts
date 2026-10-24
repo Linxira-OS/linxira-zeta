@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { currentLanguage, M, setLanguage } from "../src/i18n";
 import { en } from "../src/i18n/en";
 import { zh } from "../src/i18n/zh";
-import { BUILTIN_SLASH_COMMAND_DEFS, resolveCommandDescription } from "../src/slash-commands/builtin-registry";
+import { BUILTIN_SLASH_COMMAND_DEFS } from "../src/slash-commands/builtin-registry";
+import { resolveCommandDescription } from "../src/slash-commands/helpers/description";
 
 /**
  * Anti-regression probe for the CLI /command zh localization (v18.1.5 base).

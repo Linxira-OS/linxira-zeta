@@ -1,9 +1,6 @@
 import type { AvailableCommand } from "@linxiraos/pi-utils/acp";
-import {
-	BUILTIN_SLASH_COMMANDS_INTERNAL,
-	lookupBuiltinSlashCommand,
-	resolveCommandDescription,
-} from "./builtin-registry";
+import { BUILTIN_SLASH_COMMANDS_INTERNAL, lookupBuiltinSlashCommand } from "./builtin-registry";
+import { resolveCommandDescription } from "./helpers/description";
 import { parseSlashCommand } from "./helpers/parse";
 import type { AcpBuiltinSlashCommandResult, SlashCommandRuntime } from "./types";
 

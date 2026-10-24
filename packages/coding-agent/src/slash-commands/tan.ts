@@ -3,7 +3,7 @@
  * the TUI uses, with status lines routed to the command output.
  */
 
-import { TanCommandController, type TanCommandHost } from "../modes/controllers/tan-command-controller";
+import type { TanCommandHost } from "../modes/controllers/tan-command-controller";
 import { commandConsumed } from "./helpers/parse";
 import type { ParsedSlashCommand, SlashCommandResult, SlashCommandRuntime } from "./types";
 
@@ -21,6 +21,7 @@ export async function handleTanSlashCommand(
 		showError: text => void runtime.output(text),
 	};
 	try {
+		const { TanCommandController } = await import("../modes/controllers/tan-command-controller");
 		await new TanCommandController(host).start(command.args.trim());
 		return commandConsumed();
 	} catch (error) {
