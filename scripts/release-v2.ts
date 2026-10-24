@@ -547,7 +547,8 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	// check-version-consistency.ts fails the release while they lag the line.
 	console.log("Updating crates/*/BUILD.bazel bazel-face versions...");
 	for (const buildFile of await Array.fromAsync(new Glob("crates/*/BUILD.bazel"))) {
-		await $`sd '^(\s{4}version = ")[^"]+(")' ${"$1" + version + "$2"} ${buildFile}`;
+		const replacement = `\${1}${version}\${2}`;
+		await $`sd '^(\s{4}version = ")[^"]+(")' ${replacement} ${buildFile}`;
 	}
 
 	// Step 2f: vendored npm distributions (editor, termide/ide, the zeta
