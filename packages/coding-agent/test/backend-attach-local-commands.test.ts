@@ -110,10 +110,15 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("refuses only commands whose runtime lives in the backend process", () => {
-		for (const verb of ["restart", "setup", "collab", "join", "leave", "live"]) {
+		for (const verb of ["setup", "collab", "join", "leave", "live"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 		}
+	});
+
+	it("routes /restart to the backend host instead of refusing it", () => {
+		expect(isBackendAttachRefusedCommand("restart")).toBe(false);
+		expect(isBackendAttachLocalCommand("restart")).toBe(false);
 	});
 
 	it("routes /loop to the backend loop controller rather than refusing it", () => {
@@ -135,7 +140,6 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("tells the operator which local command performs the refused action", () => {
-		expect(backendAttachRefusalHint("restart")).toContain("zetacode daemon restart");
 		expect(backendAttachRefusalHint("setup")).toContain("zetacode setup");
 		expect(backendAttachRefusalHint("collab")).toContain("sharing");
 		expect(backendAttachRefusalHint("clear")).toContain("owns the backend session");

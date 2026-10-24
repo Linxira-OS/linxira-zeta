@@ -42,14 +42,21 @@ zetacode serve
   构建；该端口返回双语占位页，说明界面正在补齐。后续版本补齐后会由
   `zetacode serve` 按需从 npm 获取。
 
-终端是主要入口。会话都跑在后端，终端挂接到它所属的工作区与分支：
+终端是主要入口。裸启动是完全本地 TUI；后端模式必须显式选择，并挂接到它所属
+的工作区与分支：
 
 ```bash
-zetacode                  # 挂接本目录最新的会话
+zetacode                  # 纯本地 TUI（不会碰正在运行的后端）
+zetacode --attach         # 挂接本目录最新的后端会话
 zetacode attach --list    # 跨仓库列出：id、cwd @ 分支、时间、名称
 zetacode attach <id>      # 纯终端客户端
 zetacode --attach-session <id>   # 在该会话上跑完整 TUI
+zetacode --backend-url http://127.0.0.1:43143   # 钉死某一个后端
 ```
+
+`--attach`/`--backend` 不会回退到本地会话：后端不可达时客户端直接报错退出。
+同时存在多个后端时，必须给 `--backend-url` 或 `--attach-session`；客户端拒绝
+静默任选一个。
 
 ## 模型配置
 

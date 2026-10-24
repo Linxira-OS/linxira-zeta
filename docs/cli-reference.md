@@ -175,32 +175,51 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | --- | --- |
 | `--mode <mode>` | Output/transport mode: `text` (default), `json`, `rpc`, `acp`, or `rpc-ui`. See [output modes](#output-modes---mode). |
 | `--print`, `-p` | Process prompts non-interactively and exit. |
-| `--backend` | Route a print launch through a running `zetacode serve` backend instead of owning the session in-process. |
+| `--backend` | Route a print launch through a running `zetacode serve` backend; for an interactive launch, force attach mode (same as `--attach`). |
 | `--no-ui` | With `rpc`/`rpc-ui`, make extensions headless without disabling rpc-ui tool UI. |
 
 #### Backend attach
 
 `zetacode serve` hosts sessions for every gateway client — terminal attaches,
 and the Web UI once a build is present (its development is currently
-deferred; the package ships a placeholder page). A bare interactive
-`zetacode` becomes a client of that backend when one is reachable:
+deferred; the package ships a placeholder page).
 
-- a backend session is bound to the pair **(workspace directory, git branch)**:
-  no arguments → attach to the most recently modified backend session whose
-  `cwd` and branch match the current directory (create one when that branch has
-  none). Switching branches in the same checkout therefore opens a session for
-  the new branch instead of appending to the old one;
-- `--attach-session <id>` may cross both; when its branch differs from the
-  current one the TUI warns which checkout the prompts will edit;
-- no reachable backend → today's in-process session, unchanged (a missing
-  `serve` never makes the CLI unusable).
+The two launch modes are explicit:
+
+- **bare `zetacode`** opens a pure local TUI. It owns its session in-process and
+  never attaches to, or shuts down, a backend that happens to be running. This
+  is the single-window mode.
+- **`--attach` / `--attach-session` / `--attach-new` / `--backend`** select
+  backend mode. A matching backend is required: if none is reachable, startup
+  fails with a diagnostic instead of silently opening a second local session.
+  `--backend-url <url>` also implies attach and pins discovery to that instance.
+
+A backend session is bound to the pair **(workspace directory, git branch)**:
+`--attach` reuses the most recently modified session whose `cwd` and branch
+match the current directory (creating one when that branch has none).
+`--attach-session <id>` may cross both; when its branch differs from the
+current one the TUI warns which checkout the prompts will edit.
+
+Every live `serve` instance registers itself (the compatibility `serve.json`
+plus a per-pid file under `~/.zeta/serve/`). Attach probes **every** registered
+instance and refuses to guess:
+
+- exactly one compatible instance → attach;
+- an explicit `--backend-url` → only that instance;
+- `--attach-session <id>` → the instance that owns the session;
+- more than one compatible instance → the one that already owns a session for
+  the current `(cwd, branch)` wins;
+- still more than one (or none owns the workspace) → startup fails and lists
+  the instances (`pid`, version, URL), asking for `--backend-url` or
+  `--attach-session`.
 
 | Flag | Description |
 | --- | --- |
-| `--attach` | Attach the TUI to the newest backend session in this directory. |
+| `--attach` | Attach the TUI to this directory's newest backend session. |
 | `--attach-session <id>` | Attach to a specific backend session, across all repositories. |
 | `--attach-new` | Create and attach to a fresh backend session in this directory instead of reusing one. |
-| `--backend-url <url>` | Gateway URL to probe (default: `ZETA_GATEWAY_URL`, the serve registry, then `http://127.0.0.1:43143`). |
+| `--backend` | Force backend mode for an interactive launch (print mode already routes through the backend). |
+| `--backend-url <url>` | Attach to that gateway URL; implies `--attach` (default discovery: `ZETA_GATEWAY_URL`, `ZETA_WEB_GATEWAY_PORT`, every live serve registration, then `http://127.0.0.1:43143`). |
 
 `zetacode attach --list` prints every backend session across repositories
 (id, `cwd @ branch`, modified time, name/status), `zetacode attach <id>` attaches the
@@ -236,16 +255,19 @@ the backend. Session lifecycle runs on the backend and re-attaches this client:
 `/new` (fresh session), `/resume <id>` (existing session), `/fork`, `/branch`
 and `/tree` (entry picker over the mirrored transcript), `/clear` (drop the
 context, keep the session) and `/delete yes`. `/login` and `/logout` drive the
-backend's OAuth providers and accounts. Only commands whose runtime lives in
-the backend process are refused, with the host action that performs them:
-`/restart` (restart the daemon), `/setup` (run it on the host, then restart),
-`/collab`, `/join`, `/leave` (sharing starts in the owning process) and the
-client-process workflows `/omfg`, `/cleanse`, `/tan`, `/seance`, `/live`.
-`/loop` runs on the backend session: its repetitions, `--while`/`--until`
-shell condition, and `loop.mode` compact/reset actions execute against that
-session, a second `/loop` stops it, and Esc pauses it. The status line mirrors
-the backend loop state; a loop never falls back to the client's default
-workspace.
+backend's OAuth providers and accounts. `/restart` asks the serve host to
+re-exec its original argv (the gateway exposes `POST /api/server/restart`);
+the client stream drops and reconnects with backoff when the new instance
+answers. `/omfg`, `/cleanse`, `/tan` and `/seance` run on the backend session
+through their headless handlers. Only commands whose runtime genuinely belongs
+to a process this client cannot drive are refused, with the host action that
+performs them: `/setup` (run it on the host, then restart), `/collab`, `/join`
+and `/leave` (sharing starts in the owning process), and `/live` until the
+remote audio bridge lands. `/loop` runs on the backend session: its
+repetitions, `--while`/`--until` shell condition, and `loop.mode`
+compact/reset actions execute against that session, a second `/loop` stops it,
+and Esc pauses it. The status line mirrors the backend loop state; a loop
+never falls back to the client's default workspace.
 Model and thinking-level switches
 made in the attached TUI (for example `/model`) are mirrored to the backend, so
 the run and the status line never disagree. Detaching closes the socket and the

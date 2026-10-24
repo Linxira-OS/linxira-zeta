@@ -94,6 +94,11 @@ export class BackendAttachLink {
 	#queue: { steering: string[]; followUp: string[]; liveSteered: number } | undefined;
 	/** Roster tail; aborted with the attach socket. */
 	#subagentAbort: AbortController | undefined;
+	/** Backoff state for an unexpected stream drop (backend restart included). */
+	#reconnectTimer: NodeJS.Timeout | undefined;
+	#reconnectAttempts = 0;
+	#pumping = false;
+	#reconnectNoticeShown = false;
 	replicaPath: string | undefined;
 
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
@@ -146,29 +151,7 @@ export class BackendAttachLink {
 		// The control plane is the wire protocol. The REST command path stays as
 		// the fallback for a backend without it, and SSE keeps mirroring either
 		// way; only dialogs move to the socket, so they are not presented twice.
-		try {
-			this.#wire = await AttachWire.connect({
-				baseUrl: this.#target.backend.baseUrl,
-				sessionId,
-				onDialog: event => void this.#presentUiRequest(event),
-				onDialogResolved: id => {
-					this.#pendingDialogs.get(id)?.abort.abort();
-					this.#pendingDialogs.delete(id);
-				},
-				onCommandOutput: text => {
-					if (this.#closed) return;
-					this.#ctx.showStatus(text, { dim: true });
-				},
-				onClose: reason => {
-					if (this.#closed) return;
-					this.#wire = undefined;
-					logger.warn("backend attach protocol link closed", { reason });
-					this.#ctx.showStatus("Backend protocol link closed; using the HTTP control plane.", { dim: true });
-				},
-			});
-		} catch (error) {
-			logger.debug("backend attach: protocol link unavailable", { error: String(error) });
-		}
+		await this.#connectWire(sessionId);
 		const detail = await this.client.getSession(sessionId, this.#abort.signal);
 		// A session belongs to the workspace and branch it was created on. An
 		// explicit id can name another one; say so instead of silently editing a
@@ -342,6 +325,21 @@ export class BackendAttachLink {
 	}
 
 	/**
+	 * Restart the serve process from any attached client. The gateway asks its
+	 * host to re-exec the original argv; this link will drop and discovery
+	 * reconnects once the new instance publishes its identity.
+	 */
+	async restartBackend(): Promise<void> {
+		if (this.#closed) return;
+		const result = await this.client.restartServer();
+		if (!result.accepted) {
+			this.#ctx.showError(`Backend restart refused: ${result.reason ?? "unknown reason"}`);
+			return;
+		}
+		this.#ctx.showStatus("Backend restarting; reconnecting when it is back…", { dim: true });
+	}
+
+	/**
 	 * Ask a side question in the backend's side context (`/btw`). Needs the
 	 * protocol link: the HTTP command surface has no side-context command.
 	 */
@@ -479,6 +477,13 @@ export class BackendAttachLink {
 		this.#unsubscribeLocal?.();
 		this.#unsubscribeLocal = undefined;
 		this.#abort.abort();
+		if (this.#reconnectTimer) {
+			clearTimeout(this.#reconnectTimer);
+			this.#reconnectTimer = undefined;
+		}
+		this.#reconnectAttempts = 0;
+		this.#pumping = false;
+		this.#reconnectNoticeShown = false;
 		this.#subagentAbort?.abort();
 		this.#subagentAbort = undefined;
 		for (const dialog of this.#pendingDialogs.values()) dialog.abort.abort();
@@ -596,7 +601,43 @@ export class BackendAttachLink {
 		}
 	}
 
+	/** Open the protocol control plane; absent sockets fall back to HTTP. */
+	async #connectWire(sessionId: string): Promise<void> {
+		if (this.#closed || this.#wire) return;
+		try {
+			this.#wire = await AttachWire.connect({
+				baseUrl: this.#target.backend.baseUrl,
+				sessionId,
+				onDialog: event => void this.#presentUiRequest(event),
+				onDialogResolved: id => {
+					this.#pendingDialogs.get(id)?.abort.abort();
+					this.#pendingDialogs.delete(id);
+				},
+				onCommandOutput: text => {
+					if (this.#closed) return;
+					this.#ctx.showStatus(text, { dim: true });
+				},
+				onClose: reason => {
+					if (this.#closed) return;
+					this.#wire = undefined;
+					logger.warn("backend attach protocol link closed", { reason });
+					// Do not announce the HTTP fallback during a backend restart:
+					// the reconnect loop restores the socket in a moment.
+					if (this.#joined) this.#scheduleReconnect();
+				},
+			});
+		} catch (error) {
+			logger.debug("backend attach: protocol link unavailable", { error: String(error) });
+			// The initial join reports a missing socket to its caller; only an
+			// established link retries in the background.
+			if (this.#joined || this.#pumping) this.#scheduleReconnect();
+		}
+	}
+
 	async #pumpEvents(): Promise<void> {
+		if (this.#pumping || this.#closed) return;
+		this.#pumping = true;
+		let dropped: unknown;
 		try {
 			for await (const event of this.client.events(this.#sessionId, {
 				since: this.#lastSeq,
@@ -610,8 +651,55 @@ export class BackendAttachLink {
 					});
 			}
 		} catch (error) {
+			dropped = error;
+		} finally {
+			this.#pumping = false;
+		}
+		if (this.#closed || this.#abort.signal.aborted) return;
+		if (dropped !== undefined) {
+			logger.warn("backend attach stream dropped", {
+				error: dropped instanceof Error ? dropped.message : String(dropped),
+			});
+			if (!this.#reconnectNoticeShown) {
+				this.#reconnectNoticeShown = true;
+				this.#ctx.showStatus("Backend connection lost; reconnecting…", { dim: true });
+			}
+		}
+		this.#scheduleReconnect();
+	}
+
+	/** Retry discovery/health with bounded backoff after a dropped stream. */
+	#scheduleReconnect(): void {
+		if (this.#closed || this.#abort.signal.aborted || this.#reconnectTimer) return;
+		const delay = Math.min(500 * 2 ** Math.min(this.#reconnectAttempts, 4), 8_000);
+		this.#reconnectTimer = setTimeout(() => {
+			this.#reconnectTimer = undefined;
+			void this.#attemptReconnect();
+		}, delay);
+		this.#reconnectTimer.unref?.();
+	}
+
+	async #attemptReconnect(): Promise<void> {
+		if (this.#closed || this.#abort.signal.aborted) return;
+		try {
+			// The session must still exist on the restarted instance; a fresh
+			// process that lost its store must report that rather than silently
+			// showing a frozen transcript as if it were live.
+			await this.client.getSession(this.#sessionId, this.#abort.signal);
 			if (this.#closed || this.#abort.signal.aborted) return;
-			this.#ctx.showError(`Backend event stream closed: ${error instanceof Error ? error.message : String(error)}`);
+			this.#reconnectAttempts = 0;
+			await this.#connectWire(this.#sessionId);
+			if (this.#reconnectNoticeShown) {
+				this.#reconnectNoticeShown = false;
+				this.#ctx.showStatus("Backend reconnected.", { dim: true });
+			}
+			void this.#pumpEvents();
+			this.#scheduleStateRefresh();
+		} catch (error) {
+			if (this.#closed || this.#abort.signal.aborted) return;
+			this.#reconnectAttempts += 1;
+			logger.debug("backend attach reconnect failed", { error: String(error) });
+			this.#scheduleReconnect();
 		}
 	}
 

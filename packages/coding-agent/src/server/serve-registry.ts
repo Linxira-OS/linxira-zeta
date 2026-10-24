@@ -35,6 +35,17 @@ export const SERVE_REGISTRY_ENV = "ZETA_SERVE_REGISTRY";
 /** Registry file name inside the config root (`~/.zeta`). */
 export const SERVE_REGISTRY_FILE = "serve.json";
 
+/**
+ * Per-instance registration directory. `serve.json` remains the "most recently
+ * started" compatibility record the desktop shell reads; every live instance
+ * also publishes `<pid>.json` here so discovery can see more than one backend
+ * (different port sets) instead of silently picking the last writer.
+ */
+export const SERVE_INSTANCE_DIR = "serve";
+
+/** Env override for the per-instance directory (tests, portable installs). */
+export const SERVE_INSTANCE_DIR_ENV = "ZETA_SERVE_INSTANCE_DIR";
+
 /** Probe budget: loopback identity must answer fast or the instance is unwell. */
 export const SERVE_PROBE_TIMEOUT_MS = 1500;
 
@@ -95,6 +106,53 @@ export function serveRegistryPath(env: NodeJS.ProcessEnv = process.env): string 
 	return override ? path.resolve(override) : path.join(getBaseConfigRoot(), SERVE_REGISTRY_FILE);
 }
 
+/** Directory holding one file per live serve instance. */
+export function serveInstanceDir(env: NodeJS.ProcessEnv = process.env): string {
+	const override = env[SERVE_INSTANCE_DIR_ENV]?.trim();
+	return override ? path.resolve(override) : path.join(path.dirname(serveRegistryPath(env)), SERVE_INSTANCE_DIR);
+}
+
+/** Per-pid registration path inside {@link serveInstanceDir}. */
+export function serveInstancePath(pid: number, dir: string = serveInstanceDir()): string {
+	return path.join(dir, `${pid}.json`);
+}
+
+/**
+ * Every registration a probe may consider: the compatibility `serve.json` plus
+ * one file per live pid. Duplicate pids collapse to the newest record; malformed
+ * or half-written files are ignored, never trusted.
+ */
+export function listServeRegistrations(
+	options: { file?: string; dir?: string; env?: NodeJS.ProcessEnv } = {},
+): ServeRegistration[] {
+	const env = options.env ?? process.env;
+	const file = options.file ?? serveRegistryPath(env);
+	// A caller that overrides the file (tests, portable roots) owns the adjacent
+	// instance directory too; never mix its records with the user's real ones.
+	const dir =
+		options.dir ?? (options.file ? path.join(path.dirname(file), SERVE_INSTANCE_DIR) : serveInstanceDir(env));
+	const byPid = new Map<number, ServeRegistration>();
+	const remember = (entry: ServeRegistration | null): void => {
+		if (!entry) return;
+		const existing = byPid.get(entry.pid);
+		if (!existing || (entry.startedAt ?? "") > (existing.startedAt ?? "")) byPid.set(entry.pid, entry);
+	};
+	remember(readServeRegistration(file));
+	try {
+		for (const name of fs.readdirSync(dir)) {
+			if (!name.endsWith(".json")) continue;
+			try {
+				remember(parseServeRegistration(JSON.parse(fs.readFileSync(path.join(dir, name), "utf8"))));
+			} catch {
+				// A torn write is just an unusable hint.
+			}
+		}
+	} catch {
+		// Missing directory: only the compatibility record exists.
+	}
+	return [...byPid.values()].sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
+}
+
 /** Structural validation — a hand-edited or half-written file must never be trusted. */
 export function parseServeRegistration(raw: unknown): ServeRegistration | null {
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -136,31 +194,55 @@ export function readServeRegistration(file: string = serveRegistryPath()): Serve
 export function writeServeRegistration(
 	entry: ServeRegistration,
 	file: string = serveRegistryPath(),
+	dir: string = serveInstanceDir(),
 ): ServeRegistration {
-	fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-	const temp = `${file}.${process.pid}.tmp`;
-	fs.writeFileSync(temp, `${JSON.stringify(entry, null, "\t")}\n`, { mode: 0o600 });
-	fs.renameSync(temp, file);
-	try {
-		fs.chmodSync(file, 0o600);
-	} catch {
-		// Windows: no POSIX modes; the user-private directory carries the ACL.
-	}
+	const write = (target: string): void => {
+		fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+		const temp = `${target}.${process.pid}.tmp`;
+		fs.writeFileSync(temp, `${JSON.stringify(entry, null, "\t")}\n`, { mode: 0o600 });
+		fs.renameSync(temp, target);
+		try {
+			fs.chmodSync(target, 0o600);
+		} catch {
+			// Windows: no POSIX modes; the user-private directory carries the ACL.
+		}
+	};
+	write(file);
+	write(serveInstancePath(entry.pid, dir));
 	return entry;
 }
 
 /** Remove the registration only when it still describes `pid` (never a successor's). */
-export function clearServeRegistration(pid: number = process.pid, file: string = serveRegistryPath()): boolean {
+export function clearServeRegistration(
+	pid: number = process.pid,
+	file: string = serveRegistryPath(),
+	dir: string = serveInstanceDir(),
+): boolean {
+	let removed = false;
 	const current = readServeRegistration(file);
 	// An unparsable file is left alone: it may describe an instance of another
 	// build, and deleting a foreign registration is worse than a stale byte range.
-	if (current ? current.pid !== pid : fs.existsSync(file)) return false;
-	try {
-		fs.rmSync(file, { force: true });
-		return true;
-	} catch {
-		return false;
+	if (!(current ? current.pid !== pid : fs.existsSync(file))) {
+		try {
+			fs.rmSync(file, { force: true });
+			removed = true;
+		} catch {
+			// Leave it for the next cleanup.
+		}
 	}
+	try {
+		const own = serveInstancePath(pid, dir);
+		if (fs.existsSync(own)) {
+			const parsed = parseServeRegistration(JSON.parse(fs.readFileSync(own, "utf8")));
+			if (!parsed || parsed.pid === pid) {
+				fs.rmSync(own, { force: true });
+				removed = true;
+			}
+		}
+	} catch {
+		// Unreadable instance file: never delete a foreign record.
+	}
+	return removed;
 }
 
 /** Whether a pid is a live process (EPERM counts: it exists, just not ours). */

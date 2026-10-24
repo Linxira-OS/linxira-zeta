@@ -71,6 +71,7 @@ import { handleDocsGet } from "./web-gateway/docs";
 import { handleGitBranch, handleGitBranches, handleGitCheckout } from "./web-gateway/git";
 import { handleMemoryItem, handleMemoryList, handleMemorySearch, handleMemoryWrite } from "./web-gateway/memory";
 import { handleServeIdentityGet, SERVE_IDENTITY_PATH } from "./web-gateway/identity";
+import { requestServeRestart } from "./serve-control";
 import {
 	handleModels,
 	handleModelsConfigGet,
@@ -329,6 +330,13 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	if (pathname === SERVE_IDENTITY_PATH) {
 		if (req.method === "GET") return handleServeIdentityGet(req);
 		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Host-owned action: only the process that runs `zetacode serve` can restart
+	// itself. Attached clients reach it here instead of refusing `/restart`.
+	if (pathname === "/api/server/restart") {
+		if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+		return json(requestServeRestart());
 	}
 
 	if (SESSION_LIST_RE.test(pathname)) {

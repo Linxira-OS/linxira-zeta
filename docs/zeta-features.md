@@ -7,15 +7,23 @@ package.
 
 ## Terminal attach (backend-backed sessions)
 
-`zetacode serve` hosts every session; a terminal attaches to one instead of
-starting a private in-process agent.
+`zetacode serve` hosts sessions for terminal clients that explicitly attach;
+a bare launch is still a complete local TUI and never touches a running
+backend.
 
+- **Two explicit modes.** Bare `zetacode` owns its session in-process.
+  `--attach`, `--attach-session`, `--attach-new`, `--backend` and
+  `--backend-url` select backend mode; a missing backend is a startup error,
+  not a silent local fallback.
 - **Workspace + branch binding.** A session records the git branch of its
-  workspace when it is created. Bare `zetacode` and `--attach` reuse the newest
-  session for the current `(cwd, branch)` and create one when that pair has
-  none; `--attach-session <id>` may cross branches and warns which checkout the
+  workspace when it is created. `--attach` reuses the newest session for the
+  current `(cwd, branch)` and creates one when that pair has none;
+  `--attach-session <id>` may cross branches and warns which checkout the
   prompts will edit. `zetacode attach --list` prints every session as
   `id  cwd @ branch  age  name`, including sessions from other repositories.
+- **Multiple live backends.** Every instance publishes under `~/.zeta/serve/`;
+  attach probes all of them. More than one compatible instance without
+  `--backend-url`/`--attach-session` is an error that lists the candidates.
 - **Bot/relay sessions are never auto-attached.** Sessions tagged `relay`,
   `bot` or `draft` belong to IM channels and the shared web chat; addressing
   one explicitly still works.

@@ -18,10 +18,11 @@ import * as path from "node:path";
 import { isRecord, readLines, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
 import {
 	identityProbeUrls,
+	isPidAlive,
+	listServeRegistrations,
 	probeServeIdentity,
 	SERVE_REGISTRY_ENV,
 	serveRegistryPath,
-	readServeRegistration,
 } from "../server/serve-registry";
 import type { ServeIdentity } from "../server/web-gateway/identity";
 
@@ -113,16 +114,22 @@ export function backendCandidateUrls(options: DiscoverBackendOptions = {}): stri
 
 	push(options.url);
 	push(env.ZETA_GATEWAY_URL);
+	// An explicit address pins discovery. Adding the default port or every
+	// registered instance here would turn a deliberate pin into an ambiguity
+	// error whenever another backend happens to be running.
+	if (candidates.length > 0) return candidates;
 	const port = env.ZETA_WEB_GATEWAY_PORT;
-	if (port && /^\d+$/.test(port.trim())) push(`http://127.0.0.1:${port.trim()}`);
+	if (port && /^\d+$/.test(port.trim())) return [`http://127.0.0.1:${port.trim()}`];
 	push(`http://127.0.0.1:${DEFAULT_BACKEND_PORT}`);
 
 	try {
-		const registration = readServeRegistration(
+		const file =
 			options.registryFile ??
-				(env[SERVE_REGISTRY_ENV] ? path.resolve(env[SERVE_REGISTRY_ENV]!) : serveRegistryPath()),
-		);
-		if (registration) {
+			(env[SERVE_REGISTRY_ENV] ? path.resolve(env[SERVE_REGISTRY_ENV]!) : serveRegistryPath());
+		for (const registration of listServeRegistrations({ file, env })) {
+			if (!isPidAlive(registration.pid)) continue;
+			// The gateway is the attach data plane; the web origin is the fallback
+			// when an instance was started without a standalone gateway.
 			if (registration.gatewayUrl) push(registration.gatewayUrl);
 			for (const url of identityProbeUrls(registration.webUrl)) push(url);
 		}
@@ -146,6 +153,29 @@ export async function discoverBackend(options: DiscoverBackendOptions = {}): Pro
 		if (identity) return { baseUrl, identity };
 	}
 	return null;
+}
+
+/**
+ * Every healthy backend reachable through the current hints, deduplicated by
+ * pid (one instance can answer on both its gateway and web origins).
+ *
+ * Attach refuses to guess when this returns more than one: two live serve
+ * instances usually mean two different session stores, so silently picking the
+ * newest registration would attach the operator to the wrong backend.
+ */
+export async function discoverBackends(options: DiscoverBackendOptions = {}): Promise<BackendTarget[]> {
+	const found: BackendTarget[] = [];
+	const seenPids = new Set<number>();
+	for (const baseUrl of backendCandidateUrls(options)) {
+		const identity = await probeServeIdentity(baseUrl, {
+			fetchImpl: options.fetchImpl,
+			timeoutMs: options.timeoutMs ?? DEFAULT_BACKEND_PROBE_TIMEOUT_MS,
+		});
+		if (!identity || seenPids.has(identity.pid)) continue;
+		seenPids.add(identity.pid);
+		found.push({ baseUrl, identity });
+	}
+	return found;
 }
 
 /** Normalize a cwd for cross-platform comparison (Windows is case-insensitive). */
@@ -242,6 +272,21 @@ export class BackendClient {
 			throw new BackendHttpError(response.status, message);
 		}
 		return response;
+	}
+
+	/**
+	 * Ask the serve process that owns this gateway to restart itself.
+	 * `accepted: false` means the listener was started by a library/embed (or
+	 * another host), not by `zetacode serve`; the caller must report that
+	 * instead of pretending the restart happened.
+	 */
+	async restartServer(): Promise<{ accepted: boolean; reason?: string }> {
+		const response = await this.request("/api/server/restart", { method: "POST" });
+		const body = (await response.json()) as { accepted?: unknown; reason?: unknown };
+		return {
+			accepted: body.accepted === true,
+			...(typeof body.reason === "string" ? { reason: body.reason } : {}),
+		};
 	}
 
 	/** Sessions across every repository, optionally including archived ones. */

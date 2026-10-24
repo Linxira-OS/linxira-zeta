@@ -214,8 +214,8 @@ backend is reachable the gateway hosts the PTY for the workspace and runs the
 shipped CLI there, which attaches to that workspace's newest backend session
 (the attach client described in
 [Backend attach](./cli-reference.md#backend-attach)). If the attach cannot be
-made, the tab falls back to running the CLI locally and its status line says
-so — the fallback is never silent.
+made, the tab reports the failure instead of starting a second local session;
+attach is a contract, not a best-effort redirect.
 
 Restarting or stopping from that settings row reconnects every attached
 terminal and tab to the address the restarted daemon publishes; the

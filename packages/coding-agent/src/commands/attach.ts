@@ -15,8 +15,8 @@
 
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { isRecord, readLines, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
-import { BackendClient, sortSessionsNewestFirst } from "../backend/client";
+import { isRecord, readLines, VERSION, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
+import { BackendClient, discoverBackends, sortSessionsNewestFirst } from "../backend/client";
 import { workspaceBranch } from "../session/workspace-branch";
 import {
 	backendAttachRefusalHint,
@@ -183,6 +183,32 @@ async function printSessionList(client: BackendClient): Promise<void> {
 	}
 }
 
+/**
+ * One backend, chosen explicitly. The plain `attach` client shares discovery
+ * with the full TUI: defaulting to 43143 while several instances run would
+ * silently attach to whichever one owns that port.
+ */
+async function resolveAttachBaseUrl(flagsUrl: string | undefined): Promise<string> {
+	const explicit = flagsUrl ?? process.env.ZETA_GATEWAY_URL;
+	if (explicit) return explicit.replace(/\/+$/, "");
+	const all = await discoverBackends();
+	const live = all.filter(backend => backend.identity.version === VERSION);
+	if (live.length === 0 && all.length > 0) {
+		throw new Error(
+			`The reachable backend runs zeta ${all[0]!.identity.version}, this client is ${VERSION}; ` +
+				"start a matching `zetacode serve` or upgrade the client.",
+		);
+	}
+	if (live.length > 1) {
+		throw new Error(
+			`${live.length} zeta backends are live:\n` +
+				live.map(backend => `  - pid ${backend.identity.pid} at ${backend.baseUrl}`).join("\n") +
+				"\nPass --url <url> to choose one.",
+		);
+	}
+	return (live[0]?.baseUrl ?? DEFAULT_GATEWAY_URL).replace(/\/+$/, "");
+}
+
 export default class Attach extends Command {
 	static description = commandHelp.description;
 	static args = {
@@ -204,7 +230,7 @@ export default class Attach extends Command {
 
 	async run(): Promise<void> {
 		const { args, flags } = await this.parse(Attach);
-		const baseUrl = (flags.url ?? process.env.ZETA_GATEWAY_URL ?? DEFAULT_GATEWAY_URL).replace(/\/+$/, "");
+		const baseUrl = await resolveAttachBaseUrl(flags.url);
 		const client = new BackendClient(baseUrl);
 		if (flags.list) {
 			await printSessionList(client);

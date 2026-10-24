@@ -274,13 +274,10 @@ describe("backend attach transport", () => {
 		expect(printed).toContain("print reply");
 	});
 
-	test("a missing backend falls back to the in-process launch path", async () => {
-		const unreachable = async (): Promise<Response> => {
-			throw new TypeError("fetch failed: connection refused");
-		};
+	test("a bare launch stays local and never probes a backend", async () => {
+		let probes = 0;
 		const transport = await resolveStartupTransport(
 			{
-				backendUrl: "http://127.0.0.1:1",
 				messages: [],
 				fileArgs: [],
 				unrecognizedFlags: [],
@@ -288,24 +285,45 @@ describe("backend attach transport", () => {
 				unknownFlags: new Map(),
 			},
 			[],
-			{ interactive: true, fetchImpl: unreachable as unknown as typeof fetch, timeoutMs: 50 },
+			{
+				interactive: true,
+				discoverAll: async () => {
+					probes += 1;
+					return [];
+				},
+			},
 		);
 		expect(transport.kind).toBe("in-process");
+		expect(probes).toBe(0);
+	});
 
-		// Explicit --attach is likewise a fallback, not a hard failure.
-		const explicit = await resolveStartupTransport(
-			{
-				attach: true,
-				backendUrl: "http://127.0.0.1:1",
-				messages: [],
-				fileArgs: [],
-				unrecognizedFlags: [],
-				invalidFlagValues: [],
-				unknownFlags: new Map(),
-			},
-			["--attach"],
-			{ interactive: true, fetchImpl: unreachable as unknown as typeof fetch, timeoutMs: 50 },
-		);
-		expect(explicit.kind).toBe("in-process");
+	test("an explicit backend launch fails instead of falling back", async () => {
+		const unreachable = async (): Promise<Response> => {
+			throw new TypeError("fetch failed: connection refused");
+		};
+		const args = {
+			attach: true,
+			messages: [],
+			fileArgs: [],
+			unrecognizedFlags: [],
+			invalidFlagValues: [],
+			unknownFlags: new Map(),
+		};
+		await expect(
+			resolveStartupTransport(args, ["--attach"], {
+				interactive: true,
+				fetchImpl: unreachable as unknown as typeof fetch,
+				timeoutMs: 50,
+			}),
+		).rejects.toMatchObject({ code: "unavailable" });
+
+		// `--backend-url` alone also selects backend mode.
+		await expect(
+			resolveStartupTransport(
+				{ ...args, attach: undefined, backendUrl: "http://127.0.0.1:1" },
+				["--backend-url", "http://127.0.0.1:1"],
+				{ interactive: true, fetchImpl: unreachable as unknown as typeof fetch, timeoutMs: 50 },
+			),
+		).rejects.toMatchObject({ code: "unavailable" });
 	});
 });

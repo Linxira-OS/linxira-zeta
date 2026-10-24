@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type BackendAttachIntent, resolveBackendTarget } from "../../src/backend/attach-intent";
 import type { BackendTarget } from "../../src/backend/client";
+import { VERSION } from "@linxiraos/pi-utils";
 
 const INTENT: BackendAttachIntent = { newSession: false, explicit: false };
 
@@ -12,14 +13,14 @@ const REGISTRATION = {
 	webUrl: "http://127.0.0.1:43141",
 	statsUrl: "http://127.0.0.1:43147",
 	gatewayUrl: "http://127.0.0.1:43143",
-	version: "1.4.0",
+	version: VERSION,
 	startedAt: "2026-10-24T00:00:00.000Z",
 	cwd: "/repo",
 };
 
 const BACKEND: BackendTarget = {
 	baseUrl: "http://127.0.0.1:43143",
-	identity: { app: "zeta", version: "1.4.0", pid: 1, startedAt: "", webUrl: "", statsUrl: "", gatewayUrl: null },
+	identity: { app: "zeta", version: VERSION, pid: 1, startedAt: "", webUrl: "", statsUrl: "", gatewayUrl: null },
 };
 
 const temps: string[] = [];

@@ -2,22 +2,27 @@
  * Startup decision: should this interactive/TUI launch attach to a running
  * `zetacode serve` backend, and to which session?
  *
- * Bare `zetacode` (no argv) attaches to the newest backend session for the
- * current directory. Explicit addressing:
- *   --attach                     attach, newest session in this cwd
- *   --attach-session <id>        attach to that session (any repository)
- *   --attach-new                 force a fresh session in this cwd
- * `--backend` opts a print launch into the same transport.
+ * Two modes, deliberately explicit:
+ *   bare `zetacode`              pure local TUI (no backend involvement)
+ *   --attach [--backend-url U]   attach to a backend; a missing/ambiguous
+ *                                backend is a startup error, never a silent
+ *                                switch to an in-process session
+ *   --attach-session <id>        attach to that exact session
+ *   --attach-new                 attach and create a fresh session
+ *   --backend                    force backend mode for an interactive launch
+ *                                (print mode already means this)
  *
- * A missing backend is never fatal for the interactive path: the caller keeps
- * today's in-process session. Explicit `--attach` likewise falls back (with a
- * warning) so a stale `serve` cannot brick the CLI.
+ * Multiple live backends are common once operators run independent port sets.
+ * Discovery therefore returns every healthy instance; attach refuses to guess
+ * and asks for `--backend-url` unless a session id selects exactly one.
  */
 
+import { VERSION } from "@linxiraos/pi-utils";
 import type { Args } from "../cli/args";
-import { readServeRegistration, serveRegistryPath } from "../server/serve-registry";
+import { listServeRegistrations, serveRegistryPath } from "../server/serve-registry";
+import { workspaceBranch } from "../session/workspace-branch";
 import type { BackendTarget } from "./client";
-import { discoverBackend } from "./client";
+import { BackendClient, discoverBackends } from "./client";
 
 /** Session-addressing intent before discovery succeeds. */
 export interface BackendAttachIntent {
@@ -36,75 +41,131 @@ export interface ResolvedBackendTarget extends BackendAttachIntent {
 	backend: BackendTarget;
 }
 
+/** Typed attach startup failure; the launch path prints the message verbatim. */
+export class BackendAttachError extends Error {
+	constructor(
+		readonly code: "unavailable" | "ambiguous" | "version-mismatch" | "session-not-found",
+		message: string,
+	) {
+		super(message);
+		this.name = "BackendAttachError";
+	}
+}
+
 /**
  * The backend attach request for this launch, or undefined when the launch
  * keeps its in-process session.
  *
- * Only a true bare launch auto-attaches: an argv prompt, a session selector,
- * print mode, RPC, goal/plan startup, or an explicit local-session flag all
- * mean the caller chose the in-process path. `--attach` is the opt-in that
- * overrides that.
+ * Only explicit flags select backend mode. A bare `zetacode` stays local even
+ * when a serve instance is running — operators must be able to open a pure
+ * single-window TUI without it becoming a client of somebody else's backend.
  */
 export function backendAttachIntent(
 	args: Args,
-	rawArgs: readonly string[],
+	_rawArgs: readonly string[],
 	options: { interactive: boolean },
 ): BackendAttachIntent | undefined {
 	if (!options.interactive) return undefined;
-	const explicit = args.attach === true || args.attachSession !== undefined || args.attachNew === true;
+	const explicit =
+		args.attach === true ||
+		args.attachSession !== undefined ||
+		args.attachNew === true ||
+		args.backend === true ||
+		args.backendUrl !== undefined;
+	if (!explicit) return undefined;
 	const address = args.attachSession?.trim();
-	const intent: BackendAttachIntent = {
+	return {
 		...(address ? { sessionId: address } : {}),
 		newSession: args.attachNew === true,
 		...(args.backendUrl ? { url: args.backendUrl } : {}),
-		explicit,
+		explicit: true,
 	};
-	if (explicit) return intent;
-
-	// Bare `zetacode`: attach only when nothing else selected a local session.
-	if (rawArgs.length > 0) return undefined;
-	if (
-		args.continue ||
-		args.resume !== undefined ||
-		args.fork ||
-		args.restore ||
-		args.fromClaude ||
-		args.fromCodex ||
-		args.noSession ||
-		args.messages.length > 0 ||
-		args.fileArgs.length > 0 ||
-		args.join
-	) {
-		return undefined;
-	}
-	return intent;
 }
 
 /** Probe retry cadence for a serve that is still coming up. */
 const ATTACH_PROBE_RETRIES = 3;
 const ATTACH_PROBE_RETRY_DELAY_MS = 400;
 
-/**
- * Probe the backend for an intent. Returns undefined when nothing answers;
- * the caller falls back to the in-process session.
- *
- * A serve that was started moments ago can miss the first probe (cold module
- * cache, first bind) while its registration already names it. Retry only in
- * that case, so a machine without `serve` still falls back immediately.
- */
-export async function resolveBackendTarget(
-	intent: BackendAttachIntent | undefined,
-	options: {
+interface ResolveBackendOptions {
+	env?: Record<string, string | undefined>;
+	timeoutMs?: number;
+	fetchImpl?: typeof fetch;
+	registryFile?: string;
+	/** Workspace used to pick the instance that already owns its session. */
+	cwd?: string;
+	/** Single-target injection used by older tests. */
+	discover?: (options: {
+		url?: string;
 		env?: Record<string, string | undefined>;
 		timeoutMs?: number;
 		fetchImpl?: typeof fetch;
 		registryFile?: string;
-		discover?: typeof discoverBackend;
-		sleepImpl?: (ms: number) => Promise<unknown>;
-	} = {},
+	}) => Promise<BackendTarget | null>;
+	/** Full-list injection point. */
+	discoverAll?: typeof discoverBackends;
+	sleepImpl?: (ms: number) => Promise<unknown>;
+}
+
+function originOf(url: string): string | null {
+	try {
+		return new URL(url).origin;
+	} catch {
+		return null;
+	}
+}
+
+function describeTarget(target: BackendTarget): string {
+	const gateway = target.identity.gatewayUrl ?? target.baseUrl;
+	return `pid ${target.identity.pid} v${target.identity.version} at ${gateway}`;
+}
+
+/** Which discovered backends own `sessionId`; unreachable/foreign ones are skipped. */
+async function targetsOwningSession(
+	targets: readonly BackendTarget[],
+	sessionId: string,
+	fetchImpl?: typeof fetch,
+): Promise<BackendTarget[]> {
+	const owners: BackendTarget[] = [];
+	for (const target of targets) {
+		try {
+			const { sessions } = await new BackendClient(target.baseUrl, fetchImpl).listSessions();
+			if (sessions.some(session => session.id === sessionId)) owners.push(target);
+		} catch {
+			// A backend that cannot list sessions is not a candidate for this id.
+		}
+	}
+	return owners;
+}
+
+/** Which discovered backends already host this workspace/branch pair. */
+async function targetsOwningCwd(
+	targets: readonly BackendTarget[],
+	cwd: string,
+	fetchImpl?: typeof fetch,
+): Promise<BackendTarget[]> {
+	const branch = workspaceBranch(cwd);
+	const owners: BackendTarget[] = [];
+	for (const target of targets) {
+		try {
+			const session = await new BackendClient(target.baseUrl, fetchImpl).findSessionForCwd(cwd, branch);
+			if (session) owners.push(target);
+		} catch {
+			// Unreachable store: not an owner for selection purposes.
+		}
+	}
+	return owners;
+}
+
+/**
+ * Pick the one backend an attach intent addresses. Returns undefined only when
+ * retries are exhausted and nothing answers; ambiguity and version drift throw
+ * so the caller never silently binds to the wrong instance.
+ */
+async function resolveOnce(
+	intent: BackendAttachIntent,
+	options: ResolveBackendOptions,
+	discoverAll: NonNullable<ResolveBackendOptions["discoverAll"]>,
 ): Promise<ResolvedBackendTarget | undefined> {
-	if (!intent) return undefined;
-	const discover = options.discover ?? discoverBackend;
 	const discoverOptions = {
 		url: intent.url,
 		env: options.env ?? process.env,
@@ -112,18 +173,90 @@ export async function resolveBackendTarget(
 		fetchImpl: options.fetchImpl,
 		registryFile: options.registryFile,
 	};
-	const backend = await discover(discoverOptions);
-	if (backend) return { ...intent, backend };
+	let targets = await discoverAll(discoverOptions);
 
-	const registration = readServeRegistration(
-		options.registryFile ?? serveRegistryPath(options.env as NodeJS.ProcessEnv | undefined),
-	);
-	if (!registration) return undefined;
+	// An explicit URL means exactly that instance. Default candidates answering
+	// elsewhere must not steal the attach.
+	if (intent.url) {
+		const wanted = originOf(intent.url);
+		targets = wanted ? targets.filter(target => originOf(target.baseUrl) === wanted) : [];
+	}
+
+	if (targets.length === 0) return undefined;
+
+	const sameVersion = targets.filter(target => target.identity.version === VERSION);
+	if (sameVersion.length > 0) {
+		targets = sameVersion;
+	} else {
+		throw new BackendAttachError(
+			"version-mismatch",
+			`Backend ${describeTarget(targets[0]!)} runs a different zeta version (client ${VERSION}); ` +
+				`start a matching \`zetacode serve\` or upgrade the client.`,
+		);
+	}
+
+	// Session ownership disambiguates instances; a single reachable backend is
+	// authoritative for the id and later resolves it itself (a session can be
+	// addressable without appearing in the list, e.g. a live in-memory run).
+	if (targets.length > 1 && intent.sessionId) {
+		const owners = await targetsOwningSession(targets, intent.sessionId, options.fetchImpl);
+		if (owners.length === 0) {
+			throw new BackendAttachError("session-not-found", `No reachable backend owns session ${intent.sessionId}.`);
+		}
+		targets = owners;
+	}
+
+	// With several instances, a workspace that already has a session selects
+	// its owner. Two instances hosting the same (cwd, branch) remain ambiguous:
+	// creating a third session would guess which store the operator meant.
+	if (targets.length > 1 && !intent.sessionId && options.cwd) {
+		const owners = await targetsOwningCwd(targets, options.cwd, options.fetchImpl);
+		if (owners.length === 1) targets = owners;
+	}
+
+	if (targets.length > 1) {
+		throw new BackendAttachError(
+			"ambiguous",
+			`${targets.length} zeta backends are live:\n` +
+				targets.map(target => `  - ${describeTarget(target)}`).join("\n") +
+				`\nChoose one with --backend-url <url>${intent.sessionId ? "" : " or --attach-session <id>"}.`,
+		);
+	}
+
+	return { ...intent, backend: targets[0]! };
+}
+
+/**
+ * Resolve an attach intent against the live registry. A registered serve that
+ * is still booting is retried; an unregistered machine fails immediately.
+ */
+export async function resolveBackendTarget(
+	intent: BackendAttachIntent | undefined,
+	options: ResolveBackendOptions = {},
+): Promise<ResolvedBackendTarget | undefined> {
+	if (!intent) return undefined;
+	const discoverAll =
+		options.discoverAll ??
+		(options.discover
+			? async (discoverOptions: Parameters<typeof discoverBackends>[0] = {}) => {
+					const one = await options.discover!(discoverOptions);
+					return one ? [one] : [];
+				}
+			: discoverBackends);
+
+	const resolved = await resolveOnce(intent, options, discoverAll);
+	if (resolved) return resolved;
+
+	const registrations = listServeRegistrations({
+		file: options.registryFile ?? serveRegistryPath(options.env as NodeJS.ProcessEnv | undefined),
+		env: options.env as NodeJS.ProcessEnv | undefined,
+	});
+	if (registrations.length === 0) return undefined;
 	const sleep = options.sleepImpl ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
 	for (let attempt = 0; attempt < ATTACH_PROBE_RETRIES; attempt++) {
 		await sleep(ATTACH_PROBE_RETRY_DELAY_MS);
-		const retried = await discover(discoverOptions);
-		if (retried) return { ...intent, backend: retried };
+		const retried = await resolveOnce(intent, options, discoverAll);
+		if (retried) return retried;
 	}
 	return undefined;
 }
@@ -132,8 +265,11 @@ export async function resolveBackendTarget(
 export type StartupTransport = { kind: "in-process" } | { kind: "backend"; target: ResolvedBackendTarget };
 
 /**
- * Resolve the interactive transport. A missing backend is the in-process
- * fallback, never an error: the CLI must stay usable with `serve` stopped.
+ * Resolve the interactive transport.
+ *
+ * Bare/local launches keep the in-process session. An explicit backend launch
+ * is a contract: when no backend answers, startup fails with a diagnostic
+ * instead of opening a second local session next to the operator's serve.
  */
 export async function resolveStartupTransport(
 	args: Args,
@@ -144,11 +280,21 @@ export async function resolveStartupTransport(
 		timeoutMs?: number;
 		fetchImpl?: typeof fetch;
 		registryFile?: string;
-		discover?: typeof discoverBackend;
+		/** Workspace whose session should pick the backend when several run. */
+		cwd?: string;
+		discover?: ResolveBackendOptions["discover"];
+		discoverAll?: typeof discoverBackends;
 	},
 ): Promise<StartupTransport> {
 	const intent = backendAttachIntent(args, rawArgs, options);
 	if (!intent) return { kind: "in-process" };
 	const target = await resolveBackendTarget(intent, options);
-	return target ? { kind: "backend", target } : { kind: "in-process" };
+	if (!target) {
+		throw new BackendAttachError(
+			"unavailable",
+			"--attach/--backend was requested but no matching `zetacode serve` backend is reachable. " +
+				"Start one (`zetacode serve`) or run a local session with a bare `zetacode`.",
+		);
+	}
+	return { kind: "backend", target };
 }

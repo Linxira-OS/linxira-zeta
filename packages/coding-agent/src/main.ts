@@ -38,7 +38,12 @@ import {
 } from "./cli/args";
 import { applyExtensionFlags, type ExtensionFlagSink } from "./cli/extension-flags";
 import { processFileArguments } from "./cli/file-processor";
-import { resolveStartupTransport, type ResolvedBackendTarget } from "./backend/attach-intent";
+import {
+	BackendAttachError,
+	resolveStartupTransport,
+	type ResolvedBackendTarget,
+	type StartupTransport,
+} from "./backend/attach-intent";
 import { buildInitialMessage } from "./cli/initial-message";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
 import type { SessionPickerOptions } from "@linxiraos/pi-tui/apps/session-picker";
@@ -752,9 +757,14 @@ async function runInteractiveMode(
 					error: error instanceof Error ? (error.stack ?? error.message) : String(error),
 				});
 				await link.detach().catch(() => undefined);
-				mode.showWarning(
-					`Could not attach to the backend (${error instanceof Error ? error.message : String(error)}); continuing in-process.`,
+				// Attach is a contract: falling back to a local session here would
+				// fork the operator's work into a second store while the backend
+				// keeps running. Close the client and report the failure instead.
+				mode.showError(
+					`Could not attach to the backend: ${error instanceof Error ? error.message : String(error)}`,
 				);
+				await mode.shutdown().catch(() => undefined);
+				process.exit(1);
 			}
 		}
 
@@ -1968,17 +1978,19 @@ export async function runRootCommand(
 		const autoPrint =
 			(pipedInput !== undefined || !stdinIsTerminal) && !parsedArgs.print && parsedArgs.mode === undefined;
 		const isInteractive = !parsedArgs.print && !autoPrint && parsedArgs.mode === undefined;
-		// Backend attachment is decided before any local session exists: a bare
-		// interactive launch turns into a client of the running serve process;
-		// a missing backend falls back to the in-process session below.
-		const transport = await resolveStartupTransport(parsedArgs, rawArgs, { interactive: isInteractive });
-		const backendAttachTarget = transport.kind === "backend" ? transport.target : undefined;
-		if (!backendAttachTarget && (parsedArgs.attach === true || parsedArgs.attachSession !== undefined)) {
-			process.stderr.write(
-				`${chalk.yellow("Warning: --attach requested but no running `zetacode serve` backend was reachable; continuing in-process.\n")}`,
-			);
+		// Transport is decided before any local session exists. A bare launch is
+		// a pure local TUI; explicit --attach/--backend must reach a backend or
+		// startup fails, so a client never silently forks a second session.
+		let transport: StartupTransport;
+		try {
+			transport = await resolveStartupTransport(parsedArgs, rawArgs, { interactive: isInteractive, cwd });
+		} catch (error) {
+			if (!(error instanceof BackendAttachError)) throw error;
+			process.stderr.write(`${chalk.red(error.message)}\n`);
+			process.exit(1);
 		}
-		if (parsedArgs.backend === true && !isProtocolMode && !isInteractive) {
+		const backendAttachTarget = transport.kind === "backend" ? transport.target : undefined;
+		if ((parsedArgs.backend === true || parsedArgs.backendUrl !== undefined) && !isProtocolMode && !isInteractive) {
 			const fileResult = await logger.time("processFileArguments", () =>
 				processFileArguments(parsedArgs.fileArgs, { autoResizeImages: true }),
 			);

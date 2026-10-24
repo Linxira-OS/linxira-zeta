@@ -16,6 +16,7 @@ import { WebConfig } from "../config/web-config";
 import { readBackendAutostartSetting } from "../autostart/setting";
 import { formatAccessUrl, resolveServeAccess } from "../server/serve-access";
 import { discoverServeInstance, planServeStart, serveRegistryPath } from "../server/serve-registry";
+import { registerServeRestartHandler } from "../server/serve-control";
 import { ensureAgentDirEnv } from "../server/web-gateway";
 import type { ServeIdentity } from "../server/web-gateway/identity";
 import { startZetaServer, type ZetaServerInstance } from "../server/zeta-server";
@@ -243,6 +244,23 @@ export default class Serve extends Command {
 				channels: flags.channels,
 			});
 
+			// `/restart` from any attached client lands here. Shut the listeners
+			// down first (withdrawing discovery) and replace the process with the
+			// same argv, so the operator's launch flags and service manager
+			// contract survive the restart.
+			registerServeRestartHandler(async () => {
+				console.log(chalk.dim("\n  Restarting serve..."));
+				await instance?.shutdown().catch(() => {});
+				registerServeRestartHandler(null);
+				const child = Bun.spawn([process.execPath, ...process.argv.slice(1)], {
+					cwd: process.cwd(),
+					env: process.env,
+					stdio: ["inherit", "inherit", "inherit"],
+				});
+				child.unref();
+				process.exit(0);
+			});
+
 			if (!webOnly && instance.statsUrl) {
 				console.log(chalk.green(`  Stats Dashboard:  ${instance.statsUrl}`));
 			}
@@ -266,6 +284,7 @@ export default class Serve extends Command {
 			// the identity endpoint, so the next start sees a clean slate.
 			const shutdown = async () => {
 				console.log(chalk.dim("\n  Shutting down..."));
+				registerServeRestartHandler(null);
 				if (instance) {
 					await instance.shutdown().catch(() => {});
 				}

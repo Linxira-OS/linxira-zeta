@@ -1488,6 +1488,15 @@ export class InputController {
 						})();
 						return;
 					}
+					// The backend host owns the process; ask it to re-exec rather than
+					// restarting this client (which would leave the session running).
+					if (verb === "restart") {
+						this.ctx.editor.clearDraft(text);
+						void backendAttach.restartBackend().catch(error => {
+							this.ctx.showError(`Restart failed: ${error instanceof Error ? error.message : String(error)}`);
+						});
+						return;
+					}
 					if (isBackendAttachRefusedCommand(verb)) {
 						this.ctx.showStatus(`/${verb} is not available while attached: ${backendAttachRefusalHint(verb)}`);
 						this.ctx.editor.setText("");

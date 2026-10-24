@@ -45,15 +45,23 @@ side by side on one machine. Override any of them with `--web-port`,
   says the interface is being completed. A later release ships the full Web UI
   and makes `serve` fetch it from npm on demand.
 
-The terminal is the primary surface. Every session lives on the backend, so a
-terminal attaches to the exact workspace and branch it belongs to:
+The terminal is the primary surface. A bare launch is a complete local TUI;
+backend mode is selected explicitly and attaches to the exact workspace and
+branch it belongs to:
 
 ```bash
-zetacode                  # attach to this directory's newest session
+zetacode                  # pure local TUI (never touches a running backend)
+zetacode --attach         # attach to this directory's newest backend session
 zetacode attach --list    # sessions across repositories: id, cwd @ branch, age, name
 zetacode attach <id>      # plain terminal client for one session
 zetacode --attach-session <id>   # full TUI on that session
+zetacode --backend-url http://127.0.0.1:43143   # pin one backend
 ```
+
+`--attach`/`--backend` never fall back to a local session: if no backend is
+reachable, the client exits with a diagnostic. With multiple live backends,
+pass `--backend-url` or `--attach-session`; the client refuses to pick one
+silently.
 
 ## Model configuration
 

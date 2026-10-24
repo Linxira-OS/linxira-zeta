@@ -8,9 +8,9 @@
 
 import type { ImageContent } from "@linxiraos/pi-ai";
 import { isRecord } from "@linxiraos/pi-utils";
-import { BackendClient, discoverBackend } from "./client";
+import { BackendClient } from "./client";
+import { BackendAttachError, resolveBackendTarget, type BackendAttachIntent } from "./attach-intent";
 import { workspaceBranch } from "../session/workspace-branch";
-import type { BackendAttachIntent } from "./attach-intent";
 
 export interface BackendPrintOptions {
 	intent: BackendAttachIntent;
@@ -46,19 +46,26 @@ export function assistantMessageText(message: unknown, includeThinking = false):
  * or the command failed).
  */
 export async function runBackendPrintMode(options: BackendPrintOptions): Promise<number> {
-	const backend = await discoverBackend({
-		url: options.intent.url,
-		env: options.env,
-		fetchImpl: options.fetchImpl,
-		timeoutMs: options.timeoutMs,
-		registryFile: options.registryFile,
-	});
-	if (!backend) {
+	let target;
+	try {
+		target = await resolveBackendTarget(options.intent, {
+			env: options.env,
+			fetchImpl: options.fetchImpl,
+			timeoutMs: options.timeoutMs,
+			registryFile: options.registryFile,
+			cwd: options.cwd,
+		});
+	} catch (error) {
+		if (!(error instanceof BackendAttachError)) throw error;
+		process.stderr.write(`Error: ${error.message}\n`);
+		return 1;
+	}
+	if (!target) {
 		process.stderr.write("Error: --backend requested but no running `zetacode serve` backend was reachable.\n");
 		return 1;
 	}
 
-	const client = new BackendClient(backend.baseUrl, options.fetchImpl);
+	const client = new BackendClient(target.backend.baseUrl, options.fetchImpl);
 	const { sessionId } = await client.resolveSession({
 		cwd: options.cwd,
 		branch: workspaceBranch(options.cwd),

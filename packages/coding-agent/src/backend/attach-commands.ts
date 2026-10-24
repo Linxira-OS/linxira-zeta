@@ -84,7 +84,6 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
 /**
  * Commands an attach client cannot apply to a backend-owned session:
  *
- * - a process restart (`restart`) must be done by the backend's host;
  * - setup writes credentials the running backend does not reload;
  * - sharing (`collab`, `join`, `leave`) belongs to the backend's process;
  * - live voice (`live`) binds the backend host's microphone/speaker and has no
@@ -100,7 +99,6 @@ export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	join: true,
 	leave: true,
 	live: true,
-	restart: true,
 	setup: true,
 };
 
@@ -121,9 +119,6 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 
 /** The actionable half of a refusal: which local command does the same thing. */
 export function backendAttachRefusalHint(verb: string): string {
-	if (verb === "restart") {
-		return "restart the backend from its host: `zetacode daemon restart` (or stop and start `zetacode serve`)";
-	}
 	if (verb === "setup") {
 		return "run `zetacode setup` on the backend host, then restart it so it loads the new credentials";
 	}
