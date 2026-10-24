@@ -422,6 +422,8 @@ jobs:
            run: bun scripts/check-ci-surface.ts
          - name: Release asset-name guard
            run: bun scripts/check-release-asset-names.ts
+         - name: Service port guard
+           run: bun scripts/check-service-ports.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard

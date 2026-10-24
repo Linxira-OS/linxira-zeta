@@ -1,7 +1,7 @@
 import { M } from "../i18n";
 import { cfgTuiSidebar } from "../modes/settings";
 import { clearSubmittedText } from "./helpers/draft";
-import { shutdownHandlerTui } from "./builtin-lifecycle";
+import { shutdownHandlerTui } from "./helpers/shutdown";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
 import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";

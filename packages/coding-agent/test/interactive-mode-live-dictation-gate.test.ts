@@ -8,8 +8,7 @@ import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { STTController } from "@linxiraos/zeta/stt";
-import { cfgSttEnabled } from "@linxiraos/zeta/stt/settings";
+import { LIVE_DISABLED_MESSAGE } from "@linxiraos/zeta/live/feature-gate";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import { TempDir } from "@linxiraos/pi-utils";
 
@@ -27,7 +26,6 @@ describe("InteractiveMode live mode vs. composer dictation", () => {
 		resetSettingsForTest();
 		tempDir = TempDir.createSync("@pi-live-dictation-gate-");
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
-		cfgSttEnabled.override(settings, true);
 		authStorage = await AuthStorage.create(path.join(tempDir.path(), "testauth.db"));
 		const modelRegistry = new ModelRegistry(authStorage);
 		const model = modelRegistry.find("anthropic", "claude-sonnet-4-5");
@@ -51,21 +49,13 @@ describe("InteractiveMode live mode vs. composer dictation", () => {
 		resetSettingsForTest();
 	});
 
-	it("refuses live mode while a microphone click is still loading the recognizer", async () => {
-		const pendingStart = Promise.withResolvers<void>();
-		// The controller stays `idle` until the recognizer finishes loading.
-		vi.spyOn(STTController.prototype, "start").mockReturnValue(pendingStart.promise);
+	it("keeps live mode dark and reports the deferred transport", async () => {
 		const liveCommand = vi.spyOn(LiveCommandController.prototype, "handleCommand").mockResolvedValue(undefined);
 		const showWarning = vi.spyOn(mode, "showWarning").mockImplementation(() => {});
 
 		await mode.handleLiveCommand();
-		expect(liveCommand).toHaveBeenCalledTimes(1);
 
-		mode.editor.onToggleDictation?.();
-		await mode.handleLiveCommand();
-
-		expect(liveCommand).toHaveBeenCalledTimes(1);
-		expect(showWarning).toHaveBeenCalledWith("Finish the current speech-to-text capture before starting live mode.");
-		pendingStart.resolve();
+		expect(liveCommand).not.toHaveBeenCalled();
+		expect(showWarning).toHaveBeenCalledWith(LIVE_DISABLED_MESSAGE);
 	});
 });

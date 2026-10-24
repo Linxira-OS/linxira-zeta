@@ -40,7 +40,7 @@ import { M } from "../src/i18n";
  * the PR that introduced this guard.
  */
 const EXCLUDED_FILES: Record<string, number> = {
-	"cli/command-help.ts": 56,
+	"cli/command-help.ts": 57,
 	"cli/gallery-fixtures/agentic.ts": 3,
 	"cli/gallery-fixtures/misc.ts": 4,
 	"cli/tiny-models-cli.ts": 1,
@@ -50,6 +50,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/auth-broker.ts": 13,
 	"commands/auth-gateway.ts": 8,
 	"commands/auth.ts": 2,
+	"commands/backend.ts": 5,
 	"commands/bench.ts": 15,
 	"commands/browser-relay.ts": 6,
 	"commands/channels.ts": 8,
@@ -72,7 +73,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/images.ts": 6,
 	"commands/install.ts": 5,
 	"commands/join.ts": 1,
-	"commands/launch-help.ts": 61,
+	"commands/launch-help.ts": 62,
 	"commands/login.ts": 1,
 	"commands/models.ts": 7,
 	"commands/play.ts": 3,

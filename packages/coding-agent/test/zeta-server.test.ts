@@ -43,7 +43,7 @@ describe("ZetaServer host URLs", () => {
 		expect(server.scheme).toBe("https");
 		expect(server.url).toBe("https://zeta.example:30141");
 		// The stats dashboard is a separate plain-HTTP service.
-		expect(server.statsUrl).toBe("http://zeta.example:3847");
+		expect(server.statsUrl).toBe("http://zeta.example:43147");
 	});
 });
 

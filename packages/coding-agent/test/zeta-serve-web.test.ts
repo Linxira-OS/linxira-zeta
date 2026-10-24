@@ -11,17 +11,17 @@ describe("zetacode serve command", () => {
 		expect(Serve.description).toBe("Start the Stats Dashboard and Web UI services (no browser)");
 	});
 
-	it("defines stats-port flag with default 3847", () => {
+	it("defines stats-port flag with default 43147", () => {
 		const flags = Serve.flags;
 		expect(flags).toBeDefined();
 		expect(flags["stats-port"]).toBeDefined();
-		expect(flags["stats-port"].default).toBe(3847);
+		expect(flags["stats-port"].default).toBe(43147);
 	});
 
-	it("defines web-port flag with default 30141", () => {
+	it("defines web-port flag with default 43141", () => {
 		const flags = Serve.flags;
 		expect(flags["web-port"]).toBeDefined();
-		expect(flags["web-port"].default).toBe(30141);
+		expect(flags["web-port"].default).toBe(43141);
 	});
 
 	it("defines no-browser boolean flag (default on: no auto-open browser)", () => {
@@ -48,10 +48,10 @@ describe("zetacode web command", () => {
 		expect(Web.description).toBe("Start the Web UI server (no browser)");
 	});
 
-	it("defines port flag with default 30141", () => {
+	it("defines port flag with default 43141", () => {
 		const flags = Web.flags;
 		expect(flags.port).toBeDefined();
-		expect(flags.port.default).toBe(30141);
+		expect(flags.port.default).toBe(43141);
 	});
 
 	it("defines no-browser boolean flag (default on: no auto-open browser)", () => {

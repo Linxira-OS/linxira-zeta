@@ -107,6 +107,14 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "自动恢复",
 		description: "自动恢复当前目录中的最近会话",
 	},
+	"backend.enabled": {
+		label: "启用后端模式",
+		description: "为本机使用一个后台后端。关闭时每次 zetacode 启动都是本地进程；打开时裸启动会连接默认后端。",
+	},
+	"backend.workspace": {
+		label: "后端默认工作区",
+		description: "后台后端启动时所在目录；留空使用稳定默认工作区（`~/.zeta/workspace`）。",
+	},
 	"backend.autostart": {
 		label: "登录时启动后台服务",
 		description:

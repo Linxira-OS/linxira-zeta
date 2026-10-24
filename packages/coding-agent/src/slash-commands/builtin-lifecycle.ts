@@ -27,6 +27,7 @@ import { formatShakeSummary, type ShakeMode } from "../session/shake-types";
 import { discoverTitleSystemPromptFile, resolvePromptInput } from "../system-prompt";
 import { resolveToCwd } from "../tools/path-utils";
 import { commandConsumed, errorMessage, usage } from "./helpers/parse";
+import { shutdownHandlerTui } from "./helpers/shutdown";
 import { handleSshAcp } from "./helpers/ssh";
 import type {
 	ParsedSlashCommand,
@@ -40,15 +41,6 @@ function formatFreshSessionResult(result: FreshSessionResult): string {
 	const stateLabel = result.closedProviderSessions === 1 ? "provider state" : "provider states";
 	return `Fresh provider session started (${result.closedProviderSessions} ${stateLabel} pruned).`;
 }
-
-export const shutdownHandlerTui = (
-	_command: ParsedSlashCommand,
-	runtime: TuiSlashCommandRuntime,
-): SlashCommandResult => {
-	clearSubmittedText(runtime);
-	void runtime.ctx.shutdown();
-	return commandConsumed();
-};
 
 /** Parse the `/shake` subcommand into a {@link ShakeMode}; empty defaults to elide. */
 function parseShakeMode(args: string): ShakeMode | { error: string } {
