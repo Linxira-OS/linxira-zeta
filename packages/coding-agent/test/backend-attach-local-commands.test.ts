@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { lookupBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
+import {
+	BUILTIN_SLASH_COMMANDS_INTERNAL,
+	lookupBuiltinSlashCommand,
+} from "@linxiraos/zeta/slash-commands/builtin-registry";
 import {
 	backendAttachRefusalHint,
 	isBackendAttachLocalCommand,
@@ -35,6 +38,7 @@ describe("backend-attach command routing", () => {
 			"extensions",
 			"hub",
 			"pause",
+			"sidebar",
 			"record",
 			"open",
 			"debug",
@@ -138,6 +142,37 @@ describe("backend-attach command routing", () => {
 		expect(lookupBuiltinSlashCommand("extensions")?.name).toBe("extensions");
 		expect(lookupBuiltinSlashCommand("status")).toBeUndefined();
 		expect(isBackendAttachLocalCommand("status")).toBe(false);
+	});
+
+	it("never forwards a TUI-only builtin without a headless handler", () => {
+		// Commands the input controller implements over HTTP/RPC instead of the
+		// generic command plane. Keep this list explicit: adding a TUI-only
+		// command without a headless handler must fail this test rather than
+		// silently send `/command` to the backend model as a prompt.
+		const sessionSpecial = new Set([
+			"new",
+			"resume",
+			"fork",
+			"branch",
+			"tree",
+			"clear",
+			"delete",
+			"login",
+			"logout",
+			"loop",
+			"queue",
+			"btw",
+			"restart",
+			"setup", // retired globally; forwarded for its disabled message
+		]);
+		const offenders = BUILTIN_SLASH_COMMANDS_INTERNAL.filter(
+			command =>
+				!isBackendAttachLocalCommand(command.name) &&
+				!isBackendAttachRefusedCommand(command.name) &&
+				!sessionSpecial.has(command.name) &&
+				typeof command.handle !== "function",
+		).map(command => command.name);
+		expect(offenders).toEqual([]);
 	});
 
 	it("treats a plain message and a missing verb as not-a-command", () => {

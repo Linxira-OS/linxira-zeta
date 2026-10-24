@@ -51,6 +51,7 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	// transcript on this machine, and `open`/`debug` never touch the backend.
 	hub: true,
 	pause: true,
+	sidebar: true,
 	record: true,
 	open: true,
 	debug: true,
