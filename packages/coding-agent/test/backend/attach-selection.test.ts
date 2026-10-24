@@ -7,7 +7,12 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { BackendAttachError, type BackendAttachIntent, resolveBackendTarget } from "../../src/backend/attach-intent";
+import {
+	BackendAttachError,
+	type BackendAttachIntent,
+	backendAttachIntent,
+	resolveBackendTarget,
+} from "../../src/backend/attach-intent";
 import type { BackendTarget } from "../../src/backend/client";
 import {
 	clearServeRegistration,
@@ -145,5 +150,38 @@ describe("serve instance registry", () => {
 
 		clearServeRegistration(202, file, instances);
 		expect(listServeRegistrations({ file, dir: instances }).map(entry => entry.pid)).toEqual([101]);
+	});
+});
+
+describe("forced backend session ownership", () => {
+	const args = (overrides: Record<string, unknown> = {}) =>
+		({
+			messages: [],
+			fileArgs: [],
+			unrecognizedFlags: [],
+			invalidFlagValues: [],
+			unknownFlags: new Map(),
+			...overrides,
+		}) as never;
+
+	it("--backend creates a fresh session per terminal", () => {
+		expect(backendAttachIntent(args({ backend: true }), ["--backend"], { interactive: true })).toMatchObject({
+			newSession: true,
+			explicit: true,
+		});
+	});
+
+	it("--backend still joins an explicitly named session", () => {
+		expect(
+			backendAttachIntent(args({ backend: true, attachSession: "session-1" }), ["--backend"], {
+				interactive: true,
+			}),
+		).toMatchObject({ sessionId: "session-1", newSession: false });
+	});
+
+	it("--attach keeps connection semantics", () => {
+		expect(backendAttachIntent(args({ attach: true }), ["--attach"], { interactive: true })).toMatchObject({
+			newSession: false,
+		});
 	});
 });

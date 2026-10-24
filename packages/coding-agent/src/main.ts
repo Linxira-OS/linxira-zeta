@@ -2010,10 +2010,11 @@ export async function runRootCommand(
 				(message): message is string => message !== undefined,
 			);
 			const { runBackendPrintMode } = await import("./backend/print");
+			const attachExisting = parsedArgs.attach === true || parsedArgs.attachSession !== undefined;
 			const exitCode = await runBackendPrintMode({
 				intent: {
 					sessionId: parsedArgs.attachSession,
-					newSession: parsedArgs.attachNew === true,
+					newSession: parsedArgs.attachNew === true || (parsedArgs.backend === true && !attachExisting),
 					url: parsedArgs.backendUrl,
 					explicit: true,
 				},

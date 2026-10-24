@@ -197,8 +197,11 @@ The two launch modes are explicit:
 A backend session is bound to the pair **(workspace directory, git branch)**:
 `--attach` reuses the most recently modified session whose `cwd` and branch
 match the current directory (creating one when that branch has none).
-`--attach-session <id>` may cross both; when its branch differs from the
-current one the TUI warns which checkout the prompts will edit.
+`--backend` is the direct-execution spelling: it creates a fresh backend
+session for this terminal unless `--attach` or `--attach-session` explicitly
+asks to join an existing one. `--attach-session <id>` may cross both; when its
+branch differs from the current one the TUI warns which checkout the prompts
+will edit.
 
 Every live `serve` instance registers itself (the compatibility `serve.json`
 plus a per-pid file under `~/.zeta/serve/`). Attach probes **every** registered
@@ -218,7 +221,7 @@ instance and refuses to guess:
 | `--attach` | Attach the TUI to this directory's newest backend session. |
 | `--attach-session <id>` | Attach to a specific backend session, across all repositories. |
 | `--attach-new` | Create and attach to a fresh backend session in this directory instead of reusing one. |
-| `--backend` | Force backend mode for an interactive launch (print mode already routes through the backend). |
+| `--backend` | Run this launch directly on the backend. Creates a fresh backend session per terminal unless `--attach`/`--attach-session` is also given. Print mode routes through the backend too. |
 | `--backend-url <url>` | Attach to that gateway URL; implies `--attach` (default discovery: `ZETA_GATEWAY_URL`, `ZETA_WEB_GATEWAY_PORT`, every live serve registration, then `http://127.0.0.1:43143`). |
 
 `zetacode attach --list` prints every backend session across repositories

@@ -74,9 +74,16 @@ export function backendAttachIntent(
 		args.backendUrl !== undefined;
 	if (!explicit) return undefined;
 	const address = args.attachSession?.trim();
+	// `--backend` means "this launch runs on a backend", not "join whatever
+	// session happens to be newest". Give each terminal its own conversation
+	// unless the operator explicitly asked to attach to an existing one.
+	// `--attach`/`--attach-session` keep connection semantics; `--attach-new`
+	// stays an explicit create-and-attach spelling.
+	const attachExisting = args.attach === true || address !== undefined;
+	const newSession = args.attachNew === true || (args.backend === true && !attachExisting);
 	return {
 		...(address ? { sessionId: address } : {}),
-		newSession: args.attachNew === true,
+		newSession,
 		...(args.backendUrl ? { url: args.backendUrl } : {}),
 		explicit: true,
 	};
