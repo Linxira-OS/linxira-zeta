@@ -1,668 +1,184 @@
 # Zeta Development Rules
 
-我们的主力平台一等公民是linux是我们自己的linxira发行吧基于arch linux。win的开发是二等公民，macos滚一边去。（用户批注）
+我们的主力平台一等公民是 linux，我们自己的 linxira 发行版，基于 arch linux。win 的开发是二等公民，macos 滚一边去。（用户批注）
 
-## Zeta Direction
+> **本文件只放每次会话都要生效的规则。** 操作细节在 `document/agents/` 与 `document/`，
+> 遇到对应问题时按 §11 索引去读，不要在这里展开。
 
-Zeta is an OMP downstream distribution. The runtime tree, package layout, Bun
-workflow, and internal `@linxiraos/*` package names intentionally follow OMP so
-that OMP updates remain mergeable. Four upstreams, fixed roles:
+## 1. 方向与上游
 
-- **OMP (oh-my-pi, `omp-upstream`)** — the runtime tree, integrated only at
-  official release tags (see OMP Release Sync Policy below).
-- **Pi (`pi-upstream`)** — semantic-port source for feature work, never a raw
-  merge source (`port/pi/<scope>` branches; preserve intentional OMP
-  divergence).
-- **OMP Web (`omp-web-upstream`)** — **frozen**: `web-ui/` diverged from the
-  upstream snapshot in the own-desktop upgrade (`feat/desktop-ui-upgrade`,
-  absorbing omp-web f09920e selectively); no longer a merge source — manual
-  cherry-picks only, recorded in `document/upstream-sync.md`.
-- **Pi Web (`pi-web-upstream`)** — semantic-port source for web features
-  (`port/pi-web/<scope>` branches).
+Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部 `@linxiraos/*` 包名
+刻意跟随 OMP，保证上游更新可合并。四个上游，角色固定：
 
-- `main` is the Zeta product branch.
-- `sync/omp` tracks `omp-upstream/main` and must remain an unmodified OMP
-  tree; OMP releases integrate into `main` only through short-lived
-  `sync/omp-release/<release>` branches.
-- `web-ui/` is a standalone OMP Web snapshot with its own package manager,
-  lockfiles, and rules (`web-ui/AGENTS.md`); it is not a root Bun workspace
-  package. It must never carry its own GitHub workflow — GitHub only executes
-  workflows from the repository root, so all web-ui checks live in the root
-  `.github/workflows/ci.yml` (see `document/release.md`).
-- `temp/` is the **in-repo** scratch tree (gitignored, never committed). Two
-  standard uses: local reference clones of external projects, and our own
-  sub-branch worktrees (`temp/<topic>`). It MUST live under the repository
-  path — never a system temp directory (`%TEMP%`, `/tmp`, `os.tmpdir()`): those
-  are wiped on reboot, which throws away everything built there.
-
-## Product Posture (operator decision, 2026-10-12)
-
-Zeta's default is **YOLO** — `tools.approvalMode` defaults to `yolo`
-(`packages/coding-agent/src/tools/settings.ts`), and `tools/approval.ts` falls
-back to `yolo` when the setting is unset. That is deliberate, and it constrains
-future design:
-
-- **Never add another approval layer** to gate normal work — not for paths, not
-  for content classes, not for "risky-looking" operations. Approval fatigue is
-  real: a user who is asked to judge stops judging, flips on YOLO / accept-all,
-  and the gate becomes theater that also spends their attention.
-- **Do not push judgment onto the user** where the product can decide: pick the
-  conservative, standard behavior, state it plainly, and ask only when the
-  alternatives are materially different and the user is the only one who can
-  choose.
-- Rules that must hold — credential placement, brand surface, merge discipline —
-  are enforced as rules and sentinels, never as prompts-for-permission.
-
-## No Visible Helper Windows (operator decision, 2026-10-22)
-
-A black console frame on the user's screen is a defect, not a detail. Helper
-processes exist for our functionality; the user never needs to watch them.
-
-- **Never spawn a console program from a GUI parent without hiding its window.**
-  Windows: `windowsHide: true` (Node/Bun `spawn`) or `CREATE_NO_WINDOW`
-  (`std::process::Command`). This applies to every background child — the Web UI
-  server, the daemon, git probes, LSP/MCP servers, eval kernels, updaters.
-- **The parent decides, not the child.** "Hide only when the parent has no
-  console" is the floor (see `mcp/transports/stdio.ts`,
-  `eval/py/spawn-options.ts`), and a child that is always background — the
-  `serve` Web UI runtime — is hidden unconditionally.
-- **The shipped binary is its own Bun runtime.** A compiled `zetacode` runs
-  `web-ui` scripts with `BUN_BE_BUN=1` (see
-  `commands/web-ui-launcher.ts`); no Node on the user's machine, and no window.
-- Testing may launch a visible terminal when a human needs to read it; anything
-  the product starts on its own is silent and logged to
-  `~/.zeta/run/daemon.log` (or the session log), never on screen.
-
-## OMP Release Sync Policy
-
-Zeta integrates OMP only at complete, official OMP release tags. This is a
-hard release-boundary rule, not a suggestion.
-
-**Cadence: on demand (2026-10-21 owner ruling).** There is no scheduled tag
-sync. A sync happens only when a specific upstream fix or feature is needed,
-and then still as a complete tag merge under every rule below — never a partial
-diff, cherry-pick, branch merge or "just this file". The probe that answers
-"is anything needed" lives in `document/upstream-sync.md` (latest: v18.12.5,
-842 commits / 656 files, nothing release-blocking for 1.4.0). Brand, scope and
-CI sentinels stay in force: they guard merge mistakes, not the cadence. The
-accepted cost is that a long gap makes the next merge large.
-
-- The user must name the exact upstream tag (for example, `v17.2.11`). Never
-  infer a "latest" release or substitute `omp-upstream/main`.
-- **Follow the remote tag; a moved tag is not an escalation.** Verify the exact
-  remote tag name and its peeled commit SHA with
-  `git ls-remote --tags omp-upstream refs/tags/<tag>` — both before starting and
-  at the moment the merge begins — and treat the **remote** as authoritative:
-  upstream re-cutting a tag onto the same release is normal (v18.11.2:
-  `714a6368` → `470b7efb`, one commit apart). Realign a stale local tag with
-  `git fetch --force omp-upstream --no-filter tag <tag>`, **record the old→new
-  SHA in the sync ledger**, and merge the new target. The only case that stops
-  the merge is a tag that moves **after** we have begun merging from a SHA we
-  already verified — then report and re-verify, never force-update our own refs
-  or silently finish a merge against a moved tag.
-- Integration starts from `main` on a short-lived `sync/omp-release/<release>`
-  branch (preferably in an isolated worktree) as a real non-squash merge of
-  the verified tag; afterward `git merge-base --is-ancestor <tag-commit> HEAD`
-  must succeed, proving the full upstream release is in history.
-- Never integrate raw upstream commits, `omp-upstream/main`, arbitrary SHAs,
-  individual files, partial diffs, cherry-picks, rebases, or squash merges;
-  never skip incoming files to ease a sync. `sync/omp` is an unmodified mirror
-  — fast-forward from upstream only, never merged into `main`.
-- Resolve conflicts inside the complete tag merge through documented
-  decisions; Zeta brand/package/Bun/CI/product adaptations are separate
-  commits after the merge. Never use later untagged upstream work to resolve
-  conflicts.
-- **Tests are merged as contract, not as ours-vs-theirs text.** When an
-  upstream commit changes implementation AND its tests (or docs), accept the
-  pair wholesale; keeping a Zeta-side old assertion next to merged upstream
-  behavior tears the contract (v17.2.11: `38b61ae342` moved retry-after delay
-  30s → 200ms while the merge kept our old `delayMs: 30_000` — red CI). Every
-  incoming test file touched by the merge is diffed against its `v<tag>`
-  version and resolved per-file.
-- **No `.omp` compatibility surface.** Zeta's config dir is `.zeta` and
-  `~/.zeta` only; upstream tests/docs carrying `.omp` paths are adapted to
-  `.zeta` during the merge and the decision recorded in the ledger.
-- The product front door (root `README.md`, logo assets, product name,
-  homepage, install instructions, public examples) is Zeta-owned: never skip
-  its upstream history; follow the complete merge with a separate, documented
-  Zeta branding-overlay commit that restores the approved presentation.
-- Every release sync updates `document/upstream-sync.md` with the prior
-  baseline, source tag, source SHA, Zeta starting commit, conflict decisions,
-  checks, and final merge commit. A release sync reaches `main` only after
-  its focused checks and required CI pass.
-- Sync automation must require an explicit `--tag <tag>`, reject branch names
-  and bare SHAs, verify the remote tag before merge, and produce a
-  merge-tree/conflict report before changing a product branch.
-
-Baseline references, the sync procedure, and the upstream OMP porting guide
-live in `document/upstream-sync.md` and `document/porting-from-pi-mono.md`.
-
-### 六阶段管线（摘要）
-
-完整 tag 合并 → 结构修复（scope/catalog/sentinel/lockfile；gate:
-`check-version-consistency` + `check:ts`）→ 品牌 overlay（`bun scripts/brand/
-brand-overlay.ts`，脚本已入库）→ 逐 bucket 测试契约 resolve → brand-check 归零
-+ 全测试绿 → 归纳回规则表/AGENTS。逐阶段执行细节见 `document/merge-playbook.md`。
-
-**合并审阅规则单页**：`document/merge-review.md` — 合并前 checklist、冲突
-决策记录模板、守卫矩阵；Zeta-only 代码哨兵见 `scripts/brand/zeta-sentinels.ts`
-（`bun scripts/check-zeta-sentinels.ts`，CI check job 强制，AGENTS.md 必须链接
-此文件——该链接本身被检查）。
-
-### 上游增量合并规程（v18.2.5 起，唯一合并方式）
-
-**任何涉及 OMP 上游合并的任务（agent 或人），动手前必须先通读
-`document/merge-playbook.md` 的「上游增量合并规程」章节并按其执行**；
-本节只立原则，操作细节以 playbook 为准。
-
-- **只比对上游原生 tag 间差异**（`v18.2.5 → v18.2.6`），永不把"上游分叉后
-  我们的差异"卷进合并计算。这一语义由 git 三方合并自动保证——**前提是
-  merge-base 恰为上一个已集成的上游 tag**。
-- **真 merge commit，禁止 squash**：上游合并一律 `git merge v18.2.x` 双亲
-  提交，保持与上游 commit 谱系永续连接。谱系一断（如 squash 重写），
-  merge-base 退化为远古祖先，theirs 侧退化为全量追赶窗口 diff——v18.2.1
-  →v18.2.4 的 1300+ 冲突与多轮 CI 损伤即此根源。
-- **合并前强制验证**：`git merge-base HEAD v18.2.6` 必须等于上一个已集成
-  tag 的 peeled SHA（v18.2.5 = `3727311702`）；不等即谱系受损，停止合并
-  并排查，禁止带病合并。
-- fetch 用 `git fetch omp-upstream --no-filter tag <tag>` 回填对象
-  （partial clone 老规矩）。
-- 冲突 resolve 按 `document/merge-playbook.md` 契约（upstream-wins + Zeta
-  surface 重应用 + 无白名单全树扫描）。
-
-### 超大量上游同步：压缩式 squash sync【已废弃，勿再用】（2026-09-17 授权，v18.2.5 起废止）
-
-当上游追赶窗口超过 **300 提交**或推送 pack 预计 **>50MB** 时，常规
-"non-squash 双父合并 + 祖先检查"流程在传输层不可行（单包数百 MB 会被
-网络/代理掐断）。此时改用压缩式流程，此条为上方 non-squash 规则的**授权
-例外**，逐次由维护者批准：
-
-1. **基座**：`backup/omp/main`（云端与本地各一份）为上游对象沉淀锚点，
-   每次同步完成后快进到最新 OMP tag，供下次快速同步复用。
-2. **内容合并照常在本地完整执行**（冲突 resolve、六阶段管线、全部门禁），
-   压缩只发生在"写历史"这一步：合并后的最终 tree 以 1~2 个 squash 提交
-   落在 `backup/omp/main` 之上。
-3. **旧 main 保档**：改写前先把原 main 推为 `main-old-<YYYYMMDD>`，
-   旧历史永久保留在远端。
-4. **新 main 上位**：force 推送 squash 提交序列；首个提交 message 带
-   `[skip ci]`，末个提交触发 CI。
-5. **作者信息**：上游提交折叠为统一记录，逐 commit 明细一律回上游仓库
-   （github.com/can1357/oh-my-pi）查阅——本项目是 fork，历史可溯性由上游
-   承载，符合开源协议（保留 LICENSE/NOTICE 即可）。
-6. 首个 squash 提交 message 必须注明基座 SHA 与覆盖的 tag 区间；账本
-   （`document/upstream-sync.md`）照常记录决策与门禁结果。
-
-## Zeta Brand Surface Registry (merge-protected)
-
-Zeta owns its product brand surface. Each upstream OMP merge must re-check
-this table row by row and restore the Zeta canonical form wherever the merge
-pulled an OMP (`π` / `PI_LOGO` / `@oh-my-pi` / `.zeta`) value back in. This is
-a hard merge rule — the v18.0.3 merge (c5ceed6285) silently reverted the ζ CLI
-brand, which this registry exists to prevent. Mechanical enforcement lives in
-`scripts/brand/` (usage: `document/merge-playbook.md`).
-
-| Surface | Canonical | Guard |
-|---|---|---|
-| CLI 终端标题品牌字符 | `ζ`（title-generator.ts） | 上游重引 `π` 即恢复 + 两测试 |
-| CLI welcome/splash/outro 字符画（**2026-10-18 用户定稿，永久冻结**） | 标准工具生成（2026-10-14 规格，`scripts/brand/logo-art.ts`）：mark = FIGlet `ANSI Shadow` 的 `Z`（`Ζ` 的 ASCII 形，即 `ZETA_LOGO`）+ 主行 `Zeta`（`ANSI Shadow`，`ZETA_WORDMARK`）+ 次行 `Linxira-Zeta`（`mini`，`ZETA_SUBLINE`），版本 `v<version>` 在字标下；native/splash 面的字标文本为 `Zeta` / `Linxira-Zeta` | 不接受上游 `PI_LOGO`/`omp` wordmark/π art；`bun scripts/brand/generate-logo-art.ts` 生成、`brand-check.ts` 校验三个常量与生成脚本输出逐字一致（手改一个字符即红）；`brand-rules.ts` MUST_CONTAIN 与 `zeta-sentinels.ts` 同时钉标志与字标的确切行 |
-| `icon.omp` unicode 预设（symbols.ts） | `ζ`（ascii 预设 `zeta`） | 重引 `π`/`pi` 即恢复；nerd 预设 `U+F0D57` 保留（v18.0.10 决议） |
-| `icon.pi`（symbols.ts） | `π` | 保留——pi-provider 图标非品牌 |
-| latex-to-unicode π 条目 | `π` | 保留——数学转换 |
-| 配置目录 | `.zeta` / `~/.zeta` | 无 `.omp` 别名 |
-| CLI bin 命名(**2026-10-15 定稿：一个包一个 bin**) | `@linxiraos/zeta` 的 bin = `zetacode`（**无别名**）；用户可见文案与 `CLI_BIN_NAME` 一律用 `zetacode`；`zeta://`、`.zeta`、`ZETA_*`、包名、`zeta-cli-*` release 资产名、npm 包名均不变 | **连字符兼容名全删**：`zeta-c`/`zeta-cli` 不再是 bin，也不再出现在文案/垫片/安装文件面（安装脚本装的名字就是 `zetacode`）；裸 `zeta` 名属 `@linxiraos/main` 工作台且**只打印 help**（列出 zetawork/zetacode/zetaide）；`APP_NAME`("zeta") 仍是产品身份(配置根/日志名/归因头/splash)——勿把配置/线值扫成 `zetacode`；sweep 正则须排除 `[\w.-]` 后缀（`zeta-cli-*` 资产名、`zeta-capture-*` 之类文件面不动）；**容器内 CLI 垫片**：`Dockerfile`(pi-base 段)只装 `/usr/local/bin/zetacode` 一个垫片，robomp 按名 spawn 该名字(`ROBOMP_OMP_COMMAND` 的取值/默认，现 `zetacode`)——两侧配对由 `scripts/check-robomp-cli-contract.ts` 钉死(CI `check` job) |
-| 伴侣产品 bin(**2026-10-15 定稿：只留三个标准名**) | `zetawork`(`@linxiraos/main`；其 npm bin 为 `zetawork`+裸 `zeta`，裸 `zeta` = 打印 help)、`zetacode`(`@linxiraos/zeta`)、`zetaide`(`@linxiraos/ide`) | **对外只有这三个命令**；连字符兼容名（`zeta-c`/`zeta-cli`/`zeta-work`/`zeta-ide`/`zeta-i`）与旧 editor 名（`zeta-editor`/`zeta-e`/`zetaeditor`）**全部删除**：`@linxiraos/editor` 已无 bin（载荷是 zetawork 内置编辑器的编辑器专用入口 `termide-editor`，按路径被 spawn；TUI 的编辑器走 `zetaide`）；`zeta code` 这类带空格写法不是 bin，任何文案不得出现；**新增** `zetawork web`（本机起 localhost，浏览器里跑**完整** web ui；复用 `zetacode serve` 机器，`zetawork server` 同义） |
-| 工作台与 IDE 包 | `@linxiraos/main`(bin `zetawork`/`zeta`，main/ 独立 Rust workspace)、`@linxiraos/ide`(bin `zetaide`，termide npm 面)、`@linxiraos/editor`(**无 bin**，只发平台叶二进制；载荷 = vendored termide 的**编辑器专用入口** `termide-editor`，2026-10-17 接手该包名（npm 1.2.1 仍为 TTT：旧的连字符编辑器 bin + `ttt.exe`；下一次发布切换为 `termide-editor[.exe]`、bin 消失——该包破坏性变更，见其 README）) | 发布链已全接线：ci.yml 发布链经 workflow_call 派发 main/ide/editor-publish.yml（2026-09-30 起，1.1.24 起实际发版）。**平台叶包内嵌的二进制是入库产物**——发版前必须重编并提交（main/npm/*/bin、editor/termide npm 同理），否则原样带出陈旧二进制（v1.1.25 事故：发的是 1.1.23 的 zeta.exe，v1.1.26 补丁修复）；editor 叶包的载荷是 `termide-editor[.exe]`（`cargo build --release --locked -p termide --bin termide-editor`，Windows 侧加 `--target x86_64-pc-windows-gnu`，拷进 leaf `bin/`，见 termide/VENDOR.md），`scripts/ci-release-publish.ts --editor` 在叶包缺载荷时**拒绝发布**而不是发包空壳；release 资产名（`zeta-work-*`/`zeta-ide-*`/`zeta-editor-*`/`zeta-cli-*`）属文件面，保持原样 |
-| 内部文档 URL scheme | `zeta://`（唯一；`zeta://docs` 根别名保留） | 出现 `omp://` 即全树 sweep（代码/提示词/docs 语料/测试 fixture）；v18.2.5 起不再保留 alias handler，`brand-check` MUST_NOT_CONTAIN 强制 | 
-| **Release 资产名（更新器 ↔ 发布链）** | `zeta-cli-<os>-<arch>[.exe]`（musl: `zeta-cli-linux-musl-*`） | 真源 `packages/utils/src/release-assets.ts`；守卫 `bun scripts/check-release-asset-names.ts`（CI check job）。**资产名不跟 `CLI_BIN_NAME`**——`zetacode` 是命令面，资产保留文件面 `zeta-cli-*`：v1.1.27 更新器按 bin 名拼 `zetacode-<os>-<arch>`，二进制回退下载对每个用户 404（旧版 1.1.27 硬编码 `zeta-cli-*` 反而是对的） |
-| npm scope | `@linxiraos/*`（pi-coding-agent→zeta 等） | 上游 `@oh-my-pi/*` 全量改写（driver `OMP_SCOPE` 必须保留 `@oh-my-pi/` 字面量，MUST_CONTAIN 守护） |
-| Native 版本机制 | `pi_natives_build_version()` + `__piNativesBuildVersion` 值戳 | v18.3.3 起取代逐版本哨兵名；`check-version-consistency.ts` 钉机制符号而非版本派生名 |
-| Native Tokio 安装导出 | `__ompInstallTokioRuntime` | crate/index.js/loader 三方一致；勿 sweep 成 `__zeta*`（v18.0.10 改断，Tokio 静默不装） |
-| `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
-| 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
-| 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |
-| 安装提示 URL | `https://linxira-os.github.io/install.sh`（POSIX）/ `install.ps1`（Windows） | **我们自己的站**（与 `scripts/install.sh`/`install.ps1` 同源，从 GitHub Releases 拉 `zeta-cli-*`）；上游 `omp.sh/install` 不再出现在任何用户可见提示里（2026-10-13 起，`installerHint()` 两侧成对改，见 `cli/update-cli.ts`） |
-| **遥测导出（2026-10-10 定稿）** | **硬关闭**：产品门控 `TELEMETRY_EXPORT_ENABLED = false`（`main.ts`），`telemetry.otlpExportEnabled` 设置**已删除**（原先默认 `true`） | 我们没有遥测服务端，无处处理事件——不是默认关，是**没有开关**：任何 `OTEL_EXPORTER_OTLP*` 端点都不导出。三重守卫：MUST_CONTAIN 钉死常量与调用点、MUST_NOT_CONTAIN 禁止设置键复活。等自建采集端后**有意识地**加回，勿在合并中被动恢复 |
-| OTLP `service.name` 兜底 | `zeta` | 合并会带回 `oh-my-pi`；用户在自建 OTLP 里看到的身份面 |
-| **`OMP_*` 环境变量（2026-10-10 裁定：暂不改）** | 保持 `OMP_*` | **190 个变量、约 2000 处引用**，且多数是 `docs/environment-variables.md` 里文档化的用户配置项。一次性改名会（a）破坏用户现有配置与脚本（b）要求生产者/消费者同时改，漏一处即静默失效（2026-10-10 的 `bin: "omp"` 夹具事故就是这个成因）。正确路径是**读旧写新**的分阶段迁移，需独立方案与守卫后再动。`brand-check` 现有规则**不覆盖** env 名，故合并不会误扫，也不会误报 |
-| 品牌残留守卫 | `bun scripts/brand/brand-check.ts`（已进 CI check job） | 机械规则进 `scripts/brand/brand-rules.ts`，散文只留判断 |
-| 产品前门（README/logo/名称/主页/安装文档） | Zeta 产品面 | 完整合并后单独 branding-overlay commit |
-
-**启动字符画定稿（2026-10-18 用户裁定）**：`packages/tui/src/prompt/welcome.ts` 的
-`ZETA_LOGO` / `ZETA_WORDMARK` / `ZETA_SUBLINE` 与 `scripts/brand/logo-art.ts` 的输出**就是
-最终稿，永久冻结**——不再讨论字形美观、不再换字体、不再改宽度或渐变。合并带回了别的画就
-按本表恢复；任何"字符画看起来断了/像别的字"的判断一律作废，除非用户**再次明确要求**修改。
-判据仍是 `brand-check` 的逐字校验（手改一个字符即红）。
-
-## Post-Merge Release-Surface Checklist (merge damage classes)
-
-每次 OMP release 合并都反复砸坏同一批 release surface：merge 本身"成功"，`main`
-却已不可构建。推送 sync 分支前必须逐类检查（v18.0.9 全部命中）。
-
-| # | 损伤类别 | 症状 / 规律 | 修复规则 |
-|---|---|---|---|
-| 1 | root `workspaces.catalog` 的 `@linxiraos/*` 键被覆盖：版本写成上游 OMP 版本（v18.0.9 曾写 8 个键为 `18.0.9`），或键名被改回陈旧旧名（`hashline`/`omp-stats`/`pi-coding-agent`/`snapcompact`） | CI 每个 job 死在 `Run ./.github/actions/bun-install`：`No version matching "18.0.9" found for specifier "@linxiraos/pi-natives"` —— 版本线损伤指纹，不是测试失败 | 全部 13 个键 = 当前 Zeta 统一键名 + 版本线；`bun scripts/check-version-consistency.ts` 验证 |
-| 2 | Cargo workspace 版本 + natives 版本机制被拉回 OMP 线（`Cargo.toml` workspace version、`crates/pi-natives/src/lib.rs` 的 `pi_natives_build_version()` + `__piNativesBuildVersion` 值戳、committed bindings `packages/natives/native/index.{js,d.ts}`） | `check-version-consistency.ts` 报 `expected 1.1.5` / `missing __piNativesBuildVersion` | `bun scripts/set-version.ts <当前 Zeta 版本>` 整线对齐，再 `bun install` 刷新 lockfile |
-| 3 | OMP 包名经机械 scope 改写泄漏（上游包名 `@oh-my-pi/omptype` → `@linxiraos/omptype`，而 Zeta 发布名是 `@linxiraos/pi-omptype`） | `bun check:ts` 报 `Cannot find module '@linxiraos/omptype'`；npm registry 无此包 | 全库 grep：每个 `@linxiraos/<name>` import 必须能在 `workspaces.catalog`/npm 找到；对上游包名做映射改写，不是 scope 替换 |
-| 4 | 冲突解决时静默丢弃 Zeta-only 代码。已知清单：AgentSession 会话层 mode API（`ModeId`/`getModeState`/`enterMode`/`exitMode`/`enterPlanMode`/`exitPlanMode`/`enterGoalMode`/`exitGoalMode`/`enterVibeMode`/`exitVibeMode`/`getStateVersion`/`bumpStateVersion`/`getPlanFileContent`/`resetModeTransientState`/`flushPendingModelSwitch`/`restorePlanPreviousModel` + `#stateVersion`/快照字段 + `state_version_changed` 事件）；`sdk.ts` 的 `channelSend`/`workspaceRun`/`imControl` sinks；IRC auto-reply（`setIrcAutoReplyListener` + `IrcBridgeHost.onAutoReply` 接线）；`utils/dirs.ts` tracking 路径 helpers | mode API 刻意存在两层：`InteractiveMode`（CLI）**和** `AgentSession`（web-gateway/ACP 外部客户端，headless）。会话层丢失只让 `web-gateway/agents.ts`/`zeta-server.ts` 编译失败，测试跑不到——`bun run check:ts` 是探测器 | 逐项恢复（上游无这些 API，源是合并前 Zeta 基线），恢复后 `check:ts` 零错误 |
-| 5 | 本地预编译 natives `.node`（不入库）落后于合并后 bindings（合并新增 natives 函数如 `vcsGitDiscover`，本地旧二进制缺符号） | 本地测试报 `api().vcsGitDiscover is not a function`（status-line/mode 测试成批失败）；CI bazel 现场构建，无此问题——纯本地噪声 | 本地重建：`packages/natives` `bun run build`（Windows 需 VS Build Tools 开发者 shell；WSL：`pacman -S bun` + glibc ≥ 2.44 + ninja；rustup 慢用 `RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static`） |
-| 6 | 上游测试携带 `.omp` 配置目录契约原样合入（`dirs-cache` 的 `$XDG/omp/cache`、`acp-agent`/`mcp-config-scope-dedup`/`sdk-skills`/`tools/gh` 的 fixture 路径），源码只解析 `.zeta` | 只在 Linux/XDG 分支生效：Windows 本地全绿，push 云端 Linux CI 才爆——`bun test` 全绿 ≠ 合并适配完整 | 每个触碰的测试文件对照 `v<tag>` 版本逐文件 resolve；grep `"\.omp"`（排除刻意保留的 `.omp-plugin` 与 `~/.omp` 只读探测）必须为 0 |
-| 7 | 上游 CI 基础设施原样合入：`runs-on: omp-kata`（上游自有 runner label，Zeta 仓库无此 runner）及上游产物命名（如 release 矩阵的 `binaries/omp-*`，v18.1.10 曾致 darwin/linux binary job 首个 tag run 即崩） | 非 tag run 跳过受影响 job 时全绿；tag release run 的 job 无限排队（runner 不存在）或冒烟步骤找不到产物 | `runs-on` 一律 GitHub 云（`ubuntu-22.04`；macOS 已整体退出发布面——2026-10-01 裁定，web_ui_build 矩阵与 bazel-cache-warm warm_darwin 同步移除，无 darwin 消费方不得回引）；产物命名以 `scripts/ci-release-build-binaries.ts` 与安装器（`zeta-cli-*`）为准；守卫：`grep omp-kata .github/workflows/ci.yml` 只允许注释，`bun scripts/brand/brand-check.ts` 归零；机械对账守卫：`bun scripts/check-ci-surface.ts`（2026-09-30 新增，job 清单/needs 接线/产物名三查 + matrix 键覆盖，见下表第 14 类） |
-| 8 | 品牌字符串替换改变 rustfmt 折叠决策：`"oh-my-pi"`→`"zeta"` 等缩短让原本超宽的多行结构体字面量/表达式落回 `max_width=100` 内，rustfmt 期望翻转（v18.1.10 `pi-vcs/git/mutate.rs` 的 `SignatureRef`）。被三层掩蔽：validate job 在 PR 事件整跳过、release run 只暴露第一个失败的 step、bazel `*.rustfmt.ok` 动作只在缓存 miss 时执行 | `Validate Rust workspace (bazel)` 挂在最后一步 `Rustfmt`（`pi-<crate>.rustfmt.ok` FAILED，exit 1）；测试与三段 clippy 全绿时才轮到它 | 合并适配 commit 后、push 前跑 `cargo fmt --all --check`（本地 rustfmt 与 CI 结论在此类构造上一致）； offender 直接 `cargo fmt --all` 归零。注意 rustfmt.toml `ignore` 名单（brush-core/pi-builtins）且 bazel 只对有 rustfmt 规则的 crate 设门禁 |
-| 9 | 测试文件取自上游但 `__omp_*` 运行时全局符号未随 A3 sweep 改名（v18.1.21 命中：`runtime-global-dispose` 的 `__zeta_import__`/`__zeta_helpers__`/`__zeta_session__`，js-executor/python-bridge/prelude 的 `__zeta_run_id__`/`__zeta_tools__` 等）。反向陷阱：上游**内部协议**符号（`__omp_with_call_site__`、`__omp_tool_bridge__`、`__omp_final_expr__` 负断言 marker）源码并未 sweep，不能机械全改——按"源码实际定义哪个名字"逐符号判定 | 测试报 `Expected "function", Received "undefined"` 或 rejects，且该套件在干净分支同样红；grep 测试树 `__omp_[a-z]` 与 `src/` 定义对照 | sweep 规则：源码注入的 global → `__zeta_*`（与 `runtime.ts`/`prelude.py` 一致）；上游进程间协议名/负断言 marker → 保留上游名。每符号在 src 里 grep 确认 provider 后再改测试；改完跑该 eval/core bucket |
-
-| 10 | 发布链组装竞态与校验脱节（v1.1.16）：`release_github` 不依赖 desktop jobs → desktop artifacts 未上传时下载 0 安装包；裁剪/恢复平台时 preflight 期待数、checksums glob、files glob 未三处同步；错用"删校验"让链变绿 | GH Release 缺桌面包或整环失败：`Expected at least N zeta-desktop-*, found 0`；或校验消失后**静默漏发** | `release_github.needs` 必须含 `desktop_linux`+`desktop_windows`；平台裁剪/恢复按 `document/release.md` 损伤类别 5/6 三处同步；**严禁删 preflight 校验**；判定 CI 绿必须核对 run 的 jobs 数（单 job 的 `Zeta Nix` run 不是主流水线） |
-| 11 | **跨面 token 只扫一面**（v18.4.3 CI 首轮六红同根）：同一 token 存在于 producer/consumer 两侧——worker argv 协议（源 `__omp_worker_*` vs cli.ts 只派发 `__zeta_worker_*`，子进程全量跑成普通 CLI，eval worker init 10-15s 超时级联 "JS context disposed"/"No models available"）、env 契约（测试设 `PI_CODING_AGENT_DIR`，JS/Rust 源只读 ZETA_*，Rust crash_handler 曾整面漏扫）、UA 正则 `/^omp\/\d/`、CLI 提示 `Run \`omp --resume\``、XDG 目录名、测试夹具写死上游版本坐标（15.10.x vs 1.x 线） | `check:ts` 全绿但运行时/CI 才炸：eval 系测试成片超时、子进程报 "No models available"、CANTOPEN、断言含 `omp` 字面量 | 清扫必须 producer+consumer 成对；`scripts/brand/brand-rules.ts` MUST_NOT_CONTAIN "跨面 token 对"组常驻守卫（`__omp_worker_`/`PI_CODING_AGENT_DIR`/UA omp 模板与正则/`` Run `omp ``），命中即红；版本相对夹具一律从 `packageJson.version` 推导；**Cargo.lock 任何改动（含版本线修复）之后必须重刷 MODULE.bazel.lock**（crate_universe 哈希链，失新则 freshness job 红，取其上传工件回提） |
-| 12 | **CI 双态切换语义破坏**（2026-10-03 双态改造引入）：测试类 job（`rust_validate`/`test_workspace`/`test_coding_agent_*`/`test_ts_native`/`test_smoke`）的发布态跳过是 `needs: [release_metadata]` + `if: is-release != 'true'`——把 `release_gate.needs` 改回引用这些 job（release run 里 skipped → gate 永不 green 或空转），或在发布链 job 的 if 里引用测试 job 的 result；或把 skip 当"测试已绿"——发布态跳过不产生任何测试信号（守卫类 job `check` 在发布态**仍执行**，只跳过其中的 type-check 步骤） | release run 里 `release_gate` 卡 skipped/永不触发；或发布 run 缺测试佐证就 build+publish | `release_gate.needs` = `[release_metadata, check, bazel_lock, native_addons, native_addons_cross, install_methods]`（测试类 job 一律不在其中）；发布前提 = **起始提交（被发布代码的真实来源）push-run 绿 + 分支/tag 原子推送**（`release-v2.ts`；逃生口 `--no-ci-wait` 跳过起始校验；tag 必落在 bump 提交上，故发布 run 落免取消组）；**bump/tag 阶段不再跑任何测试类 job**（原子推送的 release run 已 `is-release=true`）；`check:ts` 等本地门禁仍是合并前置，任何模式都不豁免 |
-| 13 | **发布面二进制陈旧**（v1.1.25 事故）：`main/npm/main-{windows,linux}-x64/bin/`、editor/termide npm 叶包内的二进制是**入库提交产物**，发布 job 只打包 checkout——没人重编提交就原样带出旧版（1.1.25 带出 1.1.23 的 zeta.exe，`--version` 与功能面双错） | npm 装的新版本 `zeta --version` 报旧版本号；工作台新功能"发布了但用户没有" | 发版前重编并提交全部平台叶包内嵌二进制（Win GNU target + WSL linux target；版本戳必须等于将发版本）；`zeta-work --version` 本机验戳后才许 tag | 另：`@linxiraos/editor` 1.2.2 起换 TTT 载荷为 `termide-editor[.exe]` 并去掉旧的连字符编辑器 bin；叶包未构建则 `--editor` 发布拒绝。
-| 14 | **matrix 键只定义了一半**（v1.1.28 首次发现）：`runs-on: ${{ matrix.os }}`，而 `include` 里只有部分项带 `os:`（macOS 退出发布面时改矩阵留下的残迹） | GitHub **无法展开整个矩阵** → job 在 run 里**根本不存在**（日志中显示为 `- Release binary: ${{ matrix.target_id }}` 这类未渲染模板），而 `needs.<job>.result == 'success'` 永远不成立 → `release_native_leaves` / `release_npm` / `release_github` 三个发布 job 全被**跳过**，run 判红却**没有任何 step 失败**；`zeta-cli-{linux,linux-musl,win32}-x64` 资产缺失，npm 与 GH Release 全部没发 | `runs-on` 一律写字面量（所有腿交叉编译到 `ubuntu-22.04`，与上游同形）；`check-ci-surface.ts` 新增 `matrix-key-coverage` 检查（job 读取的每个 `matrix.<key>` 必须被**所有** include 项定义），命中即 exit 1 |
-
-**Triage 指纹**：所有 CI job 死在 `Run ./.github/actions/bun-install` ⇒ 版本线/catalog 损伤（第 1、2 类），先跑 `bun scripts/check-version-consistency.ts`，不要去翻测试日志。tag run 的 binary/release job 崩或排队数小时 ⇒ 第 7 类，查 `runs-on` 与产物命名。`Validate Rust workspace` exit 1（非 3）⇒ 构建/格式门禁（第 8 类），`cargo fmt --all --check` 全量对账；exit 3 ⇒ 测试失败，看 test result 行。**发布 run 判红但没有任何 job 失败（只有 skipped）** ⇒ 第 14 类：先 `gh run view <id> --json jobs` 找「本该出现却缺席 / 显示为未渲染 `${{ matrix.* }}` 模板」的 job——缺席的 job 不会报错，只会让依赖它的发布 job 集体 skipped。
-
-**推送 sync 分支前的最低门槛**：`bun scripts/check-version-consistency.ts` 零漂移 + `bun run check:ts` 零错误 + `bun scripts/check-scope-imports.ts` 归零 + `bun scripts/check-license-map.ts` 归零（许可分层：`main/`=AGPL-3.0-only、其余 MIT、vendored 目录必须带 LICENSE——改错一个 manifest 或漏一个 SPDX 头即红）（第 3 类的可执行形式：每个 `@linxiraos/*` specifier 必须真能解析；v18.9.1 教训——泛 scope 替换产出过 `@linxiraos/pi-coding-agent`（真名 `@linxiraos/zeta`）与 `@linxiraos/snapcompact`（真名 `@linxiraos/pi-snapcompact`），brand-check 全绿但运行时/tsc 全炸）+ `bun scripts/brand/brand-check.ts` 归零（exit 0）+ 动过 crates/ 时 `cargo fmt --all --check` 归零 + `bun scripts/check-ci-surface.ts` 归零（exit 0）。六者都绿才允许 push。
-
-## Documentation Layout
-
-- `docs/` — **runtime documentation, packaged with the product**: embedded
-  into binaries and the npm bundle (`PI_DOCS_EMBED`), served over
-  `zeta://docs/`. Covers tools, skills, protocols, configuration, Zeta
-  features.
-- `document/` — **internal development and process documentation, never
-  packaged**: `roadmap.md`, `upstream-sync.md`, porting guides, merge
-  playbook, architecture internals. Root `README.md` is the product front
-  door and links both trees; `web-ui/README.md` is the web-ui front door.
-- Moving a file `docs/` → `document/` removes it from the packaged corpus
-  automatically (`generate-docs-index.ts` globs only `docs/`); update every
-  cross-reference. Released CHANGELOG entries are immutable and keep their
-  old links.
-- Rule of thumb: how the *code* works or how to *use* the product → `docs/`;
-  *why* decisions were made, dev process, release mechanics, internal plans →
-  `document/`. `roadmap.md` lives in `document/` — do not recreate it under
-  `docs/`.
-- **`document/` 内部规范(maintainer 裁定,2026-09-28)**:`document/` 只放
-  三类——①当前执行计划(新计划生效即删旧计划,一律不并存);②未开发的
-  后期规划(登记进 `roadmap.md` 的 Deferred Queue,不另立计划文);③架构
-  设计文档(面向其他开发者讲清代码如何运作)。违反形态:已完成/被取代的
-  计划滞留——发现即删,结论沉淀进规则表、注册表或 roadmap。
-
-## Planning Discipline
-
-Agent sessions follow the product's plan-mode doctrine
-(`packages/coding-agent/src/prompts/system/plan-mode-active.md`): a plan is an
-**execution spec, not a design doc**. Decision-completeness > brevity — a plan
-that leaves an implementer choice open has failed; padding sections
-(Non-Goals / Alternatives / Risks) are noise, not rigor.
-
-- **Decision-complete.** Every load-bearing choice (approach, exact target,
-  signature, path, fallback) is stated; a fresh implementer executes
-  top-to-bottom without re-deriving. Depth follows change. Multi-round plans
-  are amended in place, never re-derived from memory.
-- **Self-contained.** Never reference the planning conversation; a different
-  task gets a new plan file.
-- **Storage routing.** Plan artifacts are session-scoped product state,
-  written under the userdata root (`local://` resolves to the session
-  artifacts dir under `~/.zeta`), never into the repository working tree.
-  With Tracking enabled, the tracking layer mirrors the durable plan into
-  `<project>/.zeta/tracking/` — the only project-local copy.
-- **Prune completed plans.** Once a plan's work has landed, its document is
-  deleted; durable outcomes are encoded in AGENTS.md registries and the
-  roadmap. `document/` stays lean: core references plus the one active spec
-  per in-flight track.
-
-## Default Context
-
-This repo contains multiple packages, but **`packages/coding-agent/`** is the primary focus. Unless otherwise specified, assume work refers to this package.
-
-**Terminology**: When the user says "agent" or asks "why is agent doing X", they mean the **coding-agent package implementation**, not you (the assistant). The coding-agent is a CLI tool — questions about its behavior refer to code in `packages/coding-agent/`, not your current session.
-
-### Package Structure
-
-| Package                 | Description                                                                             |
-| ----------------------- | --------------------------------------------------------------------------------------- |
-| `packages/ai`           | Multi-provider LLM client with streaming support                                        |
-| `packages/catalog`      | Model catalog: bundled models.json, provider descriptors, model identity/classification |
-| `packages/agent`        | Agent runtime with tool calling and state management                                    |
-| `packages/coding-agent` | Main CLI application (primary focus)                                                    |
-| `packages/tui`          | Terminal UI library with differential rendering                                         |
-| `packages/natives`      | Bindings for native text/image/grep operations                                          |
-| `packages/stats`        | Local observability dashboard (`zeta-c stats`)                                          |
-| `packages/omptype`      | ArkType-compatible schema validation with a lazy JIT runtime                            |
-| `packages/utils`        | Shared utilities (logger, streams, temp files)                                          |
-| `crates/pi-natives`     | Rust crate for performance-critical text/grep ops                                       |
-| `packages/channels`     | IM channel adapters (WeChat/Feishu/Telegram) + ChannelHost coordinator, embedded in `zeta serve` |
-| `packages/wire`         | RPC/event wire protocol between clients (sdk) and the agent runtime                    |
-| `packages/mnemopi`      | Memory/recall subsystem consumed by the agent runtime                                   |
-| `packages/metaharness`  | Eval harness plumbing (internal; rides the version line, rarely user-visible)          |
-| `packages/browser-relay`| Browser relay companion package for the web extension                                   |
-| `packages/collab-web`   | Collaboration web surface assets                                                        |
-| `packages/typescript-edit-benchmark` | Internal TS edit-path benchmark (dev only)                                   |
-
-### `plugins/` — 插件目录（两层）
-
-插件代码/登记一律放 `plugins/`，不放 `packages/`（`packages/` 是随产品一起
-构建发布的运行时包；插件是可独立安装的扩展单元）。完整体系见
-`document/plugin-system.md`。
-
-- **`plugins/official/<plugin-id>/`** — 第一方插件：Zeta 移植/维护的开源插件
-  或自研插件，源码入库。依赖一律改写为 `@linxiraos/*`（上游
-  `@earendil-works/*` 的改写映射见 `plugins/official/README.md`）。先例：
-  `pi-messenger`（源自 nicobailon/pi-messenger，peer/源码已改写并迁入）。
-- **`plugins/community/`** — 社区插件层：只放机器可读的指针文件
-  （`<plugin-id>.json`/`.toml`：source/publish/install/compat/category），
-  不放代码。
-- **惯例**：每个 official 插件目录自带 `plugin.json`（清单）、`README.md`、
-  `tests/`；层级文档固定两份——`plugins/official/README.md` 是官方插件标准
-  模板与依赖改写规范，`plugins/official/INDEX.md` 是官方插件登记表（随构建期
-  快照打包分发，新增/变更插件必须同步登记）；`plugins/community/INDEX.md` 是
-  社区指针登记表。收录新插件：先登记 `INDEX.md`，再落目录/指针文件。
-
-### Code Location Rules — desktop vs web-ui vs gateway
-
-Three top-level surfaces have **distinct homes**. Put code only where it belongs;
-never guess from a feature's name. When a task spans surfaces, split the change
-across the correct directories.
-
-| Surface | Location | Engineering rules |
-|---|---|---|
-| **Desktop shell** (Electron: tray, autostart, window lifecycle, serving the built web-ui + stats) | repo root `desktop/` | Standalone Electron project, **not** a Bun workspace package. Own `package.json`, `package-lock.json`, `electron-builder.yml`, `scripts/`, `src/main.ts`. Install with `npm`/`npm ci`, build with `electron-builder`. Code here talks to the backend only over HTTP (`http://127.0.0.1:30141` web-ui, `http://127.0.0.1:3847` stats). It must never import from `packages/*` or `web-ui/*` source — it launches the built runtime via `resolveServeCommand()`. |
-| **Web UI** (Next.js app: components, pages, client libraries) | repo root `web-ui/` | Standalone OMP Web snapshot, **not** a root Bun workspace package. Own package manager + lockfiles; read `web-ui/AGENTS.md` for its rules. All React components/pages/hooks/client helpers live here (`web-ui/components/`, `web-ui/lib/`, `web-ui/hooks/`). Talks to the backend only via `fetch` to the gateway `/api/*` on `http://127.0.0.1:30141`. Never place `.ts` server code or Electron code here. |
-| **Server-side gateway** (REST API handlers behind the web-ui runtime) | `packages/coding-agent/src/server/web-gateway/` (one handler module per resource, e.g. `settings.ts`, `models.ts`, `open.ts`, `web-config.ts`, `terminal.ts`) | Bun runtime code. Route regexes live in `packages/coding-agent/src/server/web-gateway.ts` (`*_RE` constants + dispatch in `webGatewayFetch`). `terminal.ts` is the WS precedent (upgrade wiring in `zeta-server.ts`, one-time tickets for browser WS auth) — new WebSocket endpoints follow its pattern. Handler modules import from `packages/coding-agent/src/**` only. |
-| **Channel / bot runtime** (WeChat/Feishu/Telegram, plan-image, workspace routing) | `packages/coding-agent/src/channels/` | Bun runtime, embedded in `zeta serve` (`packages/coding-agent/src/server/zeta-server.ts`). Channel tools (`channel_send`, `workspace_run`) live in `packages/coding-agent/src/tools/`. |
-| **Config layer** (web.yml: tray/autostart/channels/remote) | `packages/coding-agent/src/config/web-config.ts` | Bun runtime, read by both the gateway and (via `zeta serve` HTTP) the desktop shell. |
-
-> **方向变更（2026-10-15 用户裁决）**：`web-ui/` **冻结**——不再作为独立桌面应用分发
-> （Electron 桌面长期起不来：`The Zeta service did not become ready in time.` /
-> `The running Zeta service at http://127.0.0.1:30141 did not answer.`，根因是"外部服务端口
-> 就绪"这条链），只保留为 **zetawork 桌面应用内部可选的渲染后端**；**桌面应用本体 =
-> zetawork**，其家迁到 `desktop/`（现有 Electron 外壳退役中）。上表的 desktop/web-ui 分工
-> 按此方向读：Electron 行与"内嵌 Next standalone"链路属**待退役**遗留。渲染方式（原生
-> ratatui ／ Web UI）由用户在应用内选择；启动后保底由工作台自己拉起/内嵌 `zetacode`，
-> **不依赖外部服务端口就绪**。
-
-**Dependency direction (never invert):**
-
-```
-desktop/ (Electron)  ──HTTP──▶  zeta serve (zeta-server.ts)  ──▶  packages/coding-agent/src/**
-web-ui/ (Next.js)    ──HTTP──▶  webGatewayFetch (/api/*)     ──▶  packages/coding-agent/src/server/web-gateway/
-```
-
-**Desktop ↔ Web UI relationship (nested, not alternatives):** the desktop app is
-not a second UI — `desktop/` is an Electron shell that **embeds a standalone
-build of `web-ui/`** plus the compiled `zeta` runtime and a bundled Node. One
-package, three layers:
-
-```
-build (desktop/scripts/prepare-runtime.mjs)
-  web-ui: npm run build (NEXT_OUTPUT_STANDALONE=1) ─▶ .next/standalone + .next/static + public
-  zeta:   bun run build (packages/coding-agent)    ─▶ zeta binary + Node executable
-  ─▶ staged to temp/desktop/staging/zeta/, folded into the Electron app via extraResources
-
-runtime (desktop/src/main.ts)
-  spawns `zeta serve` (ZETA_DESKTOP=1) ─▶ serves the embedded web-ui
-  window.loadURL(WEB_UI_URL = http://127.0.0.1:30141) ─▶ web-ui /api/* ─▶ webGatewayFetch ─▶ gateway
-```
-
-- **One source, two outputs**: the web-ui the desktop embeds is the same source
-  and the same build as the browser UI (`NEXT_OUTPUT_STANDALONE=1` makes it a
-  self-contained deployment). There is no separate desktop UI codebase —
-  `desktop/` holds only the Electron shell.
-- **Build-time nesting** (`desktop/scripts/prepare-runtime.mjs`): runs the web-ui
-  build, then stages `.next/standalone` + `.next/static` + `public` next to the
-  compiled `zeta` binary and `process.execPath` as the bundled Node. The target
-  machine needs neither Bun nor Node.
-- **Runtime**: `desktop/src/main.ts` launches `zeta serve` and points the Electron
-  window at `WEB_UI_URL` (`http://127.0.0.1:30141`); the shell and the web-ui never
-  share code — only the HTTP loopback. Web-ui and desktop each depend on the
-  gateway side (`packages/coding-agent/src/**`) via HTTP, never via imports.
-- **CI** (`desktop_linux`/`desktop_windows` jobs): `npm ci` (web-ui
-  + desktop deps) → `npm test` (platform contracts) → `npm run dist` (= build +
-  `prepare:runtime` + `package-desktop`) → smoke → upload `zeta-desktop-*` assets. macOS exited the release surface 2026-10-01 — no `desktop_mac` job; do not reintroduce darwin consumers.
-
-**Hard rules:**
-- Electron/Tray/autostart code goes in `desktop/src/main.ts` — never in `web-ui/`, never in `packages/`, never in a new directory under `packages/coding-agent/desktop/` (that path does not exist).
-- React components/pages/hooks go in `web-ui/` — never in `packages/*`, never in `desktop/`.
-- Gateway REST handlers go in `packages/coding-agent/src/server/web-gateway/` and are registered in `web-gateway.ts` — never inline in `web-ui/` or `desktop/`.
-- `desktop/src/main.ts` already owns `resolveServeCommand()`, `createWindow()`, `buildMenu()`, `boot()`, and the `WEB_UI_URL`/`STATS_URL` constants. Extend it in place; do not rewrite it wholesale.
-
-**Catalog import convention**: code in this repo imports catalog _values_ (bundled models, model-thinking helpers, identity, descriptors, model manager/cache) from `@linxiraos/pi-catalog/<module>` — never via `@linxiraos/pi-ai`. The pi-ai barrel re-exports only the model/effort _types_ its own signatures use (`Model`, `Api`, `ThinkingConfig`, `Effort`, …); type-only imports of those from `@linxiraos/pi-ai` are fine.
-
-## GitHub
-
-- Before posting a GitHub comment or creating an issue, MUST show the target and proposed text and obtain user confirmation. An explicit instruction to post supplied text to a specified target already counts as confirmation.
-- A request to address or fix PR feedback permits drafting replies, not posting them without confirmation. A request only to get or check comments is read-only.
-- When authorized to resolve review feedback, MUST verify the fix, obtain approval for a factual reply citing the change and verification, and post it in the existing thread before resolving. NEVER resolve if the reply is unapproved or posting fails.
-- Permission to work on a PR does not authorize unrelated comments or issue creation.
-
-### Pull requests
-
-
-When authorized to create or edit a contributor-submitted PR, follow the checklist below. RoboOMP-managed PRs follow their dedicated workflow and enforced body format in `python/robomp/src/prompts/system_append.md` instead.
-
-- MUST read `CONTRIBUTING.md` and `.github/PULL_REQUEST_TEMPLATE.md` first. Preserve the template sections and checklist, including when shortening an existing description.
-- MUST obtain at least one sentence written by the contributor in their own words explaining what changed and why, as required by `CONTRIBUTING.md`. If it is missing, ask the contributor; NEVER generate a substitute. Preserve that sentence during edits.
-- For user-facing changes, MUST follow the [Changelog](#changelog) attribution rules. Internal issue fixes keep their issue links. For external contributions, add the PR link and contributor credit after GitHub assigns the number, then push the entry before marking the changelog checklist item complete.
-- MUST read back the published PR description after creating or editing it. Check only verified checklist items; explain skipped or inapplicable checks in `Testing`.
-
-## Parallel Agent Branches (2026-10-20 用户立规)
-
-多子代理并行开发的标准流程，**每一条都是硬规则**：
-
-1. **每个子代理自建 worktree + 分支**（`temp/<topic>` ← `feat/*`/`fix/*`/`chore/*`），
-   根 checkout 始终干净停在 `main`；子代理不得推送、不得合并 `main`、不得打 tag。
-2. **本地先合、跑通测试**：父代理把各分支按依赖顺序合入一个
-   `chore/integration-<version>` 分支，解决冲突后跑本地门禁——
-   `check-version-consistency`、`check-ci-surface`、`check-workbench-bundles`、
-   `check-scope-imports`、`brand-check`、`bun run check:ts`、`cargo fmt --all -- --check`
-   （用 `main/rust-toolchain.toml` 钉的 1.97.1）——以及受影响套件的测试。
-3. **推分支、跑 CI**：本地绿才推 `chore/integration-<version>`，并用
-   `gh workflow run ci.yml --ref <branch>` 跑**一次**分支 CI；CI 覆盖本地做不到的
-   多系统/原生构建/打包面（`makensis`、`appimagetool`、`makepkg`、bazel natives）。
-4. **新功能必须带测试**：没有对应测试的功能改动不进整合分支；环境性失败必须在
-   报告里给出「基线同样红」的证据，不得以 `skip` 或删除断言换取绿。
-5. **zetacode 新特性必须写进 `docs/`**：`docs/` 是随产品打包的运行时文档
-   （`zeta://docs`）。新的 CLI 子命令/标志、扩展 API、工具、内部 URL 面都要在
-   `docs/` 对应文件补齐，不能只留在 CHANGELOG 或代码注释里。
-
-## Feature Branch Workflow (mandatory)
-
-Any new-direction development (new features, new surfaces, refactors that are
-not pure fixes to `main`) MUST follow the offline-branch workflow:
-
-1. **Create a local offline branch first** — never develop new directions
-   directly on `main`. The branch name MUST be designed up front when the
-   feature plan is written (e.g. `feat/web-ui-next`, `feat/<scope>`); plans
-   MUST name their branch.
-2. Work and commit on that branch locally until functionally complete.
-3. **Before EVERY push of an integration branch** (`sync/omp-release/*`,
-   `port/*`, `feat/*`, `chore/*`): merge the latest `main` into it first
-   (`git merge main`), then run the local minimum gate —
-   `bun scripts/check-version-consistency.ts`, `bun run check:ts`,
-   `bun scripts/check-lsp-servers.ts` (the coding-agent and termide LSP tables
-   are generated from `lsp/servers.json`), `oxlint`/`oxfmt`
-   on the changed files, plus a re-run of any suite that was red in the last CI
-   round. Never push a branch that is behind `main`; a CI failure triage
-   starts with "is this already fixed on `main`, and is `main` fully merged
-   into this branch?" before touching the branch itself.
-4. **Zeta's own work does not open PRs.** PRs exist for outside contributions
-   (see [Pull requests](#pull-requests)); for our own branches the evidence is
-   the local gate plus the branch's **one** `workflow_dispatch`
-   (`gh workflow run ci.yml --ref <branch>`) — a push to a branch outside
-   `main`/`dev/*` triggers no CI at all (`ci.yml` → `on.push.branches`), so the
-   dispatch is the only branch-side run. Use it **once, after the last push** —
-   not after every fix, and only when the branch needs a real natives build or a
-   full-suite verdict.
-5. **Land through the local integration batch** (see below), then push `main`
-   once.
-6. Delete the branch and its worktree after the landing (both remote and local).
-
-`main` stays reserved for released/stable work; a new direction only lands on
-`main` via this merge path, never by committing directly to it.
-
-### 内部整合批次：本地先合、一次推（2026-10-16 用户裁决）
-
-当多个**已各自验过的分支**要一起落 `main`（同步分支 + 编辑器/GUI/文档批次）：
-
-1. 每个分支**合并前**过本地最小门禁（`bun run merge-gate --gates-only` +
-   `bun run check:ts`；动过 `crates/` 再加 `cargo fmt --all -- --check`）；
-2. 在**本地**按顺序合并进 `main`（真 merge commit、禁 squash）。推荐做法：先在
-   `temp/<topic>` 工作树里把批次合出来并跑完整门禁，再用 `git merge --ff-only`
-   把 `main` 推进到它 —— 根 checkout 因此只承担"推进引用 + 推送"，不承担编辑；
-3. 合并后刷新依赖：`bun install --frozen-lockfile`。它同时是锁文件一致性检验；
-   若它改动了**跟踪的**生成物，说明合并后的生成物过期，必须先修再推；
-4. **一次 push** `main`，且**在上一轮 run 结束前不推**（2026-10-17 立规，
-   起因：同一轮对 main 连推 4 次，`#1212`–`#1214` 被并发组互相取消，整条流水线
-   一次都没跑完，等于没有信号）。落规三条：
-   - 一轮落地的推送次数 **≤1**；CI 红之后的修复一律**先在 worktree 里累积**
-     （`merge-gate --gates-only` + clippy 本地跑绿），攒到下一次整轮推送；
-   - **在途 run 存在时不推同一分支**；推送前先看 `gh run list --branch <b>`；
-   - `cancelled` 既不是失败也不是通过——只有 `success` 才算证据；被取消的 run
-     必须在报告里写明"无信号"，不得当作绿。
-   `ci.yml` 的 `concurrency` 已对 **main 推送**改为**排队**（不再互相取消）：
-   即便误推两次，两轮都会完整跑完，信号不会被抹掉。release run 与 main 推送
-   都在 no-cancel 组，分支 dispatch 仍会互相取代。**本地先合仍然才有意义**；
-5. **高风险或发布性质**的变更（上游 tag 同步、品牌面、发布链、CI 自身）仍按各自
-   章节走完整证据链；上游同步分支的权威证据是它的 `workflow_dispatch`（本地做不了
-   真编 natives 与依赖 natives 的桶）。
-
-### `dev/*` — 用户指定的实验分支
-
-`dev/<topic>` 是**由用户亲自开**的实验分支，用于验证某个机制/做法是否成立；
-结论未定之前它**不进入**上面的 feature-branch → PR → `main` 路径。
-
-- **必须由用户开**：分支的成败以"是否实现用户的想法"为准，agent 不得自行
-  开 `dev/*`，只能在用户点名后于其上作业。
-- **门禁以用户判断为准**：默认不要求 PR、不要求 CI 绿（实验的目的是先拿
-  结论，不是交付）；但用户明确要求时必须照做——本次实验就要求实验分支推
-  GitHub 并**跑 CI 且必须绿**，用来验证机制是否真的走得通。
-- **永不合并进 `main`**。实验成功后，把结论沉淀成规则（写进 AGENTS.md /
-  `document/merge-playbook.md` 等），代码本身按正常流程重新落地。
-- **失败或废弃即删**（本地 + 远端）；不留在仓库里当历史包袱。
-- 命名 `dev/<topic>`，topic 描述被验证的东西，不用来放功能开发。
-
-首个实例：`dev/main` — 验证"上游同步只取上游 tag 间原生差异"的合并机制
-（v18.2.5 → v18.3.0），并测定**最稳的合并步长**（按冲突量决定一次合几个
-tag）；结论成立则写入 `document/merge-playbook.md`。
-
-### 工作树与分支纪律（2026-10-15 立规）
-
-根 checkout 必须永远是"干净且停在 `main`"的状态；任何开发都在短命 worktree
-里做。立的由头：2026-10-11 的 v18.8.7 同步轮把根 checkout 留在
-`sync/omp-release/v18.8.7` 且带 79 个未提交改动，一直没人切回，之后**从这棵
-陈旧树里读出了 `packageManager = bun@1.4.0` 这种错误事实**（main 上其实是
-`bun@1.4.3`）——凡读现状必须读 `refs/heads/main`。
-
-- **开工前先查根**：`git rev-parse --abbrev-ref HEAD` 必须是 `main`，
-  `git status --porcelain` 必须为空。不在 `main` 时先把改动安顿好
-  （`git stash push -u -m "<说明>"` 或提交到对应分支），**切回 `main` 再干活**。
-- **根 checkout 只做无副作用操作**：读文件、`git fetch`、`git worktree` /
-  `git branch` 管理。**禁止**在根里改文件、提交、或跑会写盘的构建。
-- **所有开发在 worktree 里**：
-  `git worktree add temp/<topic> -b <branch> refs/heads/main`；分支名**开工前
-  定好**（`feat/*`、`fix/*`、`docs/*`、`chore/*`、`sync/omp-release/<tag>`）。
-- **一轮合并 / 一个 PR 结束后立刻切回 `main`**，`sync/omp-release/<release>`
-  分支与其 worktree **用完即删**（`git worktree remove <path>` +
-  `git branch -d <branch>`）。干净且已并入 `main` 的 `temp/*` worktree 属残留，
-  随时可删；**有未提交内容的一律先保留并登记**。
-- **推送任何集成分支前先 `git merge main`**；不允许落后 `main` 就推。
-- **读事实只认 `refs/heads/main`**（根即 main 时可直接读）。禁止从陈旧 worktree、
-  旧 stash、旧分支里读"现状"。
-- 子代理一律**自建 worktree**，禁止改根 checkout 的文件；委托时把这条写进 brief。
-
-#### `temp/` 的用途、路径与清理（2026-10-15 立规）
-
-- **两个标准用途**：① 外部学习 / 参考项目的克隆；② 我们自己的子分支
-  worktree（`temp/<topic>`）。两者都必须是**仓库内路径**——绝不使用系统
-  临时目录（`%TEMP%`、`/tmp`、`os.tmpdir()`）：那里重启即清空，之前做的
-  事情全部丢失。`temp/` 本身被 gitignore，内容永不提交。
-- **清理前先核两件事**：分支是否真在 `main` 里
-  （`git branch --contains <sha>` 应列出 `main`），以及是否有未提交内容
-  （有则**先保留并登记**，不得直接删）。
-- **登记工作树一律用 `git worktree remove --force` 删**（git 的删除不追
-  链接），不要手写递归删除。
-- **地雷：禁止对任何含 `node_modules` 的目录执行 `rm -rf`。** Windows 上
-  bun 的 workspace 链接是 junction，`rm -rf` 会**穿透**它——2026-10-15 实测
-  上级目录旧目录里 `node_modules/@linxiraos/pi-ai` 指向 `<repo>/packages/ai`，
-  穿透即等于删掉仓库源码。删任何目录前先确认其中的链接指向哪里
-  （Node/Bun 用 `lstat().isSymbolicLink()`，PowerShell 用 `LinkType`/`Target`）。
-  登记已被清掉的孤儿目录，用「只 `lstat`、遇链接只删链接本身」的遍历器删 ——
-  入库工具：**`bun scripts/safe-remove-tree.ts <dir>`**（先删链接 → 复核 0 链接 →
-  才整删普通树；仍有链接就停机交人判断）。它只支持"先看后删"，`list` 模式可
-  用来登记某个目录里的链接指向哪里。
-- **产物与证据不入库，也不留在 `temp/`**：截图、diff、PR 正文草稿等归档到
-  `~/.zeta/parked-evidence/<date>/`，然后再删对应目录。
-
-### 路径归属：上游面 vs Zeta 自有面（2026-10-16 立规）
-
-上游 tag↔tag 差异**只**落在这些路径：`packages/`、`crates/`、`docs/`、`sdk/`，
-以及根锁文件与清单（`Cargo.toml`、`Cargo.lock`、`bun.lock`、
-`MODULE.bazel.lock`）。下面这些顶层目录**永不参与合并计算**，是 **Zeta 自有面**：
-
-| 自有面 | 是什么 |
+| 上游 | 角色 |
 |---|---|
-| `main/` | zetawork：TUI（`main/crates/zeta-main/`）+ GUI（`main/crates/zetawork-gui/`），独立 Cargo workspace |
-| `termide/` | vendored TermIDE = `zetaide`（`@linxiraos/ide`），另有 Zeta 新增的 `termide-editor` bin |
-| `editor/` | `@linxiraos/editor` 的 npm 面（载荷 = `termide-editor`） |
-| `web-ui/` | 浏览器远程 UI（降级维护） |
-| `desktop/` | 待退役 Electron 壳（不新增代码） |
-| `.gitea/` | Gitea 本地 CI 镜像（见 `document/local-ci.md`） |
+| OMP（`omp-upstream`） | 运行时树；**只按官方 release tag 集成**（§6） |
+| Pi（`pi-upstream`） | 语义移植来源；永不直接 merge（`port/pi/<scope>` 分支） |
+| OMP Web（`omp-web-upstream`） | **冻结**：`web-ui/` 已分叉，只手工 cherry-pick，记进 `document/upstream-sync.md` |
+| Pi Web（`pi-web-upstream`） | Web 特性的语义移植来源（`port/pi-web/<scope>` 分支） |
 
-- 改/删这些目录**只按路径判定**：不需要与上游协商，也不会与同步分支冲突
-  （判据是 `git diff --name-only <prev-tag> <tag> -- <path>` 为空）。
-- 因此"一次只做一个集成分支"**只约束同一面内部**；Zeta 自有面的分支可以与上游
-  同步并行（2026-10-16 用户裁决，当日四轨并行即按此执行）。
-- GUI 代码**只落** `main/crates/zetawork-gui/`；TUI 只落 `main/crates/zeta-main/`；
-  `termide/crates/**` 是 vendored 面板库，**不在 `main/` 里重写它**；对 vendored
-  快照的任何偏离都要在 `termide/VENDOR.md` 的偏离清单登记一行。
-- 新增/删除一个 CI job 必须同步三处（`ci.yml` / `local-ci.yml` 或 `EXCLUDED` /
-  `document/local-ci.md` 的 job map），见该文档的同步规则。
+分支：`main` = 产品分支；`sync/omp` = 上游未改镜像（只快进，永不并入 `main`）；
+`web-ui/` 是独立快照（自己的包管理器与 `web-ui/AGENTS.md`，不是根 workspace 包，
+不得有自己的 GitHub workflow——根 `.github/workflows/ci.yml` 覆盖它）。
 
-### 合并时的文件所有权（非代码文件）
+`temp/` = 仓库内 scratch（gitignore，永不提交）：外部参考克隆 + 自己的 worktree
+（`temp/<topic>`）。**必须在仓库路径内**，绝不用系统临时目录（重启即清空）。
 
-代码以外的文件默认**以 Zeta 的版本为准**，不得被上游覆盖：
+## 2. 产品不变量（没有脚本能拦，必须自觉）
 
-| 类别 | 默认 | 例外（接受上游） |
-|---|---|---|
-| 产品前门（`README.md`、logo、产品名、主页、安装文档） | 我们的 | 无——见上方品牌面注册表 |
-| `.github/actions/**`、`.github/workflows/**` | 我们的 | 上游改动了该机制本身，或新增了测试契约/检查步骤 |
-| 其它非代码文件（配置模板、文档骨架、LICENSE 等） | 我们的 | 上游新增契约或改变了机制 |
-| `docs/`（运行时文档，随产品打包） | **上游**：新增特性的描述必须整份移入，随后重放 `.omp→.zeta` 与品牌改写 | — |
+- **YOLO 是默认。** `tools.approvalMode` 默认 `yolo`
+  （`packages/coding-agent/src/tools/settings.ts`；`tools/approval.ts` 未设置时也回退
+  `yolo`）。**不要再加审批层**——不为路径、不为内容类别、不为"看起来危险"。产品能
+  判断的取保守标准值并说明，别把判断推给用户；只有用户才能定的产品选择才问。
+- **不弹黑框。** GUI 父进程 spawn 的控制台程序一律隐藏：Windows `windowsHide: true`
+  （Node/Bun）或 `CREATE_NO_WINDOW`（`std::process::Command`）。产品自启的 helper
+  （serve、daemon、git 探测、LSP/MCP、eval、更新器）全静默，日志进
+  `~/.zeta/run/daemon.log`。只有测试可以开可见终端。
+- **品牌面不许被上游改回。** `.zeta` / `~/.zeta`；命令只有 `zetawork` / `zetacode` /
+  `zetaide`；内部文档协议 `zeta://`；npm scope `@linxiraos/*`；release 资产名
+  `zeta-cli-*`（**不跟 bin 名**）；OTLP `service.name` = `zeta`；遥测导出硬关闭
+  （`TELEMETRY_EXPORT_ENABLED = false`，没有开关）。启动字符画 `ZETA_LOGO` /
+  `ZETA_WORDMARK` / `ZETA_SUBLINE` **永久冻结**，判据是
+  `bun scripts/brand/brand-check.ts`（手改一个字符即红）。
+- **刻意保留的上游记号，不要顺手"修"**：`OMP_*` 环境变量、`.omp-plugin`、
+  `my.omp.sh`、`icon.pi`、latex π、`__omp*` 跨进程协议名。
 
-判定不明确时**必须交给用户判断**；只有简单、无歧义的情况才可直接处理。
-**明确不要动的文件一律不动**，即使上游改过。
+行级注册表与合并后恢复清单：`document/agents/brand/registry.md`。
 
-## Commands
+## 3. 默认上下文
 
-## npm 发布（2026-10-19 裁定：无 token）
+未特别说明时，"agent" 指 `packages/coding-agent/` 的实现；工作对象默认是这个包。
+（它是 CLI 工具，不是当前会话的助手。）
 
-- **仓库里不存在 npm token。** `NPM_TOKEN` / `NODE_AUTH_TOKEN` 一律不得写进
-  workflow、脚本或文档；所有发布走 **trusted publishing（GitHub OIDC，
-  `id-token: write`）**。理由：npm 自 2026-08 起收紧 2FA，绕过 2FA 的 token
-  2027-01 起不能直接发布；长期 token 是没人能安全轮换的凭据。
-- **trusted publisher 是逐包的两步握手。** 在 npm 后台新增条目后状态是
-  `Pending validation` 并带截止时间，必须在窗口内成功发布一次才会生效；逾期
-  变 `Expired`。发布失败表现为 `404 Not Found - PUT ...`（v1.3.0 的
-  `@linxiraos/pi-messenger` 即此）。条目里的仓库与 workflow 文件名必须精确匹配
-  （`.github/workflows/ci.yml`）。
-- **新包的引导顺序固定**：先由维护者**手动**发第一个版本（npm 后台 + 2FA），
-  再在 npm 后台为该包配置 repository + workflow，之后才允许 CI 自动发布。
-  缺任一步，CI 侧只会得到 404。
+## 4. 代码落点
 
-- NEVER commit unless asked.
-- Scratch artifacts go in `temp/` (already gitignored); ad-hoc outputs and one-off debugging files MUST never be committed — the repo root tracks product files only.
-- Never use `tsc`/`npx tsc` — always `bun check`.
-- Never run `cargo test` directly for Rust tests — use `bun run test:rs`. It runs `cargo nextest run` (config: `.config/nextest.toml`) followed by a `cargo test --doc` pass, because nextest does not execute doctests. The doctest pass runs every runnable doctest in the workspace's lib crates; today that is tree-sitter-go's one example (pi-natives is a `cdylib`, which rustdoc skips; pi-builtins' examples are `ignore`d vendored uutils docs).
-- Merge commits (maintainer merges of PRs) follow: `Merge PR #<number>: <conventional PR subject> (@<author>)` — e.g. `Merge PR #6386: feat(catalog): add native Meta Model API provider (@eggpeat)`.
+| 写什么 | 放哪里 |
+|---|---|
+| React 组件 / pages / hooks | `web-ui/` |
+| Gateway REST handler | `packages/coding-agent/src/server/web-gateway/`（路由在 `web-gateway.ts`） |
+| 频道 / 机器人运行时 | `packages/coding-agent/src/channels/` |
+| 配置层（web.yml） | `packages/coding-agent/src/config/web-config.ts` |
+| zetawork（TUI / GUI） | `main/crates/zeta-main/`、`main/crates/zetawork-gui/` |
+| zetaide / vendored TermIDE | `termide/`（**不要**在 `main/` 里重写 vendored 面板库） |
+| `@linxiraos/editor` npm 面 | `editor/` |
+| Electron 壳 | `desktop/src/main.ts`（**退役中，不新增代码**） |
 
-## 文档路由
+依赖方向不可倒：`desktop/`、`web-ui/` 只经 HTTP 访问 `zeta serve` /
+`webGatewayFetch`，**不得 import `packages/*` 源码**。
 
-三个参考文档由本文件拆分而来（2026-09），规则效力等同正文：
+Catalog 值（models、identity、descriptors、cache）从 `@linxiraos/pi-catalog/<module>` 引；
+`@linxiraos/pi-ai` 只导出它自己签名用到的类型，别经它拿 catalog 值。
 
-- `document/dev-conventions.md` — 日常编码约定：Code Quality、Central
-  Utilities、Bun Over Node、模型策略 KDL、Generated Files、Logging and CLI
-  Output、TUI Sanitization、Rust Build Profiles、Testing Guidance、Changelog
-  （含 pre-tag gate）。
-- `document/release.md` — CI and Release（trigger discipline、CI watching、
-  release tag 与 update log、Version line tooling）+ Upstream Reference
-  Hygiene（云端 backup、分支/tag 保留策略）。
-- `document/merge-playbook.md` — OMP release 合并操作手册：六阶段管线细节、
-  品牌 overlay 与守卫使用（`scripts/brand/`）、逐 bucket 测试契约 resolve、
-  预存 main 欠账清单。
+插件代码与登记一律放 `plugins/`（`official/` 放源码，`community/` 只放指针），
+不放 `packages/`。体系见 `document/plugin-system.md`。
+
+展开版（含退役前的 desktop/web-ui 内嵌架构）：`document/agents/surface/code-locations.md`。
+
+## 5. 文档边界
+
+- `docs/` = 随产品打包的运行时文档（`zeta://docs`）。**新特性必须写进 `docs/`**——
+  子命令、标志、扩展 API、工具、内部 URL 面，不能只留 CHANGELOG 或代码注释。
+- `document/` = 内部开发 / 流程 / 架构文档，永不打包。只放四类：① 当前执行计划
+  （新计划生效即删旧，一律不并存）；② `roadmap.md` 的未开发规划；③ 架构设计文档；
+  ④ `document/agents/`（从本文件移出的操作知识，见 §10）。
+- 移动 `docs/` ↔ `document/` 要清理所有交叉引用；已发布 CHANGELOG 条目不可变。
+
+**计划纪律**：计划是执行规格，不是设计文档
+（产品侧教义：`packages/coding-agent/src/prompts/system/plan-mode-active.md`）。
+决策完整 > 简短——留下实现者要自己再选一遍的计划等于失败；Non-Goals / Alternatives /
+Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` → `~/.zeta` 下），
+**不进仓库工作树**；开启 Tracking 时由 tracking 层镜像到 `<project>/.zeta/tracking/`
+（唯一项目内副本）。落地后删除，结论沉淀进本文件或 `roadmap.md`。
+
+## 6. 上游同步（硬约束）
+
+只在需要具体修复 / 特性时同步，**没有定期同步**。用户必须点名确切 tag
+（如 `v17.2.11`）；不得推断"最新"，不得用 `omp-upstream/main`。
+
+- 合并前与开始合并时各查一次远端：`git ls-remote --tags omp-upstream refs/tags/<tag>`。
+  tag 被重切是正常的——以远端为准，`git fetch --force omp-upstream --no-filter tag <tag>`
+  对齐，old→new SHA 记进台账。只有"已开始合并之后才移动"才停下报告，绝不悄悄合完。
+- 从 `main` 开短命 `sync/omp-release/<release>`（最好在独立 worktree），对已验证的
+  tag 做**真 merge（禁 squash）**；完成后 `git merge-base --is-ancestor <tag-commit> HEAD`
+  必须成立。
+- 禁止：上游原始 commit、任意 SHA、单文件、部分 diff、cherry-pick、rebase、squash；
+  禁止为省事跳过 incoming 文件。
+- 测试按**契约**合并：上游同时改实现与测试的，整对接受；不要保留 Zeta 旧断言配新行为。
+- 产品前门（README、logo、名称、主页、安装文档）是 Zeta 的：完整合并后单独做
+  branding-overlay commit。
+- 每轮同步更新 `document/upstream-sync.md` 台账（baseline、source tag/SHA、Zeta 起点、
+  冲突决策、门禁、最终 merge commit）。同步自动化必须要求显式 `--tag <tag>`，拒绝分支名
+  与裸 SHA。
+
+**动手前必读**：`document/merge-playbook.md`（逐阶段操作）、
+`document/merge-review.md`（合并前 checklist、决策记录模板、守卫矩阵）。
+同步细节：`document/agents/merge/sync-procedure.md`；
+合并后损伤排查：`document/agents/merge/damage-classes.md`。
+
+## 7. 分支、工作树与推送
+
+- 根 checkout 永远干净且停在 `main`。开工前 `git rev-parse --abbrev-ref HEAD` +
+  `git status --porcelain`；不在 `main` 就先安顿改动再切回。根里只做无副作用操作
+  （读、`git fetch`、worktree / branch 管理）。
+- 所有开发在 worktree：`git worktree add temp/<topic> -b <branch> refs/heads/main`。
+  新方向先开本地分支，不直接在 `main` 上开发；`dev/*` 只能用户开，永不并入 `main`。
+- 子代理自建 worktree，**不推、不合并 `main`、不打 tag、不改根 checkout**；委托时把
+  这条写进 brief。
+- 推任何集成分支前先 `git merge main` 并跑本地门禁。Zeta 自己的工作**不开 PR**：
+  证据 = 本地门禁 + 该分支唯一一次 `gh workflow run ci.yml --ref <branch>`
+  （分支 push 本身不触发 CI）。
+- **一轮落地 ≤1 次 push**；在途 run 不推同一分支（先看 `gh run list --branch <b>`）；
+  `cancelled` 不是失败也不是通过——**它没有信号**，不得当绿。
+- 清理：`git worktree remove --force`；有未提交内容先保留登记。**禁止对含
+  `node_modules` 的目录 `rm -rf`**（Windows junction 会穿透，等于删源码）——
+  用 `bun scripts/safe-remove-tree.ts`。证据 / 产物归档到
+  `~/.zeta/parked-evidence/<date>/`，不留在 `temp/`。
+
+展开版（并行代理流程、整合批次、worktree 细节与立规缘由）：
+`document/agents/workflow/branches.md`。
+
+## 8. 命令与提交
+
+- 不主动 commit / push / 打 tag / 开 PR，除非用户要求。
+- 用 `bun check`，**不要** `tsc` / `npx tsc`。
+- Rust 测试用 `bun run test:rs`（nextest + doctest 两段），**不要**直接 `cargo test`。
+- scratch 一律进 `temp/`（已 gitignore）；一次性产物永不提交，仓库根只放产品文件。
+- 合并 PR 的 commit message：`Merge PR #<number>: <conventional PR subject> (@<author>)`。
+- npm 发布面**不存在 token**：一律 GitHub OIDC trusted publishing（无 `NPM_TOKEN`）。
+  细节：`document/agents/workflow/release-publish.md`。
+
+## 9. GitHub 权限
+
+发评论 / 开 issue / 改 PR 描述前，必须把目标和拟发文本给用户看并获批（用户已给出
+目标 + 文本即算确认）。"处理 PR 反馈"只授权改代码和起草回复，不授权直接发。授权
+resolve 时，回复必须说明改动与验证，经批准后在原 thread 发，**发成功才许 resolve**。
+改 PR 不等于授权发无关评论或开 issue。
+
+细节（PR 模板、贡献者原话、changelog 归属）：`document/agents/workflow/github.md`。
+
+## 10. `document/` 目录结构
+
+- `document/agents/` — 从本文件移出的操作知识，**按问题分目录**：`merge/`（同步细节、
+  损伤类别、文件所有权）、`brand/`（品牌注册表）、`surface/`（代码落点、包清单）、
+  `workflow/`（分支、发布、GitHub）。索引见 `document/agents/README.md`。
+- 其余 `document/*.md` — 架构与流程正本（`architecture-layers.md`、
+  `merge-playbook.md`、`release.md`、`dev-conventions.md`、`local-ci.md`、
+  `upstream-sync.md` 台账等）。
+
+## 11. 索引：遇到什么读哪里
+
+| 遇到 | 读 |
+|---|---|
+| 上游同步冲突 / 合并后 CI 红 / 损伤排查 | `document/agents/merge/damage-classes.md`、`document/merge-playbook.md` |
+| 脚本注释里的 "damage class N" | 同上——编号指 `document/agents/merge/damage-classes.md`（原在根文件） |
+| 同步流程、六阶段、合并前核对 | `document/agents/merge/sync-procedure.md`、`document/merge-review.md` |
+| 品牌残留、包名 / bin / 资产名 | `document/agents/brand/registry.md`、`document/brand-surface-rules.md` |
+| 代码该放哪个目录、包与插件布局 | `document/agents/surface/code-locations.md`、`document/agents/surface/packages.md` |
+| 分支 / 推送 / 整合批次 / worktree | `document/agents/workflow/branches.md` |
+| 发布链、tag、更新日志、版本线 | `document/release.md`、`document/agents/workflow/release-publish.md` |
+| 日常编码约定（格式、日志、生成物、测试） | `document/dev-conventions.md` |
+| 本地 CI 镜像与 job map | `document/local-ci.md` |
+| 插件体系 | `document/plugin-system.md` |
+| 架构（分层、natives、gateway、TUI） | `document/architecture-layers.md`、`document/web-gateway.md` |
+| 上游移植指南 | `document/porting-from-pi-mono.md` |
+| 同步台账 / 历史决策 | `document/upstream-sync.md` |
