@@ -2,19 +2,9 @@ import { SKILLS_REGISTRY_UNAVAILABLE } from "@linxiraos/pi-wire/skillshare";
 import { M } from "../i18n";
 import { Settings } from "../config/settings";
 import { cfgSkillsRegistryUrl } from "../extensibility/settings";
-import type { InteractiveModeContext } from "../modes/types";
+import { getEmbeddedDoc } from "../internal-urls/docs-index";
 import { SkillshareClient } from "../skillshare/client";
-import {
-	formatInstalledSkills,
-	formatScriptApproval,
-	formatSkillChanges,
-	formatSkillSearch,
-	installSkillPackages,
-	listInstalledSkills,
-	type SkillChange,
-	type SkillInstallHooks,
-	updateSkillPackages,
-} from "../skillshare/installer";
+import { formatInstalledSkills, formatSkillSearch, listInstalledSkills } from "../skillshare/installer";
 import { clearSubmittedText } from "./helpers/draft";
 import { errorMessage, parseSubcommand } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
@@ -31,17 +21,21 @@ const USAGE = [
 	"  /skills update [@scope/name…] [-g]            Update within the ranges in skills.json",
 ].join("\n");
 
-/** Split `<name…> [--global|-g]`; unknown flags are errors. */
-function parseTargets(rest: string): { names: string[]; global: boolean } | { error: string } {
-	const names: string[] = [];
-	let global = false;
-	for (const token of rest.split(/\s+/)) {
-		if (!token) continue;
-		if (token === "--global" || token === "-g") global = true;
-		else if (token.startsWith("-")) return { error: `Unknown option: ${token}\n\n${USAGE}` };
-		else names.push(token);
-	}
-	return { names, global };
+/**
+ * Prompt-only install/update: the agent reads the built-in skills guide and
+ * performs the operation with the tools of the conversation it is running in.
+ * There is no second installer implementation and no registry assumption.
+ */
+async function buildSkillsDocPrompt(request: string): Promise<string> {
+	const doc = await getEmbeddedDoc("skills.md");
+	return [
+		"The user invoked `/skills`. Handle the request in this conversation using its own file and shell tools.",
+		"Do not assume a registry is configured. Read the built-in skills documentation below, then install to the project or user skill directory the user asked for; if the user gave a link, fetch and follow that link.",
+		"Built-in documentation: `zeta://docs/skills.md`.",
+		`Request: ${request}`,
+		"",
+		doc ?? "Built-in skills documentation is unavailable; read `zeta://docs/skills.md`.",
+	].join("\n");
 }
 
 async function withClient<T>(cwd: string, run: (client: SkillshareClient) => Promise<T>): Promise<T> {
@@ -53,22 +47,6 @@ async function withClient<T>(cwd: string, run: (client: SkillshareClient) => Pro
 	} finally {
 		client.close();
 	}
-}
-
-function tuiHooks(ctx: InteractiveModeContext): SkillInstallHooks {
-	return {
-		warn: message => ctx.showWarning(message),
-		confirmScripts: request => ctx.showHookConfirm("Install skill with scripts?", formatScriptApproval(request)),
-	};
-}
-
-async function reportChanges(ctx: InteractiveModeContext, changes: SkillChange[]): Promise<void> {
-	if (changes.length === 0) {
-		ctx.showStatus("Registry skills are already up to date.");
-		return;
-	}
-	await ctx.refreshSkillState();
-	ctx.showStatus(formatSkillChanges(changes));
 }
 
 export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
@@ -87,6 +65,40 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			},
 		],
 		allowArgs: true,
+		hidden: true,
+		handle: async (command, runtime) => {
+			const { verb, rest } = parseSubcommand(command.args);
+			const cwd = runtime.sessionManager.getCwd();
+			try {
+				switch (verb) {
+					case "search": {
+						if (!rest) {
+							await runtime.output("Usage: /skills search <query>");
+							return;
+						}
+						const response = await withClient(cwd, client => client.search(rest));
+						await runtime.output(formatSkillSearch(response));
+						return;
+					}
+					case "installed": {
+						await runtime.output(formatInstalledSkills(await listInstalledSkills(cwd)));
+						return;
+					}
+					case "install":
+					case "update":
+						return { prompt: await buildSkillsDocPrompt(command.args) };
+					case "":
+					case "help":
+						await runtime.output(USAGE);
+						return;
+					default:
+						await runtime.output(`Unknown /skills subcommand: ${verb}\n\n${USAGE}`);
+						return;
+				}
+			} catch (error) {
+				await runtime.output(`Skills: ${errorMessage(error)}`);
+			}
+		},
 		handleTui: async (command, runtime) => {
 			const { ctx } = runtime;
 			clearSubmittedText(runtime);
@@ -103,44 +115,14 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 						ctx.showStatus(formatSkillSearch(response));
 						return;
 					}
-					case "install": {
-						const targets = parseTargets(rest);
-						if ("error" in targets) {
-							ctx.showError(targets.error);
-							return;
-						}
-						if (targets.names.length === 0) {
-							ctx.showError("Usage: /skills install <@scope/name[@range]>… [--global]");
-							return;
-						}
-						ctx.showStatus(`Installing ${targets.names.join(", ")}…`, { dim: true });
-						const changes = await withClient(cwd, client =>
-							installSkillPackages(
-								client,
-								{ specs: targets.names, global: targets.global, yes: false, cwd },
-								tuiHooks(ctx),
-							),
-						);
-						await reportChanges(ctx, changes);
-						return;
-					}
+					case "install":
+					case "update":
+						return { prompt: await buildSkillsDocPrompt(command.args) };
 					case "installed": {
 						ctx.showStatus(formatInstalledSkills(await listInstalledSkills(cwd)));
 						return;
 					}
-					case "update": {
-						const targets = parseTargets(rest);
-						if ("error" in targets) {
-							ctx.showError(targets.error);
-							return;
-						}
-						ctx.showStatus("Checking the registry for updates…", { dim: true });
-						const changes = await withClient(cwd, client =>
-							updateSkillPackages(client, { names: targets.names, global: targets.global, cwd }, tuiHooks(ctx)),
-						);
-						await reportChanges(ctx, changes);
-						return;
-					}
+
 					case "":
 					case "help":
 						ctx.showStatus(USAGE);

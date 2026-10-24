@@ -30,17 +30,20 @@ backend.
 - **Command surface.** The attached TUI runs client-side commands locally
   (`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`,
   `/tracking`, `/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`,
-  `/help`, `/agents`, `/skills`, `/extensions`, `/hub`, `/pause`, `/record`,
+  `/help`, `/agents`, `/extensions`, `/hub`, `/pause`, `/record`,
   `/open`, `/debug`, `/quit`, `/exit`) and mirrors replica switches to the
   backend (`/model`, `/modelpreset`, `/switch`, `/effort`, `/plan`,
   `/plan-ultra`, `/plan-review`, `/goal`, `/vibe`). `/fast` and `/slow` are
   forwarded to the backend's headless handlers instead of toggling the
   replica; `/guided-goal` is refused while attached because its interview is
   still TUI-only. Every other slash command is executed by the backend against
-  its own session (`/tools`, `/context`, `/usage`, `/jobs`, `/compact`,
-  `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`, `/plugins`, …), and its
-  `command_output` is shown in the attached status line. `/status` no longer
-  exists: the extension panel is `/extensions` only. `/queue` and the
+  its own session (`/skills`, `/tools`, `/context`, `/usage`, `/jobs`,
+  `/compact`, `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`, `/plugins`, …),
+  and its `command_output` is shown in the attached status line. `/skills` and
+  `/share` are hidden prompt-only entry points: explicit invocation injects the
+  built-in guide, and `/skills` install/update forwards to the backend so the
+  agent installs in the workspace it is actually running in. `/status` no
+  longer exists: the extension panel is `/extensions` only. `/queue` and the
   `->`/`=>` shorthands fill the backend's follow-up queue; `/btw` uses the
   backend side context. Session lifecycle is backend-owned
   and re-attaches the client: `/new`, `/resume <id>`, `/fork`, `/branch`,

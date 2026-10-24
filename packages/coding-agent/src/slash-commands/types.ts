@@ -42,13 +42,18 @@ export interface BuiltinSlashCommand {
 	inlineHint?: string;
 	/** TUI-only dynamic status text for command-name autocomplete. Static `description` remains canonical for ACP/help. */
 	getTuiAutocompleteDescription?: (runtime: TuiSlashCommandRuntime) => string | undefined;
-	/**
-	 * Configuration gate for a command whose feature is opt-in. Returning false
+	/** Configuration gate for a command whose feature is opt-in. Returning false
 	 * hides the command from the palette and the advertised command list, and
 	 * refuses an explicit invocation with {@link disabledMessage} instead of
 	 * silently forwarding the text to the model.
 	 */
 	enabled?: (settings: Settings) => boolean;
+	/**
+	 * Hide the command from the palette/help surface while keeping explicit
+	 * `/name` invocation working. Used for prompt-only entry points whose
+	 * documentation is the product surface.
+	 */
+	hidden?: boolean;
 	/** Copy shown when {@link enabled} refuses an invocation. */
 	disabledMessage?: string | (() => string);
 }

@@ -107,6 +107,7 @@ export const BUILTIN_SLASH_COMMAND_DEFS: ReadonlyArray<BuiltinSlashCommand> = BU
 		// the ACP/RPC command lists are built from these, and both hide a
 		// disabled command.
 		enabled: command.enabled,
+		hidden: command.hidden,
 		disabledMessage: command.disabledMessage,
 	}),
 );
@@ -154,14 +155,14 @@ function materializeTuiBuiltinSlashCommand(
  * Materialized builtin slash commands with completion functions derived from
  * declarative subcommand/hint definitions.
  */
-export const BUILTIN_SLASH_COMMANDS: ReadonlyArray<TuiBuiltinSlashCommand> = BUILTIN_SLASH_COMMAND_DEFS.map(cmd =>
-	materializeTuiBuiltinSlashCommand(cmd),
-);
+export const BUILTIN_SLASH_COMMANDS: ReadonlyArray<TuiBuiltinSlashCommand> = BUILTIN_SLASH_COMMAND_DEFS.filter(
+	cmd => cmd.hidden !== true,
+).map(cmd => materializeTuiBuiltinSlashCommand(cmd));
 
 export function buildTuiBuiltinSlashCommands(runtime: TuiSlashCommandRuntime): ReadonlyArray<TuiBuiltinSlashCommand> {
-	return BUILTIN_SLASH_COMMAND_DEFS.filter(cmd => cmd.enabled === undefined || cmd.enabled(runtime.ctx.settings)).map(
-		cmd => materializeTuiBuiltinSlashCommand(cmd, runtime),
-	);
+	return BUILTIN_SLASH_COMMAND_DEFS.filter(
+		cmd => cmd.hidden !== true && (cmd.enabled === undefined || cmd.enabled(runtime.ctx.settings)),
+	).map(cmd => materializeTuiBuiltinSlashCommand(cmd, runtime));
 }
 
 /**

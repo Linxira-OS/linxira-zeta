@@ -38,13 +38,12 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	git: true,
 	// Backend-session dashboards. `/agents` and `/hub` are TUI-only, so their
 	// data arrives through the backend subagent roster mirror (see
-	// `backend/subagent-mirror.ts`); `/skills` and `/extensions` read the shared
-	// config the backend also loaded. `/tools`, `/context`, `/usage` and `/jobs`
-	// are *not* here: their headless handlers read the backend session (the
-	// replica has no tools/jobs/context of its own), so forwarding is the only
-	// correct route.
+	// `backend/subagent-mirror.ts`); `/extensions` reads the shared config the
+	// backend also loaded. `/skills`, `/tools`, `/context`, `/usage` and `/jobs`
+	// are *not* here: their headless handlers act on the backend session (the
+	// replica has no tools/jobs/context/skills state of its own), so forwarding
+	// is the only correct route.
 	agents: true,
-	skills: true,
 	extensions: true,
 	// Display-only overlays and client-side capture. `pause` freezes the local
 	// renderer, `hub` reads the mirrored agent tree, `record` writes the TUI
