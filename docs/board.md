@@ -75,13 +75,13 @@ Passing `assign: true` records `assignee: agent` on the card.
 Example:
 
 ```bash
-curl -s -X POST http://127.0.0.1:30142/api/board \
+curl -s -X POST http://127.0.0.1:43143/api/board \
   -H 'content-type: application/json' \
   -d '{"cwd":"/path/to/project","title":"Fix the parser","tags":["rust"],"due":"2026-11-01","body":"Reproduce, then fix."}'
 ```
 
 ```bash
-curl -s -X POST http://127.0.0.1:30142/api/board/fix-the-parser/move \
+curl -s -X POST http://127.0.0.1:43143/api/board/fix-the-parser/move \
   -H 'content-type: application/json' \
   -d '{"cwd":"/path/to/project","column":"doing"}'
 ```

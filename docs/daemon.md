@@ -8,7 +8,7 @@ record of the pid and ports, and appends its output to a log.
 
 ```sh
 zetacode daemon status [--json]
-zetacode daemon start [--web-port 30141] [--stats-port 3847] [--gateway-port 30142]
+zetacode daemon start [--web-port 43141] [--stats-port 43147] [--gateway-port 43143]
 zetacode daemon stop [--timeout <seconds>]
 zetacode daemon restart
 zetacode daemon logs [--lines 80] [--follow]
@@ -54,13 +54,13 @@ Daemon records live under `<config root>/run` (`~/.zeta/run` by default):
 	"running": true,
 	"stale": false,
 	"pid": 4812,
-	"port": 30141,
-	"webPort": 30141,
-	"statsPort": 3847,
-	"gatewayPort": 30142,
-	"webUrl": "http://127.0.0.1:30141",
-	"statsUrl": "http://127.0.0.1:3847",
-	"gatewayUrl": "http://127.0.0.1:30142",
+	"port": 43141,
+	"webPort": 43141,
+	"statsPort": 43147,
+	"gatewayPort": 43143,
+	"webUrl": "http://127.0.0.1:43141",
+	"statsUrl": "http://127.0.0.1:43147",
+	"gatewayUrl": "http://127.0.0.1:43143",
 	"startedAt": "2026-10-21T09:12:00.000Z",
 	"cliVersion": "1.4.0",
 	"source": "daemon",

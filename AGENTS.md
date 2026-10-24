@@ -220,6 +220,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
 | 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
 | 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |
+| **本地服务默认端口（2026-10-24 用户裁定）** | Web UI `43141`、Web Gateway `43143`、Stats `43147`（`packages/utils/src/ports.ts` 为唯一真源） | OMP 与本机常用端口（30141/30142/3847、3000/8080/8787…）必须避开；三者互差 ≥2。守卫 `bun scripts/check-service-ports.ts`（CI check job），desktop 独立壳的 `WEB_UI_URL`/`STATS_URL` 字面量必须同步。合并不得把上游端口默认值带回来 |
 | 安装提示 URL | `https://linxira-os.github.io/install.sh`（POSIX）/ `install.ps1`（Windows） | **我们自己的站**（与 `scripts/install.sh`/`install.ps1` 同源，从 GitHub Releases 拉 `zeta-cli-*`）；上游 `omp.sh/install` 不再出现在任何用户可见提示里（2026-10-13 起，`installerHint()` 两侧成对改，见 `cli/update-cli.ts`） |
 | **遥测导出（2026-10-10 定稿）** | **硬关闭**：产品门控 `TELEMETRY_EXPORT_ENABLED = false`（`main.ts`），`telemetry.otlpExportEnabled` 设置**已删除**（原先默认 `true`） | 我们没有遥测服务端，无处处理事件——不是默认关，是**没有开关**：任何 `OTEL_EXPORTER_OTLP*` 端点都不导出。三重守卫：MUST_CONTAIN 钉死常量与调用点、MUST_NOT_CONTAIN 禁止设置键复活。等自建采集端后**有意识地**加回，勿在合并中被动恢复 |
 | OTLP `service.name` 兜底 | `zeta` | 合并会带回 `oh-my-pi`；用户在自建 OTLP 里看到的身份面 |
@@ -363,15 +364,15 @@ across the correct directories.
 
 | Surface | Location | Engineering rules |
 |---|---|---|
-| **Desktop shell** (Electron: tray, autostart, window lifecycle, serving the built web-ui + stats) | repo root `desktop/` | Standalone Electron project, **not** a Bun workspace package. Own `package.json`, `package-lock.json`, `electron-builder.yml`, `scripts/`, `src/main.ts`. Install with `npm`/`npm ci`, build with `electron-builder`. Code here talks to the backend only over HTTP (`http://127.0.0.1:30141` web-ui, `http://127.0.0.1:3847` stats). It must never import from `packages/*` or `web-ui/*` source — it launches the built runtime via `resolveServeCommand()`. |
-| **Web UI** (Next.js app: components, pages, client libraries) | repo root `web-ui/` | Standalone OMP Web snapshot, **not** a root Bun workspace package. Own package manager + lockfiles; read `web-ui/AGENTS.md` for its rules. All React components/pages/hooks/client helpers live here (`web-ui/components/`, `web-ui/lib/`, `web-ui/hooks/`). Talks to the backend only via `fetch` to the gateway `/api/*` on `http://127.0.0.1:30141`. Never place `.ts` server code or Electron code here. |
+| **Desktop shell** (Electron: tray, autostart, window lifecycle, serving the built web-ui + stats) | repo root `desktop/` | Standalone Electron project, **not** a Bun workspace package. Own `package.json`, `package-lock.json`, `electron-builder.yml`, `scripts/`, `src/main.ts`. Install with `npm`/`npm ci`, build with `electron-builder`. Code here talks to the backend only over HTTP (`http://127.0.0.1:43141` web-ui, `http://127.0.0.1:43147` stats). It must never import from `packages/*` or `web-ui/*` source — it launches the built runtime via `resolveServeCommand()`. |
+| **Web UI** (Next.js app: components, pages, client libraries) | repo root `web-ui/` | Standalone OMP Web snapshot, **not** a root Bun workspace package. Own package manager + lockfiles; read `web-ui/AGENTS.md` for its rules. All React components/pages/hooks/client helpers live here (`web-ui/components/`, `web-ui/lib/`, `web-ui/hooks/`). Talks to the backend only via `fetch` to the gateway `/api/*` on `http://127.0.0.1:43141`. Never place `.ts` server code or Electron code here. |
 | **Server-side gateway** (REST API handlers behind the web-ui runtime) | `packages/coding-agent/src/server/web-gateway/` (one handler module per resource, e.g. `settings.ts`, `models.ts`, `open.ts`, `web-config.ts`, `terminal.ts`) | Bun runtime code. Route regexes live in `packages/coding-agent/src/server/web-gateway.ts` (`*_RE` constants + dispatch in `webGatewayFetch`). `terminal.ts` is the WS precedent (upgrade wiring in `zeta-server.ts`, one-time tickets for browser WS auth) — new WebSocket endpoints follow its pattern. Handler modules import from `packages/coding-agent/src/**` only. |
 | **Channel / bot runtime** (WeChat/Feishu/Telegram, plan-image, workspace routing) | `packages/coding-agent/src/channels/` | Bun runtime, embedded in `zeta serve` (`packages/coding-agent/src/server/zeta-server.ts`). Channel tools (`channel_send`, `workspace_run`) live in `packages/coding-agent/src/tools/`. |
 | **Config layer** (web.yml: tray/autostart/channels/remote) | `packages/coding-agent/src/config/web-config.ts` | Bun runtime, read by both the gateway and (via `zeta serve` HTTP) the desktop shell. |
 
 > **方向变更（2026-10-15 用户裁决）**：`web-ui/` **冻结**——不再作为独立桌面应用分发
 > （Electron 桌面长期起不来：`The Zeta service did not become ready in time.` /
-> `The running Zeta service at http://127.0.0.1:30141 did not answer.`，根因是"外部服务端口
+> `The running Zeta service at http://127.0.0.1:43141 did not answer.`，根因是"外部服务端口
 > 就绪"这条链），只保留为 **zetawork 桌面应用内部可选的渲染后端**；**桌面应用本体 =
 > zetawork**，其家迁到 `desktop/`（现有 Electron 外壳退役中）。上表的 desktop/web-ui 分工
 > 按此方向读：Electron 行与"内嵌 Next standalone"链路属**待退役**遗留。渲染方式（原生
@@ -398,7 +399,7 @@ build (desktop/scripts/prepare-runtime.mjs)
 
 runtime (desktop/src/main.ts)
   spawns `zeta serve` (ZETA_DESKTOP=1) ─▶ serves the embedded web-ui
-  window.loadURL(WEB_UI_URL = http://127.0.0.1:30141) ─▶ web-ui /api/* ─▶ webGatewayFetch ─▶ gateway
+  window.loadURL(WEB_UI_URL = http://127.0.0.1:43141) ─▶ web-ui /api/* ─▶ webGatewayFetch ─▶ gateway
 ```
 
 - **One source, two outputs**: the web-ui the desktop embeds is the same source
@@ -410,7 +411,7 @@ runtime (desktop/src/main.ts)
   compiled `zeta` binary and `process.execPath` as the bundled Node. The target
   machine needs neither Bun nor Node.
 - **Runtime**: `desktop/src/main.ts` launches `zeta serve` and points the Electron
-  window at `WEB_UI_URL` (`http://127.0.0.1:30141`); the shell and the web-ui never
+  window at `WEB_UI_URL` (`http://127.0.0.1:43141`); the shell and the web-ui never
   share code — only the HTTP loopback. Web-ui and desktop each depend on the
   gateway side (`packages/coding-agent/src/**`) via HTTP, never via imports.
 - **CI** (`desktop_linux`/`desktop_windows` jobs): `npm ci` (web-ui

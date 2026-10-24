@@ -9,15 +9,15 @@ proxies requests to the appropriate internal backend.
 ## Architecture
 
 ```
-Browser → :30141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:3847)
-                              ├─ other /api/* → Web Gateway (:30142)
+Browser → :43141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:43147)
+                              ├─ other /api/* → Web Gateway (:43143)
                               └─ everything else → Web UI build, when one is
                                  present (deferred today: placeholder page)
 ```
 
-- **Front-end**: `Bun.serve` on port 30141 (configurable)
-- **Stats Dashboard**: internal backend on port 3847 (configurable)
-- **Web Gateway**: internal backend on port 30142
+- **Front-end**: `Bun.serve` on port 43141 (configurable)
+- **Stats Dashboard**: internal backend on port 43147 (configurable)
+- **Web Gateway**: internal backend on port 43143
 - **Web UI**: with a build present, a Next.js server on a random internal port;
   without one (the current default, development deferred), a static bilingual
   placeholder page served by the front door itself.
@@ -42,7 +42,7 @@ zetacode serve
 zetacode web
 
 # Custom ports
-zetacode serve --stats-port 3847 --web-port 30141
+zetacode serve --stats-port 43147 --web-port 43141
 
 # Don't open browser
 zetacode serve --no-browser
@@ -54,13 +54,13 @@ zetacode serve --no-browser
 import { startZetaServer } from "@linxiraos/zeta/server/zeta-server";
 
 const instance = await startZetaServer({
-  port: 30141,
-  statsPort: 3847,
+  port: 43141,
+  statsPort: 43147,
   noBrowser: false,
 });
 
-console.log(instance.url);       // http://localhost:30141
-console.log(instance.statsUrl);  // http://localhost:3847
+console.log(instance.url);       // http://localhost:43141
+console.log(instance.statsUrl);  // http://localhost:43147
 
 // Graceful shutdown
 await instance.shutdown();
@@ -70,8 +70,8 @@ await instance.shutdown();
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `port` | `number` | `30141` | Main server port |
-| `statsPort` | `number` | `3847` | Stats Dashboard port |
+| `port` | `number` | `43141` | Main server port |
+| `statsPort` | `number` | `43147` | Stats Dashboard port |
 | `noBrowser` | `boolean` | `false` | Don't open browser on start |
 | `statsOnly` | `boolean` | `false` | Start only Stats Dashboard |
 | `webOnly` | `boolean` | `false` | Start only Web UI |

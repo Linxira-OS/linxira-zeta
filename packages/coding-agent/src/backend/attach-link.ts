@@ -30,6 +30,7 @@ import type { BackendLoopState } from "../loop/continuation-controller";
 import { FileSessionStorage } from "../session/session-storage";
 import { setSessionTerminalTitle } from "../utils/title-generator";
 import { AttachWire } from "./attach-wire";
+import { mirrorSubagents } from "./subagent-mirror";
 import { workspaceBranch } from "../session/workspace-branch";
 import { BackendClient, type BackendEvent, type BackendSessionDetail, type BackendSessionInfo } from "./client";
 import type { ResolvedBackendTarget } from "./attach-intent";
@@ -89,6 +90,10 @@ export class BackendAttachLink {
 	#loopState: BackendLoopState | null = null;
 	/** Bumped by every pushed `loop_state`; a stale `get_state` must not clobber it. */
 	#loopStateSeq = 0;
+	/** Backend-owned pending input, mirrored for the composer's queue chips. */
+	#queue: { steering: string[]; followUp: string[]; liveSteered: number } | undefined;
+	/** Roster tail; aborted with the attach socket. */
+	#subagentAbort: AbortController | undefined;
 	replicaPath: string | undefined;
 
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
@@ -107,6 +112,11 @@ export class BackendAttachLink {
 	/** The backend loop state last mirrored; `null` when no loop is active. */
 	get loopState(): BackendLoopState | null {
 		return this.#loopState;
+	}
+
+	/** Backend-owned pending input, or `undefined` before the first snapshot. */
+	get queuedMessages(): { steering: string[]; followUp: string[]; liveSteered: number } | undefined {
+		return this.#queue;
 	}
 
 	get attached(): boolean {
@@ -177,6 +187,17 @@ export class BackendAttachLink {
 		// live turn/tool/dialog frames. Started only after the snapshot so a
 		// frame cannot duplicate an entry already in the replica.
 		void this.#pumpEvents();
+		// The Agent Hub reads the local observer bus. Tail the backend roster and
+		// re-emit its frames there, so /agents, /hub, the subagent HUD and the
+		// running badge all describe the backend session rather than the replica.
+		this.#subagentAbort = new AbortController();
+		void mirrorSubagents({
+			client: this.client,
+			sessionId,
+			eventBus: this.#ctx.eventBus,
+			subagentEventBus: this.#ctx.subagentEventBus,
+			signal: this.#subagentAbort.signal,
+		});
 		this.#joined = true;
 		this.#ctx.backendAttach = this;
 		// Pick up state that is not part of the transcript snapshot (an active
@@ -458,12 +479,20 @@ export class BackendAttachLink {
 		this.#unsubscribeLocal?.();
 		this.#unsubscribeLocal = undefined;
 		this.#abort.abort();
+		this.#subagentAbort?.abort();
+		this.#subagentAbort = undefined;
 		for (const dialog of this.#pendingDialogs.values()) dialog.abort.abort();
 		this.#pendingDialogs.clear();
 		await this.#applyChain.catch(() => undefined);
 		this.#replicaLease?.();
 		this.#replicaLease = undefined;
 		this.#ctx.backendAttach = undefined;
+		this.#queue = undefined;
+		this.#ctx.backendQueue = undefined;
+		this.#ctx.updatePendingMessagesDisplay();
+		// Backend subagents must not linger in the local hub after the client
+		// returns to the replica/in-process session.
+		this.#ctx.resetObserverRegistry();
 		this.#loopState = null;
 		this.#ctx.setBackendLoopStatus(undefined);
 		this.#ctx.syncRunningSubagentBadge();
@@ -651,6 +680,14 @@ export class BackendAttachLink {
 				this.#streaming = false;
 				return;
 			case "queue_update":
+				this.#applyQueue({
+					steering: Array.isArray(event.steering) ? event.steering : [],
+					followUp: Array.isArray(event.followUp) ? event.followUp : [],
+					// The push carries no live-steered count; keep the last snapshot's
+					// value so a refresh can still correct it.
+					liveSteered: this.#queue?.liveSteered ?? 0,
+				});
+				return;
 			case "connected_state":
 				return;
 			default:
@@ -681,8 +718,17 @@ export class BackendAttachLink {
 		if (mode !== "plan" && mode !== "goal" && mode !== "vibe") return;
 		const state = event.state;
 		const enabled = isRecord(state) && state.enabled === true;
-		if (mode === "plan") this.#ctx.planModeEnabled = enabled;
-		if (mode === "goal") this.#ctx.goalModeEnabled = enabled;
+		if (mode === "plan") {
+			this.#ctx.planModeEnabled = enabled;
+			const planFilePath =
+				isRecord(state) && typeof state.planFilePath === "string" ? state.planFilePath : undefined;
+			this.#ctx.planModePlanFilePath = enabled ? planFilePath : undefined;
+		}
+		if (mode === "goal") {
+			this.#ctx.goalModeEnabled = enabled;
+			const goal = isRecord(state) && isRecord(state.goal) ? state.goal : undefined;
+			this.#ctx.goalModePaused = !enabled && goal?.status === "paused";
+		}
 		if (mode === "vibe") this.#ctx.vibeModeEnabled = enabled;
 		this.#ctx.updateEditorBorderColor();
 		this.#ctx.ui.requestRender();
@@ -855,6 +901,8 @@ export class BackendAttachLink {
 					thinkingLevel?: string | null;
 					isStreaming?: unknown;
 					todoPhases?: unknown;
+					queuedMessages?: unknown;
+					modes?: unknown;
 					loop?: unknown;
 				};
 				if (this.#closed) return;
@@ -873,6 +921,13 @@ export class BackendAttachLink {
 				}
 				if (Array.isArray(state.todoPhases)) {
 					session.setTodoPhases(state.todoPhases as never);
+				}
+				this.#applyQueue(state.queuedMessages);
+				if (isRecord(state.modes)) {
+					for (const mode of ["plan", "goal", "vibe"] as const) {
+						const modeState = state.modes[mode];
+						if (isRecord(modeState)) this.#applyModeEvent({ type: "mode_changed", mode, state: modeState });
+					}
 				}
 				// A reconnect misses the transition events that produced the loop;
 				// the snapshot is authoritative unless a pushed frame landed while
@@ -897,6 +952,34 @@ export class BackendAttachLink {
 			mode,
 			...(options === undefined ? {} : { options }),
 		});
+	}
+
+	/** Exit a mode on the backend. */
+	async exitMode(mode: "plan" | "goal" | "vibe"): Promise<void> {
+		if (this.#wire) {
+			await this.#wire.exitMode(mode);
+			return;
+		}
+		await this.client.send(this.#sessionId, { type: "mode_exit", mode });
+	}
+
+	/** Run one `/goal` lifecycle operation on the backend session. */
+	async goal(
+		op: "get" | "create" | "resume" | "pause" | "drop" | "budget",
+		options: { objective?: string; tokenBudget?: number } = {},
+	): Promise<{
+		goal?: { objective?: string; status?: string; tokenBudget?: number; tokensUsed?: number } | null;
+		state?: unknown;
+	}> {
+		return (await this.client.send(this.#sessionId, {
+			type: "goal",
+			op,
+			...(options.objective === undefined ? {} : { objective: options.objective }),
+			...(options.tokenBudget === undefined ? {} : { token_budget: options.tokenBudget }),
+		})) as {
+			goal?: { objective?: string; status?: string; tokenBudget?: number; tokensUsed?: number } | null;
+			state?: unknown;
+		};
 	}
 
 	/** Apply `/loop <args>` on the backend, or stop the loop when one is active. */
@@ -947,6 +1030,69 @@ export class BackendAttachLink {
 			...(state.limit ? { limit: state.limit } : {}),
 			...(state.condition ? { condition: state.condition } : {}),
 		});
+	}
+
+	/** Mirror the backend's pending queue into the composer chips. */
+	#applyQueue(value: unknown): void {
+		const record = isRecord(value) ? value : undefined;
+		const strings = (candidate: unknown): string[] =>
+			Array.isArray(candidate) ? candidate.filter((item): item is string => typeof item === "string") : [];
+		const liveSteered =
+			record && typeof record.liveSteered === "number" && Number.isFinite(record.liveSteered)
+				? Math.max(0, Math.trunc(record.liveSteered))
+				: undefined;
+		this.#queue = {
+			steering: strings(record?.steering),
+			followUp: strings(record?.followUp),
+			liveSteered: liveSteered ?? this.#queue?.liveSteered ?? 0,
+		};
+		this.#ctx.backendQueue = this.#queue;
+		this.#ctx.updatePendingMessagesDisplay();
+	}
+
+	/** Withdraw the newest backend queued message so the composer can edit it. */
+	async removeQueuedMessage(
+		queue: "steering" | "followUp",
+	): Promise<{ removed: boolean; text?: string; images?: ImageContent[] }> {
+		const current = this.#queue ?? { steering: [], followUp: [], liveSteered: 0 };
+		const list = queue === "steering" ? current.steering : current.followUp;
+		const text = list[list.length - 1];
+		if (text === undefined) return { removed: false };
+		const result = (await this.client.send(this.#sessionId, {
+			type: "remove_queued_message",
+			message: text,
+			queue,
+		})) as { removed?: unknown; images?: ImageContent[] } | undefined;
+		await this.#scheduleStateRefreshNow();
+		return { removed: result?.removed === true, text, images: result?.images };
+	}
+
+	/** Esc on a backend-owned turn: withdraw all queued input, then abort. */
+	async abortAndRestoreQueue(): Promise<{
+		steering: Array<{ text: string; images?: ImageContent[] }>;
+		followUp: Array<{ text: string; images?: ImageContent[] }>;
+	}> {
+		const result = (await this.client.send(this.#sessionId, { type: "abort_and_restore_queue" })) as
+			| {
+					steering?: Array<{ text?: unknown; images?: ImageContent[] }>;
+					followUp?: Array<{ text?: unknown; images?: ImageContent[] }>;
+			  }
+			| undefined;
+		const entries = (
+			list: Array<{ text?: unknown; images?: ImageContent[] }> | undefined,
+		): Array<{ text: string; images?: ImageContent[] }> =>
+			(list ?? []).flatMap(item =>
+				typeof item.text === "string" ? [{ text: item.text, ...(item.images ? { images: item.images } : {}) }] : [],
+			);
+		this.#streaming = false;
+		await this.#scheduleStateRefreshNow();
+		return { steering: entries(result?.steering), followUp: entries(result?.followUp) };
+	}
+
+	/** Await a fresh state snapshot instead of returning before the queued refresh runs. */
+	async #scheduleStateRefreshNow(): Promise<void> {
+		this.#scheduleStateRefresh();
+		await this.#stateRefresh?.catch(() => undefined);
 	}
 
 	/** Review the backend's current plan and offer the approval choices. */

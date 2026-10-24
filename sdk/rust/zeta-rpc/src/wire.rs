@@ -2759,6 +2759,8 @@ pub enum GoalOp {
 	Pause,
 	#[serde(rename = "drop")]
 	Drop,
+	#[serde(rename = "budget")]
+	Budget,
 }
 
 impl GoalOp {
@@ -2770,6 +2772,7 @@ impl GoalOp {
 			Self::Resume => "resume",
 			Self::Pause => "pause",
 			Self::Drop => "drop",
+			Self::Budget => "budget",
 		}
 	}
 }

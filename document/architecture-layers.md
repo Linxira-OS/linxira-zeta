@@ -17,7 +17,7 @@
 
 后果：所有前端（GUI、web-ui、bot）都要先有 `zeta serve` 才"完整"；GUI 少了它就没有
 统计页（`main/crates/zetawork-gui/src/embed.rs` 的 `DEFAULT_STATS_URL`）、IM 回落
-（`notify.rs:115` 打 `127.0.0.1:30141`）、插件页。**这是耦合，不是设计**。
+（`notify.rs:115` 打 `127.0.0.1:43141`）、插件页。**这是耦合，不是设计**。
 
 web-ui 已经降级为两个职责（`web-ui/AGENTS.md` + 现状）：浏览器里的对话界面、
 以及宿主 HTML 插件页（`/plugins/view/<plugin>/<page>`）。它不再承担桌面职责。

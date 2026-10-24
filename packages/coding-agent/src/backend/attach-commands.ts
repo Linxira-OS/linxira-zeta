@@ -36,16 +36,17 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	changelog: true,
 	stats: true,
 	git: true,
-	// Read-only dashboards over the mirrored replica: they render the same
-	// surfaces a local session shows and never mutate it.
-	tools: true,
-	context: true,
+	// Backend-session dashboards. `/agents` and `/hub` are TUI-only, so their
+	// data arrives through the backend subagent roster mirror (see
+	// `backend/subagent-mirror.ts`); `/skills` and `/extensions` read the shared
+	// config the backend also loaded. `/tools`, `/context`, `/usage` and `/jobs`
+	// are *not* here: their headless handlers read the backend session (the
+	// replica has no tools/jobs/context of its own), so forwarding is the only
+	// correct route.
 	agents: true,
 	skills: true,
 	extensions: true,
 	status: true,
-	usage: true,
-	jobs: true,
 	// Display-only overlays and client-side capture. `pause` freezes the local
 	// renderer, `hub` reads the mirrored agent tree, `record` writes the TUI
 	// transcript on this machine, and `open`/`debug` never touch the backend.
@@ -67,8 +68,11 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
 	modelpreset: true,
 	switch: true,
 	effort: true,
-	fast: true,
-	slow: true,
+	// `/fast` and `/slow` deliberately stay out: their headless handlers set the
+	// backend session's tier, while the replica has no event that would mirror a
+	// local toggle back. `/plan`, `/goal` and `/vibe` stay here because the TUI
+	// pickers/menus need the replica's mode state; the input controller reroutes
+	// every form that changes the backend to `mode_enter`/`goal` RPCs.
 	plan: true,
 	"plan-ultra": true,
 	"plan-review": true,
@@ -82,24 +86,22 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
  *
  * - a process restart (`restart`) must be done by the backend's host;
  * - setup writes credentials the running backend does not reload;
- * - credentials (`login`, `logout`, `setup`) are loaded by the backend at
- *   startup;
  * - sharing (`collab`, `join`, `leave`) belongs to the backend's process;
- * - TUI-only workflows (`omfg`, `cleanse`, `tan`, `seance`, `live`) spawn
- *   agents or record on the client. `/loop` is *not* here: it has a backend
- *   controller and runs in the attached session.
+ * - live voice (`live`) binds the backend host's microphone/speaker and has no
+ *   client-side audio bridge yet.
+ *
+ * `/loop`, `/cleanse`, `/seance`, `/omfg` and `/tan` are *not* here: each has
+ * a headless handler that runs against the backend session (the same path ACP
+ * and RPC use), so an attached client forwards it instead of spawning work in
+ * the replica.
  */
 export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	collab: true,
 	join: true,
 	leave: true,
 	live: true,
-	omfg: true,
-	cleanse: true,
 	restart: true,
-	seance: true,
 	setup: true,
-	tan: true,
 };
 
 /**

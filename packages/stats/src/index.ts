@@ -1,7 +1,13 @@
 #!/usr/bin/env bun
 
 import { parseArgs } from "node:util";
-import { formatDuration, formatNumber, formatPercent, normalizePremiumRequests } from "@linxiraos/pi-utils";
+import {
+	formatDuration,
+	formatNumber,
+	formatPercent,
+	normalizePremiumRequests,
+	ZETA_STATS_PORT,
+} from "@linxiraos/pi-utils";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { formatErrorRate } from "./client/data/formatters";
 import { getDashboardStats, getTotalMessageCount, syncAllSessions } from "./aggregator";
@@ -108,7 +114,7 @@ export function parseStandaloneStatsArgs(args: string[]): StandaloneStatsArgs {
 	const { values } = parseArgs({
 		args,
 		options: {
-			port: { type: "string", short: "p", default: "3847" },
+			port: { type: "string", short: "p", default: String(ZETA_STATS_PORT) },
 			host: { type: "string", default: "127.0.0.1" },
 			json: { type: "boolean", short: "j", default: false },
 			sync: { type: "boolean", short: "s", default: false },
@@ -117,7 +123,7 @@ export function parseStandaloneStatsArgs(args: string[]): StandaloneStatsArgs {
 		allowPositionals: true,
 	});
 	return {
-		port: parseInt(values.port || "3847", 10),
+		port: parseInt(values.port || String(ZETA_STATS_PORT), 10),
 		host: values.host || "127.0.0.1",
 		json: values.json ?? false,
 		sync: values.sync ?? false,
@@ -139,7 +145,7 @@ Usage:
   zeta-stats [options]
 
 Options:
-  -p, --port <port>  Port for the dashboard server (default: 3847)
+  -p, --port <port>  Port for the dashboard server (default: ${ZETA_STATS_PORT})
   --host <host>       Host to bind (default: 127.0.0.1)
   -j, --json         Output stats as JSON and exit
   -s, --sync         Sync session files and show summary

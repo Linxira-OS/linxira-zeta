@@ -1244,7 +1244,10 @@ export class UiHelpers {
 
 	updatePendingMessagesDisplay(): void {
 		this.ctx.pendingMessagesContainer.disposeChildren();
-		const queuedMessages = this.ctx.viewSession.getQueuedMessages() as QueuedMessages;
+		// A backend-owned queue only exists on the server; the replica's session
+		// queue is always empty. Render the mirrored snapshot when attached so the
+		// chips, dequeue affordance and counts match what will actually run.
+		const queuedMessages = (this.ctx.backendQueue ?? this.ctx.viewSession.getQueuedMessages()) as QueuedMessages;
 
 		const steeringMessages = [...queuedMessages.steering];
 		const followUpMessages = [...queuedMessages.followUp];

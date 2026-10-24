@@ -223,6 +223,7 @@ export async function executeBuiltinSlashCommand(
 			sessionManager: ctx.sessionManager,
 			settings: ctx.settings,
 			cwd: ctx.sessionManager.getCwd(),
+			mcpManager: ctx.mcpManager,
 			output: (text: string) => {
 				ctx.showStatus(text);
 			},

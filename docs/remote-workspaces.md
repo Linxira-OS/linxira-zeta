@@ -178,7 +178,7 @@ choose — bring your own port mapping, tunnel (frp, Tailscale, Cloudflare
 Tunnel), or reverse proxy.
 
 ```bash
-# loopback only (default): open http://127.0.0.1:30141
+# loopback only (default): open http://127.0.0.1:43141
 zetacode serve
 
 # LAN/WAN bind — requires a remote token, and TLS unless you opt out:
@@ -259,7 +259,7 @@ Caddy (automatic certificates, WebSocket/SSE pass through):
 
 ```caddyfile
 zeta.example.com {
-	reverse_proxy 127.0.0.1:30141
+	reverse_proxy 127.0.0.1:43141
 }
 ```
 
@@ -274,7 +274,7 @@ server {
 	ssl_certificate_key /etc/letsencrypt/live/zeta.example.com/privkey.pem;
 
 	location / {
-		proxy_pass http://127.0.0.1:30141;
+		proxy_pass http://127.0.0.1:43141;
 		proxy_http_version 1.1;
 		proxy_set_header Host $host;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

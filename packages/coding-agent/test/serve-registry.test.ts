@@ -43,9 +43,9 @@ function tempRegistry(): string {
 function registration(overrides: Partial<ServeRegistration> = {}): ServeRegistration {
 	return {
 		pid: 4242,
-		webUrl: "http://127.0.0.1:30141",
-		statsUrl: "http://127.0.0.1:3847",
-		gatewayUrl: "http://127.0.0.1:30142",
+		webUrl: "http://127.0.0.1:43141",
+		statsUrl: "http://127.0.0.1:43147",
+		gatewayUrl: "http://127.0.0.1:43143",
 		version: "1.2.0",
 		startedAt: "2026-10-13T00:00:00.000Z",
 		cwd: "/work",
@@ -59,9 +59,9 @@ function identity(overrides: Partial<ServeIdentity> = {}): ServeIdentity {
 		version: "1.2.0",
 		pid: 4242,
 		startedAt: "2026-10-13T00:00:00.000Z",
-		webUrl: "http://127.0.0.1:30141",
-		statsUrl: "http://127.0.0.1:3847",
-		gatewayUrl: "http://127.0.0.1:30142",
+		webUrl: "http://127.0.0.1:43141",
+		statsUrl: "http://127.0.0.1:43147",
+		gatewayUrl: "http://127.0.0.1:43143",
 		...overrides,
 	};
 }
@@ -114,7 +114,7 @@ describe("registration file", () => {
 		writeServeRegistration(registration({ desktopOpenSecret: "s3cret" }), file);
 		const read = readServeRegistration(file);
 		expect(read?.pid).toBe(4242);
-		expect(read?.webUrl).toBe("http://127.0.0.1:30141");
+		expect(read?.webUrl).toBe("http://127.0.0.1:43141");
 		expect(read?.desktopOpenSecret).toBe("s3cret");
 		if (process.platform !== "win32") {
 			expect(fs.statSync(file).mode & 0o777).toBe(0o600);
@@ -160,8 +160,8 @@ describe("pid liveness", () => {
 
 describe("identity probe", () => {
 	test("returns the identity when a Zeta instance answers", async () => {
-		const found = await probeServeIdentity("http://127.0.0.1:30141", {
-			fetchImpl: fetchOnPorts([30141], identity()),
+		const found = await probeServeIdentity("http://127.0.0.1:43141", {
+			fetchImpl: fetchOnPorts([43141], identity()),
 			timeoutMs: 200,
 		});
 		expect(found?.version).toBe("1.2.0");
@@ -187,14 +187,14 @@ describe("identity probe", () => {
 	});
 
 	test("probes loopback before a bind-all or interface host", () => {
-		expect(identityProbeUrls("http://127.0.0.1:30141")).toEqual(["http://127.0.0.1:30141"]);
-		expect(identityProbeUrls("http://0.0.0.0:30141")).toEqual(["http://127.0.0.1:30141", "http://0.0.0.0:30141"]);
+		expect(identityProbeUrls("http://127.0.0.1:43141")).toEqual(["http://127.0.0.1:43141"]);
+		expect(identityProbeUrls("http://0.0.0.0:43141")).toEqual(["http://127.0.0.1:43141", "http://0.0.0.0:43141"]);
 		expect(identityProbeUrls("not a url")).toEqual(["not a url"]);
 	});
 });
 
 describe("discovery", () => {
-	const target = "http://127.0.0.1:30141";
+	const target = "http://127.0.0.1:43141";
 
 	test("drops a dead-pid registration and reports it as stale", async () => {
 		const file = tempRegistry();
@@ -202,7 +202,7 @@ describe("discovery", () => {
 		const discovery = await discoverServeInstance({
 			targetUrl: target,
 			registryFile: file,
-			fetchImpl: fetchOnPorts([30141], identity()),
+			fetchImpl: fetchOnPorts([43141], identity()),
 			isAlive: () => false,
 		});
 		expect(discovery.staleRegistration?.pid).toBe(777);
@@ -218,7 +218,7 @@ describe("discovery", () => {
 		const discovery = await discoverServeInstance({
 			targetUrl: target,
 			registryFile: file,
-			fetchImpl: fetchOnPorts([30141], identity()),
+			fetchImpl: fetchOnPorts([43141], identity()),
 			isAlive: () => true,
 		});
 		expect(discovery.staleRegistration).toBeNull();
@@ -230,7 +230,7 @@ describe("discovery", () => {
 		const discovery = await discoverServeInstance({
 			targetUrl: target,
 			registryFile: tempRegistry(),
-			fetchImpl: fetchOnPorts([30141], identity({ pid: 99 })),
+			fetchImpl: fetchOnPorts([43141], identity({ pid: 99 })),
 			isAlive: () => true,
 		});
 		expect(discovery.identity?.pid).toBe(99);
@@ -250,7 +250,7 @@ describe("discovery", () => {
 });
 
 describe("reuse decision (zeta serve)", () => {
-	const target = "http://127.0.0.1:30141";
+	const target = "http://127.0.0.1:43141";
 
 	test("reuses a healthy same-version instance holding the target port", async () => {
 		const file = tempRegistry();
@@ -258,7 +258,7 @@ describe("reuse decision (zeta serve)", () => {
 		const discovery = await discoverServeInstance({
 			targetUrl: target,
 			registryFile: file,
-			fetchImpl: fetchOnPorts([30141], identity()),
+			fetchImpl: fetchOnPorts([43141], identity()),
 			isAlive: () => true,
 		});
 		const plan = planServeStart({ discovery, targetUrl: target, currentVersion: "1.2.0" });
@@ -275,7 +275,7 @@ describe("reuse decision (zeta serve)", () => {
 			targetUrl: target,
 			registryFile: file,
 			// The port answers with a live instance while the file names a dead one.
-			fetchImpl: fetchOnPorts([30141], identity()),
+			fetchImpl: fetchOnPorts([43141], identity()),
 			isAlive: () => false,
 		});
 		const plan = planServeStart({ discovery, targetUrl: target, currentVersion: "1.2.0" });
@@ -289,7 +289,7 @@ describe("reuse decision (zeta serve)", () => {
 		const discovery = await discoverServeInstance({
 			targetUrl: target,
 			registryFile: tempRegistry(),
-			fetchImpl: fetchOnPorts([30141], identity({ version: "1.1.0" })),
+			fetchImpl: fetchOnPorts([43141], identity({ version: "1.1.0" })),
 			isAlive: () => true,
 		});
 		const plan = planServeStart({ discovery, targetUrl: target, currentVersion: "1.2.0" });
@@ -304,7 +304,7 @@ describe("reuse decision (zeta serve)", () => {
 		const discovery = await discoverServeInstance({
 			targetUrl: "http://127.0.0.1:39999",
 			registryFile: file,
-			fetchImpl: fetchOnPorts([30141], identity()),
+			fetchImpl: fetchOnPorts([43141], identity()),
 			isAlive: () => true,
 		});
 		const plan = planServeStart({
@@ -315,7 +315,7 @@ describe("reuse decision (zeta serve)", () => {
 		expect(plan.action).toBe("start");
 		if (plan.action !== "start") throw new Error("expected start");
 		expect(plan.other?.pid).toBe(4242);
-		expect(plan.other?.webUrl).toBe("http://127.0.0.1:30141");
+		expect(plan.other?.webUrl).toBe("http://127.0.0.1:43141");
 	});
 
 	test("starts when nothing answers, carrying the stale record", async () => {
@@ -341,13 +341,13 @@ describe("reuse decision (zeta serve)", () => {
  * it proxies returns 502. Reusing it would hand every client a dead UI.
  */
 describe("reuse decision (Web UI surface)", () => {
-	const target = "http://127.0.0.1:30141";
+	const target = "http://127.0.0.1:43141";
 
 	/** Identity answers on the port, every other path is a proxy 502. */
 	const fetchWithDeadWebUi = (): typeof fetch =>
 		fakeFetch(url => {
 			const parsed = new URL(url);
-			if (Number(parsed.port) !== 30141) return null;
+			if (Number(parsed.port) !== 43141) return null;
 			if (parsed.pathname === "/api/server/identity") return Response.json(identity());
 			return new Response("Bad Gateway", { status: 502 });
 		});
@@ -380,7 +380,7 @@ describe("reuse decision (Web UI surface)", () => {
 			registryFile: file,
 			fetchImpl: fakeFetch(url => {
 				const parsed = new URL(url);
-				if (Number(parsed.port) !== 30141) return null;
+				if (Number(parsed.port) !== 43141) return null;
 				if (parsed.pathname === "/api/server/identity") return Response.json(identity());
 				return new Response("<html>", { status: 200 });
 			}),

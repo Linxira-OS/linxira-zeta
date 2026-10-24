@@ -15,7 +15,7 @@
  */
 
 import * as path from "node:path";
-import { isRecord, readLines } from "@linxiraos/pi-utils";
+import { isRecord, readLines, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
 import {
 	identityProbeUrls,
 	probeServeIdentity,
@@ -26,7 +26,7 @@ import {
 import type { ServeIdentity } from "../server/web-gateway/identity";
 
 /** Standalone web-gateway port used when no env override is set. */
-export const DEFAULT_BACKEND_PORT = 30142;
+export const DEFAULT_BACKEND_PORT = ZETA_GATEWAY_PORT;
 
 /** Discovery budget: a client launch must not stall on a missing backend. */
 export const DEFAULT_BACKEND_PROBE_TIMEOUT_MS = 1500;
@@ -366,6 +366,29 @@ export class BackendClient {
 		}
 		for await (const event of readSseEvents(response.body, options.signal)) {
 			yield event;
+		}
+	}
+
+	/**
+	 * Open the backend's subagent roster stream (snapshot + lifecycle/progress).
+	 * Frames are the gateway's `SubagentEventFrame` union, not session events.
+	 */
+	async *subagentEvents(
+		sessionId: string,
+		options: { signal?: AbortSignal } = {},
+	): AsyncGenerator<Record<string, unknown>> {
+		const response = await this.fetchImpl(
+			`${this.baseUrl}/api/agent/${encodeURIComponent(sessionId)}/subagents/events`,
+			{
+				headers: { accept: "text/event-stream" },
+				signal: options.signal,
+			},
+		);
+		if (!response.ok || !response.body) {
+			throw new BackendHttpError(response.status, `subagent stream HTTP ${response.status}`);
+		}
+		for await (const event of readSseEvents(response.body, options.signal)) {
+			yield event as unknown as Record<string, unknown>;
 		}
 	}
 }

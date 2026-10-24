@@ -9,16 +9,16 @@ const INTENT: BackendAttachIntent = { newSession: false, explicit: false };
 
 const REGISTRATION = {
 	pid: process.pid,
-	webUrl: "http://127.0.0.1:30141",
-	statsUrl: "http://127.0.0.1:3847",
-	gatewayUrl: "http://127.0.0.1:30142",
+	webUrl: "http://127.0.0.1:43141",
+	statsUrl: "http://127.0.0.1:43147",
+	gatewayUrl: "http://127.0.0.1:43143",
 	version: "1.4.0",
 	startedAt: "2026-10-24T00:00:00.000Z",
 	cwd: "/repo",
 };
 
 const BACKEND: BackendTarget = {
-	baseUrl: "http://127.0.0.1:30142",
+	baseUrl: "http://127.0.0.1:43143",
 	identity: { app: "zeta", version: "1.4.0", pid: 1, startedAt: "", webUrl: "", statsUrl: "", gatewayUrl: null },
 };
 

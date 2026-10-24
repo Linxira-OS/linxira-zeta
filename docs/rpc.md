@@ -111,7 +111,7 @@ A running backend (`zeta serve`) exposes the same protocol over WebSocket, so a
 client can attach to a session the backend owns:
 
 ```
-ws://127.0.0.1:30142/api/rpc/ws?sessionId=<session-id>
+ws://127.0.0.1:43143/api/rpc/ws?sessionId=<session-id>
 ```
 
 - The gateway listener is loopback-only; a remote client has no WS path yet.
@@ -171,7 +171,7 @@ Important edge behavior from runtime:
 - `{ id?, type: "get_state" }`
 - `{ id?, type: "set_fast_mode", enabled: boolean }`
 - `{ id?, type: "set_slow_mode", enabled: boolean }`
-- `{ id?, type: "goal", op: "get" | "create" | "resume" | "pause" | "drop", objective?: string, token_budget?: number }`
+- `{ id?, type: "goal", op: "get" | "create" | "resume" | "pause" | "drop" | "budget", objective?: string, token_budget?: number }`; `op: "budget"` sets the active goal's token limit (`token_budget` omitted clears it), matching `/goal budget`.
 - `{ id?, type: "set_ask_dialog", enabled: boolean }`
 - `{ id?, type: "get_available_commands" }`
 - `{ id?, type: "get_entries", since?: string }`

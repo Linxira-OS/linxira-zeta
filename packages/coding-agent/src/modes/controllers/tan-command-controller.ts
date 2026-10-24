@@ -12,9 +12,26 @@ import { BACKGROUND_TAN_DISPATCH_MESSAGE_TYPE } from "../../session/messages";
 import { SessionManager } from "../../session/session-manager";
 import { createMCPProxyTools, createSubagentSettings, followMCPTools } from "../../task/executor";
 import { USER_TODO_EDIT_CUSTOM_TYPE } from "../../tools/todo";
-import type { InteractiveModeContext } from "../types";
+import type { Settings } from "../../config/settings";
+import type { MCPManager } from "../../mcp/manager";
+import type { ShowStatusOptions } from "../types";
 
 import { cfgTaskEnableLsp } from "../../task/settings";
+
+/**
+ * The surface `/tan` needs. The TUI supplies its full context; the headless
+ * `/tan` handler supplies the backend session plus text output, so the same
+ * dispatch path serves both.
+ */
+export interface TanCommandHost {
+	session: AgentSession;
+	sessionManager: SessionManager;
+	settings: Settings;
+	mcpManager?: MCPManager;
+	showStatus(message: string, options?: ShowStatusOptions): void;
+	showError(message: string): void;
+	rebuildChatFromMessages?(): void;
+}
 
 const TAN_LABEL_PREVIEW_LENGTH = 80;
 
@@ -41,7 +58,7 @@ async function removeCloneSession(cloneFile: string): Promise<void> {
 }
 
 export class TanCommandController {
-	constructor(private readonly ctx: InteractiveModeContext) {}
+	constructor(private readonly ctx: TanCommandHost) {}
 
 	async start(work: string): Promise<void> {
 		const trimmedWork = work.trim();
@@ -321,7 +338,7 @@ export class TanCommandController {
 			},
 			{ triggerTurn: false, deliverAs: "nextTurn" },
 		);
-		if (!wasStreaming) this.ctx.rebuildChatFromMessages();
+		if (!wasStreaming) this.ctx.rebuildChatFromMessages?.();
 		this.ctx.showStatus(`Dispatched background tan ${jobId}`);
 	}
 }

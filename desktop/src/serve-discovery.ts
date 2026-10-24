@@ -311,7 +311,7 @@ export type DesktopServicePlan =
  */
 export async function discoverDesktopService(args: {
 	deps: ServeDiscoveryDeps;
-	/** The URL the shell would otherwise spawn a service on (`http://127.0.0.1:30141`). */
+	/** The URL the shell would otherwise spawn a service on (`http://127.0.0.1:43141`). */
 	targetUrl: string;
 	/** Version the shell expects of its service (the bundled CLI's version). */
 	expectedVersion: string;

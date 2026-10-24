@@ -385,7 +385,7 @@ export type MessageUpdates = "full" | "delta";
 
 export type TodoStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
 
-export type GoalOp = "get" | "create" | "resume" | "pause" | "drop";
+export type GoalOp = "get" | "create" | "resume" | "pause" | "drop" | "budget";
 
 export type GoalStatus = "active" | "paused" | "budget-limited" | "complete" | "dropped";
 

@@ -15,7 +15,7 @@
 
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
-import { isRecord, readLines } from "@linxiraos/pi-utils";
+import { isRecord, readLines, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
 import { BackendClient, sortSessionsNewestFirst } from "../backend/client";
 import { workspaceBranch } from "../session/workspace-branch";
 import {
@@ -27,7 +27,7 @@ import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { attachHelp as commandHelp } from "../cli/command-help";
 import { M } from "../i18n";
 
-const DEFAULT_GATEWAY_URL = "http://127.0.0.1:30142";
+const DEFAULT_GATEWAY_URL = `http://127.0.0.1:${ZETA_GATEWAY_PORT}`;
 
 /** Minimal shape of the gateway session DTO the renderer needs. */
 interface SessionContextMessage {

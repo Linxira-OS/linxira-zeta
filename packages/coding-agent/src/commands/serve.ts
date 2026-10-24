@@ -9,7 +9,7 @@
  * 给出选项，绝不静默抢占。
  */
 
-import { CLI_BIN_NAME, logger, VERSION } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, logger, VERSION, ZETA_GATEWAY_PORT, ZETA_STATS_PORT, ZETA_WEB_PORT } from "@linxiraos/pi-utils";
 import { Command, Flags } from "@linxiraos/pi-utils/cli";
 import chalk from "chalk";
 import { WebConfig } from "../config/web-config";
@@ -42,12 +42,12 @@ export default class Serve extends Command {
 		"stats-port": Flags.integer({
 			char: "s",
 			description: "Port for the Stats Dashboard",
-			default: 3847,
+			default: ZETA_STATS_PORT,
 		}),
 		"web-port": Flags.integer({
 			char: "w",
 			description: "Port for the Web UI",
-			default: 30141,
+			default: ZETA_WEB_PORT,
 		}),
 		host: Flags.string({
 			description: "Public bind hostname (non-loopback requires remote.token + TLS or --allow-plain-http)",
@@ -69,7 +69,7 @@ export default class Serve extends Command {
 		"gateway-port": Flags.integer({
 			char: "g",
 			description: "Port for the Web Gateway (127.0.0.1 only)",
-			default: 30142,
+			default: ZETA_GATEWAY_PORT,
 		}),
 		"no-browser": Flags.boolean({
 			description: "Don't open the browser automatically (default)",

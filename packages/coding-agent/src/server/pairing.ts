@@ -19,7 +19,7 @@ import type { WebConfigData } from "../config/web-config";
 export const PAIRING_FRAGMENT_KEY = "zeta-token";
 
 export interface PairingPayloadOptions {
-	/** Base origin the phone should open, e.g. `https://zeta.example.com:30141`. */
+	/** Base origin the phone should open, e.g. `https://zeta.example.com:43141`. */
 	url: string;
 	token: string;
 }

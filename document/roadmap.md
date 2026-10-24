@@ -115,7 +115,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 - **`web-ui/` 冻结**：开发到此为止，**不再作为独立桌面应用分发**；只保留为 zetawork 桌面应用
   内部**可选的渲染后端**。理由（用户原话指向的两个现场报错）：
   `The Zeta service did not become ready in time.` 与
-  `The running Zeta service at http://127.0.0.1:30141 did not answer.` —— Electron 外壳要先 spawn
+  `The running Zeta service at http://127.0.0.1:43141 did not answer.` —— Electron 外壳要先 spawn
   `zetacode serve` 再轮询端口就绪，这条链长期不稳，桌面维护成本高。
 - **桌面应用本体 = zetawork**，开发位置整体迁到 `desktop/`（现有 Electron 外壳退役）。
 - **启动形态**：启动后**保底有一个 `zetacode` 进程**（由工作台自己拉起/内嵌），**不依赖外部服务

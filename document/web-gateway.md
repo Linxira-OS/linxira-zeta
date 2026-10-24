@@ -9,14 +9,14 @@
 ## 架构
 
 ```
-Browser ── :30141 (Bun.serve, ZetaServer)
+Browser ── :43141 (Bun.serve, ZetaServer)
              ├─ /api/*          → Web Gateway（同进程内 Bun 处理器，不走 Next）
-             ├─ /api/stats/*    → Stats Dashboard (:3847)
+             ├─ /api/stats/*    → Stats Dashboard (:43147)
              └─ 其余             → Next.js Web UI（内部随机端口）
 
 开发模式：next dev / next start 直连时，next.config `beforeFiles` rewrites
 把 /api/* 转发到 Gateway；目标来自 `ZETA_WEB_GATEWAY_URL`（未设置时回退
-`ZETA_WEB_GATEWAY_PORT`，再回退默认 30142）。注意 Next 在**加载配置时**求值
+`ZETA_WEB_GATEWAY_PORT`，再回退默认 43143）。注意 Next 在**加载配置时**求值
 rewrites（`next start` 用构建产物里的 routes-manifest），因此该目标必须在
 web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它——网关所属的
 `/api/*` 由统一监听器在**进程内**分派（`classifyRequest`，含 `/api/tracking`），
@@ -25,7 +25,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 ```
 
 - Gateway 是 Bun 进程内 `Bun.serve`（由 `zeta serve` 启动，desktop 同源），
-  端口环境变量 `ZETA_WEB_GATEWAY_PORT`（默认 30142），仅监听 127.0.0.1。
+  端口环境变量 `ZETA_WEB_GATEWAY_PORT`（默认 43143），仅监听 127.0.0.1。
   `zeta serve` 按 `--gateway-port` 启动它，并把解析出的 origin 作为
   `ZETA_WEB_GATEWAY_URL` 注入 web-ui 子进程（`spawnWebUi`），供 Next 侧代理/
   请求期代理解析目标。
@@ -395,5 +395,5 @@ SSE   data: { type:"extension_ui_resolved", id }
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
-| `ZETA_WEB_GATEWAY_PORT` | `30142` | Gateway 监听端口（仅 127.0.0.1）；`zeta serve --gateway-port` 优先 |
-| `ZETA_WEB_GATEWAY_URL` | `http://127.0.0.1:30142` | Next rewrites / 请求期代理的目标（web-ui 侧）；`zeta serve` 按 `--gateway-port` 注入，未注入时回退 `ZETA_WEB_GATEWAY_PORT` 再回退默认端口 |
+| `ZETA_WEB_GATEWAY_PORT` | `43143` | Gateway 监听端口（仅 127.0.0.1）；`zeta serve --gateway-port` 优先 |
+| `ZETA_WEB_GATEWAY_URL` | `http://127.0.0.1:43143` | Next rewrites / 请求期代理的目标（web-ui 侧）；`zeta serve` 按 `--gateway-port` 注入，未注入时回退 `ZETA_WEB_GATEWAY_PORT` 再回退默认端口 |

@@ -11,12 +11,12 @@
  *   `/api/*` before proxying to Next.
  * - `next dev` / `next start` standalone → next.config `beforeFiles` rewrites
  *   forward the gateway-owned families to the standalone listener started by
- *   `startWebGateway()` on 127.0.0.1 (`ZETA_WEB_GATEWAY_PORT`, default 30142).
+ *   `startWebGateway()` on 127.0.0.1 (`ZETA_WEB_GATEWAY_PORT`, default 43143).
  */
 
 import * as os from "node:os";
 import * as path from "node:path";
-import { refreshDirsFromEnv } from "@linxiraos/pi-utils";
+import { refreshDirsFromEnv, ZETA_GATEWAY_PORT } from "@linxiraos/pi-utils";
 import {
 	getChannelStatus,
 	getMainSessionId,
@@ -135,7 +135,7 @@ import { handleRpcWsUpgrade, isRpcWsUpgradeRequest, rpcWebSocketHandler, type Rp
 /** Both data planes share one listener; `kind` routes a socket to its handler. */
 type GatewayWsData = TerminalWsData | RpcWsData;
 
-const DEFAULT_GATEWAY_PORT = 30142;
+const DEFAULT_GATEWAY_PORT = ZETA_GATEWAY_PORT;
 
 const SESSION_ID_PART = "[A-Za-z0-9-]+";
 const PROVIDER_PART = "[A-Za-z0-9_.-]+";

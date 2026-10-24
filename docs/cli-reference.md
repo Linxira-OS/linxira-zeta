@@ -200,7 +200,7 @@ deferred; the package ships a placeholder page). A bare interactive
 | `--attach` | Attach the TUI to the newest backend session in this directory. |
 | `--attach-session <id>` | Attach to a specific backend session, across all repositories. |
 | `--attach-new` | Create and attach to a fresh backend session in this directory instead of reusing one. |
-| `--backend-url <url>` | Gateway URL to probe (default: `ZETA_GATEWAY_URL`, the serve registry, then `http://127.0.0.1:30142`). |
+| `--backend-url <url>` | Gateway URL to probe (default: `ZETA_GATEWAY_URL`, the serve registry, then `http://127.0.0.1:43143`). |
 
 `zetacode attach --list` prints every backend session across repositories
 (id, `cwd @ branch`, modified time, name/status), `zetacode attach <id>` attaches the

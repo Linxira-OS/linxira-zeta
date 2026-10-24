@@ -131,7 +131,7 @@ export const launchHelp = {
 			description: "Force a fresh backend session in this directory instead of reusing the newest one",
 		}),
 		"backend-url": Flags.string({
-			description: "Backend gateway URL (default: ZETA_GATEWAY_URL, the serve registry, then 127.0.0.1:30142)",
+			description: "Backend gateway URL (default: ZETA_GATEWAY_URL, the serve registry, then 127.0.0.1:43143)",
 		}),
 		"max-time": Flags.string({ description: "Stop the session after this duration (e.g., 600, 10m, 1h)" }),
 		"auto-approve": Flags.boolean({

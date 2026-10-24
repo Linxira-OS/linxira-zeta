@@ -22,7 +22,7 @@ export const stateDefs = {
 		"`set_event_filter` projection: `delta` drops the accumulated snapshots from `message_update`.",
 	),
 	TodoStatus: "'pending' | 'in_progress' | 'completed' | 'abandoned' | 'blocked'",
-	GoalOp: "'get' | 'create' | 'resume' | 'pause' | 'drop'",
+	GoalOp: "'get' | 'create' | 'resume' | 'pause' | 'drop' | 'budget'",
 	GoalStatus: "'active' | 'paused' | 'budget-limited' | 'complete' | 'dropped'",
 	SlashCommandSource: "'builtin' | 'skill' | 'extension' | 'custom' | 'mcp_prompt' | 'file'",
 	SubagentSubscriptionLevel: doc(

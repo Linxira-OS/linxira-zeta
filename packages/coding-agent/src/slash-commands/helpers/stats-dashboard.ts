@@ -1,7 +1,8 @@
 import * as stats from "@linxiraos/pi-stats";
 import * as openUtils from "../../utils/open";
+import { ZETA_STATS_PORT } from "@linxiraos/pi-utils";
 
-export const DEFAULT_STATS_DASHBOARD_PORT = 3847;
+export const DEFAULT_STATS_DASHBOARD_PORT = ZETA_STATS_PORT;
 
 interface StatsDashboardServer {
 	hostname: string;

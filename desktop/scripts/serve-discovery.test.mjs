@@ -26,15 +26,15 @@ import {
 	SERVE_REGISTRY_ENV,
 } from "../src/serve-discovery.ts";
 
-const TARGET_URL = "http://127.0.0.1:30141";
-const DEFAULT_STATS_URL = "http://127.0.0.1:3847";
+const TARGET_URL = "http://127.0.0.1:43141";
+const DEFAULT_STATS_URL = "http://127.0.0.1:43147";
 
 function registration(overrides = {}) {
 	return {
 		pid: 4242,
 		webUrl: TARGET_URL,
 		statsUrl: DEFAULT_STATS_URL,
-		gatewayUrl: "http://127.0.0.1:30142",
+		gatewayUrl: "http://127.0.0.1:43143",
 		version: "1.2.0",
 		startedAt: "2026-10-13T00:00:00.000Z",
 		cwd: "/work/space",
@@ -50,7 +50,7 @@ function identity(overrides = {}) {
 		startedAt: "2026-10-13T00:00:00.000Z",
 		webUrl: TARGET_URL,
 		statsUrl: DEFAULT_STATS_URL,
-		gatewayUrl: "http://127.0.0.1:30142",
+		gatewayUrl: "http://127.0.0.1:43143",
 		...overrides,
 	};
 }
@@ -121,15 +121,15 @@ test("parseServeRegistration rejects junk and keeps valid fields", () => {
 
 test("identityProbeUrls probes loopback first and loopbackUrlFor normalizes URLs", () => {
 	assert.deepEqual(identityProbeUrls(TARGET_URL), [TARGET_URL]);
-	assert.deepEqual(identityProbeUrls("http://0.0.0.0:30141"), ["http://127.0.0.1:30141", "http://0.0.0.0:30141"]);
+	assert.deepEqual(identityProbeUrls("http://0.0.0.0:43141"), ["http://127.0.0.1:43141", "http://0.0.0.0:43141"]);
 	assert.deepEqual(identityProbeUrls("garbage"), ["garbage"]);
-	assert.equal(loopbackUrlFor("http://0.0.0.0:3847"), "http://127.0.0.1:3847");
-	assert.equal(loopbackUrlFor("http://127.0.0.1:3847"), "http://127.0.0.1:3847");
+	assert.equal(loopbackUrlFor("http://0.0.0.0:43147"), "http://127.0.0.1:43147");
+	assert.equal(loopbackUrlFor("http://127.0.0.1:43147"), "http://127.0.0.1:43147");
 	assert.equal(loopbackUrlFor("garbage"), "garbage");
 });
 
 test("probeServeIdentity accepts only a Zeta identity", async () => {
-	const { deps } = makeDeps({ responder: responderOnPorts([30141], identity()) });
+	const { deps } = makeDeps({ responder: responderOnPorts([43141], identity()) });
 	assert.equal((await probeServeIdentity(TARGET_URL, deps)).version, "1.2.0");
 
 	const { deps: foreign } = makeDeps({ responder: () => Response.json({ app: "nginx", version: "1.0.0", pid: 1 }) });
@@ -145,13 +145,13 @@ test("probeServeIdentity accepts only a Zeta identity", async () => {
 test("reuses a healthy same-version instance, adopting its URLs, workspace and secret", async () => {
 	const { deps } = makeDeps({
 		file: JSON.stringify(registration({ desktopOpenSecret: "shared-secret" })),
-		responder: responderOnPorts([30141], identity()),
+		responder: responderOnPorts([43141], identity()),
 	});
 	const plan = await planFromEnv({ deps });
 	assert.equal(plan.action, "reuse");
 	assert.equal(plan.webUrl, TARGET_URL);
 	assert.equal(plan.statsUrl, DEFAULT_STATS_URL);
-	assert.equal(plan.gatewayUrl, "http://127.0.0.1:30142");
+	assert.equal(plan.gatewayUrl, "http://127.0.0.1:43143");
 	assert.equal(plan.identity.pid, 4242);
 	assert.equal(plan.registration.cwd, "/work/space");
 	assert.equal(plan.registration.desktopOpenSecret, "shared-secret");
@@ -160,20 +160,20 @@ test("reuses a healthy same-version instance, adopting its URLs, workspace and s
 
 test("reuses a same-version instance on a non-default port", async () => {
 	const { deps } = makeDeps({
-		file: JSON.stringify(registration({ webUrl: "http://127.0.0.1:39999", statsUrl: "http://0.0.0.0:3847" })),
+		file: JSON.stringify(registration({ webUrl: "http://127.0.0.1:39999", statsUrl: "http://0.0.0.0:43147" })),
 		responder: responderOnPorts([39999], identity({ webUrl: "http://127.0.0.1:39999" })),
 	});
 	const plan = await planFromEnv({ deps });
 	assert.equal(plan.action, "reuse");
 	// The window loads the loopback URL that answered; stats is normalized too.
 	assert.equal(plan.webUrl, "http://127.0.0.1:39999");
-	assert.equal(plan.statsUrl, "http://127.0.0.1:3847");
+	assert.equal(plan.statsUrl, "http://127.0.0.1:43147");
 });
 
 test("refuses a differently-versioned instance instead of taking its port", async () => {
 	const { deps } = makeDeps({
 		file: JSON.stringify(registration({ version: "1.1.0" })),
-		responder: responderOnPorts([30141], identity({ version: "1.1.0" })),
+		responder: responderOnPorts([43141], identity({ version: "1.1.0" })),
 	});
 	const plan = await planFromEnv({ deps });
 	assert.equal(plan.action, "version-mismatch");
@@ -198,7 +198,7 @@ test("drops a dead-pid registration before deciding", async () => {
 });
 
 test("finds an instance whose registration names another pid (registry deleted/overwritten)", async () => {
-	const { deps } = makeDeps({ responder: responderOnPorts([30141], identity({ pid: 99 })) });
+	const { deps } = makeDeps({ responder: responderOnPorts([43141], identity({ pid: 99 })) });
 	const plan = await planFromEnv({ deps });
 	assert.equal(plan.action, "reuse");
 	assert.equal(plan.identity.pid, 99);
@@ -226,7 +226,7 @@ function responderWithDeadWebUi(ports, payload) {
 test("never reuses an instance whose Web UI does not answer", async () => {
 	const { deps } = makeDeps({
 		file: JSON.stringify(registration()),
-		responder: responderWithDeadWebUi([30141], identity()),
+		responder: responderWithDeadWebUi([43141], identity()),
 	});
 	const plan = await planFromEnv({ deps });
 	assert.equal(plan.action, "web-ui-unreachable");
@@ -250,7 +250,7 @@ test("keeps looking past a corpse: a healthy instance on another URL still wins"
 					? Response.json(identity({ webUrl: "http://127.0.0.1:39999" }))
 					: new Response("Bad Gateway", { status: 502 });
 			}
-			if (Number(parsed.port) === 30141) {
+			if (Number(parsed.port) === 43141) {
 				return parsed.pathname === "/api/server/identity" ? Response.json(identity({ pid: 99 })) : new Response("ok");
 			}
 			return null;

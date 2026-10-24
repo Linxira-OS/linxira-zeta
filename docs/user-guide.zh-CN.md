@@ -29,11 +29,16 @@ bun add -g @linxiraos/zeta
 zetacode serve
 ```
 
-- Web Gateway：`127.0.0.1:30142` —— HTTP API，以及终端客户端连接用的按会话
+三个默认端口定义在 `packages/utils/src/ports.ts`，刻意避开 OMP 的
+`30141/30142/3847` 与常见开发端口，因此 OMP 和 Zeta 可以在同一台机器上同时
+运行。需要时用 `--web-port`、`--gateway-port`、`--stats-port`（或对应的
+`ZETA_*_PORT` 环境变量）覆盖。
+
+- Web Gateway：`127.0.0.1:43143` —— HTTP API，以及终端客户端连接用的按会话
   RPC WebSocket。
-- Stats Dashboard：`127.0.0.1:3847` —— 用量、费用、请求与工具面板，右上角
+- Stats Dashboard：`127.0.0.1:43147` —— 用量、费用、请求与工具面板，右上角
   有 EN ⇄ 中文 切换。
-- Web UI：`127.0.0.1:30141` —— **开发降级（deferred）**。安装包不附带 Web UI
+- Web UI：`127.0.0.1:43141` —— **开发降级（deferred）**。安装包不附带 Web UI
   构建；该端口返回双语占位页，说明界面正在补齐。后续版本补齐后会由
   `zetacode serve` 按需从 npm 获取。
 

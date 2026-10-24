@@ -232,7 +232,7 @@ page); the desktop shell and the future Web UI reach plugins over the same
 gateway route (`packages/coding-agent/src/server/web-gateway/plugins.ts`; the bundled Next.js UI in the installed app fetches `GET /api/plugins?cwd=…` and posts actions to the same path). Verified against a running instance:
 
 ```
-$ curl -s "http://127.0.0.1:30142/api/plugins?cwd=$PWD"
+$ curl -s "http://127.0.0.1:43143/api/plugins?cwd=$PWD"
 {"packages":[],"totals":{"extensions":0,"skills":0,"prompts":0,"themes":0},"diagnostics":[]}
 ```
 

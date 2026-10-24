@@ -13,7 +13,7 @@ import { PtySession } from "@linxiraos/pi-natives";
 import xterm from "@linxiraos/pi-utils/vterm";
 
 const DEFAULT_PROXY_HOST = "127.0.0.1";
-const DEFAULT_PROXY_PORT = 8080;
+const DEFAULT_PROXY_PORT = 43149;
 const DEFAULT_COMMAND = "claude";
 const DEFAULT_MESSAGE = "hi";
 const DEFAULT_TIMEOUT_MS = 120_000;

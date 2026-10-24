@@ -521,8 +521,8 @@ Shell subprocess filtering is separate (`packages/utils/src/env.ts`): it strips 
 | `ZETA_SERVE_HOSTNAME`       | Bind-host fallback for `zetacode serve`, consulted after `--host` and `remote.host` in `web.yml` (default `127.0.0.1`). A non-loopback bind still requires TLS or `--allow-plain-http`. |
 | `ZETA_SERVE_TLS_CERT` / `ZETA_SERVE_TLS_KEY` | PEM certificate chain and private key used when `serve` runs its built-in TLS listener; `--tls-cert`/`--tls-key` and `remote.tls` in `web.yml` take precedence, and both variables must be set to take effect. |
 | `ZETA_SERVE_REGISTRY`       | Path override for the serve registry (default `<config root>/serve.json`), which records each running instance's pid, Web UI/stats/gateway URLs, version, cwd, and the open-bridge secret of a desktop-spawned instance. |
-| `ZETA_WEB_GATEWAY_PORT`     | Port for the web gateway listener (default `30142`); `zetacode serve --gateway-port` overrides it per run. Non-numeric values fail startup. |
-| `ZETA_GATEWAY_URL`          | Base URL `zetacode attach` targets when `--url` is omitted (default `http://127.0.0.1:30142`); trailing slashes are trimmed. |
+| `ZETA_WEB_GATEWAY_PORT`     | Port for the web gateway listener (default `43143`); `zetacode serve --gateway-port` overrides it per run. Non-numeric values fail startup. |
+| `ZETA_GATEWAY_URL`          | Base URL `zetacode attach` targets when `--url` is omitted (default `http://127.0.0.1:43143`); trailing slashes are trimmed. |
 | `ZETA_BIN_DIR`              | Platform path-list of directories probed **before** `PATH` when either local surfaces or the web gateway's terminal look for the suite binaries (`zetacode`, `zetawork`, `zetaide`); unset or empty disables the override. |
 | `ZETA_MESH_ROOT`            | Root of the cross-process agent-mesh runtime plane (default: the active config root). Set it to share one plane between processes that use different config roots. See [agent mesh](./agent-mesh.md). |
 

@@ -23,8 +23,8 @@ zetacode serve
 
 | Flag | Short | Default | Description |
 |---|---|---|---|
-| `--stats-port` | `-s` | `3847` | Port for the Stats Dashboard |
-| `--web-port` | `-w` | `30141` | Port for the Web UI |
+| `--stats-port` | `-s` | `43147` | Port for the Stats Dashboard |
+| `--web-port` | `-w` | `43141` | Port for the Web UI |
 | `--no-browser` | — | `false` | Don't open browser automatically |
 | `--stats-only` | — | `false` | Start only Stats Dashboard |
 | `--web-only` | — | `false` | Start only Web UI |
@@ -57,7 +57,7 @@ zetacode web
 
 | Flag | Short | Default | Description |
 |---|---|---|---|
-| `--port` | `-p` | `30141` | Port for the Web UI |
+| `--port` | `-p` | `43141` | Port for the Web UI |
 | `--no-browser` | — | `false` | Don't open browser automatically |
 
 ### Examples
@@ -89,9 +89,9 @@ await startZetaServer({ statsOnly: true });
 
 Both commands use `ZetaServer` under the hood. The server:
 
-1. Starts the Stats Dashboard on port 3847
+1. Starts the Stats Dashboard on port 43147
 2. Starts the Web UI (Next.js) on a random internal port
-3. Starts a `Bun.serve` proxy on port 30141 that routes:
+3. Starts a `Bun.serve` proxy on port 43141 that routes:
    - `/api/stats/*` → Stats Dashboard
    - Everything else → Web UI
 4. Optionally opens the browser to the unified URL
@@ -101,7 +101,7 @@ See [zeta-server.md](./zeta-server.md) for the full server architecture.
 ## Instance discovery and reuse (multi-surface coexistence)
 
 A machine can host the same backend from several surfaces (the desktop shell, a
-terminal `zetacode serve`, `zeta-d`). They must not fight over `30141`/`30142`,
+terminal `zetacode serve`, `zeta-d`). They must not fight over `43141`/`43143`,
 so a starting instance **discovers** a healthy one before it binds:
 
 - **Registration file** — a running `zetacode serve` publishes itself to

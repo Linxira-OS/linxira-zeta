@@ -1061,7 +1061,7 @@ export const SETTINGS_SCHEMA = {
 
 	"images.urls.sshRemotePort": {
 		type: "number",
-		default: 8787,
+		default: 43151,
 		ui: {
 			tab: "model",
 			group: "Vision",

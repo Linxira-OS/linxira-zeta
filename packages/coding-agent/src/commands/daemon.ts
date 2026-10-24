@@ -33,7 +33,15 @@ import * as os from "node:os";
 import * as path from "node:path";
 import chalk from "@linxiraos/pi-utils/chalk";
 import { Args, CliUsageError, Command, Flags } from "@linxiraos/pi-utils/cli";
-import { CLI_BIN_NAME, getBaseConfigRoot, isCompiledBinary, VERSION } from "@linxiraos/pi-utils";
+import {
+	CLI_BIN_NAME,
+	getBaseConfigRoot,
+	isCompiledBinary,
+	VERSION,
+	ZETA_GATEWAY_PORT,
+	ZETA_STATS_PORT,
+	ZETA_WEB_PORT,
+} from "@linxiraos/pi-utils";
 import { detectInstallForm, type InstallForm } from "../autostart/install-form";
 import { readBackendAutostartSetting, writeBackendAutostartSetting } from "../autostart/setting";
 import { acquireChannelLock, readChannelLock } from "../channels/instance-lock";
@@ -52,9 +60,9 @@ export const DAEMON_LOG_FILENAME = "daemon.log";
 export const DAEMON_LOCK_FILENAME = "daemon.lock";
 export const DAEMON_START_LOCK_FILENAME = "daemon.start.lock";
 
-export const DAEMON_DEFAULT_WEB_PORT = 30141;
-export const DAEMON_DEFAULT_STATS_PORT = 3847;
-export const DAEMON_DEFAULT_GATEWAY_PORT = 30142;
+export const DAEMON_DEFAULT_WEB_PORT = ZETA_WEB_PORT;
+export const DAEMON_DEFAULT_STATS_PORT = ZETA_STATS_PORT;
+export const DAEMON_DEFAULT_GATEWAY_PORT = ZETA_GATEWAY_PORT;
 
 /** A start lock older than this is from a crashed `daemon start`, not a live one. */
 const START_LOCK_STALE_MS = 60_000;

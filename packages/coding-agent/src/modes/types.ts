@@ -206,6 +206,8 @@ export interface InteractiveModeContext {
 	collabGuest?: CollabGuestLink;
 	/** Live client link to a session owned by a running `zetacode serve` backend. */
 	backendAttach?: BackendAttachLink;
+	/** Queue chips owned by the backend while attached; `undefined` reads the local session. */
+	backendQueue?: { steering: string[]; followUp: string[]; liveSteered: number };
 	eventController: EventController;
 	eventBus?: EventBus;
 	/** Root-scoped bus carrying this session tree's `task:subagent:*` frames. */

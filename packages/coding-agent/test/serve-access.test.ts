@@ -58,7 +58,7 @@ describe("host resolution", () => {
 	test("rejects a scheme, a path, or an embedded port", () => {
 		expect(resolve({ flags: { host: "https://zeta.example" } }).ok).toBe(false);
 		expect(resolve({ flags: { host: "zeta.example/api" } }).ok).toBe(false);
-		expect(resolve({ flags: { host: "zeta.example:30141" } }).ok).toBe(false);
+		expect(resolve({ flags: { host: "zeta.example:43141" } }).ok).toBe(false);
 		expect(resolve({ flags: { host: "   " } }).ok).toBe(false);
 	});
 

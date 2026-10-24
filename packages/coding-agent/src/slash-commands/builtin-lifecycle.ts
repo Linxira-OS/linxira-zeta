@@ -1,4 +1,7 @@
 import { SEANCE_SLASH_COMMAND } from "./seance";
+import { handleCleanseSlashCommand } from "./cleanse";
+import { handleOmfgSlashCommand } from "./omfg";
+import { handleTanSlashCommand } from "./tan";
 import { clearSubmittedText } from "./helpers/draft";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -480,6 +483,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		description: () => M.cmdTan,
 		inlineHint: "<work>",
 		allowArgs: true,
+		handle: handleTanSlashCommand,
 		handleTui: async (command, runtime) => {
 			const work = command.text.slice(`/${command.name}`.length).trim();
 			clearSubmittedText(runtime);
@@ -492,6 +496,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		description: () => M.cmdOmfg,
 		inlineHint: "<complaint>",
 		allowArgs: true,
+		handle: handleOmfgSlashCommand,
 		handleTui: async (command, runtime) => {
 			const complaint = command.text.slice(`/${command.name}`.length).trim();
 			clearSubmittedText(runtime);
@@ -504,6 +509,7 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		description: () => M.cmdDetectandFixProjectDiagnosticswithWeightedParallelSubagents,
 		inlineHint: "[request] [--all]",
 		allowArgs: true,
+		handle: handleCleanseSlashCommand,
 		handleTui: async (command, runtime) => {
 			const args = command.text.slice(`/${command.name}`.length).trim();
 			clearSubmittedText(runtime);

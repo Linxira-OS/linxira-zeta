@@ -7,8 +7,8 @@ Zeta 的 Web 界面是一个独立的 Next.js 应用（`web-ui/`），通过 HTT
 ## 进程布局
 
 ```
-Browser ── :30141 (Bun.serve, ZetaServer)
-            ├─ /api/stats/*   → Stats Dashboard (:3847, @linxiraos/pi-stats)
+Browser ── :43141 (Bun.serve, ZetaServer)
+            ├─ /api/stats/*   → Stats Dashboard (:43147, @linxiraos/pi-stats)
             ├─ /api/*         → Web Gateway（进程内 Bun 处理器）
             └─ 其他           → Web UI Next.js（随机内部端口）
 ```
@@ -30,7 +30,7 @@ Browser ── :30141 (Bun.serve, ZetaServer)
 其余所有 `/api/*` 请求都交给 Web Gateway。
 
 Web Gateway 还暴露一个独立的 `127.0.0.1` 监听端口
-（`ZETA_WEB_GATEWAY_PORT`，默认 30142）供 `next dev`/`next start` 访问；
+（`ZETA_WEB_GATEWAY_PORT`，默认 43143）供 `next dev`/`next start` 访问；
 主代理在进程内分派，因此网关端口被占用只会禁用 dev 模式监听器，不影响
 网关本身。`zeta serve` 按 `--gateway-port` 启动该监听器，并把解析出的 origin
 （`ZETA_WEB_GATEWAY_URL`）注入 web-ui 子进程，Next 侧 rewrites 与请求期网关代理

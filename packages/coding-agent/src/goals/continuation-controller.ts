@@ -23,7 +23,7 @@ export const GOAL_CONTINUATION_MODE_RPC = "rpc";
 /** `goal.continuationModes` value that enables automatic continuation for web/desktop gateway sessions. */
 export const GOAL_CONTINUATION_MODE_WEB = "web";
 
-export type GoalContinuationOp = "get" | "create" | "resume" | "pause" | "drop";
+export type GoalContinuationOp = "get" | "create" | "resume" | "pause" | "drop" | "budget";
 
 export interface GoalContinuationCommand {
 	op: GoalContinuationOp;
@@ -246,6 +246,10 @@ export class GoalContinuationController {
 				// The runtime's `goal_updated(dropped)` queues the exit.
 				await this.#session.goalRuntime.dropGoal();
 				await this.#exitTask;
+				return this.#state;
+			case "budget":
+				// `token_budget` absent clears the limit, matching `/goal budget off`.
+				await this.#session.goalRuntime.onBudgetMutated(command.token_budget);
 				return this.#state;
 			default: {
 				const op: never = command.op;

@@ -5,7 +5,7 @@
  * 作为内部后端代理。用户只需访问一个端口。
  *
  * 架构：
- *   Browser → :30141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:3847)
+ *   Browser → :43141 (Bun.serve) ─┬─ /api/stats/* → Stats Dashboard (:43147)
  *                                 ├─ /api/*      → Web Gateway（同进程 Bun 处理器）
  *                                 └─ 其余        → Web UI Next.js (随机内部端口)
  */
@@ -13,7 +13,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
-import { getConfigRootDir, logger, VERSION } from "@linxiraos/pi-utils";
+import {
+	getConfigRootDir,
+	logger,
+	VERSION,
+	ZETA_GATEWAY_PORT,
+	ZETA_STATS_PORT,
+	ZETA_WEB_PORT,
+} from "@linxiraos/pi-utils";
 import type { ChannelId, ChatImage } from "../channels";
 import {
 	type ChannelRuntime,
@@ -69,7 +76,7 @@ import { setBotSessionDispose } from "./web-gateway/running-sessions";
 // ---------------------------------------------------------------------------
 
 export interface ZetaServerOptions {
-	/** 主服务器端口，默认 30141 */
+	/** 主服务器端口，默认 43141 */
 	port?: number;
 	/** Public HTTP(S) bind hostname. Non-loopback binds still require remote.token. */
 	host?: string;
@@ -80,7 +87,7 @@ export interface ZetaServerOptions {
 	tls?: ServeTlsPaths | null;
 	/** Explicit opt-in for a plaintext non-loopback bind. */
 	allowPlainHttp?: boolean;
-	/** Stats Dashboard 端口，默认 3847 */
+	/** Stats Dashboard 端口，默认 43147 */
 	statsPort?: number;
 	/** 是否自动打开浏览器 */
 	noBrowser?: boolean;
@@ -88,7 +95,7 @@ export interface ZetaServerOptions {
 	statsOnly?: boolean;
 	/** 仅启动 Web UI */
 	webOnly?: boolean;
-	/** Web Gateway 端口，默认 30142（仅 127.0.0.1） */
+	/** Web Gateway 端口，默认 43143（仅 127.0.0.1） */
 	gatewayPort?: number;
 	/**
 	 * 启动 IM channels（WeChat/Feishu/Telegram）。默认 false；web.yml 中任一
@@ -124,7 +131,7 @@ export interface ZetaServerRoute {
  * keeps the destination frozen into the web-ui *build* output. Dispatching it
  * in-process here is therefore what keeps it working when `zeta serve` runs the
  * gateway on a non-default `--gateway-port` — the baked rewrite would still
- * target the default `127.0.0.1:30142` and fail with `ECONNREFUSED` (HTTP 500).
+ * target the default `127.0.0.1:43143` and fail with `ECONNREFUSED` (HTTP 500).
  * The `/api/git/` family stays in Next because Next serves it end to end:
  * `status`/`diff` locally, `branches`/`checkout`/`branch` as request-time
  * gateway proxies that follow the injected gateway origin.
@@ -257,7 +264,7 @@ async function proxyRequest(req: Request, targetBase: string): Promise<Response>
 		headers.delete("upgrade");
 		headers.delete("proxy-authorization");
 		headers.delete("proxy-authenticate");
-		// Internal proxy: the browser origin (127.0.0.1:30141) never matches the
+		// Internal proxy: the browser origin (127.0.0.1:43141) never matches the
 		// web-ui child port (random ephemeral). web-ui/proxy.ts would 403 every
 		// /api/* call as "cross-origin"; drop the header so the child trusts the
 		// proxied request (same-origin from the browser's perspective anyway).
@@ -395,16 +402,16 @@ export class ZetaServer {
 
 	constructor(options: ZetaServerOptions = {}) {
 		this.#options = {
-			port: options.port ?? 30141,
+			port: options.port ?? ZETA_WEB_PORT,
 			host: options.host ?? process.env.ZETA_SERVE_HOSTNAME ?? "127.0.0.1",
 			tls: options.tls ?? null,
 			allowPlainHttp: options.allowPlainHttp ?? false,
-			statsPort: options.statsPort ?? 3847,
+			statsPort: options.statsPort ?? ZETA_STATS_PORT,
 			// 默认不打开系统浏览器：服务仅监听端口，由 UI 壳（Electron/web-ui）消费。
 			noBrowser: options.noBrowser ?? true,
 			statsOnly: options.statsOnly ?? false,
 			webOnly: options.webOnly ?? false,
-			gatewayPort: options.gatewayPort ?? 30142,
+			gatewayPort: options.gatewayPort ?? ZETA_GATEWAY_PORT,
 			channels: options.channels ?? false,
 		};
 	}
@@ -622,7 +629,7 @@ export class ZetaServer {
 			// proxies (next.config beforeFiles rewrites + route handlers). The
 			// gateway listener is loopback-only, and its port is configurable
 			// (`--gateway-port`), so the child must be handed this origin —
-			// otherwise it proxies to the default 30142 and fails with
+			// otherwise it proxies to the default 43143 and fails with
 			// ECONNREFUSED whenever serve runs on non-default ports.
 			this.#webUiChild = await spawnWebUi(
 				this.#webUiPort,

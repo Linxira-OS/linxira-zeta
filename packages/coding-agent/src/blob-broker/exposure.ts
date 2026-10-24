@@ -491,7 +491,7 @@ export async function startExposure(config: ExposureConfig, port: number): Promi
 			if (!config.publicBaseUrl) throw new Error('imageUrls exposure "ssh" requires imageUrls.publicBaseUrl');
 			if (!config.sshTarget) throw new Error('imageUrls exposure "ssh" requires imageUrls.sshTarget');
 			const binary = requireBinary("ssh");
-			const remotePort = config.sshRemotePort ?? 8787;
+			const remotePort = config.sshRemotePort ?? 43151;
 			const proc = Bun.spawn(
 				[
 					binary,

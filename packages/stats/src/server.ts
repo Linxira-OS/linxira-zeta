@@ -1,7 +1,7 @@
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@linxiraos/pi-utils";
+import { isEnoent, logger, ZETA_STATS_PORT } from "@linxiraos/pi-utils";
 import { $, type Server } from "bun";
 import {
 	getCostDashboardStats,
@@ -522,7 +522,7 @@ export interface StartServerOptions {
 }
 
 export async function startServer(
-	port = 3847,
+	port = ZETA_STATS_PORT,
 	hostname = STATS_DASHBOARD_HOSTNAME,
 	options: StartServerOptions = {},
 ): Promise<StatsServerHandle> {

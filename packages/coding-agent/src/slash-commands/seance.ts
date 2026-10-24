@@ -10,7 +10,8 @@ import seanceCommandSolutionSpace from "../prompts/system/seance-command-solutio
 import { parseCommandArgs } from "../utils/command-args";
 import { M } from "../i18n";
 import { clearSubmittedText } from "./helpers/draft";
-import type { SlashCommandSpec } from "./types";
+import { commandConsumed } from "./helpers/parse";
+import type { SlashCommandResult, SlashCommandRuntime, SlashCommandSpec } from "./types";
 import type { InteractiveModeContext } from "../modes/types";
 
 type ParsedSeanceArgs = { source: string | undefined; model: string | undefined } | { error: string };
@@ -37,11 +38,18 @@ function parseSeanceArgs(args: string): ParsedSeanceArgs {
 	return { source, model };
 }
 
-async function launchSeance(ctx: InteractiveModeContext, sourceSession: string, model?: string): Promise<void> {
-	const taskTool = ctx.session.agent.state.tools.find(tool => tool.name === "task");
+/** Run one seance consult and route its status/error lines to the caller. */
+async function runSeance(
+	session: InteractiveModeContext["session"],
+	sourceSession: string,
+	model: string | undefined,
+	output: (text: string) => void,
+	outputError: (text: string) => void,
+): Promise<boolean> {
+	const taskTool = session.agent.state.tools.find(tool => tool.name === "task");
 	if (!taskTool) {
-		ctx.showError("The task tool is not available for /seance.");
-		return;
+		outputError("The task tool is not available for /seance.");
+		return false;
 	}
 	const params: TaskParams = {
 		agent: SEANCE_AGENT_NAME,
@@ -86,16 +94,29 @@ async function launchSeance(ctx: InteractiveModeContext, sourceSession: string, 
 			const failureMessage = failedResult?.aborted
 				? failedResult.abortReason || content || failedResult.error || "Seance preflight failed."
 				: content || failedResult?.error || "Seance preflight failed.";
-			ctx.showError(sanitizeErrorLine(failureMessage));
-			return;
+			outputError(sanitizeErrorLine(failureMessage));
+			return false;
 		}
 		const state = details?.async?.state === "running" ? "running" : "completed";
 		const taskLabel = taskIds.size > 0 ? [...taskIds].join(", ") : jobId;
 		const modelLabel = selectedModel ? ` · ${selectedModel}` : "";
-		ctx.showStatus(sanitizeErrorLine(`Seance ${state}${taskLabel ? `: ${taskLabel}` : ""}${modelLabel}`));
+		output(sanitizeErrorLine(`Seance ${state}${taskLabel ? `: ${taskLabel}` : ""}${modelLabel}`));
+		return true;
 	} catch (error) {
-		ctx.showError(sanitizeErrorLine(error));
+		outputError(sanitizeErrorLine(error));
+		return false;
 	}
+}
+
+/** TUI adapter: status/error lines land on the transcript. */
+async function launchSeance(ctx: InteractiveModeContext, sourceSession: string, model?: string): Promise<void> {
+	await runSeance(
+		ctx.session,
+		sourceSession,
+		model,
+		text => ctx.showStatus(text),
+		error => ctx.showError(error),
+	);
 }
 
 async function chooseSeanceModel(
@@ -158,6 +179,38 @@ export const SEANCE_SLASH_COMMAND: SlashCommandSpec = {
 	description: () => M.cmdSeance,
 	inlineHint: "[session id|path] [--model selector]",
 	allowArgs: true,
+	// Headless form: the caller names the source session (the TUI's session
+	// picker is client-side). The consult itself is a normal `task` execution in
+	// the backend session, so it works the same from ACP, RPC and attach.
+	handle: async (command, runtime) => {
+		const parsed = parseSeanceArgs(command.args);
+		if ("error" in parsed) {
+			await runtime.output(parsed.error);
+			return commandConsumed({ failed: true });
+		}
+		if (!parsed.source) {
+			await runtime.output("Usage: /seance <session id|path> [--model selector]");
+			return commandConsumed({ failed: true });
+		}
+		const source = parsed.source;
+		const run = async (): Promise<SlashCommandResult> => {
+			const ok = await runSeance(
+				runtime.session,
+				source,
+				parsed.model,
+				text => void runtime.output(text),
+				text => void runtime.output(text),
+			);
+			return commandConsumed({ failed: !ok });
+		};
+		if (runtime.runCommandInBackground) {
+			runtime.runCommandInBackground(async () => {
+				await run();
+			});
+			return commandConsumed();
+		}
+		return await run();
+	},
 	handleTui: async (command, runtime) => {
 		clearSubmittedText(runtime);
 		const parsed = parseSeanceArgs(command.args);

@@ -49,7 +49,7 @@ starting a private in-process agent.
 ## RPC control plane
 
 `zetacode serve` exposes the same RPC protocol over WebSocket per session at
-`ws://127.0.0.1:30142/api/rpc/ws?sessionId=<id>`, so a client can drive a
+`ws://127.0.0.1:43143/api/rpc/ws?sessionId=<id>`, so a client can drive a
 session the backend owns. `component_list` / `component_open` let companion
 surfaces read the live TUI component tree. The full command list and framing
 are in [rpc.md](./rpc.md#websocket-transport); generated TypeScript, Python,
@@ -58,7 +58,7 @@ Rust and Go clients consume the same schema.
 ## Stats dashboard
 
 `zetacode stats` (and `zetacode serve`) runs the local observability dashboard
-on `127.0.0.1:3847`: usage, costs, requests, errors, traces, tools, projects
+on `127.0.0.1:43147`: usage, costs, requests, errors, traces, tools, projects
 and gain. The interface is fully translated (English / Simplified Chinese) and
 has an **EN ⇄ 中文** switch in the top-right corner; the choice is remembered
 in the browser. Numbers and dates follow the selected locale.
@@ -75,7 +75,7 @@ path and how to undo it. See [daemon.md](./daemon.md).
 
 The Web UI's development is **deferred**. Neither the package nor the release
 artifacts ship a Web UI build; `zetacode serve` answers the web port
-(`127.0.0.1:30141`) with a bilingual placeholder page that states the
+(`127.0.0.1:43141`) with a bilingual placeholder page that states the
 interface is being completed. The Stats Dashboard and the terminal attach
 client are unaffected. A later release completes the Web UI and makes `serve`
 fetch `@linxiraos/zeta-web` from npm on demand — it is not bundled into the

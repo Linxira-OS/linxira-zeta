@@ -421,7 +421,7 @@ describe("autostart installers", () => {
 		expect(service).toContain("Type=exec");
 		expect(service).toContain("ExecCondition=/usr/local/bin/zetacode daemon autostart-enabled");
 		expect(service).toContain(
-			"ExecStart=/usr/local/bin/zetacode serve --no-browser --stats-port 3847 --web-port 30141 --gateway-port 30142",
+			"ExecStart=/usr/local/bin/zetacode serve --no-browser --stats-port 43147 --web-port 43141 --gateway-port 43143",
 		);
 		expect(service).toContain("Restart=no");
 		expect(service).not.toContain("Restart=on-failure");
@@ -467,7 +467,7 @@ describe("autostart installers", () => {
 		expect(xml).toContain("<LogonType>InteractiveToken</LogonType>");
 		expect(xml).toContain("<RunLevel>LeastPrivilege</RunLevel>");
 		expect(xml).toContain("<Command>C:\\Program Files\\Zeta\\zetacode.exe</Command>");
-		expect(xml).toContain("serve --no-browser --stats-port 3847 --web-port 30141 --gateway-port 30142 --autostart");
+		expect(xml).toContain("serve --no-browser --stats-port 43147 --web-port 43141 --gateway-port 43143 --autostart");
 		expect(xml).not.toContain("RestartOnFailure");
 		expect(plan.activate).toHaveLength(1);
 		expect(plan.activate[0]!.command).toBe("powershell");

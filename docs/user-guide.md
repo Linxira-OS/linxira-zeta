@@ -31,11 +31,16 @@ Run `zetacode serve` to start the Stats Dashboard and the Web Gateway:
 zetacode serve
 ```
 
-- Web Gateway: `127.0.0.1:30142` — the HTTP API and the per-session RPC
+The three defaults live in `packages/utils/src/ports.ts` and deliberately avoid
+OMP's `30141/30142/3847` and common developer ports, so OMP and Zeta can run
+side by side on one machine. Override any of them with `--web-port`,
+`--gateway-port`, `--stats-port` (or the matching `ZETA_*_PORT` variables).
+
+- Web Gateway: `127.0.0.1:43143` — the HTTP API and the per-session RPC
   WebSocket that terminal clients attach to.
-- Stats Dashboard: `127.0.0.1:3847` — usage, cost, request and tool panels,
+- Stats Dashboard: `127.0.0.1:43147` — usage, cost, request and tool panels,
   with an EN ⇄ 中文 switch in the top-right corner.
-- Web UI: `127.0.0.1:30141` — **development is deferred**. The package does not
+- Web UI: `127.0.0.1:43141` — **development is deferred**. The package does not
   ship a Web UI build; the port answers with a bilingual placeholder page that
   says the interface is being completed. A later release ships the full Web UI
   and makes `serve` fetch it from npm on demand.

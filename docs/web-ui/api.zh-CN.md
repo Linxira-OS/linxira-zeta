@@ -1,6 +1,6 @@
 # Web UI 网关 API
 
-以下端点均由 Web Gateway 在 `http://127.0.0.1:30141/api/*`（ZetaServer 代理
+以下端点均由 Web Gateway 在 `http://127.0.0.1:43141/api/*`（ZetaServer 代理
 的端口）提供。除非另有说明，请求与响应体均为 JSON。错误为 `{ "error":
 string }` 并带 4xx/5xx 状态码。
 

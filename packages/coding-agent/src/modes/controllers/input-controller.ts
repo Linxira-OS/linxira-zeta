@@ -595,10 +595,22 @@ export class InputController {
 						);
 					});
 				}
-				// Backend-attached Esc: abort the backend turn. The local replica is
-				// an idle mirror, so the native session abort path would no-op.
+				// Backend-attached Esc: withdraw the backend's queued input and
+				// abort its turn, then restore those messages into this editor —
+				// the same contract as a local interrupt. The replica is idle, so
+				// the native abort path would no-op.
 				if (backendAttach.streaming || this.ctx.loadingAnimation) {
-					backendAttach.sendAbort();
+					void backendAttach
+						.abortAndRestoreQueue()
+						.then(restored => {
+							const entries = [...restored.steering, ...restored.followUp];
+							if (entries.length > 0) this.#restoreEntriesToEditor(entries);
+						})
+						.catch(error => {
+							this.ctx.showError(
+								`Could not interrupt the backend turn: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						});
 				}
 				return;
 			}
@@ -1153,23 +1165,35 @@ export class InputController {
 						return;
 					}
 					if (verb === "plan" || verb === "plan-ultra") {
+						// Every form is a backend mode transition: a task enters plan
+						// mode with that prompt, a bare command toggles the backend's
+						// plan mode (ultra selects the ultra workflow). Running the TUI
+						// handler here would flip the replica and then prompt locally.
 						const task = text.slice(`/${verb}`.length).trim();
-						if (task) {
-							this.ctx.editor.clearDraft(text);
-							void backendAttach
-								.enterMode("plan", {
-									initialPrompt: task,
-									objective: task,
-									...(verb === "plan-ultra" ? { workflow: "ultra" } : {}),
-								})
-								.catch(error =>
-									this.ctx.showError(
-										`Could not enter plan mode: ${error instanceof Error ? error.message : String(error)}`,
-									),
-								);
-							return;
-						}
-					} else if (verb === "plan-review") {
+						const ultra = verb === "plan-ultra";
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							if (!task) {
+								if (this.ctx.planModeEnabled && !ultra) {
+									await backendAttach.exitMode("plan");
+								} else {
+									await backendAttach.enterMode("plan", ultra ? { workflow: "ultra" } : undefined);
+								}
+								return;
+							}
+							await backendAttach.enterMode("plan", {
+								initialPrompt: task,
+								objective: task,
+								...(ultra ? { workflow: "ultra" } : {}),
+							});
+						})().catch(error =>
+							this.ctx.showError(
+								`Could not enter plan mode: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						return;
+					}
+					if (verb === "plan-review") {
 						this.ctx.editor.clearDraft(text);
 						void backendAttach
 							.reviewPlan()
@@ -1179,36 +1203,91 @@ export class InputController {
 								),
 							);
 						return;
-					} else if (verb === "vibe") {
+					}
+					if (verb === "vibe") {
 						const promptText = text.slice(`/${verb}`.length).trim();
-						if (promptText) {
-							this.ctx.editor.clearDraft(text);
-							void (async () => {
-								await backendAttach.enterMode("vibe");
-								backendAttach.sendPrompt(promptText);
-							})().catch(error =>
-								this.ctx.showError(
-									`Could not enter vibe mode: ${error instanceof Error ? error.message : String(error)}`,
-								),
-							);
-							return;
-						}
-					} else if (verb === "goal") {
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							if (!promptText) {
+								if (this.ctx.vibeModeEnabled) await backendAttach.exitMode("vibe");
+								else await backendAttach.enterMode("vibe");
+								return;
+							}
+							await backendAttach.enterMode("vibe");
+							backendAttach.sendPrompt(promptText);
+						})().catch(error =>
+							this.ctx.showError(
+								`Could not enter vibe mode: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						return;
+					}
+					if (verb === "goal") {
+						// Goal state is backend-owned. Subcommands map onto the RPC
+						// lifecycle (`get/create/resume/pause/drop/budget`) instead of
+						// the TUI handler, which would mutate only the replica.
 						const raw = text.slice(`/${verb}`.length).trim();
-						const objective = raw.startsWith("set ") ? raw.slice(4).trim() : raw;
-						const subcommand = raw.split(/\s+/, 1)[0];
-						const isSubcommand = ["set", "show", "pause", "resume", "drop", "budget"].includes(subcommand);
-						if (objective && !(isSubcommand && subcommand !== "set")) {
-							this.ctx.editor.clearDraft(text);
-							void backendAttach
-								.enterMode("goal", { objective })
-								.catch(error =>
-									this.ctx.showError(
-										`Could not enter goal mode: ${error instanceof Error ? error.message : String(error)}`,
-									),
-								);
-							return;
-						}
+						const [first = "", ...tail] = raw.split(/\s+/);
+						const sub = ["set", "show", "pause", "resume", "drop", "budget"].includes(first) ? first : undefined;
+						const rest = sub ? tail.join(" ").trim() : raw;
+						const describe = (result: {
+							goal?: { objective?: string; status?: string; tokenBudget?: number; tokensUsed?: number } | null;
+						}): string => {
+							const goal = result.goal;
+							if (!goal) return "No goal.";
+							const budget =
+								goal.tokenBudget === undefined
+									? "unbounded"
+									: `${goal.tokensUsed ?? 0}/${goal.tokenBudget} tokens`;
+							return `Goal (${goal.status ?? "unknown"}): ${goal.objective ?? ""} — ${budget}`;
+						};
+						this.ctx.editor.clearDraft(text);
+						void (async () => {
+							if (!sub || (sub === "set" && rest) || (sub === "set" && !rest)) {
+								const objective = sub === "set" ? rest : rest;
+								if (sub === "set" && !objective) {
+									this.ctx.showError("Usage: /goal set <objective>");
+									return;
+								}
+								if (sub === undefined && !objective) {
+									this.ctx.showStatus(describe(await backendAttach.goal("get")));
+									return;
+								}
+								if (objective) {
+									await backendAttach.enterMode("goal", { objective });
+									return;
+								}
+								this.ctx.showStatus(describe(await backendAttach.goal("get")));
+								return;
+							}
+							if (sub === "show") {
+								this.ctx.showStatus(describe(await backendAttach.goal("get")));
+								return;
+							}
+							if (sub === "budget") {
+								const amount = rest.trim().toLowerCase();
+								if (amount === "off") {
+									this.ctx.showStatus(describe(await backendAttach.goal("budget")));
+									return;
+								}
+								const tokenBudget = Number(amount);
+								if (!Number.isInteger(tokenBudget) || tokenBudget <= 0) {
+									this.ctx.showError("Usage: /goal budget <positive integer|off>");
+									return;
+								}
+								this.ctx.showStatus(describe(await backendAttach.goal("budget", { tokenBudget })));
+								return;
+							}
+							if (sub === "pause" || sub === "resume" || sub === "drop") {
+								this.ctx.showStatus(describe(await backendAttach.goal(sub)));
+								return;
+							}
+						})().catch(error =>
+							this.ctx.showError(
+								`Goal command failed: ${error instanceof Error ? error.message : String(error)}`,
+							),
+						);
+						return;
 					}
 				}
 				if (verb !== undefined && !localCommand) {
@@ -2016,6 +2095,28 @@ export class InputController {
 	}
 
 	handleDequeue(): void {
+		const backendAttach = this.ctx.backendAttach;
+		if (backendAttach) {
+			// Backend queue chips are server-owned: withdraw the newest user
+			// message there (steering before follow-ups, matching the local
+			// pop order) and restore exactly what the server removed.
+			void (async () => {
+				const steering = backendAttach.queuedMessages?.steering.length ?? 0;
+				const queue = steering > 0 ? "steering" : "followUp";
+				const popped = await backendAttach.removeQueuedMessage(queue);
+				if (!popped.removed || popped.text === undefined) {
+					this.ctx.showStatus("No queued messages to restore");
+					return;
+				}
+				this.#restoreEntriesToEditor([{ text: popped.text, ...(popped.images ? { images: popped.images } : {}) }]);
+				this.ctx.showStatus("Restored last queued message to editor");
+			})().catch(error => {
+				this.ctx.showError(
+					`Could not restore the queued message: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			});
+			return;
+		}
 		const popped = this.#popLastQueuedMessage();
 		if (!popped) {
 			this.ctx.showStatus("No queued messages to restore");

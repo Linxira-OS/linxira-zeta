@@ -8,8 +8,8 @@ one origin.
 ## Process layout
 
 ```
-Browser ── :30141 (Bun.serve, ZetaServer)
-            ├─ /api/stats/*   → Stats Dashboard (:3847, @linxiraos/pi-stats)
+Browser ── :43141 (Bun.serve, ZetaServer)
+            ├─ /api/stats/*   → Stats Dashboard (:43147, @linxiraos/pi-stats)
             ├─ /api/*         → Web Gateway (in-process Bun handlers)
             └─ 其他           → Web UI Next.js (random internal port)
 ```
@@ -32,7 +32,7 @@ proxy to the gateway per request, `/api/home`, `/api/default-cwd`,
 the Web Gateway.
 
 The Web Gateway also exposes a standalone `127.0.0.1` listener
-(`ZETA_WEB_GATEWAY_PORT`, default 30142) for `next dev`/`next start` access;
+(`ZETA_WEB_GATEWAY_PORT`, default 43143) for `next dev`/`next start` access;
 the main proxy dispatches in-process, so a busy gateway port only disables the
 dev-mode listener, never the gateway itself. `zeta serve` starts that listener
 on `--gateway-port` and injects the resulting origin (`ZETA_WEB_GATEWAY_URL`)

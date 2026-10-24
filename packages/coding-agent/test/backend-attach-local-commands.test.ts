@@ -29,14 +29,10 @@ describe("backend-attach command routing", () => {
 			"changelog",
 			"time",
 			"tracking",
-			"tools",
-			"context",
 			"agents",
 			"skills",
 			"extensions",
 			"status",
-			"usage",
-			"jobs",
 			"hub",
 			"pause",
 			"record",
@@ -46,8 +42,6 @@ describe("backend-attach command routing", () => {
 			"modelpreset",
 			"switch",
 			"effort",
-			"fast",
-			"slow",
 			"plan",
 			"plan-ultra",
 			"plan-review",
@@ -56,6 +50,16 @@ describe("backend-attach command routing", () => {
 			"vibe",
 		]) {
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(true);
+			expect(isBackendAttachRefusedCommand(verb), verb).toBe(false);
+		}
+	});
+
+	it("forwards backend-session dashboards and fast/slow to the backend", () => {
+		// These have headless handlers that read the backend's tools, context,
+		// usage, jobs and model tiers. Running them locally would render the
+		// replica's empty surfaces, so attach must forward them.
+		for (const verb of ["tools", "context", "usage", "jobs", "fast", "slow"]) {
+			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(false);
 		}
 	});
@@ -85,6 +89,10 @@ describe("backend-attach command routing", () => {
 			"wt",
 			"skillful",
 			"advisor",
+			"cleanse",
+			"seance",
+			"omfg",
+			"tan",
 		]) {
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(false);
@@ -102,7 +110,7 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("refuses only commands whose runtime lives in the backend process", () => {
-		for (const verb of ["restart", "setup", "collab", "join", "leave", "omfg", "cleanse", "tan", "seance", "live"]) {
+		for (const verb of ["restart", "setup", "collab", "join", "leave", "live"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 		}

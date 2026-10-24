@@ -617,11 +617,11 @@ describe("attached TUI over the wire protocol", () => {
 
 		// A workflow whose runtime lives in the backend process is refused with
 		// the host action that performs it.
-		term.sendInput("/tan");
-		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/tan")));
+		term.sendInput("/live");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/live")));
 		term.sendInput("\r");
 		await term.waitForRender(() =>
-			plainRows(term.getViewport()).some(row => row.includes("/tan is not available while attached")),
+			plainRows(term.getViewport()).some(row => row.includes("/live is not available while attached")),
 		);
 		const refusal = plainRows(term.getViewport()).join("\n");
 		expect(refusal).toContain("owns the backend session");

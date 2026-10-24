@@ -4,7 +4,7 @@
  * Reuses a healthy same-version Zeta service when one is already running
  * (discovered through `~/.zeta/serve.json` + the `/api/server/identity` probe,
  * see `./serve-discovery.ts`); otherwise it starts the local service
- * (`zeta serve`, no browser, no console window), waits for the Web UI on 30141,
+ * (`zeta serve`, no browser, no console window), waits for the Web UI on 43141,
  * then hosts it in an embedded Electron window. The system browser is never
  * opened and no terminal window appears.
  */
@@ -68,8 +68,10 @@ import {
 	type ServeResolutionDeps,
 } from "./serve-resolution";
 
-const WEB_UI_URL = "http://127.0.0.1:30141";
-const STATS_URL = "http://127.0.0.1:3847";
+// Must match packages/utils/src/ports.ts (this standalone package cannot import
+// the workspace); `scripts/check-service-ports.ts` fails CI when they drift.
+const WEB_UI_URL = "http://127.0.0.1:43141";
+const STATS_URL = "http://127.0.0.1:43147";
 const READY_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 400;
 const SESSION_POLL_INTERVAL_MS = 5_000;
@@ -187,7 +189,11 @@ function captureCurrentBounds(win: BrowserWindow): void {
 	if (win.isDestroyed() || win.isMinimized()) return;
 	// getNormalBounds keeps the pre-maximize rect when maximized.
 	const bounds = win.getNormalBounds();
-	workspaceState = { ...workspaceState, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }, maximized: win.isMaximized() };
+	workspaceState = {
+		...workspaceState,
+		bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+		maximized: win.isMaximized(),
+	};
 	scheduleBoundsSave();
 }
 
@@ -215,7 +221,10 @@ function probeLauncher(name: string): string | null {
 	const lookup = process.platform === "win32" ? "where" : "which";
 	const probe = spawnSync(lookup, [name], { encoding: "utf8" });
 	if (probe.status !== 0) return null;
-	const lines = probe.stdout.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+	const lines = probe.stdout
+		.split(/\r?\n/)
+		.map(line => line.trim())
+		.filter(Boolean);
 	if (process.platform !== "win32") return lines[0] ?? null;
 	return lines.find(line => /\.exe$/i.test(line)) ?? lines.find(line => /\.(cmd|bat)$/i.test(line)) ?? null;
 }
@@ -262,8 +271,7 @@ ipcMain.handle(
 	): Promise<{ tool: string; cwd: string; pid: number | null; sessionDir?: string }> => {
 		if (!isToolId(toolId)) throw new Error(`Unknown toolId: ${String(toolId)}`);
 		// Renderer must pass an existing directory; default to the service workspace.
-		const targetCwd =
-			typeof cwd === "string" && cwd.length > 0 ? cwd : currentWorkspacePath();
+		const targetCwd = typeof cwd === "string" && cwd.length > 0 ? cwd : currentWorkspacePath();
 		if (!path.isAbsolute(targetCwd)) throw new Error("cwd must be an absolute path");
 		try {
 			if (!fs.statSync(targetCwd).isDirectory()) throw new Error("not a directory");
@@ -285,7 +293,8 @@ ipcMain.handle(
 			// Isolated session archive per launch; `opts.resume` reuses the newest
 			// session file from the last zetacode launch in the same cwd.
 			const prior = options.resume === true ? lastZetacodeLaunch(workspaceState, targetCwd) : null;
-			sessionDir = prior?.sessionDir ?? path.join(app.getPath("userData"), "zeta-sessions", ts.replace(/[:.]/g, "-"));
+			sessionDir =
+				prior?.sessionDir ?? path.join(app.getPath("userData"), "zeta-sessions", ts.replace(/[:.]/g, "-"));
 			args.push("--session-dir", sessionDir);
 			if (options.resume === true) {
 				const latest = newestSessionFile(sessionDir);
@@ -309,7 +318,13 @@ ipcMain.handle(
 		child.on("error", err => writeDesktopLog(`Failed to launch ${toolId}: ${err.message}`));
 		child.unref();
 
-		workspaceState = withLaunch(workspaceState, { tool: toolId, cwd: targetCwd, pid: child.pid ?? null, ts, sessionDir });
+		workspaceState = withLaunch(workspaceState, {
+			tool: toolId,
+			cwd: targetCwd,
+			pid: child.pid ?? null,
+			ts,
+			sessionDir,
+		});
 		saveWorkspaceState();
 		writeDesktopLog(`Launched ${toolId} (pid ${child.pid ?? "unknown"}) in ${targetCwd}`);
 		return { tool: toolId, cwd: targetCwd, pid: child.pid ?? null, sessionDir };
@@ -608,7 +623,7 @@ function startServeOnce(cmd: ServeCommand): boolean {
 		}
 		const hint =
 			code !== 0
-				? " The service may have failed to bind port 30141 (already in use by another zeta process). Close other zeta instances and retry."
+				? " The service may have failed to bind port 43141 (already in use by another zeta process). Close other zeta instances and retry."
 				: "";
 		showServiceFailure(`The Zeta service stopped unexpectedly (exit ${code}).${hint}`);
 	});
@@ -965,7 +980,7 @@ function buildMenu(labels: DesktopLabels): void {
 async function boot(): Promise<void> {
 	// Reuse before spawning: a healthy same-version instance already serving this
 	// machine must not be duplicated — two backends would fight over
-	// 30141/30142 and show two divergent session stores. Only when none answers
+	// 43141/43143 and show two divergent session stores. Only when none answers
 	// does the shell start its own service (the previous behavior).
 	const plan = await discoverDesktopService({
 		deps: desktopServeDiscoveryDeps(),
@@ -1016,9 +1031,13 @@ async function boot(): Promise<void> {
 		if (plan.registration?.desktopOpenSecret) desktopOpenSecret = plan.registration.desktopOpenSecret;
 		const requestedCwd = parseRequestedCwd();
 		if (requestedCwd && path.resolve(requestedCwd) !== serviceWorkspacePath) {
-			writeDesktopLog(`Reusing workspace ${serviceWorkspacePath}; requested ${path.resolve(requestedCwd)} is not applied to a running service.`);
+			writeDesktopLog(
+				`Reusing workspace ${serviceWorkspacePath}; requested ${path.resolve(requestedCwd)} is not applied to a running service.`,
+			);
 		}
-		writeDesktopLog(`Reusing the running Zeta service at ${plan.webUrl} (pid ${plan.identity.pid}, version ${plan.identity.version}).`);
+		writeDesktopLog(
+			`Reusing the running Zeta service at ${plan.webUrl} (pid ${plan.identity.pid}, version ${plan.identity.version}).`,
+		);
 	} else {
 		const cmd = resolveServeCommand();
 		if (!cmd) {

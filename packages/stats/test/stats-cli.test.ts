@@ -5,7 +5,7 @@ import { formatStatsDashboardUrl } from "../src/server";
 describe("standalone stats CLI", () => {
 	it("keeps the production parser loopback-only by default", () => {
 		expect(parseStandaloneStatsArgs([])).toEqual({
-			port: 3847,
+			port: 43147,
 			host: "127.0.0.1",
 			json: false,
 			sync: false,

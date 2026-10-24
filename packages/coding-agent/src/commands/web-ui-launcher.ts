@@ -9,7 +9,7 @@
  * 名字的三个角色必须分开，混用即是 404（v1.2.1 事故：npm 安装的 CLI 在
  * 无 web-ui 检出的目录里用裸名 `zeta-web` 做 npx specifier，而发布包是
  * scoped 的 `@linxiraos/zeta-web`，于是 `npm error 404 Not Found - GET
- * https://registry.npmjs.org/zeta-web`，serve 照常监听 30141 但 Web UI 子
+ * https://registry.npmjs.org/zeta-web`，serve 照常监听 43141 但 Web UI 子
  * 进程从未起来，桌面端每次启动都复用这个空壳）：
  * - {@link WEB_UI_PACKAGE} — npm 包名（scoped）
  * - {@link WEB_UI_BIN} — 包提供的 bin 名（**不是**包名，`$which` 探测用）
@@ -18,7 +18,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { $which, logger } from "@linxiraos/pi-utils";
+import { $which, logger, ZETA_WEB_PORT } from "@linxiraos/pi-utils";
 
 /** Published npm package that ships the prebuilt standalone Web UI. */
 export const WEB_UI_PACKAGE = "@linxiraos/zeta-web";
@@ -93,9 +93,13 @@ function webUiSpawnEnv(base: NodeJS.ProcessEnv = process.env): Record<string, st
  * `--gateway-port`), so the child must be told the real origins — otherwise it
  * falls back to the default ports and the proxies fail with ECONNREFUSED.
  *
- * @param port 监听端口，默认 30141
+ * @param port 监听端口，默认 {@link ZETA_WEB_PORT}
  */
-export async function spawnWebUi(port: number = 30141, statsUrl?: string, gatewayUrl?: string): Promise<WebUiChild> {
+export async function spawnWebUi(
+	port: number = ZETA_WEB_PORT,
+	statsUrl?: string,
+	gatewayUrl?: string,
+): Promise<WebUiChild> {
 	// 1. 编译后二进制：尝试从内嵌资源启动
 	if (process.env.PI_COMPILED === "true") {
 		return spawnEmbeddedWebUi(port, statsUrl, gatewayUrl);

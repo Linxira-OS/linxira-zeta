@@ -1,7 +1,7 @@
 # Web UI gateway API
 
 All endpoints below are served by the Web Gateway at
-`http://127.0.0.1:30141/api/*` (the port ZetaServer proxies). Unless noted,
+`http://127.0.0.1:43141/api/*` (the port ZetaServer proxies). Unless noted,
 request and response bodies are JSON. Errors are `{ "error": string }` with a
 4xx/5xx status.
 

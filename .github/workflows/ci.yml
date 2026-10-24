@@ -265,6 +265,8 @@ jobs:
            run: bun scripts/check-ci-surface.ts
          - name: Release asset-name guard
            run: bun scripts/check-release-asset-names.ts
+         - name: Service port guard
+           run: bun scripts/check-service-ports.ts
          - name: Scope import guard
            run: bun scripts/check-scope-imports.ts
          - name: Licence map guard
@@ -500,7 +502,7 @@ jobs:
    # UI resolution — had no PR-time signal at all. v1.2.1 shipped through that
    # hole: the npm fallback asked `npx` for the unscoped `zeta-web` (the published
    # package is `@linxiraos/zeta-web`), so every launch 404'd, `serve` kept
-   # listening on 30141 with a dead Web UI child, and the shell adopted that
+   # listening on 43141 with a dead Web UI child, and the shell adopted that
    # corpse over and over.
    #
    # Nothing here publishes or packs: the job is test-only, deliberately

@@ -112,18 +112,18 @@ test("the failure text names the gateway, the dead Web UI child and the registra
 	const readiness = {
 		ready: false,
 		probes: [
-			{ label: "gateway API", url: "http://127.0.0.1:30141/api/sessions", ok: true, status: 200, error: null },
-			{ label: "Web UI page", url: "http://127.0.0.1:30141/", ok: false, status: 502, error: null },
-			{ label: "stats dashboard", url: "http://127.0.0.1:3847/", ok: true, status: 200, error: null },
+			{ label: "gateway API", url: "http://127.0.0.1:43141/api/sessions", ok: true, status: 200, error: null },
+			{ label: "Web UI page", url: "http://127.0.0.1:43141/", ok: false, status: 502, error: null },
+			{ label: "stats dashboard", url: "http://127.0.0.1:43147/", ok: true, status: 200, error: null },
 		],
 	};
 	const text = describeReadinessFailure({
 		readiness,
-		reused: { pid: 42556, version: "1.2.1", webUrl: "http://127.0.0.1:30141" },
+		reused: { pid: 42556, version: "1.2.1", webUrl: "http://127.0.0.1:43141" },
 		retire: { pid: 42556, retired: true },
 	});
 	assert.match(text, /Web UI/);
-	assert.match(text, /GET http:\/\/127\.0\.0\.1:30141\/ → HTTP 502/);
+	assert.match(text, /GET http:\/\/127\.0\.0\.1:43141\/ → HTTP 502/);
 	assert.match(text, /gateway answered/);
 	assert.match(text, /Web UI child process/);
 	assert.match(text, /registration was removed/);
@@ -133,9 +133,9 @@ test("the failure text names the gateway, the dead Web UI child and the registra
 
 test("a kept registration and a cold start are described without the corpse story", () => {
 	const probes = [
-		{ label: "gateway API", url: "http://127.0.0.1:30141/api/sessions", ok: false, status: null, error: "ECONNREFUSED" },
-		{ label: "Web UI page", url: "http://127.0.0.1:30141/", ok: false, status: null, error: "ECONNREFUSED" },
-		{ label: "stats dashboard", url: "http://127.0.0.1:3847/", ok: false, status: null, error: "ECONNREFUSED" },
+		{ label: "gateway API", url: "http://127.0.0.1:43141/api/sessions", ok: false, status: null, error: "ECONNREFUSED" },
+		{ label: "Web UI page", url: "http://127.0.0.1:43141/", ok: false, status: null, error: "ECONNREFUSED" },
+		{ label: "stats dashboard", url: "http://127.0.0.1:43147/", ok: false, status: null, error: "ECONNREFUSED" },
 	];
 	const cold = describeReadinessFailure({ readiness: { ready: false, probes }, reused: null, retire: null });
 	assert.match(cold, /did not become ready in time/);
@@ -144,7 +144,7 @@ test("a kept registration and a cold start are described without the corpse stor
 
 	const kept = describeReadinessFailure({
 		readiness: { ready: false, probes: [probes[0], probes[1], probes[2]] },
-		reused: { pid: 42556, version: "1.2.1", webUrl: "http://127.0.0.1:30141" },
+		reused: { pid: 42556, version: "1.2.1", webUrl: "http://127.0.0.1:43141" },
 		retire: { pid: 42556, retired: false },
 	});
 	assert.match(kept, /was left untouched/);
