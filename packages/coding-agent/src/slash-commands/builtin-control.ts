@@ -6,6 +6,7 @@ import { commandConsumed, errorMessage, usage } from "./helpers/parse";
 import type { SlashCommandSpec } from "./types";
 import { runPauseScreen } from "@linxiraos/pi-tui/overlays/pause-screen";
 import { clearApprovalGrants } from "../tools/approval-cache";
+import { LIVE_DISABLED_MESSAGE, LIVE_FEATURE_ENABLED } from "../live/feature-gate";
 
 export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	{
@@ -62,6 +63,11 @@ export const BUILTIN_CONTROL_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		name: "live",
 		icon: "voice",
 		description: () => M.cmdLiveVoice,
+		// Codex Frameless Bidi is the only transport today: the signaling URL,
+		// model and OAuth provider are hardcoded. Keep the implementation behind
+		// this gate until a provider-agnostic realtime layer exists.
+		enabled: () => LIVE_FEATURE_ENABLED,
+		disabledMessage: LIVE_DISABLED_MESSAGE,
 		handleTui: async (_command, runtime) => {
 			clearSubmittedText(runtime);
 			await runtime.ctx.handleLiveCommand();

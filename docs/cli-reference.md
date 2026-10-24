@@ -262,8 +262,9 @@ answers. `/omfg`, `/cleanse`, `/tan` and `/seance` run on the backend session
 through their headless handlers. Only commands whose runtime genuinely belongs
 to a process this client cannot drive are refused, with the host action that
 performs them: `/setup` (run it on the host, then restart), `/collab`, `/join`
-and `/leave` (sharing starts in the owning process), and `/live` until the
-remote audio bridge lands. `/loop` runs on the backend session: its
+and `/leave` (sharing starts in the owning process). `/live` is currently
+disabled product-wide: its only transport is OpenAI Codex realtime, and a
+provider-agnostic layer has not landed. `/loop` runs on the backend session: its
 repetitions, `--while`/`--until` shell condition, and `loop.mode`
 compact/reset actions execute against that session, a second `/loop` stops it,
 and Esc pauses it. The status line mirrors the backend loop state; a loop

@@ -332,6 +332,18 @@ export default class Attach extends Command {
 						}
 						await postCommand(baseUrl, sessionId, { type: "set_model_role", role: argText });
 						break;
+					case "/restart": {
+						// The plain client has no host process to restart; ask the
+						// gateway's serve host and stop this stream cleanly.
+						const res = await fetch(`${baseUrl}/api/server/restart`, { method: "POST" });
+						const body = (await res.json().catch(() => ({}))) as { accepted?: boolean; reason?: string };
+						if (!res.ok || body.accepted !== true) {
+							throw new Error(body.reason ?? `restart refused (HTTP ${res.status})`);
+						}
+						process.stdout.write("Backend restarting; re-run `zetacode attach` after it is back.\n");
+						done();
+						break;
+					}
 					default:
 						if (line.startsWith("/")) {
 							const verb = line.slice(1).split(/\s+/, 1)[0] ?? "";

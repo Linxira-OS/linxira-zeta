@@ -42,10 +42,12 @@ backend.
   queue; `/btw` uses the backend side context. Session lifecycle is backend-owned
   and re-attaches the client: `/new`, `/resume <id>`, `/fork`, `/branch`,
   `/tree`, `/clear` and `/delete yes`; `/login` and `/logout` drive the
-  backend's providers. Only commands whose runtime lives in the backend process
-  are refused, with the host action that performs them (`/restart`, `/setup`,
-  `/collab`, `/join`, `/leave`, `/omfg`, `/cleanse`, `/tan`, `/seance`,
-  `/live`). `/loop` is backend-executed: repetitions, its
+  backend's providers. `/restart` asks the serve host to re-exec; `/omfg`,
+  `/cleanse`, `/tan` and `/seance` run through backend headless handlers.
+  Commands whose runtime genuinely lives in a process the client cannot drive
+  are refused (`/setup`, `/collab`, `/join`, `/leave`); `/live` is disabled
+  product-wide until its Codex-only realtime transport is replaced. `/loop` is
+  backend-executed: repetitions, its
   `--while`/`--until` shell condition, and `loop.mode` compact/reset actions
   run against the attached session, a second `/loop` stops it, Esc pauses it,
   and the status line mirrors that session's loop state. Plan approval renders the plan review overlay (plan

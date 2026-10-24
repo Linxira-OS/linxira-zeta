@@ -294,6 +294,7 @@ import { EventController } from "./controllers/event-controller";
 import { ExtensionUiController } from "./controllers/extension-ui-controller";
 import { InputController } from "./controllers/input-controller";
 import { LiveCommandController } from "./controllers/live-command-controller";
+import { LIVE_DISABLED_MESSAGE, LIVE_FEATURE_ENABLED } from "../live/feature-gate";
 import { MCPCommandController } from "./controllers/mcp-command-controller";
 import { OmfgController } from "./controllers/omfg-controller";
 import { SelectorController } from "./controllers/selector-controller";
@@ -8613,6 +8614,12 @@ export class InteractiveMode implements InteractiveModeContext {
 
 	/** Start or stop the Codex-backed realtime voice surface. */
 	async handleLiveCommand(): Promise<void> {
+		// An already-running call must remain stoppable even while the feature is
+		// gated off (for example after an upgrade); only new starts are blocked.
+		if (!LIVE_FEATURE_ENABLED && !this.#liveCommandController.active) {
+			this.showWarning(LIVE_DISABLED_MESSAGE);
+			return;
+		}
 		if (this.#dictationStarting || (this.#sttController && this.#sttController.state !== "idle")) {
 			this.showWarning("Finish the current speech-to-text capture before starting live mode.");
 			return;
