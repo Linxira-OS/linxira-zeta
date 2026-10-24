@@ -8,7 +8,7 @@
  * over the socket (settling the backend's pending request).
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { rm } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import * as path from "node:path";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
@@ -68,6 +68,8 @@ describe("attached TUI over the wire protocol", () => {
 	afterEach(async () => {
 		await link?.detach().catch(() => undefined);
 		mode?.stop();
+		await backendSession?.abort({ reason: "test cleanup" }).catch(() => undefined);
+		await localSession?.abort({ reason: "test cleanup" }).catch(() => undefined);
 		await localSession?.dispose().catch(() => undefined);
 		await gateway?.shutdown().catch(() => undefined);
 		if (backendSession) {
@@ -295,6 +297,111 @@ describe("attached TUI over the wire protocol", () => {
 		await link.join();
 		expect(link.attached).toBe(true);
 	});
+
+	test("runs /loop on the attached backend session, never on the replica", async () => {
+		const cwd = process.cwd();
+		const model = createMockModel({ handler: { content: ["ok"] } });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime(model.model.provider, "test-key");
+
+		const backendManager = SessionManager.create(
+			cwd,
+			path.join(tempDir.path(), "sessions"),
+			new FileSessionStorage(),
+			{ client: "cli" },
+		);
+		backendSession = new AgentSession({
+			agent: new Agent({
+				initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] },
+				streamFn: model.stream,
+			}),
+			sessionManager: backendManager,
+			settings: Settings.isolated({ "compaction.enabled": false }),
+			modelRegistry: new ModelRegistry(authStorage),
+		});
+		const sessionId = backendManager.getSessionId();
+		const sessionFile = backendManager.getSessionFile();
+		if (!sessionFile) throw new Error("backend session did not create a file");
+		const wrapper = new AgentSessionWrapper(backendSession, sessionId, sessionFile);
+		gatewaySessions.set(sessionId, wrapper);
+		cacheSessionPath(sessionId, sessionFile);
+
+		const probe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("probe") });
+		const port = probe.port ?? 0;
+		await probe.stop(true);
+		gateway = await startWebGateway(port);
+
+		localSession = new AgentSession({
+			agent: new Agent({
+				initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] },
+			}),
+			sessionManager: SessionManager.create(cwd, path.join(tempDir.path(), "local-sessions")),
+			settings: Settings.isolated(),
+			modelRegistry: new ModelRegistry(authStorage),
+		});
+		term = new VirtualTerminal(120, 40);
+		mode = new InteractiveMode(
+			localSession,
+			"test",
+			undefined,
+			() => {},
+			undefined,
+			undefined,
+			undefined,
+			new Composer({ terminal: term }),
+		);
+		await mode.init({ suppressWelcomeIntro: true });
+		link = new BackendAttachLink(
+			mode,
+			{
+				backend: { baseUrl: gateway.url, identity: serveIdentity() },
+				sessionId,
+				newSession: false,
+				explicit: true,
+			},
+			{ replicaDir: path.join(tempDir.path(), "replicas") },
+		);
+		await link.join();
+		expect(link.attached).toBe(true);
+
+		void mode.getUserInput();
+		term.sendInput("/loop 5 attached-only");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/loop 1 attached-only")));
+		term.sendInput("\r");
+
+		const enabledDeadline = Date.now() + 5_000;
+		while (Date.now() < enabledDeadline && link.loopState?.enabled !== true) await Bun.sleep(50);
+		expect(link.loopState).toMatchObject({ enabled: true, prompt: "attached-only" });
+
+		const deadline = Date.now() + 20_000;
+		while (Date.now() < deadline) {
+			await Bun.sleep(100);
+			const users = backendSession.messages.filter(message => message.role === "user");
+			if (users.length >= 2) break;
+		}
+		const backendUsers = backendSession.messages
+			.filter(message => message.role === "user")
+			.map(message =>
+				typeof message.content === "string"
+					? message.content
+					: message.content
+							.filter(block => block.type === "text")
+							.map(block => block.text)
+							.join(""),
+			);
+		expect(backendUsers.slice(0, 2)).toEqual(["attached-only", "attached-only"]);
+
+		// A second `/loop` disables the backend loop; the mirrored state follows.
+		term.sendInput("/loop");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/loop")));
+		term.sendInput("\r");
+		const stateDeadline = Date.now() + 10_000;
+		while (Date.now() < stateDeadline && link.loopState !== null) await Bun.sleep(100);
+		expect(link.loopState).toBeNull();
+		// Let the last repetition finish before teardown; aborting/disposing a
+		// streaming session is what hung the following tests.
+		await backendSession.waitForIdle();
+	}, 30_000);
 
 	test("renders the backend's plan review and executes the approved plan", async () => {
 		const cwd = process.cwd();
@@ -528,11 +635,18 @@ describe("attached TUI over the wire protocol", () => {
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("No todos")));
 		expect(plainRows(term.getViewport()).some(row => row.includes("No todos"))).toBe(true);
 
-		// `/resume <id>` re-attaches the same client to a backend session.
+		// `/resume <id>` re-attaches the same client to a backend session, and a
+		// loop started there is stopped before the client leaves it behind.
+		await wrapper.send({ type: "loop_start", args: "3" });
+		const loopDeadline = Date.now() + 5_000;
+		while (Date.now() < loopDeadline && link.loopState?.enabled !== true) await Bun.sleep(50);
+		expect(link.loopState).toMatchObject({ enabled: true });
 		await link.reattach(sessionId);
 		expect(link.attached).toBe(true);
 		expect(link.sessionId).toBe(sessionId);
 		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
+		const afterReattach = (await link.client.send(sessionId, { type: "get_state" })) as { loop?: unknown };
+		expect(afterReattach.loop).toBeNull();
 
 		// Auth surfaces: the backend answers provider/account queries over the
 		// socket the same way the local TUI's pickers do.

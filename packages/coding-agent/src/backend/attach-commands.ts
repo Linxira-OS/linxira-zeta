@@ -85,15 +85,15 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
  * - credentials (`login`, `logout`, `setup`) are loaded by the backend at
  *   startup;
  * - sharing (`collab`, `join`, `leave`) belongs to the backend's process;
- * - TUI-only workflows (`loop`, `omfg`, `cleanse`, `tan`, `seance`, `live`)
- *   spawn agents or record on the client.
+ * - TUI-only workflows (`omfg`, `cleanse`, `tan`, `seance`, `live`) spawn
+ *   agents or record on the client. `/loop` is *not* here: it has a backend
+ *   controller and runs in the attached session.
  */
 export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	collab: true,
 	join: true,
 	leave: true,
 	live: true,
-	loop: true,
 	omfg: true,
 	cleanse: true,
 	restart: true,

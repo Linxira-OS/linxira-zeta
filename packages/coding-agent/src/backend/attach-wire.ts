@@ -68,14 +68,34 @@ export class AttachWire {
 	}
 
 	/** Submit input; the caller surfaces a failure (it owns the TUI context). */
-	sendPrompt(text: string, options: { images?: unknown[]; behavior?: "steer" | "followUp" } = {}): Promise<void> {
+	sendPrompt(
+		text: string,
+		options: { images?: unknown[]; behavior?: "steer" | "followUp"; loopBody?: boolean } = {},
+	): Promise<void> {
 		const command = options.behavior === "steer" ? "steer" : options.behavior === "followUp" ? "follow_up" : "prompt";
 		const images = options.images && options.images.length > 0 ? { images: options.images } : {};
-		return this.#client.call(command, { message: text, ...images }).then(() => undefined);
+		const loopBody = options.loopBody === false ? { loopBody: false } : {};
+		return this.#client.call(command, { message: text, ...images, ...loopBody }).then(() => undefined);
 	}
 
 	abort(): Promise<void> {
 		return this.#client.call("abort").then(() => undefined);
+	}
+
+	loopStart(args: string): Promise<void> {
+		return this.#client.call("loop_start", { args }).then(() => undefined);
+	}
+
+	loopStop(): Promise<void> {
+		return this.#client.call("loop_stop").then(() => undefined);
+	}
+
+	loopPause(): Promise<void> {
+		return this.#client.call("loop_pause").then(() => undefined);
+	}
+
+	loopResume(): Promise<void> {
+		return this.#client.call("loop_resume").then(() => undefined);
 	}
 
 	approvePlan(planFilePath: string, mode: AttachPlanApproval): Promise<void> {

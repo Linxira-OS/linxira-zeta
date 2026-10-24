@@ -36,8 +36,11 @@ starting a private in-process agent.
   `/tree`, `/clear` and `/delete yes`; `/login` and `/logout` drive the
   backend's providers. Only commands whose runtime lives in the backend process
   are refused, with the host action that performs them (`/restart`, `/setup`,
-  `/collab`, `/join`, `/leave`, `/loop`, `/omfg`, `/cleanse`, `/tan`,
-  `/seance`, `/live`). Plan approval renders the plan review overlay (plan
+  `/collab`, `/join`, `/leave`, `/omfg`, `/cleanse`, `/tan`, `/seance`,
+  `/live`). `/loop` is backend-executed: repetitions, its
+  `--while`/`--until` shell condition, and `loop.mode` compact/reset actions
+  run against the attached session, a second `/loop` stops it, Esc pauses it,
+  and the status line mirrors that session's loop state. Plan approval renders the plan review overlay (plan
   content, approve/compact/refine/cancel) and executes the approved plan on the
   backend.
 - **Dialogs** (`select`/`confirm`/`input`/`editor`/`ask`) fan out to every

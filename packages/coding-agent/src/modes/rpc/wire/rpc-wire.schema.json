@@ -496,6 +496,61 @@
 				"clientOmit": []
 			},
 			{
+				"name": "loop_start",
+				"doc": "Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar).",
+				"params": "LoopStartParams",
+				"result": "LoopStartResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "loop_stop",
+				"doc": "Disable the backend session's loop.",
+				"params": null,
+				"result": "LoopStopResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "loop_pause",
+				"doc": "Pause a backend loop and drop its captured prompt.",
+				"params": null,
+				"result": "LoopPauseResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "loop_resume",
+				"doc": "Resume a paused backend loop with its captured prompt.",
+				"params": null,
+				"result": "LoopResumeResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
+				"name": "loop_status",
+				"doc": "Read the backend session's loop state.",
+				"params": null,
+				"result": "LoopStatusResult",
+				"nullable": false,
+				"unwrap": null,
+				"timeoutMs": null,
+				"completion": null,
+				"clientOmit": []
+			},
+			{
 				"name": "get_tools",
 				"doc": "List every tool the session knows and the subset that is active.",
 				"params": null,
@@ -6036,6 +6091,9 @@
 				},
 				"streamingBehavior": {
 					"$ref": "#/$defs/StreamingBehavior"
+				},
+				"loopBody": {
+					"type": "boolean"
 				}
 			},
 			"required": [
@@ -6629,6 +6687,59 @@
 			},
 			"required": [
 				"mode"
+			]
+		},
+		"LoopStartParams": {
+			"type": "object",
+			"properties": {
+				"args": {
+					"type": "string"
+				}
+			}
+		},
+		"LoopStartResult": {
+			"type": "object",
+			"properties": {
+				"state": {}
+			},
+			"required": [
+				"state"
+			]
+		},
+		"LoopStopResult": {
+			"type": "object",
+			"properties": {
+				"state": {}
+			},
+			"required": [
+				"state"
+			]
+		},
+		"LoopPauseResult": {
+			"type": "object",
+			"properties": {
+				"state": {}
+			},
+			"required": [
+				"state"
+			]
+		},
+		"LoopResumeResult": {
+			"type": "object",
+			"properties": {
+				"state": {}
+			},
+			"required": [
+				"state"
+			]
+		},
+		"LoopStatusResult": {
+			"type": "object",
+			"properties": {
+				"state": {}
+			},
+			"required": [
+				"state"
 			]
 		},
 		"GetToolsResult": {

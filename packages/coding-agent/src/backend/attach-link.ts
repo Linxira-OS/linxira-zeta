@@ -26,6 +26,7 @@ import {
 	type SessionHeader,
 	type SessionMessageEntry,
 } from "../session/session-entries";
+import type { BackendLoopState } from "../loop/continuation-controller";
 import { FileSessionStorage } from "../session/session-storage";
 import { setSessionTerminalTitle } from "../utils/title-generator";
 import { AttachWire } from "./attach-wire";
@@ -84,6 +85,10 @@ export class BackendAttachLink {
 	#lastModes: Record<"plan" | "goal" | "vibe", boolean | null> = { plan: null, goal: null, vibe: null };
 	/** Replica goal id last seen paused; a re-enable of that id is a resume. */
 	#pausedGoalId: string | undefined;
+	/** Backend-owned loop snapshot (`null` when off). */
+	#loopState: BackendLoopState | null = null;
+	/** Bumped by every pushed `loop_state`; a stale `get_state` must not clobber it. */
+	#loopStateSeq = 0;
 	replicaPath: string | undefined;
 
 	constructor(ctx: InteractiveModeContext, target: ResolvedBackendTarget, options: BackendAttachJoinOptions = {}) {
@@ -97,6 +102,11 @@ export class BackendAttachLink {
 
 	get sessionId(): string {
 		return this.#sessionId;
+	}
+
+	/** The backend loop state last mirrored; `null` when no loop is active. */
+	get loopState(): BackendLoopState | null {
+		return this.#loopState;
 	}
 
 	get attached(): boolean {
@@ -169,6 +179,9 @@ export class BackendAttachLink {
 		void this.#pumpEvents();
 		this.#joined = true;
 		this.#ctx.backendAttach = this;
+		// Pick up state that is not part of the transcript snapshot (an active
+		// loop, todos, the backend model) before the first frame arrives.
+		this.#scheduleStateRefresh();
 		// The replica is a real session: `/model` and `/thinking` switch it. When
 		// a control plane is attached, the backend owns the turn, so the same
 		// switches must reach it; otherwise the UI and the run disagree.
@@ -291,16 +304,20 @@ export class BackendAttachLink {
 	 */
 	sendCommand(text: string, images?: ImageContent[]): void {
 		if (this.#closed) throw new Error("Backend attachment is closed");
+		// A forwarded builtin is not a loop body: a waiting loop must keep
+		// waiting for the user's next real prompt.
 		if (this.#wire) {
-			void this.#wire.sendPrompt(text, { images }).catch(error => {
+			void this.#wire.sendPrompt(text, { images, loopBody: false }).catch(error => {
 				this.#ctx.showError(`Backend command failed: ${error instanceof Error ? error.message : String(error)}`);
 			});
 			return;
 		}
 		const payload = images && images.length > 0 ? { images } : {};
-		void this.client.send(this.#sessionId, { type: "prompt", message: text, ...payload }).catch(error => {
-			this.#ctx.showError(`Backend command failed: ${error instanceof Error ? error.message : String(error)}`);
-		});
+		void this.client
+			.send(this.#sessionId, { type: "prompt", message: text, loopBody: false, ...payload })
+			.catch(error => {
+				this.#ctx.showError(`Backend command failed: ${error instanceof Error ? error.message : String(error)}`);
+			});
 	}
 
 	/**
@@ -406,6 +423,14 @@ export class BackendAttachLink {
 	 * backend session keeps running.
 	 */
 	async reattach(sessionId: string): Promise<void> {
+		// A loop belongs to the transcript it was started on: switching the
+		// client away must not leave the old backend session repeating prompts
+		// unattended. Stop it while the socket still points at that session.
+		if (this.#joined && this.#loopState?.enabled) {
+			await this.toggleLoop().catch(error => {
+				logger.warn("backend attach loop stop before reattach failed", { error: String(error) });
+			});
+		}
 		if (this.#joined) await this.detach();
 		this.#closed = false;
 		this.#joined = false;
@@ -417,6 +442,9 @@ export class BackendAttachLink {
 		this.#assistantStreamSynced = false;
 		this.#lastModes = { plan: null, goal: null, vibe: null };
 		this.#pausedGoalId = undefined;
+		this.#loopState = null;
+		this.#loopStateSeq += 1;
+		this.#ctx.setBackendLoopStatus(undefined);
 		this.#target = { ...this.#target, sessionId, newSession: false, explicit: true };
 		await this.join();
 	}
@@ -436,6 +464,8 @@ export class BackendAttachLink {
 		this.#replicaLease?.();
 		this.#replicaLease = undefined;
 		this.#ctx.backendAttach = undefined;
+		this.#loopState = null;
+		this.#ctx.setBackendLoopStatus(undefined);
 		this.#ctx.syncRunningSubagentBadge();
 		// The replica file is a valid standalone session outside the sessions
 		// dir; leave it on disk (same contract as a collab replica).
@@ -495,7 +525,14 @@ export class BackendAttachLink {
 			keepModel: true,
 			onCwdChange: async () => true,
 		});
-		if (switched === false) throw new Error("Backend attach was cancelled while switching sessions");
+		if (switched === false) {
+			logger.warn("attach replica switch rejected", {
+				target: replicaPath,
+				currentCwd: this.#ctx.sessionManager.getCwd(),
+				targetCwd: detail.info?.cwd,
+			});
+			throw new Error("Backend attach was cancelled while switching sessions");
+		}
 		this.#applyContextState(detail);
 		this.#ctx.showStatus(
 			snapshot > 0
@@ -598,6 +635,15 @@ export class BackendAttachLink {
 			case "state_changed":
 				this.#scheduleStateRefresh();
 				return;
+			case "loop_state":
+				this.#loopStateSeq += 1;
+				this.#applyLoopSnapshot(event.state);
+				return;
+			case "command_output": {
+				if (typeof event.text === "string" && event.text.length > 0)
+					this.#ctx.showStatus(event.text, { dim: true });
+				return;
+			}
 			case "running":
 				this.#streaming = true;
 				return;
@@ -802,12 +848,14 @@ export class BackendAttachLink {
 	#scheduleStateRefresh(): void {
 		if (this.#closed || this.#stateRefresh) return;
 		this.#stateRefresh = (async () => {
+			const loopSeq = this.#loopStateSeq;
 			try {
 				const state = (await this.client.send(this.#sessionId, { type: "get_state" })) as {
 					model?: { provider?: string; modelId?: string } | null;
 					thinkingLevel?: string | null;
 					isStreaming?: unknown;
 					todoPhases?: unknown;
+					loop?: unknown;
 				};
 				if (this.#closed) return;
 				if (typeof state.isStreaming === "boolean") this.#streaming = state.isStreaming;
@@ -826,6 +874,10 @@ export class BackendAttachLink {
 				if (Array.isArray(state.todoPhases)) {
 					session.setTodoPhases(state.todoPhases as never);
 				}
+				// A reconnect misses the transition events that produced the loop;
+				// the snapshot is authoritative unless a pushed frame landed while
+				// the request was in flight.
+				if (loopSeq === this.#loopStateSeq) this.#applyLoopSnapshot(state.loop);
 			} catch (error) {
 				logger.debug("backend attach state refresh failed", { error: String(error) });
 			} finally {
@@ -844,6 +896,56 @@ export class BackendAttachLink {
 			type: "mode_enter",
 			mode,
 			...(options === undefined ? {} : { options }),
+		});
+	}
+
+	/** Apply `/loop <args>` on the backend, or stop the loop when one is active. */
+	async toggleLoop(args = ""): Promise<void> {
+		if (this.#loopState?.enabled) {
+			await this.#loopCall("loop_stop", undefined);
+			return;
+		}
+		await this.#loopCall("loop_start", { args });
+	}
+
+	async pauseLoop(): Promise<void> {
+		if (!this.#loopState?.enabled) return;
+		await this.#loopCall("loop_pause", undefined);
+	}
+
+	async resumeLoop(): Promise<void> {
+		await this.#loopCall("loop_resume", undefined);
+	}
+
+	async #loopCall(
+		type: "loop_start" | "loop_stop" | "loop_pause" | "loop_resume",
+		extra: { args: string } | undefined,
+	): Promise<void> {
+		if (this.#wire) {
+			if (type === "loop_start") return this.#wire.loopStart(extra?.args ?? "");
+			if (type === "loop_pause") return this.#wire.loopPause();
+			if (type === "loop_resume") return this.#wire.loopResume();
+			return this.#wire.loopStop();
+		}
+		const response = (await this.client.send(this.#sessionId, {
+			type,
+			...(extra ? extra : {}),
+		})) as { state?: unknown };
+		this.#applyLoopSnapshot(response?.state);
+	}
+
+	/** Mirror a backend loop snapshot into the status line (no local scheduler). */
+	#applyLoopSnapshot(value: unknown): void {
+		const state = isRecord(value) && value.enabled === true ? (value as unknown as BackendLoopState) : null;
+		this.#loopState = state;
+		if (!state) {
+			this.#ctx.setBackendLoopStatus(undefined);
+			return;
+		}
+		this.#ctx.setBackendLoopStatus({
+			state: state.paused ? "paused" : state.prompt ? "running" : "waiting",
+			...(state.limit ? { limit: state.limit } : {}),
+			...(state.condition ? { condition: state.condition } : {}),
 		});
 	}
 

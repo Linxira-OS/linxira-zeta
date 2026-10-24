@@ -41,7 +41,12 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 	{
 		name: "prompt",
 		doc: "Submit a prompt; acknowledged once admitted, completed by its `prompt_result`.",
-		params: { message: "string", "images?": IMAGES, "streamingBehavior?": "StreamingBehavior" },
+		params: {
+			message: "string",
+			"images?": IMAGES,
+			"streamingBehavior?": "StreamingBehavior",
+			"loopBody?": "boolean",
+		},
 		result: "PromptAck",
 		completion: "prompt_result",
 	},
@@ -246,6 +251,16 @@ export const rpcCommands: readonly RpcCommandSpec[] = [
 		doc: "Leave a session mode.",
 		params: { mode: "SessionModeId", "options?": "unknown" },
 	},
+	{
+		name: "loop_start",
+		doc: "Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar).",
+		params: { "args?": "string" },
+		result: { state: "unknown" },
+	},
+	{ name: "loop_stop", doc: "Disable the backend session's loop.", result: { state: "unknown" } },
+	{ name: "loop_pause", doc: "Pause a backend loop and drop its captured prompt.", result: { state: "unknown" } },
+	{ name: "loop_resume", doc: "Resume a paused backend loop with its captured prompt.", result: { state: "unknown" } },
+	{ name: "loop_status", doc: "Read the backend session's loop state.", result: { state: "unknown" } },
 	{
 		name: "get_tools",
 		doc: "List every tool the session knows and the subset that is active.",

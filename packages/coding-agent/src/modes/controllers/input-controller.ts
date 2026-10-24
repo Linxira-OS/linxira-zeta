@@ -585,10 +585,20 @@ export class InputController {
 				return;
 			}
 			if (this.ctx.backendAttach) {
+				const backendAttach = this.ctx.backendAttach;
+				// Esc suspends a backend-owned loop exactly like the local one:
+				// invalidate its pending re-submit before aborting the live turn.
+				if (backendAttach.loopState?.enabled) {
+					void backendAttach.pauseLoop().catch(error => {
+						this.ctx.showError(
+							`Could not pause the backend loop: ${error instanceof Error ? error.message : String(error)}`,
+						);
+					});
+				}
 				// Backend-attached Esc: abort the backend turn. The local replica is
 				// an idle mirror, so the native session abort path would no-op.
-				if (this.ctx.backendAttach.streaming || this.ctx.loadingAnimation) {
-					this.ctx.backendAttach.sendAbort();
+				if (backendAttach.streaming || this.ctx.loadingAnimation) {
+					backendAttach.sendAbort();
 				}
 				return;
 			}
@@ -1129,6 +1139,19 @@ export class InputController {
 					// Mode commands with a prompt: a local handler would enter the mode on
 					// the replica and then prompt the *local* agent. Enter the mode on the
 					// backend instead; its mode_changed event updates the client banner.
+					if (verb === "loop") {
+						// The loop repeats prompts in the backend's session; parsing and
+						// scheduling happen there so no local timer can submit into the
+						// replica. The second `/loop` disables it.
+						this.ctx.editor.clearDraft(text);
+						const args = text.slice("/loop".length).trim();
+						void backendAttach.toggleLoop(args).catch(error => {
+							this.ctx.showError(
+								`Could not toggle the backend loop: ${error instanceof Error ? error.message : String(error)}`,
+							);
+						});
+						return;
+					}
 					if (verb === "plan" || verb === "plan-ultra") {
 						const task = text.slice(`/${verb}`.length).trim();
 						if (task) {

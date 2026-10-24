@@ -5159,6 +5159,8 @@ pub struct PromptParams {
 	pub images: Option<Vec<ImageContent>>,
 	#[serde(rename = "streamingBehavior", default, skip_serializing_if = "Option::is_none")]
 	pub streaming_behavior: Option<StreamingBehavior>,
+	#[serde(rename = "loopBody", default, skip_serializing_if = "Option::is_none")]
+	pub loop_body: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -5432,6 +5434,42 @@ pub struct ModeExitParams {
 	pub mode: SessionModeId,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub options: Option<Value>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoopStartParams {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub args: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoopStartResult {
+	#[serde(deserialize_with = "Deserialize::deserialize")]
+	pub state: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoopStopResult {
+	#[serde(deserialize_with = "Deserialize::deserialize")]
+	pub state: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoopPauseResult {
+	#[serde(deserialize_with = "Deserialize::deserialize")]
+	pub state: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoopResumeResult {
+	#[serde(deserialize_with = "Deserialize::deserialize")]
+	pub state: Value,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LoopStatusResult {
+	#[serde(deserialize_with = "Deserialize::deserialize")]
+	pub state: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6094,6 +6132,8 @@ pub struct PromptCommand {
 	pub images: Option<Vec<ImageContent>>,
 	#[serde(rename = "streamingBehavior", default, skip_serializing_if = "Option::is_none")]
 	pub streaming_behavior: Option<StreamingBehavior>,
+	#[serde(rename = "loopBody", default, skip_serializing_if = "Option::is_none")]
+	pub loop_body: Option<bool>,
 }
 
 impl Command for PromptCommand {
@@ -6816,6 +6856,79 @@ impl Command for ModeExitCommand {
 	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
 		let _ = data;
 		Ok(())
+	}
+}
+
+/// Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct LoopStartCommand {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub args: Option<String>,
+}
+
+impl Command for LoopStartCommand {
+	const NAME: &'static str = "loop_start";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = LoopStartResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<LoopStartResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Disable the backend session's loop.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct LoopStopCommand {}
+
+impl Command for LoopStopCommand {
+	const NAME: &'static str = "loop_stop";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = LoopStopResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<LoopStopResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Pause a backend loop and drop its captured prompt.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct LoopPauseCommand {}
+
+impl Command for LoopPauseCommand {
+	const NAME: &'static str = "loop_pause";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = LoopPauseResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<LoopPauseResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Resume a paused backend loop with its captured prompt.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct LoopResumeCommand {}
+
+impl Command for LoopResumeCommand {
+	const NAME: &'static str = "loop_resume";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = LoopResumeResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<LoopResumeResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
+	}
+}
+
+/// Read the backend session's loop state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct LoopStatusCommand {}
+
+impl Command for LoopStatusCommand {
+	const NAME: &'static str = "loop_status";
+	const TIMEOUT_MS: Option<u64> = None;
+	type Output = LoopStatusResult;
+
+	fn decode(data: Option<Value>) -> Result<Self::Output, serde_json::Error> {
+		serde_json::from_value::<LoopStatusResult>(data.unwrap_or_else(|| Value::Object(Map::new())))
 	}
 }
 

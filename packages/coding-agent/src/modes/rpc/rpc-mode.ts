@@ -73,6 +73,7 @@ import {
 	formatPersistenceNotice,
 } from "../persistence-failure";
 import { GoalContinuationController, GOAL_CONTINUATION_MODE_RPC } from "../../goals/continuation-controller";
+import { LoopContinuationController } from "../../loop/continuation-controller";
 import { initializeExtensions } from "../runtime-init";
 import { cfgSpellingAutocomplete } from "../settings";
 import { isRpcHostToolResult, isRpcHostToolUpdate, RpcHostToolBridge } from "./host-tools";
@@ -1296,6 +1297,12 @@ export interface RpcModeOptions {
 	createLiveSession?: RpcLiveSessionFactory;
 	/** The session's MCP manager, so `/mcp` builtins resolve and reconnect live servers. */
 	mcpManager?: MCPManager;
+	/**
+	 * Loop controller owned by the caller. The gateway wrapper passes its own so
+	 * `/loop` commands on a hosted socket drive the same state the HTTP/SSE
+	 * surface reads; without it this host would own a second, disconnected loop.
+	 */
+	loopController?: LoopContinuationController;
 }
 
 /**
@@ -1362,8 +1369,16 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	const wordPredictor = new RpcWordPredictor();
 	const btw = new RpcBtwController(session, output);
 	// A continuation abandoned while waiting leaves nothing to end the activity stretch: re-check settlement.
+	const ownsLoopController = options.loopController === undefined;
+	const loopController =
+		options.loopController ??
+		new LoopContinuationController(session, {
+			onChange: state => output({ type: "loop_state", state }),
+		});
 	const goalController = new GoalContinuationController(session, {
 		continuationMode: GOAL_CONTINUATION_MODE_RPC,
+		// Same precedence as the TUI: an active loop owns the next turn.
+		continuationSuppressed: () => loopController.active,
 		onContinuationDropped: () => void settleWatcher.check(),
 	});
 	// A scheduled or held goal turn will start a turn: every settle report treats it as busy,
@@ -1639,8 +1654,10 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	// Output all agent events as JSON; prompt results follow the frame that settled them.
 	session.subscribe(event => {
 		sessionEvents.forward(event);
-		// Before the prompt-result and settle reports: a goal continuation decided at this
-		// agent_end is scheduled (and reported as pending) before either reads settlement.
+		// Before the prompt-result and settle reports: a loop or goal continuation
+		// decided at this agent_end is scheduled before either reads settlement.
+		// An injected controller is already observed by its owner.
+		if (ownsLoopController) loopController.observe(event);
 		goalController.observe(event);
 		promptResults.observe(event);
 		settleWatcher.observe(event);
@@ -1876,6 +1893,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 			case "prompt": {
 				// Taken before any dispatch so a builtin that schedules a turn (e.g. `/retry`)
 				// cannot start its run ahead of the prompt's event-stream position.
+				if (command.loopBody !== false) loopController.noteUserPrompt(command.message);
 				const ticket = promptResults.begin(id);
 				try {
 					// Ack after admission, including hooks and skill image preparation, so a
@@ -2382,6 +2400,20 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 				await session.exitMode(command.mode, command.options);
 				return success(id, "mode_exit");
 			}
+
+			case "loop_start":
+				return success(id, "loop_start", { state: loopController.start(command.args ?? "") });
+			case "loop_stop":
+				loopController.stop();
+				return success(id, "loop_stop", { state: loopController.snapshot() });
+			case "loop_pause":
+				loopController.pause();
+				return success(id, "loop_pause", { state: loopController.snapshot() });
+			case "loop_resume":
+				loopController.resume();
+				return success(id, "loop_resume", { state: loopController.snapshot() });
+			case "loop_status":
+				return success(id, "loop_status", { state: loopController.snapshot() });
 
 			case "get_tools": {
 				return success(id, "get_tools", {

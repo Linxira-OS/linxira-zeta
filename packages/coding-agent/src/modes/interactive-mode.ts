@@ -3346,6 +3346,20 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 	}
 
+	/**
+	 * Render a backend-owned loop's status without arming the local scheduler.
+	 * Attach clients call this from `loop_state`/`get_state`; the prompt is
+	 * repeated by the backend, so local timers must never fire.
+	 */
+	setBackendLoopStatus(
+		status:
+			| { state: "waiting" | "running" | "paused"; limit?: LoopLimitRuntime; condition?: LoopConditionConfig }
+			| undefined,
+	): void {
+		this.statusLine.setLoopModeStatus(status);
+		this.ui.requestRender();
+	}
+
 	setLoopPrompt(prompt: string): void {
 		if (!this.loopModeEnabled) return;
 		// Any manual submit supersedes whatever gate is currently pending, even

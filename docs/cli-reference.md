@@ -240,8 +240,12 @@ backend's OAuth providers and accounts. Only commands whose runtime lives in
 the backend process are refused, with the host action that performs them:
 `/restart` (restart the daemon), `/setup` (run it on the host, then restart),
 `/collab`, `/join`, `/leave` (sharing starts in the owning process) and the
-client-process workflows `/loop`, `/omfg`, `/cleanse`, `/tan`, `/seance`,
-`/live`.
+client-process workflows `/omfg`, `/cleanse`, `/tan`, `/seance`, `/live`.
+`/loop` runs on the backend session: its repetitions, `--while`/`--until`
+shell condition, and `loop.mode` compact/reset actions execute against that
+session, a second `/loop` stops it, and Esc pauses it. The status line mirrors
+the backend loop state; a loop never falls back to the client's default
+workspace.
 Model and thinking-level switches
 made in the attached TUI (for example `/model`) are mirrored to the backend, so
 the run and the status line never disagree. Detaching closes the socket and the

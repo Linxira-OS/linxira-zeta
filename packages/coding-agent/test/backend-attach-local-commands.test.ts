@@ -102,22 +102,15 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("refuses only commands whose runtime lives in the backend process", () => {
-		for (const verb of [
-			"restart",
-			"setup",
-			"collab",
-			"join",
-			"leave",
-			"loop",
-			"omfg",
-			"cleanse",
-			"tan",
-			"seance",
-			"live",
-		]) {
+		for (const verb of ["restart", "setup", "collab", "join", "leave", "omfg", "cleanse", "tan", "seance", "live"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 		}
+	});
+
+	it("routes /loop to the backend loop controller rather than refusing it", () => {
+		expect(isBackendAttachRefusedCommand("loop")).toBe(false);
+		expect(isBackendAttachLocalCommand("loop")).toBe(false);
 	});
 
 	it("re-attaches for session creation and resumption instead of refusing", () => {

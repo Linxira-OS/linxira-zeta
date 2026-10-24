@@ -631,6 +631,12 @@ export interface InteractiveModeContext {
 	isGuidedGoalInterviewActive(): boolean;
 	handleLoopCommand(args?: string): Promise<string | undefined>;
 	setLoopPrompt(prompt: string): void;
+	/** Render a backend-owned loop's status; never arms the local scheduler. */
+	setBackendLoopStatus(
+		status:
+			| { state: "waiting" | "running" | "paused"; limit?: LoopLimitRuntime; condition?: LoopConditionConfig }
+			| undefined,
+	): void;
 	armLoopAutoSubmit(): void;
 	disableLoopMode(message?: string): void;
 	cancelGoalContinuation(): void;

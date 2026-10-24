@@ -35,6 +35,7 @@ import {
 	timedOutAskDialogResult,
 } from "../../extensibility/extensions/types";
 import { GOAL_CONTINUATION_MODE_WEB, GoalContinuationController } from "../../goals/continuation-controller";
+import { type BackendLoopState, LoopContinuationController } from "../../loop/continuation-controller";
 import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
 import type { PlanModeState } from "../../plan-mode/state";
@@ -77,6 +78,8 @@ export type AgentCommand =
 			chain?: string;
 			thinkingLevel?: string;
 			streamingBehavior?: "steer" | "followUp";
+			/** False when the host is forwarding a slash command, not a user body. */
+			loopBody?: boolean;
 	  }
 	| { type: "steer"; text: string; images?: unknown[] }
 	| { type: "follow_up"; text: string; images?: unknown[] }
@@ -119,6 +122,11 @@ export type AgentCommand =
 	| { type: "plan_approve"; planFilePath: string; mode: "preserve" | "compact" | "fresh" | "cancel" }
 	| { type: "mode_enter"; mode: ModeId; options?: unknown }
 	| { type: "mode_exit"; mode: ModeId; options?: unknown }
+	| { type: "loop_start"; args?: string }
+	| { type: "loop_stop" }
+	| { type: "loop_pause" }
+	| { type: "loop_resume" }
+	| { type: "loop_status" }
 	| { type: "set_model_role"; role: string };
 
 export type ExtensionUiRequest =
@@ -213,6 +221,8 @@ export interface AgentState {
 	planFilePath: string | null;
 	/** Plan file body when plan mode is active (web-ui PlanApproval preview). */
 	planContent?: string;
+	/** Runtime `/loop` state owned by this session (null when off). */
+	loop?: BackendLoopState | null;
 	/** Live todo-phase mirror for the web execution progress panel. */
 	todos: TodoPhase[];
 	// --- AgentState v2 (shared session state bridge) ---
@@ -316,6 +326,8 @@ export class AgentSessionWrapper {
 	 * continuation turn (`goal.continuationModes: ["web"]`).
 	 */
 	#goalController: GoalContinuationController;
+	/** Backend-owned `/loop`; one instance per wrapper, so a loop never crosses sessions. */
+	#loopController: LoopContinuationController;
 	#destroyed = false;
 	#listeners = new Set<EventListener>();
 	#pendingUiRequests = new Map<string, PendingUiResponse>();
@@ -339,8 +351,17 @@ export class AgentSessionWrapper {
 		this.#inner = inner;
 		this.realSessionId = realSessionId;
 		this.sessionFile = sessionFile;
+		this.#loopController = new LoopContinuationController(inner, {
+			onChange: state => {
+				if (!this.#destroyed) this.#emit({ type: "loop_state", state });
+			},
+			onStopped: reason => {
+				if (!this.#destroyed) this.#emit({ type: "command_output", text: reason });
+			},
+		});
 		this.#goalController = new GoalContinuationController(inner, {
 			continuationMode: GOAL_CONTINUATION_MODE_WEB,
+			continuationSuppressed: () => this.#loopController.active,
 		});
 
 		inner.subscribe(event => this.#onInnerEvent(event));
@@ -367,6 +388,11 @@ export class AgentSessionWrapper {
 	/** The underlying runtime session (channels/coordinators need the raw API). */
 	getSession(): AgentSession {
 		return this.#inner;
+	}
+
+	/** Shared loop controller; hosted RPC sockets must drive this instance. */
+	getLoopController(): LoopContinuationController {
+		return this.#loopController;
 	}
 
 	/** Streams events to a single SSE listener; returns an unsubscribe function. */
@@ -435,6 +461,7 @@ export class AgentSessionWrapper {
 		// Before every emit below: a goal continuation decided at this `agent_end`
 		// is claimed here, so the idle transition that follows reports the session
 		// with the pending turn already accounted for.
+		this.#loopController.observe(event);
 		this.#goalController.observe(event);
 		if (event.type === "auto_compaction_end") {
 			// The runtime CompactionResult has no `estimatedTokensAfter`; the
@@ -551,6 +578,7 @@ export class AgentSessionWrapper {
 			planModeEnabled: planEnabled,
 			planFilePath,
 			planContent,
+			loop: this.#loopController.snapshot(),
 			todos: inner.getTodoPhases(),
 			modes,
 			modelRole: this.#currentModelRole(),
@@ -594,7 +622,8 @@ export class AgentSessionWrapper {
 				// the legacy `chain`/`thinkingLevel` hints have no runtime
 				// PromptOptions equivalent and are ignored (the web-ui client
 				// never sends them; thinkingLevel goes through set_thinking_level).
-				const { message, images, streamingBehavior } = command;
+				const { message, images, streamingBehavior, loopBody } = command;
+				if (loopBody !== false) this.#loopController.noteUserPrompt(message);
 				await this.#inner.prompt(message, {
 					...(images?.length ? { images: images as ImageContent[] } : {}),
 					...(streamingBehavior ? { streamingBehavior } : {}),
@@ -602,14 +631,19 @@ export class AgentSessionWrapper {
 				return { ok: true };
 			}
 			case "steer":
+				this.#loopController.noteUserPrompt(command.text);
 				await this.#inner.steer(command.text, command.images as ImageContent[] | undefined);
 				this.#emitQueuedMessages();
 				return { ok: true };
 			case "follow_up":
+				this.#loopController.noteUserPrompt(command.text);
 				await this.#inner.followUp(command.text, command.images as ImageContent[] | undefined);
 				this.#emitQueuedMessages();
 				return { ok: true };
 			case "abort":
+				// Esc/stop cancels the loop's pending re-submit too; the TUI drops
+				// the captured body and waits for a new manual prompt.
+				this.#loopController.pause();
 				// Before the abort: the aborted run's own `agent_end` must not re-arm
 				// the goal continuation. Only a later host prompt (or a goal
 				// resume/create) starts turns again.
@@ -628,6 +662,7 @@ export class AgentSessionWrapper {
 			case "fork": {
 				// Goal state belongs to the transcript that set it: quiesce it, then
 				// adopt (or clear) the goal the fork's transcript carries.
+				this.#loopController.stopForSessionChange();
 				await this.#goalController.beginSessionChange();
 				try {
 					const result = await this.#inner.branch(command.entryId);
@@ -650,6 +685,7 @@ export class AgentSessionWrapper {
 				}
 			}
 			case "navigate_tree": {
+				this.#loopController.stopForSessionChange();
 				await this.#goalController.beginSessionChange();
 				try {
 					// Navigation leaves a live run streaming to its normal end.
@@ -661,6 +697,7 @@ export class AgentSessionWrapper {
 			}
 			case "reset_context": {
 				// Local `/clear`: drop the model context, keep id/title/file.
+				this.#loopController.stopForSessionChange();
 				await this.#goalController.beginSessionChange();
 				try {
 					const result = await this.#inner.resetSessionContext();
@@ -674,6 +711,7 @@ export class AgentSessionWrapper {
 				// transcript. The wrapper must rekey before the file disappears so an
 				// old id never resolves to a missing path.
 				const oldFile = this.#inner.sessionFile;
+				this.#loopController.stopForSessionChange();
 				await this.#goalController.beginSessionChange();
 				try {
 					const created = await this.#inner.newSession();
@@ -760,6 +798,7 @@ export class AgentSessionWrapper {
 			case "reload":
 				// Reload is a session change: it detaches the running agent, so a
 				// pending goal continuation will never reach its terminal `agent_end`.
+				this.#loopController.stopForSessionChange();
 				await this.#goalController.beginSessionChange();
 				try {
 					await this.#inner.reload();
@@ -820,6 +859,19 @@ export class AgentSessionWrapper {
 			case "mode_exit":
 				await this.#inner.exitMode(command.mode, command.options);
 				return { ok: true };
+			case "loop_start":
+				return { state: this.#loopController.start(command.args ?? "") };
+			case "loop_stop":
+				this.#loopController.stop();
+				return { state: this.#loopController.snapshot() };
+			case "loop_pause":
+				this.#loopController.pause();
+				return { state: this.#loopController.snapshot() };
+			case "loop_resume":
+				this.#loopController.resume();
+				return { state: this.#loopController.snapshot() };
+			case "loop_status":
+				return { state: this.#loopController.snapshot() };
 			case "set_model_role": {
 				// Reuse the CLI role-switch semantics: resolve the role's model
 				// (+ explicit thinking suffix) and apply it as a temporary model
@@ -933,6 +985,7 @@ export class AgentSessionWrapper {
 	/** Reload the runtime's current thinking level etc. into the client contract. */
 	destroy(): void {
 		if (this.#destroyed) return;
+		this.#loopController.stop();
 		this.subagentSink?.dispose();
 		this.subagentSink = null;
 		for (const [id, pending] of this.#pendingUiRequests) {

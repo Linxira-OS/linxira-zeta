@@ -69,6 +69,12 @@ export interface GoalContinuationControllerOptions {
 	 * waited), so settle reporting can re-check.
 	 */
 	onContinuationDropped?: () => void;
+	/**
+	 * Another continuation driver (the `/loop` controller) currently owns the
+	 * next turn. The TUI's loop takes precedence over goal continuation; hosts
+	 * with both controllers pass this so a goal never races a loop prompt.
+	 */
+	continuationSuppressed?: () => boolean;
 }
 
 export class GoalContinuationController {
@@ -110,11 +116,13 @@ export class GoalContinuationController {
 	 */
 	#changeOverlappedReconcile = false;
 	readonly #onContinuationDropped: (() => void) | undefined;
+	readonly #continuationSuppressed: (() => boolean) | undefined;
 
 	constructor(session: GoalContinuationSession, options: GoalContinuationControllerOptions = {}) {
 		this.#session = session;
 		this.#continuationMode = options.continuationMode;
 		this.#onContinuationDropped = options.onContinuationDropped;
+		this.#continuationSuppressed = options.continuationSuppressed;
 	}
 
 	/**
@@ -423,6 +431,7 @@ export class GoalContinuationController {
 	#continuationWanted(): boolean {
 		const session = this.#session;
 		if (this.#continuationMode === undefined) return false;
+		if (this.#continuationSuppressed?.() === true) return false;
 		if (!cfgGoalContinuationModes.get(session.settings).includes(this.#continuationMode)) return false;
 		if (this.#hostStopped || this.#suppressContinuation || session.isDisposed) return false;
 		if (session.getPlanModeState()?.enabled) return false;

@@ -55,7 +55,15 @@ export type RpcCommand =
 	| { id?: string; type: "negotiate_protocol"; protocolVersion: number }
 
 	// Prompting
-	| { id?: string; type: "prompt"; message: string; images?: ImageContent[]; streamingBehavior?: "steer" | "followUp" }
+	| {
+			id?: string;
+			type: "prompt";
+			message: string;
+			images?: ImageContent[];
+			streamingBehavior?: "steer" | "followUp";
+			/** False for a forwarded slash command; only user bodies update a waiting loop. */
+			loopBody?: boolean;
+	  }
 	| { id?: string; type: "steer"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "follow_up"; message: string; images?: ImageContent[] }
 	| { id?: string; type: "remove_queued_message"; message: string; queue: "steering" | "followUp" }
@@ -122,6 +130,11 @@ export type RpcCommand =
 	// /tool and /reload surfaces; a client drives the same transitions)
 	| { id?: string; type: "mode_enter"; mode: "plan" | "goal" | "vibe"; options?: unknown }
 	| { id?: string; type: "mode_exit"; mode: "plan" | "goal" | "vibe"; options?: unknown }
+	| { id?: string; type: "loop_start"; args?: string }
+	| { id?: string; type: "loop_stop" }
+	| { id?: string; type: "loop_pause" }
+	| { id?: string; type: "loop_resume" }
+	| { id?: string; type: "loop_status" }
 	| { id?: string; type: "get_tools" }
 	| { id?: string; type: "set_tools"; toolNames: string[] }
 	| { id?: string; type: "reload" }
@@ -564,6 +577,11 @@ export type RpcResponse =
 	| { id?: string; type: "response"; command: "set_auto_compaction"; success: true }
 	| { id?: string; type: "response"; command: "mode_enter"; success: true }
 	| { id?: string; type: "response"; command: "mode_exit"; success: true }
+	| { id?: string; type: "response"; command: "loop_start"; success: true; data: { state: unknown } }
+	| { id?: string; type: "response"; command: "loop_stop"; success: true; data: { state: unknown } }
+	| { id?: string; type: "response"; command: "loop_pause"; success: true; data: { state: unknown } }
+	| { id?: string; type: "response"; command: "loop_resume"; success: true; data: { state: unknown } }
+	| { id?: string; type: "response"; command: "loop_status"; success: true; data: { state: unknown } }
 	| { id?: string; type: "response"; command: "get_tools"; success: true; data: { all: string[]; active: string[] } }
 	| { id?: string; type: "response"; command: "set_tools"; success: true }
 	| { id?: string; type: "response"; command: "reload"; success: true }

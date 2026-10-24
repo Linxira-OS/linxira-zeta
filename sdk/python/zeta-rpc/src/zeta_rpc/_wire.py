@@ -1638,6 +1638,31 @@ class NegotiateProtocolResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class LoopStartResult:
+    state: JsonValue
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class LoopStopResult:
+    state: JsonValue
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class LoopPauseResult:
+    state: JsonValue
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class LoopResumeResult:
+    state: JsonValue
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class LoopStatusResult:
+    state: JsonValue
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class GetToolsResult:
     all: tuple[str, ...]
     active: tuple[str, ...]
@@ -3113,6 +3138,41 @@ def parse_negotiate_protocol_result(value: object, path: str = "NegotiateProtoco
     )
 
 
+def parse_loop_start_result(value: object, path: str = "LoopStartResult") -> LoopStartResult:
+    payload = expect_object(value, path)
+    return LoopStartResult(
+        state=required(payload, "state", decode_json, path),
+    )
+
+
+def parse_loop_stop_result(value: object, path: str = "LoopStopResult") -> LoopStopResult:
+    payload = expect_object(value, path)
+    return LoopStopResult(
+        state=required(payload, "state", decode_json, path),
+    )
+
+
+def parse_loop_pause_result(value: object, path: str = "LoopPauseResult") -> LoopPauseResult:
+    payload = expect_object(value, path)
+    return LoopPauseResult(
+        state=required(payload, "state", decode_json, path),
+    )
+
+
+def parse_loop_resume_result(value: object, path: str = "LoopResumeResult") -> LoopResumeResult:
+    payload = expect_object(value, path)
+    return LoopResumeResult(
+        state=required(payload, "state", decode_json, path),
+    )
+
+
+def parse_loop_status_result(value: object, path: str = "LoopStatusResult") -> LoopStatusResult:
+    payload = expect_object(value, path)
+    return LoopStatusResult(
+        state=required(payload, "state", decode_json, path),
+    )
+
+
 def parse_get_tools_result(value: object, path: str = "GetToolsResult") -> GetToolsResult:
     payload = expect_object(value, path)
     return GetToolsResult(
@@ -3516,6 +3576,33 @@ class WireClient:
         if options is not None:
             params["options"] = options
         self._command("mode_exit", params)
+
+    def loop_start(self, args: str | None = None) -> LoopStartResult:
+        """Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar)."""
+        params: dict[str, object] = {}
+        if args is not None:
+            params["args"] = args
+        return parse_loop_start_result(self._command("loop_start", params), "loop_start")
+
+    def loop_stop(self) -> LoopStopResult:
+        """Disable the backend session's loop."""
+        params: dict[str, object] = {}
+        return parse_loop_stop_result(self._command("loop_stop", params), "loop_stop")
+
+    def loop_pause(self) -> LoopPauseResult:
+        """Pause a backend loop and drop its captured prompt."""
+        params: dict[str, object] = {}
+        return parse_loop_pause_result(self._command("loop_pause", params), "loop_pause")
+
+    def loop_resume(self) -> LoopResumeResult:
+        """Resume a paused backend loop with its captured prompt."""
+        params: dict[str, object] = {}
+        return parse_loop_resume_result(self._command("loop_resume", params), "loop_resume")
+
+    def loop_status(self) -> LoopStatusResult:
+        """Read the backend session's loop state."""
+        params: dict[str, object] = {}
+        return parse_loop_status_result(self._command("loop_status", params), "loop_status")
 
     def get_tools(self) -> GetToolsResult:
         """List every tool the session knows and the subset that is active."""
@@ -4009,6 +4096,11 @@ __all__ = [
     "LoginProvider",
     "LogoutAccount",
     "LogoutResult",
+    "LoopPauseResult",
+    "LoopResumeResult",
+    "LoopStartResult",
+    "LoopStatusResult",
+    "LoopStopResult",
     "MessageContent",
     "MessageEndEvent",
     "MessageStartEvent",
@@ -4194,6 +4286,11 @@ __all__ = [
     "parse_login_provider",
     "parse_logout_account",
     "parse_logout_result",
+    "parse_loop_pause_result",
+    "parse_loop_resume_result",
+    "parse_loop_start_result",
+    "parse_loop_status_result",
+    "parse_loop_stop_result",
     "parse_message_end_event",
     "parse_message_start_event",
     "parse_message_update_event",

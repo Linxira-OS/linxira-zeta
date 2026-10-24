@@ -1511,6 +1511,7 @@ export interface PromptParams {
 	/** Images attached to the message. */
 	images?: ImageContent[];
 	streamingBehavior?: StreamingBehavior;
+	loopBody?: boolean;
 }
 
 export interface SteerParams {
@@ -1713,6 +1714,30 @@ export interface ModeExitParams {
 	options?: unknown;
 }
 
+export interface LoopStartParams {
+	args?: string;
+}
+
+export interface LoopStartResult {
+	state: unknown;
+}
+
+export interface LoopStopResult {
+	state: unknown;
+}
+
+export interface LoopPauseResult {
+	state: unknown;
+}
+
+export interface LoopResumeResult {
+	state: unknown;
+}
+
+export interface LoopStatusResult {
+	state: unknown;
+}
+
 export interface GetToolsResult {
 	all: string[];
 	active: string[];
@@ -1910,6 +1935,11 @@ export interface RpcWireCommands {
 	set_auto_compaction: { params: SetAutoCompactionParams; result: undefined };
 	mode_enter: { params: ModeEnterParams; result: undefined };
 	mode_exit: { params: ModeExitParams; result: undefined };
+	loop_start: { params: LoopStartParams; result: LoopStartResult };
+	loop_stop: { params: undefined; result: LoopStopResult };
+	loop_pause: { params: undefined; result: LoopPauseResult };
+	loop_resume: { params: undefined; result: LoopResumeResult };
+	loop_status: { params: undefined; result: LoopStatusResult };
 	get_tools: { params: undefined; result: GetToolsResult };
 	set_tools: { params: SetToolsParams; result: undefined };
 	reload: { params: undefined; result: undefined };

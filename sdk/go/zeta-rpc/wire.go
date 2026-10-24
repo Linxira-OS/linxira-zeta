@@ -7324,6 +7324,101 @@ func (v *GetAvailableThinkingLevelsResult) decodeFrom(raw map[string]json.RawMes
 	return nil
 }
 
+type LoopStartResult struct {
+	State json.RawMessage `json:"state"`
+}
+
+func (v *LoopStartResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "LoopStartResult", v.decodeFrom)
+}
+
+func (v *LoopStartResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out LoopStartResult
+	d := fieldDecoder{raw: raw, owner: "LoopStartResult"}
+	d.required("state", &out.State)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+type LoopStopResult struct {
+	State json.RawMessage `json:"state"`
+}
+
+func (v *LoopStopResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "LoopStopResult", v.decodeFrom)
+}
+
+func (v *LoopStopResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out LoopStopResult
+	d := fieldDecoder{raw: raw, owner: "LoopStopResult"}
+	d.required("state", &out.State)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+type LoopPauseResult struct {
+	State json.RawMessage `json:"state"`
+}
+
+func (v *LoopPauseResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "LoopPauseResult", v.decodeFrom)
+}
+
+func (v *LoopPauseResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out LoopPauseResult
+	d := fieldDecoder{raw: raw, owner: "LoopPauseResult"}
+	d.required("state", &out.State)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+type LoopResumeResult struct {
+	State json.RawMessage `json:"state"`
+}
+
+func (v *LoopResumeResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "LoopResumeResult", v.decodeFrom)
+}
+
+func (v *LoopResumeResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out LoopResumeResult
+	d := fieldDecoder{raw: raw, owner: "LoopResumeResult"}
+	d.required("state", &out.State)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
+type LoopStatusResult struct {
+	State json.RawMessage `json:"state"`
+}
+
+func (v *LoopStatusResult) UnmarshalJSON(data []byte) error {
+	return decodeWith(data, "LoopStatusResult", v.decodeFrom)
+}
+
+func (v *LoopStatusResult) decodeFrom(raw map[string]json.RawMessage) error {
+	var out LoopStatusResult
+	d := fieldDecoder{raw: raw, owner: "LoopStatusResult"}
+	d.required("state", &out.State)
+	if d.err != nil {
+		return d.err
+	}
+	*v = out
+	return nil
+}
+
 type GetToolsResult struct {
 	All    []string `json:"all"`
 	Active []string `json:"active"`
@@ -7648,6 +7743,7 @@ type PromptCommand struct {
 	// Images attached to the message.
 	Images            []ImageContent     `json:"images,omitempty"`
 	StreamingBehavior *StreamingBehavior `json:"streamingBehavior,omitempty"`
+	LoopBody          *bool              `json:"loopBody,omitempty"`
 }
 
 // Prompt sends "prompt": Submit a prompt; acknowledged once admitted, completed by its `prompt_result`.
@@ -8098,6 +8194,46 @@ type ModeExitCommand struct {
 // ModeExit sends "mode_exit": Leave a session mode.
 func (c Commands) ModeExit(ctx context.Context, p ModeExitCommand) error {
 	return c.call(ctx, "mode_exit", p, 0, nil)
+}
+
+// LoopStartCommand holds the parameters of "loop_start".
+type LoopStartCommand struct {
+	Args *string `json:"args,omitempty"`
+}
+
+// LoopStart sends "loop_start": Start or replace the backend session's `/loop` (args use the TUI's `/loop` grammar).
+func (c Commands) LoopStart(ctx context.Context, p LoopStartCommand) (LoopStartResult, error) {
+	var out LoopStartResult
+	err := c.call(ctx, "loop_start", p, 0, &out)
+	return out, err
+}
+
+// LoopStop sends "loop_stop": Disable the backend session's loop.
+func (c Commands) LoopStop(ctx context.Context) (LoopStopResult, error) {
+	var out LoopStopResult
+	err := c.call(ctx, "loop_stop", nil, 0, &out)
+	return out, err
+}
+
+// LoopPause sends "loop_pause": Pause a backend loop and drop its captured prompt.
+func (c Commands) LoopPause(ctx context.Context) (LoopPauseResult, error) {
+	var out LoopPauseResult
+	err := c.call(ctx, "loop_pause", nil, 0, &out)
+	return out, err
+}
+
+// LoopResume sends "loop_resume": Resume a paused backend loop with its captured prompt.
+func (c Commands) LoopResume(ctx context.Context) (LoopResumeResult, error) {
+	var out LoopResumeResult
+	err := c.call(ctx, "loop_resume", nil, 0, &out)
+	return out, err
+}
+
+// LoopStatus sends "loop_status": Read the backend session's loop state.
+func (c Commands) LoopStatus(ctx context.Context) (LoopStatusResult, error) {
+	var out LoopStatusResult
+	err := c.call(ctx, "loop_status", nil, 0, &out)
+	return out, err
 }
 
 // GetTools sends "get_tools": List every tool the session knows and the subset that is active.

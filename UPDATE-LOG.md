@@ -2,6 +2,20 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.2
+- **attach 真正连上后端会话**：网关从运行时的 `model_change.model`（`"provider/modelId"`）
+  解析模型，而不是读早已不存在的 `provider`/`modelId` 字段；attach 客户端同时容忍空会话
+  的空模型。此前每次 attach 都在 `modelRegistry.find(undefined, undefined)` 抛错后静默
+  降级成本地会话——界面正常、后端却是空的。失败现在会带 stack 写日志。
+- **`/loop` 在所属后端会话执行**：新增后端 `LoopContinuationController`（每次会话一个
+  实例），重复提示词、`--while`/`--until` shell 条件、次数/时长上限以及 `loop.mode`
+  的 compact/reset 全部在后端会话内运行；attach 的 `/loop` 转发命令并镜像状态，第二次
+  `/loop` 停止、Esc 暂停，`/new`、`/resume`、`/clear` 等会话切换会先停掉 loop。
+  RPC 新增 `loop_start`/`loop_stop`/`loop_pause`/`loop_resume`/`loop_status`，
+  `get_state.loop` 与 `loop_state` 事件供客户端接状态；loop 优先于 goal continuation。
+- **会话隔离**：新增测试证明两个后端会话的 loop 状态互不可见；等待中的 loop 只吸收
+  自己会话的下一条手动提示，不会落到默认工作区。
+
 ### 1.4.1
 - **终端 attach 与本地会话对齐**：早期版本的 attach 只放开少量展示命令，其余斜杠命令
   一律拒绝，看起来像“连接后少了半套功能”。现在分三层：客户端命令与镜像开关在本地跑
