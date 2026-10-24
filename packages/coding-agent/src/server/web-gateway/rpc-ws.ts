@@ -97,6 +97,8 @@ export function startHostedRpc(wrapper: AgentSessionWrapper, ws: WebSocket): Hos
 		sink,
 		input,
 		loopController: wrapper.getLoopController(),
+		goalController: wrapper.getGoalController(),
+		liveBridge: wrapper.getLiveBridge(),
 		// The backend owns the session: detaching a client must not end it.
 		disposeSession: false,
 		onClosed: () => {

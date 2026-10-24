@@ -1303,6 +1303,17 @@ export interface RpcModeOptions {
 	 * surface reads; without it this host would own a second, disconnected loop.
 	 */
 	loopController?: LoopContinuationController;
+	/**
+	 * Goal controller owned by the caller. The gateway wrapper passes its own so
+	 * every attached socket reads and writes one goal state; without it each
+	 * host would own a second controller and schedule duplicate continuations.
+	 */
+	goalController?: GoalContinuationController;
+	/**
+	 * Live-voice bridge owned by the caller. Live voice is session state; a
+	 * per-socket bridge would let two clients start two live sessions.
+	 */
+	liveBridge?: RpcLiveBridge;
 }
 
 /**
@@ -1375,12 +1386,15 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 		new LoopContinuationController(session, {
 			onChange: state => output({ type: "loop_state", state }),
 		});
-	const goalController = new GoalContinuationController(session, {
-		continuationMode: GOAL_CONTINUATION_MODE_RPC,
-		// Same precedence as the TUI: an active loop owns the next turn.
-		continuationSuppressed: () => loopController.active,
-		onContinuationDropped: () => void settleWatcher.check(),
-	});
+	const ownsGoalController = options.goalController === undefined;
+	const goalController =
+		options.goalController ??
+		new GoalContinuationController(session, {
+			continuationMode: GOAL_CONTINUATION_MODE_RPC,
+			// Same precedence as the TUI: an active loop owns the next turn.
+			continuationSuppressed: () => loopController.active,
+			onContinuationDropped: () => void settleWatcher.check(),
+		});
 	// A scheduled or held goal turn will start a turn: every settle report treats it as busy,
 	// and any report of "not settled" for that reason is later closed by `session_settled`.
 	const goalTurnScheduled = watchedScheduledTurnProbe(
@@ -1395,7 +1409,8 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	const hostToolBridge = new RpcHostToolBridge(output);
 	const hostUriBridge = new RpcHostUriBridge(output);
 	// Live frames go straight to `output`, so `set_event_filter` (session events only) never drops them.
-	const liveBridge = new RpcLiveBridge(session, output, createLiveSession);
+	const ownsLiveBridge = options.liveBridge === undefined;
+	const liveBridge = options.liveBridge ?? new RpcLiveBridge(session, output, createLiveSession);
 	const subagentRegistry = subagentEventBus ? new RpcSubagentRegistry(subagentEventBus, output) : undefined;
 
 	// Shutdown request flag (wrapped in object to allow mutation with const)
@@ -1658,12 +1673,14 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 		// decided at this agent_end is scheduled before either reads settlement.
 		// An injected controller is already observed by its owner.
 		if (ownsLoopController) loopController.observe(event);
-		goalController.observe(event);
+		if (ownsGoalController) goalController.observe(event);
 		promptResults.observe(event);
 		settleWatcher.observe(event);
 	});
-	await goalController.reconcile();
-	await goalController.settled();
+	if (ownsGoalController) {
+		await goalController.reconcile();
+		await goalController.settled();
+	}
 
 	// Discriminates a store failure from any other dispose rejection below.
 	let persistenceFailure: Error | undefined;
@@ -1692,7 +1709,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 				output({ type: "notice", level: "error", message, source: "btw-history" });
 			});
 			// Close the realtime call (microphone, socket) before the session it delegates into.
-			await liveBridge.stop();
+			if (ownsLiveBridge) await liveBridge.stop();
 			if (options.disposeSession !== false) await session.dispose();
 		} catch (error) {
 			if (!persistenceFailure || error !== persistenceFailure) throw error;
@@ -2774,7 +2791,7 @@ export async function runRpcMode(session: AgentSession, options: RpcModeOptions 
 	pendingExtensionRequests.rejectAll("RPC client disconnected before extension UI response completed");
 	hostToolBridge.close("RPC client disconnected before host tool execution completed");
 	hostUriBridge.clear("RPC client disconnected before host URI request completed");
-	await liveBridge.stop();
+	if (ownsLiveBridge) await liveBridge.stop();
 	await inputDispatcher.drain();
 	// A backgrounded builtin (e.g. a /mcp reauth browser wait) must not park
 	// the drain: tear it down now that the client is gone.

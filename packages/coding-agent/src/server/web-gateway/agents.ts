@@ -35,6 +35,7 @@ import {
 	timedOutAskDialogResult,
 } from "../../extensibility/extensions/types";
 import { GOAL_CONTINUATION_MODE_WEB, GoalContinuationController } from "../../goals/continuation-controller";
+import { RpcLiveBridge } from "../../modes/rpc/rpc-live";
 import { type BackendLoopState, LoopContinuationController } from "../../loop/continuation-controller";
 import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
@@ -328,6 +329,8 @@ export class AgentSessionWrapper {
 	#goalController: GoalContinuationController;
 	/** Backend-owned `/loop`; one instance per wrapper, so a loop never crosses sessions. */
 	#loopController: LoopContinuationController;
+	/** Backend-owned live voice; one bridge per wrapper, shared by every attached client. */
+	#liveBridge: RpcLiveBridge;
 	#destroyed = false;
 	#listeners = new Set<EventListener>();
 	#pendingUiRequests = new Map<string, PendingUiResponse>();
@@ -363,6 +366,17 @@ export class AgentSessionWrapper {
 			continuationMode: GOAL_CONTINUATION_MODE_WEB,
 			continuationSuppressed: () => this.#loopController.active,
 		});
+		// Live voice is session state: one microphone/voice session for the
+		// backend, with its transcript/levels fanned out to every client. A
+		// per-socket bridge would let two attached UIs start two live sessions
+		// against one AgentSession.
+		this.#liveBridge = new RpcLiveBridge(inner, frame => this.#emit(frame as unknown as AgentEvent));
+		// Restore goal mode once per session, not once per attached socket: a
+		// second host's reconcile resets the continuation generation and can
+		// cancel a pending goal turn while another client is attached.
+		void this.#goalController.reconcile().catch(error => {
+			logger.error("web-gateway: goal reconcile failed", { error: String(error) });
+		});
 
 		inner.subscribe(event => this.#onInnerEvent(event));
 
@@ -393,6 +407,16 @@ export class AgentSessionWrapper {
 	/** Shared loop controller; hosted RPC sockets must drive this instance. */
 	getLoopController(): LoopContinuationController {
 		return this.#loopController;
+	}
+
+	/** Shared goal controller; hosted RPC sockets must not create a second one. */
+	getGoalController(): GoalContinuationController {
+		return this.#goalController;
+	}
+
+	/** Shared live-voice bridge; every attached client drives the same session. */
+	getLiveBridge(): RpcLiveBridge {
+		return this.#liveBridge;
 	}
 
 	/** Streams events to a single SSE listener; returns an unsubscribe function. */
@@ -986,6 +1010,7 @@ export class AgentSessionWrapper {
 	destroy(): void {
 		if (this.#destroyed) return;
 		this.#loopController.stop();
+		void this.#liveBridge.stop().catch(() => undefined);
 		this.subagentSink?.dispose();
 		this.subagentSink = null;
 		for (const [id, pending] of this.#pendingUiRequests) {
