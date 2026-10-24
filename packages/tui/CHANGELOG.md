@@ -1,182 +1,8 @@
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-24
+
 - Version alignment with the 1.4.2 release line (no behavioral changes).
-
-## [1.4.1] - 2026-10-23
-
-- An attached TUI renders the backend's builtin-command output (`command_output`) in its status line and keeps client-only commands, pickers and mirrored switches local
-
-### Breaking Changes
-
-- Removed `KeyEventType` export from public API
-- `Editor` constructor now requires `TUI` as first parameter: `new Editor(tui, theme)`. This enables automatic vertical scrolling when content exceeds terminal height. ([#732](https://github.com/badlogic/pi-mono/issues/732))
-- Removed `Key` helper object from public API; use string literals like `"ctrl+c"` instead of `Key.ctrl("c")`
-
-### Added
-
-- Added `symbols` property to `EditorTheme`, `MarkdownTheme`, and `SelectListTheme` interfaces for component-level symbol customization
-- Overlay compositing via `TUI.showOverlay()` and `TUI.hideOverlay()` for `ctx.ui.custom()` with `{ overlay: true }`
-- Kitty keyboard protocol flag 2 support for key release events (`isKeyRelease()`, `isKeyRepeat()`, `KeyEventType`)
-- `setKittyProtocolActive()`, `isKittyProtocolActive()` for Kitty protocol state management
-- `kittyProtocolActive` property on Terminal interface to query Kitty protocol state
-- `Component.wantsKeyRelease` property to opt-in to key release events (default false)
-- Input component `onEscape` callback for handling escape key presses
-- Emergency terminal restore to prevent corrupted state on crashes
-- Overhauled UI with welcome screen and powerline footer
-- Theme-configurable HTML export colors
-- `ctx.ui.theme` getter for styling status text with theme colors
-- Added `PI_TUI_WRITE_LOG` environment variable to capture raw ANSI output for debugging
-- Added legacy Alt+letter handling and Alt+D delete word forward support in the editor keymap. ([#810](https://github.com/badlogic/pi-mono/pull/810) by [@Perlence](https://github.com/Perlence))
-- `showOverlay()` now returns `OverlayHandle` with `hide()`, `setHidden(boolean)`, `isHidden()` for programmatic visibility control ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-- New exported types: `OverlayAnchor`, `OverlayHandle`, `OverlayMargin`, `OverlayOptions`, `SizeValue` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-- `truncateToWidth()` now accepts optional `pad` parameter to pad result with spaces to exactly `maxWidth` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-- **Experimental:** Overlay compositing for `ctx.ui.custom()` with `{ overlay: true }` option ([#558](https://github.com/badlogic/pi-mono/pull/558) by [@nicobailon](https://github.com/nicobailon))
-- `EditorComponent` interface for custom editor implementations
-- `StdinBuffer` class to split batched stdin into individual sequences (adapted from [OpenTUI](https://github.com/anomalyco/opentui), MIT license)
-- `Editor.getExpandedText()` method that returns text with paste markers expanded to their actual content ([#444](https://github.com/badlogic/pi-mono/pull/444) by [@aliou](https://github.com/aliou))
-- Added mermaid block extraction and deduplication utilities (extractMermaidBlocks)
-- Added `Alt+Delete` as a delete-word-forward shortcut
-- Added configurable code block indentation for Markdown rendering
-- Added undo support in the editor via `Ctrl+-`.
-- Added configurable code block indentation for Markdown rendering.
-- Added `Alt+Delete` as a delete-word-forward shortcut.
-- Added `isPageUp()` and `isPageDown()` helper functions
-- Added `SizeValue` type for CSS-like overlay sizing (absolute or percentage strings like `"50%"`)
-- Added `OverlayHandle` interface with `hide()`, `setHidden()`, `isHidden()` methods for overlay visibility control
-- Added `visible` callback to `OverlayOptions` for dynamic visibility based on terminal dimensions
-- Added `pad` parameter to `truncateToWidth()` for padding result with spaces to exact width
-- `StdinBuffer` class to split batched stdin into individual sequences
-- Added `isCtrlY` helper function for detecting Ctrl+Y keyboard input
-- Added configurable editor keybindings with typed key identifiers and action matching
-- Added word-wrapped editor rendering for long lines
-- Added `getText()` method to Text component for retrieving current text content
-- Added `fullRedraws` readonly property to TUI class for tracking full screen redraws
-- Added `showHardwareCursor` getter and setter to control cursor visibility while keeping IME positioning active. ([#800](https://github.com/badlogic/pi-mono/pull/800) by [@ghoulr](https://github.com/ghoulr))
-- Added Emacs-style kill ring editing with yank and yank-pop keybindings. ([#810](https://github.com/badlogic/pi-mono/pull/810) by [@Perlence](https://github.com/Perlence))
-- `EditorOptions` with optional `paddingX` for horizontal content padding, plus `getPaddingX()`/`setPaddingX()` methods ([#791](https://github.com/badlogic/pi-mono/pull/791) by [@ferologics](https://github.com/ferologics))
-- Expanded keymap coverage for terminal compatibility: added support for Home/End keys in tmux, additional modifier combinations, and improved key sequence parsing ([#752](https://github.com/badlogic/pi-mono/pull/752) by [@richardgill](https://github.com/richardgill))
-- `OverlayOptions.visible` callback for responsive overlays - receives terminal dimensions, return false to hide ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-- `pageUp` and `pageDown` key support with `selectPageUp`/`selectPageDown` editor actions ([#662](https://github.com/badlogic/pi-mono/pull/662) by [@aliou](https://github.com/aliou))
-- `fuzzyFilter()` and `fuzzyMatch()` utilities for fuzzy text matching
-- Slash command autocomplete now uses fuzzy matching instead of prefix matching
-- Added setAutocompleteMaxVisible() configuration (3-20 items)
-- Added image detection to terminal capabilities (containsImage method)
-- Added stdin monitoring to detect stalled input events and log warnings
-- Added `pageUp` and `pageDown` key support with `selectPageUp`/`selectPageDown` editor actions
-- Add `getExpandedText()` to editor for expanding paste markers
-- Added `SymbolTheme` interface for customizing UI symbols including cursors, borders, spinners, and box-drawing characters
-- Added support for custom spinner frames in the Loader component
-- Added `setTopBorder()` method to Editor component for displaying custom status content in the top border
-- Added `getWidth()` method to TUI class for retrieving terminal width
-- Added rounded corner box-drawing characters to Editor component borders
-- Added legacy terminal support for Ctrl+symbol keys (Ctrl+\, Ctrl+], Ctrl+-) and their Ctrl+Alt variants. ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
-- Kitty keyboard protocol flag 2 support for key release events. New exports: `isKeyRelease(data)`, `isKeyRepeat(data)`, `KeyEventType` type. Terminals supporting Kitty protocol (Kitty, Ghostty, WezTerm) now send proper key-up events.
-- `SettingsListOptions` with `enableSearch` for fuzzy filtering in `SettingsList` ([#643](https://github.com/badlogic/pi-mono/pull/643) by [@ninlds](https://github.com/ninlds))
-- `Editor.insertTextAtCursor(text)` method for programmatic text insertion ([#419](https://github.com/badlogic/pi-mono/issues/419))
-- `EditorKeybindingsManager` for configurable editor keybindings. Components now use `matchesKey()` and keybindings manager instead of individual `isXxx()` functions. ([#405](https://github.com/badlogic/pi-mono/pull/405) by [@hjanuschka](https://github.com/hjanuschka))
-
-### Changed
-
-- `UserMessageComponent`'s native hover toolbar (`zeta.user.tools`) leads with Copy and Rewind icon buttons (`copy`, `rewind`) instead of text labels, then a dot and the time, like the turn usage footer
-- `ContextUsageView`'s native body (on terminals with `meter`) leads with the tokens used and the room left before auto-compaction, then one stacked bar ticked at the threshold, the breakdown as rows (`zeta.context.cat`, `.cat.free`, `.cat.buffer`: swatch, name, tokens, share; the exact count in the row's `title`) and the snapcompact estimate as labelled rows (`zeta.context.snap`); the blocks meter and legend `kv` are gone, and `contextUsageHead` no longer repeats the window size
-- `AskDialogComponent`'s native root is `zeta.editor.ask` (collapsed: `zeta.editor.ask.hidden`, the countdown, the question as `zeta.ask.summary`, Skip and Show): a chosen answer is the `accent`-toned row (a check also carries the check icon) instead of the highlighted one; multi-select Other… is `zeta.ask.other.check`; the question tabs check answered questions and say their keys in the strip's `title`; the countdown moves from the head to the action bar beside Hide; the preview is `zeta.ask.preview`; the Review tab leads with `zeta.ask.notice` and lists answers (`zeta.ask.answers`) by question name with inline code mono and no `(Recommended)` suffix; option descriptions run inline code mono, notes ride the row's detail as `em`; Submit/Next's tooltip names only Enter (and Space on a multi-select)
-- `MCPAddWizard`'s native sheet asks one question per step: a phase strip (`zeta.mcpAdd.progress` of `zeta.mcpAdd.phase`, toned done/current/upcoming and `neutral` when no auth was needed), the question and its lead (`zeta.mcpAdd.title`, `zeta.mcpAdd.tag` for optional fields, `zeta.mcpAdd.lead`), then a mono field with a placeholder and its rule or refusal (`zeta.mcpAdd.field`, `tone: "error"`; `zeta.mcpAdd.note`), choice rows with icons and mono tags (`zeta.mcpAdd.choices`), status lines (`zeta.mcpAdd.status`, `zeta.mcpAdd.checks`, `zeta.mcpAdd.error`) or the review rows (`zeta.mcpAdd.summary`). Cancel, Back and Continue / Save server buttons run Ctrl+C, Esc and Enter instead of a key-hint strip. The connection test shows its own busy step, the OAuth client secret field is masked, and the review saves on Enter (no Yes/No choice)
-- `ReportPanel`'s native body carries the role `zeta.report.body`
-- `HookInputComponent` describes a dock sheet (`zeta.overlay.hook-input` col) like `HookEditorComponent`'s: the title's first line (`zeta.hook-input.title`, the countdown as `zeta.hook-input.timer`) over its further lines (`zeta.hook-input.detail`), the field (`zeta.hook-input.field`, `tone: "error"` while a submit was refused) with its placeholder, and Cancel / Submit buttons that run Esc / Enter; the key legend under the field is terminal-only
-- `JobsSheet`'s native body is a master–detail split (`zeta.jobs.split`: `zeta.jobs.master` | `zeta.jobs.detail`): the job list grouped Running / Recent (`zeta.jobs.group` labels), each row a type icon tinted by status with its duration, beside the selected job's status pill, live elapsed and Cancel job (`zeta.jobs.status`), its task title or command (`zeta.jobs.title` / `zeta.jobs.command`), facts (`zeta.jobs.facts`: agent, directory, pids, exit code, artifact) and output (`zeta.jobs.out`, `zeta.jobs.nooutput`); the footer counts running and recent jobs (`zeta.jobs.summary`), and no jobs shows an empty state (`zeta.jobs.empty`). Task jobs no longer draw an `agent` node here
-- `BtwHistoryPanel`'s native sheet is centered and reads like a mail reader: the questions as two-line rows (`zeta.btw.history`, list `zeta.btw.list` / `zeta.btw.list.idle` while the answer has the keys) beside the selected thread (`zeta.btw.reader` › `zeta.btw.thread` › `zeta.btw.turn`: `zeta.btw.question` / `zeta.btw.followup`, `zeta.btw.meta`, `zeta.btw.answer`, `zeta.btw.error`), the follow-up field under the last answer (`zeta.btw.composer`), and footer buttons Stop answer, Copy answer, Close and Follow up (Cancel and Send while composing) in place of the focus labels and key-hint strip; an empty history is an `md` sheet (`zeta.btw.empty`)
-- The `wait` tool's native job rows (`zeta.wait.job`) are a single `row`: badge, id and label, progress and clock, without the output preview or capture notice beneath
-- The native bash run foot reads In background with a live clock (`zeta.run.time` without `stopped`) while a parked job's frames stream (`details.async.state === "running"`, partial), instead of Running
-- Moved `wrapTextWithAnsi` export to `@linxiraos/pi-natives` package
-- Default editor `newLine` binding now uses `shift+enter` only
-- Hardware cursor is now disabled by default for better terminal compatibility. Set `PI_HARDWARE_CURSOR=1` to enable (replaces `PI_NO_HARDWARE_CURSOR=1` which disabled it).
-- Migrated key parsing and matching logic to native implementation for improved performance
-- Simplified `isKeyRelease()` and `isKeyRepeat()` to use regex pattern matching instead of string inclusion checks
-- Refactored `visibleWidth` function to use caching wrapper around new `visibleWidthRaw` implementation for improved performance
-- Improved performance of key ID parsing with optimized cache lookup strategy
-- Simplified `visibleWidth` calculation to use consistent Bun.stringWidth approach for all string lengths
-- Replaced external `fd` binary with native fuzzy path search for `@`-prefixed autocomplete
-- Restructured terminal capabilities from interface-based to class-based model
-- Improved table column width calculation with word-aware wrapping
-- Refactored text utilities to use native WASM implementations for strings >256 chars with JS fast path
-- Added Ctrl+Backspace as a delete-word-backward keybinding and improved modified backspace matching
-- Migrated file system operations from synchronous to asynchronous APIs in autocomplete provider for non-blocking I/O
-- Migrated node module imports from named to namespace imports across all packages for consistency with project guidelines
-- Normalized keybinding definitions to lowercase internally
-- Improved fuzzy matching to handle alphanumeric swaps.
-- Normalized keybinding definitions to lowercase internally.
-- Changed `showOverlay()` to return `OverlayHandle` for controlling overlay visibility
-- Removed `widthPercent`, `maxHeightPercent`, `rowPercent`, `colPercent` from `OverlayOptions` (use percentage strings instead)
-- Improved file autocomplete to show directory listing when typing `@` with no query, and fall back to prefix matching when fuzzy search returns no results
-- Terminal startup now queries Kitty protocol support before enabling event reporting
-- Changed cursor style from block to thin blinking bar (▏) at end of line
-- Editor component now uses word wrapping instead of character-level wrapping for better readability ([#382](https://github.com/badlogic/pi-mono/pull/382) by [@nickseelert](https://github.com/nickseelert))
-- Renamed `EllipsisKind` enum to `Ellipsis` for clearer API naming
-- Changed hardcoded ellipsis character from theme-configurable to literal "…" in editor truncation
-- Improved blockquote rendering with text wrapping in Markdown component
-- Expanded Kitty keyboard protocol coverage for non-Latin layouts and legacy Alt sequences
-- Improved cursor positioning with safer bounds checking
-- Updated editor layout to respect configurable padding
-- Refactored scrolling logic for better viewport management
-- Key detection refactored: consolidated `is*()` functions into generic `matchesKey(data, keyId)` function that accepts key identifiers like `"ctrl+c"`, `"shift+enter"`, `"alt+left"`, etc.
-
-### Fixed
-
-- Fixed width overflow protection in overlay compositing to prevent TUI crashes
-- Key presses no longer dropped when batched with other events over SSH
-- Fixed `fd` tool detection to automatically find `fd` or `fdfind` in PATH when not explicitly configured
-- Fixed editor multi-line insertion handling and lastAction tracking ([#945](https://github.com/badlogic/pi-mono/pull/945) by [@Perlence](https://github.com/Perlence))
-- Fixed editor word wrapping to reserve a cursor column ([#934](https://github.com/badlogic/pi-mono/pull/934) by [@Perlence](https://github.com/Perlence))
-- Fixed editor word wrapping to use single-pass backtracking for whitespace handling ([#924](https://github.com/badlogic/pi-mono/pull/924) by [@Perlence](https://github.com/Perlence))
-- Fixed Kitty image ID allocation and cleanup to prevent image ID collisions between modules
-- Fixed viewport tracking and cursor positioning for overlays and content shrink scenarios
-- Autocomplete now allows searches with `/` characters (e.g., `folder1/folder2`) ([#882](https://github.com/badlogic/pi-mono/pull/882) by [@richardgill](https://github.com/richardgill))
-- Directory completions for `@` file attachments no longer add trailing space, allowing continued autocomplete into subdirectories
-- `visibleWidth()` and `extractAnsiCode()` now handle APC escape sequences (`ESC _ ... BEL`), fixing width calculation and string slicing for strings containing cursor markers
-- SelectList now handles multi-line descriptions by replacing newlines with spaces ([#728](https://github.com/badlogic/pi-mono/pull/728) by [@richardgill](https://github.com/richardgill))
-- Reset ANSI styles after each rendered line to prevent style leakage
-- Cursor position tracking when content shrinks with unchanged remaining lines
-- TUI renders with wrong dimensions after suspend/resume if terminal was resized while suspended ([#599](https://github.com/badlogic/pi-mono/issues/599))
-- Pasted content containing Kitty key release patterns (e.g., `:3F` in MAC addresses) was incorrectly filtered out ([#623](https://github.com/badlogic/pi-mono/pull/623) by [@ogulcancelik](https://github.com/ogulcancelik))
-- `visibleWidth()` now strips OSC 8 hyperlink sequences, fixing text wrapping for clickable links ([#396](https://github.com/badlogic/pi-mono/pull/396) by [@Cursivez](https://github.com/Cursivez))
-
-Older entries are archived in [packages/tui/CHANGELOG.md@9caccab691ce](https://github.com/can1357/oh-my-pi/blob/9caccab691ce575007f4b6bcbaf8f944723d5457/packages/tui/CHANGELOG.md).
-Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://github.com/can1357/oh-my-pi/blob/58141d4e5fa892166024e2168866c45e0baacde3/packages/tui/CHANGELOG.md).
-- Corrected editor end-of-line cursor rendering assertion to use includes() instead of endsWith()
-- Fixed potential errors during emergency terminal restore when terminal is already dead
-- Fixed autocomplete race condition by tracking request ID to prevent stale suggestion results
-- Added legacy terminal support for `Ctrl+` symbol key combinations
-- Added legacy terminal support for `Ctrl+` symbol key combinations.
-- Fixed backspace handling with additional codepoint support
-- Fixed Alt+letter key combinations for better recognition
-- TUI now filters out key release events by default, preventing double-processing of keys
-- `matchesKey()` now correctly matches Kitty protocol sequences for unmodified letter keys
-- Crash when pasting text with trailing whitespace exceeding terminal width through Markdown rendering
-- Slash command menu now only triggers when the editor input is otherwise empty ([#904](https://github.com/badlogic/pi-mono/issues/904))
-- Center-anchored overlays now stay vertically centered when resizing the terminal taller after a shrink ([#950](https://github.com/badlogic/pi-mono/pull/950) by [@nicobailon](https://github.com/nicobailon))
-- Shift+Space, Shift+Backspace, and Shift+Delete now work correctly in Kitty-protocol terminals (Kitty, WezTerm, etc.) instead of being silently ignored ([#411](https://github.com/badlogic/pi-mono/pull/411) by [@nathyong](https://github.com/nathyong))
-- Improved Kitty terminal key sequence parsing to correctly handle text field codepoints in CSI-u sequences
-- Fixed handling of private use Unicode codepoints (U+E000 to U+F8FF) in Kitty key decoding to prevent invalid character interpretation
-- Simplified terminal write error handling to mark terminal as dead on any write failure
-- Fixed multi-line strings in renderOutputBlock causing width overflow
-- Fixed slash command autocomplete applying stale completion when typing quickly
-- Reserved cursor space for zero padding and corrected end-of-line cursor rendering to prevent wrap glitches
-- Fixed viewport tracking after partial renders to prevent autocomplete list artifacts
-- Rendering optimizations: only re-render changed lines
-- Refactor input component to use keybindings manager
-- Fixed editor cursor blinking by allowing terminal cursor positioning when enabled.
-- Editor no longer corrupts terminal display when text exceeds screen height. Content now scrolls vertically with indicators showing lines above/below the viewport. Max height is 30% of terminal (minimum 5 lines). ([#732](https://github.com/badlogic/pi-mono/issues/732))
-- Cursor now moves to end of content on exit, preventing status line from being overwritten ([#629](https://github.com/badlogic/pi-mono/pull/629) by [@tallshort](https://github.com/tallshort))
-- Slash command autocomplete now triggers for commands starting with `.`, `-`, or `_` (e.g., `/.land`, `/-foo`) ([#422](https://github.com/badlogic/pi-mono/issues/422))
-
-### Removed
-
-- The welcome/splash brand art is now generated with the standard FIGlet tool instead of being drawn by hand: `ZETA_LOGO` renders the mark `Z` (the ASCII form of `Ζ`), `ZETA_WORDMARK` renders `Zeta` (both in the standard `ANSI Shadow` font) and `ZETA_SUBLINE` renders the `Linxira-Zeta` identity line in `mini`, with the version under the wordmark. `bun scripts/brand/generate-logo-art.ts` regenerates the three constants from the vendored fonts, and the brand guard fails on any hand-edited glyph.
-- Removed `ellipsis` property from `SymbolTheme` interface
-- Removed `extractAnsiCode` function from public API
-- Removed TUI layout engine exports from public API (BoxNode, ColumnNode, LayoutNode, etc.)
-- Removed `visibleWidth` benchmark file in favor of Kitty sequence benchmarking
-- Removed `truncateToWidth`, `sliceWithWidth`, and `extractSegments` functions from public API (now re-exported directly from @linxiraos/pi-natives)
 
 ## [9.5.0] - 2026-02-01
 
@@ -354,6 +180,182 @@ Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://g
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.4.1] - 2026-10-23
+
+- An attached TUI renders the backend's builtin-command output (`command_output`) in its status line and keeps client-only commands, pickers and mirrored switches local
+
+### Breaking Changes
+
+- Removed `KeyEventType` export from public API
+- `Editor` constructor now requires `TUI` as first parameter: `new Editor(tui, theme)`. This enables automatic vertical scrolling when content exceeds terminal height. ([#732](https://github.com/badlogic/pi-mono/issues/732))
+- Removed `Key` helper object from public API; use string literals like `"ctrl+c"` instead of `Key.ctrl("c")`
+
+### Added
+
+- Added `symbols` property to `EditorTheme`, `MarkdownTheme`, and `SelectListTheme` interfaces for component-level symbol customization
+- Overlay compositing via `TUI.showOverlay()` and `TUI.hideOverlay()` for `ctx.ui.custom()` with `{ overlay: true }`
+- Kitty keyboard protocol flag 2 support for key release events (`isKeyRelease()`, `isKeyRepeat()`, `KeyEventType`)
+- `setKittyProtocolActive()`, `isKittyProtocolActive()` for Kitty protocol state management
+- `kittyProtocolActive` property on Terminal interface to query Kitty protocol state
+- `Component.wantsKeyRelease` property to opt-in to key release events (default false)
+- Input component `onEscape` callback for handling escape key presses
+- Emergency terminal restore to prevent corrupted state on crashes
+- Overhauled UI with welcome screen and powerline footer
+- Theme-configurable HTML export colors
+- `ctx.ui.theme` getter for styling status text with theme colors
+- Added `PI_TUI_WRITE_LOG` environment variable to capture raw ANSI output for debugging
+- Added legacy Alt+letter handling and Alt+D delete word forward support in the editor keymap. ([#810](https://github.com/badlogic/pi-mono/pull/810) by [@Perlence](https://github.com/Perlence))
+- `showOverlay()` now returns `OverlayHandle` with `hide()`, `setHidden(boolean)`, `isHidden()` for programmatic visibility control ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+- New exported types: `OverlayAnchor`, `OverlayHandle`, `OverlayMargin`, `OverlayOptions`, `SizeValue` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+- `truncateToWidth()` now accepts optional `pad` parameter to pad result with spaces to exactly `maxWidth` ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+- **Experimental:** Overlay compositing for `ctx.ui.custom()` with `{ overlay: true }` option ([#558](https://github.com/badlogic/pi-mono/pull/558) by [@nicobailon](https://github.com/nicobailon))
+- `EditorComponent` interface for custom editor implementations
+- `StdinBuffer` class to split batched stdin into individual sequences (adapted from [OpenTUI](https://github.com/anomalyco/opentui), MIT license)
+- `Editor.getExpandedText()` method that returns text with paste markers expanded to their actual content ([#444](https://github.com/badlogic/pi-mono/pull/444) by [@aliou](https://github.com/aliou))
+- Added mermaid block extraction and deduplication utilities (extractMermaidBlocks)
+- Added `Alt+Delete` as a delete-word-forward shortcut
+- Added configurable code block indentation for Markdown rendering
+- Added undo support in the editor via `Ctrl+-`.
+- Added configurable code block indentation for Markdown rendering.
+- Added `Alt+Delete` as a delete-word-forward shortcut.
+- Added `isPageUp()` and `isPageDown()` helper functions
+- Added `SizeValue` type for CSS-like overlay sizing (absolute or percentage strings like `"50%"`)
+- Added `OverlayHandle` interface with `hide()`, `setHidden()`, `isHidden()` methods for overlay visibility control
+- Added `visible` callback to `OverlayOptions` for dynamic visibility based on terminal dimensions
+- Added `pad` parameter to `truncateToWidth()` for padding result with spaces to exact width
+- `StdinBuffer` class to split batched stdin into individual sequences
+- Added `isCtrlY` helper function for detecting Ctrl+Y keyboard input
+- Added configurable editor keybindings with typed key identifiers and action matching
+- Added word-wrapped editor rendering for long lines
+- Added `getText()` method to Text component for retrieving current text content
+- Added `fullRedraws` readonly property to TUI class for tracking full screen redraws
+- Added `showHardwareCursor` getter and setter to control cursor visibility while keeping IME positioning active. ([#800](https://github.com/badlogic/pi-mono/pull/800) by [@ghoulr](https://github.com/ghoulr))
+- Added Emacs-style kill ring editing with yank and yank-pop keybindings. ([#810](https://github.com/badlogic/pi-mono/pull/810) by [@Perlence](https://github.com/Perlence))
+- `EditorOptions` with optional `paddingX` for horizontal content padding, plus `getPaddingX()`/`setPaddingX()` methods ([#791](https://github.com/badlogic/pi-mono/pull/791) by [@ferologics](https://github.com/ferologics))
+- Expanded keymap coverage for terminal compatibility: added support for Home/End keys in tmux, additional modifier combinations, and improved key sequence parsing ([#752](https://github.com/badlogic/pi-mono/pull/752) by [@richardgill](https://github.com/richardgill))
+- `OverlayOptions.visible` callback for responsive overlays - receives terminal dimensions, return false to hide ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
+- `pageUp` and `pageDown` key support with `selectPageUp`/`selectPageDown` editor actions ([#662](https://github.com/badlogic/pi-mono/pull/662) by [@aliou](https://github.com/aliou))
+- `fuzzyFilter()` and `fuzzyMatch()` utilities for fuzzy text matching
+- Slash command autocomplete now uses fuzzy matching instead of prefix matching
+- Added setAutocompleteMaxVisible() configuration (3-20 items)
+- Added image detection to terminal capabilities (containsImage method)
+- Added stdin monitoring to detect stalled input events and log warnings
+- Added `pageUp` and `pageDown` key support with `selectPageUp`/`selectPageDown` editor actions
+- Add `getExpandedText()` to editor for expanding paste markers
+- Added `SymbolTheme` interface for customizing UI symbols including cursors, borders, spinners, and box-drawing characters
+- Added support for custom spinner frames in the Loader component
+- Added `setTopBorder()` method to Editor component for displaying custom status content in the top border
+- Added `getWidth()` method to TUI class for retrieving terminal width
+- Added rounded corner box-drawing characters to Editor component borders
+- Added legacy terminal support for Ctrl+symbol keys (Ctrl+\, Ctrl+], Ctrl+-) and their Ctrl+Alt variants. ([#831](https://github.com/badlogic/pi-mono/pull/831) by [@Perlence](https://github.com/Perlence))
+- Kitty keyboard protocol flag 2 support for key release events. New exports: `isKeyRelease(data)`, `isKeyRepeat(data)`, `KeyEventType` type. Terminals supporting Kitty protocol (Kitty, Ghostty, WezTerm) now send proper key-up events.
+- `SettingsListOptions` with `enableSearch` for fuzzy filtering in `SettingsList` ([#643](https://github.com/badlogic/pi-mono/pull/643) by [@ninlds](https://github.com/ninlds))
+- `Editor.insertTextAtCursor(text)` method for programmatic text insertion ([#419](https://github.com/badlogic/pi-mono/issues/419))
+- `EditorKeybindingsManager` for configurable editor keybindings. Components now use `matchesKey()` and keybindings manager instead of individual `isXxx()` functions. ([#405](https://github.com/badlogic/pi-mono/pull/405) by [@hjanuschka](https://github.com/hjanuschka))
+
+### Changed
+
+- `UserMessageComponent`'s native hover toolbar (`zeta.user.tools`) leads with Copy and Rewind icon buttons (`copy`, `rewind`) instead of text labels, then a dot and the time, like the turn usage footer
+- `ContextUsageView`'s native body (on terminals with `meter`) leads with the tokens used and the room left before auto-compaction, then one stacked bar ticked at the threshold, the breakdown as rows (`zeta.context.cat`, `.cat.free`, `.cat.buffer`: swatch, name, tokens, share; the exact count in the row's `title`) and the snapcompact estimate as labelled rows (`zeta.context.snap`); the blocks meter and legend `kv` are gone, and `contextUsageHead` no longer repeats the window size
+- `AskDialogComponent`'s native root is `zeta.editor.ask` (collapsed: `zeta.editor.ask.hidden`, the countdown, the question as `zeta.ask.summary`, Skip and Show): a chosen answer is the `accent`-toned row (a check also carries the check icon) instead of the highlighted one; multi-select Other… is `zeta.ask.other.check`; the question tabs check answered questions and say their keys in the strip's `title`; the countdown moves from the head to the action bar beside Hide; the preview is `zeta.ask.preview`; the Review tab leads with `zeta.ask.notice` and lists answers (`zeta.ask.answers`) by question name with inline code mono and no `(Recommended)` suffix; option descriptions run inline code mono, notes ride the row's detail as `em`; Submit/Next's tooltip names only Enter (and Space on a multi-select)
+- `MCPAddWizard`'s native sheet asks one question per step: a phase strip (`zeta.mcpAdd.progress` of `zeta.mcpAdd.phase`, toned done/current/upcoming and `neutral` when no auth was needed), the question and its lead (`zeta.mcpAdd.title`, `zeta.mcpAdd.tag` for optional fields, `zeta.mcpAdd.lead`), then a mono field with a placeholder and its rule or refusal (`zeta.mcpAdd.field`, `tone: "error"`; `zeta.mcpAdd.note`), choice rows with icons and mono tags (`zeta.mcpAdd.choices`), status lines (`zeta.mcpAdd.status`, `zeta.mcpAdd.checks`, `zeta.mcpAdd.error`) or the review rows (`zeta.mcpAdd.summary`). Cancel, Back and Continue / Save server buttons run Ctrl+C, Esc and Enter instead of a key-hint strip. The connection test shows its own busy step, the OAuth client secret field is masked, and the review saves on Enter (no Yes/No choice)
+- `ReportPanel`'s native body carries the role `zeta.report.body`
+- `HookInputComponent` describes a dock sheet (`zeta.overlay.hook-input` col) like `HookEditorComponent`'s: the title's first line (`zeta.hook-input.title`, the countdown as `zeta.hook-input.timer`) over its further lines (`zeta.hook-input.detail`), the field (`zeta.hook-input.field`, `tone: "error"` while a submit was refused) with its placeholder, and Cancel / Submit buttons that run Esc / Enter; the key legend under the field is terminal-only
+- `JobsSheet`'s native body is a master–detail split (`zeta.jobs.split`: `zeta.jobs.master` | `zeta.jobs.detail`): the job list grouped Running / Recent (`zeta.jobs.group` labels), each row a type icon tinted by status with its duration, beside the selected job's status pill, live elapsed and Cancel job (`zeta.jobs.status`), its task title or command (`zeta.jobs.title` / `zeta.jobs.command`), facts (`zeta.jobs.facts`: agent, directory, pids, exit code, artifact) and output (`zeta.jobs.out`, `zeta.jobs.nooutput`); the footer counts running and recent jobs (`zeta.jobs.summary`), and no jobs shows an empty state (`zeta.jobs.empty`). Task jobs no longer draw an `agent` node here
+- `BtwHistoryPanel`'s native sheet is centered and reads like a mail reader: the questions as two-line rows (`zeta.btw.history`, list `zeta.btw.list` / `zeta.btw.list.idle` while the answer has the keys) beside the selected thread (`zeta.btw.reader` › `zeta.btw.thread` › `zeta.btw.turn`: `zeta.btw.question` / `zeta.btw.followup`, `zeta.btw.meta`, `zeta.btw.answer`, `zeta.btw.error`), the follow-up field under the last answer (`zeta.btw.composer`), and footer buttons Stop answer, Copy answer, Close and Follow up (Cancel and Send while composing) in place of the focus labels and key-hint strip; an empty history is an `md` sheet (`zeta.btw.empty`)
+- The `wait` tool's native job rows (`zeta.wait.job`) are a single `row`: badge, id and label, progress and clock, without the output preview or capture notice beneath
+- The native bash run foot reads In background with a live clock (`zeta.run.time` without `stopped`) while a parked job's frames stream (`details.async.state === "running"`, partial), instead of Running
+- Moved `wrapTextWithAnsi` export to `@linxiraos/pi-natives` package
+- Default editor `newLine` binding now uses `shift+enter` only
+- Hardware cursor is now disabled by default for better terminal compatibility. Set `PI_HARDWARE_CURSOR=1` to enable (replaces `PI_NO_HARDWARE_CURSOR=1` which disabled it).
+- Migrated key parsing and matching logic to native implementation for improved performance
+- Simplified `isKeyRelease()` and `isKeyRepeat()` to use regex pattern matching instead of string inclusion checks
+- Refactored `visibleWidth` function to use caching wrapper around new `visibleWidthRaw` implementation for improved performance
+- Improved performance of key ID parsing with optimized cache lookup strategy
+- Simplified `visibleWidth` calculation to use consistent Bun.stringWidth approach for all string lengths
+- Replaced external `fd` binary with native fuzzy path search for `@`-prefixed autocomplete
+- Restructured terminal capabilities from interface-based to class-based model
+- Improved table column width calculation with word-aware wrapping
+- Refactored text utilities to use native WASM implementations for strings >256 chars with JS fast path
+- Added Ctrl+Backspace as a delete-word-backward keybinding and improved modified backspace matching
+- Migrated file system operations from synchronous to asynchronous APIs in autocomplete provider for non-blocking I/O
+- Migrated node module imports from named to namespace imports across all packages for consistency with project guidelines
+- Normalized keybinding definitions to lowercase internally
+- Improved fuzzy matching to handle alphanumeric swaps.
+- Normalized keybinding definitions to lowercase internally.
+- Changed `showOverlay()` to return `OverlayHandle` for controlling overlay visibility
+- Removed `widthPercent`, `maxHeightPercent`, `rowPercent`, `colPercent` from `OverlayOptions` (use percentage strings instead)
+- Improved file autocomplete to show directory listing when typing `@` with no query, and fall back to prefix matching when fuzzy search returns no results
+- Terminal startup now queries Kitty protocol support before enabling event reporting
+- Changed cursor style from block to thin blinking bar (▏) at end of line
+- Editor component now uses word wrapping instead of character-level wrapping for better readability ([#382](https://github.com/badlogic/pi-mono/pull/382) by [@nickseelert](https://github.com/nickseelert))
+- Renamed `EllipsisKind` enum to `Ellipsis` for clearer API naming
+- Changed hardcoded ellipsis character from theme-configurable to literal "…" in editor truncation
+- Improved blockquote rendering with text wrapping in Markdown component
+- Expanded Kitty keyboard protocol coverage for non-Latin layouts and legacy Alt sequences
+- Improved cursor positioning with safer bounds checking
+- Updated editor layout to respect configurable padding
+- Refactored scrolling logic for better viewport management
+- Key detection refactored: consolidated `is*()` functions into generic `matchesKey(data, keyId)` function that accepts key identifiers like `"ctrl+c"`, `"shift+enter"`, `"alt+left"`, etc.
+
+### Fixed
+
+- Fixed width overflow protection in overlay compositing to prevent TUI crashes
+- Key presses no longer dropped when batched with other events over SSH
+- Fixed `fd` tool detection to automatically find `fd` or `fdfind` in PATH when not explicitly configured
+- Fixed editor multi-line insertion handling and lastAction tracking ([#945](https://github.com/badlogic/pi-mono/pull/945) by [@Perlence](https://github.com/Perlence))
+- Fixed editor word wrapping to reserve a cursor column ([#934](https://github.com/badlogic/pi-mono/pull/934) by [@Perlence](https://github.com/Perlence))
+- Fixed editor word wrapping to use single-pass backtracking for whitespace handling ([#924](https://github.com/badlogic/pi-mono/pull/924) by [@Perlence](https://github.com/Perlence))
+- Fixed Kitty image ID allocation and cleanup to prevent image ID collisions between modules
+- Fixed viewport tracking and cursor positioning for overlays and content shrink scenarios
+- Autocomplete now allows searches with `/` characters (e.g., `folder1/folder2`) ([#882](https://github.com/badlogic/pi-mono/pull/882) by [@richardgill](https://github.com/richardgill))
+- Directory completions for `@` file attachments no longer add trailing space, allowing continued autocomplete into subdirectories
+- `visibleWidth()` and `extractAnsiCode()` now handle APC escape sequences (`ESC _ ... BEL`), fixing width calculation and string slicing for strings containing cursor markers
+- SelectList now handles multi-line descriptions by replacing newlines with spaces ([#728](https://github.com/badlogic/pi-mono/pull/728) by [@richardgill](https://github.com/richardgill))
+- Reset ANSI styles after each rendered line to prevent style leakage
+- Cursor position tracking when content shrinks with unchanged remaining lines
+- TUI renders with wrong dimensions after suspend/resume if terminal was resized while suspended ([#599](https://github.com/badlogic/pi-mono/issues/599))
+- Pasted content containing Kitty key release patterns (e.g., `:3F` in MAC addresses) was incorrectly filtered out ([#623](https://github.com/badlogic/pi-mono/pull/623) by [@ogulcancelik](https://github.com/ogulcancelik))
+- `visibleWidth()` now strips OSC 8 hyperlink sequences, fixing text wrapping for clickable links ([#396](https://github.com/badlogic/pi-mono/pull/396) by [@Cursivez](https://github.com/Cursivez))
+
+Older entries are archived in [packages/tui/CHANGELOG.md@9caccab691ce](https://github.com/can1357/oh-my-pi/blob/9caccab691ce575007f4b6bcbaf8f944723d5457/packages/tui/CHANGELOG.md).
+Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://github.com/can1357/oh-my-pi/blob/58141d4e5fa892166024e2168866c45e0baacde3/packages/tui/CHANGELOG.md).
+- Corrected editor end-of-line cursor rendering assertion to use includes() instead of endsWith()
+- Fixed potential errors during emergency terminal restore when terminal is already dead
+- Fixed autocomplete race condition by tracking request ID to prevent stale suggestion results
+- Added legacy terminal support for `Ctrl+` symbol key combinations
+- Added legacy terminal support for `Ctrl+` symbol key combinations.
+- Fixed backspace handling with additional codepoint support
+- Fixed Alt+letter key combinations for better recognition
+- TUI now filters out key release events by default, preventing double-processing of keys
+- `matchesKey()` now correctly matches Kitty protocol sequences for unmodified letter keys
+- Crash when pasting text with trailing whitespace exceeding terminal width through Markdown rendering
+- Slash command menu now only triggers when the editor input is otherwise empty ([#904](https://github.com/badlogic/pi-mono/issues/904))
+- Center-anchored overlays now stay vertically centered when resizing the terminal taller after a shrink ([#950](https://github.com/badlogic/pi-mono/pull/950) by [@nicobailon](https://github.com/nicobailon))
+- Shift+Space, Shift+Backspace, and Shift+Delete now work correctly in Kitty-protocol terminals (Kitty, WezTerm, etc.) instead of being silently ignored ([#411](https://github.com/badlogic/pi-mono/pull/411) by [@nathyong](https://github.com/nathyong))
+- Improved Kitty terminal key sequence parsing to correctly handle text field codepoints in CSI-u sequences
+- Fixed handling of private use Unicode codepoints (U+E000 to U+F8FF) in Kitty key decoding to prevent invalid character interpretation
+- Simplified terminal write error handling to mark terminal as dead on any write failure
+- Fixed multi-line strings in renderOutputBlock causing width overflow
+- Fixed slash command autocomplete applying stale completion when typing quickly
+- Reserved cursor space for zero padding and corrected end-of-line cursor rendering to prevent wrap glitches
+- Fixed viewport tracking after partial renders to prevent autocomplete list artifacts
+- Rendering optimizations: only re-render changed lines
+- Refactor input component to use keybindings manager
+- Fixed editor cursor blinking by allowing terminal cursor positioning when enabled.
+- Editor no longer corrupts terminal display when text exceeds screen height. Content now scrolls vertically with indicators showing lines above/below the viewport. Max height is 30% of terminal (minimum 5 lines). ([#732](https://github.com/badlogic/pi-mono/issues/732))
+- Cursor now moves to end of content on exit, preventing status line from being overwritten ([#629](https://github.com/badlogic/pi-mono/pull/629) by [@tallshort](https://github.com/tallshort))
+- Slash command autocomplete now triggers for commands starting with `.`, `-`, or `_` (e.g., `/.land`, `/-foo`) ([#422](https://github.com/badlogic/pi-mono/issues/422))
+
+### Removed
+
+- The welcome/splash brand art is now generated with the standard FIGlet tool instead of being drawn by hand: `ZETA_LOGO` renders the mark `Z` (the ASCII form of `Ζ`), `ZETA_WORDMARK` renders `Zeta` (both in the standard `ANSI Shadow` font) and `ZETA_SUBLINE` renders the `Linxira-Zeta` identity line in `mini`, with the version under the wordmark. `bun scripts/brand/generate-logo-art.ts` regenerates the three constants from the vendored fonts, and the brand guard fails on any hand-edited glyph.
+- Removed `ellipsis` property from `SymbolTheme` interface
+- Removed `extractAnsiCode` function from public API
+- Removed TUI layout engine exports from public API (BoxNode, ColumnNode, LayoutNode, etc.)
+- Removed `visibleWidth` benchmark file in favor of Kitty sequence benchmarking
+- Removed `truncateToWidth`, `sliceWithWidth`, and `extractSegments` functions from public API (now re-exported directly from @linxiraos/pi-natives)
 
 ## [1.4.0] - 2026-10-21
 

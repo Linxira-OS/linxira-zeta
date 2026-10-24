@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-24
+
 - Version alignment with the 1.4.2 release line (no behavioral changes).
 
 ## [1.4.1] - 2026-10-23

@@ -1,10 +1,8 @@
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-24
+
 - Version alignment with the 1.4.2 release line (no behavioral changes).
-
-## [1.4.1] - 2026-10-23
-
-- Version alignment with the 1.4.1 release line (no behavioral changes).
 
 ## [9.8.0] - 2026-02-01
 
@@ -154,6 +152,10 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.4.1] - 2026-10-23
+
+- Version alignment with the 1.4.1 release line (no behavioral changes).
 
 ## [1.4.0] - 2026-10-21
 

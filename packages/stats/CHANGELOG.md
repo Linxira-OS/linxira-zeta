@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-24
+
 - The standalone stats dashboard now defaults to port `43147` from `@linxiraos/pi-utils` instead of `3847`, avoiding OMP and common developer-tool ports
 
 ## [1.4.1] - 2026-10-23

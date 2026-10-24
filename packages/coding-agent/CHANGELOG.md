@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.2] - 2026-10-24
+
 - Bare `zetacode` follows the new machine-wide `backend.enabled` switch: off (default) keeps every launch local, on attaches it to the one hidden backend. Added `zetacode backend on|off|status|logs`, drain-before-stop, single-instance refusal, and `--standalone`/`--local` for a forced local process
 - Attached TUIs now run `/guided-goal` in the backend session: the backend exposes the `goal` tool, sends the hidden interview kickoff, and mirrors `guidedGoalInterview` so bare `c` stays an answer; RPC gained `guided_goal`
 - Attached sessions gained backend-owned `/loop`, shared goal/live controllers, accurate model/thinking resync, session lifecycle routing, and full slash-command parity
