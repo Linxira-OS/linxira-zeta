@@ -62,6 +62,7 @@ export function buildGithubSharePrompt(prepared: PreparedShare): string {
 		"The current user invoked `/share`. Publish this session to a GitHub repository owned by that same user, using the GitHub account and local `gh` CLI login already present on this machine. Do not use Zeta credentials, do not use any other person's account, and never read, print, copy, or ask for a token. Never run `gh auth token`, never read gh's credential files, and never put a token in a command line, environment dump, or the shared transcript. Publishing to the user's repository does not grant anyone else access to that login.",
 		"",
 		"Do not upload the transcript to `my.omp.sh`, a Zeta share server, or any other third party.",
+		"Built-in documentation: `zeta://docs/session-operations-export-share-fork-resume.md`.",
 		"",
 		`Prepared redacted transcript: ${prepared.markdownPath}`,
 		prepared.sessionFile
