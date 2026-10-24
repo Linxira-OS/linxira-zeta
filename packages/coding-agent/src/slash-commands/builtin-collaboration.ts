@@ -8,10 +8,10 @@ import { CollabGuestLink } from "../collab/guest";
 import type { CollabHost } from "../collab/host";
 import { type CollabHostSnapshot, listCollabHosts } from "../collab/registry";
 import { COLLAB_DISABLED_MESSAGE, isCollabEnabled } from "../collab/settings";
-import { cfgShareRedactSecrets, cfgShareServerUrl, cfgShareStore } from "../commands/settings";
+import { cfgShareRedactSecrets } from "../commands/settings";
 import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
-import { shareSession } from "../export/share";
+import { buildGithubSharePrompt, prepareShareForGithub } from "../export/share-github";
 import { M } from "../i18n";
 import type { InteractiveModeContext } from "../modes/types";
 import { restartBrowserForModeChange } from "../tools/browser";
@@ -298,24 +298,25 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		description: () => M.cmdShare,
 		handle: async (_command, runtime) => {
 			try {
-				const result = await shareSession(runtime.sessionManager, {
-					serverUrl: cfgShareServerUrl.get(runtime.settings),
-					store: cfgShareStore.get(runtime.settings),
-					state: runtime.session.state,
-					obfuscator: cfgShareRedactSecrets.get(runtime.settings) ? runtime.session.obfuscator : undefined,
+				const prepared = await prepareShareForGithub(runtime.session, runtime.sessionManager, {
+					redact: cfgShareRedactSecrets.get(runtime.settings),
 				});
-				const lines = [`Share URL: ${result.url}`];
-				if (result.gistUrl) lines.push(`Gist: ${result.gistUrl}`);
-				if (result.truncated) lines.push("Note: large content was trimmed to fit the share size limit.");
-				await runtime.output(lines.join("\n"));
-				return commandConsumed();
+				return { prompt: buildGithubSharePrompt(prepared) };
 			} catch (err) {
-				return usage(`Failed to share session: ${errorMessage(err)}`, runtime);
+				return usage(`Failed to prepare session share: ${errorMessage(err)}`, runtime);
 			}
 		},
 		handleTui: async (_command, runtime) => {
-			await runtime.ctx.handleShareCommand();
-			clearSubmittedText(runtime);
+			try {
+				const prepared = await prepareShareForGithub(runtime.ctx.session, runtime.ctx.sessionManager, {
+					redact: cfgShareRedactSecrets.get(runtime.ctx.settings),
+				});
+				clearSubmittedText(runtime);
+				return { prompt: buildGithubSharePrompt(prepared) };
+			} catch (err) {
+				clearSubmittedText(runtime);
+				runtime.ctx.showError(`Failed to prepare session share: ${errorMessage(err)}`);
+			}
 		},
 	},
 	{
@@ -492,6 +493,10 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		name: "leave",
 		icon: "signOut",
 		description: () => M.cmdCollabLeave,
+		// Same opt-in gate as /collab and /join: an always-visible /leave only
+		// reports "not in a collab session" on fresh installs.
+		enabled: isCollabEnabled,
+		disabledMessage: COLLAB_DISABLED_MESSAGE,
 		getTuiAutocompleteDescription: runtime => {
 			if (runtime.ctx.collabController.host) return M.acLeaveCollabHosting;
 			if (runtime.ctx.collabGuest) return M.acLeaveCollabGuest;

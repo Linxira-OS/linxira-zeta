@@ -190,10 +190,10 @@ afterEach(async () => {
 });
 
 describe("collab gate: default is off", () => {
-	it("does not offer /collab or /join in the TUI palette", () => {
+	it("does not offer /collab, /join, or /leave in the TUI palette", () => {
 		const names = buildTuiBuiltinSlashCommands(paletteRuntime(Settings.isolated({}))).map(command => command.name);
 		for (const command of GATED_COMMANDS) expect(names).not.toContain(command);
-		expect(names).toContain("leave");
+		expect(names).not.toContain("leave");
 	});
 
 	it("refuses /collab with the enable hint and never reaches the controller", async () => {

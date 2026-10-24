@@ -333,6 +333,10 @@ export default class Attach extends Command {
 						await postCommand(baseUrl, sessionId, { type: "set_model_role", role: argText });
 						break;
 					case "/restart": {
+						if (argText && argText !== "backend") {
+							process.stdout.write("Usage: /restart [backend]\n");
+							break;
+						}
 						// The plain client has no host process to restart; ask the
 						// gateway's serve host and stop this stream cleanly.
 						const res = await fetch(`${baseUrl}/api/server/restart`, { method: "POST" });

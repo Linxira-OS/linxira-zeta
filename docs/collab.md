@@ -1,5 +1,11 @@
 # Collab: Live Session Sharing
 
+> **Under review (2026-10-24).** The three slash commands (`/collab`, `/join`,
+> `/leave`) are hidden on fresh installs and the feature remains opt-in; the
+> product question is whether a live relay is worth keeping at all versus
+> static GitHub publication. This document describes the existing
+> implementation, not a commitment to keep it.
+>
 > Browser-hosted collab surfaces (the `https://…/#<link>` forms below) are
 > part of the deferred Web UI; terminal and IM participants work today.
 

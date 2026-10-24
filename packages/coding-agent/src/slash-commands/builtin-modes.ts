@@ -418,6 +418,11 @@ export const BUILTIN_MODE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		aliases: ["providers"],
 		icon: "gear",
 		description: () => M.cmdSetup,
+		// Retired: `/login` (and the first-run onboarding wizard) already cover
+		// provider credentials. The old provider-only scene duplicated them and
+		// wrote the client's auth store, which is wrong for attached sessions.
+		enabled: () => false,
+		disabledMessage: "Provider setup is retired; use /login (or the first-run setup wizard).",
 		allowArgs: true,
 		subcommands: [{ name: "providers", description: () => M.cmdSetupProviders }],
 		handleTui: async (command, runtime) => {

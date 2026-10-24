@@ -872,8 +872,24 @@ export const BUILTIN_LIFECYCLE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> =
 		name: "restart",
 		icon: "restart",
 		description: () => M.cmdRestartOmpwiththeSameLaunchFlagsResumingThisSession,
-		handleTui: async (_command, runtime) => {
+		inlineHint: "[client|backend]",
+		allowArgs: true,
+		handleTui: async (command, runtime) => {
 			clearSubmittedText(runtime);
+			const target = command.args.trim().toLowerCase();
+			if (target === "backend") {
+				const attach = runtime.ctx.backendAttach;
+				if (!attach) {
+					runtime.ctx.showError("This session is local; there is no backend to restart. Use /restart client.");
+					return;
+				}
+				await attach.restartBackend();
+				return;
+			}
+			if (target !== "" && target !== "client") {
+				runtime.ctx.showError("Usage: /restart [client|backend]");
+				return;
+			}
 			await runtime.ctx.restart();
 		},
 	},

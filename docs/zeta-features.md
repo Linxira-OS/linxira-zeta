@@ -42,10 +42,11 @@ backend.
   queue; `/btw` uses the backend side context. Session lifecycle is backend-owned
   and re-attaches the client: `/new`, `/resume <id>`, `/fork`, `/branch`,
   `/tree`, `/clear` and `/delete yes`; `/login` and `/logout` drive the
-  backend's providers. `/restart` asks the serve host to re-exec; `/omfg`,
-  `/cleanse`, `/tan` and `/seance` run through backend headless handlers.
-  Commands whose runtime genuinely lives in a process the client cannot drive
-  are refused (`/setup`, `/collab`, `/join`, `/leave`); `/live` is disabled
+  backend's providers. `/restart` targets the backend by default
+  (`/restart client` re-execs the TUI); `/omfg`, `/cleanse`, `/tan` and
+  `/seance` run through backend headless handlers. `/setup` and `/providers`
+  are retired in favor of `/login`; `/collab`, `/join` and `/leave` are opt-in
+  legacy collaboration, hidden on fresh installs. `/live` is disabled
   product-wide until its Codex-only realtime transport is replaced. `/loop` is
   backend-executed: repetitions, its
   `--while`/`--until` shell condition, and `loop.mode` compact/reset actions

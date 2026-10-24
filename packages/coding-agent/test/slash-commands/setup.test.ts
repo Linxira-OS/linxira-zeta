@@ -1,20 +1,22 @@
 import { describe, expect, it, vi } from "bun:test";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 
 function createRuntime() {
 	const showProviderSetup = vi.fn(async () => {});
-	const showWarning = vi.fn();
+	const showError = vi.fn();
 	const setText = vi.fn();
 	return {
 		showProviderSetup,
-		showWarning,
+		showError,
 		setText,
 		runtime: {
 			ctx: {
 				editor: { setText } as unknown as InteractiveModeContext["editor"],
+				settings: Settings.isolated(),
 				showProviderSetup,
-				showWarning,
+				showError,
 			} as unknown as InteractiveModeContext,
 			handleBackgroundCommand: () => {},
 		},
@@ -22,56 +24,19 @@ function createRuntime() {
 }
 
 describe("/setup slash command", () => {
-	it("opens provider setup for /setup", async () => {
-		const harness = createRuntime();
+	// `/setup` and its `/providers` alias were retired in favor of `/login`.
+	// Both spellings must refuse without invoking the old provider scene.
+	for (const text of ["/setup", "/setup providers", "/providers"]) {
+		it(`retires ${text}`, async () => {
+			const harness = createRuntime();
 
-		const handled = await executeBuiltinSlashCommand("/setup", harness.runtime);
+			const handled = await executeBuiltinSlashCommand(text, harness.runtime);
 
-		expect(handled).toBe(true);
-		expect(harness.showProviderSetup).toHaveBeenCalledTimes(1);
-		expect(harness.setText).toHaveBeenCalledWith("");
-	});
-
-	it("opens provider setup for /setup providers", async () => {
-		const harness = createRuntime();
-
-		const handled = await executeBuiltinSlashCommand("/setup providers", harness.runtime);
-
-		expect(handled).toBe(true);
-		expect(harness.showProviderSetup).toHaveBeenCalledTimes(1);
-		expect(harness.showWarning).not.toHaveBeenCalled();
-		expect(harness.setText).toHaveBeenCalledWith("");
-	});
-
-	it("opens provider setup through the /providers alias", async () => {
-		const harness = createRuntime();
-
-		const handled = await executeBuiltinSlashCommand("/providers", harness.runtime);
-
-		expect(handled).toBe(true);
-		expect(harness.showProviderSetup).toHaveBeenCalledTimes(1);
-		expect(harness.setText).toHaveBeenCalledWith("");
-	});
-
-	it("shows usage for unsupported setup scenes", async () => {
-		const harness = createRuntime();
-
-		const handled = await executeBuiltinSlashCommand("/setup theme", harness.runtime);
-
-		expect(handled).toBe(true);
-		expect(harness.showProviderSetup).not.toHaveBeenCalled();
-		expect(harness.showWarning).toHaveBeenCalledWith("Usage: /setup [providers]");
-		expect(harness.setText).toHaveBeenCalledWith("");
-	});
-
-	it("shows alias-specific usage for unsupported providers alias arguments", async () => {
-		const harness = createRuntime();
-
-		const handled = await executeBuiltinSlashCommand("/providers theme", harness.runtime);
-
-		expect(handled).toBe(true);
-		expect(harness.showProviderSetup).not.toHaveBeenCalled();
-		expect(harness.showWarning).toHaveBeenCalledWith("Usage: /providers [providers]");
-		expect(harness.setText).toHaveBeenCalledWith("");
-	});
+			expect(handled).toBe(true);
+			expect(harness.showProviderSetup).not.toHaveBeenCalled();
+			expect(harness.showError).toHaveBeenCalledWith(
+				"Provider setup is retired; use /login (or the first-run setup wizard).",
+			);
+		});
+	}
 });

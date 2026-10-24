@@ -466,7 +466,6 @@ export interface InteractiveModeContext {
 	handleExportCommand(text: string): Promise<void>;
 	handleSidebarToggle(): void;
 	handleTraceCommand(): Promise<void>;
-	handleShareCommand(): Promise<void>;
 	handleTodoCommand(args: string): Promise<void>;
 	handleSessionCommand(): Promise<void>;
 	handleAdvisorStatusCommand(): Promise<void>;

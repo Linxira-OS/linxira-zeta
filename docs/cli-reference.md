@@ -255,16 +255,18 @@ the backend. Session lifecycle runs on the backend and re-attaches this client:
 `/new` (fresh session), `/resume <id>` (existing session), `/fork`, `/branch`
 and `/tree` (entry picker over the mirrored transcript), `/clear` (drop the
 context, keep the session) and `/delete yes`. `/login` and `/logout` drive the
-backend's OAuth providers and accounts. `/restart` asks the serve host to
-re-exec its original argv (the gateway exposes `POST /api/server/restart`);
-the client stream drops and reconnects with backoff when the new instance
+backend's OAuth providers and accounts. `/restart` defaults to the backend
+while attached and asks the serve host to re-exec its original argv (the
+gateway exposes `POST /api/server/restart`); `/restart client` re-execs this
+TUI with its launch flags, and `/restart backend` is the explicit host form.
+The client stream drops and reconnects with backoff when the new instance
 answers. `/omfg`, `/cleanse`, `/tan` and `/seance` run on the backend session
-through their headless handlers. Only commands whose runtime genuinely belongs
-to a process this client cannot drive are refused, with the host action that
-performs them: `/setup` (run it on the host, then restart), `/collab`, `/join`
-and `/leave` (sharing starts in the owning process). `/live` is currently
-disabled product-wide: its only transport is OpenAI Codex realtime, and a
-provider-agnostic layer has not landed. `/loop` runs on the backend session: its
+through their headless handlers. `/setup` and its `/providers` alias are
+retired: `/login` (or first-run onboarding) owns provider credentials.
+`/collab`, `/join` and `/leave` are opt-in legacy collaboration; fresh
+installs hide all three until `collab.enabled` is turned on. `/live` is
+currently disabled product-wide: its only transport is OpenAI Codex realtime,
+and a provider-agnostic layer has not landed. `/loop` runs on the backend session: its
 repetitions, `--while`/`--until` shell condition, and `loop.mode`
 compact/reset actions execute against that session, a second `/loop` stops it,
 and Esc pauses it. The status line mirrors the backend loop state; a loop

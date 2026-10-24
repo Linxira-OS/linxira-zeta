@@ -1488,9 +1488,21 @@ export class InputController {
 						})();
 						return;
 					}
-					// The backend host owns the process; ask it to re-exec rather than
-					// restarting this client (which would leave the session running).
+					// `/restart` defaults to the backend while attached; `/restart
+					// client` re-execs this TUI (which re-attaches with its launch
+					// flags), and `/restart backend` asks the serve host to re-exec.
 					if (verb === "restart") {
+						const target = text.slice(`/${verb}`.length).trim().toLowerCase();
+						if (target === "client") {
+							this.ctx.editor.clearDraft(text);
+							await this.ctx.restart();
+							return;
+						}
+						if (target !== "" && target !== "backend") {
+							this.ctx.showError("Usage: /restart [client|backend]");
+							this.ctx.editor.setText("");
+							return;
+						}
 						this.ctx.editor.clearDraft(text);
 						void backendAttach.restartBackend().catch(error => {
 							this.ctx.showError(`Restart failed: ${error instanceof Error ? error.message : String(error)}`);
