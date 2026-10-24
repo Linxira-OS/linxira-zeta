@@ -257,13 +257,18 @@ export class BackendAttachLink {
 			if (event.type === "model_changed") {
 				const model = this.#ctx.session.model;
 				if (!model) return;
-				void this.#wire
-					.setModel(model.provider, model.id)
-					.catch(error => this.#ctx.showWarning(`Backend model switch failed: ${String(error)}`));
+				void this.#wire.setModel(model.provider, model.id).catch(error => {
+					this.#ctx.showWarning(`Backend model switch failed: ${String(error)}`);
+					// The replica already changed its own model; pull the backend's
+					// authoritative state back so the UI cannot claim a model the
+					// backend rejected.
+					this.#scheduleStateRefresh();
+				});
 			} else if (event.type === "thinking_level_changed" && event.thinkingLevel) {
-				void this.#wire
-					.setThinking(event.thinkingLevel)
-					.catch(error => this.#ctx.showWarning(`Backend thinking switch failed: ${String(error)}`));
+				void this.#wire.setThinking(event.thinkingLevel).catch(error => {
+					this.#ctx.showWarning(`Backend thinking switch failed: ${String(error)}`);
+					this.#scheduleStateRefresh();
+				});
 			}
 		});
 
