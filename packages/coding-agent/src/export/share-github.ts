@@ -14,6 +14,8 @@ import { getConfigRootDir } from "@linxiraos/pi-utils";
 import type { AgentSession } from "../session/agent-session";
 import type { SessionManager } from "../session/session-manager";
 
+const ZETA_ISSUES_URL = "https://github.com/Linxira-OS/linxira-zeta/issues";
+
 export interface PreparedShare {
 	/** Redacted Markdown transcript ready to commit. */
 	markdownPath: string;
@@ -57,7 +59,9 @@ export async function prepareShareForGithub(
 /** Prompt that turns publication into an agent task instead of an upload. */
 export function buildGithubSharePrompt(prepared: PreparedShare): string {
 	const lines = [
-		"The user invoked `/share`. Publish this session to a GitHub repository that the user owns. Do not upload it to `my.omp.sh`, a Zeta share server, or any other third party.",
+		"The current user invoked `/share`. Publish this session to a GitHub repository owned by that same user, using the GitHub account and local `gh` CLI login already present on this machine. Do not use Zeta credentials, do not use any other person's account, and never read, print, copy, or ask for a token. Never run `gh auth token`, never read gh's credential files, and never put a token in a command line, environment dump, or the shared transcript. Publishing to the user's repository does not grant anyone else access to that login.",
+		"",
+		"Do not upload the transcript to `my.omp.sh`, a Zeta share server, or any other third party.",
 		"",
 		`Prepared redacted transcript: ${prepared.markdownPath}`,
 		prepared.sessionFile
@@ -68,11 +72,12 @@ export function buildGithubSharePrompt(prepared: PreparedShare): string {
 			: "No known secret matched the obfuscator; inspect the file before publishing.",
 		"",
 		"Steps:",
-		"1. Run `gh auth status`. If it fails, do not create or upload anything: tell the user to run `gh auth login`, and give them the exact manual commands (target repo/path plus `git add`, `git commit`, `git push`). Never ask the user to paste a token into chat.",
-		"2. If authenticated, ask the user which repository (`owner/name`), branch, and path to use, and whether it should be private, unless they already named them. Do not create a public repository without an explicit choice.",
+		"1. Run `gh auth status`. If it fails, do not create or upload anything: tell the user to run `gh auth login` themselves, and give them the exact manual commands (target repo/path plus `git add`, `git commit`, `git push`). Never ask the user to paste a token into chat, and never run a command that prints one.",
+		"2. If authenticated, ask the user which repository (`owner/name`), branch, and path to use, and whether it should be private, unless they already named them. Do not create a public repository without an explicit choice. Default to private.",
 		"3. Copy the prepared Markdown transcript to the chosen path with a short header (session id, date, model, workspace). Keep the source JSONL out of the repository unless asked.",
 		"4. Commit and push with `gh`/`git`; report the resulting file or commit URL. Do not paste the transcript into chat.",
 		"5. If the transcript or destination path contains a credential, stop and report it instead of publishing.",
+		`6. After publishing, tell the user that product issues should be filed at ${ZETA_ISSUES_URL} (our tracker), not in the shared transcript or the user's share repository.`,
 		"",
 		"Return only after the file is public/private as chosen and the URL is known, or after giving the user actionable manual steps.",
 	];

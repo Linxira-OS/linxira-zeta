@@ -1887,7 +1887,7 @@ export const zh = {
 	cmdSeanceChooseModelDescription: "为本次咨询选择一次性模型",
 	cmdExportHtml: "将会话导出为 HTML 文件",
 	cmdDumpTranscript: "将会话记录复制到剪贴板（并把 LLM 请求 JSON 写入 tmp）",
-	cmdShare: "把当前会话发布到你自己的 GitHub 仓库（使用你的 gh CLI，不经过 Zeta 服务器）",
+	cmdShare: "把当前会话发布到当前用户自己的 GitHub 仓库（使用该用户本机的 gh CLI，不经过 Zeta 服务器）",
 	cmdCollab: "通过中继实时共享此会话",
 	cmdCollabList: "列出活跃的本地 Collab 主机（不含链接；用 `zetacode collab link`）",
 	cmdCollabView: "分享只读链接（访客可看不可说）",

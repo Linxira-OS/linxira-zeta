@@ -46,7 +46,6 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	agents: true,
 	skills: true,
 	extensions: true,
-	status: true,
 	// Display-only overlays and client-side capture. `pause` freezes the local
 	// renderer, `hub` reads the mirrored agent tree, `record` writes the TUI
 	// transcript on this machine, and `open`/`debug` never touch the backend.
@@ -76,7 +75,6 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
 	plan: true,
 	"plan-ultra": true,
 	"plan-review": true,
-	"guided-goal": true,
 	goal: true,
 	vibe: true,
 };
@@ -84,10 +82,13 @@ export const BACKEND_ATTACH_MIRRORED_COMMANDS: Record<string, true> = {
 /**
  * Commands an attach client cannot apply to a backend-owned session:
  *
- * - setup writes credentials the running backend does not reload;
  * - sharing (`collab`, `join`, `leave`) belongs to the backend's process;
  * - live voice (`live`) binds the backend host's microphone/speaker and has no
- *   client-side audio bridge yet.
+ *   client-side audio bridge yet;
+ * - guided goal is a TUI interview that still runs only in the owning process.
+ *
+ * `/setup` is retired globally, so it is deliberately forwarded: the backend
+ * returns the retirement message instead of an attach-specific refusal.
  *
  * `/loop`, `/cleanse`, `/seance`, `/omfg` and `/tan` are *not* here: each has
  * a headless handler that runs against the backend session (the same path ACP
@@ -99,7 +100,7 @@ export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	join: true,
 	leave: true,
 	live: true,
-	setup: true,
+	"guided-goal": true,
 };
 
 /**
@@ -119,11 +120,11 @@ export function isBackendAttachRefusedCommand(verb: string | undefined): boolean
 
 /** The actionable half of a refusal: which local command does the same thing. */
 export function backendAttachRefusalHint(verb: string): string {
-	if (verb === "setup") {
-		return "run `zetacode setup` on the backend host, then restart it so it loads the new credentials";
+	if (verb === "guided-goal") {
+		return "the guided-goal interview is TUI-only; run it from the terminal that owns the backend session";
 	}
 	if (verb === "collab" || verb === "join" || verb === "leave") {
-		return "sharing starts from the process that owns the session";
+		return "live sharing is disabled pending review; use /share for a static GitHub transcript";
 	}
 	return "run it from the terminal that owns the backend session";
 }

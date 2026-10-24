@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { lookupBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
 import {
 	backendAttachRefusalHint,
 	isBackendAttachLocalCommand,
@@ -32,7 +33,6 @@ describe("backend-attach command routing", () => {
 			"agents",
 			"skills",
 			"extensions",
-			"status",
 			"hub",
 			"pause",
 			"record",
@@ -45,7 +45,6 @@ describe("backend-attach command routing", () => {
 			"plan",
 			"plan-ultra",
 			"plan-review",
-			"guided-goal",
 			"goal",
 			"vibe",
 		]) {
@@ -89,6 +88,8 @@ describe("backend-attach command routing", () => {
 			"wt",
 			"skillful",
 			"advisor",
+			"setup",
+			"providers",
 			"cleanse",
 			"seance",
 			"omfg",
@@ -109,8 +110,8 @@ describe("backend-attach command routing", () => {
 		}
 	});
 
-	it("refuses only commands whose runtime lives in the backend process", () => {
-		for (const verb of ["setup", "collab", "join", "leave", "live"]) {
+	it("refuses commands the attached client cannot execute against the backend session", () => {
+		for (const verb of ["collab", "join", "leave", "live", "guided-goal"]) {
 			expect(isBackendAttachRefusedCommand(verb), verb).toBe(true);
 			expect(isBackendAttachLocalCommand(verb), verb).toBe(false);
 		}
@@ -133,6 +134,12 @@ describe("backend-attach command routing", () => {
 		}
 	});
 
+	it("has one extension panel and no duplicate /status alias", () => {
+		expect(lookupBuiltinSlashCommand("extensions")?.name).toBe("extensions");
+		expect(lookupBuiltinSlashCommand("status")).toBeUndefined();
+		expect(isBackendAttachLocalCommand("status")).toBe(false);
+	});
+
 	it("treats a plain message and a missing verb as not-a-command", () => {
 		expect(isBackendAttachLocalCommand(undefined)).toBe(false);
 		expect(isBackendAttachLocalCommand("")).toBe(false);
@@ -140,7 +147,7 @@ describe("backend-attach command routing", () => {
 	});
 
 	it("tells the operator which local command performs the refused action", () => {
-		expect(backendAttachRefusalHint("setup")).toContain("zetacode setup");
+		expect(backendAttachRefusalHint("guided-goal")).toContain("TUI-only");
 		expect(backendAttachRefusalHint("collab")).toContain("sharing");
 		expect(backendAttachRefusalHint("clear")).toContain("owns the backend session");
 	});

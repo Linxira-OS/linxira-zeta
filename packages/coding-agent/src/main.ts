@@ -1990,7 +1990,13 @@ export async function runRootCommand(
 			process.exit(1);
 		}
 		const backendAttachTarget = transport.kind === "backend" ? transport.target : undefined;
-		if ((parsedArgs.backend === true || parsedArgs.backendUrl !== undefined) && !isProtocolMode && !isInteractive) {
+		const forcedBackend =
+			parsedArgs.backend === true ||
+			parsedArgs.backendUrl !== undefined ||
+			parsedArgs.attach === true ||
+			parsedArgs.attachSession !== undefined ||
+			parsedArgs.attachNew === true;
+		if (forcedBackend && !isProtocolMode && !isInteractive) {
 			const fileResult = await logger.time("processFileArguments", () =>
 				processFileArguments(parsedArgs.fileArgs, { autoResizeImages: true }),
 			);

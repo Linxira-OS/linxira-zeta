@@ -571,7 +571,6 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "extensions",
-		aliases: ["status"],
 		icon: "extension",
 		description: () => M.cmdExtensions,
 		handleTui: (_command, runtime) => {

@@ -1914,7 +1914,8 @@ export const en = {
 	cmdSeanceChooseModelDescription: "Select a one-off model for this consultation",
 	cmdExportHtml: "Export session to HTML file",
 	cmdDumpTranscript: "Copy session transcript to clipboard (and write LLM request JSON to tmp)",
-	cmdShare: "Publish this session to a GitHub repository you own (uses your gh CLI; no Zeta server)",
+	cmdShare:
+		"Publish this session to a repository owned by the current user (via that user's local gh CLI; no Zeta server)",
 	cmdCollab: "Share this session live via a relay",
 	cmdCollabList: "List active local Collab hosts (no links; use `zetacode collab link`)",
 	cmdCollabView: "Share a read-only link (guests can watch, not prompt)",

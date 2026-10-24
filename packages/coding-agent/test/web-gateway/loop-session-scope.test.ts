@@ -82,7 +82,7 @@ describe("loop session scope", () => {
 		const wrapper = makeWrapper("forwarded");
 		try {
 			await wrapper.send({ type: "loop_start", args: "3" });
-			await wrapper.send({ type: "prompt", message: "/status", loopBody: false });
+			await wrapper.send({ type: "prompt", message: "/extensions", loopBody: false });
 			const state = (await wrapper.send({ type: "get_state" })) as {
 				loop?: { enabled: boolean; prompt?: string } | null;
 			};

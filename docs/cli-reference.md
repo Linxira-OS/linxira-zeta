@@ -175,7 +175,7 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | --- | --- |
 | `--mode <mode>` | Output/transport mode: `text` (default), `json`, `rpc`, `acp`, or `rpc-ui`. See [output modes](#output-modes---mode). |
 | `--print`, `-p` | Process prompts non-interactively and exit. |
-| `--backend` | Route a print launch through a running `zetacode serve` backend; for an interactive launch, force attach mode (same as `--attach`). |
+| `--backend` | Route a print launch through a running `zetacode serve` backend; for an interactive launch, force attach mode (same as `--attach`). In print mode, `--attach`, `--attach-session`, and `--attach-new` also force the backend route. |
 | `--no-ui` | With `rpc`/`rpc-ui`, make extensions headless without disabling rpc-ui tool UI. |
 
 #### Backend attach
@@ -236,13 +236,17 @@ sees the request first wins. A backend without the socket falls back to its
 HTTP command surface. Client-only actions such as opening files and clipboard
 writes stay local and are not forwarded. Commands that only touch the client
 (`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`, `/tracking`,
-`/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`, `/help`, `/tools`,
-`/context`, `/agents`, `/skills`, `/extensions`, `/status`, `/usage`, `/jobs`,
+`/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`, `/help`, `/agents`,
+`/skills`, `/extensions`, `/hub`, `/pause`, `/record`, `/open`, `/debug`,
 `/quit`, `/exit`) run in the attached TUI exactly as they do locally, and the
 replica switches that the attach link mirrors — `/model`, `/modelpreset`,
-`/switch`, `/effort`, `/fast`, `/slow`, `/plan`, `/plan-ultra`, `/plan-review`,
-`/guided-goal`, `/goal`, `/vibe` — open their usual pickers and then send the
-matching wire command. Every other slash command is **forwarded and executed
+`/switch`, `/effort`, `/plan`, `/plan-ultra`, `/plan-review`, `/goal`,
+`/vibe` — open their usual pickers and then send the matching wire command.
+`/fast` and `/slow` are forwarded to the backend's headless handlers;
+`/guided-goal` is refused while attached because its interview is TUI-only.
+`/tools`, `/context`, `/usage` and `/jobs` are also forwarded because they
+read the backend session. `/status` no longer exists; use `/extensions`.
+Every other slash command is **forwarded and executed
 by the backend** with its own session — builtins that have a headless handler
 (`/compact`, `/handoff`, `/session`, `/retry`, `/rename`, `/move`,
 `/fresh`, `/share`, `/mcp`, `/memory`, `/marketplace`, `/todo`, `/dirs`,

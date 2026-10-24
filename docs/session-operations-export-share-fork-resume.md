@@ -129,7 +129,10 @@ Subagent system prompts and tool inventories are not persisted, so subagent file
 > give them exact manual commands when `gh` is not authenticated). The original
 > session JSONL is not committed unless the user asks for a machine-readable
 > copy. Secret redaction follows `share.redactSecrets`; publication is always
-> explicit about the target repo, and no transcript is pasted into chat.
+> explicit about the target repo, and no transcript is pasted into chat. The
+> agent must use the current user's own GitHub account and local `gh` login
+> only, never read or print a token, and point product issues at
+> `https://github.com/Linxira-OS/linxira-zeta/issues`.
 >
 > The encrypted blob/gist flow below is the **legacy `zetacode share` CLI
 > path** (`../packages/coding-agent/src/export/share.ts`), retained for

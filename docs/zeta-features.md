@@ -30,16 +30,19 @@ backend.
 - **Command surface.** The attached TUI runs client-side commands locally
   (`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`,
   `/tracking`, `/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`,
-  `/help`, `/tools`, `/context`, `/agents`, `/skills`, `/extensions`,
-  `/status`, `/usage`, `/jobs`, `/hub`, `/pause`, `/record`, `/open`,
-  `/debug`, `/quit`, `/exit`) and mirrors replica switches to the backend
-  (`/model`, `/modelpreset`, `/switch`, `/effort`, `/fast`, `/slow`, `/plan`,
-  `/plan-ultra`, `/plan-review`, `/guided-goal`, `/goal`, `/vibe`). Every
-  other slash command is executed by the backend against its own session
-  (`/compact`, `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`,
-  `/plugins`, …), and its `command_output` is shown in the attached status
-  line. `/queue` and the `->`/`=>` shorthands fill the backend's follow-up
-  queue; `/btw` uses the backend side context. Session lifecycle is backend-owned
+  `/help`, `/agents`, `/skills`, `/extensions`, `/hub`, `/pause`, `/record`,
+  `/open`, `/debug`, `/quit`, `/exit`) and mirrors replica switches to the
+  backend (`/model`, `/modelpreset`, `/switch`, `/effort`, `/plan`,
+  `/plan-ultra`, `/plan-review`, `/goal`, `/vibe`). `/fast` and `/slow` are
+  forwarded to the backend's headless handlers instead of toggling the
+  replica; `/guided-goal` is refused while attached because its interview is
+  still TUI-only. Every other slash command is executed by the backend against
+  its own session (`/tools`, `/context`, `/usage`, `/jobs`, `/compact`,
+  `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`, `/plugins`, …), and its
+  `command_output` is shown in the attached status line. `/status` no longer
+  exists: the extension panel is `/extensions` only. `/queue` and the
+  `->`/`=>` shorthands fill the backend's follow-up queue; `/btw` uses the
+  backend side context. Session lifecycle is backend-owned
   and re-attaches the client: `/new`, `/resume <id>`, `/fork`, `/branch`,
   `/tree`, `/clear` and `/delete yes`; `/login` and `/logout` drive the
   backend's providers. `/restart` targets the backend by default

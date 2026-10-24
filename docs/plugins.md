@@ -204,7 +204,7 @@ zetacode --plugin-dir ./plugins/official/pi-messenger skills list .
 
 It builds a synthetic root (`<name>@__local__`, origin `plugin-dir`, name read from `.claude-plugin/plugin.json` or the root `plugin.json`) at the highest discovery precedence, so its `skills/` (and other sibling directories that the `claude-plugins` provider handles) are discovered for the session. Two limits, both observed:
 
-- Only a **real session** honors it. The management subcommands do not read the flag: `zetacode --plugin-dir ./plugins/official/pi-messenger skills list .` prints the same skill list as without the flag, and `zetacode plugin list` never sees the directory. Verify it in a session (`zetacode --plugin-dir <path> -p "…"`, or the TUI's `/status`), not with `skills list`.
+- Only a **real session** honors it. The management subcommands do not read the flag: `zetacode --plugin-dir ./plugins/official/pi-messenger skills list .` prints the same skill list as without the flag, and `zetacode plugin list` never sees the directory. Verify it in a session (`zetacode --plugin-dir <path> -p "…"`, or the TUI's `/extensions`), not with `skills list`.
 - A `--plugin-dir` root does **not** contribute `package.json#extensions` modules: installed-plugin extension entries come from `getAllPluginExtensionPaths`, which only walks installed plugins. To get a plugin's tools/commands/hooks, install it (`plugin link` / `plugin install`) instead.
 
 ## How enabled plugin content reaches a session
@@ -223,7 +223,7 @@ Refresh behavior after a change: `/reload-plugins` re-runs discovery for skills,
 - `zetacode skills list .` — the skills a session started in `.` resolves, with warnings. This is the quickest end-to-end check that a plugin is actually active.
 - `zetacode plugin list` / `zetacode plugin doctor` — install state and manifest/entry health (doctor checks that each `extensions` entry exists on disk).
 - `zetacode plugin list --json` — the resolved plugin records including `storage.dataDir`/`cacheDir`/`stateDir`.
-- In-session `/status` shows the contributing providers for each capability.
+- In-session `/extensions` shows the contributing providers for each capability.
 
 ## Desktop and web UI
 
