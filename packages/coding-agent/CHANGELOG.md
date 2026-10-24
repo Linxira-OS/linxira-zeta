@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+- Bare `zetacode` follows the new machine-wide `backend.enabled` switch: off (default) keeps every launch local, on attaches it to the one hidden backend. Added `zetacode backend on|off|status|logs`, drain-before-stop, single-instance refusal, and `--standalone`/`--local` for a forced local process
+- Attached TUIs now run `/guided-goal` in the backend session: the backend exposes the `goal` tool, sends the hidden interview kickoff, and mirrors `guidedGoalInterview` so bare `c` stays an answer; RPC gained `guided_goal`
+- Attached sessions gained backend-owned `/loop`, shared goal/live controllers, accurate model/thinking resync, session lifecycle routing, and full slash-command parity
+- `/share` hands GitHub publication to the agent using the user's own `gh` login, writes the redacted Markdown locally, and never puts a token in the transcript; `/skills` install/update are prompt-only guides; `/setup` and `/providers` are retired
+
 ## [1.4.1] - 2026-10-23
 
 - Attached TUIs now run the same slash commands as a local session: client-local commands and mirrored switches stay local, builtins with a headless handler are forwarded and executed in the backend's own session (`/compact`, `/handoff`, `/session`, `/retry`, `/rename`, `/mcp`, `/todo`, `/plugins`, …) with their output shown in the attached status line, and only session swaps that cannot be applied remotely are refused with a hint

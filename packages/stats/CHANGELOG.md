@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- The standalone stats dashboard now defaults to port `43147` from `@linxiraos/pi-utils` instead of `3847`, avoiding OMP and common developer-tool ports
+
 ## [1.4.1] - 2026-10-23
 
 - The dashboard is fully translated (English / Simplified Chinese) with an EN ⇄ 中文 switch in the top-right corner; the choice is remembered in the browser

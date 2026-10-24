@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Version alignment with the 1.4.2 release line (no behavioral changes).
+
 ## [1.4.1] - 2026-10-23
 
 - An attached TUI renders the backend's builtin-command output (`command_output`) in its status line and keeps client-only commands, pickers and mirrored switches local
