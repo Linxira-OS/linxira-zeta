@@ -337,13 +337,13 @@ describe("attached TUI over the wire protocol", () => {
 		await link.join();
 		expect(link.attached).toBe(true);
 
-		// Run the plan turn on the backend; its `plan_proposed` reaches the attach
-		// client over SSE and must open the review overlay with the plan content.
-		await wrapper.send({
-			type: "mode_enter",
-			mode: "plan",
-			options: { initialPrompt: "Draft the web plan" },
-		});
+		// The operator types `/plan <task>` in the attached TUI: the command must
+		// enter plan mode on the backend (never prompt the local replica), and the
+		// resulting `plan_proposed` must open the review overlay.
+		void mode.getUserInput();
+		term.sendInput("/plan Draft the web plan");
+		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("/plan")));
+		term.sendInput("\r");
 		await term.waitForRender(() => plainRows(term.getViewport()).some(row => row.includes("Approve and execute")));
 		const review = plainRows(term.getViewport()).join("\n");
 		expect(review).toContain("Approve and compact context");

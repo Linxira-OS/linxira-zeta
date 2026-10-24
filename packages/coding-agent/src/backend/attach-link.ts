@@ -828,6 +828,53 @@ export class BackendAttachLink {
 		})();
 	}
 
+	/** Enter a mode on the backend (the same switch the replica mirrors). */
+	async enterMode(mode: "plan" | "goal" | "vibe", options?: unknown): Promise<void> {
+		if (this.#wire) {
+			await this.#wire.enterMode(mode, options);
+			return;
+		}
+		await this.client.send(this.#sessionId, {
+			type: "mode_enter",
+			mode,
+			...(options === undefined ? {} : { options }),
+		});
+	}
+
+	/** Review the backend's current plan and offer the approval choices. */
+	async reviewPlan(): Promise<void> {
+		const state = (await this.client.send(this.#sessionId, { type: "get_state" })) as {
+			planContent?: unknown;
+			planFilePath?: unknown;
+		};
+		const content = typeof state.planContent === "string" ? state.planContent : "";
+		const planFilePath = typeof state.planFilePath === "string" ? state.planFilePath : undefined;
+		if (!content.trim()) {
+			this.#ctx.showStatus("The backend session has no plan to review.");
+			return;
+		}
+		const options = ["Approve and execute", "Approve and compact context", "Refine plan", "Cancel"];
+		const choice = await this.#ctx.showPlanReview(content, "Plan mode - next step", options, {
+			helpText: "Esc cancel",
+		});
+		if (choice === undefined || choice === "Refine plan") return;
+		if (!planFilePath) {
+			this.#ctx.showError("Backend did not report a plan file path; nothing to approve.");
+			return;
+		}
+		const mode: PlanApproveMode =
+			choice === "Approve and execute"
+				? "preserve"
+				: choice === "Approve and compact context"
+					? "compact"
+					: "cancel";
+		try {
+			await this.client.send(this.#sessionId, { type: "plan_approve", planFilePath, mode });
+		} catch (error) {
+			this.#ctx.showError(`Backend plan approval failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
 	/** OAuth providers the backend can sign into. */
 	async getLoginProviders(): Promise<{ id: string; name: string; available: boolean; authenticated: boolean }[]> {
 		if (!this.#wire) throw new Error("The backend has no protocol link; cannot list login providers.");

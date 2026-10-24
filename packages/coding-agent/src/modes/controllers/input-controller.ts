@@ -1125,6 +1125,69 @@ export class InputController {
 			if (backendAttach) {
 				const verb = text.startsWith("/") ? text.slice(1).split(/\s+/, 1)[0] : undefined;
 				const localCommand = isBackendAttachLocalCommand(verb);
+				if (backendAttach) {
+					// Mode commands with a prompt: a local handler would enter the mode on
+					// the replica and then prompt the *local* agent. Enter the mode on the
+					// backend instead; its mode_changed event updates the client banner.
+					if (verb === "plan" || verb === "plan-ultra") {
+						const task = text.slice(`/${verb}`.length).trim();
+						if (task) {
+							this.ctx.editor.clearDraft(text);
+							void backendAttach
+								.enterMode("plan", {
+									initialPrompt: task,
+									objective: task,
+									...(verb === "plan-ultra" ? { workflow: "ultra" } : {}),
+								})
+								.catch(error =>
+									this.ctx.showError(
+										`Could not enter plan mode: ${error instanceof Error ? error.message : String(error)}`,
+									),
+								);
+							return;
+						}
+					} else if (verb === "plan-review") {
+						this.ctx.editor.clearDraft(text);
+						void backendAttach
+							.reviewPlan()
+							.catch(error =>
+								this.ctx.showError(
+									`Plan review failed: ${error instanceof Error ? error.message : String(error)}`,
+								),
+							);
+						return;
+					} else if (verb === "vibe") {
+						const promptText = text.slice(`/${verb}`.length).trim();
+						if (promptText) {
+							this.ctx.editor.clearDraft(text);
+							void (async () => {
+								await backendAttach.enterMode("vibe");
+								backendAttach.sendPrompt(promptText);
+							})().catch(error =>
+								this.ctx.showError(
+									`Could not enter vibe mode: ${error instanceof Error ? error.message : String(error)}`,
+								),
+							);
+							return;
+						}
+					} else if (verb === "goal") {
+						const raw = text.slice(`/${verb}`.length).trim();
+						const objective = raw.startsWith("set ") ? raw.slice(4).trim() : raw;
+						const subcommand = raw.split(/\s+/, 1)[0];
+						const isSubcommand = ["set", "show", "pause", "resume", "drop", "budget"].includes(subcommand);
+						if (objective && !(isSubcommand && subcommand !== "set")) {
+							this.ctx.editor.clearDraft(text);
+							void backendAttach
+								.enterMode("goal", { objective })
+								.catch(error =>
+									this.ctx.showError(
+										`Could not enter goal mode: ${error instanceof Error ? error.message : String(error)}`,
+									),
+								);
+							return;
+						}
+					}
+				}
 				if (verb !== undefined && !localCommand) {
 					// Session swaps are the one place a refusal is wrong: create the
 					// backend session and re-attach the replica to it.
@@ -1268,6 +1331,12 @@ export class InputController {
 									providerId = providers[index].id;
 								}
 								await backendAttach.login(providerId);
+								// The credential landed in the shared store; refresh the local
+								// registry so `/model` can list the provider's models immediately.
+								await this.ctx.session.modelRegistry
+									.refreshProvider(providerId, "online")
+									.catch(() => undefined);
+								await this.ctx.refreshScopedModelsAfterLogin?.();
 								this.ctx.showStatus(`Signed in to ${providerId}.`, { dim: true });
 							} catch (error) {
 								this.ctx.showError(`Login failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -1304,6 +1373,10 @@ export class InputController {
 								const accountIndex = accountLabels.indexOf(accountChoice ?? "");
 								if (accountIndex < 0) return;
 								await backendAttach.logout(providerId, accounts[accountIndex].credentialId);
+								await this.ctx.session.modelRegistry
+									.refreshProvider(providerId, "online")
+									.catch(() => undefined);
+								await this.ctx.refreshScopedModelsAfterLogin?.();
 								this.ctx.showStatus(`Signed out of ${providerId} (${accounts[accountIndex].label}).`, {
 									dim: true,
 								});
