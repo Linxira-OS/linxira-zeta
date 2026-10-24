@@ -17,6 +17,7 @@ import * as path from "node:path";
 // through the pi-vcs native addon (crates/pi-vcs, exposed via pi-natives/vcs).
 import * as vcs from "@linxiraos/pi-natives/vcs";
 import { getBlobsDir, logger } from "@linxiraos/pi-utils";
+import { parseModelString } from "@linxiraos/pi-tui/overlays/model-selector";
 import { WebConfig } from "../../config/web-config";
 import { exportFromFile } from "../../export/html";
 import type { SessionEntry as RuntimeSessionEntry } from "../../session/session-entries";
@@ -257,13 +258,38 @@ function sessionSettingsFromPath(pathEntries: SessionEntry[]): {
 } {
 	let thinkingLevel = "off";
 	let model: { provider: string; modelId: string } | null = null;
+	// An explicit default `model_change` wins over model tags on later assistant
+	// messages: retry fallbacks and server-side downgrades tag those messages
+	// with the wrong id (issue #849).
+	let hasExplicitDefaultModel = false;
 
 	for (const entry of pathEntries) {
 		if (entry.type === "thinking_level_change") {
 			thinkingLevel = entry.thinkingLevel;
 		} else if (entry.type === "model_change") {
-			model = { provider: entry.provider, modelId: entry.modelId };
-		} else if (entry.type === "message" && entry.message.role === "assistant") {
+			// Runtime `model_change` entries store "provider/modelId" in `model`
+			// (see session-entries.ts), and `role: "default"` marks the user's
+			// pick; fallback/model-role transitions must not become the settings
+			// snapshot. The legacy provider/modelId pair is still read for older
+			// transcripts.
+			const role = (entry as unknown as { role?: unknown }).role;
+			if (role === undefined || role === "default") {
+				const runtimeModel = (entry as unknown as { model?: unknown }).model;
+				if (typeof runtimeModel === "string" && runtimeModel.length > 0) {
+					const parsed = parseModelString(runtimeModel);
+					if (parsed) {
+						model = { provider: parsed.provider, modelId: parsed.id };
+						hasExplicitDefaultModel = true;
+					}
+				} else {
+					const legacy = entry as unknown as { provider?: unknown; modelId?: unknown };
+					if (typeof legacy.provider === "string" && typeof legacy.modelId === "string") {
+						model = { provider: legacy.provider, modelId: legacy.modelId };
+						hasExplicitDefaultModel = true;
+					}
+				}
+			}
+		} else if (entry.type === "message" && entry.message.role === "assistant" && !hasExplicitDefaultModel) {
 			model = { provider: entry.message.provider, modelId: entry.message.model };
 		}
 	}

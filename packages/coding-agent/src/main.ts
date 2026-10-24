@@ -748,6 +748,9 @@ async function runInteractiveMode(
 			try {
 				await link.join();
 			} catch (error) {
+				logger.warn("backend attach join failed", {
+					error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+				});
 				await link.detach().catch(() => undefined);
 				mode.showWarning(
 					`Could not attach to the backend (${error instanceof Error ? error.message : String(error)}); continuing in-process.`,

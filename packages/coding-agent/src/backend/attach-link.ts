@@ -508,9 +508,15 @@ export class BackendAttachLink {
 	/** Mirror model/thinking state without writing local session entries. */
 	#applyContextState(detail: BackendSessionDetail): void {
 		const session = this.#ctx.session;
+		// An empty backend session (created by ensure_session but without its
+		// first save) reports `model: {}`; a truthiness-only check would call
+		// `find(undefined, undefined)` and throw a minified `.trim` TypeError,
+		// degrading the whole attach to in-process.
 		const contextModel = detail.context?.model;
-		if (contextModel) {
-			const model = session.modelRegistry.find(contextModel.provider, contextModel.modelId);
+		const provider = contextModel?.provider;
+		const modelId = contextModel?.modelId;
+		if (typeof provider === "string" && provider.length > 0 && typeof modelId === "string" && modelId.length > 0) {
+			const model = session.modelRegistry.find(provider, modelId);
 			if (
 				model &&
 				(session.agent.state.model?.id !== model.id || session.agent.state.model?.provider !== model.provider)

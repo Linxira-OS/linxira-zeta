@@ -226,6 +226,76 @@ describe("attached TUI over the wire protocol", () => {
 		expect(await answered.promise).toEqual({ confirmed: true });
 	}, 120_000);
 
+	test("attaches to a backend session that has no saved file yet", async () => {
+		// `ensure_session` creates a live session whose file appears only after
+		// the first save; its `/api/sessions/<id>` detail reports `model: {}`.
+		// Join must tolerate that shape instead of degrading to in-process.
+		const cwd = process.cwd();
+		const model = createMockModel({ handler: { content: ["unused"] } });
+		const authStorage = createInMemoryAuthStorage();
+		authStorage.keys.setRuntime(model.model.provider, "test-key");
+
+		const backendManager = SessionManager.create(
+			cwd,
+			path.join(tempDir.path(), "sessions"),
+			new FileSessionStorage(),
+			{ client: "cli" },
+		);
+		backendSession = new AgentSession({
+			agent: new Agent({
+				initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] },
+				streamFn: model.stream,
+			}),
+			sessionManager: backendManager,
+			settings: Settings.isolated({ "compaction.enabled": false }),
+			modelRegistry: new ModelRegistry(authStorage),
+		});
+		const sessionId = backendManager.getSessionId();
+		const sessionFile = backendManager.getSessionFile();
+		if (sessionFile) cacheSessionPath(sessionId, sessionFile);
+		const wrapper = new AgentSessionWrapper(backendSession, sessionId, sessionFile ?? null);
+		gatewaySessions.set(sessionId, wrapper);
+
+		const probe = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response("probe") });
+		const port = probe.port ?? 0;
+		await probe.stop(true);
+		gateway = await startWebGateway(port);
+
+		localSession = new AgentSession({
+			agent: new Agent({
+				initialState: { model: model.model, systemPrompt: ["test"], tools: [], messages: [] },
+			}),
+			sessionManager: SessionManager.create(cwd, path.join(tempDir.path(), "local-sessions")),
+			settings: Settings.isolated(),
+			modelRegistry: new ModelRegistry(authStorage),
+		});
+		term = new VirtualTerminal(120, 40);
+		mode = new InteractiveMode(
+			localSession,
+			"test",
+			undefined,
+			() => {},
+			undefined,
+			undefined,
+			undefined,
+			new Composer({ terminal: term }),
+		);
+		await mode.init({ suppressWelcomeIntro: true });
+
+		link = new BackendAttachLink(
+			mode,
+			{
+				backend: { baseUrl: gateway.url, identity: serveIdentity() },
+				sessionId,
+				newSession: false,
+				explicit: true,
+			},
+			{ replicaDir: path.join(tempDir.path(), "replicas") },
+		);
+		await link.join();
+		expect(link.attached).toBe(true);
+	});
+
 	test("renders the backend's plan review and executes the approved plan", async () => {
 		const cwd = process.cwd();
 		const model = createMockModel({
