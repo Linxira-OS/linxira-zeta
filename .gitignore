@@ -135,3 +135,6 @@ packages/coding-agent/bench/boot-baseline.json
 
 # In-repo runtime artifacts (merge scope reports etc.)
 .zeta/
+
+# Local Bun binary cache (never commit)
+.bun-cache/
