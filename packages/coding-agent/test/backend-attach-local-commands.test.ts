@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-	BUILTIN_SLASH_COMMANDS,
 	BUILTIN_SLASH_COMMANDS_INTERNAL,
 	lookupBuiltinSlashCommand,
 } from "@linxiraos/zeta/slash-commands/builtin-registry";
@@ -142,16 +141,6 @@ describe("backend-attach command routing", () => {
 		expect(lookupBuiltinSlashCommand("extensions")?.name).toBe("extensions");
 		expect(lookupBuiltinSlashCommand("status")).toBeUndefined();
 		expect(isBackendAttachLocalCommand("status")).toBe(false);
-	});
-
-	it("keeps prompt-only share and skills out of the palette", () => {
-		for (const name of ["share", "skills"]) {
-			expect(lookupBuiltinSlashCommand(name)?.hidden, name).toBe(true);
-			expect(
-				BUILTIN_SLASH_COMMANDS.some(command => command.name === name),
-				name,
-			).toBe(false);
-		}
 	});
 
 	it("never forwards a TUI-only builtin without a headless handler", () => {

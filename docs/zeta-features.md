@@ -40,7 +40,7 @@ backend.
   its own session (`/skills`, `/tools`, `/context`, `/usage`, `/jobs`,
   `/compact`, `/handoff`, `/retry`, `/rename`, `/mcp`, `/todo`, `/plugins`, …),
   and its `command_output` is shown in the attached status line. `/skills` and
-  `/share` are hidden prompt-only entry points: explicit invocation injects the
+  `/share` are prompt-only entry points: explicit invocation injects the
   built-in guide, and `/skills` install/update forwards to the backend so the
   agent installs in the workspace it is actually running in. `/status` no
   longer exists: the extension panel is `/extensions` only. `/queue` and the

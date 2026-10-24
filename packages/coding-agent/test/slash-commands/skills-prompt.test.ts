@@ -12,9 +12,8 @@ function runtime(): never {
 }
 
 describe("/skills documentation prompt", () => {
-	it("is hidden from the palette but explicitly invokable", () => {
-		expect(skills.hidden).toBe(true);
-		expect(BUILTIN_SLASH_COMMANDS.some(command => command.name === "skills")).toBe(false);
+	it("stays visible in the palette", () => {
+		expect(BUILTIN_SLASH_COMMANDS.some(command => command.name === "skills")).toBe(true);
 	});
 
 	it("returns the built-in skills guide instead of running an installer", async () => {

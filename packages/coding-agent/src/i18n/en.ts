@@ -1914,8 +1914,7 @@ export const en = {
 	cmdSeanceChooseModelDescription: "Select a one-off model for this consultation",
 	cmdExportHtml: "Export session to HTML file",
 	cmdDumpTranscript: "Copy session transcript to clipboard (and write LLM request JSON to tmp)",
-	cmdShare:
-		"Publish this session to a repository owned by the current user (via that user's local gh CLI; no Zeta server)",
+	cmdShare: "Give the agent the built-in guide for publishing this session to GitHub",
 	cmdCollab: "Share this session live via a relay",
 	cmdCollabList: "List active local Collab hosts (no links; use `zetacode collab link`)",
 	cmdCollabView: "Share a read-only link (guests can watch, not prompt)",
@@ -2020,7 +2019,7 @@ export const en = {
 	cmdModelpresetDelete: "Delete a saved preset",
 	cmdUsage: "Show provider usage and limits",
 	cmdUsageReset: "Spend a saved provider rate-limit reset",
-	cmdSkills: "Search, install, and update skills from the skills registry",
+	cmdSkills: "Give the agent the built-in skills guide (search, install, update)",
 	cmdSkillsSearch: "Search the skill registry",
 	cmdSkillsInstall: "Install registry skills",
 	cmdRecord: "Start or stop recording this screen to a replayable file",

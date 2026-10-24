@@ -65,7 +65,6 @@ export const BUILTIN_SKILLS_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 			},
 		],
 		allowArgs: true,
-		hidden: true,
 		handle: async (command, runtime) => {
 			const { verb, rest } = parseSubcommand(command.args);
 			const cwd = runtime.sessionManager.getCwd();

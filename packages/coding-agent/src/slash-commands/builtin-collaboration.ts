@@ -296,7 +296,6 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		name: "share",
 		icon: "share",
 		description: () => M.cmdShare,
-		hidden: true,
 		handle: async (_command, runtime) => {
 			try {
 				const prepared = await prepareShareForGithub(runtime.session, runtime.sessionManager, {

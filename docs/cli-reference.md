@@ -248,8 +248,8 @@ replica switches that the attach link mirrors — `/model`, `/modelpreset`,
 `/fast` and `/slow` are forwarded to the backend's headless handlers;
 `/guided-goal` is refused while attached because its interview is TUI-only.
 `/skills`, `/tools`, `/context`, `/usage` and `/jobs` are also forwarded
-because they act on the backend session. `/skills` and `/share` are hidden
-prompt-only entry points: explicit invocation injects the built-in guide, and
+because they act on the backend session. `/skills` and `/share` are prompt-only
+entry points: explicit invocation injects the built-in guide, and
 `/skills` install/update asks the agent to install in its own workspace.
 `/status` no longer exists; use `/extensions`.
 Every other slash command is **forwarded and executed

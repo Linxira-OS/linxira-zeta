@@ -48,12 +48,6 @@ export interface BuiltinSlashCommand {
 	 * silently forwarding the text to the model.
 	 */
 	enabled?: (settings: Settings) => boolean;
-	/**
-	 * Hide the command from the palette/help surface while keeping explicit
-	 * `/name` invocation working. Used for prompt-only entry points whose
-	 * documentation is the product surface.
-	 */
-	hidden?: boolean;
 	/** Copy shown when {@link enabled} refuses an invocation. */
 	disabledMessage?: string | (() => string);
 }
