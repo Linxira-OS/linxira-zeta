@@ -9,6 +9,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import chalk from "@linxiraos/pi-utils/chalk";
+import { logger } from "@linxiraos/pi-utils";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { backendHelp } from "../cli/command-help";
 import { Settings } from "../config/settings";
@@ -21,6 +22,7 @@ import {
 	writeBackendWorkspaceSetting,
 } from "../backend/setting";
 import { resolveServeAccess } from "../server/serve-access";
+import { recoverBackendReplicas, type BackendReplicaRecoveryResult } from "../session/backend-replica-recovery";
 import { isPidAlive, listServeRegistrations } from "../server/serve-registry";
 import {
 	DAEMON_DEFAULT_GATEWAY_PORT,
@@ -262,10 +264,22 @@ export default class Backend extends Command {
 				if (current.gatewayUrl) await setDrainState(current.gatewayUrl, false).catch(() => {});
 				await writeBackendEnabledSetting(result.status.running);
 			}
+			let recovered: BackendReplicaRecoveryResult | undefined;
+			if (result.action === "stopped" || result.action === "not-running" || result.action === "cleaned-stale") {
+				recovered = await recoverBackendReplicas().catch(error => {
+					logger.warn("Failed to recover backend session replicas", { error: String(error) });
+					return undefined;
+				});
+			}
 			if (flags.json === true) {
-				writeJson(result);
+				writeJson({ ...result, recovered });
 				if (result.exitCode !== 0) process.exitCode = result.exitCode;
 				return;
+			}
+			if (recovered && recovered.imported + recovered.updated > 0) {
+				console.log(
+					chalk.dim(`Recovered ${recovered.imported + recovered.updated} backend session(s) into resume history.`),
+				);
 			}
 			if (result.action === "stopped") console.log(chalk.green(`Stopped the backend (pid ${result.pid}).`));
 			else if (result.action === "not-running") console.log(chalk.dim("Backend is not running."));
