@@ -30,6 +30,17 @@ describe("gateway drain gate", () => {
 		}
 	});
 
+	test("keeps abort and state reads available while draining", async () => {
+		setGatewayDraining(true);
+		for (const body of [{ type: "abort" }, { type: "get_state" }]) {
+			const response = await handleAgentCommand(
+				new Request("http://localhost/api/agent/session", { method: "POST", body: JSON.stringify(body) }),
+				"missing-session",
+			);
+			expect(response.status).toBe(404);
+		}
+	});
+
 	test("leaves the flag clear after a normal request", () => {
 		expect(isGatewayDraining()).toBe(false);
 	});

@@ -104,6 +104,33 @@ describe("attach selection", () => {
 		expect(resolved?.backend.baseUrl).toBe(A.baseUrl);
 	});
 
+	it("refuses when both backends own the same workspace", async () => {
+		const fetchImpl = (async () =>
+			new Response(
+				JSON.stringify({
+					sessions: [{ id: "shared-session", cwd: "/work/repo", modified: "2026-10-24T00:00:00.000Z" }],
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			)) as unknown as typeof fetch;
+
+		await expect(
+			resolveBackendTarget(INTENT, {
+				discoverAll: async () => [A, B],
+				fetchImpl,
+				cwd: "/work/repo",
+				sleepImpl: async () => undefined,
+			}),
+		).rejects.toMatchObject({ code: "ambiguous" });
+	});
+
+	it("normalizes an explicit URL with a path to its origin", async () => {
+		const resolved = await resolveBackendTarget(
+			{ ...INTENT, url: `${B.baseUrl}/some/path` },
+			{ discoverAll: async () => [A, B], sleepImpl: async () => undefined },
+		);
+		expect(resolved?.backend.baseUrl).toBe(B.baseUrl);
+	});
+
 	it("reports a missing session instead of attaching elsewhere", async () => {
 		await expect(
 			resolveBackendTarget(
