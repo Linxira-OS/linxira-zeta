@@ -34,7 +34,11 @@ import {
 	getExtensionUISelectOptionLabel,
 	timedOutAskDialogResult,
 } from "../../extensibility/extensions/types";
-import { GOAL_CONTINUATION_MODE_WEB, GoalContinuationController } from "../../goals/continuation-controller";
+import {
+	GOAL_CONTINUATION_MODE_WEB,
+	GoalContinuationController,
+	type GoalContinuationOp,
+} from "../../goals/continuation-controller";
 import { RpcLiveBridge } from "../../modes/rpc/rpc-live";
 import { type BackendLoopState, LoopContinuationController } from "../../loop/continuation-controller";
 import type { GoalModeState } from "../../goals/state";
@@ -80,6 +84,8 @@ const DRAIN_BLOCKED_COMMANDS = new Set<AgentCommand["type"]>([
 	"compact",
 	"guided_goal",
 ]);
+/** Goal ops that arm or resume continuations are new work; get/pause/drop/budget are not. */
+const DRAIN_BLOCKED_GOAL_OPS = new Set<GoalContinuationOp>(["create", "resume"]);
 
 export type AgentCommand =
 	| {
@@ -93,6 +99,10 @@ export type AgentCommand =
 			loopBody?: boolean;
 	  }
 	| { type: "guided_goal"; message?: string; images?: unknown[] }
+	| { type: "goal"; op: GoalContinuationOp; objective?: string; token_budget?: number }
+	| { type: "remove_queued_message"; message: string; queue: "steering" | "followUp" }
+	| { type: "promote_queued_message"; message: string }
+	| { type: "abort_and_restore_queue" }
 	| { type: "steer"; text: string; images?: unknown[] }
 	| { type: "follow_up"; text: string; images?: unknown[] }
 	| { type: "abort" }
@@ -674,6 +684,21 @@ export class AgentSessionWrapper {
 					images: command.images as ImageContent[] | undefined,
 				});
 				return { ok: true };
+			case "goal":
+				return this.#goalController.handle(command);
+			case "remove_queued_message": {
+				const removed = this.#inner.takeQueuedMessage(command.message, command.queue);
+				return { removed: removed !== undefined, ...(removed?.images?.length ? { images: removed.images } : {}) };
+			}
+			case "promote_queued_message":
+				return { promoted: this.#inner.promoteQueuedMessage(command.message) };
+			case "abort_and_restore_queue": {
+				const restored = this.#inner.clearQueue({ forInterrupt: true });
+				this.#loopController.pause();
+				this.#goalController.stopForHostAbort();
+				this.#inner.abort();
+				return restored;
+			}
 			case "steer":
 				this.#loopController.noteUserPrompt(command.text);
 				await this.#inner.steer(command.text, command.images as ImageContent[] | undefined);
@@ -1503,7 +1528,10 @@ export async function handleAgentNew(req: Request): Promise<Response> {
 export async function handleAgentCommand(req: Request, sessionId: string): Promise<Response> {
 	try {
 		const body = (await req.json()) as AgentCommand;
-		if (isGatewayDraining() && DRAIN_BLOCKED_COMMANDS.has(body.type)) {
+		if (
+			isGatewayDraining() &&
+			(DRAIN_BLOCKED_COMMANDS.has(body.type) || (body.type === "goal" && DRAIN_BLOCKED_GOAL_OPS.has(body.op)))
+		) {
 			return json({ error: "backend is draining; new work is not accepted" }, 503);
 		}
 		const existing = sessions.get(sessionId);

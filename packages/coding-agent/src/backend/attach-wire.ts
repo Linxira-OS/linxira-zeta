@@ -92,6 +92,31 @@ export class AttachWire {
 		return this.#client.call("abort").then(() => undefined);
 	}
 
+	removeQueuedMessage(
+		message: string,
+		queue: "steering" | "followUp",
+	): Promise<{ removed: boolean; images?: unknown[]; imagesDropped?: true }> {
+		return this.#client.call("remove_queued_message", { message, queue }) as Promise<{
+			removed: boolean;
+			images?: unknown[];
+			imagesDropped?: true;
+		}>;
+	}
+
+	abortAndRestoreQueue(): Promise<{
+		steering: unknown[];
+		followUp: unknown[];
+		imagesDropped?: true;
+		truncated?: true;
+	}> {
+		return this.#client.call("abort_and_restore_queue") as Promise<{
+			steering: unknown[];
+			followUp: unknown[];
+			imagesDropped?: true;
+			truncated?: true;
+		}>;
+	}
+
 	loopStart(args: string): Promise<void> {
 		return this.#client.call("loop_start", { args }).then(() => undefined);
 	}
@@ -130,6 +155,18 @@ export class AttachWire {
 
 	exitMode(mode: "plan" | "goal" | "vibe", options?: unknown): Promise<void> {
 		return this.#client.call("mode_exit", options === undefined ? { mode } : { mode, options }).then(() => undefined);
+	}
+
+	/** Run one `/goal` lifecycle operation on the backend session. */
+	goal(
+		op: "get" | "create" | "resume" | "pause" | "drop" | "budget",
+		options: { objective?: string; tokenBudget?: number } = {},
+	): Promise<Record<string, unknown>> {
+		return this.#client.call("goal", {
+			op,
+			...(options.objective === undefined ? {} : { objective: options.objective }),
+			...(options.tokenBudget === undefined ? {} : { token_budget: options.tokenBudget }),
+		}) as Promise<Record<string, unknown>>;
 	}
 
 	/** Resume the backend's paused goal; refused when there is none. */

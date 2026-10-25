@@ -276,6 +276,65 @@ describe("web-gateway plan approval → goal", () => {
 		expect(harness.session.getGoalModeState()?.goal.status).toBe("active");
 	}, 30_000);
 
+	it("dispatches the goal lifecycle command instead of rejecting it", async () => {
+		const harness = await startSession({
+			key: "sess-goal-command",
+			responses: [textResponse("Starting.")],
+		});
+
+		const initial = (await harness.wrapper.send({ type: "goal", op: "get" })) as {
+			goal?: { objective?: string; status?: string } | null;
+		};
+		expect(initial.goal ?? null).toBeNull();
+
+		const created = (await harness.wrapper.send({
+			type: "goal",
+			op: "create",
+			objective: "Ship the release",
+		})) as { goal?: { objective?: string; status?: string } | null };
+		expect(created.goal?.objective).toBe("Ship the release");
+		expect(created.goal?.status).toBe("active");
+
+		const state = (await harness.wrapper.send({ type: "get_state" })) as GoalState;
+		expect(state.modes?.goal?.goal?.objective).toBe("Ship the release");
+
+		await harness.wrapper.send({ type: "goal", op: "pause" });
+		const paused = (await harness.wrapper.send({ type: "goal", op: "get" })) as {
+			goal?: { status?: string } | null;
+		};
+		expect(paused.goal?.status).toBe("paused");
+
+		await harness.wrapper.send({ type: "goal", op: "drop" });
+		const dropped = (await harness.wrapper.send({ type: "goal", op: "get" })) as {
+			goal?: unknown;
+		};
+		expect(dropped.goal ?? null).toBeNull();
+	}, 30_000);
+
+	it("dispatches queue editing and abort-restore commands instead of rejecting them", async () => {
+		const harness = await startSession({
+			key: "sess-queue-commands",
+			responses: [textResponse("Starting.")],
+		});
+
+		expect(
+			(await harness.wrapper.send({
+				type: "remove_queued_message",
+				message: "missing",
+				queue: "followUp",
+			})) as { removed: boolean },
+		).toMatchObject({ removed: false });
+		expect(
+			(await harness.wrapper.send({ type: "promote_queued_message", message: "missing" })) as {
+				promoted: boolean;
+			},
+		).toMatchObject({ promoted: false });
+		expect(await harness.wrapper.send({ type: "abort_and_restore_queue" })).toMatchObject({
+			steering: [],
+			followUp: [],
+		});
+	}, 30_000);
+
 	it("a web session continues an active goal; an RPC-only mode list does not", async () => {
 		const web = await startSession({
 			key: "sess-goal-web",

@@ -1081,6 +1081,12 @@ export class BackendAttachLink {
 		goal?: { objective?: string; status?: string; tokenBudget?: number; tokensUsed?: number } | null;
 		state?: unknown;
 	}> {
+		if (this.#wire) {
+			return (await this.#wire.goal(op, options)) as {
+				goal?: { objective?: string; status?: string; tokenBudget?: number; tokensUsed?: number } | null;
+				state?: unknown;
+			};
+		}
 		return (await this.client.send(this.#sessionId, {
 			type: "goal",
 			op,
@@ -1168,13 +1174,15 @@ export class BackendAttachLink {
 		const list = queue === "steering" ? current.steering : current.followUp;
 		const text = list[list.length - 1];
 		if (text === undefined) return { removed: false };
-		const result = (await this.client.send(this.#sessionId, {
-			type: "remove_queued_message",
-			message: text,
-			queue,
-		})) as { removed?: unknown; images?: ImageContent[] } | undefined;
+		const result = this.#wire
+			? await this.#wire.removeQueuedMessage(text, queue)
+			: ((await this.client.send(this.#sessionId, {
+					type: "remove_queued_message",
+					message: text,
+					queue,
+				})) as { removed?: unknown; images?: ImageContent[] } | undefined);
 		await this.#scheduleStateRefreshNow();
-		return { removed: result?.removed === true, text, images: result?.images };
+		return { removed: result?.removed === true, text, images: result?.images as ImageContent[] | undefined };
 	}
 
 	/** Esc on a backend-owned turn: withdraw all queued input, then abort. */
@@ -1182,12 +1190,17 @@ export class BackendAttachLink {
 		steering: Array<{ text: string; images?: ImageContent[] }>;
 		followUp: Array<{ text: string; images?: ImageContent[] }>;
 	}> {
-		const result = (await this.client.send(this.#sessionId, { type: "abort_and_restore_queue" })) as
-			| {
+		const result = this.#wire
+			? ((await this.#wire.abortAndRestoreQueue()) as {
 					steering?: Array<{ text?: unknown; images?: ImageContent[] }>;
 					followUp?: Array<{ text?: unknown; images?: ImageContent[] }>;
-			  }
-			| undefined;
+				})
+			: ((await this.client.send(this.#sessionId, { type: "abort_and_restore_queue" })) as
+					| {
+							steering?: Array<{ text?: unknown; images?: ImageContent[] }>;
+							followUp?: Array<{ text?: unknown; images?: ImageContent[] }>;
+					  }
+					| undefined);
 		const entries = (
 			list: Array<{ text?: unknown; images?: ImageContent[] }> | undefined,
 		): Array<{ text: string; images?: ImageContent[] }> =>

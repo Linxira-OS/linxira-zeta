@@ -30,6 +30,30 @@ describe("gateway drain gate", () => {
 		}
 	});
 
+	test("blocks goal creation/resume while draining but allows reads", async () => {
+		setGatewayDraining(true);
+		for (const body of [
+			{ type: "goal", op: "create", objective: "ship it" },
+			{ type: "goal", op: "resume" },
+		]) {
+			const response = await handleAgentCommand(
+				new Request("http://localhost/api/agent/session", { method: "POST", body: JSON.stringify(body) }),
+				"session",
+			);
+			expect(response.status).toBe(503);
+		}
+		for (const body of [
+			{ type: "goal", op: "get" },
+			{ type: "goal", op: "pause" },
+		]) {
+			const response = await handleAgentCommand(
+				new Request("http://localhost/api/agent/session", { method: "POST", body: JSON.stringify(body) }),
+				"missing-session",
+			);
+			expect(response.status).toBe(404);
+		}
+	});
+
 	test("keeps abort and state reads available while draining", async () => {
 		setGatewayDraining(true);
 		for (const body of [{ type: "abort" }, { type: "get_state" }]) {
