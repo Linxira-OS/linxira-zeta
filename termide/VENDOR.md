@@ -24,6 +24,8 @@
 
 | 29 | `src/main.rs` | **CLI 展示名**：`#[command(name = "termide", about = "Terminal IDE")]` → `name = "zetaide"`、`about = "Linxira Zeta IDE"`；`--help` 的 `Usage:` 行原本印上游 `termide.exe` | 上游写自家产品名 | **保留**（Zeta 2026-10-22：`zetaide --help` 是对外品牌面，与偏离 28 的窗口标题同一决定） | 2026-10-22 |
 
+| 30 | `build.rs`、`assets/termide.rc`（新增） | **Windows PE 图标**：为 `termide` / `termide-editor` 编入与 zetawork 共用的 `icon.ico`；上游无 Windows 资源，Explorer/安装器原本显示通用图标。`build.rs` 把模板里的 `@ZETA_ICON@` 换成绝对路径再交给 windres（旧版 windres 按 CWD 解析 `ICON`，新版按 rc 文件目录解析，绝对路径两边都对） | 上游无此物 | **保留**（Zeta 2026-10-25：所有 Zeta 主 exe 同一 logo，名称区分产品；release windows-gnu 缺 windres 时构建失败，避免发无图标二进制） | 2026-10-25 |
+
 ## 与仓库其余部分的关系
 
 - **不是根 Cargo workspace 成员**:根 `Cargo.toml` members 显式列 `crates/*`;termide 自带 `[workspace]`(members `crates/*`,自有 `rust-toolchain.toml` = 1.91.1、`Cargo.lock`)。在 `termide/` 内跑 cargo 命令,与根 workspace 完全隔离。

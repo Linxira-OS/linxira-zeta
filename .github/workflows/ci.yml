@@ -278,6 +278,8 @@ jobs:
          # workbench and two missing commands — every manifest still parses.
          - name: Workbench bundle guard
            run: bun scripts/check-workbench-bundles.ts
+         - name: Windows icon guard
+           run: bun scripts/check-windows-icons.ts
          # Both language-server registries (the coding-agent's and termide's) are
          # generated from `lsp/servers.json`. A hand edit to a generated file, or
          # a canonical change that was never regenerated, desyncs the two editors.
@@ -1201,12 +1203,14 @@ jobs:
          matrix:
             include:
                - {
+                    os: ubuntu-22.04,
                     platform: linux,
                     target_id: linux-x64,
                     binary_path: packages/coding-agent/binaries/zeta-cli-linux-x64,
                     native_targets: linux-x64-baseline linux-x64-modern,
                  }
                - {
+                    os: ubuntu-22.04,
                     platform: linux,
                     libc: musl,
                     target_id: linux-musl-x64,
@@ -1214,20 +1218,19 @@ jobs:
                     native_targets: linux-musl-x64-baseline,
                  }
                - {
+                    os: windows-2022,
                     platform: win32,
                     target_id: win32-x64,
                     binary_path: packages/coding-agent/binaries/zeta-cli-windows-x64.exe,
                     native_targets: win32-x64-baseline,
                  }
-      # Every leg cross-compiles on one hosted Linux runner (the win32 binary
-      # via bun's windows target, the musl one via its musl target) — the same
-      # shape upstream uses. This must stay a literal: an `os` matrix key that
-      # only some entries set leaves `matrix.os` empty for the rest, GitHub then
-      # cannot expand the matrix at all, and the job vanishes from the run. Its
-      # `success` result still gates release_native_leaves / release_npm /
-      # release_github, so that silently skips the whole publish tail (damage
-      # class 7/12 in AGENTS.md).
-      runs-on: ubuntu-22.04
+      # The Windows leg must build on a Windows runner: Bun only honors
+      # `windows.icon` when compiling on Windows (`--windows-icon` reports the
+      # same restriction), so a Linux cross-build produces a Bun-face PE and
+      # the icon guard rightly rejects it. Linux/musl stay on one hosted Linux
+      # runner. Every include entry defines `os`; a partially defined matrix key
+      # makes GitHub drop the whole matrix (damage class 14 in AGENTS.md).
+      runs-on: ${{ matrix.os }}
       permissions:
          contents: read
       steps:
@@ -1255,6 +1258,9 @@ jobs:
          # `--compile --target=bun-windows-x64-*` cross-compile. Musl binaries
          # need the musl loader, which glibc runners lack — they are smoked in
          # the Alpine container step below instead.
+         - name: Verify Windows icon resources
+           if: matrix.platform == 'win32'
+           run: bun scripts/check-windows-icons.ts --binaries "${{ matrix.binary_path }}"
          - name: Smoke release binary
            if: matrix.platform != 'win32' && matrix.libc != 'musl'
            run: |
@@ -1385,6 +1391,9 @@ jobs:
          # The desktop app has no CLI surface: `--version` opens a window and
          # dies headless (WinitEventLoop: no DISPLAY). Its smoke is the archive
          # job, which runs the packaged build's own checks.
+         - name: Verify Windows icon resources
+           if: matrix.platform == 'win32'
+           run: bun scripts/check-windows-icons.ts --binaries "packages/coding-agent/binaries/${{ matrix.artifact }}"
          - name: Smoke release product binary
            if: matrix.platform == 'linux' && !startsWith(matrix.target_id, 'zetawork-gui-')
            run: |

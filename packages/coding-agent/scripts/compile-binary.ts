@@ -1,3 +1,4 @@
+import * as path from "node:path";
 // Deep import: the pi-utils barrel loads the host native addon, which is
 // absent on cross-compiling release runners.
 import { USER_AGENT } from "@linxiraos/pi-utils/dirs";
@@ -68,6 +69,11 @@ export async function compileCodingAgent(options: CodingAgentCompileOptions): Pr
 			},
 			plugins: [createJsonParsePlugin(), await createLegacyPiVirtualModulePlugin()],
 			compile: {
+				windows: {
+					icon: path.join(options.repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.ico"),
+					title: "zetacode",
+					publisher: "Linxira OS",
+				},
 				// Bun's process-wide fetch User-Agent default. Any explicit
 				// provider fingerprint (Anthropic/Codex OAuth) still wins.
 				execArgv: [`--user-agent=${USER_AGENT}`],

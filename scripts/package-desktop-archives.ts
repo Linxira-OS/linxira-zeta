@@ -326,16 +326,11 @@ StartupWMClass=zetawork-gui
 `;
 }
 
-/** A small 256x256 PNG (zeta mark placeholder) generated deterministically. */
+/** Copy the canonical Zeta mark for every Linux desktop surface. */
 async function writeIcon(file: string): Promise<void> {
-	// 16x16 RGBA is enough to satisfy desktop tooling; the real icon ships
-	// with the site assets. Kept buffer-generated so packaging has no extra
-	// dependency.
-	const png = Buffer.from(
-		"iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAJUlEQVR42mNkYPhfz0AEYBxVSF+FjAMNGBgYGOgVJgONowrpqxAAakQH0lZ3s9cAAAAASUVORK5CYII=",
-		"base64",
-	);
-	await fs.writeFile(file, png);
+	const source = path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.png");
+	await mustExist(source);
+	await fs.copyFile(source, file);
 }
 
 async function packageLinux(): Promise<void> {
@@ -352,7 +347,7 @@ async function packageLinux(): Promise<void> {
 	await fs.mkdir(path.join(appDir, "usr", "lib", "zetawork"), { recursive: true });
 	await fs.mkdir(path.join(appDir, "usr", "bin"), { recursive: true });
 	await fs.mkdir(path.join(appDir, "usr", "share", "applications"), { recursive: true });
-	await fs.mkdir(path.join(appDir, "usr", "share", "icons", "hicolor", "128x128", "apps"), { recursive: true });
+	await fs.mkdir(path.join(appDir, "usr", "share", "icons", "hicolor", "256x256", "apps"), { recursive: true });
 
 	// GUI + companions beside each other; the TUI stays the only PATH command.
 	const payload: Array<[string, string]> = [
@@ -369,7 +364,7 @@ async function packageLinux(): Promise<void> {
 	await fs.copyFile(tui, path.join(appDir, "usr", "bin", "zetawork"));
 	await fs.chmod(path.join(appDir, "usr", "bin", "zetawork"), 0o755);
 	await fs.writeFile(path.join(appDir, "usr", "share", "applications", "zetawork.desktop"), desktopEntry(version));
-	await writeIcon(path.join(appDir, "usr", "share", "icons", "hicolor", "128x128", "apps", "zetawork.png"));
+	await writeIcon(path.join(appDir, "usr", "share", "icons", "hicolor", "256x256", "apps", "zetawork.png"));
 	await fs.writeFile(path.join(appDir, "AppRun"), `#!/bin/sh\nexec "$APPDIR/usr/lib/zetawork/zetawork-gui" "$@"\n`);
 	await fs.chmod(path.join(appDir, "AppRun"), 0o755);
 
@@ -380,7 +375,7 @@ async function packageLinux(): Promise<void> {
 		path.join(appDir, "zetawork.desktop"),
 	);
 	await fs.copyFile(
-		path.join(appDir, "usr", "share", "icons", "hicolor", "128x128", "apps", "zetawork.png"),
+		path.join(appDir, "usr", "share", "icons", "hicolor", "256x256", "apps", "zetawork.png"),
 		path.join(appDir, "zetawork.png"),
 	);
 	// AppImage integration tools (Shelly included) read the root icon through

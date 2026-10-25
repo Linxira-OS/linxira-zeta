@@ -35,6 +35,6 @@ package() {
   cp -a "$srcdir/web-ui" "$pkgdir/usr/lib/zetawork/web-ui"
   install -Dm644 "$srcdir/zetawork.desktop" "$pkgdir/usr/share/applications/linxira-zeta.desktop"
   install -Dm644 "$srcdir/zetawork.png" \
-    "$pkgdir/usr/share/icons/hicolor/128x128/apps/zetawork.png"
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/zetawork.png"
   install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/linxira-zeta/LICENSE"
 }
