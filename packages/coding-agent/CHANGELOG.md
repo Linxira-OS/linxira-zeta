@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.3] - 2026-10-25
+
 - Windows `zetacode.exe` is compiled with the Zeta icon (and title/publisher metadata); the installer now pins every shortcut to the shipped `zetawork.ico`, and the release chain rejects any Windows PE without an icon resource or with a payload that differs from the canonical logo
 - Fixed backend-attached command drift: `/goal` lifecycle and queue edits now use the protocol plane when available and the HTTP dispatcher implements the same commands instead of returning `Unsupported command`
 - `backend off` now imports backend attach replicas into normal resume history, so a standalone `zetacode --resume` reopens the complete backend conversation instead of a stale local stub
