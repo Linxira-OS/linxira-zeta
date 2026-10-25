@@ -1,0 +1,4 @@
+// Windows resource for the zetawork TUI executable (`zeta-main` bin `zeta`).
+// Explorer, the Start Menu and the installer read this PE icon; the runtime
+// terminal icon is unrelated. Keep the logo in sync with the GUI asset.
+1 ICON "../zetawork-gui/assets/icon.ico"

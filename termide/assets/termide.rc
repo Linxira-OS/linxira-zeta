@@ -1,0 +1,6 @@
+// Zeta-owned Windows resource for the vendored TermIDE binary (`zetaide`).
+// The upstream tree has no PE icon; this is a Zeta packaging deviation recorded
+// in termide/VENDOR.md. The canonical icon is
+// ../../../main/crates/zetawork-gui/assets/icon.ico; build.rs inlines it as an
+// absolute path because older windres resolves ICON paths against the CWD.
+1 ICON "@ZETA_ICON@"

@@ -255,7 +255,7 @@ describe("Windows installer contract", () => {
 		for (const target of ["$SMPROGRAMS\\zetawork.lnk", "$DESKTOP\\zetawork.lnk"]) {
 			const line = script.split("\n").find(entry => entry.includes(`CreateShortcut "${target}"`));
 			expect(line, target).toBeDefined();
-			expect(line, target).toContain('"$INSTDIR\\zetawork-gui.exe" 0');
+			expect(line, target).toContain('"$INSTDIR\\zetawork.ico" 0');
 		}
 	});
 
@@ -263,7 +263,7 @@ describe("Windows installer contract", () => {
 		// `zetacode serve` hosts web-ui from its own directory; an installer
 		// without the build leaves the backend able to start but the browser UI
 		// missing (the 503 page).
-		expect(script).toContain('File /r "${SOURCE_DIR}/web-ui"');
+		expect(script).toContain('File /r "${SRC}web-ui"');
 		expect(script).toContain('RMDir /r "$INSTDIR\\web-ui"');
 	});
 
@@ -281,13 +281,26 @@ describe("Windows installer contract", () => {
 	});
 
 	it("ships the executable icon and the per-monitor-v2 DPI manifest", () => {
-		expect(script).toContain('!define MUI_ICON "${SOURCE_DIR}');
+		expect(script).toContain('!if /FileExists "${SOURCE_DIR}/zetawork-gui.exe"');
+		expect(script).toContain('!define SRC "${SOURCE_DIR}/"');
+		expect(script).toContain('!define SRC "${SOURCE_DIR}\\"');
+		expect(script).toContain('!define MUI_ICON "${SRC}zetawork.ico"');
+		expect(script).toContain('File "${SRC}zetawork.ico"');
+		expect(script).toContain('"$INSTDIR\\zetawork.ico" 0');
 		const rc = fs.readFileSync(
 			path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "zetawork-gui.rc"),
 			"utf8",
 		);
 		expect(rc).toContain('1 ICON "icon.ico"');
 		expect(rc).toContain('1 24 "zetawork-gui.manifest"');
+		for (const relative of [
+			path.join("main", "crates", "zeta-main", "assets", "zeta-main.rc"),
+			path.join("termide", "assets", "termide.rc"),
+		]) {
+			const resource = fs.readFileSync(path.join(repoRoot, relative), "utf8");
+			expect(resource, relative).toContain("ICON");
+			expect(resource, relative).toContain("icon.ico");
+		}
 		const manifest = fs.readFileSync(
 			path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "zetawork-gui.manifest"),
 			"utf8",

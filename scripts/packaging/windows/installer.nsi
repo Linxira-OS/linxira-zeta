@@ -48,6 +48,15 @@ RequestExecutionLevel user
   !define OUT_FILE "zetawork-setup-x64.exe"
 !endif
 
+; `SOURCE_DIR` comes from `Bun.mkdtemp`: `/tmp/...` on Linux and `\tmp\...`
+; on Windows. NSIS resolves only the host separator, so probe the staged GUI
+; once and keep one spelling for every `File`/icon directive.
+!if /FileExists "${SOURCE_DIR}/zetawork-gui.exe"
+  !define SRC "${SOURCE_DIR}/"
+!else
+  !define SRC "${SOURCE_DIR}\"
+!endif
+
 !define PRODUCT_NAME "Linxira Zeta"
 !define PRODUCT_PUBLISHER "Linxira OS"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\LinxiraZeta"
@@ -62,8 +71,8 @@ ShowUninstDetails show
 
 ; Icon for the installer itself and its Add/Remove entry. The packaging
 ; script stages it beside the executables (`SOURCE_DIR`).
-!define MUI_ICON "${SOURCE_DIR}/zetawork.ico"
-!define MUI_UNICON "${SOURCE_DIR}/zetawork.ico"
+!define MUI_ICON "${SRC}zetawork.ico"
+!define MUI_UNICON "${SRC}zetawork.ico"
 !define MUI_ABORTWARNING
 
 ; Language selection is the language dialog MUI2 shows from .onInit (there is
@@ -109,25 +118,26 @@ Section "$(SEC_CORE_NAME)" SEC_CORE
   SectionIn RO
   SetShellVarContext current
   SetOutPath "$INSTDIR"
-  File "${SOURCE_DIR}/zetawork-gui.exe"
-  File "${SOURCE_DIR}/zetacode.exe"
-  File "${SOURCE_DIR}/zetaide.exe"
-  File "${SOURCE_DIR}/zetawork.exe"
-  File "${SOURCE_DIR}/WebView2Loader.dll"
+  File "${SRC}zetawork-gui.exe"
+  File "${SRC}zetacode.exe"
+  File "${SRC}zetaide.exe"
+  File "${SRC}zetawork.exe"
+  File "${SRC}WebView2Loader.dll"
+  File "${SRC}zetawork.ico"
   ; The browser UI `zetacode serve` hosts, in the layout it resolves from its
   ; own directory (`web-ui/.next/standalone/server.js`).
-  File /r "${SOURCE_DIR}/web-ui"
+  File /r "${SRC}web-ui"
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
   CreateDirectory "$SMPROGRAMS"
-  CreateShortcut "$SMPROGRAMS\zetawork.lnk" "$INSTDIR\zetawork-gui.exe" "" "$INSTDIR\zetawork-gui.exe" 0
+  CreateShortcut "$SMPROGRAMS\zetawork.lnk" "$INSTDIR\zetawork-gui.exe" "" "$INSTDIR\zetawork.ico" 0
 
   WriteRegStr HKCU "Software\LinxiraZeta" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\zetawork-gui.exe"
+  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\zetawork.ico"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
@@ -147,7 +157,7 @@ Section "$(SEC_DESKTOP_NAME)" SEC_DESKTOP
     ${EndIf}
   ${EndIf}
   SetShellVarContext current
-  CreateShortcut "$DESKTOP\zetawork.lnk" "$INSTDIR\zetawork-gui.exe" "" "$INSTDIR\zetawork-gui.exe" 0
+  CreateShortcut "$DESKTOP\zetawork.lnk" "$INSTDIR\zetawork-gui.exe" "" "$INSTDIR\zetawork.ico" 0
   done_desktop:
 SectionEnd
 
@@ -190,6 +200,7 @@ Section "Uninstall"
   Delete "$INSTDIR\zetaide.exe"
   Delete "$INSTDIR\zetawork.exe"
   Delete "$INSTDIR\WebView2Loader.dll"
+  Delete "$INSTDIR\zetawork.ico"
   Delete "$INSTDIR\uninstall.exe"
   RMDir /r "$INSTDIR\web-ui"
   RMDir "$INSTDIR"

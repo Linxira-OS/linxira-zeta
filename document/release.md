@@ -493,6 +493,26 @@ waits on it, and `scripts/check-workbench-bundles.ts` fails when a shippable
 leg disappears or an upload family exists that the release does not create.
 Every asset name carries the numeric version (`v` stripped).
 
+**Windows icon surface** — all shipped `.exe` files (GUI, TUI, `zetacode`,
+`zetaide`, `termide-editor`) embed the same committed logo from
+`main/crates/zetawork-gui/assets/icon.ico`; the NSIS installer installs that
+`.ico` and pins the Start Menu, desktop and Add/Remove icons to it rather than
+relying on an Explorer fallback. `bun scripts/check-windows-icons.ts` runs in
+the `check` job and, with `--binaries <exe…>`, in every Windows release leg;
+it fails on a PE without `RT_ICON`/`RT_GROUP_ICON` or whose icon payload differs from the canonical `.ico`. `windres` resolution is
+prefixed-tool aware (`x86_64-w64-mingw32-windres`) because the Ubuntu runner
+does not provide a bare `windres`, and release builds panic instead of warning
+when the resource cannot be compiled. TermIDE's build script materializes its
+committed `.rc` template with an absolute icon path: older `windres` resolves
+`ICON` paths against the CWD, while newer ones use the `.rc` directory. Bun's
+cross-compiled Windows runtime may also carry its own icon group; the guard
+checks the lowest-id group (the one Explorer selects) against the canonical
+`.ico`. The NSIS script probes `${SOURCE_DIR}` once and picks the host
+separator (`/` on the Linux runner, `\` on Windows) because makensis rejects a
+foreign separator in `File` paths. The `win32-x64` zetacode leg runs on
+`windows-2022` because Bun applies `windows.icon` only when compiling on
+Windows; Linux cross-builds retain Bun's own icon group and no app icon.
+
 ### Linux downstream packaging contract (Linxira OS `[linxira]` repo)
 
 From **1.1.19** Zeta ships as a system package in the Linxira OS mainline
