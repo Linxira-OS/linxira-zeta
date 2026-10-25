@@ -3,6 +3,7 @@
 ## 下一版本（Unreleased）
 
 ### 1.4.3
+- **IDE 版本面**：`zetaide --version` / `termide-editor --version` 改按 Zeta 产品线显示（如 `1.4.3 (termide 0.41.0)`）；vendored TermIDE 的 Cargo workspace 仍保持上游 `0.41.0`，避免每次上游快照重放冲突。
 - **Windows 图标统一**：zetawork GUI、TUI、zetacode、zetaide 以及 editor 载荷全部使用同一个 Zeta logo；安装器和桌面/开始菜单快捷方式固定引用随包 `zetawork.ico`，不再依赖 Explorer 的 exe 图标回退。发布链新增 PE 图标校验：Windows 产物缺 `RT_ICON`/`RT_GROUP_ICON` 或图标载荷与统一 logo 不一致，直接失败。
 - **后端命令面补齐**：`/goal` 生命周期与队列编辑（remove/promote/abort-and-restore）在 WebSocket 存在时优先走协议面；HTTP 回退也实现同名指令，不再出现 `Unsupported command: goal`。
 - **HTTP 斜杠命令真正执行**：轻量 `zetacode attach` 与无 WebSocket 回退不再把 `/compact`、`/fast`、`/rename` 等内置命令当普通提示词发给模型；后端按 ACP headless 处理器执行，TUI-only 命令改为提示使用完整 TUI。

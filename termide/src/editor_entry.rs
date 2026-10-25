@@ -51,7 +51,7 @@ use termide_theme::{set_ansi16_mode, set_themes_dir};
 #[derive(Parser)]
 #[command(
     name = "termide-editor",
-    version = termide_core::VERSION,
+    version = env!("ZETA_DISPLAY_VERSION"),
     about = "Terminal editor (the @linxiraos/editor payload)"
 )]
 struct EditorCli {

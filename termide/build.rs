@@ -11,6 +11,16 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=assets/termide.rc");
     println!("cargo:rerun-if-changed=../main/crates/zetawork-gui/assets/icon.ico");
+    println!("cargo:rerun-if-changed=../packages/coding-agent/package.json");
+
+    // The vendored TermIDE workspace keeps its upstream 0.41.0 crate version
+    // so future snapshots stay mergeable. The product-facing `--version` still
+    // follows the Zeta release line, with the upstream version kept in
+    // parentheses for traceability.
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let upstream = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".to_owned());
+    let zeta = zeta_version(&manifest_dir).unwrap_or_else(|| upstream.clone());
+    println!("cargo:rustc-env=ZETA_DISPLAY_VERSION={zeta} (termide {upstream})");
 
     if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;
@@ -19,7 +29,6 @@ fn main() {
         return;
     }
 
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR"));
     let object = out_dir.join("termide-resource.o");
     let script = match resource_script(&manifest_dir, &out_dir) {
@@ -46,6 +55,25 @@ fn main() {
             println!("cargo:warning=could not compile the Windows icon resource: {error}");
         }
     }
+}
+
+/// Zeta product version (`packages/coding-agent/package.json`). The vendored
+/// workspace itself stays on the upstream TermIDE version.
+fn zeta_version(manifest_dir: &Path) -> Option<String> {
+    let text = fs::read_to_string(
+        manifest_dir
+            .join("..")
+            .join("packages")
+            .join("coding-agent")
+            .join("package.json"),
+    )
+    .ok()?;
+    let key = "\"version\"";
+    let after_key = &text[text.find(key)? + key.len()..];
+    let after_colon = &after_key[after_key.find(':')? + 1..];
+    let start = after_colon.find('"')? + 1;
+    let end = after_colon[start..].find('"')? + start;
+    Some(after_colon[start..end].to_owned())
 }
 
 /// Materialize the committed template with an absolute icon path. Older

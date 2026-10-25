@@ -25,6 +25,7 @@
 | 29 | `src/main.rs` | **CLI 展示名**：`#[command(name = "termide", about = "Terminal IDE")]` → `name = "zetaide"`、`about = "Linxira Zeta IDE"`；`--help` 的 `Usage:` 行原本印上游 `termide.exe` | 上游写自家产品名 | **保留**（Zeta 2026-10-22：`zetaide --help` 是对外品牌面，与偏离 28 的窗口标题同一决定） | 2026-10-22 |
 
 | 30 | `build.rs`、`assets/termide.rc`（新增） | **Windows PE 图标**：为 `termide` / `termide-editor` 编入与 zetawork 共用的 `icon.ico`；上游无 Windows 资源，Explorer/安装器原本显示通用图标。`build.rs` 把模板里的 `@ZETA_ICON@` 换成绝对路径再交给 windres（旧版 windres 按 CWD 解析 `ICON`，新版按 rc 文件目录解析，绝对路径两边都对） | 上游无此物 | **保留**（Zeta 2026-10-25：所有 Zeta 主 exe 同一 logo，名称区分产品；release windows-gnu 缺 windres 时构建失败，避免发无图标二进制） | 2026-10-25 |
+| 35 | `build.rs`、`src/main.rs`、`src/editor_entry.rs` | **`--version` 显示 Zeta 产品线**：Cargo workspace 仍保持上游 `0.41.0`（便于后续快照重放）；`build.rs` 从根 `package.json` 读取 Zeta 版本，注入 `ZETA_DISPLAY_VERSION`，`zetaide --version` / `termide-editor --version` 输出 `1.4.x (termide 0.41.0)` | 上游只显示自身 crate 版本 | **保留**（Zeta 2026-10-25：IDE 是 Zeta 产品，但 vendored 内部版本不追 Zeta 线） | 2026-10-25 |
 
 ## 与仓库其余部分的关系
 

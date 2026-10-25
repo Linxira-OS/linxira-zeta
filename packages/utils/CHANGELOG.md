@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.4.3; no package-specific user-visible changes.
+
 ## [1.4.2] - 2026-10-24
 
 - Added `ZETA_WEB_PORT` (43141), `ZETA_GATEWAY_PORT` (43143) and `ZETA_STATS_PORT` (43147) as the single source for Zeta's local service defaults

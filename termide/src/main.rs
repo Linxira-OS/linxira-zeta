@@ -19,7 +19,7 @@ use termide_theme::{set_ansi16_mode, set_themes_dir};
 #[command(
     name = "zetaide",
     bin_name = "zetaide",
-    version = termide_core::VERSION,
+    version = env!("ZETA_DISPLAY_VERSION"),
     about = "Linxira Zeta IDE"
 )]
 #[command(group(ArgGroup::new("headless").args(["prompt", "recall"])))]
