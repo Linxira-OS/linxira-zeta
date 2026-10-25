@@ -233,7 +233,9 @@ instance and refuses to guess:
 `zetacode attach --list` prints every backend session across repositories
 (id, `cwd @ branch`, modified time, name/status), `zetacode attach <id>` attaches the
 plain terminal client, and `zetacode attach --new` creates a session in the
-current (or `--cwd`) directory.
+current (or `--cwd`) directory. Builtin slash commands with a headless handler
+(`/compact`, `/fast`, `/rename`, …) execute on the backend; TUI-only commands
+print a hint to use the full TUI instead of being sent to the model as text.
 
 The TUI keeps its renderer: the backend session is mirrored into a local
 replica so transcript replay, the status line, and dialogs behave natively.

@@ -40,6 +40,7 @@ import {
 	type GoalContinuationOp,
 } from "../../goals/continuation-controller";
 import { RpcLiveBridge } from "../../modes/rpc/rpc-live";
+import { executeAcpBuiltinSlashCommand } from "../../slash-commands/acp-builtins";
 import { type BackendLoopState, LoopContinuationController } from "../../loop/continuation-controller";
 import type { GoalModeState } from "../../goals/state";
 import type { LocalProtocolOptions } from "../../internal-urls";
@@ -672,6 +673,46 @@ export class AgentSessionWrapper {
 				// never sends them; thinkingLevel goes through set_thinking_level).
 				const { message, images, streamingBehavior, loopBody } = command;
 				if (loopBody !== false) this.#loopController.noteUserPrompt(message);
+				// A slash command is not model text. `AgentSession.prompt` expands
+				// extension/custom/file commands but not builtins with an ACP handler,
+				// so the HTTP surface must dispatch those here just like RPC/ACP do.
+				// Without this, `zetacode attach` and the no-WebSocket fallback sent
+				// `/compact`, `/fast`, `/rename`, `/goal`, … to the model verbatim.
+				const builtin = await executeAcpBuiltinSlashCommand(message, {
+					session: this.#inner,
+					sessionManager: this.#inner.sessionManager,
+					settings: this.#inner.settings,
+					cwd: this.#inner.sessionManager.getCwd(),
+					images: images as ImageContent[] | undefined,
+					output: text => this.#emit({ type: "command_output", text }),
+					refreshCommands: () => {},
+					reloadPlugins: async () => {
+						await this.#inner.reload();
+					},
+					notifyTitleChanged: async () => {
+						this.#emit({
+							type: "session_info_update",
+							title: this.#inner.sessionName,
+							sessionId: this.#inner.sessionId,
+						});
+					},
+					notifyConfigChanged: async () => {
+						this.#emit({
+							type: "config_update",
+							model: this.#inner.model,
+							thinkingLevel: this.#inner.thinkingLevel,
+						});
+					},
+				});
+				if (builtin !== false) {
+					if ("prompt" in builtin) {
+						await this.#inner.prompt(builtin.prompt, {
+							...(images?.length ? { images: images as ImageContent[] } : {}),
+							...(streamingBehavior ? { streamingBehavior } : {}),
+						});
+					}
+					return { ok: true };
+				}
 				await this.#inner.prompt(message, {
 					...(images?.length ? { images: images as ImageContent[] } : {}),
 					...(streamingBehavior ? { streamingBehavior } : {}),

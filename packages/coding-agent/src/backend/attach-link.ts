@@ -196,13 +196,11 @@ export class BackendAttachLink {
 		this.#pausedGoalId =
 			session.getGoalModeState()?.goal?.status === "paused" ? session.getGoalModeState()?.goal?.id : undefined;
 		this.#unsubscribeLocal = session.subscribe(event => {
-			if (!this.#wire) return;
 			if (event.type === "state_version_changed") {
 				// Plan/goal/vibe live on the replica until the run does; every
 				// transition emits this event, so diffing is lossless. The entry
 				// options travel with the command: without them a goal loses its
 				// objective/budget and a plan loses its file/workflow.
-				const wire = this.#wire;
 				const warn = (mode: string) => (error: unknown) =>
 					this.#ctx.showWarning(`Backend ${mode} mode switch failed: ${String(error)}`);
 
@@ -212,14 +210,14 @@ export class BackendAttachLink {
 					this.#lastModes.plan = planOn;
 					void (
 						planOn
-							? wire.enterMode("plan", {
+							? this.enterMode("plan", {
 									planFilePath: planState?.planFilePath,
 									workflow: planState?.workflow,
 									reentry: planState?.reentry,
 									enteredBy: planState?.enteredBy,
 									objective: planState?.objective,
 								})
-							: wire.exitMode("plan")
+							: this.exitMode("plan")
 					).catch(warn("plan"));
 				}
 
@@ -232,8 +230,8 @@ export class BackendAttachLink {
 						this.#pausedGoalId = undefined;
 						void (
 							resuming
-								? wire.resumeGoal()
-								: wire.enterMode("goal", {
+								? this.goal("resume")
+								: this.enterMode("goal", {
 										objective: goalState?.goal?.objective,
 										tokenBudget: goalState?.goal?.tokenBudget,
 									})
@@ -241,34 +239,51 @@ export class BackendAttachLink {
 					} else if (goalState?.goal?.status === "paused") {
 						// A paused goal keeps its state entry and stays resumable.
 						this.#pausedGoalId = goalState.goal.id;
-						void wire.pauseGoal().catch(warn("goal"));
+						void this.goal("pause").catch(warn("goal"));
 					} else {
 						this.#pausedGoalId = undefined;
-						void wire.dropGoal().catch(warn("goal"));
+						void this.goal("drop").catch(warn("goal"));
 					}
 				}
 
 				const vibeOn = Boolean(session.getVibeModeState()?.enabled);
 				if (this.#lastModes.vibe !== vibeOn) {
 					this.#lastModes.vibe = vibeOn;
-					void (vibeOn ? wire.enterMode("vibe") : wire.exitMode("vibe")).catch(warn("vibe"));
+					void (vibeOn ? this.enterMode("vibe") : this.exitMode("vibe")).catch(warn("vibe"));
 				}
 			}
 			if (event.type === "model_changed") {
 				const model = this.#ctx.session.model;
 				if (!model) return;
-				void this.#wire.setModel(model.provider, model.id).catch(error => {
+				const fail = (error: unknown) => {
 					this.#ctx.showWarning(`Backend model switch failed: ${String(error)}`);
 					// The replica already changed its own model; pull the backend's
 					// authoritative state back so the UI cannot claim a model the
 					// backend rejected.
 					this.#scheduleStateRefresh();
-				});
+				};
+				if (this.#wire) {
+					void this.#wire.setModel(model.provider, model.id).catch(fail);
+				} else {
+					void this.client
+						.send(this.#sessionId, { type: "set_model", provider: model.provider, modelId: model.id })
+						.catch(fail);
+				}
 			} else if (event.type === "thinking_level_changed" && event.thinkingLevel) {
-				void this.#wire.setThinking(event.thinkingLevel).catch(error => {
+				const fail = (error: unknown) => {
 					this.#ctx.showWarning(`Backend thinking switch failed: ${String(error)}`);
 					this.#scheduleStateRefresh();
-				});
+				};
+				if (this.#wire) {
+					void this.#wire.setThinking(event.thinkingLevel).catch(fail);
+				} else {
+					void this.client
+						.send(this.#sessionId, {
+							type: "set_thinking_level",
+							level: String(event.thinkingLevel),
+						})
+						.catch(fail);
+				}
 			}
 		});
 

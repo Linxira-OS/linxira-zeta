@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+- Fixed backend-attached command drift: `/goal` lifecycle and queue edits now use the protocol plane when available and the HTTP dispatcher implements the same commands instead of returning `Unsupported command`
+- `backend off` now imports backend attach replicas into normal resume history, so a standalone `zetacode --resume` reopens the complete backend conversation instead of a stale local stub
+- HTTP prompt frames now execute builtin slash commands on the backend (the `zetacode attach` client and the no-WebSocket fallback no longer send `/compact`, `/fast`, `/rename`, … to the model as text); TUI-only builtins get a full-TUI hint instead
+- Attached model, thinking-level and plan/goal/vibe switches now reach the backend over HTTP when the protocol socket is unavailable
+
 ## [1.4.2] - 2026-10-24
 
 - Bare `zetacode` follows the new machine-wide `backend.enabled` switch: off (default) keeps every launch local, on attaches it to the one hidden backend. Added `zetacode backend on|off|status|logs`, drain-before-stop, single-instance refusal, and `--standalone`/`--local` for a forced local process

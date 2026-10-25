@@ -1,3 +1,5 @@
+import { lookupBuiltinSlashCommand } from "../slash-commands/builtin-registry";
+
 /**
  * Slash-command routing for a TUI attached to a backend-owned session.
  *
@@ -100,6 +102,17 @@ export const BACKEND_ATTACH_REFUSED_COMMANDS: Record<string, true> = {
 	leave: true,
 	live: true,
 };
+
+/**
+ * Whether a slash command is a builtin that only the full TUI can run. The
+ * lightweight `zetacode attach` client has no renderer/selector for these and
+ * must not forward them to the backend as model text.
+ */
+export function isBackendAttachTuiOnlyBuiltin(verb: string): boolean {
+	if (verb.length === 0) return false;
+	const command = lookupBuiltinSlashCommand(verb);
+	return command !== undefined && typeof command.handle !== "function";
+}
 
 /**
  * Whether a slash command runs in the attached TUI itself instead of being

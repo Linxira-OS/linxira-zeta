@@ -8,6 +8,7 @@ import {
 	isBackendAttachLocalCommand,
 	isBackendAttachRefusedCommand,
 } from "../src/modes/controllers/input-controller";
+import { isBackendAttachTuiOnlyBuiltin } from "../src/backend/attach-commands";
 
 /**
  * Attached TUI command routing. Three tiers:
@@ -123,6 +124,27 @@ describe("backend-attach command routing", () => {
 	it("routes /restart to the backend host instead of refusing it", () => {
 		expect(isBackendAttachRefusedCommand("restart")).toBe(false);
 		expect(isBackendAttachLocalCommand("restart")).toBe(false);
+	});
+
+	it("classifies builtins that only the full TUI can run", () => {
+		for (const verb of [
+			"branch",
+			"tree",
+			"clear",
+			"delete",
+			"fork",
+			"loop",
+			"queue",
+			"btw",
+			"login",
+			"logout",
+			"goal",
+		]) {
+			expect(isBackendAttachTuiOnlyBuiltin(verb), verb).toBe(true);
+		}
+		for (const verb of ["compact", "fast", "slow", "guided-goal", "rename", "share", "skills"]) {
+			expect(isBackendAttachTuiOnlyBuiltin(verb), verb).toBe(false);
+		}
 	});
 
 	it("routes /loop to the backend loop controller rather than refusing it", () => {

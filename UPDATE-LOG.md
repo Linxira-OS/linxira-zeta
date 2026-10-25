@@ -2,6 +2,12 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.3
+- **后端命令面补齐**：`/goal` 生命周期与队列编辑（remove/promote/abort-and-restore）在 WebSocket 存在时优先走协议面；HTTP 回退也实现同名指令，不再出现 `Unsupported command: goal`。
+- **HTTP 斜杠命令真正执行**：轻量 `zetacode attach` 与无 WebSocket 回退不再把 `/compact`、`/fast`、`/rename` 等内置命令当普通提示词发给模型；后端按 ACP headless 处理器执行，TUI-only 命令改为提示使用完整 TUI。
+- **resume 不再分裂**：`backend off` 自动把 `~/.zeta/backend` 的 attach replica 导入正常会话存储；独立 `zetacode --resume` 能看到完整后端对话，不再只看到本地 stub。
+- **无协议面也保持状态一致**：模型、思考等级以及 plan/goal/vibe 切换在 WebSocket 不可用时改走 HTTP 命令，不再只改本地副本。
+
 ### 1.4.2
 - **`/guided-goal` 后端可用**：interview 从 TUI 专属路径下沉到 `AgentSession.startGuidedGoal`，后端 RPC/网关新增 `guided_goal` 指令，attach 客户端转发并在状态中镜像 `guidedGoalInterview`（访谈期间裸 `c` 仍是回答，不会触发模式切换）。后端会话自己激活 `goal` 工具、发送隐藏 kickoff，收到 goal create 或首个工具调用后结束访谈；不再提示“仅限 TUI”。
 - **后端模式开关**：新增全局 `backend.enabled`（默认关闭）与 `backend.workspace`。关闭时

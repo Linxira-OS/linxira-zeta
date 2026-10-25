@@ -372,6 +372,16 @@ describe("web-gateway plan approval → goal", () => {
 		expect(rpcOnly.model.calls).toHaveLength(1);
 	}, 30_000);
 
+	it("executes builtin slash commands carried by HTTP prompt frames", async () => {
+		const harness = await startSession({ key: "sess-http-builtin", responses: [] });
+		const response = await harness.wrapper.send({ type: "prompt", message: "/rename HTTP builtin" });
+
+		expect(response).toEqual({ ok: true });
+		expect(harness.session.sessionManager.getSessionName()).toBe("HTTP builtin");
+		expect(harness.events.some(event => event.type === "session_info_update")).toBe(true);
+		expect(harness.model.calls).toHaveLength(0);
+	});
+
 	it("a host abort stops goal continuation before the aborted turn yields", async () => {
 		const harness = await startSession({
 			key: "sess-goal-abort",

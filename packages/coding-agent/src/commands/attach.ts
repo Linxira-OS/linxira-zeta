@@ -22,6 +22,7 @@ import {
 	backendAttachRefusalHint,
 	isBackendAttachLocalCommand,
 	isBackendAttachRefusedCommand,
+	isBackendAttachTuiOnlyBuiltin,
 } from "../backend/attach-commands";
 import { Args, Command, Flags } from "@linxiraos/pi-utils/cli";
 import { attachHelp as commandHelp } from "../cli/command-help";
@@ -367,6 +368,10 @@ export default class Attach extends Command {
 								process.stderr.write(
 									`/${verb} is a client-side command; run it in the full TUI (zetacode --attach)\n`,
 								);
+								break;
+							}
+							if (isBackendAttachTuiOnlyBuiltin(verb)) {
+								process.stderr.write(`/${verb} needs the full TUI: zetacode --attach\n`);
 								break;
 							}
 							// Backend-capable builtins (and custom commands) execute with the
