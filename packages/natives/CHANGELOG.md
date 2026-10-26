@@ -1,10 +1,8 @@
 ## [Unreleased]
 
+## [1.4.4] - 2026-10-26
+
 - Released as part of Zeta 1.4.4; no package-specific user-visible changes.
-
-## [1.4.3] - 2026-10-25
-
-- Released as part of Zeta 1.4.3; no package-specific user-visible changes.
 
 ## [9.8.0] - 2026-02-01
 
@@ -154,6 +152,10 @@
 ### Fixed
 
 - Fixed potential crashes when updating native binaries by using safe copy strategy that avoids overwriting in-memory binaries
+
+## [1.4.3] - 2026-10-25
+
+- Released as part of Zeta 1.4.3; no package-specific user-visible changes.
 
 ## [1.4.2] - 2026-10-24
 

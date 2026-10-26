@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.4] - 2026-10-26
+
 - Desktop shell now honors `backend.enabled=false` by default (local `zetacode` terminals) and bundles Maple Mono CN for CJK/Braille terminal rendering
 
 ## [1.4.3] - 2026-10-25
