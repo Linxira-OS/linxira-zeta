@@ -48,6 +48,14 @@ import { writeZip } from "./packaging/zip";
 
 const repoRoot = path.join(import.meta.dir, "..");
 
+/**
+ * The two notice files every desktop asset carries. The aggregate notice names
+ * the bundled font; the font file itself is embedded in the GUI, so the OFL
+ * text has to travel beside the binary for the same reason the notice does.
+ */
+const NOTICES = path.join(repoRoot, "THIRD-PARTY-NOTICES.txt");
+const FONT_OFL = path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "fonts", "OFL.txt");
+
 function arg(name: string): string | undefined {
 	const index = process.argv.indexOf(`--${name}`);
 	if (index >= 0) return process.argv[index + 1];
