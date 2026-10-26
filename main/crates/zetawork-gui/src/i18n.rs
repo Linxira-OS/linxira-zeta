@@ -114,6 +114,14 @@ static EN: &[(&str, &str)] = &[
 	),
 	("CJK 字体：界面 {} · 等宽 {}", "CJK font: UI {} · mono {}"),
 	(
+		"CJK 字体：内置 Maple Mono CN · 界面 {}",
+		"CJK font: bundled Maple Mono CN · UI {}",
+	),
+	(
+		"CJK 字体：内置 Maple Mono CN · 界面 未找到",
+		"CJK font: bundled Maple Mono CN · UI not found",
+	),
+	(
 		"CJK 字体：界面 {} · 等宽 未找到固定宽度中文字体（全角对齐可能漂移）",
 		"CJK font: UI {} · no fixed-pitch CJK face (full-width alignment may drift)",
 	),
@@ -610,6 +618,12 @@ static EN: &[(&str, &str)] = &[
 		"Mono font: {} is not installed; falling back to the CJK mono face",
 	),
 	("等宽字体：回退到 CJK 等宽字体", "Mono font: falling back to the CJK mono face"),
+	("等宽字体：内置 Maple Mono CN", "Mono font: bundled Maple Mono CN"),
+	("等宽字体：内置 Maple Mono CN · 编辑器 {}", "Mono font: bundled Maple Mono CN · editor {}"),
+	(
+		"等宽字体：内置 Maple Mono CN · {} 未安装，回退到内置字体",
+		"Mono font: bundled Maple Mono CN · {} is not installed; using the bundled face",
+	),
 	("等待你的输入", "Waiting for your input"),
 	("管理", "Manage"),
 	(
@@ -1082,6 +1096,7 @@ static EN: &[(&str, &str)] = &[
 	("后台服务：运行中", "Backend: running"),
 	("后台服务：停止中…", "Backend: stopping…"),
 	("后台服务：已停止", "Backend: stopped"),
+	("后台服务：已关闭（backend.enabled=false）", "Backend: off (backend.enabled=false)"),
 	("后台服务：失败 · {}", "Backend: failed · {}"),
 	("后台服务：失败", "Backend: failed"),
 	(
@@ -1097,10 +1112,15 @@ static EN: &[(&str, &str)] = &[
 	("后台服务未运行。", "The background backend is not running."),
 	("随包的 zetacode 无法启动：{}", "The bundled zetacode could not be launched: {}"),
 	("无法运行 zetacode daemon：{}", "Could not run zetacode daemon: {}"),
+	("无法运行 zetacode：{}", "Could not run zetacode: {}"),
 	("zetacode daemon {} 退出码 {}", "zetacode daemon {} exited with code {}"),
+	("zetacode {} 退出码 {}", "zetacode {} exited with code {}"),
 	("zetacode daemon {} 超时", "zetacode daemon {} timed out"),
+	("zetacode {} 超时", "zetacode {} timed out"),
 	("等待 zetacode daemon 失败：{}", "Waiting for zetacode daemon failed: {}"),
+	("等待 zetacode 失败：{}", "Waiting for zetacode failed: {}"),
 	("daemon status 的 JSON 无法解析：{}", "The daemon status JSON could not be parsed: {}"),
+	("backend status 的 JSON 无法解析：{}", "The backend status JSON could not be parsed: {}"),
 	("后台服务在 {} 秒内没有就绪", "The background backend did not become ready within {} seconds"),
 	("后台进程已退出", "The background backend process exited"),
 	(
@@ -1146,8 +1166,6 @@ static EN: &[(&str, &str)] = &[
 	("创建工作树根目录失败：{}", "Creating the worktree root failed: {}"),
 	("创建配置目录失败：{}", "Creating the config directory failed: {}"),
 	("取消置顶", "Unpin"),
-	("后端已重启", "Backend restarted"),
-	("后端已重启：{}", "Backend restarted: {}"),
 	("工作区", "Workspaces"),
 	("工作树", "Worktrees"),
 	("工作树目录为空", "The worktree path is empty"),
@@ -1217,15 +1235,14 @@ static EN: &[(&str, &str)] = &[
 	("进度", "Progress"),
 	("远程分支，会创建同名的本地分支", "Remote branch; a local branch of the same name is created"),
 	("重启后端", "Restart the backend"),
-	("重启后端失败：{}", "Restarting the backend failed: {}"),
-	("重启后端的线程已结束", "The backend-restart thread ended"),
+	("设置 → 常规 → 后台服务", "Settings → General → Backend"),
 	("重新读取会话列表", "Re-read the session list"),
 	("重新读取工作树", "Re-read the worktrees"),
 	("重新读取跟踪文档", "Re-read the tracking documents"),
 	("阶段", "Phase"),
 	("阻塞", "Blockers"),
 	("（分离 HEAD）", "(detached HEAD)"),
-	("（无窗口模式）将运行 zetacode daemon restart", "(headless) would run zetacode daemon restart"),
+	("（无窗口模式）将重启后台服务", "(headless) would restart the background backend"),
 	("（没有目录）", "(no directory)"),
 ];
 

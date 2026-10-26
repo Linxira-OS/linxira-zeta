@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Desktop shell now honors `backend.enabled=false` by default (local `zetacode` terminals) and bundles Maple Mono CN for CJK/Braille terminal rendering
+
 ## [1.4.3] - 2026-10-25
 
 - Windows `zetacode.exe` is compiled with the Zeta icon (and title/publisher metadata); the installer now pins every shortcut to the shipped `zetawork.ico`, and the release chain rejects any Windows PE without an icon resource or with a payload that differs from the canonical logo

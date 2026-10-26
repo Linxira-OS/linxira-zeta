@@ -40,6 +40,12 @@ const CJK_UI_FACE: &str = "cjk-ui";
 /// egui font-data name of the fixed-pitch CJK face.
 const CJK_MONO_FACE: &str = "cjk-mono";
 
+/// The bundled terminal/editor face: Maple Mono CN Regular (OFL-1.1). It
+/// covers Latin, CJK, Braille and the common box/block symbols with a strict
+/// 1:2 advance ratio, so the grid never depends on host fonts.
+const BUNDLED_MONO_FACE: &str = "zeta-maple-mono-cn";
+const BUNDLED_MONO_BYTES: &[u8] = include_bytes!("../assets/fonts/MapleMono-CN-Regular.ttf");
+
 /// Windows faces, in preference order. SimSun and NSimSun live in the same
 /// collection (face 0 and 1); both have a uniform 128/256 adv for ASCII/CJK.
 #[cfg(windows)]
@@ -116,6 +122,8 @@ pub struct Fonts {
 	pub cjk_mono: Option<(PathBuf, u32)>,
 	/// The mono face the editor and terminal panes use.
 	pub mono: Option<PathBuf>,
+	/// The bundled Maple Mono CN face is always available and leads the grid.
+	pub bundled_mono: bool,
 	/// The mono face the user asked for, when it is not the one loaded.
 	pub mono_missing: Option<String>,
 }
@@ -125,6 +133,12 @@ impl Fonts {
 	/// face was found (full-width alignment may then drift).
 	pub fn cjk_line(&self) -> String {
 		let ui = face_name(self.cjk_ui.as_ref());
+		if self.bundled_mono {
+			return match self.cjk_ui.as_ref() {
+				Some(_) => t!("CJK 字体：内置 Maple Mono CN · 界面 {}", ui),
+				None => t!("CJK 字体：内置 Maple Mono CN · 界面 未找到").to_owned(),
+			};
+		}
 		match (self.cjk_ui.as_ref(), self.cjk_mono.as_ref()) {
 			(None, None) => {
 				t!("CJK 字体：未找到（中文会显示为方块；产品需内置一款授权字体）").to_owned()
@@ -144,6 +158,15 @@ impl Fonts {
 
 	/// One line for 关于: the editor's mono face.
 	pub fn mono_line(&self) -> String {
+		if self.bundled_mono {
+			return match (&self.mono, &self.mono_missing) {
+				(Some(path), _) => t!("等宽字体：内置 Maple Mono CN · 编辑器 {}", path.display()),
+				(None, Some(wanted)) => {
+					t!("等宽字体：内置 Maple Mono CN · {} 未安装，回退到内置字体", wanted)
+				},
+				(None, None) => t!("等宽字体：内置 Maple Mono CN").to_owned(),
+			};
+		}
 		match (&self.mono, &self.mono_missing) {
 			(Some(path), _) => t!("等宽字体：{}", path.display()),
 			(None, Some(wanted)) => {
@@ -288,6 +311,10 @@ pub fn load_first(candidates: &[(PathBuf, u32)]) -> Option<(Vec<u8>, u32, PathBu
 pub fn install(ctx: &egui::Context, settings: &Settings) -> Fonts {
 	let mut definitions = FontDefinitions::default();
 	let mut report = Fonts::default();
+	definitions
+		.font_data
+		.insert(BUNDLED_MONO_FACE.to_owned(), Arc::new(FontData::from_static(BUNDLED_MONO_BYTES)));
+	report.bundled_mono = true;
 	// The interface face: proportional, for interface text.
 	if let Some((bytes, index, path)) = load_first(&cjk_ui_candidates()) {
 		definitions.font_data.insert(
@@ -310,7 +337,8 @@ pub fn install(ctx: &egui::Context, settings: &Settings) -> Fonts {
 	let ui_loaded = report.cjk_ui.is_some();
 	let mono_loaded = report.cjk_mono.is_some();
 	let ui_faces = cjk_fallbacks(CjkRole::Ui, ui_loaded, mono_loaded);
-	let mono_faces = cjk_fallbacks(CjkRole::Mono, ui_loaded, mono_loaded);
+	let mut mono_faces = vec![BUNDLED_MONO_FACE];
+	mono_faces.extend(cjk_fallbacks(CjkRole::Mono, ui_loaded, mono_loaded));
 
 	// Proportional: the UI face after egui's stock interface fonts.
 	{
@@ -346,7 +374,12 @@ pub fn install(ctx: &egui::Context, settings: &Settings) -> Fonts {
 	} else {
 		report.mono_missing = Some(settings.mono_font.label().to_owned());
 	}
-	editor_stack.extend(mono_faces.iter().map(|name| (*name).to_owned()));
+	editor_stack.push(BUNDLED_MONO_FACE.to_owned());
+	editor_stack.extend(
+		cjk_fallbacks(CjkRole::Mono, ui_loaded, mono_loaded)
+			.into_iter()
+			.map(str::to_owned),
+	);
 	editor_stack.push("Hack".to_owned());
 	definitions
 		.families
@@ -355,12 +388,10 @@ pub fn install(ctx: &egui::Context, settings: &Settings) -> Fonts {
 	// full-width advance, which is the property `blit` advances cells with.
 	// The UI face trails as the last resort so CJK still renders (with the
 	// drift 关于 warns about) when no fixed-pitch face is installed.
-	if !mono_faces.is_empty() {
-		definitions.families.insert(
-			FontFamily::Name(crate::blit::GRID_FAMILY.into()),
-			mono_faces.iter().map(|name| (*name).to_owned()).collect(),
-		);
-	}
+	definitions.families.insert(
+		FontFamily::Name(crate::blit::GRID_FAMILY.into()),
+		mono_faces.iter().map(|name| (*name).to_owned()).collect(),
+	);
 	ctx.set_fonts(definitions);
 	report
 }
@@ -377,6 +408,26 @@ mod tests {
 			assert!(!cjk_mono_candidates().is_empty());
 		}
 		assert!(!mono_candidates(MonoFont::CascadiaCode).is_empty());
+	}
+
+	#[test]
+	fn the_bundled_face_covers_cjk_and_braille_at_a_2_to_1_advance() {
+		let face = ttf_parser::Face::parse(BUNDLED_MONO_BYTES, 0).expect("bundled font parses");
+		let advance = |ch: char| {
+			let glyph = face
+				.glyph_index(ch)
+				.unwrap_or_else(|| panic!("missing U+{:04X}", ch as u32));
+			face.glyph_hor_advance(glyph).expect("horizontal advance")
+		};
+		let ascii = advance('0');
+		for code in 0x2800..=0x28ff {
+			let ch = char::from_u32(code).expect("braille scalar");
+			assert!(face.glyph_index(ch).is_some(), "missing U+{code:04X}");
+			assert_eq!(advance(ch), ascii, "Braille U+{code:04X} must occupy one cell");
+		}
+		for ch in ['一', '中', '文', '日', '本'] {
+			assert_eq!(advance(ch), ascii * 2, "{ch} must occupy two cells");
+		}
 	}
 
 	#[test]
@@ -473,6 +524,7 @@ mod tests {
 			cjk_mono: Some((PathBuf::from("C:/Windows/Fonts/simsun.ttc"), 1)),
 			mono: None,
 			mono_missing: Some("Cascadia Code".to_owned()),
+			bundled_mono: false,
 		};
 		assert!(fonts.cjk_line().contains("msyh.ttc"));
 		assert!(fonts.cjk_line().contains("simsun.ttc"));
@@ -486,6 +538,7 @@ mod tests {
 			cjk_mono: None,
 			mono: None,
 			mono_missing: None,
+			bundled_mono: false,
 		};
 		let line = fonts.cjk_line();
 		assert!(line.contains("msyh.ttc"), "the UI face is still reported");

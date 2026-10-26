@@ -27,11 +27,7 @@
 //! branches) so the caller can read them once when the palette opens rather
 //! than once per frame. [`Shell::open_palette`] is that caller.
 
-use std::{
-	path::{Path, PathBuf},
-	sync::mpsc::{Receiver, TryRecvError, channel},
-	thread,
-};
+use std::path::{Path, PathBuf};
 
 use egui::{Align, CornerRadius, FontId, Layout, Order, Rect, Sense, Stroke, pos2, vec2};
 
@@ -196,7 +192,7 @@ pub fn build(state: &AppState, files: &[PathBuf], branches: &[git::GitBranch]) -
 	items.push(Item {
 		section: t!("操作"),
 		title: t!("重启后端").to_owned(),
-		detail: "zetacode daemon restart".to_owned(),
+		detail: t!("设置 → 常规 → 后台服务").to_owned(),
 		action: Action::RestartBackend,
 	});
 	if !branches.is_empty() {
@@ -361,45 +357,20 @@ pub fn run(shell: &mut Shell, action: &Action) -> crate::state::Notice {
 	}
 }
 
-/// Start `zetacode daemon restart` on a worker; the result arrives as a toast
-/// on a later frame ([`poll_job`]).
+/// Restart through the shell's backend state machine: this honors
+/// `backend.enabled` and restarts in `backend.workspace` instead of running a
+/// bare daemon command from the GUI's own cwd.
 pub fn restart_backend(shell: &mut Shell) -> crate::state::Notice {
 	use crate::state::Notice;
-	if shell.palette_job.is_some() {
+	if shell.backend.phase().busy() {
 		return Notice(t!("正在重启后端…").to_owned());
 	}
 	if !shell.probe {
-		// A headless shell (`with_state`) never starts a CLI; the row still
-		// names what the command is.
-		return Notice(t!("（无窗口模式）将运行 zetacode daemon restart").to_owned());
+		// A headless shell (`with_state`) never starts a CLI.
+		return Notice(t!("（无窗口模式）将重启后台服务").to_owned());
 	}
-	if let Err(sentence) = crate::zetacode::resolve(crate::zetacode::Companion::Zetacode) {
-		return Notice(sentence);
-	}
-	let (sender, receiver) = channel();
-	shell.palette_job = Some(receiver);
-	thread::spawn(move || {
-		let _ = sender.send(crate::zetacode::daemon_restart());
-	});
+	shell.backend.restart();
 	Notice(t!("正在重启后端…").to_owned())
-}
-
-/// Drain the restart job, if one is in flight. Called once per frame.
-pub fn poll_job(shell: &mut Shell) -> Option<String> {
-	let receiver = shell.palette_job.take()?;
-	match receiver.try_recv() {
-		Ok(Ok(text)) => Some(if text.trim().is_empty() {
-			t!("后端已重启").to_owned()
-		} else {
-			t!("后端已重启：{}", text.trim())
-		}),
-		Ok(Err(error)) => Some(t!("重启后端失败：{}", error)),
-		Err(TryRecvError::Empty) => {
-			shell.palette_job = Some(receiver);
-			None
-		},
-		Err(TryRecvError::Disconnected) => Some(t!("重启后端的线程已结束").to_owned()),
-	}
 }
 
 /// The palette's own key handling. Returns true when it consumed the frame's
@@ -634,9 +605,6 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 	}
 }
 
-/// The palette's job receiver type, named here so `Shell` can hold one.
-pub type Job = Receiver<Result<String, String>>;
-
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -763,10 +731,9 @@ mod tests {
 
 		let headless = run(&mut shell, &Action::RestartBackend);
 		assert!(
-			headless.0.contains("daemon restart"),
-			"a headless shell names the command instead of starting it: {headless:?}"
+			headless.0.contains("重启后台服务"),
+			"a headless shell names the state transition instead of starting it: {headless:?}"
 		);
-		assert!(shell.palette_job.is_none(), "nothing was spawned");
 		let _ = std::fs::remove_dir_all(&dir);
 	}
 

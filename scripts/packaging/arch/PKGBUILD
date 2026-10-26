@@ -19,8 +19,8 @@ provides=('zetawork' 'linxira-zeta')
 # egui/eframe render through wgpu (Vulkan) and fall back to GL; the TUI needs a
 # terminal only. wry is Windows-only in this tree, so no webkit2gtk here.
 depends=('glibc' 'gcc-libs' 'libglvnd' 'libxkbcommon' 'libx11' 'wayland' 'vulkan-icd-loader')
-source=('zetawork' 'zetawork-gui' 'zetacode' 'zetaide' 'zetawork.desktop' 'zetawork.png' 'LICENSE' 'web-ui.tar.gz')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+source=('zetawork' 'zetawork-gui' 'zetacode' 'zetaide' 'zetawork.desktop' 'zetawork.png' 'LICENSE' 'THIRD-PARTY-NOTICES.txt' 'MapleMono-OFL.txt' 'web-ui.tar.gz')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
   # The TUI is the `zetawork` command; the desktop binary and both companions
@@ -37,4 +37,6 @@ package() {
   install -Dm644 "$srcdir/zetawork.png" \
     "$pkgdir/usr/share/icons/hicolor/256x256/apps/zetawork.png"
   install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/linxira-zeta/LICENSE"
+  install -Dm644 "$srcdir/THIRD-PARTY-NOTICES.txt" "$pkgdir/usr/share/licenses/linxira-zeta/THIRD-PARTY-NOTICES.txt"
+  install -Dm644 "$srcdir/MapleMono-OFL.txt" "$pkgdir/usr/share/licenses/linxira-zeta/MapleMono-OFL.txt"
 }

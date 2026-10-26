@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/editor-linux-x64",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Zeta's built-in terminal editor (editor payload binary) for linux/x64",
   "license": "MIT",
   "repository": {

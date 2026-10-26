@@ -124,6 +124,8 @@ Section "$(SEC_CORE_NAME)" SEC_CORE
   File "${SRC}zetawork.exe"
   File "${SRC}WebView2Loader.dll"
   File "${SRC}zetawork.ico"
+  File "${SRC}THIRD-PARTY-NOTICES.txt"
+  File "${SRC}MapleMono-OFL.txt"
   ; The browser UI `zetacode serve` hosts, in the layout it resolves from its
   ; own directory (`web-ui/.next/standalone/server.js`).
   File /r "${SRC}web-ui"
@@ -201,6 +203,8 @@ Section "Uninstall"
   Delete "$INSTDIR\zetawork.exe"
   Delete "$INSTDIR\WebView2Loader.dll"
   Delete "$INSTDIR\zetawork.ico"
+  Delete "$INSTDIR\THIRD-PARTY-NOTICES.txt"
+  Delete "$INSTDIR\MapleMono-OFL.txt"
   Delete "$INSTDIR\uninstall.exe"
   RMDir /r "$INSTDIR\web-ui"
   RMDir "$INSTDIR"

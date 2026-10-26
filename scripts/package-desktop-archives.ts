@@ -247,6 +247,8 @@ async function packageWindows(): Promise<void> {
 	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
 	await fs.copyFile(ide, path.join(stage, "zetaide.exe"));
 	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
+	await fs.copyFile(NOTICES, path.join(stage, "THIRD-PARTY-NOTICES.txt"));
+	await fs.copyFile(FONT_OFL, path.join(stage, "MapleMono-OFL.txt"));
 	await stageWebUi(stage, webUi);
 
 	await fs.mkdir(outDir, { recursive: true });
@@ -257,6 +259,8 @@ async function packageWindows(): Promise<void> {
 		{ name: "zetacode.exe", file: path.join(stage, "zetacode.exe") },
 		{ name: "zetaide.exe", file: path.join(stage, "zetaide.exe") },
 		{ name: "WebView2Loader.dll", file: path.join(stage, "WebView2Loader.dll") },
+		{ name: "THIRD-PARTY-NOTICES.txt", file: path.join(stage, "THIRD-PARTY-NOTICES.txt") },
+		{ name: "MapleMono-OFL.txt", file: path.join(stage, "MapleMono-OFL.txt") },
 	];
 	for (const entry of await directoryEntries(path.join(stage, "web-ui"), "web-ui")) entries.push(entry);
 	await writeZip(entries, archive);
@@ -287,6 +291,8 @@ async function packageWindowsInstaller(): Promise<void> {
 	await fs.copyFile(agent, path.join(stage, "zetacode.exe"));
 	await fs.copyFile(ide, path.join(stage, "zetaide.exe"));
 	await fs.copyFile(loader, path.join(stage, "WebView2Loader.dll"));
+	await fs.copyFile(NOTICES, path.join(stage, "THIRD-PARTY-NOTICES.txt"));
+	await fs.copyFile(FONT_OFL, path.join(stage, "MapleMono-OFL.txt"));
 	// The MUI interface icons are read from the staging dir; the GUI's PE icon
 	// is the product icon, so the installer and the app never drift apart.
 	const icon = path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "icon.ico");
@@ -361,6 +367,8 @@ async function packageLinux(): Promise<void> {
 		await fs.chmod(target, 0o755);
 	}
 	await stageWebUi(path.join(appDir, "usr", "lib", "zetawork"), await resolveWebUi());
+	await fs.copyFile(NOTICES, path.join(appDir, "usr", "lib", "zetawork", "THIRD-PARTY-NOTICES.txt"));
+	await fs.copyFile(FONT_OFL, path.join(appDir, "usr", "lib", "zetawork", "MapleMono-OFL.txt"));
 	await fs.copyFile(tui, path.join(appDir, "usr", "bin", "zetawork"));
 	await fs.chmod(path.join(appDir, "usr", "bin", "zetawork"), 0o755);
 	await fs.writeFile(path.join(appDir, "usr", "share", "applications", "zetawork.desktop"), desktopEntry(version));
@@ -412,6 +420,8 @@ async function packageLinux(): Promise<void> {
 	await run(["tar", "-czf", path.join(pkgDir, "web-ui.tar.gz"), "-C", pkgDir, "web-ui"]);
 	await fs.rm(path.join(pkgDir, "web-ui"), { recursive: true, force: true });
 	await fs.copyFile(path.join(repoRoot, "LICENSE"), path.join(pkgDir, "LICENSE"));
+	await fs.copyFile(NOTICES, path.join(pkgDir, "THIRD-PARTY-NOTICES.txt"));
+	await fs.copyFile(FONT_OFL, path.join(pkgDir, "MapleMono-OFL.txt"));
 	await fs.copyFile(
 		path.join(repoRoot, "scripts", "packaging", "arch", "zetawork.desktop"),
 		path.join(pkgDir, "zetawork.desktop"),

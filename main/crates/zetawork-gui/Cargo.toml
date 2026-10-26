@@ -117,3 +117,5 @@ base64.workspace = true
 # The 看板 screenshot asserts the column a hand-written card loads into; the
 # page's own module is the shared board model in this crate's dependencies.
 termide-panel-ide.workspace = true
+# The bundled font test reads the shipped TTF and checks its advances.
+ttf-parser = "0.25"

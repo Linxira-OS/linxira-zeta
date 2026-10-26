@@ -286,6 +286,8 @@ describe("Windows installer contract", () => {
 		expect(script).toContain('!define SRC "${SOURCE_DIR}\\"');
 		expect(script).toContain('!define MUI_ICON "${SRC}zetawork.ico"');
 		expect(script).toContain('File "${SRC}zetawork.ico"');
+		expect(script).toContain('File "${SRC}THIRD-PARTY-NOTICES.txt"');
+		expect(script).toContain('File "${SRC}MapleMono-OFL.txt"');
 		expect(script).toContain('"$INSTDIR\\zetawork.ico" 0');
 		const rc = fs.readFileSync(
 			path.join(repoRoot, "main", "crates", "zetawork-gui", "assets", "zetawork-gui.rc"),

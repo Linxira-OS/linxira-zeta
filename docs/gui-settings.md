@@ -30,18 +30,36 @@ drawn. Rows without UI metadata (for example arrays with no declared choices)
 are not in the payload at all — the gateway and the CLI agree on that set, and
 the section reports the counts it actually received in its header line.
 
+## Fonts
+
+The terminal grid starts with the bundled **Maple Mono CN** face, and the
+editor falls back to it after the user-selected mono face (`main/crates/zetawork-gui/assets/fonts/MapleMono-CN-Regular.ttf`,
+SIL OFL 1.1). It covers Latin, CJK and the Braille Patterns block with a strict
+1:2 advance ratio, so Braille/box art does not depend on host fonts. The host
+CJK faces remain as fallbacks, and the editor's user-selected mono face stays
+ahead of the bundled face for code. The license and attribution travel in
+`THIRD-PARTY-NOTICES.txt` and `MapleMono-OFL.txt` in every desktop package;
+关于 reports the active face. This does not apply to `zetawork`/`zetaide` when
+they run inside an external terminal: that terminal owns its font.
+
 ## Backend lifecycle
 
 `常规` also owns the background backend the window ensures on launch
 ([daemon](./daemon.md#the-desktop-app)):
 
-- **后台服务** shows the live state (starting / running with pid and `webUrl` /
-  stopped / failed) and carries 启动, 重启 and 停止. Each action runs the same
-  `zetacode daemon` command the CLI exposes, on a worker thread; the frame
-  never waits for it.
+- On launch the window reads `zetacode backend status --json`. If
+  `backend.enabled` is **false** (the default), it starts nothing: every
+  `zetacode` tab is a local process. If it is true, the window connects to the
+  single backend or starts it through `backend on` in `backend.workspace`.
+- **后台服务** shows the live state (off / starting / running with pid and
+  `webUrl` / stopped / failed) and carries 启动, 重启 and 停止. 启动 executes
+  `backend on`; 停止 executes `backend off` and drains active turns; 重启
+  restarts the daemon in the configured workspace. Actions run on a worker
+  thread, so the frame never waits.
 - **退出后保留后台服务** is `backend.keep_on_quit` (default `false`). With it
-  off, quitting stops a backend this window started. A backend that was already
-  live when the window opened is never stopped by the window.
+  off, quitting asks `backend off` (detached) for a backend this window
+  started, so the product switch is cleared and turns drain. A backend that was
+  already live when the window opened is never stopped by the window.
 - **Enable Backend Mode** (`backend.enabled`, default `false`) is the
   machine-wide switch: off means every bare `zetacode` is a local process; on
   means it connects to the one hidden backend. **Backend Default Workspace**

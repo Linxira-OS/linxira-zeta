@@ -284,9 +284,10 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 						crate::backend::Phase::Failed
 							| crate::backend::Phase::Stopped
 							| crate::backend::Phase::Idle
+							| crate::backend::Phase::Disabled
 					) && ui.button(t!("启动")).clicked()
 					{
-						shell.backend.retry();
+						shell.backend.start();
 					}
 				},
 				shell,

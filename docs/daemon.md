@@ -234,12 +234,16 @@ agent yourself.
 ## The desktop app
 
 `zetawork` (the egui desktop shell) owns the backend instead of hoping one is
-running. On launch it asks this command surface, on a worker thread:
+running, but it honors the same product switch as the CLI. On launch it asks
+this command surface, on a worker thread:
 
-1. `zetacode daemon status --json` — a live backend (whatever its `source`) is
-   connected to as-is; nothing is started beside it;
-2. no live backend — `zetacode daemon start` starts the daemon path described
-   above, and the shell waits for the record (up to 20 s).
+1. `zetacode backend status --json` — when `backend.enabled` is false (the
+   default) the shell starts nothing and every `zetacode` tab is local;
+2. when enabled and a backend is live (whatever its `source`), it connects to
+   it as-is; nothing is started beside it;
+3. when enabled with no live backend, `zetacode backend on` starts the daemon
+   in `backend.workspace` (or the stable default workspace), and the shell
+   waits for the record (up to 20 s).
 
 The state is visible: a banner across the top of the window says *starting*,
 *failed* (with 重试) or *stopped*, and the same state is a row in 设置 → 常规
@@ -268,7 +272,7 @@ decides what quitting does:
 
 | Setting | Backend this window started | Backend already live when the window opened |
 | --- | --- | --- |
-| `false` (default) | `zetacode daemon stop` | left alone |
+| `false` (default) | `zetacode backend off` (drain, detached) | left alone |
 | `true` | left running | left alone |
 
 The stop is spawned detached, so closing the app never waits for the daemon to

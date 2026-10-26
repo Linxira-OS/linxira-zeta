@@ -2,6 +2,10 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.4
+- **桌面默认关闭后端**：`zetawork` 启动时读取 `backend status --json`；`backend.enabled=false`（默认）不再自动拉起 daemon，终端里的 `zetacode` 是本地进程。设置里的“启动/停止/重启”分别走 `backend on` / `backend off`（drain）/ `daemon restart`，启动工作区固定为 `backend.workspace`，退出时不再留下 enabled=true 的空后端。
+- **内置等宽字体**：GUI 终端与编辑器内置 Maple Mono CN Regular（SIL OFL 1.1），覆盖中文、Braille Patterns 和常用字符画，ASCII:CJK 严格 1:2；随包分发 OFL 与第三方声明。`zetawork`/`zetaide` 在外部终端运行时仍使用宿主字体。
+
 ### 1.4.3
 - **IDE 版本面**：`zetaide --version` / `termide-editor --version` 改按 Zeta 产品线显示（如 `1.4.3 (termide 0.41.0)`）；vendored TermIDE 的 Cargo workspace 仍保持上游 `0.41.0`，避免每次上游快照重放冲突。
 - **Windows 图标统一**：zetawork GUI、TUI、zetacode、zetaide 以及 editor 载荷全部使用同一个 Zeta logo；安装器和桌面/开始菜单快捷方式固定引用随包 `zetawork.ico`，不再依赖 Explorer 的 exe 图标回退。发布链新增 PE 图标校验：Windows 产物缺 `RT_ICON`/`RT_GROUP_ICON` 或图标载荷与统一 logo 不一致，直接失败。

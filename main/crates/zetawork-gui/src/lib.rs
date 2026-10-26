@@ -183,8 +183,6 @@ pub struct Shell {
 	pub worktrees: worktrees::WorktreeCache,
 	/// The 会话管理 modal: archive list, its requests, and the pins write.
 	pub session_admin: session_admin::Admin,
-	/// The palette's `zetacode daemon restart` worker.
-	pub palette_job: Option<palette::Job>,
 	/// The `daemon install-autostart` / `uninstall-autostart` run behind the
 	/// 设置 switch: a scheduled task takes a second, so it never runs on the UI
 	/// thread ([`Shell::apply_autostart`]).
@@ -342,7 +340,6 @@ impl Shell {
 			tracking: tracking::TrackingCache::default(),
 			worktrees: worktrees::WorktreeCache::default(),
 			session_admin: session_admin::Admin::default(),
-			palette_job: None,
 			autostart_job: None,
 			autostart_target: false,
 			resources: resources::ResourceCache::default(),
@@ -419,7 +416,6 @@ impl Shell {
 			tracking: tracking::TrackingCache::default(),
 			worktrees: worktrees::WorktreeCache::default(),
 			session_admin: session_admin::Admin::default(),
-			palette_job: None,
 			autostart_job: None,
 			autostart_target: false,
 			resources: resources::ResourceCache::default(),
@@ -1411,10 +1407,6 @@ impl Shell {
 					self.session_admin.notice = Some((false, error));
 				},
 			}
-		}
-		// The palette's daemon restart is one-off: report it once and drop it.
-		if let Some(line) = palette::poll_job(self) {
-			self.state.show(state::Notice(line));
 		}
 		// 设置 → IM 渠道: the pane polls the gateway only while it is the open
 		// section; a closed modal starts no request.

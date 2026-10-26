@@ -336,6 +336,20 @@ commercially, as long as it is attributed to Poppy Works. The font is bundled
 here (crates/pi-natives/src/fonts/Silver.ttf) as a CJK/Unicode bitmap fallback.
 
 -------------------------------------------------------------------------------
+main/crates/zetawork-gui/assets/fonts/MapleMono-CN-Regular.ttf
+
+Maple Mono CN
+Source:  https://github.com/subframe7536/maple-font
+Version: 7.9
+Author:  The Maple Mono Project Authors
+Copyright 2022 The Maple Mono Project Authors
+
+License: SIL Open Font License, Version 1.1
+The full license text is bundled at
+main/crates/zetawork-gui/assets/fonts/OFL.txt and is installed with the
+desktop package. The font file is embedded unmodified in the GUI binary.
+
+-------------------------------------------------------------------------------
 packages/coding-agent/src/markit/NOTICE
 
 Portions of this in-house document-to-markdown engine are adapted from

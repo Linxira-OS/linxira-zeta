@@ -62,6 +62,13 @@ pub const MONITOR_INTERVAL: Duration = Duration::from_secs(5);
 /// Per-command budget (`daemon status` must never wedge a worker forever).
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(8);
 
+/// `daemon start` waits up to 15 s for readiness; give the CLI room to finish
+/// before the worker's own READY_TIMEOUT starts.
+const START_TIMEOUT: Duration = Duration::from_secs(25);
+
+/// `backend off` waits for active turns (its own `--timeout` is 60 s).
+const DRAIN_TIMEOUT: Duration = Duration::from_secs(75);
+
 /// The backend's state, as the banner and the settings row name it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Phase {
@@ -79,6 +86,9 @@ pub enum Phase {
 	Failed,
 	/// The user stopped the backend from 设置.
 	Stopped,
+	/// `backend.enabled` is false: the desktop must stay local and must not
+	/// start or attach to the background backend.
+	Disabled,
 }
 
 impl Phase {
@@ -115,6 +125,8 @@ pub enum Signal {
 	Crashed(String),
 	/// `daemon stop` finished.
 	Stopped,
+	/// Backend mode is disabled; the desktop stays local.
+	Disabled,
 }
 
 /// What the ensure machine decided happened.
@@ -214,6 +226,12 @@ impl EnsureBackend {
 				self.error = None;
 				self.info = None;
 			},
+			Signal::Disabled => {
+				self.phase = Phase::Disabled;
+				self.error = None;
+				self.info = None;
+				self.started_by_us = false;
+			},
 		}
 		let changed = before_phase != self.phase || before_info != self.info;
 		Applied { changed, reconnect }
@@ -269,7 +287,15 @@ impl BackendHost {
 		self.spawn_worker(Worker::Ensure);
 	}
 
-	/// 重试 / 启动: probe again and start when nothing is live.
+	/// Explicit 启动 from the settings row. Unlike [`Self::retry`], this asks
+	/// the CLI to enable backend mode before starting.
+	pub fn start(&mut self) {
+		self.cancel_worker();
+		self.machine.begin();
+		self.spawn_worker(Worker::Start);
+	}
+
+	/// 重试: probe again and start only when backend mode is already enabled.
 	pub fn retry(&mut self) {
 		self.cancel_worker();
 		self.machine.begin();
@@ -379,6 +405,7 @@ impl BackendHost {
 			},
 			Phase::Stopping => t!("后台服务：停止中…").to_owned(),
 			Phase::Stopped => t!("后台服务：已停止").to_owned(),
+			Phase::Disabled => t!("后台服务：已关闭（backend.enabled=false）").to_owned(),
 			Phase::Failed => match self.error() {
 				Some(reason) => t!("后台服务：失败 · {}", reason),
 				None => t!("后台服务：失败").to_owned(),
@@ -390,7 +417,7 @@ impl BackendHost {
 	/// keeps it until a retry succeeds, so a crash is never a one-frame flash.
 	pub fn banner(&self) -> Option<String> {
 		match self.machine.phase() {
-			Phase::Idle | Phase::Ready => None,
+			Phase::Idle | Phase::Ready | Phase::Disabled => None,
 			Phase::Starting => {
 				Some(t!("正在启动后台服务（zetacode daemon），会话与终端会在就绪后接通…").to_owned())
 			},
@@ -425,7 +452,9 @@ impl BackendHost {
 			return;
 		}
 		if let Some(bin) = binary() {
-			let _ = command(&bin, &["daemon", "stop"]).spawn();
+			// `backend off` writes the product switch and drains; `daemon stop`
+			// alone would leave backend.enabled=true with no process behind it.
+			let _ = command(&bin, &["backend", "off", "--timeout", "0"]).spawn();
 		}
 	}
 
@@ -444,6 +473,7 @@ impl BackendHost {
 		self.cancel = Some(cancel);
 		thread::spawn(move || match worker {
 			Worker::Ensure => run_ensure(sender, flag),
+			Worker::Start => run_start(sender, flag),
 			Worker::Restart => run_restart(sender, flag),
 			Worker::Stop => run_stop(sender, flag),
 		});
@@ -459,6 +489,7 @@ impl Drop for BackendHost {
 #[derive(Clone, Copy)]
 enum Worker {
 	Ensure,
+	Start,
 	Restart,
 	Stop,
 }
@@ -499,13 +530,22 @@ fn command(bin: &Path, args: &[&str]) -> Command {
 	command
 }
 
-/// Run one daemon command to completion. `Err` is the command's own stderr
+/// Run one zetacode command to completion. `Err` is the command's own stderr
 /// (or the OS message), never a sentence invented here.
-fn run_daemon(bin: &Path, args: &[&str]) -> Result<String, String> {
-	let mut child = command(bin, args)
+fn run_daemon(
+	bin: &Path,
+	args: &[&str],
+	cwd: Option<&Path>,
+	timeout: Duration,
+) -> Result<String, String> {
+	let mut invocation = command(bin, args);
+	if let Some(cwd) = cwd {
+		invocation.current_dir(cwd);
+	}
+	let mut child = invocation
 		.spawn()
-		.map_err(|error| t!("无法运行 zetacode daemon：{}", error))?;
-	let deadline = Instant::now() + COMMAND_TIMEOUT;
+		.map_err(|error| t!("无法运行 zetacode：{}", error))?;
+	let deadline = Instant::now() + timeout;
 	let mut stdout = String::new();
 	let mut stderr = String::new();
 	loop {
@@ -530,37 +570,52 @@ fn run_daemon(bin: &Path, args: &[&str]) -> Result<String, String> {
 			Ok(None) => {
 				if Instant::now() >= deadline {
 					let _ = child.kill();
-					return Err(t!("zetacode daemon {} 超时", args.join(" ")));
+					return Err(t!("zetacode {} 超时", args.join(" ")));
 				}
 				thread::sleep(Duration::from_millis(40));
 			},
-			Err(error) => return Err(t!("等待 zetacode daemon 失败：{}", error)),
+			Err(error) => return Err(t!("等待 zetacode 失败：{}", error)),
 		}
 	}
 }
 
-/// `daemon status --json` → `Some(info)` when a backend is live, `None` when
-/// the record says nothing is running.
-fn status(bin: &Path) -> Result<Option<BackendInfo>, String> {
-	let body = run_daemon(bin, &["daemon", "status", "--json"])?;
-	let value: serde_json::Value = serde_json::from_str(&body)
-		.map_err(|error| t!("daemon status 的 JSON 无法解析：{}", error))?;
-	let running = value
+/// The `backend status --json` payload the desktop consumes. `enabled` is the
+/// product switch: when false the desktop must not start or attach a backend.
+#[derive(Clone, Debug, Default)]
+struct BackendStatus {
+	enabled: bool,
+	workspace: Option<PathBuf>,
+	info: Option<BackendInfo>,
+}
+
+fn backend_status(bin: &Path) -> Result<BackendStatus, String> {
+	let body = run_daemon(bin, &["backend", "status", "--json"], None, COMMAND_TIMEOUT)?;
+	parse_backend_status(&body)
+}
+
+fn parse_backend_status(body: &str) -> Result<BackendStatus, String> {
+	let value: serde_json::Value = serde_json::from_str(body)
+		.map_err(|error| t!("backend status 的 JSON 无法解析：{}", error))?;
+	let enabled = value
+		.get("enabled")
+		.and_then(serde_json::Value::as_bool)
+		.unwrap_or(false);
+	let workspace = string_field(&value, "workspace").map(PathBuf::from);
+	let status = value.get("status").unwrap_or(&serde_json::Value::Null);
+	let running = status
 		.get("running")
 		.and_then(serde_json::Value::as_bool)
 		.unwrap_or(false);
-	if !running {
-		return Ok(None);
-	}
-	Ok(Some(BackendInfo {
-		pid: value
+	let info = running.then(|| BackendInfo {
+		pid: status
 			.get("pid")
 			.and_then(serde_json::Value::as_u64)
 			.and_then(|pid| u32::try_from(pid).ok()),
-		web_url: string_field(&value, "webUrl"),
-		gateway_url: string_field(&value, "gatewayUrl"),
-		source: string_field(&value, "source"),
-	}))
+		web_url: string_field(status, "webUrl"),
+		gateway_url: string_field(status, "gatewayUrl"),
+		source: string_field(status, "source"),
+	});
+	Ok(BackendStatus { enabled, workspace, info })
 }
 
 fn string_field(value: &serde_json::Value, key: &str) -> Option<String> {
@@ -572,23 +627,85 @@ fn string_field(value: &serde_json::Value, key: &str) -> Option<String> {
 		.map(str::to_owned)
 }
 
-/// The launch/retry worker: connect if live, otherwise start and wait.
+/// The launch/retry worker: honor `backend.enabled` first. When it is off the
+/// desktop stays local; when it is on, connect or start through `backend on`
+/// in the configured workspace.
 fn run_ensure(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 	let Some(bin) = binary() else {
 		let _ = sender.send(Signal::Failed(missing_binary()));
 		return;
 	};
-	match status(&bin) {
-		Ok(Some(info)) => {
-			if sender.send(Signal::Live(info)).is_err() {
+	match backend_status(&bin) {
+		Ok(status) if !status.enabled => {
+			let _ = sender.send(Signal::Disabled);
+			return;
+		},
+		Ok(status) if status.info.is_some() => {
+			if sender
+				.send(Signal::Live(status.info.expect("checked")))
+				.is_err()
+			{
 				return;
 			}
 		},
-		Ok(None) => {
+		Ok(status) => {
+			if !enable_and_start(&bin, status.workspace.as_deref(), &sender) {
+				return;
+			}
+		},
+		Err(reason) => {
+			let _ = sender.send(Signal::Failed(reason));
+			return;
+		},
+	}
+	if !await_ready(&bin, &sender, &cancel) {
+		return;
+	}
+	monitor(bin, sender, cancel);
+}
+
+/// Explicit 启动 from 设置: ask the CLI to enable backend mode, then connect.
+fn run_start(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
+	let Some(bin) = binary() else {
+		let _ = sender.send(Signal::Failed(missing_binary()));
+		return;
+	};
+	let workspace = backend_status(&bin)
+		.ok()
+		.and_then(|status| status.workspace);
+	if !enable_and_start(&bin, workspace.as_deref(), &sender) {
+		return;
+	}
+	if !await_ready(&bin, &sender, &cancel) {
+		return;
+	}
+	monitor(bin, sender, cancel);
+}
+
+/// The settings restart worker. If backend mode was disabled, restart means
+/// "enable and start"; otherwise restart the daemon in the configured
+/// workspace so a bare `zetacode` still finds it.
+fn run_restart(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
+	let Some(bin) = binary() else {
+		let _ = sender.send(Signal::Failed(missing_binary()));
+		return;
+	};
+	match backend_status(&bin) {
+		Ok(status) if !status.enabled => {
+			if !enable_and_start(&bin, status.workspace.as_deref(), &sender) {
+				return;
+			}
+		},
+		Ok(status) => {
 			if sender.send(Signal::Starting).is_err() {
 				return;
 			}
-			if let Err(reason) = run_daemon(&bin, &["daemon", "start"]) {
+			let workspace = status
+				.workspace
+				.unwrap_or_else(crate::seed::default_workspace_root);
+			if let Err(reason) =
+				run_daemon(&bin, &["daemon", "restart"], Some(&workspace), START_TIMEOUT)
+			{
 				let _ = sender.send(Signal::Failed(reason));
 				return;
 			}
@@ -604,29 +721,36 @@ fn run_ensure(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 	monitor(bin, sender, cancel);
 }
 
-/// The settings restart worker.
-fn run_restart(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
-	let Some(bin) = binary() else {
-		let _ = sender.send(Signal::Failed(missing_binary()));
-		return;
-	};
-	if let Err(reason) = run_daemon(&bin, &["daemon", "restart"]) {
-		let _ = sender.send(Signal::Failed(reason));
-		return;
+fn enable_and_start(bin: &Path, workspace: Option<&Path>, sender: &Sender<Signal>) -> bool {
+	if sender.send(Signal::Starting).is_err() {
+		return false;
 	}
-	if !await_ready(&bin, &sender, &cancel) {
-		return;
+	let workspace = workspace
+		.map(Path::to_path_buf)
+		.unwrap_or_else(crate::seed::default_workspace_root);
+	let workspace_flag = workspace.to_string_lossy().into_owned();
+	match run_daemon(
+		bin,
+		&["backend", "on", "--workspace", &workspace_flag],
+		Some(&workspace),
+		START_TIMEOUT,
+	) {
+		Ok(_) => true,
+		Err(reason) => {
+			let _ = sender.send(Signal::Failed(reason));
+			false
+		},
 	}
-	monitor(bin, sender, cancel);
 }
 
-/// The settings stop worker.
+/// The settings stop worker: `backend off` writes `backend.enabled=false` and
+/// drains active turns (60 s budget), instead of killing the daemon directly.
 fn run_stop(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 	let Some(bin) = binary() else {
 		let _ = sender.send(Signal::Failed(missing_binary()));
 		return;
 	};
-	match run_daemon(&bin, &["daemon", "stop"]) {
+	match run_daemon(&bin, &["backend", "off", "--timeout", "60"], None, DRAIN_TIMEOUT) {
 		Ok(_) => {
 			let _ = sender.send(Signal::Stopped);
 		},
@@ -637,20 +761,26 @@ fn run_stop(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 	let _ = cancel;
 }
 
-/// Poll `daemon status` until it is live, the deadline passes, or the worker
-/// was cancelled. Sends `Live`/`Failed` itself; `true` means a backend is live.
+/// Poll `backend status` until it is live, disabled, the deadline passes, or
+/// the worker was cancelled. Sends the terminal signal itself; `true` means a
+/// backend is live.
 fn await_ready(bin: &Path, sender: &Sender<Signal>, cancel: &AtomicBool) -> bool {
 	let deadline = Instant::now() + READY_TIMEOUT;
 	loop {
 		if cancel.load(Ordering::Relaxed) {
 			return false;
 		}
-		match status(bin) {
-			Ok(Some(info)) => {
-				let _ = sender.send(Signal::Live(info));
-				return true;
+		match backend_status(bin) {
+			Ok(status) if !status.enabled => {
+				let _ = sender.send(Signal::Disabled);
+				return false;
 			},
-			Ok(None) => {},
+			Ok(status) => {
+				if let Some(info) = status.info {
+					let _ = sender.send(Signal::Live(info));
+					return true;
+				}
+			},
 			Err(reason) => {
 				let _ = sender.send(Signal::Failed(reason));
 				return false;
@@ -665,8 +795,8 @@ fn await_ready(bin: &Path, sender: &Sender<Signal>, cancel: &AtomicBool) -> bool
 	}
 }
 
-/// Keep watching a live backend: a `daemon status` that stops reporting one is
-/// a crash, and it must surface as a banner rather than a frozen pane.
+/// Keep watching a live backend: disabled means the user turned the product
+/// switch off; a missing record means the backend crashed.
 fn monitor(bin: PathBuf, sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 	loop {
 		let mut waited = Duration::ZERO;
@@ -677,17 +807,23 @@ fn monitor(bin: PathBuf, sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 			thread::sleep(Duration::from_millis(250));
 			waited += Duration::from_millis(250);
 		}
-		match status(&bin) {
-			Ok(Some(info)) => {
-				// The address may have changed (a restart from elsewhere);
-				// forwarding it lets the shell notice the new epoch.
-				if sender.send(Signal::Live(info)).is_err() {
-					return;
-				}
-			},
-			Ok(None) => {
-				let _ = sender.send(Signal::Crashed(t!("后台进程已退出").to_owned()));
+		match backend_status(&bin) {
+			Ok(status) if !status.enabled => {
+				let _ = sender.send(Signal::Disabled);
 				return;
+			},
+			Ok(status) => match status.info {
+				Some(info) => {
+					// The address may have changed (a restart from elsewhere);
+					// forwarding it lets the shell notice the new epoch.
+					if sender.send(Signal::Live(info)).is_err() {
+						return;
+					}
+				},
+				None => {
+					let _ = sender.send(Signal::Crashed(t!("后台进程已退出").to_owned()));
+					return;
+				},
 			},
 			Err(reason) => {
 				let _ = sender.send(Signal::Crashed(reason));
@@ -868,6 +1004,44 @@ mod tests {
 		machine.apply(Signal::Failed(missing_binary()));
 		assert_eq!(machine.phase(), Phase::Failed);
 		assert!(!machine.started_by_us());
+	}
+
+	#[test]
+	fn disabled_backend_never_starts_or_keeps_a_connection() {
+		let mut machine = EnsureBackend::default();
+		machine.begin();
+		machine.apply(Signal::Starting);
+		let applied = machine.apply(Signal::Disabled);
+		assert!(applied.changed);
+		assert_eq!(machine.phase(), Phase::Disabled);
+		assert_eq!(machine.info(), None);
+		assert!(!machine.started_by_us());
+		let mut host = BackendHost::default();
+		host.observe(Signal::Disabled);
+		assert!(host.banner().is_none(), "off is a normal state, not a failure");
+		assert!(host.status_line().contains("已关闭"));
+		assert!(!host.attachable());
+	}
+
+	#[test]
+	fn backend_status_parses_the_enabled_workspace_and_nested_state() {
+		let off = parse_backend_status(
+			r#"{"enabled":false,"workspace":"/home/u/.zeta/workspace","status":{"running":false}}"#,
+		)
+		.expect("valid json");
+		assert!(!off.enabled);
+		assert_eq!(off.workspace.as_deref(), Some(std::path::Path::new("/home/u/.zeta/workspace")));
+		assert!(off.info.is_none());
+
+		let on = parse_backend_status(
+			r#"{"enabled":true,"workspace":"/w","status":{"running":true,"pid":42,"webUrl":"http://127.0.0.1:30141","gatewayUrl":"http://127.0.0.1:30142","source":"daemon"}}"#,
+		)
+		.expect("valid json");
+		assert!(on.enabled);
+		let info = on.info.expect("running");
+		assert_eq!(info.pid, Some(42));
+		assert_eq!(info.web_url.as_deref(), Some("http://127.0.0.1:30141"));
+		assert_eq!(info.gateway_url.as_deref(), Some("http://127.0.0.1:30142"));
 	}
 
 	#[test]
