@@ -113,14 +113,8 @@ static EN: &[(&str, &str)] = &[
 		"CJK font: not found (Chinese renders as boxes; the product needs a bundled licensed face)",
 	),
 	("CJK 字体：界面 {} · 等宽 {}", "CJK font: UI {} · mono {}"),
-	(
-		"CJK 字体：内置 Maple Mono CN · 界面 {}",
-		"CJK font: bundled Maple Mono CN · UI {}",
-	),
-	(
-		"CJK 字体：内置 Maple Mono CN · 界面 未找到",
-		"CJK font: bundled Maple Mono CN · UI not found",
-	),
+	("CJK 字体：内置 Maple Mono CN · 界面 {}", "CJK font: bundled Maple Mono CN · UI {}"),
+	("CJK 字体：内置 Maple Mono CN · 界面 未找到", "CJK font: bundled Maple Mono CN · UI not found"),
 	(
 		"CJK 字体：界面 {} · 等宽 未找到固定宽度中文字体（全角对齐可能漂移）",
 		"CJK font: UI {} · no fixed-pitch CJK face (full-width alignment may drift)",
