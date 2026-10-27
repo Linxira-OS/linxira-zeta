@@ -79,6 +79,7 @@ function makeGateContext(overrides: Record<string, unknown>): {
 				entries: [],
 			}),
 			onEntryAppended: undefined,
+			onPersistenceNotice: () => () => {},
 		},
 		session: {
 			isSessionTransitioning: false,

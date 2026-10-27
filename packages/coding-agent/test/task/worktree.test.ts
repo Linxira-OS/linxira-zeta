@@ -1407,7 +1407,7 @@ describe("commitToBranch preserves agent commits", () => {
 		await runGit(isolation, ["commit", "-q", "-m", "fix(test): clean commit beside untouched untracked wip"]);
 
 		const result = await commitToBranch(isolation, baseline, "clean-with-wip", undefined);
-		expect(result?.branchName).toBe("omp/task/clean-with-wip");
+		expect(result?.branchName).toBe("zeta/task/clean-with-wip");
 
 		const files = (await runGit(parent, ["show", "--name-only", "--pretty=format:", result!.branchName!]))
 			.split("\n")
@@ -1417,7 +1417,7 @@ describe("commitToBranch preserves agent commits", () => {
 		const merge = await mergeTaskBranches(parent, [
 			{ branchName: result!.branchName!, taskId: "clean-with-wip", baseSha: result!.baseSha! },
 		]);
-		expect(merge).toEqual({ failed: [], merged: ["omp/task/clean-with-wip"] });
+		expect(merge).toEqual({ failed: [], merged: ["zeta/task/clean-with-wip"] });
 	});
 
 	// Same failure with the untracked WIP present only in the parent checkout:
@@ -1438,7 +1438,7 @@ describe("commitToBranch preserves agent commits", () => {
 		await runGit(isolation, ["commit", "-q", "-m", "fix(test): clean commit beside parent-only untracked wip"]);
 
 		const result = await commitToBranch(isolation, baseline, "parent-only-wip", undefined);
-		expect(result?.branchName).toBe("omp/task/parent-only-wip");
+		expect(result?.branchName).toBe("zeta/task/parent-only-wip");
 
 		const files = (await runGit(parent, ["show", "--name-only", "--pretty=format:", result!.branchName!]))
 			.split("\n")
@@ -1448,7 +1448,7 @@ describe("commitToBranch preserves agent commits", () => {
 		const merge = await mergeTaskBranches(parent, [
 			{ branchName: result!.branchName!, taskId: "parent-only-wip", baseSha: result!.baseSha! },
 		]);
-		expect(merge).toEqual({ failed: [], merged: ["omp/task/parent-only-wip"] });
+		expect(merge).toEqual({ failed: [], merged: ["zeta/task/parent-only-wip"] });
 	});
 
 	describe("with baseline WIP overlapping the agent's changes (#4136)", () => {

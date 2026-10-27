@@ -1175,6 +1175,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "时间注入间隔（工具调用次数）",
 		description: "启用动态 time 工具后，每 N 次工具调用注入一次当前时间；用户自身的时间要求优先",
 	},
+	"session.worktreeScope": {
+		label: "恢复工作树范围",
+		description: "选择恢复选择器的当前文件夹是否包含其他仓库工作树中的会话",
+	},
 	readLineNumbers: {
 		label: "行号",
 		description: "默认在 read 工具输出前附加行号",
@@ -1966,6 +1970,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"extensionHandlers.toolCallTimeoutMs": {
 		label: "工具调用处理超时（毫秒）",
 		description: "扩展 tool_call 处理器的正有限活动工作超时；无效值使用 30000 毫秒，等待 ZETA 自有对话框的时间不计入",
+	},
+	"extensionHandlers.modeControl": {
+		label: "扩展模式控制",
+		description: "允许扩展通过 ctx.sessionModes.set() 进入和退出计划、vibe、目标与循环模式；读取模式状态始终可用",
 	},
 	"dev.autoqa": {
 		label: "自动 QA",
@@ -5375,6 +5383,14 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	},
 	"session.trashRetentionDays::90": {
 		label: "90 天",
+	},
+	"session.worktreeScope::directory": {
+		label: "仅此目录",
+		description: "只显示为此目录保存的会话",
+	},
+	"session.worktreeScope::repo": {
+		label: "仓库工作树",
+		description: "同时包含同级工作树中的会话",
 	},
 	"tools.artifactMaxBytes::0": {
 		label: "不限量",

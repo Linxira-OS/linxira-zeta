@@ -40,9 +40,11 @@ describe("workflow notice", () => {
 		const enabled = renderWorkflowNotice({ taskBatch: true, evalTools: true });
 		const disabled = renderWorkflowNotice({ taskBatch: true, evalTools: false });
 		expect(enabled).toContain("Default to `workpool()`");
-		expect(enabled).toContain("`@tool`");
+		// The eval-tool line is language-aware (`@tool` only when py); the stable
+		// marker that the notice advertises kernel tools is the description.
+		expect(enabled).toContain("kernel-local tool exposed via `tools`");
 		expect(disabled).toContain("Default to `workpool()`");
-		expect(disabled).not.toContain("`@tool`");
+		expect(disabled).not.toContain("kernel-local tool exposed via `tools`");
 		expect(disabled).not.toContain("tools=None");
 	});
 });

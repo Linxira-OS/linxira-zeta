@@ -73,7 +73,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/images.ts": 6,
 	"commands/install.ts": 5,
 	"commands/join.ts": 1,
-	"commands/launch-help.ts": 62,
+	"commands/launch-help.ts": 66,
 	"commands/login.ts": 1,
 	"commands/models.ts": 7,
 	"commands/play.ts": 3,

@@ -288,7 +288,16 @@ async function orderForIngest(files: string[]): Promise<string[]> {
 			});
 		}
 	}
-	ranked.sort((a, b) => a.tier - b.tier || a.born - b.born || a.index - b.index);
+	ranked.sort(
+		(a, b) =>
+			a.tier - b.tier ||
+			a.born - b.born ||
+			// A filesystem that cannot rank birth times (or gives them the same
+			// coarse stamp) must not fall back to readdir's arbitrary order: the
+			// session file name carries its creation order, and first writer wins.
+			(a.file < b.file ? -1 : a.file > b.file ? 1 : 0) ||
+			a.index - b.index,
+	);
 	return ranked.map(entry => entry.file);
 }
 

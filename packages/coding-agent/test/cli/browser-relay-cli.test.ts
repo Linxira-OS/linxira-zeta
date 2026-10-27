@@ -78,7 +78,7 @@ describe("zetacode browser-relay install", () => {
 		expect(manifest.manifest_version).toBe(3);
 	});
 
-	it("reports the omp that installed the running script when Chrome restarts onto a newer manifest", async () => {
+	it("reports the Zeta that installed the running script when Chrome restarts onto a newer manifest", async () => {
 		// After reinstalling, a Chrome restart re-reads manifest.json but keeps running the old service worker.
 		const port = await findFreeCdpPort();
 		const hello = Promise.withResolvers<void>();
@@ -89,12 +89,12 @@ describe("zetacode browser-relay install", () => {
 				if (message === "extension connected") hello.resolve();
 			},
 		});
-		const runningScript = relayExtensionFiles("18.6.1")["background.js"]!;
+		const runningScript = relayExtensionFiles("1.3.0")["background.js"]!;
 		const manifestOnDisk = JSON.parse(relayExtensionFiles(VERSION)["manifest.json"]!);
 		stopWorker = runExtensionWorker(runningScript, port, manifestOnDisk);
 		await hello.promise;
 		expect(await relayExtensionNotice(`http://127.0.0.1:${port}`)).toContain(
-			`installed by omp 18.6.1; this is omp ${VERSION}`,
+			`installed by Zeta 1.3.0; this is Zeta ${VERSION}`,
 		);
 	});
 });

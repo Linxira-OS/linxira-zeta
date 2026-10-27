@@ -130,6 +130,7 @@ describe("async speculative compaction", () => {
 			scheduleAgentContinue: () => {},
 			scheduleCompactionContinuation: () => false,
 			persistTurnMessagesForMidRunCompaction: options.persistTurnMessagesForMidRunCompaction ?? (async () => false),
+			recordTrackingCompaction: async () => {},
 			findLastAssistantMessage: () => undefined,
 			disconnectFromAgent: () => {},
 			reconnectToAgent: () => {},

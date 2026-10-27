@@ -12,7 +12,7 @@ import { Settings } from "@linxiraos/zeta/config/settings";
 import { IrcBus } from "@linxiraos/zeta/irc/bus";
 import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import type { ToolSession } from "@linxiraos/zeta/tools";
-import { buildJobResult } from "@linxiraos/zeta/tools/hub/jobs";
+import { buildJobResult } from "@linxiraos/zeta/async/job-control";
 import type { StructuredSubagentOutput } from "@linxiraos/pi-tui/tools/task";
 
 const SELF_ID = "Main";

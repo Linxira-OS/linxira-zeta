@@ -2482,7 +2482,11 @@ export class SessionManager {
 	async dropSession(sessionPath: string): Promise<void> {
 		await this.#drainAndCloseWriter();
 		try {
-			await moveSessionToTrash(sessionPath);
+			// The trash is a filesystem move: it cannot reach a transcript that
+			// lives in an indexed backend (Redis/SQL), and its `unlink` is the
+			// primitive that clears both the content key and the index entry.
+			if (this.#storage instanceof FileSessionStorage) await moveSessionToTrash(sessionPath);
+			else await this.#storage.deleteSessionWithArtifacts(sessionPath);
 		} catch (err) {
 			if (!isEnoent(err)) throw err;
 		}

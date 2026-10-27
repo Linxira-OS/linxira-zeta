@@ -15,7 +15,7 @@ import {
 import type { RelayToExtMessage, TabSnapshot } from "@linxiraos/zeta/tools/browser/relay/protocol";
 import { type RelayServer, startRelayServer } from "@linxiraos/zeta/tools/browser/relay/server";
 
-const OLD = "18.6.1";
+const OLD = "1.3.0";
 const EXTENSION_ID = "abcdefghijklmnopabcdefghijklmnop";
 
 class FakeExtSocket implements RelaySocket {
@@ -355,7 +355,7 @@ describe("relay extension self-update decisions", () => {
 		expect(again.reloads).toBe(0);
 		bridge.extClosed(again);
 		const newer = new FakeExtSocket();
-		hello(bridge, newer, { zetaVersion: "18.7.0" });
+		hello(bridge, newer, { zetaVersion: "1.2.0" });
 		await finish(true);
 		expect(newer.reloads).toBe(1);
 		const back = new FakeExtSocket();
