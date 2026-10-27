@@ -2427,7 +2427,9 @@ observation points moved onto the state each assertion actually depends on.
 
 ## v18.12.6 integration and the 1.4.1 release (2026-10-24)
 
-- **Baseline** `v18.12.2` → **source tag** `v18.12.6` (`cf3566a92c…`, verified with
+- **Baseline** `v18.12.2` → **source tag** `v18.12.6` (`45c35e40c461`, the tag's peeled commit;
+  corrected 2026-10-27 from `cf3566a92c…`, which was never an object in this repository and
+  disagreed with the incremental entry above — verified with
   `git ls-remote --tags`; remote tag did not move during the merge), integrated as the real
   two-parent merge `5672359288f` on `sync/omp-release/v18.12.6`; `git merge-base --is-ancestor
   v18.12.6 HEAD` holds.
