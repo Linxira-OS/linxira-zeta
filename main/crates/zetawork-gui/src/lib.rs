@@ -28,6 +28,7 @@ pub mod board;
 pub mod center;
 pub mod channels;
 pub mod chrome;
+pub mod commands;
 pub mod console;
 pub mod conversation;
 pub mod embed;
@@ -79,7 +80,7 @@ pub mod worktrees;
 pub mod ws;
 pub mod zetacode;
 
-use std::{path::PathBuf, time::Instant};
+use std::{collections::BTreeMap, path::PathBuf, time::Instant};
 
 use eframe::egui;
 use egui::{Context, ViewportCommand};
@@ -93,22 +94,14 @@ pub const APP_SUBTITLE: &str = "工作台";
 /// 关于 shows this.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// The 快捷键 section: label, hint, the keys this build actually binds.
-pub const BINDINGS: [(&str, &str, &str); 6] = [
-	// 工作区 and 大标签页 are the same level, so this reads as the draft's
-	// 创建大标签页 while binding the key this build binds.
-	("创建大标签页", "在当前项目下新建一个工作区（= 一个新大标签页）", "Ctrl N"),
-	("拆分面板", "把当前面板左右分屏", "Ctrl \\"),
-	("新建终端", "在当前面板新建一个终端", "Ctrl ⇧ T"),
-	("打开设置", "打开本设置面板", "Ctrl ,"),
-	("切换侧栏", "显示或隐藏左右侧栏", "Ctrl B"),
-	("命令面板", "打开命令面板：跳转项目、工作区、会话、文件，或运行桌面动作", "Ctrl K"),
-];
-
 /// The shell: state plus the read-only readers and caches around it.
 pub struct Shell {
 	pub state: AppState,
 	pub settings: Settings,
+	/// Drafts for 设置 → 快捷键's editable chord fields, keyed by command id.
+	/// Kept apart from `settings.command_keys` so a half-typed chord never
+	/// replaces the one in force.
+	pub key_drafts: BTreeMap<String, String>,
 	/// True when the compositor draws the window frame (a Wayland toplevel,
 	/// see [`native_decorations`]): the shell then skips [`chrome::title_bar`]
 	/// and [`chrome::resize_borders`], because winit cannot move or resize such
@@ -305,10 +298,12 @@ impl Shell {
 		let fonts = fonts::install(&cc.egui_ctx, &settings);
 		let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 		let state = AppState::seeded(&cwd);
+		let applied = settings.clone();
 		let mut shell = Self {
 			state,
 			settings,
-			applied: settings,
+			key_drafts: BTreeMap::new(),
+			applied,
 			native_chrome: native_decorations(),
 			fonts,
 			app_icon: None,
@@ -386,10 +381,12 @@ impl Shell {
 	/// A shell over an explicit state (tests, and the headless checks).
 	pub fn with_state(state: AppState, settings: Settings) -> Self {
 		crate::i18n::Lang::set_current(settings.lang);
+		let applied = settings.clone();
 		Self {
 			state,
 			settings,
-			applied: settings,
+			key_drafts: BTreeMap::new(),
+			applied,
 			native_chrome: native_decorations(),
 			fonts: Fonts::default(),
 			app_icon: None,
@@ -698,7 +695,7 @@ impl Shell {
 			.as_deref()
 			.and_then(|root| git::read_branches(root).ok())
 			.unwrap_or_default();
-		let palette = palette::build(&self.state, &files, &branches);
+		let palette = palette::build(&self.state, &self.settings, &files, &branches);
 		self.state.open_palette(palette);
 	}
 
@@ -794,75 +791,89 @@ impl Shell {
 		if fonts_changed {
 			self.fonts = fonts::install(ctx, &self.settings);
 		}
-		if let Err(error) = settings::save(self.settings) {
+		if let Err(error) = settings::save(&self.settings) {
 			self
 				.state
 				.show(crate::state::Notice(t!("设置保存失败：{}", error)));
 		}
-		self.applied = self.settings;
+		self.applied = self.settings.clone();
 	}
 
 	// ── keyboard ───────────────────────────────────────────────────────
 
-	/// The spec's shortcuts, with ⌘ mapped to Ctrl on this host, plus the TUI
-	/// view's own keys.
+	/// The registry's chords, dispatched through [`Shell::run_command`]. A
+	/// widget with the keyboard keeps its keys: only commands marked `global`
+	/// bypass that, and [`Shell::run_global_commands`] is where they fire.
 	pub fn handle_keys(&mut self, ctx: &Context) {
 		if ctx.wants_keyboard_input() {
 			return;
 		}
-		let (escape, ctrl) = ctx.input(|i| {
-			(
-				i.key_pressed(egui::Key::Escape),
-				(
-					i.modifiers.command,
-					i.key_pressed(egui::Key::N),
-					i.key_pressed(egui::Key::Backslash),
-					i.key_pressed(egui::Key::T),
-					i.key_pressed(egui::Key::Comma),
-					i.key_pressed(egui::Key::B),
-					i.modifiers.shift,
-					i.key_pressed(egui::Key::S),
-				),
-			)
-		});
-		let (command, key_n, key_backslash, key_t, key_comma, key_b, shift, key_s) = ctrl;
-		if escape {
+		if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
 			self.state.escape();
 		}
-		if !command {
-			return;
-		}
-		if key_comma {
-			self.state.open_settings();
-		}
-		if key_s {
-			// 保存: every dirty 编辑器 buffer in the open workspace, to disk.
-			let notice = self.state.save_dirty_editors();
-			self.state.show(notice);
-		}
-		if key_b {
-			self.state.toggle_left();
-		}
-		if key_n {
-			let project = self.state.active_project.clone();
-			if let Some(id) = project {
-				let notice = self.state.new_workspace(&id);
-				self.state.show(notice);
-				self.sync_readers();
+		for command in commands::COMMANDS.iter().filter(|command| !command.global) {
+			let chord = commands::chord(&self.settings.command_keys, command);
+			if commands::pressed(ctx, chord) {
+				self.run_command(command.id);
 			}
 		}
-		if key_backslash {
-			let notice = self.state.new_pane();
-			self.state.show(notice);
+	}
+
+	/// The `global` commands: they fire even while a terminal or a text field
+	/// owns the keyboard. Called before input is forwarded to a PTY.
+	pub fn run_global_commands(&mut self, ctx: &Context) {
+		for command in commands::COMMANDS.iter().filter(|command| command.global) {
+			let chord = commands::chord(&self.settings.command_keys, command);
+			if commands::pressed(ctx, chord) {
+				self.run_command(command.id);
+			}
 		}
-		if key_t {
-			let notice = if shift {
-				self.state.new_term()
-			} else {
-				self.state.focus_mode()
-			};
-			self.state.show(notice);
+	}
+
+	/// Run one registry command by id; `false` when the build has no such
+	/// command, or it does not apply right now (no project selected, a modal
+	/// in the way).
+	pub fn run_command(&mut self, id: &str) -> bool {
+		if commands::find(id).is_none() {
+			return false;
 		}
+		match id {
+			"palette.open" => {
+				if self.state.modal_open() {
+					return false;
+				}
+				self.open_palette();
+			},
+			"workspace.new" => {
+				let Some(project) = self.state.active_project.clone() else {
+					return false;
+				};
+				let notice = self.state.new_workspace(&project);
+				self.state.show(notice);
+				self.sync_readers();
+			},
+			"pane.split" => {
+				let notice = self.state.new_pane();
+				self.state.show(notice);
+			},
+			"terminal.new" => {
+				let notice = self.state.new_term();
+				self.state.show(notice);
+			},
+			"terminal.focus" => {
+				let notice = self.state.focus_mode();
+				self.state.show(notice);
+			},
+			"settings.open" => self.state.open_settings(),
+			"sidebar.toggle" => self.state.toggle_left(),
+			"editor.save" => {
+				// 保存: every dirty 编辑器 buffer in the open workspace, to disk.
+				let notice = self.state.save_dirty_editors();
+				self.state.show(notice);
+			},
+			_ => return false,
+		}
+		true
 	}
 
 	// ── 后台驻留与通知 ─────────────────────────────────────────────────
@@ -1579,14 +1590,11 @@ impl Shell {
 			ctx.request_repaint_after(std::time::Duration::from_millis(120));
 		}
 		self.memory.sample_if_stale();
-		// ⌘K / Ctrl-K opens the palette from anywhere — including a focused
-		// terminal, whose PTY would otherwise swallow the chord. It never opens
-		// over another modal.
-		let palette_hotkey =
-			ctx.input(|input| input.modifiers.command && input.key_pressed(egui::Key::K));
-		if palette_hotkey && !self.state.modal_open() {
-			self.open_palette();
-		}
+		// The registry's `global` commands — ⌘K / Ctrl-K above all — fire from
+		// anywhere, including a focused terminal, whose PTY would otherwise
+		// swallow the chord. They run before the forwarding below for exactly
+		// that reason.
+		self.run_global_commands(ctx);
 		if !palette::keys(ctx, self) && !self.forward_terminal_input(ctx) {
 			self.handle_keys(ctx);
 		}

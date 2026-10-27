@@ -29,8 +29,18 @@
 ## 托盘与通知
 
 发布版编译了 `tray` 与 `os-notify`：托盘图标常驻，菜单可唤回窗口、查看会话数、退出。
-Linux 上没有 StatusNotifier 宿主时托盘降级为“无托盘”（设置 → 常规会说明原因），
+Windows 用 `Shell_NotifyIcon`；Linux 用 StatusNotifierItem（D-Bus，KSNI 后端）——
+KDE 的 X11 与 Wayland 会话、XFCE、LXQt 直接支持，GNOME 需要 AppIndicator 扩展。
+没有宿主的会话里托盘降级为“无托盘”（设置 → 常规会说明原因），
 关窗仍然后台驻留，再运行一次 `zetawork` 即可唤回。通知策略见 设置 → 通知。
+
+## 快捷键与命令面板
+
+桌面命令（新建大标签页、拆分面板、新建终端、聚焦模式、打开设置、切换侧栏、保存、命令面板）
+来自同一张注册表：命令面板里能搜到并运行它们，`设置 → 快捷键` 列出的就是键盘实际监听的那份键位。
+右侧输入框可以改键：写成 `ctrl+shift+k` 这样，能解析就立即生效；写不成、或与别的命令撞车时
+行尾显示 `?`，原来的键继续生效。改动写进 `~/.zeta/zetawork.toml` 的
+`keys = "id=chord; id=chord"` 一行；清空某一行即回到出厂键位。
 
 ## 更新
 

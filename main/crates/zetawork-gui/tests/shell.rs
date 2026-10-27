@@ -75,7 +75,7 @@ fn settings_round_trip_and_corruption_fallback() {
 		terminal_size: 12,
 		..Settings::default()
 	};
-	settings::save_to(&path, wanted).unwrap();
+	settings::save_to(&path, &wanted).unwrap();
 	assert_eq!(settings::load_from(&path), wanted, "round trip");
 
 	// A corrupt file: invalid UTF-8, then a nonsense value next to a good one.

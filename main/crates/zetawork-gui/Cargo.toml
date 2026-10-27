@@ -106,6 +106,13 @@ tray-icon = { version = "0.26", optional = true }
 # The bus that carries `org.freedesktop.Notifications`, already in this host's
 # cargo cache (5.19.0).
 zbus = { version = "5", optional = true }
+# The tray on Linux, through the crate's **ksni** backend: StatusNotifierItem
+# over D-Bus, the protocol KDE hosts on X11 *and* Wayland (XFCE and LXQt too,
+# GNOME through the AppIndicator extension). `default-features = false` is
+# load-bearing — the crate's default backend is libappindicator/GTK, which would
+# drag GTK into a winit app and need its main loop pumped. KSNI runs its own
+# worker thread, so this adds no system library to the package.
+tray-icon = { version = "0.26", optional = true, default-features = false, features = ["ksni"] }
 
 
 [dev-dependencies]

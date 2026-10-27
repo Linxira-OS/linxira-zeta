@@ -486,16 +486,60 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 		Section::Remote => crate::settings_remote::section(ui, shell),
 		Section::Keys => {
 			head(ui, t!("快捷键"));
-			hint(ui, t!("本机把规格里的 ⌘ 映射为 Ctrl；TUI 视图用 Tab 切换面板、q 退出。"));
-			for (label, hint_text, keys) in crate::BINDINGS {
-				let label = crate::i18n::tr(label);
-				let hint_text = crate::i18n::tr(hint_text);
+			hint(
+				ui,
+				t!(
+					"本机把规格里的 ⌘ 映射为 Ctrl；TUI 视图用 Tab 切换面板、q 退出。右侧可改：写成 ctrl+shift+k 这样，改到能解析就立即生效，清空则回到出厂键位。"
+				),
+			);
+			// The registry is the only source: a row exists because the keyboard
+			// listens for that command, and the field prints the chord in force.
+			for command in crate::commands::COMMANDS {
+				let current = crate::commands::chord(&shell.settings.command_keys, command).encode();
 				row(
 					ui,
-					label,
-					hint_text,
-					|ui, _shell| {
-						kbd(ui, keys);
+					crate::i18n::tr(command.label),
+					crate::i18n::tr(command.hint),
+					|ui, shell| {
+						let draft = shell
+							.key_drafts
+							.entry(command.id.to_owned())
+							.or_insert_with(|| current.clone());
+						let edit = ui.add_sized(
+							vec2(220.0, 26.0),
+							egui::TextEdit::singleline(draft)
+								.font(egui::TextStyle::Monospace)
+								.hint_text(current.as_str()),
+						);
+						let parsed = crate::commands::Chord::decode(draft);
+						if edit.changed() {
+							match parsed {
+								Some(chord)
+									if crate::commands::conflict(
+										&shell.settings.command_keys,
+										command.id,
+										chord,
+									)
+									.is_none() =>
+								{
+									if chord == command.default_chord {
+										shell.settings.command_keys.remove(command.id);
+									} else {
+										shell
+											.settings
+											.command_keys
+											.insert(command.id.to_owned(), chord.encode());
+									}
+									shell.apply_settings(ui.ctx());
+								},
+								// Unparseable, or another command already owns
+								// that chord: the stored one stays in force and
+								// the marker says why.
+								_ => {
+									ui.colored_label(theme::WARN, "?");
+								},
+							}
+						}
 					},
 					shell,
 				);
@@ -1431,27 +1475,6 @@ fn disabled_switch(ui: &mut Ui, value: bool) {
 	};
 	ui.painter()
 		.circle_filled(pos2(knob_x, rect.center().y), 8.0, knob);
-}
-
-fn kbd(ui: &mut Ui, keys: &str) {
-	let font = FontId::new(11.0, egui::FontFamily::Monospace);
-	let galley = ui
-		.painter()
-		.layout_no_wrap(keys.to_owned(), font.clone(), theme::TEXT_2);
-	let rect = Rect::from_center_size(
-		pos2(ui.max_rect().max.x - galley.size().x / 2.0 - 6.0, ui.max_rect().center().y),
-		vec2(galley.size().x + 12.0, 20.0),
-	);
-	ui.painter()
-		.rect_filled(rect, CornerRadius::same(5), theme::PANEL_3);
-	ui.painter().rect_stroke(
-		rect,
-		CornerRadius::same(5),
-		Stroke::new(1.0_f32, theme::BORDER),
-		egui::StrokeKind::Inside,
-	);
-	ui.painter()
-		.text(rect.center(), egui::Align2::CENTER_CENTER, keys, font.clone(), theme::TEXT_2);
 }
 
 // ── the two remote targets ────────────────────────────────────────────────

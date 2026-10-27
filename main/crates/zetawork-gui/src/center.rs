@@ -886,7 +886,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	);
 	let foot = Rect::from_min_size(pos2(rect.min.x, rect.max.y - 24.0), vec2(rect.width(), 24.0));
 	let code = Rect::from_min_max(pos2(rect.min.x, etabs.max.y), pos2(rect.max.x, foot.min.y));
-	let settings = shell.settings;
+	let settings = shell.settings.clone();
 	let size = f32::from(settings.editor_size);
 	let font = crate::fonts::editor_font_for(ui.ctx(), size);
 	let widget_font = font.clone();

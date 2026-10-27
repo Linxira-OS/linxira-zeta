@@ -168,10 +168,10 @@ const CARGO_PRODUCTS: Record<
 > = {
 	work: { dir: "main", pkg: "zeta-main", bin: "zeta" },
 	// The desktop app is a separate binary in the same workspace; it is never
-	// placed on PATH by the installers (no fourth command). Notifications are
-	// an optional feature on both platforms; the tray is added for the Windows
-	// leg only, because `tray-icon` lives in the Windows-only dependency list
-	// (enabling it on Linux used to break the build outright).
+	// placed on PATH by the installers (no fourth command). Notifications and
+	// the tray are optional features; the tray ships on every desktop — Windows
+	// through Shell_NotifyIcon, Linux through `tray-icon`'s KSNI backend
+	// (StatusNotifierItem over D-Bus, no GTK/libappindicator dependency).
 	gui: {
 		dir: "main",
 		pkg: "zetawork-gui",
@@ -265,7 +265,7 @@ async function buildCargoProduct(target: ProductBinaryTarget): Promise<void> {
 		return;
 	}
 	const features = [...(product.features ?? [])];
-	if (product.pkg === "zetawork-gui" && target.platform === "win32" && !features.includes("tray")) {
+	if (product.pkg === "zetawork-gui" && !features.includes("tray")) {
 		features.push("tray");
 	}
 	await runCommand(

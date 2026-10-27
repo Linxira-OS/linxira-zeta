@@ -78,7 +78,7 @@ fn shoot(shell: &mut Shell, frames: usize) -> Vec<u8> {
 	let ctx = egui::Context::default();
 	// The real look: the spec's tokens and the host's CJK face, exactly as
 	// `Shell::new` installs them for the window.
-	let settings = shell.settings;
+	let settings = shell.settings.clone();
 	theme::apply(&ctx, &settings);
 	fonts::install(&ctx, &settings);
 

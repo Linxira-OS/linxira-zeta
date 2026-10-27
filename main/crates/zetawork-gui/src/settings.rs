@@ -21,6 +21,7 @@
 //! hand-edited or half-written file only loses what it lost.
 
 use crate::t;
+use std::collections::BTreeMap;
 use std::{
 	fmt,
 	path::{Path, PathBuf},
@@ -353,7 +354,10 @@ impl NotifyPolicy {
 }
 
 /// Every value the 设置 modal persists.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+///
+/// Not `Copy`: `command_keys` is a map. The shell clones it where it used to
+/// copy — settings change rarely, and never on a per-frame path.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Settings {
 	pub theme: Theme,
 	/// 界面语言. Defaults to Chinese, the language every literal is authored in.
@@ -384,6 +388,9 @@ pub struct Settings {
 	/// window started is stopped with it, and one that was already running is
 	/// never touched.
 	pub keep_backend_on_quit: bool,
+	/// `keys`: per-command chord overrides for [`crate::commands`], keyed by
+	/// command id. Empty by default — the shipped chords are the table's.
+	pub command_keys: BTreeMap<String, String>,
 }
 
 impl Default for Settings {
@@ -404,6 +411,7 @@ impl Default for Settings {
 			notify: NotifyPolicy::BackgroundOnly,
 			update_check_on_start: false,
 			keep_backend_on_quit: false,
+			command_keys: BTreeMap::new(),
 		}
 	}
 }
@@ -417,7 +425,7 @@ impl Settings {
 
 /// The keys this file owns, with their canonical inline comment (the same
 /// shape `zeta-main`'s writer uses).
-const MANAGED: [(&str, &str); 15] = [
+const MANAGED: [(&str, &str); 16] = [
 	("theme", "dark | light | system"),
 	("lang", "zh | en"),
 	("density", "compact | standard | spacious"),
@@ -433,6 +441,7 @@ const MANAGED: [(&str, &str); 15] = [
 	("notify", "off | background | always"),
 	("update.check_on_start", "ask GitHub for a desktop release when the window opens"),
 	("backend.keep_on_quit", "leave the background backend running after zetawork quits"),
+	("keys", "per-command chords: id=chord; id=chord (see 设置 → 快捷键)"),
 ];
 
 const HEADER: &str =
@@ -454,7 +463,7 @@ pub fn load() -> Settings {
 }
 
 /// Write the user's file, preserving everything it already held.
-pub fn save(settings: Settings) -> std::io::Result<()> {
+pub fn save(settings: &Settings) -> std::io::Result<()> {
 	save_to(&settings_path(), settings)
 }
 
@@ -469,7 +478,7 @@ pub fn load_from(path: &Path) -> Settings {
 }
 
 /// Write a specific file with the line-preserving merge.
-pub fn save_to(path: &Path, settings: Settings) -> std::io::Result<()> {
+pub fn save_to(path: &Path, settings: &Settings) -> std::io::Result<()> {
 	if let Some(dir) = path.parent() {
 		std::fs::create_dir_all(dir)?;
 	}
@@ -518,10 +527,32 @@ fn read(text: &str) -> Settings {
 			"notify" => settings.notify = NotifyPolicy::from_key(value).unwrap_or_default(),
 			"update.check_on_start" => settings.update_check_on_start = truthy(value).unwrap_or(false),
 			"backend.keep_on_quit" => settings.keep_backend_on_quit = truthy(value).unwrap_or(false),
+			"keys" => settings.command_keys = read_overrides(value),
 			_ => {},
 		}
 	}
 	settings
+}
+
+/// `keys` — the overrides written as `id=chord; id=chord`, in id order so the
+/// file only changes when the map does.
+fn encode_overrides(overrides: &BTreeMap<String, String>) -> String {
+	overrides
+		.iter()
+		.map(|(id, chord)| format!("{id}={chord}"))
+		.collect::<Vec<_>>()
+		.join("; ")
+}
+
+/// `keys` — a pair without `=` or with an empty half is dropped, so a hand
+/// edit costs one override rather than the whole line.
+fn read_overrides(text: &str) -> BTreeMap<String, String> {
+	text
+		.split(';')
+		.filter_map(|pair| pair.split_once('='))
+		.map(|(id, chord)| (id.trim().to_owned(), chord.trim().to_owned()))
+		.filter(|(id, chord)| !id.is_empty() && !chord.is_empty())
+		.collect()
 }
 
 /// `None` for anything that is not a boolean, so the caller's own default wins.
@@ -546,7 +577,7 @@ fn size(value: &str, allowed: &[u8]) -> Option<u8> {
 /// exactly where they are, and a managed key keeps its line, its position and
 /// its inline comment — only its value is rewritten. Keys the file was missing
 /// are appended to the preamble.
-fn merge(existing: &str, settings: Settings) -> String {
+fn merge(existing: &str, settings: &Settings) -> String {
 	let eol = if existing.contains("\r\n") {
 		"\r\n"
 	} else {
@@ -587,7 +618,7 @@ fn merge(existing: &str, settings: Settings) -> String {
 }
 
 /// Append the managed keys the file did not have.
-fn insert_missing(settings: Settings, out: &mut String, written: &mut Vec<&str>, eol: &str) {
+fn insert_missing(settings: &Settings, out: &mut String, written: &mut Vec<&str>, eol: &str) {
 	for (key, _) in MANAGED {
 		if !written.contains(&key) {
 			out.push_str(&managed_line(key, settings, None, eol));
@@ -620,7 +651,7 @@ fn inline_comment(line: &str) -> Option<&str> {
 	None
 }
 
-fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str) -> String {
+fn managed_line(key: &str, settings: &Settings, comment: Option<&str>, eol: &str) -> String {
 	let fallback = MANAGED
 		.iter()
 		.find(|(managed, _)| *managed == key)
@@ -642,6 +673,7 @@ fn managed_line(key: &str, settings: Settings, comment: Option<&str>, eol: &str)
 		"notify" => settings.notify.key().to_owned(),
 		"update.check_on_start" => settings.update_check_on_start.to_string(),
 		"backend.keep_on_quit" => settings.keep_backend_on_quit.to_string(),
+		"keys" => encode_overrides(&settings.command_keys),
 		_ => String::new(),
 	};
 	let comment = comment.unwrap_or(fallback);
@@ -700,11 +732,12 @@ mod tests {
 			notify: NotifyPolicy::Always,
 			update_check_on_start: true,
 			keep_backend_on_quit: true,
+			command_keys: BTreeMap::from([("workspace.new".to_owned(), "alt+shift+w".to_owned())]),
 		};
-		save_to(&path, written).unwrap();
+		save_to(&path, &written).unwrap();
 		assert_eq!(load_from(&path), written, "{}", std::fs::read_to_string(&path).unwrap());
 		// A second write must not accumulate duplicate keys.
-		save_to(&path, written).unwrap();
+		save_to(&path, &written).unwrap();
 		let text = std::fs::read_to_string(&path).unwrap();
 		assert_eq!(text.matches("theme =").count(), 1, "{text}");
 		let _ = std::fs::remove_dir_all(&dir);
@@ -725,7 +758,7 @@ mod tests {
 		std::fs::write(&path, [0xff, 0xfe, 0x00, 0x9c, 0x80, 0x01]).unwrap();
 		assert_eq!(load_from(&path), Settings::default());
 		// …and writing over it recovers the file.
-		save_to(&path, Settings::default()).unwrap();
+		save_to(&path, &Settings::default()).unwrap();
 		assert_eq!(load_from(&path), Settings::default());
 		let _ = std::fs::remove_dir_all(&dir);
 	}
@@ -761,7 +794,7 @@ mod tests {
 		let mut settings = load_from(&path);
 		assert_eq!(settings.theme, Theme::Light, "a # comment does not swallow the value");
 		settings.editor_size = 12;
-		save_to(&path, settings).unwrap();
+		save_to(&path, &settings).unwrap();
 		let text = std::fs::read_to_string(&path).unwrap();
 		assert!(text.contains("# keep this note"), "{text}");
 		assert!(text.contains("unknown_key = 42"), "{text}");
@@ -778,7 +811,7 @@ mod tests {
 		let path = dir.join("zetawork.toml");
 		std::fs::write(&path, "theme = light\n\n[other]\ninner = true\n").unwrap();
 		let settings = Settings { theme: Theme::Light, ..Settings::default() };
-		save_to(&path, settings).unwrap();
+		save_to(&path, &settings).unwrap();
 		let text = std::fs::read_to_string(&path).unwrap();
 		let table = text.find("[other]").unwrap();
 		let appended = text.find("editor_size =").unwrap();

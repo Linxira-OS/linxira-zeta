@@ -17,14 +17,24 @@
 //!
 //! # The degrade chain
 //!
-//! `TrayIconBuilder::build` fails where there is no host for it: Linux without
-//! `libayatana-appindicator3` or without a StatusNotifier host, and any
-//! headless session. The failure is recorded in [`Tray::note`] and shown in
-//! 设置 → 常规, so "there is no tray" is visible in the product instead of
-//! being a mystery.
+//! `TrayIconBuilder::build` fails where there is no host for it: any headless
+//! session, and on Linux a session without a StatusNotifier host on the session
+//! bus. The failure is recorded in [`Tray::note`] and shown in 设置 → 常规, so
+//! "there is no tray" is visible in the product instead of being a mystery.
+//!
+//! # Both platforms, one backend call
+//!
+//! `tray-icon` carries two Linux backends. The crate's default is
+//! `libappindicator`/GTK, which would drag GTK into a winit app and needs the
+//! GTK main loop pumped; this build opts into `ksni` instead (see the manifest),
+//! which is the same StatusNotifierItem protocol — the one KDE hosts on **both**
+//! X11 and Wayland, as do XFCE and LXQt — spoken over D-Bus from the crate's own
+//! worker thread with no GTK and no libappindicator. GNOME shows it through the
+//! AppIndicator extension, and a compositor with neither protocol simply lands
+//! in [`Tray::note`]. Windows keeps the Shell_NotifyIcon backend unchanged.
 
 // Every `t!` below is inside a `tray` block; a default-feature build has none.
-#[cfg(all(feature = "tray", windows))]
+#[cfg(feature = "tray")]
 use crate::t;
 
 /// The menu's first item: bring the window back.
@@ -48,7 +58,7 @@ pub fn compiled_in() -> bool {
 }
 
 /// Menu ids clicked since the last drain.
-#[cfg(all(feature = "tray", windows))]
+#[cfg(feature = "tray")]
 pub fn drain_clicks() -> Vec<String> {
 	match CLICKS.lock() {
 		Ok(mut queue) => std::mem::take(&mut *queue),
@@ -59,23 +69,23 @@ pub fn drain_clicks() -> Vec<String> {
 /// The menu queue, shared with the event handler `tray-icon` runs on its own
 /// thread. One static, initialised where it is declared: nothing has to call an
 /// `init`.
-#[cfg(all(feature = "tray", windows))]
+#[cfg(feature = "tray")]
 static CLICKS: std::sync::LazyLock<std::sync::Mutex<Vec<String>>> =
 	std::sync::LazyLock::new(|| std::sync::Mutex::new(Vec::new()));
 
 /// Without the feature there is nothing to drain.
-#[cfg(not(all(feature = "tray", windows)))]
+#[cfg(not(feature = "tray"))]
 pub fn drain_clicks() -> Vec<String> {
 	Vec::new()
 }
 
 /// The tray, or the reason there is none.
 pub struct Tray {
-	#[cfg(all(feature = "tray", windows))]
+	#[cfg(feature = "tray")]
 	icon: Option<tray_icon::TrayIcon>,
-	#[cfg(all(feature = "tray", windows))]
+	#[cfg(feature = "tray")]
 	sessions: Option<tray_icon::menu::MenuItem>,
-	#[cfg(all(feature = "tray", windows))]
+	#[cfg(feature = "tray")]
 	shown_count: Option<usize>,
 	/// Why there is no tray (the feature is off, or building it failed).
 	pub note: Option<String>,
@@ -93,7 +103,7 @@ impl Tray {
 	}
 }
 
-#[cfg(not(all(feature = "tray", windows)))]
+#[cfg(not(feature = "tray"))]
 impl Tray {
 	/// No tray in this build.
 	pub fn new(_ctx: &egui::Context) -> Self {
@@ -106,7 +116,7 @@ impl Tray {
 	}
 }
 
-#[cfg(all(feature = "tray", windows))]
+#[cfg(feature = "tray")]
 impl Tray {
 	/// Build the tray. Every failure path ends in `note`, never in a panic: a
 	/// missing StatusNotifier host must not stop the workbench from running.
@@ -210,7 +220,7 @@ impl Tray {
 }
 
 /// The tray icon's size, in pixels.
-#[cfg(all(feature = "tray", windows))]
+#[cfg(feature = "tray")]
 const MARK_SIZE: u32 = 32;
 
 /// Apply whatever the tray's threads queued, and keep its status line current.
@@ -229,7 +239,7 @@ pub fn poll(ctx: &egui::Context, shell: &mut crate::Shell) {
 			_ => {},
 		}
 	}
-	#[cfg(all(feature = "tray", windows))]
+	#[cfg(feature = "tray")]
 	{
 		let count = shell.running_sessions();
 		shell.tray.sync_sessions(count);

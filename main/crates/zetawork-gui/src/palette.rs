@@ -4,9 +4,10 @@
 //! # What it is
 //!
 //! A **navigation and desktop-action** surface only: it lists projects,
-//! workspaces, conversations and files — and three actions that belong to the
+//! workspaces, conversations and files — and the actions that belong to the
 //! shell (switch the active workspace's branch, open 设置 → 远程访问, restart the
-//! serve backend). It is *not* a slash-command surface: typing `/` is a
+//! serve backend, and every command in [`crate::commands`] that is not the
+//! palette's own). It is *not* a slash-command surface: typing `/` is a
 //! search for a project or file whose name starts with `/`, never a command
 //! interpreter, and nothing here types into a terminal. The terminal's input
 //! path ([`crate::Shell::forward_terminal_input`]) is untouched; the palette
@@ -34,6 +35,7 @@ use egui::{Align, CornerRadius, FontId, Layout, Order, Rect, Sense, Stroke, pos2
 use crate::{
 	Shell, git,
 	icons::Icon,
+	settings::Settings,
 	state::AppState,
 	t, theme,
 	widgets::{truncated_mono, truncated_text},
@@ -56,6 +58,9 @@ pub enum Action {
 	RemoteSettings,
 	/// `zetacode daemon restart`.
 	RestartBackend,
+	/// A named command from [`crate::commands`] — the same id its chord and
+	/// its 设置 row use.
+	Command(&'static str),
 }
 
 /// One row.
@@ -177,7 +182,12 @@ pub fn rank(items: &[Item], query: &str) -> Vec<usize> {
 /// `files` are absolute paths (the active workspace's), `branches` the active
 /// workspace's branches. Both may be empty; the corresponding section then
 /// simply does not appear.
-pub fn build(state: &AppState, files: &[PathBuf], branches: &[git::GitBranch]) -> Palette {
+pub fn build(
+	state: &AppState,
+	settings: &Settings,
+	files: &[PathBuf],
+	branches: &[git::GitBranch],
+) -> Palette {
 	let mut items = Vec::new();
 
 	// Actions first: the palette is a verb as much as a noun. The two fixed
@@ -195,6 +205,21 @@ pub fn build(state: &AppState, files: &[PathBuf], branches: &[git::GitBranch]) -
 		detail: t!("设置 → 常规 → 后台服务").to_owned(),
 		action: Action::RestartBackend,
 	});
+	// Every registry command except the palette itself (a row that reopens the
+	// box the user is looking at is noise). The detail carries the chord in
+	// effect, so an override in 设置 → 快捷键 shows up here too.
+	for command in crate::commands::COMMANDS
+		.iter()
+		.filter(|command| !command.global)
+	{
+		let chord = crate::commands::chord(&settings.command_keys, command);
+		items.push(Item {
+			section: t!("桌面动作"),
+			title: crate::i18n::tr(command.label).to_owned(),
+			detail: format!("{} · {}", crate::i18n::tr(command.hint), chord.label()),
+			action: Action::Command(command.id),
+		});
+	}
 	if !branches.is_empty() {
 		for branch in branches.iter().filter(|branch| !branch.current) {
 			items.push(Item {
@@ -354,6 +379,13 @@ pub fn run(shell: &mut Shell, action: &Action) -> crate::state::Notice {
 			Notice(String::new())
 		},
 		Action::RestartBackend => restart_backend(shell),
+		Action::Command(id) => {
+			if shell.run_command(id) {
+				Notice(String::new())
+			} else {
+				Notice(t!("这条命令现在不可用").to_owned())
+			}
+		},
 	}
 }
 
@@ -716,7 +748,7 @@ mod tests {
 		);
 		let target = state.projects.last().expect("a project").id.clone();
 		let mut shell = crate::Shell::with_state(state, crate::settings::Settings::default());
-		let palette = build(&shell.state, &[], &[]);
+		let palette = build(&shell.state, &shell.settings, &[], &[]);
 		assert!(palette.items.iter().any(|item| item.section == t!("操作")));
 		assert!(palette.items.iter().any(|item| item.section == t!("项目")));
 
