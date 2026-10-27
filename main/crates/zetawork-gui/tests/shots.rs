@@ -1037,3 +1037,50 @@ fn agent_rows_screenshot() {
 	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
 	write("19-workspace-agent-rows.png", &bytes);
 }
+
+/// `20-diff-line-note.png` — a diff page with one note pinned to a row and the
+/// editor open under it. The diff is injected: a shot must not depend on this
+/// checkout's own worktree.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn diff_note_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	let workspace = shell.state.active_workspace().expect("a workspace").id.clone();
+	let pane = shell
+		.state
+		.active_workspace()
+		.expect("a workspace")
+		.panes
+		.first()
+		.expect("a pane")
+		.id
+		.clone();
+	let notice = shell
+		.state
+		.open_page(&pane, zetawork_gui::state::SessionKind::Diff);
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	shell.diff = Some(Ok(
+		"diff --git a/src/lib.rs b/src/lib.rs\n\
+		 --- a/src/lib.rs\n\
+		 +++ b/src/lib.rs\n\
+		 @@ -1,4 +1,5 @@\n\
+		 fn main() {\n\
+		 -    old();\n\
+		 +    new();\n\
+		 +    extra();\n\
+		 }\n"
+			.to_owned(),
+	));
+	shell.diff_ws = workspace;
+	shell.diff_at = Some(std::time::Instant::now());
+	// The note the row carries, and the editor a click would have opened.
+	shell
+		.notes
+		.set("src/lib.rs", 2, "这条分支在空输入上走不到");
+	shell.diff_note_at = Some(("src/lib.rs".to_owned(), 2));
+	shell.diff_note_draft = "这条分支在空输入上走不到".to_owned();
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
+	write("20-diff-line-note.png", &bytes);
+}

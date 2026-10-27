@@ -1081,7 +1081,8 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 			empty_note(&mut child, t!("与 HEAD 没有差异"));
 			return;
 		},
-		Ok(text) => text,
+		// Owned: the rows below borrow `shell` mutably for their notes.
+		Ok(text) => text.to_owned(),
 		Err(error) => {
 			let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink(10.0)));
 			empty_note(&mut child, &t!("无法读取 git diff：{}", error));
@@ -1095,12 +1096,71 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		.show(&mut body_ui, |ui| {
 			ui.spacing_mut().item_spacing.y = 0.0;
 			let width = ui.available_width().max(600.0);
+			// The diff is raw text: the file comes from `+++ b/…`, the line
+			// numbers from the hunk headers, and both advance with the rows.
+			let mut file = String::new();
+			let mut new_line = 0_u32;
+			let mut old_line = 0_u32;
 			for line in text.lines() {
 				let Some(kind) = crate::git::classify_line(line) else {
 					continue;
 				};
-				let (rect, _) = ui.allocate_exact_size(vec2(width, DIFF_ROW_H), Sense::hover());
-				diff_row(ui, rect, kind, line);
+				match kind {
+					DiffKind::Header => {
+						// `+++ /dev/null` is a deletion: there is no new side,
+						// and a note has nowhere to point.
+						let named = line.trim_start_matches("+++ ").trim();
+						file = match named.strip_prefix("b/") {
+							Some(path) => path.to_owned(),
+							None if named == "/dev/null" => String::new(),
+							None => named.to_owned(),
+						};
+						new_line = 0;
+						old_line = 0;
+					},
+					DiffKind::Hunk => {
+						if let Some((old, new)) = crate::git::hunk_starts(line) {
+							old_line = old;
+							new_line = new;
+						}
+					},
+					_ => {},
+				}
+				// A note points at the new side: additions and context lines
+				// are numbered there, deletions are not numbered at all.
+				let number = match kind {
+					DiffKind::Add | DiffKind::Context => new_line,
+					_ => 0,
+				};
+				let marked = number > 0 && shell.notes.at(&file, number).is_some();
+				let (rect, response) = ui.allocate_exact_size(vec2(width, DIFF_ROW_H), Sense::click());
+				diff_row(ui, rect, kind, line, marked);
+				if response.clicked() && number > 0 && !file.is_empty() {
+					shell.diff_note_at = Some((file.clone(), number));
+					shell.diff_note_draft = shell
+						.notes
+						.at(&file, number)
+						.map(|note| note.text.clone())
+						.unwrap_or_default();
+					shell.diff_note_focus = true;
+				}
+				match kind {
+					DiffKind::Add => new_line += 1,
+					DiffKind::Del => old_line += 1,
+					DiffKind::Context => {
+						new_line += 1;
+						old_line += 1;
+					},
+					_ => {},
+				}
+				let open = shell
+					.diff_note_at
+					.as_ref()
+					.is_some_and(|(at_file, at_line)| at_file == &file && *at_line == number);
+				if open {
+					note_editor(ui, shell, &file, number, line, width);
+				}
+				let _ = old_line;
 			}
 		});
 }
@@ -1108,8 +1168,9 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 /// Height of one diff row.
 const DIFF_ROW_H: f32 = 20.0;
 
-/// One diff row: its sign, its colour and, for a header, the file it names.
-fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str) {
+/// One diff row: its sign, its colour, a marker when a note is pinned to it,
+/// and, for a header, the file it names.
+fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str, marked: bool) {
 	let (sign, ink, background) = match kind {
 		DiffKind::Header => ('≡', theme::TEXT, Some(theme::PANEL_2)),
 		DiffKind::Hunk => ('@', theme::ACCENT_2, Some(theme::ACCENT.gamma_multiply(0.08))),
@@ -1140,6 +1201,85 @@ fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str) {
 	let galley = ui.painter().layout_no_wrap(text, font, ink);
 	ui.painter()
 		.galley(pos2(row.min.x + 28.0, row.center().y - galley.size().y / 2.0), galley, ink);
+	if marked {
+		ui.painter().text(
+			pos2(row.max.x - 12.0, row.center().y),
+			egui::Align2::RIGHT_CENTER,
+			"✎",
+			egui::FontId::proportional(11.0),
+			theme::ACCENT_2,
+		);
+	}
+}
+
+/// `行注释`: the editor under the row a click selected. Enter saves the note,
+/// ⇧Enter saves it and hands it to the targeted agent, Esc closes the editor.
+fn note_editor(ui: &mut Ui, shell: &mut Shell, file: &str, line: u32, code: &str, width: f32) {
+	let (rect, _) = ui.allocate_exact_size(vec2(width, 30.0), Sense::hover());
+	ui.painter()
+		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+	const SEND_W: f32 = 92.0;
+	let field = Rect::from_min_max(
+		pos2(rect.min.x + 28.0, rect.min.y + 4.0),
+		pos2(rect.max.x - SEND_W - 12.0, rect.max.y - 4.0),
+	);
+	let focus = std::mem::take(&mut shell.diff_note_focus);
+	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
+	let edit = child.add_sized(
+		field.size(),
+		egui::TextEdit::singleline(&mut shell.diff_note_draft)
+			.frame(false)
+			.font(egui::TextStyle::Monospace)
+			.hint_text(t!("行注释：回车保存，⇧ 回车发给 agent")),
+	);
+	if focus {
+		edit.request_focus();
+	}
+	let button = Rect::from_min_max(
+		pos2(rect.max.x - SEND_W - 4.0, rect.min.y + 5.0),
+		pos2(rect.max.x - 4.0, rect.max.y - 5.0),
+	);
+	let send = ui.allocate_rect(button, Sense::click());
+	let enabled = shell.agent_target.is_some();
+	if enabled {
+		ui.painter()
+			.rect_filled(button, CornerRadius::same(5), theme::PANEL_3);
+	}
+	ui.painter().text(
+		button.center(),
+		egui::Align2::CENTER_CENTER,
+		t!("发给 agent"),
+		egui::FontId::proportional(11.0),
+		if enabled {
+			theme::TEXT_2
+		} else {
+			theme::TEXT_3
+		},
+	);
+	let (enter, shift, escape) = child.input(|input| {
+		(
+			input.key_pressed(egui::Key::Enter),
+			input.modifiers.shift,
+			input.key_pressed(egui::Key::Escape),
+		)
+	});
+	if escape {
+		shell.diff_note_at = None;
+	}
+	if (edit.lost_focus() && enter) || send.clicked() {
+		shell.save_diff_note(file, line);
+		if (shift || send.clicked()) && shell.agent_target.is_some() {
+			let message = shell.diff_note_message(file, line, code);
+			if let Some((_, session)) = shell.agent_target.clone() {
+				shell.send_agent_prompt(&session, &message);
+			}
+		}
+		if shift || send.clicked() {
+			shell.diff_note_at = None;
+		} else {
+			edit.request_focus();
+		}
+	}
 }
 
 /// An Agent 会话 page: the gateway session id, its busy state, the last

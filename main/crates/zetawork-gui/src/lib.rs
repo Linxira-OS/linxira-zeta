@@ -41,6 +41,7 @@ pub mod icons;
 pub mod left;
 pub mod lifecycle;
 pub mod live;
+pub mod notes;
 pub mod notify;
 pub mod page;
 pub mod palette;
@@ -109,6 +110,15 @@ pub struct Shell {
 	pub agent_prompt: String,
 	/// The prompt sender; one send at a time, answered on a worker thread.
 	pub agent_send: agent_sessions::PromptSender,
+	/// 行注释 for the active workspace's diff, loaded when the cache refreshes.
+	pub notes: notes::Notes,
+	/// The diff row the note editor is open on: (file, new-side line).
+	pub diff_note_at: Option<(String, u32)>,
+	/// What is typed in that editor.
+	pub diff_note_draft: String,
+	/// Set when a click opens the editor, so it takes the keyboard without a
+	/// second click; the editor consumes it.
+	pub diff_note_focus: bool,
 	/// True when the compositor draws the window frame (a Wayland toplevel,
 	/// see [`native_decorations`]): the shell then skips [`chrome::title_bar`]
 	/// and [`chrome::resize_borders`], because winit cannot move or resize such
@@ -137,8 +147,11 @@ pub struct Shell {
 	/// The active workspace's `git diff HEAD`, read when a 差异比较器 page shows
 	/// it; `diff_ws`/`diff_at` are the workspace and the time it was read.
 	pub diff: Option<Result<String, String>>,
-	diff_ws: String,
-	diff_at: Option<Instant>,
+	/// The workspace `diff` belongs to, and when it was read — the cache's key
+	/// and clock. Public so the shot harness can prime a diff instead of
+	/// rendering whatever this checkout happens to have changed.
+	pub diff_ws: String,
+	pub diff_at: Option<Instant>,
 	/// Live PTYs for terminal session tabs ([`live`]).
 	pub live: live::LiveSessions,
 	/// GPU textures for the Kitty images terminal panes show, keyed by pane and
@@ -313,6 +326,10 @@ impl Shell {
 			agent_target: None,
 			agent_prompt: String::new(),
 			agent_send: agent_sessions::PromptSender::default(),
+			notes: notes::Notes { path: PathBuf::new(), items: Vec::new() },
+			diff_note_at: None,
+			diff_note_draft: String::new(),
+			diff_note_focus: false,
 			applied,
 			native_chrome: native_decorations(),
 			fonts,
@@ -399,6 +416,10 @@ impl Shell {
 			agent_target: None,
 			agent_prompt: String::new(),
 			agent_send: agent_sessions::PromptSender::default(),
+			notes: notes::Notes { path: PathBuf::new(), items: Vec::new() },
+			diff_note_at: None,
+			diff_note_draft: String::new(),
+			diff_note_focus: false,
 			applied,
 			native_chrome: native_decorations(),
 			fonts: Fonts::default(),
@@ -744,6 +765,13 @@ impl Shell {
 				.map(|workspace| workspace.path.clone())
 				.unwrap_or_default(),
 		);
+		if self.diff_ws != ws_id {
+			// Different workspace, different notes: load them with the diff
+			// they annotate and drop a half-typed note from the old one.
+			self.notes = notes::Notes::for_workspace(&path);
+			self.diff_note_at = None;
+			self.diff_note_draft.clear();
+		}
 		self.diff = Some(git::read_diff(&path, None));
 		self.diff_ws = ws_id;
 		self.diff_at = Some(Instant::now());
@@ -841,6 +869,24 @@ impl Shell {
 				self.run_command(command.id);
 			}
 		}
+	}
+
+	/// Persist the note draft at `(file, line)`; an empty draft removes the
+	/// note. Saving is best effort: a note that cannot reach the disk is still
+	/// in the session's memory, and the next save tries again.
+	pub fn save_diff_note(&mut self, file: &str, line: u32) {
+		self.notes.set(file, line, &self.diff_note_draft);
+		if let Err(error) = self.notes.save() {
+			self
+				.state
+				.show(crate::state::Notice(t!("行注释保存失败：{}", error)));
+		}
+	}
+
+	/// The note draft as the message an agent should receive: where it points,
+	/// the line it is about, then the text.
+	pub fn diff_note_message(&self, file: &str, line: u32, code: &str) -> String {
+		format!("{file}:{line}\n{}\n\n{}", code.trim_end(), self.diff_note_draft.trim())
 	}
 
 	/// Send `text` to the agent `session` through the local gateway —

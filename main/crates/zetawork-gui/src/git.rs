@@ -702,6 +702,21 @@ pub fn read_diff(path: &Path, file: Option<&str>) -> Result<String, String> {
 /// the 差异比较器 page's renderer go through it, so a row can be classified
 /// without building the row list (the page walks the text straight from the
 /// cache, once per frame, allocation-free).
+/// The first line numbers of a hunk header: `@@ -12,7 +12,9 @@` is `(12, 12)`.
+///
+/// `None` for anything that is not a hunk header, so a caller can advance its
+/// counters only when the header really reset them.
+pub fn hunk_starts(line: &str) -> Option<(u32, u32)> {
+	let mut parts = line.split_whitespace();
+	if parts.next()? != "@@" {
+		return None;
+	}
+	let old = parts.next()?.trim_start_matches('-');
+	let new = parts.next()?.trim_start_matches('+');
+	let start = |range: &str| range.split(',').next()?.parse::<u32>().ok();
+	Some((start(old)?, start(new)?))
+}
+
 pub fn classify_line(line: &str) -> Option<DiffKind> {
 	if line.starts_with("+++ ") {
 		return Some(DiffKind::Header);
@@ -1056,5 +1071,14 @@ mod tests {
 		let _ = std::fs::remove_dir_all(&missing);
 		assert!(list_files(&missing, 10).is_err());
 		let _ = std::fs::remove_dir_all(&repo);
+	}
+
+	#[test]
+	fn hunk_headers_give_both_starting_lines() {
+		assert_eq!(hunk_starts("@@ -12,7 +12,9 @@"), Some((12, 12)));
+		assert_eq!(hunk_starts("@@ -0,0 +1,3 @@"), Some((0, 1)));
+		assert_eq!(hunk_starts("@@ -40 +44 @@"), Some((40, 44)));
+		assert_eq!(hunk_starts("@ -1,2 +1,2 @"), None);
+		assert_eq!(hunk_starts("+++ b/src/lib.rs"), None);
 	}
 }

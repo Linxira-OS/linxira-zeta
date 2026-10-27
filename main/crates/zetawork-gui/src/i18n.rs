@@ -1252,6 +1252,9 @@ static EN: &[(&str, &str)] = &[
 	("写入请求失败：{}", "Could not write the request: {}"),
 	("读取回答失败：{}", "Could not read the answer: {}"),
 	("后端没有给出完整的回答", "The backend's answer was cut off"),
+	("行注释：回车保存，⇧ 回车发给 agent", "Line note: Enter saves, ⇧Enter sends it to the agent"),
+	("发给 agent", "Send to agent"),
+	("行注释保存失败：{}", "Could not save the line note: {}"),
 ];
 
 /// The lookup table, built once from [`EN`].
