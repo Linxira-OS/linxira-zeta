@@ -1213,6 +1213,18 @@ impl Shell {
 
 impl eframe::App for Shell {
 	fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+		// Every close the OS asks for — the shell's own title-bar button on
+		// Windows, the compositor's decoration on Wayland, Alt-F4, the taskbar
+		// — goes through the one policy in `lifecycle::request_close`. Without
+		// this, a close request from a *native* decoration bypassed the policy
+		// entirely and the window just vanished.
+		//
+		// `quitting` is the escape hatch: a close this shell itself asked for
+		// is already allowed through, so the policy cannot trap the process.
+		if ctx.input(|i| i.viewport().close_requested()) && !self.lifecycle.quitting {
+			ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+			lifecycle::request_close(ctx, self);
+		}
 		// The window's own corners: the shell is frameless, so nothing else
 		// will round the outer rectangle the OS gave us (see `window_shape`).
 		self.corners.apply(&*frame);
@@ -1463,6 +1475,14 @@ impl Shell {
 			// and the RSS/clock sample drops to `BACKGROUND_POLL`. The session
 			// state machine and any agent children are untouched — staying
 			// alive is the point of hiding instead of closing.
+			//
+			// A hidden window gets no redraws of its own, so without this clock
+			// the tray queue (显示窗口 / 退出), the single-instance listener and
+			// the busy-pane edges would never be read again: the icon would
+			// answer nothing and the process could neither be summoned nor
+			// stopped. One frame a second is the cheapest way to keep those
+			// three working; a hidden frame skips every expensive read below.
+			ctx.request_repaint_after(std::time::Duration::from_secs(1));
 			self.memory.set_interval(lifecycle::BACKGROUND_POLL);
 			self.memory.sample_if_stale();
 			self.resources.idle();

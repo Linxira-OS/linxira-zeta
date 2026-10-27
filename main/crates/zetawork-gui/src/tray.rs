@@ -134,14 +134,35 @@ impl Tray {
 			}
 		}));
 		let repaint = ctx.clone();
-		tray_icon::TrayIconEvent::set_event_handler(Some(move |_event| {
+		tray_icon::TrayIconEvent::set_event_handler(Some(move |event: tray_icon::TrayIconEvent| {
+			// A left click on the icon is the platform convention for "show the
+			// window" — it used to be discarded, so the icon only answered the
+			// right-click menu. Like the menu handler, this runs on
+			// `tray-icon`'s own thread: it queues an id and wakes the frame
+			// loop, and `poll` applies it on the main thread.
+			if let tray_icon::TrayIconEvent::Click {
+				button: tray_icon::MouseButton::Left,
+				button_state: tray_icon::MouseButtonState::Up,
+				..
+			} = event
+			{
+				if let Ok(mut queue) = CLICKS.lock() {
+					queue.push(ID_SHOW.to_owned());
+				}
+			}
 			repaint.request_repaint();
 		}));
 
-		let icon = match tray_icon::Icon::from_rgba(mark_rgba(MARK_SIZE), MARK_SIZE, MARK_SIZE) {
-			Ok(icon) => icon,
-			Err(error) => {
-				tray.note = Some(t!("托盘图标画不出来（{}）", error));
+		// The tray shows the product mark itself — the same raster the window
+		// icon, the title bar and 关于 draw — resampled to the tray's size. A
+		// generated gradient used to stand in here, which read as a different
+		// product in the notification area.
+		let icon = match crate::icons::app_icon_at(MARK_SIZE)
+			.and_then(|mark| tray_icon::Icon::from_rgba(mark.rgba, mark.width, mark.height).ok())
+		{
+			Some(icon) => icon,
+			None => {
+				tray.note = Some(t!("托盘图标解不出来（assets/icon.png）").to_owned());
 				return tray;
 			},
 		};
@@ -191,30 +212,6 @@ impl Tray {
 /// The tray icon's size, in pixels.
 #[cfg(all(feature = "tray", windows))]
 const MARK_SIZE: u32 = 32;
-
-/// The tray icon: the same gradient mark the title bar draws, at 32×32.
-///
-/// Generated rather than shipped as a file, so there is no asset to keep in
-/// sync with [`crate::theme::BRAND_A`].
-#[cfg(all(feature = "tray", windows))]
-fn mark_rgba(size: u32) -> Vec<u8> {
-	let mix = |from: u8, to: u8, t: f32| {
-		(f32::from(from) + (f32::from(to) - f32::from(from)) * t).round() as u8
-	};
-	let mut pixels = Vec::with_capacity((size * size * 4) as usize);
-	for y in 0..size {
-		for x in 0..size {
-			// The CSS mark is a 150° gradient; a diagonal ramp reads the same
-			// at 32 px.
-			let t = (x + y) as f32 / (2.0 * (size - 1).max(1) as f32);
-			pixels.push(mix(crate::theme::BRAND_A.r(), crate::theme::BRAND_B.r(), t));
-			pixels.push(mix(crate::theme::BRAND_A.g(), crate::theme::BRAND_B.g(), t));
-			pixels.push(mix(crate::theme::BRAND_A.b(), crate::theme::BRAND_B.b(), t));
-			pixels.push(255);
-		}
-	}
-	pixels
-}
 
 /// Apply whatever the tray's threads queued, and keep its status line current.
 ///

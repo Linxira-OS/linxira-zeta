@@ -445,7 +445,7 @@ static EN: &[(&str, &str)] = &[
 	),
 	("托盘图标 + 第二次运行", "Tray icon + second launch"),
 	("托盘图标建不起来（{}）", "Cannot build the tray icon ({})"),
-	("托盘图标画不出来（{}）", "Cannot draw the tray icon ({})"),
+	("托盘图标解不出来（assets/icon.png）", "Could not decode the tray icon (assets/icon.png)"),
 	("托盘菜单建不起来（{}）", "Cannot build the tray menu ({})"),
 	(
 		"找不到用户目录（USERPROFILE / HOME 都为空）",

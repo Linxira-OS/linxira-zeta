@@ -473,6 +473,43 @@ pub fn app_icon_image() -> Option<egui::ColorImage> {
 	))
 }
 
+/// [`app_icon`] resampled to a square `size`, for the surfaces that need a
+/// small raster — the tray's 32 px, and anything else the OS stores as pixels.
+///
+/// A box filter, not nearest: 256 → 32 by dropping seven pixels in eight would
+/// erase the mark's 3 px stroke, while the average keeps its weight. The
+/// corners are masked at the same proportional radius as every other size.
+pub fn app_icon_at(size: u32) -> Option<egui::IconData> {
+	let (rgba, width, height) = decode_icon_png(APP_ICON_PNG)?;
+	let mut out = vec![0u8; (size * size * 4) as usize];
+	let (step_x, step_y) = (width as f32 / size as f32, height as f32 / size as f32);
+	for y in 0..size {
+		let y0 = (y as f32 * step_y) as u32;
+		let y1 = (((y + 1) as f32 * step_y) as u32).max(y0 + 1).min(height);
+		for x in 0..size {
+			let x0 = (x as f32 * step_x) as u32;
+			let x1 = (((x + 1) as f32 * step_x) as u32).max(x0 + 1).min(width);
+			let mut acc = [0u32; 4];
+			let mut count = 0u32;
+			for source_y in y0..y1 {
+				for source_x in x0..x1 {
+					let at = ((source_y * width + source_x) * 4) as usize;
+					for (channel, total) in acc.iter_mut().enumerate() {
+						*total += u32::from(rgba[at + channel]);
+					}
+					count += 1;
+				}
+			}
+			let at = ((y * size + x) * 4) as usize;
+			for (channel, total) in acc.iter().enumerate() {
+				out[at + channel] = (total / count.max(1)) as u8;
+			}
+		}
+	}
+	rounded_alpha(&mut out, size, size, app_icon_corner_radius(size));
+	Some(egui::IconData { rgba: out, width: size, height: size })
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
