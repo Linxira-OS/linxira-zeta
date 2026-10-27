@@ -37,7 +37,10 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 	// The whole bar drags the window; the controls inside are separate widgets
 	// and win the pointer.
 	let drag = ui.interact(rect, Id::new("zetawork-titlebar-drag"), Sense::click_and_drag());
-	if drag.dragged() {
+	// `dragged()` is true on every frame of the drag, and each `StartDrag`
+	// re-arms the move — the window then chases the pointer forever. Ask the
+	// window manager once, on the press, the way `resize_borders` arms once.
+	if drag.drag_started() {
 		ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
 	}
 	if drag.double_clicked() {

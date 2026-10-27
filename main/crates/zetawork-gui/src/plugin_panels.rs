@@ -779,6 +779,7 @@ fn plugin_row(ui: &mut Ui, shell: &mut Shell, selected: &Panel) {
 		.max_height(24.0)
 		.show(ui, |ui| {
 			ui.horizontal(|ui| {
+				ui.add_space(theme::INSET_TIGHT);
 				ui.spacing_mut().item_spacing.x = 4.0;
 				for id in ids {
 					let active = id == selected.plugin;
@@ -805,6 +806,7 @@ fn panel_row(ui: &mut Ui, shell: &mut Shell, selected: &Panel) {
 		.max_height(24.0)
 		.show(ui, |ui| {
 			ui.horizontal(|ui| {
+				ui.add_space(theme::INSET_TIGHT);
 				ui.spacing_mut().item_spacing.x = 4.0;
 				for (id, title) in titles {
 					let active = id == selected.id;

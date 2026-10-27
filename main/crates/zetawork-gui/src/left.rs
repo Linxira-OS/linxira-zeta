@@ -28,6 +28,10 @@ use crate::{
 
 /// Width of the open column (`--side-left-w`).
 pub const WIDTH: f32 = 248.0;
+/// The open column's drag bounds: below `MIN_WIDTH` the card list starts
+/// wrapping, above `MAX_WIDTH` it crowds the centre out.
+pub const MIN_WIDTH: f32 = 200.0;
+pub const MAX_WIDTH: f32 = 420.0;
 /// Width of the collapsed rail (`.rail`).
 pub const RAIL_WIDTH: f32 = 44.0;
 

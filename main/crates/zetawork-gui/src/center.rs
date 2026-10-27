@@ -745,7 +745,7 @@ fn terminal_status(shell: &Shell, tab: &SessionTab) -> String {
 	let mut status = shell
 		.terminals
 		.label(&tab.id)
-		.unwrap_or_else(|| t!("后端：本地 PTY").to_owned());
+		.unwrap_or_else(|| t!("本地进程").to_owned());
 	if let Some(spawned) = shell.live.command(&tab.id) {
 		status.push_str(" · ");
 		status.push_str(spawned);

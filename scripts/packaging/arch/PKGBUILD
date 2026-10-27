@@ -2,15 +2,19 @@
 # zetawork — the workbench (TUI + desktop app) for Arch Linux.
 #
 # Built by `scripts/package-desktop-archives.ts linux`, which stages the
-# binaries and LICENSE beside this file and runs makepkg inside an
-# archlinux/base-devel container. Install the result with
-# `pacman -U zetawork-<ver>-1-x86_64.pkg.tar.zst`.
+# binaries and LICENSE beside this file and runs makepkg — natively on an Arch
+# host, inside an archlinux/base-devel container on a non-Arch CI runner.
+# Install the result with `pacman -U linxira-zeta-<ver>-1-x86_64.pkg.tar.zst`.
 pkgname=linxira-zeta
 pkgver=@VERSION@
 pkgrel=1
 # The archive ships pre-stripped release binaries; a -debug split package is
 # not published and would make the staged asset name ambiguous.
-options=('!debug')
+# `!strip` is load-bearing, not tidiness: a Bun-compiled CLI is a runtime
+# binary with the application appended as a payload, and `strip` cuts that
+# payload away — the result executes but self-reports Bun's own version and
+# rejects every subcommand.
+options=('!debug' '!strip')
 pkgdesc="Linxira Zeta — projects, terminals and the coding agent"
 arch=('x86_64')
 url="https://github.com/Linxira-OS/linxira-zeta"
@@ -23,13 +27,19 @@ source=('zetawork' 'zetawork-gui' 'zetacode' 'zetaide' 'zetawork.desktop' 'zetaw
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
-  # The TUI is the `zetawork` command; the desktop binary and both companions
-  # stay off PATH in /usr/lib/zetawork so the product does not grow a fourth
-  # command. The GUI resolves zetacode/zetaide from its own directory.
+  # The TUI is the `zetawork` command; the desktop binary stays off PATH in
+  # /usr/lib/zetawork. `zetacode`/`zetaide` are the SSH surface, so they *are*
+  # on PATH — as symlinks to the copies the GUI resolves beside itself, so the
+  # product still has three commands, not four.
   install -Dm755 "$srcdir/zetawork" "$pkgdir/usr/bin/zetawork"
   install -Dm755 "$srcdir/zetawork-gui" "$pkgdir/usr/lib/zetawork/zetawork-gui"
   install -Dm755 "$srcdir/zetacode" "$pkgdir/usr/lib/zetawork/zetacode"
   install -Dm755 "$srcdir/zetaide" "$pkgdir/usr/lib/zetawork/zetaide"
+  # A `pacman -S linxira-zeta` must give a usable shell without the GUI: the
+  # desktop entry launches the GUI, `zetacode`/`zetaide` are the SSH surface.
+  install -d "$pkgdir/usr/bin"
+  ln -s /usr/lib/zetawork/zetacode "$pkgdir/usr/bin/zetacode"
+  ln -s /usr/lib/zetawork/zetaide "$pkgdir/usr/bin/zetaide"
   # The browser UI build `zetacode serve` hosts; resolved from the binary's own
   # directory, so it lives beside the companions.
   cp -a "$srcdir/web-ui" "$pkgdir/usr/lib/zetawork/web-ui"

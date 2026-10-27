@@ -135,6 +135,15 @@ pub const R_MODAL: u8 = 8;
 /// rounder than the surface that holds it.
 const _: () = assert!(R_MODAL > R_PANEL && R_PANEL > R_CONTROL);
 
+/// Horizontal inset of a full-width strip (title bar, status bar, banner).
+pub const INSET_STRIP: f32 = 10.0;
+/// Horizontal inset of panel/tab content.
+pub const INSET_PANEL: f32 = 12.0;
+/// Horizontal inset of a compact row (chips, dense lists).
+pub const INSET_TIGHT: f32 = 8.0;
+/// Horizontal inset of a modal body.
+pub const INSET_MODAL: f32 = 16.0;
+
 /// The title bar's height. The right column starts below it (the top-right
 /// strip belongs to the window controls).
 pub const TITLE_BAR_H: f32 = 36.0;

@@ -183,7 +183,8 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 							shell.state.settings_section = section;
 						}
 					}
-					let main = Rect::from_min_max(pos2(nav.max.x, body.min.y), body.max);
+					let main = Rect::from_min_max(pos2(nav.max.x, body.min.y), body.max)
+						.shrink2(vec2(theme::INSET_MODAL, 0.0));
 					let mut main_ui = ui.new_child(egui::UiBuilder::new().max_rect(main));
 					egui::ScrollArea::vertical()
 						.id_salt("zetawork-settings-main")
@@ -284,10 +285,24 @@ fn section_body(ui: &mut Ui, shell: &mut Shell) {
 						crate::backend::Phase::Failed
 							| crate::backend::Phase::Stopped
 							| crate::backend::Phase::Idle
-							| crate::backend::Phase::Disabled
-					) && ui.button(t!("启动")).clicked()
-					{
-						shell.backend.start();
+							| crate::backend::Phase::Local
+							| crate::backend::Phase::Incompatible
+					) {
+						// `Local`/`Incompatible` mean the shipped default: no
+						// backend is supposed to be running, so this button is
+						// the *explicit* enable the product requires, and its
+						// label says so rather than "start" an idle run.
+						let label = if matches!(
+							backend_phase,
+							crate::backend::Phase::Local | crate::backend::Phase::Incompatible
+						) {
+							t!("启用后端")
+						} else {
+							t!("启动")
+						};
+						if ui.button(label).clicked() {
+							shell.backend.start();
+						}
 					}
 				},
 				shell,

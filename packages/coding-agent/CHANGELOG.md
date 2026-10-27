@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+### Fixed
+
+- The Arch package installs working `zetacode`/`zetaide` again: the build no longer strips the bundled Bun CLIs, which had made `zetacode --version` report the runtime version and every subcommand (`backend status`, `serve`) fail with `Script not found "backend"`
+- Installing the Arch package now puts `zetacode` and `zetaide` on `PATH`, so an SSH session can use the coding agent without the desktop app
+- The desktop shell names the mode it is in: the shipped default reads 独立进程模式（后端未启用） and offers 启用后端, a terminal pane reads 本地进程, and a missing or too-old `zetacode` is reported as 独立进程模式 · zetacode 不可用 instead of a failed backend
+- The desktop shell's side columns can be dragged (200–420 pt left, 280–560 pt right), and board, plugin, settings and banner text no longer touches the panel edge
+- Dragging the desktop shell's title bar moves the window only while the button is held
+- The desktop shell asks the compositor for window decorations on Wayland, where it could otherwise be neither moved nor resized
+
 ## [1.4.4] - 2026-10-26
 
 - Desktop shell now honors `backend.enabled=false` by default (local `zetacode` terminals) and bundles Maple Mono CN for CJK/Braille terminal rendering

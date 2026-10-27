@@ -245,11 +245,24 @@ this command surface, on a worker thread:
    in `backend.workspace` (or the stable default workspace), and the shell
    waits for the record (up to 20 s).
 
-The state is visible: a banner across the top of the window says *starting*,
-*failed* (with 重试) or *stopped*, and the same state is a row in 设置 → 常规
-together with 启动 / 重启 / 停止 (that row names the running pid and `webUrl`
-when the backend is ready, which needs no banner). The health check and every daemon command run
-off the UI thread; a slow or missing `zetacode` never blocks a frame.
+The shell always says which of its two modes it is in:
+
+- **独立进程模式** — the default. `backend.enabled` is false: no daemon is
+  started, no banner is drawn, every terminal tab is an independent local
+  process (its status line reads 本地进程), and 设置 → 常规 → 后台服务 reads
+  独立进程模式（后端未启用） with one 启用后端 button. Enabling the backend is
+  always an explicit action.
+- **后端模式** — after 启用后端, or with `backend.enabled=true` already written:
+  a banner across the top says *starting* / *stopping* / *stopped* / *not
+  ready* (with 重试 on a failure), and the settings row names the mode plus the
+  running pid and `webUrl` when ready, with 重启 and 停止 beside it.
+
+A probe that cannot run at all — no `zetacode` beside the shell, or one too old
+to have the `backend` subcommand — is not a backend failure: the shell stays in
+独立进程模式 and names the CLI (独立进程模式 · zetacode 不可用：…), so a
+default-mode window never claims a backend broke. The health check and every
+daemon command run off the UI thread; a slow or missing `zetacode` never blocks
+a frame.
 
 A `zetacode` tab is a **client** of the backend, not a second agent: when the
 backend is reachable the gateway hosts the PTY for the workspace and runs the

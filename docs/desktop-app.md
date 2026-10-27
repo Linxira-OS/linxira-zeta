@@ -13,6 +13,9 @@
   - 卸载入口在“应用和功能”，同时删除两个快捷方式。
 - **Linux**：`linxira-zeta-<版本>-x86_64.AppImage` 与 `linxira-zeta-<版本>-1-x86_64.pkg.tar.zst`
   （Arch）。安装后提供 `linxira-zeta.desktop`（`Exec=/usr/lib/zetawork/zetawork-gui`，`Terminal=false`）和图标。
+  Arch 包同时把 `zetacode` 与 `zetaide` 以软链接放进 `/usr/bin`（指向
+  `/usr/lib/zetawork/`），所以不启动桌面应用也能在 SSH 里用；桌面二进制本身
+  仍不在 `PATH` 上。
 - 同目录还会放 `zetacode.exe`、`zetaide.exe`、`zetawork.exe`、`WebView2Loader.dll`，
   无需单独安装。
 

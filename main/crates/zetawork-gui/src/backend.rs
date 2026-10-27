@@ -69,6 +69,15 @@ const START_TIMEOUT: Duration = Duration::from_secs(25);
 /// `backend off` waits for active turns (its own `--timeout` is 60 s).
 const DRAIN_TIMEOUT: Duration = Duration::from_secs(75);
 
+/// How this window runs sessions. Independent of whether a daemon is up.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+	/// The default: no backend, every terminal is its own process.
+	Local,
+	/// `backend.enabled` is true: sessions come from `zetacode serve`.
+	Backend,
+}
+
 /// The backend's state, as the banner and the settings row name it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Phase {
@@ -88,13 +97,27 @@ pub enum Phase {
 	Stopped,
 	/// `backend.enabled` is false: the desktop must stay local and must not
 	/// start or attach to the background backend.
-	Disabled,
+	Local,
+	/// The probe could not run at all (no `zetacode`, or one too old to have
+	/// the `backend` subcommand), so nothing is known about `backend.enabled`.
+	/// This is *not* a backend failure: the default mode is still local.
+	Incompatible,
 }
 
 impl Phase {
 	/// True while a worker is expected to produce the next signal.
 	pub fn busy(self) -> bool {
 		matches!(self, Self::Starting | Self::Stopping)
+	}
+
+	/// Which session model this phase belongs to.
+	pub fn mode(self) -> Mode {
+		match self {
+			Self::Idle | Self::Local | Self::Incompatible => Mode::Local,
+			Self::Starting | Self::Ready | Self::Stopping | Self::Stopped | Self::Failed => {
+				Mode::Backend
+			},
+		}
 	}
 }
 
@@ -126,7 +149,11 @@ pub enum Signal {
 	/// `daemon stop` finished.
 	Stopped,
 	/// Backend mode is disabled; the desktop stays local.
-	Disabled,
+	Local,
+	/// The probe itself could not run: no `zetacode`, or one without the
+	/// `backend` subcommand. The desktop stays local, and this is not a
+	/// backend failure.
+	Incompatible(String),
 }
 
 /// What the ensure machine decided happened.
@@ -226,9 +253,15 @@ impl EnsureBackend {
 				self.error = None;
 				self.info = None;
 			},
-			Signal::Disabled => {
-				self.phase = Phase::Disabled;
+			Signal::Local => {
+				self.phase = Phase::Local;
 				self.error = None;
+				self.info = None;
+				self.started_by_us = false;
+			},
+			Signal::Incompatible(reason) => {
+				self.phase = Phase::Incompatible;
+				self.error = Some(reason);
 				self.info = None;
 				self.started_by_us = false;
 			},
@@ -388,13 +421,18 @@ impl BackendHost {
 			.filter(|url| !url.trim().is_empty())
 	}
 
-	/// The one-line state the settings row shows.
+	/// The one-line state the settings row shows. It always names the *mode*,
+	/// because the shipped default is local and nothing is wrong with it.
 	pub fn status_line(&self) -> String {
 		match self.machine.phase() {
-			Phase::Idle => t!("后台服务：未检查").to_owned(),
-			Phase::Starting => t!("后台服务：启动中…").to_owned(),
+			Phase::Idle => t!("独立进程模式（正在检查后端开关…）").to_owned(),
+			Phase::Local => t!("独立进程模式（后端未启用）").to_owned(),
+			Phase::Incompatible => {
+				t!("独立进程模式 · zetacode 不可用：{}", self.error().unwrap_or_default())
+			},
+			Phase::Starting => t!("后端模式：启动中…").to_owned(),
 			Phase::Ready => {
-				let mut line = t!("后台服务：运行中").to_owned();
+				let mut line = t!("后端模式：运行中").to_owned();
 				if let Some(pid) = self.info().and_then(|info| info.pid) {
 					line.push_str(&format!(" · pid {pid}"));
 				}
@@ -403,29 +441,32 @@ impl BackendHost {
 				}
 				line
 			},
-			Phase::Stopping => t!("后台服务：停止中…").to_owned(),
-			Phase::Stopped => t!("后台服务：已停止").to_owned(),
-			Phase::Disabled => t!("后台服务：已关闭（backend.enabled=false）").to_owned(),
+			Phase::Stopping => t!("后端模式：停止中…").to_owned(),
+			Phase::Stopped => t!("后端模式：已停止").to_owned(),
 			Phase::Failed => match self.error() {
-				Some(reason) => t!("后台服务：失败 · {}", reason),
-				None => t!("后台服务：失败").to_owned(),
+				Some(reason) => t!("后端模式：失败 · {}", reason),
+				None => t!("后端模式：失败").to_owned(),
 			},
 		}
 	}
 
 	/// The banner is drawn while the backend is not simply ready. A failure
 	/// keeps it until a retry succeeds, so a crash is never a one-frame flash.
+	///
+	/// A local-mode phase has nothing to report: the default is local, so a
+	/// banner there would claim a failure the user never asked for.
 	pub fn banner(&self) -> Option<String> {
 		match self.machine.phase() {
-			Phase::Idle | Phase::Ready | Phase::Disabled => None,
-			Phase::Starting => {
-				Some(t!("正在启动后台服务（zetacode daemon），会话与终端会在就绪后接通…").to_owned())
+			Phase::Idle | Phase::Local | Phase::Ready => None,
+			Phase::Incompatible => {
+				Some(t!("独立进程模式 · zetacode 不可用：{}", self.error().unwrap_or_default()))
 			},
-			Phase::Stopping => Some(t!("正在停止后台服务…").to_owned()),
-			Phase::Stopped => Some(t!("后台服务已停止。启动它才能新建会话或附着终端。").to_owned()),
+			Phase::Starting => Some(t!("后端模式：正在启动…").to_owned()),
+			Phase::Stopping => Some(t!("后端模式：正在停止…").to_owned()),
+			Phase::Stopped => Some(t!("后端模式：已停止，会话与终端均为本地进程").to_owned()),
 			Phase::Failed => Some(match self.error() {
-				Some(reason) => t!("后台服务未运行：{}", reason),
-				None => t!("后台服务未运行。").to_owned(),
+				Some(reason) => t!("后端模式：未就绪 — {}", reason),
+				None => t!("后端模式：未就绪").to_owned(),
 			}),
 		}
 	}
@@ -632,12 +673,12 @@ fn string_field(value: &serde_json::Value, key: &str) -> Option<String> {
 /// in the configured workspace.
 fn run_ensure(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 	let Some(bin) = binary() else {
-		let _ = sender.send(Signal::Failed(missing_binary()));
+		let _ = sender.send(Signal::Incompatible(missing_binary()));
 		return;
 	};
 	match backend_status(&bin) {
 		Ok(status) if !status.enabled => {
-			let _ = sender.send(Signal::Disabled);
+			let _ = sender.send(Signal::Local);
 			return;
 		},
 		Ok(status) if status.info.is_some() => {
@@ -654,7 +695,10 @@ fn run_ensure(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 			}
 		},
 		Err(reason) => {
-			let _ = sender.send(Signal::Failed(reason));
+			// The probe never ran: no CLI, no `backend` subcommand, or output
+			// that is not a status. `backend.enabled` is unknown, so the shell
+			// must stay local and say so — not claim a backend failed.
+			let _ = sender.send(Signal::Incompatible(reason));
 			return;
 		},
 	}
@@ -711,7 +755,7 @@ fn run_restart(sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 			}
 		},
 		Err(reason) => {
-			let _ = sender.send(Signal::Failed(reason));
+			let _ = sender.send(Signal::Incompatible(reason));
 			return;
 		},
 	}
@@ -772,7 +816,7 @@ fn await_ready(bin: &Path, sender: &Sender<Signal>, cancel: &AtomicBool) -> bool
 		}
 		match backend_status(bin) {
 			Ok(status) if !status.enabled => {
-				let _ = sender.send(Signal::Disabled);
+				let _ = sender.send(Signal::Local);
 				return false;
 			},
 			Ok(status) => {
@@ -809,7 +853,7 @@ fn monitor(bin: PathBuf, sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 		}
 		match backend_status(&bin) {
 			Ok(status) if !status.enabled => {
-				let _ = sender.send(Signal::Disabled);
+				let _ = sender.send(Signal::Local);
 				return;
 			},
 			Ok(status) => match status.info {
@@ -833,8 +877,9 @@ fn monitor(bin: PathBuf, sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 	}
 }
 
-/// The banner: one line at the top of the window while the backend is not
-/// ready, with the retry that resolves a failure.
+/// One line at the top of the window whenever the shell is in backend mode and
+/// not simply ready — or when the probe could not run. Local mode draws
+/// nothing: it is the default and nothing is wrong with it.
 pub fn banner(ctx: &egui::Context, shell: &mut crate::Shell) {
 	let Some(text) = shell.backend.banner() else {
 		return;
@@ -848,7 +893,11 @@ pub fn banner(ctx: &egui::Context, shell: &mut crate::Shell) {
 	egui::TopBottomPanel::top("zetawork-backend-banner")
 		.exact_height(30.0)
 		.show_separator_line(false)
-		.frame(egui::Frame::new().fill(crate::theme::PANEL_2))
+		.frame(
+			egui::Frame::new()
+				.fill(crate::theme::PANEL_2)
+				.inner_margin(egui::Margin::symmetric(crate::theme::INSET_STRIP as i8, 0)),
+		)
 		.show(ctx, |ui| {
 			ui.painter().line_segment(
 				[
@@ -862,7 +911,8 @@ pub fn banner(ctx: &egui::Context, shell: &mut crate::Shell) {
 					ui.add(egui::Spinner::new().size(12.0));
 				}
 				ui.label(egui::RichText::new(text).size(12.0).color(ink));
-				if matches!(phase, Phase::Failed | Phase::Stopped) && ui.button(t!("重试")).clicked()
+				if matches!(phase, Phase::Failed | Phase::Stopped | Phase::Incompatible)
+					&& ui.button(t!("重试")).clicked()
 				{
 					shell.backend.retry();
 				}
@@ -1007,19 +1057,43 @@ mod tests {
 	}
 
 	#[test]
-	fn disabled_backend_never_starts_or_keeps_a_connection() {
+	fn a_local_backend_never_starts_or_keeps_a_connection() {
 		let mut machine = EnsureBackend::default();
 		machine.begin();
 		machine.apply(Signal::Starting);
-		let applied = machine.apply(Signal::Disabled);
+		let applied = machine.apply(Signal::Local);
 		assert!(applied.changed);
-		assert_eq!(machine.phase(), Phase::Disabled);
+		assert_eq!(machine.phase(), Phase::Local);
+		assert_eq!(machine.phase().mode(), Mode::Local);
 		assert_eq!(machine.info(), None);
 		assert!(!machine.started_by_us());
 		let mut host = BackendHost::default();
-		host.observe(Signal::Disabled);
-		assert!(host.banner().is_none(), "off is a normal state, not a failure");
-		assert!(host.status_line().contains("已关闭"));
+		host.observe(Signal::Local);
+		assert!(host.banner().is_none(), "local is the default, not a failure");
+		assert!(host.status_line().contains("独立进程模式（后端未启用）"));
+		assert!(!host.attachable());
+	}
+
+	#[test]
+	fn an_unprobeable_cli_is_local_mode_not_a_failed_backend() {
+		// `zetacode` missing, or an older build without the `backend`
+		// subcommand: nothing is known about `backend.enabled`, so the shell
+		// stays local and names the CLI instead of claiming a backend failed.
+		let mut machine = EnsureBackend::default();
+		machine.begin();
+		let applied = machine.apply(Signal::Incompatible("zetacode 没有找到".to_owned()));
+		assert!(applied.changed);
+		assert_eq!(machine.phase(), Phase::Incompatible);
+		assert_eq!(machine.phase().mode(), Mode::Local);
+		assert!(!machine.started_by_us(), "a probe that never ran starts nothing");
+
+		let mut host = BackendHost::default();
+		host.observe(Signal::Incompatible("zetacode 没有找到".to_owned()));
+		assert_eq!(
+			host.banner().as_deref(),
+			Some("独立进程模式 · zetacode 不可用：zetacode 没有找到")
+		);
+		assert!(host.status_line().starts_with("独立进程模式"));
 		assert!(!host.attachable());
 	}
 

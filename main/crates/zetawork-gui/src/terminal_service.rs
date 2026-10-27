@@ -623,11 +623,27 @@ impl TerminalHost {
 			(false, Backend::Connecting) => t!("后端：serve · 连接中…").to_owned(),
 			(false, Backend::Service) => t!("后端：serve").to_owned(),
 			(false, Backend::Ended) => t!("后端：serve · 会话已结束").to_owned(),
-			(false, Backend::Local) => t!("serve 未应答，已回落本地 PTY").to_owned(),
+			(false, Backend::Local) => {
+				// `ever_attached` is the honest discriminator, not `reason`:
+				// a pane born without a backend already carries the
+				// `serve.json` note for its tooltip, yet nothing was ever asked
+				// of serve — so it reports the process it runs, not a fallback.
+				if pane.ever_attached {
+					t!("已回落本地进程").to_owned()
+				} else {
+					t!("本地进程").to_owned()
+				}
+			},
 			(true, Backend::Connecting) => t!("后端：serve · 附着工作区会话中…").to_owned(),
 			(true, Backend::Service) => t!("后端：serve · 已附着工作区会话").to_owned(),
 			(true, Backend::Ended) => t!("后端：serve · 会话已结束").to_owned(),
-			(true, Backend::Local) => t!("无法附着后端会话，已回落本地进程").to_owned(),
+			(true, Backend::Local) => {
+				if pane.ever_attached {
+					t!("无法附着后端会话，已回落本地进程").to_owned()
+				} else {
+					t!("本地进程").to_owned()
+				}
+			},
 		})
 	}
 
@@ -1499,13 +1515,13 @@ mod tests {
 	}
 
 	#[test]
-	fn without_an_origin_the_tab_falls_back_to_the_local_pty_once() {
+	fn without_an_origin_the_tab_runs_a_local_process() {
 		let mut host = TerminalHost::default();
 		host.ensure("tab1", None, None, 80, 24);
 		assert!(host.is_local("tab1"), "no serve origin means the local PTY");
 		assert_eq!(
 			host.label("tab1").expect("label"),
-			"serve 未应答，已回落本地 PTY",
+			"本地进程",
 			"the status line is one short sentence"
 		);
 		let reason = host.reason("tab1").expect("the reason is kept");
@@ -1526,7 +1542,7 @@ mod tests {
 		let pane = host.panes.get_mut("tab1").expect("pane");
 		pane.backend = Backend::Local;
 		pane.reason = Some(raw.to_owned());
-		assert_eq!(host.label("tab1").as_deref(), Some("serve 未应答，已回落本地 PTY"));
+		assert_eq!(host.label("tab1").as_deref(), Some("已回落本地进程"));
 		assert_eq!(host.reason("tab1"), Some(raw), "the tooltip keeps the raw reason");
 	}
 

@@ -284,7 +284,8 @@ pub fn panel(ui: &mut Ui, shell: &mut Shell) {
 /// One row of three columns.
 fn columns(ui: &mut Ui, shell: &mut Shell) {
 	let gap = 4.0;
-	let width = ((ui.available_width() - 2.0 * gap) / 3.0).max(40.0);
+	let usable = (ui.available_width() - 2.0 * theme::INSET_PANEL).max(40.0);
+	let width = ((usable - 2.0 * gap) / 3.0).max(40.0);
 	egui::ScrollArea::vertical()
 		.id_salt("zetawork-board")
 		.auto_shrink([false, false])
@@ -294,6 +295,7 @@ fn columns(ui: &mut Ui, shell: &mut Shell) {
 				// 8 px item spacing would push the third column out of the
 				// 324 pt rail, so the gaps are drawn explicitly.
 				ui.spacing_mut().item_spacing.x = 0.0;
+				ui.add_space(theme::INSET_PANEL);
 				for (index, column) in Column::ALL.into_iter().enumerate() {
 					if index > 0 {
 						ui.add_space(gap);
@@ -307,6 +309,7 @@ fn columns(ui: &mut Ui, shell: &mut Shell) {
 						},
 					);
 				}
+				ui.add_space(theme::INSET_PANEL);
 			});
 		});
 }

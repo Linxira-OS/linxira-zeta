@@ -27,6 +27,10 @@ use crate::{
 
 /// Width of the open column (`--side-right-w`).
 pub const WIDTH: f32 = 324.0;
+/// The open column's drag bounds; it holds `truncated_mono_right` rows, so
+/// the floor is wider than the left column's.
+pub const MIN_WIDTH: f32 = 280.0;
+pub const MAX_WIDTH: f32 = 560.0;
 /// Width of the collapsed rail.
 pub const RAIL_WIDTH: f32 = 44.0;
 

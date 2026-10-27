@@ -109,6 +109,11 @@ pub const BINDINGS: [(&str, &str, &str); 6] = [
 pub struct Shell {
 	pub state: AppState,
 	pub settings: Settings,
+	/// True when the compositor draws the window frame (a Wayland toplevel,
+	/// see [`native_decorations`]): the shell then skips [`chrome::title_bar`]
+	/// and [`chrome::resize_borders`], because winit cannot move or resize such
+	/// a window from inside the process.
+	pub native_chrome: bool,
 	/// What `settings` was when the style and fonts were last applied.
 	applied: Settings,
 	pub fonts: Fonts,
@@ -304,6 +309,7 @@ impl Shell {
 			state,
 			settings,
 			applied: settings,
+			native_chrome: native_decorations(),
 			fonts,
 			app_icon: None,
 			corners: window_shape::Corners::default(),
@@ -384,6 +390,7 @@ impl Shell {
 			state,
 			settings,
 			applied: settings,
+			native_chrome: native_decorations(),
 			fonts: Fonts::default(),
 			app_icon: None,
 			corners: window_shape::Corners::default(),
@@ -1618,12 +1625,15 @@ impl Shell {
 	pub fn draw(&mut self, ctx: &Context) {
 		let no_margin = egui::Frame::new().inner_margin(egui::Margin::ZERO);
 		// The window chrome owns the title bar and the brand mark; the panels
-		// below it are the workbench's own widgets.
-		egui::TopBottomPanel::top("zetawork-titlebar")
-			.exact_height(theme::TITLE_BAR_H)
-			.show_separator_line(false)
-			.frame(no_margin)
-			.show(ctx, |ui| chrome::title_bar(ui, self));
+		// below it are the workbench's own widgets. A Wayland toplevel has no
+		// client-drawn frame: the compositor owns the title bar there.
+		if !self.native_chrome {
+			egui::TopBottomPanel::top("zetawork-titlebar")
+				.exact_height(theme::TITLE_BAR_H)
+				.show_separator_line(false)
+				.frame(no_margin)
+				.show(ctx, |ui| chrome::title_bar(ui, self));
+		}
 		crate::backend::banner(ctx, self);
 		let height = if self.state.statusbar_visible() {
 			theme::STATUSBAR_H
@@ -1651,8 +1661,9 @@ impl Shell {
 				.show(ctx, |ui| left::left_rail(ui, self));
 		} else {
 			egui::SidePanel::left("zetawork-side-left")
-				.exact_width(left::WIDTH)
-				.resizable(false)
+				.default_width(left::WIDTH)
+				.width_range(left::MIN_WIDTH..=left::MAX_WIDTH)
+				.resizable(true)
 				.show_separator_line(false)
 				.frame(no_margin)
 				.show(ctx, |ui| left::left_column(ui, self));
@@ -1666,8 +1677,9 @@ impl Shell {
 				.show(ctx, |ui| right::right_rail(ui, self));
 		} else {
 			egui::SidePanel::right("zetawork-side-right")
-				.exact_width(right::WIDTH)
-				.resizable(false)
+				.default_width(right::WIDTH)
+				.width_range(right::MIN_WIDTH..=right::MAX_WIDTH)
+				.resizable(true)
 				.show_separator_line(false)
 				.frame(no_margin)
 				.show(ctx, |ui| right::right_column(ui, self));
@@ -1688,12 +1700,28 @@ impl Shell {
 			chrome::toast(ctx, &text);
 			ctx.request_repaint_after(crate::state::TOAST_TTL);
 		}
-		chrome::resize_borders(ctx, &mut self.resizing, self.state.modal_open());
+		// winit cannot drag-resize a Wayland toplevel; the compositor's edges
+		// do it there, and this band would only steal their presses.
+		if !self.native_chrome {
+			chrome::resize_borders(ctx, &mut self.resizing, self.state.modal_open());
+		}
 	}
 }
 
-/// Run the shell. The window is frameless: [`chrome`] draws the title bar and
-/// handles the resize border.
+/// Wayland forbids a client from moving or resizing its own toplevel, so the
+/// frameless shell would have no way to be dragged or resized there. Ask the
+/// compositor for server-side decorations instead; the custom title bar and
+/// the hand-drawn resize border are skipped in that case.
+fn native_decorations() -> bool {
+	cfg!(target_os = "linux")
+		&& (std::env::var_os("WAYLAND_DISPLAY").is_some()
+			|| std::env::var("XDG_SESSION_TYPE")
+				.is_ok_and(|value| value.eq_ignore_ascii_case("wayland")))
+}
+
+/// Run the shell. Everywhere but Wayland the window is frameless: [`chrome`]
+/// draws the title bar and handles the resize border. A Wayland session asks
+/// the compositor for real decorations instead ([`native_decorations`]).
 ///
 /// A second launch does not open a second window: it tells the running instance
 /// to show itself (see [`lifecycle`]) and returns. If no instance answers — a
@@ -1706,9 +1734,10 @@ pub fn run() -> eframe::Result<()> {
 	if lifecycle::another_instance_is_running() {
 		return Ok(());
 	}
+	let native_chrome = native_decorations();
 	let mut viewport = egui::ViewportBuilder::default()
 		.with_title(APP_TITLE)
-		.with_decorations(false)
+		.with_decorations(native_chrome)
 		.with_inner_size([1440.0, 900.0])
 		.with_min_inner_size([900.0, 560.0])
 		.with_resizable(true);

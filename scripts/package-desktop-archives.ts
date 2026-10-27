@@ -413,10 +413,18 @@ async function packageLinux(): Promise<void> {
 	});
 	console.log(`wrote ${appimage}`);
 
-	// Arch package: makepkg inside archlinux/base-devel. The runner has Docker;
-	// this is the only honest way to produce a .pkg.tar.zst without an Arch
-	// host.
-	const pkgDir = path.join(work, "arch");
+	// Arch package: makepkg on the host when there is one. An Arch build
+	// machine (the WSL box) needs no docker, and makepkg alone can produce the
+	// .pkg.tar.zst; only a non-Arch CI runner takes the container path.
+	//
+	// makepkg refuses to run as root, so a root host builds as an unprivileged
+	// user — which must be able to *traverse* into the tree. An `mkdtemp` sits
+	// at 0700 inside whatever parent it was made in, so a root host stages
+	// under world-traversable `/var/tmp` instead of the run's own temp dir.
+	const hostMakepkg = Bun.spawnSync(["bash", "-lc", "command -v makepkg"]).exitCode === 0;
+	const hostRoot = Bun.spawnSync(["id", "-u"]).stdout.toString().trim() === "0";
+	const borrowedScratch = hostMakepkg && hostRoot;
+	const pkgDir = borrowedScratch ? await fs.mkdtemp("/var/tmp/zetawork-arch-") : path.join(work, "arch");
 	await fs.mkdir(pkgDir, { recursive: true });
 	await fs.copyFile(gui, path.join(pkgDir, "zetawork-gui"));
 	await fs.copyFile(tui, path.join(pkgDir, "zetawork"));
@@ -440,25 +448,64 @@ async function packageLinux(): Promise<void> {
 	).replaceAll("@VERSION@", version);
 	await fs.writeFile(path.join(pkgDir, "PKGBUILD"), pkgbuild);
 
-	await run([
-		"docker",
-		"run",
-		"--rm",
-		"-v",
-		`${pkgDir}:/pkg`,
-		"-w",
-		"/pkg",
-		"archlinux:base-devel",
-		"bash",
-		"-lc",
-		"pacman -Sy --noconfirm --needed base-devel fakeroot && useradd -m builder && chown -R builder /pkg && su builder -c 'makepkg -f --nodeps --noconfirm'",
-	]);
+	if (hostMakepkg) {
+		if (hostRoot) {
+			await run([
+				"bash",
+				"-lc",
+				`id -u builder >/dev/null 2>&1 || useradd -m builder; chmod 755 '${pkgDir}'; chown -R builder '${pkgDir}'; su builder -c 'cd "${pkgDir}" && makepkg -f --nodeps --noconfirm'`,
+			]);
+		} else {
+			await run(["makepkg", "-f", "--nodeps", "--noconfirm"], pkgDir);
+		}
+	} else {
+		await run([
+			"docker",
+			"run",
+			"--rm",
+			"-v",
+			`${pkgDir}:/pkg`,
+			"-w",
+			"/pkg",
+			"archlinux:base-devel",
+			"bash",
+			"-lc",
+			"pacman -Sy --noconfirm --needed base-devel fakeroot && useradd -m builder && chown -R builder /pkg && su builder -c 'makepkg -f --nodeps --noconfirm'",
+		]);
+	}
 	const produced = (await fs.readdir(pkgDir)).find(name => name.endsWith(".pkg.tar.zst"));
 	if (!produced) throw new Error("makepkg produced no .pkg.tar.zst");
 	const expected = desktopAssetNames(version).archPackage;
 	if (produced !== expected) throw new Error(`makepkg produced ${produced}, expected ${expected}`);
+	// A stripped Bun binary still executes, but only as the bare runtime: it
+	// reports Bun's own 1.4.x and loses every subcommand. Prove the packaged
+	// binaries before the archive leaves the runner.
+	if (process.platform === "linux") {
+		const verify = await fs.mkdtemp(path.join(Bun.env.RUNNER_TEMP ?? "/tmp", "zetawork-verify-"));
+		await run([
+			"tar",
+			"-xf",
+			path.join(pkgDir, produced),
+			"-C",
+			verify,
+			"usr/lib/zetawork/zetacode",
+			"usr/lib/zetawork/zetaide",
+			"usr/bin/zetawork",
+		]);
+		for (const rel of ["usr/lib/zetawork/zetacode", "usr/lib/zetawork/zetaide", "usr/bin/zetawork"]) {
+			const file = path.join(verify, rel);
+			const probe = Bun.spawnSync([file, "--version"]);
+			const out = `${probe.stdout.toString()}${probe.stderr.toString()}`;
+			if (probe.exitCode !== 0 || !out.includes(version)) {
+				throw new Error(`${rel} does not report ${version}: ${out.trim()}`);
+			}
+		}
+		await fs.rm(verify, { recursive: true, force: true });
+	}
 	await fs.copyFile(path.join(pkgDir, produced), path.join(outDir, produced));
 	console.log(`wrote ${path.join(outDir, produced)}`);
+	// `/var/tmp` outlives the run, so the borrowed tree goes with it.
+	if (borrowedScratch) await fs.rm(pkgDir, { recursive: true, force: true });
 }
 
 if (import.meta.main) {
