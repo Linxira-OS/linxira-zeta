@@ -1241,6 +1241,17 @@ static EN: &[(&str, &str)] = &[
 	("（分离 HEAD）", "(detached HEAD)"),
 	("（无窗口模式）将重启后台服务", "(headless) would restart the background backend"),
 	("（没有目录）", "(no directory)"),
+	("发给", "To"),
+	("已发给 {}", "Sent to {}"),
+	("已发送", "Sent"),
+	("发送失败：{}", "Send failed: {}"),
+	("上一条还在发送中", "The previous prompt is still being sent"),
+	("内容是空的", "The prompt is empty"),
+	("后端回答不是 JSON：{}", "The backend's answer is not JSON: {}"),
+	("连接 {} 失败：{}", "Could not connect to {}: {}"),
+	("写入请求失败：{}", "Could not write the request: {}"),
+	("读取回答失败：{}", "Could not read the answer: {}"),
+	("后端没有给出完整的回答", "The backend's answer was cut off"),
 ];
 
 /// The lookup table, built once from [`EN`].

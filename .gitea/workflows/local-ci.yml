@@ -1574,6 +1574,10 @@ jobs:
            if: steps.main.outputs.skip != 'true'
            working-directory: main
            run: cargo clippy --workspace --all-targets -- -D warnings
+         - name: Check the desktop shell with its release features
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           run: cargo check -p zetawork-gui --all-targets --features tray,os-notify
          - name: Run tests
            if: steps.main.outputs.skip != 'true'
            working-directory: main

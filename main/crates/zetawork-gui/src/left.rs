@@ -19,7 +19,7 @@ use crate::{
 	Shell,
 	icons::{Icon, icon_button},
 	sessions::Conversation,
-	state::{AppState, Project, Workspace},
+	state::{AppState, Project, SessionKind, Workspace},
 	theme,
 	widgets::{
 		foot_button, status_dot, status_tooltip, status_word, truncated_mono, truncated_text,
@@ -39,6 +39,9 @@ pub const RAIL_WIDTH: f32 = 44.0;
 const HEAD_H: f32 = 44.0;
 /// Height of the foot row.
 const FOOT_H: f32 = 46.0;
+
+/// The agent prompt line's height, above the foot (only when one is targeted).
+const PROMPT_H: f32 = 30.0;
 /// Height of the 默认项目 pinned head.
 const PIN_HEAD_H: f32 = 26.0;
 /// Height of a workspace row.
@@ -58,11 +61,24 @@ pub fn left_column(ui: &mut Ui, shell: &mut Shell) {
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), HEAD_H));
 	let foot =
 		Rect::from_min_size(pos2(rect.min.x, rect.max.y - FOOT_H), vec2(rect.width(), FOOT_H));
-	let list = Rect::from_min_max(pos2(rect.min.x, head.max.y), pos2(rect.max.x, foot.min.y));
+	// The prompt line takes its strip out of the list, not out of the foot:
+	// the foot's buttons stay exactly where they always are.
+	let prompt_h = if shell.agent_target.is_some() {
+		PROMPT_H
+	} else {
+		0.0
+	};
+	let prompt =
+		Rect::from_min_size(pos2(rect.min.x, foot.min.y - prompt_h), vec2(rect.width(), prompt_h));
+	let list = Rect::from_min_max(pos2(rect.min.x, head.max.y), pos2(rect.max.x, prompt.min.y));
 	let mut head_ui = ui.new_child(egui::UiBuilder::new().max_rect(head));
 	head_region(&mut head_ui, shell);
 	let mut list_ui = ui.new_child(egui::UiBuilder::new().max_rect(list));
 	projects_region(&mut list_ui, shell);
+	if shell.agent_target.is_some() {
+		let mut prompt_ui = ui.new_child(egui::UiBuilder::new().max_rect(prompt));
+		prompt_region(&mut prompt_ui, shell);
+	}
 	let mut foot_ui = ui.new_child(egui::UiBuilder::new().max_rect(foot));
 	foot_region(&mut foot_ui, shell);
 }
@@ -574,6 +590,148 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, workspace: Workspace) {
 	} else if response.clicked() {
 		let id = workspace.id.clone();
 		shell.state.act(|s| s.select_workspace(&id));
+	}
+	agent_rows(ui, shell, &workspace);
+}
+
+/// The agent sessions this workspace holds, one line each, under its row.
+///
+/// An agent tab is invisible until someone opens it, which is exactly the
+/// state a waiting agent leaves the user in. The line says which sessions
+/// exist and how each is doing, a click opens that tab, and the same click
+/// aims the prompt line at its session.
+fn agent_rows(ui: &mut Ui, shell: &mut Shell, workspace: &Workspace) {
+	struct Row {
+		pane: String,
+		tab: String,
+		/// The gateway session this row sends to: the tab's own id when it has
+		/// one (a tab attached from a conversation), else what the pane was
+		/// last attached to.
+		session: Option<String>,
+		status: String,
+		waiting: bool,
+		running: bool,
+	}
+	let rows: Vec<Row> = workspace
+		.panes
+		.iter()
+		.flat_map(|pane| {
+			pane
+				.tabs
+				.iter()
+				.filter(|tab| tab.kind == SessionKind::Agent)
+				.map(move |tab| (pane.id.clone(), tab))
+		})
+		.map(|(pane, tab)| {
+			let agent = shell.agents.pane(&tab.id);
+			Row {
+				pane,
+				tab: tab.id.clone(),
+				session: tab
+					.session
+					.clone()
+					.or_else(|| agent.and_then(|agent| agent.session.clone())),
+				status: agent
+					.map(|agent| agent.status_line())
+					.unwrap_or_else(|| "detached".to_owned()),
+				waiting: agent.is_some_and(|agent| agent.awaiting_input()),
+				running: agent.is_some_and(|agent| agent.is_live()),
+			}
+		})
+		.collect();
+	for row in rows {
+		let (rect, response) =
+			ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::click());
+		let selected = shell
+			.agent_target
+			.as_ref()
+			.is_some_and(|(tab, _)| tab == &row.tab);
+		if selected || response.hovered() {
+			ui.painter()
+				.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_3);
+		}
+		// 等待输入 outranks 运行中: the one that needs the user is the one the
+		// dot should shout about.
+		let dot = if row.waiting {
+			theme::WARN
+		} else if row.running {
+			theme::ACCENT
+		} else {
+			theme::TEXT_3
+		};
+		ui.painter()
+			.circle_filled(pos2(rect.min.x + 30.0, rect.center().y), 3.0, dot);
+		let title = row
+			.session
+			.clone()
+			.unwrap_or_else(|| t!("（未命名会话）").to_owned());
+		truncated_mono(
+			ui,
+			pos2(rect.min.x + 38.0, rect.center().y),
+			&title,
+			11.0,
+			if selected { theme::TEXT } else { theme::TEXT_2 },
+			// The status word keeps the right edge; the title gets the rest.
+			(rect.width() - 86.0).max(40.0),
+		);
+		ui.painter().text(
+			pos2(rect.max.x - 8.0, rect.center().y),
+			egui::Align2::RIGHT_CENTER,
+			&row.status,
+			egui::FontId::new(10.0, egui::FontFamily::Monospace),
+			if row.waiting {
+				theme::WARN
+			} else {
+				theme::TEXT_3
+			},
+		);
+		if response.clicked() {
+			shell.state.select_workspace(&workspace.id);
+			shell.state.select_tab(&row.pane, &row.tab);
+			// No session id means nothing to send to: the row still opens the
+			// tab, it just does not aim the prompt line at a name it does not
+			// have.
+			shell.agent_target = row
+				.session
+				.clone()
+				.map(|session| (row.tab.clone(), session));
+			shell.agent_prompt.clear();
+		}
+	}
+}
+
+/// `agent.prompt`: one line to the agent selected above. Enter sends, and the
+/// text stays until the backend has accepted it.
+fn prompt_region(ui: &mut Ui, shell: &mut Shell) {
+	let Some((_, session)) = shell.agent_target.clone() else {
+		return;
+	};
+	let rect = ui.max_rect();
+	ui.painter().line_segment(
+		[pos2(rect.min.x, rect.min.y + 0.5), pos2(rect.max.x, rect.min.y + 0.5)],
+		Stroke::new(1.0_f32, theme::BORDER),
+	);
+	let field = Rect::from_min_max(
+		pos2(rect.min.x + 8.0, rect.min.y + 5.0),
+		pos2(rect.max.x - 8.0, rect.max.y - 5.0),
+	);
+	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
+	let hint = format!("{} {session}", t!("发给"));
+	let edit = child.add_sized(
+		field.size(),
+		egui::TextEdit::singleline(&mut shell.agent_prompt)
+			.frame(false)
+			.font(egui::TextStyle::Monospace)
+			.hint_text(hint),
+	);
+	let entered = edit.lost_focus() && child.input(|input| input.key_pressed(egui::Key::Enter));
+	if entered {
+		let text = std::mem::take(&mut shell.agent_prompt);
+		if shell.send_agent_prompt(&session, &text) {
+			edit.request_focus();
+		} else {
+			shell.agent_prompt = text;
+		}
 	}
 }
 

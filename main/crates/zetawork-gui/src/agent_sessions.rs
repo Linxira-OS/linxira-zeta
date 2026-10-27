@@ -158,6 +158,13 @@ impl AgentPane {
 			.or_else(|| self.view.pending.as_ref().map(summarize_request))
 	}
 
+	/// Is this pane still reading (or about to)? The left column's agent row
+	/// draws its dot from this, so a session nobody watches does not look
+	/// live.
+	pub fn is_live(&self) -> bool {
+		self.events.is_some() || self.link.is_watching()
+	}
+
 	/// True while the gateway is waiting for the user.
 	pub fn awaiting_input(&self) -> bool {
 		self.view.pending.is_some()
@@ -242,10 +249,7 @@ impl AgentSessions {
 	/// Is any pane still expecting frames? The frame loop then schedules a slow
 	/// repaint even with no input.
 	pub fn is_watching(&self) -> bool {
-		self
-			.panes
-			.values()
-			.any(|pane| pane.events.is_some() || pane.link.is_watching())
+		self.panes.values().any(AgentPane::is_live)
 	}
 
 	/// Drain every reader once and reduce the frames.
@@ -343,6 +347,156 @@ fn summarize_request(request: &Value) -> String {
 		summary.push_str(&format!(" · id {id}"));
 	}
 	summary
+}
+
+/// Send one prompt to `session` on `origin` (`http://127.0.0.1:PORT`).
+///
+/// `POST /api/agent/{session}` with the web UI's own command body —
+/// `{"type":"prompt","message":…}` — so the agent receives exactly what the web
+/// composer would have sent, built-in slash-command handling included. Blocking
+/// by design: the caller runs it on a worker, never on the frame loop.
+pub fn send_prompt(origin: &str, session: &str, message: &str) -> Result<(), String> {
+	let address = origin
+		.strip_prefix("http://")
+		.ok_or_else(|| format!("not a loopback origin: {origin}"))?
+		.trim_end_matches('/')
+		.to_owned();
+	let session = session.trim();
+	if session.is_empty() {
+		return Err(t!("会话 id 为空").to_owned());
+	}
+	let message = message.trim();
+	if message.is_empty() {
+		return Err(t!("内容是空的").to_owned());
+	}
+	let body = serde_json::json!({ "type": "prompt", "message": message }).to_string();
+	let answer = post(&address, &format!("/api/agent/{}", encode_path(session)), &body)?;
+	let reply: Value =
+		serde_json::from_str(&answer).map_err(|error| t!("后端回答不是 JSON：{}", error))?;
+	if reply.get("success").and_then(Value::as_bool) == Some(true) && reply.get("error").is_none() {
+		return Ok(());
+	}
+	Err(
+		reply
+			.get("error")
+			.and_then(Value::as_str)
+			.unwrap_or("the backend refused the prompt")
+			.to_owned(),
+	)
+}
+
+/// One prompt at a time, sent from a worker thread.
+///
+/// A second Enter while a send is in flight is refused instead of queued: the
+/// line keeps its text, so nothing typed is lost.
+#[derive(Default)]
+pub struct PromptSender {
+	pending: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
+}
+
+impl PromptSender {
+	pub fn busy(&self) -> bool {
+		self.pending.is_some()
+	}
+
+	/// Start a send. `false` when one is already in flight.
+	pub fn send(&mut self, origin: String, session: String, message: String) -> bool {
+		if self.pending.is_some() {
+			return false;
+		}
+		let (sender, receiver) = std::sync::mpsc::channel();
+		std::thread::spawn(move || {
+			let _ = sender.send(send_prompt(&origin, &session, &message));
+		});
+		self.pending = Some(receiver);
+		true
+	}
+
+	/// The finished send's outcome, once.
+	pub fn poll(&mut self) -> Option<Result<(), String>> {
+		let result = self.pending.as_ref()?.try_recv().ok()?;
+		self.pending = None;
+		Some(result)
+	}
+}
+
+/// One blocking request/response over the gateway's own loopback socket.
+fn post(address: &str, path: &str, body: &str) -> Result<String, String> {
+	use std::{
+		io::{Read, Write},
+		net::TcpStream,
+	};
+
+	let mut stream =
+		TcpStream::connect(address).map_err(|error| t!("连接 {} 失败：{}", address, error))?;
+	let request = format!(
+		"POST {path} HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+		body.len()
+	);
+	stream
+		.write_all(request.as_bytes())
+		.map_err(|error| t!("写入请求失败：{}", error))?;
+	let mut raw = Vec::new();
+	stream
+		.read_to_end(&mut raw)
+		.map_err(|error| t!("读取回答失败：{}", error))?;
+	let text = String::from_utf8_lossy(&raw);
+	let (head, body) = text
+		.split_once("\r\n\r\n")
+		.ok_or_else(|| t!("后端没有给出完整的回答").to_owned())?;
+	let status = head.lines().next().unwrap_or_default();
+	if !(status.contains(" 200") || status.contains(" 201")) {
+		return Err(status.to_owned());
+	}
+	if head
+		.to_ascii_lowercase()
+		.contains("transfer-encoding: chunked")
+	{
+		Ok(decode_chunked(body))
+	} else {
+		Ok(body.to_owned())
+	}
+}
+
+/// Undo `Transfer-Encoding: chunked` (Bun answers with it, see `agent_events`).
+fn decode_chunked(body: &str) -> String {
+	let mut rest = body.as_bytes();
+	let mut out: Vec<u8> = Vec::new();
+	loop {
+		let Some(end) = rest.windows(2).position(|window| window == b"\r\n") else {
+			break;
+		};
+		let Ok(size) =
+			usize::from_str_radix(std::str::from_utf8(&rest[..end]).unwrap_or("").trim(), 16)
+		else {
+			break;
+		};
+		rest = &rest[end + 2..];
+		if size == 0 || rest.len() < size {
+			break;
+		}
+		out.extend_from_slice(&rest[..size]);
+		rest = &rest[size..];
+		if rest.starts_with(b"\r\n") {
+			rest = &rest[2..];
+		}
+	}
+	String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Percent-encode one path segment: session ids are slugs today, but the URL is
+/// the backend's contract, not this module's.
+fn encode_path(segment: &str) -> String {
+	let mut out = String::with_capacity(segment.len());
+	for byte in segment.bytes() {
+		match byte {
+			b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+				out.push(byte as char)
+			},
+			_ => out.push_str(&format!("%{byte:02X}")),
+		}
+	}
+	out
 }
 
 #[cfg(test)]
@@ -506,5 +660,87 @@ mod tests {
 		let pane = sessions.pane("t1").expect("pane");
 		assert!(matches!(pane.link, Link::Failed(_)));
 		assert_eq!(pane.request_summary(), None);
+	}
+	/// A one-shot HTTP server: answers `answer` as one chunk and hands back the
+	/// request it saw.
+	fn stub(answer: &'static str) -> (String, std::thread::JoinHandle<String>) {
+		use std::{
+			io::{Read, Write},
+			net::TcpListener,
+			time::Duration,
+		};
+		let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+		let address = listener.local_addr().expect("addr").to_string();
+		let handle = std::thread::spawn(move || {
+			let (mut socket, _) = listener.accept().expect("accept");
+			socket.set_read_timeout(Some(Duration::from_secs(10))).ok();
+			let mut request = Vec::new();
+			let mut buffer = [0u8; 512];
+			loop {
+				let Ok(read) = socket.read(&mut buffer) else {
+					break;
+				};
+				if read == 0 {
+					break;
+				}
+				request.extend_from_slice(&buffer[..read]);
+				let text = String::from_utf8_lossy(&request).into_owned();
+				if let Some((head, body)) = text.split_once("\r\n\r\n") {
+					let length = head
+						.lines()
+						.find_map(|line| {
+							line
+								.strip_prefix("Content-Length:")
+								.and_then(|value| value.trim().parse::<usize>().ok())
+						})
+						.unwrap_or(0);
+					if body.len() >= length {
+						break;
+					}
+				}
+			}
+			let chunk = format!("{:x}\r\n{answer}\r\n0\r\n\r\n", answer.len());
+			let response = format!("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{chunk}");
+			let _ = socket.write_all(response.as_bytes());
+			String::from_utf8_lossy(&request).into_owned()
+		});
+		(address, handle)
+	}
+
+	#[test]
+	fn a_prompt_goes_to_the_agent_route_with_the_web_uis_body() {
+		let (address, handle) = stub("{\"success\":true}");
+		send_prompt(&format!("http://{address}"), "sess-1", "fix the build")
+			.expect("the prompt is accepted");
+		let request = handle.join().expect("stub");
+		assert!(request.starts_with("POST /api/agent/sess-1 HTTP/1.1"), "{request}");
+		let body = request.split_once("\r\n\r\n").expect("body").1;
+		let parsed: Value = serde_json::from_str(body).expect("json");
+		assert_eq!(parsed["type"], "prompt");
+		assert_eq!(parsed["message"], "fix the build");
+	}
+
+	#[test]
+	fn a_refused_prompt_carries_the_backends_own_reason() {
+		let (address, handle) = stub("{\"success\":false,\"error\":\"no such session\"}");
+		let error = send_prompt(&format!("http://{address}"), "sess-1", "hi").expect_err("refused");
+		assert_eq!(error, "no such session");
+		handle.join().expect("stub");
+	}
+
+	#[test]
+	fn an_empty_prompt_or_session_never_opens_a_socket() {
+		assert!(send_prompt("http://127.0.0.1:1", "sess-1", "   ").is_err());
+		assert!(send_prompt("http://127.0.0.1:1", "  ", "hi").is_err());
+		assert!(send_prompt("https://127.0.0.1:1", "sess-1", "hi").is_err());
+	}
+
+	#[test]
+	fn chunked_answers_are_decoded_across_chunk_boundaries() {
+		assert_eq!(decode_chunked("4\r\n{\"a\"\r\n3\r\n:1}\r\n0\r\n\r\n"), "{\"a\":1}");
+		assert_eq!(
+			decode_chunked("19\r\n{\"success\":true,\"data\":1}\r\n0\r\n\r\n"),
+			"{\"success\":true,\"data\":1}"
+		);
 	}
 }

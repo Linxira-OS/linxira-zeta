@@ -102,6 +102,13 @@ pub struct Shell {
 	/// Kept apart from `settings.command_keys` so a half-typed chord never
 	/// replaces the one in force.
 	pub key_drafts: BTreeMap<String, String>,
+	/// The agent the left column's prompt line talks to: (session tab,
+	/// session).
+	pub agent_target: Option<(String, String)>,
+	/// What is typed in that line.
+	pub agent_prompt: String,
+	/// The prompt sender; one send at a time, answered on a worker thread.
+	pub agent_send: agent_sessions::PromptSender,
 	/// True when the compositor draws the window frame (a Wayland toplevel,
 	/// see [`native_decorations`]): the shell then skips [`chrome::title_bar`]
 	/// and [`chrome::resize_borders`], because winit cannot move or resize such
@@ -303,6 +310,9 @@ impl Shell {
 			state,
 			settings,
 			key_drafts: BTreeMap::new(),
+			agent_target: None,
+			agent_prompt: String::new(),
+			agent_send: agent_sessions::PromptSender::default(),
 			applied,
 			native_chrome: native_decorations(),
 			fonts,
@@ -386,6 +396,9 @@ impl Shell {
 			state,
 			settings,
 			key_drafts: BTreeMap::new(),
+			agent_target: None,
+			agent_prompt: String::new(),
+			agent_send: agent_sessions::PromptSender::default(),
 			applied,
 			native_chrome: native_decorations(),
 			fonts: Fonts::default(),
@@ -827,6 +840,40 @@ impl Shell {
 			if commands::pressed(ctx, chord) {
 				self.run_command(command.id);
 			}
+		}
+	}
+
+	/// Send `text` to the agent `session` through the local gateway —
+	/// `POST /api/agent/:id` with the web composer's own command body. Returns
+	/// `false` when a send was already in flight; the caller keeps the text.
+	pub fn send_agent_prompt(&mut self, session: &str, text: &str) -> bool {
+		let origin = self.stats.origin().to_owned();
+		let accepted = self
+			.agent_send
+			.send(origin, session.to_owned(), text.to_owned());
+		if !accepted {
+			self
+				.state
+				.show(crate::state::Notice(t!("上一条还在发送中").to_owned()));
+		}
+		accepted
+	}
+
+	/// Report a finished prompt send, and keep frames coming while one is in
+	/// flight (the answer arrives on a worker thread).
+	pub fn poll_agent_send(&mut self, ctx: &Context) {
+		if let Some(result) = self.agent_send.poll() {
+			let notice = match result {
+				Ok(()) => match &self.agent_target {
+					Some((_, session)) => t!("已发给 {}", session),
+					None => t!("已发送").to_owned(),
+				},
+				Err(reason) => t!("发送失败：{}", reason),
+			};
+			self.state.show(crate::state::Notice(notice));
+		}
+		if self.agent_send.busy() {
+			ctx.request_repaint_after(std::time::Duration::from_millis(400));
 		}
 	}
 
@@ -1601,6 +1648,7 @@ impl Shell {
 		self.sync_readers();
 		self.detect_idle_panes(ctx);
 		self.poll_live(ctx);
+		self.poll_agent_send(ctx);
 		self.poll_terminals(ctx);
 		// 设置 → 终端 的 默认 Shell: the shell a new 终端 page records.
 		self.state.default_shell = self.settings.shell.kind();

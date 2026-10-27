@@ -999,3 +999,41 @@ fn command_palette_screenshot() {
 	assert!(bytes.len() > 4096);
 	write("20-command-palette.png", &bytes);
 }
+
+/// `19-workspace-agent-rows.png` — a workspace that holds an agent session: the
+/// left column lists that session under the workspace row, and the prompt line
+/// at the bottom of the column is aimed at it.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn agent_rows_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	let workspace = shell
+		.state
+		.active_workspace()
+		.expect("a workspace is open")
+		.id
+		.clone();
+	let notice =
+		shell
+			.state
+			.attach_conversation(&workspace, "conv-2026-10-27", "Agent · diff review");
+	assert!(notice.0.is_empty(), "{}", notice.0);
+	let (pane, tab) = shell
+		.state
+		.workspace(&workspace)
+		.expect("the workspace")
+		.panes
+		.iter()
+		.flat_map(|pane| pane.tabs.iter().map(move |tab| (pane.id.clone(), tab)))
+		.find(|(_, tab)| tab.kind == zetawork_gui::state::SessionKind::Agent)
+		.map(|(pane, tab)| (pane, tab.id.clone()))
+		.expect("the agent tab");
+	// What a click on the row does, minus the mouse.
+	shell.state.select_tab(&pane, &tab);
+	shell.agent_target = Some((tab, "conv-2026-10-27".to_owned()));
+	shell.agent_prompt = "看一下这次 diff".to_owned();
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
+	write("19-workspace-agent-rows.png", &bytes);
+}
