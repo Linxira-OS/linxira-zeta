@@ -1255,6 +1255,18 @@ static EN: &[(&str, &str)] = &[
 	("行注释：回车保存，⇧ 回车发给 agent", "Line note: Enter saves, ⇧Enter sends it to the agent"),
 	("发给 agent", "Send to agent"),
 	("行注释保存失败：{}", "Could not save the line note: {}"),
+	(
+		"分支：留空用项目目录，填名字建 git worktree",
+		"Branch: empty uses the project directory, a name creates a git worktree",
+	),
+	("例如 feature/agent-rows", "e.g. feature/agent-rows"),
+	("运行 .zeta/setup", "Run .zeta/setup"),
+	("信任并运行 .zeta/setup", "Trust and run .zeta/setup"),
+	("无法记录信任：{}", "Could not record the trust: {}"),
+	("上一个 setup 还在运行", "The previous setup is still running"),
+	("`.zeta/setup` 完成", "`.zeta/setup` finished"),
+	("`.zeta/setup` 完成：{}", "`.zeta/setup` finished: {}"),
+	("`.zeta/setup` 失败：{}", "`.zeta/setup` failed: {}"),
 ];
 
 /// The lookup table, built once from [`EN`].

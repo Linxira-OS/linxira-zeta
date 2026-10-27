@@ -1630,7 +1630,7 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 	if wide_button(&mut new_btn, Icon::Plus, t!("创建工作区"), true).clicked() {
 		match shell.state.active_project.clone() {
 			Some(project) => {
-				shell.state.act(|s| s.new_workspace(&project));
+				shell.state.open_new_workspace(&project);
 			},
 			None => {
 				shell.state.begin_add_project();

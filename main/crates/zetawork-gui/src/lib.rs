@@ -29,6 +29,7 @@ pub mod center;
 pub mod channels;
 pub mod chrome;
 pub mod commands;
+pub mod composer;
 pub mod console;
 pub mod conversation;
 pub mod embed;
@@ -60,6 +61,7 @@ pub mod settings_channels;
 pub mod settings_remote;
 pub mod settings_schema;
 pub mod settings_ui;
+pub mod setup;
 pub mod shells;
 pub mod spawn_probe;
 pub mod state;
@@ -110,6 +112,8 @@ pub struct Shell {
 	pub agent_prompt: String,
 	/// The prompt sender; one send at a time, answered on a worker thread.
 	pub agent_send: agent_sessions::PromptSender,
+	/// The `.zeta/setup` runner; one run at a time, answered on a worker thread.
+	pub setup: setup::SetupRunner,
 	/// 行注释 for the active workspace's diff, loaded when the cache refreshes.
 	pub notes: notes::Notes,
 	/// The diff row the note editor is open on: (file, new-side line).
@@ -326,6 +330,7 @@ impl Shell {
 			agent_target: None,
 			agent_prompt: String::new(),
 			agent_send: agent_sessions::PromptSender::default(),
+			setup: setup::SetupRunner::default(),
 			notes: notes::Notes { path: PathBuf::new(), items: Vec::new() },
 			diff_note_at: None,
 			diff_note_draft: String::new(),
@@ -416,6 +421,7 @@ impl Shell {
 			agent_target: None,
 			agent_prompt: String::new(),
 			agent_send: agent_sessions::PromptSender::default(),
+			setup: setup::SetupRunner::default(),
 			notes: notes::Notes { path: PathBuf::new(), items: Vec::new() },
 			diff_note_at: None,
 			diff_note_draft: String::new(),
@@ -871,6 +877,57 @@ impl Shell {
 		}
 	}
 
+	/// Create the workspace the composer describes, then run the checkout's
+	/// `.zeta/setup` when the form asked for it — the tick is the trust.
+	pub fn submit_new_workspace(&mut self) {
+		let wants_setup = self
+			.state
+			.new_workspace
+			.as_ref()
+			.is_some_and(|form| form.run_setup);
+		let notice = self.state.submit_new_workspace();
+		let refused = !notice.0.is_empty();
+		self.state.show(notice);
+		self.sync_readers();
+		if refused || !wants_setup {
+			return;
+		}
+		let Some(path) = self
+			.state
+			.active_workspace()
+			.map(|workspace| PathBuf::from(&workspace.path))
+		else {
+			return;
+		};
+		let mut trust = setup::Trust::load();
+		if let Err(error) = trust.trust(&path) {
+			self
+				.state
+				.show(crate::state::Notice(t!("无法记录信任：{}", error)));
+		}
+		if !self.setup.run(path) {
+			self
+				.state
+				.show(crate::state::Notice(t!("上一个 setup 还在运行").to_owned()));
+		}
+	}
+
+	/// Report a finished `.zeta/setup` run, and keep frames coming while one
+	/// is in flight.
+	pub fn poll_setup(&mut self, ctx: &Context) {
+		if let Some(result) = self.setup.poll() {
+			let notice = match result {
+				Ok(output) if output.is_empty() => t!("`.zeta/setup` 完成").to_owned(),
+				Ok(output) => t!("`.zeta/setup` 完成：{}", output),
+				Err(error) => t!("`.zeta/setup` 失败：{}", error),
+			};
+			self.state.show(crate::state::Notice(notice));
+		}
+		if self.setup.busy() {
+			ctx.request_repaint_after(std::time::Duration::from_millis(400));
+		}
+	}
+
 	/// Persist the note draft at `(file, line)`; an empty draft removes the
 	/// note. Saving is best effort: a note that cannot reach the disk is still
 	/// in the session's memory, and the next save tries again.
@@ -938,12 +995,12 @@ impl Shell {
 				self.open_palette();
 			},
 			"workspace.new" => {
+				// The composer, not an instant workspace: a worktree and a
+				// setup script are decisions the user makes here.
 				let Some(project) = self.state.active_project.clone() else {
 					return false;
 				};
-				let notice = self.state.new_workspace(&project);
-				self.state.show(notice);
-				self.sync_readers();
+				self.state.open_new_workspace(&project);
 			},
 			"pane.split" => {
 				let notice = self.state.new_pane();
@@ -1695,6 +1752,7 @@ impl Shell {
 		self.detect_idle_panes(ctx);
 		self.poll_live(ctx);
 		self.poll_agent_send(ctx);
+		self.poll_setup(ctx);
 		self.poll_terminals(ctx);
 		// 设置 → 终端 的 默认 Shell: the shell a new 终端 page records.
 		self.state.default_shell = self.settings.shell.kind();
@@ -1810,6 +1868,7 @@ impl Shell {
 			.frame(no_margin)
 			.show(ctx, |ui| center::workspace(ui, self));
 
+		composer::modal(ctx, self);
 		settings_ui::modal(ctx, self);
 		lifecycle::modal(ctx, self);
 		usage::container(ctx, self);

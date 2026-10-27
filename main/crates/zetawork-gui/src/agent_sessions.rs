@@ -462,10 +462,7 @@ fn post(address: &str, path: &str, body: &str) -> Result<String, String> {
 fn decode_chunked(body: &str) -> String {
 	let mut rest = body.as_bytes();
 	let mut out: Vec<u8> = Vec::new();
-	loop {
-		let Some(end) = rest.windows(2).position(|window| window == b"\r\n") else {
-			break;
-		};
+	while let Some(end) = rest.windows(2).position(|window| window == b"\r\n") {
 		let Ok(size) =
 			usize::from_str_radix(std::str::from_utf8(&rest[..end]).unwrap_or("").trim(), 16)
 		else {
@@ -676,10 +673,7 @@ mod tests {
 			socket.set_read_timeout(Some(Duration::from_secs(10))).ok();
 			let mut request = Vec::new();
 			let mut buffer = [0u8; 512];
-			loop {
-				let Ok(read) = socket.read(&mut buffer) else {
-					break;
-				};
+			while let Ok(read) = socket.read(&mut buffer) {
 				if read == 0 {
 					break;
 				}

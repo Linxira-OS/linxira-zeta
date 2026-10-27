@@ -610,6 +610,8 @@ pub struct AppState {
 	/// `~/.zeta/zetawork-session-pins.json` and written back on a toggle.
 	pub pinned_sessions: Vec<String>,
 	settings_open: bool,
+	/// ＋新建大标签页's composer; `None` when it is closed.
+	pub new_workspace: Option<NewWorkspaceForm>,
 	/// The 用量 container (the embedded stats page) is open.
 	usage_open: bool,
 	/// The 更新 modal (the desktop app's self-update) is open.
@@ -655,6 +657,7 @@ impl Default for AppState {
 			sessions_open: false,
 			pinned_sessions: Vec::new(),
 			settings_open: false,
+			new_workspace: None,
 			usage_open: false,
 			update_open: false,
 			statusbar_open: true,
@@ -662,6 +665,22 @@ impl Default for AppState {
 			next_id: 1,
 		}
 	}
+}
+
+/// ＋新建大标签页's form: what `＋` and ⌘N collect before a workspace exists.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewWorkspaceForm {
+	pub project: String,
+	/// Empty means the default name (`新工作区 N`).
+	pub name: String,
+	/// Empty means the project directory itself; a branch name creates a
+	/// `git worktree` for it.
+	pub branch: String,
+	/// Run `.zeta/setup` after the workspace exists. Only shown when the
+	/// checkout has one.
+	pub run_setup: bool,
+	/// Why the last submit was refused (the form stays open).
+	pub error: Option<String>,
 }
 
 impl AppState {
@@ -1368,6 +1387,67 @@ impl AppState {
 		self.new_workspace_with(project_id, None)
 	}
 
+	/// Open the composer for `project_id`. Surfaces that used to create a
+	/// workspace on one click (＋, ⌘N) land here instead, so a worktree and a
+	/// setup script are choices rather than surprises.
+	pub fn open_new_workspace(&mut self, project_id: &str) {
+		self.palette = None;
+		self.picker = None;
+		self.settings_open = false;
+		let Some(project) = self.project(project_id) else {
+			return;
+		};
+		if Self::is_system_project(project_id) {
+			return;
+		}
+		let count = project.workspaces.len() + 1;
+		let path = std::path::PathBuf::from(&project.path);
+		let trusted = crate::setup::Trust::load().is_trusted(&path);
+		self.new_workspace = Some(NewWorkspaceForm {
+			project: project_id.to_owned(),
+			name: t!("新工作区 {}", count),
+			branch: String::new(),
+			// A trusted repository's script is what the user already agreed
+			// to; an untrusted one starts unticked.
+			run_setup: trusted && crate::setup::has_script(&path),
+			error: None,
+		});
+	}
+
+	pub fn close_new_workspace(&mut self) {
+		self.new_workspace = None;
+	}
+
+	/// Create the workspace the composer describes. A refusal re-opens the form
+	/// with the reason instead of losing what was typed.
+	pub fn submit_new_workspace(&mut self) -> Notice {
+		let Some(form) = self.new_workspace.take() else {
+			return Notice(String::new());
+		};
+		let name = form.name.trim().to_owned();
+		let branch = form.branch.trim().to_owned();
+		let Some(project_path) = self
+			.project(&form.project)
+			.map(|project| project.path.clone())
+		else {
+			return Notice(t!("没有这个项目：{}", form.project));
+		};
+		let path = if branch.is_empty() {
+			None
+		} else {
+			match crate::git::add_worktree(std::path::Path::new(&project_path), &branch) {
+				Ok(path) => Some(path),
+				Err(error) => {
+					let mut reopen = form;
+					reopen.error = Some(error);
+					self.new_workspace = Some(reopen);
+					return Notice(String::new());
+				},
+			}
+		};
+		self.new_workspace_at(&form.project, None, (!name.is_empty()).then_some(name), path)
+	}
+
 	/// ＋新建大标签页, with the `+` picker's choice as the new workspace's first
 	/// page. A refused creation leaves no residue — the tab is only built once
 	/// the caps have passed.
@@ -1376,6 +1456,18 @@ impl AppState {
 	}
 
 	fn new_workspace_inner(&mut self, project_id: &str, entry: Option<&PickerEntry>) -> Notice {
+		self.new_workspace_at(project_id, entry, None, None)
+	}
+
+	/// The shared tail: caps, the first tab, the workspace row. `name` and
+	/// `path` override the defaults a `git worktree` creation supplies.
+	fn new_workspace_at(
+		&mut self,
+		project_id: &str,
+		entry: Option<&PickerEntry>,
+		name: Option<String>,
+		path: Option<std::path::PathBuf>,
+	) -> Notice {
 		if Self::is_system_project(project_id) {
 			return Notice(t!("默认项目是系统内置的，工作区固定为默认工作区").to_owned());
 		}
@@ -1386,13 +1478,16 @@ impl AppState {
 			return Notice(t!("每个项目最多 {} 个工作区（大标签页）", MAX_WORKSPACES_PER_PROJECT));
 		}
 		let project_path = self.projects[pos].path.clone();
-		let name = t!("新工作区 {}", self.projects[pos].workspaces.len() + 1);
+		let dir = path.unwrap_or_else(|| std::path::PathBuf::from(&project_path));
+		let name = name.unwrap_or_else(|| t!("新工作区 {}", self.projects[pos].workspaces.len() + 1));
 		let id = self.fresh_id("ws");
 		let pane_id = self.fresh_id("pane");
 		let tab = self.tab_for(entry);
 		let panes = vec![Pane { id: pane_id, active: tab.id.clone(), tabs: vec![tab] }];
 		let branch = {
-			let status = crate::git::read_status(&project_path, 0);
+			// A worktree reports the branch it was created for; the project
+			// directory reports whatever is checked out.
+			let status = crate::git::read_status(&dir, 0);
 			if status.branch.trim().is_empty() {
 				"—".to_owned()
 			} else {
@@ -1403,9 +1498,9 @@ impl AppState {
 			id: id.clone(),
 			name,
 			branch,
-			// The workspace is the project directory itself: the terminal's
-			// cwd, the file tree and zetacode all start where the project is.
-			path: project_path.display().to_string(),
+			// The terminal's cwd, the file tree and zetacode all start here:
+			// the project directory, or the worktree the composer created.
+			path: dir.display().to_string(),
 			cols: 1,
 			panes,
 			// Nothing observes a workspace the user just created, so it has no
@@ -1906,6 +2001,10 @@ impl AppState {
 
 	/// Escape: close the topmost overlay, else leave the TUI view.
 	pub fn escape(&mut self) -> bool {
+		if self.new_workspace.is_some() {
+			self.new_workspace = None;
+			return true;
+		}
 		if self.palette.is_some() {
 			self.close_palette();
 			return true;
@@ -1984,7 +2083,8 @@ impl AppState {
 	/// dialog, a `+` picker, the command palette or 会话管理. The resize border
 	/// stands down while one is.
 	pub fn modal_open(&self) -> bool {
-		self.settings_open
+		self.new_workspace.is_some()
+			|| self.settings_open
 			|| self.usage_open
 			|| self.update_open
 			|| self.picker.is_some()
@@ -2125,6 +2225,44 @@ mod tests {
 		let notice = state.new_workspace(&project);
 		assert_eq!(state.projects[0].workspaces.len(), MAX_WORKSPACES_PER_PROJECT);
 		assert!(notice.0.contains("最多"), "got {notice:?}");
+	}
+
+	#[test]
+	fn the_composer_refuses_a_bad_branch_and_keeps_the_typed_text() {
+		let mut state = state();
+		let project = state.projects[0].id.clone();
+		state.open_new_workspace(&project);
+		let form = state.new_workspace.as_mut().expect("open");
+		form.name = "试试".to_owned();
+		form.branch = "not a branch".to_owned();
+		let notice = state.submit_new_workspace();
+		assert!(notice.0.is_empty(), "the form reports, not the notice strip");
+		let form = state.new_workspace.as_ref().expect("still open");
+		assert_eq!(form.name, "试试", "the typed name survives the refusal");
+		assert!(form.error.is_some(), "the reason is on the form");
+	}
+
+	#[test]
+	fn the_composer_defaults_to_the_project_directory() {
+		let mut state = state();
+		let project = state.projects[0].id.clone();
+		let path = state.projects[0].path.clone();
+		state.open_new_workspace(&project);
+		assert!(state.new_workspace.as_ref().unwrap().branch.is_empty());
+		let notice = state.submit_new_workspace();
+		assert!(notice.0.is_empty(), "{}", notice.0);
+		assert!(state.new_workspace.is_none(), "the form closes on success");
+		assert_eq!(state.active_workspace().expect("the new workspace").path, path);
+	}
+
+	#[test]
+	fn escape_closes_the_composer() {
+		let mut state = state();
+		let project = state.projects[0].id.clone();
+		state.open_new_workspace(&project);
+		assert!(state.new_workspace.is_some());
+		assert!(state.escape());
+		assert!(state.new_workspace.is_none());
 	}
 
 	#[test]

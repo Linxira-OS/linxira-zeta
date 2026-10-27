@@ -438,7 +438,7 @@ fn project_group(ui: &mut Ui, shell: &mut Shell, index: usize) {
 		)));
 		if icon_button(&mut plus, Icon::Plus, 20.0, false, t!("新建工作区")).clicked() {
 			let id = project.id.clone();
-			shell.state.act(|state| state.new_workspace(&id));
+			shell.state.open_new_workspace(&id);
 		}
 	}
 	// A project that is not open is collapsed, exactly as `.proj.collapsed`

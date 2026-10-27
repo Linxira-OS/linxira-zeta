@@ -1046,7 +1046,12 @@ fn agent_rows_screenshot() {
 fn diff_note_screenshot() {
 	let mut shell = ready_shell();
 	workspace_page(&mut shell);
-	let workspace = shell.state.active_workspace().expect("a workspace").id.clone();
+	let workspace = shell
+		.state
+		.active_workspace()
+		.expect("a workspace")
+		.id
+		.clone();
 	let pane = shell
 		.state
 		.active_workspace()
@@ -1060,8 +1065,7 @@ fn diff_note_screenshot() {
 		.state
 		.open_page(&pane, zetawork_gui::state::SessionKind::Diff);
 	assert!(notice.0.is_empty(), "{}", notice.0);
-	shell.diff = Some(Ok(
-		"diff --git a/src/lib.rs b/src/lib.rs\n\
+	shell.diff = Some(Ok("diff --git a/src/lib.rs b/src/lib.rs\n\
 		 --- a/src/lib.rs\n\
 		 +++ b/src/lib.rs\n\
 		 @@ -1,4 +1,5 @@\n\
@@ -1070,17 +1074,42 @@ fn diff_note_screenshot() {
 		 +    new();\n\
 		 +    extra();\n\
 		 }\n"
-			.to_owned(),
-	));
+		.to_owned()));
 	shell.diff_ws = workspace;
 	shell.diff_at = Some(std::time::Instant::now());
 	// The note the row carries, and the editor a click would have opened.
-	shell
-		.notes
-		.set("src/lib.rs", 2, "这条分支在空输入上走不到");
+	shell.notes.set("src/lib.rs", 2, "这条分支在空输入上走不到");
 	shell.diff_note_at = Some(("src/lib.rs".to_owned(), 2));
 	shell.diff_note_draft = "这条分支在空输入上走不到".to_owned();
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
 	write("20-diff-line-note.png", &bytes);
+}
+
+/// `21-new-workspace-composer.png` — ＋新建大标签页's form: a name, a branch that
+/// would become a `git worktree`, and (when the checkout has one) the setup
+/// consent.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn composer_screenshot() {
+	let mut shell = ready_shell();
+	workspace_page(&mut shell);
+	let project = shell
+		.state
+		.projects
+		.iter()
+		.find(|project| !zetawork_gui::state::AppState::is_system_project(&project.id))
+		.expect("a registered project")
+		.id
+		.clone();
+	shell.state.open_new_workspace(&project);
+	let form = shell
+		.state
+		.new_workspace
+		.as_mut()
+		.expect("the composer is open");
+	form.branch = "feature/agent-rows".to_owned();
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
+	write("21-new-workspace-composer.png", &bytes);
 }
