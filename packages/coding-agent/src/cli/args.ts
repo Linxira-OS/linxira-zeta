@@ -44,6 +44,8 @@ export interface Args {
 	planYolo?: boolean;
 	planYoloInto?: string;
 	maxTime?: number;
+	warnCost?: number;
+	maxCost?: number;
 	apiKey?: string;
 	systemPrompt?: string;
 	systemPromptTemplate?: string;
@@ -52,6 +54,8 @@ export interface Args {
 	serviceTier?: ServiceTierOpenAISettingValue;
 	hideThinking?: boolean;
 	advisor?: boolean;
+	/** Print mode: wake the session with background-job results before exiting (`async.printWake`). */
+	waitAsync?: boolean;
 	externalThinking?: boolean;
 	continue?: boolean;
 	resume?: string | true;
@@ -100,6 +104,7 @@ export interface Args {
 	noSkills?: boolean;
 	skills?: string[];
 	noRules?: boolean;
+	noContextFiles?: boolean;
 	noTitle?: boolean;
 	/** Host the IM channel runtime in this session (also enabled per-channel in web.yml). */
 	channels?: boolean;
@@ -374,6 +379,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.hideThinking = true;
 		} else if (arg === "--advisor") {
 			result.advisor = true;
+		} else if (arg === "--wait-async") {
+			result.waitAsync = true;
 		} else if (arg === "--external-thinking") {
 			result.externalThinking = true;
 		} else if (arg === "--prewalk") {
@@ -400,6 +407,8 @@ export function parseArgs(inputArgs: string[], extensionFlags?: Map<string, { ty
 			result.noSkills = true;
 		} else if (arg === "--no-rules") {
 			result.noRules = true;
+		} else if (arg === "--no-context-files") {
+			result.noContextFiles = true;
 		} else if (arg === "--no-title") {
 			result.noTitle = true;
 		} else if (arg === "--channels") {

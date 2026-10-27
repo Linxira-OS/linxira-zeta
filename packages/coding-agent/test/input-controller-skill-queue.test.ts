@@ -12,7 +12,7 @@ import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import { buildSkillPromptMessage, type Skill } from "@linxiraos/zeta/extensibility/skills";
 import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
 import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
@@ -106,6 +106,7 @@ function createStubInputControllerContext(opts: {
 		editor,
 		ui: { requestRender },
 		skillCommands: opts.skillCommands,
+		fileSlashCommands: new Set<string>(),
 		session: {
 			isStreaming: opts.isStreaming,
 			isCompacting: opts.isCompacting ?? false,
@@ -113,6 +114,7 @@ function createStubInputControllerContext(opts: {
 			isEvalRunning: false,
 			extensionRunner: undefined,
 			prompt,
+			buildUserSkillPrompt: buildSkillPromptMessage,
 			promptCustomMessage,
 		},
 		get viewSession() {
@@ -445,6 +447,7 @@ describe("compaction skill re-invocation", () => {
 			recordLocalSubmission: vi.fn((_text: string, _imageCount: number) => vi.fn()),
 			withLocalSubmission: vi.fn(async (_text: string, fn: () => unknown) => Promise.resolve(fn())),
 			session: {
+				buildUserSkillPrompt: buildSkillPromptMessage,
 				promptCustomMessage,
 				prompt,
 				steer,

@@ -287,7 +287,7 @@ try {
 			staleRelayPath,
 			`const [port, delayMs, version] = process.argv.slice(2);
 await Bun.sleep(Number(delayMs ?? 0));
-Bun.serve({ hostname: "127.0.0.1", port: Number(port), fetch: () => Response.json({ Browser: "Chrome/1", ompRelayVersion: version }) });
+Bun.serve({ hostname: "127.0.0.1", port: Number(port), fetch: () => Response.json({ Browser: "Chrome/1", zetaRelayVersion: version }) });
 console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 `,
 		);
@@ -303,7 +303,7 @@ const versionAt = async (port: string) => {
 	const response = await fetch(\`http://127.0.0.1:\${port}/json/version\`).catch(() => null);
 	if (!response) return "unreachable";
 	const body: unknown = await response.json();
-	return typeof body === "object" && body !== null && "ompRelayVersion" in body ? body.ompRelayVersion : null;
+	return typeof body === "object" && body !== null && "zetaRelayVersion" in body ? body.zetaRelayVersion : null;
 };
 const manual = Bun.spawn([process.execPath, standIn, manualPort], { stdout: "pipe" });
 let manualOverRecord: { kill(): void } | undefined;
@@ -426,7 +426,7 @@ Bun.serve({
 	hostname: "127.0.0.1",
 	port: Number(port),
 	fetch: () =>
-		Response.json({ Browser: "Chrome/1", ompRelayVersion: version, ...(clients ? { ompRelayCdpClients: Number(clients) } : {}) }),
+		Response.json({ Browser: "Chrome/1", zetaRelayVersion: version, ...(clients ? { ompRelayCdpClients: Number(clients) } : {}) }),
 });
 console.log(\`zetacode browser relay listening on http://127.0.0.1:\${port}\`);
 `,
@@ -449,7 +449,7 @@ try {
 		);
 	const versionAt = async (port: string) => {
 		const body: unknown = await (await fetch(\`http://127.0.0.1:\${port}/json/version\`)).json();
-		return typeof body === "object" && body !== null && "ompRelayVersion" in body ? body.ompRelayVersion : null;
+		return typeof body === "object" && body !== null && "zetaRelayVersion" in body ? body.zetaRelayVersion : null;
 	};
 	// Starts a stand-in under the broker, asks for an idle-only restart, and reports whether the stand-in kept serving.
 	const restartOwned = async (version: string, clients: string) => {
@@ -573,7 +573,7 @@ try {
 			lateRestarted,
 			replacementKept: current.id === replacement.id && current.pid === replacement.pid,
 			state: current.state,
-			versionIsCurrent: typeof body === "object" && body !== null && "ompRelayVersion" in body && body.ompRelayVersion === VERSION,
+			versionIsCurrent: typeof body === "object" && body !== null && "zetaRelayVersion" in body && body.zetaRelayVersion === VERSION,
 		}),
 	);
 } finally {
@@ -656,7 +656,7 @@ Bun.serve({
 	port,
 	fetch: () =>
 		Response.json({
-			ompRelayVersion: "${OLDER_RELAY_VERSION}",
+			zetaRelayVersion: "${OLDER_RELAY_VERSION}",
 			ompRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 			ompExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 			ompRelayCdpClients: 0,
@@ -728,7 +728,7 @@ if (process.argv[2] === "browser-relay") {
 			JSON.stringify({
 				connected: "browser" in handle && handle.browser.connected,
 				replaced: current.pid !== olderPid && current.state === "ready",
-				versionIsCurrent: typeof body === "object" && body !== null && "ompRelayVersion" in body && body.ompRelayVersion === VERSION,
+				versionIsCurrent: typeof body === "object" && body !== null && "zetaRelayVersion" in body && body.zetaRelayVersion === VERSION,
 				cdpClients: typeof body === "object" && body !== null && "ompRelayCdpClients" in body ? body.ompRelayCdpClients : null,
 			}),
 		);
@@ -758,7 +758,7 @@ import { acquireBrowser } from ${JSON.stringify(path.resolve(import.meta.dir, ".
 import { DISCARDED_TABS_PROTOCOL_VERSION } from ${JSON.stringify(path.resolve(import.meta.dir, "../../src/tools/browser/relay/protocol.ts"))};
 // A compatible relay from an older omp that nobody is connected to, until a newer omp with another protocol replaces it.
 let served = {
-	ompRelayVersion: "${OLDER_RELAY_VERSION}",
+	zetaRelayVersion: "${OLDER_RELAY_VERSION}",
 	ompRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 	ompExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION),
 	ompRelayCdpClients: 0,
@@ -774,7 +774,7 @@ try {
 	client.request = (operation, signal) => {
 		if (operation.op === "describe") {
 			served = {
-				ompRelayVersion: "999.0.0",
+				zetaRelayVersion: "999.0.0",
 				ompRelayDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION + 1),
 				ompExtensionDiscardedTabsProtocol: String(DISCARDED_TABS_PROTOCOL_VERSION + 1),
 				ompRelayCdpClients: 0,

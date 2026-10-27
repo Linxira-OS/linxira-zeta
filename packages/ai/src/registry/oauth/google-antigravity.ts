@@ -3,8 +3,8 @@
  * Uses different OAuth credentials than google-gemini-cli for access to additional models.
  */
 
-import { getAntigravityUserAgent } from "@linxiraos/pi-catalog/wire/gemini-headers";
 import { type } from "@linxiraos/pi-omptype";
+import { getAntigravityHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
 import * as AIError from "../../error";
 import { raceWithSignal } from "../../utils/abort";
 import { extractGoogleValidationUrl, formatGoogleValidationRequiredMessage } from "../../utils/google-validation";
@@ -266,7 +266,7 @@ async function discoverProject(
 		headers: {
 			Authorization: `Bearer ${accessToken}`,
 			"Content-Type": "application/json",
-			"User-Agent": getAntigravityUserAgent(),
+			...getAntigravityHeaders(),
 		},
 		signal,
 	};

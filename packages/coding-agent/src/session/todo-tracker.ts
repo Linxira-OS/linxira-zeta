@@ -132,6 +132,11 @@ export class TodoTracker {
 		} else if (!justCompleted) {
 			this.#completedPhasePendingMirror = null;
 		}
+
+		// Every state write lands here — the native tool, a Cursor sync, or a
+		// bridged call — so the nudge budget re-arms on the progress it
+		// rations. Views, failed batches, and unchanged reads never arrive.
+		this.#midRunNudgeCount = 0;
 	}
 
 	/** Rehydrates todo phases from the current transcript branch. */

@@ -2,11 +2,14 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AutocompleteItem } from "@linxiraos/pi-tui";
-import { getMCPConfigPath, getProjectDir, logger } from "@linxiraos/pi-utils";
+import { getMCPConfigPath, getProjectDir, logger, sanitizeText } from "@linxiraos/pi-utils";
 import { formatModelRoleAlias, getKnownRoleIds } from "../config/model-roles";
 import { cfgCycleOrder } from "../config/model-settings";
 import { readMCPConfigFile } from "../mcp/config-writer";
 import { collectMcpServerNames } from "../modes/controllers/mcp-command-controller";
+import { InternalUrlRouter } from "../internal-urls";
+import { replaceTabs } from "@linxiraos/pi-tui/render/render-utils";
+import { encodeLocalPath, sessionLocalProtocolOptions } from "../modes/local-file-editor";
 import { createModelBrowserSource } from "../modes/model-browser-source";
 import {
 	createModelMentionSource,
@@ -377,6 +380,37 @@ export function buildDirectoryArgumentCompletions(): (prefix: string) => Promise
 		}
 	};
 }
+
+/** `/local` argument: session local:// file names (accepts a `local://` / `local:/` prefix). */
+export function buildLocalFileArgumentCompletions(
+	runtime: TuiSlashCommandRuntime,
+): (argumentPrefix: string) => Promise<AutocompleteItem[] | null> {
+	return async (argumentPrefix: string) => {
+		const query = argumentPrefix
+			.trim()
+			.replace(/^local:\/{0,2}/i, "")
+			.toLowerCase();
+		try {
+			const files = await InternalUrlRouter.instance().complete("local", query, {
+				localProtocolOptions: sessionLocalProtocolOptions(runtime.ctx.sessionManager),
+			});
+			const matches = (files ?? [])
+				.filter(file => file.value.toLowerCase().startsWith(query))
+				// `value` is the inserted argument: encode it as a `local://` URL so names
+				// with whitespace or URL metacharacters survive `parseSlashCommand`
+				// trimming unchanged. `label` is display-only; sanitize it so artifact
+				// names with ANSI/C0 bytes cannot escape into the completion popup.
+				.map(file => ({
+					value: `local://${encodeLocalPath(file.value)}`,
+					label: replaceTabs(sanitizeText(file.value)),
+				}));
+			return matches.length > 0 ? matches : null;
+		} catch {
+			return null;
+		}
+	};
+}
+
 function buildDirectoryCompletionDisplayValue(
 	prefix: string,
 	isAbsolute: boolean,

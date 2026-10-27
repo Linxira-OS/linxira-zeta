@@ -222,12 +222,11 @@ describe("messaging gears", () => {
 			expect(crossWorkspace.error).toContain("may only message its spawning main agent");
 		});
 
-		it("refuses a subagent message to another subagent", async () => {
+		it("delivers a subagent message to a sibling in the same workspace", async () => {
 			const { sibling } = registerParties();
 			const receipt = await new IrcBus(registry).send({ from: "Child", to: "Sibling", body: "psst" });
-			expect(receipt.outcome).toBe("failed");
-			expect(receipt.error).toContain("may only message its spawning main agent");
-			expect(sibling.delivered).toEqual([]);
+			expect(receipt.outcome).toBe("injected");
+			expect(sibling.delivered.map(message => message.body)).toEqual(["psst"]);
 		});
 
 		it("refuses a subagent broadcast", async () => {

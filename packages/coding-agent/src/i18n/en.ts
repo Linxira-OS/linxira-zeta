@@ -2185,6 +2185,7 @@ export const en = {
 	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor:
 		"Toggle ultra plan mode (fan-out scouting, incremental plan writes, deepest decision floor)",
 	cmdUseDefaultOrStandardPricingContextWindows: "Use default or standard-pricing context windows",
+	cmdOpenSessionLocalFileInEditor: "Open a session local:// file in $EDITOR (picker when no name given)",
 	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer: "Open the git UI (split diff viewer, staging, commit composer)",
 	cmdOpenTheLiveAgentHub: "Open the live Agent Hub",
 	cmdOpenThisSessionsTraceInTheStatsDashboard: "Open this session's trace in the stats dashboard",

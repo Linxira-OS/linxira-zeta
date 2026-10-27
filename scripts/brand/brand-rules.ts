@@ -713,7 +713,7 @@ export const MUST_NOT_CONTAIN: Array<{
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md", "document/merge-playbook.md"],
 	},
 	{
-		needle: /ompRelayVersion:\s*"18\.|restartOwned\("18\./,
+		needle: /zetaRelayVersion:\s*"18\.|restartOwned\("18\./,
 		why: "relay fixtures must not hardcode the upstream 18.x line: isOlderRelayVersion compares with Bun.semver.order against our VERSION (1.x), so '18.0.0' reads as *newer* and every older-relay case inverts into 'a newer zeta owns it' (v18.9.1 PR CI). Use OLDER_RELAY_VERSION in test/tools/browser-relay-*.test.ts",
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},

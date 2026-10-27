@@ -2462,3 +2462,61 @@ observation points moved onto the state each assertion actually depends on.
   `AttributeValue` union at the `LogAttributes` assignment.
 - **Final tag**: `v1.4.1` re-created on the rebuilt-leaf commit after the failed run; the first
   tag (`5265a4bc16f`) was deleted and is not published.
+
+## v18.13.1 integration (2026-10-28)
+
+- **Baseline** `v18.12.6` (`45c35e40c461`) → **source tag** `v18.13.1`
+  (`0838d2ab4407`, peeled; `git ls-remote --tags` checked before and at merge start, the tag did
+  not move), integrated as the real two-parent merge `b91c5f7448c` on
+  `sync/omp-release/18.13` (parents `8004deccc28` + `0838d2ab4407`);
+  `git merge-base --is-ancestor v18.13.1 HEAD` holds.
+- **Scope**: 646 upstream commits (525 non-merge), 803 files, +42,707/−5,153, 66 added, 1 deleted;
+  Zeta changed 1,606 commits / 8,038 files since the baseline; both sides touched 586 files and
+  165 conflicted (152 brand-shaped, 13 requiring judgement).
+- **Resolution**: docs and tests from upstream with the brand replay; 76 code files across four
+  resolution passes; lockfiles from upstream then regenerated (`bun.lock`, `Cargo.lock`,
+  `MODULE.bazel.lock`); `.github/**` and `document/**` stay Zeta's.
+- **Scope sweep**: 136 files / 1,124 `@oh-my-pi/*` specifiers remapped to the workspace names in
+  `packages|sdk/*/package.json` at the tag (`omp-stats`→`pi-stats`,
+  `snapcompact`→`pi-snapcompact`, `omptype`→`pi-omptype`,
+  `pi-coding-agent`→`@linxiraos/zeta`, …).
+- **Brand fixes**: LSP fixtures `@omp-lsp-`→`@zeta-lsp-`; runtime globals
+  `__omp_prelude__`/`__omp_call_tool__`→`__zeta_*`; `PI_CODING_AGENT_DIR`→`ZETA_CODING_AGENT_DIR`
+  in fixtures; TUI roles `omp.*`→`zeta.*`; relay wire keys `ompVersion`/`ompRelayVersion`/
+  `OMP_INSTALL_VERSION`→`zeta*` on both relay and extension with the generated assets refreshed;
+  the new `/local` description i18n'd as `cmdOpenSessionLocalFileInEditor`. `brand-check`: 0 hits.
+- **Rejected upstream surfaces**: the Stencil build service (`cli/build-service.ts`,
+  `scripts/ci-build-upload.ts` — already retired here, `release_build` in `ci.yml`), Homebrew tap
+  steps, `telemetry-settings.ts` (export stays hard-off), `export/custom-share.ts` (Zeta's
+  `/share` is the gist flow), `bun-cache-warm.yml`, upstream `.omp/tools/*`,
+  `prompts/internal-urls/omp.md`, and `sdk/go/omp-rpc` — each superseded by a Zeta-owned file or a
+  renamed directory.
+- **Kept but unused**: `packages/coding-agent/src/lsp/defaults.json` (upstream's catalogue; Zeta's
+  canonical registry is `lsp/servers.json` → `servers.generated.ts` + termide).
+- **Merge repairs**: `rpc-goal.ts` restored (an upstream-only file dropped during resolution);
+  `conformance.types.ts` back on Zeta's `GoalContinuationResult` with `RpcBtwHistoryRecord` for the
+  new title-less wire record; `transcript-container.ts` image flush reads upstream
+  `MeasuredBlock.images`; `lsp/tool.ts` takes `configCache`/`getConfig` from `./config`; the
+  duplicate `ModelSpec` import dropped in `ai/providers/anthropic.ts`; zh copy for
+  `tools.restrictedFolders` and `async.printWake`; `/local` marked client-side for backend attach.
+- **Peer messaging**: kept upstream v18.13.0's fix (#16583): a subagent's final report or `yield`
+  is no longer consumed as its short reply to a peer message that arrived as the run finished —
+  that message gets a turn of its own and the peer still receives the answer. Zeta's mesh rule
+  (`c457afd6c83`) had limited subagents to their spawning main; the merge narrows it to
+  cross-workspace addressing only, so same-workspace peers can message each other.
+  `mesh-gears.test.ts` carries the narrowed contract and the upstream
+  `peer-message-after-report` suite passes 17/17.
+- **Gates**: `check:ts`, `check:tools`, brand, sentinels, scope imports, license map, version
+  consistency, shared-infra, ci-surface, release-asset names, service ports, workbench bundles,
+  windows icons, lsp servers, local-ci parity, i18n consistency/commands, serve-discovery parity,
+  robomp cli contract, merge lineage, package-json merge, clippy bazelrc, relay assets, compat
+  regeneration, `cargo check --workspace --all-targets`, and `cargo fmt --all --check` with the
+  pinned `nightly-2026-10-06` all pass. `MODULE.bazel.lock` refreshed in WSL (bazelisk 9.2.0,
+  `linxira-2026-10-27`); `static.rust-lang.org` is unreachable from this Windows host, so the bazel
+  and rustfmt gates run in WSL. The native addon was rebuilt locally through the Cargo path
+  (`RUSTC_BOOTSTRAP=1`, `stable-x86_64-pc-windows-gnu`).
+- **Local-only failures (also present on `main`, not merge damage)**: `packages/utils`
+  runtime-install/browser-extract fixtures (EPERM in temp), `watcher.test.ts` fs.watch granularity,
+  the `lsp-regressions`/`agent-plugins`/`live-routing` symlink cases (Windows symlink privilege),
+  `git-tui-sidebar` timing, `skills-enable-official` (bundled `docx` pack resolution),
+  `hyperlink-targets`, and `ptree timeout`.

@@ -1,5 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "bun:test";
 import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import * as path from "node:path";
 import { inspect } from "node:util";
 import { createContext, runInContext } from "node:vm";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -30,6 +31,7 @@ import {
 import { ComputerWorkerCore, type NativeDesktopSession } from "@linxiraos/zeta/tools/computer/worker";
 import * as clipboard from "@linxiraos/zeta/utils/clipboard";
 import type {
+	ApplicationOpenOptions,
 	AxNode,
 	AxQuery,
 	AxSelectTextOptions,
@@ -669,7 +671,7 @@ describe("computer prelude", () => {
 			"clipboard.read": "copied",
 		};
 		const realm = createContext({
-			__zeta_log__: (_level: string, value: unknown) => displays.push(value),
+			__omp_log__: (_level: string, value: unknown) => displays.push(value),
 			__zeta_prelude__: async (name: unknown, parameters: unknown) => {
 				expect(name).toBe("computer");
 				calls.push(parameters);
@@ -1011,7 +1013,7 @@ describe("computer prelude", () => {
 		const emitted: unknown[] = [];
 		const context = { session, toolCallId: "zoom-js" };
 		const realm = createContext({
-			__zeta_log__: () => {},
+			__omp_log__: () => {},
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				emitted.push(...result.content);
@@ -1163,7 +1165,7 @@ describe("computer prelude", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "ref-chain-js" };
 		const realm = createContext({
-			__zeta_log__: () => {},
+			__omp_log__: () => {},
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
@@ -1286,7 +1288,7 @@ describe("computer prelude", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "element-shape-js" };
 		const realm = createContext({
-			__zeta_log__: () => {},
+			__omp_log__: () => {},
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
@@ -1879,12 +1881,27 @@ describe("computer worker round trips", () => {
 			{ ...windowFixture, id: "9", app: "TextEdit", title: "draft.txt", pid: 10, focused: false },
 		];
 
-		async function missMessage(windows: DesktopWindow[], selector: string): Promise<string> {
+		class MacSession extends FakeNativeSession {
+			override get capabilities(): DesktopCapabilities {
+				return { ...super.capabilities, backend: "quartz" };
+			}
+		}
+
+		async function missMessage(
+			windows: DesktopWindow[],
+			selector: string,
+			options: { native?: FakeNativeSession; readOnly?: boolean } = {},
+		): Promise<string> {
 			const transport = new MemoryTransport();
-			const native = new FakeNativeSession();
+			const native = options.native ?? new FakeNativeSession();
 			native.listWindows = async () => windows;
 			new ComputerWorkerCore(transport, () => native);
-			const result = await runWorker(transport, "window-miss", `await desktop.window(${selector})`);
+			const result = await runWorker(
+				transport,
+				"window-miss",
+				`await desktop.window(${selector})`,
+				options.readOnly,
+			);
 			expect(result.ok).toBe(false);
 			return result.ok ? "" : result.error.message;
 		}
@@ -1901,9 +1918,44 @@ describe("computer worker round trips", () => {
 		it("says the app has no window and lists every app's windows, untitled ones included", async () => {
 			const lines = (await missMessage(desktopWindows, '{ app: "Calendar" }')).split("\n");
 			expect(lines).toContain('No open window belongs to an app matching "Calendar".');
+			expect(lines).toContain('computer.apps.open("Calendar") launches it by that exact name or ID.');
 			expect(lines).toContain('- Code: 42 "Editor", 43 ""');
 			expect(lines).toContain('- Finder: 7 "Downloads"');
 			expect(lines).toContain('- TextEdit: 8 "notes.txt", 9 "draft.txt"');
+		});
+
+		it("on macOS names apps.open as the call that also shows a running app's window and returns it", async () => {
+			const lines = (await missMessage(desktopWindows, '{ app: "Calendar" }', { native: new MacSession() })).split(
+				"\n",
+			);
+			const hint = lines.find(line => line.startsWith('computer.apps.open("Calendar")'));
+			expect(hint).toContain("shows a window of it if it runs without one");
+			expect(hint).toContain("window: null if none appears");
+		});
+
+		it("names apps.open when no window is open at all, and in a read-only run such as a direct window call", async () => {
+			expect(await missMessage([], '{ app: "Calendar" }')).toContain('computer.apps.open("Calendar")');
+			expect(await missMessage(desktopWindows, '{ app: "Calendar" }', { readOnly: true })).toContain(
+				'computer.apps.open("Calendar")',
+			);
+		});
+
+		it("names the missing selector when called with nothing, instead of matching undefined", async () => {
+			for (const windows of [desktopWindows, []]) {
+				const message = await missMessage(windows, "");
+				expect(message.split("\n")[0]).toContain("computer.window() without an id or { app, title } filter");
+				expect(message).not.toContain("undefined");
+			}
+		});
+
+		it("returns the only open window when called with nothing", async () => {
+			const transport = new MemoryTransport();
+			const native = new FakeNativeSession();
+			native.listWindows = async () => [windowFixture];
+			new ComputerWorkerCore(transport, () => native);
+			const result = await runWorker(transport, "window-only", "(await desktop.window()).id");
+			expect(result.ok).toBe(true);
+			if (result.ok) expect(result.payload.returnValue).toBe(windowFixture.id);
 		});
 
 		it("lists untitled windows by id after titled ones, as when macOS hides other apps' titles", async () => {
@@ -3012,7 +3064,7 @@ describe("expanded computer APIs", () => {
 		const context = { session, toolCallId: "expanded-js" };
 		const images: unknown[] = [];
 		const realm = createContext({
-			__zeta_log__: () => {},
+			__omp_log__: () => {},
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				images.push(...result.content.filter(block => block.type === "image"));
@@ -3123,7 +3175,7 @@ describe("expanded computer APIs", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "menu-path-js" };
 		const realm = createContext({
-			__zeta_log__: () => {},
+			__omp_log__: () => {},
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
@@ -3275,7 +3327,7 @@ describe("expanded computer APIs", () => {
 		const prelude = workerPrelude(session, native);
 		const context = { session, toolCallId: "argument-facade" };
 		const realm = createContext({
-			__zeta_log__: () => {},
+			__omp_log__: () => {},
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				return { text: "", details: result.details };
@@ -3305,7 +3357,7 @@ describe("expanded computer APIs", () => {
 		const context = { session, toolCallId: "observe-once-js" };
 		const printed: string[] = [];
 		const realm = createContext({
-			__zeta_log__: (_level: string, text: string) => printed.push(text),
+			__omp_log__: (_level: string, text: string) => printed.push(text),
 			__zeta_prelude__: async (_name: string, parameters: unknown) => {
 				const result = await prelude.invoke(parameters, context);
 				const text = result.content.flatMap(block => (block.type === "text" ? [block.text] : [])).join("\n");
@@ -4015,6 +4067,11 @@ describe("computer background fallback", () => {
 				call: "open:test.editor:true",
 				route: "without activate",
 			},
+			{
+				code: 'await desktop.apps.open("/tmp/report.pdf", { reveal: true })',
+				call: "open:/tmp/report.pdf:-",
+				route: "apps.open(folder)",
+			},
 			{ code: 'await desktop.type("x")', call: "type:desktop:-", route: "window handle" },
 			{
 				code: 'await (await desktop.display("active")).click(1, 2)',
@@ -4086,6 +4143,58 @@ describe("computer background fallback", () => {
 				"axClick:false",
 				"holdKeys:42:false",
 				"open:test.editor:false",
+			]);
+		});
+
+		class FileSession extends ForegroundSession {
+			readonly opened: Array<{ id: string; options?: ApplicationOpenOptions }> = [];
+			override async openApplication(id: string, options?: ApplicationOpenOptions) {
+				this.opened.push({ id, options });
+				return super.openApplication(id, options);
+			}
+		}
+		const here = (name: string) => path.join(import.meta.dir, name);
+
+		it("opens a relative path in the session's folder, even a missing one, and passes reveal and app on", async () => {
+			const native = new FileSession();
+			const code = [
+				'await desktop.apps.open("computer.test.ts", { reveal: true });',
+				'await desktop.apps.open("computer.test.ts", { app: "Editor" });',
+				'await desktop.apps.open("./missing/report.pdf", { app: "./Editor.app" });',
+				'await desktop.apps.open("Editor");',
+				'await desktop.apps.open("/tmp/report.pdf");',
+				'await desktop.apps.open("https://example.com");',
+				'await desktop.apps.open("shell:AppsFolder\\\\Calculator!App");',
+			].join("\n");
+			expect((await run(native, code, "takeover")).ok).toBe(true);
+			expect(native.opened).toEqual([
+				{ id: here("computer.test.ts"), options: { reveal: true } },
+				{ id: here("computer.test.ts"), options: { app: "Editor" } },
+				{ id: here("missing/report.pdf"), options: { app: here("Editor.app") } },
+				{ id: "Editor", options: {} },
+				{ id: "/tmp/report.pdf", options: {} },
+				{ id: "https://example.com", options: {} },
+				{ id: "shell:AppsFolder\\Calculator!App", options: {} },
+			]);
+		});
+
+		it("keeps an exact application ID over a same-named file in the session's folder", async () => {
+			class ShadowedSession extends FileSession {
+				override async listApplications() {
+					return [
+						{ id: "computer.test.ts", name: "Editor", path: "/Applications/Editor.app", running: true, pid: 123 },
+					];
+				}
+			}
+			const native = new ShadowedSession();
+			const code = [
+				'await desktop.apps.open("computer.test.ts");',
+				'await desktop.apps.open("README.md", { app: "computer.test.ts" });',
+			].join("\n");
+			expect((await run(native, code, "takeover")).ok).toBe(true);
+			expect(native.opened).toEqual([
+				{ id: "computer.test.ts", options: {} },
+				{ id: "README.md", options: { app: "computer.test.ts" } },
 			]);
 		});
 

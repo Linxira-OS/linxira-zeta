@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { Effort, type FetchImpl } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { writeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { getBundledModel, getBundledModels } from "@linxiraos/pi-catalog/models";
 import { resolveModelCacheProviderId } from "@linxiraos/pi-catalog/provider-models";
 import { DEFAULT_MODEL_PER_PROVIDER } from "@linxiraos/pi-catalog/provider-models/descriptors";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
@@ -22,8 +22,17 @@ import * as discoveryModule from "@linxiraos/zeta/task/discovery";
 import * as executorModule from "@linxiraos/zeta/task/executor";
 import { getBundledAgent } from "@linxiraos/zeta/task/agents";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import {
+	getRetryFallbackRole,
+	installRetryFallbackRole,
+	type RetryFallbackRole,
+} from "@linxiraos/zeta/session/retry-fallback-chains";
+import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-context";
+import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@linxiraos/zeta/session/session-entries";
+import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
 import type { AgentDefinition } from "@linxiraos/zeta/task/types";
 import { removeSyncWithRetries, Snowflake } from "@linxiraos/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
@@ -33,15 +42,6 @@ import {
 	cfgCompactionModelThresholdsEnabled,
 } from "@linxiraos/zeta/session/context-settings";
 import { cfgRetryFallbackChains } from "@linxiraos/zeta/session/settings";
-import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { EPHEMERAL_MODEL_CHANGE_ROLE } from "@linxiraos/zeta/session/session-entries";
-import {
-	type RetryFallbackRole,
-	getRetryFallbackRole,
-	installRetryFallbackRole,
-} from "@linxiraos/zeta/session/retry-fallback-chains";
-import { TurnRecovery, type TurnRecoveryHost } from "@linxiraos/zeta/session/turn-recovery";
-import { getRestorableSessionModels } from "@linxiraos/zeta/session/session-context";
 
 describe("createAgentSession deferred model pattern resolution", () => {
 	let tempDir: string;
@@ -2041,10 +2041,9 @@ describe("createAgentSession deferred model pattern resolution", () => {
 	test("prefers the provider default over catalog order in the startup fallback", async () => {
 		// Regression: with an Anthropic key but no configured `default` role and no
 		// session/CLI model, the step-4 startup fallback used to pick the first
-		// anthropic model in models.json catalog order (claude-3-5-sonnet-20240620)
-		// instead of the provider's configured default from DEFAULT_MODEL_PER_PROVIDER.
+		// anthropic model in models.json catalog order instead of the provider default.
 		const providerDefault = getBundledModel("anthropic", DEFAULT_MODEL_PER_PROVIDER.anthropic);
-		const catalogFirst = getBundledModel("anthropic", "claude-3-5-sonnet-20240620");
+		const catalogFirst = getBundledModels("anthropic")[0];
 		if (!providerDefault || !catalogFirst) {
 			throw new Error("Expected bundled anthropic models for fallback regression");
 		}

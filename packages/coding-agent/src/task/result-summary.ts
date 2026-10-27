@@ -8,12 +8,22 @@
 import { prompt } from "@linxiraos/pi-utils";
 import taskSummaryTemplate from "../prompts/tools/task-summary.md" with { type: "text" };
 import { AgentRegistry, isResumable } from "../registry/agent-registry";
+import { ASYNC_INLINE_RESULT_MAX_CHARS } from "../session/async-job-delivery";
 import { escapeHarnessTags } from "../session/harness-tags";
 import { formatBytes, formatDuration } from "@linxiraos/pi-tui/render/render-utils";
 import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 
-/** Inline preview budget before the envelope points at `agent://<id>` instead. */
-const FULL_OUTPUT_THRESHOLD = 5000;
+/**
+ * Largest output inlined whole. A cut output costs the parent a
+ * `read agent://<id>` turn plus the preview it then holds twice, which parents
+ * pay for most outputs past ~8k chars. A background task result arrives as an
+ * async follow-up, which cuts anything over {@link ASYNC_INLINE_RESULT_MAX_CHARS};
+ * an envelope whose `<error>` or `<merge-summary>` would push it over falls back
+ * to the preview instead.
+ */
+export const INLINE_OUTPUT_CHARS = ASYNC_INLINE_RESULT_MAX_CHARS - 500;
+/** Head shown for an output over {@link INLINE_OUTPUT_CHARS}, with a pointer to `agent://<id>`. */
+const PREVIEW_CHARS = 5000;
 
 /**
  * Preview text for a child result. Falls back to "(no output)" — annotated
@@ -33,9 +43,9 @@ export function formatResultOutputFallback(result: Pick<SingleResult, "output" |
  * one huge string would otherwise preview as a lone `{`).
  */
 function previewHead(output: string): string {
-	const slice = output.slice(0, FULL_OUTPUT_THRESHOLD);
+	const slice = output.slice(0, PREVIEW_CHARS);
 	const lastNewline = slice.lastIndexOf("\n");
-	return lastNewline >= FULL_OUTPUT_THRESHOLD / 2 ? slice.slice(0, lastNewline) : slice;
+	return lastNewline >= PREVIEW_CHARS / 2 ? slice.slice(0, lastNewline) : slice;
 }
 
 /** Failure classes a different model can plausibly fix; they carry the re-dispatch hint. */
@@ -64,14 +74,10 @@ export function formatTaskResultSummary(
 	// <abort-reason>; an empty output already previews the error itself.
 	const error = result.exitCode !== 0 && !result.aborted && result.output.trim().length > 0 ? result.error : undefined;
 	const outputCharCount = result.outputMeta?.charCount ?? output.length;
-	const truncated = outputCharCount > FULL_OUTPUT_THRESHOLD && result.outputPath !== undefined;
-	const preview = truncated ? previewHead(output) : output;
-	// A stopped-but-adopted agent (soft-budget stop) stays messageable; tell
-	// the parent so it can resume via irc instead of redoing the work. Isolated
-	// runs are parked without a reviver (their worktree is gone), so their
-	// "parked" status must not read as resumable.
-	const refStatus = AgentRegistry.global().get(result.id)?.status;
-	const resumable = result.aborted && !result.isolated && (refStatus === "idle" || refStatus === "parked");
+	// A stopped agent stays messageable; tell the parent so it can resume via
+	// irc instead of redoing the work. Isolated runs are parked without a
+	// reviver (their worktree is gone), so they must not read as resumable.
+	const resumable = result.aborted && !result.isolated && isResumable(AgentRegistry.global().get(result.id));
 	// Diagnostics, not instructions: a parent that cannot act on a class would
 	// still rather see it than read another bare error line.
 	const candidates = result.fallbackCandidates ?? [];
@@ -80,27 +86,32 @@ export function formatTaskResultSummary(
 		failedClass !== undefined && MODEL_SWITCH_CLASSES[failedClass] === true
 			? `\`${result.resolvedModel ?? result.agent}\` failed with ${failedClass}. Waking this subagent on another model will run its next turn there${candidates.length > 0 ? ` (candidates above)` : ""}; the harness will not re-hit that model on its own.`
 			: undefined;
-	return prompt.render(taskSummaryTemplate, {
-		agentName: result.agent,
-		id: result.id,
-		status,
-		duration: formatDuration(options.totalDurationMs),
-		abortReason: result.aborted ? escapeHarnessTags(result.abortReason ?? "") || undefined : undefined,
-		failureClass: failedClass,
-		error: error === undefined ? undefined : escapeHarnessTags(error),
-		resumable,
-		preview: escapeHarnessTags(preview),
-		truncated,
-		meta: result.outputMeta
-			? {
-					lineCount: result.outputMeta.lineCount,
-					charSize: formatBytes(result.outputMeta.charCount),
-				}
-			: undefined,
-		modelChange: result.modelChange,
-		fallbackCandidates:
-			candidates.length > 0 ? candidates.map(candidate => escapeHarnessTags(candidate)).join(", ") : undefined,
-		modelSwitchHint,
-		mergeSummary: options.mergeSummary === undefined ? "" : escapeHarnessTags(options.mergeSummary),
-	});
+	const render = (truncated: boolean): string =>
+		prompt.render(taskSummaryTemplate, {
+			agentName: result.agent,
+			id: result.id,
+			status,
+			duration: formatDuration(options.totalDurationMs),
+			abortReason: result.aborted ? escapeHarnessTags(result.abortReason ?? "") || undefined : undefined,
+			failureClass: failedClass,
+			error: error === undefined ? undefined : escapeHarnessTags(error),
+			resumable,
+			preview: escapeHarnessTags(truncated ? previewHead(output) : output),
+			truncated,
+			meta: result.outputMeta
+				? {
+						lineCount: result.outputMeta.lineCount,
+						charSize: formatBytes(result.outputMeta.charCount),
+					}
+				: undefined,
+			modelChange: result.modelChange,
+			fallbackCandidates:
+				candidates.length > 0 ? candidates.map(candidate => escapeHarnessTags(candidate)).join(", ") : undefined,
+			modelSwitchHint,
+			mergeSummary: options.mergeSummary === undefined ? "" : escapeHarnessTags(options.mergeSummary),
+		});
+	if (result.outputPath === undefined) return render(false);
+	if (outputCharCount > INLINE_OUTPUT_CHARS) return render(true);
+	const whole = render(false);
+	return whole.length > ASYNC_INLINE_RESULT_MAX_CHARS && outputCharCount > PREVIEW_CHARS ? render(true) : whole;
 }

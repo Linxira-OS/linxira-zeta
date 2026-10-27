@@ -256,7 +256,7 @@ describe("central logger transport lifecycle", () => {
 	test("a test process writes its default-file records under the temp dir, never the real logs dir", async () => {
 		const result = await runScenario("default-file", { testRuntime: true });
 		expect(result.stderr).toBe("");
-		// The child's HOME stays empty: no ~/.omp/logs was created.
+		// The child's HOME stays empty: no ~/.zeta/logs was created.
 		expect(await fs.readdir(result.primaryDir)).toEqual([]);
 		// Named per user, so users of a shared /tmp never share it.
 		const uid = typeof process.getuid === "function" ? process.getuid() : os.userInfo().username;

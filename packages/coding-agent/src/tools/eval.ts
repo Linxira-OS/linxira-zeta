@@ -8,6 +8,12 @@ import type {
 } from "@linxiraos/pi-agent-core";
 import type { ImageContent, ToolExample } from "@linxiraos/pi-ai";
 import { formatBackgroundNotice } from "@linxiraos/pi-tui/tools/bash";
+import {
+	replaceTabs,
+	shortenEmbeddedPaths,
+	TRUNCATE_LENGTHS,
+	truncateToWidth,
+} from "@linxiraos/pi-tui/render/render-utils";
 import { parseConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import { raceJobSettlement, resolveAutoBackgroundWaitMs } from "../async";
@@ -279,14 +285,19 @@ async function resolveBackend(
 
 	if (language === "python") {
 		if (!allowPy) throw new ToolError("Python backend is disabled (PI_PY=0 or eval.py = false).");
-		const available = await pythonBackend.isAvailable(session, probeOpts);
+		const availability = await pythonBackend.checkAvailability(session, probeOpts);
 		throwIfAborted(probeOpts?.signal);
-		if (!available) {
-			throw new ToolError(
-				allowJs
-					? 'Python backend is unavailable in this session. Pass language: "js" or install the python kernel.'
-					: 'Python backend is unavailable in this session. Install the python kernel to use language: "py".',
-			);
+		if (!availability.ok) {
+			const remedy = allowJs
+				? 'Python backend is unavailable in this session. Pass language: "js" or install the python kernel.'
+				: 'Python backend is unavailable in this session. Install the python kernel to use language: "py".';
+			const reason = availability.reason
+				? truncateToWidth(
+						replaceTabs(sanitizeText(shortenEmbeddedPaths(availability.reason))).replaceAll("\n", " "),
+						TRUNCATE_LENGTHS.RECAP,
+					)
+				: undefined;
+			throw new ToolError(reason ? `${remedy}\n${reason}` : remedy);
 		}
 		return { backend: pythonBackend };
 	}

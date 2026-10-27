@@ -3,7 +3,7 @@
  * - `dist/extension/` — unpacked extension (load via chrome://extensions)
  * - `dist/zeta-browser-relay-extension.zip` — packaged extension for GH releases
  * - `../coding-agent/src/tools/browser/relay/extension-assets/*.txt` —
- *   generated text assets embedded into the omp CLI so `zetacode browser-relay
+ *   generated text assets embedded into the Zeta CLI so `zetacode browser-relay
  *   install` works from the compiled binary (same committed-generated-output
  *   pattern as tool-views.generated.js). Re-run this script after touching
  *   anything under `extension/` and commit the regenerated assets.
@@ -16,6 +16,10 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { $ } from "bun";
+import {
+	stampRelayExtensionManifest,
+	stampRelayExtensionScript,
+} from "../../coding-agent/src/tools/browser/relay/protocol";
 
 const root = path.resolve(import.meta.dir, "..");
 const repoRoot = path.resolve(root, "../..");
@@ -102,6 +106,22 @@ async function main(): Promise<void> {
 	await fs.mkdir(distExtension, { recursive: true });
 	await buildUnpackedExtension(distExtension);
 
+	// Committed embeds are derived from the unstamped build, so write them before
+	// the release stamps below: releases must not rewrite the embedded copies.
+	await writeEmbeddedAssets(distExtension);
+
+	// The release zip carries the Zeta version it ships with, as `zetacode browser-relay install` stamps its copy;
+	// the extension reports it to the relay. The embedded assets stay unstamped so releases do not rewrite them.
+	const sourceManifest = path.join(extensionDir, "manifest.json");
+	const distScript = path.join(distExtension, "background.js");
+	const unstampedScript = await Bun.file(distScript).text();
+	const { version: zetaVersion } = await Bun.file(path.join(root, "../coding-agent/package.json")).json();
+	await Bun.write(distScript, stampRelayExtensionScript(unstampedScript, zetaVersion));
+	await Bun.write(
+		path.join(distExtension, "manifest.json"),
+		stampRelayExtensionManifest(await Bun.file(sourceManifest).text(), zetaVersion),
+	);
+
 	if (!assetsOnly) {
 		const zip = await $`zip -qr ../zeta-browser-relay-extension.zip .`.cwd(distExtension).nothrow();
 		if (zip.exitCode !== 0) {
@@ -109,8 +129,6 @@ async function main(): Promise<void> {
 			process.exit(1);
 		}
 	}
-
-	await writeEmbeddedAssets(distExtension);
 
 	console.log("built:");
 	if (!assetsOnly) {

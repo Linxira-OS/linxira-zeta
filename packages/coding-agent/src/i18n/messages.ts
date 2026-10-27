@@ -2183,6 +2183,7 @@ export interface Messages {
 	cmdToggleExtendedContextWindows: string;
 	cmdToggleUltraPlanModeFanOutScoutingIncrementalPlanWritesDeepestDecisionFloor: string;
 	cmdUseDefaultOrStandardPricingContextWindows: string;
+	cmdOpenSessionLocalFileInEditor: string;
 	cmdOpenTheGitUiSplitDiffViewerStagingCommitComposer: string;
 	cmdOpenTheLiveAgentHub: string;
 	cmdOpenThisSessionsTraceInTheStatsDashboard: string;

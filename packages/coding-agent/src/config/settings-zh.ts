@@ -1326,6 +1326,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"按工具的审批策略。设为 'allow' 自动批准，'prompt' 要求确认，'deny' 阻止。覆盖在所有审批模式下都生效。",
 	},
+	"tools.restrictedFolders": {
+		label: "受限文件夹",
+		description:
+			'每次读取、写入、编辑、搜索或命令都需要显式批准的文件夹，不受审批模式或已记住的授权影响。该文件夹及其下所有内容都受限；命令按运行所在目录匹配。路径的 JSON 列表，例如 ["~/secrets"]。',
+	},
 	"tools.approvalMode": {
 		label: "工具审批",
 		description:
@@ -2035,6 +2040,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"async.maxJobs": {
 		label: "异步任务并发上限",
 		description: "同时运行的异步（后台）任务的最大数量",
+	},
+	"async.printWake": {
+		label: "作业结果唤醒打印模式",
+		description:
+			"在打印模式（-p、--mode json）下，最后一条提示之后若本次运行仍有后台作业，则保持运行，并在同一会话中按每个作业的结果再开启一轮；没有待处理作业或结果时退出。关闭：打印模式在提示结束后退出并取消正在运行的作业",
 	},
 	"async.widgets": {
 		label: "实时任务组件",

@@ -101,7 +101,7 @@ export interface SkillUser {
 }
 
 export interface SkillReportedProvenance {
-	ompVersion: string;
+	zetaVersion: string;
 	gitRemote?: string;
 	gitCommit?: string;
 }

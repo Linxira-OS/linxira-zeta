@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Skill } from "@linxiraos/zeta/extensibility/skills";
+import { buildSkillPromptMessage, type Skill } from "@linxiraos/zeta/extensibility/skills";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
@@ -33,7 +33,7 @@ function createInput(overrides: Partial<SubmittedUserInput> = {}): SubmittedUser
 }
 
 describe("discoverTitleSystemPromptFile", () => {
-	it("discovers TITLE_SYSTEM.md from the project zetacode config directory", async () => {
+	it("discovers TITLE_SYSTEM.md from the project Zeta config directory", async () => {
 		const projectDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-title-system-"));
 		cleanupDirs.push(projectDir);
 		const configDir = path.join(projectDir, ".zeta");
@@ -101,6 +101,8 @@ describe("system prompt template CLI resolution", () => {
 	});
 });
 
+const skillPromptBuilder = { buildUserSkillPrompt: buildSkillPromptMessage };
+
 function createMode(options?: { pendingStart?: boolean; skillCommands?: Map<string, Skill> }) {
 	return {
 		markPendingSubmissionStarted: vi.fn(() => options?.pendingStart ?? true),
@@ -118,6 +120,7 @@ describe("submitInteractiveInput", () => {
 	it("routes already-started synthetic continue submissions to a hidden developer prompt", async () => {
 		const mode = createMode({ pendingStart: false });
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => true),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,
@@ -135,6 +138,7 @@ describe("submitInteractiveInput", () => {
 	it("skips prompting when optimistic submission was cancelled before start", async () => {
 		const mode = createMode({ pendingStart: false });
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => true),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,
@@ -152,6 +156,7 @@ describe("submitInteractiveInput", () => {
 	it("routes hidden custom submissions through promptCustomMessage with followUp queueing", async () => {
 		const mode = createMode();
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => true),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,
@@ -179,6 +184,7 @@ describe("submitInteractiveInput", () => {
 	it("passes followUp on a plain idle submission so a racing turn queues instead of erroring", async () => {
 		const mode = createMode();
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => true),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,
@@ -194,6 +200,7 @@ describe("submitInteractiveInput", () => {
 	it("honors a steer intent on the submission (normal Enter) instead of forcing followUp", async () => {
 		const mode = createMode();
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => true),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: true,
@@ -216,6 +223,7 @@ describe("submitInteractiveInput", () => {
 			pauseLoop: vi.fn(),
 		};
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => false),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,
@@ -236,6 +244,7 @@ describe("submitInteractiveInput", () => {
 			pauseLoop: vi.fn(),
 		};
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => true),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,
@@ -255,6 +264,7 @@ describe("submitInteractiveInput", () => {
 			pauseLoop: vi.fn(),
 		};
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => false),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,
@@ -274,6 +284,7 @@ describe("submitInteractiveInput", () => {
 			pauseLoop: vi.fn(),
 		};
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => {
 				throw new Error("attachment too large");
 			}),
@@ -297,6 +308,7 @@ describe("submitInteractiveInput", () => {
 		const skill: Skill = { name: "recap", description: "", filePath: skillPath, baseDir: skillDir, source: "test" };
 		const mode = createMode({ skillCommands: new Map([["skill:recap", skill]]) });
 		const session = {
+			...skillPromptBuilder,
 			prompt: vi.fn(async () => true),
 			promptCustomMessage: vi.fn(async () => true),
 			isStreaming: false,

@@ -16,19 +16,18 @@ import { type Theme } from "../theme/theme";
 import type { OutputMeta } from "./output-meta";
 import type { TruncationResult } from "./streaming-output";
 import {
-	Ellipsis,
 	fileHyperlink,
 	getTreeBranch,
 	getTreeContinuePrefix,
 	renderStatusLine,
 	renderTreeList,
-	truncateToWidth,
 	uriHyperlink,
 } from "../render";
 import { tuiText, tuiTextFmt } from "../i18n";
 import {
 	toPathList,
 	createCachedComponent,
+	fitHeaderedRows,
 	formatCount,
 	formatEmptyMessage,
 	formatErrorMessage,
@@ -420,7 +419,7 @@ export const grepToolRenderer = {
 						},
 						uiTheme,
 					);
-					return [header, ...listLines].map(l => truncateToWidth(l, width, Ellipsis.Omit));
+					return fitHeaderedRows(header, listLines, width);
 				},
 			);
 		}
@@ -511,7 +510,7 @@ export const grepToolRenderer = {
 					uiTheme,
 					!options.expanded,
 				);
-				return [header, ...matchLines, ...extraLines].map(l => truncateToWidth(l, width, Ellipsis.Omit));
+				return fitHeaderedRows(header, [...matchLines, ...extraLines], width);
 			},
 		);
 	},
