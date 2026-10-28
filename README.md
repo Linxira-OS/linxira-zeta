@@ -280,6 +280,17 @@ in [document/upstream-sync.md](document/upstream-sync.md).
 Pi is a semantic feature source, not a raw merge source. See
 [AGENTS.md](AGENTS.md) for the repository rules.
 
+### Commercial surfaces
+
+Upstream ships commercial surfaces: the Stencil build service, a hosted model
+catalog, the hosted `/share` viewer, its Homebrew tap, and OTLP telemetry.
+Zeta runs none of them. The build service and telemetry are not in this tree;
+every hosted endpoint the code still references is pinned in
+[document/upstream-commercial-assets.md](document/upstream-commercial-assets.md)
+with its replacement status, and `bun scripts/check-shared-infra.ts` fails when
+an unregistered upstream endpoint appears.
+
+
 ## License
 
 Zeta carries two licences, split by path:
@@ -526,6 +537,16 @@ Git 历史合并,然后以独立提交加入所需的 Zeta 包、品牌、Bun、
 
 Pi 是语义功能来源,不是原始合并来源。仓库规则见
 [AGENTS.md](AGENTS.md)。
+
+### 商业面
+
+上游随代码发布自己的商业面:Stencil 构建服务、托管模型目录、托管 `/share`
+查看页、自家 Homebrew tap 与 OTLP 遥测。Zeta 一个都不运行:构建服务与遥测
+不在本树内;代码仍引用的每个托管端点都钉在
+[document/upstream-commercial-assets.md](document/upstream-commercial-assets.md)
+并标注替代状态;出现未登记的上游端点时 `bun scripts/check-shared-infra.ts`
+会直接失败。
+
 
 ### 许可证
 

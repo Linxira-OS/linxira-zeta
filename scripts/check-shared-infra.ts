@@ -27,7 +27,8 @@ import * as path from "node:path";
 const ROOT = path.resolve(import.meta.dir, "..");
 const SCAN_ROOTS = ["packages", "scripts", ".github", "desktop", "crates"];
 const SCAN_EXT = /\.(ts|tsx|js|mjs|cjs|json|kdl|rs|sh|ps1|yml|yaml|html|txt)$/;
-const DOMAIN_RE = /https?:\/\/[a-zA-Z0-9._-]*(?:omp\.sh|stencil\.so|scl\.so)[a-zA-Z0-9./_@?=&%#-]*/g;
+const DOMAIN_RE =
+	/https?:\/\/(?:[a-zA-Z0-9._-]*\.)?(?:omp\.sh|stencil\.so|scl\.so)[a-zA-Z0-9./_@?=&%#-]*|https?:\/\/github\.com\/stencil-hq[a-zA-Z0-9./_@?=&%#-]*/g;
 
 type Status =
 	| "keep"
@@ -51,8 +52,22 @@ interface Placement {
 
 const INVENTORY: Placement[] = [
 	{
-		domain: "https://my.omp.sh",
+		domain: "https://github.com/stencil-hq",
 		status: "keep",
+		files: [
+			"packages/coding-agent/src/utils/grammars.ts",
+			"crates/pi-ast/src/language/grammar.rs",
+			"crates/pi-ast/src/language/wasm_grammars.rs",
+			"crates/pi-natives/src/grammars.rs",
+			"packages/natives/native/index.d.ts",
+		],
+		why:
+			"on-demand WASM grammar releases under Stencil's GitHub org (DEFAULT_GRAMMARS_URL); " +
+			"GitHub Releases has no operator lock-in — recorded in ledger §3d; a future mirror can replace it",
+	},
+	{
+		domain: "https://my.omp.sh",
+		status: "replace-P1",
 		files: [
 			"packages/collab-web/index.html",
 			"packages/collab-web/public/robots.txt",
@@ -61,9 +76,9 @@ const INVENTORY: Placement[] = [
 			"packages/wire/src/index.ts",
 		],
 		why:
-			"collab/share constants + the collab-web deployment; kept for the wire grammar only — " +
-			"collab is gated off by default with an empty relay (collab.enabled / collab.relayUrl), " +
-			"so this host is no longer a product default (registry: 不品牌化; ledger §1b)",
+			"collab/share constants + the collab-web deployment; collab is gated off by default with an " +
+			"empty relay (collab.enabled / collab.relayUrl), but the CLI `share` still defaults here " +
+			"(share.store=blob, share.serverUrl=DEFAULT_SHARE_URL) — P1 replacement per ledger §3d",
 	},
 	{
 		domain: "https://omp.sh/install",
