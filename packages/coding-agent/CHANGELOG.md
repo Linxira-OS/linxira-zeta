@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.6] - 2026-10-28
+
 ### Added
 
 - `siyuan://` internal URL for SiYuan: list notebooks and documents, read Markdown, outline, search, and append; configure the API URL and token under Tools → SiYuan. Enabling SiYuan without a token now warns instead of failing silently.

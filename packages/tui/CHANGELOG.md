@@ -1,8 +1,178 @@
 ## [Unreleased]
 
+## [1.4.6] - 2026-10-28
+
 ### Added
 
 - Tools settings now show a SiYuan group for the API switch, URL, and token.
+
+## [9.5.0] - 2026-02-01
+
+### Changed
+
+- Improved fuzzy file search performance by using native implementation instead of spawning external process
+
+## [9.4.0] - 2026-01-31
+
+### Added
+
+- Exported `padding` utility function for creating space-padded strings efficiently
+
+### Changed
+
+- Optimized padding operations across all components to use pre-allocated space buffer for better performance
+
+## [8.4.1] - 2026-01-25
+
+### Added
+
+- Added fuzzy match function for autocomplete suggestions
+
+## [8.4.0] - 2026-01-25
+
+### Fixed
+
+- Terminal gracefully handles write failures by marking dead instead of exiting the process
+
+## [8.2.0] - 2026-01-24
+
+### Added
+
+- Added mermaid diagram rendering engine (renderMermaidToPng) with mmdc CLI integration
+- Added terminal graphics encoding (iTerm2/Kitty) for mermaid diagrams with automatic width scaling
+
+### Fixed
+
+- Fixed crash when terminal becomes unavailable (EIO errors) by exiting gracefully instead of throwing
+
+## [6.8.3] - 2026-01-21
+
+### Added
+
+- Added undo support in the editor via `Ctrl+-`
+
+### Changed
+
+- Improved fuzzy matching to handle alphanumeric swaps
+
+## [5.6.7] - 2026-01-18
+
+### Added
+
+- Added configurable editor padding via `editorPaddingX` theme option
+- Added `setMaxHeight()` method to limit editor height with scrolling
+- Added Emacs-style kill ring for text deletion operations
+
+### Changed
+
+- Updated tab bar rendering to wrap text across multiple lines when content exceeds available width
+
+### Fixed
+
+- Fixed key detection for shifted symbol characters
+
+## [5.3.1] - 2026-01-15
+
+### Fixed
+
+- Fixed rendering issues on Windows by preventing re-entrant renders
+
+## [5.1.0] - 2026-01-14
+
+### Changed
+
+- Changed `OverlayOptions` to use `SizeValue` type for `width`, `maxHeight`, `row`, and `col` properties
+
+### Fixed
+
+- Fixed numbered list items showing "1." for all items when code blocks break list continuity
+
+## [4.6.0] - 2026-01-12
+
+### Added
+
+- Add fuzzy matching module (`fuzzyMatch`, `fuzzyFilter`) for command autocomplete
+
+### Fixed
+
+- Remove Kitty protocol query timeout that caused shift+enter delays
+- Add bracketed paste check to prevent false key release/repeat detection
+
+## [4.2.1] - 2026-01-11
+
+### Fixed
+
+- Fixed editor redraw glitch when canceling autocomplete suggestions
+
+## [4.1.0] - 2026-01-10
+
+### Added
+
+- Added persistent prompt history storage support via `setHistoryStorage()` method, allowing history to be saved and restored across sessions
+
+## [4.0.0] - 2026-01-10
+
+### Added
+
+- `EditorComponent` interface for custom editor implementations
+
+## [3.32.0] - 2026-01-08
+
+### Fixed
+
+- Fixed text wrapping allowing long whitespace tokens to exceed line width
+
+## [3.20.0] - 2026-01-06
+
+### Added
+
+- Added `isCapsLock` helper function for detecting Caps Lock key press via Kitty protocol
+
+### Changed
+
+- Settings list descriptions now wrap to the available width instead of truncating
+
+### Fixed
+
+- Fixed Shift+Enter detection in legacy terminals that send ESC+CR sequence
+
+## [3.15.0] - 2026-01-05
+
+### Added
+
+- Added `inputCursor` symbol for customizing the text input cursor character
+
+## [3.9.1337] - 2026-01-04
+
+### Changed
+
+- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
+
+## [1.500.0] - 2026-01-03
+
+### Added
+
+- Added `getText()` method to Text component for retrieving current text content
+
+## [1.337.1] - 2026-01-02
+
+### Added
+
+- TabBar component for horizontal tab navigation
+
+### Changed
+
+- Forked to @oh-my-pi scope with unified versioning across all packages
+
+### Fixed
+
+- Strip OSC 8 hyperlink sequences in `visibleWidth()`
+- Crash on Unicode format characters in `visibleWidth()`
+- Markdown code block syntax highlighting
+
+## [1.337.0] - 2026-01-02
+
+Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.4.5] - 2026-10-28
 
@@ -186,174 +356,6 @@ Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://g
 - Removed TUI layout engine exports from public API (BoxNode, ColumnNode, LayoutNode, etc.)
 - Removed `visibleWidth` benchmark file in favor of Kitty sequence benchmarking
 - Removed `truncateToWidth`, `sliceWithWidth`, and `extractSegments` functions from public API (now re-exported directly from @linxiraos/pi-natives)
-
-## [9.5.0] - 2026-02-01
-
-### Changed
-
-- Improved fuzzy file search performance by using native implementation instead of spawning external process
-
-## [9.4.0] - 2026-01-31
-
-### Added
-
-- Exported `padding` utility function for creating space-padded strings efficiently
-
-### Changed
-
-- Optimized padding operations across all components to use pre-allocated space buffer for better performance
-
-## [8.4.1] - 2026-01-25
-
-### Added
-
-- Added fuzzy match function for autocomplete suggestions
-
-## [8.4.0] - 2026-01-25
-
-### Fixed
-
-- Terminal gracefully handles write failures by marking dead instead of exiting the process
-
-## [8.2.0] - 2026-01-24
-
-### Added
-
-- Added mermaid diagram rendering engine (renderMermaidToPng) with mmdc CLI integration
-- Added terminal graphics encoding (iTerm2/Kitty) for mermaid diagrams with automatic width scaling
-
-### Fixed
-
-- Fixed crash when terminal becomes unavailable (EIO errors) by exiting gracefully instead of throwing
-
-## [6.8.3] - 2026-01-21
-
-### Added
-
-- Added undo support in the editor via `Ctrl+-`
-
-### Changed
-
-- Improved fuzzy matching to handle alphanumeric swaps
-
-## [5.6.7] - 2026-01-18
-
-### Added
-
-- Added configurable editor padding via `editorPaddingX` theme option
-- Added `setMaxHeight()` method to limit editor height with scrolling
-- Added Emacs-style kill ring for text deletion operations
-
-### Changed
-
-- Updated tab bar rendering to wrap text across multiple lines when content exceeds available width
-
-### Fixed
-
-- Fixed key detection for shifted symbol characters
-
-## [5.3.1] - 2026-01-15
-
-### Fixed
-
-- Fixed rendering issues on Windows by preventing re-entrant renders
-
-## [5.1.0] - 2026-01-14
-
-### Changed
-
-- Changed `OverlayOptions` to use `SizeValue` type for `width`, `maxHeight`, `row`, and `col` properties
-
-### Fixed
-
-- Fixed numbered list items showing "1." for all items when code blocks break list continuity
-
-## [4.6.0] - 2026-01-12
-
-### Added
-
-- Add fuzzy matching module (`fuzzyMatch`, `fuzzyFilter`) for command autocomplete
-
-### Fixed
-
-- Remove Kitty protocol query timeout that caused shift+enter delays
-- Add bracketed paste check to prevent false key release/repeat detection
-
-## [4.2.1] - 2026-01-11
-
-### Fixed
-
-- Fixed editor redraw glitch when canceling autocomplete suggestions
-
-## [4.1.0] - 2026-01-10
-
-### Added
-
-- Added persistent prompt history storage support via `setHistoryStorage()` method, allowing history to be saved and restored across sessions
-
-## [4.0.0] - 2026-01-10
-
-### Added
-
-- `EditorComponent` interface for custom editor implementations
-
-## [3.32.0] - 2026-01-08
-
-### Fixed
-
-- Fixed text wrapping allowing long whitespace tokens to exceed line width
-
-## [3.20.0] - 2026-01-06
-
-### Added
-
-- Added `isCapsLock` helper function for detecting Caps Lock key press via Kitty protocol
-
-### Changed
-
-- Settings list descriptions now wrap to the available width instead of truncating
-
-### Fixed
-
-- Fixed Shift+Enter detection in legacy terminals that send ESC+CR sequence
-
-## [3.15.0] - 2026-01-05
-
-### Added
-
-- Added `inputCursor` symbol for customizing the text input cursor character
-
-## [3.9.1337] - 2026-01-04
-
-### Changed
-
-- Changed Editor component to use proper box borders with vertical side borders instead of horizontal-only borders
-
-## [1.500.0] - 2026-01-03
-
-### Added
-
-- Added `getText()` method to Text component for retrieving current text content
-
-## [1.337.1] - 2026-01-02
-
-### Added
-
-- TabBar component for horizontal tab navigation
-
-### Changed
-
-- Forked to @oh-my-pi scope with unified versioning across all packages
-
-### Fixed
-
-- Strip OSC 8 hyperlink sequences in `visibleWidth()`
-- Crash on Unicode format characters in `visibleWidth()`
-- Markdown code block syntax highlighting
-
-## [1.337.0] - 2026-01-02
-
-Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
 
 ## [1.4.4] - 2026-10-26
 

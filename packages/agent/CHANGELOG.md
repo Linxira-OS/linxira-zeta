@@ -1,10 +1,8 @@
 ## [Unreleased]
 
+## [1.4.6] - 2026-10-28
+
 - Released as part of Zeta 1.4.6; no package-specific user-visible changes.
-
-## [1.4.5] - 2026-10-28
-
-- Synced with upstream OMP v18.13.2: a subagent's final report is no longer consumed as its reply to a peer message that arrived as the run finished; same-workspace peers can message each other.
 
 ## [9.2.2] - 2026-01-31
 
@@ -135,6 +133,10 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.4.5] - 2026-10-28
+
+- Synced with upstream OMP v18.13.2: a subagent's final report is no longer consumed as its reply to a peer message that arrived as the run finished; same-workspace peers can message each other.
 
 ## [1.4.4] - 2026-10-26
 
