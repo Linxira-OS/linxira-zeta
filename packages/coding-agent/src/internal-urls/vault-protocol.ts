@@ -11,6 +11,7 @@ import {
 	ensureWithinRoot,
 	validateRelativePath,
 } from "./filesystem-resource";
+import { summarizeCanvas } from "./canvas";
 import { parseInternalUrl } from "./parse";
 import type {
 	InternalResource,
@@ -29,7 +30,7 @@ type ContentType = InternalResource["contentType"];
 type VaultParamValue = string | true;
 type VaultParams = Record<string, VaultParamValue>;
 
-type FileOp = "outline" | "backlinks" | "links" | "tags" | "properties" | "tasks" | "wordcount" | "history" | "base";
+type FileOp = "outline" | "backlinks" | "links" | "tags" | "properties" | "tasks" | "wordcount" | "history" | "base" | "canvas";
 
 type VaultOp =
 	| "search"
@@ -59,6 +60,7 @@ const FILE_OPS: Record<FileOp, true> = {
 	wordcount: true,
 	history: true,
 	base: true,
+	canvas: true,
 };
 
 const VAULT_OPS: Record<VaultOp, true> = {
@@ -487,6 +489,8 @@ function buildObsidianCliInvocation(parsed: Extract<ParsedVaultUrl, { kind: "fil
 					opLabel: "base",
 				};
 			}
+			case "canvas":
+				throw new Error("vault://?op=canvas is summarized without the Obsidian CLI");
 		}
 	}
 
@@ -632,6 +636,8 @@ export class VaultProtocolHandler implements ProtocolHandler {
 			case "fs-file":
 				return this.#readFile(parsed, context);
 			case "file-op":
+				if (parsed.op === "canvas") return this.#readCanvas(parsed, context);
+				return this.#runCli(parsed, context);
 			case "vault-op":
 				return this.#runCli(parsed, context);
 		}
@@ -830,6 +836,30 @@ export class VaultProtocolHandler implements ProtocolHandler {
 			contentType: contentTypeForPath(realTargetPath),
 			size: Buffer.byteLength(content, "utf-8"),
 			sourcePath: realTargetPath,
+		};
+	}
+
+	async #readCanvas(
+		parsed: Extract<ParsedVaultUrl, { kind: "file-op" }>,
+		context?: ResolveContext,
+	): Promise<InternalResource> {
+		const root = await this.#resolveVaultRoot(parsed.ref, context);
+		const resolvedRoot = await fs.promises.realpath(root);
+		const targetPath = path.resolve(resolvedRoot, parsed.relativePath);
+		ensureWithinRoot(targetPath, resolvedRoot, "vault", parsed.url);
+		const realTargetPath = await containedRealPath(targetPath, resolvedRoot, "vault", parsed.url);
+		if (realTargetPath === undefined) {
+			throw new Error(`Vault canvas not found: ${parsed.url}`);
+		}
+		const raw = await Bun.file(realTargetPath).text();
+		const content = summarizeCanvas(raw, realTargetPath);
+		return {
+			url: parsed.url,
+			content,
+			contentType: "text/markdown",
+			size: Buffer.byteLength(content, "utf-8"),
+			sourcePath: realTargetPath,
+			immutable: true,
 		};
 	}
 

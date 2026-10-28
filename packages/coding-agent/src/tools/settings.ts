@@ -781,6 +781,46 @@ export const cfgVaultEnabled = register({
 	},
 });
 
+export const cfgSiyuanEnabled = register({
+	id: "siyuan.enabled",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "SiYuan Notes",
+		description:
+			"Enable the siyuan:// internal URL for reading, searching, and appending SiYuan notes through the kernel API. Requires siyuan.url and siyuan.token.",
+	},
+});
+
+export const cfgSiyuanUrl = register({
+	id: "siyuan.url",
+	type: "string",
+	default: "http://127.0.0.1:6806",
+	ui: {
+		tab: "tools",
+		group: "SiYuan",
+		label: "SiYuan Kernel URL",
+		description:
+			"Base URL of the SiYuan kernel, e.g. http://127.0.0.1:6806 locally or https://notes.example.com for a hosted server",
+	},
+});
+
+export const cfgSiyuanToken = register({
+	id: "siyuan.token",
+	type: "string",
+	default: "",
+	credential: true,
+	ui: {
+		tab: "tools",
+		group: "SiYuan",
+		label: "SiYuan API Token",
+		description:
+			"API token from SiYuan → Settings → About → API token. SIYUAN_TOKEN overrides this value; enable SiYuan Notes to activate the siyuan:// URL.",
+	},
+});
+
 export const cfgGithubEnabled = register({
 	id: "github.enabled",
 	type: "boolean",

@@ -1,0 +1,1 @@
+`siyuan://`: SiYuan notes over the kernel API (no `.sy` parsing). Bare lists notebooks; `siyuan://notebook/<id>` lists docs; `siyuan://doc/<id>` reads Markdown; `?op=outline`; `?op=search&q=<text>`; `?op=append` on a doc URL writes Markdown.
