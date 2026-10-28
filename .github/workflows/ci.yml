@@ -2246,3 +2246,9 @@ jobs:
          # plugin resolves at pack time — it publishes the source it ships.
          - name: Publish official plugin packages
            run: bun run ci:release:publish-plugin
+
+   notify-packages:
+      name: Notify packages
+      needs: release_github
+      uses: Linxira-OS/packages/.github/workflows/notify-sync.yml@main
+      secrets: inherit
