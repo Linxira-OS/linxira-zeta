@@ -44,6 +44,7 @@ import { resolveAdvisorRoleSelection, resolveModelRoleValue } from "../../config
 import { formatModelSelectorValue } from "@linxiraos/pi-tui/overlays/model-selector";
 import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
+import { cfgSiyuanToken } from "../../tools/settings";
 import { createSettingsHost } from "../../config/settings-ui";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
@@ -822,6 +823,13 @@ export class SelectorController {
 				void this.ctx.session.refreshBaseSystemPrompt().catch(err => {
 					this.ctx.showError(`Failed to apply xd:// prompt docs setting: ${err}`);
 				});
+				break;
+			case "siyuan.enabled":
+				if (value === true && !cfgSiyuanToken.get(settings).trim()) {
+					this.ctx.showError(
+						"SiYuan is enabled but has no API token. Set Settings → Tools → SiYuan → API Token (or SIYUAN_TOKEN).",
+					);
+				}
 				break;
 			case "memory.backend":
 				void this.ctx.session.applyMemoryBackend().catch(err => {
