@@ -137,7 +137,12 @@ The `agents` provider (`.agent[s]/skills`) has its own `enableAgentsUser`/`enabl
 
 ## Bundled official skills, installed into your skills directory
 
-The first-party office skills (`docx`, `xlsx`, `pptx`, `pdf`) ship with Zeta as a **bundled pack**: `skills/official/` in a source checkout, burned into release binaries at build time (`scripts/generate-official-skills-payload.ts` → `ZETA_OFFICIAL_SKILLS_EMBED`).
+The first-party skills (`docx`, `xlsx`, `pptx`, `pdf`, `grill-me`) ship with Zeta as a **bundled pack**: `skills/official/` in a source checkout, burned into release binaries at build time (`scripts/generate-official-skills-payload.ts` → `ZETA_OFFICIAL_SKILLS_EMBED`).
+
+`grill-me` interviews you about an under-specified plan one question at a time,
+each with a recommended answer, and explores the code instead of asking what the
+repository can answer. Load it with `/skill:grill-me` before entering plan mode;
+plan mode's ultra workflow applies the same interview rule on its own.
 
 The pack is installed into **your own skills directory**, so the skills are ordinary files you can read, edit, and put under version control:
 
@@ -147,6 +152,7 @@ The pack is installed into **your own skills directory**, so the skills are ordi
   ├─ xlsx/SKILL.md
   ├─ pptx/SKILL.md
   ├─ pdf/SKILL.md
+  ├─ grill-me/SKILL.md      ← interview-before-planning (one question at a time)
   └─ .official-skills.json   ← install marker (which pack version seeded what)
 ```
 
