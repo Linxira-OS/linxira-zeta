@@ -85,12 +85,12 @@ jobs:
         with:
           extra_nix_config: |
             accept-flake-config = true
-      - name: Build omp with thin LTO
+      - name: Build zeta with thin LTO
         run: |
           out=$(nix build --no-link --print-out-paths --print-build-logs --show-trace --impure \
-            --expr "(builtins.getFlake \"git+file://$GITHUB_WORKSPACE\").packages.x86_64-linux.omp.override { withFatLto = false; }")
-          echo "OMP_OUT=$out" >> "$GITHUB_ENV"
-      - name: Smoke-test omp
+            --expr "(builtins.getFlake \"git+file://$GITHUB_WORKSPACE\").packages.x86_64-linux.zeta.override { withFatLto = false; }")
+          echo "ZETA_OUT=$out" >> "$GITHUB_ENV"
+      - name: Smoke-test zeta
         run: |
-          "$OMP_OUT/bin/omp" --version
-          "$OMP_OUT/bin/omp" --smoke-test
+          "$ZETA_OUT/bin/zeta" --version
+          "$ZETA_OUT/bin/zeta" --smoke-test
