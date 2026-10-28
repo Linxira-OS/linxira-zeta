@@ -14,7 +14,9 @@
 
 Zeta is a terminal workbench suite: one workspace that tiles real terminals,
 plus the tools that live inside them — a coding agent, an editor, a terminal
-IDE, and a file manager. Linux is the primary platform; Windows x64 is
+IDE, and a file manager. It is an **agent development environment (ADE)**, not
+an IDE with a chat pane: the session is the unit of work and every pane is a
+surface the agent can use. Linux is the primary platform; Windows x64 is
 supported; there is no macOS build.
 
 ## The Suite
@@ -145,6 +147,28 @@ Rust:
   session tree, one settings model, one gateway API (`/api/*`).
 - Native text, image, terminal, browser, and desktop capabilities where the
   host platform supports them.
+
+## An agent development environment (ADE)
+
+The suite is not an IDE with a chatbot bolted on. It is an **ADE — an Agent
+Development Environment**, the way an IDE is an Integrated Development
+Environment: the same structure, with the first word changed from *Integrated*
+to *Agent*.
+
+| | IDE | ADE (this suite) |
+| --- | --- | --- |
+| Center of gravity | the open file | the agent session |
+| Who drives the tools | the editor drives LSP, builds, the debugger | the agent drives tools; editors and terminals are its work surfaces |
+| Unit of work | a buffer | a session: context, tools, subagents, verification |
+| Where the loop lives | type → build → debug | plan → execute → verify, with the human steering |
+
+Zeta keeps the IDE's shape — panes, tabs, real PTYs, LSP, an editor pane, a
+terminal IDE (`zetaide`) — because an agent needs somewhere to work. What moves
+is the center: `zetacode` sessions, subagent orchestration, the mesh
+(`agent://`), extensions and skills are first-class; the editor, terminals and
+file manager are the environment the agent operates in. A human can still drive
+any pane directly; the suite simply assumes the agent is the primary worker and
+the panes are how it observes and changes the world.
 
 ## Origins
 
@@ -315,8 +339,9 @@ removed 2026-10-16 and stays credited in source history).
 ## 简体中文
 
 Zeta 是一套终端工作台套件：一个可平铺真实终端的工作区，加上活在工作区里的
-工具——编码 Agent、编辑器、终端 IDE 和文件管理器。Linux 是主力平台；
-支持 Windows x64;不提供 macOS 构建。
+工具——编码 Agent、编辑器、终端 IDE 和文件管理器。它是 **Agent 开发环境
+（ADE）**，不是"IDE 加聊天框"：会话是工作单元，每个窗格都是 agent 可以
+使用的工作面。Linux 是主力平台；支持 Windows x64;不提供 macOS 构建。
 
 ### 目录与分层
 
@@ -414,6 +439,25 @@ bun run dev
   (`zeta-desktop`,Electron)嵌入同一运行时——同一会话树、同一设置模型、
   同一网关 API(`/api/*`)。
 - 宿主平台支持时提供原生文本、图像、终端、浏览器和桌面能力。
+
+### Agent 开发环境（ADE）
+
+这套件不是"IDE 加个聊天框",而是 **ADE——Agent Development Environment
+(Agent 开发环境)**;它与 IDE(Integrated Development Environment,集成开发
+环境)结构相同,只把第一个词从 *Integrated* 换成 *Agent*。
+
+| | IDE | ADE(本套件) |
+| --- | --- | --- |
+| 重心 | 打开的文件 | agent 会话 |
+| 谁驱动工具 | 编辑器驱动 LSP、构建、调试器 | agent 驱动工具;编辑器与终端是它的工作面 |
+| 工作单元 | 一个缓冲区 | 一次会话:上下文、工具、子代理、验证 |
+| 循环在哪 | 写 → 构建 → 调试 | 规划 → 执行 → 验证,人负责掌舵 |
+
+Zeta 保留 IDE 的形态——窗格、标签页、真实 PTY、LSP、编辑器面板、终端 IDE
+(`zetaide`)——因为 agent 需要一个工作的地方。移动的是中心:`zetacode` 会话、
+子代理编排、mesh(`agent://`)、扩展与技能都是一等公民;编辑器、终端和文件
+管理器是 agent 操作的环境。人仍然可以直接驱动任何窗格;套件只是假定 agent
+是主要工作者,窗格是它观察和改变世界的方式。
 
 ### 上游来源
 
