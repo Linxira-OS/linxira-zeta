@@ -68,7 +68,13 @@ import {
 } from "../utils/block-context";
 import { isCpuProfilePath, renderCpuProfile } from "../utils/cpuprofile";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
-import { loadHeifImageInput, loadImageInput, loadSvgImageInput } from "../utils/image-loading";
+import {
+	isCanvasPath,
+	loadCanvasImageInput,
+	loadHeifImageInput,
+	loadImageInput,
+	loadSvgImageInput,
+} from "../utils/image-loading";
 import {
 	ImageInputTooLargeError,
 	InvalidImageDataError,
@@ -1471,7 +1477,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		mimeType: string;
 		imageMetadata: ImageMetadata | null;
 		fileSize: number;
-		imageKind?: "svg" | "heif";
+		imageKind?: "svg" | "heif" | "canvas";
 		question?: string;
 		questionPath?: string;
 		signal?: AbortSignal;
@@ -1517,13 +1523,15 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			const imageInput =
 				imageKind === "svg"
 					? await loadSvgImageInput(imageLoadOptions)
-					: imageKind === "heif"
-						? await loadHeifImageInput({ ...imageLoadOptions, detectedMimeType: mimeType }, signal)
-						: await loadImageInput({ ...imageLoadOptions, detectedMimeType: mimeType });
+					: imageKind === "canvas"
+						? await loadCanvasImageInput(imageLoadOptions)
+						: imageKind === "heif"
+							? await loadHeifImageInput({ ...imageLoadOptions, detectedMimeType: mimeType }, signal)
+							: await loadImageInput({ ...imageLoadOptions, detectedMimeType: mimeType });
 			if (!imageInput) {
 				throw new ToolError(
-					imageKind === "svg"
-						? "The ':img' selector only rasterizes .svg and .svgz files. Read a raster image such as PNG or JPEG without ':img'."
+					imageKind === "svg" || imageKind === "canvas"
+						? "The ':img' selector rasterizes .svg, .svgz, .canvas, and .excalidraw files. Read a raster image such as PNG or JPEG without ':img'."
 						: `Read image file [${mimeType}] failed: unsupported image format.`,
 				);
 			}
@@ -2241,13 +2249,14 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 			return this.#readVideoFile(absolutePath, localTarget.sel, fileSize, suffixResolution, question, signal);
 		}
 		if (parsed.kind === "image") {
+			const canvasImage = isCanvasPath(absolutePath);
 			({ content, details, sourcePath } = await this.#loadImageContent({
 				readPath: localReadPath,
 				absolutePath,
-				mimeType: "image/svg+xml",
+				mimeType: canvasImage ? "application/json" : "image/svg+xml",
 				imageMetadata: null,
 				fileSize,
-				imageKind: "svg",
+				imageKind: canvasImage ? "canvas" : "svg",
 				question,
 				questionPath: questionPath ?? `${resolvedDisplayPath}:img`,
 				signal,

@@ -261,6 +261,7 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
 - Without `?q=`, image-capable active models receive a text note plus an inline image block.
 - Without `?q=`, text-only active models receive metadata (MIME, bytes, dimensions, channels, alpha) plus a `?q=<question>` hint.
 - `images.questionTimeoutMs` limits each delegated image question; `0` disables the timeout.
+- `:img` also rasterizes Obsidian `.canvas` and Excalidraw `.excalidraw` scenes: the JSON is serialized to SVG (boxes, text, arrows) and then goes through the same native rasterizer. Without `:img` the raw JSON is read; under a vault use `?op=canvas` for a Markdown outline.
 - Unsupported/undecodable image formats throw a `ToolError`.
 
 ### Internal URLs

@@ -10,10 +10,13 @@ import {
 import * as path from "node:path";
 import type { Context, ImageContent, Message, Model, ProviderPayload, TextContent } from "@linxiraos/pi-ai";
 import { rasterizeSvg } from "@linxiraos/pi-natives";
+import { prepareSvg } from "@linxiraos/pi-tui/chat/svg-source";
+import { theme, type Theme } from "@linxiraos/pi-tui/theme";
 import { $which, isRecord, logger, readImageMetadata } from "@linxiraos/pi-utils";
 import { LRUCache } from "@linxiraos/pi-utils/lru";
 import { resolveReadPath } from "../tools/path-utils";
 import { formatDimensionNote, type ImageResizeOptions, resizeImage } from "./image-resize";
+import { canvasToSvg, isCanvasPath } from "./canvas-svg";
 import { decodeStillImageJpeg, VideoError } from "./video";
 
 /** Largest edge rasterized from SVG before it enters the image pipeline. */
@@ -393,6 +396,50 @@ export async function loadSvgImageInput(options: LoadImageInputOptions): Promise
 		bytes: png,
 		resolvedPath,
 		textNotePrefix: "Read SVG file",
+		sourceMimeType: "image/svg+xml",
+		autoResize: options.autoResize,
+		maxBytes,
+		excludeWebP: options.excludeWebP,
+	});
+}
+
+/**
+ * Rasterizes an explicitly selected local `.canvas` / `.excalidraw` scene into
+ * a vision-model image input. The scene is serialized to SVG with theme tokens
+ * and then goes through the same native rasterizer as `.svg:img`.
+ */
+export async function loadCanvasImageInput(options: LoadImageInputOptions): Promise<LoadedImageInput | null> {
+	const resolvedPath = options.resolvedPath ?? resolveReadPath(options.path, options.cwd);
+	if (!isCanvasPath(resolvedPath)) return null;
+
+	const maxBytes = options.maxBytes ?? MAX_IMAGE_INPUT_BYTES;
+	const stat = await Bun.file(resolvedPath).stat();
+	if (stat.size > maxBytes) throw new ImageInputTooLargeError(stat.size, maxBytes);
+	const source = await Bun.file(resolvedPath).text();
+	const sourceBytes = Buffer.byteLength(source, "utf-8");
+	if (sourceBytes > maxBytes) throw new ImageInputTooLargeError(sourceBytes, maxBytes);
+
+	let png: Uint8Array;
+	try {
+		const active = theme as Theme | undefined;
+		const svg = prepareSvg(canvasToSvg(source, resolvedPath), {
+			fg: active?.getColorHex("text") ?? "#999999",
+			muted: active?.getColorHex("muted") ?? "#777777",
+			border: active?.getColorHex("borderMuted") ?? "#666666",
+			accent: active?.getColorHex("accent") ?? "#4c8dff",
+			surface: active?.getBgHex("selectedBg") ?? "#00000000",
+		});
+		png = await rasterizeSvg(Buffer.from(svg, "utf-8"), SVG_IMAGE_MAX_EDGE_PX, SVG_IMAGE_MAX_EDGE_PX);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`Could not rasterize canvas: ${message}`);
+	}
+
+	return loadInMemoryImageInput({
+		image: { type: "image", data: png.toBase64(), mimeType: "image/png" },
+		bytes: png,
+		resolvedPath,
+		textNotePrefix: "Read canvas file",
 		sourceMimeType: "image/svg+xml",
 		autoResize: options.autoResize,
 		maxBytes,
