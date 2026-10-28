@@ -1569,6 +1569,12 @@ jobs:
            with:
               targets: linux-x64-baseline linux-x64-modern win32-x64-baseline
          - name: Publish native leaf packages
+           env:
+              # A retried publish must not reuse the exact tarball bytes: npm's
+              # transparency log rejects a second entry for the same tarball
+              # (TLOG_CREATE_ENTRY_ERROR 409), while the registry never received
+              # the first. The run/attempt pair makes every attempt distinct.
+              ZETA_PUBLISH_NONCE: ${{ github.run_id }}-${{ github.run_attempt }}
            run: |
               set -euo pipefail
               # The shipped set (SHIPPED_LEAF_TAGS in

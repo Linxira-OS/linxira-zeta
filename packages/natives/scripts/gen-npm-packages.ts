@@ -31,6 +31,8 @@ export interface LeafManifest {
 	engines: {
 		bun: string;
 	};
+	/** Changes the packed tarball bytes between publish attempts (npm's transparency log rejects identical retries). */
+	zetaPublishNonce?: string;
 }
 
 export interface GeneratedLeafPackage {
@@ -120,6 +122,7 @@ export function buildLeafManifest({ tag, os, cpu, files, version }: BuildLeafMan
 		engines: {
 			bun: ">=1.3.14",
 		},
+		...(process.env.ZETA_PUBLISH_NONCE ? { zetaPublishNonce: process.env.ZETA_PUBLISH_NONCE } : {}),
 	};
 }
 
