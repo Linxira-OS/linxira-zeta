@@ -30,7 +30,17 @@ type ContentType = InternalResource["contentType"];
 type VaultParamValue = string | true;
 type VaultParams = Record<string, VaultParamValue>;
 
-type FileOp = "outline" | "backlinks" | "links" | "tags" | "properties" | "tasks" | "wordcount" | "history" | "base" | "canvas";
+type FileOp =
+	| "outline"
+	| "backlinks"
+	| "links"
+	| "tags"
+	| "properties"
+	| "tasks"
+	| "wordcount"
+	| "history"
+	| "base"
+	| "canvas";
 
 type VaultOp =
 	| "search"

@@ -141,5 +141,7 @@ export function summarizeCanvas(raw: string, filePath: string): string {
 	const data = parseJson(raw, filePath);
 	if (isObsidianCanvas(data)) return summarizeObsidian(data, filePath);
 	if (isExcalidrawScene(data)) return summarizeExcalidraw(data, filePath);
-	throw new Error(`Unsupported canvas JSON in ${filePath}: expected an Obsidian .canvas ({nodes,edges}) or Excalidraw (.excalidraw) scene`);
+	throw new Error(
+		`Unsupported canvas JSON in ${filePath}: expected an Obsidian .canvas ({nodes,edges}) or Excalidraw (.excalidraw) scene`,
+	);
 }

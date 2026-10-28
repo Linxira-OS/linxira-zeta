@@ -63,6 +63,7 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Experimental: "实验性",
 	"Auto-Learn": "自动学习",
 	Mnemopi: "记忆模型",
+	SiYuan: "思源",
 	Hindsight: "回溯分析",
 	Editing: "编辑",
 	Reading: "读取",
@@ -1454,8 +1455,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"siyuan.token": {
 		label: "思源 API Token",
-		description:
-			"思源 → 设置 → 关于 → API token。SIYUAN_TOKEN 环境变量优先；启用“思源笔记”后 siyuan:// 才会生效。",
+		description: "思源 → 设置 → 关于 → API token。SIYUAN_TOKEN 环境变量优先；启用“思源笔记”后 siyuan:// 才会生效。",
 	},
 	"github.enabled": {
 		label: "GitHub CLI 集成",

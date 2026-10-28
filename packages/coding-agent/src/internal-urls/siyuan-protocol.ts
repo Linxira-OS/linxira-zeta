@@ -18,14 +18,19 @@ import { isSettingsInitialized, settings } from "../config/settings";
 import siyuanDoc from "../prompts/internal-urls/siyuan.md" with { type: "text" };
 import { cfgSiyuanEnabled, cfgSiyuanToken, cfgSiyuanUrl } from "../tools/settings";
 import { parseInternalUrl } from "./parse";
-import type { InternalResource, InternalUrl, InternalWriteResult, ProtocolHandler, ResolveContext, WriteContext } from "./types";
+import type {
+	InternalResource,
+	InternalUrl,
+	InternalWriteResult,
+	ProtocolHandler,
+	ResolveContext,
+	WriteContext,
+} from "./types";
 
 const DEFAULT_URL = "http://127.0.0.1:6806";
 const API_TIMEOUT_MS = 15_000;
 const DOC_ID_RE = /^[0-9A-Za-z-]{10,64}$/;
 const SNIPPET_LIMIT = 160;
-
-type SiyuanOp = "outline" | "search" | "append";
 
 export type ParsedSiyuanUrl =
 	| { kind: "notebooks"; url: string; op?: undefined }
@@ -142,7 +147,11 @@ export function parseSiyuanUrl(input: string | InternalUrl): ParsedSiyuanUrl {
 	throw new Error(`Unsupported siyuan:// URL: ${href}. Use siyuan://, siyuan://notebook/<id>, or siyuan://doc/<id>.`);
 }
 
-async function post<T>(api: string, body: Record<string, unknown>, context?: ResolveContext | WriteContext): Promise<T> {
+async function post<T>(
+	api: string,
+	body: Record<string, unknown>,
+	context?: ResolveContext | WriteContext,
+): Promise<T> {
 	const config = resolveSiyuanConfig();
 	if (!config.token) {
 		throw new Error(
@@ -198,7 +207,10 @@ function renderNotebooks(data: { notebooks?: Array<{ id: string; name: string; c
 	return `# SiYuan Notebooks\n\n${notebooks.length} notebook${notebooks.length === 1 ? "" : "s"}:\n\n${lines.join("\n")}\n`;
 }
 
-function renderNotebookDocs(notebookId: string, blocks: Array<{ id: string; content?: string; hpath?: string }>): string {
+function renderNotebookDocs(
+	notebookId: string,
+	blocks: Array<{ id: string; content?: string; hpath?: string }>,
+): string {
 	if (blocks.length === 0) return `# SiYuan Notebook ${notebookId}\n\n(no documents)\n`;
 	const lines = blocks.map(block => {
 		const title = block.content?.trim() || block.hpath || block.id;
@@ -223,7 +235,9 @@ function renderOutline(nodes: Array<{ name?: string; id?: string; children?: unk
 		const indent = "  ".repeat(depth);
 		lines.push(`${indent}- ${node.name?.trim() || node.id || "(untitled)"}`);
 		if (Array.isArray(node.children) && node.children.length > 0) {
-			lines.push(...renderOutline(node.children as Array<{ name?: string; id?: string; children?: unknown[] }>, depth + 1));
+			lines.push(
+				...renderOutline(node.children as Array<{ name?: string; id?: string; children?: unknown[] }>, depth + 1),
+			);
 		}
 	}
 	return lines;
@@ -322,19 +336,13 @@ export class SiyuanProtocolHandler implements ProtocolHandler {
 			context,
 		);
 		return {
-			content: [{ type: "text", text: `Appended ${Buffer.byteLength(content, "utf-8")} bytes to SiYuan doc ${parsed.id}.` }],
+			content: [
+				{ type: "text", text: `Appended ${Buffer.byteLength(content, "utf-8")} bytes to SiYuan doc ${parsed.id}.` },
+			],
 		};
 	}
 }
 
 function resource(url: string, content: string, contentType: InternalResource["contentType"]): InternalResource {
 	return { url, content, contentType, size: Buffer.byteLength(content, "utf-8"), immutable: true };
-}
-
-/** Exposed for tests: the op a URL selects, without network access. */
-export function siyuanOpForTests(input: string): SiyuanOp | undefined {
-	const parsed = parseSiyuanUrl(input);
-	if (parsed.kind === "doc-op") return parsed.op;
-	if (parsed.kind === "search") return "search";
-	return undefined;
 }

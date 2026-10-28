@@ -43,7 +43,9 @@ describe("summarizeCanvas", () => {
 	});
 
 	test("rejects malformed JSON with the file name", () => {
-		expect(() => summarizeCanvas("{not json", "/vault/bad.canvas")).toThrow(/Invalid canvas JSON in \/vault\/bad\.canvas/);
+		expect(() => summarizeCanvas("{not json", "/vault/bad.canvas")).toThrow(
+			/Invalid canvas JSON in \/vault\/bad\.canvas/,
+		);
 	});
 
 	test("rejects unknown JSON shapes", () => {

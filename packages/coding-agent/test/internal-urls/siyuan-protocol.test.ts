@@ -17,7 +17,7 @@ interface RecordedCall {
 
 function mockSiyuan(handler: (call: RecordedCall) => unknown): RecordedCall[] {
 	const calls: RecordedCall[] = [];
-	setSiyuanFetchForTests((async (input: RequestInfo | URL, init?: RequestInit) => {
+	setSiyuanFetchForTests((async (input: string | URL, init?: RequestInit) => {
 		const href = String(input);
 		const api = href.replace("http://127.0.0.1:6806", "");
 		const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
