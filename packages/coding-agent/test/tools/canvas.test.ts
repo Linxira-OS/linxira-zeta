@@ -23,18 +23,18 @@ describe("CanvasTool", () => {
 	test("creates a template under .canvas and lists it", async () => {
 		const { tool, root: dir } = await makeTool();
 		const created = await tool.execute("1", { op: "create", title: "Architecture Map" });
-		expect(created.details.path).toBe(".canvas/architecture-map.excalidraw");
+		expect(created.details?.path).toBe(".canvas/architecture-map.excalidraw");
 		const body = await readFile(join(dir, ".canvas", "architecture-map.excalidraw"), "utf8");
 		expect(JSON.parse(body)).toMatchObject({ type: "excalidraw", elements: [] });
 
 		const listed = await tool.execute("2", { op: "list" });
-		expect(listed.details.files).toEqual(["architecture-map.excalidraw"]);
+		expect(listed.details?.files).toEqual(["architecture-map.excalidraw"]);
 	});
 
 	test("creates an Obsidian canvas template", async () => {
 		const { tool, root: dir } = await makeTool();
 		const created = await tool.execute("1", { op: "create", title: "Notes", kind: "obsidian" });
-		expect(created.details.path).toBe(".canvas/notes.canvas");
+		expect(created.details?.path).toBe(".canvas/notes.canvas");
 		const body = await readFile(join(dir, ".canvas", "notes.canvas"), "utf8");
 		expect(JSON.parse(body)).toEqual({ nodes: [], edges: [] });
 	});
