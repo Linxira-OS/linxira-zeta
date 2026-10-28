@@ -45,6 +45,7 @@ import type {
 	UrlCompletion,
 	WriteContext,
 } from "./types";
+import { SiyuanProtocolHandler } from "./siyuan-protocol";
 import { VaultProtocolHandler } from "./vault-protocol";
 import { XdProtocolHandler } from "./xd-protocol";
 import { ZetaProtocolHandler } from "./zeta-protocol";
@@ -117,6 +118,7 @@ export class InternalUrlRouter {
 		// Reserved ZETA-owned security-analysis namespace; vendor adapters normalize into its store.
 		this.register(new SecurityProtocolHandler());
 		this.register(new VaultProtocolHandler());
+		this.register(new SiyuanProtocolHandler());
 		this.register(new IssueProtocolHandler());
 		this.register(new PrProtocolHandler());
 		this.register(new MrProtocolHandler());

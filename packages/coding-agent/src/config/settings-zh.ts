@@ -1443,6 +1443,20 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"启用 vault:// 内部 URL，通过 Obsidian CLI 读取和编辑 Obsidian vault 内容。禁用时，vault:// 解析被拒绝，vault:// 条目从系统提示词中省略。",
 	},
+	"siyuan.enabled": {
+		label: "思源笔记",
+		description:
+			"启用 siyuan:// 内部 URL，通过思源内核 API 读取、搜索和追加笔记。需要配置 siyuan.url 与 siyuan.token。",
+	},
+	"siyuan.url": {
+		label: "思源内核地址",
+		description: "思源内核的基础 URL，例如本地 http://127.0.0.1:6806，或托管服务器 https://notes.example.com",
+	},
+	"siyuan.token": {
+		label: "思源 API Token",
+		description:
+			"思源 → 设置 → 关于 → API token。SIYUAN_TOKEN 环境变量优先；启用“思源笔记”后 siyuan:// 才会生效。",
+	},
 	"github.enabled": {
 		label: "GitHub CLI 集成",
 		description:
