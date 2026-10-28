@@ -1,6 +1,5 @@
 import { IMAGE_PROVIDER_CHOICES, type ImageProvider } from "./image-providers";
 import { combine, register } from "../config/registry";
-import { isSettingsInitialized, settings } from "../config/settings";
 import { cfgAutolearnEnabled } from "../autolearn/settings";
 import { cfgBashEnabled } from "../exec/settings";
 import { cfgCompactionExperimentalContextManagement } from "../session/context-settings";
@@ -791,19 +790,9 @@ export const cfgCanvasEnabled = register({
 		group: "Available Tools",
 		label: "Canvas Scenes",
 		description:
-			"Enable rendering of Obsidian .canvas and Excalidraw .excalidraw scenes with read :img and vault://…?op=canvas. Disabled by default; the raw JSON stays readable either way.",
+			"Adds the canvas tool for .canvas/.excalidraw scenes under .canvas/ and enables their terminal rendering. Disabled by default.",
 	},
 });
-
-/** Whether `.canvas` / `.excalidraw` rendering is exposed in this session. */
-export function isCanvasEnabled(): boolean {
-	if (!isSettingsInitialized()) return cfgCanvasEnabled.default;
-	try {
-		return cfgCanvasEnabled.get(settings);
-	} catch {
-		return cfgCanvasEnabled.default;
-	}
-}
 
 export const cfgSiyuanEnabled = register({
 	id: "siyuan.enabled",
@@ -1230,6 +1219,7 @@ export const cfgBuiltinToolGates = combine({
 	dynamicTools: cfgSessionDynamicTools,
 	autolearn: cfgAutolearnEnabled,
 	bash: cfgBashEnabled,
+	canvas: cfgCanvasEnabled,
 	checkpoint: cfgCheckpointEnabled,
 	contextManagement: cfgCompactionExperimentalContextManagement,
 	debug: cfgDebugEnabled,

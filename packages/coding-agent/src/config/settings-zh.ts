@@ -1446,8 +1446,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"canvas.enabled": {
 		label: "画板场景",
-		description:
-			"启用 Obsidian .canvas 与 Excalidraw .excalidraw 场景的渲染（read :img 与 vault://…?op=canvas）。默认关闭；关闭时仍可读取原始 JSON。",
+		description: "在 .canvas/ 下启用画板工具（.canvas/.excalidraw），并允许 read :img 渲染终端预览。默认关闭。",
 	},
 	"siyuan.enabled": {
 		label: "思源笔记",

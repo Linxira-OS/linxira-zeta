@@ -55,8 +55,64 @@ describe("CanvasTool", () => {
 		expect(text).toContain("0 elements");
 	});
 
-	test("keeps paths inside .canvas", async () => {
+	test("writes an Excalidraw scene from nodes and edges", async () => {
+		const { tool, root: dir } = await makeTool();
+		const written = await tool.execute("1", {
+			op: "write",
+			path: "flow.excalidraw",
+			nodes: [
+				{ id: "start", text: "Start", x: 0, y: 0 },
+				{ id: "end", text: "End", x: 300, y: 0 },
+			],
+			edges: [{ from: "start", to: "end", label: "next" }],
+		});
+		expect(written.details).toMatchObject({ path: ".canvas/flow.excalidraw", nodes: 2, edges: 1 });
+		const scene = JSON.parse(await readFile(join(dir, ".canvas", "flow.excalidraw"), "utf8"));
+		expect(scene.type).toBe("excalidraw");
+		expect(
+			scene.elements
+				.filter((element: { type: string }) => element.type === "text")
+				.map((element: { text: string }) => element.text),
+		).toEqual(["Start", "End", "next"]);
+		expect(scene.elements.some((element: { type: string }) => element.type === "arrow")).toBe(true);
+	});
+
+	test("writes an Obsidian canvas from nodes and edges", async () => {
+		const { tool, root: dir } = await makeTool();
+		await tool.execute("1", {
+			op: "write",
+			path: "architecture.canvas",
+			nodes: [
+				{ id: "api", text: "API", x: 40, y: 20 },
+				{ id: "db", text: "DB", x: 320, y: 20 },
+			],
+			edges: [{ from: "api", to: "db", label: "SQL" }],
+		});
+		const scene = JSON.parse(await readFile(join(dir, ".canvas", "architecture.canvas"), "utf8"));
+		expect(scene.nodes[0]).toMatchObject({ id: "api", type: "text", text: "API", x: 40, y: 20 });
+		expect(scene.edges[0]).toMatchObject({ fromNode: "api", toNode: "db", label: "SQL" });
+	});
+
+	test("rejects edges that reference unknown nodes", async () => {
 		const { tool } = await makeTool();
-		await expect(tool.execute("1", { op: "outline", path: "../escape.excalidraw" })).rejects.toThrow(/\.canvas\//);
+		await expect(
+			tool.execute("1", {
+				op: "write",
+				path: "broken.excalidraw",
+				nodes: [{ id: "a", text: "A", x: 0, y: 0 }],
+				edges: [{ from: "a", to: "missing" }],
+			}),
+		).rejects.toThrow(/unknown node id: missing/);
+	});
+
+	test("creates a scene with initial nodes", async () => {
+		const { tool } = await makeTool();
+		const created = await tool.execute("1", {
+			op: "create",
+			title: "Plan",
+			kind: "obsidian",
+			nodes: [{ id: "idea", text: "Idea", x: 0, y: 0 }],
+		});
+		expect(created.details).toMatchObject({ path: ".canvas/plan.canvas", nodes: 1, edges: 0 });
 	});
 });

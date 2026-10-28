@@ -4634,7 +4634,7 @@ export const SETTINGS_SCHEMA = {
 			group: "Available Tools",
 			label: "Canvas Scenes",
 			description:
-				"Enable rendering of Obsidian .canvas and Excalidraw .excalidraw scenes with read :img and vault://…?op=canvas. Disabled by default; the raw JSON stays readable either way.",
+				"Adds the canvas tool for .canvas/.excalidraw scenes under .canvas/ and enables their terminal rendering. Disabled by default.",
 		},
 	},
 

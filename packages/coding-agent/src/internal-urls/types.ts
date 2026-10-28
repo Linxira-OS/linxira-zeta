@@ -159,6 +159,8 @@ export interface SchemeHost {
 	securityEnabled: boolean;
 	/** The user approves `cfg://` writes for this session (top-level TUI session). */
 	settingsApproval: boolean;
+	/** Whether `canvas.enabled` is on for this session; gates `vault://…?op=canvas` advertising. */
+	canvasEnabled: boolean;
 }
 
 /**

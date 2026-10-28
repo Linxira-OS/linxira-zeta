@@ -192,6 +192,7 @@ import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import { toolResult } from "./tool-result";
 
 import {
+	cfgCanvasEnabled,
 	cfgFetchEnabled,
 	cfgReadDefaultLimit,
 	cfgReadRenderMarkdown,
@@ -199,7 +200,6 @@ import {
 	cfgReadSummarizeProse,
 } from "./settings";
 import { cfgImagesAutoResize } from "../modes/settings";
-import { isCanvasEnabled } from "../tools/settings";
 
 /** Largest profile (`*.sample.txt`, `*.cpuprofile`) converted to a bottleneck summary; bigger files read as plain text. */
 const MAX_PROFILE_SUMMARY_BYTES = 32 * 1024 * 1024;
@@ -1059,7 +1059,6 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		return prompt.render(readDescription, {
 			IS_HL_MODE: resolveFileDisplayMode(this.session).hashLines,
 			BINARY_VIEWS: cfgIdaAvailable.get(this.session.settings),
-			CANVAS: isCanvasEnabled(),
 		});
 	}
 	readonly parameters = readSchema;
@@ -2247,7 +2246,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		}
 		if (parsed.kind === "image") {
 			const canvasImage = isCanvasPath(absolutePath);
-			if (canvasImage && !isCanvasEnabled()) {
+			if (canvasImage && !cfgCanvasEnabled.get(this.session.settings)) {
 				throw new ToolError("Canvas scenes are disabled. Enable Settings → Tools → Canvas Scenes.");
 			}
 			({ content, details, sourcePath } = await this.#loadImageContent({
