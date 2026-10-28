@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.13.2: a subagent's final report is no longer consumed as its reply to a peer message that arrived as the run finished; same-workspace peers can message each other.
+
 ## [1.4.4] - 2026-10-26
 
 - Released as part of Zeta 1.4.4; no package-specific user-visible changes.

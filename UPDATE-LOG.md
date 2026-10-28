@@ -2,6 +2,13 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.5
+- **上游同步 v18.13.1 + v18.13.2**：两次完整 tag 合并（基线 v18.12.6 → v18.13.1 → v18.13.2），带上会话自有空闲维护、上下文查看器（替代旧 `/context` 网格）、RPC 会话结算与语音听写、模型发现自述推理档位、`ssh://` 目录直列、TAR 索引按区间读取，以及一批原生 shell 修复（`sort -S` 百分比/内存上限、FIFO 重定向、后台作业回收、取消、jq BOM、`ps` PID 选择）。
+- **`/local` 双模式**：独立模式不变；attach 后端时经网关列出/读取/回写后端会话的 `local://` 文件（28 MiB 上限、路径包含校验），本地编辑后仅回写变化的文件。
+- **`/share` 自定义钩子**：`~/.zeta/agent/share.{ts,js,mjs}` 接管分享；TUI 与后端 headless（attach 转发的 `/share`）两条路径都生效，失败不回退 gist。
+- **ADE 定位**：README 明确本套件是 Agent 开发环境（ADE）——保留 IDE 形态，中心移到会话、子代理与 mesh。
+- **上游商业面台账**：商业端点与替代状态集中记录并纳入 `check-shared-infra` 守卫；CLI `share` 仍默认上传到上游查看器（P1，待替代），上游 18.13.x 的构建服务、遥测设置等商业面继续拒绝进树。
+
 ### 1.4.4
 - **桌面默认关闭后端**：`zetawork` 启动时读取 `backend status --json`；`backend.enabled=false`（默认）不再自动拉起 daemon，终端里的 `zetacode` 是本地进程。设置里的“启动/停止/重启”分别走 `backend on` / `backend off`（drain）/ `daemon restart`，启动工作区固定为 `backend.workspace`，退出时不再留下 enabled=true 的空后端。
 - **内置等宽字体**：GUI 终端与编辑器内置 Maple Mono CN Regular（SIL OFL 1.1），覆盖中文、Braille Patterns 和常用字符画，ASCII:CJK 严格 1:2；随包分发 OFL 与第三方声明。`zetawork`/`zetaide` 在外部终端运行时仍使用宿主字体。

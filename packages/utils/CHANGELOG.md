@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.13.2 (shared utilities and runtime fixes); user-visible changes are in UPDATE-LOG.md under 1.4.5.
+
 ## [1.4.4] - 2026-10-26
 
 - Released as part of Zeta 1.4.4; no package-specific user-visible changes.

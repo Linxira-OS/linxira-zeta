@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.13.2: RPC dictation state/transcript frames and the `cost_cap` event.
+
 ## [1.4.4] - 2026-10-26
 
 - Released as part of Zeta 1.4.4; no package-specific user-visible changes.

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.13.2: `/context` is now a context viewer (overview + detail); the legacy grid renderer is gone.
+
 ## [1.4.4] - 2026-10-26
 
 - Released as part of Zeta 1.4.4; no package-specific user-visible changes.
