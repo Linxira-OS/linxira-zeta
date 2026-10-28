@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Added
+
+- `siyuan://` internal URL for SiYuan: list notebooks and documents, read Markdown, outline, search, and append; configure the API URL and token under Tools → SiYuan. Enabling SiYuan without a token now warns instead of failing silently.
+- Added the `canvas` tool for Obsidian `.canvas` and Excalidraw `.excalidraw` scenes under `.canvas/`: `list`, `create`, `write`, `outline`; `read <file>:img` renders a terminal preview and `vault://…?op=canvas` summarizes a vault scene. `canvas.enabled` is off by default.
+
 ## [1.4.5] - 2026-10-28
 
 ### Added

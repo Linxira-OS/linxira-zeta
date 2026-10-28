@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- Tools settings now show a SiYuan group for the API switch, URL, and token.
+
 ## [1.4.5] - 2026-10-28
 
 - Synced with upstream OMP v18.13.2: `/context` is now a context viewer (overview + detail); the legacy grid renderer is gone.

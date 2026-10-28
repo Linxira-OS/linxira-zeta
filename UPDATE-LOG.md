@@ -2,6 +2,11 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.6
+- **思源笔记接入**：新增 `siyuan://` 内部 URL，可列笔记本/文档、读 Markdown、大纲、搜索与追加；设置位于 Tools → SiYuan，支持 API 地址与 token，开启但未配置 token 时会提示。
+- **画板场景**：新增 `canvas` 工具，在仓库根 `.canvas/` 下管理 Obsidian `.canvas` 与 Excalidraw `.excalidraw`（list/create/write/outline）；`read <file>:img` 可渲染终端预览，`vault://…?op=canvas` 可生成大纲。`canvas.enabled` 默认关闭，查看/编辑仍由 Obsidian 或 Excalidraw 客户端负责。
+- **发布链**：GitHub release 成功后才通知 packages 仓库执行 PKGBUILD bump；普通 CI push 不会触发。
+
 ### 1.4.5
 - **上游同步 v18.13.1 + v18.13.2**：两次完整 tag 合并（基线 v18.12.6 → v18.13.1 → v18.13.2），带上会话自有空闲维护、上下文查看器（替代旧 `/context` 网格）、RPC 会话结算与语音听写、模型发现自述推理档位、`ssh://` 目录直列、TAR 索引按区间读取，以及一批原生 shell 修复（`sort -S` 百分比/内存上限、FIFO 重定向、后台作业回收、取消、jq BOM、`ps` PID 选择）。
 - **`/local` 双模式**：独立模式不变；attach 后端时经网关列出/读取/回写后端会话的 `local://` 文件（28 MiB 上限、路径包含校验），本地编辑后仅回写变化的文件。

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
+
 ## [1.4.5] - 2026-10-28
 
 - Synced with upstream OMP v18.13.2: OAuth provenance markers, SQLite busy retry, and credential refresh lease fixes.

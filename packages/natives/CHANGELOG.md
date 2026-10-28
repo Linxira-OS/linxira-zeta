@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
+
 ## [1.4.5] - 2026-10-28
 
 - Synced with upstream OMP v18.13.2: glob `followLinks`, TAR range indexing, `sort -S` percent/memory caps, FIFO and background-job fixes, and cancellable timeouts.
