@@ -71,6 +71,10 @@ export function renderForScrollback<T>(render: () => T): T {
 let measureRenderDepth = 0;
 /** Budgeted image observations made under {@link measureRender}; only differences are meaningful. */
 let measuredImageObservations = 0;
+/** Those observations that the planned split demotes to the text fallback. */
+let measuredDemotedObservations = 0;
+/** Those observations with no slot yet from a full pass, so their fate is unknown. */
+let measuredUnresolvedObservations = 0;
 
 /**
  * Run `render` to measure rows outside display order — a newest-first height
@@ -81,12 +85,24 @@ let measuredImageObservations = 0;
  * MUST render every such block it lays out again, outside this scope and in
  * display order, or its images keep no slot in the pass.
  */
-export function measureRender<T>(render: () => T): { value: T; images: boolean } {
+export function measureRender<T>(render: () => T): {
+	value: T;
+	images: boolean;
+	demoted: boolean;
+	unresolved: boolean;
+} {
 	const before = measuredImageObservations;
+	const beforeDemoted = measuredDemotedObservations;
+	const beforeUnresolved = measuredUnresolvedObservations;
 	measureRenderDepth++;
 	try {
 		const value = render();
-		return { value, images: measuredImageObservations !== before };
+		return {
+			value,
+			images: measuredImageObservations !== before,
+			demoted: measuredDemotedObservations !== beforeDemoted,
+			unresolved: measuredUnresolvedObservations !== beforeUnresolved,
+		};
 	} finally {
 		measureRenderDepth--;
 	}
@@ -368,16 +384,29 @@ export class ImageBudget {
 	 * split has converged.
 	 */
 	observe(imageId: number): boolean {
-		if (measureRenderDepth > 0) measuredImageObservations++;
+		if (measureRenderDepth > 0) {
+			measuredImageObservations++;
+			if (this.#split.slots.get(imageId) === undefined) measuredUnresolvedObservations++;
+		}
 		const existing = this.#passSuppression.get(imageId);
-		if (existing !== undefined) return existing;
+		if (existing !== undefined) {
+			if (measureRenderDepth > 0 && existing) measuredDemotedObservations++;
+			return existing;
+		}
 		if (this.#stablePass) {
 			const suppressed = this.#cap > 0 && this.#lastSlotBelow(imageId, this.#split.onTerminal);
 			this.#passSuppression.set(imageId, suppressed);
-			if (suppressed) this.#forgetKeyForId(imageId);
+			if (suppressed) {
+				this.#forgetKeyForId(imageId);
+				if (measureRenderDepth > 0) measuredDemotedObservations++;
+			}
 			return suppressed;
 		}
-		if (measureRenderDepth > 0) return this.#cap > 0 && this.#lastSlotBelow(imageId, this.#split.planned);
+		if (measureRenderDepth > 0) {
+			const suppressed = this.#cap > 0 && this.#lastSlotBelow(imageId, this.#split.planned);
+			if (suppressed) measuredDemotedObservations++;
+			return suppressed;
+		}
 		const index = this.#passIds.length;
 		this.#passIds.push(imageId);
 		const suppressed = this.#cap > 0 && index < this.#split.planned;

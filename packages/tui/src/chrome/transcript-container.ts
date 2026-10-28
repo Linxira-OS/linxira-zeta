@@ -98,13 +98,6 @@ interface TranscriptEntry {
 	 */
 	stableFrozen: boolean;
 	/**
-	 * Cached "renders at least one image line" result for the settled-image
-	 * flush, keyed by width and image protocol (the probe upgrade re-encodes
-	 * text-fallback blocks into graphics). Rows of a settled block are frozen,
-	 * so a hit is exact.
-	 */
-	imageScan: { width: number; protocol: string | null; hasImageRows: boolean } | undefined;
-	/**
 	 * Head rows of a settled block already in native history while the rest
 	 * stays live: pressure commits only the rows that left the screen, so no
 	 * committed row is ever still visible above the viewport.
@@ -171,6 +164,10 @@ interface MeasuredBlock {
 	rows: readonly string[];
 	/** Whether the render observed a budgeted image; see {@link measureRender}. */
 	images: boolean;
+	/** Whether a budgeted image in the block is demoted to its text fallback. */
+	demoted: boolean;
+	/** Whether a budgeted image has no slot yet from a full pass. */
+	unresolved: boolean;
 }
 
 function isFinalized(component: Component): boolean {
@@ -318,7 +315,6 @@ export class TranscriptContainer extends Container {
 			stableRowCountByWidth: new Map(),
 			emitted: 0,
 			stableFrozen: false,
-			imageScan: undefined,
 			split: undefined,
 		});
 		// `children` is public and may be edited externally; re-check the whole
@@ -536,7 +532,14 @@ export class TranscriptContainer extends Container {
 	#liveBlock(entry: TranscriptEntry, index: number, width: number): MeasuredBlock {
 		const measured = this.#measure(entry, width);
 		const emitted = this.#projectedEmittedRowCount(entry, index, width);
-		return emitted === 0 ? measured : { rows: measured.rows.slice(emitted), images: measured.images };
+		return emitted === 0
+			? measured
+			: {
+					rows: measured.rows.slice(emitted),
+					images: measured.images,
+					demoted: measured.demoted,
+					unresolved: measured.unresolved,
+				};
 	}
 
 	/**
@@ -564,8 +567,8 @@ export class TranscriptContainer extends Container {
 
 	#measureEntry(entry: TranscriptEntry, width: number): MeasuredBlock {
 		this.#setAllocation(entry.component, Number.MAX_SAFE_INTEGER, this.#lastFrame);
-		const { value: rows, images } = measureRender(() => this.#renderEntry(entry, width));
-		return { rows, images };
+		const { value: rows, images, demoted, unresolved } = measureRender(() => this.#renderEntry(entry, width));
+		return { rows, images, demoted, unresolved };
 	}
 
 	#closeFrame(): void {
@@ -1570,19 +1573,27 @@ export class TranscriptContainer extends Container {
 		for (let index = this.#frontier; index < this.#entries.length; index++) {
 			const entry = this.#entries[index]!;
 			if (entry.state !== "settled") break;
-			if (this.#hasImageRows(entry, width)) last = index;
+			const state = this.#imageFlushState(entry, width);
+			// Retiring "through" a held block would take it along: stop before it.
+			if (state === "hold") break;
+			if (state === "flush") last = index;
 		}
 		return last < 0 ? -1 : last + 1;
 	}
 
-	/** Whether the block's measured rows carry an image sequence (cached per width and protocol). */
-	#hasImageRows(entry: TranscriptEntry, width: number): boolean {
-		const protocol = TERMINAL.imageProtocol;
-		const cached = entry.imageScan;
-		if (cached !== undefined && cached.width === width && cached.protocol === protocol) return cached.hasImageRows;
-		const hasImageRows = protocol !== null && this.#measure(entry, width).images;
-		entry.imageScan = { width, protocol, hasImageRows };
-		return hasImageRows;
+	/**
+	 * Whether the block's measured rows carry live graphics that must reach
+	 * scrollback early ("flush"), image rows that must keep their viewport rows
+	 * ("hold"), or no image at all ("none"). A demoted image renders as its text
+	 * fallback, which needs no graphics commit, and an image whose budget slot is
+	 * not known yet must wait for a full pass to decide. Re-measured per call
+	 * because both answers change with the budget's split.
+	 */
+	#imageFlushState(entry: TranscriptEntry, width: number): "none" | "flush" | "hold" {
+		if (TERMINAL.imageProtocol === null) return "none";
+		const measured = this.#measure(entry, width);
+		if (!measured.images) return "none";
+		return measured.demoted || measured.unresolved ? "hold" : "flush";
 	}
 
 	#liveEntries(): Array<{ entry: TranscriptEntry; index: number }> {
@@ -1629,7 +1640,6 @@ export class TranscriptContainer extends Container {
 					stableRowCountByWidth: new Map(),
 					emitted: 0,
 					stableFrozen: false,
-					imageScan: undefined,
 					split: undefined,
 				},
 		);
