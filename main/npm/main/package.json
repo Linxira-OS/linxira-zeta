@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/main",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "zeta — the Zeta workspace: a nested-terminal workbench with tabs, panes, and the Zeta tool suite",
   "license": "AGPL-3.0-only",
   "publishConfig": {
@@ -21,10 +21,10 @@
     "README.md"
   ],
   "optionalDependencies": {
-    "@linxiraos/main-windows-x64": "1.4.4",
-    "@linxiraos/main-linux-x64": "1.4.4",
-    "@linxiraos/zeta": "1.4.4",
-    "@linxiraos/ide": "1.4.4"
+    "@linxiraos/main-windows-x64": "1.4.5",
+    "@linxiraos/main-linux-x64": "1.4.5",
+    "@linxiraos/zeta": "1.4.5",
+    "@linxiraos/ide": "1.4.5"
   },
   "engines": {
     "node": ">=18"

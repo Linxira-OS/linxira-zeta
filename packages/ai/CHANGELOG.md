@@ -1,6 +1,12 @@
 ## [Unreleased]
 
+## [1.4.5] - 2026-10-28
+
 - Synced with upstream OMP v18.13.2: OAuth provenance markers, SQLite busy retry, and credential refresh lease fixes.
+
+### Breaking Changes
+
+- `isOfficialCodexApiUrl` moved from `@linxiraos/pi-ai` to `@linxiraos/pi-catalog/wire/codex`, next to `CODEX_BASE_URL`, so the catalog's compat resolver classifies Codex endpoints with the same check ([#15434](https://github.com/can1357/oh-my-pi/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
 
 ## [1.4.4] - 2026-10-26
 
@@ -17,10 +23,6 @@
 ## [1.4.1] - 2026-10-23
 
 - Version alignment with the 1.4.1 release line (no behavioral changes).
-
-### Breaking Changes
-
-- `isOfficialCodexApiUrl` moved from `@linxiraos/pi-ai` to `@linxiraos/pi-catalog/wire/codex`, next to `CODEX_BASE_URL`, so the catalog's compat resolver classifies Codex endpoints with the same check ([#15434](https://github.com/can1357/oh-my-pi/pull/15434) by [@will-bogusz](https://github.com/will-bogusz))
 
 ## [1.4.0] - 2026-10-21
 

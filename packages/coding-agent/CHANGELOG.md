@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [1.4.5] - 2026-10-28
+
+### Added
+
+- `zetacode` with no arguments is now a **client**: it attaches to the most recent session for the current directory on a running backend, creating one if needed, and falls back to the old in-process behaviour when no backend answers. `zetacode attach --list` lists sessions across repositories, `--new` creates one, `--attach <id>` picks one; `--backend` routes print mode through the backend, while plain `--print` stays in-process
+- `zetacode daemon` manages the background backend: `status` (human and `--json`), `start`, `stop`, `restart`, `logs`, `install-autostart`, `uninstall-autostart`. Starting an already-running backend is an idempotent no-op, a stale pid file is cleaned instead of hung on, and `serve` keeps its meaning as the foreground backend
+- Agent messaging now has rules: a subagent may only message the main agent that spawned it; main agents get per-workspace inbound/outbound gears (`closed` default → `repo-main-agents` → `repo-all` → `cross-repo-except-default` → `open` for the default workspace), a call needs both sides to allow it, and the receiver re-checks its own gear so a permissive caller cannot bypass a closed workspace. Another workspace on the same machine now resolves locally instead of being queued as an offline remote
+- Feishu and Telegram credential login beside the WeChat QR: `channels login feishu|telegram` validates the credentials against the provider before writing them (Feishu app token plus bot info, Telegram `getMe`), prompts on a TTY or takes flags, masks secrets in errors, and the GUI gained the same validate-and-save forms with unbind
+- Added `zetacode session pack`, `zetacode session unpack` and `zetacode session moved` to move a session with its artifacts to another machine and continue it there; resuming the copy left behind forks it instead of continuing it
+- Added `zetacode auth export` and `zetacode auth import` to carry model sign-ins to another machine
+- Added `POST /api/channels/send` to the `zeta serve` gateway: any process outside the server (the desktop shell, a script) can push one IM message through a running WeChat/Feishu/Telegram channel with `{channelId, to, text}`; 404 when that channel is not running here, 400 when the peer is not paired (WeChat needs a `context_token` from an earlier inbound), 500 when the platform refused. Same access gate as `/api/channels/status` — loopback passes, a non-loopback caller needs `remote.token`.
+- Added an interactive confirm to `zeta update` before installing a new version (default no on non-TTY input); `--yes`/`-y` skips it.
+
+### Changed
+
+- TUI 渲染升级至上游 v18.0.3 架构（provider window + resize 重绘），终端尺寸变化即时重绘。
+
 ### Fixed
 
 - The Arch package installs working `zetacode`/`zetaide` again: the build no longer strips the bundled Bun CLIs, which had made `zetacode --version` report the runtime version and every subcommand (`backend status`, `serve`) fail with `Script not found "backend"`
@@ -8,6 +25,12 @@
 - The desktop shell's side columns can be dragged (200–420 pt left, 280–560 pt right), and board, plugin, settings and banner text no longer touches the panel edge
 - Dragging the desktop shell's title bar moves the window only while the button is held
 - The desktop shell asks the compositor for window decorations on Wayland, where it could otherwise be neither moved nor resized
+- Windows installer (`install.ps1`) restored to the Zeta package/repo/binary names after the merge pulled the upstream OMP form back in.
+- Base system prompt refresh only re-applies on byte-level changes, keeping the inherited provider prompt-cache key stable across explicit refreshes.
+- i18n: zh catalog no longer carries OMP self-references; `/security` descriptions use the clean Zeta keys.
+- Idle compaction now starts or reschedules when its enabled state, threshold, or delay changes while a session is already idle ([#10242](https://github.com/can1357/oh-my-pi/issues/10242)).
+- 修复 `/language` 与 `/tracking` 指令在 OMP v18.0.3 合并后未注册的问题（输入被当作普通消息；现已恢复注册并加合并护栏测试）。
+- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
 
 ## [1.4.4] - 2026-10-26
 
@@ -44,14 +67,6 @@
 - Remote access: `zetacode serve` gained `--host`, `--tls`, `--tls-cert`, `--tls-key` and `--allow-plain-http` (plain HTTP off-loopback is refused), a pairing QR, and SHA-256-hashed tokens that can be rotated and revoked; failed auth is limited to 10 attempts per 60 s per address
 - Settings are scoped per session working directory: `Settings.sessionForCwd(cwd)` keeps the project layer with its own repo, live sessions reload after a write, and `GET /api/settings` accepts `x-zeta-cwd`
 - `channels.reportPolicy` decides whether a channel session reports into its IM thread
-- `zetacode` with no arguments is now a **client**: it attaches to the most recent session for the current directory on a running backend, creating one if needed, and falls back to the old in-process behaviour when no backend answers. `zetacode attach --list` lists sessions across repositories, `--new` creates one, `--attach <id>` picks one; `--backend` routes print mode through the backend, while plain `--print` stays in-process
-- `zetacode daemon` manages the background backend: `status` (human and `--json`), `start`, `stop`, `restart`, `logs`, `install-autostart`, `uninstall-autostart`. Starting an already-running backend is an idempotent no-op, a stale pid file is cleaned instead of hung on, and `serve` keeps its meaning as the foreground backend
-- Agent messaging now has rules: a subagent may only message the main agent that spawned it; main agents get per-workspace inbound/outbound gears (`closed` default → `repo-main-agents` → `repo-all` → `cross-repo-except-default` → `open` for the default workspace), a call needs both sides to allow it, and the receiver re-checks its own gear so a permissive caller cannot bypass a closed workspace. Another workspace on the same machine now resolves locally instead of being queued as an offline remote
-- Feishu and Telegram credential login beside the WeChat QR: `channels login feishu|telegram` validates the credentials against the provider before writing them (Feishu app token plus bot info, Telegram `getMe`), prompts on a TTY or takes flags, masks secrets in errors, and the GUI gained the same validate-and-save forms with unbind
-- Added `zetacode session pack`, `zetacode session unpack` and `zetacode session moved` to move a session with its artifacts to another machine and continue it there; resuming the copy left behind forks it instead of continuing it
-- Added `zetacode auth export` and `zetacode auth import` to carry model sign-ins to another machine
-- Added `POST /api/channels/send` to the `zeta serve` gateway: any process outside the server (the desktop shell, a script) can push one IM message through a running WeChat/Feishu/Telegram channel with `{channelId, to, text}`; 404 when that channel is not running here, 400 when the peer is not paired (WeChat needs a `context_token` from an earlier inbound), 500 when the platform refused. Same access gate as `/api/channels/status` — loopback passes, a non-loopback caller needs `remote.token`.
-- Added an interactive confirm to `zeta update` before installing a new version (default no on non-TTY input); `--yes`/`-y` skips it.
 
 ### Changed
 
@@ -667,10 +682,6 @@
 
 - Sidebar renders again in production sessions: the gutter engine was anchored to the fallback render path after the upstream frame-provider refactor, so `tui.sidebar=true` drew nothing; provider frames now respect the reserved main width and paint the right gutter column. Sidebar content rebuilt to stop duplicating the status line (session header, todo/plan progress, subagent states, MCP health; empty panels hide).
 - Channel tools (`channel_send`/`workspace_run`/`im_control`) are once again exclusive to top-level sessions — nested subagents can no longer relay to IM even when the tool names are requested explicitly; `tracking_update` gating restored.
-- Windows installer (`install.ps1`) restored to the Zeta package/repo/binary names after the merge pulled the upstream OMP form back in.
-- Base system prompt refresh only re-applies on byte-level changes, keeping the inherited provider prompt-cache key stable across explicit refreshes.
-- i18n: zh catalog no longer carries OMP self-references; `/security` descriptions use the clean Zeta keys.
-- Idle compaction now starts or reschedules when its enabled state, threshold, or delay changes while a session is already idle ([#10242](https://github.com/can1357/oh-my-pi/issues/10242)).
 
 ## [1.1.6] - 2026-08-30
 
@@ -695,10 +706,6 @@
 
 - 同步上游 OMP v18.0.5 / v18.0.6：git TUI 内置 conventional commit 生成与 `if-bench` 基准、`commit --legacy` 统一生成、`:img` 选择器渲染 SVG、新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra image_gen/tts。
 
-### Fixed
-
-- 修复 `/language` 与 `/tracking` 指令在 OMP v18.0.3 合并后未注册的问题（输入被当作普通消息；现已恢复注册并加合并护栏测试）。
-
 ## [1.1.4] - 2026-08-26
 
 ### Changed
@@ -708,18 +715,6 @@
 ### Fixed
 
 - 修复中文系统下 CLI 汉化自动检测失效（`language` 默认值不再顶掉环境检测，中文系统自动切换中文界面）。
-
-## [1.1.2] - 2026-08-25
-
-### Fixed
-
-- Republished as 1.1.2 to reset the `latest` tag after the broken 1.1.0 (no functional change over 1.1.1).
-
-## [1.1.0] - 2026-08-25
-
-### Changed
-
-- TUI 渲染升级至上游 v18.0.3 架构（provider window + resize 重绘），终端尺寸变化即时重绘。
 
 ## [1.0.10] - 2026-08-19
 
