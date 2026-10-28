@@ -4626,6 +4626,18 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
+	"canvas.enabled": {
+		type: "boolean",
+		default: false,
+		ui: {
+			tab: "tools",
+			group: "Available Tools",
+			label: "Canvas Scenes",
+			description:
+				"Enable rendering of Obsidian .canvas and Excalidraw .excalidraw scenes with read :img and vault://…?op=canvas. Disabled by default; the raw JSON stays readable either way.",
+		},
+	},
+
 	"siyuan.enabled": {
 		type: "boolean",
 		default: false,

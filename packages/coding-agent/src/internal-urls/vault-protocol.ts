@@ -21,7 +21,7 @@ import type {
 	ResolveContext,
 	SchemeSpec,
 } from "./types";
-import { cfgVaultEnabled } from "../tools/settings";
+import { cfgVaultEnabled, isCanvasEnabled } from "../tools/settings";
 
 const DARWIN_OBSIDIAN_BINARY = "/Applications/Obsidian.app/Contents/MacOS/obsidian";
 const DEFAULT_OBSIDIAN_TIMEOUT_MS = 30_000;
@@ -655,7 +655,11 @@ export class VaultProtocolHandler implements ProtocolHandler {
 
 	/** Advertised only when vault:// is enabled and the Obsidian CLI is available. */
 	promptDoc(): string | undefined {
-		return hasObsidian() ? vaultDoc.trim() : undefined;
+		if (!hasObsidian()) return undefined;
+		const base = vaultDoc.trim();
+		return isCanvasEnabled()
+			? `${base} Canvas: \`?op=canvas\` summarizes \`.canvas\`/\`.excalidraw\` scenes; \`:img\` renders them as terminal images.`
+			: base;
 	}
 
 	/**
@@ -853,6 +857,9 @@ export class VaultProtocolHandler implements ProtocolHandler {
 		parsed: Extract<ParsedVaultUrl, { kind: "file-op" }>,
 		context?: ResolveContext,
 	): Promise<InternalResource> {
+		if (!isCanvasEnabled()) {
+			throw new Error("Canvas scenes are disabled. Enable `canvas.enabled` (Settings → Tools → Canvas Scenes).");
+		}
 		const root = await this.#resolveVaultRoot(parsed.ref, context);
 		const resolvedRoot = await fs.promises.realpath(root);
 		const targetPath = path.resolve(resolvedRoot, parsed.relativePath);

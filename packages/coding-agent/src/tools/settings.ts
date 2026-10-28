@@ -1,5 +1,6 @@
 import { IMAGE_PROVIDER_CHOICES, type ImageProvider } from "./image-providers";
 import { combine, register } from "../config/registry";
+import { isSettingsInitialized, settings } from "../config/settings";
 import { cfgAutolearnEnabled } from "../autolearn/settings";
 import { cfgBashEnabled } from "../exec/settings";
 import { cfgCompactionExperimentalContextManagement } from "../session/context-settings";
@@ -780,6 +781,29 @@ export const cfgVaultEnabled = register({
 			"Enable the vault:// internal URL for reading and editing Obsidian vault content via the Obsidian CLI. When disabled, vault:// resolution is refused and the vault:// entry is omitted from the system prompt.",
 	},
 });
+
+export const cfgCanvasEnabled = register({
+	id: "canvas.enabled",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "tools",
+		group: "Available Tools",
+		label: "Canvas Scenes",
+		description:
+			"Enable rendering of Obsidian .canvas and Excalidraw .excalidraw scenes with read :img and vault://…?op=canvas. Disabled by default; the raw JSON stays readable either way.",
+	},
+});
+
+/** Whether `.canvas` / `.excalidraw` rendering is exposed in this session. */
+export function isCanvasEnabled(): boolean {
+	if (!isSettingsInitialized()) return cfgCanvasEnabled.default;
+	try {
+		return cfgCanvasEnabled.get(settings);
+	} catch {
+		return cfgCanvasEnabled.default;
+	}
+}
 
 export const cfgSiyuanEnabled = register({
 	id: "siyuan.enabled",

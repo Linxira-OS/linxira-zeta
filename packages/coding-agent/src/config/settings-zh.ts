@@ -1444,6 +1444,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"启用 vault:// 内部 URL，通过 Obsidian CLI 读取和编辑 Obsidian vault 内容。禁用时，vault:// 解析被拒绝，vault:// 条目从系统提示词中省略。",
 	},
+	"canvas.enabled": {
+		label: "画板场景",
+		description:
+			"启用 Obsidian .canvas 与 Excalidraw .excalidraw 场景的渲染（read :img 与 vault://…?op=canvas）。默认关闭；关闭时仍可读取原始 JSON。",
+	},
 	"siyuan.enabled": {
 		label: "思源笔记",
 		description:

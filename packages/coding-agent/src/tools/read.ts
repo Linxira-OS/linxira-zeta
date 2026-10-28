@@ -69,12 +69,7 @@ import {
 import { isCpuProfilePath, renderCpuProfile } from "../utils/cpuprofile";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
 import { isCanvasPath } from "../utils/canvas-svg";
-import {
-	loadCanvasImageInput,
-	loadHeifImageInput,
-	loadImageInput,
-	loadSvgImageInput,
-} from "../utils/image-loading";
+import { loadCanvasImageInput, loadHeifImageInput, loadImageInput, loadSvgImageInput } from "../utils/image-loading";
 import {
 	ImageInputTooLargeError,
 	InvalidImageDataError,
@@ -204,6 +199,7 @@ import {
 	cfgReadSummarizeProse,
 } from "./settings";
 import { cfgImagesAutoResize } from "../modes/settings";
+import { isCanvasEnabled } from "../tools/settings";
 
 /** Largest profile (`*.sample.txt`, `*.cpuprofile`) converted to a bottleneck summary; bigger files read as plain text. */
 const MAX_PROFILE_SUMMARY_BYTES = 32 * 1024 * 1024;
@@ -1063,6 +1059,7 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		return prompt.render(readDescription, {
 			IS_HL_MODE: resolveFileDisplayMode(this.session).hashLines,
 			BINARY_VIEWS: cfgIdaAvailable.get(this.session.settings),
+			CANVAS: isCanvasEnabled(),
 		});
 	}
 	readonly parameters = readSchema;
@@ -2250,6 +2247,9 @@ export class ReadTool implements AgentTool<typeof readSchema, ReadToolDetails> {
 		}
 		if (parsed.kind === "image") {
 			const canvasImage = isCanvasPath(absolutePath);
+			if (canvasImage && !isCanvasEnabled()) {
+				throw new ToolError("Canvas scenes are disabled. Enable Settings → Tools → Canvas Scenes.");
+			}
 			({ content, details, sourcePath } = await this.#loadImageContent({
 				readPath: localReadPath,
 				absolutePath,

@@ -56,6 +56,7 @@ import { type BuiltinToolName, type HiddenToolName, normalizeToolNames } from ".
 import { ChannelSendTool } from "./channel-send";
 import { type CheckpointState, CheckpointTool, type CompletedRewindState, RewindTool } from "./checkpoint";
 import { ContextNotesTool, NewContextTool } from "./context-notes";
+import { CanvasTool } from "./canvas";
 import { DebugTool } from "./debug";
 import { cfgIdaAvailable } from "../ida/install";
 import { EvalTool } from "./eval";
@@ -94,6 +95,7 @@ import {
 	cfgAstEditEnabled,
 	cfgAstGrepEnabled,
 	cfgAsyncEnabled,
+	cfgCanvasEnabled,
 	cfgCheckpointEnabled,
 	cfgChannelsEnabled,
 	cfgDebugEnabled,
@@ -614,6 +616,7 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	checkpoint: CheckpointTool.createIf,
 	rewind: RewindTool.createIf,
 	context_notes: ContextNotesTool.createIf,
+	canvas: s => new CanvasTool(s),
 	new_context: NewContextTool.createIf,
 	task: s => TaskTool.create(s),
 	wait: s => new WaitTool(s),
@@ -801,6 +804,7 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		if (name === "grep") return cfgGrepEnabled.get(session.settings);
 		if (name === "find") return isFindEnabled(session);
 		if (name === "github") return cfgGithubEnabled.get(session.settings);
+		if (name === "canvas") return cfgCanvasEnabled.get(session.settings);
 		if (name === "tea") return cfgGiteaEnabled.get(session.settings);
 		if (name === "ast_grep") return cfgAstGrepEnabled.get(session.settings);
 		if (name === "ast_edit") return cfgAstEditEnabled.get(session.settings);
