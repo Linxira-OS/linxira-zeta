@@ -142,6 +142,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Computer",
 		"IDA Pro",
 		"GitHub",
+		"SiYuan",
 		"Output Limits",
 		"Execution",
 		"Discovery & MCP",

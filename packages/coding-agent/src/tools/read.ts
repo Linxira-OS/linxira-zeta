@@ -68,8 +68,8 @@ import {
 } from "../utils/block-context";
 import { isCpuProfilePath, renderCpuProfile } from "../utils/cpuprofile";
 import { resolveFileDisplayMode } from "../utils/file-display-mode";
+import { isCanvasPath } from "../utils/canvas-svg";
 import {
-	isCanvasPath,
 	loadCanvasImageInput,
 	loadHeifImageInput,
 	loadImageInput,
