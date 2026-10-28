@@ -2520,3 +2520,56 @@ observation points moved onto the state each assertion actually depends on.
   the `lsp-regressions`/`agent-plugins`/`live-routing` symlink cases (Windows symlink privilege),
   `git-tui-sidebar` timing, `skills-enable-official` (bundled `docx` pack resolution),
   `hyperlink-targets`, and `ptree timeout`.
+
+## v18.13.2 integration (2026-10-28)
+
+- **Merge commit**: the commit this section ships in (`merge: upstream v18.13.2`,
+  parents `98b7b94fe78` + `e996e1c7ac47`).
+- **Baseline** `v18.13.1` (`0838d2ab4407`) → **source tag** `v18.13.2`
+  (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`). Same short-lived branch
+  `sync/omp-release/18.13`; a second real merge (`--no-ff`, never squash) on top of
+  the v18.13.1 merge. `git merge-base --is-ancestor v18.13.2 HEAD` holds.
+- **Delta**: 626 commits, 474 files, +39,114/−4,868. 101 conflicts: 56 code, 32 tests,
+  7 docs, 5 root/locks, plus one upstream-deleted test. Program-boundary renames only
+  (`document/…` → `docs/…`; renamed Zeta files stayed renamed).
+- **Upstream surfaces carried in**: session-owned idle maintenance
+  (`session/idle-maintenance.ts`, `interactive-mode-idle-maintenance.test.ts`; the
+  controller timer and its test are gone), the context viewer
+  (`session/context-view.ts`, `packages/tui/src/overlays/context-viewer*.ts`, replacing
+  `ContextUsageView`), `session/session-settle.ts`, `live/output-activity.ts`, RPC
+  dictation (`modes/rpc/rpc-dictation.ts`), `discovery.advertisedReasoning`,
+  `ssh://` directory entries without a mount, TAR index byte-ranges, exact
+  `apply_patch` tests, `continueRecent(…, { onSessionContinuation })`, and the Nix
+  `native.nix`/`bun-runtime.nix` split.
+- **Both-mode compatibility (this round's work)**: `/local` now works when the session
+  lives on a backend — new gateway routes `GET /api/sessions/:id/artifacts`,
+  `GET|PUT /api/sessions/:id/artifacts/:name` (28 MiB cap, `InternalUrlRouter.locate`
+  containment, 403 on traversal), `BackendClient.list/read/writeLocalArtifact`, and the
+  TUI stages the file under `os.tmpdir()/zeta-attach-local/<session>/`, opens the local
+  editor, and uploads only when the bytes changed. Standalone behaviour is unchanged.
+  `/share` honours `~/.zeta/agent/share.{ts,js,mjs}` in **both** paths: the TUI handler
+  and the headless handler the backend runs for a forwarded `/share`; a failing hook
+  never falls back to the gist flow. `runRpcMode` keeps Zeta's `Promise<void>` (the
+  gateway RPC-WS host returns through `onClosed`) instead of upstream's `Promise<never>`.
+- **Brand/scope**: 110 files swept to `@linxiraos/*`, relocated TUI roles
+  (`zeta.context.*`, `zeta.overlay.*`, `zeta.hud.seg`), `PI_CODING_AGENT_DIR` →
+  `ZETA_CODING_AGENT_DIR` in fixtures, `.omp` fixture roots → `.zeta`, `omp gc/plugin`
+  command text → `zetacode`, and `gen:rpc` regenerated (brand token only; the
+  `state_version_changed` attach event survives in every SDK).
+- **Changelogs**: the merge inserted upstream `[18.13.2]` sections into eight package
+  changelogs; they are stripped so the product release line stays at 1.4.4.
+- **Gates**: `check:ts` (all packages), `check:tools`, brand (0), sentinels, scope
+  imports, license map, version consistency, i18n consistency/commands, lsp servers,
+  relay-assets freshness, local-ci parity, shared-infra, ci-surface, release-asset
+  names, service ports, workbench bundles, windows icons, serve-discovery parity,
+  robomp CLI contract, merge lineage, package-json merge guard (`--base` the v18.13.1
+  merge; the full `origin/main` range holds 122 upstream merges and takes ~25 min on
+  Windows), `gen:compat` unchanged (1111 rules/21 classes),
+  `cargo check --workspace --all-targets` (windows-gnu, `RUSTC_BOOTSTRAP=1`) and
+  `cargo fmt --all --check` with the pinned `nightly-2026-10-06` (rustup repaired a
+  partially installed toolchain in `linxira-2026-10-27`) all pass. Targeted suites for
+  the merged surfaces (idle maintenance, context viewer, RPC goal/dictation/events,
+  mesh/peer messaging, artifact routes, `/local` staging) pass.
+- **Environment drift (not merge damage)**: `check-spoofed-versions` reports newer
+  installed Codex/Gemini/Claude CLIs than the pinned spoof strings; `--update` is a
+  separate maintenance step.

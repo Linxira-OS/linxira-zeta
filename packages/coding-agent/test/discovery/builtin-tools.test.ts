@@ -8,6 +8,7 @@ import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings"
 import { initializeWithSettings, loadCapability } from "@linxiraos/zeta/discovery";
 import { clearClaudePluginRootsCache } from "@linxiraos/zeta/discovery/helpers";
 import { discoverCustomToolPaths, loadCustomTools } from "@linxiraos/zeta/extensibility/custom-tools/loader";
+import { __closeExtensionParseCacheForTests } from "@linxiraos/zeta/extensibility/plugins/legacy-pi-compat";
 import { __resetDirsFromEnvForTests, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 import { restoreEnvValue } from "../helpers/settings-test-state";
 
@@ -38,7 +39,7 @@ describe("native executable custom tool discovery", () => {
 		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		originalOmpProfileEnv = process.env.OMP_PROFILE;
 		originalPiProfileEnv = process.env.PI_PROFILE;
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-builtin-tools-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-builtin-tools-"));
 		const home = path.join(root, "home");
 		project = path.join(root, "project");
 		projectTools = path.join(project, ".zeta", "tools");
@@ -64,6 +65,8 @@ describe("native executable custom tool discovery", () => {
 		restoreEnvValue("PI_PROFILE", originalPiProfileEnv);
 		restoreEnvValue("ZETA_CODING_AGENT_DIR", originalAgentDirEnv);
 		__resetDirsFromEnvForTests();
+		// Loading the fixtures opens the legacy extension parse cache under the temp HOME; Windows can't remove it while open.
+		__closeExtensionParseCacheForTests();
 		await removeWithRetries(root);
 	});
 

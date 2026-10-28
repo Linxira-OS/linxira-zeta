@@ -1,7 +1,10 @@
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { disambiguateDisplayLabels, replaceTabs, shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import { formatBytes, sanitizeText } from "@linxiraos/pi-utils";
 import { InternalUrlRouter, type LocalFileEntry, type LocalProtocolOptions, listLocalFiles } from "../internal-urls";
+import type { BackendAttachLink } from "../backend/attach-link";
 import type { SessionManager } from "../session/session-manager";
 import { getEditorCommand, openEditorOnPath } from "../utils/external-editor";
 import type { InteractiveModeContext } from "./types";
@@ -111,6 +114,10 @@ export async function openLocalFileInEditor(ctx: InteractiveModeContext, target?
 		ctx.showStatus("/local is host-only during a collab session");
 		return;
 	}
+	if (ctx.backendAttach) {
+		await openAttachedLocalFileInEditor(ctx, ctx.backendAttach, target);
+		return;
+	}
 	const editorCmd = getEditorCommand();
 	if (!editorCmd) {
 		ctx.showWarning("No editor configured. Set $VISUAL or $EDITOR environment variable.");
@@ -156,4 +163,126 @@ export async function openLocalFileInEditor(ctx: InteractiveModeContext, target?
 		return;
 	}
 	ctx.showStatus(`Closed ${sanitizeText(chosen.url)} in editor.`);
+}
+
+/**
+ * `/local` when the session lives on a backend.
+ *
+ * The artifacts belong to the backend host, so the picker lists them over the
+ * gateway instead of walking the local replica directory. The chosen file is
+ * staged under `os.tmpdir()` and opened in the local editor; a changed copy is
+ * pushed back to the backend, the same file the tools read afterwards.
+ */
+async function openAttachedLocalFileInEditor(
+	ctx: InteractiveModeContext,
+	link: BackendAttachLink,
+	target?: string,
+): Promise<void> {
+	const editorCmd = getEditorCommand();
+	if (!editorCmd) {
+		ctx.showWarning("No editor configured. Set $VISUAL or $EDITOR environment variable.");
+		return;
+	}
+
+	let entries: Array<{ name: string; url: string; size: number }>;
+	try {
+		entries = await link.client.listLocalArtifacts(link.sessionId);
+	} catch (error) {
+		ctx.showError(`Failed to list backend local:// files: ${showErrorMessage(error)}`);
+		return;
+	}
+	if (entries.length === 0) {
+		ctx.showStatus("No local:// files in this session yet.");
+		return;
+	}
+
+	let chosen: { name: string; url: string } | undefined;
+	if (target?.trim()) {
+		const trimmed = target.trim();
+		const name = /^local:\/\//i.test(trimmed)
+			? trimmed.slice("local://".length)
+			: /^local:\//i.test(trimmed)
+				? trimmed.slice("local:/".length)
+				: trimmed;
+		chosen = entries.find(entry => entry.name === name || entry.url === trimmed);
+		if (!chosen) {
+			ctx.showError(`Local file not found: ${sanitizeText(trimmed)}`);
+			return;
+		}
+	} else {
+		const labels = disambiguateDisplayLabels(
+			entries.map(entry => replaceTabs(sanitizeText(entry.url))),
+			[],
+		);
+		const choice = await ctx.showHookSelector(
+			PICKER_TITLE,
+			entries.map((entry, i) => ({ label: labels[i]!, description: formatBytes(entry.size) })),
+		);
+		if (!choice) return;
+		const index = labels.indexOf(choice);
+		if (index < 0) return;
+		chosen = entries[index]!;
+	}
+
+	if (path.isAbsolute(chosen.name) || chosen.name.split("/").includes("..")) {
+		ctx.showError(`Refusing unsafe local:// name: ${sanitizeText(chosen.url)}`);
+		return;
+	}
+
+	let bytes: Uint8Array;
+	try {
+		bytes = await link.client.readLocalArtifact(link.sessionId, chosen.name);
+	} catch (error) {
+		ctx.showError(`Failed to read ${chosen.url} from the backend: ${showErrorMessage(error)}`);
+		return;
+	}
+
+	const sessionDir = link.sessionId.replace(/[^A-Za-z0-9_.-]/g, "_") || "session";
+	const stagedPath = path.join(os.tmpdir(), "zeta-attach-local", sessionDir, chosen.name);
+	try {
+		await fs.mkdir(path.dirname(stagedPath), { recursive: true });
+		await fs.writeFile(stagedPath, bytes);
+	} catch (error) {
+		ctx.showError(`Failed to stage ${chosen.url}: ${showErrorMessage(error)}`);
+		return;
+	}
+
+	let exitCode: number;
+	try {
+		ctx.ui.stop();
+		exitCode = await openEditorOnPath(editorCmd, stagedPath);
+	} catch (error) {
+		ctx.showWarning(`Failed to open external editor: ${showErrorMessage(error)}`);
+		return;
+	} finally {
+		ctx.ui.start();
+		ctx.ui.requestRender();
+	}
+
+	if (exitCode !== 0) {
+		ctx.showWarning(
+			`Editor exited with code ${exitCode}; ${sanitizeText(chosen.url)} keeps whatever the backend saved.`,
+		);
+		return;
+	}
+
+	let edited: Uint8Array;
+	try {
+		edited = await fs.readFile(stagedPath);
+	} catch (error) {
+		ctx.showError(`Failed to read the edited copy: ${showErrorMessage(error)}`);
+		return;
+	}
+	if (Buffer.compare(Buffer.from(edited), Buffer.from(bytes)) === 0) {
+		ctx.showStatus(`Closed ${sanitizeText(chosen.url)} in editor (unchanged).`);
+		return;
+	}
+
+	try {
+		await link.client.writeLocalArtifact(link.sessionId, chosen.name, edited);
+	} catch (error) {
+		ctx.showError(`Failed to save ${chosen.url} to the backend: ${showErrorMessage(error)}`);
+		return;
+	}
+	ctx.showStatus(`Saved ${sanitizeText(chosen.url)} to the backend.`);
 }

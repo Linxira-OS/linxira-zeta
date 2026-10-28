@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as SessionSelector from "@linxiraos/pi-tui/overlays/session-selector";
 import type { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
@@ -156,6 +157,7 @@ describe("SelectorController session replacement overlay", () => {
 		const ctx = {
 			editor,
 			editorContainer,
+			settings: Settings.isolated(),
 			sessionManager: {
 				getCwd: () => "/tmp",
 				getSessionDir: () => "/tmp",
@@ -186,7 +188,7 @@ describe("SelectorController session replacement overlay", () => {
 		selectSession!(session);
 		await resumeStarted.promise;
 
-		expect(handleResume).toHaveBeenCalledWith(session.path);
+		expect(handleResume).toHaveBeenCalledWith(session.path, { followContinuation: true });
 		expect(hide).not.toHaveBeenCalled();
 
 		// The selector remains mounted until resume finishes, but it must not accept

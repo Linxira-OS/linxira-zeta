@@ -5,8 +5,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { withStatsSyncLock } from "@linxiraos/pi-stats/aggregator";
+import {
+	GC_AUTO_COMPRESS_INTERVAL_MS,
+	GC_AUTO_COMPRESS_LOG,
+	scheduleGcAutoCompress,
+} from "@linxiraos/zeta/cli/gc-auto-compress";
 import { type GcResult, runGcCommand } from "@linxiraos/zeta/cli/gc-cli";
-import { compressMethod } from "@linxiraos/zeta/cli/gc-compress";
+import * as gcCompress from "@linxiraos/zeta/cli/gc-compress";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
 import { BlobStore, blobStagingPath } from "@linxiraos/zeta/session/blob-store";
@@ -22,10 +27,10 @@ import {
 	hashPath,
 	setAgentDir,
 	setProjectDir,
-	removeWithRetries,
 } from "@linxiraos/pi-utils";
 import { runCli } from "../src/cli";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
+
 let root: string;
 let writes: string[] = [];
 let stderrWrites: string[] = [];
@@ -36,7 +41,7 @@ const originalExitCode = process.exitCode;
 
 beforeEach(async () => {
 	settingsState = beginSettingsTest();
-	root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-gc-"));
+	root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-gc-"));
 	writes = [];
 	stderrWrites = [];
 	process.exitCode = 0;
@@ -2460,11 +2465,11 @@ describe("runGcCommand stale state", () => {
 		const agentDir = path.join(root, "agent");
 		const reportsDir = path.join(root, "reports");
 		const collabDir = path.join(root, "collab");
-		const newestReport = await writeAged(reportsDir, "zeta-report-newest.tar.gz", "r", 10);
-		const youngReport = await writeAged(reportsDir, "zeta-report-young.tar.gz", "r", 20);
+		const newestReport = await writeAged(reportsDir, "omp-report-newest.tar.gz", "r", 10);
+		const youngReport = await writeAged(reportsDir, "omp-report-young.tar.gz", "r", 20);
 		const oldReports = [
-			await writeAged(reportsDir, "zeta-report-old.tar.gz", "r", 40),
-			await writeAged(reportsDir, "zeta-report-older.tar.gz", "r", 50),
+			await writeAged(reportsDir, "omp-report-old.tar.gz", "r", 40),
+			await writeAged(reportsDir, "omp-report-older.tar.gz", "r", 50),
 		];
 		const unrelated = await writeAged(reportsDir, "notes.txt", "keep", 100);
 		const liveReplica = await writeAged(collabDir, "room-live.jsonl", "{}\n", 1);
@@ -2535,7 +2540,7 @@ describe("runGcCommand stale state", () => {
 });
 
 // Test roots live under the temp dir, so its filesystem decides which compression tests run.
-const method = await compressMethod(os.tmpdir());
+const method = await gcCompress.compressMethod(os.tmpdir());
 const supported = method !== undefined;
 const onApfs = method === "apfs";
 
@@ -2606,7 +2611,7 @@ describe("runGcCommand session compression", () => {
 			expect(after.mtimeNs).toBe(before[index].mtimeNs);
 			expect(after.allocated).toBeLessThan(after.size);
 		}
-		expect((await fs.readdir(path.dirname(file))).filter(name => name.startsWith(".omp-gc-compress-"))).toEqual([]);
+		expect((await fs.readdir(path.dirname(file))).filter(name => name.startsWith(".zeta-gc-compress-"))).toEqual([]);
 
 		const rerun = await runGcCommand({ flags: { agentDir: root, compress: true, apply: true } });
 		expect(rerun.compress).toMatchObject({ wouldCompress: 0, compressed: 0 });
@@ -2638,15 +2643,15 @@ describe("runGcCommand session compression", () => {
 
 	test.skipIf(!onApfs)("--apply removes only the scratch dirs a killed run left behind", async () => {
 		const { file, artifact } = await writeIdleSession(Bun.randomUUIDv7());
-		const inSessions = path.join(path.dirname(file), ".omp-gc-compress-a1b2c3");
-		const inArchive = path.join(root, "archive", "sessions", "project", "x", ".omp-gc-compress-d4e5f6");
+		const inSessions = path.join(path.dirname(file), ".zeta-gc-compress-a1b2c3");
+		const inArchive = path.join(root, "archive", "sessions", "project", "x", ".zeta-gc-compress-d4e5f6");
 		for (const dir of [inSessions, inArchive]) {
 			await fs.mkdir(dir, { recursive: true });
-			await Bun.write(path.join(dir, ".omp-gc-compress-owner"), "");
+			await Bun.write(path.join(dir, ".zeta-gc-compress-owner"), "");
 			await Bun.write(path.join(dir, "copy.jsonl"), filler);
 		}
 		// An artifact that merely shares the name carries no owner marker.
-		const userArtifact = path.join(path.dirname(artifact), ".omp-gc-compress-notes", "keep.txt");
+		const userArtifact = path.join(path.dirname(artifact), ".zeta-gc-compress-notes", "keep.txt");
 		await fs.mkdir(path.dirname(userArtifact), { recursive: true });
 		await Bun.write(userArtifact, "keep");
 
@@ -2772,5 +2777,102 @@ describe("runGcCommand session compression", () => {
 
 		expect(configured.compress?.wouldCompress).toBe(0);
 		expect(overridden.compress?.wouldCompress).toBe(2);
+	});
+
+	test.skipIf(!supported)(
+		"the background run compresses idle sessions, then waits a day before running again",
+		async () => {
+			const { file, artifact } = await writeIdleSession(Bun.randomUUIDv7());
+			const logPath = path.join(root, GC_AUTO_COMPRESS_LOG);
+
+			const child = await scheduleGcAutoCompress(root);
+			expect(await child?.exited).toBe(0);
+			for (const target of [file, artifact]) {
+				const after = await snapshot(target);
+				expect(after.allocated).toBeLessThan(after.size);
+			}
+			expect(await Bun.file(logPath).text()).toContain("compress: 2/2 files in 1 sessions");
+
+			expect(await scheduleGcAutoCompress(root)).toBeUndefined();
+
+			const lastRun = (Date.now() - GC_AUTO_COMPRESS_INTERVAL_MS - 60_000) / 1000;
+			await fs.utimes(logPath, lastRun, lastRun);
+			const next = await scheduleGcAutoCompress(root);
+			expect(await next?.exited).toBe(0);
+			expect(await Bun.file(logPath).text()).toContain("compress: 0/0 files in 0 sessions");
+		},
+		60_000,
+	);
+
+	test.skipIf(!supported)(
+		"simultaneous launches start one background run and keep its summary",
+		async () => {
+			await writeIdleSession(Bun.randomUUIDv7());
+			const logPath = path.join(root, GC_AUTO_COMPRESS_LOG);
+			const lastRun = (Date.now() - GC_AUTO_COMPRESS_INTERVAL_MS - 60_000) / 1000;
+			await Bun.write(logPath, "previous run\n");
+			await fs.utimes(logPath, lastRun, lastRun);
+
+			const launched = (await Promise.all([1, 2, 3].map(() => scheduleGcAutoCompress(root)))).filter(
+				child => child !== undefined,
+			);
+
+			expect(launched).toHaveLength(1);
+			expect(await launched[0].exited).toBe(0);
+			const log = await Bun.file(logPath).text();
+			expect(log).toContain("compress: 2/2 files in 1 sessions");
+			expect(log).not.toContain("GC already running");
+		},
+		60_000,
+	);
+
+	test.skipIf(!supported)("--apply on a volume whose compression shrinks nothing leaves sessions alone", async () => {
+		const { file } = await writeIdleSession(Bun.randomUUIDv7());
+		const before = await snapshot(file);
+		const probe = spyOn(gcCompress, "compressionWorks").mockResolvedValue(false);
+		let result: GcResult;
+		try {
+			result = await runGcCommand({ flags: { agentDir: root, compress: true, apply: true } });
+		} finally {
+			probe.mockRestore();
+		}
+
+		expect(result.compress).toMatchObject({ supported: true, scanned: 0, wouldCompress: 0, compressed: 0 });
+		expect(result.compress?.probeFailure).toContain("stored a compressible probe file uncompressed");
+		expect(await snapshot(file)).toEqual(before);
+	});
+
+	test("zetacode gc --compress --apply fails when the compression probe cannot run", async () => {
+		// A supported volume, but no sessions directory to hold the probe's scratch dir.
+		const volume = spyOn(gcCompress, "compressMethod").mockResolvedValue("ntfs");
+		try {
+			await runCli(["gc", "--agent-dir", root, "--compress", "--apply"]);
+		} finally {
+			volume.mockRestore();
+		}
+
+		const stderr = stderrWrites.join("");
+		expect(process.exitCode).toBe(1);
+		expect(stderr).toContain("GC completed with 1 error:");
+		expect(stderr).toContain("compress: compression probe: ENOENT");
+		expect(writes.join("")).not.toContain("compress skipped");
+	});
+
+	test("the compression probe throws when the compression tool fails instead of reporting no compression", async () => {
+		// The other platform's tool is absent here, so its batch reports a command failure.
+		const absentTool = process.platform === "win32" ? "apfs" : "ntfs";
+
+		await expect(gcCompress.compressionWorks(root, absentTool)).rejects.toThrow(
+			absentTool === "apfs" ? "ditto exited" : "compact exited",
+		);
+	});
+
+	test.skipIf(supported)("the background run never starts without filesystem compression", async () => {
+		const { file } = await writeIdleSession(Bun.randomUUIDv7());
+		const before = await snapshot(file);
+
+		expect(await scheduleGcAutoCompress(root)).toBeUndefined();
+		expect(await Bun.file(path.join(root, GC_AUTO_COMPRESS_LOG)).text()).toContain("compress skipped: unsupported");
+		expect(await snapshot(file)).toEqual(before);
 	});
 });

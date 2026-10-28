@@ -612,6 +612,7 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 	},
 	{
 		name: "hub",
+		aliases: ["subagents"],
 		icon: "agents",
 		description: () => M.cmdOpenTheLiveAgentHub,
 		handleTui: (_command, runtime) => {

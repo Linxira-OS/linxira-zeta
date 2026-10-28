@@ -366,6 +366,46 @@ export class BackendClient {
 		return (await response.json()) as Record<string, unknown>;
 	}
 
+	/**
+	 * The backend session's `local://` artifacts (newest first). Names are
+	 * root-relative and `/`-separated; no host path crosses the wire.
+	 */
+	async listLocalArtifacts(
+		sessionId: string,
+		signal?: AbortSignal,
+	): Promise<Array<{ name: string; url: string; size: number; mtimeMs: number }>> {
+		const response = await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/artifacts`, { signal });
+		const body = (await response.json()) as { entries?: unknown };
+		if (!Array.isArray(body.entries)) return [];
+		return body.entries.filter(
+			(entry): entry is { name: string; url: string; size: number; mtimeMs: number } =>
+				isRecord(entry) &&
+				typeof entry.name === "string" &&
+				typeof entry.url === "string" &&
+				typeof entry.size === "number" &&
+				typeof entry.mtimeMs === "number",
+		);
+	}
+
+	/** One `local://` file from the backend session, as raw bytes. */
+	async readLocalArtifact(sessionId: string, name: string, signal?: AbortSignal): Promise<Uint8Array> {
+		const response = await this.request(
+			`/api/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(name)}`,
+			{ signal },
+		);
+		return new Uint8Array(await response.arrayBuffer());
+	}
+
+	/** Replace one `local://` file in the backend session. */
+	async writeLocalArtifact(sessionId: string, name: string, data: Uint8Array, signal?: AbortSignal): Promise<void> {
+		await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(name)}`, {
+			method: "PUT",
+			body: data,
+			headers: { "content-type": "application/octet-stream" },
+			signal,
+		});
+	}
+
 	/** Send one RPC command and return its `data` payload. */
 	async send(sessionId: string, command: Record<string, unknown>, signal?: AbortSignal): Promise<unknown> {
 		const response = await this.request(`/api/agent/${encodeURIComponent(sessionId)}`, {
