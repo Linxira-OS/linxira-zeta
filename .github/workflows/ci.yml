@@ -2249,6 +2249,9 @@ jobs:
 
    notify-packages:
       name: Notify packages
-      needs: release_github
+      # Only a successful tag release may dispatch packages. Ordinary CI
+      # pushes skip release_github, so this job is skipped as well.
+      needs: [release_github, release_metadata]
+      if: ${{ needs.release_metadata.outputs.is-release == 'true' && needs.release_github.result == 'success' }}
       uses: Linxira-OS/packages/.github/workflows/notify-sync.yml@main
       secrets: inherit

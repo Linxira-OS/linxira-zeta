@@ -50,6 +50,7 @@ const EXCLUDED: Record<string, string> = {
 	release_plugin_packages: "release chain",
 	release_plugin_packages_manual: "release chain",
 	release_web_ui_packages: "release chain",
+	"notify-packages": "GitHub-only release dispatch (packages reusable workflow + org secret)",
 	native_addons_cross: "cross-target leg (darwin/win32 arm64)",
 };
 
