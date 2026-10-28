@@ -4,23 +4,18 @@
   alsa-lib,
   bun,
   bun2nix,
-  cmake,
+  callPackage,
   config,
+  craneLib,
   cudaPackages_13 ? null,
   darwin,
   lib,
   libpulseaudio,
   makeBinaryWrapper,
-  ninja,
   pipewire,
-  pkg-config,
   removeReferencesTo,
-  rustPlatform,
-  rustToolchain,
   source,
   stdenv,
-  stdenvNoCC,
-  unzip,
   # onnxruntime-node (downloaded into the agent cache on first use) ships CUDA
   # execution providers that dlopen vendor libraries absent from the NixOS
   # loader path. Enabling this appends them to the inference workers'
@@ -33,32 +28,23 @@
   # ~750 MB (gstreamer, ffmpeg, systemd, ...). Official npm/Bazel addons ship
   # without it, so default to the lean build; opt in via `.override`.
   withWaylandScreencast ? false,
+  # Release builds use fat LTO with one codegen unit, which is slow. Set this
+  # to false for faster local builds with thin LTO and 16 codegen units.
+  withFatLto ? true,
 }:
 let
   packageJson = lib.importJSON ../packages/coding-agent/package.json;
   rootPackageJson = lib.importJSON ../package.json;
-  platform =
-    {
-      aarch64-darwin = {
-        addon = "pi_natives.darwin-arm64.node";
-        nativeLibrary = "libpi_natives.dylib";
-      };
-      aarch64-linux = {
-        addon = "pi_natives.linux-arm64.node";
-        nativeLibrary = "libpi_natives.so";
-      };
-      x86_64-darwin = {
-        addon = "pi_natives.darwin-x64-baseline.node";
-        nativeLibrary = "libpi_natives.dylib";
-        rustFlags = "-C target-cpu=x86-64-v2";
-      };
-      x86_64-linux = {
-        addon = "pi_natives.linux-x64-baseline.node";
-        nativeLibrary = "libpi_natives.so";
-        rustFlags = "-C target-cpu=x86-64-v2";
-      };
-    }
-    .${stdenv.hostPlatform.system} or (throw "Unsupported Zeta platform: ${stdenv.hostPlatform.system}");
+  nativeBuild = callPackage ./native.nix {
+    inherit
+      source
+      craneLib
+      withWaylandScreencast
+      withFatLto
+      ;
+  };
+  inherit (nativeBuild) platform;
+  bunRuntimeTemplate = callPackage ./bun-runtime.nix { inherit bun; };
   patchedDependencies = lib.mapAttrs (
     _: patch: source + "/${patch}"
   ) rootPackageJson.patchedDependencies;
@@ -94,29 +80,13 @@ let
       [ stdenv.cc.cc.lib ] ++ lib.optional (stdenv.cc.cc ? libgcc) stdenv.cc.cc.libgcc
     )
     ++ cudaRuntimeLibraries;
-  bunRuntimeTemplate = stdenvNoCC.mkDerivation {
-    pname = "zeta-bun-runtime-template";
-    inherit (bun) version;
-    src = bun.src;
-
-    nativeBuildInputs = [ unzip ];
-    dontUnpack = true;
-    dontFixup = true;
-
-    installPhase = ''
-      runHook preInstall
-      unzip -q "$src"
-      install -Dm755 bun-*/bun "$out/libexec/bun"
-      runHook postInstall
-    '';
-  };
 in
 stdenv.mkDerivation {
-  pname = "zeta";
+  pname = "omp";
   inherit (packageJson) version;
   src = source;
 
-  cargoDeps = rustPlatform.importCargoLock { lockFile = ../Cargo.lock; };
+  passthru = { inherit nativeBuild; };
   bunDeps = bun2nix.fetchBunDeps {
     bunNix = ./bun.nix;
     overrides = patchOverrides;
@@ -125,13 +95,7 @@ stdenv.mkDerivation {
   nativeBuildInputs = [
     bun
     bun2nix.hook
-    cmake
-    ninja
-    pkg-config
     removeReferencesTo
-    rustPlatform.bindgenHook
-    rustPlatform.cargoSetupHook
-    rustToolchain
   ]
   ++ lib.optionals stdenv.hostPlatform.isLinux [
     autoPatchelfHook
@@ -159,19 +123,15 @@ stdenv.mkDerivation {
   dontStrip = true;
 
   env = {
-    CMAKE_POLICY_VERSION_MINIMUM = "3.5";
-    PCRE2_SYS_STATIC = "1";
     SOURCE_DATE_EPOCH = "1";
   }
-  // lib.optionalAttrs (platform ? rustFlags) { RUSTFLAGS = platform.rustFlags; }
   // lib.optionalAttrs stdenv.hostPlatform.isDarwin { BUN_NO_CODESIGN_MACHO_BINARY = "1"; };
 
   buildPhase = ''
     runHook preBuild
 
-    echo "Building pi-natives"
-    cargo build --release -p pi-natives ${lib.optionalString withWaylandScreencast "--features wayland-pipewire"}
-    install -Dm755 "target/release/${platform.nativeLibrary}" \
+    echo "Preparing pi-natives"
+    install -Dm755 "${nativeBuild}/lib/${platform.nativeLibrary}" \
       "packages/natives/native/${platform.addon}"
     # The loader and embed-native.ts require the release version, which is
     # written into the addon after linking (build-bindings.ts does this for
@@ -209,7 +169,7 @@ stdenv.mkDerivation {
       signIfRequired "packages/natives/native/${platform.addon}"
     ''}
 
-    echo "Compiling Zeta"
+    echo "Compiling OMP"
     BUN_COMPILE_EXECUTABLE_PATH="${bunRuntimeTemplate}/libexec/bun" \
       bun --cwd="$PWD/packages/coding-agent" run build
 
@@ -219,9 +179,9 @@ stdenv.mkDerivation {
   installPhase = ''
     runHook preInstall
 
-    install -Dm755 packages/coding-agent/dist/zeta "$out/bin/zeta"
-    install -Dm644 LICENSE "$out/share/doc/zeta/LICENSE"
-    install -Dm644 THIRD-PARTY-NOTICES.txt "$out/share/doc/zeta/THIRD-PARTY-NOTICES.txt"
+    install -Dm755 packages/coding-agent/dist/omp "$out/bin/omp"
+    install -Dm644 LICENSE "$out/share/doc/omp/LICENSE"
+    install -Dm644 THIRD-PARTY-NOTICES.txt "$out/share/doc/omp/THIRD-PARTY-NOTICES.txt"
 
     ${lib.optionalString stdenv.hostPlatform.isLinux ''
       # The addon is gzip-compressed inside the compiled binary, so its linked
@@ -238,10 +198,10 @@ stdenv.mkDerivation {
   # inert shebang. Remove its hash before Nix scans output references; this
   # runs before Darwin's binary-signing fixup hook.
   preFixup = ''
-    remove-references-to -t ${bun} "$out/bin/zeta"
+    remove-references-to -t ${bun} "$out/bin/omp"
   '';
 
-  # Prebuilt addons that zeta bun-installs into its cache at first use
+  # Prebuilt addons that omp bun-installs into its cache at first use
   # (onnxruntime-node, sherpa-onnx-node, sharp, fastembed) are process.dlopen'd and
   # need libstdc++.so.6 / libgcc_s.so.1, which nix glibc's default loader path lacks;
   # their own DT_RUNPATH means this executable's RPATH is never consulted for their
@@ -255,12 +215,12 @@ stdenv.mkDerivation {
   # soname from the already-loaded set, regardless of the addon's own DT_RUNPATH.
   # stdenv.cc.cc.lib is already in buildInputs, so the autoPatchelfHook pass that
   # follows resolves the new dependency and sets the RPATH. patchelf must run before
-  # wrapProgram: the wrapper replaces $out/bin/zeta with a script and moves the ELF
-  # to $out/bin/.zeta-wrapped.
+  # wrapProgram: the wrapper replaces $out/bin/omp with a script and moves the ELF
+  # to $out/bin/.omp-wrapped.
   postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
-    patchelf --add-needed libstdc++.so.6 "$out/bin/zeta"
-    wrapProgram "$out/bin/zeta" \
-      --set-default ZETA_NATIVE_LIBRARY_PATH "${lib.makeLibraryPath runtimeNativeLibraries}"
+    patchelf --add-needed libstdc++.so.6 "$out/bin/omp"
+    wrapProgram "$out/bin/omp" \
+      --set-default OMP_NATIVE_LIBRARY_PATH "${lib.makeLibraryPath runtimeNativeLibraries}"
   '';
 
   disallowedReferences = [ bun ];
@@ -274,27 +234,27 @@ stdenv.mkDerivation {
   # section address. preInstallCheck runs after every fixupPhase hook, including
   # the autoPatchelfHook pass that follows postFixup, so it is the last point at
   # which the field can be corrected; wrapProgram moved the real ELF to
-  # `.zeta-wrapped`.
+  # `.omp-wrapped`.
   preInstallCheck = lib.optionalString stdenv.hostPlatform.isLinux ''
-    bun ${../scripts/fix-dt-verdef.ts} "$out/bin/.zeta-wrapped"
+    bun ${../scripts/fix-dt-verdef.ts} "$out/bin/.omp-wrapped"
   '';
 
   doInstallCheck = true;
   installCheckPhase = ''
     runHook preInstallCheck
-    # Capture rather than pipe into grep: piping masks a signal death of zeta
+    # Capture rather than pipe into grep: piping masks a signal death of omp
     # under `set -o pipefail` (grep -q's exit status wins), which hid the
-    # loader SIGSEGV in issue #9881. With a variable, errexit surfaces zeta's
+    # loader SIGSEGV in issue #9881. With a variable, errexit surfaces omp's
     # real exit status and stderr in the build log.
-    smokeOutput="$(HOME="$TMPDIR" "$out/bin/zeta" --smoke-test)"
+    smokeOutput="$(HOME="$TMPDIR" "$out/bin/omp" --smoke-test)"
     grep -q "smoke-test: ok" <<<"$smokeOutput"
-    BUN_BE_BUN=1 "$out/bin/zeta" -e \
+    BUN_BE_BUN=1 "$out/bin/omp" -e \
       'if (Bun.version !== "${bun.version}" || typeof Bun.Image !== "function") process.exit(1)'
     ${lib.optionalString stdenv.hostPlatform.isLinux ''
       # The addons are dlopen'd, so prove the advertised directories actually
       # resolve the libraries rather than merely carrying a plausible string.
-      env -u LD_LIBRARY_PATH BUN_BE_BUN=1 "$out/bin/zeta" -e \
-        'const {dlopen}=require("bun:ffi");const dirs=(process.env.ZETA_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libstdc++.so.6":{__cxa_demangle:{args:["ptr","ptr","ptr","ptr"],returns:"ptr"}},"libgcc_s.so.1":{_Unwind_Backtrace:{args:["ptr","ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
+      env -u LD_LIBRARY_PATH BUN_BE_BUN=1 "$out/bin/omp" -e \
+        'const {dlopen}=require("bun:ffi");const dirs=(process.env.OMP_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libstdc++.so.6":{__cxa_demangle:{args:["ptr","ptr","ptr","ptr"],returns:"ptr"}},"libgcc_s.so.1":{_Unwind_Backtrace:{args:["ptr","ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
       # The libstdc++ preload (see postFixup) must survive: without it addons the
       # main process dlopen's directly fail to resolve libstdc++.so.6 on NixOS.
       # wrapProgram moved the real ELF to .omp-wrapped.
@@ -308,7 +268,7 @@ stdenv.mkDerivation {
         # lives at the host's driver link, which does not exist in this sandbox
         # and is not a property of the build.
         env -u LD_LIBRARY_PATH BUN_BE_BUN=1 "$out/bin/omp" -e \
-          'const {dlopen}=require("bun:ffi");const dirs=(process.env.ZETA_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libcublasLt.so.13":{cublasLtGetVersion:{args:[],returns:"ptr"}},"libcublas.so.13":{cublasGetVersion:{args:[],returns:"ptr"}},"libcurand.so.10":{curandGetVersion:{args:["ptr"],returns:"i32"}},"libcudart.so.13":{cudaRuntimeGetVersion:{args:["ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
+          'const {dlopen}=require("bun:ffi");const dirs=(process.env.OMP_NATIVE_LIBRARY_PATH||"").split(":").filter(Boolean);const need={"libcublasLt.so.13":{cublasLtGetVersion:{args:[],returns:"ptr"}},"libcublas.so.13":{cublasGetVersion:{args:[],returns:"ptr"}},"libcurand.so.10":{curandGetVersion:{args:["ptr"],returns:"i32"}},"libcudart.so.13":{cudaRuntimeGetVersion:{args:["ptr"],returns:"i32"}}};for(const lib of Object.keys(need)){let ok=false;for(const d of dirs){try{dlopen(d+"/"+lib,need[lib]);ok=true;break}catch(e){}}if(!ok){console.error("unresolved: "+lib);process.exit(1)}}'
       ''
     }
     ${lib.optionalString stdenv.hostPlatform.isDarwin ''
@@ -329,10 +289,10 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Terminal-based coding agent with multi-model support";
-    homepage = "https://zeta.sh";
-    changelog = "https://github.com/Linxira-OS/linxira-zeta/releases/tag/v${packageJson.version}";
+    homepage = "https://omp.sh";
+    changelog = "https://github.com/can1357/oh-my-pi/releases/tag/v${packageJson.version}";
     license = lib.licenses.mit;
-    mainProgram = "zeta";
+    mainProgram = "omp";
     platforms = [
       "aarch64-darwin"
       "aarch64-linux"

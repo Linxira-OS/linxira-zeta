@@ -1,6 +1,6 @@
 # Context files
 
-Context files are Markdown instruction files that `zeta` discovers automatically before a session starts and injects into the agent's project context. Use them for repository conventions, architecture notes, test and review expectations, and instructions that should travel with a user account or a project.
+Context files are Markdown instruction files that `zetacode` discovers automatically before a session starts and injects into the agent's project context. Use them for repository conventions, architecture notes, test and review expectations, and instructions that should travel with a user account or a project.
 
 You never have to ask the agent to go read `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or similar files — the relevant ones are already discovered, loaded, and placed in context when the session begins.
 
@@ -21,8 +21,8 @@ The native provider is the recommended format for new projects. It reads from yo
 
 | File                                          | Scope   | Behavior                                                                                                                                                                                                                                             |
 | --------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `~/.zeta/agent/AGENTS.md`                      | User    | User-level context for every session unless the `native` provider is disabled.                                                                                                                                                                       |
-| `<nearest-non-empty-ancestor>/.zeta/AGENTS.md` | Project | Project context, but only when `AGENTS.md` exists in the **nearest non-empty `.zeta/` directory** found while walking from cwd toward the repository root. ZETA does not continue to a farther `.zeta/` directory when the nearest one lacks this file. |
+| `~/.zeta/agent/AGENTS.md`                      | User    | User-level context unless the `native` provider is disabled. Main sessions and advisors receive it; task subagents do not, including when they rediscover additional workspace roots. See [Inputs by session type](system-prompt-customization.md#inputs-by-session-type). |
+| `<nearest-non-empty-ancestor>/.zeta/AGENTS.md` | Project | Project context, but only when `AGENTS.md` exists in the **nearest non-empty `.zeta/` directory** found while walking from cwd toward the repository root. ZETA does not continue to a farther `.zeta/` directory when the nearest one lacks this file. Main sessions and advisors receive it; task subagents do not inherit it. |
 | `~/.zeta/agent/RULES.md`                       | User    | User-level sticky rule content. Loaded as an always-apply rule, not as a context file.                                                                                                                                                               |
 | `<nearest-non-empty-ancestor>/.zeta/RULES.md`  | Project | Project sticky content, but only when `RULES.md` exists in the same nearest non-empty `.zeta/` directory selected by the walk.                                                                                                                        |
 
@@ -31,7 +31,7 @@ Two details matter:
 - **The nearest non-empty `.zeta/` directory owns native project discovery.** Discovery starts in the current working directory and climbs toward the repository root. Once it finds a non-empty `.zeta/`, it stops; native `AGENTS.md` and `RULES.md` are each read from that directory only. A missing file does not make discovery continue upward.
 - **Empty directories and files contribute nothing.** An empty `.zeta/` directory is skipped during the walk. In the selected non-empty directory, an empty `AGENTS.md` or `RULES.md` contributes nothing.
 
-`~/.zeta/agent` is shorthand for the active native agent directory. `ZETA_CODING_AGENT_DIR` relocates it. A named profile (`zetacode --profile <name>`, `OMP_PROFILE`, or `PI_PROFILE`) uses `~/.zeta/profiles/<name>/agent` by default; external-tool user bases such as `~/.claude` are not profile-scoped.
+`~/.zeta/agent` is shorthand for the active native agent directory. `PI_CODING_AGENT_DIR` relocates it. A named profile (`zetacode --profile <name>`, `OMP_PROFILE`, or `PI_PROFILE`) uses `~/.zeta/profiles/<name>/agent` by default; external-tool user bases such as `~/.claude` are not profile-scoped.
 
 ### Monorepo example
 
@@ -50,11 +50,11 @@ Starting a session in `repo/packages/api`:
 - The native context file is `repo/packages/api/.zeta/AGENTS.md` (the nearest one). `repo/.zeta/AGENTS.md` is **not** also included.
 - Because `repo/packages/api/.zeta/` is the nearest non-empty native directory, project sticky content can only come from `repo/packages/api/.zeta/RULES.md`. If that file is absent, `repo/.zeta/RULES.md` is **not** used.
 
-Put broad, durable project background in `AGENTS.md`. Reserve `RULES.md` for short, hard requirements that must stay visible across long conversations.
+Put broad, durable project background in `AGENTS.md`. Reserve `RULES.md` for short, hard requirements that must stay visible across long conversations. Task subagents drop every context file named `AGENTS.md` — inherited from the parent or discovered for an additional workspace root — but still get `RULES.md`, so put anything helpers must follow in `RULES.md`. The filter is by file name only: `AGENTS.md` text pulled in through an `@` import from another file (such as `CLAUDE.md`) and `contextFiles.extra` files such as `AGENTS.local.md` still reach subagents.
 
 ## Other supported context conventions
 
-`zeta` also discovers the context and rule files of other agent tools so existing projects keep working without migration.
+`zetacode` also discovers the context and rule files of other agent tools so existing projects keep working without migration.
 
 Foreign **user-level** sources (`claude`, `codex`, `gemini`, `opencode`, and `github` in the table below) are opt-in through `enabledProviders`; their project-level files remain enabled by default. Native and `.agent` / `.agents` user sources are enabled by default. An explicit `CLAUDE_CONFIG_DIR` also opts in Claude user discovery and relocates its user base. For example:
 
@@ -80,7 +80,7 @@ enabledProviders:
 | `custom-context` | names in `contextFiles.extra` | User + project | Opt-in basenames such as `AGENTS.local.md`. Project walk matches `agents-md`. Also the user agent directory, and the primary checkout root when the session is a linked worktree. Additive: does not take or shadow the one-per-depth slot. Empty until configured. |
 | `github`    | `.github/instructions/**/*.instructions.md` | Project rules  | GitHub Copilot / VS Code instruction files become rules. `applyTo: '*'`, `applyTo: '**'`, or `applyTo: '**/*'` is injected as always-apply content; other `applyTo` globs are listed in the rulebook with a generated description when needed and are readable as `rule://<name>`. Missing `applyTo` also produces a rulebook entry and a discovery warning. |
 
-Providers marked "(no ancestor walk-up)" only look in the current working directory's config directory. If you need ancestor walk-up behavior, prefer the native `.zeta/AGENTS.md` format or a standalone `AGENTS.md` or `CLAUDE.md` (the `agents-md` / `claude-md` providers), or launch `zeta` from the directory that holds the config directory.
+Providers marked "(no ancestor walk-up)" only look in the current working directory's config directory. If you need ancestor walk-up behavior, prefer the native `.zeta/AGENTS.md` format or a standalone `AGENTS.md` or `CLAUDE.md` (the `agents-md` / `claude-md` providers), or launch `zetacode` from the directory that holds the config directory.
 
 The discovery registry also holds providers that contribute no context files at all: `cursor` (`.cursor/rules/*.mdc` and legacy `.cursorrules` rules, plus MCP servers and settings), `windsurf` (`.windsurf/rules/*.md`, legacy `.windsurfrules`, and global Windsurf rules, plus MCP servers), `cline` (`.clinerules` rules), `vscode` and `mcp-json` (MCP servers), `claude-plugins` (Claude marketplace plugins: skills, commands, rules, hooks, tools, MCP servers), `omp-plugins` (ZETA plugins: skills, commands, rules, prompts, hooks, tools, MCP servers), `agent-plugins` (Agent Plugins standard packages: skills and MCP servers), `ssh-json` (SSH hosts), and `builtin-defaults` (built-in default rules). These become relevant for rules and other capabilities, and for the shared `disabledProviders` switch below.
 
@@ -103,7 +103,7 @@ Each name is found the same way as a standalone `AGENTS.md` (the `agents-md` wal
 
 Two more locations are checked for each name:
 
-- The active user agent directory (`~/.zeta/agent/<name>`, or the profile / `ZETA_CODING_AGENT_DIR` directory), as a user-level file. Skipped when the effective list comes from a project config (`.zeta/config.yml`), so a repository cannot pull files such as `config.yml` from your agent directory into the prompt.
+- The active user agent directory (`~/.zeta/agent/<name>`, or the profile / `PI_CODING_AGENT_DIR` directory), as a user-level file. Skipped when the effective list comes from a project config (`.zeta/config.yml`), so a repository cannot pull files such as `config.yml` from your agent directory into the prompt.
 - When the session is in a linked git worktree, `<primary-checkout>/<name>`. The normal walk stops at the worktree's `.git`, so this is what picks up a gitignored `AGENTS.local.md` that lives only in the main checkout. Only the primary checkout's root is checked, not the directory matching your cwd inside it.
 
 Extra files do not take the one-per-depth scope slot and are not shadowed by the file that does. `AGENTS.local.md` loads beside `AGENTS.md`. At the same depth the extra file is injected after the scope winner, so it is the more prominent of the two. `@` imports inside an extra file resolve from that file's own directory.

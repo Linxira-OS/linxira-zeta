@@ -584,7 +584,7 @@ export const MUST_NOT_CONTAIN: Array<{
 	},
 	{
 		needle: /@linxiraos\/pi-coding-agent\//,
-		why: "package-name mapping (damage class 3): our product package is @linxiraos/zeta (registry: pi-coding-agent→zeta), and it is the one workspace member that is NOT linked under its upstream leaf name — a plain scope swap from @oh-my-pi/pi-coding-agent/ yields a specifier that resolves nowhere, so every self-import breaks check:ts (v18.9.1: 62 files swept back to @linxiraos/zeta/)",
+		why: "package-name mapping (damage class 3): our product package is @linxiraos/zeta (registry: pi-coding-agent→zeta), and it is the one workspace member that is NOT linked under its upstream leaf name — a plain scope swap from @linxiraos/zeta/ yields a specifier that resolves nowhere, so every self-import breaks check:ts (v18.9.1: 62 files swept back to @linxiraos/zeta/)",
 		exempt: ["scripts/brand/brand-rules.ts"],
 	},
 	{
@@ -713,7 +713,7 @@ export const MUST_NOT_CONTAIN: Array<{
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md", "document/merge-playbook.md"],
 	},
 	{
-		needle: /ompRelayVersion:\s*"18\.|restartOwned\("18\./,
+		needle: /zetaRelayVersion:\s*"18\.|restartOwned\("18\./,
 		why: "relay fixtures must not hardcode the upstream 18.x line: isOlderRelayVersion compares with Bun.semver.order against our VERSION (1.x), so '18.0.0' reads as *newer* and every older-relay case inverts into 'a newer zeta owns it' (v18.9.1 PR CI). Use OLDER_RELAY_VERSION in test/tools/browser-relay-*.test.ts",
 		exempt: ["CHANGELOG.md", "document/upstream-sync.md"],
 	},

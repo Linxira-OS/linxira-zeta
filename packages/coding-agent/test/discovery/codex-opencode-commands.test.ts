@@ -6,6 +6,7 @@ import { clearCache as clearFsCache } from "@linxiraos/zeta/capability/fs";
 import { type SlashCommand, slashCommandCapability } from "@linxiraos/zeta/capability/slash-command";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
 import { loadCapability } from "@linxiraos/zeta/discovery";
+import { loadSlashCommands } from "@linxiraos/zeta/extensibility/slash-commands";
 import { commandInspectorData, commandPreview } from "@linxiraos/pi-tui/overlays/extensions/inspector-model";
 import { InspectorPanel } from "@linxiraos/pi-tui/overlays/extensions/inspector-panel";
 import { applyFilter } from "@linxiraos/pi-tui/overlays/extensions/state-manager";
@@ -55,7 +56,7 @@ describe("Codex and OpenCode slash-command frontmatter", () => {
 		clearFsCache();
 		resetSettingsForTest();
 		originalHome = process.env.HOME;
-		root = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-provider-commands-"));
+		root = await fs.mkdtemp(path.join(os.tmpdir(), "omp-provider-commands-"));
 		home = path.join(root, "home");
 		project = path.join(root, "project");
 		process.env.HOME = home;
@@ -156,6 +157,30 @@ describe("Codex and OpenCode slash-command frontmatter", () => {
 		expect(data.usesArguments).toBe(true);
 
 		expect(applyFilter([ext], "Deploy a service").map(item => item.name)).toEqual(["deploy"]);
+	});
+
+	test("Codex and OpenCode side: true commands load as side commands; quoted true does not", async () => {
+		const sideFile = ["---", "description: Situation report", "side: true", "---", "Report status", ""].join("\n");
+		const quotedFile = ["---", "description: Quoted flag", 'side: "true"', "---", "Body", ""].join("\n");
+		for (const [dir, prefix] of [
+			[".codex", "codex"],
+			[".opencode", "opencode"],
+		] as const) {
+			const commandsDir = path.join(project, dir, "commands");
+			await fs.mkdir(commandsDir, { recursive: true });
+			await fs.writeFile(path.join(commandsDir, `${prefix}-sitrep.md`), sideFile);
+			await fs.writeFile(path.join(commandsDir, `${prefix}-quoted.md`), quotedFile);
+		}
+
+		const commands = await loadSlashCommands({ cwd: project });
+		for (const prefix of ["codex", "opencode"]) {
+			const sitrep = commands.find(command => command.name === `${prefix}-sitrep`);
+			const quoted = commands.find(command => command.name === `${prefix}-quoted`);
+			expect(sitrep?.side).toBe(true);
+			expect(sitrep?.content.trim()).toBe("Report status");
+			expect(quoted).toBeDefined();
+			expect(quoted?.side).toBeUndefined();
+		}
 	});
 
 	test("frontmatter-only command preview keeps an empty body", () => {

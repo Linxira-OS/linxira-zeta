@@ -4,6 +4,7 @@ import { Agent } from "@linxiraos/pi-agent-core";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
@@ -69,6 +70,30 @@ describe("InteractiveMode live settings", () => {
 		expect(effective.leftSegments).toEqual(["time", "model"]);
 		expect(effective.contextLine).toBe("off");
 		expect(mode.hideThinkingBlock).toBe(true);
+	});
+
+	it("coalesces restored agent registrations and renders their final state", async () => {
+		const sync = vi.spyOn(mode, "syncRunningSubagentBadge");
+		const badge = vi.spyOn(mode.statusLine, "setRunningSubagents");
+		const registry = AgentRegistry.global();
+		const ids = Array.from({ length: 100 }, (_, index) => `restore-burst-${index}`);
+		vi.useFakeTimers();
+		try {
+			for (const id of ids) {
+				registry.register({ id, displayName: id, kind: "sub", session: null, status: "running" });
+			}
+			expect(sync).not.toHaveBeenCalled();
+			vi.advanceTimersByTime(100);
+			expect(sync).toHaveBeenCalledTimes(1);
+			expect(badge.mock.calls.at(-1)?.[0]).toEqual(expect.arrayContaining(ids));
+			for (const id of ids) registry.unregister(id);
+			vi.advanceTimersByTime(100);
+			expect(sync).toHaveBeenCalledTimes(2);
+			expect(badge.mock.calls.at(-1)?.[0].some(id => ids.includes(id))).toBe(false);
+		} finally {
+			vi.useRealTimers();
+			for (const id of ids) registry.unregister(id);
+		}
 	});
 
 	it("keeps an explicitly configured unicode status bar after Glyph Protocol confirmation", async () => {

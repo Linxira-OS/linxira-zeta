@@ -9,14 +9,10 @@ import {
 	GoalContinuationController,
 	type GoalContinuationSession,
 } from "@linxiraos/zeta/goals/continuation-controller";
-import {
-	isRpcSessionSettled,
-	RpcSessionSettleWatcher,
-	type RpcSettleSession,
-	watchedScheduledTurnProbe,
-} from "@linxiraos/zeta/modes/rpc/rpc-session-settle";
+import { RpcSessionSettleWatcher, watchedScheduledTurnProbe } from "@linxiraos/zeta/modes/rpc/rpc-session-settle";
 import type { RpcSessionState } from "@linxiraos/zeta/modes/rpc/rpc-types";
 import type { AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
+import { isSessionSettled, type SessionSettleState } from "@linxiraos/zeta/session/session-settle";
 import type { GoalModeState } from "@linxiraos/zeta/goals/state";
 import { removeWithRetries, withTimeout } from "@linxiraos/pi-utils";
 
@@ -798,12 +794,12 @@ describe("GoalContinuationController continuation gate", () => {
 		ref.watcher = watcher;
 		await controller.beginSessionChange();
 		await controller.handle({ op: "create", objective: "held during the change" });
-		expect(isRpcSessionSettled(session as unknown as RpcSettleSession, probe)).toBe(false);
+		expect(isSessionSettled(session as unknown as SessionSettleState, probe)).toBe(false);
 		// The change switches away, so the held turn is abandoned and nothing will run.
 		transcript.id = "t2";
 		await controller.endSessionChange();
 		await watcher.check();
-		expect(isRpcSessionSettled(session as unknown as RpcSettleSession, probe)).toBe(true);
+		expect(isSessionSettled(session as unknown as SessionSettleState, probe)).toBe(true);
 		expect(frames).toEqual(["session_settled"]);
 	});
 

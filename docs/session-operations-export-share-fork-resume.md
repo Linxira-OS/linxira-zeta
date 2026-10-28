@@ -19,25 +19,25 @@ This document describes operator-visible behavior for session export, sharing, c
 
 ## Operation matrix
 
-| Operation                                 | Entry path                   | Session mutation                              | Session file creation/switch                                                                                                                                                 | Output artifact                                                                                 |
-| ----------------------------------------- | ---------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `/dump [all]`                             | Slash command (TUI/headless) | No                                            | No                                                                                                                                                                           | Clipboard/command text plus best-effort temporary JSON sidecar; `all`: temp zip                 |
-| `/export [--themes] [path]`               | Slash command (TUI/headless) | No                                            | No                                                                                                                                                                           | HTML file                                                                                       |
-| `--export <session.jsonl> [outputPath]`   | CLI startup fast-path        | No runtime session mutation                   | No active session; reads target file                                                                                                                                         | HTML file                                                                                       |
-| `/share`                                  | Slash command (TUI/headless) | No                                            | No                                                                                                                                                                           | Redacted Markdown under ~/.zeta/share plus an agent prompt to publish it with the user's gh CLI |
-| `/new`                                    | Interactive slash command    | Yes (starts an empty conversation)            | Switches identity and materializes a new header in persistent mode                                                                                                           | None                                                                                            |
-| `/fresh`                                  | Slash command (TUI/headless) | Yes (provider-facing in-memory id/state only) | No; keeps current session file/header                                                                                                                                        | None                                                                                            |
-| `/clear`                                  | Interactive slash command    | Yes (clears live/model conversation context)  | Retains identity/file/history; a lazy session still follows the normal persistence gate                                                                                      | Appends `reset_boundary`                                                                        |
-| `/delete yes`                             | Interactive slash command    | Yes (starts an empty conversation)            | Attempts to delete the current persisted session and artifacts, then switches to a new one                                                                                   | None                                                                                            |
-| `/fork`                                   | Interactive slash command    | Yes (active session identity changes)         | Creates new session file and switches current session to it (persistent mode only)                                                                                           | Copies artifact directory to new session namespace when present                                 |
-| `/fork pane`, `/fork window`, `/fork tab` | Interactive slash command    | No (parent session retained)                  | Opens a child OMP process from the flushed current transcript in a multiplexer pane/group (tmux window, Zellij/Herdr/Orca tab, or CMUX workspace)                            | Child receives a separate forked session                                                        |
-| `--fork <id\|path>`                       | CLI startup                  | Yes after session creation                    | Creates a new session fork from the selected source into current cwd/session dir                                                                                             | Copies source artifacts recursively by default                                                  |
-| `/seance [id\|path] [--model sel]`        | Interactive slash command    | No (active session and model unchanged)       | Forks the source transcript into a read-only consultant subagent under the current session                                                                                   | None; the consultant reads the source's artifacts in place                                      |
-| `/resume [id\|@claude\|@codex]`           | Interactive slash command    | Yes (active in-memory state replaced)         | Switches to a selected/matched session, or imports a selected foreign session                                                                                                | None                                                                                            |
-| `--resume`                                | CLI startup picker           | Yes after session creation                    | Opens selected existing session file (picker opens in current-folder scope; the global list is preloaded only for the empty-everything early exit and instant Tab switching) | None                                                                                            |
-| `--resume <id\|path>`                     | CLI startup                  | Yes after session creation                    | Opens existing session; a missing recorded cwd may be re-rooted into the current directory                                                                                   | None                                                                                            |
-| `/restart`                                | Interactive slash command    | Yes (process relaunches)                      | Keeps configuration flags; resumes a materialized session, otherwise starts fresh                                                                                            | None                                                                                            |
-| `--continue`                              | CLI startup                  | Yes after session creation                    | Opens terminal breadcrumb or most-recent session; creates new one if none exists                                                                                             | None                                                                                            |
+| Operation                               | Entry path                   | Session mutation                              | Session file creation/switch                                                               | Output artifact                                                                     |
+| --------------------------------------- | ---------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `/dump [all]`                           | Slash command (TUI/headless) | No                                            | No                                                                                         | Clipboard/command text plus best-effort temporary JSON sidecar; `all`: temp zip    |
+| `/export [--themes] [path]`             | Slash command (TUI/headless) | No                                            | No                                                                                         | HTML file                                                                           |
+| `--export <session.jsonl> [outputPath]` | CLI startup fast-path        | No runtime session mutation                   | No active session; reads target file                                                       | HTML file                                                                           |
+| `/share`                                | Slash command (TUI/headless) | No                                            | No                                                                                         | Encrypted share link (gist or share server); temp HTML only for TUI custom handlers |
+| `/new`                                  | Interactive slash command    | Yes (starts an empty conversation)            | Switches identity and materializes a new header in persistent mode                         | None                                                                                |
+| `/fresh`                                | Slash command (TUI/headless) | Yes (provider-facing in-memory id/state only) | No; keeps current session file/header                                                      | None                                                                                |
+| `/clear`                                | Interactive slash command    | Yes (clears live/model conversation context)  | Retains identity/file/history; a lazy session still follows the normal persistence gate    | Appends `reset_boundary`                                                            |
+| `/delete`                               | Interactive slash command    | Yes (starts an empty conversation)            | Attempts to delete the current persisted session and artifacts, then switches to a lazy successor (no empty file until content) | None                                                                                |
+| `/fork`                                 | Interactive slash command    | Yes (active session identity changes)         | Creates new session file and switches current session to it (persistent mode only)         | Copies artifact directory to new session namespace when present                     |
+| `/fork pane`, `/fork window`, `/fork tab` | Interactive slash command  | No (parent session retained)                   | Opens a child OMP process from the flushed current transcript in a multiplexer pane/group (tmux window, Zellij/Herdr/Orca tab, or CMUX workspace) | Child receives a separate forked session                                            |
+| `--fork <id\|path>`                     | CLI startup                  | Yes after session creation                    | Creates a new session fork from the selected source into current cwd/session dir           | Copies source artifacts recursively by default                                      |
+| `/seance [id\|path] [--model sel]`      | Interactive slash command    | No (active session and model unchanged)       | Forks the source transcript into a read-only consultant subagent under the current session  | None; the consultant reads the source's artifacts in place                          |
+| `/resume [id\|@claude\|@codex]`         | Interactive slash command    | Yes (active in-memory state replaced)         | Switches to a selected/matched session, or imports a selected foreign session              | None                                                                                |
+| `--resume`                              | CLI startup picker           | Yes after session creation                    | Opens selected existing session file (picker opens in current-folder scope; the global list is preloaded only for the empty-everything early exit and instant Tab switching) | None                |
+| `--resume <id\|path>`                   | CLI startup                  | Yes after session creation                    | Opens existing session; a missing recorded cwd may be re-rooted into the current directory | None                                                                                |
+| `/restart`                              | Interactive slash command    | Yes (process relaunches)                      | Keeps configuration flags; resumes a materialized session, otherwise starts fresh          | None                                                                                |
+| `--continue`                            | CLI startup                  | Yes after session creation                    | Opens terminal breadcrumb or most-recent session; creates new one if none exists           | None                                                                                |
 
 ## Export and dump
 
@@ -59,9 +59,9 @@ Behavior details:
 - `--copy`, `clipboard`, and `copy` arguments are explicitly rejected with a warning to use `/dump`.
 - Export embeds session header/entries/leaf plus current `systemPrompt` and tool descriptions from agent state. `previousSessionFiles` is omitted from exported headers.
 - Subagent transcripts stored next to the session file (`<session>/<AgentId>.jsonl`, recursively for nested spawns) are embedded as `subSessions` (`collectSubSessions` in `src/session/sub-sessions.ts`; disable with `includeSubSessions: false` in `ExportOptions`). Discovery skips advisor transcripts (`__advisor*.jsonl`), descends only into real child directories, and flags tombstoned (killed) agents as `aborted`. In the page, agent ids in task tool cards open a breadcrumbed sub-session overlay.
-- Tool calls render through the `<zeta-tool-view>` web component — the React per-tool renderers shared with collab-web (`packages/collab-web/src/tool-render/`), prebuilt into `src/export/html/tool-views.generated.js` by `bun run gen:tool-views`.
+- Tool calls render through the `<omp-tool-view>` web component — the React per-tool renderers shared with collab-web (`packages/collab-web/src/tool-render/`), prebuilt into `src/export/html/tool-views.generated.js` by `bun run gen:tool-views`.
 - No session entries are appended during export.
-- The default filename is `zeta-session-<session-file-stem>.html` in the current directory. HTML export is not secret-redacted or encrypted; it can contain raw context, image data, and extension payloads.
+- The default filename is `omp-session-<session-file-stem>.html` in the current directory. HTML export is not secret-redacted or encrypted; it can contain raw context, image data, and extension payloads.
 
 Caveat:
 
@@ -104,14 +104,14 @@ Dump transcript content includes:
 - Tool results and execution blocks (except `excludeFromContext` bash/python entries)
 - Custom/hook/file mention/branch summary/compaction summary entries
 
-The best-effort JSON sidecar is named `zeta-llm-request-<id>.json` under the OS temporary directory. It contains the current model, thinking level, service tier, system prompt, wire tool schemas, and LLM-converted messages. It persists after the command and can contain raw context or secrets; protect or remove it accordingly. A sidecar failure does not suppress the transcript (the TUI reports the failure; headless execution silently omits the path).
+The best-effort JSON sidecar is named `omp-llm-request-<id>.json` under the OS temporary directory. It contains the current model, thinking level, service tier, system prompt, wire tool schemas, and LLM-converted messages. It persists after the command and can contain raw context or secrets; protect or remove it accordingly. A sidecar failure does not suppress the transcript (the TUI reports the failure; headless execution silently omits the path).
 
 No session persistence entries are appended by dumping.
 
 ### `/dump all` (zip of per-agent dumps)
 
 `/dump all` calls `session.dumpSessionArchiveToTmpDir()`, which writes
-`zeta-dump-<id>.zip` under the OS temporary directory with:
+`omp-dump-<id>.zip` under the OS temporary directory with:
 
 - `session.md` — the same main transcript `/dump` copies
 - `llm-request.json` — the same payload as the `/dump` sidecar (best-effort; omitted if conversion fails)
@@ -121,37 +121,12 @@ Subagent system prompts and tool inventories are not persisted, so subagent file
 
 ## Share
 
-> **Current `/share` behavior (2026-10-24):** the slash command no longer
-> uploads to a Zeta/OMP server. It writes a redacted Markdown transcript under
-> `~/.zeta/share/<session-id>.md` and hands the agent a publication prompt:
-> check `gh auth status`, ask for the user's repository/branch/visibility, copy
-> the transcript, then commit and push to **their own GitHub repository** (or
-> give them exact manual commands when `gh` is not authenticated). The original
-> session JSONL is not committed unless the user asks for a machine-readable
-> copy. Secret redaction follows `share.redactSecrets`; publication is always
-> explicit about the target repo, and no transcript is pasted into chat. The
-> agent must use the current user's own GitHub account and local `gh` login
-> only, never read or print a token, and point product issues at
-> `https://github.com/Linxira-OS/linxira-zeta/issues`.
->
-> The encrypted blob/gist flow below is the **legacy `zetacode share` CLI
-> path** (`../packages/coding-agent/src/export/share.ts`), retained for
-> compatibility. The slash command uses
-> [`../packages/coding-agent/src/export/share-github.ts`](../packages/coding-agent/src/export/share-github.ts).
+`/share` publishes an end-to-end encrypted snapshot of the session and prints
+a viewer link. Implementation: [`../packages/coding-agent/src/export/share.ts`](../packages/coding-agent/src/export/share.ts).
 
-### Legacy CLI path: encrypted snapshot
+### TUI phase 1: custom share handler (if present)
 
-`zetacode share` (and the legacy helper) publishes an end-to-end encrypted
-snapshot of the session and prints a viewer link. Implementation:
-[`../packages/coding-agent/src/export/share.ts`](../packages/coding-agent/src/export/share.ts).
-
-### Removed: TUI custom share handler
-
-The slash command no longer loads `~/.zeta/agent/share.{ts,js,mjs}`; the
-GitHub prompt above replaced it. This contract is documented only for old
-configurations that still contain the file (it is now ignored).
-
-The former `loadCustomShare()` checked the active agent directory
+The interactive TUI's `loadCustomShare()` checks the active agent directory
 (default `~/.zeta/agent`) for the first existing candidate:
 
 - `share.ts`
@@ -163,7 +138,7 @@ Requirements:
 - Module must default-export a function `(htmlPath) => Promise<CustomShareResult | string | undefined>`.
 
 If present and valid, the legacy contract is preserved: the session is
-exported to a temp HTML file (`${os.tmpdir()}/${Snowflake.next()}.html`),
+exported to a temp HTML file under `os.tmpdir()`,
 the handler receives its path, and the temp file is removed afterwards.
 Handler result interpretation:
 
@@ -177,14 +152,16 @@ Critical fallback behavior:
 - If custom handler executes and throws, command errors and returns.
 - In both failure cases, it **does not** fall back to the default flow.
 - The default flow runs only when no custom share script exists.
-- Headless/ACP slash-command execution does not load custom share scripts; it always uses the default encrypted flow.
+- The hook runs on the host that owns the session: standalone TUI in-process, and for an attached TUI the
+  forwarded `/share` runs the backend's `~/.zeta/agent/share.*` and returns the same URL/message text.
+  Headless/ACP execution therefore loads the hook for its own agent directory instead of skipping it.
 
 Custom handlers receive ordinary HTML export, not the default redacted/encrypted
 snapshot. Their publishing, encryption, and privacy policy are entirely their
 own. The HTML-export contract also means a custom handler cannot share an
 in-memory session through this path.
 
-### Legacy default encrypted share
+### Default encrypted share
 
 For headless execution, or in the TUI only when no custom share handler is found, `shareSession()`:
 
@@ -197,14 +174,14 @@ For headless execution, or in the TUI only when no custom share handler is found
    (`[12B IV][ciphertext+tag]`).
 4. Upload target is chosen by `share.store`:
    - **Share server** (default, `store: "blob"`) — `POST <share.serverUrl>`
-     (default `https://my.omp.sh/s`) with the raw blob, capped at 1 MB.
+     (default `https://my.zeta.sh/s`) with the raw blob, capped at 1 MB.
      Oversized snapshots are trimmed until they fit: inline images first,
      then long strings (32,768 → 8,192 → 2,048 → 512 character caps), then
      oldest entries. If the reduced snapshot still exceeds the budget, sharing
      fails rather than uploading an oversized blob.
    - **Secret gist** (`store: "gist"`) — when `gh` is installed and
      authenticated, the sealed blob is pushed base64-encoded as
-     `session.ompshare.txt` (budget 5 MB sealed; gist raw fetches cap at
+     `session.zetashare.txt` (budget 5 MB sealed; gist raw fetches cap at
      10 MB), falling back to the share server when `gh` is unusable or gist
      creation fails.
 5. The link is `<share.serverUrl>/<id>#<base64url key>` in both cases. The
@@ -239,12 +216,12 @@ cache identity, advisor spend, and promoted memory context. Workspace roots are
 seeded from current settings, and project instructions are refreshed from disk.
 The TUI leaves a focused subagent view and clears its transcript.
 
-`/delete yes` uses the same transition with `drop: true`. It requires a
-session-file path, attempts to delete the old JSONL and artifact tree instead of
-retaining them, and still starts a new session if deletion fails. Bare `/delete`
-or any other argument refuses and prints the usage plus the current session
-title; it never deletes. A before-switch hook can cancel the transition. Both
-`/delete yes` and `/new` are rejected while vibe mode is active.
+`/delete` uses the same transition with `drop: true`. It requires a session-file
+path, attempts to delete the old JSONL and artifact tree instead of retaining
+them, and still starts a new session if deletion fails. Unlike `/new`, that
+successor is lazy: no header is written until it has content, so quitting
+without a message leaves no zero-turn session behind. A before-switch hook can
+cancel either operation. Both are rejected while vibe mode is active.
 
 ## Fresh
 
@@ -267,8 +244,8 @@ keeping the conversation you can see.
 
 Because it keeps both the visible and model-facing conversation, `/fresh`
 differs from `/clear` (clear the live/model conversation in place), `/new`
-(start a brand-new empty session), and `/delete yes` (attempt to delete the
-current session and start a new one). Only `/fresh` preserves the existing conversation
+(start a brand-new empty session), and `/delete` (attempt to delete the current
+session and start a new one). Only `/fresh` preserves the existing conversation
 while giving the provider stream state a clean slate.
 
 ## Clear
@@ -298,8 +275,8 @@ command aborts it and waits for it to stop before resetting.
 The TUI clears its rendered transcript after a successful clear. This differs
 from `/fresh`, which rotates provider stream state without clearing the
 conversation; `/new`, which creates a new session identity and transcript file;
-and `/delete yes`, which attempts to delete the old persisted session before
-starting a new one.
+and `/delete`, which attempts to delete the old persisted session before starting
+a new one.
 
 ## BTW history
 
@@ -384,11 +361,11 @@ The original bare `/fork` uses `AgentSession.fork()`:
 - Requires persistent mode and an assigned session-file path; the source need not already be materialized on disk.
 - Creates new session id and new JSONL file path.
 - Rewrites header with:
-   - new `id`
-   - new timestamp
-   - `cwd` unchanged
-   - `parentSession` set to previous session id
-   - `providerPromptCacheKey` set to the previous header's inherited key, or the previous session id when none was pinned
+  - new `id`
+  - new timestamp
+  - `cwd` unchanged
+  - `parentSession` set to previous session id
+  - `providerPromptCacheKey` set to the previous header's inherited key, or the previous session id when none was pinned
 - Keeps all non-header entries unchanged in the new file.
 
 ### Non-persistent behavior
@@ -451,13 +428,13 @@ Without an argument:
 
 1. Opens the session selector populated via `SessionManager.listForPicker(currentCwd, currentSessionDir)`. Pinned sessions come first; untitled, prompt-less zero-turn stubs are hidden unless pinned. The picker always opens in current-folder scope; the empty state invites Tab into all-projects instead of auto-switching.
 2. Tab toggles to all-projects scope, lazily loading and caching `SessionManager.listAllForPicker()`.
-3. On selection, `SelectorController.handleResumeSession(sessionPath)` calls `session.switchSession(sessionPath)`. If the switch is rejected, it returns `false` and the selector stops without applying the new-session UI state.
+3. On selection, `SelectorController.handleResumeSession(sessionPath, { followContinuation: true })` first follows `findSessionContinuation` to the copy with the newest turn (see CLI `--resume <value>`), then calls `session.switchSession(<that path>)`. If the switch is rejected, it returns `false` and the selector stops without applying the new-session UI state.
 4. After a successful switch, UI clears/rebuilds chat and todos, then reports `Resumed session` (or `Resumed session in <dir>` when the resumed session belongs to another project, in which case the process cwd and cwd-derived caches are re-pointed via `applyCwdChange`).
 
 With an argument:
 
-- `/resume <id>` resolves an id/filename prefix with local-first, then global fallback and switches directly to the matched file; an unknown value reports `Session "<value>" not found`.
-- `/resume @claude` and `/resume @codex` open a foreign-session picker. Selecting one converts and persists it under a fresh OMP session identity, then switches to that new session.
+- `/resume <id>` resolves an id/filename prefix with local-first, then global fallback, and opens the copy `resolveResumeTarget` picks, the same one the CLI's `--resume <id>` opens (see CLI `--resume <value>`); an unknown value reports `Session "<value>" not found`.
+- `/resume @claude` and `/resume @codex` open a foreign-session picker. Selecting one converts and persists it under a fresh ZETA session identity, then switches to that new session.
 
 ## CLI `--resume`
 
@@ -475,12 +452,15 @@ With an argument:
    - current scope (`SessionManager.list(cwd, sessionDir)`)
    - global sessions (`SessionManager.listAll()`) only when no explicit `sessionDir` was provided
 3. Matching accepts case-insensitive session id prefixes, full JSONL filename prefixes, and the id suffix after the timestamp in `<timestamp>_<sessionId>.jsonl`.
+4. When nothing matches, the resolver (`resolveResumeTarget`) looks in the same scopes for a `<timestamp>_<sessionId>.jsonl` file whose name matches but which no longer reads as a session (the listing skips it), and takes the copy that continues it (see below). Otherwise resolution fails with `Session "<value>" not found.`
+
+Both forms then follow the session's continuations (`findSessionContinuation`, through `resolveResumeTarget` for a key): when its conversation went on in another file of the same directory (a sibling whose header names it in `continuationOf`), the copy with the newest turn opens instead, unless the named file has turns of its own that copy lacks, and a notice names both files. A file that no longer holds the session its generated `<timestamp>_<sessionId>.jsonl` name records was replaced under that session (conflict recovery leaves it as it found it); resume then opens the copy that continues the named session, when one exists. That applies to a path whose file no longer parses, and to a key that matched only the file name (the file holds another session) or found an unlisted file in step 4. A path whose file holds another session opens that session; a file without a generated name records no session id and is never taken as replaced.
 
 Id/filename-prefix match behavior (local or global):
 
 - If the matched session's recorded directory no longer exists, CLI asks `Session's directory no longer exists (...). Move (re-root) it into the current directory? [Y/n]`.
-   - On yes (default), `SessionManager.open()` is anchored at the missing source cwd with `initialCwd`, then `manager.moveTo(cwd, sessionDir)` re-roots the existing session without duplicating it.
-   - On no, startup is cancelled. In non-TTY mode, startup fails with an error directing the user to run interactively.
+  - On yes (default), `SessionManager.open()` is anchored at the missing source cwd with `initialCwd`, then `manager.moveTo(cwd, sessionDir)` re-roots the existing session without duplicating it.
+  - On no, startup is cancelled. In non-TTY mode, startup fails with an error directing the user to run interactively.
 - If the recorded directory still exists, the matched session is opened directly. Startup later changes the process/project scope to the resumed session's cwd and reloads cwd-scoped settings and plugin caches. It is not implicitly forked.
 
 Path-valued resume opens directly rather than using the missing-directory move
@@ -489,7 +469,8 @@ the launch cwd without relocating the transcript; a failed cwd switch/rescope
 also prints a fallback warning.
 The same enterability policy applies to picker selections. A missing direct path
 fails with `Session "<path>" not found.`; an existing empty file or malformed
-non-empty headers fail closed without modifying the file.
+non-empty headers fail closed without modifying the file, unless the file was
+replaced under a session that went on in a sibling (see above).
 
 ## CLI `--restore`
 
@@ -531,9 +512,12 @@ combined with `--continue`, `--fork`, imports, `--goal` or `--no-session`.
 3. If it points into a nested artifact/subagent session, resolution walks up to the top-level interactive parent session (up to eight levels).
 4. A matching-cwd breadcrumb is used when it lies within an explicitly supplied session directory, if any. Otherwise discovery chooses the newest session with resumable content, skipping untitled, prompt-less zero-turn stubs.
 5. For a different, missing recorded cwd, automatic re-rooting additionally requires the current directory's device/inode to match the breadcrumb's recorded directory identity and no genuine current-project session to take precedence. A deleted/unmounted path, legacy breadcrumb without identity, or cross-filesystem move is not enough evidence to relocate history.
-6. Opens the chosen session, or creates a new one when no candidate exists.
+6. When the chosen session's conversation went on in another file of the same directory (its header names the chosen session in `continuationOf`), chooses that copy instead and reports it to the `onSessionContinuation` option (the CLI prints a notice); step 5 re-roots that copy, not the file the breadcrumb names. A session the breadcrumb names is kept when it has turns its continuation lacks, as with `--resume`; a pick by write time takes the linked copy with the newest turn in either direction.
+7. Opens the chosen session, or creates a new one when no candidate exists.
 
 For compatibility, `--continue <full-UUID>` is normalized to `--resume <UUID>` when the UUID is the sole positional message. The `autoResume` setting invokes the same `continueRecent` behavior when no explicit session flag/session directory is supplied, and restores session model/thinking state when a prior transcript was found.
+
+If implicit interactive auto-resume exhausts the saved models and model-fallback policy forbids substitution, startup closes the skipped session, warns, and starts a new session without its history or provider cache identity. It does not retry older transcripts or weaken restoration policy. When `--max-time` is set, the new session keeps the launch's original absolute deadline; time spent on the failed restore is not added back to the budget. Explicit `--continue`/`--resume`, runtime `/resume`, and headless/SDK hosts still fail closed under the same policy; an explicit model override remains an intentional way to restore the transcript with another model.
 
 This is startup-only behavior; there is no interactive `/continue` slash command.
 
@@ -562,10 +546,10 @@ falls back to spawning the replacement with inherited terminal streams.
 7. Replace agent messages, reset advisor state, and synchronize todos. Close cached provider sessions for a different file, or for a same-file reload whose replay messages changed.
 8. Apply the resolved (or explicitly requested) model. If the loaded branch ended with an interrupted turn, append its synthetic abort message and rebuild context.
 9. Restore configured/effective thinking and per-family service tiers, falling back to current settings when the target branch has no corresponding entries.
-10.   For a different transcript, reset memory context; for any conversation rewrite, clear session-scoped tool state.
-11.   Reconnect agent events, run the optional session-switch reconciler (interactive mode uses it to re-enter persisted modes such as plan), and best-effort refresh the workspace-root system-prompt block. Reconciler/prompt-refresh errors are logged rather than rolling back the committed switch.
-12.   Restore target advisor cost state, finish the bash transition, notify session-change callbacks when the session id changed, and return `true`.
-      `switchSession()` returns `false` when a before-switch hook cancels or cwd policy rejects the transition. A cross-project switch without a cwd-change callback is rejected rather than silently adopting the target cwd; callback rejection is also cancellation. The interactive selector checks this result and leaves the existing session/UI unchanged.
+10. For a different transcript, reset memory context; for any conversation rewrite, clear session-scoped tool state.
+11. Reconnect agent events, run the optional session-switch reconciler (interactive mode uses it to re-enter persisted modes such as plan), and best-effort refresh the workspace-root system-prompt block. Reconciler/prompt-refresh errors are logged rather than rolling back the committed switch.
+12. Restore target advisor cost state, finish the bash transition, notify session-change callbacks when the session id changed, and return `true`.
+`switchSession()` returns `false` when a before-switch hook cancels or cwd policy rejects the transition. A cross-project switch without a cwd-change callback is rejected rather than silently adopting the target cwd; callback rejection is also cancellation. The interactive selector checks this result and leaves the existing session/UI unchanged.
 
 If a throwing step in the guarded transition fails, `switchSession()` restores the captured session, agent queues/messages, tools/prompts, model/thinking/service-tier, provider/cache, memory, and checkpoint state; it reconnects the prior agent subscription and re-runs mode reconciliation before rethrowing.
 
@@ -582,11 +566,11 @@ Model restoration fails closed, like startup resume: a switch never silently mov
 For `newSession`, `fork`, and `switchSession`:
 
 - Before event: `session_before_switch`
-   - reasons: `new`, `fork`, `resume`
-   - cancellable by returning `{ cancel: true }`
+  - reasons: `new`, `fork`, `resume`
+  - cancellable by returning `{ cancel: true }`
 - After event: `session_switch`
-   - same reason set
-   - includes `previousSessionFile`
+  - same reason set
+  - includes `previousSessionFile`
 
 `ExtensionRunner.emit()` returns early on the first cancelling before-event result.
 When a before-switch hook cancels, `switchSession()` returns `false` and does not emit the after-switch event.
@@ -624,7 +608,7 @@ When session manager is created with `SessionManager.inMemory()` (`--no-session`
 
 - `/share` custom-share failures do not degrade to the default encrypted share flow; they terminate the TUI command with an error.
 - `/export` argument tokenization does not preserve quoted paths with spaces.
-- `/delete yes` treats deletion as best-effort: it attempts to delete the current
+- `/delete` treats deletion as best-effort: it attempts to delete the current
   session JSONL and artifact directory, logs any deletion failure, and still
   creates and switches to a new session. A failed or partial deletion can leave
   the old session or its artifacts on disk, so `/delete` is not a guaranteed

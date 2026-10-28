@@ -175,7 +175,7 @@ async function resolvePublishScope(client: SkillshareClient, flagScope: string |
 }
 
 async function reportedProvenance(dir: string): Promise<SkillReportedProvenance> {
-	const provenance: SkillReportedProvenance = { ompVersion: VERSION };
+	const provenance: SkillReportedProvenance = { zetaVersion: VERSION };
 	try {
 		const repo = vcs.git(dir);
 		if (!repo) return provenance;

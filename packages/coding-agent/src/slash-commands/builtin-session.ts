@@ -20,6 +20,7 @@ import { theme } from "@linxiraos/pi-tui/theme";
 import { sanitizeText } from "@linxiraos/pi-utils";
 import { handleMcpAcp } from "./helpers/mcp";
 import { markdownFenceFor } from "../utils/markdown-fence";
+import { openLocalFileInEditor } from "../modes/local-file-editor";
 import { commandConsumed, errorMessage, parseSubcommand, usage } from "./helpers/parse";
 import {
 	describeRedeemOutcome,
@@ -599,7 +600,19 @@ export const BUILTIN_SESSION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
 		},
 	},
 	{
+		name: "local",
+		icon: "pencil",
+		description: () => M.cmdOpenSessionLocalFileInEditor,
+		inlineHint: "[name]",
+		allowArgs: true,
+		handleTui: async (command, runtime) => {
+			clearSubmittedText(runtime);
+			await openLocalFileInEditor(runtime.ctx, command.args);
+		},
+	},
+	{
 		name: "hub",
+		aliases: ["subagents"],
 		icon: "agents",
 		description: () => M.cmdOpenTheLiveAgentHub,
 		handleTui: (_command, runtime) => {

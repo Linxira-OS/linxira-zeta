@@ -3,13 +3,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { AgentBusyError } from "@linxiraos/pi-agent-core";
-import { AuthStorage, type Model, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { Database } from "bun:sqlite";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import type { Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import type { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import type { ExtensionUIContext } from "@linxiraos/zeta/extensibility/extensions";
 import { ExtensionRuntime } from "@linxiraos/zeta/extensibility/extensions/loader";
 import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { buildSkillPromptMessage } from "@linxiraos/zeta/extensibility/skills";
 import { resolveLocalUrlToPath } from "@linxiraos/zeta/internal-urls";
 import * as oauthFlowModule from "@linxiraos/zeta/mcp/oauth-flow";
 import {
@@ -45,8 +48,6 @@ import {
 import { TOOL_NAME as DELAYED_MCP_TOOL_NAME } from "./fixtures/delayed-tool-mcp";
 
 import { cfgPlanAutosave, cfgPlanAutosaveDir, cfgPlanEnabled } from "@linxiraos/zeta/plan-mode/settings";
-import { cfgTrackingEnabled } from "@linxiraos/zeta/tools/settings";
-import { Database } from "bun:sqlite";
 
 /** Validates an ACP wire payload against the in-house protocol schemas. */
 function expectAcpStructure(schema: Validator<unknown>, value: unknown): void {
@@ -168,6 +169,7 @@ class FakeAgentSession {
 	customMessageOptions: Array<{ streamingBehavior?: "steer" | "followUp"; queueChipText?: string } | undefined> = [];
 	skillsSettings = { enableSkillCommands: true };
 	skills: Array<{ name: string; description: string; filePath: string; baseDir: string; source: string }> = [];
+	buildUserSkillPrompt = buildSkillPromptMessage;
 	async refreshSkillsAndCommands(): Promise<void> {}
 	subscribeCommandMetadataChanged(_listener: () => void): () => void {
 		return () => {};
@@ -376,6 +378,8 @@ class FakeAgentSession {
 	setActiveToolsByName(_toolNames: string[]): void {}
 
 	setClientBridge(_bridge: unknown): void {}
+
+	setMcpServerInstructionsSource(_source: unknown): void {}
 
 	getPlanModeState(): PlanModeState | undefined {
 		return this.planModeState;
@@ -668,9 +672,11 @@ describe("ACP agent", () => {
 		expect(forkedMessages.some(message => message.role === "user" && message.content === "fork me")).toBe(true);
 
 		await harness.agent.closeSession({ sessionId: forked.sessionId });
-		await expect(harness.agent.setSessionMode({ sessionId: forked.sessionId, modeId: "default" })).rejects.toThrow(
-			"Unsupported ACP session",
-		);
+		await expect(
+			harness.agent.setSessionMode({ sessionId: forked.sessionId, modeId: "default" }),
+		).rejects.toMatchObject({
+			code: -32002,
+		});
 
 		harness.abortController.abort();
 		await Bun.sleep(0);
@@ -844,62 +850,6 @@ describe("ACP agent", () => {
 		const saved = path.join(harness.cwdA, ".zeta", "plans", "WORDS_COUNTER_PLAN.md");
 		expect(await Bun.file(saved).text()).toBe("# Words Counter\n\nFile contents.");
 		expect(session.planModeState).toBeUndefined();
-
-		harness.abortController.abort();
-		await Bun.sleep(0);
-	});
-
-	it("plan-proposal handler mirrors the approved plan into project tracking", async () => {
-		const harness = await createHarness();
-		cfgPlanEnabled.set(Settings.instance, true);
-		cfgTrackingEnabled.set(Settings.instance, true);
-
-		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
-		const session = harness.findSession(created.sessionId)!;
-		await harness.agent.setSessionMode({ sessionId: created.sessionId, modeId: "plan" });
-
-		const localOptions = {
-			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
-			getSessionId: () => session.sessionManager.getSessionId(),
-		};
-		cleanupRoots.push(resolveLocalUrlToPath("local://", localOptions));
-		const planPath = resolveLocalUrlToPath("local://words-counter-plan.md", localOptions);
-		await Bun.write(planPath, "# Words Counter\n\nFile contents.");
-
-		const handler = session.planProposalHandler!;
-		const result = (await handler("words-counter")) as { content: Array<{ type: string; text: string }> };
-		expect(result.content[0]?.text).toMatch(/Plan approved/);
-
-		// Independent of plan autosave (`plan.autosave` is off here): the mirror
-		// lands under the session cwd's tracking dir, named from the resolved
-		// plan title.
-		const mirrored = path.join(harness.cwdA, ".zeta", "tracking", "plans", "words-counter-plan.md");
-		expect(await Bun.file(mirrored).text()).toBe("# Words Counter\n\nFile contents.\n");
-
-		harness.abortController.abort();
-		await Bun.sleep(0);
-	});
-
-	it("plan-proposal handler writes no tracking mirror when tracking is disabled", async () => {
-		const harness = await createHarness();
-		cfgPlanEnabled.set(Settings.instance, true);
-
-		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
-		const session = harness.findSession(created.sessionId)!;
-		await harness.agent.setSessionMode({ sessionId: created.sessionId, modeId: "plan" });
-
-		const localOptions = {
-			getArtifactsDir: () => session.sessionManager.getArtifactsDir(),
-			getSessionId: () => session.sessionManager.getSessionId(),
-		};
-		cleanupRoots.push(resolveLocalUrlToPath("local://", localOptions));
-		const planPath = resolveLocalUrlToPath("local://words-counter-plan.md", localOptions);
-		await Bun.write(planPath, "# Words Counter\n\nFile contents.");
-
-		const handler = session.planProposalHandler!;
-		const result = (await handler("words-counter")) as { content: Array<{ type: string; text: string }> };
-		expect(result.content[0]?.text).toMatch(/Plan approved/);
-		expect(await Bun.file(path.join(harness.cwdA, ".zeta", "tracking", "plans")).exists()).toBe(false);
 
 		harness.abortController.abort();
 		await Bun.sleep(0);
@@ -2596,8 +2546,7 @@ describe("ACP agent", () => {
 		expect(firstResponse.stopReason).toBe("cancelled");
 
 		const queuedError = await secondPrompt;
-		expect(queuedError).toBeInstanceOf(Error);
-		expect((queuedError as Error).message).toBe("ACP cancel cleanup timed out");
+		expect(queuedError).toMatchObject({ code: -32002 });
 
 		// The fire-and-forget close runs off the same cleanup rejection; give it a
 		// few ticks to settle before asserting.
@@ -2611,7 +2560,7 @@ describe("ACP agent", () => {
 				messageId: "00000000-0000-4000-8000-000000000047",
 				prompt: [{ type: "text", text: "after stuck implicit cancel" }],
 			} as PromptRequest),
-		).rejects.toThrow("Unsupported ACP session");
+		).rejects.toMatchObject({ code: -32002 });
 
 		finishPrompt();
 		harness.abortController.abort();
@@ -3180,6 +3129,53 @@ describe("ACP agent", () => {
 		}
 	});
 
+	it("accepts a new prompt after Python's five-second interrupt escalation", async () => {
+		const harness = await createHarness();
+		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
+		const session = harness.findSession(created.sessionId)!;
+		const abortRelease = Promise.withResolvers<void>();
+		const promptStarted = Promise.withResolvers<void>();
+		const nextPromptStarted = Promise.withResolvers<void>();
+		session.abort = async () => {
+			await abortRelease.promise;
+			session.isStreaming = false;
+		};
+		const finishPrompt = holdPromptStreaming(session);
+		const heldPrompt = session.prompt;
+		session.prompt = async text => {
+			(text === "interrupt a stuck Python cell" ? promptStarted : nextPromptStarted).resolve();
+			return heldPrompt(text);
+		};
+
+		const firstPrompt = harness.agent.prompt({
+			sessionId: created.sessionId,
+			prompt: [{ type: "text", text: "interrupt a stuck Python cell" }],
+		});
+		await promptStarted.promise;
+		vi.useFakeTimers();
+		try {
+			const cancelPrompt = harness.agent.cancel({ sessionId: created.sessionId });
+			expect((await firstPrompt).stopReason).toBe("cancelled");
+			vi.advanceTimersByTime(5_200);
+			abortRelease.resolve();
+			await cancelPrompt;
+			expect(session.disposed).toBe(false);
+
+			const secondPrompt = harness.agent.prompt({
+				sessionId: created.sessionId,
+				prompt: [{ type: "text", text: "continue after interrupt escalation" }],
+			});
+			await nextPromptStarted.promise;
+			finishPrompt();
+			expect((await secondPrompt).stopReason).toBe("end_turn");
+		} finally {
+			abortRelease.resolve();
+			finishPrompt();
+			vi.useRealTimers();
+			harness.abortController.abort();
+		}
+	});
+
 	it("closes the ACP session when cancel cleanup times out", async () => {
 		const harness = await createHarness();
 		const created = await harness.agent.newSession({ cwd: harness.cwdA, mcpServers: [] });
@@ -3206,7 +3202,7 @@ describe("ACP agent", () => {
 				messageId: "00000000-0000-4000-8000-000000000042",
 				prompt: [{ type: "text", text: "after stuck cancel" }],
 			} as PromptRequest),
-		).rejects.toThrow("Unsupported ACP session");
+		).rejects.toMatchObject({ code: -32002 });
 
 		finishPrompt();
 		harness.abortController.abort();
@@ -3240,8 +3236,7 @@ describe("ACP agent", () => {
 
 		await cancelPrompt;
 		const queuedError = await queuedPrompt;
-		expect(queuedError).toBeInstanceOf(Error);
-		expect(queuedError.message).toBe("ACP cancel cleanup timed out");
+		expect(queuedError).toMatchObject({ code: -32002 });
 		expect(session.promptCalls).toEqual(["stuck cancel before queued"]);
 
 		finishPrompt();
@@ -3850,6 +3845,19 @@ describe("ACP agent", () => {
 				type: "string",
 				description: "e.g. claude",
 			});
+		});
+
+		it("refuses secret input requests without emitting a plaintext form elicitation", async () => {
+			const { connection, calls } = createElicitConnection(async () => ({
+				action: "accept",
+				content: { value: "shh" },
+			}));
+			const ctx = createAcpExtensionUiContext(connection, () => "session-secret-input", FORM_CAPABILITIES);
+
+			const result = await ctx.input("API key", "sk-...", { secret: true });
+
+			expect(result).toBeUndefined();
+			expect(calls).toHaveLength(0);
 		});
 
 		it("translates editor to a string elicitation with the prefill as default", async () => {

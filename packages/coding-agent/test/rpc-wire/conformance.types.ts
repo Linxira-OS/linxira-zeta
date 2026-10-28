@@ -25,8 +25,12 @@ import type {
 	RpcAvailableCommandsUpdateFrame,
 	RpcAvailableSlashCommand,
 	RpcBtwDeltaFrame,
+	RpcBtwHistoryRecord,
 	RpcBtwRecordFrame,
 	RpcCommand,
+	RpcDictationEndFrame,
+	RpcDictationStateFrame,
+	RpcDictationTranscriptFrame,
 	RpcExtensionUIRequest,
 	RpcExtensionUIResponse,
 	RpcHostToolCallRequest,
@@ -58,7 +62,7 @@ import type {
 import type * as Wire from "@linxiraos/zeta/modes/rpc/wire/rpc-wire.generated";
 import type { RestoredQueuedMessage } from "@linxiraos/zeta/session/agent-session-types";
 import type { SessionStats } from "@linxiraos/zeta/session/agent-session";
-import type { BtwHistoryRecord, BtwHistoryTurn } from "@linxiraos/zeta/session/btw-history";
+import type { BtwHistoryTurn } from "@linxiraos/zeta/session/btw-history";
 import type { UsageLimitState } from "@linxiraos/zeta/session/usage-limit";
 import type { ContextUsage } from "@linxiraos/pi-tui/status-line/types";
 import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
@@ -210,6 +214,9 @@ export type Frames = Assert<
 		liveLevels: Outbound<RpcLiveLevelsFrame, Wire.LiveLevelsEvent>;
 		liveTranscript: Outbound<RpcLiveTranscriptFrame, Wire.LiveTranscriptEvent>;
 		liveEnd: Outbound<RpcLiveEndFrame, Wire.LiveEndEvent>;
+		dictationState: Outbound<RpcDictationStateFrame, Wire.DictationStateEvent>;
+		dictationTranscript: Outbound<RpcDictationTranscriptFrame, Wire.DictationTranscriptEvent>;
+		dictationEnd: Outbound<RpcDictationEndFrame, Wire.DictationEndEvent>;
 		btwDelta: Outbound<RpcBtwDeltaFrame, Wire.BtwDeltaEvent>;
 		btwRecord: Outbound<RpcBtwRecordFrame, Wire.BtwRecordEvent>;
 		hostToolCall: Outbound<RpcHostToolCallRequest, Wire.HostToolCallRequest>;
@@ -271,7 +278,7 @@ export type State = Assert<
 		slashSubcommand: Outbound<NonNullable<RpcAvailableSlashCommand["subcommands"]>[number], Wire.SlashSubcommand>;
 		subagentSnapshot: Outbound<RpcSubagentSnapshot, Wire.SubagentSnapshot>;
 		subagentMessages: Outbound<RpcSubagentMessagesResult, Wire.SubagentMessages>;
-		btwHistoryRecord: Outbound<BtwHistoryRecord, Wire.BtwHistoryRecord>;
+		btwHistoryRecord: Outbound<RpcBtwHistoryRecord, Wire.BtwHistoryRecord>;
 		btwHistoryTurn: Outbound<BtwHistoryTurn, Wire.BtwHistoryTurn>;
 		logoutAccount: Outbound<LogoutAccount, Wire.LogoutAccount>;
 		btwStatuses: Same<BtwHistoryTurn["status"], Wire.BtwStatus>;

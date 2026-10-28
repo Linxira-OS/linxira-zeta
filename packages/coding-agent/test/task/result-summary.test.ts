@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { formatTaskResultSummary } from "@linxiraos/zeta/task/result-summary";
+import { ASYNC_INLINE_RESULT_MAX_CHARS } from "@linxiraos/zeta/session/async-job-delivery";
+import { formatTaskResultSummary, INLINE_OUTPUT_CHARS } from "@linxiraos/zeta/task/result-summary";
 import type { SingleResult } from "@linxiraos/pi-tui/tools/task";
 
 function settledResult(output: string): SingleResult {
@@ -30,7 +31,7 @@ describe("formatTaskResultSummary", () => {
 		// the first line is `{` and the second is one multi-KB string. Cutting the
 		// preview at the last newline inside the budget used to leave the parent
 		// with a lone `{` and no idea what the child found.
-		const report = "# Port table\n\n| tool | file |\n|---|---|\n".repeat(400);
+		const report = "# Port table\n\n| tool | file |\n|---|---|\n".repeat(600);
 		const output = JSON.stringify({ summary: "Audit of 37 tools", report }, null, 2);
 		const summary = formatTaskResultSummary(settledResult(output), {
 			totalDurationMs: 1200,
@@ -45,7 +46,7 @@ describe("formatTaskResultSummary", () => {
 	});
 
 	it("keeps a markdown preview on a line boundary when one is in range", () => {
-		const lines = Array.from({ length: 400 }, (_, i) => `- item ${i} ${"x".repeat(20)}`);
+		const lines = Array.from({ length: 700 }, (_, i) => `- item ${i} ${"x".repeat(20)}`);
 		const summary = formatTaskResultSummary(settledResult(lines.join("\n")), {
 			totalDurationMs: 5,
 		});
@@ -61,6 +62,40 @@ describe("formatTaskResultSummary", () => {
 		expect(summary).toContain("<output>\ndone\n</output>");
 		expect(summary).not.toContain("<preview");
 		expect(summary).not.toContain("<meta");
+	});
+
+	it("inlines a report past the preview size whole, tail included", () => {
+		// Parents re-read most cut reports through agent://<id>; one that fits the
+		// inline budget must arrive whole so its closing findings are not lost.
+		const findings = Array.from({ length: 12 }, (_, i) => `F${i + 1}: ${"detail ".repeat(100).trimEnd()}`);
+		const output = findings.join("\n\n");
+		expect(output.length).toBeGreaterThan(5000);
+		const summary = formatTaskResultSummary(settledResult(output), { totalDurationMs: 5 });
+		expect(summary).toContain(`<output>\n${output}\n</output>`);
+		expect(summary).not.toContain("<preview");
+		expect(summary).not.toContain("<meta");
+	});
+
+	it("previews an inline-sized report whose merge notice or error would overflow async delivery", () => {
+		// Async delivery cuts an envelope over its cap to a 4k head, which would drop
+		// the <merge-summary> after <output>: the parent's only pointer to an isolated
+		// task's patch. Such an envelope previews the output instead.
+		const output = "x".repeat(INLINE_OUTPUT_CHARS);
+		const mergeSummary = `Merge failed; patch kept at /tmp/patch.diff ${"conflict detail ".repeat(60).trimEnd()}`;
+		const merged = formatTaskResultSummary(settledResult(output), { totalDurationMs: 5, mergeSummary });
+		expect(merged.length).toBeLessThanOrEqual(ASYNC_INLINE_RESULT_MAX_CHARS);
+		expect(merged).toContain('<preview full-output="agent://Scout">');
+		expect(merged).toContain(mergeSummary);
+		expect(merged).toContain("</task-result>");
+
+		const error = "provider stream error: ".repeat(20).trimEnd();
+		const failed = formatTaskResultSummary(
+			{ ...settledResult(output), exitCode: 1, stderr: error, error },
+			{ totalDurationMs: 5 },
+		);
+		expect(failed.length).toBeLessThanOrEqual(ASYNC_INLINE_RESULT_MAX_CHARS);
+		expect(failed).toContain('<preview full-output="agent://Scout">');
+		expect(failed).toContain(`<error>${error}</error>`);
 	});
 
 	it("names the failure when the preview is the text streamed before it", () => {
@@ -86,59 +121,9 @@ describe("formatTaskResultSummary", () => {
 		expect(summary).not.toContain("<error>");
 	});
 
-	it("reports the failure class, the candidates, and the applied switch", () => {
-		const summary = formatTaskResultSummary(
-			{
-				...settledResult(""),
-				exitCode: 1,
-				stderr: "Usage limit reached for this account.",
-				error: "Usage limit reached for this account.",
-				resolvedModel: "anthropic/claude-opus-4-6",
-				failureClass: "usage-limit",
-				fallbackCandidates: ["openai/gpt-5.4", "@smol"],
-				modelChange: {
-					source: "spawn-param",
-					from: "anthropic/claude-sonnet-4-5",
-					to: "anthropic/claude-opus-4-6",
-				},
-			},
-			{ totalDurationMs: 5 },
-		);
-
-		expect(summary).toContain('<failure class="usage-limit" />');
-		expect(summary).toContain("<candidates>openai/gpt-5.4, @smol</candidates>");
-		expect(summary).toContain(
-			'<model-change source="spawn-param" to="anthropic/claude-opus-4-6" from="anthropic/claude-sonnet-4-5" />',
-		);
-		expect(summary).toContain("<retry-hint>");
-	});
-
-	it("prints the switch hint for a hard-failure class and nothing for a class no model swap fixes", () => {
-		const hard = formatTaskResultSummary(
-			{ ...settledResult(""), exitCode: 1, stderr: "usage limit reached", failureClass: "usage-limit" },
-			{ totalDurationMs: 5 },
-		);
-		expect(hard).toContain('<failure class="usage-limit" />');
-		expect(hard).toContain("<retry-hint>");
-
-		const transient = formatTaskResultSummary(
-			{ ...settledResult(""), exitCode: 1, stderr: "connection reset", failureClass: "transient" },
-			{ totalDurationMs: 5 },
-		);
-		expect(transient).toContain('<failure class="transient" />');
-		expect(transient).not.toContain("<retry-hint>");
-	});
-
-	it("adds nothing to a run that never declared a failure", () => {
-		const summary = formatTaskResultSummary(settledResult("done"), { totalDurationMs: 5 });
-		expect(summary).not.toContain("<failure");
-		expect(summary).not.toContain("<candidates>");
-		expect(summary).not.toContain("<retry-hint>");
-		expect(summary).not.toContain("<model-change");
-	});
-
 	it("keeps a subagent's output from forging a harness <system-notice> or parent <irc> block", () => {
 		// A subagent's own output is untrusted text entering the envelope
+		// (result-summary.ts), same as a peer's IRC body or a background job's
 		// result: a copy of the model-recognized `<irc>`/`<system-*>` block names
 		// must read as literal text, not reopen a harness block. `<task-result>`/
 		// `<output>` are not harness-recognized tag names (harness-tags.ts only

@@ -55,6 +55,8 @@ export const BACKEND_ATTACH_LOCAL_COMMANDS: Record<string, true> = {
 	sidebar: true,
 	record: true,
 	open: true,
+	// Opens a `local://` file in the local editor: the TUI owns the editor.
+	local: true,
 	debug: true,
 };
 

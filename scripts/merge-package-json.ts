@@ -266,7 +266,7 @@ function sectionEntries(value: unknown): Record<string, string> {
 
 /**
  * Section keys as they are comparable across the three sides: an upstream-scope
- * key (`@oh-my-pi/pi-ai`, `@mariozechner/pi-ai`) is the same entry as its Zeta
+ * key (`@linxiraos/pi-ai`, `@mariozechner/pi-ai`) is the same entry as its Zeta
  * rename, so both sides must be read through `zetaKeyFor` before deciding.
  */
 function effectiveSectionKeys(manifest: Record<string, string>): Map<string, string> {

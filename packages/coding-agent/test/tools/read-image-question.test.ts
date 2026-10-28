@@ -4,10 +4,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type completeSimple, Effort, type ImageContent, type Model } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import type { ImageAttachmentEntry, ToolSession } from "@linxiraos/zeta/tools";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import * as pdfRead from "@linxiraos/zeta/tools/read-pdf";
+import { removeSyncWithRetries } from "@linxiraos/pi-utils";
 
 import { cfgImagesAutoResize } from "@linxiraos/zeta/modes/settings";
 
@@ -168,7 +169,7 @@ describe("read image questions", () => {
 	let imagePath: string;
 
 	beforeAll(() => {
-		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "zeta-read-image-question-"));
+		testDir = fs.mkdtempSync(path.join(os.tmpdir(), "omp-read-image-question-"));
 		imagePath = path.join(testDir, "screen.png");
 		fs.writeFileSync(imagePath, Buffer.from(TINY_PNG_BASE64, "base64"));
 	});
@@ -205,6 +206,39 @@ describe("read image questions", () => {
 
 		expect(result.content).toEqual([{ type: "text", text: "Attached image" }]);
 		expect(stub.calls).toHaveLength(1);
+	});
+
+	it("keeps image questions content-based when a raster file has a JSON backup suffix", async () => {
+		const backupPath = path.join(testDir, "screen.json.bak");
+		await Bun.write(backupPath, Buffer.from(TINY_PNG_BASE64, "base64"));
+		const stub = createCompleteSimpleSuccessStub("Raster image");
+		const result = await new ReadTool(createSession(testDir, visionModel), stub.fn).execute("backup-image", {
+			path: `${backupPath}?q=Describe this image`,
+		});
+		expect(result.content).toEqual([{ type: "text", text: "Raster image" }]);
+		expect(stub.calls).toHaveLength(1);
+	});
+
+	it("keeps PDF-page questions on the screenshot route instead of the JSON route", async () => {
+		const pdfPath = path.join(testDir, "question.pdf");
+		await Bun.write(pdfPath, "%PDF-fixture");
+		const render = vi.spyOn(pdfRead, "renderPdfPageScreenshot").mockResolvedValue({
+			dest: imagePath,
+			mimeType: "image/png",
+			bytes: Buffer.byteLength(TINY_PNG_BASE64, "base64"),
+			width: 1,
+			height: 1,
+		});
+		try {
+			const stub = createCompleteSimpleSuccessStub("PDF page two");
+			const result = await new ReadTool(createSession(testDir, visionModel), stub.fn).execute("pdf-question", {
+				path: `${pdfPath}:page2.png?q=Describe the page`,
+			});
+			expect(result.content).toEqual([{ type: "text", text: "PDF page two" }]);
+			expect(render).toHaveBeenCalledWith(expect.anything(), pdfPath, 2, undefined);
+		} finally {
+			render.mockRestore();
+		}
 	});
 
 	it("rasterizes selected SVGs before asking the vision model", async () => {

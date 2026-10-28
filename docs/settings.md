@@ -1,10 +1,8 @@
 # Settings
 
-`zeta` resolves settings from built-in defaults, a persistent global config file, optional project-local config, one-shot CLI overlays, and in-memory runtime overrides. Reach for project settings when one repository needs a different provider set, model role, tool policy, memory backend, or UI behavior than your global defaults — without touching your machine-wide configuration.
+`zetacode` resolves settings from built-in defaults, a persistent global config file, optional project-local config, one-shot CLI overlays, and in-memory runtime overrides. Reach for project settings when one repository needs a different provider set, model role, tool policy, memory backend, or UI behavior than your global defaults — without touching your machine-wide configuration.
 
-> The desktop shell (`zetawork`) renders this schema natively and keeps its own window settings separately; see [GUI settings](./gui-settings.md).
-
-Settings are stored as plain YAML mappings. Every key, its type, default, and enum values come from its setting definition (declared with `register(...)` next to the owning feature, e.g. `packages/coding-agent/src/tools/settings.ts`, and collected by `packages/coding-agent/src/config/all-settings.ts`). `zetacode config` exposes the complete schema; the interactive `/settings` panel exposes entries with supported UI editors. Some entries are conditional, and numbers or arrays without UI choices remain config-file-only.
+Settings are stored as plain YAML mappings. Every key, its type, default, and enum values come from its setting definition (declared with `register(...)` next to the owning feature, e.g. `packages/coding-agent/src/tools/settings.ts`, and collected by `packages/coding-agent/src/config/all-settings.ts`). `zetacode config` exposes the complete schema; the interactive `/settings` panel exposes entries with supported UI editors. Some entries are conditional; numbers and arrays without UI choices remain config-file-only unless the setting opts into the panel's JSON editor (such as `contextFiles.extra`).
 
 - For model/provider credentials, `.env` files, and the env-var table that resolves API keys, see [Providers](./providers.md).
 - For custom model definitions in `models.yml`, see [Models](./models.md).
@@ -25,11 +23,11 @@ Settings are stored as plain YAML mappings. Every key, its type, default, and en
 
 The global paths above describe the default profile. `zetacode --profile work` selects `~/.zeta/profiles/work/agent` instead, isolating settings, auth, sessions, and caches. `OMP_PROFILE` also selects a profile; `PI_PROFILE` is its compatibility fallback only when `OMP_PROFILE` is absent. An explicit `--profile` wins over both, and `--profile default` selects the default profile.
 
-`ZETA_CODING_AGENT_DIR` relocates the default profile's agent directory, including `config.yml` and its agent data. Named profiles derive their own agent directory and ignore this override. Use `zetacode config path` (or `zetacode --profile work config path`) to print the active settings directory.
+`PI_CODING_AGENT_DIR` relocates the default profile's agent directory, including `config.yml` and its agent data. Named profiles derive their own agent directory and ignore this override. Use `zetacode config path` (or `zetacode --profile work config path`) to print the active settings directory.
 
-On Linux and macOS, configured `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME` can redirect data/state/cache when the corresponding `zeta` directories exist. Named profiles require the corresponding `zeta/profiles/<name>` directory. This does not move `config.yml`: it stays under the active agent directory, while `agent.db` and other categorized data may live elsewhere. `zetacode config init-xdg` creates the base directories but does not migrate files or set environment variables.
+On Linux and macOS, configured `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME` can redirect data/state/cache when the corresponding `zetacode` directories exist. Named profiles require the corresponding `zetacode/profiles/<name>` directory. This does not move `config.yml`: it stays under the active agent directory, while `agent.db` and other categorized data may live elsewhere. `zetacode config init-xdg` creates the base directories but does not migrate files or set environment variables.
 
-Native project settings are intentionally scoped to the process working directory's `.zeta/` folder — settings discovery does **not** walk ancestor directories looking for the nearest `.zeta/`. Other discovery providers (Claude, Codex, Gemini, Cursor, OpenCode) can also contribute project-level settings from their own files; those are read-only from `zeta` settings commands and can be turned off by provider id (see [Provider and source disabling](#provider-and-source-disabling)).
+Native project settings are intentionally scoped to the process working directory's `.zeta/` folder — settings discovery does **not** walk ancestor directories looking for the nearest `.zeta/`. Other discovery providers (Claude, Codex, Gemini, Cursor, OpenCode) can also contribute project-level settings from their own files; those are read-only from `zetacode` settings commands and can be turned off by provider id (see [Provider and source disabling](#provider-and-source-disabling)).
 
 ## Config file formats
 
@@ -37,17 +35,12 @@ The canonical global file is YAML at `config.yml`; `config.yaml` is accepted as 
 
 - When a `.yml`/`.yaml` path is requested and only a sibling `.json` exists, it is migrated to YAML automatically (idempotent, once per process).
 - `.json` and `.jsonc` configs are read as-is, with no migration.
-- Empty YAML (or YAML `null`) is treated as an empty settings mapping. Other non-mapping top levels are invalid. On writable startup, `zeta` moves a syntactically invalid or non-mapping persistent settings file to a uniquely named `.broken-*` backup and exits with the original error and backup path. A `--config` overlay with a bare array/scalar is also a hard error, but is not moved.
+- Empty YAML (or YAML `null`) is treated as an empty settings mapping. Other non-mapping top levels are invalid. On writable startup, `zetacode` moves a syntactically invalid or non-mapping persistent settings file to a uniquely named `.broken-*` backup and exits with the original error and backup path. A `--config` overlay with a bare array/scalar is also a hard error, but is not moved.
 - Invalid values for ordinary schema entries warn and read as their schema defaults. Settings with explicit validators, such as per-agent compaction triggers or provider concurrency limits, can reject the configuration instead. Unknown keys in hand-written files are not a substitute for a registered setting.
 
 ## Reading and writing settings
 
 Use the interactive `/settings` panel inside a session, or the `zetacode config` command from a shell. The CLI reads effective values including setting environment variables. The panel shows and edits merged settings-layer values, not environment-supplied values; descriptions note active env overrides so env credentials are never pre-filled or persisted. Ordinary persistent writes land in the **global** file; model-selector role changes are the exception when `modelRoleStorage: project` (see [Where writes go](#where-writes-go)).
-
-When a Web UI build is present (its development is currently deferred), its
-settings panel (Settings) is scoped to the workspace you are viewing: it sends that directory as `x-zeta-cwd` on both reads and writes. Reads therefore show the value a session rooted there actually uses, including a project layer (`.zeta/settings.json`, `.zeta/config.yml`, or another discovery provider) that overrides the global file. Writes still go to the global layer. When a project, `--config`, runtime, or environment value keeps shadowing the saved value, the write response reports `provenance` and `overriddenBy` (for example `overriddenBy: "project"`), and the panel marks the row with a **Project override** chip.
-
-Each session is created with its own view of the project layer for its cwd, while one process-global instance owns process effects (theme, request limits) and the config-file watcher. `zetacode serve` arms that watcher at startup and, on `POST /api/settings/reload`, re-reads the global instance and every open session, so an edit from another process reaches running sessions without a restart.
 
 ```bash
 zetacode config list                 # all settings with current effective values
@@ -76,8 +69,8 @@ This only controls the startup splash animation. It does not rerun setup or chan
 | `zetacode config get <key>`         | Print the effective value of one key. Unknown keys exit non-zero. `--json` emits `{ key, value, type, description }`. This is an explicit single-key request, so credential values are returned unmasked.                                                                                         |
 | `zetacode config set <key> <value>` | Parse `<value>` against the key's schema type, write it to the global main YAML file, and print the value written. When another source still supplies the effective value, it says which instead (`--json`: `overriddenBy` is the env var name, or `project`, `overlay`, or `runtime`; `fallbackEnv` names a fallback env var used while the saved value is blank). |
 | `zetacode config reset <key>`       | Delete the global key, allowing another configured layer or the schema default to apply. Prints the resulting effective value, masking non-empty credentials as `********`; JSON omits a credential's `value` and emits `{ key, redacted: true }`. |
-| `zetacode config path`              | Print the active agent directory (honors `ZETA_CODING_AGENT_DIR`).                                                                                                                                                                                                                                  |
-| `zetacode config init-xdg`          | On Linux and macOS, create the `zeta` directories under the effective XDG data, state, and cache homes. It does not move existing files or set the XDG environment variables. Other platforms exit non-zero.                                                                                       |
+| `zetacode config path`              | Print the active agent directory (honors `PI_CODING_AGENT_DIR`).                                                                                                                                                                                                                                  |
+| `zetacode config init-xdg`          | On Linux and macOS, create the `zetacode` directories under the effective XDG data, state, and cache homes. It does not move existing files or set the XDG environment variables. Other platforms exit non-zero.                                                                                       |
 
 `zetacode config` with no subcommand lists settings. `--help` or `-h` displays command help. The `--json` flag is accepted by `list`, `get`, `set`, and `reset`.
 
@@ -151,7 +144,7 @@ Environment variables are never written back to `config.yml`. Variables declared
 | `PI_TINY_DTYPE`         | `providers.tinyModelDtype`  | ONNX precision for local tiny models.                                                             |
 | `OMP_AUTH_BROKER_URL`   | `auth.broker.url`           | Env value takes precedence over config.                                                           |
 | `OMP_AUTH_BROKER_TOKEN` | `auth.broker.token`         | Env value takes precedence over config.                                                           |
-| `ZETA_CODING_AGENT_DIR`   | (relocates default-profile agent dir) | Named profiles ignore this override. |
+| `PI_CODING_AGENT_DIR`   | (relocates default-profile agent dir) | Named profiles ignore this override. |
 | `OMP_PROFILE` / `PI_PROFILE` | (selects profile) | `OMP_PROFILE` wins when present; `--profile` wins over env. |
 | `PI_EDIT_VARIANT` | `edit.mode` | `apply_patch`, `hashline`, `patch`, `replace`, or `sloppy`; `auto` is unset. |
 | `PI_EDIT_FUZZY` | `edit.fuzzyMatch` | Exact lowercase `1`/`true` enables; `0`/`false` disables; other text defers to config. |
@@ -378,6 +371,15 @@ The default is an empty array (nothing disabled). For the two subsystems' provid
 
 Native project `modelRoles` are also read directly from `.zeta/config.yml`; disabling the `native` discovery provider does not suppress that model-role layer.
 
+## Resume picker scope
+
+By default, `omp --resume` and `/resume` include sessions from other worktrees of
+this repository in the current-folder list. To keep long-lived workspaces
+separate, run `omp config set session.worktreeScope directory` (or choose
+**Resume Worktree Scope** in `/settings`). Set it to `repo` to restore the default.
+The all-projects tab still shows sessions across every directory, including
+sessions in deleted worktrees; this setting only narrows the current-folder list.
+
 ## Settings catalog
 
 The catalog below highlights common settings; it is not the complete schema. `zetacode config list` is the authoritative reference for every key, current value, type, and description. Defaults and enum values shown here come from the schema. Settings that accept an env or flag override are noted; those overrides are process-local and not persisted.
@@ -443,7 +445,7 @@ Open `/model` and enter the **Roles** view to assign roles and edit their fallba
 
 For a role, `modelRoles.<role>` is the primary and `retry.fallbackChains.<role>` is the fallback list. For model-kind roles, an unset chain uses that role's built-in priority list; `[]` explicitly means **no fallbacks**. The `retry.fallbackChains.default` chain is for chat-role/session fallback and never replaces a model-kind role's own chain. Explicit search entries such as `web/parallel`, `web/perplexity`, `web/exa`, and `web/firecrawl` are attempted as configured candidates, including their supported anonymous modes; missing required credentials still produce an availability error for that explicit entry.
 
-For one-shot searches, `zeta search`, `zeta q`, and `zetacode web-search` accept a catalog selector through `--model`, for example `zetacode web-search --model web/duckduckgo "current Bun release"`. The in-session `web_search` tool has no per-call model override: it follows `modelRoles.web` and `retry.fallbackChains.web`.
+For one-shot searches, `zetacode search`, `zetacode q`, and `zetacode web-search` accept a catalog selector through `--model`, for example `zetacode web-search --model web/duckduckgo "current Bun release"`. The in-session `web_search` tool has no per-call model override: it follows `modelRoles.web` and `retry.fallbackChains.web`.
 
 Image selection likewise uses full catalog model selectors, not provider names: set `modelRoles.image`, its fallback chain, or the `generate_image` request's optional `model`. OpenRouter image models run through OpenRouter's native images API.
 
@@ -461,7 +463,6 @@ Existing configs are migrated automatically when loaded. Retired backend selecto
 | `enabledProviders`     | array   | `[]`                        | Foreign user-level discovery sources to load; supports path-scoped entries. See [above](#provider-and-source-disabling).                                                                                                                                                                                                                                                                                          |
 | `disabledProviders`    | array   | `[]`                        | Disabled model/discovery providers; supports [path-scoped entries](#path-scoped-arrays). See [above](#provider-and-source-disabling).                                                                                                                                                                                                                                                                             |
 | `includeModelInPrompt` | boolean | `true`                      | Include the active model name in the system prompt.                                                                                                                                                                                                                                                                                                                                                              |
-| `skillful`             | boolean | `true`                      | List available skills in the system prompt; disable to save context. `/skillful` toggles it for the current session.                                                                                                                                                                                                                                                                                             |
 
 See [Models](./models.md) for the `models.yml` schema and custom-provider definitions.
 
@@ -513,7 +514,7 @@ thinkingBudgets:
 
 ### Sampling
 
-For the numeric sampling settings, a negative value (normally `-1`) means "use the provider/model default" — `zeta` does not send that parameter.
+For the numeric sampling settings, a negative value (normally `-1`) means "use the provider/model default" — `zetacode` does not send that parameter.
 
 | Key                 | Type   | Default   | Notes                                                                                                                                                                                                                                                                          |
 | ------------------- | ------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -541,6 +542,7 @@ retry:
   baseDelayMs: 500
   maxDelayMs: 300000
   modelFallback: true
+  fallbackOn: any
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
     # Chat roles without their own chain may inherit "default". Model-kind
@@ -581,7 +583,8 @@ providers:
 | `retry.maxRetries`                       | number  | `10`              | Max retries per request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `retry.baseDelayMs`                      | number  | `500`             | Initial backoff.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `retry.maxDelayMs`                       | number  | `300000`          | Backoff ceiling (5 min). Provider-stated waits longer than this fail fast when no credential or model fallback succeeds, unless `retry.waitForUsageReset` admits an authoritative quota-reset wait. `0` disables the cap.                                                                                                                                                                                                                                                                                                                  |
-| `retry.modelFallback`                    | boolean | `true`            | Fall back to another chat model when one is unavailable. Role-driven helpers that honor this switch, including online session-title generation, stop after their first resolvable candidate when it is `false`. Independent of `contextPromotion.enabled`: this is the toggle that stops `retry.fallbackChains` from switching models.                                                                                                                                                                                                               |
+| `retry.modelFallback`                    | boolean | `true`            | Fall back to another chat model when one is unavailable. Role-driven helpers that honor this switch, including online session-title generation, stop after their first resolvable candidate when it is `false`. Independent of `contextPromotion.enabled`: this is the toggle that stops `retry.fallbackChains` from switching models.                                                                                                                                                                                                          |
+| `retry.fallbackOn` | enum | `any` | Which failed requests in a session turn (subagents included) or advisor turn may walk `retry.fallbackChains`. `any` switches on every provider error. `usage-limit` switches only on usage limits (quota windows, spend caps, exhausted balances); in a session turn other retryable errors retry the same model with the normal backoff up to `retry.maxRetries` and then surface, and non-retryable errors, refusals included, surface at once. `except-usage-limit` switches on everything else and waits out or surfaces usage limits. Advisors kept off the chain keep their own retry and drop behaviour (see `docs/advisor-watchdog.md`). Credential rotation and `retry.usageAwareFallback` are unaffected. |
 | `retry.fallbackChains`                   | record  | `{}`              | Maps roles, model selectors, or `provider/*` wildcards to ordered fallback selectors. Keys containing `/` are model-oriented and win over roles: `provider/model-id` matches that exact model, `provider/*` matches every model of the provider. A `provider/*` _entry_ keeps the failing model's id and swaps the provider. Model-kind roles use their built-in chain when unset and no fallbacks when set to `[]`; the `default` chain never applies to them. Unknown models/providers or malformed chains are reported as config warnings at startup. |
 | `retry.fallbackRevertPolicy`             | enum    | `cooldown-expiry` | `cooldown-expiry` returns to the primary model once its suppression window ends; `never` stays on the fallback until switched manually.                                                                                                                                                                                                                                                                                                                                                     |
 | `retry.waitForUsageReset` | boolean | `false` | Allow provider-stated usage-limit waits past `retry.maxDelayMs` when a reset hint or complete usage report supplies authoritative timing. Waits are abortable but can also hold subagents. |
@@ -592,18 +595,7 @@ providers:
 
 When the active chat model keeps failing (429s, quota walls, provider outages) and `retry.modelFallback` is on, the session picks the chain that owns the failing model, by specificity: an exact `provider/model-id` key, then a `provider/*` wildcard, then the current role's chain, then `default` — which also owns a live model that belongs to no role (`/model` switch, ephemeral hop). The effective chain is the owning role's primary followed by its configured entries, and a live selector that appears nowhere in it is offered the whole chain. If several roles assign the same model, yaml key order does not decide: the live session role wins, and `default` wins over other matching chat roles when the session is not on those roles. It skips chat candidates whose selectors are still cooling down and switches for the rest of the turn. Model-kind runners resolve their named role chain separately and never consume `default`. Subagents get their own per-spawn chains when their agent definition lists multiple model patterns — the first resolvable pattern is primary and the rest become its fallbacks; there is no `agent:<name>` key in `fallbackChains`. A subagent spawned on a single model inherits its role's chain (`@reviewer` → `fallbackChains.reviewer`), or `default`'s when the role has none; an explicit `[]` gives it no fallbacks even when `default` is assigned the same model. Exact-model and `provider/*` keys still take precedence over that inherited chain.
 
-A prefixed wildcard such as `openrouter/google/*` can be used as a chain key or entry: it matches ids under that prefix or prepends the prefix to the failing model's bare id when changing providers. Bare fallback entries inherit the failing turn's thinking level; an explicit suffix can replace it. When a chain is exhausted, recovery can consult the current fallback model's own chain as well, and each hop still consumes a retry attempt. See [Retry policy](./non-compaction-retry-policy.md) for recovery ordering and quota behavior.
-
-#### Fallback chains versus agent-driven switching
-
-Fallback chains are the **configured** half of model recovery: they are a static, ordered list the user writes in advance, and the session walks it automatically whenever the active model fails. They are the right tool when a good next model is known ahead of time, and they cost nothing when they are wrong — recovery just fails as it did before.
-
-The **agent-driven** half covers what a static list cannot: a subagent that died on a provider the quota planner did not anticipate. A parent agent always sees *why* a child failed (`<failure class="…" />`) and which models this session could run instead (`<candidates>`); once that child has completed a model response, a wake may run its next turn on another model. A subagent's model is never chosen at dispatch. The two halves are independent:
-
-- Configured chains still run first, unchanged. Nothing in the agent-driven path suppresses, reorders, or replaces them.
-- The agent-driven path never picks a model on its own. It surfaces the class and the candidates; the parent decides whether to switch the child's model, compact, or fix the task.
-- A model that failed hard (`usage-limit`, `auth`, `account-policy`) is recorded for the session, and neither half re-hits it during its cooldown (5 minutes by default, or the provider's own reset hint when the error carries one, capped at 24 hours). The record clears as soon as the model serves a run successfully, so a recovered route is usable again.
-- No automatic hopping: if no candidate is available, the spawn fails with the class and the empty candidate list rather than silently trying models the user did not choose.
+A prefixed wildcard such as `openrouter/google/*` can be used as a chain key or entry: it matches ids under that prefix or prepends the prefix to the failing model's bare id when changing providers. Bare fallback entries inherit the failing turn's thinking level (including `auto`); an explicit suffix, `:auto` included, replaces it. When a chain is exhausted, recovery can consult the current fallback model's own chain as well, and each hop still consumes a retry attempt. See [Retry policy](./non-compaction-retry-policy.md) for recovery ordering and quota behavior.
 
 Retry model fallback is not context promotion. `contextPromotion.enabled: false` only disables [context promotion](./models.md#context-promotion) to a model's `contextPromotionTarget`; set `retry.modelFallback: false` to stop `retry.fallbackChains` from switching the active model after provider errors. Same-model retries and compaction remain available.
 
@@ -625,6 +617,7 @@ tools:
 | `tools.format`                 | enum    | `auto`  | Tool wire format: `auto`, `native`, `glm`, `hermes`, `kimi`, `xml`, `anthropic`, `deepseek`, `harmony`, `qwen3`, `gemini`, `gemma`, or `minimax`. `native` always uses provider-native tool calls. `auto` also uses native calls unless the selected model explicitly has `supportsTools: false`; then it selects the model-family owned dialect, falling back to GLM when no specific family dialect is known. Other values force that owned in-band dialect. `xml` is the [generic XML format](./toolconv/xml.md); `minimax` is the [MiniMax format](./toolconv/minimax.md). See [GLM](./toolconv/glm-4.5.md), [Qwen3/Hermes](./toolconv/qwen3.md), [Kimi](./toolconv/kimi-k2.md), [Anthropic](./toolconv/anthropic.md), [DeepSeek](./toolconv/deepseek.md), [Harmony](./toolconv/harmony.md), [Gemini](./toolconv/gemini.md), and [Gemma](./toolconv/gemma.md). |
 | `tools.approvalMode`           | enum    | `yolo`  | `always-ask` (auto-approve read-only), `always-ask-cached` (*Ask and remember*: also asks before file reads, and can remember a file or folder; see [approval mode](./approval-mode.md)), `write` (auto-approve read + workspace-write), `yolo` (auto-approve all tiers). `--approval-mode` and `--auto-approve`/`--yolo` override per run. |
 | `tools.approval`               | record  | `{}`    | Per-tool policy keyed by tool name; each value is `allow`, `deny`, or `prompt`. e.g. `zetacode config set tools.approval '{"bash":"prompt"}'`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `tools.restrictedFolders`      | array   | `[]`    | Folders where every read, write, edit, search, or command needs an explicit approval in every approval mode (`yolo` included), whatever was remembered: the folder and everything below it, commands matched by the directory they run in. See [approval mode](./approval-mode.md#restricted-folders). |
 | `tools.maxTimeout`             | number  | `0`     | Maximum timeout the agent may request, in seconds; `0` = no settings cap.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `tools.intentTracing`          | boolean | `true`  | Ask the agent to describe each tool call's intent. `PI_INTENT_TRACING` overrides it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `tools.outputMaxColumns`       | number  | `768`   | Per-line byte cap for streaming output; `0` disables.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -638,21 +631,8 @@ tools:
 | `tools.xdevInlineDevices` | array | `[]` | Dynamic-device name globs to inline in `builtins` mode; ignored in `catalog` mode. |
 | `async.enabled` | boolean | `true` | Enable async bash commands and background task execution. |
 | `async.maxJobs` | number | `100` | Running background-job cap, floored to at least 1; parked/queued jobs do not consume execution slots. |
+| `async.printWake` | boolean | `false` | Print mode (`-p`, `--mode json`) waits for the run's background jobs instead of cancelling them at exit, and starts another turn in the same session with each result; same as `--wait-async`. |
 | `async.widgets` | boolean | `true` | Live widgets for running background jobs (charts, bars, status grids derived from the job's output) in the `wait` card, the jobs pill and its hover card, and the jobs sheet. The `widget` model role writes one spec per job; every later update is computed locally without model calls. Off: plain job rows. |
-| `todo.enabled` | boolean | `true` | Enable the `todo` tool for task tracking. |
-| `todo.reminders` | boolean | `true` | Remind the agent to complete todos before it stops. |
-| `tasks.todoClearDelay` | number | `60` | Seconds before completed or abandoned todos are removed from the todo widget. |
-| `grep.contextBefore` | number | `1` | Lines of context shown before each `grep` match. |
-| `grep.contextAfter` | number | `3` | Lines of context shown after each `grep` match. |
-| `debug.enabled` | boolean | `true` | Enable the `debug` tool for DAP-based debugging. |
-| `speechgen.enabled` | boolean | `false` | Enable the `tts` tool for on-device (Kokoro) or xAI Grok Voice speech-file synthesis. |
-| `checkpoint.enabled` | boolean | `false` | Enable the checkpoint and rewind tools for context checkpointing. |
-| `security.enabled` | boolean | `false` | Enable ZETA-native security scan planning and execution, including the read-only `security://` resource namespace. |
-| `tracking.enabled` | boolean | `false` | Enable the `tracking_update` tool so the agent maintains project tracking documents. See [project tracking](./zeta-tracking.md). |
-| `channels.enabled` | boolean | `true` | Enable `channel_send` / `workspace_run` so the agent can push progress to the remote IM user and delegate to other workspaces. See [IM channels](./channels.md). |
-| `channels.reportPolicy` | enum | `summary` | How the relay coordinator forwards delegated work to the IM user: `all` forwards every report, `summary` buffers progress and forwards one merged message per stage, `silent` forwards nothing. |
-| `worktree.clone` | boolean | `true` | New worktrees from `github pr_checkout` and bash `git worktree add` start as a copy-on-write clone of the current checkout, so ignored build artifacts (`node_modules`, `target`) carry over; falls back to a plain checkout when the filesystem cannot clone. |
-| `worktree.cleanSource` | boolean | `false` | When creating a worktree with `/wt`, reset tracked changes and remove untracked files from the original checkout after carrying them over. |
 
 Mounting still follows the session's explicit tool allow-list. A session that permits `read` but omits `write` can receive a device-only write transport; this does not grant filesystem writes.
 
@@ -710,7 +690,7 @@ lsp:
 | --------------------------------- | ------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bash.enabled`                    | boolean | `true`    | Enable the bash tool.                                                                                                                                       |
 | `bash.allowCompoundCommands`      | boolean | `false`   | Evaluate flat, literal `&&` chains per segment; unmatched segments inherit normal bash approval policy and mode.                                            |
-| `bash.gitGuard`                   | boolean | `false`   | For checkouts shared by concurrent agents: refuse `git stash` (except `list`/`show`), `reset --hard`, `reset` to another commit, and `checkout`/`switch`/working-tree `restore` unless a merge or rebase conflict is being resolved. Unstaging stays allowed. Enforced by the embedded shell's `git` builtin, so it sees expanded commands and the real cwd; services, client terminals, `pty` calls, and git started by path or through another program are not guarded. |
+| `bash.gitGuard`                   | boolean | `false`   | For checkouts shared by concurrent agents: refuse `git stash` (except `list`/`show`/`create`), `reset --hard`, `reset` to another commit, `switch` and branch `checkout`, and `checkout`/working-tree `restore` of paths unless a merge or rebase conflict is being resolved. Unstaging stays allowed. Enforced by the embedded shell's `git` builtin, so it sees expanded commands and the real cwd; services, client terminals, `pty` calls, and git started by path or through another program are not guarded. |
 | `launch.enabled`                  | boolean | `true`    | Enable named `bash` services and `proc://` supervision for shared long-running project processes; there is no separate launch tool.                                                                                           |
 | `bash.autoBackground.enabled`     | boolean | `true`   | Auto-background long-running commands.                                                                                                                      |
 | `bash.autoBackground.thresholdMs` | number  | `60000`   | Threshold before auto-backgrounding.                                                                                                                        |
@@ -725,14 +705,14 @@ lsp:
 | `python.interpreter`              | string  | `""`      | Path to a Python interpreter; empty = auto-detect.                                                                                                          |
 | `lsp.enabled`                     | boolean | `true`    | Language-server integration. `--no-lsp` disables for the run.                                                                                               |
 | `lsp.lazy`                        | boolean | `true`    | Start servers on demand.                                                                                                                                    |
-| `lsp.shared`                      | boolean | `true`    | Start language servers through the broker-managed per-project LSP mux. Each connection gets its own server. A released server stays warm for up to 5 minutes for the next connection, but only while another zeta process keeps the project's mux running; the mux stops a few seconds after the last one exits. Falls back to private servers when the broker is unavailable. |
+| `lsp.shared`                      | boolean | `true`    | Start language servers through the broker-managed per-project LSP mux. Each connection gets its own server. A released server stays warm for up to 5 minutes for the next connection, but only while another zetacode process keeps the project's mux running; the mux stops a few seconds after the last one exits. Falls back to private servers when the broker is unavailable. |
 | `lsp.diagnosticsOnWrite`          | boolean | `true`    | Run diagnostics after a write.                                                                                                                              |
 | `lsp.diagnosticsOnEdit`           | boolean | `false`   | Run diagnostics after an edit.                                                                                                                              |
 | `lsp.formatOnWrite`               | boolean | `false`   | Format files on write.                                                                                                                                      |
 | `lsp.diagnosticsDeduplicate`      | boolean | `true`    | Collapse duplicate diagnostics.                                                                                                                             |
 | `lsp.requestTimeout`              | number  | `10`      | Seconds to wait for a language server's diagnostics, hover and other answers when the agent passes no `timeout` (the call deadline is at least 20 s); late post-edit diagnostics wait at least this long. The `lsp` tool's `timeout` raises or lowers it per call, within 5–300 s and `tools.maxTimeout`. |
 | `shellPath`                       | string  | _(unset)_ | External shell for services, terminals, and `!`; plain bash tool calls use embedded brush.                                                                  |
-| `shellCommandPrefix`              | string  | _(unset)_ | Passed to legacy Pi extensions that construct their own shell tools; OMP's native shell does not apply it. |
+| `shellCommandPrefix`              | string  | _(unset)_ | Passed to legacy Pi extensions that construct their own shell tools; ZETA's native shell does not apply it. |
 
 ### Files: editing and reading
 
@@ -785,6 +765,8 @@ local budgeting, not the upstream endpoint's accepted request size.
 Compaction headroom is separate from this opt-in. With the default 15% reserve, Astra's documented extended window has an auto-compaction threshold of 783,700 tokens. A larger window can consume more usage even when there is no additional long-context pricing multiplier.
 
 ```yaml
+extendedContext: false
+
 contextPromotion:
   enabled: false
 
@@ -815,51 +797,18 @@ memory:
 | `compaction.reserveTokens`    | number  | _(unset)_                                | Absolute reserve floor. When unset, the effective reserve is the larger of `16384` and 15% of the context window; if that default would leave no practical small-window budget, it falls back to the 15% reserve.                         |
 | `compaction.keepRecentTokens` | number  | `20000`                                  | Recent-history token budget for summary compaction.                                                                                                                                                                                                           |
 | `compaction.autoContinue`     | boolean | `true`                                   | Continue automatically after compaction.                                                                                                                                                                                                  |
-| `compaction.remoteStreamingV2Enabled` | boolean | `true` | Use Responses streaming compaction for compatible remote compaction models. See [Compaction](./compaction.md). |
-| `compaction.remoteEndpoint` | string | _(unset)_ | Custom summarizer URL used while remote compaction is enabled. Local summary generation POSTs to it: custom endpoints receive `{ systemPrompt, prompt, maxTokens }` and must return `{ summary }`; an OpenAI-compatible path ending in `/chat/completions` receives a non-streaming chat request. Also lets a failed native remote compaction fall through to this endpoint. |
-| `compaction.v2RetainedMessageBudget` | number | `64000` | Token budget for recent messages retained verbatim beside a V2 streaming compaction result; values are clamped to `1`–`64000`. |
-| `compaction.handoffSaveToDisk` | boolean | `false` | Save generated handoff documents as markdown files for the auto-handoff flow. |
-| `compaction.idleEnabled` | boolean | `false` | Compact context while idle once the token count exceeds the idle threshold. |
-| `compaction.idleThresholdTokens` | number | `200000` | Token count above which idle compaction triggers. |
-| `compaction.idleTimeoutSeconds` | number | `300` | Seconds to wait while idle before compacting; with a confirmed 1-hour prompt-cache entry, compaction instead runs just before the cache expires. |
-| `compaction.supersedeReads` | boolean | `true` | Prune older `read` results when the same file is read again (cache-aware; runs every turn). |
-| `compaction.dropUseless` | boolean | `true` | Prune tool results flagged contextually useless (no matches, timed-out waits) once consumed (cache-aware). |
-| `compaction.experimentalContextManagement` | boolean | `false` | Experimental: keep persistent notes and searchable raw history across context windows. |
 | `memory.backend`              | enum    | `off`                                    | `off`, `local`, `hindsight`, `mnemopi`. Each backend has its own `hindsight.*` / `mnemopi.*` / `memories.*` tuning keys.                                                                                                                  |
 | `autolearn.enabled`           | boolean | `false`       | Experimental: enable standing lesson-capture guidance and `manage_skill` (plus `learn` when a memory backend is active). Managed skills live under `<agent dir>/managed-skills`. |
 | `autolearn.autoContinue`      | boolean | `false`       | After an eligible primary stop, run a private capture turn (uses extra tokens). Off keeps only standing guidance; no hidden reminder is inserted into the next turn. Aborted, plan-mode, and goal-loop turns are skipped.                                                                                                           |
 | `autolearn.minToolCalls`      | number  | `5`           | Minimum completed tool calls in a primary turn before automatic capture is eligible.                                                                                                                                                                               |
-| `snapcompact.toolResults` | boolean | `false` | Experimental: render large tool results, the newest included, as dense PNG images instead of text (vision models only). Saves tokens on accumulated search and command output; `read` results stay text unless the model is known to edit exactly from images. |
-| `snapcompact.shape` | enum | `auto` | Frame shape snapcompact prints text with (compaction archive and inline imaging): `auto` picks a shape tuned for the current model, falling back to its provider family; other values name a glyph-grid and ink variant. |
-| `branchSummary.enabled` | boolean | `false` | Prompt to summarize when leaving a branch. |
-| `branchSummary.reserveTokens` | number | `16384` | Tokens reserved from the model window when budgeting a branch summary: `tokenBudget = (contextWindow or 128000) - branchSummary.reserveTokens`. |
-| `zeta.contextCache.enabled` | boolean | `false` | Enable the dual state machine for context-aware memory writing and end-of-turn compaction. |
-| `zeta.contextCache.thresholdTokens` | number | `400000` | Context token threshold that triggers a soft `memory_edit` requirement (State Machine A). |
-| `zeta.contextCache.memoryWriteEnabled` | boolean | `true` | Above the threshold, prompt the model to save important information to memory with `memory_edit`. |
-| `zeta.contextCache.endTurnCompactionEnabled` | boolean | `true` | Trigger automatic compaction when the model emits an `endTurn` tag (State Machine B). |
 
 A positive `compaction.thresholdTokens` wins over `thresholdPercent`. A fixed trigger (this or an `f` model entry) at or past the model's context window, for example where a provider caps the window lower, compacts at the window less the reserve, like the reserve-based default; the `/models` preview marks it `capped by window`. Otherwise, a positive percentage is clamped to 1–99%; non-positive percentages use the reserve-based threshold.
 
+The trigger is exactly what you configure. On a small or provider-capped window, compaction instead keeps less recent history: the kept tail is capped at `0.8 × trigger − reserveFloor` (half of `0.8 × trigger` when the floor alone fills it) so the compacted context lands under the trigger's recovery band, where `reserveFloor` is the smaller of the effective budget reserve and `compaction.reserveTokens` (or `16384` when unset). For example, a 100k window with `thresholdPercent: 40` compacts at 40,000 tokens and keeps at most 15,616 tokens of recent history instead of the configured 20,000.
+
 `compaction` has additional tuning keys (idle compaction, supersede/drop heuristics) visible in `zetacode config list`. See [Compaction](./compaction.md) for the full strategy reference.
 
-Per-model compaction triggers replace both `compaction.threshold*` settings for the models they match. The `/models` preview shows each model's trigger; to set one, select a role or fallback row in the **Roles** view and press `k` (or click **Compaction limit**), then type `90000`, `90k`, `1M`, or `80%` (empty input resets). That writes the exact `provider/model-id` key to the global config. By hand:
-
-```yaml
-compaction:
-  thresholdPercent: 80
-  modelThresholds:
-    "deepseek/*": 90000
-    "openrouter/anthropic/*": "60%"
-    anthropic/claude-opus-5.5: 150000
-```
-
-- An exact `provider/model-id` key wins; otherwise the longest matching `*`-terminated prefix applies. `*` is only allowed at the end, and every key needs a `provider/` part.
-- Entry values follow the same rules as `task.agentCompactionThresholdOverrides` below; `null` clears a lower-layer entry.
-- The trigger follows the active model: switching models, context promotion, and advisors each use their own model's entry.
-- A `task.agentCompactionThresholdOverrides` entry outranks model entries for that agent, including entries added while it runs.
-- The hub refuses an edit when the project config sets the same model key; change it in the project config instead.
-
-Per-model compaction limits apply to the models they match. A token count is the base the usual policy scales: omp treats it as the model's window when computing the threshold, so with defaults it compacts at the base minus the reserve (85% for bases above ~109k) and with `compaction.thresholdPercent: 80` at 80% of it; a global `compaction.thresholdTokens` does not apply to that model. Prefix the count with `f` (`f400k`, stored as `"f400000"`) to make it the exact trigger instead. A percentage entry replaces both `compaction.threshold*` settings and scales the real window. Requests and overflow handling still use the real window. The `/models` preview shows where each model compacts; to set a limit, select a role or fallback row in the **Roles** view and press `k` (or click **Compaction limit**), then type `400k`, `f400k`, `1M`, or `80%` (empty input resets). That writes the exact `provider/model-id` key to the global config. By hand:
+Per-model compaction limits apply to the models they match. A token count is the base the usual policy scales: zetacode treats it as the model's window when computing the threshold, so with defaults it compacts at the base minus the reserve (85% for bases above ~109k) and with `compaction.thresholdPercent: 80` at 80% of it; a global `compaction.thresholdTokens` does not apply to that model. Prefix the count with `f` (`f400k`, stored as `"f400000"`) to make it the exact trigger instead. A percentage entry replaces both `compaction.threshold*` settings and scales the real window. Requests and overflow handling still use the real window. The `/models` preview shows where each model compacts; to set a limit, select a role or fallback row in the **Roles** view and press `k` (or click **Compaction limit**), then type `400k`, `f400k`, `1M`, or `80%` (empty input resets). That writes the exact `provider/model-id` key to the global config. By hand:
 
 ```yaml
 compaction:
@@ -889,8 +838,6 @@ task:
     scout: "80%"
     task: 90000
 ```
-
-A subagent's model is not a dispatch parameter: the `task` tool has no `model` field, and a call that carries one is rejected. The model comes from the agent definition or, unconfigured, the parent's own. Once a subagent has completed a model response, a wake may switch it (`ensureLive(id, { model })`, follow-up turns) — that turn then runs on the new model. The child's failure class and the session's alternative models ride the `<task-result>` envelope. See [Fallback chains versus agent-driven switching](#fallback-chains-versus-agent-driven-switching).
 
 - Keys are exact, case-sensitive agent names (`scout` does not match `Scout`).
 - A number is a fixed token trigger (positive integer); a `"N%"` string is a percentage of the context window, `0 < N ≤ 100`. An entry replaces both `compaction.thresholdTokens` and `compaction.thresholdPercent` for that agent.
@@ -938,7 +885,7 @@ tui:
 | `images.autoResize`           | boolean | `true`           | Resize large images for model compatibility.                              |
 | `images.blockImages`          | boolean | `false`          | Never send images to providers.                                           |
 | `tui.hyperlinks`              | enum    | `auto`           | `off`, `auto`, `always`.                                                  |
-| `tui.autoGraph`               | enum    | `always`         | Chart numeric tables in the agent's answers, in the theme's colors, on terminals that show graphics: `always` uses the built-in best guess, `smart` lets the judge model pick the chart kind and columns for tables with several numeric columns, `off` leaves tables alone. Tern receives the chart as SVG. Applies to the main session in the TUI only: subagent transcripts, print, RPC, and ACP output stay plain, and their system prompts omit the diagram and chart guidance. |
+| `tui.autoGraph`               | enum    | `always`         | Chart numeric tables in the agent's answers, in the theme's colors, on terminals that show graphics: `always` uses the built-in best guess, `smart` lets the judge model refine each chart (kind, columns, row names and grouping, scales and reference row, which way each measure is better, the focus row, and the title) for tables with several numeric columns or numbered rows, `off` leaves tables alone. Tern receives the chart as SVG. Applies to the main session in the TUI only: subagent transcripts, print, RPC, and ACP output stay plain, and their system prompts omit the diagram and chart guidance. |
 | `tui.mouse`                   | boolean | `false`          | Capture mouse clicks in the main session so live subagent cards and HUD rows focus on click, with a hover highlight on the target. Native text selection becomes Shift+drag and wheel scroll becomes Shift+wheel while on. |
 | `display.pinnedAgents`        | enum    | `collapsed`      | Pinned live-agent jump list above the editor: `off` hides it, `collapsed` shows a few rows with an expander, `full` lists all. |
 | `display.subagentLivePreview` | boolean | `false`          | Show each pinned subagent's current (or most recent) tool call beneath its jump-list row. |
@@ -961,10 +908,10 @@ The `cost` segment shows recorded session costs. For an active provider/model wi
 | `followUpMode`         | enum    | `one-at-a-time` | `all`, `one-at-a-time`.                                                                                 |
 | `interruptMode`        | enum    | `immediate`     | `immediate`, `wait`.                                                                                    |
 | `doubleEscapeAction`   | enum    | `rewind`          | `rewind`, `tree`, `none`: open the rewind selector, open the session tree, or do nothing. |
-| `autoResume`           | boolean | `false`         | Auto-resume the most recent session in the cwd.                                                         |
+| `autoResume`           | boolean | `false`         | Auto-resume the most recent session in the cwd. If its saved model cannot be restored without forbidden fallback, implicit interactive startup warns and starts a new session without the old history; explicit resume and headless behavior are unchanged. |
 | `plan.enabled`         | boolean | `true`          | Enable plan mode.                                                                                       |
 | `plan.defaultOnStartup` | boolean | `false`         | Start each fresh interactive session in plan mode when plan mode is enabled. Print/JSON (`--print`) mode ignores this and prints a note; use `--plan-yolo` for a headless plan flow. |
-| `ask.timeout`          | number  | `0`             | Auto-select the recommended ask option after this many seconds; `0` disables automatic selection. |
+| `ask.timeout`          | number  | `0`             | Auto-select the recommended ask option after this many seconds; `0` disables automatic selection. Also bounds `cfg://` approval prompts; an unanswered approval denies the write instead of auto-selecting. |
 | `ask.notify`           | enum    | `on`            | `on`, `off`.                                                                                            |
 | `input.bareExitOnEmptySession` | boolean | `true` | Submitting exactly `exit`, `quit`, or `q` (case-insensitive) before the first message quits. |
 | `input.bareSlashCommands` | boolean | `false` | Run an exact command name without `/`; after session messages exist, Enter must be pressed twice to confirm. |
@@ -1023,10 +970,7 @@ searxng:
 | `providers.webSearchTimeoutSeconds` | number  | `60`      | Per-candidate web-search transport timeout. Values above `300` are capped at five minutes. This is not a whole-chain deadline; the `web` role advances to its next candidate after a timeout.                                                                                                                                                                                                                                                                                                         |
 | `providers.fetch`                   | enum    | `auto`    | `auto`, `native`, `trafilatura`, `lynx`, `parallel`, `firecrawl`, `jina`.                                                                                                                                                                                                                                                                                                                                                              |
 | `providers.tinyModelDevice`         | enum    | `default` | ONNX execution provider, or `mlx` (Apple silicon, via mlx-lm), for local tiny models. Overridden by `PI_TINY_DEVICE`.                                                                                                                                                                                                                                                                                                                                                         |
-| `providers.maxInFlightRequests`     | record  | `{}`      | Positive per-provider concurrency limits for LLM HTTP requests, shared across local `zeta` processes using the same config root. Omitted providers are unlimited. `zetacode config set` rejects non-positive or non-numeric values.                                                                                                                                                                                                          |
-| `providers.ollama-cloud.maxConcurrency` | number | `3` | Maximum concurrent Ollama Cloud subagent runs per process; `0` disables the provider-specific limit. |
-| `providers.antigravityEndpoint` | enum | `auto` | Endpoint routing for `google-antigravity` providers (chat, search, image, discovery): `auto` tries production and fails over to sandbox on 5xx/429, while `production` and `sandbox` force one endpoint. |
-| `providers.fireworksTier` | enum | `standard` | Fireworks serving path: `priority` sends `service_tier: "priority"` for higher reliability during peak traffic at a higher price; `standard` omits it. Fast (`-fast`) models ignore this — Fast is its own serving path. |
+| `providers.maxInFlightRequests`     | record  | `{}`      | Positive per-provider concurrency limits for LLM HTTP requests, shared across local `zetacode` processes using the same config root. Omitted providers are unlimited. `zetacode config set` rejects non-positive or non-numeric values.                                                                                                                                                                                                          |
 | `providers.tinyModelDtype`          | enum    | `default` | ONNX precision for local tiny models. Overridden by `PI_TINY_DTYPE`.                                                                                                                                                                                                                                                                                                                                                                   |
 | `tts.localVoice`                    | enum    | `af_heart` | Voice used by the local Kokoro TTS runner. Available local voices remain configurable independently of `modelRoles.speech`.                                                                                                                                                                                                                                                                                                           |
 | `tts.localSpeed`                    | number  | `1`       | Speaking rate of the local Kokoro TTS runner (`tts` tool, `zetacode say`). `1` is normal; values are clamped to `0.5`–`2.5`.                                                                                                                                                                                                                                                                                                              |
@@ -1051,18 +995,32 @@ searxng:
 | `searxng.token`                     | string  | _(unset)_ | SearXNG token; also `searxng.basicUsername`/`searxng.basicPassword`/`searxng.categories`/`searxng.language`/`searxng.engines` (comma-separated engine names or bang shortcuts, e.g. `ddg, br, startpage`, sent as the API's `engines=` parameter)/`searxng.safesearch`.                                                                                                                                                                                                                                                                                                 |
 | `auth.broker.url`                   | string  | _(unset)_ | Auth-broker URL. The actual credential connection uses env then the main global config, not project/config-overlay values.                                                                                                                                                                                                                                                                                                                                                                                  |
 | `auth.broker.token`                 | string  | _(unset)_ | Auth-broker token. `OMP_AUTH_BROKER_TOKEN` wins over the main global config; the broker token file is a fallback. Project/config-overlay values do not redirect credentials.                                                                                                                                                                                                                                                                                                                                                                              |
-| `task.agentAccountPools`            | record  | `{}`      | Exact-name task/eval agent → provider id → OAuth identity keys (the `identityKey` values of [client account pools](./auth-broker-gateway.md#client-account-pools), e.g. `email:<address>\|org:<id>` for Anthropic; `zetacode usage accounts` lists them). The agent authenticates for each listed provider only with those accounts, never another account or an API key, and fails when none can serve; an empty list allows no account. A malformed entry fails settings load. See [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence). |
+| `task.agentAccountPools`            | record  | `{}`      | Exact-name task/eval agent → provider id → OAuth identity keys (the `identityKey` values of [client account pools](./auth-broker-gateway.md#client-account-pools-routing-not-authorization), e.g. `email:<address>\|org:<id>` for Anthropic; `zetacode usage accounts` lists them). The agent authenticates for each listed provider only with those accounts, never another account or an API key, and fails when none can serve; an empty list allows no account. A malformed entry fails settings load. See [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence). |
 | `secrets.enabled`                   | boolean | `false`   | Enable configured secret obfuscation and built-in credential-shaped token redaction before provider requests. See [Secret obfuscation](./secrets.md).                                                                                                                                                                                                                                                                                  |
 
 Provider credentials and custom model definitions are configured separately — see [Providers](./providers.md) and [Models](./models.md).
 
 #### Saved reset auto-consumption
 
-`codexResets.autoRedeem` and `claudeResets.autoRedeem` independently control saved-reset consumption: `yes` enables automatic spending, `no` disables it, and `unset` requires consent before the first spend. Headless sessions never spend while consent is unset.
+`codexResets.autoRedeem` and `claudeResets.autoRedeem` independently control saved-reset consumption: `yes` enables automatic spending, `no` disables it, and `unset` requires consent before the first spend. A session with no prompt UI to ask (such as `zetacode -p`) spends a reset under `unset` only when that reset expires within 5 minutes and would otherwise be lost; everything else waits for consent, with a notice pointing at `/usage reset`.
 
 When a usage refresh detects an eligible banked reset expiring within the next **5 minutes**, auto-consumption attempts it even with little or no usage, a credit reserve, or `salvageHorizonHours: 0`. Provider eligibility, covered-limit requirements, cooldowns, and duplicate-spend protections still apply.
 
 `salvageHorizonHours` controls earlier, usage-based salvage; setting it to `0` leaves the five-minute last-chance rule active. Set the provider's `autoRedeem` to `no` to disable all automatic spending.
+
+To spend one by hand, use `/usage reset` in a session or `zetacode usage reset` from a shell, which needs no session or TTY and works from an auth-broker client: without arguments it lists each account's saved resets by `<provider>/<credential id>`, and with one it spends a single reset on that account.
+
+`zetacode usage` and the active account's status-line usage segment flag banked resets expiring within **7 days** when the account's fullest window they restore is at least 25% used. Within **24 hours**, `zetacode usage` opens with a banner per account: whether the sweep above spends the reset or asks first (only while an interactive zetacode session is open), or that it will not, and the `/usage reset` target that spends it now when the provider allows. The interactive TUI shows that warning once per conversation.
+
+### Cost limits
+
+```yaml
+session:
+  warnCost: 5   # USD: warn once when the session's spend reaches it
+  maxCost: 10   # USD: stop sending model requests from this spend on
+```
+
+Both are unset by default and accept positive USD amounts; `--warn-cost` and `--max-cost` override them for one run, and setting or changing either while a session is open applies to its next request. Spend counts every model request of the session and its subagents at the costs the model catalog prices: agent turns, side requests (compaction, handoff, advisor reviews, `/btw`, cache warming), eval `completion()`/`judge()`/`judge_batch()`, judgment-backed `find`, image questions, image descriptions for text-only models, edit auto-repair, and job widgets; at the cap these are refused too, and no session title is generated. Memory extraction (Mnemopi and memories consolidation) runs in the background and is neither counted nor refused. The cap is checked before each request goes out, so requests already in flight can finish past it. A session started with `--resume`/`--continue`, or switched to, starts from the spend its session file records (the total the footer and `/usage` show), which leaves out background subagents' spend and side requests from earlier runs; `/new` starts from zero, while fork, branch and `/btw` keep the session's spend. When the cap stops a run, the interactive TUI shows the reason and puts a refused prompt back in the editor, print mode exits with status `3`, and RPC reports `error.code: "cost_cap"`.
 
 ### Other groups
 
@@ -1078,7 +1036,7 @@ These settings follow the same schema-defined type and default rules shown above
 
 ## Legacy migration
 
-`zeta` migrates older config shapes automatically. None of these require action; they are listed so you know what changes you may see in `config.yml`.
+`zetacode` migrates older config shapes automatically. None of these require action; they are listed so you know what changes you may see in `config.yml`.
 
 ### Startup migration to `config.yml`
 
@@ -1122,7 +1080,6 @@ Selected migrations applied whenever raw settings are loaded (global, project, o
 | `dev.autoqa.consent` / `todo.reminders.max` | `dev.autoqaConsent` / `todo.remindersMax` |
 | `providers.parallelFetch` | removed; use `providers.fetch` |
 | `providers` model/backend selectors, `tts.localModel`, `stt.modelName` | role/chain migrations described in [Models](#models); retired keys removed |
-| `providers.tts` / `providers.judgmentProvider` / `providers.autoThinkingModel` / `providers.memoryModel` / `providers.unexpectedStopModel` | retired selectors; translated where applicable into `modelRoles.speech`, the `modelRoles.judge` chain, and `modelRoles.memory`, then removed from `config.yml` |
 | `exa.enableSearch` / `exa.enableResearcher` / `exa.enableWebsets` | search enablement folded into `exa.enabled`; researcher/websets toggles removed |
 | `computer.backend`, `tools.discoveryMode`, `tools.essentialOverride`, `mcp.discoveryMode`, `mcp.discoveryDefaultServers` | removed |
 
@@ -1130,7 +1087,7 @@ Selected migrations applied whenever raw settings are loaded (global, project, o
 
 ### A project setting is not taking effect
 
-- Start `zeta` from the directory that contains `.zeta/config.yml`. Settings discovery only checks the current working directory's `.zeta/`, not ancestor directories.
+- Start `zetacode` from the directory that contains `.zeta/config.yml`. Settings discovery only checks the current working directory's `.zeta/`, not ancestor directories.
 - Ensure `.zeta/` is non-empty; empty config directories are ignored.
 - Confirm the file is valid YAML and its top level is a mapping.
 - Run `zetacode config get <key>` from that directory to see the effective value.
@@ -1149,7 +1106,7 @@ Arrays replace; they do not append. If a project sets `disabledProviders`, `enab
 
 ### `zetacode config set` changed the wrong file
 
-`zetacode config set` and `zetacode config reset` write the main global YAML file (`config.yml`, or the existing compatible `config.yaml`) under the active agent/profile directory. Run `zetacode config path` to print that directory and check `--profile`, `OMP_PROFILE`, and `ZETA_CODING_AGENT_DIR`. For project-local keys, edit `<repo>/.zeta/config.yml` directly.
+`zetacode config set` and `zetacode config reset` write the main global YAML file (`config.yml`, or the existing compatible `config.yaml`) under the active agent/profile directory. Run `zetacode config path` to print that directory and check `--profile`, `OMP_PROFILE`, and `PI_CODING_AGENT_DIR`. For project-local keys, edit `<repo>/.zeta/config.yml` directly.
 
 ### A `--config` overlay fails at startup
 

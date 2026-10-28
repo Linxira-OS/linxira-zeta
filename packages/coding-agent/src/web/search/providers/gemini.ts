@@ -20,7 +20,7 @@ import {
 } from "@linxiraos/pi-ai";
 import { clampThinkingLevelForModel, resolveWireModelId } from "@linxiraos/pi-catalog/model-thinking";
 import { parseCloudflareCredential } from "@linxiraos/pi-catalog/wire/cloudflare";
-import { getAntigravityUserAgent, getGeminiCliHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
+import { getAntigravityHeaders, getGeminiCliHeaders } from "@linxiraos/pi-catalog/wire/gemini-headers";
 import { type ConfiguredThinkingLevel, concreteThinkingLevel, toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import { fetchWithRetry, USER_AGENT } from "@linxiraos/pi-utils";
 
@@ -424,7 +424,9 @@ async function callGeminiSearch(
 	} else {
 		endpoints = [DEFAULT_ENDPOINT];
 	}
-	const headers = auth.isAntigravity ? { "User-Agent": getAntigravityUserAgent() } : getGeminiCliHeaders();
+	const headers = auth.isAntigravity
+		? getAntigravityHeaders()
+		: { Accept: "text/event-stream", ...getGeminiCliHeaders() };
 
 	const requestMetadata = auth.isAntigravity
 		? {
@@ -477,7 +479,6 @@ async function callGeminiSearch(
 		headers: {
 			Authorization: `Bearer ${auth.accessToken}`,
 			"Content-Type": "application/json",
-			Accept: "text/event-stream",
 			...headers,
 		},
 		body: JSON.stringify(requestBody),

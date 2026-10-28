@@ -24,33 +24,13 @@ Default-profile config paths, in precedence order:
 
 These are relative to the active agent directory returned by `getAgentDir()`. Named profiles use
 `~/.zeta/profiles/<name>/agent/`; `PI_CONFIG_DIR` changes the config-root directory name, and
-`ZETA_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
+`PI_CODING_AGENT_DIR` can override the default-profile agent directory. A programmatic
 `ModelRegistry` path overrides the directory-derived location.
 
 Legacy behavior still present:
 
 - If both YAML files are missing and `models.json` exists at the same location, it is migrated to `models.yml`.
 - Explicit `.json` / `.jsonc` config paths are still supported when passed programmatically to `ModelRegistry`.
-
-## Two layers: hand-written and web panel
-
-The user's hand-written file (`models.yml`, or `models.yaml` when only that exists) is **read-only to Zeta**.
-The web `ModelsConfig` panel owns a sibling file in the same directory:
-
-- `~/.zeta/agent/models.web.yml` — written only by the gateway, using the same YAML schema.
-
-The effective configuration is the hand-written layer first, then the panel layer for providers the
-hand-written layer does not define:
-
-- **The hand-written file always wins for a provider it defines.** A panel entry with the same provider
-  name is ignored, so a stale browser tab can never shadow it.
-- `GET /api/models-config` returns the merged view, with `origin: "user"` or `origin: "web"` on each
-  provider (upstream OMP mirrors still carry `origin: "omp"`).
-- `PUT /api/models-config` and `GET /api/models/import` write only `models.web.yml`; they never rewrite
-  the hand-written file. A provider whose origin is `user` (or whose name exists in the hand-written
-  layer) is refused and listed in the response's `ignored` array.
-- An invalid panel layer is logged and ignored; it never prevents startup and never hides the
-  hand-written layer.
 
 ## `models.yml` / `models.yaml` shape
 
@@ -191,7 +171,7 @@ Both paths accept PNG and JPEG of 280–1568 pixels per side and 78,400–2,458,
 
 See TypeSafe's [image documentation](https://docs.typesafe.ai/images) and OpenRouter's [multimodal Decisions guide](https://openrouter.ai/docs/guides/community/multimodal-decisions) for their image constraints.
 
-OpenRouter's guide lists a 256 px minimum side, but a [report of a live Jev 1.14 request](https://github.com/can1357/oh-my-pi/pull/15887#issuecomment-6218295982) says a 270×300 PNG received HTTP 400; the 280 px minimum side is intentional and remains in effect.
+OpenRouter's guide lists a 256 px minimum side, but a [report of a live Jev 1.14 request](https://github.com/can1357/Zeta/pull/15887#issuecomment-6218295982) says a 270×300 PNG received HTTP 400; the 280 px minimum side is intentional and remains in effect.
 
 For example, configure TypeSafe Jev as the judge and attach an image in JavaScript or Python:
 
@@ -232,6 +212,7 @@ Loading models.yml checks a `modelOverrides` `kind` only against an api the file
 - `auth`: `apiKey` (default), `none`, or `oauth`. `none` and `oauth` waive the custom-provider `apiKey` requirement, but `oauth` does not create credentials or register a login flow. It forces OAuth-style request shaping; a usable credential must come from stored auth, environment, or a configured key. Custom `anthropic-messages` models also use OAuth-style shaping when `auth` is omitted; set `auth: apiKey` for plain API-key shaping.
 - `discovery.type`: `ollama`, `llama.cpp`, `lm-studio`, `openai-models-list`, `proxy`, `litellm`, or `apple-foundation-models`. Apple's transport is registered implicitly on supported Macs; `apple-foundation-models` is not an allowed `api` value in this YAML schema.
 - `discovery.injectV1`: optional boolean, default `true`, for `openai-models-list`. Set `false` to fetch the model list from `{baseUrl}/models` without injecting `/v1` — for gateways that root their OpenAI-compatible surface at a versioned path (e.g. `https://api.opper.ai/v3/compat`) where the forced `/v1/models` returns a different, smaller model list. Query strings in `baseUrl` are ignored, matching the default mode.
+- `discovery.advertisedReasoning`: optional boolean, default `true`, for `openai-models-list`, `lm-studio`, and `proxy`. Discovery reads what a `/v1/models` row states about its own reasoning surface (`supported_reasoning_levels` / `default_reasoning_level` / `reasoning`, top-level or under `metadata`) and lets it outrank the bundled-reference guess, so a gateway that dispatches with its own catalog offers exactly the tiers its route accepts. A row that lists `none` gets `reasoningDisableMode: none-effort`, so a thinking-off request sends the off-switch instead of being clamped to the lowest tier. An advertised ladder also pins `defaultLevel` inside itself, so catalog policy cannot inject a tier the row omits. A row reporting `reasoning: false` overrides a reasoning-enabled reference for that id. Set the flag to `false` when an endpoint advertises levels its route rejects: discovery then builds each model's thinking surface from the bundled reference alone. A row that says nothing about reasoning is unaffected either way. Explicit `modelOverrides.<id>.thinking` and `compat.supportsReasoningEffort` still win over both. `litellm` does not accept the flag: its authoritative reasoning metadata comes from `/model_group/info`, so the setting would only apply to its `/v1/models` fallback.
 - `transport`: `pi-native` only. When set, every model under that provider is sent to an `zetacode auth-gateway` compatible `baseUrl` via `POST /v1/pi/stream`; `apiKey` is the gateway bearer.
 - `imageInputDecoder`: `stb` only. Set this on a custom model or `modelOverrides` entry when the serving backend uses an STB-compatible image decoder that cannot accept WebP; OMP converts attached and historical WebP images before provider dispatch.
 - `imageCountBudget`: positive integer. Set this on a custom model or `modelOverrides` entry to state how many images one request to its host may carry. It replaces the catalog budget, which is 5 for a provider no catalog rule names. A gateway in front of a vendor with a higher limit needs it: once a session holds more images than the budget, OMP drops the oldest ones, which changes the cached prompt prefix.
@@ -295,9 +276,7 @@ its own [setup](./models.md#claude-on-bedrocks-anthropic-messages-api-anthropic)
 
 ### Unknown compatibility keys
 
-Unknown keys in provider, model, and `modelOverrides` `compat` blocks produce non-fatal warnings: a notification at interactive startup, and a stderr line in print and RPC modes and when listing models (including JSON output; stdout is unchanged). The configuration still loads and unknown keys are preserved for forward compatibility. A registry reports each unknown key path only once, even after forced refreshes or re-reading an unchanged file.
-
-One key is one warning. Occurrences of the same key (the shape a real file has: one stale key repeated on every model of several providers) are folded into a single line that names the key once, counts the occurrences, and lists the first three `…compat` containers plus `+N more`. Beyond eight distinct keys the remainder is summarized. A key that the current vocabulary renamed is reported with its successor — `requiresReasoningContentOnAssistantMessages` was renamed to `requiresReasoningContentForAllAssistantTurns` — so the file can be fixed instead of merely complained about; the old spelling no longer has any effect. The complete dotted path of every unknown key is written to the debug log (`~/.zeta/logs/`), and the interactive header shows at most five configuration warnings plus a summary row before it starts summarizing, so a long list can never push the composer off screen.
+Unknown keys in provider, model, and `modelOverrides` `compat` blocks produce non-fatal warnings: a notification at interactive startup, and a stderr line in print and RPC modes and when listing models (including JSON output; stdout is unchanged). Each warning names the config file and the dotted key path; model array entries use zero-based indices, as schema errors do. The configuration still loads and unknown keys are preserved for forward compatibility. A registry reports each unknown key path only once, even after forced refreshes or re-reading an unchanged file.
 
 Known record-level keys, at the top level of `compat` and inside its `whenThinking` override, come from both the models.yml compatibility schemas and the runtime compatibility vocabulary (wire axes). The schemas validate only a curated subset, so a runtime-recognized key such as `streamFirstEventTimeoutMs` does not warn merely because the file schema omits it. A nested `whenThinking.whenThinking` still warns: a thinking override cannot contain another thinking override. Thinking and catalog axes belong outside `compat` and are not included. Other nested checking follows only schema-declared fixed-field objects, including routing blocks and `reasoningEffortMap`; open maps such as `extraBody` accept arbitrary keys and nested payloads. Runtime extension provider registrations are not checked against the file schema: they can register custom APIs with their own compatibility fields.
 
@@ -312,7 +291,7 @@ providers:
   openai:
     apiKey: "!op read op://dev/openai/api-key"
     headers:
-      X-Team-Key: "!bw get password zeta-team-key"
+      X-Team-Key: "!bw get password omp-team-key"
 ```
 
 Successful command outputs are cached for the process lifetime, and concurrent requests share an in-flight execution. Failures back off for 30 seconds. Refresh callers that request `refreshCommandCredentials` (including the model hub's explicit refresh) and 401 credential recovery invalidate the relevant cached API keys and headers; an ordinary catalog refresh does not. Runtime API-key overrides, including `--api-key`, take precedence over configured credentials.
@@ -402,7 +381,9 @@ command.
 
 Direct Anthropic keeps its existing 5 min / 1 h lifetimes (`short: 300`, `long: 3600`),
 defaulting to 5 min for API keys and 1 h for OAuth subscriber sessions; API keys can
-explicitly select `long`. Claude on native Amazon Bedrock Converse has a 5 min TTL; 1 h is
+explicitly select `long`. Factory Droid's Claude models have the same 5 min / 1 h lifetimes and
+default to 5 min; `long` writes 1 h entries on the Anthropic, Vertex, Bedrock and Azure upstreams
+and stays 5 min elsewhere. Claude on native Amazon Bedrock Converse has a 5 min TTL; 1 h is
 available only where both catalog metadata and the request wire support it. Claude on
 Bedrock Runtime or Mantle's Anthropic Messages route has a 5 min lifetime under existing
 request support; an explicit `long` request falls back to `short` when unsupported. Other Amazon Bedrock models,
@@ -421,7 +402,7 @@ For the first-party `deepseek` provider, the catalog follows [DeepSeek's officia
 - Flash pricing covers `deepseek-flash` and the retired-but-still-accepted `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` ids, all billed at the Flash card. Peak rates per million tokens are $0.30 uncached input, $0.006 cached input, and $1.20 output.
 - `deepseek-v4-pro` initially uses peak rates of $1.32 uncached input, $0.044 cached input, and $3.96 output per million tokens. From **2026-09-14 04:00 UTC**, its estimates use the Flash rate card, with the same peak/off-peak schedule.
 
-Some catalog prices change on a date without a peak/off-peak tariff. Gemini 4 Argon on `google`, `google-vertex`, `google-antigravity`, and `cursor` is estimated at $2 input / $0.10 cached input / $10 output per million tokens through 2026-11-30, and at Google's $4 / $0.20 / $20 list price from **2026-12-01 08:00 UTC** (midnight US Pacific). The request's timestamp picks the price, so a model loaded before the change prices later requests at the new rate without a catalog update, and the model browser and `omp models --json` show the price in force.
+Some catalog prices change on a date without a peak/off-peak tariff. Gemini 4 Argon on `google`, `google-vertex`, `google-antigravity`, and `cursor` is estimated at $2 input / $0.10 cached input / $10 output per million tokens through 2026-11-30, and at Google's $4 / $0.20 / $20 list price from **2026-12-01 08:00 UTC** (midnight US Pacific). The request's timestamp picks the price, so a model loaded before the change prices later requests at the new rate without a catalog update, and the model browser and `zetacode models --json` show the price in force.
 
 Local estimates use the assistant message's **request-start timestamp** to choose both the rate card and tariff for the whole request. This is OMP's estimation convention: DeepSeek's pricing page does not specify how its server bills a request spanning a boundary. When importing historical usage without recorded cost, the stats importer leaves scheduled pricing unpriced if no request timestamp can be recovered, rather than choosing a wall-clock tariff.
 
@@ -483,6 +464,11 @@ available. Native `loaded_context_length` takes precedence over the training win
 response JIT-loads a model, OMP refreshes that runtime metadata. Explicit custom-model and
 `modelOverrides` limits remain authoritative. Discovered LM Studio models use `imageInputDecoder: stb`.
 
+Decision models (`type: "decision"` in LM Studio's native `GET /api/v1/models`) are discovered as
+`judge` models on the `openai-decisions` API: judgments post to `{baseUrl}/decisions`, LM Studio's
+OpenAI-compatible Decisions endpoint, instead of chat completions. They accept images when LM Studio
+reports `has_vision_adapter: true`. Select one with `modelRoles.judge: lm-studio/<model>`.
+
 This path also works for local OpenAI-compatible servers that are not LM Studio. For example, if oMLX is bound to Ollama's usual port, set `LM_STUDIO_BASE_URL=http://127.0.0.1:11434/v1` to discover it through the existing `/v1/models` flow. Running oMLX and Ollama side by side requires assigning a different port to one of them. Do not configure oMLX as `ollama`: Ollama discovery uses native `/api/tags` and `/api/show` endpoints, not OpenAI `/v1/models`.
 
 ### Implicit Apple Foundation Models discovery
@@ -501,7 +487,7 @@ Its internal API is `apple-foundation-models`; no HTTP endpoint is used.
 When `litellm` is active (for example through `LITELLM_API_KEY` or stored auth), runtime discovery uses the LiteLLM proxy:
 
 - provider: `litellm`
-- api: `openai-responses` for OpenAI-backed models; `openai-completions` for other models
+- api: `openai-decisions` (kind `judge`) for model groups with `mode: decisions`; `openai-responses` for OpenAI-backed models; `openai-completions` for other models
 - base URL: explicit provider `baseUrl` / `models.yml` config, otherwise `LITELLM_BASE_URL`, otherwise `http://localhost:4000/v1`
 - auth mode: `LITELLM_API_KEY` or stored LiteLLM auth when the proxy requires a key
 

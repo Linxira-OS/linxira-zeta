@@ -1,6 +1,10 @@
 import { CollabQrCodeComponent, collabBrowserLink } from "@linxiraos/pi-tui/chrome/collab-qrcode";
 import { extractLastCodeBlock, extractLastCommand, extractLastLink } from "@linxiraos/pi-tui/overlays/copy-targets";
 import { sanitizeDisplayLine } from "@linxiraos/pi-tui/overlays/extensions/display-text";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+import { randomUUID } from "node:crypto";
 import { shortenPath, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
 import { theme } from "@linxiraos/pi-tui/theme";
 import { clearSubmittedText } from "./helpers/draft";
@@ -11,7 +15,9 @@ import { COLLAB_DISABLED_MESSAGE, isCollabEnabled } from "../collab/settings";
 import { cfgShareRedactSecrets } from "../commands/settings";
 import { settings } from "../config/settings";
 import { parseExportArgs } from "../export/html/args";
+import { loadCustomShare } from "../export/custom-share";
 import { buildGithubSharePrompt, prepareShareForGithub } from "../export/share-github";
+import type { AgentSession } from "../session/agent-session";
 import { M } from "../i18n";
 import type { InteractiveModeContext } from "../modes/types";
 import { restartBrowserForModeChange } from "../tools/browser";
@@ -57,6 +63,42 @@ function showCollabQrCode(ctx: InteractiveModeContext, webLink: string): void {
 function showCollabLink(ctx: InteractiveModeContext, host: CollabHost, heading: string, view = false): void {
 	ctx.showStatus(collabLinkHint(host, heading, view), { dim: false });
 	showCollabQrCode(ctx, view ? host.webViewLink : host.webLink);
+}
+
+/**
+ * `~/.zeta/agent/share.{ts,js,mjs}` replaces the default GitHub flow.
+ *
+ * Returns false when no hook exists so the caller keeps the gist path. The
+ * hook receives a standalone HTML export; run failures never fall back, the
+ * same contract the upstream loader established. This runs on whichever
+ * process owns the session — the TUI in standalone mode, the backend for an
+ * attached client — so the script resolves against that host's agent dir.
+ */
+async function tryCustomShare(
+	session: AgentSession,
+	report: (result: { url?: string; message?: string }) => Promise<void> | void,
+): Promise<boolean> {
+	const custom = await loadCustomShare();
+	if (!custom) return false;
+	const tmpPath = path.join(os.tmpdir(), `zeta-share-${randomUUID()}.html`);
+	try {
+		await session.exportToHtml(tmpPath);
+		const result = await custom.fn(tmpPath);
+		if (typeof result === "string") await report({ url: result });
+		else if (result) await report({ url: result.url, message: result.message });
+		else await report({});
+	} finally {
+		await fs.rm(tmpPath, { force: true }).catch(() => {});
+	}
+	return true;
+}
+
+/** Human-facing lines for a custom-share result; `Session shared` when the script reported nothing. */
+function customShareText(result: { url?: string; message?: string }): string {
+	const parts: string[] = [];
+	if (result.url) parts.push(`Share URL: ${result.url}`);
+	if (result.message) parts.push(result.message);
+	return parts.length > 0 ? parts.join("\n") : "Session shared";
 }
 
 export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
@@ -298,6 +340,14 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 		description: () => M.cmdShare,
 		handle: async (_command, runtime) => {
 			try {
+				const handled = await tryCustomShare(runtime.session, async result => {
+					await runtime.output(customShareText(result));
+				});
+				if (handled) return;
+			} catch (err) {
+				return usage(`Failed to run custom share: ${errorMessage(err)}`, runtime);
+			}
+			try {
 				const prepared = await prepareShareForGithub(runtime.session, runtime.sessionManager, {
 					redact: cfgShareRedactSecrets.get(runtime.settings),
 				});
@@ -307,6 +357,20 @@ export const BUILTIN_COLLABORATION_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpe
 			}
 		},
 		handleTui: async (_command, runtime) => {
+			try {
+				const handled = await tryCustomShare(runtime.ctx.session, result => {
+					runtime.ctx.showStatus(customShareText(result));
+					if (result.url) runtime.ctx.openInBrowser(result.url);
+				});
+				if (handled) {
+					clearSubmittedText(runtime);
+					return;
+				}
+			} catch (err) {
+				clearSubmittedText(runtime);
+				runtime.ctx.showError(`Failed to run custom share: ${errorMessage(err)}`);
+				return;
+			}
 			try {
 				const prepared = await prepareShareForGithub(runtime.ctx.session, runtime.ctx.sessionManager, {
 					redact: cfgShareRedactSecrets.get(runtime.ctx.settings),

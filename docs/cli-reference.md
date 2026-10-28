@@ -87,8 +87,8 @@ Argument handling:
 | `--resume [id]`, `-r`, `--session [id]` | Resume a session by ID prefix or path, or open the picker when no value is given. |
 | `--restore [id]` | Resume a session as `--resume` does, then go on with what its last process left unfinished when it crashed or was killed: the interrupted turn and the subagents it was running. Interactive only; takes no prompt. See [session operations](./session-operations-export-share-fork-resume.md#cli---restore). |
 | `--fork <session>` | Fork a saved session (by ID prefix or path) into a new session. See [session operations](./session-operations-export-share-fork-resume.md). |
-| `--from-claude` | Import a Claude Code session into OMP. |
-| `--from-codex` | Import a Codex session into OMP. |
+| `--from-claude` | Import a Claude Code session into ZETA. |
+| `--from-codex` | Import a Codex session into ZETA. |
 | `--export <session>` | Export a session file to HTML and exit. |
 | `--no-title` | Disable title auto-generation (equivalent to the `PI_NO_TITLE` [environment variable](./environment-variables.md)). |
 
@@ -145,8 +145,10 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | `--approval-mode <mode>` | Override `tools.approvalMode` for this session (`always-ask`, `always-ask-cached`, `write`, or `yolo`). See [approval mode](./approval-mode.md). |
 | `--auto-approve`, `--yolo` | Force yolo tier approval; explicit tool/user policies and provider safety checks still apply. |
 | `--advisor` | Enable the advisor runtime (passively reviews each turn and injects notes). See [advisor / watchdog](./advisor-watchdog.md). |
+| `--wait-async` | Print mode: before exiting, wait for this run's background jobs and start another turn in the same session with each result (`async.printWake`). See [Headless / print mode](#headless--print-mode). |
 | `--max-time <duration>` | Stop the session after this duration (e.g. `600`, `10m`, `1h`). |
-| `--channels` | Host the IM channel runtime in this session; channels still need to be enabled in `web.yml`. See [IM channels](./channels.md). |
+| `--warn-cost <usd>` | Warn once when the session's spend, subagents included, reaches this many USD. Overrides `session.warnCost`. |
+| `--max-cost <usd>` | Stop sending model requests once the session's spend reaches this many USD; a request already in flight can carry spend past it. Overrides `session.maxCost`. |
 
 #### Extensions, hooks, skills, and rules
 
@@ -160,6 +162,7 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | `--skills <globs>` | Comma-separated glob patterns to filter [skills](./skills.md) (e.g. `git-*,docker`). |
 | `--no-skills` | Disable skills discovery and loading. |
 | `--no-rules` | Disable rules discovery and loading. See [context files](./context-files.md). |
+| `--no-context-files` | Disable [context files](./context-files.md) (`AGENTS.md`, `CLAUDE.md`, ...) for the working directory and every `--add-dir` root. Subagents inherit it. |
 
 #### System prompt
 
@@ -175,124 +178,7 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
 | --- | --- |
 | `--mode <mode>` | Output/transport mode: `text` (default), `json`, `rpc`, `acp`, or `rpc-ui`. See [output modes](#output-modes---mode). |
 | `--print`, `-p` | Process prompts non-interactively and exit. |
-| `--backend` | Force backend mode regardless of `backend.enabled`. An interactive launch creates a fresh backend session for this terminal (unless `--attach`/`--attach-session` joins one); print mode routes through the backend. In print mode, `--attach`, `--attach-session`, and `--attach-new` also force the backend route. |
 | `--no-ui` | With `rpc`/`rpc-ui`, make extensions headless without disabling rpc-ui tool UI. |
-
-#### Backend attach
-
-`zetacode serve` hosts sessions for every gateway client — terminal attaches,
-and the Web UI once a build is present (its development is currently
-deferred; the package ships a placeholder page).
-
-The two launch modes are explicit:
-
-- **Bare `zetacode`** follows the machine-wide backend switch. With
-  `backend.enabled` off (the default) it opens a pure local TUI: it owns its
-  session in-process and never attaches to, or shuts down, a backend that
-  happens to be running. With the switch on it becomes a client of the single
-  default backend; if none is running, startup fails with a diagnostic.
-- **`--attach` / `--attach-session` / `--attach-new` / `--backend`** explicitly
-  select backend mode regardless of the switch. A matching backend is required:
-  if none is reachable, startup fails instead of silently opening a second local
-  session. `--backend-url <url>` also implies attach and pins discovery to that
-  instance.
-- **`--standalone`** forces a local process even when `backend.enabled` is on.
-  It never registers, listens, or attaches, and can coexist with the backend.
-
-A backend session is bound to the pair **(workspace directory, git branch)**:
-`--attach` reuses the most recently modified session whose `cwd` and branch
-match the current directory (creating one when that branch has none).
-`--backend` is the direct-execution spelling: it creates a fresh backend
-session for this terminal unless `--attach` or `--attach-session` explicitly
-asks to join an existing one. `--attach-session <id>` may cross both; when its
-branch differs from the current one the TUI warns which checkout the prompts
-will edit.
-
-Every live `serve` instance registers itself (the compatibility `serve.json`
-plus a per-pid file under `~/.zeta/serve/`). Attach probes **every** registered
-instance and refuses to guess:
-
-- exactly one compatible instance → attach;
-- an explicit `--backend-url` → only that instance;
-- `--attach-session <id>` → the instance that owns the session;
-- more than one compatible instance → the one that already owns a session for
-  the current `(cwd, branch)` wins;
-- still more than one (or none owns the workspace) → startup fails and lists
-  the instances (`pid`, version, URL), asking for `--backend-url` or
-  `--attach-session`.
-
-| Flag | Description |
-| --- | --- |
-| `--attach` | Attach the TUI to this directory's newest backend session. |
-| `--attach-session <id>` | Attach to a specific backend session, across all repositories. |
-| `--attach-new` | Create and attach to a fresh backend session in this directory instead of reusing one. |
-| `--backend` | Run this launch directly on the backend. Creates a fresh backend session per terminal unless `--attach`/`--attach-session` is also given. Print mode routes through the backend too. |
-| `--backend-url <url>` | Attach to that gateway URL; implies `--attach` (default discovery: `ZETA_GATEWAY_URL`, `ZETA_WEB_GATEWAY_PORT`, every live serve registration, then `http://127.0.0.1:43143`). |
-| `--standalone` / `--local` | Force a local process even when `backend.enabled` is on. Cannot be combined with backend flags. |
-
-`zetacode attach --list` prints every backend session across repositories
-(id, `cwd @ branch`, modified time, name/status), `zetacode attach <id>` attaches the
-plain terminal client, and `zetacode attach --new` creates a session in the
-current (or `--cwd`) directory. Builtin slash commands with a headless handler
-(`/compact`, `/fast`, `/rename`, …) execute on the backend; TUI-only commands
-print a hint to use the full TUI instead of being sent to the model as text.
-
-The TUI keeps its renderer: the backend session is mirrored into a local
-replica so transcript replay, the status line, and dialogs behave natively.
-Prompts, aborts, extension dialogs (`select`/`confirm`/`input`/`editor`/
-`ask`), and plan approval travel over the session's RPC WebSocket
-(`/api/rpc/ws`, the protocol in [rpc.md](rpc.md#websocket-transport)); the SSE
-stream keeps mirroring turns and dialogs are presented once, whichever surface
-sees the request first wins. A backend without the socket falls back to its
-HTTP command surface. Client-only actions such as opening files and clipboard
-writes stay local and are not forwarded. Commands that only touch the client
-(`/language`, `/theme`, `/settings`, `/hotkeys`, `/tool`, `/time`, `/tracking`,
-`/changelog`, `/stats`, `/git`, `/copy`, `/export`, `/dump`, `/help`, `/agents`,
-`/extensions`, `/hub`, `/pause`, `/record`, `/open`, `/debug`,
-`/quit`, `/exit`) run in the attached TUI exactly as they do locally, and the
-replica switches that the attach link mirrors — `/model`, `/modelpreset`,
-`/switch`, `/effort`, `/plan`, `/plan-ultra`, `/plan-review`, `/goal`,
-`/vibe` — open their usual pickers and then send the matching wire command.
-`/fast` and `/slow` are forwarded to the backend's headless handlers;
-`/guided-goal` runs in the backend session: the backend exposes the goal tool, sends the hidden interview kickoff, and the attached TUI mirrors the interview state so bare `c` stays an answer instead of a mode shortcut.
-`/skills`, `/tools`, `/context`, `/usage` and `/jobs` are also forwarded
-because they act on the backend session. `/skills` and `/share` are prompt-only
-entry points: explicit invocation injects the built-in guide, and
-`/skills` install/update asks the agent to install in its own workspace.
-`/status` no longer exists; use `/extensions`.
-Every other slash command is **forwarded and executed
-by the backend** with its own session — builtins that have a headless handler
-(`/compact`, `/handoff`, `/session`, `/retry`, `/rename`, `/move`,
-`/fresh`, `/share`, `/mcp`, `/memory`, `/marketplace`, `/todo`, `/dirs`,
-`/add-dir`, `/remove-dir`, `/pin`, `/prewalk`, `/security`, `/plugins`,
-`/forget-approvals`, `/wt`, `/skillful`, `/advisor`, …) plus custom commands
-and prompt templates; the command's output (`command_output`) is printed in
-the attached status line. `/queue <text>` and the `->`/`=>` shorthands land in
-the backend's follow-up queue, and `/btw <question>` opens a side context on
-the backend. Session lifecycle runs on the backend and re-attaches this client:
-`/new` (fresh session), `/resume <id>` (existing session), `/fork`, `/branch`
-and `/tree` (entry picker over the mirrored transcript), `/clear` (drop the
-context, keep the session) and `/delete yes`. `/login` and `/logout` drive the
-backend's OAuth providers and accounts. `/restart` defaults to the backend
-while attached and asks the serve host to re-exec its original argv (the
-gateway exposes `POST /api/server/restart`); `/restart client` re-execs this
-TUI with its launch flags, and `/restart backend` is the explicit host form.
-The client stream drops and reconnects with backoff when the new instance
-answers. `/omfg`, `/cleanse`, `/tan` and `/seance` run on the backend session
-through their headless handlers. `/setup` and its `/providers` alias are
-retired: `/login` (or first-run onboarding) owns provider credentials.
-`/collab`, `/join` and `/leave` are opt-in legacy collaboration; fresh
-installs hide all three until `collab.enabled` is turned on. `/live` is
-currently disabled product-wide: its only transport is OpenAI Codex realtime,
-and a provider-agnostic layer has not landed. `/loop` runs on the backend session: its
-repetitions, `--while`/`--until` shell condition, and `loop.mode`
-compact/reset actions execute against that session, a second `/loop` stops it,
-and Esc pauses it. The status line mirrors the backend loop state; a loop
-never falls back to the client's default workspace.
-Model and thinking-level switches
-made in the attached TUI (for example `/model`) are mirrored to the backend, so
-the run and the status line never disagree. Detaching closes the socket and the
-event stream and never stops the backend or its session.
 
 #### Information
 
@@ -328,11 +214,29 @@ Related flags for headless runs:
 - `--mode json` — emit structured events instead of rendered text.
 - `--no-title` — skip title auto-generation (also `PI_NO_TITLE`).
 - `--max-time <duration>` — bound the run.
+- `--wait-async` — keep the run alive for its background jobs (below).
+- `--warn-cost <usd>` / `--max-cost <usd>` — warn at, or stop sending model requests from, a spend.
+
+Print mode is single-shot by default: once its prompts are answered it disposes
+the session, which cancels background jobs the run started (`bash` or `task`
+calls the model ran asynchronously). With `--wait-async` (or
+`async.printWake: true`) it instead waits for them; each job's result is
+delivered to the same session as it is in the TUI, starting another turn, and a
+turn may start further jobs. The run exits once no owned job or undelivered
+result remains, and text mode prints the answer of the last turn. Bound
+unattended runs with `--max-time`.
+
+```sh
+# Start a long build in the background, then react to its result in the same session
+zetacode -p --wait-async --max-time 2h "Run the integration suite in the background and fix what fails"
+```
 
 `--mode json` emits a session header followed by events as JSON lines.
 Incremental `message_update` events omit full partial-message snapshots; completed
 messages arrive in `message_end`, and opaque provider replay payloads are omitted.
 Terminal turn failures produce a nonzero exit status in both text and JSON modes.
+A run stopped by `--max-cost` exits with status `3`: the cap message goes to
+stderr (a `cost-gate` notice in JSON mode) and no answer is printed.
 
 `plan.defaultOnStartup` is ignored in print mode because there is no plan-review
 UI. Use `--plan-yolo` for unattended planning and implementation.
@@ -360,24 +264,18 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | --- | --- | --- |
 | `launch` | Start a coding session (the default command). | [Launch flags](#launch-flags) |
 | `acp` | Run zetacode as an ACP (Agent Client Protocol) server over stdio. | [approval mode](./approval-mode.md#acp-sessions) |
-| `attach` | Attach a terminal to a running session over the web gateway (`--list`, `--new`, `<session-id>`). | this page → [Backend attach](#backend-attach) |
-| `auth` | Export or import stored provider credentials (API keys and OAuth logins) as JSON: `auth export` prints the document, and `auth import <file\|->` merges it into `agent.db`. | [providers](./providers.md) |
 | `auth-broker` | Manage the zetacode auth-broker (credential vault). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `auth-gateway` | Run an auth-gateway: an HTTP forward proxy backed by the configured broker (`serve`), or JSON lines on stdin/stdout for a parent process with your own credentials (`stdio`). | [auth broker / gateway](./auth-broker-gateway.md) |
 | `agents` | Manage bundled task agents. | [task agent discovery](./task-agent-discovery.md) |
-| `anonymize` | Write a shareable copy of a session and its subagents: turn contents redacted, metadata kept, paths and literals replaced by consistent mock tokens (`-o` chooses the output directory). | [session operations](./session-operations-export-share-fork-resume.md) |
 | `bench` | Benchmark models: TTFT/prefill vs decode throughput with p50/p95 across chat, prefill, generation, and prompt-cache workloads, rendered in a live dashboard (`--prefill-bytes` sizes the synthetic prefill input). `--detailed` runs single-user, `--par`-way parallel (aggregate tok/s and scaling), and prefill phases per model. | |
 | `browser-relay` | Run the local CDP relay used by Eval's browser API to drive your own Chrome tabs. | [computer use](./computer-use.md) |
-| `channels` | Inspect, pair, and toggle IM channels (WeChat/Feishu/Telegram) without a browser: `status`, `login wechat` (terminal QR), `login feishu --app-id … --app-secret …` / `login telegram --token …` (validate then save), `logout`, `enable`, `disable`; `--json` on every subcommand. | [IM channels](./channels.md) |
 | `cleanse` | Detect and fix project diagnostics with weighted parallel subagents. | |
-| `collab` | List active local Collab hosts without exposing URLs; `collab link <instanceId\|pid>` retrieves a control link (`--view` for view-only). Requires `collab.enabled` and a relay you control. | [collab](./collab.md) |
-| `clip` | Clip uploads are unavailable in Zeta: no upload server ships, so `/record --upload` and `zetacode clip` refuse and recordings stay local (`zetacode play`). | [stream](./stream.md#clips) |
+| `collab` | List active local Collab hosts without exposing URLs; `collab link <instanceId\|pid>` retrieves a control link (`--view` for view-only). | [collab](./collab.md) |
+| `clip` | Upload a `/record` recording to live.zeta.sh as a public clip and print its URL. | |
 | `commit` | Generate a commit message and update changelogs. | |
 | `completions` | Print a shell completion script (bash, zsh, or fish). | |
 | `compress` | Rewrite a text file into the dense prompt register, reporting what it drops. | |
 | `config` | Manage configuration settings. | [config usage](./config-usage.md), [settings](./settings.md) |
-| `backend` | Machine-wide backend mode: `status [--json]`, `on [--workspace <dir>]`, `off [--timeout <s>] [--force]`, `logs`. `on` enables the switch and starts the one hidden backend in the default workspace; `off` disables new clients, drains running turns, then stops it. | [daemon](./daemon.md#backend-mode) |
-| `daemon` | Low-level background backend: `status [--json]`, `start`, `stop`, `restart`, `logs`, `install-autostart`, `uninstall-autostart`. `install-autostart` installs a real per-user OS component (systemd user service+timer / Task Scheduler task, three-minute delay) and is bundled-app only; npm/source installs are refused. `backend.autostart` **and** `backend.enabled` gate the installed component. `serve` itself stays a foreground command. | [daemon](./daemon.md) |
 | `dry-balance` | Dry-run OAuth account balancing across random session ids. | |
 | `find` | Semantic search for implementing files and line ranges. | |
 | `gc` | Run storage garbage collection. | |
@@ -388,26 +286,24 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `if-bench` | Benchmark instruction following and working memory: one cached thread of glyph array actions with a cat-sound directive that moves through the prompt. | |
 | `images`, `img` | Inspect, diagnose, probe, and purge image publication backends. | |
 | `install` | Install or link an extension package (alias of `plugin install` / `plugin link`). | [extensions](./extensions.md) |
-| `join` | Join a shared collab session (same as `/join`); refuses to start while `collab.enabled` is off. | [collab](./collab.md) |
+| `join` | Join a shared collab session (same as `/join`). | [collab](./collab.md) |
 | `login` | Log in to a model provider from the terminal (counterpart of `/login`). | |
 | `models` | List, search, and refresh available models. | [models](./models.md) |
-| `plugin`, `plugins` | Manage plugins (install, uninstall, list, etc.); `plugins panel <plugin> <panel>` prints one declarative panel's data as a native host draws it. | [plugins](./plugins.md), [writing a plugin](./writing-a-plugin.md), [extensions](./extensions.md), [marketplace](./marketplace.md) |
+| `plugin`, `plugins` | Manage plugins (install, uninstall, list, etc.). | [extensions](./extensions.md), [marketplace](./marketplace.md) |
 | `play` | Replay a `/record` recording in the terminal; Space pauses and `q` quits. | |
 | `predict` | Compare word-completion engines' live ghost text for a prompt. | |
 | `ps` | List and control daemon-supervised background processes (logs, stop, kill, restart). | |
 | `say` | Synthesize text with the local TTS engine and play it through the speakers. | [tts tool](./tools/tts.md) |
 | `share` | Share a saved session via an encrypted link (same as the `/share` slash command). | [session operations](./session-operations-export-share-fork-resume.md) |
-| `session` | Hand a session to another machine: `pack <session> <out.tar>`, `unpack <archive.tar> --cwd <dir>` (prints the session file path), or `moved <session> --to <label>` so resuming the local copy later forks. | [session operations](./session-operations-export-share-fork-resume.md) |
 | `setup` | Run onboarding setup or install dependencies for optional features. | |
 | `shell` | Interactive shell console. | |
 | `read` | Show what the read tool will return for a path, URL, or internal URI. (The [`read` tool](./tools/read.md) is a separate agent tool.) | |
 | `render` | Draw a session's entire thread through the production transcript pipeline (with repaint timing). | |
-| `skill`, `skills` | Install, search, publish, and manage skills; extra skills come from the npm package `@linxiraos/linxira-skills` (`npm i -g @linxiraos/linxira-skills`), or a configured registry URL. | [skills](./skills.md#extra-skills-from-npm) |
+| `skill`, `skills` | Install, search, publish, and manage skills on skills.zeta.sh. | [skills](./skills.md) |
 | `ssh` | Manage SSH host configurations. | |
 | `stats` | View usage statistics. | |
-| `stream` | Broadcast local zetacode session screens and chat to a live channel; no server ships, so set `stream.serverUrl` to your own compatible server. | [stream](./stream.md) |
-| `serve`, `server` | Start the Stats Dashboard and Web Gateway services without opening a browser (the Web UI port answers a placeholder while its development is deferred). `--host`/`--tls-cert`/`--tls-key` expose them (a non-loopback plaintext bind needs `--allow-plain-http`), `--channels` hosts IM channels, and `--stats-only`/`--web-only` narrow the services. | [serve and web](./zeta-serve-web.md) |
-| `update` | Check for and install updates; `--canary`/`--stable` switch release channels. `--desktop` targets the `zetawork` desktop app instead of the CLI: `zetacode update --desktop --check` prints one JSON line (`current`, `latest`, `available`, `asset`, `url`, `size`, `digest`), and `zetacode update --desktop` downloads the Windows setup executable, verifies its SHA-256, and runs it silently. | |
+| `stream` | Broadcast local ZETA session screens and chat to a public live channel. | |
+| `update` | Check for and install updates; `--canary`/`--stable` switch release channels. | |
 | `usage` | Show provider usage limits for every authenticated account, flagging saved resets close to expiry; `usage clients` breaks token burn down per client (with `--days`), `usage invalidate` drops cached reports, `usage accounts` lists each OAuth account's provider and identity key (the key `task.agentAccountPools` and broker account pools take; no tokens, `--json` supported), and `usage reset` lists each Codex and Claude account's saved rate-limit resets by `<provider>/<credential id>` (`--json`, `--redact`) and `usage reset <provider>/<credential id>` spends one, also from an auth-broker client. | [Task agent discovery](./task-agent-discovery.md#model-and-structured-output-precedence), [saved resets](./settings.md#saved-reset-auto-consumption) |
 | `tiny-models` | Download tiny local models for session titles, memory, and word completion. | [local models](./local-models.md) |
 | `token` | Get the API key or OAuth token for a provider. | [secrets](./secrets.md) |
@@ -415,11 +311,26 @@ Run `zetacode <command> --help` for each command's own flags and examples.
 | `ttsr` | Inspect and test Time-Traveling Stream Rules (TTSR). (Covers the CLI command; the [TTSR feature](./ttsr-injection-lifecycle.md) is documented separately.) | |
 | `worktree`, `wt` | Add, list, or clear git worktrees; uses clone-first behavior when enabled. | |
 | `search`, `q`, `web-search` | Test web search providers from the CLI. | [web_search tool](./tools/web_search.md) |
-| `__complete` | **Internal.** Emit shell-completion candidates for the current argv; hidden from help. `zetacode completions` prints the script that calls it. | [completions](#subcommands) |
 
 > `install`, `join`, `browser-relay`, `auth-gateway`, and `tiny-models` are also
 > reachable through related mechanisms (the `plugin` command, the `/join` slash
 > command, and so on). The table lists each as it is registered in
 > `packages/coding-agent/src/cli-commands.ts`.
 
-`__complete` is the internal, hidden subcommand behind the shell-completion scripts printed by `zetacode completions`; it is not part of the public CLI surface.
+`__complete` is an internal, hidden subcommand used by shell completion scripts.
+
+### Worktree clones
+
+When `worktree.clone` is enabled, `omp worktree add` and other clone-first
+worktree callers carry relocatable ignored caches such as `node_modules`.
+Directories containing `pyvenv.cfg` or `CMakeCache.txt` are not carried, even
+when they are nested or ignore themselves. Recreate Python environments and
+CMake build trees in the new worktree so their absolute paths name the new
+checkout. Tracked files inside excluded directories are restored from Git;
+when keeping changes, their live source contents and staged state are preserved.
+
+Clean clones also discard carried files that are untracked under the target
+commit's own ignore rules, after its tree and index have been written. Caches
+ignored by the target remain, even if the source did not ignore them. Nested
+repositories are preserved and symlinks are not followed. This target-ignore
+cleanup is skipped when keeping the source's uncommitted changes.

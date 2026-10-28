@@ -40,7 +40,7 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 
 | 路径 | 归属 | 状态 |
 | --- | --- | --- |
-| `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export` | Gateway | W1 ✅ |
+| `api/sessions`、`api/sessions/[id]`、`[id]/context`、`[id]/state`、`[id]/entries/[entryId]/thinking`、`[id]/export`、`[id]/artifacts`、`[id]/artifacts/[name]`（GET/PUT） | Gateway | W1 ✅ |
 | `api/agent/new`、`api/agent/[id]`、`[id]/events`、`api/agent/running/events` | Gateway（rpc-manager 迁移） | W2 ✅ |
 | `api/agent/[id]/memory`、`[id]/memory/search`、`[id]/memory/items/[memId]` | Gateway（`MemoryRuntimeContext` + 会话级 `MnemopiSessionState`） | W5 ✅（**只读**：列表 / 搜索 / 单条；`PATCH` item 与 `POST /memory` 已占位但返回 501） |
 | `api/agent/[id]/bash-output` | Gateway | W2 不实现（运行时会话无 `pi-bash-*.log` 临时文件，bash 全量输出走 session artifact；`role === "bashExecution"` 消息在运行时会话文件中不存在，web-ui 永远不会为此构建链接 → 保持 404） |
@@ -64,6 +64,9 @@ web-ui 构建（或 dev server 启动）时就已知：`zeta serve` 不依赖它
 - `sessions.ts` — W1：列表（`session-listing.listAllSessions` + 兜底文件扫描）、
   打开（`SessionManager.open` 语义 → DTO）、context（entryIds 配对）、
   state（running/streaming 状态）、thinking、export（`../export/html` + 递归补丁）。
+- `artifacts.ts` — 会话 `local://` 根：列表（recursive、新→旧）、单文件读、单文件写
+  （28 MiB 上限；`InternalUrlRouter.locate` 做 realpath + 根包含校验，穿越/逃逸符号链接返回 403）。
+  供远端 attach 的 `/local` 拉取-编辑-回写使用，与工具读写的是同一目录。
 - `agents.ts` — W2 ✅：`createAgentSession` + `AgentSessionWrapper` 注册表 +
   RPC 命令转发 + SSE（session/events、running/events）。web-ui 的
   `AgentSessionWrapper`/`startRpcSession`/extension-UI 对话框语义全部迁入

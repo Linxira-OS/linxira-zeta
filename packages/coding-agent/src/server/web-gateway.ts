@@ -90,6 +90,7 @@ import { handleGetPlan } from "./web-gateway/plan";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import { isGatewayDraining, setGatewayDraining } from "./web-gateway/draining";
+import { handleListArtifacts, handleReadArtifact, handleWriteArtifact } from "./web-gateway/artifacts";
 import {
 	handleDeleteProject,
 	handleDeleteSession,
@@ -153,6 +154,8 @@ const SESSION_CONTEXT_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/conte
 const SESSION_STATE_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/state$`);
 const SESSION_THINKING_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/entries/(${SESSION_ID_PART})/thinking$`);
 const SESSION_EXPORT_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/export$`);
+const SESSION_ARTIFACTS_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/artifacts$`);
+const SESSION_ARTIFACT_RE = new RegExp(`^/api/sessions/(${SESSION_ID_PART})/artifacts/(.+)$`);
 
 // Literal agent routes are matched before the generic /api/agent/:id forms.
 const AGENT_ID_RE = new RegExp(`^/api/agent/(${SESSION_ID_PART})$`);
@@ -420,6 +423,22 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	const exp = capture(pathname, SESSION_EXPORT_RE);
 	if (exp) {
 		if (req.method === "GET") return handleExportSession(req, exp[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Session artifacts: the same `local://` root the tools read and write
+	// (see web-gateway/artifacts.ts). A TUI attached to a remote backend pulls
+	// one into its own editor and pushes the edited copy back.
+	const artifacts = capture(pathname, SESSION_ARTIFACTS_RE);
+	if (artifacts) {
+		if (req.method === "GET") return handleListArtifacts(artifacts[0]);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	const artifact = capture(pathname, SESSION_ARTIFACT_RE);
+	if (artifact) {
+		if (req.method === "GET") return handleReadArtifact(artifact[0], artifact[1]);
+		if (req.method === "PUT") return handleWriteArtifact(req, artifact[0], artifact[1]);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

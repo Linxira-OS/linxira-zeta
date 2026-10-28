@@ -1,5 +1,4 @@
 import type { TextContent } from "@linxiraos/pi-ai";
-import { pathToFileURL } from "node:url";
 import { type Component } from "../tui";
 import { Box } from "../components/box";
 import { Disclosure } from "../components/disclosure";
@@ -10,6 +9,7 @@ import { Text } from "../components/text";
 import { getMarkdownTheme, theme } from "../theme";
 import type { CustomMessage, SkillPromptDetails } from "./messages";
 import { fileHyperlink } from "../render";
+import { tryFileUri } from "../render/hyperlink";
 import { collapseSkillTokens, skillChipLabel, skillChipStyle, skillToken } from "../prompt/composer-attachments";
 import { tuiText, tuiTextFmt } from "../i18n";
 import { type UserBubbleOptions, UserMessageComponent, userBubbleColor } from "./user-message";
@@ -88,11 +88,7 @@ export class SkillMessageComponent extends Container {
 			const leading = display.startsWith(label) && /^\s*$/.test(display.charAt(label.length));
 			const draft = leading ? display.slice(label.length).trim() : display;
 			const head: TspSpan[] = [
-				span(
-					label,
-					"customMessageLabel strong",
-					details?.path ? { href: pathToFileURL(details.path).href } : undefined,
-				),
+				span(label, "customMessageLabel strong", details?.path ? { href: tryFileUri(details.path) } : undefined),
 			];
 			if (typeof details?.lineCount === "number") {
 				head.push(span(`  ${details.lineCount} ${details.lineCount === 1 ? "line" : "lines"}`, "muted"));
