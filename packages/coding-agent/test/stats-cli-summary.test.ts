@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
 import * as path from "node:path";
 import { closeDb } from "@linxiraos/pi-stats";
 import { getAgentDir, getSessionsDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
@@ -14,6 +13,8 @@ const XDG_KEYS = ["XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"] as const;
 describe("zetacode stats --summary", () => {
 	const originalAgentDir = getAgentDir();
 	const originalEnv: Record<string, string | undefined> = {};
+	const originalHome = process.env.HOME;
+	const originalUserProfile = process.env.USERPROFILE;
 	let tempDir: TempDir;
 
 	beforeEach(() => {
@@ -22,9 +23,12 @@ describe("zetacode stats --summary", () => {
 			originalEnv[key] = process.env[key];
 			delete process.env[key];
 		}
-		const configDir = path.relative(os.homedir(), tempDir.join("config"));
-		process.env.ZETA_CONFIG_DIR = configDir;
-		setAgentDir(path.join(os.homedir(), configDir, "agent"));
+		// Anchor the user root at tempDir. A relative name climbing out of home
+		// is rejected by the config-dir resolver.
+		process.env.HOME = tempDir.path();
+		process.env.USERPROFILE = tempDir.path();
+		process.env.ZETA_CONFIG_DIR = ".zeta";
+		setAgentDir(path.join(tempDir.path(), ".zeta", "agent"));
 	});
 
 	afterEach(async () => {
@@ -33,6 +37,10 @@ describe("zetacode stats --summary", () => {
 			if (value === undefined) delete process.env[key];
 			else process.env[key] = value;
 		}
+		if (originalHome === undefined) delete process.env.HOME;
+		else process.env.HOME = originalHome;
+		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+		else process.env.USERPROFILE = originalUserProfile;
 		setAgentDir(originalAgentDir);
 		// Async removal: Windows releases the stats SQLite lock some time after
 		// closeDb() returns, and removeSync's retry loop can outlive the default

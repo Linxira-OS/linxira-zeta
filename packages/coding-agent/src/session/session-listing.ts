@@ -12,6 +12,7 @@ import { EVAL_STATE_CONTEXT_TYPE } from "../eval/state";
 import { visitEntriesFromFile } from "./session-loader";
 import { computeDefaultSessionDir } from "./session-paths";
 import { FileSessionStorage, type SessionStorage, type SessionStorageStat } from "./session-storage";
+import { recoverBackendReplicas } from "./backend-replica-recovery";
 import { lookupSessionTitle, recordSessionTitle } from "./session-index";
 
 /**
@@ -730,11 +731,31 @@ export function listSessionsReadOnly(sessionDir: string, storage: SessionStorage
 	return scanSessionDirReadOnly(sessionDir, storage, true);
 }
 
+/** One recovery scan per process, run lazily before the first default-root listing. */
+let backendReplicaRecovery: Promise<void> | undefined;
+
+function ensureBackendReplicaRecovery(storage: SessionStorage, sessionsRoot: string): Promise<void> {
+	backendReplicaRecovery ??= recoverBackendReplicas({ storage, sessionsRoot })
+		.then(() => undefined)
+		.catch(error => {
+			logger.warn("Backend replica recovery failed", { error: String(error) });
+			backendReplicaRecovery = undefined;
+		});
+	return backendReplicaRecovery;
+}
+
 /** List all sessions across all project directories (newest first). */
 export async function listAllSessions(
 	storage: SessionStorage = new FileSessionStorage(),
 	sessionsRoot: string = getSessionsDir(),
 ): Promise<SessionInfo[]> {
+	// A backend-owned conversation may only exist as a hidden
+	// `<config>/backend/` replica. Import it before the resume picker scans, so
+	// a disconnect (or a crashed client) does not make the conversation vanish
+	// from `--resume` until the backend itself is stopped.
+	if (storage instanceof FileSessionStorage && path.resolve(sessionsRoot) === path.resolve(getSessionsDir())) {
+		await ensureBackendReplicaRecovery(storage, sessionsRoot);
+	}
 	try {
 		const files = await dedupeRealPaths(await scanBucketFiles(sessionsRoot, "*.jsonl"));
 		return await collectSessionsFromFiles(files, storage, true);

@@ -18,7 +18,6 @@
  * every test in the process shares it.
  */
 import { afterEach, beforeEach } from "bun:test";
-import * as os from "node:os";
 import * as path from "node:path";
 import { closeDb } from "@linxiraos/pi-stats/db";
 import { getAgentDir, setAgentDir, TempDir } from "@linxiraos/pi-utils";
@@ -34,6 +33,8 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 	const originalAgentDir = getAgentDir();
 	let originalConfigDir: string | undefined;
 	let originalZetaConfigDir: string | undefined;
+	let originalHome: string | undefined;
+	let originalUserProfile: string | undefined;
 	const originalXdg: Record<string, string | undefined> = {};
 	let tempDir: TempDir | null = null;
 
@@ -41,17 +42,24 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 		tempDir = TempDir.createSync(prefix);
 		originalConfigDir = process.env.PI_CONFIG_DIR;
 		originalZetaConfigDir = process.env.ZETA_CONFIG_DIR;
+		originalHome = process.env.HOME;
+		originalUserProfile = process.env.USERPROFILE;
 		for (const key of XDG_KEYS) {
 			originalXdg[key] = process.env[key];
 			delete process.env[key];
 		}
-		const configDir = path.relative(os.homedir(), tempDir.join("config"));
+		// A relative name that climbs out of home is now rejected. Anchor the
+		// whole user root at the temp dir instead of using `..` as the config
+		// dir name.
+		process.env.HOME = tempDir.path();
+		process.env.USERPROFILE = tempDir.path();
+		const configDir = ".zeta";
 		process.env.PI_CONFIG_DIR = configDir;
 		// `getStatsDbPath()` resolves from the config root, which `dirs.ts` reads
 		// from ZETA_CONFIG_DIR (PI_CONFIG_DIR is the legacy name). Without this,
 		// every test in a process shares the developer's real `~/.zeta/stats.db`.
 		process.env.ZETA_CONFIG_DIR = configDir;
-		setAgentDir(path.join(os.homedir(), configDir, "agent"));
+		setAgentDir(path.join(tempDir.path(), configDir, "agent"));
 	});
 
 	afterEach(() => {
@@ -69,6 +77,10 @@ export function installStatsTestIsolation(prefix: string): StatsTestIsolation {
 		} else {
 			process.env.ZETA_CONFIG_DIR = originalZetaConfigDir;
 		}
+		if (originalHome === undefined) delete process.env.HOME;
+		else process.env.HOME = originalHome;
+		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+		else process.env.USERPROFILE = originalUserProfile;
 		for (const key of XDG_KEYS) {
 			const prior = originalXdg[key];
 			if (prior === undefined) delete process.env[key];

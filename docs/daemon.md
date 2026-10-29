@@ -50,7 +50,7 @@ zetacode backend logs
 | Action | Behaviour |
 | --- | --- |
 | `on` | Sets `backend.enabled=true`, records `backend.workspace` (default: the stable `~/.zeta/workspace`), and starts the hidden detached backend there. Idempotent: an already-running backend is reported, not duplicated. Refuses when more than one live backend is registered. |
-| `off` | Sets `backend.enabled=false` immediately. New clients become local; running turns are allowed to finish (drained) before the backend is stopped. `--timeout` bounds the wait; `--force` stops immediately. After the backend stops, attach replicas under `<config root>/backend` are imported into normal resume history, so a standalone `zetacode --resume` can reopen the full backend conversation. `backend on` during a drain cancels the drain and leaves the backend running. |
+| `off` | Sets `backend.enabled=false` immediately. New clients become local; running turns are allowed to finish (drained) before the backend is stopped. `--timeout` bounds the wait; `--force` stops immediately. After the backend stops, attach replicas under `<config root>/backend` are imported into normal resume history, so a standalone `zetacode --resume` can reopen the full backend conversation. Attach mirrors for a backend whose transcript is not already in this client's standard sessions tree are written into that tree, so `/resume` finds them even while the backend keeps running. `backend on` during a drain cancels the drain and leaves the backend running. |
 | `status` | Prints the switch, default workspace, backend pid/URLs, and running-session count. `--json` is machine-readable. |
 | `logs` | Prints the tail of the same daemon log. |
 

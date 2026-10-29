@@ -333,7 +333,21 @@ export function getSafeProjectCwd(): string {
 
 /** Get the config directory name relative to home (e.g. ".zeta" or ZETA_CONFIG_DIR override). */
 export function getConfigDirName(): string {
-	return process.env.ZETA_CONFIG_DIR || CONFIG_DIR_NAME;
+	const configured = process.env.ZETA_CONFIG_DIR;
+	if (!configured) return CONFIG_DIR_NAME;
+	// This value is a directory *name* under the user's home, never a path to
+	// adopt directly. Absolute paths would be re-joined to home by every
+	// consumer (`getBaseConfigRoot`, project discovery, plugin roots) and
+	// produce inconsistent trees; `..` would escape home entirely. Reject
+	// both at the boundary instead of scattering files.
+	if (path.isAbsolute(configured) || path.parse(configured).root !== "") {
+		throw new Error("ZETA_CONFIG_DIR must be a relative directory name under the home directory");
+	}
+	const normalized = path.normalize(configured);
+	if (normalized === "." || normalized === ".." || normalized.startsWith(`..${path.sep}`)) {
+		throw new Error("ZETA_CONFIG_DIR must stay within the home directory");
+	}
+	return normalized;
 }
 
 /** Get the config agent directory name relative to home (e.g. ".zeta/agent" or PI_CONFIG_DIR + "/agent"). */

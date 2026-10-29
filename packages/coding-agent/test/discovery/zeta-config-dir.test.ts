@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getAgentDir } from "@linxiraos/pi-utils";
+import { getAgentDir, getBaseConfigRoot } from "@linxiraos/pi-utils";
 import type { LoadContext } from "@linxiraos/zeta/capability/types";
 import { getConfigDirs } from "@linxiraos/zeta/config";
 import { resolveClaudePaths } from "@linxiraos/zeta/config/claude-paths";
@@ -36,6 +36,21 @@ describe("ZETA_CONFIG_DIR", () => {
 		const result = getConfigDirs("commands", { project: false });
 		const expected = path.resolve(path.join(os.homedir(), ".config/omp", "agent", "commands"));
 		expect(result[0]).toEqual({ path: expected, source: ".zeta", level: "user" });
+	});
+
+	test("getBaseConfigRoot re-anchors a relative name at home", () => {
+		process.env.ZETA_CONFIG_DIR = ".config/omp";
+		expect(getBaseConfigRoot()).toBe(path.join(os.homedir(), ".config/omp"));
+	});
+
+	test("rejects an absolute config root instead of re-joining it to home", () => {
+		process.env.ZETA_CONFIG_DIR = path.resolve(os.tmpdir(), "zeta-config-absolute");
+		expect(() => getBaseConfigRoot()).toThrow(/relative directory name/);
+	});
+
+	test("rejects a config name that escapes home", () => {
+		process.env.ZETA_CONFIG_DIR = path.join("..", "outside");
+		expect(() => getBaseConfigRoot()).toThrow(/stay within the home directory/);
 	});
 });
 

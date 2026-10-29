@@ -666,6 +666,13 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	console.log("Verifying consistency before commit...");
 	await assertConsistency(version);
 
+	// The workbench leaves embed the release version. A version bump without
+	// rebuilt/stamped leaves passes every manifest check and then fails the
+	// tag run's bundle guard, after the tag is already public. Gate it before
+	// the bump commit so the failure cannot consume a tag.
+	console.log("Verifying workbench leaf binaries...");
+	await $`bun scripts/check-workbench-bundles.ts`;
+
 	// Step 8: full checks. `bun run check` also runs check:rs (Rust
 	// tests/clippy), which is environment-blocked on hosts without an MSVC
 	// linker/SDK (see document/upstream-sync.md); the pushed commit triggers CI
@@ -709,7 +716,17 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	}
 	console.log("Tagging and pushing branch + tag atomically...");
 	await git(["tag", "-f", tagRef]);
-	await git(["push", "--atomic", "origin", "refs/heads/main:refs/heads/main", `${sha}:refs/tags/${tagRef}`]);
+	await git([
+		"-c",
+		"http.lowSpeedLimit=0",
+		"-c",
+		"http.lowSpeedTime=999",
+		"push",
+		"--atomic",
+		"origin",
+		"refs/heads/main:refs/heads/main",
+		`${sha}:refs/tags/${tagRef}`,
+	]);
 	console.log();
 	console.log(`Tag ${tagRef} is on ${sha.slice(0, 12)} (branch + tag pushed atomically).`);
 	console.log("The branch push carries the tag, so it IS the release run (tests skipped, straight to build+publish).");

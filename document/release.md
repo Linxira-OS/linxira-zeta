@@ -431,7 +431,38 @@ Rules:
   hashes different bytes — the release must never publish a binary built for
   the previous line under the new version. (A binary rebuilt *ahead* of the
   manifest is fine: that is this repo's ritual, the bump commit catches the
-  manifest up.)
+  manifest up.) `release-v2.ts` runs the same guard **after the bump and
+  before the commit/tag**, so a stale leaf aborts the release without
+  consuming a tag.
+- **Rebuilding leaves on the Windows workstation:** build inside WSL, not on
+  the `/mnt/c` mount. `main/` is copied to a fixed native workspace
+  (`/root/zeta-build`), built there, and the binaries are copied back; the
+  workspace is removed after the copy. Never point `CARGO_TARGET_DIR` at the
+  repo or build a Rust tree through `/mnt/c` — the per-file stat/read cost
+  dominates. Configure the WSL side once (crates.io sparse mirror + rustup
+  mirror), then:
+  ```sh
+  # run on Windows; /mnt/c is only the source copy + binary destination
+  wsl -d <distro> -- bash -lc '
+    rm -rf /root/zeta-build && mkdir -p /root/zeta-build &&
+    tar -C /mnt/c/Users/<user>/Documents/GITHUB/zeta \
+        --exclude=main/target --exclude=main/.git -cf - main |
+      tar -C /root/zeta-build -xf - &&
+    cd /root/zeta-build/main &&
+    export PATH=/root/.cargo/bin:$PATH &&
+    cargo build --release --locked -p zeta-main &&
+    cargo build --release --locked -p zeta-main \
+        --target x86_64-pc-windows-gnu &&
+    cp target/release/zeta /mnt/c/.../main/npm/main-linux-x64/bin/zeta-linux-x64 &&
+    cp target/x86_64-pc-windows-gnu/release/zeta.exe /mnt/c/.../main/npm/main-windows-x64/bin/zeta.exe
+    rm -rf /root/zeta-build
+  '
+  ```
+  The Windows cross link needs `x86_64-w64-mingw32-gcc` reachable from WSL
+  (the repo's ordinary Windows build uses MSVC and is not available on this
+  host). `termide` leaves only need a fresh stamp when their binary is
+  unchanged.
+
 - `release-v2.ts` rewrites **every** member of the `main/` Cargo workspace in
   `main/Cargo.lock` (not just `zeta-main`): a straggler makes
   `cargo build --locked` in `main/` refuse to run, which takes the workbench

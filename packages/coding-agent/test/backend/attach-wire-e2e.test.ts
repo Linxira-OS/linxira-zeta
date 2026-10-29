@@ -7,8 +7,9 @@
  * local turn would, and a backend dialog is presented by the TUI and answered
  * over the socket (settling the backend's pending request).
  */
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, rm } from "node:fs/promises";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { mkdir, readdir, rm } from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
@@ -27,7 +28,8 @@ import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { refreshDirsFromEnv, TempDir } from "@linxiraos/pi-utils";
+import { getSessionsDir, pathIsWithin, refreshDirsFromEnv, TempDir } from "@linxiraos/pi-utils";
+import { listAllSessions, resolveResumableSession } from "@linxiraos/zeta/session/session-listing";
 import { VirtualTerminal } from "../../../tui/test/virtual-terminal";
 import { BackendAttachLink } from "../../src/backend/attach-link";
 import { startWebGateway, type WebGatewayInstance } from "../../src/server/web-gateway";
@@ -40,6 +42,14 @@ function plainRows(rows: readonly string[]): string[] {
 	return rows.map(row => Bun.stripANSI(row).trimEnd());
 }
 
+/**
+ * One fixed suite root, removed at the start and end of the run. A random
+ * per-test temp home left a tree behind on every Windows cleanup failure;
+ * a fixed root means a failed cleanup is reclaimed by the next run instead of
+ * accumulating.
+ */
+const ATTACH_SUITE_ROOT = path.join(os.tmpdir(), "zeta-attach-wire-suite");
+
 describe("attached TUI over the wire protocol", () => {
 	let tempDir: TempDir;
 	let gateway: WebGatewayInstance | undefined;
@@ -50,17 +60,42 @@ describe("attached TUI over the wire protocol", () => {
 	let localSession: AgentSession | undefined;
 	let previousAgentDir: string | undefined;
 	let previousConfigDir: string | undefined;
+	let previousHome: string | undefined;
+	let previousUserProfile: string | undefined;
+
+	beforeAll(async () => {
+		await rm(ATTACH_SUITE_ROOT, { recursive: true, force: true, maxRetries: 100, retryDelay: 100 }).catch(
+			() => undefined,
+		);
+		await mkdir(ATTACH_SUITE_ROOT, { recursive: true });
+	}, 15_000);
+
+	afterAll(async () => {
+		// Bun's SQLite handles are finalized by GC; without this the Windows
+		// remove retries can exhaust while the last case's db handles are open.
+		Bun.gc(true);
+		await rm(ATTACH_SUITE_ROOT, { recursive: true, force: true, maxRetries: 100, retryDelay: 100 }).catch(
+			() => undefined,
+		);
+	}, 15_000);
 
 	beforeEach(async () => {
 		initTheme();
 		resetSettingsForTest();
-		tempDir = TempDir.createSync("@zeta-attach-wire-");
+		tempDir = TempDir.createSync(path.join(ATTACH_SUITE_ROOT, "case-"));
 		// Extensions are discovered from the config root; keep the user's global
 		// install out of this run so only the attach path is under test.
 		previousAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 		previousConfigDir = process.env.ZETA_CONFIG_DIR;
+		previousHome = process.env.HOME;
+		previousUserProfile = process.env.USERPROFILE;
+		// Isolate the whole user root, not just one name under the real home.
+		// `os.homedir()` honors HOME/USERPROFILE, so the config tree and every
+		// replica live under tempDir and disappear with it.
+		process.env.HOME = tempDir.path();
+		process.env.USERPROFILE = tempDir.path();
 		process.env.ZETA_CODING_AGENT_DIR = path.join(tempDir.path(), "agent");
-		process.env.ZETA_CONFIG_DIR = `.zeta-attach-wire-${process.pid}`;
+		process.env.ZETA_CONFIG_DIR = ".zeta";
 		refreshDirsFromEnv();
 		await Settings.init({ inMemory: true, cwd: tempDir.path() });
 	});
@@ -82,9 +117,10 @@ describe("attached TUI over the wire protocol", () => {
 		mode = undefined;
 		backendSession = undefined;
 		localSession = undefined;
-		// Windows keeps the replica/session handles open for a moment after
-		// dispose; removal is best-effort and must not delay the hook.
-		void rm(tempDir.path(), { recursive: true, force: true, maxRetries: 0 }).catch(() => undefined);
+		if (previousHome === undefined) delete process.env.HOME;
+		else process.env.HOME = previousHome;
+		if (previousUserProfile === undefined) delete process.env.USERPROFILE;
+		else process.env.USERPROFILE = previousUserProfile;
 		resetSettingsForTest();
 		if (previousAgentDir === undefined) delete process.env.ZETA_CODING_AGENT_DIR;
 		else process.env.ZETA_CODING_AGENT_DIR = previousAgentDir;
@@ -166,10 +202,22 @@ describe("attached TUI over the wire protocol", () => {
 				newSession: false,
 				explicit: true,
 			},
-			{ replicaDir: path.join(tempDir.path(), "replicas") },
 		);
 		await link.join();
 		expect(link.attached).toBe(true);
+		const attachedReplicaPath = link.replicaPath;
+		expect(attachedReplicaPath).toBeDefined();
+		expect(pathIsWithin(getSessionsDir(), attachedReplicaPath!)).toBe(true);
+		const listedAfterAttach = await listAllSessions();
+		const attachedMirror = listedAfterAttach.find(session => session.path === attachedReplicaPath);
+		expect(attachedMirror).toBeDefined();
+		const resolvedMirror = await resolveResumableSession(attachedMirror!.id, process.cwd());
+		expect(resolvedMirror?.session.path).toBe(attachedReplicaPath);
+		// The backend session id is what the user copied from the previous
+		// client; the mirror filename is `<backendId>-<localId>.jsonl`, so the
+		// prefix match must resolve it too.
+		const resolvedByBackendId = await resolveResumableSession(sessionId, process.cwd());
+		expect(resolvedByBackendId?.session.path).toBe(attachedReplicaPath);
 
 		// Prompt over the socket → backend turn → mirrored into the TUI.
 		link.sendPrompt("hello over the wire");
@@ -613,6 +661,21 @@ describe("attached TUI over the wire protocol", () => {
 		expect(link.attached).toBe(true);
 		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
 
+		// Simulate a replica abandoned by a crashed client for this same backend
+		// session. The next join must sweep it unless a live lease still owns it.
+		const staleReplicaPath = path.join(tempDir.path(), "replicas", `${sessionId}-stale.jsonl`);
+		await Bun.write(
+			staleReplicaPath,
+			`${JSON.stringify({
+				type: "session",
+				version: 1,
+				id: "stale-replica",
+				timestamp: new Date().toISOString(),
+				cwd: backendCwd,
+				client: "cli",
+			})}\n`,
+		);
+
 		void mode.getUserInput();
 
 		// A workflow whose runtime lives in the backend process is refused with
@@ -644,6 +707,12 @@ describe("attached TUI over the wire protocol", () => {
 		await link.reattach(sessionId);
 		expect(link.attached).toBe(true);
 		expect(link.sessionId).toBe(sessionId);
+		// Re-attaching the same backend session must not accumulate replicas.
+		// The new join writes one file for the new local header, then sweeps the
+		// detached one (or any crashed client's unleased file) for this session.
+		const replicaFiles = (await readdir(path.join(tempDir.path(), "replicas"))).filter(name => name.endsWith(".jsonl"));
+		expect(replicaFiles).toHaveLength(1);
+		expect(await Bun.file(staleReplicaPath).exists()).toBe(false);
 		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
 		const afterReattach = (await link.client.send(sessionId, { type: "get_state" })) as { loop?: unknown };
 		expect(afterReattach.loop).toBeNull();

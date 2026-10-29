@@ -44,7 +44,7 @@ root that predates the rename still holds `omp-plugins.lock.json`: it is read as
 the fallback and migrated to the canonical name on the first read (see
 [the lockfile note](#the-lockfile-name)).
 
-`.zeta` here is the config-dir name, so `ZETA_CONFIG_DIR=<name>` moves the project tree to `<project>/<name>/plugins` as well.
+`.zeta` here is the config-dir name, so `ZETA_CONFIG_DIR=<name>` moves the project tree to `<project>/<name>/plugins` as well. The value is a **relative** directory name under the user's home; absolute paths and `..` are rejected instead of being re-joined to home.
 
 Read [`marketplace.md`](./marketplace.md#on-disk-layout) for the cache layout and the version-keying rules.
 

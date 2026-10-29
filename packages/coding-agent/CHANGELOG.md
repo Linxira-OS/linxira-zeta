@@ -1,11 +1,16 @@
 ## [Unreleased]
 
-## [1.4.6] - 2026-10-28
+## [1.4.6] - 2026-10-29
 
 ### Added
 
 - `siyuan://` internal URL for SiYuan: list notebooks and documents, read Markdown, outline, search, and append; configure the API URL and token under Tools → SiYuan. Enabling SiYuan without a token now warns instead of failing silently.
 - Added the `canvas` tool for Obsidian `.canvas` and Excalidraw `.excalidraw` scenes under `.canvas/`: `list`, `create`, `write`, `outline`; `read <file>:img` renders a terminal preview and `vault://…?op=canvas` summarizes a vault scene. `canvas.enabled` is off by default.
+
+### Fixed
+
+- Attached conversations are now always discoverable by `--resume`, even while the backend keeps running: a mirror for a backend whose transcript is not already in the local standard sessions tree is written there, and the first default session scan imports legacy `<config>/backend` replicas. Re-attaching no longer accumulates one replica file per connection.
+- `ZETA_CONFIG_DIR` is validated as a relative directory name under the user's home; absolute paths and `..` escapes are rejected instead of being re-joined into a malformed tree.
 
 ## [1.4.5] - 2026-10-28
 

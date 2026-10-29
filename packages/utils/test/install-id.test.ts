@@ -18,18 +18,23 @@ describe("getInstallId", () => {
 	let tempRoot = "";
 	let originalAgentDir = "";
 	let originalConfigDir: string | undefined;
+	let originalHome: string | undefined;
+	let originalUserProfile: string | undefined;
 
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
 		originalConfigDir = process.env.ZETA_CONFIG_DIR;
+		originalHome = process.env.HOME;
+		originalUserProfile = process.env.USERPROFILE;
 		const slug = `omp-install-id-${Snowflake.next()}`;
 		tempRoot = path.join(os.tmpdir(), slug);
 		await fs.mkdir(tempRoot, { recursive: true });
-		// Point the resolver's config root at the temp dir. Using ZETA_CONFIG_DIR
-		// keeps the parent equal to os.homedir() but flips the basename, so the
-		// install-id file lands inside our temp tree.
-		process.env.ZETA_CONFIG_DIR = path.relative(os.homedir(), tempRoot);
-		setAgentDir(path.join(tempRoot, "agent"));
+		// Anchor home at the temp root; ZETA_CONFIG_DIR is a relative name, so
+		// the install-id file lands inside our temp tree without `..`.
+		process.env.HOME = tempRoot;
+		process.env.USERPROFILE = tempRoot;
+		process.env.ZETA_CONFIG_DIR = ".zeta";
+		setAgentDir(path.join(tempRoot, ".zeta", "agent"));
 		__resetInstallIdCacheForTests();
 	});
 
@@ -40,6 +45,10 @@ describe("getInstallId", () => {
 		} else {
 			process.env.ZETA_CONFIG_DIR = originalConfigDir;
 		}
+		if (originalHome === undefined) delete process.env.HOME;
+		else process.env.HOME = originalHome;
+		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+		else process.env.USERPROFILE = originalUserProfile;
 		setAgentDir(originalAgentDir);
 		await fs.rm(tempRoot, { recursive: true, force: true });
 	});

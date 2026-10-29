@@ -12,10 +12,11 @@
  */
 
 import * as fs from "node:fs/promises";
+import type { FileHandle } from "node:fs/promises";
 import * as path from "node:path";
 import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import type { ImageContent } from "@linxiraos/pi-ai";
-import { getConfigRootDir, isRecord, logger } from "@linxiraos/pi-utils";
+import { getConfigRootDir, getSessionsDir, isRecord, logger, pathIsWithin } from "@linxiraos/pi-utils";
 import { toReasoningEffort } from "@linxiraos/pi-tui/thinking";
 import type { ExtensionAskDialogQuestion } from "../extensibility/extensions/types";
 import type { InteractiveModeContext } from "../modes/types";
@@ -27,7 +28,8 @@ import {
 	type SessionMessageEntry,
 } from "../session/session-entries";
 import type { BackendLoopState } from "../loop/continuation-controller";
-import { FileSessionStorage } from "../session/session-storage";
+import { FileSessionStorage, tryAcquireSessionLease } from "../session/session-storage";
+import { computeDefaultSessionDir } from "../session/session-paths";
 import { setSessionTerminalTitle } from "../utils/title-generator";
 import { AttachWire } from "./attach-wire";
 import { mirrorSubagents } from "./subagent-mirror";
@@ -42,6 +44,36 @@ interface PendingDialog {
 	abort: AbortController;
 }
 
+/** Replica ids currently leased by this process, used to keep the sweep from deleting a live mirror. */
+const ATTACH_ACTIVE_REPLICA_IDS = new Set<string>();
+
+/** Whether this backend is reached over a loopback URL (same-machine `serve`). */
+function backendIsLoopback(baseUrl: string): boolean {
+	try {
+		const host = new URL(baseUrl).hostname.replace(/^\[|\]$/g, "").toLowerCase();
+		return host === "localhost" || host === "::1" || host.startsWith("127.");
+	} catch {
+		return false;
+	}
+}
+
+/** Read the session header id without loading the whole replica. */
+async function readReplicaHeaderId(file: string): Promise<string | undefined> {
+	let handle: FileHandle | undefined;
+	try {
+		handle = await fs.open(file, "r");
+		const buffer = Buffer.alloc(64 * 1024);
+		const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+		const firstLine = buffer.subarray(0, bytesRead).toString("utf8").split("\n", 1)[0];
+		const header: unknown = JSON.parse(firstLine);
+		return isRecord(header) && header.type === "session" && typeof header.id === "string" ? header.id : undefined;
+	} catch {
+		return undefined;
+	} finally {
+		await handle?.close().catch(() => undefined);
+	}
+}
+
 /** Runtime messages persist an ISO timestamp; unknown payloads do not. */
 function messageTimestamp(message: unknown): string | undefined {
 	if (message && typeof message === "object" && "timestamp" in message) {
@@ -53,7 +85,12 @@ function messageTimestamp(message: unknown): string | undefined {
 }
 
 export interface BackendAttachJoinOptions {
-	/** Where the replica file lives (config root, never the sessions dir). */
+	/**
+	 * Fallback mirror directory for a same-machine backend whose canonical
+	 * transcript already lives under the standard sessions root. Remote/other
+	 * backends ignore this and mirror into the standard sessions tree so
+	 * `/resume` can recover them.
+	 */
 	replicaDir?: string;
 }
 
@@ -106,9 +143,11 @@ export class BackendAttachLink {
 		this.#target = target;
 		this.client = new BackendClient(target.backend.baseUrl);
 		this.#replicaDir = options.replicaDir ?? path.join(getConfigRootDir(), "backend");
+		this.#replicaDirExplicit = options.replicaDir !== undefined;
 	}
 
 	readonly #replicaDir: string;
+	readonly #replicaDirExplicit: boolean;
 
 	get sessionId(): string {
 		return this.#sessionId;
@@ -562,18 +601,49 @@ export class BackendAttachLink {
 		}
 
 		const snapshot = detail.context?.messages?.length ?? 0;
+		// A loopback backend whose transcript already lives under this client's
+		// standard sessions root is the canonical local record: `/resume` already
+		// finds that file, so the live mirror stays outside the picker's scan.
+		// Any other backend (remote host, different store) gets its mirror in the
+		// standard sessions tree, so `/resume` can recover the conversation after
+		// a disconnect instead of only finding a hidden backend/ file.
+		const backendCwd = detail.info?.cwd || this.#ctx.sessionManager.getCwd();
+		const backendPath = (detail.filePath ?? detail.info?.path) || undefined;
+		const canonicalLocal =
+			backendIsLoopback(this.#target.backend.baseUrl) &&
+			backendPath !== undefined &&
+			pathIsWithin(getSessionsDir(), backendPath) &&
+			(await fs.access(backendPath).then(
+				() => true,
+				() => false,
+			));
+		const replicaDir =
+			this.#replicaDirExplicit || canonicalLocal
+				? this.#replicaDir
+				: computeDefaultSessionDir(backendCwd, new FileSessionStorage());
+		await fs.mkdir(replicaDir, { recursive: true });
 		const header: SessionHeader = {
 			type: "session",
 			version: CURRENT_SESSION_VERSION,
 			id: mintSessionId(),
 			timestamp: now,
-			cwd: detail.info?.cwd || this.#ctx.sessionManager.getCwd(),
+			cwd: backendCwd,
 			client: "cli",
 		};
-		const replicaPath = path.join(this.#replicaDir, `${this.#sessionId}-${header.id}.jsonl`);
-		await fs.mkdir(this.#replicaDir, { recursive: true });
+		const replicaPath = path.join(replicaDir, `${this.#sessionId}-${header.id}.jsonl`);
 		const storage = new FileSessionStorage();
-		this.#replicaLease = storage.claimSession(header.id, replicaPath) ?? undefined;
+		const lease = storage.claimSession(header.id, replicaPath);
+		if (!lease) {
+			throw new Error("Backend attach replica is owned by another client; detach it before re-attaching");
+		}
+		ATTACH_ACTIVE_REPLICA_IDS.add(header.id);
+		let released = false;
+		this.#replicaLease = () => {
+			if (released) return;
+			released = true;
+			ATTACH_ACTIVE_REPLICA_IDS.delete(header.id);
+			lease();
+		};
 		const body = [header, ...entries].map(entry => JSON.stringify(entry)).join("\n");
 		const tempPath = `${replicaPath}.${mintSessionId()}.tmp`;
 		try {
@@ -581,6 +651,8 @@ export class BackendAttachLink {
 			await fs.rename(tempPath, replicaPath);
 		} catch (error) {
 			await fs.unlink(tempPath).catch(() => undefined);
+			this.#replicaLease?.();
+			this.#replicaLease = undefined;
 			throw error;
 		}
 		this.replicaPath = replicaPath;
@@ -602,6 +674,16 @@ export class BackendAttachLink {
 			});
 			throw new Error("Backend attach was cancelled while switching sessions");
 		}
+		// The old replica is no longer the local session; remove abandoned
+		// mirrors for this backend session unless another live process owns one.
+		await this.#sweepStaleReplicas(replicaDir, replicaPath);
+		if (canonicalLocal && !this.#replicaDirExplicit) {
+			// A backend that had no file at attach time got a standard-store
+			// mirror; once its canonical file exists, drop that duplicate so
+			// `/resume` lists the conversation once.
+			const standardMirrorDir = computeDefaultSessionDir(backendCwd, new FileSessionStorage());
+			await this.#sweepStaleReplicas(standardMirrorDir, "");
+		}
 		this.#applyContextState(detail);
 		this.#ctx.showStatus(
 			snapshot > 0
@@ -609,6 +691,49 @@ export class BackendAttachLink {
 				: "Attached to backend session",
 			{ dim: true },
 		);
+	}
+
+	/** Remove abandoned replica files for this backend session. Live leases win. */
+	async #sweepStaleReplicas(replicaDir: string, currentPath: string): Promise<void> {
+		const currentName = path.basename(currentPath);
+		const prefix = `${this.#sessionId}-`;
+		let names: string[];
+		try {
+			names = await fs.readdir(replicaDir);
+		} catch {
+			return;
+		}
+		for (const name of names) {
+			if (name === currentName || !name.startsWith(prefix)) continue;
+			const file = path.join(replicaDir, name);
+			if (name.endsWith(".tmp")) {
+				// A crashed writer can leave a temp behind. Age-gate the sweep so a
+				// concurrent writer's in-flight temp is never deleted.
+				const info = await fs.stat(file).catch(() => undefined);
+				if (info && Date.now() - info.mtimeMs > 60_000) {
+					await fs.unlink(file).catch(() => undefined);
+				}
+				continue;
+			}
+			if (!name.endsWith(".jsonl")) continue;
+			const id = await readReplicaHeaderId(file);
+			if (id && ATTACH_ACTIVE_REPLICA_IDS.has(id)) continue;
+			if (!id) {
+				await fs.unlink(file).catch(() => undefined);
+				continue;
+			}
+			try {
+				const lease = tryAcquireSessionLease(id);
+				if (!lease) continue;
+				try {
+					await fs.unlink(file).catch(() => undefined);
+				} finally {
+					lease.release();
+				}
+			} catch {
+				// Lock probe unavailable: keep the file rather than risk a live client.
+			}
+		}
 	}
 
 	/** Mirror model/thinking state without writing local session entries. */
