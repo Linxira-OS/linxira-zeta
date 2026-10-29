@@ -1,4 +1,4 @@
-#![allow(clippy::items_after_test_module)]
+#![allow(unknown_lints, clippy::items_after_test_module)]
 
 //! Unified file operations system for Termide.
 //!

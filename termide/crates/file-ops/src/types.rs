@@ -684,7 +684,7 @@ pub struct OperationInfo {
 }
 
 #[cfg(test)]
-#[allow(clippy::items_after_test_module)]
+#[allow(unknown_lints, clippy::items_after_test_module)]
 mod tests {
     use super::*;
 
