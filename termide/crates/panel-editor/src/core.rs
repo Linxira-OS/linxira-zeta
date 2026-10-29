@@ -182,11 +182,7 @@ impl Editor {
     fn should_use_smart_wrap(&self, config: &Config) -> bool {
         // Check file size threshold (for performance)
         let threshold_bytes = config.editor.large_file_threshold_mb * constants::MEGABYTE;
-        if self.file_state.size > threshold_bytes {
-            return false;
-        }
-
-        true
+        self.file_state.size <= threshold_bytes
     }
 
     /// Get file path

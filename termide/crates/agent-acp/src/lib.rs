@@ -2144,7 +2144,7 @@ impl Shared {
                 });
                 true
             });
-        calls.sort_by(|a, b| b.elapsed.cmp(&a.elapsed));
+        calls.sort_by_key(|a| std::cmp::Reverse(a.elapsed));
         calls
     }
 

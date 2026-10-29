@@ -1,3 +1,5 @@
+#![allow(clippy::items_after_test_module)]
+
 //! Core types and traits for termide panels.
 //!
 //! This crate provides the foundational abstractions for building panels

@@ -1,3 +1,5 @@
+#![allow(clippy::items_after_test_module)]
+
 //! Unified file operations system for Termide.
 //!
 //! This crate provides a centralized system for managing file operations

@@ -244,9 +244,9 @@ impl TextArea {
             result.push_str(&first_line[start_byte..]);
 
             // Middle lines (complete)
-            for row in (start.row + 1)..end.row {
+            for line in self.lines.iter().take(end.row).skip(start.row + 1) {
                 result.push('\n');
-                result.push_str(&self.lines[row]);
+                result.push_str(line);
             }
 
             // Last line (from start to end.col)

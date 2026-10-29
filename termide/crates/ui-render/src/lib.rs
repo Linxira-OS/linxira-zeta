@@ -1,3 +1,5 @@
+#![allow(clippy::items_after_test_module)]
+
 //! UI rendering components for termide.
 //!
 //! Provides reusable UI widgets and rendering utilities.

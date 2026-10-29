@@ -176,5 +176,6 @@ linux 叶子要在一个 **native checkout(clone)** 里构建(旧的 0.38.0 叶�
   - `Cargo.lock` 以 0.46.0 为基线，再由本地 cargo 加入 `termide-panel-ide`/`termide-logger` 等 Zeta crate。
 - 产品裁决（2026-10-29）：接受 `zetaide` 的 TermIDE 上游插件层（`crates/plugins`、设置页、Markdown 插件面板、命令/诊断）；Zeta 自己的插件面板仍只在 `zetawork-gui`，工作台 TUI 不承载插件层。`no_plugin_layer` 测试相应收窄为只扫描 `zeta-main`。
 - Zeta ACP 偏离：新增 `provider = "zeta"` 直接运行 `zetacode acp`（不经 npx），ACP `clientInfo` 报 `zetaide`，并实现 `terminal/create|output|wait_for_exit|kill|release` 与 `terminal: true`，让 `zetacode` 的非 PTY bash 走 zetaide 客户端。
+- 0.46 的 1.97.1 clippy 修：`agent-mcp`/`agent-acp` 的 `sort_by` 改 `sort_by_key(Reverse(..))`，`ui` 的 range loop 改迭代器，`panel-editor` 的 `needless_bool` 化简；`core`/`file-ops`/`ui-render` 对中间测试模块加 `items_after_test_module` allow（上游 0.46 代码在更老的 clippy 上通过）。
 - 上游新增能力：0.42 的图片 `read`、delegate/peer；0.43–0.44 的断点/DAP 调试器；0.45 的插件、项目信任/安全加固、delegate 暂停；0.46 的命令占位符与 delegate 限流。
 - 验证：`cargo fmt --check`、`cargo check --workspace`（Linux）、`cargo test --workspace`（Linux）、`cargo check --workspace --target x86_64-pc-windows-gnu` 通过；ACP 专项 `termide-agent-acp` 50 tests、provider/config/app tests 全绿；`main` workspace 的 Linux/Windows GNU `cargo check` 与 `cargo test --workspace`（524 tests）也通过。Clippy 仅被上游 0.46 在 nightly 上新增的 `chunks_exact_to_as_chunks` / `unnecessary_sort_by` / `needless_range_loop` 拦住，不是本次重放引入。
