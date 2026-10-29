@@ -613,7 +613,7 @@ fn decode_image(params: &Params, bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), &'
                 return Err("EINVAL");
             }
             let mut rgba = Vec::with_capacity(width as usize * height as usize * 4);
-            for pixel in bytes.chunks_exact(3) {
+            for pixel in bytes.as_chunks::<3>().0 {
                 rgba.extend_from_slice(&[pixel[0], pixel[1], pixel[2], 0xff]);
             }
             Ok((width, height, rgba))

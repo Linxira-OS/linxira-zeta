@@ -542,7 +542,7 @@ impl Walk {
     fn record_name(&self, id: &[u8], is_dir: bool) -> String {
         let mut name = match self.tree {
             Tree::Joliet => {
-                let units = id.chunks_exact(2).map(|c| u16::from_be_bytes([c[0], c[1]]));
+                let units = id.as_chunks::<2>().0.iter().map(|c| u16::from_be_bytes(*c));
                 char::decode_utf16(units)
                     .map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER))
                     .collect()

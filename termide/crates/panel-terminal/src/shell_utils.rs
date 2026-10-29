@@ -94,8 +94,10 @@ pub fn discover_shells() -> Vec<ShellInfo> {
                         // Try UTF-16LE decoding; truncate trailing odd byte if present
                         let len = bytes.len() & !1;
                         let u16s: Vec<u16> = bytes[..len]
-                            .chunks_exact(2)
-                            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                            .as_chunks::<2>()
+                            .0
+                            .iter()
+                            .map(|c| u16::from_le_bytes(*c))
                             .collect();
                         String::from_utf16(&u16s).unwrap_or_default()
                     }
