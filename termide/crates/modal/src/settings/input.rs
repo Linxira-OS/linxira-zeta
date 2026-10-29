@@ -506,10 +506,8 @@ impl SettingsModal {
             KeyCode::Enter | KeyCode::Char(' ') => {
                 return self.execute_selected_button();
             }
-            KeyCode::Esc => {
-                if self.escape_buttons() {
-                    return Ok(Some(ModalResult::Cancelled));
-                }
+            KeyCode::Esc if self.escape_buttons() => {
+                return Ok(Some(ModalResult::Cancelled));
             }
             _ => {}
         }
