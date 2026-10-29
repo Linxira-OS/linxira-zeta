@@ -49,6 +49,7 @@ struct Terminal {
     child: Arc<Mutex<Child>>,
     output: Mutex<Output>,
     exit: Arc<(Mutex<Option<Exit>>, Condvar)>,
+    readers: Arc<(Mutex<usize>, Condvar)>,
     limit: usize,
 }
 
@@ -158,6 +159,7 @@ impl Terminals {
         let stderr = child.stderr.take().ok_or("the command has no stderr")?;
         let child = Arc::new(Mutex::new(child));
         let exit = Arc::new((Mutex::new(None), Condvar::new()));
+        let readers = Arc::new((Mutex::new(2), Condvar::new()));
         let terminal = Arc::new(Terminal {
             child: Arc::clone(&child),
             output: Mutex::new(Output {
@@ -165,11 +167,12 @@ impl Terminals {
                 truncated: false,
             }),
             exit: Arc::clone(&exit),
+            readers: Arc::clone(&readers),
             limit,
         });
 
-        pump(stdout, Arc::clone(&terminal));
-        pump(stderr, Arc::clone(&terminal));
+        pump(stdout, Arc::clone(&terminal), Arc::clone(&readers));
+        pump(stderr, Arc::clone(&terminal), Arc::clone(&readers));
         watch(child, exit);
 
         let id = format!("termide-{}", self.next.fetch_add(1, Ordering::Relaxed));
@@ -201,10 +204,20 @@ impl Terminals {
         while exit.is_none() {
             exit = changed.wait(exit).unwrap_or_else(PoisonError::into_inner);
         }
-        Ok(exit
+        let outcome = exit
             .as_ref()
             .map(Exit::json)
-            .unwrap_or_else(|| json!({ "exitCode": null, "signal": null })))
+            .unwrap_or_else(|| json!({ "exitCode": null, "signal": null }));
+        drop(exit);
+        // The pipes may still hold the command's last bytes after the
+        // process ended; `wait_for_exit` returns only once both readers
+        // have drained them, so a following `terminal/output` sees them.
+        let (readers, drained) = &*terminal.readers;
+        let mut left = readers.lock().unwrap_or_else(PoisonError::into_inner);
+        while *left > 0 {
+            left = drained.wait(left).unwrap_or_else(PoisonError::into_inner);
+        }
+        Ok(outcome)
     }
 
     /// `terminal/kill`: stop the process, keeping its output readable.
@@ -255,7 +268,11 @@ fn resolve(cwd: &Path, path: &str) -> PathBuf {
     }
 }
 
-fn pump(mut stream: impl Read + Send + 'static, terminal: Arc<Terminal>) {
+fn pump(
+    mut stream: impl Read + Send + 'static,
+    terminal: Arc<Terminal>,
+    readers: Arc<(Mutex<usize>, Condvar)>,
+) {
     std::thread::spawn(move || {
         let mut buffer = [0u8; 8192];
         loop {
@@ -264,6 +281,10 @@ fn pump(mut stream: impl Read + Send + 'static, terminal: Arc<Terminal>) {
                 Ok(read) => terminal.push(&buffer[..read]),
             }
         }
+        let (left, drained) = &*readers;
+        let mut left = left.lock().unwrap_or_else(PoisonError::into_inner);
+        *left = left.saturating_sub(1);
+        drained.notify_all();
     });
 }
 
