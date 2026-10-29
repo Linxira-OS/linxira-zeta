@@ -194,15 +194,12 @@ describe("attached TUI over the wire protocol", () => {
 		);
 		await mode.init({ suppressWelcomeIntro: true });
 
-		link = new BackendAttachLink(
-			mode,
-			{
-				backend: { baseUrl: gateway.url, identity: serveIdentity() },
-				sessionId,
-				newSession: false,
-				explicit: true,
-			},
-		);
+		link = new BackendAttachLink(mode, {
+			backend: { baseUrl: gateway.url, identity: serveIdentity() },
+			sessionId,
+			newSession: false,
+			explicit: true,
+		});
 		await link.join();
 		expect(link.attached).toBe(true);
 		const attachedReplicaPath = link.replicaPath;
@@ -710,7 +707,9 @@ describe("attached TUI over the wire protocol", () => {
 		// Re-attaching the same backend session must not accumulate replicas.
 		// The new join writes one file for the new local header, then sweeps the
 		// detached one (or any crashed client's unleased file) for this session.
-		const replicaFiles = (await readdir(path.join(tempDir.path(), "replicas"))).filter(name => name.endsWith(".jsonl"));
+		const replicaFiles = (await readdir(path.join(tempDir.path(), "replicas"))).filter(name =>
+			name.endsWith(".jsonl"),
+		);
 		expect(replicaFiles).toHaveLength(1);
 		expect(await Bun.file(staleReplicaPath).exists()).toBe(false);
 		expect(path.resolve(mode.sessionManager.getCwd())).toBe(path.resolve(backendCwd));
