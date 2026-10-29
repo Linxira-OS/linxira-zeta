@@ -511,16 +511,17 @@ impl<'c> Builder<'c> {
     // --- internals ----------------------------------------------------------
 
     fn push_text(&mut self, text: &str) {
+        let text = inline_clean(text);
         let style = self.cur_style();
-        if self.push_cell(text, style) {
+        if self.push_cell(&text, style) {
             return;
         }
         let link = self.cur_link;
-        self.runs.push((text.to_string(), style, link));
+        self.runs.push((text, style, link));
     }
 
     fn push_span(&mut self, text: impl Into<String>, style: Style) {
-        let text = text.into();
+        let text = inline_clean(&text.into());
         if self.push_cell(&text, style) {
             return;
         }
@@ -583,7 +584,14 @@ impl<'c> Builder<'c> {
 
     /// Render the captured code block with per-line syntax highlighting.
     fn flush_code_block(&mut self) {
+        // Tabs go before highlighting, so the highlighter's offsets are those
+        // of the text that is drawn.
         let code = std::mem::take(&mut self.code_buf);
+        let code = if code.chars().any(char::is_control) {
+            code.lines().map(expand_tabs).collect::<Vec<_>>().join("\n")
+        } else {
+            code
+        };
         let lang = std::mem::take(&mut self.code_lang);
 
         // A ```mermaid block renders as the diagram itself (reusing the shared
@@ -856,11 +864,14 @@ impl<'c> Builder<'c> {
         let mut cur_text_w = 0usize;
         let mut cur_prefix_w = first_w;
         let mut avail = self.width.saturating_sub(first_w).max(1);
+        // How each row after the first joins the one before it when copied.
+        let mut joins: Vec<Join> = Vec::new();
 
         for word in words {
             let ww: usize = word.iter().map(|(text, _, _)| text.width()).sum();
             if cur_text_w > 0 && cur_text_w + 1 + ww > avail {
                 out.push(Line::from(std::mem::take(&mut cur)));
+                joins.push(Join::Space);
                 cur = cont_prefix.clone();
                 cur_text_w = 0;
                 cur_prefix_w = cont_w;
@@ -871,18 +882,43 @@ impl<'c> Builder<'c> {
                 cur_text_w += 1;
             }
             for (text, style, link) in word {
-                let start = cur_prefix_w + cur_text_w;
-                let w = text.width();
-                if let Some(url_id) = link {
-                    self.pending_links.push(PendingLink {
-                        line: base + out.len(),
-                        start: start as u16,
-                        end: (start + w) as u16,
-                        url_id,
-                    });
+                // A word wider than the row (a long URL, a path) breaks
+                // between characters instead of running past the edge.
+                let mut rest = text.as_str();
+                while !rest.is_empty() {
+                    let mut take = 0usize;
+                    let mut w = 0usize;
+                    for ch in rest.chars() {
+                        let cw = char_width(ch);
+                        if w + cw > avail.saturating_sub(cur_text_w) && (cur_text_w > 0 || w > 0) {
+                            break;
+                        }
+                        take += ch.len_utf8();
+                        w += cw;
+                    }
+                    if take > 0 {
+                        let start = cur_prefix_w + cur_text_w;
+                        if let Some(url_id) = link {
+                            self.pending_links.push(PendingLink {
+                                line: base + out.len(),
+                                start: start as u16,
+                                end: (start + w) as u16,
+                                url_id,
+                            });
+                        }
+                        cur.push(Span::styled(rest[..take].to_string(), style));
+                        cur_text_w += w;
+                        rest = &rest[take..];
+                    }
+                    if !rest.is_empty() {
+                        out.push(Line::from(std::mem::take(&mut cur)));
+                        joins.push(Join::Glued);
+                        cur = cont_prefix.clone();
+                        cur_text_w = 0;
+                        cur_prefix_w = cont_w;
+                        avail = self.width.saturating_sub(cont_w).max(1);
+                    }
                 }
-                cur.push(Span::styled(text, style));
-                cur_text_w += w;
             }
         }
         out.push(Line::from(cur));
@@ -891,7 +927,7 @@ impl<'c> Builder<'c> {
             let (lead, join) = if k == 0 {
                 (first_lead, Join::Break)
             } else {
-                (cont_w, Join::Space)
+                (cont_w, joins[k - 1])
             };
             if lead > 0 || join != Join::Break {
                 self.copy_marks.push((
@@ -1091,6 +1127,44 @@ fn char_width(ch: char) -> usize {
     ch.to_string().width()
 }
 
+/// Tab stop used for tabs in code blocks.
+const TAB_WIDTH: usize = 4;
+
+/// A code line with its tabs turned into spaces up to the next tab stop and
+/// other control characters dropped. A tab left in a buffer cell reaches the
+/// terminal as is: the cursor jumps without painting, leaving a hole and
+/// pushing the rest of the row past where it was laid out.
+fn expand_tabs(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut col = 0usize;
+    for ch in line.chars() {
+        if ch == '\t' {
+            let n = TAB_WIDTH - col % TAB_WIDTH;
+            out.extend(std::iter::repeat_n(' ', n));
+            col += n;
+        } else if !ch.is_control() {
+            out.push(ch);
+            col += char_width(ch);
+        }
+    }
+    out
+}
+
+/// Inline text with a tab read as a space, as in a browser, and other
+/// control characters dropped, for the same reason as [`expand_tabs`].
+fn inline_clean(text: &str) -> String {
+    if !text.chars().any(char::is_control) {
+        return text.to_string();
+    }
+    text.chars()
+        .filter_map(|ch| match ch {
+            '\t' | '\n' => Some(' '),
+            c if c.is_control() => None,
+            c => Some(c),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1125,6 +1199,31 @@ mod tests {
         }
     }
 
+    /// gopls and Go sources indent with tabs. A tab in a buffer cell reaches
+    /// the terminal raw and leaves a hole, so none may survive the layout.
+    #[test]
+    fn tabs_become_spaces_in_code_and_in_text() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(40, &colors, false);
+        b.start_code_block("go");
+        b.text("type T struct {\n\troot\t\tstring\n\tab\tbool\n}\n");
+        b.end_code_block();
+        b.text("a\tb");
+        b.inline_code("c\td");
+        b.end_paragraph();
+        let rows = text_of(&b.finish());
+        assert!(
+            rows.iter().all(|r| !r.chars().any(char::is_control)),
+            "{rows:#?}"
+        );
+        assert!(
+            rows.contains(&"┊     root        string".to_string()),
+            "{rows:#?}"
+        );
+        assert!(rows.contains(&"┊     ab  bool".to_string()), "{rows:#?}");
+        assert!(rows.contains(&"a bc d".to_string()), "{rows:#?}");
+    }
+
     #[test]
     fn copied_code_drops_the_bar_and_rejoins_wrapped_rows() {
         let colors = ThemeColors::default();
@@ -1151,6 +1250,30 @@ mod tests {
                 row(Join::Break)
             ]
         );
+    }
+
+    /// A word wider than the row — a long URL in a prompt — breaks between
+    /// characters instead of running past the edge, copies back whole, and
+    /// stays one link across the rows it spans.
+    #[test]
+    fn a_word_wider_than_the_row_breaks_between_characters() {
+        let colors = ThemeColors::default();
+        let mut b = Builder::new(10, &colors, false);
+        b.text("see https://example.com/a/b ok");
+        b.end_paragraph();
+        let doc = b.finish();
+        let rows = text_of(&doc);
+        assert_eq!(rows, ["see", "https://ex", "ample.com/", "a/b ok"]);
+        let joins: Vec<Join> = doc.copy.iter().map(|c| c.join).collect();
+        assert_eq!(joins, [Join::Break, Join::Space, Join::Glued, Join::Glued]);
+
+        let mut b = Builder::new(10, &colors, false);
+        b.text_autolinked("https://example.com/a/b", false);
+        b.end_paragraph();
+        let doc = b.finish();
+        let spans: Vec<(usize, u16, u16)> =
+            doc.links.iter().map(|l| (l.line, l.start, l.end)).collect();
+        assert_eq!(spans, [(0, 0, 10), (1, 0, 10), (2, 0, 3)]);
     }
 
     #[test]

@@ -315,6 +315,17 @@ impl Panel for HtmlPanel {
                 self.top = offset.min(self.line_count().saturating_sub(1));
                 CommandResult::NeedsRedraw(true)
             }
+            // While the find bar is open it owns the keyboard (Ctrl+C/X/V
+            // reach it as keys); a terminal paste goes into its query too.
+            PanelCommand::PasteText { text } => match self.find_bar.as_mut() {
+                Some(bar) => {
+                    if let Some(action) = bar.paste(&text) {
+                        self.handle_find_action(action);
+                    }
+                    CommandResult::Handled(true)
+                }
+                None => CommandResult::None,
+            },
             _ => CommandResult::None,
         }
     }
@@ -717,12 +728,15 @@ impl Panel for HtmlPanel {
         }
     }
 
-    fn context_menu_items(&self) -> Vec<(String, &'static str)> {
+    fn context_menu_items(&self) -> Vec<(String, String)> {
         if self.error.is_some() || self.is_placeholder() {
             return vec![];
         }
         let t = termide_i18n::t();
-        vec![(t.menu_save_page_as_markdown().to_string(), "save_markdown")]
+        vec![(
+            t.menu_save_page_as_markdown().to_string(),
+            "save_markdown".into(),
+        )]
     }
 
     fn reload(&mut self) -> anyhow::Result<()> {
@@ -838,6 +852,21 @@ mod tests {
             }
             other => panic!("unexpected: {other:?}"),
         }
+    }
+
+    #[test]
+    fn a_terminal_paste_goes_into_the_open_find_bar_and_searches() {
+        let mut p = panel_from("one two\n\ntwo three two");
+        let paste = |text: &str| PanelCommand::PasteText { text: text.into() };
+        assert!(matches!(
+            p.handle_command(paste("two")),
+            CommandResult::None
+        ));
+        p.open_find();
+        let result = p.handle_command(paste("two"));
+        assert!(matches!(result, CommandResult::Handled(true)));
+        assert_eq!(p.find_bar.as_ref().unwrap().find_text(), "two");
+        assert_eq!(p.matches.len(), 3, "the paste ran the search");
     }
 
     #[test]
@@ -1029,7 +1058,7 @@ mod tests {
         assert_eq!(
             p.context_menu_items()
                 .iter()
-                .map(|(_, id)| *id)
+                .map(|(_, id)| id.as_str())
                 .collect::<Vec<_>>(),
             ["save_markdown"]
         );

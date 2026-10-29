@@ -19,7 +19,9 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
 };
 
-use crate::base::{button_style, render_input_field, render_modal_block};
+use crate::base::{
+    button_style, drag_field, press_field_box, render_modal_block, render_text_input,
+};
 use crate::input_keys::{handle_input_key, InputKeyResult};
 
 use termide_config::constants::{
@@ -100,6 +102,10 @@ pub struct EditableSelectModal {
     // Areas for mouse handling
     last_modal_area: Option<Rect>,
     last_input_area: Option<Rect>,
+    /// The text of the input as last drawn, left of the arrow, for the mouse.
+    last_text_area: Option<Rect>,
+    /// A press landed in the input's text and the button is still down.
+    dragging: bool,
     last_dropdown_area: Option<Rect>,
     last_buttons_area: Option<Rect>,
     checkboxes: Vec<ModalCheckbox>,
@@ -129,6 +135,8 @@ impl EditableSelectModal {
             selected_button: 0, // OK button selected by default
             last_modal_area: None,
             last_input_area: None,
+            last_text_area: None,
+            dragging: false,
             last_dropdown_area: None,
             last_buttons_area: None,
             checkboxes: Vec::new(),
@@ -431,18 +439,15 @@ impl Modal for EditableSelectModal {
         let text_width = input_inner.width.saturating_sub(arrow_width);
 
         // Render input content with cursor and selection
-        let input = self.suggestion_input.input();
-        render_input_field(
+        let text_area = Rect::new(input_inner.x, input_inner.y, text_width, 1);
+        render_text_input(
             buf,
-            input_inner.x,
-            input_inner.y,
-            text_width,
-            input.text(),
-            input.cursor_pos(),
-            input.selection_range(),
+            text_area,
+            self.suggestion_input.input_mut(),
             self.focus == FocusArea::Input,
             theme,
         );
+        self.last_text_area = Some(text_area);
 
         // Render arrow at right edge
         let arrow_x = input_inner.x + input_inner.width.saturating_sub(1);
@@ -748,7 +753,20 @@ impl Modal for EditableSelectModal {
         mouse: crossterm::event::MouseEvent,
         _modal_area: Rect,
     ) -> Result<Option<ModalResult<Self::Result>>> {
-        use crossterm::event::MouseEventKind;
+        use crossterm::event::{MouseButton, MouseEventKind};
+
+        match mouse.kind {
+            MouseEventKind::Drag(MouseButton::Left) if self.dragging => {
+                drag_field(
+                    self.suggestion_input.input_mut(),
+                    self.last_text_area,
+                    &mouse,
+                );
+                return Ok(None);
+            }
+            MouseEventKind::Up(MouseButton::Left) => self.dragging = false,
+            _ => {}
+        }
 
         if self.suggestion_input.is_expanded() {
             match mouse.kind {
@@ -770,6 +788,23 @@ impl Modal for EditableSelectModal {
 
         // Only handle left button press
         if mouse.kind != MouseEventKind::Down(crossterm::event::MouseButton::Left) {
+            return Ok(None);
+        }
+
+        // A press on the input's box, its border included, places the
+        // cursor; its right end, the arrow, opens the list below.
+        let frame = self.last_input_area.map(|area| Rect {
+            width: area.width.saturating_sub(3),
+            ..area
+        });
+        if press_field_box(
+            self.suggestion_input.input_mut(),
+            self.last_text_area,
+            frame,
+            &mouse,
+        ) {
+            self.focus = FocusArea::Input;
+            self.dragging = true;
             return Ok(None);
         }
 
@@ -890,11 +925,28 @@ impl Modal for EditableSelectModal {
 
         Ok(None)
     }
+
+    /// A paste goes into the input, as typing does: focus returns to it
+    /// from the choice row, a checkbox or the buttons.
+    fn handle_paste(&mut self, text: &str) -> bool {
+        self.suggestion_input.input_mut().paste(text);
+        self.focus = FocusArea::Input;
+        true
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_bracketed_paste_lands_in_the_input() {
+        let mut modal = levels();
+        modal.focus = FocusArea::Choice;
+        assert!(modal.handle_paste("/tmp/b\n"));
+        assert_eq!(modal.value(), "a.zip/tmp/b");
+        assert_eq!(modal.focus, FocusArea::Input);
+    }
 
     #[test]
     fn conditional_checkbox_is_hidden_until_primary_is_checked() {
@@ -971,5 +1023,28 @@ mod tests {
         modal.checkboxes[1].checked = true;
         assert!(modal.is_checkbox_checked());
         assert!(modal.is_secondary_checkbox_checked());
+    }
+
+    #[test]
+    fn a_click_places_the_cursor_and_a_drag_selects_in_the_input() {
+        use crate::base::test_mouse::{drag, press};
+        let mut modal = levels();
+        let area = Rect::new(0, 0, 60, 20);
+        modal.render(area, &mut Buffer::empty(area), &Theme::default());
+        modal.focus = FocusArea::Buttons;
+        let field = modal.last_text_area.expect("the input is drawn");
+        modal
+            .handle_mouse(press(field.x + 1, field.y), area)
+            .unwrap();
+        assert_eq!(modal.focus, FocusArea::Input);
+        assert_eq!(modal.suggestion_input.input().cursor_pos(), 1);
+        modal
+            .handle_mouse(drag(field.x + 3, field.y), area)
+            .unwrap();
+        assert_eq!(modal.suggestion_input.input().selected_text(), Some(".z"));
+        // Past the left side the selection reaches the start of the text.
+        modal.handle_mouse(drag(0, field.y + 2), area).unwrap();
+        assert_eq!(modal.suggestion_input.input().selected_text(), Some("a"));
+        assert!(!modal.suggestion_input.is_expanded());
     }
 }

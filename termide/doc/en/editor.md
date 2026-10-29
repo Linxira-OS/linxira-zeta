@@ -166,7 +166,7 @@ scrolls), `Enter` / click to apply, `Esc` to dismiss.
 Built-in languages are highlighted with tree-sitter. For a file type that has
 no tree-sitter grammar yet — for example a language you are still designing —
 you can define a **lightweight keyword highlighter** in `config.toml` without
-rebuilding TermIDE. It colours line/block comments, strings, numbers, and your
+rebuilding Termide. It colours line/block comments, strings, numbers, and your
 keyword/type word lists, reusing the active theme's palette.
 
 ```toml
@@ -219,6 +219,7 @@ arrives in one piece.
 - **Shift+click** / **Alt+click**: Extend the current selection from its anchor (or the cursor, if no selection yet) to the click position. Alt+click exists because GNOME Terminal / VTE swallows Shift+click for its own native text selection; on terminals like kitty / alacritty / WezTerm both gestures work.
 - **Scroll wheel**: Scroll editor content
 - **Ctrl+Click**: Go to definition (LSP); or show color preview if cursor is on a hex color (e.g. `#ff0000`, `#abc`)
+- **Click on a line number**: Set or remove a breakpoint on that line, see [Breakpoints and Debugging](#breakpoints-and-debugging)
 
 **Color preview:** When you hold Ctrl and click on a hex color value, a small popup appears showing a color swatch and the hex code. The popup stays visible while the mouse button is held and disappears on release.
 
@@ -370,7 +371,7 @@ show_blame = true
 
 ## LSP (Language Server Protocol)
 
-TermIDE includes built-in LSP support for intelligent code assistance. When a language server is configured and available, you get:
+Termide includes built-in LSP support for intelligent code assistance. When a language server is configured and available, you get:
 
 - **Code Completion** - Context-aware suggestions as you type
 - **Diagnostics** - Real-time error and warning indicators
@@ -427,8 +428,31 @@ Entries under `[lsp.servers]` override or add to the built-in servers listed in
 [Supported Languages](#supported-languages); the built-ins you do not mention stay
 in use. An entry for a built-in language changes only the fields it sets, so
 `command = "/opt/rust-analyzer"` alone keeps the built-in `root_markers`. An entry
-for any other language adds a server for it. The key is the language id TermIDE
+for any other language adds a server for it. The key is the language id Termide
 detects for the file, such as `typescriptreact` for `.tsx`.
+
+A server starts in the nearest directory above the file that holds one of its
+`root_markers`, and one server runs per language and root. For Rust and Go that
+directory is widened to the workspace the toolchain puts the package in: the
+cargo workspace a crate is a member of (`cargo locate-project --workspace`), or
+the `go.work` that lists the module in a `use` directive. All members of a
+workspace then share one server. A standalone crate or module, one under a
+workspace without belonging to it, or a missing `cargo`/`go` keeps the nearest
+marker. The answer is remembered until Termide restarts.
+
+Library code opens in the server of the project it came from, not in one of its
+own: for Rust the toolchain's sources (`rustlib/src`) and the crates cargo
+fetched (`~/.cargo/registry`, `~/.cargo/git`), for Go `GOROOT` and the module
+cache (`pkg/mod`). That is where the debugger stops in the standard library and
+where go-to-definition leads into a dependency; the project's server has those
+files loaded already. Only when no server runs for the language does such a
+file get one of its own.
+
+rust-analyzer is started with `cargo.targetDir = true`: its `cargo check` and
+its build of build scripts and proc macros go to `target/rust-analyzer`, so a
+`cargo build` for the debugger or in a terminal never waits for the build
+directory's lock while it checks. The price is building those artifacts twice;
+the first start after an update builds them once.
 
 
 ### Find References
@@ -485,13 +509,26 @@ Built-in server definitions, used automatically when the binary is on `PATH`:
 
 Docker files have no distinctive extension, so they are recognized by file name, case-insensitively: `Dockerfile`, `Dockerfile.*`, `*.Dockerfile`, and `compose.yaml`/`docker-compose.yaml` with any infix, such as `compose.override.yaml` or `docker-compose.prod.yml`.
 
-TermIDE tells `docker-language-server` to send no telemetry when it starts; the server collects it by default otherwise.
+Termide tells `docker-language-server` to send no telemetry when it starts; the server collects it by default otherwise.
 
-**Note:** You need to install the language server separately. TermIDE only provides the LSP client integration.
+**Note:** You need to install the language server separately. Termide only provides the LSP client integration.
+
+## Breakpoints and Debugging
+
+| Shortcut   | Action                                                        |
+|------------|---------------------------------------------------------------|
+| `Ctrl+F8`  | Set or remove a breakpoint on the cursor line (`toggle_breakpoint`) |
+| `F5`       | Start debugging (`start_debug`); continue while a session is stopped |
+
+A breakpoint is drawn as a red `●` in the cell right of the line number, where a diagnostic's `▶` would be; it takes that cell over a diagnostic, whose message still shows on its own line below. A click on a line number sets or removes one too. Both work in view mode and in every Vim mode, as neither changes the text.
+
+A breakpoint stays with its text as you edit: lines added or removed above move it, a deleted line takes its breakpoint with it, and lines joined into one keep it on the joined line. Breakpoints are kept per file in `breakpoints.toml` in the data directory (`~/.local/share/termide/` on Linux, `~/Library/Application Support/termide/` on macOS), so they come back when the file is opened again, in any project and after a restart. **Remove all breakpoints** in the command palette or the editor's `[≡]` menu clears them everywhere.
+
+`F5` starts debugging with the project's breakpoints set and runs the program to the first one: through a debug adapter (lldb-dap, gdb, debugpy, Delve) in the debug panel, or a command-line debugger (lldb, gdb, Delve, pdb) in a terminal panel. What it debugs comes from a command with a `debugger` in `commands.toml`, or, for a Python, Go or Rust file, from the file alone; with nothing to launch, a form to set the launch up opens; see [Debugging](actions.md#debugging). When a debug adapter stops the program, the line it stopped at gets `→` on a highlighted cell in the gutter and the cursor; stepping moves it. The editor's `[≡]` menu has **Start debugging** and **Set up debugging…** too.
 
 ## Vim Mode
 
-TermIDE includes an optional Vim-style editing mode with full Cyrillic keyboard support.
+Termide includes an optional Vim-style editing mode with full Cyrillic keyboard support.
 
 ### Enabling Vim Mode
 

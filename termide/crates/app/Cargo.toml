@@ -27,6 +27,7 @@ termide-app-core = { path = "../app-core" }
 
 # Core workspace crates
 termide-core = { path = "../core" }
+termide-debug = { path = "../debug" }
 termide-detach = { path = "../detach" }
 termide-clipboard = { path = "../clipboard" }
 termide-keyboard = { path = "../keyboard" }
@@ -63,6 +64,7 @@ termide-panel-git-status = { path = "../panel-git-status" }
 termide-panel-git-log = { path = "../panel-git-log" }
 termide-panel-ide = { path = "../panel-ide" }
 termide-panel-git-diff = { path = "../panel-git-diff" }
+termide-panel-debug = { path = "../panel-debug" }
 termide-panel-diagnostics = { path = "../panel-diagnostics" }
 termide-panel-misc = { path = "../panel-misc" }
 termide-agent-core = { path = "../agent-core" }
@@ -73,6 +75,7 @@ termide-agent-recall = { path = "../agent-recall" }
 termide-agent-web = { path = "../agent-web" }
 termide-agent-hooks = { path = "../agent-hooks" }
 termide-agent-acp = { path = "../agent-acp" }
+termide-plugins = { path = "../plugins" }
 termide-panel-agent = { path = "../panel-agent" }
 termide-panel-operations = { path = "../panel-operations" }
 termide-panel-outline = { path = "../panel-outline" }

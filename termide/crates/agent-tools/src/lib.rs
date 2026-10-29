@@ -13,7 +13,9 @@
 mod args;
 mod bash;
 mod clean;
+mod debug;
 mod edit;
+mod peers;
 mod question;
 mod read;
 mod skill;
@@ -29,12 +31,14 @@ use termide_agent_core::ToolRegistry;
 
 pub use bash::BashTool;
 pub use clean::{clean_output, Cleaned};
+pub use debug::{parse_action as parse_debug_action, DebugAction, DebugRun, DebugTool};
 pub use edit::EditTool;
+pub use peers::{AgentsTool, PeerInfo, PeerList, PeerSend, SendMessageTool};
 pub use question::QuestionTool;
 pub use read::ReadTool;
 pub use skill::SkillTool;
 pub use suggest::SuggestCommandTool;
-pub use task::{SubagentOutcome, SubagentRun, TaskTool};
+pub use task::{SubagentOutcome, SubagentRun, SubagentTask, TaskTool};
 pub use write::WriteTool;
 
 /// The default registry: `read`, `edit`, `write`, `bash`, in prompt order.

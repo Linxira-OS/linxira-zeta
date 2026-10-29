@@ -81,8 +81,16 @@ impl AgentPanel {
         }
         match event {
             AgentEvent::AgentStart => {
+                self.pending_events.push(PanelEvent::AgentRun {
+                    panel: self.panel_id,
+                    finished: None,
+                });
                 self.busy = true;
-                self.paused = false;
+                // A new request over a pause takes the pause's place, and the
+                // delegates it held go on with the new run.
+                if std::mem::take(&mut self.paused) {
+                    crate::live::resume_all(self.panel_id);
+                }
                 // A resumed run keeps its start, so its clock counts from the
                 // request; anything else (a new prompt over a pause) starts
                 // afresh.
@@ -106,6 +114,10 @@ impl AgentPanel {
                 self.pause_requested = false;
             }
             AgentEvent::AgentEnd => {
+                self.pending_events.push(PanelEvent::AgentRun {
+                    panel: self.panel_id,
+                    finished: Some(!self.run_failed && self.last_failure.is_none()),
+                });
                 self.busy = false;
                 self.activity = None;
                 self.log_run_end();
@@ -133,6 +145,12 @@ impl AgentPanel {
                         false,
                     );
                 }
+                // A run that ended on its own before reaching the pause asked
+                // for — its turn finished with nothing left to do — leaves no
+                // pause to continue from: the delegates held for it go on.
+                if !self.run_paused {
+                    crate::live::resume_all(self.panel_id);
+                }
                 self.pause_requested = false;
                 if self.external && self.stop_requested.is_some() && !self.run_heard {
                     self.restart_due = true;
@@ -151,19 +169,32 @@ impl AgentPanel {
                 // A failed request is tried again, waited on or asked about;
                 // one that went through ends the tries.
                 let held = match failure {
-                    Some((failure, error)) => {
+                    Some(failure) => {
                         self.retry_ready = true;
-                        self.on_run_failed(failure, &error)
+                        self.on_run_failed(failure)
                     }
                     None => {
                         if !self.run_failed {
                             self.retry_attempts = 0;
                             self.restarted = false;
                             self.retry_ready = false;
+                            // The request went: no failure waits on the user,
+                            // and the log is told so — otherwise a session
+                            // reopened later asks about a limit that has long
+                            // been answered, on another connection even.
+                            self.sync_retry();
                         }
                         false
                     }
                 };
+                // A delegated task this session carried on is over: its answer
+                // goes back to the panel that delegated it, which is what the
+                // `task` call was made for. A run that stops at a pause, or on
+                // a failure that is retried, waited on or asked about, is not
+                // over: the answer is owed at its real end.
+                if !self.run_paused && !held {
+                    self.report_carried_back();
+                }
                 self.offer_plan();
                 // A loop schedules its next iteration once the run ends, unless
                 // it was paused (then it waits for `/continue`), a card is up
@@ -281,14 +312,10 @@ impl AgentPanel {
                     Message::User(user) => {
                         // A command the user ran while the agent worked was
                         // steered in, and shows as the shell call block it
-                        // would have shown had the agent been idle.
-                        let item = transcript::user_command_item(user, now_hms(), None)
-                            .unwrap_or_else(|| Item::User {
-                                text: user.plain_text(),
-                                at: now_hms(),
-                                command: user.command.clone(),
-                            });
-                        self.transcript.push(item);
+                        // would have shown had the agent been idle. Another
+                        // agent's message is a step, not the user's plate.
+                        self.transcript
+                            .push(transcript::user_item(user, now_hms(), None));
                         None
                     }
                     // An external agent's calls show as they run; the
@@ -300,7 +327,12 @@ impl AgentPanel {
                         None
                     }
                     Message::Assistant(assistant) => {
-                        if assistant.usage.total() > 0 {
+                        // An external agent's usage is what its whole turn
+                        // spent, not how full its context is: that comes
+                        // with its `usage_update`.
+                        if assistant.usage.total() > 0
+                            && assistant.provider != termide_agent_core::ACP_PROVIDER
+                        {
                             self.context_tokens = assistant.usage.total();
                         }
                         // What the cache served is counted apart from what is
@@ -343,11 +375,7 @@ impl AgentPanel {
                         }
                         // What a failure was, for the run's end; a refusal
                         // carries no error and is no failure to retry.
-                        self.last_failure = error.as_ref().and_then(|error| {
-                            assistant
-                                .classify_failure()
-                                .map(|failure| (failure, error.clone()))
-                        });
+                        self.last_failure = assistant.classify_failure();
                         // The answer always carries the wall-clock time; a
                         // reasoning block, if any, carries the prefill/generation
                         // indicators (else the answer does). A tool-only turn
@@ -517,6 +545,7 @@ impl AgentPanel {
                 kept,
                 tokens_before,
                 tokens_after,
+                call,
             } => {
                 // The next reply's usage would correct the figure only once
                 // the next turn finishes.
@@ -527,7 +556,13 @@ impl AgentPanel {
                     NoticeKind::Info,
                 );
                 if let Some(session) = &mut self.session {
-                    if let Err(error) = session.append_compaction(&summary, tokens_before, kept) {
+                    if let Err(error) = session.append_compaction_with(
+                        &summary,
+                        tokens_before,
+                        kept,
+                        Some(tokens_after),
+                        Some(call),
+                    ) {
                         log::warn!("agent session write failed: {error}");
                     }
                 }
@@ -537,12 +572,51 @@ impl AgentPanel {
                     self.context_stale = true;
                 }
             }
-            AgentEvent::CompactionFailed { error } => {
+            AgentEvent::CompactionFailed {
+                error,
+                tokens_before,
+                call,
+                reply,
+            } => {
                 self.end_compaction();
                 self.notice(
                     termide_i18n::t().agent_notice_compaction_failed_fmt(&error.to_string()),
                     NoticeKind::Warn,
                 );
+                // A refused summary call goes into the log, so what the
+                // model answered can be looked at afterwards; nothing to
+                // keep when no call was made.
+                if let (Some(call), Some(session)) = (call, &mut self.session) {
+                    if let Err(error) =
+                        session.append_compaction_failed(&error, tokens_before, call, &reply)
+                    {
+                        log::warn!("agent session write failed: {error}");
+                    }
+                }
+            }
+            AgentEvent::Fitted {
+                budget,
+                keep_tail,
+                steps,
+                tokens_before,
+                tokens_after,
+                ..
+            } => {
+                self.context_tokens = tokens_after;
+                self.notice(
+                    termide_i18n::t().agent_notice_fitted_fmt(tokens_before, tokens_after),
+                    NoticeKind::Info,
+                );
+                if let Some(session) = &mut self.session {
+                    if let Err(error) =
+                        session.append_fitted(budget, keep_tail, steps, tokens_before)
+                    {
+                        log::warn!("agent session write failed: {error}");
+                    }
+                }
+                if self.toolset_off != self.context_off {
+                    self.context_stale = true;
+                }
             }
             AgentEvent::ExternalSession { agent, session_id } => {
                 if let Some(session) = &mut self.session {
@@ -640,7 +714,9 @@ impl AgentPanel {
             changed = true;
         }
         changed |= self.follow_open_sessions();
-        changed |= self.drop_withdrawn_permission();
+        changed |= self.check_held();
+        changed |= self.poll_parked();
+        changed |= self.drop_withdrawn_card();
         if let Some((start, before)) = self.permission_wait {
             if matches!(
                 self.pending,
@@ -745,17 +821,22 @@ impl AgentPanel {
         }
         // A loop whose wait has elapsed starts its next iteration once the
         // panel is free (no run in flight, no card waiting for an answer).
-        let due = self
-            .loop_task
-            .as_ref()
-            .and_then(|t| t.next_at)
-            .is_some_and(|at| at <= Instant::now());
+        // The wall clock decides as well, so a sleep does not put it off.
+        let due = self.loop_task.as_ref().is_some_and(|t| {
+            t.next_at.is_some_and(|at| at <= Instant::now())
+                || (t.next_at.is_some()
+                    && t.due_ms
+                        .is_some_and(|due| due <= termide_agent_core::now_millis()))
+        });
         if due && !self.is_busy() && self.pending.is_none() {
             events.extend(self.loop_step());
             changed = true;
         }
         // A failed request whose wait is over is tried again.
         changed |= self.poll_retry_wait();
+        // A failure card left open keeps up with the clock: its countdown
+        // moves, and a reset that has gone by takes its "wait until" row away.
+        changed |= self.refresh_failure_card();
         // A goal whose work turn has finished runs the judge once the panel is
         // free and no judge call is already in flight.
         let judge_due = self
@@ -785,6 +866,7 @@ impl AgentPanel {
             changed = true;
         }
         changed |= self.settle_restored();
+        changed |= self.settle_watch();
         // A goal or loop started, stepped or stopped is written to the log,
         // so a session reopened later offers to carry it on — between runs,
         // so nothing comes between a request's start and its message.

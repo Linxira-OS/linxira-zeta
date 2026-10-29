@@ -42,6 +42,11 @@ pub(super) struct ParkedProject {
 }
 
 impl ParkedProject {
+    /// Every panel of the parked project.
+    pub(super) fn panels_mut(&mut self) -> impl Iterator<Item = &mut Box<dyn Panel>> {
+        self.layout.iter_all_panels_mut()
+    }
+
     fn panels(&self) -> impl Iterator<Item = &Box<dyn Panel>> {
         self.layout
             .panel_groups
@@ -81,6 +86,32 @@ fn queue_parked_event(events: &mut Vec<PanelEvent>, event: PanelEvent) {
 /// one project reached by two paths is opened once.
 pub(super) fn project_root_of(path: PathBuf) -> PathBuf {
     dunce::canonicalize(&path).unwrap_or(path)
+}
+
+/// Whether an agent panel in the saved layout of the project at `root` left
+/// work waiting on the user or on a clock: a run cut off or paused, a goal or
+/// loop going, a failed request waiting to be tried again — what the session
+/// lists mark `⏸` (see `SessionSummary::unfinished`).
+fn holds_agent_work(root: &Path) -> bool {
+    let Ok(layout) = termide_project::ProjectLayout::load(root) else {
+        return false;
+    };
+    layout
+        .panel_groups
+        .iter()
+        .flat_map(|group| &group.panels)
+        .filter_map(|panel| match panel {
+            termide_project::PanelState::Agent {
+                session: Some(path),
+                ..
+            } => Some(path),
+            _ => None,
+        })
+        .any(|path| {
+            termide_agent_core::session::Session::open(path).is_ok_and(|session| {
+                termide_agent_core::session::SessionSummary::from(&session).unfinished
+            })
+        })
 }
 
 /// `root` as the menus and messages name it.
@@ -194,6 +225,8 @@ impl App {
                 }
             }
         }
+        // The outline may have missed edits and focus moves while parked.
+        self.resync_outline();
         self.state.needs_watcher_registration = true;
         self.state.needs_redraw = true;
         if !parked.events.is_empty() {
@@ -207,6 +240,7 @@ impl App {
     /// open projects, and save the set for reopening when it changed.
     pub(super) fn sync_open_projects(&mut self) {
         self.save_open_projects();
+        self.plugins.mark_dirty();
         let views: Vec<OpenProjectView> =
             self.open_projects
                 .roots()
@@ -282,7 +316,48 @@ impl App {
             .collect();
         self.open_projects.arrange(&order);
         log::info!("Reopened {} projects of the last run", opened);
+        self.load_projects_holding_agent_work();
         self.sync_open_projects();
+    }
+
+    /// Load in the background the reopened projects whose agent left work
+    /// unfinished: a failed request waiting to be tried again — on a wait, or
+    /// on a card that tries again by itself — or a run, goal or loop that asks
+    /// whether to carry on. A project not loaded has no panels to tick, so
+    /// the try would wait for the user to enter it, and the card would ring
+    /// no bell and mark no project; loaded and parked, it goes like in any
+    /// project left this run.
+    fn load_projects_holding_agent_work(&mut self) {
+        let home = self.project_root.clone();
+        let waiting: Vec<PathBuf> = self
+            .open_projects
+            .roots()
+            .filter(|root| self.open_projects.is_pending(root) && holds_agent_work(root))
+            .map(Path::to_path_buf)
+            .collect();
+        for root in waiting {
+            // Entered and left at once, through the switch the user makes,
+            // so the project loads as it would on entering it. The visit
+            // does not count as one the user made.
+            let recency = [&root, &home].map(|root| self.open_projects.last_used(root));
+            if let Err(e) = self.switch_to_project(root.clone()) {
+                log::warn!("Could not load {} in the background: {e}", root.display());
+                continue;
+            }
+            if let Err(e) = self.switch_to_project(home.clone()) {
+                log::error!("Could not return to {}: {e}", home.display());
+                return;
+            }
+            for (root, last_used) in [&root, &home].into_iter().zip(recency) {
+                if let Some(last_used) = last_used {
+                    self.open_projects.set_last_used(root, last_used);
+                }
+            }
+            log::info!(
+                "Loaded {} in the background: an agent in it left work unfinished",
+                root.display()
+            );
+        }
     }
 
     /// Tick the panels of the parked projects. What they raise waits for
@@ -293,11 +368,17 @@ impl App {
         }
         let mut ring = false;
         let mut attention_changed = false;
+        let mut agent_runs = Vec::new();
         for (root, parked) in self.open_projects.parked_mut() {
             for panel in parked.layout.iter_all_panels_mut() {
                 for event in panel.tick() {
                     match event {
                         PanelEvent::RequestAttention => ring = true,
+                        // The project's plugins hear it now, as they would
+                        // with the project in front, not when it comes back.
+                        PanelEvent::AgentRun { panel, finished } => {
+                            agent_runs.push((root.to_path_buf(), panel, finished));
+                        }
                         event => queue_parked_event(&mut parked.events, event),
                     }
                 }
@@ -311,12 +392,171 @@ impl App {
                 .is_some_and(|view| view.attention);
             attention_changed |= shown != parked.needs_attention();
         }
+        for (root, panel, finished) in agent_runs {
+            let (method, params) = super::plugins::agent_run_event(panel, finished);
+            self.plugins.host.emit(&root, method, &params);
+        }
         if ring {
             self.state.attention_bell();
         }
         if attention_changed {
             self.sync_open_projects();
         }
+    }
+
+    /// Run `act` on the project at `root` as if it were current: on screen
+    /// as it is, parked with its layout and root standing in for the
+    /// current ones until `act` returns. So an agent of a parked project
+    /// reaches its own panels — takes one for a task, messages one — and
+    /// what `act` adds shows when the user enters the project. Why not, when
+    /// `root` is not loaded: a project not entered yet runs no agents.
+    pub(super) fn in_project<R>(
+        &mut self,
+        root: &Path,
+        act: impl FnOnce(&mut App) -> R,
+    ) -> Result<R, String> {
+        if super::agent_panel::same_dir(root, &self.project_root) {
+            return Ok(act(self));
+        }
+        let Some((parked_root, parked)) = self
+            .open_projects
+            .parked_mut()
+            .find(|(parked_root, _)| super::agent_panel::same_dir(parked_root, root))
+        else {
+            return Err(format!(
+                "{} is not open in this window; its panels are out of reach",
+                display_root(root)
+            ));
+        };
+        let parked_root = parked_root.to_path_buf();
+        let layout = std::mem::replace(&mut parked.layout, LayoutManager::new());
+        let home_layout = std::mem::replace(&mut self.layout_manager, layout);
+        let home_root = std::mem::replace(&mut self.project_root, parked_root.clone());
+        let home_state_root = std::mem::replace(&mut self.state.project_root, parked_root.clone());
+        let result = act(self);
+        let layout = std::mem::replace(&mut self.layout_manager, home_layout);
+        self.project_root = home_root;
+        self.state.project_root = home_state_root;
+        if let Some((_, parked)) = self
+            .open_projects
+            .parked_mut()
+            .find(|(root, _)| *root == parked_root)
+        {
+            parked.layout = layout;
+        }
+        Ok(result)
+    }
+
+    /// The agent settings of the project [`Self::in_project`] works on: the
+    /// current ones on screen; for a parked project, its own as entering it
+    /// would load them — the global layer with the project's file on top —
+    /// so a panel set up there runs as one the user opens there. Read from
+    /// disk, so only when a panel is set up.
+    pub(super) fn project_ai_settings(&self) -> termide_config::AiSettings {
+        if self.project_root == self.open_projects.current() {
+            return self.state.config.ai.clone();
+        }
+        match termide_config::Config::with_project_overlay(
+            &self.state.global_baseline,
+            &self.project_root,
+        ) {
+            Ok((config, _)) => config.ai,
+            Err(e) => {
+                log::warn!(
+                    "Could not load the settings of {}: {e}; using the global ones",
+                    display_root(&self.project_root)
+                );
+                self.state.global_baseline.ai.clone()
+            }
+        }
+    }
+
+    /// The files the parked projects' editors wrote since the last call,
+    /// with the root of the project each belongs to.
+    pub(super) fn take_parked_saved_paths(&mut self) -> Vec<(PathBuf, PathBuf)> {
+        let mut saved = Vec::new();
+        for (root, parked) in self.open_projects.parked_mut() {
+            for panel in parked.layout.iter_all_panels_mut() {
+                if let Some(editor) = panel.as_editor_mut() {
+                    saved.extend(
+                        editor
+                            .take_saved_paths()
+                            .into_iter()
+                            .map(|path| (root.to_path_buf(), path)),
+                    );
+                }
+            }
+        }
+        saved
+    }
+
+    /// The editor of `path` in the project at `project` — the current one or
+    /// a parked one — if it is open there.
+    pub(super) fn project_editor_mut(
+        &mut self,
+        project: &Path,
+        path: &Path,
+    ) -> Option<&mut termide_panel_editor::Editor> {
+        let layout = if project == self.open_projects.current() {
+            &mut self.layout_manager
+        } else {
+            &mut self
+                .open_projects
+                .parked_mut()
+                .find(|(root, _)| *root == project)?
+                .1
+                .layout
+        };
+        layout
+            .iter_all_panels_mut()
+            .filter_map(|panel| panel.as_editor_mut())
+            .find(|editor| editor.file_path() == Some(path))
+    }
+
+    /// The plugin panel `id`, in the current project or a parked one.
+    pub(super) fn plugin_panel_mut(
+        &mut self,
+        id: u64,
+    ) -> Option<&mut termide_panel_markdown::MarkdownPanel> {
+        let parked = self
+            .open_projects
+            .parked_mut()
+            .flat_map(|(_, parked)| parked.layout.iter_all_panels_mut());
+        self.layout_manager
+            .iter_all_panels_mut()
+            .chain(parked)
+            .filter_map(|panel| {
+                panel
+                    .as_any_mut()
+                    .downcast_mut::<termide_panel_markdown::MarkdownPanel>()
+            })
+            .find(|panel| panel.plugin_panel_id() == Some(id))
+    }
+
+    /// The ids of every plugin panel open, in any project.
+    pub(super) fn plugin_panel_ids(&mut self) -> Vec<u64> {
+        let parked = self
+            .open_projects
+            .parked_mut()
+            .flat_map(|(_, parked)| parked.layout.iter_all_panels_mut());
+        self.layout_manager
+            .iter_all_panels_mut()
+            .chain(parked)
+            .filter_map(|panel| {
+                panel
+                    .as_any()
+                    .downcast_ref::<termide_panel_markdown::MarkdownPanel>()
+                    .and_then(termide_panel_markdown::MarkdownPanel::plugin_panel_id)
+            })
+            .collect()
+    }
+
+    /// The roots of the parked projects.
+    pub(super) fn parked_roots(&self) -> Vec<PathBuf> {
+        self.open_projects
+            .parked()
+            .map(|(root, _)| root.to_path_buf())
+            .collect()
     }
 
     /// The open projects' roots in the order the menus list them.
@@ -442,6 +682,17 @@ impl App {
             self.switch_to_project(successor)?;
         }
         if let Some(mut parked) = self.open_projects.close(root) {
+            // Its agent panels go with it, and the tasks they handed over
+            // stop with them, as when a panel is closed.
+            for panel in parked.layout.iter_all_panels_mut() {
+                if let Some(agent) = panel
+                    .as_any()
+                    .downcast_ref::<termide_panel_agent::AgentPanel>()
+                {
+                    termide_panel_agent::live::stop_all(agent.panel_id());
+                    termide_panel_agent::live::clear_parked_of(agent.panel_id());
+                }
+            }
             // As closing an editor panel does: the server forgets the file.
             if let Some(lsp_manager) = self.state.lsp_manager.as_ref() {
                 for panel in parked.layout.iter_all_panels_mut() {

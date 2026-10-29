@@ -18,9 +18,12 @@ use std::sync::{Mutex, OnceLock};
 use serde::{Deserialize, Serialize};
 
 use crate::acp::ACP_PROVIDER;
-use crate::compaction::CompactionPrompts;
+use crate::compaction::{CompactionCall, CompactionPrompts};
 use crate::context::file_timestamp;
+use crate::failure::Failure;
+use crate::fit::{fit, FitStep};
 use crate::message::{now_millis, Message, StopReason};
+use crate::permissions::Mode;
 use crate::provider::ThinkingLevel;
 use crate::prune::{prune_by, prune_to_decisions};
 
@@ -36,6 +39,22 @@ pub struct SessionHeader {
     pub cwd: PathBuf,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// The session that delegated this one's task, for a delegate's session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<SessionParent>,
+}
+
+/// Where a delegate's session came from: the delegating session and call.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionParent {
+    /// The delegating session's id, when its agent ran on termide's loop;
+    /// an external agent's calls come without one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<String>,
+    /// The delegating agent's name.
+    pub agent: String,
+    /// The id of the `task` call that handed the task over.
+    pub call: String,
 }
 
 /// How long a logged message took to produce, recorded by the UI so a
@@ -89,6 +108,34 @@ pub enum EntryKind {
         summary: String,
         tokens_before: u64,
         keep_last: usize,
+        /// The estimated context right after; absent from older logs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tokens_after: Option<u64>,
+        /// How the summary call went; absent from older logs.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        call: Option<CompactionCall>,
+    },
+    /// A compaction whose summary call was made and refused: the context
+    /// went on as it was. `reply` is the refused text, cut short. Changes
+    /// nothing on the branch; it is there to tell afterwards what happened.
+    CompactionFailed {
+        error: String,
+        tokens_before: u64,
+        call: CompactionCall,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        reply: String,
+    },
+    /// The context was cut down by kinds of content to `budget` characters,
+    /// the recent ones within `keep_tail` kept whole, with no summary: see
+    /// [`crate::fit::fit`], which replays it from the same inputs. `steps`
+    /// and `tokens_before` record what it did, for judging it afterwards.
+    Fitted {
+        budget: usize,
+        keep_tail: usize,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        steps: Vec<(FitStep, usize)>,
+        #[serde(default)]
+        tokens_before: u64,
     },
     /// A name the user gave this conversation. The last one on the branch
     /// wins, so renaming is just another entry.
@@ -110,6 +157,9 @@ pub enum EntryKind {
     /// The connection (`[ai.connections.<name>]`) the branch runs on from
     /// here, so a reopened session reconnects to the same endpoint.
     ConnectionChange { connection: String },
+    /// The permission mode the branch runs in from here, so a reopened
+    /// session — a paused run above all — goes on under the same mode.
+    ModeChange { mode: Mode },
     /// The user undid a request: the branch continues from this entry's
     /// parent, the undone messages stay in the file on a dead branch.
     Rewind,
@@ -147,6 +197,15 @@ pub enum EntryKind {
     /// empty once it stopped. A reopened session offers to carry it on, see
     /// [`Session::autorun`].
     Autorun { autorun: Autorun },
+    /// A request that failed on something that passes — a limit, an outage —
+    /// and was asked about or is waited on, with what it was: the card the
+    /// panel raised, so a session reopened after termide closed offers the
+    /// same again. `None` takes the offer back (the user gave the request up,
+    /// or it was tried again). See [`Session::pending_retry`].
+    Retry {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        failure: Option<Failure>,
+    },
 }
 
 /// The unattended work a session has going: a `/goal`, a `/loop`, or both.
@@ -290,6 +349,19 @@ fn read_file(path: &Path) -> std::io::Result<(SessionHeader, Vec<Entry>)> {
     Ok((header, entries))
 }
 
+/// The failed request `branch` last left held, when nothing took it back:
+/// see [`EntryKind::Retry`].
+fn last_retry<'a>(branch: impl IntoIterator<Item = &'a Entry>) -> Option<Failure> {
+    branch
+        .into_iter()
+        .filter_map(|entry| match &entry.kind {
+            EntryKind::Retry { failure } => Some(*failure),
+            _ => None,
+        })
+        .last()
+        .flatten()
+}
+
 /// The entries from the root to `leaf`, oldest first; `path` names the log
 /// in the warning about a dangling parent.
 fn branch_of<'a>(entries: &'a [Entry], leaf: Option<&str>, path: &Path) -> Vec<&'a Entry> {
@@ -319,6 +391,91 @@ pub struct Session {
     /// was opened with [`Session::open_exclusive`] / [`Session::create_exclusive`].
     /// Released on drop so a session is never live in two panels at once.
     lock: Option<PathBuf>,
+    /// The claim other termide processes see, taken with `lock`.
+    lease: Option<Lease>,
+    /// Opened with [`Session::open_read_only`]: another termide holds the
+    /// session, so nothing is written to its log from here.
+    read_only: bool,
+}
+
+/// A claim on a session log that other termide processes see: an OS lock on
+/// `<log>.lock`, the file carrying the holder's process id. The OS drops the
+/// lock when the process ends, however it ends, so a crash or a kill leaves
+/// no stale claim. The in-process registry stays what tells this process's
+/// own panels apart, since the OS lets one process take its lock twice.
+#[derive(Debug)]
+struct Lease {
+    file: File,
+    path: PathBuf,
+}
+
+impl Drop for Lease {
+    fn drop(&mut self) {
+        // Removed while still locked, so no one takes the old file's lock
+        // between the unlock and the removal; a file Windows will not remove
+        // while open stays, unlocked, for the next holder to take.
+        let _ = std::fs::remove_file(&self.path);
+        let _ = self.file.unlock();
+    }
+}
+
+/// How a try for a session's lease went.
+enum Leased {
+    Taken(Lease),
+    /// Another process holds it; its id when the lock file names it.
+    Held(Option<u32>),
+    /// No lock file could be made or locked (a read-only directory, a file
+    /// system without locks): the session opens unleased, as it did before
+    /// leases.
+    Unavailable,
+}
+
+/// The lock file beside the log at `log`.
+fn lease_path(log: &Path) -> PathBuf {
+    let mut name = log.as_os_str().to_os_string();
+    name.push(".lock");
+    PathBuf::from(name)
+}
+
+fn take_lease(log: &Path) -> Leased {
+    let path = lease_path(log);
+    let mut file = match OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+    {
+        Ok(file) => file,
+        Err(error) => {
+            log::warn!("cannot make {}: {error}", path.display());
+            return Leased::Unavailable;
+        }
+    };
+    match file.try_lock() {
+        Ok(()) => {
+            // The holder's id, for another termide to name it.
+            let written = file
+                .set_len(0)
+                .and_then(|()| write!(file, "{}", std::process::id()))
+                .and_then(|()| file.flush());
+            if let Err(error) = written {
+                log::warn!("cannot write {}: {error}", path.display());
+            }
+            Leased::Taken(Lease { file, path })
+        }
+        Err(std::fs::TryLockError::WouldBlock) => Leased::Held(lease_holder_id(&path)),
+        Err(std::fs::TryLockError::Error(error)) => {
+            log::warn!("cannot lock {}: {error}", path.display());
+            Leased::Unavailable
+        }
+    }
+}
+
+/// The process id a lock file names; `None` when it cannot be read, as a
+/// file locked on Windows cannot.
+fn lease_holder_id(path: &Path) -> Option<u32> {
+    std::fs::read_to_string(path).ok()?.trim().parse().ok()
 }
 
 /// Paths currently open exclusively, so the same session log cannot back two
@@ -361,6 +518,9 @@ fn release(key: &Path) {
 
 impl Drop for Session {
     fn drop(&mut self) {
+        // The lease goes first: once the registry lets a panel of this
+        // process claim the session again, its lock must be free to take.
+        self.lease.take();
         if let Some(key) = self.lock.take() {
             release(&key);
         }
@@ -370,6 +530,18 @@ impl Drop for Session {
 impl Session {
     /// Create a new session file in `dir` (created if missing).
     pub fn create(dir: &Path, cwd: &Path) -> std::io::Result<Self> {
+        Self::create_with(dir, cwd, None)
+    }
+
+    /// Create the session of a task delegated by `parent`, in `dir`, held
+    /// exclusively as a panel's is: no panel opens it while the task runs.
+    pub fn create_delegate(dir: &Path, cwd: &Path, parent: SessionParent) -> std::io::Result<Self> {
+        let mut session = Self::create_with(dir, cwd, Some(parent))?;
+        session.claim_new();
+        Ok(session)
+    }
+
+    fn create_with(dir: &Path, cwd: &Path, parent: Option<SessionParent>) -> std::io::Result<Self> {
         std::fs::create_dir_all(dir)?;
         let created = now_millis();
         let id = new_id();
@@ -379,6 +551,7 @@ impl Session {
             created,
             cwd: cwd.to_path_buf(),
             name: None,
+            parent,
         };
         let path = dir.join(format!("{}_{id}.jsonl", file_timestamp(created)));
         let mut file = OpenOptions::new()
@@ -399,6 +572,8 @@ impl Session {
             leaf: None,
             file,
             lock: None,
+            lease: None,
+            read_only: false,
         })
     }
 
@@ -415,6 +590,8 @@ impl Session {
             leaf,
             file,
             lock: None,
+            lease: None,
+            read_only: false,
         })
     }
 
@@ -422,18 +599,84 @@ impl Session {
     /// cannot also be opened in another panel; the claim is released on drop.
     pub fn create_exclusive(dir: &Path, cwd: &Path) -> std::io::Result<Self> {
         let mut session = Self::create(dir, cwd)?;
-        session.lock = claim(&session.path);
+        session.claim_new();
         Ok(session)
     }
 
+    /// The claims of a session this call just made: no one else can hold
+    /// its new file, so the lease is taken unless locks are unavailable.
+    fn claim_new(&mut self) {
+        self.lock = claim(&self.path);
+        if self.lock.is_some() {
+            if let Leased::Taken(lease) = take_lease(&self.path) {
+                self.lease = Some(lease);
+            }
+        }
+    }
+
+    /// Load the session at `path` to be read and never written: the session
+    /// another termide holds, shown here until it lets it go. Every append
+    /// fails, and a discard leaves the file alone.
+    pub fn open_read_only(path: &Path) -> std::io::Result<Self> {
+        let (header, entries) = read_file(path)?;
+        let leaf = entries.last().map(|e| e.id.clone());
+        let file = OpenOptions::new().read(true).open(path)?;
+        Ok(Self {
+            path: path.to_path_buf(),
+            header,
+            entries,
+            leaf,
+            file,
+            lock: None,
+            lease: None,
+            read_only: true,
+        })
+    }
+
+    /// Whether this session was opened with [`Session::open_read_only`].
+    #[must_use]
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
+    }
+
     /// Whether the session at `path` is open exclusively, in some panel of
-    /// this process.
+    /// this process or in another termide.
     #[must_use]
     pub fn is_open(path: &Path) -> bool {
         open_registry()
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .contains(&lock_key(path))
+            || Self::held_elsewhere(path).is_some()
+    }
+
+    /// Whether another termide holds the session at `path`: `Some` with its
+    /// process id when the lock file names it, `None` when no other process
+    /// does — this one's own claims are not "elsewhere".
+    #[must_use]
+    pub fn held_elsewhere(path: &Path) -> Option<Option<u32>> {
+        let in_this_process = open_registry()
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains(&lock_key(path));
+        if in_this_process {
+            return None;
+        }
+        let lock_path = lease_path(path);
+        // No lock file, no holder: it is made with the claim.
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&lock_path)
+            .ok()?;
+        match file.try_lock() {
+            Ok(()) => {
+                let _ = file.unlock();
+                None
+            }
+            Err(std::fs::TryLockError::WouldBlock) => Some(lease_holder_id(&lock_path)),
+            Err(std::fs::TryLockError::Error(_)) => None,
+        }
     }
 
     /// A counter that changes whenever a session is opened or released
@@ -568,9 +811,24 @@ impl Session {
                 "this session is already open in another panel",
             ));
         };
+        // Another termide's claim: its panel may be running the session
+        // right now, so this one must not write to it nor carry it on.
+        let lease = match take_lease(path) {
+            Leased::Taken(lease) => Some(lease),
+            Leased::Held(pid) => {
+                release(&key);
+                let holder = pid.map_or_else(String::new, |pid| format!(" (process {pid})"));
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::WouldBlock,
+                    format!("this session is open in another termide{holder}"),
+                ));
+            }
+            Leased::Unavailable => None,
+        };
         match Self::open(path) {
             Ok(mut session) => {
                 session.lock = Some(key);
+                session.lease = lease;
                 Ok(session)
             }
             Err(error) => {
@@ -616,6 +874,10 @@ impl Session {
     /// Delete the session's file from disk, consuming the session (its lock is
     /// released as it drops). A missing file is not an error.
     pub fn discard(self) -> std::io::Result<()> {
+        // Another termide's session is not this one's to delete.
+        if self.read_only {
+            return Ok(());
+        }
         match std::fs::remove_file(&self.path) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -683,6 +945,12 @@ impl Session {
     }
 
     fn append(&mut self, kind: EntryKind) -> std::io::Result<String> {
+        if self.read_only {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "this session is open in another termide; it is only read here",
+            ));
+        }
         let entry = Entry {
             id: new_id(),
             parent_id: self.leaf.clone(),
@@ -743,11 +1011,14 @@ impl Session {
                 | EntryKind::ThinkingChange { .. }
                 | EntryKind::Toolset { .. }
                 | EntryKind::ConnectionChange { .. }
+                | EntryKind::ModeChange { .. }
                 | EntryKind::ExternalSession { .. }
                 | EntryKind::AgentOption { .. }
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
-                | EntryKind::Autorun { .. } => {}
+                | EntryKind::Retry { .. }
+                | EntryKind::Autorun { .. }
+                | EntryKind::CompactionFailed { .. } => {}
                 EntryKind::Compaction {
                     summary, keep_last, ..
                 } => {
@@ -757,6 +1028,9 @@ impl Session {
                     messages.extend(tail);
                 }
                 EntryKind::Pruned => messages = prune_to_decisions(&messages),
+                EntryKind::Fitted {
+                    budget, keep_tail, ..
+                } => messages = fit(&messages, *budget, *keep_tail).messages,
             }
         }
         messages
@@ -784,11 +1058,14 @@ impl Session {
                 | EntryKind::ThinkingChange { .. }
                 | EntryKind::Toolset { .. }
                 | EntryKind::ConnectionChange { .. }
+                | EntryKind::ModeChange { .. }
                 | EntryKind::ExternalSession { .. }
                 | EntryKind::AgentOption { .. }
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
-                | EntryKind::Autorun { .. } => {}
+                | EntryKind::Retry { .. }
+                | EntryKind::Autorun { .. }
+                | EntryKind::CompactionFailed { .. } => {}
                 EntryKind::Compaction {
                     summary, keep_last, ..
                 } => {
@@ -800,6 +1077,34 @@ impl Session {
                         timing: None,
                     }];
                     messages.extend(tail);
+                }
+                EntryKind::Fitted {
+                    budget, keep_tail, ..
+                } => {
+                    let plain: Vec<Message> = messages
+                        .iter()
+                        .map(|logged| logged.message.clone())
+                        .collect();
+                    let fitted = fit(&plain, *budget, *keep_tail);
+                    // The note on what was left out takes the time of the
+                    // first message it stands for.
+                    let first = messages.first().map_or(entry.timestamp, |l| l.timestamp);
+                    messages = fitted
+                        .messages
+                        .into_iter()
+                        .zip(fitted.origin)
+                        .map(|(message, origin)| match origin {
+                            Some(index) => LoggedMessage {
+                                message,
+                                ..messages[index].clone()
+                            },
+                            None => LoggedMessage {
+                                message,
+                                timestamp: first,
+                                timing: None,
+                            },
+                        })
+                        .collect();
                 }
                 EntryKind::Pruned => {
                     messages = prune_by(&messages, |logged| &logged.message)
@@ -843,10 +1148,60 @@ impl Session {
         tokens_before: u64,
         keep_last: usize,
     ) -> std::io::Result<String> {
+        self.append_compaction_with(summary, tokens_before, keep_last, None, None)
+    }
+
+    /// [`Session::append_compaction`] with the context size after it and
+    /// how the summary call went.
+    pub fn append_compaction_with(
+        &mut self,
+        summary: &str,
+        tokens_before: u64,
+        keep_last: usize,
+        tokens_after: Option<u64>,
+        call: Option<CompactionCall>,
+    ) -> std::io::Result<String> {
         self.append(EntryKind::Compaction {
             summary: summary.to_string(),
             tokens_before,
             keep_last,
+            tokens_after,
+            call,
+        })
+    }
+
+    /// Record that the context was cut down by kinds of content to
+    /// `budget` characters, keeping `keep_tail` whole, see
+    /// [`EntryKind::Fitted`].
+    pub fn append_fitted(
+        &mut self,
+        budget: usize,
+        keep_tail: usize,
+        steps: Vec<(FitStep, usize)>,
+        tokens_before: u64,
+    ) -> std::io::Result<String> {
+        self.append(EntryKind::Fitted {
+            budget,
+            keep_tail,
+            steps,
+            tokens_before,
+        })
+    }
+
+    /// Record a summary call that was made and refused, with the text it
+    /// was refused for; the context is unchanged by it.
+    pub fn append_compaction_failed(
+        &mut self,
+        error: &str,
+        tokens_before: u64,
+        call: CompactionCall,
+        reply: &str,
+    ) -> std::io::Result<String> {
+        self.append(EntryKind::CompactionFailed {
+            error: error.to_string(),
+            tokens_before,
+            call,
+            reply: reply.to_string(),
         })
     }
 
@@ -881,11 +1236,15 @@ impl Session {
                 | EntryKind::ThinkingChange { .. }
                 | EntryKind::Toolset { .. }
                 | EntryKind::ConnectionChange { .. }
+                | EntryKind::ModeChange { .. }
                 | EntryKind::ExternalSession { .. }
                 | EntryKind::AgentOption { .. }
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
-                | EntryKind::Autorun { .. } => None,
+                | EntryKind::Retry { .. }
+                | EntryKind::Autorun { .. }
+                | EntryKind::CompactionFailed { .. }
+                | EntryKind::Fitted { .. } => None,
             })
     }
 
@@ -938,6 +1297,23 @@ impl Session {
             })
     }
 
+    /// Record the permission mode the branch runs in from here.
+    pub fn append_mode_change(&mut self, mode: Mode) -> std::io::Result<String> {
+        self.append(EntryKind::ModeChange { mode })
+    }
+
+    /// The permission mode recorded last on the current branch, if any.
+    #[must_use]
+    pub fn current_mode(&self) -> Option<Mode> {
+        self.branch()
+            .into_iter()
+            .rev()
+            .find_map(|entry| match &entry.kind {
+                EntryKind::ModeChange { mode } => Some(*mode),
+                _ => None,
+            })
+    }
+
     /// Record that the external agent `agent` opened its own session
     /// `session_id` for this branch.
     pub fn append_external_session(
@@ -980,6 +1356,7 @@ impl Session {
                 }
                 EntryKind::Rewind
                 | EntryKind::Compaction { .. }
+                | EntryKind::Fitted { .. }
                 | EntryKind::Pruned
                 | EntryKind::AgentChange { .. }
                 | EntryKind::ConnectionChange { .. } => return None,
@@ -995,10 +1372,13 @@ impl Session {
                 | EntryKind::ReasoningChange { .. }
                 | EntryKind::ThinkingChange { .. }
                 | EntryKind::Toolset { .. }
+                | EntryKind::ModeChange { .. }
                 | EntryKind::AgentOption { .. }
                 | EntryKind::RunStart
                 | EntryKind::RunEnd { .. }
-                | EntryKind::Autorun { .. } => {}
+                | EntryKind::Retry { .. }
+                | EntryKind::Autorun { .. }
+                | EntryKind::CompactionFailed { .. } => {}
             }
         }
         None
@@ -1050,6 +1430,31 @@ impl Session {
         })
     }
 
+    /// Record a failed request the panel still holds (`None`: it let it go),
+    /// see [`Self::pending_retry`].
+    pub fn append_retry(&mut self, failure: Option<Failure>) -> std::io::Result<String> {
+        self.append(EntryKind::Retry { failure })
+    }
+
+    /// The failed request the branch last left held by a card or a wait, when
+    /// nothing has taken it back: see [`EntryKind::Retry`].
+    #[must_use]
+    pub fn pending_retry(&self) -> Option<Failure> {
+        last_retry(self.branch())
+    }
+
+    /// [`Self::pending_retry`] of the log at `path`, read without opening it
+    /// the way [`Self::read_branch`] reads: so the log of a panel not loaded
+    /// yet can tell whether a request in it waits to be tried again.
+    ///
+    /// # Errors
+    ///
+    /// When the file cannot be read or has no header.
+    pub fn pending_retry_at(path: &Path) -> std::io::Result<Option<Failure>> {
+        let (_, branch) = Self::read_branch(path)?;
+        Ok(last_retry(&branch))
+    }
+
     /// How the current branch's last run ended, see [`Self::unfinished_run`].
     #[must_use]
     pub fn last_run(&self) -> LastRun {
@@ -1059,7 +1464,8 @@ impl Session {
 
     /// The branch's last run, when it did not end: paused, or cut off — it
     /// started and never ended, and its last message leaves work to do (a
-    /// request or results the model has not answered, calls not run). One
+    /// request or results the model has not answered, calls not run, a reply
+    /// that stopped to wait on calls). One
     /// whose last reply finished, or failed, is as good as ended: only its
     /// end was not written. A log written before runs were recorded holds
     /// none.
@@ -1089,8 +1495,12 @@ impl Session {
                     _ => None,
                 })?;
                 let open = match last.0 {
+                    // A reply that waits on calls: its own, or — from an
+                    // external agent, which logs a call only with its result —
+                    // the text it closed before a call that was still running.
                     Message::Assistant(reply) => {
-                        reply.tool_calls().next().is_some()
+                        (reply.tool_calls().next().is_some()
+                            || matches!(reply.stop_reason, StopReason::ToolUse))
                             && !matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted)
                     }
                     Message::User(_) | Message::ToolResult(_) => true,
@@ -1191,14 +1601,18 @@ impl SessionSummary {
     }
 
     /// [`Self::label`] marked `⏸` when the session was left with work to
-    /// carry on, for the lists that offer sessions to open.
+    /// carry on and `&` when it is a delegate's, the way the panel marks a
+    /// delegated task, for the lists that offer sessions to open.
     #[must_use]
     pub fn display_label(&self) -> String {
-        if self.unfinished {
-            format!("⏸ {}", self.label())
-        } else {
-            self.label()
+        let mut label = self.label();
+        if self.parent.is_some() {
+            label = format!("& {label}");
         }
+        if self.unfinished {
+            label = format!("⏸ {label}");
+        }
+        label
     }
 }
 
@@ -1217,6 +1631,11 @@ pub struct SessionSummary {
     /// The session was left with work to carry on: a run cut off or
     /// paused, a `/goal` or `/loop` going.
     pub unfinished: bool,
+    /// Where a delegate's session came from.
+    pub parent: Option<SessionParent>,
+    /// The agent the session runs on, as its log records it last; `None`
+    /// for a log written before agents were recorded.
+    pub agent: Option<String>,
 }
 
 impl From<&Session> for SessionSummary {
@@ -1233,11 +1652,15 @@ impl From<&Session> for SessionSummary {
             | EntryKind::ThinkingChange { .. }
             | EntryKind::Toolset { .. }
             | EntryKind::ConnectionChange { .. }
+            | EntryKind::ModeChange { .. }
             | EntryKind::ExternalSession { .. }
             | EntryKind::AgentOption { .. }
             | EntryKind::RunStart
             | EntryKind::RunEnd { .. }
-            | EntryKind::Autorun { .. } => None,
+            | EntryKind::Retry { .. }
+            | EntryKind::Autorun { .. }
+            | EntryKind::CompactionFailed { .. }
+            | EntryKind::Fitted { .. } => None,
         });
         let first_prompt = messages.clone().find_map(|m| match m {
             Message::User(user) => Some(user.plain_text()),
@@ -1254,7 +1677,11 @@ impl From<&Session> for SessionSummary {
                 .map_or(session.header.created, |e| e.timestamp),
             first_prompt,
             message_count: messages.count(),
-            unfinished: session.unfinished_run().is_some() || !session.autorun().is_empty(),
+            unfinished: session.unfinished_run().is_some()
+                || !session.autorun().is_empty()
+                || session.pending_retry().is_some(),
+            parent: session.header.parent.clone(),
+            agent: session.current_agent(),
         }
     }
 }
@@ -1283,6 +1710,7 @@ fn write_line(file: &mut File, line: &Line) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use crate::agent::test_support::text_reply;
+    use crate::failure::FailureKind;
     use crate::message::{AssistantMessage, UserMessage};
 
     #[test]
@@ -1381,6 +1809,67 @@ mod tests {
         // The reply came in whole; only the run's end was not written.
         session.append_message(&agent_reply("answer")).unwrap();
         assert_eq!(session.last_run(), LastRun::Ended);
+        assert!(!SessionSummary::from(&session).unfinished);
+    }
+
+    /// The external agent closes its text before a call and logs the call
+    /// only with its result: a run cut off while that call ran ends on the
+    /// text, which waits on the call, so the run is still open.
+    #[test]
+    fn a_run_cut_off_in_an_external_agents_call_stays_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("deploy")))
+            .unwrap();
+        session.append_run_start().unwrap();
+        session
+            .append_message(&Message::Assistant(AssistantMessage {
+                provider: ACP_PROVIDER.into(),
+                stop_reason: StopReason::ToolUse,
+                ..text_reply("Running the script.")
+            }))
+            .unwrap();
+        assert_eq!(session.last_run(), LastRun::CutOff);
+        assert!(SessionSummary::from(&session).unfinished);
+    }
+
+    /// A held request survives a reopen and is taken back when it is
+    /// retried or given up; the branch's own end says nothing about it.
+    #[test]
+    fn a_held_retry_survives_reopen_and_is_taken_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("build it")))
+            .unwrap();
+        session.append_run_start().unwrap();
+        session.append_run_end(false).unwrap();
+        assert_eq!(session.pending_retry(), None);
+        assert!(!SessionSummary::from(&session).unfinished);
+
+        let failure = Failure {
+            kind: FailureKind::QuotaExhausted,
+            resets_at: Some(1_800),
+        };
+        session.append_retry(Some(failure)).unwrap();
+        let path = session.path().to_path_buf();
+        assert_eq!(session.pending_retry(), Some(failure));
+        assert!(SessionSummary::from(&session).unfinished);
+        drop(session);
+
+        // Read without opening, as a project not loaded yet is asked.
+        assert_eq!(Session::pending_retry_at(&path).unwrap(), Some(failure));
+        let reopened = Session::open(&path).unwrap();
+        assert_eq!(reopened.pending_retry(), Some(failure));
+        // The run itself ended: the held request is a choice, not a run.
+        assert_eq!(reopened.last_run(), LastRun::Ended);
+        drop(reopened);
+
+        let mut session = Session::open(&path).unwrap();
+        session.append_retry(None).unwrap();
+        assert_eq!(session.pending_retry(), None);
+        assert_eq!(Session::pending_retry_at(&path).unwrap(), None);
         assert!(!SessionSummary::from(&session).unfinished);
     }
 
@@ -1667,6 +2156,106 @@ mod tests {
     }
 
     #[test]
+    fn a_compactions_details_are_optional_and_a_refused_call_changes_nothing() {
+        // A line written before the details existed still reads.
+        let old: EntryKind = serde_json::from_str(
+            r#"{"type":"compaction","summary":"s","tokens_before":5,"keep_last":1}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            old,
+            EntryKind::Compaction {
+                summary: "s".into(),
+                tokens_before: 5,
+                keep_last: 1,
+                tokens_after: None,
+                call: None,
+            }
+        );
+        // Without details it is written as before.
+        assert_eq!(
+            serde_json::to_string(&old).unwrap(),
+            r#"{"type":"compaction","summary":"s","tokens_before":5,"keep_last":1}"#
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session.append_external_session("claude", "s1").unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("one")))
+            .unwrap();
+        session.append_message(&agent_reply("answer")).unwrap();
+        let before = session.context_messages();
+        let call = CompactionCall {
+            reason: crate::compaction::CompactionReason::Threshold,
+            stop_reason: StopReason::ToolUse,
+            duration_ms: 198_000,
+            usage: crate::message::Usage::default(),
+            thinking_chars: 0,
+            tool_calls: vec!["bash".into()],
+            input_cut: Vec::new(),
+        };
+        session
+            .append_compaction_failed("degenerate", 247_861, call.clone(), "Looking:")
+            .unwrap();
+        let path = session.path().to_path_buf();
+        drop(session);
+        let session = Session::open(&path).unwrap();
+        assert_eq!(session.context_messages(), before);
+        assert!(session.external_session().is_some());
+        assert!(session.branch().iter().any(|e| e.kind
+            == EntryKind::CompactionFailed {
+                error: "degenerate".into(),
+                tokens_before: 247_861,
+                call: call.clone(),
+                reply: "Looking:".into(),
+            }));
+    }
+
+    #[test]
+    fn a_fitted_entry_replays_the_cut_on_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        session.append_external_session("claude", "s1").unwrap();
+        for i in 0..10 {
+            session
+                .append_message(&Message::User(UserMessage::text(format!(
+                    "request {i} {}",
+                    "x".repeat(100)
+                ))))
+                .unwrap();
+            session
+                .append_message(&agent_reply(&format!("answer {i}")))
+                .unwrap();
+        }
+        let whole = session.context_messages();
+        let expected = crate::fit::fit(&whole, 600, 50);
+        assert!(expected.changed());
+        session
+            .append_fitted(600, 50, expected.steps.clone(), 1_000)
+            .unwrap();
+        let path = session.path().to_path_buf();
+        drop(session);
+        let session = Session::open(&path).unwrap();
+        assert_eq!(session.context_messages(), expected.messages);
+        // The external agent's session holds what was there before.
+        assert_eq!(session.external_session(), None);
+        let timed = session.context_messages_with_times(&CompactionPrompts::default());
+        let plain: Vec<Message> = timed.iter().map(|l| l.message.clone()).collect();
+        assert_eq!(plain, expected.messages);
+        // The note takes the time of the first message; the rest keep theirs.
+        let all = Session::open(&path).unwrap();
+        let first = all
+            .branch()
+            .into_iter()
+            .find(|e| matches!(e.kind, EntryKind::Message { .. }))
+            .unwrap()
+            .timestamp;
+        assert_eq!(timed[0].timestamp, first);
+        assert!(timed.windows(2).all(|w| w[0].timestamp <= w[1].timestamp));
+    }
+
+    #[test]
     fn compaction_entry_rebuilds_the_context() {
         let dir = tempfile::tempdir().unwrap();
         let mut session = Session::create(dir.path(), Path::new("/w")).unwrap();
@@ -1693,6 +2282,90 @@ mod tests {
         assert!(matches!(&context[1], Message::User(u) if u.plain_text() == "three"));
         assert!(matches!(&context[3], Message::User(u) if u.plain_text() == "four"));
         assert_eq!(SessionSummary::from(&reopened).message_count, 7);
+    }
+
+    /// Another termide's claim, as this process sees one: the lock of the
+    /// lease file taken on a handle of its own, with the holder's id in it.
+    fn hold_elsewhere(log: &Path, pid: u32) -> File {
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(lease_path(log))
+            .unwrap();
+        file.try_lock().unwrap();
+        write!(file, "{pid}").unwrap();
+        file
+    }
+
+    #[test]
+    fn a_session_held_by_another_termide_opens_only_to_be_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), dir.path()).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("hi")))
+            .unwrap();
+        let path = session.path().to_path_buf();
+        drop(session);
+
+        let other = hold_elsewhere(&path, 4242);
+        assert_eq!(Session::held_elsewhere(&path), Some(Some(4242)));
+        assert!(Session::is_open(&path));
+        let error = Session::open_exclusive(&path).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::WouldBlock);
+        assert!(error.to_string().contains("4242"), "{error}");
+        // The refusal leaves no claim behind in this process.
+        assert!(!open_registry().lock().unwrap().contains(&lock_key(&path)));
+
+        // Read, it shows the conversation, and nothing is written to it.
+        let mut view = Session::open_read_only(&path).unwrap();
+        assert!(view.is_read_only());
+        assert_eq!(view.context_messages().len(), 1);
+        let before = std::fs::read_to_string(&path).unwrap();
+        assert!(view
+            .append_message(&Message::User(UserMessage::text("more")))
+            .is_err());
+        view.discard().unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+
+        // Once the other lets it go, it is this one's to take.
+        drop(other);
+        assert_eq!(Session::held_elsewhere(&path), None);
+        let taken = Session::open_exclusive(&path).unwrap();
+        assert!(!taken.is_read_only());
+        assert_eq!(
+            lease_holder_id(&lease_path(&path)),
+            Some(std::process::id())
+        );
+        // This process's own claim is not another termide's.
+        assert_eq!(Session::held_elsewhere(&path), None);
+        drop(taken);
+        assert!(
+            !lease_path(&path).exists(),
+            "the lease file goes with the claim"
+        );
+    }
+
+    #[test]
+    fn a_new_session_is_leased_from_the_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let session = Session::create_exclusive(dir.path(), dir.path()).unwrap();
+        let lock = lease_path(session.path());
+        assert_eq!(lease_holder_id(&lock), Some(std::process::id()));
+        // Another process trying for it now finds it taken.
+        let probe = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&lock)
+            .unwrap();
+        assert!(matches!(
+            probe.try_lock(),
+            Err(std::fs::TryLockError::WouldBlock)
+        ));
+        drop(probe);
+        drop(session);
+        assert!(!lock.exists());
     }
 
     #[test]
@@ -1780,6 +2453,19 @@ mod tests {
             .unwrap();
         let reopened = Session::open(session.path()).unwrap();
         assert_eq!(reopened.current_thinking(), Some(ThinkingLevel::XHigh));
+    }
+
+    #[test]
+    fn the_permission_mode_survives_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::create(dir.path(), Path::new("/work")).unwrap();
+        assert_eq!(session.current_mode(), None);
+        session.append_mode_change(Mode::Plan).unwrap();
+        session.append_mode_change(Mode::Edit).unwrap();
+        let reopened = Session::open(session.path()).unwrap();
+        assert_eq!(reopened.current_mode(), Some(Mode::Edit));
+        // A setup entry: the session stays empty.
+        assert!(reopened.is_empty());
     }
 
     #[test]

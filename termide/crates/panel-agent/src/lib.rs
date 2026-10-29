@@ -9,8 +9,12 @@
 mod events;
 mod export;
 mod failure;
+mod held;
 mod input;
+pub mod live;
 mod mcp;
+mod parked;
+mod peers;
 mod pending;
 mod pickers;
 mod render;
@@ -18,11 +22,14 @@ mod rewind;
 mod runtime;
 mod select;
 mod session_ops;
+mod session_search;
 mod slash;
+mod strip;
 mod submit;
 mod toolset;
 mod transcript;
 mod unfinished;
+mod watch;
 
 use std::any::Any;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
@@ -61,8 +68,13 @@ use crate::runtime::{
 use crate::session_ops::discard_if_empty;
 use crate::toolset::{served_skills, Blocked, TOOLSET_ACTION};
 
+pub use failure::clock;
+pub use peers::PeerState;
+pub use pending::Card;
 pub use runtime::local_minute;
+pub use slash::user_skill_description;
 pub use transcript::{FoldMode, Item, NoticeKind, Transcript};
+pub use watch::{DelegateControl, Watch};
 
 /// A duration in whole milliseconds, saturated to fit a `u32`.
 fn millis(duration: Duration) -> u32 {
@@ -73,6 +85,19 @@ fn millis(duration: Duration) -> u32 {
 const RENAME_ACTION: &str = "agent_rename";
 /// Context-menu action that deletes the session (behind a confirmation).
 const DELETE_SESSION_ACTION: &str = "agent_delete_session";
+/// The confirmation of `Ctrl+T`, taking another agent's task over.
+const TAKE_OVER_ACTION: &str = "agent_take_over";
+/// Stop the task this panel follows, once confirmed.
+const STOP_WATCHED_ACTION: &str = "agent_stop_watched";
+/// Stop a task this panel handed over, once confirmed; the `task` call's id
+/// follows the colon.
+const STOP_TASK_ACTION: &str = "agent_stop_task:";
+/// Stop a call the agent moved to the background, once confirmed; its id
+/// follows the colon.
+const STOP_CALL_ACTION: &str = "agent_stop_call:";
+/// Give up a delegate's task parked at a limit, once confirmed; the `task`
+/// call's id follows the colon.
+const GIVE_UP_PARKED_ACTION: &str = "agent_give_up_parked:";
 /// Confirmation action that forks the session into a new panel (also `F5`).
 const FORK_SESSION_ACTION: &str = "agent_fork_session";
 /// Confirmation action that deletes the recent session picked in the banner.
@@ -111,9 +136,6 @@ const SHOW_PROMPT_ACTION: &str = "agent_show_prompt";
 const SESSION_INFO_ACTION: &str = "agent_session_info";
 /// Status chip and context-menu action that opens the agent picker.
 const AGENT_ACTION: &str = "agent_agent";
-/// The agent picker opened from a failure's card: the failed request is
-/// tried again on the agent picked.
-const FAILOVER_ACTION: &str = "agent_failover";
 /// Banner action that picks another working directory for a fresh session.
 const CWD_ACTION: &str = "agent_cwd";
 /// Context-menu action that opens the prompt-template picker.
@@ -154,6 +176,9 @@ const GOAL_IDLE_TURNS: usize = 3;
 /// [`GOAL_JUDGE_RETRY_DELAY`] times the attempt, before the goal is paused.
 const GOAL_JUDGE_RETRIES: u32 = 2;
 const GOAL_JUDGE_RETRY_DELAY: Duration = Duration::from_secs(10);
+/// How soon a goal check refused as busy — an external agent still starting
+/// after a reopen — is asked again.
+const GOAL_JUDGE_BUSY_DELAY: Duration = Duration::from_secs(1);
 /// The built-in `/handoff` command: distil the unfinished work into a brief for
 /// a fresh session or another agent.
 const HANDOFF_COMMAND: &str = "handoff";
@@ -164,9 +189,12 @@ const PROMPT_COMMAND: &str = "prompt";
 /// The built-in `/mcp` command: the MCP servers' status, a reload of their
 /// configuration, a sign-in or a sign-out.
 const MCP_COMMAND: &str = "mcp";
+/// The built-in `/trust` command: what the project brings that runs
+/// programs and waits for approval, and approving it.
+const TRUST_COMMAND: &str = "trust";
 /// Every built-in `/name`, whatever the state; a template, script or skill
 /// of the same name never runs under it (see `slash`).
-const BUILTIN_COMMANDS: [&str; 15] = [
+const BUILTIN_COMMANDS: [&str; 16] = [
     UNDO_COMMAND,
     COMPACT_COMMAND,
     NEW_COMMAND,
@@ -182,6 +210,7 @@ const BUILTIN_COMMANDS: [&str; 15] = [
     USAGE_COMMAND,
     PROMPT_COMMAND,
     MCP_COMMAND,
+    TRUST_COMMAND,
 ];
 /// Context-menu action (also `Ctrl+S`) that saves the chat as Markdown.
 const SAVE_CHAT_ACTION: &str = "agent_save_chat";
@@ -193,6 +222,9 @@ const UNDO_ACTION: &str = "agent_undo";
 /// The panel keeps these so it can rebuild its agent when the user switches
 /// to another session.
 pub struct AgentPanelSetup {
+    /// The number of the panel this one takes the place of, which it keeps;
+    /// `None` gives it a number of its own.
+    pub panel_id: Option<u64>,
     pub cwd: PathBuf,
     /// Name of the agent definition in use.
     pub agent: String,
@@ -369,6 +401,19 @@ pub trait AgentCatalog: Send + Sync {
         }
         Some(profile)
     }
+    /// Carry an unfinished delegated task on: run its delegate again out of
+    /// its own session log, out of sight, under the `task` call that handed
+    /// it over, answering the panel `parent` when it is done. Its permission
+    /// requests come to that panel as cards, since it has none of its own.
+    /// False when this catalog runs no subagents or the log is gone.
+    fn restart_delegate(
+        &self,
+        _parent: u64,
+        _caller: &str,
+        _delegate: &termide_core::DelegateRestart,
+    ) -> bool {
+        false
+    }
     /// Prompt templates (`prompts/<name>.md`), for `/<name>` in the input.
     fn prompts(&self) -> Vec<PromptTemplate> {
         Vec::new()
@@ -427,6 +472,22 @@ pub trait AgentCatalog: Send + Sync {
     fn mcp_logout(&self, server: &str) -> Result<bool, String> {
         Err(format!("no MCP server named {server}"))
     }
+    /// The hooks the project brings that are held back until approved, by
+    /// name, with what each runs.
+    fn held_hooks(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    /// Approve the MCP server or hook `name` the project brings, as it is
+    /// configured now. A server is connected at once, and its report comes
+    /// back; a hook runs from the next run on.
+    ///
+    /// # Errors
+    ///
+    /// When nothing of that name waits for approval, or the approval cannot
+    /// be kept.
+    fn trust(&self, name: &str) -> Result<Option<McpReload>, String> {
+        Err(termide_i18n::t().agent_notice_trust_unknown_fmt(name))
+    }
 }
 
 /// What the agent is doing right now, for the live activity indicators.
@@ -452,8 +513,25 @@ enum RunButton {
     /// `[▶]`: resume a paused run, or withdraw a pause not reached yet, like
     /// `/continue`.
     Continue,
-    /// `[■]`: stop the run, like `Esc`.
+    /// `[■]`: stop the run, like `Esc`; in a panel following another
+    /// agent's task, stop that task, once confirmed.
     Stop,
+    /// `[✎]`: take the task this panel follows over, once confirmed.
+    TakeOver,
+}
+
+/// A button under the view of a delegate shown over the layout, which has
+/// them in place of the prompt it could not type into.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ViewButton {
+    /// Move the view into a panel of its own, as `F9` does.
+    Dock,
+    /// Take the task over, once confirmed, as `Ctrl+T` does.
+    TakeOver,
+    /// Stop the task, once confirmed.
+    Stop,
+    /// Close the view, the task going on, as `Esc` does.
+    Close,
 }
 
 /// Live state of the current run: the phase, when it started, and enough to
@@ -562,6 +640,9 @@ struct LoopTask {
     /// for the log: a reopen waits only what is left.
     due_ms: Option<u64>,
     iterations: usize,
+    /// When the loop was started (or taken up again from the log), for the
+    /// elapsed time in the state strip.
+    started: Instant,
 }
 
 /// A running `/goal`: work autonomously toward `goal`. After each work turn a
@@ -634,9 +715,24 @@ pub struct AgentPanel {
     /// welcome banner of a fresh session offers to open. Read when the panel
     /// opens or switches session, not per frame; empty otherwise.
     recent_sessions: Vec<SessionSummary>,
+    /// All the sessions the banner offers; `recent_sessions` is the part of
+    /// them the session search matches, or all of them without a search.
+    recent_all: Vec<SessionSummary>,
+    /// The matched positions of each title in `recent_sessions` while the
+    /// session search is on, parallel to it; empty otherwise.
+    recent_hits: Vec<Vec<usize>>,
+    /// The banner's session search (`Ctrl+F`), holding what the prompt box
+    /// had before the query took it.
+    session_search: Option<session_search::SessionSearch>,
     /// The recent session the keyboard cursor is on while the chat focus is
     /// in the banner's list, an index into `recent_sessions`.
     recent_selected: usize,
+    /// Whether the last render drew the list's cursor: a click opens the
+    /// session only when it lands on the one shown selected.
+    recent_cursor_shown: bool,
+    /// Consecutive clicks on a recent session, so a double click opens it
+    /// even before the first click's selection is drawn.
+    session_clicks: ClickTracker<usize>,
     /// First row of the welcome banner on screen: its fields, notices and
     /// list of sessions scroll as one document.
     banner_top: usize,
@@ -676,6 +772,9 @@ pub struct AgentPanel {
     /// Servers asked to connect again, so their next set reads "reconnected"
     /// rather than "changed".
     mcp_reconnecting: BTreeSet<String>,
+    /// Servers approved by a tick in the toolset list: their tools come on
+    /// when they arrive, whatever the session had switched off.
+    mcp_enable: BTreeSet<String>,
     /// Whether this panel is the one whose toolset checklist stands open.
     /// Only then does a tick ask the app to refresh it: with two agent panels
     /// open, the other one has nothing to say about this one's list. It is
@@ -839,9 +938,10 @@ pub struct AgentPanel {
     run_start: Option<Instant>,
     /// The current run hit an error or was aborted, so its closing line is `✗`.
     run_failed: bool,
-    /// The failure the current run's last reply reported, with its text,
-    /// for what follows at the run's end.
-    last_failure: Option<(Failure, String)>,
+    /// The failure the current run's last reply reported, for what follows
+    /// at the run's end. Its text needs no keeping: the failed reply itself
+    /// stands in the transcript and the log.
+    last_failure: Option<Failure>,
     /// What to do when a run stops on a limit or an outage.
     on_limit: LimitPolicy,
     /// A failed request waiting to be tried again.
@@ -849,6 +949,9 @@ pub struct AgentPanel {
     /// The wait's line as the state strip last showed it, so the countdown
     /// redraws only when it changes.
     retry_wait_shown: Option<String>,
+    /// The second an open failure card's text was last rebuilt from, so the
+    /// countdown moves once a second and not every tick.
+    failure_card_shown: Option<u64>,
     /// Tries of the current failed request so far; the wait grows with them.
     retry_attempts: u32,
     /// The last run failed and can be tried again (`/continue`).
@@ -877,6 +980,8 @@ pub struct AgentPanel {
     /// A `/pause` was asked for and the run has not reached a step boundary
     /// yet; shown in the state strip.
     pause_requested: bool,
+    /// When the last pause was asked for, for the strip's clock.
+    pause_requested_at: Instant,
     /// When a stop was asked for, while the run has not ended yet: the stop
     /// control is red and the live line ticks how long the stop takes.
     stop_requested: Option<Instant>,
@@ -889,9 +994,25 @@ pub struct AgentPanel {
     /// The pause was taken up from the log: the panel or termide closed
     /// while work was under way; how `/continue` carries it on.
     restored: Option<unfinished::Restored>,
+    /// The delegated tasks this session left unfinished in their own logs,
+    /// as the panel found them when it took the session up. Each holds a row
+    /// above the input until the user carries it on or gives it up; the panel
+    /// restarts them on its own runner, so they ask through its prompter and
+    /// answer back here.
+    restored_delegates: Vec<unfinished::RestoredDelegate>,
+    /// Set while the panel carries on a task another session delegated: its
+    /// run's answer goes back to the panel holding that session, which is
+    /// what the `task` call was made for.
+    carry_back: Option<unfinished::CarryBack>,
+    /// The session is another termide's, shown read-only until it lets it
+    /// go; see [`held`].
+    held: Option<held::HeldSession>,
     /// The unattended work the session's log records last, so a change is
     /// written once.
     logged_autorun: Autorun,
+    /// The failed request the session's log records last held (`None`: none,
+    /// some `Some` with nothing held), so a change is written once.
+    logged_retry: Option<Option<Failure>>,
     /// A run started and its start is not in the log yet: it is written
     /// after the run's first message, so the message hangs off where the
     /// request started, as `/undo` and the rewind list expect.
@@ -901,25 +1022,54 @@ pub struct AgentPanel {
     /// running call had already waited before it: the wait is a pause of
     /// its own, shown on the call and kept out of its duration.
     permission_wait: Option<(Instant, u32)>,
-    /// The screen row of the state strip's pause line, a click target that
-    /// continues the run.
-    pause_row: Option<u16>,
     /// When each running subagent (by its `task` call's id) was first seen,
     /// for the state strip's clock.
     task_clocks: HashMap<String, Instant>,
-    /// The screen rows of the state strip's subagent lines and the block
-    /// each stands for: a click brings the block into view.
-    task_rows: Vec<(u16, usize)>,
-    /// Where the state strip's goal and loop rows show their stop button
-    /// (the row is its `y`), from the last render.
-    autorun_stops: Vec<(ratatui::layout::Position, render::Autorun)>,
+    /// The state strip's rows as last drawn: each one's screen row, what it
+    /// stands for and whether it has a `✕`; a click maps back to one.
+    strip_hits: Vec<(u16, strip::StripTarget, bool)>,
+    /// The calls of the tasks handed over in the background, as the strip
+    /// last listed them: a click on one of their rows maps back to one.
+    strip_delegates: Vec<String>,
+    /// The calls of the delegates parked at a limit, as the strip last listed
+    /// them; their card has been asked of the user for these tries.
+    strip_parked: Vec<String>,
+    /// Which parked tasks have had their card raised, by `task` call and the
+    /// try it was parked at: a later park asks again.
+    parked_asked: Vec<(String, u32)>,
+    /// The parked delegates' strip text as last drawn, so a redraw happens
+    /// only when the countdown's text moves.
+    parked_shown: String,
+    /// The strip shows every running subagent, not the first few and a
+    /// count of the rest.
+    strip_tasks_open: bool,
+    /// The column of the strip's `✕` buttons as last drawn.
+    strip_stop_x: u16,
     /// The run controls last put on the prompt's border, in order, so a
     /// click maps back to one.
     run_buttons: Vec<RunButton>,
     /// Texts of the steering messages sent while the agent works, oldest
     /// first, shown in the state strip until the agent takes them. Kept in
-    /// step with the runtime's steering count (`QueueUpdate`).
-    queued_texts: VecDeque<String>,
+    /// step with the runtime's steering count (`QueueUpdate`); each with
+    /// when it was sent, for the strip's clock.
+    queued_texts: VecDeque<(String, Instant)>,
+    /// The delegated task running out of sight this panel follows.
+    watch: Option<watch::Watch>,
+    /// The panel is shown over the layout, not in it.
+    in_overlay: bool,
+    /// The buttons under a delegate's view over the layout as last drawn,
+    /// each with its cells, so a click maps back to one.
+    view_buttons: Vec<(Rect, ViewButton)>,
+    /// Delegates' cards handed here by another panel, shown in their turn.
+    cards_in: VecDeque<pending::Card>,
+    /// Delegates' cards set aside for the panels following their tasks,
+    /// each with its `task` call's id, until the app hands them over.
+    cards_out: Vec<(String, pending::Card)>,
+    /// The panel's number, which other agents address it by.
+    panel_id: u64,
+    /// How many messages agents passed one another, without the user, to
+    /// get the panel's current run going; see [`MessageOrigin::hops`].
+    agent_hops: u32,
     queued: (usize, usize),
     /// Tokens of the last reported context, for the status chip.
     context_tokens: u64,
@@ -953,7 +1103,32 @@ pub struct AgentPanel {
 
 impl AgentPanel {
     #[must_use]
+    /// The agent this panel runs as, the name its `task` calls were made by.
+    pub fn agent(&self) -> &str {
+        &self.agent
+    }
+
+    /// The catalog the panel's agents come from: the app carries the
+    /// delegated tasks this panel left unfinished on it, so they run with the
+    /// panel's own connections, rules and working directory.
+    pub fn catalog(&self) -> Arc<dyn AgentCatalog> {
+        Arc::clone(&self.catalog)
+    }
+
+    /// The connection the panel runs on now: a parked delegate wakes on it
+    /// when it is no longer the one the delegate stopped on.
+    #[must_use]
+    pub fn connection_name(&self) -> &str {
+        &self.connection
+    }
+
     pub fn new(mut setup: AgentPanelSetup) -> Self {
+        // Numbered from 1 in the order panels open, for other agents to
+        // address it by.
+        static PANELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        let panel_id = setup
+            .panel_id
+            .unwrap_or_else(|| PANELS.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
         let session = setup.session.or_else(|| {
             start_session(
                 setup.session_dir.as_deref(),
@@ -964,6 +1139,7 @@ impl AgentPanel {
                 &setup.agent,
             )
         });
+        let held = held::HeldSession::of(session.as_ref());
         let model = session_model(&setup.model, session.as_ref());
         let checkpoints = checkpoint_store(setup.session_dir.as_deref(), session.as_ref());
         let (mut agent, mut system_prompt, mut tools, mut late_tools, mut backend) = (
@@ -997,6 +1173,11 @@ impl AgentPanel {
             if let Some(mode) = profile.mode {
                 setup.rules.mode = mode;
             }
+        }
+        // The mode the session last ran in outlives a reopen, over the
+        // agent's and the configured one.
+        if let Some(mode) = session.as_ref().and_then(Session::current_mode) {
+            setup.rules.mode = mode;
         }
         // The full lists the checklist offers, the set-up profile's too.
         let (offered_tools, offered_skills) = offered.unwrap_or_else(|| {
@@ -1034,13 +1215,16 @@ impl AgentPanel {
             &setup.refusals,
             setup.persist_rule,
             setup.hooks.as_ref(),
-            backend.as_ref(),
+            // No agent runs on another termide's session: an external one
+            // would resume it beside the one running there.
+            backend.as_ref().filter(|_| held.is_none()),
             checkpoints.clone(),
             setup.fold,
             session.as_ref(),
             &blocked,
             setup.shell_run.clone(),
             served_skills(setup.catalog.as_ref(), &offered_skills, &context_off),
+            panel_id,
         );
         // Learn the context window from the provider in the background and
         // adopt the active model's real `max_model_len`; the configured window
@@ -1067,7 +1251,12 @@ impl AgentPanel {
             session_dir: setup.session_dir,
             session_choices: Vec::new(),
             recent_sessions: Vec::new(),
+            recent_all: Vec::new(),
+            recent_hits: Vec::new(),
+            session_search: None,
             recent_selected: 0,
+            recent_cursor_shown: false,
+            session_clicks: ClickTracker::new(),
             banner_top: 0,
             banner_rows: 0,
             banner_list_start: 0,
@@ -1088,6 +1277,7 @@ impl AgentPanel {
             leaving_tools: Vec::new(),
             mcp_lines: std::collections::HashMap::new(),
             mcp_reconnecting: BTreeSet::new(),
+            mcp_enable: BTreeSet::new(),
             toolset_list_open: false,
             mcp_settled_told: false,
             toolset_off,
@@ -1163,6 +1353,7 @@ impl AgentPanel {
             on_limit: setup.on_limit,
             retry_wait: None,
             retry_wait_shown: None,
+            failure_card_shown: None,
             retry_attempts: 0,
             retry_ready: false,
             restarted: false,
@@ -1173,19 +1364,35 @@ impl AgentPanel {
             host_focused: true,
             run_paused: false,
             pause_requested: false,
+            pause_requested_at: Instant::now(),
             stop_requested: None,
             pause_start: None,
             resuming: false,
             restored: None,
+            restored_delegates: Vec::new(),
+            carry_back: None,
+            held,
             logged_autorun: Autorun::default(),
+            logged_retry: None,
             run_start_due: false,
             permission_wait: None,
-            pause_row: None,
             task_clocks: HashMap::new(),
-            task_rows: Vec::new(),
-            autorun_stops: Vec::new(),
+            strip_hits: Vec::new(),
+            strip_delegates: Vec::new(),
+            strip_parked: Vec::new(),
+            parked_asked: Vec::new(),
+            parked_shown: String::new(),
+            strip_tasks_open: false,
+            strip_stop_x: 0,
             run_buttons: Vec::new(),
             queued_texts: VecDeque::new(),
+            watch: None,
+            in_overlay: false,
+            view_buttons: Vec::new(),
+            cards_in: VecDeque::new(),
+            cards_out: Vec::new(),
+            panel_id,
+            agent_hops: 0,
             queued: (0, 0),
             context_tokens: 0,
             activity: None,
@@ -1208,8 +1415,15 @@ impl AgentPanel {
         // a fresh session's banner the notices sit below it.
         panel.notice_slash_conflicts();
         panel.notice_definition_problems();
+        panel.notice_held_hooks();
         panel.refresh_recent_sessions();
-        panel.restore_unfinished();
+        // The other termide's run may be going on right now: none is offered
+        // to carry on here until this panel takes the session up.
+        if panel.held.is_some() {
+            panel.notice_held();
+        } else {
+            panel.restore_unfinished();
+        }
         panel
     }
 
@@ -1233,6 +1447,15 @@ impl AgentPanel {
         self.session.as_ref().map(Session::path)
     }
 
+    /// The session's id, which another session names when it delegated this
+    /// one's task; `None` while the panel holds no session.
+    #[must_use]
+    pub fn session_id(&self) -> Option<String> {
+        self.session
+            .as_ref()
+            .map(|session| session.id().to_string())
+    }
+
     /// What was set up on a session nothing was sent in yet: the
     /// connection, the model when it is not the one the panel was configured
     /// with (a model left to the provider stays so), and what the log
@@ -1252,7 +1475,7 @@ impl AgentPanel {
         }
     }
 
-    fn notice(&mut self, text: impl Into<String>, kind: NoticeKind) {
+    pub fn notice(&mut self, text: impl Into<String>, kind: NoticeKind) {
         self.transcript.push(Item::Notice {
             text: text.into(),
             kind,
@@ -1273,11 +1496,10 @@ impl AgentPanel {
     }
 
     fn is_fresh(&self) -> bool {
-        !self
-            .transcript
-            .items()
-            .iter()
-            .any(|item| matches!(item, Item::User { .. } | Item::Assistant { .. }))
+        !self.transcript.items().iter().any(|item| {
+            matches!(item, Item::User { .. } | Item::Assistant { .. })
+                || transcript::peer_message_subject(item).is_some()
+        })
     }
 
     /// The rules the agent runs under: the configured and "always" rules, and
@@ -1293,8 +1515,10 @@ impl AgentPanel {
 
 impl Drop for AgentPanel {
     /// Closing the panel discards its session when it was never used, so an
-    /// empty session leaves nothing behind in the list or on disk.
+    /// empty session leaves nothing behind in the list or on disk. A run
+    /// under way leaves its running calls in the log, cut off.
     fn drop(&mut self) {
+        self.log_cut_off_calls();
         self.sync_autorun();
         if let Some(session) = self.session.take() {
             discard_if_empty(session);
@@ -1435,7 +1659,8 @@ impl Panel for AgentPanel {
                     Item::User { text, command, .. } => {
                         Some(single_line(command.as_ref().unwrap_or(text)))
                     }
-                    _ => None,
+                    // A task another agent gave this panel names it too.
+                    _ => transcript::peer_message_subject(item).map(|s| single_line(&s)),
                 })
             })
             .unwrap_or_else(|| self.cwd.to_string_lossy().into_owned());
@@ -1450,23 +1675,46 @@ impl Panel for AgentPanel {
         self.attention
     }
 
-    fn context_menu_items(&self) -> Vec<(String, &'static str)> {
+    fn context_menu_items(&self) -> Vec<(String, String)> {
         let t = termide_i18n::t();
         // Only actions with no home elsewhere. New/switch/delete sessions also
         // have F-keys, sessions/prompts/agents live in the AI menu, and the
         // model/agent/mode pickers are status-bar chips — none is repeated here.
         // Session info also answers F3 and `/usage`; the assembled prompt is
         // reached with `/prompt`, so neither needs another menu slot beyond this.
-        vec![
-            (t.agent_session_info().to_string(), SESSION_INFO_ACTION),
-            (t.agent_rename().to_string(), RENAME_ACTION),
-            (t.agent_save_chat().to_string(), SAVE_CHAT_ACTION),
-            (t.agent_fork_session().to_string(), FORK_SESSION_ACTION),
-            (t.agent_delete_session().to_string(), DELETE_SESSION_ACTION),
-        ]
+        // While the panel follows another agent's task the session is that
+        // agent's: only what reads it is offered.
+        let entries: &[(&str, &str)] = if self.is_delegate() {
+            &[
+                (t.agent_session_info(), SESSION_INFO_ACTION),
+                (t.agent_save_chat(), SAVE_CHAT_ACTION),
+            ]
+        } else {
+            &[
+                (t.agent_session_info(), SESSION_INFO_ACTION),
+                (t.agent_rename(), RENAME_ACTION),
+                (t.agent_save_chat(), SAVE_CHAT_ACTION),
+                (t.agent_fork_session(), FORK_SESSION_ACTION),
+                (t.agent_delete_session(), DELETE_SESSION_ACTION),
+            ]
+        };
+        entries
+            .iter()
+            .map(|(label, action)| (label.to_string(), action.to_string()))
+            .collect()
     }
 
     fn handle_status_action(&mut self, action: &str) -> Vec<PanelEvent> {
+        // While another agent's task runs here, the session, its agent, model
+        // and mode are that agent's: only what reads them is offered.
+        if self.is_delegate()
+            && !matches!(
+                action,
+                SAVE_CHAT_ACTION | SHOW_PROMPT_ACTION | SESSION_INFO_ACTION
+            )
+        {
+            return Vec::new();
+        }
         let t = termide_i18n::t();
         match action {
             RENAME_ACTION => vec![PanelEvent::ShowInput {
@@ -1618,6 +1866,11 @@ impl Panel for AgentPanel {
     /// can be carried on when the session is opened again, but the user
     /// should know it stops.
     fn needs_close_confirmation(&self) -> Option<String> {
+        // The tasks it handed over in the background stop with it.
+        let delegates = live::background_of(self.panel_id).len();
+        if delegates > 0 {
+            return Some(termide_i18n::t().agent_close_confirm_delegates_fmt(delegates));
+        }
         self.work_under_way()
             .then(|| termide_i18n::t().agent_close_confirm_working().to_string())
     }
@@ -1648,7 +1901,44 @@ impl Panel for AgentPanel {
     }
 
     fn handle_command(&mut self, cmd: PanelCommand<'_>) -> CommandResult {
+        // A paste would type into an input that takes nothing while another
+        // agent's task runs here.
+        if self.is_delegate()
+            && matches!(
+                cmd,
+                PanelCommand::Paste | PanelCommand::PasteText { .. } | PanelCommand::Cut
+            )
+        {
+            return CommandResult::Handled(false);
+        }
+        // An answer being typed to a question takes the clipboard, not the
+        // prompt below it.
+        if let Some(result) = self.answer_clipboard(&cmd) {
+            return result;
+        }
         match cmd {
+            // The session search's query takes a paste as plain text, on one
+            // line, and the list follows it.
+            PanelCommand::Paste if self.session_search_on() => {
+                match termide_ui::clipboard::paste().filter(|text| !text.is_empty()) {
+                    Some(text) => {
+                        self.search_paste(&text);
+                        CommandResult::Handled(true)
+                    }
+                    None => CommandResult::Handled(false),
+                }
+            }
+            PanelCommand::PasteText { text } if self.session_search_on() => {
+                self.search_paste(&text);
+                CommandResult::NeedsRedraw(true)
+            }
+            PanelCommand::Cut if self.session_search_on() => {
+                let cut = !self.chat_focus && self.cut_input_selection();
+                if cut {
+                    self.after_search_edit();
+                }
+                CommandResult::Handled(cut)
+            }
             PanelCommand::Paste if !self.chat_focus => match self.paste_clipboard() {
                 true => {
                     self.after_edit();
@@ -1693,17 +1983,19 @@ impl Panel for AgentPanel {
             PanelCommand::Cut if !self.chat_focus => {
                 CommandResult::Handled(self.cut_input_selection())
             }
-            PanelCommand::ChecklistDone {
-                action,
-                checked,
-                pressed,
-            } if action == TOOLSET_ACTION => {
-                // The ticks first, as `Enter` would have applied them; then
-                // what the button asks for.
+            PanelCommand::ChecklistDone { action, checked } if action == TOOLSET_ACTION => {
                 self.toolset_list_open = false;
                 self.apply_toolset(&checked);
-                if let Some(id) = pressed {
-                    self.press_toolset_button(&id);
+                self.pending_events.push(PanelEvent::NeedsRedraw);
+                CommandResult::Handled(true)
+            }
+            PanelCommand::ChecklistButton { action, id } if action == TOOLSET_ACTION => {
+                // The list stays open: it is brought up to date with what the
+                // button did.
+                self.press_toolset_button(&id);
+                if self.toolset_list_open {
+                    let refresh = self.toolset_refresh();
+                    self.pending_events.push(refresh);
                 }
                 self.pending_events.push(PanelEvent::NeedsRedraw);
                 CommandResult::Handled(true)
@@ -1724,13 +2016,6 @@ impl Panel for AgentPanel {
                 let choice = self.agent_choices.get(index).cloned();
                 self.agent_choices.clear();
                 CommandResult::Handled(choice.is_some_and(|name| self.switch_agent(&name)))
-            }
-            PanelCommand::SelectionMade { action, index } if action == FAILOVER_ACTION => {
-                let choice = self.agent_choices.get(index).cloned();
-                self.agent_choices.clear();
-                CommandResult::Handled(
-                    choice.is_some_and(|name| self.retry_on_switched_agent(&name)),
-                )
             }
             PanelCommand::SelectionMade { action, index }
                 if (action == REASONING_ACTION || action == OPTION_VALUE_ACTION)
@@ -1806,6 +2091,32 @@ impl Panel for AgentPanel {
             PanelCommand::InputSubmitted { action, text } if action == RENAME_RECENT_ACTION => {
                 let events = self.perform_rename_recent_session(&text);
                 self.pending_events.extend(events);
+                CommandResult::Handled(true)
+            }
+            PanelCommand::Confirmed { action } if action == TAKE_OVER_ACTION => {
+                let events = self.take_over();
+                self.pending_events.extend(events);
+                CommandResult::Handled(true)
+            }
+            PanelCommand::Confirmed { action } if action == STOP_WATCHED_ACTION => {
+                let events = self.stop_watched();
+                self.pending_events.extend(events);
+                CommandResult::Handled(true)
+            }
+            PanelCommand::Confirmed { action } if action.starts_with(STOP_TASK_ACTION) => {
+                live::stop(self.panel_id, &action[STOP_TASK_ACTION.len()..]);
+                CommandResult::Handled(true)
+            }
+            // The user gave a parked delegate's task up: it waits no longer,
+            // and the panel's agent is told it did not finish.
+            PanelCommand::Confirmed { action } if action.starts_with(GIVE_UP_PARKED_ACTION) => {
+                let call = &action[GIVE_UP_PARKED_ACTION.len()..];
+                self.give_up_parked(call);
+                CommandResult::Handled(true)
+            }
+            PanelCommand::Confirmed { action } if action.starts_with(STOP_CALL_ACTION) => {
+                self.runtime
+                    .stop_background_call(&action[STOP_CALL_ACTION.len()..]);
                 CommandResult::Handled(true)
             }
             PanelCommand::Confirmed { action } if action == DELETE_SESSION_ACTION => {

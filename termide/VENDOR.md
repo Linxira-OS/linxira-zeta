@@ -3,10 +3,10 @@
 | 项         | 值                                                         |
 | ---------- | ---------------------------------------------------------- |
 | 上游仓库   | https://github.com/termide/termide                         |
-| 来源 commit | tag `0.41.0` = `f49a4c40ef6aaaff0741f7a52cefbf163dd9519b`(2026-10-12 bump;前一快照 `0.38.0` = `c94e9a7e7f9b01c1c743c8087f8da9049c30dc06`,更早 `0.35.0` 时代的 `main` HEAD = `b1400585e2aeadca23b6b86a86010e612e3dddae`) |
-| 引入方式   | `git archive 0.41.0`(无上游 git 历史;上游 `.github/` 需显式删除,见「bump 流程」) |
+| 来源 commit | tag `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b`(2026-10-26 bump;前一快照 `0.41.0` = `f49a4c40ef6aaaff0741f7a52cefbf163dd9519b`) |
+| 引入方式   | `git archive 0.46.0`(无上游 git 历史;上游 `.github/` 需显式删除,见「bump 流程」) |
 | 协议       | MIT(`LICENSE` 追加 Linxira-OS/Zeta 版权行)              |
-| 引入日期   | 2026-09-28(0.38.0 bump 2026-10-06;0.41.0 bump 2026-10-15)  |
+| 引入日期   | 2026-09-28(0.41.0 bump 2026-10-15;0.46.0 bump 2026-10-29)  |
 | npm 包     | `@linxiraos/ide`(bin `zetaide`,Rust 二进制分发,版本对齐 Zeta 产品线;2026-09-30 由未发布的 `@linxiraos/work` 更名) |
 | 角色       | 工作台/壳:可视化文件管理器(最底层入口)+ 内嵌虚拟终端 pane;`zetacode`/`zetaide` 作为 pane 内子进程经 PTY 组合,编辑器为进程内面板,零代码耦合。产品愿景:把完整 Linux 无图形界面运维迁移到 Agent 流程的 TUI 底座 |
 
@@ -25,11 +25,11 @@
 | 29 | `src/main.rs` | **CLI 展示名**：`#[command(name = "termide", about = "Terminal IDE")]` → `name = "zetaide"`、`about = "Linxira Zeta IDE"`；`--help` 的 `Usage:` 行原本印上游 `termide.exe` | 上游写自家产品名 | **保留**（Zeta 2026-10-22：`zetaide --help` 是对外品牌面，与偏离 28 的窗口标题同一决定） | 2026-10-22 |
 
 | 30 | `build.rs`、`assets/termide.rc`（新增） | **Windows PE 图标**：为 `termide` / `termide-editor` 编入与 zetawork 共用的 `icon.ico`；上游无 Windows 资源，Explorer/安装器原本显示通用图标。`build.rs` 把模板里的 `@ZETA_ICON@` 换成绝对路径再交给 windres（旧版 windres 按 CWD 解析 `ICON`，新版按 rc 文件目录解析，绝对路径两边都对） | 上游无此物 | **保留**（Zeta 2026-10-25：所有 Zeta 主 exe 同一 logo，名称区分产品；release windows-gnu 缺 windres 时构建失败，避免发无图标二进制） | 2026-10-25 |
-| 35 | `build.rs`、`src/main.rs`、`src/editor_entry.rs` | **`--version` 显示 Zeta 产品线**：Cargo workspace 仍保持上游 `0.41.0`（便于后续快照重放）；`build.rs` 从根 `package.json` 读取 Zeta 版本，注入 `ZETA_DISPLAY_VERSION`，`zetaide --version` / `termide-editor --version` 输出 `1.4.x (termide 0.41.0)` | 上游只显示自身 crate 版本 | **保留**（Zeta 2026-10-25：IDE 是 Zeta 产品，但 vendored 内部版本不追 Zeta 线） | 2026-10-25 |
+| 35 | `build.rs`、`src/main.rs`、`src/editor_entry.rs` | **`--version` 显示 Zeta 产品线**：Cargo workspace 保持本次上游 `0.46.0`（便于后续快照重放）；`build.rs` 从根 `package.json` 读取 Zeta 版本，注入 `ZETA_DISPLAY_VERSION`，`zetaide --version` / `termide-editor --version` 输出 `1.4.x (termide 0.46.0)` | 上游只显示自身 crate 版本 | **保留**（Zeta 2026-10-25：IDE 是 Zeta 产品，但 vendored 内部版本不追 Zeta 线） | 2026-10-25 |
 
 ## 与仓库其余部分的关系
 
-- **不是根 Cargo workspace 成员**:根 `Cargo.toml` members 显式列 `crates/*`;termide 自带 `[workspace]`(members `crates/*`,自有 `rust-toolchain.toml` = 1.91.1、`Cargo.lock`)。在 `termide/` 内跑 cargo 命令,与根 workspace 完全隔离。
+- **不是根 Cargo workspace 成员**:根 `Cargo.toml` members 显式列 `crates/*`;termide 自带 `[workspace]`(members `crates/*`,自有 `rust-toolchain.toml` = 1.97.1、`Cargo.lock`)。在 `termide/` 内跑 cargo 命令,与根 workspace 完全隔离。
 - **不是 Bun workspace 包**(同 `editor/`、`web-ui/` 先例)。
 - **本树的编辑器专用入口是 `@linxiraos/editor` 的载荷**:`src/bin/termide-editor.rs`(偏离 23)编出的
   `termide-editor[.exe]` 进 `editor/npm/editor-{windows,linux}-x64/bin/`,由 `@linxiraos/editor`
@@ -161,4 +161,20 @@ linux 叶子要在一个 **native checkout(clone)** 里构建(旧的 0.38.0 叶�
 - **凭据保险库**:新增 `crates/secrets`、`crates/core/src/credentials.rs`、`PanelCommand::{ProvideCredentials,CancelCredentials}`、`PanelEvent::{CredentialsRequired,CredentialsAccepted}`、`SecretText`/`CredentialAttempt`;`app/src/app/vault.rs`。
 - **agent 面大量新增**:`crates/agent-recall`、`agent-core` 的 recall/recap/loop-guard/prune/failure 等、`panel-agent` 的 failure/unfinished、projects 后台驻留(`-r/--restore`、`Alt+1..9`)、`--config` 语义改为「既读又存」、设置即改即存。
 - **文件管理器**:`Alt+F9` 解包(新增 `file-ops/src/worker/unpack.rs`、`app/.../modal/unpack_handler.rs`)、掩码选择、挂载点、打包压缩级别。
-- **未变的**:`Panel` 契约只动 `icon()` 返回类型(`Option<&'static str>` → `Option<&str>`)与新增默认方法 `focus_click_acts()`;`RenderContext`/`PanelConfig`/6 个必需方法未动。`termide-lsp` 在窗口内零改动。toolchain 1.91.1、crossterm 0.29、ratatui 0.30.0 不变,`[patch.crates-io] unicode-width` 镜像仍需保留。
+- **未变的**:`Panel` 契约只动 `icon()` 返回类型(`Option<&'static str>` → `Option<&str>`)与新增默认方法 `focus_click_acts()`;`RenderContext`/`PanelConfig`/6 个必需方法未动。`termide-lsp` 在窗口内零改动。toolchain 1.97.1（Zeta 固定）、crossterm 0.29、ratatui 0.30.0 不变,`[patch.crates-io] unicode-width` 镜像仍需保留。
+
+## 0.46.0 bump (2026-10-29)
+
+- 上游 `0.41.0 → 0.46.0` 共 235 commits，精确 tree diff 492 路径（362 改、81 增、49 删）。
+- 重放按 `git merge-file --diff3` 三方合并：408 个文件取上游，58 个保留 Zeta 偏离，34 个双方都改后合并，49 个上游删除的截图删除。
+- 冲突/兼容处置：
+  - `crates/modal/src/settings/input.rs` 取上游新 LSP 编辑器；旧 Zeta 的自绘 LSP 表单退役，`LspServerSettings.candidates` 字段保留（上游 `lsp_server.rs` 构造时填 `Vec::new()`），`config` 层仍能读写该字段。
+  - `crates/panel-terminal/src/lib.rs` 保留我们的 `send_ctrl_char` 与上游 `shell_kind`，两边的新测试都保留。
+  - `crates/panel-git-log/src/lib.rs` 保留 `set_file_filter`/`file_filter`，套上游 `new(paths, project_root)`。
+  - `crates/panel-ide/src/lib.rs` 的 `GitStatusPanel::new` / `GitLogPanel::new` 适配上游双参数签名。
+  - `crates/config/src/lib.rs` 导出 `LspCandidate`，移除上游已删的 `ReasoningParam`，加入 `DebugSettings`/`DebuggerSettings`。
+  - `Cargo.lock` 以 0.46.0 为基线，再由本地 cargo 加入 `termide-panel-ide`/`termide-logger` 等 Zeta crate。
+- 产品裁决（2026-10-29）：接受 `zetaide` 的 TermIDE 上游插件层（`crates/plugins`、设置页、Markdown 插件面板、命令/诊断）；Zeta 自己的插件面板仍只在 `zetawork-gui`，工作台 TUI 不承载插件层。`no_plugin_layer` 测试相应收窄为只扫描 `zeta-main`。
+- Zeta ACP 偏离：新增 `provider = "zeta"` 直接运行 `zetacode acp`（不经 npx），ACP `clientInfo` 报 `zetaide`，并实现 `terminal/create|output|wait_for_exit|kill|release` 与 `terminal: true`，让 `zetacode` 的非 PTY bash 走 zetaide 客户端。
+- 上游新增能力：0.42 的图片 `read`、delegate/peer；0.43–0.44 的断点/DAP 调试器；0.45 的插件、项目信任/安全加固、delegate 暂停；0.46 的命令占位符与 delegate 限流。
+- 验证：`cargo fmt --check`、`cargo check --workspace`（Linux）、`cargo test --workspace`（Linux）、`cargo check --workspace --target x86_64-pc-windows-gnu` 通过；ACP 专项 `termide-agent-acp` 50 tests、provider/config/app tests 全绿；`main` workspace 的 Linux/Windows GNU `cargo check` 与 `cargo test --workspace`（524 tests）也通过。Clippy 仅被上游 0.46 在 nightly 上新增的 `chunks_exact_to_as_chunks` / `unnecessary_sort_by` / `needless_range_loop` 拦住，不是本次重放引入。

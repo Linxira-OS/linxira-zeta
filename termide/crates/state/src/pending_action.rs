@@ -306,8 +306,21 @@ pub enum PendingAction {
         /// Selected index to restore on return
         selected: usize,
     },
+    /// Start the debug launch chosen from the list `App` keeps for it
+    ChooseDebugLaunch,
+    /// Save the debug launch set up in the form as a project command, then
+    /// start it
+    DebugSetup,
     /// Run a command with user-provided parameters
     RunCommandWithParams {
+        command: termide_config::commands::CommandItem,
+    },
+    /// A window a plugin asked for; its answer goes back to the plugin
+    /// under the app's `request` number
+    PluginWindow { request: u64 },
+    /// Run a command of the project's `commands.toml` once the user, shown
+    /// what it runs, agrees (and approve it as it is)
+    ConfirmProjectCommand {
         command: termide_config::commands::CommandItem,
     },
     /// Delete a command (with confirmation)

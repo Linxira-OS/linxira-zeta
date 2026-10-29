@@ -17,7 +17,6 @@ reasoning = "high"
 provider = "openai_compatible"
 base_url = "http://127.0.0.1:10000/v1"
 model = "qwen3-coder-30b-a3b"
-reasoning_param = "enable_thinking"
 
 [ai.permissions]
 mode = "configured"
@@ -36,3 +35,8 @@ goto_panel_1 = "Alt+J"
 next_group = "Alt+U"
 move_first = "Alt+V"
 toggle_fullscreen_panel = "Alt+Z"
+toggle_stack = "Ctrl+B"
+
+# Ctrl+F8 is out of VHS's reach too; Alt+Y is free in the editor.
+[editor.keybindings]
+toggle_breakpoint = "Alt+Y"

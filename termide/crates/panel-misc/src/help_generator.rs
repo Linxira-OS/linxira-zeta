@@ -529,6 +529,14 @@ impl HelpGenerator {
                 description: t.help_desc_code_action().to_string(),
             },
             HelpEntry {
+                keys: Self::format_keys(&kb.toggle_breakpoint),
+                description: t.help_desc_toggle_breakpoint().to_string(),
+            },
+            HelpEntry {
+                keys: Self::format_keys(&kb.start_debug),
+                description: t.help_desc_start_debug().to_string(),
+            },
+            HelpEntry {
                 keys: "Ctrl+←/→".to_string(),
                 description: t.help_desc_word_nav().to_string(),
             },
@@ -748,6 +756,7 @@ impl HelpGenerator {
             entry("F4", t.help_desc_agent_rewind()),
             entry("F5", t.help_desc_agent_fork()),
             entry("F6", t.help_desc_agent_switch()),
+            entry("Ctrl+F", t.help_desc_agent_search_sessions()),
             entry("F7", t.help_desc_agent_new()),
             entry("F8", t.help_desc_agent_delete()),
         ];

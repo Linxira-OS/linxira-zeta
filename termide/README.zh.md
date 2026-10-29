@@ -1,4 +1,4 @@
-# TermIDE
+# Termide
 
 [![GitHub Release](https://img.shields.io/github/v/release/termide/termide)](https://github.com/termide/termide/releases)
 [![CI](https://github.com/termide/termide/actions/workflows/release.yml/badge.svg)](https://github.com/termide/termide/actions)
@@ -8,15 +8,15 @@
 
 一站式终端工作台，适用于你的工作站和服务器：带 LSP 的代码编辑器、支持 SFTP/FTP 的双栏文件管理器、终端、git、数据库查看器和编程智能体 —— 全部集成在一个零配置、使用 Rust 编写的静态二进制文件中。
 
-**[网站](https://termide.github.io)** | **[文档](doc/zh/README.md)** | **[版本发布](https://github.com/termide/termide/releases)** | **[截图](https://termide.github.io/zh/#screenshots)**
+**[网站](https://termide.github.io)** | **[文档](doc/zh/README.md)** | **[版本发布](https://github.com/termide/termide/releases)** | **[截图](https://termide.github.io/zh/#screenshots)** | **[Telegram](https://t.me/termide_news)**
 
-<p align="center"><img src="assets/screenshots/termide.gif" alt="TermIDE — 编辑器、文件管理器、终端和查看器合为一个 TUI" width="900"></p>
+<p align="center"><img src="https://termide.github.io/assets/screenshots/tour.gif" alt="Termide — 编辑器、文件管理器、终端和查看器合为一个 TUI" width="900"></p>
 
-## 为什么选择 TermIDE？
+## 为什么选择 Termide？
 
-终端编辑器负责代码；而代码之外的一切 —— 远程主机上的文件、数据库、git、长时间运行的 shell、编程智能体 —— 通常需要插件或单独的工具。TermIDE 将这些全部集成在一个二进制文件中，在笔记本、服务器或手机上都能开箱即用。它并不试图取代这些工具，而是把你每天都要用到的那部分集中到一处：
+终端编辑器负责代码；而代码之外的一切 —— 远程主机上的文件、数据库、git、长时间运行的 shell、编程智能体 —— 通常需要插件或单独的工具。Termide 将这些全部集成在一个二进制文件中，在笔记本、服务器或手机上都能开箱即用。它并不试图取代这些工具，而是把你每天都要用到的那部分集中到一处：
 
-| 任务 | 通常使用 | 在 TermIDE 中 |
+| 任务 | 通常使用 | 在 Termide 中 |
 |------|----------|---------------|
 | SSH 断开后保持工作不中断 | tmux、screen | 可分离实例 |
 | 在主机之间传输文件 | mc、ranger、scp | 支持 SFTP / FTP 的双栏文件管理器 |
@@ -28,7 +28,7 @@
 
 编辑器、LSP、终端、git 和项目布局在终端编辑器中已是标配；下表列出的是其他编辑器所缺少或需要插件才能实现的功能：
 
-| 功能 | TermIDE | Fresh | Vim/Neovim | Helix | Micro |
+| 功能 | Termide | Fresh | Vim/Neovim | Helix | Micro |
 |---------|:-------:|:-----:|:----------:|:-----:|:-----:|
 | 内置编程智能体（本地或云端模型） | ✓ | ✗ | 插件 | ✗ | ✗ |
 | MCP 服务器 | ✓ | ✗ | 插件 | ✗ | ✗ |
@@ -42,7 +42,7 @@
 | 图片查看器 | ✓ | ✗ | 插件 | ✗ | ✗ |
 | 资源监控 | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-**TermIDE = 编辑器 + 文件管理器 + 终端 + Git + 智能体，集成于一个 TUI 应用程序中。**
+**Termide = 编辑器 + 文件管理器 + 终端 + Git + 智能体，集成于一个 TUI 应用程序中。**
 
 ## 设计原则
 
@@ -56,15 +56,16 @@
 
 | | |
 |:---:|:---:|
-| <img src="assets/screenshots/agent.png" alt="工作中的编程智能体" width="440"> | <img src="assets/screenshots/file-manager.png" alt="带嵌套 Git 状态的文件管理器" width="440"> |
+| <img src="https://termide.github.io/assets/screenshots/agent.png" alt="工作中的编程智能体" width="440"> | <img src="https://termide.github.io/assets/screenshots/file-manager.png" alt="带嵌套 Git 状态的文件管理器" width="440"> |
 | 工作中的编程智能体 | 带嵌套 Git 状态的文件管理器 |
-| <img src="assets/screenshots/db.png" alt="数据库查看器" width="440"> | <img src="assets/screenshots/git.png" alt="带提交图的 Git 日志" width="440"> |
+| <img src="https://termide.github.io/assets/screenshots/db.png" alt="数据库查看器" width="440"> | <img src="https://termide.github.io/assets/screenshots/git.png" alt="带提交图的 Git 日志" width="440"> |
 | 数据库查看器 | 带提交图的 Git 日志 |
 
 ### 代码
 
 - **编辑器** - 23 种语言的语法高亮；LSP 代码补全、悬停提示、跳转到定义、查找引用、重命名和诊断；切换注释、自动缩进、自动闭合括号；可选 Vim 模式
 - **大纲与诊断** - 与光标同步的代码结构导航（`Alt+O`）和 LSP 诊断面板（`Alt+I`）
+- **调试器** - 在行号栏设置断点（`Ctrl+F8`），`F5` 运行到断点；调试面板通过 DAP（lldb-dap、GDB、debugpy、Delve）显示调用栈、变量并单步执行，也可在终端中使用 lldb、gdb、Delve 和 pdb
 - **搜索和替换** - 实时预览、匹配计数、正则表达式
 - **文档与代码并排** - 渲染 Markdown、HTML（可将页面另存为 Markdown 的文本模式浏览器）以及以文本绘制的 Mermaid 图表；`Ctrl+E` 切换到源码
 - **十六进制编辑器** - 带字节光标、选择和搜索的 hex/ASCII 视图；覆盖编辑并生成 `.bak` 备份
@@ -75,7 +76,7 @@
 - **自带模型** - 任意 OpenAI 或 Anthropic 兼容端点：本机上的 llama.cpp、Ollama、vLLM、omlx，或托管服务
 - **未经你同意不做任何修改** - 每次工具调用都需许可，或在 auto 模式下交由审查模型决定；`/undo` 和检查点可撤回修改
 - **计划模式与子代理** - 智能体在写出计划之前与你逐轮敲定待决问题；子代理可并行工作
-- **工具** - 读取、编辑、shell、网页搜索与抓取、检索以往会话、git 历史和项目文件的 `recall`，以及 MCP 服务器
+- **工具** - 读取、编辑、shell、网页搜索与抓取、检索以往会话、git 历史和项目文件的 `recall`、调试器，以及 MCP 服务器
 - **同一面板中的其他智能体** - 通过 Agent Client Protocol 接入 Claude Code、Codex 和 Gemini CLI
 - **以文件扩展** - 技能、提示模板、命令脚本、钩子和项目说明
 - **无界面运行** - `termide --prompt "..." --output json` 在脚本和 CI 中运行同一个智能体
@@ -103,6 +104,8 @@
 - **项目** - 按项目恢复面板布局；切换离开的项目在后台继续运行，并以按钮形式显示在菜单栏中；`termide --restore` 重新打开上次运行的项目
 - **多面板布局** - 高度可调的面板组、全屏切换（`Alt+F11`），终端变窄时自动堆叠
 - **自定义命令** - 全局或项目级命令，支持快捷键、参数表单以及终端 / 后台 / 报告模式
+- **插件** - 全局插件目录中的程序，通过 JSON-RPC 在每个打开的项目旁运行：接收文件打开和保存事件，添加命令、状态栏项和智能体工具；项目只能在你设定的模式内开关它们
+- **可放心打开任何仓库** - 项目文件只能收紧设置，不能决定 termide 运行什么：它的 MCP 服务器、钩子和命令需要你的批准，它的配置不能选择程序、把密钥发往别处或放宽智能体
 - **命令面板与打开提示** - `Ctrl+P` 通过模糊名称运行任意命令；`Ctrl+G` 打开文件、文件夹或 URL，带路径建议
 - **设置** - 全屏设置窗口（`Alt+P`），可直接录制快捷键
 
@@ -116,7 +119,7 @@
 
 **必须使用 AI 智能体吗？** 不必。默认没有设置任何提供商或模型，因此在你配置之前，智能体不会做任何事，也不会发送任何内容。其他功能都可以独立使用。
 
-**TermIDE 会回传数据吗？** 没有遥测、无需账号，也不检查更新。只有在你要求时才会联网：访问远程位置、网页、`git push` 或 `pull`，或调用智能体的模型。
+**Termide 会回传数据吗？** 没有遥测、无需账号，也不检查更新。只有在你要求时才会联网：访问远程位置、网页、`git push` 或 `pull`，或调用智能体的模型。
 
 **它能取代 tmux 吗？** 对于通过 SSH 保持工作不中断这一常见场景，可以：`termide --detached` 让整个工作区保持运行，`--attach` 可将其恢复。它不像 tmux 那样管理任意会话和窗口，也可以在 tmux 中正常运行。
 
@@ -153,37 +156,37 @@ nix run github:termide/termide                     # Nix，无需安装
 
 ```bash
 # Linux x86_64（也适用于 WSL）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux x86_64（静态 musl — Alpine、distroless 容器、任何无 glibc 的系统）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # macOS Intel (x86_64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-apple-darwin.tar.gz
-tar xzf termide-0.41.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-apple-darwin.tar.gz
+tar xzf termide-0.46.0-x86_64-apple-darwin.tar.gz
 ./termide
 
 # macOS Apple Silicon (ARM64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-apple-darwin.tar.gz
-tar xzf termide-0.41.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-apple-darwin.tar.gz
+tar xzf termide-0.46.0-aarch64-apple-darwin.tar.gz
 ./termide
 
 # Linux ARM64（树莓派、ARM 服务器）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux ARM64（静态 musl —— Android/Termux、Alpine ARM、任何无 glibc 的 ARM64）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 
 # Windows x86_64（从 Releases 下载 .zip，解压后在 Windows Terminal 中运行）
-# https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-pc-windows-msvc.zip
+# https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-pc-windows-msvc.zip
 ```
 
 </details>
@@ -191,17 +194,17 @@ tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
 <details>
 <summary><b>🪟 Windows (.zip)</b></summary>
 
-TermIDE 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 **Windows Terminal**
+Termide 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 **Windows Terminal**
 以获得最佳体验。
 
-1. 从 [GitHub Releases](https://github.com/termide/termide/releases) 下载 `termide-0.41.0-x86_64-pc-windows-msvc.zip`。
+1. 从 [GitHub Releases](https://github.com/termide/termide/releases) 下载 `termide-0.46.0-x86_64-pc-windows-msvc.zip`。
 2. 解压压缩包。
 3. 在 Windows Terminal 中运行 `termide.exe`。
 
 配置、项目布局和日志均位于 `%APPDATA%\termide\`。
 
 或者在 **WSL/WSL2** 中，像在任意 Linux 上一样使用 Linux x86_64 构建
-（`termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz`）。
+（`termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz`）。
 
 </details>
 
@@ -212,8 +215,8 @@ TermIDE 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 **Windows T
 
 ```bash
 # 仅限 x86_64（ARM64 请使用上面的 tar.gz）
-wget https://github.com/termide/termide/releases/latest/download/termide_0.41.0-1_amd64.deb
-sudo dpkg -i termide_0.41.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.46.0-1_amd64.deb
+sudo dpkg -i termide_0.46.0-1_amd64.deb
 ```
 
 </details>
@@ -225,8 +228,8 @@ sudo dpkg -i termide_0.41.0-1_amd64.deb
 
 ```bash
 # 仅限 x86_64（ARM64 请使用上面的 tar.gz）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-1.x86_64.rpm
-sudo rpm -i termide-0.41.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-1.x86_64.rpm
+sudo rpm -i termide-0.46.0-1.x86_64.rpm
 ```
 
 </details>
@@ -297,8 +300,8 @@ nix profile install github:termide/termide
 
 ```bash
 pkg install git openssh   # termide 会调用的工具（以及所需的 LSP 服务器）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 
@@ -357,8 +360,8 @@ russh-sftp —— 无 OpenSSL、无 libssh2），因此这与普通构建是相�
 最简单的方式是从发行版下载预编译的 tarball：
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # 验证完全静态 —— 无共享库
@@ -383,7 +386,7 @@ nix build github:termide/termide#termide-static
 termide [OPTIONS] [FILE]...
 
 参数:
-  [FILE]...            要打开的文件或目录。给定路径时，TermIDE 以干净的视图启动
+  [FILE]...            要打开的文件或目录。给定路径时，Termide 以干净的视图启动
                        （不恢复也不保存项目布局）。文本在编辑器中打开，因此可作为
                        git、crontab、visudo 等的 $EDITOR 使用；图片、SQLite 文件、
                        其他二进制文件和目录会在相应的查看器、十六进制编辑器或
@@ -425,7 +428,7 @@ export EDITOR=termide   # git commit, crontab -e, visudo, ...
 
 ### 快速开始
 
-启动 TermIDE 后，您将看到自适应宽度的布局：
+启动 Termide 后，您将看到自适应宽度的布局：
 - **宽终端（>= 160 列）：** 侧边栏（Git 状态与 Operations 同列堆叠）+ 两个文件管理器面板
 - **普通终端（< 160 列）：** 侧边栏（Git 状态、文件管理器与 Operations 同列堆叠）+ 文件管理器面板
 - 顶部为菜单栏，底部为状态栏
@@ -455,7 +458,7 @@ export EDITOR=termide   # git commit, crontab -e, visudo, ...
 
 ## 配置
 
-TermIDE 遵循 [XDG Base Directory 规范](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) 进行文件组织。
+Termide 遵循 [XDG Base Directory 规范](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) 进行文件组织。
 
 **配置文件位置：**
 - Linux/BSD: `~/.config/termide/config.toml`（或 `$XDG_CONFIG_HOME/termide/config.toml`）
@@ -511,9 +514,9 @@ min_level = "info"
 
 | | | |
 |:---:|:---:|:---:|
-| ![Windows XP](assets/screenshots/themes/windows-xp.png) | ![Dracula](assets/screenshots/themes/dracula.png) | ![Ayu Light](assets/screenshots/themes/ayu-light.png) |
+| ![Windows XP](https://termide.github.io/assets/themes/windows-xp.png) | ![Dracula](https://termide.github.io/assets/themes/dracula.png) | ![Ayu Light](https://termide.github.io/assets/themes/ayu-light.png) |
 | Windows XP（默认） | Dracula | Ayu Light |
-| ![Monokai](assets/screenshots/themes/monokai.png) | ![Nord](assets/screenshots/themes/nord.png) | ![Material Lighter](assets/screenshots/themes/material-lighter.png) |
+| ![Monokai](https://termide.github.io/assets/themes/monokai.png) | ![Nord](https://termide.github.io/assets/themes/nord.png) | ![Material Lighter](https://termide.github.io/assets/themes/material-lighter.png) |
 | Monokai | Nord | Material Lighter |
 
 ### 自定义主题
@@ -543,11 +546,32 @@ mode = "report"  # terminal（默认）、background 或 report
 ```
 
 `命令 → 添加命令...` 通过表单创建命令。模式、参数和快捷键见
-[自定义命令](doc/zh/actions.md)。
+[自定义命令](doc/zh/actions.md)。项目文件中的命令要在你看过它运行的内容后才会运行。
+
+### 插件
+
+插件是全局 `config.toml` 旁 `plugins/` 中的一个目录，其中的 `plugin.toml`
+指明 termide 在每个打开的项目旁运行的程序：
+
+```toml
+# plugins/save-count/plugin.toml
+command = "./run.py"
+```
+
+全局 `config.toml` 为每个插件设定模式——`on`（默认）、`opt-in` 或 `off`——项目的
+`.termide/config.toml` 只能在该模式内开关它（`[plugins.<名称>] enabled = true | false`）。
+协议（通过插件的 stdin 和 stdout 传输的 JSON-RPC）见 [插件](doc/zh/plugins.md)。
 
 ## 开发
 
 代码库是由模块化 crate 组成的 Cargo workspace；工具链版本由 `rust-toolchain.toml` 固定。构建、测试、Nix 开发环境和 pre-commit 钩子见 **[开发者指南](doc/zh/developer-guide.md)**；crate 布局、面板系统和事件流见 **[架构](doc/zh/architecture.md)**。
+
+## 社区
+
+- **[Telegram 频道 — @termide_news](https://t.me/termide_news)** — 新闻和版本发布公告
+- **[Telegram 群组 — @termide_talks](https://t.me/termide_talks)** — 与用户和开发者交流
+- **[GitHub Discussions](https://github.com/termide/termide/discussions)** — 提问、想法和使用分享
+- **[GitHub Issues](https://github.com/termide/termide/issues)** — 错误报告和功能请求
 
 ## 贡献
 

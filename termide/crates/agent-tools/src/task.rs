@@ -1,49 +1,75 @@
 //! `task`: hand a self-contained piece of work to another agent.
 //!
-//! The agent picks one of the other agent definitions by name and gives it a
-//! prompt; that agent runs its own loop to the end — reading, editing, asking
-//! nothing, since no one is watching a nested run — and its final answer comes
-//! back as the tool result. It keeps a focused sub-task, and the files it read
-//! along the way, out of the main conversation, the way Claude Code's `Task`
-//! and OpenCode's sub-sessions do.
+//! The agent picks an agent definition by name — its own included, for a
+//! fresh copy of itself — and gives it a prompt; that agent runs its own loop
+//! to the end — reading, editing, asking nothing, since no one is watching a
+//! nested run — and its final answer comes back as the tool result. It keeps a
+//! focused sub-task, and the files it read along the way, out of the main
+//! conversation, the way Claude Code's `Task` and OpenCode's sub-sessions do.
 //!
 //! The tool holds no agent machinery of its own: the app supplies a closure
 //! that builds and runs the named agent, so this crate stays free of the
 //! provider and the catalog.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde_json::{json, Value};
-use termide_agent_core::ToolText;
 use termide_agent_core::{
-    CancelToken, Tool, ToolCall, ToolContext, ToolResultMessage, ToolUpdate, Usage,
+    CancelToken, Failure, Tool, ToolCall, ToolContext, ToolResultMessage, ToolUpdate, Usage,
 };
+use termide_agent_core::{ToolText, SUBAGENT_SESSION_KEY};
 
 use crate::args::required_str;
 
-/// How a subagent's run ended: its final answer, or an error message, and
-/// the tokens its model calls spent either way.
+/// How a subagent's run ended: its final answer, or an error message, the
+/// tokens its model calls spent either way, and the log its session went to,
+/// when it had one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubagentOutcome {
     pub answer: Result<String, String>,
     pub spent: Usage,
+    pub session: Option<PathBuf>,
+    /// The task is parked at a limit that passes on its own: `answer` only
+    /// says where it waits and when it goes again, so nothing is reported to
+    /// the panel that delegated it — its real answer is still owed there.
+    pub parked: bool,
+    /// What stopped it, when its last reply says: a limit and the moment it
+    /// resets, so the runner can wait for that rather than guess.
+    pub failure: Option<Failure>,
 }
 
 impl From<Result<String, String>> for SubagentOutcome {
-    /// An outcome that spent nothing.
+    /// An outcome that spent nothing and left no log.
     fn from(answer: Result<String, String>) -> Self {
         Self {
             answer,
             spent: Usage::default(),
+            session: None,
+            parked: false,
+            failure: None,
         }
     }
 }
 
-/// Runs the named agent on `prompt` to completion. Progress is forwarded
+/// A task handed to a subagent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubagentTask<'a> {
+    /// The agent to run.
+    pub agent: &'a str,
+    pub prompt: &'a str,
+    /// The id of the delegating `task` call.
+    pub call: &'a str,
+    /// Hand the task over and go on: the call returns once the task is
+    /// placed, and the delegate's answer comes later as a message of its own.
+    pub background: bool,
+}
+
+/// Runs the named agent on the task to completion. Progress is forwarded
 /// through `on_update`; the context is the delegating call's, whose session
 /// the subagent's reviewer judges against.
 pub type SubagentRun = Arc<
-    dyn Fn(&str, &str, &ToolContext, &CancelToken, &mut dyn FnMut(ToolUpdate)) -> SubagentOutcome
+    dyn Fn(&SubagentTask, &ToolContext, &CancelToken, &mut dyn FnMut(ToolUpdate)) -> SubagentOutcome
         + Send
         + Sync,
 >;
@@ -107,6 +133,10 @@ impl Tool for TaskTool {
                 "prompt": {
                     "type": "string",
                     "description": "The task, complete in itself: the agent does not see this conversation"
+                },
+                "background": {
+                    "type": "boolean",
+                    "description": "Run it in a panel of its own and carry on without waiting; its answer comes later as a message"
                 }
             },
             "required": ["agent", "prompt"]
@@ -143,14 +173,30 @@ impl Tool for TaskTool {
                 format!("no agent named {agent}; available: {}", names.join(", ")),
             );
         }
-        let outcome = (self.run)(agent, prompt, ctx, cancel, on_update);
-        // What the subagent spent rides in the details, for the panel's
-        // totals; the model reads the answer alone.
-        match outcome.answer {
+        let background = call
+            .arguments
+            .get("background")
+            .is_some_and(|value| value.as_bool() == Some(true) || value.as_str() == Some("true"));
+        let task = SubagentTask {
+            agent,
+            prompt,
+            call: &call.id,
+            background,
+        };
+        let outcome = (self.run)(&task, ctx, cancel, on_update);
+        // What the subagent spent and where its session went ride in the
+        // details, for the panel; the model reads the answer alone.
+        let result = match outcome.answer {
             Ok(report) => ToolResultMessage::text(call, report),
             Err(message) => ToolResultMessage::error(call, message),
-        }
-        .with_spent(outcome.spent)
+        };
+        let result = match outcome.session {
+            Some(path) => result.with_details(json!({
+                SUBAGENT_SESSION_KEY: path.to_string_lossy(),
+            })),
+            None => result,
+        };
+        result.with_spent(outcome.spent)
     }
 }
 
@@ -181,11 +227,14 @@ mod tests {
     fn it_lists_agents_delegates_and_reports_errors() {
         let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
         let seen_run = Arc::clone(&seen);
-        let run: SubagentRun = Arc::new(move |agent: &str, prompt: &str, _ctx, _c, _u| {
-            seen_run
-                .lock()
-                .unwrap()
-                .push((agent.to_string(), prompt.to_string()));
+        let run: SubagentRun = Arc::new(move |task: &SubagentTask, _ctx, _c, _u| {
+            let agent = task.agent;
+            seen_run.lock().unwrap().push((
+                agent.to_string(),
+                task.prompt.to_string(),
+                task.call.to_string(),
+                task.background,
+            ));
             let spent = Usage {
                 input: 7,
                 output: 3,
@@ -196,7 +245,14 @@ mod tests {
             } else {
                 Err("the run failed".into())
             };
-            SubagentOutcome { answer, spent }
+            let session = (agent == "reviewer").then(|| PathBuf::from("/logs/s.jsonl"));
+            SubagentOutcome {
+                answer,
+                spent,
+                session,
+                parked: false,
+                failure: None,
+            }
         });
         let tool = TaskTool::new(
             vec![
@@ -219,10 +275,26 @@ mod tests {
         assert!(!ok.is_error);
         assert_eq!(ok.plain_text(), "looks fine");
         assert_eq!(ok.spent().map(|spent| spent.output), Some(3));
+        // The log beside what was spent.
+        assert_eq!(
+            ok.details.as_ref().unwrap()[SUBAGENT_SESSION_KEY],
+            "/logs/s.jsonl"
+        );
         assert_eq!(
             *seen.lock().unwrap(),
-            vec![("reviewer".to_string(), "check the diff".to_string())]
+            vec![(
+                "reviewer".to_string(),
+                "check the diff".to_string(),
+                "t".to_string(),
+                false
+            )]
         );
+        assert!(schema["properties"]["background"].is_object());
+        run_with(
+            &tool,
+            json!({ "agent": "reviewer", "prompt": "later", "background": true }),
+        );
+        assert!(seen.lock().unwrap().last().unwrap().3);
 
         let failed = run_with(&tool, json!({ "agent": "writer", "prompt": "x" }));
         assert!(failed.is_error);

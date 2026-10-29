@@ -217,6 +217,30 @@ impl App {
                 },
             ),
             (
+                "start_debug",
+                CommandEntry {
+                    label: t.help_desc_start_debug().into(),
+                    category: t.palette_category_application(),
+                    keybinding: kb_str(&self.state.config.editor.keybindings.start_debug),
+                },
+            ),
+            (
+                "configure_debug",
+                CommandEntry {
+                    label: t.help_desc_configure_debug().into(),
+                    category: t.palette_category_application(),
+                    keybinding: String::new(),
+                },
+            ),
+            (
+                "clear_breakpoints",
+                CommandEntry {
+                    label: t.help_desc_clear_breakpoints().into(),
+                    category: t.palette_category_application(),
+                    keybinding: String::new(),
+                },
+            ),
+            (
                 "menu",
                 CommandEntry {
                     label: t.help_desc_menu().into(),
@@ -251,6 +275,19 @@ impl App {
                     keybinding: key_str.to_string(),
                 });
             }
+        }
+
+        for (action, label) in self
+            .plugin_palette_commands()
+            .into_iter()
+            .chain(self.plugin_management_commands())
+        {
+            actions.push(action);
+            entries.push(CommandEntry {
+                label,
+                category: t.palette_category_plugins(),
+                keybinding: String::new(),
+            });
         }
 
         self.command_palette_actions = Some(actions);

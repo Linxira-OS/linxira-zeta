@@ -9,8 +9,8 @@ use super::connection;
 use super::fields::{fields_for_tab, get_field_value, ContentRow, FieldType};
 use super::kb::{kb_binding_names, kb_keys_of, KB_SECTIONS};
 use super::{
-    Confirm, FocusArea, KbCapture, KbMode, LspMode, SettingsModal, SettingsSave, SettingsTab,
-    SidebarRow, BUTTON_CLOSE, BUTTON_RESET, BUTTON_STORAGE, TOP_LEVEL_TABS,
+    Confirm, FocusArea, KbCapture, KbMode, SettingsModal, SettingsSave, SettingsTab, SidebarRow,
+    BUTTON_CLOSE, BUTTON_RESET, BUTTON_STORAGE, TOP_LEVEL_TABS,
 };
 
 impl SettingsModal {
@@ -34,6 +34,7 @@ impl SettingsModal {
             focus: FocusArea::Sidebar,
             field_cursor: 0,
             content_scroll: 0,
+            content_visible: 0,
             editing: false,
             edit_input: termide_ui::TextInput::new(),
             edit_area: None,
@@ -41,12 +42,11 @@ impl SettingsModal {
             clicks: termide_ui::ClickTracker::new(),
             reset_available: false,
             enum_picker: None,
-            lsp_mode: LspMode::Fields,
-            lsp_edit_index: None,
             lsp_server_keys,
-            lsp_edit_fields: Default::default(),
-            lsp_edit_cursor: 0,
-            lsp_field_areas: Vec::new(),
+            lsp_server_edit: None,
+            debugger_edit: None,
+            debugger_defaults: Default::default(),
+            plugin_names: Vec::new(),
             connection_edit: None,
             model_fetch_request: None,
             kb_mode: KbMode::Bindings,
@@ -54,6 +54,7 @@ impl SettingsModal {
             kb_cursor: 0,
             kb_key_cursor: 0,
             kb_scroll: 0,
+            kb_visible: 0,
             kb_rows: Vec::new(),
             kb_clicks: termide_ui::ClickTracker::new(),
             kb_capture_message: None,
@@ -96,6 +97,8 @@ impl SettingsModal {
     pub(super) fn field_value(&self, index: usize) -> String {
         match self.field_tab() {
             SettingsTab::Connection => self.connection_value(index),
+            SettingsTab::LspServer => self.lsp_server_value(index),
+            SettingsTab::DebuggerPage => self.debugger_value(index),
             tab => get_field_value(&self.config, tab, index),
         }
     }
@@ -169,6 +172,8 @@ impl SettingsModal {
             SidebarRow::Leaf(tab) => {
                 self.active_tab = tab;
                 self.connection_edit = None;
+                self.lsp_server_edit = None;
+                self.debugger_edit = None;
                 self.content_scroll = 0;
                 self.editing = false;
                 self.field_cursor = self.first_selectable_row();
@@ -329,8 +334,9 @@ impl SettingsModal {
         self.refresh_server_keys();
         // The connection the page had open may be gone with the rest.
         self.connection_edit = None;
+        self.lsp_server_edit = None;
+        self.debugger_edit = None;
         self.enum_picker = None;
-        self.lsp_mode = LspMode::Fields;
         self.kb_mode = KbMode::Bindings;
         self.field_cursor = self.first_selectable_row();
         self.content_scroll = 0;
@@ -574,9 +580,10 @@ impl SettingsModal {
                     Field(10), // on a limit or an outage
                     Spacer,
                     Header(t.settings_header_permissions()),
-                    Field(7), // permission mode for new sessions
-                    Field(8), // auto mode reviewer
-                    Field(9), // its model
+                    Field(7),  // permission mode for new sessions
+                    Field(8),  // auto mode reviewer
+                    Field(9),  // its model
+                    Field(11), // where delegated tasks run
                     Spacer,
                     Header(t.settings_header_transcript()),
                     Field(2), // autofold
@@ -590,6 +597,10 @@ impl SettingsModal {
                 rows
             }
             SettingsTab::Connection => self.connection_page_rows(),
+            SettingsTab::LspServer => self.lsp_server_page_rows(),
+            SettingsTab::Debug => self.debug_tab_rows(),
+            SettingsTab::DebuggerPage => self.debugger_page_rows(),
+            SettingsTab::Plugins => self.plugins_tab_rows(),
             SettingsTab::Keybindings => Vec::new(),
         }
     }
@@ -649,37 +660,68 @@ impl SettingsModal {
 
     // ---- Scroll ----
 
-    /// Mouse-wheel step over the content area: move the content cursor by a
-    /// few rows and let the render clamp bring the view along. Moving only the
-    /// scroll offset would be undone by that clamp on the next frame. Focus is
-    /// left alone; an inline edit, a key capture and the LSP form keep their
+    /// Mouse-wheel step over the content area: scroll the view by a few rows
+    /// and pull the content cursor into it, so the render clamp keeps the new
+    /// offset. Moving the cursor instead left the view still until the cursor
+    /// reached its edge, which looked like lag — the more so with the content
+    /// unfocused and the cursor not drawn. Focus is
+    /// left alone; an inline edit and a key capture keep their
     /// cursor where it is.
     pub(super) fn wheel_content(&mut self, forward: bool) {
         const WHEEL_STEP: usize = 3;
-        if self.editing
-            || (self.active_tab == SettingsTab::Lsp && self.lsp_mode == LspMode::ServerEdit)
-        {
+        if self.editing {
             return;
         }
         if self.active_tab == SettingsTab::Keybindings {
             if self.kb_mode != KbMode::Bindings {
                 return;
             }
-            let last = kb_binding_names(self.kb_section).len().saturating_sub(1);
-            let cursor = if forward {
-                (self.kb_cursor + WHEEL_STEP).min(last)
+            // The wheel scrolls the window, not the cursor: moving the cursor
+            // left the view still until it reached the edge, which looked
+            // like lag, all the more so with the content unfocused and the
+            // cursor not drawn. The cursor is pulled into the new window.
+            let len = kb_binding_names(self.kb_section).len();
+            let visible = self.kb_visible.max(1);
+            let max_scroll = len.saturating_sub(visible);
+            self.kb_scroll = if forward {
+                (self.kb_scroll + WHEEL_STEP).min(max_scroll)
             } else {
-                self.kb_cursor.saturating_sub(WHEEL_STEP)
+                self.kb_scroll.saturating_sub(WHEEL_STEP)
             };
+            let last = len.saturating_sub(1);
+            let low = self.kb_scroll.min(last);
+            let high = (self.kb_scroll + visible - 1).min(last);
+            let cursor = self.kb_cursor.clamp(low, high);
             if cursor != self.kb_cursor {
                 self.kb_cursor = cursor;
                 self.kb_key_cursor = 0;
             }
             return;
         }
-        for _ in 0..WHEEL_STEP {
-            if !self.step_cursor(forward) {
-                break;
+        let rows = self.content_rows();
+        if rows.is_empty() {
+            return;
+        }
+        let visible = self.content_visible.max(1);
+        let max_scroll = rows.len().saturating_sub(visible);
+        self.content_scroll = if forward {
+            (self.content_scroll + WHEEL_STEP).min(max_scroll)
+        } else {
+            self.content_scroll.saturating_sub(WHEEL_STEP)
+        };
+        // Pull the cursor onto the nearest selectable row of the new window;
+        // a window of headers only keeps it, and the render clamp wins.
+        let low = self.content_scroll;
+        let high = (low + visible).min(rows.len());
+        let window = low..high;
+        if !window.contains(&self.field_cursor) {
+            let pick = if self.field_cursor < low {
+                window.clone().find(|&i| rows[i].is_selectable())
+            } else {
+                window.clone().rev().find(|&i| rows[i].is_selectable())
+            };
+            if let Some(i) = pick {
+                self.field_cursor = i;
             }
         }
     }
@@ -741,11 +783,37 @@ impl SettingsModal {
         self.editing = false;
     }
 
+    /// Whether field `index` of the tab shown is one a project may not set
+    /// while the settings are stored in the project: a program termide
+    /// starts, a file it writes, where a key is sent, or the agent's mode.
+    /// The config loader drops these from a project file, so editing one
+    /// here would last only until the next load.
+    pub(super) fn is_global_only(&self, index: usize) -> bool {
+        use super::{connection, debugger, fields, lsp_server};
+        self.in_project
+            && match self.field_tab() {
+                SettingsTab::Terminal | SettingsTab::Logging => index == 0,
+                SettingsTab::Ai => {
+                    index == fields::AI_CHROME_PATH_FIELD
+                        || index == fields::AI_PERMISSION_MODE_FIELD
+                }
+                SettingsTab::Connection => {
+                    index == connection::BASE_URL || index == connection::API_KEY_ENV
+                }
+                SettingsTab::LspServer => index == lsp_server::COMMAND || index == lsp_server::ARGS,
+                SettingsTab::DebuggerPage => index == debugger::COMMAND || index == debugger::ARGS,
+                _ => false,
+            }
+    }
+
     /// Start editing the current field.
     pub(super) fn start_edit(&mut self) {
         let Some(field_idx) = self.current_field_idx() else {
             return;
         };
+        if self.is_global_only(field_idx) {
+            return;
+        }
         let fields = fields_for_tab(self.field_tab());
         let Some(desc) = fields.get(field_idx) else {
             return;
@@ -761,6 +829,12 @@ impl SettingsModal {
         }
         let value = if self.field_tab() == SettingsTab::Connection {
             self.connection_edit_text(field_idx)
+        } else if self.field_tab() == SettingsTab::LspServer {
+            self.lsp_server_edit_text(field_idx)
+        } else if self.field_tab() == SettingsTab::DebuggerPage {
+            self.debugger_edit_text(field_idx)
+        } else if self.field_tab() == SettingsTab::Debug && field_idx == super::debugger::NATIVE {
+            self.config.debug.native.join(", ")
         } else {
             let mut value = self.field_value(field_idx);
             // Strip "(auto)" / "(none)" placeholders
@@ -846,13 +920,16 @@ impl SettingsModal {
                 }
             }
             SettingsTab::Ai => {
-                if index == 6 {
+                if index == super::fields::AI_CHROME_PATH_FIELD {
                     self.config.ai.web.chrome_path = text.to_string();
                 } else if index == super::fields::AI_AUTO_REVIEWER_MODEL_FIELD {
                     self.config.ai.auto_reviewer.model = text.trim().to_string();
                 }
             }
             SettingsTab::Connection => self.apply_connection_text(index, text),
+            SettingsTab::LspServer => self.apply_lsp_server_text(index, text),
+            SettingsTab::DebuggerPage => self.apply_debugger_text(index, text),
+            SettingsTab::Debug if index == super::debugger::NATIVE => self.apply_debug_native(text),
             _ => {}
         }
     }
@@ -876,6 +953,7 @@ mod content_row_tests {
             SettingsTab::FileManager,
             SettingsTab::Terminal,
             SettingsTab::Lsp,
+            SettingsTab::Debug,
             SettingsTab::Logging,
             SettingsTab::Vfs,
             SettingsTab::Ai,

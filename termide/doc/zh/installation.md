@@ -1,6 +1,6 @@
 # 安装指南
 
-本指南介绍在您的系统上安装 TermIDE 的不同方法。
+本指南介绍在您的系统上安装 Termide 的不同方法。
 
 ## 下载预编译二进制文件（推荐）
 
@@ -12,33 +12,33 @@
 
 **Linux x86_64**（也适用于 WSL/WSL2）：
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
 ```
 
 **Linux x86_64 — 静态 musl**（Alpine、distroless 容器、任何没有 glibc
 的系统）：
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ```
 
 **Linux ARM64**（树莓派、ARM 服务器）：
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
 ```
 
 **Linux ARM64 — 静态 musl**（Android/Termux、Alpine ARM、任何无 glibc 的 ARM64 系统）：
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ```
 
 **macOS Intel (x86_64)**：
 ```bash
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-apple-darwin.tar.gz
 ```
 
 **macOS Apple Silicon (M1/M2/M3)**：
 ```bash
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-apple-darwin.tar.gz
 ```
 
 ### 第 2 步：解压
@@ -55,7 +55,7 @@ tar xzf termide-*.tar.gz
 
 ### 第 4 步：全局安装（可选）
 
-要将 TermIDE 安装到系统中，请将二进制文件移动到 PATH 中的目录：
+要将 Termide 安装到系统中，请将二进制文件移动到 PATH 中的目录：
 
 ```bash
 # Linux
@@ -75,8 +75,8 @@ russh-sftp —— 无 OpenSSL、无 libssh2），因此这与普通构建是相�
 musl 编译。
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # 验证完全静态 —— 无共享库
@@ -98,15 +98,15 @@ nix build github:termide/termide#termide-static
 ### Debian/Ubuntu (.deb)
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide_0.41.0-1_amd64.deb
-sudo dpkg -i termide_0.41.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.46.0-1_amd64.deb
+sudo dpkg -i termide_0.46.0-1_amd64.deb
 ```
 
 ### Fedora/RHEL/CentOS (.rpm)
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-1.x86_64.rpm
-sudo rpm -i termide-0.41.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-1.x86_64.rpm
+sudo rpm -i termide-0.46.0-1.x86_64.rpm
 ```
 
 ### Arch Linux (AUR)
@@ -163,7 +163,7 @@ cargo install --path .
 cargo install --git https://github.com/termide/termide --locked
 ```
 
-> **注意：** TermIDE **未**发布到 crates.io。`cargo install termide` 会拉取一个
+> **注意：** Termide **未**发布到 crates.io。`cargo install termide` 会拉取一个
 > 过时且不相关的早期版本——请始终从源码构建（上面的克隆方式）或使用
 > `cargo install --git …`。
 
@@ -255,7 +255,7 @@ xattr -d com.apple.quarantine termide
 
 ### Windows（原生）
 
-TermIDE 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 Windows Terminal 以获得最佳体验。
+Termide 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 Windows Terminal 以获得最佳体验。
 
 1. 从 [GitHub Releases](https://github.com/termide/termide/releases) 下载 `.zip` 压缩包：
    - `termide-VERSION-x86_64-pc-windows-msvc.zip`
@@ -269,25 +269,25 @@ TermIDE 通过 ConPTY 在 Windows 10+ 上原生运行。建议使用 Windows Ter
 
 ### Windows (WSL)
 
-TermIDE 也可在 Windows Subsystem for Linux（WSL 和 WSL2）中运行：
+Termide 也可在 Windows Subsystem for Linux（WSL 和 WSL2）中运行：
 
 1. 如果尚未安装，请先安装 WSL2
 2. 在 WSL 中下载 Linux x86_64 二进制文件：
    ```bash
-   wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
-   tar xzf termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
+   wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
+   tar xzf termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
    ./termide
    ```
 
 ### Android (Termux)
 
-TermIDE 可在 [Termux](https://termux.dev) 中运行。请使用**静态 ARM64 musl**
+Termide 可在 [Termux](https://termux.dev) 中运行。请使用**静态 ARM64 musl**
 构建 —— glibc 的 `aarch64-unknown-linux-gnu` 构建无法在 Android 的 Bionic libc 上运行：
 
 ```bash
 pkg install git openssh   # termide 会调用的工具（以及所需的 LSP 服务器）
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 

@@ -69,6 +69,11 @@ pub struct Config {
     #[serde(default)]
     pub lsp: LspSettings,
 
+    /// Debugger settings: how each debugger is started. What to debug is
+    /// in `commands.toml`.
+    #[serde(default)]
+    pub debug: DebugSettings,
+
     /// Logging settings
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -88,6 +93,11 @@ pub struct Config {
     /// AI settings (model access and the coding agent panel).
     #[serde(default)]
     pub ai: AiSettings,
+
+    /// Plugin switches and settings, by plugin name. The plugins themselves
+    /// live in the global plugins directory, never in config.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub plugins: std::collections::BTreeMap<String, crate::PluginSettings>,
 }
 
 /// AI settings: the connections to models and what the agent may do.
@@ -170,7 +180,8 @@ pub struct AiSettings {
 pub struct Connection {
     /// `openai_compatible` (omlx, llama.cpp, OpenAI, OpenRouter and most
     /// gateways), `anthropic_compatible` (the Messages API), or a CLI agent
-    /// driven over ACP: `claude_code`, `codex`, `gemini_cli`.
+    /// driven over ACP: `claude_code`, `codex`, `gemini_cli`, or Zeta's own
+    /// `zeta`.
     #[serde(default = "agent_defaults::provider")]
     pub provider: String,
     /// Base URL including the API prefix, e.g. `http://127.0.0.1:10000/v1`.
@@ -200,14 +211,6 @@ pub struct Connection {
     /// Gemini CLI has no such setting. Unset leaves the agent's own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_window_limit: Option<u64>,
-    /// Ask an `openai_compatible` server for its prompt-processing progress
-    /// (llama.cpp's `return_progress`), for a live prefill bar. Off by
-    /// default: servers that do not know the field may reject the request.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub prefill_progress: bool,
-    /// The field an `openai_compatible` server takes the reasoning level in.
-    #[serde(default, skip_serializing_if = "ReasoningParam::is_auto")]
-    pub reasoning_param: ReasoningParam,
     /// The connection, by name, the agents this one delegates to with
     /// `task` run on; empty runs them on this one. A subagent runs the
     /// built-in loop, so it needs a model connection, not a CLI agent.
@@ -227,48 +230,6 @@ pub struct Connection {
 
 fn is_zero(n: &u32) -> bool {
     *n == 0
-}
-
-/// `reasoning_param` of an `openai_compatible` connection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReasoningParam {
-    /// `reasoning_effort` for the hosted APIs known to take it (OpenAI,
-    /// OpenRouter, Gemini), `enable_thinking` for a server on this machine
-    /// or the local network, nothing elsewhere.
-    #[default]
-    Auto,
-    /// `reasoning_effort`, the OpenAI field.
-    ReasoningEffort,
-    /// `chat_template_kwargs.enable_thinking`, the on/off switch of the chat
-    /// templates of Qwen3, GLM and DeepSeek on vLLM or llama.cpp.
-    EnableThinking,
-    /// Nothing: the server decides.
-    None,
-}
-
-impl ReasoningParam {
-    pub const ALL: [Self; 4] = [
-        Self::Auto,
-        Self::ReasoningEffort,
-        Self::EnableThinking,
-        Self::None,
-    ];
-
-    #[must_use]
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Auto => "auto",
-            Self::ReasoningEffort => "reasoning_effort",
-            Self::EnableThinking => "enable_thinking",
-            Self::None => "none",
-        }
-    }
-
-    #[must_use]
-    pub fn is_auto(&self) -> bool {
-        *self == Self::Auto
-    }
 }
 
 /// A reasoning level, or the on/off switch it replaced.
@@ -299,8 +260,6 @@ impl Default for Connection {
             api_key_env: String::new(),
             context_window_fallback: None,
             context_window_limit: None,
-            prefill_progress: false,
-            reasoning_param: ReasoningParam::Auto,
             subagents: String::new(),
             max_concurrent_requests: 0,
             reviewer: String::new(),
@@ -559,12 +518,15 @@ pub fn permission_modes() -> Vec<&'static str> {
 }
 
 /// Whether an AI provider value names a CLI agent driven over ACP (Claude
-/// Code, Codex, Gemini CLI) rather than a wire protocol the built-in loop speaks. Such a
-/// provider brings its own endpoint, model and auth, so the endpoint/model/key
-/// settings do not apply to it.
+/// Code, Codex, Gemini CLI, Zeta) rather than a wire protocol the built-in
+/// loop speaks. Such a provider brings its own endpoint, model and auth, so
+/// the endpoint/model/key settings do not apply to it.
 #[must_use]
 pub fn is_cli_provider(provider: &str) -> bool {
-    matches!(provider, "claude_code" | "codex" | "gemini_cli")
+    matches!(
+        provider,
+        "claude_code" | "codex" | "gemini_cli" | "zeta" | "zetacode"
+    )
 }
 
 impl Default for AiSettings {
@@ -893,6 +855,69 @@ fn default_vault_lock_after_mins() -> u64 {
     15
 }
 
+/// Debugger settings (`[debug]`): which program each debugger is and the
+/// flags it always gets, the debugger a Rust file uses without a command,
+/// and where the debugged program's input and output go.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DebugSettings {
+    /// The debuggers tried, in order, for a Rust file that has no debug
+    /// command; the first one installed is used.
+    #[serde(default = "default_debug_native")]
+    pub native: Vec<String>,
+
+    /// Where a debug adapter runs the program when the launch does not say:
+    /// `terminal` (a terminal panel, where it reads the keyboard) or
+    /// `panel` (the debug panel's output).
+    #[serde(default = "default_debug_console")]
+    pub console: String,
+
+    /// Per-debugger settings, keyed by the name `commands.toml` uses
+    /// (`lldb-dap`, `dlv-dap`, `gdb`…).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub debuggers: std::collections::BTreeMap<String, DebuggerSettings>,
+}
+
+/// How one debugger is started (`[debug.debuggers.<name>]`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DebuggerSettings {
+    /// The program to run instead of the one found on `PATH`: a custom
+    /// LLVM's `lldb-dap`, a `dlv` outside `PATH`, the Python debugpy needs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+
+    /// The debugger's flags for every launch, in place of its default ones
+    /// (for `dlv-dap` in Termux, `--only-same-user=false`). A launch's own
+    /// `debugger_args` come after these. Unset keeps the default; `[]` drops
+    /// it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub args: Option<Vec<String>>,
+}
+
+impl Default for DebugSettings {
+    fn default() -> Self {
+        Self {
+            native: default_debug_native(),
+            console: default_debug_console(),
+            debuggers: Default::default(),
+        }
+    }
+}
+
+impl DebugSettings {
+    /// The settings of debugger `name`, empty when it has none.
+    pub fn debugger(&self, name: &str) -> DebuggerSettings {
+        self.debuggers.get(name).cloned().unwrap_or_default()
+    }
+}
+
+fn default_debug_native() -> Vec<String> {
+    ["lldb-dap", "gdb-dap", "lldb"].map(String::from).to_vec()
+}
+
+fn default_debug_console() -> String {
+    "terminal".to_string()
+}
+
 /// LSP (Language Server Protocol) settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LspSettings {
@@ -1184,6 +1209,7 @@ impl From<LegacyConfig> for Config {
             viewer: ViewerSettings::default(),
             terminal: TerminalSettings::default(),
             lsp: LspSettings::default(),
+            debug: DebugSettings::default(),
             logging: LoggingSettings {
                 file_path: legacy.log_file_path,
                 min_level: legacy.min_log_level,
@@ -1192,6 +1218,7 @@ impl From<LegacyConfig> for Config {
             vault: VaultSettings::default(),
             highlight: HighlightSettings::default(),
             ai: AiSettings::default(),
+            plugins: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -1402,17 +1429,22 @@ mod ai_settings_tests {
         assert!(toml::from_str::<AiSettings>("reasoning = \"extreme\"\n").is_err());
     }
 
+    /// The settings that chose the reasoning field and the echo by hand are
+    /// gone — the server's own answer decides — and a config that still
+    /// names them loads, the keys read past.
     #[test]
-    fn a_connection_names_its_reasoning_param_only_when_set() {
-        let mut local = Connection::default();
-        assert!(!toml::to_string(&local).unwrap().contains("reasoning_param"));
-        local.reasoning_param = ReasoningParam::EnableThinking;
-        let text = toml::to_string(&local).unwrap();
-        assert!(
-            text.contains("reasoning_param = \"enable_thinking\""),
-            "{text}"
-        );
-        assert_eq!(toml::from_str::<Connection>(&text).unwrap(), local);
+    fn a_connection_with_the_old_reasoning_keys_still_loads() {
+        let text = "provider = \"openai_compatible\"\n\
+                    model = \"qwen\"\n\
+                    prefill_progress = true\n\
+                    reasoning_param = \"enable_thinking\"\n\
+                    send_reasoning = \"on\"\n";
+        let connection: Connection = toml::from_str(text).unwrap();
+        assert_eq!(connection.model, "qwen");
+        let saved = toml::to_string(&connection).unwrap();
+        assert!(!saved.contains("reasoning_param"), "{saved}");
+        assert!(!saved.contains("send_reasoning"), "{saved}");
+        assert!(!saved.contains("prefill_progress"), "{saved}");
     }
 
     #[test]

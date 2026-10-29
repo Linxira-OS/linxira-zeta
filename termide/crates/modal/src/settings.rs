@@ -16,9 +16,12 @@ use unicode_width::UnicodeWidthStr;
 use crate::{Modal, ModalResult};
 
 mod connection;
+mod debugger;
 mod fields;
 mod input;
 mod kb;
+mod lsp_server;
+mod plugins;
 mod render;
 mod state;
 
@@ -44,19 +47,31 @@ pub enum SettingsTab {
     /// One AI connection, opened from the AI tab: not in the sidebar, it
     /// names the fields of the page that edits it.
     Connection,
+    /// One LSP server, opened from the LSP tab: not in the sidebar, it
+    /// names the fields of the page that edits it.
+    LspServer,
+    /// How each debugger starts (`[debug]`).
+    Debug,
+    /// One debugger, opened from the Debug tab: not in the sidebar, it
+    /// names the fields of the page that edits it.
+    DebuggerPage,
+    /// Each installed plugin and whether it runs (`[plugins]`).
+    Plugins,
     Keybindings,
 }
 
 /// Top-level leaf tabs in the sidebar (excluding the Keybindings group).
-const TOP_LEVEL_TABS: [SettingsTab; 8] = [
+const TOP_LEVEL_TABS: [SettingsTab; 10] = [
     SettingsTab::General,
     SettingsTab::Editor,
     SettingsTab::FileManager,
     SettingsTab::Terminal,
     SettingsTab::Lsp,
+    SettingsTab::Debug,
     SettingsTab::Logging,
     SettingsTab::Vfs,
     SettingsTab::Ai,
+    SettingsTab::Plugins,
 ];
 
 /// Sidebar width in columns.
@@ -70,10 +85,12 @@ impl SettingsTab {
             SettingsTab::Editor => t.settings_tab_editor().to_string(),
             SettingsTab::FileManager => t.settings_tab_file_manager().to_string(),
             SettingsTab::Terminal => t.settings_tab_terminal().to_string(),
-            SettingsTab::Lsp => t.settings_tab_lsp().to_string(),
+            SettingsTab::Lsp | SettingsTab::LspServer => t.settings_tab_lsp().to_string(),
+            SettingsTab::Debug | SettingsTab::DebuggerPage => t.settings_tab_debug().to_string(),
             SettingsTab::Logging => t.settings_tab_logging().to_string(),
             SettingsTab::Vfs => t.settings_tab_vfs().to_string(),
             SettingsTab::Ai | SettingsTab::Connection => t.settings_tab_agent().to_string(),
+            SettingsTab::Plugins => t.settings_tab_plugins().to_string(),
             SettingsTab::Keybindings => t.settings_tab_keybindings().to_string(),
         }
     }
@@ -96,15 +113,6 @@ enum SidebarRow {
     KbGroupHeader,
     /// Keybindings subsection (index into `KB_SECTIONS`).
     KbChild(usize),
-}
-
-/// LSP tab sub-mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LspMode {
-    /// Normal field browsing + server list.
-    Fields,
-    /// Editing an LSP server (new or existing).
-    ServerEdit,
 }
 
 /// One slot drawn in a binding row's value column: a bound key, or the `+`
@@ -220,6 +228,8 @@ pub struct SettingsModal {
     field_cursor: usize,
     /// Vertical scroll offset for the content area.
     content_scroll: usize,
+    /// Content rows drawn by the last frame; the wheel scrolls by them.
+    content_visible: usize,
 
     // --- Editing ---
     /// True when a text/number field is being edited inline.
@@ -231,8 +241,9 @@ pub struct SettingsModal {
     edit_area: Option<Rect>,
     /// A press on a text field is being dragged: the drag selects in it.
     field_drag: bool,
-    /// Presses by row, so a double click on a field selects its text.
-    clicks: termide_ui::ClickTracker<u16>,
+    /// Presses by cell, so a double click on a field selects a word of it
+    /// and a triple click all of it — counting the press that opened it.
+    clicks: termide_ui::ClickTracker<(u16, u16)>,
 
     /// Whether the config differs from the shipped defaults, i.e. whether
     /// "Reset to Defaults" has anything to do. Cached because rendering must
@@ -246,17 +257,19 @@ pub struct SettingsModal {
     pub(super) enum_picker: Option<EnumPicker>,
 
     // --- LSP server management ---
-    lsp_mode: LspMode,
-    /// Index of the server being edited (None = adding new).
-    lsp_edit_index: Option<usize>,
     /// Sorted server language names for stable indexing.
     lsp_server_keys: Vec<String>,
-    /// Inline edit form for LSP server: [language, command, args, root_markers].
-    lsp_edit_fields: [termide_ui::TextInput; 4],
-    /// Which field (0-3) is focused in the LSP edit form.
-    lsp_edit_cursor: usize,
-    /// Where each LSP form field was last drawn, for clicks and drags.
-    lsp_field_areas: Vec<Rect>,
+    /// The server page, while one is open from the LSP tab.
+    lsp_server_edit: Option<lsp_server::LspServerEdit>,
+
+    // --- Debuggers ---
+    /// The debugger page, while one is open from the Debug tab.
+    debugger_edit: Option<debugger::DebuggerEdit>,
+    /// The flags each debugger gets on this system when the settings name
+    /// none, by name; given by the app, shown beside the flags field.
+    debugger_defaults: std::collections::HashMap<String, Vec<String>>,
+    /// The plugins installed, by name, for the Plugins tab.
+    plugin_names: Vec<String>,
 
     // --- AI connections ---
     /// The connection page, while one is open from the AI tab.
@@ -277,6 +290,9 @@ pub struct SettingsModal {
     kb_key_cursor: usize,
     /// Scroll offset for binding list.
     kb_scroll: usize,
+    /// Rows of the binding list drawn by the last frame, so the wheel can
+    /// scroll the window itself rather than nudge the cursor toward its edge.
+    kb_visible: usize,
     /// The slots drawn on each visible row, keyed by the row's index in
     /// `kb_binding_names(kb_section)`. A slot whose `key` is `None` is the
     /// `+` at the end of the row. Keyed by row index rather than screen row
@@ -432,12 +448,12 @@ impl Modal for SettingsModal {
         }
 
         // Outside a field being edited nothing is typed, so the zones match
-        // the layout-normalized key: `Ctrl+Ы` applies as `Ctrl+S` does.
-        let key = chord.canonical;
+        // the layout-normalized key: `Ctrl+Ы` applies as `Ctrl+S` does. The
+        // content picks per row, since the LSP server form is typed into.
         match self.focus {
-            FocusArea::Sidebar => self.handle_sidebar_key(key),
-            FocusArea::Content => self.handle_content_key(key),
-            FocusArea::Buttons => self.handle_buttons_key(key),
+            FocusArea::Sidebar => self.handle_sidebar_key(chord.canonical),
+            FocusArea::Content => self.handle_content_key(chord),
+            FocusArea::Buttons => self.handle_buttons_key(chord.canonical),
         }
     }
 
@@ -539,19 +555,23 @@ impl Modal for SettingsModal {
                         self.field_cursor = idx;
                         // The buttons row acts on the button under the click;
                         // the gap between them does nothing.
-                        if rows[idx] == fields::ContentRow::ConnectionButtons {
+                        if matches!(
+                            rows[idx],
+                            fields::ContentRow::ConnectionButtons
+                                | fields::ContentRow::LspServerButtons
+                                | fields::ContentRow::DebuggerButtons
+                        ) {
                             let column = mouse.column as usize;
+                            let (labels, _) = self.page_buttons();
                             let spans =
-                                connection::connection_button_spans(content_area.x as usize + 2);
+                                connection::page_button_spans(&labels, content_area.x as usize + 2);
                             let Some(button) = spans
                                 .iter()
                                 .position(|(start, end)| (*start..*end).contains(&column))
                             else {
                                 return Ok(None);
                             };
-                            if let Some(edit) = self.connection_edit.as_mut() {
-                                edit.button = button;
-                            }
+                            self.choose_page_button(button);
                         }
                         // Clicking a control operates it, the way Enter does.
                         // Moving the cursor and leaving the switch alone looks

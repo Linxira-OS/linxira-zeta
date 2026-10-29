@@ -13,7 +13,6 @@ use ratatui::{
 use crate::base::{button_style, render_modal_block};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-use termide_clipboard as clipboard;
 use termide_core::ThemeColors;
 use termide_i18n as i18n;
 use termide_theme::Theme;
@@ -53,6 +52,8 @@ pub struct CommitModal {
     visible_height: usize,
     /// Whether scroll should follow cursor (false after mouse scroll).
     scroll_follows_cursor: bool,
+    /// A press landed in the message and the button is still down.
+    dragging: bool,
 }
 
 impl CommitModal {
@@ -70,7 +71,23 @@ impl CommitModal {
             last_buttons_area: None,
             visible_height: 3,
             scroll_follows_cursor: true,
+            dragging: false,
         }
+    }
+
+    /// The message position under screen cell `(column, row)` of the
+    /// message drawn in `area`, `row` inside it: below the last line it is
+    /// the end of the text, left of the text its line's start.
+    fn message_position(&self, area: Rect, column: u16, row: u16) -> (usize, usize) {
+        let drawn_row = usize::from(row.saturating_sub(area.y));
+        let last = self.textarea.line_count().saturating_sub(1);
+        if self.textarea.scroll_offset() + drawn_row > last {
+            return (last, usize::MAX);
+        }
+        let pos = self
+            .textarea
+            .position_at_drawn_row(drawn_row, usize::from(column.saturating_sub(area.x)));
+        (pos.row, pos.col)
     }
 
     /// Calculate modal size based on terminal size.
@@ -154,7 +171,7 @@ impl CommitModal {
                         x,
                         y,
                         ch.to_string(),
-                        Style::default().fg(theme.fg).bg(theme.bg),
+                        Style::default().fg(theme.bg).bg(theme.fg),
                     );
                 } else if is_selected {
                     buf.set_string(
@@ -301,93 +318,6 @@ impl Modal for CommitModal {
                     KeyCode::Enter => {
                         self.textarea.insert_newline();
                     }
-                    KeyCode::Char(c) => {
-                        if key.modifiers.contains(KeyModifiers::CONTROL) {
-                            match c {
-                                'a' => self.textarea.select_all(),
-                                'z' => {
-                                    self.textarea.undo();
-                                }
-                                'y' => {
-                                    self.textarea.redo();
-                                }
-                                'c' => {
-                                    // Copy
-                                    if let Some(text) = self.textarea.selected_text() {
-                                        let _ = clipboard::copy(&text);
-                                    }
-                                }
-                                'x' => {
-                                    // Cut
-                                    if let Some(text) = self.textarea.selected_text() {
-                                        let _ = clipboard::copy(&text);
-                                        self.textarea.delete_selection();
-                                    }
-                                }
-                                'v' => {
-                                    // Paste
-                                    if let Some(text) = clipboard::paste_text_or_paths() {
-                                        self.textarea.insert_str(&text);
-                                    }
-                                }
-                                _ => {}
-                            }
-                        } else {
-                            self.textarea.insert(c);
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        self.textarea.backspace();
-                    }
-                    KeyCode::Delete => {
-                        self.textarea.delete();
-                    }
-                    KeyCode::Left => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            self.textarea.move_left_with_selection();
-                        } else {
-                            self.textarea.move_left();
-                        }
-                    }
-                    KeyCode::Right => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            self.textarea.move_right_with_selection();
-                        } else {
-                            self.textarea.move_right();
-                        }
-                    }
-                    KeyCode::Up => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            self.textarea.move_up_with_selection();
-                        } else {
-                            self.textarea.move_up();
-                        }
-                    }
-                    KeyCode::Down => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            self.textarea.move_down_with_selection();
-                        } else {
-                            self.textarea.move_down();
-                        }
-                    }
-                    KeyCode::Home => {
-                        if key.modifiers.contains(KeyModifiers::CONTROL) {
-                            self.textarea.move_to_start();
-                        } else if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            self.textarea.move_home_with_selection();
-                        } else {
-                            self.textarea.move_home();
-                        }
-                    }
-                    KeyCode::End => {
-                        if key.modifiers.contains(KeyModifiers::CONTROL) {
-                            self.textarea.move_to_end();
-                        } else if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            self.textarea.move_end_with_selection();
-                        } else {
-                            self.textarea.move_end();
-                        }
-                    }
                     KeyCode::PageUp => {
                         let page_size = self.visible_height.max(1);
                         // Move cursor up by page_size lines
@@ -403,7 +333,10 @@ impl Modal for CommitModal {
                         let new_row = (cursor.row + page_size).min(max_row);
                         self.textarea.set_cursor(new_row, cursor.col);
                     }
-                    _ => {}
+                    // Everything else edits the message like any other field.
+                    _ => {
+                        termide_ui::edit_text_area(&mut self.textarea, key);
+                    }
                 }
             }
             FocusArea::Buttons => {
@@ -433,7 +366,7 @@ impl Modal for CommitModal {
                             return Ok(Some(ModalResult::Cancelled));
                         }
                     }
-                    KeyCode::Char(c) => {
+                    KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                         // Switch back to textarea and insert
                         self.focus = FocusArea::Textarea;
                         self.textarea.insert(c);
@@ -480,9 +413,36 @@ impl Modal for CommitModal {
             }
         }
 
-        // Only handle left click for the rest
-        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
-            return Ok(None);
+        match mouse.kind {
+            // A drag from a press in the message extends its selection; past
+            // the message's top or bottom it scrolls one row per move, as the
+            // editor's drag does, and past its sides it stops at the nearest
+            // column.
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if let (true, Some(area)) = (self.dragging, self.last_textarea_area) {
+                    let scroll = self.textarea.scroll_offset();
+                    if mouse.row < area.y && scroll > 0 {
+                        self.textarea.set_scroll_offset(scroll - 1);
+                    } else if mouse.row >= area.bottom()
+                        && scroll + usize::from(area.height) < self.textarea.line_count()
+                    {
+                        self.textarea.set_scroll_offset(scroll + 1);
+                    }
+                    self.scroll_follows_cursor = true;
+                    let row = mouse
+                        .row
+                        .clamp(area.y, area.y + area.height.saturating_sub(1));
+                    let (row, col) = self.message_position(area, mouse.column, row);
+                    self.textarea.extend_selection_to(row, col);
+                }
+                return Ok(None);
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                self.dragging = false;
+                return Ok(None);
+            }
+            MouseEventKind::Down(MouseButton::Left) => {}
+            _ => return Ok(None),
         }
 
         // Check textarea click
@@ -494,9 +454,9 @@ impl Modal for CommitModal {
             {
                 self.focus = FocusArea::Textarea;
                 self.scroll_follows_cursor = true; // Click means follow cursor again
-                let row = (mouse.row - textarea_area.y) as usize + self.textarea.scroll_offset();
-                let col = (mouse.column - textarea_area.x) as usize;
-                self.textarea.set_cursor(row, col);
+                let (row, col) = self.message_position(textarea_area, mouse.column, mouse.row);
+                self.textarea.mouse_press(row, col);
+                self.dragging = true;
                 return Ok(None);
             }
         }
@@ -534,5 +494,180 @@ impl Modal for CommitModal {
         }
 
         Ok(None)
+    }
+
+    fn handle_paste(&mut self, text: &str) -> bool {
+        self.focus = FocusArea::Textarea;
+        self.scroll_follows_cursor = true;
+        self.textarea
+            .insert_str(&text.replace("\r\n", "\n").replace('\r', "\n"));
+        true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyEvent;
+
+    fn modal() -> CommitModal {
+        CommitModal::new(1, "repo".into(), "main".into())
+    }
+
+    fn press(modal: &mut CommitModal, code: KeyCode, modifiers: KeyModifiers) {
+        modal
+            .handle_key(termide_core::KeyChord::identity(KeyEvent::new(
+                code, modifiers,
+            )))
+            .unwrap();
+    }
+
+    fn type_text(modal: &mut CommitModal, text: &str) {
+        for ch in text.chars() {
+            press(modal, KeyCode::Char(ch), KeyModifiers::NONE);
+        }
+    }
+
+    #[test]
+    fn the_message_edits_at_its_cursor_and_moves_by_words() {
+        let mut modal = modal();
+        type_text(&mut modal, "fix bug");
+        press(&mut modal, KeyCode::Left, KeyModifiers::CONTROL);
+        type_text(&mut modal, "the ");
+        assert_eq!(modal.textarea.text(), "fix the bug");
+    }
+
+    #[test]
+    fn a_selection_is_deleted_as_one() {
+        let mut modal = modal();
+        type_text(&mut modal, "fix bugs");
+        press(&mut modal, KeyCode::Left, KeyModifiers::SHIFT);
+        press(&mut modal, KeyCode::Backspace, KeyModifiers::NONE);
+        assert_eq!(modal.textarea.text(), "fix bug");
+    }
+
+    #[test]
+    fn ctrl_shift_z_redoes() {
+        let mut modal = modal();
+        type_text(&mut modal, "a");
+        press(&mut modal, KeyCode::Char('z'), KeyModifiers::CONTROL);
+        assert_eq!(modal.textarea.text(), "");
+        press(
+            &mut modal,
+            KeyCode::Char('z'),
+            KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+        );
+        assert_eq!(modal.textarea.text(), "a");
+    }
+
+    #[test]
+    fn ctrl_v_does_not_type_a_v_even_from_the_buttons() {
+        let mut modal = modal();
+        type_text(&mut modal, "x");
+        // A stand-in clipboard, so the user's is never read or written.
+        termide_ui::clipboard::use_fake_clipboard("PASTE");
+        let clip = "PASTE";
+        press(&mut modal, KeyCode::Char('v'), KeyModifiers::CONTROL);
+        assert_eq!(modal.textarea.text(), format!("x{clip}"));
+
+        press(&mut modal, KeyCode::Tab, KeyModifiers::NONE);
+        let before = modal.textarea.text();
+        press(&mut modal, KeyCode::Char('v'), KeyModifiers::CONTROL);
+        assert_eq!(modal.textarea.text(), before);
+    }
+
+    #[test]
+    fn enter_breaks_the_line_and_a_paste_keeps_its_lines() {
+        let mut modal = modal();
+        type_text(&mut modal, "title");
+        press(&mut modal, KeyCode::Enter, KeyModifiers::NONE);
+        assert!(modal.handle_paste("body\r\nmore"));
+        assert_eq!(modal.textarea.text(), "title\nbody\nmore");
+    }
+
+    #[test]
+    fn a_click_places_the_cursor_and_a_drag_selects_in_the_message() {
+        use crate::base::test_mouse::{drag, press as down, release};
+        let mut modal = modal();
+        assert!(modal.handle_paste("fix: the bug\nbody text"));
+        let area = Rect::new(0, 0, 100, 40);
+        modal.render(area, &mut Buffer::empty(area), &Theme::default());
+        let text = modal.last_textarea_area.unwrap();
+        modal.handle_mouse(down(text.x + 5, text.y), area).unwrap();
+        let cursor = modal.textarea.cursor();
+        assert_eq!((cursor.row, cursor.col), (0, 5));
+        modal
+            .handle_mouse(drag(text.x + 4, text.y + 1), area)
+            .unwrap();
+        assert_eq!(
+            modal.textarea.selected_text().as_deref(),
+            Some("the bug\nbody")
+        );
+        // Below the text, even below the field, the drag selects to its end.
+        modal
+            .handle_mouse(drag(text.x, text.bottom() + 5), area)
+            .unwrap();
+        assert_eq!(
+            modal.textarea.selected_text().as_deref(),
+            Some("the bug\nbody text")
+        );
+        modal.handle_mouse(release(0, 0), area).unwrap();
+        modal.handle_mouse(drag(text.x, text.y), area).unwrap();
+        assert_eq!(
+            modal.textarea.selected_text().as_deref(),
+            Some("the bug\nbody text"),
+            "after the release a drag selects nothing"
+        );
+    }
+
+    /// Dragged past the message's bottom or top, the selection keeps going:
+    /// each move scrolls one row and extends the selection onto it.
+    #[test]
+    fn a_drag_past_the_message_edge_scrolls_it() {
+        use crate::base::test_mouse::{drag, press as down, release};
+        let mut modal = modal();
+        let lines: Vec<String> = (0..30).map(|i| format!("line {i:02}")).collect();
+        assert!(modal.handle_paste(&lines.join("\n")));
+        let area = Rect::new(0, 0, 100, 14);
+        let render = |modal: &mut CommitModal| {
+            modal.render(area, &mut Buffer::empty(area), &Theme::default());
+        };
+        // Back to the top, then a press on the first row.
+        modal.textarea.set_cursor(0, 0);
+        render(&mut modal);
+        let text = modal.last_textarea_area.unwrap();
+        let height = usize::from(text.height);
+        assert!(height < 30, "the message is taller than the field");
+        assert_eq!(modal.textarea.scroll_offset(), 0);
+        modal.handle_mouse(down(text.x + 5, text.y), area).unwrap();
+
+        // Three moves below the field: three rows scrolled, the selection on
+        // the last row now shown.
+        for _ in 0..3 {
+            modal
+                .handle_mouse(drag(text.x + 7, text.bottom() + 2), area)
+                .unwrap();
+            render(&mut modal);
+        }
+        assert_eq!(modal.textarea.scroll_offset(), 3);
+        let cursor = modal.textarea.cursor();
+        assert_eq!((cursor.row, cursor.col), (height + 2, 7));
+        let selected = modal.textarea.selected_text().unwrap();
+        assert!(selected.starts_with("00\nline 01"));
+        assert!(selected.ends_with(&format!("line {:02}", height + 2)));
+
+        // Back above the field: it scrolls up again, one row per move.
+        modal
+            .handle_mouse(drag(text.x + 2, text.y - 1), area)
+            .unwrap();
+        render(&mut modal);
+        assert_eq!(modal.textarea.scroll_offset(), 2);
+        let cursor = modal.textarea.cursor();
+        assert_eq!((cursor.row, cursor.col), (2, 2));
+        assert_eq!(
+            modal.textarea.selected_text().as_deref(),
+            Some("00\nline 01\nli")
+        );
+        modal.handle_mouse(release(0, 0), area).unwrap();
     }
 }

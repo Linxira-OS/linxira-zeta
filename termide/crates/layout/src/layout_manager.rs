@@ -16,6 +16,24 @@ pub struct LayoutManager {
     pub panel_groups: Vec<PanelGroup>,
     /// Current focus (active group index).
     pub focus: usize,
+    /// A panel shown over the layout rather than in it: it takes the keys
+    /// and the mouse while it is up, moves no column, and is not saved with
+    /// the layout.
+    pub overlay: Option<Box<dyn Panel>>,
+}
+
+/// Where a panel shown over the layout goes in `main`, the area the layout
+/// fills: most of it, centered, with the layout showing around it.
+#[must_use]
+pub fn overlay_area(main: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    let width = (main.width.saturating_mul(9) / 10).max(main.width.min(40));
+    let height = (main.height.saturating_mul(9) / 10).max(main.height.min(10));
+    ratatui::layout::Rect {
+        x: main.x + (main.width - width) / 2,
+        y: main.y + (main.height - height) / 2,
+        width,
+        height,
+    }
 }
 
 impl LayoutManager {
@@ -24,6 +42,7 @@ impl LayoutManager {
         Self {
             panel_groups: Vec::new(),
             focus: 0,
+            overlay: None,
         }
     }
 
@@ -78,6 +97,53 @@ impl LayoutManager {
         let group = self.panel_groups.get_mut(self.focus)?;
         let idx = group.expanded_index();
         group.replace_panel(idx, panel)
+    }
+
+    /// Put `panel` in place of the one at `position` in the order of
+    /// [`iter_all_panels_mut`](Self::iter_all_panels_mut), keeping the
+    /// layout and the focus; the panel it replaces comes back. `None` when
+    /// there is no panel there.
+    pub fn replace_panel_at(
+        &mut self,
+        position: usize,
+        panel: Box<dyn Panel>,
+    ) -> Option<Box<dyn Panel>> {
+        let mut before = 0;
+        for group in &mut self.panel_groups {
+            if position < before + group.len() {
+                return group.replace_panel(position - before, panel);
+            }
+            before += group.len();
+        }
+        None
+    }
+
+    /// Remove the panel at `position` — counted across all groups, as
+    /// [`Self::iter_all_panels_mut`] does — dropping its group when it was
+    /// the last one there; the focus stays on the group it was on.
+    pub fn remove_panel_at(
+        &mut self,
+        position: usize,
+        available_width: u16,
+    ) -> Option<Box<dyn Panel>> {
+        let mut before = 0;
+        let group_idx = self.panel_groups.iter().position(|group| {
+            let here = position < before + group.len();
+            if !here {
+                before += group.len();
+            }
+            here
+        })?;
+        let panel = self.panel_groups[group_idx].remove_panel(position - before)?;
+        if self.panel_groups[group_idx].is_empty() {
+            self.panel_groups.remove(group_idx);
+            if self.focus > group_idx {
+                self.focus -= 1;
+            }
+            self.focus = self.focus.min(self.panel_groups.len().saturating_sub(1));
+            self.redistribute_widths_proportionally(available_width);
+        }
+        Some(panel)
     }
 
     /// Find panel by name, expand it in its group, return mutable reference.
@@ -434,6 +500,29 @@ mod tests {
     }
 
     #[test]
+    fn a_panel_is_replaced_where_it_stands_across_groups() {
+        let mut lm = LayoutManager::new();
+        let config = make_config(80);
+        for name in ["a", "b", "c"] {
+            lm.add_panel(panel(name), &config, 200);
+        }
+        let focus = lm.active_panel_position();
+        let names = |lm: &mut LayoutManager| {
+            lm.iter_all_panels_mut()
+                .map(|p| p.name())
+                .collect::<Vec<_>>()
+        };
+        let before = names(&mut lm);
+        let old = lm.replace_panel_at(1, panel("x")).unwrap();
+        assert_eq!(old.name(), before[1]);
+        let mut after = before.clone();
+        after[1] = "x";
+        assert_eq!(names(&mut lm), after);
+        assert_eq!(lm.active_panel_position(), focus);
+        assert!(lm.replace_panel_at(3, panel("y")).is_none());
+    }
+
+    #[test]
     fn focus_moves_to_a_waiting_panel_unless_the_focused_one_waits() {
         let mut lm = LayoutManager::new();
         let config = make_config(80);
@@ -665,6 +754,24 @@ mod tests {
         lm.focus = 1;
         lm.close_active_panel(400).unwrap();
         assert_eq!(lm.group_count(), 1);
+        assert_eq!(lm.focus, 0);
+    }
+
+    #[test]
+    fn removing_a_panel_by_position_keeps_the_focus_on_its_group() {
+        let mut lm = LayoutManager::new();
+        let config = make_config(40);
+        lm.add_panel(panel("a"), &config, 400);
+        lm.add_panel(panel("b"), &config, 400);
+        lm.add_panel(panel("c"), &config, 400);
+        lm.focus = 2;
+        // The only panel of the first group: its group goes, the focus
+        // follows "c" to its new index.
+        assert_eq!(lm.remove_panel_at(0, 400).unwrap().name(), "a");
+        assert_eq!(lm.group_count(), 2);
+        assert_eq!(lm.focus, 1);
+        assert!(lm.remove_panel_at(5, 400).is_none());
+        assert_eq!(lm.remove_panel_at(1, 400).unwrap().name(), "c");
         assert_eq!(lm.focus, 0);
     }
 

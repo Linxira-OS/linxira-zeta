@@ -148,7 +148,7 @@ impl Translation for RuntimeTranslation {
         }
     }
 
-    // Generate 395 trivial `fn name(&self) -> &str` wrappers over get_string("name").
+    // Generate 405 trivial `fn name(&self) -> &str` wrappers over get_string("name").
     i18n_get_string_methods! {
         agent_input_placeholder,
         agent_input_placeholder_shell,
@@ -181,7 +181,11 @@ impl Translation for RuntimeTranslation {
         agent_banner_cwd,
         agent_cwd_title,
         agent_banner_sessions,
+        agent_session_search_title,
+        agent_session_search_placeholder,
+        agent_session_search_empty,
         agent_project_command,
+        agent_user_skill,
         agent_hint_loop,
         agent_hint_goal,
         agent_model_request_dropped,
@@ -197,6 +201,7 @@ impl Translation for RuntimeTranslation {
         settings_header_general,
         settings_header_timing,
         settings_header_servers,
+        settings_header_server,
         settings_header_model,
         settings_header_permissions,
         settings_header_transcript,
@@ -213,6 +218,15 @@ impl Translation for RuntimeTranslation {
         palette_category_panel_management,
         palette_category_application,
         palette_category_commands,
+        palette_category_plugins,
+        plugins_title,
+        palette_plugins_status,
+        palette_plugins_reload,
+        plugins_state_ready,
+        plugins_state_starting,
+        plugins_state_gave_up,
+        plugins_state_off,
+        plugins_none,
         command_report_no_output,
         git_operation_cancelled,
         modal_yes,
@@ -323,6 +337,33 @@ impl Translation for RuntimeTranslation {
         help_desc_find_references,
         help_desc_rename_symbol,
         help_desc_code_action,
+        help_desc_toggle_breakpoint,
+        help_desc_start_debug,
+        help_desc_clear_breakpoints,
+        help_desc_configure_debug,
+        debug_select_title,
+        debug_no_native_debugger,
+        debug_no_delve,
+        debug_setup_title,
+        debug_setup_name,
+        debug_setup_program,
+        debug_setup_build,
+        debug_setup_debugger,
+        debug_setup_debugger_args,
+        debug_setup_no_program,
+        debug_breakpoints_cleared,
+        debug_panel_title,
+        debug_section_stack,
+        debug_section_variables,
+        debug_section_output,
+        debug_status_building,
+        debug_status_starting,
+        debug_status_running,
+        debug_status_ended,
+        debug_no_session,
+        debug_no_frames,
+        debug_hints,
+        debug_evaluate_prompt,
         lsp_rename_no_identifier,
         lsp_rename_unsaved_file,
         lsp_rename_no_changes,
@@ -399,6 +440,7 @@ impl Translation for RuntimeTranslation {
         help_desc_agent_rewind,
         help_desc_agent_fork,
         help_desc_agent_switch,
+        help_desc_agent_search_sessions,
         help_desc_agent_new,
         help_desc_agent_delete,
         help_section_viewers,
@@ -433,6 +475,7 @@ impl Translation for RuntimeTranslation {
         command_params_run,
         command_params_cancel,
         command_run_label,
+        command_confirm_project_title,
         command_config_label_name,
         command_config_label_command,
         command_config_label_group,
@@ -441,6 +484,7 @@ impl Translation for RuntimeTranslation {
         command_config_label_hotkey,
         command_config_label_project,
         command_config_project_checkbox,
+        command_config_cwd_checkbox,
         command_config_hotkey_hint,
         command_config_hotkey_invalid,
         command_config_hotkey_conflict,
@@ -537,6 +581,9 @@ impl Translation for RuntimeTranslation {
         agent_perm_note_user_denied_session,
         agent_show_prompt,
         agent_session_info,
+        agent_view_dock,
+        agent_view_take_over,
+        agent_view_stop,
         agent_perm_allow_once,
         agent_perm_allow_session,
         agent_perm_allow_always,
@@ -590,11 +637,23 @@ impl Translation for RuntimeTranslation {
         agent_notice_mcp_usage,
         agent_mcp_status_connecting,
         agent_mcp_status_needs_login,
+        agent_cmd_desc_trust,
+        agent_hint_trust,
+        agent_mcp_status_needs_approval,
+        agent_notice_trust_none,
         agent_mcp_status_signing_in,
         agent_cmd_desc_prompt,
         agent_notice_busy,
         agent_notice_no_log_to_name,
         agent_notice_will_pause,
+        agent_strip_pause,
+        agent_strip_after_step,
+        agent_strip_paused,
+        agent_strip_keeps_running,
+        agent_notice_no_parent_panel,
+        agent_unfinished_delegates_title,
+        agent_strip_left_unfinished,
+        agent_strip_checking,
         agent_notice_nothing_to_pause,
         agent_notice_already_running,
         agent_notice_nothing_to_continue,
@@ -630,11 +689,15 @@ impl Translation for RuntimeTranslation {
         agent_failure_keep_trying,
         agent_failure_restart,
         agent_failure_compact,
-        agent_failure_switch_agent,
         agent_failure_stop,
         agent_failure_auth_hint,
+        agent_parked_strip,
+        agent_parked_title,
+        agent_parked_give_up,
+        agent_parked_keep_waiting,
         agent_notice_agent_restarting,
         agent_notice_retrying,
+        agent_notice_unanswered_retry,
         agent_notice_retry_cancelled,
         agent_notice_no_model_choices,
         agent_notice_plan_no_request,
@@ -661,6 +724,7 @@ impl Translation for RuntimeTranslation {
         agent_suggest_denied_rule,
         agent_notice_clipboard_failed,
         agent_notice_goal_reached,
+        agent_notice_session_released,
         agent_notice_goal_impossible,
         agent_autorun_loop,
         agent_notice_looping,
@@ -698,6 +762,15 @@ impl Translation for RuntimeTranslation {
         agent_tool_mcp,
         agent_tool_question,
         agent_tool_suggest,
+        agent_tool_send_message,
+        agent_tool_agents,
+        agent_tool_send_question,
+        agent_tool_send_reply,
+        agent_tool_send_info,
+        agent_peer_reply,
+        agent_peer_question,
+        agent_peer_info,
+        agent_peer_task,
         agent_slash_kind_builtin,
         agent_slash_kind_template,
         agent_slash_kind_script,
@@ -721,6 +794,7 @@ impl Translation for RuntimeTranslation {
         settings_agent_auto_reviewer_model_default,
         settings_agent_on_limit,
         settings_agent_on_limit_ask,
+        settings_agent_on_limit_ask_else_wait,
         settings_agent_on_limit_wait,
         settings_agent_on_limit_stop,
         settings_ai_add_connection,
@@ -732,8 +806,6 @@ impl Translation for RuntimeTranslation {
         settings_ai_connection_hint_gemini_cli,
         settings_ai_connection_name,
         settings_ai_connection_default,
-        settings_ai_connection_prefill_progress,
-        settings_ai_connection_reasoning_param,
         settings_ai_connection_subagents,
         settings_ai_connection_subagents_own,
         settings_ai_connection_context_limit,
@@ -786,6 +858,12 @@ impl Translation for RuntimeTranslation {
         settings_fm_dir_size_budget_ms,
         settings_terminal_default_shell,
         settings_lsp_add_server,
+        settings_lsp_delete_server,
+        settings_lsp_server_language,
+        settings_lsp_server_command,
+        settings_lsp_server_args,
+        settings_lsp_server_root_markers,
+        settings_lsp_server_language_taken,
         settings_logging_min_level,
         settings_vfs_connection_timeout,
         projects_new,
@@ -1010,6 +1088,28 @@ impl Translation for RuntimeTranslation {
         settings_tab_file_manager,
         settings_tab_terminal,
         settings_tab_lsp,
+        settings_tab_debug,
+        settings_header_debuggers,
+        settings_header_debugger,
+        settings_debug_native,
+        settings_debug_console,
+        settings_debug_console_terminal,
+        settings_debug_console_panel,
+        settings_debugger_command,
+        settings_debugger_args,
+        settings_debugger_reset,
+        settings_global_only,
+        settings_tab_plugins,
+        settings_header_plugins,
+        settings_plugin_mode_on,
+        settings_plugin_mode_opt_in,
+        settings_plugin_mode_off,
+        settings_plugin_follow,
+        settings_plugin_on,
+        settings_plugin_off,
+        settings_plugin_blocked,
+        settings_debugger_no_defaults,
+        settings_debugger_bad_args,
         settings_tab_logging,
         settings_tab_vfs,
         settings_btn_reset,
@@ -1141,6 +1241,21 @@ impl Translation for RuntimeTranslation {
         )
     }
 
+    fn agent_failure_reset_passed_fmt(&self, time: &str) -> String {
+        self.format("agent_failure_reset_passed_fmt", &[("time", time)])
+    }
+
+    fn agent_parked_given_up_fmt(&self, agent: &str) -> String {
+        self.format("agent_parked_given_up_fmt", &[("agent", agent)])
+    }
+
+    fn agent_failure_auto_retry_fmt(&self, time: &str, left: &str) -> String {
+        self.format(
+            "agent_failure_auto_retry_fmt",
+            &[("time", time), ("left", left)],
+        )
+    }
+
     fn agent_notice_retry_waiting_fmt(&self, time: &str) -> String {
         self.format("agent_notice_retry_waiting_fmt", &[("time", time)])
     }
@@ -1158,6 +1273,50 @@ impl Translation for RuntimeTranslation {
 
     fn agent_notice_cannot_start_fmt(&self, error: &str) -> String {
         self.format("agent_notice_cannot_start_fmt", &[("error", error)])
+    }
+
+    fn agent_input_placeholder_delegate_fmt(&self, agent: &str, task: &str) -> String {
+        self.format(
+            "agent_input_placeholder_delegate_fmt",
+            &[("agent", agent), ("task", task)],
+        )
+    }
+
+    fn agent_notice_taken_over_fmt(&self, agent: &str) -> String {
+        self.format("agent_notice_taken_over_fmt", &[("agent", agent)])
+    }
+
+    fn agent_stop_task_confirm_fmt(&self, agent: &str) -> String {
+        self.format("agent_stop_task_confirm_fmt", &[("agent", agent)])
+    }
+
+    fn agent_stop_command_confirm_fmt(&self, command: &str) -> String {
+        self.format("agent_stop_command_confirm_fmt", &[("command", command)])
+    }
+
+    fn agent_notice_delegates_running_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_notice_delegates_running_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_close_confirm_delegates_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_close_confirm_delegates_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_take_over_confirm_fmt(&self, agent: &str) -> String {
+        self.format("agent_take_over_confirm_fmt", &[("agent", agent)])
+    }
+
+    fn agent_peer_from_panel_fmt(&self, agent: &str, panel: &str) -> String {
+        self.format(
+            "agent_peer_from_panel_fmt",
+            &[("agent", agent), ("panel", panel)],
+        )
     }
 
     fn agent_notice_cannot_check_goal_fmt(&self, error: &str) -> String {
@@ -1303,6 +1462,43 @@ impl Translation for RuntimeTranslation {
         )
     }
 
+    fn palette_plugins_restart_fmt(&self, name: &str) -> String {
+        self.format("palette_plugins_restart_fmt", &[("name", name)])
+    }
+
+    fn plugins_reloaded_fmt(&self, count: usize) -> String {
+        self.format("plugins_reloaded_fmt", &[("count", &count.to_string())])
+    }
+
+    fn command_confirm_project_fmt(&self, name: &str, command: &str) -> String {
+        self.format(
+            "command_confirm_project_fmt",
+            &[("name", name), ("command", command)],
+        )
+    }
+
+    fn agent_notice_trusted_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_trusted_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_trust_unknown_fmt(&self, name: &str) -> String {
+        self.format("agent_notice_trust_unknown_fmt", &[("name", name)])
+    }
+
+    fn agent_notice_mcp_needs_approval_fmt(&self, source: &str, launch: &str) -> String {
+        self.format(
+            "agent_notice_mcp_needs_approval_fmt",
+            &[("source", source), ("launch", launch)],
+        )
+    }
+
+    fn agent_notice_hook_needs_approval_fmt(&self, name: &str, launch: &str) -> String {
+        self.format(
+            "agent_notice_hook_needs_approval_fmt",
+            &[("name", name), ("launch", launch)],
+        )
+    }
+
     fn agent_notice_mcp_gone_fmt(&self, source: &str) -> String {
         self.format("agent_notice_mcp_gone_fmt", &[("source", source)])
     }
@@ -1405,6 +1601,16 @@ impl Translation for RuntimeTranslation {
         )
     }
 
+    fn agent_notice_fitted_fmt(&self, before: u64, after: u64) -> String {
+        self.format(
+            "agent_notice_fitted_fmt",
+            &[
+                ("before", &before.to_string()),
+                ("after", &after.to_string()),
+            ],
+        )
+    }
+
     fn agent_notice_handoff_written_fmt(&self, path: &str) -> String {
         self.format("agent_notice_handoff_written_fmt", &[("path", path)])
     }
@@ -1456,6 +1662,14 @@ impl Translation for RuntimeTranslation {
         )
     }
 
+    fn agent_notice_session_held_fmt(&self, pid: &str) -> String {
+        self.format("agent_notice_session_held_fmt", &[("pid", pid)])
+    }
+
+    fn agent_notice_goal_waiting_fmt(&self, reason: &str) -> String {
+        self.format("agent_notice_goal_waiting_fmt", &[("reason", reason)])
+    }
+
     fn agent_notice_looping_every_fmt(&self, interval: &str) -> String {
         self.format("agent_notice_looping_every_fmt", &[("interval", interval)])
     }
@@ -1491,6 +1705,56 @@ impl Translation for RuntimeTranslation {
                 ("max", &max.to_string()),
             ],
         )
+    }
+
+    fn agent_restored_report_fmt(&self, agent: &str, text: &str) -> String {
+        self.format(
+            "agent_restored_report_fmt",
+            &[("agent", agent), ("text", text)],
+        )
+    }
+
+    fn agent_restored_failed_fmt(&self, agent: &str, text: &str) -> String {
+        self.format(
+            "agent_restored_failed_fmt",
+            &[("agent", agent), ("text", text)],
+        )
+    }
+
+    fn agent_carry_failed_fmt(&self, agents: &str) -> String {
+        self.format("agent_carry_failed_fmt", &[("agents", agents)])
+    }
+
+    fn agent_unfinished_delegate_fmt(&self, agent: &str, task: &str) -> String {
+        self.format(
+            "agent_unfinished_delegate_fmt",
+            &[("agent", agent), ("task", task)],
+        )
+    }
+
+    fn agent_strip_pause_held_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_strip_pause_held_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_strip_pause_running_fmt(&self, count: usize) -> String {
+        self.format(
+            "agent_strip_pause_running_fmt",
+            &[("count", &count.to_string())],
+        )
+    }
+
+    fn agent_strip_retry_at_fmt(&self, time: &str, left: &str) -> String {
+        self.format(
+            "agent_strip_retry_at_fmt",
+            &[("time", time), ("left", left)],
+        )
+    }
+
+    fn agent_strip_next_fmt(&self, wait: &str) -> String {
+        self.format("agent_strip_next_fmt", &[("wait", wait)])
     }
 
     fn agent_unfinished_loop_due_fmt(&self, wait: &str) -> String {
@@ -1890,6 +2154,10 @@ impl Translation for RuntimeTranslation {
         self.format("agent_project_command_fmt", &[("description", description)])
     }
 
+    fn agent_user_skill_fmt(&self, description: &str) -> String {
+        self.format("agent_user_skill_fmt", &[("description", description)])
+    }
+
     fn agent_running_command_fmt(&self, name: &str) -> String {
         self.format("agent_running_command_fmt", &[("name", name)])
     }
@@ -1956,6 +2224,53 @@ impl Translation for RuntimeTranslation {
 
     fn command_run_failed_fmt(&self, error: &str) -> String {
         self.format("command_run_failed_fmt", &[("error", error)])
+    }
+
+    fn command_needs_context_fmt(&self, placeholder: &str) -> String {
+        self.format("command_needs_context_fmt", &[("placeholder", placeholder)])
+    }
+
+    fn command_needs_editor_fmt(&self, placeholder: &str) -> String {
+        self.format("command_needs_editor_fmt", &[("placeholder", placeholder)])
+    }
+
+    fn debug_current_file_fmt(&self, file: &str, debugger: &str) -> String {
+        self.format(
+            "debug_current_file_fmt",
+            &[("file", file), ("debugger", debugger)],
+        )
+    }
+
+    fn debug_unknown_debugger_fmt(&self, name: &str) -> String {
+        self.format("debug_unknown_debugger_fmt", &[("name", name)])
+    }
+
+    fn debug_cargo_failed_fmt(&self, error: &str) -> String {
+        self.format("debug_cargo_failed_fmt", &[("error", error)])
+    }
+
+    fn debug_setup_default_name_fmt(&self, name: &str) -> String {
+        self.format("debug_setup_default_name_fmt", &[("name", name)])
+    }
+
+    fn settings_debugger_default_fmt(&self, args: &str) -> String {
+        self.format("settings_debugger_default_fmt", &[("args", args)])
+    }
+
+    fn debug_setup_bad_args_fmt(&self, text: &str) -> String {
+        self.format("debug_setup_bad_args_fmt", &[("text", text)])
+    }
+
+    fn debug_status_stopped_fmt(&self, reason: &str) -> String {
+        self.format("debug_status_stopped_fmt", &[("reason", reason)])
+    }
+
+    fn debug_status_exited_fmt(&self, code: &str) -> String {
+        self.format("debug_status_exited_fmt", &[("code", code)])
+    }
+
+    fn debug_status_failed_fmt(&self, error: &str) -> String {
+        self.format("debug_status_failed_fmt", &[("error", error)])
     }
 
     fn command_name_taken_fmt(&self, name: &str) -> String {

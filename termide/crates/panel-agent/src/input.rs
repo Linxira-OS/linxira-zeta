@@ -1,17 +1,19 @@
 //! Input handling: keys, mouse, pastes and the clipboard, the prompt's
 //! history, completion of slash commands and `@` mentions, and scrolling.
 
-use crossterm::event::{KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use termide_agent_core::{now_millis, CommandScript, ToolResultMessage, UserMessage};
 use termide_core::{KeyChord, LinkTarget, Panel, PanelEvent};
 use termide_ui::textarea::TextArea;
 use termide_ui::{ChoiceAction, CompletionAction, CompletionItem, CompletionList, FieldEdit};
 
+use crate::slash::user_skill_description;
 use crate::{
     select, transcript, AgentPanel, BannerHit, FoldMode, Item, NoticeKind, Paste, RunButton,
-    CLEAR_COMMAND, COMPACT_COMMAND, CONTINUE_COMMAND, FORK_COMMAND, GOAL_COMMAND, HANDOFF_COMMAND,
-    LOOP_COMMAND, MCP_COMMAND, NAME_COMMAND, NEW_COMMAND, NEW_SESSION_ACTION, PAUSE_COMMAND,
-    PROMPT_COMMAND, RENAME_ACTION, RENAME_COMMAND, RESUME_ACTION, UNDO_COMMAND, USAGE_COMMAND,
+    ViewButton, CLEAR_COMMAND, COMPACT_COMMAND, CONTINUE_COMMAND, FORK_COMMAND, GOAL_COMMAND,
+    HANDOFF_COMMAND, LOOP_COMMAND, MCP_COMMAND, NAME_COMMAND, NEW_COMMAND, NEW_SESSION_ACTION,
+    PAUSE_COMMAND, PROMPT_COMMAND, RENAME_ACTION, RENAME_COMMAND, RESUME_ACTION, TRUST_COMMAND,
+    UNDO_COMMAND, USAGE_COMMAND,
 };
 
 /// A paste past either bound is held as a short placeholder rather than
@@ -25,6 +27,16 @@ pub(crate) fn full_log_path(result: &ToolResultMessage) -> Option<std::path::Pat
         .details
         .as_ref()?
         .get("full_output_path")?
+        .as_str()
+        .map(std::path::PathBuf::from)
+}
+
+/// The log of the delegate's session a `task` result names.
+pub(crate) fn delegate_session(result: &ToolResultMessage) -> Option<std::path::PathBuf> {
+    result
+        .details
+        .as_ref()?
+        .get(termide_agent_core::SUBAGENT_SESSION_KEY)?
         .as_str()
         .map(std::path::PathBuf::from)
 }
@@ -358,6 +370,41 @@ impl AgentPanel {
         }
     }
 
+    /// A paste, copy or cut while an answer to a question is being typed:
+    /// it is the answer's, not the prompt's. `None` when no answer is typed or
+    /// the command is no clipboard one.
+    pub(crate) fn answer_clipboard(
+        &mut self,
+        cmd: &termide_core::PanelCommand<'_>,
+    ) -> Option<termide_core::CommandResult> {
+        use termide_core::{CommandResult, PanelCommand};
+        let form = self
+            .pending
+            .as_mut()
+            .map(|pending| pending.form_mut())
+            .filter(|form| form.is_typing())?;
+        let done = match cmd {
+            PanelCommand::Paste => {
+                termide_ui::clipboard::paste_text_or_paths().is_some_and(|text| form.paste(&text))
+            }
+            PanelCommand::PasteText { text } => form.paste(text),
+            PanelCommand::Copy | PanelCommand::Cut => {
+                let text = if matches!(cmd, PanelCommand::Cut) {
+                    form.cut_selection()
+                } else {
+                    form.selected_text()
+                };
+                text.map(|text| self.copy_text(&text)).is_some()
+            }
+            _ => return None,
+        };
+        Some(if done {
+            CommandResult::NeedsRedraw(true)
+        } else {
+            CommandResult::Handled(false)
+        })
+    }
+
     /// Paste the clipboard into the prompt; a large paste is held as a
     /// placeholder rather than flooding the input.
     pub(crate) fn paste_clipboard(&mut self) -> bool {
@@ -437,9 +484,21 @@ impl AgentPanel {
         if self.history_pos.is_some() || self.queued_texts.is_empty() {
             return false;
         }
-        let taken = self.runtime.take_queued();
-        self.set_queued(self.runtime.queue_lens());
-        self.queued_texts.clear();
+        // Another agent's message is not the user's to edit: in the input it
+        // would go out as their words, so it goes back to wait its turn.
+        let (taken, agents): (Vec<_>, Vec<_>) = self
+            .runtime
+            .take_queued()
+            .into_iter()
+            .partition(|message| message.origin.is_none());
+        for message in agents {
+            self.runtime.steer(message);
+        }
+        // What the agent already holds stays in the strip: it was sent
+        // first, so it leads.
+        let lens = self.runtime.queue_lens();
+        self.queued_texts.truncate(lens.0);
+        self.set_queued(lens);
         let Some(queued) = UserMessage::merge(taken) else {
             return false;
         };
@@ -567,6 +626,23 @@ impl AgentPanel {
             Item::Tool {
                 call, result, live, ..
             } => {
+                // A delegated task still running — the call waiting for it,
+                // or handed over in the background — is followed in a panel
+                // of its own, or the panel running it comes forward.
+                if call.name == "task"
+                    && (result.is_none() || crate::live::is_running(self.panel_id, &call.id))
+                {
+                    return vec![PanelEvent::FocusDelegate {
+                        panel: self.panel_id,
+                        call: call.id.clone(),
+                    }];
+                }
+                // A delegated task's block opens the delegate's session.
+                if let Some(path) = result.as_ref().and_then(delegate_session) {
+                    if path.exists() {
+                        return vec![PanelEvent::OpenAgentSession(path)];
+                    }
+                }
                 if let Some(path) = result.as_ref().and_then(full_log_path) {
                     if path.exists() {
                         return vec![PanelEvent::ViewFile(path)];
@@ -702,13 +778,15 @@ impl AgentPanel {
         }
         // A skill whose name something else takes is offered as `skill:<name>`,
         // found by either spelling.
+        // One kept to the user says so: the model never loads it itself.
         for (reach, skill) in self.slash_skills() {
             if reach.starts_with(prefix) || skill.name.starts_with(prefix) {
+                let description = user_skill_description(&skill);
                 items.push(
                     CompletionItem::new(reach.clone())
                         .with_label(format!("/{reach}"))
                         .with_hint(skill.argument_hint)
-                        .with_description(skill.description),
+                        .with_description(description),
                 );
             }
         }
@@ -827,6 +905,14 @@ impl AgentPanel {
                     .with_label(format!("/{MCP_COMMAND}"))
                     .with_hint(termide_i18n::t().agent_hint_mcp())
                     .with_description(termide_i18n::t().agent_cmd_desc_mcp()),
+            );
+        }
+        if TRUST_COMMAND.starts_with(prefix) && !self.external {
+            items.push(
+                CompletionItem::new(TRUST_COMMAND)
+                    .with_label(format!("/{TRUST_COMMAND}"))
+                    .with_hint(termide_i18n::t().agent_hint_trust())
+                    .with_description(termide_i18n::t().agent_cmd_desc_trust()),
             );
         }
         // The external agent's own commands, but those termide's take.
@@ -995,6 +1081,29 @@ impl AgentPanel {
     }
 
     /// The body of [`Panel::handle_key`].
+    /// A key while the panel follows another agent's task: `Ctrl+T` takes
+    /// the task over, `Esc` stops it; scrolling, the chat's blocks, copying,
+    /// the summary and saving the chat go on as usual (`None`). Anything
+    /// else — typing, the session's keys, the mode — takes nothing.
+    fn delegate_key(&mut self, key: KeyEvent) -> Option<Vec<PanelEvent>> {
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        let alt = key.modifiers.contains(KeyModifiers::ALT);
+        let passes = match key.code {
+            KeyCode::Char('t') if ctrl && !alt => return Some(self.ask_take_over()),
+            // Esc only steps away: back to the panel that delegated the task.
+            KeyCode::Esc => return Some(self.leave_watched()),
+            KeyCode::F(9) if self.in_overlay => return Some(vec![PanelEvent::DockOverlay]),
+            KeyCode::Char('s' | 'c' | 'o') if ctrl && !alt => true,
+            KeyCode::F(3) => true,
+            KeyCode::F(_) => false,
+            _ if self.chat_focus => true,
+            KeyCode::Tab | KeyCode::PageUp | KeyCode::PageDown => true,
+            KeyCode::Up | KeyCode::Down | KeyCode::Home | KeyCode::End => ctrl,
+            _ => false,
+        };
+        (!passes).then(Vec::new)
+    }
+
     pub(crate) fn on_key(&mut self, chord: KeyChord) -> Vec<PanelEvent> {
         // A shortcut — a Ctrl/Alt chord, or any key while the chat has focus
         // and nothing is being typed — matches on the canonical form, so it
@@ -1014,7 +1123,10 @@ impl AgentPanel {
         // A pending question takes the keys first: the arrows, Enter, a
         // digit or Esc answer it; only scrolling passes by.
         if let Some(pending) = &mut self.pending {
-            let action = if ctrl || alt {
+            // A typed answer takes its editing chords (`Ctrl+arrows`,
+            // `Ctrl+A`, `Ctrl+Z`) as any field does.
+            let typing = pending.form().is_typing();
+            let action = if alt || (ctrl && !typing) {
                 ChoiceAction::NotHandled
             } else {
                 pending.form_mut().handle_key(key)
@@ -1043,6 +1155,14 @@ impl AgentPanel {
             return events;
         }
 
+        // While another agent's task runs here, the input and the keys that
+        // act on the session take nothing; see `delegate_key`.
+        if self.is_delegate() {
+            if let Some(events) = self.delegate_key(key) {
+                return events;
+            }
+        }
+
         // Ctrl+S saves the chat as Markdown, wherever the focus sits in the
         // panel — the same as the `[≡]` menu's entry.
         if ctrl && !alt && !shift && key.code == KeyCode::Char('s') {
@@ -1052,7 +1172,7 @@ impl AgentPanel {
         // same prompt as the `[≡]` menu's Rename. In the banner's list of
         // recent sessions it renames the one under the cursor instead.
         if key.code == KeyCode::F(2) && !ctrl && !alt && !shift {
-            if self.chat_focus && self.recent_list_shown() {
+            if self.recent_list_targeted() {
                 return self.ask_rename_recent_session();
             }
             return self.handle_status_action(RENAME_ACTION);
@@ -1080,10 +1200,21 @@ impl AgentPanel {
         // In the banner's list of recent sessions F8 deletes the one under the
         // cursor instead: the fresh session itself has nothing to delete.
         if key.code == KeyCode::F(8) && !ctrl && !alt && !shift {
-            if self.chat_focus && self.recent_list_shown() {
+            if self.recent_list_targeted() {
                 return self.ask_delete_recent_session();
             }
             return self.ask_delete_session();
+        }
+        // Ctrl+F searches the banner's list of sessions by title, the prompt
+        // box taking the query; in a search it brings the keyboard back to
+        // the query.
+        if ctrl && !alt && !shift && key.code == KeyCode::Char('f') {
+            if self.session_search_on() {
+                self.chat_focus = false;
+            } else if !self.start_session_search() {
+                return vec![];
+            }
+            return vec![PanelEvent::NeedsRedraw];
         }
 
         // The completion list gets the navigation keys while it is open, except
@@ -1143,6 +1274,7 @@ impl AgentPanel {
             let page = self.viewport_height().max(1) as isize;
             match key.code {
                 KeyCode::Delete => return self.ask_delete_recent_session(),
+                KeyCode::Esc if self.session_search_on() => self.end_session_search(),
                 KeyCode::Tab | KeyCode::Esc => self.chat_focus = false,
                 KeyCode::Up if !ctrl => self.move_recent_selection(-1),
                 KeyCode::Down if !ctrl => self.move_recent_selection(1),
@@ -1160,6 +1292,11 @@ impl AgentPanel {
                 _ => return vec![],
             }
             return vec![PanelEvent::NeedsRedraw];
+        }
+        // The session search's query has the keyboard.
+        if self.session_search_on() {
+            self.chat_focus = false;
+            return self.search_key(key);
         }
         if self.chat_focus {
             let count = self.transcript.items().len();
@@ -1261,6 +1398,10 @@ impl AgentPanel {
                     self.shell_mode = false;
                     self.clear_input();
                     self.after_edit();
+                } else if !self.input_area().is_empty() {
+                    // Typed text goes first, even mid-run: the next Esc stops.
+                    self.clear_input();
+                    self.after_edit();
                 } else if self.is_busy() {
                     self.abort();
                 } else if self.goal_task.take().is_some() {
@@ -1273,9 +1414,6 @@ impl AgentPanel {
                         termide_i18n::t().agent_notice_loop_stopped(),
                         NoticeKind::Info,
                     );
-                } else if !self.input_area().is_empty() {
-                    self.clear_input();
-                    self.after_edit();
                 } else {
                     let points = self.rewind_points();
                     if points.is_empty() {
@@ -1392,11 +1530,28 @@ impl AgentPanel {
         // the transcript. A pending question keeps its clicks to itself.
         // A run control on the prompt's border acts on the press.
         if matches!(event.kind, MouseEventKind::Down(MouseButton::Left)) {
+            // The buttons under a delegate's view over the layout.
+            if let Some(button) = self.view_button_at(event.column, event.row) {
+                return match button {
+                    ViewButton::Dock => vec![PanelEvent::DockOverlay],
+                    ViewButton::TakeOver => self.ask_take_over(),
+                    ViewButton::Stop => self.ask_stop_watched(),
+                    ViewButton::Close => self.leave_watched(),
+                };
+            }
             let button = self
                 .input
                 .border_button_at(event.column, event.row)
                 .and_then(|index| self.run_buttons.get(index).copied());
             if let Some(button) = button {
+                // Another agent's task: nothing ends it without a yes.
+                if self.is_delegate() {
+                    return match button {
+                        RunButton::Stop => self.ask_stop_watched(),
+                        RunButton::TakeOver => self.ask_take_over(),
+                        RunButton::Pause | RunButton::Continue => Vec::new(),
+                    };
+                }
                 match button {
                     RunButton::Pause => {
                         self.request_pause();
@@ -1411,11 +1566,38 @@ impl AgentPanel {
                         self.cancel_retry_wait()
                     }
                     RunButton::Stop => self.abort(),
+                    RunButton::TakeOver => {}
                 }
                 return vec![PanelEvent::NeedsRedraw];
             }
         }
+        // An answer being typed to a question takes its own presses and
+        // drags, as the prompt does: placing the cursor, selecting.
+        if let Some(pending) = &mut self.pending {
+            let form = pending.form_mut();
+            let (x, y) = (event.column, event.row);
+            let taken = match event.kind {
+                MouseEventKind::Down(MouseButton::Left) => form.mouse_press(x, y),
+                MouseEventKind::Drag(MouseButton::Left) => form.mouse_drag(x, y),
+                MouseEventKind::Up(MouseButton::Left) => form.mouse_release(),
+                _ => false,
+            };
+            if taken {
+                self.form_clicks.reset();
+                return vec![PanelEvent::NeedsRedraw];
+            }
+        }
         if self.pending.is_none() && self.press.is_none() && self.input.mouse_hits(event) {
+            // While another agent's task runs here the input takes nothing and
+            // names that agent instead: a click on it goes back to its panel.
+            if let Some(by) = self.delegated_by() {
+                return match event.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        vec![PanelEvent::FocusAgentPanel(by)]
+                    }
+                    _ => vec![],
+                };
+            }
             self.input.handle_mouse(event);
             match event.kind {
                 MouseEventKind::Up(_) => return vec![],
@@ -1514,7 +1696,8 @@ impl AgentPanel {
                 }
                 // A click on a re-pickable field in the welcome banner opens its
                 // picker — the same one its status-bar chip opens — and one on
-                // a recent session opens that session.
+                // a recent session selects it; a click on the session already
+                // shown selected, or a double click, opens it.
                 let banner_hit = self
                     .banner_hits
                     .iter()
@@ -1527,7 +1710,18 @@ impl AgentPanel {
                 match banner_hit {
                     Some(BannerHit::Action(action)) => return self.handle_status_action(action),
                     Some(BannerHit::Session(index)) => {
-                        self.open_recent_session(index);
+                        let selected = self.recent_cursor_shown && self.recent_selected == index;
+                        if selected || self.session_clicks.click(index) >= 2 {
+                            self.session_clicks.reset();
+                            self.open_recent_session(index);
+                        } else {
+                            self.recent_selected = index;
+                            // The cursor shows in the list; a search keeps
+                            // the keyboard on its query, where it shows too.
+                            if !self.session_search_on() {
+                                self.chat_focus = true;
+                            }
+                        }
                         return vec![PanelEvent::NeedsRedraw];
                     }
                     None => {}
@@ -1537,45 +1731,13 @@ impl AgentPanel {
                     && event.column < area.x + area.width
                     && event.row >= area.y
                     && event.row < area.y + area.height;
-                // The state strip's pending-pause line withdraws the pause.
-                if self.pause_requested && self.pause_row == Some(event.row) {
-                    self.cancel_pause();
-                    return vec![PanelEvent::NeedsRedraw];
-                }
-                // A goal or loop row's `✕` stops it, as `/goal stop` and
-                // `/loop stop` do (one cell of slack either side).
-                if let Some(&(_, kind)) = self
-                    .autorun_stops
-                    .iter()
-                    .find(|(at, _)| at.y == event.row && event.column.abs_diff(at.x) <= 1)
+                // A row of the state strip: its `✕` (one cell of slack
+                // either side) calls it off, the rest of it shows it.
+                if let Some(&(_, target, stop)) =
+                    self.strip_hits.iter().find(|(y, ..)| *y == event.row)
                 {
-                    match kind {
-                        crate::render::Autorun::Goal => self.stop_goal(),
-                        crate::render::Autorun::Loop => self.stop_loop(),
-                    }
-                    self.settle_restored();
-                    return vec![PanelEvent::NeedsRedraw];
-                }
-                // Elsewhere on the row, its latest run comes into view.
-                if let Some(&(_, kind)) =
-                    self.autorun_stops.iter().find(|(at, _)| at.y == event.row)
-                {
-                    if let Some(index) = self.autorun_block(kind) {
-                        self.chat_focus = true;
-                        self.follow = false;
-                        self.selected = index;
-                        self.scroll_selected_into_view();
-                    }
-                    return vec![PanelEvent::NeedsRedraw];
-                }
-                // A running subagent's row selects its block and brings it
-                // into view.
-                if let Some(&(_, index)) = self.task_rows.iter().find(|(y, _)| *y == event.row) {
-                    self.chat_focus = true;
-                    self.follow = false;
-                    self.selected = index;
-                    self.scroll_selected_into_view();
-                    return vec![PanelEvent::NeedsRedraw];
+                    let on_stop = stop && event.column.abs_diff(self.strip_stop_x) <= 1;
+                    return self.click_strip(target, on_stop);
                 }
                 // Under the banner the notices take no clicks: the banner's
                 // own rows did above.

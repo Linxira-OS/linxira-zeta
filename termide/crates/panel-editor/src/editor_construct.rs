@@ -52,11 +52,15 @@ impl Editor {
             find_bar_focus_buffer: false,
             modal_request: None,
             pending_upload: None,
+            saved_paths: Vec::new(),
+            save_gate: false,
+            gated_save: false,
             config_update: None,
             status_message: None,
             scroll_follows_cursor: true,
             vim,
             symbol_lines: Vec::new(),
+            breakpoints_synced: 0,
             is_stale: false,
             hotkeys: HotkeyTable::default(),
             last_config_ptr: 0,
@@ -113,7 +117,7 @@ impl Editor {
             None
         };
 
-        Ok(Self {
+        let mut editor = Self {
             config,
             buffer,
             cursor: Cursor::new(),
@@ -131,17 +135,23 @@ impl Editor {
             find_bar_focus_buffer: false,
             modal_request: None,
             pending_upload: None,
+            saved_paths: Vec::new(),
+            save_gate: false,
+            gated_save: false,
             config_update: None,
             status_message: None,
             scroll_follows_cursor: true,
             vim,
             symbol_lines: Vec::new(),
+            breakpoints_synced: 0,
             is_stale: false,
             hotkeys: HotkeyTable::default(),
             last_config_ptr: 0,
             tab_size_override: None,
             syntax_picker: None,
-        })
+        };
+        editor.reload_breakpoints();
+        Ok(editor)
     }
 
     /// Create editor with text (for displaying help, etc.)
@@ -173,11 +183,15 @@ impl Editor {
             find_bar_focus_buffer: false,
             modal_request: None,
             pending_upload: None,
+            saved_paths: Vec::new(),
+            save_gate: false,
+            gated_save: false,
             config_update: None,
             status_message: None,
             scroll_follows_cursor: true,
             vim: None, // view_only mode doesn't have vim
             symbol_lines: Vec::new(),
+            breakpoints_synced: 0,
             is_stale: false,
             hotkeys: HotkeyTable::default(),
             last_config_ptr: 0,

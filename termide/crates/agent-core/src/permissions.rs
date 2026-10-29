@@ -161,8 +161,12 @@ fn not_read_only(call: &ToolCall) -> Option<String> {
     match call.name.as_str() {
         // The web tools read the web; nothing on this machine changes. A
         // question to the user changes nothing either, nor does `recall`,
-        // which only reads the project's history and code.
-        "read" | "skill" | "fetch" | "web_search" | "question" | "recall" => None,
+        // which only reads the project's history and code, or `agents`,
+        // which lists the panels.
+        "read" | "skill" | "fetch" | "web_search" | "question" | "recall" | "agents" => None,
+        // Reading the debug session changes nothing; every other action runs
+        // or stops the program.
+        "debug" if call.arguments["action"] == "state" => None,
         "bash" => {
             let parsed = split_shell(call.arguments["command"].as_str().unwrap_or(""));
             if parsed.has_substitution {
@@ -185,7 +189,13 @@ fn not_read_only(call: &ToolCall) -> Option<String> {
 /// [`Mode::Plan`]. It sits first in the hook chain, ahead of command hooks,
 /// so nothing — not even a hook's approval — lets a change through in plan
 /// mode; in every other mode it does nothing. A delegation to another agent
-/// goes through: the subagent runs in plan mode under a guard of its own.
+/// goes through: the subagent runs in plan mode under a guard of its own. So
+/// does an MCP tool: only its server and the user know what it changes, so
+/// the permission rules decide it, and ask when they do not. And so does
+/// `suggest_command`, which runs nothing itself: the panel shows its card
+/// without `[Run]` in plan mode, so the user can still copy the command.
+/// `send_message` stays refused: the agent it reaches is not in plan mode,
+/// and could make the change this one may not.
 pub struct PlanGuard {
     mode: ModeHandle,
     /// What the model reads for a refusal.
@@ -213,8 +223,11 @@ impl PlanGuard {
 }
 
 impl Hooks for PlanGuard {
-    fn before_tool_call(&mut self, call: &ToolCall, _ctx: &ToolContext) -> ToolDecision {
-        if self.mode.get() != Mode::Plan || call.name == "task" {
+    fn before_tool_call(&mut self, call: &ToolCall, ctx: &ToolContext) -> ToolDecision {
+        if self.mode.get() != Mode::Plan
+            || matches!(call.name.as_str(), "task" | "suggest_command")
+            || ctx.tool.mcp
+        {
             return ToolDecision::Allow;
         }
         let Some(what) = not_read_only(call) else {
@@ -293,6 +306,12 @@ pub struct PermissionRules {
     /// rules because they count in modes those do not; never written out.
     #[serde(skip)]
     pub session: RuleTables,
+    /// "Allow always" answers given for the project, kept in termide's own
+    /// data rather than in the repository (whose config may not allow
+    /// anything); they count as the configured rules do. Never written out
+    /// with the config.
+    #[serde(skip)]
+    pub granted: RuleTables,
 }
 
 impl PermissionRules {
@@ -309,7 +328,9 @@ impl PermissionRules {
     /// `subject`.
     #[must_use]
     pub fn evaluate(&self, tool: &str, subject: &str) -> Option<Decision> {
-        evaluate_rules(&self.tools, tool, subject)
+        let configured = evaluate_rules(&self.tools, tool, subject);
+        let granted = evaluate_rules(&self.granted, tool, subject);
+        configured.max(granted)
     }
 
     /// Strictest decision among this session's answers for `tool` that match
@@ -323,9 +344,10 @@ impl PermissionRules {
     /// mode sets aside.
     #[must_use]
     pub fn evaluate_narrow(&self, tool: &str, subject: &str) -> Option<Decision> {
-        self.tools
-            .get(tool)?
-            .iter()
+        [&self.tools, &self.granted]
+            .into_iter()
+            .filter_map(|tables| tables.get(tool))
+            .flatten()
             .filter(|(pattern, decision)| {
                 **decision != Decision::Allow || !broad_allow(tool, pattern)
             })
@@ -554,6 +576,12 @@ pub struct PermissionEnvelope {
     /// Cancelled once no one waits for the answer any more — the call was
     /// given up — so the panel takes the card down.
     pub withdrawn: CancelToken,
+    /// The delegate that asks, when it is not the panel's own agent: its
+    /// card is headed with its name, and what it grants stays with its task.
+    pub delegate: Option<String>,
+    /// The id of the `task` call that handed the delegate its task, so a
+    /// panel following that task can take the card.
+    pub task: Option<String>,
 }
 
 /// Cloneable, so the hooks of calls that come in another way — tools served
@@ -563,6 +591,56 @@ pub struct ChannelPrompter {
     tx: Sender<PermissionEnvelope>,
     cancel: CancelToken,
     next_id: u64,
+    /// Who asks, when it is not the panel's own agent.
+    delegate: Option<String>,
+    /// The `task` call that handed it its task.
+    task: Option<String>,
+    /// Ends the wait besides `cancel`: a delegate's own stop, which the
+    /// panel's run does not see.
+    stop: Option<CancelToken>,
+}
+
+impl std::fmt::Debug for ChannelPrompter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChannelPrompter").finish_non_exhaustive()
+    }
+}
+
+impl ChannelPrompter {
+    /// This prompter for the delegate `agent`, whose run ends with `stop`:
+    /// its requests reach the same user, on cards headed with its name.
+    #[must_use]
+    pub fn for_delegate(&self, agent: &str, stop: CancelToken) -> Self {
+        Self {
+            delegate: Some(agent.to_string()),
+            stop: Some(stop),
+            ..self.clone()
+        }
+    }
+
+    /// This prompter for the task the `task` call `call` handed over: its
+    /// cards say so, for a panel following the task to take them.
+    #[must_use]
+    pub fn for_task(&self, call: &str) -> Self {
+        Self {
+            task: Some(call.to_string()),
+            ..self.clone()
+        }
+    }
+
+    /// This prompter, no longer ending with the panel's run: for a delegate
+    /// handed over in the background, which only its own stop ends.
+    #[must_use]
+    pub fn detached(&self) -> Self {
+        Self {
+            cancel: CancelToken::new(),
+            ..self.clone()
+        }
+    }
+
+    fn stopped(&self) -> bool {
+        self.cancel.is_cancelled() || self.stop.as_ref().is_some_and(CancelToken::is_cancelled)
+    }
 }
 
 /// Build a prompter and the receiver the panel polls from `tick()`.
@@ -573,6 +651,9 @@ pub fn permission_channel(cancel: CancelToken) -> (ChannelPrompter, Receiver<Per
             tx,
             cancel,
             next_id: 0,
+            delegate: None,
+            task: None,
+            stop: None,
         },
         rx,
     )
@@ -597,6 +678,8 @@ impl PermissionPrompter for ChannelPrompter {
             request: request.clone(),
             reply,
             withdrawn: withdrawn.clone(),
+            delegate: self.delegate.clone(),
+            task: self.task.clone(),
         };
         if self.tx.send(envelope).is_err() {
             // The panel is gone; nobody can approve anything.
@@ -605,9 +688,7 @@ impl PermissionPrompter for ChannelPrompter {
         loop {
             match answer.recv_timeout(Duration::from_millis(100)) {
                 Ok(answer) => return answer,
-                Err(RecvTimeoutError::Timeout)
-                    if self.cancel.is_cancelled() || withdrawn.is_cancelled() =>
-                {
+                Err(RecvTimeoutError::Timeout) if self.stopped() || withdrawn.is_cancelled() => {
                     withdrawn.cancel();
                     return PermissionAnswer::Deny;
                 }
@@ -751,7 +832,7 @@ impl PermissionHooks {
             return self.judge_command(&subject, ctx).decision;
         }
 
-        if let Some(decision) = self.rule(&call.name, &subject) {
+        if let Some(decision) = self.rule_for(call, &subject, ctx) {
             return decision;
         }
         let inside = inside_project(call, ctx);
@@ -774,6 +855,12 @@ impl PermissionHooks {
             // A query reads the web; a fetched URL can carry data out, so the
             // reviewer sees it.
             (Mode::Auto, "web_search") => Decision::Allow,
+            // An MCP tool its server declares read-only passes plan mode; any
+            // other asks, since only the user can tell whether it changes
+            // something.
+            // `edit` lets it through too, as it does the web.
+            (Mode::Plan | Mode::Edit, _) if ctx.tool.mcp && ctx.tool.read_only => Decision::Allow,
+            (Mode::Plan, _) if ctx.tool.mcp => Decision::Ask,
             // Plan mode asks before reading outside the project and refuses
             // what could change something.
             (Mode::Plan, "read") => Decision::Ask,
@@ -784,6 +871,20 @@ impl PermissionHooks {
 }
 
 impl PermissionHooks {
+    /// The strictest decision among the rules that count in the mode for
+    /// `call`, whose subject is `text`. An MCP tool in plan mode is held to
+    /// the configured rules in full, its `allow`s included: plan mode lets
+    /// it through only on the user's word, and a rule is that word given
+    /// ahead of time.
+    fn rule_for(&self, call: &ToolCall, text: &str, ctx: &ToolContext) -> Option<Decision> {
+        if self.mode.get() == Mode::Plan && ctx.tool.mcp {
+            let configured = self.rules.evaluate(&call.name, text);
+            let session = self.rules.evaluate_session(&call.name, text);
+            return configured.into_iter().chain(session).max();
+        }
+        self.rule(&call.name, text)
+    }
+
     /// The strictest decision among the rules that count in the mode for
     /// `tool` and `text`.
     fn rule(&self, tool: &str, text: &str) -> Option<Decision> {
@@ -973,7 +1074,7 @@ impl PermissionHooks {
                 } else {
                     (
                         Vec::new(),
-                        self.rule(&call.name, &subject) == Some(Decision::Ask),
+                        self.rule_for(call, &subject, ctx) == Some(Decision::Ask),
                     )
                 };
                 if let Some(judged) = self.review(call, ctx, forced, &parts) {
@@ -988,7 +1089,11 @@ impl PermissionHooks {
                 let bundle = parts.len() > 1;
                 let destructive = parts.iter().any(|p| destructive_command(&p.text));
                 let delegating = parts.iter().any(|p| delegating_command(&p.text));
-                let can_persist = matches!(self.mode.get(), Mode::Configured | Mode::Auto)
+                // In plan mode an MCP tool counts its configured `allow`, so
+                // a lasting answer about one is worth keeping there too.
+                let mode = self.mode.get();
+                let can_persist = (matches!(mode, Mode::Configured | Mode::Auto)
+                    || (mode == Mode::Plan && ctx.tool.mcp))
                     && self.persist.is_some()
                     && !bundle
                     && !destructive
@@ -3557,6 +3662,91 @@ mod tests {
         assert_eq!(decide(Mode::Ask), Decision::Ask);
     }
 
+    fn mcp_ctx(read_only: bool) -> ToolContext {
+        ToolContext {
+            tool: crate::ToolTraits {
+                mcp: true,
+                read_only,
+            },
+            ..ctx()
+        }
+    }
+
+    /// Plan mode leaves an MCP tool to the user: the guard lets it by, a
+    /// tool its server marks read-only passes, any other asks — with "allow
+    /// always" on offer — unless a configured rule says otherwise.
+    #[test]
+    fn plan_mode_asks_about_an_mcp_tool() {
+        let ticket = call("kanban__get_ticket", json!({ "id": "42" }));
+        let mut guard = PlanGuard::new(ModeHandle::new(Mode::Plan));
+        assert!(matches!(
+            guard.before_tool_call(&ticket, &mcp_ctx(false)),
+            ToolDecision::Allow
+        ));
+        // A tool that is not MCP's is still refused by the guard.
+        assert!(matches!(
+            guard.before_tool_call(&ticket, &ctx()),
+            ToolDecision::Block { .. }
+        ));
+
+        let plan = || PermissionRules {
+            mode: Mode::Plan,
+            ..PermissionRules::default()
+        };
+        let (hooks_, _) = hooks(plan(), vec![]);
+        assert_eq!(hooks_.decide(&ticket, &mcp_ctx(true)), Decision::Allow);
+        assert_eq!(hooks_.decide(&ticket, &mcp_ctx(false)), Decision::Ask);
+        assert_eq!(hooks_.decide(&ticket, &ctx()), Decision::Deny);
+
+        // `edit` trusts the mark as plan mode does, and asks without it;
+        // `ask` asks either way, and its configured `allow`s stay set aside.
+        let in_mode = |mode| {
+            hooks(
+                PermissionRules {
+                    mode,
+                    ..rules("[kanban__get_ticket]\n\"*\" = \"allow\"")
+                },
+                vec![],
+            )
+            .0
+        };
+        assert_eq!(
+            in_mode(Mode::Edit).decide(&ticket, &mcp_ctx(true)),
+            Decision::Allow
+        );
+        assert_eq!(
+            in_mode(Mode::Edit).decide(&ticket, &mcp_ctx(false)),
+            Decision::Ask
+        );
+        assert_eq!(
+            in_mode(Mode::Ask).decide(&ticket, &mcp_ctx(true)),
+            Decision::Ask
+        );
+
+        // The configured rules count in full for an MCP tool in plan mode,
+        // the `allow`s too; a `deny` beats the server's read-only claim.
+        let configured = |text: &str| PermissionRules {
+            mode: Mode::Plan,
+            ..rules(text)
+        };
+        let (hooks_, _) = hooks(
+            configured("[kanban__get_ticket]\n\"*\" = \"allow\""),
+            vec![],
+        );
+        assert_eq!(hooks_.decide(&ticket, &mcp_ctx(false)), Decision::Allow);
+        let (hooks_, _) = hooks(configured("[kanban__get_ticket]\n\"*\" = \"deny\""), vec![]);
+        assert_eq!(hooks_.decide(&ticket, &mcp_ctx(true)), Decision::Deny);
+
+        // Asked in plan mode, the user may answer for good.
+        let (hooks_, asked) = hooks(plan(), vec![PermissionAnswer::AllowOnce]);
+        let mut hooks_ = hooks_.with_persist(Box::new(|_, _, _, _| {}));
+        assert!(matches!(
+            hooks_.before_tool_call(&ticket, &mcp_ctx(false)),
+            ToolDecision::Allow
+        ));
+        assert!(asked.lock().unwrap()[0].can_persist);
+    }
+
     #[test]
     fn plan_mode_refuses_every_change_and_lets_reads_through() {
         let mode = ModeHandle::new(Mode::Plan);
@@ -3603,6 +3793,31 @@ mod tests {
         assert!(blocked(
             &mut guard,
             &call("fs__search", json!({ "query": "x" }))
+        ));
+        // A suggestion runs nothing itself: its card comes up without
+        // `[Run]`. A message to another agent, not in plan mode, is refused.
+        assert!(!blocked(
+            &mut guard,
+            &call("suggest_command", json!({ "command": "cargo build" }))
+        ));
+        assert!(blocked(
+            &mut guard,
+            &call(
+                "send_message",
+                json!({ "to": 2, "kind": "info", "text": "edit it" })
+            )
+        ));
+        // Reading the debug session is look-only; running the program is not.
+        assert!(!blocked(
+            &mut guard,
+            &call("debug", json!({ "action": "state" }))
+        ));
+        assert!(blocked(
+            &mut guard,
+            &call(
+                "debug",
+                json!({ "action": "start", "command": "debug-app" })
+            )
         ));
 
         // Any other mode: the guard steps aside, the rules decide.
@@ -3970,5 +4185,47 @@ mod prompter_tests {
         let (mut prompter, rx) = permission_channel(CancelToken::new());
         drop(rx);
         assert_eq!(prompter.ask(&request()), PermissionAnswer::Deny);
+    }
+
+    #[test]
+    fn a_delegates_request_names_it_and_ends_with_its_task() {
+        let (panel, rx) = permission_channel(CancelToken::new());
+        let mut delegate = panel.for_delegate("search", CancelToken::new());
+        let worker = std::thread::spawn(move || delegate.ask(&request()));
+        let envelope = rx.recv().unwrap();
+        assert_eq!(envelope.delegate.as_deref(), Some("search"));
+        envelope.reply.send(PermissionAnswer::AllowOnce).unwrap();
+        assert_eq!(worker.join().unwrap(), PermissionAnswer::AllowOnce);
+
+        // The task stopped, the panel's run did not: the card is withdrawn.
+        let stop = CancelToken::new();
+        let mut delegate = panel.for_delegate("search", stop.clone());
+        let worker = std::thread::spawn(move || delegate.ask(&request()));
+        let envelope = rx.recv().unwrap();
+        stop.cancel();
+        assert_eq!(worker.join().unwrap(), PermissionAnswer::Deny);
+        assert!(envelope.withdrawn.is_cancelled());
+    }
+}
+
+#[cfg(test)]
+mod granted_tests {
+    use super::*;
+
+    #[test]
+    fn granted_rules_count_beside_the_configured_ones_and_stay_out_of_the_file() {
+        let mut rules = PermissionRules::default();
+        rules.add("bash", "rm *", Decision::Deny);
+        add_rule(&mut rules.granted, "bash", "cargo *", Decision::Allow);
+        add_rule(&mut rules.granted, "bash", "*", Decision::Allow);
+        assert_eq!(rules.evaluate("bash", "cargo test"), Some(Decision::Allow));
+        // The strictest still wins.
+        assert_eq!(rules.evaluate("bash", "rm -rf x"), Some(Decision::Deny));
+        assert_eq!(
+            rules.evaluate_narrow("bash", "cargo test"),
+            Some(Decision::Allow)
+        );
+        let text = toml::to_string(&rules).unwrap();
+        assert!(!text.contains("cargo"), "{text}");
     }
 }

@@ -53,6 +53,12 @@ pub enum QuestionReply {
 pub struct QuestionEnvelope {
     pub questions: Vec<Question>,
     pub reply: Sender<QuestionReply>,
+    /// Cancelled once no one waits for the reply any more — the run
+    /// stopped — so a set still waiting its turn is never shown.
+    pub withdrawn: CancelToken,
+    /// The id of the `task` call that handed the asking delegate its task,
+    /// so a panel following that task can take the card.
+    pub task: Option<String>,
 }
 
 /// Asks the panel's user. Cloneable and shared by the calls of one run; each
@@ -61,6 +67,13 @@ pub struct QuestionEnvelope {
 pub struct UserAsker {
     tx: Sender<QuestionEnvelope>,
     cancel: CancelToken,
+    /// Who asks, when it is not the panel's own agent: a delegate's
+    /// questions reach its parent's panel headed with its name.
+    on_behalf_of: Option<String>,
+    /// The `task` call that handed the delegate its task.
+    task: Option<String>,
+    /// Ends the wait besides `cancel`: a delegate's own stop.
+    stop: Option<CancelToken>,
 }
 
 impl std::fmt::Debug for UserAsker {
@@ -73,28 +86,85 @@ impl std::fmt::Debug for UserAsker {
 #[must_use]
 pub fn question_channel(cancel: CancelToken) -> (UserAsker, Receiver<QuestionEnvelope>) {
     let (tx, rx) = mpsc::channel();
-    (UserAsker { tx, cancel }, rx)
+    (
+        UserAsker {
+            tx,
+            cancel,
+            on_behalf_of: None,
+            task: None,
+            stop: None,
+        },
+        rx,
+    )
 }
 
 impl UserAsker {
     /// Put `questions` to the user and wait for the reply. A stopped run, or
     /// a panel that went away, counts as declined.
     #[must_use]
-    pub fn ask(&self, questions: Vec<Question>) -> QuestionReply {
+    pub fn ask(&self, mut questions: Vec<Question>) -> QuestionReply {
+        if let Some(agent) = &self.on_behalf_of {
+            for question in &mut questions {
+                question.question = format!("& {agent} · {}", question.question);
+            }
+        }
         let (reply, answer) = mpsc::channel();
-        let envelope = QuestionEnvelope { questions, reply };
+        let withdrawn = CancelToken::new();
+        let envelope = QuestionEnvelope {
+            questions,
+            reply,
+            withdrawn: withdrawn.clone(),
+            task: self.task.clone(),
+        };
         if self.tx.send(envelope).is_err() {
             return QuestionReply::Declined;
         }
+        let stopped = || {
+            self.cancel.is_cancelled() || self.stop.as_ref().is_some_and(CancelToken::is_cancelled)
+        };
         loop {
             match answer.recv_timeout(Duration::from_millis(100)) {
                 Ok(reply) => return reply,
-                Err(RecvTimeoutError::Timeout) if self.cancel.is_cancelled() => {
+                Err(RecvTimeoutError::Timeout) if stopped() => {
+                    withdrawn.cancel();
                     return QuestionReply::Declined;
                 }
                 Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => return QuestionReply::Declined,
             }
+        }
+    }
+
+    /// This asker for the delegate `agent`: its questions reach the same
+    /// user, each headed `& <agent> · ` so they never read as the panel's
+    /// own agent's.
+    #[must_use]
+    pub fn for_delegate(&self, agent: &str) -> Self {
+        Self {
+            on_behalf_of: Some(agent.to_string()),
+            ..self.clone()
+        }
+    }
+
+    /// This asker for the task the `task` call `call` handed over: its cards
+    /// say so, for a panel following the task to take them.
+    #[must_use]
+    pub fn for_task(&self, call: &str) -> Self {
+        Self {
+            task: Some(call.to_string()),
+            ..self.clone()
+        }
+    }
+
+    /// This asker for a delegate the panel's run does not wait for — one
+    /// handed over in the background: a stop of that run leaves its
+    /// questions up, and only `stop`, its own, takes them back.
+    #[must_use]
+    pub fn detached(&self, stop: CancelToken) -> Self {
+        Self {
+            cancel: CancelToken::new(),
+            stop: Some(stop),
+            ..self.clone()
         }
     }
 }
@@ -136,6 +206,17 @@ mod tests {
     }
 
     #[test]
+    fn a_delegates_question_says_who_asks() {
+        let (asker, rx) = question_channel(CancelToken::new());
+        let asker = asker.for_delegate("search");
+        let worker = std::thread::spawn(move || asker.ask(vec![question()]));
+        let envelope = rx.recv().unwrap();
+        assert_eq!(envelope.questions[0].question, "& search · Which crates?");
+        envelope.reply.send(QuestionReply::Declined).unwrap();
+        assert_eq!(worker.join().unwrap(), QuestionReply::Declined);
+    }
+
+    #[test]
     fn a_dropped_question_or_a_stop_declines() {
         let (asker, rx) = question_channel(CancelToken::new());
         let worker = std::thread::spawn(move || asker.ask(vec![question()]));
@@ -147,5 +228,23 @@ mod tests {
         let worker = std::thread::spawn(move || asker.ask(vec![question()]));
         cancel.cancel();
         assert_eq!(worker.join().unwrap(), QuestionReply::Declined);
+    }
+
+    #[test]
+    fn a_background_delegates_question_outlives_the_panels_stop() {
+        let panel_run = CancelToken::new();
+        let (asker, rx) = question_channel(panel_run.clone());
+        let own = CancelToken::new();
+        let delegate = asker.for_delegate("search").detached(own.clone());
+        let worker = std::thread::spawn(move || delegate.ask(vec![question()]));
+        let envelope = rx.recv().unwrap();
+        // The panel's run stops: the question stays up.
+        panel_run.cancel();
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        assert!(!envelope.withdrawn.is_cancelled());
+        // Its own stop takes it back, and marks it so.
+        own.cancel();
+        assert_eq!(worker.join().unwrap(), QuestionReply::Declined);
+        assert!(envelope.withdrawn.is_cancelled());
     }
 }

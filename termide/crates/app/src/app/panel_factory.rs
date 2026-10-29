@@ -49,14 +49,18 @@ impl App {
         Ok(())
     }
 
-    /// Save shell preference to the active config target (project file
-    /// when one exists, global otherwise). The in-memory `state.config`
-    /// is updated so newly-spawned terminals see the new default shell
-    /// without a restart.
+    /// Save shell preference to the global settings, even with a project
+    /// file: a project's file may not name the shell (it is a program
+    /// termide starts), so it would be dropped there at the next load. The
+    /// global layer is saved, not the running config, which carries the
+    /// project's settings. Callers have already set it in `state.config`, so
+    /// newly-spawned terminals see the new default shell without a restart.
     pub(super) fn save_shell_preference(&mut self, shell_path: &str) -> Result<()> {
-        let mut config = (*self.state.config).clone();
-        config.terminal.default_shell = Some(shell_path.to_string());
-        self.save_config_to_active_target(config)
+        let mut global = (*self.state.global_baseline).clone();
+        global.terminal.default_shell = Some(shell_path.to_string());
+        global.save_global()?;
+        self.state.global_baseline = std::sync::Arc::new(global);
+        Ok(())
     }
 
     /// Create new file manager
@@ -186,7 +190,17 @@ impl App {
             .runtime_overrides
             .applied_to(&self.state.global_baseline);
         let in_project = termide_config::project_config_path(&self.project_root).exists();
-        let modal = SettingsModal::new(config, global_layer, in_project);
+        // The flags a debugger gets on this system with none set (Delve's in
+        // Termux), for the Debug tab to show.
+        let debugger_defaults = termide_debug::dap::Adapter::ALL
+            .into_iter()
+            .map(|adapter| (adapter.as_str().to_string(), adapter.default_args()))
+            .filter(|(_, args)| !args.is_empty())
+            .collect();
+        let plugin_names = self.plugin_names();
+        let modal = SettingsModal::new(config, global_layer, in_project)
+            .with_plugins(plugin_names)
+            .with_debugger_defaults(debugger_defaults);
         self.settings_model_fetch = None;
         self.state.set_pending_action(
             crate::state::PendingAction::Settings,
@@ -320,7 +334,8 @@ impl App {
         self.close_help_panels();
 
         let paths = self.collect_repo_search_paths();
-        let git_status_panel = termide_panel_git_status::GitStatusPanel::new(&paths);
+        let git_status_panel =
+            termide_panel_git_status::GitStatusPanel::new(&paths, Some(&self.project_root));
         self.add_panel(Box::new(git_status_panel));
         self.auto_save_layout();
         Ok(())
@@ -380,7 +395,8 @@ impl App {
 
         if !self.find_and_focus_panel_by_name("git_log") {
             let paths = self.collect_repo_search_paths();
-            let git_log_panel = termide_panel_git_log::GitLogPanel::new(&paths);
+            let git_log_panel =
+                termide_panel_git_log::GitLogPanel::new(&paths, Some(&self.project_root));
             self.add_panel(Box::new(git_log_panel));
         }
         self.auto_save_layout();

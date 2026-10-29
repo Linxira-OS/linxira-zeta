@@ -12,6 +12,11 @@ use termide_i18n as i18n;
 impl App {
     /// Handle panel close request with confirmation if needed
     pub(crate) fn handle_close_panel_request(&mut self) -> Result<()> {
+        // A view shown over the layout closes; the panel under it stays.
+        if self.layout_manager.overlay.is_some() {
+            self.close_overlay();
+            return Ok(());
+        }
         // Check if confirmation is required before closing active panel
         if let Some(panel) = self.layout_manager.active_panel_mut() {
             if let Some(_message) = panel.needs_close_confirmation() {
@@ -638,11 +643,21 @@ impl App {
             .unwrap_or("?")
             .to_string();
 
+        let opened = file_path.clone();
         match Editor::open_file_with_config(file_path, self.state.editor_config()) {
             Ok(mut editor_panel) => {
+                self.emit_plugin_file_event(
+                    termide_plugins::protocol::events::FILE_OPENED,
+                    &opened,
+                );
                 // Initialize LSP for the editor
                 if let Some(ref mut lsp_manager) = self.state.lsp_manager {
                     editor_panel.init_lsp(lsp_manager);
+                }
+                // What is known of the file already: a plugin's marks, or a
+                // server's from a file opened before.
+                if let Some(diagnostics) = self.state.all_diagnostics.get(&opened) {
+                    editor_panel.update_diagnostics(diagnostics.clone());
                 }
 
                 self.add_panel(Box::new(editor_panel));

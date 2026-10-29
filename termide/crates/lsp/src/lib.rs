@@ -13,8 +13,10 @@
 //! - `std::sync::mpsc` channels for async communication
 //! - Non-blocking `try_recv()` polling in the main event loop
 
+pub mod extra;
 mod protocol;
 mod server;
+mod workspace;
 
 pub use lsp_types::CompletionTriggerKind;
 pub use protocol::{JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
@@ -22,7 +24,7 @@ pub use server::{LspServer, LspServerConfig, ServerStatus};
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, OnceLock};
+use std::sync::{mpsc, Mutex, OnceLock};
 
 use anyhow::{Context, Result};
 use lsp_types::{
@@ -32,7 +34,8 @@ use lsp_types::{
 use url::Url;
 
 /// Convert a file path to an LSP Uri. Used across the crate (lib, server).
-pub(crate) fn path_to_uri(path: &Path) -> Option<Uri> {
+/// The `file://` URI of `path`, as the servers are told it.
+pub fn path_to_uri(path: &Path) -> Option<Uri> {
     let url = Url::from_file_path(path).ok()?;
     url.as_str().parse().ok()
 }
@@ -58,6 +61,13 @@ pub struct LspManager {
     apply_edit_rx: mpsc::Receiver<WorkspaceEdit>,
     /// Sender for apply-edit requests (cloned to each server)
     apply_edit_tx: mpsc::Sender<WorkspaceEdit>,
+    /// Workspace roots the toolchain named, keyed by (language_id, package
+    /// root), so it is asked once per package rather than on every request.
+    workspace_roots: Mutex<HashMap<(String, PathBuf), PathBuf>>,
+    /// The workspace of the project file last opened per language, whose
+    /// server takes the library files opened from it (see
+    /// [`workspace::is_library_file`]).
+    last_roots: Mutex<HashMap<String, PathBuf>>,
 }
 
 impl std::fmt::Debug for LspManager {
@@ -81,6 +91,8 @@ impl LspManager {
             diagnostics_tx,
             apply_edit_rx,
             apply_edit_tx,
+            workspace_roots: Mutex::new(HashMap::new()),
+            last_roots: Mutex::new(HashMap::new()),
         }
     }
 
@@ -167,6 +179,51 @@ impl LspManager {
         }
     }
 
+    /// The root a server for `file_path` runs in: the nearest root marker,
+    /// widened to the workspace the toolchain puts that package in (see
+    /// [`workspace`]). Files without a marker use their own directory.
+    fn resolve_root(&self, lang: &str, file_path: &Path, markers: &[String]) -> PathBuf {
+        if workspace::is_library_file(lang, file_path) {
+            if let Some(root) = self.library_root(lang) {
+                return root;
+            }
+        }
+        let Some(package_root) = Self::find_workspace_root(file_path, markers) else {
+            return file_path.parent().unwrap_or(Path::new("/")).to_path_buf();
+        };
+        let key = (lang.to_string(), package_root);
+        let mut cache = self
+            .workspace_roots
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(root) = cache.get(&key) {
+            return root.clone();
+        }
+        let root = workspace::workspace_root(lang, &key.1).unwrap_or_else(|| key.1.clone());
+        cache.insert(key, root.clone());
+        root
+    }
+
+    /// The running server's workspace a library file of `lang` goes to: the
+    /// one of the project file opened last, or else any running for `lang`.
+    /// `None` when none runs, and the file gets a server of its own.
+    fn library_root(&self, lang: &str) -> Option<PathBuf> {
+        let last = self
+            .last_roots
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(lang)
+            .cloned();
+        last.filter(|root| self.servers.contains_key(&(lang.to_string(), root.clone())))
+            .or_else(|| {
+                self.servers
+                    .keys()
+                    .filter(|(l, _)| l == lang)
+                    .map(|(_, root)| root.clone())
+                    .min()
+            })
+    }
+
     /// Ensure a server is running for the given language and file
     pub fn ensure_server(&mut self, lang: &str, file_path: &Path) -> Result<()> {
         let server_config = self
@@ -176,10 +233,15 @@ impl LspManager {
             .context(format!("No LSP server configured for language: {}", lang))?
             .clone();
 
-        let workspace_root = Self::find_workspace_root(file_path, &server_config.root_markers)
-            .unwrap_or_else(|| file_path.parent().unwrap_or(Path::new("/")).to_path_buf());
+        let workspace_root = self.resolve_root(lang, file_path, &server_config.root_markers);
 
         let key = (lang.to_string(), workspace_root.clone());
+        if !workspace::is_library_file(lang, file_path) {
+            self.last_roots
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .insert(lang.to_string(), workspace_root.clone());
+        }
 
         if self.servers.contains_key(&key) {
             return Ok(());
@@ -202,8 +264,7 @@ impl LspManager {
     /// Get server for language and file (if running)
     fn get_server(&self, lang: &str, file_path: &Path) -> Option<&LspServer> {
         let server_config = self.config.servers.get(lang)?;
-        let workspace_root = Self::find_workspace_root(file_path, &server_config.root_markers)
-            .unwrap_or_else(|| file_path.parent().unwrap_or(Path::new("/")).to_path_buf());
+        let workspace_root = self.resolve_root(lang, file_path, &server_config.root_markers);
 
         let key = (lang.to_string(), workspace_root);
         self.servers.get(&key)
@@ -218,9 +279,14 @@ impl LspManager {
         trigger_kind: CompletionTriggerKind,
         trigger_character: Option<String>,
     ) -> Option<mpsc::Receiver<Option<CompletionResponse>>> {
-        let server = self.get_server(lang, file_path)?;
-        let uri = path_to_uri(file_path)?;
-        Some(server.completion(uri, position, trigger_kind, trigger_character))
+        let from_server = self.get_server(lang, file_path).and_then(|server| {
+            let uri = path_to_uri(file_path)?;
+            Some(server.completion(uri, position, trigger_kind, trigger_character))
+        });
+        let extras = extra::extra()
+            .map(|extra| extra.completion(lang, file_path, position))
+            .unwrap_or_default();
+        extra::merged(from_server, extras, extra::merge_completions)
     }
 
     /// Completion trigger characters advertised by the server handling this
@@ -239,9 +305,14 @@ impl LspManager {
         range: lsp_types::Range,
         diagnostics: Vec<lsp_types::Diagnostic>,
     ) -> Option<mpsc::Receiver<Option<lsp_types::CodeActionResponse>>> {
-        let server = self.get_server(lang, file_path)?;
-        let uri = path_to_uri(file_path)?;
-        Some(server.code_action(uri, range, diagnostics))
+        let extras = extra::extra()
+            .map(|extra| extra.code_action(lang, file_path, range, &diagnostics))
+            .unwrap_or_default();
+        let from_server = self.get_server(lang, file_path).and_then(|server| {
+            let uri = path_to_uri(file_path)?;
+            Some(server.code_action(uri, range, diagnostics))
+        });
+        extra::merged(from_server, extras, extra::merge_actions)
     }
 
     /// Whether the server for this file resolves code actions lazily.
@@ -288,9 +359,14 @@ impl LspManager {
         file_path: &Path,
         position: Position,
     ) -> Option<mpsc::Receiver<Option<Hover>>> {
-        let server = self.get_server(lang, file_path)?;
-        let uri = path_to_uri(file_path)?;
-        Some(server.hover(uri, position))
+        let from_server = self.get_server(lang, file_path).and_then(|server| {
+            let uri = path_to_uri(file_path)?;
+            Some(server.hover(uri, position))
+        });
+        let extras = extra::extra()
+            .map(|extra| extra.hover(lang, file_path, position))
+            .unwrap_or_default();
+        extra::merged(from_server, extras, extra::merge_hovers)
     }
 
     /// Request go-to-definition at position
@@ -300,9 +376,14 @@ impl LspManager {
         file_path: &Path,
         position: Position,
     ) -> Option<mpsc::Receiver<Option<GotoDefinitionResponse>>> {
-        let server = self.get_server(lang, file_path)?;
-        let uri = path_to_uri(file_path)?;
-        Some(server.goto_definition(uri, position))
+        let from_server = self.get_server(lang, file_path).and_then(|server| {
+            let uri = path_to_uri(file_path)?;
+            Some(server.goto_definition(uri, position))
+        });
+        let extras = extra::extra()
+            .map(|extra| extra.definition(lang, file_path, position))
+            .unwrap_or_default();
+        extra::merged(from_server, extras, extra::merge_definitions)
     }
 
     /// Request find-references at position
@@ -313,9 +394,14 @@ impl LspManager {
         position: Position,
         include_declaration: bool,
     ) -> Option<mpsc::Receiver<Option<Vec<Location>>>> {
-        let server = self.get_server(lang, file_path)?;
-        let uri = path_to_uri(file_path)?;
-        Some(server.references(uri, position, include_declaration))
+        let from_server = self.get_server(lang, file_path).and_then(|server| {
+            let uri = path_to_uri(file_path)?;
+            Some(server.references(uri, position, include_declaration))
+        });
+        let extras = extra::extra()
+            .map(|extra| extra.references(lang, file_path, position))
+            .unwrap_or_default();
+        extra::merged(from_server, extras, extra::merge_references)
     }
 
     /// Request rename symbol at position

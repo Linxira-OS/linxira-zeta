@@ -2,7 +2,7 @@
 //! one. The page edits the connection in place in the config, so the modal's
 //! own Apply and Cancel cover it like every other field.
 
-use termide_config::{Connection, ReasoningParam};
+use termide_config::Connection;
 use termide_i18n as i18n;
 use unicode_width::UnicodeWidthStr;
 
@@ -19,13 +19,11 @@ pub(super) const BASE_URL: usize = 2;
 pub(super) const API_KEY_ENV: usize = 3;
 pub(super) const MODEL: usize = 4;
 pub(super) const CONTEXT_WINDOW: usize = 5;
-pub(super) const PREFILL_PROGRESS: usize = 6;
-pub(super) const REASONING_PARAM: usize = 7;
-pub(super) const DEFAULT: usize = 8;
-pub(super) const SUBAGENTS: usize = 9;
-pub(super) const MAX_REQUESTS: usize = 10;
-pub(super) const REVIEWER: usize = 11;
-pub(super) const CONTEXT_LIMIT: usize = 12;
+pub(super) const DEFAULT: usize = 6;
+pub(super) const SUBAGENTS: usize = 7;
+pub(super) const MAX_REQUESTS: usize = 8;
+pub(super) const REVIEWER: usize = 9;
+pub(super) const CONTEXT_LIMIT: usize = 10;
 
 /// The connection page, while one is open.
 #[derive(Debug, Clone)]
@@ -57,9 +55,10 @@ pub(super) fn connection_buttons() -> [String; 2] {
     ]
 }
 
-/// The column span of each button on a row starting at `x`.
-pub(super) fn connection_button_spans(x: usize) -> [(usize, usize); 2] {
-    let [back, delete] = connection_buttons().map(|label| label.width());
+/// The column span of each of a page's two buttons, `labels` as drawn, on a
+/// row starting at `x`.
+pub(super) fn page_button_spans(labels: &[String; 2], x: usize) -> [(usize, usize); 2] {
+    let [back, delete] = [labels[0].width(), labels[1].width()];
     let back = (x, x + back);
     let delete_x = back.1 + BUTTON_GAP;
     [back, (delete_x, delete_x + delete)]
@@ -96,14 +95,6 @@ pub(super) fn connection_fields() -> Vec<FieldDescriptor> {
             field_type: FieldType::OptionalNumber,
         },
         FieldDescriptor {
-            label: t.settings_ai_connection_prefill_progress(),
-            field_type: FieldType::Bool,
-        },
-        FieldDescriptor {
-            label: t.settings_ai_connection_reasoning_param(),
-            field_type: FieldType::Enum,
-        },
-        FieldDescriptor {
             label: t.settings_ai_connection_default(),
             field_type: FieldType::Bool,
         },
@@ -124,27 +115,6 @@ pub(super) fn connection_fields() -> Vec<FieldDescriptor> {
             field_type: FieldType::OptionalNumber,
         },
     ]
-}
-
-/// Whether the connection talks to an OpenAI-compatible endpoint: neither a
-/// CLI agent nor the Messages API.
-fn speaks_openai(connection: &Connection) -> bool {
-    !connection.is_cli()
-        && !matches!(
-            connection.provider.as_str(),
-            "anthropic_compatible" | "anthropic"
-        )
-}
-
-/// How a reasoning parameter reads on the page: the field's own name, or
-/// the localized "auto" and "none".
-fn reasoning_param_label(param: ReasoningParam) -> String {
-    let t = i18n::t();
-    match param {
-        ReasoningParam::Auto => t.settings_value_auto().to_string(),
-        ReasoningParam::None => t.settings_value_none().to_string(),
-        param => param.label().to_string(),
-    }
 }
 
 /// How the subagents' connection `value` of `connection` reads: a name, or
@@ -171,11 +141,15 @@ fn provider_slug(provider: &str) -> &str {
 }
 
 impl SettingsModal {
-    /// Which tab's fields the content shows: the connection page's while one
-    /// is open, the active tab's otherwise.
+    /// Which tab's fields the content shows: the connection page's or the
+    /// LSP server page's while one is open, the active tab's otherwise.
     pub(super) fn field_tab(&self) -> SettingsTab {
         if self.active_tab == SettingsTab::Ai && self.connection_edit.is_some() {
             SettingsTab::Connection
+        } else if self.active_tab == SettingsTab::Lsp && self.lsp_server_edit.is_some() {
+            SettingsTab::LspServer
+        } else if self.active_tab == SettingsTab::Debug && self.debugger_edit.is_some() {
+            SettingsTab::DebuggerPage
         } else {
             self.active_tab
         }
@@ -216,7 +190,6 @@ impl SettingsModal {
     pub(super) fn connection_page_rows(&self) -> Vec<ContentRow> {
         use ContentRow::{ConnectionButtons, Field, Header, Spacer};
         let cli = self.edited().is_some_and(Connection::is_cli);
-        let openai = self.edited().is_some_and(speaks_openai);
         let mut rows = vec![
             Header(i18n::t().settings_header_connection()),
             Field(NAME),
@@ -231,9 +204,6 @@ impl SettingsModal {
         }
         if self.edited().is_some_and(Connection::takes_context_limit) {
             rows.push(Field(CONTEXT_LIMIT));
-        }
-        if openai {
-            rows.extend([Field(PREFILL_PROGRESS), Field(REASONING_PARAM)]);
         }
         // A CLI agent's requests go through its own process, not termide's.
         if !cli {
@@ -425,8 +395,6 @@ impl SettingsModal {
                 || i18n::t().settings_value_auto().to_string(),
                 |n| n.to_string(),
             ),
-            PREFILL_PROGRESS => bool_str(connection.prefill_progress),
-            REASONING_PARAM => reasoning_param_label(connection.reasoning_param),
             DEFAULT => bool_str(self.config.ai.default_connection() == self.open_connection_name()),
             SUBAGENTS => subagents_label(connection, &connection.subagents),
             MAX_REQUESTS if connection.max_concurrent_requests == 0 => {
@@ -478,18 +446,11 @@ impl SettingsModal {
         }
     }
 
-    /// Toggle one of the page's switches: prefill progress, or whether new
-    /// sessions start on this connection. Exactly one is the default: turned
+    /// Toggle the page's switch of whether new sessions start on this
+    /// connection. Exactly one is the default: turned
     /// off, the default moves to the first other connection by name; the
     /// only one stays on.
     pub(super) fn toggle_connection_field(&mut self, index: usize) {
-        if index == PREFILL_PROGRESS {
-            if let Some(connection) = self.edited_mut() {
-                connection.prefill_progress = !connection.prefill_progress;
-                self.mark_dirty();
-            }
-            return;
-        }
         if index != DEFAULT {
             return;
         }
@@ -524,19 +485,6 @@ impl SettingsModal {
                 })
             }
             MODEL => Some(model_enum_options(&connection.model, &self.model_options)),
-            REASONING_PARAM => Some(EnumOptions {
-                values: ReasoningParam::ALL
-                    .iter()
-                    .map(|param| param.label().to_string())
-                    .collect(),
-                labels: ReasoningParam::ALL
-                    .iter()
-                    .map(|param| reasoning_param_label(*param))
-                    .collect(),
-                current: ReasoningParam::ALL
-                    .iter()
-                    .position(|param| *param == connection.reasoning_param),
-            }),
             REVIEWER => {
                 // Any connection reviews: a CLI agent through its subscription.
                 let values: Vec<String> = std::iter::once(String::new())
@@ -576,12 +524,6 @@ impl SettingsModal {
                     connection.model = value.to_string();
                 }
             }
-            REASONING_PARAM => {
-                let param = ReasoningParam::ALL.into_iter().find(|p| p.label() == value);
-                if let (Some(param), Some(connection)) = (param, self.edited_mut()) {
-                    connection.reasoning_param = param;
-                }
-            }
             SUBAGENTS => {
                 if let Some(connection) = self.edited_mut() {
                     connection.subagents = value.to_string();
@@ -596,8 +538,8 @@ impl SettingsModal {
         }
     }
 
-    /// Step the provider, the reasoning parameter or the subagents'
-    /// connection with Left/Right, wrapping.
+    /// Step the provider, the subagents' connection or the reviewer with
+    /// Left/Right, wrapping.
     pub(super) fn cycle_connection_field(&mut self, index: usize, forward: bool) {
         if index == SUBAGENTS {
             let choices = self.subagents_choices();
@@ -612,20 +554,6 @@ impl SettingsModal {
                 .collect();
             if let Some(connection) = self.edited_mut() {
                 step_value(&mut connection.reviewer, &choices, forward);
-            }
-            return;
-        }
-        if index == REASONING_PARAM {
-            if let Some(connection) = self.edited_mut() {
-                let mut value = connection.reasoning_param.label().to_string();
-                let values: Vec<String> = ReasoningParam::ALL
-                    .iter()
-                    .map(|param| param.label().to_string())
-                    .collect();
-                step_value(&mut value, &values, forward);
-                if let Some(param) = ReasoningParam::ALL.into_iter().find(|p| p.label() == value) {
-                    connection.reasoning_param = param;
-                }
             }
             return;
         }
@@ -815,10 +743,6 @@ impl SettingsModal {
                 .is_none_or(|(limit, least)| limit >= least);
         if !limit_taken {
             connection.context_window_limit = None;
-        }
-        if !speaks_openai(connection) {
-            connection.prefill_progress = false;
-            connection.reasoning_param = ReasoningParam::Auto;
         }
         let auto = self.connection_edit.as_ref().is_some_and(|e| e.auto_named);
         if let (true, Some(old)) = (auto, self.open_connection_name().map(str::to_string)) {
@@ -1294,8 +1218,8 @@ mod tests {
         type_text(&mut modal, "host");
         press(&mut modal, KeyCode::Enter);
 
-        // A double click on a field selects all of it, the first click being
-        // the one that opens it for editing.
+        // A double click on a field selects the word under it, the first
+        // click being the one that opens it for editing.
         let name_y = screen(&mut modal)
             .iter()
             .position(|row| row.contains(i18n::t().settings_ai_connection_name()))
@@ -1360,50 +1284,6 @@ mod tests {
         // An endpoint termide runs whole has none.
         modal.open_connection("local".into());
         assert!(modal.connection_hint().is_none());
-    }
-
-    #[test]
-    fn prefill_progress_is_an_openai_compatible_switch() {
-        let mut modal = ai_modal(with_local());
-        modal.open_connection("local".into());
-        assert_eq!(modal.connection_value(PREFILL_PROGRESS), "false");
-        modal.toggle_connection_field(PREFILL_PROGRESS);
-        assert!(modal.config.ai.connections["local"].prefill_progress);
-        assert!(modal.save_pending);
-        // The Messages API has no such field: the switch leaves the page and
-        // the file.
-        modal.apply_connection_enum(PROVIDER, "anthropic_compatible");
-        let name = modal.open_connection_name().unwrap().to_string();
-        assert!(!modal.config.ai.connections[&name].prefill_progress);
-        assert!(!modal
-            .content_rows()
-            .contains(&ContentRow::Field(PREFILL_PROGRESS)));
-    }
-
-    #[test]
-    fn the_reasoning_param_is_an_openai_compatible_choice() {
-        let mut modal = ai_modal(with_local());
-        modal.open_connection("local".into());
-        assert_eq!(
-            modal.connection_value(REASONING_PARAM),
-            i18n::t().settings_value_auto()
-        );
-        modal.cycle_connection_field(REASONING_PARAM, true);
-        assert_eq!(modal.connection_value(REASONING_PARAM), "reasoning_effort");
-        modal.apply_connection_enum(REASONING_PARAM, "enable_thinking");
-        assert_eq!(
-            modal.config.ai.connections["local"].reasoning_param,
-            ReasoningParam::EnableThinking
-        );
-        let options = modal.connection_enum_options(REASONING_PARAM).unwrap();
-        assert_eq!(options.current, Some(2));
-        // The Messages API asks by model: the choice leaves the page.
-        modal.apply_connection_enum(PROVIDER, "anthropic_compatible");
-        let name = modal.open_connection_name().unwrap().to_string();
-        assert!(modal.config.ai.connections[&name].reasoning_param.is_auto());
-        assert!(!modal
-            .content_rows()
-            .contains(&ContentRow::Field(REASONING_PARAM)));
     }
 
     #[test]

@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Condvar, Mutex, PoisonError, RwLock};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 use termide_agent_core::{
@@ -63,15 +63,43 @@ struct Shared {
     /// What every call runs with: its directory and whom to ask.
     context: ToolContext,
     token: String,
-    /// The cancel token of each call in flight, by its JSON-RPC id, for
-    /// `notifications/cancelled`.
-    running: Mutex<HashMap<String, CancelToken>>,
+    /// Each call in flight, by its JSON-RPC id: its cancel token, for
+    /// `notifications/cancelled`, and what it is.
+    running: Mutex<HashMap<String, Running>>,
     /// The details of finished calls — for termide's UI, never sent to the
     /// agent — as name, arguments and details, oldest first.
     details: Mutex<VecDeque<(String, Value, Value)>>,
     stop: AtomicBool,
     /// [`KEEPALIVE`]; shorter in tests.
     keepalive: Duration,
+    /// The agent's ids for a call, by its tool's name and arguments.
+    call_ids: RwLock<Option<CallIds>>,
+}
+
+/// The ids the agent gave its calls of tool `name` with `arguments` that it
+/// has announced: a call the server runs is known by the first of them
+/// not yet taken, as the panel's block of it is.
+pub type CallIds = Box<dyn Fn(&str, &Value) -> Vec<String> + Send + Sync>;
+
+/// A call in flight.
+struct Running {
+    /// The call's id, as the agent knows it or as the server made it up.
+    id: String,
+    cancel: CancelToken,
+    name: String,
+    arguments: Value,
+    started: Instant,
+}
+
+/// A call the server is running: its tool's name and arguments, and how long
+/// it has run.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunningCall {
+    /// As the agent knows it, when it said; else made up by the server.
+    pub id: String,
+    pub name: String,
+    pub arguments: Value,
+    pub elapsed: Duration,
 }
 
 /// A running server; dropping it stops it.
@@ -111,6 +139,7 @@ impl McpServer {
             details: Mutex::new(VecDeque::new()),
             stop: AtomicBool::new(false),
             keepalive,
+            call_ids: RwLock::new(None),
         });
         let serving = Arc::clone(&shared);
         let thread = std::thread::Builder::new()
@@ -185,6 +214,76 @@ impl McpServer {
             })?;
         kept.remove(index).map(|(.., details)| details)
     }
+
+    /// Whether a call is running. The agent may have stopped waiting on it:
+    /// Claude Code moves a long call to the background to take a message
+    /// typed meanwhile, and the call goes on here.
+    #[must_use]
+    pub fn is_running(&self) -> bool {
+        !self
+            .shared
+            .running
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_empty()
+    }
+
+    /// The calls running now, the longest-running first.
+    #[must_use]
+    pub fn running_calls(&self) -> Vec<RunningCall> {
+        let mut calls: Vec<RunningCall> = self
+            .shared
+            .running
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .values()
+            .map(|call| RunningCall {
+                id: call.id.clone(),
+                name: call.name.clone(),
+                arguments: call.arguments.clone(),
+                elapsed: call.started.elapsed(),
+            })
+            .collect();
+        calls.sort_by(|a, b| b.elapsed.cmp(&a.elapsed));
+        calls
+    }
+
+    /// Know each call by the id the agent gave it, from `ids`.
+    pub fn set_call_ids(&self, ids: CallIds) {
+        *self
+            .shared
+            .call_ids
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = Some(ids);
+    }
+
+    /// Cancel the call in flight known as `id`, as the user's stop does;
+    /// whether one was.
+    pub fn cancel_call(&self, id: &str) -> bool {
+        let running = self
+            .shared
+            .running
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let call = running.values().find(|call| call.id == id);
+        if let Some(call) = call {
+            call.cancel.cancel();
+        }
+        call.is_some()
+    }
+
+    /// Cancel every call in flight, as the user's stop does.
+    pub fn cancel_running(&self) {
+        for call in self
+            .shared
+            .running
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .values()
+        {
+            call.cancel.cancel();
+        }
+    }
 }
 
 impl Drop for McpServer {
@@ -198,14 +297,14 @@ impl Drop for McpServer {
                 .unwrap_or_else(PoisonError::into_inner),
         );
         self.shared.changed.notify_all();
-        for cancel in self
+        for call in self
             .shared
             .running
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .values()
         {
-            cancel.cancel();
+            call.cancel.cancel();
         }
         // Wake the accept loop so it sees the flag.
         let _ = TcpStream::connect(self.addr);
@@ -353,13 +452,13 @@ fn handle(shared: &Shared, message: &Value) -> Option<Value> {
     let Some(id) = message.get("id").cloned() else {
         if method == "notifications/cancelled" {
             let request = message["params"]["requestId"].to_string();
-            if let Some(cancel) = shared
+            if let Some(call) = shared
                 .running
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
                 .get(&request)
             {
-                cancel.cancel();
+                call.cancel.cancel();
             }
         }
         return None;
@@ -528,7 +627,7 @@ fn client_gone(stream: &TcpStream) -> bool {
 /// Run a `tools/call` the way the built-in loop runs a call; `cancel` stops
 /// it, and is cancelled too by a `notifications/cancelled` for its id.
 fn call_tool(shared: &Shared, id: &Value, params: &Value, cancel: CancelToken) -> Value {
-    let call = ToolCall {
+    let mut call = ToolCall {
         id: format!("mcp-{}", id.to_string().trim_matches('"')),
         name: params["name"].as_str().unwrap_or("").to_string(),
         arguments: match &params["arguments"] {
@@ -538,11 +637,37 @@ fn call_tool(shared: &Shared, id: &Value, params: &Value, cancel: CancelToken) -
         extra_content: None,
     };
     let key = id.to_string();
-    shared
-        .running
-        .lock()
+    let known = shared
+        .call_ids
+        .read()
         .unwrap_or_else(PoisonError::into_inner)
-        .insert(key.clone(), cancel.clone());
+        .as_ref()
+        .map(|ids| ids(&call.name, &call.arguments))
+        .unwrap_or_default();
+    {
+        let mut running = shared
+            .running
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        // Known by the agent's id, so what follows it — a panel following a
+        // delegate, a stop — finds it by its block's.
+        if let Some(agents) = known
+            .into_iter()
+            .find(|known| !running.values().any(|call| call.id == *known))
+        {
+            call.id = agents;
+        }
+        running.insert(
+            key.clone(),
+            Running {
+                id: call.id.clone(),
+                cancel: cancel.clone(),
+                name: call.name.clone(),
+                arguments: call.arguments.clone(),
+                started: Instant::now(),
+            },
+        );
+    }
     let ctx = ToolContext {
         withdrawn: Some(cancel.clone()),
         ..shared.context.clone()
@@ -575,8 +700,12 @@ fn call_tool(shared: &Shared, id: &Value, params: &Value, cancel: CancelToken) -
         }
         kept.push_back((call.name.clone(), call.arguments.clone(), details));
     }
+    let mut content = vec![json!({ "type": "text", "text": result.plain_text() })];
+    content.extend(result.images().map(
+        |(media_type, data)| json!({ "type": "image", "mimeType": media_type, "data": data }),
+    ));
     json!({
-        "content": [{ "type": "text", "text": result.plain_text() }],
+        "content": content,
         "isError": result.is_error,
     })
 }
@@ -727,6 +856,83 @@ mod tests {
         );
     }
 
+    /// A call the agent stopped waiting on still shows as running, and the
+    /// user's stop takes it down.
+    #[test]
+    fn a_running_call_shows_until_it_is_cancelled() {
+        let done = Arc::new(AtomicBool::new(false));
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(UntilCancelled(Arc::clone(&done))));
+        let server = McpServer::start(tools, Box::new(Guard), ToolContext::new("/tmp")).unwrap();
+        assert!(!server.is_running());
+        let _stream = post_streamed(
+            &server,
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                     "params": { "name": "wait", "arguments": {} } }),
+        );
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !server.is_running() {
+            assert!(std::time::Instant::now() < deadline, "the call never ran");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let calls = server.running_calls();
+        assert_eq!(calls.len(), 1);
+        assert_eq!(
+            (calls[0].name.as_str(), &calls[0].arguments),
+            ("wait", &json!({}))
+        );
+        server.cancel_running();
+        while server.is_running() {
+            assert!(std::time::Instant::now() < deadline, "the call went on");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(done.load(Ordering::Acquire));
+    }
+
+    /// Calls the agent announced are known by its ids, each id by one call;
+    /// one of them is stopped alone, by its id.
+    #[test]
+    fn a_call_is_known_by_the_agents_id_and_stopped_by_it() {
+        let done = Arc::new(AtomicBool::new(false));
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(UntilCancelled(Arc::clone(&done))));
+        let server = McpServer::start(tools, Box::new(Guard), ToolContext::new("/tmp")).unwrap();
+        server.set_call_ids(Box::new(|name, _| {
+            if name == "wait" {
+                vec!["toolu_a".to_string(), "toolu_b".to_string()]
+            } else {
+                Vec::new()
+            }
+        }));
+        let call = |id: u64| {
+            json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call",
+                     "params": { "name": "wait", "arguments": {} } })
+        };
+        let _first = post_streamed(&server, &call(1));
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while server.running_calls().is_empty() {
+            assert!(std::time::Instant::now() < deadline, "the call never ran");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let _second = post_streamed(&server, &call(2));
+        while server.running_calls().len() < 2 {
+            assert!(std::time::Instant::now() < deadline, "the call never ran");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let mut ids: Vec<String> = server.running_calls().into_iter().map(|c| c.id).collect();
+        ids.sort();
+        assert_eq!(ids, ["toolu_a", "toolu_b"]);
+
+        assert!(server.cancel_call("toolu_a"));
+        assert!(!server.cancel_call("toolu_x"));
+        while server.running_calls().len() > 1 {
+            assert!(std::time::Instant::now() < deadline, "the call went on");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(server.running_calls()[0].id, "toolu_b");
+        server.cancel_running();
+    }
+
     /// Says which of the context's people a call was given.
     struct WhoIsThere;
 
@@ -756,6 +962,54 @@ mod tests {
             );
             ToolResultMessage::text(call, text)
         }
+    }
+
+    struct Snapshot;
+
+    impl Tool for Snapshot {
+        fn name(&self) -> &str {
+            "snap"
+        }
+        fn description(&self) -> &str {
+            "Return a picture"
+        }
+        fn parameters(&self) -> Value {
+            json!({ "type": "object" })
+        }
+        fn execute(
+            &self,
+            call: &ToolCall,
+            _ctx: &ToolContext,
+            _on_update: &mut dyn FnMut(ToolUpdate),
+            _cancel: &CancelToken,
+        ) -> ToolResultMessage {
+            ToolResultMessage::text(call, "Image shot.png")
+                .with_images(vec![("image/png".into(), "QUJD".into())])
+        }
+    }
+
+    /// A picture a tool returns reaches an external agent as an MCP image
+    /// block after the text.
+    #[test]
+    fn an_image_goes_back_as_an_image_block() {
+        let mut tools = ToolRegistry::new();
+        tools.insert(Arc::new(Snapshot));
+        let server = McpServer::start(tools, Box::new(Guard), ToolContext::new("/work")).unwrap();
+        let token = server.token().to_string();
+        let (_, body) = post(
+            &server,
+            &token,
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                     "params": { "name": "snap", "arguments": {} } }),
+        );
+        let result = &serde_json::from_str::<Value>(&body).unwrap()["result"];
+        assert_eq!(
+            result["content"],
+            json!([
+                { "type": "text", "text": "Image shot.png" },
+                { "type": "image", "mimeType": "image/png", "data": "QUJD" },
+            ])
+        );
     }
 
     /// `question` and `suggest_command` served to an external agent reach

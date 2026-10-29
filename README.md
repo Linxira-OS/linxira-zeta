@@ -80,9 +80,10 @@ the surface needs, not by what the plugin is written in:
 | Declarative panel | zetawork GUI, natively | Lists, forms, charts: the GUI draws them with its own widgets and theme. |
 | HTML page | web-ui, and zetawork's plugin column via a webview | Rich or third-party pages that cannot be expressed declaratively. |
 
-`zetaide` has **no** plugin layer, and the workbench TUI does not host plugin
-surfaces — a plugin that needs the terminal reaches it through the agent's own
-tools instead.
+`zetaide` carries TermIDE's own upstream plugin layer from the 0.46 vendor bump,
+separate from Zeta's plugin surface. The workbench TUI does not host plugin
+surfaces — a Zeta plugin that needs the terminal reaches it through the agent's
+own tools instead.
 
 ## Quick Start
 

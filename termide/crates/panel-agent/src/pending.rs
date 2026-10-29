@@ -78,11 +78,21 @@ pub(crate) enum Pending {
         /// What each row does, in their order.
         choices: Vec<FailureChoice>,
         failure: Failure,
+        /// When the request is tried again if the card is left unanswered,
+        /// Unix seconds (`[ai] on_limit = "ask_else_wait"`).
+        auto_at: Option<u64>,
     },
     /// A reopened session was left with work under way: carry it on, drop
     /// it, or decide later at the pause.
     Unfinished {
         form: ChoiceForm,
+    },
+    /// A delegated task parked at a limit that passes on its own: try it
+    /// again now, keep waiting for the reset its row names, or give it up.
+    DelegateLimit {
+        form: ChoiceForm,
+        /// The `task` call the parked task was handed over under.
+        call: String,
     },
 }
 
@@ -99,6 +109,7 @@ impl Pending {
             | Pending::Suggestion { form, .. }
             | Pending::Failure { form, .. }
             | Pending::Unfinished { form } => form,
+            Pending::DelegateLimit { form, .. } => form,
         }
     }
 
@@ -114,6 +125,7 @@ impl Pending {
             | Pending::Suggestion { form, .. }
             | Pending::Failure { form, .. }
             | Pending::Unfinished { form } => form,
+            Pending::DelegateLimit { form, .. } => form,
         }
     }
 }
@@ -239,15 +251,61 @@ pub(crate) fn suggestion_form(
     (form, answers)
 }
 
+/// A delegate's card on its way between panels: from the panel that
+/// delegated the task to one following it, and back when that one closes.
+pub enum Card {
+    Permission(Box<PermissionEnvelope>),
+    Question(QuestionEnvelope),
+}
+
 impl AgentPanel {
-    /// Take down a permission card no one waits for any more — the external
-    /// agent gave the call up, or the run stopped — so it neither lingers
-    /// nor turns away the next call's question. Whether one was taken down.
-    pub(crate) fn drop_withdrawn_permission(&mut self) -> bool {
-        let withdrawn = matches!(
-            &self.pending,
-            Some(Pending::Permission { envelope, .. }) if envelope.withdrawn.is_cancelled()
-        );
+    /// The cards set aside for the panels following the tasks they come
+    /// from, each with its `task` call's id; taking them clears the list.
+    pub fn take_cards_out(&mut self) -> Vec<(String, Card)> {
+        std::mem::take(&mut self.cards_out)
+    }
+
+    /// Take `card`, handed over by another panel, to show in its turn.
+    pub fn give_card(&mut self, card: Card) {
+        self.cards_in.push_back(card);
+    }
+
+    /// The delegate's cards this panel holds — the one on screen and those
+    /// waiting their turn — given up as the panel stops following its task,
+    /// for the panel that delegated it to show.
+    pub fn release_cards(&mut self) -> Vec<Card> {
+        let mut cards: Vec<Card> = self.cards_in.drain(..).collect();
+        let shown = match self.pending.take() {
+            Some(Pending::Permission { envelope, .. }) if envelope.delegate.is_some() => {
+                Some(Card::Permission(Box::new(envelope)))
+            }
+            Some(Pending::Question { envelope, .. }) if envelope.task.is_some() => {
+                Some(Card::Question(envelope))
+            }
+            other => {
+                self.pending = other;
+                None
+            }
+        };
+        if let Some(card) = shown {
+            self.end_permission_wait();
+            cards.insert(0, card);
+        }
+        cards
+    }
+
+    /// Take down a permission or question card no one waits for any more —
+    /// the external agent gave the call up, the run or the delegate's task
+    /// stopped — so it neither lingers nor holds up the next one. Whether one
+    /// was taken down.
+    pub(crate) fn drop_withdrawn_card(&mut self) -> bool {
+        // The model's questions too: a delegate's are taken back when its
+        // task stops.
+        let withdrawn = match &self.pending {
+            Some(Pending::Permission { envelope, .. }) => envelope.withdrawn.is_cancelled(),
+            Some(Pending::Question { envelope, .. }) => envelope.withdrawn.is_cancelled(),
+            _ => false,
+        };
         if withdrawn {
             self.pending = None;
             self.end_permission_wait();
@@ -257,14 +315,41 @@ impl AgentPanel {
 
     pub(crate) fn poll_permissions(&mut self) -> Vec<PanelEvent> {
         let mut events = Vec::new();
-        while let Ok(envelope) = self.permission_rx.try_recv() {
+        loop {
             // The card before may have been given up just now: its prompter
             // returned before this question could be sent.
-            self.drop_withdrawn_permission();
+            self.drop_withdrawn_card();
+            // Delegates working side by side ask at once: the next request
+            // waits in the channel until the card on screen is answered.
             if self.pending.is_some() {
-                // Prompts are sequential on the agent thread; a second one
-                // cannot arrive before the first is answered. Deny defensively.
-                let _ = envelope.reply.send(PermissionAnswer::Deny);
+                break;
+            }
+            // A card handed here by the panel that delegated the task first,
+            // then the panel's own channel.
+            let handed = self
+                .cards_in
+                .iter()
+                .position(|card| matches!(card, Card::Permission(_)));
+            let envelope = match handed.and_then(|index| self.cards_in.remove(index)) {
+                Some(Card::Permission(envelope)) => *envelope,
+                _ => {
+                    let Ok(envelope) = self.permission_rx.try_recv() else {
+                        break;
+                    };
+                    // A panel follows the delegate that asks: the card is
+                    // its to show.
+                    if let Some(call) = envelope.task.clone() {
+                        if crate::live::is_viewed(self.panel_id, &call) {
+                            self.cards_out
+                                .push((call, Card::Permission(Box::new(envelope))));
+                            continue;
+                        }
+                    }
+                    envelope
+                }
+            };
+            if envelope.withdrawn.is_cancelled() {
+                // Given up while it waited its turn.
                 continue;
             }
             // The question is asked in the panel, not in an app-wide modal:
@@ -276,7 +361,12 @@ impl AgentPanel {
             // without a path or command have no subject, so no detail.
             let has_subject = !request.subject.is_empty();
             let t = termide_i18n::t();
-            let base = t.agent_permission_run_fmt(&request.tool);
+            let mut base = t.agent_permission_run_fmt(&request.tool);
+            // A delegate's request is headed with its name, as its questions
+            // are, so it never reads as the panel's own agent's.
+            if let Some(delegate) = &envelope.delegate {
+                base = format!("& {delegate} · {base}");
+            }
             let title = if has_subject {
                 format!("{base}:")
             } else {
@@ -366,10 +456,37 @@ impl AgentPanel {
     /// permission prompt, they pause the running call until answered.
     pub(crate) fn poll_questions(&mut self) -> Vec<PanelEvent> {
         let mut events = Vec::new();
-        while let Ok(envelope) = self.question_rx.try_recv() {
-            if self.pending.is_some() || envelope.questions.is_empty() {
-                // Calls run one at a time, so a second set cannot arrive
-                // while one is shown; decline it defensively.
+        // Delegates working side by side ask at once: the next set waits in
+        // the channel until the card on screen is answered.
+        loop {
+            self.drop_withdrawn_card();
+            if self.pending.is_some() {
+                break;
+            }
+            let handed = self
+                .cards_in
+                .iter()
+                .position(|card| matches!(card, Card::Question(_)));
+            let envelope = match handed.and_then(|index| self.cards_in.remove(index)) {
+                Some(Card::Question(envelope)) => envelope,
+                _ => {
+                    let Ok(envelope) = self.question_rx.try_recv() else {
+                        break;
+                    };
+                    if let Some(call) = envelope.task.clone() {
+                        if crate::live::is_viewed(self.panel_id, &call) {
+                            self.cards_out.push((call, Card::Question(envelope)));
+                            continue;
+                        }
+                    }
+                    envelope
+                }
+            };
+            if envelope.withdrawn.is_cancelled() {
+                // Given up while it waited its turn.
+                continue;
+            }
+            if envelope.questions.is_empty() {
                 let _ = envelope.reply.send(QuestionReply::Declined);
                 continue;
             }
@@ -558,8 +675,15 @@ impl AgentPanel {
         // by the persist callback, where it is on offer; "for this session"
         // lives only here. Neither is recorded where the request does not
         // offer it, so an answer cannot smuggle a grant the card withheld.
+        // What a delegate is granted stays with its task, in its own hooks:
+        // the panel's agent never asked for it.
         let request = &envelope.request;
-        for pattern in request.patterns() {
+        let patterns = if envelope.delegate.is_some() {
+            Vec::new()
+        } else {
+            request.patterns()
+        };
+        for pattern in patterns {
             match answer {
                 PermissionAnswer::AllowAlways | PermissionAnswer::AllowAlwaysGlobal
                     if request.can_persist =>
@@ -634,6 +758,9 @@ impl AgentPanel {
     /// is cleared first, in the log and in the agent's history alike; the
     /// commands reach the agent in order, so before the request.
     pub(crate) fn carry_out_plan(&mut self, mode: Mode, clean: bool) -> Vec<PanelEvent> {
+        // The mode first: its log entry goes before the clearing, which an
+        // undo of the request finds right ahead of it.
+        let mut events = vec![self.set_mode(mode)];
         if clean {
             if let Some(session) = &mut self.session {
                 if let Err(error) = session.append_pruned() {
@@ -649,7 +776,6 @@ impl AgentPanel {
             // Known again with the next reply, as after a session switch.
             self.context_tokens = 0;
         }
-        let mut events = vec![self.set_mode(mode)];
         let request = self.plan_prompt.request(clean).trim().to_string();
         if request.is_empty() {
             self.notice(
@@ -839,16 +965,48 @@ impl AgentPanel {
             (Some(Pending::Unfinished { .. }), ChoiceAction::Chosen(index)) => {
                 self.pending = None;
                 if index == 0 {
-                    self.resume();
-                } else {
+                    // Continue: the panel's own run, and with it whatever it
+                    // left delegated tasks unfinished — a panel idle at a
+                    // delegates-only card has no run to resume, so there the
+                    // tasks go alone.
+                    if self.restored.is_some() {
+                        self.resume();
+                    }
+                    let events = self.restart_delegates();
+                    self.pending_events.extend(events);
+                } else if self.restored.is_some() {
+                    // Give up the panel's own run; the delegates' rows stay,
+                    // and their tasks wait in the session lists (`F6`).
                     self.stop_paused();
                 }
             }
-            // Later: the pause stays, with `/continue`, `[▶]` and `[■]`.
+            // Later: the pause stays, with `/continue`, `[▶]` and `[■]`, and
+            // so do the rows of the delegates left unfinished.
             (
                 Some(Pending::Unfinished { .. }),
                 ChoiceAction::Cancelled | ChoiceAction::Custom(_),
             ) => {
+                self.pending = None;
+            }
+            // A parked delegate: the first row sends it again now, the second
+            // gives its task up; leaving the card lets it wait out its limit,
+            // which is what its row already says it will do.
+            (Some(Pending::DelegateLimit { call, .. }), ChoiceAction::Chosen(0)) => {
+                let call = call.clone();
+                self.pending = None;
+                self.try_parked_now(&call);
+            }
+            (Some(Pending::DelegateLimit { call, .. }), ChoiceAction::Chosen(_)) => {
+                let call = call.clone();
+                self.pending = None;
+                self.give_up_parked(&call);
+            }
+            (Some(Pending::DelegateLimit { .. }), ChoiceAction::Cancelled) => {
+                self.pending = None;
+            }
+            // Dismissed by `Esc`: the task keeps waiting, and is not asked
+            // about again until it is parked at a later try.
+            (Some(Pending::DelegateLimit { .. }), ChoiceAction::Custom(_)) => {
                 self.pending = None;
             }
             (None, _) => {}

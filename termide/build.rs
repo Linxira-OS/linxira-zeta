@@ -13,7 +13,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../main/crates/zetawork-gui/assets/icon.ico");
     println!("cargo:rerun-if-changed=../packages/coding-agent/package.json");
 
-    // The vendored TermIDE workspace keeps its upstream 0.41.0 crate version
+    // The vendored TermIDE workspace keeps its upstream 0.46.0 crate version
     // so future snapshots stay mergeable. The product-facing `--version` still
     // follows the Zeta release line, with the upstream version kept in
     // parentheses for traceability.

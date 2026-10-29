@@ -6,9 +6,9 @@
 | 项         | 值                                                                 |
 | ---------- | ------------------------------------------------------------------ |
 | 上游仓库   | https://github.com/termide/termide                                   |
-| 来源 commit | tag `0.41.0` = `f49a4c40ef6aaaff0741f7a52cefbf163dd9519b`(2026-10-12) |
-| 前一快照   | tag `0.38.0` = `c94e9a7e7f9b01c1c743c8087f8da9049c30dc06`(2026-10-06) |
-| 更早快照   | `main` HEAD `b1400585e2aeadca23b6b86a86010e612e3dddae`(0.35.0 时代,2026-09-28) |
+| 来源 commit | tag `0.46.0` = `a027ca788cd4c9d24f060cdcd3195ca2e475617b`(2026-10-26) |
+| 前一快照   | tag `0.41.0` = `f49a4c40ef6aaaff0741f7a52cefbf163dd9519b`(2026-10-12) |
+| 更早快照   | tag `0.38.0` = `c94e9a7e7f9b01c1c743c8087f8da9049c30dc06`(2026-10-06) |
 | 引入方式   | `git archive <tag>`(无上游 git 历史;上游 `.github/` 不随树)      |
 | 协议       | MIT(`LICENSE` 追加 Linxira-OS/Zeta 版权行)                       |
 | 修改层     | 见仓库根 `termide/VENDOR.md` 的「修改层清单」;本包 `bin/` 下的二进制由该快照本地重编(`--version` 必须等于上表来源 tag) |

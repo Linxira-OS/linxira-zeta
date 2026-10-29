@@ -299,6 +299,25 @@ impl AgentPanel {
         self.announce_toolset(&before);
     }
 
+    /// Take `names` off what the session switched off, the change written
+    /// to the session. They are not in the context yet: they are arriving.
+    fn switch_on<'a>(&mut self, names: impl Iterator<Item = &'a str>) {
+        let mut changed = false;
+        for name in names {
+            changed |= self.toolset_off.remove(name);
+            self.context_off.remove(name);
+        }
+        if !changed {
+            return;
+        }
+        if let Some(session) = &mut self.session {
+            let disabled: Vec<String> = self.toolset_off.iter().cloned().collect();
+            if let Err(error) = session.append_toolset(&disabled) {
+                log::warn!("agent session write failed: {error}");
+            }
+        }
+    }
+
     /// Say what a change of the toolset did. A server whose tools changed
     /// gets its line — rewritten in place under the banner, a new one in a
     /// conversation, since from here on the model has a different set; the
@@ -376,6 +395,7 @@ impl AgentPanel {
     /// things and not a history; in a conversation every change is a line of
     /// its own.
     pub(crate) fn mcp_notice(&mut self, server: &str, text: String, kind: NoticeKind) {
+        let text = plugin_notice(server, text);
         if self.banner_shown() {
             if let Some(&index) = self.mcp_lines.get(server) {
                 if self.transcript.replace_notice(index, text.clone(), kind) {
@@ -388,23 +408,15 @@ impl AgentPanel {
         self.notice(text, kind);
     }
 
-    /// `on/all` of what the session offers, for the banner and the chip.
+    /// `on/all` of what the session offers, for the banner and the chip:
+    /// the checklist's items and how many of them are checked. What the
+    /// session switched off but is not offered now — the tools of an MCP
+    /// server that has not connected, or no longer exists — counts neither
+    /// way.
     pub(crate) fn toolset_counts(&self) -> (usize, usize) {
-        let is_mcp = |key: &str| self.mcp_arrived.iter().any(|(_, tool)| tool.name() == key);
-        if !self.toolset_lists_own() {
-            let all = self.mcp_arrived.len();
-            let off = self.toolset_off.iter().filter(|key| is_mcp(key)).count();
-            return (all.saturating_sub(off), all);
-        }
-        let all = self
-            .offered_tools
-            .iter()
-            .filter(|name| name.as_str() != "skill")
-            .count()
-            + self.offered_skills.len()
-            + self.mcp_arrived.len();
-        let off = self.toolset_off.len();
-        (all.saturating_sub(off), all)
+        let items = self.toolset_items();
+        let on = items.iter().filter(|item| item.checked).count();
+        (on, items.len())
     }
 
     /// Take in tools that finished connecting and hand them to the worker as
@@ -444,6 +456,10 @@ impl AgentPanel {
                     } else {
                         t.agent_notice_mcp_connected_fmt(&source, tools.len())
                     };
+                    // A server ticked on in the list brings its tools on.
+                    if self.mcp_enable.remove(&source) {
+                        self.switch_on(tools.iter().map(|tool| tool.name()));
+                    }
                     // Every one is listed in the checklist; one switched off
                     // stays out of the registry, and so out of the context.
                     for tool in tools {
@@ -484,6 +500,11 @@ impl AgentPanel {
                 LateTools::LoginStarted { source, url } => {
                     let text = t.agent_notice_mcp_login_started_fmt(&source, &url);
                     self.mcp_notice(&source, text, NoticeKind::Info);
+                }
+                LateTools::NeedsApproval { source, launch } => {
+                    self.mcp_reconnecting.remove(&source);
+                    let text = t.agent_notice_mcp_needs_approval_fmt(&source, &launch);
+                    self.mcp_notice(&source, text, NoticeKind::Warn);
                 }
             }
         }
@@ -608,5 +629,34 @@ impl AgentPanel {
             }
         }
         !names.is_empty()
+    }
+}
+
+/// A notice about a source of tools names it `mcp <source>` in every
+/// language; a plugin's reads `plugin <name>` instead.
+fn plugin_notice(source: &str, text: String) -> String {
+    let Some(name) = source.strip_prefix(termide_agent_core::PLUGIN_TOOL_SOURCE) else {
+        return text;
+    };
+    match text.strip_prefix(&format!("mcp {source}")) {
+        Some(rest) => format!("plugin {name}{rest}"),
+        None => text,
+    }
+}
+
+#[cfg(test)]
+mod plugin_notice_tests {
+    use super::plugin_notice;
+
+    #[test]
+    fn a_plugin_is_named_as_one() {
+        assert_eq!(
+            plugin_notice("plugin:fmt", "mcp plugin:fmt: 2 tools connected".into()),
+            "plugin fmt: 2 tools connected"
+        );
+        assert_eq!(
+            plugin_notice("github", "mcp github: 2 tools connected".into()),
+            "mcp github: 2 tools connected"
+        );
     }
 }

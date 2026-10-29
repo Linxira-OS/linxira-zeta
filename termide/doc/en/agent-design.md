@@ -88,6 +88,223 @@ token), and the parent's cancel aborts the sub-run. Not done yet: parallel
 delegation (the loop runs one tool at a time) and streaming the sub-run as a
 foldable sub-transcript rather than the plain text it reports.
 
+### Linked panels (planned)
+
+Considered: two shapes of agents working together across panels — a
+delegate run in a panel of its own instead of headless (hierarchy), and
+panels sending each other messages (peers). Decision: one protocol for both,
+built hierarchy first; peer messaging comes later on the same protocol.
+
+Where a delegate runs is a setting, `subagent_run` = `hidden` (the default,
+today's headless run), `ask`, `existing_panel` or `panel`, in `[ai]` with
+an `AGENT.md` able to name its own. `existing_panel` takes a banner panel
+already open (chosen as below) and runs hidden when there is none, so a
+delegate never changes the layout; `panel` opens one instead. `ask` puts
+one card per batch of delegations (all hidden, all in panels, one by one),
+not one card per task. `termide --prompt` has
+no panels and always runs hidden; in plan mode a delegate in a panel is held
+to plan mode as a hidden one is.
+
+Choosing the panel: the first agent panel that shows the banner (an empty
+session), has an empty input and does not hold the focus — a panel the user
+just opened to type in is never taken. Its agent, connection, cwd and mode
+are switched to the delegate's, which is cheap on an empty session. With no
+such panel, `panel` opens a new one where `handle_open_agent` puts one and
+`existing_panel` runs the task hidden. One task, one
+session: when the task ends the panel goes back to the banner, found or
+opened alike (closing an opened one would move the layout under the user),
+and the delegate's session stays in the banner's list, marked as a delegate.
+The next task looks for a banner panel again rather than writing on.
+
+Who owns the panel: the delegating agent, while the task runs. The input is
+off — typed text, `$` and `/` alike, since all of them speak as the user —
+and shows instead whose delegate it is and the task. What stays on: the
+permission and question cards (the reason to run in a panel at all: the
+delegate asks the user instead of being refused, which also lets external
+agents be delegates), stop and pause. Stop ends the task for the parent as
+an error, "stopped by the user". A *take over* action ends the task for the
+parent with "taken over by the user" and what the delegate has said so far,
+cuts the link and leaves the panel as an ordinary session, not reset to the
+banner. So the reset rule needs no guess about whether the user stepped in:
+only an explicit take-over keeps the panel.
+
+The protocol: a message between agents is a `UserMessage` with an `origin`
+(the sending session's id, the agent's name and a kind — `task`, `reply`,
+`info`, `question`), the way `ran` marks a shell command's output today. The
+model reads it wrapped (`<agent-message from="…" kind="…">`). An agent's
+words never carry the user's authority: the reviewer files them as
+`IntentEntry::Delegated`, as it does a task prompt now; they cannot answer a
+permission card, grant an `allow always`, expand a `/` command or change the
+mode. They are information, a reply or a request — no more. One gain for
+hidden delegates too: a delegate's `question` goes to its parent, which
+answers it or asks the user through its own `question`, instead of the
+delegate's request being refused. Hidden and panel runs then differ only in
+how the messages travel and whether the run is seen.
+
+Done of it: the message itself. `UserMessage::origin` (`MessageOrigin`,
+`OriginKind`) is in the log; `framed_text` frames it for the model, built-in
+loop and ACP agent alike, a closing tag inside the text defused and the
+attributes kept from breaking the tag. The reviewer's log files a task as
+`IntentEntry::Delegated` and the rest as `IntentEntry::Agent` ("message from
+another agent, not written by the user"), which a delegate's reviewer
+inherits but which never counts as a request to judge a call against.
+Queued messages merge only while they are the user's words
+(`UserMessage::take_merged`): an agent's message, and a hand-run command's
+output — which a merge used to strip of its `ran`, turning the output into
+the user's words for the reviewer — go one by one with their marks. Taking
+the queue back into the input leaves agents' messages queued. Recall indexes
+them as `agent message`. Nothing sends one yet.
+
+Logs: every delegate writes a session log, hidden ones included (before,
+nothing wrote a hidden run's events, and only its answer survived, in the
+parent's log). The header names the parent session and the `task` call. The
+banner's list shows such sessions with a mark; the parent's `task` block
+opens the delegate's transcript in a panel, where the conversation can go on
+as an ordinary session.
+
+Done of it: `SessionHeader::parent` (`SessionParent`: the delegating
+session's id when its agent runs on termide's loop — an external agent's
+calls come without one —, the agent's name and the `task` call's id).
+`Subagents` keeps the panel's session directory and starts a log with
+`Session::create_delegate`, held exclusively while the task runs so no panel
+opens it; it records the connection, model and agent as a panel's log does,
+then every finished message of the run, on termide's loop and on a Claude
+Code copy alike, a stopped run's included. The task goes in as a
+`MessageOrigin` of kind `task` from the delegating agent, whose name the
+`task` tool's closure carries (`SubagentTask`). The result's details name the
+log (`subagent_session`); `display_label` marks a delegate's session `&`.
+`o` on a `task` block opens that log through `PanelEvent::OpenAgentSession`,
+and another agent's message is a step, not a user block
+(`peer_message_item`): `& Receiving reply from <agent> (panel N) · …`, its
+text folded under it.
+
+Done of the panels: `SubagentPlace` (`hidden`, `existing_panel`, `panel`) in
+`[ai] subagent_run`, on the settings' AI tab and in `AGENT.md`; `ask` came
+after (below). The `task` call (`agent_panel/in_panel.rs`) sends a
+`PanelDelegation` down a process-wide channel and waits up to ten seconds
+for the app's answer; only an app that serves the channel answers, so a
+headless run and the tests run hidden. On its tick the app takes the first
+agent panel that `takes_delegate` (banner, empty input, nothing running or
+asked) and is not the focused one, else for `panel` opens one with
+`add_panel_without_focus`. Rather than switching a free panel's agent,
+connection, cwd and mode one by one, each with its side effects, the app
+rebuilds it in place (`LayoutManager::replace_panel_at`) on a
+`Session::create_delegate` log that already names the connection, agent and
+mode — the panel is empty, nothing is lost, and the dropped one discards its
+empty log. The panel (`panel-agent/src/delegation.rs`) forwards every agent
+event to the waiting call, which shows them through the same
+`SubagentReport` as a hidden run, and ends the task (`DelegateEnd`) once
+nothing runs, is paused, waits to retry or holds a card; then it goes back to
+the banner on a fresh session, and the app, which notices the panel released
+on its next tick, rebuilds it in place as a panel the user opens — default
+agent, connection and mode, the directory it had before it was taken, its
+number kept. A panel the user took a task over in stays as it is. Its input, pastes, session keys and status
+actions take nothing while the task runs; `Esc` stops it, `Ctrl+T` takes it
+over, closing the panel ends it. A stop by the user or a take-over returns
+what the delegate said with a note; the parent's stop cancels the panel's
+run. External agents may be delegates in a panel; hidden, they are still
+refused. A task from a parked project's panel runs hidden. The reviewer of a delegate
+panel in `auto` first saw the task alone; now the `task` call sends the
+parent's `IntentLog::delegated` with the request, the app puts it in the
+new panel's setup (`inherited_intent`), and termide's loop starts its log
+from it (`Agent::with_inherited_intent`) without counting its prompts as
+delegated, so what the user writes after a take-over stays theirs. The panel
+keeps it for rebuilds while the task is its own. An external delegate's
+reviewer still sees the task alone.
+
+Done after: `ask` (`agent_panel/ask_place.rs`). Parallel delegations start
+on calls of their own within a moment of each other, so the first waits
+150 ms for the rest and asks one card listing them all — hidden, in a panel
+(`panel`) or, for several, one by one, each then asking alone; dismissed, in
+the user's own words or with no asker, hidden. A delegate's question to its
+parent, as planned, could not be the parent's to answer: the parent's model
+waits inside its `task` call and cannot read it. So a hidden delegate gets
+`question` (when its parent has an asker, and its `tools` list keeps it) and
+its cards reach the parent panel's user, each headed `& <delegate> ·`
+(`UserAsker::for_delegate`); permission requests are still refused, a panel
+being the place for those. A parent that answers its delegates in its own
+turn needs the peer messaging below.
+
+Done after that: peer messaging (`agent-tools/src/peers.rs`,
+`agent_panel/peers.rs`, `panel-agent/src/peers.rs`). The panel's own agent —
+and Claude Code on termide's tools, which gets the same registry — has
+`agents` (read-only by the rules) and `send_message` (`info`, `question`,
+`reply`; asks as any non-read-only tool, so `ask` mode confirms each message
+and plan mode blocks it). Every panel has a number from a process-wide
+counter; `ToolContext::panel` carries it to the tools, from termide's loop
+(`Agent::with_panel`) and from the host tools an external agent calls, so the
+sender is known without a session id. The calls go down a channel the app
+serves on its tick, like the delegations; the app delivers the message as a
+`MessageOrigin` with the sender's panel (the frame's `panel="…"`, for the
+answer) and a hop count: the sender panel's count plus one, refused past ten.
+A panel takes the count of the message that starts its run (the highest,
+while steered ones join it) and zero from anything the user sends. A panel
+running a delegated task refuses messages. Codex and Gemini CLI get only
+`COMPANION_TOOLS`, which leave these two out for now.
+
+Not planned: automatic isolation. Two agents in one tree may edit the same
+file; rather than guessing when to isolate or how to merge, the first step
+is to detect it exactly — an edit of a file another live session changed
+since this one read it is refused with the reason. Done
+(`agent-core/src/conflicts.rs`): `ConflictGuard`, in every panel's chain
+after the plan guard (before anyone is asked) and in a hidden delegate's,
+which runs under its parent's panel number. A process-wide ledger orders
+every successful `read`, `edit` and `write` by panel; an `edit` or `write`
+of a file whose last change is another panel's and later than this panel's
+last read of it, or that this panel never read, is blocked. Paths are keyed
+canonically (a new file by its directory). Changes through `bash` or from
+outside are not seen. A git worktree per
+delegate may come later only as an explicit choice (`isolation =
+"worktree"`), its result the branch and a diff summary, merged by the
+parent or the user.
+
+### Delegates out of sight, followed in panels
+
+Superseded: running a delegate in a panel (`subagent_run`, `ask`,
+`existing_panel`, `panel`, `agent_panel/in_panel.rs`, `ask_place.rs`). The
+setting tied three separate things together — who waits for the answer
+(the model's `background`), who answers what the delegate asks (refused out
+of sight, the user in a panel) and where the user watches it — and a task
+in a panel took over a panel the user might have wanted, or changed the
+layout under them.
+
+Decision: every delegate runs out of sight, and where to watch it is the
+user's choice at the moment, not a setting. What it asks goes to the panel
+that delegated it: `ToolContext::prompter` carries that panel's permission
+channel, and `ChannelPrompter::for_delegate` heads its cards `& <delegate> ·`
+as `UserAsker::for_delegate` heads its questions. The panel queues cards
+that arrive while one is up rather than refusing them, since delegates run
+side by side; a card given up while it waits (`withdrawn`) is never shown.
+What the user grants a delegate for the session stays in its hooks. With
+that, an external agent can be a delegate too, run over ACP as a copy of
+Claude Code is.
+
+A delegate registers while it runs (`panel-agent/src/live.rs`) under the
+panel and the `task` call that handed it over. A click on its row, or `o`
+on its block, shows a view of it over the layout (`LayoutManager::overlay`,
+`app/agent_panel/live.rs`) — a panel in a new column would move every other
+one — that holds the window as a modal does, and that `F9` moves into a
+panel of its own. The view is an agent panel following the task
+(`watch.rs`): the panel reads the
+task's session log and rebuilds its transcript when the log grows, so it
+takes nothing from the task, and closing it stops nothing. The panel is
+the delegating agent's while the task runs — input off, session keys off,
+`[■]` stops the task and `[✎]` or `Ctrl+T` takes it over, each once
+confirmed, through the registry's `DelegateControl`; `Esc` only steps away —
+and opens the task's session once it is over and in a panel. The task's
+cards follow the view: while one is up the delegating panel sets them aside
+(the envelopes name their `task` call) for the app to hand over, and those
+unanswered go back when it closes. It stays
+on the default agent until then: built on the delegate's, an external one
+would start a process of its own.
+
+A task handed over in the background runs on a thread of its own through
+the same path; its call returns at once, so the registry lists it in the
+delegating panel's state strip, with a `✕`. Its cards outlive a stop of
+that panel's run (`detached`), since stopping the run does not reach it;
+closing the panel stops it, after a confirmation that counts such tasks.
+The hop limit is checked before it starts, through the peers channel.
+
 ## 3b. Web tools
 
 Most requests that reach outside the checkout are searches, and `curl` fails
@@ -137,8 +354,13 @@ display = "headless"     # headless | minimized | visible
 ```
 
 - `http` loads pages with `termide-fetch` (GET only, time and size limits, no
-  https downgrade). It cannot search, so `web_search` is not registered: the
-  model never sees a tool that cannot work.
+  https downgrade). It searches the same way: the engine's results page over
+  plain HTTP, read with the engine's selectors by `scraper` in place of the
+  page's DOM. Only an engine whose results page is plain markup answers that
+  well — DuckDuckGo's HTML endpoint, the default, does; one that builds its
+  results with JavaScript returns none and the call says so, and a challenge
+  is an error, there being no window to solve it in. This is what makes
+  `web_search` work where no browser runs (Termux, a server without a GUI).
 - `chrome` drives a local Chrome or Chromium over the DevTools protocol.
 - `auto` is `chrome` when a browser is found and `http` otherwise.
 
@@ -790,7 +1012,39 @@ prompt. The summary message ends with an instruction to continue the task. An
 overflow error from the provider triggers one compaction and one retry. The transcript becomes `[summary user message] +
 tail`; the session log records a `compaction` entry with `keep_last`, so
 reopening rebuilds the same context. Re-reading touched files is left to the
-model.
+model. The entry also keeps the estimated size after and how the summary call
+went (`CompactionCall`: reason, stop reason, duration, usage, reasoning
+characters, tools called); a call that was made and refused leaves a
+`compaction_failed` entry with the same details and the refused text (4 K
+characters at most), which changes nothing on the branch. Both are there for
+judging a compaction afterwards, since the app log is gone within a day. An
+external agent's usage is what its whole turn spent, cache reads included,
+not a context size, so the threshold check and the context bar leave it out:
+the check estimates its messages, the bar takes the agent's `usage_update`.
+
+Fitting without a summary (`crates/agent-core/src/fit.rs`): a summary can
+fail in ways a length check does not catch — a live session got a line of
+narration for one, the model going on with the work. `fit` cuts a history to
+a character budget by kinds, in order of how cheaply each is lost:
+reasoning; the output of read-only calls (`is_read_only_call`), stubbed with
+its length; other output, cut to its first and last 600 characters; long
+string arguments; the exploration of the oldest part down to its decisions
+(`prune_by` over the shortest prefix that suffices, found by bisection, so
+a long history is not reduced wholesale); the oldest messages, with a note.
+Steps 1–4 run on the part before the kept tail first and on the tail only if
+that is not enough; question and skill calls and the user's messages are
+never shortened; calls keep their results. Budgets are in characters at 2.5
+a token (`chars_for_tokens`), measured at 2.65 on a code-heavy Russian
+session, so they err small. It serves three places: the summarising call's
+input, cut to the window less the reserve (what was cut goes into
+`CompactionCall::input_cut`); the fallback when a summary is refused —
+which now includes a reply that calls a tool — cutting the context to half
+the window and logging a `fitted` entry whose `budget` and `keep_tail` let
+`context_messages` replay it (`Fitted::origin` maps each message back for
+the timestamps; the note takes the first left-out message's time, so the
+result is deterministic); and the handover to an external agent above. It
+still rewrites old messages, so a provider's prompt cache is lost as with
+a summary; it runs where a compaction would, never step by step.
 
 Compaction prompts as files: no other agent lets the user edit the summary
 prompt — Claude Code and Codex build it in and take a focus from `/compact`,
@@ -1077,9 +1331,9 @@ agent's requests are served in the client: `session/request_permission`
 through the same `ChannelPrompter` as the built-in prompt (answers mapped
 onto the offered `allow_once`/`allow_always`/`reject_once` options),
 `fs/read_text_file` and `fs/write_text_file` from the working directory (a
-write surfaces as a `write` tool call for the editor reload), terminals not
-advertised. Switching between engines rebuilds the runtime on the same
-session log.
+write surfaces as a `write` tool call for the editor reload); `terminal/*` is
+advertised and served by a headless process for the agent's non-PTY `bash`
+calls. Switching between engines rebuilds the runtime on the same session log.
 
 Settings: ACP's session config options are the client-facing knobs, changeable
 "at any point, whether the agent is idle or generating". The backend keeps the
@@ -1127,10 +1381,22 @@ what that session holds — no rewind, compaction, pruning, agent or connection
 change and no built-in answer since, and the same log in the same place, so a
 fork or a move drops it. The backend takes it up with `session/resume`, else
 `session/load` (its replay dropped, since the panel shows the log already);
-otherwise it opens a new session and sends a recap
-(`recap::recap`, the `prune_to_decisions` cut rendered as tagged text, newest
-kept within `RECAP_LIMIT`) as a text block before the first prompt, outside
-the log. Still hand-written JSON-RPC rather than the `agent-client-protocol`
+otherwise it opens a new session and, as a text block before the first
+prompt and outside the log, tells it the conversation. That text is made when
+the prompt goes, not at the handshake, so the model the panel applies is the
+one sized for. With the agent's window known, it is the whole conversation
+as a tagged record (`recap::handoff`) cut down by `fit::fit` to half the
+window: a large first prompt is a fair price for a handover the agent does
+not have to rebuild with `recall` and re-reads, while the other half is
+left for the work so the agent does not compact at once. Without one, it is
+the decisions-only recap (`recap::recap`, the `prune_to_decisions` cut,
+newest kept within `RECAP_LIMIT`). An agent reports its window only in
+`usage_update`, after a turn — Claude Code's adapter knows it from the start
+but does not say — so each reported `size` is kept per adapter and model in
+`<config>/ai/acp-windows.json` (`windows.rs`; the application names the
+file at start) and read next time; failing that, Claude Code's window is
+told from the model's id and label the way its adapter does (`1m` in them is
+1 M tokens, else 200 K). The user's `context_window_limit` caps it. Still hand-written JSON-RPC rather than the `agent-client-protocol`
 crate: the surface used is small, and the crate would bring tokio.
 
 ## 8. Provider
@@ -1143,10 +1409,30 @@ OpenRouter and most gateways. Vendor differences are data in `Compat`
 way pi's per-model `compat` table works, instead of one code path per vendor.
 
 Reasoning between turns: Anthropic requires thinking blocks to be echoed with
-their signature; DeepSeek rejects an echoed `reasoning_content`; vLLM and Qwen
-accept it for the current turn. Decision: keep thinking in the transcript for
-the UI and the session, do not send it back by default; `send_reasoning` opts
-in for OpenAI. The Anthropic provider keeps each block's signature and hands
+their signature; Qwen 3.6 answers worse without its earlier reasoning, and its
+template drops it unless asked (`chat_template_kwargs.preserve_thinking`,
+[#62](https://github.com/termide/termide/issues/62)); Ollama reads `reasoning`
+rather than `reasoning_content`; some APIs refuse what they do not know.
+Decision: keep thinking in the transcript for the UI and the session, and send
+back the current turn's only — the answers after the last user message, which
+a tool round needs — as the Qwen and DeepSeek templates themselves keep it, so
+earlier turns cost no input tokens. The OpenAI-compatible provider sends it as
+`reasoning_content` and `reasoning` with `preserve_thinking`, to every server
+but the hosted APIs known to take `reasoning_effort` (OpenAI, OpenRouter,
+Gemini); every other server gets `enable_thinking` for the level.
+
+No setting chooses any of it, and the address decides nothing beyond that
+list of hosted APIs: a server's address tells where it runs, not what it is —
+llama.cpp on a rented machine with a public or VPN name is as common as one at
+home, and a host-name heuristic (`localhost`, `.local`, private addresses) left
+such a server with no reasoning switch and no echo, in silence. Instead the
+server's answer decides: a 400 or 422 that names one of the optional fields
+(`chat_template_kwargs`, `reasoning_effort`, `return_progress`,
+`reasoning_content`, `reasoning`) sends the request again at once without it,
+and the field stays out for every provider on that base URL for the rest of the
+process. Not on disk: an upgraded server would stay cut off from a field it now
+takes. `extra_body` (not a config key) merges an object into the one the body
+already has, so extra `chat_template_kwargs` keep `enable_thinking`. The Anthropic provider keeps each block's signature and hands
 back only the model's own blocks of the turn in progress (after the last user
 message), which a tool round needs: dropping the earlier ones is removing a
 leading run, which the API allows, so a compacted history or a rebuilt system

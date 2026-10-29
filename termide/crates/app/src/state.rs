@@ -143,6 +143,12 @@ pub struct AppState {
     pub lsp_manager: Option<LspManager>,
     /// All diagnostics from LSP servers, keyed by file path
     pub all_diagnostics: HashMap<PathBuf, Vec<lsp_types::Diagnostic>>,
+    /// What the language servers last published for each file; with
+    /// `plugin_diagnostics`, what `all_diagnostics` is made of.
+    pub lsp_diagnostics: HashMap<PathBuf, Vec<lsp_types::Diagnostic>>,
+    /// What each plugin set for each file, by the plugin's project and name.
+    pub plugin_diagnostics:
+        HashMap<PathBuf, std::collections::BTreeMap<(PathBuf, String), Vec<lsp_types::Diagnostic>>>,
     /// User bookmarks
     pub bookmarks: BookmarksConfig,
     /// Project-local bookmarks from `.termide/bookmarks.toml` (read-only overlay)
@@ -273,6 +279,8 @@ impl AppState {
             last_git_spinner_update: None,
             lsp_manager,
             all_diagnostics: HashMap::new(),
+            lsp_diagnostics: HashMap::new(),
+            plugin_diagnostics: HashMap::new(),
             bookmarks,
             project_bookmarks: None,
             project_root: std::env::current_dir().unwrap_or_default(),
@@ -456,6 +464,7 @@ impl AppState {
             Some(&self.project_root),
             global.as_deref(),
         )
+        .with_home(dirs::home_dir().as_deref())
     }
 
     /// The session-log directory for this project (`<config>/ai/sessions/<key>`).
@@ -534,7 +543,8 @@ impl AppState {
                 .into_iter()
                 .map(|s| {
                     let is_project = s.path.starts_with(&self.project_root);
-                    (s.name, s.description, is_project, None)
+                    let description = termide_panel_agent::user_skill_description(&s);
+                    (s.name, description, is_project, None)
                 })
                 .collect(),
             AiSection::Prompts => dirs
@@ -736,13 +746,16 @@ impl AppState {
         self.pending_action.take()
     }
 
-    /// Set error message
+    /// Set error message. Nothing on screen draws the status message, so it
+    /// goes to the journal too, where it can be read.
     pub fn set_error(&mut self, message: String) {
+        log::warn!("{message}");
         self.ui.status_message = Some((message, true));
     }
 
-    /// Set informational message
+    /// Set informational message, written to the journal too.
     pub fn set_info(&mut self, message: String) {
+        log::info!("{message}");
         self.ui.status_message = Some((message, false));
     }
 
@@ -838,11 +851,11 @@ impl StateManager for AppState {
     }
 
     fn set_info(&mut self, msg: String) {
-        self.ui.status_message = Some((msg, false));
+        AppState::set_info(self, msg);
     }
 
     fn set_error(&mut self, msg: String) {
-        self.ui.status_message = Some((msg, true));
+        AppState::set_error(self, msg);
     }
 
     fn clear_status(&mut self) {

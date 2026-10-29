@@ -1,6 +1,8 @@
 //! OpenAI-compatible streaming chat completions over blocking HTTP.
 
+use std::collections::{BTreeSet, HashMap};
 use std::io::{BufRead, BufReader};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use serde_json::{json, Map, Value};
@@ -12,6 +14,18 @@ use termide_agent_core::{
 use crate::retry::{with_retries, Failure, RetryPolicy};
 use crate::sse::Accumulator;
 
+/// The fields termide adds to a request beyond the plain chat completion, any
+/// of which a server may refuse: the top-level ones and, on assistant
+/// messages, the reasoning sent back. A server that names one in a 400 or
+/// 422 gets the request again without it, and never again after.
+const OPTIONAL_FIELDS: [&str; 5] = [
+    "chat_template_kwargs",
+    "reasoning_effort",
+    "return_progress",
+    "reasoning_content",
+    "reasoning",
+];
+
 /// Vendor quirks, expressed as data.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Compat {
@@ -20,11 +34,16 @@ pub struct Compat {
     pub max_tokens_field: String,
     /// How the server is asked for reasoning.
     pub reasoning: ReasoningParam,
-    /// Echo previous `reasoning_content` back in assistant messages. Off by
-    /// default: DeepSeek rejects it, most servers ignore it.
+    /// Echo previous `reasoning_content` back in assistant messages and ask
+    /// the chat template to keep it (`chat_template_kwargs.preserve_thinking`,
+    /// Qwen 3.6 and later), so a model reads its earlier reasoning. The
+    /// kwarg goes with the echo, not with [`ReasoningParam::EnableThinking`]:
+    /// on, it is sent whichever field the reasoning level went in, or none.
+    /// Off by default: DeepSeek's API rejects the field, most servers ignore it.
     pub send_reasoning: bool,
     /// Ask for prompt-processing progress while streaming (llama.cpp's
-    /// `return_progress`). Off by default: OpenAI rejects unknown fields.
+    /// `return_progress`). Off by default: OpenAI rejects unknown fields;
+    /// the app turns it on for every server but the hosted APIs.
     pub prefill_progress: bool,
     /// Merged into every request body last; the escape hatch for anything
     /// not modelled here (`chat_template_kwargs`, `temperature`, ...).
@@ -67,6 +86,9 @@ pub struct OpenAiCompatProvider {
     pub read_timeout: Duration,
     pub connect_timeout: Duration,
     agent: ureq::Agent,
+    /// Optional fields this server refused, left out of its requests since;
+    /// shared by every provider on the same base URL in the process.
+    refused: Refusals,
 }
 
 impl OpenAiCompatProvider {
@@ -74,9 +96,11 @@ impl OpenAiCompatProvider {
     pub fn new(name: impl Into<String>, base_url: impl Into<String>) -> Self {
         let read_timeout = Duration::from_secs(120);
         let connect_timeout = Duration::from_secs(15);
+        let base_url = base_url.into().trim_end_matches('/').to_string();
         Self {
             name: name.into(),
-            base_url: base_url.into().trim_end_matches('/').to_string(),
+            refused: refusals_of(&base_url),
+            base_url,
             api_key: None,
             compat: Compat::default(),
             retry: RetryPolicy::default(),
@@ -119,9 +143,28 @@ impl OpenAiCompatProvider {
         if !request.system_prompt.is_empty() {
             messages.push(json!({ "role": "system", "content": request.system_prompt }));
         }
-        for message in request.messages {
-            messages.push(self.convert(message));
+        // A `tool` message carries text only, so the images of a run of tool
+        // results follow it in one user message: the results of a turn must
+        // come right after its calls, unbroken.
+        let mut tool_images: Vec<Value> = Vec::new();
+        // Reasoning goes back for the current turn only — the answers after
+        // the user's last message, between its tool calls — where the model
+        // needs its train of thought. Earlier turns' reasoning is dropped,
+        // as the Qwen and DeepSeek templates drop it themselves: it would
+        // cost input tokens on every request for little the model uses.
+        let turn_start = request
+            .messages
+            .iter()
+            .rposition(|message| matches!(message, Message::User(_)))
+            .map_or(0, |last_user| last_user + 1);
+        for (index, message) in request.messages.iter().enumerate() {
+            match message {
+                Message::ToolResult(result) => tool_images.extend(result.images().map(image_part)),
+                _ => flush_tool_images(&mut messages, &mut tool_images),
+            }
+            messages.push(self.convert(message, index >= turn_start));
         }
+        flush_tool_images(&mut messages, &mut tool_images);
 
         let mut body = Map::new();
         body.insert("model".into(), json!(request.model.id));
@@ -166,20 +209,63 @@ impl OpenAiCompatProvider {
                     body.insert("reasoning_effort".into(), json!(effort));
                 }
                 ReasoningParam::EnableThinking => {
-                    body.insert(
-                        "chat_template_kwargs".into(),
-                        json!({ "enable_thinking": level != ThinkingLevel::Off }),
-                    );
+                    let mut kwargs = json!({ "enable_thinking": level != ThinkingLevel::Off });
+                    if self.compat.send_reasoning {
+                        kwargs["preserve_thinking"] = json!(true);
+                    }
+                    body.insert("chat_template_kwargs".into(), kwargs);
+                }
+            }
+        }
+        // The echo rides on its own switch. A user who asked for the model's
+        // reasoning back gets `preserve_thinking` whichever field the level
+        // went in — `enable_thinking`, `reasoning_effort`, or nowhere at all:
+        // a template that ignores the kwarg ignores it, and one that needs it
+        // to keep earlier turns, llama.cpp's among them, keeps them. Left
+        // inside the `enable_thinking` branch, an explicit `send_reasoning`
+        // never reached the template when the host left the level unserved.
+        if self.compat.send_reasoning {
+            let kwargs = body
+                .entry("chat_template_kwargs")
+                .or_insert_with(|| Value::Object(Map::new()));
+            if let Value::Object(map) = kwargs {
+                map.entry("preserve_thinking")
+                    .or_insert_with(|| json!(true));
+            }
+        }
+        // What the server refused stays out; `extra_body`, the user's own,
+        // still goes as written.
+        let refused = self.refused_fields();
+        for field in &refused {
+            body.remove(*field);
+        }
+        if refused.contains("reasoning_content") || refused.contains("reasoning") {
+            if let Some(Value::Array(messages)) = body.get_mut("messages") {
+                for message in messages.iter_mut().filter_map(Value::as_object_mut) {
+                    for field in &refused {
+                        message.remove(*field);
+                    }
                 }
             }
         }
         for (key, value) in &self.compat.extra_body {
-            body.insert(key.clone(), value.clone());
+            // An object merges into the one already there, so extra
+            // `chat_template_kwargs` keep `enable_thinking`.
+            match (body.get_mut(key), value) {
+                (Some(Value::Object(current)), Value::Object(extra)) => {
+                    current.extend(extra.iter().map(|(k, v)| (k.clone(), v.clone())));
+                }
+                _ => {
+                    body.insert(key.clone(), value.clone());
+                }
+            }
         }
         Value::Object(body)
     }
 
-    fn convert(&self, message: &Message) -> Value {
+    /// One message in the wire shape; `in_turn` says an assistant message
+    /// belongs to the current turn, whose reasoning may go back.
+    fn convert(&self, message: &Message, in_turn: bool) -> Value {
         match message {
             // Plain text stays a string, which every compatible server takes;
             // only a message with images needs the list of parts.
@@ -188,12 +274,7 @@ impl OpenAiCompatProvider {
             }
             Message::User(user) => {
                 let mut parts = vec![json!({ "type": "text", "text": user.model_text() })];
-                parts.extend(user.images().map(|(media_type, data)| {
-                    json!({
-                        "type": "image_url",
-                        "image_url": { "url": format!("data:{media_type};base64,{data}") },
-                    })
-                }));
+                parts.extend(user.images().map(image_part));
                 json!({ "role": "user", "content": parts })
             }
             Message::ToolResult(result) => json!({
@@ -234,7 +315,7 @@ impl OpenAiCompatProvider {
                 if !calls.is_empty() {
                     object.insert("tool_calls".into(), Value::Array(calls));
                 }
-                if self.compat.send_reasoning {
+                if self.compat.send_reasoning && in_turn {
                     let reasoning: String = assistant
                         .content
                         .iter()
@@ -243,8 +324,13 @@ impl OpenAiCompatProvider {
                             _ => None,
                         })
                         .collect();
+                    // Under both names: llama.cpp, vLLM and DeepSeek read
+                    // `reasoning_content`, Ollama's OpenAI layer only
+                    // `reasoning` (ollama/ollama#18534) — as both are read
+                    // from a stream.
                     if !reasoning.is_empty() {
                         object.insert("reasoning_content".into(), json!(reasoning));
+                        object.insert("reasoning".into(), json!(reasoning));
                     }
                 }
                 Value::Object(object)
@@ -393,7 +479,7 @@ impl Provider for OpenAiCompatProvider {
         on_event: &mut dyn FnMut(StreamEvent),
         cancel: &CancelToken,
     ) -> AssistantMessage {
-        let body = self.build_body(request).to_string();
+        let mut body = self.build_body(request);
         let model = request.model.id.as_str();
         with_retries(
             &self.name,
@@ -401,9 +487,92 @@ impl Provider for OpenAiCompatProvider {
             self.retry,
             cancel,
             on_event,
-            |on_event| self.attempt(&body, model, on_event, cancel),
+            |on_event| loop {
+                match self.attempt(&body.to_string(), model, on_event, cancel) {
+                    Err(failure) => {
+                        let fields = refused_in(&failure, &body);
+                        // Only a field not refused before is news: one that
+                        // `extra_body` puts back would otherwise go round.
+                        let added = {
+                            let mut refused =
+                                self.refused.lock().unwrap_or_else(PoisonError::into_inner);
+                            fields.iter().filter(|f| refused.insert(**f)).count()
+                        };
+                        if added == 0 {
+                            return Err(failure);
+                        }
+                        log::warn!(
+                            "{model} refused {}; leaving it out from now on",
+                            fields.join(", ")
+                        );
+                        body = self.build_body(request);
+                    }
+                    reply => return reply,
+                }
+            },
         )
     }
+}
+
+impl OpenAiCompatProvider {
+    fn refused_fields(&self) -> BTreeSet<&'static str> {
+        self.refused
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
+
+/// The fields a server refused, by the providers that talk to it.
+type Refusals = Arc<Mutex<BTreeSet<&'static str>>>;
+
+/// The refusals of the server at `base_url`, shared across the process: each
+/// session and side call builds its own provider, and a field one of them
+/// learned the server refuses is not tried again by the next. They live as
+/// long as the process, so an upgraded server is asked again after a restart.
+fn refusals_of(base_url: &str) -> Refusals {
+    static SHARED: Mutex<Option<HashMap<String, Refusals>>> = Mutex::new(None);
+    let mut shared = SHARED.lock().unwrap_or_else(PoisonError::into_inner);
+    Arc::clone(
+        shared
+            .get_or_insert_with(HashMap::new)
+            .entry(base_url.to_string())
+            .or_default(),
+    )
+}
+
+/// The optional fields of `body` that `failure` refuses: a 400 or 422 whose
+/// error names them. Only fields the body carries count, so a rejection can
+/// not loop, and a name counts only as a whole word (`reasoning` is not
+/// named by `reasoning_effort`).
+fn refused_in(failure: &Failure, body: &Value) -> Vec<&'static str> {
+    let rejected = ["HTTP 400", "HTTP 422"]
+        .iter()
+        .any(|status| failure.message.starts_with(status));
+    if !rejected {
+        return Vec::new();
+    }
+    let carries = |field: &str| {
+        body.get(field).is_some()
+            || body["messages"]
+                .as_array()
+                .is_some_and(|messages| messages.iter().any(|m| m.get(field).is_some()))
+    };
+    OPTIONAL_FIELDS
+        .into_iter()
+        .filter(|field| carries(field))
+        .filter(|field| names_field(&failure.message, field) || names_field(&failure.detail, field))
+        .collect()
+}
+
+/// Whether `text` names `field` as a word of its own.
+fn names_field(text: &str, field: &str) -> bool {
+    let word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    text.match_indices(field).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + field.len()..].chars().next();
+        !before.is_some_and(word) && !after.is_some_and(word)
+    })
 }
 
 fn failed_after_content(
@@ -416,6 +585,26 @@ fn failed_after_content(
     let mut partial = acc.finish(provider, model, Some(StopReason::Error), on_event);
     partial.error_message = Some(message);
     partial
+}
+
+/// An image as an OpenAI content part: a data URL.
+fn image_part((media_type, data): (&str, &str)) -> Value {
+    json!({
+        "type": "image_url",
+        "image_url": { "url": format!("data:{media_type};base64,{data}") },
+    })
+}
+
+/// Close a run of tool results with a user message carrying their images,
+/// when they returned any.
+fn flush_tool_images(messages: &mut Vec<Value>, images: &mut Vec<Value>) {
+    if images.is_empty() {
+        return;
+    }
+    let mut parts =
+        vec![json!({ "type": "text", "text": "The images the tool results above returned." })];
+    parts.append(images);
+    messages.push(json!({ "role": "user", "content": parts }));
 }
 
 fn build_agent(connect: Duration, read: Duration) -> ureq::Agent {
@@ -529,10 +718,10 @@ mod tests {
     #[test]
     fn a_message_with_images_goes_as_parts() {
         let provider = OpenAiCompatProvider::new("p", "http://x/v1/");
-        let plain = provider.convert(&Message::User(UserMessage::text("hi")));
+        let plain = provider.convert(&Message::User(UserMessage::text("hi")), false);
         assert_eq!(plain, json!({ "role": "user", "content": "hi" }));
         let shot = UserMessage::text("see").with_images(vec![("image/png".into(), "QUJD".into())]);
-        let wire = provider.convert(&Message::User(shot));
+        let wire = provider.convert(&Message::User(shot), false);
         assert_eq!(
             wire["content"],
             json!([
@@ -540,6 +729,41 @@ mod tests {
                 { "type": "image_url", "image_url": { "url": "data:image/png;base64,QUJD" } },
             ])
         );
+    }
+
+    #[test]
+    fn tool_result_images_follow_the_run_of_results_in_a_user_message() {
+        let provider = OpenAiCompatProvider::new("p", "http://x/v1/");
+        let call = |id: &str| ToolCall {
+            id: id.into(),
+            name: "read".into(),
+            arguments: json!({}),
+            extra_content: None,
+        };
+        let shot = ToolResultMessage::text(&call("c1"), "Image shot.png")
+            .with_images(vec![("image/png".into(), "QUJD".into())]);
+        let messages = vec![
+            Message::ToolResult(shot),
+            Message::ToolResult(ToolResultMessage::text(&call("c2"), "text")),
+            Message::User(UserMessage::text("next")),
+        ];
+        let request = Request {
+            model: &model(),
+            system_prompt: "",
+            messages: &messages,
+            tools: &[],
+            thinking: ThinkingLevel::Off,
+        };
+        let body = provider.build_body(&request);
+        let wire = body["messages"].as_array().unwrap();
+        let roles: Vec<&str> = wire.iter().map(|m| m["role"].as_str().unwrap()).collect();
+        assert_eq!(roles, ["tool", "tool", "user", "user"]);
+        assert_eq!(wire[0]["content"], "Image shot.png");
+        assert_eq!(
+            wire[2]["content"][1],
+            json!({ "type": "image_url", "image_url": { "url": "data:image/png;base64,QUJD" } })
+        );
+        assert_eq!(wire[3]["content"], "next");
     }
 
     fn model() -> ModelSpec {
@@ -790,6 +1014,168 @@ mod tests {
     }
 
     #[test]
+    fn a_chat_template_keeps_the_reasoning_sent_back() {
+        let mut compat = Compat {
+            reasoning: ReasoningParam::EnableThinking,
+            send_reasoning: true,
+            ..Compat::default()
+        };
+        compat.extra_body.insert(
+            "chat_template_kwargs".into(),
+            json!({ "clear_thinking": false }),
+        );
+        let provider = OpenAiCompatProvider::new("p", "http://x/v1").with_compat(compat);
+        let messages = vec![
+            Message::User(UserMessage::text("hi")),
+            Message::Assistant(AssistantMessage {
+                content: vec![
+                    AssistantContent::thinking("plan"),
+                    AssistantContent::Text { text: "ok".into() },
+                ],
+                stop_reason: StopReason::Stop,
+                usage: Usage::default(),
+                provider: "p".into(),
+                model: "m".into(),
+                error_message: None,
+                failure: None,
+                timestamp: 0,
+            }),
+            Message::User(UserMessage::text("go on")),
+            Message::Assistant(AssistantMessage {
+                content: vec![AssistantContent::thinking("check")],
+                stop_reason: StopReason::Stop,
+                usage: Usage::default(),
+                provider: "p".into(),
+                model: "m".into(),
+                error_message: None,
+                failure: None,
+                timestamp: 0,
+            }),
+        ];
+        let body = provider.build_body(&Request {
+            model: &model(),
+            system_prompt: "",
+            messages: &messages,
+            tools: &[],
+            thinking: ThinkingLevel::High,
+        });
+        // The extra kwargs merge in rather than replace the switch.
+        assert_eq!(
+            body["chat_template_kwargs"],
+            json!({ "enable_thinking": true, "preserve_thinking": true, "clear_thinking": false })
+        );
+        // An earlier turn's reasoning stays behind: it would only cost tokens.
+        let earlier = &body["messages"][1];
+        assert_eq!(earlier["content"], "ok");
+        assert!(earlier.get("reasoning_content").is_none(), "{earlier}");
+        assert!(earlier.get("reasoning").is_none(), "{earlier}");
+        // The current turn's goes under both names, Ollama's among them.
+        assert_eq!(body["messages"][3]["reasoning_content"], "check");
+        assert_eq!(body["messages"][3]["reasoning"], "check");
+    }
+
+    /// The switch that sends reasoning back is the user's word, so it reaches
+    /// the chat template even where the reasoning level went elsewhere: a
+    /// server whose host is not recognized takes no `enable_thinking` at all,
+    /// and llama.cpp then drops the earlier reasoning unless asked to keep it.
+    #[test]
+    fn preserve_thinking_rides_on_the_echo_not_on_the_level() {
+        let messages = vec![
+            Message::User(UserMessage::text("hi")),
+            Message::Assistant(AssistantMessage {
+                content: vec![AssistantContent::thinking("plan")],
+                stop_reason: StopReason::Stop,
+                usage: Usage::default(),
+                provider: "p".into(),
+                model: "m".into(),
+                error_message: None,
+                failure: None,
+                timestamp: 0,
+            }),
+        ];
+        let body_at = |reasoning, send_reasoning| {
+            let provider = OpenAiCompatProvider::new("p", "http://x/v1").with_compat(Compat {
+                reasoning,
+                send_reasoning,
+                ..Compat::default()
+            });
+            provider.build_body(&Request {
+                model: &model(),
+                system_prompt: "",
+                messages: &messages,
+                tools: &[],
+                thinking: ThinkingLevel::High,
+            })
+        };
+
+        // No field for the level: the echo still asks the template to keep it.
+        let unserved = body_at(ReasoningParam::None, true);
+        assert_eq!(
+            unserved["chat_template_kwargs"],
+            json!({ "preserve_thinking": true })
+        );
+        assert_eq!(unserved["messages"][1]["reasoning_content"], "plan");
+
+        // Effort takes the level; the kwarg comes along, not instead.
+        let effort = body_at(ReasoningParam::Effort, true);
+        assert_eq!(effort["reasoning_effort"], "high");
+        assert_eq!(
+            effort["chat_template_kwargs"],
+            json!({ "preserve_thinking": true })
+        );
+
+        // The switch stays in the template's own field untouched.
+        let thinking = body_at(ReasoningParam::EnableThinking, true);
+        assert_eq!(
+            thinking["chat_template_kwargs"],
+            json!({ "enable_thinking": true, "preserve_thinking": true })
+        );
+
+        // Off asks for nothing: DeepSeek's API rejects what it is not asked for.
+        for reasoning in [
+            ReasoningParam::None,
+            ReasoningParam::Effort,
+            ReasoningParam::EnableThinking,
+        ] {
+            let body = body_at(reasoning, false);
+            assert!(
+                body["messages"][1].get("reasoning_content").is_none(),
+                "{reasoning:?} echoes reasoning"
+            );
+            if reasoning != ReasoningParam::EnableThinking {
+                assert!(
+                    body.get("chat_template_kwargs").is_none(),
+                    "{reasoning:?} sends kwargs unasked"
+                );
+            }
+        }
+
+        // `extra_body` merges last, so the user can still take it back.
+        let mut compat = Compat {
+            reasoning: ReasoningParam::None,
+            send_reasoning: true,
+            ..Compat::default()
+        };
+        compat.extra_body.insert(
+            "chat_template_kwargs".into(),
+            json!({ "preserve_thinking": false }),
+        );
+        let refused = OpenAiCompatProvider::new("p", "http://x/v1")
+            .with_compat(compat)
+            .build_body(&Request {
+                model: &model(),
+                system_prompt: "",
+                messages: &messages,
+                tools: &[],
+                thinking: ThinkingLevel::High,
+            });
+        assert_eq!(
+            refused["chat_template_kwargs"],
+            json!({ "preserve_thinking": false })
+        );
+    }
+
+    #[test]
     fn a_calls_extra_content_goes_back_with_it() {
         // Gemini's OpenAI-compatible endpoint signs a call in `extra_content`
         // and refuses the next request unless the call carries it again.
@@ -882,6 +1268,96 @@ data: [DONE]\n";
             e,
             StreamEvent::Retry { attempt: 1, max_attempts: 3, error, .. } if error.contains("overloaded")
         )));
+    }
+
+    /// A server that refuses a field termide adds gets the request again
+    /// without it, at once, and later requests leave it out from the start;
+    /// fields it took keep going.
+    #[test]
+    fn a_refused_field_is_dropped_and_stays_dropped() {
+        let ok = "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"done\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n";
+        let (url, bodies) = serve(vec![
+            // OpenAI's wording for an unknown argument.
+            status(
+                400,
+                "{\"error\":{\"message\":\"Unrecognized request argument supplied: chat_template_kwargs\"}}",
+            ),
+            // vLLM's: the field only in the error's location.
+            status(
+                422,
+                "{\"object\":\"error\",\"message\":\"Extra inputs are not permitted\",\"detail\":[{\"loc\":[\"body\",\"messages\",1,\"reasoning\"]}]}",
+            ),
+            sse(ok),
+            sse(ok),
+            sse(ok),
+        ]);
+        let compat = Compat {
+            reasoning: ReasoningParam::EnableThinking,
+            send_reasoning: true,
+            ..Compat::default()
+        };
+        let provider = provider(&url).with_compat(compat.clone());
+        let messages = vec![
+            Message::User(UserMessage::text("hi")),
+            Message::Assistant(AssistantMessage {
+                content: vec![AssistantContent::thinking("plan")],
+                stop_reason: StopReason::Stop,
+                usage: Usage::default(),
+                provider: "p".into(),
+                model: "m".into(),
+                error_message: None,
+                failure: None,
+                timestamp: 0,
+            }),
+        ];
+        let request = Request {
+            model: &model(),
+            system_prompt: "",
+            messages: &messages,
+            tools: &[],
+            thinking: ThinkingLevel::High,
+        };
+        let first = provider.stream(&request, &mut |_| {}, &CancelToken::new());
+        assert_eq!(first.plain_text(), "done", "{first:?}");
+        let second = provider.stream(&request, &mut |_| {}, &CancelToken::new());
+        assert_eq!(second.plain_text(), "done", "{second:?}");
+        // Another session's provider on the same server knows it already.
+        let next_session =
+            super::OpenAiCompatProvider::new("test", url.clone()).with_compat(compat);
+        let third = next_session.stream(&request, &mut |_| {}, &CancelToken::new());
+        assert_eq!(third.plain_text(), "done", "{third:?}");
+
+        let bodies: Vec<Value> = bodies
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|b| serde_json::from_str(b).unwrap())
+            .collect();
+        assert_eq!(bodies.len(), 5);
+        assert!(bodies[0].get("chat_template_kwargs").is_some());
+        assert!(bodies[1].get("chat_template_kwargs").is_none());
+        assert_eq!(bodies[1]["messages"][1]["reasoning"], "plan");
+        // The third went out without either, the rest from the start.
+        for body in &bodies[2..] {
+            assert!(body.get("chat_template_kwargs").is_none(), "{body}");
+            assert!(body["messages"][1].get("reasoning").is_none(), "{body}");
+            assert_eq!(body["messages"][1]["reasoning_content"], "plan");
+        }
+    }
+
+    #[test]
+    fn a_field_is_named_only_as_a_word_of_its_own() {
+        assert!(names_field("unknown field: reasoning", "reasoning"));
+        assert!(names_field("('body', 'reasoning')", "reasoning"));
+        assert!(!names_field(
+            "reasoning_effort is not supported",
+            "reasoning"
+        ));
+        assert!(!names_field("no reasoning_content here", "reasoning"));
+        assert!(names_field(
+            "no reasoning_content here",
+            "reasoning_content"
+        ));
     }
 
     #[test]

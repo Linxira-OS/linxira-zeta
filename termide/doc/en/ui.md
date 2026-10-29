@@ -43,7 +43,18 @@ Opened with `Alt+P` or menu **Options → Edit preferences**. The previous horiz
 
 **Reset** asks first and acts where the settings are stored: a project goes back to the global settings, the global settings to the defaults.
 
-Theme, language and shell chosen from the menus are stored the same way.
+Theme, language and shell chosen from the menus are stored globally; a
+project's own theme or language gives way to the choice. To keep one per
+project, set it here with `Stored: Project`.
+
+**What only the global settings set.** A project's file comes with the
+repository, so it may not name a program termide starts, a file it writes or
+where a key is sent, nor loosen the agent: the terminal's default shell, the
+log file, the web tools' browser, an LSP server's or a debugger's command and
+arguments, a connection's base URL and API key variable, and the agent's
+permission mode. Stored in the project, these fields show their value with
+"set in the global settings" and cannot be changed; found in a project file,
+they are ignored, with a line in the log.
 
 **Sidebar sections:**
 - General, Editor, File Manager, Terminal, LSP, Logging, VFS — plain leaves
@@ -96,9 +107,9 @@ Menu activation/deactivation and each item can be accessed by mouse click or [ke
     Both pick the directory in a tree: `→`/`←` expand and collapse a branch, `Enter` enters a directory, `Backspace` goes to the parent, `.` shows or hides hidden directories, `Ctrl+Enter` confirms from anywhere
 
     The file manager's keys work on directories there too: `create_dir` (`F7`/`D`, or the `New folder` button) opens a name row beside the entry under the cursor — at its level, not inside it, even when it is expanded; `rename` (`F2`/`R`) edits a name in place; `delete` (`F8`/`Delete`) removes an empty directory only. `Enter` applies the name, `Esc` drops it; a name that cannot be used keeps the row open and says why above the tree
-  - Reopen projects of the last run (N) — shown after a run in which more than one project was open, until you use it or open another project yourself. It opens those projects in the background and leaves you where you are; each loads its layout the first time you switch to it, with new shells in its terminals. The list is saved whenever the set of open projects changes, so it survives a crash; a run that never opens a second project leaves it as it was. With several instances running, the one that changed its set last wins. `termide --restore` (`-r`) does the same at launch and starts in the project that run was in; started from a directory of that set, it stays there, so starting it elsewhere does not add that directory to the set. Without a saved set it starts as usual
+  - Reopen projects of the last run (N) — shown after a run in which more than one project was open, until you use it or open another project yourself. It opens those projects in the background and leaves you where you are; each loads its layout the first time you switch to it — one whose agent left work unfinished (a run cut off or paused, a `/goal` or `/loop`, a request waiting to be tried again) loads at once, so its card rings and marks the project 🔔 — with new shells in its terminals. The list is saved whenever the set of open projects changes, so it survives a crash; a run that never opens a second project leaves it as it was. With several instances running, the one that changed its set last wins. `termide --restore` (`-r`) does the same at launch and starts in the project that run was in; started from a directory of that set, it stays there, so starting it elsewhere does not add that directory to the set. Without a saved set it starts as usual
   - Below a separator, every project you have worked on. The ones open in this instance come first, in the order you keep them — a new one goes last, and the keys that move a panel between groups move the selected one: `Alt+PgUp`/`Alt+PgDn` one place up or down, `Alt+Home`/`Alt+End` to the start or the end; the mouse drags one over the others, and `Esc` during the drag puts it back; the order numbers them for `goto_project_N` and is restored with them — then — below another separator — the others, the most recently used first; a long list scrolls. Each row reads as in the project switcher: the mark, the time a project not open was last worked on (dimmed), the path — losing its start when too long — and 🔔. ● marks the current project, ○ one open in the background, and 🔔 one whose panel waits for you (an agent's question or finished work, a terminal bell); while any does and its button is not on the menu bar, 🔔 precedes the `Projects` title. Switching to a project with 🔔 moves the focus to its waiting panel. With emoji icons off, `!` stands for 🔔 here and in panel headers. `Enter` or a click switches. `Delete`/`F8` closes a project open in the background, which stops the programs running in it, or deletes the saved layout of one that is not open, dropping it from the list (its files are not touched); both ask first. On the current project it switches to the project you left last and closes the current one, asking first only when programs run in it or files have unsaved changes; with no other project open the current one stays
-  - Switching to another project leaves the one you were in open in the background: programs in its terminals keep running, agents keep working, and unsaved edits stay as they were. A project stays open until you close it or TermIDE quits. New project on a directory that is already open switches to it. Quitting names the background projects that still run something. `Alt+1`…`Alt+9` switch to the open project with that number, in the order the `Projects` menu lists them; `prev_project` and `next_project` step through them and ship unbound, see [Unbound actions](keybindings.md#unbound-actions)
+  - Switching to another project leaves the one you were in open in the background: programs in its terminals keep running, agents keep working, and unsaved edits stay as they were. A project stays open until you close it or Termide quits. New project on a directory that is already open switches to it. Quitting names the background projects that still run something. `Alt+1`…`Alt+9` switch to the open project with that number, in the order the `Projects` menu lists them; `prev_project` and `next_project` step through them and ship unbound, see [Unbound actions](keybindings.md#unbound-actions)
   - `Alt+\` opens the project switcher, a modal listing the projects as this menu does, one row each — the mark, when a project not open was last worked on (dimmed), its path and 🔔 — with the row under the cursor inverted. Typing filters the list by path. The cursor starts on the project you left last: `Alt+\` then `Enter` goes back to it. `Delete`/`F8` works as in the menu, and so do the keys that move an open project while nothing is typed in the filter
 - `AI` — the coding agent's agents, sessions, skills and prompts, and a switch for the agents' browser window; see [The AI menu](agent.md#the-ai-menu)
 - `Windows` — panel creation submenu:
@@ -168,8 +179,21 @@ The **git status** panel has two selectors on top: the repository and the
 branch. The branch list holds local branches and remote ones without a local
 twin; `●` marks the branch checked out in the repository's main copy, `⧉` one
 checked out in a linked worktree (worktree directories are not listed as
-repositories of their own). Choosing a branch never checks it out — it only
-changes what the panel shows:
+repositories of their own). The repository list is the tree the project holds:
+drawn with the lines of the file tree, directories appear as dim rows that name
+where the repositories under them live, and a folder named like the repository
+inside it (`github.com/owner/owner`) writes no row of its own. A directory folds
+like a folder of the file tree: `▼`/`▶` before its name, `Enter` or a click turns
+it over, `←`/`→` close and open it; a directory cannot be chosen, and the folds
+last as long as the panel. Opening the list opens the folders above the current
+repository. The list scrolls only when the cursor leaves the visible rows. A project that is
+a folder of checkouts therefore reads as `<host>/<group>/<repo>` instead of a run
+of folder names that repeat themselves; the closed selector shows the same path.
+The filter scores that path, so a host or a group finds the repositories inside it.
+A panel restored from the layout opens on the repository it was saved with, and its
+list still holds the rest of the project: one path was stored, but the plane around
+it is rediscovered.
+Choosing a branch never checks it out — it only changes what the panel shows:
 
 - a branch checked out in the main copy or a worktree shows that working copy's
   changes, and staging, committing, diff, push and pull act in it;

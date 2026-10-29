@@ -698,7 +698,8 @@ fn command_shortcut(command: &termide_config::commands::CommandItem) -> Option<S
 }
 
 /// Format command label with type icon prefix (when terminal supports emoji).
-/// 💻 = runs in terminal panel, ⚙ = background, 📋 = background with result modal
+/// 💻 = runs in terminal panel, ⚙ = background, 📋 = background with result
+/// modal, 🐞 = runs under a debugger (in a terminal panel, whatever the mode)
 fn command_label(command: &termide_config::commands::CommandItem) -> String {
     use termide_config::commands::CommandMode;
 
@@ -710,6 +711,7 @@ fn command_label(command: &termide_config::commands::CommandItem) -> String {
 
     if termide_core::use_emoji_icons() {
         let icon = match command.mode {
+            _ if command.debugger().is_some() => "🐞",
             CommandMode::Report => "📋",
             CommandMode::Background => "⚙",
             CommandMode::Terminal => "💻",
@@ -722,6 +724,7 @@ fn command_label(command: &termide_config::commands::CommandItem) -> String {
 
 pub fn get_commands_items(
     registry: &termide_config::commands::CommandsRegistry,
+    plugin_commands: &[(String, String)],
 ) -> Vec<DropdownItem> {
     use termide_config::commands::{encode_command_menu_key, CommandMenuKeyKind};
 
@@ -781,6 +784,17 @@ pub fn get_commands_items(
             )
             .with_submenu(),
         );
+    }
+
+    // Plugin commands last, under a separator: they are not the user's to
+    // rename, edit or delete.
+    if !plugin_commands.is_empty() {
+        if items.len() > 2 {
+            items.push(DropdownItem::separator());
+        }
+        for (action, label) in plugin_commands {
+            items.push(DropdownItem::new(label, action.clone()));
+        }
     }
 
     items
@@ -1410,12 +1424,13 @@ mod menu_shortcut_tests {
     /// colour from every other menu.
     #[test]
     fn command_hotkeys_move_out_of_the_label() {
-        use termide_config::commands::{CommandItem, CommandMetadata, CommandMode};
+        use termide_config::commands::{CommandCwd, CommandItem, CommandMetadata, CommandMode};
 
         let command = CommandItem {
             name: "deploy".to_string(),
             command: Some("make deploy".to_string()),
             mode: CommandMode::Terminal,
+            cwd: CommandCwd::Panel,
             is_project: false,
             metadata: Some(CommandMetadata {
                 key: Some("Ctrl+Shift+D".to_string()),
@@ -1434,12 +1449,13 @@ mod menu_shortcut_tests {
 
     #[test]
     fn a_command_without_a_hotkey_has_no_shortcut() {
-        use termide_config::commands::{CommandItem, CommandMode};
+        use termide_config::commands::{CommandCwd, CommandItem, CommandMode};
 
         let command = CommandItem {
             name: "build".to_string(),
             command: Some("make".to_string()),
             mode: CommandMode::Background,
+            cwd: CommandCwd::Panel,
             is_project: false,
             metadata: None,
         };
@@ -1464,5 +1480,21 @@ mod menu_shortcut_tests {
             annotated.width(),
             plain.width()
         );
+    }
+}
+
+#[cfg(test)]
+mod plugin_command_tests {
+    use super::*;
+
+    #[test]
+    fn plugin_commands_come_last() {
+        let registry = termide_config::commands::CommandsRegistry::default();
+        let plugins = vec![("plugin_command:p:a".to_string(), "p: A".to_string())];
+        let items = get_commands_items(&registry, &plugins);
+        // Add, its separator, then the plugin's command with no second one.
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[2].key, "plugin_command:p:a");
+        assert_eq!(get_commands_items(&registry, &[]).len(), 2);
     }
 }

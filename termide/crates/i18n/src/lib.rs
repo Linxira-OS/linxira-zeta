@@ -208,6 +208,34 @@ pub trait Translation: Send + Sync {
     fn help_desc_find_references(&self) -> &str;
     fn help_desc_rename_symbol(&self) -> &str;
     fn help_desc_code_action(&self) -> &str;
+    // Debugging
+    fn help_desc_toggle_breakpoint(&self) -> &str;
+    fn help_desc_start_debug(&self) -> &str;
+    fn help_desc_clear_breakpoints(&self) -> &str;
+    fn help_desc_configure_debug(&self) -> &str;
+    fn debug_select_title(&self) -> &str;
+    fn debug_no_native_debugger(&self) -> &str;
+    fn debug_no_delve(&self) -> &str;
+    fn debug_setup_title(&self) -> &str;
+    fn debug_setup_name(&self) -> &str;
+    fn debug_setup_program(&self) -> &str;
+    fn debug_setup_build(&self) -> &str;
+    fn debug_setup_debugger(&self) -> &str;
+    fn debug_setup_debugger_args(&self) -> &str;
+    fn debug_setup_no_program(&self) -> &str;
+    fn debug_breakpoints_cleared(&self) -> &str;
+    fn debug_panel_title(&self) -> &str;
+    fn debug_section_stack(&self) -> &str;
+    fn debug_section_variables(&self) -> &str;
+    fn debug_section_output(&self) -> &str;
+    fn debug_status_building(&self) -> &str;
+    fn debug_status_starting(&self) -> &str;
+    fn debug_status_running(&self) -> &str;
+    fn debug_status_ended(&self) -> &str;
+    fn debug_no_session(&self) -> &str;
+    fn debug_no_frames(&self) -> &str;
+    fn debug_hints(&self) -> &str;
+    fn debug_evaluate_prompt(&self) -> &str;
 
     // LSP rename flow status messages
     fn lsp_rename_no_identifier(&self) -> &str;
@@ -318,6 +346,7 @@ pub trait Translation: Send + Sync {
     fn help_desc_agent_rewind(&self) -> &str;
     fn help_desc_agent_fork(&self) -> &str;
     fn help_desc_agent_switch(&self) -> &str;
+    fn help_desc_agent_search_sessions(&self) -> &str;
     fn help_desc_agent_new(&self) -> &str;
     fn help_desc_agent_delete(&self) -> &str;
     fn help_section_viewers(&self) -> &str;
@@ -401,6 +430,8 @@ pub trait Translation: Send + Sync {
     fn command_params_run(&self) -> &str;
     fn command_params_cancel(&self) -> &str;
     fn command_run_label(&self) -> &str;
+    fn command_confirm_project_title(&self) -> &str;
+    fn command_confirm_project_fmt(&self, name: &str, command: &str) -> String;
 
     // Command config modal (create/edit)
     fn command_config_label_name(&self) -> &str;
@@ -411,6 +442,9 @@ pub trait Translation: Send + Sync {
     fn command_config_label_hotkey(&self) -> &str;
     fn command_config_label_project(&self) -> &str;
     fn command_config_project_checkbox(&self) -> &str;
+    /// Where the command runs: checked is the project root, unchecked the
+    /// focused panel's folder.
+    fn command_config_cwd_checkbox(&self) -> &str;
     fn command_config_hotkey_hint(&self) -> &str;
     fn command_config_hotkey_invalid(&self) -> &str;
     fn command_config_hotkey_conflict(&self) -> &str;
@@ -561,6 +595,10 @@ pub trait Translation: Send + Sync {
     fn agent_show_prompt(&self) -> &str;
     /// Agent panel context menu and `/usage`: the session-info modal title
     fn agent_session_info(&self) -> &str;
+    /// Buttons under the view of a delegate shown over the layout.
+    fn agent_view_dock(&self) -> &str;
+    fn agent_view_take_over(&self) -> &str;
+    fn agent_view_stop(&self) -> &str;
 
     // Agent panel — permission card
     /// The permission card's title: what the agent wants to run (`{tool}`)
@@ -684,17 +722,38 @@ pub trait Translation: Send + Sync {
     fn agent_notice_mcp_usage(&self) -> &str;
     fn agent_mcp_status_connecting(&self) -> &str;
     fn agent_mcp_status_needs_login(&self) -> &str;
+    fn agent_cmd_desc_trust(&self) -> &str;
+    fn agent_hint_trust(&self) -> &str;
+    fn agent_mcp_status_needs_approval(&self) -> &str;
+    fn agent_notice_trust_none(&self) -> &str;
     fn agent_mcp_status_signing_in(&self) -> &str;
     fn agent_cmd_desc_prompt(&self) -> &str;
 
     // Agent panel — transient notices (static)
     fn agent_notice_busy(&self) -> &str;
+    fn agent_notice_delegates_running_fmt(&self, count: usize) -> String;
     fn agent_notice_no_log_to_name(&self) -> &str;
     fn agent_notice_will_pause(&self) -> &str;
     fn agent_notice_nothing_to_pause(&self) -> &str;
     fn agent_notice_already_running(&self) -> &str;
     fn agent_notice_nothing_to_continue(&self) -> &str;
     fn agent_unfinished_title(&self) -> &str;
+    /// The carry-on card: a delegated task left unfinished in its own log.
+    fn agent_unfinished_delegate_fmt(&self, agent: &str, task: &str) -> String;
+    /// The card asking to carry on the delegated tasks a panel left behind.
+    fn agent_unfinished_delegates_title(&self) -> &str;
+    /// The panel asked to carry its delegates on, and cannot: they stay where
+    /// they are, in the session lists.
+    fn agent_carry_failed_fmt(&self, agents: &str) -> String;
+    /// The state strip: a delegated task left unfinished when termide closed.
+    fn agent_strip_left_unfinished(&self) -> &str;
+    /// A delegated task carried on after termide closed, answered at last.
+    fn agent_restored_report_fmt(&self, agent: &str, text: &str) -> String;
+    /// A delegated task carried on after termide closed, which failed.
+    fn agent_restored_failed_fmt(&self, agent: &str, text: &str) -> String;
+    /// Nowhere to return a carried-on delegate's answer: no panel holds the
+    /// session that delegated it.
+    fn agent_notice_no_parent_panel(&self) -> &str;
     fn agent_unfinished_continue(&self) -> &str;
     fn agent_unfinished_drop(&self) -> &str;
     fn agent_unfinished_later(&self) -> &str;
@@ -711,6 +770,25 @@ pub trait Translation: Send + Sync {
     fn agent_notice_goal_working(&self) -> &str;
     /// Agent panel state strip: the label of a message queued for the next turn.
     fn agent_state_queued(&self) -> &str;
+    /// Agent panel state strip: the label of a pause asked for, not reached yet.
+    fn agent_strip_pause(&self) -> &str;
+    /// Agent panel state strip: when a pause asked for takes effect.
+    fn agent_strip_after_step(&self) -> &str;
+    /// Agent panel state strip: a delegated task held at the panel's pause.
+    fn agent_strip_paused(&self) -> &str;
+    /// Agent panel state strip: a delegated task a pause cannot hold.
+    fn agent_strip_keeps_running(&self) -> &str;
+    /// Agent panel state strip: the delegates held at the panel's pause.
+    fn agent_strip_pause_held_fmt(&self, count: usize) -> String;
+    /// Agent panel state strip: the delegated tasks still going at it.
+    fn agent_strip_pause_running_fmt(&self, count: usize) -> String;
+    /// Agent panel state strip: a goal's judge deciding whether it is reached.
+    fn agent_strip_checking(&self) -> &str;
+    /// Agent panel state strip: when a failed request is tried again; the
+    /// failure is the row's label.
+    fn agent_strip_retry_at_fmt(&self, time: &str, left: &str) -> String;
+    /// Agent panel state strip: the wait for a loop's next run.
+    fn agent_strip_next_fmt(&self, wait: &str) -> String;
     /// Agent panel state strip: queued messages beyond the ones shown.
     fn agent_state_queued_more(&self, count: usize) -> String;
     fn agent_input_placeholder(&self) -> &str;
@@ -744,7 +822,14 @@ pub trait Translation: Send + Sync {
     fn agent_banner_cwd(&self) -> &str;
     fn agent_cwd_title(&self) -> &str;
     fn agent_banner_sessions(&self) -> &str;
+    /// The prompt box's border title while it searches the banner's sessions.
+    fn agent_session_search_title(&self) -> &str;
+    fn agent_session_search_placeholder(&self) -> &str;
+    /// The banner's list when the session search matches nothing.
+    fn agent_session_search_empty(&self) -> &str;
     fn agent_project_command(&self) -> &str;
+    /// A skill kept to the user (`disable-model-invocation`), with no description.
+    fn agent_user_skill(&self) -> &str;
     fn agent_hint_loop(&self) -> &str;
     fn agent_hint_goal(&self) -> &str;
     fn agent_model_request_dropped(&self) -> &str;
@@ -760,6 +845,8 @@ pub trait Translation: Send + Sync {
     fn settings_header_general(&self) -> &str;
     fn settings_header_timing(&self) -> &str;
     fn settings_header_servers(&self) -> &str;
+    /// Settings modal: the heading of an LSP server's page.
+    fn settings_header_server(&self) -> &str;
     fn settings_header_model(&self) -> &str;
     fn settings_header_permissions(&self) -> &str;
     fn settings_header_transcript(&self) -> &str;
@@ -776,12 +863,25 @@ pub trait Translation: Send + Sync {
     fn palette_category_panel_management(&self) -> &str;
     fn palette_category_application(&self) -> &str;
     fn palette_category_commands(&self) -> &str;
+    fn palette_category_plugins(&self) -> &str;
+    fn plugins_title(&self) -> &str;
+    fn palette_plugins_status(&self) -> &str;
+    fn palette_plugins_reload(&self) -> &str;
+    fn plugins_state_ready(&self) -> &str;
+    fn plugins_state_starting(&self) -> &str;
+    fn plugins_state_gave_up(&self) -> &str;
+    fn plugins_state_off(&self) -> &str;
+    fn plugins_none(&self) -> &str;
+    fn palette_plugins_restart_fmt(&self, name: &str) -> String;
+    fn plugins_reloaded_fmt(&self, count: usize) -> String;
     fn command_report_no_output(&self) -> &str;
     fn agent_paste_placeholder_fmt(&self, n: usize, what: &str) -> String;
     fn agent_paste_lines_fmt(&self, count: usize) -> String;
     fn agent_paste_chars_fmt(&self, count: usize) -> String;
     fn agent_paste_image_fmt(&self, width: u32, height: u32) -> String;
     fn agent_project_command_fmt(&self, description: &str) -> String;
+    /// The description of a skill kept to the user, marked as such.
+    fn agent_user_skill_fmt(&self, description: &str) -> String;
     fn agent_running_command_fmt(&self, name: &str) -> String;
     fn agent_notice_external_failed_fmt(&self, error: &str) -> String;
     fn agent_queued_fmt(&self, count: usize) -> String;
@@ -792,6 +892,17 @@ pub trait Translation: Send + Sync {
     fn projects_delete_failed_fmt(&self, error: &str) -> String;
     fn command_edit_title_fmt(&self, name: &str) -> String;
     fn command_run_failed_fmt(&self, error: &str) -> String;
+    fn command_needs_context_fmt(&self, placeholder: &str) -> String;
+    fn command_needs_editor_fmt(&self, placeholder: &str) -> String;
+    fn debug_current_file_fmt(&self, file: &str, debugger: &str) -> String;
+    fn debug_unknown_debugger_fmt(&self, name: &str) -> String;
+    fn debug_cargo_failed_fmt(&self, error: &str) -> String;
+    fn debug_setup_default_name_fmt(&self, name: &str) -> String;
+    fn debug_setup_bad_args_fmt(&self, text: &str) -> String;
+    fn settings_debugger_default_fmt(&self, args: &str) -> String;
+    fn debug_status_stopped_fmt(&self, reason: &str) -> String;
+    fn debug_status_exited_fmt(&self, code: &str) -> String;
+    fn debug_status_failed_fmt(&self, error: &str) -> String;
     fn command_name_taken_fmt(&self, name: &str) -> String;
     fn agent_notice_goal_checking(&self) -> &str;
     fn agent_notice_handoff_preparing(&self) -> &str;
@@ -814,11 +925,22 @@ pub trait Translation: Send + Sync {
     fn agent_failure_keep_trying(&self) -> &str;
     fn agent_failure_restart(&self) -> &str;
     fn agent_failure_compact(&self) -> &str;
-    fn agent_failure_switch_agent(&self) -> &str;
     fn agent_failure_stop(&self) -> &str;
     fn agent_failure_auth_hint(&self) -> &str;
+    /// A delegated task stopped by a limit that passes: it waits, it does not
+    /// answer. The state strip's label for one.
+    fn agent_parked_strip(&self) -> &str;
+    /// The card asking what to do with a delegated task parked at a limit.
+    fn agent_parked_title(&self) -> &str;
+    fn agent_parked_give_up(&self) -> &str;
+    /// Leaving a parked delegate's card: it waits out its limit as asked.
+    fn agent_parked_keep_waiting(&self) -> &str;
+    /// What the delegating agent is told when a parked task is given up.
+    fn agent_parked_given_up_fmt(&self, agent: &str) -> String;
     fn agent_notice_agent_restarting(&self) -> &str;
     fn agent_notice_retrying(&self) -> &str;
+    /// A failure card left unanswered until its time (`on_limit = "ask_else_wait"`).
+    fn agent_notice_unanswered_retry(&self) -> &str;
     fn agent_notice_retry_cancelled(&self) -> &str;
     fn agent_notice_no_model_choices(&self) -> &str;
     fn agent_notice_plan_no_request(&self) -> &str;
@@ -857,11 +979,23 @@ pub trait Translation: Send + Sync {
     fn agent_notice_cannot_continue_fmt(&self, error: &str) -> String;
     fn agent_failure_wait_until_fmt(&self, time: &str) -> String;
     fn agent_failure_resets_fmt(&self, time: &str, left: &str) -> String;
+    /// The reset time has gone by while the card stood open.
+    fn agent_failure_reset_passed_fmt(&self, time: &str) -> String;
+    /// Failure card under `on_limit = "ask_else_wait"`: when it retries unanswered.
+    fn agent_failure_auto_retry_fmt(&self, time: &str, left: &str) -> String;
     fn agent_notice_retry_waiting_fmt(&self, time: &str) -> String;
     fn agent_notice_cannot_retry_fmt(&self, error: &str) -> String;
     /// Agent panel state strip: a failed request waiting to be tried again.
     fn agent_state_retry_at_fmt(&self, reason: &str, time: &str, left: &str) -> String;
     fn agent_notice_cannot_start_fmt(&self, error: &str) -> String;
+    fn agent_input_placeholder_delegate_fmt(&self, agent: &str, task: &str) -> String;
+    fn agent_notice_taken_over_fmt(&self, agent: &str) -> String;
+    fn agent_close_confirm_delegates_fmt(&self, count: usize) -> String;
+    fn agent_stop_task_confirm_fmt(&self, agent: &str) -> String;
+    fn agent_stop_command_confirm_fmt(&self, command: &str) -> String;
+    fn agent_take_over_confirm_fmt(&self, agent: &str) -> String;
+    /// Agent transcript: who sent a message, and from which panel.
+    fn agent_peer_from_panel_fmt(&self, agent: &str, panel: &str) -> String;
     fn agent_notice_cannot_check_goal_fmt(&self, error: &str) -> String;
     fn agent_notice_cannot_handoff_fmt(&self, error: &str) -> String;
     fn agent_notice_cannot_write_handoff_fmt(&self, error: &str) -> String;
@@ -883,6 +1017,10 @@ pub trait Translation: Send + Sync {
     fn agent_notice_mcp_reload_fmt(&self, started: &str, removed: &str, kept: &str) -> String;
     fn agent_notice_mcp_needs_login_fmt(&self, source: &str) -> String;
     fn agent_notice_mcp_login_started_fmt(&self, source: &str, url: &str) -> String;
+    fn agent_notice_trusted_fmt(&self, name: &str) -> String;
+    fn agent_notice_trust_unknown_fmt(&self, name: &str) -> String;
+    fn agent_notice_mcp_needs_approval_fmt(&self, source: &str, launch: &str) -> String;
+    fn agent_notice_hook_needs_approval_fmt(&self, name: &str, launch: &str) -> String;
     fn agent_notice_mcp_gone_fmt(&self, source: &str) -> String;
     fn agent_notice_mcp_updated_fmt(&self, source: &str, count: usize) -> String;
     fn agent_notice_mcp_logout_fmt(&self, source: &str) -> String;
@@ -940,6 +1078,7 @@ pub trait Translation: Send + Sync {
         error: &str,
     ) -> String;
     fn agent_notice_compacted_fmt(&self, tokens: u64, kept: usize) -> String;
+    fn agent_notice_fitted_fmt(&self, before: u64, after: u64) -> String;
     fn agent_notice_handoff_written_fmt(&self, path: &str) -> String;
     fn agent_notice_no_command_fmt(&self, name: &str, available: &str) -> String;
     /// `/name` is defined by several kinds: the one it runs and the hidden ones.
@@ -954,6 +1093,12 @@ pub trait Translation: Send + Sync {
     fn agent_notice_empty_tool_text_fmt(&self, file: &str) -> String;
     fn agent_notice_loop_stopped_max_fmt(&self, count: usize) -> String;
     fn agent_notice_goal_idle_paused_fmt(&self, count: usize) -> String;
+    /// The goal judge found the agent waiting on the user; the goal pauses.
+    fn agent_notice_goal_waiting_fmt(&self, reason: &str) -> String;
+    /// The panel's session is open in another termide, process `pid`.
+    fn agent_notice_session_held_fmt(&self, pid: &str) -> String;
+    /// The other termide let the panel's session go, and it is taken up.
+    fn agent_notice_session_released(&self) -> &str;
     fn agent_notice_looping_every_fmt(&self, interval: &str) -> String;
     fn agent_unfinished_run_cut_fmt(&self, age: &str) -> String;
     fn agent_unfinished_run_paused_fmt(&self, age: &str) -> String;
@@ -1027,6 +1172,32 @@ pub trait Translation: Send + Sync {
     fn agent_tool_question(&self) -> &str;
     /// Agent transcript: the action words for a `suggest_command` call.
     fn agent_tool_suggest(&self) -> &str;
+    /// Agent transcript: the action words for a `send_message` call, before
+    /// the panel number.
+    fn agent_tool_send_message(&self) -> &str;
+    /// Agent transcript: the action words for an `agents` call.
+    fn agent_tool_agents(&self) -> &str;
+    /// Agent transcript: the action words for a `send_message` question,
+    /// before the panel number.
+    fn agent_tool_send_question(&self) -> &str;
+    /// Agent transcript: the action words for a `send_message` reply, before
+    /// the panel number.
+    fn agent_tool_send_reply(&self) -> &str;
+    /// Agent transcript: the action words for a `send_message` note, before
+    /// the panel number.
+    fn agent_tool_send_info(&self) -> &str;
+    /// Agent transcript: the action words for another agent's answer, before
+    /// its name.
+    fn agent_peer_reply(&self) -> &str;
+    /// Agent transcript: the action words for another agent's question,
+    /// before its name.
+    fn agent_peer_question(&self) -> &str;
+    /// Agent transcript: the action words for another agent's note, before
+    /// its name.
+    fn agent_peer_info(&self) -> &str;
+    /// Agent transcript: the action words for a task another agent gives,
+    /// before its name.
+    fn agent_peer_task(&self) -> &str;
     /// Agent notices: what defines a `/name` — a built-in command, a prompt
     /// template, a command script, a skill — as the object of "runs" and
     /// "hides".
@@ -1072,10 +1243,6 @@ pub trait Translation: Send + Sync {
     /// Settings modal: the switch that makes a connection the default, the
     /// one new sessions start on.
     fn settings_ai_connection_default(&self) -> &str;
-    /// Settings modal: the switch that asks an OpenAI-compatible server for
-    /// its prompt-processing progress.
-    fn settings_ai_connection_prefill_progress(&self) -> &str;
-    fn settings_ai_connection_reasoning_param(&self) -> &str;
     /// Settings modal: the connection the agents a connection's sessions
     /// delegate to with `task` run on.
     fn settings_ai_connection_subagents(&self) -> &str;
@@ -1098,6 +1265,7 @@ pub trait Translation: Send + Sync {
     /// AI settings: what a run stopped by a limit or an outage does.
     fn settings_agent_on_limit(&self) -> &str;
     fn settings_agent_on_limit_ask(&self) -> &str;
+    fn settings_agent_on_limit_ask_else_wait(&self) -> &str;
     fn settings_agent_on_limit_wait(&self) -> &str;
     fn settings_agent_on_limit_stop(&self) -> &str;
     /// Settings modal: AI tab, web tools field labels.
@@ -1171,6 +1339,28 @@ pub trait Translation: Send + Sync {
     fn settings_tab_file_manager(&self) -> &str;
     fn settings_tab_terminal(&self) -> &str;
     fn settings_tab_lsp(&self) -> &str;
+    fn settings_tab_debug(&self) -> &str;
+    fn settings_header_debuggers(&self) -> &str;
+    fn settings_header_debugger(&self) -> &str;
+    fn settings_debug_native(&self) -> &str;
+    fn settings_debug_console(&self) -> &str;
+    fn settings_debug_console_terminal(&self) -> &str;
+    fn settings_debug_console_panel(&self) -> &str;
+    fn settings_debugger_command(&self) -> &str;
+    fn settings_debugger_args(&self) -> &str;
+    fn settings_debugger_reset(&self) -> &str;
+    fn settings_global_only(&self) -> &str;
+    fn settings_tab_plugins(&self) -> &str;
+    fn settings_header_plugins(&self) -> &str;
+    fn settings_plugin_mode_on(&self) -> &str;
+    fn settings_plugin_mode_opt_in(&self) -> &str;
+    fn settings_plugin_mode_off(&self) -> &str;
+    fn settings_plugin_follow(&self) -> &str;
+    fn settings_plugin_on(&self) -> &str;
+    fn settings_plugin_off(&self) -> &str;
+    fn settings_plugin_blocked(&self) -> &str;
+    fn settings_debugger_no_defaults(&self) -> &str;
+    fn settings_debugger_bad_args(&self) -> &str;
     fn settings_tab_logging(&self) -> &str;
     fn settings_tab_vfs(&self) -> &str;
     fn settings_tab_keybindings(&self) -> &str;
@@ -1234,6 +1424,18 @@ pub trait Translation: Send + Sync {
     fn settings_lsp_completion_delay(&self) -> &str;
     fn settings_lsp_hover_delay(&self) -> &str;
     fn settings_lsp_add_server(&self) -> &str;
+    /// Settings modal: the action that deletes the open LSP server.
+    fn settings_lsp_delete_server(&self) -> &str;
+    /// Settings modal: the LSP server page's language field, its key.
+    fn settings_lsp_server_language(&self) -> &str;
+    /// Settings modal: the command that starts the LSP server.
+    fn settings_lsp_server_command(&self) -> &str;
+    /// Settings modal: the LSP server's arguments, typed comma-separated.
+    fn settings_lsp_server_args(&self) -> &str;
+    /// Settings modal: the files that mark a project root, comma-separated.
+    fn settings_lsp_server_root_markers(&self) -> &str;
+    /// Settings modal: an LSP server left without a language, or with another's.
+    fn settings_lsp_server_language_taken(&self) -> &str;
 
     // Settings modal — Logging fields
     fn settings_logging_file_path(&self) -> &str;

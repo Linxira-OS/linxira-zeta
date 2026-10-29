@@ -514,8 +514,9 @@ impl GitStatusPanel {
                 if let Some(path) = self.initial_paths.first().cloned() {
                     match git::init_repo(&path) {
                         Ok(()) => {
-                            // Refresh to detect the new repo
-                            self.repo_manager = git::RepoManager::new(&self.initial_paths);
+                            // Refresh to detect the new repo, through the manager
+                            // that already holds the project's scope.
+                            self.repo_manager.update(&self.initial_paths);
                             self.refresh();
                             let t = termide_i18n::t();
                             self.status_message =
@@ -613,7 +614,7 @@ mod tests {
     #[test]
     fn a_branch_checked_out_nowhere_is_shown_until_checked_out() {
         let (_root, repo, _worktree) = repo();
-        let mut panel = GitStatusPanel::new_for_repo(repo.clone());
+        let mut panel = GitStatusPanel::new_for_repo(repo.clone(), None);
         settle(&mut panel);
         assert_eq!(panel.branch.as_deref(), Some("main"));
 
@@ -648,7 +649,7 @@ mod tests {
     #[test]
     fn a_worktree_branch_shows_its_working_copy() {
         let (_root, repo, worktree) = repo();
-        let mut panel = GitStatusPanel::new_for_repo(repo.clone());
+        let mut panel = GitStatusPanel::new_for_repo(repo.clone(), None);
         settle(&mut panel);
         assert!(panel.unstaged_files.is_empty());
         assert!(panel.branch_label(index_of(&panel, "wt")).ends_with(" ⧉"));
@@ -676,7 +677,7 @@ mod tests {
     #[test]
     fn a_refused_checkout_reports_the_error() {
         let (_root, repo, _worktree) = repo();
-        let mut panel = GitStatusPanel::new_for_repo(repo.clone());
+        let mut panel = GitStatusPanel::new_for_repo(repo.clone(), None);
         settle(&mut panel);
         // Force the view onto the worktree's branch as if it were checked
         // out nowhere, the way a stale worktree list would.

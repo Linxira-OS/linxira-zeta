@@ -1,19 +1,21 @@
 use super::*;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
+use termide_agent_core::FitStep;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEventKind};
 use ratatui::style::Modifier;
 use ratatui::text::Line;
 use termide_agent_core::{
     now_millis, permission_channel, question_channel, suggestion_channel, Agent, AgentEvent,
-    AssistantContent, AssistantMessage, Autorun, CancelToken, EntryKind, GoalRecord, LastRun,
-    LimitPolicy, LoopRecord, Message, PermissionAnswer, PermissionPrompter, QuestionAnswer,
-    QuestionReply, Request, ShellOutput, ShellRunner, StopReason, StreamEvent, Suggestion,
-    SuggestionReply, ThinkingLevel, Timing, ToolCall, ToolContext, ToolDecision, ToolResultMessage,
-    ToolUpdate, Usage, UserMessage, MODEL_OPTION,
+    AssistantContent, AssistantMessage, Autorun, CancelToken, CompactionCall, CompactionReason,
+    EntryKind, Failure, FailureKind, GoalRecord, LastRun, LimitPolicy, LoopRecord, Message,
+    PermissionAnswer, PermissionPrompter, QuestionAnswer, QuestionReply, Request, ShellOutput,
+    ShellRunner, StopReason, StreamEvent, Suggestion, SuggestionReply, ThinkingLevel, Timing,
+    ToolCall, ToolContext, ToolDecision, ToolResultMessage, ToolUpdate, Usage, UserMessage,
+    ACP_PROVIDER, MODEL_OPTION,
 };
 use termide_core::{ConfirmAction, LinkTarget, PanelConfig, SegmentKind};
 use termide_ui::{ChoiceAction, ChoiceForm};
@@ -210,6 +212,7 @@ impl AgentCatalog for Agents {
 
 fn setup_with(provider: Arc<Scripted>) -> AgentPanelSetup {
     AgentPanelSetup {
+        panel_id: None,
         cwd: PathBuf::from("/tmp"),
         agent: "default".into(),
         catalog: Arc::new(Agents),
@@ -263,6 +266,17 @@ fn chord(code: KeyCode, modifiers: KeyModifiers) -> KeyChord {
     }
 }
 
+/// The screen row of the state strip's row standing for `target`, as last
+/// drawn.
+fn strip_row(panel: &AgentPanel, target: crate::strip::StripTarget) -> u16 {
+    panel
+        .strip_hits
+        .iter()
+        .find(|(_, t, _)| *t == target)
+        .map(|(y, ..)| *y)
+        .unwrap_or_else(|| panic!("the strip shows {target:?}"))
+}
+
 fn strip_text(lines: &[Line<'_>]) -> Vec<String> {
     lines
         .iter()
@@ -286,10 +300,18 @@ fn the_state_strip_shows_queued_messages_until_the_agent_takes_them() {
         .all(|i| !matches!(i, Item::Notice { .. } | Item::User { .. })));
     let lines = strip_text(&panel.state_lines(40));
     assert!(lines[0].starts_with('╌'));
-    assert!(lines[1].starts_with("› first") && lines[1].ends_with("queued"));
+    assert!(lines[1].starts_with("› Queued  first"), "{lines:?}");
     assert!(!lines[1].contains("second line"));
-    assert_eq!(lines[2], "› two");
-    assert!(lines[4].contains("2 more queued"), "{lines:?}");
+    assert!(lines[2].starts_with("› Queued  two"), "{lines:?}");
+    // How long each has waited, then the `✕` that takes the queue back.
+    let unit = termide_i18n::t().time_unit_secs();
+    let tail = lines[2].trim_end();
+    assert!(tail.ends_with('✕'), "{lines:?}");
+    assert!(
+        tail.trim_end_matches('✕').trim_end().ends_with(unit),
+        "{lines:?}"
+    );
+    assert!(lines[4].starts_with("› 2 more queued"), "{lines:?}");
     assert!(lines.iter().all(|l| termide_ui::str_display_width(l) <= 40));
     // The agent takes the two oldest; the strip follows its count.
     panel.apply(AgentEvent::QueueUpdate {
@@ -297,7 +319,7 @@ fn the_state_strip_shows_queued_messages_until_the_agent_takes_them() {
         follow_up: 0,
     });
     let lines = strip_text(&panel.state_lines(40));
-    assert!(lines[1].starts_with("› three"), "{lines:?}");
+    assert!(lines[1].starts_with("› Queued  three"), "{lines:?}");
     assert_eq!(lines.len(), 4);
     panel.apply(AgentEvent::QueueUpdate {
         steering: 0,
@@ -314,7 +336,7 @@ fn the_state_strip_sits_between_the_transcript_and_the_input() {
     let rows = render_text(&mut panel, 40, 12);
     let at = rows
         .iter()
-        .position(|r| r.starts_with("› waiting its turn"))
+        .position(|r| r.starts_with("› Queued  waiting its turn"))
         .expect("queued row");
     assert!(rows[at - 1].starts_with('╌'), "{rows:?}");
     // The input bar's titled border follows the strip directly.
@@ -333,7 +355,15 @@ fn a_pending_pause_lives_in_the_state_strip_and_a_pause_in_the_transcript() {
     panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
     let t = termide_i18n::t();
     let lines = strip_text(&panel.state_lines(60));
-    assert!(lines[1].contains(t.agent_notice_will_pause()), "{lines:?}");
+    assert!(
+        lines[1].starts_with(&format!(
+            "‖ {}  {}",
+            t.agent_strip_pause(),
+            t.agent_strip_after_step()
+        )),
+        "{lines:?}"
+    );
+    assert!(lines[1].trim_end().ends_with('✕'), "{lines:?}");
     panel.apply(AgentEvent::Paused);
     panel.apply(AgentEvent::AgentEnd);
     // Once the pause takes effect the strip clears: the transcript's `‖`
@@ -444,7 +474,7 @@ fn the_prompt_border_carries_the_run_controls() {
     // The strip's pending-pause line withdraws it too.
     click(&mut panel, "[‖]");
     let _ = render_text(&mut panel, width, height);
-    let row = panel.pause_row.expect("the strip shows the pending pause");
+    let row = strip_row(&panel, crate::strip::StripTarget::Pause);
     panel.handle_mouse(
         MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
@@ -1463,6 +1493,7 @@ fn a_compaction_between_runs_shows_its_progress_and_the_new_context() {
         kept: 2,
         tokens_before: 90_000,
         tokens_after: 3_000,
+        call: summary_call(),
     });
     assert_eq!(panel.context_tokens, 3_000);
     assert!(panel.activity.is_none());
@@ -1639,6 +1670,147 @@ fn arrow_navigation_brings_the_selected_block_into_view() {
     assert!(panel.top > 0, "the answer below is scrolled into view");
 }
 
+/// How a summary call went, for the compaction events of the tests.
+fn summary_call() -> CompactionCall {
+    CompactionCall {
+        reason: CompactionReason::Threshold,
+        stop_reason: StopReason::Stop,
+        duration_ms: 1_500,
+        usage: Usage::default(),
+        thinking_chars: 0,
+        tool_calls: Vec::new(),
+        input_cut: Vec::new(),
+    }
+}
+
+#[test]
+fn a_compaction_and_a_refused_summary_call_are_logged_with_how_the_call_went() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("ok")])
+    });
+    panel.apply(AgentEvent::Compacted {
+        summary: "the gist".into(),
+        kept: 2,
+        tokens_before: 90_000,
+        tokens_after: 3_000,
+        call: summary_call(),
+    });
+    // The model went on with the work instead of summarising it.
+    let refused = CompactionCall {
+        stop_reason: StopReason::ToolUse,
+        tool_calls: vec!["bash".into()],
+        thinking_chars: 1_200,
+        ..summary_call()
+    };
+    panel.apply(AgentEvent::CompactionFailed {
+        error: "the model returned a degenerate summary".into(),
+        tokens_before: 95_000,
+        call: Some(refused.clone()),
+        reply: "Looking at the loop:".into(),
+    });
+    // With no call made, there is nothing to look at afterwards.
+    panel.apply(AgentEvent::CompactionFailed {
+        error: "too few messages to compact".into(),
+        tokens_before: 10,
+        call: None,
+        reply: String::new(),
+    });
+    let logged = Session::open(panel.session.as_ref().unwrap().path()).unwrap();
+    let kinds: Vec<&EntryKind> = logged
+        .branch()
+        .into_iter()
+        .map(|e| &e.kind)
+        .filter(|k| {
+            matches!(
+                k,
+                EntryKind::Compaction { .. } | EntryKind::CompactionFailed { .. }
+            )
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        vec![
+            &EntryKind::Compaction {
+                summary: "the gist".into(),
+                tokens_before: 90_000,
+                keep_last: 2,
+                tokens_after: Some(3_000),
+                call: Some(summary_call()),
+            },
+            &EntryKind::CompactionFailed {
+                error: "the model returned a degenerate summary".into(),
+                tokens_before: 95_000,
+                call: refused,
+                reply: "Looking at the loop:".into(),
+            },
+        ]
+    );
+    // A refused call changes nothing the context is rebuilt from.
+    assert!(logged
+        .context_messages()
+        .first()
+        .is_some_and(|m| matches!(m, Message::User(u) if u.plain_text().contains("the gist"))));
+}
+
+#[test]
+fn a_context_cut_down_without_a_summary_is_logged_for_replay() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("ok")])
+    });
+    panel.apply(AgentEvent::Fitted {
+        reason: CompactionReason::Threshold,
+        budget: 250_000,
+        keep_tail: 10_000,
+        steps: vec![
+            (FitStep::Reasoning, 400_000),
+            (FitStep::ReadOutputs, 90_000),
+        ],
+        tokens_before: 247_000,
+        tokens_after: 98_000,
+    });
+    assert_eq!(panel.context_tokens, 98_000);
+    let logged = Session::open(panel.session.as_ref().unwrap().path()).unwrap();
+    assert!(logged.branch().iter().any(|e| e.kind
+        == EntryKind::Fitted {
+            budget: 250_000,
+            keep_tail: 10_000,
+            steps: vec![
+                (FitStep::Reasoning, 400_000),
+                (FitStep::ReadOutputs, 90_000)
+            ],
+            tokens_before: 247_000,
+        }));
+}
+
+#[test]
+fn an_external_agents_turn_usage_does_not_fill_the_context_bar() {
+    let mut panel = panel(vec![]);
+    let mut own = reply("built-in");
+    own.usage = Usage {
+        input: 900,
+        output: 100,
+        cache_read: 0,
+        cache_write: 0,
+    };
+    panel.apply(AgentEvent::MessageEnd(Message::Assistant(own)));
+    assert_eq!(panel.context_tokens, 1_000);
+    // What a whole Claude Code turn spent, over every call and cache read.
+    let mut external = reply("external");
+    external.provider = ACP_PROVIDER.into();
+    external.usage = Usage {
+        input: 62,
+        output: 19_189,
+        cache_read: 1_397_173,
+        cache_write: 79_138,
+    };
+    panel.apply(AgentEvent::MessageEnd(Message::Assistant(external)));
+    assert_eq!(panel.context_tokens, 1_000);
+}
+
 #[test]
 fn the_session_records_the_provider_kind() {
     let dir = tempfile::tempdir().unwrap();
@@ -1807,12 +1979,11 @@ fn shift_arrows_select_the_prompt_and_ctrl_a_takes_it_all() {
     );
 }
 
-/// The one test that reaches the real system clipboard, so it is also the
-/// one that pays for opening it (tens of seconds on some hosts). It puts
-/// the clipboard back as it found it.
+/// The prompt's cut and paste through the keys, on a stand-in clipboard so
+/// the user's is never touched.
 #[test]
 fn ctrl_x_cuts_the_prompt_selection_and_ctrl_v_puts_it_back() {
-    let before = termide_ui::clipboard::paste();
+    termide_ui::clipboard::use_fake_clipboard("");
     let mut panel = panel(vec![]);
     type_text(&mut panel, "fix the flaky test");
     select_back(&mut panel, 5);
@@ -1825,16 +1996,9 @@ fn ctrl_x_cuts_the_prompt_selection_and_ctrl_v_puts_it_back() {
     let events = panel.handle_key(chord(KeyCode::Char('x'), KeyModifiers::CONTROL));
     assert!(events.is_empty(), "nothing selected, nothing cut");
 
-    // A machine without a display (CI) copies over OSC 52, which cannot be
-    // read back, so the paste half runs only where the clipboard reads.
-    if termide_ui::clipboard::paste().is_some() {
-        let events = panel.handle_key(chord(KeyCode::Char('v'), KeyModifiers::CONTROL));
-        assert!(events.iter().any(|e| matches!(e, PanelEvent::NeedsRedraw)));
-        assert_eq!(panel.input_text(), "fix the flaky test");
-    }
-    if let Some(text) = before {
-        let _ = termide_ui::clipboard::copy(&text);
-    }
+    let events = panel.handle_key(chord(KeyCode::Char('v'), KeyModifiers::CONTROL));
+    assert!(events.iter().any(|e| matches!(e, PanelEvent::NeedsRedraw)));
+    assert_eq!(panel.input_text(), "fix the flaky test");
 }
 
 /// The routing of the clipboard commands, kept off the real clipboard: what
@@ -2047,7 +2211,7 @@ fn a_named_session_titles_the_panel() {
         .find(|(_, action)| *action == RENAME_ACTION)
         .expect("a rename entry in the menu");
     assert_eq!(label, "Rename session");
-    let events = panel.handle_status_action(action);
+    let events = panel.handle_status_action(&action);
     let Some(PanelEvent::ShowInput { on_submit, .. }) = events.first() else {
         panic!("expected an input prompt, got {events:?}");
     };
@@ -2411,6 +2575,35 @@ fn an_impossible_goal_ends_with_the_reason() {
         .any(|i| matches!(i, Item::Notice { text, .. } if *text == wanted)));
 }
 
+/// A judge that finds the agent waiting on the user pauses the goal at the
+/// first such verdict, still set, instead of sending it back to restate the
+/// wait: a turn that polls with a tool would otherwise defeat the idle count.
+#[test]
+fn a_goal_waiting_on_the_user_pauses_at_once() {
+    let mut panel = panel(vec![
+        reply("waiting until you close the other session"),
+        reply("WAITING\nthe agent waits for the user to close a session"),
+    ]);
+    type_text(&mut panel, "/goal land the slice");
+    panel.submit();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !panel.paused {
+        panel.tick();
+        assert!(Instant::now() < deadline, "the goal did not pause");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let task = panel.goal_task.as_ref().expect("the goal is still set");
+    assert_eq!(task.iterations, 1, "no turn was sent back");
+    assert_eq!(panel.restored, Some(Restored::Autorun));
+    let wanted = termide_i18n::t()
+        .agent_notice_goal_waiting_fmt("the agent waits for the user to close a session");
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::Notice { text, .. } if *text == wanted)));
+}
+
 /// With no turn cap, a goal whose turns call no tool is what stops it: after
 /// [`GOAL_IDLE_TURNS`] such turns it waits at a pause, still set.
 #[test]
@@ -2544,7 +2737,7 @@ fn bare_goal_and_loop_report_rather_than_stop() {
 /// next run.
 fn looping_panel() -> AgentPanel {
     let mut panel = panel(vec![reply("built")]);
-    assert!(panel.autorun_rows().is_empty());
+    assert!(panel.strip_rows(80).is_empty());
     type_text(&mut panel, "/loop 5m check the build");
     panel.submit();
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -2568,10 +2761,10 @@ fn an_active_goal_and_loop_show_in_the_state_strip() {
     type_text(&mut panel, "/goal do the thing");
     panel.submit();
 
-    let rows = panel.autorun_rows();
+    let rows = panel.strip_rows(80);
     assert_eq!(rows.len(), 2, "{rows:?}");
     let colors = ThemeColors::default();
-    let lines = crate::render::autorun_strip(&rows, 80, &colors);
+    let lines = crate::strip::strip_lines(&rows, 80, &colors);
     let text = |line: &Line| {
         line.spans
             .iter()
@@ -2580,7 +2773,7 @@ fn an_active_goal_and_loop_show_in_the_state_strip() {
     };
     let goal = text(&lines[0]);
     assert!(
-        goal.starts_with("◎ Heading for the goal do the thing"),
+        goal.starts_with("◎ Heading for the goal  do the thing"),
         "{goal}"
     );
     assert_eq!(
@@ -2589,41 +2782,37 @@ fn an_active_goal_and_loop_show_in_the_state_strip() {
         "label in accent"
     );
     assert_eq!(
-        lines[0].spans[1].style.fg,
+        lines[0].spans[2].style.fg,
         Some(colors.disabled),
         "goal dim"
     );
     let stop = lines[0].spans.last().unwrap();
     assert_eq!(
         (stop.content.as_ref(), stop.style.fg),
-        ("✕", Some(colors.info))
+        (" ✕", Some(colors.info))
     );
     // No turn count and no cap: only how long the goal has run, then `✕`.
     assert!(!goal.contains('/'), "{goal}");
     let unit = termide_i18n::t().time_unit_secs();
     assert!(goal.trim_end().ends_with(&format!("{unit} ✕")), "{goal}");
+    // The loop's period and count to the left, its time at the right.
     let looped = text(&lines[1]);
     assert!(
-        looped.starts_with("↺ Repeating every 5m check the build"),
+        looped.starts_with(&format!(
+            "↺ Repeating every 5m · 1/{LOOP_MAX_ITERATIONS} · next in"
+        )),
         "{looped}"
     );
-    assert_eq!(
-        lines[1].spans[0].style.fg,
-        Some(colors.info),
-        "label in accent"
-    );
-    assert!(looped.contains("next run in"), "{looped}");
+    assert!(looped.contains("  check the build"), "{looped}");
     assert!(
-        looped
-            .trim_end()
-            .ends_with(&format!("1/{LOOP_MAX_ITERATIONS} ✕")),
+        looped.trim_end().ends_with(&format!("{unit} ✕")),
         "{looped}"
     );
     for line in &lines {
         let text = text(line);
         assert!(termide_ui::str_display_width(&text) <= 80);
         // The button sits where a click looks for it.
-        let column = crate::render::autorun_stop_column(80) as usize;
+        let column = crate::strip::strip_stop_column(80) as usize;
         assert_eq!(text.chars().nth(column), Some('✕'), "{text:?}");
     }
 
@@ -2631,7 +2820,7 @@ fn an_active_goal_and_loop_show_in_the_state_strip() {
     panel.submit();
     type_text(&mut panel, "/loop stop");
     panel.submit();
-    assert!(panel.autorun_rows().is_empty());
+    assert!(panel.strip_rows(80).is_empty());
 }
 
 /// A click on the `✕` of a goal or loop row stops just that one.
@@ -2643,16 +2832,12 @@ fn the_strip_stop_button_ends_a_goal_or_loop() {
     let (width, height) = (80, 30);
     let click_stop = |panel: &mut AgentPanel, kind: crate::render::Autorun| {
         let _ = render_text(panel, width, height);
-        let (at, _) = *panel
-            .autorun_stops
-            .iter()
-            .find(|(_, k)| *k == kind)
-            .expect("the row shows its stop button");
+        let row = strip_row(panel, crate::strip::StripTarget::Autorun(kind));
         panel.handle_mouse(
             MouseEvent {
                 kind: MouseEventKind::Down(MouseButton::Left),
-                column: at.x,
-                row: at.y,
+                column: panel.strip_stop_x,
+                row,
                 modifiers: KeyModifiers::NONE,
             },
             Rect::new(0, 0, width, height),
@@ -2660,11 +2845,10 @@ fn the_strip_stop_button_ends_a_goal_or_loop() {
     };
     // A click on the row away from `✕` brings the loop's run into view.
     let _ = render_text(&mut panel, width, height);
-    let (at, _) = *panel
-        .autorun_stops
-        .iter()
-        .find(|(_, k)| *k == crate::render::Autorun::Loop)
-        .unwrap();
+    let row = strip_row(
+        &panel,
+        crate::strip::StripTarget::Autorun(crate::render::Autorun::Loop),
+    );
     let block = panel
         .autorun_block(crate::render::Autorun::Loop)
         .expect("the loop's run is in the transcript");
@@ -2672,7 +2856,7 @@ fn the_strip_stop_button_ends_a_goal_or_loop() {
         MouseEvent {
             kind: MouseEventKind::Down(MouseButton::Left),
             column: 4,
-            row: at.y,
+            row,
             modifiers: KeyModifiers::NONE,
         },
         Rect::new(0, 0, width, height),
@@ -2686,7 +2870,7 @@ fn the_strip_stop_button_ends_a_goal_or_loop() {
     click_stop(&mut panel, crate::render::Autorun::Goal);
     assert!(panel.goal_task.is_none());
     let _ = render_text(&mut panel, width, height);
-    assert!(panel.autorun_stops.is_empty());
+    assert!(panel.strip_hits.is_empty());
 }
 
 fn roles(messages: &[Message]) -> Vec<&'static str> {
@@ -2719,6 +2903,19 @@ fn shift_enter_adds_a_line_and_esc_clears() {
     assert!(panel
         .handle_key(chord(KeyCode::Esc, KeyModifiers::NONE))
         .is_empty());
+}
+
+/// Mid-run, the first Esc clears what is typed; only the next one stops.
+#[test]
+fn esc_clears_the_typed_prompt_before_stopping_a_run() {
+    let mut panel = panel(vec![]);
+    panel.busy = true;
+    type_text(&mut panel, "next request");
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(panel.input_text().is_empty());
+    assert!(panel.stop_requested.is_none());
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(panel.stop_requested.is_some());
 }
 
 #[test]
@@ -3675,13 +3872,21 @@ fn a_fresh_banner_offers_recent_sessions_to_open() {
     let logo_row = &render_text(&mut panel, 80, 24)[title.y as usize];
     assert_eq!(row.find(&stamp), logo_row.find('╭'), "{row:?} {logo_row:?}");
 
-    // A click on it opens it in place of the fresh one.
+    // A first click only selects it, showing the list's cursor.
     let click = MouseEvent {
         kind: MouseEventKind::Down(MouseButton::Left),
         column: rect.x + 1,
         row: rect.y,
         modifiers: KeyModifiers::NONE,
     };
+    panel.handle_mouse(click, Rect::new(0, 0, 80, 24));
+    assert_ne!(panel.session_path().unwrap(), first_path);
+    assert!(panel.chat_focus);
+    assert_eq!(panel.recent_selected, 0);
+    // A click on the session shown selected opens it in place of the fresh
+    // one, however long after the first.
+    render_text(&mut panel, 80, 24);
+    panel.session_clicks.reset();
     panel.handle_mouse(click, Rect::new(0, 0, 80, 24));
     assert_eq!(panel.session_path().unwrap(), first_path);
     assert!(matches!(
@@ -3690,6 +3895,45 @@ fn a_fresh_banner_offers_recent_sessions_to_open() {
     ));
     // With a conversation on screen, the banner and its list are gone.
     assert!(panel.recent_sessions.is_empty());
+}
+
+#[test]
+fn a_click_selects_a_banner_session_and_a_double_click_opens_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![reply("one"), reply("two")])
+    });
+    let mut first_path = None;
+    for prompt in ["first task", "second task"] {
+        first_path.get_or_insert_with(|| panel.session_path().unwrap().to_path_buf());
+        type_text(&mut panel, prompt);
+        panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+        settle(&mut panel);
+        panel.handle_status_action(NEW_SESSION_ACTION);
+    }
+    let first_path = first_path.unwrap();
+    render_text(&mut panel, 80, 24);
+    // The oldest session is listed second, below the cursor's default row.
+    let (rect, _) = panel
+        .banner_hits
+        .iter()
+        .find(|(_, hit)| *hit == BannerHit::Session(1))
+        .copied()
+        .expect("the older session is clickable");
+    let area = Rect::new(0, 0, 80, 24);
+    let click = MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: rect.x + 1,
+        row: rect.y,
+        modifiers: KeyModifiers::NONE,
+    };
+    panel.handle_mouse(click, area);
+    assert_ne!(panel.session_path().unwrap(), first_path);
+    assert_eq!(panel.recent_selected, 1);
+    // The second click comes before any render has drawn the selection.
+    panel.handle_mouse(click, area);
+    assert_eq!(panel.session_path().unwrap(), first_path);
 }
 
 #[test]
@@ -3765,6 +4009,181 @@ fn tab_walks_the_banner_sessions_and_enter_opens_one() {
     panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
     assert_eq!(panel.session_path(), first_path.as_deref());
     assert!(!panel.chat_focus);
+}
+
+/// A panel in a fresh session whose banner lists sessions with these first
+/// prompts, newest last in `prompts`, and their paths in the same order.
+fn panel_with_recent_sessions(
+    dir: &std::path::Path,
+    prompts: &[&str],
+) -> (AgentPanel, Vec<std::path::PathBuf>) {
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.to_path_buf()),
+        ..setup(prompts.iter().map(|_| reply("done")).collect())
+    });
+    let mut paths = Vec::new();
+    for prompt in prompts {
+        paths.push(panel.session_path().unwrap().to_path_buf());
+        type_text(&mut panel, prompt);
+        panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+        settle(&mut panel);
+        panel.handle_status_action(NEW_SESSION_ACTION);
+    }
+    (panel, paths)
+}
+
+fn ctrl_f() -> KeyChord {
+    chord(KeyCode::Char('f'), KeyModifiers::CONTROL)
+}
+
+#[test]
+fn ctrl_f_searches_the_banner_sessions_in_the_prompt_box() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut panel, paths) = panel_with_recent_sessions(
+        dir.path(),
+        &["fix login bug", "write docs", "refactor login form"],
+    );
+    let t = termide_i18n::t();
+    type_text(&mut panel, "my draft");
+
+    // Ctrl+F sets the draft aside: the prompt box holds the query, its
+    // border says so and counts the matches, and the banner shows the list
+    // alone.
+    panel.handle_key(ctrl_f());
+    assert!(panel.session_search_on());
+    assert_eq!(panel.input_text(), "");
+    let all = render_text(&mut panel, 80, 24).join("\n");
+    assert!(all.contains(t.agent_session_search_title()), "{all}");
+    assert!(all.contains(" 3/3 "), "{all}");
+    assert!(
+        !panel
+            .banner_hits
+            .iter()
+            .any(|(_, hit)| matches!(hit, BannerHit::Action(_))),
+        "the fields make way for the list"
+    );
+
+    // Typing filters the list by title; the cursor shows from the query and
+    // the arrows walk the matches.
+    type_text(&mut panel, "login");
+    assert_eq!(panel.recent_sessions.len(), 2);
+    let all = render_text(&mut panel, 80, 24).join("\n");
+    assert!(all.contains(" 2/3 "), "{all}");
+    assert!(!all.contains("write docs"), "{all}");
+    let colors = ThemeColors::default();
+    let buf = render_buf(&mut panel, 80, 24);
+    assert!((0..24).any(|y| (0..80).any(|x| buf[(x, y)].bg == colors.fg)));
+    panel.handle_key(chord(KeyCode::Down, KeyModifiers::NONE));
+    assert_eq!(panel.recent_selected, 1);
+    let picked = panel.recent_sessions[1].path.clone();
+    assert!(picked == paths[0] || picked == paths[2]);
+
+    // Enter opens it and the search ends; the prompt starts empty, as on any
+    // switch of session.
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(panel.session_path(), Some(picked.as_path()));
+    assert!(!panel.session_search_on());
+    assert_eq!(panel.input_text(), "");
+}
+
+#[test]
+fn esc_ends_the_session_search_at_once_with_the_draft_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut panel, _) = panel_with_recent_sessions(dir.path(), &["alpha", "beta"]);
+    let t = termide_i18n::t();
+    type_text(&mut panel, "draft");
+    panel.handle_key(ctrl_f());
+
+    // Nothing matches: the banner says so and Enter opens nothing.
+    type_text(&mut panel, "zzz");
+    assert!(panel.recent_sessions.is_empty());
+    let all = render_text(&mut panel, 80, 24).join("\n");
+    assert!(all.contains(t.agent_session_search_empty()), "{all}");
+    let before = panel.session_path().map(Path::to_path_buf);
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(panel.session_path().map(Path::to_path_buf), before);
+
+    // Esc ends the search at once, query or not: the full list and the
+    // draft come back.
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!panel.session_search_on());
+    assert_eq!(panel.recent_sessions.len(), 2);
+    assert_eq!(panel.input_text(), "draft");
+    let all = render_text(&mut panel, 80, 24).join("\n");
+    assert!(!all.contains(t.agent_session_search_title()), "{all}");
+
+    // From the list, too; Tab moves between the query and the list, and a
+    // character typed in the list lands in the query.
+    panel.handle_key(ctrl_f());
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
+    assert!(panel.chat_focus);
+    type_text(&mut panel, "b");
+    assert!(!panel.chat_focus);
+    assert_eq!(panel.input_text(), "b");
+    assert_eq!(panel.recent_sessions.len(), 1);
+    panel.handle_key(chord(KeyCode::Tab, KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!panel.session_search_on());
+    assert!(!panel.chat_focus);
+    assert_eq!(panel.input_text(), "draft");
+}
+
+#[test]
+fn the_session_query_is_not_a_request() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut panel, _) = panel_with_recent_sessions(dir.path(), &["alpha"]);
+    panel.handle_key(ctrl_f());
+    // `$` and `/` are letters of the query, not shell mode or a command.
+    type_text(&mut panel, "$/");
+    assert_eq!(panel.input_text(), "$/");
+    assert!(!panel.shell_mode);
+    assert!(panel.completion.is_none());
+    // A paste lands in it on one line, and the list follows.
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    panel.handle_key(ctrl_f());
+    panel.handle_command(PanelCommand::PasteText {
+        text: "al\nzz".into(),
+    });
+    assert_eq!(panel.input_text(), "al zz");
+    assert!(panel.recent_sessions.is_empty());
+}
+
+#[test]
+fn ctrl_f_without_sessions_to_search_does_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![])
+    });
+    type_text(&mut panel, "draft");
+    panel.handle_key(ctrl_f());
+    assert!(!panel.session_search_on());
+    assert_eq!(panel.input_text(), "draft");
+}
+
+#[test]
+fn f8_in_a_session_search_deletes_the_match_under_the_cursor() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut panel, paths) = panel_with_recent_sessions(dir.path(), &["alpha", "beta"]);
+    panel.handle_key(ctrl_f());
+    type_text(&mut panel, "alp");
+    let events = panel.handle_key(chord(KeyCode::F(8), KeyModifiers::NONE));
+    let [PanelEvent::ShowConfirm {
+        message,
+        on_confirm: ConfirmAction::Custom(action),
+    }] = events.as_slice()
+    else {
+        panic!("expected a confirmation, got {events:?}");
+    };
+    assert!(message.contains("alpha"), "{message}");
+    panel.handle_command(PanelCommand::Confirmed {
+        action: action.clone(),
+    });
+    assert!(!paths[0].exists());
+    // The search goes on, now matching nothing.
+    assert!(panel.session_search_on());
+    assert!(panel.recent_sessions.is_empty());
+    assert_eq!(panel.recent_all.len(), 1);
 }
 
 #[test]
@@ -4109,6 +4528,102 @@ fn the_models_questions_are_answered_one_card_at_a_time() {
 }
 
 #[test]
+fn a_paste_while_an_answer_is_typed_goes_into_the_answer() {
+    let mut panel = panel(vec![]);
+    let worker = ask_in_worker(
+        &mut panel,
+        vec![question("Which approach?", &["Channel", "Slot"], false)],
+    );
+    // Before the answer row is chosen a paste still goes to the prompt.
+    panel.handle_command(PanelCommand::PasteText { text: "p".into() });
+    assert_eq!(panel.input_text(), "p");
+    panel.handle_key(chord(KeyCode::Char('3'), KeyModifiers::NONE));
+    type_text(&mut panel, "use ");
+    panel.handle_command(PanelCommand::PasteText {
+        text: "a\nchannel".into(),
+    });
+    // Ctrl chords edit the answer: a word back, then a word selected.
+    panel.handle_key(chord(KeyCode::Left, KeyModifiers::CONTROL));
+    panel.handle_key(chord(
+        KeyCode::Right,
+        KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+    ));
+    assert_eq!(
+        panel
+            .pending
+            .as_ref()
+            .unwrap()
+            .form()
+            .selected_text()
+            .as_deref(),
+        Some("channel")
+    );
+    assert_eq!(panel.input_text(), "p");
+    panel.handle_key(chord(KeyCode::End, KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(
+        worker.join().unwrap(),
+        QuestionReply::Answered(vec![QuestionAnswer {
+            chosen: vec![],
+            custom: Some("use a channel".into()),
+        }])
+    );
+}
+
+#[test]
+fn the_mouse_places_the_cursor_and_selects_in_a_typed_answer() {
+    let mut panel = panel(vec![]);
+    let worker = ask_in_worker(
+        &mut panel,
+        vec![question("Which approach?", &["Channel", "Slot"], false)],
+    );
+    panel.handle_key(chord(KeyCode::Char('3'), KeyModifiers::NONE));
+    panel.handle_command(PanelCommand::PasteText {
+        text: "hello world".into(),
+    });
+    let rows = render_text(&mut panel, 60, 16);
+    let row = rows
+        .iter()
+        .position(|r| r.contains(": hello world"))
+        .expect("the answer is drawn") as u16;
+    let column = rows[row as usize]
+        .chars()
+        .collect::<Vec<_>>()
+        .windows(5)
+        .position(|w| w.iter().collect::<String>() == "world")
+        .unwrap() as u16;
+    let at = |kind, column| MouseEvent {
+        kind,
+        column,
+        row,
+        modifiers: KeyModifiers::NONE,
+    };
+    let area = Rect::new(0, 0, 60, 16);
+    // Pressed twice, as a double click: the word under it is selected and
+    // the answer stays as typed, not confirmed.
+    for _ in 0..2 {
+        panel.handle_mouse(at(MouseEventKind::Down(MouseButton::Left), column), area);
+        panel.handle_mouse(at(MouseEventKind::Up(MouseButton::Left), column), area);
+    }
+    let form = panel.pending.as_ref().unwrap().form();
+    assert_eq!(form.typed(), Some("hello world"));
+    assert_eq!(form.selected_text().as_deref(), Some("world"));
+    // A press on another character and a drag select from there.
+    panel.handle_mouse(
+        at(MouseEventKind::Down(MouseButton::Left), column + 1),
+        area,
+    );
+    panel.handle_mouse(at(MouseEventKind::Drag(MouseButton::Left), 59), area);
+    panel.handle_mouse(at(MouseEventKind::Up(MouseButton::Left), 59), area);
+    let form = panel.pending.as_ref().unwrap().form();
+    assert_eq!(form.typed(), Some("hello world"));
+    assert_eq!(form.selected_text().as_deref(), Some("orld"));
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    let _ = worker.join().unwrap();
+}
+
+#[test]
 fn the_arrows_step_back_to_an_answered_question_and_its_answer_shows() {
     let mut panel = panel(vec![]);
     let worker = ask_in_worker(
@@ -4282,6 +4797,60 @@ fn a_withdrawn_permission_question_comes_down() {
     wait_for(&mut panel, "git fetch");
     assert!(panel.answer_permission(PermissionAnswer::AllowOnce));
     assert_eq!(worker.join().unwrap(), PermissionAnswer::AllowOnce);
+}
+
+/// Delegates working side by side ask at once: each request gets its card in
+/// turn, headed with the delegate's name, none turned away.
+#[test]
+fn delegates_asking_at_once_take_turns_on_the_card() {
+    let mut panel = panel(vec![]);
+    let (prompter, rx) = permission_channel(CancelToken::new());
+    panel.permission_rx = rx;
+    let ask = |agent: &str, command: &str| {
+        let mut delegate = prompter.for_delegate(agent, CancelToken::new());
+        let request = termide_agent_core::PermissionRequest {
+            tool: "bash".into(),
+            subject: command.into(),
+            call: termide_agent_core::ToolCall {
+                id: "c".into(),
+                name: "bash".into(),
+                arguments: serde_json::json!({ "command": command }),
+                extra_content: None,
+            },
+            suggested_pattern: String::new(),
+            can_persist: false,
+            can_allow_session: false,
+            parts: Vec::new(),
+        };
+        std::thread::spawn(move || delegate.ask(&request))
+    };
+    let card = |panel: &mut AgentPanel| {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            panel.tick();
+            if let Some(Pending::Permission { form, envelope, .. }) = &panel.pending {
+                return (form.title().to_string(), envelope.request.subject.clone());
+            }
+            assert!(Instant::now() < deadline, "no card");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    };
+    let first = ask("search", "git fetch");
+    let (title, subject) = card(&mut panel);
+    assert!(title.starts_with("& search · "), "{title}");
+    let second = ask("review", "git push");
+    // The second waits while the first is on screen.
+    std::thread::sleep(Duration::from_millis(50));
+    panel.tick();
+    let (_, still) = card(&mut panel);
+    assert_eq!(still, subject);
+    assert!(panel.answer_permission(PermissionAnswer::AllowOnce));
+    assert_eq!(first.join().unwrap(), PermissionAnswer::AllowOnce);
+    let (title, subject) = card(&mut panel);
+    assert!(title.starts_with("& review · "), "{title}");
+    assert_eq!(subject, "git push");
+    assert!(panel.answer_permission(PermissionAnswer::Deny));
+    assert_eq!(second.join().unwrap(), PermissionAnswer::Deny);
 }
 
 #[test]
@@ -4860,6 +5429,7 @@ fn switching_off_mid_session_refuses_until_a_compaction_takes_it_out() {
         kept: 1,
         tokens_before: 1000,
         tokens_after: 200,
+        call: summary_call(),
     });
     assert!(panel.context_stale);
     panel.tick();
@@ -4994,6 +5564,8 @@ fn a_permission_wait_is_timed_apart_from_the_call() {
             },
             reply,
             withdrawn: termide_agent_core::CancelToken::default(),
+            delegate: None,
+            task: None,
         },
         form: ChoiceForm::new("", vec![]),
         answers: Vec::new(),
@@ -5034,7 +5606,7 @@ fn a_permission_wait_is_timed_apart_from_the_call() {
 
 #[test]
 fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
-    let pending = |panel: &mut AgentPanel| {
+    let pending_from = |panel: &mut AgentPanel, delegate: Option<&str>| {
         let (reply, _rx) = std::sync::mpsc::channel();
         panel.pending = Some(Pending::Permission {
             envelope: PermissionEnvelope {
@@ -5058,11 +5630,14 @@ fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
                 },
                 reply,
                 withdrawn: termide_agent_core::CancelToken::default(),
+                delegate: delegate.map(str::to_string),
+                task: None,
             },
             form: ChoiceForm::new("", vec![]),
             answers: Vec::new(),
         });
     };
+    let pending = |panel: &mut AgentPanel| pending_from(panel, None);
 
     // "Allow for the session" lands in the session rules, which
     // `effective_rules` — what every rebuilt agent starts from — carries
@@ -5089,6 +5664,18 @@ fn a_grant_reaches_the_panel_rules_so_it_survives_a_rebuild() {
     assert_eq!(
         always.rules.evaluate("bash", "cat x"),
         Some(Decision::Allow)
+    );
+
+    // What a delegate is granted stays with its task: the panel's own
+    // rules are left as they were.
+    let mut delegated = panel(vec![]);
+    pending_from(&mut delegated, Some("search"));
+    assert!(delegated.answer_permission(PermissionAnswer::AllowSession));
+    assert_eq!(
+        delegated
+            .effective_rules()
+            .evaluate_session("bash", "cat x"),
+        None
     );
 }
 
@@ -5774,6 +6361,7 @@ impl AgentCatalog for Skilled {
                 name: name.into(),
                 description: format!("{name} skill"),
                 argument_hint: String::new(),
+                model_invocable: true,
                 path: self.0.path().join(name).join("SKILL.md"),
             })
             .collect()
@@ -6186,11 +6774,13 @@ impl AgentCatalog for Servers {
                 name: "db".into(),
                 status: McpStatus::Ready { tools: 4 },
                 sign_in: McpSignIn::None,
+                launch: "db-server".into(),
             },
             McpServerState {
                 name: "plane".into(),
                 status: McpStatus::NeedsLogin,
                 sign_in: McpSignIn::SignedOut,
+                launch: "https://plane.example/mcp".into(),
             },
         ]
     }
@@ -6294,17 +6884,22 @@ fn the_toolset_list_heads_every_server_with_its_buttons() {
             ),
         ]
     );
-    // A button applies the ticks and does what it says.
-    panel.handle_command(PanelCommand::ChecklistDone {
+    // A button does what it says and leaves the list open, brought up to
+    // date.
+    panel.pending_events.clear();
+    panel.handle_command(PanelCommand::ChecklistButton {
         action: crate::toolset::TOOLSET_ACTION.into(),
-        checked: Vec::new(),
-        pressed: Some("mcp-login:plane".into()),
+        id: "mcp-login:plane".into(),
     });
-    panel.handle_command(PanelCommand::ChecklistDone {
+    panel.handle_command(PanelCommand::ChecklistButton {
         action: crate::toolset::TOOLSET_ACTION.into(),
-        checked: Vec::new(),
-        pressed: Some("mcp-reload:db".into()),
+        id: "mcp-reload:db".into(),
     });
+    assert!(panel.toolset_list_open);
+    assert!(panel
+        .pending_events
+        .iter()
+        .any(|e| matches!(e, PanelEvent::RefreshChecklist(_))));
     // The same one server from the input.
     type_text(&mut panel, "/mcp reload db");
     panel.submit();
@@ -6381,7 +6976,6 @@ fn tools_that_arrive_while_the_list_is_open_refresh_it() {
     panel.handle_command(PanelCommand::ChecklistDone {
         action: crate::toolset::TOOLSET_ACTION.into(),
         checked: Vec::new(),
-        pressed: None,
     });
     tx.send(LateTools::Ready {
         source: "db".into(),
@@ -6424,6 +7018,74 @@ impl Backend for Idle {
     fn into_agent(self: Box<Self>) -> Option<Agent> {
         None
     }
+}
+
+/// A backend whose goal check is refused with the error it holds.
+struct RefusesJudge(PromptError);
+
+impl Backend for RefusesJudge {
+    fn prompt(&self, _message: UserMessage) -> Result<(), PromptError> {
+        Err(PromptError::Stopped)
+    }
+    fn steer(&self, _message: UserMessage) {}
+    fn queue_lens(&self) -> (usize, usize) {
+        (0, 0)
+    }
+    fn abort(&self) {}
+    fn is_busy(&self) -> bool {
+        false
+    }
+    fn drain(&self) -> Vec<AgentEvent> {
+        Vec::new()
+    }
+    fn update(&self, _update: Box<dyn FnOnce(&mut Agent) + Send>) -> Result<(), PromptError> {
+        Err(PromptError::Unsupported)
+    }
+    fn compact(&self, _focus: Option<String>) -> Result<(), PromptError> {
+        Err(PromptError::Unsupported)
+    }
+    fn judge(&self, _goal: String) -> Result<(), PromptError> {
+        Err(self.0)
+    }
+    fn into_agent(self: Box<Self>) -> Option<Agent> {
+        None
+    }
+}
+
+/// A panel with a goal set and due to be checked, on a backend refusing the
+/// check with `error`.
+fn goal_check_refused(error: PromptError) -> AgentPanel {
+    let mut panel = panel(vec![]);
+    panel.busy = true;
+    type_text(&mut panel, "/goal get the build green");
+    panel.submit();
+    panel.busy = false;
+    panel.goal_task.as_mut().unwrap().first_turn = None;
+    panel.runtime = Box::new(RefusesJudge(error));
+    panel.run_goal_judge();
+    panel
+}
+
+/// An external agent still starting — a reopen, then `/continue` on the
+/// goal at once — is asked again shortly; the goal stays, with no warning.
+#[test]
+fn a_goal_check_refused_as_busy_is_asked_again_soon() {
+    let panel = goal_check_refused(PromptError::Busy);
+    let task = panel.goal_task.as_ref().expect("the goal is kept");
+    assert!(!task.judging);
+    assert!(task.judge_at.is_some_and(|at| at > Instant::now()));
+    assert_eq!(task.judge_failures, 0);
+}
+
+/// A gone agent fails the check like a failed call: retried after a wait,
+/// the goal kept rather than dropped.
+#[test]
+fn a_goal_check_on_a_stopped_agent_keeps_the_goal() {
+    let panel = goal_check_refused(PromptError::Stopped);
+    let task = panel.goal_task.as_ref().expect("the goal is kept");
+    assert!(!task.judging);
+    assert_eq!(task.judge_failures, 1);
+    assert!(task.judge_at.is_some());
 }
 
 thread_local! {
@@ -6536,6 +7198,35 @@ impl Backend for External {
         events.push(AgentEvent::AgentEnd);
         Ok(())
     }
+    /// Like an ACP adapter's retry: the failed turn goes again and logs no
+    /// new message.
+    fn retry(&self) -> Result<(), PromptError> {
+        let mut events = self.events.lock().unwrap();
+        events.push(AgentEvent::AgentStart);
+        events.push(AgentEvent::TurnStart);
+        events.push(AgentEvent::MessageStart {
+            prompt_tokens: None,
+        });
+        events.push(AgentEvent::MessageUpdate(StreamEvent::TextDelta(
+            "from outside".into(),
+        )));
+        events.push(AgentEvent::MessageEnd(Message::Assistant(
+            AssistantMessage {
+                content: vec![AssistantContent::Text {
+                    text: "from outside".into(),
+                }],
+                stop_reason: StopReason::Stop,
+                usage: Usage::default(),
+                provider: "acp".into(),
+                model: "outside".into(),
+                error_message: None,
+                failure: None,
+                timestamp: 0,
+            },
+        )));
+        events.push(AgentEvent::AgentEnd);
+        Ok(())
+    }
     fn steer(&self, _message: UserMessage) {}
     fn queue_lens(&self) -> (usize, usize) {
         (0, 0)
@@ -6596,7 +7287,7 @@ fn an_external_agent_replaces_the_loop_and_hides_its_knobs() {
         .collect();
     assert!(!texts.iter().any(|t| t.starts_with("Mode")), "{texts:?}");
     assert!(!texts.iter().any(|t| t.starts_with("Model")), "{texts:?}");
-    assert!(texts.contains(&" (acp)".to_string()));
+    assert!(!texts.iter().any(|t| t.contains("acp")), "{texts:?}");
     // The earlier conversation is shown, and handed to the agent, which has
     // no session of its own to resume yet.
     let items = panel.transcript().items();
@@ -6723,6 +7414,21 @@ fn an_external_agent_on_termides_tools_lists_gets_and_refuses_them() {
 }
 
 #[test]
+fn the_tools_chip_counts_only_what_the_list_offers() {
+    // A resumed session switched off the tools of an MCP server that has not
+    // connected (yet): they are not in the list, so not in the count either.
+    let mut panel = AgentPanel::new(setup(vec![]));
+    panel.offered_tools = vec!["read".into(), "bash".into()];
+    panel.toolset_off = ["gone__a", "gone__b", "gone__c"]
+        .into_iter()
+        .map(String::from)
+        .collect();
+    assert_eq!(chip(&panel, TOOLSET_ACTION), "2/2");
+    panel.toolset_off.insert("bash".into());
+    assert_eq!(chip(&panel, TOOLSET_ACTION), "1/2");
+}
+
+#[test]
 fn an_external_agent_on_its_own_tools_gets_and_lists_the_mcp_servers_alone() {
     let served = Arc::new(Mutex::new(Vec::new()));
     let (tx, rx) = mpsc::channel();
@@ -6791,6 +7497,7 @@ fn an_agent_that_lists_its_tools_once_is_told_when_the_mcp_servers_answered() {
         name: "db".into(),
         status,
         sign_in: McpSignIn::None,
+        launch: String::new(),
     };
     let statuses = Arc::new(Mutex::new(vec![state(McpStatus::Connecting)]));
     let served = Arc::new(Mutex::new(Vec::new()));
@@ -8134,6 +8841,7 @@ fn a_suggested_command_shows_on_a_card_with_the_exact_command() {
 
 #[test]
 fn a_suggested_command_denied_by_a_rule_withholds_run() {
+    termide_ui::clipboard::use_fake_clipboard("");
     let mut panel = panel(vec![]);
     panel.rules.add("bash", "git push*", Decision::Deny);
     let worker = suggest_in_worker(&mut panel, "git push origin main", "publish");
@@ -8235,6 +8943,7 @@ fn a_second_suggestion_while_a_card_is_up_declines() {
 
 #[test]
 fn plan_mode_withholds_run_from_a_suggestion() {
+    termide_ui::clipboard::use_fake_clipboard("");
     let mut panel = panel(vec![]);
     panel.mode.set(Mode::Plan);
     let worker = suggest_in_worker(&mut panel, "touch new.rs", "create it");
@@ -8522,9 +9231,8 @@ fn a_failed_run_offers_what_fits_and_tries_again_on_the_same_request() {
     assert!(rows[0].starts_with("Wait until"), "{rows:?}");
     assert!(rows.iter().any(|row| row == "Try again now"), "{rows:?}");
     assert!(
-        rows.iter()
-            .any(|row| row.starts_with("Continue with another agent")),
-        "two agents are defined: {rows:?}"
+        !rows.iter().any(|row| row.contains("another agent")),
+        "the card switches nothing: the status strip does: {rows:?}"
     );
     let now = rows.iter().position(|row| row == "Try again now").unwrap();
     panel.apply_form_action(ChoiceAction::Chosen(now));
@@ -8619,41 +9327,155 @@ fn dismissing_the_failure_card_ends_the_goal() {
     assert!(panel.pending.is_none());
 }
 
+/// The rows and the detail of the failure card that is up.
+fn failure_card(panel: &AgentPanel) -> (Vec<String>, String) {
+    match &panel.pending {
+        Some(Pending::Failure { form, .. }) => (
+            form.options().to_vec(),
+            form.detail().unwrap_or_default().to_string(),
+        ),
+        _ => panic!("no failure card is up"),
+    }
+}
+
+/// Move the reset of the failure the card is about to `at`.
+fn set_reset(panel: &mut AgentPanel, at: u64) {
+    match &mut panel.pending {
+        Some(Pending::Failure { failure, .. }) => failure.resets_at = Some(at),
+        _ => panic!("no failure card is up"),
+    }
+}
+
+/// A card left open keeps up with the clock: its countdown moves, and once
+/// the reset has gone by it offers no wait for a moment already behind — the
+/// request is simply tried again.
+#[test]
+fn an_open_failure_card_follows_the_clock_and_drops_a_reset_past() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+
+    let (rows, detail) = failure_card(&panel);
+    assert!(rows[0].starts_with("Wait until"), "{rows:?}");
+    assert!(detail.contains("Resets at"), "{detail}");
+    let first_wait = rows[0].clone();
+
+    // The reset moves further off: the row and the detail say so.
+    set_reset(&mut panel, crate::failure::unix_now() + 7_200);
+    panel.failure_card_shown = None;
+    assert!(panel.refresh_failure_card(), "the stated time moved");
+    let (rows, detail) = failure_card(&panel);
+    assert_ne!(rows[0], first_wait, "{rows:?}");
+    assert!(detail.contains("Resets at"), "{detail}");
+
+    // The reset comes and goes while the card stands open.
+    set_reset(&mut panel, crate::failure::unix_now() - 60);
+    panel.failure_card_shown = None;
+    assert!(panel.refresh_failure_card());
+    let (rows, detail) = failure_card(&panel);
+    assert!(
+        !rows.iter().any(|row| row.starts_with("Wait until")),
+        "a reset already past is not waited for: {rows:?}"
+    );
+    assert!(rows.iter().any(|row| row == "Try again now"), "{rows:?}");
+    assert!(detail.contains("has passed"), "{detail}");
+
+    // The row picked is the one that does it: the request goes again.
+    let now = rows.iter().position(|row| row == "Try again now").unwrap();
+    panel.apply_form_action(ChoiceAction::Chosen(now));
+    settle(&mut panel);
+    assert!(panel.pending.is_none());
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|item| matches!(item, Item::Assistant { text, error: None, .. } if text == "done")));
+}
+
+/// The card's text moves once a second, not on every tick of the loop.
+#[test]
+fn the_failure_card_counts_down_once_a_second() {
+    let mut panel = panel(vec![limited()]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    let (rows, _) = failure_card(&panel);
+
+    // The same second: nothing is rebuilt, however the moment is moved.
+    set_reset(&mut panel, crate::failure::unix_now() + 7_200);
+    panel.failure_card_shown = Some(crate::failure::unix_now());
+    assert!(
+        !panel.refresh_failure_card(),
+        "a second already rebuilt is not rebuilt again"
+    );
+    assert_eq!(failure_card(&panel).0, rows, "the text stands still");
+
+    // A new second takes the change up.
+    panel.failure_card_shown = None;
+    assert!(panel.refresh_failure_card(), "a new second rebuilds it");
+    assert_ne!(failure_card(&panel).0, rows, "the stated time moved");
+}
+
+/// A card asked about a limit whose reset was already in the past when the
+/// run failed never offers to wait for it.
+#[test]
+fn a_reset_already_past_offers_no_wait() {
+    let mut failed = limited();
+    failed.failure.as_mut().unwrap().resets_at = Some(crate::failure::unix_now() - 120);
+    let mut panel = panel(vec![failed]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+
+    let (rows, detail) = failure_card(&panel);
+    assert!(
+        !rows.iter().any(|row| row.starts_with("Wait until")),
+        "{rows:?}"
+    );
+    assert!(detail.contains("has passed"), "{detail}");
+}
+
 /// A running subagent keeps a row in the state strip — its agent, task,
 /// latest progress and clock — and past three the rest fold into `+N`.
 #[test]
 fn running_subagents_show_in_the_state_strip() {
     let colors = ThemeColors::default();
-    let row = |n: usize| {
-        (
-            "search".to_string(),
-            format!("find thing {n}"),
-            "· read src/lib.rs".to_string(),
-            65_000,
-        )
-    };
+    let mut panel = panel(vec![]);
+    for n in 1..=5 {
+        panel.transcript.push(Item::Tool {
+            call: ToolCall {
+                id: format!("call-{n}"),
+                name: "task".into(),
+                arguments: serde_json::json!({ "agent": "search", "prompt": format!("find thing {n}") }),
+                extra_content: None,
+            },
+            result: None,
+            live: Some("started\n· read src/lib.rs".into()),
+            at: String::new(),
+            duration_ms: None,
+            waited_ms: None,
+            waiting: false,
+        });
+    }
     let text = |line: &Line| {
         line.spans
             .iter()
             .map(|s| s.content.as_ref())
             .collect::<String>()
     };
-    let lines = crate::render::task_strip(&[row(1)], 80, &colors);
-    assert_eq!(lines.len(), 1);
+    let rows = panel.strip_rows(80);
+    let lines = crate::strip::strip_lines(&rows, 80, &colors);
+    assert_eq!(lines.len(), 4);
     let first = text(&lines[0]);
     let head = format!(
-        "& {} search · find thing 1",
+        "& {} · search  find thing 1",
         termide_i18n::t().agent_tool_task()
     );
     assert!(first.starts_with(&head), "{first}");
+    // Its last step, then the time; no spinner, and no `✕` yet.
     assert!(first.contains("· read src/lib.rs"), "{first}");
-    let clock = crate::transcript::fmt_dur(65_000);
-    assert!(first.trim_end().ends_with(&clock), "{first}");
+    let unit = termide_i18n::t().time_unit_secs();
+    assert!(first.trim_end().ends_with(unit), "{first}");
     assert!(termide_ui::str_display_width(&first) <= 80, "{first}");
-
-    let lines = crate::render::task_strip(&(1..=5).map(row).collect::<Vec<_>>(), 80, &colors);
-    assert_eq!(lines.len(), 4);
-    assert_eq!(text(&lines[3]), "& +2");
+    assert_eq!(text(&lines[3]).trim_end(), "& +2");
 }
 
 /// A session log in `dir` holding one request, as the panel would have left
@@ -8694,6 +9516,95 @@ fn reply_calling(call: ToolCall) -> AssistantMessage {
     }
 }
 
+/// A session another termide holds, as this process sees it: the lock of its
+/// lease file taken on a handle of its own, naming `pid`.
+fn hold_elsewhere(log: &Path, pid: u32) -> std::fs::File {
+    use std::io::Write;
+    let mut lock = log.as_os_str().to_os_string();
+    lock.push(".lock");
+    let mut file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(PathBuf::from(lock))
+        .unwrap();
+    file.try_lock().unwrap();
+    write!(file, "{pid}").unwrap();
+    file
+}
+
+/// A run another termide has under way — its window out of sight — is not
+/// taken for one cut off: the panel shows the session read-only, offers
+/// nothing, sends nothing, and takes it up once that termide lets it go.
+#[test]
+fn a_session_another_termide_holds_is_shown_read_only_until_let_go() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = logged_request(dir.path(), |session| {
+        session.append_run_start().unwrap();
+    });
+    let other = hold_elsewhere(&path, 4242);
+    let session = Session::open_read_only(&path).unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        session: Some(session),
+        ..setup(vec![reply("built")])
+    });
+    assert!(panel.is_held_elsewhere());
+    assert_eq!(panel.peer_state(), PeerState::Held);
+    assert!(panel.pending.is_none(), "no carry-on card");
+    assert!(!panel.paused);
+    let held = termide_i18n::t().agent_notice_session_held_fmt("4242");
+    let notices = |panel: &AgentPanel, wanted: &str| {
+        panel
+            .transcript()
+            .items()
+            .iter()
+            .filter(|i| matches!(i, Item::Notice { text, .. } if text == wanted))
+            .count()
+    };
+    assert_eq!(notices(&panel, &held), 1);
+    // The conversation shows.
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::User { text, .. } if text == "build it")));
+
+    // Nothing is sent, and the text waits in the input.
+    let before = std::fs::read_to_string(&path).unwrap();
+    type_text(&mut panel, "go on");
+    panel.submit();
+    assert!(!panel.is_busy());
+    assert_eq!(panel.input_text(), "go on");
+    assert_eq!(notices(&panel, &held), 2);
+    assert!(panel.deliver(UserMessage::text("from panel 2")).is_err());
+    // Still held: a look changes nothing.
+    panel.held.as_mut().unwrap().next_check = Instant::now();
+    panel.tick();
+    assert!(panel.is_held_elsewhere());
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        before,
+        "nothing is written to the other termide's log"
+    );
+
+    // Let go, it is taken up, and its cut-off run is asked about.
+    drop(other);
+    panel.held.as_mut().unwrap().next_check = Instant::now();
+    panel.tick();
+    assert!(!panel.is_held_elsewhere());
+    assert!(!panel.session.as_ref().unwrap().is_read_only());
+    assert!(Session::is_open(&path));
+    assert!(panel.paused);
+    assert_eq!(panel.restored, Some(Restored::Resume));
+    carry_on_card(&panel);
+    assert!(panel.transcript().items().iter().any(|i| matches!(
+        i,
+        Item::Notice { text, .. } if text == termide_i18n::t().agent_notice_session_released()
+    )));
+}
+
 #[test]
 fn a_run_cut_off_by_closing_is_asked_about_when_reopened() {
     let dir = tempfile::tempdir().unwrap();
@@ -8712,8 +9623,14 @@ fn a_run_cut_off_by_closing_is_asked_about_when_reopened() {
         panel.transcript().items().last(),
         Some(Item::RunEnd { cut: true, .. })
     ));
-    // Nothing runs on its own.
-    panel.tick();
+    // Nothing runs on its own; the card rings the bell.
+    let events = panel.tick();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, PanelEvent::RequestAttention)),
+        "the carry-on card rings"
+    );
     assert!(!panel.is_busy());
 
     // Continue on the card resumes the run.
@@ -8770,6 +9687,40 @@ fn a_call_a_cut_off_run_left_is_closed_not_run_again() {
     assert!(
         matches!(logged.last(), Some(Message::Assistant(a)) if a.plain_text() == "checked first")
     );
+}
+
+#[test]
+fn a_paused_run_reopens_in_the_mode_it_ran_in() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        session: Some(Session::create(dir.path(), Path::new("/tmp")).unwrap()),
+        ..setup(vec![])
+    });
+    let _ = panel.set_mode(Mode::Edit);
+    let path = {
+        let session = panel.session.as_mut().unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("build it")))
+            .unwrap();
+        session.append_run_start().unwrap();
+        session.append_run_end(true).unwrap();
+        session.path().to_path_buf()
+    };
+    drop(panel);
+
+    let mut panel = reopen(&path, dir.path(), vec![]);
+    assert!(panel.paused);
+    assert_eq!(panel.mode.get(), Mode::Edit);
+    assert_eq!(panel.rules.mode, Mode::Edit);
+
+    // An undo goes back past the change, yet the mode the user is in stays.
+    let _ = panel.set_mode(Mode::All);
+    panel.session.as_mut().unwrap().rewind_to(None).unwrap();
+    panel.log_mode(panel.mode.get());
+    let session = panel.session.take();
+    panel.switch_session(session);
+    assert_eq!(panel.mode.get(), Mode::All);
 }
 
 #[test]
@@ -8962,6 +9913,135 @@ fn a_goal_under_way_is_in_the_log_until_it_stops() {
     assert!(Session::open(&path).unwrap().autorun().is_empty());
 }
 
+/// A limit the panel asked about and termide closed on: reopening the session
+/// asks the same again, with the same rows, and runs nothing by itself.
+#[test]
+fn a_limit_asked_about_comes_back_on_reopen() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![limited()])
+    });
+    let path = panel.session_path().unwrap().to_path_buf();
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+    // Closing the panel gives the log back to the file.
+    drop(panel);
+
+    let mut panel = reopen(&path, dir.path(), vec![reply("done")]);
+    let (rows, detail) = failure_card(&panel);
+    assert!(rows[0].starts_with("Wait until"), "{rows:?}");
+    assert!(rows.iter().any(|row| row == "Try again now"), "{rows:?}");
+    assert!(detail.contains("Resets at"), "{detail}");
+    assert!(
+        !detail.contains("session limit"),
+        "the error's text stands in the transcript above: {detail}"
+    );
+    assert!(panel.retry_ready, "`/continue` takes it too");
+    assert!(!panel.paused, "a failed request is not a pause");
+    // Nothing runs by itself.
+    panel.tick();
+    assert!(!panel.is_busy());
+
+    // The row picked does what it names.
+    let now = rows.iter().position(|row| row == "Try again now").unwrap();
+    panel.apply_form_action(ChoiceAction::Chosen(now));
+    settle(&mut panel);
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|item| matches!(item, Item::Assistant { text, error: None, .. } if text == "done")));
+    // The held request is taken back out of the log.
+    assert_eq!(Session::open(&path).unwrap().pending_retry(), None);
+}
+
+/// Stopping the restored card gives the request up for good: a third reopen
+/// asks nothing, since the user has answered.
+#[test]
+fn stopping_a_restored_limit_card_asks_nothing_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![limited()])
+    });
+    let path = panel.session_path().unwrap().to_path_buf();
+    panel.send("do it".to_string());
+    settle(&mut panel);
+
+    drop(panel);
+    let mut panel = reopen(&path, dir.path(), vec![reply("done")]);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+    panel.apply_form_action(ChoiceAction::Cancelled);
+    assert!(panel.pending.is_none());
+    // Esc gives the request up for the card, and `/continue` still holds it
+    // until a new request takes over — as it does before any close.
+    assert!(panel.retry_ready);
+    drop(panel);
+
+    let panel = reopen(&path, dir.path(), vec![reply("done")]);
+    assert!(
+        !matches!(panel.pending, Some(Pending::Failure { .. })),
+        "the user answered: nothing to ask"
+    );
+}
+
+/// A wait out of a limit that termide closed over: reopening asks rather than
+/// waiting on its own or sending anything — the reset may have come and gone.
+#[test]
+fn a_wait_closed_over_asks_on_reopen_and_waits_for_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        on_limit: LimitPolicy::Wait,
+        ..setup(vec![limited()])
+    });
+    let path = panel.session_path().unwrap().to_path_buf();
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(panel.pending.is_none(), "the policy asks nothing");
+    assert!(panel.retry_wait.is_some(), "the reset is waited for");
+    drop(panel);
+
+    let mut panel = reopen(&path, dir.path(), vec![reply("done")]);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+    assert!(panel.retry_wait.is_none(), "the wait does not go on unseen");
+    panel.tick();
+    assert!(!panel.is_busy(), "nothing goes to the model unasked");
+
+    // A reset already gone by takes its row away, as on any open card.
+    set_reset(&mut panel, crate::failure::unix_now() - 60);
+    panel.failure_card_shown = None;
+    assert!(panel.refresh_failure_card());
+    let (rows, detail) = failure_card(&panel);
+    assert!(
+        !rows.iter().any(|row| row.starts_with("Wait until")),
+        "a reset already past is not waited for: {rows:?}"
+    );
+    assert!(detail.contains("has passed"), "{detail}");
+}
+
+/// A goal left waiting on a failure card comes back with it, so the choice
+/// carries both.
+#[test]
+fn a_goal_waiting_on_a_limit_card_comes_back_with_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![limited()])
+    });
+    let path = panel.session_path().unwrap().to_path_buf();
+    type_text(&mut panel, "/goal get it done");
+    panel.submit();
+    settle(&mut panel);
+    drop(panel);
+
+    let panel = reopen(&path, dir.path(), vec![reply("done")]);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+    assert!(panel.goal_task.is_some(), "the goal waits on the card");
+}
+
 #[test]
 fn an_external_agent_cut_off_is_told_to_carry_on() {
     let dir = tempfile::tempdir().unwrap();
@@ -8990,6 +10070,69 @@ fn an_external_agent_cut_off_is_told_to_carry_on() {
         .iter()
         .any(|i| matches!(i, Item::Assistant { text, .. } if text == "from outside")));
     assert_eq!(panel.session.as_ref().unwrap().last_run(), LastRun::Ended);
+}
+
+/// An external agent logs a call only with its result. Closed while a long
+/// call ran, the panel leaves the call in the log with a result saying it was
+/// cut off, so the reopened panel shows it and asks to carry the run on.
+#[test]
+fn an_external_agent_closed_in_a_call_leaves_it_logged_cut_off() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut session = Session::create(dir.path(), Path::new("/tmp")).unwrap();
+    session.append_agent_change("outside").unwrap();
+    let path = session.path().to_path_buf();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        session: Some(session),
+        ..setup(vec![])
+    });
+    assert!(panel.external);
+    let call = ToolCall {
+        id: "c1".into(),
+        name: "bash".into(),
+        arguments: serde_json::json!({ "command": "./deploy.sh" }),
+        extra_content: None,
+    };
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::MessageEnd(Message::User(UserMessage::text(
+        "deploy",
+    ))));
+    // The text closed before the call, as the external agent logs it.
+    panel.apply(AgentEvent::MessageEnd(Message::Assistant(
+        AssistantMessage {
+            provider: ACP_PROVIDER.into(),
+            stop_reason: StopReason::ToolUse,
+            ..reply("Running the deploy.")
+        },
+    )));
+    panel.apply(AgentEvent::ToolExecutionStart { call: call.clone() });
+    assert!(panel.is_busy());
+    drop(panel);
+
+    let panel = reopen(&path, dir.path(), vec![]);
+    assert_eq!(panel.restored, Some(Restored::Prompt));
+    carry_on_card(&panel);
+    let logged = panel.session.as_ref().unwrap().context_messages();
+    let calls: Vec<&ToolCall> = logged
+        .iter()
+        .filter_map(|m| match m {
+            Message::Assistant(a) => Some(a),
+            _ => None,
+        })
+        .flat_map(AssistantMessage::tool_calls)
+        .collect();
+    assert_eq!(calls, [&call]);
+    assert!(matches!(
+        logged.last(),
+        Some(Message::ToolResult(r)) if r.tool_call_id == "c1"
+            && r.plain_text().contains("may have run in part")
+    ));
+    // The transcript shows the call with its result, not still running.
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|i| matches!(i, Item::Tool { call, result: Some(_), .. } if call.id == "c1")));
 }
 
 #[test]
@@ -9047,7 +10190,7 @@ fn a_goal_paused_by_failing_checks_ends_with_goal_stop() {
 }
 
 #[test]
-fn a_goal_set_during_a_run_ends_with_a_stop_and_leaves_the_queue_alone() {
+fn a_goal_set_during_a_run_ends_with_a_stop_and_hands_back_the_queue() {
     let mut panel = panel(vec![]);
     panel.busy = true;
     type_text(&mut panel, "/goal finish the refactor");
@@ -9055,18 +10198,18 @@ fn a_goal_set_during_a_run_ends_with_a_stop_and_leaves_the_queue_alone() {
     type_text(&mut panel, "are you stuck?");
     panel.submit();
     assert_eq!(
-        panel.queued_texts.iter().collect::<Vec<_>>(),
+        panel
+            .queued_texts
+            .iter()
+            .map(|(text, _)| text)
+            .collect::<Vec<_>>(),
         ["are you stuck?"]
     );
     panel.abort();
     assert!(panel.goal_task.is_none());
-    let left: Vec<String> = panel
-        .runtime
-        .take_queued()
-        .iter()
-        .map(UserMessage::typed)
-        .collect();
-    assert_eq!(left, ["are you stuck?"]);
+    // The goal took nothing from the queue; the stop hands it back.
+    assert!(panel.runtime.take_queued().is_empty());
+    assert_eq!(panel.input_text(), "are you stuck?");
 }
 
 #[test]
@@ -9079,8 +10222,1957 @@ fn stopping_withdraws_the_queued_loop_turn() {
     panel.submit();
     panel.abort();
     assert!(panel.loop_task.is_none());
-    assert_eq!(
-        panel.queued_texts.iter().collect::<Vec<_>>(),
-        ["are you stuck?"]
+    // The loop's turn is gone; the user's own message comes back to the input.
+    assert_eq!(panel.input_text(), "are you stuck?");
+    assert!(panel.queued_texts.is_empty());
+}
+
+#[test]
+fn stopping_takes_the_queue_back_into_the_input() {
+    let mut panel = panel(vec![]);
+    panel.apply(AgentEvent::AgentStart);
+    for text in ["fix the test", "and the docs"] {
+        type_text(&mut panel, text);
+        panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    }
+    assert_eq!(panel.runtime.queue_lens(), (2, 0));
+    // Esc on an empty input stops the run.
+    panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(panel.stop_requested.is_some());
+    assert_eq!(panel.input_text(), "fix the test\n\nand the docs");
+    assert_eq!(panel.runtime.queue_lens(), (0, 0));
+    panel.apply(AgentEvent::AgentEnd);
+    assert!(
+        panel.state_lines(60).is_empty(),
+        "nothing is left waiting in the strip"
     );
+    assert_eq!(panel.input_text(), "fix the test\n\nand the docs");
+}
+
+#[test]
+fn a_queued_row_shows_its_wait_and_its_cross_takes_it_back() {
+    let mut panel = panel(vec![]);
+    panel.apply(AgentEvent::AgentStart);
+    type_text(&mut panel, "fix the test");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    let rows = panel.strip_rows(60);
+    let row = rows
+        .iter()
+        .find(|row| row.target == crate::strip::StripTarget::Queued)
+        .expect("a queued row");
+    assert!(row.time.is_some(), "it shows how long it waits");
+    assert!(row.stop, "it has a ✕");
+    // Elsewhere on the row nothing happens; the ✕ takes it back.
+    panel.click_strip(crate::strip::StripTarget::Queued, false);
+    assert_eq!(panel.runtime.queue_lens(), (1, 0));
+    panel.click_strip(crate::strip::StripTarget::Queued, true);
+    assert_eq!(panel.input_text(), "fix the test");
+    assert_eq!(panel.runtime.queue_lens(), (0, 0));
+    assert!(panel.state_lines(60).is_empty());
+    assert!(panel.is_busy(), "the run goes on");
+}
+
+/// An external agent holds no copy of the request across a close, so its
+/// restored retry is told to carry on rather than sent the same turn twice.
+#[test]
+fn a_restored_retry_of_an_external_agent_carries_on() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut session = Session::create(dir.path(), Path::new("/tmp")).unwrap();
+    session.append_agent_change("outside").unwrap();
+    session
+        .append_message(&Message::User(UserMessage::text("build it")))
+        .unwrap();
+    session.append_run_start().unwrap();
+    session.append_run_end(false).unwrap();
+    session
+        .append_retry(Some(termide_agent_core::Failure {
+            kind: termide_agent_core::FailureKind::QuotaExhausted,
+            resets_at: Some(crate::failure::unix_now() + 600),
+        }))
+        .unwrap();
+    let path = session.path().to_path_buf();
+    drop(session);
+
+    let mut panel = reopen(&path, dir.path(), vec![reply("from outside")]);
+    assert!(panel.external);
+    let (rows, _) = failure_card(&panel);
+    let now = rows.iter().position(|row| row == "Try again now").unwrap();
+    panel.apply_form_action(ChoiceAction::Chosen(now));
+    settle(&mut panel);
+    // The request goes once, as a carry-on; the user's prompt is not sent a
+    // second time.
+    let items = panel.transcript().items();
+    let users: Vec<_> = items
+        .iter()
+        .filter(|i| matches!(i, Item::User { .. }))
+        .collect();
+    assert_eq!(users.len(), 1, "the prompt is not sent twice: {items:?}");
+    assert!(items
+        .iter()
+        .any(|i| matches!(i, Item::Assistant { text, .. } if text == "from outside")));
+}
+
+/// The run answered, at last: no `done` block means nothing went through.
+fn answered_done(panel: &AgentPanel) -> bool {
+    panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|item| matches!(item, Item::Assistant { text, error: None, .. } if text == "done"))
+}
+
+/// A wait whose monotonic clock stood still in a sleep goes by the wall clock.
+#[test]
+fn a_wait_goes_by_the_wall_clock_after_a_sleep() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.on_limit = LimitPolicy::Wait;
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    // As after a sleep: the wall clock passed the reset, the monotonic one not.
+    panel.retry_wait.as_mut().unwrap().wall = crate::failure::unix_now();
+    panel.tick();
+    settle(&mut panel);
+    assert!(panel.retry_wait.is_none());
+    assert!(answered_done(&panel));
+}
+
+/// A request that went through answers the failure it follows: the log keeps
+/// no retry for it, so a session reopened later asks about nothing — least of
+/// all about a limit the request outran on another connection.
+#[test]
+fn a_run_that_goes_takes_the_held_failure_out_of_the_log() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![limited(), reply("done")])
+    });
+    let path = panel.session_path().unwrap().to_path_buf();
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+    assert!(
+        panel.session.as_ref().unwrap().pending_retry().is_some(),
+        "the card holds the failure in the log"
+    );
+
+    // The user answers by sending a new request, as one does to carry on.
+    panel.apply_form_action(ChoiceAction::Cancelled);
+    panel.send("go on".to_string());
+    settle(&mut panel);
+    assert!(panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|item| matches!(item, Item::Assistant { text, error: None, .. } if text == "done")));
+
+    assert!(
+        panel.session.as_ref().unwrap().pending_retry().is_none(),
+        "the request went: no failure waits on the user"
+    );
+    drop(panel);
+    let reopened = reopen(&path, dir.path(), vec![reply("done")]);
+    assert!(
+        !matches!(reopened.pending, Some(Pending::Failure { .. })),
+        "nothing is asked at a reopen"
+    );
+}
+
+/// A connection catalog whose every endpoint answers from one scripted
+/// provider, so a request retried after a switch meets its answer there.
+struct Switchable {
+    provider: Arc<dyn Provider>,
+}
+
+impl ConnectionCatalog for Switchable {
+    fn list(&self) -> Vec<ConnectionEntry> {
+        [
+            ("local", "openai_compatible", "m"),
+            ("cloud", "anthropic_compatible", "claude-x"),
+            ("cli", "codex", ""),
+        ]
+        .into_iter()
+        .map(|(name, kind, model)| ConnectionEntry {
+            name: name.into(),
+            kind: kind.into(),
+            model: model.into(),
+        })
+        .collect()
+    }
+    fn build(&self, name: &str, _agent: &str) -> Option<ConnectionChoice> {
+        let entry = self.list().into_iter().find(|entry| entry.name == name)?;
+        let backend: Option<BackendFactory> = (name == "cli").then(|| {
+            Arc::new(|setup: BackendSetup| {
+                Ok(Box::new(External::following_modes(setup)) as Box<dyn Backend>)
+            }) as BackendFactory
+        });
+        Some(ConnectionChoice {
+            name: entry.name,
+            kind: entry.kind,
+            provider: Arc::clone(&self.provider),
+            model: entry.model,
+            context_window: 200_000,
+            backend,
+            reviewer: ReviewerSetup::default(),
+        })
+    }
+}
+
+/// A panel on `dir`'s log, on the `local` endpoint, answering from `replies`.
+fn on_endpoint(dir: &Path, replies: Vec<AssistantMessage>) -> AgentPanel {
+    let provider = Arc::new(Scripted::new(replies));
+    let mut setup = setup_with(Arc::clone(&provider));
+    setup.session_dir = Some(dir.to_path_buf());
+    setup.connections = Some(Arc::new(Switchable {
+        provider: Arc::clone(&provider) as Arc<dyn Provider>,
+    }));
+    AgentPanel::new(setup)
+}
+
+/// A limit belongs to the endpoint that hit it, not to the conversation:
+/// switching connections rebuilds the agent and keeps the card up, so the
+/// request can be tried again there — which is how a subscription limit is
+/// got past.
+#[test]
+fn a_connection_switch_keeps_the_failure_card_up() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = on_endpoint(dir.path(), vec![limited(), reply("done")]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+
+    assert!(panel.switch_connection("cloud"));
+    assert!(
+        matches!(panel.pending, Some(Pending::Failure { .. })),
+        "the choice is still owed: the endpoint changed, not the request"
+    );
+    assert!(panel.retry_ready, "`/continue` still holds it");
+
+    let rows = failure_rows(&panel);
+    let now = rows.iter().position(|row| row == "Try again now").unwrap();
+    panel.apply_form_action(ChoiceAction::Chosen(now));
+    settle(&mut panel);
+    assert!(
+        answered_done(&panel),
+        "the request went on the new endpoint"
+    );
+}
+
+/// The same across a switch onto a CLI agent, whose runtime is rebuilt whole.
+#[test]
+fn a_switch_to_a_cli_agent_keeps_the_failure_card_up() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = on_endpoint(dir.path(), vec![limited(), reply("done")]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(panel.switch_connection("cli"));
+    assert!(panel.external);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+}
+
+/// A wait out of a limit survives it too, so `ask_else_wait` keeps counting
+/// toward the reset while the endpoint is changed under it.
+#[test]
+fn a_connection_switch_keeps_a_wait_and_the_goal_waiting_on_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = on_endpoint(dir.path(), vec![limited(), reply("done")]);
+    panel.on_limit = LimitPolicy::Wait;
+    type_text(&mut panel, "/goal get it done");
+    panel.submit();
+    settle(&mut panel);
+    assert!(panel.retry_wait.is_some(), "the reset is waited for");
+
+    assert!(panel.switch_connection("cloud"));
+    let wait = panel.retry_wait.expect("the wait is kept");
+    assert!(wait.wall > crate::failure::unix_now() + 3_000);
+    assert!(panel.goal_task.is_some(), "the goal keeps waiting on it");
+}
+
+/// Leaving for another session is not a rebuild: the failed request stays
+/// with the log it failed on, so its card and its wait go with it.
+#[test]
+fn another_session_takes_the_failure_card_with_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = on_endpoint(dir.path(), vec![limited()]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(matches!(panel.pending, Some(Pending::Failure { .. })));
+
+    panel.switch_session(None);
+    assert!(
+        !matches!(panel.pending, Some(Pending::Failure { .. })),
+        "a fresh session owes no answer for another's request"
+    );
+    assert!(!panel.retry_ready);
+    assert!(panel.retry_wait.is_none());
+}
+/// When the card that is up tries again by itself, if it does.
+fn auto_at(panel: &AgentPanel) -> Option<u64> {
+    match &panel.pending {
+        Some(Pending::Failure { auto_at, .. }) => *auto_at,
+        _ => panic!("no failure card is up"),
+    }
+}
+
+fn set_auto_at(panel: &mut AgentPanel, at: u64) {
+    match &mut panel.pending {
+        Some(Pending::Failure { auto_at, .. }) => *auto_at = Some(at),
+        _ => panic!("no failure card is up"),
+    }
+}
+
+/// `ask_else_wait`: the card asks, and left unanswered until the reset it
+/// tries the request again by itself.
+#[test]
+fn an_unanswered_card_tries_again_at_the_reset() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.on_limit = LimitPolicy::AskElseWait;
+    panel.send("do it".to_string());
+    settle(&mut panel);
+
+    let at = auto_at(&panel).expect("the card has a time");
+    assert!(
+        at > crate::failure::unix_now() + 3_000,
+        "the reset, not sooner"
+    );
+    let (_, detail) = failure_card(&panel);
+    assert!(detail.contains("No answer by then"), "{detail}");
+    panel.tick();
+    assert!(!panel.is_busy(), "nothing goes before its time");
+
+    // The reset comes, the card still unanswered.
+    set_auto_at(&mut panel, crate::failure::unix_now());
+    panel.tick();
+    settle(&mut panel);
+    assert!(panel.pending.is_none());
+    assert!(answered_done(&panel));
+}
+
+#[test]
+fn an_answered_card_does_not_try_again_by_itself() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.on_limit = LimitPolicy::AskElseWait;
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    set_auto_at(&mut panel, crate::failure::unix_now());
+    panel.apply_form_action(ChoiceAction::Cancelled);
+    panel.tick();
+    settle(&mut panel);
+    assert!(!answered_done(&panel), "stopping is the answer");
+}
+
+#[test]
+fn the_ask_policy_never_tries_again_by_itself() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert_eq!(auto_at(&panel), None);
+}
+
+/// Without a stated reset the card's time is the backoff a wait would take.
+#[test]
+fn an_unanswered_card_without_a_reset_waits_the_backoff() {
+    let outage = AssistantMessage::failed("scripted", "m", StopReason::Error, "network down")
+        .with_failure(termide_agent_core::Failure::new(
+            termide_agent_core::FailureKind::Transient,
+        ));
+    let mut panel = panel(vec![outage, reply("done")]);
+    panel.on_limit = LimitPolicy::AskElseWait;
+    let before = crate::failure::unix_now();
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    let at = auto_at(&panel).expect("the card has a time");
+    assert!(
+        (before + 15..=crate::failure::unix_now() + 15).contains(&at),
+        "{at} vs {before}"
+    );
+}
+
+/// A card brought back on reopen whose reset passed while termide was
+/// closed tries again after a short grace, not at once.
+#[test]
+fn a_reopened_card_past_its_reset_tries_again_after_a_grace() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        ..setup(vec![limited()])
+    });
+    let path = panel.session_path().unwrap().to_path_buf();
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    set_reset(&mut panel, crate::failure::unix_now() - 60);
+    // Logged with the reset gone by, as after a long close.
+    panel.logged_retry = None;
+    panel.sync_retry();
+    drop(panel);
+
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        session: Some(Session::open_exclusive(&path).unwrap()),
+        on_limit: LimitPolicy::AskElseWait,
+        ..setup(vec![reply("done")])
+    });
+    let now = crate::failure::unix_now();
+    let at = auto_at(&panel).expect("the reopened card has a time");
+    assert!(at > now && at <= now + 31, "{at} vs {now}");
+    panel.tick();
+    assert!(!panel.is_busy(), "not at once");
+    set_auto_at(&mut panel, now);
+    panel.tick();
+    settle(&mut panel);
+    assert!(answered_done(&panel));
+}
+
+#[test]
+fn another_agents_message_starts_a_turn_and_counts_its_hops() {
+    let mut panel = panel(vec![reply("noted"), reply("ok")]);
+    assert_eq!(panel.peer_state(), PeerState::Free);
+    panel
+        .deliver(from_peer(termide_agent_core::OriginKind::Info, 3))
+        .unwrap();
+    assert_eq!(panel.peer_state(), PeerState::Working);
+    assert_eq!(panel.agent_hops(), 3);
+    settle(&mut panel);
+    assert_eq!(panel.peer_state(), PeerState::Idle);
+    // It shows as a step of the agent's, never as the user's plate.
+    assert!(panel.transcript().items().iter().any(|item| matches!(
+        item,
+        Item::Tool { call, .. } if crate::transcript::is_peer_message(call)
+            && call.arguments["agent"] == "reviewer"
+            && call.arguments["kind"] == "info"
+            && call.arguments["panel"] == 7
+            && call.arguments["subject"] == "the config loader moved"
+    )));
+    assert!(!panel
+        .transcript()
+        .items()
+        .iter()
+        .any(|item| matches!(item, Item::User { .. })));
+    // The user writing starts the count again.
+    type_text(&mut panel, "thanks");
+    panel.handle_key(chord(KeyCode::Enter, KeyModifiers::NONE));
+    assert_eq!(panel.agent_hops(), 0);
+    settle(&mut panel);
+}
+
+#[test]
+fn a_free_panel_takes_no_question() {
+    let mut panel = panel(vec![reply("noted")]);
+    assert_eq!(panel.peer_state(), PeerState::Free);
+    let refused = panel
+        .deliver(from_peer(termide_agent_core::OriginKind::Question, 1))
+        .unwrap_err();
+    assert!(refused.contains("nothing in its session"), "{refused}");
+    assert_eq!(panel.peer_state(), PeerState::Free);
+}
+
+#[test]
+fn a_panel_rebuilt_in_place_keeps_its_number() {
+    let panel = AgentPanel::new(AgentPanelSetup {
+        panel_id: Some(42),
+        ..setup(vec![])
+    });
+    assert_eq!(panel.panel_id(), 42);
+    assert_ne!(AgentPanel::new(setup(vec![])).panel_id(), 42);
+}
+
+#[test]
+fn clicking_a_running_tasks_row_asks_for_its_panel() {
+    let mut panel = panel(vec![]);
+    panel.transcript.push(Item::Tool {
+        call: ToolCall {
+            id: "call-9".into(),
+            name: "task".into(),
+            arguments: serde_json::json!({ "agent": "search", "prompt": "find the loader" }),
+            extra_content: None,
+        },
+        result: None,
+        live: Some("working".into()),
+        at: String::new(),
+        duration_ms: None,
+        waited_ms: None,
+        waiting: false,
+    });
+    let rows = render_text(&mut panel, 80, 20);
+    // The strip's row, below the block that stands for the call.
+    let y = rows
+        .iter()
+        .rposition(|row| row.contains("· search  find the loader") && row.starts_with('&'))
+        .expect("the task's row") as u16;
+    let events = panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 2,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        },
+        ratatui::layout::Rect::new(0, 0, 80, 20),
+    );
+    let own = panel.panel_id();
+    assert!(events.iter().any(|event| matches!(
+        event,
+        PanelEvent::FocusDelegate { panel, call } if *panel == own && call == "call-9"
+    )));
+}
+
+/// A backend whose agent moved one command to the background, which
+/// termide still runs; it notes the ids of the calls it is asked to stop.
+#[derive(Default)]
+struct Backgrounded(Arc<Mutex<Vec<String>>>);
+
+impl Backend for Backgrounded {
+    fn prompt(&self, _message: UserMessage) -> Result<(), PromptError> {
+        Err(PromptError::Stopped)
+    }
+    fn steer(&self, _message: UserMessage) {}
+    fn queue_lens(&self) -> (usize, usize) {
+        (0, 0)
+    }
+    fn abort(&self) {}
+    fn is_busy(&self) -> bool {
+        false
+    }
+    fn drain(&self) -> Vec<AgentEvent> {
+        Vec::new()
+    }
+    fn update(&self, _update: Box<dyn FnOnce(&mut Agent) + Send>) -> Result<(), PromptError> {
+        Err(PromptError::Unsupported)
+    }
+    fn compact(&self, _focus: Option<String>) -> Result<(), PromptError> {
+        Err(PromptError::Unsupported)
+    }
+    fn background_calls(&self) -> Vec<termide_agent_core::BackgroundCall> {
+        vec![termide_agent_core::BackgroundCall {
+            call: ToolCall {
+                id: "t1".into(),
+                name: "bash".into(),
+                arguments: serde_json::json!({ "command": "cargo test --workspace" }),
+                extra_content: None,
+            },
+            elapsed: std::time::Duration::from_secs(134),
+        }]
+    }
+    fn stop_background_call(&self, id: &str) -> bool {
+        self.0.lock().unwrap().push(id.to_string());
+        true
+    }
+    fn into_agent(self: Box<Self>) -> Option<Agent> {
+        None
+    }
+}
+
+#[test]
+fn a_command_moved_to_the_background_shows_in_the_state_strip() {
+    let mut panel = panel(vec![]);
+    let call = ToolCall {
+        id: "t1".into(),
+        name: "bash".into(),
+        arguments: serde_json::json!({ "command": "cargo test --workspace" }),
+        extra_content: None,
+    };
+    panel.transcript.push(Item::Tool {
+        call: call.clone(),
+        result: Some(ToolResultMessage::text(&call, "moved to the background")),
+        live: None,
+        at: String::new(),
+        duration_ms: Some(10),
+        waited_ms: None,
+        waiting: false,
+    });
+    // A block after it, so selecting it is seen.
+    let read = ToolCall {
+        id: "r1".into(),
+        name: "read".into(),
+        arguments: serde_json::json!({ "path": "a.rs" }),
+        extra_content: None,
+    };
+    panel.transcript.push(Item::Tool {
+        call: read.clone(),
+        result: Some(ToolResultMessage::text(&read, "text")),
+        live: None,
+        at: String::new(),
+        duration_ms: Some(10),
+        waited_ms: None,
+        waiting: false,
+    });
+    panel.selected = 1;
+    panel.runtime = Box::<Backgrounded>::default();
+    let rows = render_text(&mut panel, 80, 20);
+    let head = format!(
+        "$ {}  cargo test --workspace",
+        termide_i18n::t().agent_tool_bash()
+    );
+    let clock = crate::transcript::fmt_dur(134_000);
+    let y = rows
+        .iter()
+        .rposition(|row| row.starts_with(&head) && row.contains(&clock))
+        .unwrap_or_else(|| panic!("the command's row: {rows:#?}")) as u16;
+    panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 2,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        },
+        ratatui::layout::Rect::new(0, 0, 80, 20),
+    );
+    assert_eq!(panel.selected, 0);
+    assert!(panel.chat_focus);
+}
+
+/// The `✕` of a command's row in the background stops it, once confirmed.
+#[test]
+fn a_command_in_the_background_is_stopped_from_its_row() {
+    let mut panel = panel(vec![]);
+    let call = ToolCall {
+        id: "t1".into(),
+        name: "bash".into(),
+        arguments: serde_json::json!({ "command": "cargo test --workspace" }),
+        extra_content: None,
+    };
+    panel.transcript.push(Item::Tool {
+        call: call.clone(),
+        result: Some(ToolResultMessage::text(&call, "moved to the background")),
+        live: None,
+        at: String::new(),
+        duration_ms: Some(10),
+        waited_ms: None,
+        waiting: false,
+    });
+    let stopped = Arc::new(Mutex::new(Vec::new()));
+    panel.runtime = Box::new(Backgrounded(Arc::clone(&stopped)));
+    let (width, height) = (80, 20);
+    let rows = render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::Background(0));
+    let line = &rows[row as usize];
+    assert!(line.trim_end().ends_with('✕'), "{line}");
+    let events = panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: panel.strip_stop_x,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, width, height),
+    );
+    let Some(PanelEvent::ShowConfirm {
+        message,
+        on_confirm: ConfirmAction::Custom(action),
+    }) = events.into_iter().next()
+    else {
+        panic!("no confirmation");
+    };
+    assert!(message.contains("cargo test --workspace"), "{message}");
+    assert!(stopped.lock().unwrap().is_empty(), "asked first");
+    panel.handle_command(PanelCommand::Confirmed { action });
+    assert_eq!(*stopped.lock().unwrap(), ["t1"]);
+}
+
+/// A subagent the agent waits on has a row with a `✕` as one handed over
+/// in the background does: it stops it once confirmed.
+#[test]
+fn a_running_task_is_stopped_from_its_row() {
+    let mut panel = panel(vec![]);
+    let id = panel.panel_id();
+    let call = ToolCall {
+        id: "call-5".into(),
+        name: "task".into(),
+        arguments: serde_json::json!({ "agent": "search", "prompt": "find the loader" }),
+        extra_content: None,
+    };
+    panel.transcript.push(Item::Tool {
+        call,
+        result: None,
+        live: Some("working".into()),
+        at: String::new(),
+        duration_ms: None,
+        waited_ms: None,
+        waiting: false,
+    });
+    let registration = crate::live::register(crate::live::LiveTask {
+        panel: Some(id),
+        call: "call-5",
+        from: "default",
+        agent: "search",
+        task: "find the loader",
+        session: None,
+        background: false,
+        pausable: true,
+    });
+    let (width, height) = (80, 20);
+    let rows = render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::Task(0));
+    let line = &rows[row as usize];
+    assert!(line.trim_end().ends_with('✕'), "{line}");
+    let events = panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: panel.strip_stop_x,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, width, height),
+    );
+    let Some(PanelEvent::ShowConfirm {
+        message,
+        on_confirm: ConfirmAction::Custom(action),
+    }) = events.into_iter().next()
+    else {
+        panic!("no confirmation");
+    };
+    assert!(message.contains("search"), "{message}");
+    assert!(registration.control().ended_by_user().is_none());
+    panel.handle_command(PanelCommand::Confirmed { action });
+    assert_eq!(
+        registration.control().ended_by_user(),
+        Some("the user stopped the subagent")
+    );
+}
+
+/// A retry waited for is a row like any other: the failure, when it goes,
+/// how long it has waited — and `✕` gives it up.
+#[test]
+fn the_strip_stop_button_gives_up_a_retry_wait() {
+    let mut panel = panel(vec![limited(), reply("done")]);
+    panel.on_limit = LimitPolicy::Wait;
+    panel.send("do it".to_string());
+    settle(&mut panel);
+    assert!(panel.retry_wait.is_some());
+    let (width, height) = (80, 30);
+    let rows = render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::RetryWait);
+    let line = &rows[row as usize];
+    assert!(
+        line.starts_with("↻ Usage limit reached  trying again at"),
+        "{line}"
+    );
+    assert!(line.trim_end().ends_with('✕'), "{line}");
+    panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: panel.strip_stop_x,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, width, height),
+    );
+    assert!(panel.retry_wait.is_none());
+}
+
+/// A panel following a task that runs out of sight shows what its log
+/// gains, stops it on `Esc`, and opens its session once it is over.
+#[test]
+fn a_followed_task_shows_its_log_and_opens_when_over() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = termide_agent_core::SessionParent {
+        session: Some("p1".into()),
+        agent: "lead".into(),
+        call: "call-1".into(),
+    };
+    let mut log = Session::create_delegate(dir.path(), dir.path(), parent).unwrap();
+    log.append_message(&Message::User(UserMessage::text("find the loader")))
+        .unwrap();
+    let path = log.path().to_path_buf();
+
+    let mut panel = panel(vec![]);
+    let control = DelegateControl::new();
+    panel.start_watch(Watch::new(
+        "lead",
+        "find the loader\nmore",
+        path.clone(),
+        control.clone(),
+        3,
+        "call-1",
+    ));
+    assert!(panel.is_delegate() && panel.runs_task(3, "call-1"));
+    assert!(!panel.runs_task(3, "call-2"));
+    assert_eq!(panel.delegated_by(), Some(3));
+    assert!(panel.transcript.items().iter().any(|item| matches!(
+        item,
+        Item::User { text, .. } if text.contains("find the loader")
+    )));
+
+    // What the delegate says next shows up.
+    log.append_message(&Message::Assistant(reply("found it")))
+        .unwrap();
+    std::thread::sleep(Duration::from_millis(300));
+    panel.tick();
+    assert!(panel.transcript.items().iter().any(|item| matches!(
+        item,
+        Item::Assistant { text, .. } if text.contains("found it")
+    )));
+
+    // `Esc` only goes back to the panel that delegated the task.
+    let events = panel.handle_key(chord(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(matches!(
+        events.as_slice(),
+        [PanelEvent::FocusAgentPanel(3)]
+    ));
+    assert!(control.ended_by_user().is_none());
+    // The border offers to take the task over and to stop it; stopping asks
+    // first.
+    let (width, height) = (80, 30);
+    let rows = render_text(&mut panel, width, height);
+    assert!(rows
+        .iter()
+        .any(|line| line.contains("[✎]") && line.contains("[■]")));
+    assert!(!rows.iter().any(|line| line.contains("[⧉]")));
+    let events = panel.ask_stop_watched();
+    let Some(PanelEvent::ShowConfirm {
+        on_confirm: ConfirmAction::Custom(action),
+        ..
+    }) = events.into_iter().next()
+    else {
+        panic!("no confirmation");
+    };
+    panel.handle_command(PanelCommand::Confirmed { action });
+    assert_eq!(
+        control.ended_by_user(),
+        Some("the user stopped the subagent")
+    );
+    assert!(panel.is_delegate());
+
+    // Over: the session opens here as any other.
+    drop(log);
+    control.finish();
+    panel.tick();
+    assert!(!panel.is_delegate() && !panel.is_delegate());
+    assert_eq!(panel.session_path(), Some(path.as_path()));
+}
+
+fn from_peer(kind: termide_agent_core::OriginKind, hops: u32) -> UserMessage {
+    UserMessage::text("the config loader moved").with_origin(termide_agent_core::MessageOrigin {
+        session: String::new(),
+        agent: "reviewer".into(),
+        kind,
+        panel: Some(7),
+        hops,
+    })
+}
+
+/// A task handed over in the background has no running block: the strip
+/// lists it from the registry, its `✕` stops it, a click elsewhere asks for
+/// a panel following it, and closing the panel asks first.
+#[test]
+fn a_background_task_has_a_row_that_stops_or_follows_it() {
+    let mut panel = panel(vec![]);
+    let id = panel.panel_id();
+    let registration = crate::live::register(crate::live::LiveTask {
+        panel: Some(id),
+        call: "bg-1",
+        from: "default",
+        agent: "search",
+        task: "find the loader\nin src/",
+        session: None,
+        background: true,
+        pausable: true,
+    });
+    registration.set_status("· read src/main.rs");
+    let (width, height) = (80, 30);
+    let rows = render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::Delegate(0));
+    let line = &rows[row as usize];
+    assert!(line.starts_with("& "), "{line}");
+    assert!(
+        line.contains("search") && line.contains("find the loader"),
+        "{line}"
+    );
+    assert!(line.contains("· read src/main.rs"), "{line}");
+    assert!(line.trim_end().ends_with('✕'), "{line}");
+    assert!(panel
+        .needs_close_confirmation()
+        .is_some_and(|text| text.contains('1')));
+
+    // Elsewhere on the row: a panel following it is asked for.
+    let events = panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 2,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, width, height),
+    );
+    assert!(events.iter().any(|event| matches!(
+        event,
+        PanelEvent::FocusDelegate { panel, call } if *panel == id && call == "bg-1"
+    )));
+    // `✕` asks first, then stops it.
+    render_text(&mut panel, width, height);
+    let events = panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: panel.strip_stop_x,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, width, height),
+    );
+    let Some(PanelEvent::ShowConfirm {
+        message,
+        on_confirm: ConfirmAction::Custom(action),
+    }) = events.into_iter().next()
+    else {
+        panic!("no confirmation");
+    };
+    assert!(message.contains("search"), "{message}");
+    assert!(registration.control().ended_by_user().is_none());
+    panel.handle_command(PanelCommand::Confirmed { action });
+    assert_eq!(
+        registration.control().ended_by_user(),
+        Some("the user stopped the subagent")
+    );
+    // Over: the row and the question on closing go.
+    drop(registration);
+    let rows = render_text(&mut panel, width, height);
+    assert!(rows.iter().all(|line| !line.contains("find the loader")));
+    assert!(panel.needs_close_confirmation().is_none());
+}
+
+/// A delegate parked at a limit keeps its row, says when it goes again, and
+/// asks what to do: try now, keep waiting, or give the task up. Giving it up
+/// tells the panel's own agent, so it waits on no answer that will not come.
+#[test]
+fn a_parked_delegate_holds_a_row_and_asks_what_to_do() {
+    let mut panel = panel(vec![]);
+    let id = panel.panel_id();
+    let now = crate::failure::unix_now();
+    crate::live::park(
+        id,
+        crate::live::Parked {
+            call: "task-1".into(),
+            agent: "methodical".into(),
+            task: "cut the release\nand tag it".into(),
+            session: Some(std::path::PathBuf::from("/logs/d.jsonl")),
+            failure: Failure::new(FailureKind::QuotaExhausted).with_reset(Some(now + 600)),
+            wake_at: now + 600,
+            connection: "claude-code".into(),
+            attempts: 1,
+            since: now,
+            asked: false,
+            launching: false,
+        },
+    );
+
+    let (width, height) = (80, 30);
+    // The tick raises the card; the strip draws the row.
+    assert!(panel.poll_parked());
+    let rows = render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::Parked(0));
+    let line = &rows[row as usize];
+    assert!(line.starts_with("\u{23f8} "), "{line}");
+    assert!(line.contains("methodical"), "{line}");
+    assert!(line.contains("cut the release"), "{line}");
+    assert!(line.trim_end().ends_with('\u{2715}'), "{line}");
+
+    // The card asks once, and names the reset.
+    assert!(matches!(panel.pending, Some(Pending::DelegateLimit { .. })));
+    let detail = panel
+        .pending
+        .as_ref()
+        .unwrap()
+        .form()
+        .detail()
+        .unwrap_or_default();
+    assert!(detail.contains("methodical"), "{detail}");
+
+    // The first row sends it again now; the registry is told, not the run.
+    assert!(panel.apply_form_action(ChoiceAction::Chosen(0)));
+    assert!(crate::live::parked_of(id)[0].asked);
+
+    // The same try is not asked about twice: it is on its way.
+    panel.poll_parked();
+    assert!(!matches!(
+        panel.pending,
+        Some(Pending::DelegateLimit { .. })
+    ));
+    // Parked at a later try, the card comes back.
+    let mut again = crate::live::parked_of(id)
+        .into_iter()
+        .next()
+        .expect("parked");
+    again.attempts = 2;
+    again.launching = false;
+    crate::live::park(id, again);
+    panel.poll_parked();
+    assert!(matches!(panel.pending, Some(Pending::DelegateLimit { .. })));
+    // Leaving it: the task waits on, unasked.
+    panel.apply_form_action(ChoiceAction::Cancelled);
+    assert!(panel.pending.is_none());
+    assert!(crate::live::parked_of(id)[0].asked, "it still waits");
+
+    // `\u{2715}` asks first, then gives the task up and tells the panel's agent.
+    render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::Parked(0));
+    let events = panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: panel.strip_stop_x,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, width, height),
+    );
+    let Some(PanelEvent::ShowConfirm {
+        on_confirm: ConfirmAction::Custom(action),
+        ..
+    }) = events.into_iter().next()
+    else {
+        panic!("no confirmation");
+    };
+    panel.pending = None;
+    panel.handle_command(PanelCommand::Confirmed { action });
+    assert!(crate::live::parked_of(id).is_empty(), "given up");
+}
+
+/// `on_limit = "wait"` asks nothing: the parked delegate only holds its row,
+/// and goes again at its reset on its own.
+#[test]
+fn a_parked_delegate_asks_nothing_when_the_policy_waits() {
+    let mut panel = panel(vec![]);
+    panel.on_limit = LimitPolicy::Wait;
+    let id = panel.panel_id();
+    let now = crate::failure::unix_now();
+    crate::live::park(
+        id,
+        crate::live::Parked {
+            call: "task-2".into(),
+            agent: "clear".into(),
+            task: "sweep the docs".into(),
+            session: None,
+            failure: Failure::new(FailureKind::RateLimited),
+            wake_at: now + 120,
+            connection: "omlx".into(),
+            attempts: 2,
+            since: now,
+            asked: false,
+            launching: false,
+        },
+    );
+    render_text(&mut panel, 80, 30);
+    assert!(matches!(
+        panel.pending,
+        None | Some(Pending::DelegateLimit { .. })
+    ));
+    panel.poll_parked();
+    assert!(!matches!(
+        panel.pending,
+        Some(Pending::DelegateLimit { .. })
+    ));
+    assert_eq!(crate::live::parked_of(id).len(), 1);
+    crate::live::clear_parked_of(id);
+}
+
+/// Past three running subagents the strip counts the rest; a click on the
+/// count shows them all, and the row after them folds them back.
+#[test]
+fn the_strip_count_of_subagents_unfolds_and_folds_back() {
+    let mut panel = panel(vec![]);
+    let id = panel.panel_id();
+    let calls: Vec<String> = (0..5).map(|n| format!("more-{n}")).collect();
+    let tasks: Vec<String> = (0..5).map(|n| format!("task number {n}")).collect();
+    let registrations: Vec<_> = calls
+        .iter()
+        .zip(&tasks)
+        .map(|(call, task)| {
+            crate::live::register(crate::live::LiveTask {
+                panel: Some(id),
+                call,
+                from: "default",
+                agent: "search",
+                task,
+                session: None,
+                background: true,
+                pausable: true,
+            })
+        })
+        .collect();
+    let (width, height) = (80, 40);
+    let shown = |panel: &mut AgentPanel| {
+        let rows = render_text(panel, width, height);
+        (0..5)
+            .filter(|n| {
+                rows.iter()
+                    .any(|line| line.contains(&format!("task number {n}")))
+            })
+            .count()
+    };
+    let click = |panel: &mut AgentPanel| {
+        let row = strip_row(panel, crate::strip::StripTarget::MoreTasks);
+        panel.handle_mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: 1,
+                row,
+                modifiers: KeyModifiers::NONE,
+            },
+            Rect::new(0, 0, width, height),
+        );
+        row
+    };
+    assert_eq!(shown(&mut panel), 3);
+    let rows = render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::MoreTasks);
+    assert!(
+        rows[row as usize].starts_with("& +2"),
+        "{}",
+        rows[row as usize]
+    );
+    click(&mut panel);
+    assert_eq!(shown(&mut panel), 5);
+    let rows = render_text(&mut panel, width, height);
+    let row = strip_row(&panel, crate::strip::StripTarget::MoreTasks);
+    assert!(
+        rows[row as usize].starts_with("& ▴"),
+        "{}",
+        rows[row as usize]
+    );
+    click(&mut panel);
+    assert_eq!(shown(&mut panel), 3);
+    drop(registrations);
+}
+
+/// Shown over the layout, a view has buttons in place of the prompt — into
+/// a panel (`F9`), take over, stop, close — and a task that ended stays as
+/// it ended, to read, with only the way into a panel and out.
+#[test]
+fn a_view_over_the_layout_docks_and_keeps_an_ended_task() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = termide_agent_core::SessionParent {
+        session: Some("p1".into()),
+        agent: "lead".into(),
+        call: "call-ov".into(),
+    };
+    let mut log = Session::create_delegate(dir.path(), dir.path(), parent).unwrap();
+    log.append_message(&Message::User(UserMessage::text("find the loader")))
+        .unwrap();
+    let path = log.path().to_path_buf();
+    let mut panel = panel(vec![]);
+    let control = DelegateControl::new();
+    panel.set_in_overlay(true);
+    panel.start_watch(Watch::new(
+        "lead",
+        "find the loader",
+        path.clone(),
+        control.clone(),
+        4,
+        "call-ov",
+    ));
+    let (width, height) = (80, 30);
+    let rows = render_text(&mut panel, width, height);
+    let buttons = rows
+        .iter()
+        .position(|line| {
+            line.contains("[ In a panel F9 ]")
+                && line.contains("[ Take over Ctrl+T ]")
+                && line.contains("[ Stop ]")
+                && line.contains("[ Close Esc ]")
+        })
+        .expect("the buttons are under the view");
+    assert!(rows[buttons - 1].chars().all(|c| c == '─'));
+    assert!(!rows
+        .iter()
+        .any(|line| line.contains("[✎]") || line.contains("[■]")));
+    let events = panel.handle_key(chord(KeyCode::F(9), KeyModifiers::NONE));
+    assert!(matches!(events.as_slice(), [PanelEvent::DockOverlay]));
+    let click = |panel: &mut AgentPanel, label: &str| {
+        let row = &rows[buttons];
+        let column = row[..row.find(label).unwrap()].chars().count() as u16 + 2;
+        panel.handle_mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column,
+                row: buttons as u16,
+                modifiers: KeyModifiers::NONE,
+            },
+            Rect::new(0, 0, width, height),
+        )
+    };
+    assert!(matches!(
+        click(&mut panel, "[ In a panel").as_slice(),
+        [PanelEvent::DockOverlay]
+    ));
+    assert!(matches!(
+        click(&mut panel, "[ Close").as_slice(),
+        [PanelEvent::FocusAgentPanel(4)]
+    ));
+
+    // Over: still the task as it ended, with only the way into a panel.
+    drop(log);
+    control.finish();
+    panel.tick();
+    assert!(panel.is_delegate());
+    let rows = render_text(&mut panel, width, height);
+    assert!(rows
+        .iter()
+        .any(|line| line.contains("[ In a panel F9 ]") && line.contains("[ Close Esc ]")));
+    assert!(!rows
+        .iter()
+        .any(|line| line.contains("[ Stop ]") || line.contains("Take over")));
+    // In a panel, its session opens.
+    panel.set_in_overlay(false);
+    panel.tick();
+    assert!(!panel.is_delegate());
+    assert_eq!(panel.session_path(), Some(path.as_path()));
+}
+
+/// A session reopened after termide closed names the delegated tasks left
+/// unfinished in their own logs on the card that asks to carry the work on.
+#[test]
+fn the_carry_on_card_names_the_delegates_left_behind() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent_path = {
+        let mut session = Session::create(dir.path(), dir.path()).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("build it")))
+            .unwrap();
+        session.append_run_start().unwrap();
+        session.path().to_path_buf()
+    };
+    let id = Session::open_read_only(&parent_path)
+        .unwrap()
+        .id()
+        .to_string();
+    {
+        let mut log = Session::create_delegate(
+            dir.path(),
+            dir.path(),
+            termide_agent_core::SessionParent {
+                // The parent names the agent that delegated, not the delegate.
+                session: Some(id.clone()),
+                agent: "default".into(),
+                call: "call-1".into(),
+            },
+        )
+        .unwrap();
+        log.append_message(&Message::User(UserMessage::text("find the loader")))
+            .unwrap();
+        log.append_agent_change("search").unwrap();
+        log.append_run_start().unwrap();
+    }
+    // Another panel's delegate, and this panel's finished one: neither shows.
+    {
+        let mut other = Session::create_delegate(
+            dir.path(),
+            dir.path(),
+            termide_agent_core::SessionParent {
+                session: Some("elsewhere".into()),
+                agent: "default".into(),
+                call: "call-9".into(),
+            },
+        )
+        .unwrap();
+        other
+            .append_message(&Message::User(UserMessage::text("read it")))
+            .unwrap();
+        other.append_run_start().unwrap();
+    }
+
+    let panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        session: Some(Session::open(&parent_path).unwrap()),
+        ..setup(vec![reply("ok")])
+    });
+    let left = panel.unfinished_delegates();
+    assert_eq!(left.len(), 1, "{left:?}");
+    assert_eq!(
+        (left[0].agent.as_str(), left[0].call.as_str()),
+        ("search", "call-1")
+    );
+    let detail = carry_on_card(&panel);
+    // The delegate's own name, not the delegating agent's.
+    assert!(detail.contains("search"), "{detail}");
+    assert!(!detail.contains("default"), "{detail}");
+}
+
+/// A session whose own run ended cleanly, but which left delegated tasks
+/// unfinished in their logs, opens those sessions as panels of their own:
+/// each asks there whether to carry its run on, with a prompter of its own.
+#[test]
+fn a_finished_panel_opens_the_sessions_of_its_unfinished_delegates() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent_path = {
+        let mut session = Session::create(dir.path(), dir.path()).unwrap();
+        session
+            .append_message(&Message::User(UserMessage::text("build it")))
+            .unwrap();
+        session.append_run_start().unwrap();
+        session
+            .append_message(&Message::Assistant(reply("done")))
+            .unwrap();
+        session.append_run_end(false).unwrap();
+        session.path().to_path_buf()
+    };
+    let id = Session::open_read_only(&parent_path)
+        .unwrap()
+        .id()
+        .to_string();
+    let delegate_path = {
+        let mut log = Session::create_delegate(
+            dir.path(),
+            dir.path(),
+            termide_agent_core::SessionParent {
+                // The parent names the agent that delegated, not the delegate.
+                session: Some(id.clone()),
+                agent: "default".into(),
+                call: "call-1".into(),
+            },
+        )
+        .unwrap();
+        log.append_message(&Message::User(UserMessage::text("find the loader")))
+            .unwrap();
+        log.append_agent_change("search").unwrap();
+        log.append_run_start().unwrap();
+        log.path().to_path_buf()
+    };
+
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        session: Some(Session::open(&parent_path).unwrap()),
+        ..setup(vec![reply("ok")])
+    });
+    // The panel's own run is over, so no card asks about it; the delegate
+    // holds a row above the input instead of opening a panel of its own.
+    let events = panel.tick();
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, PanelEvent::OpenAgentSession(_))),
+        "{events:?}"
+    );
+    assert_eq!(
+        panel.restored_delegates.len(),
+        1,
+        "the delegate holds a row"
+    );
+    assert_eq!(panel.restored_delegates[0].agent, "search");
+    // The idle panel asks about the delegates alone.
+    assert!(
+        matches!(panel.pending, Some(Pending::Unfinished { .. })),
+        "the delegates are asked about"
+    );
+    // Continue carries them on: the app restarts each on the panel's runner,
+    // under the `task` call that handed it over.
+    panel.apply_form_action(ChoiceAction::Chosen(0));
+    let events = panel.tick();
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            PanelEvent::RestartDelegates { panel: _, items }
+                if items.len() == 1
+                    && items[0].agent == "search"
+                    && items[0].session == delegate_path
+                    && items[0].call == "call-1"
+                    && !items[0].task.is_empty()
+        )),
+        "{events:?}"
+    );
+    assert!(
+        panel.restored_delegates.is_empty(),
+        "a task carried on leaves its row"
+    );
+}
+
+/// A delegate row above the input opens the session it waits in, where that
+/// session's own card asks to carry it on; `Later` leaves the rows there.
+#[test]
+fn a_row_of_an_unfinished_delegate_opens_its_session_and_later_keeps_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent_path = {
+        let log = Session::create(dir.path(), dir.path()).unwrap();
+        log.path().to_path_buf()
+    };
+    let delegate_path = {
+        let mut log = Session::create_delegate(
+            dir.path(),
+            dir.path(),
+            termide_agent_core::SessionParent {
+                session: Some(
+                    Session::open_read_only(&parent_path)
+                        .unwrap()
+                        .id()
+                        .to_string(),
+                ),
+                agent: "default".into(),
+                call: "call-1".into(),
+            },
+        )
+        .unwrap();
+        log.append_message(&Message::User(UserMessage::text("find the loader")))
+            .unwrap();
+        log.append_agent_change("search").unwrap();
+        log.append_run_start().unwrap();
+        log.path().to_path_buf()
+    };
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        session_dir: Some(dir.path().to_path_buf()),
+        session: Some(Session::open(&parent_path).unwrap()),
+        ..setup(vec![reply("ok")])
+    });
+    panel.tick();
+    // Later: nothing runs, and the row stays for another time.
+    panel.apply_form_action(ChoiceAction::Chosen(1));
+    let events = panel.tick();
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, PanelEvent::RestartDelegates { .. })),
+        "{events:?}"
+    );
+    assert_eq!(panel.restored_delegates.len(), 1, "the row waits on");
+    // A click on the row opens the session the delegate waits in.
+    let rows = render_text(&mut panel, 80, 30);
+    let row = strip_row(&panel, crate::strip::StripTarget::DelegateSession(0));
+    let line = &rows[row as usize];
+    assert!(
+        line.contains("search") && line.contains("find the loader"),
+        "{line}"
+    );
+    let events = panel.handle_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 2,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        Rect::new(0, 0, 80, 30),
+    );
+    assert!(
+        events.iter().any(
+            |event| matches!(event, PanelEvent::OpenAgentSession(path) if path == &delegate_path)
+        ),
+        "{events:?}"
+    );
+}
+
+/// A delegate's session reopened and carried on answers the panel that
+/// delegated the task: its last words go back there at the run's end, which
+/// is what the `task` call was made for.
+#[test]
+fn a_carried_on_delegate_answers_the_panel_that_delegated_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = {
+        let mut log = Session::create_delegate(
+            dir.path(),
+            Path::new("/tmp"),
+            termide_agent_core::SessionParent {
+                session: Some("parent-1".into()),
+                // The parent names the agent that delegated, not the delegate.
+                agent: "default".into(),
+                call: "call-1".into(),
+            },
+        )
+        .unwrap();
+        log.append_message(&Message::User(UserMessage::text("find the loader")))
+            .unwrap();
+        log.append_agent_change("search").unwrap();
+        log.append_run_start().unwrap();
+        log.path().to_path_buf()
+    };
+    let mut panel = reopen(
+        &path,
+        dir.path(),
+        vec![reply("the loader is in src/loader.rs")],
+    );
+    assert_eq!(panel.restored, Some(Restored::Resume));
+    // Whose task this run answers, and that nothing has answered yet.
+    assert_eq!(
+        panel.carry_back.as_ref().map(|carry| (
+            carry.parent_session.as_str(),
+            carry.agent.as_str(),
+            carry.running
+        )),
+        Some(("parent-1", "search", false)),
+    );
+
+    panel.apply_form_action(ChoiceAction::Chosen(0));
+    let event = wait_for(&mut panel, |event| {
+        matches!(event, PanelEvent::DelegateAnswerToParent { .. })
+    });
+    match event {
+        PanelEvent::DelegateAnswerToParent {
+            parent_session,
+            agent,
+            text,
+            ..
+        } => {
+            assert_eq!(parent_session, "parent-1");
+            // The delegate's own name, not the delegating agent's.
+            assert_eq!(agent, "search");
+            assert!(text.contains("src/loader.rs"), "{text}");
+        }
+        other => panic!("not a carried-on answer: {other:?}"),
+    }
+    assert!(panel.carry_back.is_none(), "the answer is owed once");
+}
+
+/// The panel's pause holds the tasks it handed over, and its resume lets
+/// them go; a task an external agent runs keeps going, and the pause's row
+/// says which is which.
+#[test]
+fn pausing_the_panel_holds_its_delegates_and_resumes_them() {
+    let mut panel = panel(vec![]);
+    let id = panel.panel_id();
+    let held = crate::live::register(crate::live::LiveTask {
+        panel: Some(id),
+        call: "call-hold",
+        from: "default",
+        agent: "search",
+        task: "find the loader",
+        session: None,
+        background: true,
+        pausable: true,
+    });
+    let external = crate::live::register(crate::live::LiveTask {
+        panel: Some(id),
+        call: "call-ext",
+        from: "default",
+        agent: "claude",
+        task: "review the diff",
+        session: None,
+        background: true,
+        pausable: false,
+    });
+
+    panel.busy = true;
+    assert!(panel.request_pause());
+    assert!(
+        held.control().is_paused(),
+        "the delegate waits with the run"
+    );
+    assert!(
+        !external.control().is_paused(),
+        "an external agent runs its own program"
+    );
+    let rows = panel.strip_rows(80);
+    let notes = &rows
+        .iter()
+        .find(|r| r.target == crate::strip::StripTarget::Pause)
+        .expect("the pause row")
+        .notes;
+    assert_eq!(notes.len(), 2, "{notes:?}: one held, one still going");
+
+    panel.cancel_pause();
+    assert!(!held.control().is_paused(), "withdrawing frees it");
+
+    panel.request_pause();
+    assert!(held.control().is_paused());
+    panel.stop_paused();
+    assert!(
+        !held.control().is_paused(),
+        "a stopped run frees what it held"
+    );
+}
+
+/// Held at its panel's pause, a view says so on the rule above its buttons:
+/// the log stops growing, and nothing else on screen tells why.
+#[test]
+fn a_held_delegate_says_it_stands_still() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = termide_agent_core::SessionParent {
+        session: Some("p1".into()),
+        agent: "lead".into(),
+        call: "call-hold".into(),
+    };
+    let mut log = Session::create_delegate(dir.path(), dir.path(), parent).unwrap();
+    log.append_message(&Message::User(UserMessage::text("find the loader")))
+        .unwrap();
+    let mut panel = panel(vec![]);
+    let control = DelegateControl::new();
+    panel.set_in_overlay(true);
+    panel.start_watch(Watch::new(
+        "lead",
+        "find the loader",
+        log.path().to_path_buf(),
+        control.clone(),
+        4,
+        "call-hold",
+    ));
+    let rows = render_text(&mut panel, 80, 30);
+    let rule = rows
+        .iter()
+        .position(|line| line.contains("[ In a panel F9 ]"))
+        .expect("the buttons are under the view")
+        - 1;
+    assert!(!rows[rule].contains("paused"));
+
+    control.pause();
+    let rows = render_text(&mut panel, 80, 30);
+    assert!(rows[rule].contains("paused"), "{:?}", rows[rule]);
+
+    control.resume();
+    assert!(!render_text(&mut panel, 80, 30)[rule].contains("paused"));
+}
+
+/// While a view follows a task, the panel that delegated it sets the task's
+/// cards aside for it; the view shows them, and gives back what it holds
+/// when it goes.
+#[test]
+fn a_delegates_cards_follow_the_view_of_its_task() {
+    let mut parent = panel(vec![]);
+    let id = parent.panel_id();
+    let (prompter, rx) = permission_channel(CancelToken::new());
+    parent.permission_rx = rx;
+    let registration = crate::live::register(crate::live::LiveTask {
+        panel: Some(id),
+        call: "call-cards",
+        from: "default",
+        agent: "search",
+        task: "find it",
+        session: Some(std::path::PathBuf::from("/nonexistent/x.jsonl")),
+        background: false,
+        pausable: true,
+    });
+    let watch = crate::live::watch(id, "call-cards").unwrap();
+    let mut view = panel(vec![]);
+    view.start_watch(watch);
+
+    let mut delegate = prompter
+        .for_delegate("search", CancelToken::new())
+        .for_task("call-cards");
+    let worker = std::thread::spawn(move || {
+        delegate.ask(&termide_agent_core::PermissionRequest {
+            tool: "bash".into(),
+            subject: "git fetch".into(),
+            call: termide_agent_core::ToolCall {
+                id: "c".into(),
+                name: "bash".into(),
+                arguments: serde_json::json!({ "command": "git fetch" }),
+                extra_content: None,
+            },
+            suggested_pattern: String::new(),
+            can_persist: false,
+            can_allow_session: false,
+            parts: Vec::new(),
+        })
+    });
+    // The parent sets it aside rather than showing it.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut out = Vec::new();
+    while out.is_empty() {
+        parent.tick();
+        out = parent.take_cards_out();
+        assert!(Instant::now() < deadline, "no card set aside");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(parent.pending.is_none());
+    let (call, card) = out.pop().unwrap();
+    assert_eq!(call, "call-cards");
+    // The view shows it.
+    view.give_card(card);
+    view.tick();
+    assert!(matches!(view.pending, Some(Pending::Permission { .. })));
+    // The view goes: the card goes back, and the parent shows it.
+    let back = view.release_cards();
+    drop(view);
+    for card in back {
+        parent.give_card(card);
+    }
+    parent.tick();
+    assert!(matches!(parent.pending, Some(Pending::Permission { .. })));
+    assert!(parent.answer_permission(PermissionAnswer::AllowOnce));
+    assert_eq!(worker.join().unwrap(), PermissionAnswer::AllowOnce);
+    drop(registration);
+}
+
+/// While the panel follows another agent's task, its `[≡]` menu offers only
+/// what reads the session: the rest would do nothing.
+#[test]
+fn a_panel_following_a_task_offers_only_what_reads_its_session() {
+    let mut panel = panel(vec![]);
+    let full = panel.context_menu_items().len();
+    assert!(full > 2);
+    panel.start_watch(Watch::new(
+        "lead",
+        "find it",
+        std::path::PathBuf::from("/nonexistent/x.jsonl"),
+        DelegateControl::new(),
+        5,
+        "call-menu",
+    ));
+    let actions: Vec<String> = panel
+        .context_menu_items()
+        .into_iter()
+        .map(|(_, action)| action)
+        .collect();
+    assert_eq!(actions, [SESSION_INFO_ACTION, SAVE_CHAT_ACTION]);
+}
+
+/// A task handed over in the background asks and answers through the
+/// panel's session: the session does not change under it, as it does not
+/// under a run.
+#[test]
+fn the_session_waits_for_the_tasks_handed_over_in_the_background() {
+    let mut panel = panel(vec![]);
+    let registration = crate::live::register(crate::live::LiveTask {
+        panel: Some(panel.panel_id()),
+        call: "bg-session",
+        from: "default",
+        agent: "search",
+        task: "find it",
+        session: None,
+        background: true,
+        pausable: true,
+    });
+    assert!(!panel.switch_session(None));
+    assert!(panel.transcript.items().iter().any(|item| matches!(
+        item,
+        Item::Notice { text, .. } if text.contains('1')
+    )));
+    drop(registration);
+    assert!(panel.switch_session(None));
+}
+
+/// A catalog whose project brings a server and a hook not approved yet.
+struct Untrusted(Arc<Mutex<Vec<String>>>);
+
+impl AgentCatalog for Untrusted {
+    fn list(&self) -> Vec<AgentEntry> {
+        Agents.list()
+    }
+    fn resolve(&self, name: &str) -> Option<AgentProfile> {
+        Agents.resolve(name)
+    }
+    fn mcp_status(&self) -> Vec<termide_agent_core::McpServerState> {
+        use termide_agent_core::{McpServerState, McpSignIn, McpStatus};
+        vec![McpServerState {
+            name: "ext".into(),
+            status: McpStatus::NeedsApproval,
+            sign_in: McpSignIn::None,
+            launch: "npx ext-server".into(),
+        }]
+    }
+    fn held_hooks(&self) -> Vec<(String, String)> {
+        vec![("check".into(), "./check.sh".into())]
+    }
+    fn trust(&self, name: &str) -> Result<Option<termide_agent_core::McpReload>, String> {
+        self.0.lock().unwrap().push(format!("trust {name}"));
+        match name {
+            "ext" => Ok(Some(termide_agent_core::McpReload {
+                started: vec!["ext".into()],
+                ..Default::default()
+            })),
+            "check" => Ok(None),
+            _ => Err(format!("Nothing named {name} waits for approval")),
+        }
+    }
+}
+
+#[test]
+fn trust_lists_what_the_project_brings_and_approves_it() {
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        catalog: Arc::new(Untrusted(Arc::clone(&asked))),
+        ..setup(vec![])
+    });
+    // The held hook is said when the panel opens.
+    assert_eq!(
+        notices(&panel),
+        ["hook check: from the project, runs `./check.sh` — /trust check to let it run"]
+    );
+    for command in ["/trust", "/trust ext", "/trust check", "/trust nope"] {
+        type_text(&mut panel, command);
+        panel.submit();
+    }
+    assert_eq!(
+        *asked.lock().unwrap(),
+        ["trust ext", "trust check", "trust nope"]
+    );
+    let seen = notices(&panel);
+    assert_eq!(
+        &seen[1..],
+        [
+            "mcp ext: from the project, runs `npx ext-server` — /trust ext to start it",
+            "hook check: from the project, runs `./check.sh` — /trust check to let it run",
+            "ext: approved for this project",
+            "mcp ext: connecting",
+            "check: approved for this project",
+            "Nothing named nope waits for approval",
+        ]
+    );
+    assert!(!panel.is_busy());
+}
+
+#[test]
+fn a_held_server_ticked_in_the_toolset_list_is_approved_and_comes_on() {
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let (tx, rx) = mpsc::channel();
+    let mut panel = AgentPanel::new(AgentPanelSetup {
+        catalog: Arc::new(Untrusted(Arc::clone(&asked))),
+        late_tools: Some(rx),
+        ..setup(vec![])
+    });
+    // The session had switched the server's tools off, and something else.
+    panel.toolset_off = ["ext__a", "ext__b", "read"]
+        .into_iter()
+        .map(String::from)
+        .collect();
+    let events = panel.handle_status_action(crate::toolset::TOOLSET_ACTION);
+    let Some(PanelEvent::ShowChecklist { groups, .. }) = events.first() else {
+        panic!("the toolset list opens: {events:?}");
+    };
+    // The held server's heading: a checkbox, unticked, and nothing else.
+    let ext = groups.iter().find(|g| g.name == "MCP: ext").unwrap();
+    assert_eq!(
+        ext.switch,
+        Some(termide_core::ChecklistSwitch {
+            key: "mcp-trust:ext".into(),
+            checked: false,
+        })
+    );
+    assert!(ext.note.is_empty(), "{}", ext.note);
+    assert!(ext.buttons.is_empty(), "{:?}", ext.buttons);
+
+    // Left unticked, nothing is approved.
+    panel.handle_command(PanelCommand::ChecklistDone {
+        action: crate::toolset::TOOLSET_ACTION.into(),
+        checked: Vec::new(),
+    });
+    assert!(asked.lock().unwrap().is_empty());
+
+    // Ticked: approved at once, the list staying open and brought up to
+    // date; its tools come on as they arrive and are drawn into the open
+    // list; the rest of what the session switched off stays off.
+    panel.handle_status_action(crate::toolset::TOOLSET_ACTION);
+    panel.pending_events.clear();
+    panel.handle_command(PanelCommand::ChecklistButton {
+        action: crate::toolset::TOOLSET_ACTION.into(),
+        id: "mcp-trust:ext".into(),
+    });
+    assert_eq!(*asked.lock().unwrap(), ["trust ext"]);
+    assert!(panel.toolset_list_open);
+    assert!(panel
+        .pending_events
+        .iter()
+        .any(|e| matches!(e, PanelEvent::RefreshChecklist(_))));
+    tx.send(LateTools::Ready {
+        source: "ext".into(),
+        tools: vec![
+            Arc::new(Late("ext__a")) as Arc<dyn termide_agent_core::Tool>,
+            Arc::new(Late("ext__b")) as Arc<dyn termide_agent_core::Tool>,
+        ],
+    })
+    .unwrap();
+    let events = panel.tick();
+    let Some(PanelEvent::RefreshChecklist(refresh)) = events
+        .iter()
+        .rev()
+        .find(|e| matches!(e, PanelEvent::RefreshChecklist(_)))
+    else {
+        panic!("the open list is brought up to date: {events:?}");
+    };
+    let ext: Vec<(&str, bool)> = refresh
+        .items
+        .iter()
+        .filter(|i| i.key.starts_with("ext__"))
+        .map(|i| (i.key.as_str(), i.checked))
+        .collect();
+    assert_eq!(ext, [("ext__a", true), ("ext__b", true)]);
+    assert_eq!(
+        panel.toolset_off.iter().collect::<Vec<_>>(),
+        ["read"],
+        "{:?}",
+        panel.toolset_off
+    );
+    assert!(!panel.blocked.read().unwrap().contains("ext__a"));
+
+    // Its next set, after a reconnect, keeps what the user chooses then.
+    panel.toolset_off.insert("ext__a".into());
+    tx.send(LateTools::Ready {
+        source: "ext".into(),
+        tools: vec![Arc::new(Late("ext__a")) as Arc<dyn termide_agent_core::Tool>],
+    })
+    .unwrap();
+    panel.tick();
+    assert!(panel.toolset_off.contains("ext__a"));
+}
+
+#[test]
+fn a_run_is_told_as_it_starts_and_ends() {
+    let mut panel = AgentPanel::new(setup(vec![]));
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::AgentEnd);
+    let runs: Vec<Option<bool>> = panel
+        .pending_events
+        .iter()
+        .filter_map(|event| match event {
+            PanelEvent::AgentRun { finished, .. } => Some(*finished),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(runs, [None, Some(true)]);
+}
+
+/// A pause asked for on a run that then ends on its own — its last reply
+/// left nothing to do — leaves no pause to continue from: the delegates it
+/// held go on, rather than wait for a `/continue` that has nothing to resume.
+#[test]
+fn a_pause_the_run_never_reached_frees_its_delegates() {
+    let mut panel = panel(vec![]);
+    let id = panel.panel_id();
+    let held = crate::live::register(crate::live::LiveTask {
+        panel: Some(id),
+        call: "call-free",
+        from: "default",
+        agent: "search",
+        task: "find the loader",
+        session: None,
+        background: true,
+        pausable: true,
+    });
+    panel.apply(AgentEvent::AgentStart);
+    assert!(panel.request_pause());
+    assert!(held.control().is_paused());
+    panel.apply(AgentEvent::AgentEnd);
+    assert!(!panel.paused, "the run ended, not paused");
+    assert!(
+        !held.control().is_paused(),
+        "nothing holds the delegate now"
+    );
+}
+
+/// A carried-on delegate paused on the way owes its answer still: only the
+/// run's real end reports back to the panel that delegated it.
+#[test]
+fn a_carried_on_delegate_paused_on_the_way_still_owes_its_answer() {
+    let mut panel = panel(vec![]);
+    panel.carry_back = Some(crate::unfinished::CarryBack {
+        parent_session: "parent-1".into(),
+        agent: "search".into(),
+        running: true,
+    });
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::Paused);
+    panel.apply(AgentEvent::AgentEnd);
+    assert!(panel.carry_back.is_some(), "a pause is not the task's end");
+    panel.apply(AgentEvent::AgentStart);
+    panel.apply(AgentEvent::AgentEnd);
+    assert!(panel.carry_back.is_none(), "the real end settles it");
+}
+
+/// Leaving a session leaves its unfinished delegates and the answer it owed
+/// behind: a new session's carry-on must not restart another's tasks.
+#[test]
+fn a_new_session_forgets_the_unfinished_delegates_of_the_last() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = {
+        let log = Session::create(dir.path(), Path::new("/tmp")).unwrap();
+        log.path().to_path_buf()
+    };
+    let mut panel = reopen(&path, dir.path(), vec![]);
+    panel
+        .restored_delegates
+        .push(crate::unfinished::RestoredDelegate {
+            agent: "search".into(),
+            session: dir.path().join("delegate.jsonl"),
+            call: "call-1".into(),
+            task: "find the loader".into(),
+        });
+    panel.carry_back = Some(crate::unfinished::CarryBack {
+        parent_session: "parent-1".into(),
+        agent: "search".into(),
+        running: false,
+    });
+    assert!(panel.switch_session(None));
+    assert!(panel.restored_delegates.is_empty());
+    assert!(panel.carry_back.is_none());
 }

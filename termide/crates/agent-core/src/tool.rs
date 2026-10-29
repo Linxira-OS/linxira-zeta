@@ -9,6 +9,7 @@ use crate::ask::UserAsker;
 use crate::cancel::CancelToken;
 use crate::classifier::SessionView;
 use crate::message::{ToolCall, ToolResultMessage};
+use crate::permissions::ChannelPrompter;
 use crate::provider::ToolSpec;
 use crate::shell::ShellRunner;
 use crate::suggest::CommandSuggester;
@@ -21,6 +22,10 @@ pub struct ToolContext {
     /// Someone to put a question to; `None` when no one is watching the run
     /// (a subagent, headless mode).
     pub asker: Option<UserAsker>,
+    /// Whom a delegate's permission requests go to: the user of the panel
+    /// the call comes from. `None` when no one is watching, and a delegate
+    /// is refused what would ask.
+    pub prompter: Option<ChannelPrompter>,
     /// Someone to offer a command to; `None` when no one is watching to
     /// confirm one (a subagent, headless mode).
     pub suggester: Option<CommandSuggester>,
@@ -35,6 +40,26 @@ pub struct ToolContext {
     /// asked on its behalf is withdrawn with it. `None` for a call of
     /// termide's own loop, whose questions end with the run.
     pub withdrawn: Option<CancelToken>,
+    /// The agent panel the call comes from, by its number; `None` outside
+    /// one (a subagent, a headless run).
+    pub panel: Option<u64>,
+    /// What the tool the call is for says of itself; filled from the
+    /// registry by [`crate::judge_tool_call`] before the hooks judge it.
+    pub tool: ToolTraits,
+    /// The session log a delegated task runs out of again: the delegate takes
+    /// its steps back from there and goes on from where they stopped, instead
+    /// of starting a log of its own. `None` starts a fresh run.
+    pub resume: Option<PathBuf>,
+}
+
+/// What a tool says of itself that the permission hooks weigh.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ToolTraits {
+    /// The tool comes from an MCP server, not from termide.
+    pub mcp: bool,
+    /// The tool's author declares that it changes nothing (MCP's
+    /// `readOnlyHint`). A claim of the server's, not a check of termide's.
+    pub read_only: bool,
 }
 
 impl ToolContext {
@@ -44,10 +69,14 @@ impl ToolContext {
         Self {
             cwd: cwd.into(),
             asker: None,
+            prompter: None,
             suggester: None,
             shell_run: None,
             session: None,
             withdrawn: None,
+            panel: None,
+            tool: ToolTraits::default(),
+            resume: None,
         }
     }
 }
@@ -101,6 +130,12 @@ pub trait Tool: Send + Sync {
         cancel: &CancelToken,
     ) -> ToolResultMessage;
 
+    /// What the tool says of itself to the permission hooks; nothing by
+    /// default.
+    fn traits(&self) -> ToolTraits {
+        ToolTraits::default()
+    }
+
     /// The schema entry handed to the provider.
     fn spec(&self) -> ToolSpec {
         ToolSpec {
@@ -118,6 +153,10 @@ pub trait Tool: Send + Sync {
 /// `Ready` is the whole set, the first one or one that replaces the set
 /// before it (the server changed its list, or it was reconnected), and every
 /// other event but `LoginStarted` leaves the source with none.
+/// The `source` of a termide plugin's tools starts with this, then the
+/// plugin's name; any other source is an MCP server.
+pub const PLUGIN_TOOL_SOURCE: &str = "plugin:";
+
 #[derive(Clone)]
 pub enum LateTools {
     Ready {
@@ -142,6 +181,12 @@ pub enum LateTools {
         source: String,
         url: String,
     },
+    /// The source comes from a project and waits for the user to approve
+    /// what it runs, `launch`.
+    NeedsApproval {
+        source: String,
+        launch: String,
+    },
 }
 
 impl LateTools {
@@ -152,7 +197,8 @@ impl LateTools {
             | Self::Failed { source, .. }
             | Self::Gone { source }
             | Self::NeedsLogin { source }
-            | Self::LoginStarted { source, .. } => source,
+            | Self::LoginStarted { source, .. }
+            | Self::NeedsApproval { source, .. } => source,
         }
     }
 }

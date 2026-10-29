@@ -55,6 +55,15 @@ impl App {
                 self.event_execute_file(path)?;
             }
 
+            PanelEvent::StartDebug { file } => {
+                self.start_debug(file)?;
+            }
+
+            PanelEvent::ConfigureDebug { file } => self.open_debug_setup(file.as_deref()),
+            PanelEvent::RestartDebug => self.restart_debug(),
+
+            PanelEvent::ClearBreakpoints => self.clear_breakpoints(),
+
             PanelEvent::RunCommand { command, cwd } => {
                 self.event_run_command(command, cwd)?;
             }
@@ -126,6 +135,14 @@ impl App {
                 self.event_swap_active_to_html(path)?;
             }
 
+            PanelEvent::AgentRun { panel, finished } => {
+                let (method, params) = super::plugins::agent_run_event(panel, finished);
+                let project = self.open_projects.current().to_path_buf();
+                self.plugins.host.emit(&project, method, &params);
+            }
+            PanelEvent::PluginAction { panel, action } => {
+                self.plugin_panel_action(panel, &action);
+            }
             PanelEvent::OpenExternal(path) => {
                 self.event_open_external(path)?;
             }
@@ -444,6 +461,88 @@ impl App {
 
             PanelEvent::ChangeAgentCwd { session, cwd } => {
                 self.ask_agent_cwd(session, cwd);
+            }
+
+            PanelEvent::OpenAgentSession(path) => {
+                self.ai_open_session(path)?;
+            }
+
+            PanelEvent::RestartDelegates { panel, items } => {
+                // The panel's own runner carries its delegates on, so they run
+                // on its connections and rules and ask through its prompter.
+                let catalog = self
+                    .layout_manager
+                    .iter_all_panels_mut()
+                    .find_map(|candidate| {
+                        candidate
+                            .as_any_mut()
+                            .downcast_mut::<termide_panel_agent::AgentPanel>()
+                            .filter(|agent| agent.panel_id() == panel)
+                            .map(|agent| (agent.catalog(), agent.agent().to_string()))
+                    });
+                let Some((catalog, caller)) = catalog else {
+                    log::warn!("panel {panel} is gone: its delegates stay unfinished");
+                    return Ok(());
+                };
+                let mut failed: Vec<String> = Vec::new();
+                for item in &items {
+                    if !catalog.restart_delegate(panel, &caller, item) {
+                        failed.push(item.agent.clone());
+                    }
+                }
+                if !failed.is_empty() {
+                    let t = termide_i18n::t();
+                    let text = t.agent_carry_failed_fmt(&failed.join(", "));
+                    log::warn!("{text}");
+                    if let Some(target) =
+                        self.layout_manager
+                            .iter_all_panels_mut()
+                            .find_map(|candidate| {
+                                candidate
+                                    .as_any_mut()
+                                    .downcast_mut::<termide_panel_agent::AgentPanel>()
+                                    .filter(|agent| agent.panel_id() == panel)
+                            })
+                    {
+                        target.notice(text, termide_panel_agent::NoticeKind::Warn);
+                    }
+                }
+            }
+            PanelEvent::DelegateAnswerToParent {
+                parent_session,
+                from,
+                agent,
+                text,
+            } => {
+                self.delegate_answer_to_parent(parent_session, from, agent, text);
+            }
+
+            PanelEvent::FocusDelegate { panel, call } => {
+                let found = self.layout_manager.focus_panel_where(|candidate| {
+                    candidate
+                        .as_any()
+                        .downcast_ref::<termide_panel_agent::AgentPanel>()
+                        .is_some_and(|agent| agent.runs_task(panel, &call))
+                });
+                // A task running out of sight is followed in a panel opened
+                // for it.
+                if found || self.watch_delegate(panel, &call) {
+                    self.state.needs_redraw = true;
+                }
+            }
+            // A view shown over the layout moves into a panel of its own.
+            PanelEvent::DockOverlay => self.dock_overlay(),
+
+            PanelEvent::FocusAgentPanel(id) => {
+                let found = self.layout_manager.focus_panel_where(|candidate| {
+                    candidate
+                        .as_any()
+                        .downcast_ref::<termide_panel_agent::AgentPanel>()
+                        .is_some_and(|agent| agent.panel_id() == id)
+                });
+                if found {
+                    self.state.needs_redraw = true;
+                }
             }
         }
         Ok(())

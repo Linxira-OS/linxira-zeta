@@ -419,8 +419,8 @@ pub struct ChecklistItem {
 }
 
 /// A group heading of [`PanelEvent::ShowChecklist`] with more to it than its
-/// name: a remark, and buttons. A group no item names is still listed, as a
-/// heading alone, after the groups the items make.
+/// name: a remark, buttons, a checkbox of its own. A group no item names is
+/// still listed, as a heading alone, after the groups the items make.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChecklistGroup {
     /// The `group` of the items it heads.
@@ -428,11 +428,27 @@ pub struct ChecklistGroup {
     /// A dim remark after the heading (a state, a reason), or empty.
     pub note: String,
     pub buttons: Vec<ChecklistButton>,
+    /// The heading's own checkbox, for a group no item names: ticked once,
+    /// it acts at once as a button does — its key handed to the panel in
+    /// [`crate::PanelCommand::ChecklistButton`], the list staying open — and
+    /// cannot be unticked. A group with items has their mark instead, and
+    /// this is not shown.
+    pub switch: Option<ChecklistSwitch>,
+}
+
+/// The checkbox of a heading alone (see [`ChecklistGroup::switch`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChecklistSwitch {
+    /// What the panel knows it by, as a button's `id`.
+    pub key: String,
+    pub checked: bool,
 }
 
 /// A button on a checklist heading. Pressing it — a click, or its key while
-/// the cursor is on the heading — applies the list as `Enter` does and names
-/// the button in [`crate::PanelCommand::ChecklistDone`].
+/// the cursor is on the heading — leaves the list open and names the button
+/// to the panel in [`crate::PanelCommand::ChecklistButton`]; the panel brings
+/// the list up to date with what it did through
+/// [`PanelEvent::RefreshChecklist`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChecklistButton {
     /// What the panel knows the button by.
@@ -457,12 +473,10 @@ pub struct ChecklistRefresh {
     pub groups: Vec<ChecklistGroup>,
 }
 
-/// What a checklist came back with: the keys left checked, and the button
-/// that closed it, if one did.
+/// What a checklist came back with: the keys of the items left checked.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ChecklistOutcome {
     pub checked: Vec<String>,
-    pub pressed: Option<String>,
 }
 
 /// Events emitted by panels to communicate with the application.
@@ -502,6 +516,19 @@ pub enum PanelEvent {
         command: String,
         cwd: Option<PathBuf>,
     },
+
+    /// Start a debugger with the breakpoints set; `file` is the file the
+    /// request came from, for a launch that needs no configuration.
+    StartDebug { file: Option<PathBuf> },
+
+    /// Open the form that sets up a debug launch, filled in for `file`.
+    ConfigureDebug { file: Option<PathBuf> },
+
+    /// Run the last debug launch again, ending the session if it still runs.
+    RestartDebug,
+
+    /// Remove every breakpoint of the project.
+    ClearBreakpoints,
 
     /// Preview media file (raster image) using native graphics or xdg-open
     PreviewMedia(PathBuf),
@@ -557,6 +584,14 @@ pub enum PanelEvent {
     /// [`PanelEvent::OpenLink`]: `O`/`Alt+Enter`/`Alt+Click` in a viewer,
     /// `Ctrl+Alt+Click` in the terminal and the agent panel.
     OpenLinkExternal(crate::links::LinkTarget),
+
+    /// The agent of panel `panel` started a run (`finished: None`) or ended
+    /// one, `Some(true)` when it went well: for the plugins that listen.
+    AgentRun { panel: u64, finished: Option<bool> },
+
+    /// A link `plugin:<action>` was followed in the plugin panel `panel`:
+    /// the app hands `action` to the plugin that owns the panel.
+    PluginAction { panel: u64, action: String },
 
     /// Open an `.html` file in the rendered HTML viewer (read-only)
     ViewHtml(PathBuf),
@@ -799,6 +834,45 @@ pub enum PanelEvent {
     /// runs on.
     ForkAgentSession { session: PathBuf, cwd: PathBuf },
 
+    /// Open the agent session logged at the path: the panel already showing
+    /// it comes to the front, else a new agent panel opens on it. Emitted by
+    /// the agent panel for a delegated task's session.
+    OpenAgentSession(PathBuf),
+    /// The user asked, from the panel that delegated them, to carry these
+    /// unfinished delegated tasks on: each runs again out of sight on the
+    /// panel's own runner, under the `task` call that handed it over, and
+    /// answers back there as any background task does.
+    RestartDelegates {
+        panel: u64,
+        items: Vec<DelegateRestart>,
+    },
+    /// A delegated task carried on in a panel of its own after termide closed
+    /// is over: its answer goes back to the panel holding the session that
+    /// delegated it. `parent_session` names that session, since panel numbers
+    /// do not survive a restart; `from` is the delegate's own session, where
+    /// the answer stays if no panel holds the parent.
+    DelegateAnswerToParent {
+        parent_session: String,
+        from: PathBuf,
+        agent: String,
+        text: String,
+    },
+
+    /// Bring forward the agent panel following the task that the `task`
+    /// call `call` of the agent panel `panel` handed over, else open one on
+    /// it while it runs. Emitted by the agent panel when its row for a
+    /// running task is clicked, or `o` pressed on its block.
+    FocusDelegate { panel: u64, call: String },
+
+    /// Move the view shown over the layout into a panel of its own beside
+    /// the others. Emitted by an agent panel shown over the layout.
+    DockOverlay,
+
+    /// Bring forward the agent panel with this number, if it is still open.
+    /// Emitted by a panel following another agent's task when its input, which
+    /// names the delegating agent, is clicked: focus goes back to that agent.
+    FocusAgentPanel(u64),
+
     /// Let the user pick another working directory for a fresh agent panel
     /// working in `cwd`, on the session log at `session`. On a pick the app
     /// moves the log to the new directory's sessions and reopens the panel
@@ -821,6 +895,19 @@ pub enum PanelEvent {
 }
 
 /// A single file location from LSP find-references.
+/// An unfinished delegated task to carry on, as its own log left it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DelegateRestart {
+    /// The delegate's name.
+    pub agent: String,
+    /// Its session log, which holds what it did before.
+    pub session: PathBuf,
+    /// The id of the `task` call that handed it over.
+    pub call: String,
+    /// The task as it was handed over, asked again and named in the answer.
+    pub task: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct ReferenceLocation {
     pub path: PathBuf,

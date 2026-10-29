@@ -1,5 +1,5 @@
 #!/bin/sh
-# TermIDE Installer
+# Termide Installer
 # https://github.com/termide/termide
 #
 # Usage: curl -fsSL https://raw.githubusercontent.com/termide/termide/main/install.sh | sh
@@ -95,7 +95,20 @@ install_binary() {
     info "Installing binary to $INSTALL_DIR..."
 
     if [ "$OS" = "linux" ]; then
-        TARGET="${ARCH}-unknown-linux-gnu"
+        # The gnu build needs the system's glibc loader. Without it (Alpine,
+        # NixOS, a 32-bit userland on a 64-bit kernel such as Raspberry Pi OS
+        # with arm_64bit=1) the binary fails with "No such file or directory",
+        # so fall back to the fully static musl build.
+        case "$ARCH" in
+            x86_64) LOADER="/lib64/ld-linux-x86-64.so.2" ;;
+            aarch64) LOADER="/lib/ld-linux-aarch64.so.1" ;;
+        esac
+        if [ -e "$LOADER" ]; then
+            TARGET="${ARCH}-unknown-linux-gnu"
+        else
+            info "No glibc loader ($LOADER) found, using the static musl build"
+            TARGET="${ARCH}-unknown-linux-musl"
+        fi
     else
         TARGET="${ARCH}-apple-darwin"
     fi
@@ -116,7 +129,7 @@ install_homebrew() {
 
 # Install using Cargo
 install_cargo() {
-    # Build from the Git repository, not crates.io: TermIDE is a Cargo
+    # Build from the Git repository, not crates.io: Termide is a Cargo
     # workspace and is not published to crates.io (the name there points at
     # an obsolete early release). `--locked` builds against the committed
     # Cargo.lock for a reproducible result.
@@ -132,7 +145,7 @@ install_nix() {
 
 # Show menu and get choice
 show_menu() {
-    printf "\n${BOLD}TermIDE Installer${RESET}\n"
+    printf "\n${BOLD}Termide Installer${RESET}\n"
     printf "Version: ${GREEN}%s${RESET}\n" "$VERSION"
     printf "System:  %s/%s" "$OS" "$ARCH"
     [ "$OS" = "linux" ] && printf " (%s)" "$DISTRO"
@@ -239,7 +252,7 @@ main() {
     esac
 
     printf "\n"
-    info "TermIDE $VERSION installed successfully!"
+    info "Termide $VERSION installed successfully!"
     info "Run 'termide' to start."
 }
 

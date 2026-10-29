@@ -26,16 +26,17 @@ pub use command::{CommandResult, PanelCommand};
 pub use credentials::{CredentialAttempt, SecretText};
 pub use event::{
     ChecklistButton, ChecklistGroup, ChecklistItem, ChecklistOutcome, ChecklistRefresh,
-    ConfirmAction, ConflictResolution, Event, EventHandler, GitOperationType, InputAction,
-    PanelEvent, ReferenceLocation, SelectAction, SplitDirection, VimPanelDirection,
+    ChecklistSwitch, ConfirmAction, ConflictResolution, DelegateRestart, Event, EventHandler,
+    GitOperationType, InputAction, PanelEvent, ReferenceLocation, SelectAction, SplitDirection,
+    VimPanelDirection,
 };
 pub use graphics_cells::GraphicsCells;
 pub use hotkey_table::HotkeyTable;
 pub use key_chord::KeyChord;
 pub use links::LinkTarget;
 pub use panel::{
-    AgentSetupState, HeightMode, Panel, PanelConfig, PanelState, RenderContext, Searchable,
-    SegmentKind, StatusSegment, ThemeColors, TitleCut, WidthPreference,
+    AgentSetupState, CommandContext, HeightMode, Panel, PanelConfig, PanelState, RenderContext,
+    Searchable, SegmentKind, StatusSegment, ThemeColors, TitleCut, WidthPreference,
 };
 pub use scrollbar::{ScrollAxis, ScrollBarGeometry, ScrollBars};
 pub use terminal_caps::{

@@ -453,7 +453,9 @@ impl InputBar {
     }
 
     /// Handle a left press, drag or release: on a field a press focuses it and
-    /// places the cursor, starting the selection that a drag then extends; on a
+    /// places the cursor, starting the selection that a drag then extends (a
+    /// quick second press selects the word there, a third the line — see
+    /// [`TextInput::mouse_press`]); on a
     /// control a press activates it. A drag only moves the selection when the
     /// press that owns it landed on the same field, so a drag begun elsewhere —
     /// in the transcript, on a divider — cannot select prompt text.
@@ -516,7 +518,7 @@ impl InputBar {
                     let pos = input.char_at_column(x);
                     if pressed {
                         self.focus = i;
-                        input.set_cursor_with_selection_start(pos);
+                        input.mouse_press(pos);
                     } else {
                         input.extend_selection_to(pos);
                     }
@@ -527,7 +529,7 @@ impl InputBar {
                     let pos = ta.position_at_drawn_row(usize::from(row - area.y), text_x);
                     if pressed {
                         self.focus = i;
-                        ta.place_cursor(pos.row, pos.col);
+                        ta.mouse_press(pos.row, pos.col);
                     } else {
                         ta.extend_selection_to(pos.row, pos.col);
                     }
@@ -588,6 +590,52 @@ impl InputBar {
             FieldInput::Line(input) => input.selected_text().map(str::to_string),
             FieldInput::Multi(area) => area.selected_text(),
         })
+    }
+
+    /// Paste `text` into the focused field at its cursor, replacing any
+    /// selection: a single-line field joins the pasted lines with spaces, a
+    /// multi-line field keeps them. Returns whether the field changed — `false`
+    /// when a control holds the focus or there was nothing to paste.
+    pub fn paste(&mut self, text: &str) -> bool {
+        let Some(index) = self.focused_field() else {
+            return false;
+        };
+        match self.fields.get_mut(index) {
+            Some(FieldInput::Line(input)) => {
+                let line = text
+                    .split(['\r', '\n'])
+                    .filter(|part| !part.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                if line.is_empty() {
+                    return false;
+                }
+                let before = input.text().to_string();
+                input.paste(&line);
+                input.text() != before
+            }
+            Some(FieldInput::Multi(area)) => {
+                let text = text.replace("\r\n", "\n").replace('\r', "\n");
+                if text.is_empty() {
+                    return false;
+                }
+                area.insert_str(&text);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Take the focused field's selection out of it, returning the text;
+    /// `None` when a control holds the focus or nothing is selected.
+    pub fn cut_selection(&mut self) -> Option<String> {
+        let text = self.selected_text()?;
+        let index = self.focused_field()?;
+        match self.fields.get_mut(index)? {
+            FieldInput::Line(input) => input.delete_selection(),
+            FieldInput::Multi(area) => area.delete_selection(),
+        };
+        Some(text)
     }
 
     /// Whether a click at `(col, row)` lands on one of the bar's controls
@@ -1134,6 +1182,64 @@ mod tests {
             })
     }
 
+    fn ctrl(c: char) -> KeyEvent {
+        KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL)
+    }
+
+    #[test]
+    fn paste_joins_lines_in_a_single_line_field() {
+        let mut b = bar();
+        b.set_field_text(0, "ab");
+        assert!(b.paste("x\r\ny\nz"));
+        assert_eq!(b.field_text(0), "abx y z");
+        assert!(!b.paste("\n\r\n"), "only line breaks: nothing to paste");
+        assert_eq!(b.field_text(0), "abx y z");
+    }
+
+    #[test]
+    fn paste_replaces_the_selection_of_the_focused_field() {
+        let mut b = bar();
+        b.focus_field(1);
+        b.set_field_text(1, "old");
+        b.handle_key(ctrl('a'));
+        assert!(b.paste("new"));
+        assert_eq!(b.field_text(1), "new");
+        assert_eq!(b.field_text(0), "", "the unfocused field is untouched");
+    }
+
+    #[test]
+    fn paste_keeps_line_breaks_in_a_multiline_field() {
+        let mut b = InputBar::new(Vec::new()).with_multiline_field("› ");
+        assert!(b.paste("one\r\ntwo"));
+        assert_eq!(b.field_value(0), "one\ntwo");
+    }
+
+    #[test]
+    fn paste_and_cut_do_nothing_on_a_control() {
+        let mut b = bar();
+        b.set_field_text(0, "abc");
+        b.handle_key(ctrl('a'));
+        b.handle_key(key(KeyCode::Tab));
+        b.handle_key(key(KeyCode::Tab));
+        assert_eq!(b.focus(), Focus::Control(0));
+        assert!(!b.paste("x"));
+        assert_eq!(b.selected_text(), None);
+        assert_eq!(b.cut_selection(), None);
+        assert_eq!(b.field_text(0), "abc");
+    }
+
+    #[test]
+    fn cut_selection_takes_the_focused_selection_out() {
+        let mut b = bar();
+        b.set_field_text(0, "abc");
+        assert_eq!(b.cut_selection(), None, "nothing selected");
+        b.handle_key(ctrl('a'));
+        assert_eq!(b.selected_text().as_deref(), Some("abc"));
+        assert_eq!(b.cut_selection().as_deref(), Some("abc"));
+        assert_eq!(b.field_text(0), "");
+        assert!(!b.has_selection());
+    }
+
     #[test]
     fn wrap_line_splits_on_display_width() {
         // Empty line still occupies one (empty) row.
@@ -1418,6 +1524,60 @@ mod tests {
             b.multiline(0).unwrap().selected_text(),
             Some("e two\nthre".into())
         );
+    }
+
+    /// In the prompt box a double click takes the word under the pointer and
+    /// a triple click its line; in a one-line find field the whole text.
+    #[test]
+    fn a_double_click_selects_a_word_and_a_triple_click_the_line() {
+        let at = |column, row| MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        };
+        let mut b = InputBar::new(vec![]).with_multiline_field("");
+        b.multiline_mut(0)
+            .unwrap()
+            .insert_str("first\nfoo bar_baz qux");
+        let area = Rect::new(0, 0, 40, b.height());
+        b.render(
+            area,
+            &mut Buffer::empty(area),
+            &ThemeColors::default(),
+            true,
+        );
+        // "› " takes two columns: column 8 of row 1 is inside "bar_baz".
+        b.handle_mouse(at(8, 1));
+        b.handle_mouse(at(8, 1));
+        assert_eq!(
+            b.multiline(0).unwrap().selected_text(),
+            Some("bar_baz".into())
+        );
+        b.handle_mouse(at(8, 1));
+        assert_eq!(
+            b.multiline(0).unwrap().selected_text(),
+            Some("foo bar_baz qux".into())
+        );
+
+        let mut find = InputBar::new(vec!["Find".into()]);
+        find.handle_key(key(KeyCode::Char('a')));
+        for c in " beta".chars() {
+            find.handle_key(key(KeyCode::Char(c)));
+        }
+        let area = Rect::new(0, 0, 40, find.height());
+        find.render(
+            area,
+            &mut Buffer::empty(area),
+            &ThemeColors::default(),
+            true,
+        );
+        let start = find.field_areas[0].x + str_display_width(field_prefix("Find")) as u16;
+        find.handle_mouse(at(start + 3, 0));
+        find.handle_mouse(at(start + 3, 0));
+        assert_eq!(find.selected_text(), Some("beta".into()));
+        find.handle_mouse(at(start + 3, 0));
+        assert_eq!(find.selected_text(), Some("a beta".into()));
     }
 
     #[test]

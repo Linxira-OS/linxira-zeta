@@ -52,28 +52,35 @@ impl GitStatusPanel {
                             let row_offset = if self.show_repo_filter { 3 } else { 1 };
                             let relative_row =
                                 row.saturating_sub(dropdown_area.y + row_offset) as usize;
-                            let clicked_idx = self.dropdown_scroll + relative_row;
-                            let max_items = if self.show_repo_filter {
-                                self.filtered_repo_indices().len()
+                            let clicked_row = self.dropdown_scroll + relative_row;
+                            // The same rows the dropdown drew, so the line clicked
+                            // is the repository it names — and a directory row, which
+                            // names no repository, takes no selection.
+                            let rows = if self.show_repo_filter {
+                                self.filtered_repo_rows()
                             } else {
-                                self.repo_manager.len()
+                                self.repo_rows()
                             };
-                            if clicked_idx < max_items
-                                && relative_row
-                                    < dropdown_area.height.saturating_sub(row_offset + 1) as usize
-                            {
-                                let repo_idx = if self.show_repo_filter {
-                                    self.filtered_repo_indices()
-                                        .get(clicked_idx)
-                                        .copied()
-                                        .unwrap_or(0)
-                                } else {
-                                    clicked_idx
-                                };
-                                let events = self.select_repo(repo_idx);
-                                self.repo_dropdown_open = false;
-                                self.reset_repo_filter();
-                                return events;
+                            let on_list = relative_row
+                                < dropdown_area.height.saturating_sub(row_offset + 1) as usize;
+                            if on_list {
+                                if let Some(repo_idx) =
+                                    rows.get(clicked_row).and_then(|row| row.repo)
+                                {
+                                    let events = self.select_repo(repo_idx);
+                                    self.repo_dropdown_open = false;
+                                    self.reset_repo_filter();
+                                    return events;
+                                }
+                                if rows.get(clicked_row).is_some() {
+                                    // A folder: the click opens or closes it, as in
+                                    // the file tree, and the dropdown stays. Behind a
+                                    // filter the tree is the matches, always open.
+                                    if !self.show_repo_filter {
+                                        self.set_repo_dir_open(clicked_row, None);
+                                    }
+                                    return vec![];
+                                }
                             }
                             self.repo_dropdown_open = false;
                             self.reset_repo_filter();
@@ -188,9 +195,10 @@ impl GitStatusPanel {
                         self.current_section = Section::RepoSelector;
                         // Toggle repo dropdown (close branch if open)
                         self.branch_dropdown_open = false;
-                        self.repo_dropdown_open = !self.repo_dropdown_open;
                         if self.repo_dropdown_open {
-                            self.dropdown_cursor = self.repo_manager.selected_index();
+                            self.repo_dropdown_open = false;
+                        } else {
+                            self.open_repo_dropdown();
                         }
                     } else {
                         self.current_section = Section::BranchSelector;
@@ -199,6 +207,7 @@ impl GitStatusPanel {
                         self.branch_dropdown_open = !self.branch_dropdown_open;
                         if self.branch_dropdown_open {
                             self.dropdown_cursor = self.shown_branch_index();
+                            self.dropdown_scroll = 0;
                         }
                     }
                     // Reset click state for non-file areas

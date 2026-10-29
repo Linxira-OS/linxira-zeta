@@ -201,6 +201,7 @@ pub(crate) fn spawn_runtime(
     blocked: &Blocked,
     shell_run: Option<ShellRunner>,
     skills: Vec<SkillInfo>,
+    panel: u64,
 ) -> Spawned {
     let cancel = CancelToken::new();
     let (prompter, permission_rx) = permission_channel(cancel.clone());
@@ -220,6 +221,9 @@ pub(crate) fn spawn_runtime(
     // permission requests get the built-in agent's treatment (read-only
     // commands and matching rules pass without a prompt).
     let backend_rules = rules.clone();
+    // The delegates of the panel's `task` calls ask its user on the same
+    // channel, on cards headed with their names.
+    let delegate_prompter = prompter.clone();
     let mut hooks = PermissionHooks::new(rules, Box::new(prompter))
         .with_classifier(Box::new(reviewer.classifier(cancel.clone())))
         .with_refusals(refusals.clone());
@@ -240,6 +244,9 @@ pub(crate) fn spawn_runtime(
                 blocked: Arc::clone(blocked),
             }),
             Box::new(PlanGuard::new(mode.clone()).with_refusals(refusals)),
+            // A change on a file another panel changed since this one read
+            // it waits for a read, before anyone is asked about it.
+            Box::new(termide_agent_core::ConflictGuard::new()),
         ];
         if let Some(store) = checkpoints {
             chain.push(Box::new(CheckpointHooks::new(store)));
@@ -280,7 +287,7 @@ pub(crate) fn spawn_runtime(
         host_chain.push(Box::new(host_permissions));
         match factory(BackendSetup {
             cwd: cwd.to_path_buf(),
-            prompter: external_prompter,
+            prompter: external_prompter.clone(),
             cancel: cancel.clone(),
             rules: backend_rules,
             persist: persist_rule.map(|f| Box::new(f) as PersistRule),
@@ -295,11 +302,14 @@ pub(crate) fn spawn_runtime(
                 hooks: Box::new(ChainedHooks::new(host_chain)),
                 context: ToolContext {
                     asker: Some(asker.clone()),
+                    prompter: Some(external_prompter),
                     suggester: Some(suggester.clone()),
                     shell_run: shell_run.clone(),
+                    panel: Some(panel),
                     ..ToolContext::new(cwd)
                 },
                 skills,
+                session_id: session.map(|s| s.id().to_string()),
             }),
             // The conversation goes on in the agent's own session when it
             // still holds it, else the agent is told a recap of it.
@@ -338,7 +348,9 @@ pub(crate) fn spawn_runtime(
     .with_loop_prompt(loop_prompt.clone())
     .with_messages(messages)
     .with_session_id(session.map(|s| s.id().to_string()))
+    .with_panel(panel)
     .with_asker(asker)
+    .with_prompter(delegate_prompter)
     .with_suggester(suggester);
     if let Some(run) = shell_run {
         // A command the user confirms on the card runs through this, in the
@@ -374,15 +386,7 @@ pub(crate) fn push_history(transcript: &mut Transcript, logged: &LoggedMessage) 
                 Some(Timing::Tool { duration_ms, .. }) => Some(duration_ms),
                 _ => None,
             };
-            let item =
-                transcript::user_command_item(user, at.clone(), duration_ms).unwrap_or_else(|| {
-                    Item::User {
-                        text: user.plain_text(),
-                        at,
-                        command: user.command.clone(),
-                    }
-                });
-            transcript.push(item);
+            transcript.push(transcript::user_item(user, at, duration_ms));
         }
         Message::Assistant(assistant) => {
             let cost = match logged.timing {

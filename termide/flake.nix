@@ -1,5 +1,5 @@
 {
-  description = "TermIDE - All-in-one terminal workspace: editor, file manager, terminal, git and coding agent";
+  description = "Termide - All-in-one terminal workspace: editor, file manager, terminal, git and coding agent";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -81,7 +81,7 @@
         packages = {
           default = pkgs.rustPlatform.buildRustPackage {
             pname = "termide";
-            version = "0.41.0";
+            version = "0.46.0";
 
             src = ./.;
 
@@ -114,7 +114,7 @@
             muslPkgs = pkgs.pkgsCross.musl64;
           in muslPkgs.rustPlatform.buildRustPackage {
             pname = "termide";
-            version = "0.41.0";
+            version = "0.46.0";
 
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;

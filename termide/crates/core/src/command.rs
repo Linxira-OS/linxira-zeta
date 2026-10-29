@@ -179,8 +179,17 @@ pub enum PanelCommand<'a> {
         action: String,
         /// Keys of the items left checked, in list order.
         checked: Vec<String>,
-        /// The `id` of the heading button that closed the list, if one did.
-        pressed: Option<String>,
+    },
+
+    /// A heading button was pressed, or a heading's own checkbox ticked, on
+    /// a checklist the panel raised with
+    /// [`crate::PanelEvent::ShowChecklist`], which stays open. Same delivery
+    /// rule as [`PanelCommand::SelectionMade`].
+    ChecklistButton {
+        /// The `action` the panel raised the checklist with.
+        action: String,
+        /// The `id` of the button.
+        id: String,
     },
 
     /// The user submitted an input modal the panel raised with

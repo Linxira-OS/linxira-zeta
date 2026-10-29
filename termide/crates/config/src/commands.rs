@@ -43,6 +43,37 @@ impl CommandMode {
     }
 }
 
+/// Where a command runs: the directory it starts in.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CommandCwd {
+    /// The working directory of the focused panel, or the project root when the
+    /// panel has none (default): a command follows where the user is looking.
+    #[default]
+    Panel,
+    /// The project root, whatever panel is focused: the static point a command's
+    /// relative paths are written against — the folder its `commands.toml` sits in.
+    Project,
+}
+
+impl CommandCwd {
+    /// The spelling `commands.toml` uses.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Panel => "panel",
+            Self::Project => "project",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "panel" => Some(Self::Panel),
+            "project" => Some(Self::Project),
+            _ => None,
+        }
+    }
+}
+
 /// Parameter type for command launch forms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -106,6 +137,10 @@ pub struct CommandMetadata {
     /// Execution mode override.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<CommandMode>,
+    /// Where the command runs; `panel` (the default) is the focused panel's
+    /// directory, `project` the project root.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<CommandCwd>,
     /// Hotkey binding string like "Ctrl+Shift+D".
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
@@ -115,6 +150,22 @@ pub struct CommandMetadata {
     /// Group (virtual grouping in menu).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// Debugger the command runs under (`lldb`, `gdb`, `dlv`, `pdb`); the
+    /// command line is then the program to debug and its arguments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debugger: Option<String>,
+    /// Flags of the debugger itself, each its own word, added to those
+    /// termide starts it with: `["--only-same-user=false"]` for Delve.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub debugger_args: Vec<String>,
+    /// Shell command run before the debugger starts, which it must pass.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build: Option<String>,
+    /// With a debug adapter: `terminal` (the default) runs the program in a
+    /// terminal panel, where it reads the keyboard; `panel` shows its output
+    /// in the debug panel.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub console: Option<String>,
 }
 
 /// Parsed contents of a commands.toml file.
@@ -195,20 +246,83 @@ impl CommandsMetadata {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
+            let text = |key: &str| {
+                section
+                    .get(key)
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+            };
+            let debugger = text("debugger");
+            let debugger_args = Self::parse_words(section, "debugger_args", section_name);
+            let build = text("build");
+            let console = text("console");
+            let cwd = Self::parse_cwd(section, section_name);
+
             entries.insert(
                 section_name.clone(),
                 CommandMetadata {
                     command,
                     display_name,
                     mode,
+                    cwd,
                     key,
                     params,
                     group,
+                    debugger,
+                    debugger_args,
+                    build,
+                    console,
                 },
             );
         }
 
         Self { entries }
+    }
+
+    /// `cwd` of a section; an unknown value is reported and left out, so a typo
+    /// runs the command where the user did not mean it to.
+    fn parse_cwd(
+        section: &toml::map::Map<String, toml::Value>,
+        command: &str,
+    ) -> Option<CommandCwd> {
+        let raw = section.get("cwd").and_then(|v| v.as_str()).map(str::trim)?;
+        if raw.is_empty() {
+            return None;
+        }
+        CommandCwd::from_str(raw).or_else(|| {
+            log::warn!(
+                "commands.toml: `cwd` of `{command}` must be \"panel\" or \"project\", \
+                 not {raw:?}; the focused panel's directory is used"
+            );
+            None
+        })
+    }
+
+    /// An array of strings under `key`; anything else is reported and left
+    /// out, so a typo cannot pass a stray flag.
+    fn parse_words(
+        section: &toml::map::Map<String, toml::Value>,
+        key: &str,
+        command: &str,
+    ) -> Vec<String> {
+        let Some(value) = section.get(key) else {
+            return Vec::new();
+        };
+        let words = value.as_array().and_then(|items| {
+            items
+                .iter()
+                .map(|item| item.as_str().map(str::to_string))
+                .collect::<Option<Vec<_>>>()
+        });
+        words.unwrap_or_else(|| {
+            log::warn!(
+                "commands.toml: `{key}` of `{command}` must be an array of strings, \
+                 such as [\"--flag\", \"value\"]; ignored"
+            );
+            Vec::new()
+        })
     }
 
     fn parse_params(section: &toml::map::Map<String, toml::Value>) -> Vec<CommandParam> {
@@ -356,8 +470,31 @@ fn write_fields(
     set(table, "name", meta.display_name.as_deref());
     set(table, "command", meta.command.as_deref());
     set(table, "mode", meta.mode.map(CommandMode::as_str));
+    set(table, "cwd", meta.cwd.map(CommandCwd::as_str));
     set(table, "group", meta.group.as_deref());
     set(table, "key", meta.key.as_deref());
+    set(table, "debugger", meta.debugger.as_deref());
+    let old_args: Vec<&str> = table
+        .get("debugger_args")
+        .and_then(toml_edit::Item::as_array)
+        .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+    if old_args
+        != meta
+            .debugger_args
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+    {
+        if meta.debugger_args.is_empty() {
+            table.remove("debugger_args");
+        } else {
+            let args: toml_edit::Array = meta.debugger_args.iter().map(String::as_str).collect();
+            table.insert("debugger_args", toml_edit::value(args));
+        }
+    }
+    set(table, "build", meta.build.as_deref());
+    set(table, "console", meta.console.as_deref());
 
     if old_params == Some(&meta.params) {
         return;
@@ -395,10 +532,28 @@ pub struct CommandItem {
     pub command: Option<String>,
     /// Execution mode.
     pub mode: CommandMode,
+    /// Where this command runs; see [`CommandCwd`]. `cwd` in `commands.toml`,
+    /// the focused panel's directory when unset.
+    pub cwd: CommandCwd,
     /// Whether this command comes from a project-local `.termide/` directory.
     pub is_project: bool,
     /// Metadata from commands.toml.
     pub metadata: Option<CommandMetadata>,
+}
+
+impl CommandItem {
+    /// The debugger this command runs under, as written in `commands.toml`.
+    pub fn debugger(&self) -> Option<&str> {
+        self.metadata.as_ref()?.debugger.as_deref()
+    }
+
+    /// The debugger's own flags, as written in `commands.toml`.
+    pub fn debugger_args(&self) -> &[String] {
+        self.metadata
+            .as_ref()
+            .map(|m| m.debugger_args.as_slice())
+            .unwrap_or_default()
+    }
 }
 
 /// A group of commands (virtual grouping via `group` field in TOML).
@@ -518,6 +673,19 @@ impl CommandsRegistry {
         result
     }
 
+    /// Every command that runs under a debugger: project commands first,
+    /// commands without a group before grouped ones.
+    pub fn debug_commands(&self) -> Vec<&CommandItem> {
+        let mut out: Vec<&CommandItem> = self
+            .root_items
+            .iter()
+            .chain(self.groups.iter().flat_map(|g| g.items.iter()))
+            .filter(|c| c.debugger().is_some())
+            .collect();
+        out.sort_by_key(|c| !c.is_project);
+        out
+    }
+
     /// Load commands from the global commands.toml in the config directory.
     pub fn load() -> Option<Self> {
         let config_dir = get_config_dir().ok()?;
@@ -536,6 +704,7 @@ impl CommandsRegistry {
                 name: name.clone(),
                 command: meta.command.clone(),
                 mode,
+                cwd: meta.cwd.unwrap_or_default(),
                 is_project: false,
                 metadata: Some(meta.clone()),
             };
@@ -757,5 +926,98 @@ mode = "report"
                 name: "dev".to_string(),
             })
         );
+    }
+
+    #[test]
+    fn a_debug_command_keeps_its_debugger_and_build() {
+        let original = r#"[debug-app]
+command = "target/debug/app --verbose"
+debugger = "lldb"
+build = "cargo build"
+console = "panel"
+"#;
+        let meta = CommandsMetadata::parse(original);
+        let entry = &meta.entries["debug-app"];
+        assert_eq!(entry.debugger.as_deref(), Some("lldb"));
+        assert_eq!(entry.build.as_deref(), Some("cargo build"));
+        assert_eq!(entry.console.as_deref(), Some("panel"));
+        // Saving untouched entries leaves the file as it was.
+        assert_eq!(meta.render_over(original), original);
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("commands.toml"), original).unwrap();
+        let registry = CommandsRegistry::load_from_dir(dir.path()).unwrap();
+        let debug: Vec<&str> = registry
+            .debug_commands()
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
+        assert_eq!(debug, ["debug-app"]);
+    }
+
+    // `cwd` names where a command runs: unset is the focused panel's directory,
+    // and a value that is neither of the two is a mistake, not a third place.
+    #[test]
+    fn cwd_names_where_a_command_runs() {
+        let original = r#"[build]
+command = "cargo build"
+cwd = "project"
+
+[test]
+command = "cargo test"
+"#;
+        let meta = CommandsMetadata::parse(original);
+        assert_eq!(meta.entries["build"].cwd, Some(CommandCwd::Project));
+        assert_eq!(meta.entries["test"].cwd, None);
+        // Saving untouched entries leaves the file as it was.
+        assert_eq!(meta.render_over(original), original);
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("commands.toml"), original).unwrap();
+        let registry = CommandsRegistry::load_from_dir(dir.path()).unwrap();
+        let cwd = |name: &str| {
+            registry
+                .root_items
+                .iter()
+                .find(|c| c.name == name)
+                .map(|c| c.cwd)
+        };
+        assert_eq!(cwd("build"), Some(CommandCwd::Project));
+        assert_eq!(cwd("test"), Some(CommandCwd::Panel));
+
+        // A value that is not `panel` or `project` is reported at parse and the
+        // command runs in the panel's directory; the line itself is left alone —
+        // saving an unchanged entry does not rewrite what termide did not change.
+        let stray = "[stray]\ncommand = \"ls\"\ncwd = \"home\"\n";
+        let meta = CommandsMetadata::parse(stray);
+        assert_eq!(meta.entries["stray"].cwd, None);
+        assert_eq!(meta.render_over(stray), stray);
+    }
+
+    #[test]
+    fn debugger_args_are_an_array_of_words() {
+        let original = r#"[go]
+command = "./cmd/app"
+debugger = "dlv-dap"
+debugger_args = ["--only-same-user=false", "--log"]
+"#;
+        let mut meta = CommandsMetadata::parse(original);
+        assert_eq!(
+            meta.entries["go"].debugger_args,
+            ["--only-same-user=false", "--log"]
+        );
+        assert_eq!(meta.render_over(original), original);
+
+        meta.entries.get_mut("go").unwrap().debugger_args = vec!["--log".into()];
+        let changed = meta.render_over(original);
+        assert!(changed.contains("debugger_args = [\"--log\"]"), "{changed}");
+        meta.entries.get_mut("go").unwrap().debugger_args.clear();
+        assert!(!meta.render_over(original).contains("debugger_args"));
+
+        // A string is a mistake, not one flag: it is left out.
+        let wrong = "[go]\ndebugger = \"dlv-dap\"\ndebugger_args = \"--log\"\n";
+        assert!(CommandsMetadata::parse(wrong).entries["go"]
+            .debugger_args
+            .is_empty());
     }
 }

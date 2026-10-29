@@ -4,8 +4,6 @@ use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::Widget,
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -13,35 +11,54 @@ use termide_core::ThemeColors;
 use termide_git::{self as git, truncate_left};
 use termide_ui::path_utils::truncate_to_width_str;
 use termide_ui::ScrollBar;
-use termide_ui_render::{render_simple_dropdown, InlineSelector};
+use termide_ui_render::{
+    draw_dropdown_row, dropdown_lines, dropdown_row_styles, dropdown_rows_width, dropdown_span,
+    follow_scroll, leading_selector_max_width, render_simple_dropdown, InlineSelector,
+};
 
 use crate::types::Section;
 use crate::GitStatusPanel;
 
-/// Calculate dropdown x and width so that the full item text is visible.
-/// Tries to expand rightward first (up to `max_right`), then leftward
-/// (clamped to the screen edge). Falls back to the available space if neither
-/// direction has enough room.
-fn expand_dropdown(x: u16, max_width: u16, max_right: u16, items: &[String]) -> (u16, u16) {
-    let max_item_width = items.iter().map(|s| s.width()).max().unwrap_or(10);
-    // +4 for borders (2) + inner padding (2)
-    let needed = (max_item_width + 4) as u16;
-    if needed <= max_width {
-        (x, max_width)
-    } else {
-        let extra = needed.saturating_sub(max_width);
-        // Try expanding rightward first
-        let space_right = max_right.saturating_sub(x + max_width);
-        let right_extra = extra.min(space_right);
-        let mut new_x = x;
-        let mut new_width = max_width + right_extra;
-        // Expand leftward with remaining extra
-        let remaining = extra.saturating_sub(right_extra);
-        if remaining > 0 {
-            new_x = x.saturating_sub(remaining);
-            new_width = (x + max_width).saturating_sub(new_x);
+/// The fewest cells of text the filtered dropdown keeps beside its label, so a
+/// list of short names still leaves room to type.
+const FILTER_MIN_FIELD: usize = 12;
+
+/// Draw `filter` as a focused single-line field in the one-row `area`: the
+/// cursor and the selection inverse-video, scrolled to keep the cursor in view.
+fn render_filter_field(
+    buf: &mut Buffer,
+    area: Rect,
+    filter: &mut termide_ui::TextInput,
+    theme: &ThemeColors,
+) {
+    use unicode_width::UnicodeWidthChar;
+
+    if area.width == 0 {
+        return;
+    }
+    let scroll = filter.follow_scroll(area.width);
+    let base = Style::default().fg(theme.fg).bg(theme.bg);
+    let invert = Style::default().fg(theme.bg).bg(theme.fg);
+    let cursor = filter.cursor_pos();
+    let selection = filter.selection_range();
+    let end = area.x + area.width;
+    let mut x = area.x;
+    for (i, c) in filter.text().chars().enumerate().skip(scroll) {
+        let w = UnicodeWidthChar::width(c).unwrap_or(1).max(1) as u16;
+        if x + w > end {
+            break;
         }
-        (new_x, new_width)
+        let selected = selection.is_some_and(|(s, e)| i >= s && i < e);
+        let style = if i == cursor || selected {
+            invert
+        } else {
+            base
+        };
+        buf.set_string(x, area.y, c.to_string(), style);
+        x += w;
+    }
+    if cursor >= filter.text().chars().count() && x < end {
+        buf[(x, area.y)].set_symbol(" ").set_style(invert);
     }
 }
 
@@ -51,6 +68,9 @@ fn expand_dropdown(x: u16, max_width: u16, max_right: u16, items: &[String]) -> 
 /// The caller supplies the pre-filtered display `items`, the current `filter`
 /// text, the highlighted `cursor` position, and `selected_pos` — the index
 /// within `items` that is the active selection (if it is in the filtered set).
+/// The box is as wide as `content_width` — the widest of all the options, not
+/// only those the filter lets through, so it does not jump while typing — and
+/// the filter row, within `left..right`, opening at `anchor_x`.
 /// Returns the dropdown's screen `Rect` (for click hit-testing) and the applied
 /// vertical scroll offset.
 #[allow(clippy::too_many_arguments)]
@@ -58,27 +78,32 @@ fn render_filtered_dropdown(
     buf: &mut Buffer,
     theme: &ThemeColors,
     anchor_x: u16,
-    max_width: u16,
-    max_right: u16,
+    content_width: usize,
+    (left, right): (u16, u16),
     dropdown_y: u16,
     max_dropdown_height: usize,
-    items: &[String],
-    filter: &str,
-    cursor: usize,
-    selected_pos: Option<usize>,
+    rows: &[git::RepoRow],
+    filter: &mut termide_ui::TextInput,
+    cursor_repo: Option<usize>,
+    selected_repo: Option<usize>,
+    scroll: usize,
 ) -> (Rect, usize) {
     // Reserve 1 row for filter input, 1 for separator.
     let filter_rows: u16 = 2;
     let list_max_height = max_dropdown_height.saturating_sub(filter_rows as usize);
-    let visible_count = items.len().min(list_max_height);
-    let scroll_offset = if cursor >= visible_count {
-        cursor - visible_count + 1
-    } else {
-        0
-    };
+    let visible_count = rows.len().min(list_max_height);
+    // The cursor is a repository; the rows hold folders between them, so the
+    // window follows the row the cursor rests on.
+    let cursor_row =
+        cursor_repo.and_then(|cursor| rows.iter().position(|row| row.repo == Some(cursor)));
+    let scroll_offset = follow_scroll(scroll, cursor_row.unwrap_or(0), visible_count, rows.len());
 
     let total_height = (visible_count as u16) + filter_rows + 2; // +2 for borders
-    let (dropdown_x, dropdown_width) = expand_dropdown(anchor_x, max_width, max_right, items);
+    let label = " Filter: ";
+    let content_width = content_width
+        .max(dropdown_rows_width(rows))
+        .max(label.width() + FILTER_MIN_FIELD);
+    let (dropdown_x, dropdown_width) = dropdown_span(anchor_x, content_width, left, right);
     let area = Rect {
         x: dropdown_x,
         y: dropdown_y,
@@ -112,27 +137,25 @@ fn render_filtered_dropdown(
 
     let inner_width = dropdown_width.saturating_sub(2) as usize;
 
-    // Filter row (row 1 inside border)
-    let filter_text = format!(" Filter: {}", filter);
-    let padding_len = inner_width.saturating_sub(filter_text.width() + 1);
-    let filter_style = Style::default().fg(theme.fg);
-    let cursor_style = Style::default()
-        .fg(theme.bg)
-        .bg(theme.fg)
-        .add_modifier(Modifier::BOLD);
-    let filter_line = Line::from(vec![
-        Span::styled(filter_text, filter_style),
-        Span::styled("█", cursor_style),
-        Span::styled(" ".repeat(padding_len), filter_style),
-    ]);
-    ratatui::widgets::Paragraph::new(filter_line).render(
+    // Filter row (row 1 inside border): the label, then the field.
+    let label_width = (label.width() as u16).min(inner_width as u16);
+    buf.set_stringn(
+        dropdown_x + 1,
+        dropdown_y + 1,
+        label,
+        label_width as usize,
+        Style::default().fg(theme.fg),
+    );
+    render_filter_field(
+        buf,
         Rect {
-            x: dropdown_x + 1,
+            x: dropdown_x + 1 + label_width,
             y: dropdown_y + 1,
-            width: inner_width as u16,
+            width: (inner_width as u16).saturating_sub(label_width + 1),
             height: 1,
         },
-        buf,
+        filter,
+        theme,
     );
 
     // Separator row (row 2 inside border)
@@ -143,47 +166,35 @@ fn render_filtered_dropdown(
             .set_style(Style::default().fg(theme.border));
     }
 
-    // Item list (below separator)
+    // Row list (below separator): repositories and the directories above them.
     let list_y = dropdown_y + filter_rows + 1;
-    for (i, item) in items
+    let lines = dropdown_lines(rows);
+    for (i, (row, (prefix, text))) in rows
         .iter()
+        .zip(&lines)
         .skip(scroll_offset)
         .take(visible_count)
         .enumerate()
     {
-        let item_y = list_y + i as u16;
-        let item_idx = scroll_offset + i;
-        let style = if item_idx == cursor {
-            Style::default()
-                .fg(theme.selection_fg)
-                .bg(theme.selection_bg)
-                .remove_modifier(Modifier::all())
-        } else if selected_pos == Some(item_idx) {
-            Style::default()
-                .fg(theme.cursor)
-                .remove_modifier(Modifier::all())
-        } else {
-            Style::default()
-                .fg(theme.fg)
-                .remove_modifier(Modifier::all())
-        };
-
-        // Clear line and draw item
-        for dx in 1..dropdown_width - 1 {
-            buf[(dropdown_x + dx, item_y)]
-                .set_symbol(" ")
-                .set_style(style);
-        }
-        buf.set_string(
+        let (style, line_style) = dropdown_row_styles(
+            row,
+            Some(scroll_offset + i) == cursor_row,
+            selected_repo.is_some() && row.repo == selected_repo,
+            theme,
+        );
+        draw_dropdown_row(
+            buf,
             dropdown_x + 1,
-            item_y,
-            truncate_to_width_str(item, inner_width),
+            list_y + i as u16,
+            inner_width as u16,
+            (prefix, text),
             style,
+            line_style,
         );
     }
 
     // Scrollbar
-    if visible_count < items.len() {
+    if visible_count < rows.len() {
         ScrollBar::render(
             buf,
             dropdown_x + dropdown_width - 1,
@@ -191,7 +202,7 @@ fn render_filtered_dropdown(
             visible_count as u16,
             scroll_offset,
             visible_count,
-            items.len(),
+            rows.len(),
             theme,
             true,
         );
@@ -253,21 +264,31 @@ impl GitStatusPanel {
 
         let t = termide_i18n::t();
 
+        // The path inside the project, not the folder alone: in a project that
+        // groups its checkouts by host and team, `crm` names two repositories.
         let repo_name = self
             .repo_manager
             .current()
-            .map(git::get_repo_name)
+            .map(|repo| git::relative_name(repo, self.repo_manager.project_root()))
             .unwrap_or_else(|| t.git_no_repo().to_string());
-        let repo_focused = self.current_section == Section::RepoSelector && is_focused;
-        let repo_selector =
-            InlineSelector::new(&repo_name, self.repo_dropdown_open, repo_focused, &theme);
-        let repo_width = repo_selector.render(content_area.x, y, content_area.width / 2, buf);
-
         let branch_name = self
             .shown_branch()
             .map(str::to_string)
             .unwrap_or_else(|| t.git_branch_detached().to_string());
         let branch_focused = self.current_section == Section::BranchSelector && is_focused;
+        let repo_focused = self.current_section == Section::RepoSelector && is_focused;
+        let repo_selector =
+            InlineSelector::new(&repo_name, self.repo_dropdown_open, repo_focused, &theme)
+                .keep_end();
+        // The branch is drawn after the repository, but measured first: what a
+        // short branch name does not need goes to the repository.
+        let branch_width = InlineSelector::new(&branch_name, false, false, &theme).full_width();
+        let repo_width = repo_selector.render(
+            content_area.x,
+            y,
+            leading_selector_max_width(content_area.width, branch_width),
+            buf,
+        );
         let branch_x = content_area.x + repo_width + 2;
         self.branch_selector_x = branch_x;
         let branch_max_width = content_area.width.saturating_sub(repo_width + 2);
@@ -276,7 +297,8 @@ impl GitStatusPanel {
             self.branch_dropdown_open,
             branch_focused,
             &theme,
-        );
+        )
+        .keep_end();
         branch_selector.render(branch_x, y, branch_max_width, buf);
 
         y += selector_height;
@@ -436,65 +458,58 @@ impl GitStatusPanel {
         );
 
         // === DROPDOWNS (rendered last to overlay) ===
+        // A dropdown may take the whole width of the panel, whichever selector
+        // it opens under.
+        let span = (content_area.x, content_area.x + content_area.width);
         if self.repo_dropdown_open {
             let dropdown_y = content_area.y + 1;
             let max_dropdown_height = content_area.height.saturating_sub(3) as usize;
-            let repo_names: Vec<String> = self
-                .repo_manager
-                .repos()
-                .iter()
-                .map(|p| git::get_repo_name(p))
-                .collect();
+            let selected_idx = self.repo_manager.selected_index();
 
             if self.show_repo_filter {
-                // Filtered dropdown: render filter row + filtered repo list
+                // Filtered dropdown: filter row, then the tree of what matches —
+                // best match first, each under the directories it lives in.
                 let filtered_indices = self.filtered_repo_indices();
-                let filtered_repos: Vec<String> = filtered_indices
-                    .iter()
-                    .map(|&i| repo_names[i].clone())
-                    .collect();
-                let selected_idx = self.repo_manager.selected_index();
-                let selected_pos = filtered_indices.iter().position(|&i| i == selected_idx);
+                let rows = self.filtered_repo_rows();
+                let all_width = dropdown_rows_width(&self.repo_rows());
+                let cursor_repo = filtered_indices.get(self.dropdown_cursor).copied();
+                let selected_repo = filtered_indices
+                    .contains(&selected_idx)
+                    .then_some(selected_idx);
                 let (area, scroll_offset) = render_filtered_dropdown(
                     buf,
                     &theme,
                     content_area.x,
-                    content_area.width / 2,
-                    content_area.x + content_area.width,
+                    all_width,
+                    span,
                     dropdown_y,
                     max_dropdown_height,
-                    &filtered_repos,
-                    &self.repo_filter,
-                    self.dropdown_cursor,
-                    selected_pos,
+                    &rows,
+                    &mut self.repo_filter,
+                    cursor_repo,
+                    selected_repo,
+                    self.dropdown_scroll,
                 );
                 self.dropdown_scroll = scroll_offset;
                 self.repo_dropdown_area = Some(area);
             } else {
-                // Normal dropdown (no filter)
-                let visible_count = repo_names.len().min(max_dropdown_height);
-                let scroll_offset = if self.dropdown_cursor >= visible_count {
-                    self.dropdown_cursor - visible_count + 1
-                } else {
-                    0
-                };
-                self.dropdown_scroll = scroll_offset;
-                let (dropdown_x, dropdown_width) = expand_dropdown(
-                    content_area.x,
-                    content_area.width / 2,
-                    content_area.x + content_area.width,
-                    &repo_names,
-                );
+                // The project's repositories as the tree they live in; the
+                // cursor is a row of it, folders included.
+                let rows = self.repo_rows();
+                let visible_count = rows.len().min(max_dropdown_height);
+                let (dropdown_x, dropdown_width) =
+                    dropdown_span(content_area.x, dropdown_rows_width(&rows), span.0, span.1);
                 self.repo_dropdown_area = Some(Rect {
                     x: dropdown_x,
                     y: dropdown_y,
                     width: dropdown_width,
                     height: visible_count as u16 + 2,
                 });
-                render_simple_dropdown(
-                    &repo_names,
-                    self.repo_manager.selected_index(),
+                self.dropdown_scroll = render_simple_dropdown(
+                    &rows,
+                    selected_idx,
                     self.dropdown_cursor,
+                    self.dropdown_scroll,
                     dropdown_x,
                     dropdown_y,
                     dropdown_width,
@@ -521,18 +536,23 @@ impl GitStatusPanel {
                 let selected_pos = filtered_indices
                     .iter()
                     .position(|&i| i == current_branch_idx);
+                let all_labels: Vec<String> = (0..self.branches.len())
+                    .map(|i| self.branch_label(i))
+                    .collect();
+                let all_width = dropdown_rows_width(&git::flat_rows(&all_labels));
                 let (area, scroll_offset) = render_filtered_dropdown(
                     buf,
                     &theme,
                     branch_x,
-                    branch_max_width,
-                    content_area.x + content_area.width,
+                    all_width,
+                    span,
                     dropdown_y,
                     max_dropdown_height,
-                    &filtered_branches,
-                    &self.branch_filter,
-                    self.dropdown_cursor,
+                    &git::flat_rows(&filtered_branches),
+                    &mut self.branch_filter,
+                    Some(self.dropdown_cursor),
                     selected_pos,
+                    self.dropdown_scroll,
                 );
                 self.dropdown_scroll = scroll_offset;
                 self.branch_dropdown_area = Some(area);
@@ -542,28 +562,20 @@ impl GitStatusPanel {
                     .map(|i| self.branch_label(i))
                     .collect();
                 let visible_count = labels.len().min(max_dropdown_height);
-                let scroll_offset = if self.dropdown_cursor >= visible_count {
-                    self.dropdown_cursor - visible_count + 1
-                } else {
-                    0
-                };
-                self.dropdown_scroll = scroll_offset;
-                let (dropdown_x, dropdown_width) = expand_dropdown(
-                    branch_x,
-                    branch_max_width,
-                    content_area.x + content_area.width,
-                    &labels,
-                );
+                let rows = git::flat_rows(&labels);
+                let (dropdown_x, dropdown_width) =
+                    dropdown_span(branch_x, dropdown_rows_width(&rows), span.0, span.1);
                 self.branch_dropdown_area = Some(Rect {
                     x: dropdown_x,
                     y: dropdown_y,
                     width: dropdown_width,
                     height: visible_count as u16 + 2,
                 });
-                render_simple_dropdown(
-                    &labels,
+                self.dropdown_scroll = render_simple_dropdown(
+                    &rows,
                     current_branch_idx,
                     self.dropdown_cursor,
+                    self.dropdown_scroll,
                     dropdown_x,
                     dropdown_y,
                     dropdown_width,

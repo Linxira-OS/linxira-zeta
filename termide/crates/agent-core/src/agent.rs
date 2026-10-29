@@ -7,12 +7,13 @@ use std::sync::{Arc, Mutex};
 use serde_json::Value;
 
 use crate::ask::UserAsker;
-use crate::cancel::CancelToken;
+use crate::cancel::{CancelToken, PauseGate};
 use crate::classifier::{IntentEntry, IntentLog, SessionView};
 use crate::compaction::{
-    context_tokens, is_context_overflow_error, should_compact, split_point, CompactionPolicy,
-    CompactionPrompts, CompactionReason, MIN_SUMMARY_CHARS,
+    context_tokens, is_context_overflow_error, should_compact, split_point, CompactionCall,
+    CompactionPolicy, CompactionPrompts, CompactionReason, MIN_SUMMARY_CHARS, REJECTED_REPLY_CHARS,
 };
+use crate::fit::{chars_for_tokens, fit, FitStep};
 use crate::goal::{parse_verdict, GoalOutcome, GoalPrompt, GoalVerdict};
 use crate::handoff::HandoffPrompt;
 use crate::loop_guard::{LoopGuard, LoopPrompt, LoopReport};
@@ -20,7 +21,7 @@ use crate::message::{
     AssistantContent, AssistantMessage, Message, StopReason, ToolCall, ToolResultMessage, Usage,
     UserMessage,
 };
-use crate::permissions::{DecidedBy, PermissionNote};
+use crate::permissions::{ChannelPrompter, DecidedBy, PermissionNote};
 use crate::provider::{ModelSpec, Provider, Request, StreamEvent, ThinkingLevel};
 use crate::shell::ShellRunner;
 use crate::suggest::CommandSuggester;
@@ -153,9 +154,7 @@ impl QueueHandle {
 
 fn take(queue: &mut VecDeque<UserMessage>, mode: QueueMode) -> Vec<UserMessage> {
     match mode {
-        QueueMode::Merged => UserMessage::merge(queue.drain(..).collect())
-            .into_iter()
-            .collect(),
+        QueueMode::Merged => UserMessage::take_merged(queue).into_iter().collect(),
         QueueMode::OneAtATime => queue.pop_front().into_iter().collect(),
         QueueMode::All => queue.drain(..).collect(),
     }
@@ -228,7 +227,7 @@ pub fn judge_tool_call(
             "The run was cancelled before this tool ran.",
         ));
     }
-    if tools.get(&call.name).is_none() {
+    let Some(tool) = tools.get(&call.name) else {
         log::warn!("model requested unknown tool `{}`", call.name);
         return Judgment::Done(ToolResultMessage::error(
             call,
@@ -238,7 +237,11 @@ pub fn judge_tool_call(
                 tools.names().join(", ")
             ),
         ));
-    }
+    };
+    let ctx = &ToolContext {
+        tool: tool.traits(),
+        ..ctx.clone()
+    };
     let decision = hooks.before_tool_call(call, ctx);
     let permission = hooks.take_permission().map(Box::new);
     let effective = match decision {
@@ -464,9 +467,28 @@ pub enum AgentEvent {
         kept: usize,
         tokens_before: u64,
         tokens_after: u64,
+        call: CompactionCall,
     },
+    /// The compaction did not happen and the transcript is untouched.
+    /// `call` is how the summary call went and `reply` the text it was
+    /// refused for (cut to [`REJECTED_REPLY_CHARS`]), when a call was made.
     CompactionFailed {
         error: String,
+        tokens_before: u64,
+        call: Option<CompactionCall>,
+        reply: String,
+    },
+    /// The context was cut down by kinds of content, with no summary, after
+    /// a compaction did not happen: see [`crate::fit::fit`]. `budget` and
+    /// `keep_tail` (characters) are what it was fitted with, so a log can
+    /// replay it; consumers mirroring the transcript apply the same fitting.
+    Fitted {
+        reason: CompactionReason,
+        budget: usize,
+        keep_tail: usize,
+        steps: Vec<(FitStep, usize)>,
+        tokens_before: u64,
+        tokens_after: u64,
     },
     /// The autonomous-goal judge ran (`/goal`) and returned its verdict: the
     /// goal is reached, cannot be reached, or more work is needed, with a
@@ -527,6 +549,9 @@ pub struct Agent {
     loop_prompt: LoopPrompt,
     /// Whom the `question` tool asks; `None` when no one is watching.
     asker: Option<UserAsker>,
+    /// Whom a delegate's permission requests go to; `None` when no one is
+    /// watching.
+    prompter: Option<ChannelPrompter>,
     /// Whom the `suggest_command` tool offers commands to; `None` when no one
     /// is watching to confirm one.
     suggester: Option<CommandSuggester>,
@@ -543,6 +568,12 @@ pub struct Agent {
     /// The id of the session log this loop's conversation is written to,
     /// when there is one; tools see it in [`SessionView::id`].
     session_id: Option<String>,
+    /// The agent panel the loop runs in, by its number.
+    panel: Option<u64>,
+    /// A pause held by another — the panel that delegated this loop's task,
+    /// or none when nothing else holds it. The loop waits at its step
+    /// boundaries while it is set, and goes on where it stood once lifted.
+    pause_gate: Option<PauseGate>,
 }
 
 impl Agent {
@@ -568,13 +599,25 @@ impl Agent {
             handoff_prompt: HandoffPrompt::default(),
             loop_prompt: LoopPrompt::default(),
             asker: None,
+            prompter: None,
             suggester: None,
             shell_run: None,
             intent: IntentLog::new(),
             intent_seeded: false,
             delegated: false,
             session_id: None,
+            panel: None,
+            pause_gate: None,
         }
+    }
+
+    /// Hold the loop at its step boundaries while `gate` is paused: a panel
+    /// that delegated this task pauses it with the panel's own pause, and
+    /// lifts it with the panel's resume.
+    #[must_use]
+    pub fn with_pause_gate(mut self, gate: PauseGate) -> Self {
+        self.pause_gate = Some(gate);
+        self
     }
 
     /// Work on a task another agent delegated: the reviewer judges this
@@ -601,12 +644,28 @@ impl Agent {
         self
     }
 
+    /// Let the delegates of this loop's `task` calls ask the user through
+    /// `prompter` what the rules do not settle.
+    #[must_use]
+    pub fn with_prompter(mut self, prompter: ChannelPrompter) -> Self {
+        self.prompter = Some(prompter);
+        self
+    }
+
     /// The id of the session log the conversation is written to, so a tool
     /// can tell that log from the others (`recall` searches only what a
     /// compaction took out of it: the rest is in the context already).
     #[must_use]
     pub fn with_session_id(mut self, id: Option<String>) -> Self {
         self.session_id = id;
+        self
+    }
+
+    /// The agent panel the loop runs in, by its number: its tools tell
+    /// which panel a call comes from.
+    #[must_use]
+    pub fn with_panel(mut self, panel: u64) -> Self {
+        self.panel = Some(panel);
         self
     }
 
@@ -916,6 +975,14 @@ impl Agent {
         cancel: &CancelToken,
         emit: &mut dyn FnMut(AgentEvent),
     ) -> TurnOutcome {
+        // A pause held by the panel that delegated this task stops the loop
+        // here, before the next request goes out; lifted, it goes on where it
+        // stood. A stop while it waits ends the turn.
+        if let Some(gate) = &self.pause_gate {
+            if !gate.wait(cancel) {
+                return TurnOutcome::Halt;
+            }
+        }
         emit(AgentEvent::TurnStart);
         for message in pending {
             self.push(Message::User(message), emit);
@@ -924,9 +991,15 @@ impl Agent {
         self.adopt_next_model();
 
         if should_compact(&self.messages, self.model.context_window, &self.compaction) {
-            // A failed compaction is reported through events; the turn still
-            // runs and may hit the overflow path below.
-            let _ = self.compact(CompactionReason::Threshold, None, cancel, emit);
+            // A failed compaction is reported through events, and the
+            // context is cut down by kinds instead; the turn still runs and
+            // may hit the overflow path below.
+            if self
+                .compact(CompactionReason::Threshold, None, cancel, emit)
+                .is_err()
+            {
+                let _ = self.fit_context(CompactionReason::Threshold, emit);
+            }
         }
 
         emit(AgentEvent::MessageStart {
@@ -966,9 +1039,10 @@ impl Agent {
             if overflow
                 && !retried_after_overflow
                 && self.compaction.enabled
-                && self
+                && (self
                     .compact(CompactionReason::Overflow, None, cancel, emit)
                     .is_ok()
+                    || self.fit_context(CompactionReason::Overflow, emit).is_ok())
             {
                 retried_after_overflow = true;
                 continue;
@@ -1038,6 +1112,13 @@ impl Agent {
         while start < calls.len() {
             if !cancel.is_cancelled() && self.queues.is_paused() {
                 return true;
+            }
+            // Held by the panel that delegated the task: wait here, before the
+            // next call, rather than stop and need a resume of our own.
+            if let Some(gate) = &self.pause_gate {
+                if !gate.wait(cancel) {
+                    return true;
+                }
             }
             let together = calls[start..]
                 .iter()
@@ -1166,6 +1247,7 @@ impl Agent {
         ToolContext {
             cwd: self.cwd.clone(),
             asker: self.asker.clone(),
+            prompter: self.prompter.clone(),
             suggester: self.suggester.clone(),
             shell_run: self.shell_run.clone(),
             session: Some(SessionView {
@@ -1175,6 +1257,9 @@ impl Agent {
                 model: self.model.clone(),
             }),
             withdrawn: None,
+            panel: self.panel,
+            tool: crate::ToolTraits::default(),
+            resume: None,
         }
     }
 
@@ -1251,15 +1336,30 @@ impl Agent {
             .keep_recent_tokens
             .min(self.model.context_window / 4);
         let split = split_point(&self.messages, keep_tokens);
+        let tokens_before = context_tokens(&self.messages);
         if split == 0 {
             let error = "too few messages to compact".to_string();
             emit(AgentEvent::CompactionFailed {
                 error: error.clone(),
+                tokens_before,
+                call: None,
+                reply: String::new(),
             });
             return Err(error);
         }
-        let tokens_before = context_tokens(&self.messages);
-        let mut to_summarize = self.messages[..split].to_vec();
+        // What is summarised must fit the window itself, with room for the
+        // summary: a history already past it is cut down by kinds first,
+        // its latest part kept whole.
+        let room = chars_for_tokens(
+            self.model.context_window.saturating_sub(
+                self.compaction
+                    .reserve_tokens
+                    .min(self.model.context_window / 4),
+            ),
+        );
+        let input = fit(&self.messages[..split], room, room / 4);
+        let input_cut = input.steps.clone();
+        let mut to_summarize = input.messages;
         emit(AgentEvent::CompactionStart {
             reason,
             prompt_tokens: context_tokens(&to_summarize),
@@ -1276,23 +1376,55 @@ impl Agent {
             tools: &[],
             thinking: ThinkingLevel::Off,
         };
+        let started = std::time::Instant::now();
         let reply = self.provider.stream(
             &request,
             &mut |event| emit(AgentEvent::CompactionUpdate(event)),
             cancel,
         );
+        let call = CompactionCall {
+            reason,
+            stop_reason: reply.stop_reason,
+            duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+            usage: reply.usage,
+            thinking_chars: reply
+                .content
+                .iter()
+                .map(|block| match block {
+                    AssistantContent::Thinking { text, .. } => text.chars().count(),
+                    _ => 0,
+                })
+                .sum(),
+            tool_calls: reply.tool_calls().map(|call| call.name.clone()).collect(),
+            input_cut,
+        };
         let summary = reply.plain_text();
+        // A reply that calls a tool went on with the work instead of
+        // summarising it, whatever text it has: a line of narration passes
+        // for a summary otherwise.
+        let went_on = reply.stop_reason == StopReason::ToolUse || !call.tool_calls.is_empty();
         if matches!(reply.stop_reason, StopReason::Error | StopReason::Aborted)
+            || went_on
             || summary.trim().chars().count() < MIN_SUMMARY_CHARS
         {
             let error = reply.error_message.unwrap_or_else(|| {
-                format!(
-                    "the model returned a degenerate summary: {:?}",
-                    summary.trim()
-                )
+                if went_on {
+                    format!(
+                        "the model called a tool instead of summarising: {:?}",
+                        summary.trim()
+                    )
+                } else {
+                    format!(
+                        "the model returned a degenerate summary: {:?}",
+                        summary.trim()
+                    )
+                }
             });
             emit(AgentEvent::CompactionFailed {
                 error: error.clone(),
+                tokens_before,
+                call: Some(call),
+                reply: summary.chars().take(REJECTED_REPLY_CHARS).collect(),
             });
             return Err(error);
         }
@@ -1312,6 +1444,36 @@ impl Agent {
         emit(AgentEvent::Compacted {
             summary,
             kept,
+            tokens_before,
+            tokens_after: context_tokens(&self.messages),
+            call,
+        });
+        Ok(())
+    }
+
+    /// Cut the context down to half the window by kinds of content, with no
+    /// model call: what a compaction falls back on when its summary call
+    /// fails or is refused. The recent messages within the compaction's
+    /// kept budget stay whole. Fails when nothing could be left out.
+    pub fn fit_context(
+        &mut self,
+        reason: CompactionReason,
+        emit: &mut dyn FnMut(AgentEvent),
+    ) -> Result<(), String> {
+        let window = self.model.context_window;
+        let budget = chars_for_tokens(window / 2);
+        let keep_tail = chars_for_tokens(self.compaction.keep_recent_tokens.min(window / 4));
+        let tokens_before = context_tokens(&self.messages);
+        let fitted = fit(&self.messages, budget, keep_tail);
+        if !fitted.changed() {
+            return Err("nothing to leave out".to_string());
+        }
+        self.messages = fitted.messages;
+        emit(AgentEvent::Fitted {
+            reason,
+            budget,
+            keep_tail,
+            steps: fitted.steps,
             tokens_before,
             tokens_after: context_tokens(&self.messages),
         });
@@ -1424,19 +1586,11 @@ impl Agent {
     fn record_intent(&self, message: &Message) {
         match message {
             Message::User(user) => {
-                if let Some(command) = &user.ran {
-                    self.intent.push(IntentEntry::Ran(command.clone()));
+                if user.ran.is_none() && self.compaction_prompts.is_summary(&user.plain_text()) {
                     return;
                 }
-                let text = user.plain_text();
-                if self.compaction_prompts.is_summary(&text) {
-                    return;
-                }
-                self.intent.push(if self.delegated {
-                    IntentEntry::Delegated(text)
-                } else {
-                    IntentEntry::User(text)
-                });
+                self.intent
+                    .push(IntentEntry::of_message(user, self.delegated));
             }
             Message::Assistant(assistant) => self.intent.push_calls(assistant.tool_calls()),
             Message::ToolResult(_) => {}
@@ -2257,6 +2411,65 @@ mod tests {
         assert_eq!(agent.messages().len(), 4);
     }
 
+    /// The hooks judge a call knowing what its tool says of itself.
+    #[test]
+    fn hooks_see_the_traits_of_the_called_tool() {
+        struct Marked;
+        impl crate::Tool for Marked {
+            fn name(&self) -> &str {
+                "srv__look"
+            }
+            fn description(&self) -> &str {
+                "Look"
+            }
+            fn parameters(&self) -> Value {
+                json!({ "type": "object" })
+            }
+            fn traits(&self) -> crate::ToolTraits {
+                crate::ToolTraits {
+                    mcp: true,
+                    read_only: true,
+                }
+            }
+            fn execute(
+                &self,
+                call: &ToolCall,
+                _ctx: &ToolContext,
+                _on_update: &mut dyn FnMut(ToolUpdate),
+                _cancel: &CancelToken,
+            ) -> ToolResultMessage {
+                ToolResultMessage::text(call, "seen")
+            }
+        }
+        struct Seen(Vec<crate::ToolTraits>);
+        impl Hooks for Seen {
+            fn before_tool_call(&mut self, _call: &ToolCall, ctx: &ToolContext) -> ToolDecision {
+                self.0.push(ctx.tool);
+                ToolDecision::Allow
+            }
+        }
+
+        let mut tools = registry_with(Arc::new(EchoTool::default()));
+        tools.insert(Arc::new(Marked));
+        let mut seen = Seen(Vec::new());
+        let ctx = ToolContext::new("/");
+        let cancel = CancelToken::new();
+        for name in ["srv__look", "echo"] {
+            let call = ToolCall {
+                id: "c".into(),
+                name: name.into(),
+                arguments: json!({}),
+                extra_content: None,
+            };
+            judge_tool_call(&tools, &call, &mut seen, &ctx, &cancel);
+        }
+        let marked = crate::ToolTraits {
+            mcp: true,
+            read_only: true,
+        };
+        assert_eq!(seen.0, [marked, crate::ToolTraits::default()]);
+    }
+
     #[test]
     fn hook_can_block_a_tool_call() {
         struct DenyEcho;
@@ -3001,6 +3214,124 @@ OK let me just start implementing and see what happens.\n";
     }
 
     #[test]
+    fn a_refused_summary_falls_back_to_cutting_the_context_down() {
+        let (mut agent, provider) = agent(
+            ScriptedProvider::new(vec![
+                text_reply("first answer"),
+                // The summary call goes on with the work instead.
+                tool_reply(
+                    vec![("c1", "bash", json!({ "command": "ls" }))],
+                    StopReason::ToolUse,
+                ),
+                text_reply("second answer"),
+            ]),
+            ToolRegistry::new(),
+        );
+        agent.set_model(ModelSpec {
+            context_window: 200,
+            ..model()
+        });
+        agent.set_compaction(CompactionPolicy {
+            reserve_tokens: 8092,
+            keep_recent_tokens: 1,
+            ..Default::default()
+        });
+        collect(&mut agent, &"x".repeat(1000), &mut NoHooks);
+        let events = collect(&mut agent, "next", &mut NoHooks);
+
+        assert!(events.iter().any(|e| matches!(
+            e,
+            AgentEvent::CompactionFailed { error, .. } if error.contains("called a tool")
+        )));
+        let Some(AgentEvent::Fitted {
+            reason,
+            budget,
+            steps,
+            ..
+        }) = events
+            .iter()
+            .find(|e| matches!(e, AgentEvent::Fitted { .. }))
+        else {
+            panic!("no fitting")
+        };
+        assert_eq!(*reason, CompactionReason::Threshold);
+        assert_eq!(*budget, chars_for_tokens(100));
+        assert_eq!(steps.last().map(|(step, _)| *step), Some(FitStep::Oldest));
+        // The turn went on with the context cut down: the long prompt gave
+        // way to a note, the answer and the new request stayed.
+        let seen = provider.seen_requests();
+        assert_eq!(seen.len(), 3);
+        assert!(matches!(
+            &seen[2][0],
+            Message::User(u) if u.plain_text().contains("earlier messages were left out")
+        ));
+        assert!(matches!(
+            seen[2].last(),
+            Some(Message::User(u)) if u.plain_text() == "next"
+        ));
+    }
+
+    #[test]
+    fn what_is_summarised_is_cut_down_to_fit_the_window() {
+        let (mut agent, provider) = agent(
+            ScriptedProvider::new(vec![text_reply(
+                "SUMMARY OF EARLIER WORK: the files were read and the plan made.",
+            )]),
+            ToolRegistry::new(),
+        );
+        // 8 192 tokens, a 2 048 reserve: 15 360 characters of room.
+        let read = ToolCall {
+            id: "r1".into(),
+            name: "read".into(),
+            arguments: json!({ "path": "big.rs" }),
+            extra_content: None,
+        };
+        let mut agent = {
+            agent.set_compaction(CompactionPolicy {
+                reserve_tokens: 2048,
+                keep_recent_tokens: 10,
+                ..Default::default()
+            });
+            agent.with_messages(vec![
+                Message::User(UserMessage::text("read big.rs")),
+                Message::Assistant(tool_reply(
+                    vec![("r1", "read", read.arguments.clone())],
+                    StopReason::ToolUse,
+                )),
+                Message::ToolResult(ToolResultMessage::text(&read, "b".repeat(40_000))),
+                Message::Assistant(text_reply("Read it.")),
+                Message::User(UserMessage::text("go on")),
+            ])
+        };
+        let mut events = Vec::new();
+        agent
+            .compact(
+                CompactionReason::Threshold,
+                None,
+                &CancelToken::new(),
+                &mut |e| events.push(e),
+            )
+            .unwrap();
+        let sent = &provider.seen_requests()[0];
+        let Message::ToolResult(output) = &sent[2] else {
+            panic!("{sent:?}")
+        };
+        assert!(output
+            .plain_text()
+            .contains("40000 characters of output left out"));
+        let Some(AgentEvent::Compacted { call, .. }) = events
+            .iter()
+            .find(|e| matches!(e, AgentEvent::Compacted { .. }))
+        else {
+            panic!("no compaction")
+        };
+        assert_eq!(
+            call.input_cut.first().map(|(s, _)| *s),
+            Some(FitStep::ReadOutputs)
+        );
+    }
+
+    #[test]
     fn threshold_compaction_runs_before_the_model_call() {
         let (mut agent, provider) = agent(
             ScriptedProvider::new(vec![
@@ -3098,6 +3429,51 @@ OK let me just start implementing and see what happens.\n";
             )),
             "the failed reply never entered the transcript"
         );
+    }
+
+    #[test]
+    fn a_refused_summary_call_reports_how_it_went_and_what_it_said() {
+        // The model goes on with the work instead of summarising: a line of
+        // narration and a call, as in a session where this slipped through.
+        let mut went_on = tool_reply(
+            vec![("c1", "bash", json!({ "command": "rg emit_fn" }))],
+            StopReason::ToolUse,
+        );
+        went_on.content.insert(
+            0,
+            AssistantContent::Text {
+                text: "Found it:".into(),
+            },
+        );
+        went_on
+            .content
+            .insert(0, AssistantContent::thinking("where is the loop"));
+        let (agent, _) = agent(ScriptedProvider::new(vec![went_on]), ToolRegistry::new());
+        let mut agent = agent.with_messages(vec![
+            Message::User(UserMessage::text("a")),
+            Message::Assistant(text_reply("b")),
+        ]);
+        let mut events = Vec::new();
+        let result = agent.compact(
+            CompactionReason::Threshold,
+            None,
+            &CancelToken::new(),
+            &mut |e| events.push(e),
+        );
+        assert!(result.is_err());
+        let Some(AgentEvent::CompactionFailed { call, reply, .. }) = events
+            .into_iter()
+            .find(|e| matches!(e, AgentEvent::CompactionFailed { .. }))
+        else {
+            panic!("no failure reported");
+        };
+        let call = call.expect("a call was made");
+        assert_eq!(call.reason, CompactionReason::Threshold);
+        assert_eq!(call.stop_reason, StopReason::ToolUse);
+        assert_eq!(call.tool_calls, vec!["bash".to_string()]);
+        assert_eq!(call.thinking_chars, "where is the loop".len());
+        assert_eq!(reply, "Found it:");
+        assert_eq!(roles(agent.messages()), vec!["user", "assistant"]);
     }
 
     #[test]

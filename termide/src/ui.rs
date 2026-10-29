@@ -101,7 +101,7 @@ fn render_dropdowns_and_modals(
             let dropdown_y = 1_u16; // Below menu bar
 
             // Render Commands submenu
-            let commands_items = get_commands_items(&registry);
+            let commands_items = get_commands_items(&registry, &state.ui.plugin_commands);
             let dropdown = Dropdown::new(
                 &commands_items,
                 state.ui.commands_submenu.selected,
@@ -408,6 +408,9 @@ pub fn render_layout_with_accordion(
     // Render status bar for active panel
     render_status_bar_for_active(frame, main_chunks[2], state, layout_manager);
 
+    // A panel shown over the layout, in focus while it is up.
+    render_overlay(frame, main_chunks[1], state, layout_manager);
+
     let graphics = termide_core::GraphicsCells::capture(frame.buffer_mut());
 
     // Render drag overlay (ghost + drop-zone highlight) on top of panels
@@ -418,6 +421,48 @@ pub fn render_layout_with_accordion(
 
     // An image under an overlay is repainted once the overlay goes away.
     graphics.hold_overdrawn_anchors(frame.buffer_mut());
+}
+
+/// The panel shown over the layout, if one is up: framed as a focused
+/// panel, over most of `main`.
+fn render_overlay(
+    frame: &mut Frame,
+    main: Rect,
+    state: &AppState,
+    layout_manager: &mut LayoutManager,
+) {
+    let Some(panel) = layout_manager.overlay.as_mut() else {
+        return;
+    };
+    let area = termide_layout::overlay_area(main);
+    // Cleared, then painted in the theme's background: a cleared cell alone
+    // takes the terminal's own colors, which the frame and its title keep.
+    frame.render_widget(ratatui::widgets::Clear, area);
+    frame.render_widget(
+        Block::default().style(Style::default().bg(state.theme.bg)),
+        area,
+    );
+    let params = ExpandedPanelParams {
+        tab_size: state.config.editor.tab_size,
+        word_wrap: state.config.editor.word_wrap,
+        terminal_width: state.terminal.width,
+        terminal_height: state.terminal.height,
+        omit_bottom_border: false,
+        // Its controls are on the prompt's border; there is no layout here
+        // for the menu to act on.
+        omit_menu_button: true,
+    };
+    render_expanded_panel(
+        panel,
+        area,
+        frame.buffer_mut(),
+        true,
+        usize::MAX,
+        state.theme,
+        &state.config,
+        params,
+        1,
+    );
 }
 
 /// Render the panel drag overlay: a bright highlight for the drop zone and
@@ -701,6 +746,7 @@ fn render_panel_group(
                 // Bottom border is only skipped when there's no room
                 // for it; expanded panels always render `Block::ALL`.
                 omit_bottom_border: false,
+                omit_menu_button: false,
             };
             render_expanded_panel(
                 panel,
@@ -813,6 +859,7 @@ fn render_status_bar_for_active(
             recommended_layout: state.get_recommended_layout(),
             background_ops,
             disk_selected,
+            plugin_status: state.ui.plugin_status.as_deref(),
         };
         StatusBar::render(
             frame.buffer_mut(),

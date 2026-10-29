@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The TUI and the IDE carry **no** plugin layer — and cannot start one by
+//! The workbench TUI carries **no** plugin layer — and cannot start one by
 //! accident.
 //!
 //! The 2026-10-20 ruling is explicit: a plugin is behaviour (tools, commands,
 //! hooks), declarative panels and web pages. The desktop (`zetawork-gui`) hosts
-//! the panel layer; `zeta-main` (the workbench TUI) and `termide`/`zetaide` host
-//! none of it, and no plugin hook may be added to them. They are separate
-//! binaries that share crates, which is exactly why a plugin-module import
-//! could slip in unnoticed and give one front end a layer the ruling says it
-//! must not have.
+//! Zeta's panel layer; `zeta-main` (the workbench TUI) hosts none of it, and no
+//! plugin hook may be added to it. `zetaide` carries TermIDE's own upstream
+//! plugin layer as of the 0.46 vendor bump, which is separate from Zeta's
+//! plugin surface.
 //!
 //! So the guard is a source scan: the tokens below are the *names* a plugin
-//! layer is reachable by. None may appear in either tree. The scan is textual on
-//! purpose — a `cfg`-gated import or a comment describing an intention is the
-//! same regression, and a test that only exercised the built binary would miss
-//! both.
+//! layer is reachable by. None may appear in the TUI tree. The scan is textual
+//! on purpose — a `cfg`-gated import or a comment describing an intention is
+//! the same regression, and a test that only exercised the built binary would
+//! miss both.
 
 use std::path::{Path, PathBuf};
 
@@ -35,16 +34,6 @@ fn tui_root() -> PathBuf {
 		.parent()
 		.expect("main/crates")
 		.join("zeta-main")
-}
-
-/// The vendored IDE tree, two levels above `main/`.
-fn ide_root() -> PathBuf {
-	PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-		.parent()
-		.and_then(Path::parent)
-		.and_then(Path::parent)
-		.expect("the worktree root")
-		.join("termide")
 }
 
 /// Every `.rs` file under `root`, skipping build output.
@@ -101,9 +90,4 @@ fn assert_no_plugin_layer(root: &Path, host: &str) {
 #[test]
 fn the_tui_has_no_plugin_layer() {
 	assert_no_plugin_layer(&tui_root(), "zeta-main (the workbench TUI)");
-}
-
-#[test]
-fn the_ide_has_no_plugin_layer() {
-	assert_no_plugin_layer(&ide_root(), "termide (zetaide)");
 }

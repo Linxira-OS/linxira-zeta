@@ -17,7 +17,7 @@ use crate::compaction::CompactionReason;
 use crate::goal::GoalPrompt;
 use crate::handoff::HandoffPrompt;
 use crate::layers::SkillInfo;
-use crate::message::{Message, UserMessage};
+use crate::message::{Message, ToolCall, UserMessage};
 use crate::permissions::{ChannelPrompter, Mode, ModeHandle, PermissionRules, PersistRule};
 use crate::plan::PlanPrompt;
 use crate::provider::ModelSpec;
@@ -178,6 +178,19 @@ pub struct HostTools {
     /// own tools and prompt, which does not list them (see
     /// [`crate::companion_tools`]).
     pub skills: Vec<SkillInfo>,
+    /// The panel's session log the agent's conversation is written to, so
+    /// `recall` leaves out what is still in the agent's context; `None` for
+    /// a run that keeps no log (a subagent).
+    pub session_id: Option<String>,
+}
+
+/// A call the agent stopped waiting on that termide still runs for it:
+/// Claude Code moves a long call to the background to take a message typed
+/// meanwhile. `call` is as its block in the transcript has it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BackgroundCall {
+    pub call: ToolCall,
+    pub elapsed: std::time::Duration,
 }
 
 /// What the panel drives: the built-in agent on its worker thread, or an
@@ -322,6 +335,17 @@ pub trait Backend: Send {
     /// agent applies it as soon as it can; reports the agent's own error.
     fn set_option(&self, _id: String, _value: String) -> Result<(), String> {
         Err("options are not supported".to_string())
+    }
+    /// The calls the agent moved to the background that termide still runs
+    /// for it, the longest-running first; none for the built-in loop, which
+    /// waits on every call it makes.
+    fn background_calls(&self) -> Vec<BackgroundCall> {
+        Vec::new()
+    }
+    /// Stop the call in the background known as `id`, as the user's stop
+    /// stops a call; whether there was one.
+    fn stop_background_call(&self, _id: &str) -> bool {
+        false
     }
     /// Stop and hand the built-in agent back, when there is one.
     fn into_agent(self: Box<Self>) -> Option<Agent>;
@@ -992,7 +1016,7 @@ mod tests {
         let deadline = Instant::now() + Duration::from_secs(5);
         let failed = loop {
             let events = runtime.drain();
-            if let Some(AgentEvent::CompactionFailed { error }) = events
+            if let Some(AgentEvent::CompactionFailed { error, .. }) = events
                 .into_iter()
                 .find(|e| matches!(e, AgentEvent::CompactionFailed { .. }))
             {

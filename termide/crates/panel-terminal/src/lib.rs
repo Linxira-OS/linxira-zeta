@@ -153,6 +153,32 @@ enum TitleSource {
 }
 
 /// Build HotkeyTable for the terminal panel from config.
+/// The device of the PTY's other end, such as `/dev/ttys004`, for a program
+/// that opens it by name.
+#[cfg(unix)]
+fn device_name(master: &(dyn MasterPty + Send)) -> Option<std::path::PathBuf> {
+    // `ptsname` returns a static buffer; one caller at a time.
+    static LOCK: Mutex<()> = Mutex::new(());
+    let fd = master.as_raw_fd()?;
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // SAFETY: `fd` is the open master of a PTY this process owns, and the
+    // buffer `ptsname` returns is copied out before the lock is released.
+    let name = unsafe { libc::ptsname(fd) };
+    if name.is_null() {
+        return None;
+    }
+    // SAFETY: a non-null result of `ptsname` is a NUL-terminated string.
+    let name = unsafe { std::ffi::CStr::from_ptr(name) };
+    Some(std::path::PathBuf::from(
+        name.to_string_lossy().into_owned(),
+    ))
+}
+
+#[cfg(not(unix))]
+fn device_name(_master: &(dyn MasterPty + Send)) -> Option<std::path::PathBuf> {
+    None
+}
+
 fn build_terminal_hotkey_table(config: &Config) -> HotkeyTable {
     let mut t = HotkeyTable::new();
     let kb = &config.terminal.keybindings;
@@ -506,6 +532,105 @@ impl Terminal {
         Ok(term)
     }
 
+    /// A terminal running `argv` — a program a debug adapter asked to have
+    /// run in a terminal — in `cwd` with `env` added, titled with the
+    /// program. Its pid is [`Terminal::child_pid`].
+    pub fn new_with_program(
+        rows: u16,
+        cols: u16,
+        argv: &[String],
+        cwd: Option<std::path::PathBuf>,
+        env: &[(String, String)],
+    ) -> Result<Self> {
+        let (program, args) = argv
+            .split_first()
+            .ok_or_else(|| anyhow::anyhow!("Empty command"))?;
+        let mut cmd = CommandBuilder::new(program);
+        cmd.args(args);
+        let title = std::path::Path::new(program)
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| program.clone());
+        Self::spawn_command(rows, cols, cmd, cwd, env, title).map(|(term, _)| term)
+    }
+
+    /// A terminal for a program another process starts: what it holds runs
+    /// nothing that reads the terminal, so all input goes to the program
+    /// that opens the returned device. The holder ignores `Ctrl+C`, `Ctrl+\`
+    /// and `Ctrl+Z`, which would otherwise end it.
+    #[cfg(unix)]
+    pub fn new_for_device(rows: u16, cols: u16, title: &str) -> Result<(Self, std::path::PathBuf)> {
+        let mut cmd = CommandBuilder::new("/bin/sh");
+        cmd.args(["-c", "trap '' INT QUIT TSTP; exec sleep 2147483647"]);
+        let (term, device) = Self::spawn_command(rows, cols, cmd, None, &[], title.to_string())?;
+        let device = device.ok_or_else(|| anyhow::anyhow!("the terminal has no device name"))?;
+        Ok((term, device))
+    }
+
+    /// The pid of the process the terminal runs.
+    pub fn child_pid(&self) -> Option<u32> {
+        self.shell_pid
+    }
+
+    /// Spawn `cmd` on a new PTY; the device name of its terminal comes back
+    /// with it where the platform has one.
+    fn spawn_command(
+        rows: u16,
+        cols: u16,
+        mut cmd: CommandBuilder,
+        cwd: Option<std::path::PathBuf>,
+        env: &[(String, String)],
+        title: String,
+    ) -> Result<(Self, Option<std::path::PathBuf>)> {
+        let pty_system = native_pty_system();
+        let size = PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        };
+        let pair = pty_system.openpty(size)?;
+        let working_dir =
+            cwd.unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| "/".into()));
+        cmd.cwd(&working_dir);
+        Self::set_env(&mut cmd, &working_dir);
+        for (key, value) in env {
+            cmd.env(key, value);
+        }
+        let device = device_name(pair.master.as_ref());
+        let child = pair.slave.spawn_command(cmd)?;
+        let pid = child.process_id();
+        let screen = Arc::new(RwLock::new(TerminalScreen::new(
+            rows as usize,
+            cols as usize,
+        )));
+        let reader = pair.master.try_clone_reader()?;
+        let writer = Arc::new(Mutex::new(pair.master.take_writer()?));
+        let pty = Arc::new(Mutex::new(pair.master));
+        let is_alive = Arc::new(Mutex::new(true));
+        let has_new_data = Arc::new(AtomicBool::new(false));
+        Self::spawn_reader(
+            reader,
+            Arc::clone(&writer),
+            &screen,
+            &is_alive,
+            &has_new_data,
+        );
+        let mut term = Self::build(
+            pty,
+            writer,
+            child,
+            pid,
+            screen,
+            size,
+            is_alive,
+            has_new_data,
+        );
+        term.title = TitleSource::Command(title);
+        term.initial_cwd = working_dir;
+        Ok((term, device))
+    }
+
     /// Resize terminal
     pub fn resize(&mut self, rows: u16, cols: u16) -> Result<()> {
         let cell = self.cell_pixels();
@@ -751,6 +876,11 @@ impl Terminal {
         } else {
             self.send_input(&[byte])
         };
+    }
+
+    /// The syntax family of the shell this terminal runs.
+    pub fn shell_kind(&self) -> shell_utils::ShellKind {
+        self.shell_kind
     }
 
     /// Change the shell's directory to `path`, quoted for this shell.
@@ -1519,6 +1649,9 @@ impl Panel for Terminal {
     }
 
     fn handle_command(&mut self, cmd: PanelCommand<'_>) -> CommandResult {
+        if let Some(result) = self.find_bar_clipboard(&cmd) {
+            return result;
+        }
         match cmd {
             PanelCommand::Resize { rows, cols } => {
                 if self.resize(rows, cols).is_ok() {
@@ -1583,6 +1716,7 @@ impl Panel for Terminal {
             | PanelCommand::SetGitOperationInProgress { .. }
             | PanelCommand::SelectionMade { .. }
             | PanelCommand::ChecklistDone { .. }
+            | PanelCommand::ChecklistButton { .. }
             | PanelCommand::InputSubmitted { .. }
             | PanelCommand::Confirmed { .. }
             | PanelCommand::UpdateRepoPaths { .. }
@@ -1729,6 +1863,49 @@ impl Drop for Terminal {
         if self.is_alive() {
             self.kill_processes();
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod device_tests {
+    use super::*;
+
+    /// What another process writes to the device shows in the panel, and the
+    /// panel's input goes to whoever reads the device — the holder reads none.
+    #[test]
+    fn a_device_terminal_shows_what_is_written_to_its_device() {
+        let Ok((mut term, device)) = Terminal::new_for_device(10, 40, "app") else {
+            return; // No PTY available.
+        };
+        assert!(device.to_string_lossy().starts_with("/dev/"), "{device:?}");
+        assert!(term.child_pid().is_some());
+        let mut tty = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&device)
+            .unwrap();
+        tty.write_all(b"from the program\r\n").unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let shown = loop {
+            let text: String = term
+                .screen
+                .read()
+                .unwrap()
+                .get_line_by_absolute(0)
+                .map(|cells| cells.iter().map(|c| c.ch).collect())
+                .unwrap_or_default();
+            if text.contains("from the program") || std::time::Instant::now() > deadline {
+                break text;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        assert!(shown.contains("from the program"), "{shown:?}");
+
+        term.send_input(b"typed\n").unwrap();
+        let mut line = String::new();
+        std::io::BufRead::read_line(&mut std::io::BufReader::new(tty), &mut line).unwrap();
+        assert_eq!(line.trim_end(), "typed");
+        term.kill_processes();
     }
 }
 
@@ -1978,5 +2155,95 @@ mod env_tests {
             iterm, None,
             "a leaked iTerm2 id would pick the wrong protocol"
         );
+    }
+
+    /// With the find bar focused, a terminal paste and Ctrl+V edit the query
+    /// rather than going to the shell, and Ctrl+X cuts from it.
+    #[test]
+    fn clipboard_commands_edit_the_focused_find_bar() {
+        termide_ui::clipboard::use_fake_clipboard("needle");
+        let Ok(mut term) = Terminal::new_with_cwd(24, 80, None) else {
+            return; // No PTY available.
+        };
+        term.open_find_bar();
+        let query = |term: &Terminal| term.find_bar.as_ref().unwrap().find_text().to_string();
+
+        let result = term.handle_command(PanelCommand::PasteText {
+            text: "ab\ncd".into(),
+        });
+        assert!(matches!(result, CommandResult::Handled(true)));
+        assert_eq!(query(&term), "ab cd");
+
+        term.handle_find_bar_key(crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Char('a'),
+            crossterm::event::KeyModifiers::CONTROL,
+        ));
+        assert!(matches!(
+            term.handle_command(PanelCommand::Copy),
+            CommandResult::Handled(true)
+        ));
+        assert_eq!(termide_ui::clipboard::paste().as_deref(), Some("ab cd"));
+        assert!(matches!(
+            term.handle_command(PanelCommand::Cut),
+            CommandResult::Handled(true)
+        ));
+        assert_eq!(query(&term), "");
+
+        termide_ui::clipboard::use_fake_clipboard("needle");
+        term.handle_command(PanelCommand::Paste);
+        assert_eq!(query(&term), "needle");
+    }
+
+    /// A drag that began in the find bar's field keeps selecting there when
+    /// the pointer leaves the bar upwards, instead of selecting terminal text.
+    #[test]
+    fn a_drag_from_the_find_bar_stays_in_it_above_the_bar() {
+        use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+        use termide_modal::find_bar::FindField;
+        termide_ui::clipboard::use_fake_clipboard("");
+        let Ok(mut term) = Terminal::new_with_cwd(24, 80, None) else {
+            return; // No PTY available.
+        };
+        term.open_find_bar();
+        let panel_area = Rect::new(0, 0, 80, 24);
+        let bar = term.find_bar.as_mut().unwrap();
+        bar.set_text(FindField::Find, "needle".into());
+        // Where the panel draws it: the last inner rows, above the border.
+        let bar_area = Rect::new(1, 23 - bar.height(), 78, bar.height());
+        let mut buf = Buffer::empty(panel_area);
+        bar.render(bar_area, &mut buf, &termide_theme::Theme::default(), true);
+        let (row, start) = (bar_area.y..bar_area.bottom())
+            .find_map(|y| {
+                let cells: Vec<String> =
+                    (0..80).map(|x| buf[(x, y)].symbol().to_string()).collect();
+                (0..cells.len() - 6)
+                    .find(|&x| cells[x..x + 6].concat() == "needle")
+                    .map(|x| (y, x as u16))
+            })
+            .expect("the find field is drawn");
+        let at = |kind, column, row| MouseEvent {
+            kind,
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        };
+        term.on_mouse(
+            at(MouseEventKind::Down(MouseButton::Left), start + 1, row),
+            panel_area,
+        );
+        term.on_mouse(
+            at(MouseEventKind::Drag(MouseButton::Left), start + 4, 5),
+            panel_area,
+        );
+        assert_eq!(
+            term.find_bar.as_ref().unwrap().selected_text().as_deref(),
+            Some("eed")
+        );
+        assert!(!term.selection_drag_active, "no terminal selection began");
+        term.on_mouse(
+            at(MouseEventKind::Up(MouseButton::Left), start + 4, 5),
+            panel_area,
+        );
+        assert!(term.read_screen().selection_start.is_none());
     }
 }

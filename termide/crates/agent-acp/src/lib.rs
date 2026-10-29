@@ -7,8 +7,8 @@
 //! loop emits, so the panel renders both alike. The agent's own requests
 //! are answered here: `session/request_permission` goes to the user through
 //! the shared permission channel, `fs/read_text_file` and
-//! `fs/write_text_file` are served from the working directory, terminals
-//! are not offered.
+//! `fs/write_text_file` are served from the working directory, and the
+//! `terminal/*` requests run a headless process whose output the agent polls.
 //!
 //! Starting an agent (`npx …` adapters take seconds) happens on a thread; a
 //! prompt sent before the session exists waits in the queue and goes out as
@@ -24,7 +24,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, PoisonError};
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
-use termide_agent_core::recap;
+use termide_agent_core::{chars_for_tokens, handoff, recap};
 use termide_agent_core::{
     companion_tools, parse_verdict, GoalPrompt, HandoffPrompt, IntentLog, ModelSpec, Provider,
     ReviewerSetup, SessionView, ThinkingLevel,
@@ -32,15 +32,19 @@ use termide_agent_core::{
 use termide_agent_core::{
     expand_env, now_millis, AcpConfig, AcpFlavor, Agent, AgentCommand, AgentEvent,
     AssistantContent, AssistantMessage, Backend, BackendModel, BackendOption, BackendSetup,
-    CancelToken, ExternalSessionRef, Failure, FailureKind, Hooks, HostTools, Message, Mode,
-    ModeHandle, PermissionHooks, PlanPrompt, PromptError, StopReason, StreamEvent, ToolCall,
-    ToolContext, ToolDecision, ToolRegistry, ToolResultMessage, Usage, UserMessage, ACP_PROVIDER,
-    RECAP_LIMIT,
+    BackgroundCall, CancelToken, ExternalSessionRef, Failure, FailureKind, Hooks, HostTools,
+    Message, Mode, ModeHandle, PermissionHooks, PlanPrompt, PromptError, StopReason, StreamEvent,
+    ToolCall, ToolContext, ToolDecision, ToolRegistry, ToolResultMessage, Usage, UserMessage,
+    ACP_PROVIDER, RECAP_LIMIT,
 };
 use termide_agent_mcp::{McpServer, SERVER_NAME};
 
 mod provider;
+mod terminal;
+mod windows;
 pub use provider::{match_model, AcpProvider};
+use terminal::Terminals;
+pub use windows::remember_windows_in;
 
 /// How the calls of termide's tools reach the transcript from Claude Code:
 /// named after the MCP server that serves them.
@@ -117,6 +121,49 @@ fn classify_rpc_error(error: &Value) -> Failure {
 }
 type SharedWriter = Arc<Mutex<Option<Box<dyn Write + Send>>>>;
 
+/// How long a request that saw the agent hang up waits for the rest of what
+/// it printed on stderr, which says why.
+const STDERR_GRACE: Duration = Duration::from_millis(300);
+
+/// The last line the agent's process printed on stderr. "Closed the
+/// connection" alone does not say why it went: a launcher refused to run it
+/// (`Permission denied`), a missing login, a crash — the line does.
+#[derive(Default)]
+struct StderrTail {
+    /// The last non-empty line, and whether the stream has ended.
+    state: Mutex<(Option<String>, bool)>,
+    ended: Condvar,
+}
+
+impl StderrTail {
+    /// Read `stderr` to its end on a thread of its own, logging each line.
+    fn follow(self: &Arc<Self>, agent: String, stderr: impl Read + Send + 'static) {
+        let tail = Arc::clone(self);
+        std::thread::spawn(move || {
+            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+                log::debug!("acp {agent}: {line}");
+                let line = line.trim();
+                if !line.is_empty() {
+                    tail.state.lock().unwrap_or_else(PoisonError::into_inner).0 =
+                        Some(line.to_string());
+                }
+            }
+            tail.state.lock().unwrap_or_else(PoisonError::into_inner).1 = true;
+            tail.ended.notify_all();
+        });
+    }
+
+    /// The last line, once the stream has ended or `grace` has passed.
+    fn last(&self, grace: Duration) -> Option<String> {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let (state, _) = self
+            .ended
+            .wait_timeout_while(state, grace, |(_, ended)| !*ended)
+            .unwrap_or_else(PoisonError::into_inner);
+        state.0.clone()
+    }
+}
+
 /// Where the connection stands.
 enum Conn {
     Starting,
@@ -146,6 +193,8 @@ struct Shared {
     /// the built-in loop keeps its own.
     open_thought: Mutex<String>,
     child: Mutex<Option<Child>>,
+    /// What the agent's process prints on stderr, when termide started it.
+    stderr: Option<Arc<StderrTail>>,
     /// Models the agent advertised at `session/new`, for the picker; empty when
     /// it advertises none.
     models: Mutex<Vec<BackendModel>>,
@@ -168,8 +217,13 @@ struct Shared {
     system_prompt: String,
     /// termide's tools, until the handshake serves them.
     host_tools: Mutex<Option<HostTools>>,
+    /// The panel's session log, for the calls' [`SessionView`].
+    session_log: Option<String>,
     /// The server of termide's tools, alive as long as the agent.
     mcp_server: Mutex<Option<McpServer>>,
+    /// Calls of termide's tools the agent closed while the server still ran
+    /// them (see [`Backend::background_calls`]), as their blocks have them.
+    background: Mutex<Vec<ToolCall>>,
     /// Whether termide's MCP servers have all answered, which Codex and
     /// Gemini CLI wait on (for [`MCP_SETTLE`] at most) to open their session.
     mcp_settled: Mutex<bool>,
@@ -179,8 +233,9 @@ struct Shared {
     /// The running calls of termide's own tools, by id, with the tool's name
     /// and arguments: the agent may still ask for their permission, which
     /// termide judges on its server, their end may not name the tool again,
-    /// and the details the server kept for the UI are found by them.
-    host_calls: Mutex<HashMap<String, (String, Value)>>,
+    /// and the details the server kept for the UI are found by them. The
+    /// server knows each call it runs by its id here.
+    host_calls: Arc<Mutex<HashMap<String, (String, Value)>>>,
     /// The calls on their way into the session log.
     calls: Mutex<CallLog>,
     /// The context's fill and size, `(used, size)`, as `usage_update` last
@@ -214,8 +269,13 @@ struct Shared {
     /// The conversation so far, until the handshake knows whether the
     /// agent resumed it or is to be told a recap of it.
     history: Mutex<Vec<Message>>,
-    /// The recap that goes before the first request, see [`recap`].
-    recap: Mutex<Option<String>>,
+    /// The conversation a new session of the agent is still to be told,
+    /// before its first request: as a record cut down to half its window
+    /// ([`handoff`]) when that is known, else as a recap of the decisions
+    /// ([`recap`]). Made when the request goes, once the model is settled.
+    untold: Mutex<Option<Vec<Message>>>,
+    /// Where the windows agents report are remembered, see [`windows`].
+    windows: OnceLock<PathBuf>,
     /// Set while `session/load` replays the conversation, which the panel
     /// already shows and the log already holds.
     replaying: AtomicBool,
@@ -245,6 +305,8 @@ struct Shared {
     /// Whether the agent takes image blocks in a prompt
     /// (`promptCapabilities.image`); without it attached images are left out.
     takes_images: AtomicBool,
+    /// The terminals the agent asked the client to create, by ACP id.
+    terminals: Terminals,
     /// The side request in flight: the session it runs in and the answer
     /// so far, which reaches neither the panel nor the log.
     side: Mutex<HashMap<String, String>>,
@@ -351,14 +413,11 @@ impl AcpRuntime {
             .map_err(|error| format!("cannot start {}: {error}", config.command))?;
         let stdin = child.stdin.take().ok_or("no stdin")?;
         let stdout = child.stdout.take().ok_or("no stdout")?;
-        if let Some(stderr) = child.stderr.take() {
-            let agent = name.to_string();
-            std::thread::spawn(move || {
-                for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                    log::debug!("acp {agent}: {line}");
-                }
-            });
-        }
+        let stderr = child.stderr.take().map(|stderr| {
+            let tail = Arc::new(StderrTail::default());
+            tail.follow(name.to_string(), stderr);
+            tail
+        });
         let cwd = setup.cwd.clone();
         let runtime = Self::connect(
             name,
@@ -368,6 +427,7 @@ impl AcpRuntime {
             config.timeout_secs,
             config.flavor,
             service,
+            stderr,
         );
         runtime
             .shared
@@ -398,10 +458,21 @@ impl AcpRuntime {
         timeout_secs: u64,
         flavor: AcpFlavor,
     ) -> Self {
-        Self::connect(name, reader, writer, setup, timeout_secs, flavor, false)
+        Self::connect(
+            name,
+            reader,
+            writer,
+            setup,
+            timeout_secs,
+            flavor,
+            false,
+            None,
+        )
     }
 
-    /// [`Self::from_streams`], as a service when `service` says so.
+    /// [`Self::from_streams`], as a service when `service` says so, with the
+    /// process's `stderr` when there is one.
+    #[allow(clippy::too_many_arguments)]
     fn connect(
         name: &str,
         reader: impl Read + Send + 'static,
@@ -410,6 +481,7 @@ impl AcpRuntime {
         timeout_secs: u64,
         flavor: AcpFlavor,
         service: bool,
+        stderr: Option<Arc<StderrTail>>,
     ) -> Self {
         let (events_tx, events) = mpsc::channel();
         let shared = Arc::new(Shared {
@@ -435,6 +507,7 @@ impl AcpRuntime {
             open_message: Mutex::new(None),
             open_thought: Mutex::new(String::new()),
             child: Mutex::new(None),
+            stderr,
             models: Mutex::new(Vec::new()),
             current_model: Mutex::new(None),
             model_option: Mutex::new(None),
@@ -442,6 +515,10 @@ impl AcpRuntime {
             commands: Mutex::new(Vec::new()),
             flavor,
             system_prompt: setup.system_prompt,
+            session_log: setup
+                .host_tools
+                .as_ref()
+                .and_then(|host| host.session_id.clone()),
             // Codex and Gemini CLI keep their own tools: of termide's they
             // are served those they have no counterpart of (the project's
             // memory and skills, the panel's cards), and those of its MCP
@@ -457,10 +534,11 @@ impl AcpRuntime {
                 }
             })),
             mcp_server: Mutex::new(None),
+            background: Mutex::new(Vec::new()),
             mcp_settled: Mutex::new(false),
             mcp_settled_changed: Condvar::new(),
             announced: Mutex::new(HashMap::new()),
-            host_calls: Mutex::new(HashMap::new()),
+            host_calls: Arc::default(),
             calls: Mutex::new(CallLog::default()),
             context: Mutex::new(None),
             context_limit: AtomicU64::new(0),
@@ -483,7 +561,8 @@ impl AcpRuntime {
             },
             session_provider: OnceLock::new(),
             history: Mutex::new(setup.history),
-            recap: Mutex::new(None),
+            untold: Mutex::new(None),
+            windows: windows::windows_file().map_or_else(OnceLock::new, OnceLock::from),
             replaying: AtomicBool::new(false),
             steering: AtomicBool::new(false),
             turn_running: AtomicBool::new(false),
@@ -494,6 +573,7 @@ impl AcpRuntime {
             can_close: AtomicBool::new(false),
             takes_images: AtomicBool::new(false),
             side: Mutex::new(HashMap::new()),
+            terminals: Terminals::new(),
             goal: setup.goal,
             handoff: setup.handoff,
             last_prompt: Mutex::new(None),
@@ -627,7 +707,7 @@ impl Backend for AcpRuntime {
         // While a turn runs, its own message is not in the queue; while the
         // session is starting, the first message is.
         (
-            queued.saturating_sub(usize::from(!running && queued > 0)),
+            queued.saturating_sub(usize::from(!running && queued > 0)) + self.shared.in_flight(),
             0,
         )
     }
@@ -647,6 +727,16 @@ impl Backend for AcpRuntime {
                 .shared
                 .notify("session/cancel", json!({ "sessionId": session_id }));
         }
+        // A call the agent moved to the background is no longer its turn's,
+        // so its cancel leaves it running: the stop takes it down here.
+        if let Some(server) = &*self
+            .shared
+            .mcp_server
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+        {
+            server.cancel_running();
+        }
         // No turn of ours answers the cancel: the agent's own run ends here.
         self.shared
             .finish_unsolicited(StopReason::Aborted, Some("aborted".to_string()));
@@ -654,6 +744,34 @@ impl Backend for AcpRuntime {
 
     fn is_busy(&self) -> bool {
         self.shared.busy.load(Ordering::Acquire)
+    }
+
+    fn background_calls(&self) -> Vec<BackgroundCall> {
+        self.shared.background_calls()
+    }
+
+    fn stop_background_call(&self, id: &str) -> bool {
+        let Some(call) = self
+            .shared
+            .background
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .find(|call| call.id == id)
+            .cloned()
+        else {
+            return false;
+        };
+        let server = self
+            .shared
+            .mcp_server
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let Some(server) = server.as_ref() else {
+            return false;
+        };
+        let running = server.running_calls();
+        running_one(&call, &running).is_some_and(|at| server.cancel_call(&running[at].id))
     }
 
     fn drain(&self) -> Vec<AgentEvent> {
@@ -927,9 +1045,9 @@ impl Shared {
                 "protocolVersion": PROTOCOL_VERSION,
                 "clientCapabilities": {
                     "fs": { "readTextFile": true, "writeTextFile": true },
-                    "terminal": false
+                    "terminal": true
                 },
-                "clientInfo": { "name": "termide", "version": env!("CARGO_PKG_VERSION") }
+                "clientInfo": { "name": "zetaide", "version": env!("CARGO_PKG_VERSION") }
             }),
             timeout,
         );
@@ -988,6 +1106,86 @@ impl Shared {
         self.kick();
     }
 
+    /// The key the agent's window is remembered under: its adapter and the
+    /// model in use.
+    fn window_key(&self) -> String {
+        windows::key(
+            self.flavor,
+            &self.name,
+            self.current_model
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .as_deref()
+                .unwrap_or("default"),
+        )
+    }
+
+    /// The agent's context window as far as it is known before it reports
+    /// one in this session: reported, else remembered from an earlier run,
+    /// else told from the model's name; the user's limit applies.
+    fn known_window(&self) -> Option<u64> {
+        let reported = self
+            .context
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .map(|(_, size)| size);
+        let window = reported
+            .or_else(|| {
+                let path = self.windows.get()?;
+                windows::remembered(path, &self.window_key())
+            })
+            .or_else(|| {
+                let model = self
+                    .current_model
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .clone();
+                // The model's label names its context when the id does not
+                // (`default` is "Opus … 1M context" on some accounts).
+                let label = model.as_ref().map(|id| {
+                    let name = self
+                        .models
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .iter()
+                        .find(|m| &m.id == id)
+                        .map(|m| m.name.clone())
+                        .unwrap_or_default();
+                    format!("{id} {name}")
+                });
+                windows::inferred(self.flavor, label.as_deref())
+            })?;
+        Some(match self.context_limit.load(Ordering::Acquire) {
+            0 => window,
+            limit => window.min(limit),
+        })
+    }
+
+    /// What a new session is told of the conversation before its first
+    /// request, once: the record within half the agent's window when that
+    /// is known, else — or when even cut down it would not fit — the
+    /// decisions within the same room or [`RECAP_LIMIT`].
+    fn take_recap(&self) -> Option<String> {
+        let history = self
+            .untold
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()?;
+        let budget = self
+            .known_window()
+            .map(|window| chars_for_tokens(window / 2));
+        let told = budget.and_then(|budget| handoff(&history, budget));
+        if let Some(text) = &told {
+            log::info!(
+                "acp {}: the conversation goes as a record of {} characters",
+                self.name,
+                text.chars().count()
+            );
+            return told;
+        }
+        recap(&history, budget.unwrap_or(RECAP_LIMIT))
+    }
+
     /// Open the session the conversation goes on in: the agent's own, when
     /// the log names one of this agent's and the agent can take it up again
     /// — through `session/resume`, else `session/load`, whose replay of what
@@ -1040,8 +1238,8 @@ impl Shared {
                 agent: self.name.clone(),
                 session_id: id.to_string(),
             });
-            *self.recap.lock().unwrap_or_else(PoisonError::into_inner) =
-                recap(&history, RECAP_LIMIT);
+            *self.untold.lock().unwrap_or_else(PoisonError::into_inner) =
+                Some(history).filter(|history| !history.is_empty());
         }
         Ok(value)
     }
@@ -1119,6 +1317,18 @@ impl Shared {
         });
         let served = server.is_some();
         if let Some(server) = server {
+            // A call is known by the id of its block in the panel, so the
+            // panel's stop and a view of a delegate reach it.
+            let calls = Arc::clone(&self.host_calls);
+            server.set_call_ids(Box::new(move |name, arguments| {
+                calls
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .iter()
+                    .filter(|(_, (known, args))| known == name && args == arguments)
+                    .map(|(id, _)| id.clone())
+                    .collect()
+            }));
             params["mcpServers"] = json!([{
                 "type": "http",
                 "name": SERVER_NAME,
@@ -1329,15 +1539,14 @@ impl Shared {
             std::thread::spawn(move || this.run_retry(&session_id, prompt));
             return;
         }
-        // Everything queued goes as one turn: messages typed while the agent
-        // works are usually one thought written in pieces.
-        let message = UserMessage::merge(
-            self.queue
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .drain(..)
-                .collect(),
-        );
+        // What the user typed while the agent worked goes as one turn: it is
+        // usually one thought written in pieces. A command's output or
+        // another agent's message goes on its own, keeping its mark.
+        let message = {
+            let mut queue = self.queue.lock().unwrap_or_else(PoisonError::into_inner);
+            let run = UserMessage::merged_run(queue.iter());
+            UserMessage::merge(queue.drain(..run).collect())
+        };
         let Some(message) = message else {
             let _ = self.events.send(AgentEvent::AgentEnd);
             self.busy.store(false, Ordering::Release);
@@ -1345,12 +1554,14 @@ impl Shared {
             // [`Self::requeue`]) may have arrived meanwhile: it runs now.
             self.run_queued();
             // Output that came after the turn's answer, before it was
-            // closed, is the agent going on by itself.
-            let late = self
-                .open_message
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .is_some()
+            // closed, is the agent going on by itself; so is a call it moved
+            // to the background, which it takes up again once it ends.
+            let late = self.serving_call()
+                || self
+                    .open_message
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .is_some()
                 || !self
                     .calls
                     .lock()
@@ -1438,16 +1649,11 @@ impl Shared {
             steering: queued,
             follow_up: 0,
         });
-        let text = message.plain_text();
+        let text = message.framed_text();
         let mut prompt = Vec::new();
         // Kept out of the log, like the plan note: the log holds the
         // conversation itself.
-        if let Some(recap) = self
-            .recap
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take()
-        {
+        if let Some(recap) = self.take_recap() {
             prompt.push(json!({ "type": "text", "text": recap }));
         }
         for note in [self.plan_switch_note(), self.tools_note()]
@@ -1495,12 +1701,7 @@ impl Shared {
             return prompt;
         }
         let mut blocks = Vec::new();
-        if let Some(recap) = self
-            .recap
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take()
-        {
+        if let Some(recap) = self.take_recap() {
             blocks.push(json!({ "type": "text", "text": recap }));
         }
         blocks.push(json!({ "type": "text", "text": RETRY_NOTE }));
@@ -1580,7 +1781,7 @@ impl Shared {
             .unwrap_or_else(PoisonError::into_inner)
             .len();
         let _ = self.events.send(AgentEvent::QueueUpdate {
-            steering: queued,
+            steering: queued + self.in_flight(),
             follow_up: 0,
         });
         self.kick();
@@ -1598,7 +1799,7 @@ impl Shared {
             .cloned()
             .unwrap_or_else(|| Arc::new(NoModel) as Arc<dyn Provider>);
         SessionView {
-            id: None,
+            id: self.session_log.clone(),
             intent: self.intent.clone(),
             provider,
             model: ModelSpec {
@@ -1623,9 +1824,13 @@ impl Shared {
         {
             return Err(PromptError::Busy);
         }
-        self.session_id()
-            .map(|_| ())
-            .map_err(|_| PromptError::Stopped)
+        // An agent still starting (a reopen, a restart) is busy, not gone:
+        // the caller asks again once its session is up.
+        match &*self.conn.lock().unwrap_or_else(PoisonError::into_inner) {
+            Conn::Ready { .. } => Ok(()),
+            Conn::Starting => Err(PromptError::Busy),
+            Conn::Failed(_) => Err(PromptError::Stopped),
+        }
     }
 
     /// Ask the agent `text` aside from the conversation and return its
@@ -1758,7 +1963,7 @@ impl Shared {
             return;
         };
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let mut prompt = vec![json!({ "type": "text", "text": message.plain_text() })];
+        let mut prompt = vec![json!({ "type": "text", "text": message.framed_text() })];
         prompt.extend(self.image_blocks(&message));
         self.steering_out
             .lock()
@@ -1829,6 +2034,25 @@ impl Shared {
                 .events
                 .send(AgentEvent::MessageEnd(Message::User(message)));
         }
+        self.report_queue();
+    }
+
+    /// The agent writes again while messages it took wait to be logged: it
+    /// has gone on from the calls still open. Claude Code drops a call it
+    /// was streaming when a message comes in, and never answers it; left
+    /// open, it held the message out of the transcript until the turn's
+    /// end, logged after the answer it got.
+    fn steered_on(&self) {
+        let waiting = !self
+            .steered
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .is_empty();
+        if !waiting {
+            return;
+        }
+        self.close_open_calls("The agent went on without this call.");
+        self.flush_steered();
     }
 
     /// Put back a message the running turn did not take, first in line, and
@@ -1894,8 +2118,49 @@ impl Shared {
         }
     }
 
+    /// The calls the agent moved to the background that the server still
+    /// runs, each matched to one running call; those it no longer runs are
+    /// dropped.
+    fn background_calls(&self) -> Vec<BackgroundCall> {
+        let mut running = self
+            .mcp_server
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+            .map(McpServer::running_calls)
+            .unwrap_or_default();
+        let mut calls = Vec::new();
+        self.background
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .retain(|call| {
+                let Some(at) = running_one(call, &running) else {
+                    return false;
+                };
+                let elapsed = running.remove(at).elapsed;
+                calls.push(BackgroundCall {
+                    call: call.clone(),
+                    elapsed,
+                });
+                true
+            });
+        calls.sort_by(|a, b| b.elapsed.cmp(&a.elapsed));
+        calls
+    }
+
+    /// Whether termide's MCP server runs a call for the agent. Claude Code
+    /// closes a call it moved to the background, but the command goes on.
+    fn serving_call(&self) -> bool {
+        self.mcp_server
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+            .is_some_and(McpServer::is_running)
+    }
+
     /// Open a run for the agent working by itself, and watch for its end:
-    /// the agent quiet long enough with no call open.
+    /// the agent quiet long enough with no call open, its own or one
+    /// termide's MCP server still runs for it.
     fn begin_unsolicited(self: &Arc<Self>) {
         if self
             .busy
@@ -1921,6 +2186,16 @@ impl Shared {
                 *this.conn.lock().unwrap_or_else(PoisonError::into_inner),
                 Conn::Failed(_)
             );
+            // A call termide still runs for the agent counts as its work:
+            // the quiet is counted from its end, which the agent then takes up.
+            let serving = this.serving_call();
+            if serving {
+                *this
+                    .last_update
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = Instant::now();
+                this.last_was_text.store(false, Ordering::Release);
+            }
             let quiet = Duration::from_millis(if this.last_was_text.load(Ordering::Acquire) {
                 this.quiet_after_text_ms.load(Ordering::Acquire)
             } else {
@@ -1936,7 +2211,8 @@ impl Shared {
                     .announced
                     .lock()
                     .unwrap_or_else(PoisonError::into_inner)
-                    .is_empty();
+                    .is_empty()
+                || serving;
             let silent = this
                 .last_update
                 .lock()
@@ -1978,11 +2254,27 @@ impl Shared {
             .len();
         let running = self.busy.load(Ordering::Acquire);
         // While the session is starting, the first message is the run's own.
-        let steering = queued.saturating_sub(usize::from(!running && queued > 0));
+        let steering =
+            queued.saturating_sub(usize::from(!running && queued > 0)) + self.in_flight();
         let _ = self.events.send(AgentEvent::QueueUpdate {
             steering,
             follow_up: 0,
         });
+    }
+
+    /// The messages handed to the running turn and not yet logged: they
+    /// still show as waiting, so a message typed during a turn stays in
+    /// sight until it takes its place in the transcript.
+    fn in_flight(&self) -> usize {
+        self.steering_out
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .len()
+            + self
+                .steered
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .len()
     }
 
     /// Finish the assistant message being streamed, or make one for an
@@ -2070,7 +2362,8 @@ impl Shared {
                 .lock()
                 .unwrap_or_else(PoisonError::into_inner)
                 .remove(&id);
-            return Err(RpcFailure::new(error, FailureKind::AgentDied));
+            log::debug!("acp {}: {error}", self.name);
+            return Err(RpcFailure::new(self.closed(method), FailureKind::AgentDied));
         }
         let deadline = Instant::now() + timeout;
         loop {
@@ -2094,13 +2387,20 @@ impl Shared {
                 }
                 Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => {
-                    return Err(RpcFailure::new(
-                        format!("{method}: the agent closed the connection"),
-                        FailureKind::AgentDied,
-                    ))
+                    return Err(RpcFailure::new(self.closed(method), FailureKind::AgentDied));
                 }
             }
         }
+    }
+
+    /// What a request whose agent went away says: its last stderr line, when
+    /// there is one, so a refused adapter launch is not just "closed".
+    fn closed(&self, method: &str) -> String {
+        let mut text = format!("{method}: the agent closed the connection");
+        if let Some(line) = self.stderr.as_ref().and_then(|t| t.last(STDERR_GRACE)) {
+            text = format!("{text}: {line}");
+        }
+        text
     }
 
     fn notify(&self, method: &str, params: Value) -> Result<(), String> {
@@ -2193,7 +2493,7 @@ impl Shared {
     }
 
     /// Answer the agent's requests: permissions through the user, files
-    /// from the working directory, nothing else.
+    /// from the working directory, terminals through a headless process.
     fn serve_request(self: &Arc<Self>, id: u64, method: &str, params: &Value) {
         match method {
             // A side request is answered from what the agent knows.
@@ -2245,6 +2545,32 @@ impl Shared {
                         });
                     }
                 }
+                let _ = self.write(&rpc_reply(id, reply));
+            }
+            "terminal/create" => {
+                let reply = self.terminals.create(&self.cwd, params);
+                let _ = self.write(&rpc_reply(id, reply));
+            }
+            "terminal/output" => {
+                let reply = self.terminals.output(params);
+                let _ = self.write(&rpc_reply(id, reply));
+            }
+            "terminal/wait_for_exit" => {
+                // A command may run for minutes; the reader must keep
+                // answering the agent while it is waited for.
+                let this = Arc::clone(self);
+                let params = params.clone();
+                std::thread::spawn(move || {
+                    let reply = this.terminals.wait(&params);
+                    let _ = this.write(&rpc_reply(id, reply));
+                });
+            }
+            "terminal/kill" => {
+                let reply = self.terminals.kill(params);
+                let _ = self.write(&rpc_reply(id, reply));
+            }
+            "terminal/release" => {
+                let reply = self.terminals.release(params);
                 let _ = self.write(&rpc_reply(id, reply));
             }
             _ => {
@@ -2333,6 +2659,7 @@ impl Shared {
         }
         match kind {
             "agent_message_chunk" => {
+                self.steered_on();
                 let text = update["content"]["text"].as_str().unwrap_or("").to_string();
                 let mut open = self
                     .open_message
@@ -2352,6 +2679,7 @@ impl Shared {
                     .send(AgentEvent::MessageUpdate(StreamEvent::TextDelta(text)));
             }
             "agent_thought_chunk" => {
+                self.steered_on();
                 let text = update["content"]["text"].as_str().unwrap_or("").to_string();
                 if self
                     .open_message
@@ -2424,6 +2752,11 @@ impl Shared {
             "usage_update" => {
                 if let (Some(used), Some(size)) = (update["used"].as_u64(), update["size"].as_u64())
                 {
+                    // Kept as the agent states it; the user's limit is
+                    // applied where it is read.
+                    if let Some(path) = self.windows.get() {
+                        windows::remember(path, &self.window_key(), size);
+                    }
                     let size = match self.context_limit.load(Ordering::Acquire) {
                         0 => size,
                         limit => size.min(limit),
@@ -2590,6 +2923,11 @@ impl Shared {
     /// At the turn's end, give each call still without a result one saying
     /// it did not finish, so the log holds no call left unanswered.
     fn close_unfinished_calls(&self) {
+        self.close_open_calls("The turn ended before this call finished.");
+    }
+
+    /// Give each call still open a result saying `why` it has none.
+    fn close_open_calls(&self, why: &str) {
         let open = std::mem::take(
             &mut self
                 .calls
@@ -2602,8 +2940,7 @@ impl Shared {
         }
         self.log_started_calls();
         for call in open {
-            let result =
-                ToolResultMessage::error(&call, "The turn ended before this call finished.");
+            let result = ToolResultMessage::error(&call, why);
             let _ = self
                 .events
                 .send(AgentEvent::MessageEnd(Message::ToolResult(result)));
@@ -2632,11 +2969,29 @@ impl Shared {
         // leaves out, so its block draws as for the built-in agent.
         let host_details = host.and_then(|(name, arguments)| {
             call.name = name;
-            self.mcp_server
+            let server = self
+                .mcp_server
                 .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .as_ref()?
-                .take_details(&call.name, &arguments)
+                .unwrap_or_else(PoisonError::into_inner);
+            let server = server.as_ref()?;
+            // Closed while termide still runs it: the agent moved it to the
+            // background, and the panel shows it until it ends.
+            if server
+                .running_calls()
+                .iter()
+                .any(|running| running.name == call.name && running.arguments == arguments)
+            {
+                self.background
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(ToolCall {
+                        id: call.id.clone(),
+                        name: call.name.clone(),
+                        arguments: arguments.clone(),
+                        extra_content: None,
+                    });
+            }
+            server.take_details(&call.name, &arguments)
         });
         // Codex reports an MCP call's result as the MCP result, not as content.
         let mut text = content_text(&update["content"]);
@@ -2668,6 +3023,17 @@ impl Shared {
     }
 }
 
+/// Where among the server's `running` calls the call `call` is: by its id,
+/// which the server knows it by once the agent announced it before it ran;
+/// else by its tool and arguments.
+fn running_one(call: &ToolCall, running: &[termide_agent_mcp::RunningCall]) -> Option<usize> {
+    running.iter().position(|r| r.id == call.id).or_else(|| {
+        running
+            .iter()
+            .position(|r| r.name == call.name && r.arguments == call.arguments)
+    })
+}
+
 /// The ACP tool call as the panel's [`ToolCall`]: the kind stands as the
 /// name (`edit`, `execute`, `read`, …), so the transcript line and the
 /// editor reload behave as for built-in tools, and the title travels in the
@@ -2689,13 +3055,21 @@ fn tool_call_of(update: &Value) -> ToolCall {
         .filter(|v| v.is_object())
         .cloned()
         .unwrap_or_else(|| json!({}));
-    let kind = update["kind"].as_str().unwrap_or("other").to_string();
-    if !title.is_empty() {
-        arguments["title"] = json!(title);
-    }
+    let kind = update["kind"].as_str().unwrap_or("other");
+    // `other` names no tool: the title does — what the model called, such as
+    // a `bash` it made up in place of `mcp__termide__bash` — so the block
+    // reads as that call, not as the ACP kind.
+    let name = if kind == "other" && !title.is_empty() {
+        title
+    } else {
+        if !title.is_empty() {
+            arguments["title"] = json!(title);
+        }
+        kind.to_string()
+    };
     ToolCall {
         id: update["toolCallId"].as_str().unwrap_or("").to_string(),
-        name: kind,
+        name,
         arguments,
         extra_content: None,
     }
@@ -3029,6 +3403,8 @@ mod tests {
                             message["params"]["clientCapabilities"]["fs"]["writeTextFile"],
                             true
                         );
+                        assert_eq!(message["params"]["clientCapabilities"]["terminal"], true);
+                        assert_eq!(message["params"]["clientInfo"]["name"], "zetaide");
                         send(
                             json!({ "jsonrpc": "2.0", "id": id, "result": { "protocolVersion": 1, "agentCapabilities": {} } }),
                         );
@@ -3124,9 +3500,55 @@ mod tests {
                                 break;
                             }
                         }
+                        let exe = std::env::current_exe()
+                            .unwrap()
+                            .to_string_lossy()
+                            .to_string();
                         next_id += 1;
                         send(
-                            json!({ "jsonrpc": "2.0", "id": next_id, "method": "terminal/create", "params": {} }),
+                            json!({ "jsonrpc": "2.0", "id": next_id, "method": "terminal/create", "params": { "command": exe, "args": ["--list"] } }),
+                        );
+                        let terminal_id = loop {
+                            let Some(Ok(line)) = reader.next() else {
+                                return;
+                            };
+                            let m: Value = serde_json::from_str(&line).unwrap();
+                            if m["id"] == json!(next_id) {
+                                assert!(m.get("error").is_none(), "{m}");
+                                break m["result"]["terminalId"].as_str().unwrap().to_string();
+                            }
+                        };
+                        next_id += 1;
+                        send(
+                            json!({ "jsonrpc": "2.0", "id": next_id, "method": "terminal/wait_for_exit", "params": { "terminalId": terminal_id } }),
+                        );
+                        loop {
+                            let Some(Ok(line)) = reader.next() else {
+                                return;
+                            };
+                            let m: Value = serde_json::from_str(&line).unwrap();
+                            if m["id"] == json!(next_id) {
+                                assert_eq!(m["result"]["exitCode"], 0, "{m}");
+                                break;
+                            }
+                        }
+                        next_id += 1;
+                        send(
+                            json!({ "jsonrpc": "2.0", "id": next_id, "method": "terminal/release", "params": { "terminalId": terminal_id } }),
+                        );
+                        loop {
+                            let Some(Ok(line)) = reader.next() else {
+                                return;
+                            };
+                            let m: Value = serde_json::from_str(&line).unwrap();
+                            if m["id"] == json!(next_id) {
+                                assert!(m.get("error").is_none(), "{m}");
+                                break;
+                            }
+                        }
+                        next_id += 1;
+                        send(
+                            json!({ "jsonrpc": "2.0", "id": next_id, "method": "terminal/unknown", "params": {} }),
                         );
                         loop {
                             let Some(Ok(line)) = reader.next() else {
@@ -3359,7 +3781,8 @@ mod tests {
             _on_update: &mut dyn FnMut(termide_agent_core::ToolUpdate),
             _cancel: &CancelToken,
         ) -> ToolResultMessage {
-            ToolResultMessage::text(call, "echoed").with_details(json!({ "said": "echoed" }))
+            ToolResultMessage::text(call, "echoed")
+                .with_details(json!({ "said": "echoed", "call": call.id }))
         }
     }
 
@@ -3438,7 +3861,11 @@ mod tests {
         });
         let ended = ended.expect("the call ends");
         assert_eq!(ended.tool_name, "echo");
-        assert_eq!(ended.details, Some(json!({ "said": "echoed" })));
+        // The server ran it as the call the agent announced, by its id.
+        assert_eq!(
+            ended.details,
+            Some(json!({ "said": "echoed", "call": "t1" }))
+        );
     }
 
     #[test]
@@ -3504,6 +3931,7 @@ mod tests {
             hooks: Box::new(termide_agent_core::NoHooks),
             context: ToolContext::new(PathBuf::new()),
             skills: Vec::new(),
+            session_id: None,
         };
         let (runtime, seen) = recording_agent(
             dir.path().to_path_buf(),
@@ -3548,6 +3976,23 @@ mod tests {
             (call.name.as_str(), &call.arguments),
             ("bash", &json!({ "command": "ls" }))
         );
+        // A tool the model made up comes as kind `other`: the block takes
+        // the name it called, not the kind.
+        let call = tool_call_of(&json!({
+            "toolCallId": "t2", "title": "bash", "kind": "other",
+            "rawInput": { "command": "ls" }
+        }));
+        assert_eq!(
+            (call.name.as_str(), &call.arguments),
+            ("bash", &json!({ "command": "ls" }))
+        );
+        // A kind that names an action keeps it, the title beside.
+        let call = tool_call_of(&json!({
+            "toolCallId": "t3", "title": "Reading x.rs", "kind": "read",
+            "rawInput": { "path": "x.rs" }
+        }));
+        assert_eq!(call.name, "read");
+        assert_eq!(call.arguments["title"], "Reading x.rs");
     }
 
     /// Prompt `text` and wait for the turn to end; the text blocks the agent
@@ -3854,6 +4299,29 @@ mod tests {
         }
     }
 
+    #[test]
+    fn the_calls_name_the_panels_session_log_so_recall_leaves_its_context_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let host = HostTools {
+            session_id: Some("log-7".into()),
+            ..echo_host()
+        };
+        let (runtime, _seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            Some(host),
+            ModeHandle::new(Mode::default()),
+        );
+        assert_eq!(runtime.shared.session_view().id.as_deref(), Some("log-7"));
+        let (bare, _seen) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            None,
+            ModeHandle::new(Mode::default()),
+        );
+        assert_eq!(bare.shared.session_view().id, None);
+    }
+
     /// termide's tools, as the panel offers them to every agent.
     fn echo_host() -> HostTools {
         let mut tools = termide_agent_core::ToolRegistry::new();
@@ -3868,8 +4336,10 @@ mod tests {
                 name: "review".into(),
                 description: "Review a change".into(),
                 argument_hint: "<path>".into(),
+                model_invocable: true,
                 path: PathBuf::new(),
             }],
+            session_id: None,
         }
     }
 
@@ -4237,7 +4707,10 @@ mod tests {
 
     /// An agent that steers: its turn for "first" streams a word, then waits
     /// for a `_session/steering` request, answers it `outcome`, streams
-    /// another word and ends. Every prompt's text is recorded.
+    /// another word and ends. Every prompt's text is recorded. With
+    /// `"injected, call dropped"` it starts a call after the word and, the
+    /// message taken, goes on without ever answering it, as Claude Code
+    /// does with a call it was streaming.
     fn steering_agent(dir: PathBuf, outcome: &'static str) -> (AcpRuntime, Arc<Mutex<Vec<Value>>>) {
         let (to_agent_rx, to_agent_tx) = pipe().unwrap();
         let (from_agent_rx, from_agent_tx) = pipe().unwrap();
@@ -4278,6 +4751,11 @@ mod tests {
                             continue;
                         }
                         send(chunk("working"));
+                        if outcome == "injected, call dropped" {
+                            send(update(
+                                json!({ "sessionUpdate": "tool_call", "toolCallId": "t1", "title": "comment", "kind": "other", "status": "in_progress", "rawInput": { "issue": "X-1" } }),
+                            ));
+                        }
                         let steer = loop {
                             let Some(Ok(line)) = reader.next() else {
                                 return;
@@ -4288,7 +4766,7 @@ mod tests {
                                 break m;
                             }
                         };
-                        if outcome == "injected" {
+                        if outcome.starts_with("injected") {
                             send(
                                 json!({ "jsonrpc": "2.0", "id": steer["id"], "result": { "outcome": "injected" } }),
                             );
@@ -4407,6 +4885,50 @@ mod tests {
         // It went into the turn, not as a turn of its own.
         let prompts = seen_where(&seen, |m| m["method"] == "session/prompt");
         assert_eq!(prompts.len(), 1);
+        assert_eq!(runtime.queue_lens(), (0, 0));
+    }
+
+    /// A call the agent drops when the message comes in, never answered,
+    /// does not hold the message back to the turn's end: it is logged
+    /// before the answer to it, and stays in the queue strip until then.
+    #[test]
+    fn a_message_taken_past_a_dropped_call_is_logged_before_its_answer() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, _seen) = steering_agent(dir.path().to_path_buf(), "injected, call dropped");
+        let events = steer_into_first(&runtime);
+        let logged: Vec<String> = logged(&events)
+            .into_iter()
+            .filter(|m| m != "assistant:")
+            .collect();
+        assert_eq!(
+            logged,
+            [
+                "user:first",
+                "assistant:working",
+                "user:more",
+                "assistant:noted"
+            ]
+        );
+        let dropped = events.iter().find_map(|e| match e {
+            AgentEvent::MessageEnd(Message::ToolResult(r)) if r.tool_call_id == "t1" => Some(r),
+            _ => None,
+        });
+        assert!(dropped.is_some_and(|r| r.is_error), "{events:?}");
+        // The strip never empties while "more" is out of sight.
+        let shown = events
+            .iter()
+            .position(|e| matches!(e, AgentEvent::MessageEnd(Message::User(u)) if u.plain_text() == "more"))
+            .unwrap();
+        let first_steer = events
+            .iter()
+            .position(|e| matches!(e, AgentEvent::QueueUpdate { steering: 1, .. }))
+            .unwrap();
+        assert!(
+            !events[first_steer..shown]
+                .iter()
+                .any(|e| matches!(e, AgentEvent::QueueUpdate { steering: 0, .. })),
+            "{events:?}"
+        );
         assert_eq!(runtime.queue_lens(), (0, 0));
     }
 
@@ -5451,6 +5973,59 @@ mod tests {
     }
 
     #[test]
+    fn with_its_window_known_a_new_session_is_told_the_whole_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, seen) =
+            session_agent(dir.path().to_path_buf(), json!({}), false, None, earlier());
+        // Remembered from an earlier run of the agent on this model.
+        let windows = dir.path().join("acp-windows.json");
+        windows::remember(
+            &windows,
+            &windows::key(AcpFlavor::Generic, "fake", "default"),
+            200_000,
+        );
+        runtime.shared.windows.set(windows).unwrap();
+        let (_, prompt) = run_prompt(&runtime, &seen, "next");
+        let told = prompt[0]["text"].as_str().unwrap();
+        assert!(told.contains("follows as a record"), "{told}");
+        assert!(told.contains("<user>\nearlier request\n</user>"));
+        assert!(told.contains("<assistant>\nearlier answer\n</assistant>"));
+        assert_eq!(prompt[1]["text"], "next");
+    }
+
+    #[test]
+    fn a_window_the_agent_reports_is_remembered_for_its_next_run() {
+        let dir = tempfile::tempdir().unwrap();
+        let (runtime, _) = recording_agent(
+            dir.path().to_path_buf(),
+            AcpFlavor::ClaudeCode,
+            None,
+            ModeHandle::new(Mode::default()),
+        );
+        let windows = dir.path().join("acp-windows.json");
+        runtime.shared.windows.set(windows.clone()).unwrap();
+        *runtime.shared.current_model.lock().unwrap() = Some("opus".into());
+        // Not reported yet: told from the model's name.
+        assert_eq!(runtime.shared.known_window(), Some(200_000));
+        runtime
+            .shared
+            .on_update(&json!({ "sessionUpdate": "usage_update", "used": 975, "size": 1_000_000 }));
+        assert_eq!(
+            windows::remembered(
+                &windows,
+                &windows::key(AcpFlavor::ClaudeCode, "any", "opus")
+            ),
+            Some(1_000_000)
+        );
+        // The user's limit applies to what is known.
+        runtime
+            .shared
+            .context_limit
+            .store(300_000, Ordering::Release);
+        assert_eq!(runtime.shared.known_window(), Some(300_000));
+    }
+
+    #[test]
     fn a_fresh_conversation_gets_no_recap() {
         let dir = tempfile::tempdir().unwrap();
         let (runtime, seen) =
@@ -5579,6 +6154,94 @@ mod tests {
                 "assistant:background done"
             ]
         );
+    }
+
+    /// Runs until `release` is set or the call is cancelled.
+    struct Held(Arc<AtomicBool>);
+
+    impl termide_agent_core::Tool for Held {
+        fn name(&self) -> &str {
+            "held"
+        }
+        fn description(&self) -> &str {
+            "Run until released"
+        }
+        fn parameters(&self) -> Value {
+            json!({ "type": "object" })
+        }
+        fn execute(
+            &self,
+            call: &ToolCall,
+            _ctx: &ToolContext,
+            _on_update: &mut dyn FnMut(termide_agent_core::ToolUpdate),
+            cancel: &CancelToken,
+        ) -> ToolResultMessage {
+            while !self.0.load(Ordering::Acquire) && !cancel.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            ToolResultMessage::text(call, "done")
+        }
+    }
+
+    /// Claude Code closes a call it moves to the background, but termide's
+    /// MCP server still runs it: the run lasts until it ends.
+    #[test]
+    fn a_call_termide_still_runs_keeps_the_agents_run_on() {
+        let dir = tempfile::tempdir().unwrap();
+        let runtime = self_starting_agent(dir.path().to_path_buf(), "noted");
+        let release = Arc::new(AtomicBool::new(false));
+        let mut tools = termide_agent_core::ToolRegistry::new();
+        tools.insert(Arc::new(Held(Arc::clone(&release))));
+        let server = McpServer::start(
+            tools,
+            Box::new(termide_agent_core::NoHooks),
+            ToolContext::new(PathBuf::new()),
+        )
+        .unwrap();
+        let (url, auth) = (server.url(), format!("Bearer {}", server.token()));
+        *runtime.shared.mcp_server.lock().unwrap() = Some(server);
+        let call = std::thread::spawn(move || {
+            post_mcp(
+                &url,
+                &auth,
+                &json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                         "params": { "name": "held", "arguments": {} } }),
+            )
+        });
+        while !runtime.shared.serving_call() {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        runtime.prompt(UserMessage::text("first")).unwrap();
+        events_until(&runtime, |e| matches!(e, AgentEvent::AgentEnd));
+        // Well past the quiet that would end it, the call holds the run.
+        std::thread::sleep(Duration::from_millis(1000));
+        assert!(runtime.is_busy());
+        assert!(!runtime
+            .drain()
+            .iter()
+            .any(|e| matches!(e, AgentEvent::AgentEnd)));
+        // Claude Code closes the call it moved to the background; termide
+        // still runs it, so it is the panel's to show.
+        runtime.shared.on_update(&json!({
+            "sessionUpdate": "tool_call", "toolCallId": "t1", "kind": "other",
+            "status": "pending", "title": "mcp__termide__held", "rawInput": {},
+        }));
+        runtime.shared.on_update(&json!({
+            "sessionUpdate": "tool_call_update", "toolCallId": "t1", "status": "completed",
+            "content": [{ "type": "content", "content": { "type": "text", "text": "moved" } }],
+        }));
+        let background = runtime.background_calls();
+        assert_eq!(background.len(), 1, "{background:?}");
+        assert_eq!(background[0].call.id, "t1");
+        assert_eq!(background[0].call.name, "held");
+        // Its row's stop reaches it, by the block's id.
+        assert!(!runtime.stop_background_call("t2"));
+        assert!(runtime.stop_background_call("t1"));
+        call.join().unwrap();
+        assert!(!release.load(Ordering::Acquire), "stopped, not released");
+        assert!(runtime.background_calls().is_empty());
+        events_until(&runtime, |e| matches!(e, AgentEvent::AgentEnd));
+        assert!(!runtime.is_busy());
     }
 
     #[test]

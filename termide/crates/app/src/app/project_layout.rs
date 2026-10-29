@@ -41,6 +41,7 @@ impl App {
         self.layout_manager = LayoutManager::from_layout(
             layout,
             &project_dir,
+            &self.project_root,
             term_height,
             term_width,
             self.state.editor_config(),
@@ -103,11 +104,20 @@ impl App {
             Err(e) => log::warn!("Failed to restore orphaned buffers: {}", e),
         }
 
+        // A restored outline is empty until something pushes the editor's
+        // content to it; a freshly loaded buffer has no edits for the live
+        // sync to notice.
+        self.resync_outline();
+
         Ok(())
     }
 
     /// Auto-save the project layout (ignores errors to not disrupt user experience)
     pub fn auto_save_layout(&mut self) {
+        // Breakpoints are kept apart from the layout, and saved in $EDITOR
+        // mode too.
+        self.sync_editor_breakpoints();
+        termide_debug::breakpoints::flush();
         if let Err(e) = self.save_layout() {
             // Log error but don't interrupt user workflow
             log::error!("Failed to auto-save project layout: {}", e);

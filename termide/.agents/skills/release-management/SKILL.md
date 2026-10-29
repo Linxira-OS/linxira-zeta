@@ -5,7 +5,7 @@ description: Prepare and publish a project release with version updates, changel
 
 # Release Management Skill
 
-Comprehensive release management workflow for TermIDE project that ensures code quality, version consistency, and proper changelog documentation before creating releases.
+Comprehensive release management workflow for Termide project that ensures code quality, version consistency, and proper changelog documentation before creating releases.
 
 Platform note: agents that support extra frontmatter fields may add their own permission hints around this skill. Agents that do not support them should ignore unsupported fields and follow the workflow below. When interactive prompts or inline editing are unavailable, use the closest equivalent workflow the platform provides.
 
@@ -775,6 +775,7 @@ Workflow steps:
 4. ⏳ Build .deb packages
 5. ⏳ Build .rpm packages
 6. ⏳ Create GitHub Release
+7. ⏳ Update AUR, the Homebrew tap and the website
 
 You can monitor progress at:
 https://github.com/termide/termide/actions/workflows/release.yml
@@ -782,6 +783,12 @@ https://github.com/termide/termide/actions/workflows/release.yml
 📧 Notifications:
 GitHub will send you an email when the release is published.
 ```
+
+The website job (`update-site`) sets the version and the download size on
+termide.github.io and rebuilds its pages; it fails without the
+`SITE_DEPLOY_KEY` secret. Screenshots are not part of it: when the UI they
+show has changed, re-record them with `tools/screenshots/run.sh` and copy
+`out/site/` into the website repository.
 
 ## Error Handling
 

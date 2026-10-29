@@ -1,12 +1,12 @@
-# TermIDE Documentation
+# Termide Documentation
 
-Welcome to the TermIDE documentation! This guide covers installation, usage, and customization.
+Welcome to the Termide documentation! This guide covers installation, usage, and customization.
 
 ## Table of Contents
 
 ### User Documentation
 
-- [Installation Guide](installation.md) - How to install TermIDE on your system
+- [Installation Guide](installation.md) - How to install Termide on your system
 - [Application Window Overview](ui.md) - Understanding the UI layout
 - [File Manager](file-manager.md) - File navigation and operations
 - [Operations Panel](operations.md) - Background transfers: pause, resume, cancel, partial-upload cleanup
@@ -22,9 +22,11 @@ Welcome to the TermIDE documentation! This guide covers installation, usage, and
 - [Coding Agent](agent.md) - Built-in AI agent: tools, permissions, project instructions
 - [Themes](themes.md) - Customizing appearance with themes
 - [Custom Commands](actions.md) - Shell commands from `commands.toml` in the Commands menu
+- [Plugins](plugins.md) - Background programs that add commands, status items and agent tools
 
 ### Developer Documentation
 
-- [Developer Guide](developer-guide.md) - Contributing to TermIDE development
+- [Developer Guide](developer-guide.md) - Contributing to Termide development
 - [Architecture](architecture.md) - Technical architecture and design decisions
 - [Agent Design Notes](agent-design.md) - Why the coding agent works the way it does, argued from a comparison of existing agents
+- [Plugin Design Notes](plugins-design.md) - The plugin system's trust boundary, lifecycle and protocol

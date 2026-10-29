@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide covers different methods to install TermIDE on your system.
+This guide covers different methods to install Termide on your system.
 
 ## Download Pre-built Binary (Recommended)
 
@@ -12,33 +12,33 @@ Visit the [GitHub Releases](https://github.com/termide/termide/releases) page an
 
 **Linux x86_64** (also works in WSL/WSL2):
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
 ```
 
 **Linux x86_64 — static musl** (Alpine, distroless containers, any
 glibc-free system):
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ```
 
 **Linux ARM64** (Raspberry Pi, ARM servers):
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
 ```
 
 **Linux ARM64 — static musl** (Android/Termux, Alpine ARM, any glibc-free ARM64):
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ```
 
 **macOS Intel (x86_64)**:
 ```bash
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-apple-darwin.tar.gz
 ```
 
 **macOS Apple Silicon (M1/M2/M3)**:
 ```bash
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-apple-darwin.tar.gz
 ```
 
 ### Step 2: Extract
@@ -55,7 +55,7 @@ tar xzf termide-*.tar.gz
 
 ### Step 4: Install System-wide (Optional)
 
-To install TermIDE system-wide, move the binary to a directory in your PATH:
+To install Termide system-wide, move the binary to a directory in your PATH:
 
 ```bash
 # Linux
@@ -75,8 +75,8 @@ containers. The whole project is pure-Rust (rustls + russh + russh-sftp — no
 OpenSSL, no libssh2), so it is the same code, just compiled against musl.
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # Verify it is fully static — no shared libraries
@@ -100,15 +100,15 @@ without `musl-dev` or `glibc` installed. (The ARM64 musl build is also what
 ### Debian/Ubuntu (.deb)
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide_0.41.0-1_amd64.deb
-sudo dpkg -i termide_0.41.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.46.0-1_amd64.deb
+sudo dpkg -i termide_0.46.0-1_amd64.deb
 ```
 
 ### Fedora/RHEL/CentOS (.rpm)
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-1.x86_64.rpm
-sudo rpm -i termide-0.41.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-1.x86_64.rpm
+sudo rpm -i termide-0.46.0-1.x86_64.rpm
 ```
 
 ### Arch Linux (AUR)
@@ -165,7 +165,7 @@ cargo install --path .
 cargo install --git https://github.com/termide/termide --locked
 ```
 
-> **Note:** TermIDE is **not** published to crates.io. `cargo install termide`
+> **Note:** Termide is **not** published to crates.io. `cargo install termide`
 > would fetch an obsolete, unrelated early release — always build from source
 > (the clone above) or use `cargo install --git …`.
 
@@ -260,7 +260,7 @@ xattr -d com.apple.quarantine termide
 
 ### Windows (Native)
 
-TermIDE runs natively on Windows 10+ using ConPTY. Requires Windows Terminal for best experience.
+Termide runs natively on Windows 10+ using ConPTY. Requires Windows Terminal for best experience.
 
 1. Download the `.zip` archive from [GitHub Releases](https://github.com/termide/termide/releases):
    - `termide-VERSION-x86_64-pc-windows-msvc.zip`
@@ -274,26 +274,26 @@ TermIDE runs natively on Windows 10+ using ConPTY. Requires Windows Terminal for
 
 ### Windows (WSL)
 
-TermIDE also works in Windows Subsystem for Linux (WSL and WSL2):
+Termide also works in Windows Subsystem for Linux (WSL and WSL2):
 
 1. Install WSL2 if you haven't already
 2. Download the Linux x86_64 binary inside WSL:
    ```bash
-   wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
-   tar xzf termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
+   wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
+   tar xzf termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
    ./termide
    ```
 
 ### Android (Termux)
 
-TermIDE runs in [Termux](https://termux.dev). Use the **static ARM64 musl**
+Termide runs in [Termux](https://termux.dev). Use the **static ARM64 musl**
 build — the glibc `aarch64-unknown-linux-gnu` build won't run on Android's
 Bionic libc:
 
 ```bash
 pkg install git openssh   # tools termide shells out to (plus any LSP servers)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 

@@ -188,19 +188,45 @@ impl App {
                 }
             }
         }
+        // A button pressed on a checklist leaves it open: handed over now.
+        self.deliver_checklist_presses();
         self.flush_settings_save();
         self.try_apply_permissions_live();
         Ok(())
     }
 
-    /// Handle paste event in modal window
-    /// Returns true if modal handled the paste, false to pass to panel
-    pub(super) fn handle_modal_paste(&mut self, text: &str) -> bool {
-        if let Some(modal) = self.state.get_active_modal_mut() {
-            modal.handle_paste(text)
-        } else {
-            false
+    /// Hand the buttons pressed on an open panel checklist to the focused
+    /// panel that raised it, the list staying open: the panel acts and
+    /// brings the list up to date with a refresh.
+    fn deliver_checklist_presses(&mut self) {
+        let Some(termide_state::PendingAction::PanelChecklist { action }) =
+            self.state.pending_action.as_ref()
+        else {
+            return;
+        };
+        let action = action.clone();
+        let Some(ActiveModal::Checklist(modal)) = self.state.active_modal.as_mut() else {
+            return;
+        };
+        let pressed = modal.take_pressed();
+        if pressed.is_empty() {
+            return;
         }
+        if let Some(panel) = self.layout_manager.active_panel_mut() {
+            for id in pressed {
+                panel.handle_command(termide_core::PanelCommand::ChecklistButton {
+                    action: action.clone(),
+                    id,
+                });
+            }
+        }
+        self.state.needs_redraw = true;
+    }
+
+    /// Hand a bracketed paste to the open modal; `false` when none is open
+    /// and the paste belongs to the active panel.
+    pub(super) fn handle_modal_paste(&mut self, text: &str) -> bool {
+        paste_into_modal(self.state.get_active_modal_mut(), text)
     }
 
     /// Handle mouse event in modal window
@@ -250,6 +276,8 @@ impl App {
                 }
             }
         }
+        // A button pressed on a checklist leaves it open: handed over now.
+        self.deliver_checklist_presses();
         self.flush_settings_save();
         self.try_apply_permissions_live();
         Ok(())
@@ -293,7 +321,6 @@ impl App {
                             panel.handle_command(termide_core::PanelCommand::ChecklistDone {
                                 action,
                                 checked: outcome.checked.clone(),
-                                pressed: outcome.pressed.clone(),
                             });
                         }
                         self.state.needs_redraw = true;
@@ -338,7 +365,12 @@ impl App {
                     // it stays as it was. As with the input and selection
                     // prompts, deliver to the focused panel that raised it.
                     if value.downcast_ref::<bool>().copied().unwrap_or(false) {
-                        if let Some(panel) = self.layout_manager.active_panel_mut() {
+                        // A view shown over the layout raised it if one is up.
+                        let panel = match self.layout_manager.overlay.as_mut() {
+                            Some(overlay) => Some(overlay),
+                            None => self.layout_manager.active_panel_mut(),
+                        };
+                        if let Some(panel) = panel {
                             panel.handle_command(termide_core::PanelCommand::Confirmed { action });
                         }
                         self.state.needs_redraw = true;
@@ -831,6 +863,26 @@ impl App {
                         self.handle_edit_command_config_result(command_name, is_project, result)?;
                     }
                 }
+                PendingAction::ChooseDebugLaunch => {
+                    self.handle_debug_choice(value)?;
+                }
+                PendingAction::DebugSetup => {
+                    use termide_modal::CommandParamsResult;
+                    if let Some(result) = value.downcast_ref::<CommandParamsResult>() {
+                        self.handle_debug_setup(&result.values)?;
+                    }
+                }
+                PendingAction::PluginWindow { request } => {
+                    self.answer_plugin_window(request, &*value);
+                }
+                PendingAction::ConfirmProjectCommand { command } => {
+                    if value.downcast_ref::<bool>().copied().unwrap_or(false) {
+                        // The command as it was shown, not as the file may
+                        // read by now.
+                        self.approve_shown_command(&command);
+                        self.start_command(command)?;
+                    }
+                }
                 PendingAction::RunCommandWithParams { command } => {
                     use termide_modal::CommandParamsResult;
                     if let Some(result) = value.downcast_ref::<CommandParamsResult>() {
@@ -1032,9 +1084,35 @@ fn quit_is_confirmed(value: &dyn std::any::Any) -> bool {
     value.downcast_ref::<bool>().copied().unwrap_or(false)
 }
 
+/// Give a paste to the open modal, if any. An open modal takes the paste
+/// even when it has no field to put it in: the panel beneath it is not the
+/// one the user is typing in, so the paste must never reach it.
+fn paste_into_modal(modal: Option<&mut termide_modal::ActiveModal>, text: &str) -> bool {
+    match modal {
+        Some(modal) => {
+            modal.handle_paste(text);
+            true
+        }
+        None => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::quit_is_confirmed;
+    use super::{paste_into_modal, quit_is_confirmed};
+    use termide_modal::{ActiveModal, ConfirmModal};
+
+    #[test]
+    fn an_open_modal_swallows_a_paste_it_has_no_field_for() {
+        let mut modal = ActiveModal::Confirm(Box::new(ConfirmModal::new("Delete", "Sure?")));
+        assert!(!modal.handle_paste("rm -rf"));
+        assert!(paste_into_modal(Some(&mut modal), "rm -rf"));
+    }
+
+    #[test]
+    fn without_a_modal_a_paste_goes_to_the_panel() {
+        assert!(!paste_into_modal(None, "text"));
+    }
 
     #[test]
     fn only_an_accepted_confirmation_quits() {

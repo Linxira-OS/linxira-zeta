@@ -18,10 +18,10 @@ use crate::session_ops::discard;
 use crate::{
     millis, now_hms, slash, transcript, unfinished, Activity, AgentPanel, GoalTask, Item, LoopTask,
     NoticeKind, Phase, BUILTIN_COMMANDS, CLEAR_COMMAND, COMPACT_COMMAND, CONTINUE_COMMAND,
-    FORK_COMMAND, GOAL_COMMAND, GOAL_IDLE_TURNS, GOAL_JUDGE_RETRIES, GOAL_JUDGE_RETRY_DELAY,
-    HANDOFF_COMMAND, LOOP_COMMAND, LOOP_MAX_ITERATIONS, MCP_COMMAND, NAME_COMMAND, NEW_COMMAND,
-    PAUSE_COMMAND, PROMPT_COMMAND, RENAME_ACTION, RENAME_COMMAND, SHOW_PROMPT_ACTION, UNDO_COMMAND,
-    USAGE_COMMAND,
+    FORK_COMMAND, GOAL_COMMAND, GOAL_IDLE_TURNS, GOAL_JUDGE_BUSY_DELAY, GOAL_JUDGE_RETRIES,
+    GOAL_JUDGE_RETRY_DELAY, HANDOFF_COMMAND, LOOP_COMMAND, LOOP_MAX_ITERATIONS, MCP_COMMAND,
+    NAME_COMMAND, NEW_COMMAND, PAUSE_COMMAND, PROMPT_COMMAND, RENAME_ACTION, RENAME_COMMAND,
+    SHOW_PROMPT_ACTION, TRUST_COMMAND, UNDO_COMMAND, USAGE_COMMAND,
 };
 
 /// The opening of [`goal_continuation`], to tell its turns in the transcript.
@@ -97,6 +97,11 @@ impl AgentPanel {
         let text = text.trim().to_string();
         if text.is_empty() {
             return vec![];
+        }
+        // Nothing is sent on another termide's session; the input keeps the
+        // text for once it is taken up.
+        if self.refuse_held() {
+            return vec![PanelEvent::NeedsRedraw];
         }
         self.completion = None;
         self.history_pos = None;
@@ -248,6 +253,7 @@ impl AgentPanel {
                     next_at: None,
                     due_ms: None,
                     iterations: 0,
+                    started: Instant::now(),
                 });
                 return self.loop_step();
             }
@@ -286,6 +292,11 @@ impl AgentPanel {
             Some((MCP_COMMAND, args)) => {
                 self.clear_input();
                 self.mcp_command(args);
+                return vec![PanelEvent::NeedsRedraw];
+            }
+            Some((TRUST_COMMAND, args)) => {
+                self.clear_input();
+                self.trust_command(args);
                 return vec![PanelEvent::NeedsRedraw];
             }
             Some((name, args)) => match slash::resolve(
@@ -339,6 +350,7 @@ impl AgentPanel {
                     names.push(USAGE_COMMAND.to_string());
                     names.push(PROMPT_COMMAND.to_string());
                     names.push(MCP_COMMAND.to_string());
+                    names.push(TRUST_COMMAND.to_string());
                     self.notice(
                         termide_i18n::t().agent_notice_no_command_fmt(name, &names.join(", ")),
                         NoticeKind::Warn,
@@ -397,14 +409,21 @@ impl AgentPanel {
         command: Option<String>,
         pictures: Vec<(String, String)>,
     ) -> Vec<PanelEvent> {
-        self.follow = true;
         let message = UserMessage::text(text)
             .with_command(command)
             .with_images(pictures);
+        self.send_message(message)
+    }
+
+    /// Send `message`: as the next request, or queued for the running one.
+    pub(crate) fn send_message(&mut self, message: UserMessage) -> Vec<PanelEvent> {
+        self.follow = true;
+        self.count_hops(&message);
         if self.is_busy() {
             // The message waits in the state strip until the agent takes it,
             // then shows as a user block.
-            self.queued_texts.push_back(message.typed());
+            self.queued_texts
+                .push_back((message.typed(), Instant::now()));
             self.runtime.steer(message);
             self.set_queued(self.runtime.queue_lens());
         } else {
@@ -416,6 +435,9 @@ impl AgentPanel {
                     NoticeKind::Info,
                 );
             }
+            // The new request answers the failed one: the log is told, so a
+            // session reopened later does not ask about it again.
+            self.sync_retry();
             self.retry_attempts = 0;
             self.retry_ready = false;
             self.restarted = false;
@@ -532,7 +554,8 @@ impl AgentPanel {
         let delivered = if self.is_busy() {
             // It waits in the state strip, as a steered message does, and
             // shows as its block once the agent takes it.
-            self.queued_texts.push_back(message.typed());
+            self.queued_texts
+                .push_back((message.typed(), Instant::now()));
             self.runtime.steer(message);
             self.set_queued(self.runtime.queue_lens());
             Ok(())
@@ -734,6 +757,19 @@ impl AgentPanel {
                     NoticeKind::Info,
                 );
             }
+            // Not free yet — an external agent still starting after a
+            // reopen, a side request under way: asked again shortly.
+            Err(PromptError::Busy) => {
+                if let Some(task) = self.goal_task.as_mut() {
+                    task.judging = false;
+                    task.judge_at = Some(Instant::now() + GOAL_JUDGE_BUSY_DELAY);
+                }
+            }
+            // The agent is gone: a failed check, retried and then paused
+            // like one, so the goal is not dropped over it.
+            Err(PromptError::Stopped) => {
+                self.on_goal_judge_failed(&PromptError::Stopped.to_string());
+            }
             Err(error) => {
                 self.goal_task = None;
                 self.notice(
@@ -779,6 +815,16 @@ impl AgentPanel {
                     t.agent_notice_goal_impossible_reason_fmt(reason)
                 };
                 self.notice(msg, NoticeKind::Warn);
+                self.raise_attention(true);
+                return;
+            }
+            // Sent back, an agent waiting on the user would only restate the
+            // wait every turn, each a full model call: the goal pauses instead.
+            GoalOutcome::Waiting => {
+                task.idle_turns = 0;
+                self.paused = true;
+                self.restored = Some(unfinished::Restored::Autorun);
+                self.notice(t.agent_notice_goal_waiting_fmt(reason), NoticeKind::Warn);
                 self.raise_attention(true);
                 return;
             }
@@ -831,6 +877,10 @@ impl AgentPanel {
     }
 
     pub fn abort(&mut self) {
+        // A task held at the pause is released rather than left waiting: a
+        // sync one stops with this run, one handed over in the background
+        // goes on with it, as it does when nothing held it.
+        crate::live::resume_all(self.panel_id);
         // Stopping also ends any running loop or goal, and withdraws what
         // the loop still has waiting in the queue, so it does not reach the
         // model later as a plain message.
@@ -843,6 +893,13 @@ impl AgentPanel {
         // ticks it while it lasts; the stopped answer then says it was
         // cancelled, so no notice stays behind.
         if self.is_busy() && self.stop_requested.is_none() {
+            // What the user queued for the run comes back into the input
+            // rather than going on its own after the stop (or, for an
+            // external agent, being dropped with it): having stopped, they
+            // decide whether to send it. A recalled request in the input
+            // counts as typed.
+            self.history_pos = None;
+            self.unqueue();
             self.runtime.abort();
             self.stop_requested = Some(Instant::now());
         }
@@ -861,9 +918,17 @@ impl AgentPanel {
             }
             return;
         }
-        self.queued_texts.clear();
+        // What the agent already holds stays in the strip, leading; the
+        // rest keep when they were sent.
+        let sent = self.queued_texts.clone();
+        self.queued_texts.truncate(self.runtime.queue_lens().0);
         for message in taken.into_iter().filter(|message| !drop(message)) {
-            self.queued_texts.push_back(message.typed());
+            let text = message.typed();
+            let since = sent
+                .iter()
+                .find(|(queued, _)| *queued == text)
+                .map_or_else(Instant::now, |(_, since)| *since);
+            self.queued_texts.push_back((text, since));
             self.runtime.steer(message);
         }
         self.set_queued(self.runtime.queue_lens());
@@ -888,13 +953,20 @@ impl AgentPanel {
         // step boundary.
         self.runtime.pause();
         self.pause_requested = true;
+        self.pause_requested_at = Instant::now();
+        // The work handed to delegates waits with the run. An external
+        // agent's task runs its own program and cannot be held, so the strip
+        // says which of the two it is looking at.
+        crate::live::pause_all(self.panel_id);
         true
     }
 
-    /// Withdraw a pause asked for that the run has not reached yet.
+    /// Withdraw a pause asked for that the run has not reached yet: the
+    /// delegates it had already held go on with it.
     pub(crate) fn cancel_pause(&mut self) {
         self.runtime.cancel_pause();
         self.pause_requested = false;
+        crate::live::resume_all(self.panel_id);
     }
 
     /// Resume the paused run. Its clock goes on from the request, and the
@@ -903,10 +975,16 @@ impl AgentPanel {
         // A pause taken up from the log that is not a run to resume here:
         // the external agent is told to go on, or the goal or loop steps.
         if self.carry_on_restored() {
+            // It carries on: what the pause held goes with it.
+            crate::live::resume_all(self.panel_id);
             return;
         }
         match self.runtime.resume() {
             Ok(()) => {
+                // Carrying a delegated task on: its answer is owed back.
+                self.owe_carry_back();
+                // The delegates held at the pause go on with the run.
+                crate::live::resume_all(self.panel_id);
                 self.busy = true;
                 self.paused = false;
                 self.resuming = true;
@@ -923,6 +1001,9 @@ impl AgentPanel {
     /// abort; the pause ends where it stood, and so do a loop or goal it was
     /// part of. The calls it left unrun are closed by the next request.
     pub(crate) fn stop_paused(&mut self) {
+        // The pause is over with the run: what it held is released, a task
+        // handed over in the background going on as it would have.
+        crate::live::resume_all(self.panel_id);
         self.paused = false;
         self.restored = None;
         self.run_start = None;

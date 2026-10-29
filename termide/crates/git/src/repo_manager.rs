@@ -8,8 +8,11 @@ use std::sync::mpsc;
 use crate::{find_all_repos, find_toplevel_repo, find_toplevel_repos};
 
 /// Default depth git panels recurse into a repo root to discover submodules.
-/// `0` would skip the submodule walk entirely.
-const SUBMODULE_DEPTH: usize = 2;
+/// `0` would skip the submodule walk entirely. Matches [`NESTED_REPO_DEPTH`]:
+/// a project root is one plane for everything it holds, so the same number of
+/// levels applies down a repo (only `.gitmodules` paths are followed, so the
+/// extra level costs nothing) as down a plain container directory.
+const SUBMODULE_DEPTH: usize = 3;
 
 /// Order repositories by display name (case-insensitive), with the full path
 /// as a tiebreak — the dropdown shows `get_repo_name` (the last path
@@ -26,14 +29,19 @@ fn sort_by_display_name(repos: &mut [PathBuf]) {
 /// Depth to scan DOWN from an input path that is not itself inside a repository,
 /// to discover nested repositories — covers opening termide in a directory that
 /// merely *contains* git projects (`~/projects` with `repo-a/`, `repo-b/`).
-const NESTED_REPO_DEPTH: usize = 2;
+/// Three levels, because a project root is usually a wide container plane rather
+/// than the repository itself: a host-grouped checkout layout puts its repos at
+/// `<project>/<host>/<group>/<repo>`, and a shallower scan lists an empty panel
+/// for such a project. The walk stops at every repository it finds (it does not
+/// descend into a repo's working tree), so the extra level only costs directory
+/// reads on the container's own levels, and it runs off the UI thread.
+const NESTED_REPO_DEPTH: usize = 3;
 
 /// The repositories a project at `project_root` holds, by the git panels'
-/// rules: the one the root is inside (the nearest `.git` above it, so a
-/// submodule rather than its superproject), and below it the submodules of a
-/// root that is a repository or the repositories nested in one that is not.
-/// Paths are canonical, sorted. Blocking, but cheap: an upward search and a
-/// walk of a few directory levels.
+/// rules: below it the submodules of a root that is a repository or the
+/// repositories nested in one that is not, and — only when it holds none of its
+/// own — the repository the root is inside. Paths are canonical, sorted.
+/// Blocking, but cheap: an upward search and a walk of a few directory levels.
 pub fn project_repos(project_root: &Path) -> Vec<PathBuf> {
     let canonical = |path: &Path| dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
     let mut all = std::collections::BTreeSet::new();
@@ -48,7 +56,15 @@ pub fn project_repos(project_root: &Path) -> Vec<PathBuf> {
     for repo in find_all_repos(project_root, depth) {
         all.insert(canonical(&repo));
     }
-    all.into_iter().collect()
+    crate::without_ancestor_repos(&all.into_iter().collect::<Vec<_>>(), project_root)
+}
+
+/// [`crate::without_ancestor_repos`] for a project that may be unknown.
+fn scoped(repos: Vec<PathBuf>, project_root: Option<&Path>) -> Vec<PathBuf> {
+    match project_root {
+        Some(root) => crate::without_ancestor_repos(&repos, root),
+        None => repos,
+    }
 }
 
 /// Manages repository selection for git panels.
@@ -59,28 +75,41 @@ pub fn project_repos(project_root: &Path) -> Vec<PathBuf> {
 /// is usable immediately with the root repos; submodules join the list
 /// the first time [`Self::poll`] is called after the walk completes,
 /// without blocking the UI.
+///
+/// With a `project_root` the list is scoped to the project (see
+/// [`crate::without_ancestor_repos`]): a repository above the project's root joins
+/// it only while the project holds none of its own, so a whole-home repository
+/// cannot take over the dropdown of a project that is a folder of repositories. The
+/// scope is authoritative once the background walk has landed — until then the
+/// baseline, which is only the upward search, may still show the enclosing one.
 pub struct RepoManager {
     repos: Vec<PathBuf>,
     selected: usize,
     /// Background submodule walk in flight — `None` once it has landed
     /// (or if it was never started, e.g. on an empty repo list).
     submodule_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
+    /// The project the repositories are scoped to; `None` scopes nothing —
+    /// a panel opened for one repository the user named needs no boundary.
+    project_root: Option<PathBuf>,
 }
 
 impl RepoManager {
-    /// Create a new repo manager from a list of paths.
+    /// Create a new repo manager from a list of paths, scoped to `project_root`
+    /// when one is known.
     ///
     /// Discovers top-level repo roots immediately and spawns the
     /// submodule walk in the background. Use [`Self::poll`] from the
     /// panel's update tick to fold the submodule results in when ready.
-    pub fn new(paths: &[PathBuf]) -> Self {
-        let mut roots = find_toplevel_repos(paths);
+    pub fn new(paths: &[PathBuf], project_root: Option<&Path>) -> Self {
+        let project_root = project_root.map(|p| p.to_path_buf());
+        let mut roots = scoped(find_toplevel_repos(paths), project_root.as_deref());
         sort_by_display_name(&mut roots);
-        let submodule_rx = spawn_repo_walk(&roots, paths);
+        let submodule_rx = spawn_repo_walk(&roots, paths, project_root.as_deref());
         Self {
             repos: roots,
             selected: 0,
             submodule_rx,
+            project_root,
         }
     }
 
@@ -90,18 +119,36 @@ impl RepoManager {
     /// same way [`Self::new`] does, then spawns the submodule walk in
     /// the background. Returns an empty manager if `repo_path` does
     /// not live under a git repository.
-    pub fn for_repo(repo_path: PathBuf) -> Self {
+    ///
+    /// With a `project_root`, the panel still opens on that repository,
+    /// but the walk also scans the project's plane from the project root,
+    /// so the dropdown offers the sibling repositories too. Without one,
+    /// only this repository and its submodules are ever in the list.
+    pub fn for_repo(repo_path: PathBuf, project_root: Option<&Path>) -> Self {
         let roots = match find_toplevel_repo(&repo_path) {
             Some(root) => vec![root],
             None => Vec::new(),
         };
-        // `repo_path` is a specific repo; no downward nested-repo scan needed.
-        let submodule_rx = spawn_repo_walk(&roots, &[]);
+        // Scan downward from the project root, never from `repo_path`: that
+        // is a repository itself, and the walk skips repo roots, so passing
+        // it would find nothing beyond this repo's own submodules.
+        let scan_paths: Vec<PathBuf> = match project_root {
+            Some(root) if root != repo_path.as_path() => vec![root.to_path_buf()],
+            _ => Vec::new(),
+        };
+        let project_root = project_root.map(|p| p.to_path_buf());
+        let submodule_rx = spawn_repo_walk(&roots, &scan_paths, project_root.as_deref());
         Self {
             repos: roots,
             selected: 0,
             submodule_rx,
+            project_root,
         }
+    }
+
+    /// Drop the repositories that contain the project rather than living in it.
+    fn scope(&self, repos: Vec<PathBuf>) -> Vec<PathBuf> {
+        scoped(repos, self.project_root.as_deref())
     }
 
     /// Drain the background submodule walk if it has finished.
@@ -131,6 +178,7 @@ impl RepoManager {
                         merged.push(repo.clone());
                     }
                 }
+                let mut merged = self.scope(merged);
                 sort_by_display_name(&mut merged);
                 let changed = merged != self.repos;
                 self.repos = merged;
@@ -155,6 +203,12 @@ impl RepoManager {
     /// Get all discovered repositories.
     pub fn repos(&self) -> &[PathBuf] {
         &self.repos
+    }
+
+    /// The project the list is scoped to, if the panel was given one: the root
+    /// the dropdown nests its repositories under.
+    pub fn project_root(&self) -> Option<&Path> {
+        self.project_root.as_deref()
     }
 
     /// Get the index of the selected repository.
@@ -205,7 +259,7 @@ impl RepoManager {
     /// from that call.
     pub fn update(&mut self, paths: &[PathBuf]) -> bool {
         let current = self.current().map(|p| p.to_path_buf());
-        let mut new_roots = find_toplevel_repos(paths);
+        let mut new_roots = scoped(find_toplevel_repos(paths), self.project_root.as_deref());
         sort_by_display_name(&mut new_roots);
 
         // Merge the top-level baseline with the repos we already hold rather
@@ -225,6 +279,7 @@ impl RepoManager {
                     merged.push(r.clone());
                 }
             }
+            let mut merged = self.scope(merged);
             sort_by_display_name(&mut merged);
             let actually_changed = merged != self.repos;
             self.repos = merged;
@@ -235,7 +290,7 @@ impl RepoManager {
         };
         // Always restart the walk so a later poll() picks up new/removed
         // submodules and nested repos even when the baseline was unchanged.
-        self.submodule_rx = spawn_repo_walk(&new_roots, paths);
+        self.submodule_rx = spawn_repo_walk(&new_roots, paths, self.project_root.as_deref());
         changed
     }
 
@@ -261,11 +316,16 @@ impl RepoManager {
 /// - for each `scan_path` that is *not* inside a repository, nested repos under
 ///   it (down to [`NESTED_REPO_DEPTH`]) — the "folder of git projects" case.
 ///
+/// The result is scoped to `project_root` (see [`crate::without_ancestor_repos`])
+/// after both walks: discovery must not be suppressed by an enclosing repository,
+/// but a repository that *contains* the project is not the project's to list.
+///
 /// Returns `None` when there is nothing to walk so callers can skip the
 /// `poll()` round-trip entirely.
 fn spawn_repo_walk(
     roots: &[PathBuf],
     scan_paths: &[PathBuf],
+    project_root: Option<&Path>,
 ) -> Option<mpsc::Receiver<Vec<PathBuf>>> {
     if roots.is_empty() && scan_paths.is_empty() {
         return None;
@@ -273,6 +333,7 @@ fn spawn_repo_walk(
     let (tx, rx) = mpsc::channel();
     let roots: Vec<PathBuf> = roots.to_vec();
     let scan_paths: Vec<PathBuf> = scan_paths.to_vec();
+    let project_root = project_root.map(|p| p.to_path_buf());
     std::thread::spawn(move || {
         use std::collections::HashSet;
         let mut all: HashSet<PathBuf> = roots.iter().cloned().collect();
@@ -286,7 +347,8 @@ fn spawn_repo_walk(
         // live *inside* some ancestor repo: a whole-home/whole-disk repo (e.g.
         // `~/.git` dotfiles) would otherwise suppress discovery of the real
         // projects under a container directory. A repo root is left to the
-        // submodule walk above.
+        // submodule walk above. That ancestor is dropped from the result below,
+        // which is where the project's plane is enforced.
         for path in &scan_paths {
             if path.join(".git").exists() {
                 continue;
@@ -296,6 +358,7 @@ fn spawn_repo_walk(
             }
         }
         let mut full: Vec<PathBuf> = all.into_iter().collect();
+        full = scoped(full, project_root.as_deref());
         sort_by_display_name(&mut full);
         let _ = tx.send(full);
     });
@@ -320,9 +383,95 @@ mod tests {
         assert_eq!(project_repos(&root.join("a/src")), [root.join("a")]);
     }
 
+    // A project root is usually a wide container plane, not the repository: a
+    // host-grouped layout keeps its checkouts at <project>/<host>/<group>/<repo>.
+    // Those three levels deep must be listed, or the git panel shows no repository
+    // for a project that plainly has dozens of them.
+    #[test]
+    fn project_repos_reaches_three_levels_deep() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = dunce::canonicalize(tmp.path()).unwrap();
+        let shallow = root.join("repo-a");
+        let deep = root.join("host.example/group/repo-b");
+        for repo in [&shallow, &deep] {
+            std::fs::create_dir_all(repo.join(".git")).unwrap();
+        }
+
+        let repos = project_repos(&root);
+        assert!(
+            repos.contains(&shallow) && repos.contains(&deep),
+            "a repository three levels under the project root was missed: {repos:?}"
+        );
+    }
+
+    // Inside a repository only `.gitmodules` paths are walked, so a submodule
+    // chain three levels deep joins the list too.
+    #[test]
+    fn project_repos_reaches_deeply_nested_submodules() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = dunce::canonicalize(tmp.path()).unwrap();
+        let outer = root.join("vendor/outer");
+        let mid = outer.join("mid");
+        let inner = mid.join("inner");
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+        std::fs::create_dir_all(outer.join(".git")).unwrap();
+        std::fs::create_dir_all(mid.join(".git")).unwrap();
+        std::fs::create_dir_all(inner.join(".git")).unwrap();
+        let manifest = |dir: &Path, name: &str, path: &str| {
+            std::fs::write(
+                dir.join(".gitmodules"),
+                format!("[submodule \"{name}\"]\n\tpath = {path}\n"),
+            )
+            .unwrap();
+        };
+        manifest(&root, "outer", "vendor/outer");
+        manifest(&outer, "mid", "mid");
+        manifest(&mid, "inner", "inner");
+
+        let repos = project_repos(&root);
+        assert!(
+            repos.contains(&inner),
+            "a submodule three levels under the repo root was missed: {repos:?}"
+        );
+    }
+
+    // A project inside an enclosing repository that holds repositories of its own:
+    // the enclosing one is not the project's and is not listed.
+    #[test]
+    fn project_repos_drops_a_repository_enclosing_the_project() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path().join("home");
+        let proj = home.join("proj");
+        std::fs::create_dir_all(home.join(".git")).unwrap();
+        std::fs::create_dir_all(proj.join("repo-a/.git")).unwrap();
+        let proj = dunce::canonicalize(&proj).unwrap();
+        let repo_a = dunce::canonicalize(proj.join("repo-a")).unwrap();
+
+        let repos = project_repos(&proj);
+        assert_eq!(
+            repos,
+            vec![repo_a],
+            "the repository enclosing the project was listed as its own"
+        );
+    }
+
+    // A project inside a repository, with no repository of its own: that ancestor
+    // is the project's repository.
+    #[test]
+    fn project_repos_keeps_the_ancestor_of_a_project_inside_a_repo() {
+        let tmp = tempfile::tempdir().unwrap();
+        let home = tmp.path().join("home");
+        let proj = home.join("proj");
+        std::fs::create_dir_all(home.join(".git")).unwrap();
+        std::fs::create_dir_all(proj.join("src")).unwrap();
+        let home = dunce::canonicalize(&home).unwrap();
+
+        assert_eq!(project_repos(&proj), vec![home]);
+    }
+
     #[test]
     fn test_empty() {
-        let manager = RepoManager::new(&[]);
+        let manager = RepoManager::new(&[], None);
         assert!(manager.is_empty());
         assert!(manager.current().is_none());
         assert!(!manager.has_multiple());
@@ -331,7 +480,7 @@ mod tests {
     #[test]
     fn test_for_repo() {
         // for_repo now searches for submodules, so with a non-existent path it returns empty
-        let manager = RepoManager::for_repo(PathBuf::from("/test/repo"));
+        let manager = RepoManager::for_repo(PathBuf::from("/test/repo"), None);
         assert!(manager.is_empty()); // No actual git repo at this path
     }
 
@@ -360,7 +509,7 @@ mod tests {
         let a = dunce::canonicalize(tmp.join("a")).unwrap();
         let b = dunce::canonicalize(tmp.join("b")).unwrap();
 
-        let mut mgr = RepoManager::new(&[a.clone(), b.clone()]);
+        let mut mgr = RepoManager::new(&[a.clone(), b.clone()], None);
         // Simulate a submodule/nested repo the async walk surfaced and that the
         // user then selected.
         let nested = a.join("vendor/lib");
@@ -400,7 +549,7 @@ mod tests {
         let container = dunce::canonicalize(tmp.join("container")).unwrap();
         let deep = dunce::canonicalize(&deep).unwrap();
 
-        let mut mgr = RepoManager::for_repo(deep.clone());
+        let mut mgr = RepoManager::for_repo(deep.clone(), None);
         assert_eq!(mgr.current(), Some(deep.as_path()));
 
         // Panel paths for a directory that only *contains* the repo, deeper
@@ -427,6 +576,49 @@ mod tests {
         );
     }
 
+    // A panel restored for one repository of a project still shows that
+    // project's other repositories: the layout saved a single path, but the
+    // dropdown is the project's plane, and the saved repository stays chosen.
+    #[test]
+    fn for_repo_in_a_project_lists_the_sibling_repositories() {
+        use std::fs;
+        let tmp = std::env::temp_dir().join(format!("termide-rm-restored-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let project = tmp.join("project");
+        fs::create_dir_all(project.join("host/group/one/.git")).unwrap();
+        fs::create_dir_all(project.join("host/group/two/.git")).unwrap();
+        let project = dunce::canonicalize(&project).unwrap();
+        let one = dunce::canonicalize(project.join("host/group/one")).unwrap();
+        let two = dunce::canonicalize(project.join("host/group/two")).unwrap();
+
+        let mut mgr = RepoManager::for_repo(two.clone(), Some(&project));
+        assert_eq!(
+            mgr.current(),
+            Some(two.as_path()),
+            "the panel opens on the repository the layout named"
+        );
+
+        let mut tries = 0;
+        while mgr.submodule_rx.is_some() && tries < 300 {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            mgr.poll();
+            tries += 1;
+        }
+
+        let repos = mgr.repos().to_vec();
+        let current = mgr.current().map(|p| p.to_path_buf());
+        let _ = fs::remove_dir_all(&tmp);
+        assert!(
+            repos.contains(&one),
+            "the sibling repository of the project never arrived: {repos:?}"
+        );
+        assert_eq!(
+            current.as_deref(),
+            Some(two.as_path()),
+            "the fold moved the selection off the saved repository"
+        );
+    }
+
     // Repos that disappeared from disk must not survive the merge forever.
     #[test]
     fn poll_prunes_deleted_repos() {
@@ -436,7 +628,7 @@ mod tests {
         fs::create_dir_all(tmp.join("live/.git")).unwrap();
         let live = dunce::canonicalize(tmp.join("live")).unwrap();
 
-        let mut mgr = RepoManager::new(std::slice::from_ref(&live));
+        let mut mgr = RepoManager::new(std::slice::from_ref(&live), None);
         let gone = tmp.join("gone");
         mgr.repos.push(gone.clone());
         let mut tries = 0;
@@ -455,9 +647,46 @@ mod tests {
         );
     }
 
+    // A project that is a folder of repositories, sitting inside an enclosing one
+    // (a whole-home dotfiles repo): the enclosing repository must not stay in the
+    // dropdown. The baseline is only the upward search, so it can hold the ancestor
+    // until the walk lands; from then on the project's own repositories are all it
+    // has and the ancestor is gone.
+    #[test]
+    fn scoped_to_project_excludes_the_enclosing_repository() {
+        use std::fs;
+        let tmp = std::env::temp_dir().join(format!("termide-rm-scope-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let home = tmp.join("home");
+        let proj = home.join("proj");
+        fs::create_dir_all(home.join(".git")).unwrap();
+        fs::create_dir_all(proj.join("repo-a/.git")).unwrap();
+        let proj = dunce::canonicalize(&proj).unwrap();
+        let home = dunce::canonicalize(&home).unwrap();
+
+        let mut mgr = RepoManager::new(std::slice::from_ref(&proj), Some(&proj));
+        let mut tries = 0;
+        while !mgr.repos().iter().any(|r| r.ends_with("repo-a")) && tries < 300 {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            mgr.poll();
+            tries += 1;
+        }
+
+        let repos = mgr.repos().to_vec();
+        let _ = fs::remove_dir_all(&tmp);
+        assert!(
+            repos.iter().any(|r| r.ends_with("repo-a")),
+            "the project's repo never landed: {repos:?}"
+        );
+        assert!(
+            !repos.contains(&home),
+            "the enclosing repo stayed in the list: {repos:?}"
+        );
+    }
+
     #[test]
     fn test_select_bounds() {
-        let mut manager = RepoManager::new(&[]);
+        let mut manager = RepoManager::new(&[], None);
         manager.select(10); // Out of bounds on empty
         assert_eq!(manager.selected_index(), 0); // Unchanged
     }
@@ -475,7 +704,7 @@ mod tests {
         fs::create_dir_all(tmp.join("repo-b/.git")).unwrap();
         fs::create_dir_all(tmp.join("plain")).unwrap(); // not a repo
 
-        let mut mgr = RepoManager::new(std::slice::from_ref(&tmp));
+        let mut mgr = RepoManager::new(std::slice::from_ref(&tmp), Some(&tmp));
         // The nested scan is async, so poll until repo-a lands (or we give up).
         // Don't wait on is_empty(): an ancestor repo (e.g. a stray /tmp/.git)
         // can make the list non-empty immediately without the nested repos yet.

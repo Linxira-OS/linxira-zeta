@@ -84,8 +84,12 @@ pub struct GitStatusPanel {
     repo_dropdown_open: bool,
     /// Is branch dropdown expanded
     branch_dropdown_open: bool,
-    /// Cursor position in open dropdown
+    /// Cursor position in open dropdown: a row of the repository tree (folders
+    /// included) or, behind a filter, a match; a branch in the branch dropdown.
     dropdown_cursor: usize,
+    /// Folders of the repository tree closed in the dropdown, kept while the
+    /// panel lives; not saved.
+    repo_folds: termide_git::RepoFolds,
     // Layout zones for mouse handling
     /// Selector row Y position
     selector_y: u16,
@@ -101,14 +105,15 @@ pub struct GitStatusPanel {
     repo_dropdown_area: Option<Rect>,
     /// Branch dropdown area (for mouse click detection)
     branch_dropdown_area: Option<Rect>,
-    /// Scroll offset in dropdown
+    /// Scroll offset in dropdown, kept from frame to frame so the window moves
+    /// only when the cursor leaves it
     dropdown_scroll: usize,
     /// Branch filter text (hidden filter row in dropdown)
-    branch_filter: String,
+    branch_filter: termide_ui::TextInput,
     /// Whether the branch filter row is visible (shown after first keystroke)
     show_branch_filter: bool,
     /// Repo filter text (hidden filter row in dropdown)
-    repo_filter: String,
+    repo_filter: termide_ui::TextInput,
     /// Whether the repo filter row is visible (shown after first keystroke)
     show_repo_filter: bool,
     /// Stash button area (for dropdown anchoring)
@@ -172,15 +177,27 @@ fn build_git_status_hotkey_table(config: &Config) -> HotkeyTable {
 }
 
 impl GitStatusPanel {
-    /// Create a new Git Status panel from a list of paths (from panels/layout)
-    pub fn new(paths: &[PathBuf]) -> Self {
-        Self::create(RepoManager::new(paths), paths.to_vec())
+    /// Create a new Git Status panel from a list of paths (from panels/layout),
+    /// scoped to the project at `project_root` when one is known.
+    pub fn new(paths: &[PathBuf], project_root: Option<&Path>) -> Self {
+        Self::create(RepoManager::new(paths, project_root), paths.to_vec())
     }
 
-    /// Create panel for a specific repository
-    pub fn new_for_repo(repo_path: PathBuf) -> Self {
-        let initial_paths = vec![repo_path.clone()];
-        Self::create(RepoManager::for_repo(repo_path), initial_paths)
+    /// Create panel for a specific repository, keeping the project's plane in
+    /// the dropdown when `project_root` is one of its ancestors or a container
+    /// around it. The panel opens on `repo_path`; the rest of the project is
+    /// one keystroke away.
+    pub fn new_for_repo(repo_path: PathBuf, project_root: Option<&Path>) -> Self {
+        let mut initial_paths = vec![repo_path.clone()];
+        if let Some(root) = project_root {
+            if !initial_paths.contains(&root.to_path_buf()) {
+                initial_paths.push(root.to_path_buf());
+            }
+        }
+        Self::create(
+            RepoManager::for_repo(repo_path, project_root),
+            initial_paths,
+        )
     }
 
     fn create(repo_manager: RepoManager, initial_paths: Vec<PathBuf>) -> Self {
@@ -206,6 +223,7 @@ impl GitStatusPanel {
             repo_dropdown_open: false,
             branch_dropdown_open: false,
             dropdown_cursor: 0,
+            repo_folds: termide_git::RepoFolds::default(),
             selector_y: 0,
             branch_selector_x: 0,
             files_area: Rect::default(),
@@ -214,9 +232,9 @@ impl GitStatusPanel {
             repo_dropdown_area: None,
             branch_dropdown_area: None,
             dropdown_scroll: 0,
-            branch_filter: String::new(),
+            branch_filter: termide_ui::TextInput::new(),
             show_branch_filter: false,
-            repo_filter: String::new(),
+            repo_filter: termide_ui::TextInput::new(),
             show_repo_filter: false,
             stash_button_area: None,
             click_tracker: IndexClickTracker::new(),
@@ -403,6 +421,17 @@ impl Panel for GitStatusPanel {
         self.render_content(area, buf, ctx.is_focused, ctx.border_right_x);
     }
 
+    fn close_popups(&mut self) {
+        if self.repo_dropdown_open {
+            self.repo_dropdown_open = false;
+            self.reset_repo_filter();
+        }
+        if self.branch_dropdown_open {
+            self.branch_dropdown_open = false;
+            self.reset_branch_filter();
+        }
+    }
+
     fn captures_escape(&self) -> bool {
         // Capture Escape when dropdown is open (don't close panel)
         self.repo_dropdown_open || self.branch_dropdown_open
@@ -504,6 +533,11 @@ impl Panel for GitStatusPanel {
             PanelCommand::SetFsWatchRoot { root, .. } => {
                 self.watched_root = root;
                 CommandResult::None
+            }
+            // A paste while a selector dropdown is open goes to its filter.
+            PanelCommand::PasteText { text } if self.open_filter().is_some() => {
+                self.paste_into_filter(&text);
+                CommandResult::Handled(true)
             }
             _ => CommandResult::None,
         }

@@ -93,15 +93,38 @@ pub(super) fn build_global_hotkey_table(kb: &GlobalKeybindings) -> HotkeyTable {
     t
 }
 
+/// Whether the key `key_str` names may ask to approve a project's command:
+/// one held with Ctrl or Alt, or an F-key, never a key text is typed with.
+fn asks_without_typing(key_str: &str) -> bool {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    termide_config::parse_keybinding(key_str).is_ok_and(|binding| {
+        binding
+            .modifiers
+            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+            || matches!(binding.key, KeyCode::F(_))
+    })
+}
+
 impl App {
     /// Build the hotkey table when the cache holds none.
-    fn ensure_hotkey_table(&mut self) {
+    pub(super) fn ensure_hotkey_table(&mut self) {
         if self.state.cache.hotkey_table.is_some() {
             return;
         }
         let mut table = build_global_hotkey_table(&self.state.config.general.keybindings);
         if let Some(registry) = self.commands_registry() {
             for (command, key_str) in registry.commands_with_hotkeys() {
+                // A project's command not yet approved takes only a key no
+                // text is typed with — one with Ctrl or Alt, or an F-key —
+                // and pressing it asks first, as the menu does: a
+                // repository could bind any key, a letter typed in the
+                // editor included, and every press would ask.
+                if command.is_project
+                    && !asks_without_typing(key_str)
+                    && !self.project_command_approved(command)
+                {
+                    continue;
+                }
                 let command_key = termide_config::commands::encode_command_menu_key(
                     termide_config::commands::CommandMenuKeyKind::Command,
                     &command.name,
@@ -109,6 +132,9 @@ impl App {
                 );
                 table.insert_raw(format!("run_command:{command_key}"), key_str);
             }
+        }
+        for (action, key) in self.plugin_command_keys() {
+            table.insert_raw(action, &key);
         }
         self.state.cache.hotkey_table = Some(table);
     }
@@ -345,6 +371,11 @@ impl App {
             self.run_command_by_menu_key(key)?;
             return Ok(true);
         }
+        let prefix = super::plugins::PLUGIN_COMMAND_PREFIX;
+        if let Some(action) = table.find_match(prefix, key) {
+            self.run_plugin_command(&action[prefix.len()..]);
+            return Ok(true);
+        }
 
         Ok(false)
     }
@@ -407,6 +438,24 @@ impl App {
             "open_bookmark_add" => self.handle_add_bookmark()?,
             "open_command_palette" => self.handle_open_command_palette()?,
             "open_path" => self.open_path_prompt(),
+            // Editor keys, offered by the palette from any panel.
+            "start_debug" => {
+                let file = self
+                    .layout_manager
+                    .active_panel()
+                    .and_then(|p| p.as_editor())
+                    .and_then(|e| e.file_path().map(|p| p.to_path_buf()));
+                self.start_debug(file)?;
+            }
+            "configure_debug" => {
+                let file = self
+                    .layout_manager
+                    .active_panel()
+                    .and_then(|p| p.as_editor())
+                    .and_then(|e| e.file_path().map(|p| p.to_path_buf()));
+                self.open_debug_setup(file.as_deref());
+            }
+            "clear_breakpoints" => self.clear_breakpoints(),
             // Not a global binding (the panels own the key), but the palette
             // offers it for the focused panel.
             "switch_directory" => self.handle_open_directory_switcher()?,
@@ -424,9 +473,18 @@ impl App {
             "quit" => self.handle_quit_request()?,
             "detach_instance" => self.handle_detach_instance(),
             "lock_vault" => self.vault_lock_now(),
+            "plugins_status" => self.show_plugins_status(),
+            "plugins_reload" => self.reload_plugins(),
             other => {
                 if let Some(key) = other.strip_prefix("run_command:") {
                     self.run_command_by_menu_key(key)?;
+                } else if let Some(action) =
+                    other.strip_prefix(super::plugins::PLUGIN_COMMAND_PREFIX)
+                {
+                    self.run_plugin_command(action);
+                } else if let Some(name) = other.strip_prefix(super::plugins::PLUGIN_RESTART_PREFIX)
+                {
+                    self.restart_plugin(name);
                 } else {
                     return Ok(false);
                 }
@@ -579,3 +637,20 @@ impl App {
 /// `panel_shrink_vertical` press. Mirrors horizontal resize which
 /// also moves by a single unit per chord.
 const PANEL_VERTICAL_RESIZE_STEP: u16 = 1;
+
+#[cfg(test)]
+mod asks_without_typing_tests {
+    use super::asks_without_typing;
+
+    #[test]
+    fn only_a_key_no_text_is_typed_with_asks() {
+        assert!(asks_without_typing("Ctrl+Alt+B"));
+        assert!(asks_without_typing("Alt+B"));
+        assert!(asks_without_typing("Ctrl+B"));
+        assert!(asks_without_typing("F7"));
+        assert!(!asks_without_typing("b"));
+        assert!(!asks_without_typing("Shift+B"));
+        assert!(!asks_without_typing("Enter"));
+        assert!(!asks_without_typing("not a key"));
+    }
+}

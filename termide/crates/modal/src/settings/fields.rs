@@ -53,6 +53,14 @@ pub(super) enum ContentRow {
     ConnectionAdd,
     /// Connection page: the buttons back to the list and deleting it.
     ConnectionButtons,
+    /// LSP server page: the buttons back to the list and deleting it.
+    LspServerButtons,
+    /// Debug: a debugger (index into `debugger::DEBUGGERS`); opens its page.
+    Debugger(usize),
+    /// Debugger page: the buttons back to the list and resetting it.
+    DebuggerButtons,
+    /// Plugins: an installed plugin (index into the names); steps its value.
+    Plugin(usize),
 }
 
 impl ContentRow {
@@ -244,7 +252,10 @@ pub(super) fn fields_for_tab(tab: SettingsTab) -> Vec<FieldDescriptor> {
             },
         ],
         SettingsTab::Connection => super::connection::connection_fields(),
-        SettingsTab::Keybindings => vec![],
+        SettingsTab::LspServer => super::lsp_server::lsp_server_fields(),
+        SettingsTab::Debug => super::debugger::debug_fields(),
+        SettingsTab::DebuggerPage => super::debugger::debugger_fields(),
+        SettingsTab::Plugins | SettingsTab::Keybindings => vec![],
     }
 }
 
@@ -346,9 +357,16 @@ pub(super) fn get_field_value(config: &Config, tab: SettingsTab, index: usize) -
             }
             _ => String::new(),
         },
-        // Read from the open connection by the modal, not the config alone.
-        SettingsTab::Connection => String::new(),
-        SettingsTab::Keybindings => String::new(),
+        SettingsTab::Debug => match index {
+            super::debugger::NATIVE => config.debug.native.join(", "),
+            super::debugger::CONSOLE => super::debugger::console_label(&config.debug.console),
+            _ => String::new(),
+        },
+        // Read from the open page by the modal, not the config alone.
+        SettingsTab::Connection | SettingsTab::LspServer | SettingsTab::DebuggerPage => {
+            String::new()
+        }
+        SettingsTab::Plugins | SettingsTab::Keybindings => String::new(),
     }
 }
 
@@ -359,6 +377,16 @@ pub(super) fn empty_or(value: &str) -> String {
     } else {
         value.to_string()
     }
+}
+
+/// A comma-separated list as a field takes it (an LSP server's arguments
+/// and root markers, the native debuggers), empty items dropped.
+pub(super) fn split_list(text: &str) -> Vec<String> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 /// Display label for a provider value: the wire protocol is stored, but the
@@ -468,6 +496,14 @@ pub(super) fn enum_options(config: &Config, tab: SettingsTab, index: usize) -> O
             let current = format!("{:?}", config.general.icon_mode).to_lowercase();
             (values.clone(), values, current)
         }
+        (SettingsTab::Debug, super::debugger::CONSOLE) => {
+            let values = strings(&super::debugger::CONSOLES);
+            let labels = values
+                .iter()
+                .map(|v| super::debugger::console_label(v))
+                .collect();
+            (values, labels, config.debug.console.clone())
+        }
         (SettingsTab::Logging, 1) => {
             let values: Vec<String> = ["trace", "debug", "info", "warn", "error"]
                 .iter()
@@ -550,6 +586,7 @@ pub(super) fn apply_enum_value(config: &mut Config, tab: SettingsTab, index: usi
     match (tab, index) {
         (SettingsTab::General, 1) => config.general.theme = value.to_string(),
         (SettingsTab::General, 2) => config.general.language = value.to_string(),
+        (SettingsTab::Debug, super::debugger::CONSOLE) => config.debug.console = value.to_string(),
         (SettingsTab::General, 3) => {
             config.general.icon_mode = match value {
                 "emoji" => termide_config::IconMode::Emoji,
@@ -621,6 +658,7 @@ fn on_limit_label(policy: LimitPolicy) -> String {
     let t = i18n::t();
     match policy {
         LimitPolicy::Ask => t.settings_agent_on_limit_ask(),
+        LimitPolicy::AskElseWait => t.settings_agent_on_limit_ask_else_wait(),
         LimitPolicy::Wait => t.settings_agent_on_limit_wait(),
         LimitPolicy::Stop => t.settings_agent_on_limit_stop(),
     }
@@ -642,6 +680,8 @@ fn cycle_on_limit(config: &mut Config, forward: bool) {
     }];
 }
 
+/// The AI tab's browser program field.
+pub(super) const AI_CHROME_PATH_FIELD: usize = 6;
 /// The AI tab's field for the permission mode new sessions start in.
 pub(super) const AI_PERMISSION_MODE_FIELD: usize = 7;
 
@@ -751,6 +791,14 @@ pub(super) const MODEL_TYPE_SENTINEL: &str = "\u{0}type-a-model-id";
 /// Cycle an enum field to the next variant.
 pub(super) fn cycle_enum_forward(config: &mut Config, tab: SettingsTab, index: usize) {
     match tab {
+        // Two choices: either way is the other one.
+        SettingsTab::Debug if index == super::debugger::CONSOLE => {
+            config.debug.console = if config.debug.console == "panel" {
+                "terminal".to_string()
+            } else {
+                "panel".to_string()
+            };
+        }
         SettingsTab::General => match index {
             1 => {
                 let names = Theme::all_theme_names();
@@ -803,6 +851,14 @@ pub(super) fn cycle_enum_forward(config: &mut Config, tab: SettingsTab, index: u
 /// Cycle an enum field to the previous variant.
 pub(super) fn cycle_enum_backward(config: &mut Config, tab: SettingsTab, index: usize) {
     match tab {
+        // Two choices: either way is the other one.
+        SettingsTab::Debug if index == super::debugger::CONSOLE => {
+            config.debug.console = if config.debug.console == "panel" {
+                "terminal".to_string()
+            } else {
+                "panel".to_string()
+            };
+        }
         SettingsTab::General => match index {
             1 => {
                 let names = Theme::all_theme_names();
@@ -904,7 +960,7 @@ mod field_index_tests {
         assert_eq!(
             fields.len(),
             11,
-            "the permission mode, its reviewer and model, then the limit policy follow the web fields"
+            "the permission mode, its reviewer and model and the limit policy follow the web fields"
         );
         assert!(matches!(fields[6].field_type, FieldType::OptionalText));
         assert!(matches!(fields[7].field_type, FieldType::Enum));
@@ -945,6 +1001,7 @@ mod enum_option_tests {
             SettingsTab::FileManager,
             SettingsTab::Terminal,
             SettingsTab::Lsp,
+            SettingsTab::Debug,
             SettingsTab::Logging,
             SettingsTab::Vfs,
             SettingsTab::Ai,
@@ -1028,15 +1085,20 @@ mod enum_option_tests {
         assert_eq!(fields_for_tab(SettingsTab::Ai).len(), field + 1);
         assert_eq!(config.ai.on_limit, LimitPolicy::Ask);
         cycle_enum_forward(&mut config, SettingsTab::Ai, field);
+        assert_eq!(config.ai.on_limit, LimitPolicy::AskElseWait);
+        cycle_enum_forward(&mut config, SettingsTab::Ai, field);
         assert_eq!(config.ai.on_limit, LimitPolicy::Wait);
+        cycle_enum_backward(&mut config, SettingsTab::Ai, field);
         cycle_enum_backward(&mut config, SettingsTab::Ai, field);
         cycle_enum_backward(&mut config, SettingsTab::Ai, field);
         assert_eq!(config.ai.on_limit, LimitPolicy::Stop);
+        apply_enum_value(&mut config, SettingsTab::Ai, field, "ask_else_wait");
+        assert_eq!(config.ai.on_limit, LimitPolicy::AskElseWait);
         apply_enum_value(&mut config, SettingsTab::Ai, field, "wait");
         assert_eq!(config.ai.on_limit, LimitPolicy::Wait);
         let options = enum_options(&config, SettingsTab::Ai, field).unwrap();
-        assert_eq!(options.values, ["ask", "wait", "stop"]);
-        assert_eq!(options.current, Some(1));
+        assert_eq!(options.values, ["ask", "ask_else_wait", "wait", "stop"]);
+        assert_eq!(options.current, Some(2));
     }
 
     #[test]

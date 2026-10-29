@@ -40,11 +40,32 @@ pub(crate) fn discard(session: Session) {
 impl AgentPanel {
     /// Replace the running agent with one continuing `session` (or a fresh
     /// one when `None`). Refuses while a run is in flight.
+    ///
+    /// A failed request belongs to the conversation, not to the agent or the
+    /// endpoint that failed on it: [`Self::rebuild_keeping_prompt`] keeps its
+    /// card and its wait across the rebuild, so one can pick another
+    /// connection or agent from the status strip and answer the card with
+    /// "Try again now" — which is how a subscription limit is got past. Here,
+    /// where the conversation itself may change, they are given up: the
+    /// request stays with the log it failed on.
     pub fn switch_session(&mut self, session: Option<Session>) -> bool {
         if self.is_busy() {
             self.notice(termide_i18n::t().agent_notice_busy(), NoticeKind::Warn);
             return false;
         }
+        // Tasks handed over in the background ask through this session's
+        // channels and answer into it: they finish first, as a run does.
+        let delegates = crate::live::background_of(self.panel_id).len();
+        if delegates > 0 {
+            self.notice(
+                termide_i18n::t().agent_notice_delegates_running_fmt(delegates),
+                NoticeKind::Warn,
+            );
+            return false;
+        }
+        // A search in the banner's list ends with the banner it searched,
+        // and the prompt box gets its own text back.
+        self.end_session_search();
         // What the session being left has going is written before it goes.
         self.sync_autorun();
         let session = session.or_else(|| {
@@ -90,6 +111,11 @@ impl AgentPanel {
                 self.rules.mode = mode;
             }
         }
+        // The mode the session last ran in outlives a reopen, over the
+        // agent's and the configured one.
+        if let Some(mode) = session.as_ref().and_then(Session::current_mode) {
+            self.rules.mode = mode;
+        }
         self.toolset_off = toolset_off;
         self.sync_blocked();
         let blocked = Arc::clone(&self.blocked);
@@ -129,6 +155,7 @@ impl AgentPanel {
                 &self.offered_skills,
                 &self.context_off,
             ),
+            self.panel_id,
         );
         // Dropping the old runtime cancels it and asks its worker to stop.
         self.runtime = runtime;
@@ -147,6 +174,10 @@ impl AgentPanel {
         // taken the session out, so there is nothing to leave here.
         if let Some(old) = self.session.take() {
             discard_if_empty(old);
+            // The unfinished delegates and the answer owed to a delegating
+            // panel were the session left's, not the next one's.
+            self.restored_delegates.clear();
+            self.carry_back = None;
         }
         self.session = session;
         self.model = model;
@@ -165,6 +196,14 @@ impl AgentPanel {
         self.follow = true;
         self.queued = (0, 0);
         self.queued_texts.clear();
+        // So does a failed request: its retry would go to this runtime now,
+        // on a conversation that never made it.
+        if let Some(Pending::Failure { .. }) = &self.pending {
+            self.pending = None;
+        }
+        self.retry_wait = None;
+        self.retry_attempts = 0;
+        self.retry_ready = false;
         // A paused run belonged to the runtime just dropped: it cannot be
         // resumed, so the pause and the loop or goal it was part of end here.
         self.paused = false;
@@ -203,9 +242,20 @@ impl AgentPanel {
     /// agent switch — keeping what is typed in the prompt box, its large
     /// pastes and its cursor: the switch changes who answers, not the request.
     pub(crate) fn rebuild_keeping_prompt(&mut self) -> bool {
+        self.end_session_search();
         let prompt = self.input.multiline(0).cloned();
         let pastes = std::mem::take(&mut self.pastes);
         let paste_seq = self.paste_seq;
+        // What the failed request holds is kept over this rebuild: the switch
+        // changes who answers, not what was asked. See [`Self::switch_session`].
+        let held = self.pending.take();
+        let (wait, attempts, ready) = (self.retry_wait, self.retry_attempts, self.retry_ready);
+        let waiting = matches!(held, Some(Pending::Failure { .. })) || wait.is_some();
+        let (goal, task) = if waiting {
+            (self.goal_task.take(), self.loop_task.take())
+        } else {
+            (None, None)
+        };
         let session = self.session.take();
         let rebuilt = self.switch_session(session);
         if let (Some(prompt), Some(area)) = (prompt, self.input.multiline_mut(0)) {
@@ -213,6 +263,16 @@ impl AgentPanel {
         }
         self.pastes = pastes;
         self.paste_seq = paste_seq;
+        if rebuilt && waiting {
+            self.pending = held;
+            self.goal_task = goal;
+            self.loop_task = task;
+        }
+        if rebuilt {
+            self.retry_wait = wait;
+            self.retry_attempts = attempts;
+            self.retry_ready = ready;
+        }
         rebuilt
     }
 
@@ -251,7 +311,7 @@ impl AgentPanel {
 
     fn load_recent_sessions(&mut self) {
         self.recent_generation = Session::open_generation();
-        self.recent_sessions = if self.is_fresh() {
+        self.recent_all = if self.is_fresh() {
             let current = self.session.as_ref().map(Session::path);
             self.session_list()
                 .into_iter()
@@ -264,6 +324,11 @@ impl AgentPanel {
         } else {
             Vec::new()
         };
+        // With nothing left to search, the search ends.
+        if self.recent_all.is_empty() {
+            self.end_session_search();
+        }
+        self.apply_session_filter();
     }
 
     /// Whether the welcome banner is up and lists recent sessions, so `Tab`
@@ -710,7 +775,10 @@ impl AgentPanel {
             .transcript
             .items()
             .iter()
-            .filter(|item| matches!(item, Item::User { .. } | Item::Assistant { .. }))
+            .filter(|item| {
+                matches!(item, Item::User { .. } | Item::Assistant { .. })
+                    || crate::transcript::peer_message_subject(item).is_some()
+            })
             .count();
         let mut rows: Vec<(String, String)> = vec![(t.agent_info_session().into(), name)];
         if let Some(session) = self.session.as_ref() {
@@ -809,6 +877,8 @@ impl AgentPanel {
                 log::warn!("agent session rewind failed: {error}");
             }
         }
+        // Undoing the conversation leaves the mode the user is in.
+        self.log_mode(self.mode.get());
         let count = undone.files.len();
         let session = self.session.take();
         self.switch_session(session);

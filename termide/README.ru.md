@@ -1,4 +1,4 @@
-# TermIDE
+# Termide
 
 [![GitHub Release](https://img.shields.io/github/v/release/termide/termide)](https://github.com/termide/termide/releases)
 [![CI](https://github.com/termide/termide/actions/workflows/release.yml/badge.svg)](https://github.com/termide/termide/actions)
@@ -8,15 +8,15 @@
 
 Терминальное рабочее место «всё в одном» для рабочей машины и серверов: редактор кода с LSP, двухпанельный файловый менеджер с SFTP/FTP, терминал, git, просмотр баз данных и агент для кода — в одном статическом бинарнике на Rust без настройки.
 
-**[Сайт](https://termide.github.io)** | **[Документация](doc/ru/README.md)** | **[Релизы](https://github.com/termide/termide/releases)** | **[Скриншоты](https://termide.github.io/ru/#screenshots)**
+**[Сайт](https://termide.github.io)** | **[Документация](doc/ru/README.md)** | **[Релизы](https://github.com/termide/termide/releases)** | **[Скриншоты](https://termide.github.io/ru/#screenshots)** | **[Telegram](https://t.me/termide_news)**
 
-<p align="center"><img src="assets/screenshots/termide.gif" alt="TermIDE — редактор, файловый менеджер, терминал и просмотрщики в одном TUI" width="900"></p>
+<p align="center"><img src="https://termide.github.io/assets/screenshots/tour.gif" alt="Termide — редактор, файловый менеджер, терминал и просмотрщики в одном TUI" width="900"></p>
 
-## Почему TermIDE?
+## Почему Termide?
 
-Терминальные редакторы закрывают работу с кодом, а всё вокруг — файлы на удалённых хостах, базы данных, git, долгоживущие шеллы, агент для кода — обычно требует плагинов или отдельных утилит. TermIDE поставляет всё это в одном бинарнике, который работает из коробки на ноутбуке, сервере или телефоне. Он не пытается заменить эти утилиты — он закрывает ту часть, к которой вы обращаетесь каждый день, в одном месте:
+Терминальные редакторы закрывают работу с кодом, а всё вокруг — файлы на удалённых хостах, базы данных, git, долгоживущие шеллы, агент для кода — обычно требует плагинов или отдельных утилит. Termide поставляет всё это в одном бинарнике, который работает из коробки на ноутбуке, сервере или телефоне. Он не пытается заменить эти утилиты — он закрывает ту часть, к которой вы обращаетесь каждый день, в одном месте:
 
-| Задача | Обычно | В TermIDE |
+| Задача | Обычно | В Termide |
 |--------|--------|-----------|
 | Сохранить работу после обрыва SSH | tmux, screen | Отсоединяемые экземпляры |
 | Переносить файлы между хостами | mc, ranger, scp | Двухпанельный файловый менеджер с SFTP / FTP |
@@ -28,7 +28,7 @@
 
 Редактор, LSP, терминал, git и раскладки проектов среди терминальных редакторов само собой разумеются; в таблице — то, чего у других нет или что они оставляют плагинам:
 
-| Возможность | TermIDE | Fresh | Vim/Neovim | Helix | Micro |
+| Возможность | Termide | Fresh | Vim/Neovim | Helix | Micro |
 |---------|:-------:|:-----:|:----------:|:-----:|:-----:|
 | Встроенный агент для кода (локальные или облачные модели) | ✓ | ✗ | плагин | ✗ | ✗ |
 | MCP-серверы | ✓ | ✗ | плагин | ✗ | ✗ |
@@ -42,7 +42,7 @@
 | Просмотр изображений | ✓ | ✗ | плагин | ✗ | ✗ |
 | Монитор ресурсов | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-**TermIDE = Редактор + Файловый менеджер + Терминал + Git + Агент в одном TUI-приложении.**
+**Termide = Редактор + Файловый менеджер + Терминал + Git + Агент в одном TUI-приложении.**
 
 ## Принципы
 
@@ -56,15 +56,16 @@
 
 | | |
 |:---:|:---:|
-| <img src="assets/screenshots/agent.png" alt="Агент для кода за работой" width="440"> | <img src="assets/screenshots/file-manager.png" alt="Файловый менеджер с вложенным git-статусом" width="440"> |
+| <img src="https://termide.github.io/assets/screenshots/agent.png" alt="Агент для кода за работой" width="440"> | <img src="https://termide.github.io/assets/screenshots/file-manager.png" alt="Файловый менеджер с вложенным git-статусом" width="440"> |
 | Агент для кода за работой | Файловый менеджер с вложенным git-статусом |
-| <img src="assets/screenshots/db.png" alt="Просмотр баз данных" width="440"> | <img src="assets/screenshots/git.png" alt="Журнал git с графом коммитов" width="440"> |
+| <img src="https://termide.github.io/assets/screenshots/db.png" alt="Просмотр баз данных" width="440"> | <img src="https://termide.github.io/assets/screenshots/git.png" alt="Журнал git с графом коммитов" width="440"> |
 | Просмотр баз данных | Журнал git с графом коммитов |
 
 ### Код
 
 - **Редактор** - Подсветка синтаксиса для 23 языков, LSP: автодополнение, подсказки при наведении, переход к определению, поиск ссылок, переименование и диагностика; переключение комментариев, автоотступы, автозакрытие скобок; опциональный Vim-режим
 - **Структура и диагностика** - Навигация по структуре кода, синхронизированная с курсором (`Alt+O`), и панель диагностики LSP (`Alt+I`)
+- **Отладчик** - Точки останова на полях (`Ctrl+F8`), `F5` запускает до них; панель отладки со стеком вызовов, переменными и пошаговым выполнением через DAP (lldb-dap, GDB, debugpy, Delve) либо lldb, gdb, Delve и pdb в терминале
 - **Поиск и замена** - Живой предпросмотр, счётчик совпадений, regex
 - **Документация рядом с кодом** - Рендер Markdown, HTML (текстовый браузер, сохраняющий страницы как Markdown) и диаграмм Mermaid текстовой псевдографикой; `Ctrl+E` переключает на исходник
 - **Hex-редактор** - Hex/ASCII-вид с курсором байта, выделением и поиском; редактирование с перезаписью и резервной копией `.bak`
@@ -75,7 +76,7 @@
 - **Своя модель** - Любой OpenAI- или Anthropic-совместимый endpoint: llama.cpp, Ollama, vLLM, omlx на вашей машине или облачный провайдер
 - **Ничего не меняется без вас** - Разрешение на каждый вызов инструмента или модель-ревьюер в режиме auto; `/undo` и контрольные точки откатывают правки
 - **Режим планирования и субагенты** - Агент вместе с вами решает открытые вопросы, прежде чем написать план; субагенты работают параллельно
-- **Инструменты** - Чтение, правка, оболочка, веб-поиск и загрузка страниц, `recall` по прошлым сессиям, истории git и файлам проекта, MCP-серверы
+- **Инструменты** - Чтение, правка, оболочка, веб-поиск и загрузка страниц, `recall` по прошлым сессиям, истории git и файлам проекта, отладчик, MCP-серверы
 - **Другие агенты в той же панели** - Claude Code, Codex и Gemini CLI по Agent Client Protocol
 - **Расширение файлами** - Скиллы, шаблоны промптов, скрипты команд, хуки и инструкции проекта
 - **Без интерфейса** - `termide --prompt "..." --output json` запускает того же агента в скриптах и CI
@@ -103,6 +104,8 @@
 - **Проекты** - Раскладки панелей восстанавливаются для каждого проекта; проекты, с которых вы переключились, продолжают работать в фоне и видны кнопками в меню-баре; `termide --restore` открывает проекты прошлого запуска
 - **Многопанельный интерфейс** - Группы панелей с настраиваемой высотой, полноэкранный режим (`Alt+F11`) и автоматическая перекомпоновка в узком терминале
 - **Пользовательские команды** - Глобальные и проектные команды с горячими клавишами, формами параметров и режимами терминал / фон / отчёт
+- **Плагины** - Программы из глобального каталога плагинов, запущенные рядом с каждым открытым проектом по JSON-RPC: слышат открытие и сохранение файлов, добавляют команды, элементы строки состояния и инструменты агента; проект переключает их в пределах заданного вами режима
+- **Безопасно с любым репозиторием** - Файлы проекта могут ужесточать, но не решают, что запускает termide: его MCP-серверы, хуки и команды ждут вашего одобрения, а его конфиг не выбирает программы, не отправляет ключи на чужие адреса и не ослабляет агента
 - **Палитра команд и строка «Открыть»** - `Ctrl+P` запускает любую команду по нечёткому имени; `Ctrl+G` открывает файл, каталог или URL с подсказками путей
 - **Настройки** - Полноэкранное окно настроек (`Alt+P`) с захватом горячих клавиш на месте
 
@@ -116,7 +119,7 @@
 
 **Обязательно ли пользоваться ИИ-агентом?** Нет. По умолчанию провайдер и модель не заданы, поэтому агент ничего не делает и ничего не отправляет, пока вы его не настроите. Всё остальное работает без него.
 
-**TermIDE отправляет что-нибудь разработчикам?** Нет телеметрии, аккаунта и проверок обновлений. В сеть он выходит, только когда вы просите: удалённое расположение, веб-страница, `git push` или `pull`, модель для агента.
+**Termide отправляет что-нибудь разработчикам?** Нет телеметрии, аккаунта и проверок обновлений. В сеть он выходит, только когда вы просите: удалённое расположение, веб-страница, `git push` или `pull`, модель для агента.
 
 **Заменяет ли он tmux?** Для сохранения работы по SSH — да: `termide --detached` держит всё рабочее пространство запущенным, а `--attach` возвращает его. Произвольными сессиями и окнами, как tmux, он не управляет и спокойно работает внутри tmux.
 
@@ -153,37 +156,37 @@ nix run github:termide/termide                     # Nix, без установ�
 
 ```bash
 # Linux x86_64 (также работает в WSL)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux x86_64 (статический musl — Alpine, distroless-контейнеры, любая система без glibc)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # macOS Intel (x86_64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-apple-darwin.tar.gz
-tar xzf termide-0.41.0-x86_64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-apple-darwin.tar.gz
+tar xzf termide-0.46.0-x86_64-apple-darwin.tar.gz
 ./termide
 
 # macOS Apple Silicon (ARM64)
-curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-apple-darwin.tar.gz
-tar xzf termide-0.41.0-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-apple-darwin.tar.gz
+tar xzf termide-0.46.0-aarch64-apple-darwin.tar.gz
 ./termide
 
 # Linux ARM64 (Raspberry Pi, ARM-серверы)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-gnu.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-gnu.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-gnu.tar.gz
 ./termide
 
 # Linux ARM64 (статический musl — Android/Termux, Alpine ARM, любой ARM64 без glibc)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 
 # Windows x86_64 (скачайте .zip с Releases, распакуйте, запустите в Windows Terminal)
-# https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-pc-windows-msvc.zip
+# https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-pc-windows-msvc.zip
 ```
 
 </details>
@@ -191,15 +194,15 @@ tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
 <details>
 <summary><b>🪟 Windows (.zip)</b></summary>
 
-TermIDE работает нативно на Windows 10+ через ConPTY. Для лучшего опыта используйте **Windows Terminal**.
+Termide работает нативно на Windows 10+ через ConPTY. Для лучшего опыта используйте **Windows Terminal**.
 
-1. Скачайте `termide-0.41.0-x86_64-pc-windows-msvc.zip` с [GitHub Releases](https://github.com/termide/termide/releases).
+1. Скачайте `termide-0.46.0-x86_64-pc-windows-msvc.zip` с [GitHub Releases](https://github.com/termide/termide/releases).
 2. Распакуйте архив.
 3. Запустите `termide.exe` в Windows Terminal.
 
 Конфигурация, раскладки проектов и логи хранятся в `%APPDATA%\termide\`.
 
-Либо в **WSL/WSL2** используйте сборку Linux x86_64 (`termide-0.41.0-x86_64-unknown-linux-gnu.tar.gz`), как на любом Linux.
+Либо в **WSL/WSL2** используйте сборку Linux x86_64 (`termide-0.46.0-x86_64-unknown-linux-gnu.tar.gz`), как на любом Linux.
 
 </details>
 
@@ -210,8 +213,8 @@ TermIDE работает нативно на Windows 10+ через ConPTY. Дл
 
 ```bash
 # Только x86_64 (для ARM64 используйте tar.gz выше)
-wget https://github.com/termide/termide/releases/latest/download/termide_0.41.0-1_amd64.deb
-sudo dpkg -i termide_0.41.0-1_amd64.deb
+wget https://github.com/termide/termide/releases/latest/download/termide_0.46.0-1_amd64.deb
+sudo dpkg -i termide_0.46.0-1_amd64.deb
 ```
 
 </details>
@@ -223,8 +226,8 @@ sudo dpkg -i termide_0.41.0-1_amd64.deb
 
 ```bash
 # Только x86_64 (для ARM64 используйте tar.gz выше)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-1.x86_64.rpm
-sudo rpm -i termide-0.41.0-1.x86_64.rpm
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-1.x86_64.rpm
+sudo rpm -i termide-0.46.0-1.x86_64.rpm
 ```
 
 </details>
@@ -295,8 +298,8 @@ nix profile install github:termide/termide
 
 ```bash
 pkg install git openssh   # инструменты, которые вызывает termide (а также нужные LSP-серверы)
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-aarch64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-aarch64-unknown-linux-musl.tar.gz
 ./termide
 ```
 
@@ -356,8 +359,8 @@ cargo build --release
 Проще всего взять готовый tarball из релиза:
 
 ```bash
-wget https://github.com/termide/termide/releases/latest/download/termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
-tar xzf termide-0.41.0-x86_64-unknown-linux-musl.tar.gz
+wget https://github.com/termide/termide/releases/latest/download/termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
+tar xzf termide-0.46.0-x86_64-unknown-linux-musl.tar.gz
 ./termide
 
 # Проверка полной статичности — нет разделяемых библиотек
@@ -383,10 +386,10 @@ Alpine, embedded-устройство — и он будет работать б
 termide [OPTIONS] [FILE]...
 
 Аргументы:
-  [FILE]...            Файл(ы) или каталоги для открытия. С путём TermIDE
+  [FILE]...            Файл(ы) или каталоги для открытия. С путём Termide
                        стартует в чистом виде (раскладка проекта не
                        восстанавливается и не сохраняется). Текст открывается
-                       в редакторе, поэтому TermIDE работает как $EDITOR для
+                       в редакторе, поэтому Termide работает как $EDITOR для
                        git, crontab, visudo и т. д.; изображения, файлы SQLite,
                        прочие бинарные файлы и каталоги — в своём просмотрщике,
                        hex-редакторе или файловом менеджере.
@@ -428,7 +431,7 @@ export EDITOR=termide   # git commit, crontab -e, visudo, ...
 
 ### Быстрый старт
 
-После запуска TermIDE вы увидите раскладку, адаптивную по ширине:
+После запуска Termide вы увидите раскладку, адаптивную по ширине:
 - **Широкие терминалы (>= 160 колонок):** Боковая панель (Git Status в стопке с Operations) + две панели файлового менеджера
 - **Обычные терминалы (< 160 колонок):** Боковая панель (Git Status, файловый менеджер и Operations в стопке) + панель файлового менеджера
 - Меню-бар сверху, статус-бар снизу
@@ -458,7 +461,7 @@ export EDITOR=termide   # git commit, crontab -e, visudo, ...
 
 ## Конфигурация
 
-TermIDE следует [спецификации XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) для организации файлов.
+Termide следует [спецификации XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html) для организации файлов.
 
 **Расположение файла конфигурации:**
 - Linux/BSD: `~/.config/termide/config.toml` (или `$XDG_CONFIG_HOME/termide/config.toml`)
@@ -524,9 +527,9 @@ min_level = "info"
 
 | | | |
 |:---:|:---:|:---:|
-| ![Windows XP](assets/screenshots/themes/windows-xp.png) | ![Dracula](assets/screenshots/themes/dracula.png) | ![Ayu Light](assets/screenshots/themes/ayu-light.png) |
+| ![Windows XP](https://termide.github.io/assets/themes/windows-xp.png) | ![Dracula](https://termide.github.io/assets/themes/dracula.png) | ![Ayu Light](https://termide.github.io/assets/themes/ayu-light.png) |
 | Windows XP (по умолчанию) | Dracula | Ayu Light |
-| ![Monokai](assets/screenshots/themes/monokai.png) | ![Nord](assets/screenshots/themes/nord.png) | ![Material Lighter](assets/screenshots/themes/material-lighter.png) |
+| ![Monokai](https://termide.github.io/assets/themes/monokai.png) | ![Nord](https://termide.github.io/assets/themes/nord.png) | ![Material Lighter](https://termide.github.io/assets/themes/material-lighter.png) |
 | Monokai | Nord | Material Lighter |
 
 ### Пользовательские темы
@@ -558,10 +561,35 @@ mode = "report"  # terminal (по умолчанию), background или report
 
 `Команды → Добавить команду...` создаёт команду через форму. Режимы, параметры
 и горячие клавиши описаны в [Пользовательских командах](doc/ru/actions.md).
+Команда из файла проекта запускается, когда вы увидели, что она запускает.
+
+### Плагины
+
+Плагин — это каталог в `plugins/` рядом с глобальным `config.toml` с файлом
+`plugin.toml`, где названа программа, которую termide запускает рядом с каждым
+открытым проектом:
+
+```toml
+# plugins/save-count/plugin.toml
+command = "./run.py"
+```
+
+Глобальный `config.toml` задаёт режим каждого плагина — `on` (по умолчанию),
+`opt-in` или `off`, — а `.termide/config.toml` проекта может лишь переключить
+его в пределах этого режима (`[plugins.<имя>] enabled = true | false`).
+Протокол — JSON-RPC через stdin и stdout плагина — описан в
+[Плагинах](doc/ru/plugins.md).
 
 ## Разработка
 
 Код — Cargo workspace из модульных крейтов; версию тулчейна задаёт `rust-toolchain.toml`. Сборка, тесты, Nix-окружение и pre-commit hook описаны в **[Руководстве разработчика](doc/ru/developer-guide.md)**, раскладка крейтов, система панелей и поток событий — в **[Архитектуре](doc/ru/architecture.md)**.
+
+## Сообщество
+
+- **[Telegram-канал — @termide_news](https://t.me/termide_news)** — новости и анонсы релизов
+- **[Telegram-группа — @termide_talks](https://t.me/termide_talks)** — общение с пользователями и разработчиками
+- **[GitHub Discussions](https://github.com/termide/termide/discussions)** — вопросы, идеи и рассказы о своём опыте
+- **[GitHub Issues](https://github.com/termide/termide/issues)** — сообщения об ошибках и запросы возможностей
 
 ## Вклад
 

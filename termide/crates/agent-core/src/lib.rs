@@ -20,14 +20,17 @@
 
 pub mod acp;
 pub mod agent;
+pub mod approvals;
 pub mod ask;
 pub mod cancel;
 pub mod checkpoints;
 pub mod classifier;
 pub mod commands;
 pub mod compaction;
+pub mod conflicts;
 pub mod context;
 pub mod failure;
+pub mod fit;
 pub mod goal;
 pub mod handoff;
 pub mod hooks;
@@ -59,19 +62,21 @@ pub use ask::{
     question_channel, Question, QuestionAnswer, QuestionEnvelope, QuestionOption, QuestionReply,
     UserAsker,
 };
-pub use cancel::CancelToken;
+pub use cancel::{CancelToken, PauseGate};
 pub use checkpoints::{Checkpoint, CheckpointHooks, CheckpointStore, SavedFile, Undone};
 pub use classifier::{
     parse_classification, Classifier, ClassifyPrompt, IntentEntry, IntentLog, ModelChoice,
     ModelClassifier, ReviewerSetup, SessionView, SpentMeter, Verdict, SEED_CLASSIFY,
 };
 pub use commands::{CommandScript, COMMANDS_DIR};
-pub use compaction::{CompactionPolicy, CompactionPrompts, CompactionReason};
+pub use compaction::{CompactionCall, CompactionPolicy, CompactionPrompts, CompactionReason};
+pub use conflicts::ConflictGuard;
 pub use context::{
     build_system_prompt, civil_date, discover_context_files, ContextFile, PromptOptions,
     SEED_TEMPLATE,
 };
 pub use failure::{parse_reset, Failure, FailureKind, LimitPolicy};
+pub use fit::{chars_for_tokens, fit, FitStep, Fitted};
 pub use goal::{parse_verdict, GoalOutcome, GoalPrompt, GoalVerdict, SEED_GOAL};
 pub use handoff::{HandoffPrompt, SEED_HANDOFF};
 pub use hooks::{HookConfig, HookEvent, HOOKS_FILE};
@@ -88,8 +93,9 @@ pub use mcp::{
     McpSignIn, McpStatus, McpTarget, MCP_FILE, MCP_JSON_FILE,
 };
 pub use message::{
-    now_millis, AssistantContent, AssistantMessage, Message, StopReason, ToolCall,
-    ToolResultContent, ToolResultMessage, Usage, UserContent, UserMessage,
+    now_millis, AssistantContent, AssistantMessage, Message, MessageOrigin, OriginKind, StopReason,
+    ToolCall, ToolResultContent, ToolResultMessage, Usage, UserContent, UserMessage,
+    SUBAGENT_SESSION_KEY,
 };
 pub use permissions::{
     is_read_only_call, permission_channel, shell_parts, subject_of, AskedPart, AutoDenyPrompter,
@@ -103,19 +109,21 @@ pub use provider::{
 };
 pub use prune::{prune_by, prune_to_decisions};
 pub use recall::{RecallPrompt, SEED_RECALL};
-pub use recap::{recap, RECAP_LIMIT};
+pub use recap::{handoff, recap, RECAP_LIMIT};
 pub use refusals::{Refusals, SEED_PERMISSIONS};
 pub use runtime::{
-    AgentCommand, AgentRuntime, Backend, BackendModel, BackendOption, BackendSetup, HostTools,
-    PromptError,
+    AgentCommand, AgentRuntime, Backend, BackendModel, BackendOption, BackendSetup, BackgroundCall,
+    HostTools, PromptError,
 };
 pub use session::{
     Autorun, Entry, EntryKind, ExternalSessionRef, GoalRecord, LastRun, LoggedMessage, LoopRecord,
-    RunMark, Session, SessionHeader, SessionModel, SessionSummary, Timing,
+    RunMark, Session, SessionHeader, SessionModel, SessionParent, SessionSummary, Timing,
 };
 pub use shell::{ShellOutput, ShellRunner};
 pub use suggest::{
     suggestion_channel, CommandSuggester, Suggestion, SuggestionEnvelope, SuggestionReply,
 };
-pub use tool::{LateTools, Tool, ToolContext, ToolRegistry, ToolUpdate};
+pub use tool::{
+    LateTools, Tool, ToolContext, ToolRegistry, ToolTraits, ToolUpdate, PLUGIN_TOOL_SOURCE,
+};
 pub use tool_text::{apply_tool_texts, ToolText, SEED_TOOLS, TOOLS_DIR};

@@ -182,6 +182,7 @@ mod tests {
         ToolContext {
             cwd: "/".into(),
             asker: None,
+            prompter: None,
             suggester: Some(suggester),
             shell_run: Some(ShellRunner::new(|command, _| {
                 Ok(ShellOutput {
@@ -191,6 +192,9 @@ mod tests {
             })),
             session: None,
             withdrawn: None,
+            panel: None,
+            tool: Default::default(),
+            resume: None,
         }
     }
 
@@ -205,10 +209,14 @@ mod tests {
         ToolContext {
             cwd: "/".into(),
             asker: None,
+            prompter: None,
             suggester: Some(suggester),
             shell_run: None,
             session: None,
             withdrawn: None,
+            panel: None,
+            tool: Default::default(),
+            resume: None,
         }
     }
 
@@ -255,6 +263,7 @@ mod tests {
         let ctx = ToolContext {
             cwd: "/".into(),
             asker: None,
+            prompter: None,
             suggester: Some(suggester),
             shell_run: Some(ShellRunner::new(|command, _| {
                 Ok(ShellOutput {
@@ -264,6 +273,9 @@ mod tests {
             })),
             session: None,
             withdrawn: None,
+            panel: None,
+            tool: Default::default(),
+            resume: None,
         };
         let answerer = std::thread::spawn(move || {
             let envelope = rx.recv().unwrap();
@@ -343,6 +355,7 @@ mod tests {
         let ctx = ToolContext {
             cwd: "/".into(),
             asker: Some(asker),
+            prompter: None,
             suggester: Some(suggester),
             shell_run: Some(ShellRunner::new(|command, _| {
                 Ok(ShellOutput {
@@ -352,6 +365,9 @@ mod tests {
             })),
             session: None,
             withdrawn: None,
+            panel: None,
+            tool: Default::default(),
+            resume: None,
         };
         let answerer = std::thread::spawn(move || {
             let envelope = rx.recv().unwrap();
@@ -383,6 +399,7 @@ mod tests {
         let ctx = ToolContext {
             cwd: "/".into(),
             asker: None,
+            prompter: None,
             suggester: Some(suggester),
             shell_run: Some(ShellRunner::new(move |command, _| {
                 recorder.lock().unwrap().push(command.to_string());
@@ -393,6 +410,9 @@ mod tests {
             })),
             session: None,
             withdrawn: None,
+            panel: None,
+            tool: Default::default(),
+            resume: None,
         };
         let result = SuggestCommandTool.execute(
             &call(json!({ "command": "gh issue comment 59" })),
@@ -418,10 +438,14 @@ mod tests {
         let ctx = ToolContext {
             cwd: "/".into(),
             asker: None,
+            prompter: None,
             suggester: Some(suggester),
             shell_run: Some(ShellRunner::new(|_, _| Err("no shell".to_string()))),
             session: None,
             withdrawn: None,
+            panel: None,
+            tool: Default::default(),
+            resume: None,
         };
         let result = SuggestCommandTool.execute(
             &call(json!({ "command": "ls" })),

@@ -35,6 +35,8 @@ mod bg_fetch;
 mod bg_git;
 mod bg_lsp;
 mod bg_resource;
+mod debug;
+mod debug_setup;
 mod event_handler;
 mod file_transfer_ops;
 mod global_hotkeys;
@@ -50,6 +52,10 @@ mod panel_factory;
 mod panel_manager;
 mod panel_operations;
 mod parked_projects;
+mod plugin_editor;
+mod plugin_providers;
+mod plugin_windows;
+mod plugins;
 mod project_layout;
 mod vault;
 mod watcher;
@@ -65,6 +71,8 @@ pub struct App {
     /// Projects open in this instance; the ones not current keep their
     /// panels parked here.
     open_projects: crate::open_projects::OpenProjects<parked_projects::ParkedProject>,
+    /// Plugins running for the loaded projects.
+    plugins: plugins::PluginRuntime,
     /// Last seen editor edit_version (for debounced outline sync).
     outline_last_version: u64,
     /// Last seen editor cursor line (for outline cursor sync).
@@ -75,6 +83,21 @@ pub struct App {
     title_click_tracker: ClickTracker<(u16, u16)>,
     /// Cached command list for Command Palette (index → action name).
     command_palette_actions: Option<Vec<String>>,
+    /// Debug launches offered by the open choice list (index → launch).
+    debug_choices: Option<Vec<debug::DebugChoice>>,
+    /// The DAP session, shared with the debug panel.
+    debug_session: termide_debug::dap::SharedSession,
+    /// Breakpoint store version the session was last told about.
+    debug_breakpoints_version: u64,
+    /// The stop last shown in an editor, so each stop is shown once.
+    debug_revealed: Option<(std::path::PathBuf, usize)>,
+    /// The process holding the terminal a debugged program was pointed at.
+    debug_terminal_pid: Option<u32>,
+    /// The last launch through a debug adapter, as it was asked for, for a
+    /// restart.
+    debug_last_launch: Option<termide_debug::dap::LaunchSpec>,
+    /// Agents' `debug` calls waiting for the session to get somewhere.
+    debug_waiters: Vec<agent_panel::DebugWaiter>,
     /// Capability-aware key normalizer. Used to build a `KeyChord` from
     /// raw `KeyEvent`s on the dispatch boundary so that all matchers
     /// downstream see canonical keys while text-input and PTY paths
@@ -111,6 +134,17 @@ pub struct App {
     vault: vault::VaultState,
     /// An open project held by the mouse to reorder.
     project_drag: Option<mouse::project_drag::ProjectDrag>,
+}
+
+/// Keep the windows external agents report in `<config>/ai/acp-windows.json`,
+/// for sizing what a new session of one is told of a conversation it joins.
+fn remember_agent_windows() {
+    if let Ok(dir) = termide_config::get_config_dir() {
+        termide_agent_acp::remember_windows_in(
+            dir.join(termide_agent_core::GLOBAL_AGENT_DIR)
+                .join("acp-windows.json"),
+        );
+    }
 }
 
 impl App {
@@ -153,6 +187,7 @@ impl App {
             min_log_level,
         );
         log::info!("Application started");
+        remember_agent_windows();
 
         // Initialize unified watcher for filesystem and git events
         match termide_watcher::create_watcher() {
@@ -178,12 +213,20 @@ impl App {
                 termide_config::constants::EVENT_HANDLER_INTERVAL_MS,
             )),
             open_projects: crate::open_projects::OpenProjects::new(project_root.clone()),
+            plugins: plugins::PluginRuntime::new(),
             project_root,
             outline_last_version: 0,
             outline_last_cursor: 0,
             outline_last_edit_time: None,
             title_click_tracker: ClickTracker::new(),
             command_palette_actions: None,
+            debug_choices: None,
+            debug_session: Default::default(),
+            debug_breakpoints_version: 0,
+            debug_revealed: None,
+            debug_waiters: Vec::new(),
+            debug_terminal_pid: None,
+            debug_last_launch: None,
             normalizer: termide_keyboard::KeyNormalizer::default(),
             #[cfg(unix)]
             keyboard_caps: termide_keyboard::KeyboardCaps::default(),
@@ -245,6 +288,7 @@ impl App {
             min_log_level,
         );
         log::info!("Application started");
+        remember_agent_windows();
 
         // Initialize unified watcher for filesystem and git events
         match termide_watcher::create_watcher() {
@@ -275,12 +319,20 @@ impl App {
                 termide_config::constants::EVENT_HANDLER_INTERVAL_MS,
             )),
             open_projects: crate::open_projects::OpenProjects::new(project_root.clone()),
+            plugins: plugins::PluginRuntime::new(),
             project_root,
             outline_last_version: 0,
             outline_last_cursor: 0,
             outline_last_edit_time: None,
             title_click_tracker: ClickTracker::new(),
             command_palette_actions: None,
+            debug_choices: None,
+            debug_session: Default::default(),
+            debug_breakpoints_version: 0,
+            debug_revealed: None,
+            debug_waiters: Vec::new(),
+            debug_terminal_pid: None,
+            debug_last_launch: None,
             normalizer: termide_keyboard::KeyNormalizer::new(caps),
             #[cfg(unix)]
             keyboard_caps: caps,
@@ -588,34 +640,27 @@ impl App {
         }
     }
 
-    /// Persist `config` to the currently-active config target.
+    /// Persist a preference chosen from the menus (theme, language) in the
+    /// global settings, and make it the running config.
     ///
-    /// Active target is derived from the existence of
-    /// `<project_root>/.termide/config.toml`:
-    /// - **Exists** → save the project-level diff against
-    ///   `state.global_baseline`. Only fields that differ from
-    ///   `defaults + global` survive in the project file.
-    /// - **Absent** → save the global-level diff against
-    ///   `Config::default()`. The user's `~/.config/termide/config.toml`
-    ///   keeps only fields they have explicitly changed.
-    ///
-    /// On success the in-memory `state.config` is replaced with the
-    /// new value so callers and panels see the change immediately.
-    ///
-    /// `config` is a running config: what the session forces on it is put
-    /// back before the save (see [`termide_config::RuntimeOverrides`]).
-    pub fn save_config_to_active_target(&mut self, config: Config) -> anyhow::Result<()> {
-        let config = self.state.runtime_overrides.strip(config);
-        let project_path = termide_config::project_config_path(&self.project_root);
-        if project_path.exists() {
-            config.save_project(&self.project_root, &self.state.global_baseline)?;
-        } else {
-            config.save_global()?;
-            // Without a project file the effective config is the global
-            // layer: a project file created later diffs against it.
-            self.state.global_baseline = std::sync::Arc::new(config.clone());
+    /// `set` is applied to the global layer, which is saved, and to the
+    /// running config. A project file, if any, is saved again against the
+    /// new global layer: being a diff, it drops a value of its own for the
+    /// preference, so the choice holds in every project. A per-project value
+    /// is set in the settings with `Stored: Project`.
+    pub(super) fn save_global_preference(&mut self, set: impl Fn(&mut Config)) -> Result<()> {
+        let mut global = (*self.state.global_baseline).clone();
+        set(&mut global);
+        global.save_global()?;
+        self.state.global_baseline = std::sync::Arc::new(global);
+
+        let mut running = (*self.state.config).clone();
+        set(&mut running);
+        let running = self.state.runtime_overrides.strip(running);
+        if termide_config::project_config_path(&self.project_root).exists() {
+            running.save_project(&self.project_root, &self.state.global_baseline)?;
         }
-        self.adopt_stored_config(config);
+        self.adopt_stored_config(running);
         Ok(())
     }
 
@@ -709,6 +754,9 @@ impl App {
         if config.ai_differs_from(&old) {
             agent_panel::publish_ai_settings(&config.ai);
         }
+        if config.plugins != old.plugins {
+            self.plugins.mark_dirty();
+        }
         // The table is built from the keybindings in the config.
         self.state.cache.hotkey_table = None;
         self.state.config = std::sync::Arc::new(config);
@@ -801,7 +849,10 @@ impl App {
             let mut g2 = PanelGroup::new(Box::new(FileManager::new()));
             if let Some(repo) = repo_root {
                 g2.add_panel(Box::new(
-                    termide_panel_git_status::GitStatusPanel::new_for_repo(repo),
+                    termide_panel_git_status::GitStatusPanel::new_for_repo(
+                        repo,
+                        Some(&self.project_root),
+                    ),
                 ));
             }
             g2.width = Some(40);
@@ -818,7 +869,10 @@ impl App {
 
             let mut g3 = if let Some(repo) = repo_root {
                 let mut g = PanelGroup::new(Box::new(
-                    termide_panel_git_status::GitStatusPanel::new_for_repo(repo),
+                    termide_panel_git_status::GitStatusPanel::new_for_repo(
+                        repo,
+                        Some(&self.project_root),
+                    ),
                 ));
                 g.add_panel(Box::new(termide_panel_outline::OutlinePanel::new(
                     *self.state.theme,
@@ -843,7 +897,10 @@ impl App {
 
             let mut g3 = if let Some(repo) = repo_root {
                 let mut g = PanelGroup::new(Box::new(
-                    termide_panel_git_status::GitStatusPanel::new_for_repo(repo),
+                    termide_panel_git_status::GitStatusPanel::new_for_repo(
+                        repo,
+                        Some(&self.project_root),
+                    ),
                 ));
                 g.add_panel(Box::new(termide_panel_outline::OutlinePanel::new(
                     *self.state.theme,
@@ -969,7 +1026,8 @@ impl App {
                     self.event_handler.set_tick_rate(Duration::from_millis(
                         termide_config::constants::EVENT_HANDLER_INTERVAL_MS,
                     ));
-                    // Handle bracketed paste - check modal first, then send to active panel
+                    // A bracketed paste goes to the open modal, which keeps it
+                    // from the panel beneath; with none open, to the active panel.
                     if !self.handle_modal_paste(&text) {
                         self.handle_paste_event(text)?;
                     }
@@ -1022,6 +1080,10 @@ impl App {
         }
 
         self.save_parked_layouts();
+        self.sync_editor_breakpoints();
+        termide_debug::breakpoints::flush();
+        self.end_debug_session();
+        self.shutdown_plugins();
         Ok(())
     }
 
@@ -1032,6 +1094,9 @@ impl App {
     /// operation-manager, git/command/fetch pollers and the always-on
     /// system-resource / LSP-completion / modal-spinner updates.
     fn poll_background(&mut self) {
+        self.poll_debug_session();
+        self.poll_plugins();
+        self.serve_debug_tool();
         self.flush_settings_save();
         self.poll_settings_model_fetch();
         if let Some(termide_modal::ActiveModal::Input(modal)) = self.state.active_modal.as_mut() {
@@ -1129,6 +1194,20 @@ impl App {
                     log::error!("Error processing panel events: {}", e);
                 }
             }
+            // The view shown over the layout, and the delegates' cards on
+            // their way to the views following their tasks.
+            if let Err(e) = self.tick_overlay() {
+                log::error!("Error processing the overlay's events: {}", e);
+            }
+            self.route_delegate_cards();
+            // The cards of the delegates carried on out of their own logs,
+            // which have no panel of their own to show them.
+            agent_panel::live::route_carried(self);
+            // What agents ask of the other panels.
+            self.serve_peers();
+            // The delegates parked at a limit whose wait is over, or whose
+            // panel has moved to another connection since.
+            self.wake_parked_delegates();
             self.tick_parked_projects();
             self.vault_tick();
         } else {
@@ -1166,6 +1245,9 @@ impl App {
                 self.handle_pending_upload(temp_path, remote_path, vfs_manager);
                 self.state.needs_redraw = true;
             }
+
+            // Files the editors wrote, for the plugins that watch saves.
+            self.emit_plugin_saves();
 
             // Check channel for directory size calculation results
             self.check_dir_size_update();

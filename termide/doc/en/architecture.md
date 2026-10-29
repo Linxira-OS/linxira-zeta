@@ -1,10 +1,10 @@
 # Architecture
 
-This document describes the technical architecture of TermIDE.
+This document describes the technical architecture of Termide.
 
 ## High-Level Overview
 
-TermIDE is a terminal-based IDE built with Rust using the `ratatui` TUI framework. It features an adaptive **split panel layout** that resizes to terminal width and gives every stacked panel an independently adjustable height — with a one-key fullscreen preset for the focused panel.
+Termide is a terminal-based IDE built with Rust using the `ratatui` TUI framework. It features an adaptive **split panel layout** that resizes to terminal width and gives every stacked panel an independently adjustable height — with a one-key fullscreen preset for the focused panel.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -598,7 +598,7 @@ lives.
 | FileManager subtree expand            | `crates/panel-file-manager/src/lib.rs` (`start_listing`)        | `poll_pending_expansions` from same path; placeholder rows show `…` until resolved |
 | FileManager per-entry git status      | `crates/panel-file-manager/src/git_status.rs`                   | `check_git_status_async`; `apply_git_statuses` reapplies if dir read raced ahead   |
 | Git status / log panel refresh        | `crates/panel-git-status/src/lib.rs`, `panel-git-log/src/lib.rs`| `poll_refresh` in each panel's `tick`                                              |
-| Git submodule discovery (RepoManager) | `crates/git/src/repo_manager.rs` (`spawn_submodule_walk`)       | `RepoManager::poll` from git panel `tick`                                          |
+| Git repo discovery (RepoManager)    | `crates/git/src/repo_manager.rs` (`spawn_repo_walk`)            | `RepoManager::poll` from git panel `tick`; nested repos and submodules to depth 3, repositories enclosing the project dropped once the walk lands |
 | Layout restore — panels in parallel   | `crates/app/src/layout_store.rs` (`construct_panel` per panel)| Joined synchronously after spawn so the slowest panel still gates the first frame  |
 | Watcher repo registration             | `crates/watcher/src/lib.rs` (`watch_repository`)                | `poll_pending` in app main loop; inotify installs chunked at `INSTALL_CHUNK`/tick, FSEvents (macOS) one recursive root watch with `.gitignore` filtering on delivery |
 | Directory size walk (wide-view)       | `crates/panel-file-manager/src/utils.rs` (`shared_dir_size_cache`) | Per-frame `try_recv` against shared cache; budget enforced per walk             |
@@ -726,10 +726,10 @@ the app's `VaultState`. See `doc/en/passwords.md` for the user view.
    - Long-running operations (search, compile) don't block UI
    - Background tasks with progress indicators
 
-2. **Plugin System**
-   - Load panels dynamically
-   - User-defined panel types
-   - Script integration (Lua, Python)
+2. **Plugin panels**
+   - Plugins (`crates/plugins`, see `plugins-design.md`) run as processes
+     beside termide; their own panels, drawn from a rich-text model they send,
+     are the next stage
 
 3. **Network Panels**
    - SSH terminal panels
@@ -771,13 +771,28 @@ the app's `VaultState`. See `doc/en/passwords.md` for the user view.
 - Scrollback buffer limit for terminal
 - Log rotation to prevent disk exhaustion
 
+**Untrusted projects:**
+A project's files come with the repository, so nothing in them decides what
+termide runs, where a key is sent, or how freely the agent acts.
+- `.termide/config.toml` passes through `config::layer_rules`: programs
+  (debuggers, LSP servers, shell, browser), the log file, a connection's
+  address and key variable, the agent's mode and `allow` rules are dropped
+  from it; the settings modal shows those fields as global-only
+- Plugins live only in the global plugins directory; a project switches one
+  within the mode the global config gives it
+- A project's MCP servers, hooks and `commands.toml` commands start only once
+  approved as they are configured (`agent_core::approvals`), and its agents
+  start only in `plan` or `ask` and are never external ones
+- What the user decides for a project — approvals, "allow always" rules — is
+  kept under `trust/` in termide's data directory, never in the project
+
 ## Conclusion
 
-TermIDE's architecture prioritizes:
+Termide's architecture prioritizes:
 - **Flexibility** - Dynamic panel system adapts to user needs
 - **Efficiency** - Adjustable split layout with a one-key fullscreen preset maximises usable space without giving up multi-panel views
 - **Extensibility** - Trait-based design allows easy additions
 - **Robustness** - Defensive programming prevents crashes
 - **Performance** - Efficient rendering and event handling
 
-The split-with-fullscreen layout system is the key innovation that differentiates TermIDE from traditional multi-panel terminal applications.
+The split-with-fullscreen layout system is the key innovation that differentiates Termide from traditional multi-panel terminal applications.

@@ -617,20 +617,22 @@ fn a_click_in_the_find_bar_places_its_cursor_and_a_drag_selects() {
     typed(&mut editor, 'X');
     assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "nXeedle");
 
-    // A drag over "Xee" selects it, and typing replaces the selection.
+    // A drag back over "Xee" selects it, and typing replaces the selection.
+    // (It starts at the other end: a quick second press where the first
+    // landed would be a double click.)
     Panel::handle_mouse(
         &mut editor,
-        at(MouseEventKind::Down(MouseButton::Left), start + 1),
+        at(MouseEventKind::Down(MouseButton::Left), start + 4),
         panel_area,
     );
     Panel::handle_mouse(
         &mut editor,
-        at(MouseEventKind::Drag(MouseButton::Left), start + 4),
+        at(MouseEventKind::Drag(MouseButton::Left), start + 1),
         panel_area,
     );
     Panel::handle_mouse(
         &mut editor,
-        at(MouseEventKind::Up(MouseButton::Left), start + 4),
+        at(MouseEventKind::Up(MouseButton::Left), start + 1),
         panel_area,
     );
     typed(&mut editor, 'Y');
@@ -860,4 +862,50 @@ fn a_short_line_does_not_lose_the_column() {
     editor.cursor = termide_buffer::Cursor::at(3, 1);
     editor.move_cursor_up();
     assert_eq!((editor.cursor.line, editor.cursor.column), (2, 0));
+}
+
+#[test]
+fn clipboard_commands_edit_the_focused_find_bar_not_the_buffer() {
+    termide_ui::clipboard::use_fake_clipboard("ell");
+    let (mut editor, _file) = create_editor_with_content("hello\n");
+    editor.open_find_bar(false);
+
+    // A terminal paste lands in the query and re-runs the search.
+    let result = editor.handle_command(PanelCommand::PasteText { text: "he".into() });
+    assert!(matches!(result, CommandResult::Handled(true)));
+    assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "he");
+    assert_eq!(editor.buffer.line(0).as_deref(), Some("hello\n"));
+    let matches = |editor: &Editor| editor.search.state.as_ref().map(|s| s.matches.len());
+    assert_eq!(matches(&editor), Some(1));
+
+    // Ctrl+A in the bar, then Ctrl+V replaces the query with the clipboard.
+    editor.handle_find_bar_key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyModifiers::CONTROL,
+    ));
+    assert!(matches!(
+        editor.handle_command(PanelCommand::Paste),
+        CommandResult::Handled(true)
+    ));
+    assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "ell");
+    assert_eq!(editor.buffer.line(0).as_deref(), Some("hello\n"));
+
+    // Ctrl+X takes the query's selection out and the search follows it.
+    editor.handle_find_bar_key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('a'),
+        crossterm::event::KeyModifiers::CONTROL,
+    ));
+    assert!(matches!(
+        editor.handle_command(PanelCommand::Cut),
+        CommandResult::Handled(true)
+    ));
+    assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "");
+    assert_eq!(termide_ui::clipboard::paste().as_deref(), Some("ell"));
+    assert_eq!(editor.buffer.line(0).as_deref(), Some("hello\n"));
+
+    // With focus on the buffer the paste goes into the text again.
+    editor.find_bar_focus_buffer = true;
+    editor.handle_command(PanelCommand::PasteText { text: "X".into() });
+    assert_eq!(editor.find_bar.as_ref().unwrap().find_text(), "");
+    assert!(editor.buffer.line(0).unwrap().contains('X'));
 }

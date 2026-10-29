@@ -252,9 +252,10 @@ impl IdePage {
             git_height: DEFAULT_GIT,
             drag: None,
             left: Box::new(termide_panel_file_manager::FileManager::new()),
-            git: Box::new(GitStatusPanel::new(&[
-                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-            ])),
+            git: Box::new(GitStatusPanel::new(
+                &[std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))],
+                None,
+            )),
             git_log: None,
             view: LeftView::Changes,
             board: None,
@@ -283,7 +284,7 @@ impl IdePage {
         if self.view != LeftView::History {
             if self.git_log.is_none() {
                 let paths = self.repo.clone().unwrap_or_else(|| PathBuf::from("."));
-                self.git_log = Some(Box::new(GitLogPanel::new(&[paths])));
+                self.git_log = Some(Box::new(GitLogPanel::new(&[paths], None)));
             }
             // History opens on the file in front of the reader, which is the
             // question the page is being used to answer: what changed here.

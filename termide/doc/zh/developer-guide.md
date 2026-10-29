@@ -1,6 +1,6 @@
 # 开发者指南
 
-本指南面向希望参与 TermIDE 开发或了解其代码库的开发者。
+本指南面向希望参与 Termide 开发或了解其代码库的开发者。
 
 ## 开发环境搭建
 
@@ -99,7 +99,7 @@ cargo fmt --check
 
 ## 项目结构
 
-TermIDE 使用 Cargo workspace，采用模块化 crate 架构：
+Termide 使用 Cargo workspace，采用模块化 crate 架构：
 
 ```
 termide/
@@ -153,6 +153,7 @@ termide/
 │   ├── panel-operations/     # 后台操作面板
 │   ├── panel-outline/        # 大纲面板
 │   ├── panel-terminal/       # 终端模拟器面板（PTY）
+│   ├── plugins/              # 插件：清单、JSON-RPC 与进程宿主
 │   ├── project/              # 已保存的项目布局
 │   ├── richtext/             # 富文本布局引擎（样式片段转为自动换行的行）
 │   ├── state/                # 应用状态（batch、layout、operations、ui）
@@ -338,7 +339,7 @@ WARN Missing translation key: my_key (using English fallback)
 
 ### 日志
 
-TermIDE 将日志写入：
+Termide 将日志写入：
 - Linux: `~/.cache/termide/termide.log`
 - macOS: `~/Library/Caches/termide/termide.log`
 - Windows: `%LOCALAPPDATA%\\termide\\cache\\termide.log`
@@ -412,4 +413,4 @@ state.log_debug("Debug message");
 
 ## 许可证
 
-TermIDE 基于 MIT 许可证授权。参与贡献即表示您同意以相同条款授权您的贡献。
+Termide 基于 MIT 许可证授权。参与贡献即表示您同意以相同条款授权您的贡献。

@@ -67,9 +67,9 @@ pub const TOAST_TTL: Duration = Duration::from_millis(1800);
 /// filled. [`RightTab::Plugin`] draws a plugin's **declarative** panels
 /// natively ([`crate::plugin_panels`]) and hands an `html` panel the body's
 /// rectangle for a WebView2 child ([`crate::embed`]), which is why the column
-/// width is the spec's `--side-right-w` ([`crate::right::WIDTH`], 324pt). The
-/// two plugin layers meet here and nowhere else: `zeta-main` (TUI) and
-/// `termide`/`zetaide` have no plugin layer at all.
+/// width is the spec's `--side-right-w` ([`crate::right::WIDTH`], 324pt).
+/// Zeta's plugin layers meet here and nowhere else: `zeta-main` (TUI) has no
+/// plugin layer, and `zetaide`'s TermIDE upstream layer (0.46+) is separate.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RightTab {
 	#[default]

@@ -176,6 +176,19 @@ pub trait Searchable {
     fn get_search_match_info(&self) -> Option<(usize, usize)>;
 }
 
+/// What a panel offers a custom command's placeholders (`{file}`, `{files}`,
+/// `{line}`, `{col}`): local paths only, lines and columns 1-based.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CommandContext {
+    /// The file the panel is on: an editor's file, the entry under a file
+    /// manager's cursor.
+    pub file: Option<PathBuf>,
+    /// The files the panel has selected; the file alone when nothing is.
+    pub files: Vec<PathBuf>,
+    pub line: Option<usize>,
+    pub col: Option<usize>,
+}
+
 /// Panel width preference for auto-stacking into existing groups.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WidthPreference {
@@ -394,7 +407,7 @@ pub trait Panel: Any {
     /// `(label, action_id)` pairs appended above the generic move/close items.
     /// An empty list (the default) adds nothing. A chosen entry is routed back
     /// via [`Panel::handle_status_action`] using its `action_id`.
-    fn context_menu_items(&self) -> Vec<(String, &'static str)> {
+    fn context_menu_items(&self) -> Vec<(String, String)> {
         vec![]
     }
 
@@ -420,6 +433,13 @@ pub trait Panel: Any {
     fn captures_escape(&self) -> bool {
         false
     }
+
+    /// Close transient popups (selector dropdowns and the like).
+    ///
+    /// Called before every render of a panel that is not focused, so an open
+    /// dropdown closes whichever way the panel lost focus. Must be cheap and
+    /// idempotent.
+    fn close_popups(&mut self) {}
 
     /// Whether the click that focuses this panel also acts inside it.
     ///
@@ -457,6 +477,12 @@ pub trait Panel: Any {
     /// Get current working directory (for file manager and terminals).
     fn get_working_directory(&self) -> Option<PathBuf> {
         None
+    }
+
+    /// The file, selection and cursor a custom command run from this panel
+    /// may refer to; empty for a panel with none.
+    fn command_context(&self) -> CommandContext {
+        CommandContext::default()
     }
 
     /// Get working directory as display string (includes URL for remote paths).

@@ -17,6 +17,7 @@ mod log_stream;
 mod operations;
 mod remote_url;
 mod repo_manager;
+mod repo_tree;
 mod stash;
 mod status;
 mod utils;
@@ -37,7 +38,7 @@ pub use commits::{
 };
 pub use discovery::{
     find_all_repos, find_repo_root, find_repos_from_paths, find_toplevel_repo, find_toplevel_repos,
-    get_repo_name, repo_paths_overlap,
+    get_repo_name, repo_paths_overlap, without_ancestor_repos,
 };
 pub use files::{get_staged_files, get_unstaged_files, StagedFile, UnstagedFile};
 pub use log_stream::{LogChunk, LogStream};
@@ -45,8 +46,11 @@ pub use operations::{
     commit, init_repo, revert_all, revert_file, stage_all, stage_file, stage_files, unstage_all,
     unstage_file, unstage_files,
 };
-pub use remote_url::get_commit_web_url;
+pub use remote_url::{get_commit_web_url, remote_host};
 pub use repo_manager::{project_repos, RepoManager};
+pub use repo_tree::{
+    flat_rows, relative_name, repo_tree, repo_tree_indexed, tree_prefixes, RepoFolds, RepoRow,
+};
 pub use stash::{
     stash_apply, stash_diff, stash_drop, stash_info, stash_list, stash_pop, stash_push,
     stash_rename, StashEntry, StashInfo,
