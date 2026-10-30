@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+### Added
+
+- Added main-agent PTC guidance for code-first tool orchestration; subagents do not receive it.
+- Added `plugin_manager` and `plugin_inspect` tools for main-agent plugin install/enable/inspect workflows; they are hidden from subagents and guarded at execution time.
+- Added a cached Git branch/ahead/behind/staged/unstaged/untracked and recent-commit widget to the TUI right sidebar.
+
+### Changed
+
+- Synced with upstream OMP v18.14.0, including native Chrome WebMCP, custom tool-loader signatures, exact provider-qualified model selectors, manual compaction events, Tern terminal code, and Bun 1.4.4 code paths. Zeta keeps its offline HTML exporter.
+
 ## [1.4.6] - 2026-10-29
 
 ### Breaking Changes

@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Rebuilt native addons against the OMP v18.14.0 baseline; no public API changes.
+
 ## [1.4.6] - 2026-10-28
 
 ### Breaking Changes
