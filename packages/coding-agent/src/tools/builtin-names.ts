@@ -33,6 +33,8 @@ export const BUILTIN_TOOL_NAMES = [
 	"reflect",
 	"learn",
 	"manage_skill",
+	"plugin_manager",
+	"plugin_inspect",
 	"channel_send",
 	"workspace_run",
 	"im_control",

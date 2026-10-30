@@ -76,6 +76,8 @@ import { MemoryReflectTool } from "./memory-reflect";
 import { MemoryRetainTool } from "./memory-retain";
 import { ModeTool } from "./mode";
 import { wrapToolWithMetaNotice } from "./output-meta";
+import { PluginInspectTool } from "./plugin-inspect";
+import { PluginManagerTool } from "./plugin-manager";
 import { ReadTool } from "./read";
 import type { PlanProposalHandler } from "./resolve";
 import { SecurityScanTool } from "./security-scan";
@@ -153,6 +155,8 @@ export * from "./memory-edit";
 export * from "./memory-recall";
 export * from "./memory-reflect";
 export * from "./memory-retain";
+export * from "./plugin-inspect";
+export * from "./plugin-manager";
 export * from "./read";
 export * from "./report-tool-issue";
 export * from "./resolve";
@@ -636,6 +640,8 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	reflect: MemoryReflectTool.createIf,
 	learn: LearnTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
+	plugin_manager: PluginManagerTool.createIf,
+	plugin_inspect: PluginInspectTool.createIf,
 	tracking_update: s => new TrackingTool(s),
 };
 
@@ -830,6 +836,12 @@ export async function resolveBuiltinToolPlan(session: ToolSession, toolNames?: s
 		if (name === "channel_send" || name === "workspace_run" || name === "im_control") {
 			if ((session.taskDepth ?? 0) > 0) return false;
 			return cfgChannelsEnabled.get(session.settings);
+		}
+		// Plugin management is main-agent only: install/uninstall/enable mutate the
+		// user's plugin root, which belongs to the session the user is talking to.
+		// A subagent never gets these even through an explicit tool list.
+		if (name === "plugin_manager" || name === "plugin_inspect") {
+			return (session.taskDepth ?? 0) === 0;
 		}
 		// Subagents never block on `wait`: owned job results re-wake their run
 		// through the executor's quiescence barrier, and parent messages steer them.
