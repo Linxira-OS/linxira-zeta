@@ -532,6 +532,9 @@ export const MUST_NOT_CONTAIN: Array<{
 			"document/brand-surface-rules.md",
 			// The migration test must name both spellings to assert the contract.
 			"test/plugins/lockfile-migration.test.ts",
+			// Tool fixtures create the canonical lockfile the manager reads/writes;
+			// the migration test above is what asserts the legacy spelling stays.
+			"packages/coding-agent/test/tools/plugin-tools.test.ts",
 		],
 	},
 	{
