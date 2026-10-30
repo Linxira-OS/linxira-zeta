@@ -1,12 +1,13 @@
 /**
  * Right-hand sidebar rendered into the TUI's gutter column (see
  * `TUI.setGutterComponent`). Owns an ordered registry of sidebar widgets: the
- * four built-ins (context gauge, todo/plan progress, detached subagents, and
- * MCP server health) plus any third-party widgets extensions register through
- * `ctx.ui.registerSidebarWidget`. Every widget reads synchronous getters per
- * frame (never IO) and is skipped when it renders nothing; adjacent widgets
- * are separated by the dim rule. The Model, Usage, and Git rows stay owned by
- * the status line.
+ * five built-ins (context gauge, todo/plan progress, detached subagents, MCP
+ * server health, and the cached Git panel) plus any third-party widgets
+ * extensions register through `ctx.ui.registerSidebarWidget`. Every widget
+ * reads synchronous getters per frame (never IO) and is skipped when it
+ * renders nothing; adjacent widgets are separated by the dim rule. The Model
+ * and Usage rows stay owned by the status line, whose Git segment remains the
+ * compact branch/dirty readout.
  */
 import { cfgTuiSidebarWidgets } from "../settings";
 import { type Component, Ellipsis, truncateToWidth } from "@linxiraos/pi-tui";
@@ -18,6 +19,7 @@ import { type ThemeColor, theme } from "@linxiraos/pi-tui/theme/theme";
 import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
 import type { StatusLineComponent } from "@linxiraos/pi-tui/status-line/component";
 import type { SegmentContext } from "@linxiraos/pi-tui/status-line/types";
+import type { SidebarGitSnapshot } from "./sidebar-git";
 
 /** Fixed sidebar width in columns (v1: no drag resize). */
 export const SIDEBAR_WIDTH = 36;
@@ -46,6 +48,8 @@ export interface SidebarSources {
 	subagents?: () => ObservableSession[];
 	/** Live MCP server health sets. */
 	mcp?: SidebarMcpSource;
+	/** Cached Git snapshot provider; `null` hides the Git widget (no repo / error). */
+	git?: () => SidebarGitSnapshot | null;
 }
 
 /** Subagent rows shown before the panel truncates (HUD-visible-limit precedent). */
@@ -90,7 +94,7 @@ function todoLine(todo: TodoItem, w: number): string {
 }
 
 /**
- * The four built-in widgets. `render` returns the widget's full rows — header
+ * The five built-in widgets. `render` returns the widget's full rows — header
  * included when the widget has one — and an empty array hides the widget for
  * that frame. Orders space them below any future built-in so third-party
  * widgets sort deterministically by `order`, then id.
@@ -175,6 +179,30 @@ function createBuiltinWidgets(sources: SidebarSources): SidebarWidget[] {
 				if (pending > 0) groups.push(`${theme.styledSymbol("status.pending", "warning")}${pending}`);
 				if (failed > 0) groups.push(`${theme.styledSymbol("status.error", "error")}${failed}`);
 				rows.push(truncateToWidth(groups.join("  "), w, Ellipsis.Omit));
+				return rows;
+			},
+		},
+		{
+			id: "git",
+			title: "Git",
+			order: 40,
+			render: (_ctx, w) => {
+				const snapshot = sources.git?.();
+				if (!snapshot) return [];
+				const header: string[] = [`${theme.icon.branch} ${snapshot.branch ?? "detached"}`];
+				if (snapshot.ahead > 0) header.push(`↑${snapshot.ahead}`);
+				if (snapshot.behind > 0) header.push(`↓${snapshot.behind}`);
+				const counts: string[] = [];
+				if (snapshot.staged > 0) counts.push(theme.fg("statusLineStaged", `+${snapshot.staged}`));
+				if (snapshot.unstaged > 0) counts.push(theme.fg("statusLineDirty", `*${snapshot.unstaged}`));
+				if (snapshot.untracked > 0) counts.push(theme.fg("statusLineUntracked", `?${snapshot.untracked}`));
+				const rows = [
+					fit(header.join(" "), w, "muted"),
+					counts.length > 0 ? truncateToWidth(counts.join(" "), w, Ellipsis.Omit) : fit("clean", w, "dim"),
+				];
+				for (const commit of snapshot.commits) {
+					rows.push(fit(`${commit.shortSha} ${commit.age} ${commit.subject}`, w, "dim"));
+				}
 				return rows;
 			},
 		},

@@ -493,7 +493,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"tui.sidebar": {
 		label: "侧边栏",
-		description: "显示右侧边栏（上下文、用量、git、模型）",
+		description: "显示右侧边栏（上下文仪表、任务、子代理、MCP 健康状态，以及缓存的 git 分支/状态/最近提交）",
 	},
 	"tui.sidebarWidgets": {
 		label: "侧边栏小组件",

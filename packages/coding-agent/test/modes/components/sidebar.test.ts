@@ -13,6 +13,7 @@ import {
 } from "../../../src/modes/components/sidebar";
 import type { SegmentContext } from "@linxiraos/pi-tui/status-line/types";
 import type { ObservableSession } from "@linxiraos/pi-tui/overlays/session-observer-registry";
+import type { SidebarGitSnapshot } from "../../../src/modes/components/sidebar-git";
 import { getThemeByName, setThemeInstance, theme } from "@linxiraos/pi-tui/theme/theme";
 import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 
@@ -48,6 +49,19 @@ function mcpSource(connected: number, pending: number, failed: number): SidebarM
 		connected: new Set(Array.from({ length: connected }, (_, i) => `c${i}`)),
 		pending: new Set(Array.from({ length: pending }, (_, i) => `p${i}`)),
 		failed: new Map(Array.from({ length: failed }, (_, i) => [`f${i}`, { error: "boom" }])),
+	};
+}
+
+function gitSnapshot(overrides: Partial<SidebarGitSnapshot> = {}): SidebarGitSnapshot {
+	return {
+		branch: "feature/sidebar",
+		ahead: 0,
+		behind: 0,
+		staged: 0,
+		unstaged: 0,
+		untracked: 0,
+		commits: [],
+		...overrides,
 	};
 }
 
@@ -178,6 +192,69 @@ describe("SidebarComponent", () => {
 		expect(rows.every(row => !row.includes("MCP"))).toBe(true);
 	});
 
+	it("renders the cached Git panel with branch, ahead/behind, counts, and recent commits", () => {
+		const rows = renderSidebar(
+			bareSessionSources({
+				git: () =>
+					gitSnapshot({
+						branch: "feature/sidebar",
+						ahead: 2,
+						behind: 1,
+						staged: 1,
+						unstaged: 3,
+						untracked: 2,
+						commits: [
+							{ shortSha: "4d3c2b1", subject: "Add the sidebar Git panel", age: "2h" },
+							{ shortSha: "9e8f7a6", subject: "Fix parser", age: "3d" },
+						],
+					}),
+			}),
+		);
+		const header = rows.find(row => row.includes(theme.icon.branch));
+		expect(header).toBeDefined();
+		expect(header).toContain("feature/sidebar");
+		expect(header).toContain("↑2");
+		expect(header).toContain("↓1");
+		expect(rows.some(row => row.includes("+1"))).toBe(true);
+		expect(rows.some(row => row.includes("*3"))).toBe(true);
+		expect(rows.some(row => row.includes("?2"))).toBe(true);
+		expect(
+			rows.some(row => row.includes("4d3c2b1") && row.includes("2h") && row.includes("Add the sidebar Git panel")),
+		).toBe(true);
+		expect(rows.some(row => row.includes("9e8f7a6") && row.includes("3d"))).toBe(true);
+	});
+
+	it("marks a clean repository and truncates a long commit row to the gutter", () => {
+		const rows = renderSidebar(
+			bareSessionSources({
+				git: () => gitSnapshot({ commits: [{ shortSha: "abc1234", subject: "x".repeat(80), age: "5m" }] }),
+			}),
+		);
+		expect(rows.some(row => row.includes("clean"))).toBe(true);
+		const commit = rows.find(row => row.includes("abc1234"));
+		expect(commit).toBeDefined();
+		expect(visibleWidth(commit!)).toBeLessThanOrEqual(SIDEBAR_WIDTH);
+	});
+
+	it("hides the Git panel when no snapshot exists (no repository or a git error)", () => {
+		const rows = renderSidebar(bareSessionSources({ git: () => null }));
+		expect(rows.every(row => !row.includes(theme.icon.branch))).toBe(true);
+		expect(rows.every(row => !row.includes("clean"))).toBe(true);
+	});
+
+	it("orders the Git panel after the other built-ins", () => {
+		const rows = renderSidebar(
+			bareSessionSources({
+				mcp: mcpSource(1, 0, 0),
+				git: () => gitSnapshot(),
+			}),
+		);
+		const mcp = rows.findIndex(row => row.includes("MCP"));
+		const git = rows.findIndex(row => row.includes(theme.icon.branch));
+		expect(mcp).toBeGreaterThanOrEqual(0);
+		expect(git).toBeGreaterThan(mcp);
+	});
+
 	it("never renders the removed status-line duplicate rows (model, usage, git)", () => {
 		const rows = renderSidebar({
 			statusLine: statusLineWith(),
@@ -201,6 +278,11 @@ describe("SidebarComponent", () => {
 			session: sessionWith(longPhases),
 			subagents: () => [subagent("active", `${"y".repeat(120)}`)],
 			mcp: mcpSource(1, 0, 0),
+			git: () =>
+				gitSnapshot({
+					branch: "branch-with-a-very-long-name/and-more",
+					commits: [{ shortSha: "deadbee", subject: "z".repeat(120), age: "1y" }],
+				}),
 		});
 		expect(rows.length).toBeGreaterThan(0);
 		for (const row of rows) {
