@@ -60,7 +60,11 @@ if (!bazel) {
 
 // `fetch --repo=@crates` evaluates exactly the crate_universe extension (and
 // whatever it needs), never the build graph.
-const args = ["fetch", "--repo=@crates", `--lockfile_mode=${check ? "error" : "update"}`];
+//
+// `BAZEL_ARGS` lets the Gitea runner pass startup options such as
+// `--bazelrc=...`; GitHub leaves it unset and keeps the plain invocation.
+const extraArgs = (process.env.BAZEL_ARGS ?? "").trim().split(/\s+/).filter(Boolean);
+const args = [...extraArgs, "fetch", "--repo=@crates", `--lockfile_mode=${check ? "error" : "update"}`];
 const proc = Bun.spawn([bazel, ...args], { cwd: repoRoot, stdio: ["inherit", "inherit", "inherit"] });
 const code = await proc.exited;
 if (code === 0) {

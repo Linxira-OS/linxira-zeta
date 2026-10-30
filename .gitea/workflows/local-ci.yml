@@ -315,6 +315,16 @@ jobs:
                  tar -xJf /tmp/node.tar.xz -C "$TOOLS/node" --strip-components=1
               fi
 
+              # cmake —— 原生 addon 的 opusic-sys 构建脚本直接调它；GitHub
+              # runner 镜像自带，常驻 NAS 没有。装进 $TOOLS，避免依赖发行版。
+              if ! command -v cmake >/dev/null 2>&1; then
+                 fetch "${LOCAL_CI_MIRROR_GH:-}https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-x86_64.tar.gz" /tmp/cmake.tar.gz
+                 mkdir -p "$TOOLS/cmake"
+                 tar -xzf /tmp/cmake.tar.gz -C "$TOOLS/cmake" --strip-components=1
+                 ln -sf "$TOOLS/cmake/bin/cmake" "$TOOLS/bin/cmake"
+                 ln -sf "$TOOLS/cmake/bin/ctest" "$TOOLS/bin/ctest" 2>/dev/null || true
+              fi
+
               {
                  echo "RUSTUP_HOME=$RUSTUP_HOME"
                  echo "CARGO_HOME=$CARGO_HOME"
@@ -340,6 +350,7 @@ jobs:
               echo "cargo $(cargo --version)"
               echo "rustc $(rustc --version)"
               echo "node  $(node --version 2>/dev/null || echo '<absent: web-ui job will install it>')"
+              echo "cmake $(cmake --version 2>/dev/null | head -1 || echo '<absent>')"
               echo "bazel $(bazelisk --version 2>/dev/null | head -1 || echo '<absent>')"
 
          - name: Install workspace dependencies
@@ -404,6 +415,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Verify Rust license compliance (cargo-deny)
            shell: bash
            run: |
@@ -563,6 +580,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Install dependencies
            working-directory: web-ui
            run: npm ci
@@ -630,12 +653,37 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
+         - name: Compose bazel cache config
+           id: cache
+           shell: bash
+           run: |
+              set -euo pipefail
+              mkdir -p "$HOME/.cache/omp-bazel-disk" "$HOME/.cache/omp-bazel-repo"
+              find "$HOME/.cache/omp-bazel-disk" -type f -mtime +14 -delete 2>/dev/null || true
+              rc="$RUNNER_TEMP/bazel-cache.rc"
+              mkdir -p "$HOME/.cache/omp-bazel-distdir"
+              {
+                 echo "common --config=ci"
+                 echo "common --disk_cache=$HOME/.cache/omp-bazel-disk"
+                 echo "common --repository_cache=$HOME/.cache/omp-bazel-repo"
+                 echo "common --distdir=$HOME/.cache/omp-bazel-distdir"
+              } > "$rc"
+              if [ -n "${BAZEL_REGISTRY:-}" ]; then echo "common --registry=$BAZEL_REGISTRY" >> "$rc"; fi
+              echo "rc=$rc" >> "$GITHUB_OUTPUT"
          # 与 GitHub `bazel_lock` 同序、同入口：先无条件跑 crate 覆盖守卫（守卫
          # 自身出错必须先暴露，不能被下面的 "stale" 提示掩盖），再查
          # crate_universe 条目。
          - name: Test the crate-coverage guard
            run: bun test scripts/bazel-lock-drift.test.ts
          - name: Check crate_universe entry
+           env:
+              BAZEL_ARGS: --bazelrc=${{ steps.cache.outputs.rc }}
            run: bun scripts/gen-bazel-lock.ts --check
          - name: Report how to refresh
            if: failure()
@@ -692,6 +740,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Compose bazel cache config
            id: cache
            shell: bash
@@ -809,6 +863,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Reuse built addons
            shell: bash
            run: |
@@ -873,6 +933,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Test workspace packages and repo scripts (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -945,6 +1011,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Test coding-agent singleton/global-state bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -1001,6 +1073,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Test native/TUI/browser-ish packages (TS)
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -1057,6 +1135,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Test coding-agent UI/TUI bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -1113,6 +1197,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Test coding-agent runtime bucket
            env:
               OMP_TEST_CONCURRENCY: "4"
@@ -1169,6 +1259,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: CLI smoke test
            run: bun run ci:test:smoke
 
@@ -1222,6 +1318,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Install method smoke tests
            env:
               OMP_INSTALL_TEST_SKIP_NATIVE_BUILD: "1"
@@ -1278,6 +1380,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - id: cache
            name: Compose bazel cache config
            shell: bash
@@ -1379,6 +1487,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Install Web UI dependencies
            working-directory: web-ui
            run: npm ci
@@ -1449,6 +1563,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Detect termide/ changes
            id: termide
            shell: bash
@@ -1539,6 +1659,12 @@ jobs:
                  exit 1
               fi
               echo "$extra:$PATH" >> "$GITHUB_PATH"
+              # The host executor gives every job its own act/<hash> workdir;
+              # the toolchains job's node_modules is not visible here. Install
+              # the workspace graph before the job's bun commands (`oxlint`,
+              # test buckets, desktop launcher tests).
+              export PATH="$extra:$PATH"
+              bun install --frozen-lockfile
          - name: Detect main/ changes
            id: main
            shell: bash
