@@ -68,13 +68,17 @@ merge.
   unused by the restored exporter.
 - **Checks (local, 2026-10-30)**: `check:ts` pass (all workspaces);
   `brand-check` 0 hits; `check-zeta-sentinels` 119; `check-scope-imports`
-  20,248 specifiers; `check-shared-infra` 16 endpoints; version consistency
+  21,455 specifiers; `check-shared-infra` 16 endpoints; version consistency
   1.4.6; lineage gate pass. TUI conflict suites 83 pass; coding-agent targeted
   suites 77 pass; session/modes/task batch 141 pass, with three Windows-only
   failures (two `EPERM` symlink cases and one 30s timeout that passes 22/22
-  standalone). Rust `check:rs` is blocked by this Windows host resolving
-  `link.exe` to Git's coreutils link rather than the MSVC linker; CI remains
-  the Rust authority.
+  standalone). The CLI binary builds after a clean `dist/` and its smoke run
+  reports `zetacode/1.4.6`; the earlier stale `dist/zeta.exe` masked the version
+  change. `bun run test:ts` stops in `packages/utils` on two Windows baseline
+  failures (`readlink` returns `EINVAL`; a 5.21s process-spawn assertion misses
+  its 5s bound), so its remaining package buckets were not reached; CI remains
+  the full-suite authority. Rust `check:rs` is blocked by this Windows host
+  resolving `link.exe` to Git's coreutils link rather than the MSVC linker.
 
 
 This line is the machine-readable answer to "which upstream tag is actually
