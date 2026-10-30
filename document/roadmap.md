@@ -77,7 +77,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | IM credential login (1.4.0)                    | `src/channels/credential-login.ts`, GUI `settings_channels.rs`                | Feishu app credentials and Telegram bot token validated before saving; masked errors; same state words as the WeChat QR flow |
 | Plugin panel activation gate (1.4.0)           | `src/extensibility/plugins/activation.ts`                                     | Declarative panels appear only when the agent runs inside the workbench terminal (or `PI_FORCE_PLUGIN_PANELS=1`); tools and commands stay available everywhere |
 | Multi-repo task panel design (1.4.0)           | `document/task-panel-design.md`                                               | Decision-complete: single `task` tool with `op`, per-repo `.zeta/tasks/<id>.md`, workspace binding file, invalidation rules, layer separation from the user board, sticky disable, 23 acceptance scenarios |
-| TUI right sidebar (`tui.sidebar`)              | `src/modes/components/sidebar.ts`, `src/modes/settings.ts`                    | 36-column gutter, `/sidebar` + `app.sidebar.toggle`, `tui.sidebar` default off, `tui.sidebarWidgets` gates extension widgets; built-ins: context, todos, subagents, MCP; hidden below 100 columns or under an overlay; not scrollback. **Had only UPDATE-LOG/docs mention, no roadmap row** |
+| TUI right sidebar (`tui.sidebar`)              | `src/modes/components/sidebar.ts`, `src/modes/components/sidebar-git.ts`, `src/modes/settings.ts` | 36-column gutter, `/sidebar` + `app.sidebar.toggle`, `tui.sidebar` default off, `tui.sidebarWidgets` gates extension widgets; built-ins: context, todos, subagents, MCP, git (cached branch/ahead-behind/status/last 5 commits, hidden outside a repo); hidden below 100 columns or under an overlay; not scrollback. **Had only UPDATE-LOG/docs mention, no roadmap row** |
 
 ## Priorities
 
@@ -110,7 +110,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
   **2026-10-30 例外**：TUI 已有 `tui.sidebar` gutter（36 列，context/todos/subagents/MCP）；
   允许在其上补内容（如 Git 历史/提交）与修正文档，但**不扩成 dsh-TUI 的完整 PanelHost**
   （不做标签页、拖拽 resize、插件 panel 宿主）；仍不新增用户模式。
-  **待办（P1）**：TUI 右栏 Git widget——branch/工作区状态/ahead-behind/最近提交；
+  **已交付（2026-10-30）**：TUI 右栏 Git widget——branch/工作区状态/ahead-behind/最近五次提交；
   `SidebarSources` 注入缓存快照，渲染路径零 IO；不新增设置、不改状态栏归属。
 - **内置编辑器要"像专业编辑器"，但不要代码补全**（能力缺口审计后逐项登记）。
 

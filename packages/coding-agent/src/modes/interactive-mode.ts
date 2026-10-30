@@ -441,6 +441,7 @@ import {
 	cfgTuiSidebar,
 } from "./settings";
 import { SIDEBAR_WIDTH, SidebarComponent } from "./components/sidebar";
+import { SidebarGitSource } from "./components/sidebar-git";
 import { cfgCollabEnabled } from "../collab/settings";
 import { cfgTasksTodoClearDelay } from "../tools/settings";
 import { cfgWorktreeOnExit, cfgWorktreeOnStart } from "../task/settings";
@@ -1393,6 +1394,7 @@ export class InteractiveMode implements InteractiveModeContext {
 	hookWidgetContainerBelow: Container;
 	statusLine: StatusLineComponent;
 	sidebar: SidebarComponent;
+	sidebarGit: SidebarGitSource;
 
 	isInitialized = false;
 	initialChatRendered = false;
@@ -2246,6 +2248,11 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.editorContainer = new Container();
 		this.editorContainer.addChild(this.editor);
 		this.statusLine = new StatusLineComponent(session, statusLineHost);
+		this.sidebarGit = new SidebarGitSource({
+			cwd: () => this.sessionManager.getCwd(),
+			enabled: () => cfgGitEnabled.get(this.settings),
+			onChange: () => this.ui.requestRender(),
+		});
 		this.sidebar = new SidebarComponent({
 			statusLine: this.statusLine,
 			session,
@@ -2255,6 +2262,7 @@ export class InteractiveMode implements InteractiveModeContext {
 				connected: this.#mcpConnectedServers,
 				failed: this.#mcpFailedServers,
 			},
+			git: () => this.sidebarGit.snapshot(),
 		});
 
 		// Native segment clicks open what their slash commands and keys open.
@@ -2446,6 +2454,7 @@ export class InteractiveMode implements InteractiveModeContext {
 			beginDispose: () => {
 				this.session.beginDispose();
 				this.statusLine.dispose();
+				this.sidebarGit.dispose();
 			},
 			saveDraft: text => this.sessionManager.saveDraft(text),
 			disposeSession: async reason => {
@@ -2520,7 +2529,10 @@ export class InteractiveMode implements InteractiveModeContext {
 		}
 		this.#headerAfter = headerAfter;
 		this.composer.setHeaderExtras(headerBefore, headerAfter);
-		this.statusLine.watchBranch(() => this.ui.requestRender());
+		this.statusLine.watchBranch(() => {
+			void this.sidebarGit.refresh();
+			this.ui.requestRender();
+		});
 		this.composer.setStatusComponent(this.statusLine);
 
 		this.composer.setRuntimeChildren(
@@ -4379,6 +4391,8 @@ export class InteractiveMode implements InteractiveModeContext {
 			this.ui.requestRender();
 		}
 		if (any("statusLine.sessionAccent")) this.#handleSessionAccentInputsChanged();
+		// `git.enabled` also gates the sidebar's Git panel: clear or refetch it.
+		if (any("git.enabled")) void this.sidebarGit.refresh();
 		// Advisor runtime start/stop has no session event; repaint its status segment.
 		if (any("advisor.enabled", "advisor.maxNotesPerUpdate", "tier.advisor")) {
 			this.statusLine.invalidate();
@@ -8079,6 +8093,7 @@ export class InteractiveMode implements InteractiveModeContext {
 		this.#eventController.dispose();
 		this.#codexResetFireworksController.dispose();
 		this.statusLine.dispose();
+		this.sidebarGit.dispose();
 		if (this.#resizeHandler) {
 			process.stdout.removeListener("resize", this.#resizeHandler);
 			this.#resizeHandler = undefined;
@@ -8992,6 +9007,9 @@ export class InteractiveMode implements InteractiveModeContext {
 		if (cfgTuiSidebar.get(settings)) {
 			this.ui.setMainWidth(SIDEBAR_WIDTH);
 			this.ui.setGutterComponent(this.sidebar);
+			// Opening (or re-opening) the sidebar fetches the Git panel without
+			// waiting for the next HEAD/status event.
+			void this.sidebarGit.refresh();
 		} else {
 			this.ui.setMainWidth(null);
 			this.ui.setGutterComponent(null);

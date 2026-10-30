@@ -1353,7 +1353,8 @@ export const cfgTuiSidebar = register({
 		tab: "appearance",
 		group: "Display",
 		label: "Sidebar",
-		description: "Show the right-hand sidebar (context, usage, git, model)",
+		description:
+			"Show the right-hand sidebar (context gauge, todos, subagents, MCP health, and cached git branch/status/recent commits)",
 	},
 });
 // The open sidebar already shows the session identity, so the status row drops
