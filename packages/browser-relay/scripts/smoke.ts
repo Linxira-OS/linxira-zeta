@@ -13,7 +13,7 @@
 import type { Target } from "puppeteer-core";
 import puppeteer from "puppeteer-core";
 
-const relayUrl = Bun.argv[2] ?? "http://127.0.0.1:9224";
+const relayUrl = Bun.argv[2] ?? "http://127.0.0.1:43153";
 const matcher = Bun.argv[3] ?? "Relay Smoke Page";
 
 /** Puppeteer keeps the CDP target id on an internal field; same access the omp tab supervisor uses (`targetIdForPage`). */

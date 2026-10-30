@@ -12,14 +12,14 @@ import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 const received = new Map<string, IrcMessage[]>();
 let registry: AgentRegistry;
 
-function registerPeer(id: string, status: "running" | "idle" = "running"): void {
+function registerPeer(id: string, status: "running" | "idle" = "running", kind: "sub" | "main" = "sub"): void {
 	const messages: IrcMessage[] = [];
 	received.set(id, messages);
 	registry.register({
 		id,
 		displayName: id,
-		kind: "sub",
-		parentId: "Main",
+		kind,
+		...(kind === "sub" ? { parentId: "Main" } : {}),
 		status,
 		session: {
 			deliverIrcMessage: async (message: IrcMessage) => {
@@ -112,11 +112,14 @@ describe("write agent:// messaging", () => {
 		);
 	});
 
-	it("does not duplicate a child broadcast in the main session's relay view", async () => {
-		registerPeer("Sender");
+	it("does not duplicate a top-level broadcast in the main session's relay view", async () => {
+		registerPeer("Sender", "running", "main");
 		registerPeer("Sibling");
 		const delivered: IrcMessage[] = [];
 		const relayed: unknown[] = [];
+		// This test replaces the in-memory main registration from beforeEach with
+		// one that owns a session; reuse is explicit under the registry contract.
+		registry.unregister("Main");
 		registry.register({
 			id: "Main",
 			displayName: "Main",

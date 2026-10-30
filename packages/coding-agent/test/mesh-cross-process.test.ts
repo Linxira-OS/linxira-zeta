@@ -111,7 +111,13 @@ describe("mesh cross-process (S1)", () => {
 		try {
 			const handler = new AgentProtocolHandler();
 			const result = await handler.write(
-				{ scheme: "agent", rawHost: "zeta", hostname: "zeta", pathname: "/Main" } as never,
+				{
+					scheme: "agent",
+					rawHost: "zeta",
+					hostname: "zeta",
+					pathname: "/Main",
+					searchParams: new URLSearchParams(),
+				} as never,
 				"cross-process write",
 				{
 					session: {

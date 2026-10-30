@@ -44,7 +44,7 @@ import { VirtualTerminal } from "../../../tui/test/virtual-terminal";
 import { createTestSession, type TestSessionContext } from "../utilities";
 import { FakeWebSocket, installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
-import { cfgCollabAutoStart } from "@linxiraos/zeta/collab/settings";
+import { cfgCollabAutoStart, cfgCollabEnabled } from "@linxiraos/zeta/collab/settings";
 import { cfgAdvisorEnabled } from "@linxiraos/zeta/advisor/settings";
 import { CfgProtocolHandler } from "@linxiraos/zeta/internal-urls/cfg-protocol";
 import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
@@ -105,6 +105,7 @@ function makeControllerContext(over: { autoStart?: "off" | "view" | "control"; r
 	const state: ControllerContextState = {
 		sessionId: `sess-${crypto.randomUUID()}`,
 		settings: Settings.isolated({
+			"collab.enabled": true,
 			"collab.autoStart": over.autoStart ?? "off",
 			"collab.relayUrl": over.relayUrl ?? RELAY_URL,
 			"collab.webUrl": WEB_URL,
@@ -293,6 +294,7 @@ describe("interactive collaboration startup", () => {
 		resetSettingsForTest();
 		await initTheme();
 		activeSettings = await Settings.init({ inMemory: true, cwd: tmp });
+		cfgCollabEnabled.override(activeSettings, true);
 		cfgStartupCheckUpdate.override(activeSettings, false);
 		cfgStartupChangelogMode.override(activeSettings, "hidden");
 		cfgStartupSetupWizard.override(activeSettings, false);
@@ -300,6 +302,7 @@ describe("interactive collaboration startup", () => {
 		cfgMarketplaceAutoUpdate.override(activeSettings, "off");
 		testSession = await createTestSession({
 			settingsOverrides: {
+				"collab.enabled": true,
 				"collab.autoStart": "view",
 				"collab.relayUrl": RELAY_URL,
 				"collab.webUrl": WEB_URL,
@@ -967,7 +970,9 @@ describe("CollabController", () => {
 
 		expect(() => controller!.autoStart()).not.toThrow();
 
-		expect(await state.firstStatus.promise).toMatch(/auto-start failed: No relay configured/);
+		expect(await state.firstStatus.promise).toMatch(
+			/auto-start failed: Collab is enabled but no relay is configured/,
+		);
 		expect(ctx.collabHost).toBeUndefined();
 	});
 

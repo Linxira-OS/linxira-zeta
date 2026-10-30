@@ -166,7 +166,7 @@ describe("hosted export viewer build", () => {
 			document,
 			HTMLElement: class extends HTMLElement {
 				constructor() {
-					super("omp-tool-view", document);
+					super("zeta-tool-view", document);
 				}
 			},
 			customElements: {
@@ -227,7 +227,7 @@ describe("hosted export viewer build", () => {
 		// actual registered React wrapper and deliver its normal connection callback.
 		runInContext(
 			`
-			const tool = new (customElements.get("omp-tool-view"))();
+			const tool = new (customElements.get("zeta-tool-view"))();
 			tool.setAttribute("payload", ${JSON.stringify(JSON.stringify(payload))});
 			document.body.appendChild(tool);
 			tool.connectedCallback();
@@ -236,8 +236,8 @@ describe("hosted export viewer build", () => {
 		);
 		try {
 			flushWork();
-			expect(document.querySelector("omp-tool-view .tr-md math")).not.toBeNull();
-			expect(document.querySelector("omp-tool-view .shared-highlight")?.textContent).toBe("const toolCode = 2;");
+			expect(document.querySelector("zeta-tool-view .tr-md math")).not.toBeNull();
+			expect(document.querySelector("zeta-tool-view .shared-highlight")?.textContent).toBe("const toolCode = 2;");
 			expect(highlighted.some(code => code.includes("const transcriptCode = 1;"))).toBe(true);
 			expect(highlighted).toContain("const toolCode = 2;");
 			expect(parsers[1]?.parse("$x^2$", { async: false })).toBe("<p>$x^2$</p>\n");

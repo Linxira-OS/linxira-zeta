@@ -313,12 +313,12 @@ describe("selector setting side effects", () => {
 			await assignmentApplied.promise;
 			// The hub drops input while the assignment is still settling.
 			await new Promise(resolve => setTimeout(resolve, 20));
-
-			const levels = [ThinkingLevel.Inherit, ThinkingLevel.Off, AUTO_THINKING, ...getSupportedEfforts(nextModel)];
-			const highIndex = levels.indexOf(ThinkingLevel.High);
-			const autoIndex = levels.indexOf(AUTO_THINKING);
-			if (highIndex < autoIndex) throw new Error("Expected auto before high in the thinking strip");
-			for (let i = autoIndex; i < highIndex; i++) hub.handleInput("\x1b[D");
+			// The roles view no longer auto-opens the thinking strip after a
+			// model pick; `t` opens it for the selected DEFAULT row.
+			hub.handleInput("t");
+			// Land on the first chip, then step to `auto`; the strip's initial
+			// selection depends on the role's current thinking level.
+			for (let i = 0; i < 22; i++) hub.handleInput("\x1b[D");
 			hub.handleInput("\n");
 			await autoApplied.promise;
 

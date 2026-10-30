@@ -794,7 +794,7 @@ export async function listSessionFolders(): Promise<string[]> {
  * transcripts, never transcripts of their own; a killed run can leave one
  * behind until the next `zetacode gc --compress --apply` removes it.
  */
-export const COMPRESS_SCRATCH_PREFIX = ".omp-gc-compress-";
+export const COMPRESS_SCRATCH_PREFIX = ".zeta-gc-compress-";
 
 /** Whether `relativePath` (from any ancestor directory) lies inside a compress scratch directory. */
 export function isCompressScratchPath(relativePath: string): boolean {

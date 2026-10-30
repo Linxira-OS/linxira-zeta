@@ -2863,7 +2863,7 @@ describe("lsp regressions", () => {
 			await Bun.write(localTsServer, "");
 
 			const config = loadConfig(tempDir.path());
-			expect(config.servers["typescript-language-server"]?.resolvedCommand).toBe(localTsServer);
+			expect(config.servers["typescript"]?.resolvedCommand).toBe(localTsServer);
 			expect(whichSpy).not.toHaveBeenCalledWith("typescript-language-server");
 		} finally {
 			vi.restoreAllMocks();
@@ -2898,11 +2898,11 @@ describe("lsp regressions", () => {
 			try {
 				await writeTypescriptWorkspace(tempDir.path(), { tsserver: false, symlinkTsc: true });
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript-native"]);
-				expect(config.servers["typescript-native"]?.resolvedCommand).toBe(
+				expect(Object.keys(config.servers)).toEqual(["typescript"]);
+				expect(config.servers["typescript"]?.resolvedCommand).toBe(
 					path.join(tempDir.path(), "node_modules", ".bin", "tsc"),
 				);
-				expect(config.servers["typescript-native"]?.args).toEqual(["--lsp", "--stdio"]);
+				expect(config.servers["typescript"]?.args).toEqual(["--lsp", "--stdio"]);
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();
@@ -2915,7 +2915,7 @@ describe("lsp regressions", () => {
 			try {
 				await writeTypescriptWorkspace(tempDir.path(), { tsserver: true, symlinkTsc: false });
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
+				expect(Object.keys(config.servers)).toEqual(["typescript"]);
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();
@@ -2932,7 +2932,7 @@ describe("lsp regressions", () => {
 				await Bun.write(path.join(binDir, "tsc"), "");
 				await Bun.write(path.join(binDir, "typescript-language-server"), "");
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
+				expect(Object.keys(config.servers)).toEqual(["typescript"]);
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();

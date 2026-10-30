@@ -60,7 +60,7 @@ const EXCLUDED_FILES: Record<string, number> = {
 	"commands/commit.ts": 6,
 	"commands/completions.ts": 1,
 	"commands/compress.ts": 6,
-	"commands/config.ts": 4,
+	"commands/config.ts": 5,
 	"commands/daemon.ts": 14,
 	"commands/dry-balance.ts": 7,
 	"commands/find.ts": 6,

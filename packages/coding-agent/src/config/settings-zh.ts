@@ -535,6 +535,42 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "缓存未命中标记",
 		description: "在请求丢失（未命中）提示词缓存的助手轮次上方显示分隔线",
 	},
+	"display.advisorCollapsedLines": {
+		label: "顾问折叠行数",
+		description: "折叠的顾问卡片在标题下最多显示多少行注释（0 表示保留完整预览；使用工具输出开关展开）",
+	},
+	"prewalk.from": {
+		label: "预走规划模型",
+		description: "执行 /prewalk restart 后用于规划的模型或角色（默认 '@default'）。",
+	},
+	"prewalk.into": {
+		label: "预走目标模型",
+		description:
+			"预走在首次编辑/写入时交接给的模型或角色（默认 '@smol'）；/prewalk、/prewalk restart、启用预走和 --prewalk 使用；自动预走使用自己的目标。",
+	},
+	"retry.rateLimitWalksChain": {
+		label: "限流穿越回退链",
+		description:
+			"遇到限流时，不因当前轮次由失败模型签名而阻塞 retry.fallbackChains 的回退链。关闭（默认）时，该轮次会继续重试被限流模型直到 retry.maxRetries 用尽，才进入回退链。",
+	},
+	"out.enabled": {
+		label: "out:// 中途回复",
+		description:
+			"允许智能体通过写入 out:// 在任务中途回复，像普通回复一样显示且不结束当前轮次。未设置时：交互式 TUI 开启，print、RPC 和 ACP 关闭。",
+	},
+	"tools.xdevNotices": {
+		label: "xd:// 挂载通知",
+		description: "MCP 或扩展工具挂载/卸载时显示 `xd://: mounted …` 通知；模型仍会在下一次提示中得知变化。",
+	},
+	"extensionRenderers.assistantText": {
+		label: "扩展回复渲染器",
+		description:
+			"允许扩展改变助手回复的绘制方式、原地重绘回复并接收自身链接点击；会话、导出和模型上下文仍保留原始回复。",
+	},
+	"task.file": {
+		label: "从文件读取任务指令",
+		description: "允许 task 工具从文件读取子代理指令（taskFile），并记录路径与 SHA-256。",
+	},
 	"display.collapseCompacted": {
 		label: "折叠压缩历史",
 		description: "在实时记录中将压缩前的历史折叠到摘要分隔线之后；禁用则保留完整记录，并在每个压缩点显示分隔线",
@@ -1510,7 +1546,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
-		description: "zetacode browser relay 端点（默认 http://127.0.0.1:9224）。",
+		description: "zetacode browser relay 端点（默认 http://127.0.0.1:43153）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",
@@ -2781,9 +2817,29 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "总是",
 		description: "用内置的最佳猜测为每个读起来是数值的表格绘图",
 	},
+	"tui.autoGraph::auto": {
+		label: "自动",
+		description: "当 judge 角色解析为原生 TypeSafe jev 模型时智能绘图，否则总是绘图",
+	},
 	"tui.autoGraph::off": {
 		label: "关闭",
 		description: "表格保持为表格",
+	},
+	"display.advisorCollapsedLines::0": {
+		label: "不限",
+		description: "默认。",
+	},
+	"display.advisorCollapsedLines::1": {
+		label: "1 行",
+	},
+	"display.advisorCollapsedLines::2": {
+		label: "2 行",
+	},
+	"display.advisorCollapsedLines::3": {
+		label: "3 行",
+	},
+	"display.advisorCollapsedLines::5": {
+		label: "5 行",
 	},
 	"display.shimmer::classic": {
 		label: "经典",

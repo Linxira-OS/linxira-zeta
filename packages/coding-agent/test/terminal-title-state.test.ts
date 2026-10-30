@@ -378,7 +378,7 @@ describe("disposeTerminalTitleState", () => {
 
 			initTerminalTitleState();
 			setSessionTerminalTitle("running-session");
-			expect(native.titles).toContain("π > running-session");
+			expect(native.titles).toContain("ζ > running-session");
 
 			resetObserved(writes, native);
 			// The `InteractiveMode.shutdown()` order: dispose, then pop.
