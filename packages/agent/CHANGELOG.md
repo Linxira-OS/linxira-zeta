@@ -1,17 +1,8 @@
 ## [Unreleased]
 
+## [1.4.7] - 2026-10-30
+
 - Synced with upstream OMP v18.14.0; no package-specific user-visible changes.
-
-## [1.4.6] - 2026-10-28
-
-### Breaking Changes
-
-- Removed the Bun event-loop workaround utilities from `@oh-my-pi/pi-agent-core/utils/yield`; agent loops no longer insert cooperative sleeps while streaming or between tool calls.
-
-### Added
-
-- Added `AgentTool.approvalRestrictionPaths` so tools can report the paths they read, allowing restricted-folder approvals to cover those paths without remembering approval separately for each path.
-- Added `Agent.logContext`, which adds custom context fields to every log record written during an agent run.
 
 ## [9.2.2] - 2026-01-31
 
@@ -142,6 +133,17 @@
 ## [1.337.0] - 2026-01-02
 
 Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mono](https://github.com/badlogic/pi-mono).
+
+## [1.4.6] - 2026-10-28
+
+### Breaking Changes
+
+- Removed the Bun event-loop workaround utilities from `@oh-my-pi/pi-agent-core/utils/yield`; agent loops no longer insert cooperative sleeps while streaming or between tool calls.
+
+### Added
+
+- Added `AgentTool.approvalRestrictionPaths` so tools can report the paths they read, allowing restricted-folder approvals to cover those paths without remembering approval separately for each path.
+- Added `Agent.logContext`, which adds custom context fields to every log record written during an agent run.
 
 ## [1.4.5] - 2026-10-28
 
