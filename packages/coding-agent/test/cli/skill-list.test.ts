@@ -125,7 +125,7 @@ describe("runSkillsCommand", () => {
 describe("handleSkillList", () => {
 	// `handleSkillList` reads the inspected directory's config through
 	// `Settings.init({ cwd })`, which returns an already-initialized singleton
-	// unchanged; start from none so the fixture's `.omp/config.yml` is read.
+	// unchanged; start from none so the fixture's `.zeta/config.yml` is read.
 	beforeEach(() => {
 		resetSettingsForTest();
 	});

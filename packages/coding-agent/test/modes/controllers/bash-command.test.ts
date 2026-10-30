@@ -2,12 +2,12 @@ import { beforeAll, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { BashPtyOptions, BashResult } from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import { BashExecutionComponent } from "@oh-my-pi/pi-tui/chat/bash-execution";
-import { CommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/command-controller";
-import { getThemeByName, setThemeInstance } from "@oh-my-pi/pi-tui/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { BashPtyOptions, BashResult } from "@linxiraos/zeta/exec/bash-executor";
+import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
+import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
+import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 function createContainer() {
 	return {

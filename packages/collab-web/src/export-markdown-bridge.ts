@@ -1,5 +1,5 @@
 /** The hosted viewer resolves its canonical Marked import to the preloaded dependency. */
-import type { Marked as MarkedConstructor } from "@oh-my-pi/pi-utils/marked";
+import type { Marked as MarkedConstructor } from "@linxiraos/pi-utils/marked";
 
 declare global {
 	var ompMarkdown: { Marked: typeof MarkedConstructor };

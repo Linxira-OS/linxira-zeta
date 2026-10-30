@@ -1,19 +1,19 @@
 import { describe, expect, it } from "bun:test";
-import type { Context, ImageContent, Message, Model, ModelSpec, TextContent } from "@oh-my-pi/pi-ai";
-import { streamFactoryDroid } from "@oh-my-pi/pi-ai/providers/factory-droid";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { factoryDroidRegistry } from "@oh-my-pi/pi-catalog/compat/factory-droid";
-import { buildFactoryDroidModel } from "@oh-my-pi/pi-catalog/discovery";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { toModelSpec } from "@oh-my-pi/pi-catalog/provider-models/bundled-references";
-import { factoryDroidWireBaseUrl } from "@oh-my-pi/pi-catalog/wire/factory-droid";
-import { decorateContextImages } from "@oh-my-pi/pi-coding-agent/blob-broker/context-images";
+import type { Context, ImageContent, Message, Model, ModelSpec, TextContent } from "@linxiraos/pi-ai";
+import { streamFactoryDroid } from "@linxiraos/pi-ai/providers/factory-droid";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { factoryDroidRegistry } from "@linxiraos/pi-catalog/compat/factory-droid";
+import { buildFactoryDroidModel } from "@linxiraos/pi-catalog/discovery";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { toModelSpec } from "@linxiraos/pi-catalog/provider-models/bundled-references";
+import { factoryDroidWireBaseUrl } from "@linxiraos/pi-catalog/wire/factory-droid";
+import { decorateContextImages } from "@linxiraos/zeta/blob-broker/context-images";
 import {
 	capArchiveFrameBytes,
 	clampProviderContextImageBytes,
 	clampProviderContextImages,
-} from "@oh-my-pi/pi-coding-agent/session/provider-image-budget";
-import { isRecord } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/session/provider-image-budget";
+import { isRecord } from "@linxiraos/pi-utils";
 
 const UMANS_MODEL = buildModel({
 	id: "umans-glm-5.2",

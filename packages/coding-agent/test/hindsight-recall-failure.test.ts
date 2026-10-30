@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { HindsightApi, HindsightError, type RecallOptions } from "@oh-my-pi/pi-coding-agent/hindsight/client";
-import type { HindsightConfig } from "@oh-my-pi/pi-coding-agent/hindsight/config";
-import { HINDSIGHT_NOTICE_SOURCE, HindsightSessionState } from "@oh-my-pi/pi-coding-agent/hindsight/state";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { HindsightApi, HindsightError, type RecallOptions } from "@linxiraos/zeta/hindsight/client";
+import type { HindsightConfig } from "@linxiraos/zeta/hindsight/config";
+import { HINDSIGHT_NOTICE_SOURCE, HindsightSessionState } from "@linxiraos/zeta/hindsight/state";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
 const config = {
 	hindsightApiUrl: "http://localhost:8888",

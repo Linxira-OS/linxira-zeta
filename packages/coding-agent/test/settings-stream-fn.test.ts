@@ -8,16 +8,16 @@
  * (can1357/oh-my-pi#3639).
  */
 import { describe, expect, it } from "bun:test";
-import type { StreamFn } from "@oh-my-pi/pi-agent-core";
-import { type Context, type Model, type SimpleStreamOptions, streamSimple } from "@oh-my-pi/pi-ai";
-import { configureProviderStoreResponses } from "@oh-my-pi/pi-ai/providers/openai-responses-state";
-import type { FetchImpl } from "@oh-my-pi/pi-ai/types";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
-import { bindEffects } from "@oh-my-pi/pi-coding-agent/config/registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { cfgProvidersMuseCodeStoreResponses } from "@oh-my-pi/pi-coding-agent/session/settings";
-import { createSettingsAwareStreamFn } from "@oh-my-pi/pi-coding-agent/session/settings-stream-fn";
+import type { StreamFn } from "@linxiraos/pi-agent-core";
+import { type Context, type Model, type SimpleStreamOptions, streamSimple } from "@linxiraos/pi-ai";
+import { configureProviderStoreResponses } from "@linxiraos/pi-ai/providers/openai-responses-state";
+import type { FetchImpl } from "@linxiraos/pi-ai/types";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
+import { bindEffects } from "@linxiraos/zeta/config/registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { cfgProvidersMuseCodeStoreResponses } from "@linxiraos/zeta/session/settings";
+import { createSettingsAwareStreamFn } from "@linxiraos/zeta/session/settings-stream-fn";
 
 function captureBase(): { fn: StreamFn; calls: Array<{ options?: SimpleStreamOptions }> } {
 	const calls: Array<{ options?: SimpleStreamOptions }> = [];

@@ -405,12 +405,7 @@ export function SessionTraceView({
 			/>
 
 			{view === "full" && (
-				<Card
-					index={2}
-					title={t("trace.transcript")}
-					description={t("trace.transcript-description")}
-					flush
-				>
+				<Card index={2} title={t("trace.transcript")} description={t("trace.transcript-description")} flush>
 					<TranscriptList
 						tracks={tracks}
 						selection={selection}

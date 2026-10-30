@@ -174,7 +174,7 @@ describe("describeJobTile", () => {
 			updatedAt: 0,
 		};
 		expect(jobWidgetGlance(build)?.text).toBe("140/190");
-		expect(texts(role(describeJobTile(tile({ widget: build })), "omp.job.tile.figure")!)).toBe("140 / 190");
+		expect(texts(role(describeJobTile(tile({ widget: build })), "zeta.job.tile.figure")!)).toBe("140 / 190");
 		// A headline of another quantity still wins over the meter's figure.
 		expect(jobWidgetGlance(trialSweep)?.text).toBe("0.842");
 	});

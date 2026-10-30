@@ -184,7 +184,7 @@ describe("startServer port conflicts", () => {
 
 	it("reuses a live dashboard that answers slowly while it ingests", async () => {
 		// Regression: a dashboard stalled by ingest missed the probe deadline and
-		// `/stats` failed with "not identifiable as an omp stats dashboard". The
+		// `/stats` failed with "not identifiable as a Zeta stats dashboard". The
 		// holder is a separate process probed over real sockets, so its stall has
 		// to be a real delay; fake timers here cannot slow another process down.
 		const headers = `{ "${STATS_DASHBOARD_HEADER}": "${STATS_DASHBOARD_SECURITY_VERSION}", "${STATS_DASHBOARD_HOSTNAME_HEADER}": "${STATS_DASHBOARD_HOSTNAME}" }`;
@@ -237,7 +237,7 @@ describe("startServer port conflicts", () => {
 			response: 'new Response("foreign", { status: 404 })',
 			statsOwned: false,
 		},
-		// Never answering is what a dashboard stalled mid-ingest looks like; stopping it would kill a live `omp stats`.
+		// Never answering is what a dashboard stalled mid-ingest looks like; stopping it would kill a live `zetacode stats`.
 		{ name: "a stats listener that never answers", response: "Promise.withResolvers().promise", statsOwned: true },
 	]) {
 		it(`serves on an ephemeral port beside ${fixture.name}`, async () => {

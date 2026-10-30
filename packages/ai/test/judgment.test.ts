@@ -1,6 +1,6 @@
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { calculateUsageCost } from "@oh-my-pi/pi-catalog/models";
-import { USER_AGENT } from "@oh-my-pi/pi-utils";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { calculateUsageCost } from "@linxiraos/pi-catalog/models";
+import { USER_AGENT } from "@linxiraos/pi-utils";
 import { describe, expect, it, spyOn } from "bun:test";
 import {
 	type ApiKeyResolveContext,
@@ -17,9 +17,9 @@ import {
 	renderJudgmentState,
 	type TextBackend,
 	TextJudge,
-} from "@oh-my-pi/pi-ai";
-import type { ImageContent } from "@oh-my-pi/pi-ai/types";
-import { ConfigurationError, ValidationError } from "@oh-my-pi/pi-ai/error";
+} from "@linxiraos/pi-ai";
+import type { ImageContent } from "@linxiraos/pi-ai/types";
+import { ConfigurationError, ValidationError } from "@linxiraos/pi-ai/error";
 import { withEnv } from "./helpers";
 
 const LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;

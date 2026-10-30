@@ -1,7 +1,6 @@
 ## [Unreleased]
 
 ## [1.4.6] - 2026-10-28
-## [18.14.0] - 2026-10-29
 
 ### Changed
 
@@ -10,16 +9,6 @@
 ### Fixed
 
 - Fixed `/stats` and `omp stats` failing when another dashboard was syncing sessions or the configured port was already in use; busy dashboards are now reused, and a free port is selected when necessary.
-
-## [18.13.3] - 2026-10-28
-
-### Changed
-
-- Updated Bun engine requirement to ≥1.4.4
-
-## [18.12.0] - 2026-10-17
-
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
 
 ## [1.4.5] - 2026-10-28
 

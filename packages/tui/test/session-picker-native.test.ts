@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import type { TspPickerProps } from "@oh-my-pi/pi-wire";
+import type { TspPickerProps } from "@linxiraos/pi-wire";
 import { OverlayPanel } from "../src/chrome/overlay-box";
 import { TextFormField } from "../src/components/form";
 import type { DescribeContext, NativeNode } from "../src/native/node";
@@ -24,7 +24,7 @@ const HOUR = 3_600_000;
 
 function session(id: string, title: string, ageMs: number, cwd = "/work/app"): SessionSelectorEntry {
 	return {
-		path: `${cwd}/.omp/${id}.jsonl`,
+		path: `${cwd}/.zeta/${id}.jsonl`,
 		id,
 		cwd,
 		title,
@@ -100,7 +100,7 @@ describe("session selector picker", () => {
 		expect(beta?.badges?.map(b => b.text)).toEqual(["current"]);
 		expect(beta?.dot).toBe("success");
 		const preview = root.c as NativeNode[];
-		expect(preview[0]).toMatchObject({ k: "text", p: { text: "Beta", role: "omp.picker.title" } });
+		expect(preview[0]).toMatchObject({ k: "text", p: { text: "Beta", role: "zeta.picker.title" } });
 		expect(preview.find(child => child.k === "section")?.p).toEqual({ head: "Conversation" });
 
 		expect(selector.nativeSheet(withoutPicker)).toBe(false);

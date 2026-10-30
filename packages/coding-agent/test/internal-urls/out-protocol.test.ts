@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isReplyWrite } from "@oh-my-pi/pi-tui/chat/reply-write";
+import { isReplyWrite } from "@linxiraos/pi-tui/chat/reply-write";
 import { Settings } from "../../src/config/settings";
 import { InternalUrlRouter } from "../../src/internal-urls";
 import type { SchemeHost } from "../../src/internal-urls/types";
@@ -11,6 +11,7 @@ const host: SchemeHost = {
 	securityEnabled: false,
 	settingsApproval: false,
 	outReplies: false,
+	canvasEnabled: false,
 };
 
 /** A caller session; `enabled` undefined leaves `out.enabled` unset. */

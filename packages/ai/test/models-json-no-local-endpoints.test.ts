@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getBundledModels, getBundledProviders } from "@oh-my-pi/pi-catalog/models";
+import { getBundledModels, getBundledProviders } from "@linxiraos/pi-catalog/models";
 
 // Pins the invariant: the bundled catalog must never carry a
 // local/self-hosted provider's catalog. Those providers default to an endpoint

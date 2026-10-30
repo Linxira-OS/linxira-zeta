@@ -1,7 +1,6 @@
 ## [Unreleased]
 
 ## [1.4.6] - 2026-10-28
-## [18.14.0] - 2026-10-29
 
 ### Breaking Changes
 
@@ -23,27 +22,6 @@
 - Fixed Mistral reasoning models so streamed thinking appears in the transcript and is preserved for subsequent turns.
 - Fixed later-turn HTTP 422 errors in Mistral-hosted DeepSeek conversations when assistant reasoning history is included.
 - Fixed DeepSeek V4.1 Flash image attachments being dropped for publisher-namespaced model IDs such as `ds/deepseek-flash`.
-
-## [18.13.3] - 2026-10-28
-
-### Added
-
-- Added DeepSeek V4.1 Flash 1017 to the Factory Droid provider for accounts with Factory's 1017 flag; turning thinking off on its Baseten route disables reasoning instead of falling back to low effort ([#17234](https://github.com/can1357/oh-my-pi/pull/17234) by [@skipper019](https://github.com/skipper019))
-
-### Changed
-
-- Made Kimi Code model discovery authoritative and cached per credential, added K3.1 Pro and K3.1 Pro Highspeed to the bundled Kimi Code catalog, and preserved live thinking metadata there ([#17224](https://github.com/can1357/oh-my-pi/pull/17224) by [@trukhinyuri](https://github.com/trukhinyuri))
-- Updated Bun engine requirement to ≥1.4.4
-
-### Fixed
-
-- Codex model refresh now lists models available to an entitled account even when other saved accounts return HTTP 402 ([#17198](https://github.com/can1357/oh-my-pi/issues/17198)).
-- LiteLLM discovery now reads every `/v2/model/info` page before selecting the proxy's model roster, rather than caching only the first 50 entries; malformed or incomplete pagination falls back without caching a partial page ([#17237](https://github.com/can1357/oh-my-pi/pull/17237) by [@maykonmichel](https://github.com/maykonmichel)).
-- Fixed hosted web search on OpenAI Responses and Codex Responses selecting GPT-5.6 Luna instead of GPT-6 Luna ([#17202](https://github.com/can1357/oh-my-pi/pull/17202) by [@mateo-bolanos](https://github.com/mateo-bolanos)).
-
-## [18.13.2] - 2026-10-27
-
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
 
 ## [1.4.5] - 2026-10-28
 

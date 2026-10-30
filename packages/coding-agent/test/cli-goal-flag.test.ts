@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { parseArgs, validateGoalLaunch, validateGoalStartup } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { CliUsageError } from "@oh-my-pi/pi-coding-agent/cli/usage-error";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
-import { createSessionManager, runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { setInteractiveHost, TempDir } from "@oh-my-pi/pi-utils";
+import { parseArgs, validateGoalLaunch, validateGoalStartup } from "@linxiraos/zeta/cli/args";
+import { CliUsageError } from "@linxiraos/zeta/cli/usage-error";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { createSessionManager, runRootCommand } from "@linxiraos/zeta/main";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { setInteractiveHost, TempDir } from "@linxiraos/pi-utils";
 
 const cliEntry = path.resolve(import.meta.dir, "../src/cli.ts");
 

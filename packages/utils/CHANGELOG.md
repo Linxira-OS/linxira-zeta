@@ -1,7 +1,6 @@
 ## [Unreleased]
 
 ## [1.4.6] - 2026-10-28
-## [18.14.0] - 2026-10-29
 
 ### Added
 
@@ -10,16 +9,6 @@
 ### Fixed
 
 - Fixed `untilAborted` so promises passed to an already-aborted signal are still observed, preventing later rejections from being reported as unhandled.
-
-## [18.13.3] - 2026-10-28
-
-### Changed
-
-- Updated Bun engine requirement to ≥1.4.4
-
-## [18.13.2] - 2026-10-27
-
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
 
 ## [1.4.5] - 2026-10-28
 

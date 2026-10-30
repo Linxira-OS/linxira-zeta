@@ -265,7 +265,7 @@ describe("lsp native view", () => {
 		const meta = (view?.tool?.meta ?? []).map(plain).join(" ");
 		expect(meta).toContain("1 unverified file");
 		expect(meta).not.toContain("No issues");
-		expect(collect(view?.body, n => role(n) === "omp.tool.diagnostic")).toHaveLength(1);
+		expect(collect(view?.body, n => role(n) === "zeta.tool.diagnostic")).toHaveLength(1);
 	});
 
 	it("parses grouped diagnostics into file:line:col rows and frames them", () => {

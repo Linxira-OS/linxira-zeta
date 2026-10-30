@@ -536,7 +536,7 @@ const JUDGMENT_BATCH_PROGRESS_RETAIN_MS = 1_000;
 const CONFIG_WARNING_HEADER_LIMIT = 5;
 /** Startup emits several status-bar changes within a second; persist only the settled one. */
 const COMPOSER_STATUS_PERSIST_DELAY_MS = 1_000;
-/** Status-line slot of the link-hint mode prompt; the `omp:` prefix keeps it apart from extension keys. */
+/** Status-line slot of the link-hint mode prompt; the `zeta:` prefix keeps it apart from extension keys. */
 const LINK_HINT_STATUS_KEY = "omp:link-hints";
 const DEFAULT_WORKING_MESSAGE = "Working…";
 /** Native working-message shimmer under a session accent: the hue itself is the terminal's `accent`. */

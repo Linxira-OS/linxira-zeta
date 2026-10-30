@@ -1,7 +1,6 @@
 ## [Unreleased]
 
 ## [1.4.6] - 2026-10-28
-## [18.14.0] - 2026-10-29
 
 ### Breaking Changes
 
@@ -25,16 +24,6 @@
 - Fixed built-in bash commands such as `cat`, `grep`, `head`, `wc`, `read`, and `mapfile` hanging at the end of FIFO input on macOS; `read -t` now returns at EOF.
 - Fixed ANSI text wrapping for styled underlines, background colours, and colon-form RGB colours.
 - Fixed clicking in native audio playback when the queue runs dry mid-waveform by smoothly fading output to silence and back.
-
-## [18.13.3] - 2026-10-28
-
-### Changed
-
-- Updated Bun engine requirement to ≥1.4.4
-
-## [18.13.2] - 2026-10-27
-
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
 
 ## [9.8.0] - 2026-02-01
 

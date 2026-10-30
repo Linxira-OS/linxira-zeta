@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { runConfigCommand } from "@oh-my-pi/pi-coding-agent/cli/config-cli";
-import { resetSettingsForTest } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { getConfigRootDir, getProjectDir, setAgentDir, setProjectDir, TempDir } from "@oh-my-pi/pi-utils";
+import { runConfigCommand } from "@linxiraos/zeta/cli/config-cli";
+import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { getConfigRootDir, getProjectDir, setAgentDir, setProjectDir, TempDir } from "@linxiraos/pi-utils";
 
 let testAgentDir: TempDir | undefined;
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
 const fallbackAgentDir = path.join(getConfigRootDir(), "agent");
 const cliEntry = path.join(import.meta.dir, "..", "src", "cli.ts");
 
@@ -42,7 +42,7 @@ afterEach(async () => {
 		setAgentDir(originalAgentDir);
 	} else {
 		setAgentDir(fallbackAgentDir);
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.ZETA_CODING_AGENT_DIR;
 	}
 	if (testAgentDir) {
 		try {
@@ -209,7 +209,7 @@ describe("config CLI schema coverage", () => {
 	it("fully flushes JSON larger than a pipe buffer", async () => {
 		if (!testAgentDir) throw new Error("Test agent directory was not initialized");
 		const { exitCode, output, error } = await runCliProcess(["config", "list", "--json"], {
-			PI_CODING_AGENT_DIR: testAgentDir.path(),
+			ZETA_CODING_AGENT_DIR: testAgentDir.path(),
 		});
 
 		expect(exitCode).toBe(0);
@@ -246,7 +246,7 @@ describe("config CLI schema coverage", () => {
 			Bun.write(finalOverlayPath, "defaultThinkingLevel: max\n"),
 		]);
 		const { exitCode, output, error } = await runCliProcess(["config", "get", "defaultThinkingLevel", "--json"], {
-			PI_CODING_AGENT_DIR: testAgentDir.path(),
+			ZETA_CODING_AGENT_DIR: testAgentDir.path(),
 			PI_CONFIG_FILES: [baseOverlayPath, finalOverlayPath].join(path.delimiter),
 		});
 
@@ -311,7 +311,7 @@ describe("config list --scope", () => {
 				"",
 			].join("\n"),
 		);
-		await Bun.write(path.join(projectDir.path(), ".omp", "config.yml"), "defaultThinkingLevel: high\n");
+		await Bun.write(path.join(projectDir.path(), ".zeta", "config.yml"), "defaultThinkingLevel: high\n");
 
 		const layer = await listLayer("global");
 
@@ -333,7 +333,7 @@ describe("config list --scope", () => {
 		if (!testAgentDir || !projectDir) throw new Error("Test directories were not initialized");
 		await Bun.write(path.join(testAgentDir.path(), "config.yml"), "compaction:\n  enabled: false\n");
 		await Bun.write(
-			path.join(projectDir.path(), ".omp", "config.yml"),
+			path.join(projectDir.path(), ".zeta", "config.yml"),
 			"defaultThinkingLevel: high\nenabledModels: [openai/gpt-5]\n",
 		);
 

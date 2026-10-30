@@ -1,21 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { completeSimple, streamSimple } from "@oh-my-pi/pi-ai";
-import * as AIError from "@oh-my-pi/pi-ai/error";
-import * as codexAttestation from "@oh-my-pi/pi-ai/providers/openai-codex-attestation";
+import { completeSimple, streamSimple } from "@linxiraos/pi-ai";
+import * as AIError from "@linxiraos/pi-ai/error";
+import * as codexAttestation from "@linxiraos/pi-ai/providers/openai-codex-attestation";
 import {
 	buildTransformedCodexRequestBody,
 	createOpenAICodexCompatibilityMetadata,
 	openCodexCompactionEventStream,
 	prewarmOpenAICodexResponses,
 	streamOpenAICodexResponses,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+} from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	getCodexProviderSessionState,
 	getOpenAICodexTransportDetails,
 	getOpenAICodexWebSocketDebugStats,
 	resetOpenAICodexHistoryAfterCompaction,
-} from "@oh-my-pi/pi-ai/providers/openai-codex-state";
+} from "@linxiraos/pi-ai/providers/openai-codex-state";
 import type {
 	CodexCompactionRequestContext,
 	Context,
@@ -23,13 +23,13 @@ import type {
 	Model,
 	ModelSpec,
 	ProviderSessionState,
-} from "@oh-my-pi/pi-ai/types";
-import { __resetProxyCache } from "@oh-my-pi/pi-ai/utils/proxy";
-import { extractProviderRetryHint } from "@oh-my-pi/pi-ai/utils/retry-after";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import * as piUtils from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai/types";
+import { __resetProxyCache } from "@linxiraos/pi-ai/utils/proxy";
+import { extractProviderRetryHint } from "@linxiraos/pi-ai/utils/retry-after";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import * as piUtils from "@linxiraos/pi-utils";
 import { withEnv } from "./helpers";
 
 const { getAgentDir, setAgentDir, TempDir } = piUtils;

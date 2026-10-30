@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as tls from "node:tls";
-import { isOfficialAnthropicApiUrl } from "@oh-my-pi/pi-catalog/compat/anthropic";
-import { $env, isEnoent } from "@oh-my-pi/pi-utils";
+import { isOfficialAnthropicApiUrl } from "@linxiraos/pi-catalog/compat/anthropic";
+import { $env, isEnoent } from "@linxiraos/pi-utils";
 import * as AIError from "../error";
 import type { Api, Model } from "../types";
 import { isFoundryEnabled } from "../utils/foundry";

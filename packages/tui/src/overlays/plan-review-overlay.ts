@@ -1765,7 +1765,7 @@ export class PlanReviewOverlay implements Component {
 		);
 		const track: NativeChild[] = slider.caption ? [text([span(slider.caption, "dim")]), tabs] : [tabs];
 		// A role of its own: Tern's sheet lets only the role-less split row (Contents + body) shrink and scroll.
-		const out = [keyed(rowNode(track, { role: "omp.plan.slider", gap: "sm", align: "center" }), "slider")];
+		const out = [keyed(rowNode(track, { role: "zeta.plan.slider", gap: "sm", align: "center" }), "slider")];
 		const detail = slider.segments[this.#sliderIndex]?.detail;
 		if (detail) out.push(keyed(text([span("↳ ", "dim"), span(detail, "muted")], { wrap: "word" }), "sliderDetail"));
 		return out;

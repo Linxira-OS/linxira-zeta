@@ -2,22 +2,22 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type 
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Settings, withActiveSettings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ReviewCommand } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/review";
-import type { CustomCommandAPI } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/types";
-import type { HookCommandContext } from "@oh-my-pi/pi-coding-agent/extensibility/hooks/types";
-import { InternalUrlRouter } from "@oh-my-pi/pi-coding-agent/internal-urls";
-import type { SessionEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
-import type { PrDiffPayload, ViewLookupResult } from "@oh-my-pi/pi-coding-agent/tools/gh";
-import * as gh from "@oh-my-pi/pi-coding-agent/tools/gh";
-import { parsePrUnifiedDiff } from "@oh-my-pi/pi-coding-agent/tools/gh-pr-diff";
-import * as glab from "@oh-my-pi/pi-coding-agent/tools/glab-mr";
-import { resetForTests as resetCacheForTests } from "@oh-my-pi/pi-coding-agent/tools/github-cache";
-import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
-import { gitlab } from "@oh-my-pi/pi-coding-agent/utils/gitlab";
-import type { VcsGitRepo, VcsRepo } from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { Settings, withActiveSettings } from "@linxiraos/zeta/config/settings";
+import { ReviewCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review";
+import type { CustomCommandAPI } from "@linxiraos/zeta/extensibility/custom-commands/types";
+import type { HookCommandContext } from "@linxiraos/zeta/extensibility/hooks/types";
+import { InternalUrlRouter } from "@linxiraos/zeta/internal-urls";
+import type { SessionEntry } from "@linxiraos/zeta/session/session-entries";
+import type { PrDiffPayload, ViewLookupResult } from "@linxiraos/zeta/tools/gh";
+import * as gh from "@linxiraos/zeta/tools/gh";
+import { parsePrUnifiedDiff } from "@linxiraos/zeta/tools/gh-pr-diff";
+import * as glab from "@linxiraos/zeta/tools/glab-mr";
+import { resetForTests as resetCacheForTests } from "@linxiraos/zeta/tools/github-cache";
+import { github } from "@linxiraos/zeta/utils/github";
+import { gitlab } from "@linxiraos/zeta/utils/gitlab";
+import type { VcsGitRepo, VcsRepo } from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { $ } from "bun";
 
 const SAMPLE_JJ_DIFF = `diff --git a/src/workspace.ts b/src/workspace.ts

@@ -1,11 +1,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage, ImageContent } from "@oh-my-pi/pi-ai";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import { ToolExecutionComponent } from "@oh-my-pi/pi-tui/chat/tool-execution";
-import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { Text } from "@oh-my-pi/pi-tui/components/text";
-import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@oh-my-pi/pi-tui";
+import type { AssistantMessage, ImageContent } from "@linxiraos/pi-ai";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { ToolExecutionComponent } from "@linxiraos/pi-tui/chat/tool-execution";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { Text } from "@linxiraos/pi-tui/components/text";
+import { ImageProtocol, setTerminalImageProtocol, TERMINAL } from "@linxiraos/pi-tui";
 
 const IMAGE: ImageContent = {
 	type: "image",

@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { CodexResetFireworksEvent } from "@oh-my-pi/pi-tui/overlays/codex-reset-fireworks";
-import { StatusLineComponent } from "@oh-my-pi/pi-tui/status-line";
-import { statusLineHost } from "@oh-my-pi/pi-coding-agent/modes/status-line-host";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import type { CodexResetFireworksEvent } from "@linxiraos/pi-tui/overlays/codex-reset-fireworks";
+import { StatusLineComponent } from "@linxiraos/pi-tui/status-line";
+import { statusLineHost } from "@linxiraos/zeta/modes/status-line-host";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 
-import { cfgTuiCodexResetFireworks } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgTuiCodexResetFireworks } from "@linxiraos/zeta/modes/settings";
 
 async function flushMicrotasks(): Promise<void> {
 	await Promise.resolve();

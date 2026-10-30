@@ -25,7 +25,11 @@ import { configureProviderStoreResponses } from "@linxiraos/pi-ai/providers/open
 import { configureProviderMaxInFlightRequests } from "@linxiraos/pi-ai/stream";
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
 import { formatKeyHint } from "@linxiraos/pi-tui/app-keybindings";
-import { AUTO_THINKING, getConfiguredThinkingLevelMetadata, getThinkingLevelMetadata } from "@linxiraos/pi-tui/thinking";
+import {
+	AUTO_THINKING,
+	getConfiguredThinkingLevelMetadata,
+	getThinkingLevelMetadata,
+} from "@linxiraos/pi-tui/thinking";
 
 const EMPTY_NUMBER_RECORD: Record<string, number> = {};
 const EMPTY_STRING_ARRAYS_RECORD: Record<string, string[]> = {};

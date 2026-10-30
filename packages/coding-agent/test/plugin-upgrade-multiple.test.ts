@@ -1,8 +1,8 @@
 /**
- * `omp plugin upgrade a@m b@m c@m` used to upgrade only the first id and
+ * `zetacode plugin upgrade a@m b@m c@m` used to upgrade only the first id and
  * silently skip the rest (#16829).
  *
- * Runs the `omp plugin` command in-process from argv against a local
+ * Runs the `zetacode plugin` command in-process from argv against a local
  * marketplace: the pi-utils path getters are spied onto a temp tree (the
  * pattern of plugin-install-git.test.ts), and `process.exit` throws so a
  * failing handler surfaces its error instead of ending the runner.
@@ -11,9 +11,9 @@ import { afterEach, beforeEach, expect, test, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import Plugin from "@oh-my-pi/pi-coding-agent/commands/plugin";
-import * as piUtils from "@oh-my-pi/pi-utils";
-import type { CliConfig } from "@oh-my-pi/pi-utils/cli";
+import Plugin from "@linxiraos/zeta/commands/plugin";
+import * as piUtils from "@linxiraos/pi-utils";
+import type { CliConfig } from "@linxiraos/pi-utils/cli";
 
 const CLI_CONFIG: CliConfig = { bin: "omp", version: "0.0.0-test", commands: new Map() };
 
@@ -38,14 +38,14 @@ async function writeMarketplace(marketplace: string, version: string): Promise<v
 	);
 }
 
-/** Run `omp plugin <argv>`; returns what it printed to stdout. */
+/** Run `zetacode plugin <argv>`; returns what it printed to stdout. */
 async function omp(...argv: string[]): Promise<string> {
 	stdout.length = 0;
 	stderr.length = 0;
 	try {
 		await new Plugin(argv, CLI_CONFIG).run();
 	} catch (err) {
-		throw new Error(`omp plugin ${argv.join(" ")} failed: ${err}\n${stderr.join("\n")}`);
+		throw new Error(`zetacode plugin ${argv.join(" ")} failed: ${err}\n${stderr.join("\n")}`);
 	}
 	return stdout.join("\n");
 }

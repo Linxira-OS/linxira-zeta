@@ -7,7 +7,6 @@
 import * as fsSync from "node:fs";
 import * as os from "node:os";
 import type { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
-import { EventLoopKeepalive } from "@linxiraos/pi-agent-core/utils/yield";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
 import { getModelPricingStatus } from "@linxiraos/pi-catalog/models";
 import { CLI_BIN_NAME, isEnoent, isEnotdir } from "@linxiraos/pi-utils";
@@ -915,7 +914,6 @@ async function runInteractiveMode(
 
 	for (const message of initialMessages) {
 		try {
-			using _keepalive = new EventLoopKeepalive();
 			if (mode.backendAttach) mode.backendAttach.sendPrompt(message);
 			else await session.prompt(message, { streamingBehavior: "steer" });
 		} catch (error: unknown) {

@@ -46,7 +46,7 @@ import {
 
 const SOON_MS = 7 * 24 * 3_600_000;
 const IMMINENT_MS = 24 * 3_600_000;
-/** The TUI warns about a saved reset only in its final hours; the status line and `omp usage` flag it from 24h out. */
+/** The TUI warns about a saved reset only in its final hours; the status line and `zetacode usage` flag it from 24h out. */
 const NOTICE_LEAD_MS = 6 * 3_600_000;
 const NOTICE_LABEL_MAX = 80;
 

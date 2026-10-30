@@ -8,10 +8,10 @@ import {
 	SqliteAuthCredentialStore,
 	type UsageReport,
 	type UsageResetCredit,
-} from "@oh-my-pi/pi-ai";
-import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@oh-my-pi/pi-ai/auth-broker";
-import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
-import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-ai";
+import { AuthBrokerClient, RemoteAuthCredentialStore, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
+import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { __resetDirsFromEnvForTests, setAgentDir, TempDir, withFileLock } from "@linxiraos/pi-utils";
 import {
 	buildRedactionMap,
 	annotateUsagePolicy,
@@ -22,16 +22,16 @@ import {
 	runUsageCommand,
 	type UsagePolicyDiagnosticsOptions,
 	type UsageResetExpiryOptions,
-} from "@oh-my-pi/pi-coding-agent/cli/usage-cli";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as sdkModule from "@oh-my-pi/pi-coding-agent/sdk";
-import { resetAccountLockKey } from "@oh-my-pi/pi-coding-agent/session/codex-auto-reset";
-import { claimResetExpiryNotice } from "@oh-my-pi/pi-coding-agent/session/reset-expiry";
-import { resetLockPath } from "@oh-my-pi/pi-coding-agent/session/reset-fence";
+} from "@linxiraos/zeta/cli/usage-cli";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as sdkModule from "@linxiraos/zeta/sdk";
+import { resetAccountLockKey } from "@linxiraos/zeta/session/codex-auto-reset";
+import { claimResetExpiryNotice } from "@linxiraos/zeta/session/reset-expiry";
+import { resetLockPath } from "@linxiraos/zeta/session/reset-fence";
 import {
 	collectUnreportedAccounts,
 	type UsageAccountIdentity,
-} from "@oh-my-pi/pi-coding-agent/slash-commands/helpers/usage-accounts";
+} from "@linxiraos/zeta/slash-commands/helpers/usage-accounts";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
 const HOUR = 3_600_000;
@@ -1707,7 +1707,7 @@ describe("usage command configuration", () => {
 			env: {
 				...process.env,
 				NO_COLOR: "1",
-				PI_CODING_AGENT_DIR: tempDir.path(),
+				ZETA_CODING_AGENT_DIR: tempDir.path(),
 				PI_CONFIG_FILES: overlayPath,
 			},
 		});
@@ -1723,7 +1723,7 @@ describe("usage command configuration", () => {
 	});
 });
 
-describe("omp usage accounts", () => {
+describe("zetacode usage accounts", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -1786,7 +1786,7 @@ describe("omp usage accounts", () => {
 	});
 });
 
-describe("omp usage --json account policy", () => {
+describe("zetacode usage --json account policy", () => {
 	let tempDir: TempDir;
 
 	beforeEach(() => {
@@ -1881,7 +1881,7 @@ describe("omp usage --json account policy", () => {
 	});
 });
 
-describe("omp usage reset", () => {
+describe("zetacode usage reset", () => {
 	interface ResetRequest {
 		method: string;
 		path: string;
@@ -1912,7 +1912,7 @@ describe("omp usage reset", () => {
 	let listed: PromiseWithResolvers<void>;
 	let tempDir: TempDir;
 	const originalEnv = {
-		PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
+		ZETA_CODING_AGENT_DIR: process.env.ZETA_CODING_AGENT_DIR,
 		OMP_PROFILE: process.env.OMP_PROFILE,
 		PI_PROFILE: process.env.PI_PROFILE,
 	};
@@ -2057,7 +2057,7 @@ describe("omp usage reset", () => {
 		expect(text).toContain(`[Codex · openai-codex/${team}]: 2 saved, 2 usable now, expires ${soon}`);
 		expect(text).toContain(`spare@example.test [Codex · openai-codex/${spare}]: 0 saved, 0 usable now`);
 		expect(text).toContain(`dev@example.test · Acme Corp [Claude · anthropic/${claude}]: 1 saved, 1 usable now`);
-		expect(text).toContain("omp usage reset <provider>/<credential id>");
+		expect(text).toContain("zetacode usage reset <provider>/<credential id>");
 		expect(consumes()).toEqual([]);
 		expect(process.exitCode).toBe(0);
 	});
@@ -2291,7 +2291,7 @@ describe("omp usage reset", () => {
 		["codex/active", "no account is active"],
 		["gemini/1", 'Unknown reset provider "gemini"'],
 		["codex/999", 'No stored account matches "codex/999"'],
-		["codex", "Choose an account with `omp usage reset <provider>/<credential id>`"],
+		["codex", "Choose an account with `zetacode usage reset <provider>/<credential id>`"],
 	])("refuses %s without spending", async (target, message) => {
 		await runUsageCommand({ action: "reset", target, noExtensions: true });
 
@@ -2406,7 +2406,7 @@ describe("omp usage reset", () => {
 	});
 });
 
-describe("omp usage saved-reset expiry banner", () => {
+describe("zetacode usage saved-reset expiry banner", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});

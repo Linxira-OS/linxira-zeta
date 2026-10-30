@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, spyOn, vi } from "bun:test
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as agentCore from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@oh-my-pi/pi-utils";
+import * as agentCore from "@linxiraos/pi-agent-core";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { __resetProfileSnapshotForTests, getAgentDir, Snowflake, setAgentDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "../src/config/model-registry";
 import { resolveRoleChain, resolveRoleSelection } from "../src/config/model-resolver";
 import { cfgDisabledProviders } from "../src/config/model-settings";
@@ -21,7 +21,7 @@ import type { Skill } from "../src/extensibility/skills";
 import type { AuthStorage } from "../src/session/auth-storage";
 import { createAssistantMessage, createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 
-const ENV_KEYS = ["PI_CONFIG_DIR", "PI_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
+const ENV_KEYS = ["PI_CONFIG_DIR", "ZETA_CODING_AGENT_DIR", "XDG_DATA_HOME"] as const;
 
 describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 	"skill description cache under XDG",
@@ -41,12 +41,12 @@ describe.skipIf(process.platform !== "linux" && process.platform !== "darwin")(
 			// `os.homedir()`; a temp home keeps the suite off the real (possibly read-only) HOME.
 			const home = path.join(tempRoot, "home");
 			spyOn(os, "homedir").mockReturnValue(home);
-			agentDir = path.join(home, ".omp", "agent");
+			agentDir = path.join(home, ".zeta", "agent");
 			xdgData = path.join(tempRoot, "data");
 			await fs.promises.mkdir(path.join(xdgData, "omp"), { recursive: true });
 			await fs.promises.mkdir(agentDir, { recursive: true });
-			process.env.PI_CONFIG_DIR = ".omp";
-			delete process.env.PI_CODING_AGENT_DIR;
+			process.env.PI_CONFIG_DIR = ".zeta";
+			delete process.env.ZETA_CODING_AGENT_DIR;
 			__resetProfileSnapshotForTests();
 		});
 

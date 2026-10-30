@@ -1,7 +1,6 @@
 ## [Unreleased]
 
 ## [1.4.6] - 2026-10-28
-## [18.14.0] - 2026-10-29
 
 ### Breaking Changes
 
@@ -11,20 +10,6 @@
 
 - Added `AgentTool.approvalRestrictionPaths` so tools can report the paths they read, allowing restricted-folder approvals to cover those paths without remembering approval separately for each path.
 - Added `Agent.logContext`, which adds custom context fields to every log record written during an agent run.
-
-## [18.13.3] - 2026-10-28
-
-### Changed
-
-- Updated Bun engine requirement to ≥1.4.4
-
-### Fixed
-
-- Fixed chat-completions context estimates counting past thinking that the request drops (no reasoning replay), which triggered compaction far below the threshold ([#15797](https://github.com/can1357/oh-my-pi/issues/15797), [#17231](https://github.com/can1357/oh-my-pi/pull/17231) by [@ghisguth](https://github.com/ghisguth))
-
-## [18.13.2] - 2026-10-27
-
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
 
 ## [9.2.2] - 2026-01-31
 

@@ -46,7 +46,7 @@ Native PTY API changes require rebuilding the addon with
 Run its real-PTY regressions with `bun test ./.omp/tests/tui.test.ts`. CI runs
 them on Linux only; the Windows-specific cases run only on a local Windows host.
 
-## Core component contract (`@oh-my-pi/pi-tui`)
+## Core component contract (`@linxiraos/pi-tui`)
 
 `packages/tui/src/tui.ts` defines:
 
@@ -91,7 +91,7 @@ Your `render(width)` output must be terminal-safe:
 Minimal pattern:
 
 ```ts
-import { replaceTabs, truncateToWidth } from "@oh-my-pi/pi-tui";
+import { replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
 
 render(width: number): readonly string[] {
   return this.lines.map(line => truncateToWidth(replaceTabs(line), width));
@@ -234,9 +234,9 @@ The `/pause` screen shows the same local turn-and-job state in ANSI and TSP: dra
 ## Realistic custom component example (extension command)
 
 ```ts
-import type { Component } from "@oh-my-pi/pi-tui";
-import { SelectList, matchesKey, replaceTabs, truncateToWidth } from "@oh-my-pi/pi-tui";
-import { getSelectListTheme, type ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { Component } from "@linxiraos/pi-tui";
+import { SelectList, matchesKey, replaceTabs, truncateToWidth } from "@linxiraos/pi-tui";
+import { getSelectListTheme, type ExtensionAPI } from "@linxiraos/zeta";
 
 class Picker implements Component {
 	list: SelectList;

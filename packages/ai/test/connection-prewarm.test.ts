@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions } from "@oh-my-pi/pi-ai/providers/anthropic";
-import { resolveAnthropicPrewarmTarget } from "@oh-my-pi/pi-ai/providers/anthropic-http-options";
-import { prewarmModelConnection, resetConnectionPrewarmForTesting } from "@oh-my-pi/pi-ai/providers/connection-prewarm";
-import type { FetchImpl, Model } from "@oh-my-pi/pi-ai/types";
-import { resetDispatchOriginsForTesting, transportFetch } from "@oh-my-pi/pi-ai/utils/transport-fetch";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { Api } from "@oh-my-pi/pi-catalog/types";
+import { buildAnthropicClientOptions } from "@linxiraos/pi-ai/providers/anthropic";
+import { resolveAnthropicPrewarmTarget } from "@linxiraos/pi-ai/providers/anthropic-http-options";
+import {
+	prewarmModelConnection,
+	resetConnectionPrewarmForTesting,
+} from "@linxiraos/pi-ai/providers/connection-prewarm";
+import type { FetchImpl, Model } from "@linxiraos/pi-ai/types";
+import { resetDispatchOriginsForTesting, transportFetch } from "@linxiraos/pi-ai/utils/transport-fetch";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { Api } from "@linxiraos/pi-catalog/types";
 import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
 
 function model<TApi extends Api>(provider: string, api: TApi, baseUrl: string): Model<TApi> {

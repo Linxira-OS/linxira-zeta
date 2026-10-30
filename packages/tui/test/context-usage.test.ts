@@ -6,17 +6,17 @@
  * internals, which massively overcounts.
  */
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import type { Model, ModelSpec } from "@oh-my-pi/pi-catalog/types";
-import { Tokenizer } from "@oh-my-pi/pi-agent-core";
-import { normalizeTools } from "@oh-my-pi/pi-agent-core/agent-loop";
+import { type } from "@linxiraos/pi-omptype";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import type { Model, ModelSpec } from "@linxiraos/pi-catalog/types";
+import { Tokenizer } from "@linxiraos/pi-agent-core";
+import { normalizeTools } from "@linxiraos/pi-agent-core/agent-loop";
 import {
 	compactionContextTokens,
 	DEFAULT_COMPACTION_SETTINGS,
 	shouldCompact,
-} from "@oh-my-pi/pi-agent-core/compaction";
-import { arkToWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
+} from "@linxiraos/pi-agent-core/compaction";
+import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
 import {
 	type NonMessageTokenSource,
 	computeNonMessageBreakdown,

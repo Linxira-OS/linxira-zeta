@@ -1706,6 +1706,12 @@ class NegotiateProtocolResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class LiveConnectResult:
+    voice: str
+    sdp_answer: str
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class LoopStartResult:
     state: JsonValue
 
@@ -1744,12 +1750,6 @@ class ComponentListResult:
 @dataclass(slots=True, frozen=True, kw_only=True)
 class ComponentOpenResult:
     pid: int
-
-
-@dataclass(slots=True, frozen=True, kw_only=True)
-class LiveConnectResult:
-    voice: str
-    sdp_answer: str
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -3275,6 +3275,14 @@ def parse_negotiate_protocol_result(value: object, path: str = "NegotiateProtoco
     )
 
 
+def parse_live_connect_result(value: object, path: str = "LiveConnectResult") -> LiveConnectResult:
+    payload = expect_object(value, path)
+    return LiveConnectResult(
+        voice=required(payload, "voice", decode_str, path),
+        sdp_answer=required(payload, "sdpAnswer", decode_str, path),
+    )
+
+
 def parse_loop_start_result(value: object, path: str = "LoopStartResult") -> LoopStartResult:
     payload = expect_object(value, path)
     return LoopStartResult(
@@ -3329,14 +3337,6 @@ def parse_component_open_result(value: object, path: str = "ComponentOpenResult"
     payload = expect_object(value, path)
     return ComponentOpenResult(
         pid=required(payload, "pid", decode_int, path),
-    )
-
-
-def parse_live_connect_result(value: object, path: str = "LiveConnectResult") -> LiveConnectResult:
-    payload = expect_object(value, path)
-    return LiveConnectResult(
-        voice=required(payload, "voice", decode_str, path),
-        sdp_answer=required(payload, "sdpAnswer", decode_str, path),
     )
 
 

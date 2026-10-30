@@ -1,24 +1,24 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "bun:test";
 import { scheduler } from "node:timers/promises";
-import { Agent, AgentBusyError, type AgentMessage } from "@oh-my-pi/pi-agent-core";
-import { CompactionCancelledError } from "@oh-my-pi/pi-agent-core/compaction";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { ExtensionRuntime, loadExtensionFromFactory } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
-import { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import type { CompactOptions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
-import { SessionMaintenance } from "@oh-my-pi/pi-coding-agent/session/session-maintenance";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as unexpectedStopClassifier from "@oh-my-pi/pi-coding-agent/session/unexpected-stop-classifier";
-import { EventBus } from "@oh-my-pi/pi-coding-agent/utils/event-bus";
-import * as imageLoading from "@oh-my-pi/pi-coding-agent/utils/image-loading";
-import { TempDir, withTimeout } from "@oh-my-pi/pi-utils";
-import * as logger from "@oh-my-pi/pi-utils/logger";
-import { MAIN_AGENT_ID } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
+import { Agent, AgentBusyError, type AgentMessage } from "@linxiraos/pi-agent-core";
+import { CompactionCancelledError } from "@linxiraos/pi-agent-core/compaction";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { ExtensionRuntime, loadExtensionFromFactory } from "@linxiraos/zeta/extensibility/extensions/loader";
+import { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import type { CompactOptions } from "@linxiraos/zeta/extensibility/extensions/types";
+import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { SessionMaintenance } from "@linxiraos/zeta/session/session-maintenance";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as unexpectedStopClassifier from "@linxiraos/zeta/session/unexpected-stop-classifier";
+import { EventBus } from "@linxiraos/zeta/utils/event-bus";
+import * as imageLoading from "@linxiraos/zeta/utils/image-loading";
+import { TempDir, withTimeout } from "@linxiraos/pi-utils";
+import * as logger from "@linxiraos/pi-utils/logger";
+import { MAIN_AGENT_ID } from "@linxiraos/zeta/registry/agent-registry";
 import { activateTodoTool, createAssistantMessage } from "./helpers/agent-session-setup";
 import { flush as flushEventLoop, until } from "./helpers/fake-clock";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
@@ -33,7 +33,7 @@ import {
 	cfgCompactionThresholdPercent,
 	cfgCompactionThresholdTokens,
 	cfgContextPromotionEnabled,
-} from "@oh-my-pi/pi-coding-agent/session/context-settings";
+} from "@linxiraos/zeta/session/context-settings";
 import {
 	cfgFeaturesUnexpectedStopDetection,
 	cfgRetryBaseDelayMs,
@@ -42,7 +42,7 @@ import {
 	cfgRetryMaxDelayMs,
 	cfgRetryMaxRetries,
 	cfgRetryModelFallback,
-} from "@oh-my-pi/pi-coding-agent/session/settings";
+} from "@linxiraos/zeta/session/settings";
 
 const runtimeSignalStoreKey = "__ompRuntimeSignals";
 

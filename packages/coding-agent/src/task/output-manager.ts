@@ -14,6 +14,8 @@ import * as fs from "node:fs/promises";
 import { ADVISOR_TRANSCRIPT_STEM } from "../advisor/transcript-recorder";
 import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
 
+export { PINNED_HUD_TOGGLE_ID };
+
 /**
  * Manages agent output ID allocation to ensure uniqueness.
  *

@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { resetSettingsForTest, Settings, settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { PINNED_HUD_TOGGLE_ID } from "@oh-my-pi/pi-coding-agent/task/output-manager";
-import { InputController } from "@oh-my-pi/pi-coding-agent/modes/controllers/input-controller";
-import { SpaceHoldGesture } from "@oh-my-pi/pi-tui/space-hold";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import type { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
+import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/zeta/task/output-manager";
+import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
+import { SpaceHoldGesture } from "@linxiraos/pi-tui/space-hold";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 
-import { cfgTuiMouse } from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgTuiMouse } from "@linxiraos/zeta/modes/settings";
 
 const ESC = String.fromCharCode(27);
 // SGR click on viewport row 2 (1-based y=3): the pinned expander row when the

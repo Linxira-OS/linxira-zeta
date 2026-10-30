@@ -380,7 +380,8 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 			const body: NativeChild[] = [];
 			if (!pickers) {
 				body.push(keyed(text([span(title, "strong")], { role: "zeta.setup.title" }), "title"));
-				if (subtitle) body.push(keyed(text([span(subtitle, "muted")], { role: "zeta.setup.subtitle" }), "subtitle"));
+				if (subtitle)
+					body.push(keyed(text([span(subtitle, "muted")], { role: "zeta.setup.subtitle" }), "subtitle"));
 			}
 			if (active) body.push(active);
 			return col(
@@ -411,10 +412,7 @@ export class SetupWizardComponent implements Component, OverlayFocusOwner {
 			...logo.map(line => centerLine(line, width)),
 			centerLine(theme.bold(theme.fg("accent", APP_NAME)), width),
 			centerLine(
-				theme.fg(
-					"muted",
-					tuiTextFmt("setupStepFmt", "Setup step %s of %s", current + 1, steps.length),
-				),
+				theme.fg("muted", tuiTextFmt("setupStepFmt", "Setup step %s of %s", current + 1, steps.length)),
 				width,
 			),
 			"",

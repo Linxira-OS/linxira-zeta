@@ -104,6 +104,6 @@ omp clip <file> -t "Streaming the lexer" -d "…"   # title and description
 
 ## Server
 
-`live.omp.sh` is a small Go service (stencil `apps/live`): channel directory (`GET /api/channels`, `GET /api/channels/<name>`), homepage previews (`GET /api/channels/<name>/preview` — the first pane's viewport, never counted as a viewer), an identity-derived host socket (`/ws/host`), viewer sockets (`/ws/watch/<name>`), chat with per-viewer rate limiting, and the web UI (terminal rows render in the full Berkeley Mono Nerd Font served from `/fonts/`). Wire shapes live in `@oh-my-pi/pi-wire/stream`.
+`live.omp.sh` is a small Go service (stencil `apps/live`): channel directory (`GET /api/channels`, `GET /api/channels/<name>`), homepage previews (`GET /api/channels/<name>/preview` — the first pane's viewport, never counted as a viewer), an identity-derived host socket (`/ws/host`), viewer sockets (`/ws/watch/<name>`), chat with per-viewer rate limiting, and the web UI (terminal rows render in the full Berkeley Mono Nerd Font served from `/fonts/`). Wire shapes live in `@linxiraos/pi-wire/stream`.
 
 Hosts authenticate with the stencil.so bearer (`Authorization: Bearer …` on the host socket); the server verifies it against the issuer's JWKS (`LIVE_ISSUER`, `LIVE_TOKEN_AUDIENCE`) or, for local development, a static `LIVE_DEBUG_TOKENS` list paired with `STENCIL_API_KEY`. It derives each host channel directly from the authenticated Stencil username, so viewers always find an account at `live.omp.sh/<username>`. Viewers stay anonymous.

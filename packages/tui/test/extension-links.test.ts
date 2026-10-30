@@ -1,24 +1,24 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { type Component, TUI } from "@oh-my-pi/pi-tui";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { TranscriptContainer } from "@oh-my-pi/pi-tui/chrome/transcript-container";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import { Markdown } from "@oh-my-pi/pi-tui/components/markdown";
-import { COMPOSER_DEFAULTS, Composer } from "@oh-my-pi/pi-tui/prompt/composer";
+import { type Component, TUI } from "@linxiraos/pi-tui";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { TranscriptContainer } from "@linxiraos/pi-tui/chrome/transcript-container";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import { Markdown } from "@linxiraos/pi-tui/components/markdown";
+import { COMPOSER_DEFAULTS, Composer } from "@linxiraos/pi-tui/prompt/composer";
 import {
 	extensionLinkLabels,
 	formatExtensionLink,
 	linkHintTags,
 	setExtensionLinks,
 	stripExtensionLinkMarkers,
-} from "@oh-my-pi/pi-tui/render/extension-links";
+} from "@linxiraos/pi-tui/render/extension-links";
 import {
 	ImageProtocol,
 	setTerminalImageProtocol,
 	setTerminalTextSizing,
 	TERMINAL,
-} from "@oh-my-pi/pi-tui/terminal-capabilities";
-import { getMarkdownTheme, initTheme } from "@oh-my-pi/pi-tui/theme";
+} from "@linxiraos/pi-tui/terminal-capabilities";
+import { getMarkdownTheme, initTheme } from "@linxiraos/pi-tui/theme";
 import { VirtualTerminal } from "./virtual-terminal";
 
 beforeAll(async () => {

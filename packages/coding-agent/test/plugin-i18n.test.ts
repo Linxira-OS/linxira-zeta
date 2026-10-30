@@ -54,6 +54,8 @@ function makeExtension(
 		handlers,
 		tools: new Map(),
 		assistantThinkingRenderers: [],
+		assistantTextRenderers: [],
+		linkSchemes: [],
 		fileWriteFallbackHandlers: [],
 		fileDeleteFallbackHandlers: [],
 		messageRenderers: new Map(),

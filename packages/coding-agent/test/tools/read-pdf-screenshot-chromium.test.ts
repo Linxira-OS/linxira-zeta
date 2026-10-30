@@ -3,18 +3,18 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { deflateSync } from "node:zlib";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 import {
 	acquireBrowser,
 	type BrowserHandle,
 	holdBrowser,
 	releaseBrowser,
-} from "@oh-my-pi/pi-coding-agent/tools/browser/registry";
-import { decodePng } from "@oh-my-pi/pi-coding-agent/tools/browser/screenshot";
-import { releaseAllTabs } from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
-import { renderPdfPageScreenshot } from "@oh-my-pi/pi-coding-agent/tools/read-pdf";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/tools/browser/registry";
+import { decodePng } from "@linxiraos/zeta/tools/browser/screenshot";
+import { releaseAllTabs } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import { renderPdfPageScreenshot } from "@linxiraos/zeta/tools/read-pdf";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 import { chromiumAvailable } from "./chromium-probe";
 
 const CHROMIUM_AVAILABLE = await chromiumAvailable();

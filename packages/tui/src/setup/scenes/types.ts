@@ -85,10 +85,10 @@ export interface SetupSceneController extends Component {
  * TSP terminal. The terminal's setup stylesheet seats it under the wizard's
  * brand and stepper instead of floating it over a dimmed page.
  */
-export const SETUP_SHEET_ROLE = "omp.setup.sheet";
+export const SETUP_SHEET_ROLE = "zeta.setup.sheet";
 
 /** Surface role of the setup page (wizard and startup splash) in a TSP terminal. */
-export const SETUP_SURFACE_ROLE = "omp.app.setup";
+export const SETUP_SURFACE_ROLE = "zeta.app.setup";
 
 /** Versioned onboarding scene definition. */
 export interface SetupScene {

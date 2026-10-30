@@ -3,9 +3,9 @@
 // history-bearing root it keeps the client's history verbatim, so a root without
 // its own `<rules>` entry lost omp's system prompt from the second turn on.
 import { describe, expect, it } from "bun:test";
-import { buildGrpcRequest } from "@oh-my-pi/pi-ai/providers/cursor";
-import type { AssistantMessage, Context, Message, Model } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { buildGrpcRequest } from "@linxiraos/pi-ai/providers/cursor";
+import type { AssistantMessage, Context, Message, Model } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 const model: Model<"cursor-agent"> = buildModel({
 	id: "claude-haiku-5-5",

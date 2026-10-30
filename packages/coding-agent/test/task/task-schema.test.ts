@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { TaskTool, taskSchema } from "@oh-my-pi/pi-coding-agent/task";
-import { loadBundledAgents, parseAgent } from "@oh-my-pi/pi-coding-agent/task/agents";
-import * as discoveryModule from "@oh-my-pi/pi-coding-agent/task/discovery";
-import { getTaskSchema } from "@oh-my-pi/pi-coding-agent/task/types";
-import { isBundledSeance, seanceTaskSchemaFields } from "@oh-my-pi/pi-coding-agent/task/seance";
-import type { AgentDefinition } from "@oh-my-pi/pi-coding-agent/task/types";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { isRecord } from "@oh-my-pi/pi-utils";
+import { type } from "@linxiraos/pi-omptype";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { TaskTool, taskSchema } from "@linxiraos/zeta/task";
+import { loadBundledAgents, parseAgent } from "@linxiraos/zeta/task/agents";
+import * as discoveryModule from "@linxiraos/zeta/task/discovery";
+import { getTaskSchema } from "@linxiraos/zeta/task/types";
+import { isBundledSeance, seanceTaskSchemaFields } from "@linxiraos/zeta/task/seance";
+import type { AgentDefinition } from "@linxiraos/zeta/task/types";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { isRecord } from "@linxiraos/pi-utils";
 
 let taskSchemaSessionIndex = 0;
 

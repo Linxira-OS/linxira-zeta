@@ -22,7 +22,7 @@ import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import { removeWithRetries } from "@oh-my-pi/pi-utils";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 const sessionStorageUrl = pathToFileURL(path.join(import.meta.dir, "../src/session/session-storage.ts")).href;
 
@@ -39,8 +39,8 @@ test.skipIf(process.platform !== "linux")("bash tool children never inherit sess
 	const logsDir = path.join(root, "logs");
 	const control = path.join(root, "control.jsonl");
 
-	const script = `import { Shell } from "@oh-my-pi/pi-natives";
-import { RotatingFileSink } from "@oh-my-pi/pi-utils/logger/rotating-file";
+	const script = `import { Shell } from "@linxiraos/pi-natives";
+import { RotatingFileSink } from "@linxiraos/pi-utils/logger/rotating-file";
 import * as fsp from "node:fs/promises";
 import { FileSessionStorage } from ${JSON.stringify(sessionStorageUrl)};
 

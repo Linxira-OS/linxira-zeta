@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { openAnnotationDraft } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/draft-store";
-import type { AnnotationOverlay } from "@oh-my-pi/pi-tui/overlays/annotation-overlay";
-import { FileSessionStorage } from "@oh-my-pi/pi-coding-agent/session/session-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { isEnoent, TempDir } from "@oh-my-pi/pi-utils";
+import { openAnnotationDraft } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/draft-store";
+import type { AnnotationOverlay } from "@linxiraos/pi-tui/overlays/annotation-overlay";
+import { FileSessionStorage } from "@linxiraos/zeta/session/session-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { isEnoent, TempDir } from "@linxiraos/pi-utils";
 
 async function fileExists(p: string): Promise<boolean> {
 	try {

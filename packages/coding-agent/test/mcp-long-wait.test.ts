@@ -12,9 +12,9 @@
  * than the POST — so the cancellation paths are pinned here alongside the wait.
  */
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
-import * as mcpTimeout from "@oh-my-pi/pi-coding-agent/mcp/timeout";
-import { HttpTransport } from "@oh-my-pi/pi-coding-agent/mcp/transports/http";
-import { LegacySseTransport } from "@oh-my-pi/pi-coding-agent/mcp/transports/sse";
+import * as mcpTimeout from "@linxiraos/zeta/mcp/timeout";
+import { HttpTransport } from "@linxiraos/zeta/mcp/transports/http";
+import { LegacySseTransport } from "@linxiraos/zeta/mcp/transports/sse";
 
 interface StallingServer {
 	server: Bun.Server<undefined>;

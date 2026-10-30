@@ -45,7 +45,7 @@ export async function buildExportViewer(options: ExportViewerBuildOptions = {}):
 			{
 				name: "shared-export-markdown",
 				setup(build) {
-					build.onResolve({ filter: /^@oh-my-pi\/pi-utils\/marked$/ }, () => ({
+					build.onResolve({ filter: /^@linxiraos\/pi-utils\/marked$/ }, () => ({
 						path: path.join(collabDir, "src/export-markdown-bridge.ts"),
 					}));
 				},

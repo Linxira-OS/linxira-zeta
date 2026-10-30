@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import type { ExtensionLiveStartOptions } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { LiveSessionController, type LiveSessionControllerOptions } from "@oh-my-pi/pi-coding-agent/live/controller";
-import type { LiveServerEvent } from "@oh-my-pi/pi-coding-agent/live/protocol";
-import * as liveTransport from "@oh-my-pi/pi-coding-agent/live/transport";
-import type { LiveTransportOptions } from "@oh-my-pi/pi-coding-agent/live/transport";
-import { LiveVisualizer } from "@oh-my-pi/pi-tui/apps/live-visualizer";
-import { LiveCommandController } from "@oh-my-pi/pi-coding-agent/modes/controllers/live-command-controller";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import type { ExtensionLiveStartOptions } from "@linxiraos/zeta/extensibility/extensions/types";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { LiveSessionController, type LiveSessionControllerOptions } from "@linxiraos/zeta/live/controller";
+import type { LiveServerEvent } from "@linxiraos/zeta/live/protocol";
+import * as liveTransport from "@linxiraos/zeta/live/transport";
+import type { LiveTransportOptions } from "@linxiraos/zeta/live/transport";
+import { LiveVisualizer } from "@linxiraos/pi-tui/apps/live-visualizer";
+import { LiveCommandController } from "@linxiraos/zeta/modes/controllers/live-command-controller";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 
 /** Fake InteractiveModeContext plus typed capture channels for focus/mount traffic. */
 interface ContextHarness {

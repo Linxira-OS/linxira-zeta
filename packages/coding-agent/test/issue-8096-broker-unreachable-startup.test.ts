@@ -10,13 +10,13 @@
  * a silent fallback to local credentials.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { AuthBrokerError } from "@oh-my-pi/pi-ai/auth-broker";
-import { MissingApiKeyError } from "@oh-my-pi/pi-ai/error";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import { describeAuthBrokerStartupError } from "@oh-my-pi/pi-coding-agent/session/auth-broker-config";
-import { setInteractiveHost } from "@oh-my-pi/pi-utils";
+import { AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
+import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import { describeAuthBrokerStartupError } from "@linxiraos/zeta/session/auth-broker-config";
+import { setInteractiveHost } from "@linxiraos/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {
@@ -38,8 +38,8 @@ describe("describeAuthBrokerStartupError", () => {
 		expect(message).not.toBeNull();
 		expect(message).toContain("Auth broker request failed after 2 attempt(s)");
 		// Both recovery routes the reporter asked for: start it, or disable it.
-		expect(message).toContain("omp auth-broker serve");
-		expect(message).toContain("omp config reset auth.broker.url");
+		expect(message).toContain("zetacode auth-broker serve");
+		expect(message).toContain("zetacode config reset auth.broker.url");
 		expect(message).toContain("OMP_AUTH_BROKER_URL");
 	});
 
@@ -108,6 +108,6 @@ describe("runRootCommand — unreachable auth broker at startup", () => {
 		expect(thrown).toBeInstanceOf(ProcessExitSignal);
 		expect(exitCodes).toEqual([1]);
 		expect(stderr).toContain("Auth broker request failed after 2 attempt(s)");
-		expect(stderr).toContain("omp auth-broker serve");
+		expect(stderr).toContain("zetacode auth-broker serve");
 	}, 15_000);
 });

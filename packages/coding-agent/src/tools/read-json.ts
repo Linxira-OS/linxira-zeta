@@ -4,7 +4,12 @@ import * as path from "node:path";
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import { Shell } from "@linxiraos/pi-natives";
 import type { ReadToolDetails } from "@linxiraos/pi-tui/tools/read";
-import { DEFAULT_MAX_LINES, truncateHead, truncateMiddle, truncateTail } from "@linxiraos/pi-tui/tools/streaming-output";
+import {
+	DEFAULT_MAX_LINES,
+	truncateHead,
+	truncateMiddle,
+	truncateTail,
+} from "@linxiraos/pi-tui/tools/streaming-output";
 import { ToolError } from "@linxiraos/pi-tui/tools/tool-errors";
 import {
 	IMAGE_METADATA_HEADER_BYTES,

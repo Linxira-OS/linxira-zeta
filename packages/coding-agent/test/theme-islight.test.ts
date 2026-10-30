@@ -2,17 +2,17 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { generateThemeVars } from "@oh-my-pi/pi-coding-agent/export/html";
-import { createTheme, getBuiltinThemes } from "@oh-my-pi/pi-tui/theme/loader";
+import { generateThemeVars } from "@linxiraos/zeta/export/html";
+import { createTheme, getBuiltinThemes } from "@linxiraos/pi-tui/theme/loader";
 import {
 	getEditorTheme,
 	getResolvedThemeColors,
 	getThemeByName,
 	isLightTheme,
 	setThemeInstance,
-} from "@oh-my-pi/pi-tui/theme";
-import { Editor } from "@oh-my-pi/pi-tui";
-import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/pi-tui/theme";
+import { Editor } from "@linxiraos/pi-tui";
+import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
 
 function createBaseThemes() {
 	const builtins = getBuiltinThemes();
@@ -187,9 +187,9 @@ describe("getResolvedThemeColors HTML export defaults", () => {
 		if (tempAgentDir === undefined) return;
 		setAgentDir(originalAgentDir);
 		if (originalAgentDirEnv === undefined) {
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.ZETA_CODING_AGENT_DIR;
 		} else {
-			process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+			process.env.ZETA_CODING_AGENT_DIR = originalAgentDirEnv;
 		}
 		await removeWithRetries(tempAgentDir);
 		tempAgentDir = undefined;
@@ -197,7 +197,7 @@ describe("getResolvedThemeColors HTML export defaults", () => {
 
 	it("uses light text when a light-status custom theme derives dark export surfaces from userMessageBg", async () => {
 		originalAgentDir = getAgentDir();
-		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
 		tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-theme-export-"));
 		setAgentDir(tempAgentDir);
 

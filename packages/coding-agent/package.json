@@ -42,7 +42,13 @@
     "examples",
     "README.md",
     "CHANGELOG.md",
-    "THIRD-PARTY-NOTICES.txt"
+    "THIRD-PARTY-NOTICES.txt",
+    "dist/template-*.css",
+    "dist/template-*.html",
+    "dist/template-*.js",
+    "dist/tool-views.generated-*.js",
+    "dist/marked.min-*.js",
+    "dist/highlight.min-*.js"
   ],
   "type": "module",
   "main": "./src/index.ts",
@@ -538,9 +544,10 @@
     "format-prompts": "bun scripts/format-prompts.ts",
     "gen:bundle": "bun scripts/bundle-dist.ts",
     "gen:rpc": "bun scripts/gen-rpc/index.ts",
-    "prepack": "bun run gen:export-viewer && bun run gen:bundle",
+    "prepack": "bun run gen:tool-views && bun run gen:bundle",
     "bench:guard": "bun scripts/bench-guard.ts",
-    "gen:export-viewer": "bun --cwd=../collab-web run gen:export-viewer"
+    "gen:export-viewer": "bun --cwd=../collab-web run gen:export-viewer",
+    "gen:tool-views": "bun --cwd=../collab-web run gen:tool-views"
   },
   "dependencies": {
     "@babel/parser": "catalog:",

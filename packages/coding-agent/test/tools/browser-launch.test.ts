@@ -18,7 +18,7 @@ const EXECUTABLE_PROBE = path.resolve(import.meta.dir, "../fixtures/browser-exec
 
 /**
  * The parent's environment without the variables that relocate omp's directories or pick a browser.
- * `setAgentDir()` exports `PI_CODING_AGENT_DIR` for the rest of the process, and an agent-dir or
+ * `setAgentDir()` exports `ZETA_CODING_AGENT_DIR` for the rest of the process, and an agent-dir or
  * profile override disables the XDG roots the tests below pin the child's puppeteer cache with, so
  * an inherited one would point the child at a cache without the seeded Chrome for Testing.
  */
@@ -27,7 +27,7 @@ function probeEnv(): Record<string, string | undefined> {
 	for (const key in env) {
 		if (key.startsWith("XDG_") || key.startsWith("PUPPETEER_")) delete env[key];
 	}
-	for (const key of ["PI_CODING_AGENT_DIR", "PI_CONFIG_DIR", "OMP_PROFILE", "PI_PROFILE"]) delete env[key];
+	for (const key of ["ZETA_CODING_AGENT_DIR", "PI_CONFIG_DIR", "OMP_PROFILE", "PI_PROFILE"]) delete env[key];
 	return env;
 }
 

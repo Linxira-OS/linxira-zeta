@@ -111,7 +111,7 @@ function serializeSkillMutation<T>(name: string, op: () => Promise<T>): Promise<
 /**
  * Validate the managed-skills root before composing any child path. A symlinked
  * root is allowed when it resolves to an existing directory: the operator may
- * point the store at the shared skills tree (`~/.omp/agent/managed-skills` ->
+ * point the store at the shared skills tree (`~/.zeta/agent/managed-skills` ->
  * `~/meta/notes/omp-skills`). Child paths stay inside that target because a
  * skill name is one safe path segment and a child directory symlink is rejected
  * at the mutation itself. A broken link or a link to a non-directory has no

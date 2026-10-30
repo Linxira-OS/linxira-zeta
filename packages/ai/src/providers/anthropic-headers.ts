@@ -1,6 +1,6 @@
-import { isOfficialAnthropicApiUrl, resolveAnthropicApiVersion } from "@oh-my-pi/pi-catalog/compat/anthropic";
-import { isAnthropicOAuthToken } from "@oh-my-pi/pi-catalog/utils";
-import { $env, logger } from "@oh-my-pi/pi-utils";
+import { isOfficialAnthropicApiUrl, resolveAnthropicApiVersion } from "@linxiraos/pi-catalog/compat/anthropic";
+import { isAnthropicOAuthToken } from "@linxiraos/pi-catalog/utils";
+import { $env, logger } from "@linxiraos/pi-utils";
 import { NO_AUTH_SENTINEL } from "../auth-retry";
 import { getHeaderCaseInsensitive } from "../utils";
 import { isFoundryEnabled } from "../utils/foundry";

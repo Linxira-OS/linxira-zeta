@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { AnnotationOverlay } from "@oh-my-pi/pi-tui/overlays/annotation-overlay";
-import type { AnnotationOverlayDraft } from "@oh-my-pi/pi-tui/overlays/annotation-types";
-import { TempDir } from "@oh-my-pi/pi-utils";
+import type { AnnotationOverlay } from "@linxiraos/pi-tui/overlays/annotation-overlay";
+import type { AnnotationOverlayDraft } from "@linxiraos/pi-tui/overlays/annotation-types";
+import { TempDir } from "@linxiraos/pi-utils";
 import {
 	annotationDraftKey,
 	loadAnnotationDrafts,

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { procmgr, setProcessName, TempDir } from "@oh-my-pi/pi-utils";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import { procmgr, setProcessName, TempDir } from "@linxiraos/pi-utils";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
 import { Settings } from "../../src/config/settings";
 import { AsyncJobManager } from "../../src/async/job-manager";
 import { ProcProtocolHandler } from "../../src/internal-urls/proc-protocol";
@@ -24,7 +24,7 @@ import { BashTool } from "../../src/tools/bash";
 import { WriteTool } from "../../src/tools/write";
 import { sharedBrowserDaemonName } from "../../src/tools/browser/shared-daemon";
 import type { ToolSession } from "../../src/tools";
-import type { DaemonSnapshot } from "@oh-my-pi/pi-tui/tools/daemon";
+import type { DaemonSnapshot } from "@linxiraos/pi-tui/tools/daemon";
 
 function startBroker(projectDir: string, runtimeDir: string): Promise<void> {
 	const previous = [
@@ -281,6 +281,7 @@ describe("proc:// background jobs", () => {
 				securityEnabled: false,
 				settingsApproval: false,
 				outReplies: false,
+				canvasEnabled: false,
 			})
 			.find(line => line.startsWith("`proc://`"));
 		expect(help).toMatch(/stdin[^;]*services.only/);

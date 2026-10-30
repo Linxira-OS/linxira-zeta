@@ -1,18 +1,18 @@
-# @oh-my-pi/pi-agent
+# @linxiraos/pi-agent-core
 
-Stateful agent with tool execution and event streaming. Built on `@oh-my-pi/pi-ai`.
+Stateful agent with tool execution and event streaming. Built on `@linxiraos/pi-ai`.
 
 ## Installation
 
 ```bash
-npm install @oh-my-pi/pi-agent
+npm install @linxiraos/pi-agent-core
 ```
 
 ## Quick Start
 
 ```typescript
-import { Agent } from "@oh-my-pi/pi-agent";
-import { getModel } from "@oh-my-pi/pi-ai";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { getModel } from "@linxiraos/pi-ai";
 
 const agent = new Agent({
 	initialState: {
@@ -21,7 +21,7 @@ const agent = new Agent({
 	},
 });
 
-agent.subscribe(event => {
+agent.subscribe((event) => {
 	if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
 		// Stream just the new text chunk
 		process.stdout.write(event.assistantMessageEvent.delta);
@@ -219,7 +219,7 @@ await agent.waitForIdle(); // Wait for completion
 ### Events
 
 ```typescript
-const unsubscribe = agent.subscribe(event => {
+const unsubscribe = agent.subscribe((event) => {
 	console.log(event.type);
 });
 unsubscribe();
@@ -260,7 +260,7 @@ remain separate. `replaceQueue("steering" | "followUp", messages)` replaces only
 Extend `AgentMessage` via declaration merging:
 
 ```typescript
-declare module "@oh-my-pi/pi-agent" {
+declare module "@linxiraos/pi-agent-core" {
 	interface CustomAgentMessages {
 		notification: { role: "notification"; text: string; timestamp: number };
 	}
@@ -274,8 +274,8 @@ Handle custom types in `convertToLlm`:
 
 ```typescript
 const agent = new Agent({
-	convertToLlm: messages =>
-		messages.flatMap(m => {
+	convertToLlm: (messages) =>
+		messages.flatMap((m) => {
 			if (m.role === "notification") return []; // Filter out
 			return [m];
 		}),
@@ -287,7 +287,7 @@ const agent = new Agent({
 Define tools using `AgentTool` with an omptype parameter schema.
 
 ```typescript
-import { type } from "@oh-my-pi/omptype";
+import { type } from "@linxiraos/pi-omptype";
 
 const readFileTool: AgentTool = {
 	name: "read_file",
@@ -333,7 +333,7 @@ Thrown errors are caught by the agent and reported to the LLM as tool errors wit
 For browser apps that proxy through a backend:
 
 ```typescript
-import { Agent, streamProxy } from "@oh-my-pi/pi-agent";
+import { Agent, streamProxy } from "@linxiraos/pi-agent-core";
 
 const agent = new Agent({
 	streamFn: (model, context, options) =>
@@ -350,7 +350,7 @@ const agent = new Agent({
 For direct control without the Agent class:
 
 ```typescript
-import { agentLoop, agentLoopContinue } from "@oh-my-pi/pi-agent";
+import { agentLoop, agentLoopContinue } from "@linxiraos/pi-agent-core";
 
 const context: AgentContext = {
 	systemPrompt: ["You are helpful."],
@@ -360,7 +360,7 @@ const context: AgentContext = {
 
 const config: AgentLoopConfig = {
 	model: getModel("openai", "gpt-4o"),
-	convertToLlm: msgs => msgs.filter(m => ["user", "assistant", "toolResult"].includes(m.role)),
+	convertToLlm: (msgs) => msgs.filter((m) => ["user", "assistant", "toolResult"].includes(m.role)),
 };
 
 const userMessage = { role: "user", content: "Hello", timestamp: Date.now() };
@@ -376,7 +376,6 @@ for await (const event of agentLoopContinue(context, config)) {
 ```
 
 ## Run-level telemetry
-
 Every `invoke_agent` produces two values alongside the OTEL spans:
 
 - **`AgentRunSummary`** — chat / tool / usage / cost / error counters bucketed
@@ -448,7 +447,10 @@ Callers that drive the loop multiple times (verify pass, benchmark harness)
 fold N summaries with `aggregateAgentRunSummaries` / `aggregateAgentRunCoverage`:
 
 ```typescript
-import { aggregateAgentRunSummaries, aggregateAgentRunCoverage } from "@oh-my-pi/pi-agent";
+import {
+	aggregateAgentRunSummaries,
+	aggregateAgentRunCoverage,
+} from "@linxiraos/pi-agent-core";
 
 const summaries: AgentRunSummary[] = [];
 const coverages: AgentRunCoverage[] = [];
@@ -464,7 +466,7 @@ const runCoverage = aggregateAgentRunCoverage(coverages);
 
 ### Tool status reporting
 
-`execute_tool` spans carry `omp.gen_ai.tool.status` ∈
+`execute_tool` spans carry `zeta.gen_ai.tool.status` ∈
 `"ok" | "error" | "skipped" | "blocked" | "timeout" | "aborted"`.
 `beforeToolCall` blocks throw a distinguishable `ToolCallBlockedError`
 internally; the catch path reports `status: "blocked"` instead of conflating

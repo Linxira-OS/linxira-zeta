@@ -2,21 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AsyncJobManager } from "@oh-my-pi/pi-coding-agent/async";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as bashExecutor from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import type { BashResult } from "@oh-my-pi/pi-coding-agent/exec/bash-executor";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { getOrFetchPrDiff } from "@oh-my-pi/pi-coding-agent/tools/gh-pr-diff";
-import {
-	getCached,
-	putCached,
-	resetForTests,
-	resolveGithubCacheAuthKey,
-} from "@oh-my-pi/pi-coding-agent/tools/github-cache";
-import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
+import { AsyncJobManager } from "@linxiraos/zeta/async";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import * as bashExecutor from "@linxiraos/zeta/exec/bash-executor";
+import type { BashResult } from "@linxiraos/zeta/exec/bash-executor";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool } from "@linxiraos/zeta/tools/bash";
+import { getOrFetchPrDiff } from "@linxiraos/zeta/tools/gh-pr-diff";
+import { getCached, putCached, resetForTests, resolveGithubCacheAuthKey } from "@linxiraos/zeta/tools/github-cache";
+import { github } from "@linxiraos/zeta/utils/github";
+import * as vcs from "@linxiraos/pi-natives/vcs";
 import { $ } from "bun";
 
 const REPO = "owner/example";

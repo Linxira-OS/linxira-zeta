@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { type } from "@oh-my-pi/omptype";
-import { Agent } from "@oh-my-pi/pi-agent-core";
-import { normalizeTools } from "@oh-my-pi/pi-agent-core/agent-loop";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core/types";
-import { INTENT_FIELD } from "@oh-my-pi/pi-wire";
+import { type } from "@linxiraos/pi-omptype";
+import { Agent } from "@linxiraos/pi-agent-core";
+import { normalizeTools } from "@linxiraos/pi-agent-core/agent-loop";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import type { AgentTool } from "@linxiraos/pi-agent-core/types";
+import { INTENT_FIELD } from "@linxiraos/pi-wire";
 
 const toolSchema = type({
 	path: type("string").describe("where to read"),

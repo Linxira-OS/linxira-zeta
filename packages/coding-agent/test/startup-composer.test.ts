@@ -1,34 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
-import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
-import * as registry from "@oh-my-pi/pi-coding-agent/collab/registry";
-import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
-import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import * as pluginHelpers from "@oh-my-pi/pi-coding-agent/discovery/helpers";
-import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
-import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
-import { Composer, type ComposerPreferences } from "@oh-my-pi/pi-tui/prompt/composer";
-import * as composerCache from "@oh-my-pi/pi-tui/prompt/composer-cache";
-import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
+import * as registry from "@linxiraos/zeta/collab/registry";
+import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
+import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
+import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
+import { runRootCommand } from "@linxiraos/zeta/main";
+import { Composer, type ComposerPreferences } from "@linxiraos/pi-tui/prompt/composer";
+import * as composerCache from "@linxiraos/pi-tui/prompt/composer-cache";
+import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
 import {
 	applyStartupComposerPreferences,
 	beginStartupComposer,
 	ComposerLease,
 	stopPendingStartupComposer,
 	takeStartupComposerLease,
-} from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { AgentLifecycleManager } from "@oh-my-pi/pi-coding-agent/registry/agent-lifecycle";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/modes/startup-composer";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { AgentLifecycleManager } from "@linxiraos/zeta/registry/agent-lifecycle";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
 import { VirtualTerminal } from "../../tui/test/virtual-terminal";
 import { installInMemoryRelay, uninstallInMemoryRelay } from "./collab/helpers/in-memory-relay";
-import { cfgTierOpenai } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { cfgTierOpenai } from "@linxiraos/zeta/session/settings";
 import { createTestSession } from "./utilities";
 
 import {
@@ -48,7 +48,7 @@ import {
 	cfgTuiImeSafeCursor,
 	cfgTuiMaxInlineImages,
 	cfgTuiResizeScrollback,
-} from "@oh-my-pi/pi-coding-agent/modes/settings";
+} from "@linxiraos/zeta/modes/settings";
 
 class CountingTerminal extends VirtualTerminal {
 	starts = 0;
@@ -574,7 +574,7 @@ describe("Composer prepaint", () => {
 		try {
 			await mode.init({ suppressWelcomeIntro: true });
 
-			// The `omp "prompt"` launch shape: the CLI message is dispatched after
+			// The `zetacode "prompt"` launch shape: the CLI message is dispatched after
 			// init and its first turn is still in flight when the user types. The
 			// input loop has not reached getUserInput yet.
 			prompt.mockReturnValueOnce(turn.promise);

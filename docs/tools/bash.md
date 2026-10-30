@@ -193,6 +193,25 @@ Choose the setting by the desired outcome:
    - No subprocess created.
    - Returns a `ToolError` pointing the model at the dedicated tool or named service mode.
 
+## Credentials
+
+**Credentials.** The default is that a secret never reaches a file:
+
+- **Inside the operator's own boundary** — this machine, or a container on this
+  host — the user may hand over its SSH key or root password for the agent to
+  keep **in context memory** and reuse for that target. It is **never written to
+  a file**: no credential store, no settings entry, no notes/plan/artifact/log
+  file — and never echoed back in tool output, summaries, or reports. (Keeping it
+  in context also carries it into the user's own session record under
+  `.zeta/sessions/`, which is their data directory and not a repository.)
+- **Outside that boundary** — remote hosts, third-party services — nothing is
+  stored at all: the user types the secret into the visible prompt (PTY overlay
+  or popped-out window) and the agent neither reads it back nor repeats it.
+- **The operator decides the situation.** When the user explicitly asks for a
+  secret to be remembered in context, or for how to use one to be written into a
+  document, do exactly that, for that target, and nothing wider. The default
+  above is a default — not a veto over the person who owns the machine.
+
 ## Side Effects
 
 - Filesystem
@@ -201,7 +220,7 @@ Choose the setting by the desired outcome:
    - `scheme://` paths are served per operation by `InternalUrlFilesystem`: file-backed schemes redirect to their backing files (writes only for mutable file-written schemes such as `local://`, within the approved tier); rendered resources are read-only; `realpath`/`readlink` print the physical backing path of file-backed URLs.
    - A redirect to `out://` (`printf '…' > out://`) opens a write-only handle; on close its text becomes a reply shown to the user as assistant prose after the call. Replies ride every progress frame and the result as `details.replies`, so the transcript draws each once, live and on rebuild. They are accepted only while the call waits on the command (a backgrounded job's writes fail), and a reply past 64 KiB fails with `EFBIG` and is dropped whole.
 - Subprocesses / native bindings / client terminal
-   - Non-PTY local execution uses native shell execution via `@oh-my-pi/pi-natives` (`Shell.run()` or `executeShell()`).
+   - Non-PTY local execution uses native shell execution via `@linxiraos/pi-natives` (`Shell.run()` or `executeShell()`).
    - PTY uses native `PtySession.start()`.
    - Client-terminal mode delegates process execution to the connected client terminal capability.
    - Named services run in the project-scoped launch broker and retain logs/status for `proc://`.

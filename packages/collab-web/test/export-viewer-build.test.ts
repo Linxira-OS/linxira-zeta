@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { createContext, runInContext, runInNewContext } from "node:vm";
-import { HTMLElement, parseHTML } from "@oh-my-pi/pi-utils/dom";
-import { Marked, type MarkedExtension } from "@oh-my-pi/pi-utils/marked";
-import { TempDir } from "@oh-my-pi/pi-utils/temp";
+import { HTMLElement, parseHTML } from "@linxiraos/pi-utils/dom";
+import { Marked, type MarkedExtension } from "@linxiraos/pi-utils/marked";
+import { TempDir } from "@linxiraos/pi-utils/temp";
 import { buildExportViewer, type ExportViewerMetadata } from "../scripts/build-export-viewer";
 
 const temp = TempDir.createSync("@omp-export-viewer-build-");

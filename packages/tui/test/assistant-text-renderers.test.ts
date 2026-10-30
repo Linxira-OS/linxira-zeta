@@ -1,12 +1,12 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { AssistantMessage } from "@oh-my-pi/pi-ai";
-import { AssistantMessageComponent } from "@oh-my-pi/pi-tui/chat/assistant-message";
-import type { AssistantTextRenderContext, AssistantTextRenderer } from "@oh-my-pi/pi-tui/chat/extension-types";
-import { setTranscriptActionHandler, type TranscriptAction } from "@oh-my-pi/pi-tui/chat/transcript-actions";
-import { splitAssistantMessageToolTimeline } from "@oh-my-pi/pi-tui/chat/transcript-render-helpers";
-import { setNativeRendering } from "@oh-my-pi/pi-tui/native/state";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import { logger } from "@oh-my-pi/pi-utils";
+import type { AssistantMessage } from "@linxiraos/pi-ai";
+import { AssistantMessageComponent } from "@linxiraos/pi-tui/chat/assistant-message";
+import type { AssistantTextRenderContext, AssistantTextRenderer } from "@linxiraos/pi-tui/chat/extension-types";
+import { setTranscriptActionHandler, type TranscriptAction } from "@linxiraos/pi-tui/chat/transcript-actions";
+import { splitAssistantMessageToolTimeline } from "@linxiraos/pi-tui/chat/transcript-render-helpers";
+import { setNativeRendering } from "@linxiraos/pi-tui/native/state";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import { logger } from "@linxiraos/pi-utils";
 import { TspHarness } from "./native/tsp-harness";
 
 beforeAll(async () => {
@@ -206,8 +206,8 @@ describe("assistant text renderers", () => {
 		harness.tui.addChild(shown);
 		shown.updateContent(answering, { transient: true });
 		await harness.render();
-		expect(harness.find(node => node.k === "section" && node.p?.role === "omp.thinking.live")).toBeUndefined();
-		expect(harness.find(node => node.k === "section" && node.p?.role === "omp.thinking")).toBeDefined();
+		expect(harness.find(node => node.k === "section" && node.p?.role === "zeta.thinking.live")).toBeUndefined();
+		expect(harness.find(node => node.k === "section" && node.p?.role === "zeta.thinking")).toBeDefined();
 		expect(harness.find(node => node.k === "md" && node.p?.stream === true)).toBeUndefined();
 		expect(harness.errors).toEqual([]);
 	});
@@ -221,7 +221,7 @@ describe("assistant text renderers", () => {
 		harness.tui.addChild(target);
 		await harness.render();
 
-		const copy = harness.find(node => node.p?.role === "omp.turn.copy");
+		const copy = harness.find(node => node.p?.role === "zeta.turn.copy");
 		expect(copy).toBeDefined();
 		harness.event({ ev: "action", sf: harness.terminal.surface!, id: copy!.id, act: "copy-answer" });
 		expect(actions).toEqual([{ act: "copy", text: "Hidden answer." }]);

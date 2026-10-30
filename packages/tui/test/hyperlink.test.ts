@@ -2,8 +2,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, spyOn, vi } fro
 import * as os from "node:os";
 import * as path from "node:path";
 import * as url from "node:url";
-import { logger } from "@oh-my-pi/pi-utils";
-import { getMarkdownTheme, initTheme } from "@oh-my-pi/pi-tui/theme";
+import { logger } from "@linxiraos/pi-utils";
+import { getMarkdownTheme, initTheme } from "@linxiraos/pi-tui/theme";
 import {
 	applyFileLinkSetting,
 	applyHyperlinkSetting,
@@ -15,8 +15,8 @@ import {
 	uriHyperlink,
 	urlHyperlink,
 	urlHyperlinkAlways,
-} from "@oh-my-pi/pi-tui/render/hyperlink";
-import * as terminalCaps from "@oh-my-pi/pi-tui";
+} from "@linxiraos/pi-tui/render/hyperlink";
+import * as terminalCaps from "@linxiraos/pi-tui";
 import { SkillMessageComponent } from "../src/chat/skill-message";
 import { openableImageProps } from "../src/native/blobs";
 import { fileHref } from "../src/tools/native-view";
@@ -351,9 +351,9 @@ describe("fileHyperlink", () => {
 	});
 
 	it("accepts extended scheme characters case-insensitively", () => {
-		applyFileLinkSetting({ scheme: "OMP+File.v2-remote", host: "beelink" });
+		applyFileLinkSetting({ scheme: "ZETA+File.v2-remote", host: "beelink" });
 		const filePath = path.resolve("/tmp/a.ts");
-		expect(tryFileUri(filePath)).toBe(`omp+file.v2-remote://beelink${url.pathToFileURL(filePath).pathname}`);
+		expect(tryFileUri(filePath)).toBe(`zeta+file.v2-remote://beelink${url.pathToFileURL(filePath).pathname}`);
 	});
 
 	it("produces a stable id for the same path", () => {

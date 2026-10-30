@@ -348,7 +348,7 @@ This skill is added after session creation.
 
 	it("learn hot-registers minted managed skills in the active session", async () => {
 		const originalAgentDir = getAgentDir();
-		const managedAgentDir = path.join(tempHomeDir, ".omp", "agent");
+		const managedAgentDir = path.join(tempHomeDir, ".zeta", "agent");
 		setAgentDir(managedAgentDir);
 		const settings = Settings.isolated({
 			"skills.enabled": true,

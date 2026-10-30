@@ -26,6 +26,56 @@ merge.
   dedicated on-demand sync after 1.4.0 ships; the security hardening above is
   the first reason to schedule it.
 
+## v18.14.0 incremental merge (Zeta — branch `sync/omp-release/18.14`, 2026-10-30; awaiting owner merge)
+
+- **Baseline**: `v18.13.2` (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`);
+  `git merge-base HEAD v18.14.0` resolves to it, so only the tag-to-tag
+  increment is applied.
+- **Source tag**: `v18.14.0`, peeled
+  `31147f9d1a76608549821c3759f8487b4d66c72d` (verified with
+  `git ls-remote --tags omp-upstream refs/tags/v18.14.0` before the merge).
+  Merge commit: `5b8a9e1f787`, parents `4b8b942a9a4` (Zeta prep on 1.4.6) +
+  `31147f9d1a7`.
+- **Delta** (`git diff v18.13.2 v18.14.0`): **511 commits, 1450 files,
+  +146,652 −120,081**; 202 added, 797 modified, 451 deleted.
+- **Conflicts**: 416 initially — `303 UU`, `111 UD`, `2 DU`; 122 code `UU`
+  after the docs/tests and theme decisions. All resolved. The 98
+  `packages/tui/src/theme/defaults/*.json` entries were deleted because
+  upstream consolidated them into `defaults.json`.
+- **Resolution policy**: shared behavior follows upstream. Zeta-only surfaces
+  were replayed manually: `AGENTS.md`, `README.md`, `document/`, `Dockerfile`,
+  install/release scripts, `.github/` Zeta CI, the product package name
+  `@linxiraos/zeta`, `~/.zeta`, `ZETA_*` env names, `zetacode` CLI text,
+  plugin/board/attachment/Terminal surfaces, and the `zeta.*` TUI roles.
+  Upstream additions taken as-is: native Chrome WebMCP, custom tool-loader
+  signature, exact provider-qualified model selectors, manual compaction
+  events, Tern terminal code (branding/promo excluded), and the Bun 1.4.4
+  code paths.
+- **Bun**: kept Zeta's exact `bun@1.4.4` package manager and
+  `engines.bun >= 1.4.4`; upstream's `bun@>=1.4.4` floor was not adopted.
+  `@types/bun` advanced to `1.4.4`.
+- **HTML export**: upstream replaced the self-contained export with a viewer
+  hosted at `build.stencil.so` plus `stencil.so` assets. Zeta keeps its
+  offline exporter (vendored marked/highlight, inlined tool views, and the
+  compiled-binary file loaders); the hosted viewer is unused here. This is the
+  only deliberate feature rollback in the round.
+- **Share**: left on the existing prompt-driven user-GitHub path; the residual
+  `DEFAULT_SHARE_URL` cleanup is not part of the tag merge.
+- **Generated data**: `bun run gen:rpc` regenerated all three SDK wire files
+  from the merged schema (including Zeta's `StateVersionChangedEvent`);
+  `bun run gen:compat` rebuilt `packages/catalog/src/compat/rules.json` from
+  Zeta KDL (1114 rules; Zeta auth originator); `viewer.generated.json` remains
+  unused by the restored exporter.
+- **Checks (local, 2026-10-30)**: `check:ts` pass (all workspaces);
+  `brand-check` 0 hits; `check-zeta-sentinels` 119; `check-scope-imports`
+  20,248 specifiers; `check-shared-infra` 16 endpoints; version consistency
+  1.4.6; lineage gate pass. TUI conflict suites 83 pass; coding-agent targeted
+  suites 77 pass; session/modes/task batch 141 pass, with three Windows-only
+  failures (two `EPERM` symlink cases and one 30s timeout that passes 22/22
+  standalone). Rust `check:rs` is blocked by this Windows host resolving
+  `link.exe` to Git's coreutils link rather than the MSVC linker; CI remains
+  the Rust authority.
+
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
