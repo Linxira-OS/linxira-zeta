@@ -4,6 +4,20 @@
 
 > **Notice:** Do not shell out to `python -c`, `bun -e`, or `node -e` through `bash` for ad-hoc code. `eval` provides retained state, rich `print` rendering, tool/subagent bridges, streaming, cancellation, and artifact-backed truncation.
 
+## PTC (code-first tool orchestration)
+
+PTC is main-agent guidance, not a mode or a separate tool: the system prompt adds a `# Code-First Tool Orchestration (PTC)` section to a top-level session (`taskDepth === 0`) only, and only while `eval` is active. Subagents never receive it, and `eval` availability is unchanged for every session. The section is rendered from `packages/coding-agent/src/prompts/system/ptc-guidance.md`; the `ptcGuidance` option on `buildSystemPrompt` controls it.
+
+Use one `eval` cell instead of many separate assistant/tool-result turns when a task needs:
+
+- 2+ independent tool calls whose results feed one decision (`tool.<name>(args)` calls in one cell),
+- bulk classification (`judge` / `judgeBatch` over many items),
+- tabular aggregation (read many files or rows, print one table).
+
+Combine `workpool()` or `agent()` in the same cell when the work also splits into subagents. A single trivial call (one `read`, one `edit`, one lookup) stays a normal tool call: a cell adds overhead without removing turns.
+
+PTC does not relax any rule: each `tool.*` call keeps its usual approval gate, and failures must surface — print or raise them, never swallow an error or a non-zero result, and never use a cell to hide failures or bypass approval.
+
 ## Source
 
 - Entry and dynamic schema: `packages/coding-agent/src/tools/eval.ts`
