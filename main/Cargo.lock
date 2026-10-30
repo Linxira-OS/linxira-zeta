@@ -6578,7 +6578,7 @@ dependencies = [
 
 [[package]]
 name = "sysmon"
-version = "1.4.6"
+version = "1.4.7"
 dependencies = [
  "sysinfo",
  "windows-sys 0.59.0",
@@ -9280,7 +9280,7 @@ dependencies = [
 
 [[package]]
 name = "workbench-projects"
-version = "1.4.6"
+version = "1.4.7"
 dependencies = [
  "serde",
  "serde_json",
@@ -9621,7 +9621,7 @@ dependencies = [
 
 [[package]]
 name = "zeta-main"
-version = "1.4.6"
+version = "1.4.7"
 dependencies = [
  "anyhow",
  "arboard",
@@ -9645,7 +9645,7 @@ dependencies = [
 
 [[package]]
 name = "zetawork-gui"
-version = "1.4.6"
+version = "1.4.7"
 dependencies = [
  "base64 0.23.1",
  "chrono",

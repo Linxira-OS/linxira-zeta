@@ -1,14 +1,48 @@
 ## [Unreleased]
 
+## [1.4.7] - 2026-10-30
+
 ### Added
 
 - Added main-agent PTC guidance for code-first tool orchestration; subagents do not receive it.
 - Added `plugin_manager` and `plugin_inspect` tools for main-agent plugin install/enable/inspect workflows; they are hidden from subagents and guarded at execution time.
 - Added a cached Git branch/ahead/behind/staged/unstaged/untracked and recent-commit widget to the TUI right sidebar.
+- The bundled office skills (`docx`, `xlsx`, `pptx`, `pdf`) are installed into your own skills directory (`~/.zeta/agent/skills/`) as files you can edit and version, on first session startup or with `zetacode skill install-official`; files you edited are never overwritten, and `--uninstall` hands the names back to the built-in provider.
+- Added the tea tool suite: a `tea` CLI integration for self-hosted Gitea (and gitea.com) covering repo/issue/pull-request/checkout/merge/release ops (`repo_view`, `repo_create`, `issue_*`, `pr_*`, `release_*`), with every create-type operation verified by reading back through the API (`tea repo create` has a history of silent failure). Enabled via `gitea.enabled`, off by default.
+- Added WeChat `/api/v1/wechat` login (QR + status polling) with legacy iLink fallback, persisted peer→context_token bindings in `web.yml` (`channels.wechat.peerTokens`), and a `POST /api/channels/wechat/unbind` gateway route that resets the channel and clears credentials.
+- Added per-model auto-compaction points: the `/models` preview shows where each model compacts, and in the Roles view `k` (or the **Compaction limit** button) sets it for the selected role's or fallback's model (`90000`, `90k`, `1M`, `80%`; empty resets). Also configurable as `compaction.modelThresholds` with `provider/model-id` or `provider/*` keys ([#14952](https://github.com/can1357/oh-my-pi/pull/14952) by [@H4vC](https://github.com/H4vC))
+- Write-tool previews now render as files stream: SVG files appear as images, and Mermaid files (`.mmd` and `.mermaid`) appear as diagrams. Tern also previews supported 3D model formats (`.obj`, `.ply`, `.wrl`, `.x3dv`, `.stl`, `.gltf`, and `.usda`) and renders SVG writes as SVG figures.
+- Added the `title.icons` setting to show session title cards with a Nerd Font glyph and emoji fallback (`nf+emoji`, default), always the emoji (`emoji`), or as plain titles (`boring`).
+- Added the `title.generator` setting to name sessions from a fork of the reply (`fork`, default) or with the title model only (`tiny`).
+- Added a web gateway `enter_plan_mode` command and a session `enterPlanMode` path so the web-ui `/plan` slash command actually enters plan mode (plan file, `write` tool, plan-approval wiring, optional initial prompt) instead of forwarding a literal message.
+- Added API-key-billed OpenAI Responses web search (`openai/gpt-6-luna`, then `openai/gpt-5.6-luna`), tried after every Codex entry in the default search fallback chain so ChatGPT-subscription search is exhausted before any API usage is billed ([#13467](https://github.com/can1357/oh-my-pi/pull/13467) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy)).
+- Added prompt-cache warming, ported from [earendil-works/pi](https://github.com/earendil-works/pi): shortly before a prompt-cache entry expires, the main agent loop replays its last request and cuts the replay off at the first generated token, so idle gaps no longer force a full-prefix cache re-write. A refresh fires only when the expected avoided-miss cost clears its cost by $0.05, and warming stops as soon as a refresh misses the cache. Controlled by `providers.cacheWarming` (`off` / `streaming` / `idle`, default `idle`); idle warming covers 5-minute entries only, and models without a declared `promptCache` lifetime are never warmed. Extensions can override each decision through the `cache_warming_decision` event ([#12699](https://github.com/can1357/oh-my-pi/pull/12699) by [@KamijoToma](https://github.com/KamijoToma)).
 
 ### Changed
 
 - Synced with upstream OMP v18.14.0, including native Chrome WebMCP, custom tool-loader signatures, exact provider-qualified model selectors, manual compaction events, Tern terminal code, and Bun 1.4.4 code paths. Zeta keeps its offline HTML exporter.
+- OTLP telemetry export is now **hard-disabled**: the `telemetry.otlpExportEnabled` setting (previously on by default) is removed and startup is gated by a literal `TELEMETRY_EXPORT_ENABLED = false`. We have no telemetry backend, so no `OTEL_EXPORTER_OTLP*` endpoint ever receives anything, and there is no way to turn it on (no setting, no env var, no CLI flag). We will add it back deliberately once we run our own collector. The gate is pinned by `brand-check` MUST_CONTAIN/MUST_NOT_CONTAIN guards so an upstream merge cannot revert it. The OTLP `service.name` fallback also changes from `oh-my-pi` to `zeta`.
+- Brand-surface regression fix: an upstream `chore: branding` commit (`d35a9067233`, 2026-09-24) came in with the v18.8.x merge and reverted model-visible prompts and user-visible CLI text to `omp` — the system prompt's first line (from which the model calls itself "omp's coding assistant"), the `cfg://`/browser/ida/isolation-error/security/cleanse/live/commit prompts, help and example text (`zetacode bench`, etc.), the `text-predict`/`tiny worker`/`lsp mux`/RPC wire process banners, and the related `docs/` pages all return to Zeta naming. `brand-rules.ts` gains 6 MUST_CONTAIN + 4 MUST_NOT_CONTAIN guards; the CHANGELOG is exempt per the "released entries are immutable" convention ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
+- The CLI's canonical command name is fixed as `zetacode` (the four-product standard names — zetawork / zetacode / zetaide / zetaeditor, no hyphens): `--help` usage and examples, the `update` banner, the `--resume` hint, profile alias generation, and all per-command help and docs now use the standard name. `zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` remain npm bin compatibility aliases with unchanged behavior; shims and asset filenames (`zeta-c.cmd`, etc.) are unaffected.
+- **Full upstream brand-residue sweep**: every upstream identifier the product exposes is renamed to Zeta, including OS/browser-visible parts — the macOS bundle id and app name (`dev.zeta.oauth-callback.*` / `Zeta OAuth Callback.app`), the Windows HKCU registry transaction name, the Linux desktop entry and `zeta-auth` protocol, the file-descriptor URL scheme (`zeta-descriptor://`), the file-lock prefix, and the XDG state directory; process titles (`zetacode lsp mux`), the IDA daemon name (`zeta.ida.*`), named-pipe and socket paths, User-Agent, the AWS STS `RoleSessionName`, telemetry metric and TUI semantic roles, and the custom element name of exported HTML. The session-recording format extension changes `.ompcast` → `.zetacast`. Dev wrappers and link scripts become `scripts/zetacode` / `scripts/link-zetacode.sh` and no longer write `omp` into the global bin.
+- release 资产命名系统化：CLI 二进制统一为 `zeta-cli-*`，桌面安装包统一为 `zeta-desktop-<version>-<os>-<arch>`。
+- WeChat login now prefers the new `/api/v1/wechat` endpoints (endpoint host configurable via `channels.wechat.endpoint`); older hosts fall back to the legacy iLink QR flow.
+
+### Fixed
+
+- Fixed the spelling split between the two sides of the tiny worker banner: the worker printed `omp tiny worker listening on` while the title-client filtered for `zeta tiny worker listening on ` (never matching, so the banner line that should be filtered kept leaking in). Both sides now use `zetacode`, and the `text-predict`/`lsp mux` process identifiers and the IDA named-pipe prefix are aligned too ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
+- Session exit tips and every command example now name the coding CLI (`zeta-c`) instead of the workbench `zeta` — following the old `zeta --resume <id>` hint silently opened the Zetawork workbench and did nothing.
+- `--resume` ids pasted with a trailing `/` (or a `.jsonl` suffix) resolve as session ids again; an explicit transcript path that does not exist now errors with a usage hint instead of silently minting an empty session.
+- `update` on Windows no longer writes or retires the workbench `zeta` shims (it manages only this package's `zeta-c`/`zeta-cli`/`zetacode`), and its GitHub/mise fallbacks point at Linxira-OS/linxira-zeta.
+- npm source installs no longer silently miss the bundled official skills, and reseeding the official-skills embed prunes stale files.
+- Plugins get a per-plugin storage contract: `pi.storage` (`dataDir`/`cacheDir`/`stateDir` under `~/.zeta/plugins/`) is injected into every extension factory, with `adoptLegacyFileOnce` as the one-time migration primitive — plugins no longer need to invent their own paths in the user data tree.
+- Models already configured in upstream OMP (`~/.zeta/agent/models.yml` providers and `/login` API keys) now appear in the model list automatically, badged "来自 OMP" — read-only mapping, keys reused in memory, Zeta-local config always wins; nothing is written back to the upstream install.
+- 修复中文系统下 CLI 汉化自动检测失效（`language` 默认值不再顶掉环境检测，中文系统自动切换中文界面）。
+- Fixed browser reuse for Chromium installed behind Linux wrapper scripts and prevented duplicate launches when a profile is locked ([#12236](https://github.com/can1357/oh-my-pi/pull/12236) by [@shivamklr](https://github.com/shivamklr)).
+
+Older entries are archived in [packages/coding-agent/CHANGELOG.md@5ae2ef3569ca](https://github.com/can1357/oh-my-pi/blob/5ae2ef3569ca9299b7eb101ad7ef0d316d30f551/packages/coding-agent/CHANGELOG.md).
+
+Older entries are archived in [packages/coding-agent/CHANGELOG.md@1e3cc3ab94d0](https://github.com/can1357/oh-my-pi/blob/1e3cc3ab94d05617e79fb12d95711d58161747d3/packages/coding-agent/CHANGELOG.md).
 
 ## [1.4.6] - 2026-10-29
 
@@ -570,23 +604,6 @@
 - The system prompt now states the host-CLI tool rules: use the `github` tool (not shell `gh`) for GitHub work (CI runs, PRs, issues, search), poll CI with `op: run_watch` (omit `run` for the current HEAD) instead of a `gh run watch` loop, and use the `tea` tool (not shell `tea`) for Gitea. The rule previously lived only in the "make CI green" conditional prompt, so everyday sessions still polled via the shell.
 - The bash tool's elevation and credential rules now also land in the model-facing prompt: by default **never persist to disk** — for the local machine, or a container on it, the SSH key / root password is kept only in context memory for reuse against that target (nothing written to the credential store, settings, notes, plans, artifacts, or logs, and never echoed back; context memory does enter your own session record under `.zeta/sessions/`, which is your data directory and not in the repo). Remote hosts and third-party services are never stored at all by default — the user types them in a visible window. **When the user explicitly asks, the user wins**: if they tell you to remember it, or to write the usage into docs, do so. Previously "never store credentials" was a blanket rule, and the two elevation paths (`pty: true` overlay, popping the elevation window) lived only in `docs/` for on-demand reading with zero mention in the model-facing prompt.
 
-### Added
-
-- The bundled office skills (`docx`, `xlsx`, `pptx`, `pdf`) are installed into your own skills directory (`~/.zeta/agent/skills/`) as files you can edit and version, on first session startup or with `zetacode skill install-official`; files you edited are never overwritten, and `--uninstall` hands the names back to the built-in provider.
-- Added the tea tool suite: a `tea` CLI integration for self-hosted Gitea (and gitea.com) covering repo/issue/pull-request/checkout/merge/release ops (`repo_view`, `repo_create`, `issue_*`, `pr_*`, `release_*`), with every create-type operation verified by reading back through the API (`tea repo create` has a history of silent failure). Enabled via `gitea.enabled`, off by default.
-- Added WeChat `/api/v1/wechat` login (QR + status polling) with legacy iLink fallback, persisted peer→context_token bindings in `web.yml` (`channels.wechat.peerTokens`), and a `POST /api/channels/wechat/unbind` gateway route that resets the channel and clears credentials.
-
-### Changed
-
-- OTLP telemetry export is now **hard-disabled**: the `telemetry.otlpExportEnabled` setting (previously on by default) is removed and startup is gated by a literal `TELEMETRY_EXPORT_ENABLED = false`. We have no telemetry backend, so no `OTEL_EXPORTER_OTLP*` endpoint ever receives anything, and there is no way to turn it on (no setting, no env var, no CLI flag). We will add it back deliberately once we run our own collector. The gate is pinned by `brand-check` MUST_CONTAIN/MUST_NOT_CONTAIN guards so an upstream merge cannot revert it. The OTLP `service.name` fallback also changes from `oh-my-pi` to `zeta`.
-- Brand-surface regression fix: an upstream `chore: branding` commit (`d35a9067233`, 2026-09-24) came in with the v18.8.x merge and reverted model-visible prompts and user-visible CLI text to `omp` — the system prompt's first line (from which the model calls itself "omp's coding assistant"), the `cfg://`/browser/ida/isolation-error/security/cleanse/live/commit prompts, help and example text (`zetacode bench`, etc.), the `text-predict`/`tiny worker`/`lsp mux`/RPC wire process banners, and the related `docs/` pages all return to Zeta naming. `brand-rules.ts` gains 6 MUST_CONTAIN + 4 MUST_NOT_CONTAIN guards; the CHANGELOG is exempt per the "released entries are immutable" convention ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
-- The CLI's canonical command name is fixed as `zetacode` (the four-product standard names — zetawork / zetacode / zetaide / zetaeditor, no hyphens): `--help` usage and examples, the `update` banner, the `--resume` hint, profile alias generation, and all per-command help and docs now use the standard name. `zeta-c`/`zeta-cli`/`zeta-ide`/`zeta-i`/`zeta-editor`/`zeta-e`/`zeta-work` remain npm bin compatibility aliases with unchanged behavior; shims and asset filenames (`zeta-c.cmd`, etc.) are unaffected.
-- **Full upstream brand-residue sweep**: every upstream identifier the product exposes is renamed to Zeta, including OS/browser-visible parts — the macOS bundle id and app name (`dev.zeta.oauth-callback.*` / `Zeta OAuth Callback.app`), the Windows HKCU registry transaction name, the Linux desktop entry and `zeta-auth` protocol, the file-descriptor URL scheme (`zeta-descriptor://`), the file-lock prefix, and the XDG state directory; process titles (`zetacode lsp mux`), the IDA daemon name (`zeta.ida.*`), named-pipe and socket paths, User-Agent, the AWS STS `RoleSessionName`, telemetry metric and TUI semantic roles, and the custom element name of exported HTML. The session-recording format extension changes `.ompcast` → `.zetacast`. Dev wrappers and link scripts become `scripts/zetacode` / `scripts/link-zetacode.sh` and no longer write `omp` into the global bin.
-
-### Fixed
-
-- Fixed the spelling split between the two sides of the tiny worker banner: the worker printed `omp tiny worker listening on` while the title-client filtered for `zeta tiny worker listening on ` (never matching, so the banner line that should be filtered kept leaking in). Both sides now use `zetacode`, and the `text-predict`/`lsp mux` process identifiers and the IDA named-pipe prefix are aligned too ([#83](https://github.com/Linxira-OS/linxira-zeta/pull/83))
-
 ## [1.1.27] - 2026-10-07
 
 - Added automated release binary publication to build.stencil.so
@@ -606,7 +623,6 @@
 - Added per-session Git worktree support with `worktree.onStart` and `worktree.onExit` settings to create an isolated worktree for each session and clean it up when the session ends.
 - Expanded xAI web search with X post search, including X-only and author-specific queries, author exclusions, date and recency filters, and automatic xAI routing when credentials are available.
 - Added xAI-powered reading of X posts, threads and replies, profiles, searches, and hashtags when logged in, replacing the unavailable Nitter mirrors.
-- Added per-model auto-compaction points: the `/models` preview shows where each model compacts, and in the Roles view `k` (or the **Compaction limit** button) sets it for the selected role's or fallback's model (`90000`, `90k`, `1M`, `80%`; empty resets). Also configurable as `compaction.modelThresholds` with `provider/model-id` or `provider/*` keys ([#14952](https://github.com/can1357/oh-my-pi/pull/14952) by [@H4vC](https://github.com/H4vC))
 - Updated `write` tool error message to mention local:// scratch support
 - Web search now tells the agent about its X post operators (`site:x.com`, `from:<handle>`) when you are logged in to xAI, so questions about reactions on X reach X search.
 - Reduced memory retained after merging unchanged discovered and cached models ([#14252](https://github.com/can1357/oh-my-pi/pull/14252) by [@iliaal](https://github.com/iliaal)).
@@ -621,9 +637,6 @@
 - The startup update notice no longer appears when omp runs from a source checkout.
 - A `/models` compaction limit set past a model's standard context window now runs that model on its extended window instead of being silently clamped; the hub warns (noting long-context pricing) and saves on a second Enter, in the terminal and in Tern, and rejects limits past the model's largest window ([#15048](https://github.com/can1357/oh-my-pi/pull/15048) by [@H4vC](https://github.com/H4vC))
 - A token compaction limit set in `/models` (or `compaction.modelThresholds`) is now the base omp scales with its usual policy, as if it were the model's window (85% of it by default for bases above ~109k, or `compaction.thresholdPercent` of it), instead of the exact point. Plain numbers saved since 18.8.5 therefore compact earlier; rewrite one as `"f<tokens>"` (or type `f400k` in the hub) to keep it an exact trigger. The `/models` limit field shows where the model would compact as you type (`compacts at 340K · 85% of 400K base`), the preview's **Compacts at** row says why, and the saved message repeats it ([#15065](https://github.com/can1357/oh-my-pi/pull/15065) by [@H4vC](https://github.com/H4vC))
-- Write-tool previews now render as files stream: SVG files appear as images, and Mermaid files (`.mmd` and `.mermaid`) appear as diagrams. Tern also previews supported 3D model formats (`.obj`, `.ply`, `.wrl`, `.x3dv`, `.stl`, `.gltf`, and `.usda`) and renders SVG writes as SVG figures.
-- Added the `title.icons` setting to show session title cards with a Nerd Font glyph and emoji fallback (`nf+emoji`, default), always the emoji (`emoji`), or as plain titles (`boring`).
-- Added the `title.generator` setting to name sessions from a fork of the reply (`fork`, default) or with the title model only (`tiny`).
 
 ### Changed
 
@@ -674,15 +687,6 @@
 ### Changed
 
 - Usage/help strings across `config`/`plugin`/`setup`/`update`/`login`/`shell`/`web-search` and the docs corpus show canonical bin names only (`zetacode`/`zetaide`/`zetaeditor`); spaced forms like "zeta code" no longer appear anywhere user-visible.
-
-### Fixed
-
-- Session exit tips and every command example now name the coding CLI (`zeta-c`) instead of the workbench `zeta` — following the old `zeta --resume <id>` hint silently opened the Zetawork workbench and did nothing.
-- `--resume` ids pasted with a trailing `/` (or a `.jsonl` suffix) resolve as session ids again; an explicit transcript path that does not exist now errors with a usage hint instead of silently minting an empty session.
-- `update` on Windows no longer writes or retires the workbench `zeta` shims (it manages only this package's `zeta-c`/`zeta-cli`/`zetacode`), and its GitHub/mise fallbacks point at Linxira-OS/linxira-zeta.
-- npm source installs no longer silently miss the bundled official skills, and reseeding the official-skills embed prunes stale files.
-- Plugins get a per-plugin storage contract: `pi.storage` (`dataDir`/`cacheDir`/`stateDir` under `~/.zeta/plugins/`) is injected into every extension factory, with `adoptLegacyFileOnce` as the one-time migration primitive — plugins no longer need to invent their own paths in the user data tree.
-- Models already configured in upstream OMP (`~/.zeta/agent/models.yml` providers and `/login` API keys) now appear in the model list automatically, badged "来自 OMP" — read-only mapping, keys reused in memory, Zeta-local config always wins; nothing is written back to the upstream install.
 
 ## [1.1.16] - 2026-09-19
 
@@ -745,27 +749,7 @@
 
 - 同步上游 OMP v18.0.5 / v18.0.6：git TUI 内置 conventional commit 生成与 `if-bench` 基准、`commit --legacy` 统一生成、`:img` 选择器渲染 SVG、新增 Yolo-Auto / OpenRouter 浏览器登录与 DeepInfra image_gen/tts。
 
-## [1.1.4] - 2026-08-26
-
-### Changed
-
-- release 资产命名系统化：CLI 二进制统一为 `zeta-cli-*`，桌面安装包统一为 `zeta-desktop-<version>-<os>-<arch>`。
-
-### Fixed
-
-- 修复中文系统下 CLI 汉化自动检测失效（`language` 默认值不再顶掉环境检测，中文系统自动切换中文界面）。
-
 ## [1.0.10] - 2026-08-19
-
-### Added
-
-- Added a web gateway `enter_plan_mode` command and a session `enterPlanMode` path so the web-ui `/plan` slash command actually enters plan mode (plan file, `write` tool, plan-approval wiring, optional initial prompt) instead of forwarding a literal message.
-- Added API-key-billed OpenAI Responses web search (`openai/gpt-6-luna`, then `openai/gpt-5.6-luna`), tried after every Codex entry in the default search fallback chain so ChatGPT-subscription search is exhausted before any API usage is billed ([#13467](https://github.com/can1357/oh-my-pi/pull/13467) by [@anatoli-tsinovoy](https://github.com/anatoli-tsinovoy)).
-- Added prompt-cache warming, ported from [earendil-works/pi](https://github.com/earendil-works/pi): shortly before a prompt-cache entry expires, the main agent loop replays its last request and cuts the replay off at the first generated token, so idle gaps no longer force a full-prefix cache re-write. A refresh fires only when the expected avoided-miss cost clears its cost by $0.05, and warming stops as soon as a refresh misses the cache. Controlled by `providers.cacheWarming` (`off` / `streaming` / `idle`, default `idle`); idle warming covers 5-minute entries only, and models without a declared `promptCache` lifetime are never warmed. Extensions can override each decision through the `cache_warming_decision` event ([#12699](https://github.com/can1357/oh-my-pi/pull/12699) by [@KamijoToma](https://github.com/KamijoToma)).
-
-### Changed
-
-- WeChat login now prefers the new `/api/v1/wechat` endpoints (endpoint host configurable via `channels.wechat.endpoint`); older hosts fall back to the legacy iLink QR flow.
 
 ### Fixed
 
@@ -780,10 +764,5 @@
 - Fixed `--prewalk-into @default` so an explicitly selected startup model does not replace the configured default role, including ordered fallbacks and discovery-backed candidates.
 - A corrupted or externally modified session file no longer leaves the session impossible to close; a subsequent Ctrl+C exits without rewriting the session log.
 - Fixed silent MCP requests being terminated by an undeclared idle timeout; closing a legacy SSE connection now also cancels pending requests and notifications.
-- Fixed browser reuse for Chromium installed behind Linux wrapper scripts and prevented duplicate launches when a profile is locked ([#12236](https://github.com/can1357/oh-my-pi/pull/12236) by [@shivamklr](https://github.com/shivamklr)).
-
-Older entries are archived in [packages/coding-agent/CHANGELOG.md@5ae2ef3569ca](https://github.com/can1357/oh-my-pi/blob/5ae2ef3569ca9299b7eb101ad7ef0d316d30f551/packages/coding-agent/CHANGELOG.md).
-
-Older entries are archived in [packages/coding-agent/CHANGELOG.md@1e3cc3ab94d0](https://github.com/can1357/oh-my-pi/blob/1e3cc3ab94d05617e79fb12d95711d58161747d3/packages/coding-agent/CHANGELOG.md).
 
 Older entries are archived in [packages/coding-agent/CHANGELOG.md@6693ddbfd58c](https://github.com/can1357/oh-my-pi/blob/6693ddbfd58ce9edcdc0dc3fe98a8882c9bae834/packages/coding-agent/CHANGELOG.md).

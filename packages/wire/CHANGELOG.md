@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.7] - 2026-10-30
+
 - Regenerated RPC/SDK wire from the OMP v18.14.0 schema; no user-facing API changes.
 
 ## [1.4.6] - 2026-10-28
