@@ -3,27 +3,25 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
-import { type as arkType } from "@linxiraos/pi-omptype";
-import { Effort } from "@linxiraos/pi-ai";
-import { NO_AUTH_SENTINEL } from "@linxiraos/pi-ai/auth-retry";
+import { type as arkType } from "@oh-my-pi/omptype";
+import { Effort } from "@oh-my-pi/pi-ai";
+import { NO_AUTH_SENTINEL } from "@oh-my-pi/pi-ai/auth-retry";
 import {
 	applyClaudeToolPrefix,
 	buildAnthropicClientOptions,
-	buildAnthropicHeaders,
 	claudeCodeSystemInstruction,
 	claudeToolPrefix,
 	deriveClaudeDeviceId,
 	generateClaudeCloakingUserId,
 	isClaudeCloakingUserId,
-	mapStainlessArch,
-	mapStainlessOs,
 	streamAnthropic,
 	stripClaudeToolPrefix,
-} from "@linxiraos/pi-ai/providers/anthropic";
-import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";
-import { getClaudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
-import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";
-import { streamSimple } from "@linxiraos/pi-ai/stream";
+} from "@oh-my-pi/pi-ai/providers/anthropic";
+import { buildAnthropicHeaders, mapStainlessArch, mapStainlessOs } from "@oh-my-pi/pi-ai/providers/anthropic-headers";
+import type { MessageCreateParams } from "@oh-my-pi/pi-ai/providers/anthropic-wire";
+import { getClaudeCodeVersion } from "@oh-my-pi/pi-ai/providers/claude-code-fingerprint";
+import { getEnvApiKey } from "@oh-my-pi/pi-ai/env-api-key";
+import { streamSimple } from "@oh-my-pi/pi-ai/stream";
 import type {
 	AssistantMessage,
 	CacheRetention,
@@ -33,11 +31,11 @@ import type {
 	TJsonSchema,
 	TokenTaskBudget,
 	Tool,
-} from "@linxiraos/pi-ai/types";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { removeSyncWithRetries } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai/types";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { removeSyncWithRetries } from "@oh-my-pi/pi-utils";
 import { withEnv, withOfficialAnthropicEndpoint } from "./helpers";
-import { requestBodyText } from "@linxiraos/pi-ai/utils/request-body";
+import { requestBodyText } from "@oh-my-pi/pi-ai/utils/request-body";
 
 const ANTHROPIC_MODEL_SPEC: ModelSpec<"anthropic-messages"> = {
 	id: "claude-sonnet-4-5",

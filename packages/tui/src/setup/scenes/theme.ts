@@ -489,6 +489,8 @@ export const themeSetupScene: SetupScene = {
 	get title(): string {
 		return tuiText("setupThemeTitle", "Pick a theme");
 	},
+	step: "Theme",
 	minVersion: 1,
+	ansiOnly: true,
 	mount: host => new ThemeSceneController(host),
 };

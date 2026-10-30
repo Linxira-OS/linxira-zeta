@@ -154,7 +154,7 @@
     "lint:py": "ruff check python sdk/python && ruff format --check python sdk/python",
     "fix:py": "ruff check --fix python sdk/python && ruff format python sdk/python",
     "prepublishOnly": "bun run check",
-    "prepare": "bun run gen:tool-views",
+    "prepare": "bun run gen:export-viewer",
     "publish": "bun run prepublishOnly && npm publish -ws --access public",
     "publish:dry": "bun run prepublishOnly && npm publish -ws --access public --dry-run",
     "release": "bun scripts/release.ts",
@@ -168,12 +168,12 @@
     "gen:changelog": "bun scripts/rewrite-changelog.ts",
     "gen:nix": "bun scripts/gen-nix-bun.ts",
     "gen:relay-assets": "bun --cwd=packages/browser-relay run gen:assets",
-    "gen:tool-views": "bun --cwd=packages/collab-web run gen:tool-views",
     "gen:bundle": "bun --cwd=packages/coding-agent run gen:bundle",
     "gen:rpc": "bun --cwd=packages/coding-agent run gen:rpc",
     "gen:glyphs": "bun --cwd=packages/tui run gen:glyphs",
     "gen:brand-art": "bun scripts/brand/generate-logo-art.ts",
-    "check-spoofed-versions": "bun scripts/check-spoofed-versions.ts"
+    "check-spoofed-versions": "bun scripts/check-spoofed-versions.ts",
+    "gen:export-viewer": "bun --cwd=packages/collab-web run gen:export-viewer"
   },
   "dependencies": {
     "sherpa-onnx": "1.13.2",

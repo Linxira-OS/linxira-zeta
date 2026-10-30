@@ -461,8 +461,8 @@ mod take {
 			total_bytes_copied += bytes_written;
 			// If the front buffer is empty (which it probably is), push it into the
 			// empty-buffer-pool.
-			if front_buffer.is_empty() {
-				empty_buffer_pool.push(buffers.pop_front().unwrap());
+			if let Some(buffer) = buffers.pop_front_if(|buffer| buffer.is_empty()) {
+				empty_buffer_pool.push(buffer);
 			}
 		}
 		Ok(total_bytes_copied)
@@ -625,8 +625,8 @@ mod take {
 			total_bytes_copied += write_result.bytes;
 			// If the front buffer is empty (which it probably is), push it into the
 			// empty-buffer-pool.
-			if front_buffer.is_empty() {
-				empty_buffers.push(buffers.pop_front().unwrap());
+			if let Some(buffer) = buffers.pop_front_if(|buffer| buffer.is_empty()) {
+				empty_buffers.push(buffer);
 			}
 		}
 		Ok(total_bytes_copied)

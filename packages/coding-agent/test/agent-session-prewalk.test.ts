@@ -1,30 +1,33 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { type } from "@linxiraos/pi-omptype";
-import { Agent, type AgentTool, ThinkingLevel } from "@linxiraos/pi-agent-core";
-import { type Api, Effort, type Model } from "@linxiraos/pi-ai";
-import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { CustomToolAdapter } from "@linxiraos/zeta/extensibility/custom-tools/wrapper";
-import { DeferredMCPTool } from "@linxiraos/zeta/mcp/tool-bridge";
-import { dispatchXdevTool, type XdevDispatch, type XdevState } from "@linxiraos/zeta/tools/xdev";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import type { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool, ThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import { type Api, Effort, type Model } from "@oh-my-pi/pi-ai";
+import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { CustomToolAdapter } from "@oh-my-pi/pi-coding-agent/extensibility/custom-tools/wrapper";
+import { DeferredMCPTool } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
+import { dispatchXdevTool, type XdevDispatch, type XdevState } from "@oh-my-pi/pi-coding-agent/tools/xdev";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import type { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { getRestorableSessionModels } from "@oh-my-pi/pi-coding-agent/session/session-context";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
 import {
 	cfgPrewalkEnabled,
+	cfgPrewalkFrom,
+	cfgPrewalkInto,
 	cfgRetryBaseDelayMs,
 	cfgRetryFallbackChains,
 	cfgRetryFallbackRevertPolicy,
-} from "@linxiraos/zeta/session/settings";
-import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
-import type { TuiSlashCommandRuntime } from "@linxiraos/zeta/slash-commands/types";
-import { AUTO_THINKING } from "@linxiraos/pi-tui/thinking";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/session/settings";
+import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
+import type { TuiSlashCommandRuntime } from "@oh-my-pi/pi-coding-agent/slash-commands/types";
+import { AUTO_THINKING } from "@oh-my-pi/pi-tui/thinking";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createInMemoryAuthStorage } from "./helpers/agent-session-setup";
 import { mockSchedulerWaitWithClock } from "./helpers/mock-scheduler-clock";
 
@@ -210,6 +213,35 @@ describe("AgentSession prewalk", () => {
 			created.target.id,
 		]);
 		expect(created.nudges[boundary]).not.toContain("prewalk-checklist");
+	});
+
+	it("resumes on the handoff target while retry-role lookup keeps the assigned role", async () => {
+		const created = createLifecycleSession([
+			toolCall("todo", "todo"),
+			toolCall("write", "write"),
+			{ content: ["done"] },
+		]);
+		const manager = created.session.sessionManager;
+		manager.appendModelChange(`${created.primary.provider}/${created.primary.id}`, "slow");
+		await created.session.prompt("task");
+		expect(created.session.model?.id).toBe(created.target.id);
+
+		const context = manager.buildSessionContext();
+		expect(getRestorableSessionModels(context.models, manager.getLastModelChangeRole())[0]).toBe(
+			`${created.target.provider}/${created.target.id}`,
+		);
+		expect(context.configuredThinkingLevel).toBe(Effort.Low);
+		expect(manager.getLastModelChangeRole({ skipEphemeral: true })).toBe("slow");
+	});
+
+	it("keeps the arm when a session with a recorded handoff resumes on a different model", () => {
+		const target = modelOrThrow("claude-sonnet-4-6");
+		const manager = SessionManager.inMemory(tempDir.path());
+		manager.appendModelChange(`${target.provider}/${target.id}`, "prewalk");
+		const created = createLifecycleSession([], { sessionManager: manager, target });
+
+		expect(created.session.model?.id).toBe(created.primary.id);
+		expect(created.session.getPrewalkState()?.target.id).toBe(target.id);
 	});
 
 	it("/new restores the prewalk source and effort after automatic fallback and primary restoration", async () => {
@@ -1392,6 +1424,103 @@ describe("AgentSession prewalk", () => {
 		expect(session.getPrewalkState()).toBeUndefined();
 		expect(showStatus).toHaveBeenCalledTimes(2);
 		expect(showStatus).toHaveBeenCalledWith(expect.stringContaining("Prewalk reset"));
+	});
+
+	function createSelectorFixture(initial: Model, roles: { default: Model; smol: Model }) {
+		const mock = createMockModel({
+			responses: [toolCall("first-todo", "todo"), toolCall("first-write", "write"), { content: ["first done"] }],
+		});
+		const agent = new Agent({
+			getApiKey: () => "test-key",
+			initialState: {
+				model: initial,
+				systemPrompt: ["Test"],
+				tools: [todoTool as AgentTool, writeTool as AgentTool],
+				messages: [],
+				thinkingLevel: Effort.Medium,
+			},
+			convertToLlm,
+			streamFn: (model, context, options) => mock.stream(model, context, options),
+		});
+		const settings = Settings.isolated({ "compaction.enabled": false });
+		settings.setModelRole("default", `${roles.default.provider}/${roles.default.id}:medium`);
+		settings.setModelRole("smol", `${roles.smol.provider}/${roles.smol.id}:medium`);
+		const sessionManager = SessionManager.inMemory();
+		const created = new AgentSession({
+			agent,
+			sessionManager,
+			settings,
+			modelRegistry,
+			toolRegistry,
+			thinkingLevel: Effort.Medium,
+		});
+		session = created;
+		const showStatus = vi.fn();
+		const ctx = {
+			session: created,
+			sessionManager,
+			settings,
+			collabGuest: false,
+			showStatus,
+			editor: { setText: vi.fn() },
+			refreshSlashCommandState: vi.fn(),
+		} as unknown as InteractiveModeContext;
+		return { session: created, settings, showStatus, runtime: { ctx } satisfies TuiSlashCommandRuntime };
+	}
+
+	it("prewalk.from and prewalk.into drive every bare /prewalk restart", async () => {
+		const primary = modelOrThrow("claude-sonnet-4-5");
+		const target = modelOrThrow("claude-sonnet-4-6");
+		// Both roles resolve to `target`, so the role defaults would plan on `target` and never hand off.
+		const { session, settings, showStatus, runtime } = createSelectorFixture(target, {
+			default: target,
+			smol: target,
+		});
+		const from = `${primary.provider}/${primary.id}:medium`;
+		cfgPrewalkFrom.override(settings, from);
+		cfgPrewalkInto.override(settings, `${target.provider}/${target.id}:medium`);
+
+		expect(await executeBuiltinSlashCommand("/prewalk restart", runtime)).toBe(true);
+		expect(session.model?.id).toBe(primary.id);
+		expect(session.getPrewalkState()?.target.id).toBe(target.id);
+		await session.prompt("first task");
+		expect(session.model?.id).toBe(target.id);
+
+		expect(await executeBuiltinSlashCommand("/prewalk restart", runtime)).toBe(true);
+		expect(session.model?.id).toBe(primary.id);
+		expect(session.getPrewalkState()?.target.id).toBe(target.id);
+		expect(showStatus).toHaveBeenLastCalledWith(expect.stringContaining(`using ${from}`));
+	});
+
+	it("/prewalk arguments override the configured pair for that command only", async () => {
+		const primary = modelOrThrow("claude-sonnet-4-5");
+		const target = modelOrThrow("claude-sonnet-4-6");
+		// Both roles resolve to `primary`, so the configured defaults hand off nowhere.
+		const { session, showStatus, runtime } = createSelectorFixture(primary, { default: primary, smol: primary });
+		const from = `${primary.provider}/${primary.id}:medium`;
+		const into = `${target.provider}/${target.id}:medium`;
+
+		expect(await executeBuiltinSlashCommand(`/prewalk ${into}`, runtime)).toBe(true);
+		expect(session.getPrewalkState()?.target.id).toBe(target.id);
+		await session.prompt("first task");
+		expect(session.model?.id).toBe(target.id);
+
+		// The override is not remembered: a bare restart uses @default → @smol, which coincide here.
+		expect(await executeBuiltinSlashCommand("/prewalk restart", runtime)).toBe(true);
+		expect(session.model?.id).toBe(primary.id);
+		expect(session.getPrewalkState()).toBeUndefined();
+		expect(showStatus).toHaveBeenLastCalledWith(expect.stringContaining("Prewalk reset: using @default"));
+
+		expect(await executeBuiltinSlashCommand(`/prewalk restart ${from} ${into}`, runtime)).toBe(true);
+		expect(session.getPrewalkState()?.target.id).toBe(target.id);
+		expect(showStatus).toHaveBeenLastCalledWith(expect.stringContaining("Prewalk restarted"));
+
+		// Extra arguments are rejected without touching the session.
+		const calls = showStatus.mock.calls.length;
+		expect(await executeBuiltinSlashCommand(`/prewalk restart ${from} ${into} extra`, runtime)).toBe(true);
+		expect(session.getPrewalkState()?.target.id).toBe(target.id);
+		expect(showStatus.mock.calls.length).toBe(calls + 1);
+		expect(showStatus).toHaveBeenLastCalledWith(expect.stringContaining("Usage: /prewalk"));
 	});
 
 	it("requires a fresh todo before a later explicit prewalk can hand off", async () => {

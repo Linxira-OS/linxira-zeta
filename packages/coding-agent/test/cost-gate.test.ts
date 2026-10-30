@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import type { StreamFn } from "@linxiraos/pi-agent-core";
-import * as ai from "@linxiraos/pi-ai";
-import { createModelJobWidgetAuthor } from "@linxiraos/zeta/job-widgets/author";
+import type { StreamFn } from "@oh-my-pi/pi-agent-core";
+import * as ai from "@oh-my-pi/pi-ai";
+import { createModelJobWidgetAuthor } from "@oh-my-pi/pi-coding-agent/job-widgets/author";
 import {
 	type Api,
 	type AssistantMessage,
@@ -10,23 +10,29 @@ import {
 	type Model,
 	type ModelSpec,
 	registerCustomApi,
-} from "@linxiraos/pi-ai";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { runCli } from "@linxiraos/zeta/cli";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { runRootCommand } from "@linxiraos/zeta/main";
-import { PRINT_MODE_COST_CAP_EXIT_CODE, runPrintMode } from "@linxiraos/zeta/modes/print-mode";
-import { type CreateAgentSessionOptions, createAgentSession } from "@linxiraos/zeta/sdk";
-import type { AgentSession, AgentSessionEvent } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { COST_GATE_NOTICE_SOURCE, CostCapError, CostGate, guardStreamFn } from "@linxiraos/zeta/session/cost-gate";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { wrapStreamFnWithProviderConcurrency } from "@linxiraos/zeta/task/provider-concurrency";
-import { cfgSessionMaxCost, cfgSessionWarnCost } from "@linxiraos/zeta/session/settings";
-import { TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { runCli } from "@oh-my-pi/pi-coding-agent/cli";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
+import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
+import { PRINT_MODE_COST_CAP_EXIT_CODE, runPrintMode } from "@oh-my-pi/pi-coding-agent/modes/print-mode";
+import { type CreateAgentSessionOptions, createAgentSession } from "@oh-my-pi/pi-coding-agent/sdk";
+import type { AgentSession, AgentSessionEvent } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import {
+	COST_GATE_NOTICE_SOURCE,
+	CostCapError,
+	CostGate,
+	guardStreamFn,
+} from "@oh-my-pi/pi-coding-agent/session/cost-gate";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { wrapStreamFnWithProviderConcurrency } from "@oh-my-pi/pi-coding-agent/task/provider-concurrency";
+import { cfgSessionMaxCost, cfgSessionWarnCost } from "@oh-my-pi/pi-coding-agent/session/settings";
+import { TempDir } from "@oh-my-pi/pi-utils";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 import { rejectionOf } from "./helpers/rejection";
 
@@ -69,6 +75,11 @@ function streamOf(message: AssistantMessage): AssistantMessageEventStream {
 	);
 	return stream;
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("CostGate", () => {
 	function gateWith(values: Record<string, unknown>, recordedSpend = 0) {

@@ -10,7 +10,7 @@
    - `packages/coding-agent/src/tools/path-utils.ts` — prefer literal filenames; normalize local paths and recover accidental delimited path lists.
    - `packages/tui/src/tools/read.ts` / `line-ranges.ts` — split trailing selectors and parse line ranges; `packages/coding-agent/src/tools/read-selector.ts` resolves raw, range, and tail selectors.
    - `packages/coding-agent/src/tools/read-archive.ts`, `read-sqlite.ts`, `read-binary.ts`, `read-pdf.ts`, and `read-format.ts` — specialized readers and shared formatting/pagination.
-   - `packages/utils/src/ar` (`@linxiraos/pi-utils/ar`) — unified archive registry: detect `archive.ext:inner/path`, index archives, list/read entries.
+   - `packages/utils/src/ar` (`@oh-my-pi/pi-utils/ar`) — unified archive registry: detect `archive.ext:inner/path`, index archives, list/read entries.
    - `packages/coding-agent/src/tools/sqlite-reader.ts` — detect SQLite targets, parse selectors, render tables.
    - `packages/coding-agent/src/tools/fetch.ts` — URL parsing, fetch/render pipeline, URL cache/artifacts.
    - `packages/coding-agent/src/internal-urls/router.ts` — built-in internal-resource registry, including `ssh://` and `xd://`; MCP may advertise additional schemes.
@@ -44,7 +44,7 @@ For normal file-like reads, `splitPathAndSel()` in `packages/tui/src/tools/read.
 | `:N` / `:LN` / `:N-` / `:N..` | Start at 1-indexed line `N`, open-ended.                                                                                                       |
 | `:A-B` / `:LA-LB` / `:A..B`   | Inclusive 1-indexed line range (`..` is a forgiving alias normalized to `-`).                                                                  |
 | `:A+C` / `:LA+LC`             | `C` lines starting at `A`; tool converts this to end line `A + C - 1`.                                                                         |
-| `:-N`                        | Last `N` lines; `N` must be positive. Also combines with `:raw` and with ranges in a comma list (`:1-12,-15`). |
+| `:-N`                         | Last `N` lines; `N` must be positive. Also combines with `:raw` and with ranges in a comma list (`:1-12,-15`).                                 |
 | `:R1,R2,...`                  | Multiple ranges, sorted and merged before reading (for example `:5-16,960-973`).                                                               |
 | `:range:raw` or `:raw:range`  | Same line selection, but raw output. Exception: a lone bare `N` is the single line `N` (`:17:raw`); `:N-:raw` stays open-ended.                |
 
@@ -151,7 +151,7 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
 
 - Supported archive containers (extension table in `packages/utils/src/ar/registry.ts`): tar family `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`/`.tbz2`/`.tbz`, `.tar.xz`/`.txz`, `.tar.zst`/`.tzst`, `.tar.z`; ZIP family `.zip`, `.jar`, `.war`, `.ear`, `.apk`, `.whl`, `.ipa`, `.xpi`, `.vsix`, `.nupkg`, `.cbz`; standalone `.rar`/`.cbr`, `.7z`, `.iso`, `.cab`, `.cpio`, `.rpm`, `.ar`/`.a`/`.lib`, `.deb`, `.lzh`/`.lha`, `.arj`, `.asar`; single-stream `.gz`, `.bz2`, `.xz`, `.zst`, `.z`, `.lzma`.
 - Syntax: `archive.ext`, `archive.ext:path/inside`, `archive.ext:path/inside:50-60`.
-- `openArchive()` dispatches through the `@linxiraos/pi-utils/ar` registry (`packages/utils/src/ar/open.ts`); limits live in `packages/utils/src/ar/limits.ts`: in-memory archives cap at 256 MiB, index reads at 64 MiB, and individual member extraction at 64 MiB.
+- `openArchive()` dispatches through the `@oh-my-pi/pi-utils/ar` registry (`packages/utils/src/ar/open.ts`); limits live in `packages/utils/src/ar/limits.ts`: in-memory archives cap at 256 MiB, index reads at 64 MiB, and individual member extraction at 64 MiB.
 - Plain TAR indexing reads headers and bounded metadata through byte ranges, skipping member payloads. Its container size is not subject to the whole-buffer limit; selected members retain the extraction limit.
 - Archive paths normalize `/`, drop `.` segments, and reject `..`.
 - Directory reads list immediate children; files show `name` plus ` (size)` when size > 0.
@@ -261,19 +261,16 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
 - Without `?q=`, image-capable active models receive a text note plus an inline image block.
 - Without `?q=`, text-only active models receive metadata (MIME, bytes, dimensions, channels, alpha) plus a `?q=<question>` hint.
 - `images.questionTimeoutMs` limits each delegated image question; `0` disables the timeout.
-- `:img` also rasterizes Obsidian `.canvas` and Excalidraw `.excalidraw` scenes: the JSON is serialized to SVG (boxes, text, arrows) and then goes through the same native rasterizer. Without `:img` the raw JSON is read; under a vault use `?op=canvas` for a Markdown outline.
 - Unsupported/undecodable image formats throw a `ToolError`.
 
 ### Internal URLs
 
-- `read` delegates internal and MCP-advertised schemes to `InternalUrlRouter`; the built-in registry currently includes `agent://`, `artifact://`, `attachment://`, `cfg://`, `conflict://`, `history://`, `issue://`, `local://`, `mcp://`, `memory://`, `mr://`, `zeta://`, `pr://`, `proc://`, `rule://`, `security://`, `siyuan://`, `skill://`, `ssh://`, `vault://`, and `xd://`.
+- `read` delegates internal and MCP-advertised schemes to `InternalUrlRouter`; the built-in registry currently includes `agent://`, `artifact://`, `attachment://`, `cfg://`, `conflict://`, `history://`, `issue://`, `local://`, `mcp://`, `memory://`, `mr://`, `omp://`, `out://` (write-only; reads fail), `pr://`, `proc://`, `rule://`, `security://`, `skill://`, `ssh://`, `vault://`, and `xd://`.
    - `security://` is reserved for the OMP-owned, producer-neutral, read-only security-analysis store.
    - `agent://<id>` reads a subagent's latest completed output, including a successful message-result follow-up after revival that the parent requested or the user typed into the focused subagent session; while a newer turn runs, the previous output is marked superseded. Agents without published output return status and progress. `/key/index` extracts from the latest published JSON result. Peer-woken message replies and cancelled or empty message-result follow-ups do not replace the accepted result, nor do structured wakes without a `yield`. `agent://all` is write-only. Bare `history://` lists registered agents and persisted subagents; `history://<id>` reads a transcript across turns.
    - `proc://` lists caller-visible background jobs (including running agents without job rows) and project services; `proc://<id>` returns status and available output/logs without consuming async-result delivery. A running subagent's row also shows its latest requests, cost, context fill, completion estimate and stage, as in `wait`. Service log files are searchable with `grep proc://<id>`.
    - `xd://` lists mounted tool devices; `xd://<name>` returns that device's input documentation. Writing JSON to the same URI dispatches the device through `write`.
    - `ssh://host/<path>` reads a remote UTF-8 file or directory; bare `ssh://` lists configured hosts. Files and directory listing responses are limited to 1 MiB and require a verified POSIX remote shell. Directory scopes are also traversable by search tools without a local mount. `ssh://host/~/path` and `ssh://host/~` resolve against the connected remote account's `HOME`, never the local home; only this literal `/~/` or `/~` URI spelling expands. `/%7E/` remains a literal absolute tilde directory, `/~user` is unsupported, and other shell expansions do not run. Percent-encode literal `:`, `?`, or `#` in the path.
-   - `siyuan://` reads SiYuan notes through the kernel API (`siyuan.url` + `siyuan.token`, validated by `siyuan.enabled`): bare lists notebooks, `siyuan://notebook/<id>` lists documents, `siyuan://doc/<id>` returns Markdown, `?op=outline` returns the heading tree, and `?op=search&q=<text>` searches. The kernel renders blocks, so `.sy` storage is never parsed directly.
-   - `vault://<vault>/<path>?op=canvas` summarizes an Obsidian `.canvas` or Excalidraw `.excalidraw` scene as a Markdown outline of nodes, files, groups, and edges; the raw JSON remains readable without the op.
    - `history://current/full` exposes the caller's complete current branch when `compaction.experimentalContextManagement` is enabled. It includes original text, tool outputs, entry IDs, and compaction boundaries. Use shared line/raw selectors such as `history://current/full:raw:1-200`; queries, fragments, extra paths, and trailing slashes are rejected. It requires a matching live session owner and never falls back to registry or disk lookup. Bare `history://current` still names an ordinary agent called `current`. See [experimental context windows](../compaction.md#experimental-notes-backed-context-windows).
 - `#handleInternalUrl()` behavior:
    - parses the URL with `parseInternalUrl()` so colons inside the host segment are legal
@@ -282,7 +279,7 @@ Literal filesystem paths take precedence over selector interpretation, so an exi
    - `:img` is rejected here; it requires a file-backed URL. A file-backed URL that only reached this path because locate deferred to a remote resolve (an unknown `skill://` while MCP is available) reports its local miss (`Unknown skill`) instead
    - passes `immutable` (defaulted from the scheme spec) through to `resolveFileDisplayMode()` so anchors are suppressed for immutable resources such as artifacts, skills, memory, and agent outputs
    - sets `ignoreResultLimits: true` for schemes whose spec is `unbounded` (`skill://`) so the full text is paginated only by explicit selectors, not by the normal default line limit; a resource can override that (`InternalResource.unbounded`), which `skill://` does for MCP-served skill text
-- `conflict://` blocks are registered by the `<path>:conflicts` selector; `conflict://<N>` reads one registered marker block, and `/ours`, `/theirs`, `/base`, or `/both` selects a side. `conflict://*` is write-only.
+- `conflict://` blocks are registered by the `<path>:conflicts` selector; `conflict://<N>` reads one registered marker block, and `/ours`, `/theirs`, or `/base` selects a side. Ordinary head, tail, comma-list and `:raw` selectors address lines relative to that block or side (`conflict://1/theirs:1-3`, `conflict://1/theirs:raw:-20`); displayed line numbers retain their original file coordinates. `conflict://*` is write-only.
 - `issue://<N>` / `pr://<N>` (and the long form `issue://<owner>/<repo>/<N>` / `pr://<owner>/<repo>/<N>`) route through the same SQLite cache the `github` tool writes to; `?comments=0` selects the no-comments rendering. Bare `issue://` / `pr://` (and repository-qualified variants) browse live lists with `?state=`, `?limit=`, `?author=`, and `?label=`. PR diffs use `pr://<N>/diff`, `/diff/<i>`, and `/diff/all`. Every repository-qualified form also accepts a GitHub Enterprise host prefix (`pr://ghe.example.com/<owner>/<repo>/<N>`), and a host with no dot (`pr://ghe/<owner>/<repo>/<N>`) is recognized in the numbered form. Short forms resolve the host from the session checkout, so an enterprise repo needs no prefix.
 - `mr://<host>/<group…>/<project>/<iid>/diff` (or `mr://<iid>/diff` for the checkout's GitLab project) lists a GitLab merge request's changed files via `glab`; `/diff/<i>` returns one file and `/diff/all` the full diff. Rows share the `issue://`/`pr://` cache. When a `GITLAB_TOKEN`-style env token is set, only gitlab.com, `GITLAB_HOST`, hosts in glab's config, or the checkout's own GitLab host are contacted.
 - `memory://` accepts two grammars. `memory://root[/path]` reads file-backed memory artifacts under the project memory root (`memory://root` resolves to the compact startup summary `memory_summary.md`; deeper paths address files such as `MEMORY.md` and `skills/<name>/SKILL.md`, and `memory://root/...` supports glob patterns for `glob`). `memory://<memory-id>` looks up a live Mnemopi memory row by id — working or episodic — and returns the full stored content (not the clipped recall preview) behind a YAML frontmatter header carrying `id`, `bank`, `store`, `memory_type`, `source`, `timestamp`/`created_at`, `importance`, `veracity`, `session_id`, and `metadata`. The id grammar resolves against the calling session: it needs that session on `memory.backend = mnemopi` and searches only its own scoped banks, so a row held by another live session is not reachable; with `hindsight` it returns a corrective pointer (hindsight memories are not addressable), and unknown ids error with a pointer to `recall` for the available ids. This is the read counterpart to `memory_edit update`: read the full row before overwriting a truncated preview.
@@ -332,7 +329,7 @@ Notes: ...
    - URL mode performs HTTP fetches, binary refetches, and alternate-endpoint probes.
 - Subprocesses / native bindings
    - Uses Bun SQLite for `.db`/`.sqlite*`.
-   - Reads archives through the unified `@linxiraos/pi-utils/ar` registry; ZIP is framed in `packages/utils/src/ar/zip.ts` over the `node:zlib` DEFLATE codec.
+   - Reads archives through the unified `@oh-my-pi/pi-utils/ar` registry; ZIP is framed in `packages/utils/src/ar/zip.ts` over the `node:zlib` DEFLATE codec.
    - URL HTML rendering can delegate into site handlers and HTML-to-text backends from `packages/coding-agent/src/tools/fetch.ts`.
    - Video invokes `ffmpeg`/`ffprobe`; PDF page screenshots use headless Chromium; executable views may create/open an IDA database and request rendered views.
 - Session state
@@ -382,7 +379,7 @@ Notes: ...
    - `Cannot combine query extraction with line selectors` for `agent://.../path:50`
    - multi-ranges on directory/archive-directory listings
 - `conflict://*` reads are rejected; unknown/stale conflict ids require re-reading `<path>:conflicts`.
-- Missing local/archive/sqlite paths first attempt unique suffix resolution; if no unique match or guarded recovery exists they error.
+- Missing local/archive/sqlite paths first attempt unique suffix resolution; if no unique match or guarded recovery exists they error. Explicit semicolon lists fan out after literal/archive/SQLite precedence, including when the combined filename is too long; each member keeps its selectors and errors. A single overlong filename retains its filesystem error. Permission and I/O errors do not trigger missing-path recovery.
 - Targets that are neither regular files nor directories (character or block device, FIFO, socket) throw a `ToolError` naming the file kind; SQLite detection skips them rather than sniffing their header.
 - Out-of-bounds line reads do not throw. They return explanatory text with a suggestion such as `Use :1 ...` or `Use :<last line> ...`.
 - Probable binary local files return a notice unless `:raw` was requested or an available IDA-backed executable/database view handles them.

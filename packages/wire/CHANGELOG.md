@@ -1,6 +1,24 @@
 ## [Unreleased]
 
 ## [1.4.6] - 2026-10-28
+## [18.14.0] - 2026-10-29
+
+### Added
+
+- Added the TSP `json` kind for displaying raw JSON values as interactive, expandable trees in the terminal.
+- Added `TspEditorProps.typeahead` support so programs that cannot yet read input can preserve typed text, display it at the caret, and submit it when input becomes available.
+
+## [18.13.3] - 2026-10-28
+
+### Changed
+
+- Updated Bun engine requirement to ≥1.4.4
+
+### Removed
+
+- Removed `TspPalette` definition and `t` verb from the protocol specification
+
+## [18.12.3] - 2026-10-19
 
 - Released as part of Zeta 1.4.6; no package-specific user-visible changes.
 

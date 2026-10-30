@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
-import { ThinkingLevel, Tokenizer } from "@linxiraos/pi-agent-core";
+import { ThinkingLevel, Tokenizer } from "@oh-my-pi/pi-agent-core";
 import {
 	type CompactionPreparation,
 	compact,
@@ -9,7 +9,7 @@ import {
 	NativeCompactionError,
 	prepareCompaction,
 	type SessionEntry,
-} from "@linxiraos/pi-agent-core/compaction";
+} from "@oh-my-pi/pi-agent-core/compaction";
 import {
 	buildCompactionV2Request,
 	buildOpenAiNativeHistory,
@@ -22,15 +22,13 @@ import {
 	shouldUseCompactionV2Streaming,
 	shouldUseOpenAiRemoteCompaction,
 	trimRemoteCompactionInputToContextWindow,
-} from "@linxiraos/pi-agent-core/compaction/openai";
-import * as ai from "@linxiraos/pi-ai";
-import { NO_AUTH_SENTINEL } from "@linxiraos/pi-ai/auth-retry";
-import * as AIError from "@linxiraos/pi-ai/error";
-import { clearAwsCredentialCache } from "@linxiraos/pi-ai/providers/aws-credentials";
-import {
-	buildTransformedCodexRequestBody,
-	getOpenAICodexTransportDetails,
-} from "@linxiraos/pi-ai/providers/openai-codex-responses";
+} from "@oh-my-pi/pi-agent-core/compaction/openai";
+import * as ai from "@oh-my-pi/pi-ai";
+import { NO_AUTH_SENTINEL } from "@oh-my-pi/pi-ai/auth-retry";
+import * as AIError from "@oh-my-pi/pi-ai/error";
+import { clearAwsCredentialCache } from "@oh-my-pi/pi-ai/providers/aws-credentials";
+import { buildTransformedCodexRequestBody } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+import { getOpenAICodexTransportDetails } from "@oh-my-pi/pi-ai/providers/openai-codex-state";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,
@@ -39,12 +37,12 @@ import type {
 	ProviderSessionState,
 	ToolResultMessage,
 	UserMessage,
-} from "@linxiraos/pi-ai/types";
-import { __resetProxyCache } from "@linxiraos/pi-ai/utils/proxy";
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { resolveCatalogPolicy } from "@linxiraos/pi-catalog/compat/catalog-policy";
-import type { ModelSpec } from "@linxiraos/pi-catalog/types";
-import * as piUtils from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-ai/types";
+import { __resetProxyCache } from "@oh-my-pi/pi-ai/utils/proxy";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { resolveCatalogPolicy } from "@oh-my-pi/pi-catalog/compat/catalog-policy";
+import type { ModelSpec } from "@oh-my-pi/pi-catalog/types";
+import * as piUtils from "@oh-my-pi/pi-utils";
 
 const { isRecord } = piUtils;
 const TEST_INSTALLATION_ID = "00000000-0000-4000-8000-000000000001";

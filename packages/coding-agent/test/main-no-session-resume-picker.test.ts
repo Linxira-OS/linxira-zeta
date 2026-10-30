@@ -1,17 +1,18 @@
 /**
- * Regression for #12008 review: `zetacode --no-session --resume` (bare, native) must
+ * Regression for #12008 review: `omp --no-session --resume` (bare, native) must
  * fail with `--resume requires session persistence` instead of falling through
  * to the startup session picker. The picker branch runs before the deferred
  * (extension-flag-aware) persistence validation, so it has to be skipped under
  * `--no-session`.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { runRootCommand } from "@linxiraos/zeta/main";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { TempDir } from "@linxiraos/pi-utils";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
+import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {
@@ -19,6 +20,11 @@ class ProcessExitSignal extends Error {
 		this.name = "ProcessExitSignal";
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("runRootCommand — --no-session --resume", () => {
 	it("rejects a bare native --resume without invoking the picker", async () => {

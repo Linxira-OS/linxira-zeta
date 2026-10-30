@@ -1,20 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { type BtwHistoryRecord, BtwHistoryStore, getBtwCopyText } from "@linxiraos/zeta/session/btw-history";
-import { acquireFileLock, withFileLock } from "@linxiraos/pi-utils";
+import { scheduler } from "node:timers/promises";
+import { type BtwHistoryRecord, BtwHistoryStore, getBtwCopyText } from "@oh-my-pi/pi-coding-agent/session/btw-history";
+import { acquireFileLock, withFileLock } from "@oh-my-pi/pi-utils";
 
 describe("BtwHistoryStore", () => {
 	let directory: string;
 	let artifactsDir: string;
 
 	beforeEach(async () => {
-		directory = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-btw-history-"));
+		directory = await fs.mkdtemp(path.join(os.tmpdir(), "omp-btw-history-"));
 		artifactsDir = path.join(directory, "session");
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await fs.rm(directory, { recursive: true, force: true });
 	});
 
@@ -65,9 +67,12 @@ describe("BtwHistoryStore", () => {
 			createdAt: 4,
 			updatedAt: 4,
 		};
+		// The writer holds the live turn's lease throughout; skip the backoff between lock attempts.
+		const backoff = vi.spyOn(scheduler, "wait").mockResolvedValue(undefined);
 		await expect(recovered.upsert({ ...recoveredView[0]!, followUps: [followUp] })).rejects.toThrow(
 			"Failed to acquire lock",
 		);
+		backoff.mockRestore();
 		expect(recovered.getRecords()).toBe(recoveredView);
 
 		const complete = { ...running, status: "complete" as const, answer: "Final answer", updatedAt: 3 };
@@ -81,7 +86,7 @@ describe("BtwHistoryStore", () => {
 		};
 		await reopened.upsert(finished);
 		expect((await BtwHistoryStore.open(artifactsDir)).getRecords()).toEqual([finished]);
-	}, 10_000);
+	});
 
 	it("does not lose independent entries written by stores opened before either write", async () => {
 		const left = await BtwHistoryStore.open(artifactsDir);

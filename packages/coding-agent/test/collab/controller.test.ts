@@ -4,7 +4,7 @@
  * dialogs raised before the relay connects; the registry sees one entry per
  * process keyed by a stable instance ID with an increasing generation; a
  * session switch revokes the old room before its successor is published; and
- * the published access level caps what `zetacode collab link` can obtain.
+ * the published access level caps what `omp collab link` can obtain.
  *
  * Real CollabHost/CollabSocket run over the in-memory relay; the registry's
  * real Unix-socket IPC is redirected into a temp dir via a spy on
@@ -14,49 +14,50 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, spyOn, vi } fro
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { closeModelCache } from "@linxiraos/pi-catalog/model-cache";
-import { CollabController } from "@linxiraos/zeta/collab/controller";
-import { importRoomKey } from "@linxiraos/zeta/collab/crypto";
-import { CollabGuestLink } from "@linxiraos/zeta/collab/guest";
-import { CollabHost, CollabHostStoppedError } from "@linxiraos/zeta/collab/host";
-import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@linxiraos/zeta/collab/protocol";
-import * as registry from "@linxiraos/zeta/collab/registry";
-import { CollabSocket } from "@linxiraos/zeta/collab/relay-client";
-import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
-import { runRootCommand } from "@linxiraos/zeta/main";
-import { Composer } from "@linxiraos/pi-tui/prompt/composer";
-import { InteractiveMode } from "@linxiraos/zeta/modes/interactive-mode";
-import { beginStartupComposer, stopPendingStartupComposer } from "@linxiraos/zeta/modes/startup-composer";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
-import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";
-import { executeBuiltinSlashCommand } from "@linxiraos/zeta/slash-commands/builtin-registry";
-import { getProjectDir, setProjectDir } from "@linxiraos/pi-utils";
-import * as utils from "@linxiraos/pi-utils";
+import { closeModelCache } from "@oh-my-pi/pi-catalog/model-cache";
+import { CollabController } from "@oh-my-pi/pi-coding-agent/collab/controller";
+import { importRoomKey } from "@oh-my-pi/pi-coding-agent/collab/crypto";
+import { CollabGuestLink } from "@oh-my-pi/pi-coding-agent/collab/guest";
+import { CollabHost, CollabHostStoppedError } from "@oh-my-pi/pi-coding-agent/collab/host";
+import { COLLAB_PROTO, type CollabFrame, parseCollabLink } from "@oh-my-pi/pi-coding-agent/collab/protocol";
+import * as registry from "@oh-my-pi/pi-coding-agent/collab/registry";
+import { CollabSocket } from "@oh-my-pi/pi-coding-agent/collab/relay-client";
+import { parseArgs } from "@oh-my-pi/pi-coding-agent/cli/args";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { resetSettingsForTest, Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import * as pluginHelpers from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+import { clearOmpExtensionCliRoots } from "@oh-my-pi/pi-coding-agent/discovery/omp-extension-roots";
+import { runRootCommand } from "@oh-my-pi/pi-coding-agent/main";
+import { Composer } from "@oh-my-pi/pi-tui/prompt/composer";
+import { InteractiveMode } from "@oh-my-pi/pi-coding-agent/modes/interactive-mode";
+import { beginStartupComposer, stopPendingStartupComposer } from "@oh-my-pi/pi-coding-agent/modes/startup-composer";
+import { initTheme } from "@oh-my-pi/pi-tui/theme";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
+import { closeSessionIndex } from "@oh-my-pi/pi-coding-agent/session/session-index";
+import { executeBuiltinSlashCommand } from "@oh-my-pi/pi-coding-agent/slash-commands/builtin-registry";
+import { getProjectDir, setProjectDir } from "@oh-my-pi/pi-utils";
+import * as utils from "@oh-my-pi/pi-utils";
 import { VirtualTerminal } from "../../../tui/test/virtual-terminal";
 import { createTestSession, type TestSessionContext } from "../utilities";
 import { FakeWebSocket, installInMemoryRelay, uninstallInMemoryRelay } from "./helpers/in-memory-relay";
 
-import { cfgCollabAutoStart } from "@linxiraos/zeta/collab/settings";
-import { cfgAdvisorEnabled } from "@linxiraos/zeta/advisor/settings";
-import { CfgProtocolHandler } from "@linxiraos/zeta/internal-urls/cfg-protocol";
-import { parseInternalUrl } from "@linxiraos/zeta/internal-urls/parse";
-import type { ToolSession } from "@linxiraos/zeta/tools";
+import { cfgCollabAutoStart } from "@oh-my-pi/pi-coding-agent/collab/settings";
+import { cfgAdvisorEnabled } from "@oh-my-pi/pi-coding-agent/advisor/settings";
+import { CfgProtocolHandler } from "@oh-my-pi/pi-coding-agent/internal-urls/cfg-protocol";
+import { parseInternalUrl } from "@oh-my-pi/pi-coding-agent/internal-urls/parse";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
 import {
 	cfgMarketplaceAutoUpdate,
 	cfgStartupChangelogMode,
 	cfgStartupCheckUpdate,
 	cfgStartupSetupWizard,
 	cfgStartupShowSplash,
-} from "@linxiraos/zeta/modes/settings";
+} from "@oh-my-pi/pi-coding-agent/modes/settings";
 
-const originalAgentDir = process.env.ZETA_CODING_AGENT_DIR;
+const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 const originalPiProfile = process.env.PI_PROFILE;
 const originalOmpProfile = process.env.OMP_PROFILE;
 
@@ -104,8 +105,6 @@ function makeControllerContext(over: { autoStart?: "off" | "view" | "control"; r
 	const state: ControllerContextState = {
 		sessionId: `sess-${crypto.randomUUID()}`,
 		settings: Settings.isolated({
-			// Hosting is opt-in; these tests exercise the enabled feature.
-			"collab.enabled": true,
 			"collab.autoStart": over.autoStart ?? "off",
 			"collab.relayUrl": over.relayUrl ?? RELAY_URL,
 			"collab.webUrl": WEB_URL,
@@ -265,7 +264,9 @@ afterEach(async () => {
 	await controller?.shutdown("test cleanup").catch(() => {});
 	uninstallInMemoryRelay();
 	publishSpy?.mockRestore();
-	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
+	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+	clearOmpExtensionCliRoots();
+	restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
 	utils.__resetDirsFromEnvForTests();
@@ -299,7 +300,6 @@ describe("interactive collaboration startup", () => {
 		cfgMarketplaceAutoUpdate.override(activeSettings, "off");
 		testSession = await createTestSession({
 			settingsOverrides: {
-				"collab.enabled": true,
 				"collab.autoStart": "view",
 				"collab.relayUrl": RELAY_URL,
 				"collab.webUrl": WEB_URL,
@@ -967,9 +967,7 @@ describe("CollabController", () => {
 
 		expect(() => controller!.autoStart()).not.toThrow();
 
-		expect(await state.firstStatus.promise).toMatch(
-			/auto-start failed: Collab is enabled but no relay is configured/,
-		);
+		expect(await state.firstStatus.promise).toMatch(/auto-start failed: No relay configured/);
 		expect(ctx.collabHost).toBeUndefined();
 	});
 
@@ -1547,34 +1545,6 @@ describe("CollabController", () => {
 		await joinAsWriter(replacement!);
 	});
 
-	it("backs off a repeated self-ended room while /collab still hosts at once", async () => {
-		const { ctx } = makeControllerContext({ autoStart: "control" });
-		controller = new CollabController(ctx);
-		controller.autoStart();
-		await settled(publishSpy, 1);
-		const endCurrentRoom = () => {
-			const hostSocket = capturedSockets.findLast(s => s.role === "host");
-			if (!hostSocket) throw new Error("host transport socket was never created");
-			hostSocket.onclose?.({ code: 4001, reason: "room closed" });
-		};
-
-		endCurrentRoom();
-		await settled(publishSpy, 2);
-		await controller.idle();
-		expect(controller.host?.generation).toBe(2);
-
-		// Ending again right away must not relaunch immediately: the relay is still failing.
-		endCurrentRoom();
-		await controller.idle();
-		expect(controller.host).toBeUndefined();
-		expect(publishSpy).toHaveBeenCalledTimes(2);
-
-		// An explicit /collab is not held behind the backoff.
-		const manual = await controller.start({ access: "control" });
-		expect(manual.generation).toBe(3);
-		expect(await registry.listCollabHosts({ dir: tmp })).toMatchObject([{ generation: 3 }]);
-	});
-
 	describe("while the relay refuses the host's connection", () => {
 		/** Host connections fail the way Bun reports a refused TCP connect; guests are unaffected. */
 		let refusals = 0;
@@ -1613,31 +1583,6 @@ describe("CollabController", () => {
 			expect(await registry.listCollabHosts({ dir: tmp })).toMatchObject([
 				{ instanceId: controller.instanceId, generation: 1, sessionId: state.sessionId, access: "control" },
 			]);
-		});
-
-		it("backs off instead of reconnecting in a loop while the relay stays down", async () => {
-			vi.useFakeTimers();
-			try {
-				refusals = Number.POSITIVE_INFINITY;
-				const { ctx } = makeControllerContext({ autoStart: "control" });
-				controller = new CollabController(ctx);
-				controller.autoStart();
-				// The first failure relaunches at once; the second waits for the backoff.
-				await controller.idle();
-				await controller.idle();
-				expect(hostAttempts).toBe(2);
-				expect(ctx.collabHost).toBeUndefined();
-
-				vi.advanceTimersByTime(999);
-				await controller.idle();
-				expect(hostAttempts).toBe(2);
-				vi.advanceTimersByTime(1);
-				await controller.idle();
-				expect(hostAttempts).toBe(3);
-				expect(publishSpy).not.toHaveBeenCalled();
-			} finally {
-				vi.useRealTimers();
-			}
 		});
 	});
 
@@ -1747,48 +1692,6 @@ describe("CollabController", () => {
 			// The successor is chained behind the aborted start's completion, so
 			// by now that start has settled — and settled quietly.
 			expect(state.showStatus.filter(message => /auto-start failed/.test(message))).toEqual([]);
-		});
-
-		it("retries an auto-start whose relay connect timed out and publishes generation 1 once a later attempt opens", async () => {
-			const stalled = Promise.withResolvers<void>();
-			let stalls = 1;
-			class StallsOnce extends FakeWebSocket {
-				constructor(url: string) {
-					super(url);
-					if (this.role !== "host" || stalls <= 0) return;
-					stalls--;
-					// Skip the base class's queued open, then sit in CONNECTING: the relay
-					// accepted the connection but never answers the handshake.
-					this.readyState = FakeWebSocket.CLOSING;
-					queueMicrotask(() => {
-						this.readyState = FakeWebSocket.CONNECTING;
-					});
-					stalled.resolve();
-				}
-			}
-			globalThis.WebSocket = StallsOnce as unknown as typeof WebSocket;
-			const { ctx, state } = makeControllerContext({ autoStart: "control" });
-			vi.useFakeTimers();
-			try {
-				controller = new CollabController(ctx);
-				controller.autoStart();
-				await stalled.promise;
-				// Only the host's 15 s connect timeout can end the stalled attempt.
-				vi.advanceTimersByTime(15_000);
-				expect(await state.firstStatus.promise).toMatch(/auto-start failed: timed out connecting to relay/);
-				// Restore before the retry publishes: Bun's fake clock stalls the
-				// real registry server's listen callback.
-				vi.useRealTimers();
-				await settled(publishSpy, 1);
-				await controller.idle();
-
-				expect(controller.host).toBe(ctx.collabHost);
-				expect(await registry.listCollabHosts({ dir: tmp })).toMatchObject([
-					{ instanceId: controller.instanceId, generation: 1, sessionId: state.sessionId, access: "control" },
-				]);
-			} finally {
-				vi.useRealTimers();
-			}
 		});
 	});
 });

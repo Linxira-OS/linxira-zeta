@@ -3,20 +3,26 @@ import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
-import { Effort } from "@linxiraos/pi-ai";
-import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
-import { __providerInFlightForTesting, streamSimple } from "@linxiraos/pi-ai/stream";
-import type { Context } from "@linxiraos/pi-ai/types";
-import { __physicalTargetSegmentsForTesting, resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
-import { bindEffects } from "@linxiraos/zeta/config/registry";
+import { Effort } from "@oh-my-pi/pi-ai";
+import { clearCustomApis } from "@oh-my-pi/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
+import { __providerInFlightForTesting, streamSimple } from "@oh-my-pi/pi-ai/stream";
+import type { Context } from "@oh-my-pi/pi-ai/types";
+import {
+	__physicalTargetSegmentsForTesting,
+	resetSettingsForTest,
+	Settings,
+} from "@oh-my-pi/pi-coding-agent/config/settings";
+import { bindEffects } from "@oh-my-pi/pi-coding-agent/config/registry";
 
-import * as discovery from "@linxiraos/zeta/discovery";
-import { editVariantForModel } from "@linxiraos/zeta/utils/edit-mode";
-import { roleDefaultModels } from "@linxiraos/pi-catalog/compat/behavior";
-import { AgentStorage } from "@linxiraos/zeta/session/agent-storage";
-import { getAgentDbPath, getProjectAgentDir, logger, TempDir } from "@linxiraos/pi-utils";
-import * as fileLock from "@linxiraos/pi-utils/file-lock";
+import * as discovery from "@oh-my-pi/pi-coding-agent/discovery";
+import { editVariantForModel } from "@oh-my-pi/pi-coding-agent/utils/edit-mode";
+import { roleDefaultModels } from "@oh-my-pi/pi-catalog/compat/behavior";
+import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
+import { resolveRoleChain } from "@oh-my-pi/pi-coding-agent/config/model-resolver";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import { getAgentDbPath, getProjectAgentDir, logger, TempDir } from "@oh-my-pi/pi-utils";
+import * as fileLock from "@oh-my-pi/pi-utils/file-lock";
 import { YAML } from "bun";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "./helpers/settings-test-state";
 import {
@@ -28,8 +34,8 @@ import {
 	cfgSetupVersion,
 	cfgStatusLineLeftSegments,
 	cfgSpellingAutocomplete,
-} from "@linxiraos/zeta/modes/settings";
-import { cfgExtensions } from "@linxiraos/zeta/extensibility/settings";
+} from "@oh-my-pi/pi-coding-agent/modes/settings";
+import { cfgExtensions } from "@oh-my-pi/pi-coding-agent/extensibility/settings";
 import {
 	cfgProvidersMaxInFlightRequests,
 	cfgPowerSleepPrevention,
@@ -39,7 +45,7 @@ import {
 	cfgDefaultThinkingLevel,
 	cfgInlineToolDescriptors,
 	cfgRetryModelFallback,
-} from "@linxiraos/zeta/session/settings";
+} from "@oh-my-pi/pi-coding-agent/session/settings";
 import {
 	cfgToolsXdev,
 	cfgTodoReminders,
@@ -54,7 +60,7 @@ import {
 	cfgTodoEager,
 	cfgComputerEnabled,
 	cfgImagesQuestionTimeoutMs,
-} from "@linxiraos/zeta/tools/settings";
+} from "@oh-my-pi/pi-coding-agent/tools/settings";
 import {
 	cfgTaskEager,
 	cfgIsolationBackend,
@@ -62,15 +68,18 @@ import {
 	cfgTaskMaxConcurrency,
 	cfgTaskEnableEffort,
 	cfgTaskAgentModelOverrides,
-} from "@linxiraos/zeta/task/settings";
-import { cfgMnemopiDbPath, cfgMnemopiScoping } from "@linxiraos/zeta/mnemopi/settings";
-import { cfgMemoryBackend } from "@linxiraos/zeta/memory-backend/settings";
-import { cfgHindsightBankId, cfgHindsightScoping } from "@linxiraos/zeta/hindsight/settings";
-import { cfgEditMode } from "@linxiraos/zeta/edit/settings";
-import { cfgExaEnabled } from "@linxiraos/zeta/web/settings";
-import { cfgCompactionMethodOrder, cfgSnapcompactSystemPrompt } from "@linxiraos/zeta/session/context-settings";
-import { cfgModelRoles, cfgDisabledProviders, cfgEnabledModels } from "@linxiraos/zeta/config/model-settings";
-import { cfgShellPath } from "@linxiraos/zeta/exec/settings";
+} from "@oh-my-pi/pi-coding-agent/task/settings";
+import { cfgMnemopiDbPath, cfgMnemopiScoping } from "@oh-my-pi/pi-coding-agent/mnemopi/settings";
+import { cfgMemoryBackend } from "@oh-my-pi/pi-coding-agent/memory-backend/settings";
+import { cfgHindsightBankId, cfgHindsightScoping } from "@oh-my-pi/pi-coding-agent/hindsight/settings";
+import { cfgEditMode } from "@oh-my-pi/pi-coding-agent/edit/settings";
+import { cfgExaEnabled } from "@oh-my-pi/pi-coding-agent/web/settings";
+import {
+	cfgCompactionMethodOrder,
+	cfgSnapcompactSystemPrompt,
+} from "@oh-my-pi/pi-coding-agent/session/context-settings";
+import { cfgModelRoles, cfgDisabledProviders, cfgEnabledModels } from "@oh-my-pi/pi-coding-agent/config/model-settings";
+import { cfgShellPath } from "@oh-my-pi/pi-coding-agent/exec/settings";
 
 /** Lets microtask-coalesced setting listeners run. */
 const tick = () => Promise.resolve();
@@ -381,7 +390,7 @@ describe("Settings", () => {
 
 		it("backs up a corrupted project config and retains the pending project role for retry", async () => {
 			await writeSettings({});
-			const projectConfigPath = path.join(projectDir, ".zeta", "config.yml");
+			const projectConfigPath = path.join(projectDir, ".omp", "config.yml");
 			await Bun.write(
 				projectConfigPath,
 				YAML.stringify({ modelRoles: { default: "keep/default" }, custom: { keep: true } }, null, 2),
@@ -1064,7 +1073,7 @@ describe("Settings", () => {
 
 		it("leaves an unreadable project config untouched and retains its pending role", async () => {
 			await writeSettings({});
-			const projectConfigPath = path.join(projectDir, ".zeta", "config.yml");
+			const projectConfigPath = path.join(projectDir, ".omp", "config.yml");
 			const original = YAML.stringify({ modelRoles: { default: "keep/default" }, custom: { keep: true } }, null, 2);
 			await Bun.write(projectConfigPath, original);
 			const settings = await Settings.init({ cwd: projectDir, agentDir });
@@ -1090,7 +1099,7 @@ describe("Settings", () => {
 			const malformed = 'modelRoles:\n  default: "unterminated\n';
 			await Promise.all([
 				Bun.write(getConfigPath(), malformed),
-				Bun.write(path.join(projectDir, ".zeta", "config.yml"), malformed),
+				Bun.write(path.join(projectDir, ".omp", "config.yml"), malformed),
 			]);
 			const unhandled: unknown[] = [];
 			const onUnhandled = (reason: unknown): void => {
@@ -1102,7 +1111,7 @@ describe("Settings", () => {
 				expect(unhandled).toEqual([]);
 				expect(fs.readdirSync(agentDir).some(name => name.startsWith("config.yml.broken-"))).toBe(true);
 				expect(
-					fs.readdirSync(path.join(projectDir, ".zeta")).some(name => name.startsWith("config.yml.broken-")),
+					fs.readdirSync(path.join(projectDir, ".omp")).some(name => name.startsWith("config.yml.broken-")),
 				).toBe(true);
 			} finally {
 				process.removeListener("unhandledRejection", onUnhandled);
@@ -1112,7 +1121,7 @@ describe("Settings", () => {
 
 	describe("live persisted reload", () => {
 		it("rejects malformed live configs without moving them aside or replacing effective settings", async () => {
-			const projectConfigPath = path.join(projectDir, ".zeta", "config.yml");
+			const projectConfigPath = path.join(projectDir, ".omp", "config.yml");
 			await writeSettings({
 				setupVersion: 1,
 				modelRoles: { global_role: "openai/global" },
@@ -1817,7 +1826,7 @@ describe("Settings", () => {
 			"google-antigravity/gemini-2.5-flash",
 			"google/gemini-2.5-flash",
 			"anthropic/claude-haiku-4-5",
-			"openai-codex/gpt-5.6-luna",
+			"openai-codex/gpt-6-luna",
 			"xai/grok-4.5",
 			"web/exa",
 			"web/tavily",
@@ -1942,6 +1951,46 @@ describe("Settings", () => {
 				}
 			},
 		);
+
+		it("repairs the old generated web fallback pair without changing unrelated chains", async () => {
+			await writeSettings({
+				modelRoles: { web: "web/parallel" },
+				retry: {
+					fallbackChains: {
+						web: [
+							"web/searxng",
+							"openai-codex/gpt-6-luna",
+							"openai-codex/gpt-5.6",
+							"openai-codex/gpt-5.5",
+							"xai/grok-4.5",
+						],
+						slow: ["openai-codex/gpt-5.5"],
+					},
+				},
+			});
+
+			const settings = await Settings.init({ cwd: projectDir, agentDir });
+
+			expect(cfgRetryFallbackChains.get(settings)).toEqual({
+				web: ["web/searxng", "openai-codex/gpt-6-luna", "openai-codex/gpt-5.6-sol", "xai/grok-4.5"],
+				slow: ["openai-codex/gpt-5.5"],
+			});
+			const codex = getBundledModels("openai-codex").filter(model => model.webSearch);
+			expect(resolveRoleChain("web", settings, codex).map(candidate => candidate.model.id)).toEqual([
+				"gpt-6-luna",
+				"gpt-5.6-sol",
+			]);
+		});
+
+		it("preserves independently configured Codex web selectors", async () => {
+			await writeSettings({
+				retry: { fallbackChains: { web: ["openai-codex/gpt-5.5", "openai-codex/gpt-5.6"] } },
+			});
+
+			const settings = await Settings.init({ cwd: projectDir, agentDir });
+
+			expect(cfgRetryFallbackChains.get(settings).web).toEqual(["openai-codex/gpt-5.5", "openai-codex/gpt-5.6"]);
+		});
 
 		it("keeps a legacy Gemini wire tier ahead of non-Gemini fallbacks", async () => {
 			await writeSettings({

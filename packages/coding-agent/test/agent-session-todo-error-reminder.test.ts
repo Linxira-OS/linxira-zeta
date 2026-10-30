@@ -5,18 +5,19 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import type { TextContent, ToolCall } from "@linxiraos/pi-ai";
-import { createMockModel, type MockResponse } from "@linxiraos/pi-ai/providers/mock";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { TodoTool } from "@linxiraos/zeta/tools";
-import { TempDir } from "@linxiraos/pi-utils";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import type { TextContent, ToolCall } from "@oh-my-pi/pi-ai";
+import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { isSessionSettled } from "@oh-my-pi/pi-coding-agent/session/session-settle";
+import { TodoTool } from "@oh-my-pi/pi-coding-agent/tools";
+import { TempDir } from "@oh-my-pi/pi-utils";
 
 const REMINDER_MARKER = "todo failed, so todo progress is not visible to the user.";
 
@@ -50,8 +51,11 @@ describe("AgentSession todo-error reminder", () => {
 		}
 	});
 
-	/** Runs one scripted prompt plus a follow-up prompt; returns reminders delivered to the model. */
-	async function runTwoPrompts(firstRun: MockResponse[]): Promise<string[]> {
+	/** Runs two prompts and returns the first prompt's settle state and the delivered reminders. */
+	async function runTwoPrompts(firstRun: MockResponse[]): Promise<{
+		reminders: string[];
+		settledState: { isSettled: boolean; queuedMessageCount: number };
+	}> {
 		const model = getBundledModel("anthropic", "claude-sonnet-4-5");
 		if (!model) throw new Error("Expected bundled test model to exist");
 		const mock = createMockModel({ responses: [...firstRun, { content: ["Next answer"] }] });
@@ -85,23 +89,30 @@ describe("AgentSession todo-error reminder", () => {
 
 		await session.prompt("Plan more work");
 		await session.waitForIdle();
+		const settledState = {
+			isSettled: isSessionSettled(session),
+			queuedMessageCount: session.queuedMessageCount,
+		};
 		await session.prompt("Next request");
 		await session.waitForIdle();
 
 		const lastCall = mock.calls.at(-1);
 		if (!lastCall) throw new Error("Expected the mock model to be called");
-		return lastCall.context.messages.flatMap(message => {
-			if (message.role !== "developer") return [];
-			const content = message.content;
-			if (typeof content === "string") return content.includes(REMINDER_MARKER) ? [content] : [];
-			return content
-				.filter((part): part is TextContent => part.type === "text" && part.text.includes(REMINDER_MARKER))
-				.map(part => part.text);
-		});
+		return {
+			settledState,
+			reminders: lastCall.context.messages.flatMap(message => {
+				if (message.role !== "developer") return [];
+				const content = message.content;
+				if (typeof content === "string") return content.includes(REMINDER_MARKER) ? [content] : [];
+				return content
+					.filter((part): part is TextContent => part.type === "text" && part.text.includes(REMINDER_MARKER))
+					.map(part => part.text);
+			}),
+		};
 	}
 
 	it("drops the reminder only after its append retry succeeds", async () => {
-		const reminders = await runTwoPrompts([
+		const { reminders } = await runTwoPrompts([
 			todoCall("todo-fail", { op: "append", items: ["Add tests"] }),
 			todoCall("todo-retry", { op: "append", phase: "Build", items: ["Add tests"] }),
 			{ content: ["Appended"] },
@@ -112,7 +123,7 @@ describe("AgentSession todo-error reminder", () => {
 	});
 
 	it("preserves an uncorrected failure across a view", async () => {
-		const reminders = await runTwoPrompts([
+		const { reminders } = await runTwoPrompts([
 			todoCall("todo-fail", { op: "append", items: ["Add tests"] }),
 			todoCall("todo-view", { op: "view" }),
 			{ content: ["Gave up"] },
@@ -121,8 +132,18 @@ describe("AgentSession todo-error reminder", () => {
 		expect(reminders).toHaveLength(1);
 	});
 
+	it("settles after a terminal todo error and delivers the reminder with the next prompt", async () => {
+		const { reminders, settledState } = await runTwoPrompts([
+			todoCall("todo-fail", { op: "append", items: ["Add tests"] }),
+			{ content: ["Gave up"] },
+		]);
+
+		expect(settledState).toEqual({ isSettled: true, queuedMessageCount: 0 });
+		expect(reminders).toHaveLength(1);
+	});
+
 	it("preserves an uncorrected failure after an unrelated mutation without a stale list", async () => {
-		const reminders = await runTwoPrompts([
+		const { reminders } = await runTwoPrompts([
 			todoCall("todo-fail", { op: "append", items: ["Add tests"] }),
 			todoCall("todo-unrelated", { op: "done", task: "Release" }),
 			{ content: ["Completed release"] },
@@ -135,7 +156,7 @@ describe("AgentSession todo-error reminder", () => {
 	});
 
 	it("keeps only the failed operation that has not been retried", async () => {
-		const reminders = await runTwoPrompts([
+		const { reminders } = await runTwoPrompts([
 			todoCall("todo-missing-phase", { op: "append", items: ["Add tests"] }),
 			todoCall("todo-duplicate", { op: "append", phase: "Ship", items: ["Write code"] }),
 			todoCall("todo-retry", { op: "append", phase: "Build", items: ["Add tests"] }),
@@ -149,7 +170,7 @@ describe("AgentSession todo-error reminder", () => {
 	});
 
 	it("drops reminders when retries correct other invalid arguments", async () => {
-		const reminders = await runTwoPrompts([
+		const { reminders } = await runTwoPrompts([
 			todoCall("todo-missing-items", { op: "append", phase: "Build" }),
 			todoCall("todo-placeholder", { op: "done", task: "task-1" }),
 			todoCall("todo-items-retry", { op: "append", phase: "Build", items: ["Add tests"] }),

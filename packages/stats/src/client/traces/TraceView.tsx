@@ -13,7 +13,7 @@ import type { SessionTrace, TraceSpan, TraceSpanKind, TraceTrack } from "../type
 import { Card, ChartSkeleton, PageHeader, QueryView, SearchInput, Segmented } from "../ui";
 import { AggregatesPanel } from "./AggregatesPanel";
 import { Minimap } from "./Minimap";
-import { SpanDrawer } from "./SpanDrawer";
+import { SpanDrawer, type TraceEntryLoader } from "./SpanDrawer";
 import { SummaryStrip } from "./SummaryStrip";
 import { TimelineCanvas, type TimelineViewport } from "./TimelineCanvas";
 import { TranscriptList } from "./TranscriptList";
@@ -49,6 +49,56 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 	// A previous session's trace must never render under this file's header.
 	const trace = query.stale ? null : query.data;
 
+	return (
+		<div className="stack traces-view">
+			<div>
+				<button type="button" className="btn" data-variant="ghost" data-size="sm" onClick={onBack}>
+					<ArrowLeft size={14} aria-hidden="true" />
+					Sessions
+				</button>
+			</div>
+			<PageHeader
+				title={<span className="traces-title truncate">{trace?.title ?? file.split("/").pop()}</span>}
+				description={trace?.cwd ? <span className="mono">{trace.cwd}</span> : undefined}
+				actions={
+					<button
+						type="button"
+						className="btn"
+						data-variant="ghost"
+						data-icon="true"
+						onClick={query.refetch}
+						aria-label="Refresh trace"
+						title="Refresh trace"
+					>
+						<RefreshCw size={14} className={query.refreshing ? "traces-spin" : undefined} />
+					</button>
+				}
+			/>
+			<QueryView query={{ ...query, data: trace }} skeleton={<ChartSkeleton height={420} />}>
+				{loaded => <SessionTraceView trace={loaded} />}
+			</QueryView>
+		</div>
+	);
+}
+
+/** Data and host integration supplied to the shared live/offline trace viewer. */
+export interface SessionTraceViewProps {
+	trace: SessionTrace;
+	view?: "timeline" | "full";
+	loadEntry?: TraceEntryLoader;
+	/** Embedded viewers keep details inside their own layout, without a modal. */
+	embedded?: boolean;
+	onNavigate?: (trackId: string, entryId: string) => void;
+}
+
+/** Data-driven viewer shared by the live route and self-contained HTML exports. */
+export function SessionTraceView({
+	trace,
+	view = "full",
+	loadEntry,
+	embedded = false,
+	onNavigate,
+}: SessionTraceViewProps) {
 	const [mode, setMode] = useState<AxisMode>("time");
 	const [compressIdle, setCompressIdle] = useState(true);
 	const [selection, setSelection] = useState<string | null>(null);
@@ -220,185 +270,158 @@ export function TraceView({ file, active, onBack }: TraceViewProps) {
 	);
 	const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-	const traceStart = trace?.startedAt ?? 0;
-
-	const traceQuery = { ...query, data: trace };
+	const traceStart = trace.startedAt;
 
 	return (
-		<div className="stack traces-view">
-			<div>
-				<button type="button" className="btn" data-variant="ghost" data-size="sm" onClick={onBack}>
-					<ArrowLeft size={14} aria-hidden="true" />
-					{t("trace.sessions")}
-				</button>
-			</div>
-			<PageHeader
-				title={<span className="traces-title truncate">{trace?.title ?? file.split("/").pop()}</span>}
-				description={trace?.cwd ? <span className="mono">{trace.cwd}</span> : undefined}
+		<div className="stack traces-view" data-view={view}>
+			{view === "full" && <SummaryStrip summary={trace.summary} />}
+			{allSpans.length === 0 && <p className="muted">No spans recorded in this session.</p>}
+
+			<Card
+				index={1}
+				title={t("trace.timeline")}
+				description={t("trace.timeline-hint")}
 				actions={
-					<button
-						type="button"
-						className="btn"
-						data-variant="ghost"
-						data-icon="true"
-						onClick={query.refetch}
-						aria-label={t("trace.refresh")}
-						title={t("trace.refresh")}
-					>
-						<RefreshCw size={14} className={query.refreshing ? "traces-spin" : undefined} />
-					</button>
-				}
-			/>
-
-			<QueryView query={traceQuery} skeleton={<ChartSkeleton height={420} />}>
-				{loaded => (
 					<>
-						<SummaryStrip summary={loaded.summary} />
-
-						<Card
-							index={1}
-							title={t("trace.timeline")}
-							description={t("trace.timeline-hint")}
-							actions={
+						<button
+							type="button"
+							className="btn"
+							data-variant="ghost"
+							data-size="sm"
+							onClick={() => collapseAll(false)}
+						>
+							{t("trace.expand-all")}
+						</button>
+						<button
+							type="button"
+							className="btn"
+							data-variant="ghost"
+							data-size="sm"
+							onClick={() => collapseAll(true)}
+						>
+							{t("trace.collapse-all")}
+						</button>
+					</>
+				}
+			>
+				<div className="stack">
+					<div className="traces-toolbar">
+						<Segmented
+							options={MODE_OPTIONS}
+							value={mode}
+							onChange={setMode}
+							size="sm"
+							aria-label={t("trace.axis-mode")}
+						/>
+						{mode === "time" && (
+							<label className="traces-check">
+								<input
+									type="checkbox"
+									checked={compressIdle}
+									onChange={event => setCompressIdle(event.target.checked)}
+								/>
+								{t("trace.compress-idle")}
+							</label>
+						)}
+						<div className="traces-search">
+							<SearchInput
+								value={search}
+								onChange={value => {
+									setSearch(value);
+									setMatchIndex(0);
+								}}
+								label={t("trace.search-placeholder")}
+								placeholder={t("trace.search-placeholder")}
+								width={200}
+							/>
+							{search.trim() && (
 								<>
+									<span className="num muted traces-match-count">
+										{matches.length === 0
+											? "0"
+											: `${(matchIndex % Math.max(matches.length, 1)) + 1}/${matches.length}`}
+									</span>
 									<button
 										type="button"
 										className="btn"
 										data-variant="ghost"
 										data-size="sm"
-										onClick={() => collapseAll(false)}
+										data-icon="true"
+										onClick={() => cycleMatch(-1)}
+										aria-label={t("trace.previous-match")}
+										disabled={matches.length === 0}
 									>
-										{t("trace.expand-all")}
+										<ChevronLeft size={14} />
 									</button>
 									<button
 										type="button"
 										className="btn"
 										data-variant="ghost"
 										data-size="sm"
-										onClick={() => collapseAll(true)}
+										data-icon="true"
+										onClick={() => cycleMatch(1)}
+										aria-label={t("trace.next-match")}
+										disabled={matches.length === 0}
 									>
-										{t("trace.collapse-all")}
+										<ChevronRight size={14} />
 									</button>
 								</>
-							}
-						>
-							<div className="stack">
-								<div className="traces-toolbar">
-									<Segmented
-										options={MODE_OPTIONS}
-										value={mode}
-										onChange={setMode}
-										size="sm"
-										aria-label={t("trace.axis-mode")}
-									/>
-									{mode === "time" && (
-										<label className="traces-check">
-											<input
-												type="checkbox"
-												checked={compressIdle}
-												onChange={event => setCompressIdle(event.target.checked)}
-											/>
-											{t("trace.compress-idle")}
-										</label>
-									)}
-									<div className="traces-search">
-										<SearchInput
-											value={search}
-											onChange={value => {
-												setSearch(value);
-												setMatchIndex(0);
-											}}
-											placeholder={t("trace.search-placeholder")}
-											width={200}
-										/>
-										{search.trim() && (
-											<>
-												<span className="num muted traces-match-count">
-													{matches.length === 0
-														? "0"
-														: `${(matchIndex % Math.max(matches.length, 1)) + 1}/${matches.length}`}
-												</span>
-												<button
-													type="button"
-													className="btn"
-													data-variant="ghost"
-													data-size="sm"
-													data-icon="true"
-													onClick={() => cycleMatch(-1)}
-													aria-label={t("trace.previous-match")}
-													disabled={matches.length === 0}
-												>
-													<ChevronLeft size={14} />
-												</button>
-												<button
-													type="button"
-													className="btn"
-													data-variant="ghost"
-													data-size="sm"
-													data-icon="true"
-													onClick={() => cycleMatch(1)}
-													aria-label={t("trace.next-match")}
-													disabled={matches.length === 0}
-												>
-													<ChevronRight size={14} />
-												</button>
-											</>
-										)}
-									</div>
-									<div className="traces-legend">
-										{LEGEND.map(item => (
-											<span key={item.kind} className="traces-legend-item">
-												<span
-													className="swatch"
-													style={{ background: `var(${CATEGORY_VARS[item.kind]})` }}
-												/>
-												{item.label}
-											</span>
-										))}
-									</div>
-								</div>
-								<Minimap
-									tracks={tracks}
-									scale={scale}
-									viewport={effectiveViewport}
-									onViewportChange={setViewport}
-								/>
-								<TimelineCanvas
-									tracks={tracks}
-									scale={scale}
-									viewport={effectiveViewport}
-									onViewportChange={setViewport}
-									selected={selected}
-									onSelect={selectAndOpen}
-									matchIds={matchIds}
-									collapsed={collapsed}
-									onToggleCollapse={toggleCollapse}
-									traceStart={traceStart}
-								/>
-							</div>
-						</Card>
-
-						<Card index={2} title={t("trace.transcript")} description={t("trace.transcript-description")} flush>
-							<TranscriptList
-								tracks={tracks}
-								selection={selection}
-								onSelect={openFromTranscript}
-								search={search}
-								matchIds={matchIds}
-								traceStart={traceStart}
-							/>
-						</Card>
-						<AggregatesPanel toolStats={loaded.summary.toolStats} index={3} />
-					</>
-				)}
-			</QueryView>
+							)}
+						</div>
+						<div className="traces-legend">
+							{LEGEND.map(item => (
+								<span key={item.kind} className="traces-legend-item">
+									<span className="swatch" style={{ background: `var(${CATEGORY_VARS[item.kind]})` }} />
+									{item.label}
+								</span>
+							))}
+						</div>
+					</div>
+					<Minimap tracks={tracks} scale={scale} viewport={effectiveViewport} onViewportChange={setViewport} />
+					<TimelineCanvas
+						tracks={tracks}
+						scale={scale}
+						viewport={effectiveViewport}
+						onViewportChange={setViewport}
+						selected={selected}
+						onSelect={selectAndOpen}
+						matchIds={matchIds}
+						collapsed={collapsed}
+						onToggleCollapse={toggleCollapse}
+						traceStart={traceStart}
+						autoFocus={!embedded}
+					/>
+				</div>
+			</Card>
 
 			<SpanDrawer
 				span={drawerOpen ? (selected?.span ?? null) : null}
 				track={selected?.track ?? null}
 				onClose={closeDrawer}
 				onOpenChildTrack={openChildTrack}
+				loadEntry={loadEntry}
+				inline={embedded}
+				onNavigate={onNavigate}
 			/>
+
+			{view === "full" && (
+				<Card
+					index={2}
+					title={t("trace.transcript")}
+					description={t("trace.transcript-description")}
+					flush
+				>
+					<TranscriptList
+						tracks={tracks}
+						selection={selection}
+						onSelect={openFromTranscript}
+						search={search}
+						matchIds={matchIds}
+						traceStart={traceStart}
+					/>
+				</Card>
+			)}
+			{view === "full" && <AggregatesPanel toolStats={trace.summary.toolStats} index={3} />}
 		</div>
 	);
 }

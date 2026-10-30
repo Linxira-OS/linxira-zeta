@@ -35,7 +35,7 @@ _ADDONS = {
     for target, (platform, out) in _ADDONS.items()
 ]
 
-# Every shipped addon. Linux hosts (the omp-kata pods) build all of them: the
+# Every shipped addon. Linux hosts (the vmon CI runners) build all of them: the
 # zig, msvc and darwin cross toolchains all run there.
 # 2026-10-08 裁定: darwin×2 与全部 arm 交叉目标注释退出(无稳妥构建机,CI 全冷
 # 构建每轮 ~1.5h;npm 发布面仅 linux/win-x64 叶包,无 darwin/arm 消费方)。

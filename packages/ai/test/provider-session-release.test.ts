@@ -1,10 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { ServerWebSocket } from "bun";
-import {
-	getOpenAICodexTransportDetails,
-	streamOpenAICodexResponses,
-} from "@linxiraos/pi-ai/providers/openai-codex-responses";
-import type { Message, Model, ProviderSessionState } from "@linxiraos/pi-ai/types";
+import { streamOpenAICodexResponses } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
+import { getOpenAICodexTransportDetails } from "@oh-my-pi/pi-ai/providers/openai-codex-state";
+import type { Message, Model, ProviderSessionState } from "@oh-my-pi/pi-ai/types";
 import { createCodexModel } from "./helpers";
 
 describe("provider routing session release", () => {

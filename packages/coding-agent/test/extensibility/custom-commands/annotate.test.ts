@@ -2,41 +2,48 @@ import { afterEach, beforeAll, describe, expect, it, spyOn, vi } from "bun:test"
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentMessage } from "@linxiraos/pi-agent-core";
-import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
-import { getKeybindings, setKeybindings, TUI } from "@linxiraos/pi-tui";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
+import { KeybindingsManager } from "@oh-my-pi/pi-tui/app-keybindings";
+import { getKeybindings, setKeybindings, TUI } from "@oh-my-pi/pi-tui";
 import type {
 	ExtensionCustomOptions,
 	ExtensionUIContext,
 	ExtensionUiComponent,
-} from "@linxiraos/zeta/extensibility/extensions/types";
-import type { Theme } from "@linxiraos/pi-tui/theme";
-import { initTheme, theme } from "@linxiraos/pi-tui/theme";
-import { CopySelectorComponent } from "@linxiraos/pi-tui/overlays/copy-selector";
-import type { SessionPick } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/text-source";
-import { AnnotateCommand, runAnnotateCommand } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate";
+} from "@oh-my-pi/pi-coding-agent/extensibility/extensions/types";
+import type { Theme } from "@oh-my-pi/pi-tui/theme";
+import { initTheme, theme } from "@oh-my-pi/pi-tui/theme";
+import { CopySelectorComponent } from "@oh-my-pi/pi-tui/overlays/copy-selector";
+import type { SessionPick } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/text-source";
+import {
+	AnnotateCommand,
+	runAnnotateCommand,
+} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate";
 import {
 	type AnnotationOverlayContext,
 	showCodeReviewOverlay,
 	showTextReviewOverlay,
-} from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/fullscreen";
-import * as externalEditor from "@linxiraos/zeta/utils/external-editor";
-import type { CustomCommandAPI, CustomCommandContext } from "@linxiraos/zeta/extensibility/custom-commands/types";
-import type { ReviewPrRef } from "@linxiraos/zeta/extensibility/custom-commands/bundled/review";
+} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/fullscreen";
+import { loadAnnotationDrafts } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/draft-store";
+import * as externalEditor from "@oh-my-pi/pi-coding-agent/utils/external-editor";
+import type {
+	CustomCommandAPI,
+	CustomCommandContext,
+} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/types";
+import type { ReviewPrRef } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/review";
 import {
 	createResolvedReviewTarget,
 	type ResolvedReviewTarget,
 	type ReviewTargetUI,
-} from "@linxiraos/zeta/extensibility/custom-commands/bundled/review/target";
-import { buildTextReviewPrompt } from "@linxiraos/zeta/extensibility/custom-commands/bundled/annotate/text-review";
-import type { SessionMessageEntry } from "@linxiraos/zeta/session/session-entries";
+} from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/review/target";
+import { buildTextReviewPrompt } from "@oh-my-pi/pi-coding-agent/extensibility/custom-commands/bundled/annotate/text-review";
+import type { SessionMessageEntry } from "@oh-my-pi/pi-coding-agent/session/session-entries";
 import type {
 	CodeReviewAnnotation,
 	TextReviewAnnotation,
 	TextReviewSource,
-} from "@linxiraos/pi-tui/overlays/annotation-types";
-import * as gh from "@linxiraos/zeta/tools/gh";
-import { github } from "@linxiraos/zeta/utils/github";
+} from "@oh-my-pi/pi-tui/overlays/annotation-types";
+import * as gh from "@oh-my-pi/pi-coding-agent/tools/gh";
+import { github } from "@oh-my-pi/pi-coding-agent/utils/github";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 
 const ENTER = "\r";
@@ -112,6 +119,7 @@ function createContext(options: ContextOptions = {}) {
 			getBranch: () => branch,
 			getCwd: () => options.cwd ?? "/workspace",
 			getSessionId: () => "session-1",
+			getArtifactsDir: () => null,
 		},
 		ui: { select, input, editor, custom, pasteToEditor, notify, setStatus },
 	} as unknown as CustomCommandContext;
@@ -186,13 +194,19 @@ async function driveEditorOverlay<T>(
 	cwd: string,
 	keys: readonly string[],
 	show: (ctx: CustomCommandContext) => Promise<T | undefined>,
+	artifactsDir: string | null = null,
 ): Promise<T | undefined> {
 	const previous = getKeybindings();
 	setKeybindings(KeybindingsManager.inMemory({ "app.editor.external": "ctrl+e" }));
 	const tui = { terminal: { rows: 40 }, requestRender() {}, stop() {}, start() {} } as unknown as TUI;
 	const ctx = {
 		cwd,
-		sessionManager: { getCwd: () => cwd },
+		sessionManager: {
+			getCwd: () => cwd,
+			getSessionId: () => "session-1",
+			getArtifactsDir: () => artifactsDir,
+			ensureOnDisk: async () => {},
+		},
 		ui: {
 			notify: vi.fn(),
 			custom: async (factory: Parameters<ExtensionUIContext["custom"]>[0]) => {
@@ -239,6 +253,32 @@ afterEach(() => {
 });
 
 describe("/annotate contracts", () => {
+	it("saves notes from an overlay closed with Escape, restores them on reopen, and drops them on discard", async () => {
+		await withTempDir(async artifactsDir => {
+			const source = { id: "p", kind: "prompt", label: "Prompt", text: "alpha\nbeta" } as const;
+			const session = {
+				getArtifactsDir: () => artifactsDir,
+				getSessionId: () => "session-1",
+				ensureOnDisk: async () => {},
+			};
+			const show = (ctx: CustomCommandContext) => showTextReviewOverlay(ctx, source);
+			await driveEditorOverlay("/w", ["A", "kept", ENTER, "a", "half", "\x1b"], show, artifactsDir);
+			const [saved] = await loadAnnotationDrafts(session);
+			expect(saved?.state).toMatchObject({
+				annotations: [{ annotation: { note: "kept" } }],
+				editor: { text: "half" },
+			});
+
+			// Reopened, the unfinished note is back in the editor; Enter commits it, then paste keeps the draft.
+			const result = await driveEditorOverlay("/w", [ENTER, "\t", ENTER], show, artifactsDir);
+			expect(result?.annotations.map(annotation => annotation.note)).toEqual(["kept", "half"]);
+
+			// Discard needs a second Enter; the draft is gone once it closes.
+			await driveEditorOverlay("/w", ["\t", "\x1b[B", ENTER, ENTER], show, artifactsDir);
+			expect(await loadAnnotationDrafts(session)).toEqual([]);
+		});
+	});
+
 	it("resolves the selected local target in the live session cwd and pastes code notes without submitting", async () => {
 		const { ctx, select, pasteToEditor } = createContext({
 			selectResults: ["Code review", "2. Review uncommitted changes"],
@@ -272,7 +312,7 @@ describe("/annotate contracts", () => {
 		expect(select).toHaveBeenCalledTimes(2);
 		expect(resolveLocalReviewTarget).toHaveBeenCalledTimes(1);
 		expect(showCodeReviewOverlay).toHaveBeenCalledTimes(1);
-		expect(showCodeReviewOverlay).toHaveBeenCalledWith(ctx, target);
+		expect(showCodeReviewOverlay).toHaveBeenCalledWith(ctx, target, undefined, undefined);
 		expect(pasteToEditor).toHaveBeenCalledTimes(1);
 		expect(pasteToEditor.mock.calls[0]?.[0]).toContain(annotation.note);
 	});
@@ -299,7 +339,7 @@ describe("/annotate contracts", () => {
 		expect(resolvePrReviewTarget).toHaveBeenCalledTimes(1);
 		expect(resolvePrReviewTarget.mock.calls[0]?.[0]).toBe("/live-worktree");
 		expect(resolvePrReviewTarget.mock.calls[0]?.[2]).toMatchObject({ repo: "acme/project", number: 42 });
-		expect(showCodeReviewOverlay).toHaveBeenCalledWith(ctx, target);
+		expect(showCodeReviewOverlay).toHaveBeenCalledWith(ctx, target, undefined, undefined);
 		expect(pasteToEditor.mock.calls[0]?.[0]).toContain("picked PR note");
 	});
 
@@ -342,7 +382,7 @@ describe("/annotate contracts", () => {
 		expect(prompt).toBeDefined();
 		expect(resolvePrReviewTarget).toHaveBeenCalledTimes(1);
 		expect(showCodeReviewOverlay).toHaveBeenCalledTimes(1);
-		expect(showCodeReviewOverlay).toHaveBeenCalledWith(ctx, target);
+		expect(showCodeReviewOverlay).toHaveBeenCalledWith(ctx, target, "focus on this line", undefined);
 		expect(prompt).toContain(contextInstruction);
 		expect(prompt).not.toContain("MAY read full file context as needed via `read`");
 		expect(countOccurrences(prompt!, "focus on this line")).toBe(1);

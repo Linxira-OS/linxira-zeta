@@ -2,18 +2,17 @@ import { afterEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { generateThemeVars } from "@linxiraos/zeta/export/html";
-import { defaultThemes } from "@linxiraos/pi-tui/theme/defaults";
-import { createTheme, getBuiltinThemes } from "@linxiraos/pi-tui/theme/loader";
+import { generateThemeVars } from "@oh-my-pi/pi-coding-agent/export/html";
+import { createTheme, getBuiltinThemes } from "@oh-my-pi/pi-tui/theme/loader";
 import {
 	getEditorTheme,
 	getResolvedThemeColors,
 	getThemeByName,
 	isLightTheme,
 	setThemeInstance,
-} from "@linxiraos/pi-tui/theme";
-import { Editor } from "@linxiraos/pi-tui";
-import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-tui/theme";
+import { Editor } from "@oh-my-pi/pi-tui";
+import { getAgentDir, getCustomThemesDir, removeWithRetries, setAgentDir } from "@oh-my-pi/pi-utils";
 
 function createBaseThemes() {
 	const builtins = getBuiltinThemes();
@@ -57,7 +56,7 @@ describe("empty foreground contrast", () => {
 
 	it("chooses empty-token contrast from the controlled background", () => {
 		const { light } = createBaseThemes();
-		const porcelain = createTheme(defaultThemes.porcelain, { mode: "truecolor" });
+		const porcelain = createTheme(getBuiltinThemes().porcelain, { mode: "truecolor" });
 
 		expect(light.getFgOnBgAnsi("userMessageText", "userMessageBg")).toBe("\x1b[38;2;0;0;0m");
 		expect(porcelain.getFgOnBgAnsi("userMessageText", "userMessageBg")).toBe("\x1b[38;2;229;229;231m");
@@ -119,7 +118,7 @@ describe("empty foreground contrast", () => {
 	it("keeps filled composer text contrasted against its painted surface", () => {
 		const { dark } = createBaseThemes();
 		try {
-			setThemeInstance(createTheme(defaultThemes.porcelain, { mode: "truecolor" }));
+			setThemeInstance(createTheme(getBuiltinThemes().porcelain, { mode: "truecolor" }));
 			const editor = new Editor(getEditorTheme());
 			editor.setBorderStyle("field");
 			editor.setText("typed");
@@ -188,9 +187,9 @@ describe("getResolvedThemeColors HTML export defaults", () => {
 		if (tempAgentDir === undefined) return;
 		setAgentDir(originalAgentDir);
 		if (originalAgentDirEnv === undefined) {
-			delete process.env.ZETA_CODING_AGENT_DIR;
+			delete process.env.PI_CODING_AGENT_DIR;
 		} else {
-			process.env.ZETA_CODING_AGENT_DIR = originalAgentDirEnv;
+			process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
 		}
 		await removeWithRetries(tempAgentDir);
 		tempAgentDir = undefined;
@@ -198,11 +197,11 @@ describe("getResolvedThemeColors HTML export defaults", () => {
 
 	it("uses light text when a light-status custom theme derives dark export surfaces from userMessageBg", async () => {
 		originalAgentDir = getAgentDir();
-		originalAgentDirEnv = process.env.ZETA_CODING_AGENT_DIR;
-		tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-theme-export-"));
+		originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+		tempAgentDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-theme-export-"));
 		setAgentDir(tempAgentDir);
 
-		const { export: _ignoredExport, ...themeWithoutExport } = defaultThemes.porcelain;
+		const { export: _ignoredExport, ...themeWithoutExport } = getBuiltinThemes().porcelain;
 		const customThemeName = "light-status-dark-export-derived";
 		await Bun.write(
 			path.join(getCustomThemesDir(), `${customThemeName}.json`),

@@ -1,5 +1,6 @@
-import { buildModel } from "@linxiraos/pi-catalog/build";
-import { calculateUsageCost } from "@linxiraos/pi-catalog/models";
+import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { calculateUsageCost } from "@oh-my-pi/pi-catalog/models";
+import { USER_AGENT } from "@oh-my-pi/pi-utils";
 import { describe, expect, it, spyOn } from "bun:test";
 import {
 	type ApiKeyResolveContext,
@@ -16,9 +17,9 @@ import {
 	renderJudgmentState,
 	type TextBackend,
 	TextJudge,
-} from "@linxiraos/pi-ai";
-import type { ImageContent } from "@linxiraos/pi-ai/types";
-import { ConfigurationError, ValidationError } from "@linxiraos/pi-ai/error";
+} from "@oh-my-pi/pi-ai";
+import type { ImageContent } from "@oh-my-pi/pi-ai/types";
+import { ConfigurationError, ValidationError } from "@oh-my-pi/pi-ai/error";
 import { withEnv } from "./helpers";
 
 const LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
@@ -341,6 +342,26 @@ describe("NativeJudge", () => {
 		expect(result.model).toBe("jev-latest");
 		expect(result.usage.input).toBe(5);
 		expect(result.usage.totalTokens).toBe(6);
+	});
+
+	it("sends the default User-Agent unless configured headers override it", async () => {
+		for (const headers of [undefined, { "User-Agent": "custom-judge-client/1.0" }]) {
+			const calls: { init: RequestInit | undefined }[] = [];
+			const judge = new NativeJudge({
+				apiKey: "ts-key",
+				baseUrl: "https://ts.example/",
+				headers,
+				fetch: async (_url, init) => {
+					calls.push({ init });
+					return answered();
+				},
+			});
+
+			await judge.judge(request);
+
+			expect(calls).toHaveLength(1);
+			expect(new Headers(calls[0].init?.headers).get("User-Agent")).toBe(headers?.["User-Agent"] ?? USER_AGENT);
+		}
 	});
 
 	it("requires explicit image opt-in for an unknown direct System One model", async () => {

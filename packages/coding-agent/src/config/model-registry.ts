@@ -19,7 +19,7 @@ import type {
 	ThinkingConfig,
 } from "@linxiraos/pi-ai/types";
 import type { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { buildDiscoveredModel, buildModel } from "@linxiraos/pi-catalog/build";
+import { buildDiscoveredModel, buildModel, nextBuildPriceChange } from "@linxiraos/pi-catalog/build";
 import { collapseBuiltVariants } from "@linxiraos/pi-catalog/compat/collapse";
 import {
 	clampCodexContextWindow,
@@ -27,7 +27,7 @@ import {
 	resolveMaxContextWindow,
 } from "@linxiraos/pi-catalog/compat/context-window";
 import { applyCatalogMetrics, CatalogMetricsIndex } from "@linxiraos/pi-catalog/identity/metrics";
-import { getModelCacheWriteStats, readModelCache } from "@linxiraos/pi-catalog/model-cache";
+import { getModelCacheWriteStats, readModelCache, retainModelCacheConnection } from "@linxiraos/pi-catalog/model-cache";
 import {
 	createModelManager,
 	fingerprintStaticModels,
@@ -354,6 +354,25 @@ export class ModelRegistry {
 	#implicitProviderEndpointEnv: Map<string, string> = new Map();
 	#customModelOverlays: CustomModelOverlay[] = [];
 	#providerOverrides: Map<string, ProviderOverride> = new Map();
+	/**
+	 * Last `mergeDiscoveredModel` result per discovered row. Every refresh
+	 * re-resolves each built-in provider, and offline (or unchanged online)
+	 * passes hand back the same bundled/cached row objects against the same
+	 * references, so re-running the full model build for thousands of rows is
+	 * pure repetition. A changed reference or provider override misses, and so
+	 * does reaching the next dated price card the build would select. Held per
+	 * registry (not tagged onto the rows): bundled rows outlive every registry,
+	 * so their merges must be collected with the registry.
+	 */
+	#discoveredMergeMemo = new WeakMap<
+		Model<Api>,
+		{
+			reference: Model<Api> | undefined;
+			override: ProviderOverride | undefined;
+			merged: Model<Api>;
+			validUntil: number;
+		}
+	>();
 	#modelOverrides: Map<string, Map<string, ModelOverride>> = new Map();
 	// `provider/id:kind` of modelOverrides kinds already reported as unserved, so
 	// every rebuild does not log the same ignored override again.
@@ -1549,6 +1568,7 @@ export class ModelRegistry {
 	} {
 		const modelsByProvider = new Map<string, Model<Api>[]>();
 		const authoritativeFreshProviders = new Set<string>();
+		using _cacheConnection = retainModelCacheConnection(this.#cacheDbPath);
 		for (const providerId of providerIds) {
 			const cacheProviderId = this.#resolveStartupModelCacheProviderId(providerId);
 			const cache = readModelCache<Api>(cacheProviderId, 24 * 60 * 60 * 1000, Date.now, this.#cacheDbPath);
@@ -1718,6 +1738,7 @@ export class ModelRegistry {
 
 	#loadCachedDiscoverableModels(): Model<Api>[] {
 		const cachedModels: Model<Api>[] = [];
+		using _cacheConnection = retainModelCacheConnection(this.#cacheDbPath);
 		for (const providerConfig of this.#discoverableProviders) {
 			const cacheProviderId = this.#configuredDiscoveryCacheProviderId(providerConfig);
 			const cache = readModelCache<Api>(cacheProviderId, 24 * 60 * 60 * 1000, Date.now, this.#cacheDbPath);
@@ -2111,6 +2132,9 @@ export class ModelRegistry {
 		strategy: ModelRefreshStrategy,
 		providerFilter?: ReadonlySet<string>,
 	): Promise<void> {
+		// One cache connection for the whole pass: every provider manager reads
+		// (and may write) its row, which would otherwise reopen the database each time.
+		using _cacheConnection = retainModelCacheConnection(this.#cacheDbPath);
 		const disabledProviders = getDisabledProviderIdsFromSettings(this.#settings);
 		const selectedDiscoverableProviders = (
 			providerFilter
@@ -2155,7 +2179,7 @@ export class ModelRegistry {
 		const referenceModels = this.#composeDiscoveryReferenceModels(touchedProviders);
 		const discoveredModels = this.#applyHardcodedModelPolicies(
 			discovered.map(model =>
-				mergeDiscoveredModel(
+				this.#mergeDiscoveredModelMemoized(
 					model,
 					resolveProviderModelReference(model.provider, model.id, referenceModels),
 					this.#providerOverrides.get(model.provider),
@@ -2206,6 +2230,23 @@ export class ModelRegistry {
 		this.#baseModels = this.#mergeResolvedModels(baseModels, discoveredModels);
 		this.#unprojectedModels = this.#projectBaseModels(this.#baseModels);
 		this.#models = this.#finalizeModels(this.#applyRuntimeModelModifiers(this.#unprojectedModels));
+	}
+
+	#mergeDiscoveredModelMemoized(
+		model: Model<Api>,
+		reference: Model<Api> | undefined,
+		override: ProviderOverride | undefined,
+	): Model<Api> {
+		const now = Date.now();
+		const memo = this.#discoveredMergeMemo.get(model);
+		if (memo && memo.reference === reference && memo.override === override && now < memo.validUntil) {
+			return memo.merged;
+		}
+		const merged = mergeDiscoveredModel(model, reference, override);
+		// Measured before the build: a card falling due mid-build expires the memo at once.
+		const validUntil = nextBuildPriceChange(model.cost, now);
+		this.#discoveredMergeMemo.set(model, { reference, override, merged, validUntil });
+		return merged;
 	}
 
 	/**
@@ -2275,11 +2316,12 @@ export class ModelRegistry {
 			return `${providerConfig.provider}:proxy-v2-${this.advertisedReasoningCacheSuffix(providerConfig)}`;
 		}
 		if (providerConfig.discovery.type === "litellm") {
-			// rich-v6 invalidates rows written before `mode: decisions` groups moved
-			// to the Decisions runner; rich-v5 before discovery filtered known
-			// non-conversational modes. Keep this in lockstep with the catalog
-			// package's `litellm:rich-vN` namespace whenever mapping behavior changes.
-			return `${providerConfig.provider}:litellm-rich-v6`;
+			// rich-v7 invalidates incomplete /v2/model/info rosters cached before
+			// pagination. rich-v6 moved decisions-mode groups to the Decisions
+			// runner; rich-v5 filtered known non-conversational modes. Bump this
+			// namespace alongside the catalog package's `litellm:rich-vN` when
+			// discovery behavior changes.
+			return `${providerConfig.provider}:litellm-rich-v7`;
 		}
 		return providerConfig.provider;
 	}
@@ -3332,6 +3374,15 @@ export class ModelRegistry {
 				provider => requested.has(provider.toLowerCase()) && isProviderAvailable(provider),
 			),
 		);
+		// Reuse the same provider snapshot as find()/getProviderModels(). The
+		// availability gate above stays live, while catalog invalidation remains
+		// owned by refresh, discovery and runtime provider registration. Whole-
+		// catalog modifiers can inspect live credentials, so keep reprojecting
+		// those rather than extending the lifetime of their output.
+		if (availableProviders.size === 1 && this.#runtimeModelModifiers.size === 0) {
+			const models = this.#modelsForProviderLookup(availableProviders.values().next().value!);
+			return kind === "all" ? models.slice() : models.filter(model => modelKind(model) === kind);
+		}
 		const models = this.#composeStaticModels(availableProviders);
 		return kind === "all" ? models : models.filter(model => modelKind(model) === kind);
 	}

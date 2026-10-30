@@ -1,6 +1,6 @@
 ---
 name: authoring-hooks
-description: Use when creating a new zetacode hook. Covers HookAPI, event catalog, blocking/overriding tool calls, and context modification.
+description: Use when creating a new omp hook. Covers HookAPI, event catalog, blocking/overriding tool calls, and context modification.
 ---
 
 # Authoring Hooks
@@ -12,12 +12,12 @@ Hooks are event-driven interceptors that run alongside the agent loop. They are 
 ## Factory signature
 
 ```ts
-import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
+import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
 
-export default function myHook(zeta: HookAPI): void {
-  zeta.on("tool_call", async (event, ctx) => {
-    // intercept every tool call
-  });
+export default function myHook(omp: HookAPI): void {
+	omp.on("tool_call", async (event, ctx) => {
+		// intercept every tool call
+	});
 }
 ```
 
@@ -26,10 +26,12 @@ The default export must be a function (not a class). It receives a `HookAPI` ins
 Alternatively, using `ExtensionAPI` (preferred):
 
 ```ts
-import type { ExtensionAPI } from "@linxiraos/zeta";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 export default function myExtension(pi: ExtensionAPI): void {
-  pi.on("tool_call", async (event, ctx) => { /* ... */ });
+	pi.on("tool_call", async (event, ctx) => {
+		/* ... */
+	});
 }
 ```
 
@@ -37,43 +39,43 @@ export default function myExtension(pi: ExtensionAPI): void {
 
 ### Tool lifecycle
 
-| Event | Fires | Can return |
-|---|---|---|
-| `tool_call` | Before every tool execution | `{ block?: boolean; reason?: string; input?: Record<string, unknown>; additionalContext?: string }` |
-| `tool_result` | After every tool execution | `{ content?; details?; isError?: boolean; additionalContext?: string }` |
+| Event         | Fires                       | Can return                                                                                          |
+| ------------- | --------------------------- | --------------------------------------------------------------------------------------------------- |
+| `tool_call`   | Before every tool execution | `{ block?: boolean; reason?: string; input?: Record<string, unknown>; additionalContext?: string }` |
+| `tool_result` | After every tool execution  | `{ content?; details?; isError?: boolean; additionalContext?: string }`                             |
 
 ### Session lifecycle
 
-| Event | Fires | Can return |
-|---|---|---|
-| `session_start` | On initial session load | — |
-| `session_before_switch` | Before session switch | `{ cancel?: boolean }` |
-| `session_switch` | After session switch | — |
-| `session_before_branch` | Before session branch | `{ cancel?: boolean; skipConversationRestore?: boolean }` |
-| `session_branch` | After session branch | — |
-| `session_before_compact` | Before compaction | `{ cancel?: boolean; compaction?: CompactionResult }` |
-| `session.compacting` | During compaction (inject context) | `{ context?: string[]; prompt?: string; preserveData?: Record<string, unknown> }` |
-| `session_compact` | After compaction | — |
-| `session_before_tree` | Before tree navigation | `{ cancel?: boolean; summary?: { summary: string; details?: unknown } }` |
-| `session_tree` | After tree navigation | — |
-| `session_shutdown` | On session shutdown | — |
+| Event                    | Fires                              | Can return                                                                        |
+| ------------------------ | ---------------------------------- | --------------------------------------------------------------------------------- |
+| `session_start`          | On initial session load            | —                                                                                 |
+| `session_before_switch`  | Before session switch              | `{ cancel?: boolean }`                                                            |
+| `session_switch`         | After session switch               | —                                                                                 |
+| `session_before_branch`  | Before session branch              | `{ cancel?: boolean; skipConversationRestore?: boolean }`                         |
+| `session_branch`         | After session branch               | —                                                                                 |
+| `session_before_compact` | Before compaction                  | `{ cancel?: boolean; compaction?: CompactionResult }`                             |
+| `session.compacting`     | During compaction (inject context) | `{ context?: string[]; prompt?: string; preserveData?: Record<string, unknown> }` |
+| `session_compact`        | After compaction                   | —                                                                                 |
+| `session_before_tree`    | Before tree navigation             | `{ cancel?: boolean; summary?: { summary: string; details?: unknown } }`          |
+| `session_tree`           | After tree navigation              | —                                                                                 |
+| `session_shutdown`       | On session shutdown                | —                                                                                 |
 
 ### Agent/turn lifecycle
 
-| Event | Fires | Can return |
-|---|---|---|
-| `before_agent_start` | Before agent starts a turn | `{ message?: { customType; content; display; details; attribution? } }` |
-| `agent_start` | Agent loop starts | — |
-| `agent_end` | Agent loop ends (`willContinue` signals the loop is not settled; `awaitingAsyncWork` marks a wait on background jobs rather than an already-scheduled automatic continuation) | — |
-| `turn_start` | Start of an assistant-response/tool-result iteration within the loop | — |
-| `turn_end` | End of that iteration; carries the message and tool results | — |
-| `context` | Before each LLM API call | `{ messages?: Message[] }` |
-| `auto_compaction_start` | Auto-compaction begins | — |
-| `auto_compaction_end` | Auto-compaction ends | — |
-| `auto_retry_start` | Auto-retry begins | — |
-| `auto_retry_end` | Auto-retry ends | — |
-| `ttsr_triggered` | TTSR (too-short response) triggered | — |
-| `todo_reminder` | Todo reminder fires | — |
+| Event                   | Fires                                                                                                                                                                         | Can return                                                              |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `before_agent_start`    | Before agent starts a turn                                                                                                                                                    | `{ message?: { customType; content; display; details; attribution? } }` |
+| `agent_start`           | Agent loop starts                                                                                                                                                             | —                                                                       |
+| `agent_end`             | Agent loop ends (`willContinue` signals the loop is not settled; `awaitingAsyncWork` marks a wait on background jobs rather than an already-scheduled automatic continuation) | —                                                                       |
+| `turn_start`            | Start of an assistant-response/tool-result iteration within the loop                                                                                                          | —                                                                       |
+| `turn_end`              | End of that iteration; carries the message and tool results                                                                                                                   | —                                                                       |
+| `context`               | Before each LLM API call                                                                                                                                                      | `{ messages?: Message[] }`                                              |
+| `auto_compaction_start` | Auto-compaction begins                                                                                                                                                        | —                                                                       |
+| `auto_compaction_end`   | Auto-compaction ends                                                                                                                                                          | —                                                                       |
+| `auto_retry_start`      | Auto-retry begins                                                                                                                                                             | —                                                                       |
+| `auto_retry_end`        | Auto-retry ends                                                                                                                                                               | —                                                                       |
+| `ttsr_triggered`        | TTSR (too-short response) triggered                                                                                                                                           | —                                                                       |
+| `todo_reminder`         | Todo reminder fires                                                                                                                                                           | —                                                                       |
 
 Extension-only events such as `tool_execution_start`, `tool_execution_update`, `tool_execution_end`, `input`, `user_bash`, and `user_python` require `ExtensionAPI`.
 
@@ -82,13 +84,13 @@ Extension-only events such as `tool_execution_start`, `tool_execution_update`, `
 Return `{ block: true, reason: "..." }` from a `tool_call` handler to prevent execution:
 
 ```ts
-zeta.on("tool_call", async (event, ctx) => {
-  if (event.toolName === "bash") {
-    const cmd = String(event.input.command ?? "");
-    if (/\brm\s+-rf\s+\//.test(cmd)) {
-      return { block: true, reason: "Refusing rm -rf with an absolute-path target" };
-    }
-  }
+omp.on("tool_call", async (event, ctx) => {
+	if (event.toolName === "bash") {
+		const cmd = String(event.input.command ?? "");
+		if (/\brm\s+-rf\s+\//.test(cmd)) {
+			return { block: true, reason: "Refusing rm -rf with an absolute-path target" };
+		}
+	}
 });
 ```
 
@@ -106,20 +108,20 @@ Contract:
 Return `{ content, details, isError, additionalContext }` from a `tool_result` handler to patch what the LLM sees and/or attach trusted guidance outside the tool output:
 
 ```ts
-zeta.on("tool_result", async (event, ctx) => {
-  if (event.toolName === "read" && !event.isError) {
-    const redacted = event.content.map(chunk => {
-      if (chunk.type !== "text") return chunk;
-      return {
-        ...chunk,
-        text: chunk.text.replace(/(?:sk|pk)-[a-zA-Z0-9]{20,}/g, "[REDACTED_API_KEY]"),
-      };
-    });
-    return {
-      content: redacted,
-      additionalContext: "Use the redacted result for subsequent reasoning.",
-    };
-  }
+omp.on("tool_result", async (event, ctx) => {
+	if (event.toolName === "read" && !event.isError) {
+		const redacted = event.content.map(chunk => {
+			if (chunk.type !== "text") return chunk;
+			return {
+				...chunk,
+				text: chunk.text.replace(/(?:sk|pk)-[a-zA-Z0-9]{20,}/g, "[REDACTED_API_KEY]"),
+			};
+		});
+		return {
+			content: redacted,
+			additionalContext: "Use the redacted result for subsequent reasoning.",
+		};
+	}
 });
 ```
 
@@ -138,11 +140,9 @@ Return `{ messages: [...] }` from a `context` handler to rewrite the message lis
 
 ```ts
 pi.on("context", async (event, ctx) => {
-  // Remove debug-only custom messages from LLM context
-  const filtered = event.messages.filter(
-    msg => !(msg.role === "custom" && msg.customType === "debug-only")
-  );
-  return { messages: filtered };
+	// Remove debug-only custom messages from LLM context
+	const filtered = event.messages.filter(msg => !(msg.role === "custom" && msg.customType === "debug-only"));
+	return { messages: filtered };
 });
 ```
 
@@ -159,90 +159,93 @@ Contract:
 This narrow regex matches `rm -rf` followed by any absolute path, including `/tmp/example`. It is not a shell parser or a complete safety policy.
 
 ```ts
-import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
+import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
 
-export default function rmRfBlocker(zeta: HookAPI): void {
-  zeta.on("tool_call", async (event, ctx) => {
-    if (event.toolName !== "bash") return;
+export default function rmRfBlocker(omp: HookAPI): void {
+	omp.on("tool_call", async (event, ctx) => {
+		if (event.toolName !== "bash") return;
 
-    const cmd = String(event.input.command ?? "");
-    if (!/\brm\s+-rf\s+\//.test(cmd)) return;
+		const cmd = String(event.input.command ?? "");
+		if (!/\brm\s+-rf\s+\//.test(cmd)) return;
 
-    // Allow if user explicitly confirms (interactive mode only)
-    if (ctx.hasUI) {
-      const allow = await ctx.ui.confirm(
-        "Dangerous command",
-        `This command recursively deletes an absolute-path target:\n${cmd}\n\nProceed?`
-      );
-      if (allow) return;
-    }
+		// Allow if user explicitly confirms (interactive mode only)
+		if (ctx.hasUI) {
+			const allow = await ctx.ui.confirm(
+				"Dangerous command",
+				`This command recursively deletes an absolute-path target:\n${cmd}\n\nProceed?`,
+			);
+			if (allow) return;
+		}
 
-    return { block: true, reason: "rm -rf with an absolute-path target blocked by safety policy" };
-  });
+		return { block: true, reason: "rm -rf with an absolute-path target blocked by safety policy" };
+	});
 }
 ```
 
 ### 2. API-key redactor
 
 ```ts
-import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
+import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
 
 // Common API-key shapes. Not exhaustive — providers using bespoke formats
 // (Anthropic `sk-ant-…`, JWT-style bearers, gateway-specific prefixes, etc.)
 // need their own entries.
 const SECRET_PATTERNS = [
-  /\b(sk|pk)-[a-zA-Z0-9]{20,}\b/g,
-  /\bAKIA[A-Z0-9]{16}\b/g,
-  /\bghp_[a-zA-Z0-9]{36}\b/g,
-  // Zhipu / GLM Coding Plan: `<id>.<secret>` (no `sk-` prefix).
-  /\b[a-zA-Z0-9]{16,}\.[a-zA-Z0-9]{16,}\b/g,
-  /\b[a-zA-Z0-9_-]{20,}\s*=\s*["']?[a-zA-Z0-9._/+=-]{20,}["']?/g,
+	/\b(sk|pk)-[a-zA-Z0-9]{20,}\b/g,
+	/\bAKIA[A-Z0-9]{16}\b/g,
+	/\bghp_[a-zA-Z0-9]{36}\b/g,
+	// Zhipu / GLM Coding Plan: `<id>.<secret>` (no `sk-` prefix).
+	/\b[a-zA-Z0-9]{16,}\.[a-zA-Z0-9]{16,}\b/g,
+	/\b[a-zA-Z0-9_-]{20,}\s*=\s*["']?[a-zA-Z0-9._/+=-]{20,}["']?/g,
 ];
 
-export default function apiKeyRedactor(zeta: HookAPI): void {
-  zeta.on("tool_result", async (event) => {
-    if (event.isError) return;
+export default function apiKeyRedactor(omp: HookAPI): void {
+	omp.on("tool_result", async event => {
+		if (event.isError) return;
 
-    let changed = false;
-    const redacted = event.content.map(chunk => {
-      if (chunk.type !== "text") return chunk;
-      let text = chunk.text;
-      for (const pattern of SECRET_PATTERNS) {
-        const next = text.replace(pattern, "[REDACTED]");
-        if (next !== text) { changed = true; text = next; }
-      }
-      return { ...chunk, text };
-    });
+		let changed = false;
+		const redacted = event.content.map(chunk => {
+			if (chunk.type !== "text") return chunk;
+			let text = chunk.text;
+			for (const pattern of SECRET_PATTERNS) {
+				const next = text.replace(pattern, "[REDACTED]");
+				if (next !== text) {
+					changed = true;
+					text = next;
+				}
+			}
+			return { ...chunk, text };
+		});
 
-    if (changed) return { content: redacted };
-  });
+		if (changed) return { content: redacted };
+	});
 }
 ```
 
 ### 3. Context filter
 
 ```ts
-import type { HookAPI } from "@linxiraos/zeta/extensibility/hooks";
+import type { HookAPI } from "@oh-my-pi/pi-coding-agent/extensibility/hooks";
 
-export default function contextFilter(zeta: HookAPI): void {
-  zeta.on("context", async (event) => {
-    const MAX_TOOL_OUTPUT_CHARS = 8_000;
+export default function contextFilter(omp: HookAPI): void {
+	omp.on("context", async event => {
+		const MAX_TOOL_OUTPUT_CHARS = 8_000;
 
-    const trimmed = event.messages.map(msg => {
-      // Truncate very large tool results to keep context manageable
-      if (msg.role !== "toolResult") return msg;
-      const content = msg.content.map(chunk => {
-        if (chunk.type !== "text" || chunk.text.length <= MAX_TOOL_OUTPUT_CHARS) return chunk;
-        return {
-          ...chunk,
-          text: chunk.text.slice(0, MAX_TOOL_OUTPUT_CHARS) + "\n[... truncated by context-filter hook]",
-        };
-      });
-      return { ...msg, content };
-    });
+		const trimmed = event.messages.map(msg => {
+			// Truncate very large tool results to keep context manageable
+			if (msg.role !== "toolResult") return msg;
+			const content = msg.content.map(chunk => {
+				if (chunk.type !== "text" || chunk.text.length <= MAX_TOOL_OUTPUT_CHARS) return chunk;
+				return {
+					...chunk,
+					text: chunk.text.slice(0, MAX_TOOL_OUTPUT_CHARS) + "\n[... truncated by context-filter hook]",
+				};
+			});
+			return { ...msg, content };
+		});
 
-    return { messages: trimmed };
-  });
+		return { messages: trimmed };
+	});
 }
 ```
 
@@ -250,18 +253,18 @@ export default function contextFilter(zeta: HookAPI): void {
 
 `ctx.ui` is a `HookUIContext`. Available methods:
 
-| Method | Description |
-|---|---|
-| `notify(message, type?)` | Show an in-app notification |
-| `setStatus(key, text)` | Set footer status text (keyed, sorted by key) |
-| `select(title, options)` | Show a selection dialog |
-| `confirm(title, message)` | Show a yes/no dialog |
-| `input(title, placeholder?)` | Show a text input dialog |
-| `editor(title, prefill?, { signal }?, { promptStyle }?)` | Show a multi-line editor |
-| `setEditorText(text)` | Set the input editor content |
-| `getEditorText()` | Get current input editor content |
-| `custom(factory)` | Render a custom TUI component |
-| `theme` | Current theme object |
+| Method                                                   | Description                                   |
+| -------------------------------------------------------- | --------------------------------------------- |
+| `notify(message, type?)`                                 | Show an in-app notification                   |
+| `setStatus(key, text)`                                   | Set footer status text (keyed, sorted by key) |
+| `select(title, options)`                                 | Show a selection dialog                       |
+| `confirm(title, message)`                                | Show a yes/no dialog                          |
+| `input(title, placeholder?)`                             | Show a text input dialog                      |
+| `editor(title, prefill?, { signal }?, { promptStyle }?)` | Show a multi-line editor                      |
+| `setEditorText(text)`                                    | Set the input editor content                  |
+| `getEditorText()`                                        | Get current input editor content              |
+| `custom(factory)`                                        | Render a custom TUI component                 |
+| `theme`                                                  | Current theme object                          |
 
 Pass `{ promptStyle: true }` as the fourth argument when Enter should submit and Shift+Enter should insert a newline. The default hook editor behavior keeps Enter as newline and submits on the `app.message.followUp` chord (`Ctrl+Q` or `Ctrl+Enter`).
 

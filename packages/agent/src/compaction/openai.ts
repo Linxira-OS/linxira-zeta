@@ -19,7 +19,6 @@ import { attach, create, Flag, ProviderHttpError } from "@linxiraos/pi-ai/error"
 import { getCodexAttestationHeader } from "@linxiraos/pi-ai/providers/openai-codex-attestation";
 import { createOpenAICodexCompactionRequestContext } from "@linxiraos/pi-ai/providers/openai-codex-compaction";
 import { applyCodexResponsesLiteShape } from "@linxiraos/pi-ai/providers/openai-codex/request-transformer";
-import { createOpenAICodexCompatibilityMetadata } from "@linxiraos/pi-ai/providers/openai-codex-responses";
 import {
 	applyInferenceHeaders,
 	applySessionHeader,
@@ -950,6 +949,9 @@ export async function requestOpenAiRemoteCompaction(
 
 	// Codex endpoints require additional auth headers
 	if (isCodexResponses) {
+		// Keep transport loading on the actual Codex request path, not compaction policy inspection.
+		const { createOpenAICodexCompatibilityMetadata } =
+			await import("@linxiraos/pi-ai/providers/openai-codex-responses");
 		const accountId = getCodexAccountId(apiKey);
 		if (accountId) {
 			headers[OPENAI_HEADERS.ACCOUNT_ID] = accountId;

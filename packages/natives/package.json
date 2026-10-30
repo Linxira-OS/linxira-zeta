@@ -54,7 +54,7 @@
     "wrap-ansi": "10.0.0"
   },
   "engines": {
-    "bun": ">=1.3.14"
+    "bun": ">=1.4.4"
   },
   "napi": {
     "binaryName": "pi_natives",
@@ -91,6 +91,7 @@
       "types": "./native/vcs.d.ts",
       "import": "./native/vcs.js",
       "default": "./native/vcs.js"
-    }
+    },
+    "./THIRD-PARTY-NOTICES.txt": "./THIRD-PARTY-NOTICES.txt"
   }
 }

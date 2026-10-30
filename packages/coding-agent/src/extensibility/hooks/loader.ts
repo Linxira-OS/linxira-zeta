@@ -8,8 +8,7 @@ import { logger } from "@linxiraos/pi-utils";
 import { hookCapability } from "../../capability/hook";
 import type { Hook } from "../../discovery";
 import { loadCapability } from "../../discovery";
-// Runtime self-reference: dereference this namespace only inside loader functions to keep the index.ts cycle safe.
-import * as PiCodingAgent from "../../index";
+import { getCodingAgentApi } from "../host-api";
 import type { CustomMessagePayload } from "../../session/messages";
 import * as typebox from "../legacy-typebox";
 import { resolvePath, withHostGuard } from "../utils";
@@ -127,7 +126,9 @@ async function createHookAPI(
 		typebox,
 		arktype: type,
 		zod,
-		pi: PiCodingAgent,
+		get pi() {
+			return getCodingAgentApi();
+		},
 	} as HookAPI;
 
 	return {

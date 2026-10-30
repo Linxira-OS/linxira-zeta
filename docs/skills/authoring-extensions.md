@@ -1,116 +1,116 @@
 ---
 name: authoring-extensions
-description: Use when creating a new zetacode extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
+description: Use when creating a new omp extension. Covers ExtensionAPI, factory signature, tool/command/event registration, and local-dev testing.
 ---
 
 # Authoring Extensions
 
-Extensions are the primary way to add capabilities to `zeta`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file. Its default factory may initialize synchronously or return a promise.
+Extensions are the primary way to add capabilities to `omp`. A single extension module can register tools the LLM can call, slash commands users can invoke, and event handlers that run throughout the session lifecycle — all from one TypeScript file. Its default factory may initialize synchronously or return a promise.
 
 ## Minimum viable extension
 
 ```ts
-import type { ExtensionAPI } from "@linxiraos/zeta";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 export default function (pi: ExtensionAPI) {
-  pi.on("session_start", async (_event, ctx) => {
-    ctx.ui.notify("My extension loaded!", "info");
-  });
+	pi.on("session_start", async (_event, ctx) => {
+		ctx.ui.notify("My extension loaded!", "info");
+	});
 }
 ```
 
-That is a working extension. Drop it into `~/.zeta/agent/extensions/hello.ts` and restart zeta to see the notification.
+That is a working extension. Drop it into `~/.omp/agent/extensions/hello.ts` and restart omp to see the notification.
 
 ## Full example
 
 The following extension registers a slash command, a tool, and a session-start hook:
 
 ```ts
-import type { ExtensionAPI } from "@linxiraos/zeta";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 export default function myExtension(pi: ExtensionAPI) {
-  const z = pi.zod;
+	const z = pi.zod;
 
-  // Runs once when the session loads
-  pi.on("session_start", async (_event, ctx) => {
-    ctx.ui.notify(`Session ready in ${ctx.cwd}`, "info");
-  });
+	// Runs once when the session loads
+	pi.on("session_start", async (_event, ctx) => {
+		ctx.ui.notify(`Session ready in ${ctx.cwd}`, "info");
+	});
 
-  // Slash command: /greet
-  pi.registerCommand("greet", {
-    description: "Send a greeting into the conversation",
-    handler: async (args, ctx) => {
-      const name = args.trim() || "world";
-      pi.sendMessage(
-        {
-          customType: "greeting",
-          content: `Hello, ${name}!`,
-          display: true,
-          attribution: "user",
-        },
-        { triggerTurn: false }
-      );
-      ctx.ui.notify(`Greeted ${name}`, "info");
-    },
-  });
+	// Slash command: /greet
+	pi.registerCommand("greet", {
+		description: "Send a greeting into the conversation",
+		handler: async (args, ctx) => {
+			const name = args.trim() || "world";
+			pi.sendMessage(
+				{
+					customType: "greeting",
+					content: `Hello, ${name}!`,
+					display: true,
+					attribution: "user",
+				},
+				{ triggerTurn: false },
+			);
+			ctx.ui.notify(`Greeted ${name}`, "info");
+		},
+	});
 
-  // LLM-callable tool
-  pi.registerTool({
-    name: "word_count",
-    label: "Word Count",
-    description: "Count the words in a string",
-    parameters: z.object({
-      text: z.string().describe("Text to count"),
-    }),
-    async execute(_id, params, _signal, _onUpdate, _ctx) {
-      const count = params.text.split(/\s+/).filter(Boolean).length;
-      return {
-        content: [{ type: "text", text: String(count) }],
-        details: { count },
-      };
-    },
-  });
+	// LLM-callable tool
+	pi.registerTool({
+		name: "word_count",
+		label: "Word Count",
+		description: "Count the words in a string",
+		parameters: z.object({
+			text: z.string().describe("Text to count"),
+		}),
+		async execute(_id, params, _signal, _onUpdate, _ctx) {
+			const count = params.text.split(/\s+/).filter(Boolean).length;
+			return {
+				content: [{ type: "text", text: String(count) }],
+				details: { count },
+			};
+		},
+	});
 }
 ```
 
 ## Discovery paths
 
-zeta loads extension modules from these sources:
+omp loads extension modules from these sources:
 
-1. Native `.zeta` locations discovered through the capability system:
-   - project/ancestor `.zeta/extensions/` directories within the discovery boundary
-   - `~/.zeta/agent/extensions/`
-   - legacy extension paths listed in `.zeta/settings.json#extensions` or `~/.zeta/agent/settings.json#extensions`
+1. Native `.omp` locations discovered through the capability system:
+   - project/ancestor `.omp/extensions/` directories within the discovery boundary
+   - `~/.omp/agent/extensions/`
+   - legacy extension paths listed in `.omp/settings.json#extensions` or `~/.omp/agent/settings.json#extensions`
 2. Discovered JavaScript/TypeScript hook factories (`hooks/pre/` and `hooks/post/`), bound through the extension runner.
-3. Enabled installed plugins under `~/.zeta/plugins/node_modules` or a project plugin root — including npm, marketplace, and `zetacode plugin link` installs — via their `zeta.extensions`/`pi.extensions` manifests.
-4. Explicit configured paths passed by the CLI (`zetacode --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
+3. Enabled installed plugins under `~/.omp/plugins/node_modules` or a project plugin root — including npm, marketplace, and `omp plugin link` installs — via their `omp.extensions`/`pi.extensions` manifests.
+4. Explicit configured paths passed by the CLI (`omp --extension ./my-ext.ts`, also `-e`; `--hook` is treated as an alias) and by the `extensions:` setting in config.
 
 The runtime de-duplicates by resolved absolute path — first seen wins.
 
 `--no-extensions` disables ambient discovery but still permits explicit `--extension`/`--hook` paths and their bundled capabilities. For an exact module-file allowlist, repeat `--trusted-extension /absolute/path/to/module.ts`: paths must exist and be files, ambient extension discovery is disabled, and those files are not treated as package roots for sibling capability discovery. It cannot be combined with `--extension`, `-e`, or `--hook`; a trusted-module load error aborts startup. This is discovery control, not a sandbox for extension code.
 
-The user directory is the active profile's agent directory: the default is `~/.zeta/agent`, while `zetacode --profile <name>` uses `~/.zeta/profiles/<name>/agent` under the default layout. `ZETA_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
+The user directory is the active profile's agent directory: the default is `~/.omp/agent`, while `omp --profile <name>` uses `~/.omp/profiles/<name>/agent` under the default layout. `PI_CODING_AGENT_DIR` overrides the default profile's agent directory; named profiles derive their own directory instead. Initialized XDG roots can change these locations.
 
-When a path points to a directory, zeta resolves the entry point in this order:
+When a path points to a directory, omp resolves the entry point in this order:
 
-1. `package.json` with `zeta.extensions` (or legacy `pi.extensions`) field
+1. `package.json` with `omp.extensions` (or legacy `pi.extensions`) field
 2. `index.ts`
 3. `index.js`
 
-When scanning an `extensions/` directory, zeta also loads direct `*.ts`/`*.js` files and one-level subdirectories that have `index.ts`, `index.js`, or a manifest.
+When scanning an `extensions/` directory, omp also loads direct `*.ts`/`*.js` files and one-level subdirectories that have `index.ts`, `index.js`, or a manifest.
 
 Extension packages can also bundle sibling capability directories. When a package is loaded through `extensions:` or `--extension`/`-e`, the `omp-plugins` provider discovers its `skills/`, `hooks/pre|post/`, `tools/`, `commands/`, `rules/`, `prompts/`, and `.mcp.json`.
 
 ## package.json manifest
 
-To package an extension as an installable plugin, add an `zeta` field to `package.json`:
+To package an extension as an installable plugin, add an `omp` field to `package.json`:
 
 ```json
 {
-  "name": "my-zeta-extension",
-  "zeta": {
-    "extensions": ["./src/main.ts"]
-  }
+	"name": "my-omp-extension",
+	"omp": {
+		"extensions": ["./src/main.ts"]
+	}
 }
 ```
 
@@ -118,9 +118,9 @@ The legacy `pi` key is also accepted for backwards compatibility:
 
 ```json
 {
-  "pi": {
-    "extensions": ["./index.ts"]
-  }
+	"pi": {
+		"extensions": ["./index.ts"]
+	}
 }
 ```
 
@@ -128,9 +128,9 @@ Multiple entry points are supported:
 
 ```json
 {
-  "zeta": {
-    "extensions": ["./src/safety.ts", "./src/tools.ts"]
-  }
+	"omp": {
+		"extensions": ["./src/safety.ts", "./src/tools.ts"]
+	}
 }
 ```
 
@@ -140,27 +140,27 @@ Installed-plugin manifest entries may be `.ts`, `.js`, `.mjs`, or `.cjs`; a mani
 
 ```ts
 pi.registerCommand("my-cmd", {
-  description: "What the command does",
-  handler: async (args, ctx) => {
-    // args: everything the user typed after /my-cmd
-    // ctx: ExtensionCommandContext — includes ctx.ui, ctx.cwd, session controls
-    ctx.ui.notify("Running!", "info");
-    await ctx.waitForIdle();
-    await ctx.newSession();
-  },
+	description: "What the command does",
+	handler: async (args, ctx) => {
+		// args: everything the user typed after /my-cmd
+		// ctx: ExtensionCommandContext — includes ctx.ui, ctx.cwd, session controls
+		ctx.ui.notify("Running!", "info");
+		await ctx.waitForIdle();
+		await ctx.newSession();
+	},
 });
 ```
 
 `ExtensionCommandContext` session-control methods:
 
-| Method | Effect |
-|---|---|
-| `waitForIdle()` | Wait for the agent to finish streaming |
-| `newSession(opts?)` | Open a fresh session |
-| `switchSession(path)` | Switch to an existing session file |
-| `branch(entryId)` | Fork from a specific history entry |
-| `navigateTree(id, opts?)` | Jump to a different point in the session tree |
-| `reload()` | Reload the session runtime |
+| Method                            | Effect                                                                     |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `waitForIdle()`                   | Wait for the agent to finish streaming                                     |
+| `newSession(opts?)`               | Open a fresh session                                                       |
+| `switchSession(path)`             | Switch to an existing session file                                         |
+| `branch(entryId)`                 | Fork from a specific history entry                                         |
+| `navigateTree(id, opts?)`         | Jump to a different point in the session tree                              |
+| `reload()`                        | Reload the session runtime                                                 |
 | `compact(instructionsOrOptions?)` | Compact the current context; also available on the base `ExtensionContext` |
 
 Use command contexts for switching, branching, tree navigation, and reload. `compact()` accepts either an instruction string or `CompactOptions`.
@@ -175,24 +175,24 @@ Zod-compatible omptype builder; `pi.arktype` and the legacy-compatible
 const z = pi.zod;
 
 pi.registerTool({
-  name: "search_notes",           // snake_case, unique
-  label: "Search Notes",          // human-readable label for TUI
-  description: "Full-text search through project notes",
-  parameters: z.object({
-    query: z.string().describe("Search query"),
-    limit: z.number().default(10).optional().describe("Max results"),
-  }),
-  async execute(toolCallId, params, signal, onUpdate, ctx) {
-    if (signal?.aborted) {
-      return { content: [{ type: "text", text: "Cancelled" }], details: { query: params.query, count: 0 } };
-    }
-    onUpdate?.({ content: [{ type: "text", text: "Searching..." }], details: { query: params.query, count: 0 } });
-    // ... do work ...
-    return {
-      content: [{ type: "text", text: `Found N results for "${params.query}"` }],
-      details: { query: params.query, count: 0 },
-    };
-  },
+	name: "search_notes", // snake_case, unique
+	label: "Search Notes", // human-readable label for TUI
+	description: "Full-text search through project notes",
+	parameters: z.object({
+		query: z.string().describe("Search query"),
+		limit: z.number().default(10).optional().describe("Max results"),
+	}),
+	async execute(toolCallId, params, signal, onUpdate, ctx) {
+		if (signal?.aborted) {
+			return { content: [{ type: "text", text: "Cancelled" }], details: { query: params.query, count: 0 } };
+		}
+		onUpdate?.({ content: [{ type: "text", text: "Searching..." }], details: { query: params.query, count: 0 } });
+		// ... do work ...
+		return {
+			content: [{ type: "text", text: `Found N results for "${params.query}"` }],
+			details: { query: params.query, count: 0 },
+		};
+	},
 });
 ```
 
@@ -202,22 +202,22 @@ Tool definitions may also set `loadMode: "essential" | "discoverable"` (`"discov
 
 ```ts
 pi.on("tool_call", async (event, ctx) => {
-  // event.toolName, event.input, event.toolCallId
-  if (event.toolName !== "bash") return;
+	// event.toolName, event.input, event.toolCallId
+	if (event.toolName !== "bash") return;
 
-  const command = String((event.input as { command?: unknown }).command ?? "");
-  if (command.includes("rm -rf /")) {
-    return { block: true, reason: "Blocked by safety policy" };
-  }
+	const command = String((event.input as { command?: unknown }).command ?? "");
+	if (command.includes("rm -rf /")) {
+		return { block: true, reason: "Blocked by safety policy" };
+	}
 });
 
 pi.on("turn_end", async (_event, ctx) => {
-  ctx.ui.setStatus("tokens", `~${ctx.getContextUsage()?.tokens ?? "?"} tokens`);
+	ctx.ui.setStatus("tokens", `~${ctx.getContextUsage()?.tokens ?? "?"} tokens`);
 });
 
-pi.on("session_stop", async (event) => {
-  if (event.stop_hook_active) return;
-  return { continue: true, additionalContext: `Review final status after turn ${event.turn_id}.` };
+pi.on("session_stop", async event => {
+	if (event.stop_hook_active) return;
+	return { continue: true, additionalContext: `Review final status after turn ${event.turn_id}.` };
 });
 ```
 
@@ -225,22 +225,22 @@ Full event catalog: see [extension authoring guide](../extensions.md).
 
 ## Extension vs hook — when to use which
 
-| Need | Use |
-|---|---|
-| Tools + commands + events in one module | **Extension** (`ExtensionAPI`) |
-| Pure event interception (policy, redaction) | **Extension** or **Hook** (both work; extension is preferred) |
-| Legacy hook module already exists | **Hook** (`HookAPI` from `@linxiraos/zeta/extensibility/hooks`) |
-| Registering a provider, shortcut, or CLI flag | **Extension only** |
-| Shipping as a marketplace plugin | **Extension** (use `package.json` manifest) |
+| Need                                          | Use                                                                       |
+| --------------------------------------------- | ------------------------------------------------------------------------- |
+| Tools + commands + events in one module       | **Extension** (`ExtensionAPI`)                                            |
+| Pure event interception (policy, redaction)   | **Extension** or **Hook** (both work; extension is preferred)             |
+| Legacy hook module already exists             | **Hook** (`HookAPI` from `@oh-my-pi/pi-coding-agent/extensibility/hooks`) |
+| Registering a provider, shortcut, or CLI flag | **Extension only**                                                        |
+| Shipping as a marketplace plugin              | **Extension** (use `package.json` manifest)                               |
 
 New authoring should use `ExtensionAPI`. Discovered JS/TS hook factories are loaded through this API in normal sessions; the standalone `HookRunner` remains for legacy SDK consumers. Shared event names do not imply identical result-chaining behavior in both runners.
 
 ## Debugging
 
-zeta writes structured logs under the active state root's `logs/` directory (by default `~/.zeta/logs/`; debug level is always on, and nothing is written to the console because that would corrupt the TUI). Records are written in batches, so a debug line can take up to a second to appear while `warn` and `error` lines are written immediately. Each filename includes the process ID, and a process creates its file only when it first logs. Tail today's default-profile logs to see extension load diagnostics:
+omp writes structured logs under the active state root's `logs/` directory (by default `~/.omp/logs/`; debug level is always on, and nothing is written to the console because that would corrupt the TUI). Records are written in batches, so a debug line can take up to a second to appear while `warn` and `error` lines are written immediately. Each filename includes the process ID, and a process creates its file only when it first logs. Tail today's default-profile logs to see extension load diagnostics:
 
 ```
-tail -f ~/.zeta/logs/zeta.$(date +%F).*.log
+tail -f ~/.omp/logs/omp.$(date +%F).*.log
 ```
 
 Failed extension loads are logged with their path and error. Loaded extensions may also emit their own debug logs via `pi.logger`.
@@ -248,9 +248,9 @@ Failed extension loads are logged with their path and error. Loaded extensions m
 To temporarily disable a specific extension module by name without removing the file:
 
 ```yaml
-# ~/.zeta/agent/config.yml
+# ~/.omp/agent/config.yml
 disabledExtensions:
-  - extension-module:my-ext
+   - extension-module:my-ext
 ```
 
 The derived name is the filename stem (or directory name for `index.ts`-style entries): `/path/to/my-ext.ts` → `my-ext`.

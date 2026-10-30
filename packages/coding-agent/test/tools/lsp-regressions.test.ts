@@ -3,24 +3,24 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentToolResult, RenderResultOptions } from "@linxiraos/pi-agent-core";
-import { arkToWireSchema } from "@linxiraos/pi-ai/utils/schema";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { preloadPluginRoots } from "@linxiraos/zeta/discovery/helpers";
-import { rejectionOf } from "../helpers/rejection";
+import type { AgentToolResult, RenderResultOptions } from "@oh-my-pi/pi-agent-core";
+import { arkToWireSchema } from "@oh-my-pi/pi-ai/utils/schema";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { preloadPluginRoots } from "@oh-my-pi/pi-coding-agent/discovery/helpers";
+import { rejectionOf, trackUnhandled } from "../helpers/rejection";
 import { restoreEnvValue } from "../helpers/settings-test-state";
-import { createLspWritethrough, LspTool } from "@linxiraos/zeta/lsp";
-import * as lspClient from "@linxiraos/zeta/lsp/client";
-import * as lspConfig from "@linxiraos/zeta/lsp/config";
-import { configCache, getConfig, getServersForFile, type LspConfig, loadConfig } from "@linxiraos/zeta/lsp/config";
-import { waitForDiagnostics } from "@linxiraos/zeta/lsp/diagnostics";
+import { createLspWritethrough, LspTool } from "@oh-my-pi/pi-coding-agent/lsp";
+import * as lspClient from "@oh-my-pi/pi-coding-agent/lsp/client";
+import * as lspConfig from "@oh-my-pi/pi-coding-agent/lsp/config";
+import { configCache, getServersForFile, type LspConfig, loadConfig } from "@oh-my-pi/pi-coding-agent/lsp/config";
+import { waitForDiagnostics } from "@oh-my-pi/pi-coding-agent/lsp/diagnostics";
 import {
 	applyTextEditsToString,
 	applyWorkspaceEdit,
 	type ExecutedWorkspaceChange,
 	sortAndValidateTextEdits,
-} from "@linxiraos/zeta/lsp/edits";
-import { renderCall, renderResult } from "@linxiraos/pi-tui/tools/lsp";
+} from "@oh-my-pi/pi-coding-agent/lsp/edits";
+import { renderCall, renderResult } from "@oh-my-pi/pi-tui/tools/lsp";
 import {
 	type CodeAction,
 	type CreateFile,
@@ -33,8 +33,8 @@ import {
 	type SymbolInformation,
 	type TextDocumentEdit,
 	type WorkspaceEdit,
-} from "@linxiraos/zeta/lsp/types";
-import { type LspToolDetails } from "@linxiraos/pi-tui/tools/lsp";
+} from "@oh-my-pi/pi-coding-agent/lsp/types";
+import { type LspToolDetails } from "@oh-my-pi/pi-tui/tools/lsp";
 import {
 	applyCodeAction,
 	collectGlobMatches,
@@ -47,17 +47,17 @@ import {
 	resolveDiagnosticTargets,
 	resolveSymbolColumn,
 	uriToFile,
-} from "@linxiraos/zeta/lsp/utils";
-import { getThemeByName, initTheme } from "@linxiraos/pi-tui/theme";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { ToolAbortError } from "@linxiraos/zeta/tools/tool-errors";
-import { clampTimeout } from "@linxiraos/zeta/tools/tool-timeouts";
-import * as piUtils from "@linxiraos/pi-utils";
-import { sanitizeText, TempDir } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/lsp/utils";
+import { getThemeByName, initTheme } from "@oh-my-pi/pi-tui/theme";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { ToolAbortError } from "@oh-my-pi/pi-coding-agent/tools/tool-errors";
+import { clampTimeout } from "@oh-my-pi/pi-coding-agent/tools/tool-timeouts";
+import * as piUtils from "@oh-my-pi/pi-utils";
+import { sanitizeText, TempDir } from "@oh-my-pi/pi-utils";
 import type { Subprocess } from "bun";
 import DEFAULTS from "../../src/lsp/defaults.json" with { type: "json" };
-import { renderResult as renderLocalResult } from "@linxiraos/pi-tui/tools/lsp";
-import { getLanguageFromPath } from "@linxiraos/pi-tui/lang-from-path";
+import { renderResult as renderLocalResult } from "@oh-my-pi/pi-tui/tools/lsp";
+import { getLanguageFromPath } from "@oh-my-pi/pi-tui/lang-from-path";
 
 const lspTestSettings = Settings.isolated();
 
@@ -96,7 +96,7 @@ function fifoRefusal(fifo: string): string {
 async function withOpenDocumentSwappedForFifo(
 	run: (client: LspClient, filePath: string) => Promise<void>,
 ): Promise<void> {
-	const tempDir = TempDir.createSync("@zeta-lsp-special-refresh-");
+	const tempDir = TempDir.createSync("@omp-lsp-special-refresh-");
 	const filePath = path.join(tempDir.path(), "input.ts");
 	try {
 		await Bun.write(filePath, "export const value = 1;\n");
@@ -119,7 +119,7 @@ interface RpcMessage {
 	method?: string;
 	params?: unknown;
 	result?: unknown;
-	error?: { code: number; message?: string };
+	error?: { code: number; message?: string; data?: unknown };
 }
 
 interface FakeLspServer {
@@ -380,7 +380,7 @@ function textResult(result: AgentToolResult<LspToolDetails>): string {
 }
 
 /**
- * `loadConfig` walks the user config directories (~/.zeta/agent, ~/.pi/agent,
+ * `loadConfig` walks the user config directories (~/.omp/agent, ~/.pi/agent,
  * ~/.claude), which resolve from os.homedir(). A developer with a real
  * lsp.json there flips loadConfig off its auto-detect path onto the override
  * path, where their rootMarkers replace the packaged ones — so these tests
@@ -434,7 +434,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("keeps equivalent LSP configs shared but isolates distinct process and initialization semantics", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-client-identity-");
+		const tempDir = TempDir.createSync("@omp-lsp-client-identity-");
 		try {
 			installHandshakeLsp();
 			const base: ServerConfig = {
@@ -501,19 +501,19 @@ describe("lsp regressions", () => {
 	});
 
 	it("uses a custom server languageId for disk and in-memory document opens", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-language-id-");
+		const tempDir = TempDir.createSync("@omp-lsp-language-id-");
 		const filePath = path.join(tempDir.path(), "foo.gd");
 		const syncedFilePath = path.join(tempDir.path(), "unsaved.gd");
 		try {
 			await Bun.write(
-				path.join(tempDir.path(), ".zeta", "lsp.json"),
+				path.join(tempDir.path(), ".omp", "lsp.json"),
 				JSON.stringify({
 					servers: {
 						"fake-gd": {
 							command: process.execPath,
 							fileTypes: [".gd"],
 							languageId: "gdscript",
-							rootMarkers: [".zeta"],
+							rootMarkers: [".omp"],
 						},
 					},
 				}),
@@ -552,7 +552,7 @@ describe("lsp regressions", () => {
 	it.skipIf(process.platform === "win32")(
 		"rejects a FIFO before an LSP document open can block",
 		async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-special-file-");
+			const tempDir = TempDir.createSync("@omp-lsp-special-file-");
 			const fifo = path.join(tempDir.path(), "input.ts");
 			try {
 				expect(Bun.spawnSync(["mkfifo", fifo]).exitCode).toBe(0);
@@ -573,7 +573,7 @@ describe("lsp regressions", () => {
 	it.skipIf(process.platform === "win32")(
 		"rejects a FIFO during LSP symbol resolution",
 		async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-special-read-");
+			const tempDir = TempDir.createSync("@omp-lsp-special-read-");
 			const fifo = path.join(tempDir.path(), "input.ts");
 			try {
 				expect(Bun.spawnSync(["mkfifo", fifo]).exitCode).toBe(0);
@@ -590,7 +590,7 @@ describe("lsp regressions", () => {
 	it.skipIf(process.platform === "win32")(
 		"keeps a FIFO location as a header without reading its context",
 		async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-special-context-");
+			const tempDir = TempDir.createSync("@omp-lsp-special-context-");
 			const fifo = path.join(tempDir.path(), "input.ts");
 			try {
 				expect(Bun.spawnSync(["mkfifo", fifo]).exitCode).toBe(0);
@@ -626,8 +626,8 @@ describe("lsp regressions", () => {
 		10_000,
 	);
 
-	it("sends the LSP exit notification and releases the idle checker after shutdown", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-shutdown-");
+	it("sends the LSP exit notification after shutdown", async () => {
+		const tempDir = TempDir.createSync("@omp-lsp-shutdown-");
 		try {
 			const server = installFakeLsp((message, srv) => {
 				if (message.method === "initialize") {
@@ -658,272 +658,6 @@ describe("lsp regressions", () => {
 			expect(shutdownIndex).toBeGreaterThanOrEqual(0);
 			expect(exitIndex).toBeGreaterThan(shutdownIndex);
 			expect(server.killed).toBe(false);
-
-			const clientModule = new URL("../../src/lsp/client.ts", import.meta.url).href;
-			const shutdownProbe = Bun.spawn(
-				[
-					process.execPath,
-					"-e",
-					`import { setIdleTimeout, shutdownAll } from ${JSON.stringify(clientModule)}; setIdleTimeout(60_000); await shutdownAll();`,
-				],
-				{ stdout: "ignore", stderr: "inherit" },
-			);
-			// Real time is required because fake timers cannot advance a separate Bun process.
-			// The process exit itself proves shutdown released the event loop.
-			const probeExit = await Promise.race([shutdownProbe.exited, Bun.sleep(5_000).then(() => null)]);
-			if (probeExit === null) {
-				shutdownProbe.kill();
-				await shutdownProbe.exited;
-			}
-			expect(probeExit).toBe(0);
-		} finally {
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
-	it("rearms the idle checker when starting a client after global shutdown without clobbering other workspaces (#8389)", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rearm-");
-		const intervalSpy = vi.spyOn(globalThis, "setInterval");
-		const config: ServerConfig = {
-			command: "fake-lsp-rearm",
-			fileTypes: ["ts"],
-			rootMarkers: [],
-		};
-		try {
-			installFakeLsp((message, srv) => {
-				if (message.method === "initialize") {
-					srv.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
-				} else if (message.method === "shutdown") {
-					srv.send({ jsonrpc: "2.0", id: message.id, result: null });
-				} else if (message.method === "exit") {
-					srv.exit(0);
-				}
-			});
-
-			lspClient.setIdleTimeout(60_000);
-			const initialCalls = intervalSpy.mock.calls.length;
-			expect(initialCalls).toBeGreaterThanOrEqual(1);
-
-			await lspClient.shutdownAll();
-
-			// Pure config access should not mutate global timeout or spawn timers (#8389)
-			configCache.set(tempDir.path(), { servers: { "fake-lsp-rearm": config }, idleTimeoutMs: 60_000 });
-			getConfig(tempDir.path());
-			expect(intervalSpy).toHaveBeenCalledTimes(initialCalls);
-
-			// Starting an active client rearms the checker
-			await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
-			expect(intervalSpy).toHaveBeenCalledTimes(initialCalls + 1);
-		} finally {
-			lspClient.setIdleTimeout(null);
-			configCache.delete(tempDir.path());
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
-	it("isolates idle timeout per workspace client without global cross-contamination (#8389)", async () => {
-		const tempDirA = TempDir.createSync("@zeta-lsp-iso-a-");
-		const tempDirB = TempDir.createSync("@zeta-lsp-iso-b-");
-		const configA: ServerConfig = {
-			command: "fake-lsp-iso-a",
-			fileTypes: ["ts"],
-			rootMarkers: [],
-		};
-		const configB: ServerConfig = {
-			command: "fake-lsp-iso-b",
-			fileTypes: ["ts"],
-			rootMarkers: [],
-		};
-
-		try {
-			configCache.set(tempDirA.path(), { servers: { [configA.command]: configA }, idleTimeoutMs: 600_000 }); // 10 min
-			configCache.set(tempDirB.path(), { servers: { [configB.command]: configB }, idleTimeoutMs: 1_000 }); // 1 sec
-
-			installHandshakeLsp();
-			const clientA = await lspClient.getOrCreateClient(configA, tempDirA.path(), 1_000);
-
-			installHandshakeLsp();
-			const clientB = await lspClient.getOrCreateClient(configB, tempDirB.path(), 1_000);
-
-			// Client A was active just now, Client B was active 2 seconds ago
-			clientA.lastActivity = Date.now();
-			clientB.lastActivity = Date.now() - 2_000;
-
-			// Accessing Workspace B's config should not affect client A
-			getConfig(tempDirB.path());
-
-			// Drive the production idle sweep path end-to-end
-			await lspClient.checkIdleClients();
-
-			const activeNames = lspClient.getActiveClients().map(c => c.name);
-			expect(activeNames).toContain("fake-lsp-iso-a");
-			expect(activeNames).not.toContain("fake-lsp-iso-b");
-		} finally {
-			configCache.delete(tempDirA.path());
-			configCache.delete(tempDirB.path());
-			await lspClient.shutdownAll();
-			tempDirA.removeSync();
-			tempDirB.removeSync();
-		}
-	});
-
-	it("re-arms the idle checker after a config-only reload when timeout is added (#8389)", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rearm-config-");
-		const config: ServerConfig = {
-			command: "fake-lsp-rearm-config",
-			fileTypes: ["ts"],
-			rootMarkers: [],
-		};
-
-		try {
-			// Initially no timeout configured: checker interval should remain stopped
-			configCache.set(tempDir.path(), { servers: { [config.command]: config } });
-			installHandshakeLsp();
-			const client = await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
-
-			expect(lspClient.isIdleCheckerRunning()).toBe(false);
-
-			// Config-only change: user adds idleTimeoutMs to config
-			configCache.delete(tempDir.path());
-			configCache.set(tempDir.path(), { servers: { [config.command]: config }, idleTimeoutMs: 5_000 });
-
-			// Simulate config reload (as done in `lsp reload *`)
-			getConfig(tempDir.path());
-			lspClient.reconcileIdleChecker();
-
-			// Checker must now be re-armed even though client identity is unchanged
-			expect(lspClient.isIdleCheckerRunning()).toBe(true);
-
-			// Client becomes idle and is reaped on sweep
-			client.lastActivity = Date.now() - 6_000;
-			await lspClient.checkIdleClients();
-			expect(lspClient.getActiveClients().map(c => c.name)).not.toContain("fake-lsp-rearm-config");
-
-			// Removing timeout and reloading stops the checker again
-			configCache.delete(tempDir.path());
-			configCache.set(tempDir.path(), { servers: { [config.command]: config } });
-			getConfig(tempDir.path());
-			lspClient.reconcileIdleChecker();
-			expect(lspClient.isIdleCheckerRunning()).toBe(false);
-		} finally {
-			lspClient.setIdleTimeout(null);
-			configCache.delete(tempDir.path());
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
-	it("closes documents unused for five minutes before opening the next one", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-");
-		try {
-			const server = installHandshakeLsp();
-			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
-			const client = await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
-			const stalePath = await openDocument(client, "stale.ts");
-			const recentPath = await openDocument(client, "recent.ts");
-			ageDocument(client, stalePath, PAST_DOCUMENT_IDLE_MS);
-			ageDocument(client, recentPath, 60_000);
-			const staleUri = fileToUri(stalePath);
-			const recentUri = fileToUri(recentPath);
-			client.diagnostics.set(staleUri, { diagnostics: [], version: 1 });
-
-			const nextUri = fileToUri(await openDocument(client, "next.ts"));
-			await server.waitFor(
-				message => message.method === "textDocument/didOpen" && documentUri(message.params) === nextUri,
-			);
-
-			// The close reaches the server before the open, which is when TypeScript servers drop unused projects.
-			const documentEvents = server.received
-				.filter(message => message.method === "textDocument/didOpen" || message.method === "textDocument/didClose")
-				.map(message => [message.method, documentUri(message.params)]);
-			expect(documentEvents).toEqual([
-				["textDocument/didOpen", staleUri],
-				["textDocument/didOpen", recentUri],
-				["textDocument/didClose", staleUri],
-				["textDocument/didOpen", nextUri],
-			]);
-			expect([...client.openFiles.keys()]).toEqual([recentUri, nextUri]);
-			expect(client.diagnostics.has(staleUri)).toBe(false);
-		} finally {
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
-	it("closes idle documents before a write opens a new one", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-write-");
-		try {
-			const server = installHandshakeLsp();
-			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
-			const client = await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
-			const stalePath = await openDocument(client, "stale.ts");
-			ageDocument(client, stalePath, PAST_DOCUMENT_IDLE_MS);
-			const writtenPath = path.join(tempDir.path(), "written.ts");
-
-			await lspClient.syncContent(client, writtenPath, "export const written = 1;\n");
-			await server.waitFor(
-				message =>
-					message.method === "textDocument/didOpen" && documentUri(message.params) === fileToUri(writtenPath),
-			);
-
-			const documentEvents = server.received
-				.filter(message => message.method === "textDocument/didOpen" || message.method === "textDocument/didClose")
-				.map(message => [message.method, documentUri(message.params)]);
-			expect(documentEvents.slice(-2)).toEqual([
-				["textDocument/didClose", fileToUri(stalePath)],
-				["textDocument/didOpen", fileToUri(writtenPath)],
-			]);
-		} finally {
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
-	it("does not count a refresh of every open document as a use", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-refresh-");
-		try {
-			const server = installHandshakeLsp();
-			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
-			const client = await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
-			const idlePath = await openDocument(client, "idle.ts");
-			ageDocument(client, idlePath, PAST_DOCUMENT_IDLE_MS);
-			const createdPath = path.join(tempDir.path(), "created.ts");
-			await Bun.write(createdPath, "export const created = 1;\n");
-
-			await lspClient.notifyWorkspaceWatchedFiles(tempDir.path(), [
-				{ filePath: createdPath, type: lspClient.FileChangeType.Created },
-			]);
-			await server.waitFor(
-				message =>
-					message.method === "textDocument/didChange" && documentUri(message.params) === fileToUri(idlePath),
-			);
-			await openDocument(client, "next.ts");
-
-			expect(client.openFiles.has(fileToUri(idlePath))).toBe(false);
-		} finally {
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
-	it("keeps an idle document open while a write to it has not reached disk", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-pending-");
-		try {
-			installHandshakeLsp();
-			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
-			const client = await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
-			const pendingPath = await openDocument(client, "pending.ts");
-			ageDocument(client, pendingPath, PAST_DOCUMENT_IDLE_MS);
-
-			lspClient.beginPendingDiskWrite(pendingPath);
-			try {
-				await openDocument(client, "next.ts");
-				expect(client.openFiles.has(fileToUri(pendingPath))).toBe(true);
-			} finally {
-				lspClient.endPendingDiskWrite(pendingPath);
-			}
 		} finally {
 			await lspClient.shutdownAll();
 			tempDir.removeSync();
@@ -931,7 +665,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("tears down a server that stops reading stdin while an idle document closes", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-wedge-");
+		const tempDir = TempDir.createSync("@omp-lsp-idle-docs-wedge-");
 		try {
 			const server = installHandshakeLsp();
 			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
@@ -960,42 +694,8 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	it("tears down a server that stops reading stdin while a close outliving its cancelled opener is written", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-wedge-after-abort-");
-		try {
-			const server = installHandshakeLsp();
-			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
-			const client = await lspClient.getOrCreateClient(config, tempDir.path(), 1_000);
-			ageDocument(client, await openDocument(client, "stale.ts"), PAST_DOCUMENT_IDLE_MS);
-			vi.spyOn(client.proc.stdin, "flush").mockImplementation(() => Promise.withResolvers<number>().promise);
-			// The close's own drain budget, expired on demand instead of on the wall clock.
-			const closeBudget = new AbortController();
-			vi.spyOn(AbortSignal, "timeout").mockImplementation(() => closeBudget.signal);
-
-			const controller = new AbortController();
-			const opening = lspClient.syncContent(
-				client,
-				path.join(tempDir.path(), "new.ts"),
-				"export const created = 1;\n",
-				controller.signal,
-			);
-			// Aborted before the close's write starts, so the opener's signal no longer bounds it.
-			controller.abort();
-			await rejectionOf(opening);
-			await server.waitFor(message => message.method === "textDocument/didClose");
-			closeBudget.abort(new Error("close drain budget spent"));
-
-			expect(await client.proc.exited).toBe(0);
-			expect(lspClient.getActiveClients()).toEqual([]);
-		} finally {
-			vi.restoreAllMocks();
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
 	it("sends an idle document's close even when the opener that chose it is cancelled first", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-aborted-");
+		const tempDir = TempDir.createSync("@omp-lsp-idle-docs-aborted-");
 		try {
 			const server = installHandshakeLsp();
 			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
@@ -1024,7 +724,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("reopens a document whose close outlived its cancelled opener with the disk text and a fresh use", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-reopen-race-");
+		const tempDir = TempDir.createSync("@omp-lsp-idle-docs-reopen-race-");
 		try {
 			const server = installHandshakeLsp();
 			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
@@ -1071,7 +771,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("refreshes a document whose close outlived its cancelled opener by reopening it", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-refresh-race-");
+		const tempDir = TempDir.createSync("@omp-lsp-idle-docs-refresh-race-");
 		try {
 			const server = installHandshakeLsp();
 			const config: ServerConfig = { command: "fake-lsp", fileTypes: [".ts"], rootMarkers: [] };
@@ -1120,118 +820,8 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	it("does not report a reopened document clean from the publish that cleared it on close", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-close-clear-");
-		try {
-			await initTheme();
-			const serverConfig: ServerConfig = {
-				command: "fake-lsp",
-				fileTypes: [".ts"],
-				rootMarkers: [],
-				isLinter: true,
-			};
-			installHandshakeLsp();
-			vi.spyOn(lspConfig, "loadConfig").mockReturnValue({ servers: { "fake-lsp": serverConfig } });
-			const client = await lspClient.getOrCreateClient(serverConfig, tempDir.path(), 1_000);
-			client.startedAt = Date.now() - PAST_DOCUMENT_IDLE_MS;
-			const targetPath = await openDocument(client, "target.ts");
-			const targetUri = fileToUri(targetPath);
-			ageDocument(client, targetPath, PAST_DOCUMENT_IDLE_MS);
-			await openDocument(client, "next.ts");
-
-			// Drive waitForDiagnostics' polls on a fake clock: the empty publish that
-			// cleared the closed document lands after the reopen, and stays the latest
-			// publish past the settle window before the reopened error arrives.
-			let now = Date.now();
-			let polls = 0;
-			vi.spyOn(Date, "now").mockImplementation(() => now);
-			vi.spyOn(Bun, "sleep").mockImplementation(async () => {
-				now += 100;
-				polls++;
-				if (polls === 1) client.diagnostics.set(targetUri, { diagnostics: [], version: null });
-				if (polls === 6) {
-					client.diagnostics.set(targetUri, {
-						diagnostics: [
-							{
-								range: { start: { line: 0, character: 0 }, end: { line: 0, character: 6 } },
-								message: "reopened error",
-								severity: 1,
-							},
-						],
-						version: client.openFiles.get(targetUri)?.version ?? null,
-					});
-				}
-				if (polls === 1 || polls === 6) client.diagnosticsVersion += 1;
-			});
-
-			const tool = new LspTool(makeLspSession(tempDir.path()));
-			const result = await tool.execute("diagnostics-after-idle-close", { action: "diagnostics", file: targetPath });
-
-			expect(textResult(result)).toContain("reopened error");
-			// The reopen resumes past the version the server saw before the close.
-			expect(client.openFiles.get(targetUri)?.version).toBe(2);
-		} finally {
-			vi.restoreAllMocks();
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
-	it("does not report a reopened document's diagnostics from a publish versioned before the close", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-old-publish-");
-		try {
-			await initTheme();
-			const serverConfig: ServerConfig = {
-				command: "fake-lsp",
-				fileTypes: [".ts"],
-				rootMarkers: [],
-				isLinter: true,
-			};
-			installHandshakeLsp();
-			vi.spyOn(lspConfig, "loadConfig").mockReturnValue({ servers: { "fake-lsp": serverConfig } });
-			const client = await lspClient.getOrCreateClient(serverConfig, tempDir.path(), 1_000);
-			client.startedAt = Date.now() - PAST_DOCUMENT_IDLE_MS;
-			const targetPath = await openDocument(client, "target.ts");
-			const targetUri = fileToUri(targetPath);
-			ageDocument(client, targetPath, PAST_DOCUMENT_IDLE_MS);
-			await openDocument(client, "next.ts");
-			const errorAt = (message: string, version: number) => {
-				const diagnostic: Diagnostic = {
-					range: { start: { line: 0, character: 0 }, end: { line: 0, character: 6 } },
-					message,
-					severity: 1,
-				};
-				return { diagnostics: [diagnostic], version };
-			};
-
-			// A publish from the document's life before the close (version 1) lands after
-			// the reopen at version 2 and stays the latest past the settle window.
-			let now = Date.now();
-			let polls = 0;
-			vi.spyOn(Date, "now").mockImplementation(() => now);
-			vi.spyOn(Bun, "sleep").mockImplementation(async () => {
-				now += 100;
-				polls++;
-				if (polls === 1) client.diagnostics.set(targetUri, errorAt("error before close", 1));
-				if (polls === 6) client.diagnostics.set(targetUri, errorAt("reopened error", 2));
-				if (polls === 1 || polls === 6) client.diagnosticsVersion += 1;
-			});
-
-			const tool = new LspTool(makeLspSession(tempDir.path()));
-			const result = await tool.execute("diagnostics-old-publish", { action: "diagnostics", file: targetPath });
-
-			expect(client.openFiles.get(targetUri)?.version).toBe(2);
-			expect(textResult(result)).toContain("reopened error");
-			expect(textResult(result)).not.toContain("error before close");
-		} finally {
-			vi.restoreAllMocks();
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
 	it("pulls fresh diagnostics for code actions on a document reopened after an idle close", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-idle-docs-code-actions-");
+		const tempDir = TempDir.createSync("@omp-lsp-idle-docs-code-actions-");
 		const error: Diagnostic = {
 			range: { start: { line: 0, character: 0 }, end: { line: 0, character: 6 } },
 			message: "needs fixing",
@@ -1291,7 +881,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("returns an already-starting client without creating a second client", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-pending-client-");
+		const tempDir = TempDir.createSync("@omp-lsp-pending-client-");
 		const initialize = Promise.withResolvers<void>();
 		try {
 			const server = installFakeLsp(async (message, srv) => {
@@ -1331,7 +921,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("stops waiting for a pending client on caller abort without cancelling its initialization", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-pending-abort-");
+		const tempDir = TempDir.createSync("@omp-lsp-pending-abort-");
 		const initialize = Promise.withResolvers<void>();
 		try {
 			const server = installFakeLsp(async (message, srv) => {
@@ -1368,7 +958,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("advertises workspace folder support and abort-on-failure workspace edits during LSP initialization", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-workspace-folders-");
+		const tempDir = TempDir.createSync("@omp-lsp-workspace-folders-");
 		try {
 			const server = installFakeLsp((message, srv) => {
 				if (message.method === "initialize") {
@@ -1408,7 +998,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("does not advertise unsupported snippet text edits", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-snippet-capability-");
+		const tempDir = TempDir.createSync("@omp-lsp-snippet-capability-");
 		try {
 			const server = installFakeLsp((message, srv) => {
 				if (message.method === "initialize") {
@@ -1438,7 +1028,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("answers workspace/workspaceFolders requests with the current folder set", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-workspace-folders-request-");
+		const tempDir = TempDir.createSync("@omp-lsp-workspace-folders-request-");
 		try {
 			const server = installFakeLsp((message, srv) => {
 				if (message.method === "initialize") {
@@ -1470,7 +1060,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("sends initial workspace configuration after initialized before semantic requests (#5276)", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-initial-config-");
+		const tempDir = TempDir.createSync("@omp-lsp-initial-config-");
 		let receivedInitialConfiguration = false;
 		try {
 			const server = installFakeLsp((message, srv) => {
@@ -1533,7 +1123,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("answers missing workspace configuration sections with null in request order", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-configuration-null-");
+		const tempDir = TempDir.createSync("@omp-lsp-configuration-null-");
 		try {
 			const server = installFakeLsp((message, srv) => {
 				if (message.method === "initialize") {
@@ -1575,7 +1165,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("keeps the session alive when configuration is pulled after didChangeConfiguration", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-configuration-session-");
+		const tempDir = TempDir.createSync("@omp-lsp-configuration-session-");
 		let configurationAccepted = false;
 		try {
 			const server = installFakeLsp((message, srv) => {
@@ -1630,7 +1220,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("accepts dynamic capability registration before semantic requests", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-dynamic-registration-");
+		const tempDir = TempDir.createSync("@omp-lsp-dynamic-registration-");
 		try {
 			let dynamicRegistrationAccepted = false;
 			const server = installFakeLsp((message, srv) => {
@@ -1712,7 +1302,7 @@ describe("lsp regressions", () => {
 		// wedges (the lazy `lsp symbols` call returns nothing and hangs). The
 		// eager warmup/reload path escapes this only because it issues no
 		// concurrent semantic request while the cold-start pulls drain.
-		const tempDir = TempDir.createSync("@zeta-lsp-lazy-config-drain-");
+		const tempDir = TempDir.createSync("@omp-lsp-lazy-config-drain-");
 		try {
 			const symbols = [
 				{
@@ -1810,7 +1400,7 @@ describe("lsp regressions", () => {
 		// (window/showMessage{Request}, window/showDocument, workspace/*/refresh)
 		// must receive a spec-shaped reply, not a -32601. Headless omp can't
 		// surface UI prompts but still owes a defined no-op.
-		const tempDir = TempDir.createSync("@zeta-lsp-server-requests-");
+		const tempDir = TempDir.createSync("@omp-lsp-server-requests-");
 		try {
 			const server = installFakeLsp((message, srv) => {
 				if (message.method === "initialize") {
@@ -1868,110 +1458,8 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	it("opens rust-analyzer Cargo workspace files before polling workspace readiness", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rust-workspace-");
-		try {
-			const sourcePath = path.join(tempDir.path(), "src", "main.rs");
-			await Bun.write(path.join(tempDir.path(), "Cargo.toml"), '[package]\nname = "fixture"\nversion = "0.0.0"\n');
-			await Bun.write(sourcePath, "fn greet() {}\nfn main() { greet(); }\n");
-
-			const events: string[] = [];
-			let statusRequests = 0;
-			const fakeServer = installFakeLsp((message, srv) => {
-				if (message.method === "initialize") {
-					srv.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: { definitionProvider: true } } });
-					srv.send({
-						jsonrpc: "2.0",
-						method: "$/progress",
-						params: { token: "workspace", value: { kind: "begin" } },
-					});
-					srv.send({
-						jsonrpc: "2.0",
-						method: "$/progress",
-						params: { token: "workspace", value: { kind: "end" } },
-					});
-				} else if (message.method === "rust-analyzer/analyzerStatus") {
-					statusRequests++;
-					events.push("status");
-					// The first status request is intentionally dropped so the client
-					// must treat the request timeout as a retry signal
-					// (deadline-as-signal), then keep polling through "No workspaces"
-					// until the workspace reports ready.
-					if (statusRequests === 1) return;
-					const ready = statusRequests >= 3;
-					srv.send({
-						jsonrpc: "2.0",
-						id: message.id,
-						result: ready ? "Workspaces:\nLoaded 1 package across 1 workspace." : "No workspaces",
-					});
-				} else if (message.method === "textDocument/didOpen") {
-					events.push("open");
-				} else if (message.method === "textDocument/definition") {
-					srv.send({
-						jsonrpc: "2.0",
-						id: message.id,
-						result: [
-							{
-								uri: fileToUri(sourcePath),
-								range: { start: { line: 0, character: 3 }, end: { line: 0, character: 8 } },
-							},
-						],
-					});
-				} else if (message.method === "shutdown") {
-					srv.send({ jsonrpc: "2.0", id: message.id, result: null });
-				} else if (message.method === "exit") {
-					srv.exit(0);
-				}
-			});
-
-			const server: ServerConfig = {
-				command: "rust-analyzer",
-				resolvedCommand: process.execPath,
-				fileTypes: ["rs"],
-				rootMarkers: [],
-				// Drive the timeout -> retry -> ready loop without real-clock latency.
-				// The first status request still times out (proving deadline-as-signal),
-				// just on a tiny budget instead of the 2s production settle window.
-				workspaceReadyTimings: { timeoutMs: 5_000, pollMs: 1, settleMs: 2, statusRequestTimeoutMs: 20 },
-			};
-
-			vi.spyOn(lspConfig, "loadConfig").mockReturnValue({
-				servers: { "rust-analyzer": server },
-				idleTimeoutMs: undefined,
-			});
-			vi.spyOn(lspConfig, "getServersForFile").mockReturnValue([["rust-analyzer", server]]);
-
-			const tool = new LspTool(makeLspSession(tempDir.path()));
-			const result = await tool.execute("rust-wait-test", {
-				action: "definition",
-				file: sourcePath,
-				line: 2,
-				symbol: "greet",
-				timeout: 10,
-			});
-			const output = result.content
-				.filter(block => block.type === "text")
-				.map(block => block.text)
-				.join("\n");
-
-			expect(output).toContain("Found 1 definition(s)");
-			expect(events[0]).toBe("open");
-			expect(events.filter(line => line === "status").length).toBeGreaterThanOrEqual(3);
-			const firstStatusRequest = fakeServer.received.find(
-				message => message.method === "rust-analyzer/analyzerStatus",
-			);
-			if (!firstStatusRequest) throw new Error("Expected the timed-out analyzer status request");
-			const cancellation = await fakeServer.waitFor(message => message.method === "$/cancelRequest");
-			expect(cancellation.params).toEqual({ id: firstStatusRequest.id });
-		} finally {
-			vi.restoreAllMocks();
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	});
-
 	it("skips rust-analyzer workspace polling for standalone Rust files", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rust-standalone-");
+		const tempDir = TempDir.createSync("@omp-lsp-rust-standalone-");
 		try {
 			const sourcePath = path.join(tempDir.path(), "foo.rs");
 			await Bun.write(sourcePath, 'fn greet() -> &\'static str { "hi" }\n');
@@ -2045,7 +1533,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("limits glob collection to avoid large diagnostic stalls", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-glob-");
+		const tempDir = TempDir.createSync("@omp-lsp-glob-");
 		try {
 			await Promise.all([
 				Bun.write(path.join(tempDir.path(), "a.ts"), "export const a = 1;\n"),
@@ -2061,7 +1549,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("treats existing bracket paths as literal diagnostic targets", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-bracket-path-");
+		const tempDir = TempDir.createSync("@omp-lsp-bracket-path-");
 		try {
 			const diagnosticTarget = path.join(
 				"apps",
@@ -2088,7 +1576,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("resolves the requested symbol occurrence on a line", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-regression-");
+		const tempDir = TempDir.createSync("@omp-lsp-regression-");
 		try {
 			const filePath = path.join(tempDir.path(), "symbol.ts");
 			await Bun.write(filePath, "foo(bar(foo));\n");
@@ -2101,7 +1589,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("throws when symbol does not exist on the target line", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-missing-symbol-");
+		const tempDir = TempDir.createSync("@omp-lsp-missing-symbol-");
 		try {
 			const filePath = path.join(tempDir.path(), "symbol.ts");
 			await Bun.write(filePath, "winston.info('x');\n");
@@ -2115,7 +1603,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("throws when occurrence is out of bounds", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-occurrence-");
+		const tempDir = TempDir.createSync("@omp-lsp-occurrence-");
 		try {
 			const filePath = path.join(tempDir.path(), "symbol.ts");
 			await Bun.write(filePath, "foo();\n");
@@ -2314,9 +1802,288 @@ describe("lsp regressions", () => {
 		expect(rowContents.join(" ").replace(/\s+/g, " ")).toContain(note);
 	});
 
+	it("answers repeated push diagnostics for unchanged text from a fresh report, without a project-load delay", async () => {
+		const tempDir = TempDir.createSync("@omp-lsp-unchanged-diags-");
+		const cwd = tempDir.path();
+		const target = path.join(cwd, "target.cpp");
+		const uri = fileToUri(target);
+		const error: Diagnostic = {
+			message: "Use of undeclared identifier 'unknown_identifier'",
+			severity: 1,
+			range: { start: { line: 0, character: 20 }, end: { line: 0, character: 38 } },
+		};
+		let overlay: string | undefined;
+		try {
+			await initTheme();
+			await Bun.write(target, "int value() { return 0; }\n");
+			installFakeLsp((message, server) => {
+				if (message.method === "initialize") {
+					server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
+				} else if (message.method === "textDocument/didClose") {
+					overlay = undefined;
+				} else if (message.method === "textDocument/didOpen" || message.method === "textDocument/didChange") {
+					const params = message.params as {
+						textDocument: { text?: string; version: number };
+						contentChanges?: Array<{ text: string }>;
+					};
+					const text = params.textDocument.text ?? params.contentChanges![0].text;
+					// Like clangd, do not republish for an identical-text update.
+					if (text === overlay) return;
+					overlay = text;
+					server.send({
+						jsonrpc: "2.0",
+						method: "textDocument/publishDiagnostics",
+						params: {
+							uri,
+							version: params.textDocument.version,
+							diagnostics: text.includes("unknown_identifier") ? [error] : [],
+						},
+					});
+				} else if (message.method === "shutdown") {
+					server.send({ jsonrpc: "2.0", id: message.id, result: null });
+				} else if (message.method === "exit") {
+					server.exit();
+				}
+			});
+			configCache.set(cwd, { servers: { clangd: { command: "fake-lsp", fileTypes: ["cpp"], rootMarkers: [] } } });
+			const tool = new LspTool(makeLspSession(cwd));
+			const diagnostics = async () =>
+				textResult(await tool.execute("push-diags", { action: "diagnostics", file: target, timeout: 5 }));
+
+			expect(await diagnostics()).toBe("OK");
+			expect(await diagnostics()).toBe("OK");
+			await Bun.write(target, "int value() { return unknown_identifier; }\n");
+			expect(await diagnostics()).toContain("unknown_identifier");
+			expect(await diagnostics()).toContain("unknown_identifier");
+			await tool.execute("reload-push-diags", { action: "reload", file: target, timeout: 5 });
+			expect(await diagnostics()).toContain("unknown_identifier");
+			await Bun.write(target, "int value() { return 0; }\n");
+			expect(await diagnostics()).toBe("OK");
+		} finally {
+			configCache.delete(cwd);
+			await lspClient.shutdownAll();
+			tempDir.removeSync();
+		}
+	}, 10_000);
+
+	for (const dependencyOpen of [true, false]) {
+		it(`refreshes every importer's push diagnostics after a shared ${dependencyOpen ? "open" : "never-opened"} dependency changes or disappears`, async () => {
+			const tempDir = TempDir.createSync("@omp-lsp-push-dependency-");
+			const cwd = tempDir.path();
+			const dependency = path.join(cwd, "value.hpp");
+			const importers = [path.join(cwd, "first.cpp"), path.join(cwd, "second.cpp")];
+			const importerUris = new Set(importers.map(importer => fileToUri(importer)));
+			const error: Diagnostic = {
+				message: "value is not declared",
+				severity: 1,
+				range: { start: { line: 1, character: 20 }, end: { line: 1, character: 25 } },
+			};
+			const overlays = new Map<string, string>();
+			// Like clangd, read a dependency from its overlay, or from disk when it is not open.
+			const dependencyText = (): string | undefined => {
+				const overlay = overlays.get(fileToUri(dependency));
+				if (overlay !== undefined) return overlay;
+				try {
+					return fs.readFileSync(dependency, "utf8");
+				} catch {
+					return undefined;
+				}
+			};
+			try {
+				await initTheme();
+				await Bun.write(dependency, "// missing declaration\n");
+				for (const importer of importers) {
+					await Bun.write(importer, '#include "value.hpp"\nint example() { return value; }\n');
+				}
+				installFakeLsp((message, server) => {
+					const uri = documentUri(message.params);
+					if (message.method === "initialize") {
+						server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
+					} else if (message.method === "textDocument/didClose") {
+						overlays.delete(uri!);
+					} else if (message.method === "textDocument/didOpen" || message.method === "textDocument/didChange") {
+						const params = message.params as {
+							textDocument: { text?: string; version: number };
+							contentChanges?: Array<{ text: string }>;
+						};
+						const text = params.textDocument.text ?? params.contentChanges![0].text;
+						// Like clangd, publish only for a document whose text changed.
+						if (text === overlays.get(uri!)) return;
+						overlays.set(uri!, text);
+						if (importerUris.has(uri!)) {
+							const hasValue = dependencyText()?.includes("constexpr int value");
+							server.send({
+								jsonrpc: "2.0",
+								method: "textDocument/publishDiagnostics",
+								params: { uri, version: params.textDocument.version, diagnostics: hasValue ? [] : [error] },
+							});
+						}
+					} else if (message.method === "shutdown") {
+						server.send({ jsonrpc: "2.0", id: message.id, result: null });
+					} else if (message.method === "exit") {
+						server.exit();
+					}
+				});
+				const config: ServerConfig = { command: "fake-lsp", fileTypes: ["cpp", "hpp"], rootMarkers: [] };
+				configCache.set(cwd, { servers: { clangd: config } });
+				if (dependencyOpen) {
+					const client = await lspClient.getOrCreateClient(config, cwd);
+					await lspClient.ensureFileOpen(client, dependency);
+				}
+				const tool = new LspTool(makeLspSession(cwd));
+				const diagnostics = async (file: string) =>
+					textResult(await tool.execute("push-dependency", { action: "diagnostics", file, timeout: 5 }));
+
+				// Querying the first importer syncs an open dependency; the second must still see the change.
+				for (const importer of importers) expect(await diagnostics(importer)).toContain("value is not declared");
+				await Bun.write(dependency, "constexpr int value = 1;\n");
+				for (const importer of importers) expect(await diagnostics(importer)).toBe("OK");
+				await fsp.unlink(dependency);
+				for (const importer of importers) expect(await diagnostics(importer)).toContain("value is not declared");
+			} finally {
+				configCache.delete(cwd);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		}, 15_000);
+	}
+
+	it("saves a reopened document so a version-echoing server that checks on save reports it", async () => {
+		const tempDir = TempDir.createSync("@omp-lsp-reopen-save-");
+		const cwd = tempDir.path();
+		const target = path.join(cwd, "target.cpp");
+		const uri = fileToUri(target);
+		const error: Diagnostic = {
+			message: "Use of undeclared identifier 'unknown_identifier'",
+			severity: 1,
+			range: { start: { line: 0, character: 20 }, end: { line: 0, character: 38 } },
+		};
+		try {
+			await initTheme();
+			let overlay = { text: "", version: 0 };
+			installFakeLsp((message, srv) => {
+				if (message.method === "initialize") {
+					srv.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
+				} else if (message.method === "textDocument/didOpen") {
+					const doc = (message.params as { textDocument: { text: string; version: number } }).textDocument;
+					overlay = { text: doc.text, version: doc.version };
+				} else if (message.method === "textDocument/didChange") {
+					const params = message.params as {
+						textDocument: { version: number };
+						contentChanges: Array<{ text: string }>;
+					};
+					overlay = { text: params.contentChanges[0].text, version: params.textDocument.version };
+				} else if (message.method === "textDocument/didSave") {
+					// Validates on save only, echoing the document version.
+					srv.send({
+						jsonrpc: "2.0",
+						method: "textDocument/publishDiagnostics",
+						params: {
+							uri,
+							version: overlay.version,
+							diagnostics: overlay.text.includes("unknown_identifier") ? [error] : [],
+						},
+					});
+				} else if (message.method === "shutdown") {
+					srv.send({ jsonrpc: "2.0", id: message.id, result: null });
+				} else if (message.method === "exit") {
+					srv.exit();
+				}
+			});
+			configCache.set(cwd, { servers: { checker: { command: "fake-lsp", fileTypes: ["cpp"], rootMarkers: [] } } });
+			// An OMP write saves the file, so the server's first report echoes a version.
+			await createLspWritethrough(cwd, { enableDiagnostics: true })(target, "int value() { return 0; }\n");
+			await Bun.write(target, "int value() { return unknown_identifier; }\n");
+
+			const output = textResult(
+				await new LspTool(makeLspSession(cwd)).execute("reopen-save", {
+					action: "diagnostics",
+					file: target,
+					timeout: 5,
+				}),
+			);
+
+			expect(output).toContain("unknown_identifier");
+		} finally {
+			configCache.delete(cwd);
+			await lspClient.shutdownAll();
+			tempDir.removeSync();
+		}
+	}, 10_000);
+
+	for (const cancellation of [
+		{
+			name: "ServerCancelled with retriggerRequest",
+			error: { code: -32802, message: "server cancelled", data: { retriggerRequest: true } },
+		},
+		{ name: "ContentModified", error: { code: -32801, message: "content modified" } },
+	]) {
+		it(`retries a diagnostics pull the server declines with ${cancellation.name}`, async () => {
+			const tempDir = TempDir.createSync("@omp-lsp-pull-retrigger-");
+			const cwd = tempDir.path();
+			const target = path.join(cwd, "lib.rs");
+			const diagnostic: Diagnostic = {
+				message: "expected i32, found &str",
+				severity: 1,
+				range: { start: { line: 0, character: 22 }, end: { line: 0, character: 27 } },
+			};
+			let pulls = 0;
+			try {
+				await Bun.write(target, 'fn run() { let x: i32 = "str"; }\n');
+				installFakeLsp((message, server) => {
+					if (message.method === "initialize") {
+						server.send({
+							jsonrpc: "2.0",
+							id: message.id,
+							result: { capabilities: { diagnosticProvider: true } },
+						});
+					} else if (message.method === "textDocument/didOpen") {
+						server.send({
+							jsonrpc: "2.0",
+							method: "$/progress",
+							params: { token: "load", value: { kind: "begin" } },
+						});
+						server.send({
+							jsonrpc: "2.0",
+							method: "$/progress",
+							params: { token: "load", value: { kind: "end" } },
+						});
+					} else if (message.method === "textDocument/diagnostic") {
+						// Like rust-analyzer while it primes caches: decline the first pull.
+						pulls++;
+						server.send(
+							pulls === 1
+								? { jsonrpc: "2.0", id: message.id, error: cancellation.error }
+								: { jsonrpc: "2.0", id: message.id, result: { kind: "full", items: [diagnostic] } },
+						);
+					} else if (message.method === "shutdown") {
+						server.send({ jsonrpc: "2.0", id: message.id, result: null });
+					} else if (message.method === "exit") {
+						server.exit(0);
+					}
+				});
+				configCache.set(cwd, {
+					servers: { "fake-lsp": { command: "fake-lsp", fileTypes: ["rs"], rootMarkers: [] } },
+				});
+
+				const result = await new LspTool(makeLspSession(cwd)).execute("pull-retrigger", {
+					action: "diagnostics",
+					file: target,
+					timeout: 5,
+				});
+
+				expect(textResult(result)).toContain("expected i32, found &str");
+			} finally {
+				configCache.delete(cwd);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		}, 10_000);
+	}
+
 	for (const dynamicRegistration of [false, true]) {
 		it(`reports pull diagnostics advertised through ${dynamicRegistration ? "dynamic registration" : "server capabilities"}`, async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-pull-diags-");
+			const tempDir = TempDir.createSync("@omp-lsp-pull-diags-");
 			try {
 				const targetFile = path.join(tempDir.path(), "target.ts");
 				await Bun.write(targetFile, "const broken: string = 42;\n");
@@ -2331,13 +2098,14 @@ describe("lsp regressions", () => {
 					},
 				};
 
-				const fakeServer = installFakeLsp((message, server) => {
+				installFakeLsp((message, server) => {
 					if (message.method === "initialize") {
 						server.send({
 							jsonrpc: "2.0",
 							id: message.id,
 							result: { capabilities: dynamicRegistration ? {} : { diagnosticProvider: true } },
 						});
+					} else if (message.method === "textDocument/didOpen") {
 						server.send({
 							jsonrpc: "2.0",
 							method: "$/progress",
@@ -2393,16 +2161,6 @@ describe("lsp regressions", () => {
 					file: targetFile,
 					timeout: 20,
 				});
-				const initialize = fakeServer.received.find(message => message.method === "initialize");
-
-				expect(initialize).toMatchObject({
-					params: {
-						capabilities: {
-							textDocument: { diagnostic: { dynamicRegistration: true } },
-						},
-					},
-				});
-				expect(fakeServer.received.map(message => message.method)).toContain("textDocument/diagnostic");
 				expect(textResult(result)).toContain("Type 'number' is not assignable to type 'string'.");
 			} finally {
 				await lspClient.shutdownAll();
@@ -2411,8 +2169,126 @@ describe("lsp regressions", () => {
 		}, 15_000);
 	}
 
+	it("pulls rust-analyzer diagnostics once its workspace has loaded, not when its progress first ends", async () => {
+		const tempDir = TempDir.createSync("@omp-lsp-ra-workspace-load-");
+		const cwd = tempDir.path();
+		const target = path.join(cwd, "lib.rs");
+		let workspaceLoaded = false;
+		try {
+			await Bun.write(target, 'fn run() { let x: i32 = "str"; }\n');
+			const server = installFakeLsp((message, server) => {
+				if (message.method === "initialize") {
+					server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: { diagnosticProvider: true } } });
+				} else if (message.method === "textDocument/didOpen") {
+					// The first progress phase ends long before the workspace is loaded.
+					server.send({
+						jsonrpc: "2.0",
+						method: "$/progress",
+						params: { token: "fetch", value: { kind: "begin" } },
+					});
+					server.send({
+						jsonrpc: "2.0",
+						method: "$/progress",
+						params: { token: "fetch", value: { kind: "end" } },
+					});
+				} else if (message.method === "rust-analyzer/analyzerStatus") {
+					server.send({
+						jsonrpc: "2.0",
+						id: message.id,
+						result: workspaceLoaded ? "Workspace root folders: 1" : "No workspaces",
+					});
+				} else if (message.method === "textDocument/diagnostic") {
+					// Until the workspace loads, the file belongs to no crate and reports clean.
+					const items: Diagnostic[] = workspaceLoaded
+						? [
+								{
+									message: "expected i32, found &str",
+									severity: 1,
+									range: { start: { line: 0, character: 24 }, end: { line: 0, character: 29 } },
+								},
+							]
+						: [];
+					server.send({ jsonrpc: "2.0", id: message.id, result: { kind: "full", items } });
+				} else if (message.method === "shutdown") {
+					server.send({ jsonrpc: "2.0", id: message.id, result: null });
+				} else if (message.method === "exit") {
+					server.exit(0);
+				}
+			});
+			configCache.set(cwd, {
+				servers: {
+					"rust-analyzer": {
+						command: "rust-analyzer",
+						resolvedCommand: process.execPath,
+						fileTypes: ["rs"],
+						rootMarkers: [],
+						workspaceReadyTimings: { timeoutMs: 5_000, pollMs: 1, settleMs: 0 },
+					},
+				},
+			});
+
+			const result = new LspTool(makeLspSession(cwd)).execute("ra-workspace-load", {
+				action: "diagnostics",
+				file: target,
+				timeout: 5,
+			});
+			await server.waitFor(message => message.method === "rust-analyzer/analyzerStatus");
+			workspaceLoaded = true;
+
+			expect(textResult(await result)).toContain("expected i32, found &str");
+		} finally {
+			configCache.delete(cwd);
+			await lspClient.shutdownAll();
+			tempDir.removeSync();
+		}
+	}, 10_000);
+
+	it("rejects a diagnostics wait cancelled during a rust-analyzer cold load with an abort, leaking no rejection", async () => {
+		const tempDir = TempDir.createSync("@omp-lsp-ra-load-cancel-");
+		const target = path.join(tempDir.path(), "lib.rs");
+		const unhandled = trackUnhandled();
+		try {
+			await Bun.write(target, "fn run() {}\n");
+			installFakeLsp((message, server) => {
+				if (message.method === "initialize") {
+					server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: { diagnosticProvider: true } } });
+				} else if (message.method === "textDocument/didOpen") {
+					// The workspace load starts on open and never finishes here.
+					server.send({
+						jsonrpc: "2.0",
+						method: "$/progress",
+						params: { token: "fetch", value: { kind: "begin" } },
+					});
+				} else if (message.method === "shutdown") {
+					server.send({ jsonrpc: "2.0", id: message.id, result: null });
+				} else if (message.method === "exit") {
+					server.exit(0);
+				}
+			});
+			const client = await lspClient.getOrCreateClient(
+				{ command: "rust-analyzer", resolvedCommand: process.execPath, fileTypes: ["rs"], rootMarkers: [] },
+				tempDir.path(),
+			);
+			await lspClient.ensureFileOpen(client, target);
+			const caller = new AbortController();
+
+			const wait = rejectionOf(
+				waitForDiagnostics(client, fileToUri(target), { afterProjectLoad: true, signal: caller.signal }),
+			);
+			caller.abort();
+
+			expect(await wait).toBeInstanceOf(ToolAbortError);
+			await Bun.sleep(0);
+			expect(unhandled.capture()).toEqual([]);
+		} finally {
+			unhandled.release();
+			await lspClient.shutdownAll();
+			tempDir.removeSync();
+		}
+	});
+
 	it("refreshes externally edited open dependencies before importer diagnostics", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-open-dependency-");
+		const tempDir = TempDir.createSync("@omp-lsp-open-dependency-");
 		const cwd = tempDir.path();
 		const dependency = path.join(cwd, "types.ts");
 		const importer = path.join(cwd, "consumer.ts");
@@ -2431,6 +2307,10 @@ describe("lsp regressions", () => {
 			installFakeLsp((message, server) => {
 				if (message.method === "initialize") {
 					server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: { diagnosticProvider: true } } });
+					// The project is loaded: diagnostics need not wait out the no-progress fallback.
+					for (const kind of ["begin", "end"]) {
+						server.send({ jsonrpc: "2.0", method: "$/progress", params: { token: "load", value: { kind } } });
+					}
 				} else if (documentUri(message.params) === dependencyUri) {
 					if (message.method === "textDocument/didOpen") {
 						const doc = piUtils.isRecord(message.params) ? message.params.textDocument : undefined;
@@ -2479,115 +2359,8 @@ describe("lsp regressions", () => {
 		}
 	}, 30_000);
 
-	for (const scenario of [
-		{
-			name: "rejects a failed document pull when no publish follows (#10035)",
-			publish: false,
-			settleMs: 0,
-			acceptsPublish: false,
-		},
-		{
-			name: "accepts fresh published diagnostics after a document pull failure (#10035)",
-			publish: true,
-			settleMs: 0,
-			acceptsPublish: true,
-		},
-		{
-			name: "rejects an unversioned publish that has not settled after a pull failure (#10035)",
-			publish: true,
-			settleMs: 10_000,
-			acceptsPublish: false,
-		},
-	]) {
-		it(
-			scenario.name,
-			async () => {
-				const tempDir = TempDir.createSync("@zeta-lsp-failed-pull-");
-				try {
-					const targetFile = path.join(tempDir.path(), "Program.cs");
-					await Bun.write(targetFile, "private readonly object _gate = new();\n");
-					const uri = fileToUri(targetFile);
-					const publishedDiagnostic: Diagnostic = {
-						message: "Use System.Threading.Lock",
-						severity: 3,
-						code: "IDE0330",
-						source: "roslyn",
-						range: {
-							start: { line: 0, character: 25 },
-							end: { line: 0, character: 38 },
-						},
-					};
-
-					const fakeServer = installFakeLsp((message, server) => {
-						if (message.method === "initialize") {
-							server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
-						} else if (message.method === "initialized") {
-							server.send({
-								jsonrpc: "2.0",
-								id: "register-diagnostics",
-								method: "client/registerCapability",
-								params: {
-									registrations: [
-										{
-											id: "pull-diagnostics",
-											method: "textDocument/diagnostic",
-											registerOptions: { identifier: "DocumentCompilerSemantic" },
-										},
-									],
-								},
-							});
-						} else if (message.method === "textDocument/diagnostic") {
-							server.send({
-								jsonrpc: "2.0",
-								id: message.id,
-								error: { code: -32800, message: "request failed" },
-							});
-							if (scenario.publish) {
-								setImmediate(() => {
-									server.send({
-										jsonrpc: "2.0",
-										method: "textDocument/publishDiagnostics",
-										params: { uri, diagnostics: [publishedDiagnostic] },
-									});
-								});
-							}
-						} else if (message.method === "shutdown") {
-							server.send({ jsonrpc: "2.0", id: message.id, result: null });
-						} else if (message.method === "exit") {
-							server.exit(0);
-						}
-					});
-					const serverConfig: ServerConfig = {
-						command: "Microsoft.CodeAnalysis.LanguageServer",
-						fileTypes: ["cs"],
-						rootMarkers: [],
-					};
-					const client = await lspClient.getOrCreateClient(serverConfig, tempDir.path());
-					const diagnostics = waitForDiagnostics(client, uri, {
-						timeoutMs: scenario.acceptsPublish ? 1_000 : 50,
-						settleMs: scenario.settleMs,
-					});
-
-					if (scenario.acceptsPublish) {
-						expect(await diagnostics).toEqual([publishedDiagnostic]);
-					} else {
-						await expect(diagnostics).rejects.toThrow("request failed");
-					}
-					if (scenario.publish) {
-						expect(client.diagnostics.get(uri)?.diagnostics).toEqual([publishedDiagnostic]);
-					}
-					expect(fakeServer.received.map(m => m.method)).toContain("textDocument/diagnostic");
-				} finally {
-					await lspClient.shutdownAll();
-					tempDir.removeSync();
-				}
-			},
-			15_000,
-		);
-	}
-
 	it("refreshes an open document after a watched module is created", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-created-module-");
+		const tempDir = TempDir.createSync("@omp-lsp-created-module-");
 		try {
 			const sourcePath = path.join(tempDir.path(), "UsesMissing.ts");
 			const modulePath = path.join(tempDir.path(), "MissingClass.ts");
@@ -2651,7 +2424,7 @@ describe("lsp regressions", () => {
 		// #12924/#12925: tsserver pins a failed import resolution when the new
 		// module is opened before its filesystem watcher observes the create.
 		// The write path must await reloadProjects, not rely on watcher latency.
-		const tempDir = TempDir.createSync("@zeta-lsp-write-create-order-");
+		const tempDir = TempDir.createSync("@omp-lsp-write-create-order-");
 		const config: ServerConfig = { command: "fake-lsp", fileTypes: ["ts"], rootMarkers: [] };
 		try {
 			const sourcePath = path.join(tempDir.path(), "UsesMissing.ts");
@@ -2761,7 +2534,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("does not reuse stale file diagnostics after another URI publishes", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-stale-diags-");
+		const tempDir = TempDir.createSync("@omp-lsp-stale-diags-");
 		try {
 			const targetFile = path.join(tempDir.path(), "target.ts");
 			const otherFile = path.join(tempDir.path(), "other.ts");
@@ -2853,7 +2626,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("reports failure when every applicable diagnostics server fails (#8377)", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-all-servers-fail-");
+		const tempDir = TempDir.createSync("@omp-lsp-all-servers-fail-");
 		try {
 			const targetFile = path.join(tempDir.path(), "target.ts");
 			await Bun.write(targetFile, "export const target = 1;\n");
@@ -2893,7 +2666,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("reports failure when every workspace-symbol server fails (#8387)", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-workspace-symbol-all-fail-");
+		const tempDir = TempDir.createSync("@omp-lsp-workspace-symbol-all-fail-");
 		try {
 			const firstConfig: ServerConfig = { command: "broken-first", fileTypes: ["ts"], rootMarkers: [] };
 			const secondConfig: ServerConfig = { command: "broken-second", fileTypes: ["ts"], rootMarkers: [] };
@@ -2924,7 +2697,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("treats an empty workspace-symbol response as a successful search (#8387)", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-workspace-symbol-empty-");
+		const tempDir = TempDir.createSync("@omp-lsp-workspace-symbol-empty-");
 		try {
 			const serverConfig: ServerConfig = { command: "empty-lsp", fileTypes: ["ts"], rootMarkers: [] };
 			vi.spyOn(lspConfig, "loadConfig").mockReturnValue({
@@ -2950,7 +2723,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("keeps workspace-symbol results and reports partial server failures (#8387)", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-workspace-symbol-partial-");
+		const tempDir = TempDir.createSync("@omp-lsp-workspace-symbol-partial-");
 		try {
 			const brokenConfig: ServerConfig = { command: "broken-lsp", fileTypes: ["ts"], rootMarkers: [] };
 			const healthyConfig: ServerConfig = { command: "healthy-lsp", fileTypes: ["ts"], rootMarkers: [] };
@@ -2995,7 +2768,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("treats a go.work-only root as a Go workspace for workspace diagnostics", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-go-work-only-");
+		const tempDir = TempDir.createSync("@omp-lsp-go-work-only-");
 		const spawnCalls: BunSpawnCall[] = [];
 		recordBunSpawn(spawnCalls, cmd => {
 			if (cmd.join("\0") === "go\0work\0edit\0-json") {
@@ -3031,7 +2804,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("builds every go.work use module when go.work and go.mod coexist", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-go-work-before-mod-");
+		const tempDir = TempDir.createSync("@omp-lsp-go-work-before-mod-");
 		const spawnCalls: BunSpawnCall[] = [];
 		recordBunSpawn(spawnCalls, cmd => {
 			if (cmd.join("\0") === "go\0work\0edit\0-json") {
@@ -3079,7 +2852,7 @@ describe("lsp regressions", () => {
 			return;
 		}
 
-		const tempDir = TempDir.createSync("@zeta-lsp-win32-bin-");
+		const tempDir = TempDir.createSync("@omp-lsp-win32-bin-");
 		const whichSpy = vi.spyOn(Bun, "which").mockReturnValue(null);
 
 		try {
@@ -3090,7 +2863,7 @@ describe("lsp regressions", () => {
 			await Bun.write(localTsServer, "");
 
 			const config = loadConfig(tempDir.path());
-			expect(config.servers.typescript?.resolvedCommand).toBe(localTsServer);
+			expect(config.servers["typescript-language-server"]?.resolvedCommand).toBe(localTsServer);
 			expect(whichSpy).not.toHaveBeenCalledWith("typescript-language-server");
 		} finally {
 			vi.restoreAllMocks();
@@ -3098,11 +2871,11 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	// Zeta's `typescript` entry carries a candidate chain (tsgo -> typescript-language-server
-	// -> tsc --lsp): the first alternative that resolves in the project's node_modules/.bin or
-	// on PATH wins, and the winner is recorded as `resolvedCommand`.
+	// TypeScript 7 dropped lib/tsserver.js (typescript-language-server's backend) and
+	// speaks LSP via `tsc --lsp --stdio`; older tsc rejects `--lsp`. Exactly one of the
+	// two servers must survive config loading, chosen from the resolved tsc install.
 	describe("TypeScript server selection", () => {
-		async function writeTypescriptWorkspace(root: string, options: { tsserver: boolean; tls: boolean }) {
+		async function writeTypescriptWorkspace(root: string, options: { tsserver: boolean; symlinkTsc: boolean }) {
 			await Bun.write(path.join(root, "package.json"), "{}");
 			const binDir = path.join(root, "node_modules", ".bin");
 			const pkgDir = path.join(root, "node_modules", "typescript");
@@ -3110,21 +2883,26 @@ describe("lsp regressions", () => {
 			await Bun.write(path.join(pkgDir, "package.json"), '{"name":"typescript"}');
 			await Bun.write(path.join(pkgDir, "bin", "tsc"), "");
 			if (options.tsserver) await Bun.write(path.join(pkgDir, "lib", "tsserver.js"), "");
-			await Bun.write(path.join(binDir, "tsc"), "");
-			if (options.tls) await Bun.write(path.join(binDir, "typescript-language-server"), "");
+			if (options.symlinkTsc) {
+				await fs.promises.symlink(path.join("..", "typescript", "bin", "tsc"), path.join(binDir, "tsc"));
+			} else {
+				await Bun.write(path.join(binDir, "tsc"), "");
+			}
+			await Bun.write(path.join(binDir, "typescript-language-server"), "");
 		}
 
-		it("falls back to tsc --lsp when neither tsgo nor typescript-language-server resolves", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-ts7-");
+		it("prefers tsc --lsp when the workspace TypeScript ships no tsserver.js", async () => {
+			if (process.platform === "win32") return;
+			const tempDir = TempDir.createSync("@omp-lsp-ts7-");
 			vi.spyOn(Bun, "which").mockReturnValue(null);
 			try {
-				await writeTypescriptWorkspace(tempDir.path(), { tsserver: false, tls: false });
+				await writeTypescriptWorkspace(tempDir.path(), { tsserver: false, symlinkTsc: true });
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript"]);
-				expect(config.servers.typescript?.resolvedCommand).toBe(
+				expect(Object.keys(config.servers)).toEqual(["typescript-native"]);
+				expect(config.servers["typescript-native"]?.resolvedCommand).toBe(
 					path.join(tempDir.path(), "node_modules", ".bin", "tsc"),
 				);
-				expect(config.servers.typescript?.args).toEqual(["--lsp", "--stdio"]);
+				expect(config.servers["typescript-native"]?.args).toEqual(["--lsp", "--stdio"]);
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();
@@ -3132,31 +2910,29 @@ describe("lsp regressions", () => {
 		});
 
 		it("keeps typescript-language-server when tsserver.js exists", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-ts5-");
+			const tempDir = TempDir.createSync("@omp-lsp-ts5-");
 			vi.spyOn(Bun, "which").mockReturnValue(null);
 			try {
-				await writeTypescriptWorkspace(tempDir.path(), { tsserver: true, tls: true });
+				await writeTypescriptWorkspace(tempDir.path(), { tsserver: true, symlinkTsc: false });
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript"]);
-				expect(config.servers.typescript?.resolvedCommand).toBe(
-					path.join(tempDir.path(), "node_modules", ".bin", "typescript-language-server"),
-				);
+				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();
 			}
 		});
 
-		it("prefers the typescript-language-server shim over a bare tsc", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-ts-unknown-");
+		it("drops tsc --lsp when the tsc install layout is unrecognized", async () => {
+			const tempDir = TempDir.createSync("@omp-lsp-ts-unknown-");
 			vi.spyOn(Bun, "which").mockReturnValue(null);
 			try {
-				await writeTypescriptWorkspace(tempDir.path(), { tsserver: false, tls: true });
+				await Bun.write(path.join(tempDir.path(), "package.json"), "{}");
+				const binDir = path.join(tempDir.path(), "node_modules", ".bin");
+				await fs.promises.mkdir(binDir, { recursive: true });
+				await Bun.write(path.join(binDir, "tsc"), "");
+				await Bun.write(path.join(binDir, "typescript-language-server"), "");
 				const config = loadConfig(tempDir.path());
-				expect(Object.keys(config.servers)).toEqual(["typescript"]);
-				expect(config.servers.typescript?.resolvedCommand).toBe(
-					path.join(tempDir.path(), "node_modules", ".bin", "typescript-language-server"),
-				);
+				expect(Object.keys(config.servers)).toEqual(["typescript-language-server"]);
 			} finally {
 				vi.restoreAllMocks();
 				tempDir.removeSync();
@@ -3168,7 +2944,7 @@ describe("lsp regressions", () => {
 		const originalPlatform = process.platform;
 		Object.defineProperty(process, "platform", { value: "win32", configurable: true, writable: true });
 
-		const tempDir = TempDir.createSync("@zeta-lsp-win32-ruff-");
+		const tempDir = TempDir.createSync("@omp-lsp-win32-ruff-");
 		const whichSpy = vi.spyOn(Bun, "which").mockReturnValue(null);
 
 		try {
@@ -3195,7 +2971,7 @@ describe("lsp regressions", () => {
 
 		try {
 			for (const marker of ["ruff.toml", ".ruff.toml"] as const) {
-				const tempDir = TempDir.createSync("@zeta-lsp-win32-ruff-marker-");
+				const tempDir = TempDir.createSync("@omp-lsp-win32-ruff-marker-");
 				try {
 					await Bun.write(path.join(tempDir.path(), marker), "");
 					const scriptsDir = path.join(tempDir.path(), ".venv", "Scripts");
@@ -3227,7 +3003,7 @@ describe("lsp regressions", () => {
 				{ marker: "setup.cfg", server: "pylsp", binary: "pylsp.exe" },
 			];
 			for (const { marker, server, binary } of cases) {
-				const tempDir = TempDir.createSync("@zeta-lsp-win32-py-marker-");
+				const tempDir = TempDir.createSync("@omp-lsp-win32-py-marker-");
 				try {
 					await Bun.write(path.join(tempDir.path(), marker), "");
 					const scriptsDir = path.join(tempDir.path(), ".venv", "Scripts");
@@ -3250,7 +3026,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("detects tlaplus files for LSP startup and language ids", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-tlaplus-");
+		const tempDir = TempDir.createSync("@omp-lsp-tlaplus-");
 		const specPath = path.join(tempDir.path(), "Spec.tla");
 		const aliasPath = path.join(tempDir.path(), "Spec.tlaplus");
 
@@ -3286,7 +3062,7 @@ describe("lsp regressions", () => {
 		const originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
 		delete process.env.CLAUDE_CONFIG_DIR;
 		delete Bun.env.CLAUDE_CONFIG_DIR;
-		const tempDir = TempDir.createSync("@zeta-lsp-marketplace-config-");
+		const tempDir = TempDir.createSync("@omp-lsp-marketplace-config-");
 		const home = path.join(tempDir.path(), "home");
 		const cwd = path.join(tempDir.path(), "repo");
 		const pluginRoot = path.join(
@@ -3375,7 +3151,7 @@ describe("lsp regressions", () => {
 		}
 	});
 	it("rename_file applies LSP willRenameFiles edits and renames the file", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-file-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-file-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "src", "old.ts");
 			const destFile = path.join(tempDir.path(), "src", "new.ts");
@@ -3482,7 +3258,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file rejects a snippet edit before writing any file", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-snippet-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-snippet-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "src", "old.ts");
 			const destFile = path.join(tempDir.path(), "src", "new.ts");
@@ -3571,7 +3347,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file aborts before mutation when willRenameFiles fails on a supporting server", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-file-fail-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-file-fail-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "src", "old.ts");
 			const destFile = path.join(tempDir.path(), "src", "new.ts");
@@ -3643,7 +3419,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file skips a server that replies method-not-found and still renames", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-file-mnf-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-file-mnf-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "src", "old.ts");
 			const destFile = path.join(tempDir.path(), "src", "new.ts");
@@ -3703,7 +3479,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file with apply:false previews edits without filesystem changes", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-file-preview-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-file-preview-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "old.ts");
 			const destFile = path.join(tempDir.path(), "new.ts");
@@ -3760,7 +3536,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file enumerates every file inside a directory rename", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-dir-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-dir-");
 		try {
 			const srcDir = path.join(tempDir.path(), "old");
 			const dstDir = path.join(tempDir.path(), "new");
@@ -3833,7 +3609,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("request action sends raw LSP method with auto-built textDocument/position params", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-request-");
+		const tempDir = TempDir.createSync("@omp-lsp-request-");
 		try {
 			const filePath = path.join(tempDir.path(), "src", "lib.rs");
 			await Bun.write(filePath, 'fn main() {\n    println!("hi");\n}\n');
@@ -3905,7 +3681,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("request action forwards explicit JSON payload verbatim", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-request-payload-");
+		const tempDir = TempDir.createSync("@omp-lsp-request-payload-");
 		try {
 			const server: ServerConfig = { command: "test-lsp", fileTypes: ["ts"], rootMarkers: [] };
 			const client: LspClient = {
@@ -3962,7 +3738,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("capabilities action dumps server capabilities", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-caps-");
+		const tempDir = TempDir.createSync("@omp-lsp-caps-");
 		try {
 			const server: ServerConfig = { command: "test-lsp", fileTypes: ["ts"], rootMarkers: [] };
 			const client: LspClient = {
@@ -4019,7 +3795,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("synchronizes open document overlays after applying a rename workspace edit", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-workspace-edit-sync-");
+		const tempDir = TempDir.createSync("@omp-lsp-workspace-edit-sync-");
 		const filePath = path.join(tempDir.path(), "main.go");
 		const uri = fileToUri(filePath);
 		let overlay = "";
@@ -4126,7 +3902,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("reconciles an open document from disk before a semantic query after an external edit", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-external-edit-sync-");
+		const tempDir = TempDir.createSync("@omp-lsp-external-edit-sync-");
 		const filePath = path.join(tempDir.path(), "target.py");
 		const uri = fileToUri(filePath);
 		const original = "def target():\n    return 1\ndef wrong():\n    return 2\nvalue = target()\n";
@@ -4244,8 +4020,729 @@ describe("lsp regressions", () => {
 		}
 	});
 
+	describe("files in another checkout", () => {
+		/** Session checkout `main/` and a linked worktree `feature/` (a `.git` file), each with `src/target.py`. */
+		async function makeCheckouts(prefix: string) {
+			const tempDir = TempDir.createSync(prefix);
+			const sessionRoot = path.join(tempDir.path(), "main");
+			const siblingRoot = path.join(tempDir.path(), "feature");
+			const thirdRoot = path.join(tempDir.path(), "third");
+			const source = "def target():\n    return 1\nvalue = target()\n";
+			await fsp.mkdir(path.join(sessionRoot, ".git"), { recursive: true });
+			await Bun.write(path.join(siblingRoot, ".git"), "gitdir: ../main/.git/worktrees/feature\n");
+			await Bun.write(path.join(thirdRoot, ".git"), "gitdir: ../main/.git/worktrees/third\n");
+			await Bun.write(path.join(sessionRoot, "src", "target.py"), source);
+			await Bun.write(path.join(siblingRoot, "src", "target.py"), source);
+			await Bun.write(path.join(siblingRoot, "src", "other.py"), source);
+			await Bun.write(path.join(thirdRoot, "src", "target.py"), source);
+			return {
+				tempDir,
+				sessionRoot,
+				siblingRoot: fs.realpathSync(siblingRoot),
+				thirdRoot: fs.realpathSync(thirdRoot),
+			};
+		}
+
+		const FOLDER_CHANGES = { workspace: { workspaceFolders: { supported: true, changeNotifications: true } } };
+
+		/** Fake server: `onMessage` handles what it returns true for; other requests get `null`. */
+		function useServer(
+			capabilities: Record<string, unknown>,
+			onMessage: (message: RpcMessage, srv: FakeLspServer) => boolean = () => false,
+			config: Partial<ServerConfig> = {},
+		) {
+			const serverConfig: ServerConfig = {
+				command: "fake-ra",
+				fileTypes: ["py"],
+				rootMarkers: [],
+				isLinter: true,
+				...config,
+			};
+			vi.spyOn(lspConfig, "loadConfig").mockReturnValue({
+				servers: { [serverConfig.command]: serverConfig },
+				idleTimeoutMs: undefined,
+			});
+			const server = installFakeLsp((message, srv) => {
+				if (message.method === "initialize") {
+					srv.send({
+						jsonrpc: "2.0",
+						id: message.id,
+						result: { capabilities: { referencesProvider: true, ...capabilities } },
+					});
+				} else if (onMessage(message, srv)) {
+					return;
+				} else if (message.method === "exit") {
+					srv.exit(0);
+				} else if (message.method && message.id !== undefined) {
+					srv.send({ jsonrpc: "2.0", id: message.id, result: null });
+				}
+			});
+			return { server, serverConfig };
+		}
+
+		const progress = (srv: FakeLspServer, token: string, kind: "begin" | "end") =>
+			srv.send({ jsonrpc: "2.0", method: "$/progress", params: { token, value: { kind } } });
+
+		const folderAdds = (server: FakeLspServer) =>
+			server.received.filter(message => message.method === "workspace/didChangeWorkspaceFolders").map(m => m.params);
+
+		const folderAdd = (dir: string) => ({
+			event: { added: [{ uri: fileToUri(dir), name: path.basename(dir) }], removed: [] },
+		});
+
+		const references = (tool: LspTool, file: string) =>
+			tool.execute("references", { action: "references", file, line: 1, symbol: "target" });
+
+		it("adds the other checkout as a workspace folder before opening its file", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-sibling-folder-");
+			try {
+				const { server } = useServer(FOLDER_CHANGES);
+				const tool = new LspTool(makeLspSession(sessionRoot));
+				const siblingFile = path.join(siblingRoot, "src", "target.py");
+
+				await references(tool, path.join(sessionRoot, "src", "target.py"));
+				expect(server.received.some(message => message.method === "workspace/didChangeWorkspaceFolders")).toBe(
+					false,
+				);
+
+				await references(tool, siblingFile);
+				await references(tool, path.join(siblingRoot, "src", "other.py"));
+				const methods = server.received.map(message => message.method);
+				const adds = server.received.filter(message => message.method === "workspace/didChangeWorkspaceFolders");
+				expect(adds.map(message => message.params)).toEqual([
+					{ event: { added: [{ uri: fileToUri(siblingRoot), name: "feature" }], removed: [] } },
+				]);
+				const siblingOpen = server.received.findIndex(
+					message =>
+						message.method === "textDocument/didOpen" &&
+						JSON.stringify(message.params).includes(fileToUri(siblingFile)),
+				);
+				expect(methods.indexOf("workspace/didChangeWorkspaceFolders")).toBeLessThan(siblingOpen);
+
+				server.send({ jsonrpc: "2.0", id: 9002, method: "workspace/workspaceFolders" });
+				const folders = await server.waitFor(message => message.id === 9002 && message.method === undefined);
+				expect(folders.result).toEqual([
+					{ uri: fileToUri(sessionRoot), name: "main" },
+					{ uri: fileToUri(siblingRoot), name: "feature" },
+				]);
+
+				await lspClient.notifyWorkspaceWatchedFiles(sessionRoot, [
+					{ filePath: siblingFile, type: lspClient.FileChangeType.Changed },
+				]);
+				const watched = await server.waitFor(message => message.method === "workspace/didChangeWatchedFiles");
+				expect(watched.params).toEqual({
+					changes: [{ uri: fileToUri(siblingFile), type: lspClient.FileChangeType.Changed }],
+				});
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("leaves a server without workspace folder changes rooted at the session alone", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-sibling-nofolders-");
+			try {
+				const { server } = useServer({});
+				await references(new LspTool(makeLspSession(sessionRoot)), path.join(siblingRoot, "src", "target.py"));
+
+				expect(server.spawnCount).toBe(1);
+				expect(server.received.some(message => message.method === "workspace/didChangeWorkspaceFolders")).toBe(
+					false,
+				);
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("retries a request the server cancels with ContentModified while indexing an added checkout", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-sibling-retry-");
+			const siblingFile = path.join(siblingRoot, "src", "target.py");
+			try {
+				let calls = 0;
+				useServer(FOLDER_CHANGES, (message, srv) => {
+					if (message.method !== "textDocument/references") return false;
+					calls++;
+					if (calls === 1) {
+						srv.send({ jsonrpc: "2.0", id: message.id, error: { code: -32801, message: "content modified" } });
+						progress(srv, "index", "begin");
+						progress(srv, "index", "end");
+						return true;
+					}
+					const range = { start: { line: 2, character: 8 }, end: { line: 2, character: 14 } };
+					srv.send({ jsonrpc: "2.0", id: message.id, result: [{ uri: fileToUri(siblingFile), range }] });
+					return true;
+				});
+
+				const result = await references(new LspTool(makeLspSession(sessionRoot)), siblingFile);
+
+				expect(calls).toBe(2);
+				expect(result.content[0]).toMatchObject({
+					type: "text",
+					text: expect.stringContaining("Found 1 reference"),
+				});
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("adds a worktree nested in the session's repository and a checkout nested in the session's", async () => {
+			const tempDir = TempDir.createSync("@omp-lsp-nested-folder-");
+			const repo = path.join(tempDir.path(), "repo");
+			const worktree = path.join(repo, ".worktrees", "feature");
+			const vendored = path.join(worktree, "vendor", "lib");
+			try {
+				await fsp.mkdir(path.join(repo, ".git"), { recursive: true });
+				await Bun.write(path.join(worktree, ".git"), "gitdir: ../../.git/worktrees/feature\n");
+				await fsp.mkdir(path.join(vendored, ".git"), { recursive: true });
+				for (const dir of [repo, worktree, vendored]) {
+					await Bun.write(path.join(dir, "src", "target.py"), "def target():\n    return 1\n");
+				}
+				const { server } = useServer(FOLDER_CHANGES);
+				const tool = new LspTool(makeLspSession(worktree));
+
+				await references(tool, path.join(worktree, "src", "target.py"));
+				await references(tool, path.join(repo, "src", "target.py"));
+				await references(tool, path.join(vendored, "src", "target.py"));
+
+				expect(folderAdds(server)).toEqual([
+					folderAdd(fs.realpathSync(repo)),
+					folderAdd(fs.realpathSync(vendored)),
+				]);
+			} finally {
+				configCache.delete(worktree);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("never adds a checkout holding the home directory", async () => {
+			const { tempDir, sessionRoot } = await makeCheckouts("@omp-lsp-home-folder-");
+			const home = path.join(tempDir.path(), "home");
+			try {
+				await fsp.mkdir(path.join(home, ".git"), { recursive: true });
+				await Bun.write(path.join(home, "notes", "src", "target.py"), "def target():\n    return 1\n");
+				vi.spyOn(os, "homedir").mockReturnValue(home);
+				const { server } = useServer(FOLDER_CHANGES);
+
+				await references(new LspTool(makeLspSession(sessionRoot)), path.join(home, "notes", "src", "target.py"));
+
+				expect(folderAdds(server)).toEqual([]);
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("re-checks rust-analyzer's workspace status after adding a checkout", async () => {
+			const tempDir = TempDir.createSync("@omp-lsp-rust-folder-");
+			const sessionRoot = path.join(tempDir.path(), "main");
+			const siblingRoot = path.join(tempDir.path(), "feature");
+			try {
+				for (const root of [sessionRoot, siblingRoot]) {
+					await fsp.mkdir(path.join(root, ".git"), { recursive: true });
+					await Bun.write(path.join(root, "Cargo.toml"), '[package]\nname = "x"\nversion = "0.1.0"\n');
+					await Bun.write(path.join(root, "src", "lib.rs"), "pub fn target() {}\npub fn caller() { target() }\n");
+				}
+				const { server } = useServer(
+					FOLDER_CHANGES,
+					(message, srv) => {
+						if (message.method === "initialized" || message.method === "workspace/didChangeWorkspaceFolders") {
+							progress(srv, "load", "begin");
+							progress(srv, "load", "end");
+						} else if (message.method === "rust-analyzer/analyzerStatus") {
+							srv.send({ jsonrpc: "2.0", id: message.id, result: "Workspaces: 1" });
+						} else if (message.method === "textDocument/references") {
+							const uri = JSON.stringify(message.params).match(/"uri":"([^"]+)"/)?.[1] ?? "";
+							const range = { start: { line: 1, character: 18 }, end: { line: 1, character: 24 } };
+							srv.send({ jsonrpc: "2.0", id: message.id, result: [{ uri, range }] });
+						} else {
+							return false;
+						}
+						return true;
+					},
+					{
+						command: "rust-analyzer",
+						fileTypes: ["rs"],
+						isLinter: false,
+						workspaceReadyTimings: { settleMs: 0, pollMs: 1, timeoutMs: 1_000, statusRequestTimeoutMs: 500 },
+					},
+				);
+				const tool = new LspTool(makeLspSession(sessionRoot));
+
+				await references(tool, path.join(sessionRoot, "src", "lib.rs"));
+				await references(tool, path.join(siblingRoot, "src", "lib.rs"));
+
+				const methods = server.received.map(message => message.method);
+				const add = methods.indexOf("workspace/didChangeWorkspaceFolders");
+				expect(add).toBeGreaterThan(-1);
+				expect(methods.lastIndexOf("rust-analyzer/analyzerStatus")).toBeGreaterThan(add);
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("lets a caller already waiting for the project load wait for an added checkout too", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-load-waiter-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				progress(server, "load", "begin");
+				await lspClient.sendRequest(client, "test/barrier", {});
+				let waited = false;
+				const waiting = lspClient.waitForProjectLoaded(client).then(() => {
+					waited = true;
+				});
+
+				await lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py"));
+				expect(waited).toBe(false);
+				progress(server, "load", "end");
+				progress(server, "folder", "begin");
+				progress(server, "folder", "end");
+				// Replacing the wait instead would leave this caller on the 15 s fallback timer.
+				await waiting;
+
+				expect(waited).toBe(true);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("adds the checkout before diagnostics waits for the project load", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-diagnostics-folder-");
+			const siblingFile = path.join(siblingRoot, "src", "target.py");
+			const events: string[] = [];
+			try {
+				let indexing = false;
+				useServer(
+					{ ...FOLDER_CHANGES, diagnosticProvider: true },
+					(message, srv) => {
+						if (message.method === "initialized") {
+							progress(srv, "init", "begin");
+							progress(srv, "init", "end");
+						} else if (message.method === "workspace/didChangeWorkspaceFolders") {
+							events.push("folder");
+							indexing = true;
+							progress(srv, "index", "begin");
+						} else if (message.method === "textDocument/didOpen") {
+							// The checkout's index ends once its file is open, which the client does before its load wait.
+							if (indexing) {
+								indexing = false;
+								events.push("indexed");
+								progress(srv, "index", "end");
+							}
+						} else if (message.method === "textDocument/diagnostic") {
+							events.push("pull");
+							srv.send({ jsonrpc: "2.0", id: message.id, result: { kind: "full", items: [] } });
+						} else {
+							return false;
+						}
+						return true;
+					},
+					{ isLinter: false },
+				);
+
+				await new LspTool(makeLspSession(sessionRoot)).execute("diagnostics", {
+					action: "diagnostics",
+					file: siblingFile,
+				});
+
+				expect(events).toEqual(["folder", "indexed", "pull"]);
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("adds the destination's checkout before asking the server about a rename into it", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-rename-folder-");
+			try {
+				const { server } = useServer(FOLDER_CHANGES);
+
+				await new LspTool(makeLspSession(sessionRoot)).execute("rename-into-sibling", {
+					action: "rename_file",
+					file: path.join(sessionRoot, "src", "target.py"),
+					new_name: path.join(siblingRoot, "src", "moved.py"),
+					apply: false,
+				});
+
+				const methods = server.received.map(message => message.method);
+				expect(folderAdds(server)).toEqual([folderAdd(siblingRoot)]);
+				expect(methods.indexOf("workspace/didChangeWorkspaceFolders")).toBeLessThan(
+					methods.indexOf("workspace/willRenameFiles"),
+				);
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("aborts an applied rename whose checkout could not be added to a renaming server", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-rename-folder-failed-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES, (message, srv) => {
+					if (message.method !== "workspace/willRenameFiles") return false;
+					srv.send({ jsonrpc: "2.0", id: message.id, result: { changes: {} } });
+					return true;
+				});
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				const stdin = client.proc.stdin;
+				const write = stdin.write.bind(stdin);
+				vi.spyOn(stdin, "write").mockImplementation((chunk: string | Uint8Array) => {
+					const text = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+					if (text.includes("workspace/didChangeWorkspaceFolders")) throw new Error("EPIPE");
+					return write(chunk);
+				});
+				const source = path.join(sessionRoot, "src", "target.py");
+				const dest = path.join(siblingRoot, "src", "moved.py");
+
+				const result = await new LspTool(makeLspSession(sessionRoot)).execute("rename-folder-failed", {
+					action: "rename_file",
+					file: source,
+					new_name: dest,
+				});
+
+				const text = result.content.map(part => (part.type === "text" ? part.text : "")).join("\n");
+				expect(text).toContain("aborted rename");
+				expect(text).toContain("EPIPE");
+				expect(server.received.some(message => message.method === "workspace/willRenameFiles")).toBe(true);
+				expect(fs.existsSync(source)).toBe(true);
+				expect(fs.existsSync(dest)).toBe(false);
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("retries ContentModified within the request's timeout and never re-runs a command", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-retry-bounds-");
+			try {
+				let commands = 0;
+				const { serverConfig } = useServer(FOLDER_CHANGES, (message, srv) => {
+					if (message.method !== "textDocument/hover" && message.method !== "workspace/executeCommand") {
+						return false;
+					}
+					if (message.method === "workspace/executeCommand") commands++;
+					srv.send({ jsonrpc: "2.0", id: message.id, error: { code: -32801, message: "content modified" } });
+					return true;
+				});
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				// The added checkout's load never reports an end.
+				await lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py"));
+
+				const started = Date.now();
+				const hover = await rejectionOf(lspClient.sendRequest(client, "textDocument/hover", {}, undefined, 300));
+				expect(String(hover)).toContain("-32801");
+				expect(Date.now() - started).toBeLessThan(1_500);
+
+				const command = await rejectionOf(
+					lspClient.sendRequest(client, "workspace/executeCommand", { command: "x" }, undefined, 1_000),
+				);
+				expect(String(command)).toContain("-32801");
+				expect(commands).toBe(1);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("makes a concurrent caller for the same checkout wait for its add, which an abort does not cancel", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-concurrent-folder-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				const aborted = new AbortController();
+
+				const first = rejectionOf(
+					lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py"), aborted.signal),
+				);
+				aborted.abort();
+				await lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "other.py"));
+				await first;
+
+				expect(folderAdds(server)).toEqual([folderAdd(siblingRoot)]);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("keeps the load pending when progress running before the add ends before the folder's own", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-progress-cycle-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				progress(server, "startup", "begin");
+				await lspClient.sendRequest(client, "test/barrier", {});
+				await lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py"));
+				let loaded = false;
+				const waiting = lspClient.waitForProjectLoaded(client).then(() => {
+					loaded = true;
+				});
+
+				progress(server, "startup", "end");
+				// A request round trip: the reader has handled the `end` once its reply is in.
+				await lspClient.sendRequest(client, "test/barrier", {});
+				expect(loaded).toBe(false);
+
+				progress(server, "folder", "begin");
+				progress(server, "folder", "end");
+				await waiting;
+				expect(loaded).toBe(true);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("keeps the load pending until each of two separate adds has begun its own progress", async () => {
+			const { tempDir, sessionRoot, siblingRoot, thirdRoot } = await makeCheckouts("@omp-lsp-two-adds-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				progress(server, "startup", "begin");
+				progress(server, "startup", "end");
+				await lspClient.sendRequest(client, "test/barrier", {});
+				await lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py"));
+				await lspClient.ensureWorkspaceFolder(client, path.join(thirdRoot, "src", "target.py"));
+				let loaded = false;
+				const waiting = lspClient.waitForProjectLoaded(client).then(() => {
+					loaded = true;
+				});
+
+				progress(server, "feature", "begin");
+				progress(server, "feature", "end");
+				await lspClient.sendRequest(client, "test/barrier", {});
+				expect(loaded).toBe(false);
+
+				progress(server, "third", "begin");
+				progress(server, "third", "end");
+				await waiting;
+				expect(loaded).toBe(true);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("adds both checkouts of a rename between two other checkouts in one notification", async () => {
+			const { tempDir, sessionRoot, siblingRoot, thirdRoot } = await makeCheckouts("@omp-lsp-rename-two-");
+			try {
+				const { server } = useServer(FOLDER_CHANGES);
+
+				await new LspTool(makeLspSession(sessionRoot)).execute("rename-between-siblings", {
+					action: "rename_file",
+					file: path.join(siblingRoot, "src", "target.py"),
+					new_name: path.join(thirdRoot, "src", "moved.py"),
+					apply: false,
+				});
+
+				expect(folderAdds(server)).toEqual([
+					{ event: { added: [siblingRoot, thirdRoot].map(dir => folderAdd(dir).event.added[0]), removed: [] } },
+				]);
+			} finally {
+				configCache.delete(sessionRoot);
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("does not hold the next add's load for an add whose load ended on the fallback timer", async () => {
+			const { tempDir, sessionRoot, siblingRoot, thirdRoot } = await makeCheckouts("@omp-lsp-fallback-add-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				progress(server, "startup", "begin");
+				progress(server, "startup", "end");
+				await lspClient.sendRequest(client, "test/barrier", {});
+				vi.useFakeTimers();
+				try {
+					// No progress ever comes for this checkout; the 15 s fallback ends its load.
+					await lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py"));
+					vi.advanceTimersByTime(15_000);
+					await lspClient.waitForProjectLoaded(client);
+				} finally {
+					vi.useRealTimers();
+				}
+
+				await lspClient.ensureWorkspaceFolder(client, path.join(thirdRoot, "src", "target.py"));
+				let loaded = false;
+				const waiting = lspClient.waitForProjectLoaded(client).then(() => {
+					loaded = true;
+				});
+				progress(server, "third", "begin");
+				progress(server, "third", "end");
+				await waiting;
+				expect(loaded).toBe(true);
+			} finally {
+				vi.useRealTimers();
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("adds no checkout for a caller that aborted before delivery", async () => {
+			const { tempDir, sessionRoot, siblingRoot, thirdRoot } = await makeCheckouts("@omp-lsp-aborted-add-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				const controller = new AbortController();
+				controller.abort();
+
+				const result = await rejectionOf(
+					lspClient.ensureWorkspaceFolders(
+						client,
+						[path.join(siblingRoot, "src", "target.py"), path.join(thirdRoot, "src", "target.py")],
+						controller.signal,
+					),
+				);
+				await lspClient.sendRequest(client, "test/barrier", {});
+
+				expect(result).toBeInstanceOf(Error);
+				expect(folderAdds(server)).toEqual([]);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("undoes the project-load wait of an add whose notification never reached the server", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-failed-folder-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				progress(server, "load", "begin");
+				progress(server, "load", "end");
+				await lspClient.waitForProjectLoaded(client);
+				vi.spyOn(client.proc.stdin, "write").mockImplementationOnce(() => {
+					throw new Error("EPIPE");
+				});
+
+				const failed = await rejectionOf(
+					lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py")),
+				);
+				expect(String(failed)).toContain("EPIPE");
+
+				// A load that never started must not hold the session's next query for 15 s.
+				await lspClient.waitForProjectLoaded(client);
+				expect(folderAdds(server)).toEqual([]);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("keeps the load of a delivered add pending when an overlapping add's write fails", async () => {
+			const { tempDir, sessionRoot, siblingRoot, thirdRoot } = await makeCheckouts("@omp-lsp-overlap-failed-");
+			try {
+				const { server, serverConfig } = useServer(FOLDER_CHANGES);
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				progress(server, "load", "begin");
+				progress(server, "load", "end");
+				await lspClient.waitForProjectLoaded(client);
+				// The sibling's notification is written first and fails only once the third
+				// checkout's add has been requested behind it.
+				const siblingWritten = Promise.withResolvers<void>();
+				const failSibling = Promise.withResolvers<void>();
+				const stdin = client.proc.stdin;
+				const write = stdin.write.bind(stdin);
+				vi.spyOn(stdin, "write").mockImplementation((chunk: string | Uint8Array) => {
+					const text = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+					if (!text.includes(fileToUri(siblingRoot))) return write(chunk);
+					siblingWritten.resolve();
+					return failSibling.promise.then(() => {
+						throw new Error("EPIPE");
+					});
+				});
+				// A checkout lookup ends by resolving the home directory; the second one is the
+				// third checkout's. Everything that follows it in the same turn (the add being
+				// requested) has run by the next macrotask.
+				const home = path.join(tempDir.path(), "home");
+				await fsp.mkdir(home);
+				vi.spyOn(os, "homedir").mockReturnValue(home);
+				const thirdFound = Promise.withResolvers<void>();
+				let homeLookups = 0;
+				const realpath = fs.promises.realpath;
+				vi.spyOn(fs.promises, "realpath").mockImplementation((async (target: string) => {
+					const resolved = await realpath(target);
+					if (target === home && ++homeLookups === 2) setImmediate(thirdFound.resolve);
+					return resolved;
+				}) as typeof fs.promises.realpath);
+
+				const failed = rejectionOf(
+					lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py")),
+				);
+				await siblingWritten.promise;
+				const delivered = lspClient.ensureWorkspaceFolder(client, path.join(thirdRoot, "src", "target.py"));
+				await thirdFound.promise;
+				failSibling.resolve();
+				expect(String(await failed)).toContain("EPIPE");
+				await delivered;
+				let loaded = false;
+				const waiting = lspClient.waitForProjectLoaded(client).then(() => {
+					loaded = true;
+				});
+				await lspClient.sendRequest(client, "test/barrier", {});
+				expect(loaded).toBe(false);
+
+				progress(server, "third", "begin");
+				progress(server, "third", "end");
+				await waiting;
+				expect(loaded).toBe(true);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+
+		it("keeps a ContentModified retry within the default request timeout", async () => {
+			const { tempDir, sessionRoot, siblingRoot } = await makeCheckouts("@omp-lsp-retry-default-");
+			try {
+				const realNow = Date.now.bind(Date);
+				let skew = 0;
+				vi.spyOn(Date, "now").mockImplementation(() => realNow() + skew);
+				let hovers = 0;
+				const { serverConfig } = useServer(FOLDER_CHANGES, (message, srv) => {
+					if (message.method !== "textDocument/hover") return false;
+					hovers++;
+					if (hovers === 1) {
+						// The first attempt has used up the whole default 30 s by the time it is cancelled.
+						skew = 30_001;
+						srv.send({ jsonrpc: "2.0", id: message.id, error: { code: -32801, message: "content modified" } });
+						progress(srv, "index", "begin");
+						progress(srv, "index", "end");
+					} else {
+						srv.send({ jsonrpc: "2.0", id: message.id, result: { contents: "ok" } });
+					}
+					return true;
+				});
+				const client = await lspClient.getOrCreateClient(serverConfig, sessionRoot);
+				await lspClient.ensureWorkspaceFolder(client, path.join(siblingRoot, "src", "target.py"));
+
+				const hover = await rejectionOf(lspClient.sendRequest(client, "textDocument/hover", {}));
+
+				expect(String(hover)).toContain("-32801");
+				expect(hovers).toBe(1);
+			} finally {
+				await lspClient.shutdownAll();
+				tempDir.removeSync();
+			}
+		});
+	});
+
 	it("skips disk reconciliation while an OMP write holds the overlay ahead of disk", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-pending-write-");
+		const tempDir = TempDir.createSync("@omp-lsp-pending-write-");
 		const filePath = path.join(tempDir.path(), "target.py");
 		const original = "def target():\n    return 1\n";
 		const sent: string[] = [];
@@ -4309,7 +4806,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("waits for reconciled diagnostics before building the code-action context", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-codeaction-reconcile-");
+		const tempDir = TempDir.createSync("@omp-lsp-codeaction-reconcile-");
 		const filePath = path.join(tempDir.path(), "target.py");
 		const original = "def target():\n    return 1\n";
 		let overlay = "";
@@ -4438,7 +4935,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("flushes pending descendant text edits before a folder rename", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-folder-rename-");
+		const tempDir = TempDir.createSync("@omp-lsp-folder-rename-");
 		try {
 			const srcDir = path.join(tempDir.path(), "src");
 			fs.mkdirSync(srcDir, { recursive: true });
@@ -4496,7 +4993,7 @@ describe("lsp regressions", () => {
 		// existing file at that location BEFORE the rename overwrites/replaces it.
 		// Otherwise the rename clobbers the post-edit content (or worse, the edits
 		// land on the moved-in file with stale offsets).
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-target-prefill-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-target-prefill-");
 		try {
 			const oldPath = path.join(tempDir.path(), "old.ts");
 			const newPath = path.join(tempDir.path(), "new.ts");
@@ -4600,7 +5097,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("validates every file's edits before writing any workspace-edit file", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-atomic-validate-");
+		const tempDir = TempDir.createSync("@omp-lsp-atomic-validate-");
 		try {
 			const okPath = path.join(tempDir.path(), "ok.ts");
 			const badPath = path.join(tempDir.path(), "bad.ts");
@@ -4656,7 +5153,7 @@ describe("lsp regressions", () => {
 		// inside `bar$store` rather than the standalone occurrence, feeding the
 		// LSP server the wrong column. The new regex `/^[$A-Za-z_][\w$]*$/` plus
 		// IDENTIFIER_CHAR_RE's existing `$` membership enforces the boundary.
-		const tempDir = TempDir.createSync("@zeta-lsp-dollar-identifier-");
+		const tempDir = TempDir.createSync("@omp-lsp-dollar-identifier-");
 		try {
 			const filePath = path.join(tempDir.path(), "store.ts");
 			// Standalone `$store` starts at column 16; compound `bar$store`
@@ -4683,7 +5180,7 @@ describe("lsp regressions", () => {
 		// not-yet-created file → ENOENT. The new walk processes each entry in
 		// order, so the create lands first and the edit reads the empty file
 		// the create just wrote.
-		const tempDir = TempDir.createSync("@zeta-lsp-create-then-edit-");
+		const tempDir = TempDir.createSync("@omp-lsp-create-then-edit-");
 		try {
 			const newFilePath = path.join(tempDir.path(), "extracted.ts");
 			expect(fs.existsSync(newFilePath)).toBe(false);
@@ -4726,7 +5223,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("honors CreateFile overwrite and ignoreIfExists options", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-create-options-");
+		const tempDir = TempDir.createSync("@omp-lsp-create-options-");
 		try {
 			const filePath = path.join(tempDir.path(), "existing.ts");
 			const uri = fileToUri(filePath);
@@ -4759,7 +5256,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("honors RenameFile overwrite and ignoreIfExists options", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-options-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-options-");
 		try {
 			const oldPath = path.join(tempDir.path(), "old.ts");
 			const newPath = path.join(tempDir.path(), "new.ts");
@@ -4810,7 +5307,7 @@ describe("lsp regressions", () => {
 		// A RenameFile with ignoreIfExists:true whose target exists performs no
 		// filesystem mutation, so overlay reconciliation must not close the old
 		// URI's open document or announce Deleted/Created to the server.
-		const tempDir = TempDir.createSync("@zeta-lsp-skipped-rename-overlay-");
+		const tempDir = TempDir.createSync("@omp-lsp-skipped-rename-overlay-");
 		try {
 			const oldPath = path.join(tempDir.path(), "old.ts");
 			const newPath = path.join(tempDir.path(), "new.ts");
@@ -4862,7 +5359,7 @@ describe("lsp regressions", () => {
 		// The Edit tool's delete only sends didChangeWatchedFiles. Servers treat an
 		// open document as authoritative over disk, so without didClose the deleted
 		// file kept appearing in references and rename edits.
-		const tempDir = TempDir.createSync("@zeta-lsp-deleted-open-doc-");
+		const tempDir = TempDir.createSync("@omp-lsp-deleted-open-doc-");
 		try {
 			const consumer = path.join(tempDir.path(), "consumer.ts");
 			const kept = path.join(tempDir.path(), "kept.ts");
@@ -4897,7 +5394,7 @@ describe("lsp regressions", () => {
 		// non-recursive delete of `src/` runs (subtree flush), and that delete
 		// throws on the non-empty directory. The error must propagate, but the
 		// already-mutated file's overlay must be refreshed — not left stale.
-		const tempDir = TempDir.createSync("@zeta-lsp-partial-edit-overlay-");
+		const tempDir = TempDir.createSync("@omp-lsp-partial-edit-overlay-");
 		try {
 			const srcDir = path.join(tempDir.path(), "src");
 			fs.mkdirSync(srcDir);
@@ -4956,7 +5453,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("honors DeleteFile recursive and ignoreIfNotExists options", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-delete-options-");
+		const tempDir = TempDir.createSync("@omp-lsp-delete-options-");
 		try {
 			const directory = path.join(tempDir.path(), "directory");
 			const uri = fileToUri(directory);
@@ -4990,7 +5487,7 @@ describe("lsp regressions", () => {
 		// case-sensitive filesystem with a symlinked parent directory: `dir/f.ts`
 		// and `dirlink/f.ts` are the same file. The overwrite branch must skip
 		// removing the destination, or it deletes the source before the rename.
-		const tempDir = TempDir.createSync("@zeta-lsp-same-file-rename-");
+		const tempDir = TempDir.createSync("@omp-lsp-same-file-rename-");
 		try {
 			const realDir = path.join(tempDir.path(), "dir");
 			fs.mkdirSync(realDir);
@@ -5022,7 +5519,7 @@ describe("lsp regressions", () => {
 		// source. If the move itself then fails (EXDEV, permissions), the
 		// destination must be restored so the workspace is exactly as it was —
 		// previously the destination was deleted outright and stayed lost.
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-restore-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-restore-");
 		try {
 			const oldPath = path.join(tempDir.path(), "old.ts");
 			const newPath = path.join(tempDir.path(), "new.ts");
@@ -5067,7 +5564,7 @@ describe("lsp regressions", () => {
 		// edits queued against a child URI must land at the original path
 		// BEFORE the parent folder is removed, otherwise the flush at end of
 		// walk would target a non-existent path and throw.
-		const tempDir = TempDir.createSync("@zeta-lsp-folder-delete-");
+		const tempDir = TempDir.createSync("@omp-lsp-folder-delete-");
 		try {
 			const srcDir = path.join(tempDir.path(), "src");
 			fs.mkdirSync(srcDir, { recursive: true });
@@ -5112,37 +5609,6 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	it("sendRequest respects an explicit timeoutMs and reports it in the error", async () => {
-		// Synthesise a minimal in-memory LSP client and never resolve the request
-		// so the per-request timer is the only thing that can fire.
-		const client: LspClient = {
-			name: "test-lsp",
-			cwd: process.cwd(),
-			config: { command: "test-lsp", fileTypes: [".ts"], rootMarkers: [] },
-			proc: { stdin: { write() {}, flush: async () => {} } } as unknown as LspClient["proc"],
-			requestId: 0,
-			diagnostics: new Map(),
-			diagnosticsVersion: 0,
-			openFiles: new Map(),
-			pendingRequests: new Map(),
-			isReading: false,
-			status: "ready",
-			lastActivity: Date.now(),
-			writeQueue: Promise.resolve(),
-			activeProgressTokens: new Set(),
-			projectLoaded: Promise.resolve(),
-			resolveProjectLoaded: () => {},
-		};
-		vi.useFakeTimers();
-		try {
-			const request = lspClient.sendRequest(client, "test/method", {}, undefined, 25);
-			vi.advanceTimersByTime(25);
-			await expect(request).rejects.toThrow(/after 25ms/);
-		} finally {
-			vi.useRealTimers();
-		}
-	});
-
 	it("sendRequest uses the signal as the deadline when no explicit timeout is set", async () => {
 		const client: LspClient = {
 			name: "test-lsp",
@@ -5173,7 +5639,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file skips the LSP loop when no configured server handles the file extension", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-irrelevant-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-irrelevant-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "notes.md");
 			const destFile = path.join(tempDir.path(), "renamed.md");
@@ -5213,7 +5679,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file reports an unreadable source as a read failure, not a missing path", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-source-eacces-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-source-eacces-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "locked.ts");
 			const destFile = path.join(tempDir.path(), "renamed.ts");
@@ -5253,7 +5719,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file refuses to rename when the destination cannot be inspected", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-dest-eacces-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-dest-eacces-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "old.ts");
 			const destFile = path.join(tempDir.path(), "new.ts");
@@ -5294,7 +5760,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("rename_file treats a dangling destination symlink as an existing path", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-rename-dangling-dest-");
+		const tempDir = TempDir.createSync("@omp-lsp-rename-dangling-dest-");
 		try {
 			const sourceFile = path.join(tempDir.path(), "old.ts");
 			const destFile = path.join(tempDir.path(), "dangling.ts");
@@ -5355,7 +5821,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("workspace reload replaces a client whose process or initialization config changed", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-reload-identity-");
+		const tempDir = TempDir.createSync("@omp-lsp-reload-identity-");
 		try {
 			const oldServer = installHandshakeLsp();
 			const oldConfig: ServerConfig = {
@@ -5405,7 +5871,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("workspace reload blocks fresh client creation until stale teardown finishes", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-reload-fresh-race-");
+		const tempDir = TempDir.createSync("@omp-lsp-reload-fresh-race-");
 		try {
 			const oldServer = installFakeLsp((message, server) => {
 				if (message.method === "initialize") {
@@ -5449,45 +5915,8 @@ describe("lsp regressions", () => {
 		}
 	});
 
-	it("workspace reload failure keeps fresh client creation blocked", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-reload-failed-teardown-");
-		try {
-			const oldServer = installFakeLsp(
-				(message, server) => {
-					if (message.method === "initialize") {
-						server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
-					} else if (message.method === "shutdown") {
-						server.send({ jsonrpc: "2.0", id: message.id, result: null });
-					}
-				},
-				{ killResolvesExit: false },
-			);
-			const oldConfig: ServerConfig = {
-				command: "fake-lsp",
-				args: ["--mode", "old"],
-				fileTypes: [".ts"],
-				rootMarkers: [],
-			};
-			await lspClient.getOrCreateClient(oldConfig, tempDir.path(), 1_000);
-
-			const newServer = installHandshakeLsp();
-			const newConfig: ServerConfig = { ...oldConfig, args: ["--mode", "new"] };
-			await expect(lspClient.shutdownStaleClients(tempDir.path(), [newConfig])).rejects.toThrow(
-				"Failed to stop LSP server(s) with superseded configuration",
-			);
-			await expect(lspClient.getOrCreateClient(newConfig, tempDir.path(), 1_000)).rejects.toThrow(
-				"Failed to stop LSP server(s) with superseded configuration",
-			);
-			expect(newServer.spawnCount).toBe(0);
-			oldServer.exit(0);
-		} finally {
-			await lspClient.shutdownAll();
-			tempDir.removeSync();
-		}
-	}, 10_000);
-
 	it("workspace reload waits for a stale pending client before starting its replacement", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-reload-pending-");
+		const tempDir = TempDir.createSync("@omp-lsp-reload-pending-");
 		try {
 			const oldServer = installFakeLsp((message, server) => {
 				if (message.method === "shutdown") {
@@ -5539,7 +5968,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("workspace reload deadline interrupts a stale pending initializer and prevents late publication", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-reload-pending-abort-");
+		const tempDir = TempDir.createSync("@omp-lsp-reload-pending-abort-");
 		try {
 			const oldServer = installFakeLsp(() => {});
 			const oldConfig: ServerConfig = {
@@ -5573,7 +6002,7 @@ describe("lsp regressions", () => {
 	});
 
 	it("workspace reload rediscovers LSP servers after an empty config was cached", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-reload-redetect-");
+		const tempDir = TempDir.createSync("@omp-lsp-reload-redetect-");
 		try {
 			const server: ServerConfig = {
 				command: "test-lsp",
@@ -5653,13 +6082,13 @@ describe("lsp regressions", () => {
 		expect(output).toContain("typescript-language-server (ready)");
 	});
 
-	it("reload * invalidates the per-cwd config cache so newly written .zeta/lsp.json is observed", async () => {
+	it("reload * invalidates the per-cwd config cache so newly written .omp/lsp.json is observed", async () => {
 		// #3546: `getConfig` caches the first `loadConfig` result per cwd
-		// permanently. Creating `.zeta/lsp.json` after the first LSP call left
+		// permanently. Creating `.omp/lsp.json` after the first LSP call left
 		// the tool stuck on "No language servers configured" until the process
 		// restarted. `reload *` (the user's explicit refresh) must invalidate
 		// that cache so subsequent calls observe the fresh config from disk.
-		const tempDir = TempDir.createSync("@zeta-lsp-config-cache-reload-");
+		const tempDir = TempDir.createSync("@omp-lsp-config-cache-reload-");
 		try {
 			const cwd = tempDir.path();
 			const empty: LspConfig = { servers: {}, idleTimeoutMs: undefined };
@@ -5734,7 +6163,7 @@ describe("lsp regressions", () => {
 		});
 
 		it("refreshes open document diagnostics after a generic reload", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-reload-diagnostics-");
+			const tempDir = TempDir.createSync("@omp-lsp-reload-diagnostics-");
 			try {
 				const sourcePath = path.join(tempDir.path(), "UsesMissing.ts");
 				const sourceUri = fileToUri(sourcePath);
@@ -5795,7 +6224,7 @@ describe("lsp regressions", () => {
 		});
 
 		it("propagates cancellation of the reload request instead of reporting Restarted", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-reload-cancel-req-");
+			const tempDir = TempDir.createSync("@omp-lsp-reload-cancel-req-");
 			try {
 				const server = installFakeLsp((message, srv) => {
 					if (message.method === "initialize") {
@@ -5829,7 +6258,7 @@ describe("lsp regressions", () => {
 		});
 
 		it("propagates cancellation that arrives during the notification fallback", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-reload-cancel-fallback-");
+			const tempDir = TempDir.createSync("@omp-lsp-reload-cancel-fallback-");
 			const controller = new AbortController();
 			try {
 				installFakeLsp((message, srv) => {
@@ -5860,7 +6289,7 @@ describe("lsp regressions", () => {
 		});
 
 		it("still falls back to the generic reload on method-not-found without killing the server", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-reload-fallback-ok-");
+			const tempDir = TempDir.createSync("@omp-lsp-reload-fallback-ok-");
 			try {
 				const server = installFakeLsp((message, srv) => {
 					if (message.method === "initialize") {
@@ -5890,7 +6319,7 @@ describe("lsp regressions", () => {
 		});
 
 		it("recognizes -32601 by code even when the server's message text is nonstandard", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-reload-fallback-code-");
+			const tempDir = TempDir.createSync("@omp-lsp-reload-fallback-code-");
 			try {
 				const server = installFakeLsp((message, srv) => {
 					if (message.method === "initialize") {
@@ -5921,7 +6350,7 @@ describe("lsp regressions", () => {
 		});
 
 		it("does not send rust-analyzer/reloadWorkspace to a non-rust server that crashes on it (#8571)", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-reload-non-rust-");
+			const tempDir = TempDir.createSync("@omp-lsp-reload-non-rust-");
 			try {
 				let sawRustReload = false;
 				const server = installFakeLsp((message, srv) => {
@@ -5968,7 +6397,7 @@ describe("lsp regressions", () => {
 		});
 
 		it("shutdownClientInstance removes the client by identity and confirms process exit", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-teardown-confirm-");
+			const tempDir = TempDir.createSync("@omp-lsp-teardown-confirm-");
 			try {
 				installFakeLsp((message, srv) => {
 					if (message.method === "initialize") {
@@ -5992,38 +6421,8 @@ describe("lsp regressions", () => {
 				tempDir.removeSync();
 			}
 		});
-
-		it("shutdownClientInstance reports a failed teardown when the process outlives the kill", async () => {
-			const tempDir = TempDir.createSync("@zeta-lsp-teardown-delayed-");
-			try {
-				const server = installFakeLsp(
-					(message, srv) => {
-						if (message.method === "initialize") {
-							srv.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
-						} else if (message.method === "shutdown") {
-							srv.send({ jsonrpc: "2.0", id: message.id, result: null });
-						}
-						// `exit` notification and `kill()` never resolve `proc.exited`.
-					},
-					{ killResolvesExit: false },
-				);
-				const config: ServerConfig = { command: "fake-teardown-delayed", fileTypes: [".ts"], rootMarkers: [] };
-				const client = await lspClient.getOrCreateClient(config, tempDir.path());
-
-				const exited = await lspClient.shutdownClientInstance(client);
-				expect(exited).toBe(false);
-				expect(lspClient.getActiveClients().some(s => s.name === config.command)).toBe(true);
-
-				server.exit(0);
-				await Bun.sleep(0);
-				expect(lspClient.getActiveClients().some(s => s.name === config.command)).toBe(false);
-			} finally {
-				vi.restoreAllMocks();
-				tempDir.removeSync();
-			}
-		}, 15_000);
 	});
-	describe("reader exit ordering and initialization backoff (#7041)", () => {
+	describe("reader exit ordering (#7041)", () => {
 		it("surfaces the process diagnostic when stdout closes before exit publication", async () => {
 			installFakeLsp(
 				(message, server) => {
@@ -6034,7 +6433,7 @@ describe("lsp regressions", () => {
 					stderr: "simulated rust-analyzer crash",
 				},
 			);
-			const tempDir = TempDir.createSync("@zeta-lsp-quick-exit-");
+			const tempDir = TempDir.createSync("@omp-lsp-quick-exit-");
 			try {
 				const config: ServerConfig = {
 					command: "fake-lsp-quick-exit",
@@ -6055,7 +6454,7 @@ describe("lsp regressions", () => {
 			const server = installFakeLsp((message, fake) => {
 				if (message.method === "initialize") fake.failStdout(new Error("simulated reader failure"));
 			});
-			const tempDir = TempDir.createSync("@zeta-lsp-reader-failure-");
+			const tempDir = TempDir.createSync("@omp-lsp-reader-failure-");
 			try {
 				const config: ServerConfig = {
 					command: "fake-lsp-reader-failure",
@@ -6069,51 +6468,6 @@ describe("lsp regressions", () => {
 				expect(server.killed).toBe(true);
 				expect(lspClient.getActiveClients().some(client => client.name === config.command)).toBe(false);
 			} finally {
-				await lspClient.shutdownAll();
-				tempDir.removeSync();
-			}
-		});
-
-		it("keeps ordinary backoff but lets explicit reload retry immediately", async () => {
-			installFakeLsp((message, server) => {
-				if (message.method === "initialize") server.exit(23);
-			});
-			const tempDir = TempDir.createSync("@zeta-lsp-reload-init-failure-");
-			const config: ServerConfig = {
-				command: "fake-lsp-reload-init-failure",
-				fileTypes: [".ts"],
-				rootMarkers: [],
-			};
-			try {
-				await expect(lspClient.getOrCreateClient(config, tempDir.path())).rejects.toBeInstanceOf(Error);
-				await expect(lspClient.getOrCreateClient(config, tempDir.path())).rejects.toThrow(
-					"failed to initialize recently",
-				);
-
-				vi.restoreAllMocks();
-				const retryServer = installFakeLsp((message, server) => {
-					if (message.method === "initialize") {
-						server.send({ jsonrpc: "2.0", id: message.id, result: { capabilities: {} } });
-					} else if (message.method === "rust-analyzer/reloadWorkspace") {
-						server.send({ jsonrpc: "2.0", id: message.id, result: null });
-					} else if (message.method === "shutdown") {
-						server.send({ jsonrpc: "2.0", id: message.id, result: null });
-					} else if (message.method === "exit") {
-						server.exit(0);
-					}
-				});
-				vi.spyOn(lspConfig, "loadConfig").mockReturnValue({
-					servers: { fake: config },
-					idleTimeoutMs: undefined,
-				});
-
-				const tool = new LspTool(makeLspSession(tempDir.path()));
-				const result = await tool.execute("reload-init-failure", { action: "reload", file: "*" });
-
-				expect(textResult(result)).toContain("Reloaded fake");
-				expect(retryServer.received.some(message => message.method === "initialize")).toBe(true);
-			} finally {
-				vi.restoreAllMocks();
 				await lspClient.shutdownAll();
 				tempDir.removeSync();
 			}
@@ -6133,7 +6487,7 @@ describe("lsp regressions", () => {
 			// after the 30s `DEFAULT_REQUEST_TIMEOUT_MS` fallback fired.
 			const server = installFakeLsp(() => {});
 
-			const tempDir = TempDir.createSync("@zeta-lsp-init-abort-");
+			const tempDir = TempDir.createSync("@omp-lsp-init-abort-");
 			try {
 				const controller = new AbortController();
 				const reason = new Error("caller deadline");
@@ -6156,7 +6510,7 @@ describe("lsp regressions", () => {
 		it("does not negative-cache caller-aborted initialize attempts", async () => {
 			const server = installFakeLsp(() => {});
 
-			const tempDir = TempDir.createSync("@zeta-lsp-init-abort-cache-");
+			const tempDir = TempDir.createSync("@omp-lsp-init-abort-cache-");
 			try {
 				const controller = new AbortController();
 				const config: ServerConfig = {
@@ -6357,7 +6711,7 @@ describe("lsp regressions", () => {
 
 			vi.spyOn(piUtils.ptree, "spawn").mockReturnValue(proc as unknown as piUtils.ptree.ChildProcess<"pipe">);
 
-			const tempDir = TempDir.createSync("@zeta-lsp-flush-wedge-");
+			const tempDir = TempDir.createSync("@omp-lsp-flush-wedge-");
 			try {
 				const config: ServerConfig = {
 					command: "fake-lsp-flush-wedge",
@@ -6450,7 +6804,7 @@ describe("ty python lsp", () => {
 	});
 
 	it("coexists with ruff: ty is primary, ruff is linter, both auto-detected", async () => {
-		const tempDir = TempDir.createSync("@zeta-lsp-ty-ruff-");
+		const tempDir = TempDir.createSync("@omp-lsp-ty-ruff-");
 		const resolvedTy = path.join(tempDir.path(), "bin", "ty");
 		const resolvedRuff = path.join(tempDir.path(), "bin", "ruff");
 		vi.spyOn(piUtils, "$which").mockImplementation(command =>
@@ -6474,7 +6828,7 @@ describe("ty python lsp", () => {
 		// Astral documents ty.toml as a first-class project config file; a project
 		// that opts into ty with only that file (no pyproject/setup/requirements)
 		// must still pass the root-marker gate AND resolve the local venv binary.
-		const tempDir = TempDir.createSync("@zeta-lsp-ty-toml-");
+		const tempDir = TempDir.createSync("@omp-lsp-ty-toml-");
 		const venvBin = process.platform === "win32" ? ".venv/Scripts" : ".venv/bin";
 		const resolvedTy = path.join(tempDir.path(), venvBin, "ty");
 		// $which never succeeds: only LOCAL_BIN_PATHS resolution can find ty.
