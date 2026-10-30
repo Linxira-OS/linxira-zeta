@@ -2,7 +2,14 @@
 
 ## [1.4.6] - 2026-10-28
 
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
+### Breaking Changes
+
+- Removed the Bun event-loop workaround utilities from `@oh-my-pi/pi-agent-core/utils/yield`; agent loops no longer insert cooperative sleeps while streaming or between tool calls.
+
+### Added
+
+- Added `AgentTool.approvalRestrictionPaths` so tools can report the paths they read, allowing restricted-folder approvals to cover those paths without remembering approval separately for each path.
+- Added `Agent.logContext`, which adds custom context fields to every log record written during an agent run.
 
 ## [9.2.2] - 2026-01-31
 

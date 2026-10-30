@@ -92,8 +92,10 @@ const vendoredRoots = [
 	),
 ];
 for (const vendored of vendoredRoots) {
-	if (!files.includes(`${vendored}/LICENSE`) && !files.includes(`${vendored}/LICENSE.md`))
-		failures.push({ where: vendored, what: "vendored tree has no LICENSE file" });
+	// Vendored crates use several canonical spellings: LICENSE, LICENSE.md,
+	// LICENSE-MIT, and UNLICENSE (public-domain texts).
+	const hasLicence = files.some(file => file === `${vendored}/UNLICENSE` || file.startsWith(`${vendored}/LICENSE`));
+	if (!hasLicence) failures.push({ where: vendored, what: "vendored tree has no LICENSE file" });
 }
 
 // 4. The root documents the split and points at the workbench text.

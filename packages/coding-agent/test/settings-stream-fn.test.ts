@@ -10,7 +10,7 @@
 import { describe, expect, it } from "bun:test";
 import type { StreamFn } from "@linxiraos/pi-agent-core";
 import { type Context, type Model, type SimpleStreamOptions, streamSimple } from "@linxiraos/pi-ai";
-import { configureProviderStoreResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import { configureProviderStoreResponses } from "@linxiraos/pi-ai/providers/openai-responses-state";
 import type { FetchImpl } from "@linxiraos/pi-ai/types";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";

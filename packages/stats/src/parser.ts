@@ -620,6 +620,8 @@ export async function parseSessionFile(
 	const userLinks: UserMessageLink[] = [];
 	const toolCalls: ToolCallStats[] = [];
 	const toolResults: ToolResultLink[] = [];
+	// First call per id: the row `INSERT OR IGNORE` keeps, so it can be written with its result.
+	const callsById = new Map<string, ToolCallStats>();
 
 	// The previous user message, for the whole-message repetition signal. An
 	// incremental parse starts mid-session, so the first message of a resumed
@@ -649,9 +651,13 @@ export async function parseSessionFile(
 		}
 		if (isToolResultMessage(entry)) {
 			const link = extractToolResultLink(sessionPath, entry);
-			if (link) {
-				toolResults.push(link);
-				if (link.isError) pendingToolErrors++;
+			if (!link) return;
+			toolResults.push(link);
+			if (link.isError) pendingToolErrors++;
+			const call = callsById.get(link.toolCallId);
+			if (call && call.resultChars === undefined) {
+				call.resultChars = link.resultChars;
+				call.isError = link.isError;
 			}
 			return;
 		}
@@ -663,7 +669,10 @@ export async function parseSessionFile(
 		if (isAssistantMessage(entry)) {
 			const msgStats = extractStats(sessionPath, folder, entry, currentServiceTier, agentType);
 			if (msgStats) stats.push(msgStats);
-			toolCalls.push(...extractToolCalls(sessionPath, folder, entry, agentType));
+			for (const call of extractToolCalls(sessionPath, folder, entry, agentType)) {
+				toolCalls.push(call);
+				if (!callsById.has(call.toolCallId)) callsById.set(call.toolCallId, call);
+			}
 			const textStats = extractAssistantTextStats(
 				sessionPath,
 				folder,
@@ -785,7 +794,7 @@ export async function listSessionFolders(): Promise<string[]> {
  * transcripts, never transcripts of their own; a killed run can leave one
  * behind until the next `zetacode gc --compress --apply` removes it.
  */
-export const COMPRESS_SCRATCH_PREFIX = ".omp-gc-compress-";
+export const COMPRESS_SCRATCH_PREFIX = ".zeta-gc-compress-";
 
 /** Whether `relativePath` (from any ancestor directory) lies inside a compress scratch directory. */
 export function isCompressScratchPath(relativePath: string): boolean {

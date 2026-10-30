@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import {
-	configureProviderStoreResponses,
 	pollOpenAIResponsesResultForCompletion,
 	streamOpenAIResponses,
 } from "@linxiraos/pi-ai/providers/openai-responses";
+import { configureProviderStoreResponses } from "@linxiraos/pi-ai/providers/openai-responses-state";
 import type { AssistantMessageEvent, Context, FetchImpl, Model } from "@linxiraos/pi-ai/types";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 

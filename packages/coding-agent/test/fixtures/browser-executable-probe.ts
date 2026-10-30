@@ -1,5 +1,6 @@
 import { spyOn } from "bun:test";
 import * as os from "node:os";
+import * as browsers from "@linxiraos/pi-utils/browsers";
 import { ensureChromiumExecutable, ensureSignInChromiumExecutable } from "@linxiraos/zeta/tools/browser/launch";
 
 // Launch policy reads `process.platform`; Chrome-for-Testing platform detection reads `os.platform()`, which Bun does
@@ -11,6 +12,12 @@ if (platform === "darwin" || platform === "win32") {
 } else if (platform) {
 	throw new Error(`Unsupported OMP_BROWSER_PROBE_PLATFORM: ${platform}`);
 }
+
+// The parent seeds every executable the probe may select. Resolving anything else would start a
+// Chrome for Testing download, which stalls the probe on the network; fail it instead.
+spyOn(browsers, "install").mockImplementation(async options => {
+	throw new Error(`browser-executable-probe must not download a browser (cacheDir ${options.cacheDir})`);
+});
 
 const executable =
 	process.env.OMP_BROWSER_PROBE_PURPOSE === "sign-in"

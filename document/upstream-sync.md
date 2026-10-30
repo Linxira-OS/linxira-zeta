@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.12.6
+## Integrated through: v18.13.2
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -26,6 +26,60 @@ merge.
   dedicated on-demand sync after 1.4.0 ships; the security hardening above is
   the first reason to schedule it.
 
+## v18.14.0 incremental merge (Zeta — branch `sync/omp-release/18.14`, 2026-10-30; awaiting owner merge)
+
+- **Baseline**: `v18.13.2` (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`);
+  `git merge-base HEAD v18.14.0` resolves to it, so only the tag-to-tag
+  increment is applied.
+- **Source tag**: `v18.14.0`, peeled
+  `31147f9d1a76608549821c3759f8487b4d66c72d` (verified with
+  `git ls-remote --tags omp-upstream refs/tags/v18.14.0` before the merge).
+  Merge commit: `5b8a9e1f787`, parents `4b8b942a9a4` (Zeta prep on 1.4.6) +
+  `31147f9d1a7`.
+- **Delta** (`git diff v18.13.2 v18.14.0`): **511 commits, 1450 files,
+  +146,652 −120,081**; 202 added, 797 modified, 451 deleted.
+- **Conflicts**: 416 initially — `303 UU`, `111 UD`, `2 DU`; 122 code `UU`
+  after the docs/tests and theme decisions. All resolved. The 98
+  `packages/tui/src/theme/defaults/*.json` entries were deleted because
+  upstream consolidated them into `defaults.json`.
+- **Resolution policy**: shared behavior follows upstream. Zeta-only surfaces
+  were replayed manually: `AGENTS.md`, `README.md`, `document/`, `Dockerfile`,
+  install/release scripts, `.github/` Zeta CI, the product package name
+  `@linxiraos/zeta`, `~/.zeta`, `ZETA_*` env names, `zetacode` CLI text,
+  plugin/board/attachment/Terminal surfaces, and the `zeta.*` TUI roles.
+  Upstream additions taken as-is: native Chrome WebMCP, custom tool-loader
+  signature, exact provider-qualified model selectors, manual compaction
+  events, Tern terminal code (branding/promo excluded), and the Bun 1.4.4
+  code paths.
+- **Bun**: kept Zeta's exact `bun@1.4.4` package manager and
+  `engines.bun >= 1.4.4`; upstream's `bun@>=1.4.4` floor was not adopted.
+  `@types/bun` advanced to `1.4.4`.
+- **HTML export**: upstream replaced the self-contained export with a viewer
+  hosted at `build.stencil.so` plus `stencil.so` assets. Zeta keeps its
+  offline exporter (vendored marked/highlight, inlined tool views, and the
+  compiled-binary file loaders); the hosted viewer is unused here. This is the
+  only deliberate feature rollback in the round.
+- **Share**: left on the existing prompt-driven user-GitHub path; the residual
+  `DEFAULT_SHARE_URL` cleanup is not part of the tag merge.
+- **Generated data**: `bun run gen:rpc` regenerated all three SDK wire files
+  from the merged schema (including Zeta's `StateVersionChangedEvent`);
+  `bun run gen:compat` rebuilt `packages/catalog/src/compat/rules.json` from
+  Zeta KDL (1114 rules; Zeta auth originator); `viewer.generated.json` remains
+  unused by the restored exporter.
+- **Checks (local, 2026-10-30)**: `check:ts` pass (all workspaces);
+  `brand-check` 0 hits; `check-zeta-sentinels` 119; `check-scope-imports`
+  21,455 specifiers; `check-shared-infra` 16 endpoints; version consistency
+  1.4.6; lineage gate pass. TUI conflict suites 83 pass; coding-agent targeted
+  suites 77 pass; session/modes/task batch 141 pass, with three Windows-only
+  failures (two `EPERM` symlink cases and one 30s timeout that passes 22/22
+  standalone). The CLI binary builds after a clean `dist/` and its smoke run
+  reports `zetacode/1.4.6`; the earlier stale `dist/zeta.exe` masked the version
+  change. `bun run test:ts` stops in `packages/utils` on two Windows baseline
+  failures (`readlink` returns `EINVAL`; a 5.21s process-spawn assertion misses
+  its 5s bound), so its remaining package buckets were not reached; CI remains
+  the full-suite authority. Rust `check:rs` is blocked by this Windows host
+  resolving `link.exe` to Git's coreutils link rather than the MSVC linker.
+
 
 This line is the machine-readable answer to "which upstream tag is actually
 in our history", and it is what `scripts/check-merge-lineage.ts` reads. It is
@@ -34,15 +88,12 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.11.3` (`96894a6147d8cc64b7e00ad3a7d7178fd93b9531`,
-  confirmed by `git ls-remote --tags omp-upstream refs/tags/v18.11.3` **before and after** the merge
-  returning the same peeled SHA, and by `git merge-base --is-ancestor 96894a6147d HEAD`, merge commit
-  `24c3da1c56b`). The previous value was `v18.11.2`
-  (`470b7efb67673960d37e3e64584669e6e9caad1c`, merge `bd6938cbac3`), which is exactly the merge-base
-  this round started from (`git merge-base 5769cf3c771 v18.11.3` →
-  `470b7efb67673960d37e3e64584669e6e9caad1c`), so this rung applies upstream's own
-  `v18.11.2`→`v18.11.3` increment and never our diff. The v18.11.3 tag is a lightweight tag; it was not
-  moved during this round.
+- **Integrated through**: `v18.13.2` (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`,
+  integrated into `main` by merge `9145cc93a43`; the tag merge itself is
+  `e7fe9f1452f`, parents `98b7b94fe78` + `e996e1c7ac4`). The previous value was
+  `v18.13.1` (`0838d2ab4407`, tag merge `e7fe9f1452f`'s baseline); the
+  `v18.13.2` merge is a true two-parent tag merge and
+  `git merge-base --is-ancestor v18.13.2 HEAD` holds.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
   `082bb1ac490`) but that branch was never merged into main. What landed was
@@ -2360,26 +2411,13 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.11.3` (`96894a6147d8cc64b7e00ad3a7d7178fd93b9531`; two-parent merge
-  `24c3da1c56b` ← `5769cf3c771` + `96894a6147d`; the tag was remote-verified before and after the
-  merge — see the entry above). The previous anchor was `v18.11.2`
-  (`470b7efb67673960d37e3e64584669e6e9caad1c`, two-parent merge `bd6938cbac3` ← `d98033c2694`
-  + `470b7efb6`), and before that `v18.11.1`
-  (`7cc912940b107eb2d771b0d106c640a8eddc9edf`, two-parent merge `949687f3230` ← `e5b1667537b`
-  + `7cc912940b1`, rung 4/4 carrying v18.11.0, with `c86128383f1` → v18.10.4 (rung 3/4), `e78ebe945da` →
-  v18.10.3 (rung 2/4, PR #229) and `e72c77df4df` → v18.10.1 (rung 1/4, PR #227) before it). One tag per
-  release, each on its own `sync/omp-release/*` branch;
-  **next sync target: the next upstream OMP release tag when it appears.**
-- Zeta: `1.2.1` (version line holds across the published `@linxiraos/*`
+- OMP: `v18.13.2` (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`; integrated into
+  `main` by merge `9145cc93a43`, tag merge `e7fe9f1452f`). Previous value was
+  `v18.13.1` (`0838d2ab4407`). One tag per release, each on its own
+  `sync/omp-release/*` branch; **next sync target: `v18.14.0`**.
+- Zeta: `1.4.6` (version line holds across the published `@linxiraos/*`
   packages, the Cargo workspace and the natives stamp).
-- In flight: `sync/omp-release/v18.11.3` — merge commit `24c3da1c56b` (parents `5769cf3c771` (main) +
-  `96894a6147d` (the v18.11.3 tag)) plus the follow-up commits (the CHANGELOG fold, the Zeta surface
-  re-application, the model-argument contract fix, the compat regen, the i18n localization, this
-  ledger). Pushed twice and dispatched twice: run `39028789166` at `711a5613643` (14 green / 4 red — all
-  four were triaged, three fixed as merge residue, one pre-existing `main/` clippy defect) and run
-  `39032073476` at `b37ec9a7c98` (17 green / 1 red — only the pre-existing `main/` clippy defect /
-  13 tag-gated skips). Its landing on `main` is a maintainer decision and is sequenced with the other
-  in-flight branches so `main` takes a single push and a single CI run.
+- In flight: `sync/omp-release/18.14` — merging `v18.14.0`; not landed.
 
 ### Zeta-side flake hardening（2026-10-17）
 

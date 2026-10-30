@@ -2,7 +2,13 @@
 
 ## [1.4.6] - 2026-10-28
 
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
+### Added
+
+- Added `logger.withContext(fields, fn)` to attach contextual fields to all records produced during a function and its asynchronous work, plus `logger.withoutContext(fn)` for work that should not inherit caller context.
+
+### Fixed
+
+- Fixed `untilAborted` so promises passed to an already-aborted signal are still observed, preventing later rejections from being reported as unhandled.
 
 ## [1.4.5] - 2026-10-28
 

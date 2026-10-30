@@ -77,6 +77,7 @@ These exist today (headline capabilities are marked in the root `README.md`):
 | IM credential login (1.4.0)                    | `src/channels/credential-login.ts`, GUI `settings_channels.rs`                | Feishu app credentials and Telegram bot token validated before saving; masked errors; same state words as the WeChat QR flow |
 | Plugin panel activation gate (1.4.0)           | `src/extensibility/plugins/activation.ts`                                     | Declarative panels appear only when the agent runs inside the workbench terminal (or `PI_FORCE_PLUGIN_PANELS=1`); tools and commands stay available everywhere |
 | Multi-repo task panel design (1.4.0)           | `document/task-panel-design.md`                                               | Decision-complete: single `task` tool with `op`, per-repo `.zeta/tasks/<id>.md`, workspace binding file, invalidation rules, layer separation from the user board, sticky disable, 23 acceptance scenarios |
+| TUI right sidebar (`tui.sidebar`)              | `src/modes/components/sidebar.ts`, `src/modes/settings.ts`                    | 36-column gutter, `/sidebar` + `app.sidebar.toggle`, `tui.sidebar` default off, `tui.sidebarWidgets` gates extension widgets; built-ins: context, todos, subagents, MCP; hidden below 100 columns or under an overlay; not scrollback. **Had only UPDATE-LOG/docs mention, no roadmap row** |
 
 ## Priorities
 
@@ -106,6 +107,11 @@ These exist today (headline capabilities are marked in the root `README.md`):
 - **右栏插件宿主**：已落地（1.4.0）——同一右栏既画声明式原生面板（`list`/`form`/`chart`），
   也把 `html` 面板送进 webview；`zetaide` 与工作台 TUI 不承载插件面（守卫测试钉住）。
 - **TUI 只保基本功能**：不再加需求，减法为主；后续投入全在 GUI。
+  **2026-10-30 例外**：TUI 已有 `tui.sidebar` gutter（36 列，context/todos/subagents/MCP）；
+  允许在其上补内容（如 Git 历史/提交）与修正文档，但**不扩成 dsh-TUI 的完整 PanelHost**
+  （不做标签页、拖拽 resize、插件 panel 宿主）；仍不新增用户模式。
+  **待办（P1）**：TUI 右栏 Git widget——branch/工作区状态/ahead-behind/最近提交；
+  `SidebarSources` 注入缓存快照，渲染路径零 IO；不新增设置、不改状态栏归属。
 - **内置编辑器要"像专业编辑器"，但不要代码补全**（能力缺口审计后逐项登记）。
 
 **2026-10-15 裁决（保留为历史记录；与上面冲突处以 2026-10-16 为准）**：
@@ -955,8 +961,9 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
     SDK/host 层「pi 兼容模式」而不是改默认。**开工前先定**:①兼容开关的承载层(SDK 选项 vs wire 版本
     协商);②`message_start`/`message_end` 之间增量装配的责任归属;③对既有 Web UI/desktop 消费面的回归范围。
 
-- **P2「按 DeepSeek Reasonix 补齐复杂控件」12 片(2026-10-13 用户裁决;分叉 F1–F5 已决,本队列逐片登记)**:范围 =
+- **P2「按 DeepSeek Reasonix 补齐复杂控件」12 片(2026-10-13 用户裁决;2026-10-30 用户裁决：完全不做，整节关闭)**:范围 =
   纯前端(`web-ui/**` + `desktop/**`)补齐 Reasonix 交互复杂度最高的控件,**12 个互不阻塞的独立 PR**,零网关/DTO 契约改动。
+  **2026-10-30 关闭：不做 S1–S12，不做 web-ui 新复杂控件；本节只留历史记录。**
   **分叉已决**:`F1` 只做前端(解禁 `packages/**` 的四类后端控件另列,见本队列后两条);`F2` 引入会话多标签(不塞进本批,
   另立计划,见下条);`F3` 终端留在右 dock(不做底部抽屉);`F4` 保留 textarea(不移植 contentEditable atom,chip 化放上下文行);
   `F5` 独立 AskCard(须依赖 ask 通道 → 见本队列第三条,本批只做 `S6` 的 DecisionShelf 子集)。
@@ -1135,6 +1142,14 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   已证明 WebView2 子窗口在本机可行、GUI 内可缩放），或复用 `zetacode serve` 服务端 + GUI 内浏览器
   视图。插件体系本身已有设计文档（`document/plugin-system.md`、`plugin-storage-spec.md`、
   `plugin-manager-installer-plumbing.md`），本项**只做宿主接线**，不重做那三份设计。
+
+- **双向 subagent relay / `zeta-relay`（2026-10-30 用户裁决；暂不开发）**:只登记方向，不排期。
+  形态是**对端进程 + 主会话**，不是 DSH `ctx.subagents` 的 child，也不走 `dsh-subagent-acp`：
+  一边在指定 cwd 拉起/接入另一边的 ACP 主会话，两边对称；对端自己的子代理仍留在对端，不承诺
+  跨 harness 可见。计划两个 adapter（DSH 侧 relay 工具、Zeta 侧 DSH 工具），P0 本地 spawn，
+  P1 attach/listen；`workspace` 一次一个 cwd，多仓库由多个 peer session 或 relay hub 串行/并行
+  联系，不改造 DSH ACP 的 one-primary-workspace。**不做**新用户模式、不做 TUI 后端、不并入 IM；
+  PTC 由 agent 自己选 `eval` 聚合，relay 只暴露普通工具。
 
 ## Notes
 

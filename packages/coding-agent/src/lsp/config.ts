@@ -323,18 +323,69 @@ export interface SelectedServerCommand {
 export type ServerCommandSelection = { selection: SelectedServerCommand } | { reason: string };
 
 /**
+ * Directory of the package that owns a resolved `tsc`/`tsgo` launcher, or null
+ * when the layout is not a recognizable npm install.
+ */
+function typescriptPackageDir(tscPath: string): string | null {
+	let realPath = tscPath;
+	try {
+		realPath = fs.realpathSync(tscPath);
+	} catch {}
+	const binDir = path.dirname(tscPath);
+	const candidates = [
+		// <pkg>/bin/tsc: symlinked node_modules/.bin and global installs
+		...(path.basename(path.dirname(realPath)) === "bin" ? [path.dirname(path.dirname(realPath))] : []),
+		// node_modules/.bin/tsc.cmd on Windows
+		path.join(binDir, "..", "typescript"),
+		// npm global prefix on Windows
+		path.join(binDir, "node_modules", "typescript"),
+	];
+	for (const dir of candidates) {
+		if (fs.existsSync(path.join(dir, "package.json"))) return dir;
+	}
+	return null;
+}
+
+/**
+ * Whether the `tsc` at `tscPath` speaks LSP itself. TypeScript 7 dropped the JS
+ * `lib/tsserver.js` that typescript-language-server wraps and exposes
+ * `tsc --lsp --stdio` from its native binary instead; older releases reject the
+ * flag with TS5023.
+ */
+function typescriptSpeaksLsp(tscPath: string): boolean {
+	const packageDir = typescriptPackageDir(tscPath);
+	return packageDir !== null && !fs.existsSync(path.join(packageDir, "lib", "tsserver.js"));
+}
+
+/**
  * Pick the first candidate that resolves on PATH (after the project-local bin
  * directories). A server without a candidate list is a one-element chain; the
  * `$PID` token is substituted either way.
+ *
+ * The TypeScript server needs one extra rule: `tsc --lsp` and
+ * `typescript-language-server` are mutually exclusive by the installed
+ * TypeScript version. Keep only the candidate that this installation can run.
  */
 export function selectServerCommand(
 	config: ServerConfig,
 	cwd: string,
 	options?: ResolveCommandOptions,
+	serverName?: string,
 ): ServerCommandSelection {
-	const candidates: ServerCandidate[] = config.candidates?.length
+	let candidates: ServerCandidate[] = config.candidates?.length
 		? config.candidates
 		: [{ command: config.command, args: config.args }];
+	if (serverName === "typescript") {
+		const tscPath = resolveCommand("tsc", cwd, options);
+		if (tscPath) {
+			const speaksLsp = typescriptSpeaksLsp(tscPath);
+			candidates = candidates.filter(candidate => {
+				if (candidate.command === "typescript-language-server") return !speaksLsp;
+				if (candidate.command === "tsc") return speaksLsp;
+				return true;
+			});
+		}
+	}
 	for (const candidate of candidates) {
 		const resolved = resolveCommand(candidate.command, cwd, options);
 		if (!resolved) continue;
@@ -454,7 +505,7 @@ export function loadConfig(cwd: string): LspConfig {
 		const config = candidates[name];
 		if (config.disabled) continue;
 		if (!hasRootMarkers(cwd, config.rootMarkers)) continue;
-		const selected = selectServerCommand(config, cwd);
+		const selected = selectServerCommand(config, cwd, undefined, name);
 		if ("reason" in selected) {
 			logger.debug("LSP server unavailable.", { name, reason: selected.reason });
 			continue;

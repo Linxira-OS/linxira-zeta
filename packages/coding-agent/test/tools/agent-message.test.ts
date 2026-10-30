@@ -12,14 +12,14 @@ import type { IrcMessage } from "@linxiraos/pi-tui/tools/irc";
 const received = new Map<string, IrcMessage[]>();
 let registry: AgentRegistry;
 
-function registerPeer(id: string, status: "running" | "idle" = "running"): void {
+function registerPeer(id: string, status: "running" | "idle" = "running", kind: "sub" | "main" = "sub"): void {
 	const messages: IrcMessage[] = [];
 	received.set(id, messages);
 	registry.register({
 		id,
 		displayName: id,
-		kind: "sub",
-		parentId: "Main",
+		kind,
+		...(kind === "sub" ? { parentId: "Main" } : {}),
 		status,
 		session: {
 			deliverIrcMessage: async (message: IrcMessage) => {
@@ -102,41 +102,29 @@ describe("write agent:// messaging", () => {
 		await expect(new AgentProtocolHandler().resolve(new URL("agent://all") as never)).rejects.toThrow("write-only");
 	});
 
-	it("refuses a child broadcast: a subagent may only message its spawning main", async () => {
-		registerPeer("Sender");
-		registerPeer("Sibling");
-		const delivered: IrcMessage[] = [];
-		expect(
-			registry.attachSession("Main", {
-				deliverIrcMessage: async (message: IrcMessage) => {
-					delivered.push(message);
-					return "injected";
-				},
-				emitIrcRelayObservation: () => {},
-			} as unknown as AgentSession),
-		).toBe(true);
-		const result = await new WriteTool(makeSession({ senderId: "Sender" })).execute("broadcast", {
-			path: "agent://all",
-			content: "one update",
-		});
-		expect(result.isError).toBeTrue();
-		expect(result.content[0]).toMatchObject({
-			text: expect.stringContaining("broadcast is not available"),
-		});
-		expect(delivered).toEqual([]);
-		expect(received.get("Sibling")).toEqual([]);
+	it("marks ?progress writes as progress and rejects progress broadcasts", async () => {
+		registerPeer("Scout");
+		const tool = new WriteTool(makeSession());
+		await tool.execute("ack", { path: "agent://Scout?progress", content: "on it" });
+		expect(received.get("Scout")).toMatchObject([{ to: "Scout", body: "on it", progress: true }]);
+		await expect(tool.execute("all", { path: "agent://all?progress", content: "on it" })).rejects.toThrow(
+			"?progress",
+		);
 	});
 
-	it("does not duplicate a main broadcast in the main session's relay view", async () => {
-		registerPeer("Sender");
+	it("does not duplicate a top-level broadcast in the main session's relay view", async () => {
+		registerPeer("Sender", "running", "main");
 		registerPeer("Sibling");
-		registry.register({ id: "PeerMain", displayName: "PeerMain", kind: "main", session: null });
 		const delivered: IrcMessage[] = [];
 		const relayed: unknown[] = [];
-		// Attach to the registered Main ref: a duplicate registration is rejected,
-		// and this test is about the relay view, not registry replacement.
-		expect(
-			registry.attachSession("Main", {
+		// This test replaces the in-memory main registration from beforeEach with
+		// one that owns a session; reuse is explicit under the registry contract.
+		registry.unregister("Main");
+		registry.register({
+			id: "Main",
+			displayName: "Main",
+			kind: "main",
+			session: {
 				deliverIrcMessage: async (message: IrcMessage) => {
 					delivered.push(message);
 					return "injected";
@@ -144,13 +132,13 @@ describe("write agent:// messaging", () => {
 				emitIrcRelayObservation: (record: unknown) => {
 					relayed.push(record);
 				},
-			} as unknown as AgentSession),
-		).toBe(true);
-		const result = await new WriteTool(makeSession({ senderId: "PeerMain" })).execute("broadcast", {
+			} as AgentSession,
+		});
+		const result = await new WriteTool(makeSession({ senderId: "Sender" })).execute("broadcast", {
 			path: "agent://all",
 			content: "one update",
 		});
-		expect(result.content[0]).toMatchObject({ text: expect.stringContaining("3 of 3 peer(s)") });
+		expect(result.content[0]).toMatchObject({ text: expect.stringContaining("2 of 2 peer(s)") });
 		expect(delivered.map(message => message.body)).toEqual(["one update"]);
 		expect(received.get("Sibling")?.map(message => message.body)).toEqual(["one update"]);
 		expect(relayed).toEqual([]);

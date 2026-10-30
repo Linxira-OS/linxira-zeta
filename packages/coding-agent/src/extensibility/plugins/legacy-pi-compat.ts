@@ -6,6 +6,8 @@ import * as fs from "node:fs";
 import { createRequire, isBuiltin } from "node:module";
 import * as path from "node:path";
 import * as url from "node:url";
+import type { ParseResult, ParserPlugin } from "@babel/parser";
+import type * as BabelParser from "@babel/parser";
 import {
 	getDbBusyTimeoutMs,
 	getLegacyPiExtensionCacheDbPath,
@@ -15,7 +17,6 @@ import {
 	stripWindowsExtendedLengthPathPrefix,
 } from "@linxiraos/pi-utils";
 import { registerPluginCacheInvalidator } from "../../discovery/helpers";
-import { type ParseResult, type ParserPlugin, parse as parseBabel } from "@babel/parser";
 
 const USE_BUNDLED_PI_MODULES = isCompiledBinary() || Boolean(process.env.PI_BUNDLED);
 
@@ -61,6 +62,8 @@ interface ExtensionSpecifierReference {
 }
 
 function parseExtensionSource(source: string, importerPath: string): ParseResult {
+	// Installing specifier hooks needs no parser; only a real source rewrite does.
+	const { parse: parseBabel }: typeof BabelParser = require("@babel/parser");
 	const extension = path.extname(importerPath).toLowerCase();
 	const plugins: ParserPlugin[] = ["decorators-legacy", "explicitResourceManagement"];
 	if (extension === ".ts" || extension === ".mts" || extension === ".cts" || extension === ".tsx") {

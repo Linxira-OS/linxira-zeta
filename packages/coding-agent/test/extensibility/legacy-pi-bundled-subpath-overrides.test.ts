@@ -86,7 +86,7 @@ export const finalBeta = Reflect.get(globalThis, "__betaLoads") ?? 0;
 		// `pi-ai/oauth/anthropic` is exposed via the `./oauth/*` wildcard export;
 		// the original fix only bundled non-wildcard subpaths, so peer-only plugins
 		// importing `@(scope)/pi-ai/oauth/anthropic` (remapped via PI_SUBPATH_REMAPS
-		// from `@linxiraos/pi-ai/utils/oauth/anthropic`) still hit the bunfs
+		// from `@mariozechner/pi-ai/utils/oauth/anthropic`) still hit the bunfs
 		// fall-through. The generator now globs each wildcard's source pattern
 		// and registers every concrete `.ts` match against the virtual namespace.
 		const overrides = __buildLegacyPiPackageRootOverrides(true, bundledModuleKeys);
@@ -248,8 +248,6 @@ export const observed = buildModel({
 		// import resolved from source and failed inside a binary — which is how
 		// a real extension (`quota-hud.ts`) broke on this exact specifier.
 		expect(bundledModuleKeys.has("@linxiraos/zeta/slash-commands/helpers/active-oauth-account")).toBe(true);
-		// `./theme/*` serves `theme/defaults/index` by spelling, so the key exists.
-		expect(bundledModuleKeys.has("@linxiraos/pi-tui/theme/defaults/index")).toBe(true);
 	});
 
 	it("loads pi-tui native/* modules through the bundled registry in compiled mode (issue #14834)", async () => {

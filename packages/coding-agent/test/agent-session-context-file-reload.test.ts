@@ -3,13 +3,15 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Api, Model, ModelSpec } from "@linxiraos/pi-ai";
 import { buildModel } from "@linxiraos/pi-catalog/build";
-import { TempDir } from "@linxiraos/pi-utils";
+import * as capabilities from "@linxiraos/zeta/capability";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import { createAgentSession } from "@linxiraos/zeta/sdk";
 import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as repoContext from "@linxiraos/zeta/utils/active-repo-context";
+import { TempDir } from "@linxiraos/pi-utils";
 
 function buildLocalModel(api: string): Model<Api> {
 	return buildModel({
@@ -84,5 +86,47 @@ describe("AgentSession context-file reload on session reset", () => {
 
 	it("re-reads an edited AGENTS.md after resetSessionContext()", async () => {
 		await expectContextReload(session => session.resetSessionContext());
+	});
+
+	it("rejects a failed parallel discovery without replacing the prompt and can retry", async () => {
+		await expectContextReload(async session => {
+			const previousPrompt = [...session.systemPrompt];
+			const loadCapability = capabilities.loadCapability;
+			const discovery = vi.spyOn(capabilities, "loadCapability").mockImplementation(async (id, options) => {
+				if (id === "rules") throw new Error("Rule discovery failed");
+				return await loadCapability(id, options);
+			});
+			try {
+				await expect(session.refreshBaseSystemPrompt()).rejects.toThrow("Rule discovery failed");
+				expect(session.systemPrompt).toEqual(previousPrompt);
+			} finally {
+				discovery.mockRestore();
+			}
+			return await session.resetSessionContext();
+		});
+	});
+
+	it("starts rule discovery before the repository lookup settles", async () => {
+		await expectContextReload(async session => {
+			let rulesStarted = false;
+			const observedAtRepoCompletion: boolean[] = [];
+			const loadCapability = capabilities.loadCapability;
+			vi.spyOn(repoContext, "resolveActiveRepoContext").mockImplementation(async () => {
+				// Yield one microtask, not a wall-clock delay: independent discovery
+				// must already have started when this lookup is allowed to settle.
+				await Promise.resolve();
+				observedAtRepoCompletion.push(rulesStarted);
+				return null;
+			});
+			vi.spyOn(capabilities, "loadCapability").mockImplementation(async (id, options) => {
+				if (id === "rules") rulesStarted = true;
+				return await loadCapability(id, options);
+			});
+
+			const reset = await session.newSession();
+			expect(observedAtRepoCompletion.length).toBeGreaterThan(0);
+			expect(observedAtRepoCompletion[0]).toBe(true);
+			return reset;
+		});
 	});
 });

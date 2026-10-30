@@ -1126,6 +1126,27 @@ class AutoCompactionEndEvent:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class ManualCompactionStartEvent:
+    """A manual compaction (`compact` command, `/compact`, extension `ctx.compact()`) began; the live turn is already aborted."""
+    type: Literal["manual_compaction_start"] = "manual_compaction_start"
+    mode: str | None = None
+    """The `/compact <mode>` subcommand, when one was given."""
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
+class ManualCompactionEndEvent:
+    """Outcome of the compaction announced by the matching `manual_compaction_start`."""
+    type: Literal["manual_compaction_end"] = "manual_compaction_end"
+    aborted: bool
+    """The compaction was cancelled (abort, or a `session_before_compact` hook)."""
+    result: CompactionResult | None = None
+    """Present when the compaction committed."""
+    skipped: bool | None = None
+    """There was nothing to compact; `errorMessage` says why."""
+    error_message: str | None = None
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class AutoRetryStartEvent:
     type: Literal["auto_retry_start"] = "auto_retry_start"
     attempt: int
@@ -1206,6 +1227,7 @@ class AdvisorYieldedEvent:
 
 @dataclass(slots=True, frozen=True, kw_only=True)
 class TtsrTriggeredEvent:
+    """Rule injection: a TTSR rule matched the stream and its text was injected. Each rule carries at least `name`, `path`, and `content`."""
     type: Literal["ttsr_triggered"] = "ttsr_triggered"
     rules: tuple[JsonObject, ...]
 
@@ -1684,6 +1706,12 @@ class NegotiateProtocolResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class LiveConnectResult:
+    voice: str
+    sdp_answer: str
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class LoopStartResult:
     state: JsonValue
 
@@ -1747,7 +1775,7 @@ UsageLimitState: TypeAlias = UsageLimitLowPriority | UsageLimitWrapUp
 """Provider-neutral state of an account past its usage limit, discriminated by `stage`."""
 
 
-RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent
+RpcAgentEvent: TypeAlias = AgentStartEvent | AgentEndEvent | TurnStartEvent | TurnEndEvent | MessageStartEvent | MessageUpdateEvent | MessageEndEvent | ToolExecutionStartEvent | ToolExecutionUpdateEvent | ToolStreamUpdateEvent | ToolExecutionEndEvent | AutoCompactionStartEvent | AutoCompactionEndEvent | ManualCompactionStartEvent | ManualCompactionEndEvent | AutoRetryStartEvent | AutoRetryEndEvent | CacheWarmingStartEvent | CacheWarmingEndEvent | RetryFallbackAppliedEvent | RetryFallbackSucceededEvent | ModelChangedEvent | ConfigWarningsChangedEvent | AdvisorCostChangedEvent | AdvisorYieldedEvent | TtsrTriggeredEvent | TodoReminderEvent | TodoAutoClearEvent | IrcMessageEvent | NoticeEvent | ThinkingLevelChangedEvent | GoalUpdatedEvent | QueueUpdateEvent | StateVersionChangedEvent
 """A session event, discriminated by `type`; `set_event_filter` selects which are sent."""
 
 
@@ -2589,6 +2617,25 @@ def parse_auto_compaction_end_event(value: object, path: str = "AutoCompactionEn
     )
 
 
+def parse_manual_compaction_start_event(value: object, path: str = "ManualCompactionStartEvent") -> ManualCompactionStartEvent:
+    payload = expect_object(value, path)
+    required(payload, "type", cast('Decoder[Literal["manual_compaction_start"]]', literal(frozenset({"manual_compaction_start"}))), path)
+    return ManualCompactionStartEvent(
+        mode=optional(payload, "mode", decode_str, path),
+    )
+
+
+def parse_manual_compaction_end_event(value: object, path: str = "ManualCompactionEndEvent") -> ManualCompactionEndEvent:
+    payload = expect_object(value, path)
+    required(payload, "type", cast('Decoder[Literal["manual_compaction_end"]]', literal(frozenset({"manual_compaction_end"}))), path)
+    return ManualCompactionEndEvent(
+        aborted=required(payload, "aborted", decode_bool, path),
+        result=optional(payload, "result", parse_compaction_result, path),
+        skipped=optional(payload, "skipped", decode_bool, path),
+        error_message=optional(payload, "errorMessage", decode_str, path),
+    )
+
+
 def parse_auto_retry_start_event(value: object, path: str = "AutoRetryStartEvent") -> AutoRetryStartEvent:
     payload = expect_object(value, path)
     required(payload, "type", cast('Decoder[Literal["auto_retry_start"]]', literal(frozenset({"auto_retry_start"}))), path)
@@ -3228,6 +3275,14 @@ def parse_negotiate_protocol_result(value: object, path: str = "NegotiateProtoco
     )
 
 
+def parse_live_connect_result(value: object, path: str = "LiveConnectResult") -> LiveConnectResult:
+    payload = expect_object(value, path)
+    return LiveConnectResult(
+        voice=required(payload, "voice", decode_str, path),
+        sdp_answer=required(payload, "sdpAnswer", decode_str, path),
+    )
+
+
 def parse_loop_start_result(value: object, path: str = "LoopStartResult") -> LoopStartResult:
     payload = expect_object(value, path)
     return LoopStartResult(
@@ -3329,6 +3384,8 @@ _RPC_AGENT_EVENT_CASES: Final[dict[str, Decoder[RpcAgentEvent]]] = {
         "tool_execution_end": parse_tool_execution_end_event,
         "auto_compaction_start": parse_auto_compaction_start_event,
         "auto_compaction_end": parse_auto_compaction_end_event,
+        "manual_compaction_start": parse_manual_compaction_start_event,
+        "manual_compaction_end": parse_manual_compaction_end_event,
         "auto_retry_start": parse_auto_retry_start_event,
         "auto_retry_end": parse_auto_retry_end_event,
         "cache_warming_start": parse_cache_warming_start_event,
@@ -3387,6 +3444,8 @@ _RPC_NOTIFICATION_CASES: Final[dict[str, Decoder[RpcNotification]]] = {
         "tool_execution_end": parse_rpc_agent_event,
         "auto_compaction_start": parse_rpc_agent_event,
         "auto_compaction_end": parse_rpc_agent_event,
+        "manual_compaction_start": parse_rpc_agent_event,
+        "manual_compaction_end": parse_rpc_agent_event,
         "auto_retry_start": parse_rpc_agent_event,
         "auto_retry_end": parse_rpc_agent_event,
         "cache_warming_start": parse_rpc_agent_event,
@@ -3584,6 +3643,16 @@ class WireClient:
         if instructions is not None:
             params["instructions"] = instructions
         return required(expect_object(self._command("live_start", params), "live_start"), "voice", decode_str, "live_start")
+
+    def live_connect(self, sdp_offer: str, *, voice: str | None = None, instructions: str | None = None) -> LiveConnectResult:
+        """Start a live voice session whose audio runs on a caller-owned WebRTC peer: send its SDP offer, apply the returned answer."""
+        params: dict[str, object] = {}
+        params["sdpOffer"] = sdp_offer
+        if voice is not None:
+            params["voice"] = voice
+        if instructions is not None:
+            params["instructions"] = instructions
+        return parse_live_connect_result(self._command("live_connect", params), "live_connect")
 
     def live_stop(self) -> None:
         """Stop the live voice session, if any."""
@@ -4065,6 +4134,14 @@ class WireClient:
         """Subscribe to `auto_compaction_end` frames."""
         return self._listen("auto_compaction_end", listener)
 
+    def on_manual_compaction_start(self, listener: Callable[[ManualCompactionStartEvent], None]) -> Callable[[], None]:
+        """Subscribe to `manual_compaction_start`: A manual compaction (`compact` command, `/compact`, extension `ctx.compact()`) began; the live turn is already aborted."""
+        return self._listen("manual_compaction_start", listener)
+
+    def on_manual_compaction_end(self, listener: Callable[[ManualCompactionEndEvent], None]) -> Callable[[], None]:
+        """Subscribe to `manual_compaction_end`: Outcome of the compaction announced by the matching `manual_compaction_start`."""
+        return self._listen("manual_compaction_end", listener)
+
     def on_auto_retry_start(self, listener: Callable[[AutoRetryStartEvent], None]) -> Callable[[], None]:
         """Subscribe to `auto_retry_start` frames."""
         return self._listen("auto_retry_start", listener)
@@ -4106,7 +4183,7 @@ class WireClient:
         return self._listen("advisor_yielded", listener)
 
     def on_ttsr_triggered(self, listener: Callable[[TtsrTriggeredEvent], None]) -> Callable[[], None]:
-        """Subscribe to `ttsr_triggered` frames."""
+        """Subscribe to `ttsr_triggered`: Rule injection: a TTSR rule matched the stream and its text was injected. Each rule carries at least `name`, `path`, and `content`."""
         return self._listen("ttsr_triggered", listener)
 
     def on_todo_reminder(self, listener: Callable[[TodoReminderEvent], None]) -> Callable[[], None]:
@@ -4238,6 +4315,7 @@ __all__ = [
     "InputUiRequest",
     "InterruptMode",
     "IrcMessageEvent",
+    "LiveConnectResult",
     "LiveEndEvent",
     "LiveLevelsEvent",
     "LivePhase",
@@ -4252,6 +4330,8 @@ __all__ = [
     "LoopStartResult",
     "LoopStatusResult",
     "LoopStopResult",
+    "ManualCompactionEndEvent",
+    "ManualCompactionStartEvent",
     "MessageContent",
     "MessageEndEvent",
     "MessageStartEvent",
@@ -4434,6 +4514,7 @@ __all__ = [
     "parse_image_content",
     "parse_input_ui_request",
     "parse_irc_message_event",
+    "parse_live_connect_result",
     "parse_live_end_event",
     "parse_live_levels_event",
     "parse_live_phase_event",
@@ -4446,6 +4527,8 @@ __all__ = [
     "parse_loop_start_result",
     "parse_loop_status_result",
     "parse_loop_stop_result",
+    "parse_manual_compaction_end_event",
+    "parse_manual_compaction_start_event",
     "parse_message_end_event",
     "parse_message_start_event",
     "parse_message_update_event",

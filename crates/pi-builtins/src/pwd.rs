@@ -39,7 +39,7 @@ impl builtins::Command for PwdCommand {
 				.into();
 		}
 
-		writeln!(context.stdout(), "{}", cwd.to_string_lossy())?;
+		writeln!(context.stdout(), "{}", cwd.display())?;
 
 		Ok(ExecutionResult::success())
 	}

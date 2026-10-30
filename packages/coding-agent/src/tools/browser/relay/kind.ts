@@ -6,16 +6,16 @@
  * endpoint, so beyond kind resolution the entire connected-browser machinery
  * (registry, tab supervisor, tab workers) applies unchanged.
  */
-import { parseFlag } from "@linxiraos/pi-utils";
+import { parseFlag, ZETA_BROWSER_RELAY_PORT } from "@linxiraos/pi-utils";
 
-/** Browser kind selecting the omp browser relay. */
+/** Browser kind selecting the Zeta browser relay. */
 export interface RelayKind {
 	kind: "relay";
 	cdpUrl: string;
 }
 
-/** Default endpoint of the `omp-browser-relay` CLI. */
-export const DEFAULT_RELAY_URL = "http://127.0.0.1:9224";
+/** Default endpoint of the `zetacode browser-relay` CLI. */
+export const DEFAULT_RELAY_URL = `http://127.0.0.1:${ZETA_BROWSER_RELAY_PORT}`;
 
 export interface ResolveRelayKindOptions {
 	/** `browser.relay` setting; `PI_BROWSER_RELAY=0|1` overrides it. */

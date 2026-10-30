@@ -52,7 +52,7 @@
     "@types/react-dom": "catalog:"
   },
   "engines": {
-    "bun": ">=1.3.14"
+    "bun": ">=1.4.4"
   },
   "files": [
     "src",
@@ -81,6 +81,12 @@
       "types": "./src/client/components/*.ts",
       "import": "./src/client/components/*.ts"
     },
-    "./*.js": "./src/*.ts"
+    "./*.js": "./src/*.ts",
+    "./client/traces": {
+      "types": "./src/client/traces/index.ts",
+      "import": "./src/client/traces/index.ts"
+    },
+    "./client/styles.css": "./src/client/styles.css",
+    "./client/traces/traces.css": "./src/client/traces/traces.css"
   }
 }

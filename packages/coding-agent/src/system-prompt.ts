@@ -8,7 +8,16 @@ import type { AgentTool } from "@linxiraos/pi-agent-core";
 import type { ToolExample, TSchema } from "@linxiraos/pi-ai";
 import { renderToolInventory } from "@linxiraos/pi-ai/dialect";
 import type { DelegationBias } from "@linxiraos/pi-catalog/compat/delegation";
-import { $env, getAgentDir, getProjectDir, hasFsCode, isEnoent, logger, prompt } from "@linxiraos/pi-utils";
+import {
+	$env,
+	getAgentDir,
+	getProjectDir,
+	hasFsCode,
+	isEnoent,
+	isInteractiveHost,
+	logger,
+	prompt,
+} from "@linxiraos/pi-utils";
 import { contextFileCapability } from "./capability/context-file";
 import { systemPromptCapability } from "./capability/system-prompt";
 import { findConfigFile } from "./config";
@@ -54,6 +63,7 @@ import {
 import { cfgTaskBatch, cfgTaskEager } from "./task/settings";
 import {
 	cfgAsyncEnabled,
+	cfgOutEnabled,
 	cfgToolsIntentTracing,
 	cfgToolsXdevDocs,
 	cfgToolsXdevInlineDevices,
@@ -76,6 +86,7 @@ export const cfgSystemPromptInputs = combine({
 	xdevDocs: cfgToolsXdevDocs,
 	xdevInlineDevices: cfgToolsXdevInlineDevices,
 	vaultEnabled: cfgVaultEnabled,
+	outEnabled: cfgOutEnabled,
 	renderMermaid: cfgTuiRenderMermaid,
 	renderSvg: cfgTuiRenderSvg,
 	autoGraph: cfgTuiAutoGraph,
@@ -568,6 +579,8 @@ export interface BuildSystemPromptOptions {
 	settingsApproval?: boolean;
 	/** Whether `canvas.enabled` is on; gates advertising `vault://…?op=canvas`. */
 	canvasEnabled?: boolean;
+	/** Whether `out://` writes reach the user as transcript replies; gates advertising `out://`. */
+	outReplies?: boolean;
 	/**
 	 * Eval preludes advertised by this prompt. Each prelude's `guidance` is
 	 * appended as its own block after the rendered template, so custom templates
@@ -678,6 +691,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		securityEnabled = false,
 		settingsApproval = false,
 		canvasEnabled = false,
+		outReplies = false,
 		evalPreludes = [],
 		model,
 		includeModelInPrompt = true,
@@ -882,9 +896,13 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 			timeoutMs: SYSTEM_PROMPT_PREP_TIMEOUT_MS,
 			steps: timedOut,
 		});
-		process.stderr.write(
-			`Warning: system prompt preparation steps timed out after ${SYSTEM_PROMPT_PREP_TIMEOUT_MS}ms (${timedOut.join(", ")}); using minimal fallback for those steps.\n`,
-		);
+		// An interactive host writes nothing ahead of its UI (a Tern surface
+		// would open over the line); the log above has it.
+		if (!isInteractiveHost()) {
+			process.stderr.write(
+				`Warning: system prompt preparation steps timed out after ${SYSTEM_PROMPT_PREP_TIMEOUT_MS}ms (${timedOut.join(", ")}); using minimal fallback for those steps.\n`,
+			);
+		}
 	}
 	if (failed.length > 0) {
 		for (const { name, error } of failed) {
@@ -961,6 +979,7 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		securityEnabled,
 		settingsApproval,
 		canvasEnabled,
+		outReplies,
 	};
 	const filteredSkills = (options.skillDescriptions ?? new SkillDescriptionCatalog()).render(
 		hasSkillReader ? skills.filter(skill => skill.hide !== true) : [],
@@ -1007,6 +1026,8 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		personality: personalityBlock,
 		intentTracing: !!intentField,
 		intentField: intentField ?? "",
+		// `PI_INTENT_PROMPT` replaces the default intent-field guidance line.
+		intentGuidance: $env.PI_INTENT_PROMPT ?? "",
 		eagerTasks,
 		eagerTasksAlways,
 		// Restrained bias yields to an explicit eager-tasks mode.

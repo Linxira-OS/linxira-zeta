@@ -2,7 +2,10 @@
 
 ## [1.4.6] - 2026-10-28
 
-- Released as part of Zeta 1.4.6; no package-specific user-visible changes.
+### Added
+
+- Added the TSP `json` kind for displaying raw JSON values as interactive, expandable trees in the terminal.
+- Added `TspEditorProps.typeahead` support so programs that cannot yet read input can preserve typed text, display it at the caret, and submit it when input becomes available.
 
 ## [1.4.5] - 2026-10-28
 

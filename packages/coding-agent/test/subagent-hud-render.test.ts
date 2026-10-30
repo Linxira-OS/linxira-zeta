@@ -12,7 +12,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import { resetHangulCompatibilityJamoWidthForTests, setHangulCompatibilityJamoWidth } from "@linxiraos/pi-tui";
 import type { DescribeContext } from "@linxiraos/pi-tui/native/node";
-import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/zeta/task/output-manager";
 import {
 	InteractiveMode,
 	layoutPinnedHud,

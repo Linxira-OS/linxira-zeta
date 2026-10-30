@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { type } from "@linxiraos/pi-omptype";
-import {
-	type OpenAIResponsesOptions,
-	openAIResponsesReplaysNativeHistory,
-	streamOpenAIResponses,
-} from "@linxiraos/pi-ai/providers/openai-responses";
+import { type OpenAIResponsesOptions, streamOpenAIResponses } from "@linxiraos/pi-ai/providers/openai-responses";
+import { openAIResponsesReplaysNativeHistory } from "@linxiraos/pi-ai/providers/openai-responses-state";
 import { buildResponsesInput } from "@linxiraos/pi-ai/providers/openai-shared";
 import type { AssistantMessage, Context, Model, ModelSpec, ProviderSessionState, Tool } from "@linxiraos/pi-ai/types";
 import {

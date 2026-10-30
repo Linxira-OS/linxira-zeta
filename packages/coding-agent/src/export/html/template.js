@@ -1563,6 +1563,15 @@
         return text.replace(/<(?=[a-zA-Z\/])/g, '&lt;');
       }
 
+      // Hosted exports preload Marked's constructor as `ompMarkdown.Marked`;
+      // offline templates expose a configured `marked` instance.
+      const markdownSource =
+        (typeof ompMarkdown !== 'undefined' ? ompMarkdown?.Marked : undefined) ??
+        globalThis.ompMarkdown?.Marked ??
+        globalThis.marked;
+      const marked = typeof markdownSource === 'function' ? new markdownSource() : markdownSource;
+      if (typeof marked?.use !== 'function') throw new Error('Markdown dependency failed to load');
+
       // Configure marked with syntax highlighting and HTML escaping for text
       marked.use({
         breaks: true,

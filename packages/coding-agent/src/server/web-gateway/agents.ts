@@ -1291,6 +1291,8 @@ export function createGatewayUiContext(
 		// in-process TUI, so extensions there get no custom editor — the same
 		// `undefined` the ACP, headless and session contexts answer with.
 		getEditorComponent: () => undefined,
+		rerenderMessage: () => {},
+		getLinkClicksAvailable: () => false,
 		select(title, options, dialogOptions) {
 			return sendDialog(
 				"select",

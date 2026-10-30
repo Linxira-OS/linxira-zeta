@@ -2,8 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { parseFrontmatter, removeWithRetries, symlinkDirectorySync } from "@linxiraos/pi-utils";
-import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 import {
 	deleteManagedSkill,
 	getManagedSkillsDir,
@@ -12,6 +10,8 @@ import {
 	toSkillFrontmatter,
 	writeManagedSkill,
 } from "@linxiraos/zeta/autolearn/managed-skills";
+import { parseFrontmatter, removeWithRetries } from "@linxiraos/pi-utils";
+import { getAgentDir, setAgentDir } from "@linxiraos/pi-utils/dirs";
 
 describe("managed-skills primitives", () => {
 	let tempHome: string;
@@ -19,7 +19,7 @@ describe("managed-skills primitives", () => {
 	let originalAgentDir: string;
 	beforeEach(async () => {
 		originalAgentDir = getAgentDir();
-		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-managed-skills-"));
+		tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "omp-managed-skills-"));
 		spyOn(os, "homedir").mockReturnValue(tempHome);
 		setAgentDir(path.join(tempHome, ".zeta", "agent"));
 	});
@@ -133,13 +133,9 @@ describe("managed-skills primitives", () => {
 			await fs.mkdir(managedRoot, { recursive: true });
 			// Plant a symlink where the skill dir would live, pointing outside the
 			// isolated managed root; Bun.write would otherwise follow it.
-			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-escape-"));
+			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "omp-escape-"));
 			try {
-				await fs.symlink(
-					outside,
-					path.join(managedRoot, "evil"),
-					process.platform === "win32" ? "junction" : undefined,
-				);
+				await fs.symlink(outside, path.join(managedRoot, "evil"));
 				await expect(
 					writeManagedSkill({ action: "create", name: "evil", description: "d", body: "b" }),
 				).rejects.toThrow(/symlink/);
@@ -164,17 +160,44 @@ describe("managed-skills primitives", () => {
 			).rejects.toThrow(/non-empty body/);
 		});
 
-		it("refuses to write when the managed-skills root itself is a symlink", async () => {
-			const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-realroot-"));
+		it("writes through a symlinked root into its target directory", async () => {
+			const realRoot = await fs.mkdtemp(path.join(os.tmpdir(), "omp-realroot-"));
 			try {
 				await fs.mkdir(path.dirname(getManagedSkillsDir()), { recursive: true });
-				symlinkDirectorySync(realRoot, getManagedSkillsDir());
-				await expect(
-					writeManagedSkill({ action: "create", name: "demo", description: "d", body: "b" }),
-				).rejects.toThrow(/managed-skills root is a symlink/);
+				await fs.symlink(realRoot, getManagedSkillsDir());
+				await writeManagedSkill({
+					action: "create",
+					name: "demo",
+					description: "d",
+					body: "b",
+				});
+				expect(await Bun.file(path.join(realRoot, "demo", "SKILL.md")).exists()).toBe(true);
+				await deleteManagedSkill("demo");
 				expect(await Bun.file(path.join(realRoot, "demo", "SKILL.md")).exists()).toBe(false);
 			} finally {
 				await removeWithRetries(realRoot);
+			}
+		});
+
+		it("refuses to write through a broken symlinked root", async () => {
+			await fs.mkdir(path.dirname(getManagedSkillsDir()), { recursive: true });
+			await fs.symlink(path.join(os.tmpdir(), "omp-no-such-root"), getManagedSkillsDir());
+			await expect(
+				writeManagedSkill({ action: "create", name: "demo", description: "d", body: "b" }),
+			).rejects.toThrow(/broken symlink/);
+		});
+
+		it("refuses to write through a root that links to a file", async () => {
+			const file = path.join(await fs.mkdtemp(path.join(os.tmpdir(), "omp-realroot-file-")), "notadir");
+			await Bun.write(file, "x");
+			try {
+				await fs.mkdir(path.dirname(getManagedSkillsDir()), { recursive: true });
+				await fs.symlink(file, getManagedSkillsDir());
+				await expect(
+					writeManagedSkill({ action: "create", name: "demo", description: "d", body: "b" }),
+				).rejects.toThrow(/non-directory/);
+			} finally {
+				await removeWithRetries(path.dirname(file));
 			}
 		});
 
@@ -201,9 +224,9 @@ describe("managed-skills primitives", () => {
 			expect(String(rejected[0]?.reason)).toMatch(/already exists/);
 		});
 
-		it.skipIf(process.platform === "win32")("refuses to update a SKILL.md that is a symlink", async () => {
+		it("refuses to update a SKILL.md that is a symlink", async () => {
 			await writeManagedSkill({ action: "create", name: "linky", description: "d", body: "real" });
-			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-link-"));
+			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "omp-link-"));
 			const target = path.join(outside, "target.md");
 			await Bun.write(target, "outside content");
 			try {
@@ -244,14 +267,10 @@ describe("managed-skills primitives", () => {
 		it("refuses to delete through a symlinked skill directory", async () => {
 			const managedRoot = getManagedSkillsDir();
 			await fs.mkdir(managedRoot, { recursive: true });
-			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-deltarget-"));
+			const outside = await fs.mkdtemp(path.join(os.tmpdir(), "omp-deltarget-"));
 			await Bun.write(path.join(outside, "keep.txt"), "keep");
 			try {
-				await fs.symlink(
-					outside,
-					path.join(managedRoot, "linked"),
-					process.platform === "win32" ? "junction" : undefined,
-				);
+				await fs.symlink(outside, path.join(managedRoot, "linked"));
 				await expect(deleteManagedSkill("linked")).rejects.toThrow(/symlink/);
 				// The symlink target's contents are untouched.
 				expect(await Bun.file(path.join(outside, "keep.txt")).exists()).toBe(true);
