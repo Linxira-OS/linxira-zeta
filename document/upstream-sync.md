@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.13.2
+## Integrated through: v18.14.0
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -26,7 +26,7 @@ merge.
   dedicated on-demand sync after 1.4.0 ships; the security hardening above is
   the first reason to schedule it.
 
-## v18.14.0 incremental merge (Zeta — branch `sync/omp-release/18.14`, 2026-10-30; awaiting owner merge)
+## v18.14.0 incremental merge (Zeta — branch `sync/omp-release/18.14`, 2026-10-30; landed on `main` as `5b8a9e1f787`)
 
 - **Baseline**: `v18.13.2` (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`);
   `git merge-base HEAD v18.14.0` resolves to it, so only the tag-to-tag
@@ -88,12 +88,11 @@ what a round *started* from. Those are different questions: the v18.8.1–v18.8.
 round started at v18.7.0 but only v18.8.4 ever landed on main as a real
 two-parent tag merge.
 
-- **Integrated through**: `v18.13.2` (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`,
-  integrated into `main` by merge `9145cc93a43`; the tag merge itself is
-  `e7fe9f1452f`, parents `98b7b94fe78` + `e996e1c7ac4`). The previous value was
-  `v18.13.1` (`0838d2ab4407`, tag merge `e7fe9f1452f`'s baseline); the
-  `v18.13.2` merge is a true two-parent tag merge and
-  `git merge-base --is-ancestor v18.13.2 HEAD` holds.
+- **Integrated through**: `v18.14.0` (`31147f9d1a76608549821c3759f8487b4d66c72d`,
+  integrated into `main` by merge `5b8a9e1f787`, parents `4b8b942a9a4` +
+  `31147f9d1a7`). The previous value was `v18.13.2` (`e996e1c7ac47`,
+  integrated by merge `9145cc93a43`, tag merge `e7fe9f1452f`);
+  `git merge-base --is-ancestor v18.14.0 HEAD` holds.
 - **Why not v18.8.6**: the v18.8.5 and v18.8.6 windows were prepared on
   `sync/omp-release/v18.8.6` as true two-parent merges (`77c3e5b2bf1`,
   `082bb1ac490`) but that branch was never merged into main. What landed was
@@ -2411,13 +2410,13 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.13.2` (`e996e1c7ac476f60e02b8ed9764cf30fa8c00a8e`; integrated into
-  `main` by merge `9145cc93a43`, tag merge `e7fe9f1452f`). Previous value was
-  `v18.13.1` (`0838d2ab4407`). One tag per release, each on its own
-  `sync/omp-release/*` branch; **next sync target: `v18.14.0`**.
+- OMP: `v18.14.0` (`31147f9d1a76608549821c3759f8487b4d66c72d`; integrated into
+  `main` by merge `5b8a9e1f787`). Previous value was `v18.13.2`
+  (`e996e1c7ac47`, merge `9145cc93a43`). One tag per release, each on its own
+  `sync/omp-release/*` branch; **next sync target: `v18.14.1`**.
 - Zeta: `1.4.6` (version line holds across the published `@linxiraos/*`
   packages, the Cargo workspace and the natives stamp).
-- In flight: `sync/omp-release/18.14` — merging `v18.14.0`; not landed.
+- In flight: `sync/omp-release/18.14.1` — merging `v18.14.1`; not landed.
 
 ### Zeta-side flake hardening（2026-10-17）
 
