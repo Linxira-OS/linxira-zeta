@@ -86,6 +86,15 @@ const LINE_FIT_SOURCE_WIDTH_MULTIPLIER = 64;
 // Zeta sidebar: the main area never composes narrower than this, even when a
 // gutter reservation is active — narrow terminals ignore the reservation.
 const MIN_MAIN_AREA_COLUMNS = 64;
+// Zeta sidebar snapshot: the gutter column's semantic description travels
+// out-of-band as an APC (`ESC _ zeta;sidebar; <base64 JSON> ESC \`) so a native
+// GUI draws the same column from one frame's data. Unknown APCs are dropped by
+// every terminal emulator, so the ANSI gutter stays the visible fallback.
+const SIDEBAR_APC_PREFIX = "\x1b_zeta;sidebar;";
+const SIDEBAR_APC_SUFFIX = "\x1b\\";
+// Bound the payload per frame: a pathological snapshot falls back to the ANSI
+// gutter instead of stalling the terminal's parser on a huge escape sequence.
+const SIDEBAR_APC_MAX = 64 * 1024;
 // Hide the hardware cursor before each paint/move write. Ghostty-style bar
 // cursors can otherwise leave visual afterimages while the TUI repaints the
 // row under a visible cursor. Paint writes also disable terminal autowrap:
@@ -355,6 +364,24 @@ export interface Component {
 	 * their children; leaf components without resources may omit it.
 	 */
 	dispose?(): void;
+}
+
+/**
+ * A gutter component that can hand an external native renderer a semantic
+ * snapshot of the column it draws (see {@link TUI.setGutterComponent}). Such a
+ * component keeps rendering its ANSI rows — the snapshot only travels
+ * out-of-band — and a GUI that receives it draws the same content natively.
+ * Deliberately separate from {@link Component}: only a sidebar-shaped
+ * component describes itself for a whole external surface.
+ */
+export interface NativeSnapshotSource {
+	/** JSON-serializable TSP node for an external native sidebar renderer. */
+	describeSnapshot(): NativeNode | null;
+}
+
+/** Whether `component` hands an out-of-band snapshot to a native renderer. */
+function isSnapshotSource(component: Component): component is Component & NativeSnapshotSource {
+	return typeof (component as Partial<NativeSnapshotSource>).describeSnapshot === "function";
 }
 
 /** Lets an overlay root delegate keyboard focus to components it owns. */
@@ -929,6 +956,9 @@ export class TUI extends Container {
 	// Zeta sidebar: right-hand gutter component and its last painted rows.
 	#gutterComponent: Component | null = null;
 	#paintedGutterRows: readonly string[] | null = null;
+	// Zeta sidebar snapshot: last APC payload written (`null` forces the next
+	// paint to write, even when the payload is the empty clear sequence).
+	#lastSidebarPayload: string | null = "";
 	// Zeta sidebar: columns reserved for the gutter, or null for full width.
 	#mainWidthOverride: number | null = null;
 	#focusedComponent: Component | null = null;
@@ -1244,6 +1274,11 @@ export class TUI extends Container {
 		if (this.#gutterComponent === component) return;
 		this.#gutterComponent = component;
 		this.#paintedGutterRows = null;
+		// A replacement (or removed) component must never inherit the last column.
+		// Force the next paint to publish its snapshot — or the clear payload — only
+		// when a snapshot was actually published, so an ordinary gutter byte-stream
+		// stays exactly as it was without a native renderer attached.
+		if (this.#lastSidebarPayload !== "") this.#lastSidebarPayload = null;
 		this.requestRender();
 	}
 
@@ -1283,6 +1318,33 @@ export class TUI extends Container {
 		seq += `\x1b[${restoreRow + 1};1H`;
 		return seq;
 	}
+
+	/**
+	 * The APC carrying this frame's sidebar snapshot (see
+	 * {@link NativeSnapshotSource}): `ESC _ zeta;sidebar; <base64(UTF-8 JSON)> ESC \`,
+	 * with an empty payload when there is no snapshot so a native renderer drops
+	 * the column. Returns "" while the payload is unchanged, so frames that only
+	 * repaint the same column write no extra bytes.
+	 */
+	#sidebarApc(snapshot: NativeNode | null): string {
+		let payload = "";
+		if (snapshot !== null) {
+			try {
+				const json = JSON.stringify({ v: 1, node: snapshot });
+				const encoded = Buffer.from(json, "utf8").toString("base64");
+				// Oversized snapshots are dropped, not truncated: the ANSI gutter
+				// already shows the same column.
+				if (encoded.length <= SIDEBAR_APC_MAX) payload = encoded;
+			} catch {
+				// A component child or a property cycle cannot cross the snapshot
+				// boundary; the frame falls back to the ANSI gutter.
+			}
+		}
+		if (payload === this.#lastSidebarPayload) return "";
+		this.#lastSidebarPayload = payload;
+		return `${SIDEBAR_APC_PREFIX}${payload}${SIDEBAR_APC_SUFFIX}`;
+	}
+
 	/** Return how settled resizes refresh native scrollback. */
 	getResizeScrollback(): ResizeScrollbackMode {
 		return this.#resizeScrollbackMode;
@@ -3595,16 +3657,36 @@ export class TUI extends Container {
 		if (gutter) {
 			const rows = gutter.render(rawWidth - mainWidth);
 			const seq = this.#gutterPaintSequence(rows, rawWidth - mainWidth, mainWidth, viewportRows, 0);
-			if (seq) this.terminal.write(seq);
+			// The snapshot rides the same write as the gutter paint, so both describe
+			// this one frame; an APC never moves the cursor.
+			let snapshot: NativeNode | null = null;
+			if (isSnapshotSource(gutter)) {
+				try {
+					snapshot = gutter.describeSnapshot();
+				} catch {
+					// A throwing snapshot source must not take down the frame; the ANSI
+					// gutter below already shows the column.
+					snapshot = null;
+				}
+			}
+			const apc = this.#sidebarApc(snapshot);
+			if (seq || apc) this.terminal.write(seq + apc);
 			this.#paintedGutterRows = rows;
-		} else if (this.#paintedGutterRows !== null) {
-			// Gutter removed: clear the margin column once via absolute EL per row.
-			const col = mainWidth + 1;
-			let seq = "";
-			for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
-			seq += "\x1b[H";
-			this.terminal.write(seq);
-			this.#paintedGutterRows = null;
+		} else {
+			// Overlay frame, no reservation, or no component: clear the native column
+			// once so a GUI never keeps drawing a snapshot the ANSI frame dropped.
+			const apc = this.#sidebarApc(null);
+			if (this.#paintedGutterRows !== null) {
+				// Gutter removed: clear the margin column once via absolute EL per row.
+				const col = mainWidth + 1;
+				let seq = "";
+				for (let row = 0; row < height; row++) seq += `\x1b[${row + 1};${col}H\x1b[K`;
+				seq += "\x1b[H";
+				this.terminal.write(seq + apc);
+				this.#paintedGutterRows = null;
+			} else if (apc) {
+				this.terminal.write(apc);
+			}
 		}
 	}
 	/**

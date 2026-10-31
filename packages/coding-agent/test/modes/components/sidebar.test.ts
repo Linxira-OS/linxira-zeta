@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { visibleWidth } from "@linxiraos/pi-tui";
+import { type NativeNode, node, visibleWidth } from "@linxiraos/pi-tui";
 import { createGallerySegmentContext } from "../../../src/cli/gallery-fixtures/segments";
 import { Settings, settings } from "../../../src/config/settings";
 import { cfgTuiSidebarWidgets } from "../../../src/modes/settings";
@@ -396,5 +396,183 @@ describe("SidebarWidget registry", () => {
 		});
 		const rows = [...sidebar.render(SIDEBAR_WIDTH)];
 		expect(orderOf(rows, "50%")).toBeGreaterThanOrEqual(0);
+	});
+});
+
+describe("SidebarComponent.describeSnapshot", () => {
+	beforeEach(() => {
+		cfgTuiSidebarWidgets.override(settings, true);
+	});
+
+	afterEach(() => {
+		cfgTuiSidebarWidgets.clearOverride(settings);
+	});
+
+	/** Props of any described node, narrowed to the fields these assertions read. */
+	function props(node: NativeNode): { role?: string; tone?: string; text?: string; gap?: string } {
+		return (node.p ?? {}) as { role?: string; tone?: string; text?: string; gap?: string };
+	}
+
+	function children(node: NativeNode): NativeNode[] {
+		return (node.c ?? []).filter((child): child is NativeNode => "k" in child);
+	}
+
+	function findRole(node: NativeNode, role: string): NativeNode | undefined {
+		if (props(node).role === role) return node;
+		for (const child of children(node)) {
+			const found = findRole(child, role);
+			if (found) return found;
+		}
+		return undefined;
+	}
+
+	it("describes every visible panel in order, separated by rules", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: 50, planMode: { enabled: false, paused: false } }),
+			session: sessionWith([{ name: "Phase", tasks: [{ content: "ship it", status: "in_progress" }] }]),
+			subagents: () => [subagent("active", "Scout")],
+			mcp: mcpSource(1, 1, 0),
+			git: () => gitSnapshot({ staged: 2, commits: [{ shortSha: "abc1234", age: "5m", subject: "Fix it" }] }),
+		});
+		const snapshot = sidebar.describeSnapshot();
+		expect(snapshot).not.toBeNull();
+		expect(snapshot!.k).toBe("col");
+		expect(props(snapshot!)).toMatchObject({ role: "zeta.sidebar", gap: "xs" });
+		const panels = children(snapshot!).map(child => (child.k === "rule" ? "rule" : props(child).role));
+		expect(panels).toEqual([
+			"zeta.sidebar.context",
+			"rule",
+			"zeta.sidebar.todos",
+			"rule",
+			"zeta.sidebar.subagents",
+			"rule",
+			"zeta.sidebar.mcp",
+			"rule",
+			"zeta.sidebar.git",
+		]);
+		// Pure JSON: every node must serialize across the snapshot boundary.
+		expect(() => JSON.stringify(snapshot)).not.toThrow();
+	});
+
+	it("carries the same text as the ANSI rows with status tones and no escapes", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: null, planMode: null }),
+			session: sessionWith([
+				{
+					name: "Phase",
+					tasks: [
+						{ content: "done task", status: "completed" },
+						{ content: "live task", status: "in_progress" },
+						{ content: "open task", status: "pending" },
+					],
+				},
+			]),
+			subagents: () => [subagent("active", "Active"), subagent("completed", "Done"), subagent("failed", "Broken")],
+		});
+		const snapshot = sidebar.describeSnapshot();
+		expect(snapshot).not.toBeNull();
+		const json = JSON.stringify(snapshot);
+		expect(json).not.toContain("\\u001b");
+
+		const todos = findRole(snapshot!, "zeta.sidebar.todos");
+		expect(todos).toBeDefined();
+		const todoItems = children(todos!).filter(child => props(child).role === "zeta.sidebar.todos.item");
+		expect(todoItems.map(child => [props(child).text, props(child).tone])).toEqual([
+			[expect.stringContaining("done task"), "success"],
+			[expect.stringContaining("live task"), "accent"],
+			[expect.stringContaining("open task"), "muted"],
+		]);
+		expect(props(children(todos!)[0]!).role).toBe("zeta.sidebar.todos.header");
+
+		const subagents = findRole(snapshot!, "zeta.sidebar.subagents");
+		expect(subagents).toBeDefined();
+		const rows = children(subagents!).filter(child => props(child).role === "zeta.sidebar.subagents.item");
+		// Active work leads, then registry order; tones follow the status.
+		expect(rows.map(child => props(child).tone)).toEqual(["success", "muted", "error"]);
+		expect(props(rows[0]!).text).toContain("Active");
+	});
+
+	it("hides panels with no content and returns null when nothing is visible", () => {
+		const onlyContext = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: 50 }),
+			session: sessionWith(),
+		});
+		const snapshot = onlyContext.describeSnapshot();
+		expect(snapshot).not.toBeNull();
+		expect(children(snapshot!).map(props)).toEqual([expect.objectContaining({ role: "zeta.sidebar.context" })]);
+		expect(findRole(snapshot!, "zeta.sidebar.todos")).toBeUndefined();
+
+		const empty = new SidebarComponent(bareSessionSources({}));
+		expect(empty.describeSnapshot()).toBeNull();
+	});
+
+	it("degrades a widget without describe to its rendered text, escapes stripped", () => {
+		const sidebar = new SidebarComponent(bareSessionSources({}));
+		sidebar.registerWidget({
+			id: "legacy",
+			title: "Legacy",
+			order: 5,
+			render: () => [`${theme.fg("accent", "styled")} row`, "", "   "],
+		});
+		const snapshot = sidebar.describeSnapshot();
+		expect(snapshot).not.toBeNull();
+		const lines = children(snapshot!).filter(child => props(child).role === "zeta.sidebar.widget.legacy");
+		expect(lines).toHaveLength(1);
+		expect(props(lines[0]!).text).toBe("styled row");
+	});
+
+	it("prefers describe over render and honours its hiding contract", () => {
+		const sidebar = new SidebarComponent(bareSessionSources({}));
+		sidebar.registerWidget({
+			id: "semantic",
+			title: "Semantic",
+			order: 5,
+			render: () => ["rendered row"],
+			describe: () => node("text", { text: "semantic row", role: "zeta.test.semantic" }),
+		});
+		sidebar.registerWidget({
+			id: "hidden",
+			title: "Hidden",
+			order: 6,
+			render: () => ["must not appear"],
+			describe: () => null,
+		});
+		const snapshot = sidebar.describeSnapshot();
+		expect(snapshot).not.toBeNull();
+		const labels = children(snapshot!)
+			.filter(child => child.k === "text")
+			.map(child => props(child).text);
+		expect(labels).toEqual(["semantic row"]);
+	});
+
+	it("drops the whole snapshot when a describe tree carries a component child", () => {
+		const sidebar = new SidebarComponent(bareSessionSources({}));
+		sidebar.registerWidget({
+			id: "component-child",
+			title: "Component child",
+			order: 5,
+			render: () => ["x"],
+			describe: () => node("col", undefined, [{ render: () => ["child row"] }]),
+		});
+		expect(sidebar.describeSnapshot()).toBeNull();
+	});
+
+	it("skips a throwing describe the way render skips a throwing widget", () => {
+		const sidebar = new SidebarComponent({
+			statusLine: statusLineWith({ contextPercent: 50 }),
+			session: sessionWith(),
+		});
+		sidebar.registerWidget({
+			id: "boom",
+			title: "boom",
+			order: 5,
+			render: () => ["boom row"],
+			describe: () => {
+				throw new Error("snapshot crash");
+			},
+		});
+		const snapshot = sidebar.describeSnapshot();
+		expect(snapshot).not.toBeNull();
+		expect(children(snapshot!).map(props)).toEqual([expect.objectContaining({ role: "zeta.sidebar.context" })]);
 	});
 });

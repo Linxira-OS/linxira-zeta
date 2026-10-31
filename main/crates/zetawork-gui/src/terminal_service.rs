@@ -52,6 +52,7 @@ use std::{
 use ratatui::{buffer::Buffer, layout::Rect};
 use serde_json::{Value, json};
 use termide_panel_terminal::{
+	SIDEBAR_APC_PREFIX,
 	kitty::{self, ApcScanner, Step},
 	reports,
 };
@@ -246,6 +247,10 @@ pub enum Event {
 	Opened,
 	/// New PTY bytes were parsed into the screen; repaint.
 	Output,
+	/// A zeta sidebar snapshot arrived out of band (the TUI's
+	/// `esc _ zeta;sidebar; … esc \` APC): the semantic column a native
+	/// sidebar renderer draws instead of the ANSI gutter.
+	Sidebar { payload: Vec<u8> },
 	/// The serve-side PTY ended normally.
 	Ended(String),
 	/// The transport failed; the pane must fall back to the local PTY.
@@ -324,6 +329,11 @@ impl ServiceTerminal {
 					events.push(Event::Failed(reason));
 				},
 			}
+		}
+		// One snapshot per poll: a later frame supersedes an earlier one, and the
+		// native sidebar always draws the newest.
+		if let Some(payload) = self.screen.take_sidebar_apc() {
+			events.push(Event::Sidebar { payload });
 		}
 		// The parser answers the child's queries; each answer leaves the screen
 		// once. Writing it back through `Input` is the same text frame keyboard
@@ -528,10 +538,25 @@ struct Pane {
 /// A terminal event tagged with its session tab.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HostEvent {
-	Opened { tab: String },
-	Output { tab: String },
-	Ended { tab: String, reason: String },
-	Failed { tab: String },
+	Opened {
+		tab: String,
+	},
+	Output {
+		tab: String,
+	},
+	/// A native sidebar snapshot for the tab: the TUI's semantic column, drawn
+	/// by a native renderer instead of the ANSI gutter.
+	Sidebar {
+		tab: String,
+		payload: Vec<u8>,
+	},
+	Ended {
+		tab: String,
+		reason: String,
+	},
+	Failed {
+		tab: String,
+	},
 }
 
 impl TerminalHost {
@@ -777,6 +802,9 @@ impl TerminalHost {
 						out.push(HostEvent::Opened { tab: tab.clone() });
 					},
 					Event::Output => out.push(HostEvent::Output { tab: tab.clone() }),
+					Event::Sidebar { payload } => {
+						out.push(HostEvent::Sidebar { tab: tab.clone(), payload })
+					},
 					Event::Ended(reason) => {
 						pane.backend = Backend::Ended;
 						pane.reason = Some(reason.clone());
@@ -845,6 +873,10 @@ struct Screen {
 	/// they are cut out of the VT stream before it reaches the grid.
 	graphics: kitty::Graphics,
 	apc: ApcScanner,
+	/// Latest zeta sidebar snapshot body from the `zeta;sidebar;` APC sideband
+	/// (the prefix is stripped), waiting for
+	/// [`ServiceTerminal::poll`] to forward it.
+	sidebar_apc: Option<Vec<u8>>,
 	/// False while 设置 → 全部设置's `terminal.imageMode` is `off`: the APC is
 	/// still stripped from the grid, but its payload is not decoded into an
 	/// image (no allocation, no RGBA store, no texture in the pane).
@@ -873,10 +905,18 @@ impl Screen {
 			utf8: Vec::new(),
 			graphics: kitty::Graphics::new(),
 			apc: ApcScanner::new(),
+			sidebar_apc: None,
 			decode_images: true,
 			cell_px: (0, 0),
 			replies: Vec::new(),
 		}
+	}
+
+	/// The sidebar snapshot body since the last call, if one arrived (prefix
+	/// already stripped). Taking is what keeps each frame's snapshot delivered
+	/// once.
+	fn take_sidebar_apc(&mut self) -> Option<Vec<u8>> {
+		self.sidebar_apc.take()
 	}
 
 	/// Payload collected since the last call, empty when no query arrived.
@@ -923,7 +963,12 @@ impl Screen {
 				// it, so it is already in ground state.
 				Step::Hold | Step::Start | Step::Swallowed => {},
 				Step::Payload => {
-					if self.decode_images {
+					// The zeta sidebar snapshot is not an image: capture it before
+					// the graphics branch (and regardless of `decode_images`, which
+					// only governs image decoding). It never reaches the grid.
+					if let Some(body) = self.apc.payload().strip_prefix(SIDEBAR_APC_PREFIX) {
+						self.sidebar_apc = Some(body.to_vec());
+					} else if self.decode_images {
 						let cursor = (self.cursor_y, self.cursor_x);
 						self.graphics.apc(self.apc.payload(), cursor);
 					}

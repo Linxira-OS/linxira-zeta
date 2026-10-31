@@ -26,6 +26,9 @@ pub use terminal_info::TerminalInfo;
 // path a PTY would). `Terminal` is the owning wrapper around these two.
 pub use terminal::vt100_parser::StreamParser;
 pub use terminal::TerminalScreen;
+/// The TUI's sidebar snapshot sideband prefix: an APC body that starts with it
+/// (after `ESC _`) carries the semantic sidebar column, not a graphics command.
+pub use terminal::SIDEBAR_APC_PREFIX;
 
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -640,6 +643,14 @@ impl Terminal {
     /// (see [`Self::cell_pixels`]) for device pixels.
     pub fn graphics(&self) -> Vec<(crate::kitty::Placement, Arc<crate::kitty::Image>)> {
         self.read_screen().graphics.placements()
+    }
+
+    /// Take the newest zeta sidebar snapshot the child emitted, if any: the
+    /// body of the TUI's `ESC _ zeta;sidebar; … ESC \` APC, a description of the
+    /// gutter column for a native renderer. It never touched the grid, so a
+    /// host that ignores it draws exactly the plain ANSI terminal.
+    pub fn take_sidebar_apc(&self) -> Option<Vec<u8>> {
+        self.write_screen().take_sidebar_apc()
     }
 
     /// Push the cell size into the PTY's `winsize`.

@@ -37,7 +37,6 @@ import defaultPersonality from "./prompts/system/personalities/default.md" with 
 import friendlyPersonality from "./prompts/system/personalities/friendly.md" with { type: "text" };
 import pragmaticPersonality from "./prompts/system/personalities/pragmatic.md" with { type: "text" };
 import projectPromptTemplate from "./prompts/system/project-prompt.md" with { type: "text" };
-import ptcGuidancePrompt from "./prompts/system/ptc-guidance.md" with { type: "text" };
 import systemPromptTemplate from "./prompts/system/system-prompt.md" with { type: "text" };
 import userAppendPromptTemplate from "./prompts/system/user-append.md" with { type: "text" };
 import { normalizeConcurrencyLimit } from "./task/parallel";
@@ -619,13 +618,6 @@ export interface BuildSystemPromptOptions {
 	 * the main agent verifies once after all subagents land, so parallel children don't storm the CPU.
 	 */
 	subagent?: boolean;
-	/**
-	 * Whether to add the code-first tool orchestration (PTC) section: prefer one `eval`
-	 * cell using `tool.<name>()` over many separate tool-call turns. Main-agent
-	 * guidance only; subagent sessions (`taskDepth > 0`) must not receive it.
-	 * Renders only when the active tool set includes `eval`. Default: false
-	 */
-	ptcGuidance?: boolean;
 }
 
 /** Result of building provider-facing system prompt messages. */
@@ -714,7 +706,6 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		autoQaEnabled = false,
 		writeTransportOnly = false,
 		subagent = false,
-		ptcGuidance = false,
 		activeRepoContext: providedActiveRepoContext,
 	} = options;
 	const inlineToolDescriptors = providedInlineToolDescriptors ?? false;
@@ -1059,7 +1050,6 @@ export async function buildSystemPrompt(options: BuildSystemPromptOptions = {}):
 		autoQaEnabled,
 		writeTransportOnly,
 		subagent,
-		ptcGuidance: ptcGuidance ? ptcGuidancePrompt.trim() : "",
 	};
 	const selectedTemplate = resolvedCustomPrompt
 		? customSystemPromptTemplate
