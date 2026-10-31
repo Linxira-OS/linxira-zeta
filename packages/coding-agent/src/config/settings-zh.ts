@@ -1669,6 +1669,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "重新规划时刷新标题",
 		description: "在待办初始化重新规划后刷新生成的会话标题，除非标题由用户设置",
 	},
+	"title.refreshAfterPrompts": {
+		label: "提示后刷新标题",
+		description: "每若干条操作员提示后，让判定模型检查生成的会话标题是否仍符合对话，不符合则重新生成",
+	},
 	"worktree.onStart": {
 		label: "启动时创建工作树",
 		description: "新建的交互式会话是否默认在新建的链接工作树中启动",
@@ -1951,6 +1955,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"providers.openaiWebsockets": {
 		label: "OpenAI WebSocket 策略",
 		description: "OpenAI Codex 模型的 WebSocket 策略（auto 使用模型默认，on 强制，off 禁用）",
+	},
+	"providers.openai-codex.daybreak": {
+		label: "Daybreak Blue 接入",
+		description:
+			"对符合条件的 ChatGPT 账户自动申请 Daybreak Blue 网络访问计划；OpenAI 可能使用 Daybreak Blue 会话内容改进模型。不覆盖专用的 Daybreak Blue 模型（gpt-daybreak-blue-*），这些模型仍可能以 Daybreak 会话运行。",
 	},
 	"providers.cacheRetention": {
 		label: "提示缓存保留",
@@ -2440,6 +2449,22 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"title.generator::tiny": {
 		label: "Tiny",
 		description: "仅用标题模型角色；生成不带卡片的纯标题",
+	},
+	"title.refreshAfterPrompts::0": {
+		label: "关闭",
+		description: "默认",
+	},
+	"title.refreshAfterPrompts::1": {
+		label: "每条提示",
+	},
+	"title.refreshAfterPrompts::3": {
+		label: "每 3 条提示",
+	},
+	"title.refreshAfterPrompts::5": {
+		label: "每 5 条提示",
+	},
+	"title.refreshAfterPrompts::10": {
+		label: "每 10 条提示",
 	},
 	"tui.titleSpinner::line": {
 		label: "线条",
