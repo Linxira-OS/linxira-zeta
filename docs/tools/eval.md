@@ -4,9 +4,9 @@
 
 > **Notice:** Do not shell out to `python -c`, `bun -e`, or `node -e` through `bash` for ad-hoc code. `eval` provides retained state, rich `print` rendering, tool/subagent bridges, streaming, cancellation, and artifact-backed truncation.
 
-## PTC (code-first tool orchestration)
+## Batching independent calls
 
-PTC is main-agent guidance, not a mode or a separate tool: the system prompt adds a `# Code-First Tool Orchestration (PTC)` section to a top-level session (`taskDepth === 0`) only, and only while `eval` is active. Subagents never receive it, and `eval` availability is unchanged for every session. The section is rendered from `packages/coding-agent/src/prompts/system/ptc-guidance.md`; the `ptcGuidance` option on `buildSystemPrompt` controls it.
+The eval tool's description carries the batching rule for every session that has `eval` — main agents and subagents alike. It is not a mode and not a separate tool: `eval` stays the only executor, and no session-level switch adds or removes the rule.
 
 Use one `eval` cell instead of many separate assistant/tool-result turns when a task needs:
 
@@ -14,9 +14,9 @@ Use one `eval` cell instead of many separate assistant/tool-result turns when a 
 - bulk classification (`judge` / `judgeBatch` over many items),
 - tabular aggregation (read many files or rows, print one table).
 
-Combine `workpool()` or `agent()` in the same cell when the work also splits into subagents. A single trivial call (one `read`, one `edit`, one lookup) stays a normal tool call: a cell adds overhead without removing turns.
+Intermediate data stays in the kernel instead of being re-sent every turn. That is not a reason to batch a single trivial call: one `read`, one `edit`, or one lookup stays a normal tool call. The rule relaxes nothing — each `tool.*` call keeps its usual approval gate, and failures must surface; never use a cell to hide an error or bypass approval.
 
-PTC does not relax any rule: each `tool.*` call keeps its usual approval gate, and failures must surface — print or raise them, never swallow an error or a non-zero result, and never use a cell to hide failures or bypass approval.
+The rule lives in the model-facing prompt `packages/coding-agent/src/prompts/tools/eval.md` (section `## Batching independent calls`), so it follows `eval` availability rather than the session's agent kind.
 
 ## Source
 

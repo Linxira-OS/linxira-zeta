@@ -84,3 +84,31 @@ and only falls back to its own PTY otherwise. The decoding and the painting are
 the GUI's in both cases: the app parses the byte stream, answers the queries,
 and writes the replies back through the terminal socket as input. That is why
 the same program behaves identically on both paths.
+
+## The sidebar sideband
+
+`zetacode` running inside a pane draws its sidebar (context gauge, todos,
+subagents, MCP health, Git) as a 36-cell ANSI gutter. The TUI also publishes
+that column's semantic twin out of band, once per changed frame:
+
+```text
+ESC _ zeta;sidebar; <base64(UTF-8 JSON)> ESC \
+JSON = {"v":1,"node":<TSP node>}
+```
+
+An empty body means "clear the column". Both backends strip the APC from the
+byte stream before it reaches the grid or the graphics store, and
+`main/crates/zetawork-gui/src/sidebar_tsp.rs` draws the flattened rows with
+egui over the pane's last `ZETA_SIDEBAR_COLS` (36) cells: an opaque column with
+a one-pixel left edge, replacing the ANSI gutter rather than duplicating it.
+A pane narrower than 36 columns keeps the ANSI gutter, and so does a body that
+does not parse (anything but base64 JSON with `v: 1`) — an unknown future
+version degrades to what the TUI painted instead of a blank column.
+
+The snapshot comes from `SidebarComponent.describeSnapshot()`
+(`packages/coding-agent/src/modes/components/sidebar.ts`); a third-party widget
+without the optional `describe` contributes its rendered rows as plain text.
+The transport lives in `packages/tui/src/tui.ts` (`NativeSnapshotSource`) and
+`termide/crates/panel-terminal/src/terminal/`; `cargo test -p zetawork-gui
+--test sidebar_tsp` rasterizes the column headlessly and asserts its fill, edge,
+glyphs and clip.

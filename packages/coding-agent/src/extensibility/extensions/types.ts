@@ -44,6 +44,7 @@ import type {
 	ToolLoadMode,
 } from "@linxiraos/pi-agent-core";
 import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
+import type { NativeNode } from "@linxiraos/pi-tui/native/node";
 import type { ContextUsage, SegmentContext } from "@linxiraos/pi-tui/status-line/types";
 import type { LoopConditionConfig } from "@linxiraos/pi-tui/status-line/loop";
 import type { LivePhase } from "@linxiraos/pi-tui/apps/live-visualizer";
@@ -325,6 +326,14 @@ export interface SidebarWidget {
 	order: number;
 	/** Render the widget's rows for the sidebar's segment context and width. */
 	render(ctx: SegmentContext, width: number): readonly string[];
+	/**
+	 * Semantic description served to a native (non-ANSI) sidebar renderer:
+	 * plain TSP nodes, no escapes, `null` when the widget is hidden this frame.
+	 * Return only JSON-serializable nodes — a `Component` child cannot cross the
+	 * snapshot boundary, so the frame falls back to the ANSI gutter instead.
+	 * Optional: without it the renderer degrades `render`'s rows to plain text.
+	 */
+	describe?(ctx: SegmentContext, width: number): NativeNode | null;
 }
 
 /**

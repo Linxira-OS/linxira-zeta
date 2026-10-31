@@ -315,7 +315,17 @@ pub struct TerminalScreen {
     pub cell_px: (u16, u16),
     /// Kitty graphics the child transmitted (see [`crate::kitty`]).
     pub graphics: crate::kitty::Graphics,
+    /// Newest zeta sidebar snapshot body from the [`SIDEBAR_APC_PREFIX`]
+    /// sideband, waiting for the host to take it. It never touches the grid:
+    /// the body is opaque to this crate.
+    pub sidebar_apc: Option<Vec<u8>>,
 }
+
+/// Prefix of the zeta sidebar snapshot APC body (`ESC _ zeta;sidebar; <body> ESC \`):
+/// the TUI's out-of-band description of the sidebar column for a native
+/// renderer. The parser strips it and stores the rest in
+/// [`TerminalScreen::sidebar_apc`]; nothing here interprets the body.
+pub const SIDEBAR_APC_PREFIX: &[u8] = b"zeta;sidebar;";
 
 impl TerminalScreen {
     pub fn new(rows: usize, cols: usize) -> Self {
@@ -365,7 +375,15 @@ impl TerminalScreen {
             title: None,
             cell_px: (0, 0),
             graphics: crate::kitty::Graphics::new(),
+            sidebar_apc: None,
         }
+    }
+
+    /// Take the latest zeta sidebar snapshot body, if one arrived since the
+    /// last call. The prefix is already stripped; the bytes are the payload the
+    /// TUI emitted (base64 JSON that the host decodes).
+    pub fn take_sidebar_apc(&mut self) -> Option<Vec<u8>> {
+        self.sidebar_apc.take()
     }
 
     /// Intern a hyperlink URI (OSC 8), returning its stable id. URIs are
