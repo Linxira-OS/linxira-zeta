@@ -11,6 +11,7 @@ import { resolveApproval } from "@linxiraos/zeta/tools/approval";
 import { approvalGrantKey, SessionApprovals } from "@linxiraos/zeta/tools/approval-cache";
 import { approvalTargetKey } from "@linxiraos/zeta/tools/approval-targets";
 import { ReadTool } from "@linxiraos/zeta/tools/read";
+import { removeWithRetries } from "@linxiraos/pi-utils";
 
 function textOf(result: { content: ReadonlyArray<{ type: string; text?: string }> }): string {
 	return result.content.flatMap(block => (block.type === "text" ? [block.text ?? ""] : [])).join("\n");
@@ -27,7 +28,7 @@ describe("artifact reads through session approval", () => {
 	afterEach(async () => {
 		await session?.dispose();
 		session = undefined;
-		await fs.rm(root, { recursive: true, force: true });
+		await removeWithRetries(root);
 	});
 
 	it.each([

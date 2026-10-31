@@ -1,9 +1,6 @@
 ## [Unreleased]
 
 ## [1.4.7] - 2026-10-30
-
-- Synced with upstream OMP v18.14.0; no package-specific user-visible changes.
-
 ## [9.2.2] - 2026-01-31
 
 ### Added

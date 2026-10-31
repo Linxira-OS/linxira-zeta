@@ -15,6 +15,7 @@ import type { BashResult } from "../../exec/bash-executor";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";
 import type { CacheWarmingMode } from "../../session/cache-warmer";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
+import type { SessionLeaseReport } from "../../session/session-storage";
 import { MAX_RPC_FRAME_BYTES, MAX_RPC_REASSEMBLED_BYTES, RpcFrameDecoder, type RpcProtocolVersion } from "./rpc-frame";
 import type { GoalContinuationOp, GoalContinuationResult } from "../../goals/continuation-controller";
 import {
@@ -1156,6 +1157,15 @@ export class RpcClient {
 	 */
 	async getSessionStats(): Promise<SessionStats> {
 		const response = await this.#send({ type: "get_session_stats" });
+		return this.#getData(response);
+	}
+
+	/**
+	 * Which of `sessionIds` a running process (this one included) owns, probed
+	 * without taking ownership. Ids in neither list are free.
+	 */
+	async getSessionLease(sessionIds: string[]): Promise<SessionLeaseReport> {
+		const response = await this.#send({ type: "get_session_lease", sessionIds });
 		return this.#getData(response);
 	}
 
