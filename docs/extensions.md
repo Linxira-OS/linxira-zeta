@@ -959,6 +959,17 @@ up to 10 content lines plus a truncation notice). Pass `undefined` to remove a
 widget. `setEditorText` and `pasteToEditor` request a repaint after mutating the
 editor.
 
+`ctx.ui.registerSidebarWidget(widget)` adds a widget to the interactive TUI's
+right-hand sidebar (built-ins: context gauge, todos, subagents, MCP health, Git);
+`unregisterSidebarWidget(id)` removes it and re-registering an id replaces the
+widget. `render(ctx, width)` returns the widget's rows and must never perform IO;
+third-party widgets render only while the `tui.sidebarWidgets` setting is on.
+A widget may also implement `describe(ctx, width)` and return a `NativeNode`
+(plain TSP nodes, no escapes, `null` when hidden) — the semantic twin a native
+sidebar renderer draws, which `zetawork` uses inside a terminal pane. Without
+`describe`, the renderer degrades `render`'s rows to plain text; a tree carrying
+a `Component` child cannot cross the snapshot boundary, so the ANSI rows stay.
+
 #### Launching terminal commands
 
 `ctx.ui.openTerminal(request)` is available only in the interactive TUI. It creates a

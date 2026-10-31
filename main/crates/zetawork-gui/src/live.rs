@@ -267,6 +267,10 @@ fn spawn_local(
 pub enum Event {
 	/// The screen changed; a hidden window needs no repaint for this.
 	Output { tab: String },
+	/// A native sidebar snapshot arrived out of band (the child's
+	/// `esc _ zeta;sidebar; … esc \` APC): the semantic column a native
+	/// renderer draws instead of the ANSI gutter.
+	Sidebar { tab: String, payload: Vec<u8> },
 	/// The child exited and the pane is now a dead grid.
 	Ended { tab: String },
 	/// The child changed its OSC 0/2 title.
@@ -463,6 +467,11 @@ impl LiveSessions {
 					events.push(Event::Titled { tab: tab.clone(), title });
 				}
 			}
+			// The TUI publishes its sidebar's semantic twin on every changed
+			// frame; the pane forwards the newest one, never a history.
+			if let Some(payload) = live.term.take_sidebar_apc() {
+				events.push(Event::Sidebar { tab: tab.clone(), payload });
+			}
 		}
 		events
 	}
@@ -565,7 +574,8 @@ mod tests {
 				match event {
 					Event::Output { .. } => saw_output = true,
 					Event::Ended { .. } => ended = true,
-					Event::Titled { .. } => {},
+					// No child here publishes a sidebar snapshot.
+					Event::Titled { .. } | Event::Sidebar { .. } => {},
 				}
 			}
 			if saw_output && ended {

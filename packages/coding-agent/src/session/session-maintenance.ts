@@ -128,7 +128,7 @@ import {
 	cfgSnapcompactShape,
 } from "./context-settings";
 import { resolveModelCompactionSettings } from "./model-compaction-threshold";
-import { cfgRetry } from "./settings";
+import { cfgProvidersOpenaiCodexDaybreak, cfgRetry } from "./settings";
 import { sendsImageInputOnWire } from "@linxiraos/pi-ai/providers/vision-guard";
 
 export type CompactionCheckResult = Readonly<{
@@ -3727,6 +3727,7 @@ export class SessionMaintenance {
 						remotePromptCacheKey: this.#host.getPromptCacheKeyForModel(remoteCompactionPolicyModel(candidate)),
 						providerSessionState: this.#host.providerSessionState,
 						preferWebsockets: this.#host.preferWebsockets(),
+						codexAccessPrograms: cfgProvidersOpenaiCodexDaybreak.get(this.#host.settings),
 						// Route every summarization HTTP request through the
 						// session's side-stream transport so the provider
 						// concurrency cap (e.g. providers.ollama-cloud.maxConcurrency)
@@ -5641,6 +5642,7 @@ export class SessionMaintenance {
 									),
 									providerSessionState: this.#host.providerSessionState,
 									preferWebsockets: this.#host.preferWebsockets(),
+									codexAccessPrograms: cfgProvidersOpenaiCodexDaybreak.get(this.#host.settings),
 									codexCompaction,
 									// This loop already retries the whole compaction attempt on
 									// transient errors, so the summarization oneshots must not

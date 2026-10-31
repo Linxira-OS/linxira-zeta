@@ -1753,6 +1753,12 @@ class ComponentOpenResult:
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
+class GetSessionLeaseResult:
+    held: tuple[str, ...]
+    unknown: tuple[str, ...]
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class LogoutResult:
     remaining_source: str | None = None
 
@@ -3340,6 +3346,14 @@ def parse_component_open_result(value: object, path: str = "ComponentOpenResult"
     )
 
 
+def parse_get_session_lease_result(value: object, path: str = "GetSessionLeaseResult") -> GetSessionLeaseResult:
+    payload = expect_object(value, path)
+    return GetSessionLeaseResult(
+        held=required(payload, "held", array(decode_str), path),
+        unknown=required(payload, "unknown", array(decode_str), path),
+    )
+
+
 def parse_logout_result(value: object, path: str = "LogoutResult") -> LogoutResult:
     payload = expect_object(value, path)
     return LogoutResult(
@@ -3848,6 +3862,12 @@ class WireClient:
         params: dict[str, object] = {}
         return parse_session_stats(self._command("get_session_stats", params), "get_session_stats")
 
+    def get_session_lease(self, session_ids: Sequence[str]) -> GetSessionLeaseResult:
+        """Which of these sessions a running process (this one included) owns, probed without taking ownership. Ids in neither list are free; `unknown` could not be probed."""
+        params: dict[str, object] = {}
+        params["sessionIds"] = list(session_ids)
+        return parse_get_session_lease_result(self._command("get_session_lease", params), "get_session_lease")
+
     def export_html(self, output_path: str | Path | None = None) -> Path:
         """Export the session as HTML; returns the written path."""
         params: dict[str, object] = {}
@@ -4300,6 +4320,7 @@ __all__ = [
     "FastModeResult",
     "FileMentionItem",
     "FileMentionMessage",
+    "GetSessionLeaseResult",
     "GetToolsResult",
     "Goal",
     "GoalModeState",
@@ -4502,6 +4523,7 @@ __all__ = [
     "parse_fast_mode_result",
     "parse_file_mention_item",
     "parse_file_mention_message",
+    "parse_get_session_lease_result",
     "parse_get_tools_result",
     "parse_goal",
     "parse_goal_mode_state",
