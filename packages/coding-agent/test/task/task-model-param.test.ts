@@ -1,13 +1,17 @@
 /**
- * The task wire contract for a subagent's model. Dispatch never chooses a
- * child's model — it comes from the agent definition, or the parent's own — so
- * the wire shape carries no `model` field at all and a hand-written one is
- * rejected rather than silently dropped. Switching a child's model is a
- * per-subagent capability that opens once it has completed a model response;
- * that half is covered by model-switch.test.ts and wake-model-override.test.ts.
+ * The task wire contract for a subagent's model.
  *
- * The internal `StructuredSubagentRequest.model` seam (used by the eval bridge)
- * keeps working and is covered here.
+ * v18.14.2 put `model` in every task schema and gates it at dispatch time:
+ * `task.perCallModel` (default `off`) rejects a hand-written selector rather
+ * than silently dropping it, and `task.perCallModelAllow` narrows the exact
+ * selectors that are accepted. Without a selector the child keeps the
+ * inherited chain — the agent definition, then the parent.
+ *
+ * Switching a child's model afterwards is a per-subagent capability that opens
+ * once it has completed a model response; that half is covered by
+ * model-switch.test.ts and wake-model-override.test.ts. The internal
+ * `StructuredSubagentRequest.model` seam (used by the eval bridge) keeps
+ * working and is covered here.
  */
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import type { Api, Model } from "@linxiraos/pi-ai";
@@ -101,7 +105,7 @@ afterEach(() => {
 });
 
 describe("task wire schema", () => {
-	it("never advertises a `model` field", () => {
+	it("advertises the per-call `model` field, gated by task.perCallModel", () => {
 		const parsed = taskSchema({
 			agent: "worker",
 			task: "Inspect the target.",
@@ -109,27 +113,29 @@ describe("task wire schema", () => {
 			model: PRIMARY_SELECTOR,
 		});
 		expect(parsed instanceof type.errors).toBe(false);
-		if (!(parsed instanceof type.errors)) expect("model" in parsed).toBe(false);
+		// v18.14.2 put `model` in every task schema; the dispatch gate below is
+		// what decides whether a given call may actually use it.
+		if (!(parsed instanceof type.errors)) expect("model" in parsed).toBe(true);
 	});
 });
 
 describe("task dispatch model rejection", () => {
-	it("rejects a flat call that names a model", async () => {
+	it("rejects a flat call that names a model while task.perCallModel is off", async () => {
 		const text = await executeText(testSession(Settings.isolated({ "task.batch": false })), {
 			agent: "worker",
 			task: "Inspect the target.",
 			solutionSpace: "one fix",
 			model: PRIMARY_SELECTOR,
 		});
-		expect(text).toContain("is only accepted for the");
+		expect(text).toContain("Per-call model is disabled");
 	});
 
-	it("rejects a batch item that names a model", async () => {
+	it("rejects a batch item that names a model while task.perCallModel is off", async () => {
 		const text = await executeText(testSession(Settings.isolated({ "task.batch": true })), {
 			context: "shared",
 			tasks: [{ task: "Inspect the target.", solutionSpace: "one fix", model: SECONDARY_SELECTOR }],
 		});
-		expect(text).toContain("is only accepted for the");
+		expect(text).toContain("Per-call model is disabled");
 	});
 
 	it("still dispatches a call that names only an effort", async () => {

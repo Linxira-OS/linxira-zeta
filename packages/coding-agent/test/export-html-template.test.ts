@@ -194,7 +194,11 @@ describe("HTML export template", () => {
 		const packDir = path.join(packWorkspace, packageRel);
 		await Bun.write(path.join(packDir, "package.json"), Bun.file(path.join(packageDir, "package.json")));
 		for (const entry of await fs.promises.readdir(productionBundleDir)) {
-			await Bun.write(path.join(packDir, "dist", entry), Bun.file(path.join(productionBundleDir, entry)));
+			// The bundle carries a directory now (`official-plugins/`), so a flat
+			// file copy is not enough; `cp` handles both shapes.
+			await fs.promises.cp(path.join(productionBundleDir, entry), path.join(packDir, "dist", entry), {
+				recursive: true,
+			});
 		}
 		const proc = Bun.spawn([process.execPath, "pm", "pack", "--dry-run", "--ignore-scripts"], {
 			cwd: packDir,

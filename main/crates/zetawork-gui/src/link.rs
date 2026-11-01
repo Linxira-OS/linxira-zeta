@@ -348,7 +348,14 @@ mod tests {
 		let dir = tempdir();
 		std::fs::create_dir_all(dir.join("docs")).unwrap();
 		std::fs::write(dir.join("docs/plan.md"), "# plan").unwrap();
-		let hit = target_at(&buffer("see docs/plan.md here"), &metrics(), 0, 8, &dir, std::slice::from_ref(&dir));
+		let hit = target_at(
+			&buffer("see docs/plan.md here"),
+			&metrics(),
+			0,
+			8,
+			&dir,
+			std::slice::from_ref(&dir),
+		);
 		match hit {
 			Some(Hit::Open(target)) => {
 				assert_eq!(target.path, dir.join("docs/plan.md").canonicalize().unwrap());
@@ -373,7 +380,8 @@ mod tests {
 			},
 			other => panic!("expected an open hit, got {other:?}"),
 		}
-		let hit = target_at(&buffer("agent.ts:9"), &metrics(), 0, 0, &dir, std::slice::from_ref(&dir));
+		let hit =
+			target_at(&buffer("agent.ts:9"), &metrics(), 0, 0, &dir, std::slice::from_ref(&dir));
 		match hit {
 			Some(Hit::Open(target)) => {
 				assert_eq!(target.line, Some(9));
@@ -417,7 +425,8 @@ mod tests {
 			// to prove here, and the root check above already covers the case.
 			return;
 		}
-		let hit = target_at(&buffer("inside.txt"), &metrics(), 0, 0, &dir, std::slice::from_ref(&dir));
+		let hit =
+			target_at(&buffer("inside.txt"), &metrics(), 0, 0, &dir, std::slice::from_ref(&dir));
 		assert!(matches!(hit, Some(Hit::Missing(_))), "symlink escape must refuse: {hit:?}");
 	}
 
@@ -427,15 +436,22 @@ mod tests {
 		std::fs::create_dir_all(dir.join("docs")).unwrap();
 		// Path-shaped (a separator), and it exists — but it is a directory, so
 		// the page would have nothing to show.
-		let hit = target_at(&buffer("open docs/ now"), &metrics(), 0, 6, &dir, std::slice::from_ref(&dir));
+		let hit =
+			target_at(&buffer("open docs/ now"), &metrics(), 0, 6, &dir, std::slice::from_ref(&dir));
 		assert!(matches!(hit, Some(Hit::Missing(_))), "a directory must not open: {hit:?}");
 	}
 
 	#[test]
 	fn plain_prose_names_no_link() {
 		let dir = tempdir();
-		let hit =
-			target_at(&buffer("Build succeeded in 3.2s"), &metrics(), 0, 2, &dir, std::slice::from_ref(&dir));
+		let hit = target_at(
+			&buffer("Build succeeded in 3.2s"),
+			&metrics(),
+			0,
+			2,
+			&dir,
+			std::slice::from_ref(&dir),
+		);
 		assert_eq!(hit, None);
 	}
 }

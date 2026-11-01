@@ -1059,6 +1059,9 @@ describe("persisted subagent revival", () => {
 				// parent revival can restore its own authorization before retrying the child.
 				const reopened = await SessionManager.open(sessionFile);
 				await reopened.close();
+				// An id is never silently replaced, so the parked tombstone has to go
+				// before the revived parent can take the id over.
+				registry.unregister(parentId);
 				registry.register({
 					id: parentId,
 					displayName: parentId,
