@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+### Fixed
+
+- Ported upstream `#41`: the status render falls back to plain text when the
+  host's UI context loses the prototype `theme` getter (`ctx.ui.theme` can be
+  undefined while `hasUI` is true).
+- Ported upstream `#42`: `session_shutdown` uses the cwd captured at session
+  start, so a shutdown delivered with a stale context no longer skips lobby
+  worker cleanup.
+- Upstream `#40` (Windows spawning `pi.cmd`) does not apply: crew workers are
+  spawned through this port's own `getCliSpawnCommand`, which resolves
+  `zetacode` and never a `.cmd` shim.
+
 ## [1.4.7] - 2026-10-30
 
 - Released as part of Zeta 1.4.7; no package-specific user-visible changes.
