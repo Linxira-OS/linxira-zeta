@@ -6,11 +6,12 @@
  * the real `clearClaudePluginRootsCache` while tests supply a counter stub.
  */
 
+import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { isEnoent, logger, pathIsWithin, PLUGINS_LOCKFILE_CANONICAL } from "@linxiraos/pi-utils";
+import { CLI_BIN_NAME, isEnoent, logger, pathIsWithin, PLUGINS_LOCKFILE_CANONICAL } from "@linxiraos/pi-utils";
 import { expandTilde } from "../../../tools/path-utils";
 import { linkPluginDirectory } from "../directory-link";
 import { normalizePluginRuntimeConfig, readPluginRuntimeConfig, writePluginRuntimeConfig } from "../runtime-config";
@@ -25,19 +26,29 @@ import {
 	pruneAbandonedMarketplaceClones,
 } from "./fetcher";
 import {
+	type OfficialPluginManifest,
+	OFFICIAL_MARKETPLACE_NAME,
+	officialCatalogEntries,
+	readOfficialPluginManifests,
+	resolveOfficialPluginsDir,
+} from "./official-catalog";
+import {
 	addInstalledPlugin,
 	addMarketplaceEntry,
 	collectReferencedPaths,
 	getInstalledPlugin,
 	getMarketplaceEntry,
 	getProjectRegistriesIndexPath,
+	OFFICIAL_SEED_MARKER,
 	readInstalledPluginsRegistry,
 	readMarketplacesRegistry,
+	readOfficialSeedMarker,
 	readProjectRegistriesIndex,
 	removeInstalledPlugin,
 	removeMarketplaceEntry,
 	writeInstalledPluginsRegistry,
 	writeMarketplacesRegistry,
+	writeOfficialSeedMarker,
 	writeProjectRegistriesIndex,
 } from "./registry";
 import { resolvePluginSource, validatePluginSource } from "./source-resolver";
@@ -121,6 +132,8 @@ type InstallValidation = {
 
 export class MarketplaceManager {
 	#opts: MarketplaceManagerOptions;
+	/** Official plugin manifests, read once on first use (see `#officialPlugins`). */
+	#officialManifests: OfficialPluginManifest[] | undefined;
 
 	constructor(options: MarketplaceManagerOptions) {
 		this.#opts = options;
@@ -134,6 +147,39 @@ export class MarketplaceManager {
 		this.#opts.clearPluginRootsCache?.(extra);
 	}
 
+	// ── Built-in official catalog ─────────────────────────────────────────────
+	// The `official` marketplace is not a registry entry: it exists in every
+	// install that ships official plugin manifests, cannot be fetched, and cannot
+	// be removed. Everything below is derived from those manifests.
+
+	/** Official plugin manifests this build ships, read once per manager. */
+	#officialPlugins(): readonly OfficialPluginManifest[] {
+		this.#officialManifests ??= readOfficialPluginManifests();
+		return this.#officialManifests;
+	}
+
+	/** The synthetic registry entry for the built-in catalog, or null when none ships. */
+	#builtinMarketplace(): MarketplaceRegistryEntry | null {
+		if (this.#officialPlugins().length === 0) return null;
+		return {
+			name: OFFICIAL_MARKETPLACE_NAME,
+			sourceType: "builtin",
+			sourceUri: `builtin:${OFFICIAL_MARKETPLACE_NAME}`,
+			catalogPath: "",
+			addedAt: "",
+			updatedAt: "",
+		};
+	}
+
+	#builtinCatalog(): MarketplaceCatalog {
+		return {
+			name: OFFICIAL_MARKETPLACE_NAME,
+			owner: { name: "Zeta" },
+			metadata: { description: "Official Zeta plugins shipped with this build" },
+			plugins: officialCatalogEntries(this.#officialPlugins()),
+		};
+	}
+
 	// ── Marketplace lifecycle ─────────────────────────────────────────────────
 
 	async addMarketplace(source: string): Promise<MarketplaceRegistryEntry> {
@@ -142,6 +188,14 @@ export class MarketplaceManager {
 		const { catalog, clonePath } = await fetchMarketplace(source, this.#opts.marketplacesCacheDir);
 
 		const catalogKey = nameSegmentCollisionKey(catalog.name);
+		// `official` names the built-in catalog in every install; letting a remote
+		// catalog claim it would shadow the bundled plugins with someone else's.
+		if (catalogKey === OFFICIAL_MARKETPLACE_NAME) {
+			if (clonePath) {
+				await fs.rm(clonePath, { recursive: true, force: true }).catch(() => {});
+			}
+			throw new Error(`Marketplace name "${catalog.name}" is reserved for the built-in official catalog`);
+		}
 		const existingName = reg.marketplaces.find(m => nameSegmentCollisionKey(m.name) === catalogKey)?.name;
 		if (existingName) {
 			if (clonePath) {
@@ -188,6 +242,9 @@ export class MarketplaceManager {
 	}
 
 	async removeMarketplace(name: string): Promise<void> {
+		if (name === OFFICIAL_MARKETPLACE_NAME) {
+			throw new Error(`Marketplace "${name}" is built in and cannot be removed`);
+		}
 		const reg = await readMarketplacesRegistry(this.#opts.marketplacesRegistryPath);
 		// removeMarketplaceEntry throws if not found — propagate to caller.
 		const updated = removeMarketplaceEntry(reg, name);
@@ -202,6 +259,13 @@ export class MarketplaceManager {
 	}
 
 	async updateMarketplace(name: string): Promise<MarketplaceRegistryEntry> {
+		// The built-in catalog is the shipped manifests themselves: there is
+		// nothing to re-fetch, and the entry has no cache to refresh.
+		if (name === OFFICIAL_MARKETPLACE_NAME) {
+			const builtin = this.#builtinMarketplace();
+			if (!builtin) throw new Error(`Marketplace "${name}" not found`);
+			return builtin;
+		}
 		const reg = await readMarketplacesRegistry(this.#opts.marketplacesRegistryPath);
 		const existing = getMarketplaceEntry(reg, name);
 		if (!existing) {
@@ -257,9 +321,25 @@ export class MarketplaceManager {
 		return results;
 	}
 
+	/** The marketplaces persisted in `marketplaces.json`, in registry order. */
 	async listMarketplaces(): Promise<MarketplaceRegistryEntry[]> {
 		const reg = await readMarketplacesRegistry(this.#opts.marketplacesRegistryPath);
 		return reg.marketplaces;
+	}
+
+	/**
+	 * Every marketplace a plugin can be installed from: the built-in `official`
+	 * catalog first (when this build ships one), then the registered marketplaces.
+	 *
+	 * Listing surfaces (`plugin marketplace`, the plugin browser) want this;
+	 * registry maintenance (`/marketplace update`, removals, upgrade lookups) wants
+	 * {@link listMarketplaces}, which never contains a catalog that cannot be
+	 * fetched or removed.
+	 */
+	async listAvailableMarketplaces(): Promise<MarketplaceRegistryEntry[]> {
+		const registered = await this.listMarketplaces();
+		const builtin = this.#builtinMarketplace();
+		return builtin ? [builtin, ...registered] : registered;
 	}
 
 	// ── Plugin discovery ──────────────────────────────────────────────────────
@@ -268,6 +348,13 @@ export class MarketplaceManager {
 		const reg = await readMarketplacesRegistry(this.#opts.marketplacesRegistryPath);
 
 		if (marketplace !== undefined) {
+			if (marketplace === OFFICIAL_MARKETPLACE_NAME) {
+				const builtin = this.#builtinMarketplace();
+				if (!builtin) {
+					throw new Error(`Marketplace "${marketplace}" not found`);
+				}
+				return this.#builtinCatalog().plugins;
+			}
 			const entry = reg.marketplaces.find(m => m.name === marketplace);
 			if (!entry) {
 				throw new Error(`Marketplace "${marketplace}" not found`);
@@ -276,7 +363,7 @@ export class MarketplaceManager {
 			return catalog.plugins;
 		}
 
-		const all: MarketplacePluginEntry[] = [];
+		const all: MarketplacePluginEntry[] = [...this.#builtinCatalog().plugins];
 		for (const entry of reg.marketplaces) {
 			const catalog = await this.#readCatalog(entry);
 			all.push(...catalog.plugins);
@@ -301,7 +388,9 @@ export class MarketplaceManager {
 		const registryPath = this.#registryPath(scope);
 
 		const mktReg = await readMarketplacesRegistry(this.#opts.marketplacesRegistryPath);
-		const mktEntry = getMarketplaceEntry(mktReg, marketplace);
+		const mktEntry =
+			getMarketplaceEntry(mktReg, marketplace) ??
+			(marketplace === OFFICIAL_MARKETPLACE_NAME ? this.#builtinMarketplace() : undefined);
 		if (!mktEntry) {
 			throw new Error(`Marketplace "${marketplace}" not found`);
 		}
@@ -319,7 +408,11 @@ export class MarketplaceManager {
 			throw new Error(`Invalid version for cache: "${pluginEntry.version}"`);
 		}
 
-		const marketplaceClonePath = this.#resolveMarketplaceRoot(mktEntry);
+		const npmFallback =
+			typeof pluginEntry.source === "object" && pluginEntry.source.source === "npm"
+				? pluginEntry.source.package
+				: undefined;
+		const marketplaceClonePath = this.#resolveMarketplaceRoot(mktEntry, npmFallback);
 		if (mktEntry.sourceType === "url" && typeof pluginEntry.source === "string") {
 			throw new Error(
 				`Plugin "${name}" uses a relative source path but marketplace "${marketplace}" was added via URL. ` +
@@ -694,6 +787,89 @@ export class MarketplaceManager {
 
 	// ── Plugin state ──────────────────────────────────────────────────────────
 
+	/**
+	 * Install the bundled official plugins into the user scope, **disabled**.
+	 *
+	 * The built-in set ships with the product, so "installed" needs no network:
+	 * each plugin is copied from its shipped source tree into the plugin cache and
+	 * registered exactly like a marketplace install, except that every entry is
+	 * written with `enabled: false`. Nothing here turns a plugin on — that stays
+	 * an explicit `zetacode plugin enable <name>`.
+	 *
+	 * Seeding happens once per plugin, recorded in a marker beside the registry:
+	 * an entry the user uninstalled (or an older one they already have) is never
+	 * resurrected, and a plugin added to the official set in a later build is
+	 * seeded on the next run because its id is new. Builds that ship manifests
+	 * without sources (a standalone binary) seed nothing and say so through the
+	 * catalog alone.
+	 *
+	 * Returns the plugin ids seeded by this call.
+	 */
+	async ensureOfficialPluginsInstalled(): Promise<string[]> {
+		const manifests = this.#officialPlugins();
+		if (manifests.length === 0) return [];
+
+		const markerPath = path.join(this.#runtimeRoot("user"), OFFICIAL_SEED_MARKER);
+		const seededIds = new Set(await readOfficialSeedMarker(markerPath));
+		const registryPath = this.#opts.installedRegistryPath;
+		const current = await readInstalledPluginsRegistry(registryPath);
+
+		let markerChanged = false;
+		let registry = current;
+		const seeded: string[] = [];
+		for (const manifest of manifests) {
+			if (manifest.dir === undefined || !existsSync(manifest.dir)) continue;
+			const pluginId = buildPluginId(manifest.id, OFFICIAL_MARKETPLACE_NAME);
+			if (seededIds.has(pluginId)) continue;
+			if ((getInstalledPlugin(registry, pluginId)?.length ?? 0) > 0) {
+				// Already installed by hand (or by an earlier build): keep that state,
+				// only stop reconsidering it in future runs.
+				seededIds.add(pluginId);
+				markerChanged = true;
+				continue;
+			}
+
+			const version = isValidVersionForCache(manifest.version) ? manifest.version : "0.0.0";
+			const cachePath = await cachePlugin(
+				manifest.dir,
+				this.#opts.pluginsCacheDir,
+				OFFICIAL_MARKETPLACE_NAME,
+				manifest.id,
+				version,
+			);
+			// Register the runtime link first: an entry whose package the runtime
+			// cannot resolve would be "installed" and silently inert once enabled.
+			await this.#registerRuntimePlugin(
+				"user",
+				await this.#resolvePluginPackageName(cachePath, manifest.id),
+				cachePath,
+				version,
+				false,
+			);
+
+			const now = new Date().toISOString();
+			registry = addInstalledPlugin(registry, pluginId, {
+				scope: "user",
+				installPath: cachePath,
+				version,
+				installedAt: now,
+				lastUpdated: now,
+				enabled: false,
+			});
+			seededIds.add(pluginId);
+			markerChanged = true;
+			seeded.push(pluginId);
+		}
+
+		if (seeded.length > 0) {
+			await writeInstalledPluginsRegistry(registryPath, registry);
+			this.#clearCache();
+		}
+		if (markerChanged) await writeOfficialSeedMarker(markerPath, [...seededIds]);
+		if (seeded.length > 0) logger.debug("Official plugins installed", { plugins: seeded });
+		return seeded;
+	}
+
 	async listInstalledPlugins(): Promise<InstalledPluginSummary[]> {
 		const userReg = await readInstalledPluginsRegistry(this.#opts.installedRegistryPath);
 		const projectReg = this.#opts.projectInstalledRegistryPath
@@ -852,7 +1028,11 @@ export class MarketplaceManager {
 				const installed = entries[0];
 				if (!installed) continue;
 
-				const mktEntry = mktReg.marketplaces.find(m => m.name === parsed.marketplace);
+				// The built-in catalog is not in the persisted registry; resolve it by
+				// name so a bundled official plugin still reports (and takes) upgrades.
+				const mktEntry =
+					mktReg.marketplaces.find(m => m.name === parsed.marketplace) ??
+					(parsed.marketplace === OFFICIAL_MARKETPLACE_NAME ? this.#builtinMarketplace() : undefined);
 				if (!mktEntry) continue;
 
 				let catalogVersion: string | undefined;
@@ -1301,6 +1481,7 @@ export class MarketplaceManager {
 	}
 
 	async #readCatalog(entry: MarketplaceRegistryEntry): Promise<MarketplaceCatalog> {
+		if (entry.sourceType === "builtin") return this.#builtinCatalog();
 		const catalogPath = path.resolve(expandTilde(entry.catalogPath));
 		try {
 			const content = await Bun.file(catalogPath).text();
@@ -1323,7 +1504,19 @@ export class MarketplaceManager {
 	 * For remote sources (git/github/url): the catalog was cloned into
 	 * `<marketplacesCacheDir>/<name>/`, so the root is the parent of catalogPath.
 	 */
-	#resolveMarketplaceRoot(entry: MarketplaceRegistryEntry): string {
+	#resolveMarketplaceRoot(entry: MarketplaceRegistryEntry, npmFallback?: string): string {
+		if (entry.sourceType === "builtin") {
+			const dir = resolveOfficialPluginsDir();
+			if (!dir || !existsSync(dir)) {
+				const command = npmFallback
+					? `\`${CLI_BIN_NAME} plugin install ${npmFallback}\``
+					: "`zetacode plugin install <publish>`";
+				throw new Error(
+					`Official plugin sources are not bundled in this build. Install the plugin from npm instead: ${command}`,
+				);
+			}
+			return dir;
+		}
 		if (entry.sourceType === "local") {
 			return path.resolve(expandTilde(entry.sourceUri));
 		}

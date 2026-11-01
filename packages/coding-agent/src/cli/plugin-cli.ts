@@ -26,7 +26,9 @@ import {
 	getPluginsCacheDir,
 	MarketplaceManager,
 	parsePluginId,
+	readOfficialPluginManifests,
 } from "../extensibility/plugins/marketplace/index.js";
+import type { InstalledPluginSummary } from "../extensibility/plugins/marketplace/types";
 import type { InstalledPlugin } from "../extensibility/plugins/types";
 import { theme } from "@linxiraos/pi-tui/theme";
 
@@ -220,14 +222,34 @@ export async function runPluginCommand(cmd: PluginCommandArgs): Promise<void> {
 // Marketplace Handlers
 // =============================================================================
 
-async function makeMarketplaceManager(): Promise<MarketplaceManager> {
-	return new MarketplaceManager({
+/**
+ * Build the marketplace manager for one CLI command.
+ *
+ * `seed` asks for the official plugins to be materialized first (installed,
+ * disabled). Only commands that report plugin state or toggle it pass it: a
+ * `--dry-run` must not write, and neither must an install/uninstall, which act
+ * on exactly the state they were told about.
+ */
+async function makeMarketplaceManager(options: { seed?: boolean } = {}): Promise<MarketplaceManager> {
+	const manager = new MarketplaceManager({
 		marketplacesRegistryPath: getMarketplacesRegistryPath(),
 		installedRegistryPath: getInstalledPluginsRegistryPath(),
 		projectInstalledRegistryPath: await resolveOrDefaultProjectRegistryPath(getProjectDir()),
 		marketplacesCacheDir: getMarketplacesCacheDir(),
 		pluginsCacheDir: getPluginsCacheDir(),
 	});
+	if (options.seed) {
+		// The official plugins ship with the product: materialize them, disabled, the
+		// first time plugin state is read. Offline, idempotent, never auto-enables.
+		try {
+			await manager.ensureOfficialPluginsInstalled();
+		} catch (err) {
+			// A broken seed must not take down `plugin list`/`doctor`; the catalog and
+			// the user's existing installs still work.
+			console.error(chalk.yellow(`${theme.status.warning} Failed to prepare the official plugins: ${err}`));
+		}
+	}
+	return manager;
 }
 
 async function handleMarketplace(args: string[], flags: PluginCommandArgs["flags"]): Promise<void> {
@@ -292,15 +314,16 @@ async function handleMarketplace(args: string[], flags: PluginCommandArgs["flags
 				process.exit(1);
 			}
 			try {
-				const marketplaces = await manager.listMarketplaces();
+				const marketplaces = await manager.listAvailableMarketplaces();
 				if (marketplaces.length === 0) {
 					console.log(chalk.dim("No marketplaces configured"));
 					console.log(chalk.dim(`\nAdd one with: ${CLI_BIN_NAME} plugin marketplace add <source>`));
 					return;
 				}
-				console.log(chalk.bold("Configured Marketplaces:\n"));
+				console.log(chalk.bold("Marketplaces:\n"));
 				for (const mp of marketplaces) {
-					console.log(`  ${chalk.cyan(mp.name)}  ${chalk.dim(mp.sourceUri)}`);
+					const builtin = mp.sourceType === "builtin" ? chalk.dim("  (built-in)") : "";
+					console.log(`  ${chalk.cyan(mp.name)}  ${chalk.dim(mp.sourceUri)}${builtin}`);
 				}
 			} catch (err) {
 				console.error(chalk.red(`${theme.status.error} Failed to list marketplaces: ${err}`));
@@ -311,20 +334,29 @@ async function handleMarketplace(args: string[], flags: PluginCommandArgs["flags
 	}
 }
 
-async function handleDiscover(args: string[], _flags: PluginCommandArgs["flags"]): Promise<void> {
+async function handleDiscover(args: string[], flags: PluginCommandArgs["flags"]): Promise<void> {
 	const marketplace = args[0];
-	const manager = await makeMarketplaceManager();
+	const manager = await makeMarketplaceManager({ seed: flags.dryRun !== true });
 	try {
-		const plugins = await manager.listAvailablePlugins(marketplace);
+		const [plugins, installed] = await Promise.all([
+			manager.listAvailablePlugins(marketplace),
+			manager.listInstalledPlugins(),
+		]);
 
 		if (plugins.length === 0) {
 			console.log(chalk.dim(marketplace ? `No plugins found in ${marketplace}` : "No plugins available"));
 			return;
 		}
 
+		const published = new Map(readOfficialPluginManifests().map(manifest => [manifest.id, manifest.publish]));
 		console.log(chalk.bold(`Available Plugins${marketplace ? ` (${marketplace})` : ""}:\n`));
 		for (const plugin of plugins) {
-			console.log(`  ${chalk.cyan(plugin.name)}${plugin.version ? `@${plugin.version}` : ""}`);
+			const state = installedStateFor(plugin.name, installed);
+			const packageName = published.get(plugin.name);
+			const suffix = packageName ? chalk.dim(`  (${packageName})`) : "";
+			console.log(
+				`  ${chalk.cyan(plugin.name)}${plugin.version ? `@${plugin.version}` : ""}  ${state}${suffix}`,
+			);
 			if (plugin.description) {
 				console.log(chalk.dim(`    ${plugin.description}`));
 			}
@@ -333,6 +365,20 @@ async function handleDiscover(args: string[], _flags: PluginCommandArgs["flags"]
 		console.error(chalk.red(`${theme.status.error} Failed to discover plugins: ${err}`));
 		process.exit(1);
 	}
+}
+
+/**
+ * `installed`/`not installed` plus the enabled state, for one catalog name.
+ *
+ * A catalog entry carries no marketplace, so the match is by plugin name across
+ * every installed id (`name@marketplace`); the same name installed from two
+ * marketplaces reports the state of any enabled copy.
+ */
+function installedStateFor(name: string, installed: readonly InstalledPluginSummary[]): string {
+	const matches = installed.filter(summary => (parsePluginId(summary.id)?.name ?? summary.id) === name);
+	if (matches.length === 0) return chalk.dim("not installed");
+	const enabled = matches.some(summary => summary.entries.some(entry => entry.enabled !== false));
+	return enabled ? chalk.green("installed, enabled") : chalk.yellow("installed, disabled");
 }
 
 async function handleUpgrade(
@@ -509,7 +555,7 @@ async function handleInstall(
 
 	// Build known marketplace set for classification
 	const mktMgr = await makeMarketplaceManager();
-	const knownMarketplaces = new Set((await mktMgr.listMarketplaces()).map(m => m.name));
+	const knownMarketplaces = new Set((await mktMgr.listAvailableMarketplaces()).map(m => m.name));
 
 	for (const spec of packages) {
 		const target = classifyInstallTarget(spec, knownMarketplaces);
@@ -725,9 +771,9 @@ async function handleUninstall(
 	}
 }
 
-async function handleList(manager: PluginManager, flags: { json?: boolean }): Promise<void> {
+async function handleList(manager: PluginManager, flags: { json?: boolean; dryRun?: boolean }): Promise<void> {
 	const npmPlugins = await manager.list();
-	const mktMgr = await makeMarketplaceManager();
+	const mktMgr = await makeMarketplaceManager({ seed: flags.dryRun !== true });
 	const mktPlugins = await mktMgr.listInstalledPlugins();
 
 	if (flags.json) {
@@ -769,12 +815,19 @@ async function handleList(manager: PluginManager, flags: { json?: boolean }): Pr
 	if (mktPlugins.length > 0) {
 		if (npmPlugins.length > 0) console.log();
 		console.log(chalk.bold("Marketplace Plugins:\n"));
+		let firstDisabled: string | undefined;
 		for (const plugin of mktPlugins) {
 			const entry = plugin.entries[0];
 			const version = entry?.version ?? "unknown";
+			const enabled = entry?.enabled !== false;
+			const status = enabled ? chalk.green(theme.status.enabled) : chalk.dim(theme.status.disabled);
 			const shadowLabel = plugin.shadowedBy ? chalk.dim(" [shadowed]") : "";
 			const scopeLabel = chalk.dim(` (${plugin.scope})`);
-			console.log(`  ${plugin.id} (${version})${scopeLabel}${shadowLabel}`);
+			console.log(`${status} ${plugin.id} (${version})${scopeLabel}${shadowLabel}`);
+			if (!enabled) firstDisabled ??= plugin.id;
+		}
+		if (firstDisabled !== undefined) {
+			console.log(chalk.dim(`\nEnable one with: ${CLI_BIN_NAME} plugin enable ${firstDisabled}`));
 		}
 	}
 }
@@ -1275,12 +1328,27 @@ async function handleSetEnabled(
 
 	refuseDryRun(flags, action);
 
-	const mktMgr = await makeMarketplaceManager();
-	const installedPlugins = new Set((await mktMgr.listInstalledPlugins()).map(p => p.id));
+	const mktMgr = await makeMarketplaceManager({ seed: true });
+	const installedIds = (await mktMgr.listInstalledPlugins()).map(p => p.id);
+	const installedPlugins = new Set(installedIds);
 
 	for (const name of plugins) {
+		// Marketplace ids are `name@marketplace`, so a bare `pi-messenger` would fall
+		// through to the npm path and fail on a key that never existed. Resolve it
+		// when exactly one marketplace supplies that name — the same rule `uninstall`
+		// applies — so `plugin enable pi-messenger` works for the official catalogue.
+		const candidates = installedIds.filter(id => (parsePluginId(id)?.name ?? id) === name);
+		if (!installedPlugins.has(name) && candidates.length > 1) {
+			console.error(
+				chalk.red(
+					`${theme.status.error} ${name} is installed from ${candidates.length} marketplaces. Qualify it: ${candidates.join(", ")}`,
+				),
+			);
+			process.exit(1);
+		}
+		const target = installedPlugins.has(name) ? name : (candidates[0] ?? name);
 		try {
-			await setInstalledPluginEnabled(name, {
+			await setInstalledPluginEnabled(target, {
 				enabled,
 				scope: flags.scope,
 				marketplaceIds: installedPlugins,
@@ -1288,9 +1356,9 @@ async function handleSetEnabled(
 				npm: manager,
 			});
 			if (flags.json) {
-				console.log(JSON.stringify({ [jsonKey]: name }));
+				console.log(JSON.stringify({ [jsonKey]: target }));
 			} else {
-				console.log(chalk.green(`${theme.status.success} ${pastTense} ${name}`));
+				console.log(chalk.green(`${theme.status.success} ${pastTense} ${target}`));
 			}
 		} catch (err) {
 			console.error(chalk.red(`${theme.status.error} Failed to ${action} ${name}: ${err}`));
@@ -1316,7 +1384,7 @@ ${chalk.bold("Commands:")}
   config <cmd> <pkg> [key] [val] Manage plugin settings
   enable <pkg>                   Enable a disabled plugin
   disable <pkg>                  Disable plugin without uninstalling
-  marketplace <cmd>            Manage marketplace sources (add, remove, update, list)
+  marketplace <cmd>            Manage marketplace sources (add, remove, update, list; "official" is built in)
   discover [marketplace]        Browse available marketplace plugins
   panel <plugin> <panel>        Print one declarative panel's data (what a native host draws)
 
@@ -1332,6 +1400,9 @@ ${chalk.bold("Sources:")}
   https://github.com/user/repo    Full git URL (https, ssh, or git protocol)
   name@marketplace                Marketplace plugin (see marketplace command)
   ./path, ../path, /abs, ~/path   Local plugin directory (symlinked, same as plugin link)
+
+The built-in "official" marketplace ships with Zeta: its plugins are installed by
+default but disabled, and "plugin enable <name>" turns one on.
 
 ${chalk.bold("Config Subcommands:")}
   config list <pkg>              List all settings

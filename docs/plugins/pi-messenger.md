@@ -17,43 +17,52 @@ Internals: `plugins/official/pi-messenger/index.ts` registers everything; the cr
 
 ## Activating it
 
-The repository copy is not discovered in place — `plugins/official/` is simply where the source lives. It has to be installed into the plugin root first. Either form works from the repository root:
+Zeta ships this plugin in the built-in `official` catalog, so it arrives
+**installed and disabled**: the first `zetacode plugin list`, `discover`, or
+`enable` copies the bundled sources into the plugin cache and records the entry
+as `pi-messenger@official` with `enabled: false`. No marketplace has to be added
+and nothing is downloaded. Activating it is one explicit command:
 
 ```bash
-# link (source edits are live; recommended while developing the plugin)
-zetacode plugin link ./plugins/official/pi-messenger
-
-# or, identically, an install of a local path
-zetacode plugin install ./plugins/official/pi-messenger
+zetacode plugin enable pi-messenger
 ```
 
 ```
-✔ Linked @linxiraos/pi-messenger from ./plugins/official/pi-messenger
+✔ Enabled pi-messenger@official
 ```
 
-That writes `~/.zeta/plugins/zeta-plugins.lock.json` with the plugin enabled and symlinks `~/.zeta/plugins/node_modules/@linxiraos/pi-messenger` at the checkout:
+`zetacode plugin list` shows the entry on both sides of that flip:
+
+```
+Marketplace Plugins:
+
+⦸ pi-messenger@official (1.4.7) (user)
+
+Enable one with: zetacode plugin enable pi-messenger@official
+```
+
+```
+Marketplace Plugins:
+
+● pi-messenger@official (1.4.7) (user)
+```
+
+`zetacode plugin discover` reports the same state (`pi-messenger@1.4.7  installed,
+disabled`), and enabling writes `~/.zeta/plugins/zeta-plugins.lock.json` with the
+plugin enabled, pointing `~/.zeta/plugins/node_modules/@linxiraos/pi-messenger`
+at the cached copy:
 
 ```json
 {
   "plugins": {
     "@linxiraos/pi-messenger": {
-      "version": "1.2.1",
+      "version": "1.4.7",
       "enabledFeatures": null,
       "enabled": true
     }
   },
   "settings": {}
 }
-```
-
-```bash
-zetacode plugin list
-```
-
-```
-npm Plugins:
-
-● @linxiraos/pi-messenger@1.2.1
 ```
 
 ```bash
@@ -66,14 +75,36 @@ Plugin Health Check
 ✔ plugins_directory: Found at /home/<user>/.zeta/plugins
 ⚠ package_manifest: Not created yet
 ✔ node_modules: Found
-✔ plugin:@linxiraos/pi-messenger: v1.2.1 - Inter-agent messaging and file reservation system for pi coding agent
 
-Summary: 3 ok, 1 warnings, 0 errors
+Summary: 2 ok, 1 warnings, 0 errors
 ```
 
-`package_manifest: Not created yet` is expected for a `link`/local install — the plugin root's own `package.json` is only written by npm installs.
+`package_manifest: Not created yet` is expected until an npm install writes the
+plugin root's own `package.json`; a catalog install, like a `link`, does not.
 
-Local absolute paths in the captured output above are abbreviated (`/home/<user>/.zeta/plugins`); everything else, including the summary counters, is verbatim.
+Local absolute paths in the captured output above are abbreviated (`/home/<user>/.zeta/plugins`); the state and counters are verbatim.
+
+### When you are working on the plugin itself
+
+Discovery reads the plugin root, never `plugins/official/` in place, so a
+catalog-installed copy does not pick up edits. To make the checkout live, drop
+the built-in entry first (the seed marker keeps it from coming back) and link the
+repository copy instead:
+
+```bash
+zetacode plugin uninstall pi-messenger@official
+zetacode plugin link ./plugins/official/pi-messenger
+```
+
+```
+✔ Linked @linxiraos/pi-messenger from ./plugins/official/pi-messenger
+```
+
+`zetacode plugin list` then prints `● @linxiraos/pi-messenger@1.4.7` under
+`npm Plugins:`, and enable/disable take that package name instead of
+`pi-messenger@official`. `plugin doctor` additionally reports
+`plugin:@linxiraos/pi-messenger: v1.4.7 - …` for a linked or npm install; the
+marketplace entry is not part of that check.
 
 ### Verify from a clean session
 
@@ -85,13 +116,15 @@ zetacode skills list .
 pi-messenger-crew	Orchestrator reference for pi-messenger Crew planning, task management, configuration, and agent coordination. Crew workers already have the pi_messenger actions they need in crew-worker.md.
 ```
 
-That single line is the reliable end-to-end signal that the plugin is active: the skill is only discoverable when the plugin is enabled in the lockfile. `zetacode plugin disable @linxiraos/pi-messenger` removes it from the list and `enable` adds it back.
+That single line is the reliable end-to-end signal that the plugin is active: the skill is only discoverable when the plugin is enabled in the lockfile. `zetacode plugin disable pi-messenger@official` (or `@linxiraos/pi-messenger` after a `link`) removes it from the list and `enable` adds it back.
 
 ### The marketplace route
 
 The same plugin installed from a marketplace catalog instead of a path lands in
 the same runtime surfaces (symlink into the scope's `node_modules`, state in the
-same lockfile), and activates the same way:
+same lockfile), and activates the same way. This is also the route the built-in
+`official` catalog uses — `pi-messenger@official` above is a marketplace install
+— with a scratch catalog it looks like:
 
 ```bash
 # a scratch catalog at <dir>/.omp-plugin/marketplace.json listing `pi-messenger`
@@ -104,7 +137,7 @@ zetacode plugin list
 ✔ Installed pi-messenger from local-test (1.2.1)
 Marketplace Plugins:
 
-  pi-messenger@local-test (1.2.1) (user)
+● pi-messenger@local-test (1.2.1) (user)
 ```
 
 The extension entry resolves to the same `…/node_modules/@linxiraos/pi-messenger/index.ts`,

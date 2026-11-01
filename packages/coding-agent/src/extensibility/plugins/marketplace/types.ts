@@ -145,7 +145,13 @@ export interface MarketplacesRegistry {
 	marketplaces: MarketplaceRegistryEntry[];
 }
 
-export type MarketplaceSourceType = "github" | "git" | "url" | "local";
+/**
+ * Where a marketplace entry came from.
+ *
+ * `builtin` is the in-process official catalog: it is never persisted in
+ * `marketplaces.json`, never fetched, and never removed.
+ */
+export type MarketplaceSourceType = "github" | "git" | "url" | "local" | "builtin";
 
 export interface MarketplaceRegistryEntry {
 	name: string;

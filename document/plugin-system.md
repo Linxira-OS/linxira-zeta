@@ -64,9 +64,16 @@ plugins/
   "install": "npm",                        // npm | github | release-zip
   "compat": { "zeta": "^1.1.0" },
   "unuse": false,                          // true = 暂不启用（不展示/不安装）
-  "category": "community"                  // official | community
+  "category": "community",                 // official | community
+  "distribution": "bundled"                // 随产品分发：进入内置 official 目录
 }
 ```
+
+- `distribution: "bundled"` 让插件进入内置 `official` 目录：构建期
+  （`packages/coding-agent/scripts/official-plugins.ts`）把源码树与清单快照复制进
+  `dist/` 随包发布，运行期首次读取插件状态时离线安装、且 `enabled: false`；启用
+  只能由用户 `zetacode plugin enable <id>` 显式完成。详见
+  `plugins/official/INDEX.md`「随产品分发」。
 
 - 机器可读清单字段以 JSON 为主；TOML 用于偏配置/人设类条目（persona、agent
   定义），两者等价、可互转，解析器二选一。

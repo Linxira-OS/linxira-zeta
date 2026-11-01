@@ -25,6 +25,7 @@ User scope (`<config-dir>` is `~/.zeta` by default; see [`config-usage.md`](./co
   package.json                 # dependency manifest of the plugin root ("zeta-plugins")
   zeta-plugins.lock.json       # per-plugin runtime state: version, enabled, enabledFeatures, settings
   installed_plugins.json       # marketplace install registry (version 2), user scope
+  .official-plugins-seeded.json # official plugin ids the built-in catalog already installed
   node_modules/<package>       # npm install, or a symlink for `plugin link` / marketplace runtime
   cache/                       # plugin + marketplace caches (and per-plugin cache tier)
   data/  state/                # host-managed per-plugin storage roots
@@ -113,6 +114,51 @@ Flags: `--json`, `--dry-run` (install/uninstall/link), `--force` (install), `--s
 
 `zetacode plugin` with no subcommand lists plugins. `zetacode plugin --help` prints the same summary. Bare words like `marketplace` or `uninstall` are not top-level commands and print a hint pointing at `zetacode plugin …` (see [`cli-reference.md`](./cli-reference.md#subcommands)).
 
+### The built-in `official` catalog
+
+Every install ships a built-in marketplace named `official`, derived from the
+`plugin.json` manifests of the official plugins bundled with the product (a
+plugin joins it by declaring `"distribution": "bundled"`; today that is
+`pi-messenger`). Nothing has to be added or downloaded:
+
+```
+$ zetacode plugin marketplace
+Marketplaces:
+
+  official  builtin:official  (built-in)
+
+$ zetacode plugin discover
+Available Plugins:
+
+  pi-messenger@1.4.7  installed, disabled  (@linxiraos/pi-messenger)
+    Inter-agent messaging and file reservation system for pi coding agent
+```
+
+The official plugins arrive **installed but disabled**: the first `plugin list`,
+`plugin discover`, or `plugin enable` copies each one into the plugin cache and
+records it in `installed_plugins.json` with `enabled: false` — offline, from the
+sources shipped in the package. Nothing turns them on:
+
+```
+$ zetacode plugin list
+Marketplace Plugins:
+
+⦸ pi-messenger@official (1.4.7) (user)
+
+Enable one with: zetacode plugin enable pi-messenger@official
+$ zetacode plugin enable pi-messenger
+✔ Enabled pi-messenger@official
+```
+
+Enabling is per entry and explicit; there is no approval prompt and no automatic
+enable. The pass is recorded once per plugin in `.official-plugins-seeded.json`
+next to the registry, so an official plugin you uninstall stays uninstalled, and
+a plugin added to the official set in a later release is seeded on the next run.
+`official` is reserved: `plugin marketplace add` cannot create a marketplace by
+that name, and `plugin marketplace remove official` is rejected. Community
+marketplaces added with `plugin marketplace add <source>` behave exactly as
+before, and a catalog you add yourself still lists after the built-in one.
+
 ### Local paths: `link` vs `install`
 
 `plugin install` classifies its argument, and a relative path is only recognized as a local directory when it starts with `./` (or `../`, `/`, `~`). `plugin link` takes a plain relative path. So both of these work:
@@ -133,11 +179,11 @@ Both forms symlink the directory into `node_modules` (so source edits show up wi
 
 ### Enable, disable, and the name you must use
 
-`enable`/`disable` look the plugin up in the runtime config by its **recorded key**, which for npm/link installs is the package name (`@linxiraos/pi-messenger`) and for marketplace installs is `name@marketplace`. Bare names that are not recorded keys fail:
+`enable`/`disable` look the plugin up in the runtime config by its **recorded key**, which for npm/link installs is the package name (`@linxiraos/pi-messenger`) and for marketplace installs is `name@marketplace`. A bare name is resolved when exactly one installed marketplace supplies it — `plugin enable pi-messenger` reaches `pi-messenger@official` — and refused when several do (qualify it then). A name that matches nothing fails:
 
 ```
-$ zetacode plugin enable pi-messenger
-✘ Failed to enable pi-messenger: Error: Plugin pi-messenger not found in runtime config
+$ zetacode plugin enable unknown-plugin
+✘ Failed to enable unknown-plugin: Error: Plugin unknown-plugin not found in runtime config
 ```
 
 `zetacode plugin list` prints exactly the token to use (`@linxiraos/pi-messenger`, or `pi-messenger@local-test`). Disabling is persisted in `zeta-plugins.lock.json` and takes effect on the next discovery pass — the plugin's skills and extension modules stop being discovered:

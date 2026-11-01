@@ -71,7 +71,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 			if (!verb) {
 				try {
 					const manager = await createMarketplaceManager(runtime);
-					const marketplaces = await manager.listMarketplaces();
+					const marketplaces = await manager.listAvailableMarketplaces();
 					if (marketplaces.length === 0) {
 						await runtime.output(
 							"No marketplaces configured.\n\nGet started:\n  /marketplace add anthropics/claude-plugins-official\n\nThen browse with /marketplace discover",
@@ -141,7 +141,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 						return commandConsumed();
 					}
 					case "list": {
-						const marketplaces = await manager.listMarketplaces();
+						const marketplaces = await manager.listAvailableMarketplaces();
 						if (marketplaces.length === 0) {
 							await runtime.output("No marketplaces configured.");
 						} else {
@@ -261,6 +261,13 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 				pluginsCacheDir: getPluginsCacheDir(),
 				clearPluginRootsCache: clearPluginRootsAndCaches,
 			});
+			// The bundled official plugins are installed but disabled on first sight,
+			// so `/marketplace discover`/`installed` show the real state here too.
+			try {
+				await mgr.ensureOfficialPluginsInstalled();
+			} catch {
+				// The catalog and any existing install still list.
+			}
 
 			try {
 				switch (sub) {
@@ -403,7 +410,7 @@ export const BUILTIN_MARKETPLACE_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec>
 						break;
 					}
 					default: {
-						const marketplaces = await mgr.listMarketplaces();
+						const marketplaces = await mgr.listAvailableMarketplaces();
 						if (marketplaces.length === 0) {
 							runtime.ctx.showStatus(
 								"No marketplaces configured.\n\nGet started:\n  /marketplace add anthropics/claude-plugins-official\n\nThen browse plugins with /marketplace or /marketplace discover",

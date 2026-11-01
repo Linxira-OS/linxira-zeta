@@ -7,6 +7,26 @@
 插件如何安装、启用并在会话中生效（运行期文档，随产品打包）：[`docs/plugins.md`](../../docs/plugins.md)；
 `pi-messenger` 的逐插件使用页：[`docs/plugins/pi-messenger.md`](../../docs/plugins/pi-messenger.md)。
 
+## 随产品分发（内置 `official` 目录）
+
+内置 `official` 目录由**清单本身**派生，不另有人工维护的 id 列表：
+
+- `plugin.json` 声明 `"distribution": "bundled"` 的插件才进入内置目录（当前只有
+  `pi-messenger`；`example-panel` 是教学示例，不随产品分发）。
+- 版本取该插件 `package.json` 的 `version`（`plugin.json` 未写版本时）。
+- 构建期 `packages/coding-agent/scripts/official-plugins.ts` 读取这些清单，按插件自己的
+  `package.json#files` 复制其发布内容到 `packages/coding-agent/dist/official-plugins/<id>`
+  （总是带上 `plugin.json`/`package.json`；`tests/`、`node_modules/` 永不复制），并写出
+  `dist/official-plugins.generated.json` 清单快照，两者都经 `package.json` 的 `files`
+  发布；`prepack`（`bun run gen:bundle`）负责生成。独立二进制内嵌同一份快照
+  （`ZETA_OFFICIAL_PLUGINS_EMBED`），只有清单、没有源码。
+- 运行期：首次 `zetacode plugin list` / `discover` / `enable` 把内置插件**离线**安装进
+  插件缓存，写入 `installed_plugins.json`（id 为 `<id>@official`）且 `enabled: false`；
+  启用始终是显式的 `zetacode plugin enable <id>`。一次性记录在
+  `<plugins>/.official-plugins-seeded.json`，因此卸载过的插件不会被下一次运行重新装回。
+- 新增一个随产品分发的官方插件：在其 `plugin.json` 加 `"distribution": "bundled"`，
+  并登记到本文件的表格；无需改动任何代码或清单列表。
+
 ## 登记表
 
 | 插件 id | 名称 | 类别 | 来源 | 兼容记录 | 状态 |
@@ -38,6 +58,10 @@
 4. 版本线跟随 Zeta 发布版本；经 `ci.yml` 的 `release_plugin_packages`
    （`ci-release-publish.ts --plugin plugins/official/<plugin-id>`，原样打包插件
    目录）发布，本地补发仍可用 `scripts/publish-missing-packages.ts`。
+5. 要随产品分发（进入内置 `official` 目录、默认安装但禁用）的插件，须在其
+   `plugin.json` 声明 `"distribution": "bundled"`，并且 `package.json` 带可用的
+   `version` 与 `name`；否则它只是本仓插件，不出现在 `zetacode plugin marketplace`
+   的内置目录里。详见上文「随产品分发」。
 
 ## 兼容记录写法
 

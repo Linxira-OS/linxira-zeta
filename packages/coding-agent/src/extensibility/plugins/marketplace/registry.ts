@@ -130,6 +130,35 @@ export async function writeInstalledPluginsRegistry(filePath: string, reg: Insta
 	await atomicWriteJson(filePath, reg);
 }
 
+// ── Official plugin seed marker ──────────────────────────────────────
+
+/**
+ * Record of official plugin ids the built-in set has already offered.
+ *
+ * Seeding runs on every plugin command, so the marker is what makes it a
+ * one-time event per plugin: an id listed here is never reconsidered, which is
+ * how an uninstall sticks instead of being undone by the next invocation. It
+ * lives beside `installed_plugins.json`, under a dot name so nothing that scans
+ * the plugin root mistakes it for a plugin.
+ */
+export const OFFICIAL_SEED_MARKER = ".official-plugins-seeded.json";
+
+/** Ids in the seed marker; a missing or unreadable marker reads as empty (seed everything). */
+export async function readOfficialSeedMarker(filePath: string): Promise<string[]> {
+	try {
+		const data = tryParseJson<{ seeded?: unknown }>(await Bun.file(filePath).text());
+		if (!data || typeof data !== "object" || !Array.isArray(data.seeded)) return [];
+		return data.seeded.filter((id): id is string => typeof id === "string" && id.length > 0);
+	} catch (err) {
+		if (isEnoent(err)) return [];
+		throw err;
+	}
+}
+
+export async function writeOfficialSeedMarker(filePath: string, seeded: readonly string[]): Promise<void> {
+	await atomicWriteJson(filePath, { version: 1, seeded: [...new Set(seeded)].sort() });
+}
+
 // ── Project registries index ─────────────────────────────────────────
 
 /**
