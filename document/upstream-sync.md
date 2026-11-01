@@ -2464,13 +2464,16 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.14.1` (`c29f7c56f5530d805bb2887ade964aa55970d8e1`; integrated into
-  `main` by merge `0b9cdb21e43`). Previous value was `v18.14.0`
-  (`31147f9d1a7`, merge `5b8a9e1f787`). One tag per release, each on its own
+- OMP: `v18.14.2` (`7efd77219374ca4e8767979809835e4aa90666ba`; integrated into
+  `main` by merge `264ea62c460`). Previous value was `v18.14.1`
+  (`c29f7c56f553`, merge `0b9cdb21e43`). One tag per release, each on its own
   `sync/omp-release/*` branch; no next target chosen.
 - Zeta: `1.4.7` (version line holds across the published `@linxiraos/*`
   packages, the Cargo workspace and the natives stamp).
-- In flight: none — `sync/omp-release/18.14.1` merged as `0b9cdb21e43`;
+- termide (IDE upstream): `0.46.0` (`a027ca788cd4`), merged as `15161f686fb`
+  (`vendor/termide-0.46.0`). 0.47.0 / 0.47.1 / 0.48.0 exist upstream and are
+  **not** integrated — `0.47.1` is a zip path-traversal security fix.
+- In flight: none — `sync/omp-release/18.14.2` merged as `264ea62c460`;
   delete the branch after the CI run.
 
 ### Zeta-side flake hardening（2026-10-17）
@@ -2665,3 +2668,74 @@ observation points moved onto the state each assertion actually depends on.
 - **Environment drift (not merge damage)**: `check-spoofed-versions` reports newer
   installed Codex/Gemini/Claude CLIs than the pinned spoof strings; `--update` is a
   separate maintenance step.
+
+## v18.14.2 integration (2026-11-01)
+
+- **Merge commit**: `264ea62c460` (`merge: upstream v18.14.2`), parents
+  `15161f686fb` (main after the termide 0.46 vendor bump) + `7efd7721937`.
+- **Baseline** `v18.14.1` (`c29f7c56f553`) → **source tag** `v18.14.2`
+  (`7efd77219374ca4e8767979809835e4aa90666ba`, published 2026-10-31 17:56Z).
+  Branch `sync/omp-release/18.14.2`; a real two-parent merge, never squash.
+  `git merge-base --is-ancestor v18.14.2 HEAD` holds. No periodic cadence: the
+  tag was picked up because the IDE work touches `acp-agent.ts`.
+- **Delta**: 257 commits, 296 files, +9,834/−1,165. 54 conflicts (49 code/tests,
+  `Cargo.toml`, `Cargo.lock`, `bun.lock`, `MODULE.bazel.lock`, `README.md`).
+  Resolution rule applied: resolve from the **tag→tag diff**, never "take theirs",
+  and re-check each touched file against `v18.14.2` afterwards.
+- **Upstream surfaces carried in**: task/eval per-call model
+  (`task.perCallModel` off|eval|on, `task.perCallModelAllow`, `task.maxEffort`,
+  `Settings.reloadFromDisk`), `isLoopGuardedModel` → `loopGuardLevel` with
+  `thinking-loop-guard` as a catalog axis (Claude off, Gemini/DeepSeek/Grok
+  semantic), auth-store refresh-token lease, compaction/turn-prefix/handoff
+  truncation refusal, ACP protocol session handles (`acp-session-handles.json`),
+  MCP reconnect + stdio cancellation, `read` directory listing, JS eval
+  `output()` options, `out://` replies from eval cells, judgment attempt
+  deadline, TUI shared path style + `grouped-file-output` rewrite + the
+  `native/overlay` helpers (`actionButton`/`iconButton`/`quietButton`/
+  `segmentedTabs`), stats viewer metadata, `README.zh-CN.md` (dropped: the
+  front door is Zeta's).
+- **Zeta decisions preserved in conflicts**: `acp-agent.ts` keeps the
+  `plan-ultra` exemption (`#applyModeChange`) on upstream's new
+  `ManagedSessionRecord` signature; `agent-session.ts` keeps Zeta's mode API and
+  drops upstream's duplicated `../modes/settings` import block; 
+  `structured-subagent.ts` keeps `formatModelStringWithRouting` /
+  `resolveAgentModelPatterns` for `annotateAgentDrivenModelUse`; `stats-cli.ts`
+  keeps `currentLanguage`; `stats/Shell.tsx` keeps `LanguageToggle`; `README.md`,
+  `Cargo.toml` (version 1.4.7), both lockfiles and `viewer.generated.json` stay
+  Zeta's; `commit button` keeps Zeta's muted-when-blocked tone (upstream's
+  `actionButton` encodes the same rule as `tone: disabled ? "muted"`).
+- **`gen:compat` re-run**: `packages/catalog/src/compat/rules.json` was resolved
+  to Zeta's side and therefore lacked the new `thinking-loop-guard` axis;
+  `bun --cwd=packages/catalog run gen:compat` rewrote it (1115 rules / 21
+  classes / 89 catalog providers / 98 auth providers / 239 files), which is what
+  re-armed the guard in `packages/ai`.
+- **Brand/scope sweep**: 22 files, 99 replacements (`@oh-my-pi/pi-coding-agent` →
+  `@linxiraos/zeta`, `omptype` → `pi-omptype`, `snapcompact` → `pi-snapcompact`,
+  `omp-stats` → `pi-stats`, other `@oh-my-pi/*` → `@linxiraos/*`, `~/.omp` →
+  `~/.zeta`, `__omp_helpers__` → `__zeta_helpers__`, backticked `omp ` →
+  `zetacode `). The new overlay helpers emit `zeta.btn` / `zeta.app.ibtn[.set]` /
+  `zeta.app.qbtn` (upstream shipped `omp.*`), and `buttons-native.test.ts`
+  asserts the Zeta roles.
+- **Two real merge damages found by tests, fixed**:
+  1. upstream's new `output()` prelude line called `__omp_call_tool__` while our
+     prelude defines `__zeta_call_tool__` (damage class 9) — four
+     `issue #17455` tests failed with "not a function";
+  2. upstream's new persisted-revive test re-registers an agent id, which Zeta's
+     strict `AgentRegistry.register` refuses ("an agent id is never silently
+     replaced"); the test now attaches the live session with `attachSession` for
+     a parked parent and registers only a parent that never existed.
+- **Gates**: `check:ts` (all packages) green; `check:tools` (oxlint + oxfmt)
+  green; `brand-check` 0 hits; `check-scope-imports` 21,554 specifiers resolve;
+  `check-version-consistency` OK at 1.4.7 (upstream `[18.x]` changelog sections
+  tolerated); `check-license-map` ok (104 workbench sources AGPL, 7 vendored
+  trees); `cargo fmt --all --check` green.
+- **Tests (targeted, merged surfaces)**: TUI 57 pass; `packages/ai` 77/78 (the
+  one 5 s budget test passes alone — load flake); agent compaction 5; stats 11;
+  coding-agent acp+mcp 160, task 141, eval 41, tools/settings 95, lsp 148
+  (1 Windows-only `symlink` EPERM).
+- **Environment (not merge damage)**: the msvc `link.exe` is shadowed by Git's
+  POSIX `link` on this host, so local Rust checks run with
+  `RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-gnu`; the natives `.node` was copied
+  from the main checkout (damage class 5); `out-replies.test.ts` fails its temp
+  cleanup with `EBUSY` on Windows only; the four `judgment-chain` cache tests time
+  out on `main` as well.

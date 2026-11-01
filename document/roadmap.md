@@ -1151,6 +1151,27 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   联系，不改造 DSH ACP 的 one-primary-workspace。**不做**新用户模式、不做 TUI 后端、不并入 IM；
   PTC 由 agent 自己选 `eval` 聚合，relay 只暴露普通工具。
 
+- **超级代理（super agent）自建运行时（2026-11-01 用户裁决；短时暂挂，不排期）**:口径改为
+  **跟随标准框架，不自建内核**。事实：OMP 官方路线图 #12413 写的是 "Not the goal: a separate
+  'context operating system' … or a second scheduler beside `task` / `agent()` / `completion()` /
+  `wait()` / `workpool()` / eval"（v6 条目 "no second scheduler"，v7 "production machinery maybe
+  never"），swarm 扩展 2026-08-05 整包删除且 #7895 至今无维护者答复，编排投入全在 `src/task/`
+  （近 30 天 100 commit）与 per-call 模型（v18.14.2 #12229）——**上游只拒绝「核心里的第二条调度器」，
+  不拒绝这项能力本身**，所以挂起只是等标准，不是永封。
+  DeepSeek Harness（DSH，`deepseek-ai/deepseek-harness`）是插件优先框架（Cordis，
+  "everything is a plugin"），带 **ACP v1 stdio profile**（`dsh --profile acp`，无私有方法/能力/
+  `_meta`）与实验性 **Agent Teams**（`ctx.agentTeams`：durable roster、共享 task DAG
+  (`blockedBy`/`writeScopes`/`revision` CAS)、inbox 消息、`interrupt`、`waitForChange`）——若它成为
+  标准，直接接，不另立方言。
+  **恢复时唯一被接受的形态**：①**官方插件**（`plugins/official/`，层① 工具/命令 + 层② 声明式面板），
+  不新增核心运行时；②IDE 侧只加一条 ACP connection（`AcpConfig{command,args,env,flavor:Generic}` 已能
+  驱动任意 ACP 代理；`is_cli_provider` 现只认 `claude_code`/`codex`/`gemini_cli`/`zeta`/`zetacode`，
+  加 `dsh` 是枚举级改动）；③编排一律落在既有 `task`/`agent()`/`workpool()`/`wait()` 上——**不写第二条
+  调度器、不加新会话字段、不加新协议**。破坏面预算：`packages/coding-agent` 运行时不改，只增插件目录 +
+  清单 + 文档。
+  **与 `zeta-relay`（2026-10-30）同一条线**：relay 解决「两个 harness 互为主会话」，本项解决「谁当
+  超级代理」；两者都走对端进程 + ACP，不合并成第三个运行时。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after
