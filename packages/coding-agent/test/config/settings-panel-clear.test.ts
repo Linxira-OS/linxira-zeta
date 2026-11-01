@@ -71,7 +71,7 @@ it("clearing a settings-panel text field removes the key from config.yml so its 
 });
 
 it("hides the per-call allowlist editor for a project-supplied list so it cannot be promoted to global", async () => {
-	const projectConfig = path.join(projectDir, ".omp", "settings.json");
+	const projectConfig = path.join(projectDir, ".zeta", "settings.json");
 	fs.mkdirSync(path.dirname(projectConfig), { recursive: true });
 	await Bun.write(projectConfig, JSON.stringify({ task: { perCallModelAllow: ["mock/target"] } }));
 	const settings = await Settings.init({ cwd: projectDir, agentDir });

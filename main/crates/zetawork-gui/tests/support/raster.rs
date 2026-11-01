@@ -158,7 +158,7 @@ pub fn render(
 			(clip.max.x * ppp).ceil(),
 			(clip.max.y * ppp).ceil(),
 		];
-		for triangle in mesh.indices.chunks_exact(3) {
+		for triangle in mesh.indices.as_chunks::<3>().0 {
 			let (a, b, c) = (
 				mesh.vertices[triangle[0] as usize],
 				mesh.vertices[triangle[1] as usize],

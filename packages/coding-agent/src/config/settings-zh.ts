@@ -1749,6 +1749,16 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"task 工具每次生成 effort 提示允许的最大推理投入。较低的值可防止调用方将子代理提升到超过此上限；默认保留模型的完整范围。",
 	},
+	"task.perCallModel": {
+		label: "每次调用模型",
+		description:
+			"子代理调用是否可用一个精确的 `provider/model-id[@upstream][:level]` 选择器自行挑选模型。`@upstream` 钉住上游时属于模型身份的一部分，仅聚合器支持。只接受配置已经路由到的模型。项目设置可以关闭它，但不能开启，也永远不能批准某个模型。",
+	},
+	"task.perCallModelAllow": {
+		label: "每次调用模型白名单",
+		description:
+			"精确选择器：`provider/model-id`；`@upstream` 仅用于已钉住的 OpenRouter/Vercel 路由（例如 `openrouter/x@y`）。一旦设置，每次调用指定的模型还必须列在这里。为空：配置授予的每个模型。项目级列表只能收窄它。",
+	},
 	"task.prewalk": {
 		label: "通用任务预遍历",
 		description:
@@ -4481,6 +4491,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"task.maxEffort::max": {
 		label: "max",
 		description: "模型支持的最大推理",
+	},
+	"task.perCallModel::off": {
+		label: "关闭",
+		description: "拒绝 task 条目上的 `model`，以及 eval 的 agent()/workpool()",
+	},
+	"task.perCallModel::eval": {
+		label: "仅 eval",
+		description: "只接受 eval 的 agent() 与 workpool() 中的 `model`",
+	},
+	"task.perCallModel::on": {
+		label: "开启",
+		description: "接受 task 条目上的 `model`，以及 eval 的 agent()/workpool()",
 	},
 	"ida.maxOpen::2": {
 		label: "2",

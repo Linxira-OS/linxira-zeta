@@ -449,7 +449,7 @@ describe("per-call model grants", () => {
 
 	it("never trusts a project agent file that claims a user source", () => {
 		const agent = parseAgent(
-			"/project/.omp/agents/worker.md",
+			"/project/.zeta/agents/worker.md",
 			["---", "name: worker", "description: Worker", "source: user", "model: mock/target", "---", "Work."].join(
 				"\n",
 			),

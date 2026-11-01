@@ -30,7 +30,7 @@
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
 | `feat/attach-parity-full` | feature | attach 会话一致性：goal/live 控制器、`/loop`、模式提示跨后端（5 commits，94 files，+3351/−293） | agent | 2026-10-24 | 合入 `main` 或明确改判 `park/*` 之后 |
-| `fix/gitea-flow-1` | ci | Gitea 本地 CI 自包含 + Bazel 缓存（1 commit，2 files）。worktree 有 22 个未提交的 `web-ui/` 删除，像是半途 checkout，先查明再动 | agent | 2026-10-30 | 合入 `main` 之后 |
+| `fix/gitea-flow-1` | ci | Gitea 本地 CI 自包含 + Bazel 缓存（1 commit，2 files）。worktree 曾整树删掉 `web-ui/`（2026-11-01 已 `git checkout -- web-ui` 复原，现在干净），可直接合 | agent | 2026-10-30 | 合入 `main` 之后 |
 | `feat/superagent-runtime` | park | fork-diff 会话工作（8 个未提交文件：`session/fork-diff.ts`、`session-fork-lineage.test.ts`、listing/manager/commands/command-help） | user | 2026-10-31 | 先 commit 成 `park/*`，再决定是否继续 |
 | `feat/pet-rust` | park | 桌宠 Rust crate（未提交，9 files，`main/crates/zetapet/`） | user | 2026-10-21 | P1 暂缓；保持 park，不动 |
 | `feat/pet-packaging` | park | 桌宠 npm 打包（未提交，5 files，`main/npm/pet/`） | user | 2026-10-21 | 同上 |

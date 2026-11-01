@@ -420,7 +420,9 @@ pub fn decode_icon_png(png: &[u8]) -> Option<(Vec<u8>, u32, u32)> {
 		png::ColorType::Rgba => buffer,
 		png::ColorType::Rgb => {
 			let mut rgba = Vec::with_capacity(buffer.len() / 3 * 4);
-			for pixel in buffer.chunks_exact(3) {
+			// `as_chunks` states the size in the type, which is what clippy
+			// asks for once `chunks_exact` has a constant argument.
+			for pixel in buffer.as_chunks::<3>().0 {
 				rgba.extend_from_slice(&[pixel[0], pixel[1], pixel[2], 255]);
 			}
 			rgba
