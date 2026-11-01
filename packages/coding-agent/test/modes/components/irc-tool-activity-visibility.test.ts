@@ -1,12 +1,12 @@
 import { beforeAll, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { EventController } from "@oh-my-pi/pi-coding-agent/modes/controllers/event-controller";
-import { UiHelpers } from "@oh-my-pi/pi-coding-agent/modes/utils/ui-helpers";
-import { Text, TUI } from "@oh-my-pi/pi-tui";
-import { ChatTranscriptBuilder } from "@oh-my-pi/pi-tui/chat/chat-transcript-builder";
-import type { CustomMessage } from "@oh-my-pi/pi-tui/chat/messages";
-import type { TranscriptEntryLike } from "@oh-my-pi/pi-tui/chat/transcript-entry";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { EventController } from "@linxiraos/zeta/modes/controllers/event-controller";
+import { UiHelpers } from "@linxiraos/zeta/modes/utils/ui-helpers";
+import { Text, TUI } from "@linxiraos/pi-tui";
+import { ChatTranscriptBuilder } from "@linxiraos/pi-tui/chat/chat-transcript-builder";
+import type { CustomMessage } from "@linxiraos/pi-tui/chat/messages";
+import type { TranscriptEntryLike } from "@linxiraos/pi-tui/chat/transcript-entry";
+import { initTheme } from "@linxiraos/pi-tui/theme";
 import { VirtualTerminal } from "../../../../tui/test/virtual-terminal";
 import { createInteractiveModeContext } from "../../helpers/interactive-mode-context";
 

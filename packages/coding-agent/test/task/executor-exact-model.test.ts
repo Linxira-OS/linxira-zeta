@@ -2,20 +2,20 @@ import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { unregisterCustomApis } from "@oh-my-pi/pi-ai/api-registry";
-import { createMockModel, registerMockApi } from "@oh-my-pi/pi-ai/providers/mock";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import type { ThinkingConfig } from "@oh-my-pi/pi-catalog/types";
-import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { AgentRegistry } from "@oh-my-pi/pi-coding-agent/registry/agent-registry";
-import * as sdk from "@oh-my-pi/pi-coding-agent/sdk";
-import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import * as discovery from "@oh-my-pi/pi-coding-agent/task/discovery";
-import { runStructuredSubagent } from "@oh-my-pi/pi-coding-agent/task/structured-subagent";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import type { Model } from "@linxiraos/pi-ai";
+import { unregisterCustomApis } from "@linxiraos/pi-ai/api-registry";
+import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import type { ThinkingConfig } from "@linxiraos/pi-catalog/types";
+import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { AgentRegistry } from "@linxiraos/zeta/registry/agent-registry";
+import * as sdk from "@linxiraos/zeta/sdk";
+import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import * as discovery from "@linxiraos/zeta/task/discovery";
+import { runStructuredSubagent } from "@linxiraos/zeta/task/structured-subagent";
+import type { ToolSession } from "@linxiraos/zeta/tools";
 
 const perCallSettings = (model: Model, extra: Record<string, unknown> = {}) =>
 	Settings.isolated({

@@ -129,13 +129,13 @@ export function isZetaOwnedPath(path: string): boolean {
 
 const ZETA_SCOPE = "@linxiraos/";
 
-// Upstream workspace packages are named @oh-my-pi/*. Zeta renames that scope
+// Upstream workspace packages are named @linxiraos/*. Zeta renames that scope
 // to @linxiraos/* (with RENAME_BY_TAIL for renamed packages) and keeps its own
 // independent versions (1.x product line), so the driver must map upstream
 // keys back to Zeta names before merging. This constant MUST keep the literal
 // upstream scope: sweeping it silently disables the mapping (recurring damage
 // class; guarded by a brand-check MUST_CONTAIN entry).
-const OMP_SCOPE = "@oh-my-pi/";
+const OMP_SCOPE = "@linxiraos/";
 
 // Upstream's original author scope predating the @oh-my-pi rename. Legacy
 // manifests and vendored plugin manifests still declare it; map it exactly
@@ -266,7 +266,7 @@ function sectionEntries(value: unknown): Record<string, string> {
 
 /**
  * Section keys as they are comparable across the three sides: an upstream-scope
- * key (`@oh-my-pi/pi-ai`, `@mariozechner/pi-ai`) is the same entry as its Zeta
+ * key (`@linxiraos/pi-ai`, `@mariozechner/pi-ai`) is the same entry as its Zeta
  * rename, so both sides must be read through `zetaKeyFor` before deciding.
  */
 function effectiveSectionKeys(manifest: Record<string, string>): Map<string, string> {

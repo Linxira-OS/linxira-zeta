@@ -49,10 +49,10 @@ impl OpenTarget {
 	/// link named, so the tab says where the click was going.
 	#[must_use]
 	pub fn title(&self) -> String {
-		let name = self
-			.path
-			.file_name()
-			.map_or_else(|| self.path.display().to_string(), |name| name.to_string_lossy().into_owned());
+		let name = self.path.file_name().map_or_else(
+			|| self.path.display().to_string(),
+			|name| name.to_string_lossy().into_owned(),
+		);
 		tab_title(&name, self.line, self.col)
 	}
 }
@@ -212,7 +212,9 @@ fn token_at(text: &str, at: usize) -> Option<String> {
 	let token: String = chars[start..end].iter().collect();
 	let token = token.trim_end_matches([',', ';', ':', '!', '?', '.']);
 	// Only something shaped like a path: one separator, or a dotted leaf.
-	let dotted = token.rsplit_once('.').is_some_and(|(stem, ext)| !stem.is_empty() && !ext.is_empty());
+	let dotted = token
+		.rsplit_once('.')
+		.is_some_and(|(stem, ext)| !stem.is_empty() && !ext.is_empty());
 	if token.contains(['/', '\\']) || dotted {
 		Some(token.to_string())
 	} else {
@@ -248,9 +250,14 @@ const IDE_EXTENSIONS: [&str; 26] = [
 /// Whether a linked file belongs in the IDE page rather than the editor.
 #[must_use]
 pub fn opens_in_ide(path: &Path) -> bool {
-	path.extension()
+	path
+		.extension()
 		.and_then(|ext| ext.to_str())
-		.is_some_and(|ext| IDE_EXTENSIONS.iter().any(|known| ext.eq_ignore_ascii_case(known)))
+		.is_some_and(|ext| {
+			IDE_EXTENSIONS
+				.iter()
+				.any(|known| ext.eq_ignore_ascii_case(known))
+		})
 }
 
 /// The file `path` names, when it is a regular file inside one of the roots.
@@ -415,7 +422,8 @@ mod tests {
 	#[test]
 	fn plain_prose_names_no_link() {
 		let dir = tempdir();
-		let hit = target_at(&buffer("Build succeeded in 3.2s"), &metrics(), 0, 2, &dir, &[dir.clone()]);
+		let hit =
+			target_at(&buffer("Build succeeded in 3.2s"), &metrics(), 0, 2, &dir, &[dir.clone()]);
 		assert_eq!(hit, None);
 	}
 }

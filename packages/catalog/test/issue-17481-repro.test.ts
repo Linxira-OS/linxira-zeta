@@ -9,9 +9,9 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { getBundledModels } from "@oh-my-pi/pi-catalog/models";
-import { type ModelRefreshStrategy, resolveProviderModels } from "@oh-my-pi/pi-catalog/model-manager";
-import { githubCopilotModelManagerOptions } from "@oh-my-pi/pi-catalog/provider-models/openai-compat";
+import { getBundledModels } from "@linxiraos/pi-catalog/models";
+import { type ModelRefreshStrategy, resolveProviderModels } from "@linxiraos/pi-catalog/model-manager";
+import { githubCopilotModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 
 /** `/models` entry shaped like Copilot under `X-GitHub-Api-Version: 2026-08-01`. */
 function tieredEntry(id: string) {

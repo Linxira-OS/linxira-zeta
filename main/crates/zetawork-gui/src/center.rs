@@ -660,11 +660,14 @@ fn markdown_body(ui: &mut Ui, shell: &mut Shell, _pane: &Pane, tab: &SessionTab)
 						if level > 1 {
 							ui.add_space(6.0);
 						}
-						let font = crate::fonts::editor_font_for(
-							ui.ctx(),
-							size + 4.0 - f32::from(level) * 2.0,
+						let font =
+							crate::fonts::editor_font_for(ui.ctx(), size + 4.0 - f32::from(level) * 2.0);
+						ui.label(
+							egui::RichText::new(text)
+								.font(font)
+								.color(theme::TEXT)
+								.strong(),
 						);
-						ui.label(egui::RichText::new(text).font(font).color(theme::TEXT).strong());
 					},
 					crate::tracking::MdRow::Bullet(text) => {
 						ui.label(
@@ -675,11 +678,17 @@ fn markdown_body(ui: &mut Ui, shell: &mut Shell, _pane: &Pane, tab: &SessionTab)
 					},
 					crate::tracking::MdRow::Fence(text) => {
 						ui.label(
-							egui::RichText::new(text).font(small_font.clone()).color(theme::TEXT_3),
+							egui::RichText::new(text)
+								.font(small_font.clone())
+								.color(theme::TEXT_3),
 						);
 					},
 					crate::tracking::MdRow::Text(text) => {
-						ui.label(egui::RichText::new(text).font(text_font.clone()).color(theme::TEXT));
+						ui.label(
+							egui::RichText::new(text)
+								.font(text_font.clone())
+								.color(theme::TEXT),
+						);
 					},
 					crate::tracking::MdRow::Blank => {
 						ui.add_space(6.0);
@@ -940,7 +949,8 @@ fn link_pointer(
 	rows: u16,
 	cwd: &std::path::Path,
 ) {
-	let linkable = usize::from(columns).saturating_sub(usize::from(crate::sidebar_tsp::ZETA_SIDEBAR_COLS));
+	let linkable =
+		usize::from(columns).saturating_sub(usize::from(crate::sidebar_tsp::ZETA_SIDEBAR_COLS));
 	let hit_at = |pos: egui::Pos2| -> Option<crate::link::Hit> {
 		let (row, col) = crate::link::cell_at(grid, pos)?;
 		if usize::from(col) >= linkable || row + 1 >= rows {

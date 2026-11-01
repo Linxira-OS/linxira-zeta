@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getThemeByName } from "@oh-my-pi/pi-tui/theme";
+import { getThemeByName } from "@linxiraos/pi-tui/theme";
 
 describe("Theme.fg over styled text", () => {
 	it("keeps its color on the text after a nested color ends", async () => {

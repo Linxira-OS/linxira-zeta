@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
-import { createMockModel } from "@oh-my-pi/pi-ai/providers/mock";
+import { createMockModel } from "@linxiraos/pi-ai/providers/mock";
 import { AsyncJobManager } from "../../src/async";
 import { Settings } from "../../src/config/settings";
 import { runEvalWorkpool } from "../../src/eval/workpool-bridge";

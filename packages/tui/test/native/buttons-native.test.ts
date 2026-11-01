@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { col } from "@oh-my-pi/pi-tui/native/describe";
-import type { NativeNode } from "@oh-my-pi/pi-tui/native/node";
-import { actionBar, actionButton, iconButton, quietButton, segmentedTabs } from "@oh-my-pi/pi-tui/native/overlay";
-import type { Component } from "@oh-my-pi/pi-tui/tui";
-import { TSP_KINDS, type TspNode } from "@oh-my-pi/pi-wire";
+import { col } from "@linxiraos/pi-tui/native/describe";
+import type { NativeNode } from "@linxiraos/pi-tui/native/node";
+import { actionBar, actionButton, iconButton, quietButton, segmentedTabs } from "@linxiraos/pi-tui/native/overlay";
+import type { Component } from "@linxiraos/pi-tui/tui";
+import { TSP_KINDS, type TspNode } from "@linxiraos/pi-wire";
 import { TspHarness } from "./tsp-harness";
 
 /** Every omp button shape and a segmented control, described afresh each frame. */

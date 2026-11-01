@@ -6,7 +6,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { logger, toError } from "@oh-my-pi/pi-utils";
+import { logger, toError } from "@linxiraos/pi-utils";
 import { replaceFileAtomically } from "../utils/atomic-file";
 
 /**

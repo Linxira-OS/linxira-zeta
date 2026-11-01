@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import type { AgentTool } from "@oh-my-pi/pi-agent-core";
+import type { AgentTool } from "@linxiraos/pi-agent-core";
 import * as path from "node:path";
 import * as vm from "node:vm";
 import { Settings } from "@linxiraos/zeta/config/settings";

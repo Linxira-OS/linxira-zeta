@@ -1785,9 +1785,7 @@ impl AppState {
 			pane
 				.tabs
 				.iter()
-				.find(|tab| {
-					tab.kind == SessionKind::Ide && tab.ide_file.as_deref() == Some(path)
-				})
+				.find(|tab| tab.kind == SessionKind::Ide && tab.ide_file.as_deref() == Some(path))
 				.map(|tab| tab.id.clone())
 		});
 		if let Some(tab_id) = existing {

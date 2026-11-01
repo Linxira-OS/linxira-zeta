@@ -3,7 +3,7 @@
  * Damage class 3, executable form: every `@linxiraos/*` specifier in code must
  * resolve to something real.
  *
- * The v18.9.1 merge cost two rounds on this. A plain `@oh-my-pi/` → `@linxiraos/`
+ * The v18.9.1 merge cost two rounds on this. A plain `@linxiraos/` → `@linxiraos/`
  * sweep looks right and is wrong wherever the leaf name is not ours:
  *   - `@linxiraos/zeta` → our package is `@linxiraos/zeta`
  *     (registry: pi-coding-agent → zeta) — the one workspace member that is

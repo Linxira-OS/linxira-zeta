@@ -7,7 +7,7 @@
  * Outside a Tern pane, or when Tern cannot open the page, callers fall back to
  * the system browser.
  */
-import { isRecord, logger } from "@oh-my-pi/pi-utils";
+import { isRecord, logger } from "@linxiraos/pi-utils";
 import { resolveTernPane } from "./kind";
 import { TernError, TernSocketClient } from "./wire";
 

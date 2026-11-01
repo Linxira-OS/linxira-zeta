@@ -4,8 +4,8 @@ import { logger } from "@linxiraos/pi-utils";
 
 import { MAIN_AGENT_RULE_NAME, SUB_AGENT_RULE_NAME } from "../capability/rule";
 import { validateAgentAccountPools } from "../config/account-pools";
-import type { Model } from "@oh-my-pi/pi-ai";
-import { assertModelSupportsEffortCeiling } from "@oh-my-pi/pi-tui/thinking";
+import type { Model } from "@linxiraos/pi-ai";
+import { assertModelSupportsEffortCeiling } from "@linxiraos/pi-tui/thinking";
 import type { ModelRegistry } from "../config/model-registry";
 import {
 	formatModelStringWithRouting,
