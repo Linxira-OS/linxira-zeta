@@ -394,13 +394,25 @@ mod tests {
 		assert!(matches!(hit, Some(Hit::Missing(_))), "outside root must refuse: {hit:?}");
 	}
 
+	/// Create a file symlink, on either platform CI runs. Windows without
+	/// Developer Mode cannot, and the caller treats that as "nothing to prove".
+	#[cfg(windows)]
+	fn symlink_file(target: &Path, link: &Path) -> std::io::Result<()> {
+		std::os::windows::fs::symlink_file(target, link)
+	}
+
+	#[cfg(unix)]
+	fn symlink_file(target: &Path, link: &Path) -> std::io::Result<()> {
+		std::os::unix::fs::symlink(target, link)
+	}
+
 	#[test]
 	fn a_symlink_that_leaves_the_workspace_is_refused() {
 		let dir = tempdir();
 		let outside = tempdir().join("secret.txt");
 		std::fs::write(&outside, "no").unwrap();
 		let link = dir.join("inside.txt");
-		if std::os::windows::fs::symlink_file(&outside, &link).is_err() {
+		if symlink_file(&outside, &link).is_err() {
 			// Windows without Developer Mode cannot create a symlink: nothing
 			// to prove here, and the root check above already covers the case.
 			return;

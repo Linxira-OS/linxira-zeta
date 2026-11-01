@@ -588,7 +588,7 @@ describe("lsp regressions", () => {
 	);
 
 	it("reads location context from a CRLF file without the carriage returns", async () => {
-		const tempDir = TempDir.createSync("@omp-lsp-crlf-context-");
+		const tempDir = TempDir.createSync("@zeta-lsp-crlf-context-");
 		try {
 			const filePath = path.join(tempDir.path(), "input.ts");
 			await Bun.write(filePath, "const a = 1;\r\nconst b = 2;\r\nconst c = 3;\r\n");

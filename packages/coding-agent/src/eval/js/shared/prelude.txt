@@ -154,7 +154,7 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 	// `published` is the unannotated file, which a query parses as `agent://<id>/<path>` extraction does.
 	const outputSource = async id => {
 		const path = `agent://${id}`;
-		const located = await globalThis.__omp_call_tool__("read", { path: `${path}:raw:1-1` });
+		const located = await globalThis.__zeta_call_tool__("read", { path: `${path}:raw:1-1` });
 		const filePath = located?.details?.resolvedPath;
 		const published = typeof filePath === "string" ? await callHelper("read", filePath) : undefined;
 		if (published !== undefined) {

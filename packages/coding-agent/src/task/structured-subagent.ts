@@ -138,7 +138,7 @@ export interface StructuredSubagentRequest {
 	/** Saved source session selected for the bundled seance agent. */
 	sourceSession?: string;
 	/**
-	 * Model chosen by host code (SDK callers, `omp cleanse --model`) or, for the
+	 * Model chosen by host code (SDK callers, `zetacode cleanse --model`) or, for the
 	 * bundled seance agent, the override of its source session's saved model.
 	 * Not gated by `task.perCallModel`.
 	 */

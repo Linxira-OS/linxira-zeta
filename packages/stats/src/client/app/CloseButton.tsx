@@ -5,7 +5,7 @@ import { isDialogOpen, isTypingTarget } from "./keys";
 
 /**
  * Close, while the host shows the dashboard in place of its terminal
- * (`omp stats` in Tern), where the page is the only way out: the button, Esc,
+ * (`zetacode stats` in Tern), where the page is the only way out: the button, Esc,
  * or Ctrl+C with nothing selected, as in the terminal it covers. Renders
  * nothing anywhere else.
  */

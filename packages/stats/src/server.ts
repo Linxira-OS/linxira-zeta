@@ -172,7 +172,7 @@ let closeHandler: (() => void) | undefined;
 
 /**
  * Let the page close the dashboard: while `close` is set, it shows a Close
- * button (and takes Esc and Ctrl+C) that calls it. `omp stats` sets it while
+ * button (and takes Esc and Ctrl+C) that calls it. `zetacode stats` sets it while
  * Tern shows the page in place of the block it runs in, where the page has no
  * way out of its own; `undefined` takes Close away again.
  */

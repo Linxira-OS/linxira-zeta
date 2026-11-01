@@ -121,7 +121,7 @@ export async function getRequestDetails(id: number, signal?: AbortSignal): Promi
 	return fetchJson<RequestDetails>(`${API_BASE}/request/${id}`, { signal });
 }
 
-/** Whether the page may close the dashboard (`omp stats` shown in place of a Tern block). */
+/** Whether the page may close the dashboard (`zetacode stats` shown in place of a Tern block). */
 export async function getClosable(signal?: AbortSignal): Promise<boolean> {
 	const { closable } = await fetchJson<{ closable: boolean }>(`${API_BASE}/close`, { signal });
 	return closable;

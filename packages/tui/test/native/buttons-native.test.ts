@@ -20,7 +20,7 @@ class Toolbar implements Component {
 						{ id: "tree", label: "Tree" },
 					],
 					active: "path",
-					role: "omp.app.seg",
+					role: "zeta.app.seg",
 				},
 				"style",
 			),
@@ -60,7 +60,7 @@ describe("omp buttons on the wire", () => {
 		const h = harness;
 		expect(keyed(h, "info")).toMatchObject({
 			k: "button",
-			p: { role: "omp.btn", text: "Info", keys: ["enter"], variant: "primary", tone: "accent" },
+			p: { role: "zeta.btn", text: "Info", keys: ["enter"], variant: "primary", tone: "accent" },
 		});
 		expect(keyed(h, "kill")).toMatchObject({
 			k: "button",
@@ -71,13 +71,13 @@ describe("omp buttons on the wire", () => {
 		expect(commit.p).not.toHaveProperty("variant");
 		expect(keyed(h, "x")).toMatchObject({
 			k: "button",
-			p: { role: "omp.app.ibtn.set", variant: "quiet", icon: "x", aria: "Close", on: true },
+			p: { role: "zeta.app.ibtn.set", variant: "quiet", icon: "x", aria: "Close", on: true },
 		});
 		expect(keyed(h, "stage-all")).toMatchObject({
 			k: "button",
-			p: { role: "omp.app.qbtn", variant: "quiet", size: "sm", text: "Stage all" },
+			p: { role: "zeta.app.qbtn", variant: "quiet", size: "sm", text: "Stage all" },
 		});
-		expect(keyed(h, "style").p).toMatchObject({ role: "omp.app.seg", variant: "segmented" });
+		expect(keyed(h, "style").p).toMatchObject({ role: "zeta.app.seg", variant: "segmented" });
 		expect(h.errors).toEqual([]);
 	});
 
@@ -87,14 +87,14 @@ describe("omp buttons on the wire", () => {
 		});
 		const h = harness;
 		const info = keyed(h, "info");
-		expect(info).toMatchObject({ k: "row", p: { role: "omp.btn", tone: "accent", actions: { click: "info" } } });
+		expect(info).toMatchObject({ k: "row", p: { role: "zeta.btn", tone: "accent", actions: { click: "info" } } });
 		expect(childKinds(info)).toEqual(["text", "kbd"]);
 		// Unavailable: muted and no click action.
 		const commit = keyed(h, "commit");
-		expect(commit).toMatchObject({ k: "row", p: { role: "omp.btn", tone: "muted" } });
+		expect(commit).toMatchObject({ k: "row", p: { role: "zeta.btn", tone: "muted" } });
 		expect(commit.p).not.toHaveProperty("actions");
-		expect(keyed(h, "x")).toMatchObject({ k: "icon", p: { name: "x", role: "omp.app.ibtn.set" } });
-		expect(keyed(h, "stage-all")).toMatchObject({ k: "row", p: { role: "omp.app.qbtn" } });
+		expect(keyed(h, "x")).toMatchObject({ k: "icon", p: { name: "x", role: "zeta.app.ibtn.set" } });
+		expect(keyed(h, "stage-all")).toMatchObject({ k: "row", p: { role: "zeta.app.qbtn" } });
 		expect(keyed(h, "style").p).not.toHaveProperty("variant");
 		expect(h.errors).toEqual([]);
 	});

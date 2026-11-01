@@ -357,7 +357,7 @@ describe("eval js output() options (issue #17455)", () => {
 		const readTool = new ReadTool(session);
 		session.getToolByName = name => (name === "read" ? (readTool as unknown as AgentTool) : undefined);
 		const sandbox = loadPrelude((name, args) => callSessionTool(name, args, { session }));
-		sandbox.__omp_helpers__ = createHelpers({
+		sandbox.__zeta_helpers__ = createHelpers({
 			cwd: () => tmp.path(),
 			env: new Map(),
 			localRoots: () => ({}),

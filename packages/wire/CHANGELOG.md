@@ -5,14 +5,6 @@
 - Regenerated RPC/SDK wire from the OMP v18.14.0 schema; no user-facing API changes.
 
 ## [1.4.6] - 2026-10-28
-## [18.14.2] - 2026-10-31
-
-### Added
-
-- Added `nums` to `code` props (`TspCodeProps`): each line's number, so one block can show non-contiguous lines with `…` gap rows where the numbers jump.
-- Added the TSP `button` kind (`TspButtonProps`: label, icon, keycaps, `default`/`primary`/`quiet`/`danger` variants, `sm`/`md` sizes, pressed, disabled with a reason, busy) and `tabs` `variant: "segmented"`.
-
-## [18.14.0] - 2026-10-29
 
 ### Added
 
