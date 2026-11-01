@@ -29,22 +29,22 @@
 
 | 分支 | 类别 | 内容 | 负责人 | 建立 | 何时删 |
 |---|---|---|---|---|---|
-| `feat/attach-parity-full` | feature | attach 会话一致性：goal/live 控制器、`/loop`、模式提示跨后端（5 commits，94 files，+3351/−293） | agent | 2026-10-24 | 合入 `main` 或明确改判 `park/*` 之后 |
-| `fix/gitea-flow-1` | ci | Gitea 本地 CI 自包含 + Bazel 缓存（1 commit，2 files）。worktree 曾整树删掉 `web-ui/`（2026-11-01 已 `git checkout -- web-ui` 复原，现在干净），可直接合 | agent | 2026-10-30 | 合入 `main` 之后 |
-| `feat/superagent-runtime` | park | fork-diff 会话工作（8 个未提交文件：`session/fork-diff.ts`、`session-fork-lineage.test.ts`、listing/manager/commands/command-help） | user | 2026-10-31 | 先 commit 成 `park/*`，再决定是否继续 |
+| `park/session-fork-diff` | park | 会话 fork 结构差异：`forkDiff(a,b)` 按 entry id 分出 added/removed/changed 与共同祖先；含 `session fork --diff` 接线与 8 个测试。**原 `feat/superagent-runtime`**，2026-11-01 已 commit（`2e542337c1d`） | user | 2026-10-31 | 决定是否把 diff 暴露给 `session fork` 之后再动 |
 | `feat/pet-rust` | park | 桌宠 Rust crate（未提交，9 files，`main/crates/zetapet/`） | user | 2026-10-21 | P1 暂缓；保持 park，不动 |
 | `feat/pet-packaging` | park | 桌宠 npm 打包（未提交，5 files，`main/npm/pet/`） | user | 2026-10-21 | 同上 |
-| `docs/roadmap-audit` | docs | `document/roadmap.md` +24 行审计 | agent | 2026-10-31 | 已由 2026-11-01 的超级代理裁决取代，核对后删 |
+| `docs/roadmap-audit` | docs | DSH 内核 + TUI/IM 两份 2026-10-31 审计（+24 行，已 commit `faea369a066`） | agent | 2026-10-31 | **等用户提交 `document/roadmap.md` 的改动后**再合（否则工作区脏，git 拒绝合并） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
-| `spike/egui-shell` | spike | egui 外壳可行性（dock + 持久化） | agent | 2026-10-15 | egui 已定型并落地 `zetawork-gui`，可删 |
-| `spike/gpui-shell` | spike | gpui 外壳可行性（clippy 绿） | agent | 2026-10-15 | 同上，可删 |
-| `test/lock-1.4.7` | test | 1.4.7 锁输入验证（Cargo.toml 1.4.6→1.4.7） | agent | 2026-10-30 | `main` 已是 1.4.7，**已失效**，可删 |
 
 ## 已退役（删除前登记）
 
 | 分支 | SHA | 退役日期 | 原因 |
 |---|---|---|---|
+| `feat/attach-parity-full` | `fe712038e2e` | 2026-11-01 | 内容已全部在 `main`（`backend/subagent-mirror.ts`、`slash-commands/cleanse.ts`、`loop/continuation-controller.ts` 均存在；24 处冲突逐个解析后与 `main` 的差异只剩文档，已手工迁入）。该分支还提交了 `.bun-cache/bun-linux-x64-baseline-v1.4.3`（88 MB，`.gitignore` 已列却仍被加入），**永不合入** |
 | `backup/editor-ttt-1.6.0` | `2fa543c253b` | 2026-11-01 | 旧备份，内容早已并入 |
+| `fix/gitea-flow-1` | `19a9f0a4074` | 2026-11-01 | 已合入 `main`（`239318e8581`）：Gitea 本地 CI 自包含 + Bazel 缓存 |
+| `test/lock-1.4.7` | `6fa727a7104` | 2026-11-01 | `main` 已是 1.4.7，验证分支失效 |
+| `spike/egui-shell` | `e915a2f71f7` | 2026-11-01 | egui 已定型并落地 `zetawork-gui` |
+| `spike/gpui-shell` | `e04de51a468` | 2026-11-01 | 同上；gpui 未采用 |
 | `backup/post-pr15-merge` | `98e6c438448` | 2026-11-01 | 旧备份（PR #15 时代，2026-09） |
 | `backup/pre-sync-v18.1.16` | `36e3af58bbb` | 2026-11-01 | 旧备份（v18.1.16 同步前） |
 | `backup/pr-197` | `e00c98f668f` | 2026-11-01 | 旧备份（2026-10-14） |
