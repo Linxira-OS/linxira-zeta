@@ -27,7 +27,7 @@ const SCRATCH_GLOB = new Bun.Glob(`**/${COMPRESS_SCRATCH_PREFIX}*`);
  * recursively removes only directories gc created; a session artifact can
  * carry any name.
  */
-const SCRATCH_OWNER_MARKER = ".omp-gc-compress-owner";
+const SCRATCH_OWNER_MARKER = ".zeta-gc-compress-owner";
 
 /** Formats whose bytes are already compressed; the filesystem would store them as-is. */
 const INCOMPRESSIBLE_EXTENSIONS: Record<string, true> = {

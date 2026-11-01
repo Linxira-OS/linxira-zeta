@@ -1,5 +1,5 @@
 // Options page for the Zeta Browser Relay extension (plain JS: shipped as-is).
-const DEFAULT_PORT = 9224;
+const DEFAULT_PORT = 43153;
 const portInput = document.getElementById("port");
 const tokenInput = document.getElementById("token");
 const status = document.getElementById("status");

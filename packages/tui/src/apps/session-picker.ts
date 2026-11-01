@@ -14,6 +14,9 @@ export interface SessionPickerHost<T extends SessionSelectorEntry = SessionSelec
 	loadPinnedIds?(): Promise<ReadonlySet<string>>;
 	loadHistoryMatcher?(): SessionHistoryMatcher;
 	deleteSession?(session: T): Promise<boolean>;
+	/** Rename the session and resolve with the title as stored, or null when it did not happen. */
+	renameSession?(session: T, title: string): Promise<string | null>;
+	setSessionPinned?(session: T, pinned: boolean): Promise<void>;
 	loadAllSessions?(): Promise<T[]>;
 	/** Builds the three-level resume source for the standalone `--resume` tree. */
 	loadResumeSource?(deleteMode: "trash" | "permanent", workspacePath?: string): Promise<ResumeTreeSource | undefined>;
@@ -26,6 +29,8 @@ export interface SessionPickerOptions<T extends SessionSelectorEntry = SessionSe
 	scopeLabel?: string | false;
 	showCwd?: boolean;
 	allowDelete?: boolean;
+	/** Rename the selected session; resolve with the title as stored, or null when it did not happen. */
+	onRename?: (session: T, title: string) => Promise<string | null>;
 	allowGlobalScope?: boolean;
 	historySearch?: boolean;
 	pinnedIds?: ReadonlySet<string>;
@@ -79,6 +84,8 @@ export async function selectSession<T extends SessionSelectorEntry>(
 				},
 				{
 					onDelete: options.allowDelete === false ? undefined : host.deleteSession,
+					onRename: options.onRename ?? host.renameSession,
+					onSetPinned: host.setSessionPinned,
 					historyMatcher,
 					loadAllSessions: options.allowGlobalScope === false ? undefined : host.loadAllSessions,
 					allSessions: options.allSessions,

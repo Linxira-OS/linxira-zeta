@@ -9,13 +9,14 @@
  * so an unreachable broker stays fatal — the fix is the recovery guidance, not
  * a silent fallback to local credentials.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import { AuthBrokerError } from "@linxiraos/pi-ai/auth-broker";
 import { MissingApiKeyError } from "@linxiraos/pi-ai/error";
-import { setInteractiveHost } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { describeAuthBrokerStartupError } from "@linxiraos/zeta/session/auth-broker-config";
+import { setInteractiveHost } from "@linxiraos/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {
@@ -23,6 +24,11 @@ class ProcessExitSignal extends Error {
 		this.name = "ProcessExitSignal";
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("describeAuthBrokerStartupError", () => {
 	it("turns a broker connection failure into recovery guidance", async () => {

@@ -17,6 +17,7 @@ import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 import { COPILOT_API_HEADERS } from "@linxiraos/pi-catalog/wire/github-copilot";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -33,6 +34,9 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+	clearOmpExtensionCliRoots();
+
 	if (originalAgentDir === undefined) {
 		delete process.env.ZETA_CODING_AGENT_DIR;
 	} else {

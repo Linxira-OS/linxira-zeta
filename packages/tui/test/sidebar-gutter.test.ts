@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
 	type Component,
+	type NativeNode,
+	node,
 	type TerminalFramePlan,
 	type TerminalFrameProvider,
 	TUI,
@@ -275,6 +277,145 @@ describe("TUI sidebar gutter (frame-provider path)", () => {
 			await scheduler.settle(term);
 			expect(provider.replayCount).toBe(1);
 			expect(provider.widths.at(-1)).toBe(104);
+		} finally {
+			tui.stop();
+		}
+	});
+});
+
+/** Gutter that also hands out a semantic snapshot, like the product sidebar. */
+class SnapshotGutter extends MutableGutter {
+	snapshot: NativeNode | null = node("col", { role: "zeta.sidebar" }, [node("text", { text: "SNAP" })]);
+	describeCalls = 0;
+
+	describeSnapshot(): NativeNode | null {
+		this.describeCalls++;
+		return this.snapshot;
+	}
+}
+
+/** Decoded sidebar APCs in write order; `null` marks the empty (clear) payload. */
+function sidebarPayloads(writes: readonly string[]): (string | null)[] {
+	const payloads: (string | null)[] = [];
+	for (const match of writes.join("").matchAll(/\x1b_zeta;sidebar;([^\x1b]*)\x1b\\/g)) {
+		const encoded = match[1] ?? "";
+		payloads.push(encoded.length === 0 ? null : Buffer.from(encoded, "base64").toString("utf8"));
+	}
+	return payloads;
+}
+
+/** Frame-provider TUI at 120x24 whose gutter publishes a snapshot. */
+function snapshotFixture(): {
+	term: RecordingTerminal;
+	provider: RecordingProvider;
+	gutter: SnapshotGutter;
+	tui: TUI;
+	scheduler: VirtualRenderScheduler;
+} {
+	const term = new RecordingTerminal(120, 24);
+	const provider = new RecordingProvider();
+	const gutter = new SnapshotGutter();
+	gutter.rows = gutterRows(24, "GTR");
+	const scheduler = new VirtualRenderScheduler();
+	const tui = new TUI(term, undefined, { renderScheduler: scheduler });
+	tui.setResizeScrollback("append");
+	tui.setMainWidth(36);
+	tui.setGutterComponent(gutter);
+	tui.setFrameProvider(provider);
+	return { term, provider, gutter, tui, scheduler };
+}
+
+describe("TUI sidebar snapshot APC", () => {
+	it("publishes the snapshot once, and again only when it changes", async () => {
+		const { term, tui, gutter, scheduler } = snapshotFixture();
+		try {
+			await scheduler.settle(term);
+			const first = sidebarPayloads(term.writes);
+			expect(first).toHaveLength(1);
+			const decoded = JSON.parse(first[0]!) as {
+				v: number;
+				node: { k: string; c?: { p?: { text?: string } }[] };
+			};
+			expect(decoded.v).toBe(1);
+			expect(decoded.node.k).toBe("col");
+			expect(decoded.node.c?.[0]?.p?.text).toBe("SNAP");
+
+			// A repaint that leaves the snapshot alone writes no second APC.
+			tui.requestRender();
+			await scheduler.settle(term);
+			expect(sidebarPayloads(term.writes)).toHaveLength(1);
+
+			gutter.snapshot = node("col", { role: "zeta.sidebar" }, [node("text", { text: "NEXT" })]);
+			tui.requestRender();
+			await scheduler.settle(term);
+			const updated = sidebarPayloads(term.writes);
+			expect(updated).toHaveLength(2);
+			expect(updated[1]).toContain("NEXT");
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("clears the payload when the gutter component is removed", async () => {
+		const { term, tui, scheduler } = snapshotFixture();
+		try {
+			await scheduler.settle(term);
+			expect(sidebarPayloads(term.writes)).toHaveLength(1);
+
+			tui.setGutterComponent(null);
+			await scheduler.settle(term);
+			expect(sidebarPayloads(term.writes).at(-1)).toBeNull();
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("clears while an overlay forces the full width and republishes after it closes", async () => {
+		const { term, tui, scheduler } = snapshotFixture();
+		try {
+			await scheduler.settle(term);
+			const overlay = tui.showOverlay({ render: () => ["DIALOG"] });
+			await scheduler.settle(term);
+			expect(sidebarPayloads(term.writes).at(-1)).toBeNull();
+
+			overlay.hide();
+			await scheduler.settle(term);
+			const restored = sidebarPayloads(term.writes).at(-1);
+			expect(restored).not.toBeNull();
+			expect(restored).toContain("SNAP");
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("drops an oversized snapshot to the clear payload", async () => {
+		const { term, tui, gutter, scheduler } = snapshotFixture();
+		try {
+			await scheduler.settle(term);
+			gutter.snapshot = node("col", { role: "zeta.sidebar" }, [node("text", { text: "x".repeat(70_000) })]);
+			tui.requestRender();
+			await scheduler.settle(term);
+			const payloads = sidebarPayloads(term.writes);
+			expect(payloads).toHaveLength(2);
+			expect(payloads[1]).toBeNull();
+		} finally {
+			tui.stop();
+		}
+	});
+
+	it("writes no snapshot for a gutter that cannot describe itself", async () => {
+		const term = new RecordingTerminal(120, 24);
+		const provider = new RecordingProvider();
+		const gutter = new MutableGutter();
+		gutter.rows = gutterRows(24, "GTR");
+		const scheduler = new VirtualRenderScheduler();
+		const tui = new TUI(term, undefined, { renderScheduler: scheduler });
+		tui.setMainWidth(36);
+		tui.setGutterComponent(gutter);
+		tui.setFrameProvider(provider);
+		try {
+			await scheduler.settle(term);
+			expect(term.writes.some(write => write.includes("zeta;sidebar;"))).toBe(false);
 		} finally {
 			tui.stop();
 		}

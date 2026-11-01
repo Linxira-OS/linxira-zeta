@@ -182,7 +182,7 @@ function conversationKeys(request: AuthGatewaySessionStateRequest): string[] {
 	const toolsJson = request.toolsJson ?? (context.tools?.length ? JSON.stringify(context.tools) : "");
 	// Each component is its own seeded hash step, so no component can forge
 	// another's boundary.
-	let hash = Bun.hash(toolsJson, Bun.hash(context.systemPrompt?.join("\n\n") ?? "", Bun.hash(scope)));
+	let hash: number | bigint = Bun.hash(toolsJson, Bun.hash(context.systemPrompt?.join("\n\n") ?? "", Bun.hash(scope)));
 	const keys: string[] = [];
 	for (const message of context.messages) {
 		hash = hashMessage(message, hash);

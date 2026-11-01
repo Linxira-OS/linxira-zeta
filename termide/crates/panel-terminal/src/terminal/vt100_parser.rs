@@ -11,7 +11,7 @@ use vte::{Params, Parser, Perform};
 
 use super::{
     csi_handlers::{handle_cursor_movement, handle_private_sequence, handle_sgr},
-    Cell, KeyboardProtocolMode, TerminalScreen,
+    Cell, KeyboardProtocolMode, TerminalScreen, SIDEBAR_APC_PREFIX,
 };
 
 /// Batched screen operation to reduce mutex contention.
@@ -78,6 +78,18 @@ impl VtPerformer {
     /// meets the screen. Pending print operations are applied first: the
     /// cursor they leave behind is the cell the placement anchors to.
     pub fn apc(&mut self, payload: &[u8]) {
+        // Zeta sidebar snapshot sideband: the TUI describes its gutter column
+        // out of band (`ESC _ zeta;sidebar; <body> ESC \`) for a native
+        // renderer. Keep the body for the host; it draws no cell and touches
+        // neither the cursor, the grid nor the graphics store.
+        if let Some(body) = payload.strip_prefix(SIDEBAR_APC_PREFIX) {
+            let mut screen = match self.screen.write() {
+                Ok(screen) => screen,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            screen.sidebar_apc = Some(body.to_vec());
+            return;
+        }
         if payload.first() != Some(&b'G') {
             return;
         }
@@ -1182,6 +1194,85 @@ mod tests {
         // in the placement's own cell.
         assert_eq!(row_text(&screen, 1), "  X");
         assert_eq!(&*capture.lock().unwrap(), b"\x1b_Gi=42;OK\x1b\\");
+    }
+
+    #[test]
+    fn a_sidebar_snapshot_apc_is_captured_and_never_drawn() {
+        let capture = Arc::new(Mutex::new(Vec::new()));
+        let screen = Arc::new(RwLock::new(TerminalScreen::new(10, 20)));
+        let writer = Arc::new(Mutex::new(
+            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
+        ));
+        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+
+        stream.feed(b"A");
+        stream.feed(b"\x1b_zeta;sidebar;eyJ2IjoxfQ==\x1b\\");
+        stream.feed(b"B");
+        stream.flush();
+
+        {
+            let mut screen = screen.write().unwrap();
+            assert_eq!(
+                screen.take_sidebar_apc().as_deref(),
+                Some(b"eyJ2IjoxfQ==".as_slice()),
+                "the body after the prefix arrives intact"
+            );
+            assert!(
+                screen.take_sidebar_apc().is_none(),
+                "taking the snapshot empties the slot"
+            );
+        }
+        // A sideband, not output: the grid keeps only the printed text, no
+        // graphics reply is written back, and no image is placed.
+        assert_eq!(row_text(&screen, 0), "AB");
+        assert!(capture.lock().unwrap().is_empty());
+        assert!(screen.read().unwrap().graphics.placements().is_empty());
+    }
+
+    #[test]
+    fn an_empty_sidebar_body_replaces_the_previous_snapshot() {
+        let capture = Arc::new(Mutex::new(Vec::new()));
+        let screen = Arc::new(RwLock::new(TerminalScreen::new(4, 10)));
+        let writer = Arc::new(Mutex::new(
+            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
+        ));
+        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+
+        stream.feed(b"\x1b_zeta;sidebar;b25l\x1b\\");
+        // The TUI's clear frame: the host drops the column.
+        stream.feed(b"\x1b_zeta;sidebar;\x1b\\");
+        assert_eq!(
+            screen.write().unwrap().take_sidebar_apc(),
+            Some(Vec::new()),
+            "an empty body is still a snapshot: it means clear"
+        );
+    }
+
+    #[test]
+    fn a_sidebar_apc_does_not_disturb_graphics() {
+        let capture = Arc::new(Mutex::new(Vec::new()));
+        let screen = Arc::new(RwLock::new(TerminalScreen::new(6, 10)));
+        screen.write().unwrap().cell_px = (12, 24);
+        let writer = Arc::new(Mutex::new(
+            Box::new(SharedCapture(Arc::clone(&capture))) as Box<dyn Write + Send>
+        ));
+        let mut stream = StreamParser::new(writer, Arc::clone(&screen));
+
+        stream.feed(b"\x1b_zeta;sidebar;eyJ2IjoxfQ==\x1b\\");
+        stream.feed(b"\x1b_Ga=T,f=32,i=7,c=1,r=1,s=1,v=1,q=0;/wAA/w==\x1b\\");
+        stream.flush();
+
+        let mut screen = screen.write().unwrap();
+        assert_eq!(
+            screen.graphics.placements().len(),
+            1,
+            "the image still lands"
+        );
+        assert_eq!(
+            screen.take_sidebar_apc().as_deref(),
+            Some(b"eyJ2IjoxfQ==".as_slice()),
+            "both sidebands keep their own slot"
+        );
     }
 
     #[test]

@@ -5,8 +5,6 @@ This document describes how slash commands are discovered, deduplicated, surface
 ## Implementation files
 
 - [`src/extensibility/slash-commands.ts`](../packages/coding-agent/src/extensibility/slash-commands.ts)
-- [`src/extensibility/custom-commands/loader.ts`](../packages/coding-agent/src/extensibility/custom-commands/loader.ts)
-- [`src/extensibility/custom-commands/watcher.ts`](../packages/coding-agent/src/extensibility/custom-commands/watcher.ts)
 - [`src/capability/slash-command.ts`](../packages/coding-agent/src/capability/slash-command.ts)
 - [`src/discovery/builtin.ts`](../packages/coding-agent/src/discovery/builtin.ts)
 - [`src/discovery/omp-plugins.ts`](../packages/coding-agent/src/discovery/omp-plugins.ts)
@@ -17,7 +15,7 @@ This document describes how slash commands are discovered, deduplicated, surface
 - [`src/discovery/opencode.ts`](../packages/coding-agent/src/discovery/opencode.ts)
 - [`src/capability/index.ts`](../packages/coding-agent/src/capability/index.ts)
 - [`src/discovery/helpers.ts`](../packages/coding-agent/src/discovery/helpers.ts)
-- [`src/discovery/zeta-extension-roots.ts`](../packages/coding-agent/src/discovery/zeta-extension-roots.ts)
+- [`src/discovery/omp-extension-roots.ts`](../packages/coding-agent/src/discovery/omp-extension-roots.ts)
 - [`src/config/claude-paths.ts`](../packages/coding-agent/src/config/claude-paths.ts)
 - [`src/utils/command-args.ts`](../packages/coding-agent/src/utils/command-args.ts)
 - [`src/slash-commands/builtin-registry.ts`](../packages/coding-agent/src/slash-commands/builtin-registry.ts)
@@ -38,7 +36,7 @@ The capability registry loads enabled providers in parallel, consumes their resu
 
 Current slash-command providers and priorities:
 
-1. `native` (ZETA) — priority `100`
+1. `native` (OMP) — priority `100`
 2. `omp-plugins` (extension packages) — priority `90`
 3. `claude` — priority `80`
 4. `claude-plugins` — priority `70`
@@ -77,13 +75,13 @@ So hidden files/directories are not loaded, ignored paths are skipped, and file 
 
 ## `native` provider (`builtin.ts`)
 
-Search roots come from `.zeta` directories:
+Search roots come from `.omp` directories:
 
-- project: `<cwd>/.zeta/commands/*.md`
-- user: active profile agent directory `commands/*.md` (`~/.zeta/agent/commands/*.md` for the default profile; `~/.zeta/profiles/<name>/agent/commands/*.md` for a named profile)
+- project: `<cwd>/.omp/commands/*.md`
+- user: active profile agent directory `commands/*.md` (`~/.omp/agent/commands/*.md` for the default profile; `~/.omp/profiles/<name>/agent/commands/*.md` for a named profile)
 
 `getConfigDirs()` returns project first, then user, so **project native commands beat user native commands** when names collide.
-The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `ZETA_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.zeta`.
+The default paths above can be relocated by `PI_CONFIG_DIR`, the default-profile `PI_CODING_AGENT_DIR`, or an SDK discovery `agentDir`; the project directory remains `.omp`.
 
 ## `omp-plugins` provider (`omp-plugins.ts`)
 
@@ -122,11 +120,11 @@ Both sides are loaded then flattened in user-first order, so **user OpenCode com
 
 ## `claude-plugins` provider (`claude-plugins.ts`)
 
-Loads roots via `listClaudePluginRoots(...)`, which reads the active Claude config directory's `plugins/installed_plugins.json`, the active ZETA plugins directory's `installed_plugins.json` (profile/XDG-aware), and the nearest project `.zeta/plugins/installed_plugins.json`. Claude-origin user roots require `claude` or `claude-plugins` user opt-in; ZETA and explicit local roots do not. Disabled registry entries and Claude `enabledPlugins: false` entries are excluded.
+Loads roots via `listClaudePluginRoots(...)`, which reads the active Claude config directory's `plugins/installed_plugins.json`, the active OMP plugins directory's `installed_plugins.json` (profile/XDG-aware), and the nearest project `.omp/plugins/installed_plugins.json`. Claude-origin user roots require `claude` or `claude-plugins` user opt-in; OMP and explicit local roots do not. Disabled registry entries and Claude `enabledPlugins: false` entries are excluded.
 
 For each root it normally scans `<pluginRoot>/commands/*.md`. Manifest `commands`/`slash-commands` entries can instead select directories or individual Markdown files; the first populated key wins. Command names are prefixed with the plugin name when one is present: `<plugin>:<command>`.
 
-Across the three registries, roots are merged by precedence rather than sorted: `--plugin-dir` injected roots come first, then project-scoped entries (which shadow user entries for the same plugin id), then user entries, with the ZETA registry authoritative over Claude's for the same plugin id. Within each registry, per-plugin entry order from the JSON data is preserved; there is no additional sort step.
+Across the three registries, roots are merged by precedence rather than sorted: `--plugin-dir` injected roots come first, then project-scoped entries (which shadow user entries for the same plugin id), then user entries, with the OMP registry authoritative over Claude's for the same plugin id. Within each registry, per-plugin entry order from the JSON data is preserved; there is no additional sort step.
 
 ## `agents` provider (`agents.ts`)
 
@@ -189,9 +187,9 @@ Slash command state is refreshed:
 - after cwd changes, including `/move` (`applyCwdChange` reloads project settings, clears plugin-root caches, and refreshes session skills/commands)
 - when the editor component is swapped
 - by explicit plugin reload flows such as `/reload-plugins`
-- when session command-metadata notifications arrive, including live settings changes, skill management, MCP prompt updates, and TypeScript custom-command reloads (autocomplete rebuilds from current session state)
+- when session command-metadata notifications arrive, including live settings changes, skill management, and MCP prompt updates (autocomplete rebuilds from current session state)
 
-TypeScript custom commands are watched while a session is live: `CustomCommandWatcher` (`src/extensibility/custom-commands/watcher.ts`) arms one non-recursive `fs.watch` per command root (so command directories appearing or disappearing are seen) plus one per command directory, filtered to its depth-1 `index.*` entry. Writes are debounced (200 ms), and each reload re-reads the module through a `?mtime`-tagged specifier so Bun re-evaluates the edited file; the tag rides a bare path rather than a `file://` URL because Bun ignores query strings on file URLs (the Windows caveat in `docs/extension-loading.md`). Only the entry module is re-read — files it imports are not watched and follow normal module caching. A module that fails to load keeps the last version that did and raises one visible warning, so a malformed edit never breaks the session. File-based (markdown) commands have no watcher; they refresh on the lifecycle events above.
+There is no continuous file watcher for command directories.
 
 ### Other surfacing
 
@@ -232,11 +230,11 @@ This is why built-ins reserve their names before file commands are considered, s
 - parses args from remaining text via `parseCommandArgs`
 - finds exact name match in loaded `fileCommands`
 - if matched, applies:
-  - positional replacement: `$1`, `$2`, ...
-  - slice replacement: `$@[start]` / `$@[start:length]` using 1-based positions
-  - aggregate replacement: `$ARGUMENTS` and `$@`
-  - template rendering via `prompt.render` with `{ args, ARGUMENTS, arguments }`
-  - inline-argument fallback append when the template did not use an inline argument placeholder
+   - positional replacement: `$1`, `$2`, ...
+   - slice replacement: `$@[start]` / `$@[start:length]` using 1-based positions
+   - aggregate replacement: `$ARGUMENTS` and `$@`
+   - template rendering via `prompt.render` with `{ args, ARGUMENTS, arguments }`
+   - inline-argument fallback append when the template did not use an inline argument placeholder
 
 ### `parseCommandArgs` caveats
 
@@ -260,6 +258,7 @@ description: Situation report for this session
 argument-hint: "[focus]"
 side: true
 ---
+
 Situation report. Focus on $ARGUMENTS if given, else the whole session.
 ```
 
@@ -287,9 +286,9 @@ TUI and ACP/RPC dispatch the shared built-in registry before `session.prompt(...
 
 - `prompt(...)` still runs extension/custom/file/template transforms first
 - then requires `streamingBehavior`:
-  - `"steer"` -> queue interrupt message (`agent.steer`)
-  - `"followUp"` -> queue post-turn message (`agent.followUp`)
-  - `"aside"` -> inject at the next step boundary without interrupting an in-flight tool batch (a running interruptible `wait` ends)
+   - `"steer"` -> queue interrupt message (`agent.steer`)
+   - `"followUp"` -> queue post-turn message (`agent.followUp`)
+   - `"aside"` -> inject at the next step boundary without interrupting an in-flight tool batch (a running interruptible `wait` ends)
 - if `streamingBehavior` is omitted, prompt throws an error
 
 ### Important command-specific streaming behavior
@@ -304,8 +303,8 @@ TUI and ACP/RPC dispatch the shared built-in registry before `session.prompt(...
 - Provider load failures are isolated; registry collects warnings and continues with other providers.
 - Invalid slash command items (missing name/path/content or invalid level) are dropped by capability validation.
 - Frontmatter parse failures:
-  - items explicitly marked `level: "native"` and bundled templates: fatal parse error bubbles
-  - discovered user/project commands (including the native ZETA provider): warning + fallback key/value parse
+   - items explicitly marked `level: "native"` and bundled templates: fatal parse error bubbles
+   - discovered user/project commands (including the native OMP provider): warning + fallback key/value parse
 - Extension/custom command handler exceptions are caught and reported via extension error channel (or logger fallback for custom commands without extension runner), and treated as handled (no unintended fallback execution).
 
 ## 10) Built-in command note: `/pause`
@@ -446,13 +445,13 @@ answers or relax these branch guards.
 
 `/annotate` lets the operator attach notes to a diff or text before the agent acts. With no argument it opens a source menu.
 
-| Command | Source |
-|---|---|
+| Command                         | Source                                                                       |
+| ------------------------------- | ---------------------------------------------------------------------------- |
 | `/annotate code-review [focus]` | Local base-branch, working-copy, or commit diff, a GitHub PR, or a GitLab MR |
-| `/annotate last` | Latest non-empty assistant reply on the active branch |
-| `/annotate session` | A message or block picked in the `/copy` selector |
-| `/annotate path/to/file` | Text read from a file |
-| `/annotate "text"` | Literal text |
+| `/annotate last`                | Latest non-empty assistant reply on the active branch                        |
+| `/annotate session`             | A message or block picked in the `/copy` selector                            |
+| `/annotate path/to/file`        | Text read from a file                                                        |
+| `/annotate "text"`              | Literal text                                                                 |
 
 The whole remainder after `/annotate` is one source specification (`CustomCommand.execute` receives it verbatim as `rawArgs`):
 

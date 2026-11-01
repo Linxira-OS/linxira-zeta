@@ -3,9 +3,9 @@ import { type InputItem, transformRequestBody } from "@linxiraos/pi-ai/providers
 import {
 	buildTransformedCodexRequestBody,
 	convertCodexResponsesMessages,
-	resetOpenAICodexHistoryAfterCompaction,
 	streamOpenAICodexResponses,
 } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { resetOpenAICodexHistoryAfterCompaction } from "@linxiraos/pi-ai/providers/openai-codex-state";
 import { isOpenAIResponsesProgressEvent } from "@linxiraos/pi-ai/providers/openai-shared";
 import { configureCredentialRedaction } from "@linxiraos/pi-ai/providers/transform-messages";
 import type {

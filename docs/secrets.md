@@ -8,7 +8,7 @@ Disabled by default. Toggle via `/settings` UI or directly in `config.yml`:
 
 ```yaml
 secrets:
-  enabled: true
+   enabled: true
 ```
 
 ## How it works
@@ -36,10 +36,10 @@ Obfuscate-mode plain values and regex matches shorter than 8 characters are igno
 
 Define custom secret entries in YAML. Two locations are checked:
 
-| Level   | Path                       | Purpose                     |
-| ------- | -------------------------- | --------------------------- |
-| Global  | `<active-agent-dir>/secrets.yml` (normally `~/.zeta/agent/secrets.yml`) | Secrets across projects using that agent directory |
-| Project | `<cwd>/.zeta/secrets.yml`   | Project-specific secrets    |
+| Level   | Path                                                                   | Purpose                                            |
+| ------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| Global  | `<active-agent-dir>/secrets.yml` (normally `~/.omp/agent/secrets.yml`) | Secrets across projects using that agent directory |
+| Project | `<cwd>/.omp/secrets.yml`                                               | Project-specific secrets                           |
 
 Project entries override global entries with matching `content`. The global location follows the session's agent directory, including named profiles and explicit SDK agent-directory overrides.
 
@@ -88,7 +88,7 @@ Native Responses replay plaintext is obfuscated too, including message text, too
 
 Native collision values are collected through the same field traversal before redaction, so a value found only in a dynamic definition or search item can invalidate an earlier friendly prefix in history or pending advisor updates. Advisors re-scrub replay and its next-compaction source after maintenance commits, including snapshots containing newly discovered values. Encrypted replay and unknown protocol variants remain opaque; encrypted history cannot be retrospectively inspected or rewritten.
 
-The 12-character hash base is an HMAC of the exact secret under a private per-install key (stored at `~/.zeta/agent/secret-placeholder.key`, or `$XDG_STATE_HOME/zeta/secret-placeholder.key` on XDG-enabled installs, never sent to a model). This prevents a transcript reader from dictionary-hashing a placeholder back to its secret. Secrets that differ only by case receive independent bases, so seeing one placeholder does not let a provider synthesize another by changing the case hint. If the key cannot be persisted on the lazy built-in-token path, the session warns and uses a process-ephemeral key; obfuscation remains reversible within that process but placeholders are not stable across restarts. A case-hint suffix labels the casing of the redacted value:
+The 12-character hash base is an HMAC of the exact secret under a private per-install key (stored at `~/.omp/agent/secret-placeholder.key`, or `$XDG_STATE_HOME/omp/secret-placeholder.key` on XDG-enabled installs, never sent to a model). This prevents a transcript reader from dictionary-hashing a placeholder back to its secret. Secrets that differ only by case receive independent bases, so seeing one placeholder does not let a provider synthesize another by changing the case hint. If the key cannot be persisted on the lazy built-in-token path, the session warns and uses a process-ephemeral key; obfuscation remains reversible within that process but placeholders are not stable across restarts. A case-hint suffix labels the casing of the redacted value:
 
 | Hint | Meaning                                        |
 | ---- | ---------------------------------------------- |

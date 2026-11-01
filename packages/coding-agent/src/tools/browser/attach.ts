@@ -436,7 +436,7 @@ export async function findReusableCdp(
 export interface PickTargetOptions {
 	matcher?: string;
 	preferVisible?: boolean;
-	/** Relay /json endpoint (e.g. http://127.0.0.1:9224); enables metadata-first target selection. */
+	/** Relay /json endpoint (e.g. http://127.0.0.1:43153); enables metadata-first target selection. */
 	relayJson?: string;
 	signal?: AbortSignal;
 }

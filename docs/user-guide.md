@@ -165,10 +165,13 @@ binary is refused on purpose.
 
 Two display features live in the interactive TUI:
 
-- **Sidebar** (`/sidebar`, or the `tui.sidebar` setting): a right-hand panel
-  showing context usage, token totals and cost, git branch/dirty state, and
-  the current model. It needs at least 100 terminal columns and hides itself
-  on narrower terminals; scrolled-back history never contains sidebar text.
+- **Sidebar** (`/sidebar`, or the `tui.sidebar` setting): a 36-column right-hand
+  gutter showing the context gauge, todo progress, detached subagents, MCP
+  server health, and a cached Git panel with the current branch, ahead/behind,
+  staged/unstaged/untracked counts, and the last five commits. The Git panel
+  hides itself outside a repository (or with Git integration disabled), and
+  the sidebar needs at least 100 terminal columns; scrolled-back history never
+  contains sidebar text.
 - **Turn telemetry** (`statusLine.turnTelemetry`, on by default): a dim line
   above the editor after each turn showing throughput (tokens/s), time to
   first token, duration, tokens, and cost. Add the `turn_stats` status-line

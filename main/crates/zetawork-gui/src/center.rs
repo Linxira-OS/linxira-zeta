@@ -802,6 +802,20 @@ fn paint_terminal_grid(ui: &mut Ui, shell: &mut Shell, frame: TerminalFrame<'_>)
 	if images_enabled {
 		paint_images(painter, &mut shell.images, pane, images, pass, false);
 	}
+	// The TUI's semantic sidebar snapshot, drawn last so neither the ANSI
+	// gutter underneath nor a Kitty image above can show through: the opaque
+	// column replaces both. Without a snapshot the gutter stays exactly as the
+	// TUI painted it.
+	if let Some(lines) = shell.sidebar.get(pane) {
+		if columns >= crate::sidebar_tsp::ZETA_SIDEBAR_COLS {
+			let width = f32::from(crate::sidebar_tsp::ZETA_SIDEBAR_COLS);
+			let sidebar = Rect::from_min_size(
+				pos2(grid.origin.x + (f32::from(columns) - width) * grid.cell_w, grid.origin.y),
+				vec2(width * grid.cell_w, f32::from(rows) * grid.cell_h),
+			);
+			crate::sidebar_tsp::paint(painter, lines, &grid, sidebar);
+		}
+	}
 }
 
 /// The pane's image mode, from 全部设置's `terminal.imageMode` row.

@@ -50,7 +50,7 @@ export const cfgBrowserRelayUrl = register({
 		tab: "tools",
 		group: "Grep & Browser",
 		label: "Browser Relay URL",
-		description: "zetacode browser relay endpoint (default http://127.0.0.1:9224).",
+		description: "zetacode browser relay endpoint (default http://127.0.0.1:43153).",
 	},
 });
 

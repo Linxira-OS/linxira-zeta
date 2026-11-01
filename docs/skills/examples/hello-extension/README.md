@@ -19,7 +19,7 @@ With `zetacode --profile <name>`, use `~/.zeta/profiles/<name>/agent/extensions/
 ```yaml
 # ~/.zeta/agent/config.yml
 extensions:
-  - /path/to/hello-extension
+   - /path/to/hello-extension
 ```
 
 **Option C — load once via CLI flag:**

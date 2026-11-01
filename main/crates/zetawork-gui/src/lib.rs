@@ -63,6 +63,7 @@ pub mod settings_schema;
 pub mod settings_ui;
 pub mod setup;
 pub mod shells;
+pub mod sidebar_tsp;
 pub mod spawn_probe;
 pub mod state;
 pub mod stats;
@@ -164,6 +165,10 @@ pub struct Shell {
 	/// The serve-backed alternative for terminal tabs ([`terminal_service`]):
 	/// a PTY in `zetacode serve` reached over the gateway's WebSocket.
 	pub terminals: terminal_service::TerminalHost,
+	/// Native sidebar snapshots, keyed by session tab: the TUI's semantic twin
+	/// of its gutter column, which [`center`] draws over the pane's last
+	/// [`sidebar_tsp::ZETA_SIDEBAR_COLS`] columns instead of the ANSI cells.
+	pub sidebar: BTreeMap<String, Vec<sidebar_tsp::SidebarLine>>,
 	/// The backend this window ensures on launch: a live daemon when one is
 	/// there, otherwise one started through `zetacode daemon` ([`backend`]).
 	pub backend: backend::BackendHost,
@@ -353,6 +358,7 @@ impl Shell {
 			live: live::LiveSessions::default(),
 			images: blit::ImageTextures::default(),
 			terminals: terminal_service::TerminalHost::default(),
+			sidebar: BTreeMap::new(),
 			backend: {
 				let mut backend = backend::BackendHost::default();
 				backend.ensure();
@@ -444,6 +450,7 @@ impl Shell {
 			live: live::LiveSessions::default(),
 			images: blit::ImageTextures::default(),
 			terminals: terminal_service::TerminalHost::default(),
+			sidebar: BTreeMap::new(),
 			backend: backend::BackendHost::default(),
 			backend_epoch: 0,
 			agents: agent_sessions::AgentSessions::default(),
@@ -1154,6 +1161,20 @@ impl Shell {
 		true
 	}
 
+	/// Store (or drop) one tab's native sidebar snapshot. A payload that does
+	/// not parse — including the TUI's empty clear frame — removes the column,
+	/// which is exactly what makes the ANSI gutter the fallback.
+	fn apply_sidebar(&mut self, tab: &str, payload: &[u8]) {
+		match sidebar_tsp::parse_snapshot(payload) {
+			Some(lines) => {
+				self.sidebar.insert(tab.to_owned(), lines);
+			},
+			None => {
+				self.sidebar.remove(tab);
+			},
+		}
+	}
+
 	/// Poll the live PTYs: repaint on new output (foreground only — the
 	/// background state draws no frames of its own) and notify when a terminal
 	/// ends.
@@ -1161,6 +1182,12 @@ impl Shell {
 		let mut ended: Vec<String> = Vec::new();
 		for event in self.live.poll() {
 			match event {
+				live::Event::Sidebar { tab, payload } => {
+					self.apply_sidebar(&tab, &payload);
+					if !self.lifecycle.background {
+						ctx.request_repaint();
+					}
+				},
 				live::Event::Output { .. } | live::Event::Titled { .. } => {
 					if !self.lifecycle.background {
 						ctx.request_repaint();
@@ -1170,6 +1197,7 @@ impl Shell {
 			}
 		}
 		for tab in ended {
+			self.sidebar.remove(&tab);
 			let workspace = self.state.workspace_label().to_owned();
 			let message = notify::Message {
 				trigger: notify::Trigger::Failed,
@@ -1201,6 +1229,11 @@ impl Shell {
 			.map(|tab| tab.id.clone())
 			.collect();
 		self.terminals.retain(&open);
+		// A snapshot belongs to its tab: one closed while the window was busy
+		// must not leave a column behind for the next tab that reuses the id.
+		self
+			.sidebar
+			.retain(|tab, _| open.iter().any(|id| id == tab));
 		let events = self.terminals.poll();
 		for event in events {
 			match event {
@@ -1210,13 +1243,22 @@ impl Shell {
 						ctx.request_repaint();
 					}
 				},
-				terminal_service::HostEvent::Failed { tab: _ } => {
+				terminal_service::HostEvent::Sidebar { tab, payload } => {
+					self.apply_sidebar(&tab, &payload);
+					if !self.lifecycle.background {
+						ctx.request_repaint();
+					}
+				},
+				terminal_service::HostEvent::Failed { tab } => {
 					// The backend is already `Local`; the status line carries
 					// the one sentence and the tooltip the full reason. No
-					// second notice for the same event.
+					// second notice for the same event. The remote column goes
+					// with it: the local PTY publishes its own snapshot.
+					self.sidebar.remove(&tab);
 					self.state.needs_redraw = true;
 				},
 				terminal_service::HostEvent::Ended { tab, reason } => {
+					self.sidebar.remove(&tab);
 					let workspace = self.state.workspace_label().to_owned();
 					let message = notify::Message {
 						trigger: notify::Trigger::Failed,

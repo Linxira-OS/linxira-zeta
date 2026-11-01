@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { KeybindingsManager } from "@linxiraos/pi-tui/app-keybindings";
 import { resetSettingsForTest, Settings, settings } from "@linxiraos/zeta/config/settings";
-import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/pi-tui/prompt/composer";
+import { PINNED_HUD_TOGGLE_ID } from "@linxiraos/zeta/task/output-manager";
 import { InputController } from "@linxiraos/zeta/modes/controllers/input-controller";
 import { SpaceHoldGesture } from "@linxiraos/pi-tui/space-hold";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
@@ -45,6 +45,7 @@ function makeHarness() {
 			extensionRunner: undefined,
 		},
 		resolveViewportClickCandidates: (index: number) => (index === 2 ? [PINNED_HUD_TOGGLE_ID] : []),
+		activateViewportLink: () => false,
 		focusedAgentId: undefined,
 		focusAgentSession: async (id: string) => {
 			focused.push(id);

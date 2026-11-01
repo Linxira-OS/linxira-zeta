@@ -84,7 +84,7 @@ pi-*.html
 .close_issue.sh
 
 # Generated files
-packages/coding-agent/src/export/html/tool-views.generated.js
+packages/coding-agent/export-assets/
 packages/natives/npm/
 # prepack materializes the repo-root skills/ tree into the package dir for the
 # npm tarball (see packages/coding-agent/scripts/sync-official-skills.ts)

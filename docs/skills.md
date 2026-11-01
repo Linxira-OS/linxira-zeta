@@ -66,9 +66,9 @@ Current runtime behavior:
 
 - `name` defaults to the skill directory name
 - `description` is required for:
-  - native `.zeta` provider skill discovery (`requireDescription: true`)
-  - `omp-plugins` extension-package skills and the `github` provider (`.github/skills/`), which also pass `requireDescription: true`
-  - `skills.customDirectories` scans via `scanSkillsFromDir` in `src/discovery/helpers.ts` (non-recursive)
+   - native `.omp` provider skill discovery (`requireDescription: true`)
+   - `omp-plugins` extension-package skills and the `github` provider (`.github/skills/`), which also pass `requireDescription: true`
+   - `skills.customDirectories` scans via `scanSkillsFromDir` in `src/discovery/helpers.ts` (non-recursive)
 - the claude/codex/agents/opencode/claude-plugins providers can load skills without description
 - `agent-plugins` validates required `name` and `description` against the Agent Skills specification
 
@@ -78,7 +78,7 @@ Current runtime behavior:
 
 1. **Capability providers** via `loadCapability("skills")` (the managed/auto-learn provider's skills are skipped here and handled in pass 3)
 2. **Custom directories** via `scanSkillsFromDir(..., { requireDescription: true })` (one-level directory enumeration). A custom-directory skill overrides a same-named default provider skill; the displaced provider skill stays reachable under its namespaced name unless its body is identical.
-3. **Managed (auto-learn) skills** (`zeta-managed` provider) resolved dead-last, so any same-named enabled authored skill from a provider or custom directory takes precedence
+3. **Managed (auto-learn) skills** (`omp-managed` provider) resolved dead-last, so any same-named enabled authored skill from a provider or custom directory takes precedence
 
 If `skills.enabled` is `false`, discovery returns no skills.
 
@@ -88,9 +88,9 @@ Provider ordering is priority-first (higher wins), then registration order for t
 
 Current registered skill providers:
 
-1. `native` (priority 100) — `.zeta` user/project skills via `src/discovery/builtin.ts`
-2. `skillshare` (priority 95) — packages pinned in project `.zeta/skills.lock.json` or the user agent directory's `skills.lock.json`, loaded from the Skillshare store; authored skills still outrank these on name collisions
-3. `omp-plugins` (priority 90) — `skills/` bundled next to extension packages loaded through `extensions:`, `--extension`/`-e`, or installed plugins under `~/.zeta/plugins/node_modules`
+1. `native` (priority 100) — `.omp` user/project skills via `src/discovery/builtin.ts`
+2. `skillshare` (priority 95) — packages pinned in project `.omp/skills.lock.json` or the user agent directory's `skills.lock.json`, loaded from the Skillshare store; authored skills still outrank these on name collisions
+3. `omp-plugins` (priority 90) — `skills/` bundled next to extension packages loaded through `extensions:`, `--extension`/`-e`, or installed plugins under `~/.omp/plugins/node_modules`
 4. `claude` (priority 80)
 5. `agent-plugins` (priority 75) — portable packages with a standard root `plugin.json`; conventional plugin providers defer their skills/MCP discovery to this provider
 6. priority 70 group (in registration order):
@@ -99,8 +99,7 @@ Current registered skill providers:
    - `codex`
 7. `opencode` (priority 55)
 8. `github` (priority 30) — `.github/skills/<name>/SKILL.md` (GitHub Agent Skills layout, project-only)
-9. `zeta-official` (priority 10) — the bundled office pack; it serves only names the user skills directory does not already carry, and any authored skill of the same name still wins (see "Bundled official skills")
-10. `zeta-managed` (priority 5) — auto-learn skills under `~/.zeta/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
+9. `omp-managed` (priority 5) — auto-learn skills under `~/.omp/agent/managed-skills`, registered in `src/discovery/builtin.ts` and discovered unconditionally (only writing/nudging is gated by `autolearn.enabled`); always defers to a same-named authored skill
 
 Capability dedup key is skill name; the first item with a given name wins in the deduped `items` view. `loadSkills()` resolves same-name collisions itself (see "Collision and duplicate handling").
 
@@ -120,77 +119,20 @@ Filter order is:
 3. not ignored
 4. included (if include list present)
 
-The `agents` provider (`.agent[s]/skills`) has its own `enableAgentsUser`/`enableAgentsProject` toggles — disabling Claude/Codex/Pi does **not** turn it off. Foreign user-level providers are opt-in through `enabledProviders`; their project roots still load by default. Native OMP sources and marketplace plugins registered under `~/.zeta/plugins` also load by default. For `claude-plugins`, the opt-in controls only plugins from Claude Code's own user registry.
+The `agents` provider (`.agent[s]/skills`) has its own `enableAgentsUser`/`enableAgentsProject` toggles — disabling Claude/Codex/Pi does **not** turn it off. Foreign user-level providers are opt-in through `enabledProviders`; their project roots still load by default. Native OMP sources and marketplace plugins registered under `~/.omp/plugins` also load by default. For `claude-plugins`, the opt-in controls only plugins from Claude Code's own user registry.
 
 ### Collision and duplicate handling
 
 - Capability dedup keeps the first skill per name (highest-precedence provider) for the deduped `items` view; `loadSkills()` works from the pre-dedup superset so lower-precedence copies can still be examined.
 - `extensibility/skills.ts` then:
-  - de-duplicates identical files by `realpath` (symlink-safe)
-  - drops a later same-named skill silently when its body is identical and its parsed frontmatter is deeply equal to a loaded one (the same skill installed twice, e.g. a plugin copy mirrored into `~/.agents/skills`). When the incoming skill outranks the bare holder (below), the identical copies it supersedes (the bare holder and any namespaced aliases) are dropped instead, so an override never re-admits its own duplicate
-  - when same-named skills differ, the higher-precedence skill keeps the bare name and every other variant receives a `<namespace>/<name>` suffix, with collision warnings naming the paths. Precedence: an authored skill outranks a registry-installed package (the `skillshare` provider, `zetacode skill install`); a custom-directory skill outranks a provider skill (#7190); otherwise whichever was admitted first — provider-priority order for providers, array order within `skills.customDirectories` for custom directories — keeps the bare name. The namespace is the plugin identity from provider metadata when the provider tracks one (every registry-backed provider supplies one: `claude-plugins` and `agent-plugins` use the plugin name, `omp-plugins` the extension package name, `skillshare` the package name — so an installed plugin namespaces by its own name rather than its cache path's version segment, and the namespace survives plugin updates); otherwise the directory owning the skill's `skills/` tree, or the skill root's directory name, falling back to the provider id for dotted homes such as `~/.claude/skills`. A namespaced slot that is itself already taken by a differing skill gets a `~2`, `~3`, … suffix; no differing skill is dropped without a warning.
-  - rejects a raw frontmatter `name` containing `/` or `\` (with a warning) for every provider and custom directory: the separator is reserved for the namespaced form and for `skill://<name>/<path>` resolution, so a raw name cannot claim a namespaced address
-  - keeps the convenience `loadSkillsFromDir({ dir, source })` API as a thin adapter over `scanSkillsFromDir`
+   - de-duplicates identical files by `realpath` (symlink-safe)
+   - drops a later same-named skill silently when its body is identical and its parsed frontmatter is deeply equal to a loaded one (the same skill installed twice, e.g. a plugin copy mirrored into `~/.agents/skills`). When the incoming skill outranks the bare holder (below), the identical copies it supersedes (the bare holder and any namespaced aliases) are dropped instead, so an override never re-admits its own duplicate
+   - when same-named skills differ, the higher-precedence skill keeps the bare name and every other variant receives a `<namespace>/<name>` suffix, with collision warnings naming the paths. Precedence: an authored skill outranks a registry-installed package (the `skillshare` provider, `omp skill install`); a custom-directory skill outranks a provider skill (#7190); otherwise whichever was admitted first — provider-priority order for providers, array order within `skills.customDirectories` for custom directories — keeps the bare name. The namespace is the plugin identity from provider metadata when the provider tracks one (every registry-backed provider supplies one: `claude-plugins` and `agent-plugins` use the plugin name, `omp-plugins` the extension package name, `skillshare` the package name — so an installed plugin namespaces by its own name rather than its cache path's version segment, and the namespace survives plugin updates); otherwise the directory owning the skill's `skills/` tree, or the skill root's directory name, falling back to the provider id for dotted homes such as `~/.claude/skills`. A namespaced slot that is itself already taken by a differing skill gets a `~2`, `~3`, … suffix; no differing skill is dropped without a warning.
+   - rejects a raw frontmatter `name` containing `/` or `\` (with a warning) for every provider and custom directory: the separator is reserved for the namespaced form and for `skill://<name>/<path>` resolution, so a raw name cannot claim a namespaced address
+   - keeps the convenience `loadSkillsFromDir({ dir, source })` API as a thin adapter over `scanSkillsFromDir`
 - Namespaced skills resolve through `skill://<namespace>/<name>[/<path>]` and the `/skill:<namespace>/<name>` token, both leading and mid-prompt (a mid-prompt token accepts exactly one `/`; deeper paths are left as prose). Because skill names never contain `/`, an exact `<host>/<first segment>` match is unambiguous and takes precedence over reading that segment as a path relative to a bare skill of the same name as the namespace.
 - Custom-directory skills are merged after provider skills and outrank a same-named default-path provider skill regardless of admission order (#7190): the custom-directory skill keeps the bare name, and the provider skill is re-admitted under its namespaced name (suffixed if that slot is taken) when it differs or dropped when it is identical. Among two custom directories, the first one in `skills.customDirectories` keeps the bare name and the other is namespaced.
 - `disabledExtensions` (`skill:<name>`) and `skills.ignoredSkills` are applied to both the raw and the final name, so a namespaced alias cannot bypass an exclusion. `skills.includeSkills` is applied to the final listing only, after every name is resolved, so `second/*` selects a namespaced skill even though the bare skill it collided with is not itself included.
-
-## Bundled official skills, installed into your skills directory
-
-The first-party skills (`docx`, `xlsx`, `pptx`, `pdf`, `grill-me`) ship with Zeta as a **bundled pack**: `skills/official/` in a source checkout, burned into release binaries at build time (`scripts/generate-official-skills-payload.ts` → `ZETA_OFFICIAL_SKILLS_EMBED`).
-
-`grill-me` interviews you about an under-specified plan one question at a time,
-each with a recommended answer, and explores the code instead of asking what the
-repository can answer. Load it with `/skill:grill-me` before entering plan mode;
-plan mode's ultra workflow applies the same interview rule on its own.
-
-The pack is installed into **your own skills directory**, so the skills are ordinary files you can read, edit, and put under version control:
-
-```text
-~/.zeta/agent/skills/
-  ├─ docx/SKILL.md      ← yours now: edit freely
-  ├─ xlsx/SKILL.md
-  ├─ pptx/SKILL.md
-  ├─ pdf/SKILL.md
-  ├─ grill-me/SKILL.md      ← interview-before-planning (one question at a time)
-  └─ .official-skills.json   ← install marker (which pack version seeded what)
-```
-
-- The install runs automatically on the first session startup after an upgrade (`createAgentSession`), and on demand with `zetacode skill install-official` (`--dry-run`, `--json`).
-- The install writes the pack only where the name is free, and records a content hash per file in `.official-skills.json`.
-  - a file you **edited** is never overwritten — it is reported instead (`kept`);
-  - a file you **deleted** stays deleted on the automatic path; `zetacode skill install-official` restores it;
-  - a file the pack **changed** and you left untouched is upgraded in place;
-  - a skill **new** in the pack is added.
-  - the whole pass is skipped when the recorded pack hash matches, so a settled install costs one small JSON read per startup.
-- The `zeta-official` provider stays registered as the **fallback**: it serves only names your skills directory does not already carry, so a name is never provisioned twice and an edited copy never appears again as `zeta-official/<name>`. A skill you author yourself under one of those names shadows the pack's copy the same way.
-
-### Rolling back to the system-side pack
-
-```text
-zetacode skill install-official --uninstall
-```
-
-removes the files the installer added, leaves anything you edited in place, and records an opt-out in `.official-skills.json` so startup stops re-installing them. The `zeta-official` provider then serves `docx`/`xlsx`/`pptx`/`pdf` from the bundled pack again (as read-only, system-side skills). `zetacode skill install-official` is the way back; deleting the whole `~/.zeta/agent/skills/` directory (marker included) is equivalent to a fresh, never-installed state and the pack is installed again on the next startup.
-
-To turn the pack off entirely, set `skills.enableOfficial` to `false` (this also skips the install).
-
-## Extra skills from npm
-
-Zeta ships the bundled official pack (above) and no skill registry. Extra
-skills are distributed as the npm package `@linxiraos/linxira-skills`:
-
-```text
-npm i -g @linxiraos/linxira-skills
-linxira-skills --help
-```
-
-Install what you need with that CLI or copy the skill directories into
-`~/.zeta/agent/skills/`; the `native` provider discovers them like any authored
-skill. The `zetacode skill …` and `/skills …` commands talk to a Skillshare
-registry, and no registry ships by default: set `skills.registryUrl` to your own
-registry (or pass `--registry <url>`) to use them. With neither configured they
-print the npm-package guidance instead of attempting a network call.
 
 ## Runtime usage behavior
 
@@ -199,10 +141,10 @@ print the npm-package guidance instead of attempting a network call.
 System prompt construction (`src/system-prompt.ts`) uses discovered skills as follows:
 
 - if an active tool declares `readsSkillUris: true`:
-  - include the discovered skills list, excluding hidden skills
-  - mounted `xd://` tools count when their capability metadata is projected
+   - include the discovered skills list, excluding hidden skills
+   - mounted `xd://` tools count when their capability metadata is projected
 - otherwise:
-  - omit the discovered list
+   - omit the discovered list
 
 When no tool metadata is supplied, the prompt builder uses the presence of `read` as a compatibility fallback.
 
@@ -223,8 +165,8 @@ If `skills.enableSkillCommands` is true, interactive mode registers one slash co
 - strips frontmatter
 - wraps the body with skill name, base directory, and optional user arguments, then injects it as a custom message
 - delivery mode follows the **submission keybinding**:
-  - **Enter** → invokes the skill on the `steer` queue while streaming (matches free-text Enter, which also steers), or as a normal idle prompt when the agent is not streaming
-  - **Ctrl+Q / Ctrl+Enter** (default `app.message.followUp` bindings) → invokes the skill on the `followUp` queue while streaming, or as a normal idle prompt when the agent is not streaming
+   - **Enter** → invokes the skill on the `steer` queue while streaming (matches free-text Enter, which also steers), or as a normal idle prompt when the agent is not streaming
+   - **Ctrl+Q / Ctrl+Enter** (default `app.message.followUp` bindings) → invokes the skill on the `followUp` queue while streaming, or as a normal idle prompt when the agent is not streaming
 
 There is no flag, mode-selector, or frontmatter knob to override delivery mode — the keybinding _is_ the choice, identical to free-text routing during streaming. Both submission paths dispatch through `#invokeSkillCommand` in `input-controller.ts`, which delegates to `invokeSkillCommandFromText` in `src/modes/skill-command.ts`.
 

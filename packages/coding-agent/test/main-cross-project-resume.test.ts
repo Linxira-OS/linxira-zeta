@@ -15,6 +15,7 @@ import { type Args, parseArgs } from "@linxiraos/zeta/cli/args";
 import * as modelResolverModule from "@linxiraos/zeta/config/model-resolver";
 import { Settings } from "@linxiraos/zeta/config/settings";
 import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { createSessionManager, runRootCommand } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import type { SessionHeader } from "@linxiraos/zeta/session/session-entries";
@@ -44,11 +45,13 @@ function restoreEnv(key: string, value: string | undefined): void {
 }
 
 beforeEach(async () => {
-	agentDirRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-xproj-agent-dir-"));
+	agentDirRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-xproj-agent-dir-"));
 	setAgentDir(path.join(agentDirRoot, "agent"));
 });
 
 afterEach(async () => {
+	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+	clearOmpExtensionCliRoots();
 	restoreEnv("ZETA_CODING_AGENT_DIR", originalAgentDir);
 	restoreEnv("PI_PROFILE", originalPiProfile);
 	restoreEnv("OMP_PROFILE", originalOmpProfile);
@@ -94,7 +97,7 @@ describe("createSessionManager — cross-project --resume", () => {
 	let existingProject: string;
 
 	beforeEach(async () => {
-		existingProject = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-xproj-"));
+		existingProject = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-xproj-"));
 		const match = buildGlobalMatch(existingProject);
 		await Bun.write(
 			match.session.path,
@@ -132,7 +135,7 @@ describe("createSessionManager — cross-project --resume", () => {
 
 describe("SessionManager.open — recorded cwd adoption", () => {
 	it("keeps the launch cwd when the recorded cwd cannot be probed", async () => {
-		const root = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-xproj-denied-"));
+		const root = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-xproj-denied-"));
 		const launchProject = path.join(root, "launch");
 		const deniedProject = path.join(root, "denied");
 		await fsp.mkdir(launchProject);
@@ -175,7 +178,7 @@ describe("SessionManager.open — recorded cwd adoption", () => {
 	});
 
 	it("keeps the launch cwd when the recorded cwd denies search permission", async () => {
-		const root = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-xproj-noexec-"));
+		const root = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-xproj-noexec-"));
 		const launchProject = path.join(root, "launch");
 		const deniedProject = path.join(root, "denied");
 		await fsp.mkdir(launchProject);
@@ -222,7 +225,7 @@ describe("runRootCommand — cross-project --resume", () => {
 
 	beforeEach(async () => {
 		originalProject = getProjectDir();
-		root = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-xproj-root-"));
+		root = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-xproj-root-"));
 		launchProject = path.join(root, "launch");
 		resumedProject = path.join(root, "resumed");
 		await Promise.all([fsp.mkdir(launchProject), fsp.mkdir(resumedProject)]);
@@ -448,7 +451,7 @@ describe("createSessionManager — cross-project --resume relocation (moved work
 	let missingProject: string;
 
 	beforeEach(async () => {
-		missingRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "zeta-moved-xproj-"));
+		missingRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "omp-moved-xproj-"));
 		missingProject = path.join(missingRoot, "worktree-gone");
 	});
 

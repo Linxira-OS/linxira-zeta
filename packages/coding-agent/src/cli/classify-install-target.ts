@@ -36,7 +36,7 @@ const LOOKS_LIKE_VERSION = /^[\d~^>=<]/;
  * the shell or the caller for expansion — we only classify them so they reach
  * the link path instead of npm-name validation.
  */
-function isLocalPathSpec(spec: string): boolean {
+export function isLocalPathSpec(spec: string): boolean {
 	if (spec === "." || spec === ".." || spec === "~") return true;
 	if (spec.startsWith("./") || spec.startsWith("../")) return true;
 	if (spec.startsWith(".\\") || spec.startsWith("..\\")) return true;

@@ -9,17 +9,15 @@ import { NO_AUTH_SENTINEL } from "@linxiraos/pi-ai/auth-retry";
 import {
 	applyClaudeToolPrefix,
 	buildAnthropicClientOptions,
-	buildAnthropicHeaders,
 	claudeCodeSystemInstruction,
 	claudeToolPrefix,
 	deriveClaudeDeviceId,
 	generateClaudeCloakingUserId,
 	isClaudeCloakingUserId,
-	mapStainlessArch,
-	mapStainlessOs,
 	streamAnthropic,
 	stripClaudeToolPrefix,
 } from "@linxiraos/pi-ai/providers/anthropic";
+import { buildAnthropicHeaders, mapStainlessArch, mapStainlessOs } from "@linxiraos/pi-ai/providers/anthropic-headers";
 import type { MessageCreateParams } from "@linxiraos/pi-ai/providers/anthropic-wire";
 import { getClaudeCodeVersion } from "@linxiraos/pi-ai/providers/claude-code-fingerprint";
 import { getEnvApiKey } from "@linxiraos/pi-ai/env-api-key";

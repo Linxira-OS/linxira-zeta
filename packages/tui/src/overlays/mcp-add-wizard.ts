@@ -809,7 +809,7 @@ export class MCPAddWizard extends OverlayPanel {
 	#renderTransportStep(): void {
 		this.#choiceStep({
 			title: "How does omp reach it?",
-			lead: `Pick how ${this.#state.name} talks to omp.`,
+			lead: `Pick how ${this.#state.name} talks to Zeta.`,
 			choices: TRANSPORTS.map(transport => ({ ...TRANSPORT_CHOICES[transport], tag: transport })),
 			escape: "go back",
 		});

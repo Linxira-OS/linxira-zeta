@@ -17,7 +17,8 @@ import {
 } from "../../coding-agent/src/tools/browser/relay/protocol";
 import { ownedDebuggerTabs } from "./debugger-ownership";
 
-const DEFAULT_PORT = 9224;
+/** Must match `ZETA_BROWSER_RELAY_PORT`; options.js is shipped as plain JS. */
+const DEFAULT_PORT = 43153;
 const PING_INTERVAL_MS = 20_000;
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 10_000;

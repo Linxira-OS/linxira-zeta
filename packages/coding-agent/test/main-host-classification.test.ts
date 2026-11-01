@@ -1,9 +1,15 @@
-import { expect, it } from "bun:test";
+import { afterEach, expect, it } from "bun:test";
 import { discoverAuthStorage } from "@linxiraos/zeta/sdk";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { resetSettingsForTest } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { getDbBusyTimeoutMs, setInteractiveHost, TempDir } from "@linxiraos/pi-utils";
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 it("classifies an interactive host before opening auth storage", async () => {
 	const previous = setInteractiveHost(false);

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { buildAnthropicClientOptions, resolveAnthropicPrewarmTarget } from "@linxiraos/pi-ai/providers/anthropic";
+import { buildAnthropicClientOptions } from "@linxiraos/pi-ai/providers/anthropic";
+import { resolveAnthropicPrewarmTarget } from "@linxiraos/pi-ai/providers/anthropic-http-options";
 import {
 	prewarmModelConnection,
 	resetConnectionPrewarmForTesting,

@@ -10,6 +10,7 @@ import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
 import { resetSettingsForTest, Settings } from "@linxiraos/zeta/config/settings";
 import * as pluginHelpers from "@linxiraos/zeta/discovery/helpers";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { Composer, type ComposerPreferences } from "@linxiraos/pi-tui/prompt/composer";
 import * as composerCache from "@linxiraos/pi-tui/prompt/composer-cache";
@@ -94,6 +95,11 @@ class InputTrackingTerminal extends CountingTerminal {
 		this.inputEnables += 1;
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("outer startup collaboration gate", () => {
 	it.each(["completes", "fails"] as const)("keeps guest mutations gated until outer startup %s", async result => {

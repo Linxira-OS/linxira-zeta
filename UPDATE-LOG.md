@@ -2,6 +2,14 @@
 
 ## 下一版本（Unreleased）
 
+### 1.4.7
+- **上游同步 OMP v18.14.0**：完整 tag 合并（511 commits、1450 files）；带入 native Chrome WebMCP、自定义 tool-loader 签名、精确 provider-qualified model selector、手动 compaction 事件、Tern 终端代码与 Bun 1.4.4 代码路径。Zeta 保留离线 HTML exporter，不接 hosted viewer。
+- **PTC 编排指引**：main agent 的 system prompt 增加 code-first tool orchestration 指引；subagent 不接收。
+- **TUI Git 侧栏**：右侧 gutter 增加 branch、ahead/behind、staged/unstaged/untracked 与最近 5 个 commit；异步刷新并合并请求，render 路径不做 Git IO。
+- **Creator 插件工具**：新增 main-agent-only `plugin_manager` / `plugin_inspect`；支持列出、安装、卸载、启停与检查插件，subagent 不可见且有执行期守卫。
+- **浏览器 relay**：Zeta 独立端口改为 43153，扩展名称/安装路径与 manifest 品牌修正；不再和 OMP 共用端口。
+- **发布/CI**：Gitea 本地 CI 的依赖安装、cmake 与 Bazel cache 修复保留在 `fix/gitea-flow-1`，不进入本 release；发布仍以 GitHub `origin` 为准。
+
 ### 1.4.6
 - **思源笔记接入**：新增 `siyuan://` 内部 URL，可列笔记本/文档、读 Markdown、大纲、搜索与追加；设置位于 Tools → SiYuan，支持 API 地址与 token，开启但未配置 token 时会提示。
 - **画板场景**：新增 `canvas` 工具，在仓库根 `.canvas/` 下管理 Obsidian `.canvas` 与 Excalidraw `.excalidraw`（list/create/write/outline）；`read <file>:img` 可渲染终端预览，`vault://…?op=canvas` 可生成大纲。`canvas.enabled` 默认关闭，查看/编辑仍由 Obsidian 或 Excalidraw 客户端负责。

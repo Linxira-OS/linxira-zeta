@@ -27,10 +27,8 @@ import * as ai from "@linxiraos/pi-ai";
 import { NO_AUTH_SENTINEL } from "@linxiraos/pi-ai/auth-retry";
 import * as AIError from "@linxiraos/pi-ai/error";
 import { clearAwsCredentialCache } from "@linxiraos/pi-ai/providers/aws-credentials";
-import {
-	buildTransformedCodexRequestBody,
-	getOpenAICodexTransportDetails,
-} from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { buildTransformedCodexRequestBody } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { getOpenAICodexTransportDetails } from "@linxiraos/pi-ai/providers/openai-codex-state";
 import type {
 	AssistantMessage,
 	CodexCompactionContext,

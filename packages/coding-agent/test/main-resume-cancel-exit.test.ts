@@ -10,13 +10,14 @@
  * exits; the in-session `/resume` picker (selector-controller.ts) keeps its own
  * onCancel that just closes the overlay.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { TempDir } from "@linxiraos/pi-utils";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { TempDir } from "@linxiraos/pi-utils";
 
 class ProcessExitSignal extends Error {
 	constructor(readonly code: number) {
@@ -24,6 +25,11 @@ class ProcessExitSignal extends Error {
 		this.name = "ProcessExitSignal";
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("runRootCommand — startup --resume picker cancellation", () => {
 	it("exits cleanly (process.exit 0) when the picker is cancelled instead of returning and hanging", async () => {

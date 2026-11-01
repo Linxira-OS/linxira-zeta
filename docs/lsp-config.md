@@ -1,56 +1,44 @@
-# LSP configuration in ZETA
+# LSP configuration in OMP
 
-This guide explains how to configure language servers for the ZETA coding agent.
+This guide explains how to configure language servers for the OMP coding agent.
 
 Source of truth in code:
 
 - Server config type: `packages/coding-agent/src/lsp/types.ts` (`ServerConfig`)
 - Config loader: `packages/coding-agent/src/lsp/config.ts`
-- Built-in server definitions: `lsp/servers.json` (canonical; generated into
-  `packages/coding-agent/src/lsp/servers.generated.ts` and
-  `termide/crates/config/src/lsp_servers_generated.rs`)
+- Built-in server definitions: `packages/coding-agent/src/lsp/defaults.json`
 
 ## Auto-detection
 
-ZETA starts from the built-in server definitions, applies config overrides, then keeps enabled servers that meet both conditions:
+OMP starts from the built-in server definitions, applies config overrides, then keeps enabled servers that meet both conditions:
 
-1. The project directory contains at least one of the server's `rootMarkers`.
-2. At least one command in the server's candidate chain is available — checked in
-   project-local bin directories first (e.g., `node_modules/.bin/`,
-   `.venv/bin/`), then `$PATH`. Without a `candidates` list, `command` is the
-   only candidate.
+1. The current working directory contains at least one of the server's `rootMarkers`.
+2. The server binary is available — checked in supported project-local bin directories first (for example `node_modules/.bin/`, Python virtual environments, Ruby binstubs, and project `bin/` for Go), then `$PATH`.
 
-No configuration is required for common setups. The built-in server list covers most popular languages; see [`lsp/servers.json`](../lsp/servers.json) for the full set.
+Root-marker detection at startup is cwd-only; it does not search parent directories. Wildcard markers such as `*.cabal` match entries directly inside the cwd and do not recurse. No configuration is required for common setups; see [`defaults.json`](../packages/coding-agent/src/lsp/defaults.json) for the full built-in set.
 
 ## Config file locations
 
-ZETA merges LSP config from multiple sources, lowest to highest precedence:
+OMP merges LSP config from multiple sources, lowest to highest precedence:
 
 | Precedence | Location                                                                                                     |
 | ---------: | ------------------------------------------------------------------------------------------------------------ |
-|     Lowest | `~/.zeta/lsp.json` (shared user override, also read by termide)                                              |
-|            | `~/lsp.json`, `~/.lsp.json`, `~/lsp.yaml`, `~/.lsp.yaml`, `~/lsp.yml`, `~/.lsp.yml`                          |
+|     Lowest | `~/lsp.json`, `~/.lsp.json`, `~/lsp.yaml`, `~/.lsp.yaml`, `~/lsp.yml`, `~/.lsp.yml`                          |
 |            | Plugin LSP configs (marketplace / `--plugin-dir` roots)                                                      |
 |            | User config dirs: active native agent directory, then `~/.claude/lsp.*`, `~/.codex/lsp.*`, `~/.gemini/lsp.*` |
-|            | Cwd config dirs: `<cwd>/.zeta/lsp.*`, `<cwd>/.claude/lsp.*`, `<cwd>/.codex/lsp.*`, `<cwd>/.gemini/lsp.*`      |
+|            | Cwd config dirs: `<cwd>/.omp/lsp.*`, `<cwd>/.claude/lsp.*`, `<cwd>/.codex/lsp.*`, `<cwd>/.gemini/lsp.*`      |
 |    Highest | Cwd root: `<cwd>/lsp.*` and `<cwd>/.lsp.*`                                                                   |
 
 Within each config-directory row, directories are listed highest to lowest priority. Each location accepts `.json`, `.yaml`, and `.yml`, including hidden variants. When multiple variants coexist in one location, precedence from highest to lowest is `lsp.json`, `.lsp.json`, `lsp.yaml`, `.lsp.yaml`, `lsp.yml`, `.lsp.yml`. All readable variants are merged; this is not a first-file-only search.
 
-`~/.zeta/lsp.json` is shared with termide: it uses the same `servers` schema and
-keys servers by name, and termide expands a server key to the language ids that
-entry serves (it also accepts its own language ids there). Precedence inside
-termide is `lsp/servers.json` < `~/.zeta/lsp.json` < `[lsp.servers.<lang>]` in
-`config.toml`.
-
 Merging is shallow per server: a higher-precedence server object overrides only its top-level fields, but object-valued fields such as `settings`, `initOptions`, `capabilities`, and `workspaceReadyTimings` replace the lower value as a whole rather than deep-merging it. Servers absent from override files remain at built-in defaults.
 
-The native user config directory follows `PI_CONFIG_DIR` and active profiles; `~/.zeta/agent/lsp.json` is the default-profile spelling. This shared config lookup does not use `ZETA_CODING_AGENT_DIR` as an arbitrary replacement base. Claude's user directory honors `CLAUDE_CONFIG_DIR`. Foreign user sources (Claude, Codex, Gemini) are opt-in through the enabled-provider configuration; setting `CLAUDE_CONFIG_DIR` also opts Claude in unless explicitly disabled. Project and cwd sources do not walk ancestors and are not subject to that user-source opt-in.
+The native user config directory follows `PI_CONFIG_DIR` and active profiles; `~/.omp/agent/lsp.json` is the default-profile spelling. This shared config lookup does not use `PI_CODING_AGENT_DIR` as an arbitrary replacement base. Claude's user directory honors `CLAUDE_CONFIG_DIR`. Foreign user sources (Claude, Codex, Gemini) are opt-in through the enabled-provider configuration; setting `CLAUDE_CONFIG_DIR` also opts Claude in unless explicitly disabled. Project and cwd sources do not walk ancestors and are not subject to that user-source opt-in.
 
 **Recommended locations:**
 
 - User-wide preferences → active native agent directory's `lsp.json`
-- Project-specific overrides → `<cwd>/.zeta/lsp.json`
+- Project-specific overrides → `<cwd>/.omp/lsp.json`
 
 > **Note:** There is no separate configured-server mode: built-in defaults, partial overrides, and new custom servers all pass through the same root-marker/binary/`disabled` filter. A config that only sets `idleTimeoutMs` leaves server selection unchanged.
 
@@ -87,71 +75,38 @@ Do not mix wrapped and flat server entries: when `servers` is an object, sibling
 
 ## ServerConfig fields
 
-| Field                   | Type       | Required for a new server | Description                                                                                              |
-| ----------------------- | ---------- | ------------------------: | -------------------------------------------------------------------------------------------------------- |
-| `command`               | `string`   |                       yes | Binary name (resolved through local bins / PATH) or absolute path                                        |
-| `args`                  | `string[]` |                        no | Arguments passed to the binary                                                                           |
-| `candidates`            | `object[]` |                        no | Ordered `{ command, args? }` alternatives; the first one that resolves is used (see [Candidate chains](#candidate-chains)) |
-| `fileTypes`             | `string[]` |                       yes | Extensions or basenames, for example `[".ts", ".tsx", "Dockerfile"]`; case-insensitive, with or without a leading dot |
-| `languageId`            | `string`   |                        no | LSP language id sent in `textDocument/didOpen`; inferred from the file path when omitted                 |
-| `rootMarkers`           | `string[]` |                       yes | Files/directories indicating a project root; one-level wildcard patterns such as `*.cabal` are supported |
-| `initOptions`           | `object`   |                        no | Sent as `initializationOptions` during the LSP handshake                                                 |
-| `settings`              | `object`   |                        no | Pushed via `workspace/didChangeConfiguration`                                                            |
-| `disabled`              | `boolean`  |                        no | Set `true` to disable this server                                                                        |
-| `warmupTimeoutMs`       | `number`   |                        no | Warmup initialize timeout in milliseconds (default 5000; built-in marksman uses 2000) |
+| Field                   | Type       | Required for a new server | Description                                                                                                                                              |
+| ----------------------- | ---------- | ------------------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `command`               | `string`   |                       yes | Binary name (resolved through local bins / PATH) or absolute path                                                                                        |
+| `args`                  | `string[]` |                        no | Arguments passed to the binary                                                                                                                           |
+| `fileTypes`             | `string[]` |                       yes | Extensions or basenames, for example `[".ts", ".tsx", "Dockerfile"]`; case-insensitive, with or without a leading dot                                    |
+| `languageId`            | `string`   |                        no | LSP language id sent in `textDocument/didOpen`; inferred from the file path when omitted                                                                 |
+| `rootMarkers`           | `string[]` |                       yes | Files/directories indicating a project root; one-level wildcard patterns such as `*.cabal` are supported                                                 |
+| `initOptions`           | `object`   |                        no | Sent as `initializationOptions` during the LSP handshake                                                                                                 |
+| `settings`              | `object`   |                        no | Pushed via `workspace/didChangeConfiguration`                                                                                                            |
+| `disabled`              | `boolean`  |                        no | Set `true` to disable this server                                                                                                                        |
+| `warmupTimeoutMs`       | `number`   |                        no | Warmup initialize timeout in milliseconds (default 5000; built-in marksman uses 2000)                                                                    |
 | `isLinter`              | `boolean`  |                        no | Marks a dedicated linter/formatter server: excluded from type-intelligence, but preferred over type-checkers when choosing the `formatOnWrite` formatter |
-| `capabilities`          | `object`   |                        no | Opt-in server-specific features; see [Capabilities](#capabilities)                                       |
-| `workspaceReadyTimings` | `object`   |                        no | Advanced rust-analyzer workspace-readiness timing overrides; see below                                   |
+| `capabilities`          | `object`   |                        no | Opt-in server-specific features; see [Capabilities](#capabilities)                                                                                       |
+| `workspaceReadyTimings` | `object`   |                        no | Advanced rust-analyzer workspace-readiness timing overrides; see below                                                                                   |
 
 The required fields may be omitted from an override of a built-in server because they are inherited before validation. A genuinely new server normally needs all three. `resolvedCommand` and `createClient` are runtime-owned fields and must not be configured.
-
-### Candidate chains
-
-A server may list several implementations, in preference order:
-
-```json
-{
-  "servers": {
-    "typescript": {
-      "command": "tsgo",
-      "args": ["--lsp", "--stdio"],
-      "candidates": [
-        { "command": "tsgo", "args": ["--lsp", "--stdio"] },
-        { "command": "typescript-language-server", "args": ["--stdio"] },
-        { "command": "tsc", "args": ["--lsp", "--stdio"] }
-      ]
-    }
-  }
-}
-```
-
-Selection walks the list and takes the first command that resolves (local bin
-directories, then `$PATH`); the status action reports the chosen command. If
-none resolves, the server is not started and the reason names every command that
-was tried. Setting `command` in an override without `candidates` replaces the
-builtin chain, so an explicitly configured command is not shadowed by an
-installed first alternative.
-
-The builtin TypeScript family uses `tsgo --lsp --stdio` first (TypeScript 7's
-native server), then `typescript-language-server --stdio`, then
-`tsc --lsp --stdio`. The Python entry uses `ty server`, then `pyrefly lsp`, then
-`pylsp`.
 
 For plugin-compatible definitions, `initializationOptions` is accepted when `initOptions` is not an object. `extensionToLanguage` can supply `fileTypes` from its keys and defaults missing `rootMarkers` to `["."]`; its values do not set per-extension language IDs. Marketplace entries can provide an inline `lspServers` map or a config-file path contained within the plugin root.
 
 ### Capabilities
 
-The `capabilities` object enables optional server-specific features that ZETA supports on a per-server basis:
+The `capabilities` object enables optional server-specific features that OMP supports on a per-server basis:
 
 ```json
 {
-  "capabilities": {
-    "flycheck": true,
-    "ssr": true,
-    "expandMacro": true,
-    "runnables": true,
-    "relatedTests": true
-  }
+	"capabilities": {
+		"flycheck": true,
+		"ssr": true,
+		"expandMacro": true,
+		"runnables": true,
+		"relatedTests": true
+	}
 }
 ```
 
@@ -163,16 +118,16 @@ All fields are boolean and optional. They are currently used by `rust-analyzer`.
 
 ```json
 {
-  "servers": {
-    "rust-analyzer": {
-      "workspaceReadyTimings": {
-        "timeoutMs": 30000,
-        "pollMs": 250,
-        "settleMs": 2000,
-        "statusRequestTimeoutMs": 2000
-      }
-    }
-  }
+	"servers": {
+		"rust-analyzer": {
+			"workspaceReadyTimings": {
+				"timeoutMs": 30000,
+				"pollMs": 250,
+				"settleMs": 2000,
+				"statusRequestTimeoutMs": 2000
+			}
+		}
+	}
 }
 ```
 
@@ -186,32 +141,32 @@ Partial overrides are merged onto the built-in defaults. You only need to specif
 
 ```json
 {
-  "servers": {
-    "typescript-language-server": {
-      "args": ["--stdio", "--log-level", "4"]
-    }
-  }
+	"servers": {
+		"typescript-language-server": {
+			"args": ["--stdio", "--log-level", "4"]
+		}
+	}
 }
 ```
 
 ```yaml
 servers:
-  gopls:
-    settings:
-      gopls:
-        gofumpt: false
-        staticcheck: false
+   gopls:
+      settings:
+         gopls:
+            gofumpt: false
+            staticcheck: false
 ```
 
 ### Disable a built-in server
 
 ```json
 {
-  "servers": {
-    "eslint": {
-      "disabled": true
-    }
-  }
+	"servers": {
+		"eslint": {
+			"disabled": true
+		}
+	}
 }
 ```
 
@@ -221,14 +176,14 @@ New native-format servers require non-empty `command`, `fileTypes`, and `rootMar
 
 ```json
 {
-  "servers": {
-    "my-lsp": {
-      "command": "my-lsp-server",
-      "args": ["--stdio"],
-      "fileTypes": [".xyz"],
-      "rootMarkers": [".xyz-project", ".git"]
-    }
-  }
+	"servers": {
+		"my-lsp": {
+			"command": "my-lsp-server",
+			"args": ["--stdio"],
+			"fileTypes": [".xyz"],
+			"rootMarkers": [".xyz-project", ".git"]
+		}
+	}
 }
 ```
 
@@ -238,29 +193,29 @@ Shut down language servers that have been inactive for more than five minutes:
 
 ```json
 {
-  "idleTimeoutMs": 300000
+	"idleTimeoutMs": 300000
 }
 ```
 
 ### Disable a server for one project, keep it globally
 
-Place the override in `<project>/.zeta/lsp.json`:
+Place the override in `<project>/.omp/lsp.json`:
 
 ```json
 {
-  "servers": {
-    "pylsp": {
-      "disabled": true
-    }
-  }
+	"servers": {
+		"pylsp": {
+			"disabled": true
+		}
+	}
 }
 ```
 
-The user-level config in `~/.zeta/agent/lsp.json` is unaffected; pylsp is only suppressed in this project.
+The user-level config in `~/.omp/agent/lsp.json` is unaffected; pylsp is only suppressed in this project.
 
 ## Built-in server list
 
-The following servers ship in `lsp/servers.json` and are eligible for auto-detection:
+The following servers ship in `defaults.json` and are eligible for auto-detection:
 
 | Server key                    | Language(s)                   | Binary                            |
 | ----------------------------- | ----------------------------- | --------------------------------- |
@@ -268,7 +223,8 @@ The following servers ship in `lsp/servers.json` and are eligible for auto-detec
 | `clangd`                      | C, C++, ObjC, CUDA            | `clangd`                          |
 | `zls`                         | Zig                           | `zls`                             |
 | `gopls`                       | Go                            | `gopls`                           |
-| `typescript`                  | TypeScript, JavaScript        | `tsgo --lsp --stdio`, else `typescript-language-server --stdio`, else `tsc --lsp --stdio` |
+| `typescript-language-server`  | TypeScript, JavaScript (≤ 6)  | `typescript-language-server`      |
+| `typescript-native`           | TypeScript, JavaScript (7+)   | `tsc --lsp --stdio`               |
 | `denols`                      | TypeScript, JavaScript (Deno) | `deno`                            |
 | `biome`                       | TS/JS/JSON/CSS (linter)       | `biome`                           |
 | `eslint`                      | TS/JS/Vue/Svelte (linter)     | `vscode-eslint-language-server`   |
@@ -319,4 +275,4 @@ The following servers ship in `lsp/servers.json` and are eligible for auto-detec
 | `swiftlint`                   | Swift (linter)                | `swiftlint`                       |
 | `tlaplus`                     | TLA+                          | `tlapm_lsp`                       |
 
-The TypeScript entry is one server with a candidate chain, so exactly one TypeScript server runs per project: `tsgo --lsp --stdio` when installed, otherwise `typescript-language-server --stdio`, otherwise `tsc --lsp --stdio`. `tsc --lsp` is only reached when neither of the other two is installed, so an older `tsc` that rejects the flag is never preferred over a working wrapper.
+Only one TypeScript server is kept per project: when the resolved `tsc` belongs to a TypeScript install without `lib/tsserver.js` (TypeScript 7+), `typescript-native` wins and `typescript-language-server` is dropped, since it cannot drive that install; otherwise `typescript-native` is dropped because older `tsc` rejects `--lsp`.

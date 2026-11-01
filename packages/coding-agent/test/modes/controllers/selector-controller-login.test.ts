@@ -26,6 +26,7 @@ beforeAll(async () => {
 describe("SelectorController login", () => {
 	it("awaits a provider-scoped online refresh, then presents OAuth success", async () => {
 		const loginSaved = Promise.withResolvers<void>();
+		const presented = Promise.withResolvers<void>();
 		const presentedBlocks: unknown[] = [];
 		const authStorage = {
 			oauth: {
@@ -57,6 +58,7 @@ describe("SelectorController login", () => {
 			showError: vi.fn(),
 			present: vi.fn((block: unknown) => {
 				presentedBlocks.push(block);
+				presented.resolve();
 			}),
 			openInBrowser: vi.fn(),
 		} as unknown as InteractiveModeContext;
@@ -64,9 +66,7 @@ describe("SelectorController login", () => {
 
 		void controller.showOAuthSelector("login", "xai-oauth");
 		await loginSaved.promise;
-		// Let the awaited refreshProvider settle before the success block is presented.
-		await Promise.resolve();
-		await Promise.resolve();
+		await presented.promise;
 
 		expect(renderPresented(presentedBlocks)).toContain("Successfully logged in to xai-oauth");
 		// Post-login refresh is scoped to the just-authenticated provider with the
@@ -87,13 +87,17 @@ describe("SelectorController login", () => {
 		const authStorage = { oauth: { login } } as unknown as AuthStorage;
 		const editorSlot: unknown[] = [];
 		const editor = {};
+		const dialogReady = Promise.withResolvers<void>();
 		const presentedBlocks: unknown[] = [];
 		const ctx = {
 			oauthManualInput: { waitForInput: vi.fn(), clear: vi.fn() },
 			session: { modelRegistry: { authStorage, refreshProvider: vi.fn(async () => {}) } },
 			editorContainer: {
 				clear: vi.fn(() => editorSlot.splice(0)),
-				addChild: vi.fn((child: unknown) => editorSlot.push(child)),
+				addChild: vi.fn((child: unknown) => {
+					editorSlot.push(child);
+					if (child !== editor) dialogReady.resolve();
+				}),
 				children: editorSlot,
 			},
 			editor,
@@ -108,6 +112,7 @@ describe("SelectorController login", () => {
 		const controller = new SelectorController(ctx);
 
 		const loginDone = controller.showOAuthSelector("login", "xai-oauth");
+		await dialogReady.promise;
 		const dialog = editorSlot[0] as { handleInput(data: string): void };
 		expect(dialog).toBeDefined();
 		expect(dialog).not.toBe(editor);

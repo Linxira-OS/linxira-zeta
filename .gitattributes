@@ -62,9 +62,10 @@ packages/*/CHANGELOG.md merge=union
 # Register with: git config merge.zeta-package.driver "bun scripts/merge-package-json.ts %A %O %B"
 package.json merge=zeta-package
 packages/*/package.json merge=zeta-package
-# Generated, minified catalog artifacts: regenerate instead of diffing/merging.
+# Minified JSON artifacts: regenerate instead of diffing/merging.
 packages/catalog/src/models.json binary
 packages/catalog/src/compat/rules.json binary
+packages/tui/src/theme/defaults.json binary
 
 # 4.7 KB wasm grammar the pi-ast tests load; stays out of LFS so plain
 # checkouts (CI included) get the real bytes.

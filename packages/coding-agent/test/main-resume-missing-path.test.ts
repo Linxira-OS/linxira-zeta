@@ -9,11 +9,12 @@
  * Asserted at the CLI boundary: exit status, the stderr line naming the path,
  * and that no session file is materialized for a missing path.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { createSessionManager, runRootCommand } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { TempDir } from "@linxiraos/pi-utils";
@@ -48,6 +49,11 @@ async function makeSessionFile(cwd: string, id: string): Promise<string> {
 	);
 	return file;
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("--resume <path> — missing path (#13928)", () => {
 	it("exits non-zero naming the path and does not create a session there", async () => {

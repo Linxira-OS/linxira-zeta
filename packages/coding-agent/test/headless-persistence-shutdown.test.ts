@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import { parseArgs, type Args } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import type { CreateAgentSessionResult } from "@linxiraos/zeta/sdk";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
@@ -32,6 +33,9 @@ const RAW_FATAL_DUMP_RE = /(?:^|\n)\s+at [^\n]*:\d+:\d+/;
 const tempDirs: TempDir[] = [];
 
 afterEach(async () => {
+	// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+	clearOmpExtensionCliRoots();
+
 	await Promise.all(tempDirs.splice(0).map(dir => dir.remove()));
 });
 

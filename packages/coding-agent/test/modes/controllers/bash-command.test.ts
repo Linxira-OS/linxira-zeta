@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import type { BashResult } from "@linxiraos/zeta/exec/bash-executor";
+import type { BashPtyOptions, BashResult } from "@linxiraos/zeta/exec/bash-executor";
 import { BashExecutionComponent } from "@linxiraos/pi-tui/chat/bash-execution";
 import { CommandController } from "@linxiraos/zeta/modes/controllers/command-controller";
 import { getThemeByName, setThemeInstance } from "@linxiraos/pi-tui/theme";
@@ -27,20 +27,26 @@ function createCwdContext(sourceDir: string, isStreaming = false, showImages = t
 		completedBtwVisible: true,
 		gateHeld: false,
 	};
-	const executeBash = vi.fn(async (command: string): Promise<BashResult> => {
-		state.executedCwds.push(state.cwd);
-		return {
-			output: command === "pwd" ? `${state.cwd}\n` : "ok",
-			exitCode: 0,
-			cancelled: false,
-			truncated: false,
-			totalLines: 1,
-			totalBytes: state.cwd.length,
-			outputLines: 1,
-			outputBytes: state.cwd.length,
-			workingDir: state.cwd,
-		};
-	});
+	const executeBash = vi.fn(
+		async (
+			command: string,
+			_onChunk?: (chunk: string) => void,
+			_options?: { pty?: BashPtyOptions },
+		): Promise<BashResult> => {
+			state.executedCwds.push(state.cwd);
+			return {
+				output: command === "pwd" ? `${state.cwd}\n` : "ok",
+				exitCode: 0,
+				cancelled: false,
+				truncated: false,
+				totalLines: 1,
+				totalBytes: state.cwd.length,
+				outputLines: 1,
+				outputBytes: state.cwd.length,
+				workingDir: state.cwd,
+			};
+		},
+	);
 	const pendingMessagesContainer = createContainer();
 	const present = vi.fn();
 	const ctx = {
@@ -102,7 +108,7 @@ describe("bash shortcut command", () => {
 	});
 
 	it("persists standalone and bare cd before the next user-shell command", async () => {
-		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cd-source-"));
+		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cd-source-"));
 		const childDir = path.join(sourceDir, "child");
 		await fs.mkdir(childDir);
 		try {
@@ -156,6 +162,7 @@ describe("bash shortcut command", () => {
 					cols: expect.any(Number),
 					rows: expect.any(Number),
 					onChunk: expect.any(Function),
+					onStdin: expect.any(Function),
 				},
 			});
 			expect(executeBash).toHaveBeenNthCalledWith(2, "cd", expect.any(Function), {
@@ -165,6 +172,7 @@ describe("bash shortcut command", () => {
 					cols: expect.any(Number),
 					rows: expect.any(Number),
 					onChunk: expect.any(Function),
+					onStdin: expect.any(Function),
 				},
 			});
 			expect(ctx.applyCwdChange).toHaveBeenNthCalledWith(1, childDir);
@@ -178,7 +186,7 @@ describe("bash shortcut command", () => {
 	});
 
 	it("does not adopt cwd from a non-cd bash command", async () => {
-		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cwd-sync-"));
+		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cwd-sync-"));
 		const childDir = path.join(sourceDir, "child");
 		await fs.mkdir(childDir);
 		try {
@@ -216,7 +224,7 @@ describe("bash shortcut command", () => {
 	});
 
 	it("rejects simple cd while streaming before queuing a bash block", async () => {
-		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cd-streaming-"));
+		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cd-streaming-"));
 		try {
 			const { ctx, executeBash, pendingMessagesContainer, present, state } = createCwdContext(sourceDir, true);
 			const controller = new CommandController(ctx);
@@ -235,7 +243,7 @@ describe("bash shortcut command", () => {
 	});
 
 	it("does not adopt cwd or warn for a non-cd command while streaming", async () => {
-		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cwd-deferred-"));
+		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cwd-deferred-"));
 		const childDir = path.join(sourceDir, "child");
 		await fs.mkdir(childDir);
 		try {
@@ -298,8 +306,89 @@ describe("bash shortcut command", () => {
 		expect(Bun.stripANSI(bashComponent.render(80).join("\n"))).toContain("[Image: [image/png] 1x1]");
 	});
 
+	it("forwards composer keystrokes to a running PTY command until it exits (#17210)", async () => {
+		const { ctx, executeBash } = createCwdContext("/tmp");
+		type Listener = (data: string) => { consume?: boolean } | undefined;
+		let listeners = new Set<Listener>();
+		let globalExpansions = 0;
+		listeners.add(data => {
+			if (data !== "\x0f") return undefined;
+			globalExpansions++;
+			return { consume: true };
+		});
+		const editor = { nativeKeyPassthrough: false };
+		let focused: unknown = editor;
+		Object.assign(ctx, {
+			editor,
+			keybindings: { matches: (data: string, id: string) => id === "app.interrupt" && data === "\x1b" },
+			ui: {
+				requestRender: vi.fn(),
+				requestComponentRender: vi.fn(),
+				getFocused: () => focused,
+				addInputListener: (listener: Listener, options?: { prepend?: boolean }) => {
+					if (options?.prepend) listeners = new Set([listener, ...listeners]);
+					else listeners.add(listener);
+					return () => listeners.delete(listener);
+				},
+			},
+		});
+		const press = (data: string) => [...listeners].some(listener => listener(data)?.consume === true);
+		const written: string[] = [];
+		const pressed: Record<string, boolean> = {};
+		let onStdin: BashPtyOptions["onStdin"];
+		executeBash.mockImplementationOnce(async (_command, _onChunk, options) => {
+			onStdin = options?.pty?.onStdin;
+			onStdin?.(data => written.push(data));
+			expect(editor.nativeKeyPassthrough).toBe(true);
+			// The command is blocked on `read` while the user types in the composer.
+			pressed.answer = press("y");
+			pressed.nanoWrite = press("\x0f");
+			pressed.enter = press("\r");
+			pressed.escape = press("\x1b");
+			pressed.mouse = press("\x1b[<0;10;5M");
+			focused = {}; // a dialog took focus
+			pressed.dialog = press("n");
+			focused = editor;
+			return {
+				output: "ANSWER=y",
+				exitCode: 0,
+				cancelled: false,
+				truncated: false,
+				totalLines: 1,
+				totalBytes: 8,
+				outputLines: 1,
+				outputBytes: 8,
+			};
+		});
+		const controller = new CommandController(ctx);
+
+		await controller.handleBashCommand("read -k 1 answer");
+		expect(editor.nativeKeyPassthrough).toBe(false);
+
+		expect(written).toEqual(["y", "\x0f", "\r"]);
+		expect(globalExpansions).toBe(0);
+		// Esc stays the cancel key; mouse reports and focused dialogs keep their input.
+		expect(pressed).toEqual({
+			answer: true,
+			nanoWrite: true,
+			enter: true,
+			escape: false,
+			mouse: false,
+			dialog: false,
+		});
+		// After exit the global Ctrl+O shortcut works again.
+		expect(press("\x0f")).toBe(true);
+		expect(globalExpansions).toBe(1);
+		expect(listeners.size).toBe(1);
+		// A native start notification queued behind command completion must not
+		// reclaim the composer after the PTY has exited.
+		onStdin?.(data => written.push(data));
+		expect(editor.nativeKeyPassthrough).toBe(false);
+		expect(listeners.size).toBe(1);
+	});
+
 	it("finalizes successful output before reporting a standalone cd refresh failure", async () => {
-		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cwd-refresh-error-"));
+		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cwd-refresh-error-"));
 		const childDir = path.join(sourceDir, "child");
 		await fs.mkdir(childDir);
 		try {
@@ -395,7 +484,7 @@ describe("bash shortcut command", () => {
 	});
 
 	it("holds the same migration gate through shell execution and cwd adoption", async () => {
-		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cd-gate-"));
+		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cd-gate-"));
 		const childDir = path.join(sourceDir, "child");
 		await fs.mkdir(childDir);
 		const executionStarted = Promise.withResolvers<void>();
@@ -455,7 +544,7 @@ describe("bash shortcut command", () => {
 	it.each(["failed", "cancelled", "unchanged"] as const)(
 		"retains completed BTW and session cwd after a %s standalone cd",
 		async outcome => {
-			const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cd-not-moved-"));
+			const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cd-not-moved-"));
 			const childDir = path.join(sourceDir, "child");
 			await fs.mkdir(childDir);
 			try {
@@ -489,7 +578,7 @@ describe("bash shortcut command", () => {
 	);
 
 	it("keeps the source session and shell output when session move invariants reject cd adoption", async () => {
-		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-bash-cd-move-rejected-"));
+		const sourceDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-bash-cd-move-rejected-"));
 		const childDir = path.join(sourceDir, "child");
 		await fs.mkdir(childDir);
 		try {

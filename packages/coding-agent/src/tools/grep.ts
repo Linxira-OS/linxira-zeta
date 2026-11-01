@@ -58,7 +58,12 @@ import {
 	splitPathAndSelPreferringLiteral,
 	splitPathAndSelPreferringLiteralSync,
 } from "./path-utils";
-import { APPROVAL_ROOT_DELIMITERS, approvalRootCandidates } from "./search-approval-targets";
+import { RACY_STAMP_WINDOW_MS } from "./racy-stamp";
+import {
+	APPROVAL_ROOT_DELIMITERS,
+	approvalRootCandidates,
+	searchApprovalCacheTargets,
+} from "./search-approval-targets";
 import { type LineRange, parseLineRanges, selectorLineRanges } from "@linxiraos/pi-tui/tools/line-ranges";
 import { isReadableUrlPath, splitPathAndSel } from "@linxiraos/pi-tui/tools/read";
 import { toPathList } from "@linxiraos/pi-tui/render/render-utils";
@@ -69,7 +74,6 @@ import { toolResult } from "./tool-result";
 
 import { cfgGrepContextAfter, cfgGrepContextBefore } from "./settings";
 import { cfgTaskDisabledAgents } from "../task/settings";
-import { searchApprovalCacheTargets } from "./search-approval-targets";
 
 const searchSchema = type({
 	pattern: type("string"),
@@ -392,12 +396,6 @@ interface SnapshotStamp {
 }
 
 const SNAPSHOT_STAMP_MAX = 256;
-/**
- * Stats younger than this are never memoized (git's racy-clean rule): on
- * coarse-timestamp filesystems a same-size rewrite inside one timestamp
- * granule leaves the stamp unchanged.
- */
-const RACY_STAMP_WINDOW_NS = 2_000_000_000n;
 const snapshotStampsByStore = new WeakMap<EditStore, LRUCache<string, SnapshotStamp>>();
 
 /**
@@ -432,7 +430,7 @@ async function recordSnapshotTags(store: EditStore, snapshotPaths: readonly stri
 		}
 		const tag = store.recordSnapshotFile(filePath);
 		const changedNs = st.mtimeNs > st.ctimeNs ? st.mtimeNs : st.ctimeNs;
-		if (tag && BigInt(Date.now()) * 1_000_000n - changedNs >= RACY_STAMP_WINDOW_NS) {
+		if (tag && BigInt(Date.now() - RACY_STAMP_WINDOW_MS) * 1_000_000n >= changedNs) {
 			stamps.set(filePath, { size: st.size, mtimeNs: st.mtimeNs, ctimeNs: st.ctimeNs, ino: st.ino, tag });
 		} else {
 			stamps.delete(filePath);

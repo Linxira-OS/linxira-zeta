@@ -286,9 +286,20 @@ is `~/.zeta/plugins/zeta-plugins.lock.json`:
 }
 ```
 
+## Agent-facing tools
+
+A main-agent session also gets two built-ins that wrap the manager described above; subagents never receive either one (the plan gate rejects them at `taskDepth > 0` and each tool re-checks at execution time):
+
+- [`tools/plugin-manager.md`](./tools/plugin-manager.md) — `plugin_manager`: `list`, `install` (local path or package/git spec), `uninstall`, `set_enabled`.
+- [`tools/plugin-inspect.md`](./tools/plugin-inspect.md) — `plugin_inspect`: manifest identity, features, capabilities, resolved entries, dependencies, settings schema, and static validation errors without importing plugin code.
+
+Both report `restart-required` for mutations: the plugin surface is collected at session start, and only the discovery channels (skills, task agents, slash commands) refresh without a restart.
+
 ## See also
 
 - [`writing-a-plugin.md`](./writing-a-plugin.md) — authoring a plugin: manifest, tools, declarative panels, web pages, locales
+- [`tools/plugin-manager.md`](./tools/plugin-manager.md) — `plugin_manager` lifecycle tool
+- [`tools/plugin-inspect.md`](./tools/plugin-inspect.md) — `plugin_inspect` manifest inspector
 - [`plugins/pi-messenger.md`](./plugins/pi-messenger.md) — activating the official plugin, with the commands and output of a working install
 - [`marketplace.md`](./marketplace.md) — catalogs, `name@marketplace`, scopes, upgrade rules
 - [`extension-loading.md`](./extension-loading.md) — extension-module discovery and resolution order

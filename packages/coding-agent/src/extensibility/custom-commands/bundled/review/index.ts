@@ -1,5 +1,6 @@
 import { replaceTabs, TRUNCATE_LENGTHS, truncateToWidth } from "@linxiraos/pi-tui/render/render-utils";
-import { prompt, isRecord } from "@linxiraos/pi-utils";
+import { isRecord, prompt } from "@linxiraos/pi-utils";
+import { findScopedSettings } from "../../../../config/settings";
 import type { CustomCommand, CustomCommandAPI } from "../../../../extensibility/custom-commands/types";
 import { M } from "../../../../i18n";
 import type { HookCommandContext } from "../../../../extensibility/hooks/types";
@@ -50,7 +51,8 @@ const PICK_PR_CHOICE_LABEL = "4. Review a specific PR/MR";
 /** `gh pr list` / `glab mr list` page size. 100 is the per-page maximum of both forges. */
 const PR_PICKER_LIMIT = 100;
 const REPO_SEGMENT_PATTERN = /^[A-Za-z0-9_.-]+$/;
-const PR_SCHEME_PATTERN = /^pr:\/\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/([1-9]\d*)(?:\/diff(?:\/(?:all|[1-9]\d*))?)?$/;
+const PR_SCHEME_PATTERN =
+	/^pr:\/\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/([1-9]\d*)(?:\/diff(?:\/(?:all|[1-9]\d*))?)?(?:\?at=\d+)?$/;
 const PR_REF_TEXT_PATTERN =
 	/https:\/\/github\.com\/[^\s<>"']+|pr:\/\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/[^\s<>"']+|https:\/\/[^\s<>"'/]+\/[^\s<>"']*\/-\/merge_requests\/[^\s<>"']+|mr:\/\/[^\s<>"']+/g;
 
@@ -164,9 +166,18 @@ function extractReviewPrRefsFromText(text: string): ReviewPrRef[] {
 /** Fetch one PR/MR patch and freeze it before any overlay or LLM prompt is built; throws on fetch failure. */
 export async function fetchPrReviewTarget(cwd: string, ref: ReviewPrRef): Promise<ResolvedReviewTarget> {
 	const label = formatReviewRefLabel(ref);
+	// Session settings are the active scope (set around `/review`). Without them,
+	// `resolveCacheTtl(undefined)` uses the default enabled cache and a kill switch
+	// still stores a generation.
+	const settings = findScopedSettings(cwd);
 	if (ref.forge === "gitlab") {
 		try {
-			const lookup = await glab.getOrFetchMrDiff({ cwd, project: ref.repo, iid: ref.number });
+			const lookup = await glab.getOrFetchMrDiff({
+				cwd,
+				project: ref.repo,
+				iid: ref.number,
+				...(settings ? { settings } : {}),
+			});
 			return createResolvedReviewTarget(
 				"pr",
 				label,
@@ -183,9 +194,25 @@ export async function fetchPrReviewTarget(cwd: string, ref: ReviewPrRef): Promis
 		}
 	}
 	try {
-		const lookup = await gh.getOrFetchPrDiff({ cwd, repo: ref.repo, number: ref.number });
+		const lookup = await gh.getOrFetchPrDiff({
+			cwd,
+			repo: ref.repo,
+			number: ref.number,
+			...(settings ? { settings } : {}),
+		});
+		const generationAt =
+			lookup.status === "disabled"
+				? null
+				: gh.retainPrDiffGeneration({
+						repo: ref.repo,
+						number: ref.number,
+						rendered: lookup.rendered,
+						files: lookup.payload.files,
+						fetchedAt: lookup.fetchedAt,
+					});
 		return createResolvedReviewTarget("pr", label, lookup.payload.unified, `${label} has no diff content available`, {
 			prDiffUrl: `pr://${ref.repo}/${ref.number}/diff`,
+			prDiffQuery: generationAt !== null ? `?at=${generationAt}` : "",
 		});
 	} catch (error) {
 		throw new Error(

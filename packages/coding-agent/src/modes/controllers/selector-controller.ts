@@ -331,7 +331,7 @@ export class SelectorController {
 	}
 
 	async #refreshOAuthProviderAuthState(): Promise<void> {
-		const { getOAuthProviders } = loadProviderAuthUi();
+		const { getOAuthProviders } = await loadProviderAuthUi();
 		const oauthProviders = getOAuthProviders();
 		await Promise.all(
 			oauthProviders.map(provider =>
@@ -2477,7 +2477,8 @@ export class SelectorController {
 	 */
 	async #handleOAuthLogin(providerId: string): Promise<boolean> {
 		this.ctx.showStatus(`Logging in to ${providerId}…`);
-		const { getOAuthCredentialProvider, LoginDialogComponent, PASTE_CODE_LOGIN_PROVIDERS } = loadProviderAuthUi();
+		const { getOAuthCredentialProvider, LoginDialogComponent, PASTE_CODE_LOGIN_PROVIDERS } =
+			await loadProviderAuthUi();
 		const useManualInput = PASTE_CODE_LOGIN_PROVIDERS.has(providerId);
 		let restored = false;
 		const restoreEditor = () => {
@@ -2621,7 +2622,7 @@ export class SelectorController {
 			);
 			return;
 		}
-		const { getOAuthProviders, LogoutAccountSelectorComponent } = loadProviderAuthUi();
+		const { getOAuthProviders, LogoutAccountSelectorComponent } = await loadProviderAuthUi();
 		const provider = getOAuthProviders().find(candidate => candidate.id === providerId);
 		if (accounts.length === 0) {
 			const source = authStorage.keys.describe(
@@ -2660,7 +2661,7 @@ export class SelectorController {
 			return;
 		}
 
-		const { getOAuthProviders, OAuthSelectorComponent } = loadProviderAuthUi();
+		const { getOAuthProviders, OAuthSelectorComponent } = await loadProviderAuthUi();
 		if (mode === "logout") {
 			await this.#refreshOAuthProviderAuthState();
 			const oauthProviders = getOAuthProviders();
@@ -2729,7 +2730,7 @@ export class SelectorController {
 			this.ctx.showStatus("Select a model before pinning a provider account.");
 			return;
 		}
-		const { getOAuthProviders } = loadProviderAuthUi();
+		const { getOAuthProviders } = await loadProviderAuthUi();
 		const provider = getOAuthProviders().find(candidate => candidate.id === accountList.provider);
 		const providerName = provider?.name ?? accountList.provider;
 		const accounts = toSessionPinAccounts(accountList.accounts);

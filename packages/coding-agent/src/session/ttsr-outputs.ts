@@ -42,7 +42,7 @@ function argumentsFingerprint(value: unknown, seed: number | bigint = 0, depth =
 	if (typeof value === "string") return Bun.hash(value, Bun.hash("s", seed));
 	if (value === null || typeof value !== "object") return Bun.hash(String(value), Bun.hash(typeof value, seed));
 	if (depth >= FINGERPRINT_MAX_DEPTH) return Bun.hash("…", seed);
-	let hash = Bun.hash(Array.isArray(value) ? "[" : "{", seed);
+	let hash: number | bigint = Bun.hash(Array.isArray(value) ? "[" : "{", seed);
 	for (const [key, child] of Object.entries(value)) {
 		hash = argumentsFingerprint(child, Bun.hash(key, hash), depth + 1);
 	}

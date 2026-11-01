@@ -5,10 +5,11 @@
  * (extension-flag-aware) persistence validation, so it has to be skipped under
  * `--no-session`.
  */
-import { describe, expect, it, vi } from "bun:test";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
 import { Settings } from "@linxiraos/zeta/config/settings";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runRootCommand } from "@linxiraos/zeta/main";
 import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
 import { TempDir } from "@linxiraos/pi-utils";
@@ -19,6 +20,11 @@ class ProcessExitSignal extends Error {
 		this.name = "ProcessExitSignal";
 	}
 }
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("runRootCommand — --no-session --resume", () => {
 	it("rejects a bare native --resume without invoking the picker", async () => {

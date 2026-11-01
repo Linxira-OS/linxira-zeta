@@ -28,7 +28,7 @@ import {
 	type SimpleStreamOptions,
 	streamSimple,
 } from "@linxiraos/pi-ai";
-import { streamAnthropic } from "@linxiraos/pi-ai/providers/anthropic";
+import { streamAnthropic } from "@linxiraos/pi-ai/providers/register-builtins";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
 import { clampThinkingLevelForModel, getSupportedEfforts } from "@linxiraos/pi-catalog/model-thinking";
 import {
@@ -150,6 +150,7 @@ export const getModel = getBundledModel;
 export const getModels = getBundledModels;
 
 const ANTHROPIC_MESSAGES_API = {
+	// Loads the Anthropic transport on first invocation, not extension setup.
 	stream: streamAnthropic,
 	streamSimple: (model: Model<"anthropic-messages">, context: Context, options?: SimpleStreamOptions) =>
 		streamSimple(model, context, options),

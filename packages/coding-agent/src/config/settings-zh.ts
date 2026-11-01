@@ -493,7 +493,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"tui.sidebar": {
 		label: "侧边栏",
-		description: "显示右侧边栏（上下文、用量、git、模型）",
+		description: "显示右侧边栏（上下文仪表、任务、子代理、MCP 健康状态，以及缓存的 git 分支/状态/最近提交）",
 	},
 	"tui.sidebarWidgets": {
 		label: "侧边栏小组件",
@@ -534,6 +534,42 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"display.cacheMissMarker": {
 		label: "缓存未命中标记",
 		description: "在请求丢失（未命中）提示词缓存的助手轮次上方显示分隔线",
+	},
+	"display.advisorCollapsedLines": {
+		label: "顾问折叠行数",
+		description: "折叠的顾问卡片在标题下最多显示多少行注释（0 表示保留完整预览；使用工具输出开关展开）",
+	},
+	"prewalk.from": {
+		label: "预走规划模型",
+		description: "执行 /prewalk restart 后用于规划的模型或角色（默认 '@default'）。",
+	},
+	"prewalk.into": {
+		label: "预走目标模型",
+		description:
+			"预走在首次编辑/写入时交接给的模型或角色（默认 '@smol'）；/prewalk、/prewalk restart、启用预走和 --prewalk 使用；自动预走使用自己的目标。",
+	},
+	"retry.rateLimitWalksChain": {
+		label: "限流穿越回退链",
+		description:
+			"遇到限流时，不因当前轮次由失败模型签名而阻塞 retry.fallbackChains 的回退链。关闭（默认）时，该轮次会继续重试被限流模型直到 retry.maxRetries 用尽，才进入回退链。",
+	},
+	"out.enabled": {
+		label: "out:// 中途回复",
+		description:
+			"允许智能体通过写入 out:// 在任务中途回复，像普通回复一样显示且不结束当前轮次。未设置时：交互式 TUI 开启，print、RPC 和 ACP 关闭。",
+	},
+	"tools.xdevNotices": {
+		label: "xd:// 挂载通知",
+		description: "MCP 或扩展工具挂载/卸载时显示 `xd://: mounted …` 通知；模型仍会在下一次提示中得知变化。",
+	},
+	"extensionRenderers.assistantText": {
+		label: "扩展回复渲染器",
+		description:
+			"允许扩展改变助手回复的绘制方式、原地重绘回复并接收自身链接点击；会话、导出和模型上下文仍保留原始回复。",
+	},
+	"task.file": {
+		label: "从文件读取任务指令",
+		description: "允许 task 工具从文件读取子代理指令（taskFile），并记录路径与 SHA-256。",
 	},
 	"display.collapseCompacted": {
 		label: "折叠压缩历史",
@@ -1510,7 +1546,7 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	},
 	"browser.relayUrl": {
 		label: "浏览器中继地址",
-		description: "zetacode browser relay 端点（默认 http://127.0.0.1:9224）。",
+		description: "zetacode browser relay 端点（默认 http://127.0.0.1:43153）。",
 	},
 	"browser.headless": {
 		label: "无头浏览器",
@@ -1632,6 +1668,10 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"title.refreshOnReplan": {
 		label: "重新规划时刷新标题",
 		description: "在待办初始化重新规划后刷新生成的会话标题，除非标题由用户设置",
+	},
+	"title.refreshAfterPrompts": {
+		label: "提示后刷新标题",
+		description: "每若干条操作员提示后，让判定模型检查生成的会话标题是否仍符合对话，不符合则重新生成",
 	},
 	"worktree.onStart": {
 		label: "启动时创建工作树",
@@ -1915,6 +1955,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 	"providers.openaiWebsockets": {
 		label: "OpenAI WebSocket 策略",
 		description: "OpenAI Codex 模型的 WebSocket 策略（auto 使用模型默认，on 强制，off 禁用）",
+	},
+	"providers.openai-codex.daybreak": {
+		label: "Daybreak Blue 接入",
+		description:
+			"对符合条件的 ChatGPT 账户自动申请 Daybreak Blue 网络访问计划；OpenAI 可能使用 Daybreak Blue 会话内容改进模型。不覆盖专用的 Daybreak Blue 模型（gpt-daybreak-blue-*），这些模型仍可能以 Daybreak 会话运行。",
 	},
 	"providers.cacheRetention": {
 		label: "提示缓存保留",
@@ -2405,6 +2450,22 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "Tiny",
 		description: "仅用标题模型角色；生成不带卡片的纯标题",
 	},
+	"title.refreshAfterPrompts::0": {
+		label: "关闭",
+		description: "默认",
+	},
+	"title.refreshAfterPrompts::1": {
+		label: "每条提示",
+	},
+	"title.refreshAfterPrompts::3": {
+		label: "每 3 条提示",
+	},
+	"title.refreshAfterPrompts::5": {
+		label: "每 5 条提示",
+	},
+	"title.refreshAfterPrompts::10": {
+		label: "每 10 条提示",
+	},
 	"tui.titleSpinner::line": {
 		label: "线条",
 		description: "ASCII - \\ | /，适用于无盲文点阵覆盖的字体",
@@ -2781,9 +2842,29 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 		label: "总是",
 		description: "用内置的最佳猜测为每个读起来是数值的表格绘图",
 	},
+	"tui.autoGraph::auto": {
+		label: "自动",
+		description: "当 judge 角色解析为原生 TypeSafe jev 模型时智能绘图，否则总是绘图",
+	},
 	"tui.autoGraph::off": {
 		label: "关闭",
 		description: "表格保持为表格",
+	},
+	"display.advisorCollapsedLines::0": {
+		label: "不限",
+		description: "默认。",
+	},
+	"display.advisorCollapsedLines::1": {
+		label: "1 行",
+	},
+	"display.advisorCollapsedLines::2": {
+		label: "2 行",
+	},
+	"display.advisorCollapsedLines::3": {
+		label: "3 行",
+	},
+	"display.advisorCollapsedLines::5": {
+		label: "5 行",
 	},
 	"display.shimmer::classic": {
 		label: "经典",

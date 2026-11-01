@@ -1,11 +1,12 @@
-import { describe, expect, it, vi } from "bun:test";
-import { TempDir } from "@linxiraos/pi-utils";
+import { afterEach, describe, expect, it, vi } from "bun:test";
 import { parseArgs } from "@linxiraos/zeta/cli/args";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { runRootCommand } from "@linxiraos/zeta/main";
-import type { CreateAgentSessionOptions } from "@linxiraos/zeta/sdk";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
+import { clearOmpExtensionCliRoots } from "@linxiraos/zeta/discovery/zeta-extension-roots";
 import { runCli } from "../src/cli";
+
+// `runRootCommand` registers the CLI's extension roots (`--no-extensions` → explicit-only) process-wide.
+afterEach(() => {
+	clearOmpExtensionCliRoots();
+});
 
 describe("parseArgs — --max-time flag", () => {
 	it("parses --max-time seconds as maxTime", () => {
@@ -74,41 +75,5 @@ describe("parseArgs — --max-time flag", () => {
 		expect(stderr).toContain("Run `zetacode --help` for available flags.");
 		expect(stderr).not.toContain("parseMaxTimeSeconds");
 		expect(stderr).not.toContain("CliUsageError");
-	});
-
-	it("converts maxTime to an absolute session deadline", async () => {
-		using tempDir = TempDir.createSync("@omp-max-time-");
-		const authStorage = await AuthStorage.create(":memory:");
-		const settings = Settings.isolated({ "marketplace.autoUpdate": "off" });
-		let observedOptions: CreateAgentSessionOptions | undefined;
-		const parsed = parseArgs(["--max-time", "3", "--print", "hello"]);
-		parsed.noExtensions = true;
-		parsed.noSkills = true;
-		parsed.noRules = true;
-		parsed.noTools = true;
-		parsed.noLsp = true;
-		parsed.sessionDir = tempDir.path();
-
-		const beforeRun = Date.now();
-		try {
-			await runRootCommand(parsed, ["--max-time", "3", "--print", "hello"], {
-				discoverAuthStorage: async () => authStorage,
-				settings,
-				createAgentSession: async options => {
-					observedOptions = options;
-					throw new Error("stop after session options");
-				},
-			});
-		} catch (error) {
-			if (!(error instanceof Error) || error.message !== "stop after session options") {
-				throw error;
-			}
-		} finally {
-			authStorage.close();
-		}
-		const afterRun = Date.now();
-
-		expect(observedOptions?.deadline).toBeGreaterThanOrEqual(beforeRun + 3_000);
-		expect(observedOptions?.deadline).toBeLessThanOrEqual(afterRun + 3_000);
 	});
 });

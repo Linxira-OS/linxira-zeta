@@ -125,3 +125,12 @@ export function webExportThemeVars(scheme: WebExportScheme): string {
 		.map(([key, value]) => `${key}: ${value};`)
 		.join(" ");
 }
+
+/** Wrap both schemes in dark/light/auto-following CSS rules. */
+export function exportThemeStyles(dark: string, light: string): string {
+	return [
+		`:root, :root[data-theme="dark"] { color-scheme: dark; ${dark} }`,
+		`:root[data-theme="light"] { color-scheme: light; ${light} }`,
+		`@media (prefers-color-scheme: light) { :root:not([data-theme]) { color-scheme: light; ${light} } }`,
+	].join("\n");
+}

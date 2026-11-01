@@ -769,8 +769,8 @@ export class MCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		return renderMCPResult(result, options, theme, normalizeToolArgs(args));
 	}
 
-	describeCall(args: unknown, _options: RenderResultOptions) {
-		return describeMCPCall(normalizeToolArgs(args), this.label);
+	describeCall(args: unknown, options: RenderResultOptions) {
+		return describeMCPCall(normalizeToolArgs(args), this.label, options);
 	}
 
 	describeResult(result: CustomToolResult<MCPToolDetails>, options: RenderResultOptions, args?: unknown) {
@@ -915,8 +915,8 @@ export class DeferredMCPTool implements CustomTool<TSchema, MCPToolDetails> {
 		return renderMCPResult(result, options, theme, normalizeToolArgs(args));
 	}
 
-	describeCall(args: unknown, _options: RenderResultOptions) {
-		return describeMCPCall(normalizeToolArgs(args), this.label);
+	describeCall(args: unknown, options: RenderResultOptions) {
+		return describeMCPCall(normalizeToolArgs(args), this.label, options);
 	}
 
 	describeResult(result: CustomToolResult<MCPToolDetails>, options: RenderResultOptions, args?: unknown) {
