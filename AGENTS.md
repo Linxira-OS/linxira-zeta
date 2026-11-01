@@ -129,6 +129,10 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
   （分支 push 本身不触发 CI）。
 - **一轮落地 ≤1 次 push**；在途 run 不推同一分支（先看 `gh run list --branch <b>`）；
   `cancelled` 不是失败也不是通过——**它没有信号**，不得当绿。
+- **分支登记**：每条本地分支都要登记在
+  `document/agents/workflow/branch-registry.md`（用途 / 负责人 / 何时删）；删之前
+  把 SHA 记进退役表。本地门禁 `bun scripts/check-branch-registry.ts`
+  （`merge-gate` 的 `branch registry`）会校验。
 - 清理：`git worktree remove --force`；有未提交内容先保留登记。**禁止对含
   `node_modules` 的目录 `rm -rf`**（Windows junction 会穿透，等于删源码）——
   用 `bun scripts/safe-remove-tree.ts`。证据 / 产物归档到

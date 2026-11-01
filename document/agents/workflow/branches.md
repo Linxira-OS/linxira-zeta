@@ -4,6 +4,21 @@
 
 > 硬约束摘要见根 AGENTS.md「分支、工作树与推送」；本文是完整流程与理由。
 
+## 分支登记（2026-11-01 起）
+
+每开一条分支，先登记到 [`branch-registry.md`](./branch-registry.md)：用途、负责人、
+何时必须删。删分支前把 SHA 记进「已退役」表——恢复就是一句
+`git branch <name> <sha>`。
+
+- 本地门禁 `bun scripts/check-branch-registry.ts`（`merge-gate` 的
+  `branch registry`）校验三件事：有未登记的分支、登记了却已消失的分支、
+  已退役却还存在的分支——任一成立就红。超过 30 天的 `feat/fix/chore` 与超过
+  90 天的 `backup/spike` 只警告。
+- 命名即生命周期：`feat|fix|chore` 合完就删；`sync/omp-release/*` 合完就删；
+  `backup/*` 是保护点，确认可弃后删；`spike/*` 结论落地后删；`dev/*` 只归用户。
+- worktree 脏着就删等于丢数据：先 commit，或拷到
+  `~/.zeta/parked-evidence/<date>/`，再删 worktree。
+
 ## Parallel Agent Branches (2026-10-20 用户立规)
 
 多子代理并行开发的标准流程，**每一条都是硬规则**：

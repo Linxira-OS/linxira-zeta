@@ -255,6 +255,7 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 			commands: [["bun", "run", "check:relay-assets"]],
 		},
 		guard("package-json-merge", "package.json merge-drop", "scripts/check-package-json-merge.ts"),
+		guard("branch-registry", "branch registry", "scripts/check-branch-registry.ts"),
 		{
 			id: "rustfmt",
 			name: "Rust format (cargo fmt --all -- --check)",

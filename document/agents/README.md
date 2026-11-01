@@ -23,6 +23,7 @@
 | `surface/code-locations.md` | 不确定代码该落哪个目录 | desktop / web-ui / gateway / channel / main / termide 归属、依赖方向、退役前的内嵌架构、上游面 vs Zeta 自有面 |
 | `surface/packages.md` | 查包职责、插件目录约定 | 包清单表、`plugins/` 两层结构 |
 | `workflow/branches.md` | 开工前 / 推送前 / 清理 worktree | 并行子代理流程、feature branch、内部整合批次（一次推）、`dev/*`、工作树纪律、`temp/` 与安全清理 |
+| `workflow/branch-registry.md` | 开分支 / 删分支 / 搞不清某条分支干什么 | 分支登记簿：命名即生命周期、在册表（用途/负责人/何时删）、退役表（含 SHA，可恢复）；`scripts/check-branch-registry.ts` 在本地门禁校验 |
 | `workflow/release-publish.md` | 动发布面或新包引导 | npm trusted publishing 两步握手、新包手动首发顺序 |
 | `workflow/github.md` | 要发评论 / 改 PR 描述 | PR 模板、贡献者原话要求、changelog 归属 |
 
