@@ -1,6 +1,13 @@
 ## [Unreleased]
 
 ## [1.4.7] - 2026-10-30
+## [18.14.2] - 2026-10-31
+
+### Added
+
+- Added `oklabDistance`, the perceptual distance between two hex colors ([#17520](https://github.com/can1357/oh-my-pi/pull/17520))
+
+## [18.14.1] - 2026-10-31
 
 - Synced with upstream OMP v18.14.0; no package-specific user-visible changes.
 

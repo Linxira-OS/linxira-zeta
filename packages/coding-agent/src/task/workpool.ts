@@ -96,6 +96,8 @@ export interface WorkPoolPeekResult {
 /** Resolved policy and optional shared context used to create a pool. */
 export interface WorkPoolCreateOptions {
 	name: string;
+	/** Raw selector applied to each worker at creation, never to follow-up turns. */
+	model?: string;
 	policy: EffectiveSubagentPolicy;
 	context?: string;
 	customTools?: CustomTool[];
@@ -118,6 +120,7 @@ export class WorkPool {
 	readonly ownerId: string;
 	readonly session: ToolSession;
 	readonly policy: EffectiveSubagentPolicy;
+	readonly #model?: string;
 	readonly context?: string;
 	readonly customTools: CustomTool[];
 	readonly freshAgents: boolean;
@@ -140,6 +143,7 @@ export class WorkPool {
 		this.ownerId = session.getAgentId?.() ?? MAIN_AGENT_ID;
 		this.session = session;
 		this.policy = options.policy;
+		this.#model = options.model;
 		this.context = options.context;
 		this.customTools = options.customTools ?? [];
 		this.freshAgents = cfgEvalWorkpoolFreshAgents.get(session.settings);
@@ -403,6 +407,7 @@ export class WorkPool {
 							assignment: message,
 							...(this.context ? { context: this.context } : {}),
 							agent: this.policy.agentName,
+							...(this.#model !== undefined ? { perCallModel: this.#model } : {}),
 							identity: { id: agent.id },
 							customTools: this.customTools,
 							outputSchema,

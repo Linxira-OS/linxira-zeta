@@ -1,6 +1,13 @@
 ## [Unreleased]
 
 ## [1.4.7] - 2026-10-30
+## [18.14.2] - 2026-10-31
+
+### Fixed
+
+- Fixed heuristic episodic facts storing word fragments (`Drafting is active.` → `ctive`), truncated multiword objects, or nothing for `has an …` sentences ([#17511](https://github.com/can1357/oh-my-pi/issues/17511))
+
+## [18.13.3] - 2026-10-28
 
 - Synced with upstream OMP v18.14.0; no package-specific user-visible changes.
 

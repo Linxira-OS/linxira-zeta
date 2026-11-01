@@ -35,7 +35,12 @@ import {
 	PREVIEW_LIMITS,
 	replaceTabs,
 } from "../render/render-utils";
-import { classifyGroupedLines, groupLineIndicesByBlank, describeGroupedOutput } from "./grouped-file-output";
+import {
+	classifyGroupedLines,
+	createCodeFrameStyler,
+	describeGroupedOutput,
+	groupLineIndicesByBlank,
+} from "./grouped-file-output";
 
 /** Display metadata for grep tool results. */
 export interface GrepToolDetails {
@@ -215,6 +220,7 @@ function createSearchLineStyler(
 	target: (displayPath: string) => string,
 ): (index: number) => string {
 	const contexts = classifyGroupedLines(lines, headerBase, fileScope);
+	const styleCodeFrame = createCodeFrameStyler(lines, contexts, "toolOutput", uiTheme);
 	// `classifyGroupedLines` can't resolve internal URLs (TUI-only), so track the
 	// resolved URL target here and use it for the body lines that follow.
 	const urlRaw: (string | undefined)[] = Array.from({ length: lines.length }, () => undefined);
@@ -258,7 +264,7 @@ function createSearchLineStyler(
 				styled = ctx.headerPath ? fileHyperlink(target(ctx.headerPath), tinted) : tinted;
 			}
 		} else {
-			const tinted = uiTheme.fg("toolOutput", line);
+			const tinted = styleCodeFrame(index) ?? uiTheme.fg("toolOutput", line);
 			const lineNumber = parseSearchDisplayLineNumber(line);
 			const filePath = ctx.filePath ? target(ctx.filePath) : urlFiles[index];
 			styled = filePath && lineNumber !== undefined ? fileHyperlink(filePath, tinted, { line: lineNumber }) : tinted;

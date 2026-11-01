@@ -59,6 +59,11 @@ packages/ai/test/.temp-images/
 # not repo content.
 .tmp-e2e/
 
+# SQLite databases a run leaves in its agent dir (auth.db, models.db, ...)
+*.db
+*.db-shm
+*.db-wal
+
 # Project specific
 .zeta/
 .pi_config/
