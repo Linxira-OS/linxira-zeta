@@ -304,6 +304,16 @@ pub fn is_pdf(path: &Path) -> bool {
 		.is_some_and(|ext| ext.eq_ignore_ascii_case("pdf"))
 }
 
+/// Whether `path` is Markdown, which the editor page draws rendered instead of
+/// as source text.
+#[must_use]
+pub fn is_markdown(path: &Path) -> bool {
+	path
+		.extension()
+		.and_then(|ext| ext.to_str())
+		.is_some_and(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("mdx"))
+}
+
 /// One session tab inside a pane.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SessionTab {
@@ -338,6 +348,20 @@ pub struct SessionTab {
 	/// column carries its id here, so the centre pane attaches to that session
 	/// instead of asking for an id the tree already knows.
 	pub session: Option<String>,
+	/// The line an editor page was opened at, when a link named one
+	/// (`src/agent.ts:42`). `None` opens at the top.
+	pub line: Option<u32>,
+	/// The column after that line (`src/agent.ts:42:7`).
+	pub col: Option<u32>,
+	/// An editor tab whose file is Markdown, drawn as a **rendered, read-only
+	/// page** ([`crate::markdown`]) instead of the text editor. The document
+	/// still lives in [`Self::doc`], so the page reloads with the file and the
+	/// tab dedupes the same way as a text editor tab.
+	pub markdown: bool,
+	/// The file an [`SessionKind::Ide`] page has open. The panel holds the
+	/// buffer; this is what makes "already open" answerable and what the
+	/// caller hands the page when it is first created.
+	pub ide_file: Option<PathBuf>,
 }
 
 impl SessionTab {
@@ -352,6 +376,10 @@ impl SessionTab {
 			doc: None,
 			pdf: None,
 			session: None,
+			line: None,
+			col: None,
+			markdown: false,
+			ide_file: None,
 		}
 	}
 
@@ -1649,6 +1677,19 @@ impl AppState {
 	/// an unsaved buffer is the user's work and is never silently discarded. A
 	/// path that is a directory is refused rather than opened as empty.
 	pub fn open_file(&mut self, pane_id: &str, path: &Path) -> Notice {
+		self.open_file_at(pane_id, path, None, None)
+	}
+
+	/// [`Self::open_file`] with the position a link named: the tab remembers
+	/// the line and column (and says so in its title), so a later jump lands
+	/// where the click pointed instead of at the top of the file.
+	pub fn open_file_at(
+		&mut self,
+		pane_id: &str,
+		path: &Path,
+		line: Option<u32>,
+		col: Option<u32>,
+	) -> Notice {
 		if is_pdf(path) {
 			return self.open_pdf(pane_id, path);
 		}
@@ -1672,6 +1713,12 @@ impl AppState {
 		let io_error = doc.error.clone();
 		let mut tab = SessionTab::new(self.fresh_id("tab"), SessionKind::Editor, doc.name());
 		tab.doc = Some(doc);
+		tab.markdown = is_markdown(path);
+		tab.line = line;
+		tab.col = col;
+		if line.is_some() {
+			tab.title = crate::link::tab_title(&tab.title, line, col);
+		}
 		let notice = self.push_tab(pane_id, tab);
 		if notice.0.is_empty() {
 			if let Some(error) = io_error {
@@ -1709,6 +1756,103 @@ impl AppState {
 		let mut tab = SessionTab::new(self.fresh_id("tab"), SessionKind::Pdf, title);
 		tab.pdf = Some(path.to_path_buf());
 		self.push_tab(pane_id, tab)
+	}
+
+	/// Open the file a terminal link named, in the pane beside `source`.
+	///
+	/// The target is the neighbouring visible pane — the one after the source,
+	/// else the one before it — and a workspace with a single column splits one
+	/// off first, so the terminal the user was reading keeps its own tab. A
+	/// file already open in that pane is activated, never reloaded.
+	pub fn open_linked_path(&mut self, source: &str, target: &crate::link::OpenTarget) -> Notice {
+		let Some(pane) = self.link_pane(source) else {
+			return Notice(t!("先打开一个工作区").to_owned());
+		};
+		self.open_file_at(&pane, &target.path, target.line, target.col)
+	}
+
+	/// Open the file a terminal link named in an **IDE page** beside `source`.
+	///
+	/// The page's buffer lives in [`crate::page::Pages`], which this type does
+	/// not own, so the caller gets the tab id and hands the file to the panel;
+	/// `None` means the page already had it (or the tab could not be made) and
+	/// there is nothing to open.
+	pub fn open_ide_linked(&mut self, source: &str, path: &Path) -> (Notice, Option<String>) {
+		let Some(pane) = self.link_pane(source) else {
+			return (Notice(t!("先打开一个工作区").to_owned()), None);
+		};
+		let existing = self.pane_mut(&pane).and_then(|pane| {
+			pane
+				.tabs
+				.iter()
+				.find(|tab| {
+					tab.kind == SessionKind::Ide && tab.ide_file.as_deref() == Some(path)
+				})
+				.map(|tab| tab.id.clone())
+		});
+		if let Some(tab_id) = existing {
+			self.select_tab(&pane, &tab_id);
+			return (Notice(String::new()), None);
+		}
+		let name = path
+			.file_name()
+			.map_or_else(|| path.display().to_string(), |name| name.to_string_lossy().into_owned());
+		let notice = self.add_tab_of(&pane, SessionKind::Ide, name);
+		if !notice.0.is_empty() {
+			return (notice, None);
+		}
+		let tab_id = self
+			.visible_panes()
+			.iter()
+			.find(|p| p.id == pane)
+			.and_then(|p| p.active_tab())
+			.map(|tab| tab.id.clone());
+		if let (Some(tab_id), Some(pane)) = (tab_id.clone(), self.pane_mut(&pane)) {
+			if let Some(tab) = pane.tabs.iter_mut().find(|tab| tab.id == tab_id) {
+				tab.ide_file = Some(path.to_path_buf());
+			}
+		}
+		(Notice(String::new()), tab_id)
+	}
+
+	/// The pane a link opens into: the neighbour, or a new column when the
+	/// source is the workspace's only pane.
+	fn link_pane(&mut self, source: &str) -> Option<String> {
+		let visible = self.visible_panes();
+		if let Some(index) = visible.iter().position(|pane| pane.id == source) {
+			if let Some(next) = visible.get(index + 1) {
+				return Some(next.id.clone());
+			}
+			if let Some(previous) = index.checked_sub(1).and_then(|i| visible.get(i)) {
+				return Some(previous.id.clone());
+			}
+		} else if let Some(first) = visible.first() {
+			return Some(first.id.clone());
+		}
+		let notice = self.new_pane();
+		if !notice.0.is_empty() {
+			return None;
+		}
+		self.visible_panes().last().map(|pane| pane.id.clone())
+	}
+
+	/// The roots a terminal link may open a file from: the active workspace,
+	/// and `~/.zeta` — where plans and artifacts a link names usually live.
+	///
+	/// The list is a hard boundary, not a hint: [`crate::link::target_at`]
+	/// canonicalizes the file and refuses anything that ends up outside these.
+	#[must_use]
+	pub fn link_roots(&self) -> Vec<PathBuf> {
+		let mut roots = Vec::new();
+		if let Some(workspace) = self.active_workspace() {
+			if !workspace.path.is_empty() {
+				roots.push(PathBuf::from(&workspace.path));
+			}
+		}
+		if let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) {
+			roots.push(PathBuf::from(home).join(".zeta"));
+		}
+		roots
 	}
 
 	/// One session tab, mutably.
@@ -2182,6 +2326,14 @@ mod tests {
 					.join("projects.json"),
 			),
 		)
+	}
+
+	#[test]
+	fn markdown_files_get_the_rendered_page() {
+		assert!(is_markdown(Path::new("README.md")));
+		assert!(is_markdown(Path::new("docs/GUIDE.MDX")));
+		assert!(!is_markdown(Path::new("src/main.rs")));
+		assert!(!is_markdown(Path::new("README")));
 	}
 
 	#[test]

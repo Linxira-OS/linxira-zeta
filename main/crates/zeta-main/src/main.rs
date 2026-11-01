@@ -7,6 +7,7 @@ mod files;
 mod git;
 mod help;
 mod layout;
+mod link_target;
 mod rail;
 mod resources;
 mod settings;

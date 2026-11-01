@@ -585,7 +585,13 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	let tab = tab.clone();
 	match tab.kind {
 		SessionKind::Term => term_body(ui, shell, pane, &tab),
-		SessionKind::Editor => editor_body(ui, shell, pane, &tab),
+		SessionKind::Editor => {
+			if tab.markdown {
+				markdown_body(ui, shell, pane, &tab);
+			} else {
+				editor_body(ui, shell, pane, &tab);
+			}
+		},
 		SessionKind::Diff => diff_body(ui, shell, pane),
 		SessionKind::Git => crate::right::git_panel(ui, shell, pane.id.as_str()),
 		SessionKind::Zetacode => zetacode_body(ui, shell, &tab),
@@ -593,6 +599,94 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		SessionKind::Agent => agent_body(ui, shell, &tab),
 		SessionKind::Pdf => crate::pdf::body(ui, shell, &tab),
 	}
+}
+
+/// A Markdown file as its rendered, read-only page.
+///
+/// Rows come from [`crate::tracking::markdown_rows`] — the same line-level
+/// renderer the tracking column uses, so a document reads the same in both
+/// places. It is deliberately not a full Markdown parser: emphasis markers
+/// stay visible rather than being invented into formatting, which is what
+/// makes the page honest about what the file says.
+fn markdown_body(ui: &mut Ui, shell: &mut Shell, _pane: &Pane, tab: &SessionTab) {
+	let rect = ui.max_rect();
+	ui.painter()
+		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 34.0));
+	ui.painter()
+		.rect_filled(head, CornerRadius::ZERO, theme::PANEL_2);
+	ui.painter().line_segment(
+		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
+		Stroke::new(1.0_f32, theme::BORDER),
+	);
+	let title = tab
+		.doc
+		.as_ref()
+		.map_or_else(|| tab.title.clone(), |doc| doc.path.display().to_string());
+	ui.painter().text(
+		pos2(head.min.x + 12.0, head.center().y),
+		egui::Align2::LEFT_CENTER,
+		title,
+		egui::FontId::monospace(12.0),
+		theme::TEXT_2,
+	);
+	ui.painter().text(
+		pos2(head.max.x - 12.0, head.center().y),
+		egui::Align2::RIGHT_CENTER,
+		t!("只读"),
+		egui::FontId::monospace(11.0),
+		theme::TEXT_3,
+	);
+	let body = Rect::from_min_max(
+		pos2(rect.min.x + 18.0, head.max.y + 12.0),
+		pos2(rect.max.x - 18.0, rect.max.y - 12.0),
+	);
+	let size = f32::from(shell.settings.editor_size);
+	let text_font = crate::fonts::editor_font_for(ui.ctx(), size);
+	let small_font = crate::fonts::editor_font_for(ui.ctx(), size - 1.0);
+	let Some(doc) = tab.doc.as_ref() else {
+		empty_note(ui, t!("还没有打开文件"));
+		return;
+	};
+	let rows = crate::tracking::markdown_rows(&doc.text);
+	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body));
+	child.spacing_mut().item_spacing.y = 2.0;
+	egui::ScrollArea::vertical()
+		.auto_shrink([false, false])
+		.show(&mut child, |ui| {
+			for row in rows {
+				match row {
+					crate::tracking::MdRow::Heading(level, text) => {
+						if level > 1 {
+							ui.add_space(6.0);
+						}
+						let font = crate::fonts::editor_font_for(
+							ui.ctx(),
+							size + 4.0 - f32::from(level) * 2.0,
+						);
+						ui.label(egui::RichText::new(text).font(font).color(theme::TEXT).strong());
+					},
+					crate::tracking::MdRow::Bullet(text) => {
+						ui.label(
+							egui::RichText::new(format!("• {text}"))
+								.font(small_font.clone())
+								.color(theme::TEXT_2),
+						);
+					},
+					crate::tracking::MdRow::Fence(text) => {
+						ui.label(
+							egui::RichText::new(text).font(small_font.clone()).color(theme::TEXT_3),
+						);
+					},
+					crate::tracking::MdRow::Text(text) => {
+						ui.label(egui::RichText::new(text).font(text_font.clone()).color(theme::TEXT));
+					},
+					crate::tracking::MdRow::Blank => {
+						ui.add_space(6.0);
+					},
+				}
+			}
+		});
 }
 
 /// A terminal pane: the `.termsub` chip row over a blitted ratatui buffer.
@@ -776,7 +870,7 @@ struct TerminalFrame<'a> {
 fn paint_terminal_grid(ui: &mut Ui, shell: &mut Shell, frame: TerminalFrame<'_>) {
 	let TerminalFrame { pane, metrics, columns, rows, buf, images, images_enabled, cell_px } = frame;
 	let size = vec2(f32::from(columns) * metrics.cell_w, f32::from(rows) * metrics.cell_h);
-	let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+	let (rect, response) = ui.allocate_exact_size(size, Sense::click());
 	let grid = GridMetrics {
 		origin: rect.min,
 		font: metrics.font.clone(),
@@ -815,6 +909,70 @@ fn paint_terminal_grid(ui: &mut Ui, shell: &mut Shell, frame: TerminalFrame<'_>)
 			);
 			crate::sidebar_tsp::paint(painter, lines, &grid, sidebar);
 		}
+	}
+	// Where a link's relative path resolves from, and how far a click may
+	// reach: the workspace this pane belongs to, plus `~/.zeta`.
+	let cwd = shell
+		.state
+		.active_workspace()
+		.map(|workspace| std::path::PathBuf::from(&workspace.path))
+		.unwrap_or_default();
+	let roots = shell.state.link_roots();
+	link_pointer(ui, shell, &response, &grid, pane, buf, &roots, columns, rows, &cwd);
+}
+
+/// A link under the pointer, and what a click on it opens.
+///
+/// The sidebar column and the TUI's status row are not terminal text: the
+/// first is the snapshot the shell paints over the gutter, the second is the
+/// TUI's own chrome. Neither resolves a link, so a click there stays a plain
+/// click on the pane.
+#[allow(clippy::too_many_arguments)]
+fn link_pointer(
+	ui: &mut Ui,
+	shell: &mut Shell,
+	response: &egui::Response,
+	grid: &GridMetrics,
+	pane: &str,
+	buf: &ratatui::buffer::Buffer,
+	roots: &[std::path::PathBuf],
+	columns: u16,
+	rows: u16,
+	cwd: &std::path::Path,
+) {
+	let linkable = usize::from(columns).saturating_sub(usize::from(crate::sidebar_tsp::ZETA_SIDEBAR_COLS));
+	let hit_at = |pos: egui::Pos2| -> Option<crate::link::Hit> {
+		let (row, col) = crate::link::cell_at(grid, pos)?;
+		if usize::from(col) >= linkable || row + 1 >= rows {
+			return None;
+		}
+		crate::link::target_at(buf, grid, row, col, cwd, roots)
+	};
+	if let Some(pos) = response.hover_pos() {
+		if matches!(hit_at(pos), Some(crate::link::Hit::Open(_))) {
+			ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+		}
+	}
+	if !response.clicked() {
+		return;
+	}
+	// The click focuses the pane it landed in first, exactly as a click on the
+	// grid always did, so the keyboard and the toast point at the same place.
+	shell.state.tui_pane = Some(pane.to_owned());
+	let Some(pos) = response.interact_pointer_pos() else {
+		return;
+	};
+	match hit_at(pos) {
+		Some(crate::link::Hit::Open(target)) => {
+			let notice = shell.open_linked(pane, &target);
+			shell.state.show(notice);
+		},
+		Some(crate::link::Hit::Missing(path)) => {
+			shell
+				.state
+				.show(crate::state::Notice(crate::t!("{} 不存在或无法打开", path.display())));
+		},
+		None => {},
 	}
 }
 

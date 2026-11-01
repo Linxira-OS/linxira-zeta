@@ -902,6 +902,10 @@ impl Workspace {
 			};
 			if let Some(editor) = pane.as_editor() {
 				editor.handle_key(chord)
+			} else if let Some(markdown) = pane.as_markdown() {
+				markdown.handle_key(chord)
+			} else if let Some(ide) = pane.as_ide() {
+				ide.handle_key(chord)
 			} else if let Some(term) = pane.as_terminal() {
 				term.handle_key(chord)
 			} else {
@@ -1156,12 +1160,17 @@ impl Workspace {
 			.map(|(p, a)| (*p, *a))
 		{
 			let editor_area = crate::editor::mouse_area(area);
+			let inner = pane_inner(area);
 			let events = match self.active().panes.get_mut(pane) {
 				Some(p) => {
 					if let Some(term) = p.as_terminal() {
 						term.handle_mouse(mouse, area)
 					} else if let Some(editor) = p.as_editor() {
 						editor.handle_mouse(mouse, editor_area)
+					} else if let Some(markdown) = p.as_markdown() {
+						markdown.handle_mouse(mouse, inner)
+					} else if let Some(ide) = p.as_ide() {
+						ide.handle_mouse(mouse, inner)
 					} else {
 						Vec::new()
 					}
@@ -1348,12 +1357,7 @@ impl Workspace {
 				else {
 					return false;
 				};
-				let inner = Rect {
-					x: area.x + 1,
-					y: area.y + 1,
-					width: area.width.saturating_sub(2),
-					height: area.height.saturating_sub(2),
-				};
+				let inner = pane_inner(area);
 				let position = ratatui::layout::Position { x: mouse.column, y: mouse.row };
 				let kind = self
 					.active()
@@ -1399,6 +1403,10 @@ impl Workspace {
 							term.handle_mouse(mouse, area)
 						} else if let Some(editor) = p.as_editor() {
 							editor.handle_mouse(mouse, editor_area)
+						} else if let Some(markdown) = p.as_markdown() {
+							markdown.handle_mouse(mouse, inner)
+						} else if let Some(ide) = p.as_ide() {
+							ide.handle_mouse(mouse, inner)
 						} else {
 							Vec::new()
 						}
@@ -1651,18 +1659,37 @@ impl Workspace {
 				PanelEvent::OpenPath { path, select_file, line, col } => {
 					self.open_path_in_editor(path, select_file, line, col);
 				},
+				// A path scraped out of the terminal's own text (Ctrl+Click on
+				// a printed file reference) is already the file it names; it
+				// takes the same open path, so the panel matching the file —
+				// document, source, or text — is the one that opens. A web
+				// address is not a file and stays unopened here.
+				PanelEvent::OpenLink(termide_core::LinkTarget::Path(path)) => {
+					self.open_path_in_editor(path, None, None, None);
+				},
 				_ => {},
 			}
 		}
 	}
 
-	/// A clicked terminal link (OSC 8 hyperlink or scraped file path) opens
-	/// the **embedded, in-process editor** in a new pane to the right of the
-	/// focused one — the same split a hand press of `[↔]` performs. When the
-	/// embedded editor cannot open the file (unreadable, binary, too large),
-	/// the pre-embedded path takes over: the external suite IDE/editor is
-	/// launched in a PTY pane, and with neither installed the notice carries
-	/// the error.
+	/// A clicked terminal link (OSC 8 hyperlink, scraped file path, or one of
+	/// the session's internal URIs) opens the panel that matches what it
+	/// names, in a new pane to the right of the focused one — the same split a
+	/// hand press of `[↔]` performs:
+	///
+	/// * `.md`/`.mdx` → the rendered **Markdown** viewer, the page the GUI
+	///   shows for a document;
+	/// * a source file → the embedded **IDE** page (file tree, git pane and
+	///   editor tabs);
+	/// * anything else text-shaped → the embedded **editor**, as before.
+	///
+	/// The text a terminal prints is resolved first ([`crate::link_target`]):
+	/// `local://`/`artifact://` map under `~/.zeta`, a `:line:col` suffix is
+	/// peeled off, and a scheme that names no file (`agent://`, `out://`) is
+	/// reported instead of opened. When the embedded editor cannot open a file
+	/// (unreadable, binary, too large), the pre-embedded path takes over: the
+	/// external suite IDE/editor is launched in a PTY pane, and with neither
+	/// installed the notice carries the error.
 	fn open_path_in_editor(
 		&mut self,
 		path: std::path::PathBuf,
@@ -1677,6 +1704,29 @@ impl Workspace {
 			None => path,
 		};
 
+		// The link's text may be a URI (`local://plan.md`) or carry a
+		// `:line:col` suffix; resolve it to the file it names before opening.
+		// A path that already names a file is taken as spelled — a Unix file
+		// name may hold a `:` that is not a position.
+		let cwd = self
+			.workspace_root()
+			.or_else(|| path.parent().map(std::path::Path::to_path_buf))
+			.unwrap_or_default();
+		let spelled = path.to_string_lossy().into_owned();
+		let resolved = if path.is_file() {
+			Some(crate::link_target::OpenTarget { path, line: None, col: None })
+		} else {
+			crate::link_target::resolve(&spelled, &cwd)
+		};
+		let Some(target) = resolved else {
+			// `agent://` and `out://` address in-app state that is shown in
+			// its own panel, not a file this workbench could open.
+			self.notice = Some(format!("{spelled} names no file — only file links open in a pane"));
+			return;
+		};
+		let target = target.with_position(line, col);
+		let (path, line, col) = (target.path, target.line, target.col);
+
 		// PDF is GUI-only: the workbench has no PDF page and never renders one.
 		// Say so instead of dumping a page's byte stream into the text editor.
 		if let Some(notice) = crate::tab::pdf_handoff_notice(&path) {
@@ -1684,36 +1734,93 @@ impl Workspace {
 			return;
 		}
 
-		// Build the editor *before* splitting so a failure never leaves an
-		// empty editor pane behind.
-		match crate::editor::open_editor(&path) {
-			Ok(editor) => {
-				if self.split_active(PaneKind::Editor, Some(Axis::Row)) {
-					let tab = self.active();
-					let idx = tab.active;
-					if let Some(pane) = tab.panes.get_mut(idx) {
-						pane.set_editor_page(editor, &path);
-					}
+		match crate::link_target::panel_for(&path) {
+			// A document opens in the rendered viewer — a Markdown file is
+			// drawn as the document it is, not as its source.
+			crate::link_target::Panel::Markdown if path.is_file() => {
+				match termide_panel_markdown::MarkdownPanel::new(path.clone()) {
+					Ok(panel) => {
+						if self.split_with(PaneKind::Markdown, |pane| {
+							pane.set_markdown_page(panel, &path);
+						}) {
+							self.notice = None;
+							return;
+						}
+						self.notice = Some("could not open a markdown pane".into());
+					},
+					Err(error) => {
+						self.notice = Some(format!("markdown viewer could not open the file ({error})"));
+					},
+				}
+			},
+			// A source file opens in the IDE page, whose editor tab carries
+			// the same highlighting and saving as the standalone editor.
+			crate::link_target::Panel::Ide if path.is_file() => {
+				let mut page = termide_panel_ide::IdePage::new();
+				if let Some(dir) = path.parent() {
+					page.set_repo(dir.to_path_buf());
+				}
+				page.open(path.clone());
+				if self.split_with(PaneKind::IdePage, |pane| {
+					pane.set_ide_page(page, &path);
+				}) {
 					self.notice = None;
 					return;
 				}
-				self.notice = Some("could not open an editor pane".into());
+				self.notice = Some("could not open an IDE pane".into());
 			},
-			Err(error) => {
-				self.notice =
-					Some(format!("embedded editor could not open the file ({error}) — trying zetaide"));
-				let shell = crate::shell::pick_shell(crate::settings::snapshot().shell);
-				let target = crate::tab::link_target_text(&path, line, col);
-				match crate::tab::ide_open_command(&shell, &target) {
-					Some(command) => {
-						self.split_active(PaneKind::Command(command), Some(Axis::Row));
+			_ => {
+				// Build the editor *before* splitting so a failure never
+				// leaves an empty editor pane behind.
+				match crate::editor::open_editor(&path) {
+					Ok(mut editor) => {
+						if let Some(line) = line {
+							// The link named a line: land the cursor there, so
+							// the click opens where the link pointed.
+							editor.set_cursor_line(line.saturating_sub(1) as usize);
+						}
+						if self.split_with(PaneKind::Editor, |pane| {
+							pane.set_editor_page(editor, &path);
+						}) {
+							self.notice = None;
+							return;
+						}
+						self.notice = Some("could not open an editor pane".into());
 					},
-					None => {
-						self.notice = Some("no editor available — the file could not be opened".into());
+					Err(error) => {
+						self.notice = Some(format!(
+							"embedded editor could not open the file ({error}) — trying zetaide"
+						));
+						let shell = crate::shell::pick_shell(crate::settings::snapshot().shell);
+						let target = crate::tab::link_target_text(&path, line, col);
+						match crate::tab::ide_open_command(&shell, &target) {
+							Some(command) => {
+								self.split_active(PaneKind::Command(command), Some(Axis::Row));
+							},
+							None => {
+								self.notice =
+									Some("no editor available — the file could not be opened".into());
+							},
+						}
 					},
 				}
 			},
 		}
+	}
+
+	/// Split the focused pane to the right and hand the new pane to `fill` —
+	/// the shared tail of every embedded-page open. `false` when there is no
+	/// pane to split into, so the caller reports instead of opening nothing.
+	fn split_with(&mut self, kind: PaneKind, fill: impl FnOnce(&mut crate::tab::Pane)) -> bool {
+		if !self.split_active(kind, Some(Axis::Row)) {
+			return false;
+		}
+		let tab = self.active();
+		let idx = tab.active;
+		if let Some(pane) = tab.panes.get_mut(idx) {
+			fill(pane);
+		}
+		true
 	}
 
 	fn new_tab(&mut self) {
@@ -1828,7 +1935,10 @@ impl Workspace {
 		};
 		pane.pages.iter().any(|page| match &page.body {
 			crate::tab::PaneBody::Pty(term) => crate::busy::pane_is_busy(term.shell_pid()),
-			crate::tab::PaneBody::Widget | crate::tab::PaneBody::Editor(_) => false,
+			crate::tab::PaneBody::Widget
+			| crate::tab::PaneBody::Editor(_)
+			| crate::tab::PaneBody::Markdown(_)
+			| crate::tab::PaneBody::Ide(_) => false,
 		})
 	}
 
@@ -1956,6 +2066,12 @@ impl Workspace {
 						// blame, selection auto-scroll). No language service is
 						// involved — see `crate::editor`.
 						let _ = editor.tick();
+					} else if let crate::tab::PaneBody::Markdown(panel) = &mut page.body {
+						// A viewer's own maintenance (fetch results, layout).
+						let _ = panel.tick();
+					} else if let crate::tab::PaneBody::Ide(ide) = &mut page.body {
+						// The IDE page's tabs and panes pump their own work.
+						let _ = ide.tick();
 					}
 				}
 				dead_pages.sort_unstable();
@@ -2301,6 +2417,12 @@ impl Workspace {
 							border_bottom_y: Some(area.bottom().saturating_sub(1)),
 						}
 						.render(editor, inner, frame.buffer_mut());
+					} else if let Some(markdown) = pane.as_markdown() {
+						markdown.prepare_render(&self.theme, &self.config);
+						markdown.render(inner, frame.buffer_mut(), &ctx);
+					} else if let Some(ide) = pane.as_ide() {
+						ide.prepare_render(&self.theme, &self.config);
+						ide.render(inner, frame.buffer_mut(), &ctx);
 					}
 				}
 
@@ -2720,6 +2842,18 @@ fn write_clipboard_png(image: &arboard::ImageData<'_>) -> Option<std::path::Path
 	writer.write_image_data(image.bytes.as_ref()).ok()?;
 	writer.finish().ok()?;
 	Some(path)
+}
+
+/// The pane's content rect: its outer rect minus the one-cell border — the
+/// rect the draw loop renders a native page into, so mouse coordinates handed
+/// to that page's own handler line up with what it drew.
+fn pane_inner(area: Rect) -> Rect {
+	Rect {
+		x: area.x + 1,
+		y: area.y + 1,
+		width: area.width.saturating_sub(2),
+		height: area.height.saturating_sub(2),
+	}
 }
 
 /// The working directory new panes inherit. GUI launches (Start menu, some

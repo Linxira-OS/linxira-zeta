@@ -41,6 +41,7 @@ pub mod i18n;
 pub mod icons;
 pub mod left;
 pub mod lifecycle;
+pub mod link;
 pub mod live;
 pub mod notes;
 pub mod notify;
@@ -724,6 +725,23 @@ impl Shell {
 	}
 
 	// ── the ＋ picker, the diff page, the 用量 container ─────────────────
+
+	/// Open the file a terminal link named, in the page its type deserves:
+	/// Markdown in the rendered page, source code in the **IDE page** (the
+	/// same `panel-ide` the TUI runs), everything else in the text editor.
+	///
+	/// The pane is the link's neighbour — [`state::AppState::open_linked_path`]
+	/// chooses it — so the terminal the user was reading keeps its own tab.
+	pub fn open_linked(&mut self, source: &str, target: &crate::link::OpenTarget) -> state::Notice {
+		if !crate::link::opens_in_ide(&target.path) {
+			return self.state.open_linked_path(source, target);
+		}
+		let (notice, tab) = self.state.open_ide_linked(source, &target.path);
+		if let Some(tab) = tab {
+			self.pages.open(&tab, target.path.clone());
+		}
+		notice
+	}
 
 	/// Open the command palette over the current state.
 	///

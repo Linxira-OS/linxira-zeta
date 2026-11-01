@@ -250,6 +250,7 @@ static EN: &[(&str, &str)] = &[
 	("{} 个文件 · {} 个目录", "{} files · {} directories"),
 	("{} 个模型", "{} models"),
 	("{} 是目录，编辑器只打开文件", "{} is a directory; the editor only opens files"),
+	("{} 不存在或无法打开", "{} does not exist or cannot be opened"),
 	("{} 没有 scheme", "{} has no scheme"),
 	("{} 没有主机名", "{} has no host name"),
 	("{} 没有值（未设置）", "{} has no value (unset)"),
