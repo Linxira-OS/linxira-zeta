@@ -149,6 +149,11 @@ function membersByFile(tree: Tree): Map<string, Set<string>> {
 	const byFile = new Map<string, Set<string>>();
 	for (const line of out.split("\n")) {
 		if (line === "") continue;
+		// `git grep` reports a match inside a binary file as its own sentence
+		// (`Binary file <ref>:<path> matches`) with no line number, and a binary
+		// file cannot declare a TS export. Upstream ships one
+		// (`packages/coding-agent/auth.db-wal`), so this must not be fatal.
+		if (line.startsWith("Binary file ")) continue;
 		if (prefix && !line.startsWith(prefix))
 			fail(`unparseable git grep output (expected a '${prefix}' prefix): ${line.slice(0, 120)}`);
 		const rest = line.slice(prefix.length);

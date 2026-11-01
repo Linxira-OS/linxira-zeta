@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.14.1
+## Integrated through: v18.14.2
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
