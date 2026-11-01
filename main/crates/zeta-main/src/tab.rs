@@ -17,6 +17,13 @@ pub enum PaneKind {
 	Shell,
 	Agent,
 	Editor,
+	/// The rendered Markdown viewer (`termide-panel-markdown`): a `.md`/`.mdx`
+	/// target opens here instead of the text editor, the same page the GUI
+	/// shows for a document.
+	Markdown,
+	/// The embedded IDE page (`termide-panel-ide`): a source file opens here,
+	/// with the file tree, git pane and editor tabs around it.
+	IdePage,
 	Ide,
 	/// Native workbench widgets (no child process): time+calendar dashboard,
 	/// pomodoro timer, clipboard history, host resources, the user board.
@@ -45,6 +52,8 @@ impl PaneKind {
 			PaneKind::Shell => "shell".into(),
 			PaneKind::Agent => "zetacode".into(),
 			PaneKind::Editor => "editor".into(),
+			PaneKind::Markdown => "markdown".into(),
+			PaneKind::IdePage => "ide".into(),
 			PaneKind::Ide => "zetaide".into(),
 			PaneKind::Time => "time · calendar".into(),
 			PaneKind::Pomodoro => "🍅 pomodoro".into(),
@@ -69,11 +78,12 @@ impl PaneKind {
 	}
 
 	/// Panes the workbench renders itself, with no child process: the
-	/// time/calendar, pomodoro and clipboard widgets plus the embedded editor.
-	/// These never self-install from PATH — there is no external binary to
-	/// install — so the split flow must not divert them to an install pane.
+	/// time/calendar, pomodoro and clipboard widgets plus the embedded
+	/// editor, Markdown viewer and IDE page. These never self-install from
+	/// PATH — there is no external binary to install — so the split flow
+	/// must not divert them to an install pane.
 	pub fn is_embedded(&self) -> bool {
-		self.is_widget() || matches!(self, PaneKind::Editor)
+		self.is_widget() || matches!(self, PaneKind::Editor | PaneKind::Markdown | PaneKind::IdePage)
 	}
 
 	/// The raw install spec for a suite tool: `(pane label, command)` — no
@@ -114,14 +124,17 @@ impl PaneKind {
 	fn launch_line(&self, shell: &crate::shell::Shell) -> Option<String> {
 		match self {
 			// No child process: bare shells, native widgets, and the
-			// in-process editor panel all have nothing to type.
+			// in-process editor, Markdown viewer and IDE page all have
+			// nothing to type.
 			PaneKind::Shell
 			| PaneKind::Time
 			| PaneKind::Pomodoro
 			| PaneKind::Clipboard
 			| PaneKind::Resources
 			| PaneKind::Board
-			| PaneKind::Editor => None,
+			| PaneKind::Editor
+			| PaneKind::Markdown
+			| PaneKind::IdePage => None,
 			PaneKind::Command(line) => Some(line.clone()),
 			PaneKind::Install { command, .. } => Some(command.clone()),
 			PaneKind::Agent => {
@@ -146,6 +159,12 @@ pub enum PaneBody {
 	/// The embedded termide editor (`crate::editor`): file open, line numbers,
 	/// syntax highlighting, Ctrl+S save-to-disk. No external binary, no PTY.
 	Editor(Box<termide_panel_editor::Editor>),
+	/// The rendered Markdown viewer (`termide-panel-markdown`): a `.md`/`.mdx`
+	/// document, drawn as the document it is. No external binary, no PTY.
+	Markdown(Box<termide_panel_markdown::MarkdownPanel>),
+	/// The embedded IDE page (`termide-panel-ide`): file tree, git pane and
+	/// editor tabs, the same page the GUI hosts. No external binary, no PTY.
+	Ide(Box<termide_panel_ide::IdePage>),
 }
 
 /// One sub-page of a pane. Pages are live: switching keeps every PTY running
@@ -188,6 +207,16 @@ impl Pane {
 			// with an empty buffer; pick a file with [`Self::open_file_page`]
 			// or the workbench's open-path entry points.
 			PaneBody::Editor(Box::new(crate::editor::new_editor()))
+		} else if matches!(kind, PaneKind::Markdown) {
+			// A blank viewer; [`Self::set_markdown_page`] points it at a file.
+			PaneBody::Markdown(Box::new(termide_panel_markdown::MarkdownPanel::from_source(
+				String::new(),
+				String::new(),
+				None,
+			)))
+		} else if matches!(kind, PaneKind::IdePage) {
+			// An empty IDE page; [`Self::set_ide_page`] opens the file in it.
+			PaneBody::Ide(Box::new(termide_panel_ide::IdePage::new()))
 		} else {
 			// Every PTY page is the modern chained shell (PowerShell 7 →
 			// Windows PowerShell → Git Bash, cmd.exe only as last
@@ -225,16 +254,35 @@ impl Pane {
 	/// the full path (with the language and cursor position) is drawn in the
 	/// pane's status header by [`crate::editor`].
 	pub fn set_editor_page(&mut self, editor: termide_panel_editor::Editor, path: &std::path::Path) {
+		self.replace_page(PaneKind::Editor, PaneBody::Editor(Box::new(editor)), path);
+	}
+
+	/// Replace this pane's pages with a single Markdown-viewer page for
+	/// `path` — the same build-first, swap-in order as the editor page, so a
+	/// document that cannot be read never leaves an empty pane behind.
+	pub fn set_markdown_page(
+		&mut self,
+		panel: termide_panel_markdown::MarkdownPanel,
+		path: &std::path::Path,
+	) {
+		self.replace_page(PaneKind::Markdown, PaneBody::Markdown(Box::new(panel)), path);
+	}
+
+	/// Replace this pane's pages with a single IDE page that has `path` open
+	/// in an editor tab.
+	pub fn set_ide_page(&mut self, page: termide_panel_ide::IdePage, path: &std::path::Path) {
+		self.replace_page(PaneKind::IdePage, PaneBody::Ide(Box::new(page)), path);
+	}
+
+	/// One embedded page, labelled with the file's base name: the page kinds
+	/// the open-path flow builds first and swaps in travel through here.
+	fn replace_page(&mut self, kind: PaneKind, body: PaneBody, path: &std::path::Path) {
 		let label = path
 			.file_name()
 			.map(|n| n.to_string_lossy().into_owned())
 			.unwrap_or_else(|| path.display().to_string());
 		self.pages.clear();
-		self.pages.push(Page {
-			kind: PaneKind::Editor,
-			body: PaneBody::Editor(Box::new(editor)),
-			name: Some(label),
-		});
+		self.pages.push(Page { kind, body, name: Some(label) });
 		self.page = 0;
 	}
 
@@ -267,7 +315,7 @@ impl Pane {
 	pub fn as_terminal(&mut self) -> Option<&mut Terminal> {
 		match &mut self.pages.get_mut(self.page)?.body {
 			PaneBody::Pty(term) => Some(term),
-			PaneBody::Widget | PaneBody::Editor(_) => None,
+			PaneBody::Widget | PaneBody::Editor(_) | PaneBody::Markdown(_) | PaneBody::Ide(_) => None,
 		}
 	}
 
@@ -275,7 +323,23 @@ impl Pane {
 	pub fn as_editor(&mut self) -> Option<&mut termide_panel_editor::Editor> {
 		match &mut self.pages.get_mut(self.page)?.body {
 			PaneBody::Editor(ed) => Some(ed),
-			PaneBody::Pty(_) | PaneBody::Widget => None,
+			PaneBody::Pty(_) | PaneBody::Widget | PaneBody::Markdown(_) | PaneBody::Ide(_) => None,
+		}
+	}
+
+	/// The active page's Markdown viewer, when it is a document page.
+	pub fn as_markdown(&mut self) -> Option<&mut termide_panel_markdown::MarkdownPanel> {
+		match &mut self.pages.get_mut(self.page)?.body {
+			PaneBody::Markdown(panel) => Some(panel),
+			PaneBody::Pty(_) | PaneBody::Widget | PaneBody::Editor(_) | PaneBody::Ide(_) => None,
+		}
+	}
+
+	/// The active page's IDE page, when it is one.
+	pub fn as_ide(&mut self) -> Option<&mut termide_panel_ide::IdePage> {
+		match &mut self.pages.get_mut(self.page)?.body {
+			PaneBody::Ide(page) => Some(page),
+			PaneBody::Pty(_) | PaneBody::Widget | PaneBody::Editor(_) | PaneBody::Markdown(_) => None,
 		}
 	}
 
@@ -304,7 +368,10 @@ impl Pane {
 	pub fn osc_title(&self) -> Option<String> {
 		match &self.pages.get(self.page)?.body {
 			crate::tab::PaneBody::Pty(term) => term.osc_title(),
-			crate::tab::PaneBody::Widget | crate::tab::PaneBody::Editor(_) => None,
+			crate::tab::PaneBody::Widget
+			| crate::tab::PaneBody::Editor(_)
+			| crate::tab::PaneBody::Markdown(_)
+			| crate::tab::PaneBody::Ide(_) => None,
 		}
 	}
 }
@@ -803,6 +870,69 @@ mod tests {
 		assert_eq!(link_target_text(path, None, None), "/repo/src/app.rs");
 		assert_eq!(link_target_text(path, Some(42), None), "/repo/src/app.rs:42");
 		assert_eq!(link_target_text(path, Some(42), Some(7)), "/repo/src/app.rs:42:7");
+	}
+
+	/// A link's target decides the panel: a document gets the rendered
+	/// Markdown viewer, a source file the IDE page, other text the editor.
+	#[test]
+	fn a_link_picks_the_panel_its_target_deserves() {
+		use crate::link_target::{Panel, panel_for};
+
+		assert_eq!(panel_for(std::path::Path::new("docs/plan.md")), Panel::Markdown);
+		assert_eq!(panel_for(std::path::Path::new("notes.mdx")), Panel::Markdown);
+		assert_eq!(panel_for(std::path::Path::new("src/main.rs")), Panel::Ide);
+		assert_eq!(panel_for(std::path::Path::new("src/lib.ts")), Panel::Ide);
+		assert_eq!(panel_for(std::path::Path::new("build.log")), Panel::Editor);
+	}
+
+	#[test]
+	fn markdown_and_ide_pages_are_embedded_and_carry_no_pty() {
+		for kind in [PaneKind::Markdown, PaneKind::IdePage] {
+			assert!(kind.is_embedded(), "{kind:?} renders in process");
+			assert!(!kind.is_widget(), "{kind:?} is not a widget");
+			assert_eq!(kind.install_spec(), None, "{kind:?} installs nothing");
+			let mut pane = Pane::new(kind.clone(), 24, 80, None).expect("embedded pane");
+			assert!(pane.as_terminal().is_none(), "no PTY child to reap");
+			assert!(pane.as_editor().is_none());
+		}
+		assert_eq!(PaneKind::Markdown.label(), "markdown");
+		assert_eq!(PaneKind::IdePage.label(), "ide");
+	}
+
+	#[test]
+	fn a_markdown_file_fills_a_markdown_page() {
+		let dir = tempfile::tempdir().expect("tempdir");
+		let path = dir.path().join("plan.md");
+		std::fs::write(&path, "# plan\n\nbody\n").expect("fixture");
+		let panel = termide_panel_markdown::MarkdownPanel::new(path.clone()).expect("viewer");
+		// A placeholder page first — the open-path flow builds the real panel
+		// and swaps it in, so a failure never leaves an empty pane.
+		let mut pane = Pane::new(PaneKind::Editor, 24, 80, None).expect("placeholder");
+		pane.set_markdown_page(panel, &path);
+		assert_eq!(pane.pages.len(), 1);
+		assert_eq!(pane.pages[0].kind, PaneKind::Markdown);
+		assert!(pane.as_markdown().is_some(), "the page holds the viewer");
+		assert!(pane.as_editor().is_none(), "not the text editor");
+		assert!(pane.as_ide().is_none());
+		assert_eq!(pane.name_override(), Some("plan.md"), "labelled by file name");
+	}
+
+	#[test]
+	fn a_source_file_fills_an_ide_page() {
+		let dir = tempfile::tempdir().expect("tempdir");
+		let path = dir.path().join("main.rs");
+		std::fs::write(&path, "fn main() {}\n").expect("fixture");
+		let mut page = termide_panel_ide::IdePage::new();
+		page.open(path.clone());
+		let mut pane = Pane::new(PaneKind::Editor, 24, 80, None).expect("placeholder");
+		pane.set_ide_page(page, &path);
+		assert_eq!(pane.pages.len(), 1);
+		assert_eq!(pane.pages[0].kind, PaneKind::IdePage);
+		let ide = pane.as_ide().expect("the page holds the IDE");
+		assert_eq!(ide.titles(), ["main.rs"], "the file is open in a tab");
+		assert!(pane.as_editor().is_none());
+		assert!(pane.as_markdown().is_none());
+		assert_eq!(pane.name_override(), Some("main.rs"));
 	}
 
 	#[test]
