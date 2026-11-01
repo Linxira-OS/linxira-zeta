@@ -35,6 +35,8 @@
     "!src/export/html/share-loader.js",
     "dist/cli.js",
     "dist/docs-index.generated.txt",
+    "dist/official-plugins",
+    "dist/official-plugins.generated.json",
     "dist/CHANGELOG-*.md",
     "dist/*.node",
     "dist/*.json-*.zst",

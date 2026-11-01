@@ -238,7 +238,6 @@ class GitFileTree {
 	}
 }
 
-
 /** A text field at rest: its value (or placeholder) as text; a click starts editing it. */
 function fieldText(
 	value: string,

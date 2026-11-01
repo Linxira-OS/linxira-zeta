@@ -259,7 +259,9 @@ export default function piMessengerExtension(pi: ExtensionAPI) {
 			checkStuckAgents(ctx, agents);
 			const activeNames = new Set(agents.map(a => a.name));
 			const count = agents.length;
-			const theme = ctx.ui.theme;
+			// A host that spreads a class-based UI context loses the prototype
+			// `theme` getter, so `theme` can be undefined while `hasUI` is true.
+			const theme = ctx.ui.theme ?? { fg: (_color: string, text: string) => text };
 
 			for (const name of state.unreadCounts.keys()) {
 				if (!activeNames.has(name)) {
@@ -1238,9 +1240,11 @@ Usage (action-based API - preferred):
 		// The steer message will trigger the LLM to call work again
 	});
 
-	pi.on("session_shutdown", async (_event, ctx) => {
+	pi.on("session_shutdown", async () => {
 		latestCtx = null;
-		const cwd = ctx.cwd || state.cwd;
+		// Some hosts deliver `session_shutdown` with an already-stale ctx, and
+		// any ctx read would skip this cleanup; use the cwd captured at start.
+		const cwd = state.cwd;
 		if (cwd) {
 			shutdownLobbyWorkers(cwd);
 		}

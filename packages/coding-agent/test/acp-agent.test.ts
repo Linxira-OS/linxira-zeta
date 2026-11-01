@@ -21,11 +21,7 @@ import {
 	createAcpExtensionUiContext,
 } from "@linxiraos/zeta/modes/acp/acp-agent";
 import type { PlanModeState } from "@linxiraos/zeta/plan-mode/state";
-import type {
-	AgentSession,
-	AgentSessionEvent,
-	UsageFallbackConfirmation,
-} from "@linxiraos/zeta/session/agent-session";
+import type { AgentSession, AgentSessionEvent, UsageFallbackConfirmation } from "@linxiraos/zeta/session/agent-session";
 import { SILENT_ABORT_MARKER, USER_INTERRUPT_LABEL } from "@linxiraos/zeta/session/messages";
 import type { ClientBridge } from "@linxiraos/zeta/session/client-bridge";
 import { closeSessionIndex } from "@linxiraos/zeta/session/session-index";

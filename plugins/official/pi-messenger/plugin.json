@@ -7,5 +7,6 @@
 	"install": "npm",
 	"compat": { "zeta": "^1.1.0" },
 	"unuse": false,
-	"category": "official"
+	"category": "official",
+	"distribution": "bundled"
 }

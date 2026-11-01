@@ -11,6 +11,22 @@ The marketplace system lets you discover, install, and manage plugins from Git, 
 
 In the TUI, `/marketplace` with no arguments opens the interactive plugin browser. In ACP/RPC command handling, `/marketplace` lists configured marketplaces; use `/marketplace discover` to browse.
 
+## The built-in `official` catalog
+
+`zetacode plugin marketplace` always lists `official` — a catalog compiled into the product from the manifests of the official plugins bundled with it (`plugin.json` with `"distribution": "bundled"`). Discovery therefore works on a fresh install with no marketplace added and no network access:
+
+```
+$ zetacode plugin marketplace
+Marketplaces:
+
+  official  builtin:official  (built-in)
+```
+
+Its plugin ids read `name@official`, and the plugin sources ship inside the coding-agent package (`dist/official-plugins/`), so an install from this catalog copies from disk instead of cloning. Official plugins are installed by default and **disabled**: `plugin list` shows `⦸ pi-messenger@official (1.4.7)`, `plugin discover` reports `installed, disabled`, and `zetacode plugin enable pi-messenger` turns exactly that entry on. A build that ships only the manifest snapshot (a standalone binary) still lists the catalog but carries no sources; installing there reports that the sources are not bundled and names the npm package instead.
+
+`official` is reserved: `plugin marketplace add` refuses a catalog that calls itself `official`, `plugin marketplace update official` is a no-op (the catalog is the shipped manifests), and `plugin marketplace remove official` is rejected. Community marketplaces added with `plugin marketplace add <source>` are unaffected and list after the built-in one.
+
+
 ## Concepts
 
 A **marketplace** is a Git repository (or local directory) containing a catalog file at `.zeta-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). The catalog lists available plugins with their sources, descriptions, and metadata.
@@ -94,6 +110,8 @@ When you run `/marketplace add <source>`, the system classifies the source:
 | `./path` or `~/path` or `/path` | Local directory                                    | `./my-marketplace`                     |
 
 Git and local sources must contain a catalog at `.zeta-plugin/marketplace.json` (preferred) or `.claude-plugin/marketplace.json` (Claude Code-compatible fallback). Direct catalog URLs cache only the JSON catalog; plugins in URL-sourced catalogs cannot use relative string sources like `"./plugins/foo"`.
+
+**Not implemented:** discovering a third-party repository by its git tags (a GitHub repo with no catalog, found by scanning tagged releases) is deliberately out of scope. Nothing probes GitHub at startup, and adding that would either need a new network dependency on a code path that runs before the TUI draws, or a tag-listing API the existing git fetcher does not expose. Point `plugin marketplace add owner/repo` at a repository that carries a catalog, or install a plugin directly by `./path`, git URL, or npm name.
 
 ## Catalog format (marketplace.json)
 
@@ -229,10 +247,11 @@ Invalid catalog JSON or invalid required top-level fields reject the catalog. An
 
 ```
 ~/.zeta/
-  marketplaces.json              # Registry of added marketplaces
+  marketplaces.json              # Registry of added marketplaces (`official` is built in, never listed here)
   plugins/
     installed_plugins.json       # User-scoped marketplace plugins (version: 2)
-    omp-plugins.lock.json         # Runtime enable/feature state and plugin settings
+    .official-plugins-seeded.json # Official plugin ids the built-in catalog already installed
+    zeta-plugins.lock.json        # Runtime enable/feature state and plugin settings
     node_modules/<package>        # Symlink to the cached plugin
     cache/
       marketplaces/<name>/       # Cached marketplace clone/catalog

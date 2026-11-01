@@ -19,6 +19,7 @@ import * as path from "node:path";
 import { buildDocsIndexPayload } from "./generate-docs-index";
 import { buildOfficialSkillsPayload } from "./generate-official-skills-payload";
 import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
+import { buildOfficialCatalogPayload } from "./official-plugins";
 
 const repoRoot = path.join(import.meta.dir, "..", "..");
 const packageDir = path.join(import.meta.dir, "..");
@@ -111,6 +112,9 @@ async function main(): Promise<void> {
 					"process.env.ZETA_OFFICIAL_SKILLS_EMBED": JSON.stringify(
 						JSON.stringify((await buildOfficialSkillsPayload()).files),
 					),
+					// Manifests only: a standalone binary ships no plugin source trees,
+					// so the built-in catalog lists them and points at the npm packages.
+					"process.env.ZETA_OFFICIAL_PLUGINS_EMBED": JSON.stringify(buildOfficialCatalogPayload().payload),
 				},
 				minify: {
 					identifiers: false,

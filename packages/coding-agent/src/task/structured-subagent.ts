@@ -16,6 +16,8 @@ import {
 	resolveExplicitModelRole,
 	getModelMatchPreferences,
 	resolveModelOverride,
+	resolveAgentModelPatterns,
+	formatModelStringWithRouting,
 } from "../config/model-resolver";
 import { type OAuthAccountPools, validateAgentAccountPools } from "../config/account-pools";
 import {

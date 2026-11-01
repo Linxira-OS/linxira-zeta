@@ -7,6 +7,7 @@ import { buildDocsIndexPayload } from "./generate-docs-index";
 import { buildOfficialSkillsPayload } from "./generate-official-skills-payload";
 import { createJsonParsePlugin } from "./json-parse-plugin";
 import { createLegacyPiVirtualModulePlugin } from "./legacy-pi-virtual-module";
+import { buildOfficialCatalogPayload, writeOfficialPluginsBundle } from "./official-plugins";
 
 const packageDir = path.join(import.meta.dir, "..");
 const defaultOutDir = path.join(packageDir, "dist");
@@ -87,6 +88,8 @@ async function cleanBundleOutputs(outDir: string): Promise<void> {
 				entry =>
 					entry === "cli.js" ||
 					entry === "docs-index.generated.txt" ||
+					entry === "official-plugins" ||
+					entry === "official-plugins.generated.json" ||
 					entry.endsWith(".node") ||
 					entry.endsWith(".js.map") ||
 					/\.json-[^/]+\.zst$/.test(entry) ||
@@ -112,6 +115,7 @@ export async function bundleDist(outDir: string = defaultOutDir): Promise<void> 
 	// build-time embed) can still resolve zeta:// docs (see src/internal-urls/docs-index.ts).
 	try {
 		const docsPayload = await buildDocsIndexPayload();
+		const officialCatalog = buildOfficialCatalogPayload();
 		// Build in-process: the docs embed payload is far larger than Linux's
 		// 128KiB per-argv-string cap, so it can never be passed as a CLI
 		// `--define` (posix_spawn fails with E2BIG).
@@ -127,6 +131,7 @@ export async function bundleDist(outDir: string = defaultOutDir): Promise<void> 
 				"process.env.ZETA_OFFICIAL_SKILLS_EMBED": JSON.stringify(
 					JSON.stringify((await buildOfficialSkillsPayload()).files),
 				),
+				"process.env.ZETA_OFFICIAL_PLUGINS_EMBED": JSON.stringify(officialCatalog.payload),
 			},
 			minify: {
 				whitespace: true,
@@ -141,6 +146,10 @@ export async function bundleDist(outDir: string = defaultOutDir): Promise<void> 
 		}
 		await ensureShebang(cliPath);
 		await Bun.write(path.join(outDir, "docs-index.generated.txt"), docsPayload.payload);
+		// The official plugin sources ship inside the package so an npm install can
+		// materialize the built-in catalog offline; the define above is what a
+		// build without this directory still reads.
+		await writeOfficialPluginsBundle(outDir);
 	} finally {
 		await runCommand(["bun", "--cwd=../stats", "run", "gen:stats:reset"]);
 	}

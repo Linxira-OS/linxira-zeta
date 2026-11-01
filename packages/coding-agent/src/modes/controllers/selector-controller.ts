@@ -1581,8 +1581,18 @@ export class SelectorController {
 			pluginsCacheDir: getPluginsCacheDir(),
 			clearPluginRootsCache: clearPluginRootsAndCaches,
 		});
+		// The bundled official plugins are installed but disabled on first sight; the
+		// selector lists installed entries, so materialize them before reading.
+		try {
+			await mgr.ensureOfficialPluginsInstalled();
+		} catch {
+			// The catalog and any existing install still list.
+		}
 
-		const [marketplaces, installed] = await Promise.all([mgr.listMarketplaces(), mgr.listInstalledPlugins()]);
+		const [marketplaces, installed] = await Promise.all([
+			mgr.listAvailableMarketplaces(),
+			mgr.listInstalledPlugins(),
+		]);
 		const installedIds = new Set(installed.map(p => p.id));
 
 		if (mode === "uninstall") {

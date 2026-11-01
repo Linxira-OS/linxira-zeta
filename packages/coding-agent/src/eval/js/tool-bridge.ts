@@ -39,7 +39,6 @@ import { isEvalBridgeToolCallable } from "../tool-bridge-policy";
 import { EVAL_WORKPOOL_BRIDGE_NAME, type EvalWorkpoolResult, runEvalWorkpool } from "../workpool-bridge";
 import type { RuntimeCallIdentity } from "./shared/runtime";
 import type { JsStatusEvent } from "./shared/types";
-import { parseMCPProgress } from "@linxiraos/pi-tui/tools/mcp";
 
 /** These tools await delegated subagents/jobs, not the cell runtime's own work. */
 const DELEGATED_WORK_TOOLS = new Set(["task", "wait"]);
