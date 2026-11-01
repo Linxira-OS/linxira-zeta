@@ -154,9 +154,10 @@ export function readOfficialPluginSources(sourceDir: string = OFFICIAL_PLUGINS_S
 }
 
 /** The manifest snapshot, as JSON, for `ZETA_OFFICIAL_PLUGINS_EMBED` and the `dist/` sidecar. */
-export function buildOfficialCatalogPayload(
-	sourceDir: string = OFFICIAL_PLUGINS_SOURCE_DIR,
-): { payload: string; plugins: OfficialPluginSnapshot[] } {
+export function buildOfficialCatalogPayload(sourceDir: string = OFFICIAL_PLUGINS_SOURCE_DIR): {
+	payload: string;
+	plugins: OfficialPluginSnapshot[];
+} {
 	const plugins = readOfficialPluginSources(sourceDir).map(source => source.snapshot);
 	return { payload: JSON.stringify({ version: 1, plugins }), plugins };
 }

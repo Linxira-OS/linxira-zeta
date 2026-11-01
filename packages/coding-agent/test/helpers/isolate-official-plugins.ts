@@ -9,10 +9,7 @@ import path from "node:path";
 //
 // official-catalog.test.ts opts back in by pointing the variable at a fixture,
 // and deletes it when it asserts on the repository's own manifests.
-process.env.ZETA_OFFICIAL_PLUGINS_DIR = path.join(
-	path.dirname(process.execPath),
-	"__zeta_test_no_official_plugins__",
-);
+process.env.ZETA_OFFICIAL_PLUGINS_DIR = path.join(path.dirname(process.execPath), "__zeta_test_no_official_plugins__");
 // A bundle/binary build defines this; a source run must never inherit one, or the
 // snapshot would shadow the fixture each test points the catalog at.
 delete process.env.ZETA_OFFICIAL_PLUGINS_EMBED;

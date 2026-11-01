@@ -687,16 +687,7 @@ import {
 	getRestorableSessionModels,
 	isTranscriptEntry,
 } from "./session-context";
-import {
-	cfgInterruptMode,
-	cfgFollowUpMode,
-	cfgSteeringMode,
-	cfgImagesAutoResize,
-	cfgMagicKeyword,
-	cfgMagicKeywordsEnabled,
-	cfgThemeDark,
-	cfgThemeLight,
-} from "../modes/settings";
+import { cfgInterruptMode, cfgFollowUpMode, cfgSteeringMode } from "../modes/settings";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { JobWidgetEntry } from "@linxiraos/pi-tui/tools/job-widget";
 

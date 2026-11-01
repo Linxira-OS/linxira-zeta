@@ -4,7 +4,7 @@
 Select via `op`.
 - `repo`: `[host/]owner/repo`; the host segment maps to a named `tea` login when one matches, so qualify it for a repo outside the checkout's own instance. `login`: explicit login name (the `--hostname` analog); overrides host matching.
 - `repo_view`/`issue_view`/`pr_view`/`*_list`: omit `repo` → current checkout's Gitea remote.
-- `issue`/`pr` identifiers: number or Gitea URL (`.../issues/7`, `.../pulls/12`).
+- `issue`/`pr` identifiers: number or Gitea URL (`…/issues/7`, `…/pulls/12`).
 - `repo_create`: `name` required; `owner` defaults to the logged-in user; `init` defaults true (README + default branch). Creation is verified by API readback; verification failure is an error.
 - `issue_create`/`pr_create`: `title` required; `body` is the description; `pr_create` `head` defaults to the current branch, `base` to the repo default.
 - `pr_checkout`: PR → dedicated git worktree, never the working tree; `force=true` resets an existing `pr-<N>` branch.

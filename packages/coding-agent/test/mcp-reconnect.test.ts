@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from "bun:test";
-import {
-	createMCPJsonRpcError,
-	MCPTransportError,
-	normalizeMCPTransportError,
-} from "@linxiraos/zeta/mcp/errors";
+import { createMCPJsonRpcError, MCPTransportError, normalizeMCPTransportError } from "@linxiraos/zeta/mcp/errors";
 import type { MCPReconnect } from "@linxiraos/zeta/mcp/tool-bridge";
 import {
 	createLegacyMCPToolName,

@@ -354,9 +354,7 @@ async function handleDiscover(args: string[], flags: PluginCommandArgs["flags"])
 			const state = installedStateFor(plugin.name, installed);
 			const packageName = published.get(plugin.name);
 			const suffix = packageName ? chalk.dim(`  (${packageName})`) : "";
-			console.log(
-				`  ${chalk.cyan(plugin.name)}${plugin.version ? `@${plugin.version}` : ""}  ${state}${suffix}`,
-			);
+			console.log(`  ${chalk.cyan(plugin.name)}${plugin.version ? `@${plugin.version}` : ""}  ${state}${suffix}`);
 			if (plugin.description) {
 				console.log(chalk.dim(`    ${plugin.description}`));
 			}
