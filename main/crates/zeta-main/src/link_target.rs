@@ -259,25 +259,30 @@ mod tests {
 
 	#[test]
 	fn a_plain_path_carries_its_line_and_column() {
-		let cwd = Path::new("C:/repo");
-		let target = resolve("C:/repo/a.rs:42:7", cwd).expect("an absolute path resolves");
-		assert_eq!(target.path, Path::new("C:/repo/a.rs"));
+		// What the platform calls absolute differs, so the fixture is built from
+		// a real absolute directory instead of a Windows-shaped literal.
+		let cwd = std::env::current_dir().expect("a current directory");
+		let file = cwd.join("a.rs");
+
+		let target =
+			resolve(&format!("{}:42:7", file.display()), &cwd).expect("an absolute path resolves");
+		assert_eq!(target.path, file);
 		assert_eq!((target.line, target.col), (Some(42), Some(7)));
 		assert_eq!(panel_for(&target.path), Panel::Ide);
 
-		let target = resolve("C:/repo/a.rs:42", cwd).expect("a line alone");
-		assert_eq!(target.path, Path::new("C:/repo/a.rs"));
+		let target = resolve(&format!("{}:42", file.display()), &cwd).expect("a line alone");
+		assert_eq!(target.path, file);
 		assert_eq!((target.line, target.col), (Some(42), None));
 
 		// A relative path is taken from the workspace the click was in.
-		let target = resolve("src/a.rs:3", cwd).expect("a relative path");
+		let target = resolve("src/a.rs:3", &cwd).expect("a relative path");
 		assert_eq!(target.path, cwd.join("src/a.rs"));
 		assert_eq!((target.line, target.col), (Some(3), None));
 
 		// No suffix: the path is left exactly as spelled, colon groups that
 		// are not numbers included.
-		let target = resolve("C:/repo/a.rs", cwd).expect("a bare path");
-		assert_eq!(target.path, Path::new("C:/repo/a.rs"));
+		let target = resolve(&file.display().to_string(), &cwd).expect("a bare path");
+		assert_eq!(target.path, file);
 		assert_eq!((target.line, target.col), (None, None));
 	}
 
