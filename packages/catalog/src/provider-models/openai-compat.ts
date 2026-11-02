@@ -73,6 +73,7 @@ import {
 } from "../wire/singularityapi";
 import { isXiaomiTokenPlanKey } from "../wire/xiaomi-token-plan";
 import { createBundledReferenceMap, createReferenceResolver, toModelSpec } from "./bundled-references";
+import catalogSnapshotPath from "./catalog-snapshot.json.zst" with { type: "file" };
 import { getDefaultModelDiscoveryBaseUrl, resolveModelCacheProviderId } from "./cache-provider-id";
 import { getClinePassModelMetadata } from "./cline-pass";
 import type { ModelManagerConfig } from "./descriptor-types";
@@ -202,6 +203,36 @@ function waitForCatalogRequest<T>(request: Promise<T>, signal?: AbortSignal): Pr
 
 const CATALOG_USER_AGENT = USER_AGENT;
 
+/** Parse a catalog payload: zstd-compressed or plain JSON, sniffed by frame magic. */
+async function parseCatalogBytes(bytes: Uint8Array): Promise<unknown> {
+	const isZstd = bytes.length >= 4 && new DataView(bytes.buffer, bytes.byteOffset).getUint32(0, true) === ZSTD_MAGIC;
+	const text = new TextDecoder().decode(isZstd ? await Bun.zstdDecompress(bytes) : bytes);
+	return JSON.parse(text);
+}
+
+/**
+ * The committed snapshot, decompressed once per process.
+ *
+ * `gen:models` writes the exact payload shape this function returns, so the
+ * offline source and the live source are interchangeable downstream. A
+ * snapshot that fails to parse is reported, not cached, so the next caller
+ * retries instead of inheriting a poisoned cache.
+ */
+let catalogSnapshot: unknown;
+let catalogSnapshotInflight: Promise<unknown> | undefined;
+
+function readCatalogSnapshot(): Promise<unknown> {
+	if (catalogSnapshot !== undefined) return Promise.resolve(catalogSnapshot);
+	catalogSnapshotInflight ??= (async () => {
+		const bytes = new Uint8Array(await Bun.file(catalogSnapshotPath).arrayBuffer());
+		catalogSnapshot = await parseCatalogBytes(bytes);
+		return catalogSnapshot;
+	})().finally(() => {
+		catalogSnapshotInflight = undefined;
+	});
+	return catalogSnapshotInflight;
+}
+
 /**
  * Fetches the models.dev catalog via catalog.stencil.so, which serves a
  * field-pruned copy precompressed as a zstd blob (~93 KB vs ~3.3 MB raw).
@@ -214,8 +245,15 @@ const CATALOG_USER_AGENT = USER_AGENT;
  * waiting independently; the shared transport retains its own hard deadline.
  * Transient failures reuse the last in-memory payload for callers that only
  * need best-effort metadata.
+ *
+ * Source rule: the caller's transport decides. With no `fetchImpl` this
+ * resolves the committed snapshot (`catalog-snapshot.json.zst`) and touches no
+ * network; a caller that passes its own transport gets the live catalog over
+ * it. `modelsDevCatalogFallback` therefore receives the registry's fetcher only
+ * when `catalog.remoteRefresh` is on, and `gen:models` always passes one.
  */
 export function fetchWellKnownModels(fetchImpl?: FetchImpl, signal?: AbortSignal): Promise<unknown> {
+	if (!fetchImpl) return waitForCatalogRequest(readCatalogSnapshot(), signal);
 	const session = getCatalogSession(fetchImpl);
 	return fetchRevalidatedWellKnownModels(fetchImpl, signal).catch(error => {
 		if (session.hasPayload) return session.payload;
@@ -239,6 +277,8 @@ function fetchRevalidatedWellKnownModelsWithTimeout(
 	fetchImpl?: FetchImpl,
 	timeoutMs = DEFAULT_OPENAI_COMPATIBLE_DISCOVERY_TIMEOUT_MS,
 ): Promise<unknown> {
+	// Same source rule as {@link fetchWellKnownModels}: no transport, no network.
+	if (!fetchImpl) return readCatalogSnapshot();
 	return withCatalogDiscoveryTimeout(timeoutMs, signal => fetchRevalidatedWellKnownModels(fetchImpl, signal));
 }
 
@@ -262,9 +302,7 @@ async function fetchCatalogPayload(
 		throw new Error(`models catalog fetch failed: ${response.status}`);
 	}
 	const bytes = new Uint8Array(await response.arrayBuffer());
-	const isZstd = bytes.length >= 4 && new DataView(bytes.buffer, bytes.byteOffset).getUint32(0, true) === ZSTD_MAGIC;
-	const text = new TextDecoder().decode(isZstd ? await Bun.zstdDecompress(bytes) : bytes);
-	const payload: unknown = JSON.parse(text);
+	const payload = await parseCatalogBytes(bytes);
 	session.payload = payload;
 	session.etag = response.headers.get("etag");
 	session.hasPayload = true;

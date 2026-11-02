@@ -259,6 +259,10 @@ jobs:
            run: bun scripts/brand/brand-check.ts
          - name: Shared-infra ledger guard
            run: bun scripts/check-shared-infra.ts
+         - name: Upstream default guard
+           run: bun scripts/check-no-upstream-defaults.ts
+         - name: Docs/host parity guard
+           run: bun scripts/check-doc-host-parity.ts
          - name: Zeta-only sentinel guard
            run: bun scripts/check-zeta-sentinels.ts
          - name: Check CI surface

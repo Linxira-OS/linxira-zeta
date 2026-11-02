@@ -33,6 +33,7 @@
 | `feat/pet-rust` | park | 桌宠 Rust crate（未提交，9 files，`main/crates/zetapet/`） | user | 2026-10-21 | P1 暂缓；保持 park，不动 |
 | `feat/pet-packaging` | park | 桌宠 npm 打包（未提交，5 files，`main/npm/pet/`） | user | 2026-10-21 | 同上 |
 | `docs/roadmap-audit` | docs | DSH 内核 + TUI/IM 两份 2026-10-31 审计（+24 行，已 commit `faea369a066`） | agent | 2026-10-31 | **等用户提交 `document/roadmap.md` 的改动后**再合（否则工作区脏，git 拒绝合并） |
+| `feat/taste-memory` | feat | P0–P2 上游 host/默认值清理 + `check-no-upstream-defaults` / `check-doc-host-parity` 两个新门禁；随后在此之上做 P4 `taste` super-memory 层（`packages/coding-agent/src/taste/`）。worktree `temp/taste-memory` | agent | 2026-11-02 | P4 落地并入 `main` 后删（合并前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
 
 ## 已退役（删除前登记）

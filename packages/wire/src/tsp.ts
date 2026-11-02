@@ -11,11 +11,9 @@
  * `q` query, `o` open, `f` frame, `b` blob, `t` palette, `x` close. Terminal →
  * program: `r` reply, `e` event (on the pty's input side).
  *
- * The normative spec is the Tern SDK's Surface Protocol and Elements reference
- * (`docs/sdk/src/protocol` and `docs/sdk/src/elements` in the Stencil
- * repository, https://docs.stencil.so/tern/protocol/); these types mirror it.
- * Unknown fields and verbs are ignored in both directions, so every addition
- * here is optional.
+ * The normative spec is the Tern Surface Protocol; this file mirrors its
+ * vocabulary. Unknown fields and verbs are ignored in both directions, so
+ * every addition here is optional.
  */
 
 /** Protocol version this build speaks. */

@@ -66,6 +66,8 @@ packages/ai/test/.temp-images/
 
 # Project specific
 .zeta/
+# Command Code's own taste store (foreign agent state, never tracked; taste reads it once)
+.commandcode/
 .pi_config/
 .opencode/
 .worktrees/

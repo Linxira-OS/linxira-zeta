@@ -12,12 +12,26 @@ import { downloadFile } from "./tools-manager";
  * use (the natives loader configures that directory), so installing is just
  * placing the verified `.wasm` there.
  *
- * Asset URL: `${PI_GRAMMARS_URL ?? GitHub releases}/<release>/<file>.zst`, a
- * zstd frame whose decompressed bytes must match the pinned size and SHA-256
+ * Asset URL: `${ZETA_GRAMMARS_URL ?? PI_GRAMMARS_URL ?? GitHub releases}/<release>/<file>.zst`,
+ * a zstd frame whose decompressed bytes must match the pinned size and SHA-256
  * reported by `wasmGrammarFor`.
  */
 
 const DEFAULT_GRAMMARS_URL = "https://github.com/stencil-hq/wasm-grammars/releases/download";
+
+/**
+ * Grammar download base: `ZETA_GRAMMARS_URL` first (our name, and the one a
+ * mirror should set), then the pre-rename `PI_GRAMMARS_URL` so existing
+ * configurations keep working, then the pinned upstream release host. Trailing
+ * slashes are trimmed because the caller appends `/`.
+ */
+function grammarBaseUrl(): string {
+	return (
+		process.env.ZETA_GRAMMARS_URL?.trim().replace(/\/+$/, "") ||
+		process.env.PI_GRAMMARS_URL?.trim().replace(/\/+$/, "") ||
+		DEFAULT_GRAMMARS_URL
+	);
+}
 /** Whole-transfer bound for one compressed grammar. */
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 /** Lock wait long enough to cover a peer process's whole download. */
@@ -35,7 +49,7 @@ async function fetchGrammar(
 	dest: string,
 	onProgress: (loaded: number, total: number | undefined) => void,
 ): Promise<void> {
-	const base = process.env.PI_GRAMMARS_URL?.trim().replace(/\/+$/, "") || DEFAULT_GRAMMARS_URL;
+	const base = grammarBaseUrl();
 	const url = `${base}/${info.release}/${info.file}.zst`;
 	const compressed = `${dest}.zst.part`;
 	const part = `${dest}.part`;

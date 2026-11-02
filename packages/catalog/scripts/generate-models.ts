@@ -49,7 +49,7 @@ import {
 } from "../src/provider-models/openai-compat";
 import { type OpenAICodexAccount, openaiCodexModelManagerOptions } from "../src/provider-models/special";
 import type { Api, Model, ModelSpec } from "../src/types";
-import { cleanModelName } from "../src/utils";
+import { cleanModelName, discoveryFetch } from "../src/utils";
 import { mergeCopilotApiHeaders } from "../src/wire/github-copilot";
 import {
 	applyCanonicalLimitFallback,
@@ -257,10 +257,60 @@ async function fetchProviderModelsFromCatalog(
 	}
 }
 
+/**
+ * Path of the committed offline catalog source. The runtime reads this file
+ * instead of the shared catalog host unless `catalog.remoteRefresh` is on, so
+ * a build that skips it ships a stale-or-missing snapshot and every offline
+ * refresh silently stops working.
+ */
+const CATALOG_SNAPSHOT_PATH = path.join(packageRoot, "src/provider-models/catalog-snapshot.json.zst");
+
+/**
+ * Commit the fetched payload as the offline catalog source.
+ *
+ * Stored as a zstd frame rather than raw JSON: the payload is ~3 MB of rows
+ * against ~200 KB compressed, and the compressed form is the byte sequence the
+ * catalog endpoint itself serves, so provenance needs no sidecar checksum.
+ */
+async function writeCatalogSnapshot(data: unknown): Promise<void> {
+	const canonical = JSON.stringify(data);
+	// A run whose rows did not move must not rewrite the blob: zstd output
+	// depends on the compressor's level, so an unconditional write would churn
+	// the committed binary on every generation even when nothing changed. The
+	// comparison is canonicalized on both sides — the committed file is the
+	// exact byte sequence the catalog host served, which is minified but not
+	// necessarily identical to `JSON.stringify` of the parsed payload.
+	const committed = Bun.file(CATALOG_SNAPSHOT_PATH);
+	if (await committed.exists()) {
+		try {
+			const decompressed = new TextDecoder().decode(
+				await Bun.zstdDecompress(new Uint8Array(await committed.arrayBuffer())),
+			);
+			if (JSON.stringify(JSON.parse(decompressed)) === canonical) {
+				console.log("Catalog snapshot unchanged (src/provider-models/catalog-snapshot.json.zst)");
+				return;
+			}
+		} catch {
+			// Unreadable or corrupt: fall through and rewrite it.
+		}
+	}
+	const raw = new TextEncoder().encode(canonical);
+	const compressed = await Bun.zstdCompress(raw);
+	await Bun.write(CATALOG_SNAPSHOT_PATH, compressed);
+	console.log(
+		`Generated src/provider-models/catalog-snapshot.json.zst (${raw.byteLength} bytes raw, ${compressed.byteLength} compressed)`,
+	);
+}
+
 async function loadModelsDevData(): Promise<ModelSpec[]> {
 	try {
 		console.log("Fetching stencil.so catalog from catalog.stencil.so...");
-		const data = await fetchWellKnownModels();
+		// Generation is the one caller that must read the live catalog: the runtime
+		// default is the committed snapshot, and regenerating from it would freeze
+		// whatever the previous run already baked in. Passing the transport is what
+		// selects the live source.
+		const data = await fetchWellKnownModels(discoveryFetch());
+		await writeCatalogSnapshot(data);
 		const models = mapModelsDevToModels(data as Record<string, unknown>, MODELS_DEV_PROVIDER_DESCRIPTORS);
 		models.sort((a, b) => a.id.localeCompare(b.id));
 		console.log(`Loaded ${models.length} models from stencil.so`);

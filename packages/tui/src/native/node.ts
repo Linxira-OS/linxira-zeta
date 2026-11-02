@@ -10,9 +10,8 @@
  * reference contract as `render()`). A component without `describe` becomes a
  * `rows` fallback node rendered through `render(cx.cols)`.
  *
- * See `packages/wire/src/tsp.ts` for the wire vocabulary and
- * the Tern SDK's Surface Protocol reference (`docs/sdk/src/protocol` in the
- * Stencil repository, https://docs.stencil.so/tern/protocol/) for the spec.
+ * See `packages/wire/src/tsp.ts` for the wire vocabulary; the normative spec is
+ * the Tern Surface Protocol.
  */
 import type { TspEvent, TspKind, TspProps, TspScrollBy, TspSpan } from "@linxiraos/pi-wire";
 import type { Component } from "../tui";

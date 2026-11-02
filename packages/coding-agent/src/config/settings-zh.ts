@@ -1900,6 +1900,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "语音朗读语速",
 		description: "朗读助手输出时的语速。1 = 正常；限制在 0.5–2.5",
 	},
+	"catalog.remoteRefresh": {
+		label: "远程模型刷新",
+		description:
+			"运行时拉取共享的 models.dev 目录，而不是使用随构建打包的快照。关闭时每次运行都不联网、模型行不会在两次运行之间变化",
+	},
 	"providers.judgmentProvider": {
 		label: "判定服务商",
 		description:

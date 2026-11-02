@@ -104,6 +104,8 @@ describe("planSteps", () => {
 			"scripts/check-zeta-sentinels.ts",
 			"scripts/check-ci-surface.ts",
 			"scripts/check-shared-infra.ts",
+			"scripts/check-no-upstream-defaults.ts",
+			"scripts/check-doc-host-parity.ts",
 			"scripts/check-release-asset-names.ts",
 			"scripts/check-package-json-merge.ts",
 		])

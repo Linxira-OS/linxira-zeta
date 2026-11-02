@@ -5,11 +5,9 @@
  *
  * Upstream hardcodes a set of shared/commercial endpoints in the client. Zeta
  * keeps some on purpose (a changed URL breaks `/collab`, `/join <link>`, model
- * discovery or login), keeps others as code-with-user-credentials, replaces a
- * third group on a schedule, and still points a few brand surfaces at upstream.
- * Brand scanning deliberately ignores these domains — they are registry-listed
- * keepers — so a merge could silently add a NEW endpoint and nothing would
- * notice.
+ * discovery or login), and retires the rest. Brand scanning deliberately
+ * ignores these domains — they are registry-listed keepers — so a merge could
+ * silently add a NEW endpoint and nothing would notice.
  *
  * This gate pins the inventory: an unregistered `*.omp.sh` / `*.stencil.so` /
  * `scl.so` URL in a scanned file fails, and so does a known domain showing up
@@ -21,193 +19,41 @@
  * recorded fixture is the only thing here allowed to quote an endpoint it does
  * not own, and a broader exemption would silently retire this inventory. Adding a placement is a deliberate two-step act: record
  * it in the ledger, then here.
+ *
+ * Every placement also says what it is (`kind`: static artifact, build-time
+ * fetch, runtime data, dynamic auth, or a provenance comment). Entries marked
+ * `replace-*` must carry a `deadline`; once that date passes this gate fails,
+ * so a replacement promise cannot outlive the milestone that made it. A
+ * keeper with a deadline is rejected too — that means someone scheduled a
+ * deletion they never registered in `status`.
  */
 import * as path from "node:path";
+
+import { DOMAIN_RE, INVENTORY, isReplaceStatus, longestMatch, validateInventory } from "./shared-infra-inventory";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const SCAN_ROOTS = ["packages", "scripts", ".github", "desktop", "crates"];
 const SCAN_EXT = /\.(ts|tsx|js|mjs|cjs|json|kdl|rs|sh|ps1|yml|yaml|html|txt)$/;
-const DOMAIN_RE =
-	/https?:\/\/(?:[a-zA-Z0-9._-]*\.)?(?:omp\.sh|stencil\.so|scl\.so)[a-zA-Z0-9./_@?=&%#-]*|https?:\/\/github\.com\/stencil-hq[a-zA-Z0-9./_@?=&%#-]*/g;
-
-type Status =
-	| "keep"
-	| "keep-code-user-credential"
-	| "replace-P1"
-	| "replace-P2"
-	| "replace-P3"
-	| "replace-brand"
-	| "replaced"
-	| "disabled";
-
-interface Placement {
-	/** URL prefix this entry governs (longest match wins). */
-	domain: string;
-	/** Non-test files allowed to contain it. */
-	files: string[];
-	/** Ledger disposition. */
-	status: Status;
-	why: string;
-}
-
-const INVENTORY: Placement[] = [
-	{
-		domain: "https://github.com/stencil-hq",
-		status: "keep",
-		files: [
-			"packages/coding-agent/src/utils/grammars.ts",
-			"crates/pi-ast/src/language/grammar.rs",
-			"crates/pi-ast/src/language/wasm_grammars.rs",
-			"crates/pi-natives/src/grammars.rs",
-			"packages/natives/native/index.d.ts",
-		],
-		why:
-			"on-demand WASM grammar releases under Stencil's GitHub org (DEFAULT_GRAMMARS_URL); " +
-			"GitHub Releases has no operator lock-in — recorded in ledger §3d; a future mirror can replace it",
-	},
-	{
-		domain: "https://my.omp.sh",
-		status: "replace-P1",
-		files: [
-			"packages/collab-web/index.html",
-			"packages/collab-web/public/robots.txt",
-			"packages/collab-web/public/sitemap.xml",
-			"packages/collab-web/scripts/local-relay.ts",
-			"packages/wire/src/index.ts",
-		],
-		why:
-			"collab/share constants + the collab-web deployment; collab is gated off by default with an " +
-			"empty relay (collab.enabled / collab.relayUrl), but the CLI `share` still defaults here " +
-			"(share.store=blob, share.serverUrl=DEFAULT_SHARE_URL) — P1 replacement per ledger §3d",
-	},
-	{
-		domain: "https://omp.sh/install",
-		status: "replaced",
-		// Deliberately empty: `installerHint()` (the recovery line printed when an
-		// upgrade fails verification) points at OUR site's installers since
-		// 2026-10-13. The old value was worse than a 404 — it installed upstream
-		// OMP on a user's machine — so any re-placement is a regression.
-		files: [],
-		why: "upstream installer one-liner; replaced by https://linxira-os.github.io/install.{sh,ps1} (2026-10-13) — it installs OMP, not Zeta",
-	},
-	{
-		domain: "https://omp.sh/docs/",
-		status: "keep",
-		files: ["packages/coding-agent/src/discovery/builtin.ts"],
-		why: "provenance comment quoting upstream's doc path; not a runtime call",
-	},
-	{
-		domain: "https://catalog.stencil.so",
-		status: "keep",
-		files: ["packages/catalog/scripts/generate-models.ts", "packages/catalog/src/provider-models/openai-compat.ts"],
-		why: "model-discovery data source; replacing it needs a self-hosted catalog service, not planned",
-	},
-	{
-		domain: "https://build.stencil.so",
-		status: "replaced",
-		// Deliberately empty: the release step `Publish to build.stencil.so` and
-		// its `scripts/ci-build-upload.ts` are deleted. The service permanently
-		// 403s this fork ("only repositories of can1357 or stencil-hq may publish
-		// omp builds"), which reddened the v1.2.0 and v1.2.1 publish tails after
-		// npm had already shipped. Zeta publishes binaries to its own GitHub
-		// Release only; any placement is a regression.
-		files: [],
-		why: "upstream OMP build server — permanently 403 for this fork; retired 2026-10-14 (damage class 11); binaries ship in our own GitHub Release",
-	},
-	{
-		domain: "https://api.stencil.so",
-		status: "keep-code-user-credential",
-		files: ["packages/catalog/src/compat/rules.json", "packages/catalog/src/compat/rules/auth/stencil.kdl"],
-		why: "Stencil API endpoints; credentials come from the user (STENCIL_API_KEY)",
-	},
-	{
-		domain: "https://auth.stencil.so",
-		status: "keep-code-user-credential",
-		files: ["packages/catalog/src/compat/rules.json", "packages/catalog/src/compat/rules/auth/stencil.kdl"],
-		why: 'OIDC issuer; client-id "omp" and the issuer/scope names are protocol contract — renaming breaks login',
-	},
-	{
-		domain: "https://qa.omp.sh",
-		status: "replaced",
-		// Deliberately empty: the transport moved to the GitHub Issues API and no
-		// placement may come back. A merge that re-introduces the upstream endpoint
-		// trips "registered endpoint (replaced) but not whitelisted".
-		files: [],
-		why: "grievances endpoint — replaced by the GitHub Issues client (src/grievances/client.ts, ZETA_ISSUE_REPO) on 2026-10-11; any placement is a regression",
-	},
-	{
-		domain: "https://skills.omp.sh",
-		status: "replaced",
-		// Deliberately empty: no registry default ships. Extra skills come from
-		// the npm package `@linxiraos/linxira-skills`; a user who runs a registry
-		// configures it in `skills.registryUrl`. The wire contract keeps the
-		// protocol usable for such a registry, but any committed upstream host is
-		// a regression (2026-10-18).
-		files: [],
-		why: "upstream skill registry default — removed 2026-10-18; extra skills now come from the npm package @linxiraos/linxira-skills (npm i -g @linxiraos/linxira-skills), or a user-configured skills.registryUrl",
-	},
-	{
-		domain: "https://live.omp.sh",
-		status: "disabled",
-		// Deliberately empty: Zeta ships no stream/clip server. `zetacode stream`
-		// needs a user-configured `stream.serverUrl` and `uploadClip` refuses
-		// (CLIP_UPLOAD_ENABLED = false). A merge that re-introduces the upstream
-		// host trips "registered endpoint (disabled) but not whitelisted".
-		files: [],
-		why: "upstream live stream/clip service — hosting disabled 2026-10-18; no stream server ships, clip uploads are unavailable, any placement is a regression",
-	},
-	{
-		domain: "https://docs.stencil.so",
-		status: "keep",
-		files: ["packages/tui/src/native/node.ts", "packages/wire/src/tsp.ts"],
-		why: "provenance comment linking the Tern Surface Protocol spec; not a runtime call",
-	},
-	{
-		domain: "https://scl.so",
-		status: "replaced",
-		// Deliberately empty: the upstream Tern promo tip (tips.txt `[NO-TERN] …
-		// [tern](https://scl.so/tern)` + its i18n `tip33` copy) was removed by user
-		// ruling 2026-10-14 — it pitched the upstream terminal via an upstream
-		// short-link, and the product surface belongs to Zeta. The `[NO-TERN]`
-		// visibility-marker mechanism went with it. A merge that re-introduces the
-		// tip trips "registered endpoint (replaced) but not whitelisted".
-		files: [],
-		why: "upstream Tern promo copy link — removed 2026-10-14 (user ruling); any placement is a regression",
-	},
-	{
-		domain: "https://omp.sh/schemas/",
-		status: "replace-brand",
-		files: [
-			"packages/coding-agent/src/modes/rpc/wire/index.ts",
-			"packages/coding-agent/src/modes/rpc/wire/rpc-wire.schema.json",
-		],
-		why: "JSON-Schema $id of OUR wire schema still names upstream's host (added by c4d3204151a, never swept); low risk, point it at a Zeta URL",
-	},
-	{
-		domain: "https://omp.sh",
-		status: "replace-brand",
-		files: ["packages/collab-web/index.html"],
-		why: "collab-web JSON-LD still points at the upstream site; needs a Zeta-owned URL (the browser-relay manifests moved to our site 2026-10-14)",
-	},
-	{
-		domain: "https://stencil.so",
-		status: "replace-brand",
-		files: ["packages/collab-web/index.html"],
-		why: "collab-web JSON-LD publisher names Stencil Labs, Inc.; needs a Zeta-owned identity",
-	},
-];
 
 const hits: string[] = [];
 
-const SELF = "scripts/check-shared-infra.ts";
+// The inventory's own promises are checked first: a `replace-*` entry past its
+// deadline is a finding even when nothing in the tree moved.
+hits.push(...validateInventory(INVENTORY));
 
 /**
- * The guard's own `INVENTORY` names every pinned endpoint by design; scanning
- * itself would report 15 fake placements. The ledger document is excluded by
- * `SCAN_ROOTS` (it lives in `document/`).
+ * Files that name every pinned endpoint by design: this guard and the
+ * inventory module it reads. Scanning them would report one fake placement
+ * per entry. The ledger document is excluded by `SCAN_ROOTS` (it lives in
+ * `document/`).
  */
+const SELF_FILES: Record<string, true> = {
+	"scripts/check-shared-infra.ts": true,
+	"scripts/shared-infra-inventory.ts": true,
+};
+
 function isSelf(rel: string): boolean {
-	return rel === SELF;
+	return SELF_FILES[rel] === true;
 }
 
 function isTest(rel: string): boolean {
@@ -219,15 +65,6 @@ function isTest(rel: string): boolean {
 		rel.includes("/__fixtures__/") ||
 		/\.(test|spec)\./.test(rel)
 	);
-}
-
-function longestMatch(url: string): Placement | undefined {
-	let best: Placement | undefined;
-	for (const entry of INVENTORY) {
-		if (!url.startsWith(entry.domain)) continue;
-		if (!best || entry.domain.length > best.domain.length) best = entry;
-	}
-	return best;
 }
 
 const out = Bun.spawnSync(["git", "ls-files"], { cwd: ROOT, stdout: "pipe" });
@@ -340,9 +177,7 @@ if (hits.length > 0) {
 	process.exit(1);
 }
 
-const replaceCount = INVENTORY.filter(
-	entry => entry.status.startsWith("replace") && entry.status !== "replaced",
-).length;
+const replaceCount = INVENTORY.filter(entry => isReplaceStatus(entry.status)).length;
 console.log(
 	`Shared-infra ledger OK: ${INVENTORY.length} endpoints pinned across ${files.length} scanned files (${replaceCount} marked for replacement); ${lockfiles} lockfile(s) on the public registry.`,
 );

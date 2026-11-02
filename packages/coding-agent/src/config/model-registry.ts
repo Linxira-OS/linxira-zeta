@@ -143,7 +143,7 @@ import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-con
 import { type OmpCompatSnapshot, defaultOmpAgentDir, probeOmpCompat } from "./omp-compat";
 import { type Settings, settings } from "./settings";
 
-import { cfgDisabledProviders } from "./model-settings";
+import { cfgCatalogRemoteRefresh, cfgDisabledProviders } from "./model-settings";
 import {
 	cfgCompactionModelThresholds,
 	cfgCompactionModelThresholdsEnabled,
@@ -430,6 +430,18 @@ export class ModelRegistry {
 	#runtimeModelManagers: Map<string, { options: ModelManagerOptions<Api>; sourceId: string }> = new Map();
 	#ignoreLocalModelConfig: boolean;
 	#fetch: FetchImpl;
+	/**
+	 * Transport for the shared models.dev catalog. Returns the registry fetcher
+	 * only when `catalog.remoteRefresh` is on; otherwise `undefined`, which makes
+	 * the catalog package serve the snapshot bundled into this build instead of
+	 * calling the shared host. Discovery of provider *endpoints* never uses this
+	 * — those requests are always live.
+	 */
+	#catalogFetch(): FetchImpl | undefined {
+		if (!this.#settings) return undefined;
+		return cfgCatalogRemoteRefresh.get(this.#settings) ? this.#fetch : undefined;
+	}
+
 	#settings: Settings | undefined;
 	// Upstream OMP compatibility (read-only probe): every provider id injected
 	// from upstream state (models.yml providers + agent.db api-key credentials),
@@ -2782,7 +2794,7 @@ export class ModelRegistry {
 				const managerOptions = descriptor.createModelManagerOptions(preparedConfig);
 				const modelsDev = managerOptions.modelsDev
 					? { ...managerOptions.modelsDev, additiveOnly: true }
-					: modelsDevCatalogFallback(descriptor.providerId, this.#fetch);
+					: modelsDevCatalogFallback(descriptor.providerId, this.#catalogFetch());
 				options.push(modelsDev ? { ...managerOptions, modelsDev } : managerOptions);
 			}
 		}
@@ -2806,7 +2818,7 @@ export class ModelRegistry {
 			if (disabledProviders.has(providerId) || configuredDiscoveryProviders.has(providerId)) continue;
 			if (providerFilter && !providerFilter.has(providerId)) continue;
 			if (this.#runtimeModelManagers.has(providerId)) continue;
-			const modelsDev = modelsDevCatalogFallback(providerId, this.#fetch);
+			const modelsDev = modelsDevCatalogFallback(providerId, this.#catalogFetch());
 			if (!modelsDev) continue;
 			options.push({
 				providerId,

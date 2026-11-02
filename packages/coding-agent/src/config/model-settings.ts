@@ -133,3 +133,27 @@ export const cfgModelTags = register({ id: "modelTags", type: "record", default:
 export const cfgModelProviderOrder = register({ id: "modelProviderOrder", type: "array", default: EMPTY_STRING_ARRAY });
 
 export const cfgCycleOrder = register({ id: "cycleOrder", type: "array", default: DEFAULT_CYCLE_ORDER });
+
+/**
+ * Read the live models.dev catalog host instead of the snapshot bundled into
+ * the build.
+ *
+ * Off by default: every run then uses `catalog-snapshot.json.zst`, so the CLI
+ * makes no request to the shared catalog host and model rows cannot change
+ * under a user between two runs of the same build. Turning it on restores the
+ * pre-existing behaviour — background hydration adds newly published models
+ * without waiting for a new release — at the cost of one conditional GET to
+ * an upstream service.
+ */
+export const cfgCatalogRemoteRefresh = register({
+	id: "catalog.remoteRefresh",
+	type: "boolean",
+	default: false,
+	ui: {
+		tab: "model",
+		group: "Catalog",
+		label: "Remote Model Refresh",
+		description:
+			"Fetch the shared models.dev catalog at runtime instead of the snapshot bundled with this build; off keeps every run offline and reproducible",
+	},
+});
