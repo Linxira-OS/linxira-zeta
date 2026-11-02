@@ -1,6 +1,6 @@
 {
   "name": "@linxiraos/pi-utils",
-  "version": "1.4.7",
+  "version": "1.4.8",
   "description": "Shared utilities for pi packages",
   "keywords": [
     "utilities",

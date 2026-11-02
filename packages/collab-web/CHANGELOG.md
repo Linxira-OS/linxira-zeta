@@ -2,13 +2,12 @@
 
 ## [Unreleased]
 
+## [1.4.8] - 2026-11-02
+
 - v18.1.10 sync baseline (collab session UI updates).
 - 同步上游 OMP v18.0.10（`33cc6b9a043a`）。
 - 同步上游 OMP v18.0.9（`cc14e04f075d`）。
 
-## [1.0.2] - 2026-08-15
-
-## [1.0.0] - 2026-08-13
 ## [18.15.0] - 2026-11-01
 
 ### Changed
@@ -20,3 +19,4 @@
 ### Changed
 
 - Reset the version to 1.0.0 and republished under the `@linxiraos/*` scope, breaking from the `@linxiraos` version lineage.
+

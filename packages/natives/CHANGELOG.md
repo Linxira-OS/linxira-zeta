@@ -1,6 +1,9 @@
-## [Unreleased]
+## [1.4.8] - 2026-11-02
 
-## [1.4.7] - 2026-10-30
+### Changed
+
+- Embedded native addon payload for compiled binaries and extract to `~/.zeta/natives/<version>` on first run
+
 ## [9.8.0] - 2026-02-01
 
 ### Breaking Changes
@@ -41,7 +44,6 @@
 - Refactored module exports to use direct destructuring from native bindings instead of wrapper functions
 - Changed `PhotonImage` API to use instance methods (`resize()`, `encode()`) instead of standalone functions
 - Changed `PhotonImage` to use property accessors for `width` and `height` instead of getter methods
-- Embedded native addon payload for compiled binaries and extract to `~/.zeta/natives/<version>` on first run
 
 ## [9.7.0] - 2026-02-01
 

@@ -1,10 +1,9 @@
-## [Unreleased]
+## [1.4.8] - 2026-11-02
 
 ## [1.4.7] - 2026-10-30
 
 - Synced with upstream OMP v18.14.0; no package-specific user-visible changes.
 
-## [1.4.6] - 2026-10-28
 ## [1.4.5] - 2026-10-28
 
 - Synced with upstream OMP v18.13.2: model discovery honors a gateway's self-described reasoning levels (`discovery.advertisedReasoning`).

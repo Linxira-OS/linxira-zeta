@@ -1,6 +1,9 @@
-## [Unreleased]
+## [1.4.8] - 2026-11-02
 
-## [1.4.7] - 2026-10-30
+### Changed
+
+- Switched from local `@linxiraos/pi-ai` to upstream `@mariozechner/pi-ai` package
+
 ## [9.2.2] - 2026-01-31
 
 ### Added
@@ -75,10 +78,6 @@
 - Filtered thinking blocks from Cerebras request context to keep multi-turn prompts compatible.
 
 ## [3.21.0] - 2026-01-06
-
-### Changed
-
-- Switched from local `@linxiraos/pi-ai` to upstream `@mariozechner/pi-ai` package
 
 ### Added
 
