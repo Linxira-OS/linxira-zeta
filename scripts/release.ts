@@ -478,8 +478,21 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 	// Cargo.toml/Cargo.lock hashes, which the bump just rewrote. Unrefreshed,
 	// every bazel job of the release run re-splices the cargo workspace
 	// (~4 min each). One local evaluation (~1-4 min) fixes all of them. The
-	// bazel_lock CI job runs the matching `--check`.
-	await $`bun scripts/gen-bazel-lock.ts`;
+	// bazel_lock CI job runs the matching `--check` and, on failure, uploads
+	// the refreshed lockfile as an artifact.
+	//
+	// Windows without Developer Mode/admin cannot create the symlink
+	// `cargo-bazel splice` needs, so the local refresh is impossible there.
+	// `ZETA_SKIP_BAZEL_LOCK=1` lets the bump land anyway: the bazel_lock job
+	// is a release_gate dependency, so a stale lock still blocks publishing;
+	// commit the artifact it uploads before retrying the tag.
+	if (process.env.ZETA_SKIP_BAZEL_LOCK === "1") {
+		console.warn(
+			"  Skipping MODULE.bazel.lock refresh (ZETA_SKIP_BAZEL_LOCK=1); CI's bazel_lock job is authoritative.\n",
+		);
+	} else {
+		await $`bun scripts/gen-bazel-lock.ts`;
+	}
 	console.log();
 
 	// 5. Update changelogs
