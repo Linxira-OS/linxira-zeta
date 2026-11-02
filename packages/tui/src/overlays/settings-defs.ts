@@ -116,7 +116,7 @@ export const TAB_LEADS: Record<SettingTab, string> = {
  */
 export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 	appearance: ["General", "Theme", "Composer", "Status Line", "Display", "Images"],
-	model: ["Thinking", "Sampling", "Prompt", "Roles", "Retry & Fallback", "Advisor", "Prewalk", "Vision"],
+	model: ["Thinking", "Sampling", "Prompt", "Catalog", "Roles", "Retry & Fallback", "Advisor", "Prewalk", "Vision"],
 	interaction: [
 		"Input",
 		"Approvals",
@@ -132,7 +132,7 @@ export const TAB_GROUPS: Record<SettingTab, readonly string[]> = {
 		"Skills",
 	],
 	context: ["General", "Compaction", "Zeta Context Cache", "Rules (TTSR)", "Experimental"],
-	memory: ["General", "Auto-Learn", "Mnemopi", "Hindsight", "Sharpshooter"],
+	memory: ["General", "Taste", "Auto-Learn", "Mnemopi", "Hindsight", "Sharpshooter"],
 	files: ["Editing", "Reading", "Read Summaries", "LSP", "Session Trash"],
 	shell: ["Bash", "Eval & Runtimes"],
 	tools: [
