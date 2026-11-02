@@ -26,6 +26,7 @@
 | CI-011 | `gh run watch` 偶发 502，watcher 退出 | 发布期间 | 记录 |
 | CI-012 | `Zeta Nix` run 长时间 `in_progress` | 多个 run | 观察 |
 | CI-013 | 合并前 `main` 本来就是红的 | `4f917a02691` | 记录 |
+| CI-014 | 用 `release.ts` 发版（文档已标注不要用） | `73720678956` | 记录 |
 
 ---
 
@@ -85,6 +86,9 @@
   3. 从 run 下载 `MODULE.bazel.lock` 产物，提交在 `570ad1ef4ff`，再打 tag。
 - **建议方案 / 门禁**：发布脚本在跳过时自动去 CI 取产物并提交，或把该步骤放到
   WSL/Linux 执行；另加一个不依赖 Bazel 的“锁输入哈希”快速预检，提前提示“将过期”。
+- **已有机制（无需新写）**：`release-v2.ts` 在 bazelisk 可用时会自己刷新锁；
+  不可用时会大声警告并提示“失败后取 CI 产物”（脚本内已有原文）。
+  历史做法同样是 WSL bazelisk（`b2308822165`）。
 
 ## CI-006 Windows 上 Rust 检查无法编译（没有 MSVC 链接器）
 
@@ -100,6 +104,20 @@
 - **建议方案 / 门禁**：发布文档写明“Windows 发布机必须有 MSVC 或改走 WSL”；
   提供 `scripts/check-toolchain.ts` 预检（检测 MSVC 与 `link.exe` 真伪）；
   把 `check:rs` 的 WSL 调用固化成脚本，避免每次手工 export PATH。
+- **历史先例（2026-11-02 查证）**：
+  - `release-v2.ts`（`bb999381b86`）早就把“无 MSVC 主机”当正常情况：本地只跑
+    `check:ts`，Rust 交给 CI；注释原文就是 “environment-blocked on hosts without an
+    MSVC linker/SDK”。
+  - `document/release.md` 的 “Rebuilding leaves on the Windows workstation” 给的是
+    **WSL + `x86_64-pc-windows-gnu`** 的完整配方（把 `main/` 复制到 `/root/zeta-build`，
+    不要在 `/mnt/c` 上构建）。
+  - `b2308822165`（1.1.23 救火）用 **WSL bazelisk** 重生成 `MODULE.bazel.lock`、
+    用 `cargo metadata` 重写 `Cargo.lock`、修 clippy；没有安装 MSVC。
+  - `915f45821f5` 是唯一改 MSVC 工具链的提交，但只服务 Linux/macOS 执行端的 bazel
+    交叉编译；`scripts/bazel-natives.ts:398` 也明说 Windows 主机只能本地 `host`，
+    交叉构建去 WSL/Linux。
+  - 结论：仓库的既定方案就是“**WSL 构建 + CI 验 Rust**”，没有可捡的本地 MSVC 修复。
+    本次错在用了 v1 的 `release.ts`（见 CI-014），不是缺 MSVC 补丁。
 
 ## CI-007 `release.ts` 的版本覆盖面小于 `release-v2.ts`
 
@@ -186,6 +204,21 @@
   （singleton 桶 16 个失败均为 CI-001）。
 - **当时的处理**：记录；以“合并前后失败集合一致”为证据继续。
 - **建议方案**：修复该 job 并补一个“主工作区冒烟”，避免长期红掩盖新回归。
+
+## CI-014 用 `release.ts` 发版（文档已标注不要用）
+
+- **现象**：1.4.8 第一次 bump 只改了 `packages/*`，漏掉 npm 发行版、`main/` Cargo 工作区
+  与锁、README badge、changelog `[Unreleased]`；随后 workbench 守卫与版本一致性连环红。
+- **触发点**：`73720678956`（`bun scripts/release.ts 1.4.8`）。
+- **根因**：`scripts/release.ts` 是 v1，只保留共享 helper 与 `watch` 模式；
+  `document/release.md` 明确写 **“Do not use it to cut a release”**。
+  `release-v2.ts` 才会做完整 bump、`nix/bun.nix` 重生成、bazel 锁刷新（bazelisk 可用时）、
+  一致性 + 叶子守卫、`check:ts`、源提交 push-run 绿检查、原子推送。
+- **当时的处理**：手工补齐版本、main 锁与 changelog，再用 CI 产物重建二进制；
+  没有回退到 v2。
+- **建议方案 / 门禁**：发布入口只保留 v2；给 `release.ts` 的非 `watch` 模式加硬拒绝
+  （或删掉它的 bump 路径）；把 `ZETA_SKIP_RS_CHECK` 的必要性写进 v2 的注释/文档
+  （v2 本身已经只跑 TS）。
 
 ---
 
