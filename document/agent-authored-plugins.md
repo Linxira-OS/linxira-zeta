@@ -123,6 +123,37 @@
 任意 host 权限；不提供任意 HTTP 服务。HTTP `/api/*` 继续作为只读数据面，
 写操作必须走 `callTool`。
 
+### 4.1 TUI/TSP 的可改性：槽位 + 动作，而不是任意改终端
+
+Claude mods 能改桌面布局，是因为宿主是 DOM 应用，mod 直接参与渲染树。
+Zeta 的 TUI 走 Tern Surface Protocol（TSP）：组件把语义节点树交给 Tern
+渲染，终端只认节点，不认任意 ANSI/DOM。这个边界不能破，否则原生终端
+失去可移植性与安全边界。要做的是**把可扩展点协议化**：
+
+| 能力 | 现状 | 建议 |
+|---|---|---|
+| header/footer | `ctx.ui.setHeader/setFooter` | 保留；增加按名字注册的命名槽 |
+| sidebar | `registerSidebarWidget` + `describe()` 返回 TSP 节点 | 保留；增加 slot 能力声明 |
+| 全屏页面/对话框 | `ctx.ui.custom()`（临时组件） | 增加可注册的命名 page，按命令打开 |
+| 布局槽位 | 无（核心固定） | `ui.slots`：`sidebar`、`header`、`footer`、`transcript.before/after`、`tool.card`、`overlay` |
+| 按钮/动作 | 节点里有 `button`，但动作由核心绑定 | 动作 id → 扩展命令/tool；宿主统一分发与审批 |
+| 事件 | 扩展事件总线（session/tool 等） | 增加只读 UI 事件投影（选择、提交、页面打开） |
+| 页面 | 无 | `ui.pages`：插件声明页面，TSP 渲染节点树 |
+
+协议形状（`tsp.ui/1`）：
+
+- 插件 manifest 声明 `ui.slots` / `ui.pages` / `ui.actions`；
+- 宿主在 session 进程里调用扩展的 `describeSlot(slot, ctx)`，返回纯 TSP
+  节点（JSON，无 ANSI、无函数）；宿主校验节点类型/深度/尺寸后下发；
+- 节点里的 `action` 是字符串 id，宿主查表分发给扩展注册的 handler；
+  handler 只能调用已授权的 command/tool；
+- 能力：`ui:slot:<name>`、`ui:page:<name>`、`ui:action:<id>`；按插件授予；
+- 版本协商；未知节点/动作丢弃并告警，不崩终端。
+
+结论：**TUI 不做“任意布局”**；用槽位 + 动作覆盖 80% 的“加按钮/加页面/
+加附加功能”。真正需要自由布局、复杂组件、图表、富交互的 mod，放到
+Web UI 宿主（§4 的 `window.zeta` 桥）——这也是后面 Web UI 要补的宿主面。
+
 ## 5. 守护面
 
 | 守卫 | 检查 |
@@ -132,6 +163,7 @@
 | `check-page-bridge` | 协议版本、origin、能力白名单 |
 | `check-agent-plugin-conformance` | Agent Plugins 1.0 `plugin.json`/skills/mcp 校验 |
 | `check-plugin-capabilities` | 插件声明的 tools/commands/hooks 与运行时注册一致 |
+| `check-tsp-ui-slots` | TSP 槽位/页面/动作的版本、节点类型、深度、能力 |
 
 ## 6. 实施阶段
 
@@ -139,7 +171,7 @@
 |---|---|---|
 | P1 | dev 目录 + scaffold + validate + load_dev + 逐文件批准 | agent 能在会话内创建并加载一个只读工具插件；仓库无新文件 |
 | P2 | reload + promote/export + cleanup | 回合结束重载；promote 后重启仍可用；dev 目录可清理 |
-| P3 | 页面宿主桥 1.0 + 声明式面板优先 | 一个 HTML 页面能 `callTool` 并拿到结果；无新 HTTP 服务 |
+| P3 | 页面宿主桥 1.0 + TSP 槽位/页面/动作 | 一个 HTML 页面能 `callTool`；一个 TSP 插件能加按钮并触发命令 |
 | P4 | Agent Plugins 1.0 验证/列出 | 标准包 skills/MCP 可被 `plugin validate` 识别 |
 | P5 | 事件中间件（可选） | 只有出现明确需求才做；不实现 Claude mods 兼容层 |
 
@@ -152,3 +184,32 @@
 | 3 | HTML 页面桥用 postMessage 还是 HTTP JSON-RPC | postMessage；HTTP 只读 |
 | 4 | 是否兼容 Claude mods 格式 | 不兼容；只借鉴事件中间件与逐文件批准 |
 | 5 | Agent Plugins 1.0 是否作为唯一打包格式 | 作为可移植子集；Zeta 自有扩展继续用 `zeta` 块 |
+
+## 8. 参考项目的性能教训
+
+调查对象是一个 MIT 的桌面控制台（不记名字）。它界面完整，但实际使用卡、
+内存高；原因不是单点 bug，而是结构性的：
+
+| 结构 | 观察到的事实 | 代价 |
+|---|---|---|
+| Electron + SPA | Chromium 主/渲染/GPU/utility 多进程；窗口越多，基线越高 | 空载就比浏览器页面重 |
+| 单体渲染树 | `App.tsx` 9,288 行、145 个 `useState`、73 个 `useEffect`；renderer 630 个源文件 | 顶层状态变化牵动大树，流式更新容易全树 reconcile |
+| 全功能工作台 | 41 个 renderer 依赖；xterm、CodeMirror、Mermaid、three/x_ite、ReactMarkdown/rehype-highlight、浏览器观测、媒体 | 编辑器/终端/3D 上下文常驻；隐藏面板也不一定卸载 |
+| 高频事件 | 22 个 `setInterval`；流式 token、IPC、轮询（1s/1.5s/5s） | 持续 CPU 与唤醒；Electron IPC 还要序列化大对象 |
+| 数据保留 | 每个会话 2,000 行 / 24 MiB；长会话、多会话叠加 | 虚拟列表只限制挂载 DOM（120 行），不限制字符串/图片/工具输出常驻 |
+| 富文本渲染 | markdown + 高亮 + Mermaid + 图片/截图 | 单条大消息的解析/布局尖峰；已完成消息也可能重算 |
+
+它已经做了不少正确的事：rAF 批处理、后台发布、行高缓存、高亮 worker、
+虚拟列表、120 行挂载上限。仍然卡，说明这些是**补救**，不是架构本身轻。
+Zeta 的 Web UI 走 Next 服务端/客户端拆分、7 个运行时依赖、无 Electron，
+所以同样开很多标签时内存低；但 Zeta 自己的 `ModelsConfig`/`ChatInput` 也有
+十几万字节的单文件，不能假设永远轻。
+
+给 Zeta Web UI 的硬规则：
+
+- 路由级代码分割；重面板（编辑器、终端、3D、图表）懒加载并在隐藏时卸载。
+- 会话数据有界（行数 + 字节），虚拟列表与数据保留分开治理。
+- 不允许一个巨型 App 组件持有全部状态；按 session/panel 分 store。
+- 流式更新走 rAF/批处理；高亮/Mermaid 放 worker；IPC 只传增量。
+- 插件页面/面板一律 iframe 隔离；插件崩溃不拖垮主界面。
+- 核心不引入 3D/终端/重型图形依赖；这些只作为可选插件。

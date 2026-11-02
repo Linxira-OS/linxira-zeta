@@ -360,6 +360,11 @@ HTML 页面定一个版本化宿主协议。设计见
 - **页面协议**：声明式面板优先（数据来自 tool call）；HTML 页面用版本化
   `window.zeta` postMessage 桥（`ready`/`callTool`/`getContext`/`subscribe`/
   `notify`/`resize`），HTTP `/api/*` 只读；不提供任意 HTTP 服务。
+- **TUI/TSP**：不做任意布局；用 `ui.slots` / `ui.pages` / `ui.actions` 三组
+  协议化扩展点（header/footer/sidebar/transcript/tool-card/overlay），节点树
+  仍是纯 TSP JSON，动作 id 由宿主分发。自由布局放 Web UI 宿主。
+- **Web UI 性能规则**：路由级懒加载、隐藏面板卸载、会话数据有界、按 panel
+  分 store、流式 rAF、插件 iframe 隔离；核心不引 3D/终端依赖。
 - **安全**：headless/untrusted 不加载；不能写仓库源码；agent 不能 promote；
   `plugin_manager` 走 `xd://` 请求启用。
 - **验收**：会话内创建并加载一个只读工具插件，仓库无新文件；promote 后重启
