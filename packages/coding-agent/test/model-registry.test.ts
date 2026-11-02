@@ -906,6 +906,9 @@ describe("ModelRegistry", () => {
 					models: [],
 				},
 			});
+			// The shared catalog is snapshot-only unless the operator opts into
+			// remote refresh, so this case has to enable that transport explicitly.
+			await Settings.init({ inMemory: true, overrides: { "catalog.remoteRefresh": true } });
 			const fetchMock: FetchImpl = async input => {
 				const url = String(input);
 				if (url === "https://catalog.stencil.so/models.json.zstd") {
@@ -930,7 +933,7 @@ describe("ModelRegistry", () => {
 				}
 				throw new Error(`Unexpected URL: ${url}`);
 			};
-			const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock });
+			const registry = new ModelRegistry(authStorage, modelsJsonPath, { fetch: fetchMock, settings });
 
 			await registry.refresh("online");
 

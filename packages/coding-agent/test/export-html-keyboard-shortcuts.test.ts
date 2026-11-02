@@ -28,6 +28,7 @@ function exerciseShortcut(body: string, eventInit: Record<string, unknown>) {
 		metaKey: Boolean(eventInit.metaKey),
 		altKey: Boolean(eventInit.altKey),
 		target: eventInit.target ?? { tagName: "BODY", isContentEditable: false },
+		composedPath: () => [],
 		preventDefault() {
 			prevented = true;
 		},

@@ -91,7 +91,7 @@ async function main(): Promise<void> {
 		await runCommand(["bun", "--cwd=../stats", "run", "gen:stats"], packageDir);
 
 		// Build collab-web tool views
-		await runCommand(["bun", "--cwd=../collab-web", "run", "gen:tool-views"], packageDir);
+		await runCommand(["bun", "--cwd=../collab-web", "run", "gen:export-viewer"], packageDir);
 
 		// Build natives
 		await runCommand(["bun", "--cwd=../natives", "run", "gen:native"], packageDir);

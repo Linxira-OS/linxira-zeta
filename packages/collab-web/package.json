@@ -34,8 +34,7 @@
     "lint": "oxlint .",
     "fix": "oxlint --fix --fix-suggestions . && bun run fmt",
     "fmt": "oxfmt --no-error-on-unmatched-pattern 'src/**/*.{ts,tsx}' '{test,bench,examples,scripts}/**/*.ts' '*.ts'",
-    "gen:export-viewer": "bun scripts/build-export-viewer.ts",
-    "gen:tool-views": "bun scripts/build-tool-views.ts"
+    "gen:export-viewer": "bun scripts/build-export-viewer.ts"
   },
   "dependencies": {
     "@linxiraos/pi-utils": "catalog:",

@@ -244,7 +244,7 @@ jobs:
               }
 
               # bun —— 版本必须满足 package.json 的 packageManager pin，
-              # 否则 gen:tool-views 之类的代码生成会和 CI 产生版本偏差。
+              # 否则 gen:export-viewer 之类的代码生成会和 CI 产生版本偏差。
               want="$(sed -n 's/.*"packageManager": *"bun@\([^"]*\)".*/\1/p' package.json)"
               if [ -z "$want" ]; then
                  echo "::error::could not read pinned bun version from package.json packageManager"
