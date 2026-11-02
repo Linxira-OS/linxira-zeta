@@ -63,6 +63,8 @@ export const ZH_GROUP_LABELS: Record<string, string> = {
 	Experimental: "实验性",
 	"Auto-Learn": "自动学习",
 	Mnemopi: "记忆模型",
+	Taste: "品味",
+	Catalog: "模型目录",
 	SiYuan: "思源",
 	Hindsight: "回溯分析",
 	Editing: "编辑",
