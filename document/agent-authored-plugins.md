@@ -272,3 +272,8 @@ Zeta 其实已经有半边：
 - 不把 task owner 或 write scope 当锁：Bash/formatter/外部 writer 会绕过。
 - 不为团队新增核心会话字段或私有协议；团队状态归插件。
 - 不默认开启：团队工具会给每个成员增加固定 policy + schema token，简单任务不该付这个成本。
+
+## 10. 相关设计
+
+- [`super-agent-rooms.md`](./super-agent-rooms.md) — Room/contacts/resident agent 的完整设计。
+- [`context-learning-modes.md`](./context-learning-modes.md) — 滑动窗口压缩与 memory/taste/tracking 频率、窗口批处理。

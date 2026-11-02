@@ -370,6 +370,40 @@ HTML 页面定一个版本化宿主协议。设计见
 - **验收**：会话内创建并加载一个只读工具插件，仓库无新文件；promote 后重启
   可用；HTML 页面能 `callTool` 并拿到结果。
 
+### P1 — Super agent rooms / resident agents / contacts UI（2026-11-03）
+
+把“用户 ↔ 多个仓库主代理 ↔ 各自团队/子代理”做成 Room 原语，实验性、默认关闭。
+设计见 [`document/super-agent-rooms.md`](./super-agent-rooms.md)。
+
+- **Room 是基建**：独立事件日志、宿主分配 `seq`、`sentAt`、parallel/serial/mention
+  三种调度；成员回复按宿主顺序落盘，Agent 不自行排序。
+- **层级**：Super Room（跨仓库主代理）→ Repo Room（同仓库多主代理）→ Main Room
+  （主代理+子代理）；消息不自动跨 Room 传播。DSH Team 是单仓库 Lead+teammates，
+  不是“仓库所有主代理”。
+- **Tracking 是锚**：每个仓库 tracking 本地权威；Room 只读摘要/引用；跨仓库决定
+  走 proposal/ack，不能直接写对方 tracking/taste/memory。
+- **Resident Agent**：普通 task worker 默认 keep-alive、7 分钟 park；Room 只收
+  显式提升的 resident/main，宿主中转消息，不放开子代理全局 peer 规则。
+- **GUI**：独立联系人/会话/聊天窗口，隐藏 session id；安卓配对 + 设备密钥 + 2FA；
+  端口映射外包，Zeta 只提供 TLS/WSS 接口与鉴权。
+- **验收**：两个仓库成员在 Room 内有序发言且上下文不互相泄漏；resident 可 park/revive；
+  GUI 可从联系人进入 Room，不暴露底层 session。
+
+### P1 — Context learning modes: sliding windows / window batch（2026-11-03）
+
+明确滑动窗口压缩与 memory/taste/tracking 的频率、成本、作用域，并设计可选的
+窗口批处理。设计见 [`document/context-learning-modes.md`](./context-learning-modes.md)。
+
+- **压缩**：不是 memory 触发器；默认 `asyncEnabled` 投机摘要，`keepRecentTokens=20000`；
+  方法顺序 `remote → snapcompact → handoff → shake → soft`。
+- **频率**：mnemopi 默认每 4 个用户轮次；hindsight 每 3 轮；taste 每个提示抽取、5 分钟合并；
+  tracking 没有周期提醒，只有 phase 完成 nudge。
+- **两套逻辑**：Agent 自维护（工具调用，无额外模型）vs 宿主后台（额外 memory/taste 模型）。
+- **窗口批处理**：压缩提交后对丢弃区域做一次批量抽取，产出多条 memory/taste 候选；
+  关闭 per-prompt 抽取；host 仍独占 confidence；作为可选 `extractionMode=window`。
+- **验收**：`window` 模式只触发一次窗口抽取；不压缩的短会话有会话结束兜底；
+  `mnemopi.llmMode=none` 时无额外模型调用。
+
 ### P1 — Context-file and prompt hot updates (agent-doc awareness)
 
 Today the session system prompt is a signature-driven snapshot
