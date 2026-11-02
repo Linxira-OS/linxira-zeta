@@ -6,7 +6,11 @@
  * - compare a tool capability tier against the active approval mode,
  * - format the generic approval prompt body.
  */
-import type { AgentTool, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
+import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
+import { replaceTabs } from "@linxiraos/pi-tui";
+import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
+import approvalFolderTemplate from "../prompts/tools/approval-folder.md" with { type: "text" };
+import type { AgentTool, AgentToolContext, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
 import * as path from "node:path";
 import { replaceTabs } from "@linxiraos/pi-tui";
 import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
@@ -298,9 +302,11 @@ function normalizeDecision(value: unknown): Omit<ResolvedApproval, "policy"> & {
 function getToolDecision(
 	tool: ApprovalSubject,
 	args: unknown,
+	context?: AgentToolContext,
 ): Omit<ResolvedApproval, "policy"> & { policy?: ApprovalPolicy } {
 	const approval = tool.approval;
-	const decision: ToolApprovalDecision | undefined = typeof approval === "function" ? approval(args) : approval;
+	const decision: ToolApprovalDecision | undefined =
+		typeof approval === "function" ? approval(args, context) : approval;
 	return normalizeDecision(decision);
 }
 
@@ -311,8 +317,8 @@ function getToolDecision(
  * approvals — the write tool's `xd://` gate uses it to take a mounted device's
  * argument-dependent tier instead of falling back to `exec`.
  */
-export function resolveToolTier(tool: ApprovalSubject, args: unknown): ToolTier {
-	return getToolDecision(tool, args).tier;
+export function resolveToolTier(tool: ApprovalSubject, args: unknown, context?: AgentToolContext): ToolTier {
+	return getToolDecision(tool, args, context).tier;
 }
 
 function modeApprovesTier(mode: ApprovalMode, tier: ToolTier): boolean {
@@ -368,8 +374,9 @@ export function resolveApproval(
 	userConfig: Record<string, unknown> = {},
 	grants?: ApprovalGrantStore,
 	restrictions?: ApprovalRestrictions,
+	context?: AgentToolContext,
 ): ResolvedApproval {
-	const resolved = resolvePolicy(tool, args, mode, userConfig, grants);
+	const resolved = resolvePolicy(tool, args, mode, userConfig, grants, context);
 	if (resolved.policy === "deny") return resolved;
 	const reason = restrictedFolderReason(tool, args, restrictions);
 	if (reason === undefined) return resolved;
@@ -392,8 +399,9 @@ function resolvePolicy(
 	mode: ApprovalMode,
 	userConfig: Record<string, unknown>,
 	grants: ApprovalGrantStore | undefined,
+	context?: AgentToolContext,
 ): ResolvedApproval {
-	const decision = getToolDecision(tool, args);
+	const decision = getToolDecision(tool, args, context);
 	const policyKey = decision.policyKey ?? tool.name;
 	const userPolicy = Object.hasOwn(userConfig, policyKey) ? normalizePolicy(userConfig[policyKey]) : undefined;
 	const fallbackPolicy =
@@ -632,8 +640,9 @@ export function requiresApproval(
 	args: unknown,
 	mode: ApprovalMode,
 	userConfig: Record<string, unknown> = {},
+	context?: AgentToolContext,
 ): { required: boolean; reason?: string } {
-	const resolved = resolveApproval(tool, args, mode, userConfig);
+	const resolved = resolveApproval(tool, args, mode, userConfig, undefined, undefined, context);
 	const { policy, reason } = resolved;
 
 	if (policy === "deny") {

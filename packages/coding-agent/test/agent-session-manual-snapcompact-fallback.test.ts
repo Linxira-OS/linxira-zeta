@@ -1,16 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "bun:test";
 import * as path from "node:path";
-import { Agent } from "@linxiraos/pi-agent-core";
-import * as compactionModule from "@linxiraos/pi-agent-core/compaction";
-import type { Message, Model } from "@linxiraos/pi-ai";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { TempDir } from "@linxiraos/pi-utils";
-import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
-import { AuthStorage } from "@linxiraos/zeta/session/auth-storage";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import * as snapcompact from "@linxiraos/pi-snapcompact";
+import { Agent } from "@oh-my-pi/pi-agent-core";
+import * as compactionModule from "@oh-my-pi/pi-agent-core/compaction";
+import type { Message, Model } from "@oh-my-pi/pi-ai";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
+import { AuthStorage } from "@oh-my-pi/pi-coding-agent/session/auth-storage";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { TempDir } from "@oh-my-pi/pi-utils";
+import * as snapcompact from "@oh-my-pi/snapcompact";
+import { rejectionOf } from "./helpers/rejection";
 
 /**
  * Regression for issue #5064.
@@ -148,13 +149,14 @@ describe.each([
 
 		const compactSpy = vi.spyOn(compactionModule, "compact");
 
-		await expect(harness.session.compact(undefined, { mode: "snapcompact" })).rejects.toThrow(
-			`snapcompact cannot run locally: ${reason}.`,
-		);
+		const error = String(await rejectionOf(harness.session.compact(undefined, { mode: "snapcompact" })));
 
+		// One message carries the reason and what to run instead; no separate notice repeats it.
+		expect(error).toContain(`snapcompact needs a vision-capable model (${reason})`);
+		expect(error).toContain("Run /compact soft instead");
 		// Explicit no-LLM request must never reach the provider-backed summarizer.
 		expect(compactSpy).not.toHaveBeenCalled();
-		expect(harness.notices).toContain(`snapcompact needs a vision-capable model (${reason})`);
+		expect(harness.notices.filter(notice => notice.includes("vision-capable"))).toEqual([]);
 		expect(harness.sessionManager.getBranch().find(entry => entry.type === "compaction")).toBeUndefined();
 	});
 });

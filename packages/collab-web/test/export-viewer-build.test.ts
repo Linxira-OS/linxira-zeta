@@ -2,10 +2,10 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { createContext, runInContext, runInNewContext } from "node:vm";
-import { HTMLElement, parseHTML } from "@linxiraos/pi-utils/dom";
-import { Marked, type MarkedExtension } from "@linxiraos/pi-utils/marked";
-import { TempDir } from "@linxiraos/pi-utils/temp";
-import { buildExportViewer, type ExportViewerMetadata } from "../scripts/build-export-viewer";
+import { HTMLElement, parseHTML } from "@oh-my-pi/pi-utils/dom";
+import { Marked, type MarkedExtension } from "@oh-my-pi/pi-utils/marked";
+import { TempDir } from "@oh-my-pi/pi-utils/temp";
+import { buildExportViewer, type ExportViewerMetadata, isExportViewerCheck } from "../scripts/build-export-viewer";
 
 const temp = TempDir.createSync("@omp-export-viewer-build-");
 const outDir = temp.path();
@@ -52,11 +52,22 @@ describe("hosted export viewer build", () => {
 			const metadataPath = path.join(outDir, `stale-${field}.json`);
 			const original = JSON.stringify({ ...metadata, [field]: field === "size" ? metadata.size + 1 : "stale" });
 			await Bun.write(metadataPath, original);
-			await expect(buildExportViewer({ outDir, metadataPath, check: true })).rejects.toThrow("metadata is stale");
+			await expect(buildExportViewer({ outDir, metadataPath, check: true })).rejects.toThrow(
+				"metadata is stale; run bun run gen:export-viewer --write",
+			);
 			expect(await Bun.file(metadataPath).text()).toBe(original);
 			expect(await fs.readFile(path.join(outDir, metadata.file))).toEqual(bytes);
 		}, 30_000);
 	}
+
+	// The stale-manifest error names `--write`: under CI=true, which omp's bash tool
+	// also sets, the bare command only re-runs the check and prints the same error.
+	it("checks under CI unless --write is passed, and always checks with --check", () => {
+		expect(isExportViewerCheck([], {})).toBe(false);
+		expect(isExportViewerCheck([], { CI: "true" })).toBe(true);
+		expect(isExportViewerCheck(["--write"], { CI: "true" })).toBe(false);
+		expect(isExportViewerCheck(["--check", "--write"], {})).toBe(true);
+	});
 
 	for (const dependency of ["Markdown", "Highlight"]) {
 		it(`reports a missing ${dependency} dependency before mutating the page`, () => {
@@ -166,7 +177,7 @@ describe("hosted export viewer build", () => {
 			document,
 			HTMLElement: class extends HTMLElement {
 				constructor() {
-					super("zeta-tool-view", document);
+					super("omp-tool-view", document);
 				}
 			},
 			customElements: {
@@ -227,7 +238,7 @@ describe("hosted export viewer build", () => {
 		// actual registered React wrapper and deliver its normal connection callback.
 		runInContext(
 			`
-			const tool = new (customElements.get("zeta-tool-view"))();
+			const tool = new (customElements.get("omp-tool-view"))();
 			tool.setAttribute("payload", ${JSON.stringify(JSON.stringify(payload))});
 			document.body.appendChild(tool);
 			tool.connectedCallback();
@@ -236,8 +247,8 @@ describe("hosted export viewer build", () => {
 		);
 		try {
 			flushWork();
-			expect(document.querySelector("zeta-tool-view .tr-md math")).not.toBeNull();
-			expect(document.querySelector("zeta-tool-view .shared-highlight")?.textContent).toBe("const toolCode = 2;");
+			expect(document.querySelector("omp-tool-view .tr-md math")).not.toBeNull();
+			expect(document.querySelector("omp-tool-view .shared-highlight")?.textContent).toBe("const toolCode = 2;");
 			expect(highlighted.some(code => code.includes("const transcriptCode = 1;"))).toBe(true);
 			expect(highlighted).toContain("const toolCode = 2;");
 			expect(parsers[1]?.parse("$x^2$", { async: false })).toBe("<p>$x^2$</p>\n");

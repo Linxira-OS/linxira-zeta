@@ -1035,7 +1035,7 @@ jobs:
               # Not `test:scripts`: scripts/musl-release.test.ts fails on main
               # (its install.sh smoke-check executes a fake binary), so running
               # the whole group here would red this job on an unrelated break.
-              bun test scripts/ci-test-ts.test.ts scripts/release.test.ts
+              bun test scripts/ci-test-ts.test.ts scripts/release.test.ts scripts/run-rs-task.test.ts
          # Orphan suite: `packages/stats` is a workspace package that sits in no
          # `ci-test-ts.ts` bucket (neither `fastWorkspacePackages` nor
          # `nativeAndIntegrationPackages`), so neither CI nor the local

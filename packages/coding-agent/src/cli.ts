@@ -589,15 +589,16 @@ if (isProcessEntry || !Bun.isMainThread) {
 	const postmortem: typeof Postmortem | undefined = isProcessEntry
 		? require("@linxiraos/pi-utils/postmortem.js")
 		: undefined;
+	postmortem?.installProcessHandlers();
 	// A one-shot CLI run (`zetacode --help | head`, `zetacode --version | true`, `zetacode <sub> | grep -m1`)
 	// whose stdout consumer closes before the write drains gets an EPIPE that Bun surfaces as
 	// an unhandled rejection. Treat a vanished stdout peer as an ordinary Unix disconnect
 	// (graceful exit) rather than the fatal path. Interactive launches register their own
 	// terminal lifetime; help/version/subcommand launches never start one. See #10930. The
 	// registration lives for the process — a one-shot entry exits right after runCli settles.
-	postmortem?.registerStdioDisconnectHandling();
+	postmortem.registerStdioDisconnectHandling();
 	const entry = runCli(process.argv.slice(2));
-	postmortem?.reportUnsettledEntry(entry, () => runningCommand);
+	postmortem.reportUnsettledEntry(entry, () => runningCommand);
 	entry.catch(async error => {
 		// Failure boundary: inspector/postmortem is irrelevant to successful startup.
 		const { fatal } = await import("@linxiraos/pi-utils/postmortem");

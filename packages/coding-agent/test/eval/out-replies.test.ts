@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as path from "node:path";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
-import { callSessionTool } from "@linxiraos/zeta/eval/js/tool-bridge";
-import { disposeAllKernelSessions } from "@linxiraos/zeta/eval/py/executor";
-import { disposePyToolBridge } from "@linxiraos/zeta/eval/py/tool-bridge";
-import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
-import { BashTool } from "@linxiraos/zeta/tools/bash";
-import { EvalTool } from "@linxiraos/zeta/tools/eval";
-import { WriteTool } from "@linxiraos/zeta/tools/write";
-import type { EvalToolDetails } from "@linxiraos/pi-tui/tools/eval";
-import { $which, setAgentDir, TempDir } from "@linxiraos/pi-utils";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
+import { callSessionTool } from "@oh-my-pi/pi-coding-agent/eval/js/tool-bridge";
+import { disposeAllKernelSessions } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
+import { disposePyToolBridge } from "@oh-my-pi/pi-coding-agent/eval/py/tool-bridge";
+import { AgentStorage } from "@oh-my-pi/pi-coding-agent/session/agent-storage";
+import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
+import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { WriteTool } from "@oh-my-pi/pi-coding-agent/tools/write";
+import type { EvalToolDetails } from "@oh-my-pi/pi-tui/tools/eval";
+import { $which, setAgentDir, TempDir } from "@oh-my-pi/pi-utils";
 import { beginSettingsTest, restoreSettingsTestState, type SettingsTestState } from "../helpers/settings-test-state";
 
 let temp: TempDir;
@@ -27,6 +28,8 @@ afterEach(async () => {
 	await disposeAllKernelSessions();
 	await disposePyToolBridge();
 	restoreSettingsTestState(settingsState);
+	// The tools opened `<agentDir>/agent.db`; Windows cannot delete an open database.
+	AgentStorage.close();
 	temp.removeSync();
 });
 

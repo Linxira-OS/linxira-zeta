@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { removeWithRetries } from "@linxiraos/pi-utils";
-import { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
+import { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
+import { removeWithRetries } from "@oh-my-pi/pi-utils";
 
 let tempDir = "";
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
@@ -58,12 +58,14 @@ describe("HistoryStorage write-through", () => {
 
 describe("storage process-exit cleanup", () => {
 	it("persists a synchronous prompt and flushes the deferred perf sample before a hard exit", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-storage-exit-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-exit-"));
 		const historyDbPath = path.join(tempDir, "history.db");
 		const agentDbPath = path.join(tempDir, "agent.db");
 		const historyModule = HISTORY_STORAGE_MODULE;
 		const agentModule = AGENT_STORAGE_MODULE;
 		const script = [
+			'import { postmortem } from "@oh-my-pi/pi-utils";',
+			"postmortem.installProcessHandlers();",
 			`import { HistoryStorage } from ${JSON.stringify(historyModule)};`,
 			`import { AgentStorage } from ${JSON.stringify(agentModule)};`,
 			`const history = HistoryStorage.open(${JSON.stringify(historyDbPath)});`,
@@ -112,11 +114,12 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("keeps stores opened after manual postmortem cleanup usable", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-storage-late-open-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-late-open-"));
 		const historyDbPath = path.join(tempDir, "history.db");
 		const agentDbPath = path.join(tempDir, "agent.db");
 		const script = [
-			'import { postmortem } from "@linxiraos/pi-utils";',
+			'import { postmortem } from "@oh-my-pi/pi-utils";',
+			"postmortem.installProcessHandlers();",
 			`import { HistoryStorage } from ${JSON.stringify(HISTORY_STORAGE_MODULE)};`,
 			`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 			"await postmortem.cleanup();",
@@ -150,11 +153,12 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("arms storage opened while a keep-alive cleanup is still running", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-storage-running-cleanup-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-running-cleanup-"));
 		const agentDbPath = path.join(tempDir, "agent.db");
 		const checkpointed = path.join(tempDir, "agent-checkpoint.db");
 		const script = [
-			'import { postmortem } from "@linxiraos/pi-utils";',
+			'import { postmortem } from "@oh-my-pi/pi-utils";',
+			"postmortem.installProcessHandlers();",
 			`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 			"const gate = Promise.withResolvers();",
 			'postmortem.register("blocker", () => gate.promise);',
@@ -196,13 +200,14 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("re-arms exit cleanup for a store opened after a manual postmortem cleanup", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-storage-rearm-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-rearm-"));
 		const agentDbPath = path.join(tempDir, "agent.db");
 		// A manual cleanup keeps the process alive; the store is opened afterward,
 		// then only a real exit flushes its deferred perf batch. If postmortem did
 		// not re-arm, the exit callback would never fire and the sample would be lost.
 		const script = [
-			'import { postmortem } from "@linxiraos/pi-utils";',
+			'import { postmortem } from "@oh-my-pi/pi-utils";',
+			"postmortem.installProcessHandlers();",
 			`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 			"await postmortem.cleanup();",
 			`const agent = await AgentStorage.open(${JSON.stringify(agentDbPath)});`,
@@ -233,13 +238,14 @@ describe("storage process-exit cleanup", () => {
 	});
 
 	it("keeps a handle held across a manual cleanup usable", async () => {
-		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-storage-keepalive-"));
+		tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "omp-storage-keepalive-"));
 		const agentDbPath = path.join(tempDir, "agent.db");
 		// A cached handle (Settings, MCP cache, the editor) survives a keep-alive
 		// cleanup that keeps the process running: its statements must not be
 		// finalized, so writes through the same handle keep working afterward.
 		const script = [
-			'import { postmortem } from "@linxiraos/pi-utils";',
+			'import { postmortem } from "@oh-my-pi/pi-utils";',
+			"postmortem.installProcessHandlers();",
 			`import { AgentStorage } from ${JSON.stringify(AGENT_STORAGE_MODULE)};`,
 			`const agent = await AgentStorage.open(${JSON.stringify(agentDbPath)});`,
 			'agent.recordUsage("command", "before-cleanup");',

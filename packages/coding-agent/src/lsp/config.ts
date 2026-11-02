@@ -349,12 +349,20 @@ function typescriptPackageDir(tscPath: string): string | null {
 /**
  * Whether the `tsc` at `tscPath` speaks LSP itself. TypeScript 7 dropped the JS
  * `lib/tsserver.js` that typescript-language-server wraps and exposes
- * `tsc --lsp --stdio` from its native binary instead; older releases reject the
- * flag with TS5023.
+ * `tsc --lsp --stdio` instead; older releases reject the flag with TS5023.
+ * Outside an npm layout (e.g. nixpkgs) ask the compiler for its version, run in
+ * `cwd` so version-manager shims resolve the project's pinned TypeScript.
  */
-function typescriptSpeaksLsp(tscPath: string): boolean {
+function typescriptSpeaksLsp(tscPath: string, cwd: string): boolean {
 	const packageDir = typescriptPackageDir(tscPath);
-	return packageDir !== null && !fs.existsSync(path.join(packageDir, "lib", "tsserver.js"));
+	if (packageDir !== null) return !fs.existsSync(path.join(packageDir, "lib", "tsserver.js"));
+	try {
+		const { stdout } = Bun.spawnSync([tscPath, "--version"], { cwd, stderr: "ignore", timeout: 3_000 });
+		const major = /^Version (\d+)\./.exec(stdout.toString())?.[1];
+		return major !== undefined && Number(major) >= 7;
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -517,6 +525,7 @@ export function loadConfig(cwd: string): LspConfig {
 			resolvedCommand: selected.selection.resolvedCommand,
 		};
 	}
+
 
 	return { servers, idleTimeoutMs };
 }

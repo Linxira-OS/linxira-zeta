@@ -6,31 +6,31 @@
  * behavior they have in the TUI.
  */
 import { afterAll, afterEach, beforeAll, expect, it, spyOn } from "bun:test";
-import { type } from "@linxiraos/pi-omptype";
-import { Agent, type AgentTool } from "@linxiraos/pi-agent-core";
-import { createMockModel, type MockModelOptions } from "@linxiraos/pi-ai/providers/mock";
-import { AssistantMessageEventStream } from "@linxiraos/pi-ai/utils/event-stream";
-import { getBundledModel } from "@linxiraos/pi-catalog/models";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { EditTool } from "@linxiraos/zeta/edit";
-import { callSessionTool } from "@linxiraos/zeta/eval/js/tool-bridge";
-import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
-import { createMCPToolName } from "@linxiraos/zeta/mcp/tool-bridge";
-import { AgentSession } from "@linxiraos/zeta/session/agent-session";
+import { type } from "@oh-my-pi/omptype";
+import { Agent, type AgentTool, type AgentToolContext } from "@oh-my-pi/pi-agent-core";
+import { createMockModel, type MockModelOptions } from "@oh-my-pi/pi-ai/providers/mock";
+import { AssistantMessageEventStream } from "@oh-my-pi/pi-ai/utils/event-stream";
+import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { EditTool } from "@oh-my-pi/pi-coding-agent/edit";
+import { callSessionTool } from "@oh-my-pi/pi-coding-agent/eval/js/tool-bridge";
+import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
+import { createMCPToolName } from "@oh-my-pi/pi-coding-agent/mcp/tool-bridge";
+import { AgentSession } from "@oh-my-pi/pi-coding-agent/session/agent-session";
 import type {
 	ClientBridge,
 	ClientBridgePermissionOutcome,
 	ClientBridgePermissionToolCall,
-} from "@linxiraos/zeta/session/client-bridge";
-import { convertToLlm } from "@linxiraos/zeta/session/messages";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import type { ToolSession } from "@linxiraos/zeta/tools";
-import { BashTool } from "@linxiraos/zeta/tools/bash";
-import { EvalTool } from "@linxiraos/zeta/tools/eval";
-import { computerTurnInFlight, registerComputerController } from "@linxiraos/zeta/tools/computer/supervisor";
-import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@linxiraos/zeta/tools/xdev";
-import { TempDir, withTimeout } from "@linxiraos/pi-utils";
+} from "@oh-my-pi/pi-coding-agent/session/client-bridge";
+import { convertToLlm } from "@oh-my-pi/pi-coding-agent/session/messages";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
+import { BashTool } from "@oh-my-pi/pi-coding-agent/tools/bash";
+import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { computerTurnInFlight, registerComputerController } from "@oh-my-pi/pi-coding-agent/tools/computer/supervisor";
+import { dispatchXdevTool, resolveMountedXdevExecutable, type XdevState } from "@oh-my-pi/pi-coding-agent/tools/xdev";
+import { TempDir, withTimeout } from "@oh-my-pi/pi-utils";
 
 // ---------------------------------------------------------------------------
 // Shared setup
@@ -330,6 +330,34 @@ it("explicit yolo still gates tools whose per-tool policy requires a prompt", as
 
 	expect(permissionSpy).toHaveBeenCalledTimes(1);
 	expect(bashTool.executeCalls).toBe(1);
+});
+
+it("rejects intercepted bash command before invoking ACP requestPermission", async () => {
+	const bridge = makeBridge({ outcome: "selected", optionId: "allow_once", kind: "allow_once" });
+	const permissionSpy = spyOn(bridge, "requestPermission");
+	const settings = Settings.isolated({ "bashInterceptor.enabled": true });
+	const realBashTool = new BashTool({
+		...makeToolSession(bridge),
+		settings,
+		isToolActive: (name: string) => name === "read" || name === "bash",
+	});
+	session = await createSession([realBashTool as AgentTool, makeFakeTool("read")], bridge, {
+		"bashInterceptor.enabled": true,
+	});
+
+	await session.setActiveToolsByName(["bash", "read"]);
+	const wrappedBash = session.agent.state.tools.find(t => t.name === "bash");
+	await expect(
+		wrappedBash!.execute(
+			"call-intercepted",
+			{ command: "cat file.txt" },
+			undefined,
+			undefined as never,
+			{ toolNames: ["read", "bash"] } as AgentToolContext,
+		),
+	).rejects.toThrow("Use the `read` tool instead of cat/head/tail");
+
+	expect(permissionSpy).not.toHaveBeenCalled();
 });
 
 /**

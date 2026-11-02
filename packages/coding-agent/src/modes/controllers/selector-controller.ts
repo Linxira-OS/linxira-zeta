@@ -137,6 +137,7 @@ import {
 } from "@linxiraos/pi-tui/overlays/extensions/live-tool-session";
 import { createExtensionDashboardRuntime } from "../components/extensions/dashboard-runtime";
 import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
+import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
 import type { LoginDialogComponent as LoginDialogComponentType } from "@linxiraos/pi-tui/overlays/login-dialog";
 import type {
 	ModelHubComponent as ModelHubComponentType,
@@ -640,13 +641,17 @@ export class SelectorController {
 	showHistorySearch(): void {
 		const historyStorage = this.ctx.historyStorage;
 		if (!historyStorage) return;
+		// Ctrl+R also opens over hook/ask prompts that replace the composer in the
+		// editor slot; the pick belongs to that prompt, not the hidden composer.
+		const focused = this.ctx.ui.getFocused();
+		const target = focused instanceof HookEditorComponent ? focused : this.ctx.editor;
 
 		this.showSelector(done => {
 			const component = new HistorySearchComponent(
 				historyStorage,
 				prompt => {
 					done();
-					this.ctx.editor.setText(prompt);
+					target.setText(prompt);
 					this.ctx.ui.requestRender();
 				},
 				() => {

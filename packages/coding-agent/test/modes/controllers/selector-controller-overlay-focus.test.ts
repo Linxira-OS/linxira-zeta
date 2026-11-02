@@ -1,13 +1,15 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import * as SessionSelector from "@linxiraos/pi-tui/overlays/session-selector";
-import type { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
-import { Settings } from "@linxiraos/zeta/config/settings";
-import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
-import { initTheme } from "@linxiraos/pi-tui/theme";
-import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
-import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
-import { SessionManager } from "@linxiraos/zeta/session/session-manager";
-import { Text } from "@linxiraos/pi-tui";
+import type { SessionSelectorComponent } from "@oh-my-pi/pi-tui/overlays/session-selector";
+import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
+import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
+import { initTheme } from "@oh-my-pi/pi-tui/theme";
+import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
+import type { SessionInfo } from "@oh-my-pi/pi-coding-agent/session/session-listing";
+import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { Text, type TUI } from "@oh-my-pi/pi-tui";
+import { HistorySearchComponent } from "@oh-my-pi/pi-tui/overlays/history-search";
+import { HookEditorComponent } from "@oh-my-pi/pi-tui/overlays/hook-editor";
+import type { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
 
 beforeAll(async () => {
 	await initTheme();
@@ -35,7 +37,7 @@ function createEditorSlot(...initial: unknown[]): EditorSlot {
 	};
 }
 
-function createCtx(slot: EditorSlot, editor: unknown, focused: unknown = editor) {
+function createCtx(slot: EditorSlot, editor: unknown, focused: unknown = editor, extra: object = {}) {
 	const setFocus = vi.fn();
 	const ctx = {
 		editor,
@@ -45,6 +47,7 @@ function createCtx(slot: EditorSlot, editor: unknown, focused: unknown = editor)
 			setFocus,
 			requestRender: vi.fn(),
 		},
+		...extra,
 	} as unknown as InteractiveModeContext;
 	return { ctx, setFocus };
 }
@@ -118,6 +121,30 @@ describe("SelectorController.showSelector", () => {
 	});
 });
 
+describe("SelectorController.showHistorySearch", () => {
+	it("delivers the picked entry to the focused ask prompt, not the hidden composer", () => {
+		const storage = {
+			getRecent: () => [{ id: 1, prompt: "deploy the release", created_at: 0, useCount: 1 }],
+			search: () => [],
+		} as unknown as HistoryStorage;
+		const editor = { setText: vi.fn() };
+		const onSubmit = vi.fn();
+		const tui = { terminal: { columns: 120 } } as unknown as TUI;
+		const prompt = new HookEditorComponent(tui, "Other", undefined, onSubmit, vi.fn(), { promptStyle: true });
+		const slot = createEditorSlot(prompt);
+		const { ctx } = createCtx(slot, editor, prompt, { historyStorage: storage });
+
+		new SelectorController(ctx).showHistorySearch();
+		const [history] = slot.children;
+		if (!(history instanceof HistorySearchComponent)) throw new Error("history search was not mounted");
+		history.handleInput("\n");
+
+		expect(editor.setText).not.toHaveBeenCalled();
+		prompt.handleNativeEvent({ type: "action", key: "actions/submit", act: "submit", mods: [] });
+		expect(onSubmit).toHaveBeenCalledWith("deploy the release");
+	});
+});
+
 describe("SelectorController session replacement overlay", () => {
 	it("keeps the fullscreen selector visible until the resumed transcript is ready", async () => {
 		const session: SessionInfo = {
@@ -133,21 +160,6 @@ describe("SelectorController session replacement overlay", () => {
 			allMessagesText: "first second",
 		};
 		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue([session]);
-		// `/resume` now opens the three-level picker, whose own tree takes Enter:
-		// drive the controller's selection callback directly, which is what the
-		// overlay/focus contract under test observes.
-		let selectSession: ((session: SessionInfo) => void) | undefined;
-		const OriginalSelector = SessionSelector.SessionSelectorComponent;
-		vi.spyOn(SessionSelector, "SessionSelectorComponent").mockImplementation(((
-			sessions: SessionInfo[],
-			onSelect: (session: SessionInfo) => void,
-			onCancel: () => void,
-			onExit: () => void,
-			options: never,
-		) => {
-			selectSession = onSelect;
-			return new OriginalSelector<SessionInfo>(sessions, onSelect, onCancel, onExit, options);
-		}) as never);
 
 		const overlayHidden = Promise.withResolvers<void>();
 		const hide = vi.fn(() => overlayHidden.resolve());
@@ -184,18 +196,14 @@ describe("SelectorController session replacement overlay", () => {
 		});
 		await controller.showSessionSelector();
 		expect(selector).toBeDefined();
-		expect(selectSession).toBeDefined();
-		selectSession!(session);
+		selector!.handleInput("\n");
 		await resumeStarted.promise;
 
 		expect(handleResume).toHaveBeenCalledWith(session.path, { followContinuation: true });
 		expect(hide).not.toHaveBeenCalled();
 
 		// The selector remains mounted until resume finishes, but it must not accept
-		// a second selection or cancel the overlay during that interval. The
-		// controller locks the component before switching, so raw keys are dropped
-		// by the component itself; a direct callback call is what the lock exists
-		// to make unreachable from the UI.
+		// a second selection or cancel the overlay during that interval.
 		selector!.handleInput("\n");
 		selector!.handleInput("\x1b");
 		expect(handleResume).toHaveBeenCalledTimes(1);
