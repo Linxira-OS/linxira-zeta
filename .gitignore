@@ -92,6 +92,7 @@ pi-*.html
 
 # Generated files
 packages/coding-agent/export-assets/
+packages/coding-agent/src/export/html/viewer.generated.ts
 packages/natives/npm/
 # prepack materializes the repo-root skills/ tree into the package dir for the
 # npm tarball (see packages/coding-agent/scripts/sync-official-skills.ts)
