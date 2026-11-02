@@ -15,7 +15,6 @@ import {
 import type { SearchProviderId } from "@linxiraos/pi-tui/tools/web-search-types";
 import { THINKING_EFFORTS } from "@linxiraos/pi-catalog/effort";
 import { DEFAULT_STREAM_URL } from "@linxiraos/pi-wire/stream";
-import { DEFAULT_SHARE_URL } from "@linxiraos/pi-wire";
 import { type AuthAccountPolicies, DEFAULT_USAGE_RESERVE_PCT } from "@linxiraos/pi-ai/auth-storage";
 import { ADVISOR_DEFAULT_BUDGET_PER_UPDATE } from "../advisor/emission-guard";
 import { DEFAULT_SKILLS_URL } from "@linxiraos/pi-wire/skillshare";
@@ -2485,42 +2484,6 @@ export const SETTINGS_SCHEMA = {
 		},
 	},
 
-	"share.serverUrl": {
-		type: "string",
-		default: DEFAULT_SHARE_URL,
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Share Server",
-			description:
-				"Share viewer/upload base used by /share (encrypted blob upload + viewer; links are <base>/<id>#<key>)",
-		},
-	},
-
-	"share.store": {
-		type: "enum",
-		values: ["blob", "gist"] as const,
-		default: "blob",
-		ui: {
-			tab: "interaction",
-			group: "Collab",
-			label: "Share Store",
-			description: "Where /share uploads the encrypted session blob",
-			options: [
-				{
-					value: "blob",
-					label: "Encrypted Blob",
-					description: "Upload to the share server (no GitHub account needed; avoids gist API rate limits)",
-				},
-				{
-					value: "gist",
-					label: "GitHub Gist",
-					description: "Push to a secret gist (needs authenticated gh), falling back to the share server",
-				},
-			],
-		},
-	},
-
 	"share.redactSecrets": {
 		type: "boolean",
 		default: true,
@@ -2528,7 +2491,7 @@ export const SETTINGS_SCHEMA = {
 			tab: "interaction",
 			group: "Collab",
 			label: "Share Secret Redaction",
-			description: "Run the secret obfuscator over /share snapshots before upload (uses the secrets.* config)",
+			description: "Run the secret obfuscator over /share transcripts before they are handed to the agent (uses the secrets.* config)",
 		},
 	},
 
