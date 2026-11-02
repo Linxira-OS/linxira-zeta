@@ -200,7 +200,12 @@ export interface TasteScopeSnapshot {
  */
 export async function readTasteScope(agentDir: string, key: TasteScopeKey): Promise<TasteScopeSnapshot> {
 	const file = tasteFilePath(agentDir, key);
-	const [text, state] = await Promise.all([Bun.file(file).text().catch(() => ""), readTasteState(agentDir, key)]);
+	const [text, state] = await Promise.all([
+		Bun.file(file)
+			.text()
+			.catch(() => ""),
+		readTasteState(agentDir, key),
+	]);
 	const entries: TasteEntry[] = parseTasteFile(text).map(bullet => {
 		const topic = topicKey(bullet.statement);
 		const stored = state.entries[topic];
@@ -270,7 +275,9 @@ export async function writeTasteScope(
 		tombstones: state.tombstones.slice(-TOMBSTONE_LIMIT),
 		lastConsolidatedAt: state.lastConsolidatedAt,
 	};
-	const markdown = formatTasteFile(entries.map(entry => ({ statement: entry.statement, confidence: entry.confidence })));
+	const markdown = formatTasteFile(
+		entries.map(entry => ({ statement: entry.statement, confidence: entry.confidence })),
+	);
 	await Promise.all([
 		atomicWrite(file, markdown),
 		atomicWrite(tasteStatePath(agentDir, key), `${JSON.stringify(nextState, null, "\t")}\n`),

@@ -150,7 +150,9 @@ export function injectionScore(
  */
 export function detectConflict(a: TasteEntry, b: TasteEntry): boolean {
 	if (a.polarity === b.polarity) return false;
-	return a.topicKey === b.topicKey || topicKey(similarStatement(a.statement)) === topicKey(similarStatement(b.statement));
+	return (
+		a.topicKey === b.topicKey || topicKey(similarStatement(a.statement)) === topicKey(similarStatement(b.statement))
+	);
 }
 
 /** Strip the leading preference verb so "prefers X" and "avoids X" share a topic. */

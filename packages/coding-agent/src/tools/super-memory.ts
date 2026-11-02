@@ -30,6 +30,7 @@ import {
 	type TasteCategory,
 	type TasteEntry,
 	type TastePolarity,
+	type TasteState,
 	writeTasteScope,
 } from "../taste/store";
 import superMemoryDescription from "../prompts/tools/super-memory.md" with { type: "text" };
@@ -191,26 +192,18 @@ export class SuperMemoryTool implements AgentTool<typeof schema> {
 		if (!topic) throw new Error("super_memory forget needs a statement or topicKey");
 		const scope = this.#scopes()[0] ?? { domain: "global", segments: [] };
 		let forgotten = 0;
-		const agentDir = this.#agentDir();
-		await this.#mutate(scope, async entries => {
-			const remaining = entries.filter(entry => {
-				if (entry.topicKey !== topic) return true;
-				forgotten += 1;
-				return false;
-			});
-			if (forgotten > 0) {
-				const state = await readTasteState(agentDir, scope);
-				for (const entry of entries.filter(entry => entry.topicKey === topic)) {
-					state.tombstones.push({
-						statement: entry.statement,
-						retiredAt: today(),
-						reason: "manual",
-						lastP: entry.confidence,
-					});
-				}
-				await writeTasteScope(agentDir, scope, remaining, { ...state, entries: {} });
+		await this.#mutate(scope, async (entries, state) => {
+			const retired = entries.filter(entry => entry.topicKey === topic);
+			for (const entry of retired) {
+				state.tombstones.push({
+					statement: entry.statement,
+					retiredAt: today(),
+					reason: "manual",
+					lastP: entry.confidence,
+				});
 			}
-			return remaining;
+			forgotten = retired.length;
+			return retired.length === 0 ? entries : entries.filter(entry => entry.topicKey !== topic);
 		});
 		if (forgotten === 0) throw new Error(`super_memory forget: no entry with topicKey ${topic}`);
 		await this.session.refreshSystemPrompt?.();
@@ -268,16 +261,24 @@ export class SuperMemoryTool implements AgentTool<typeof schema> {
 		return entries;
 	}
 
-	/** Apply a mutation to one scope's entries under the consolidation lock. */
-	async #mutate(scope: TasteScopeKey, mutate: (entries: TasteEntry[]) => Promise<TasteEntry[]>): Promise<void> {
+	/**
+	 * Apply a mutation to one scope's entries and state under the consolidation
+	 * lock. The callback receives the state it may amend (tombstones, counters);
+	 * whatever it returns is written, so an in-place edit of `entries` is enough
+	 * and no caller has to re-read state behind the lock.
+	 */
+	async #mutate(
+		scope: TasteScopeKey,
+		mutate: (entries: TasteEntry[], state: TasteState) => Promise<TasteEntry[]>,
+	): Promise<void> {
 		const agentDir = this.#agentDir();
 		await withFileLock(
 			tasteLockPath(agentDir, scope),
 			async () => {
 				const snapshot = await readTasteScope(agentDir, scope);
 				const state = await readTasteState(agentDir, scope);
-				const next = await mutate(snapshot.entries);
-				if (next !== snapshot.entries) await writeTasteScope(agentDir, scope, next, state);
+				const next = await mutate(snapshot.entries, state);
+				await writeTasteScope(agentDir, scope, next, state);
 			},
 			{ retries: 2, retryDelayMs: 5 },
 		);

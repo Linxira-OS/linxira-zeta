@@ -36,7 +36,8 @@ export const cfgTasteScoping = register({
 		tab: "memory",
 		group: "Taste",
 		label: "Taste Scoping",
-		description: "Which store a project reads: one shared global store, this project alone, or this project plus the global one",
+		description:
+			"Which store a project reads: one shared global store, this project alone, or this project plus the global one",
 		options: [
 			{ value: "global", label: "Global", description: "One store for every project on this machine" },
 			{ value: "per-project", label: "Per-project", description: "Only this repository's store" },

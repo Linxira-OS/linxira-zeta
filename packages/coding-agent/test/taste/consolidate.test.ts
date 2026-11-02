@@ -9,11 +9,7 @@ import * as path from "node:path";
 import { TempDir } from "@linxiraos/pi-utils";
 import { ModelRegistry } from "@linxiraos/zeta/config/model-registry";
 import { Settings } from "@linxiraos/zeta/config/settings";
-import {
-	CATEGORY_CAP,
-	runTasteConsolidation,
-	tasteWriteScope,
-} from "@linxiraos/zeta/taste/consolidate";
+import { CATEGORY_CAP, runTasteConsolidation, tasteWriteScope } from "@linxiraos/zeta/taste/consolidate";
 import { tasteFilePath, tasteStatePath } from "@linxiraos/zeta/taste/paths";
 import { appendTasteCandidate } from "@linxiraos/zeta/taste/queue";
 import { resolveTasteScopes } from "@linxiraos/zeta/taste/scope";

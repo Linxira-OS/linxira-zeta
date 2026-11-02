@@ -211,9 +211,72 @@ sharpshooter:
 | `sharpshooter.intervalMinutes`     | `5`     | Minimum minutes between consolidation runs                                                                                                                                                                                                                                         |
 | `sharpshooter.injectionTokenLimit` | `15000` | Approximate token cap for the decision files injected into the system prompt                                                                                                                                                                                                       |
 
+## Taste layer
+
+The taste layer learns durable *preferences* — how you want code written — separately from project facts. It is off by default, needs a memory backend, and is the only memory layer that stores its data in Command Code's `taste.md` format, so an existing `.commandcode/taste/taste.md` is imported on first use and a store this layer writes stays readable by that tool.
+
+```yaml
+memory:
+   backend: mnemopi
+taste:
+   enabled: true
+   scoping: per-project
+```
+
+Stores live under `<agentDir>/memories/taste/<domain>/…/taste.md` as plain Markdown:
+
+```markdown
+# Taste
+
+- Prefers the outer framework to run directly on the target kernel. Confidence: 0.62
+- Avoids barrel files in `src/`. Confidence: 0.74
+```
+
+The visible file carries the statement and one confidence; evidence, mentions, conflict state, tombstones, and timers live next to it in `state.json`. Keep the file editable: consolidation re-normalizes it, and a hand-edited confidence is treated as the entry's prior.
+
+**Scoping.** `per-project` (default) keeps one store per repository; `global` keeps one for the machine; `per-project-tagged` reads the project store first, then the global one, with the project winning a topic. Under both tagged modes a subagent gets its own store under `agents/<bank>/<agentId>/`, so one agent's habits never leak into another's prompt.
+
+**Learning.** Each user prompt in the main session (subagents are skipped; prompts shorter than `taste.minPromptLength` are not extracted) is classified into a candidate: statement, category, polarity, and the user's verbatim words as evidence. The model may also call `super_memory` with `action: "record"`; a record is only a candidate, never a stored entry, and its evidence must be a verbatim substring of the user's latest message. Candidates are queued per session and applied by a scheduler tick after `taste.intervalMinutes`.
+
+**Consolidation** turns candidates into entries and is the only place confidence changes:
+
+- Every observation adds Beta evidence — `stated×N` for an extraction, `repeat×N` for the same topic in another session — plus a diminishing repeat bonus; contradictions add negative evidence.
+- A repeated topic corroborates its entry instead of creating a second one.
+- Opposite polarities on one topic become an unresolved **conflict**: neither is injected until you resolve it (`super_memory` with `action: "resolve"`, or forget one side).
+- Deletion only for: a manual forget, a conflict unresolved for 30 days, an idle unprotected entry older than a year whose decayed retention fell below 0.5, and the per-category cap of 12 (weakest retention first). Every deletion leaves a tombstone.
+- At `p ≥ 0.8` with at least five mentions an entry becomes protected: age never deletes it again.
+
+**Judgment.** The optional semantic step picks a model from `modelRoles.taste`, then `judge`, then `@smol`. A judgment model (TypeSafe Jev, OpenRouter/OpenAI Decisions, Workers AI System One) contributes a *calibrated* posterior with pseudo-counts (T2). A chat model only classifies — category and polarity — and any confidence it emits is discarded (T1). With no model, the layer runs entirely on the host's evidence math (T0), which is the default.
+
+**Injection.** The block is rebuilt with the base system prompt (session start, model/tool/settings change, branch, backend refresh), never per turn, and capped at `taste.injectionTokenLimit` approximate tokens:
+
+```markdown
+These preferences are the current store and take precedence over any conflicting statement …
+## Preferences
+- Prefers explicit return types on exported functions. Confidence: 0.62
+## Retracted
+- Do not follow (retracted 2026-10-30): Prefers barrel files everywhere
+```
+
+The precedence line matters because a compacted history keeps quoting preferences the store has since forgotten; `## Retracted` names those for 30 days so the model stops following them instead of trusting the older quote.
+
+| Setting                      | Default | Description                                                                                              |
+| ---------------------------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `taste.enabled`              | `false` | Master flag: no extraction, consolidation, tool, or injection while off                                 |
+| `taste.scoping`              | `per-project` | `global`, `per-project`, or `per-project-tagged`                                                   |
+| `taste.minPromptLength`      | `16`    | Prompts shorter than this many characters are not extracted                                             |
+| `taste.intervalMinutes`      | `5`     | Minimum minutes between consolidation runs                                                              |
+| `taste.injectionTokenLimit`  | `600`   | Approximate token cap for the injected block                                                             |
+| `taste.confidenceFloor`      | `0.6`   | Minimum injection score; below it an entry is cold-stored and not injected                              |
+| `modelRoles.taste`           | unset   | Judge model; unset falls through `judge` to `@smol`, and no model leaves the layer at T0                |
+
+The `/memory` command covers backend stores only; inspect and edit taste with the `super_memory` tool (`query`, `stats`, `resolve`, `forget`) or the file itself.
+
 ## Key files
 
 - `packages/coding-agent/src/memories/index.ts` — pipeline orchestration, injection, clear/enqueue entry points (the `/memory` command routes here via `packages/coding-agent/src/memory-backend/local-backend.ts`)
 - `packages/coding-agent/src/memories/storage.ts` — SQLite-backed job queue and thread registry
 - `packages/coding-agent/src/prompts/memories/` — memory prompt templates
 - `packages/coding-agent/src/internal-urls/memory-protocol.ts` — `memory://` URL handler
+- `packages/coding-agent/src/taste/` — taste layer: `store.ts` (Command Code format, state, tombstones), `extract.ts` + `queue.ts` (candidates), `consolidate.ts` (evidence, conflicts, deletion), `score.ts` (Beta posterior, retention, injection score), `judge.ts` (T0/T1/T2), `inject.ts` (prompt block), `scheduler.ts` + `lifecycle.ts`
+- `packages/coding-agent/src/tools/super-memory.ts` — the `super_memory` tool (see [Tools](./tools/super_memory.md))

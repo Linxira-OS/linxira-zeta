@@ -18,7 +18,14 @@ import { cfgMemoryBackend } from "../memory-backend/settings";
 import { cfgTasteEnabled, cfgTasteConfidenceFloor, cfgTasteInjectionTokenLimit } from "./settings";
 import { resolveTasteScopes, type TasteScopeKey } from "./scope";
 import { injectionScore, shouldInject } from "./score";
-import { daysBetween, readTasteScope, TOMBSTONE_RENDER_DAYS, today, type TasteEntry, type TasteTombstone } from "./store";
+import {
+	daysBetween,
+	readTasteScope,
+	TOMBSTONE_RENDER_DAYS,
+	today,
+	type TasteEntry,
+	type TasteTombstone,
+} from "./store";
 
 /** First line of the block: states which source wins, before any preference does. */
 export const TASTE_PRECEDENCE_LINE =

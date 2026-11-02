@@ -19,6 +19,7 @@
  * layer never blocks consolidation on a model.
  */
 import { completeSimple, createNativeJudge, type Model } from "@linxiraos/pi-ai";
+import type { FetchImpl } from "@linxiraos/pi-utils";
 import { type ChoiceQuestion, type NoulQuestion, type Questions, type ScoreQuestion } from "@linxiraos/pi-ai";
 import { modelKind } from "@linxiraos/pi-catalog/types";
 import { logger } from "@linxiraos/pi-utils";
@@ -95,7 +96,11 @@ const QUESTIONS = {
 	strength: {
 		type: "score",
 		instructions: "How firmly is the preference expressed?",
-		criteria: ["mentioned in passing", "stated as a preference", "stated as a rule, or corrected once already violated"],
+		criteria: [
+			"mentioned in passing",
+			"stated as a preference",
+			"stated as a rule, or corrected once already violated",
+		],
 	} satisfies ScoreQuestion,
 } satisfies Questions;
 
@@ -103,17 +108,15 @@ export interface TasteJudgeDeps {
 	settings: Settings;
 	modelRegistry: ModelRegistry;
 	sessionId: string;
+	/** Transport override for tests; production uses the registry's provider. */
+	fetch?: FetchImpl;
 }
 
 /**
  * Ask a model what a candidate is. Returns `undefined` in T0, when no role
  * resolves, or when the call fails — callers treat all three identically.
  */
-export async function scoreWithJudge(
-	input: TasteJudgeInput,
-	deps: TasteJudgeDeps,
-): Promise<TasteJudgment | undefined> {
-	const matchPreferences = undefined;
+export async function scoreWithJudge(input: TasteJudgeInput, deps: TasteJudgeDeps): Promise<TasteJudgment | undefined> {
 	for (const role of TASTE_ROLE_CHAIN) {
 		const selection = resolveRoleSelection([role], deps.settings, deps.modelRegistry.getAvailable("all"));
 		if (!selection) continue;
@@ -148,7 +151,7 @@ async function judgeNative(
 	if (!(await deps.modelRegistry.getApiKey(model, deps.sessionId))) return undefined;
 	const apiKey = deps.modelRegistry.resolver(model, deps.sessionId);
 	const headers = await deps.modelRegistry.resolveModelHeaders(model);
-	const judge = createNativeJudge(model, { apiKey, headers });
+	const judge = createNativeJudge(model, { apiKey, headers, ...(deps.fetch ? { fetch: deps.fetch } : {}) });
 	const result = await judge.judge({
 		state: { statement: input.statement, said: input.evidence },
 		questions: QUESTIONS,
@@ -159,7 +162,10 @@ async function judgeNative(
 		tier: "T2",
 		role,
 		model: judge.label,
-		posterior: { p: answers.is_preference.noul, strength: STRENGTH_SCALE[Math.round(answers.strength.score) as 0 | 1 | 2] ?? 0.75 },
+		posterior: {
+			p: answers.is_preference.noul,
+			strength: STRENGTH_SCALE[Math.round(answers.strength.score) as 0 | 1 | 2] ?? 0.75,
+		},
 		category: answers.category.confidence < CATEGORY_CONFIDENCE_FLOOR ? "other" : category,
 		polarity: answers.polarity.choice as TastePolarity,
 	};
@@ -202,6 +208,7 @@ async function judgeChat(
 			category?: unknown;
 			polarity?: unknown;
 		};
+		if (parsed.is_preference === false) return undefined;
 		// Classification only: any confidence the model emitted is ignored on
 		// purpose, an uncalibrated number must not move the Beta posterior.
 		return {

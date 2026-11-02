@@ -23,7 +23,6 @@ import { withFileLock } from "@linxiraos/pi-utils";
 
 import type { ModelRegistry } from "../config/model-registry";
 import type { Settings } from "../config/settings";
-import { cfgTasteConfidenceFloor } from "./settings";
 import { type TasteJudgment, scoreWithJudge } from "./judge";
 import { tasteLockPath } from "./paths";
 import { consumeTasteCandidates, listTasteCandidates, type QueuedTasteCandidate } from "./queue";
@@ -190,7 +189,7 @@ async function consolidateLocked(
 
 	const survivors: TasteEntry[] = [];
 	for (const entry of entries) {
-		const reason = deletionReason(entry, stamp);
+		const reason = deletionReason(entry, stamp, now);
 		if (!reason) {
 			survivors.push(entry);
 			continue;
@@ -264,12 +263,17 @@ function detectRival(a: TasteEntry, b: TasteEntry): boolean {
 }
 
 /** Which deletion rule (if any) applies to an entry. `undefined` = keep. */
-function deletionReason(entry: TasteEntry, stamp: string): string | undefined {
+function deletionReason(entry: TasteEntry, stamp: string, now: Date): string | undefined {
 	if (entry.protected) return undefined;
 	if (entry.conflict && entry.conflictSince && daysBetween(entry.conflictSince, stamp) >= CONFLICT_TTL_DAYS) {
 		return "conflict";
 	}
-	if (daysBetween(entry.lastUsed, stamp) > IDLE_TTL_DAYS && entry.confidence < IDLE_MAX_P) return "idle";
+	// Idle means "the retained belief has faded", not "the posterior is low": an
+	// entry nobody contradicts keeps its posterior forever, so only the
+	// time-decayed retention can tell a live preference from a dormant one.
+	if (daysBetween(entry.lastUsed, stamp) > IDLE_TTL_DAYS && retentionScore(entry, now) < IDLE_MAX_P) {
+		return "idle";
+	}
 	return undefined;
 }
 

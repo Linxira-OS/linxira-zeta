@@ -33,10 +33,10 @@ import { cfgTasteMinPromptLength } from "./settings";
 import { TASTE_CATEGORIES, type TasteCategory, type TastePolarity } from "./store";
 
 const candidateSchema = type({
-	"category": "'cli' | 'typescript' | 'architecture' | 'style' | 'workflow' | 'other'",
-	"statement": "string",
-	"polarity": "'prefer' | 'avoid'",
-	"evidenceText": "string",
+	category: "'cli' | 'typescript' | 'architecture' | 'style' | 'workflow' | 'other'",
+	statement: "string",
+	polarity: "'prefer' | 'avoid'",
+	evidenceText: "string",
 });
 
 const recordPreferencesTool = {
@@ -193,7 +193,10 @@ export function admitCandidate(raw: unknown, currentPromptText: string, sessionI
 		logger.debug("taste: rejected candidate with unverifiable evidence", { evidenceText });
 		return undefined;
 	}
-	if (typeof candidate.category !== "string" || !(TASTE_CATEGORIES as readonly string[]).includes(candidate.category)) {
+	if (
+		typeof candidate.category !== "string" ||
+		!(TASTE_CATEGORIES as readonly string[]).includes(candidate.category)
+	) {
 		return undefined;
 	}
 	const polarity = candidate.polarity === "avoid" ? "avoid" : candidate.polarity === "prefer" ? "prefer" : undefined;

@@ -1034,6 +1034,22 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Sharpshooter 模型",
 		description: "抽取/整合所用的模型选择器，留空使用 smol 角色",
 	},
+	"taste.enabled": {
+		label: "品味层",
+		description: "从你的提示中学习持久的编码偏好，并注入有把握的部分；需要记忆后端，令牌预算紧张时不建议开启",
+	},
+	"taste.scoping": {
+		label: "品味作用范围",
+		description: "项目读取哪一份存储：全局共享、仅本项目，或本项目加全局",
+	},
+	"taste.injectionTokenLimit": {
+		label: "品味注入预算",
+		description: "注入的偏好块大致令牌上限",
+	},
+	"taste.confidenceFloor": {
+		label: "品味置信下限",
+		description: "偏好进入提示所需的最低注入分数（0–1）",
+	},
 	"autolearn.enabled": {
 		label: "自动学习（实验性）",
 		description: "智能体停止后，推动它将经验捕获到记忆，并创建/增强隔离的受管技能",
@@ -3745,6 +3761,18 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"snapcompact.shape::doc-8on16-sent-dim": {
 		label: "文档 8on16，句色 + 虚词变暗",
 		description: "双列文档布局，句色墨水，功能词变暗为灰色。",
+	},
+	"taste.scoping::global": {
+		label: "全局",
+		description: "本机所有项目共用一份存储",
+	},
+	"taste.scoping::per-project": {
+		label: "按项目",
+		description: "仅使用本仓库的存储",
+	},
+	"taste.scoping::per-project-tagged": {
+		label: "项目 + 全局",
+		description: "先本仓库，再跨仓库通用的习惯",
 	},
 	"memory.backend::sharpshooter": {
 		label: "Sharpshooter",

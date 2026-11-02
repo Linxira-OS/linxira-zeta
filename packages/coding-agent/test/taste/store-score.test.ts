@@ -72,9 +72,14 @@ describe("taste store format", () => {
 
 	it("ignores prose lines and keeps one bullet per preference", () => {
 		const bullets = parseTasteFile(
-			["# Taste", "", "Some prose about taste.", "- Prefers tabs. Confidence: 0.5", "- Avoids barrels. Confidence: 0.9", ""].join(
-				"\n",
-			),
+			[
+				"# Taste",
+				"",
+				"Some prose about taste.",
+				"- Prefers tabs. Confidence: 0.5",
+				"- Avoids barrels. Confidence: 0.9",
+				"",
+			].join("\n"),
 		);
 		expect(bullets.map(bullet => bullet.statement)).toEqual(["Prefers tabs", "Avoids barrels"]);
 		expect(bullets.map(bullet => bullet.confidence)).toEqual([0.5, 0.9]);
