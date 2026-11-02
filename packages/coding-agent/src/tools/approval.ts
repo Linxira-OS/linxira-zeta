@@ -12,8 +12,6 @@ import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import approvalFolderTemplate from "../prompts/tools/approval-folder.md" with { type: "text" };
 import type { AgentTool, AgentToolContext, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";
 import * as path from "node:path";
-import { replaceTabs } from "@linxiraos/pi-tui";
-import { isRecord, prompt, sanitizeText } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
 import { normalizeToLF } from "../edit/normalize";
 import type {
@@ -36,8 +34,6 @@ import {
 	approvalTargetNamesFile,
 	approvalTreeSearchFolderKey,
 } from "./approval-targets";
-import approvalFolderTemplate from "../prompts/tools/approval-folder.md" with { type: "text" };
-import { shortenPath } from "@linxiraos/pi-tui/render/render-utils";
 import { expandTilde, resolveToCwd } from "./path-utils";
 
 export type { ToolApproval, ToolApprovalDecision, ToolTier } from "@linxiraos/pi-agent-core";

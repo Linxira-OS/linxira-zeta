@@ -526,7 +526,6 @@ export function loadConfig(cwd: string): LspConfig {
 		};
 	}
 
-
 	return { servers, idleTimeoutMs };
 }
 

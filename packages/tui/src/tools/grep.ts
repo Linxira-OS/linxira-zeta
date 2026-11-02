@@ -32,7 +32,6 @@ import {
 	formatEmptyMessage,
 	formatErrorMessage,
 	PREVIEW_LIMITS,
-	toPathList,
 } from "../render/render-utils";
 import {
 	classifyGroupedLines,
