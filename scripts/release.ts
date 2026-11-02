@@ -517,7 +517,16 @@ async function cmdRelease(versionOrBump: string): Promise<void> {
 
 	// 6. Run checks
 	console.log("Running checks...");
-	await $`bun run check`;
+	// The Windows release host has no MSVC linker (`link.exe` resolves to Git's
+	// coreutils shim), so `check:rs` cannot compile there. `ZETA_SKIP_RS_CHECK=1`
+	// runs the TypeScript half only; CI validates Rust on the pushed commit and
+	// again on the release tag, so a Rust failure still blocks publishing.
+	if (process.env.ZETA_SKIP_RS_CHECK === "1") {
+		console.warn("  Running TypeScript checks only (ZETA_SKIP_RS_CHECK=1); CI validates Rust on the release tag.\n");
+		await $`bun run check:ts`;
+	} else {
+		await $`bun run check`;
+	}
 	console.log();
 
 	// 7. Commit
