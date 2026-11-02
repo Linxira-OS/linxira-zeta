@@ -27,7 +27,7 @@
 | CI-012 | `Zeta Nix` run 长时间 `in_progress` | 多个 run | 观察 |
 | CI-013 | 合并前 `main` 本来就是红的 | `4f917a02691` | 记录 |
 | CI-014 | 用 `release.ts` 发版（文档已标注不要用） | `73720678956` | 已处理（转发 v2） |
-| CI-015 | bump 先上 main、npm 未发布，安装 smoke 必红 | `78eea49eddb` | 记录（等发布） |
+| CI-015 | bump 先上 main、npm 未发布，安装 smoke 必红 | `5e99ac37dc8` + install-smoke fix | 已处理 |
 | CI-016 | 新设置组未登记到 `TAB_GROUPS` | `15183edda34` | 已处理 |
 | CI-017 | LSP 选择测试整桶红、单跑绿 | `78eea49eddb` | 记录 |
 
@@ -229,15 +229,17 @@
   继承退出码）。`canary` 与 `major/minor/patch` 不再由旧脚本处理（历史没有 canary
   tag，npm 也只有 `latest`）。
 
-## CI-015 版本 bump 先上 main、npm 尚未发布，安装 smoke 必红
+## CI-015 安装 smoke 漏掉 pi-channels tarball override
 
 - **现象**：run `41448562575`（`78eea49eddb`）的 `Install method smoke tests` 失败：
   `No version matching "1.4.8" found for specifier "@linxiraos/pi-channels"`。
-- **根因**：bump 已推送到 main，但 npm 上的 `@linxiraos/*` 仍是 1.4.7；安装方式测试按
-  仓库版本从 registry 安装同伴包，自然找不到 1.4.8。
-- **影响**：发布完成前，main 的每次普通推送都会在这个 job 红；它不代表代码回归。
-- **建议**：smoke 在 registry 版本落后于仓库版本时明确判定“发布未完成”并 skip/警告，
-  不要用断言失败表达；发布完成后自动恢复。
+- **根因**：smoke 已经把 `channels` 打进 tarball 目录，但没有把它加入
+  `package.json` overrides 和 `bun add` 列表；解析 `@linxiraos/zeta` 的
+  `@linxiraos/pi-channels: catalog:` 时因此回退到 registry，而 1.4.8 尚未发布。
+  不是单纯的“发布顺序依赖”。
+- **修复**：`scripts/install-tests/run-ci.sh` 增加 `channels_tgz`，写入 overrides
+  并加入 `bun add`。这样安装 smoke 在发布前也能用本地 tarball 验证。
+- **影响**：发布前 main 的 install-smoke 不再因这个同伴包失败。
 
 ## CI-016 新设置组未登记到 `TAB_GROUPS`
 

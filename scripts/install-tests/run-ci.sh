@@ -171,6 +171,7 @@ snapcompact_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-snapcompact-*.tgz)"
 agent_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-agent-core-*.tgz)"
 tui_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-tui-*.tgz)"
 stats_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-stats-*.tgz)"
+channels_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-pi-channels-*.tgz)"
 coding_agent_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-zeta-*.tgz)"
 collab_web_tgz="$(find_tarball "$TARBALL_DIR"/linxiraos-collab-web-*.tgz)"
 
@@ -197,13 +198,14 @@ mkdir -p "$TARBALL_APP_DIR"
 			'@linxiraos/pi-agent-core': '$agent_tgz',
 			'@linxiraos/pi-tui': '$tui_tgz',
 			'@linxiraos/pi-stats': '$stats_tgz',
+			'@linxiraos/pi-channels': '$channels_tgz',
 			'@linxiraos/zeta': '$coding_agent_tgz',
 			'@linxiraos/collab-web': '$collab_web_tgz'
 		};
 		require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));
 	"
 
-   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$coding_agent_tgz" "$collab_web_tgz"
+   bun add "$utils_tgz" "$wire_tgz" "$omptype_tgz" "$natives_tgz" "$catalog_tgz" "$ai_tgz" "$mnemopi_tgz" "$snapcompact_tgz" "$agent_tgz" "$tui_tgz" "$stats_tgz" "$channels_tgz" "$coding_agent_tgz" "$collab_web_tgz"
    # The platform leaf must arrive through the core's optionalDependencies +
    # override, not as a direct dependency — assert it landed before smoking so a
    # resolution regression is distinguishable from a runtime loader bug.
