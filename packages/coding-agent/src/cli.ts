@@ -596,9 +596,9 @@ if (isProcessEntry || !Bun.isMainThread) {
 	// (graceful exit) rather than the fatal path. Interactive launches register their own
 	// terminal lifetime; help/version/subcommand launches never start one. See #10930. The
 	// registration lives for the process — a one-shot entry exits right after runCli settles.
-	postmortem.registerStdioDisconnectHandling();
+	postmortem?.registerStdioDisconnectHandling();
 	const entry = runCli(process.argv.slice(2));
-	postmortem.reportUnsettledEntry(entry, () => runningCommand);
+	postmortem?.reportUnsettledEntry(entry, () => runningCommand);
 	entry.catch(async error => {
 		// Failure boundary: inspector/postmortem is irrelevant to successful startup.
 		const { fatal } = await import("@linxiraos/pi-utils/postmortem");

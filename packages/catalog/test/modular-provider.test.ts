@@ -4,11 +4,11 @@ import {
 	applyOpenAIExtraBody,
 	type OpenAICompletionsParams,
 	resolveOpenAICompatPolicy,
-} from "@oh-my-pi/pi-ai/providers/openai-shared";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
-import { Effort } from "@oh-my-pi/pi-catalog/effort";
-import { defaultSupportedEffort } from "@oh-my-pi/pi-catalog/model-thinking";
-import type { Model } from "@oh-my-pi/pi-catalog/types";
+} from "@linxiraos/pi-ai/providers/openai-shared";
+import { buildModel } from "@linxiraos/pi-catalog/build";
+import { Effort } from "@linxiraos/pi-catalog/effort";
+import { defaultSupportedEffort } from "@linxiraos/pi-catalog/model-thinking";
+import type { Model } from "@linxiraos/pi-catalog/types";
 
 function buildModular(id: string): Model<"openai-completions"> {
 	return buildModel({

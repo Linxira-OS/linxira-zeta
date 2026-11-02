@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { launchHeadlessBrowser, removeUserDataDir } from "@oh-my-pi/pi-coding-agent/tools/browser/launch";
+import { launchHeadlessBrowser, removeUserDataDir } from "@linxiraos/zeta/tools/browser/launch";
 import { chromiumAvailable } from "./chromium-probe";
 declare const location: { hostname: string };
 

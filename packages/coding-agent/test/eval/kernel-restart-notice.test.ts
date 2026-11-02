@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { disposeAllVmContexts } from "@oh-my-pi/pi-coding-agent/eval/js/context-manager";
-import { disposeAllKernelSessions } from "@oh-my-pi/pi-coding-agent/eval/py/executor";
-import { getEvalState } from "@oh-my-pi/pi-coding-agent/eval/state";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { EvalTool } from "@oh-my-pi/pi-coding-agent/tools/eval";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { disposeAllVmContexts } from "@linxiraos/zeta/eval/js/context-manager";
+import { disposeAllKernelSessions } from "@linxiraos/zeta/eval/py/executor";
+import { getEvalState } from "@linxiraos/zeta/eval/state";
+import type { ToolSession } from "@linxiraos/zeta/tools";
+import { EvalTool } from "@linxiraos/zeta/tools/eval";
 
 type Language = "py" | "js";
 

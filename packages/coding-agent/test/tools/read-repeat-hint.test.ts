@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { ReadTool } from "@oh-my-pi/pi-coding-agent/tools/read";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
+import { ReadTool } from "@linxiraos/zeta/tools/read";
 
 // #17631: the hint advised `path:A-B` on xd:// topics, whose scheme passes the tail into the topic name.
 it("does not suggest a line selector on a repeated selector-free xd:// read", async () => {

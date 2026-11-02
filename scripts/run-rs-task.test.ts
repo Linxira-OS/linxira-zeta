@@ -78,7 +78,7 @@ interface CheckRsResult {
 
 async function runCheckRs(fixture: Fixture, cwd: string, env: Record<string, string> = {}): Promise<CheckRsResult> {
 	const base: Record<string, string | undefined> = { ...process.env };
-	// The ambient environment must not decide the case: an omp shell exports
+	// The ambient environment must not decide the case: a Zetacode shell exports
 	// CI=true, a GitHub runner exports GITHUB_ACTIONS, and a git hook exports GIT_DIR.
 	for (const key of ["CI", "GITHUB_ACTIONS", "OMP_FORCE_RUST_TASKS", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) {
 		delete base[key];

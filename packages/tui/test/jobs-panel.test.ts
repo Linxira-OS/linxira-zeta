@@ -311,10 +311,10 @@ describe("JobsSheet", () => {
 		const root = sheet.describe(CX);
 		expect(texts(list(root)!)).toContain(intent);
 		expect(texts(list(root)!)).not.toContain("systemctl");
-		expect(prop(byRole(root, "omp.jobs.title")[0], "text")).toBe(intent);
-		expect(texts(byRole(root, "omp.jobs.caption")[0]!)).toContain(caption);
-		expect(prop(byRole(root, "omp.jobs.command")[0], "text")).toBe(command);
-		expect(byRole(root, "omp.jobs.widget")).toHaveLength(0);
+		expect(prop(byRole(root, "zeta.jobs.title")[0], "text")).toBe(intent);
+		expect(texts(byRole(root, "zeta.jobs.caption")[0]!)).toContain(caption);
+		expect(prop(byRole(root, "zeta.jobs.command")[0], "text")).toBe(command);
+		expect(byRole(root, "zeta.jobs.widget")).toHaveLength(0);
 
 		const lines = sheet.render(160).map(line => Bun.stripANSI(line));
 		expect(lines.find(line => line.includes("bg_27") || line.includes("running  bash"))).toContain(intent);
@@ -338,9 +338,9 @@ describe("JobsSheet", () => {
 			inspect: () => ({ command: settled.label, pids: [], exitCode: 0, output: "done" }),
 			close: vi.fn(),
 		});
-		expect(byRole(sheet.describe(CX), "omp.jobs.caption")).toHaveLength(0);
+		expect(byRole(sheet.describe(CX), "zeta.jobs.caption")).toHaveLength(0);
 		job = { ...settled, caption: "Waits about 2 min, printing nothing" };
-		expect(texts(byRole(sheet.describe(CX), "omp.jobs.caption")[0]!)).toContain("Waits about 2 min");
+		expect(texts(byRole(sheet.describe(CX), "zeta.jobs.caption")[0]!)).toContain("Waits about 2 min");
 	});
 
 	describe("as a tree of subagents", () => {

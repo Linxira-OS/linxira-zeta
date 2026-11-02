@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { convertMessages } from "@oh-my-pi/pi-ai/providers/openai-completions";
-import type { AssistantMessage, Model, ThinkingContent } from "@oh-my-pi/pi-ai/types";
-import { buildModel } from "@oh-my-pi/pi-catalog/build";
+import { convertMessages } from "@linxiraos/pi-ai/providers/openai-completions";
+import type { AssistantMessage, Model, ThinkingContent } from "@linxiraos/pi-ai/types";
+import { buildModel } from "@linxiraos/pi-catalog/build";
 
 interface AssistantWireMessage {
 	role: "assistant";

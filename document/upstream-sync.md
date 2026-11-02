@@ -1,6 +1,6 @@
 # Upstream Sync Ledger
 
-## Integrated through: v18.14.2
+## Integrated through: v18.15.0
 
 ## Sync cadence: on demand (2026-10-21 ruling)
 
@@ -25,6 +25,68 @@ merge.
 - Verdict: **nothing release-blocking for 1.4.0**. The window waits for a
   dedicated on-demand sync after 1.4.0 ships; the security hardening above is
   the first reason to schedule it.
+
+## v18.15.0 incremental merge (Zeta — branch `sync/omp-release/v18.15.0`, 2026-11-02; merge `2fffbf6b95a`)
+
+- **Baseline**: `v18.14.2` (`7efd77219374ca4e8767979809835e4aa90666ba`).
+  `git merge-base HEAD v18.15.0` resolved to it before the merge, so only the
+  tag-to-tag increment is applied.
+- **Source tag**: `v18.15.0`, peeled
+  `3fedf8d53267e32a6d7521ce725fdcc4a36fdc67` (verified with
+  `git ls-remote --tags omp-upstream refs/tags/v18.15.0` before the fetch and
+  again immediately before the merge; unchanged both times, so no re-cut).
+  Merge commit `2fffbf6b95a`, parents `f6a7b9f75d9` (Zeta branch carrying the
+  host/defaults cleanup) + `3fedf8d5326`. `git merge-base --is-ancestor
+  v18.15.0 HEAD` holds.
+- **Delta** (`git diff v18.14.2 v18.15.0`): 235 commits, 257 files,
+  +6,306/−1,801. Heaviest: `packages/coding-agent` (115 files),
+  `packages/tui` (34), `packages/ai` (19), `packages/catalog` (17),
+  `crates/vendor` (8), `packages/utils` (8), `packages/agent` (7).
+- **Conflicts**: 56 `UU` — 46 TS (20 tests, 26 code), 6 markdown/docs, 3
+  lockfiles, 1 workflow. The 15 `package.json` paths were resolved by the
+  `zeta-package` driver (0 conflicts left there), `rules.json` was regenerated
+  from the merged KDL (`compile-compat.ts`), and `Cargo.lock`/`bun.lock` were
+  re-locked rather than merged.
+- **Upstream's new hosted export viewer is not adopted.** v18.15.0 replaces the
+  inlined tool-views pipeline with a single generated viewer asset that a
+  packaged release fetches from `build.stencil.so`. Zeta exports stay
+  self-contained (the `my.omp.sh`/`build.stencil.so` cleanup landed just before
+  this merge), so `export/html/index.ts` + `viewer.generated.json` keep the
+  inline path; the builder (`build-export-viewer.ts`) and its metadata check are
+  unchanged.
+- **Zeta-only surfaces replayed from the branch, not from the tag**: the
+  conditional postmortem install (`cli.ts`, now also calling upstream's new
+  `installProcessHandlers`), the LSP candidate chain (`lsp/config.ts`; upstream
+  split `typescript-native` / `typescript-language-server` into two servers and
+  picks one at resolve time — the capability-filtered chain subsumes that),
+  the IM sinks alongside upstream's new `jobCaptionWriter` (`sdk.ts`), i18n
+  fast-mode command descriptions, the lazy model/login overlays plus upstream's
+  eager `HookEditorComponent` (`selector-controller.ts`), and the
+  `zeta.jobs.*` semantic roles with the label fallback (`jobs-panel.ts`).
+- **Upstream additions kept**: the `rex` terminal identity next to `zetawork`
+  (`tui/src/terminal-capabilities.ts`), `shortenEmbeddedPaths`, `sanitizeText`
+  in the session store, `sleepUntil`, `isChromiumBrowserExecutable`,
+  `anthropicHostRunsTool`, `CELL_BUDGET_SLACK_MS`/`TOOL_TIMEOUTS`, the
+  `approval-folder.md` prompt, `HookEditorComponent`, and the job-caption
+  widget field.
+- **Test contracts**: taken from upstream wholesale (20 files), then the
+  `.omp` config-dir paths were re-adapted to `.zeta` in
+  `test/tools/lsp-regressions.test.ts` and the `@omp-lsp-` temp prefixes were
+  restored to `@zeta-lsp-` (125 fixtures). `__omp_prelude__`/`__omp_log__` in
+  `tools/browser-schema.test.ts` were renamed to the `__zeta_*` names the
+  sources actually inject.
+- **Structural repair** (`54d6a69fad4`): the eight package CHANGELOGs restored
+  to their pre-merge content (the `merge=union` attribute had re-appended
+  upstream's `## [18.x]` history, which the version-line guard rejects),
+  `Cargo.lock` re-locked to 1.4.7, duplicated imports and formatting fixed.
+- **Checks**: `check-version-consistency` green; `ci:check:full` green;
+  `audit-merge-members --base <branch> --tag v18.15.0` → **0 members dropped**,
+  24 explained as upstream's own removals in the window; `brand-check` 0 hits;
+  `check-shared-infra`, `check-doc-host-parity`, `check-no-upstream-defaults`,
+  `check-scope-imports`, `check-service-ports` green.
+- **Workspace additions**: upstream added nothing under `web-ui/`; the
+  catalog/version line stayed on 1.4.7, so no catalog-key remap was needed
+  beyond the driver's own `workspaces.catalog` merge.
 
 ## v18.14.1 incremental merge (Zeta — branch `sync/omp-release/18.14.1`, 2026-10-31; merge `0b9cdb21e43`)
 

@@ -1,15 +1,15 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "bun:test";
-import type { SessionSelectorComponent } from "@oh-my-pi/pi-tui/overlays/session-selector";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SelectorController } from "@oh-my-pi/pi-coding-agent/modes/controllers/selector-controller";
-import { initTheme } from "@oh-my-pi/pi-tui/theme";
-import type { InteractiveModeContext } from "@oh-my-pi/pi-coding-agent/modes/types";
-import type { SessionInfo } from "@oh-my-pi/pi-coding-agent/session/session-listing";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
-import { Text, type TUI } from "@oh-my-pi/pi-tui";
-import { HistorySearchComponent } from "@oh-my-pi/pi-tui/overlays/history-search";
-import { HookEditorComponent } from "@oh-my-pi/pi-tui/overlays/hook-editor";
-import type { HistoryStorage } from "@oh-my-pi/pi-coding-agent/session/history-storage";
+import type { SessionSelectorComponent } from "@linxiraos/pi-tui/overlays/session-selector";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { SelectorController } from "@linxiraos/zeta/modes/controllers/selector-controller";
+import { initTheme } from "@linxiraos/pi-tui/theme";
+import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
+import type { SessionInfo } from "@linxiraos/zeta/session/session-listing";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
+import { Text, type TUI } from "@linxiraos/pi-tui";
+import { HistorySearchComponent } from "@linxiraos/pi-tui/overlays/history-search";
+import { HookEditorComponent } from "@linxiraos/pi-tui/overlays/hook-editor";
+import type { HistoryStorage } from "@linxiraos/zeta/session/history-storage";
 
 beforeAll(async () => {
 	await initTheme();

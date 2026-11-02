@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AuthStorage, SqliteAuthCredentialStore } from "@oh-my-pi/pi-ai";
-import { AuthBrokerClient, type AuthBrokerServerHandle, startAuthBroker } from "@oh-my-pi/pi-ai/auth-broker";
+import { AuthStorage, SqliteAuthCredentialStore } from "@linxiraos/pi-ai";
+import { AuthBrokerClient, type AuthBrokerServerHandle, startAuthBroker } from "@linxiraos/pi-ai/auth-broker";
 import { removeWithRetries } from "../../utils/src/temp";
 
 const TOKEN = "auth-broker-usage-probe-bearer";

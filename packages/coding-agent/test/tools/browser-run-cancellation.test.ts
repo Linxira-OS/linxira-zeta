@@ -165,7 +165,7 @@ describe("browser run cancellation", () => {
 	it("keeps a later cause-wrapped rejection on the fatal path", async () => {
 		vi.useRealTimers();
 		const script = `
-			import { postmortem } from "@oh-my-pi/pi-utils";
+			import { postmortem } from "@linxiraos/pi-utils";
 			import { markBrowserRunRejection } from ${JSON.stringify(runScopeModuleUrl)};
 			postmortem.installProcessHandlers();
 

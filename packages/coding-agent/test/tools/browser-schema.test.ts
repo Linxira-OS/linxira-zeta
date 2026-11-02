@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, spyOn, vi } from "bun:test";
 import { createContext, runInContext } from "node:vm";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { ToolSession } from "@oh-my-pi/pi-coding-agent/sdk";
-import { createBrowserPrelude } from "@oh-my-pi/pi-coding-agent/tools/browser";
-import { resolveWaitTimeout } from "@oh-my-pi/pi-coding-agent/tools/browser/op-timeouts";
-import { cfgBrowserEnabled } from "@oh-my-pi/pi-coding-agent/tools/browser/settings";
-import * as supervisor from "@oh-my-pi/pi-coding-agent/tools/browser/tab-supervisor";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { ToolSession } from "@linxiraos/zeta/sdk";
+import { createBrowserPrelude } from "@linxiraos/zeta/tools/browser";
+import { resolveWaitTimeout } from "@linxiraos/zeta/tools/browser/op-timeouts";
+import { cfgBrowserEnabled } from "@linxiraos/zeta/tools/browser/settings";
+import * as supervisor from "@linxiraos/zeta/tools/browser/tab-supervisor";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -129,8 +129,8 @@ describe("browser prelude", () => {
 		const calls: unknown[] = [];
 		const displayed: unknown[] = [];
 		const context = createContext({
-			__omp_log__: (_level: string, value: unknown) => displayed.push(value),
-			__omp_prelude__: async (name: string, parameters: unknown) => {
+			__zeta_log__: (_level: string, value: unknown) => displayed.push(value),
+			__zeta_prelude__: async (name: string, parameters: unknown) => {
 				calls.push({ name, parameters });
 				if (parameters === null || typeof parameters !== "object") return { text: "", details: {} };
 				const action = Reflect.get(parameters, "action");

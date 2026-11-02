@@ -862,7 +862,13 @@ export const MUST_NOT_CONTAIN: Array<{
 	{
 		needle: /scl\.so/,
 		why: "the upstream Tern promo short-link (scl.so/tern) — the welcome tip pitching the upstream terminal was removed by user ruling 2026-10-14 (see document/upstream-sync.md); any scl.so literal is that promo returning. Deliberately NOT a bare `stencil.so` ban: catalog.stencil.so is our model-catalogue infrastructure (shared, must not be renamed)",
-		exempt: ["scripts/check-shared-infra.ts"], // the shared-infra ledger names the domain by design (status: replaced, files: [])
+		// The inventory table and the default guard name every pinned domain by
+		// design: they ARE the machines that keep those hosts retired.
+		exempt: [
+			"scripts/check-shared-infra.ts",
+			"scripts/shared-infra-inventory.ts",
+			"scripts/check-no-upstream-defaults.ts",
+		],
 	},
 	// ── SDK rename token (2026-10-14) ────────────────────────────────────────
 	// The RPC SDK was renamed `omp-rpc` → `zeta-rpc` (dirs `sdk/{go,python,rust}/zeta-rpc`,

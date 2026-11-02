@@ -7,13 +7,13 @@
  * the producing model still is.
  */
 import { describe, expect, it } from "bun:test";
-import { Agent, type AgentMessage } from "@oh-my-pi/pi-agent-core";
-import type { AssistantMessage, Model, ProviderSessionState } from "@oh-my-pi/pi-ai";
-import { convertCodexResponsesMessages } from "@oh-my-pi/pi-ai/providers/openai-codex-responses";
-import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import { SessionMaintenance, type SessionMaintenanceHost } from "@oh-my-pi/pi-coding-agent/session/session-maintenance";
-import { SessionManager } from "@oh-my-pi/pi-coding-agent/session/session-manager";
+import { Agent, type AgentMessage } from "@linxiraos/pi-agent-core";
+import type { AssistantMessage, Model, ProviderSessionState } from "@linxiraos/pi-ai";
+import { convertCodexResponsesMessages } from "@linxiraos/pi-ai/providers/openai-codex-responses";
+import { getBundledModel } from "@linxiraos/pi-catalog/models";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import { SessionMaintenance, type SessionMaintenanceHost } from "@linxiraos/zeta/session/session-maintenance";
+import { SessionManager } from "@linxiraos/zeta/session/session-manager";
 
 const active = getBundledModel<"openai-codex-responses">("openai-codex", "gpt-6.1-sol");
 // Same encoding, another model: it gets the turns re-encoded without their reasoning.

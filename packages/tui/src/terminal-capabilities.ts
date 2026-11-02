@@ -67,6 +67,7 @@ export type TerminalId =
 	| "rio"
 	| "tern"
 	| "monstar"
+	| "rex"
 	| "zetawork"
 	| "base"
 	| "trueColor";
@@ -695,6 +696,7 @@ export function detectTerminalId(env: NodeJS.ProcessEnv = Bun.env): TerminalId {
 		if (caseEq(program, "rio")) return "rio";
 		if (caseEq(program, "tern")) return "tern";
 		if (caseEq(program, "monstar")) return "monstar";
+		if (caseEq(program, "rex")) return "rex";
 		if (caseEq(program, "zetawork")) return "zetawork";
 		return null;
 	}

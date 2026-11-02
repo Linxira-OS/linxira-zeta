@@ -23,7 +23,7 @@ describe("SDK import process ownership", () => {
 				process.exit(0);
 			});
 			// Dynamic import tests the host's process listener before the SDK dependency graph evaluates.
-			await import("@oh-my-pi/pi-catalog");
+			await import("@linxiraos/pi-catalog");
 			process.kill(process.pid, "SIGTERM");
 		`);
 
@@ -33,7 +33,7 @@ describe("SDK import process ownership", () => {
 
 	it("still runs registered cleanup when the embedding host exits", async () => {
 		const result = await runHost(`
-			const { postmortem } = await import("@oh-my-pi/pi-utils");
+			const { postmortem } = await import("@linxiraos/pi-utils");
 			postmortem.register("host-probe", () => process.stdout.write("cleanup ran\\n"));
 			process.exit(0);
 		`);

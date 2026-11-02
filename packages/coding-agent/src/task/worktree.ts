@@ -700,7 +700,7 @@ export async function ensureIsolation(
 /**
  * Tear down a handle returned by {@link ensureIsolation}. When native teardown fails for a mount or
  * subvolume backend, the workspace is kept with a retained-backend sidecar (recursive `rm` would
- * traverse the live mount); `omp worktree clear` retries the teardown later.
+ * traverse the live mount); `zetacode worktree clear` retries the teardown later.
  */
 export async function cleanupIsolation(handle: IsolationHandle): Promise<void> {
 	const baseDir = path.dirname(handle.mergedDir);

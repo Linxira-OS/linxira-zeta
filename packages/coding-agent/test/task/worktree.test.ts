@@ -16,11 +16,11 @@ import {
 	IsolationBaselineTooLargeError,
 	mergeTaskBranches,
 	parseIsolationBackend,
-} from "@oh-my-pi/pi-coding-agent/task/worktree";
-import { readRetainedMountBackend } from "@oh-my-pi/pi-coding-agent/task/isolation-ownership";
-import * as natives from "@oh-my-pi/pi-natives";
-import * as vcs from "@oh-my-pi/pi-natives/vcs";
-import { removeWithRetries, setWorktreesDir } from "@oh-my-pi/pi-utils";
+} from "@linxiraos/zeta/task/worktree";
+import { readRetainedMountBackend } from "@linxiraos/zeta/task/isolation-ownership";
+import * as natives from "@linxiraos/pi-natives";
+import * as vcs from "@linxiraos/pi-natives/vcs";
+import { removeWithRetries, setWorktreesDir } from "@linxiraos/pi-utils";
 
 const tempDirs: string[] = [];
 
@@ -401,7 +401,7 @@ describe("worktree isolation helpers", () => {
 				await fs.writeFile(path.join(iso, fixtureName), `${isolatedLines.join("\n")}\n`);
 
 				const taskId = `dirty-context-${path.basename(isoRoot)}`;
-				let branchName = `omp/task/${taskId}`;
+				let branchName = `zeta/task/${taskId}`;
 				try {
 					const commitResult = await commitToBranch(iso, baseline, taskId, "dirty context merge");
 					if (!commitResult?.branchName) throw new Error("expected task branch");
@@ -1246,7 +1246,7 @@ describe("commitToBranch preserves agent commits", () => {
 		const aiMessage = vi.fn(async () => "fix: update line5 in clean commit example");
 		const result = await commitToBranch(isolation, baseline, taskId, undefined, aiMessage);
 
-		expect(result?.branchName).toBe(`omp/task/${taskId}`);
+		expect(result?.branchName).toBe(`zeta/task/${taskId}`);
 		expect(result?.baseSha).toBe(baseline.root.headCommit);
 		// commitMessage callback must NOT have been invoked — the agent's
 		// message is taken verbatim.
@@ -1374,7 +1374,7 @@ describe("commitToBranch preserves agent commits", () => {
 
 		const taskId = "dirty-parent-committed-agent";
 		const result = await commitToBranch(isolation, baseline, taskId, undefined);
-		expect(result?.branchName).toBe(`omp/task/${taskId}`);
+		expect(result?.branchName).toBe(`zeta/task/${taskId}`);
 
 		const merge = await mergeTaskBranches(parent, [
 			{ branchName: result!.branchName!, taskId, baseSha: result!.baseSha! },

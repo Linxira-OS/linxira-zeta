@@ -35,8 +35,8 @@ describe("issue #9158 — malformed worker IPC frame must not terminate the pare
 		// Runs in a spawned `bun -e` parent that installs the postmortem
 		// uncaughtException handler under test, as the CLI does at startup.
 		const wrapperScript = `
-			import { postmortem } from "@oh-my-pi/pi-utils";
-			import { createWorkerSubprocess } from "@oh-my-pi/pi-coding-agent/subprocess/worker-client";
+			import { postmortem } from "@linxiraos/pi-utils";
+			import { createWorkerSubprocess } from "@linxiraos/zeta/subprocess/worker-client";
 			postmortem.installProcessHandlers();
 			const worker = createWorkerSubprocess({
 				spawnCommand: { cmd: [process.execPath, "-e", ${JSON.stringify(childScript)}] },
@@ -71,8 +71,8 @@ describe("issue #9158 — malformed worker IPC frame must not terminate the pare
 		// so a genuine bug is never silently swallowed as a worker IPC frame.
 		const repoRoot = path.resolve(import.meta.dir, "..");
 		const wrapperScript = `
-			import { postmortem } from "@oh-my-pi/pi-utils";
-			import "@oh-my-pi/pi-coding-agent/subprocess/worker-client";
+			import { postmortem } from "@linxiraos/pi-utils";
+			import "@linxiraos/zeta/subprocess/worker-client";
 			postmortem.installProcessHandlers();
 			process.stdout.write("BEFORE_THROW");
 			queueMicrotask(() => { throw new TypeError("Unable to deserialize data."); });

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "bun:test";
-import type { AgentToolContext } from "@oh-my-pi/pi-agent-core";
-import { validateToolArguments } from "@oh-my-pi/pi-ai/utils/validation";
-import { Settings } from "@oh-my-pi/pi-coding-agent/config/settings";
-import type { BashInterceptorRule } from "@oh-my-pi/pi-coding-agent/exec/settings";
-import { DEFAULT_BASH_INTERCEPTOR_RULES } from "@oh-my-pi/pi-coding-agent/exec/settings";
-import type { ExtensionRunner } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/runner";
-import { ExtensionToolWrapper } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/wrapper";
-import type { Tool, ToolSession } from "@oh-my-pi/pi-coding-agent/tools";
-import { BashTool, type BashToolInput } from "@oh-my-pi/pi-coding-agent/tools/bash";
-import { checkBashInterception } from "@oh-my-pi/pi-coding-agent/tools/bash-interceptor";
+import type { AgentToolContext } from "@linxiraos/pi-agent-core";
+import { validateToolArguments } from "@linxiraos/pi-ai/utils/validation";
+import { Settings } from "@linxiraos/zeta/config/settings";
+import type { BashInterceptorRule } from "@linxiraos/zeta/exec/settings";
+import { DEFAULT_BASH_INTERCEPTOR_RULES } from "@linxiraos/zeta/exec/settings";
+import type { ExtensionRunner } from "@linxiraos/zeta/extensibility/extensions/runner";
+import { ExtensionToolWrapper } from "@linxiraos/zeta/extensibility/extensions/wrapper";
+import type { Tool, ToolSession } from "@linxiraos/zeta/tools";
+import { BashTool, type BashToolInput } from "@linxiraos/zeta/tools/bash";
+import { checkBashInterception } from "@linxiraos/zeta/tools/bash-interceptor";
 
 function createBashTool(rules: BashInterceptorRule[]): BashTool {
 	const session = {

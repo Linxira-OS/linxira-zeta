@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { getThemeByName } from "@oh-my-pi/pi-tui/theme";
-import { astGrepToolRenderer } from "@oh-my-pi/pi-tui/tools/ast-grep";
-import { sanitizeText } from "@oh-my-pi/pi-utils";
+import { getThemeByName } from "@linxiraos/pi-tui/theme";
+import { astGrepToolRenderer } from "@linxiraos/pi-tui/tools/ast-grep";
+import { sanitizeText } from "@linxiraos/pi-utils";
 
 async function renderCollapsedBody(matchCount: number, displayContent: string[]): Promise<string[]> {
 	const uiTheme = (await getThemeByName("dark"))!;

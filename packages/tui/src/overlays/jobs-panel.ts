@@ -486,8 +486,8 @@ function describeDetail(
 			]),
 			{ role: "zeta.jobs.status", gap: "sm", align: "center" },
 		),
-		title ? text(title, { role: "omp.jobs.title", wrap: "word" }) : undefined,
-		job.caption ? text([span(job.caption, "muted")], { role: "omp.jobs.caption", wrap: "word" }) : undefined,
+		title ? text(title, { role: "zeta.jobs.title", wrap: "word" }) : undefined,
+		job.caption ? text([span(job.caption, "muted")], { role: "zeta.jobs.caption", wrap: "word" }) : undefined,
 		command
 			? code(command, { lang: "bash", wrap: true, preview: { lines: 4 }, role: "zeta.jobs.command" })
 			: text(job.label, { role: "zeta.jobs.title", wrap: "word" }),

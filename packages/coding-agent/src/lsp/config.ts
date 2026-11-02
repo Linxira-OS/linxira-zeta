@@ -386,7 +386,7 @@ export function selectServerCommand(
 	if (serverName === "typescript") {
 		const tscPath = resolveCommand("tsc", cwd, options);
 		if (tscPath) {
-			const speaksLsp = typescriptSpeaksLsp(tscPath);
+			const speaksLsp = typescriptSpeaksLsp(tscPath, cwd);
 			candidates = candidates.filter(candidate => {
 				if (candidate.command === "typescript-language-server") return !speaksLsp;
 				if (candidate.command === "tsc") return speaksLsp;

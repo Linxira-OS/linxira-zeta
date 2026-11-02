@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { VERSION } from "@oh-my-pi/pi-utils";
-import { parseHTML } from "@oh-my-pi/pi-utils/dom";
+import { VERSION } from "@linxiraos/pi-utils";
+import { parseHTML } from "@linxiraos/pi-utils/dom";
 import type { BunPlugin } from "bun";
 import { getTemplate } from "../src/export/html/index";
 import viewerAsset from "../src/export/html/viewer.generated.json" with { type: "json" };
@@ -17,10 +17,10 @@ const bundleDir = path.join(tempRoot, "bundle");
 const compiledPath = path.join(tempRoot, "compiled-template-probe");
 let bundlePath: string;
 const dependencyStubs: Record<string, string> = {
-	"@oh-my-pi/omp-stats/trace":
+	"@linxiraos/pi-stats/trace":
 		'export const buildSessionTraceFromSnapshots = () => { throw new Error("Trace assembly is outside the template probe"); };',
-	"@oh-my-pi/pi-utils": `export const APP_NAME = "omp"; export const VERSION = ${JSON.stringify(VERSION)}; export const isEnoent = err => err?.code === "ENOENT"; export const isCompiledBinary = () => false;`,
-	"@oh-my-pi/pi-tui/theme":
+	"@linxiraos/pi-utils": `export const APP_NAME = "zeta"; export const VERSION = ${JSON.stringify(VERSION)}; export const isEnoent = err => err?.code === "ENOENT"; export const isCompiledBinary = () => false;`,
+	"@linxiraos/pi-tui/theme":
 		"export const getResolvedThemeColors = async () => ({}); export const getThemeExportColors = async () => ({});",
 	"../../session/sub-sessions": "export const collectSubSessions = async () => ({});",
 	"../../session/session-manager":
