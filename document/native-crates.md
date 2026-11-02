@@ -45,8 +45,7 @@ The root `Cargo.toml` lists every crate under `crates/` explicitly in `workspace
 
 For the loader and JS boundary, see:
 
-- [`natives-architecture.md`](./natives-architecture.md)
-- [`natives-addon-loader-runtime.md`](./natives-addon-loader-runtime.md)
+- [`natives-architecture.md`](./natives-architecture.md) (loader runtime details included)
 - [`natives-binding-contract.md`](./natives-binding-contract.md)
 
 Subsystem details live in:
@@ -61,3 +60,63 @@ Subsystem details live in:
 ## Documentation policy
 
 These crates remain contributor-facing implementation details. Promote one to standalone user-facing documentation only when it gains a public API or executable consumed independently of `@linxiraos/pi-natives`; see [`user-facing-packages.md`](./user-facing-packages.md).
+
+## Porting field notes
+
+> Merged from the former `porting-to-natives.md`; the full historical copy is in
+> [`archive/porting-to-natives.md`](./archive/porting-to-natives.md).
+
+### When to port
+
+Port a hot path when it runs in render loops or large batches, when JS allocation
+(string churn, regex, large arrays) dominates, when a JS baseline exists for a
+side-by-side benchmark, or when the work is CPU-bound/blocking or async I/O that
+belongs on the libuv thread pool or Tokio. Avoid ports that depend on JS-only
+state or dynamic imports; N-API exports should be data-in/data-out. Long-running
+work goes through `task::blocking` (CPU/blocking I/O) or `task::future` (async
+I/O), with `CancelToken`/`heartbeat()` when the API exposes `timeoutMs` or
+`AbortSignal`.
+
+### Shape
+
+- Runtime wrapper: `packages/natives/native/index.js`; types:
+  `native/index.d.ts`; loader helpers: `loader-state.js`; embedded manifest:
+  `embedded-addon.js`.
+- Rust implementation: `crates/pi-natives/src/<module>.rs`, registered in
+  `src/lib.rs`, exported with `#[napi]` (snake_case becomes camelCase).
+- `packages/natives/scripts/build-bindings.ts` runs napi-rs, installs the
+  `.node`, copies declarations, and regenerates explicit ESM exports/enums.
+- At publish time the core ships the loader only; each platform `.node` is an
+  optional-dependency leaf `@linxiraos/pi-natives-<tag>`.
+
+### Checklist
+
+1. Add the Rust implementation and register the module.
+2. Run `bun --cwd=packages/natives run build`; confirm `index.d.ts` and
+   `index.js` carry the new export/enums.
+3. Update consumers to import from `@linxiraos/pi-natives`; remove the obsolete
+   JS path in the same change when native is canonical.
+4. Add a benchmark beside the owning package with a JS baseline and the native
+   version in one run (`Bun.nanoseconds()`, fixed iterations, realistic input).
+5. Run the focused build, benchmark, and narrow tests/scenarios.
+
+### Pitfalls
+
+- **Stale platform/variant artifacts**: the loader tries `modern`, then
+  `baseline`, then the unsuffixed file; a stale earlier candidate can hide a new
+  export. Delete the local/variant/versioned cache and rebuild.
+- **Generated types vs loaded binary**: verify the export set from the exact
+  candidate path reported by the loader; do not add optional consumer guards for
+  a required export.
+- **Rust signatures**: keep them owned/simple (`String`, `Vec<String>`,
+  `Uint8Array`, `#[napi(object)]`); avoid borrowed `&str` in public exports.
+- **Enums/ESM exports**: napi-rs declarations alone are not enough; regenerate
+  `native/index.js` and verify enum objects.
+- **Benchmarking**: identical inputs, same file for both versions, enough
+  iterations, realistic data.
+
+### Rule of thumb
+
+If native is slower, keep the JS path and do not switch callsites. If native is
+faster and behavior-compatible, switch and keep the benchmark as the regression
+guard.

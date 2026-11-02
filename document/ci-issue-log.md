@@ -87,6 +87,9 @@
   1. `scripts/release.ts` 增加 `ZETA_SKIP_BAZEL_LOCK=1` 显式跳过（默认行为不变）；
   2. 让 CI 的 `bazel_lock` job 失败时上传刷新后的锁（该 job 本来就设计成这么做）；
   3. 从 run 下载 `MODULE.bazel.lock` 产物，提交在 `570ad1ef4ff`，再打 tag。
+- **后续（2026-11-02）**：v1 管线已删除；`release.ts` 现在只转发到
+  `release-v2.ts`，后者在 bazelisk 可用时刷新锁、不可用时明确警告并提示取 CI 产物。
+  `ZETA_SKIP_BAZEL_LOCK` 不再被使用。
 - **建议方案 / 门禁**：发布脚本在跳过时自动去 CI 取产物并提交，或把该步骤放到
   WSL/Linux 执行；另加一个不依赖 Bazel 的“锁输入哈希”快速预检，提前提示“将过期”。
 - **已有机制（无需新写）**：`release-v2.ts` 在 bazelisk 可用时会自己刷新锁；
@@ -104,6 +107,8 @@
   1. `scripts/release.ts` 增加 `ZETA_SKIP_RS_CHECK=1`，本地只跑 `check:ts`；
   2. 在 WSL（Linxira OS）里装 `cmake`、`ninja` 后跑 `bun run check:rs`，通过；
      Rust 以 CI / WSL 为准。
+- **后续（2026-11-02）**：v1 管线已删除；`release-v2.ts` 本来就只跑 `check:ts`，
+  `ZETA_SKIP_RS_CHECK` 不再被使用。
 - **建议方案 / 门禁**：发布文档写明“Windows 发布机必须有 MSVC 或改走 WSL”；
   提供 `scripts/check-toolchain.ts` 预检（检测 MSVC 与 `link.exe` 真伪）；
   把 `check:rs` 的 WSL 调用固化成脚本，避免每次手工 export PATH。

@@ -16,9 +16,9 @@
 | 目录 / 文件 | 什么时候读 | 覆盖内容 |
 |---|---|---|
 | `merge/sync-procedure.md` | 要同步一个上游 tag，需要逐阶段清单 | 六阶段管线摘要、上游增量合并规程（tag 间差异、merge-base 校验、禁止项） |
-| `merge/damage-classes.md` | 合并后、或合并后 CI 红 | 14 类发布面损伤：症状 / 规律 / 修复规则 + triage 指纹 + 推 sync 分支前的最低门禁 |
+| `merge/damage-classes.md` | 合并后、或合并后 CI 红 | 15 类发布面损伤：症状 / 规律 / 修复规则 + triage 指纹 + 推 sync 分支前的最低门禁 |
 | `merge/file-ownership.md` | 冲突时判断非代码文件归谁 | 产品前门 / `.github/**` / 其它文件 / `docs/` 的默认与例外 |
-| `merge/squash-sync.md` | 想知道"为什么不能 squash" | 【历史档案】已废止的压缩式流程，**不是可选方案** |
+| `document/archive/squash-sync.md` | 想知道"为什么不能 squash" | 【历史档案】已废止的压缩式流程，**不是可选方案** |
 | `brand/registry.md` | OMP 合并后逐行核对品牌面 | 逐行注册表：canonical 值 + 守卫方式 + "刻意不改"清单 + 启动字符画定稿 |
 | `surface/code-locations.md` | 不确定代码该落哪个目录 | desktop / web-ui / gateway / channel / main / termide 归属、依赖方向、退役前的内嵌架构、上游面 vs Zeta 自有面 |
 | `surface/packages.md` | 查包职责、插件目录约定 | 包清单表、`plugins/` 两层结构 |
@@ -37,6 +37,10 @@
 | 发布链 job、tag、更新日志、版本线 | `document/release.md` |
 | 日常编码约定 | `document/dev-conventions.md` |
 | 同步台账与历史决策 | `document/upstream-sync.md` |
+| Blob / artifact 存储 | `document/blob-artifact-architecture.md` |
+| 会话树与分支 | `document/session-tree.md` |
+| 主代理互通场景 | `document/agent-mesh-scenarios.md` |
+| 外来配置 / 工具档位 / 提示词归属 | `document/external-sources-and-tool-exposure.md` |
 
 机械守卫（CI `check` job 执行，不靠人记）：
 
@@ -47,8 +51,16 @@ bun scripts/check-zeta-sentinels.ts         # Zeta-only 代码未被合并吞掉
 bun scripts/check-ci-surface.ts             # CI job / needs / 产物名 / matrix 键（类 7、10、12、14）
 bun scripts/check-license-map.ts            # 许可分层
 bun scripts/check-release-asset-names.ts    # zeta-cli-* 资产名
+bun scripts/check-removed-upstream-files.ts # 已退役上游文件不得复活
+bun scripts/check-no-upstream-defaults.ts   # 设置默认值不得指回上游 host
+bun scripts/check-doc-host-parity.ts        # docs host 与台账一致
 bun scripts/brand/brand-check.ts            # 品牌残留
 ```
+
+外来配置门禁与工具档位的计划守卫（`check-native-prompt-sources`、
+`check-foreign-consent`、`check-tool-profile`、`check-context-budget`、
+`check-mcp-shadow`）见 `document/external-sources-and-tool-exposure.md` §9；
+实现前不要当成已存在。
 
 `document/` 在 `scripts/brand/brand-rules.ts` 的 `SKIP_PREFIXES` 里：本目录允许
 按原样保留上游记号（`.omp`、`my.omp.sh`、`PI_LOGO` 等），不会被品牌扫描判红。

@@ -326,6 +326,24 @@ OpenCode's `autotools` lesson: a huge tool schema set costs large token
 overhead (multi-ten-thousand-token tool definitions) and forced two-phase tool
 decision. Right-size Zeta's tool schemas and consider two-phase selection.
 
+### P1 — 外部来源同意与工具暴露档位（2026-11-02）
+
+把「哪些是 Zeta 原生标准、哪些是外来 agent 配置」从能力层钉死，并把默认工具面
+收成四档。设计见 [`document/external-sources-and-tool-exposure.md`](./external-sources-and-tool-exposure.md)。
+
+- **S0/S1 只认原生**：`.claude/settings.json` 不再合并进项目层；`.claude/SYSTEM.md`
+  不再替换基础提示。外来项目级来源默认不加载，必须有用户同意；可执行来源
+  （hooks/tools/MCP）按仓库 + 哈希记录同意，不写仓库。
+- **原生**：`.zeta/**`、`AGENTS.md`、内置 system prompt（OMP 自己的，不是 Claude/Codex）。
+- **工具档位**：超级简 4 / 极简 5 / 标准 12（默认）/ 完整；未启用工具不注册、
+  不列目录；统一关闭用 `tools.disabled`，不再逐工具加开关。
+- **agent 请求**：复用 `read xd://<tool>` 对未启用工具发起审批，不新增顶层工具。
+- **吸收**：本项吸收 P3「Tool-schema token budget」的默认面问题，并扩展
+  P1「Surface-scoped tool exposure」的可用性门禁；MCP 去重与 P2「Embedded MCP
+  recognition」的冲突规则共享实现。
+- **验收**：默认无外来配置加载；标准档恰好 12 个工具；超级简 4 个；重复 MCP 能力
+  只出现一套提示词。
+
 ### P1 — Context-file and prompt hot updates (agent-doc awareness)
 
 Today the session system prompt is a signature-driven snapshot

@@ -442,8 +442,8 @@ main **and** force-move the tag to the new HEAD in one command so
 git push --force origin refs/heads/main:refs/heads/main "$(git rev-parse HEAD):refs/tags/v<version>"
 ```
 
-`bun run release` (the legacy script) is deprecated: it moves the leaves to
-the release version via blind regexes and is not the release path.
+`bun run release` now forwards to `scripts/release-v2.ts`; the v1 bump/tag
+pipeline is gone. Use `release-v2.ts` for anything that reaches `origin`.
 
 Related rule: Redis session-storage keys use the `zeta:sessions:` prefix
 (see `packages/coding-agent/src/session/redis-session-storage.ts`). Do not

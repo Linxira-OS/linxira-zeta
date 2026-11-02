@@ -56,6 +56,14 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
     冻结，改了切断 `/join`）；分享上传面已于 2026-11-02 退役（`/share` 只把脱敏后的
     转录稿交给 agent 走 GitHub 发布，不再上传）。`check-shared-infra` 只钉落点、
     **不设期限**——"有门禁"不等于"会删除"。
+- **原生与外来配置分界**（2026-11-02 裁定）：`.zeta/**`、`AGENTS.md`、内置 system
+  prompt 是 Zeta 的原生标准；`.claude/**`、`CLAUDE.md`、`.codex/**`、`.gemini/**`、
+  `.cursor/**` 等是外来配置。外来**项目级**来源默认不加载，必须有显式用户同意；
+  外来 `.claude/SYSTEM.md` / `SYSTEM_TEMPLATE.md` **永不自动替换**基础提示（只能
+  预览后复制到 `.zeta`）。详见 `document/external-sources-and-tool-exposure.md`。
+- **工具暴露有档位**：超级简（4）/ 极简（5）/ 标准（12，引导页默认）/ 完整。
+  未启用工具不注册、不列 `xd://` 目录；agent 只能走审批请求开启，不能静默改自己的
+  工具集。统一关闭机制是 `tools.disabled`，不要再为每个工具加一个开关。
 
 行级注册表与合并后恢复清单：`document/agents/brand/registry.md`。
 
@@ -118,6 +126,9 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
 - 禁止：上游原始 commit、任意 SHA、单文件、部分 diff、cherry-pick、rebase、squash；
   禁止为省事跳过 incoming 文件。
 - 测试按**契约**合并：上游同时改实现与测试的，整对接受；不要保留 Zeta 旧断言配新行为。
+- **外部来源门禁是 Zeta-owned 覆盖层**：合并不得把「外来项目级配置默认加载」「外来
+  `SYSTEM.md` 自动替换提示」带回。上游若改了 capability 默认值，按损伤类处理并在
+  `document/external-sources-and-tool-exposure.md` 记录。
 - 产品前门（README、logo、名称、主页、安装文档）是 Zeta 的：完整合并后单独做
   branding-overlay commit。
 - 每轮同步更新 `document/upstream-sync.md` 台账（baseline、source tag/SHA、Zeta 起点、
@@ -201,3 +212,4 @@ resolve 时，回复必须说明改动与验证，经批准后在原 thread 发�
 | 上游移植指南 | `document/porting-from-pi-mono.md` |
 | 同步台账 / 历史决策 | `document/upstream-sync.md` |
 | CI 问题台账（只记录、批量修） | `document/ci-issue-log.md` |
+| 外来配置/工具暴露/提示词归属 | `document/external-sources-and-tool-exposure.md` |
