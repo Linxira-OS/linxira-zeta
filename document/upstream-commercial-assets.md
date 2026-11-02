@@ -91,6 +91,13 @@ bun scripts/brand/brand-check.ts
 
 ### 3d. v18.13.1 / v18.13.2 合并复核（2026-10-28）
 
+> **门禁的真实语义（2026-11-02 核对，防止误读）**：`scripts/check-shared-infra.ts`
+> 只对"**未登记**的域名/新落点"报红；`replace-P1` 等状态只被**统计**（结尾打印
+> "N marked for replacement"），**没有任何期限或强制机制**。正因为如此，分享面没有
+> 等门禁：2026-11-02 直接退役了上传路径——`/share` 只把脱敏后的转录稿交给 agent，
+> `share.serverUrl` / `share.store` 已删除，`my.omp.sh` 只剩中继常量
+> `DEFAULT_RELAY_URL`（绝对冻结）。台账仍只统计 `replace-*`，不设期限。
+
 两台 tag 合并进树后 `check-shared-infra` 仍是 15 个已登记端点、0 个新增域名：
 `v18.13.1..v18.13.2` 里新增的外部 URL 全是 GitHub issue/PR 链接与示例域名。
 但这一轮暴露出**台账之外**的上游商业面，逐项标记：

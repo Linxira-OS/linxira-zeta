@@ -233,6 +233,7 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 		guard("brand", "brand residue", "scripts/brand/brand-check.ts"),
 		guard("sentinels", "zeta-only sentinels", "scripts/check-zeta-sentinels.ts"),
 		guard("shared-infra", "shared-infra ledger", "scripts/check-shared-infra.ts"),
+		guard("removed-upstream-files", "removed upstream files", "scripts/check-removed-upstream-files.ts"),
 		guard("scope-imports", "scope imports", "scripts/check-scope-imports.ts"),
 		guard("ci-surface", "CI release surface", "scripts/check-ci-surface.ts"),
 		guard("release-assets", "release asset names", "scripts/check-release-asset-names.ts"),

@@ -35,7 +35,7 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 | Native Tokio 安装导出 | `__ompInstallTokioRuntime` | crate/index.js/loader 三方一致；勿 sweep 成 `__zeta*`（v18.0.10 改断，Tokio 静默不装） |
 | `/language` `/tracking` | builtin-zeta.ts | 合并后恢复 registry spread |
 | 插件清单目录 | `.omp-plugin` | 刻意保留——OMP/Claude 兼容面，勿 sweep |
-| 中继/分享 URL | `my.omp.sh` | 共享 OMP 基础设施，不品牌化 |
+| 中继 URL | `my.omp.sh` | **仅协作常量保留**（`DEFAULT_RELAY_URL`，wire 语法共享，改 URL 即切断 `/join <link>`）；分享上传面 **2026-11-02 退役**：`/share` 只把脱敏后的转录稿交给 agent 走 GitHub 发布，不再上传，`share.serverUrl`/`share.store` 已删除。勿扫描、勿加 `zeta.` 前缀 |
 | **本地服务默认端口（2026-10-24 用户裁定）** | Web UI `43141`、Web Gateway `43143`、Stats `43147`（`packages/utils/src/ports.ts` 为唯一真源） | OMP 与本机常用端口（30141/30142/3847、3000/8080/8787…）必须避开；三者互差 ≥2。守卫 `bun scripts/check-service-ports.ts`（CI check job），desktop 独立壳的 `WEB_UI_URL`/`STATS_URL` 字面量必须同步。合并不得把上游端口默认值带回来 |
 | 安装提示 URL | `https://linxira-os.github.io/install.sh`（POSIX）/ `install.ps1`（Windows） | **我们自己的站**（与 `scripts/install.sh`/`install.ps1` 同源，从 GitHub Releases 拉 `zeta-cli-*`）；上游 `omp.sh/install` 不再出现在任何用户可见提示里（2026-10-13 起，`installerHint()` 两侧成对改，见 `cli/update-cli.ts`） |
 | **遥测导出（2026-10-10 定稿）** | **硬关闭**：产品门控 `TELEMETRY_EXPORT_ENABLED = false`（`main.ts`），`telemetry.otlpExportEnabled` 设置**已删除**（原先默认 `true`） | 我们没有遥测服务端，无处处理事件——不是默认关，是**没有开关**：任何 `OTEL_EXPORTER_OTLP*` 端点都不导出。三重守卫：MUST_CONTAIN 钉死常量与调用点、MUST_NOT_CONTAIN 禁止设置键复活。等自建采集端后**有意识地**加回，勿在合并中被动恢复 |
@@ -50,3 +50,48 @@ brand, which this registry exists to prevent. Mechanical enforcement lives in
 按本表恢复；任何"字符画看起来断了/像别的字"的判断一律作废，除非用户**再次明确要求**修改。
 判据仍是 `brand-check` 的逐字校验（手改一个字符即红）。
 
+## 待扫清单：`omp` 形状的内部记号（2026-11-02 实测）
+
+裁定：**内部标识一律 `__zeta*`，代价是每次同步多解冲突，接受**；对面契约不动。
+下表是测量值，不是估计（`git grep`，排除 `dist/` 与编译产物）。
+
+| 族 | 数量 | 现状 | 落点 |
+|---|---|---|---|
+| `__omp_with_call_site__` | 9 | **待改** | `eval/js/shared/{rewrite-imports,runtime}.ts`、`eval/py/{prelude,runner}.py`、4 个测试 |
+| `__omp_tool_bridge__` | 2 | **待改** | `eval/py/{prelude,runner}.py`、测试 |
+| `__omp_assignment_{value,global}__` | 2 | **待改** | `eval/js/shared/rewrite-imports.ts` |
+| 注入页面的 global：`__ompReact` / `__ompConsoleCapture` / `__ompCmuxResponses` / `__ompBrowserVitals` / `__ompMousePoint` / `__ompA11y*` / `__omp_recording_cursor__` / `__ompRecordingCursorCleanup` | 约 90 | **待改** | `tools/browser/{react,cmux,recording,console-capture}.ts` + 测试 |
+| Tern 页面工具包 `__ompTernKit` | 13 | **待改** | `tools/browser/tern/{page-kit,tern-tab}.ts` + 3 个测试 |
+| 测试内铸的 gate 名 `__ompManualCompactGate/Cancel`、`__ompAgentStartGate`、`__ompParkGate`、`__omp_roots_{gate,probe}`、`__omp_runtime`、`__ompMemoryStatus` | 约 80 | **待改** | 仅测试夹具（`agent-session-auto-compaction-queue`、`worker-core`、`browser-open-options`、`extensions-runner`） |
+| 垫片标记 `__ompLegacyBuiltinTool` / `__ompLegacyPiLoader` / `__ompLegacyPiRequireGraphModule` | 11 | **待改** | `sdk.ts`、`extensibility/legacy-pi-coding-agent-shim.ts`、`extensibility/plugins/legacy-pi-compat.ts` |
+| `__ompInstallTokioRuntime` / `__ompSetGrammarDir` | 14 | **阻塞**：导出写进已编译的 `packages/natives/native/*.node`，改名必须重建 natives（本机无 MSVC 链接器）。改前先确认 native 构建链 | `packages/natives/native/{index.js,loader-state.js,index.d.ts}` |
+| `__omp_judgment_images[_N]` | 13 | **冻结**：judgment 上行 payload 的 state key，对面读它 | `packages/ai/src/judgment/systemone.ts` |
+| `mcp__omp__*` | 21 | **保留旧名 + 增补 `mcp__zeta__`**：外部 CLI（GitLab Duo 等）传来的工具名，只能多接受一个前缀，不能改喂进来的 | `providers/gitlab-duo-workflow.ts` |
+| `OMP_*` 环境变量 | **145 个名字 / 703 处**（文档 25 个） | **过渡期**：读旧写新，需要统一 alias 助手，不能逐处扫 | `packages/**`、`main/crates/**` |
+| `.omp-plugin` / `omp-plugins.lock.json` | 8 个文件 | **过渡期**：双读（`.omp-plugin` + `.zeta-plugin`），写新 | 插件发现/锁文件 |
+
+已全量扫成 `__zeta*`（勿回退）：`__omp_call_tool__`→`__zeta_call_tool__`（38）、`__omp_log__`→`__zeta_log__`（22）、
+`__omp_import__`/`__omp_import_from__`（19）、`__omp_helpers__`（13）、`__omp_tools__`（13）、
+`__omp_prelude__`/`__omp_session__`/`__omp_shell__`/`__omp_magic*` 等，合计 227 处。
+上游 v18.15.0 仍是 `__omp_*`——**每次同步这批行必然冲突**，属已知成本。
+## 合并不许复活的删除项（2026-11-02）
+
+同步合并会**静默复活** Zeta 主动删除的文件：文件在上游未改动时，正确的三方合并本应
+保留删除；它又出现，说明解冲突时把上游树整块覆盖了。实例：`export/custom-share.ts`
+在 `2e57031a1be`（2026-10-24）被删，v18.13.2 合并 `e7fe9f1452f` 又带回来，直到 2026-11-02
+人工审计 `/share` 才发现——连带 `builtin-collaboration.ts` 的调用点和整页文档一起回退。
+
+守卫：`bun scripts/check-removed-upstream-files.ts`（接在 `merge-gate` 的
+`removed-upstream-files`）。列表里的任一路径重新出现即红。要恢复某个文件，必须**在同一个
+commit** 里删掉对应条目并写明理由。
+
+| 路径 | 为什么 Zeta 不发 |
+|---|---|
+| `packages/coding-agent/src/cli/build-service.ts`、`test/cli/build-service.test.ts`、`scripts/ci-build-upload.ts` | 上游托管构建服务；Zeta 本地/CI 自建 |
+| `packages/coding-agent/src/telemetry-settings.ts` | 遥测硬关闭，设置面无意义 |
+| `packages/coding-agent/src/prompts/internal-urls/omp.md` | 上游品牌内部 URL 文档 |
+| `scripts/install.test.ts` | 测的是上游 `omp.sh/install` 提示，已换自家安装器 |
+| `.github/workflows/bun-cache-warm.yml` | 上游缓存预热 workflow；CI 由 `ci.yml` 覆盖 |
+| `.omp/tools/package.json`、`.omp/tools/bun.lock` | 上游 `.omp/` 工具树不随包 |
+| `README.zh-CN.md` | 产品前门是 Zeta 自己的 README |
+| `sdk/go/omp-rpc/go.mod` | 上游命名 Go SDK；Zeta 发 `sdk/go/zeta-rpc` |
