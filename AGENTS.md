@@ -213,3 +213,4 @@ resolve 时，回复必须说明改动与验证，经批准后在原 thread 发�
 | 同步台账 / 历史决策 | `document/upstream-sync.md` |
 | CI 问题台账（只记录、批量修） | `document/ci-issue-log.md` |
 | 外来配置/工具暴露/提示词归属 | `document/external-sources-and-tool-exposure.md` |
+| agent 自创插件 / 页面宿主协议 | `document/agent-authored-plugins.md` |

@@ -3,6 +3,9 @@
 > 内部设计文档，未打包。目标：为 Zeta 官方/社区插件、插件商店、以及
 > pi-messenger 这类用户可选插件的安装/发布/依赖关系提供统一方案。
 > 状态：草案，2026-08-26 评审通过关键决议，进入多版本准备。
+>
+> Agent 创作/dev 插件与页面宿主协议见
+> [`agent-authored-plugins.md`](./agent-authored-plugins.md)。
 
 ## 背景
 

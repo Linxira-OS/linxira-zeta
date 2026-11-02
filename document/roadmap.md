@@ -344,6 +344,27 @@ decision. Right-size Zeta's tool schemas and consider two-phase selection.
 - **验收**：默认无外来配置加载；标准档恰好 12 个工具；超级简 4 个；重复 MCP 能力
   只出现一套提示词。
 
+### P1 — Agent-authored plugins / page-host protocol（2026-11-02）
+
+让 agent 在不改仓库源码的前提下创建、验证、加载、提升自己的插件，并给
+HTML 页面定一个版本化宿主协议。设计见
+[`document/agent-authored-plugins.md`](./agent-authored-plugins.md)。
+
+- **mod 调查结论**：Claude Code 的 mods 是产品级 TypeScript 事件中间件，
+  不是开放标准，且明确不沙箱；**Agent Plugins 1.0.0** 才是可移植标准
+  （`plugin.json` + `skills/` + `mcp.json`），Zeta 已实现其 skills/MCP 发现。
+  不实现 Claude mods 兼容层，只借鉴事件中间件与逐文件批准。
+- **创作生命周期**：`<agentDir>/plugins-dev/<session>/<name>/` → scaffold →
+  validate → load_dev（逐文件批准 + 哈希）→ reload（回合结束）→
+  promote/export（仅用户）→ cleanup。
+- **页面协议**：声明式面板优先（数据来自 tool call）；HTML 页面用版本化
+  `window.zeta` postMessage 桥（`ready`/`callTool`/`getContext`/`subscribe`/
+  `notify`/`resize`），HTTP `/api/*` 只读；不提供任意 HTTP 服务。
+- **安全**：headless/untrusted 不加载；不能写仓库源码；agent 不能 promote；
+  `plugin_manager` 走 `xd://` 请求启用。
+- **验收**：会话内创建并加载一个只读工具插件，仓库无新文件；promote 后重启
+  可用；HTML 页面能 `callTool` 并拿到结果。
+
 ### P1 — Context-file and prompt hot updates (agent-doc awareness)
 
 Today the session system prompt is a signature-driven snapshot
