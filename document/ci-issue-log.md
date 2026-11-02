@@ -26,7 +26,7 @@
 | CI-011 | `gh run watch` 偶发 502，watcher 退出 | 发布期间 | 记录 |
 | CI-012 | `Zeta Nix` run 长时间 `in_progress` | 多个 run | 观察 |
 | CI-013 | 合并前 `main` 本来就是红的 | `4f917a02691` | 记录 |
-| CI-014 | 用 `release.ts` 发版（文档已标注不要用） | `73720678956` | 记录 |
+| CI-014 | 用 `release.ts` 发版（文档已标注不要用） | `73720678956` | 已处理（转发 v2） |
 
 ---
 
@@ -216,9 +216,10 @@
   一致性 + 叶子守卫、`check:ts`、源提交 push-run 绿检查、原子推送。
 - **当时的处理**：手工补齐版本、main 锁与 changelog，再用 CI 产物重建二进制；
   没有回退到 v2。
-- **建议方案 / 门禁**：发布入口只保留 v2；给 `release.ts` 的非 `watch` 模式加硬拒绝
-  （或删掉它的 bump 路径）；把 `ZETA_SKIP_RS_CHECK` 的必要性写进 v2 的注释/文档
-  （v2 本身已经只跑 TS）。
+- **已处理（2026-11-02）**：v1 发布管线已删除；`release.ts` 只保留 `watch`、`deps`
+  和 v2 复用的 helper，任何版本/bump 调用都转给 `release-v2.ts`（同一进程参数、
+  继承退出码）。`canary` 与 `major/minor/patch` 不再由旧脚本处理（历史没有 canary
+  tag，npm 也只有 `latest`）。
 
 ---
 

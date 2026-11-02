@@ -420,9 +420,10 @@ Rules:
   consistency gates compile the new sources against the repository root's
   possibly **stale** `node_modules` — "new code + old type definitions" surfaces
   as phantom errors that have nothing to do with the release.
-- `scripts/release.ts` is the v1 script, retained only for its shared helpers
-  (`selectLatestZetaTag`, `validateExplicitVersion`, `watchCI`) and its
-  `watch` mode. Do not use it to cut a release.
+- `scripts/release.ts` is the legacy entry point. Its v1 release pipeline is
+  retired: version/bump invocations now forward to `release-v2.ts`, and only
+  `watch`/`deps` plus the shared helpers (`selectLatestZetaTag`,
+  `validateExplicitVersion`, `watchCI`) remain.
 - The workbench platform leaves (`main/npm/main-*`, `termide/npm/ide-*`) ship
   a **committed** binary, and their manifest version moves with the bump. After
   rebuilding a leaf binary, run `bun scripts/stamp-workbench-leaves.ts` and

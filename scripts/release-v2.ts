@@ -409,7 +409,7 @@ async function cmdRelease(versionArg: string, watch: boolean, noCiWait: boolean)
 	const version = validateExplicitVersion(versionArg);
 	if (version === null) {
 		console.error(
-			`Error: Invalid version "${versionArg}". Expected a semver like 1.0.6 or v1.0.6 (prereleases such as 1.0.6-rc.1 are not supported; bump keywords are handled by the old release.ts).`,
+			`Error: Invalid version "${versionArg}". Expected a semver like 1.0.6 or v1.0.6 (prereleases such as 1.0.6-rc.1 are not supported; pass an explicit version, bump keywords are not accepted).`,
 		);
 		process.exit(1);
 	}
