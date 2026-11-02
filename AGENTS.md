@@ -200,3 +200,4 @@ resolve 时，回复必须说明改动与验证，经批准后在原 thread 发�
 | 架构（分层、natives、gateway、TUI） | `document/architecture-layers.md`、`document/web-gateway.md` |
 | 上游移植指南 | `document/porting-from-pi-mono.md` |
 | 同步台账 / 历史决策 | `document/upstream-sync.md` |
+| CI 问题台账（只记录、批量修） | `document/ci-issue-log.md` |
