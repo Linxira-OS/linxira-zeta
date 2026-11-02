@@ -169,6 +169,7 @@ import { MCP_CONNECTION_STATUS_EVENT_CHANNEL, type McpConnectionStatusEvent } fr
 import { resolveMCPToolAlias } from "./mcp/tool-bridge";
 import { createSessionMemoryRuntimeContext, resolveMemoryBackend } from "./memory-backend";
 import { MEMORY_BACKEND_TOOL_NAMES } from "./memory-backend/tool-names";
+import { buildTasteInstructions } from "./taste/inject";
 import type { MnemopiSessionState } from "./mnemopi/state";
 import autolearnCaptureRefused from "./prompts/system/autolearn-capture-refused.md" with { type: "text" };
 import mcpXdevGuidanceTemplate from "./prompts/system/mcp-xdev-guidance.md" with { type: "text" };
@@ -2732,6 +2733,25 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			getHindsightSessionState: () => session?.getHindsightSessionState(),
 			getMnemopiSessionState: () => session?.getMnemopiSessionState(),
 			getAgentId: () => resolvedAgentId,
+			// Rebuild the base system prompt after a tool changes what it should
+			// carry (the taste store's forget/resolve/record path does exactly that).
+			refreshSystemPrompt: () => session?.refreshBaseSystemPrompt() ?? Promise.resolve(),
+			getLastUserPromptText: () => {
+				const messages = session?.messages ?? [];
+				for (let i = messages.length - 1; i >= 0; i--) {
+					const message = messages[i];
+					if (message?.role !== "user") continue;
+					const content = message.content;
+					if (typeof content === "string") return content;
+					if (!Array.isArray(content)) return undefined;
+					const text = content
+						.map(part => (part && typeof part === "object" && "text" in part ? String(part.text ?? "") : ""))
+						.join("")
+						.trim();
+					return text.length > 0 ? text : undefined;
+				}
+				return undefined;
+			},
 			getPromptCacheKey: () => {
 				if (!session) return undefined;
 				const model = session.agent.state.model;
@@ -4450,6 +4470,17 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 					});
 			const appendParts: string[] = [];
 			if (memoryInstructions) appendParts.push(memoryInstructions);
+			// The taste block follows the memory block and precedes auto-learn: it is
+			// a refinement of memory, and it carries its own precedence line.
+			const tasteInstructions = restrictToolNames
+				? undefined
+				: await buildTasteInstructions({
+						agentDir,
+						cwd: sessionManager.getCwd(),
+						settings,
+						...(hasSession && session ? { session } : {}),
+					});
+			if (tasteInstructions) appendParts.push(tasteInstructions);
 			if (autoLearnInstructions) appendParts.push(autoLearnInstructions);
 			// List each mounted MCP tool once. A routed tool that the xd:// catalog
 			// would list carries its catalog summary on the route line and gets no

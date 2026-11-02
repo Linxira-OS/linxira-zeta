@@ -88,6 +88,10 @@ export const MODEL_ROLES: Record<ModelRole, ModelRoleInfo> = {
 		accepts: model => modelKind(model) === "stt",
 	},
 	judge: { tag: "JUDGE", name: "Judge", color: "muted", section: "kind", accepts: acceptsJudge },
+	// Taste classification/calibration. A `kind: judge` model makes the layer T2
+	// (probabilities enter the Beta posterior); a chat/tiny model makes it T1
+	// (classification only); unset falls through to `judge`, then `smol`, then T0.
+	taste: { tag: "TASTE", name: "Taste", color: "muted", section: "kind", accepts: acceptsJudge },
 };
 
 export type RoleInfo = ModelRoleInfo;

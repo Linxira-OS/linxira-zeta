@@ -279,7 +279,12 @@ function bankOnlyHasCwd(dbPath: string, cwd: string): boolean {
 	}
 }
 
-function sanitizeBankName(value: string | undefined): string | undefined {
+/**
+ * Normalize a free-form name into a path-safe bank segment (letters, digits,
+ * `_`, `-`; capped at 64 characters). Exported because the taste layer derives
+ * its own store segments the same way instead of inventing a second rule.
+ */
+export function sanitizeBankName(value: string | undefined): string | undefined {
 	const raw = value?.trim();
 	if (!raw) return undefined;
 	const sanitized = raw.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");

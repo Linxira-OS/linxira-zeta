@@ -69,7 +69,8 @@ export type ModelRole =
 	| "web"
 	| "speech"
 	| "dictation"
-	| "judge";
+	| "judge"
+	| "taste";
 export const MODEL_ROLE_IDS: ModelRole[] = [
 	"default",
 	"smol",
@@ -87,6 +88,7 @@ export const MODEL_ROLE_IDS: ModelRole[] = [
 	"speech",
 	"dictation",
 	"judge",
+	"taste",
 ];
 export const CHAT_MODEL_ROLE_IDS: ModelRole[] = [
 	"default",

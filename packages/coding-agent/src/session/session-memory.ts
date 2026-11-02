@@ -10,6 +10,7 @@ import { resolveMemoryBackend } from "../memory-backend/resolve";
 import type { MemoryBackendStartOptions } from "../memory-backend/types";
 import type { MnemopiSessionState } from "../mnemopi/state";
 import { releaseSharpshooterSession } from "../sharpshooter/backend";
+import { releaseTasteSession, startTasteSession } from "../taste/lifecycle";
 
 import { cfgMemoryBackend } from "../memory-backend/settings";
 
@@ -266,6 +267,11 @@ export class SessionMemory {
 		} catch (error) {
 			logger.warn("Memory lifecycle: Sharpshooter dispose failed", { error: String(error) });
 		}
+		try {
+			releaseTasteSession(this.#host.memoryBackendSession());
+		} catch (error) {
+			logger.warn("Memory lifecycle: Taste dispose failed", { error: String(error) });
+		}
 		const hindsight = this.#host.getHindsightSessionState();
 		if (hindsight) {
 			try {
@@ -339,6 +345,20 @@ export class SessionMemory {
 					agentDir: this.#memoryAgentDir,
 					taskDepth: this.#memoryTaskDepth,
 				});
+				// The taste layer is not a backend: it refines whichever one just
+				// started, so it follows the backend lifecycle exactly (same agent
+				// dir, same task-depth gate) and stops when the backend is torn down.
+				try {
+					startTasteSession({
+						session: this.#host.memoryBackendSession(),
+						settings: this.#host.settings,
+						modelRegistry: this.#host.modelRegistry,
+						agentDir: this.#memoryAgentDir,
+						taskDepth: this.#memoryTaskDepth,
+					});
+				} catch (error) {
+					logger.warn("Memory lifecycle: Taste startup failed", { error: String(error) });
+				}
 			}
 			if (this.#host.isDisposed()) return;
 			await this.#refreshMemoryTools();

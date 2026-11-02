@@ -276,6 +276,7 @@ import { type AgentRef, AgentRegistry } from "../registry/agent-registry";
 import { cfgSecretsEnabled } from "../secrets/settings";
 import { releaseSharpshooterSession } from "../sharpshooter/backend";
 import { flushSharpshooterExtraction } from "../sharpshooter/extract";
+import { flushTasteExtraction } from "../taste/extract";
 import { toolReadsSkillUris } from "../system-prompt";
 import {
 	AUTO_THINKING,
@@ -7202,6 +7203,9 @@ export class AgentSession implements SettingsScope {
 		// Bound the wait for a just-fired sharpshooter extraction before dropping
 		// its subscriptions, so print-mode exits don't cut queued-delta writes.
 		const sharpshooterFlushed = flushSharpshooterExtraction(this, options.mnemopiConsolidateTimeoutMs);
+		// Same bound for the taste layer: a just-fired extraction must land its
+		// candidates before the subscriptions that produced them go away.
+		const tasteFlushed = flushTasteExtraction(this, options.mnemopiConsolidateTimeoutMs);
 		try {
 			releaseSharpshooterSession(this);
 		} catch (error) {
@@ -7219,6 +7223,7 @@ export class AgentSession implements SettingsScope {
 			hindsightState?.flushRetainQueue() ?? Promise.resolve(),
 			this.#disposeMnemopi(mnemopiState, options.mnemopiConsolidateTimeoutMs),
 			sharpshooterFlushed,
+			tasteFlushed,
 		]);
 		for (const result of results) {
 			if (result.status === "rejected") {

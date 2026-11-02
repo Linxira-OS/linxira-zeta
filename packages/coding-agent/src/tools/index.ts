@@ -69,6 +69,7 @@ import { IdaTool } from "./ida";
 import { isIrcEnabled } from "../irc/messaging";
 import { FindTool, isFindEnabled } from "./jfind";
 import { LearnTool } from "./learn";
+import { SuperMemoryTool } from "./super-memory";
 import { ManageSkillTool } from "./manage-skill";
 import { MemoryEditTool } from "./memory-edit";
 import { MemoryRecallTool } from "./memory-recall";
@@ -150,6 +151,7 @@ export * from "./jfind";
 export type { AgentActivitySnapshot, CoordinationDetails, JobSnapshot } from "@linxiraos/pi-tui/tools/wait";
 export * from "./image-gen";
 export * from "./learn";
+export * from "./super-memory";
 export * from "./manage-skill";
 export * from "./memory-edit";
 export * from "./memory-recall";
@@ -382,6 +384,10 @@ export interface ToolSession {
 	trackEvalExecution?<T>(execution: Promise<T>, abortController: AbortController): Promise<T>;
 	/** Get tool-state session ID (distinct from the owning session for advisors). */
 	getSessionId?: () => string | null;
+	/** Rebuild the base system prompt after a tool changed what it should carry. */
+	refreshSystemPrompt?: () => Promise<void>;
+	/** Text of the newest user message, for tools that must verify a claimed quotation. */
+	getLastUserPromptText?: () => string | undefined;
 	/** Get Hindsight runtime state for this agent session. */
 	getHindsightSessionState?: () => HindsightSessionState | undefined;
 	/** Get Mnemopi runtime state for this agent session. */
@@ -639,6 +645,9 @@ export const BUILTIN_TOOLS: Record<BuiltinToolName, ToolFactory> = {
 	recall: MemoryRecallTool.createIf,
 	reflect: MemoryReflectTool.createIf,
 	learn: LearnTool.createIf,
+	// Settings-gated (memory backend + taste.enabled), not backend-tool-replaced:
+	// the layer rides whichever backend runs instead of becoming one.
+	super_memory: SuperMemoryTool.createIf,
 	manage_skill: ManageSkillTool.createIf,
 	plugin_manager: PluginManagerTool.createIf,
 	plugin_inspect: PluginInspectTool.createIf,

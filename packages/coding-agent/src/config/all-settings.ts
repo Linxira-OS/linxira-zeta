@@ -17,6 +17,7 @@ import * as sessionContextSettings from "../session/context-settings";
 import * as memoryBackendSettings from "../memory-backend/settings";
 import * as memoriesSettings from "../memories/settings";
 import * as sharpshooterSettings from "../sharpshooter/settings";
+import * as tasteSettings from "../taste/settings";
 import * as autolearnSettings from "../autolearn/settings";
 import * as mnemopiSettings from "../mnemopi/settings";
 import * as hindsightSettings from "../hindsight/settings";
@@ -61,6 +62,7 @@ const DOMAINS: readonly Readonly<Record<string, unknown>>[] = [
 	memoryBackendSettings,
 	memoriesSettings,
 	sharpshooterSettings,
+	tasteSettings,
 	autolearnSettings,
 	mnemopiSettings,
 	hindsightSettings,

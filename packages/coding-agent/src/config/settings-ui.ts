@@ -35,6 +35,8 @@ const CONDITIONS: Record<string, () => boolean> = {
 	vimModeEnabled: whenSettings(s => cfgTuiVimMode.get(s) === true),
 	hindsightActive: whenSettings(s => cfgMemoryBackend.get(s) === "hindsight"),
 	mnemopiActive: whenSettings(s => cfgMemoryBackend.get(s) === "mnemopi"),
+	// The taste layer refines a memory backend; it never runs on its own.
+	tasteAvailable: whenSettings(s => cfgMemoryBackend.get(s) !== "off"),
 	autolearnActive: whenSettings(s => cfgAutolearnEnabled.get(s) === true),
 	autoThinkingActive: whenSettings(s => cfgDefaultThinkingLevel.get(s) === "auto"),
 	usageAwareFallbackEnabled: whenSettings(s => cfgRetryUsageAwareFallback.get(s) === true),
