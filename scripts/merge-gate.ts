@@ -235,6 +235,7 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 		guard("shared-infra", "shared-infra ledger", "scripts/check-shared-infra.ts"),
 		guard("upstream-defaults", "upstream host defaults", "scripts/check-no-upstream-defaults.ts"),
 		guard("doc-host-parity", "docs/host parity", "scripts/check-doc-host-parity.ts"),
+		guard("removed-upstream-files", "removed upstream files", "scripts/check-removed-upstream-files.ts"),
 		guard("scope-imports", "scope imports", "scripts/check-scope-imports.ts"),
 		guard("ci-surface", "CI release surface", "scripts/check-ci-surface.ts"),
 		guard("release-assets", "release asset names", "scripts/check-release-asset-names.ts"),

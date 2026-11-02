@@ -40,8 +40,22 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
   （`TELEMETRY_EXPORT_ENABLED = false`，没有开关）。启动字符画 `ZETA_LOGO` /
   `ZETA_WORDMARK` / `ZETA_SUBLINE` **永久冻结**，判据是
   `bun scripts/brand/brand-check.ts`（手改一个字符即红）。
-- **刻意保留的上游记号，不要顺手"修"**：`OMP_*` 环境变量、`.omp-plugin`、
-  `my.omp.sh`、`icon.pi`、latex π、`__omp*` 跨进程协议名。
+- **冻结的是"对方契约"，不是我们的记号**（2026-11-02 裁定，此前一条笼统"保留"正是
+  误扫与文档打架的根源）：
+  - **绝对冻结**（改了对面就认不出）：Stencil OIDC 的 `client-id "omp"` 与 issuer/scope、
+    `catalog.stencil.so`、`docs.stencil.so/tern/protocol/`、`my.omp.sh` **仅作为中继常量**
+    （`DEFAULT_RELAY_URL`，wire 语法共享）、judgment 上行 payload 的 `__omp_judgment_images`。
+    `icon.pi`、latex π 是 pi-provider 图标，非品牌。
+  - **内部标识一律 `__zeta*`**：eval 沙箱全局、注入用户页面的 global、TUI/native 握手、
+    legacy 垫片标记。此前只扫了一半（`__omp_with_call_site__`、`__omp_tool_bridge__`、
+    `__ompLegacy*` 等仍在上游名下），扫齐清单见 `document/agents/brand/registry.md`
+    §「待扫清单」；代价是每次同步多解冲突，接受。
+  - **用户可见配置走读旧写新**：`OMP_*` 环境变量（145 个）与 `.omp-plugin` 在过渡期
+    同时接受旧名；一次性改名会静默破坏用户配置（旧裁定理由仍成立）。
+  - **共享端点归台账管**：`my.omp.sh` 现仅作协作中继常量（`DEFAULT_RELAY_URL`，绝对
+    冻结，改了切断 `/join`）；分享上传面已于 2026-11-02 退役（`/share` 只把脱敏后的
+    转录稿交给 agent 走 GitHub 发布，不再上传）。`check-shared-infra` 只钉落点、
+    **不设期限**——"有门禁"不等于"会删除"。
 
 行级注册表与合并后恢复清单：`document/agents/brand/registry.md`。
 

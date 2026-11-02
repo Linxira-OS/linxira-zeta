@@ -89,7 +89,7 @@ Sources: [`packages/browser-relay/README.md`](../packages/browser-relay/README.m
 
 Sources: [`packages/collab-web/README.md`](../packages/collab-web/README.md), [`packages/collab-web/package.json`](../packages/collab-web/package.json), [`docs/collab.md`](./collab.md).
 
-- Package: private `@linxiraos/collab-web`; no hosted client ships — run `bun run dev` locally or point `collab.relayUrl` at your own relay.
+- Package: private `@linxiraos/collab-web`; no hosted client — `bun run build` emits a static SPA you serve yourself (see [collab](./collab.md)).
 - Feature: browser guest UI for `/collab` sessions, including streaming transcript, tool cards,
   subagent views, prompts, and host interruption.
 - Local paths: `bun run dev` serves the UI on port 3000; `bun run mock-host` runs an offline relay

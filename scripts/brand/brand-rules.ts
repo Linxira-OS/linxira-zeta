@@ -112,6 +112,9 @@ export const OMP_PATH_ALLOW = [
 	/rewrite-changelog\.ts$/, // pre-existing main debt: doc comment on db path
 	/crates\/pi-natives\/src\/oauth_callback\/tests\.rs$/, // negative assertion: .zeta must NOT exist
 	/extensibility\/plugins\/loader\.ts$/, // OMP/Claude project-anchor detection docs
+	// The removed-files guard names the upstream `.omp/` tooling paths it
+	// keeps absent; that is the reason it exists, not residue.
+	/scripts\/check-removed-upstream-files\.ts$/,
 	// Read-only upstream OMP model-config compatibility (user decision 2026-10-02):
 	// the probe must name the upstream `~/.omp/agent` default root to find it.
 	/"\.omp", "agent"/,
@@ -884,7 +887,10 @@ export const MUST_NOT_CONTAIN: Array<{
 	{
 		needle: /(?<![A-Za-z0-9])omp[-_]?rpc(?![A-Za-z0-9])/i,
 		why: "the SDK is zeta-rpc / zeta_rpc and its dirs are sdk/{go,python,rust}/zeta-rpc; an `omp-rpc` path, distribution name, import or env knob breaks the Docker wheel-builder stage (COPY/glob), robomp's imports, and the Go SDK smoke gate",
-		exempt: ["packages/coding-agent/CHANGELOG.md"], // released entry recording the rename; immutable history
+		exempt: [
+			"packages/coding-agent/CHANGELOG.md", // released entry recording the rename; immutable history
+			"scripts/check-removed-upstream-files.ts", // names the upstream SDK path it keeps absent
+		],
 		extraFiles: true, // the leak lived in Dockerfile/ignore/notices/robomp — see MUST_NOT_CONTAIN_EXTRA_GLOBS
 	},
 ];

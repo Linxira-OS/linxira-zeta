@@ -258,6 +258,35 @@ interface Finding {
 
 const dropped: Finding[] = [];
 const explained: Finding[] = [];
+const zetaRemoved: Finding[] = [];
+
+/**
+ * Deliberate Zeta removals that upstream still ships.
+ *
+ * A merge must keep these gone; listing one here says the drop is a decision,
+ * not class-4 damage. Whole-file deletions belong in
+ * `scripts/check-removed-upstream-files.ts` (that guard fails if the file comes
+ * back); this table covers members of files that still exist. Remove an entry
+ * in the same commit that brings the member back, and say why.
+ *
+ * Ledger: `document/agents/brand/registry.md` §「合并不许复活的删除项」.
+ */
+const ZETA_REMOVALS: Record<string, readonly string[] | "*"> = {
+	// 2026-11-02: the hosted /share upload face was retired (see
+	// `docs/session-operations-export-share-fork-resume.md`).
+	"packages/coding-agent/src/cli/command-help.ts": ["export shareHelp"],
+	"packages/coding-agent/src/commands/settings.ts": ["export cfgShareServerUrl", "export cfgShareStore"],
+	"packages/coding-agent/src/commands/share.ts": "*",
+	"packages/coding-agent/src/export/share.ts": "*",
+	"packages/wire/src/index.ts": ["export DEFAULT_SHARE_URL"],
+};
+
+/** Whether `member` (or the whole file) is a documented Zeta removal. */
+function isZetaRemoval(file: string, member: string): boolean {
+	const listed = ZETA_REMOVALS[file];
+	if (listed === undefined) return false;
+	return listed === "*" || listed.includes(member);
+}
 
 /** Split one file's gone members into "we lost code upstream still ships" and "upstream removed it too". */
 function classify(file: string, gone: string[]): void {
@@ -269,19 +298,23 @@ function classify(file: string, gone: string[]): void {
 	const prevMembers = upstream.prevMembers.get(file);
 	const lost: string[] = [];
 	const removedUpstream: string[] = [];
+	const deliberate: string[] = [];
 	for (const member of gone) {
-		if (tagMembers?.has(member)) lost.push(member);
+		if (isZetaRemoval(file, member)) deliberate.push(member);
+		else if (tagMembers?.has(member)) lost.push(member);
 		else if (prevMembers?.has(member)) removedUpstream.push(member);
 		else lost.push(member); // no upstream side ever had it: it is Zeta's own
 	}
 	if (lost.length > 0) dropped.push({ file, members: lost });
 	if (removedUpstream.length > 0) explained.push({ file, members: removedUpstream });
+	if (deliberate.length > 0) zetaRemoved.push({ file, members: deliberate });
 }
 
 for (const [file, oldMembers] of before) {
 	if (!afterFiles.has(file)) {
 		const whole = ["<whole file removed>"];
-		if (!upstream || upstream.files.has(file)) dropped.push({ file, members: whole });
+		if (isZetaRemoval(file, whole[0]!)) zetaRemoved.push({ file, members: whole });
+		else if (!upstream || upstream.files.has(file)) dropped.push({ file, members: whole });
 		else if (upstream.prevFiles.has(file)) explained.push({ file, members: whole });
 		else dropped.push({ file, members: whole }); // a Zeta-only module: no upstream side to blame
 		continue;
@@ -293,9 +326,11 @@ for (const [file, oldMembers] of before) {
 
 const total = dropped.reduce((n, d) => n + d.members.length, 0);
 const explainedTotal = explained.reduce((n, d) => n + d.members.length, 0);
+const zetaRemovedTotal = zetaRemoved.reduce((n, d) => n + d.members.length, 0);
 const compared = [...before.values()].reduce((n, s) => n + s.size, 0);
 dropped.sort((a, b) => a.file.localeCompare(b.file));
 explained.sort((a, b) => a.file.localeCompare(b.file));
+zetaRemoved.sort((a, b) => a.file.localeCompare(b.file));
 
 if (JSON_OUT) {
 	// `compared` is the non-vacuity anchor for machine consumers: a report with
@@ -308,9 +343,11 @@ if (JSON_OUT) {
 				tag: TAG ?? null,
 				total,
 				explainedTotal,
+				zetaRemovedTotal,
 				compared,
 				dropped,
 				explained,
+				zetaRemoved,
 			},
 			null,
 			2,
@@ -334,6 +371,15 @@ if (JSON_OUT) {
 		}
 	} else if (TAG) {
 		console.log(`0 members explained by ${TAG} (nothing was reported and absent from it)`);
+	}
+	if (zetaRemoved.length > 0) {
+		console.log(
+			`${zetaRemovedTotal} member(s) across ${zetaRemoved.length} file(s) explained as Zeta's own deliberate removal`,
+		);
+		for (const d of zetaRemoved) {
+			console.log(`  - ${d.file}`);
+			for (const m of d.members) console.log(`      ${m}`);
+		}
 	}
 	console.log(
 		`${compared} members compared in ${before.size} file(s) of ${base.label} against ${afterFiles.size} file(s) of ${target.label}\n`,

@@ -1172,6 +1172,36 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
   **与 `zeta-relay`（2026-10-30）同一条线**：relay 解决「两个 harness 互为主会话」，本项解决「谁当
   超级代理」；两者都走对端进程 + ACP，不合并成第三个运行时。
 
+- **内核可换（kernel ABI）· 上游原版 Pi 跑通 · 味觉并入记忆（2026-11-01 用户裁决；只登记方向，不排期）**:
+  四件事一并登记，口径如下。
+  ① **跑通上游原版 Pi**：我们的内核是 `pi-core`，但是**上游 OMP 改过的 pi**；要能让外层 harness
+  跑在**最原始的上游 Pi**（未改）上，"跑一次 harness" 属要做的事。**形态不是 ACP**——是 in-process
+  的 **kernel ABI**，形状对齐 `@linxiraos/pi-agent-core` 的 `Agent`/`agentLoop`
+  （`(systemPrompt, tools[], messages[]) → AsyncIterable<AgentEvent>`）；ACP 是"进程 + 协议"对等，
+  与本项不同层（见 `zeta-relay`、超级代理两条）。**现状**：`@linxiraos/pi-agent-core` 被
+  `packages/coding-agent/src` 直接 import **264 处 / 235 文件**、无 facade（唯二转发在
+  `extensibility/legacy-pi-coding-agent-shim.ts`、`tools/approval.ts`）——换内核＝先做依赖倒置，
+  这是最大工程量；Rust IDE 侧已有 `trait Backend`/`BackendFactory` 接缝，TS 侧没有。
+  ② **Codex / Claude Code**：会考虑，**慢慢整**（不排期）。可编程面：Claude =
+  `@anthropic-ai/claude-agent-sdk`（`query()` + hooks + 进程内 MCP 工具，库级）；Codex =
+  `codex app-server` JSON-RPC（进程级，工具归 Codex）。
+  ③ **Command Code**：**研究中**（闭源，对外只有 `cmd acp`）。
+  ④ **味觉算法并入记忆**：可能把 Command Code 的 **taste 算法**与我们的记忆叠加——我们本身已加
+  **tracking**（见 P0「Long-term tracking document + prompt-cache contract」）。**关键事实**：我们
+  现有记忆工程（`packages/coding-agent/src/sharpshooter/` → 项目决策
+  `architecture.md`/`product.md`/`style.md`，存 `<agentDir>/memories/sharpshooter/<bank>/`；
+  `@linxiraos/pi-mnemopi` SQLite recall）与 tracking **都靠模型自觉性**（LLM 抽取/写入），
+  **没有独立决策模型**；Command Code 的 taste 是 **`taste-1` 神经符号分类器**（固定类别集 +
+  0~1 校准置信 + meta RL 重打分 + 符号层矛盾检测，不生成文本）。**用户既有实践**走**余弦相似度**
+  （embedding 检索/聚类）路线。研究明白后再加进来。
+  **为什么暂不排期**：与「超级代理（2026-11-01）」条「跟随标准框架、不自建内核、不写第二条调度器」
+  存在口径张力（本项要走 kernel ABI，需先改那条裁决）；235 文件倒置也会与在飞 PR 冲突。
+  **开工前先定**：① 内核 ABI 边界是否等于 `agentLoop` 事件流；② 工具执行权归属（外来内核是否交出
+  tool 执行）；③ 先跑通 vanilla Pi 还是先抽象接口；④ taste：自建 vs 借算法、与 sharpshooter/tracking
+  的边界、是否引入"分类器 + 校准"而非仅 embedding 检索。
+  **取证**：`https://commandcode.ai/docs/taste`、`https://commandcode.ai/docs/acp`；本地
+  `packages/coding-agent/src/prompts/memories/sharpshooter-{extract,consolidate}-system.md`。
+
 ## Notes
 
 - Everything here must land as Zeta-branded overlay/brand commits after

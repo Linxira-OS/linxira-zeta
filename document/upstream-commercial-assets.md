@@ -29,7 +29,7 @@ bun scripts/brand/brand-check.ts
 
 | 处置 | 域名 / 面 | 一句话依据 |
 |---|---|---|
-| **保留（协作常量）/ P1 待替代（分享默认）** | `my.omp.sh`（中继/分享）、`catalog.stencil.so`（模型发现数据源） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>` 或模型发现。**注意**：`/collab` 已无默认端点，但 CLI `share` 仍默认上传到它（见 §3d） |
+| **保留（协作常量）** | `my.omp.sh`（仅中继）、`catalog.stencil.so`（模型发现数据源） | 共享基础设施：协议两端由上游运营，改 URL 等于切断 `/collab`、`/join <link>` 或模型发现。**分享上传面已于 2026-11-02 退役**（CLI `share` 删除，`share.serverUrl` / `share.store` 移除），`my.omp.sh` 只剩中继常量（见 §3d） |
 | **保留代码，凭证自填** | `api.stencil.so` / `auth.stencil.so`（Stencil 账号体系）、`client-id "omp"`、Tern 客户端适配 | 代码留着（将来可能有同类商业产品），凭证改成用户自填 `STENCIL_API_KEY`；OIDC public client id 与 issuer/scope 名是协议契约，**改名即登录失败** |
 | **待替代** | `skills.omp.sh`（P2）、`live.omp.sh`（P3）；`qa.omp.sh` 已替换 ✓（见 §3c） | 用户可主动触达的外部依赖，上游关停即失效 |
 | **已移除** | `scl.so`（Tern 推广文案链接，2026-10-14 用户裁决）；`qa.omp.sh`、`build.stencil.so` 已替换/退役、`omp.sh/install` 已换成自家安装器（见 §3c） | 上游产品推广面 / 指错产品；守卫标为 `replaced`，复活即红 |
@@ -91,13 +91,20 @@ bun scripts/brand/brand-check.ts
 
 ### 3d. v18.13.1 / v18.13.2 合并复核（2026-10-28）
 
+> **门禁的真实语义（2026-11-02 核对，防止误读）**：`scripts/check-shared-infra.ts`
+> 只对"**未登记**的域名/新落点"报红；`replace-P1` 等状态只被**统计**（结尾打印
+> "N marked for replacement"），**没有任何期限或强制机制**。正因为如此，分享面没有
+> 等门禁：2026-11-02 直接退役了上传路径——`/share` 只把脱敏后的转录稿交给 agent，
+> `share.serverUrl` / `share.store` 已删除，`my.omp.sh` 只剩中继常量
+> `DEFAULT_RELAY_URL`（绝对冻结）。台账仍只统计 `replace-*`，不设期限。
+
 两台 tag 合并进树后 `check-shared-infra` 仍是 15 个已登记端点、0 个新增域名：
 `v18.13.1..v18.13.2` 里新增的外部 URL 全是 GitHub issue/PR 链接与示例域名。
 但这一轮暴露出**台账之外**的上游商业面，逐项标记：
 
 | 项 | 落点 | 现状 | 处置 |
 |---|---|---|---|
-| **CLI `share` 的默认上传**（更正 §1/§4 旧说法） | `packages/wire/src/index.ts`（`DEFAULT_SHARE_URL = https://my.omp.sh/s`）、`packages/coding-agent/src/commands/settings.ts`（`share.serverUrl` 默认它，`share.store` 默认 `blob`）、`src/commands/share.ts` | TUI `/share` 走 gist；**CLI `share` 仍默认把加密 blob 上传到上游主机**。此前「不再是任何默认端点」只对 `/collab` 成立 | **P1 待替代**：默认改 gist 或自托管 viewer；替代前在设置说明里标注 |
+| **CLI `share` 的默认上传（已退役）**（更正 §1/§4 旧说法） | `packages/wire/src/index.ts`（`DEFAULT_SHARE_URL` 已删）、`packages/coding-agent/src/commands/settings.ts`（`share.serverUrl` / `share.store` 已删）、`src/commands/share.ts`（已删） | **2026-11-02 退役**：`/share` 不再上传，只把脱敏后的转录稿交给 agent 走 GitHub 发布；CLI 命令与加密上传路径一并删除 | **完成**：`my.omp.sh` 只剩中继常量 `DEFAULT_RELAY_URL`（绝对冻结）；与 §3d 顶部「门禁语义」一节一致 |
 | **`github.com/stencil-hq/wasm-grammars`** | `src/utils/grammars.ts` 的 `DEFAULT_GRAMMARS_URL`；生成物/注释：`crates/pi-ast/src/language/wasm_grammars.rs`、`crates/pi-ast/src/language/grammar.rs`、`crates/pi-natives/src/grammars.rs`、`packages/natives/native/index.d.ts` | 运行时按需下载 WASM 语法包；生成物记上游 release 来源 | **保留**：GitHub Releases 无运营方锁定；守卫新增该域名，新落点必须先过台账。将来可镜像到自有 release |
 | **`@stencil-hq/vibemon`** | `packages/metaharness/package.json`、`src/tb/{cli,vmon}.ts` | metaharness（开发工具，不随产品发布）依赖上游 scope 的 npm 包 | **保留（开发面）**：URL 守卫覆盖不到 npm scope，以本行为准 |
 | **Homebrew tap 文案** | `docs/macos-signing-notarization.md`（称「本仓库维护 Homebrew tap」） | macOS 发布面已于 2026-10-01 裁掉（README 写明 "no macOS build"），该文档整体是上游遗留 | **P2 待删**：删除或改写为「Zeta 不发布 macOS 构建」 |
@@ -140,7 +147,7 @@ bun scripts/brand/brand-check.ts
 | `OMP_*` / `PI_*` 环境变量（约 190 个） | 文档化的用户配置项；改名破坏现有配置，且要求生产者/消费者同时改，漏一处即静默失效。正确路径是读旧写新分阶段迁移 |
 | Stencil `client-id "omp"` | 改则登录失败（见 §2） |
 | `.omp-plugin` / `omp-plugins.lock.json` | OMP/Claude 插件兼容面，刻意保留 |
-| `my.omp.sh` | 共享基础设施（见 §1）。**协作面**的默认端点已于 2026-10-15 移除（`collab.enabled` 默认关、`collab.relayUrl` 默认空，§1b）。**分享面尚未移除**：`share.store` 默认 `blob`、`share.serverUrl` 默认 `DEFAULT_SHARE_URL`，CLI `share` 仍默认上传到该主机（§3d，P1）。安装提示 `omp.sh/install` **不在其列**：已换成自家站点安装器，见 §3c |
+| `my.omp.sh` | 共享基础设施（见 §1）。**仅剩中继常量**：协作面默认端点已于 2026-10-15 移除（`collab.enabled` 默认关、`collab.relayUrl` 默认空，§1b）；分享上传面已于 2026-11-02 退役（`share.serverUrl` / `share.store` / CLI `share` 全删，§3d），`DEFAULT_RELAY_URL` 是唯一用途。安装提示 `omp.sh/install` **不在其列**：已换成自家站点安装器，见 §3c |
 
 ## 5. 遥测（已硬关闭）
 

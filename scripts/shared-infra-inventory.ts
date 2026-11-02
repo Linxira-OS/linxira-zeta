@@ -116,14 +116,13 @@ export const INVENTORY: Placement[] = [
 	},
 	{
 		domain: "https://my.omp.sh",
-		status: "replace-P1",
+		status: "keep",
 		kind: "runtime-data",
-		deadline: "2027-03-31",
 		files: ["packages/collab-web/scripts/local-relay.ts", "packages/wire/src/index.ts"],
 		why:
-			"the relay constants (`DEFAULT_RELAY_URL`, `DEFAULT_SHARE_URL`) plus the local relay stand-in; " +
-			"collab is gated off by default (collab.enabled / collab.relayUrl) but the CLI `share` still " +
-			"defaults here, and the wire syntax stays shared until a Zeta relay exists — P1 replacement per ledger §3d",
+			"the frozen collaboration relay constant (`DEFAULT_RELAY_URL`) plus the local relay stand-in; " +
+			"the share upload face was retired on 2026-11-02 (`share.serverUrl` / `share.store` are gone), " +
+			"so this is wire-syntax compatibility only — changing the URL would break `/join <link>`",
 	},
 	{
 		domain: "https://omp.sh/install",

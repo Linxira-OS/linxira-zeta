@@ -12,8 +12,8 @@ This document describes operator-visible behavior for session export, sharing, c
 - [`src/session/agent-session.ts`](../packages/coding-agent/src/session/agent-session.ts)
 - [`src/session/session-manager.ts`](../packages/coding-agent/src/session/session-manager.ts)
 - [`src/export/html/index.ts`](../packages/coding-agent/src/export/html/index.ts)
-- [`src/export/share.ts`](../packages/coding-agent/src/export/share.ts)
 - [`src/export/custom-share.ts`](../packages/coding-agent/src/export/custom-share.ts)
+- [`src/export/share-github.ts`](../packages/coding-agent/src/export/share-github.ts)
 - [`src/cli/flag-tables.ts`](../packages/coding-agent/src/cli/flag-tables.ts) — restart argument rewriting
 - [`src/main.ts`](../packages/coding-agent/src/main.ts)
 
@@ -24,7 +24,7 @@ This document describes operator-visible behavior for session export, sharing, c
 | `/dump [all]`                             | Slash command (TUI/headless) | No                                            | No                                                                                                                                                                           | Clipboard/command text plus best-effort temporary JSON sidecar; `all`: temp zip     |
 | `/export [--themes] [path]`               | Slash command (TUI/headless) | No                                            | No                                                                                                                                                                           | HTML file                                                                           |
 | `--export <session.jsonl> [outputPath]`   | CLI startup fast-path        | No runtime session mutation                   | No active session; reads target file                                                                                                                                         | HTML file                                                                           |
-| `/share`                                  | Slash command (TUI/headless) | No                                            | No                                                                                                                                                                           | Encrypted share link (gist or share server); temp HTML only for TUI custom handlers |
+| `/share` | Slash command (TUI/headless) | No | No | Custom `~/.zeta/agent/share.*` hook when present; otherwise a redacted transcript handed to the agent for GitHub publication — no upload |
 | `/new`                                    | Interactive slash command    | Yes (starts an empty conversation)            | Switches identity and materializes a new header in persistent mode                                                                                                           | None                                                                                |
 | `/fresh`                                  | Slash command (TUI/headless) | Yes (provider-facing in-memory id/state only) | No; keeps current session file/header                                                                                                                                        | None                                                                                |
 | `/clear`                                  | Interactive slash command    | Yes (clears live/model conversation context)  | Retains identity/file/history; a lazy session still follows the normal persistence gate                                                                                      | Appends `reset_boundary`                                                            |
@@ -125,85 +125,32 @@ Subagent system prompts and tool inventories are not persisted, so subagent file
 
 ## Share
 
-`/share` publishes an end-to-end encrypted snapshot of the session and prints
-a viewer link. Implementation: [`../packages/coding-agent/src/export/share.ts`](../packages/coding-agent/src/export/share.ts).
+`/share` (TUI, headless, and an attached client forwarding to its backend)
+hands publication to the agent — it uploads nothing itself. The `zetacode share`
+CLI command was removed on 2026-11-02 together with its encrypted-blob upload
+path (`shareSession()`, `share.serverUrl`, `share.store`), so no share flow
+defaults to an upstream host any more.
 
-### TUI phase 1: custom share handler (if present)
+### `/share`
 
-The interactive TUI's `loadCustomShare()` checks the active agent directory
-(default `~/.zeta/agent`) for the first existing candidate:
-
-- `share.ts`
-- `share.js`
-- `share.mjs`
-
-Requirements:
-
-- Module must default-export a function `(htmlPath) => Promise<CustomShareResult | string | undefined>`.
-
-If present and valid, the legacy contract is preserved: the session is
-exported to a temp HTML file under `os.tmpdir()`,
-the handler receives its path, and the temp file is removed afterwards.
-Handler result interpretation:
-
-- string => treated as URL, shown and opened
-- object => `url` and/or `message` shown; `url` opened
-- `undefined`/falsy => generic `Session shared`
-
-Critical fallback behavior:
-
-- If custom handler exists but loading fails, command errors and returns.
-- If custom handler executes and throws, command errors and returns.
-- In both failure cases, it **does not** fall back to the default flow.
-- The default flow runs only when no custom share script exists.
-- The hook runs on the host that owns the session: standalone TUI in-process, and for an attached TUI the
-  forwarded `/share` runs the backend's `~/.zeta/agent/share.*` and returns the same URL/message text.
-  Headless/ACP execution therefore loads the hook for its own agent directory instead of skipping it.
-
-Custom handlers receive ordinary HTML export, not the default redacted/encrypted
-snapshot. Their publishing, encryption, and privacy policy are entirely their
-own. The HTML-export contract also means a custom handler cannot share an
-in-memory session through this path.
-
-### Default encrypted share
-
-For headless execution, or in the TUI only when no custom share handler is found, `shareSession()`:
-
-1. Builds the main-session snapshot (`header`, `entries`, `leafId`, plus current
-   `systemPrompt` and tool descriptions from agent state), omitting header
-   `previousSessionFiles`. Unlike HTML export, this flow does not collect
-   subagent transcript files.
-2. If `share.redactSecrets` is enabled (default) and the obfuscator has configured or regex-discovered secrets, a typed per-field redaction pass rewrites text-bearing header, prompt, tool, entry, sub-session, and message fields. Inline image bytes remain for the later size pass. Opaque provider replay fields and untyped extension payloads (`details`, `data`, `outputSchema`, compaction preserve data) are dropped rather than traversed.
-3. The JSON is gzipped and sealed with a fresh AES-256-GCM key
-   (`[12B IV][ciphertext+tag]`).
-4. Upload target is chosen by `share.store`:
-   - **Share server** (default, `store: "blob"`) — `POST <share.serverUrl>`
-     (default `https://my.zeta.sh/s`) with the raw blob, capped at 1 MB.
-     Oversized snapshots are trimmed until they fit: inline images first,
-     then long strings (32,768 → 8,192 → 2,048 → 512 character caps), then
-     oldest entries. If the reduced snapshot still exceeds the budget, sharing
-     fails rather than uploading an oversized blob.
-   - **Secret gist** (`store: "gist"`) — when `gh` is installed and
-     authenticated, the sealed blob is pushed base64-encoded as
-     `session.zetashare.txt` (budget 5 MB sealed; gist raw fetches cap at
-     10 MB), falling back to the share server when `gh` is unusable or gist
-     creation fails.
-5. The link is `<share.serverUrl>/<id>#<base64url key>` in both cases. The
-   viewer page served there fetches the blob (hex ids via the GitHub gist
-   API, anything else from the server's blob store) and decrypts it
-   client-side; the key lives only in the URL fragment and never appears in
-   any HTTP request.
-
-The UI reports the share URL (plus the underlying gist URL and a truncation
-note when applicable). Headless `/share` prints the same lines. Unlike
-`/export`, `/share` works for in-memory (`--no-session`) sessions: the
-snapshot is built from live entries, no session file required.
-
-Cancellation/abort semantics in share:
-
-- Loader has `onAbort` hook that restores editor UI and reports `Share cancelled`.
-- The upload itself is not aborted mid-flight; cancellation is UI-level and
-  checked after the upload returns.
+1. **Custom hook first.** `loadCustomShare()` looks in the active agent
+   directory (default `~/.zeta/agent`) for the first existing
+   `share.ts` / `share.js` / `share.mjs` whose default export is
+   `(htmlPath) => Promise<CustomShareResult | string | undefined>`. The session
+   is exported to a temp HTML file under the OS temp dir, the hook receives that
+   path, and the file is removed afterwards. A string result is the URL; an
+   object may carry `url` and/or `message`; nothing means `Session shared`. A
+   hook that exists but cannot load, or throws, reports the error and **does not**
+   fall back. The hook runs on the process that owns the session (standalone TUI
+   in-process, backend for an attached client), so it resolves against that
+   host's agent directory.
+2. **Otherwise, hand off to the agent.** `prepareShareForGithub()` writes a
+   redacted Markdown transcript (mode 0600) under the config root — deliberately
+   outside the project tree, so `/share` never leaves untracked files in the
+   user's repository — and returns a prompt that tells the agent to check `gh`
+   authentication, choose a repository *with the user*, and run the `gh` command
+   itself. No Zeta and no upstream service is in the path.
+   `share.redactSecrets` (default on) controls the obfuscation pass.
 
 ## New and delete
 
@@ -610,7 +557,7 @@ When session manager is created with `SessionManager.inMemory()` (`--no-session`
 
 ## Known implementation caveats (as of current code)
 
-- `/share` custom-share failures do not degrade to the default encrypted share flow; they terminate the TUI command with an error.
+- `/share` never uploads: a custom hook that throws is reported instead of retried, and a failure to prepare the transcript ends the command with an error.
 - `/export` argument tokenization does not preserve quoted paths with spaces.
 - `/delete` treats deletion as best-effort: it attempts to delete the current
   session JSONL and artifact directory, logs any deletion failure, and still

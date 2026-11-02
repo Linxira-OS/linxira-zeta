@@ -185,9 +185,8 @@ Set `collab.webUrl` when the browser UI is hosted separately from the websocket 
 | `collab.webUrl`       | empty                 | Browser UI URL for `/collab` links; empty derives from relay; explicit `http://` is allowed only for localhost |
 | `collab.displayName`  | OS username           | Name shown to other participants                                                                               |
 | `collab.autoStart`    | `off`                 | `view` / `control`: host every interactive session as it starts and publish it to the local registry           |
-| `share.serverUrl`     | relay default (`DEFAULT_SHARE_URL`) | Share viewer/upload base used by `/share` (links are `<base>/<id>#<key>`)                                      |
-| `share.store`         | `blob`                | `/share` uploads to the blob server; `gist` uses an authenticated secret gist with blob fallback               |
-| `share.redactSecrets` | `true`                | Run the secret obfuscator over `/share` snapshots before upload                                                |
+
+| `share.redactSecrets` | `true`                | Run the secret obfuscator over `/share` transcripts before they are handed to the agent                      |
 
 ## Self-hosting the relay
 

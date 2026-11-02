@@ -903,17 +903,9 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"会话启动时即通过 collab.relayUrl 发布每个交互式会话并登记到本地注册表（zetacode collab list）；切换会话时房间随之切换",
 	},
-	"share.serverUrl": {
-		label: "分享服务器",
-		description: "/share 使用的分享查看器/上传基址（加密 blob 上传 + 查看器；链接为 <base>/<id>#<key>）",
-	},
-	"share.store": {
-		label: "分享存储",
-		description: "/share 上传加密会话 blob 的位置",
-	},
 	"share.redactSecrets": {
 		label: "分享密钥脱敏",
-		description: "上传前对 /share 快照运行密钥混淆器（使用 secrets.* 配置）",
+		description: "对交给 agent 的 /share 转录稿运行密钥混淆器（使用 secrets.* 配置）",
 	},
 	"stream.serverUrl": {
 		label: "直播服务器",
@@ -3418,14 +3410,6 @@ export const ZH_OPTION_TEXTS: Partial<Record<string, { label: string; descriptio
 	"collab.autoStart::control": {
 		label: "控制",
 		description: "自动托管；注册表分发可向会话发送提示的控制链接",
-	},
-	"share.store::blob": {
-		label: "加密 Blob",
-		description: "上传到分享服务器（无需 GitHub 账户；避免 gist API 限流）",
-	},
-	"share.store::gist": {
-		label: "GitHub Gist",
-		description: "推送到私有 gist（需要已认证的 gh），失败时回退到分享服务器",
 	},
 	"stt.modelName::fast": {
 		label: "快速（Whisper base）",
