@@ -213,3 +213,62 @@ Zeta 的 Web UI 走 Next 服务端/客户端拆分、7 个运行时依赖、无 
 - 流式更新走 rAF/批处理；高亮/Mermaid 放 worker；IPC 只传增量。
 - 插件页面/面板一律 iframe 隔离；插件崩溃不拖垮主界面。
 - 核心不引入 3D/终端/重型图形依赖；这些只作为可选插件。
+
+## 9. 案例：DSH Agent Teams（官方插件组合）
+
+DeepSeek Harness 的 Agent Teams 是一个可运行的“官方插件组合”样本。它由四个
+npm 包组成，默认关闭，通过 profile bundle 一起启用：
+
+| 包 | 作用 |
+|---|---|
+| `agent-team` | `ctx.agentTeams` 服务：durable roster、共享 task board、inbox 消息、wait/interrupt |
+| `tool-agent-team` | 9 个 scoped 模型工具：spawn/send/list/wait/interrupt + 4 个 task board 工具 |
+| `client-ui-agent-team` | Web 客户端插件：在会话 header 注册 slot，画面板、roster、任务板、成员会话导航 |
+| `agent-team-profile` | bundle patch：组合前三者，禁用同名旧 subagent 控件，默认关闭 |
+
+### 9.1 它比 subagent 高在哪
+
+它不是“更聪明的子代理”，而是**在 continuable subagent 之上加了一层协作状态**：
+
+| 维度 | 普通 subagent / `task` | DSH Agent Teams |
+|---|---|---|
+| 生命周期 | 一次任务；可 background/revive，但父级按 child 管理 | 具名 teammate，持久 roster；inactive 可冷恢复 |
+| 寻址 | 父 ↔ child；Zeta 当前 subagent 只能给 spawning main 发消息 | 任意成员 ↔ 任意成员；inbox + steer |
+| 协调 | 父级收集结果 | 共享 task DAG：`blockedBy`、owner、`writeScopes`、revision CAS |
+| 控制 | 父级 kill/steer；Zeta Agent Hub 可看 transcript | Lead-only spawn/interrupt；`wait_agent` 等下一条团队变化 |
+| UI | 父会话里看 child | header slot：roster、任务板、点进成员会话 |
+| 运行时 | 子代理运行时 | **还是同一套 continuable children**；没有第二调度器 |
+
+所以“群聊”只是表象；真正的增量是 **roster + 共享任务板 + peer inbox + 团队 UI**。
+它比子代理“高级”在协调状态，不在模型或执行内核。
+
+### 9.2 与 Zeta 现状对照
+
+Zeta 其实已经有半边：
+
+- `task` 支持 fresh/fork、background、worktree 隔离、persisted/revive；
+- Agent Hub 有 live roster、transcript、steer、revive、kill；
+- `agent://` / mesh 有 mailbox、跨进程寻址、离线队列。
+
+缺的是团队域：
+
+- subagent 之间不能互相发消息（安全规则：只能给 spawning main）；
+- 没有共享 task board（依赖、owner、revision CAS、write scope 警告）；
+- 没有 team-scoped roster 与“团队”UI；
+- 没有 Lead-only 的 spawn/interrupt 语义。
+
+因此不要把 DSH 的团队能力直接塞进核心。正确的落点是官方插件：
+
+- `plugins/official/agent-team/`：服务/状态 + 9 个工具 + 声明式面板；
+- 团队消息走**插件自己的 team-scoped 通道**，不修改全局“subagent 只能找 main”的规则；
+- task board 状态放会话/tracking，不进核心 schema；
+- UI 用 TSP `ui.slots`（header/sidebar/page）和 Web UI header slot；
+- 默认关闭，显式启用；共享 cwd，`writeScopes` 只做警告，不假装文件锁；
+- 编排仍落在 `task`/`agent()`/`workpool()`/`wait()`，不写第二条调度器。
+
+### 9.3 不要照搬的点
+
+- 不自动建 worktree：worktree/branch/merge 是部署选择，DSH 也明确拒绝自动创建。
+- 不把 task owner 或 write scope 当锁：Bash/formatter/外部 writer 会绕过。
+- 不为团队新增核心会话字段或私有协议；团队状态归插件。
+- 不默认开启：团队工具会给每个成员增加固定 policy + schema token，简单任务不该付这个成本。
