@@ -10,9 +10,22 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { WhichCachePolicy } from "@linxiraos/pi-utils";
 import { selectServerCommand } from "../../src/lsp/config";
-import { LSP_SERVERS } from "../../src/lsp/servers.generated";
+import type { ServerConfig } from "../../src/lsp/types";
 
-const typescript = LSP_SERVERS.typescript;
+// The builtin registry is split between `typescript-language-server` and
+// `typescript-native`; this fixture keeps the candidate-chain mechanism under
+// test without tying it to either registry key.
+const typescript: ServerConfig = {
+	command: "tsgo",
+	args: ["--lsp", "--stdio"],
+	fileTypes: [".ts"],
+	rootMarkers: ["package.json"],
+	candidates: [
+		{ command: "tsgo", args: ["--lsp", "--stdio"] },
+		{ command: "typescript-language-server", args: ["--stdio"] },
+		{ command: "tsc", args: ["--lsp", "--stdio"] },
+	],
+};
 
 /** A project root whose local bin directory contains the named commands. */
 function projectWith(binaries: string[]): string {

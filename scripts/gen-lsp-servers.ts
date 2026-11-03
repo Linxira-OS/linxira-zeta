@@ -40,6 +40,13 @@ export interface CanonicalServer {
 	languages?: string[];
 	/** Ordered alternatives; the first whose command resolves on PATH wins. */
 	candidates?: LspCandidate[];
+	/**
+	 * Termide-only alternative chain. Termide keys by language rather than server
+	 * name, so a split coding-agent entry can keep one language-level fallback
+	 * chain without changing the coding-agent's own selection. Generation
+	 * metadata, not a client option.
+	 */
+	termideCandidates?: LspCandidate[];
 	initOptions?: Record<string, unknown>;
 	settings?: Record<string, unknown>;
 	isLinter?: boolean;
@@ -123,6 +130,9 @@ export async function loadCanonical(): Promise<CanonicalRegistry> {
 		};
 		if (server.candidates !== undefined) {
 			entry.candidates = assertCandidates(server.candidates, `servers.${key}.candidates`);
+		}
+		if (server.termideCandidates !== undefined) {
+			entry.termideCandidates = assertCandidates(server.termideCandidates, `servers.${key}.termideCandidates`);
 		}
 		if (server.languages !== undefined) {
 			entry.languages = assertStringArray(server.languages, `servers.${key}.languages`);
@@ -274,7 +284,7 @@ export function renderRust(registry: CanonicalRegistry): string {
 		lines.push(`            command: ${rustString(server.command)}.to_string(),`);
 		lines.push(`            args: ${rustVec(server.args ?? [])},`);
 		lines.push(`            root_markers: ${rustVec(server.rootMarkers)},`);
-		lines.push(`            candidates: ${rustCandidates(server.candidates ?? [])},`);
+		lines.push(`            candidates: ${rustCandidates(server.termideCandidates ?? server.candidates ?? [])},`);
 		lines.push("        },");
 		lines.push("    );");
 	}

@@ -22,10 +22,16 @@
  *               `scripts/check-version-consistency.ts` is first because damage
  *               class 1/2 (a broken catalog/version line) makes every other
  *               step fail for the wrong reason.
- *   2. `audit`  the three pre-merge audits that used to be human checklist
- *               items, with their real CLI contracts (all read from source):
- *                 * `scripts/audit-merge-members.ts --base <ref>`  — exit 0
- *                   clean, 1 members dropped, 2 could-not-audit;
+ *   2. `audit`  the pre-merge audits that used to be human checklist items,
+ *               with their real CLI contracts (all read from source):
+ *                 * `scripts/audit-merge-members.ts --base <ref> --tag <tag>`
+ *                   — exit 0 clean, 1 members dropped, 2 could-not-audit;
+ *                   skipped without a candidate tag (the ledger fallback can
+ *                   name a tag already in `base`'s history);
+ *                 * `scripts/audit-merge-tests.ts --base <ref> --tag <tag>` —
+ *                   upstream-added tests/fixtures must exist and modified ones
+ *                   must already contain the upstream hunk (three-way merge
+ *                   check); deliberately retired paths are allowlisted;
  *                 * `scripts/scan-brand-regressions.ts --base <ref>` — prints
  *                   "<n> brand regressions in the merge diff" and **always exits
  *                   0**, so the gate parses that line and treats a missing
@@ -33,7 +39,8 @@
  *                 * `scripts/check-merge-lineage.ts [--tag <tag>]` — `--tag`
  *                   adds the candidate-tag half; without it the ledger baseline
  *                   and the ancestry check still run.
- *               Without `--base` all three default to `main`.
+ *               Without `--base` all default to `main`; the member and
+ *               test-import audits skip explicitly when no `--tag` is supplied.
  *   3. `test`   the behaviour suites: the guard regression tests the `check` job
  *               runs, `bun run test:ts` (every workspace/native/coding-agent
  *               bucket that CI shards), plus the orphan suites no CI job ran
@@ -117,6 +124,7 @@ const GUARD_TESTS = [
 	"scripts/check-package-json-merge.test.ts",
 	"scripts/merge-package-json.test.ts",
 	"scripts/audit-merge-members.test.ts",
+	"scripts/audit-merge-tests.test.ts",
 	"scripts/check-i18n-consistency.test.ts",
 	"scripts/check-i18n-commands.test.ts",
 ];
@@ -239,6 +247,16 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 		guard("scope-imports", "scope imports", "scripts/check-scope-imports.ts"),
 		guard("ci-surface", "CI release surface", "scripts/check-ci-surface.ts"),
 		guard("release-assets", "release asset names", "scripts/check-release-asset-names.ts"),
+		guard("license-map", "license map", "scripts/check-license-map.ts"),
+		guard("service-ports", "service ports", "scripts/check-service-ports.ts"),
+		guard("workbench-bundles", "workbench bundles", "scripts/check-workbench-bundles.ts"),
+		guard("lsp-tables", "LSP generated tables", "scripts/check-lsp-servers.ts"),
+		{
+			id: "export-viewer",
+			name: "export viewer metadata",
+			phase: "guard",
+			commands: [["bun", "--cwd=packages/collab-web", "run", "gen:export-viewer", "--check"]],
+		},
 		guard("i18n-catalogue", "i18n catalogue consistency", "scripts/check-i18n-consistency.ts"),
 		guard("i18n-commands", "i18n command descriptions", "scripts/check-i18n-commands.ts"),
 		guard("serve-discovery", "serve-discovery parity", "scripts/check-serve-discovery-parity.ts"),
@@ -272,9 +290,21 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 			name: "merge member loss",
 			phase: "audit",
 			// `--tag` lets the audit split its findings into real losses and
-			// upstream's own removals in the merged window; without it the audit
-			// falls back to the ledger's `Integrated through` tag.
+			// upstream's own removals in the merged window. Without a candidate
+			// tag the ledger fallback may name a tag already in `base`'s history
+			// (the normal clean-main case), which the audit correctly refuses to
+			// date. Skip explicitly instead of letting a routine gate read red.
 			commands: [["bun", "scripts/audit-merge-members.ts", "--base", base, ...(tag ? ["--tag", tag] : [])]],
+			skipWhen: () => (tag ? undefined : "--tag not supplied"),
+		},
+		{
+			id: "audit-tests",
+			name: "upstream test/fixture import",
+			phase: "audit",
+			// Without the candidate tag there is no upstream delta to compare
+			// against. Skipping is explicit; a missing tag must not read as clean.
+			commands: [["bun", "scripts/audit-merge-tests.ts", "--base", base, ...(tag ? ["--tag", tag] : [])]],
+			skipWhen: () => (tag ? undefined : "--tag not supplied"),
 		},
 		{
 			id: "audit-brand-regressions",

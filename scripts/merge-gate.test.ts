@@ -87,6 +87,7 @@ describe("planSteps", () => {
 		expect(plan.filter(step => step.phase === "guard").length).toBeGreaterThan(8);
 		expect(plan.filter(step => step.phase === "audit").map(step => step.id)).toEqual([
 			"audit-members",
+			"audit-tests",
 			"audit-brand-regressions",
 			"audit-lineage",
 		]);
@@ -107,9 +108,26 @@ describe("planSteps", () => {
 			"scripts/check-no-upstream-defaults.ts",
 			"scripts/check-doc-host-parity.ts",
 			"scripts/check-release-asset-names.ts",
+			"scripts/check-license-map.ts",
+			"scripts/check-service-ports.ts",
+			"scripts/check-workbench-bundles.ts",
+			"scripts/check-lsp-servers.ts",
 			"scripts/check-package-json-merge.ts",
 		])
 			expect(commands).toContain(guard);
+	});
+
+	test("--tag gates the audits that cannot date an increment", () => {
+		const noTag = planSteps(parseArgs(["--gates-only"]));
+		for (const id of ["audit-members", "audit-tests"]) {
+			const step = noTag.find(candidate => candidate.id === id)!;
+			expect(step.skipWhen?.()).toBe("--tag not supplied");
+		}
+		const tagged = planSteps(parseArgs(["--gates-only", "--tag", "v18.10.1"]));
+		for (const id of ["audit-members", "audit-tests"]) {
+			const step = tagged.find(candidate => candidate.id === id)!;
+			expect(step.skipWhen?.()).toBeUndefined();
+		}
 	});
 
 	test("--base reaches the diff audits, --tag the lineage and member audits", () => {
@@ -122,6 +140,9 @@ describe("planSteps", () => {
 		expect(lineage.commands.flat()).toContain("--tag");
 		expect(lineage.commands.flat()).toContain("v18.10.1");
 		expect(lineage.commands.flat()).not.toContain("abc123");
+		const tests = audits.find(step => step.id === "audit-tests")!;
+		expect(tests.commands.flat()).toContain("--tag");
+		expect(tests.commands.flat()).toContain("v18.10.1");
 		const members = audits.find(step => step.id === "audit-members")!;
 		// The rung-4 gate fix hands the member audit the tag as well: it is what
 		// separates real member losses from upstream's own removals inside the
@@ -306,7 +327,9 @@ describe("cli", () => {
 		// An unresolvable --base makes the member audit fail (exit 2, its own
 		// "could not audit" code) before it scans anything, so this is a real
 		// CLI failure with a real first-error line and a sub-second runtime.
-		const bad = run(["--only", "audit-members", "--base", "zeta-no-such-ref-xyz"]);
+		// A tag is required for the audit to run at all; its resolution is not
+		// reached because the base check fails first.
+		const bad = run(["--only", "audit-members", "--base", "zeta-no-such-ref-xyz", "--tag", "v18.10.1"]);
 		expect(bad.exitCode).not.toBe(0);
 		expect(bad.stdout).toContain("FAIL");
 		expect(bad.stdout).toContain("merge member loss");

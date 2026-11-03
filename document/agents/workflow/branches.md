@@ -33,6 +33,9 @@
 3. **推分支、跑 CI**：本地绿才推 `chore/integration-<version>`，并用
    `gh workflow run ci.yml --ref <branch>` 跑**一次**分支 CI；CI 覆盖本地做不到的
    多系统/原生构建/打包面（`makensis`、`appimagetool`、`makepkg`、bazel natives）。
+   例外：`sync/omp-release/**` 与 `port/**` 已加入 `ci.yml` 的 push 分支，
+   push 会自动跑非 PR 路径（native_addons 真构建）；不要再重复 dispatch，
+   只在需要重跑时 dispatch。
 4. **新功能必须带测试**：没有对应测试的功能改动不进整合分支；环境性失败必须在
    报告里给出「基线同样红」的证据，不得以 `skip` 或删除断言换取绿。
 5. **zetacode 新特性必须写进 `docs/`**：`docs/` 是随产品打包的运行时文档
@@ -61,12 +64,11 @@ not pure fixes to `main`) MUST follow the offline-branch workflow:
    into this branch?" before touching the branch itself.
 4. **Zeta's own work does not open PRs.** PRs exist for outside contributions
    (see [Pull requests](#pull-requests)); for our own branches the evidence is
-   the local gate plus the branch's **one** `workflow_dispatch`
-   (`gh workflow run ci.yml --ref <branch>`) — a push to a branch outside
-   `main`/`dev/*` triggers no CI at all (`ci.yml` → `on.push.branches`), so the
-   dispatch is the only branch-side run. Use it **once, after the last push** —
-   not after every fix, and only when the branch needs a real natives build or a
-   full-suite verdict.
+   the local gate plus the branch's CI. `sync/omp-release/**` and `port/**`
+   pushes trigger `ci.yml` directly (non-PR path, so natives really build).
+   Other branches outside `main`/`dev/*` still need one
+   `gh workflow run ci.yml --ref <branch>` after the last push. Do not dispatch
+   a sync branch again unless the automatic run failed and needs a rerun.
 5. **Land through the local integration batch** (see below), then push `main`
    once.
 6. Delete the branch and its worktree after the landing (both remote and local).

@@ -2,7 +2,7 @@ name: CI
 
 on:
    push:
-      branches: [main, "dev/*"]
+      branches: [main, "dev/*", "sync/omp-release/*", "port/**"]
       paths:
          - "packages/**"
          - "plugins/**"
@@ -36,6 +36,11 @@ on:
          - "package.json"
          - "patches/**"
          - ".github/**"
+         - ".zeta/**"
+         - ".gitea/**"
+         - "lsp/**"
+         - "python/**"
+         - "sdk/**"
          # Documentation and packaging-only commits still run CI: the release
          # gate (`scripts/release-v2.ts`) tags only a commit whose push run is
          # green, and a docs/README-only final commit used to match no path
@@ -80,6 +85,11 @@ on:
          - "package.json"
          - "patches/**"
          - ".github/**"
+         - ".zeta/**"
+         - ".gitea/**"
+         - "lsp/**"
+         - "python/**"
+         - "sdk/**"
          # Documentation and packaging-only commits still run CI: the release
          # gate (`scripts/release-v2.ts`) tags only a commit whose push run is
          # green, and a docs/README-only final commit used to match no path
@@ -384,6 +394,11 @@ jobs:
          # no network and no toolchain — so this stays a seconds-long gate.
          - name: Unit-test the merge member-loss auditor
            run: bun test scripts/audit-merge-members.test.ts
+         # The test/fixture audit has the same failure mode as the member audit:
+         # an empty set of upstream paths would report "0 missing" for every
+         # merge. Its fixtures replay real tags through `git merge-tree`.
+         - name: Unit-test the upstream test/fixture auditor
+           run: bun test scripts/audit-merge-tests.test.ts
          # Same reasoning as the three unit-test steps above, applied to the gate
          # itself: an uncollected test rots — that is exactly what this PR found
          # in the two orphan suites below. The gate's regression pins the

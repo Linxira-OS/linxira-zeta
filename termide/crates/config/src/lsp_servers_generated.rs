@@ -65,6 +65,18 @@ pub fn builtin_lsp_servers() -> HashMap<String, LspServerSettings> {
             args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
+                LspCandidate {
+                    command: "tsgo".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "typescript-language-server".to_string(),
+                    args: vec!["--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "tsc".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
             ],
         },
     );
@@ -75,6 +87,18 @@ pub fn builtin_lsp_servers() -> HashMap<String, LspServerSettings> {
             args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
+                LspCandidate {
+                    command: "tsgo".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "typescript-language-server".to_string(),
+                    args: vec!["--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "tsc".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
             ],
         },
     );
@@ -147,6 +171,18 @@ pub fn builtin_lsp_servers() -> HashMap<String, LspServerSettings> {
             args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
+                LspCandidate {
+                    command: "tsgo".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "typescript-language-server".to_string(),
+                    args: vec!["--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "tsc".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
             ],
         },
     );
@@ -157,6 +193,18 @@ pub fn builtin_lsp_servers() -> HashMap<String, LspServerSettings> {
             args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
+                LspCandidate {
+                    command: "tsgo".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "typescript-language-server".to_string(),
+                    args: vec!["--stdio".to_string()],
+                },
+                LspCandidate {
+                    command: "tsc".to_string(),
+                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
+                },
             ],
         },
     );

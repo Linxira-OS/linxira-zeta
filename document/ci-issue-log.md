@@ -31,7 +31,8 @@
 | CI-016 | 新设置组未登记到 `TAB_GROUPS` | `15183edda34` | 已处理 |
 | CI-017 | TypeScript server selection 四例稳定失败（原误判为 flake） | `41448562575` / `8e810a4fa07` | 已定位并修（引入 CI-019） |
 | CI-018 | 导出查看器重新带回托管 CDN，离线门禁红 | `41478318050` / `3839499587b` | 已修，待完整 CI 验证 |
-| CI-019 | LSP canonical 拆分未同步 termide 期望，termide 三例红 | `41575581031` / `8e810a4fa07` | **未修（用户暂停发布链）** |
+| CI-019 | LSP canonical 拆分未同步 termide 期望，termide 三例红 | `41575581031` / `8e810a4fa07` | 已修（工作树，待提交/CI） |
+| CI-020 | 上游新增/修改的测试与夹具没有合并审计 | v18.15.0 合并审计 | 已加门禁（工作树，待提交） |
 
 ---
 
@@ -308,12 +309,35 @@
 - **根因**：`lsp/servers.json` 拆成 coding-agent 的两个 key 后，生成器只把带
   `languages` 的 `typescript-language-server` 写进 termide 的语言表；termide 仍按
   `"typescript"` + candidate 链读取，且自身没有上游的 split 选择器。
-- **当时的处理**：按用户要求暂停发布链修复，不继续改；记录在此。
-- **建议**：二选一并在同一提交补测试：
-  1. 生成器为 termide 保留 `"typescript"` 兼容项（带 tsls/tsc candidate 链），
-     coding-agent 继续用 split key；
-  2. termide 改成与 coding-agent 相同的 split + `selectTypescriptServer` 逻辑。
-  不允许把断言改成接受单 key 来掩盖问题。
+- **当时的处理**：按用户要求暂停发布链修复，不继续改；记录在此。后按方案 1
+  修复：`scripts/gen-lsp-servers.ts` 支持 `termideCandidates`，`lsp/servers.json`
+  的 `typescript-language-server` 为 termide 生成
+  `tsgo → typescript-language-server → tsc` 链；coding-agent 的 split 表不变。
+- **验证**：WSL `cargo test -p termide-config lsp::tests` 8/8 通过；
+  `bun test packages/coding-agent/test/lsp/candidate-selection.test.ts` 通过；
+  `lsp-regressions.test.ts` 仅剩 Windows 无符号链接权限的既有 EPERM。
+- **fixed by**：工作树（2026-11-03），待提交并跑分支 CI；不得把断言改成接受
+  单 key。
+
+---
+
+## CI-020 上游新增/修改的测试与夹具没有合并审计
+
+- **现象**：`audit-merge-members.ts` 只比较 `packages/*/src/**` 的导出成员；
+  上游新增的测试文件、夹具和修改过的断言不在任何合并门禁里。v18.15.0 合并时
+  12 个新增测试文件虽然都在，65 个修改测试是否真的带上上游断言只能靠人工。
+- **触发点**：v18.15.0 合并复盘（`3fedf8d5326`）。
+- **根因**：合并门禁只覆盖“源码成员丢失”，不覆盖“契约（测试/夹具）丢失”；
+  CI 里也没有 job 跑合并审计自己的测试。
+- **当时的处理**：新增 `scripts/audit-merge-tests.ts`，按上游 tag 计算
+  added/modified/deleted 测试与夹具；新增缺失、修改后仍未带上游 hunk 为失败，
+  上游删除项只告警；`share.test.ts` 作为已退役功能显式豁免。修改项不是简单比较
+  “与 pre-merge 不同”（Zeta 自己的 `.omp→.zeta` 改动会让它永远不同），而是把
+  `base..tag` 三方合并进目标，结果必须与目标完全一致。
+- **门禁**：`merge-gate.ts` 的 `audit-tests`（需要 `--tag`）；GitHub/Gitea
+  `check` job 增加 `bun test scripts/audit-merge-tests.test.ts`，防止审计看到
+  空集合还报绿。
+- **fixed by**：工作树（2026-11-03），待提交并跑分支 CI。
 
 ---
 
@@ -332,4 +356,5 @@
 
 **当前状态（2026-11-03）**：tag `v1.4.8` 仍指向 `7c8ca480536`，未移动；GitHub
 Release 未创建、npm 仍是 `1.4.7`。用户已要求暂停发布链，先记录问题并准备上游
-`v18.16.0` 合并；CI-019 未修，`main` 仍红。
+`v18.16.0` 合并。CI-019 已修但仍在工作树，未提交/未推分支，因此 `main` 仍按
+旧提交判红；发布继续保持暂停。

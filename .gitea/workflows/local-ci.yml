@@ -504,6 +504,9 @@ jobs:
          # 也是唯一能证明"审计真能看见丢失成员"的关卡。
          - name: Unit-test the merge member-loss auditor
            run: bun test scripts/audit-merge-members.test.ts
+         # 同 GitHub check job：测试/夹具审计若看到空集合，会对每次合并都报 0 缺失。
+         - name: Unit-test the upstream test/fixture auditor
+           run: bun test scripts/audit-merge-tests.test.ts
          # 同上面三个 unit-test 步骤的理由，用在门禁自身：没被收集的测试会腐坏——
          # 这正是本 PR 在两个孤儿套件里发现的事。用例钉住单页摘要、失败非零退出、
          # 品牌扫描的"只报告"裁决（两种结果都 exit 0）以及 `--gates-only` 真跳过测试。

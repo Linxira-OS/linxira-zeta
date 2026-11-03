@@ -75,9 +75,16 @@ merge.
   - **Export**: take upstream's streaming payload, but keep Zeta's fully
     inline viewer/marked/highlight and the no-CDN test assertions. Do not
     regress to `build.stencil.so`; see CI-018.
-  - **LSP**: upstream split is authoritative; finish the termide side
-    (CI-019) in the sync branch or before it. Do not restore the old single
-    `typescript` key for coding-agent.
+  - **LSP**: upstream split is authoritative; the termide side is already
+    fixed in the working tree (CI-019: `termideCandidates` keeps
+    `tsgo → typescript-language-server → tsc` for the vendored table) and
+    must be committed/verified before the sync branch. Do not restore the old
+    single `typescript` key for coding-agent.
+  - **Tests/fixtures**: `scripts/audit-merge-tests.ts --base main --tag
+    v18.16.0` currently compares 104 paths (12 added, 92 modified) and reports
+    12 missing additions plus 88 modified files whose upstream hunk is absent
+    (3 are identical to the pre-merge ref). Those are the contract debt the
+    merge must import, not allowlist; post-merge the audit must report zero.
   - **Share/collab**: Zeta's retirement wins. The two modify/delete paths and
     `packages/coding-agent/src/collab/**` must not be resurrected by a
     "take theirs" resolution; run `check-removed-upstream-files`.
@@ -103,8 +110,9 @@ merge.
   3. Re-run `git ls-remote` for the tag; if the SHA moved after this
      preparation, stop and record old→new before proceeding.
   4. True merge (no squash/rebase/cherry-pick); resolve by ownership and the
-     tag-to-tag diff; run `bun run merge-gate` equivalents and the brand,
-     removed-file, shared-infra and LSP/export contract tests.
+     tag-to-tag diff; run `bun run merge-gate --tag v18.16.0` (the member and
+     test-import audits run only with the tag) plus the brand, removed-file,
+     shared-infra and LSP/export contract tests.
   5. Do not merge `main` back until CI-019 is resolved and the branch is green.
 
 - **Status**: prepared only. No sync worktree, branch, merge commit, tag or
@@ -2627,6 +2635,14 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 - termide (IDE upstream): `0.46.0` (`a027ca788cd4`), merged as `15161f686fb`
   (`vendor/termide-0.46.0`). 0.47.0 / 0.47.1 / 0.48.0 exist upstream and are
   **not** integrated — `0.47.1` is a zip path-traversal security fix.
+  `0.48.0` is 194 commits / 350 files over `0.46.0` and also carries LSP
+  framing limits, crashed-server restart, SFTP host-key verification and
+  atomic writes. This is a **separate TermIDE vendor bump**, not part of any
+  OMP tag: OMP `v18.16.0` contains no `termide/`, `editor/` or `main/` paths.
+  Sixteen files in `termide/VENDOR.md`'s modification table overlap the
+  `0.46.0..0.48.0` diff (notably `src/main.rs`, terminal parser/render and
+  `crates/app`), so replay and binary rebuilds must be budgeted; do not mix it
+  into the `v18.16.0` sync branch.
 - In flight: none — `sync/omp-release/18.14.2` merged as `264ea62c460`;
   delete the branch after the CI run.
 

@@ -214,33 +214,23 @@ debt"，留给后续 sweep，不属 merge-residue 修复范围：
 五关全绿才允许 push。 Feature Branch Workflow 的 merge-main-into-branch 前置
 步骤照旧执行。
 
-### sync 分支的 native addon 真相：PR CI 不建 addon，用分支 ref 手动 dispatch 验证
+### sync 分支的 native addon：push 自动构建，dispatch 只做重跑
 
-- **事实（v18.10.0 首次踩到）**：`ci.yml` 的 `native_addons` 里，构建步骤是
-  `if: github.event_name != 'pull_request'`——**PR 路径只 restore main 的最新 addon
-  缓存**（`restore-keys: <prefix>` 前缀回退），notice 里也写明"native 变更在 merge
-  后于 main 与 release 验证"。而 `on.push.branches` 只有 `[main, "dev/*"]`，所以
-  `sync/omp-release/*` 分支**永远拿不到 source-matched addon**。
-- **后果**：任何引入新 natives 导出（本轮：`ipcEndpoint`/`IpcConnection`/`IpcServer`）
-  的 sync 分支，PR run 的 TS 测试类 job 必然整片红
-  （`TypeError: <symbol> is not a function`）。判据：调用点与上游 tag 逐行一致、
-  `packages/natives/native/{index.js,index.d.ts}` 与上游字节一致、且本地拿任何
-  早于该窗口构建的 `.node` 都能复现——**这是环境，不是合并伤**。
-- **规程**：先 `git merge origin/main` 并 push，然后在**分支 ref 上手动 dispatch**：
-  `gh workflow run ci.yml --ref sync/omp-release/<release>`。
-  分支 ref 让 `release_metadata` 的 `case "${{ github.ref }}"` 两个分支都不命中 →
-  `release_tag=""` → `is-release=false`；dispatch 的 `event_name=workflow_dispatch`
-  ≠ `pull_request` → `native_addons` **真的构建** addon，`needs.native_addons.result ==
-  'success'` 的测试类 job 才拿到 source-matched 二进制（顺带 `rust_validate` 也会跑）。
-  盯这次 run 到结束（走 `release-<sha>` 并发组、不取消、较慢），把 run URL 与关键 job
-  结论写进账本。
-- **为什么优于改 `ci.yml`**：零 CI 改动；不推翻 workflow 注释里"native-changing PR 不做
-  PR 侧 addon 构建"的既有成本决定；验证仍发生在 **merge 之前**，且走的是与 main 完全
-  相同的构建路径（bazel + 同一套 cache action）。改 `ci.yml`（让 PR 在缓存未 source-matched
-  时现场构建）反而给每个动 `crates/` 的 PR 加一次冷 bazel 链接。
-- **注意**：同一 SHA 上会同时存在 PR run（红）与 dispatch run（绿）两组同名 check；
-  以 dispatch run 的 URL 为准。addon 一旦 source-matched，PR 里那些"环境红"会立刻转绿，
-  剩下的红才是真伤——本轮因此捞出一条真缺陷（见下）。
+- **事实（2026-11-03 修正）**：`sync/omp-release/**` 与 `port/**` 已加入
+  `ci.yml` 的 `on.push.branches`。push 走非 PR 路径，`native_addons` 会真构建
+  source-matched addon，`rust_validate` 与 cross build 也会跑；`release_metadata`
+  仍解析为 `is-release=false`（ref 不是 `refs/heads/main`，HEAD 也没有 release tag）。
+- **历史教训**：v18.15.0 的 sync 分支从未跑过分支 CI，直接合入 `main`；本地
+  `ci:check:full` 不做行为测试，LSP 的 split 撕裂只能在 main 的
+  `test_coding_agent_native` 才暴露（CI-017）。旧文档因此要求手动
+  `gh workflow run ci.yml --ref sync/omp-release/<release>`；现在保留 dispatch
+  仅作为“自动 run 失败后重跑一次”的入口，不作为第一次验证。
+- **仍要看的信号**：分支 run 必须 `success` 才能合入 `main`；push 只允许一次
+  （一轮落地 ≤1 次 push），不要在每个修复后重复推。run 的 job 数要核对
+  （`gh run view <id> --json jobs`），`cancelled` 没有信号。
+- **环境红与真伤**：若分支 run 的 TS 桶大面积 `TypeError: ... is not a function`，
+  先看 `native_addons` 是否成功、artifact 是否 source-matched；这是环境，不是合并伤。
+  若 addon 已匹配，剩余红必须逐条定位，不能以“环境”放过。
 
 ### 共享测试契约的 role 字面量：TUI 角色命名空间
 

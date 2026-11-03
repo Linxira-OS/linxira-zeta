@@ -150,8 +150,9 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
 - 子代理自建 worktree，**不推、不合并 `main`、不打 tag、不改根 checkout**；委托时把
   这条写进 brief。
 - 推任何集成分支前先 `git merge main` 并跑本地门禁。Zeta 自己的工作**不开 PR**：
-  证据 = 本地门禁 + 该分支唯一一次 `gh workflow run ci.yml --ref <branch>`
-  （分支 push 本身不触发 CI）。
+  证据 = 本地门禁 + 该分支 CI。`sync/omp-release/**` 与 `port/**` 的 push 会
+  自动触发 `ci.yml`（非 PR 路径，会真构建 natives）；其他集成分支仍用唯一一次
+  `gh workflow run ci.yml --ref <branch>` 手动 dispatch。
 - **一轮落地 ≤1 次 push**；在途 run 不推同一分支（先看 `gh run list --branch <b>`）；
   `cancelled` 不是失败也不是通过——**它没有信号**，不得当绿。
 - **分支登记**：每条本地分支都要登记在

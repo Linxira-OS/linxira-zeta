@@ -480,7 +480,21 @@
 					"includeInlayVariableTypeHints": true,
 					"includeInlayFunctionParameterTypeHints": true
 				}
-			}
+			},
+			"termideCandidates": [
+				{
+					"command": "tsgo",
+					"args": ["--lsp", "--stdio"]
+				},
+				{
+					"command": "typescript-language-server",
+					"args": ["--stdio"]
+				},
+				{
+					"command": "tsc",
+					"args": ["--lsp", "--stdio"]
+				}
+			]
 		},
 		"typescript-native": {
 			"command": "tsc",
