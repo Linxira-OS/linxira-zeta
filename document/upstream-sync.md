@@ -156,6 +156,11 @@ merge.
   `1ea59944579`; the report-only Coverage run `41662394241` is also success.
   The coverage baseline and maintainer policy are in `README.md`,
   `.github/MAINTAINERS.md`, and `.github/workflows/coverage.yml`.
+- **Release**: `v1.4.9` is tagged at `04fe9e6e0c5` (the release bump on
+  `3917f5c03f5`). Release run `41683262821` is **success** after one rerun of
+  the transient `xwin` sysroot fetch; GitHub Release is published and npm
+  serves `@linxiraos/{zeta,main,ide}@1.4.9`. The docs-only source shortcut was
+  used with the prior green code commit `1ea59944579` recorded here.
 
 ## v18.15.0 incremental merge (Zeta — branch `sync/omp-release/v18.15.0`, 2026-11-02; merge `2fffbf6b95a`)
 

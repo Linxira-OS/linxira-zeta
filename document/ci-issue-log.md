@@ -483,6 +483,24 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
 - **fixed by**：`1ea59944579`。`main` CI run `41662377662` 已绿；同一提交的
   Coverage run `41662394241` 也成功（报告型，不是测试门禁）。
 
+## CI-030 Windows 发布：WSL DNS 与 Bazel symlink
+
+- **现象**：`release-v2 1.4.9` 在 Windows 刷新 `MODULE.bazel.lock` 时失败：
+  `cargo-bazel splice` 创建 `.bazelignore` symlink，报 `os error 1314`；
+  WSL 里 `github.com` 被解析成 `127.0.0.1`，无法下载 Linux `cargo-bazel`。
+- **根因**：Windows 用户未开 symlink 权限；WSL 自动生成的
+  `/etc/resolv.conf` 指向的 stub resolver 对 `github.com` 返回 `127.0.0.1`
+  （Windows 侧 DNS 正常，解析到 `20.205.243.166`）。不是仓库代码问题。
+- **处理**：
+  - WSL `/etc/resolv.conf` 改为 `nameserver 8.8.8.8`，并在 `/etc/wsl.conf`
+    设 `generateResolvConf=false`（否则重启会被覆盖）；
+  - Bazel 改走 WSL，使用 Windows 的 Bazel repository cache；Linux
+    `cargo-bazel` 从缓存预热；发布在本机完成。
+- **结果**：`v1.4.9` release run `41683262821` 绿；GitHub Release 已发布，
+  npm `@linxiraos/{zeta,main,ide}@1.4.9` 已可查。
+- **规则**：这是环境绕过，不是降低 CI；发布源代码仍以 `1ea59944579` 的
+  完整 CI 为准。换镜像/代理时同样只允许绕过网络，不允许绕过测试或断言。
+
 ---
 
 ## 附：1.4.8 发布链路时间线（供后续复盘）
