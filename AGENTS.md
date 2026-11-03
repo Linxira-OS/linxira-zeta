@@ -205,6 +205,7 @@ resolve 时，回复必须说明改动与验证，经批准后在原 thread 发�
 | 代码该放哪个目录、包与插件布局 | `document/agents/surface/code-locations.md`、`document/agents/surface/packages.md` |
 | 分支 / 推送 / 整合批次 / worktree | `document/agents/workflow/branches.md` |
 | 发布链、tag、更新日志、版本线 | `document/release.md`、`document/agents/workflow/release-publish.md` |
+| 上游 issue→PR→发布哨兵自动化 | `document/agents/workflow/robomp.md` |
 | 日常编码约定（格式、日志、生成物、测试） | `document/dev-conventions.md` |
 | 本地 CI 镜像与 job map | `document/local-ci.md` |
 | 插件体系 | `document/plugin-system.md` |

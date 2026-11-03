@@ -404,6 +404,30 @@ HTML 页面定一个版本化宿主协议。设计见
 - **验收**：`window` 模式只触发一次窗口抽取；不压缩的短会话有会话结束兜底；
   `mnemopi.llmMode=none` 时无额外模型调用。
 
+### P2 — robomp 启用与上游对齐（2026-11-03 调研）
+
+`python/robomp/` 已在 v18.15.0 合并中携带并适配 `zetacode`/`.zeta`，但没有
+“生产已启用”的证据；本项是启用顺序与契约补齐，不是从零建设。设计见
+[`document/agents/workflow/robomp.md`](./agents/workflow/robomp.md)。
+
+- **前置**：先修 roadmap 已登记的 XDG/CLI 契约缺口，并在容器内跑通
+  `robomp triage` / `replay`；release sentinel 保持默认关闭。
+- **issue 侧**：webhook → 持久队列 → 单 issue worktree → OMP RPC；分类后只对
+  `bug`/`documentation` 复现并开 PR，`enhancement`/`proposal` 只评论，维护者
+  授权才实现。
+- **PR 侧**：一个 issue 一个 PR；PR 前跑格式化 + 类型检查 + 完整测试；PR body
+  固定 `## Repro` / `## Cause` / `## Fix` / `## Verification`。
+- **review 侧**：只读、只 `COMMENT`，P0-P3 排序，不 approve/merge。
+- **release 侧**：上游 robomp 的 sentinel **只修已 cut release 的失败 CI**，
+  原子移动 main+tag；不改版本号、不选 major/minor。版本选择仍是
+  `/release` 命令 / `release.ts` 的显式 major/minor/patch，由维护者或 agent
+  看 commit 后决定。
+- **Zeta 边界**：PAT 只放 sidecar；repo allowlist；自动评论/开 PR 需单独授权；
+  不直接套 `release_retag` 绕过现有发布门禁；先做分类/评论，再做修复 PR，
+  最后才考虑 release sentinel。
+- **验收**：分类评论可回放；修复 PR 在干净 worktree 中跑完前门禁；sentinel
+  只处理带发布前缀的 release commit，且不会新建 tag 或改版本。
+
 ### P1 — Context-file and prompt hot updates (agent-doc awareness)
 
 Today the session system prompt is a signature-driven snapshot

@@ -26,6 +26,90 @@ merge.
   dedicated on-demand sync after 1.4.0 ships; the security hardening above is
   the first reason to schedule it.
 
+## v18.16.0 merge preparation (2026-11-03 — prepared, NOT started)
+
+- **Candidate source tag**: `v18.16.0`, peeled
+  `650f3a108229ee11bf68ba3377f4e8c3391cd424`; verified with
+  `git ls-remote --tags omp-upstream refs/tags/v18.16.0` and fetched with
+  `git fetch --force omp-upstream --no-filter tag v18.16.0` on 2026-11-03.
+  Per the tagging rule this is only a candidate until the user names the exact
+  tag; re-check the remote SHA immediately before the merge.
+- **Zeta baseline**: `main` at `8e810a4fa07` (includes the v18.15.0 merge
+  `2fffbf6b95a` and post-merge repairs). `git merge-base HEAD v18.16.0` is
+  still the v18.15.0 tag `3fedf8d53267`, so this is a clean tag-to-tag
+  increment, not a branch merge.
+- **Delta** (`git diff v18.15.0 v18.16.0`): **257 commits, 467 files,
+  +13,851/−3,673**; 439 modified, 27 added, 1 deleted. Commit subjects:
+  16 `feat`, 127 `fix`, 30 `docs`, 12 `test`, 7 `refactor`, plus chore/style.
+  No upstream `BREAKING` marker in the window and no `Breaking Changes`
+  section in `18.16.0`; this is a minor release with internal API churn, so
+  contract tests still decide.
+- **Preview conflicts**: `git merge-tree --write-tree HEAD v18.16.0` gives
+  **140 paths**: 138 content conflicts + 2 modify/delete. By area: 89
+  `packages/coding-agent`, 12 `packages/ai`, 12 `packages/agent`, 9
+  `packages/tui`, 5 `packages/catalog`, 2 `packages/collab-web`, 1 each
+  `snapcompact`, `mnemopi`, `docs/tools`, `docs/providers.md`, plus
+  `Cargo.lock`, `Cargo.toml`, `MODULE.bazel.lock`, `bun.lock`, `README.md`.
+  The two modify/delete paths are the retired share surface:
+  `packages/coding-agent/src/export/share.ts` and
+  `packages/coding-agent/test/share.test.ts` (deleted by Zeta, modified
+  upstream). They MUST stay deleted; resolve toward Zeta.
+- **Main feature content to read before resolving**:
+  - `/review` and `/annotate` can review PRs/checkouts outside the current
+    git root (`feat(review)` series).
+  - Browser relay ownership/close semantics, front-app hold, cancelled input
+    and persist-tab fixes (`feat(browser)` + many `fix(browser)`).
+  - Composer predictions: up to four alternatives, Tab picker, OTLP metrics.
+  - Hindsight global memory scope (`hindsight.globalScope`, opt-in), plus
+    `retain` / `learn` global memories.
+  - `/btw` steering injection (`btw.inject`, `Alt+I`).
+  - Eval completion routing metadata (`attempts`), bash minimizer filter
+    visibility, two-pass `/resume` backfill, TUI status glyph changes.
+  - Catalog/auth: Scaleway provider, Factory Droid 1.1.0 models/credits,
+    Mistral Vibe browser login.
+  - Export: streaming `#session-data` encoder (`export/html/payload.ts`) to
+    stop OOM on large sessions; this directly overlaps Zeta's offline viewer.
+  - LSP: TypeScript 7 `tsc --lsp` selection for installs outside npm layout
+    (#17659); this is the area of CI-017/CI-019.
+- **Risk map / resolution direction**:
+  - **Export**: take upstream's streaming payload, but keep Zeta's fully
+    inline viewer/marked/highlight and the no-CDN test assertions. Do not
+    regress to `build.stencil.so`; see CI-018.
+  - **LSP**: upstream split is authoritative; finish the termide side
+    (CI-019) in the sync branch or before it. Do not restore the old single
+    `typescript` key for coding-agent.
+  - **Share/collab**: Zeta's retirement wins. The two modify/delete paths and
+    `packages/coding-agent/src/collab/**` must not be resurrected by a
+    "take theirs" resolution; run `check-removed-upstream-files`.
+  - **Brand/front door**: `README.md`, docs host references, package names and
+    workflow names follow the brand overlay, not upstream text.
+  - **Memory/taste**: adopt upstream Hindsight globalScope only as an
+    independent setting; do not physically merge taste into tracking.
+    Re-read `document/context-learning-modes.md` before resolving
+    `packages/mnemopi` / `packages/coding-agent/src/hindsight`.
+  - **Locks/generated**: `Cargo.lock`, `Cargo.toml` workspace version,
+    `bun.lock`, `MODULE.bazel.lock`, catalog `rules.json` and LSP generated
+    tables are regenerated/re-locked, never hand-merged.
+  - **robomp**: already vendored by Zeta and adapted to `zetacode`/`.zeta`;
+    upstream did **not** change `python/robomp` in this window (the 18-file
+    diff is Zeta's adaptation against the tag). Preserve the Zeta CLI/host
+    adaptation and the `check-robomp-cli-contract` guard; do not take upstream's
+    `omp` invocation text wholesale. Study is in
+    `document/agents/workflow/robomp.md`; activation is separate.
+- **Preconditions before starting**:
+  1. User names the exact tag (`v18.16.0` candidate above).
+  2. Root checkout clean on `main`; create
+     `git worktree add temp/sync-v18.16.0 -b sync/omp-release/v18.16.0 refs/heads/main`.
+  3. Re-run `git ls-remote` for the tag; if the SHA moved after this
+     preparation, stop and record old→new before proceeding.
+  4. True merge (no squash/rebase/cherry-pick); resolve by ownership and the
+     tag-to-tag diff; run `bun run merge-gate` equivalents and the brand,
+     removed-file, shared-infra and LSP/export contract tests.
+  5. Do not merge `main` back until CI-019 is resolved and the branch is green.
+
+- **Status**: prepared only. No sync worktree, branch, merge commit, tag or
+  release was created in this step.
+
 ## v18.15.0 incremental merge (Zeta — branch `sync/omp-release/v18.15.0`, 2026-11-02; merge `2fffbf6b95a`)
 
 - **Baseline**: `v18.14.2` (`7efd77219374ca4e8767979809835e4aa90666ba`).
@@ -47,22 +131,30 @@ merge.
   `zeta-package` driver (0 conflicts left there), `rules.json` was regenerated
   from the merged KDL (`compile-compat.ts`), and `Cargo.lock`/`bun.lock` were
   re-locked rather than merged.
-- **Upstream's new hosted export viewer is not adopted.** v18.15.0 replaces the
-  inlined tool-views pipeline with a single generated viewer asset that a
-  packaged release fetches from `build.stencil.so`. Zeta exports stay
-  self-contained (the `my.omp.sh`/`build.stencil.so` cleanup landed just before
-  this merge), so `export/html/index.ts` + `viewer.generated.json` keep the
-  inline path; the builder (`build-export-viewer.ts`) and its metadata check are
-  unchanged.
+- **Upstream's new hosted export viewer is not adopted (post-merge correction,
+  2026-11-03).** v18.15.0 replaces the inlined tool-views pipeline with a single
+  generated viewer asset that a packaged release fetches from
+  `build.stencil.so`. Zeta exports must stay self-contained (the
+  `my.omp.sh`/`build.stencil.so` cleanup landed just before this merge). The
+  merge initially left the compiled/npm branch on the hosted URL and the
+  template on `stencil.so`; `3839499587b` restored the vendored
+  marked/highlight and inlined the viewer, and the tests now assert no
+  `script[src]`/`stencil.so` (CI-018).
 - **Zeta-only surfaces replayed from the branch, not from the tag**: the
   conditional postmortem install (`cli.ts`, now also calling upstream's new
-  `installProcessHandlers`), the LSP candidate chain (`lsp/config.ts`; upstream
-  split `typescript-native` / `typescript-language-server` into two servers and
-  picks one at resolve time — the capability-filtered chain subsumes that),
-  the IM sinks alongside upstream's new `jobCaptionWriter` (`sdk.ts`), i18n
+  `installProcessHandlers`), the LSP candidate chain (`lsp/config.ts`), the IM
+  sinks alongside upstream's new `jobCaptionWriter` (`sdk.ts`), i18n
   fast-mode command descriptions, the lazy model/login overlays plus upstream's
   eager `HookEditorComponent` (`selector-controller.ts`), and the
   `zeta.jobs.*` semantic roles with the label fallback (`jobs-panel.ts`).
+- **LSP correction (2026-11-03)**: the earlier claim that the Zeta candidate
+  chain "subsumes" upstream's split was wrong. Upstream split the builtins into
+  `typescript-language-server` and `typescript-native` and added
+  `selectTypescriptServer()`; the merge kept the old single `typescript` entry
+  and dropped the selector. `8e810a4fa07` restored the split and selector,
+  fixing the four coding-agent tests (CI-017). It also exposed the termide
+  consumer mismatch, tracked as CI-019 (unfixed when the release chain was
+  paused).
 - **Upstream additions kept**: the `rex` terminal identity next to `zetawork`
   (`tui/src/terminal-capabilities.ts`), `shortenEmbeddedPaths`, `sanitizeText`
   in the session store, `sleepUntil`, `isChromiumBrowserExecutable`,

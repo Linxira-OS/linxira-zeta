@@ -21,15 +21,17 @@
 | CI-006 | Windows 上 Rust 检查无法编译（没有 MSVC 链接器） | 发布 `1.4.8` | 绕过（WSL 验证） |
 | CI-007 | `release.ts` 的版本覆盖面小于 `release-v2.ts` | `73720678956` | 部分（手工补齐） |
 | CI-008 | 工作台/IDE 二进制必须按版本重建；tag 运行没识别成 release | `710f90c50fa` | 绕过（tag dispatch + 产物） |
-| CI-009 | 导出查看器元数据过期，阻塞所有 release binary | `7c8ca480536` | **未修（阻断 1.4.8）** |
-| CI-010 | 安装方式 smoke 随 CI-009 失败（下游） | `7c8ca480536` | 记录 |
+| CI-009 | 导出查看器元数据过期，阻塞所有 release binary | `7c8ca480536` | 已处理（`1f3d699ac9b`；`3839499587b` 补离线内联） |
+| CI-010 | 安装方式 smoke 随 CI-009 失败（下游） | `7c8ca480536` | 已恢复（CI-009 修复后） |
 | CI-011 | `gh run watch` 偶发 502，watcher 退出 | 发布期间 | 记录 |
 | CI-012 | `Zeta Nix` run 长时间 `in_progress` | 多个 run | 观察 |
 | CI-013 | 合并前 `main` 本来就是红的 | `4f917a02691` | 记录 |
 | CI-014 | 用 `release.ts` 发版（文档已标注不要用） | `73720678956` | 已处理（转发 v2） |
 | CI-015 | bump 先上 main、npm 未发布，安装 smoke 必红 | `5e99ac37dc8` + install-smoke fix | 已处理 |
 | CI-016 | 新设置组未登记到 `TAB_GROUPS` | `15183edda34` | 已处理 |
-| CI-017 | LSP 选择测试整桶红、单跑绿 | `78eea49eddb` | 记录 |
+| CI-017 | TypeScript server selection 四例稳定失败（原误判为 flake） | `41448562575` / `8e810a4fa07` | 已定位并修（引入 CI-019） |
+| CI-018 | 导出查看器重新带回托管 CDN，离线门禁红 | `41478318050` / `3839499587b` | 已修，待完整 CI 验证 |
+| CI-019 | LSP canonical 拆分未同步 termide 期望，termide 三例红 | `41575581031` / `8e810a4fa07` | **未修（用户暂停发布链）** |
 
 ---
 
@@ -175,6 +177,9 @@
 - **根因**：合并时保留了 Zeta 自己的导出查看器实现（不接上游托管查看器），
   但查看器元数据（`viewer.generated.json`）没有在合并 / 分享退役 / 前端资源变化后重生成。
 - **当时的处理**：**未修**（本轮只记录）。
+- **修复（2026-11-03）**：`1f3d699ac9b` 重新生成并提交 `viewer.generated.json`，release binary 的
+  metadata 检查恢复；随后发现 v18.15.0 合并又把托管 viewer 模板带回来，`3839499587b`
+  改为 viewer + marked + highlight 全内联，见 CI-018。
 - **建议方案 / 门禁**：把 `bun --cwd=packages/collab-web run gen:export-viewer --check`
   加进 `merge-gate`（或 generated-files 的检查集），让漂移在合并阶段就红；
   发布流程在 bump 后、tag 前跑一次 `--write` 并纳入 bump 提交。
@@ -184,6 +189,8 @@
 - **现象**：`Install method smoke tests` 失败。
 - **根因**：release binary 没有被构建/上传，smoke 找不到可安装的产物；不是独立缺陷。
 - **当时的处理**：记录，不单独修。
+- **后续（2026-11-03）**：CI-009 修复后 `Install method smoke tests` 已恢复；CI-015 的
+  pi-channels tarball 修复也独立生效。
 - **建议方案**：CI-009 修好后自动恢复；若要更清晰的报错，smoke 在缺少输入时先输出
   “upstream job failed” 而不是断言失败。
 
@@ -253,15 +260,60 @@
 - **建议**：设置注册时若 `ui.group` 不在 `TAB_GROUPS[ui.tab]` 就在开发期抛错，
   或给注册表单加一个纯单测，不要只靠 UI 布局测试兜底。
 
-## CI-017 LSP 选择测试整桶运行时红、单跑绿
+## CI-017 TypeScript server selection 四例稳定失败（原误判为 flake）
 
-- **现象**：`Test coding-agent native/unit` 桶里 4 个 `TypeScript server selection`
-  用例 `toEqual` 失败；单独跑该用例通过，整文件 152 个用例一起跑时复现。
-- **触发点**：run `41448562575`（`78eea49eddb`）；本地同样现象。
-- **根因**：同文件/同桶内测试互相污染（PATH、临时 TypeScript 安装、环境变量），
-  不是产品逻辑；具体污染源尚未定位。
-- **建议**：这组用例改为显式注入 PATH 与临时目录，或 `describe.serial` 并在
-  `afterEach` 恢复 env；先定位是谁改了全局再决定门禁。
+- **现象**：`Test coding-agent native/unit` 的 4 个 `TypeScript server selection`
+  用例如期失败；错误收到的是旧的 `typescript` 单服务器，而不是
+  `typescript-native` / `typescript-language-server`。本地单文件同样复现，不是
+  桶内测试互相污染。
+- **触发点**：run `41448562575`（`78eea49eddb`）；后续 `41485818770` 重跑仍失败。
+- **根因**：v18.15.0 合并保留了 Zeta 的旧 canonical `lsp/servers.json` 单条目
+  `typescript`（带 tsgo/tsls/tsc candidate 链），但上游已经把内置表拆成
+  `typescript-language-server` 与 `typescript-native`，并新增
+  `selectTypescriptServer()` 按 `lib/tsserver.js` / `tsc --version` 只保留一个。
+  合并把选择器和拆表一起丢了。
+- **修复（2026-11-03）**：`8e810a4fa07` 把 canonical 表拆成两个条目、重新生成
+  coding-agent / termide 表，并恢复 `selectTypescriptServer()` 调用。本机 4 例通过；
+  仅剩 Windows 无符号链接权限的既有测试（CI-001）。
+- **副作用**：termide 仍按旧的 `typescript` key + candidates 查表，生成表改成
+  `typescript-language-server` 后 3 例红，见 CI-019。
+- **建议**：LSP 选择测试不是 flake；以后按“上游拆了表但 Zeta 保留旧 key”这一
+  指纹排查，不要只重跑。
+
+## CI-018 导出查看器重新带回托管 CDN，离线门禁红
+
+- **现象**：run `41478318050` 的 `Lint, type check & web build` 被
+  `check-shared-infra` 拒绝，命中 `https://build.stencil.so/...` 与
+  `https://stencil.so/assets/omp/...`；导出模板仍有外链 `marked` / `highlight`。
+- **触发点**：`c290217e05a`（v18.15.0 合并后的导出查看器路径）。
+- **根因**：合并后的 `export/html/index.ts` 在 compiled/npm 分支使用上游托管
+  viewer 和 CDN 库，模板也恢复成 `{{MARKED_URL}}` / `{{HIGHLIGHT_URL}}` 外链；
+  Zeta 的离线导出契约不允许运行时联网。
+- **修复**：`3839499587b` 恢复 `src/export/html/vendor` 的 marked/highlight，
+  生成 `viewer.generated.ts` 内联 viewer，模板改用 `<template-marked/>` /
+  `<template-highlight/>` / `<viewer-script/>`；测试改为断言无 `script[src]`、
+  无 `stencil.so`，并校验 npm 包内联文件齐全。`check-shared-infra` 已绿。
+- **状态**：修复本身通过目标测试和类型检查；完整 CI 被 CI-017/019 打断，
+  `v1.4.8` 发布已按用户要求暂停。
+
+## CI-019 LSP canonical 拆分未同步 termide 期望
+
+- **现象**：run `41575581031` 的 `Test termide (vendored TermIDE)` 红 3 例：
+  `an_explicit_override_command_replaces_the_chain` 断言
+  `!generated["typescript"].candidates.is_empty()` 失败；
+  `first_installed_candidate_wins` 报 `NotOnPath { tried:
+  ["typescript-language-server"] }`；`nothing_installed_reports_the_candidates_it_tried`
+  同样只看到单个命令。
+- **触发点**：`8e810a4fa07`（CI-017 的修复）。
+- **根因**：`lsp/servers.json` 拆成 coding-agent 的两个 key 后，生成器只把带
+  `languages` 的 `typescript-language-server` 写进 termide 的语言表；termide 仍按
+  `"typescript"` + candidate 链读取，且自身没有上游的 split 选择器。
+- **当时的处理**：按用户要求暂停发布链修复，不继续改；记录在此。
+- **建议**：二选一并在同一提交补测试：
+  1. 生成器为 termide 保留 `"typescript"` 兼容项（带 tsls/tsc candidate 链），
+     coding-agent 继续用 split key；
+  2. termide 改成与 coding-agent 相同的 split + `selectTypescriptServer` 逻辑。
+  不允许把断言改成接受单 key 来掩盖问题。
 
 ---
 
@@ -278,5 +330,6 @@
 | 安装 CI 构建的二进制 | `7c8ca480536`（tag `v1.4.8`） | lint/check/锁/产物二进制绿 |
 | 最终发布 run | `41436102660` | 失败于导出查看器元数据（CI-009）；**未发布** |
 
-**当前状态**：tag `v1.4.8` 已推送，但 GitHub Release 未创建、npm 仍是 `1.4.7`。
-按本轮规则不修 CI-009，等批量处理。
+**当前状态（2026-11-03）**：tag `v1.4.8` 仍指向 `7c8ca480536`，未移动；GitHub
+Release 未创建、npm 仍是 `1.4.7`。用户已要求暂停发布链，先记录问题并准备上游
+`v18.16.0` 合并；CI-019 未修，`main` 仍红。
