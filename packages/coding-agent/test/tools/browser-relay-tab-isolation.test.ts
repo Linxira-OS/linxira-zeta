@@ -75,6 +75,19 @@ interface RelayFixture extends RelayBrowser {
 	close(): Promise<void>;
 }
 
+/** Wait until the relay lists a page title, so a target lookup does not race the extension's tab event. */
+async function waitForRelayTitle(fixture: RelayFixture, title: string, timeoutMs = 15_000): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		const response = await fetch(`http://127.0.0.1:${fixture.server.port}/json`);
+		const entries = (await response.json()) as Array<{ title?: string }>;
+		if (entries.some(entry => entry.title === title)) return;
+		// Real Chromium extension events cross a process boundary; fake timers cannot advance them.
+		await Bun.sleep(50);
+	}
+	throw new Error(`relay did not list ${JSON.stringify(title)} within ${timeoutMs}ms`);
+}
+
 /**
  * Headless Chromium running the real relay extension against a relay on a free port, plus a loopback
  * site. A test-only message listener controls its service worker: a programmatic debugger detach does
@@ -320,6 +333,7 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 			// The relay announces a browser's tabs to connected clients only as they change after its hello.
 			await secondHello.promise;
 			await (await other.browser.newPage()).goto(`${fixture.origin}/first`);
+			await waitForRelayTitle(fixture, "First");
 			const inSecond = await acquireTab(names[1]!, relay, { target: "First", timeoutMs: 15_000 });
 			expect(browserOf(inSecond.tab.targetId)).not.toBe(browserOf(inFirst.tab.targetId));
 			const owned = await acquireTab(names[2]!, relay, { url: `${fixture.origin}/second`, timeoutMs: 15_000 });

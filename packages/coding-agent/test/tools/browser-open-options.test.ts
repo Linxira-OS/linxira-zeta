@@ -465,9 +465,9 @@ await Promise.withResolvers().promise;`;
 	}, 30_000);
 
 	it("closes the tab its open created when the navigation fails outright, but keeps a reused one", async () => {
-		const refused = Bun.serve({ port: 0, fetch: () => new Response("") });
-		const url = refused.url.href;
-		refused.stop(true);
+		// Port 1023 is privileged on Linux and below every OS ephemeral range, so no test that just
+		// closed its Bun server can hand this port to another process before Chrome connects.
+		const url = "http://127.0.0.1:1023/";
 		const invoke = browserHost();
 		const tabNames = async () =>
 			(returnedValue(await invoke({ action: "tabs" })) as Array<{ name: string }>).map(tab => tab.name);
