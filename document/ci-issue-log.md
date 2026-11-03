@@ -39,7 +39,7 @@
 | CI-024 | 上游新增 i18n 键没有调用点，orphan guard 红                | run `41636522109`                 | 已修（`131f4c9b33a`）                             |
 | CI-025 | 品牌替换后 QR/catalog/browser 契约未同步                   | run `41606325272`                 | 已修（`ceca124008f`）                             |
 | CI-026 | merge test audit 只归一化路径，不归一化 prose              | run `41627466260`                 | 已修（`ceca124008f`）                             |
-| CI-027 | package.json merge guard 扫上游 merge 历史，gate 卡死      | v18.16 gate 本地                  | 已修（`6003909a855` 前）                          |
+| CI-027 | package.json merge guard 扫上游 merge 历史，gate 卡死      | v18.16 gate 本地                  | 已修（`dc0d77f037c`）                          |
 | CI-028 | 上述契约只有 CI 才发现，本地 gate 未覆盖                   | v18.16 复盘                       | 已加 `merge-contracts`                            |
 
 ---
@@ -447,7 +447,7 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
 - **修复**：改为 `git rev-list --first-parent --merges`，只沿分支第一父链；同时
   `merge-gate` 显式传 `--base <base>`。
 - **门禁**：该守卫自身保留在 `merge-gate`；新增回归测试覆盖 first-parent 选择。
-- **fixed by**：`6003909a855` 前的工作树（已包含在 sync 分支）。
+- **fixed by**：`dc0d77f037c`（已包含在 sync 分支）。
 
 ## CI-028 契约问题只有 CI 才发现，本地 gate 未覆盖
 

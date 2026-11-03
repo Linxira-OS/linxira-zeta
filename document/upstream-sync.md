@@ -41,7 +41,7 @@ merge.
   tag will be a normal `v18.16.0..v18.x.y` increment again, not 48 ad-hoc
   commits. Record it here before starting the merge.
 
-## v18.16.0 merge (2026-11-03 — sync branch, gate pending)
+## v18.16.0 merge (2026-11-03 — sync branch, CI green at `2b083affafa`; main pending)
 
 - **Candidate source tag**: `v18.16.0`, peeled
   `650f3a108229ee11bf68ba3377f4e8c3391cd424`; verified with
