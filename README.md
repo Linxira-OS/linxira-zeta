@@ -280,6 +280,44 @@ bun --cwd=packages/coding-agent run check
 bun --cwd=packages/coding-agent test test/<file>.test.ts
 ```
 
+### Coverage
+
+There is no coverage threshold yet. The first measured baseline (2026-11-03,
+local Windows, one-off LCOV run) is:
+
+| Package             | Line coverage | Function coverage | Source files reached |
+| ------------------- | ------------: | ----------------: | -------------------: |
+| `packages/agent`    |         88.0% |             83.5% |                 100% |
+| `packages/ai`       |         89.9% |             92.3% |                98.3% |
+| `packages/catalog`  |         93.8% |             63.4% |                94.9% |
+| `packages/tui`      |         73.3% |             77.5% |                90.3% |
+| `packages/utils`    |         78.7% |             75.1% |                97.0% |
+| `coding-agent` core |         29.7% |             23.2% |                66.7% |
+
+The five support packages combined are at **81.2% lines / 79.7% functions**.
+`coding-agent` shows a **core sample** only (`test/session`,
+`test/session-manager`, `test/config`, `test/core`; 1,003 tests): the full
+2,113-file suite did not finish within 40 minutes under coverage instrumentation.
+Do not read 29.7% as the whole package.
+
+Bun's LCOV only includes source files a test actually loaded, so these numbers
+are **loaded-file coverage**, not whole-repository coverage. Files never imported
+are absent from the denominator; the “source files reached” column is the
+counterweight. Linux CI numbers differ slightly from this Windows baseline.
+
+Generate the same report locally:
+
+```sh
+cd packages/ai
+bun test --coverage --coverage-reporter=lcov --coverage-dir=../../coverage/ai
+```
+
+Maintainers and contributors must run the **Coverage** GitHub Actions workflow
+before a release or a coverage-sensitive merge, and attach its LCOV artifact to
+the review/release record. The policy, current gaps, and ratchet rules are in
+[`.github/MAINTAINERS.md`](.github/MAINTAINERS.md). Coverage is evidence, not a
+substitute for exercising the changed behavior.
+
 The primary application lives in `packages/coding-agent/`. Shared runtime
 packages include `packages/ai/`, `packages/catalog/`, `packages/agent/`,
 `packages/tui/`, and `packages/natives/`. The workspace lives in `main/` (its

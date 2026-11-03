@@ -1,0 +1,58 @@
+name: Coverage
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Coverage (LCOV)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-install
+
+      - name: Build native addons
+        run: bun run build:native
+
+      # Report-only: a failing test must not hide the LCOV data. The normal CI
+      # run is the test gate; this workflow exists to publish the trend.
+      - name: Coverage (support packages)
+        shell: bash
+        run: |
+          set -u
+          mkdir -p coverage
+          : > coverage/status.txt
+          for pkg in agent ai catalog utils; do
+            echo "== packages/$pkg" | tee -a coverage/status.txt
+            (cd "packages/$pkg" && bun test --coverage --coverage-reporter=lcov \
+              --coverage-dir="../../coverage/$pkg" --timeout 120000) \
+              || echo "::warning::coverage tests failed in packages/$pkg" | tee -a coverage/status.txt
+          done
+
+      - name: Coverage (coding-agent core sample)
+        shell: bash
+        run: |
+          set -u
+          (cd packages/coding-agent && bun test --coverage --coverage-reporter=lcov \
+            --coverage-dir=../../coverage/coding-agent --timeout 120000 \
+            ./test/session ./test/session-manager ./test/config ./test/core) \
+            || echo "::warning::coding-agent core coverage tests failed" | tee -a coverage/status.txt
+
+      - name: Upload LCOV
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage
+          if-no-files-found: warn
+          retention-days: 30

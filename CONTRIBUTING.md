@@ -79,6 +79,23 @@ Keep each pull request to one logical change. Avoid unrelated cleanup,
 drive-by refactors, generated noise, or features that were not part of the
 agreed scope.
 
+## Coverage
+
+The repository does not enforce a coverage threshold yet, but coverage is part
+of review. The current baseline, the package-by-package limits, and the
+loaded-file caveat are in [`README.md`](README.md#coverage).
+
+Runtime-behavior changes and release candidates **MUST** run the
+[**Coverage** workflow](.github/workflows/coverage.yml) (Actions → Coverage →
+Run workflow) on the candidate commit. Attach the `coverage-lcov` artifact to
+the pull request or release record. A drop larger than 0.5 percentage points in
+a package's line coverage needs an explanation, and tests must not be deleted
+or skipped to protect a number. Do not report the `coding-agent` core sample as
+the whole package.
+
+Maintainers: see [`.github/MAINTAINERS.md`](.github/MAINTAINERS.md) for the
+ratchet policy and known fixture failures.
+
 ## Contribution licensing
 
 A contribution intentionally submitted for inclusion in OMP is licensed under

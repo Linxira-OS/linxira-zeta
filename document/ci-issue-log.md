@@ -462,6 +462,26 @@ TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
   `--gates-only` 阶段执行。
 - **fixed by**：本次门禁提交。
 
+## CI-029 v18.16 main 合并后的 browser 测试竞态
+
+- **现象**：`main` 的 `Test coding-agent native/unit (TS)` 在
+  `browser-relay-tab-isolation.test.ts` 与 `browser-open-options.test.ts` 偶发红；
+  rerun 仍红，但同一代码的 `sync/omp-release/v18.16.0` run `41640622236` 是绿。
+- **根因**：两个都是测试夹具竞态，不是合并改动的运行时回归。
+  - relay 用例只等 2 秒让 Chrome 扩展把新标签列进 relay；CI 负载下事件晚于
+    2 秒，`acquireTab` 报 `No page target matched "First"` 或 “Selected tab did
+    not become available”。
+  - open-options 用例先 bind 一个临时的 Bun server 再关闭，然后假设该端口仍然
+    无人监听；CI 上端口可能被其他进程复用，导航反而成功，触发
+    `Expected promise to reject, but it resolved`。
+  - `main` 与绿色 sync 分支的代码差异只有 `document/ci-issue-log.md` 和
+    `document/upstream-sync.md` 两处台账文档。
+- **修复**：relay 用例在 `acquireTab` 前轮询 relay `/json`，确认标题已出现；
+  open-options 改用 1023（Linux 特权端口、低于所有临时端口范围），不依赖
+  “刚释放的端口不会被复用”。
+- **门禁**：不降低任何 CI 阈值；保留原断言和测试触发条件，只消除夹具竞态。
+- **fixed by**：本次测试修复提交。
+
 ---
 
 ## 附：1.4.8 发布链路时间线（供后续复盘）
