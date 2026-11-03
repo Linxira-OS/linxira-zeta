@@ -146,6 +146,31 @@ plugins/official/pi-messenger`，把插件目录原样打包）发布——两�
   documented in `document/local-ci.md`. Release tags are pushed to `origin`
   (GitHub) only — never to the `gitea` remote.
 
+### Release source commits (2026-11-04 ruling)
+
+The release source commit is the commit `release-v2.ts` cuts from; the tagged
+release run skips the test fan-out, so the source commit's ordinary push run is
+the test evidence.
+
+A follow-up commit that changes **only documentation/metadata** may reuse the
+last green runtime commit and skip the duplicate full run:
+
+- Allowed paths: `document/**`, `docs/**`, `README*.md`, `CONTRIBUTING.md`,
+  `CHANGELOG.md`, `LICENSE`, `NOTICE`, and `.github/MAINTAINERS.md`.
+- The last commit that touched runtime code, tests, workflows, configuration,
+  lockfiles, generated artifacts, or dependencies MUST have a green `push` run
+  on `main`. Record its SHA and run id in `document/upstream-sync.md` or the
+  release record.
+- Run `bun scripts/release-v2.ts <version> --no-ci-wait`, and state in the
+  release record that the diff since the green SHA is docs/metadata only.
+- Any file outside the allowed list invalidates the shortcut: wait for the
+  normal full CI. A cancelled or skipped run is **not** green, and this
+  shortcut never relaxes a test, assertion, or coverage threshold.
+
+This is the same principle as skipping tests on the version-bump commit: the
+code was already proven; re-running an identical runtime suite on documentation
+is waste, not extra assurance.
+
 ### Trigger discipline (dual-mode CI: push validates, tagged HEAD releases)
 
 - CI is **dual-mode**. `release_metadata` resolves one output, `is-release`,

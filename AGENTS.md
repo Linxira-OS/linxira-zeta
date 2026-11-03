@@ -176,6 +176,10 @@ Risks 之类填充是噪声。计划文件写进会话 artifacts（`local://` �
 - 合并 PR 的 commit message：`Merge PR #<number>: <conventional PR subject> (@<author>)`。
 - npm 发布面**不存在 token**：一律 GitHub OIDC trusted publishing（无 `NPM_TOKEN`）。
   细节：`document/agents/workflow/release-publish.md`。
+- **发布源提交**：代码提交必须有一次完整 CI 绿；其后若只改文档/CHANGELOG 等
+  元数据，可复用该绿提交并用 `release-v2 --no-ci-wait` 直接打 tag 发布，规则与
+  允许路径见 `document/release.md` §Release source commits。任何代码/测试/配置/
+  生成物变化都必须重跑；取消或跳过不算绿，阈值永不因此降低。
 
 ## 9. GitHub 权限
 
