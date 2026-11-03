@@ -8,7 +8,7 @@ import { getBundledModels } from "@linxiraos/pi-catalog/models";
 import { DEEPINFRA_BASE_URL, deepinfraModelManagerOptions } from "@linxiraos/pi-catalog/provider-models/openai-compat";
 import type { ModelSpec } from "@linxiraos/pi-catalog/types";
 
-const DISCOVERY_URL = "https://api.deepinfra.com/v1/openai/models?filter=with_meta&sort_by=omp";
+const DISCOVERY_URL = "https://api.deepinfra.com/v1/openai/models?filter=with_meta&sort_by=zeta";
 
 function catalogFixture(): Response {
 	return Response.json({

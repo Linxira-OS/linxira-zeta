@@ -155,8 +155,8 @@ async function launchRelayFixture(
 			await fs.copyFile(path.join(ASSETS, `${file}.txt`), path.join(extensionDir, file));
 		}
 		const background = await fs.readFile(path.join(ASSETS, "background.js.txt"), "utf8");
-		const defaultPort = "var DEFAULT_PORT = 9224;";
-		if (!background.includes(defaultPort)) throw new Error("Relay extension default port not found");
+		const defaultPort = /var DEFAULT_PORT = \d+;/.exec(background)?.[0];
+		if (!defaultPort) throw new Error("Relay extension default port not found");
 		// Point the disposable extension at this relay without deferring listener registration.
 		await fs.writeFile(
 			path.join(extensionDir, "background.js"),

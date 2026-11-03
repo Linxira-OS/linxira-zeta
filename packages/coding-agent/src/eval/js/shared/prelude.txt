@@ -294,7 +294,7 @@ if (!globalThis.__zeta_js_prelude_loaded__) {
 		}
 
 		async attempts() {
-			const snapshot = await globalThis.__omp_call_tool__("__status__", {
+			const snapshot = await globalThis.__zeta_call_tool__("__status__", {
 				item: { kind: this.kind, id: this.id },
 			});
 			return snapshot?.attempts ?? [];

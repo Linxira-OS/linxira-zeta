@@ -191,7 +191,8 @@ function normalizeForUpstreamComparison(text: string): string {
 		.replaceAll("zetacode", "omp")
 		.replaceAll("zeta/", "omp/")
 		.replaceAll(zetaDir, ".omp")
-		.replaceAll("zeta.", "omp.");
+		.replaceAll("zeta.", "omp.")
+		.replaceAll("zeta", "omp");
 }
 
 function targetContent(pathname: string): string | null {

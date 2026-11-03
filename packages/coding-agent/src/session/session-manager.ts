@@ -28,6 +28,7 @@ import { isTaskToolDetails, type StructuredSubagentSchemaMode } from "@linxiraos
 import type { ConfiguredThinkingLevel } from "@linxiraos/pi-tui/thinking";
 import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { moveFileAcrossDevices } from "../utils/atomic-file";
+import { moveSessionToTrash } from "./session-trash";
 import { hasAnnotationDraftsSync } from "../extensibility/custom-commands/bundled/annotate/draft-store";
 import { ArtifactManager } from "./artifacts";
 import { type BlobPutOptions, type BlobPutResult, BlobStore, lazyImageDataSync } from "./blob-store";
@@ -2480,7 +2481,11 @@ export class SessionManager {
 	async dropSession(sessionPath: string): Promise<void> {
 		await this.#drainAndCloseWriter();
 		try {
-			await this.#storage.deleteSessionWithArtifacts(sessionPath);
+			// The trash is a filesystem move: it cannot reach a transcript that
+			// lives in an indexed backend (Redis/SQL), and its `unlink` is the
+			// primitive that clears both the content key and the index entry.
+			if (this.#storage instanceof FileSessionStorage) await moveSessionToTrash(sessionPath);
+			else await this.#storage.deleteSessionWithArtifacts(sessionPath);
 		} catch (err) {
 			if (!isEnoent(err)) throw err;
 		}
@@ -2513,6 +2518,7 @@ export class SessionManager {
 			timestamp,
 			cwd: this.#cwd,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
+			client: this.#header.client,
 			parentSession: parentSessionId,
 			providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(this.#header),
 			taskPromptCacheKey: this.#header.taskPromptCacheKey,
@@ -2767,7 +2773,10 @@ export class SessionManager {
 		const sessionDir = options?.sessionDir ?? SessionManager.getDefaultSessionDir(this.#cwd, undefined, storage);
 		const manager = new SessionManager(this.#cwd, sessionDir, true, storage);
 		manager.#suppressBreadcrumb = options?.suppressBreadcrumb === true;
-		manager.#resetToNewSession({ taskPromptCacheKey: this.#header.taskPromptCacheKey });
+		manager.#resetToNewSession({
+			client: this.#header.client,
+			taskPromptCacheKey: this.#header.taskPromptCacheKey,
+		});
 		manager.#sessionName = this.#sessionName;
 		manager.#titleSource = this.#titleSource;
 		manager.#titleUpdatedAt = this.#titleUpdatedAt;
@@ -4280,6 +4289,7 @@ export class SessionManager {
 		if (options?.resetInheritedCost) SessionManager.#resetInheritedUsageCost(history);
 		manager.#resetToNewSession(
 			{
+				client: sourceHeader?.client,
 				parentSession: sourceHeader?.id,
 				providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(sourceHeader),
 				taskPromptCacheKey: sourceHeader?.taskPromptCacheKey,

@@ -972,7 +972,7 @@ class DebuggerDetachedError extends ToolError {
 		readonly when: "during" | "before",
 	) {
 		super(
-			`Chrome detached omp from this tab (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
+			`Chrome detached zeta from this tab (${reason}) ${when === "during" ? "during this call" : "before this call, so its code did not run"}`,
 		);
 	}
 }
@@ -1637,7 +1637,7 @@ export class WorkerCore {
 		const run = this.#started ? this.#unanswered : null;
 		if (!run) return;
 		this.#unanswered = null;
-		run.ac.abort(postmortem.markExpectedCleanupError(new ToolAbortError("Chrome detached omp from this tab")));
+		run.ac.abort(postmortem.markExpectedCleanupError(new ToolAbortError("Chrome detached zeta from this tab")));
 		const error = new DebuggerDetachedError(reason, run.codeStarted ? "during" : "before");
 		this.#transport.send({ type: "result", id: run.id, ok: false, error: errorPayload(error) });
 	};

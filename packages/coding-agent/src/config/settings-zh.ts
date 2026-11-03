@@ -174,6 +174,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		description:
 			"一轮完成后，请当前模型预测你的下一条消息，并以幽灵文本显示在空输入框中；Tab 或右方向键可插入但不发送。额外消耗：每完成一轮都会多发送一次计费请求，计入整个会话（见 /stats）",
 	},
+	"composer.predictionAlternatives": {
+		label: "预测候选数",
+		description:
+			"请求最多四条不同的预测而不是一条，最可能的排在最前。幽灵文本显示与当前草稿匹配的第一条；插入一条后再次按 Tab 可选择另一条。同一次请求会返回更多输出 token",
+	},
 	"contextFiles.extra": {
 		label: "额外上下文文件",
 		description:
@@ -774,6 +779,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "中断模式",
 		description: "引导消息何时中断工具执行",
 	},
+	"btw.inject": {
+		label: "/btw 引导注入",
+		description:
+			"当你向 /btw 询问引导提示词时，它会起草一个包裹在 <inject> 标签中的建议，并在回答中高亮显示；Alt+I（app.btw.inject）会将其发送到主会话",
+	},
 	"loop.mode": {
 		label: "循环模式",
 		description: "重新提交提示词之前，/loop 迭代之间会发生什么",
@@ -1138,6 +1148,11 @@ export const ZH_SETTING_TEXTS: Partial<Record<SettingPath, { label: string; desc
 		label: "Hindsight 作用域",
 		description:
 			"global = 一个共享存储库；per-project = 每个 cwd 一个隔离存储库；per-project-tagged = 带项目标签的共享存储库，回忆时全局 + 项目记忆合并",
+	},
+	"hindsight.globalScope": {
+		label: "Hindsight 全局作用域",
+		description:
+			"允许 retain 和 learn 使用 global 作用域：存储记忆时不带项目标签，因此所有项目都能回忆到。需要 global 或 per-project-tagged 作用域",
 	},
 	"hindsight.autoRecall": {
 		label: "Hindsight 自动回忆",
