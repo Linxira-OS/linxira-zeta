@@ -61,44 +61,20 @@ pub fn builtin_lsp_servers() -> HashMap<String, LspServerSettings> {
     servers.insert(
         "javascript".to_string(),
         LspServerSettings {
-            command: "tsgo".to_string(),
-            args: vec!["--lsp".to_string(), "--stdio".to_string()],
+            command: "typescript-language-server".to_string(),
+            args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
-                LspCandidate {
-                    command: "tsgo".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "typescript-language-server".to_string(),
-                    args: vec!["--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "tsc".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
             ],
         },
     );
     servers.insert(
         "javascriptreact".to_string(),
         LspServerSettings {
-            command: "tsgo".to_string(),
-            args: vec!["--lsp".to_string(), "--stdio".to_string()],
+            command: "typescript-language-server".to_string(),
+            args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
-                LspCandidate {
-                    command: "tsgo".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "typescript-language-server".to_string(),
-                    args: vec!["--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "tsc".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
             ],
         },
     );
@@ -167,44 +143,20 @@ pub fn builtin_lsp_servers() -> HashMap<String, LspServerSettings> {
     servers.insert(
         "typescript".to_string(),
         LspServerSettings {
-            command: "tsgo".to_string(),
-            args: vec!["--lsp".to_string(), "--stdio".to_string()],
+            command: "typescript-language-server".to_string(),
+            args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
-                LspCandidate {
-                    command: "tsgo".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "typescript-language-server".to_string(),
-                    args: vec!["--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "tsc".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
             ],
         },
     );
     servers.insert(
         "typescriptreact".to_string(),
         LspServerSettings {
-            command: "tsgo".to_string(),
-            args: vec!["--lsp".to_string(), "--stdio".to_string()],
+            command: "typescript-language-server".to_string(),
+            args: vec!["--stdio".to_string()],
             root_markers: vec!["package.json".to_string(), "tsconfig.json".to_string(), "jsconfig.json".to_string()],
             candidates: vec![
-                LspCandidate {
-                    command: "tsgo".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "typescript-language-server".to_string(),
-                    args: vec!["--stdio".to_string()],
-                },
-                LspCandidate {
-                    command: "tsc".to_string(),
-                    args: vec!["--lsp".to_string(), "--stdio".to_string()],
-                },
             ],
         },
     );
@@ -221,6 +173,6 @@ pub fn builtin_lsp_server_languages() -> HashMap<&'static str, &'static [&'stati
         ("pylsp", &["python"] as &[&str]),
         ("rust-analyzer", &["rust"] as &[&str]),
         ("terraformls", &["terraform", "terraform-vars"] as &[&str]),
-        ("typescript", &["javascript", "javascriptreact", "typescript", "typescriptreact"] as &[&str]),
+        ("typescript-language-server", &["javascript", "javascriptreact", "typescript", "typescriptreact"] as &[&str]),
     ])
 }

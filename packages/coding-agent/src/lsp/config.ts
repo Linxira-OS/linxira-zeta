@@ -366,6 +366,21 @@ function typescriptSpeaksLsp(tscPath: string, cwd: string): boolean {
 }
 
 /**
+ * Keep exactly one TypeScript server. `typescript-language-server` needs
+ * `lib/tsserver.js`, which a TypeScript 7 workspace no longer ships, so it fails
+ * at initialize there; `tsc --lsp` exits on older TypeScript.
+ */
+function selectTypescriptServer(servers: Record<string, ServerConfig>, cwd: string): void {
+	const native = servers["typescript-native"];
+	if (!native?.resolvedCommand) return;
+	if (typescriptSpeaksLsp(native.resolvedCommand, cwd)) {
+		delete servers["typescript-language-server"];
+	} else {
+		delete servers["typescript-native"];
+	}
+}
+
+/**
  * Pick the first candidate that resolves on PATH (after the project-local bin
  * directories). A server without a candidate list is a one-element chain; the
  * `$PID` token is substituted either way.
@@ -525,6 +540,7 @@ export function loadConfig(cwd: string): LspConfig {
 			resolvedCommand: selected.selection.resolvedCommand,
 		};
 	}
+	selectTypescriptServer(servers, cwd);
 
 	return { servers, idleTimeoutMs };
 }

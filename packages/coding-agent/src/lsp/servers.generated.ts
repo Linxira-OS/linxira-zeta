@@ -925,8 +925,35 @@ export const LSP_SERVERS: Record<string, ServerConfig> = JSON.parse(
 			"Pipfile"
 		]
 	},
-	"typescript": {
-		"command": "tsgo",
+	"typescript-language-server": {
+		"command": "typescript-language-server",
+		"args": [
+			"--stdio"
+		],
+		"fileTypes": [
+			".ts",
+			".tsx",
+			".js",
+			".jsx",
+			".mjs",
+			".cjs"
+		],
+		"rootMarkers": [
+			"package.json",
+			"tsconfig.json",
+			"jsconfig.json"
+		],
+		"initOptions": {
+			"hostInfo": "omp-coding-agent",
+			"preferences": {
+				"includeInlayParameterNameHints": "all",
+				"includeInlayVariableTypeHints": true,
+				"includeInlayFunctionParameterTypeHints": true
+			}
+		}
+	},
+	"typescript-native": {
+		"command": "tsc",
 		"args": [
 			"--lsp",
 			"--stdio"
@@ -943,37 +970,7 @@ export const LSP_SERVERS: Record<string, ServerConfig> = JSON.parse(
 			"package.json",
 			"tsconfig.json",
 			"jsconfig.json"
-		],
-		"candidates": [
-			{
-				"command": "tsgo",
-				"args": [
-					"--lsp",
-					"--stdio"
-				]
-			},
-			{
-				"command": "typescript-language-server",
-				"args": [
-					"--stdio"
-				]
-			},
-			{
-				"command": "tsc",
-				"args": [
-					"--lsp",
-					"--stdio"
-				]
-			}
-		],
-		"initOptions": {
-			"hostInfo": "omp-coding-agent",
-			"preferences": {
-				"includeInlayParameterNameHints": "all",
-				"includeInlayVariableTypeHints": true,
-				"includeInlayFunctionParameterTypeHints": true
-			}
-		}
+		]
 	},
 	"vimls": {
 		"command": "vim-language-server",
