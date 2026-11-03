@@ -216,6 +216,23 @@ cargo build --release -p pi-natives        # then copy into packages/natives/nat
 bun run ci:test:full                       # every TS bucket + cargo nextest
 ```
 
+`merge-gate --gates-only` now also runs two merge-specific gates that exist
+because the v18.16 sync exposed tears the static checks could not see:
+
+- `bazel-lock-inputs` compares the `Cargo.toml`/`Cargo.lock` hashes in
+  `MODULE.bazel.lock` against the **Git blob at HEAD**, not the working copy;
+  it runs on every platform. `bazel-lock` then runs the full
+  `gen-bazel-lock --check` (skipped on Windows because Bazel hashes the CRLF
+  checkout; CI Linux is authoritative).
+- `merge-contracts` runs the cross-surface tests that broke during that merge:
+  catalog compat, QR golden, session client provenance / trash, eval
+  completion bridge, browser worker-exit messages, i18n orphan keys, and zh
+  settings labels. These are not generated-file checks; they exercise the
+  contracts a conflict resolution can silently tear.
+
+Do not drop or skip either step to make a merge look green; if a test is
+genuinely obsolete, retire the feature and its test in the same change.
+
 `merge-gate` is also the only entry point that *gates* on the two orphan suites —
 `packages/stats/test` and `plugins/official/pi-messenger/tests` (vitest, outside
 the bun workspace, so it installs its own dependencies). `bun run test:ts` alone

@@ -26,6 +26,21 @@ merge.
   dedicated on-demand sync after 1.4.0 ships; the security hardening above is
   the first reason to schedule it.
 
+### Probe 2026-11-03 (OMP, during v18.16 integration)
+
+- **Latest release tag**: `v18.16.0` (2026-11-02); `gh release list` shows no
+  newer release. The in-flight merge is therefore against current upstream,
+  not a stale tag.
+- **Upstream `main`**: 48 commits ahead of `v18.16.0`, 210 files, per
+  `repos/can1357/oh-my-pi/compare/v18.16.0...main`. Hotspots are the extension
+  link browser/transcript links (`packages/coding-agent`, `packages/tui`,
+  `packages/agent`), sloppy-edit parser tests, provider-session state, and
+  docs. No `BREAKING` marker and no termide/editor/workbench tree (those are
+  Zeta-only).
+- **Verdict**: do not sync `main`; wait for the next official tag. The next
+  tag will be a normal `v18.16.0..v18.x.y` increment again, not 48 ad-hoc
+  commits. Record it here before starting the merge.
+
 ## v18.16.0 merge (2026-11-03 — sync branch, gate pending)
 
 - **Candidate source tag**: `v18.16.0`, peeled

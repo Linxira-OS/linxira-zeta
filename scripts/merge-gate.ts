@@ -276,6 +276,43 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 			commands: [["bun", "run", "check:relay-assets"]],
 		},
 		guard("package-json-merge", "package.json merge-drop", "scripts/check-package-json-merge.ts", "--base", base),
+		{
+			id: "bazel-lock-inputs",
+			name: "Bazel lock input hashes",
+			phase: "guard",
+			commands: [["bun", "scripts/gen-bazel-lock.ts", "--inputs-only"]],
+		},
+		{
+			id: "bazel-lock",
+			name: "Bazel lock freshness",
+			phase: "guard",
+			commands: [["bun", "scripts/gen-bazel-lock.ts", "--check"]],
+			runner: "needs bazel + network",
+			// Bazel hashes the checkout bytes; a Windows CRLF checkout differs
+			// from the LF blob CI sees. The input-hash check above still runs
+			// everywhere; CI's Linux job is authoritative for the full check.
+			skipWhen: () =>
+				process.platform === "win32" ? "Bazel hashes CRLF checkout; CI Linux is authoritative" : undefined,
+		},
+		{
+			id: "merge-contracts",
+			name: "merge contract regressions",
+			phase: "guard",
+			commands: [
+				[
+					"bun",
+					"test",
+					"packages/catalog/test/compat-compile.test.ts",
+					"packages/tui/test/qrcode.test.ts",
+					"packages/coding-agent/test/session-manager/session-client-provenance.test.ts",
+					"packages/coding-agent/test/session-manager/drop-session-trash.test.ts",
+					"packages/coding-agent/test/eval/completion-bridge.test.ts",
+					"packages/coding-agent/test/tools/browser-worker-exit.test.ts",
+					"packages/coding-agent/test/i18n-message-references.test.ts",
+					"packages/coding-agent/test/i18n-settings-localization.test.ts",
+				],
+			],
+		},
 		guard("branch-registry", "branch registry", "scripts/check-branch-registry.ts"),
 		{
 			id: "rustfmt",

@@ -24,11 +24,48 @@
  *   bun scripts/gen-bazel-lock.ts          # re-evaluate @crates, rewrite MODULE.bazel.lock
  *   bun scripts/gen-bazel-lock.ts --check  # exit 1 when MODULE.bazel.lock is stale
  */
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { collectLockDriftInput, findLockDrift } from "./bazel-lock-drift";
 
 const repoRoot = path.join(import.meta.dir, "..");
 const check = process.argv.includes("--check");
+const inputsOnly = process.argv.includes("--inputs-only");
+
+/**
+ * The lock stores sha256 of the file bytes Bazel sees. On Windows a CRLF
+ * checkout hashes differently from the LF blob CI checks out, so a worktree
+ * hash comparison can pass locally and fail on Linux. Always compare the
+ * committed blob (the bytes CI will see), not the checkout.
+ */
+function recordedInputMismatches(): string[] {
+	let text: string;
+	try {
+		text = fs.readFileSync(path.join(repoRoot, "MODULE.bazel.lock"), "utf8");
+	} catch {
+		return ["MODULE.bazel.lock is missing or unreadable"];
+	}
+	const problems: string[] = [];
+	for (const file of ["Cargo.toml", "Cargo.lock"]) {
+		const recorded = new RegExp(`FILE:@@//${file.replaceAll(".", "\\.")} ([0-9a-f]{64})`).exec(text)?.[1];
+		if (!recorded) {
+			problems.push(`MODULE.bazel.lock has no recorded hash for ${file}`);
+			continue;
+		}
+		const shown = Bun.spawnSync(["git", "show", `HEAD:${file}`], { cwd: repoRoot, stdout: "pipe", stderr: "pipe" });
+		if (shown.exitCode !== 0) {
+			problems.push(`cannot read HEAD:${file} (${shown.stderr.toString().trim()})`);
+			continue;
+		}
+		const actual = new Bun.CryptoHasher("sha256").update(shown.stdout).digest("hex");
+		if (recorded !== actual) {
+			problems.push(
+				`MODULE.bazel.lock records ${file} ${recorded} but HEAD has ${actual}; refresh the lock input hash (run bun run gen:bazel-lock)`,
+			);
+		}
+	}
+	return problems;
+}
 
 /** Prints a coverage failure the way the lock gate reports drift. */
 function reportCoverage(problems: string[], heading: string): void {
@@ -38,14 +75,25 @@ function reportCoverage(problems: string[], heading: string): void {
 
 // Runs before the bazel lookup: the guard is plain TS, so a stale result is
 // reported even where bazelisk is unavailable.
-if (check) {
-	const problems = findLockDrift(collectLockDriftInput(repoRoot));
-	if (problems.length > 0) {
-		reportCoverage(
-			problems,
-			`MODULE.bazel.lock's @crates result lags the manifests (${problems.length} problem${problems.length === 1 ? "" : "s"}); the input hashes cannot see this:`,
-		);
+if (check || inputsOnly) {
+	if (check) {
+		const problems = findLockDrift(collectLockDriftInput(repoRoot));
+		if (problems.length > 0) {
+			reportCoverage(
+				problems,
+				`MODULE.bazel.lock's @crates result lags the manifests (${problems.length} problem${problems.length === 1 ? "" : "s"}); the input hashes cannot see this:`,
+			);
+			process.exit(1);
+		}
+	}
+	const inputMismatches = recordedInputMismatches();
+	if (inputMismatches.length > 0) {
+		for (const problem of inputMismatches) console.error(`gen-bazel-lock: ${problem}`);
 		process.exit(1);
+	}
+	if (inputsOnly) {
+		console.log("MODULE.bazel.lock input hashes match HEAD.");
+		process.exit(0);
 	}
 }
 

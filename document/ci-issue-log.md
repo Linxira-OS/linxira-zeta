@@ -11,28 +11,36 @@
 
 ## 索引
 
-| ID | 一句话 | 触发点 | 状态 |
-|---|---|---|---|
-| CI-001 | Windows 无符号链接权限，十几个测试本地红 | 长期存在 | 记录 |
-| CI-002 | `CustomCommandWatcher` 时序测试在合并前就红 | 长期存在 | 记录 |
-| CI-003 | 新“删除文件防复活”守卫的名字被品牌规则判红 | `4b03d257ad8` | 已处理（豁免） |
-| CI-004 | 合并后 `nix/bun.nix` 与 `bun.lock` 不一致 | `15183edda34` | 已处理（发布 bump 重生成） |
-| CI-005 | Windows 上 Bazel 无法刷新 `MODULE.bazel.lock` | `2fffbf6b95a` 起的同步 | 绕过（CI 产物） |
-| CI-006 | Windows 上 Rust 检查无法编译（没有 MSVC 链接器） | 发布 `1.4.8` | 绕过（WSL 验证） |
-| CI-007 | `release.ts` 的版本覆盖面小于 `release-v2.ts` | `73720678956` | 部分（手工补齐） |
-| CI-008 | 工作台/IDE 二进制必须按版本重建；tag 运行没识别成 release | `710f90c50fa` | 绕过（tag dispatch + 产物） |
-| CI-009 | 导出查看器元数据过期，阻塞所有 release binary | `7c8ca480536` | 已处理（`1f3d699ac9b`；`3839499587b` 补离线内联） |
-| CI-010 | 安装方式 smoke 随 CI-009 失败（下游） | `7c8ca480536` | 已恢复（CI-009 修复后） |
-| CI-011 | `gh run watch` 偶发 502，watcher 退出 | 发布期间 | 记录 |
-| CI-012 | `Zeta Nix` run 长时间 `in_progress` | 多个 run | 观察 |
-| CI-013 | 合并前 `main` 本来就是红的 | `4f917a02691` | 记录 |
-| CI-014 | 用 `release.ts` 发版（文档已标注不要用） | `73720678956` | 已处理（转发 v2） |
-| CI-015 | bump 先上 main、npm 未发布，安装 smoke 必红 | `5e99ac37dc8` + install-smoke fix | 已处理 |
-| CI-016 | 新设置组未登记到 `TAB_GROUPS` | `15183edda34` | 已处理 |
-| CI-017 | TypeScript server selection 四例稳定失败（原误判为 flake） | `41448562575` / `8e810a4fa07` | 已定位并修（引入 CI-019） |
-| CI-018 | 导出查看器重新带回托管 CDN，离线门禁红 | `41478318050` / `3839499587b` | 已修，待完整 CI 验证 |
-| CI-019 | LSP canonical 拆分未同步 termide 期望，termide 三例红 | `41575581031` / `8e810a4fa07` | 已修（工作树，待提交/CI） |
-| CI-020 | 上游新增/修改的测试与夹具没有合并审计 | v18.15.0 合并审计 | 已加门禁（工作树，待提交） |
+| ID     | 一句话                                                     | 触发点                            | 状态                                              |
+| ------ | ---------------------------------------------------------- | --------------------------------- | ------------------------------------------------- |
+| CI-001 | Windows 无符号链接权限，十几个测试本地红                   | 长期存在                          | 记录                                              |
+| CI-002 | `CustomCommandWatcher` 时序测试在合并前就红                | 长期存在                          | 记录                                              |
+| CI-003 | 新“删除文件防复活”守卫的名字被品牌规则判红                 | `4b03d257ad8`                     | 已处理（豁免）                                    |
+| CI-004 | 合并后 `nix/bun.nix` 与 `bun.lock` 不一致                  | `15183edda34`                     | 已处理（发布 bump 重生成）                        |
+| CI-005 | Windows 上 Bazel 无法刷新 `MODULE.bazel.lock`              | `2fffbf6b95a` 起的同步            | 绕过（CI 产物）                                   |
+| CI-006 | Windows 上 Rust 检查无法编译（没有 MSVC 链接器）           | 发布 `1.4.8`                      | 绕过（WSL 验证）                                  |
+| CI-007 | `release.ts` 的版本覆盖面小于 `release-v2.ts`              | `73720678956`                     | 部分（手工补齐）                                  |
+| CI-008 | 工作台/IDE 二进制必须按版本重建；tag 运行没识别成 release  | `710f90c50fa`                     | 绕过（tag dispatch + 产物）                       |
+| CI-009 | 导出查看器元数据过期，阻塞所有 release binary              | `7c8ca480536`                     | 已处理（`1f3d699ac9b`；`3839499587b` 补离线内联） |
+| CI-010 | 安装方式 smoke 随 CI-009 失败（下游）                      | `7c8ca480536`                     | 已恢复（CI-009 修复后）                           |
+| CI-011 | `gh run watch` 偶发 502，watcher 退出                      | 发布期间                          | 记录                                              |
+| CI-012 | `Zeta Nix` run 长时间 `in_progress`                        | 多个 run                          | 观察                                              |
+| CI-013 | 合并前 `main` 本来就是红的                                 | `4f917a02691`                     | 记录                                              |
+| CI-014 | 用 `release.ts` 发版（文档已标注不要用）                   | `73720678956`                     | 已处理（转发 v2）                                 |
+| CI-015 | bump 先上 main、npm 未发布，安装 smoke 必红                | `5e99ac37dc8` + install-smoke fix | 已处理                                            |
+| CI-016 | 新设置组未登记到 `TAB_GROUPS`                              | `15183edda34`                     | 已处理                                            |
+| CI-017 | TypeScript server selection 四例稳定失败（原误判为 flake） | `41448562575` / `8e810a4fa07`     | 已定位并修（引入 CI-019）                         |
+| CI-018 | 导出查看器重新带回托管 CDN，离线门禁红                     | `41478318050` / `3839499587b`     | 已修，待完整 CI 验证                              |
+| CI-019 | LSP canonical 拆分未同步 termide 期望，termide 三例红      | `41575581031` / `8e810a4fa07`     | 已修（工作树，待提交/CI）                         |
+| CI-020 | 上游新增/修改的测试与夹具没有合并审计                      | v18.15.0 合并审计                 | 已加门禁（已推 `ceca124008f`）                    |
+| CI-021 | Bazel lock 输入哈希用了 Windows 工作区而非 Git blob        | run `41627466260`                 | 已修（`131f4c9b33a`）                             |
+| CI-022 | session client 在 fork/persistCopy/forkFrom 丢失           | run `41606325272`                 | 已修（`ceca124008f`）                             |
+| CI-023 | eval prelude 残留 `__omp_call_tool__`                      | run `41606325272`                 | 已修（`ceca124008f`）                             |
+| CI-024 | 上游新增 i18n 键没有调用点，orphan guard 红                | run `41636522109`                 | 已修（`131f4c9b33a`）                             |
+| CI-025 | 品牌替换后 QR/catalog/browser 契约未同步                   | run `41606325272`                 | 已修（`ceca124008f`）                             |
+| CI-026 | merge test audit 只归一化路径，不归一化 prose              | run `41627466260`                 | 已修（`ceca124008f`）                             |
+| CI-027 | package.json merge guard 扫上游 merge 历史，gate 卡死      | v18.16 gate 本地                  | 已修（`6003909a855` 前）                          |
+| CI-028 | 上述契约只有 CI 才发现，本地 gate 未覆盖                   | v18.16 复盘                       | 已加 `merge-contracts`                            |
 
 ---
 
@@ -87,9 +95,9 @@
 - **触发点**：`2fffbf6b95a` 起的同步；1.4.8 发布 `73720678956` 首次撞上。
 - **根因**：`cargo-bazel splice` 需要建符号链接；本机没有开发者模式/管理员。
 - **当时的处理**：
-  1. `scripts/release.ts` 增加 `ZETA_SKIP_BAZEL_LOCK=1` 显式跳过（默认行为不变）；
-  2. 让 CI 的 `bazel_lock` job 失败时上传刷新后的锁（该 job 本来就设计成这么做）；
-  3. 从 run 下载 `MODULE.bazel.lock` 产物，提交在 `570ad1ef4ff`，再打 tag。
+   1. `scripts/release.ts` 增加 `ZETA_SKIP_BAZEL_LOCK=1` 显式跳过（默认行为不变）；
+   2. 让 CI 的 `bazel_lock` job 失败时上传刷新后的锁（该 job 本来就设计成这么做）；
+   3. 从 run 下载 `MODULE.bazel.lock` 产物，提交在 `570ad1ef4ff`，再打 tag。
 - **后续（2026-11-02）**：v1 管线已删除；`release.ts` 现在只转发到
   `release-v2.ts`，后者在 bazelisk 可用时刷新锁、不可用时明确警告并提示取 CI 产物。
   `ZETA_SKIP_BAZEL_LOCK` 不再被使用。
@@ -107,28 +115,28 @@
 - **触发点**：1.4.8 发布第二次尝试；此后所有需要本地 Rust 的步骤都受影响。
 - **根因**：Windows 发布机没有 MSVC 工具链，且 PATH 里的同名 `link.exe` 抢先解析。
 - **当时的处理**：
-  1. `scripts/release.ts` 增加 `ZETA_SKIP_RS_CHECK=1`，本地只跑 `check:ts`；
-  2. 在 WSL（Linxira OS）里装 `cmake`、`ninja` 后跑 `bun run check:rs`，通过；
-     Rust 以 CI / WSL 为准。
+   1. `scripts/release.ts` 增加 `ZETA_SKIP_RS_CHECK=1`，本地只跑 `check:ts`；
+   2. 在 WSL（Linxira OS）里装 `cmake`、`ninja` 后跑 `bun run check:rs`，通过；
+      Rust 以 CI / WSL 为准。
 - **后续（2026-11-02）**：v1 管线已删除；`release-v2.ts` 本来就只跑 `check:ts`，
   `ZETA_SKIP_RS_CHECK` 不再被使用。
 - **建议方案 / 门禁**：发布文档写明“Windows 发布机必须有 MSVC 或改走 WSL”；
   提供 `scripts/check-toolchain.ts` 预检（检测 MSVC 与 `link.exe` 真伪）；
   把 `check:rs` 的 WSL 调用固化成脚本，避免每次手工 export PATH。
 - **历史先例（2026-11-02 查证）**：
-  - `release-v2.ts`（`bb999381b86`）早就把“无 MSVC 主机”当正常情况：本地只跑
-    `check:ts`，Rust 交给 CI；注释原文就是 “environment-blocked on hosts without an
-    MSVC linker/SDK”。
-  - `document/release.md` 的 “Rebuilding leaves on the Windows workstation” 给的是
-    **WSL + `x86_64-pc-windows-gnu`** 的完整配方（把 `main/` 复制到 `/root/zeta-build`，
-    不要在 `/mnt/c` 上构建）。
-  - `b2308822165`（1.1.23 救火）用 **WSL bazelisk** 重生成 `MODULE.bazel.lock`、
-    用 `cargo metadata` 重写 `Cargo.lock`、修 clippy；没有安装 MSVC。
-  - `915f45821f5` 是唯一改 MSVC 工具链的提交，但只服务 Linux/macOS 执行端的 bazel
-    交叉编译；`scripts/bazel-natives.ts:398` 也明说 Windows 主机只能本地 `host`，
-    交叉构建去 WSL/Linux。
-  - 结论：仓库的既定方案就是“**WSL 构建 + CI 验 Rust**”，没有可捡的本地 MSVC 修复。
-    本次错在用了 v1 的 `release.ts`（见 CI-014），不是缺 MSVC 补丁。
+   - `release-v2.ts`（`bb999381b86`）早就把“无 MSVC 主机”当正常情况：本地只跑
+     `check:ts`，Rust 交给 CI；注释原文就是 “environment-blocked on hosts without an
+     MSVC linker/SDK”。
+   - `document/release.md` 的 “Rebuilding leaves on the Windows workstation” 给的是
+     **WSL + `x86_64-pc-windows-gnu`** 的完整配方（把 `main/` 复制到 `/root/zeta-build`，
+     不要在 `/mnt/c` 上构建）。
+   - `b2308822165`（1.1.23 救火）用 **WSL bazelisk** 重生成 `MODULE.bazel.lock`、
+     用 `cargo metadata` 重写 `Cargo.lock`、修 clippy；没有安装 MSVC。
+   - `915f45821f5` 是唯一改 MSVC 工具链的提交，但只服务 Linux/macOS 执行端的 bazel
+     交叉编译；`scripts/bazel-natives.ts:398` 也明说 Windows 主机只能本地 `host`，
+     交叉构建去 WSL/Linux。
+   - 结论：仓库的既定方案就是“**WSL 构建 + CI 验 Rust**”，没有可捡的本地 MSVC 修复。
+     本次错在用了 v1 的 `release.ts`（见 CI-014），不是缺 MSVC 补丁。
 
 ## CI-007 `release.ts` 的版本覆盖面小于 `release-v2.ts`
 
@@ -152,16 +160,16 @@
 ## CI-008 工作台/IDE 二进制必须按版本重建；tag 运行没识别成 release
 
 - **现象**：
-  1. 版本一致后 `check-workbench-bundles` 报 4 个叶子二进制仍是 1.4.7，
-     “does not embed `zetawork 1.4.8`”；
-  2. 原子推送 `main` + `v1.4.8` 产生的推送运行里，`Release product binary` 全部
-     `skipped`（`release_metadata` 判 `is-release=false`，run `41426537507`）；
-  3. 用 `gh workflow run ci.yml --ref v1.4.8` 手动 dispatch 后，产物才构建出来。
+   1. 版本一致后 `check-workbench-bundles` 报 4 个叶子二进制仍是 1.4.7，
+      “does not embed `zetawork 1.4.8`”；
+   2. 原子推送 `main` + `v1.4.8` 产生的推送运行里，`Release product binary` 全部
+      `skipped`（`release_metadata` 判 `is-release=false`，run `41426537507`）；
+   3. 用 `gh workflow run ci.yml --ref v1.4.8` 手动 dispatch 后，产物才构建出来。
 - **触发点**：`710f90c50fa`、tag `v1.4.8`、run `41426537507` / `41426779676`。
 - **根因**：
-  1. 二进制内嵌 crate 版本，必须重建；本机无 MSVC，CI 用 Linux + mingw 交叉编译
-     （`zeta-work-*`、`zeta-ide-*`）；
-  2. 发布检测依赖 `git tag --points-at HEAD`，原子推送后短时间内 tag 可见性存在竞态。
+   1. 二进制内嵌 crate 版本，必须重建；本机无 MSVC，CI 用 Linux + mingw 交叉编译
+      （`zeta-work-*`、`zeta-ide-*`）；
+   2. 发布检测依赖 `git tag --points-at HEAD`，原子推送后短时间内 tag 可见性存在竞态。
 - **当时的处理**：从 run `41426779676` 下载 4 个产物，替换四个叶子二进制，
   按 sha256 重写 `.stamp.json`，提交 `7c8ca480536`，再强制移动 tag。
 - **建议方案 / 门禁**：发布脚本在 atomic push 后**显式 dispatch 一次 tag run**
@@ -252,7 +260,7 @@
 ## CI-016 新设置组未登记到 `TAB_GROUPS`
 
 - **现象**：`settings-layout` 失败：`catalog.remoteRefresh: group "Catalog" not in
-  TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
+TAB_GROUPS["model"]`，以及 `Taste` 的四条不在 `TAB_GROUPS["memory"]`。
 - **触发点**：taste 层合并 `15183edda34`。
 - **根因**：注册了 `Taste` / `Catalog` 分组，但 `pi-tui` 的 `TAB_GROUPS` 没同步；
   顺序还必须匹配 `all-settings` 的域顺序，否则连续组测试也会红。
@@ -303,7 +311,7 @@
   `an_explicit_override_command_replaces_the_chain` 断言
   `!generated["typescript"].candidates.is_empty()` 失败；
   `first_installed_candidate_wins` 报 `NotOnPath { tried:
-  ["typescript-language-server"] }`；`nothing_installed_reports_the_candidates_it_tried`
+["typescript-language-server"] }`；`nothing_installed_reports_the_candidates_it_tried`
   同样只看到单个命令。
 - **触发点**：`8e810a4fa07`（CI-017 的修复）。
 - **根因**：`lsp/servers.json` 拆成 coding-agent 的两个 key 后，生成器只把带
@@ -341,18 +349,133 @@
 
 ---
 
+## CI-021 Bazel lock 的输入哈希在 Windows 检出上失真
+
+- **现象**：run `41627466260` 的 `Check MODULE.bazel.lock freshness` 报
+  `Cargo.toml changed`；同一份提交在本地 `gen-bazel-lock --check` 却通过。
+- **触发点**：`131f4c9b33a` 之前的手工哈希刷新。
+- **根因**：Bazel 记录的是它读到的文件字节 `sha256`。Windows checkout 是 CRLF，
+  Linux CI 是 LF；当时用工作区 `sha256(Cargo.toml)=a676…` 回填，CI 的 LF blob 是
+  `132645…`，所以本地绿、CI 红。`Cargo.lock` 恰好无换行差异，第一次只修它没暴露。
+- **修复**：`scripts/gen-bazel-lock.ts --check` 先对
+  `git show HEAD:Cargo.toml|Cargo.lock` 求 `sha256`，与 lock 的
+  `FILE:@@//…` 记录比较；不一致直接失败并提示重新生成，不再依赖工作区行尾。
+- **门禁**：该输入检查所有平台都跑；`merge-gate` 的 `bazel-lock` step 跑完整
+  `gen-bazel-lock --check`（Windows 跳过完整 Bazel，CI Linux 为准）。
+- **fixed by**：`131f4c9b33a`（输入守卫在后续提交）。
+
+## CI-022 session client provenance 在 fork/copy/load 时丢失
+
+- **现象**：run `41606325272` 的 runtime/session 桶中
+  `session-client-provenance.test.ts` 两例失败：fork 后期望 `web`、从 transcript
+  fork 后期望 `cli`，实际都是 `undefined`。
+- **触发点**：`dc0d77f037c` 的 v18.16 合并冲突解决。
+- **根因**：Zeta 的 `client` 继承规则在 `#resetToNewSession` 里恢复了，但
+  `fork()`、`persistCopy()`、`forkFrom()` 各自重建 header 时没有携带；新会话路径
+  正常，分支/复制/加载路径静默丢字段。
+- **修复**：三条路径都从 `this.#header.client` / `sourceHeader.client` 继承。
+- **门禁**：`merge-contracts` 固定跑 `session-client-provenance.test.ts` 与
+  `drop-session-trash.test.ts`。
+- **fixed by**：`ceca124008f`。
+
+## CI-023 eval prelude 残留 `__omp_call_tool__`
+
+- **现象**：run `41606325272` 的 `completion-bridge.test.ts` 退出码 1；错误为
+  `globalThis.__omp_call_tool__ is not a function`。
+- **触发点**：v18.16 把 `completion().attempts()` 加进 prelude。
+- **根因**：prelude 绝大多数调用点已改成 `__zeta_call_tool__`，但 attempts 分支
+  仍调用旧名；runtime 只安装 `__zeta_call_tool__`。这是跨面 token 对，静态扫不到
+  另一侧，只有运行测试能抓。
+- **修复**：prelude 改成 `__zeta_call_tool__`。
+- **门禁**：`merge-contracts` 固定跑 `completion-bridge.test.ts`；另外 eval
+  runtime/prelude 的 `__zeta*` 对已列入 sentinel/品牌审计范围（后续补条目）。
+- **fixed by**：`ceca124008f`。
+
+## CI-024 上游新增 i18n 键没有调用点
+
+- **现象**：run `41636522109` 的 native/unit 桶
+  `i18n-message-references.test.ts` 报 8 个新的 `ask*` orphan 键（问答面板的
+  取消/自动选择/多选/问题数等文案）。
+- **触发点**：v18.16 合并带入了 en/zh/messages 的键，但当前树没有对应 call site。
+- **根因**：上游这批键对应尚未落地的 UI 路径；Zeta 的 orphan guard 要求新键要么
+  有调用点，要么登记在已审阅 backlog，合并没有同步 baseline。
+- **处理**：加入 `packages/coding-agent/test/i18n-orphan-keys.baseline.txt`，按
+  文件注释作为“已审阅、暂未接线”的清单，不删键、不伪造调用点。
+- **门禁**：`merge-contracts` 固定跑 `i18n-message-references.test.ts`。
+- **fixed by**：`131f4c9b33a`。
+
+## CI-025 品牌替换后 QR/catalog/browser 契约未同步
+
+- **现象**：run `41606325272` 多个桶红：
+   - `packages/tui/test/qrcode.test.ts`：URL 已改成 `my.zeta.sh`，但 golden
+     hash/mask 仍是 `my.omp.sh` 的值；
+   - `packages/catalog/test/compat-compile.test.ts`：committed `rules.json` 仍是旧
+     编译结果（`originator: omp`、旧默认模型）；
+   - `packages/catalog/test/deepinfra-provider.test.ts`：实现发 `sort_by=zeta`，
+     测试仍断言 `sort_by=omp`；
+   - browser relay 测试断言 `omp` 文案/端口 9224，源码已是 `zeta`/43153。
+- **触发点**：`dc0d77f037c` 的品牌 sweep 只改了部分面。
+- **根因**：品牌替换跨越「输入 fixture / golden / 实现常量 / 测试断言」四个面；
+  sweep 改了 URL 没重算 QR，改了实现没更新断言，改了端口没改测试。
+- **处理**：重算 QR golden；`gen:compat` 重生成 rules；DeepInfra 断言改
+  `zeta`；browser 文案统一 `zeta`，端口测试改为解析实际 `DEFAULT_PORT`。
+- **门禁**：`merge-contracts` 固定跑 catalog compat、qrcode、browser-worker-exit；
+  `merge-gate` 也已包含 catalog/LSP/导出/i18n 的生成物检查。
+- **fixed by**：`ceca124008f`。
+
+## CI-026 merge test audit 未归一化 prose 品牌词
+
+- **现象**：修复提交后本地 `merge-gate` 的 `upstream test/fixture import` 报
+  `browser-relay-detach.test.ts` 的 `modified-upstream-missing`，但该文件实际包含
+  上游新增的 iframe/detach 用例。
+- **触发点**：`ceca124008f` 把测试断言里的 `omp` 改成 `zeta` 后。
+- **根因**：审计的 `normalizeForUpstreamComparison` 只归一化了 scope、`.zeta`、
+  `zetacode` 等路径/包名，没有把 prose 里的 `zeta` 映射回 `omp`；三方合并因此把
+  合法品牌改动当成漏掉的上游 hunk。
+- **修复**：归一化链末尾增加 `zeta → omp`（只用于审计比较，不改产品）。
+- **门禁**：该审计本来就在 `audit-tests`；`scripts/audit-merge-tests.test.ts`
+  继续跑在 `guard-tests`。
+- **fixed by**：`ceca124008f`。
+
+## CI-027 package.json merge guard 扫上游 merge 历史导致 gate 卡死
+
+- **现象**：v18.16 sync 分支的 `merge-gate --gates-only` 在
+  `package.json merge-drop` 停 >1 小时；单独跑该守卫也 15 分钟不结束。
+- **根因**：`git rev-list --merges main..HEAD` 把 v18.16 tag 历史里的 56 个上游
+  merge 全算进来；每个 merge 又对 38 个 manifest × 4 个 revision 调 `git show`，
+  约 8,500 次子进程。守卫本意只检查“本分支自己做的 merge”。
+- **修复**：改为 `git rev-list --first-parent --merges`，只沿分支第一父链；同时
+  `merge-gate` 显式传 `--base <base>`。
+- **门禁**：该守卫自身保留在 `merge-gate`；新增回归测试覆盖 first-parent 选择。
+- **fixed by**：`6003909a855` 前的工作树（已包含在 sync 分支）。
+
+## CI-028 契约问题只有 CI 才发现，本地 gate 未覆盖
+
+- **现象**：v18.16 的三轮 CI 分别暴露 session/fork、eval 全局、i18n orphan、
+  QR/catalog/browser 契约；本地 `--gates-only` 全绿，直到 CI 才红。
+- **根因**：`merge-gate` 的 guard 覆盖生成物和静态扫描，但不跑“跨面契约”测试；
+  CI 的 7 个分桶才是第一次运行这些断言。
+- **处理**：新增 `merge-contracts` guard step，固定跑：
+  catalog compat、QR golden、session client provenance、drop-session trash、
+  eval completion bridge、browser worker exit、i18n orphan、settings zh。
+- **门禁**：`merge-gate.ts` 的 `merge-contracts`；与 `guard-tests` 一起在本地
+  `--gates-only` 阶段执行。
+- **fixed by**：本次门禁提交。
+
+---
+
 ## 附：1.4.8 发布链路时间线（供后续复盘）
 
-| 步骤 | 提交 / run | 结果 |
-|---|---|---|
-| 上游 18.15.0 真合并 | `2fffbf6b95a` | 56 冲突，修复 `54d6a69fad4` / `e7d7f7f5776` |
-| 分享退役 + 防复活守卫 | `676287bf017` / `4b03d257ad8` | 本地类型检查绿 |
-| 合并 `main` 进发布线 | `15183edda34` | 3 冲突；`nix/bun.nix` 红（CI-004） |
-| 第一次 bump（`release.ts`） | `73720678956` | 版本覆盖不全（CI-007）；bazel 锁红（CI-005） |
-| 锁产物提交 | `570ad1ef4ff` | bazel 锁绿 |
-| 补齐版本 + changelog + main Cargo | `710f90c50fa` | 版本一致性绿；workbench 二进制仍红（CI-008） |
-| 安装 CI 构建的二进制 | `7c8ca480536`（tag `v1.4.8`） | lint/check/锁/产物二进制绿 |
-| 最终发布 run | `41436102660` | 失败于导出查看器元数据（CI-009）；**未发布** |
+| 步骤                              | 提交 / run                    | 结果                                         |
+| --------------------------------- | ----------------------------- | -------------------------------------------- |
+| 上游 18.15.0 真合并               | `2fffbf6b95a`                 | 56 冲突，修复 `54d6a69fad4` / `e7d7f7f5776`  |
+| 分享退役 + 防复活守卫             | `676287bf017` / `4b03d257ad8` | 本地类型检查绿                               |
+| 合并 `main` 进发布线              | `15183edda34`                 | 3 冲突；`nix/bun.nix` 红（CI-004）           |
+| 第一次 bump（`release.ts`）       | `73720678956`                 | 版本覆盖不全（CI-007）；bazel 锁红（CI-005） |
+| 锁产物提交                        | `570ad1ef4ff`                 | bazel 锁绿                                   |
+| 补齐版本 + changelog + main Cargo | `710f90c50fa`                 | 版本一致性绿；workbench 二进制仍红（CI-008） |
+| 安装 CI 构建的二进制              | `7c8ca480536`（tag `v1.4.8`） | lint/check/锁/产物二进制绿                   |
+| 最终发布 run                      | `41436102660`                 | 失败于导出查看器元数据（CI-009）；**未发布** |
 
 **当前状态（2026-11-03）**：tag `v1.4.8` 仍指向 `7c8ca480536`，未移动；GitHub
 Release 未创建、npm 仍是 `1.4.7`。用户已要求暂停发布链，先记录问题并准备上游
