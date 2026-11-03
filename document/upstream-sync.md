@@ -26,7 +26,7 @@ merge.
   dedicated on-demand sync after 1.4.0 ships; the security hardening above is
   the first reason to schedule it.
 
-## v18.16.0 merge preparation (2026-11-03 — prepared, NOT started)
+## v18.16.0 merge (2026-11-03 — sync branch, gate pending)
 
 - **Candidate source tag**: `v18.16.0`, peeled
   `650f3a108229ee11bf68ba3377f4e8c3391cd424`; verified with
@@ -115,8 +115,20 @@ merge.
      shared-infra and LSP/export contract tests.
   5. Do not merge `main` back until CI-019 is resolved and the branch is green.
 
-- **Status**: prepared only. No sync worktree, branch, merge commit, tag or
-  release was created in this step.
+- **Tag-to-tag delta audit (2026-11-03)**: `git diff --name-status v18.15.0
+  v18.16.0` lists 467 paths. Comparing the resolved tree against `v18.15.0`
+  finds 462 present and changed; the other 5 are deliberate Zeta decisions:
+  - `packages/coding-agent/src/export/share.ts` and
+    `packages/coding-agent/test/share.test.ts` — retired `/share` upload surface;
+  - `sdk/{go,python,rust}/omp-rpc/**` — renamed distribution trees
+    (`sdk/*/zeta-rpc`); wire payloads are unchanged.
+  No upstream path was silently left at its v18.15.0 content. The 140
+  conflicts were resolved per path against this tag-to-tag delta; the final
+  gate must stay green after any later amendment.
+- **Status**: sync worktree `temp/sync-v18.16.0`, branch
+  `sync/omp-release/v18.16.0` and a local true-merge commit exist. Nothing was
+  pushed, tagged, or merged into `main`; the branch is waiting for the full
+  gate and explicit approval.
 
 ## v18.15.0 incremental merge (Zeta — branch `sync/omp-release/v18.15.0`, 2026-11-02; merge `2fffbf6b95a`)
 
@@ -2618,6 +2630,23 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 - **Ledger discipline**: future omp-web cherry-picks get a dated subsection
   under this entry.
 
+### Attribution and licence duties
+
+Zeta is a downstream fork, not the upstream project. Every sync must keep the
+open-source attribution truthful:
+
+- `NOTICE` names the upstream project and repository, the integrated release
+  tag and commit, the upstream licence and copyright holders, and Zeta's
+  modifications; update the tag/commit there on every sync.
+- `README.md` keeps its short upstream-fork statement; `LICENSE` keeps the
+  upstream MIT text and copyright lines alongside Zeta's.
+- Never overwrite or delete a vendored tree's own `LICENSE` or its `VENDOR.md`
+  modification ledger (`termide/`, `editor/`).
+- `scripts/check-license-map.ts` fails the merge gate if the fork attribution
+  or the licence path map is dropped.
+
+This is an attribution obligation, not a claim that upstream endorses Zeta.
+
 ## OMP Release Sync Policy
 
 - Only OMP official release tags are integrated (see AGENTS.md). Never raw commits or `omp-upstream/main`.
@@ -2626,12 +2655,14 @@ scripts/check-ci-surface.ts`(2026-09-30,job 娓呭崟/needs 鎺ョ嚎/浜х墿�
 
 ## Current Baselines
 
-- OMP: `v18.14.2` (`7efd77219374ca4e8767979809835e4aa90666ba`; integrated into
-  `main` by merge `264ea62c460`). Previous value was `v18.14.1`
-  (`c29f7c56f553`, merge `0b9cdb21e43`). One tag per release, each on its own
-  `sync/omp-release/*` branch; no next target chosen.
-- Zeta: `1.4.7` (version line holds across the published `@linxiraos/*`
-  packages, the Cargo workspace and the natives stamp).
+- OMP: `v18.15.0` (`3fedf8d53267e32a6d7521ce725fdcc4a36fdc67`; integrated
+  into `main` by merge `2fffbf6b95a`). Previous values were `v18.14.2`
+  (`7efd77219374ca4e8767979809835e4aa90666ba`, merge `264ea62c460`) and
+  `v18.14.1` (`c29f7c56f553`, merge `0b9cdb21e43`). One tag per release, each
+  on its own `sync/omp-release/*` branch; `v18.16.0` is in flight on
+  `sync/omp-release/v18.16.0`.
+- Zeta: `1.4.8` (version line holds across the published `@linxiraos/*`
+  packages, the Cargo workspace and the natives stamp; tag not released yet).
 - termide (IDE upstream): `0.46.0` (`a027ca788cd4`), merged as `15161f686fb`
   (`vendor/termide-0.46.0`). 0.47.0 / 0.47.1 / 0.48.0 exist upstream and are
   **not** integrated — `0.47.1` is a zip path-traversal security fix.

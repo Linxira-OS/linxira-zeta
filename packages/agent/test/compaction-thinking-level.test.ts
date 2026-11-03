@@ -3,10 +3,10 @@ import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type CompactionPreparation,
 	compact,
-	createFileOps,
 	DEFAULT_COMPACTION_SETTINGS,
 	generateHandoff,
 } from "@linxiraos/pi-agent-core/compaction";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import { ThinkingLevel } from "@linxiraos/pi-agent-core/thinking";
 import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
@@ -182,7 +182,7 @@ function makePreparation(overrides: Partial<CompactionPreparation> = {}): Compac
 		recentMessages: [makeUserMessage("recent msg")],
 		isSplitTurn: true,
 		tokensBefore: 12_345,
-		fileOps: createFileOps(),
+		fileOps: snapcompact.createFileOps(),
 		settings: { ...DEFAULT_COMPACTION_SETTINGS, remoteEnabled: false },
 		...overrides,
 	};

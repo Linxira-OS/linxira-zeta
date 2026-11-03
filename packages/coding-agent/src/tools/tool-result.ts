@@ -1,7 +1,7 @@
 import type { AgentToolResult } from "@linxiraos/pi-agent-core";
 import type { ImageContent, TextContent } from "@linxiraos/pi-ai";
 import type { OutputSummary, TruncationResult } from "@linxiraos/pi-tui/tools/streaming-output";
-import type { OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
+import type { MinimizedMeta, OutputMeta } from "@linxiraos/pi-tui/tools/output-meta";
 import type { LimitsInput, TruncationMetaInput, TruncationSummaryOptions, TruncationTextOptions } from "./output-meta";
 import { outputMeta } from "./output-meta";
 
@@ -73,6 +73,12 @@ export class ToolResultBuilder<TDetails extends DetailsWithMeta> {
 
 	diagnostics(summary: string, messages: string[]): this {
 		this.#meta.diagnostics(summary, messages);
+		return this;
+	}
+
+	/** Record the bash minimizer's rewrite of this output, when there was one. */
+	minimized(value: MinimizedMeta | undefined): this {
+		this.#meta.minimized(value);
 		return this;
 	}
 

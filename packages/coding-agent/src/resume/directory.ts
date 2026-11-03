@@ -378,7 +378,7 @@ export interface LoadResumeDirectoryOptions extends Omit<BuildResumeDirectoryOpt
  */
 export async function loadResumeDirectory(options: LoadResumeDirectoryOptions = {}): Promise<ResumeDirectory> {
 	const [sessions, pinnedIds, preferences] = await Promise.all([
-		options.sessions ?? SessionManager.listAllForPicker(options.storage, options.sessionsRoot),
+		options.sessions ?? (await SessionManager.listAllForPicker(options.storage, options.sessionsRoot)).sessions,
 		options.pinnedIds ?? loadPinnedSessionIds(options.agentDir),
 		options.preferences ?? loadResumePreferences(options.agentDir, options.preferencesOptions),
 	]);

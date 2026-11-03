@@ -3,11 +3,11 @@ import type { AgentMessage } from "@linxiraos/pi-agent-core";
 import {
 	type CompactionPreparation,
 	compact,
-	createFileOps,
 	DEFAULT_COMPACTION_SETTINGS,
 	generateSummary,
 	MAX_SUMMARY_TOKENS,
 } from "@linxiraos/pi-agent-core/compaction";
+import * as snapcompact from "@linxiraos/pi-snapcompact";
 import type { AssistantMessage, Model } from "@linxiraos/pi-ai";
 import * as ai from "@linxiraos/pi-ai";
 import { getBundledModel } from "@linxiraos/pi-catalog/models";
@@ -77,7 +77,7 @@ describe("compaction summary output budget", () => {
 			recentMessages: [{ role: "user", content: "recent", timestamp: 3 }],
 			isSplitTurn: true,
 			tokensBefore: 900_000,
-			fileOps: createFileOps(),
+			fileOps: snapcompact.createFileOps(),
 			settings: {
 				...DEFAULT_COMPACTION_SETTINGS,
 				reserveTokens: 150_000,
@@ -100,7 +100,7 @@ describe("compaction summary output budget", () => {
 			recentMessages: [{ role: "user", content: "recent", timestamp: 3 }],
 			isSplitTurn: true,
 			tokensBefore: 900_000,
-			fileOps: createFileOps(),
+			fileOps: snapcompact.createFileOps(),
 			settings: {
 				...DEFAULT_COMPACTION_SETTINGS,
 				reserveTokens: 16_384,

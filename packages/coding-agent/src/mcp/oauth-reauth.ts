@@ -14,7 +14,7 @@
  * shown, and (TUI only) where manual code input comes from.
  */
 import * as path from "node:path";
-import { getMCPConfigPath, getProjectDir } from "@linxiraos/pi-utils";
+import { getMCPConfigPath, getProjectDir, toError } from "@linxiraos/pi-utils";
 import type { OAuthController } from "@linxiraos/pi-ai/oauth/types";
 import { expandEnvVarsDeep } from "../discovery/helpers";
 import { connectToServer, disconnectServer } from "./client";
@@ -406,7 +406,7 @@ export async function resolveMcpOAuthEndpointsFromServer(
 		});
 		connectionSucceeded = true;
 	} catch (error) {
-		connectionError = error instanceof Error ? error : new Error(String(error));
+		connectionError = toError(error);
 	}
 
 	if (connectionSucceeded && !opts.authChallenge) {

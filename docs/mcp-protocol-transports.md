@@ -2,6 +2,13 @@
 
 This document describes how coding-agent implements MCP JSON-RPC messaging and how protocol concerns are split from transport concerns.
 
+> **Protocol ownership.** MCP and its transports are third-party protocols;
+> this page documents Zeta's implementation of them, not a fork of the
+> specification. Upstream wire changes are adopted as-is. Zeta-specific SDK
+> directory/package names (`sdk/*/zeta-rpc` instead of upstream
+> `sdk/*/omp-rpc`) are distribution names, not protocol changes. Any actual
+> wire divergence belongs in this page with the upstream version it applies to.
+
 ## Scope
 
 Covers:

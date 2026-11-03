@@ -13,6 +13,8 @@
  * Binds loopback only: anything that can reach this port can drive the
  * user's logged-in browser.
  */
+import { macOSFrontApp } from "@linxiraos/pi-natives";
+import { parseFlag } from "@linxiraos/pi-utils";
 import { VERSION } from "@linxiraos/pi-utils/dirs";
 import { RelayBridge, type RelayBridgeExtensionUpdater } from "./bridge";
 import {
@@ -40,7 +42,7 @@ export interface RelayServerOptions {
 
 /**
  * Updates the extension when Chrome loaded it from `dir`: an extension loaded from elsewhere (`install --dir`, a
- * development build) is not this relay's to rewrite, and files a newer omp wrote are left for that omp's relay.
+ * development build) is not this relay's to rewrite, and files a newer zeta wrote are left for that zeta's relay.
  * Calls run one at a time: Chrome profiles that load the same folder share its files, and a later call finds them
  * already current.
  */
@@ -118,6 +120,10 @@ export function startRelayServer(opts: RelayServerOptions): RelayServer {
 	const bridge = new RelayBridge({ log, group, updateExtension });
 	const sockets = new Set<RelayWebSocket>();
 	const startedAt = Date.now();
+	// Only macOS can hand the front app back; elsewhere the relay never reads it.
+	if (process.platform === "darwin" && parseFlag(process.env.PI_BROWSER_RELAY_KEEP_FRONT, true)) {
+		bridge.keepFrontAppWith(macOSFrontApp);
+	}
 
 	const server = Bun.serve({
 		hostname: "127.0.0.1",

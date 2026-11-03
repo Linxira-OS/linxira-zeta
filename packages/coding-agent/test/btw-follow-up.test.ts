@@ -5,6 +5,7 @@ import * as path from "node:path";
 import type { AssistantMessage, ImageContent, Message, Usage } from "@linxiraos/pi-ai";
 import { BtwHistoryPanel } from "@linxiraos/pi-tui/overlays/btw-history-panel";
 import { BtwController } from "@linxiraos/zeta/modes/controllers/btw-controller";
+import { Settings } from "@linxiraos/zeta/config/settings";
 import { initTheme } from "@linxiraos/pi-tui/theme";
 import type { InteractiveModeContext } from "@linxiraos/zeta/modes/types";
 import { type BtwHistoryRecord, BtwHistoryStore, getBtwTurns } from "@linxiraos/zeta/session/btw-history";
@@ -109,6 +110,7 @@ async function harness(spaceHoldKeys: readonly KeyId[] = ["space"]) {
 		} as unknown as TUI,
 		btwContainer: new Container(),
 		session,
+		settings: Settings.isolated(),
 		keybindings: {
 			getKeys(action: string) {
 				return action === "app.stt.pushToTalk" ? [...spaceHoldKeys] : [];

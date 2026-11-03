@@ -92,6 +92,11 @@
       "import": "./native/vcs.js",
       "default": "./native/vcs.js"
     },
-    "./THIRD-PARTY-NOTICES.txt": "./THIRD-PARTY-NOTICES.txt"
+    "./THIRD-PARTY-NOTICES.txt": "./THIRD-PARTY-NOTICES.txt",
+    "./sqlite-locks": {
+      "types": "./native/sqlite-locks.d.ts",
+      "import": "./native/sqlite-locks.js",
+      "default": "./native/sqlite-locks.js"
+    }
   }
 }

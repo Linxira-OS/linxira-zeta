@@ -1485,10 +1485,15 @@ export interface SessionSelectorOptions<T extends SessionSelectorEntry = Session
 	/** Persist the selected session's pin state (pin keys / the picker's Pin action). */
 	onSetPinned?: (session: T, pinned: boolean) => Promise<void>;
 	historyMatcher?: SessionHistoryMatcher;
+	/**
+	 * Complete folder listing when the constructor's `sessions` are a preliminary
+	 * subset; replaces them once it settles.
+	 */
+	completeSessions?: Promise<T[]>;
 	/** Loads sessions across all projects for the all-projects scope toggle (Tab). */
-	loadAllSessions?: () => Promise<T[]>;
+	loadAllSessions?: () => Promise<T[] | { sessions: T[] }>;
 	/** Preloaded all-projects list; cached so the first Tab toggle is instant. */
-	allSessions?: T[];
+	allSessions?: T[] | { sessions: T[] };
 	/**
 	 * The host's resume model (project → workspace → conversation) and its
 	 * pure view builder. When set, the native `picker` describes the resume
@@ -1601,7 +1606,7 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 	#onRename?: (session: T, title: string) => Promise<string | null>;
 	#onSetPinned?: (session: T, pinned: boolean) => Promise<void>;
 	#onRequestRender?: () => void;
-	readonly #loadAllSessions?: () => Promise<T[]>;
+	readonly #loadAllSessions?: () => Promise<T[] | { sessions: T[] }>;
 	#folderSessions: T[];
 	readonly #folderShowCwd: boolean;
 	#globalSessions: T[] | null = null;
@@ -1714,13 +1719,27 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 		// Storage directory, not recorded cwd: one folder's sessions may record
 		// symlink aliases of the same path, which must not turn the column on.
 		this.#folderShowCwd = options.showCwd ?? new Set(sessions.map(session => path.dirname(session.path))).size > 1;
-		this.#globalSessions = options.allSessions ?? null;
+		this.#globalSessions = Array.isArray(options.allSessions)
+			? options.allSessions
+			: (options.allSessions?.sessions ?? null);
 		this.#getTerminalRows = options.getTerminalRows ?? (() => 24);
 		this.#fillHeight = options.fillHeight ?? false;
 		this.#title = options.title ?? tuiText("ssTitleResume", "Resume Session");
 		this.#actionLabel = options.actionLabel ?? "Resume";
 		this.#pickerTitle = options.title;
 		this.#standalone = options.standalone ?? false;
+		if (options.completeSessions) {
+			void options.completeSessions.then(rows => {
+				const next = rows.filter(row => !this.#resumeHidden.has(row.path));
+				const selected = this.#sessionList.selectedSession?.path;
+				this.#folderSessions = next;
+				if (this.#scope === "folder") {
+					this.#sessionList.setSessions(next, this.#folderShowCwd);
+					if (selected) this.#sessionList.selectSession(selected);
+				}
+				this.#onRequestRender?.();
+			});
+		}
 		this.#resumeSource = options.resumeSource;
 		this.#resumeScope = options.resumeSource?.initialScope ?? "workspace";
 		this.#deleteMode = options.deleteMode ?? options.resumeSource?.deleteMode ?? "permanent";
@@ -1852,7 +1871,8 @@ export class SessionSelectorComponent<T extends SessionSelectorEntry = SessionSe
 				this.#message = { kind: "loading", text: loading };
 				this.#onRequestRender?.();
 				try {
-					global = await this.#loadAllSessions();
+					const loaded = await this.#loadAllSessions();
+					global = Array.isArray(loaded) ? loaded : loaded.sessions;
 				} catch (err) {
 					this.#showError(err instanceof Error ? err.message : String(err));
 					this.#toggling = false;

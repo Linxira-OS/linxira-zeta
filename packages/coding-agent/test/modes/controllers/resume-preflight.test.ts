@@ -223,7 +223,11 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 			firstMessage: "first",
 			allMessagesText: "first",
 		};
-		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue([session]);
+		const listed = [session];
+		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue({
+			sessions: listed,
+			complete: Promise.resolve(listed),
+		});
 		const OriginalSelector = SessionSelector.SessionSelectorComponent;
 		const selectionPromises: Promise<void>[] = [];
 		// `/resume` opens the three-level picker, whose tree owns Enter; drive the
@@ -276,7 +280,11 @@ describe("SelectorController.handleResumeSession preflight flush", () => {
 			firstMessage: "first",
 			allMessagesText: "first",
 		};
-		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue([session]);
+		const listed = [session];
+		vi.spyOn(SessionManager, "listForPicker").mockResolvedValue({
+			sessions: listed,
+			complete: Promise.resolve(listed),
+		});
 		const OriginalSelector = SessionSelector.SessionSelectorComponent;
 		let selectionPromise: Promise<void> | undefined;
 		let selectSession: ((session: SessionInfo) => void) | undefined;

@@ -19,7 +19,7 @@ import type { MessagePort } from "node:worker_threads";
 import type { CliConfig, CommandMetadata } from "@linxiraos/pi-utils/cli";
 import type * as Postmortem from "@linxiraos/pi-utils/postmortem";
 import {
-	CLI_BIN_NAME,
+	APP_NAME,
 	getActiveProfile,
 	MIN_BUN_VERSION,
 	resolveProfileEnv,
@@ -28,6 +28,7 @@ import {
 } from "@linxiraos/pi-utils/dirs";
 
 import { declareWorkerHostEntry, installWorkerInbox, isWorkerHostSelector } from "@linxiraos/pi-utils/worker-host";
+import { installSqliteLockShim } from "@linxiraos/pi-natives/sqlite-locks";
 import { extractProfileFlags } from "./cli/profile-bootstrap";
 import {
 	BLOB_BROKER_WORKER_ARG,
@@ -53,10 +54,10 @@ if (Bun.semver.order(Bun.version, MIN_BUN_VERSION) < 0) {
 }
 
 // On Windows `process.title` is the shared console title, not a process name
-// (see `setProcessName`): every zetacode child would retitle the pane's tab.
+// (see `setProcessName`): every zeta child would retitle the pane's tab.
 if (process.platform !== "win32") {
 	try {
-		process.title = CLI_BIN_NAME;
+		process.title = APP_NAME;
 	} catch {}
 }
 
@@ -100,7 +101,7 @@ const PREPAINT_SAFE_FLAGS: Record<string, true> = {
 async function setFullProcessName(): Promise<void> {
 	// Latency boundary: bun:ffi/node:os are unnecessary before the first frame.
 	const { setProcessName } = await import("@linxiraos/pi-utils/process-name");
-	setProcessName(CLI_BIN_NAME);
+	setProcessName(APP_NAME);
 }
 
 /** Install PI_PROXY handling before any command implementation can make a provider request. */
@@ -431,9 +432,9 @@ async function runIpcSubprocessWorker<In, Out>(
 /**
  * Hidden subcommand that boots the ONNX tiny-model worker for one model: a
  * detached process owning that model's socket (`OMP_TINY_WORKER_SOCKET`),
- * shared by every omp process on the machine and exiting on its own when
+ * shared by every zeta process on the machine and exiting on its own when
  * idle. It exists so `onnxruntime-node` (loaded transitively by
- * `@huggingface/transformers`) never runs in an omp address space — its NAPI
+ * `@huggingface/transformers`) never runs in an zeta address space — its NAPI
  * finalizer segfaults Bun on Windows (issue #1606).
  */
 async function runTinyWorker(): Promise<void> {
@@ -453,22 +454,22 @@ export async function runCli(argv: string[]): Promise<void> {
 		if (extracted.profile !== undefined) {
 			setProfile(extracted.profile);
 		} else {
-			// No explicit --profile: activate any ZETA_PROFILE inherited
+			// No explicit --profile: activate any OMP_PROFILE/PI_PROFILE inherited
 			// from the environment. Module-load resolution deliberately swallows an
 			// invalid value to avoid an uncaught throw before this try/catch is in
 			// scope (see `readProfileFromEnvSafe` in dirs.ts), and callers may set
-			// ZETA_PROFILE after importing this module (profile aliases/tests). Surfacing
-			// validation here turns `ZETA_PROFILE=.. zetacode --version` into a clean error;
+			// OMP_PROFILE after importing this module (profile aliases/tests). Surfacing
+			// validation here turns `OMP_PROFILE=.. zetacode --version` into a clean error;
 			// calling setProfile keeps every later path helper on the env-selected
 			// profile instead of the default agent directory.
-			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE));
+			setProfile(resolveProfileEnv(process.env.ZETA_PROFILE ?? process.env.OMP_PROFILE ?? process.env.PI_PROFILE));
 		}
 		if (extracted.aliasName !== undefined) {
 			// Command boundary: shell/path setup is used only by --alias.
 			const { installProfileAlias, resolveProfileAliasCommandFromProcess } = await import("./cli/profile-alias");
 			const profile = extracted.profile ?? getActiveProfile();
 			if (!profile) {
-				throw new Error("--alias requires --profile <name> or ZETA_PROFILE");
+				throw new Error("--alias requires --profile <name> or OMP_PROFILE");
 			}
 			const result = await installProfileAlias({
 				profile,
@@ -523,6 +524,18 @@ export async function runCli(argv: string[]): Promise<void> {
 		process.stdout.write(formatLicenseOutput());
 		return;
 	}
+	const helpOrVersion =
+		resolvedArgv[0] === "--help" ||
+		resolvedArgv[0] === "-h" ||
+		resolvedArgv[0] === "--version" ||
+		resolvedArgv[0] === "-v" ||
+		resolvedArgv[0] === "help";
+	// Before any store opens (the prepaint composer's cache included): SQLite's POSIX
+	// locks would be released by any other close of the same file in this process
+	// (issue #15586); OFD locks are not. Help and version open no store and load no addon.
+	// A failed install is reported once the launch has a warning sink (`main.ts`,
+	// `ensureSqliteLockShim`); this module stays free of pi-utils' env snapshot.
+	if (isProcessEntry && !helpOrVersion) installSqliteLockShim();
 	let stopStartupComposer: (() => void) | undefined;
 	if (
 		!process.env.PI_TIMING &&
@@ -541,12 +554,6 @@ export async function runCli(argv: string[]): Promise<void> {
 	// The speculative composer owns stdin before either loader yields, so input
 	// typed during initialization stays buffered. Neither graph is needed to
 	// produce that frame.
-	const helpOrVersion =
-		resolvedArgv[0] === "--help" ||
-		resolvedArgv[0] === "-h" ||
-		resolvedArgv[0] === "--version" ||
-		resolvedArgv[0] === "-v" ||
-		resolvedArgv[0] === "help";
 	await Promise.all([setFullProcessName(), helpOrVersion ? Promise.resolve() : installNetworkBootstrap()]);
 
 	if (resolvedArgv[0] === "--smoke-test") {
@@ -568,7 +575,7 @@ export async function runCli(argv: string[]): Promise<void> {
 			return;
 		}
 		runningCommand = resolved.argv[0];
-		await run({ bin: CLI_BIN_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
+		await run({ bin: APP_NAME, version: VERSION, argv: resolved.argv, commands, metadataHelp: showHelp });
 	} finally {
 		stopStartupComposer?.();
 	}
@@ -586,19 +593,17 @@ export async function runCli(argv: string[]): Promise<void> {
 // their entry with `import.meta.main === false`, so the worker-host dispatch
 // is admitted via `!Bun.isMainThread`.
 if (isProcessEntry || !Bun.isMainThread) {
-	const postmortem: typeof Postmortem | undefined = isProcessEntry
-		? require("@linxiraos/pi-utils/postmortem.js")
-		: undefined;
-	postmortem?.installProcessHandlers();
+	const postmortem: typeof Postmortem = require("@linxiraos/pi-utils/postmortem.js");
+	postmortem.installProcessHandlers();
 	// A one-shot CLI run (`zetacode --help | head`, `zetacode --version | true`, `zetacode <sub> | grep -m1`)
 	// whose stdout consumer closes before the write drains gets an EPIPE that Bun surfaces as
 	// an unhandled rejection. Treat a vanished stdout peer as an ordinary Unix disconnect
 	// (graceful exit) rather than the fatal path. Interactive launches register their own
 	// terminal lifetime; help/version/subcommand launches never start one. See #10930. The
 	// registration lives for the process — a one-shot entry exits right after runCli settles.
-	postmortem?.registerStdioDisconnectHandling();
+	postmortem.registerStdioDisconnectHandling();
 	const entry = runCli(process.argv.slice(2));
-	postmortem?.reportUnsettledEntry(entry, () => runningCommand);
+	postmortem.reportUnsettledEntry(entry, () => runningCommand);
 	entry.catch(async error => {
 		// Failure boundary: inspector/postmortem is irrelevant to successful startup.
 		const { fatal } = await import("@linxiraos/pi-utils/postmortem");

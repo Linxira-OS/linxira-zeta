@@ -3,7 +3,7 @@
  *
  * `connectSharedLspTransport` ensures the per-project mux daemon is running
  * under the daemon broker (same lifecycle as the shared Chromium: started on
- * first use, stopped when the last omp process in the project exits), dials
+ * first use, stopped when the last zeta process in the project exits), dials
  * its socket, performs the `zeta/muxConnect` handshake, and returns an
  * {@link LspTransport} the ordinary LSP client machinery drives exactly like
  * a locally spawned server. Every failure degrades to `null` so callers fall
@@ -11,7 +11,7 @@
  */
 import * as os from "node:os";
 import { IpcConnection, ipcEndpoint } from "@linxiraos/pi-natives";
-import { logger, ptree } from "@linxiraos/pi-utils";
+import { logger, ptree, toError } from "@linxiraos/pi-utils";
 import { encodeMessageFrame, MessageFramer } from "../../jsonrpc/message-framing";
 import { daemonClientForProject } from "../../launch/client";
 import { describeQuietly, stopQuietly, waitReady } from "../../launch/ensure";
@@ -106,7 +106,7 @@ function requestOnLink(
 					message = JSON.parse(text);
 				} catch (error) {
 					cleanup();
-					reject(error instanceof Error ? error : new Error(String(error)));
+					reject(toError(error));
 					return;
 				}
 				if (message.id !== request.id) continue;
@@ -118,7 +118,7 @@ function requestOnLink(
 		} catch (error) {
 			cleanup();
 			link.connection.destroy();
-			reject(error instanceof Error ? error : new Error(String(error)));
+			reject(toError(error));
 		}
 	};
 	const close = () => {

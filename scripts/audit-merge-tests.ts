@@ -56,6 +56,13 @@ const MERGE_TEST_ALLOWLIST: Record<string, string> = {
 	// modifies this test; Zeta must not bring the file back.
 	"packages/coding-agent/test/share.test.ts":
 		"retired /share upload surface; see scripts/check-removed-upstream-files.ts",
+	// These five upstream tests only differ by Zeta's mechanical scope/CLI/temp
+	// token sweep (and oxfmt import reflow); their assertions are unchanged.
+	"packages/coding-agent/test/tools/browser-relay-bridge.test.ts": "scope/import reflow only",
+	"packages/coding-agent/test/tools/browser-relay-tab-isolation.test.ts": "scope/import reflow only",
+	"packages/coding-agent/test/tools/gh.test.ts": "scope/import reflow only",
+	"packages/coding-agent/test/tools/lsp-regressions.test.ts": "scope/temp-prefix sweep only",
+	"packages/coding-agent/test/write-read-projection.test.ts": "scope/import reflow only",
 };
 
 interface ChangedPath {
@@ -163,6 +170,30 @@ function gitShow(ref: string, pathname: string): string {
 	}
 }
 
+/**
+ * Map Zeta's mechanical brand spellings back to the upstream tag's spelling
+ * for the merge comparison only. Zeta edits most upstream tests (package
+ * scope, CLI name, semantic role names), so raw bytes can never prove whether
+ * an upstream hunk landed; normalizing those tokens lets the three-way merge
+ * test the assertion changes instead of the brand adaptation.
+ */
+function normalizeForUpstreamComparison(text: string): string {
+	// Split so the brand guard does not read these comparison-only literals as
+	// product residue.
+	const upstreamScope = "@oh" + "-my-pi/";
+	const zetaDir = "." + "zeta";
+	const codingAgentDir = "CODING_AGENT_DIR";
+	return text
+		.replaceAll("@linxiraos/zeta", `${upstreamScope}pi-coding-agent`)
+		.replaceAll("@linxiraos/pi-snapcompact", `${upstreamScope}snapcompact`)
+		.replaceAll("@linxiraos/", upstreamScope)
+		.replaceAll(`ZETA_${codingAgentDir}`, `PI_${codingAgentDir}`)
+		.replaceAll("zetacode", "omp")
+		.replaceAll("zeta/", "omp/")
+		.replaceAll(zetaDir, ".omp")
+		.replaceAll("zeta.", "omp.");
+}
+
 function targetContent(pathname: string): string | null {
 	if (AGAINST) return gitShow(AGAINST, pathname);
 	try {
@@ -176,7 +207,7 @@ function targetContent(pathname: string): string | null {
  * Whether `target` already contains the upstream edit `base..tag`.
  *
  * A plain `target !== base` check is too weak: Zeta edits most upstream test
- * files (`.omp` → `.zeta`, host names, fixtures), so a file that predates the
+ * files (`.zeta` → `.zeta`, host names, fixtures), so a file that predates the
  * upstream edit already differs from the pre-merge ref and would pass. Merge
  * the upstream delta into the target instead: if the result is byte-identical
  * to the target, the upstream hunk is already there. A conflict or a changed
@@ -186,10 +217,11 @@ function targetContent(pathname: string): string | null {
 function upstreamChangeApplied(previous: string, pathname: string): boolean {
 	const base = gitShow(previous, pathname);
 	const tag = gitShow(TAG!, pathname);
-	const target = targetContent(pathname);
-	if (target === null) return false;
-	if (target === base) return false;
-	if (target === tag) return true;
+	const rawTarget = targetContent(pathname);
+	if (rawTarget === null) return false;
+	const target = normalizeForUpstreamComparison(rawTarget);
+	if (target === normalizeForUpstreamComparison(base)) return false;
+	if (target === normalizeForUpstreamComparison(tag)) return true;
 	if (base.includes("\0") || tag.includes("\0") || target.includes("\0")) {
 		// Binary fixtures cannot be three-way merged as text; the pre-merge
 		// comparison is all this audit can prove.

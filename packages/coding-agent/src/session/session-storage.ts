@@ -14,16 +14,17 @@ import {
 import { type FsError, hasFsCode, isEnoent } from "@linxiraos/pi-utils/fs-error";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { peekFileEnds } from "@linxiraos/pi-utils/peek-file";
+import { isPidAlive } from "@linxiraos/pi-utils/pid";
 import { Snowflake } from "@linxiraos/pi-utils/snowflake";
 import { toError } from "@linxiraos/pi-utils/type-guards";
 import { isAssistantMessageLine } from "./session-entries";
+import { moveSessionToTrash, type TrashMoveOptions, type TrashMoveResult } from "./session-trash";
 import {
 	overlayTitleSlotContent,
 	parseTitleSlotFromContent,
 	type SessionTitleUpdate,
 	serializeTitleSlot,
 } from "./session-title-slot";
-import { moveSessionToTrash, type TrashMoveOptions, type TrashMoveResult } from "./session-trash";
 
 /** Shared base flags for the held transcript descriptor; callers add `O_APPEND` or `O_TRUNC`. */
 const SESSION_WRITE_FLAGS = fs.constants.O_WRONLY | fs.constants.O_CREAT;
@@ -534,17 +535,6 @@ function publishLockPid(content: string): number | undefined {
 	return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
 }
 
-function isPidAlive(pid: number): boolean {
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (err) {
-		// ESRCH: no such process (dead). EPERM: alive without signal
-		// permission. Anything else: assume alive (fail closed).
-		return hasFsCode(err, "EPERM") || !hasFsCode(err, "ESRCH");
-	}
-}
-
 /**
  * This process's ownership leases by session id, shared by every
  * `FileSessionStorage` instance: managers in one process share one lease per
@@ -558,7 +548,7 @@ const TEST_SESSION_OWNERS_DIR_ENV = "PI_TEST_SESSION_OWNERS_DIR";
 /**
  * A test run never touches the real state dir for session ownership leases:
  * bun test processes use one per-user directory in the OS temp dir. It is
- * exported when this module loads, before a test can spawn an omp process,
+ * exported when this module loads, before a test can spawn an zeta process,
  * so spawned processes meet the same leases. Session ids are unique, so
  * concurrent test processes can share it, and it is reused across runs (bun
  * test fires no exit hook to remove it).

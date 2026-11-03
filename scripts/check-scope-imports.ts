@@ -102,7 +102,7 @@ if (failures.length > 0) {
 	}
 	console.error(
 		"\nFix the specifier (workspace member names live in packages/*/package.json; our product\n" +
-			"package is @linxiraos/zeta, NOT @linxiraos/pi-coding-agent) or add an ALLOW entry with a reason.",
+			"package is @linxiraos/zeta, NOT @linxiraos/zeta) or add an ALLOW entry with a reason.",
 	);
 	process.exit(1);
 }

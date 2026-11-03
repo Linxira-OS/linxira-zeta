@@ -3,12 +3,12 @@
  *
  * The brand overlay misses prose/identifier variants it has no rule for; the
  * merge then silently reverts a Zeta spelling that used to be correct
- * (v18.8.7/v18.8.8: `omp update`, `~/.omp`, `Set up omp in terminal`,
+ * (v18.8.7/v18.8.8: `zetacode update`, `~/.omp`, `Set up omp in terminal`,
  * `agentInfo.name = "omp"`). `brand-check.ts` passes because no rule covers
  * those exact tokens.
  *
  * This scan looks at the merge diff (`git diff <base> HEAD`) and prints, per
- * file, added lines that carry an upstream `omp` token next to removed lines
+ * file, added lines that carry an upstream `zetacode` token next to removed lines
  * that carried a Zeta token — i.e. spots where the merge moved a line from
  * Zeta spelling to upstream spelling.
  *

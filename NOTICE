@@ -1,0 +1,47 @@
+# NOTICE
+
+Zeta is a downstream fork of **OMP** (the `oh-my-pi` project), and includes
+modified and unmodified portions of that upstream work.
+
+## Upstream
+
+- Project: OMP
+- Repository: https://github.com/can1357/oh-my-pi
+- Upstream site: https://omp.sh/
+- Source integrated by Zeta: release tag `v18.16.0`
+  (`650f3a108229ee11bf68ba3377f4e8c3391cd424`)
+- Upstream licence: MIT
+- Upstream copyright notices:
+  - Copyright (c) 2025 Mario Zechner
+  - Copyright (c) 2025-2026 Can Bölük
+  - Copyright (c) 2026 Stencil Labs, Inc.
+
+The upstream MIT text is reproduced in the root [`LICENSE`](./LICENSE).
+
+## Zeta modifications
+
+Zeta is not the upstream project. Zeta maintains its own product surface,
+configuration, naming and additions, and has modified, removed and replaced
+portions of the upstream tree. Those changes are Zeta's, not upstream's.
+
+- Copyright (c) 2026 Linxira-OS and Zeta contributors
+- The fork is licensed under the terms in [`LICENSE`](./LICENSE): MIT for the
+  runtime tree, AGPL-3.0-only for the `main/` workbench.
+- The integrated upstream release and the merge decisions are recorded in
+  [`document/upstream-sync.md`](./document/upstream-sync.md). Historical
+  changes are visible in this repository's git history.
+- Zeta's own additions remain under Zeta's licence; upstream copyright
+  notices and licence texts are retained.
+
+## Vendored components
+
+Vendored trees keep their own licence files and attribution. In particular:
+
+- TermIDE: https://github.com/termide/termide, tag `0.46.0`, MIT.
+  See [`termide/LICENSE`](./termide/LICENSE) and
+  [`termide/VENDOR.md`](./termide/VENDOR.md) for the modification ledger.
+
+Third-party crates, npm packages and other dependencies remain under the
+licences declared by their respective packages; their licence texts ship with
+those packages and are referenced by the workspace manifests and lockfiles.
+This NOTICE does not relicense any third-party component.

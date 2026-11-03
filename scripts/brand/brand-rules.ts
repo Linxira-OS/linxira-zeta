@@ -114,6 +114,7 @@ export const OMP_PATH_ALLOW = [
 	/extensibility\/plugins\/loader\.ts$/, // OMP/Claude project-anchor detection docs
 	// The removed-files guard names the upstream `.omp/` tooling paths it
 	// keeps absent; that is the reason it exists, not residue.
+	/scripts\/audit-merge-tests\.ts$/, // comparison-only brand normalization; the audit compares a Zeta tree to the upstream tag
 	/scripts\/check-removed-upstream-files\.ts$/,
 	// Read-only upstream OMP model-config compatibility (user decision 2026-10-02):
 	// the probe must name the upstream `~/.omp/agent` default root to find it.

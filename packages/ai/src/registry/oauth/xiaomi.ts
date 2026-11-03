@@ -11,6 +11,7 @@
 import { authPolicyFor } from "@linxiraos/pi-catalog/compat/auth";
 import { providerEntry } from "@linxiraos/pi-catalog/compat/providers";
 import { isXiaomiTokenPlanKey } from "@linxiraos/pi-catalog/wire/xiaomi-token-plan";
+import { toError } from "@linxiraos/pi-utils";
 import * as AIError from "../../error";
 import type { FetchImpl } from "../../types";
 import type { OAuthController } from "./types";
@@ -64,7 +65,7 @@ async function validateXiaomiApiKey(apiKey: string, signal?: AbortSignal, fetchO
 			if (e instanceof DOMException && e.name === "AbortError" && signal?.aborted) {
 				throw e;
 			}
-			lastError = e instanceof Error ? e : new Error(String(e));
+			lastError = toError(e);
 			continue;
 		}
 

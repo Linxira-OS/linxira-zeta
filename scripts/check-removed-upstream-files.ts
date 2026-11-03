@@ -46,8 +46,8 @@ const REMOVED: RemovedFile[] = [
 	{ path: "scripts/ci-build-upload.ts", why: "upload to the upstream build service" },
 	{ path: "scripts/install.test.ts", why: "tests the upstream `omp.sh/install` hint, replaced by our own installer" },
 	{ path: ".github/workflows/bun-cache-warm.yml", why: "upstream cache-warming workflow; Zeta runs its own CI" },
-	{ path: ".omp/tools/package.json", why: "upstream `.omp/` tooling tree is not carried" },
-	{ path: ".omp/tools/bun.lock", why: "same tree as `.omp/tools/package.json`" },
+	// `.zeta/tools/` is Zeta's own PTY tooling (commits 657b9c7a1e7 and before);
+	// it is not an upstream tree and must not be deleted by the merge guard.
 	{ path: "README.zh-CN.md", why: "product front door is Zeta's own README" },
 	{ path: "sdk/go/omp-rpc/go.mod", why: "upstream-named Go SDK module; Zeta ships `sdk/go/zeta-rpc`" },
 	// The hosted /share upload face was retired on 2026-11-02: `/share` only

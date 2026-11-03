@@ -6,7 +6,8 @@ import { clearCustomApis } from "@linxiraos/pi-ai/api-registry";
 import { startAuthGateway } from "@linxiraos/pi-ai/auth-gateway";
 import { AuthStorage } from "@linxiraos/pi-ai/auth-storage";
 import { createMockModel, registerMockApi } from "@linxiraos/pi-ai/providers/mock";
-import { encodeStream, formatError, parseRequest } from "@linxiraos/pi-ai/providers/pi-native-server";
+import { noStoreErrorResponse } from "@linxiraos/pi-ai/auth-gateway/http";
+import { encodeStream, parseRequest } from "@linxiraos/pi-ai/providers/pi-native-server";
 import type {
 	AssistantMessage,
 	AssistantMessageEvent,
@@ -466,7 +467,7 @@ describe("pi-native gateway usage attribution", () => {
 
 describe("pi-native encodeStream", () => {
 	it("ships every AssistantMessageEvent verbatim, terminated by [DONE]", async () => {
-		// Pi-native is omp-talks-to-omp: the client feeds parsed events directly
+		// Pi-native is zeta-talks-to-zeta: the client feeds parsed events directly
 		// into `AssistantMessageEventStream.push()`, so the wire IS the canonical
 		// event type. No partial-stripping, no per-event re-shaping.
 		const finalMessage = baseAssistant({
@@ -565,9 +566,9 @@ describe("pi-native encodeStream", () => {
 	});
 });
 
-describe("pi-native formatError", () => {
+describe("pi-native error envelope", () => {
 	it("emits { error: { type, message } } with the given status", async () => {
-		const res = formatError(401, "authentication_error", "no credential");
+		const res = noStoreErrorResponse(401, "authentication_error", "no credential");
 		expect(res.status).toBe(401);
 		expect(res.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
 		expect(await res.json()).toEqual({ error: { type: "authentication_error", message: "no credential" } });

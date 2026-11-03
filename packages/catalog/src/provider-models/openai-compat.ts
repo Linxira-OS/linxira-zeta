@@ -1,4 +1,4 @@
-import { getInstallId, USER_AGENT } from "@linxiraos/pi-utils";
+import { USER_AGENT, getInstallId } from "@linxiraos/pi-utils";
 import * as logger from "@linxiraos/pi-utils/logger";
 import { toClinePassPublicModelId } from "../cline-pass-model-id";
 import {
@@ -13,7 +13,7 @@ import {
 import { resolveAnthropicApiVersion } from "../compat/anthropic";
 import { xaiResponsesReasoningEffortMap } from "../compat/openai";
 import { hasModelScopedEffortLadder, resolveModelPolicy } from "../compat/resolve";
-import { compareRevision, parseRevision } from "../compat/revision";
+import { compareRevision, parseRevision, revisionAtLeast } from "../compat/revision";
 import { providerEntries, seedModels } from "../compat/providers";
 import { billingVariantPlain, classifyModel, discoveryVocabulary } from "../compat/taxonomy";
 import {
@@ -21,6 +21,7 @@ import {
 	fetchOpenAICompatibleModels,
 	type OpenAICompatibleModelMapperContext,
 	type OpenAICompatibleModelRecord,
+	withOpenAICompatibleDiscoveryTimeout,
 } from "../discovery/openai-compatible";
 import { Effort, THINKING_EFFORTS } from "../effort";
 import { FIREWORKS_FAST_SUFFIX, toFireworksPublicModelId } from "../fireworks-model-id";
@@ -71,15 +72,6 @@ import { getClinePassModelMetadata } from "./cline-pass";
 import type { ModelManagerConfig } from "./descriptor-types";
 import { filterModelsDevCatalogRows } from "./models-dev-policies";
 
-function revisionAtLeast(revision: string | undefined, floor: string): boolean {
-	if (revision === undefined) return false;
-	const parsedRevision = parseRevision(revision);
-	const parsedFloor = parseRevision(floor);
-	return (
-		parsedRevision !== undefined && parsedFloor !== undefined && compareRevision(parsedRevision, parsedFloor) >= 0
-	);
-}
-
 function isGlmReasoningIdentity(provider: string, modelId: string, floor: string): boolean {
 	const identity = classifyModel(provider, modelId, { lenient: true });
 	if (identity.class !== "glm" || !revisionAtLeast(identity.revision, floor)) return false;
@@ -91,24 +83,6 @@ const MODELS_DEV_URL = "https://catalog.stencil.so/models.json.zstd";
 
 /** Little-endian magic number opening every zstd frame (RFC 8878). */
 const ZSTD_MAGIC = 0xfd2fb528;
-
-/**
- * Uses a cancellable timer rather than the native abort-timeout helper so
- * successful fast discovery requests do not leave armed timeout signals for
- * concurrent GC to trip over later.
- */
-async function withCatalogDiscoveryTimeout<T>(timeoutMs: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
-	const controller = new AbortController();
-	const timer = setTimeout(
-		() => controller.abort(new DOMException("The operation timed out.", "TimeoutError")),
-		timeoutMs,
-	);
-	try {
-		return await run(controller.signal);
-	} finally {
-		clearTimeout(timer);
-	}
-}
 
 const ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
 const ANTHROPIC_OAUTH_BETA =
@@ -195,7 +169,19 @@ function waitForCatalogRequest<T>(request: Promise<T>, signal?: AbortSignal): Pr
 
 const CATALOG_USER_AGENT = USER_AGENT;
 
-/** Parse a catalog payload: zstd-compressed or plain JSON, sniffed by frame magic. */
+/**
+ * Fetches the models.dev catalog via catalog.stencil.so, which serves a
+ * field-pruned copy precompressed as a zstd blob (~93 KB vs ~3.3 MB raw).
+ * The frame magic is sniffed rather than trusting content-type so plain-JSON
+ * responses (test stubs, fallback mirrors) parse identically.
+ *
+ * Fetched fully once per fetch context: concurrent callers sharing a fetch
+ * implementation reuse one transport request, while repeat callers send a
+ * conditional GET that the server answers with `304`. Each subscriber may stop
+ * waiting independently; the shared transport retains its own hard deadline.
+ * Transient failures reuse the last in-memory payload for callers that only
+ * need best-effort metadata.
+ */
 async function parseCatalogBytes(bytes: Uint8Array): Promise<unknown> {
 	const isZstd = bytes.length >= 4 && new DataView(bytes.buffer, bytes.byteOffset).getUint32(0, true) === ZSTD_MAGIC;
 	const text = new TextDecoder().decode(isZstd ? await Bun.zstdDecompress(bytes) : bytes);
@@ -225,25 +211,6 @@ function readCatalogSnapshot(): Promise<unknown> {
 	return catalogSnapshotInflight;
 }
 
-/**
- * Fetches the models.dev catalog via catalog.stencil.so, which serves a
- * field-pruned copy precompressed as a zstd blob (~93 KB vs ~3.3 MB raw).
- * The frame magic is sniffed rather than trusting content-type so plain-JSON
- * responses (test stubs, fallback mirrors) parse identically.
- *
- * Fetched fully once per fetch context: concurrent callers sharing a fetch
- * implementation reuse one transport request, while repeat callers send a
- * conditional GET that the server answers with `304`. Each subscriber may stop
- * waiting independently; the shared transport retains its own hard deadline.
- * Transient failures reuse the last in-memory payload for callers that only
- * need best-effort metadata.
- *
- * Source rule: the caller's transport decides. With no `fetchImpl` this
- * resolves the committed snapshot (`catalog-snapshot.json.zst`) and touches no
- * network; a caller that passes its own transport gets the live catalog over
- * it. `modelsDevCatalogFallback` therefore receives the registry's fetcher only
- * when `catalog.remoteRefresh` is on, and `gen:models` always passes one.
- */
 export function fetchWellKnownModels(fetchImpl?: FetchImpl, signal?: AbortSignal): Promise<unknown> {
 	if (!fetchImpl) return waitForCatalogRequest(readCatalogSnapshot(), signal);
 	const session = getCatalogSession(fetchImpl);
@@ -256,8 +223,9 @@ export function fetchWellKnownModels(fetchImpl?: FetchImpl, signal?: AbortSignal
 function fetchRevalidatedWellKnownModels(fetchImpl?: FetchImpl, signal?: AbortSignal): Promise<unknown> {
 	const session = getCatalogSession(fetchImpl);
 	if (!session.inflight) {
-		session.inflight = withCatalogDiscoveryTimeout(DEFAULT_OPENAI_COMPATIBLE_DISCOVERY_TIMEOUT_MS, transportSignal =>
-			fetchCatalogPayload(fetchImpl ?? discoveryFetch(), session, transportSignal),
+		session.inflight = withOpenAICompatibleDiscoveryTimeout(
+			DEFAULT_OPENAI_COMPATIBLE_DISCOVERY_TIMEOUT_MS,
+			transportSignal => fetchCatalogPayload(fetchImpl ?? discoveryFetch(), session, transportSignal),
 		).finally(() => {
 			session.inflight = null;
 		});
@@ -271,7 +239,7 @@ function fetchRevalidatedWellKnownModelsWithTimeout(
 ): Promise<unknown> {
 	// Same source rule as {@link fetchWellKnownModels}: no transport, no network.
 	if (!fetchImpl) return readCatalogSnapshot();
-	return withCatalogDiscoveryTimeout(timeoutMs, signal => fetchRevalidatedWellKnownModels(fetchImpl, signal));
+	return withOpenAICompatibleDiscoveryTimeout(timeoutMs, signal => fetchRevalidatedWellKnownModels(fetchImpl, signal));
 }
 
 async function fetchCatalogPayload(
@@ -294,7 +262,9 @@ async function fetchCatalogPayload(
 		throw new Error(`models catalog fetch failed: ${response.status}`);
 	}
 	const bytes = new Uint8Array(await response.arrayBuffer());
-	const payload = await parseCatalogBytes(bytes);
+	const isZstd = bytes.length >= 4 && new DataView(bytes.buffer, bytes.byteOffset).getUint32(0, true) === ZSTD_MAGIC;
+	const text = new TextDecoder().decode(isZstd ? await Bun.zstdDecompress(bytes) : bytes);
+	const payload: unknown = JSON.parse(text);
 	session.payload = payload;
 	session.etag = response.headers.get("etag");
 	session.hasPayload = true;
@@ -704,7 +674,7 @@ async function fetchOllamaNativeModels(
  * Ollama's cloud catalog reports for stock models.
  */
 const OLLAMA_FALLBACK_CONTEXT_WINDOW = 128_000;
-/** Cap max output tokens at a value that matches ZETA's other openai-responses defaults. */
+/** Cap max output tokens at a value that matches OMP's other openai-responses defaults. */
 const OLLAMA_DEFAULT_MAX_TOKENS = 8192;
 
 interface OllamaResolvedMetadata {
@@ -1626,13 +1596,12 @@ export function novitaModelManagerOptions(
 export const DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai";
 /**
  * `filter=with_meta` attaches per-model `metadata` (limits, pricing, tags);
- * `sort_by=omp` asks DeepInfra to return models in omp-priority order
- * (upstream-negotiated API key; never rebrand this outbound value)
+ * `sort_by=zeta` asks DeepInfra to return models in zeta-priority order
  * (earlier = better). The mapper does not stamp `priority` yet — see
  * `mapDeepinfraModel` — but the params are sent so discovery picks the
  * ordering up as soon as the server honors it.
  */
-const DEEPINFRA_MODELS_QUERY = "?filter=with_meta&sort_by=omp";
+const DEEPINFRA_MODELS_QUERY = "?filter=with_meta&sort_by=zeta";
 const DEEPINFRA_EFFORTS = [Effort.Low, Effort.Medium, Effort.High] as const;
 
 /** DeepInfra OpenAI-compatible discovery configuration. */
@@ -1742,7 +1711,7 @@ function mapDeepinfraModel(
  * Bespoke fetch instead of `fetchOpenAICompatibleModels`: the shared helper
  * cannot carry the `filter`/`sort_by` query params and re-sorts results by id,
  * which would destroy DeepInfra's priority ordering once the server honors
- * `sort_by=omp`. Response order is preserved (dedupe keeps the first, i.e.
+ * `sort_by=zeta`. Response order is preserved (dedupe keeps the first, i.e.
  * highest-priority, occurrence).
  */
 async function fetchDeepinfraModels(options: {
@@ -1758,8 +1727,9 @@ async function fetchDeepinfraModels(options: {
 	const fetchImpl = discoveryFetch(options.fetch);
 	let payload: unknown;
 	try {
-		const response = await withCatalogDiscoveryTimeout(DEFAULT_OPENAI_COMPATIBLE_DISCOVERY_TIMEOUT_MS, signal =>
-			fetchImpl(`${options.baseUrl}/models${DEEPINFRA_MODELS_QUERY}`, { method: "GET", headers, signal }),
+		const response = await withOpenAICompatibleDiscoveryTimeout(
+			DEFAULT_OPENAI_COMPATIBLE_DISCOVERY_TIMEOUT_MS,
+			signal => fetchImpl(`${options.baseUrl}/models${DEEPINFRA_MODELS_QUERY}`, { method: "GET", headers, signal }),
 		);
 		if (!response.ok) {
 			return null;
@@ -2317,7 +2287,7 @@ async function loadSiliconFlowModelsDevReferences(
 	try {
 		// Bounded: this enrichment is optional, so a stalled models.dev must not
 		// hold back the authoritative endpoint request that runs after it.
-		const payload = await withCatalogDiscoveryTimeout(SILICONFLOW_MODELS_DEV_REFERENCE_TIMEOUT_MS, signal =>
+		const payload = await withOpenAICompatibleDiscoveryTimeout(SILICONFLOW_MODELS_DEV_REFERENCE_TIMEOUT_MS, signal =>
 			fetchWellKnownModels(fetchImpl, signal),
 		);
 		return createModelsDevReferenceMap<"openai-completions">(
@@ -2861,7 +2831,7 @@ const CLINE_PASS_LIVE_CATALOG_URL = "https://openrouter.ai/api/v1/models";
 /** Enrichment tier, never authoritative: any failure degrades to the bundled path. */
 async function fetchClinePassLiveCatalog(fetchImpl: FetchImpl): Promise<ClinePassLiveCatalog | undefined> {
 	try {
-		const response = await withCatalogDiscoveryTimeout(5_000, signal =>
+		const response = await withOpenAICompatibleDiscoveryTimeout(5_000, signal =>
 			fetchImpl(CLINE_PASS_LIVE_CATALOG_URL, { signal }),
 		);
 		if (!response.ok) return undefined;
@@ -3040,7 +3010,7 @@ async function fetchClinePassModels(
 	// The roster is authoritative for ids; the live reference catalog is a pure
 	// enrichment tier fetched alongside and tolerated away (offline → bundle).
 	const [response, liveCatalog] = await Promise.all([
-		withCatalogDiscoveryTimeout(5_000, signal =>
+		withOpenAICompatibleDiscoveryTimeout(5_000, signal =>
 			fetchImpl(CLINEPASS_MODELS_URL, { signal, headers: clinePassClientHeaders() }),
 		),
 		fetchClinePassLiveCatalog(fetchImpl),
@@ -4455,7 +4425,7 @@ export async function fetchLmStudioNativeModelMetadata(
 	if (options?.signal !== undefined) {
 		return fetchMetadata(options.signal);
 	}
-	return withCatalogDiscoveryTimeout(LM_STUDIO_NATIVE_METADATA_TIMEOUT_MS, fetchMetadata);
+	return withOpenAICompatibleDiscoveryTimeout(LM_STUDIO_NATIVE_METADATA_TIMEOUT_MS, fetchMetadata);
 }
 
 export interface LmStudioModelManagerConfig {
@@ -4548,7 +4518,7 @@ function toSyntheticStringList(value: unknown): readonly string[] {
 
 /**
  * Translate Synthetic's per-model `reasoning_effort` vocabulary into an effort
- * ladder. Every advertised value that names an ZETA tier maps verbatim; `none`
+ * ladder. Every advertised value that names an OMP tier maps verbatim; `none`
  * is the thinking-off state rather than a tier of its own, so it backs the
  * `minimal` selector through the wire map (same shape as the Fireworks
  * `minimal → none` map) and gives these routes a real no-thinking tier.
@@ -4747,9 +4717,9 @@ export interface BasetenModelManagerConfig {
 	fetch?: FetchImpl;
 }
 
-// A previous version of ZETA shipped these models without reasoning levels.
+// A previous version of OMP shipped these models without reasoning levels.
 // We've since fixed that (V4-generation whitelist). This const lets us bust
-// the cache so that users on that version of ZETA pick up the reasoning levels
+// the cache so that users on that version of OMP pick up the reasoning levels
 // immediately.
 const BASETEN_CACHE_MIGRATION_MODEL_IDS = [
 	"zai-org/GLM-5.3",
@@ -4779,10 +4749,10 @@ export function basetenModelManagerOptions(
 			const features = Array.isArray(raw.supported_features) ? raw.supported_features : [];
 			const modalities = Array.isArray(raw.input_modalities) ? raw.input_modalities : [];
 
-			// Baseten's discovery flags are not enough to enable ZETA reasoning for every
+			// Baseten's discovery flags are not enough to enable OMP reasoning for every
 			// model. Only models with a verified Baseten reasoning policy are enabled
 			// here; an unknown model may use a different reasoning wire shape or effort
-			// vocabulary, which ZETA must not guess.
+			// vocabulary, which OMP must not guess.
 			const identity = classifyModel("baseten", defaults.id, { lenient: true });
 			const isSupportedBasetenReasoningModel =
 				(identity.class === "kimi" && identity.family === "k3") ||
@@ -5474,7 +5444,7 @@ interface StepfunModelRecord extends OpenAICompatibleModelRecord {
 
 /**
  * Translate StepFun's per-model `reasoning_effort_support_list` into a ladder.
- * Every advertised value that names an ZETA tier maps verbatim, in ZETA's tier
+ * Every advertised value that names an OMP tier maps verbatim, in OMP's tier
  * order; a row advertising nothing (or only tiers this client does not know)
  * resolves to no thinking, so the wire path never sends a `reasoning_effort`
  * the endpoint rejects. Same shape as `mapOpenRouterThinking` for OpenRouter's
@@ -6422,7 +6392,9 @@ async function fetchLiteLLMRichModelsInternal<TApi extends Api>(
 	if (options.signal !== undefined) {
 		return fetchModels(options.signal);
 	}
-	return options.timeoutMs !== undefined ? withCatalogDiscoveryTimeout(options.timeoutMs, fetchModels) : fetchModels();
+	return options.timeoutMs !== undefined
+		? withOpenAICompatibleDiscoveryTimeout(options.timeoutMs, fetchModels)
+		: fetchModels();
 }
 
 export async function fetchLiteLLMRichModels<TApi extends Api>(
@@ -6806,7 +6778,7 @@ export function githubCopilotModelManagerOptions(config?: GithubCopilotModelMana
 			fetchDynamicModels: async () => {
 				const fetchImpl = discoveryFetch(config?.fetch);
 				const requestBaseUrl = isPersonalGitHubCopilotBaseUrl(baseUrl)
-					? ((await withCatalogDiscoveryTimeout(DEFAULT_OPENAI_COMPATIBLE_DISCOVERY_TIMEOUT_MS, signal =>
+					? ((await withOpenAICompatibleDiscoveryTimeout(DEFAULT_OPENAI_COMPATIBLE_DISCOVERY_TIMEOUT_MS, signal =>
 							discoverGitHubCopilotApiEndpoint(apiKey, fetchImpl, signal),
 						)) ?? baseUrl)
 					: baseUrl;
@@ -6948,6 +6920,22 @@ export function githubCopilotModelManagerOptions(config?: GithubCopilotModelMana
 											}
 										: {}),
 								};
+						// Cross-provider fallback references (e.g. a Cursor
+						// collapsed family for an enterprise-only sibling id)
+						// carry provider-specific wire routing that must not
+						// transfer: the off-tier `requestModelId` pin would send
+						// every Copilot request under the `-none` sibling id
+						// regardless of thinking level.
+						if (reference && reference.provider !== "github-copilot") {
+							delete base.requestModelId;
+							if (base.thinking) {
+								// `base` is a shallow copy of the shared global
+								// reference: clone before deleting or the bundled
+								// entry loses its routing process-wide.
+								base.thinking = { ...base.thinking };
+								delete base.thinking.effortRouting;
+							}
+						}
 						const defaultCost = copilotTierCost(tokenPrices.defaultTier);
 						if (defaultCost) {
 							// Cache writes are not reported per tier; retain the bundled provider rate.
@@ -8246,4 +8234,41 @@ export function singularityApiTechModelManagerOptions(
 	config?: SingularityApiModelManagerConfig,
 ): ModelManagerOptions<Api> {
 	return singularityApiModelManagerOptions("singularityapi-tech", SINGULARITYAPI_TECH_API_BASE_URL, config);
+}
+
+// ---------------------------------------------------------------------------
+// Scaleway
+// ---------------------------------------------------------------------------
+
+/**
+ * Scaleway discovery configuration: the API key plus optional base-URL and
+ * fetch overrides. Consumed by {@link scalewayModelManagerOptions}, and
+ * exported for extensions and tests that construct the manager directly.
+ */
+export interface ScalewayModelManagerConfig {
+	apiKey?: string;
+	baseUrl?: string;
+	fetch?: FetchImpl;
+}
+
+/**
+ * Scaleway model manager: plain OpenAI-compatible chat completions at
+ * `api.scaleway.ai/v1` (fr-par serverless Generative APIs). `/v1/models`
+ * returns bare ids, so the authored seed in `providers/scaleway.kdl` is the
+ * reference each live row merges names, modalities, prices, and limits from;
+ * a successful fetch is the complete roster and prunes retired rows.
+ */
+export function scalewayModelManagerOptions(
+	config?: ScalewayModelManagerConfig,
+): ModelManagerOptions<"openai-completions"> {
+	return createOpenAICompatibleModelManagerOptions({
+		api: "openai-completions",
+		providerId: "scaleway",
+		defaultBaseUrl: "https://api.scaleway.ai/v1",
+		config,
+		dynamicModelsAuthoritative: true,
+		requireApiKey: true,
+		filterModel: (_entry, model) => !isExcludedModel("scaleway", model.id),
+		mapModel: mapWithBundledReference,
+	});
 }

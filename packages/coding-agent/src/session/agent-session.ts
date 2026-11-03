@@ -730,6 +730,9 @@ class AgentStartPolicyChangedError extends Error {
 	}
 }
 
+/** A missing model or credential rejects a prompt before it reaches the agent. */
+class PromptPreflightError extends Error {}
+
 /**
  * Rejection from {@link AgentSession.prompt} with `throwOnDrop: true` when the
  * prompt was dropped before reaching the agent (an abort, session transition,
@@ -7060,7 +7063,7 @@ export class AgentSession implements SettingsScope {
 	 * never throws, so teardown cannot break the event flow.
 	 */
 	async #settleOwnedBrowserTabs(): Promise<void> {
-		const ownerId = this.sessionManager.getSessionId();
+		const ownerId = this.#eval.getKernelOwnerId();
 		if (!ownerId) return;
 		try {
 			const idleSec = cfgBrowserIdleCloseSec.get(this.settings);
@@ -7216,7 +7219,7 @@ export class AgentSession implements SettingsScope {
 		const results = await Promise.allSettled([
 			this.#disposeOwnedAsyncJobs(),
 			this.#eval.disposeKernels(),
-			this.#releaseOwnedBrowserTabs(this.sessionManager.getSessionId()),
+			this.#releaseOwnedBrowserTabs(this.#eval.getKernelOwnerId()),
 			this.#releaseOwnedComputerSessions(this.#eval.getKernelOwnerId()),
 			this.#disconnectOwnedMcp(),
 			advisorRecorderClosed,
@@ -8989,13 +8992,18 @@ export class AgentSession implements SettingsScope {
 	 * Resume the agent for the operator's `.`/`c` continue shortcut. A prompt the
 	 * model has not answered yet (an Esc before any output) runs again as is: a
 	 * continue directive would add nothing. Otherwise the hidden manual-continue
-	 * directive asks the model to pick its work back up.
+	 * directive asks the model to pick its work back up. An empty conversation
+	 * cannot be continued.
 	 *
 	 * @throws {AgentBusyError} while a turn runs.
+	 * @throws {Error} when there is no conversation to resume.
 	 */
 	async resume(): Promise<void> {
 		const prompt = this.#recovery.prepareResume();
 		if (!prompt) {
+			if (!this.agent.state.messages.some(message => message.role === "user")) {
+				throw new Error("Nothing to resume");
+			}
 			await this.prompt(manualContinuePrompt, {
 				synthetic: true,
 				userInitiated: true,
@@ -9301,7 +9309,10 @@ export class AgentSession implements SettingsScope {
 			});
 		} catch (error) {
 			turnError = error;
-			if (error instanceof AgentStartPolicyChangedError && message.role === "user") {
+			if (
+				(error instanceof AgentStartPolicyChangedError || error instanceof PromptPreflightError) &&
+				message.role === "user"
+			) {
 				this.#promptDropped?.({ text: typedText, images: options?.images });
 			}
 			throw error;
@@ -9716,7 +9727,7 @@ export class AgentSession implements SettingsScope {
 			// Validate model
 			const model = this.model;
 			if (!model) {
-				throw new Error(
+				throw new PromptPreflightError(
 					"No model selected.\n\n" +
 						`Use /login, set an API key environment variable, or create ${getAgentDbPath()}\n\n` +
 						"Then use /model to select a model.",
@@ -9727,7 +9738,7 @@ export class AgentSession implements SettingsScope {
 			const apiKey = await logger.time("prompt:apiKey", () => this.#modelRegistry.getApiKey(model, this.sessionId));
 			if (!apiKey && !(await this.#recovery.applyMissingCredentialFallback(setupAbort.signal))) {
 				if (setupAbort.signal.aborted) return false;
-				throw new Error(
+				throw new PromptPreflightError(
 					`No API key found for ${model.provider}.\n\n` +
 						`Use /login, set an API key environment variable, or create ${getAgentDbPath()}`,
 				);

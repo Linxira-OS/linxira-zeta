@@ -251,10 +251,13 @@ async function main(): Promise<void> {
 		return;
 	}
 
-	// Merge commits only reachable from HEAD: the merges this branch performed
-	// locally before pushing. GitHub's server-side PR merge runs no driver, and
-	// merges already in the base were checked when they were proposed.
-	const merges = (await git("rev-list", "--merges", `${base}..HEAD`)).split("\n").filter(Boolean);
+	// Merge commits on this branch's first-parent chain: the merges this branch
+	// performed locally before pushing. Do not walk second-parent history: a
+	// release-tag merge brings in upstream's own merge commits, and scanning
+	// those would run this guard over thousands of unrelated manifest revisions.
+	// GitHub's server-side PR merge runs no driver, and merges already in the
+	// base were checked when they were proposed.
+	const merges = (await git("rev-list", "--first-parent", "--merges", `${base}..HEAD`)).split("\n").filter(Boolean);
 	if (merges.length === 0) {
 		console.log(`package.json merge guard OK: no merge commit in ${base}..HEAD`);
 		return;

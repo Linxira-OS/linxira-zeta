@@ -9,7 +9,7 @@
  * Chromium forever, accumulating into multi-GB orphan targets (issue #10022).
  *
  * This module records, on disk under the broker runtime dir, which OS process
- * created each shared-browser page target. Any live omp process can then reap
+ * created each shared-browser page target. Any live zeta process can then reap
  * targets whose owning process is gone. It only ever touches OMP-owned
  * shared-browser targets — user-owned connected/relay/spawned browsers have no
  * registry and are never scanned.
@@ -22,7 +22,7 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isEnoent, logger } from "@linxiraos/pi-utils";
+import { isEnoent, isPidAlive, logger } from "@linxiraos/pi-utils";
 import type { Browser, CDPSession } from "puppeteer-core";
 import { daemonRuntimeDir } from "../../launch/paths";
 
@@ -34,7 +34,7 @@ export interface SharedTargetScope {
 	daemonName: string;
 }
 
-/** On-disk ownership record: one file per owning omp process. */
+/** On-disk ownership record: one file per owning zeta process. */
 interface OwnershipFile {
 	pid: number;
 	updatedAt: number;
@@ -131,16 +131,6 @@ export async function forgetSharedTargets(scope: SharedTargetScope): Promise<voi
 			error: err instanceof Error ? err.message : String(err),
 		}),
 	);
-}
-
-/** True when `pid` names a live process; non-`ESRCH` probe failures are treated as alive (safe direction). */
-function isPidAlive(pid: number): boolean {
-	try {
-		process.kill(pid, 0);
-		return true;
-	} catch (error) {
-		return (error as NodeJS.ErrnoException).code !== "ESRCH";
-	}
 }
 
 /** Options for {@link collectOrphanTargets}; the defaults hit the real registry, the seams are for tests. */
@@ -276,7 +266,7 @@ export async function closeCdpTarget(
 }
 
 /**
- * {@link closeCdpTarget} for the omp relay, over a channel that answers browser-level `Target.*`
+ * {@link closeCdpTarget} for the zeta relay, over a channel that answers browser-level `Target.*`
  * commands. The relay's `Target.getTargets` lists only tabs it can drive right now, not those of a
  * disconnected browser or with a dismissed debugger, so absence is read from `Target.getTargetInfo`:
  * it looks the id up among every tab the extensions reported, and answers an unknown id with the
@@ -315,7 +305,7 @@ async function updateOwnershipFile(owner: OrphanOwner, targetIds: string[]): Pro
 }
 
 /**
- * Reap shared-browser targets whose owning omp process is gone. Each owner
+ * Reap shared-browser targets whose owning zeta process is gone. Each owner
  * file is removed only after every target is confirmed closed/absent; partial
  * failures atomically retain the unresolved ids for the next attach to retry.
  * Failures are logged, never thrown, so cleanup cannot block browser open.

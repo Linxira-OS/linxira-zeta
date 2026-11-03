@@ -10,7 +10,7 @@ import {
 	type ToolLoadMode,
 } from "@linxiraos/pi-agent-core";
 import type { ComputerSafetyCheck, ImageContent, Static, TextContent, TSchema } from "@linxiraos/pi-ai";
-import { prompt, sanitizeText, untilAborted } from "@linxiraos/pi-utils";
+import { prompt, sanitizeText, untilAborted, toError } from "@linxiraos/pi-utils";
 import type { Theme } from "@linxiraos/pi-tui/theme";
 import nativeDelegationTemplate from "../../prompts/tools/native-delegation.md" with { type: "text" };
 import {
@@ -32,10 +32,10 @@ import type { ExtensionRunner } from "./runner";
 import type { ExtensionAgentIdentity, RegisteredTool, ToolCallEventResult } from "./types";
 
 /**
- * Second `renderCall` argument that satisfies both the omp and the upstream-pi
+ * Second `renderCall` argument that satisfies both the zeta and the upstream-pi
  * renderer contracts.
  *
- * omp invokes renderers as `renderCall(args, options, theme)` (see
+ * zeta invokes renderers as `renderCall(args, options, theme)` (see
  * `packages/tui/src/tools/renderer.ts`), while pi-era renderers — including
  * every third-party plugin written against pi's published example — are
  * declared `renderCall(args, theme, context)`. Both shapes take three
@@ -129,15 +129,12 @@ export class RegisteredToolAdapter implements AgentTool<any, any, any> {
 			params,
 			signal,
 			onUpdate,
-			this.runner.scopeContextToExtension(
-				this.runner.createContext(undefined, {
-					toolName: this.registeredTool.definition.name,
-					context,
-					signal,
-					onUpdate,
-				}),
-				this.registeredTool.extensionPath,
-			),
+			this.runner.createContext(undefined, {
+				toolName: this.registeredTool.definition.name,
+				context,
+				signal,
+				onUpdate,
+			}),
 		);
 	}
 }
@@ -511,7 +508,7 @@ export class ExtensionToolWrapper<TParameters extends TSchema = TSchema, TDetail
 				),
 			);
 		} catch (err) {
-			executionError = err instanceof Error ? err : new Error(String(err));
+			executionError = toError(err);
 			result = {
 				content: [{ type: "text", text: executionError.message }],
 				details: undefined as TDetails,

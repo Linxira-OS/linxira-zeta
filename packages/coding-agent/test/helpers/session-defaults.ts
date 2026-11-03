@@ -4,6 +4,7 @@ import type { AgentSession } from "@linxiraos/zeta/session/agent-session";
 export function createSessionDefaults() {
 	return {
 		setActiveToolsByName: async (_toolNames: string[]) => {},
+		getMountedXdevToolNames: () => [],
 		waitForIdle: async () => {},
 		prepareForHeadlessAdvisorDrain: () => {},
 		waitForAdvisorCatchup: async () => true,

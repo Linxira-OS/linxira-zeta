@@ -261,7 +261,7 @@ async function loadSessionPicker(init?: { foreign?: boolean }): Promise<SessionP
 							SessionManager.renameSessionTitle(session.path, title, { cwd: session.cwd }),
 						setSessionPinned: (session: SessionInfo, pinned: boolean) => setSessionPinned(session.id, pinned),
 					}),
-			loadAllSessions: () => SessionManager.listAllForPicker(storage),
+			loadAllSessions: async () => (await SessionManager.listAllForPicker(storage)).complete,
 			loadResumeSource: async (deleteMode, workspacePath) => {
 				const { LiveResumePickerSource, loadResumePickerState } = await import("./modes/resume-picker-source");
 				const initialState = await loadResumePickerState();
@@ -2397,7 +2397,7 @@ export async function runRootCommand(
 		// and the deferred persistence check below (after extension flag ownership is
 		// resolved) rejects a native --resume, so the picker must not run first.
 		if (parsedArgs.resume === true && !parsedArgs.fork && !parsedArgs.noSession) {
-			const folderSessions = await logger.time(
+			const folderListing = await logger.time(
 				"SessionManager.listForPicker",
 				SessionManager.listForPicker,
 				cwd,
@@ -2405,6 +2405,7 @@ export async function runRootCommand(
 				undefined,
 				cfgSessionWorktreeScope.get(settingsInstance),
 			);
+			const folderSessions = await folderListing.complete;
 			let preloadedAllSessions: SessionInfo[] | undefined;
 			if (folderSessions.length === 0) {
 				// Probe globally so we can exit fast when the user has no sessions at
@@ -2412,10 +2413,9 @@ export async function runRootCommand(
 				// silently surfaced other projects' history when the cwd was empty
 				// (issue #3099). The preloaded list also makes the user's Tab switch
 				// instant on the way in.
-				preloadedAllSessions = await logger.time(
-					"SessionManager.listAllForPicker",
-					SessionManager.listAllForPicker,
-				);
+				preloadedAllSessions = await (
+					await logger.time("SessionManager.listAllForPicker", SessionManager.listAllForPicker)
+				).complete;
 				if (preloadedAllSessions.length === 0) {
 					writeStartupNotice(parsedArgs, `${chalk.dim("No sessions found")}\n`);
 					stopStartupWatchdog();

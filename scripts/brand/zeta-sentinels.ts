@@ -395,7 +395,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
 		symbol: '"███████╗███████╗████████╗ █████╗ "',
-		why: "top row of the FIGlet-generated `Zeta` wordmark (ANSI Shadow, 2026-10-14 brand spec) — a merge cannot swap in upstream's `omp` wordmark or a hand-drawn replacement",
+		why: "top row of the FIGlet-generated `Zeta` wordmark (ANSI Shadow, 2026-10-14 brand spec) — a merge cannot swap in upstream's `zetacode` wordmark or a hand-drawn replacement",
 	},
 	{
 		file: "packages/tui/src/prompt/welcome.ts",
@@ -626,7 +626,7 @@ export const ZETA_SENTINELS: Sentinel[] = [
 	{
 		file: "packages/coding-agent/src/extensibility/plugins/types.ts",
 		symbol: 'export const PLUGIN_MANIFEST_KEYS = ["zeta", "omp", "pi"] as const;',
-		why: "The manifest keys every plugin reader consults, most specific first. Reverting this to the upstream `omp`/`pi` pair makes a `zeta`-keyed package be listed by `zetacode plugin list`/`doctor` but never loaded by a session — no skill, no extension module, no tool.",
+		why: "The manifest keys every plugin reader consults, most specific first. Reverting this to the upstream `zetacode`/`pi` pair makes a `zeta`-keyed package be listed by `zetacode plugin list`/`doctor` but never loaded by a session — no skill, no extension module, no tool.",
 	},
 	{
 		file: "packages/coding-agent/src/extensibility/plugins/loader.ts",

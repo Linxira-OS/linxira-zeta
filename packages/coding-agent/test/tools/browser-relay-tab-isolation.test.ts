@@ -10,7 +10,13 @@ import { unpackedExtensionId } from "@linxiraos/zeta/tools/browser/relay/extensi
 import { waitForRelayExtension } from "@linxiraos/zeta/tools/browser/relay/probe";
 import { type RelayServer, startRelayServer } from "@linxiraos/zeta/tools/browser/relay/server";
 import type { WorkerInbound, WorkerInitPayload, WorkerOutbound } from "@linxiraos/zeta/tools/browser/tab-protocol";
-import { acquireTab, releaseTab, runInTab } from "@linxiraos/zeta/tools/browser/tab-supervisor";
+import {
+	acquireTab,
+	getTabsMapForTest,
+	releaseTab,
+	releaseTabsForOwner,
+	runInTab,
+} from "@linxiraos/zeta/tools/browser/tab-supervisor";
 import { WorkerCore } from "@linxiraos/zeta/tools/browser/tab-worker";
 import type { ToolSession } from "@linxiraos/zeta/tools/index";
 import { getPuppeteerDir } from "@linxiraos/pi-utils";
@@ -149,7 +155,7 @@ async function launchRelayFixture(
 			await fs.copyFile(path.join(ASSETS, `${file}.txt`), path.join(extensionDir, file));
 		}
 		const background = await fs.readFile(path.join(ASSETS, "background.js.txt"), "utf8");
-		const defaultPort = "var DEFAULT_PORT = 43153;";
+		const defaultPort = "var DEFAULT_PORT = 9224;";
 		if (!background.includes(defaultPort)) throw new Error("Relay extension default port not found");
 		// Point the disposable extension at this relay without deferring listener registration.
 		await fs.writeFile(
@@ -337,6 +343,94 @@ describe.skipIf(!CHROMIUM_AVAILABLE)("relay tab ownership", () => {
 			// The close returned with the tab gone.
 			expect(await chromeTab(fixture, chromeTabId(tab.targetId))).toBeNull();
 		} finally {
+			await releaseTab(name).catch(() => undefined);
+			await releaseBrowser(relay, { kill: false });
+			await fixture.close();
+		}
+	}, 60_000);
+
+	it("leaves a persist tab open in the user's browser when its session ends and closes the others", async () => {
+		const fixture = await launchRelayFixture();
+		const relay = await acquireBrowser({ kind: "relay", cdpUrl: fixture.cdpUrl }, { cwd: process.cwd() });
+		const owner = `relay-session-${process.pid}`;
+		const names = [`relay-persist-${process.pid}`, `relay-plain-${process.pid}`];
+		try {
+			const kept = await acquireTab(names[0]!, relay, {
+				url: `${fixture.origin}/first`,
+				timeoutMs: 15_000,
+				ownerSessionId: owner,
+				persist: true,
+			});
+			const closed = await acquireTab(names[1]!, relay, {
+				url: `${fixture.origin}/second`,
+				timeoutMs: 15_000,
+				ownerSessionId: owner,
+			});
+			// What session dispose runs.
+			expect(await releaseTabsForOwner(owner, { kill: true })).toBe(2);
+			const keptTabId = chromeTabId(kept.tab.targetId);
+			expect(await fixture.inExtension(`chrome.tabs.get(${keptTabId}).then(tab => tab.url)`)).toBe(
+				`${fixture.origin}/first`,
+			);
+			expect(await chromeTab(fixture, chromeTabId(closed.tab.targetId))).toBeNull();
+			expect(getTabsMapForTest().has(names[0]!)).toBeFalse();
+		} finally {
+			for (const name of names) await releaseTab(name).catch(() => undefined);
+			await releaseBrowser(relay, { kill: false });
+			await fixture.close();
+		}
+	}, 60_000);
+
+	it("closes a persist tab whose close joins its session's end", async () => {
+		const fixture = await launchRelayFixture();
+		const relay = await acquireBrowser({ kind: "relay", cdpUrl: fixture.cdpUrl }, { cwd: process.cwd() });
+		const owner = `relay-joined-session-${process.pid}`;
+		const name = `relay-joined-close-${process.pid}`;
+		try {
+			const { tab } = await acquireTab(name, relay, {
+				url: `${fixture.origin}/first`,
+				timeoutMs: 15_000,
+				ownerSessionId: owner,
+				persist: true,
+			});
+			const ending = releaseTabsForOwner(owner, { kill: true });
+			expect(await releaseTab(name)).toBe(true);
+			await ending;
+			expect(await chromeTab(fixture, chromeTabId(tab.targetId))).toBeNull();
+		} finally {
+			await releaseTab(name).catch(() => undefined);
+			await releaseBrowser(relay, { kill: false });
+			await fixture.close();
+		}
+	}, 60_000);
+
+	it("closes a persist tab when its close joins after the keep decision and browser disconnect", async () => {
+		const fixture = await launchRelayFixture();
+		const relay = await acquireBrowser({ kind: "relay", cdpUrl: fixture.cdpUrl }, { cwd: process.cwd() });
+		if (!("browser" in relay)) throw new Error("Expected relay Chromium");
+		const owner = `relay-late-session-${process.pid}`;
+		const name = `relay-late-close-${process.pid}`;
+		const disconnect = relay.browser.disconnect.bind(relay.browser);
+		let closing: Promise<boolean> | undefined;
+		try {
+			const { tab } = await acquireTab(name, relay, {
+				url: `${fixture.origin}/first`,
+				timeoutMs: 15_000,
+				ownerSessionId: owner,
+				persist: true,
+			});
+			// releaseBrowser disconnects only after the supervisor has decided to keep the page.
+			relay.browser.disconnect = () => {
+				const disconnected = disconnect();
+				closing = releaseTab(name);
+				return disconnected;
+			};
+			await releaseTabsForOwner(owner, { kill: true });
+			expect(closing).toBeDefined();
+			expect(await closing).toBe(true);
+			expect(await chromeTab(fixture, chromeTabId(tab.targetId))).toBeNull();
+		} finally {
+			relay.browser.disconnect = disconnect;
 			await releaseTab(name).catch(() => undefined);
 			await releaseBrowser(relay, { kill: false });
 			await fixture.close();

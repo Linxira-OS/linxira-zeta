@@ -8,16 +8,17 @@ import { isPromise } from "node:util/types";
 import type { AgentEvent, AgentMessage, AgentToolResult, ThinkingLevel } from "@linxiraos/pi-agent-core";
 import type { CompactionResult } from "@linxiraos/pi-agent-core/compaction";
 import type { ImageContent, Model } from "@linxiraos/pi-ai";
-import { isRecord, ptree, readJsonl } from "@linxiraos/pi-utils";
+import { isRecord, ptree, readJsonl, toError } from "@linxiraos/pi-utils";
 import type { LogoutAccount } from "@linxiraos/pi-tui/overlays/logout-account-selector";
+import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 import type { FileSink } from "bun";
 import type { BashResult } from "../../exec/bash-executor";
 import type { AgentSessionEvent, SessionStats } from "../../session/agent-session";
 import type { CacheWarmingMode } from "../../session/cache-warmer";
 import type { SessionEntry, SessionTreeNode } from "../../session/session-entries";
+import type { GoalContinuationOp, GoalContinuationResult } from "../../goals/continuation-controller";
 import type { SessionLeaseReport } from "../../session/session-storage";
 import { MAX_RPC_FRAME_BYTES, MAX_RPC_REASSEMBLED_BYTES, RpcFrameDecoder, type RpcProtocolVersion } from "./rpc-frame";
-import type { GoalContinuationOp, GoalContinuationResult } from "../../goals/continuation-controller";
 import {
 	RPC_MESSAGES_PAGE_BUSY_ERROR,
 	RPC_MESSAGES_PAGE_STALE_ERROR,
@@ -56,7 +57,6 @@ import type {
 	RpcSubagentSnapshot,
 	RpcSubagentSubscriptionLevel,
 } from "./rpc-types";
-import type { TodoPhase } from "@linxiraos/pi-tui/tools/todo";
 
 /** Distributive Omit that works with union types */
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
@@ -491,7 +491,7 @@ export class RpcClient {
 							});
 			await reapAfterOutputFailure(error);
 		})().catch(async (cause: unknown) => {
-			const error = cause instanceof Error ? cause : new Error(String(cause));
+			const error = toError(cause);
 			if (!readySettled) {
 				readySettled = true;
 				readyReject(error);
@@ -543,7 +543,7 @@ export class RpcClient {
 		} catch (cause) {
 			// Startup failed after spawning the child. Reap it before returning
 			// so a retry cannot inherit a live worker or its session lock.
-			const error = cause instanceof Error ? cause : new Error(String(cause));
+			const error = toError(cause);
 			await reapAfterOutputFailure(error);
 			throw cause;
 		} finally {
@@ -1721,7 +1721,7 @@ export class RpcClient {
 		try {
 			this.#writeFrame(fullCommand, fail);
 		} catch (err) {
-			fail(err instanceof Error ? err : new Error(String(err)));
+			fail(toError(err));
 		}
 		return promise;
 	}
@@ -1794,7 +1794,7 @@ export class RpcClient {
 		const line = `${JSON.stringify(frame)}\n`;
 		// A broken stdin pipe is terminal: fail this frame's request, then stop so start() can relaunch.
 		const failed = (err: unknown) => {
-			onError?.(err instanceof Error ? err : new Error(String(err)));
+			onError?.(toError(err));
 			if (this.#process === child) void this.stop();
 		};
 		try {

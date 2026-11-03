@@ -1,6 +1,6 @@
 # Providers
 
-Providers are the model backends `zeta` can route requests to: Anthropic, OpenAI, Google Gemini, Groq, OpenRouter, Mistral, xAI, local engines like Ollama, hosted gateways, custom `models.yml` providers, and providers registered by extensions.
+Providers are the model backends `zetacode` can route requests to: Anthropic, OpenAI, Google Gemini, Groq, OpenRouter, Mistral, xAI, local engines like Ollama, hosted gateways, custom `models.yml` providers, and providers registered by extensions.
 
 A **provider** is the account or backend namespace, such as `anthropic`, `openai`, `google`, or `ollama`. A **model** is a concrete model under that provider, selected as `provider/model-id`, such as `anthropic/claude-opus-4-6`. Disabling a provider removes every model under it from selection; if you only want to narrow individual models, use model settings instead.
 
@@ -10,7 +10,7 @@ This page covers how providers become available, how credentials are resolved, t
 
 The `factory-droid` provider uses Factory's Droid subscription gateway directly. No `droid` binary, daemon, or SDK subprocess is needed for login or inference.
 
-1. Run `zeta login factory-droid` or `/login factory-droid` in an interactive session.
+1. Run `zetacode login factory-droid` or `/login factory-droid` in an interactive session.
 2. Open the printed `auth.factory.ai/device` link in your browser, enter the displayed device code, and approve the login.
 3. Select a model, for example `factory-droid/kimi-k3`, and send a prompt. The stored WorkOS session refreshes automatically. `zetacode auth-broker login factory-droid` supports broker-backed credentials.
 
@@ -22,13 +22,15 @@ The roster includes Factory's `generate_image` models (`gpt-image-2.5-sunburst`,
 
 Organization identity and residency travel with the credential serving each request, including account rotation, and each account/residency scope has its own model cache. Residency chooses the API host; the independent inference region (`global`, `us`, or `eu`) constrains upstream eligibility.
 
-`/usage` and `zetacode usage` report Standard Credits and Droid Core quota windows when the account uses token-rate-limit billing. Accounts whose billing response explicitly disables that mode remain visible with a note that no quota windows are exposed; ZETA does not invent a remaining balance. The model browser shows each model's base credit rate; dollar figures are upstream list-price references, not Factory billing, and neither includes temporary promotions. Models without a dollar reference display their credit rate rather than `free`. Extra balance alone does not establish that overage billing is enabled.
+Claude requests on Anthropic's own upstream offer Factory's server-side refusal fallback (Opus 5 for Fable and Opus 5.5) only when discovery found the fallback model in the account's roster. A request served by another organization's credential than discovery saw offers none; a Factory model ZETA did not discover (one defined in `models.yml`) offers every fallback its rules name, as before discovery tracked them.
+
+`/usage` and `zetacode usage` report Standard Credits and Droid Core quota windows when the account uses token-rate-limit billing. Accounts whose billing response explicitly disables that mode remain visible with a note that no quota windows are exposed; ZETA does not invent a remaining balance. The model browser shows each model's credit rate in force now, including Factory's dated credit promotions, and the model details name the next scheduled rate and its date; dollar figures are upstream list-price references, not Factory billing, and include no promotions. Models without a dollar reference display their credit rate rather than `free`. Extra balance alone does not establish that overage billing is enabled.
 
 If account rotation would narrow the selected model's context window, ZETA stops before sending that retry rather than guessing whether the existing conversation fits. Refresh discovery with `zetacode models refresh factory-droid` and select the region-appropriate model before retrying.
 
 Factory's native context limits hold even when extended context is disabled. Factory GPT and Gemini routes omit output-token caps, so bounded ephemeral turns reject a `maxTokens` request instead of silently running uncapped.
 
-## How `zeta` decides a provider is available
+## How `zetacode` decides a provider is available
 
 The model registry composes these sources:
 
@@ -52,7 +54,7 @@ Implicit `ollama` and `lm-studio` discovery is keyless by default; implicit `lla
 
 ## Credentials and precedence
 
-When a provider needs an API key, `zeta` resolves it in this order (first match wins):
+When a provider needs an API key, `zetacode` resolves it in this order (first match wins):
 
 1. **Runtime override**: a key supplied for the current process, for example CLI `--api-key`. Never persisted.
 2. **`models.yml` config key**: an `apiKey` pinned on a custom provider, registered as a config-sourced bearer. This deliberately beats stored OAuth, so a key supplied for a custom `baseUrl` or gateway is honored instead of forwarding an upstream OAuth token the proxy would reject.
@@ -73,11 +75,11 @@ Use the interactive slash commands inside a session:
 - `/login` — opens the OAuth/key selector. `/login <provider>` jumps straight to one provider (e.g. `/login anthropic`); for an OAuth flow that needs a pasted callback, run `/login <redirect-url>` to complete it.
 - `/logout` — opens the provider selector to remove stored credentials.
 
-Outside a session, `zeta login [<provider>]` runs the same login from the terminal, including extension-registered providers: it prints the auth URL (and opens it in your browser), reads any prompts from stdin, and saves to the same store sessions use — local `agent.db`, or the configured auth broker. Without a provider it shows a numbered picker. Successful login refreshes that provider's model catalog online so newly unlocked models are visible.
+Outside a session, `zetacode login [<provider>]` runs the same login from the terminal, including extension-registered providers: it prints the auth URL (and opens it in your browser), reads any prompts from stdin, and saves to the same store sessions use — local `agent.db`, or the configured auth broker. Without a provider it shows a numbered picker. Successful login refreshes that provider's model catalog online so newly unlocked models are visible.
 
 For headless or remote setups backed by a shared auth broker, the CLI exposes `zetacode auth-broker login <provider>` / `zetacode auth-broker logout` (and `status`, `list`, `import`, `migrate`). See [Secrets and credentials](./secrets.md) for the broker model.
 
-When a model has no credentials, `zeta` tells you to run `/login` or set the provider's environment variable.
+When a model has no credentials, `zetacode` tells you to run `/login` or set the provider's environment variable.
 
 For ClinePass, set `CLINE_API_KEY` or run `/login cline-pass` to open the Cline dashboard and validate a newly created API key against `/users/me`, without a completion probe or subscription-quota charge. ZETA refreshes membership from Cline's public recommended-models endpoint and bundles reviewed Cline metadata for offline startup. New live IDs are enriched from upstream references or use conservative metadata without invented reasoning controls. `zetacode usage` reports five-hour, weekly, and monthly quota windows. Free-tier models are marked `(free)` and use the same key; subscription models show API-equivalent reference pricing, while streamed gateway cost is authoritative for the actual charge. Requests mirror Cline CLI client headers and a stable per-session task ID; reasoning controls remain model-specific.
 
@@ -178,6 +180,7 @@ The variables below supply credentials after runtime/config overrides and stored
 | `alibaba-coding-plan`            | `ALIBABA_CODING_PLAN_API_KEY`                                                       |
 | `sakana`                         | `SAKANA_API_KEY`, then `FUGU_API_KEY`                                               |
 | `sambanova`                      | `SAMBANOVA_API_KEY`                                                                 |
+| `scaleway`                       | `SCW_SECRET_KEY`, then `SCW_API_KEY`                                                |
 | `aimlapi`                        | `AIMLAPI_API_KEY`                                                                   |
 | `gitlab-duo`, `gitlab-duo-agent` | `GITLAB_TOKEN`                                                                      |
 | `opencode-zen`, `opencode-go`    | `OPENCODE_API_KEY`                                                                  |
@@ -211,7 +214,7 @@ For `xai-oauth`, `XAI_API_KEY` is accepted for an explicit request but does not 
 
 `charm-hyper` is Charm's OpenAI-compatible inference gateway for coding agents. Issue or manage a key at `https://hyper.charm.land/`; the model list is discovered live from the provider's public `/v1/models` endpoint, and `HYPER_API_KEY` is accepted as a fallback alias for `CHARM_HYPER_API_KEY`.
 
-`inception` is Inception's native Mercury API. Set `INCEPTION_API_KEY` or run `/login inception` with a key from `https://platform.inceptionlabs.ai/dashboard/api-keys`, then select `inception/mercury-3`. Zeta discovers chat models from `/v1/models`, including Mercury 3, Mercury 2.5, and Mercury 2; FIM/edit and Decisions-only models are excluded. Mercury 3 supports a 1,000,000-token context and up to 131,072 output tokens. Thinking levels are `minimal`, `low`, `medium`, and `high`; `minimal` maps to Inception's `instant`, and `off` requests that lowest effort rather than disabling reasoning entirely. Mercury does not stream its reasoning, so no thinking text appears and a `high` turn can be silent for minutes before its first output; OMP waits up to 10 minutes for Mercury 3's first chunk (`providers.streamFirstEventTimeoutSeconds` overrides this). While `/v1/models` reports Mercury 3 at $0, OMP prices it at the published launch rate ($0.10 input / $0.35 output per million tokens); a tariff reported by `/v1/models` takes precedence.
+`inception` is Inception's native Mercury API. Set `INCEPTION_API_KEY` or run `/login inception` with a key from `https://platform.inceptionlabs.ai/dashboard/api-keys`, then select `inception/mercury-3`. ZETA discovers chat models from `/v1/models`, including Mercury 3, Mercury 2.5, and Mercury 2; FIM/edit and Decisions-only models are excluded. Mercury 3 supports a 1,000,000-token context and up to 131,072 output tokens. Thinking levels are `minimal`, `low`, `medium`, and `high`; `minimal` maps to Inception's `instant`, and `off` requests that lowest effort rather than disabling reasoning entirely. Mercury does not stream its reasoning, so no thinking text appears and a `high` turn can be silent for minutes before its first output; ZETA waits up to 10 minutes for Mercury 3's first chunk (`providers.streamFirstEventTimeoutSeconds` overrides this). While `/v1/models` reports Mercury 3 at $0, ZETA prices it at the published launch rate ($0.10 input / $0.35 output per million tokens); a tariff reported by `/v1/models` takes precedence.
 
 SingularityAPI sells two unrelated products behind one brand, so ZETA models them as two providers: they share no key, no billing model, and no effort ladder, and neither key is accepted by the other host.
 
@@ -219,11 +222,13 @@ SingularityAPI sells two unrelated products behind one brand, so ZETA models the
 
 `singularityapi-tech` is the reserved DeepSeek lanes gateway. Usage bills against a booked reservation slot rather than prepaid credit, so a valid key with no active slot answers 403 until you book one at `https://app.singularityapi.tech`. Create an `sk-...` key there (or run `/login singularityapi-tech`), set `SINGULARITYAPI_TECH_API_KEY`, and the lane roster is discovered live from `https://api.singularityapi.tech/v1/models`.
 
+For Mistral, set `MISTRAL_API_KEY` to a key created on the Mistral console, or run `/login mistral` to sign in through the browser the way the Mistral Vibe CLI does. The browser sign-in mints a regular API key tied to your Mistral plan: its usage counts against the plan's Vibe Code quota instead of pay-as-you-go API credits. ZETA stores it as a plain API key; there is nothing to refresh.
+
 OAuth-backed providers such as `anthropic`, `openai-codex`, `github-copilot`, `cursor`, `muse-code`, `ollama-cloud`, `qwen-portal`, `kimi-code`, `xai-oauth`, `wafer-serverless`, `google-gemini-cli`, `google-antigravity`, `devin`, and the GitLab providers (`gitlab-duo`, `gitlab-duo-agent`) are normally reached through `/login` rather than an environment variable. Interactive API-key logins exist too: `/login baseten`, `/login coreweave`, `/login sakana`, `/login singularityapi-dev`, and `/login singularityapi-tech` prompt for a dashboard/API key (`coreweave` additionally requires `COREWEAVE_PROJECT` for the `OpenAI-Project` header). See [Environment variables](./environment-variables.md) for search-tool and configuration variables not listed here.
 
 ### `.env` discovery and precedence
 
-`zeta` eagerly loads four `.env` files into the process environment before provider lookup. For each variable, the first **non-empty** source wins. Effective precedence, high to low:
+`zetacode` eagerly loads four `.env` files into the process environment before provider lookup. For each variable, the first **non-empty** source wins. Effective precedence, high to low:
 
 1. Non-empty values already in the process environment.
 2. `<project>/.env`
@@ -257,7 +262,7 @@ Ollama, llama.cpp, and LM Studio are discovered automatically without needing a 
 | `llama.cpp` | `LLAMA_CPP_BASE_URL`, else `http://127.0.0.1:8080`                                | Keyless unless authentication is configured. |
 | `lm-studio` | `LM_STUDIO_BASE_URL`, else `http://127.0.0.1:1234/v1`                             | Keyless by default.                          |
 
-Implicit Ollama and llama.cpp models use `openai-responses`; LM Studio uses `openai-completions`. On macOS arm64, `apple` also probes the in-process Apple Foundation Models bridge (`local://apple-foundation-models`). It offers `apple/on-device` only when the bridge reports the model usable; an ineligible device, disabled Apple Intelligence, or build without the bridge yields no models. Its on-device context can be too small for the standard prompt plus project instructions, so OMP does not auto-select it; use `--model apple/on-device` or `/model` to opt in.
+Implicit Ollama and llama.cpp models use `openai-responses`; LM Studio uses `openai-completions`. On macOS arm64, `apple` also probes the in-process Apple Foundation Models bridge (`local://apple-foundation-models`). It offers `apple/on-device` only when the bridge reports the model usable; an ineligible device, disabled Apple Intelligence, or build without the bridge yields no models. Its on-device context can be too small for the standard prompt plus project instructions, so ZETA does not auto-select it; use `--model apple/on-device` or `/model` to opt in.
 
 These implicit engines are **skipped** when:
 
@@ -407,7 +412,7 @@ providers:
            name: GLM-4.6 (BigModel)
 ```
 
-Set `BIGMODEL_API_KEY` to the `<id>.<secret>` key before starting `zeta`, then select `bigmodel/glm-4.6`. The key does not use an `sk-` prefix.
+Set `BIGMODEL_API_KEY` to the `<id>.<secret>` key before starting `zetacode`, then select `bigmodel/glm-4.6`. The key does not use an `sk-` prefix.
 
 Keyless local provider (no credentials required):
 

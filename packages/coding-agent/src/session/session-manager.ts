@@ -83,15 +83,16 @@ import {
 	type UsageStatistics,
 } from "./session-entries";
 import { currentRuntimeIdentity, type RuntimeIdentity } from "./runtime-identity";
-import { workspaceBranch } from "./workspace-branch";
 import {
-	filterSessionsForPicker,
 	findMostRecentNonEmptySession,
 	findRecentSessionContinuation,
 	findSessionContinuation,
 	isEmptySession,
 	listAllSessions,
+	listAllSessionsForPicker,
 	listSessions,
+	listSessionsForPicker,
+	type PickerListing,
 	type SessionContinuation,
 	type SessionInfo,
 } from "./session-listing";
@@ -117,7 +118,6 @@ import {
 } from "./session-paths";
 import { forgetExternalizedImages, prepareEntryForPersistence } from "./session-persistence";
 import { loadPinnedSessionIds, sortPinnedFirst } from "./session-pins";
-import { moveSessionToTrash } from "./session-trash";
 import {
 	FileSessionStorage,
 	MemorySessionStorage,
@@ -149,7 +149,7 @@ export function mintSessionId(): string {
 }
 
 /**
- * `moveTo` refused before anything moved: another live Zeta process writes the
+ * `moveTo` refused before anything moved: another live zeta process writes the
  * session, or the session file at the destination.
  */
 export class SessionMoveRefusedError extends Error {
@@ -1111,9 +1111,9 @@ export class SessionManager {
 	}
 
 	/**
-	 * Hold this process's ownership claim on `#sessionFile`, moving it off a
-	 * previous path. Only write paths claim, so the first process to write a
-	 * file owns it and inspection (`zetacode share`, `--export`, `render`) never
+	 * Hold this process's ownership claim on `#sessionId`, moving it off a
+	 * previous session. Only write paths claim, so the first process to write a
+	 * session owns it and inspection (`zetacode share`, `--export`, `render`) never
 	 * does. A failed claim is retried on the next write, so a writer takes over
 	 * once the owner closed the session or exited.
 	 */
@@ -1131,11 +1131,11 @@ export class SessionManager {
 	}
 
 	/**
-	 * Whether another live zeta process owns `#sessionFile`, claiming it first
-	 * when it is free. A non-owner never writes to that file: its next write
-	 * moves this session to a sibling instead, so two processes never mix their
-	 * entries in one journal and the owner's full rewrites never race the other
-	 * process's appends.
+	 * Whether another live zeta process owns this session, claiming it first
+	 * when it is free. A non-owner never writes the session's file: its next
+	 * write moves this session to a sibling with a new id instead, so two
+	 * processes never mix their entries in one journal and the owner's full
+	 * rewrites never race the other process's appends.
 	 */
 	#sessionOwnedElsewhere(): boolean {
 		if (this.#released || this.#sessionFileRelocating) return false;
@@ -2045,7 +2045,6 @@ export class SessionManager {
 			id: this.#sessionId,
 			timestamp,
 			cwd: this.#cwd,
-			branch: workspaceBranch(this.#cwd) ?? undefined,
 			// A session started from inside a client stays that client's session:
 			// `/new`, branch and fork inherit, and only a creator that knows better
 			// passes one explicitly.
@@ -2477,20 +2476,11 @@ export class SessionManager {
 		return sessionFile;
 	}
 
-	/**
-	 * Soft-delete a session: move the transcript, artifacts directory, and
-	 * stale backups into the session trash (`~/.zeta/trash/sessions/`) so
-	 * `/trash` can list and `/restore` can recover it. ENOENT is treated as
-	 * success.
-	 */
+	/** Delete a session file and its artifact directory. ENOENT is treated as success. */
 	async dropSession(sessionPath: string): Promise<void> {
 		await this.#drainAndCloseWriter();
 		try {
-			// The trash is a filesystem move: it cannot reach a transcript that
-			// lives in an indexed backend (Redis/SQL), and its `unlink` is the
-			// primitive that clears both the content key and the index entry.
-			if (this.#storage instanceof FileSessionStorage) await moveSessionToTrash(sessionPath);
-			else await this.#storage.deleteSessionWithArtifacts(sessionPath);
+			await this.#storage.deleteSessionWithArtifacts(sessionPath);
 		} catch (err) {
 			if (!isEnoent(err)) throw err;
 		}
@@ -2522,10 +2512,7 @@ export class SessionManager {
 			titleSource: this.#header.titleSource ?? this.#titleSource,
 			timestamp,
 			cwd: this.#cwd,
-			branch: this.#header.branch ?? workspaceBranch(this.#cwd) ?? undefined,
 			additionalDirectories: this.#additionalDirectories.length > 0 ? [...this.#additionalDirectories] : undefined,
-			// The fork is the same conversation read by the same client.
-			client: this.#header.client,
 			parentSession: parentSessionId,
 			providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(this.#header),
 			taskPromptCacheKey: this.#header.taskPromptCacheKey,
@@ -2569,7 +2556,7 @@ export class SessionManager {
 		}
 
 		// A move writes both paths: it must neither move a session another live
-		// omp process writes nor replace a destination one writes. Checked before
+		// zeta process writes nor replace a destination one writes. Checked before
 		// relocation starts (appends still go to the source) and before any
 		// directory is created, so a refusal touches nothing.
 		let destination: { id: string; release: () => void } | undefined;
@@ -2582,7 +2569,7 @@ export class SessionManager {
 			const release = this.#storage.claimSession?.(id, file);
 			if (release === null) {
 				throw new SessionMoveRefusedError(
-					`Cannot move session to "${file}": another live Zeta process writes the session there. Nothing was moved.`,
+					`Cannot move session to "${file}": another live zeta process writes the session there. Nothing was moved.`,
 				);
 			}
 			destination?.release();
@@ -2606,7 +2593,7 @@ export class SessionManager {
 			this.#claimSession();
 			if (this.#sessionClaim?.release === undefined) {
 				throw new SessionMoveRefusedError(
-					`Cannot move session "${this.#sessionFile}": another live Zeta process writes it. Nothing was moved.`,
+					`Cannot move session "${this.#sessionFile}": another live zeta process writes it. Nothing was moved.`,
 				);
 			}
 			if (expectedSessionFile && path.resolve(this.#sessionFile) !== path.resolve(expectedSessionFile)) {
@@ -2772,7 +2759,7 @@ export class SessionManager {
 		await this.#rewriteAtomically();
 	}
 
-	/** Persist this session's transcript as a newly identified ZETA session. */
+	/** Persist this session's transcript as a newly identified OMP session. */
 	async persistCopy(
 		options?: { sessionDir?: string; suppressBreadcrumb?: boolean },
 		storage: SessionStorage = new FileSessionStorage(),
@@ -2780,9 +2767,7 @@ export class SessionManager {
 		const sessionDir = options?.sessionDir ?? SessionManager.getDefaultSessionDir(this.#cwd, undefined, storage);
 		const manager = new SessionManager(this.#cwd, sessionDir, true, storage);
 		manager.#suppressBreadcrumb = options?.suppressBreadcrumb === true;
-		// The copy is this same conversation under a new id, so it keeps the client
-		// that was reading it.
-		manager.#resetToNewSession({ client: this.#header.client, taskPromptCacheKey: this.#header.taskPromptCacheKey });
+		manager.#resetToNewSession({ taskPromptCacheKey: this.#header.taskPromptCacheKey });
 		manager.#sessionName = this.#sessionName;
 		manager.#titleSource = this.#titleSource;
 		manager.#titleUpdatedAt = this.#titleUpdatedAt;
@@ -3475,31 +3460,16 @@ export class SessionManager {
 	}
 
 	/**
-	 * Rename a session file that is not necessarily open in this process.
-	 *
-	 * The resume picker uses this path for conversations other than the live
-	 * one; it opens the file and delegates to {@link setSessionName} so the
-	 * same cleaning, user-source precedence and title-slot persistence apply as
-	 * `/rename`. Callers renaming the live session must use the live manager
-	 * instead, because opening its file would contend with that writer.
-	 *
-	 * @returns the stored name, or `null` when the name is empty or rejected.
+	 * Compatibility wrapper for the resume picker's rename path. Delegates to
+	 * {@link renameSessionTitle}, which claims the cross-process lease before
+	 * loading; the legacy `storage` argument is accepted but no longer used.
 	 */
 	static async setSessionNameAtPath(
 		filePath: string,
 		name: string,
-		storage: SessionStorage = new FileSessionStorage(),
+		_storage: SessionStorage = new FileSessionStorage(),
 	): Promise<string | null> {
-		const manager = await SessionManager.open(filePath, undefined, storage, {
-			suppressBreadcrumb: true,
-			throwIfMissing: true,
-		});
-		try {
-			const applied = await manager.setSessionName(name, "user");
-			return applied ? (manager.getSessionName() ?? null) : null;
-		} finally {
-			await manager.close();
-		}
+		return SessionManager.renameSessionTitle(filePath, name);
 	}
 
 	/**
@@ -3705,6 +3675,7 @@ export class SessionManager {
 		systemPrompt: string[];
 		task: string;
 		tools: string[];
+		mountedTools?: string[];
 		agent?: string;
 		modelRole?: string;
 		resolvedModel?: string;
@@ -4155,7 +4126,6 @@ export class SessionManager {
 			id: newSessionId,
 			timestamp,
 			cwd: this.#cwd,
-			branch: this.#header.branch ?? workspaceBranch(this.#cwd) ?? undefined,
 			title: this.#sessionName,
 			titleSource: this.#titleSource,
 			parentSession: this.#persist ? sourceSessionFile : undefined,
@@ -4224,9 +4194,6 @@ export class SessionManager {
 	 * Create a new session.
 	 * @param cwd Working directory (stored in the session header)
 	 * @param sessionDir Optional session directory; defaults to the cwd-derived dir.
-	 * @param storage Session storage backend; defaults to the filesystem.
-	 * @param options Seed options for the new header — a creator stamps its
-	 * `SessionClient` here so the session records where it came from.
 	 */
 	static create(
 		cwd: string,
@@ -4314,8 +4281,6 @@ export class SessionManager {
 		manager.#resetToNewSession(
 			{
 				parentSession: sourceHeader?.id,
-				// A fork of a transcript is read by whoever read the original.
-				client: sourceHeader?.client,
 				providerPromptCacheKey: SessionManager.getInheritedProviderPromptCacheKey(sourceHeader),
 				taskPromptCacheKey: sourceHeader?.taskPromptCacheKey,
 			},
@@ -4492,7 +4457,7 @@ export class SessionManager {
 	 * Open a session whose recorded directory `recordedCwd` is gone and move it,
 	 * artifacts included, into `cwd` so it resumes from there.
 	 * @param sessionDir Target session directory; defaults to `cwd`'s.
-	 * @throws {SessionMoveRefusedError} when another live Zeta process writes the session.
+	 * @throws {SessionMoveRefusedError} when another live zeta process writes the session.
 	 */
 	static async openRelocated(
 		sessionPath: string,
@@ -4555,9 +4520,6 @@ export class SessionManager {
 	}
 	/**
 	 * Continue the most recent session, or create a new one if none exists.
-	 * @param options Seed options for the session created when there is nothing
-	 * to continue — a creator stamps its `SessionClient` here — plus the
-	 * continuation report sink.
 	 *
 	 * When the chosen session's conversation went on in another file (it moved
 	 * off its file; see `findSessionContinuation`), this opens the copy to
@@ -4573,9 +4535,7 @@ export class SessionManager {
 		cwd: string,
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
-		options: NewSessionOptions & {
-			onSessionContinuation?: (continuation: SessionContinuation) => void;
-		} = {},
+		options: { onSessionContinuation?: (continuation: SessionContinuation) => void } = {},
 	): Promise<SessionManager> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const resolvedCwd = path.resolve(cwd);
@@ -4595,7 +4555,7 @@ export class SessionManager {
 				(!sessionDir || pathIsWithin(dir, path.dirname(breadcrumb.sessionFile)))
 			) {
 				const manager = new SessionManager(cwd, dir, true, storage);
-				manager.#resetToNewSession(options);
+				manager.#resetToNewSession();
 				return manager;
 			}
 
@@ -4662,10 +4622,10 @@ export class SessionManager {
 						return manager;
 					} catch (err) {
 						if (!(err instanceof SessionMoveRefusedError)) throw err;
-						// Another live omp process still writes the session (the
+						// Another live zeta process still writes the session (the
 						// project was renamed under it): leave it there and continue
 						// as if no move were possible.
-						logger.warn("Not re-rooting moved session: it is open in another omp process", {
+						logger.warn("Not re-rooting moved session: it is open in another zeta process", {
 							from: breadcrumbCwd,
 							to: resolvedCwd,
 						});
@@ -4696,7 +4656,7 @@ export class SessionManager {
 
 		const manager = new SessionManager(cwd, dir, true, storage);
 		if (chosenSession) await manager.setSessionFile(chosenSession);
-		else manager.#resetToNewSession(options);
+		else manager.#resetToNewSession();
 		return manager;
 	}
 
@@ -4731,8 +4691,10 @@ export class SessionManager {
 	}
 
 	/**
-	 * Picker-facing project list in recency order (the picker floats pins),
+	 * Picker-facing project listing in recency order (the picker floats pins),
 	 * untitled empties dropped. Titled empties stay — a title is user intent worth resuming.
+	 * Arrives in two passes: rows for history.db-indexed titles first, the full
+	 * scan in `complete` (see {@link listSessionsForPicker}).
 	 * By default includes the same folder in the repository's other git worktrees,
 	 * so a session `/wt` moved stays reachable from the checkout it left.
 	 * The directory scope limits the picker to its own session bucket.
@@ -4742,26 +4704,21 @@ export class SessionManager {
 		sessionDir?: string,
 		storage: SessionStorage = new FileSessionStorage(),
 		worktreeScope: "directory" | "repo" = "repo",
-	): Promise<SessionInfo[]> {
+	): Promise<PickerListing> {
 		const dir = sessionDir ?? SessionManager.getDefaultSessionDir(cwd, undefined, storage);
 		const [pinned, siblingDirs] = await Promise.all([
 			loadPinnedSessionIds(),
 			worktreeScope === "repo" ? worktreeSessionDirs(cwd, dir) : [],
 		]);
-		return filterSessionsForPicker(await listSessions(dir, storage, siblingDirs), pinned);
+		return listSessionsForPicker(dir, storage, pinned, siblingDirs);
 	}
 
-	/**
-	 * Picker-facing cross-project list, same empty-session rule as
-	 * {@link listForPicker}. `sessionsRoot` picks the directory tree to scan so a
-	 * process writing to a custom session root lists its own sessions, not the
-	 * default agent root's.
-	 */
+	/** Picker-facing cross-project listing, same rules and passes as {@link listForPicker}. */
 	static async listAllForPicker(
 		storage: SessionStorage = new FileSessionStorage(),
 		sessionsRoot?: string,
-	): Promise<SessionInfo[]> {
-		return filterSessionsForPicker(await listAllSessions(storage, sessionsRoot), await loadPinnedSessionIds());
+	): Promise<PickerListing> {
+		return listAllSessionsForPicker(storage, await loadPinnedSessionIds(), sessionsRoot);
 	}
 }
 
@@ -4778,6 +4735,7 @@ export interface PersistedSessionInit {
 	systemPrompt: string[];
 	task: string;
 	tools: string[];
+	mountedTools?: string[];
 	agent?: string;
 	modelRole?: string;
 	resolvedModel?: string;
@@ -4809,6 +4767,7 @@ export function extractSessionInit(entries: readonly FileEntry[]): PersistedSess
 			systemPrompt: typeof entry.systemPrompt === "string" ? [entry.systemPrompt] : entry.systemPrompt,
 			task: entry.task,
 			tools: entry.tools,
+			mountedTools: entry.mountedTools,
 			agent: entry.agent,
 			modelRole: entry.modelRole,
 			resolvedModel: entry.resolvedModel,

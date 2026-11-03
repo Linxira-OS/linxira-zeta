@@ -191,7 +191,7 @@ for (const rule of MUST_CONTAIN) {
 // Generated brand art: the welcome/splash lockup is rendered by the standard
 // FIGlet tool (scripts/brand/logo-art.ts), never drawn by hand, so the committed
 // rows must equal the render exactly. A hand-edited glyph, a hand-drawn
-// replacement, an upstream `omp`/π lockup and a stale render after a font bump
+// replacement, an upstream `zetacode`/π lockup and a stale render after a font bump
 // all fail here; `bun scripts/brand/generate-logo-art.ts` rewrites the rows.
 const WELCOME_TS = "packages/tui/src/prompt/welcome.ts";
 const welcomeSource = fs.readFileSync(path.resolve(ROOT, WELCOME_TS), "utf8");

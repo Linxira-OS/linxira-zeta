@@ -25,8 +25,13 @@ import { outputBlockContentWidth, renderStatusLine } from "../render";
 import { framedToolCard } from "../render/tool-card";
 import { wrapPrefixedLine } from "../render/hanging-wrap";
 
-import { formatErrorMessage, formatMeta, formatTitle, sanitizeCarriageReturns } from "../render/render-utils";
-import { tuiText, tuiTextFmt } from "../i18n";
+import {
+	formatErrorMessage,
+	formatMeta,
+	formatStatusIcon,
+	formatTitle,
+	sanitizeCarriageReturns,
+} from "../render/render-utils";
 
 /** Result for a single question */
 export interface QuestionResult {
@@ -177,10 +182,11 @@ function normalizeRenderQuestions(raw: unknown): NonNullable<AskRenderArgs["ques
 /** Render a custom free-text answer as a status line plus indented continuation rows. */
 function renderCustomInputLines(uiTheme: Theme, customInput: string): string[] {
 	const lines = customInput.split("\n");
-	const out: string[] = [
-		` ${uiTheme.styledSymbol("status.success", "success")} ${uiTheme.fg("toolOutput", lines[0] ?? "")}`,
-	];
-	for (let i = 1; i < lines.length; i++) out.push(`   ${uiTheme.fg("toolOutput", lines[i])}`);
+	const icon = formatStatusIcon("success", uiTheme);
+	// Continuation rows line up under the answer text, past the glyph's own width.
+	const indent = " ".repeat(visibleWidth(icon) + 2);
+	const out: string[] = [` ${icon} ${uiTheme.fg("toolOutput", lines[0] ?? "")}`];
+	for (let i = 1; i < lines.length; i++) out.push(`${indent}${uiTheme.fg("toolOutput", lines[i])}`);
 	return out;
 }
 
@@ -283,9 +289,7 @@ function renderAnswerOptionLines(
 
 	// Nothing was chosen (and no custom answer) → a lone cancelled marker.
 	if (selected.size === 0 && customInput === undefined && note === undefined) {
-		return [
-			` ${uiTheme.styledSymbol("status.warning", "warning")} ${uiTheme.fg("warning", tuiText("askCancelledLabel", "Cancelled"))}`,
-		];
+		return [` ${formatStatusIcon("warning", uiTheme)} ${uiTheme.fg("warning", "Cancelled")}`];
 	}
 
 	const out: string[] = [];
@@ -457,7 +461,7 @@ export const askToolRenderer = {
 	},
 	mergeCallAndResult: true,
 	renderCall(args: AskRenderArgs, _options: RenderResultOptions, uiTheme: Theme): Component {
-		const label = formatTitle(tuiText("askTitle", "Ask"), uiTheme);
+		const label = formatTitle("Ask", uiTheme);
 		const mdTheme = getMarkdownTheme();
 		const accentStyle = { color: (t: string) => uiTheme.fg("accent", t) };
 		const md = (text: string, width: number) =>
@@ -468,16 +472,11 @@ export const askToolRenderer = {
 		// throw here takes down the whole TUI render loop — normalize first.
 		const questions = normalizeRenderQuestions(args.questions);
 		if (questions && questions.length > 0) {
-			const header = `${label} ${uiTheme.fg(
-				"muted",
-				questions.length === 1
-					? tuiText("askQuestionOne", "1 question")
-					: tuiTextFmt("askQuestionManyFmt", "%d questions", questions.length),
-			)}`;
+			const header = `${label} ${uiTheme.fg("muted", `${questions.length} questions`)}`;
 			return framedToolCard(uiTheme, ({ width, contentWidth }) => {
 				const sections = questions.map(q => {
 					const meta: string[] = [];
-					if (q.multi) meta.push(tuiText("askMultiMeta", "multi"));
+					if (q.multi) meta.push("multi");
 					if (q.options?.length) meta.push(`options:${q.options.length}`);
 					const metaStr = meta.length > 0 ? uiTheme.fg("dim", ` · ${meta.join(" · ")}`) : "";
 					// md() returns a shared cached array (module-level Markdown LRU) — copy before appending.
@@ -493,7 +492,7 @@ export const askToolRenderer = {
 
 		// Single question
 		if (typeof args.question !== "string" || !args.question) {
-			const errorLine = formatErrorMessage(tuiText("askErrNoQuestion", "No question provided"), uiTheme);
+			const errorLine = formatErrorMessage("No question provided", uiTheme);
 			return framedToolCard(uiTheme, () => ({
 				header: errorLine,
 				sections: [],
@@ -538,7 +537,7 @@ export const askToolRenderer = {
 		if (!rawDetails) {
 			const txt = result.content[0];
 			const fallback = txt?.type === "text" && txt.text ? sanitizeCarriageReturns(txt.text) : "";
-			const header = renderStatusLine({ icon: "warning", title: tuiText("askTitle", "Ask") }, uiTheme);
+			const header = renderStatusLine({ icon: "warning", title: "Ask" }, uiTheme);
 			const body = fallback ? `\n${uiTheme.fg("dim", fallback)}` : "";
 			return new Text(`${header}${body}`, 0, 0);
 		}
@@ -546,14 +545,7 @@ export const askToolRenderer = {
 
 		// Chat redirect: user chose "Chat about this" instead of answering.
 		if (details.chatRedirect) {
-			const header = renderStatusLine(
-				{
-					icon: "info",
-					title: tuiText("askTitle", "Ask"),
-					meta: [tuiText("askChatRedirectMeta", "chat redirect")],
-				},
-				uiTheme,
-			);
+			const header = renderStatusLine({ icon: "info", title: "Ask", meta: ["chat redirect"] }, uiTheme);
 			const questions = details.questions ?? [];
 			return framedToolCard(uiTheme, ({ width }) => ({
 				header,
@@ -575,11 +567,8 @@ export const askToolRenderer = {
 			const header = renderStatusLine(
 				{
 					icon: hasAnySelection ? "success" : "warning",
-					title: tuiText("askTitle", "Ask"),
-					meta:
-						results.length === 1
-							? [tuiText("askQuestionOne", "1 question")]
-							: [tuiTextFmt("askQuestionManyFmt", "%d questions", results.length)],
+					title: "Ask",
+					meta: [`${results.length} questions`],
 				},
 				uiTheme,
 			);
@@ -629,8 +618,8 @@ export const askToolRenderer = {
 			(details.selectedOptions && details.selectedOptions.length > 0);
 		const header = renderStatusLine(
 			hasSelection
-				? { iconOverride: uiTheme.styledSymbol("tool.ask", "accent"), title: tuiText("askTitle", "Ask") }
-				: { icon: "warning", title: tuiText("askTitle", "Ask") },
+				? { iconOverride: uiTheme.styledSymbol("tool.ask", "accent"), title: "Ask" }
+				: { icon: "warning", title: "Ask" },
 			uiTheme,
 		);
 		const dOptions = details.options;
@@ -658,9 +647,7 @@ export const askToolRenderer = {
 			];
 			if (dTimedOut) {
 				// Distinguish auto-selection from a real user choice in the transcript.
-				bodyLines.push(
-					uiTheme.fg("dim", tuiText("askAutoSelected", "auto-selected after timeout — not a user choice")),
-				);
+				bodyLines.push(uiTheme.fg("dim", "auto-selected after timeout — not a user choice"));
 			}
 			return {
 				header,

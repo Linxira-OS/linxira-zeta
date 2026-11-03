@@ -1,3 +1,4 @@
+import { resolveFactoryDroidPolicy } from "@linxiraos/pi-catalog/compat/factory-droid";
 import type { RequestPolicy } from "@linxiraos/pi-catalog/compat/types";
 import type { Effort } from "@linxiraos/pi-catalog/effort";
 import { calculateCost } from "@linxiraos/pi-catalog/models";
@@ -29,7 +30,7 @@ import { factoryDroidToolNamesByWire, sanitizeFactoryDroidToolName } from "./too
 
 /** Factory's Gemini endpoint speaks native generateContent SSE at `/api/llm/g/v1/generate`. */
 
-/** ZETA effort → Gemini thinkingLevel (low/minimal→LOW, medium→MEDIUM when supported, else HIGH). */
+/** OMP effort → Gemini thinkingLevel (low/minimal→LOW, medium→MEDIUM when supported, else HIGH). */
 function geminiThinkingLevel(effort: string | undefined, supportsMedium: boolean): "LOW" | "MEDIUM" | "HIGH" {
 	switch (effort) {
 		case "low":
@@ -54,7 +55,7 @@ const FACTORY_DROID_BLOCK_REASONS: Record<string, true> = {
 };
 
 /**
- * Map a generateContent `finishReason` to ZETA's StopReason using the CLI's
+ * Map a generateContent `finishReason` to OMP's StopReason using the CLI's
  * table: STOP→stop, MAX_TOKENS→length, content-filter family→error (with a
  * category), MALFORMED_FUNCTION_CALL→error, anything else→error. The CLI's
  * "unknown" bucket has no StopReason equivalent, so unknown terminators
@@ -85,6 +86,19 @@ const GOOGLE_APIS: Record<string, true> = {
 	"google-gemini-cli": true,
 };
 
+/** Whether Factory serves `model` on this Gemini generate wire rather than through an inner Anthropic or OpenAI model. */
+export function isFactoryDroidGeminiWire(model: Pick<Model, "id" | "requestModelId">): boolean {
+	return resolveFactoryDroidPolicy(model)?.wire === "google-generate";
+}
+
+/**
+ * Whether {@link adoptFactoryReplay} may keep `turn`'s opaque reasoning payload
+ * (thinking and call signatures): only a Google-origin turn's survive.
+ */
+export function keepsFactoryGeminiReasoning(turn: Pick<AssistantMessage, "api">): boolean {
+	return GOOGLE_APIS[turn.api] === true;
+}
+
 /**
  * Apply Factory's replay provenance before canonical normalization: only
  * signed, Google-origin thinking and Google-origin call signatures survive;
@@ -106,7 +120,7 @@ const GOOGLE_APIS: Record<string, true> = {
  */
 export function adoptFactoryReplay(message: Message, model: Model<"factory-droid-agent">): Message {
 	if (message.role !== "assistant") return message;
-	const googleOrigin = GOOGLE_APIS[message.api] === true;
+	const googleOrigin = keepsFactoryGeminiReasoning(message);
 	const sameModel = googleOrigin && message.provider === model.provider && message.model === model.id;
 	const content: AssistantMessage["content"] = [];
 	for (const block of message.content) {

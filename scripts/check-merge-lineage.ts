@@ -180,14 +180,20 @@ if (advertisedPeeled && candidatePeeled) {
 	);
 }
 
-// 3. THE gate — merge-base must be exactly the baseline.
+// 3. THE gate — before the merge, merge-base must be exactly the baseline.
+// After a real merge the candidate is already an ancestor of HEAD, so the
+// merge-base with HEAD is the candidate itself. That is the expected post-merge
+// shape; treating it as a violation would make every merged sync branch red.
 const mergeBase = git(["merge-base", "HEAD", CANDIDATE], true);
+const candidateMerged = mergeBase !== "" && candidatePeeled !== "" && mergeBase === candidatePeeled;
 check(
 	"merge-base(HEAD, candidate) == baseline",
-	mergeBase !== "" && baselinePeeled !== "" && mergeBase === baselinePeeled,
-	mergeBase === baselinePeeled
-		? `merge-base = ${mergeBase.slice(0, 12)} = ${BASELINE} — the merge will consider only upstream's own increment`
-		: `merge-base is ${mergeBase.slice(0, 12)}, expected ${(baselinePeeled || "?").slice(0, 12)} (${BASELINE}). Our own changes are entering the merge computation, which is exactly the failure this gate exists to stop.`,
+	candidateMerged || (mergeBase !== "" && baselinePeeled !== "" && mergeBase === baselinePeeled),
+	candidateMerged
+		? `merge-base = ${mergeBase.slice(0, 12)} = ${CANDIDATE} — the candidate is already merged into HEAD (post-merge branch)`
+		: mergeBase === baselinePeeled
+			? `merge-base = ${mergeBase.slice(0, 12)} = ${BASELINE} — the merge will consider only upstream's own increment`
+			: `merge-base is ${mergeBase.slice(0, 12)}, expected ${(baselinePeeled || "?").slice(0, 12)} (${BASELINE}). Our own changes are entering the merge computation, which is exactly the failure this gate exists to stop.`,
 );
 
 // Informational: the size of the window actually being merged.

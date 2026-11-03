@@ -4,6 +4,7 @@
  * + text blocks, tool args/result, user text, subagent task text.
  */
 
+import { toError } from "@linxiraos/pi-utils/type-guards";
 import { Check, Copy, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { getSessionEntryDetail } from "../api";
@@ -113,7 +114,7 @@ export function SpanDrawer({
 			})
 			.catch(err => {
 				if (controller.signal.aborted) return;
-				setError(err instanceof Error ? err : new Error(String(err)));
+				setError(toError(err));
 			})
 			.finally(() => {
 				if (!controller.signal.aborted) setLoading(false);

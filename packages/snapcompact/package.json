@@ -35,7 +35,8 @@
     "@linxiraos/pi-catalog": "catalog:",
     "@linxiraos/pi-natives": "catalog:",
     "@linxiraos/pi-utils": "catalog:",
-    "@linxiraos/pi-wire": "catalog:"
+    "@linxiraos/pi-wire": "catalog:",
+    "@linxiraos/pi-omptype": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"

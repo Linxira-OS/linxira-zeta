@@ -19,6 +19,13 @@ an IDE with a chat pane: the session is the unit of work and every pane is a
 surface the agent can use. Linux is the primary platform; Windows x64 is
 supported; there is no macOS build.
 
+Zeta is a downstream fork of [OMP](https://github.com/can1357/oh-my-pi),
+licensed MIT; we modify and extend the upstream tree rather than presenting it
+as our own. Upstream copyright notices and the upstream MIT text are retained
+in [`LICENSE`](./LICENSE); [`NOTICE`](./NOTICE) names the integrated upstream
+release and Zeta's modifications. The sync ledger is
+[`document/upstream-sync.md`](./document/upstream-sync.md).
+
 ## The Suite
 
 | Command    | Package           | What it is                                            |

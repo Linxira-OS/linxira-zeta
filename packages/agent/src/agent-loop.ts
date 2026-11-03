@@ -53,7 +53,7 @@ import {
 	signalListLabel,
 } from "@linxiraos/pi-ai/utils/harmony-leak";
 import { isDsmlLeakRecoveryTarget, removeDsmlToolMarkupLeak } from "@linxiraos/pi-ai/utils/dsml-leak";
-import { cloneJsonTree, logger, sanitizeText, structuredCloneJSON } from "@linxiraos/pi-utils";
+import { cloneJsonTree, logger, sanitizeText, structuredCloneJSON, toError } from "@linxiraos/pi-utils";
 import { INTENT_FIELD } from "@linxiraos/pi-wire";
 import { LiveSteeringChannel } from "./live-steering";
 import { agentPauseGate } from "./pause";
@@ -1188,7 +1188,7 @@ function resolveAsides(entries: AsideMessage[] | undefined): AgentMessage[] {
 			if (message) out.push(message);
 		}
 	} catch (error) {
-		discardAsides(out, error instanceof Error ? error : new Error(String(error)));
+		discardAsides(out, toError(error));
 		throw error;
 	}
 	return out;

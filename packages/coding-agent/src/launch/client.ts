@@ -1,9 +1,9 @@
-import * as fs from "node:fs/promises";
 import { closeSync, openSync } from "node:fs";
+import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { IpcConnection } from "@linxiraos/pi-natives";
-import { getGlobalDaemonRuntimeDir, isEexist, isEnoent, logger, postmortem } from "@linxiraos/pi-utils";
+import { getGlobalDaemonRuntimeDir, isEexist, isEnoent, logger, postmortem, toError } from "@linxiraos/pi-utils";
 import { resolveWorkerSpawnCmd, workerEnvFromParent } from "../subprocess/worker-client";
 import { canonicalProjectDir, daemonBrokerEndpoint, daemonRuntimeDir } from "./paths";
 import {
@@ -30,17 +30,6 @@ const TOKEN_FILE = "broker.token";
  * with it. Detached, it has no console; its daemons then spawn hidden.
  */
 const BROKER_SPAWN_OPTIONS = { detached: true, windowsHide: true } as const;
-
-/** Last ~600 chars of the broker's captured stderr, for startup-failure errors. */
-async function brokerStderrTail(logPath: string): Promise<string> {
-	try {
-		const text = await fs.readFile(logPath, "utf8");
-		const tail = text.length > 600 ? `…${text.slice(-600)}` : text;
-		return `Broker stderr (${logPath}):\n${tail.trim()}\n`;
-	} catch {
-		return "Broker stderr: not captured.\n";
-	}
-}
 
 interface PendingRequest {
 	operation: DaemonOperation;
@@ -304,14 +293,13 @@ class SocketDaemonClient implements DaemonBrokerClient {
 				this.#bindSocket(await IpcConnection.connect(this.#endpoint, { framing: "lines", timeoutMs: 250 }));
 				return;
 			} catch (error) {
-				lastError = error instanceof Error ? error : new Error(String(error));
+				lastError = toError(error);
 				await Bun.sleep(CONNECT_RETRY_MS);
 			}
 		}
 		throw new Error(
 			`Failed to start daemon broker at ${this.#endpoint} after ${CONNECT_TIMEOUT_MS / 1000}s: ` +
 				`${lastError?.message ?? "socket unavailable"}. Scope: ${this.#runtimeDir}. ` +
-				`${await brokerStderrTail(path.join(this.#runtimeDir, "broker.err.log"))}` +
 				"Run `zetacode --smoke-test` to verify broker startup, or `zetacode ps` to inspect supervised processes.",
 		);
 	}
@@ -364,14 +352,14 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		try {
 			decoded = JSON.parse(line);
 		} catch (error) {
-			this.#rejectPending(error instanceof Error ? error : new Error(String(error)));
+			this.#rejectPending(toError(error));
 			return;
 		}
 		let message: DaemonWireMessage;
 		try {
 			message = parseDaemonWireMessage(decoded);
 		} catch (error) {
-			const parseError = error instanceof Error ? error : new Error(String(error));
+			const parseError = toError(error);
 			if (
 				typeof decoded === "object" &&
 				decoded !== null &&
@@ -401,7 +389,7 @@ class SocketDaemonClient implements DaemonBrokerClient {
 		try {
 			pending.resolve(parseDaemonRpcResult(pending.operation, response.result));
 		} catch (error) {
-			pending.reject(error instanceof Error ? error : new Error(String(error)));
+			pending.reject(toError(error));
 		}
 	}
 

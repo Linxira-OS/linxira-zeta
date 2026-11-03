@@ -2213,7 +2213,9 @@ export class SelectorController {
 					initialState,
 					workspacePath: cwd,
 					deleteMode: "trash",
-					...(sessionsRoot ? { sessionsRoot } : { sessions: () => SessionManager.listForPicker(cwd, sessionDir) }),
+					...(sessionsRoot
+						? { sessionsRoot }
+						: { sessions: async () => (await SessionManager.listForPicker(cwd, sessionDir)).sessions }),
 					currentSessionPath,
 					renameCurrentSession: async title => {
 						const manager = this.ctx.sessionManager;
@@ -2241,14 +2243,14 @@ export class SelectorController {
 				const historyMatcher = historyStorage
 					? (query: string) => historyStorage.matchingSessionIds(query)
 					: undefined;
-				sessions = consultSessions;
+				sessions = await consultSessions.complete;
 				selectorOptions = {
 					title: "Select a Session to Consult",
 					actionLabel: "Select",
 					scopeLabel: false,
 					showCwd: true,
 					historyMatcher,
-					loadAllSessions: () => SessionManager.listAllForPicker(),
+					loadAllSessions: async () => (await SessionManager.listAllForPicker()).complete,
 					pinnedIds,
 					currentSessionPath,
 				};

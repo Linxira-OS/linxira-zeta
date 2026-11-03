@@ -30,6 +30,7 @@ import {
 } from "./orphan-registry";
 import { stopSharedBrowserIfUnreachable } from "./shared-daemon";
 import {
+	acquireBrowser,
 	type BrowserHandle,
 	type BrowserKindTag,
 	type CmuxBrowserHandle,
@@ -102,16 +103,17 @@ interface TabSessionBase<TBrowser extends BrowserHandle = BrowserHandle> {
 	allowedDomains?: string[];
 	kindTag: BrowserKindTag;
 	/**
-	 * Session id of the caller that CREATED the tab. Preserved across reuse so
+	 * Owner id (the agent's kernel owner id) of the caller that CREATED the tab. Preserved across reuse so
 	 * that dispose of the creating session can reap browser resources without
 	 * yanking the tab out from under a subagent that only reused it.
 	 * Undefined when the acquirer did not identify itself.
 	 */
 	ownerSessionId?: string;
 	/**
-	 * Opt out of settle-freeze and idle-close reaping. Recorded on the tab
-	 * when created (never on reuse), mirroring `ownerSessionId`: keeping a
-	 * tab live across turns is the creator's explicit decision.
+	 * Opt out of settle-freeze and idle-close reaping, and keep a page zeta
+	 * opened in the user's Chrome (relay) open when the session ends. Set at
+	 * creation or explicit reuse by the owning session; another session's
+	 * reuse cannot change the tab's lifetime.
 	 */
 	persist?: boolean;
 	/** Wall-clock (`Date.now()`) last use: create, reuse, or run start. Drives idle-close. */
@@ -128,11 +130,11 @@ interface TabSessionBase<TBrowser extends BrowserHandle = BrowserHandle> {
 export interface WorkerTabSession extends TabSessionBase<PuppeteerBrowserHandle> {
 	backend: "worker";
 	worker: WorkerHandle;
-	/** omp created this page (headless, or a relay open without a target): closing the tab closes it. */
+	/** zeta created this page (headless, or a relay open without a target): closing the tab closes it. */
 	ownsPage: boolean;
 	/**
 	 * The tab's upload staging folder. It outlives the tab's workers, since Chrome reads a picked file only when the page
-	 * does, and goes with the page when omp closes it; a page left open in the user's browser keeps it until the sweep.
+	 * does, and goes with the page when zeta closes it; a page left open in the user's browser keeps it until the sweep.
 	 */
 	uploadDir: string;
 	/** In flight while a worker that exited on its own is replaced; runs wait for it before driving the tab. */
@@ -152,7 +154,7 @@ export interface CmuxTabSession extends TabSessionBase<CmuxBrowserHandle> {
 	cmuxAttachedSurface?: string;
 }
 
-/** A tab shown as a Tern browser picture-in-picture over omp's pane, or the user's browser block it adopted. */
+/** A tab shown as a Tern browser picture-in-picture over zeta's pane, or the user's browser block it adopted. */
 export interface TernTabSession extends TabSessionBase<TernBrowserHandle> {
 	backend: "tern";
 	/** The PiP's driver. */
@@ -190,15 +192,15 @@ export interface AcquireTabOptions {
 	ignoreHttpsErrors?: boolean;
 	cmuxSurface?: string;
 	/**
-	 * Session id of the acquirer. Recorded on the tab when created (never on
+	 * Owner id (the agent's kernel owner id) of the acquirer. Recorded on the tab when created (never on
 	 * reuse) so `releaseTabsForOwner` can walk the shared tabs map on session
 	 * dispose. Optional — omitting it opts the tab out of session-scoped reap.
 	 */
 	ownerSessionId?: string;
 	/**
-	 * Keep the tab live across turn settle and idle close. Recorded on the
-	 * tab when created (never on reuse) so a later caller cannot silently
-	 * extend another session's tab lifetime.
+	 * Keep the tab live across turn settle and idle close, and open in the
+	 * user's Chrome (relay) after the session ends. Set at creation or explicit
+	 * reuse by the owning session, never by another session's reuse.
 	 */
 	persist?: boolean;
 }
@@ -219,6 +221,8 @@ export interface RunInTabOptions {
 
 export interface ReleaseTabOptions {
 	kill?: boolean;
+	/** Leave a page zeta opened open in its browser and let go of it, instead of closing it. */
+	keepPage?: boolean;
 	/** Maximum time for each asynchronous cleanup resource before close fails with diagnostics. */
 	timeoutMs?: number;
 }
@@ -630,7 +634,7 @@ async function acquireTabImpl(
 	attachTabWorker(tab, worker);
 	tabs.set(name, tab);
 	sweepClosedTabUploads();
-	// Durably record ownership so another live omp process can reap this page if
+	// Durably record ownership so another live zeta process can reap this page if
 	// this process dies abnormally before its own teardown closes the tab.
 	const scope = sharedScopeOf(browser);
 	if (scope) void recordSharedTarget(scope, info.targetId);
@@ -806,7 +810,7 @@ async function adoptsSameBlock(existing: TernTabSession, opts: AcquireTabOptions
 }
 
 /**
- * Open a Tern browser PiP over omp's pane and configure it before its first
+ * Open a Tern browser PiP over zeta's pane and configure it before its first
  * real navigation (the PiP closes again when anything after `open` fails), or
  * with `opts.target` adopt the user's browser block it names (released again,
  * never closed, on failure and on close).
@@ -1062,7 +1066,7 @@ async function runInTabWithSnapshot(
 			// Bun throws `InvalidStateError` once the worker is gone, which can precede its exit event.
 			if (!(error instanceof DOMException && error.name === "InvalidStateError")) throw error;
 			throw new ToolError(
-				`Tab ${JSON.stringify(name)}'s worker exited before this call reached it; omp reattaches the tab to a new worker, so retry the call.`,
+				`Tab ${JSON.stringify(name)}'s worker exited before this call reached it; zeta reattaches the tab to a new worker, so retry the call.`,
 			);
 		}
 		try {
@@ -1115,7 +1119,7 @@ async function runInTabWithSnapshot(
 				}
 				if (error.reason === USER_CANCELLED_DEBUGGER) {
 					// The relay hides a tab whose debugging bar the user cancelled, so a re-adoption cannot succeed.
-					const cancelled = `${error.message}. The user cancelled Chrome's debugging bar${landed}. omp released the tab; the relay hides it until its URL changes, so navigate it in Chrome, then open it again`;
+					const cancelled = `${error.message}. The user cancelled Chrome's debugging bar${landed}. zeta released the tab; the relay hides it until its URL changes, so navigate it in Chrome, then open it again`;
 					if (tabs.get(name) === tab && tab.state === "alive") await forceKillTab(name, cancelled);
 					if (opts.signal?.aborted) throw new ToolAbortError();
 					throw new ToolError(cancelled);
@@ -1124,7 +1128,7 @@ async function runInTabWithSnapshot(
 				// its loading would cancel a navigation the call itself started. Chrome reports the same reason when the
 				// tab itself closes, so only a re-adoption that worked names another extension's frame as the cause.
 				const detached = `${error.message}. ${DEBUGGER_DETACH_CAUSE}${landed}`;
-				const lost = `${error.message}${landed}. omp could not reattach to the tab, so it was released: either the tab was closed, or ${DEBUGGER_DETACH_REFUSAL}. If the tab is still open, open it again once that frame is gone; if Chrome refused the attach, the relay hides the tab until its URL changes, so navigate it in Chrome first`;
+				const lost = `${error.message}${landed}. zeta could not reattach to the tab, so it was released: either the tab was closed, or ${DEBUGGER_DETACH_REFUSAL}. If the tab is still open, open it again once that frame is gone; if Chrome refused the attach, the relay hides the tab until its URL changes, so navigate it in Chrome first`;
 				const reattached = await recoverWorkerTab(tab, name, opts.timeoutMs, lost, {
 					recover: false,
 					failedReason: lost,
@@ -1134,14 +1138,14 @@ async function runInTabWithSnapshot(
 				if (!reattached) throw new ToolError(lost);
 				if (error.when === "during" || opts.readopted) {
 					throw new ToolError(
-						`${detached}. omp reattached to the same tab on a new worker without reloading it, so the next call works; check the page before repeating this one. ${WORKER_RESETS}.`,
+						`${detached}. zeta reattached to the same tab on a new worker without reloading it, so the next call works; check the page before repeating this one. ${WORKER_RESETS}.`,
 					);
 				}
 				// Nothing ran: run the call on the new worker, within what the re-adoption left of its budget.
 				const remainingMs = Math.floor(opts.timeoutMs - (performance.now() - startedAt));
 				if (remainingMs <= 0) {
 					throw new ToolError(
-						`${detached}. omp reattached to the same tab on a new worker without reloading it, but that used up this call's ${opts.timeoutMs}ms budget, so the call was not run again; repeat it. ${WORKER_RESETS}.`,
+						`${detached}. zeta reattached to the same tab on a new worker without reloading it, but that used up this call's ${opts.timeoutMs}ms budget, so the call was not run again; repeat it. ${WORKER_RESETS}.`,
 					);
 				}
 				// Its pending entry must go first, or the tab reads as busy.
@@ -1153,7 +1157,7 @@ async function runInTabWithSnapshot(
 				);
 				result.displays.unshift({
 					type: "text",
-					text: `Chrome had detached omp from this tab since the last call (${DEBUGGER_DETACH_CAUSE}); omp reattached to the same tab on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
+					text: `Chrome had detached zeta from this tab since the last call (${DEBUGGER_DETACH_CAUSE}); zeta reattached to the same tab on a new worker, without reloading it, and then ran this call. ${WORKER_RESETS}.`,
 				});
 				return result;
 			}
@@ -1216,7 +1220,7 @@ async function recoverWorkerTab(
  * (and the shared browser hold would release twice). Joiners share the
  * first release's outcome.
  */
-const releaseInflight = new WeakMap<TabSession, { promise: Promise<boolean>; opts: ReleaseTabOptions }>();
+const releaseInflight = new WeakMap<TabSession, { promise: Promise<"released" | "kept">; opts: ReleaseTabOptions }>();
 
 export async function releaseTab(name: string, opts: ReleaseTabOptions = {}): Promise<boolean> {
 	const tab = tabs.get(name);
@@ -1232,17 +1236,44 @@ export async function releaseTab(name: string, opts: ReleaseTabOptions = {}): Pr
 		// as the first release has not finished. (Not directly testable
 		// in-process: observing it needs a real spawned application.)
 		ongoing.opts.kill = ongoing.opts.kill || opts.kill;
+		// A joining close wins over a session end's `keepPage` while the page is still undecided.
+		if (!opts.keepPage) ongoing.opts.keepPage = false;
 		const joined = await ongoing.promise;
+		if (!opts.keepPage && joined === "kept" && tab.backend === "worker") {
+			// The first release already decided to keep the page and may have disconnected.
+			// Reconnect to its browser, not a same-name tab which could now belong to another caller;
+			// a close never starts or replaces the relay that kept the page.
+			const browser = await acquireBrowser(tab.browser.kind, { cwd: getProjectDir(), startRelay: false });
+			holdBrowser(browser);
+			try {
+				const timeoutMs = opts.timeoutMs ?? DEFAULT_TAB_CLOSE_TIMEOUT_MS;
+				if (
+					!("browser" in browser) ||
+					!(await waitForTabCleanup(
+						tab,
+						timeoutMs,
+						`joined CDP target ${JSON.stringify(tab.targetId)} (Page.close)`,
+						closeTargetById(browser, tab.targetId, timeoutMs / 2),
+					))
+				) {
+					throw new ToolError(`Could not confirm closure of tab ${JSON.stringify(name)}`);
+				}
+				await removeUploadStaging(tab.uploadDir);
+			} finally {
+				await releaseBrowser(browser, { kill: false });
+			}
+		}
 		// The upgrade above lands too late when the first release already
 		// passed `releaseBrowser`: verify a still-running spawned app is
 		// terminated rather than trusting the joined outcome.
 		if (opts.kill) await ensureSpawnedKilled(tab.browser);
-		return joined;
+		return true;
 	}
 	const entry = { promise: releaseTabInner(tab, name, opts), opts };
 	releaseInflight.set(tab, entry);
 	try {
-		return await entry.promise;
+		await entry.promise;
+		return true;
 	} finally {
 		releaseInflight.delete(tab);
 	}
@@ -1265,7 +1296,7 @@ export function ensureSpawnedKilledForTest(browser: BrowserHandle): Promise<void
 	return ensureSpawnedKilled(browser);
 }
 
-async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOptions): Promise<boolean> {
+async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOptions): Promise<"released" | "kept"> {
 	const wasAlive = tab.state === "alive";
 	tab.state = "dead";
 	const closeError = postmortem.markExpectedCleanupError(new ToolError(`Tab ${JSON.stringify(name)} was closed`));
@@ -1316,7 +1347,7 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 			tabs.delete(name);
 		}
 		if (closeError) throw closeError;
-		return true;
+		return "released";
 	}
 	if (tab.backend === "cmux") {
 		let closeError: unknown;
@@ -1350,26 +1381,29 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 			tabs.delete(name);
 		}
 		if (closeError) throw closeError;
-		return true;
+		return "released";
 	}
 	let cleanupError: unknown;
 	let targetCloseFailed = false;
 	if (wasAlive && !(tab.worker as ExitTrackedWorker)[kWorkerExited]) {
 		try {
-			tab.worker.send({ type: "close" });
+			tab.worker.send({ type: "close", keepPage: opts.keepPage });
 			await waitForClosed(tab);
 		} catch {
 			// The close by id below confirms an owned page is gone either way.
 		}
 	}
 	await tab.worker.terminate().catch(() => undefined);
+	// Decided after the worker is gone, so a close that joined meanwhile still closes the page by id below. A page
+	// kept open stays the user's: its staged uploads wait for the sweep like a borrowed page's.
+	const closesPage = tab.ownsPage && !opts.keepPage;
 	// zeta closes the pages it owns, and with them goes the last reader of their staged uploads.
-	if (tab.ownsPage) await removeUploadStaging(tab.uploadDir);
+	if (closesPage) await removeUploadStaging(tab.uploadDir);
 	// Close a live tab's owned page by id as well, which confirms it is gone: a worker's own
 	// close can fail and still report `closed` (its CDP socket broke), and the relay retracts a
 	// target whose debugger the user dismissed, so the worker cannot close it at all. A dead
 	// tab's page was closed by the teardown that killed it.
-	if (tab.ownsPage && wasAlive) {
+	if (closesPage && wasAlive) {
 		try {
 			// `false` is "not confirmed closed" (the CDP session could not be
 			// created, or `Target.getTargets` failed) — the same unconfirmed
@@ -1404,21 +1438,21 @@ async function releaseTabInner(tab: TabSession, name: string, opts: ReleaseTabOp
 				// that was never closed, and re-check the browser itself: a
 				// Chromium that stopped answering its CDP endpoint holds every
 				// unclosable target and must be replaced, not left to grow until
-				// the last omp client in the project exits.
+				// the last zeta client in the project exits.
 				recheckSharedBrowser(scope);
 			} else {
 				void forgetSharedTarget(scope, tab.targetId);
 			}
 		} else if (targetCloseFailed) {
 			// Nothing here can retry it; a relay closes a tab of an offline browser once that browser reconnects.
-			logger.warn("Could not confirm a browser tab omp opened was closed; it may still be open", {
+			logger.warn("Could not confirm a browser tab zeta opened was closed; it may still be open", {
 				name,
 				targetId: tab.targetId,
 			});
 		}
 	}
 	if (cleanupError) throw cleanupError;
-	return true;
+	return wasAlive && tab.ownsPage && !closesPage ? "kept" : "released";
 }
 
 export async function releaseAllTabs(opts: ReleaseTabOptions = {}): Promise<number> {
@@ -1436,7 +1470,7 @@ export async function dropHeadlessTabs(): Promise<void> {
 }
 
 /**
- * Release every tab created by the given session id. Invoked from
+ * Release every tab created by the given owner id. Invoked from
  * `AgentSession.dispose()` so headless/spawned Chromium and workers the
  * session opened do not leak into the long-lived process — the module-global
  * `tabs`/`browsers` maps that back this tool are not otherwise walked by
@@ -1447,13 +1481,20 @@ export async function dropHeadlessTabs(): Promise<void> {
  * session opened will not yank teardown responsibility away from the
  * creator. Tabs opened with no owner (e.g. from an SDK caller that doesn't
  * identify a session) are skipped and must be released explicitly.
+ *
+ * A `persist` tab zeta opened in the user's Chrome through the relay, which
+ * outlives zeta, is let go instead of closed: the page stays open for the
+ * user. Tabs in browsers zeta launched stay zeta's to close, persist or not.
  */
 export async function releaseTabsForOwner(ownerId: string, opts: ReleaseTabOptions = {}): Promise<number> {
 	if (!ownerId) return 0;
 	const names = [...tabs.values()].filter(tab => tab.ownerSessionId === ownerId).map(tab => tab.name);
 	let count = 0;
 	for (const name of names) {
-		if (await releaseTab(name, opts)) count++;
+		// Read right before `releaseTab` looks the name up, so the choice is made for the tab it releases.
+		const tab = tabs.get(name);
+		const keepPage = tab?.persist === true && tab.kindTag === "relay";
+		if (await releaseTab(name, { ...opts, keepPage })) count++;
 	}
 	return count;
 }
@@ -1833,7 +1874,7 @@ async function buildInitPayload(browser: PuppeteerBrowserHandle, opts: AcquireTa
 	let page: AttachPage;
 	if (browser.kind.kind === "relay" && !opts.target) {
 		// A relay open without a target gets its own background tab, leaving the user's
-		// selected tab alone, in the browser of the tab omp used last on this relay.
+		// selected tab alone, in the browser of the tab zeta used last on this relay.
 		page = { kind: "create", nearTargetId: lastUsedTargetOn(browser) };
 	} else if (browser.kind.kind === "spawned" && !opts.target && isChromiumBrowserExecutable(browser.kind.path)) {
 		// A dedicated Chrome profile can start with no pages; never navigate its
@@ -2027,7 +2068,7 @@ function attachTabWorker(tab: WorkerTabSession, worker: WorkerHandle): void {
 			.then(reattached => {
 				// No run was in flight to report the reset, so the next call on the tab does.
 				if (reattached && idle) {
-					tab.workerExitNotice = `${exited} since the last call; omp reattached the tab to a new worker on the same page, without reloading it. ${WORKER_RESETS}.`;
+					tab.workerExitNotice = `${exited} since the last call; zeta reattached the tab to a new worker on the same page, without reloading it. ${WORKER_RESETS}.`;
 				}
 				return reattached;
 			})
@@ -2129,7 +2170,7 @@ async function forceKillTab(name: string, reason: string): Promise<void> {
 	// published result is the release contract — the tab is gone either way; a
 	// target that could not be closed stays in the ownership registry instead.
 	const teardown = tab.backend === "worker" ? forceKillTabTeardown(tab) : forceKillSurfaceTab(tab, name);
-	const entry = { promise: teardown.then(() => true), opts: { kill: false } };
+	const entry = { promise: teardown.then((): "released" => "released"), opts: { kill: false } };
 	releaseInflight.set(tab, entry);
 	try {
 		await entry.promise;
