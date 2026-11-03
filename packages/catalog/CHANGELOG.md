@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.16.0: Scaleway provider, Factory Droid 1.1.0 models, and Mistral Vibe browser login.
+
 ## [1.4.8] - 2026-11-02
 
 ## [1.4.7] - 2026-10-30

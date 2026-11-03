@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.16.0: browser relay ownership/close and persisted-tab fixes, `/review` and `/annotate` outside the repository, composer predictions, Hindsight global scope, eval completion metadata, and catalog/auth updates.
+
 ## [1.4.8] - 2026-11-02
 
 ### Added

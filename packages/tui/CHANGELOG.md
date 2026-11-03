@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Synced with upstream OMP v18.16.0: composer predictions, status glyph changes, and TUI link handling.
+
 ## [1.4.8] - 2026-11-02
 
 ### Breaking Changes
