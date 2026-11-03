@@ -41,7 +41,7 @@ merge.
   tag will be a normal `v18.16.0..v18.x.y` increment again, not 48 ad-hoc
   commits. Record it here before starting the merge.
 
-## v18.16.0 merge (2026-11-03 — sync branch, CI green at `2b083affafa`; main pending)
+## v18.16.0 merge (2026-11-03 — merged to `main`; main CI green at `1ea59944579`)
 
 - **Candidate source tag**: `v18.16.0`, peeled
   `650f3a108229ee11bf68ba3377f4e8c3391cd424`; verified with
@@ -140,10 +140,22 @@ merge.
   No upstream path was silently left at its v18.15.0 content. The 140
   conflicts were resolved per path against this tag-to-tag delta; the final
   gate must stay green after any later amendment.
-- **Status**: sync worktree `temp/sync-v18.16.0`, branch
-  `sync/omp-release/v18.16.0` and a local true-merge commit exist. Nothing was
-  pushed, tagged, or merged into `main`; the branch is waiting for the full
-  gate and explicit approval.
+- **Status (final, 2026-11-04)**: sync branch
+  `sync/omp-release/v18.16.0` was pushed at `2b083affafa` and its CI run
+  `41640622236` was green. The branch was fast-forwarded into `main` at
+  `88656c15a80`; the true two-parent merge `dc0d77f037c` remains in history
+  (no squash/rebase). Branch/worktree retired after recording the SHA.
+- **Main CI incident and fix (CI-029)**: the first `main` run `41648628225`
+  failed only in `browser-relay-tab-isolation.test.ts`; a rerun added
+  `browser-open-options.test.ts`. Both are test-fixture races, not runtime
+  regressions: the relay case waited only 2 s for Chrome's tab event, and the
+  open-options case reused a just-closed ephemeral port. `1ea59944579` waits
+  for the relay listing and uses the non-ephemeral privileged port 1023. No
+  assertion or CI threshold was relaxed.
+- **Final CI (2026-11-04)**: `main` CI run `41662377662` is **success** at
+  `1ea59944579`; the report-only Coverage run `41662394241` is also success.
+  The coverage baseline and maintainer policy are in `README.md`,
+  `.github/MAINTAINERS.md`, and `.github/workflows/coverage.yml`.
 
 ## v18.15.0 incremental merge (Zeta — branch `sync/omp-release/v18.15.0`, 2026-11-02; merge `2fffbf6b95a`)
 
