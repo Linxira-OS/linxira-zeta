@@ -1,8 +1,8 @@
 ## [Unreleased]
 
-- Synced with upstream OMP v18.16.0: composer predictions, status glyph changes, and TUI link handling.
+## [1.4.9] - 2026-11-03
 
-## [1.4.8] - 2026-11-02
+- Synced with upstream OMP v18.16.0: composer predictions, status glyph changes, and TUI link handling.
 
 ### Breaking Changes
 
@@ -137,6 +137,7 @@
 - Key detection refactored: consolidated `is*()` functions into generic `matchesKey(data, keyId)` function that accepts key identifiers like `"ctrl+c"`, `"shift+enter"`, `"alt+left"`, etc.
 - Forked to @oh-my-pi scope with unified versioning across all packages
 - Fuzzy matching now scores consecutive matches higher and penalizes gaps more heavily for better relevance ([#860](https://github.com/badlogic/pi-mono/pull/860) by [@mitsuhiko](https://github.com/mitsuhiko))
+- Improved fuzzy file search performance by using native implementation instead of spawning external process
 
 ### Fixed
 
@@ -200,6 +201,7 @@ Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://g
 - Fixed appended lines not being committed to scrollback, causing earlier content to be overwritten when viewport fills ([#954](https://github.com/badlogic/pi-mono/issues/954))
 - Autolinked emails no longer display redundant `(mailto:...)` suffix in markdown output ([#888](https://github.com/badlogic/pi-mono/pull/888) by [@terrorobe](https://github.com/terrorobe))
 - `matchesKey()` now correctly matches Kitty protocol sequences for unmodified letter keys (needed for key release events)
+- Key presses no longer dropped when batched with other events over SSH ([#538](https://github.com/badlogic/pi-mono/pull/538))
 
 ### Removed
 
@@ -210,12 +212,6 @@ Older entries are archived in [packages/tui/CHANGELOG.md@58141d4e5fa8](https://g
 - Removed `visibleWidth` benchmark file in favor of Kitty sequence benchmarking
 - Removed `truncateToWidth`, `sliceWithWidth`, and `extractSegments` functions from public API (now re-exported directly from @linxiraos/pi-natives)
 - `SingleResult` (and the task tool's settled payload) carries the failure diagnostics an agent-driven model switch needs: optional `failureClass` (`usage-limit` / `auth` / `account-policy` / `context-overflow` / `transient` / `aborted` / `unknown`), optional `fallbackCandidates` (other selectors this session could run), and optional `modelChange` (`{ source: "spawn-param" | "wake-param", from?, to }`) recording that a caller-supplied model replaced the default one. All three stay absent unless a run actually reports them.
-
-## [9.5.0] - 2026-02-01
-
-### Changed
-
-- Improved fuzzy file search performance by using native implementation instead of spawning external process
 
 ## [9.4.0] - 2026-01-31
 
@@ -566,12 +562,6 @@ Initial release under @oh-my-pi scope. See previous releases at [badlogic/pi-mon
 ### Fixed
 
 - Overlay compositing crash when rendered lines exceed terminal width due to complex ANSI/OSC sequences (e.g., hyperlinks in subagent output) ([#667](https://github.com/badlogic/pi-mono/pull/667) by [@nicobailon](https://github.com/nicobailon))
-
-## [0.38.0] - 2026-01-08
-
-### Fixed
-
-- Key presses no longer dropped when batched with other events over SSH ([#538](https://github.com/badlogic/pi-mono/pull/538))
 
 ## [0.37.8] - 2026-01-07
 

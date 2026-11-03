@@ -1,8 +1,8 @@
 ## [Unreleased]
 
-- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
+## [1.4.9] - 2026-11-03
 
-## [1.4.8] - 2026-11-02
+- Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
 
 ## [1.4.7] - 2026-10-30
 

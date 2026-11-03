@@ -1,8 +1,12 @@
 ## [Unreleased]
 
+## [1.4.9] - 2026-11-03
+
 - Synced with upstream OMP v18.16.0; no package-specific user-visible changes.
 
-## [1.4.8] - 2026-11-02
+### Added
+
+- Added automatic extraction of embedded native addon to `~/.zeta/natives/<version>` on first run for compiled binaries
 
 ### Changed
 
@@ -22,7 +26,6 @@
 
 ### Added
 
-- Added automatic extraction of embedded native addon to `~/.zeta/natives/<version>` on first run for compiled binaries
 - Added `embed:native` build script to embed platform-specific native addon payloads into compiled binaries
 - Exported `Shell` class for creating persistent shell sessions with `run()` method and session options
 - Exported `ShellOptions`, `ShellRunOptions`, and `ShellRunResult` types for shell session management

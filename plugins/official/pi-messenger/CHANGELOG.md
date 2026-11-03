@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [1.4.9] - 2026-11-03
+
 ### Fixed
 
 - Ported upstream `#41`: the status render falls back to plain text when the
