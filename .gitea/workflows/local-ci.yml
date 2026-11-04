@@ -1715,3 +1715,10 @@ jobs:
            if: steps.main.outputs.skip != 'true'
            working-directory: main
            run: cargo nextest run --workspace || cargo test --workspace
+         - name: Run zetawork tests with release features
+           if: steps.main.outputs.skip != 'true'
+           working-directory: main
+           # Mirror ci.yml: `cargo test --workspace` uses default features, so
+           # the tray queue/wakeup tests were never compiled with the features
+           # the release binary ships.
+           run: cargo test -p zetawork-gui --features tray,os-notify
