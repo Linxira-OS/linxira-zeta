@@ -108,6 +108,10 @@ on:
             description: "Skip npm publish"
             type: boolean
             default: false
+         full:
+            description: "Run the full main gate even on a non-main branch"
+            type: boolean
+            default: false
          publish_plugins:
             description: "Publish only the official plugin packages (validates a pending npm trusted publisher)"
             type: boolean
@@ -151,6 +155,11 @@ env:
    # 2026-10-08 裁定: darwin×2 与全 arm 注释退出(见 BUILD.bazel natives-all 注),
    # 稳妥构建机上线后恢复。保留: musl-x64 + win32-x64。
    NATIVES_CROSS_TARGETS: natives-linux-musl-x64-baseline natives-win32-x64-baseline
+   # Fast path: PRs and non-main workflow_dispatch runs validate the code
+   # without compiling natives or the Rust workspace. They restore the native
+   # pair main built (or the latest npm leaf) instead. Main push and release
+   # dispatch keep the full gate.
+   FAST_PATH: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true)) && 'true' || 'false' }}
    # Per-test wall-clock ceiling (seconds) for scripts/ci-test-ts.ts. The
    # SQLite/subprocess-heavy coding-agent suites run slowly enough on CI
    # runners that several cases (model-registry refresh, session fork,
@@ -181,6 +190,9 @@ jobs:
       outputs:
          is-release: ${{ steps.detect.outputs.is-release }}
          release-tag: ${{ steps.detect.outputs.release-tag }}
+         # PR and non-main dispatch runs take the fast path: no Rust or native
+         # compilation; native addons come from main's cache or npm.
+         fast-path: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true)) && 'true' || 'false' }}
          # Canary tags publish to npm's canary dist-tag (derived script-side), mark
          # the GitHub release prerelease, and skip the stable-only brew tap.
          channel: ${{ steps.detect.outputs.channel }}
@@ -626,7 +638,7 @@ jobs:
    rust_validate:
       name: Validate Rust workspace (bazel)
       needs: [release_metadata]
-      if: needs.release_metadata.outputs.is-release != 'true' && github.event_name != 'pull_request'
+      if: needs.release_metadata.outputs.is-release != 'true' && needs.release_metadata.outputs.fast-path != 'true'
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -680,6 +692,7 @@ jobs:
    # name says "bazel" for continuity with required checks.
    native_addons:
       name: Build native addons (bazel)
+      needs: [release_metadata]
       runs-on: ubuntu-22.04
       # actions: write lets main prune superseded addon cache entries.
       permissions:
@@ -709,7 +722,7 @@ jobs:
          # dot-directories by default.
          - name: Restore main-built native addons
            id: natives-cache
-           if: github.event_name == 'pull_request'
+           if: env.FAST_PATH == 'true' || needs.release_metadata.outputs.is-release == 'true'
            uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
            with:
               path: ci-natives
@@ -717,7 +730,7 @@ jobs:
               restore-keys: |
                  ${{ steps.natives-key.outputs.prefix }}
          - name: Fetch release native addons (npm)
-           if: github.event_name == 'pull_request' && steps.natives-cache.outputs.cache-matched-key == ''
+           if: env.FAST_PATH == 'true' && steps.natives-cache.outputs.cache-matched-key == ''
            shell: bash
            run: |
               set -euo pipefail
@@ -730,7 +743,7 @@ jobs:
          # Make the addon source visible whenever it is not source-matched,
          # instead of leaving a reviewer to wonder which addons the tests ran.
          - name: Report native addon source
-           if: github.event_name == 'pull_request'
+           if: env.FAST_PATH == 'true' || needs.release_metadata.outputs.is-release == 'true'
            shell: bash
            env:
               EXACT: ${{ steps.natives-cache.outputs.cache-hit }}
@@ -746,10 +759,10 @@ jobs:
 
          # ---- main path: bazel build of the linux-x64 pair ----
          - id: cache
-           if: github.event_name != 'pull_request'
+           if: env.FAST_PATH != 'true'
            uses: ./.github/actions/bazel-cache
          - name: Build linux-x64 native addons
-           if: github.event_name != 'pull_request'
+           if: env.FAST_PATH != 'true' && (needs.release_metadata.outputs.is-release != 'true' || steps.natives-cache.outputs.cache-hit != 'true')
            run: |
               set -eo pipefail
               if [ "$(ulimit -Sn)" != unlimited ] && [ "$(ulimit -Sn)" -lt 65536 ]; then ulimit -Sn 65536 || true; fi
@@ -772,7 +785,7 @@ jobs:
          # thousands of actions is the failure mode that made CI slow — make
          # it visible in the run summary instead of discovering it weeks in.
          - name: Report bazel cache stats
-           if: github.event_name != 'pull_request'
+           if: env.FAST_PATH != 'true'
            shell: bash
            run: |
               # Bazel runs with --color=yes (config=ci); strip ANSI before
@@ -876,7 +889,7 @@ jobs:
          # must never fail native_addons and with it every test job.
          - name: Probe native addon cache entry
            id: natives-cache-probe
-           if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+           if: env.FAST_PATH != 'true' && needs.release_metadata.outputs.is-release != 'true' && github.ref == 'refs/heads/main'
            continue-on-error: true
            uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
            with:
@@ -884,14 +897,14 @@ jobs:
               key: ${{ steps.natives-key.outputs.key }}
               lookup-only: true
          - name: Save native addon cache entry
-           if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.natives-cache-probe.outputs.cache-hit != 'true'
+           if: env.FAST_PATH != 'true' && needs.release_metadata.outputs.is-release != 'true' && github.ref == 'refs/heads/main' && steps.natives-cache-probe.outputs.cache-hit != 'true'
            continue-on-error: true
            uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
            with:
               path: ci-natives
               key: ${{ steps.natives-key.outputs.key }}
          - name: Prune superseded native addon cache entries
-           if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.natives-cache-probe.outputs.cache-hit != 'true'
+           if: env.FAST_PATH != 'true' && needs.release_metadata.outputs.is-release != 'true' && github.ref == 'refs/heads/main' && steps.natives-cache-probe.outputs.cache-hit != 'true'
            continue-on-error: true
            shell: bash
            env:
@@ -919,7 +932,8 @@ jobs:
    # min on native-changing main pushes. Non-PR only, like rust_validate.
    native_addons_cross:
       name: Build native addons (bazel, cross targets)
-      if: github.event_name != 'pull_request'
+      needs: [release_metadata]
+      if: needs.release_metadata.outputs.fast-path != 'true'
       runs-on: ubuntu-22.04
       steps:
          - uses: actions/checkout@v4
@@ -1008,7 +1022,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            shard: ${{ fromJSON(github.event_name == 'pull_request' && '["1/3","2/3","3/3"]' || '["1/1"]') }}
+            shard: ${{ fromJSON((github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true)) && '["1/3","2/3","3/3"]' || '["1/1"]') }}
       steps:
          - uses: actions/checkout@v4
          - uses: ./.github/actions/bun-install
@@ -1823,6 +1837,7 @@ jobs:
            env:
               BEFORE: ${{ github.event.before }}
               PR_BASE: ${{ github.event.pull_request.base.sha }}
+              DISPATCH_BASE: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true && 'main' || '' }}
            run: |
               set -euo pipefail
               base=""
@@ -1830,6 +1845,9 @@ jobs:
                  base="$PR_BASE"
               elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
                  base="$BEFORE"
+              elif [ -n "$DISPATCH_BASE" ]; then
+                 base="refs/remotes/origin/main"
+                 git fetch --no-tags --depth=1 origin "+main:$base" || true
               fi
               if [ -z "$base" ]; then
                  echo "No base revision (manual dispatch) - running the full gate"
@@ -1838,7 +1856,9 @@ jobs:
               fi
               # Depth-1 fetch of the base tip; the two-dot diff below then
               # needs no merge-base from the shallow history.
-              git fetch --no-tags --depth=1 origin "$base" || true
+              if [ "$base" != "refs/remotes/origin/main" ]; then
+                 git fetch --no-tags --depth=1 origin "$base" || true
+              fi
               if git diff --name-only "$base" HEAD -- termide/ | grep -q .; then
                  echo "skip=false" >> "$GITHUB_OUTPUT"
               else
@@ -1900,6 +1920,7 @@ jobs:
            env:
               BEFORE: ${{ github.event.before }}
               PR_BASE: ${{ github.event.pull_request.base.sha }}
+              DISPATCH_BASE: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' && inputs.full != true && 'main' || '' }}
            run: |
               set -euo pipefail
               base=""
@@ -1907,13 +1928,18 @@ jobs:
                  base="$PR_BASE"
               elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
                  base="$BEFORE"
+              elif [ -n "$DISPATCH_BASE" ]; then
+                 base="refs/remotes/origin/main"
+                 git fetch --no-tags --depth=1 origin "+main:$base" || true
               fi
               if [ -z "$base" ]; then
                  echo "No base revision (manual dispatch) - running the full gate"
                  echo "skip=false" >> "$GITHUB_OUTPUT"
                  exit 0
               fi
-              git fetch --no-tags --depth=1 origin "$base" || true
+              if [ "$base" != "refs/remotes/origin/main" ]; then
+                 git fetch --no-tags --depth=1 origin "$base" || true
+              fi
               # termide/ is in the pathspec because main/ path-links five
               # termide crates (core, config, keyboard, panel-terminal,
               # theme): a pure vendor change can break this workspace while
