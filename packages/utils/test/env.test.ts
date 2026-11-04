@@ -411,3 +411,62 @@ describe("$envExact", () => {
 		expect($envExact(name)).toBeUndefined();
 	});
 });
+
+describe("legacy OMP dotenv compatibility", () => {
+	function makeHome(files: Record<string, string>): string {
+		const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-utils-legacy-home-"));
+		tempDirs.push(home);
+		for (const [relativePath, content] of Object.entries(files)) {
+			const filePath = path.join(home, relativePath);
+			fs.mkdirSync(path.dirname(filePath), { recursive: true });
+			fs.writeFileSync(filePath, content);
+		}
+		return home;
+	}
+
+	async function readKey(home: string, key: string): Promise<string | null> {
+		const cwd = path.join(home, "workspace");
+		fs.mkdirSync(cwd, { recursive: true });
+		const env: Record<string, string> = {};
+		for (const [name, value] of Object.entries(process.env)) {
+			if (value !== undefined) env[name] = value;
+		}
+		delete env[key];
+		delete env.ZETA_CONFIG_DIR;
+		delete env.ZETA_PROFILE;
+		delete env.OMP_PROFILE;
+		delete env.ZETA_CODING_AGENT_DIR;
+		env.HOME = home;
+		env.USERPROFILE = home;
+		const script = [
+			`import { $env } from ${JSON.stringify(path.join(import.meta.dir, "..", "src", "env.ts"))};`,
+			`process.stdout.write(JSON.stringify($env[${JSON.stringify(key)}] ?? null));`,
+		].join("\n");
+		const proc = Bun.spawn([process.execPath, "--no-install", "--eval", script], {
+			cwd,
+			env,
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+		expect(exitCode, stderr).toBe(0);
+		return JSON.parse(stdout) as string | null;
+	}
+
+	it("fills an unset provider key from the old OMP agent .env", async () => {
+		const home = makeHome({ ".omp/agent/.env": "OD_KEY=legacy-od-key\n" });
+		await expect(readKey(home, "OD_KEY")).resolves.toBe("legacy-od-key");
+	});
+
+	it("keeps the new .zeta agent .env ahead of the legacy file", async () => {
+		const home = makeHome({
+			".zeta/agent/.env": "OD_KEY=new-od-key\n",
+			".omp/agent/.env": "OD_KEY=legacy-od-key\n",
+		});
+		await expect(readKey(home, "OD_KEY")).resolves.toBe("new-od-key");
+	});
+});

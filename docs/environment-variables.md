@@ -16,11 +16,12 @@ Most runtime lookups use `$env` from `@linxiraos/pi-utils` (`packages/utils/src/
 
 1. Existing process environment (`Bun.env`)
 2. Project `.env` from the launch working directory for keys whose current value is empty/unset
-3. Active agent `.env` (normally `~/.omp/agent/.env`) for keys whose current value is empty/unset
-4. Active config-root `.env` (normally `~/.omp/.env`) for keys whose current value is empty/unset
+3. Active agent `.env` (normally `~/.zeta/agent/.env`) for keys whose current value is empty/unset
+4. Active config-root `.env` (normally `~/.zeta/.env`) for keys whose current value is empty/unset
 5. Home `.env` (`~/.env`) for keys whose current value is empty/unset
+6. Legacy OMP dotenv files for keys still unset: `~/.omp/agent/.env`, `~/.omp/.env`, the active `~/.omp/profiles/<name>/agent/.env`, and project `.omp/.env` / `.omp/agent/.env`. These are read-only fallbacks; Zeta's own files always win.
 
-The agent/root locations respect profiles, `PI_CONFIG_DIR`, and—only for the default profile—`PI_CODING_AGENT_DIR`. Whole dotenv files are parsed with Bun's `node:util.parseEnv`, including quoted multiline values, escaped newlines, and inline comments. Names must be shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`); unsafe names/values are discarded. Variable references remain literal in this parser; only Bun's launch-directory dotenv autoload performs variable expansion before this module runs. Child-shell filtering uses the same parser to identify project dotenv values across `.env`, `.env.<NODE_ENV>` (default `development`), `.env.local`, and `.env.<NODE_ENV>.local`. It removes project-dotenv credentials from shell subprocesses while preserving launcher-owned variables; Linux's original exec environment provides the authoritative launch snapshot, with best-effort value matching elsewhere.
+The agent/root locations respect profiles, `ZETA_CONFIG_DIR`, and—only for the default profile—`ZETA_CODING_AGENT_DIR`. Whole dotenv files are parsed with Bun's `node:util.parseEnv`, including quoted multiline values, escaped newlines, and inline comments. Names must be shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`); unsafe names/values are discarded. Variable references remain literal in this parser; only Bun's launch-directory dotenv autoload performs variable expansion before this module runs. Child-shell filtering uses the same parser to identify project dotenv values across `.env`, `.env.<NODE_ENV>` (default `development`), `.env.local`, and `.env.<NODE_ENV>.local`. It removes project-dotenv credentials from shell subprocesses while preserving launcher…
 
 Additional rule inside each `.env` file: every `OMP_*` key is mirrored to its `PI_*` alias, and that mirrored value replaces a same-file `PI_*` value. This mirroring applies to parsed dotenv files, not arbitrary variables inherited from the parent process.
 

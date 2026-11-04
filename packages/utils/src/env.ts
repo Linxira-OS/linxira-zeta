@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { parseEnv } from "node:util";
-import { getAgentDir, getConfigRootDir, getProjectDir, refreshDirsFromEnv } from "./dirs";
+import { getActiveProfile, getAgentDir, getConfigRootDir, getProjectDir, refreshDirsFromEnv } from "./dirs";
 import { isBunTestRuntime } from "./test-runtime";
 
 export * from "./test-runtime";
@@ -278,11 +278,41 @@ export function parseEnvFile(filePath: string): Record<string, string> {
 	return result;
 }
 
+// Read-only compatibility with the old OMP agent directory. Zeta loads its own
+// project/agent/config `.env` files first; legacy OMP dotenv files fill names the
+// new files do not define, so a migrated provider entry in `~/.omp/agent/models.yml`
+// (for example `apiKey: OD_KEY`) can still resolve its environment reference.
+// Never write these files.
+function loadLegacyOmpEnv(): Record<string, string> {
+	const home = os.homedir();
+	const project = getProjectDir();
+	const profile = getActiveProfile();
+	const files = [
+		{ file: path.join(home, ".omp", ".env"), project: false },
+		{ file: path.join(home, ".omp", "agent", ".env"), project: false },
+		...(profile ? [{ file: path.join(home, ".omp", "profiles", profile, "agent", ".env"), project: false }] : []),
+		{ file: path.join(project, ".omp", ".env"), project: true },
+		{ file: path.join(project, ".omp", "agent", ".env"), project: true },
+	];
+	const merged: Record<string, string> = {};
+	const seen = new Set<string>();
+	for (const { file, project: projectFile } of files) {
+		if (seen.has(file)) continue;
+		seen.add(file);
+		for (const [key, value] of Object.entries(parseEnvFile(file))) {
+			merged[key] = value;
+			if (projectFile) projectEnvNamesLoadedByOmp.add(key);
+		}
+	}
+	return merged;
+}
+
 // Eagerly parse the user's $HOME/.env and the current project's .env (from cwd)
 const homeEnv = parseEnvFile(path.join(os.homedir(), ".env"));
 const piEnv = parseEnvFile(path.join(getConfigRootDir(), ".env"));
 const agentEnv = parseEnvFile(path.join(getAgentDir(), ".env"));
 const projectEnv = parseEnvFile(path.join(getProjectDir(), ".env"));
+const legacyOmpEnv = loadLegacyOmpEnv();
 
 for (const key of Object.keys(Bun.env)) {
 	const value = Bun.env[key];
@@ -291,7 +321,7 @@ for (const key of Object.keys(Bun.env)) {
 	}
 }
 
-for (const file of [projectEnv, agentEnv, piEnv, homeEnv]) {
+for (const file of [projectEnv, agentEnv, piEnv, homeEnv, legacyOmpEnv]) {
 	for (const key in file) {
 		if (!isMacosMallocStackLoggingEnvName(key) && !Bun.env[key]) {
 			Bun.env[key] = file[key];
