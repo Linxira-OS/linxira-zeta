@@ -40,8 +40,9 @@ opts back into the main gate when a manual run really needs it.
 
 Native cache key inputs are Cargo/Bazel/rust-toolchain/build files. A version
 bump does not change them, so the release run can reuse the source commit's
-cache entry. `native_addons_cross` uses its own prefix over the same inputs, so
-a non-native main push also skips the cross build.
+cache entry. Every full-gate branch restores the exact main cache first; only a
+key miss builds. `native_addons_cross` uses its own prefix over the same inputs,
+so a non-native main push also skips the cross build.
 
 ## What may be skipped
 
