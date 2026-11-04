@@ -308,6 +308,23 @@ Wrappers may instead set `PI_CONFIG_FILES` to a platform-delimited path list (`:
 
 Overlay paths are resolved relative to the process working directory (and `~` is expanded). Each overlay must parse as a YAML mapping; a missing file, invalid YAML, or a top-level array/scalar is a hard error — it does **not** silently fall back to lower-precedence settings.
 
+## Workspace design bridge
+
+The OpenDesign bridge is a workspace opt-in, not a settings-registry key. It lives in its own file so enabling or disabling it cannot affect the global config or another repository:
+
+```yaml
+# <workspace>/.zeta/design.yml
+enabled: true
+cli:
+   command: od
+mcp:
+   command: od
+   args:
+      - mcp
+```
+
+There is no user-level equivalent. A workspace without `.zeta/design.yml` has no `design` tool, starts no OpenDesign MCP server, and runs no `od` commands. `/design enable` and `/design disable` write only this file; `/design status` checks the CLI, daemon, and MCP handshake independently. See [design](./design.md) for the action surface and [design tool](./tools/design.md) for the model contract.
+
 ## Path-scoped arrays
 
 Three array settings — `enabledModels`, `enabledProviders`, and `disabledProviders` — accept path-scoped entries in addition to bare strings, so a single global config can behave differently per directory:

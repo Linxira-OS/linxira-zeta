@@ -326,6 +326,8 @@ import { createArchivePrelude } from "./archive/prelude-definition";
 import { ToolContextStore } from "./tools/context";
 import { IrcBus } from "./irc/bus";
 import { isIrcEnabled } from "./irc/messaging";
+import { isDesignEnabled } from "./design/config";
+import { designTool } from "./design/tool";
 import { imageGenTool } from "./tools/image-gen";
 import { wrapToolWithMetaNotice } from "./tools/output-meta";
 import { isFilesystemSourcePath } from "./tools/path-utils";
@@ -4061,6 +4063,13 @@ async function createAgentSessionScoped(options: CreateAgentSessionOptions): Pro
 			const imageGenRequested = !options.toolNames || options.toolNames.includes("generate_image");
 			if (cfgGenerateImageEnabled.get(settings) && imageGenRequested) {
 				wanted.push(imageGenTool as unknown as CustomTool);
+			}
+			// The design bridge is a workspace opt-in, not a user-level setting.
+			// Without `.zeta/design.yml` it stays unregistered, so other repos keep
+			// the standard tool surface and pay no MCP/CLI startup cost.
+			const designRequested = !options.toolNames || options.toolNames.includes("design");
+			if (designRequested && (await isDesignEnabled(cwd))) {
+				wanted.push(designTool as unknown as CustomTool);
 			}
 			if (cfgSpeechgenEnabled.get(settings)) wanted.push(ttsTool as unknown as CustomTool);
 			const wantedNames = new Set(wanted.map(tool => tool.name));

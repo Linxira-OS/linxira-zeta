@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { getProjectTrackingDir } from "@linxiraos/pi-utils";
 import type { Settings } from "../config/settings";
+import { handleDesignCommand } from "../design/command";
 import { cfgLanguage } from "../zeta-settings";
 import { cfgSessionTimeInjectEvery, cfgTrackingEnabled } from "../tools/settings";
 import { currentLanguage, LANGUAGE_TAGS, M, setLanguage, type ZetaLanguage } from "../i18n";
@@ -30,6 +31,21 @@ import type { ParsedSlashCommand, SlashCommandSpec } from "./types";
  */
 
 export const BUILTIN_ZETA_SLASH_COMMANDS: ReadonlyArray<SlashCommandSpec> = [
+	{
+		name: "design",
+		description: () => M.cmdDesign,
+		icon: "extension",
+		acpDescription: () => M.cmdDesignAcp,
+		acpInputHint: "[status|enable|disable]",
+		subcommands: [
+			{ name: "status", description: () => M.cmdDesignStatus },
+			{ name: "enable", description: () => M.cmdDesignEnable },
+			{ name: "disable", description: () => M.cmdDesignDisable },
+		],
+		subcommandOptional: true,
+		allowArgs: true,
+		handle: handleDesignCommand,
+	},
 	{
 		name: "language",
 		description: () => M.cmdLanguage,

@@ -796,15 +796,22 @@ LICENSE 的分层声明。新增 crate/包时若许可写错，该守卫即红�
     ③面板数据的真源（文件在 `.zeta/tasks/`，可 diff 可手改，与 board 同口径）；
     ④`disable` 语义——用户显式关掉后，GUI 自动激活是否还成立（默认：**用户显式
     关闭即不复活**）。
-- **OpenDesigner 官方兼容(2026-10-15 用户登记,后期)**:用户考虑把
+- **OpenDesigner 官方兼容(2026-10-15 用户登记,2026-11-04 首版落地)**:
+  用户考虑把
   [`nexu-io/open-design`](https://github.com/nexu-io/open-design)(中文说明见其
-  `docs/i18n/README.zh-CN.md`)**迁进 zetawork 的设置面**,目标是**后期加入
-  OpenDesigner 的官方兼容**,用来提升设计能力。**本轮只登记,不开工**。动手前
-  必须先定三件事:①"兼容"的确切含义——读它的设计文件格式 / 调它的 CLI /
-  内嵌它的界面,三者成本差一个量级;②**家在哪**:zetawork 的原生 rust GUI
-  设置页(设置页归 zetawork 自己,见 roadmap 的 P2 设置面条款),还是它自己的
-  一页;③**许可与分发边界**:它是独立上游,许可证须单独核,**不得把 copyleft
-  链进我们的 MIT 发布面**(同 R19 里 Zed 编辑器 crate 的裁决口径)。
+  `docs/i18n/README.zh-CN.md`)**接进 Zeta 的设计能力**,目标是**后期加入
+  OpenDesigner 的官方兼容**,用来提升设计能力。
+  - **已落地（TUI-first，非 zetawork）**:工作区级 `.zeta/design.yml` 开关 +
+    `/design` 命令 + 单个 `design` 工具。工具内部走 OpenDesign MCP（项目/文件/
+    artifact/brief/run）和 `od` CLI（media/export/brand/design-systems/figma 等），
+    **不把 22 个 MCP 工具注册给会话**；默认关闭，不写全局，其他仓库零开销。
+    `/design status` 分别检测 CLI、daemon、MCP。
+  - **未落地**:zetawork 原生设置页、Web UI 集成、OpenDesign 自身 React UI 内嵌。
+    后续若做 Web UI，只经 gateway 调同一桥，不 import `packages/*` 源码。
+  - **许可与分发边界**:它是独立上游 Apache-2.0，但捆绑的 design system/plugin/
+    资产须单独核 provenance，**不得把 copyleft 链进我们的 MIT 发布面**；首版只调用
+    外部 CLI/MCP，不分发其资产。
+  - 文档:`docs/design.md`、`docs/tools/design.md`、`docs/settings.md`。
 
 - **robomp 容器 CLI 契约残留(2026-10-14)**:本轮已修「镜像只装了一个 CLI 垫片,
   而 robomp 按名 spawn 另一个名字」这一断层——`Dockerfile`(pi-base 段)的垫片

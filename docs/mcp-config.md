@@ -30,6 +30,8 @@ OMP also accepts fallback standalone files in the project root:
 
 Use `.omp/mcp.json` or `~/.omp/agent/mcp.json` when you want OMP to own the configuration. Use root `mcp.json` / `.mcp.json` only when you want a portable fallback file that other MCP clients may also read.
 
+The workspace-scoped OpenDesign bridge is separate: it does not write `.zeta/mcp.json` and does not register its 22 MCP tools individually. See [design](./design.md).
+
 ### Imported tool configs
 
 OMP also translates these current tool-native sources:

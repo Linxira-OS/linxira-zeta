@@ -346,6 +346,14 @@
       "types": "./src/markit/*.ts",
       "import": "./src/markit/*.ts"
     },
+    "./design": {
+      "types": "./src/design/index.ts",
+      "import": "./src/design/index.ts"
+    },
+    "./design/*": {
+      "types": "./src/design/*.ts",
+      "import": "./src/design/*.ts"
+    },
     "./mcp": {
       "types": "./src/mcp/index.ts",
       "import": "./src/mcp/index.ts"

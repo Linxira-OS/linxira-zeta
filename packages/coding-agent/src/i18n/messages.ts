@@ -42,6 +42,18 @@ export interface Messages {
 	languageZhLabel: string; // local name of Chinese
 	cmdLanguage: string; // /language menu description
 
+	// /design command
+	cmdDesign: string;
+	cmdDesignAcp: string;
+	cmdDesignStatus: string;
+	cmdDesignEnable: string;
+	cmdDesignDisable: string;
+	designUsage: string;
+	designEnabledFmt: string;
+	designDisabledFmt: string;
+	designReconcileHint: string;
+	designErrorFmt: string;
+
 	// /tool command (dynamic tools framework)
 	cmdTool: string; // /tool menu description
 	dynamicToolUsage: string; // usage line for /tool
