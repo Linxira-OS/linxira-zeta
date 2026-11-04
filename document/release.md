@@ -52,6 +52,10 @@ Build time belongs in the changelog and the git tag, not the version.
 
 ## CI and Release
 
+- GitHub CI is tiered: PR and non-main dispatch runs take the fast path (no
+  Rust/cross/native compilation; native addons from main's cache or npm), main
+  pushes run the full gate, and release runs skip the test fan-out. See
+  [`ci-tiers.md`](./ci-tiers.md).
 - `.github/workflows/ci.yml` is the **only** workflow GitHub executes. It
   covers the Bun workspace, crates, desktop, install methods, and web-ui
   checks. `web-ui/` must never add its own `.github/` workflow (subdirectory
