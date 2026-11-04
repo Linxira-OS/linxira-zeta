@@ -792,13 +792,11 @@ export class SelectorController {
 			case "language":
 				if (value === "en" || value === "zh") {
 					setLanguage(value);
-					void this.ctx
-						.refreshSlashCommandState()
-						.catch(error =>
-							logger.warn("Failed to refresh slash commands after a language change", {
-								error: String(error),
-							}),
-						);
+					void this.ctx.refreshSlashCommandState().catch(error =>
+						logger.warn("Failed to refresh slash commands after a language change", {
+							error: String(error),
+						}),
+					);
 					this.ctx.ui.requestRender();
 				}
 				break;
