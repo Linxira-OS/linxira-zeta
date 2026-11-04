@@ -310,6 +310,7 @@ export function planSteps(options: MergeGateOptions): GateStep[] {
 					"packages/coding-agent/test/tools/browser-worker-exit.test.ts",
 					"packages/coding-agent/test/i18n-message-references.test.ts",
 					"packages/coding-agent/test/i18n-settings-localization.test.ts",
+					"packages/coding-agent/test/setup-wizard.test.ts",
 				],
 			],
 		},

@@ -9,6 +9,8 @@
 //! * the CJK width rule (`中a文b` → the `a` lands two columns later);
 //! * the GUI and the TUI read the same state.
 
+#![allow(deprecated)] // egui 0.34 moved the Context::run test API.
+
 use zetawork_gui::{
 	Shell, blit,
 	settings::{self, Density, MonoFont, Settings, Theme},

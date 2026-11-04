@@ -46,6 +46,7 @@ import { getRoleInfo } from "../../config/model-roles";
 import { settings } from "../../config/settings";
 import { cfgSiyuanToken } from "../../tools/settings";
 import { createSettingsHost } from "../../config/settings-ui";
+import { setLanguage } from "../../i18n";
 import { createPluginSettingsHost } from "../../extensibility/plugins/settings-host";
 import { clearPluginRootsAndCaches, resolveActiveProjectRegistryPath } from "../../discovery/helpers";
 import {
@@ -785,6 +786,22 @@ export class SelectorController {
 		}
 
 		switch (id) {
+			// Display language is process-global: apply it now, then rebuild the
+			// slash-command descriptions that clients cache. `/language` and the
+			// settings panel write the same setting, so both paths land here.
+			case "language":
+				if (value === "en" || value === "zh") {
+					setLanguage(value);
+					void this.ctx
+						.refreshSlashCommandState()
+						.catch(error =>
+							logger.warn("Failed to refresh slash commands after a language change", {
+								error: String(error),
+							}),
+						);
+					this.ctx.ui.requestRender();
+				}
+				break;
 			// Session-managed settings (not in SettingsManager)
 			case "autoCompact":
 				this.ctx.session.setAutoCompactionEnabled(value as boolean, true);

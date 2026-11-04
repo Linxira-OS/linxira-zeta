@@ -57,6 +57,8 @@ pub enum Icon {
 	Board,
 	/// 插件 — a plug: two prongs into a body, and its cable.
 	Plugin,
+	/// 行注释 — the pencil that used to be a text glyph (`✎`).
+	Pencil,
 	/// Custom chrome (the spec's mock has no window frame).
 	Minimize,
 	Maximize,
@@ -312,6 +314,10 @@ pub fn paint(painter: &egui::Painter, icon: Icon, rect: egui::Rect, color: Color
 			line((3.5, 12.0), (3.5, 12.3));
 			line((3.5, 18.0), (3.5, 18.3));
 		},
+		Icon::Pencil => {
+			poly(&[(4.0, 20.0), (4.0, 16.0), (16.0, 4.0), (20.0, 8.0), (8.0, 20.0)]);
+			line((4.0, 20.0), (8.0, 20.0));
+		},
 		Icon::Minimize => {
 			line((5.0, 12.0), (19.0, 12.0));
 		},
@@ -334,9 +340,9 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, tooltip: &s
 	let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::click());
 	let hovered = response.hovered();
 	let fill = if active {
-		theme::PANEL_4
+		theme::panel_4()
 	} else if hovered {
-		theme::PANEL_3
+		theme::panel_3()
 	} else {
 		Color32::TRANSPARENT
 	};
@@ -345,9 +351,9 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, tooltip: &s
 			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), fill);
 	}
 	let color = if active || hovered {
-		theme::TEXT
+		theme::text()
 	} else {
-		theme::TEXT_2
+		theme::text_2()
 	};
 	let inset = (size - size * 0.57).max(3.0) / 2.0;
 	paint(ui.painter(), icon, rect.shrink(inset), color, 1.6);
@@ -529,7 +535,8 @@ mod tests {
 		// Proportional at every size, and never a square corner.
 		assert_eq!(app_icon_corner_radius(96), f32::from(theme::R_PANEL) * 2.0);
 		assert!(app_icon_corner_radius(32) >= 1.0);
-		assert_eq!(app_icon_corner_radius(256), 32.0);
+		let expected = (256.0_f32 * f32::from(theme::R_PANEL) / APP_ICON_DESIGN_SIZE).round();
+		assert_eq!(app_icon_corner_radius(256), expected);
 	}
 
 	#[test]

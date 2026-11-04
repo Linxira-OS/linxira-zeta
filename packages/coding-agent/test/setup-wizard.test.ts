@@ -14,6 +14,7 @@ import {
 	selectSetupScenes,
 } from "@linxiraos/zeta/modes/setup";
 import { providersSetupScene } from "@linxiraos/pi-tui/setup/scenes/sign-in";
+import { languageSetupScene } from "@linxiraos/pi-tui/setup/scenes/language";
 import { themeSetupScene } from "@linxiraos/pi-tui/setup/scenes/theme";
 import { SetupWizardComponent } from "@linxiraos/pi-tui/setup/wizard-overlay";
 import { setTerminalGlyphProtocol } from "@linxiraos/pi-tui/terminal-capabilities";
@@ -535,5 +536,37 @@ describe("zetacode setup onboarding trigger", () => {
 		).rejects.toThrow("exit");
 		expect(exitCode).toBe(1);
 		expect(stderr).toContain("interactive TTY");
+	});
+});
+
+describe("setup language scene", () => {
+	it("is the first scene and selects the second catalogue by keyboard", async () => {
+		expect(ALL_SCENES[0]).toBe(languageSetupScene);
+		expect(languageSetupScene.minVersion).toBe(CURRENT_SETUP_VERSION);
+
+		const saved: string[] = [];
+		const finished = Promise.withResolvers<string>();
+		const host = {
+			ctx: {
+				language: "en",
+				saveLanguage: async (language: string) => {
+					saved.push(language);
+				},
+				showError: () => {},
+				ui: { invalidate: () => {} },
+			},
+			requestRender: () => {},
+			finish: (result: string) => finished.resolve(result),
+			setFocus: () => {},
+			restoreFocus: () => {},
+		} as unknown as SetupSceneHost;
+
+		const controller = languageSetupScene.mount(host);
+		controller.render(80, 20);
+		controller.handleInput?.("\x1b[B");
+		controller.handleInput?.("\r");
+
+		expect(await finished.promise).toBe("done");
+		expect(saved).toEqual(["zh"]);
 	});
 });

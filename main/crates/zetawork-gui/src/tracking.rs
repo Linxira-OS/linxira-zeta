@@ -470,7 +470,7 @@ fn status_view(ui: &mut egui::Ui, status: &Status) {
 				egui::pos2(rect.min.x + 10.0, rect.center().y),
 				&phase.name,
 				11.5,
-				theme::TEXT,
+				theme::text(),
 				rect.width() - 90.0,
 			);
 			truncated_mono(
@@ -478,7 +478,7 @@ fn status_view(ui: &mut egui::Ui, status: &Status) {
 				egui::pos2(rect.min.x + rect.width() - 10.0, rect.center().y),
 				&phase.status,
 				10.0,
-				theme::TEXT_3,
+				theme::text_3(),
 				70.0,
 			);
 		}
@@ -495,7 +495,7 @@ fn field(ui: &mut egui::Ui, label: &str, value: &str) {
 		egui::pos2(rect.min.x + 10.0, rect.min.y + 8.0),
 		label,
 		10.5,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() - 20.0,
 	);
 	truncated_text(
@@ -503,7 +503,7 @@ fn field(ui: &mut egui::Ui, label: &str, value: &str) {
 		egui::pos2(rect.min.x + 10.0, rect.max.y - 8.0),
 		value,
 		11.5,
-		theme::TEXT,
+		theme::text(),
 		rect.width() - 20.0,
 	);
 }
@@ -517,7 +517,7 @@ fn heading(ui: &mut egui::Ui, text: &str) {
 		egui::pos2(rect.min.x + 10.0, rect.center().y),
 		text,
 		11.0,
-		theme::TEXT_2,
+		theme::text_2(),
 		rect.width() - 20.0,
 	);
 }
@@ -554,9 +554,9 @@ pub fn markdown(ui: &mut egui::Ui, text: &str) {
 						egui::RichText::new(text)
 							.size(12.0 + (3 - level) as f32)
 							.color(if level == 1 {
-								theme::TEXT
+								theme::text()
 							} else {
-								theme::TEXT_2
+								theme::text_2()
 							})
 							.strong(),
 					)
@@ -566,9 +566,10 @@ pub fn markdown(ui: &mut egui::Ui, text: &str) {
 			MdRow::Bullet(text) => {
 				ui.horizontal_top(|ui| {
 					ui.add_space(6.0);
-					ui.label(egui::RichText::new("•").size(11.5).color(theme::TEXT_3));
+					ui.label(egui::RichText::new("•").size(11.5).color(theme::text_3()));
 					ui.add(
-						egui::Label::new(egui::RichText::new(text).size(11.5).color(theme::TEXT)).wrap(),
+						egui::Label::new(egui::RichText::new(text).size(11.5).color(theme::text()))
+							.wrap(),
 					);
 				});
 			},
@@ -579,7 +580,7 @@ pub fn markdown(ui: &mut egui::Ui, text: &str) {
 						egui::pos2(ui.cursor().min.x + 8.0, ui.cursor().min.y + 6.0),
 						&language,
 						10.0,
-						theme::TEXT_3,
+						theme::text_3(),
 						ui.available_width() - 16.0,
 					);
 					ui.add_space(12.0);
@@ -589,7 +590,7 @@ pub fn markdown(ui: &mut egui::Ui, text: &str) {
 				ui.horizontal_top(|ui| {
 					ui.add_space(6.0);
 					ui.add(
-						egui::Label::new(egui::RichText::new(text).size(11.5).color(theme::TEXT_2))
+						egui::Label::new(egui::RichText::new(text).size(11.5).color(theme::text_2()))
 							.wrap(),
 					);
 				});

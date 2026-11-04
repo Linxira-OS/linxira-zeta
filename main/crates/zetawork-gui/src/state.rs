@@ -386,6 +386,25 @@ impl SessionTab {
 	pub fn is_term(&self) -> bool {
 		self.kind == SessionKind::Term
 	}
+
+	/// The title to draw now, not the one captured at creation.
+	///
+	/// A 终端 tab stores `终端 N` (or `Terminal N` after a language switch).
+	/// Re-rendering the prefix from the trailing number keeps a live language
+	/// switch from producing `Terminal 终端 1`.
+	pub fn display_title(&self) -> String {
+		if self.kind == SessionKind::Term {
+			if let Some(n) = self
+				.title
+				.split_whitespace()
+				.last()
+				.and_then(|word| word.parse::<u32>().ok())
+			{
+				return t!("终端 {}", n).to_owned();
+			}
+		}
+		self.title.clone()
+	}
 }
 
 /// What a `+` opens into.
@@ -586,12 +605,32 @@ pub struct ConversationEntry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Notice(pub String);
 
+/// The left column's keyboard focus: which row Up/Down is on, and which row
+/// the focus ring is drawn around.
+///
+/// UI state only — selecting a row never reads, archives or deletes anything.
+/// Every variant carries the identity the row already has, so a focus that
+/// lands on a row removed by a refresh simply no longer matches any row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LeftFocus {
+	/// A project heading, by project id.
+	Project(String),
+	/// A 大标签页 row, by workspace id.
+	Workspace(String),
+	/// A conversation row, by gateway session id.
+	Conversation(String),
+	/// An agent tab row, by its pane and tab ids.
+	Agent { pane: String, tab: String },
+}
+
 /// The whole shell state.
 #[derive(Clone, Debug)]
 pub struct AppState {
 	/// Which 大标签页 the centre shows: 总面板 (the strip's first tab, and what
 	/// this build opens on) or the active workspace's pane grid.
 	pub center_page: CenterPage,
+	/// The left column's focused row ([`LeftFocus`]); `None` = no focus ring.
+	pub left_focus: Option<LeftFocus>,
 	pub left_collapsed: bool,
 	pub right_collapsed: bool,
 	pub right_tab: RightTab,
@@ -658,6 +697,7 @@ impl Default for AppState {
 	fn default() -> Self {
 		Self {
 			center_page: CenterPage::Total,
+			left_focus: None,
 			left_collapsed: false,
 			right_collapsed: false,
 			// 用量 is the right column's default page (the contract's ruling),
@@ -709,6 +749,9 @@ pub struct NewWorkspaceForm {
 	pub run_setup: bool,
 	/// Why the last submit was refused (the form stays open).
 	pub error: Option<String>,
+	/// Focus the name field on the first frame, so opening the form and
+	/// typing works without a click.
+	pub focus_once: bool,
 }
 
 impl AppState {
@@ -1439,6 +1482,7 @@ impl AppState {
 			// to; an untrusted one starts unticked.
 			run_setup: trusted && crate::setup::has_script(&path),
 			error: None,
+			focus_once: true,
 		});
 	}
 
@@ -1558,7 +1602,14 @@ impl AppState {
 		if self.active_workspace.as_deref() == Some(ws_id) {
 			self.active_workspace = self.projects[pos].workspaces.first().map(|w| w.id.clone());
 		}
+		if matches!(&self.left_focus, Some(LeftFocus::Workspace(id)) if id == ws_id) {
+			self.left_focus = None;
+		}
 		self.tui_pane = None;
+		// The removed workspace no longer owns anything: its conversations fall
+		// back to the next matching root (the left column regroups them), and
+		// the rows themselves are untouched.
+		self.regroup_conversations();
 		Notice(String::new())
 	}
 
@@ -1616,6 +1667,72 @@ impl AppState {
 			.push(SessionTab::new(id.clone(), SessionKind::Term, t!("终端 {}", n)));
 		pane.active = id;
 		Notice(String::new())
+	}
+
+	/// Every open tab that shows `session_id`: `(pane id, tab id)`.
+	pub fn tabs_for_session(&self, session_id: &str) -> Vec<(String, String)> {
+		self
+			.projects
+			.iter()
+			.flat_map(|project| project.workspaces.iter())
+			.flat_map(|workspace| workspace.panes.iter())
+			.flat_map(|pane| {
+				pane
+					.tabs
+					.iter()
+					.filter(|tab| tab.session.as_deref() == Some(session_id))
+					.map(|tab| (pane.id.clone(), tab.id.clone()))
+			})
+			.collect()
+	}
+
+	/// A tab can close only when its pane keeps another one.
+	pub fn can_close_tab(&self, pane_id: &str) -> bool {
+		self
+			.projects
+			.iter()
+			.flat_map(|project| project.workspaces.iter())
+			.flat_map(|workspace| workspace.panes.iter())
+			.find(|pane| pane.id == pane_id)
+			.is_some_and(|pane| pane.tabs.len() > 1)
+	}
+
+	/// Forget a deleted conversation and detach every tab that was showing it.
+	///
+	/// A pane keeps at least one tab, so the last tab is cleared in place
+	/// (`session = None`, title says the session was deleted) instead of being
+	/// removed. The returned tab ids let the shell drop the matching agent
+	/// connection before the next frame reconnects anything.
+	pub fn detach_session(&mut self, session_id: &str) -> Vec<String> {
+		let mut detached = Vec::new();
+		for project in &mut self.projects {
+			for workspace in &mut project.workspaces {
+				for pane in &mut workspace.panes {
+					while let Some(index) = pane
+						.tabs
+						.iter()
+						.position(|tab| tab.session.as_deref() == Some(session_id))
+					{
+						let tab_id = pane.tabs[index].id.clone();
+						detached.push(tab_id.clone());
+						if pane.tabs.len() > 1 {
+							pane.tabs.remove(index);
+							if pane.active == tab_id {
+								pane.active = pane.tabs[0].id.clone();
+							}
+						} else {
+							let tab = &mut pane.tabs[index];
+							tab.session = None;
+							tab.title = t!("会话已删除").to_owned();
+						}
+					}
+				}
+			}
+		}
+		self
+			.conversations
+			.retain(|entry| entry.conversation.id != session_id);
+		detached
 	}
 
 	/// ✕ on a session tab: refused when it would empty the pane.
@@ -1851,6 +1968,19 @@ impl AppState {
 			roots.push(PathBuf::from(home).join(".zeta"));
 		}
 		roots
+	}
+
+	/// One session tab, read-only.
+	pub fn tab(&self, pane_id: &str, tab_id: &str) -> Option<&SessionTab> {
+		self
+			.projects
+			.iter()
+			.flat_map(|project| project.workspaces.iter())
+			.flat_map(|workspace| workspace.panes.iter())
+			.find(|pane| pane.id == pane_id)?
+			.tabs
+			.iter()
+			.find(|tab| tab.id == tab_id)
 	}
 
 	/// One session tab, mutably.
@@ -2360,6 +2490,38 @@ mod tests {
 		assert_eq!(state.active_workspace().unwrap().panes.len(), 1);
 		assert_eq!(state.active_cols(), 1);
 		assert!(state.default_project().is_some(), "the pinned project is seeded");
+	}
+
+	#[test]
+	fn detaching_a_deleted_session_clears_or_removes_its_tabs() {
+		// The only tab cannot be removed (a pane keeps one); it is cleared
+		// in place and says the session is gone.
+		let mut first = state();
+		let workspace = first.active_workspace().unwrap().id.clone();
+		let only = first.active_workspace().unwrap().panes[0].tabs[0]
+			.id
+			.clone();
+		first.workspace_mut(&workspace).unwrap().panes[0].tabs[0].session =
+			Some("deleted".to_owned());
+		assert_eq!(first.detach_session("deleted"), vec![only.clone()]);
+		let tab = &first.active_workspace().unwrap().panes[0].tabs[0];
+		assert_eq!(tab.id, only);
+		assert!(tab.session.is_none());
+		assert_eq!(tab.title, t!("会话已删除"));
+
+		// With a second tab, the deleted one is removed and the surviving tab
+		// keeps its content.
+		let mut fresh = state();
+		let pane = fresh.active_workspace().unwrap().panes[0].id.clone();
+		let mut agent =
+			SessionTab::new(fresh.fresh_id("tab"), SessionKind::Agent, "Agent".to_owned());
+		agent.session = Some("deleted-2".to_owned());
+		fresh.push_tab(&pane, agent);
+		let removed = fresh.active_workspace().unwrap().panes[0].tabs[1]
+			.id
+			.clone();
+		assert_eq!(fresh.detach_session("deleted-2"), vec![removed]);
+		assert_eq!(fresh.active_workspace().unwrap().panes[0].tabs.len(), 1);
 	}
 
 	#[test]

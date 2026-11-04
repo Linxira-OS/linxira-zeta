@@ -344,6 +344,35 @@ describe("settings as a native prefs page", () => {
 		expect(after.page).toBe("context");
 	});
 
+	it("opens a popup or text row when the row itself is clicked", () => {
+		const { selector } = harness();
+		send(selector, { type: "select", key: "", item: "theme.dark" });
+		expect(prefs(selector).props.editing).toEqual({ row: "theme.dark", option: "dark" });
+		send(selector, { type: "action", key: "", act: "close", value: "theme.dark", mods: [] });
+		send(selector, { type: "action", key: "", act: "page", value: "shell", mods: [] });
+		send(selector, { type: "select", key: "", item: "shell.path" });
+		expect(prefs(selector).props.editing).toEqual({ row: "shell.path", draft: "", cursor: 0 });
+	});
+
+	it("does not open a switch or segmented row from a label click", () => {
+		const { selector } = harness();
+		send(selector, { type: "select", key: "", item: "display.risky" });
+		expect(prefs(selector).props.editing).toBeNull();
+	});
+
+	it("coalesces search typing and reuses the described page until something changes", () => {
+		const { selector } = harness();
+		selector.handleInput("t");
+		selector.handleInput("h");
+		const first = prefs(selector);
+		expect(first.props.query).toBe("th");
+		expect(prefs(selector).node).toBe(first.node);
+		send(selector, { type: "select", key: "", item: "theme.dark" });
+		const opened = prefs(selector);
+		expect(opened.node).not.toBe(first.node);
+		expect(opened.props.editing).toEqual({ row: "theme.dark", option: "dark" });
+	});
+
 	it("keyboard focus follows the list selection", () => {
 		const { selector } = harness();
 		selector.handleInput(DOWN);

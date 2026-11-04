@@ -3,6 +3,41 @@
 Two surfaces that were web-only: the flat session list with pin/archive, and
 the worktree switcher.
 
+## 移除、关闭、归档与删除
+
+The left column offers four actions that look similar and are not. Only the
+last one touches a transcript, and even then the GUI never removes a file
+itself.
+
+| Action | Where | Effect |
+| --- | --- | --- |
+| **仅从视图移除** | Delete on a focused row, or 关闭标签页 in the row's menu | Closes every open tab that shows the session and drops its SSE reader. The conversation row, the gateway session and the transcript stay; nothing is archived. |
+| **关闭并归档** | Shift+Delete on a conversation, or a tab's ✕ when it was that session's last tab | Stops the view and asks the gateway to `POST /api/sessions/<id>/archive` only when no remaining tab shows the session. Reversible from 会话管理 → 已归档 (恢复). |
+| **删除会话** | Ctrl+Shift+Delete on a conversation (not running) | The first action only opens 会话管理 with that row's 确认删除 armed; no request is sent. The second click sends `DELETE /api/sessions/<id>`, which zetacode/gateway turns into a **soft delete** into `~/.zeta/trash/sessions` (30-day retention). The GUI never deletes a transcript or a directory. |
+| **移除工作区** | The workspace row's ⋯ menu → 关闭工作区, or Delete on a focused workspace | Removes the workspace from the UI and closes its tabs by the rules below. The directory, files and worktrees are the user's; conversation rows are not archived or deleted and reappear when a workspace covering their `cwd` exists again. |
+
+**关闭标签页 policy** (a tab's ✕, and Shift+Delete on an Agent row):
+
+- **Agent** — stop the view; if this was the session's last open tab, request
+  an archive first. Another workspace can reopen it from its conversation row.
+- **编辑器** — a dirty buffer is written before the tab is removed; a failed
+  save is shown in the notice and the tab stays. Closing a tab never discards
+  unsaved text.
+- **终端 / zetacode** — stop the PTY (or the page's own process) before the tab
+  is removed. A pane always keeps at least one tab, so the last tab refuses to
+  close and says so.
+
+The 大标签页 strip scrolls horizontally once its tabs exceed the window width;
+the tab order never reflows into a second row.
+
+The gateway origin is discovered from `~/.zeta/serve.json` (`webUrl`). A
+headless shell never probes, and with no published origin an action that needs
+one says 未发现网关地址 instead of failing silently. This is checked manually,
+not by a test: `stats::discover()` reads the user's home, so an automated test
+would depend on the machine. To reproduce: move `~/.zeta/serve.json` aside,
+open the GUI, and 新建会话 or 归档 → the notice; start `zetacode serve` and
+repeat → the action succeeds.
+
 ## 会话管理
 
 The left column's head has a list button; it opens a modal over the frame

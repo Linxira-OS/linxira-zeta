@@ -36,8 +36,20 @@
 //! purple at all and the contract's 状态词表 needs one for `◇ monitoring`.
 
 use egui::{Color32, CornerRadius, FontFamily, FontId, Margin, Stroke, TextStyle};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::settings::{Settings, Theme};
+
+/// Whether the hand-drawn surfaces should use the light palette.
+///
+/// `Color32` tokens are constants, so a runtime theme needs functions for the
+/// colours the custom painters use. `apply` sets this once per settings
+/// change; every draw call reads it.
+static LIGHT: AtomicBool = AtomicBool::new(false);
+
+fn light() -> bool {
+	LIGHT.load(Ordering::Relaxed)
+}
 
 /// `--ground`
 pub const GROUND: Color32 = Color32::from_rgb(0x0b, 0x0d, 0x11);
@@ -122,18 +134,121 @@ pub const TUI_ACTIVE_TEXT: Color32 = Color32::from_rgb(0xdc, 0xe7, 0xff);
 /// `.tui-row.is-active` border (`#2c4877`).
 pub const TUI_ACTIVE_BORDER: Color32 = Color32::from_rgb(0x2c, 0x48, 0x77);
 
+/// The colour of a full-window ground. The light set is used only when
+/// [`Theme::Light`] (or a light system theme) is active.
+pub fn ground() -> Color32 {
+	if light() {
+		Color32::from_rgb(0xed, 0xef, 0xf3)
+	} else {
+		GROUND
+	}
+}
+
+pub fn panel() -> Color32 {
+	if light() {
+		Color32::from_rgb(0xf7, 0xf8, 0xfa)
+	} else {
+		PANEL
+	}
+}
+
+pub fn panel_2() -> Color32 {
+	if light() {
+		Color32::from_rgb(0xef, 0xf1, 0xf5)
+	} else {
+		PANEL_2
+	}
+}
+
+pub fn panel_3() -> Color32 {
+	if light() {
+		Color32::from_rgb(0xe6, 0xe9, 0xef)
+	} else {
+		PANEL_3
+	}
+}
+
+pub fn panel_4() -> Color32 {
+	if light() {
+		Color32::from_rgb(0xda, 0xdf, 0xe7)
+	} else {
+		PANEL_4
+	}
+}
+
+pub fn border() -> Color32 {
+	if light() {
+		Color32::from_rgb(0xd5, 0xda, 0xe2)
+	} else {
+		BORDER
+	}
+}
+
+pub fn border_2() -> Color32 {
+	if light() {
+		Color32::from_rgb(0xc2, 0xc9, 0xd3)
+	} else {
+		BORDER_2
+	}
+}
+
+pub fn text() -> Color32 {
+	if light() {
+		Color32::from_rgb(0x1a, 0x1d, 0x23)
+	} else {
+		TEXT
+	}
+}
+
+pub fn text_2() -> Color32 {
+	if light() {
+		Color32::from_rgb(0x4a, 0x51, 0x5c)
+	} else {
+		TEXT_2
+	}
+}
+
+pub fn text_3() -> Color32 {
+	if light() {
+		Color32::from_rgb(0x6b, 0x72, 0x80)
+	} else {
+		TEXT_3
+	}
+}
+
 /// `.chip.branch` — the branch chip's ink and surface.
 pub const CHIP_BRANCH_INK: Color32 = CYAN;
 pub const CHIP_BRANCH_BG: Color32 = Color32::from_rgb(0x10, 0x20, 0x1f);
 pub const CHIP_BRANCH_BORDER: Color32 = Color32::from_rgb(0x1f, 0x3a, 0x3d);
 
 /// Panel/control radii (`--r-ctl`, `--r-panel`, `--r-modal`).
-pub const R_CONTROL: u8 = 4;
-pub const R_PANEL: u8 = 6;
-pub const R_MODAL: u8 = 8;
+///
+/// The old 4/6/8 read as square at the shell's scale. 6/10/14 keeps a
+/// control visibly rounded without turning dense rows into pills.
+pub const R_CONTROL: u8 = 6;
+pub const R_PANEL: u8 = 10;
+pub const R_MODAL: u8 = 14;
 /// The radius scale is ordered by construction: an inner surface is never
 /// rounder than the surface that holds it.
 const _: () = assert!(R_MODAL > R_PANEL && R_PANEL > R_CONTROL);
+
+/// The gap between the window ground and an island/card.
+pub const GAP_ISLAND: f32 = 8.0;
+/// Inner padding of an island.
+pub const INSET_ISLAND: f32 = 10.0;
+/// The elevation used by dialogs and menus. One value, so a menu never floats
+/// higher than the dialog it belongs to.
+pub const SHADOW_ISLAND: egui::epaint::Shadow = egui::epaint::Shadow {
+	offset: [0, 6],
+	blur: 16,
+	spread: 0,
+	color: Color32::from_black_alpha(110),
+};
+
+/// Draw the one island elevation behind a hand-painted surface.
+pub fn paint_shadow(painter: &egui::Painter, rect: egui::Rect, radius: CornerRadius) {
+	painter.add(SHADOW_ISLAND.as_shape(rect, radius));
+}
 
 /// Horizontal inset of a full-width strip (title bar, status bar, banner).
 pub const INSET_STRIP: f32 = 10.0;
@@ -168,8 +283,15 @@ pub const ICON_BOX: f32 = 24.0;
 /// control (including egui's own scrollbars and selects) picks the change up on
 /// the next frame.
 pub fn apply(ctx: &egui::Context, settings: &Settings) {
-	let mut style = (*ctx.style()).clone();
-	style.visuals = visuals(settings.theme);
+	let system = ctx.system_theme();
+	let light = match settings.theme {
+		Theme::Dark => false,
+		Theme::Light => true,
+		Theme::System => system == Some(egui::Theme::Light),
+	};
+	LIGHT.store(light, Ordering::Relaxed);
+	let mut style = (*ctx.global_style()).clone();
+	style.visuals = visuals(settings.theme, system);
 	style.text_styles = text_styles();
 	let (spacing, padding) = settings.density.spacing();
 	style.spacing.item_spacing = egui::vec2(6.0, spacing);
@@ -179,7 +301,7 @@ pub fn apply(ctx: &egui::Context, settings: &Settings) {
 	style.spacing.combo_width = 150.0;
 	style.spacing.scroll.bar_width = 10.0;
 	style.animation_time = if settings.reduce_motion { 0.0 } else { 0.16 };
-	ctx.set_style(style);
+	ctx.set_global_style(style);
 }
 
 fn text_styles() -> std::collections::BTreeMap<TextStyle, FontId> {
@@ -195,11 +317,11 @@ fn text_styles() -> std::collections::BTreeMap<TextStyle, FontId> {
 /// The spec's dark palette as egui `Visuals`. `Light` and `System` keep the
 /// same accent and radii on egui's light base, because the spec only defines
 /// the dark tokens; `System` follows egui's own dark/light preference.
-fn visuals(theme: Theme) -> egui::Visuals {
+fn visuals(theme: Theme, system: Option<egui::Theme>) -> egui::Visuals {
 	let dark = match theme {
 		Theme::Dark => true,
 		Theme::Light => false,
-		Theme::System => true,
+		Theme::System => system != Some(egui::Theme::Light),
 	};
 	let mut visuals = if dark {
 		egui::Visuals::dark()
@@ -224,6 +346,8 @@ fn visuals(theme: Theme) -> egui::Visuals {
 	visuals.window_stroke = Stroke::new(1.0_f32, border);
 	visuals.window_corner_radius = CornerRadius::same(R_MODAL);
 	visuals.menu_corner_radius = CornerRadius::same(R_PANEL);
+	visuals.window_shadow = SHADOW_ISLAND;
+	visuals.popup_shadow = SHADOW_ISLAND;
 	visuals.extreme_bg_color = if dark { GROUND } else { Color32::WHITE };
 	visuals.faint_bg_color = if dark {
 		PANEL_2
@@ -253,7 +377,9 @@ fn visuals(theme: Theme) -> egui::Visuals {
 	visuals.widgets.noninteractive.corner_radius = CornerRadius::same(R_CONTROL);
 
 	visuals.widgets.inactive.bg_fill = if dark { PANEL_2 } else { Color32::WHITE };
-	visuals.widgets.inactive.weak_bg_fill = PANEL_2;
+	// `Button` paints `weak_bg_fill`; leaving it on the dark PANEL_2 in light
+	// mode made the dark text almost invisible.
+	visuals.widgets.inactive.weak_bg_fill = if dark { PANEL_2 } else { Color32::WHITE };
 	visuals.widgets.inactive.bg_stroke = Stroke::new(1.0_f32, if dark { BORDER_2 } else { border });
 	visuals.widgets.inactive.fg_stroke = Stroke::new(1.0_f32, text);
 	visuals.widgets.inactive.corner_radius = CornerRadius::same(R_CONTROL);
@@ -276,4 +402,32 @@ fn visuals(theme: Theme) -> egui::Visuals {
 	visuals.widgets.open.fg_stroke = Stroke::new(1.0_f32, text);
 	visuals.widgets.open.corner_radius = CornerRadius::same(R_CONTROL);
 	visuals
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn light_buttons_do_not_keep_the_dark_fill() {
+		let light = visuals(Theme::Light, None);
+		assert!(!light.dark_mode);
+		assert_ne!(light.widgets.inactive.weak_bg_fill, PANEL_2);
+		assert_ne!(light.widgets.inactive.weak_bg_fill, light.widgets.inactive.fg_stroke.color);
+	}
+
+	#[test]
+	fn system_theme_uses_the_reported_preference() {
+		assert!(!visuals(Theme::System, Some(egui::Theme::Light)).dark_mode);
+		assert!(visuals(Theme::System, Some(egui::Theme::Dark)).dark_mode);
+		assert!(visuals(Theme::System, None).dark_mode);
+	}
+
+	#[test]
+	fn islands_share_one_elevation() {
+		let dark = visuals(Theme::Dark, None);
+		assert_eq!(dark.window_shadow, SHADOW_ISLAND);
+		assert_eq!(dark.popup_shadow, SHADOW_ISLAND);
+		const { assert!(SHADOW_ISLAND.blur > 0) };
+	}
 }

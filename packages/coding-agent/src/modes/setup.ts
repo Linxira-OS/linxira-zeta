@@ -9,6 +9,7 @@ import {
 	type SetupSceneSelectionOptions,
 } from "@linxiraos/pi-tui/setup/wizard";
 import type { Settings } from "../config/settings";
+import { currentLanguage, setLanguage } from "../i18n";
 import { captureBrowserSession } from "../utils/browser-session";
 import { createModelBrowserSource } from "./model-browser-source";
 import type { InteractiveModeContext } from "./types";
@@ -22,6 +23,7 @@ import {
 	cfgThemeLight,
 } from "./settings";
 import { cfgDisabledProviders, cfgModelRoleStorage } from "../config/model-settings";
+import { cfgLanguage } from "../zeta-settings";
 import { getOAuthCredentialProvider } from "@linxiraos/pi-ai/oauth";
 
 export { ALL_SCENES, CURRENT_SETUP_VERSION };
@@ -47,6 +49,9 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 		},
 		get disabledProviders() {
 			return cfgDisabledProviders.get(ctx.settings);
+		},
+		get language() {
+			return currentLanguage();
 		},
 		get authStorage() {
 			return ctx.session.modelRegistry.authStorage;
@@ -75,6 +80,11 @@ export function createSetupHost(ctx: InteractiveModeContext): SetupHost {
 		},
 		saveSymbolPreset: preset => {
 			cfgSymbolPreset.set(ctx.settings, preset);
+		},
+		saveLanguage: async language => {
+			cfgLanguage.set(ctx.settings, language);
+			setLanguage(language);
+			await ctx.settings.flush();
 		},
 		saveColorBlindMode: enabled => {
 			cfgColorBlindMode.set(ctx.settings, enabled);

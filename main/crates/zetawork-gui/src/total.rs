@@ -62,7 +62,7 @@ const GIT_HINT: &str =
 pub fn page(ui: &mut egui::Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::GROUND);
+		.rect_filled(rect, CornerRadius::ZERO, theme::ground());
 	let inner = rect.shrink2(vec2(PAD[0], PAD[1]));
 	if inner.width() <= 40.0 || inner.height() <= ROW_H {
 		return;
@@ -121,7 +121,7 @@ pub fn page(ui: &mut egui::Ui, shell: &mut Shell) {
 			Align2::LEFT_TOP,
 			crate::i18n::tr(NOTE),
 			FontId::new(11.0, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	}
 }
@@ -137,10 +137,10 @@ fn column_widths(total: f32) -> [f32; 6] {
 
 fn head_row(ui: &egui::Ui, rect: Rect, widths: &[f32; 6]) {
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let mut x = rect.min.x;
 	for (index, (label, _)) in COLUMNS.iter().enumerate() {
@@ -149,7 +149,7 @@ fn head_row(ui: &egui::Ui, rect: Rect, widths: &[f32; 6]) {
 			pos2(x, rect.center().y),
 			crate::i18n::tr(label),
 			11.5,
-			theme::TEXT_2,
+			theme::text_2(),
 			widths[index] - 8.0,
 		);
 		if *label == "±行" {
@@ -180,14 +180,14 @@ fn row_body(
 	// and `.wscard.on` do in the spec.
 	if is_active {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+			.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	} else if response.hovered() {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2.gamma_multiply(0.7));
+			.rect_filled(rect, CornerRadius::ZERO, theme::panel_2().gamma_multiply(0.7));
 	}
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	// The active-workspace marker: `.ws-btn.is-active::before`, turned on its
 	// side for a table row.
@@ -202,9 +202,9 @@ fn row_body(
 	let baseline = rect.center().y;
 	let mut x = rect.min.x;
 	let ink = if is_active {
-		theme::TEXT
+		theme::text()
 	} else {
-		theme::TEXT_2
+		theme::text_2()
 	};
 
 	// 项目
@@ -230,9 +230,9 @@ fn row_body(
 		},
 		_ => ("—".to_owned(), "—".to_owned()),
 	};
-	truncated_mono(ui, pos2(x, baseline), &delta, 11.5, theme::TEXT_3, widths[4] - 8.0);
+	truncated_mono(ui, pos2(x, baseline), &delta, 11.5, theme::text_3(), widths[4] - 8.0);
 	x += widths[4];
-	truncated_mono(ui, pos2(x, baseline), &dirty, 11.5, theme::TEXT_3, widths[5] - 8.0);
+	truncated_mono(ui, pos2(x, baseline), &dirty, 11.5, theme::text_3(), widths[5] - 8.0);
 
 	response.clicked()
 }

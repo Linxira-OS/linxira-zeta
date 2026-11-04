@@ -13,9 +13,11 @@ name = "zetawork-gui"
 path = "src/main.rs"
 
 [dependencies]
-# Versions are the ones the `spike/egui-shell` branch proved on this host
-# (egui 0.33.3 + eframe 0.33.3, offscreen ratatui blit, WebView2 child window).
-egui = "0.33.3"
+# 0.34 is the first release whose native loop keeps painting an invisible or
+# minimized window. 0.33 dropped `RedrawRequested` for a hidden window on
+# Windows, so the tray queue and the single-instance listener were never read
+# again after 最小化到后台. See `document/ui-bugfix-report.md` UI-001.
+egui = "0.34.0"
 # The TUI's sidebar snapshot travels as base64 JSON inside an APC (see
 # `sidebar_tsp`), so the decode is needed at runtime, not only by tests.
 base64.workspace = true
@@ -23,7 +25,7 @@ base64.workspace = true
 # (`igxelpgicd64.dll`) faulted with 0xC000041D under the glow path on this host,
 # so the shell asks for wgpu (D3D12) and keeps glow as the escape hatch
 # (`ZETAWORK_RENDERER=glow`).
-eframe = { version = "0.33.3", features = ["wgpu"] }
+eframe = { version = "0.34.0", features = ["wgpu", "glow"] }
 ratatui.workspace = true
 crossterm.workspace = true
 # The live terminal pane is the TUI's own terminal: `termide-panel-terminal`

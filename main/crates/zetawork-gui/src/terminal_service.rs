@@ -826,6 +826,13 @@ impl TerminalHost {
 	pub fn retain(&mut self, open: &[String]) {
 		self.panes.retain(|tab, _| open.iter().any(|id| id == tab));
 	}
+
+	/// Forget one closed tab's pane now, dropping its WebSocket and ending the
+	/// serve-side PTY. The next `retain` would do the same one frame later;
+	/// closing here is what makes the ✕ stop the process immediately.
+	pub fn close(&mut self, tab: &str) {
+		self.panes.remove(tab);
+	}
 }
 
 /// The gateway requires `[A-Za-z0-9._-]{1,64}`; a session tab id already is.

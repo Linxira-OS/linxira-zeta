@@ -129,3 +129,10 @@ describe("catalogue consistency", () => {
 		expect(extractCatalogueKeys('\tcmdLong:\n\t\t"a long value",').get("cmdLong")).toBe('"a long value",');
 	});
 });
+
+describe("CRLF catalogue input", () => {
+	test("extracts the same keys from CRLF as from LF", () => {
+		const source = 'export const zh = {\r\n\tfirst: "一",\r\n\tsecond: "二",\r\n};\r\n';
+		expect([...extractCatalogueKeys(source).keys()]).toEqual(["first", "second"]);
+	});
+});

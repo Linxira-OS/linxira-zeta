@@ -47,7 +47,11 @@ export function extractCatalogueKeys(source: string): Map<string, string> {
 	const keys = new Map<string, string>();
 	const lines = source.split("\n");
 	for (let i = 0; i < lines.length; i++) {
-		const match = /^\t([A-Za-z][A-Za-z0-9]*):\s?(.*)$/.exec(lines[i]);
+		// A Windows checkout can hand us CRLF; strip the terminator so the
+		// `$`-anchored value match does not silently see only a handful of
+		// keys and report thousands of false catalogue failures.
+		const line = lines[i].replace(/\r$/, "");
+		const match = /^\t([A-Za-z][A-Za-z0-9]*):\s?(.*)$/.exec(line);
 		if (!match) continue;
 		let value = match[2];
 		if (value.trim() === "" && i + 1 < lines.length) value = lines[i + 1].trim();

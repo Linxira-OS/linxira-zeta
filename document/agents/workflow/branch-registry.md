@@ -36,6 +36,7 @@
 | `sync/omp-release/v18.15.0` | sync | OMP v18.15.0（`3fedf8d5326`）真 merge，基于 `feat/taste-memory`；56 处冲突按类别 resolve（Zeta 面保留、测试取上游后 `.omp→.zeta`、代码上游语义 + 重放 Zeta-only）；worktree `temp/sync-18.15` | agent | 2026-11-02 | 六阶段门禁与 CI 绿后并入 `main`，删前记 SHA |
 | `feat/taste-layer` | feat | P4 `taste` super-memory 层本体（`packages/coding-agent/src/{taste,tools/super-memory.ts,prompts/taste}`、设置/角色/session 接线、`docs/memory.md` + `docs/tools/super_memory.md` + `docs/models.md`、`test/taste/`）；基于 `sync/omp-release/v18.15.0` 的 `e7d7f7f5776`。worktree `temp/taste-layer` | agent | 2026-11-02 | 并入 `main` 后删（合并前记 SHA） |
 | `feat/taste-memory` | feat | P0–P2 上游 host/默认值清理 + `check-no-upstream-defaults` / `check-doc-host-parity` 两个新门禁；随后在此之上做 P4 `taste` super-memory 层（`packages/coding-agent/src/taste/`）。worktree `temp/taste-memory` | agent | 2026-11-02 | P4 落地并入 `main` 后删（合并前记 SHA） |
+| `fix/ui-audit-p0` | fix | `document/ui-bugfix-report.md` 的 P0/P1/P2 UI/功能修复：托盘驻留、分栏/页脚、会话删除、modal 交互与浮岛视觉；附带 Git 面板提交全部更改/推送闭环；worktree `temp/ui-audit-fixes` | agent | 2026-11-04 | 修复合入 `main` 后删（删前记 SHA） |
 | `dev/main-v1830-wip` | dev | v18.3.0 合并 WIP（2026-09-25，已被 v18.14.2 远超） | user | 2026-09-25 | **用户决定**；技术上是死的 |
 
 ## 已退役（删除前登记）

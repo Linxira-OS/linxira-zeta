@@ -191,11 +191,11 @@ pub fn paint(painter: &Painter, lines: &[SidebarLine], grid: &GridMetrics, rect:
 		return;
 	}
 	let painter = painter.with_clip_rect(rect);
-	painter.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+	painter.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	painter.rect_filled(
 		Rect::from_min_size(rect.min, Vec2::new(1.0, rect.height())),
 		CornerRadius::ZERO,
-		theme::BORDER,
+		theme::border(),
 	);
 	let rows = ((rect.height() / grid.cell_h).floor().max(0.0) as usize).min(lines.len());
 	for (row, line) in lines.iter().take(rows).enumerate() {
@@ -221,17 +221,17 @@ fn line_color(line: &SidebarLine) -> Color32 {
 		Some("warning") => return theme::WARN,
 		Some("error") => return theme::DEL,
 		Some("info") => return theme::CYAN,
-		Some("muted" | "neutral" | "pending") => return theme::TEXT_3,
+		Some("muted" | "neutral" | "pending") => return theme::text_3(),
 		_ => {},
 	}
 	let role = line.role.as_str();
 	if role == "zeta.sidebar.separator" {
-		return theme::BORDER_2;
+		return theme::border_2();
 	}
 	if role.ends_with(".header") || role.ends_with(".commit") || role.ends_with(".summary") {
-		return theme::TEXT_3;
+		return theme::text_3();
 	}
-	theme::TEXT_2
+	theme::text_2()
 }
 
 /// Clip `text` to `cells` terminal columns, dropping a wide glyph that would

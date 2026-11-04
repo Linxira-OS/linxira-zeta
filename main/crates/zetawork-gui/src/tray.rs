@@ -73,6 +73,20 @@ pub fn drain_clicks() -> Vec<String> {
 static CLICKS: std::sync::LazyLock<std::sync::Mutex<Vec<String>>> =
 	std::sync::LazyLock::new(|| std::sync::Mutex::new(Vec::new()));
 
+/// Queue one tray action and wake the frame loop.
+///
+/// `tray-icon` runs both handlers on its own thread, so this is the only
+/// bridge into the shell. The wake is part of the queue operation: a menu
+/// click that only pushes is invisible until the user happens to move the
+/// mouse over the window again, and a hidden window would never read it.
+#[cfg(feature = "tray")]
+fn enqueue(id: &str, ctx: &egui::Context) {
+	if let Ok(mut queue) = CLICKS.lock() {
+		queue.push(id.to_owned());
+	}
+	ctx.request_repaint();
+}
+
 /// Without the feature there is nothing to drain.
 #[cfg(not(feature = "tray"))]
 pub fn drain_clicks() -> Vec<String> {
@@ -137,11 +151,12 @@ impl Tray {
 				},
 			};
 
-		// One handler per process, and it only queues the id.
-		MenuEvent::set_event_handler(Some(|event: MenuEvent| {
-			if let Ok(mut queue) = CLICKS.lock() {
-				queue.push(event.id().0.clone());
-			}
+		// One handler per process; it queues the id **and wakes the frame
+		// loop**. Without the wake, a hidden window never runs `poll`, so
+		// 显示窗口 and 退出 looked dead.
+		let menu_repaint = ctx.clone();
+		MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
+			enqueue(&event.id().0, &menu_repaint);
 		}));
 		let repaint = ctx.clone();
 		tray_icon::TrayIconEvent::set_event_handler(Some(move |event: tray_icon::TrayIconEvent| {
@@ -156,9 +171,8 @@ impl Tray {
 				..
 			} = event
 			{
-				if let Ok(mut queue) = CLICKS.lock() {
-					queue.push(ID_SHOW.to_owned());
-				}
+				enqueue(ID_SHOW, &repaint);
+				return;
 			}
 			repaint.request_repaint();
 		}));
@@ -180,6 +194,11 @@ impl Tray {
 			.with_id("zetawork")
 			.with_tooltip(t!("zetawork — 工作台在后台运行"))
 			.with_icon(icon)
+			// Left click means "show the window", not "open the menu".
+			// `tray-icon` defaults this to true on Windows/macOS, which made
+			// the icon answer a left click with a menu and no window on the
+			// platforms where both handlers fire.
+			.with_menu_on_left_click(false)
 			.with_menu(Box::new(menu))
 			.build()
 		{
@@ -235,6 +254,7 @@ pub fn poll(ctx: &egui::Context, shell: &mut crate::Shell) {
 			ID_QUIT => {
 				shell.lifecycle.quitting = true;
 				ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+				ctx.request_repaint();
 			},
 			_ => {},
 		}
@@ -255,6 +275,21 @@ mod tests {
 		assert_ne!(ID_SHOW, ID_SESSIONS);
 		assert_ne!(ID_SHOW, ID_QUIT);
 		assert_ne!(ID_SESSIONS, ID_QUIT);
+	}
+
+	#[cfg(feature = "tray")]
+	#[test]
+	#[allow(deprecated)] // egui 0.34 moved the Context::run test API.
+	fn queueing_a_menu_action_wakes_the_frame_loop() {
+		let _ = drain_clicks();
+		let ctx = egui::Context::default();
+		let mut requested = false;
+		let _ = ctx.run(egui::RawInput::default(), |ctx| {
+			enqueue(ID_SHOW, ctx);
+			requested = ctx.has_requested_repaint();
+		});
+		assert!(requested, "a tray action must wake the hidden window");
+		assert_eq!(drain_clicks(), [ID_SHOW.to_owned()]);
 	}
 
 	#[test]

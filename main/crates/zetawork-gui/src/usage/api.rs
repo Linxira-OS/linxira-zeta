@@ -304,6 +304,14 @@ pub fn post_json(origin: &str, path: &str, body: &str) -> Result<String, FetchEr
 	request(origin, "POST", path, Some(body))
 }
 
+/// One HTTP/1.1 `DELETE`, used by 会话管理. The gateway's delete route
+/// answers `200 {"ok":true}`; [`request`] treats any non-200 as a status
+/// error, so the caller receives the gateway's reason rather than an empty
+/// success.
+pub fn delete(origin: &str, path: &str) -> Result<String, FetchError> {
+	request(origin, "DELETE", path, None)
+}
+
 /// One hand-rolled HTTP/1.1 request; `body` makes it a `POST` with JSON.
 fn request(
 	origin: &str,
@@ -784,6 +792,29 @@ mod tests {
 		assert_eq!(body, OVERVIEW);
 		assert!(decode_overview(&body).is_ok());
 		assert_eq!(server.join().expect("listener stops"), 1);
+	}
+
+	#[test]
+	fn delete_sends_the_delete_method_and_decodes_ok() {
+		let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+		let port = listener.local_addr().unwrap().port();
+		let server = std::thread::spawn(move || {
+			let (mut stream, _) = listener.accept().expect("one connection");
+			let request = read_request(&mut stream).expect("request");
+			let body = b"{\"ok\":true}";
+			let response = format!(
+				"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+				body.len()
+			);
+			let _ = stream.write_all(response.as_bytes());
+			let _ = stream.write_all(body);
+			request
+		});
+		let body = delete(&format!("http://127.0.0.1:{port}"), "/api/sessions/x").expect("DELETE");
+		assert_eq!(body, "{\"ok\":true}");
+		let request = server.join().expect("server stops");
+		assert!(request.starts_with("DELETE /api/sessions/x HTTP/1.1\r\n"), "got {request:?}");
+		assert!(!request.contains("Content-Length:"), "a bodyless DELETE has no length");
 	}
 
 	#[test]

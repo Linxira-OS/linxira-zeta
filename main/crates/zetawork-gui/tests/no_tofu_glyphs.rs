@@ -18,7 +18,7 @@ use std::{
 /// `⋯` (U+22EF) is here because it shipped as a box: the 大标签页 and project
 /// row drew the character for their 更多 affordance, and the window rendered
 /// tofu. Both now paint three dots (`icons::paint_more`).
-const BANNED: [char; 7] = ['◐', '▾', '▸', '✓', '✕', '✗', '⋯'];
+const BANNED: [char; 8] = ['◐', '▾', '▸', '✓', '✕', '✗', '⋯', '✎'];
 
 fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
 	for entry in fs::read_dir(dir).expect("read the source directory") {

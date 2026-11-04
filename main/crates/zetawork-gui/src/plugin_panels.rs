@@ -823,15 +823,15 @@ fn pick(ui: &mut Ui, label: &str, active: bool) -> bool {
 	let font = FontId::new(11.0, egui::FontFamily::Monospace);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT_3);
+		.layout_no_wrap(label.to_owned(), font.clone(), theme::text_3());
 	let (rect, response) =
 		ui.allocate_exact_size(vec2(galley.size().x + 12.0, 18.0), Sense::click());
 	let (ink, fill, border) = if active {
-		(theme::TEXT, theme::PANEL_4, theme::BORDER_2)
+		(theme::text(), theme::panel_4(), theme::border_2())
 	} else if response.hovered() {
-		(theme::TEXT_2, theme::PANEL_3, theme::BORDER_2)
+		(theme::text_2(), theme::panel_3(), theme::border_2())
 	} else {
-		(theme::TEXT_3, theme::PANEL_3, theme::BORDER)
+		(theme::text_3(), theme::panel_3(), theme::border())
 	};
 	ui.painter().rect_filled(rect, CornerRadius::same(4), fill);
 	ui.painter().rect_stroke(
@@ -879,7 +879,7 @@ fn page_body(ui: &mut Ui, shell: &mut Shell, panel: &Panel) {
 		pos2(rect.min.x + 4.0, rect.max.y - 10.0),
 		&url,
 		10.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() - 8.0,
 	);
 }
@@ -975,9 +975,9 @@ fn row_line(ui: &mut Ui, cells: &[String], columns: usize) {
 			cell,
 			11.0,
 			if index == 0 {
-				theme::TEXT_2
+				theme::text_2()
 			} else {
-				theme::TEXT_3
+				theme::text_3()
 			},
 			width - 6.0,
 		);
@@ -992,7 +992,7 @@ fn field_line(ui: &mut Ui, label: &str, value: &str) {
 		pos2(rect.min.x + 4.0, rect.center().y),
 		label,
 		11.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() * 0.45,
 	);
 	truncated_mono_right(
@@ -1001,7 +1001,7 @@ fn field_line(ui: &mut Ui, label: &str, value: &str) {
 		rect.center().y,
 		value,
 		11.0,
-		theme::TEXT,
+		theme::text(),
 		rect.width() * 0.5,
 	);
 }
@@ -1014,7 +1014,7 @@ fn bar_row(ui: &mut Ui, label: &str, value: f64, max: f64) {
 		pos2(rect.min.x + 4.0, rect.min.y + 8.0),
 		label,
 		11.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() - 60.0,
 	);
 	truncated_mono_right(
@@ -1023,7 +1023,7 @@ fn bar_row(ui: &mut Ui, label: &str, value: f64, max: f64) {
 		rect.min.y + 8.0,
 		&format!("{value:.0}"),
 		11.0,
-		theme::TEXT,
+		theme::text(),
 		54.0,
 	);
 	let track = Rect::from_min_size(
@@ -1031,7 +1031,7 @@ fn bar_row(ui: &mut Ui, label: &str, value: f64, max: f64) {
 		vec2((rect.width() - 8.0).max(1.0), 5.0),
 	);
 	ui.painter()
-		.rect_filled(track, CornerRadius::same(3), theme::PANEL_4);
+		.rect_filled(track, CornerRadius::same(3), theme::panel_4());
 	let share = if max > 0.0 {
 		(value.abs() / max).clamp(0.0, 1.0) as f32
 	} else {
@@ -1046,6 +1046,7 @@ fn bar_row(ui: &mut Ui, label: &str, value: f64, max: f64) {
 	}
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
 	use super::*;

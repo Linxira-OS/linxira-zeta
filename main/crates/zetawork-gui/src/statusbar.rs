@@ -19,10 +19,10 @@ use crate::{
 pub fn status_bar(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.min.y + 0.5), pos2(rect.max.x, rect.min.y + 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(vec2(8.0, 0.0))), |ui| {
 		ui.horizontal_centered(|ui| {
@@ -110,10 +110,10 @@ pub const STRIP_H: f32 = 16.0;
 pub fn strip(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.min.y + 0.5), pos2(rect.max.x, rect.min.y + 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let button = Rect::from_center_size(pos2(rect.center().x, rect.center().y), vec2(40.0, 14.0));
 	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(button));
@@ -128,16 +128,16 @@ fn chrome_like_button(ui: &mut Ui, tooltip: &str) -> egui::Response {
 	let hovered = response.hovered();
 	if hovered {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(3), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(3), theme::panel_3());
 	}
 	paint(
 		ui.painter(),
 		Icon::ChevronDown,
 		Rect::from_center_size(rect.center(), vec2(11.0, 11.0)),
 		if hovered {
-			theme::TEXT_2
+			theme::text_2()
 		} else {
-			theme::TEXT_3
+			theme::text_3()
 		},
 		1.4,
 	);
@@ -157,19 +157,19 @@ fn item(ui: &mut Ui, icon: Option<Icon>, text: &str, mono: bool, tooltip: &str) 
 	};
 	let galley = ui
 		.painter()
-		.layout_no_wrap(text.to_owned(), font.clone(), theme::TEXT_3);
+		.layout_no_wrap(text.to_owned(), font.clone(), theme::text_3());
 	let icon_w = if icon.is_some() { 19.0 } else { 0.0 };
 	let width = galley.size().x + icon_w + 16.0;
 	let (rect, response) = ui.allocate_exact_size(vec2(width, 22.0), Sense::click());
 	let hovered = response.hovered();
 	if hovered {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 	}
 	let ink = if hovered {
-		theme::TEXT_2
+		theme::text_2()
 	} else {
-		theme::TEXT_3
+		theme::text_3()
 	};
 	let mut text_left = rect.min.x + 8.0;
 	if let Some(icon) = icon {
@@ -193,7 +193,7 @@ fn badge_item(ui: &mut Ui, count: &str, label: &str) -> egui::Response {
 	let hovered = response.hovered();
 	if hovered {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 	}
 	let badge =
 		egui::Rect::from_min_size(pos2(rect.min.x + 8.0, rect.center().y - 8.0), vec2(18.0, 16.0));
@@ -212,9 +212,9 @@ fn badge_item(ui: &mut Ui, count: &str, label: &str) -> egui::Response {
 		label,
 		egui::FontId::new(11.5, egui::FontFamily::Proportional),
 		if hovered {
-			theme::TEXT_2
+			theme::text_2()
 		} else {
-			theme::TEXT_3
+			theme::text_3()
 		},
 	);
 	response.on_hover_text(t!("打开 Git 状态"))

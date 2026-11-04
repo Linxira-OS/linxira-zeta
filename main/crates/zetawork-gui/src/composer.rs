@@ -49,26 +49,30 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 			let width = 460.0_f32.min(screen.width() - 48.0);
 			let height = if has_script { 286.0 } else { 244.0 };
 			let dialog = Rect::from_center_size(screen.center(), vec2(width, height));
+			// Blank parts of the form must not reach the backdrop and close
+			// the composer (and discard what was typed).
+			crate::widgets::click_shield(ui, dialog, "new-workspace");
 			let mut dialog_ui = ui.new_child(egui::UiBuilder::new().max_rect(dialog));
 			egui::Frame::new()
-				.fill(theme::PANEL)
-				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
+				.fill(theme::panel())
+				.stroke(Stroke::new(1.0_f32, theme::border_2()))
 				.corner_radius(CornerRadius::same(theme::R_MODAL))
+				.shadow(theme::SHADOW_ISLAND)
 				.show(&mut dialog_ui, |ui| {
 					let rect = ui.max_rect();
 					ui.painter()
-						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::PANEL);
+						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::panel());
 					let head = Rect::from_min_size(rect.min, vec2(rect.width(), 46.0));
 					ui.painter().text(
 						pos2(head.min.x + 16.0, head.center().y),
 						egui::Align2::LEFT_CENTER,
 						t!("新建工作区"),
 						FontId::new(14.0, egui::FontFamily::Proportional),
-						theme::TEXT,
+						theme::text(),
 					);
 					ui.painter().line_segment(
 						[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 					);
 
 					let body = rect.shrink(16.0);
@@ -85,10 +89,14 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 						.expect("the composer is open");
 
 					caption(&mut body_ui, t!("名称"));
+					let focus_name = std::mem::take(&mut form.focus_once);
 					let name = body_ui.add_sized(
 						vec2(body_ui.available_width(), 26.0),
 						egui::TextEdit::singleline(&mut form.name),
 					);
+					if focus_name {
+						name.request_focus();
+					}
 					caption(&mut body_ui, t!("分支：留空用项目目录，填名字建 git worktree"));
 					let branch = body_ui.add_sized(
 						vec2(body_ui.available_width(), 26.0),
@@ -145,7 +153,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 }
 
 fn caption(ui: &mut Ui, text: &str) {
-	ui.label(egui::RichText::new(text).size(11.5).color(theme::TEXT_3));
+	ui.label(egui::RichText::new(text).size(11.5).color(theme::text_3()));
 }
 
 fn primary(ui: &mut Ui, text: &str) -> egui::Response {

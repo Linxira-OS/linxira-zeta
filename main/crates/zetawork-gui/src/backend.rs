@@ -880,6 +880,7 @@ fn monitor(bin: PathBuf, sender: Sender<Signal>, cancel: Arc<AtomicBool>) {
 /// One line at the top of the window whenever the shell is in backend mode and
 /// not simply ready — or when the probe could not run. Local mode draws
 /// nothing: it is the default and nothing is wrong with it.
+#[allow(deprecated)] // eframe 0.34 still ships the compatibility panel aliases.
 pub fn banner(ctx: &egui::Context, shell: &mut crate::Shell) {
 	let Some(text) = shell.backend.banner() else {
 		return;
@@ -895,7 +896,7 @@ pub fn banner(ctx: &egui::Context, shell: &mut crate::Shell) {
 		.show_separator_line(false)
 		.frame(
 			egui::Frame::new()
-				.fill(crate::theme::PANEL_2)
+				.fill(crate::theme::panel_2())
 				.inner_margin(egui::Margin::symmetric(crate::theme::INSET_STRIP as i8, 0)),
 		)
 		.show(ctx, |ui| {
@@ -904,7 +905,7 @@ pub fn banner(ctx: &egui::Context, shell: &mut crate::Shell) {
 					egui::pos2(ui.max_rect().min.x, ui.max_rect().max.y - 0.5),
 					egui::pos2(ui.max_rect().max.x, ui.max_rect().max.y - 0.5),
 				],
-				egui::Stroke::new(1.0_f32, crate::theme::BORDER),
+				egui::Stroke::new(1.0_f32, crate::theme::border()),
 			);
 			ui.horizontal_centered(|ui| {
 				if phase.busy() {

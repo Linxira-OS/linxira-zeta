@@ -629,6 +629,18 @@ export class SettingsSelectorComponent implements Component {
 	/** Single-line editor backing the search banner (cursor, word ops, paste). */
 	#searchInput = new Input();
 	#searchMatchCount = 0;
+	/**
+	 * Bumped whenever the native page's structure or values may have changed.
+	 * `#describePrefs` uses it to skip rebuilding hundreds of rows on frames
+	 * where nothing moved; the terminal patches the same node in place.
+	 */
+	#prefsRevision = 0;
+	/**
+	 * Search text typed since the last frame. Keys can arrive in a burst (a
+	 * paste, fast typing); ranking every settings tab for each byte makes the
+	 * page stutter, so the burst is coalesced into one rebuild per frame.
+	 */
+	#pendingSearchQuery: string | null = null;
 	/** First matching item id per tab id, for Tab-key jumps while searching. */
 	#searchFirstMatch = new Map<string, string>();
 	/**
@@ -675,6 +687,7 @@ export class SettingsSelectorComponent implements Component {
 	}
 
 	invalidate(): void {
+		this.#prefsRevision += 1;
 		this.#tabBar.invalidate();
 		this.#currentList?.invalidate();
 		this.#searchList?.invalidate();
@@ -683,10 +696,20 @@ export class SettingsSelectorComponent implements Component {
 
 	/** Swap the active content (per-tab list, search list, or plugins). */
 	#setContent(build: () => void): void {
+		this.#prefsRevision += 1;
 		this.#currentList = null;
 		this.#searchList = null;
 		this.#pluginComponent = null;
 		build();
+	}
+
+	/** Apply search text typed since the last frame, once. */
+	#flushSearchQuery(): void {
+		const pending = this.#pendingSearchQuery;
+		if (pending === null) return;
+		this.#pendingSearchQuery = null;
+		if (pending.length === 0) this.#endSearch(false);
+		else this.#setSearchQuery(pending);
 	}
 
 	#switchToTab(tabId: SettingTab | "plugins"): void {
@@ -737,6 +760,7 @@ export class SettingsSelectorComponent implements Component {
 	 * then a footer hint pinned above the bottom border.
 	 */
 	render(width: number): readonly string[] {
+		this.#flushSearchQuery();
 		const height = Math.max(14, process.stdout.rows || 40);
 		const innerWidth = Math.max(1, width - 4);
 
@@ -801,6 +825,7 @@ export class SettingsSelectorComponent implements Component {
 	 * root card of today's generic composition.
 	 */
 	describe(cx: DescribeContext): NativeNode {
+		this.#flushSearchQuery();
 		return cx.supports("prefs") ? this.#describePrefs() : this.#describeCard();
 	}
 
@@ -826,14 +851,45 @@ export class SettingsSelectorComponent implements Component {
 		});
 		pages.push({ id: PLUGINS_PAGE, label: "Installed", icon: "plugins", group: "Plugins" });
 
-		let sections: TspPrefsProps["sections"] = [];
 		let focus: string | null = null;
 		let editing: TspPrefsProps["editing"] = null;
+		if (pluginPage) {
+			focus = pluginPage.focus;
+			editing = pluginPage.editing;
+		} else if (list) {
+			const at = list.prefsFocus();
+			focus = at.row ?? (at.section ? prefsSectionId(at.section) : null);
+			editing = list.prefsEditing(id => this.#inlineMenu(id));
+		}
+
+		// Rebuilding every row and JSON-stringifying them each frame is what
+		// made the page stutter while typing in search. The revision covers
+		// every value/list change; focus, editing, the open menu and the search
+		// text cover the rest. Only a real change pays for the full build.
+		let signature: string | null = null;
+		if (!pluginPage) {
+			const preview = tab === "appearance" && !searching ? this.#getStatusPreviewString() : "";
+			const pageKey = pages.map(page => `${page.id}:${page.changed ?? 0}`).join(",");
+			const cursor = searching ? this.#searchInput.getCursor() : -1;
+			signature = [
+				this.#prefsRevision,
+				this.#currentTabId,
+				searching ? 1 : 0,
+				this.#searchQuery,
+				cursor,
+				pageKey,
+				focus ?? "",
+				editing ? JSON.stringify(editing) : "",
+				list?.openSubmenu?.id ?? "",
+				preview,
+			].join("\u0000");
+			if (memo.prefs?.signature === signature) return memo.prefs.node;
+		}
+
+		let sections: TspPrefsProps["sections"] = [];
 		const children: NativeChild[] = [];
 		if (pluginPage) {
 			sections = pluginPage.sections;
-			focus = pluginPage.focus;
-			editing = pluginPage.editing;
 			if (pluginPage.editor) children.push(pluginPage.editor);
 		} else if (list) {
 			sections = list.prefsSections(
@@ -845,9 +901,6 @@ export class SettingsSelectorComponent implements Component {
 				},
 				item => this.#prefsControl(item.id, item.currentValue),
 			);
-			const at = list.prefsFocus();
-			focus = at.row ?? (at.section ? prefsSectionId(at.section) : null);
-			editing = list.prefsEditing(id => this.#inlineMenu(id));
 			const open = list.openSubmenu;
 			if (open && !editing) {
 				// Pickers describe themselves as a sheet; anything else sits in a card over the page.
@@ -889,15 +942,17 @@ export class SettingsSelectorComponent implements Component {
 			focus,
 			editing,
 		};
-		const signature = JSON.stringify(props);
-		if (memo.prefs && memo.prefs.signature === signature && sameItems(memo.prefs.children, children)) {
-			return memo.prefs.node;
+		if (signature === null) {
+			// The plugin page owns its own structure; keep the structural memo.
+			signature = JSON.stringify(props);
+			if (memo.prefs && memo.prefs.signature === signature && sameItems(memo.prefs.children, children)) {
+				return memo.prefs.node;
+			}
 		}
 		const root = node("prefs", props, children);
 		memo.prefs = { signature, children, node: root };
 		return root;
 	}
-
 	/** Settings changed from their default on `tab` (visible ones only); cached until the items rebuild. */
 	#changedCount(tab: SettingTab): number {
 		const cached = this.#changedCounts.get(tab);
@@ -1032,6 +1087,10 @@ export class SettingsSelectorComponent implements Component {
 				}
 				if (list.openSubmenu) list.handleInput(ESCAPE);
 				list.selectItem(event.item);
+				// Tern reports a click on the row itself (not its control) as
+				// `select`. A label click is the click users make to open a popup or
+				// a text field, so open the editor the control would have opened.
+				if (this.#opensOnRowClick(event.item)) list.openSubmenuFor(event.item);
 				return;
 			}
 			case "activate":
@@ -1049,6 +1108,31 @@ export class SettingsSelectorComponent implements Component {
 	#showPage(id: string): void {
 		if (this.#searchList) this.#endSearch(false);
 		if (id !== this.#currentTabId) this.#tabBar.selectTab(id);
+	}
+
+	/**
+	 * Rows whose control is a popup, a text field or an action button: a click
+	 * on the row's label should open it. Segments, switches, steppers and chip
+	 * rows act in place and must not grow a menu from a label click.
+	 */
+	#opensOnRowClick(id: string): boolean {
+		const def = getSettingDef(this.#context.settings.entries, id);
+		if (!def) return false;
+		if (def.type === "text" || def.type === "providerLimits") return true;
+		if (def.type === "submenu") {
+			if (numberSteps(def)) return false;
+			const options = this.#submenuOptions(def);
+			return (
+				PREVIEWED_SETTINGS.has(def.path) ||
+				options.some(option => option.description) ||
+				options.length > 4 ||
+				options.reduce((width, option) => width + option.label.length, 0) > 28
+			);
+		}
+		if (def.type === "enum") {
+			return def.values.length > 4 || def.values.reduce((width, value) => width + value.length, 0) > 28;
+		}
+		return false;
 	}
 
 	/** A pointer value change on row `id`, through the path its keys take (see {@link #handlePrefsEvent}). */
@@ -1121,7 +1205,9 @@ export class SettingsSelectorComponent implements Component {
 
 	/** Rebuilds the visible items after a change made outside a list's own `onChange` (changed flags, conditions). */
 	#refreshItems(): void {
+		this.#prefsRevision += 1;
 		if (this.#searchList) {
+			this.#flushSearchQuery();
 			this.#searchCorpora = null;
 			this.#setSearchQuery(this.#searchQuery);
 		} else if (this.#currentTabId !== "plugins")
@@ -1213,6 +1299,8 @@ export class SettingsSelectorComponent implements Component {
 	 * jump, while searching), unless an open submenu owns the pointer.
 	 */
 	handleNativeEvent(event: NativeUiEvent): void {
+		this.#flushSearchQuery();
+		this.#prefsRevision += 1;
 		if (event.key === "") {
 			this.#handlePrefsEvent(event);
 			return;
@@ -1230,6 +1318,7 @@ export class SettingsSelectorComponent implements Component {
 	 * activates it (toggle / open submenu).
 	 */
 	#handleMouse(data: string): boolean {
+		this.#flushSearchQuery();
 		return routeSgrMouseInput(data, event => this.#routeMouseEvent(event));
 	}
 
@@ -1274,6 +1363,7 @@ export class SettingsSelectorComponent implements Component {
 			return true;
 		}
 		if (overContent && list) {
+			this.#prefsRevision += 1;
 			const itemId = list.hoverTest(contentLine, innerCol);
 			const id = itemId ?? list.hitTest(contentLine, innerCol);
 			if (id !== undefined) {
@@ -1292,6 +1382,7 @@ export class SettingsSelectorComponent implements Component {
 
 	/** Swap the tab content for the global search result list. */
 	#startSearch(initialQuery: string): void {
+		this.#pendingSearchQuery = null;
 		this.#preSearchTabId = this.#currentTabId;
 		this.#searchCorpora = null;
 		this.#searchInput = new Input();
@@ -1325,10 +1416,12 @@ export class SettingsSelectorComponent implements Component {
 	 */
 	#setSearchQuery(query: string): void {
 		if (!this.#searchList) return;
+		this.#pendingSearchQuery = null;
 		if (query.length === 0) {
 			this.#endSearch(false);
 			return;
 		}
+		this.#prefsRevision += 1;
 		this.#searchQuery = query;
 		this.#changedCounts.clear();
 
@@ -1390,6 +1483,8 @@ export class SettingsSelectorComponent implements Component {
 	 */
 	#endSearch(jumpToSelection: boolean): void {
 		if (!this.#searchList) return;
+		this.#pendingSearchQuery = null;
+		this.#prefsRevision += 1;
 		const selected = jumpToSelection ? this.#searchList.getSelectedItem() : undefined;
 		const selectedDef = selected ? getSettingDef(this.#context.settings.entries, selected.id) : undefined;
 		const targetTab: SettingTab | "plugins" = selectedDef?.tab ?? this.#preSearchTabId;
@@ -1875,6 +1970,7 @@ export class SettingsSelectorComponent implements Component {
 	/** Re-evaluate condition gates against the current settings and refresh the active list. */
 	#refreshCurrentTabItems(defs: SettingDef[]): void {
 		if (this.#currentTabId === "plugins" || !this.#currentList) return;
+		this.#prefsRevision += 1;
 		this.#currentList.setItems(this.#buildItemsForDefs(defs));
 	}
 
@@ -1917,6 +2013,9 @@ export class SettingsSelectorComponent implements Component {
 			this.#handleMouse(data);
 			return;
 		}
+		this.#flushSearchQuery();
+		// Any key can move the selection, edit a draft or change the search.
+		this.#prefsRevision += 1;
 
 		// Text-input submenus take every byte: arrow keys must reach the
 		// cursor and Tab must not switch tabs.
@@ -1998,6 +2097,9 @@ export class SettingsSelectorComponent implements Component {
 		// cursor movement, word ops, kill ring, undo, paste.
 		this.#searchInput.handleInput(data);
 		const value = this.#searchInput.getValue();
-		if (value !== this.#searchQuery) this.#setSearchQuery(value);
+		if (value !== this.#searchQuery) {
+			this.#pendingSearchQuery = value;
+			this.#context.requestRender?.();
+		}
 	}
 }

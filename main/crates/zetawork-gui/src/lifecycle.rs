@@ -416,10 +416,10 @@ impl Lifecycle {
 		}
 		if self.activation_requested {
 			self.activation_requested = false;
-			self.background = false;
-			ctx.send_viewport_cmd(ViewportCommand::Visible(true));
-			ctx.send_viewport_cmd(ViewportCommand::Focus);
-			ctx.request_repaint();
+			// One path for every "come back" caller. `Focus` alone is a
+			// no-op on a minimized window on Windows, so `show` restores
+			// first; the tray and the second launch cannot drift.
+			self.show(ctx);
 			polled.activated = true;
 		}
 		if self.background && self.last_poll.elapsed() >= BACKGROUND_POLL {
@@ -441,6 +441,9 @@ impl Lifecycle {
 	/// not stale.
 	pub fn show(&mut self, ctx: &Context) {
 		self.background = false;
+		// `Focus` does not restore a minimized window; winit skips it while
+		// the window is minimized. Restore first, then show and focus.
+		ctx.send_viewport_cmd(ViewportCommand::Minimized(false));
 		ctx.send_viewport_cmd(ViewportCommand::Visible(true));
 		ctx.send_viewport_cmd(ViewportCommand::Focus);
 		ctx.request_repaint();
@@ -503,8 +506,8 @@ pub fn modal(ctx: &Context, shell: &mut Shell) {
 		.anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
 		.show(ctx, |ui| {
 			egui::Frame::new()
-				.fill(crate::theme::PANEL)
-				.stroke(egui::Stroke::new(1.0_f32, crate::theme::BORDER_2))
+				.fill(crate::theme::panel())
+				.stroke(egui::Stroke::new(1.0_f32, crate::theme::border_2()))
 				.corner_radius(egui::CornerRadius::same(crate::theme::R_MODAL))
 				.inner_margin(egui::Margin::same(16))
 				.show(ui, |ui| {
@@ -514,12 +517,12 @@ pub fn modal(ctx: &Context, shell: &mut Shell) {
 							egui::RichText::new(t!("关闭窗口"))
 								.size(14.0)
 								.strong()
-								.color(crate::theme::TEXT),
+								.color(crate::theme::text()),
 						);
 						ui.label(
 							egui::RichText::new(t!("会话与后台任务仍在运行，选择怎么处理这个窗口。"))
 								.size(12.0)
-								.color(crate::theme::TEXT_2),
+								.color(crate::theme::text_2()),
 						);
 						ui.add_space(12.0);
 						ui.horizontal(|ui| {
@@ -549,6 +552,7 @@ pub fn modal(ctx: &Context, shell: &mut Shell) {
 	}
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -667,6 +671,18 @@ mod tests {
 		edges.observe("p2", false);
 		edges.retain(&["p1".to_owned()]);
 		assert!(!edges.observe("p2", false), "a forgotten pane starts over");
+	}
+
+	#[test]
+	fn show_restores_a_minimized_window_before_focusing_it() {
+		let ctx = Context::default();
+		let mut lifecycle = Lifecycle { background: true, ..Lifecycle::default() };
+		let output = ctx.run(egui::RawInput::default(), |ctx| lifecycle.show(ctx));
+		let commands = &output.viewport_output[&egui::ViewportId::ROOT].commands;
+		assert!(commands.contains(&ViewportCommand::Minimized(false)));
+		assert!(commands.contains(&ViewportCommand::Visible(true)));
+		assert!(commands.contains(&ViewportCommand::Focus));
+		assert!(!lifecycle.background);
 	}
 
 	#[test]

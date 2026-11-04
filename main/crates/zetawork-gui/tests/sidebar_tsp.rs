@@ -10,6 +10,8 @@
 //!
 //! Set `ZETA_SIDEBAR_SHOT=<path>` to keep the raster as a PNG for inspection.
 
+#![allow(deprecated)] // egui 0.34 moved the Context::run test API.
+
 #[path = "support/raster.rs"]
 mod raster;
 

@@ -69,24 +69,24 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 			let dialog = Rect::from_center_size(screen.center(), size);
 			let mut dialog_ui = ui.new_child(egui::UiBuilder::new().max_rect(dialog));
 			egui::Frame::new()
-				.fill(theme::PANEL)
-				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
+				.fill(theme::panel())
+				.stroke(Stroke::new(1.0_f32, theme::border_2()))
 				.corner_radius(CornerRadius::same(theme::R_MODAL))
 				.show(&mut dialog_ui, |ui| {
 					let rect = ui.max_rect();
 					ui.painter()
-						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::PANEL);
+						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::panel());
 					let head = Rect::from_min_size(rect.min, vec2(rect.width(), HEAD_H));
 					ui.painter().line_segment(
 						[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 					);
 					ui.painter().text(
 						pos2(head.min.x + 14.0, head.center().y),
 						Align2::LEFT_CENTER,
 						t!("更新"),
 						FontId::new(14.0, egui::FontFamily::Proportional),
-						theme::TEXT,
+						theme::text(),
 					);
 					let mut head_right = ui.new_child(
 						egui::UiBuilder::new()
@@ -109,7 +109,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 					);
 					ui.painter().line_segment(
 						[pos2(footer.min.x, footer.min.y + 0.5), pos2(footer.max.x, footer.min.y + 0.5)],
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 					);
 					let mut footer_ui = ui.new_child(
 						egui::UiBuilder::new()
@@ -147,11 +147,11 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 fn body_panel(ui: &Ui, body: Rect, shell: &Shell) {
 	let inner = body.shrink2(vec2(14.0, 14.0));
 	ui.painter()
-		.rect_filled(inner, CornerRadius::same(theme::R_PANEL), theme::GROUND);
+		.rect_filled(inner, CornerRadius::same(theme::R_PANEL), theme::ground());
 	ui.painter().rect_stroke(
 		inner,
 		CornerRadius::same(theme::R_PANEL),
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 		egui::StrokeKind::Inside,
 	);
 	let content = inner.shrink2(vec2(12.0, 10.0));
@@ -162,7 +162,7 @@ fn body_panel(ui: &Ui, body: Rect, shell: &Shell) {
 			pos2(content.min.x, content.center().y),
 			t!("正在检查…"),
 			12.5,
-			theme::TEXT_2,
+			theme::text_2(),
 			content.width(),
 		);
 		return;
@@ -179,26 +179,26 @@ fn body_panel(ui: &Ui, body: Rect, shell: &Shell) {
 			pos2(content.min.x, content.center().y),
 			&message,
 			12.0,
-			theme::TEXT_2,
+			theme::text_2(),
 			content.width(),
 		);
 		return;
 	};
 
 	let mut y = content.min.y + 12.0;
-	field(ui, content, y, t!("当前版本"), &update.current, theme::TEXT);
+	field(ui, content, y, t!("当前版本"), &update.current, theme::text());
 	y += 28.0;
 	if update.available {
 		field(ui, content, y, t!("最新版本"), &update.latest, theme::ACCENT);
 	} else {
-		field(ui, content, y, t!("最新版本"), &update.latest, theme::TEXT_2);
+		field(ui, content, y, t!("最新版本"), &update.latest, theme::text_2());
 	}
 	y += 28.0;
-	field(ui, content, y, t!("安装包"), &update.asset, theme::TEXT);
+	field(ui, content, y, t!("安装包"), &update.asset, theme::text());
 	y += 28.0;
-	field(ui, content, y, t!("大小"), &size_label(update.size), theme::TEXT);
+	field(ui, content, y, t!("大小"), &size_label(update.size), theme::text());
 	y += 28.0;
-	field_mono(ui, content, y, t!("摘要"), &update.digest, theme::TEXT_2);
+	field_mono(ui, content, y, t!("摘要"), &update.digest, theme::text_2());
 	y += 32.0;
 	if shell.updates.installing() {
 		truncated_text(
@@ -206,7 +206,7 @@ fn body_panel(ui: &Ui, body: Rect, shell: &Shell) {
 			pos2(content.min.x, y),
 			t!("正在下载并启动安装程序…"),
 			11.5,
-			theme::TEXT_2,
+			theme::text_2(),
 			content.width(),
 		);
 	} else if let Some(error) = shell.updates.error() {
@@ -224,7 +224,7 @@ fn body_panel(ui: &Ui, body: Rect, shell: &Shell) {
 			pos2(content.min.x, y),
 			t!("当前版本不低于最新版本，不能安装"),
 			11.5,
-			theme::TEXT_3,
+			theme::text_3(),
 			content.width(),
 		);
 	}
@@ -237,7 +237,7 @@ fn field(ui: &Ui, content: Rect, y: f32, label: &str, value: &str, color: Color3
 		Align2::LEFT_CENTER,
 		label,
 		FontId::new(11.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	truncated_text(ui, pos2(content.min.x + 72.0, y), value, 12.0, color, content.width() - 72.0);
 }
@@ -249,7 +249,7 @@ fn field_mono(ui: &Ui, content: Rect, y: f32, label: &str, value: &str, color: C
 		Align2::LEFT_CENTER,
 		label,
 		FontId::new(11.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	truncated_mono(ui, pos2(content.min.x + 72.0, y), value, 11.0, color, content.width() - 72.0);
 }
@@ -267,7 +267,7 @@ fn button(ui: &mut Ui, label: &str, primary: bool, enabled: bool) -> egui::Respo
 	let font = FontId::new(12.0, egui::FontFamily::Proportional);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT);
+		.layout_no_wrap(label.to_owned(), font.clone(), theme::text());
 	let sense = if enabled {
 		Sense::click()
 	} else {
@@ -275,11 +275,11 @@ fn button(ui: &mut Ui, label: &str, primary: bool, enabled: bool) -> egui::Respo
 	};
 	let (rect, response) = ui.allocate_exact_size(vec2(galley.size().x + 30.0, 28.0), sense);
 	let (fill, stroke) = if !enabled {
-		(theme::PANEL_2, theme::BORDER)
+		(theme::panel_2(), theme::border())
 	} else if primary {
 		(theme::ACCENT, theme::ACCENT)
 	} else {
-		(theme::PANEL_3, theme::BORDER_2)
+		(theme::panel_3(), theme::border_2())
 	};
 	ui.painter()
 		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), fill);
@@ -290,13 +290,13 @@ fn button(ui: &mut Ui, label: &str, primary: bool, enabled: bool) -> egui::Respo
 		egui::StrokeKind::Inside,
 	);
 	let color = if !enabled {
-		theme::TEXT_3
+		theme::text_3()
 	} else if primary {
-		theme::GROUND
+		theme::ground()
 	} else if response.hovered() {
-		theme::TEXT
+		theme::text()
 	} else {
-		theme::TEXT_2
+		theme::text_2()
 	};
 	ui.painter()
 		.text(rect.center(), Align2::CENTER_CENTER, label, font, color);

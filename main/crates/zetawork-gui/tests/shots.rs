@@ -17,10 +17,12 @@
 //! `temp/zetawork-gui-shell/shots/`), which is inside the git-ignored `temp/`
 //! tree.
 
+#![allow(deprecated)] // egui 0.34 moved the Context::run test API.
+
 #[path = "support/raster.rs"]
 mod raster;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, process::Command};
 
 use egui::{Color32, Rect, pos2, vec2};
 use zetawork_gui::{Shell, fonts, settings::Settings, state::AppState, theme};
@@ -1036,6 +1038,58 @@ fn agent_rows_screenshot() {
 	let bytes = shoot(&mut shell, 3);
 	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
 	write("19-workspace-agent-rows.png", &bytes);
+}
+
+/// A throwaway repository with one committed file and one worktree edit.
+///
+/// The shot runs in WSL on some hosts, where the Windows worktree's `.git`
+/// file is unreadable; a scratch repository under `/tmp` is portable and keeps
+/// the screenshot independent of this checkout's dirty state.
+fn git_ship_repo() -> PathBuf {
+	let path = std::env::temp_dir().join(format!("zetawork-gui-ship-shot-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&path);
+	std::fs::create_dir_all(&path).unwrap();
+	let git = |args: &[&str]| {
+		let output = Command::new("git")
+			.arg("-C")
+			.arg(&path)
+			.args(args)
+			.output()
+			.expect("git must be on PATH for this shot");
+		assert!(output.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&output.stderr));
+	};
+	git(&["init", "--quiet"]);
+	std::fs::write(path.join("notes.txt"), "one\n").unwrap();
+	git(&["add", "notes.txt"]);
+	git(&[
+		"-c",
+		"user.email=zetawork@test",
+		"-c",
+		"user.name=zetawork",
+		"commit",
+		"--quiet",
+		"-m",
+		"seed",
+	]);
+	std::fs::write(path.join("notes.txt"), "one\ntwo\n").unwrap();
+	path
+}
+
+/// `22-git-ship.png` — the right column's Git tab with the commit row: the
+/// one-line message, 提交全部更改 and 推送, above a real changed-file list.
+#[test]
+#[ignore = "writes PNG screenshots to the worktree's shots/ directory"]
+fn git_ship_screenshot() {
+	let mut shell = ready_shell();
+	let repo = git_ship_repo();
+	shell.retarget_workspace(&repo, "main");
+	shell
+		.state
+		.set_right_tab(zetawork_gui::state::RightTab::Git);
+	shell.refresh_git();
+	let bytes = shoot(&mut shell, 3);
+	assert!(bytes.len() > 4096, "a real frame is not a 4 KB PNG");
+	write("22-git-ship.png", &bytes);
 }
 
 /// `20-diff-line-note.png` — a diff page with one note pinned to a row and the

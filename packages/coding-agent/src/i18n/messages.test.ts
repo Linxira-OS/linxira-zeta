@@ -106,14 +106,18 @@ describe("detectLanguage", () => {
 		expect(detectLanguage()).toBe("zh");
 	});
 
-	test("unset language falls back to environment detection", async () => {
+	test("unset language keeps the schema default en, not environment detection", async () => {
 		const tmpdir = await fs.mkdtemp(path.join(os.tmpdir(), "zeta-i18n-"));
 		try {
 			resetSettingsForTest();
-			await Settings.init({ inMemory: true, cwd: tmpdir });
+			// Simulate startup-prepaint detection before settings load: the
+			// catalogue may already be zh from LANG, but loading settings must
+			// restore the unconfigured schema default (`en`).
+			setLanguage("zh");
 			Bun.env.LC_ALL = "zh_CN.UTF-8";
-			expect(detectLanguage()).toBe("zh");
-			expect(M.welcomeBack).toBe("欢迎回来！");
+			await Settings.init({ inMemory: true, cwd: tmpdir });
+			expect(detectLanguage()).toBe("en");
+			expect(M.welcomeBack).toBe("Welcome back!");
 		} finally {
 			resetSettingsForTest();
 			await fs.rm(tmpdir, { recursive: true, force: true });

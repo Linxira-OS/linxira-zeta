@@ -130,8 +130,8 @@ impl RunState {
 			Self::Fail => theme::DEL,
 			Self::Work => theme::ADD,
 			Self::Mon => theme::PURPLE,
-			Self::Unc => theme::TEXT_2,
-			Self::Int => theme::TEXT_3,
+			Self::Unc => theme::text_2(),
+			Self::Int => theme::text_3(),
 			Self::Done => theme::ACCENT,
 		}
 	}

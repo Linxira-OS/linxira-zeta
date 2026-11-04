@@ -198,7 +198,7 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 		egui::pos2(path_rect.min.x + 8.0, path_rect.center().y),
 		&dir.display().to_string(),
 		10.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		path_rect.width() - 16.0,
 	);
 	ui.add_space(2.0);
@@ -246,7 +246,7 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 					ui.painter().rect_filled(
 						rect.shrink2(egui::vec2(4.0, 0.0)),
 						egui::CornerRadius::same(theme::R_CONTROL),
-						theme::PANEL_3,
+						theme::panel_3(),
 					);
 				}
 				let mut badges = String::new();
@@ -262,25 +262,37 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 				if row.locked {
 					badges.push_str(t!(" 已锁定"));
 				}
+				let text_width = (rect.width() - 232.0).max(40.0);
 				truncated_text(
 					ui,
 					egui::pos2(rect.min.x + 12.0, rect.center().y - 7.0),
 					&row.label(),
 					12.0,
-					theme::TEXT,
-					rect.width() - 60.0,
+					theme::text(),
+					text_width,
 				);
 				truncated_mono(
 					ui,
 					egui::pos2(rect.min.x + 12.0, rect.center().y + 8.0),
 					&row.path.display().to_string(),
 					9.5,
-					theme::TEXT_3,
-					rect.width() - 60.0,
+					theme::text_3(),
+					text_width,
 				);
 				if !badges.trim().is_empty() {
+					// `chip` allocates in its parent layout. In a vertical
+					// list that allocation became a second line after the
+					// 40pt row; paint it in a fixed child instead.
+					let mut badge_ui = ui.new_child(
+						egui::UiBuilder::new()
+							.max_rect(egui::Rect::from_min_size(
+								egui::pos2(rect.max.x - 224.0, rect.center().y - 9.0),
+								egui::vec2(216.0, 18.0),
+							))
+							.layout(egui::Layout::right_to_left(egui::Align::Center)),
+					);
 					crate::widgets::chip(
-						ui,
+						&mut badge_ui,
 						badges.trim(),
 						if here {
 							crate::widgets::Chip::Active
@@ -312,7 +324,7 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 		egui::pos2(ui.cursor().min.x + 8.0, ui.cursor().min.y + 6.0),
 		t!("新建工作树"),
 		10.5,
-		theme::TEXT_3,
+		theme::text_3(),
 		ui.available_width() - 16.0,
 	);
 	ui.add_space(14.0);

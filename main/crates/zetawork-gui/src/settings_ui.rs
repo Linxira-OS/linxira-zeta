@@ -69,27 +69,29 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 			let width = 880.0_f32.min(screen.width() - 48.0);
 			let height = 660.0_f32.min(screen.height() - 48.0);
 			let dialog = Rect::from_center_size(screen.center(), vec2(width, height));
+			crate::widgets::click_shield(ui, dialog, "settings");
 			let mut dialog_ui = ui.new_child(egui::UiBuilder::new().max_rect(dialog));
 			egui::Frame::new()
-				.fill(theme::PANEL)
-				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
+				.fill(theme::panel())
+				.stroke(Stroke::new(1.0_f32, theme::border_2()))
 				.corner_radius(CornerRadius::same(theme::R_MODAL))
+				.shadow(theme::SHADOW_ISLAND)
 				.outer_margin(egui::Margin::ZERO)
 				.show(&mut dialog_ui, |ui| {
 					let rect = ui.max_rect();
 					ui.painter()
-						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::PANEL);
+						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::panel());
 					let head = Rect::from_min_size(rect.min, vec2(rect.width(), 52.0));
 					ui.painter().text(
 						pos2(head.min.x + 14.0, head.center().y),
 						egui::Align2::LEFT_CENTER,
 						t!("设置"),
 						FontId::new(14.0, egui::FontFamily::Proportional),
-						theme::TEXT,
+						theme::text(),
 					);
 					ui.painter().line_segment(
 						[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 					);
 					// The app menu's language switch: the label carries the current
 					// language, the menu offers both. Changing it is a settings write
@@ -131,10 +133,10 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 					let body = Rect::from_min_max(pos2(rect.min.x, head.max.y), rect.max);
 					let nav = Rect::from_min_size(body.min, vec2(190.0, body.height()));
 					ui.painter()
-						.rect_filled(nav, CornerRadius::ZERO, theme::PANEL_2);
+						.rect_filled(nav, CornerRadius::same(theme::R_PANEL), theme::panel_2());
 					ui.painter().line_segment(
 						[pos2(nav.max.x - 0.5, nav.min.y), pos2(nav.max.x - 0.5, nav.max.y)],
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 					);
 					let mut nav_ui = ui.new_child(
 						egui::UiBuilder::new()
@@ -149,13 +151,13 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 							nav_ui.painter().rect_filled(
 								row,
 								CornerRadius::same(theme::R_CONTROL),
-								theme::PANEL_4,
+								theme::panel_4(),
 							);
 						} else if response.hovered() {
 							nav_ui.painter().rect_filled(
 								row,
 								CornerRadius::same(theme::R_CONTROL),
-								theme::PANEL_3,
+								theme::panel_3(),
 							);
 						}
 						paint(
@@ -168,7 +170,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 							if active {
 								theme::ACCENT_2
 							} else {
-								theme::TEXT_3
+								theme::text_3()
 							},
 							1.5,
 						);
@@ -177,7 +179,11 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 							egui::Align2::LEFT_CENTER,
 							section.label(),
 							FontId::new(12.5, egui::FontFamily::Proportional),
-							if active { theme::TEXT } else { theme::TEXT_2 },
+							if active {
+								theme::text()
+							} else {
+								theme::text_2()
+							},
 						);
 						if response.clicked() {
 							shell.state.settings_section = section;
@@ -864,7 +870,7 @@ fn schema_secret(ui: &mut Ui, shell: &mut Shell, entry: &crate::settings_schema:
 		egui::RichText::new(crate::settings_schema::MASK)
 			.monospace()
 			.size(11.5)
-			.color(theme::TEXT_2),
+			.color(theme::text_2()),
 	)
 	.on_hover_text(t!("已保存的凭据不会显示明文"));
 	let mut text = shell.schema.draft(entry).clone();
@@ -1002,11 +1008,11 @@ fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
 		let (rect, response) =
 			ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0_f32, theme::BORDER_2),
+			Stroke::new(1.0_f32, theme::border_2()),
 			egui::StrokeKind::Inside,
 		);
 		ui.painter().text(
@@ -1015,9 +1021,9 @@ fn zetacode_options(ui: &mut Ui, shell: &mut Shell) {
 			t!("读取 zetacode 选项"),
 			FontId::new(12.5, egui::FontFamily::Proportional),
 			if response.hovered() {
-				theme::TEXT
+				theme::text()
 			} else {
-				theme::TEXT_2
+				theme::text_2()
 			},
 		);
 		if response.clicked() {
@@ -1167,15 +1173,15 @@ pub(crate) fn small_button(ui: &mut Ui, label: &str) -> egui::Response {
 	let font = FontId::new(11.5, egui::FontFamily::Proportional);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT_2);
+		.layout_no_wrap(label.to_owned(), font.clone(), theme::text_2());
 	let (rect, response) =
 		ui.allocate_exact_size(vec2(galley.size().x + 20.0, 26.0), Sense::click());
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_CONTROL),
-		Stroke::new(1.0_f32, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::border_2()),
 		egui::StrokeKind::Inside,
 	);
 	ui.painter().text(
@@ -1184,9 +1190,9 @@ pub(crate) fn small_button(ui: &mut Ui, label: &str) -> egui::Response {
 		label,
 		font,
 		if response.hovered() {
-			theme::TEXT
+			theme::text()
 		} else {
-			theme::TEXT_2
+			theme::text_2()
 		},
 	);
 	response
@@ -1212,14 +1218,14 @@ fn about_identity(ui: &mut Ui, shell: &mut Shell) {
 		egui::Align2::LEFT_CENTER,
 		"zetawork",
 		FontId::new(18.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	ui.painter().text(
 		pos2(icon.max.x + 14.0, rect.min.y + 45.0),
 		egui::Align2::LEFT_CENTER,
 		t!("版本 {} · 纯 Rust 桌面工作台", crate::VERSION),
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 }
 
@@ -1248,14 +1254,14 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 14.0),
 		egui::Align2::LEFT_TOP,
 		t!("清除所有工作区记忆"),
 		FontId::new(13.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	let control =
 		Rect::from_min_size(pos2(rect.max.x - 240.0, rect.min.y + 12.0), vec2(240.0, 32.0));
@@ -1264,7 +1270,7 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 		pos2(rect.min.x, rect.min.y + 32.0),
 		&hint_text,
 		11.5,
-		theme::TEXT_3,
+		theme::text_3(),
 		control.min.x - rect.min.x - 12.0,
 	);
 	if ui
@@ -1284,7 +1290,7 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 			&report.summary(),
 			11.5,
 			if report.errors.is_empty() {
-				theme::TEXT_2
+				theme::text_2()
 			} else {
 				theme::WARN
 			},
@@ -1297,7 +1303,7 @@ fn workspace_memory_row(ui: &mut Ui, shell: &mut Shell) {
 				pos2(row.min.x + 10.0, row.center().y),
 				&path.display().to_string(),
 				10.5,
-				theme::TEXT_3,
+				theme::text_3(),
 				row.width() - 20.0,
 			);
 		}
@@ -1322,7 +1328,7 @@ pub(crate) fn head(ui: &mut Ui, title: &str) {
 		egui::Align2::LEFT_CENTER,
 		title,
 		FontId::new(12.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 }
 
@@ -1338,7 +1344,7 @@ fn row(
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let control_rect =
 		Rect::from_min_size(pos2(rect.max.x - 240.0, rect.min.y + 12.0), vec2(240.0, 32.0));
@@ -1346,13 +1352,13 @@ fn row(
 	// them at the control instead of painting underneath it. Short hints from
 	// the native sections are unchanged.
 	let text_width = (control_rect.min.x - rect.min.x - 12.0).max(40.0);
-	truncated_text(ui, pos2(rect.min.x, rect.min.y + 20.0), label, 13.0, theme::TEXT, text_width);
+	truncated_text(ui, pos2(rect.min.x, rect.min.y + 20.0), label, 13.0, theme::text(), text_width);
 	truncated_text(
 		ui,
 		pos2(rect.min.x, rect.min.y + 38.0),
 		hint_text,
 		11.5,
-		theme::TEXT_3,
+		theme::text_3(),
 		text_width,
 	);
 	let mut child = ui.new_child(
@@ -1368,28 +1374,28 @@ pub(crate) fn plain_row(ui: &mut Ui, label: &str, hint_text: &str, value: &str) 
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 52.0), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 12.0),
 		egui::Align2::LEFT_TOP,
 		label,
 		FontId::new(13.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 30.0),
 		egui::Align2::LEFT_TOP,
 		hint_text,
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	ui.painter().text(
 		pos2(rect.max.x, rect.center().y),
 		egui::Align2::RIGHT_CENTER,
 		value,
 		FontId::new(11.5, egui::FontFamily::Monospace),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 }
 
@@ -1433,14 +1439,14 @@ pub(crate) fn switch(ui: &mut Ui, value: &mut bool) -> bool {
 	let (track, knob) = if *value {
 		(theme::ACCENT_DIM, theme::ACCENT_2)
 	} else {
-		(theme::PANEL_4, theme::TEXT_3)
+		(theme::panel_4(), theme::text_3())
 	};
 	ui.painter()
 		.rect_filled(rect, CornerRadius::same(11), track);
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(11),
-		Stroke::new(1.0_f32, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::border_2()),
 		egui::StrokeKind::Inside,
 	);
 	let knob_x = if *value {
@@ -1458,14 +1464,14 @@ fn disabled_switch(ui: &mut Ui, value: bool) {
 	let (track, knob) = if value {
 		(theme::ACCENT_DIM.gamma_multiply(0.5), theme::ACCENT_2.gamma_multiply(0.5))
 	} else {
-		(theme::PANEL_4, theme::TEXT_3.gamma_multiply(0.5))
+		(theme::panel_4(), theme::text_3().gamma_multiply(0.5))
 	};
 	ui.painter()
 		.rect_filled(rect, CornerRadius::same(11), track);
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(11),
-		Stroke::new(1.0_f32, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::border_2()),
 		egui::StrokeKind::Inside,
 	);
 	let knob_x = if value {
@@ -1701,16 +1707,16 @@ fn project_registry_row(
 ) {
 	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 58.0), Sense::click());
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::panel_2());
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_PANEL),
 		Stroke::new(
 			1.0_f32,
 			if response.hovered() {
-				theme::BORDER_2
+				theme::border_2()
 			} else {
-				theme::BORDER
+				theme::border()
 			},
 		),
 		egui::StrokeKind::Inside,
@@ -1720,21 +1726,21 @@ fn project_registry_row(
 		egui::Align2::LEFT_CENTER,
 		name,
 		FontId::new(13.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	ui.painter().text(
 		pos2(rect.min.x + 14.0, rect.center().y + 10.0),
 		egui::Align2::LEFT_CENTER,
 		path,
 		FontId::new(11.0, egui::FontFamily::Monospace),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	ui.painter().text(
 		pos2(rect.max.x - 78.0, rect.center().y),
 		egui::Align2::RIGHT_CENTER,
 		t!("{} 个工作区", workspaces),
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	let button = Rect::from_center_size(pos2(rect.max.x - 40.0, rect.center().y), vec2(56.0, 26.0));
 	if ui.put(button, egui::Button::new(t!("移除"))).clicked() {
@@ -1756,16 +1762,16 @@ fn manage_card(
 ) {
 	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 64.0), Sense::click());
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::panel_2());
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_PANEL),
 		Stroke::new(
 			1.0_f32,
 			if response.hovered() {
-				theme::BORDER_2
+				theme::border_2()
 			} else {
-				theme::BORDER
+				theme::border()
 			},
 		),
 		egui::StrokeKind::Inside,
@@ -1782,20 +1788,20 @@ fn manage_card(
 		egui::Align2::LEFT_CENTER,
 		title,
 		FontId::new(13.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	ui.painter().text(
 		pos2(rect.min.x + 46.0, rect.center().y + 9.0),
 		egui::Align2::LEFT_CENTER,
 		hint_text,
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	paint(
 		ui.painter(),
 		Icon::ChevronRight,
 		Rect::from_center_size(pos2(rect.max.x - 18.0, rect.center().y), vec2(14.0, 14.0)),
-		theme::TEXT_3,
+		theme::text_3(),
 		1.5,
 	);
 	ui.add_space(8.0);

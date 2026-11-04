@@ -37,7 +37,7 @@ pub fn status_dot(ui: &Ui, centre: Pos2, state: Option<RunState>) {
 pub fn status_word(ui: &Ui, at: Pos2, state: Option<RunState>, size: f32, available: f32) {
 	match state {
 		Some(state) => truncated_text(ui, at, state.word(), size, state.ink(), available),
-		None => truncated_text(ui, at, "—", size, theme::TEXT_3, available),
+		None => truncated_text(ui, at, "—", size, theme::text_3(), available),
 	}
 }
 
@@ -68,18 +68,19 @@ pub fn chip(ui: &mut Ui, label: &str, kind: Chip) -> Response {
 	let font = FontId::new(11.0, egui::FontFamily::Monospace);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font, theme::TEXT_3);
+		.layout_no_wrap(label.to_owned(), font, theme::text_3());
 	let size = vec2(galley.size().x + 12.0, 18.0);
 	let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
 	let (ink, fill, border) = match kind {
-		Chip::Plain => (theme::TEXT_3, theme::PANEL_3, theme::BORDER),
+		Chip::Plain => (theme::text_3(), theme::panel_3(), theme::border()),
 		Chip::Branch => (theme::CHIP_BRANCH_INK, theme::CHIP_BRANCH_BG, theme::CHIP_BRANCH_BORDER),
-		Chip::Active => (theme::TEXT, theme::PANEL_4, theme::BORDER_2),
+		Chip::Active => (theme::text(), theme::panel_4(), theme::border_2()),
 	};
-	ui.painter().rect_filled(rect, CornerRadius::same(4), fill);
+	ui.painter()
+		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), fill);
 	ui.painter().rect_stroke(
 		rect,
-		CornerRadius::same(4),
+		CornerRadius::same(theme::R_CONTROL),
 		Stroke::new(1.0_f32, border),
 		egui::StrokeKind::Inside,
 	);
@@ -99,9 +100,10 @@ pub fn badge(ui: &mut Ui, label: &str, warn: bool) {
 	let (ink, fill) = if warn {
 		(theme::WARN, theme::WARN.gamma_multiply(0.14))
 	} else {
-		(theme::TEXT_2, theme::TEXT_3.gamma_multiply(0.16))
+		(theme::text_2(), theme::text_3().gamma_multiply(0.16))
 	};
-	ui.painter().rect_filled(rect, CornerRadius::same(3), fill);
+	ui.painter()
+		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), fill);
 	ui.painter().text(
 		rect.center(),
 		Align2::CENTER_CENTER,
@@ -110,33 +112,46 @@ pub fn badge(ui: &mut Ui, label: &str, warn: bool) {
 		ink,
 	);
 }
+/// The width [`foot_button`] will allocate for `label`.
+///
+/// The footer needs this before it lays the two groups out: the row must
+/// decide whether the labels fit, not discover it after the buttons have
+/// already overlapped.
+pub fn foot_button_width(ui: &Ui, label: &str) -> f32 {
+	if label.is_empty() {
+		return 30.0;
+	}
+	let font = FontId::new(12.0, egui::FontFamily::Proportional);
+	let galley = ui
+		.painter()
+		.layout_no_wrap(label.to_owned(), font, theme::text_2());
+	15.0 + 6.0 + galley.size().x + 18.0
+}
+
 /// A `.footbtn`: icon over a short label, used by 设置 / 帮助 / 聚焦.
 pub fn foot_button(ui: &mut Ui, icon: Icon, label: &str) -> Response {
 	let font = FontId::new(12.0, egui::FontFamily::Proportional);
-	let width = if label.is_empty() {
-		30.0
-	} else {
-		let galley = ui
-			.painter()
-			.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT_2);
-		15.0 + 6.0 + galley.size().x + 18.0
-	};
+	let width = foot_button_width(ui, label);
 	let (rect, response) = ui.allocate_exact_size(vec2(width, 30.0), Sense::click());
 	let hovered = response.hovered();
 	if hovered {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0_f32, theme::BORDER),
+			Stroke::new(1.0_f32, theme::border()),
 			egui::StrokeKind::Inside,
 		);
 	}
-	let ink = if hovered { theme::TEXT } else { theme::TEXT_2 };
+	let ink = if hovered {
+		theme::text()
+	} else {
+		theme::text_2()
+	};
 	let icon_rect =
 		Rect::from_center_size(pos2(rect.min.x + 8.0 + 7.5, rect.center().y), vec2(15.0, 15.0));
-	paint(ui.painter(), icon, icon_rect, theme::TEXT_3, 1.5);
+	paint(ui.painter(), icon, icon_rect, theme::text_3(), 1.5);
 	if !label.is_empty() {
 		ui.painter().text(
 			pos2(rect.min.x + 8.0 + 15.0 + 6.0, rect.center().y),
@@ -149,6 +164,18 @@ pub fn foot_button(ui: &mut Ui, icon: Icon, label: &str) -> Response {
 	response
 }
 
+/// Make clicks on a dialog's own surface stop at the dialog.
+///
+/// A modal's dim backdrop is a full-screen click target; the dialog's frame
+/// is `Sense::hover`, so without a click target of its own every blank pixel
+/// (a title, a label, the space between fields) reaches the backdrop and
+/// closes the modal. Register this before the dialog's child widgets: they
+/// are added later and therefore win over the shield, while the backdrop
+/// stays reachable outside `rect`.
+pub fn click_shield(ui: &mut Ui, rect: Rect, salt: &str) {
+	let _ = ui.interact(rect, ui.id().with(("dialog-shield", salt)), Sense::click());
+}
+
 /// A pane/section head (`.rp-head`): uppercase-ish label, plus room for
 /// buttons the caller draws itself.
 pub fn panel_head(ui: &mut Ui, label: &str, right: impl FnOnce(&mut Ui)) {
@@ -158,7 +185,7 @@ pub fn panel_head(ui: &mut Ui, label: &str, right: impl FnOnce(&mut Ui)) {
 		Align2::LEFT_CENTER,
 		label,
 		FontId::new(11.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()
@@ -308,11 +335,11 @@ pub fn truncated_mono_right(
 pub fn empty_note(ui: &mut Ui, headline: &str) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), Sense::hover());
 	let painter = ui.painter();
-	painter.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
+	painter.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::panel_2());
 	painter.rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_PANEL),
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 		egui::StrokeKind::Inside,
 	);
 	let available = (rect.width() - 20.0).max(0.0);
@@ -321,7 +348,7 @@ pub fn empty_note(ui: &mut Ui, headline: &str) {
 		pos2(rect.min.x + 10.0, rect.center().y),
 		headline,
 		12.5,
-		theme::TEXT_2,
+		theme::text_2(),
 		available,
 	);
 }

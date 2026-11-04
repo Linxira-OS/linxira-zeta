@@ -150,6 +150,8 @@ pub struct Shell {
 	pub git_notice: Option<(bool, String)>,
 	/// The 新建分支 field's text, owned by the shell so it survives a frame.
 	pub git_branch_draft: String,
+	/// The Git panel's commit message, kept across frames for the same reason.
+	pub git_commit_draft: String,
 	/// The active workspace's `git diff HEAD`, read when a 差异比较器 page shows
 	/// it; `diff_ws`/`diff_at` are the workspace and the time it was read.
 	pub diff: Option<Result<String, String>>,
@@ -353,6 +355,7 @@ impl Shell {
 			git_at: None,
 			git_notice: None,
 			git_branch_draft: String::new(),
+			git_commit_draft: String::new(),
 			diff: None,
 			diff_ws: String::new(),
 			diff_at: None,
@@ -445,6 +448,7 @@ impl Shell {
 			git_at: None,
 			git_notice: None,
 			git_branch_draft: String::new(),
+			git_commit_draft: String::new(),
 			diff: None,
 			diff_ws: String::new(),
 			diff_at: None,
@@ -670,6 +674,273 @@ impl Shell {
 		}
 	}
 
+	/// The gateway's API origin: the backend's when one is live, else the one
+	/// `~/.zeta/serve.json` publishes.
+	///
+	/// [`stats::StatsEndpoint::origin`] is the dashboard (`statsUrl`), which is
+	/// a different server; `/api/*` must never be sent there.
+	pub fn gateway_origin(&self) -> Option<String> {
+		self
+			.backend
+			.gateway_origin()
+			.or_else(|| self.stats.gateway_origin())
+			.map(str::to_owned)
+	}
+
+	/// Release the resources behind one tab that is about to be removed.
+	///
+	/// A dirty editor buffer is written first; a failed write is returned so the
+	/// caller keeps the tab rather than dropping the user's edits. An agent page
+	/// drops its SSE reader, and a terminal or zetacode page drops its PTY on
+	/// both backends (the in-process one by dropping the terminal, the serve one
+	/// by forgetting the pane's WebSocket).
+	fn release_tab(&mut self, pane_id: &str, tab_id: &str) -> Result<(), String> {
+		let Some(tab) = self.state.tab(pane_id, tab_id) else {
+			return Ok(());
+		};
+		let dirty = tab.doc.as_ref().is_some_and(|doc| doc.dirty);
+		if dirty {
+			let Some(doc) = self.state.doc_mut(pane_id, tab_id) else {
+				return Ok(());
+			};
+			doc.save()?;
+		}
+		self.agents.forget(tab_id);
+		self.live.close(tab_id);
+		self.terminals.close(tab_id);
+		self.sidebar.remove(tab_id);
+		Ok(())
+	}
+
+	/// Ask the gateway to archive one session; the request runs on a worker.
+	fn request_session_archive(&mut self, session_id: &str) -> Result<(), String> {
+		let origin = self.gateway_origin();
+		self
+			.session_admin
+			.request_archive(origin.as_deref(), session_id)
+	}
+
+	/// Close every open tab that shows `session_id` — view only.
+	///
+	/// The conversation row stays in the left column and 会话管理; nothing is
+	/// archived and nothing is deleted. A pane keeps at least one tab, so a
+	/// session that is the last tab of its pane is left open and counted rather
+	/// than emptying the pane. Each removed tab drops its SSE reader and its
+	/// PTY, so the gateway can release the view.
+	pub fn remove_conversation_view(&mut self, session_id: &str) -> state::Notice {
+		let tabs = self.state.tabs_for_session(session_id);
+		if tabs.is_empty() {
+			return state::Notice(t!("没有打开这个会话的标签页").to_owned());
+		}
+		let mut closed = 0usize;
+		let mut blocked = 0usize;
+		let mut errors: Vec<String> = Vec::new();
+		for (pane_id, tab_id) in tabs {
+			if !self.state.can_close_tab(&pane_id) {
+				blocked += 1;
+				continue;
+			}
+			if let Err(error) = self.release_tab(&pane_id, &tab_id) {
+				errors.push(error);
+				continue;
+			}
+			let notice = self.state.close_tab(&pane_id, &tab_id);
+			if notice.0.is_empty() {
+				closed += 1;
+			} else {
+				errors.push(notice.0);
+			}
+		}
+		let mut parts = Vec::new();
+		if closed > 0 {
+			parts.push(t!("已关闭 {} 个标签页", closed));
+		}
+		if blocked > 0 {
+			parts.push(t!("{} 个标签页保留（面板的最后一个）", blocked));
+		}
+		if !errors.is_empty() {
+			parts.push(t!("保存失败：{}", errors.join("；")));
+		}
+		state::Notice(parts.join("；"))
+	}
+
+	/// Stop showing a conversation and archive it, recoverably.
+	///
+	/// The archive request goes through the gateway's own
+	/// `POST /api/sessions/:id/archive`; the transcript is never deleted, and
+	/// the gateway keeps it in its archive tree. The open tabs are closed through
+	/// [`Self::remove_conversation_view`], which drops their SSE readers first.
+	/// With no gateway origin the view is still removed, and the notice says the
+	/// archive did not go out.
+	pub fn close_conversation_and_archive(&mut self, session_id: &str) -> state::Notice {
+		let view = self.remove_conversation_view(session_id);
+		let remaining = self.state.tabs_for_session(session_id).len();
+		let mut parts = Vec::new();
+		if !view.0.is_empty() {
+			parts.push(view.0);
+		}
+		if remaining > 0 {
+			// A pane keeps its last tab, so the session is still on screen. Do
+			// not archive a conversation the user can still see and use.
+			parts.push(t!("会话仍显示在标签页中，未归档").to_owned());
+			return state::Notice(parts.join("；"));
+		}
+		parts.push(match self.request_session_archive(session_id) {
+			Ok(()) => t!("正在归档…").to_owned(),
+			Err(error) => error,
+		});
+		state::Notice(parts.join("；"))
+	}
+
+	/// Remove one tab from the view and release its SSE reader, PTY, and
+	/// sidebar, without archiving or deleting its conversation.
+	pub fn close_tab_view(&mut self, pane_id: &str, tab_id: &str) -> state::Notice {
+		if self.state.tab(pane_id, tab_id).is_none() {
+			return state::Notice(t!("没有这个标签页：{}", tab_id));
+		}
+		if !self.state.can_close_tab(pane_id) {
+			return state::Notice(t!("至少保留一个小标签页").to_owned());
+		}
+		if let Err(error) = self.release_tab(pane_id, tab_id) {
+			return state::Notice(t!("保存失败：{}", error));
+		}
+		self.state.close_tab(pane_id, tab_id)
+	}
+
+	/// ✕ on a tab, saving and archiving what has to be kept before it goes.
+	///
+	/// A dirty editor buffer is saved first (a failed save keeps the tab and is
+	/// reported). An agent tab archives its session **only when this was the last
+	/// tab showing it**; another tab still showing the session keeps it live. A
+	/// terminal or zetacode tab stops its PTY on both backends. The pane keeps at
+	/// least one tab, exactly like [`AppState::close_tab`].
+	pub fn close_tab_saving(&mut self, pane_id: &str, tab_id: &str) -> state::Notice {
+		let Some(tab) = self.state.tab(pane_id, tab_id) else {
+			return state::Notice(t!("没有这个标签页：{}", tab_id));
+		};
+		if !self.state.can_close_tab(pane_id) {
+			return state::Notice(t!("至少保留一个小标签页").to_owned());
+		}
+		let session = if tab.kind == state::SessionKind::Agent {
+			tab.session.clone()
+		} else {
+			None
+		};
+		if let Err(error) = self.release_tab(pane_id, tab_id) {
+			return state::Notice(t!("保存失败：{}", error));
+		}
+		let archived = session.map(|session| {
+			if self.state.tabs_for_session(&session).len() != 1 {
+				return None;
+			}
+			Some(match self.request_session_archive(&session) {
+				Ok(()) => t!("正在归档…").to_owned(),
+				Err(error) => error,
+			})
+		});
+		let notice = self.state.close_tab(pane_id, tab_id);
+		let mut parts = Vec::new();
+		if !notice.0.is_empty() {
+			parts.push(notice.0);
+		}
+		if let Some(Some(line)) = archived {
+			parts.push(line);
+		}
+		state::Notice(parts.join("；"))
+	}
+
+	/// Remove a workspace from the UI — never from the disk.
+	///
+	/// The directory, its git worktree and its conversations are untouched; the
+	/// user deletes the directory when they mean to. Before the workspace leaves
+	/// the list, its tabs are saved and released and every session whose last tab
+	/// lived here is archived through the gateway (another tab elsewhere keeps
+	/// its session live). A failed editor save aborts the removal, so no buffer is
+	/// lost. The last workspace of a project cannot be removed.
+	pub fn remove_workspace_view(&mut self, ws_id: &str) -> state::Notice {
+		let Some(workspace) = self.state.workspace(ws_id) else {
+			return state::Notice(t!("没有这个工作区：{}", ws_id));
+		};
+		let last = match self.state.project_of(ws_id) {
+			Some(project) => project.workspaces.len() <= 1,
+			None => true,
+		};
+		if last {
+			return state::Notice(t!("每个项目至少保留一个工作区").to_owned());
+		}
+		let tabs: Vec<(String, String, state::SessionKind, Option<String>)> = workspace
+			.panes
+			.iter()
+			.flat_map(|pane| {
+				pane
+					.tabs
+					.iter()
+					.map(|tab| (pane.id.clone(), tab.id.clone(), tab.kind, tab.session.clone()))
+			})
+			.collect();
+		let mut sessions: Vec<String> = Vec::new();
+		for (_, _, _, session) in &tabs {
+			if let Some(session) = session {
+				if !sessions.contains(session) {
+					sessions.push(session.clone());
+				}
+			}
+		}
+		// Archive only the sessions that will have no tab left anywhere.
+		let archives: Vec<String> = sessions
+			.into_iter()
+			.filter(|session| {
+				let here = tabs
+					.iter()
+					.filter(|(_, _, _, tab_session)| tab_session.as_deref() == Some(session.as_str()))
+					.count();
+				self.state.tabs_for_session(session).len() == here
+			})
+			.collect();
+		for (pane_id, tab_id) in tabs.iter().map(|(pane, tab, _, _)| (pane, tab)) {
+			let dirty = self
+				.state
+				.tab(pane_id, tab_id)
+				.is_some_and(|tab| tab.doc.as_ref().is_some_and(|doc| doc.dirty));
+			if !dirty {
+				continue;
+			}
+			let Some(doc) = self.state.doc_mut(pane_id, tab_id) else {
+				continue;
+			};
+			if let Err(error) = doc.save() {
+				return state::Notice(t!("保存失败，未移除工作区：{}", error));
+			}
+		}
+		let mut failures = Vec::new();
+		for (pane_id, tab_id, _, _) in &tabs {
+			if let Err(error) = self.release_tab(pane_id, tab_id) {
+				failures.push(error);
+			}
+		}
+		for session in archives {
+			if let Err(error) = self.request_session_archive(&session) {
+				failures.push(error);
+			}
+		}
+		let notice = self.state.close_workspace(ws_id);
+		if !notice.0.is_empty() {
+			return notice;
+		}
+		if failures.is_empty() {
+			state::Notice(String::new())
+		} else {
+			state::Notice(t!("已移除工作区；有未完成的保存或归档：{}", failures.join("；")))
+		}
+	}
+
+	/// Open 会话管理 with this row already armed for 确认删除.
+	pub fn request_delete_conversation(&mut self, session_id: &str) -> state::Notice {
+		self.session_admin.prepare_delete(session_id);
+		self.state.sessions_open = true;
+		state::Notice(String::new())
+	}
+
 	/// Create `name` from `HEAD` and switch to it.
 	pub fn create_git_branch(&mut self, name: &str) -> bool {
 		let Some(path) = self.active_workspace_path() else {
@@ -678,6 +949,50 @@ impl Shell {
 		match git::create_branch(&path, name) {
 			Ok(_) => {
 				self.git_notice = Some((true, t!("已创建并切换到分支 {}", name.trim())));
+				self.refresh_git();
+				true
+			},
+			Err(error) => {
+				self.git_notice = Some((false, error));
+				false
+			},
+		}
+	}
+
+	/// Stage all changes and create one commit from the Git panel's message.
+	pub fn commit_git_changes(&mut self) -> bool {
+		let Some(path) = self.active_workspace_path() else {
+			self.git_notice = Some((false, t!("先打开一个工作区").to_owned()));
+			return false;
+		};
+		let message = self.git_commit_draft.clone();
+		match git::commit_all(&path, &message) {
+			Ok(_) => {
+				self.git_commit_draft.clear();
+				self.git_notice = Some((true, t!("已提交全部更改").to_owned()));
+				self.refresh_git();
+				true
+			},
+			Err(error) => {
+				self.git_notice = Some((false, error));
+				false
+			},
+		}
+	}
+
+	/// Push the current branch; a branch with no upstream is pushed with `-u`.
+	pub fn push_git_branch(&mut self) -> bool {
+		let Some(path) = self.active_workspace_path() else {
+			self.git_notice = Some((false, t!("先打开一个工作区").to_owned()));
+			return false;
+		};
+		let has_upstream = self
+			.git
+			.as_ref()
+			.is_some_and(|status| status.upstream.is_some());
+		match git::push_current(&path, has_upstream) {
+			Ok(_) => {
+				self.git_notice = Some((true, t!("已推送当前分支").to_owned()));
 				self.refresh_git();
 				true
 			},
@@ -877,7 +1192,7 @@ impl Shell {
 	/// widget with the keyboard keeps its keys: only commands marked `global`
 	/// bypass that, and [`Shell::run_global_commands`] is where they fire.
 	pub fn handle_keys(&mut self, ctx: &Context) {
-		if ctx.wants_keyboard_input() {
+		if ctx.egui_wants_keyboard_input() {
 			return;
 		}
 		if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
@@ -975,7 +1290,11 @@ impl Shell {
 	/// `POST /api/agent/:id` with the web composer's own command body. Returns
 	/// `false` when a send was already in flight; the caller keeps the text.
 	pub fn send_agent_prompt(&mut self, session: &str, text: &str) -> bool {
-		let origin = self.stats.origin().to_owned();
+		let Some(origin) = self.gateway_origin() else {
+			let notice = t!("未发现网关地址（~/.zeta/serve.json 的 webUrl）").to_owned();
+			self.state.show(state::Notice(notice));
+			return false;
+		};
 		let accepted = self
 			.agent_send
 			.send(origin, session.to_owned(), text.to_owned());
@@ -1118,7 +1437,7 @@ impl Shell {
 	/// the same one the TUI view draws a focus ring around. A modal or a text
 	/// field keeps priority; the background state has no keyboard at all.
 	pub fn forward_terminal_input(&mut self, ctx: &Context) -> bool {
-		if self.lifecycle.background || self.state.modal_open() || ctx.wants_keyboard_input() {
+		if self.lifecycle.background || self.state.modal_open() || ctx.egui_wants_keyboard_input() {
 			return false;
 		}
 		let Some(pane_id) = self.state.tui_pane.clone() else {
@@ -1348,7 +1667,7 @@ impl Shell {
 		if !self.probe {
 			return;
 		}
-		let Some(origin) = self.stats.gateway_origin().map(str::to_owned) else {
+		let Some(origin) = self.gateway_origin() else {
 			return;
 		};
 		let pending: Vec<(String, String)> = self
@@ -1433,7 +1752,11 @@ impl Shell {
 }
 
 impl eframe::App for Shell {
-	fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
+	/// Non-drawing work. eframe 0.34 calls this before every `ui`, and also
+	/// while the window is hidden when a repaint was requested — which is
+	/// exactly what keeps the tray queue and the single-instance listener
+	/// alive after 最小化到后台.
+	fn logic(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
 		// Every close the OS asks for — the shell's own title-bar button on
 		// Windows, the compositor's decoration on Wayland, Alt-F4, the taskbar
 		// — goes through the one policy in `lifecycle::request_close`. Without
@@ -1466,7 +1789,11 @@ impl eframe::App for Shell {
 			Some(url) => self.plugin_page.prepare(&*frame, &url),
 			None => self.plugin_page.hide(),
 		}
-		self.draw(ctx);
+	}
+
+	fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+		let ctx = ui.ctx().clone();
+		self.draw(&ctx);
 	}
 
 	/// Quitting leaves the daemon running only when 设置 asked for that;
@@ -1642,6 +1969,23 @@ impl Shell {
 				session_admin::Event::DidUnarchive(id) => {
 					self.session_admin.notice = Some((true, t!("已恢复 {}", id)));
 					self.sessions.refresh_now();
+				},
+				session_admin::Event::DidDelete(id) => {
+					self.session_admin.notice =
+						Some((true, t!("已删除 {}（已移入回收站，30 天后自动清理）", id)));
+					self.sessions.refresh_now();
+					self.state.pinned_sessions.retain(|pinned| pinned != &id);
+					if self.probe {
+						if let Err(error) =
+							sessions::save_pins_to(&sessions::pins_path(), &self.state.pinned_sessions)
+						{
+							self.session_admin.notice = Some((false, error));
+						}
+					}
+					for tab in self.state.detach_session(&id) {
+						self.agents.forget(&tab);
+					}
+					self.state.needs_redraw = true;
 				},
 				session_admin::Event::Failed(error) => {
 					self.session_admin.notice = Some((false, error));
@@ -1855,6 +2199,13 @@ impl Shell {
 		if diff_page {
 			self.ensure_diff();
 		}
+		// The status bar's clock reads `Local::now()` at paint time, but an
+		// idle window produces no frames. Schedule the next frame on the
+		// minute boundary; otherwise `HH:MM` freezes at the last input.
+		let until_minute = std::time::Duration::from_secs(
+			60 - chrono::Local::now().timestamp().rem_euclid(60) as u64,
+		);
+		ctx.request_repaint_after(until_minute);
 	}
 
 	/// The whole frame: title bar, status bar, both columns, the centre, the
@@ -1862,6 +2213,7 @@ impl Shell {
 	///
 	/// Split out of [`eframe::App::update`] so the tests can render exactly the
 	/// same frame headlessly — there is no window in the test harness.
+	#[allow(deprecated)] // eframe 0.34 still ships the compatibility panel aliases.
 	pub fn draw(&mut self, ctx: &Context) {
 		let no_margin = egui::Frame::new().inner_margin(egui::Margin::ZERO);
 		// The window chrome owns the title bar and the brand mark; the panels

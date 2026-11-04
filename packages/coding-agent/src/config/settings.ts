@@ -37,7 +37,7 @@ import { invalidate as invalidateCapabilityFsCache } from "../capability/fs";
 import { type Settings as SettingsCapabilityItem, settingsCapability } from "../capability/settings";
 import type { ModelRole } from "../config/model-roles";
 import { loadCapability } from "../discovery";
-import { registerLanguageConfigOverride } from "../i18n";
+import { registerLanguageConfigOverride, setLanguage } from "../i18n";
 import { AgentStorage } from "../session/agent-storage";
 import { type CompactionMethod, DEFAULT_COMPACTION_METHOD_ORDER } from "../session/compaction-methods";
 import { writeFileAtomically } from "../utils/atomic-file";
@@ -48,6 +48,7 @@ import {
 	type AnySetting,
 	all as allSettings,
 	bindEffects,
+	effect,
 	inheritWarnings,
 	lookup as lookupSetting,
 	resetRegistryForTest,
@@ -4171,12 +4172,22 @@ export const settings = new Proxy({} as Settings, {
 
 // Wire the persisted `language` setting into the i18n catalogue resolver. The
 // indirection lives here — `i18n/index.ts` never imports the settings graph, so
-// the catalogues stay out of the startup-prepaint module weight. Detection
-// consults this lazily (config > env > system locale); an unconfigured setting
-// yields to environment detection instead of pinning the schema default.
+// the catalogues stay out of the startup-prepaint module weight. Once settings
+// load, the setting (including its schema default `en`) is authoritative;
+// environment detection only covers the startup-prepaint window before that.
+// An OS-locale fallback here made a Chinese Windows install render Chinese
+// while Settings correctly showed the default `en`.
 registerLanguageConfigOverride(() => {
 	if (!isSettingsInitialized()) return undefined;
-	return cfgLanguage.isConfigured(settings) ? cfgLanguage.get(settings) : undefined;
+	return cfgLanguage.get(settings);
+});
+
+// The setting drives the catalogue for every writer: `/language`, the
+// settings panel, `cfg://`, config reloads and the onboarding language scene.
+// Binding applies the current value immediately, so startup-prepaint detection
+// cannot leave the UI in a different language from the stored setting.
+effect(cfgLanguage, tag => {
+	setLanguage(tag);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -6,10 +6,12 @@
 //! failure degrades to an empty [`GitStatus`] whose `error` says what went
 //! wrong, so a pane can paint a placeholder instead of panicking.
 //!
-//! The two branch actions ([`switch_branch`], [`create_branch`]) are the one
-//! place this module writes: the user clicked a row or submitted a name, and
-//! the argv is built by [`switch_args`]/[`create_args`] so the command a test
-//! asserts is exactly the command the shell runs. Their failure text is git's.
+//! The write actions ([`switch_branch`], [`create_branch`], [`commit_all`],
+//! [`push_current`]) are the only place this module mutates a checkout: the
+//! user clicked a row, submitted a name, or pressed the Git panel's commit or
+//! push button. The branch argv is built by [`switch_args`]/[`create_args`] so
+//! the command a test asserts is exactly the command the shell runs; commit and
+//! push pass git's own refusal text through unchanged.
 //!
 //! Captured output is normalised by stripping `\r`, so the parsers below are
 //! platform-independent; porcelain `-z` (NUL-separated, with an extra path
@@ -665,6 +667,34 @@ pub fn remove_worktree(repo: &Path, path: &Path, force: bool) -> Result<(), Stri
 	run_git(repo, &refs).map(|_| ())
 }
 
+/// Stage every changed path and commit it with `message`.
+///
+/// The shell's Git panel writes commit messages one line at a time; an empty
+/// message is refused before git runs, so the UI cannot accidentally create a
+/// commit whose subject is the editor placeholder. `git add -A` is deliberate:
+/// the panel's button says 提交全部更改, and untracked files are part of that.
+pub fn commit_all(path: &Path, message: &str) -> Result<String, String> {
+	let message = message.trim();
+	if message.is_empty() {
+		return Err(t!("提交说明不能为空").to_owned());
+	}
+	run_git(path, &["add", "-A"])?;
+	run_git(path, &["commit", "-m", message])
+}
+
+/// Push the current branch, creating `origin/<branch>` on the first push.
+///
+/// A branch that already tracks an upstream uses plain `git push`; a branch
+/// without one uses `git push -u origin HEAD`. Both forms let git own the
+/// authentication, hooks and refusal text, which the panel shows verbatim.
+pub fn push_current(path: &Path, has_upstream: bool) -> Result<String, String> {
+	if has_upstream {
+		run_git(path, &["push"])
+	} else {
+		run_git(path, &["push", "-u", "origin", "HEAD"])
+	}
+}
+
 /// Repository-relative paths a palette can jump to: tracked and untracked,
 /// honoured `.gitignore`, at most `limit` entries.
 ///
@@ -847,6 +877,8 @@ mod tests {
 			assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
 		};
 		git(&["init", "--quiet"]);
+		git(&["config", "user.email", "zetawork@test"]);
+		git(&["config", "user.name", "zetawork"]);
 		std::fs::write(path.join("notes.txt"), "one\n").unwrap();
 		std::fs::write(path.join("other.txt"), "hello\n").unwrap();
 		git(&["add", "notes.txt", "other.txt"]);
@@ -902,6 +934,39 @@ mod tests {
 		for bad in ["", " ", "-x", "a b", "a..b", "a//b", "x.lock", "a~b", "a^b", "@{u}", "/x"] {
 			assert!(!valid_branch_name(bad), "{bad:?} must be refused");
 		}
+	}
+
+	#[test]
+	fn commit_all_stages_untracked_files_and_refuses_an_empty_message() {
+		let repo = scratch_repo("commit");
+		std::fs::write(repo.join("notes.txt"), "one\ntwo\n").unwrap();
+		std::fs::write(repo.join("new.txt"), "new\n").unwrap();
+		commit_all(&repo, "  ").expect_err("an empty message must be refused");
+		commit_all(&repo, "feat: commit from the panel").expect("commit must succeed");
+		let status = read_status(&repo, 5);
+		assert!(status.changed.is_empty(), "the commit consumes staged and untracked changes");
+		assert!(status.untracked.is_empty());
+		assert_eq!(status.commits[0].subject, "feat: commit from the panel");
+	}
+
+	#[test]
+	fn push_current_sets_the_upstream_on_the_first_push() {
+		let repo = scratch_repo("push");
+		let remote =
+			std::env::temp_dir().join(format!("zetawork-gui-push-remote-{}", std::process::id()));
+		let _ = std::fs::remove_dir_all(&remote);
+		std::fs::create_dir_all(&remote).unwrap();
+		let mut init = Command::new("git");
+		init.arg("init").arg("--bare").arg("--quiet").arg(&remote);
+		#[cfg(windows)]
+		init.creation_flags(CREATE_NO_WINDOW);
+		assert!(init.status().expect("git init must run").success());
+		run_git(&repo, &["remote", "add", "origin", &remote.display().to_string()]).unwrap();
+
+		push_current(&repo, false).expect("the first push must create the upstream");
+		let status = read_status(&repo, 2);
+		assert!(status.upstream.is_some(), "the pushed branch must track origin");
+		assert_eq!(status.ahead, 0, "a successful first push has nothing left to send");
 	}
 
 	#[test]

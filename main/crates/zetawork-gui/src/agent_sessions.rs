@@ -170,14 +170,14 @@ impl AgentPane {
 		self.view.pending.is_some()
 	}
 
-	/// `running` / `not-running` while live, else the link's own word.
+	/// 运行中 / 空闲 while live, else the link's own word.
 	pub fn status_line(&self) -> String {
 		match self.link {
 			Link::Live => {
 				if self.view.running {
-					"running".to_owned()
+					t!("运行中").to_owned()
 				} else {
-					"not-running".to_owned()
+					t!("空闲").to_owned()
 				}
 			},
 			_ => self.link.label().to_owned(),
@@ -239,6 +239,12 @@ impl AgentSessions {
 	/// Forget panes whose session tab is gone.
 	pub fn retain(&mut self, open: &[String]) {
 		self.panes.retain(|tab, _| open.iter().any(|id| id == tab));
+	}
+
+	/// Drop one pane immediately, e.g. after its gateway session was deleted.
+	/// The tab may remain as a placeholder; the old SSE link must not.
+	pub fn forget(&mut self, tab: &str) {
+		self.panes.remove(tab);
 	}
 
 	/// Attach the pane for `tab` to a gateway session.

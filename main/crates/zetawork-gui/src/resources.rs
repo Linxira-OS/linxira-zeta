@@ -118,10 +118,10 @@ fn gauge(ui: &mut Ui, label: &str, value: &str, fraction: Option<f32>) {
 		pos2(row.min.x + 2.0, row.center().y),
 		label,
 		11.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		row.width() - 150.0,
 	);
-	truncated_mono_right(ui, row.max.x - 2.0, row.center().y, value, 11.0, theme::TEXT, 146.0);
+	truncated_mono_right(ui, row.max.x - 2.0, row.center().y, value, 11.0, theme::text(), 146.0);
 	bar(ui, fraction);
 }
 
@@ -133,7 +133,7 @@ fn bar(ui: &mut Ui, fraction: Option<f32>) {
 		vec2((row.width() - 4.0).max(1.0), 6.0),
 	);
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(3), theme::PANEL_4);
+		.rect_filled(rect, CornerRadius::same(3), theme::panel_4());
 	if let Some(fraction) = fraction {
 		let filled = (rect.width() * fraction.clamp(0.0, 1.0)).max(0.0);
 		if filled > 0.0 {
@@ -154,7 +154,7 @@ fn note_row(ui: &mut Ui, text: &str) {
 		pos2(row.min.x + 4.0, row.center().y),
 		text,
 		11.5,
-		theme::TEXT_3,
+		theme::text_3(),
 		row.width() - 8.0,
 	);
 }
@@ -167,11 +167,11 @@ fn section_head(ui: &mut Ui, label: &str) {
 		Align2::LEFT_CENTER,
 		label,
 		FontId::new(11.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	ui.painter().line_segment(
 		[pos2(row.min.x + 2.0, row.max.y - 0.5), pos2(row.max.x - 2.0, row.max.y - 0.5)],
-		egui::Stroke::new(1.0_f32, theme::BORDER),
+		egui::Stroke::new(1.0_f32, theme::border()),
 	);
 }
 
@@ -198,7 +198,7 @@ fn process_head(ui: &mut Ui) {
 	let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 18.0), Sense::hover());
 	let columns = Columns::of(row.width());
 	let font = FontId::new(10.5, egui::FontFamily::Monospace);
-	let ink = theme::TEXT_3;
+	let ink = theme::text_3();
 	let y = row.center().y;
 	truncated_mono(ui, pos2(row.min.x + 4.0, y), t!("名称"), 10.5, ink, columns.name);
 	ui.painter().text(
@@ -230,9 +230,9 @@ fn process_row(ui: &mut Ui, process: &sysmon::ProcessSample) {
 		&process.name,
 		11.0,
 		if process.cpu_percent >= 25.0 {
-			theme::TEXT
+			theme::text()
 		} else {
-			theme::TEXT_2
+			theme::text_2()
 		},
 		columns.name,
 	);
@@ -241,21 +241,21 @@ fn process_row(ui: &mut Ui, process: &sysmon::ProcessSample) {
 		Align2::RIGHT_CENTER,
 		process.pid.to_string(),
 		font.clone(),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	ui.painter().text(
 		pos2(row.min.x + columns.cpu, y),
 		Align2::RIGHT_CENTER,
 		format!("{:.1}", process.cpu_percent),
 		font.clone(),
-		theme::TEXT,
+		theme::text(),
 	);
 	ui.painter().text(
 		pos2(row.min.x + columns.mem, y),
 		Align2::RIGHT_CENTER,
 		bytes_label(process.memory_bytes),
 		font,
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 }
 

@@ -7,9 +7,10 @@
 //! ([`crate::git`]) with the branch actions the 分支 group offers, 历史
 //! filters the gateway's conversation list ([`crate::history`]), 跟踪 reads
 //! `.zeta/tracking/` ([`crate::tracking`]), and 工作树 reads the active
-//! conversation's checkouts ([`crate::worktrees`]). 暂存 / 提交 / 创建 PR
-//! exist as the spec draws them, and are disabled with a line naming what
-//! would back them.
+//! conversation's checkouts ([`crate::worktrees`]). The Git tab can also
+//! stage all changes, commit them with a one-line message, and push the current
+//! branch; per-file staging and pull-request creation are still absent, so the
+//! panel does not draw buttons for them.
 
 use crate::t;
 use std::collections::HashSet;
@@ -37,26 +38,47 @@ pub const RAIL_WIDTH: f32 = 44.0;
 /// The open column.
 pub fn right_column(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
+	// Same resize-state fix as the left column: the content must fill the
+	// panel rect or `PanelState` stores only `MIN_WIDTH` and the drag snaps
+	// back on release.
+	ui.take_available_width();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
-	ui.painter().line_segment(
-		[pos2(rect.min.x + 0.5, rect.min.y), pos2(rect.min.x + 0.5, rect.max.y)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		.rect_filled(rect, CornerRadius::ZERO, theme::ground());
+	ui.painter().rect_filled(
+		rect.shrink2(vec2(theme::GAP_ISLAND / 2.0, theme::GAP_ISLAND / 2.0)),
+		CornerRadius::same(theme::R_PANEL),
+		theme::panel(),
 	);
-	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 44.0));
+	let head = Rect::from_min_size(rect.min, vec2(rect.width(), theme::TOPBAR_H));
 	ui.painter().line_segment(
-		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		[
+			pos2(head.min.x + theme::GAP_ISLAND / 2.0, head.max.y - 0.5),
+			pos2(head.max.x - theme::GAP_ISLAND / 2.0, head.max.y - 0.5),
+		],
+		Stroke::new(1.0_f32, theme::border()),
 	);
+	// Nine 26pt tabs + eight gaps need 282pt, but the column may be 280pt
+	// and the collapse button still owns the right edge. Reserve that edge
+	// first, then shrink the tabs to the space that is actually left; at
+	// 26pt the last tab was painted under the collapse button.
+	let tabs_rect = Rect::from_min_max(
+		pos2(head.min.x + 6.0, head.min.y + 6.0),
+		pos2(head.max.x - 38.0, head.max.y - 6.0),
+	);
+	let tab_spacing = ui.spacing().item_spacing.x;
+	let tab_size = ((tabs_rect.width() - tab_spacing * (RightTab::ALL.len() - 1) as f32)
+		/ RightTab::ALL.len() as f32)
+		.floor()
+		.clamp(18.0, 26.0);
 	let mut tabs = ui.new_child(
 		egui::UiBuilder::new()
-			.max_rect(head.shrink2(vec2(6.0, 6.0)))
+			.max_rect(tabs_rect)
 			.layout(Layout::left_to_right(Align::Center)),
 	);
 	for tab in RightTab::ALL {
 		let icon = tab_icon(tab);
 		let active = shell.state.right_tab == tab;
-		if icon_button(&mut tabs, icon, 26.0, active, tab.title()).clicked() {
+		if icon_button(&mut tabs, icon, tab_size, active, tab.title()).clicked() {
 			shell.state.set_right_tab(tab);
 		}
 	}
@@ -104,10 +126,10 @@ fn tab_icon(tab: RightTab) -> Icon {
 pub fn right_rail(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	ui.painter().line_segment(
 		[pos2(rect.min.x + 0.5, rect.min.y), pos2(rect.min.x + 0.5, rect.max.y)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let mut child = ui.new_child(
 		egui::UiBuilder::new()
@@ -143,7 +165,7 @@ fn files_panel(ui: &mut Ui, shell: &mut Shell) {
 		pos2(path_rect.min.x + 6.0, path_rect.center().y),
 		&path,
 		11.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		path_rect.width() - 12.0,
 	);
 	if let Some(error) = shell.tree.error.clone() {
@@ -196,7 +218,7 @@ fn tree_rows(
 			ui.allocate_exact_size(vec2(ui.available_width(), 26.0), Sense::click());
 		if response.hovered() {
 			ui.painter()
-				.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+				.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 		}
 		let indent = rect.min.x + 6.0 + depth as f32 * 14.0;
 		let mut label_x = indent;
@@ -210,7 +232,7 @@ fn tree_rows(
 					Icon::ChevronRight
 				},
 				caret,
-				theme::TEXT_3,
+				theme::text_3(),
 				1.6,
 			);
 			label_x = caret.max.x + 5.0;
@@ -225,7 +247,7 @@ fn tree_rows(
 				Icon::File
 			},
 			icon_rect,
-			theme::TEXT_3,
+			theme::text_3(),
 			1.5,
 		);
 		// The git panel's changed list is repo-relative; the tree is absolute,
@@ -242,7 +264,7 @@ fn tree_rows(
 			pos2(icon_rect.max.x + 7.0, rect.center().y),
 			&child.name,
 			12.5,
-			theme::TEXT_2,
+			theme::text_2(),
 			rect.max.x - icon_rect.max.x - 14.0 - badge_space,
 		);
 		if marked {
@@ -327,18 +349,19 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 					pos2(notice.min.x + 4.0, notice.center().y),
 					&line,
 					11.0,
-					if ok { theme::TEXT_2 } else { theme::WARN },
+					if ok { theme::text_2() } else { theme::WARN },
 					notice.width() - 8.0,
 				);
 			}
+			commit_box(ui, shell, &status);
 
-			group(ui, t!("更改"), status.changed.len(), "M", true, |ui| {
+			group(ui, t!("更改"), status.changed.len(), "M", None, |ui| {
 				for file in &status.changed {
 					file_row(ui, &file.path, Some((file.insertions, file.deletions)), Some("M"));
 				}
 			});
 			if !status.untracked.is_empty() {
-				group(ui, t!("未跟踪文件"), status.untracked.len(), "U", false, |ui| {
+				group(ui, t!("未跟踪文件"), status.untracked.len(), "U", None, |ui| {
 					for file in &status.untracked {
 						file_row(ui, &file.path, None, Some("U"));
 					}
@@ -346,7 +369,7 @@ pub(crate) fn git_panel(ui: &mut Ui, shell: &mut Shell, key: &str) {
 			}
 			let commits_open = shell.state.commits_open;
 			let commits: Vec<crate::git::GitCommit> = status.commits.clone();
-			let head = group(ui, t!("提交"), commits.len(), "", true, |ui| {
+			let head = group(ui, t!("提交"), commits.len(), "", Some(commits_open), |ui| {
 				if commits_open {
 					for commit in &commits {
 						commit_row(ui, commit);
@@ -391,7 +414,7 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 				pos2(scope.min.x + 4.0, scope.min.y + 9.0),
 				&path,
 				11.0,
-				theme::TEXT_2,
+				theme::text_2(),
 				scope.width() - 8.0,
 			);
 			truncated_mono(
@@ -399,7 +422,7 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 				pos2(scope.min.x + 4.0, scope.min.y + 24.0),
 				&t!("分支 {}", branch),
 				11.0,
-				theme::TEXT_3,
+				theme::text_3(),
 				scope.width() - 8.0,
 			);
 			match &resolved {
@@ -412,7 +435,7 @@ fn usage_panel(ui: &mut Ui, shell: &mut Shell) {
 						pos2(row.min.x + 4.0, row.center().y),
 						crate::i18n::tr(conversation::NO_SESSION),
 						11.5,
-						theme::TEXT_3,
+						theme::text_3(),
 						row.width() - 8.0,
 					);
 				},
@@ -429,8 +452,8 @@ fn usage_card(
 	let summary = &resolved.summary;
 	source_chip(ui, resolved.source_line());
 	egui::Frame::new()
-		.fill(theme::PANEL_2)
-		.stroke(Stroke::new(1.0_f32, theme::BORDER))
+		.fill(theme::panel_2())
+		.stroke(Stroke::new(1.0_f32, theme::border()))
 		.corner_radius(CornerRadius::same(theme::R_PANEL))
 		.inner_margin(egui::Margin::same(10))
 		.show(ui, |ui| {
@@ -462,7 +485,7 @@ fn usage_card(
 			egui::Align2::LEFT_CENTER,
 			t!("会话日志里还没有 usage 条目"),
 			egui::FontId::new(11.0, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	}
 }
@@ -496,7 +519,8 @@ fn ring_slices(used: u64, report: Option<&conversation::ContextReport>) -> Vec<R
 		.collect();
 	let counted: u64 = slices.iter().map(|slice| slice.tokens).sum();
 	if used > counted {
-		slices.push(RingSlice { label: t!("其他"), tokens: used - counted, color: theme::TEXT_3 });
+		slices
+			.push(RingSlice { label: t!("其他"), tokens: used - counted, color: theme::text_3() });
 	}
 	if slices.is_empty() {
 		slices.push(RingSlice { label: t!("上下文"), tokens: used, color: theme::ACCENT });
@@ -525,7 +549,7 @@ fn category_color(id: &str) -> Color32 {
 		"systemContext" => theme::PURPLE,
 		"skills" => theme::ADD,
 		"messages" => theme::ACCENT_2,
-		_ => theme::TEXT_3,
+		_ => theme::text_3(),
 	}
 }
 
@@ -553,7 +577,7 @@ fn context_share(
 		egui::Align2::LEFT_CENTER,
 		t!("上下文"),
 		egui::FontId::new(11.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	let value = match (window, percent) {
 		(Some(window), Some(percent)) => {
@@ -566,7 +590,7 @@ fn context_share(
 		egui::Align2::RIGHT_CENTER,
 		value,
 		egui::FontId::new(11.0, egui::FontFamily::Monospace),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 	match (window, percent) {
 		(Some(window), Some(percent)) => {
@@ -579,7 +603,7 @@ fn context_share(
 				egui::Align2::LEFT_CENTER,
 				t!("窗口未知，不显示占比"),
 				egui::FontId::new(10.5, egui::FontFamily::Proportional),
-				theme::TEXT_3,
+				theme::text_3(),
 			);
 		},
 	}
@@ -625,7 +649,7 @@ fn draw_context_ring(
 			)
 		})
 		.collect();
-	painter.add(egui::Shape::line(track, Stroke::new(thickness, theme::PANEL_4)));
+	painter.add(egui::Shape::line(track, Stroke::new(thickness, theme::panel_4())));
 
 	let mut start = crate::ring::START_DEG;
 	for (slice, sweep) in slices.iter().zip(sweeps) {
@@ -657,16 +681,16 @@ fn draw_context_ring(
 			Stroke::new(
 				1.5_f32,
 				if tone == crate::ring::RingTone::Over {
-					theme::TEXT
+					theme::text()
 				} else {
-					theme::TEXT_2
+					theme::text_2()
 				},
 			),
 		);
 	}
 
 	let ink = match tone {
-		crate::ring::RingTone::Normal => theme::TEXT,
+		crate::ring::RingTone::Normal => theme::text(),
 		crate::ring::RingTone::Near => theme::WARN,
 		crate::ring::RingTone::Over => theme::DEL,
 	};
@@ -682,7 +706,7 @@ fn draw_context_ring(
 		egui::Align2::CENTER_CENTER,
 		t!("已用"),
 		egui::FontId::new(9.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 
 	// The legend: one row per arc, then the threshold when one is known.
@@ -708,7 +732,7 @@ fn draw_context_ring(
 			pos2(legend_x + 12.0, top + 7.0),
 			slice.label,
 			10.5,
-			theme::TEXT_2,
+			theme::text_2(),
 			rect.max.x - legend_x - 54.0,
 		);
 		painter.text(
@@ -716,7 +740,7 @@ fn draw_context_ring(
 			egui::Align2::RIGHT_CENTER,
 			format!("{share:.0}%"),
 			egui::FontId::new(10.0, egui::FontFamily::Monospace),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 		top += 17.0;
 	}
@@ -726,7 +750,7 @@ fn draw_context_ring(
 			pos2(legend_x, top + 7.0),
 			&t!("压缩阈值 {}%", format!("{threshold:.0}")),
 			10.0,
-			theme::TEXT_3,
+			theme::text_3(),
 			rect.max.x - legend_x - 4.0,
 		);
 	}
@@ -750,14 +774,14 @@ fn draw_context_ring(
 			ui.label(
 				egui::RichText::new(format!("{label} · {detail}"))
 					.size(11.0)
-					.color(theme::TEXT_2),
+					.color(theme::text_2()),
 			);
 		}
 		if let Some(threshold) = threshold {
 			ui.label(
 				egui::RichText::new(t!("压缩阈值 {}%", format!("{threshold:.0}")))
 					.size(10.5)
-					.color(theme::TEXT_3),
+					.color(theme::text_3()),
 			);
 		}
 	});
@@ -771,13 +795,13 @@ fn usage_row(ui: &mut Ui, label: &str, value: &str, mono: bool) {
 		egui::Align2::LEFT_CENTER,
 		label,
 		egui::FontId::new(11.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	let x = row.min.x + 62.0;
 	if mono {
-		truncated_mono(ui, pos2(x, row.center().y), value, 11.0, theme::TEXT, row.width() - 68.0);
+		truncated_mono(ui, pos2(x, row.center().y), value, 11.0, theme::text(), row.width() - 68.0);
 	} else {
-		truncated_text(ui, pos2(x, row.center().y), value, 11.5, theme::TEXT, row.width() - 68.0);
+		truncated_text(ui, pos2(x, row.center().y), value, 11.5, theme::text(), row.width() - 68.0);
 	}
 }
 
@@ -792,7 +816,7 @@ fn source_chip(ui: &mut Ui, label: &str) {
 		rect,
 		CornerRadius::same(theme::R_CONTROL),
 		Stroke::new(1.0_f32, theme::CHIP_BRANCH_BORDER),
-		egui::StrokeKind::Middle,
+		egui::StrokeKind::Inside,
 	);
 	ui.painter().text(
 		rect.center(),
@@ -859,7 +883,7 @@ fn short_git_error(error: &str) -> String {
 fn branches_group(ui: &mut Ui, shell: &mut Shell, status: &crate::git::GitStatus) {
 	let branches = status.branches.clone();
 	let open = shell.state.branches_open;
-	let head = group(ui, t!("分支"), branches.len(), "", true, |ui| {
+	let head = group(ui, t!("分支"), branches.len(), "", Some(open), |ui| {
 		if !open {
 			return;
 		}
@@ -870,7 +894,7 @@ fn branches_group(ui: &mut Ui, shell: &mut Shell, status: &crate::git::GitStatus
 				pos2(row.min.x + 22.0, row.center().y),
 				t!("没有读到分支列表"),
 				11.0,
-				theme::TEXT_3,
+				theme::text_3(),
 				row.width() - 30.0,
 			);
 		}
@@ -890,14 +914,14 @@ fn branch_list_row(ui: &mut Ui, shell: &mut Shell, branch: &crate::git::GitBranc
 	let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
 	if response.hovered() && !branch.current {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 	}
 	let dot = pos2(rect.min.x + 20.0, rect.center().y);
 	if branch.current {
 		ui.painter().circle_filled(dot, 3.5, theme::ACCENT_2);
 	} else {
 		ui.painter()
-			.circle_stroke(dot, 3.0, Stroke::new(1.2_f32, theme::TEXT_3));
+			.circle_stroke(dot, 3.0, Stroke::new(1.2_f32, theme::text_3()));
 	}
 	truncated_mono(
 		ui,
@@ -905,9 +929,9 @@ fn branch_list_row(ui: &mut Ui, shell: &mut Shell, branch: &crate::git::GitBranc
 		&branch.name,
 		11.5,
 		if branch.current {
-			theme::TEXT
+			theme::text()
 		} else {
-			theme::TEXT_2
+			theme::text_2()
 		},
 		rect.width() - 90.0,
 	);
@@ -928,7 +952,7 @@ fn branch_list_row(ui: &mut Ui, shell: &mut Shell, branch: &crate::git::GitBranc
 			if branch.current {
 				theme::ACCENT_2
 			} else {
-				theme::TEXT_3
+				theme::text_3()
 			},
 			60.0,
 		);
@@ -965,6 +989,47 @@ fn new_branch_row(ui: &mut Ui, shell: &mut Shell) {
 	}
 }
 
+/// The Git panel's ship row: one-line message, commit-all, and push.
+///
+/// Everything here is a real `git` write; a refusal is kept in `git_notice`
+/// and painted above this block, so a missing identity or rejected push is
+/// visible without a modal. The message is a shell draft, not panel state, so
+/// it survives switching tabs and panes.
+fn commit_box(ui: &mut Ui, shell: &mut Shell, status: &crate::git::GitStatus) {
+	let has_changes = !status.changed.is_empty() || !status.untracked.is_empty();
+	let has_message = !shell.git_commit_draft.trim().is_empty();
+	let can_push = status.upstream.is_none() || status.ahead > 0;
+	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 58.0), Sense::hover());
+	let mut child = ui.new_child(
+		egui::UiBuilder::new()
+			.max_rect(rect.shrink2(vec2(4.0, 2.0)))
+			.layout(Layout::top_down(Align::Min)),
+	);
+	child.add(
+		egui::TextEdit::singleline(&mut shell.git_commit_draft)
+			.hint_text(t!("提交说明"))
+			.desired_width(f32::INFINITY)
+			.font(egui::FontId::new(11.0, egui::FontFamily::Monospace)),
+	);
+	child.horizontal(|ui| {
+		if ui
+			.add_enabled(
+				has_changes && has_message,
+				egui::Button::new(egui::RichText::new(t!("提交全部更改")).size(11.0)),
+			)
+			.clicked()
+		{
+			shell.commit_git_changes();
+		}
+		if ui
+			.add_enabled(can_push, egui::Button::new(egui::RichText::new(t!("推送")).size(11.0)))
+			.clicked()
+		{
+			shell.push_git_branch();
+		}
+	});
+}
+
 fn branch_row(ui: &mut Ui, status: &crate::git::GitStatus) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
 	paint(
@@ -975,7 +1040,20 @@ fn branch_row(ui: &mut Ui, status: &crate::git::GitStatus) {
 		1.5,
 	);
 	let branch = status.branch.clone();
-	truncated_mono(ui, pos2(rect.min.x + 23.0, rect.center().y), &branch, 12.0, theme::TEXT, 150.0);
+	// The branch got 150pt but the upstream started at +120, so a branch
+	// longer than ~17 monospace glyphs painted under the upstream text.
+	// Both columns now come from one pair of numbers.
+	let branch_x = 23.0;
+	let branch_w = 112.0;
+	let upstream_x = branch_x + branch_w + 8.0;
+	truncated_mono(
+		ui,
+		pos2(rect.min.x + branch_x, rect.center().y),
+		&branch,
+		12.0,
+		theme::text(),
+		branch_w,
+	);
 	let upstream = status
 		.upstream
 		.as_ref()
@@ -983,10 +1061,10 @@ fn branch_row(ui: &mut Ui, status: &crate::git::GitStatus) {
 		.unwrap_or_else(|| t!("无上游分支").to_owned());
 	truncated_mono(
 		ui,
-		pos2(rect.min.x + 23.0 + 120.0, rect.center().y),
+		pos2(rect.min.x + upstream_x, rect.center().y),
 		&upstream,
 		11.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		90.0,
 	);
 	ui.painter().text(
@@ -994,7 +1072,7 @@ fn branch_row(ui: &mut Ui, status: &crate::git::GitStatus) {
 		egui::Align2::RIGHT_CENTER,
 		format!("+{} -{}", status.insertions, status.deletions),
 		egui::FontId::new(11.0, egui::FontFamily::Monospace),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 }
 
@@ -1004,16 +1082,23 @@ fn group(
 	title: &str,
 	count: usize,
 	badge_label: &str,
-	chevron: bool,
+	// `None` is an always-open group and must not draw a chevron: an arrow
+	// that cannot be clicked reads as a broken toggle. `Some(open)` draws the
+	// arrow matching the state.
+	chevron: Option<bool>,
 	body: impl FnOnce(&mut Ui),
 ) -> egui::Response {
 	let (head, response) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
-	if chevron {
+	if let Some(open) = chevron {
 		paint(
 			ui.painter(),
-			Icon::ChevronDown,
+			if open {
+				Icon::ChevronDown
+			} else {
+				Icon::ChevronRight
+			},
 			Rect::from_center_size(pos2(head.min.x + 10.0, head.center().y), vec2(12.0, 12.0)),
-			theme::TEXT_3,
+			theme::text_3(),
 			1.6,
 		);
 	}
@@ -1022,14 +1107,14 @@ fn group(
 		egui::Align2::LEFT_CENTER,
 		title,
 		egui::FontId::new(11.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	ui.painter().text(
 		pos2(head.min.x + 22.0 + crate::center::display_cols(title) as f32 * 12.0, head.center().y),
 		egui::Align2::LEFT_CENTER,
 		count.to_string(),
 		egui::FontId::new(11.0, egui::FontFamily::Monospace),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 	if !badge_label.is_empty() {
 		let mut child = ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_size(
@@ -1049,7 +1134,7 @@ fn file_row(ui: &mut Ui, name: &str, stats: Option<(u32, u32)>, badge_label: Opt
 		ui.painter(),
 		Icon::File,
 		Rect::from_center_size(pos2(rect.min.x + 13.0, rect.center().y), vec2(14.0, 14.0)),
-		theme::TEXT_3,
+		theme::text_3(),
 		1.5,
 	);
 	let stats_width = if stats.is_some() { 96.0 } else { 0.0 };
@@ -1058,7 +1143,7 @@ fn file_row(ui: &mut Ui, name: &str, stats: Option<(u32, u32)>, badge_label: Opt
 		pos2(rect.min.x + 26.0, rect.center().y),
 		name,
 		12.0,
-		theme::TEXT_2,
+		theme::text_2(),
 		rect.width() - 40.0 - stats_width,
 	);
 	if let Some((insertions, deletions)) = stats {
@@ -1104,7 +1189,7 @@ fn commit_row(ui: &mut Ui, commit: &crate::git::GitCommit) {
 		pos2(rect.min.x + 20.0, rect.min.y + 10.0),
 		&commit.subject,
 		12.5,
-		theme::TEXT_2,
+		theme::text_2(),
 		rect.width() - 30.0,
 	);
 	let refs = if commit.refs.is_empty() {

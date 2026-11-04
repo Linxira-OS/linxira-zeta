@@ -2,6 +2,7 @@ import { CURRENT_SETUP_VERSION } from "./setup-version";
 import type { SetupHost } from "./scenes/types";
 import { composerSetupScene } from "./scenes/composer";
 import { glyphSetupScene } from "./scenes/glyph";
+import { languageSetupScene } from "./scenes/language";
 import { modelSetupScene } from "./scenes/model";
 import { providersSetupScene } from "./scenes/sign-in";
 import { themeSetupScene } from "./scenes/theme";
@@ -15,6 +16,7 @@ export { CURRENT_SETUP_VERSION };
 
 /** Ordered onboarding scenes with independent version gates. */
 export const ALL_SCENES = [
+	languageSetupScene,
 	providersSetupScene,
 	modelSetupScene,
 	glyphSetupScene,

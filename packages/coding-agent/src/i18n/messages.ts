@@ -71,6 +71,9 @@ export interface Messages {
 	setupOutroSubtitle: string; // "Handing off to the normal CLI…"
 
 	// setup wizard: glyph mode scene
+	setupLanguageTitle: string;
+	setupLanguageSubtitle: string;
+	setupLanguageHint: string;
 	setupGlyphTitle: string;
 	setupGlyphSubtitle: string;
 	setupGlyphHint: string; // "If a row shows boxes, tofu, or misaligned icons, pick another."

@@ -28,10 +28,10 @@ const CONTROL_W: f32 = 44.0;
 pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	let painter = ui.painter().clone();
-	painter.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+	painter.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	painter.line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 
 	// The whole bar drags the window; the controls inside are separate widgets
@@ -67,7 +67,7 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 				egui::RichText::new("zetawork")
 					.size(13.0)
 					.strong()
-					.color(theme::TEXT),
+					.color(theme::text()),
 			);
 			let (dot, _) = ui.allocate_exact_size(vec2(7.0, 7.0), Sense::hover());
 			ui.painter().circle_filled(dot.center(), 3.5, theme::ADD);
@@ -75,11 +75,11 @@ pub fn title_bar(ui: &mut Ui, shell: &mut Shell) {
 			ui.label(
 				egui::RichText::new(crate::i18n::tr(crate::APP_SUBTITLE))
 					.size(11.5)
-					.color(theme::TEXT_3),
+					.color(theme::text_3()),
 			);
 			ui.add_space(10.0);
 			let label = format!("{} · {}", shell.state.workspace_label(), shell.state.branch_label());
-			ui.label(egui::RichText::new(label).size(12.0).color(theme::TEXT_2));
+			ui.label(egui::RichText::new(label).size(12.0).color(theme::text_2()));
 		});
 	});
 }
@@ -153,13 +153,13 @@ fn chrome_button(
 	let (rect, response) = ui.allocate_exact_size(vec2(CONTROL_W, height), Sense::click());
 	let hovered = response.hovered();
 	if hovered {
-		let fill = if close { theme::DEL } else { theme::PANEL_3 };
+		let fill = if close { theme::DEL } else { theme::panel_3() };
 		ui.painter().rect_filled(rect, CornerRadius::ZERO, fill);
 	}
 	let ink = if hovered && close {
 		Color32::WHITE
 	} else {
-		theme::TEXT_2
+		theme::text_2()
 	};
 	let box_ = Rect::from_center_size(rect.center(), vec2(11.0, 11.0));
 	paint(ui.painter(), icon, box_, ink, if close { 1.4 } else { 1.2 });
@@ -239,12 +239,12 @@ pub fn toast(ctx: &egui::Context, text: &str) {
 		.interactable(false)
 		.show(ctx, |ui| {
 			egui::Frame::new()
-				.fill(theme::PANEL_4)
-				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
+				.fill(theme::panel_4())
+				.stroke(Stroke::new(1.0_f32, theme::border_2()))
 				.corner_radius(CornerRadius::same(theme::R_PANEL))
 				.inner_margin(egui::Margin::symmetric(16, 9))
 				.show(ui, |ui| {
-					ui.label(egui::RichText::new(text).size(12.5).color(theme::TEXT));
+					ui.label(egui::RichText::new(text).size(12.5).color(theme::text()));
 				});
 		});
 }

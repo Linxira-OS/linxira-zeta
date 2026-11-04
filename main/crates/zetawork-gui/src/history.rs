@@ -31,8 +31,9 @@ use crate::{
 	widgets::{empty_note, panel_head, truncated_mono, truncated_text},
 };
 
-/// How many rows a page offers before it stops counting; the list is scrollable
-/// and the gateway's list is bounded by disk anyway.
+/// How many rows a page offers before it stops counting. The page says so at
+/// the end of the list when the query matched more; the old "whole list" claim
+/// was false above 500 rows.
 pub const MAX_ROWS: usize = 500;
 
 /// The page's own state: the search box's text.
@@ -173,6 +174,10 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 		return;
 	}
 
+	let matching = entries
+		.iter()
+		.filter(|entry| matches(&entry.conversation, &shell.history.query))
+		.count();
 	let filtered = filter(entries, &shell.history.query);
 	let query = shell.history.query.as_str();
 	let pinned = &shell.state.pinned_sessions;
@@ -203,13 +208,25 @@ pub fn panel(ui: &mut egui::Ui, shell: &mut Shell) {
 							egui::Align2::LEFT_CENTER,
 							&day,
 							egui::FontId::new(10.5, egui::FontFamily::Proportional),
-							theme::TEXT_3,
+							theme::text_3(),
 						);
 					}
 				}
 				if let Some(id) = row(ui, shell, entry, pinned, now_ms) {
 					open = Some(id);
 				}
+			}
+			if matching > filtered.len() {
+				let (rect, _) =
+					ui.allocate_exact_size(egui::vec2(ui.available_width(), 22.0), egui::Sense::hover());
+				truncated_text(
+					ui,
+					egui::pos2(rect.min.x + 10.0, rect.center().y),
+					&t!("仅显示最近 {} 条", filtered.len()),
+					10.5,
+					theme::text_3(),
+					rect.width() - 20.0,
+				);
 			}
 			ui.add_space(6.0);
 		});
@@ -234,7 +251,7 @@ fn row(
 		ui.painter().rect_filled(
 			rect.shrink2(egui::vec2(4.0, 0.0)),
 			egui::CornerRadius::same(theme::R_CONTROL),
-			theme::PANEL_3,
+			theme::panel_3(),
 		);
 	}
 	let project = project_label(shell, entry);
@@ -244,7 +261,7 @@ fn row(
 		egui::pos2(rect.min.x + 12.0, rect.center().y - 7.0),
 		conversation.display_title(),
 		12.0,
-		theme::TEXT,
+		theme::text(),
 		rect.width() - 70.0,
 	);
 	let mut meta = project;
@@ -259,7 +276,7 @@ fn row(
 		egui::pos2(rect.min.x + 12.0, rect.center().y + 8.0),
 		&meta,
 		10.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() - 70.0,
 	);
 	if conversation.running {
@@ -273,7 +290,7 @@ fn row(
 			rect.center().y,
 			&time,
 			10.0,
-			theme::TEXT_3,
+			theme::text_3(),
 			36.0,
 		);
 	}
@@ -287,6 +304,7 @@ fn row(
 	clicked.then(|| conversation.id.clone())
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
 	use super::*;

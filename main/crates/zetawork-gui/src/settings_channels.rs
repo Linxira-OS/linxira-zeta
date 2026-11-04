@@ -644,7 +644,15 @@ pub fn section(ui: &mut Ui, shell: &mut Shell) {
 		compact_note(ui, &pending);
 	}
 	if let Some(notice) = shell.channels.notice().cloned() {
-		compact_note_colored(ui, &notice.1, if notice.0 { theme::TEXT_2 } else { theme::WARN });
+		compact_note_colored(
+			ui,
+			&notice.1,
+			if notice.0 {
+				theme::text_2()
+			} else {
+				theme::WARN
+			},
+		);
 	}
 	if let Some(error) = shell.channels.error().map(str::to_owned) {
 		compact_note_colored(ui, &t!("渠道加载失败：{}", error), theme::WARN);
@@ -695,14 +703,14 @@ fn wechat_login(ui: &mut Ui, shell: &mut Shell, view: &View) {
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 108.0), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 4.0),
 		egui::Align2::LEFT_TOP,
 		t!("微信登录"),
 		FontId::new(12.5, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 
 	let qr_rect = Rect::from_min_size(pos2(rect.min.x, rect.min.y + 18.0), vec2(88.0, 88.0));
@@ -717,19 +725,19 @@ fn wechat_login(ui: &mut Ui, shell: &mut Shell, view: &View) {
 				);
 			} else {
 				ui.painter()
-					.rect_filled(qr_rect, CornerRadius::same(6), theme::PANEL_3);
+					.rect_filled(qr_rect, CornerRadius::same(6), theme::panel_3());
 				ui.painter().text(
 					qr_rect.center(),
 					egui::Align2::CENTER_CENTER,
 					t!("二维码加载中…"),
 					FontId::new(10.5, egui::FontFamily::Proportional),
-					theme::TEXT_3,
+					theme::text_3(),
 				);
 			}
 		},
 		None => {
 			ui.painter()
-				.rect_filled(qr_rect, CornerRadius::same(6), theme::PANEL_3);
+				.rect_filled(qr_rect, CornerRadius::same(6), theme::panel_3());
 		},
 	}
 
@@ -741,9 +749,9 @@ fn wechat_login(ui: &mut Ui, shell: &mut Shell, view: &View) {
 		stage_line,
 		FontId::new(12.0, egui::FontFamily::Proportional),
 		if stage == QrStage::Connected {
-			theme::TEXT
+			theme::text()
 		} else {
-			theme::TEXT_2
+			theme::text_2()
 		},
 	);
 	if let Some(error) = shell.channels.qr_error().map(str::to_owned) {
@@ -827,7 +835,7 @@ fn workspace_row(ui: &mut Ui, shell: &mut Shell, index: usize, workspace: &Works
 		egui::Align2::LEFT_CENTER,
 		t!("工作区 {}", index + 1),
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	let alias_key = format!("workspace.{index}.alias");
 	let path_key = format!("workspace.{index}.path");
@@ -934,7 +942,7 @@ fn binding_row(ui: &mut Ui, shell: &mut Shell, binding: &Binding) {
 		pos2(rect.min.x, rect.center().y),
 		&label,
 		11.5,
-		theme::TEXT_2,
+		theme::text_2(),
 		rect.width() - 64.0,
 	);
 	let remove = Rect::from_min_size(pos2(rect.max.x - 58.0, rect.min.y + 3.0), vec2(56.0, 22.0));
@@ -1088,8 +1096,8 @@ fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 		&form.line(),
 		match form.stage {
 			channels::CredentialStage::Failed => theme::WARN,
-			channels::CredentialStage::Saved => theme::TEXT_2,
-			_ => theme::TEXT_3,
+			channels::CredentialStage::Saved => theme::text_2(),
+			_ => theme::text_3(),
 		},
 	);
 
@@ -1129,8 +1137,8 @@ fn credentials(ui: &mut Ui, shell: &mut Shell, view: &View) {
 		&form.line(),
 		match form.stage {
 			channels::CredentialStage::Failed => theme::WARN,
-			channels::CredentialStage::Saved => theme::TEXT_2,
-			_ => theme::TEXT_3,
+			channels::CredentialStage::Saved => theme::text_2(),
+			_ => theme::text_3(),
 		},
 	);
 }
@@ -1199,7 +1207,7 @@ fn send_test(ui: &mut Ui, shell: &mut Shell) {
 			ui,
 			&outcome.line(),
 			if outcome.is_ok() {
-				theme::TEXT_2
+				theme::text_2()
 			} else {
 				theme::WARN
 			},
@@ -1221,14 +1229,14 @@ fn field_row(
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 3.0),
 		egui::Align2::LEFT_TOP,
 		label,
 		FontId::new(12.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	if !hint_text.is_empty() {
 		truncated_text(
@@ -1236,7 +1244,7 @@ fn field_row(
 			pos2(rect.min.x, rect.min.y + 24.0),
 			hint_text,
 			9.5,
-			theme::TEXT_3,
+			theme::text_3(),
 			rect.width() - 310.0,
 		);
 	}
@@ -1272,7 +1280,7 @@ fn text_field(
 
 /// A small non-row note.
 fn compact_note(ui: &mut Ui, text: &str) {
-	compact_note_colored(ui, text, theme::TEXT_3);
+	compact_note_colored(ui, text, theme::text_3());
 }
 
 fn compact_note_colored(ui: &mut Ui, text: &str, color: Color32) {

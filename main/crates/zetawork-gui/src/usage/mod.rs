@@ -36,6 +36,7 @@ use std::{
 
 /// The one loopback `GET` this crate owns, shared with the conversation page's
 /// live-window probe (`crate::conversation`).
+pub(crate) use api::delete as http_delete;
 pub(crate) use api::get as http_get;
 pub(crate) use api::post_json as http_post;
 pub use api::{CostRow, Costs, FetchError, Overview, Range, SeriesPoint, ServiceStatus, Snapshot};
@@ -284,26 +285,28 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 			let size =
 				vec2(DIALOG[0].min(screen.width() - 48.0), DIALOG[1].min(screen.height() - 48.0));
 			let dialog = Rect::from_center_size(screen.center(), size);
+			crate::widgets::click_shield(ui, dialog, "usage");
 			let mut dialog_ui = ui.new_child(egui::UiBuilder::new().max_rect(dialog));
 			egui::Frame::new()
-				.fill(theme::PANEL)
-				.stroke(Stroke::new(1.0_f32, theme::BORDER_2))
+				.fill(theme::panel())
+				.stroke(Stroke::new(1.0_f32, theme::border_2()))
 				.corner_radius(CornerRadius::same(theme::R_MODAL))
+				.shadow(theme::SHADOW_ISLAND)
 				.show(&mut dialog_ui, |ui| {
 					let rect = ui.max_rect();
 					ui.painter()
-						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::PANEL);
+						.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::panel());
 					let head = Rect::from_min_size(rect.min, vec2(rect.width(), 52.0));
 					ui.painter().line_segment(
 						[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 					);
 					ui.painter().text(
 						pos2(head.min.x + 14.0, head.center().y),
 						Align2::LEFT_CENTER,
 						t!("用量统计"),
 						FontId::new(14.0, egui::FontFamily::Proportional),
-						theme::TEXT,
+						theme::text(),
 					);
 					let range_hint = t!("{} 的 stats 汇总", usage.range().window());
 					ui.painter().text(
@@ -311,7 +314,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 						Align2::LEFT_CENTER,
 						range_hint,
 						FontId::new(11.0, egui::FontFamily::Proportional),
-						theme::TEXT_3,
+						theme::text_3(),
 					);
 					let mut head_right = ui.new_child(
 						egui::UiBuilder::new()
@@ -330,18 +333,21 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 					// The address bar: the real endpoint and its provenance.
 					let bar =
 						Rect::from_min_size(pos2(rect.min.x, head.max.y), vec2(rect.width(), 46.0));
-					ui.painter()
-						.rect_filled(bar, CornerRadius::ZERO, theme::PANEL_2);
+					ui.painter().rect_filled(
+						bar,
+						CornerRadius::same(theme::R_CONTROL),
+						theme::panel_2(),
+					);
 					ui.painter().line_segment(
 						[pos2(bar.min.x, bar.max.y - 0.5), pos2(bar.max.x, bar.max.y - 0.5)],
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 					);
 					truncated_text(
 						ui,
 						pos2(bar.min.x + 14.0, bar.center().y - 8.0),
 						&url,
 						12.0,
-						theme::TEXT,
+						theme::text(),
 						(bar.width() - 330.0).max(80.0),
 					);
 					truncated_text(
@@ -349,7 +355,7 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 						pos2(bar.min.x + 14.0, bar.center().y + 8.0),
 						&address,
 						11.0,
-						theme::TEXT_3,
+						theme::text_3(),
 						(bar.width() - 330.0).max(80.0),
 					);
 					let mut bar_right = ui.new_child(
@@ -370,11 +376,11 @@ pub fn container(ctx: &egui::Context, shell: &mut Shell) {
 					let body = Rect::from_min_max(pos2(rect.min.x, bar.max.y), rect.max);
 					let inner = body.shrink2(vec2(14.0, 14.0));
 					ui.painter()
-						.rect_filled(inner, CornerRadius::same(theme::R_PANEL), theme::GROUND);
+						.rect_filled(inner, CornerRadius::same(theme::R_PANEL), theme::ground());
 					ui.painter().rect_stroke(
 						inner,
 						CornerRadius::same(theme::R_PANEL),
-						Stroke::new(1.0_f32, theme::BORDER),
+						Stroke::new(1.0_f32, theme::border()),
 						egui::StrokeKind::Inside,
 					);
 					if embedded {
@@ -434,7 +440,7 @@ fn panel(
 		Align2::LEFT_CENTER,
 		t!("区间"),
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	let mut buttons = ui.new_child(
 		egui::UiBuilder::new()
@@ -456,7 +462,7 @@ fn panel(
 			Align2::RIGHT_CENTER,
 			status_line(snapshot),
 			FontId::new(10.5, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	} else if usage.loading() {
 		ui.painter().text(
@@ -464,7 +470,7 @@ fn panel(
 			Align2::RIGHT_CENTER,
 			t!("正在读取…"),
 			FontId::new(10.5, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	}
 	y += 34.0;
@@ -494,7 +500,7 @@ fn panel(
 				Align2::LEFT_BOTTOM,
 				source,
 				FontId::new(10.0, egui::FontFamily::Monospace),
-				theme::TEXT_3,
+				theme::text_3(),
 			);
 			if let Some(error) = usage.error() {
 				truncated_text_right(
@@ -516,17 +522,17 @@ fn panel(
 				vec2(rect.width(), (rect.max.y - y - 6.0).max(40.0)),
 			);
 			ui.painter()
-				.rect_filled(surface, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
+				.rect_filled(surface, CornerRadius::same(theme::R_PANEL), theme::panel_2());
 			ui.painter().rect_stroke(
 				surface,
 				CornerRadius::same(theme::R_PANEL),
-				Stroke::new(1.0_f32, theme::BORDER),
+				Stroke::new(1.0_f32, theme::border()),
 				egui::StrokeKind::Inside,
 			);
 			let (line, color) = match usage.error() {
-				Some(error) if error.is_absent() => (absent_line(url), theme::TEXT_2),
+				Some(error) if error.is_absent() => (absent_line(url), theme::text_2()),
 				Some(error) => (t!("读取 stats 失败：{}", error.message()), theme::WARN),
-				None => (t!("正在读取 {} …", origin), theme::TEXT_3),
+				None => (t!("正在读取 {} …", origin), theme::text_3()),
 			};
 			truncated_text_center(
 				ui,
@@ -626,11 +632,11 @@ fn summary_cards(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 /// One summary card.
 fn draw_card(ui: &egui::Ui, rect: Rect, label: &str, value: &str, sub: &str) {
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::panel_2());
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_PANEL),
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 		egui::StrokeKind::Inside,
 	);
 	ui.painter().text(
@@ -638,14 +644,14 @@ fn draw_card(ui: &egui::Ui, rect: Rect, label: &str, value: &str, sub: &str) {
 		Align2::LEFT_TOP,
 		label,
 		FontId::new(10.5, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	truncated_text(
 		ui,
 		pos2(rect.min.x + 10.0, rect.min.y + 40.0),
 		value,
 		19.0,
-		theme::TEXT,
+		theme::text(),
 		rect.width() - 20.0,
 	);
 	truncated_text(
@@ -653,7 +659,7 @@ fn draw_card(ui: &egui::Ui, rect: Rect, label: &str, value: &str, sub: &str) {
 		pos2(rect.min.x + 10.0, rect.min.y + 62.0),
 		sub,
 		10.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() - 20.0,
 	);
 }
@@ -713,11 +719,11 @@ pub fn bars(series: &[SeriesPoint], bucket_ms: i64) -> Vec<Bar> {
 /// The token bar chart, with the hovered bucket's numbers in its title row.
 fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Range) {
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::same(theme::R_PANEL), theme::panel_2());
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_PANEL),
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 		egui::StrokeKind::Inside,
 	);
 	let bucket_ms = range.bucket_ms();
@@ -727,7 +733,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 		Align2::LEFT_TOP,
 		t!("token 用量 · {}", range.window()),
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 	let plot = Rect::from_min_max(
 		pos2(rect.min.x + 46.0, rect.min.y + 32.0),
@@ -738,7 +744,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 		let y = plot.max.y - plot.height() * level as f32 / 2.0;
 		ui.painter().line_segment(
 			[pos2(plot.min.x, y), pos2(plot.max.x, y)],
-			Stroke::new(1.0_f32, theme::BORDER),
+			Stroke::new(1.0_f32, theme::border()),
 		);
 		let value = (max as f64) * level as f64 / 2.0;
 		ui.painter().text(
@@ -746,7 +752,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 			Align2::RIGHT_CENTER,
 			compact(value),
 			FontId::new(9.5, egui::FontFamily::Monospace),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	}
 	if bars.is_empty() || max == 0 {
@@ -755,7 +761,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 			Align2::CENTER_CENTER,
 			t!("此区间没有 token 记录"),
 			FontId::new(11.0, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 		return;
 	}
@@ -777,7 +783,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 					pos2(plot.min.x + slot * (index as f32 + 1.0), plot.max.y),
 				),
 				CornerRadius::ZERO,
-				theme::PANEL_3,
+				theme::panel_3(),
 			);
 			detail = Some(t!(
 				"{} · {} token · {} 次请求 · {}",
@@ -808,7 +814,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 			rect.min.y + 15.0,
 			&detail,
 			10.5,
-			theme::TEXT_2,
+			theme::text_2(),
 			rect.width() * 0.6,
 		);
 	}
@@ -819,7 +825,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 		Align2::LEFT_CENTER,
 		bucket_text(first, bucket_ms),
 		FontId::new(9.5, egui::FontFamily::Monospace),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	if bars.len() > 1 {
 		ui.painter().text(
@@ -827,7 +833,7 @@ fn chart_panel(ui: &mut egui::Ui, rect: Rect, series: &[SeriesPoint], range: Ran
 			Align2::RIGHT_CENTER,
 			bucket_text(last, bucket_ms),
 			FontId::new(9.5, egui::FontFamily::Monospace),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	}
 }
@@ -839,7 +845,7 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 		Align2::LEFT_TOP,
 		t!("按 Agent 类型"),
 		FontId::new(11.5, egui::FontFamily::Proportional),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 	let header = Rect::from_min_size(pos2(rect.min.x, rect.min.y + 20.0), vec2(rect.width(), 18.0));
 	let columns = [
@@ -856,12 +862,12 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 			align,
 			label,
 			FontId::new(9.5, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	}
 	ui.painter().line_segment(
 		[pos2(rect.min.x, header.max.y), pos2(rect.max.x, header.max.y)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let pointer = ui.ctx().pointer_hover_pos();
 	let row_h = 22.0;
@@ -873,7 +879,7 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 			Align2::CENTER_CENTER,
 			t!("此区间没有 agent 类型记录"),
 			FontId::new(10.5, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 		return;
 	}
@@ -882,7 +888,7 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 		let row_rect = Rect::from_min_size(pos2(rect.min.x, y), vec2(rect.width(), row_h));
 		if pointer.is_some_and(|pointer| row_rect.contains(pointer)) {
 			ui.painter()
-				.rect_filled(row_rect, CornerRadius::same(3), theme::PANEL_2);
+				.rect_filled(row_rect, CornerRadius::same(3), theme::panel_2());
 		}
 		let centre = row_rect.center().y;
 		truncated_text(
@@ -894,7 +900,7 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 				row.agent_type.as_str()
 			},
 			11.0,
-			theme::TEXT_2,
+			theme::text_2(),
 			rect.width() * 0.28,
 		);
 		ui.painter().text(
@@ -902,28 +908,28 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 			Align2::RIGHT_CENTER,
 			format!("{}", row.total_requests),
 			FontId::new(10.5, egui::FontFamily::Monospace),
-			theme::TEXT,
+			theme::text(),
 		);
 		ui.painter().text(
 			pos2(rect.min.x + rect.width() * 0.62, centre),
 			Align2::RIGHT_CENTER,
 			compact(row.total_input_tokens as f64),
 			FontId::new(10.5, egui::FontFamily::Monospace),
-			theme::TEXT_2,
+			theme::text_2(),
 		);
 		ui.painter().text(
 			pos2(rect.min.x + rect.width() * 0.78, centre),
 			Align2::RIGHT_CENTER,
 			compact(row.total_output_tokens as f64),
 			FontId::new(10.5, egui::FontFamily::Monospace),
-			theme::TEXT_2,
+			theme::text_2(),
 		);
 		ui.painter().text(
 			pos2(rect.max.x, centre),
 			Align2::RIGHT_CENTER,
 			cost_text(row.total_cost, 0),
 			FontId::new(10.5, egui::FontFamily::Monospace),
-			theme::TEXT_2,
+			theme::text_2(),
 		);
 	}
 	let hidden = rows.len().saturating_sub(available);
@@ -933,7 +939,7 @@ fn agent_table(ui: &mut egui::Ui, rect: Rect, overview: &Overview) {
 			Align2::LEFT_BOTTOM,
 			t!("另有 {} 类未显示", hidden),
 			FontId::new(9.5, egui::FontFamily::Proportional),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 	}
 }
@@ -989,15 +995,15 @@ fn range_button(ui: &mut egui::Ui, label: &str, active: bool) -> egui::Response 
 	let font = FontId::new(11.0, egui::FontFamily::Proportional);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT_2);
+		.layout_no_wrap(label.to_owned(), font.clone(), theme::text_2());
 	let (rect, response) =
 		ui.allocate_exact_size(vec2(galley.size().x + 22.0, 24.0), Sense::click());
 	let (ink, fill, border) = if active {
-		(theme::ACCENT_2, theme::ACCENT_DIM, theme::BORDER_2)
+		(theme::ACCENT_2, theme::ACCENT_DIM, theme::border_2())
 	} else if response.hovered() {
-		(theme::TEXT, theme::PANEL_3, theme::BORDER_2)
+		(theme::text(), theme::panel_3(), theme::border_2())
 	} else {
-		(theme::TEXT_2, theme::PANEL_2, theme::BORDER)
+		(theme::text_2(), theme::panel_2(), theme::border())
 	};
 	ui.painter()
 		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), fill);
@@ -1017,15 +1023,15 @@ fn copy_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
 	let font = FontId::new(11.5, egui::FontFamily::Proportional);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT_2);
+		.layout_no_wrap(label.to_owned(), font.clone(), theme::text_2());
 	let (rect, response) =
 		ui.allocate_exact_size(vec2(galley.size().x + 20.0, 26.0), Sense::click());
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_CONTROL),
-		Stroke::new(1.0_f32, theme::BORDER_2),
+		Stroke::new(1.0_f32, theme::border_2()),
 		egui::StrokeKind::Inside,
 	);
 	ui.painter().text(
@@ -1034,9 +1040,9 @@ fn copy_button(ui: &mut egui::Ui, label: &str) -> egui::Response {
 		label,
 		font,
 		if response.hovered() {
-			theme::TEXT
+			theme::text()
 		} else {
-			theme::TEXT_2
+			theme::text_2()
 		},
 	);
 	response

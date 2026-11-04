@@ -230,6 +230,29 @@ static EN: &[(&str, &str)] = &[
 	("zetacode 选项 · ~/.zeta/agent/config.yml", "zetacode options · ~/.zeta/agent/config.yml"),
 	("zetacode 选项未读取", "zetacode options not read"),
 	("zetawork — 工作台在后台运行", "zetawork — workbench running in the background"),
+	("工作台", "Workbench"),
+	("本机", "Local"),
+	("这一页没有会话", "No session on this page"),
+	("当前会话", "Current session"),
+	("最新会话", "Latest session"),
+	("空闲", "Idle"),
+	("仅显示最近 {} 条", "Showing only the latest {}"),
+	(
+		"当前会话的上下文占用，取自会话日志的 usage 条目；窗口未知时显示 —",
+		"Context usage for the current session, read from its usage entries; shown as — when the window is unknown",
+	),
+	(
+		"总面板：所有项目一张表 —— 哪个工作区在哪个项目下、绑哪条分支、多少没提交",
+		"Overview: one table for every project — workspace, owning project, branch and uncommitted work",
+	),
+	(
+		"±行 / 未提交：只读取已打开工作区的 git 快照（git status、diff --numstat），其余行等开机再读",
+		"±lines / uncommitted: only open workspaces are read from git (git status, diff --numstat); other rows are read when opened",
+	),
+	(
+		"WebView2 子窗口未附加（没有可用的原生窗口）",
+		"The WebView2 child window is not attached (no native window is available)",
+	),
 	("zetawork 自己", "zetawork itself"),
 	("{} · baseUrl 写回 models.yml", "{} · baseUrl written back to models.yml"),
 	("{} · {} token · {} 次请求 · {}", "{} · {} tokens · {} requests · {}"),
@@ -317,6 +340,9 @@ static EN: &[(&str, &str)] = &[
 	("关闭 WebSocket 失败：{}", "Close WebSocket failed: {}"),
 	("关闭右侧栏", "Hide right sidebar"),
 	("关闭标签页", "Close tab"),
+	("关闭工作区", "Close workspace"),
+	("打开", "Open"),
+	("删除…", "Delete…"),
 	("关闭窗口", "Close window"),
 	("关闭窗口时", "On window close"),
 	("关闭面板", "Close pane"),
@@ -406,6 +432,9 @@ static EN: &[(&str, &str)] = &[
 	),
 	("差异比较器", "Diff"),
 	("已从注册表移除 {}（目录未删除）", "Removed {} from the registry (directory not deleted)"),
+	("已关闭 {} 个标签页", "Closed {} tabs"),
+	("已关闭 {} 个标签页（最后一个保留）", "Closed {} tabs (the last one stays)"),
+	("没有打开这个会话的标签页", "This conversation has no open tab"),
 	("已保存 {}", "Saved {}"),
 	("已保存 {} 个文件", "Saved {} files"),
 	("已写入 models.yml：{}.baseUrl", "Wrote models.yml: {}.baseUrl"),
@@ -417,6 +446,8 @@ static EN: &[(&str, &str)] = &[
 		"Cleared {} paths · {} files · {} directories · {}",
 	),
 	("已聚焦当前窗口", "Focused the current window"),
+	("帮助", "Help"),
+	("聚焦", "Focus"),
 	("已读取 {} 项 zetacode 选项", "Read {} zetacode options"),
 	("已连接", "Connected"),
 	("已重命名为 {}", "Renamed to {}"),
@@ -460,6 +491,12 @@ static EN: &[(&str, &str)] = &[
 	("按 Agent 类型", "By agent type"),
 	("控制面板与列表的行距", "Row spacing of panels and lists"),
 	("提交", "Commits"),
+	("提交全部更改", "Commit all changes"),
+	("提交说明", "Commit message"),
+	("提交说明不能为空", "Commit message cannot be empty"),
+	("已提交全部更改", "Committed all changes"),
+	("已推送当前分支", "Pushed the current branch"),
+	("推送", "Push"),
 	("收到没有起始帧的 continuation", "received a continuation without a start frame"),
 	("收起左侧栏", "Hide left sidebar"),
 	("收起状态栏", "Collapse status bar"),
@@ -1173,6 +1210,19 @@ static EN: &[(&str, &str)] = &[
 	("已取消置顶", "Unpinned"),
 	("已归档", "Archived"),
 	("已归档 {}", "Archived {}"),
+	(
+		"已删除 {}（已移入回收站，30 天后自动清理）",
+		"Deleted {} (moved to trash; purged after 30 days)",
+	),
+	("会话已删除", "Session deleted"),
+	("会话已不存在，列表将刷新", "The session no longer exists; the list will refresh"),
+	("会话正在运行，先停止后再删除", "The session is running; stop it before deleting"),
+	("会话正在运行，先停止后再归档", "The session is running; stop it before archiving"),
+	("删除会移入回收站，需二次确认", "Delete moves it to the trash and needs confirmation"),
+	("再次点击“确认删除”移入回收站", "Click “Confirm delete” again to move it to the trash"),
+	("正在删除…", "Deleting…"),
+	("上一个会话操作仍在进行", "The previous session operation is still running"),
+	("relay 会话不可删除", "Relay sessions cannot be deleted"),
 	("已恢复 {}", "Restored {}"),
 	("已移除工作树 {}", "Removed worktree {}"),
 	("已经在这个工作树里", "Already in this worktree"),
@@ -1200,6 +1250,62 @@ static EN: &[(&str, &str)] = &[
 	("最后会话", "Last session"),
 	("概览", "Overview"),
 	("正在归档…", "Archiving…"),
+	("会话仍显示在标签页中，未归档", "The conversation is still shown in a tab; not archived"),
+	(
+		"已移除工作区；有未完成的保存或归档：{}",
+		"Workspace removed; some saves or archives did not finish: {}",
+	),
+	("保存失败，未移除工作区：{}", "Save failed; workspace not removed: {}"),
+	("没有这个标签页：{}", "No such tab: {}"),
+	("{} 个标签页保留（面板的最后一个）", "{} tabs kept (the pane's last one)"),
+	("只关闭这个标签页；会话本身保留", "Closes only this tab; the conversation itself stays"),
+	("仅从视图移除", "Remove from view"),
+	("只有会话可以删除", "Only conversations can be deleted"),
+	(
+		"项目和工作区没有归档；Delete 只从视图移除",
+		"Projects and workspaces have no archive; Delete removes the view only",
+	),
+	(
+		"只有注册项目的首个标签页会持久化命名",
+		"Only the first tab of a registered project persists its name",
+	),
+	(
+		"Enter 打开 · Delete 仅从视图移除 · Shift+Delete 关闭并归档（可恢复） · Ctrl+Shift+Delete 删除会话…",
+		"Enter open · Delete removes view only · Shift+Delete close and archive (recoverable) · Ctrl+Shift+Delete delete conversation…",
+	),
+	(
+		"经 zetacode/gateway 软删除，需要在会话管理中确认",
+		"Soft-deletes through zetacode/gateway; confirm in Session Management",
+	),
+	(
+		"运行中的会话不能删除，请先关闭并归档",
+		"A running conversation cannot be deleted; close and archive it first",
+	),
+	("删除会话…", "Delete conversation…"),
+	(
+		"停止会话并归档；之后可在会话管理中恢复",
+		"Stops the conversation and archives it; restore it from Session Management later",
+	),
+	("关闭并归档（可恢复）", "Close and archive (recoverable)"),
+	(
+		"只关闭右侧标签页；不归档、不删除",
+		"Closes only the right-side tab; does not archive or delete",
+	),
+	("仅从视图移除（保留会话）", "Remove from view (keeps the conversation)"),
+	(
+		"右键或悬停 ... 打开菜单 · F2 重命名 · Delete 仅从视图移除（不删除目录）",
+		"Right-click or hover ... for the menu · F2 rename · Delete removes the view only (does not delete the directory)",
+	),
+	(
+		"只从界面移除；目录由你自己删除",
+		"Removes it from the UI only; you delete the directory yourself",
+	),
+	("移除工作区（不删除目录）", "Remove workspace (does not delete the directory)"),
+	(
+		"只从项目注册表移除；目录和文件不会被删除",
+		"Removes only the project registration; the directory and its files are untouched",
+	),
+	("从注册表移除（不删除目录）", "Remove from registry (does not delete the directory)"),
 	("正在恢复…", "Restoring…"),
 	("正在重启后端…", "Restarting the backend…"),
 	("没有匹配「{}」的会话", "No session matches “{}”"),
@@ -1217,7 +1323,10 @@ static EN: &[(&str, &str)] = &[
 		"Settings → Remote access: bind address, TLS, token, pairing code",
 	),
 	("跟踪", "Tracking"),
-	("跨项目搜索、置顶、归档与恢复", "Search, pin, archive and restore across projects"),
+	(
+		"跨项目搜索、置顶、归档、恢复与删除",
+		"Search, pin, archive, restore and delete across projects",
+	),
 	(
 		"跳转到项目、工作区、会话、文件，或运行一个桌面动作",
 		"Jump to a project, workspace, conversation or file, or run a desktop action",
@@ -1581,6 +1690,29 @@ mod tests {
 			missing.len(),
 			missing.join("\n")
 		);
+	}
+
+	#[test]
+	fn constants_passed_to_tr_have_english_rows() {
+		// `tr(CONST)` does not contain a `t!` literal, so the main guard
+		// cannot see these. Every constant used that way is listed here;
+		// adding a new one without a row is a test failure.
+		for key in [
+			"这一页没有会话",
+			"当前会话",
+			"最新会话",
+			"当前会话的上下文占用，取自会话日志的 usage 条目；窗口未知时显示 —",
+			"工作台",
+			"本机",
+			"总面板：所有项目一张表 —— 哪个工作区在哪个项目下、绑哪条分支、多少没提交",
+			"±行 / 未提交：只读取已打开工作区的 git 快照（git status、diff --numstat），其余行等开机再读",
+			"WebView2 子窗口未附加（没有可用的原生窗口）",
+		] {
+			assert!(
+				EN.iter().any(|(zh, _)| *zh == key),
+				"constant used with tr() has no English row: {key:?}"
+			);
+		}
 	}
 
 	#[test]

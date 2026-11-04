@@ -326,7 +326,7 @@ fn column_ui(ui: &mut Ui, shell: &mut Shell, column: Column) {
 		ui.label(
 			RichText::new(format!("{} {}", column_label(column), ids.len()))
 				.size(10.0)
-				.color(theme::TEXT_3),
+				.color(theme::text_3()),
 		);
 		if ui
 			.add(egui::Button::new(RichText::new("+").size(10.0)).frame(false))
@@ -338,7 +338,7 @@ fn column_ui(ui: &mut Ui, shell: &mut Shell, column: Column) {
 	});
 	ui.add_space(2.0);
 	if ids.is_empty() {
-		ui.label(RichText::new(t!("—")).size(10.0).color(theme::TEXT_3));
+		ui.label(RichText::new(t!("—")).size(10.0).color(theme::text_3()));
 		return;
 	}
 	for id in ids {
@@ -358,9 +358,9 @@ fn card_ui(ui: &mut Ui, shell: &mut Shell, id: &str, column: Column) {
 	let selected = shell.board.selected() == Some(id);
 
 	let fill = if selected {
-		theme::PANEL_4
+		theme::panel_4()
 	} else {
-		theme::PANEL_3
+		theme::panel_3()
 	};
 	egui::Frame::new()
 		.fill(fill)
@@ -369,7 +369,7 @@ fn card_ui(ui: &mut Ui, shell: &mut Shell, id: &str, column: Column) {
 			if selected {
 				theme::ACCENT_DIM
 			} else {
-				theme::BORDER
+				theme::border()
 			},
 		))
 		.corner_radius(CornerRadius::same(theme::R_CONTROL))
@@ -378,7 +378,7 @@ fn card_ui(ui: &mut Ui, shell: &mut Shell, id: &str, column: Column) {
 			ui.set_width(ui.available_width());
 			ui.spacing_mut().item_spacing.y = 2.0;
 			let label = ui.add(
-				egui::Label::new(RichText::new(title).size(10.5).color(theme::TEXT))
+				egui::Label::new(RichText::new(title).size(10.5).color(theme::text()))
 					.truncate()
 					.sense(Sense::click()),
 			);
@@ -397,7 +397,7 @@ fn card_ui(ui: &mut Ui, shell: &mut Shell, id: &str, column: Column) {
 			if let Some(due) = due {
 				meta.push_str(&format!(" · {due}"));
 			}
-			ui.label(RichText::new(meta).size(9.0).color(theme::TEXT_3));
+			ui.label(RichText::new(meta).size(9.0).color(theme::text_3()));
 			ui.horizontal(|ui| {
 				if let Some(previous) = column.previous() {
 					if ui
@@ -436,21 +436,21 @@ fn draft_form(ui: &mut Ui, shell: &mut Shell) {
 		} else {
 			t!("新建卡片")
 		};
-		ui.label(RichText::new(heading).size(11.0).color(theme::TEXT_2));
+		ui.label(RichText::new(heading).size(11.0).color(theme::text_2()));
 		ui.add_space(4.0);
-		ui.label(RichText::new(t!("标题")).size(9.5).color(theme::TEXT_3));
+		ui.label(RichText::new(t!("标题")).size(9.5).color(theme::text_3()));
 		ui.add(
 			egui::TextEdit::singleline(&mut draft.title)
 				.desired_width(f32::INFINITY)
 				.font(egui::FontId::new(11.0, egui::FontFamily::Proportional)),
 		);
-		ui.label(RichText::new(t!("列")).size(9.5).color(theme::TEXT_3));
+		ui.label(RichText::new(t!("列")).size(9.5).color(theme::text_3()));
 		ui.horizontal(|ui| {
 			for column in Column::ALL {
 				ui.selectable_value(&mut draft.column, column, column_label(column));
 			}
 		});
-		ui.label(RichText::new(t!("负责人")).size(9.5).color(theme::TEXT_3));
+		ui.label(RichText::new(t!("负责人")).size(9.5).color(theme::text_3()));
 		ui.horizontal(|ui| {
 			ui.selectable_value(&mut draft.assignee, Assignee::User, t!("用户"));
 			ui.selectable_value(&mut draft.assignee, Assignee::Agent, t!("agent"));
@@ -458,7 +458,7 @@ fn draft_form(ui: &mut Ui, shell: &mut Shell) {
 		ui.label(
 			RichText::new(t!("标签（逗号分隔）"))
 				.size(9.5)
-				.color(theme::TEXT_3),
+				.color(theme::text_3()),
 		);
 		ui.add(
 			egui::TextEdit::singleline(&mut draft.tags)
@@ -468,7 +468,7 @@ fn draft_form(ui: &mut Ui, shell: &mut Shell) {
 		ui.label(
 			RichText::new(t!("截止（YYYY-MM-DD）"))
 				.size(9.5)
-				.color(theme::TEXT_3),
+				.color(theme::text_3()),
 		);
 		ui.add(
 			egui::TextEdit::singleline(&mut draft.due)
@@ -478,7 +478,7 @@ fn draft_form(ui: &mut Ui, shell: &mut Shell) {
 		ui.label(
 			RichText::new(t!("正文（交给 agent 的 brief）"))
 				.size(9.5)
-				.color(theme::TEXT_3),
+				.color(theme::text_3()),
 		);
 		ui.add(
 			egui::TextEdit::multiline(&mut draft.body)

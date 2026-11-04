@@ -466,13 +466,16 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 	let screen = ctx.content_rect();
 	let x = (screen.center().x - WIDTH / 2.0).max(screen.min.x + 12.0);
 	let y = screen.min.y + 96.0;
-	let rect = Rect::from_min_size(pos2(x, y), vec2(WIDTH, 540.0));
+	// The fixed 540pt was taller than the 560pt minimum window, so the
+	// footer hint and the bottom of the list were painted off-screen.
+	let height = 540.0_f32.min(screen.height() - 96.0 - 12.0).max(240.0);
+	let rect = Rect::from_min_size(pos2(x, y), vec2(WIDTH, height));
 
 	let mut run_action: Option<Action> = None;
 	let mut close = false;
 	egui::Area::new(egui::Id::new("zetawork-palette"))
 		.order(Order::Foreground)
-		.fixed_pos(rect.min)
+		.fixed_pos(screen.min)
 		.show(ctx, |ui| {
 			let (backdrop, backdrop_response) = ui.allocate_exact_size(screen.size(), Sense::click());
 			if backdrop_response.clicked() {
@@ -483,17 +486,19 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 				CornerRadius::ZERO,
 				egui::Color32::from_rgba_unmultiplied(3, 5, 8, 60),
 			);
+			crate::widgets::click_shield(ui, rect, "palette");
+			theme::paint_shadow(ui.painter(), rect, CornerRadius::same(theme::R_MODAL));
 			let mut panel = ui.new_child(
 				egui::UiBuilder::new()
 					.max_rect(rect)
 					.layout(Layout::top_down(Align::Min)),
 			);
 			let painter = panel.painter().clone();
-			painter.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::PANEL);
+			painter.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::panel());
 			painter.rect_stroke(
 				rect,
 				CornerRadius::same(theme::R_MODAL),
-				Stroke::new(1.0_f32, theme::BORDER_2),
+				Stroke::new(1.0_f32, theme::border_2()),
 				egui::StrokeKind::Inside,
 			);
 			// The search field is the box's whole input; it owns the keyboard.
@@ -507,20 +512,20 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 				field_ui.painter(),
 				Icon::Search,
 				Rect::from_center_size(pos2(field.min.x + 22.0, field.center().y), vec2(15.0, 15.0)),
-				theme::TEXT_3,
+				theme::text_3(),
 				1.5,
 			);
 			field_ui.add_space(22.0);
 			let edit = egui::TextEdit::singleline(&mut shell.state.palette_mut().expect("open").query)
 				.hint_text(t!("跳转到项目、工作区、会话、文件，或运行一个桌面动作"))
-				.frame(false)
+				.frame(egui::Frame::NONE)
 				.desired_width(field.width() - 60.0)
 				.font(egui::TextStyle::Body);
 			let response = field_ui.add(edit);
 			response.request_focus();
 			painter.line_segment(
 				[pos2(rect.min.x, field.max.y + 0.5), pos2(rect.max.x, field.max.y + 0.5)],
-				Stroke::new(1.0_f32, theme::BORDER),
+				Stroke::new(1.0_f32, theme::border()),
 			);
 
 			let Some(palette) = shell.state.palette() else {
@@ -533,11 +538,14 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 				palette.selected.min(ranked.len() - 1)
 			};
 			let items = &palette.items;
+			let list_height = (rect.max.y - field.max.y - 2.0 - 22.0)
+				.min(ROW_H * VISIBLE_ROWS as f32 + 8.0)
+				.max(ROW_H);
 			let mut list = panel.new_child(
 				egui::UiBuilder::new()
 					.max_rect(Rect::from_min_size(
 						pos2(rect.min.x, field.max.y + 2.0),
-						vec2(rect.width(), ROW_H * VISIBLE_ROWS as f32 + 8.0),
+						vec2(rect.width(), list_height),
 					))
 					.layout(Layout::top_down(Align::Min)),
 			);
@@ -551,7 +559,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 							pos2(ui.cursor().min.x + 14.0, ui.cursor().min.y + ROW_H / 2.0),
 							t!("没有可跳转的内容"),
 							12.0,
-							theme::TEXT_3,
+							theme::text_3(),
 							rect.width() - 28.0,
 						);
 						return;
@@ -562,7 +570,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 							pos2(ui.cursor().min.x + 14.0, ui.cursor().min.y + ROW_H / 2.0),
 							&t!("没有匹配「{}」的行", palette.query.trim()),
 							12.0,
-							theme::TEXT_3,
+							theme::text_3(),
 							rect.width() - 28.0,
 						);
 						return;
@@ -579,7 +587,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 								egui::Align2::LEFT_CENTER,
 								section,
 								FontId::new(10.0, egui::FontFamily::Proportional),
-								theme::TEXT_3,
+								theme::text_3(),
 							);
 						}
 						let (row, response) =
@@ -589,14 +597,14 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 							ui.painter().rect_filled(
 								row.shrink2(vec2(8.0, 1.0)),
 								CornerRadius::same(theme::R_CONTROL),
-								theme::PANEL_4,
+								theme::panel_4(),
 							);
 							ui.scroll_to_rect(row, None);
 						} else if response.hovered() {
 							ui.painter().rect_filled(
 								row.shrink2(vec2(8.0, 1.0)),
 								CornerRadius::same(theme::R_CONTROL),
-								theme::PANEL_3,
+								theme::panel_3(),
 							);
 						}
 						truncated_text(
@@ -604,7 +612,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 							pos2(row.min.x + 20.0, row.center().y - 7.0),
 							&item.title,
 							12.0,
-							theme::TEXT,
+							theme::text(),
 							row.width() - 40.0,
 						);
 						truncated_mono(
@@ -612,7 +620,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 							pos2(row.min.x + 20.0, row.center().y + 7.0),
 							&item.detail,
 							9.5,
-							theme::TEXT_3,
+							theme::text_3(),
 							row.width() - 40.0,
 						);
 						if response.clicked() {
@@ -625,7 +633,7 @@ pub fn popup(ctx: &egui::Context, shell: &mut Shell) {
 				egui::Align2::LEFT_CENTER,
 				t!("↑↓ 选择 · Enter 执行 · Esc 关闭"),
 				FontId::new(9.5, egui::FontFamily::Proportional),
-				theme::TEXT_3,
+				theme::text_3(),
 			);
 		});
 	if let Some(action) = run_action {

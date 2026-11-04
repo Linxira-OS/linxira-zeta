@@ -360,13 +360,13 @@ impl PdfCache {
 pub fn body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	let bar = Rect::from_min_size(rect.min, vec2(rect.width(), BAR));
 	ui.painter()
-		.rect_filled(bar, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(bar, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(bar.min.x, bar.max.y - 0.5), pos2(bar.max.x, bar.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let Some(path) = tab.pdf.clone() else {
 		truncated_mono(
@@ -374,7 +374,7 @@ pub fn body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 			pos2(bar.min.x + 10.0, bar.center().y),
 			t!("PDF"),
 			11.0,
-			theme::TEXT_3,
+			theme::text_3(),
 			bar.width() - 20.0,
 		);
 		empty_note(ui, t!("这个标签页没有打开 PDF"));
@@ -389,7 +389,7 @@ pub fn body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		pos2(bar.min.x + 10.0, bar.center().y),
 		&title,
 		11.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		(bar.width() - 360.0).max(60.0),
 	);
 	toolbar(ui, bar, doc, (sheet.width() - PAD * 2.0).max(1.0));
@@ -417,7 +417,7 @@ pub fn body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	let mut area = ui.new_child(egui::UiBuilder::new().max_rect(sheet));
 	area
 		.painter()
-		.rect_filled(sheet, CornerRadius::ZERO, theme::GROUND);
+		.rect_filled(sheet, CornerRadius::ZERO, theme::ground());
 	egui::ScrollArea::both()
 		.id_salt(("zetawork-pdf-scroll", id.as_str(), page))
 		.auto_shrink([false, false])
@@ -486,10 +486,10 @@ fn toolbar(ui: &mut Ui, bar: Rect, doc: &mut PdfDoc, sheet_width: f32) {
 /// The footer: page size, the last raster's time, and the renderer's name.
 fn footer(ui: &mut Ui, foot: Rect, doc: &PdfDoc, size: Option<egui::Vec2>) {
 	ui.painter()
-		.rect_filled(foot, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(foot, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(foot.min.x, foot.min.y + 0.5), pos2(foot.max.x, foot.min.y + 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let mut parts: Vec<String> = Vec::new();
 	if let Some(size) = size {
@@ -505,12 +505,12 @@ fn footer(ui: &mut Ui, foot: Rect, doc: &PdfDoc, size: Option<egui::Vec2>) {
 		let galley = ui.painter().layout_no_wrap(
 			part.clone(),
 			FontId::new(11.0, egui::FontFamily::Monospace),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 		ui.painter().galley(
 			pos2(x, foot.center().y - galley.size().y / 2.0),
 			galley.clone(),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 		x += galley.size().x + 18.0;
 	}
@@ -521,7 +521,7 @@ fn label_button(ui: &mut Ui, label: &str, enabled: bool) -> egui::Response {
 	let font = FontId::new(11.0, egui::FontFamily::Monospace);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT_2);
+		.layout_no_wrap(label.to_owned(), font.clone(), theme::text_2());
 	let size = vec2(galley.size().x + 14.0, 22.0);
 	let (rect, response) = ui.allocate_exact_size(
 		size,
@@ -532,11 +532,11 @@ fn label_button(ui: &mut Ui, label: &str, enabled: bool) -> egui::Response {
 		},
 	);
 	let (fill, ink) = if !enabled {
-		(theme::PANEL_3, theme::TEXT_3)
+		(theme::panel_3(), theme::text_3())
 	} else if response.hovered() {
-		(theme::PANEL_4, theme::TEXT)
+		(theme::panel_4(), theme::text())
 	} else {
-		(theme::PANEL_3, theme::TEXT_2)
+		(theme::panel_3(), theme::text_2())
 	};
 	ui.painter()
 		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), fill);
@@ -554,7 +554,7 @@ fn text_slot(ui: &mut Ui, label: &str, width: f32) {
 		Align2::CENTER_CENTER,
 		label,
 		FontId::new(11.0, egui::FontFamily::Monospace),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 }
 

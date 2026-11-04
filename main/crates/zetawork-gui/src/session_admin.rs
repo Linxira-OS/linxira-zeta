@@ -4,19 +4,23 @@
 //! The left column lists conversations by workspace; this modal is the flat,
 //! cross-project view the web UI's sidebar actions provide. It is the same
 //! data the 历史 page reads (`GET /api/sessions`) plus the archive tree
-//! (`GET /api/sessions/archived`), with two mutations:
+//! (`GET /api/sessions/archived`), with three mutations:
 //!
 //! ```text
-//! POST /api/sessions/<id>/archive
-//! POST /api/sessions/<id>/unarchive
+//! POST   /api/sessions/<id>/archive
+//! POST   /api/sessions/<id>/unarchive
+//! DELETE /api/sessions/<id>
 //! ```
 //!
 //! Pinning is a GUI preference, not a gateway field: [`crate::sessions::pins_path`]
 //! is written only by a real run (`probe`), and pinned rows sort first in this
 //! list and are marked in 历史. Archive and restore are the gateway's own
-//! filesystem moves — the modal never deletes a transcript.
+//! filesystem moves; delete is a **soft delete** into
+//! `~/.zeta/trash/sessions` (30-day retention), not a purge. The user sees
+//! that sentence in the notice rather than an Undo button, because the gateway
+//! exposes no trash-list or restore endpoint yet.
 //!
-//! Both requests run on a worker and are drained by [`Admin::poll`]; the modal
+//! All requests run on a worker and are drained by [`Admin::poll`]; the modal
 //! never blocks a frame on a socket.
 
 use std::{
@@ -65,11 +69,21 @@ pub enum Event {
 	DidArchive(String),
 	/// One session was restored.
 	DidUnarchive(String),
+	/// One session was soft-deleted into `~/.zeta/trash/sessions`.
+	DidDelete(String),
 	Failed(String),
 }
 
-/// One in-flight archive/restore: (session id, archived?, result).
-type OpReceiver = Receiver<(String, bool, Result<(), String>)>;
+/// The three mutations the modal can send.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Op {
+	Archive,
+	Unarchive,
+	Delete,
+}
+
+/// One in-flight mutation: (session id, operation, result).
+type OpReceiver = Receiver<(String, Op, Result<(), String>)>;
 
 /// The modal's state.
 #[derive(Default)]
@@ -81,8 +95,10 @@ pub struct Admin {
 	loaded_at: Option<Instant>,
 	load: Option<Receiver<Result<Vec<Conversation>, String>>>,
 	op: Option<OpReceiver>,
-	/// The session whose archive/restore is in flight.
+	/// The session whose archive/restore/delete is in flight.
 	busy: Option<String>,
+	/// The row waiting for its second click on 确认删除.
+	confirm_delete: Option<String>,
 	/// The modal's first frame: give the search field the keyboard once.
 	focus_once: bool,
 	/// Whether the modal was open on the previous frame.
@@ -143,14 +159,14 @@ impl Admin {
 		}
 		if let Some(receiver) = self.op.take() {
 			match receiver.try_recv() {
-				Ok((id, archived, result)) => match result {
+				Ok((id, op, result)) => match result {
 					Ok(()) => {
 						self.busy = None;
 						self.loaded_at = None;
-						events.push(if archived {
-							Event::DidArchive(id)
-						} else {
-							Event::DidUnarchive(id)
+						events.push(match op {
+							Op::Archive => Event::DidArchive(id),
+							Op::Unarchive => Event::DidUnarchive(id),
+							Op::Delete => Event::DidDelete(id),
 						});
 					},
 					Err(error) => {
@@ -188,37 +204,61 @@ impl Admin {
 		self.loaded_at = Some(Instant::now());
 	}
 
+	/// Open the modal with this session already armed for its second delete click.
+	///
+	/// The left tree's delete action must not delete on one click; this puts the
+	/// same row in front of the user with 确认删除 already showing.
+	pub fn prepare_delete(&mut self, id: &str) {
+		self.tab = Tab::Active;
+		self.query = id.to_owned();
+		self.confirm_delete = Some(id.to_owned());
+		self.notice = Some((true, t!("再次点击“确认删除”移入回收站").to_owned()));
+	}
+
 	/// Archive one live session.
 	pub fn request_archive(&mut self, origin: Option<&str>, id: &str) -> Result<(), String> {
-		self.request(origin, id, true)
+		self.request(origin, id, Op::Archive)
 	}
 
 	/// Restore one archived session.
 	pub fn request_unarchive(&mut self, origin: Option<&str>, id: &str) -> Result<(), String> {
-		self.request(origin, id, false)
+		self.request(origin, id, Op::Unarchive)
 	}
 
-	fn request(&mut self, origin: Option<&str>, id: &str, archived: bool) -> Result<(), String> {
+	/// Soft-delete one live session. The gateway moves the transcript into
+	/// `~/.zeta/trash/sessions`; this call does not purge anything.
+	pub fn request_delete(&mut self, origin: Option<&str>, id: &str) -> Result<(), String> {
+		self.request(origin, id, Op::Delete)
+	}
+
+	fn request(&mut self, origin: Option<&str>, id: &str, op: Op) -> Result<(), String> {
 		let Some(origin) = origin.map(str::to_owned) else {
 			return Err(t!("未发现网关地址（~/.zeta/serve.json 的 webUrl）").to_owned());
 		};
 		if self.op.is_some() {
-			return Err(t!("上一个归档操作仍在进行").to_owned());
+			return Err(t!("上一个会话操作仍在进行").to_owned());
 		}
 		if id.trim().is_empty() {
 			return Err(t!("会话 id 为空").to_owned());
 		}
-		let path = archive_path(id, archived);
+		let path = match op {
+			Op::Archive => archive_path(id, true),
+			Op::Unarchive => archive_path(id, false),
+			Op::Delete => delete_path(id),
+		};
 		let id = id.to_owned();
 		let (sender, receiver) = channel();
 		self.op = Some(receiver);
 		self.busy = Some(id.clone());
 		let result_id = id.clone();
 		thread::spawn(move || {
-			let result = crate::usage::http_post(&origin, &path, "{}")
-				.map(|_| ())
-				.map_err(describe);
-			let _ = sender.send((result_id, archived, result));
+			let result = match op {
+				Op::Delete => crate::usage::http_delete(&origin, &path),
+				Op::Archive | Op::Unarchive => crate::usage::http_post(&origin, &path, "{}"),
+			}
+			.map(|_| ())
+			.map_err(describe);
+			let _ = sender.send((result_id, op, result));
 		});
 		Ok(())
 	}
@@ -232,6 +272,11 @@ impl Admin {
 pub fn archive_path(id: &str, archived: bool) -> String {
 	let verb = if archived { "archive" } else { "unarchive" };
 	format!("/api/sessions/{}/{verb}", encode_segment(id))
+}
+
+/// The soft-delete route for one live session.
+pub fn delete_path(id: &str) -> String {
+	format!("/api/sessions/{}", encode_segment(id))
 }
 
 /// Percent-encode everything outside RFC 3986's unreserved set.
@@ -279,14 +324,19 @@ fn section_head(ui: &mut egui::Ui, label: &str) {
 		egui::Align2::LEFT_CENTER,
 		label,
 		egui::FontId::new(10.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 }
 
 /// The 会话管理 modal.
 pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 	if !shell.state.sessions_open {
-		shell.session_admin.was_open = false;
+		// Closing the modal — Esc, the backdrop, a toggle — disarms a pending
+		// 确认删除, so the next open cannot delete on one click.
+		if shell.session_admin.was_open {
+			shell.session_admin.was_open = false;
+			shell.session_admin.confirm_delete = None;
+		}
 		return;
 	}
 	if !shell.session_admin.was_open {
@@ -294,16 +344,20 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 		shell.session_admin.focus_once = true;
 	}
 	let screen = ctx.content_rect();
-	let rect = Rect::from_center_size(screen.center(), vec2(680.0, 540.0));
+	let rect = Rect::from_center_size(
+		screen.center(),
+		vec2(680.0_f32.min(screen.width() - 48.0), 540.0_f32.min(screen.height() - 48.0)),
+	);
 	let mut close = false;
 	let mut archive: Option<String> = None;
 	let mut restore: Option<String> = None;
+	let mut delete: Option<String> = None;
 	let mut pin: Option<String> = None;
 	let mut open: Option<String> = None;
 
 	egui::Area::new(egui::Id::new("zetawork-sessions-admin"))
 		.order(Order::Foreground)
-		.fixed_pos(rect.min)
+		.fixed_pos(screen.min)
 		.show(ctx, |ui| {
 			let (backdrop, backdrop_response) = ui.allocate_exact_size(screen.size(), Sense::click());
 			if backdrop_response.clicked() {
@@ -314,17 +368,19 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 				CornerRadius::ZERO,
 				Color32::from_rgba_unmultiplied(3, 5, 8, 70),
 			);
+			crate::widgets::click_shield(ui, rect, "session-admin");
+			theme::paint_shadow(ui.painter(), rect, CornerRadius::same(theme::R_MODAL));
 			let mut panel = ui.new_child(
 				egui::UiBuilder::new()
 					.max_rect(rect)
 					.layout(Layout::top_down(Align::Min)),
 			);
 			let painter = panel.painter().clone();
-			painter.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::PANEL);
+			painter.rect_filled(rect, CornerRadius::same(theme::R_MODAL), theme::panel());
 			painter.rect_stroke(
 				rect,
 				CornerRadius::same(theme::R_MODAL),
-				Stroke::new(1.0_f32, theme::BORDER_2),
+				Stroke::new(1.0_f32, theme::border_2()),
 				egui::StrokeKind::Inside,
 			);
 			painter.text(
@@ -332,14 +388,14 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 				egui::Align2::LEFT_CENTER,
 				t!("会话管理"),
 				egui::FontId::new(14.0, egui::FontFamily::Proportional),
-				theme::TEXT,
+				theme::text(),
 			);
 			painter.text(
 				pos2(rect.max.x - 18.0, rect.min.y + 24.0),
 				egui::Align2::RIGHT_CENTER,
-				t!("跨项目搜索、置顶、归档与恢复"),
+				t!("跨项目搜索、置顶、归档、恢复与删除"),
 				egui::FontId::new(10.0, egui::FontFamily::Proportional),
-				theme::TEXT_3,
+				theme::text_3(),
 			);
 
 			// Search.
@@ -392,6 +448,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 			}
 			if let Some(tab) = chosen_tab {
 				shell.session_admin.tab = tab;
+				shell.session_admin.confirm_delete = None;
 			}
 
 			let rows: Vec<Conversation> = match shell.session_admin.tab {
@@ -423,7 +480,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 							pos2(ui.cursor().min.x + 18.0, ui.cursor().min.y + 20.0),
 							line,
 							12.0,
-							theme::TEXT_3,
+							theme::text_3(),
 							ui.available_width() - 36.0,
 						);
 						return;
@@ -445,7 +502,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 							ui.painter().rect_filled(
 								row_rect.shrink2(vec2(8.0, 1.0)),
 								CornerRadius::same(theme::R_CONTROL),
-								theme::PANEL_3,
+								theme::panel_3(),
 							);
 						}
 						truncated_text(
@@ -453,68 +510,119 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 							pos2(row_rect.min.x + 16.0, row_rect.center().y - 8.0),
 							row.display_title(),
 							12.0,
-							theme::TEXT,
-							row_rect.width() - 200.0,
+							theme::text(),
+							row_rect.width() - 258.0,
 						);
 						truncated_mono(
 							ui,
 							pos2(row_rect.min.x + 16.0, row_rect.center().y + 8.0),
 							&t!("{} · {} 条消息 · {}", row.cwd.display(), row.message_count, row.id),
 							9.5,
-							theme::TEXT_3,
-							row_rect.width() - 200.0,
+							theme::text_3(),
+							row_rect.width() - 258.0,
 						);
-						// Actions, painted as three small buttons at the right.
-						let button = |ui: &mut egui::Ui, label: &str, active: bool| -> bool {
-							ui.add(
+						// Actions are three 54pt buttons + spacing + two 4pt
+						// separators = 182pt. The old 168/176 box overflowed
+						// into the title as soon as delete was added.
+						let button = |ui: &mut egui::Ui,
+						              label: &str,
+						              active: bool,
+						              enabled: bool|
+						 -> egui::Response {
+							ui.add_enabled(
+								enabled,
 								egui::Button::new(egui::RichText::new(label).size(10.5).color(if active {
 									theme::ACCENT_2
 								} else {
-									theme::TEXT_2
+									theme::text_2()
 								}))
 								.frame(true)
 								.min_size(vec2(54.0, 20.0)),
 							)
-							.clicked()
 						};
 						let mut actions = ui.new_child(
 							egui::UiBuilder::new()
 								.max_rect(Rect::from_min_size(
-									pos2(row_rect.max.x - 176.0, row_rect.center().y - 10.0),
-									vec2(168.0, 20.0),
+									pos2(row_rect.max.x - 240.0, row_rect.center().y - 10.0),
+									vec2(232.0, 20.0),
 								))
 								.layout(Layout::right_to_left(Align::Center)),
 						);
 						let busy = shell.session_admin.is_busy(&row.id);
+						// The 默认项目's rows are structurally pinned: their pin
+						// comes from project membership, not from the user's
+						// pin file. Showing 置顶 for them made the button
+						// disagree with the group they were drawn in.
+						let structural_pin = shell
+							.state
+							.conversation(&row.id)
+							.is_some_and(|entry| entry.pinned);
+						let confirming =
+							shell.session_admin.confirm_delete.as_deref() == Some(row.id.as_str());
 						let mut acted = false;
 						match shell.session_admin.tab {
 							Tab::Active => {
-								if button(
-									&mut actions,
-									if pinned {
-										t!("取消置顶")
-									} else {
-										t!("置顶")
-									},
-									pinned,
-								) {
-									pin = Some(row.id.clone());
+								if !structural_pin {
+									if button(
+										&mut actions,
+										if pinned {
+											t!("取消置顶")
+										} else {
+											t!("置顶")
+										},
+										pinned,
+										true,
+									)
+									.clicked()
+									{
+										pin = Some(row.id.clone());
+										shell.session_admin.confirm_delete = None;
+										acted = true;
+									}
+									actions.add_space(4.0);
+								}
+								if button(&mut actions, t!("归档"), false, !busy).clicked() {
+									archive = Some(row.id.clone());
+									shell.session_admin.confirm_delete = None;
 									acted = true;
 								}
 								actions.add_space(4.0);
-								if !busy && button(&mut actions, t!("归档"), false) {
-									archive = Some(row.id.clone());
+								let delete_response = button(
+									&mut actions,
+									if confirming {
+										t!("确认删除")
+									} else {
+										t!("删除")
+									},
+									false,
+									!busy && !row.running,
+								);
+								let delete_clicked = delete_response.clicked();
+								if row.running {
+									delete_response.on_hover_text(t!("会话正在运行，先停止后再删除"));
+								}
+								if delete_clicked {
+									if confirming {
+										delete = Some(row.id.clone());
+										shell.session_admin.confirm_delete = None;
+									} else {
+										shell.session_admin.confirm_delete = Some(row.id.clone());
+										shell.session_admin.notice =
+											Some((true, t!("再次点击“确认删除”移入回收站").to_owned()));
+									}
 									acted = true;
 								}
 							},
 							Tab::Archived => {
-								if !busy && button(&mut actions, t!("恢复"), false) {
+								if button(&mut actions, t!("恢复"), false, !busy).clicked() {
 									restore = Some(row.id.clone());
+									shell.session_admin.confirm_delete = None;
 									acted = true;
 								}
 							},
 						}
 						if response.clicked() && !acted && shell.session_admin.tab == Tab::Active {
+							shell.session_admin.confirm_delete = None;
 							open = Some(row.id.clone());
 						}
 					}
@@ -534,7 +642,7 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 				egui::Align2::RIGHT_CENTER,
 				t!("Esc 关闭"),
 				egui::FontId::new(10.0, egui::FontFamily::Proportional),
-				theme::TEXT_3,
+				theme::text_3(),
 			);
 		});
 
@@ -547,14 +655,14 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 		toggle_pin(shell, &id);
 	}
 	if let Some(id) = archive {
-		let origin = shell.sessions.origin().map(str::to_owned);
+		let origin = shell.gateway_origin();
 		match shell.session_admin.request_archive(origin.as_deref(), &id) {
 			Ok(()) => shell.session_admin.notice = Some((true, t!("正在归档…").to_owned())),
 			Err(error) => shell.session_admin.notice = Some((false, error)),
 		}
 	}
 	if let Some(id) = restore {
-		let origin = shell.sessions.origin().map(str::to_owned);
+		let origin = shell.gateway_origin();
 		match shell
 			.session_admin
 			.request_unarchive(origin.as_deref(), &id)
@@ -563,7 +671,15 @@ pub fn modal(ctx: &egui::Context, shell: &mut Shell) {
 			Err(error) => shell.session_admin.notice = Some((false, error)),
 		}
 	}
+	if let Some(id) = delete {
+		let origin = shell.gateway_origin();
+		match shell.session_admin.request_delete(origin.as_deref(), &id) {
+			Ok(()) => shell.session_admin.notice = Some((true, t!("正在删除…").to_owned())),
+			Err(error) => shell.session_admin.notice = Some((false, error)),
+		}
+	}
 	if close {
+		shell.session_admin.confirm_delete = None;
 		shell.state.sessions_open = false;
 	}
 }
@@ -592,7 +708,27 @@ fn describe(error: crate::usage::FetchError) -> String {
 	match error {
 		FetchError::Address(why) | FetchError::Connect(why) | FetchError::Io(why) => why,
 		FetchError::Status(code, body) if body.is_empty() => t!("网关返回 HTTP {}", code),
-		FetchError::Status(code, body) => t!("网关返回 HTTP {}：{}", code, body),
+		FetchError::Status(code, body) => {
+			// The gateway's error body is JSON (`{"error":…,"code":…}`). The
+			// old path pasted the whole object into the modal footer; a
+			// localized sentence is both readable and stable when the
+			// gateway's wording changes.
+			let value: Option<serde_json::Value> = serde_json::from_str(&body).ok();
+			let api_code = value
+				.as_ref()
+				.and_then(|value| value.get("code"))
+				.and_then(serde_json::Value::as_str);
+			let detail = value
+				.as_ref()
+				.and_then(|value| value.get("error"))
+				.and_then(serde_json::Value::as_str)
+				.unwrap_or(body.as_str());
+			match (code, api_code) {
+				(404, _) => t!("会话已不存在，列表将刷新").to_owned(),
+				(_, Some("relay-protected")) => t!("relay 会话不可删除").to_owned(),
+				_ => t!("网关返回 HTTP {}：{}", code, detail),
+			}
+		},
 		FetchError::Decode(why) => t!("网关应答无法解析：{}", why),
 	}
 }
@@ -637,6 +773,23 @@ mod tests {
 		assert_eq!(archive_path("01abc", false), "/api/sessions/01abc/unarchive");
 		assert_eq!(archive_path("a/b", true), "/api/sessions/a%2Fb/archive");
 		assert_eq!(archive_path("a b", false), "/api/sessions/a%20b/unarchive");
+		assert_eq!(delete_path("01abc"), "/api/sessions/01abc");
+		assert_eq!(delete_path("a/b"), "/api/sessions/a%2Fb");
+	}
+
+	#[test]
+	fn gateway_json_is_not_pasted_into_the_notice() {
+		let error = crate::usage::FetchError::Status(
+			400,
+			r#"{"error":"relay 会话不可删除","code":"relay-protected"}"#.to_owned(),
+		);
+		let line = describe(error);
+		assert_eq!(line, t!("relay 会话不可删除"));
+		assert!(!line.contains('{'));
+		assert_eq!(
+			describe(crate::usage::FetchError::Status(404, "missing".to_owned())),
+			t!("会话已不存在，列表将刷新")
+		);
 	}
 
 	#[test]

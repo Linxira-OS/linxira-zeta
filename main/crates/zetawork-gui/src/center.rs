@@ -57,10 +57,10 @@ pub fn workspace(ui: &mut Ui, shell: &mut Shell) {
 fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let mut x = rect.min.x + 8.0;
 	// 总面板 is the strip's **first** 大标签页 (the contract's ruling). It is
@@ -83,7 +83,7 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 			label,
 			12.0,
 			if is_active {
-				theme::TEXT
+				theme::text()
 			} else {
 				theme::PURPLE
 			},
@@ -93,148 +93,6 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 			shell.state.show_total();
 		}
 		x += width + 2.0;
-	}
-	let active = shell.state.active_workspace.as_deref().map(str::to_owned);
-	let project = shell.state.active_project().cloned();
-	if let Some(project) = project {
-		for workspace in &project.workspaces {
-			let is_active = shell.state.center_page == CenterPage::Workspace
-				&& active.as_deref() == Some(workspace.id.as_str());
-			let renaming = shell
-				.state
-				.renaming_workspace()
-				.is_some_and(|(id, _)| id == workspace.id);
-			let text_width = (display_cols(&workspace.name) as f32 * 7.4).min(150.0);
-			// Three slots at the tab's end — ⋯ and × — plus the label's margin.
-			let width = text_width + 64.0;
-			let tab = Rect::from_min_max(
-				pos2(x, rect.min.y + theme::TOPBAR_H - 32.0 - 1.0),
-				pos2(x + width, rect.max.y),
-			);
-			let more =
-				Rect::from_min_size(pos2(tab.max.x - 44.0, tab.center().y - 9.0), vec2(18.0, 18.0));
-			let close =
-				Rect::from_min_size(pos2(tab.max.x - 24.0, tab.center().y - 9.0), vec2(18.0, 18.0));
-			let response = ui.interact(tab, ui.id().with(("bigtab", &workspace.id)), Sense::click());
-			let more_response =
-				ui.interact(more, ui.id().with(("bigtab-more", &workspace.id)), Sense::click());
-			let close_response =
-				ui.interact(close, ui.id().with(("bigtab-close", &workspace.id)), Sense::click());
-			tab_face(ui, tab, is_active, response.hovered());
-			if renaming {
-				let mut text = shell
-					.state
-					.renaming_workspace()
-					.map(|(_, text)| text.to_owned())
-					.unwrap_or_default();
-				let field = Rect::from_min_max(
-					pos2(tab.min.x + 8.0, tab.min.y + 5.0),
-					pos2(more.min.x - 4.0, tab.max.y - 5.0),
-				);
-				let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
-				let edit = child.add(
-					egui::TextEdit::singleline(&mut text)
-						.frame(false)
-						.desired_width(field.width()),
-				);
-				if shell.state.take_rename_focus() {
-					edit.request_focus();
-				}
-				if edit.changed() {
-					shell.state.set_workspace_rename_text(text);
-				}
-				let enter = child.input(|input| input.key_pressed(egui::Key::Enter));
-				let escape = child.input(|input| input.key_pressed(egui::Key::Escape));
-				if enter {
-					let notice = shell.state.commit_rename_workspace();
-					shell.state.show(notice);
-				} else if escape {
-					shell.state.cancel_rename_workspace();
-				}
-			} else {
-				truncated_text(
-					ui,
-					pos2(tab.min.x + 12.0, tab.center().y),
-					&workspace.name,
-					12.0,
-					if is_active {
-						theme::TEXT
-					} else {
-						theme::TEXT_3
-					},
-					text_width,
-				);
-			}
-			// ⋯ appears on hover (a resting tab stays quiet): the menu carries
-			// 重命名, and 关闭 for parity with the × next to it.
-			let more_ink = if more_response.hovered() {
-				theme::TEXT
-			} else if response.hovered() {
-				theme::TEXT_2
-			} else {
-				theme::TEXT_3.gamma_multiply(0.35)
-			};
-			if more_response.hovered() {
-				ui.painter()
-					.rect_filled(more, CornerRadius::same(3), theme::PANEL_4);
-			}
-			crate::icons::paint_more(ui.painter(), more, more_ink);
-			let mut want_rename = false;
-			let mut want_close = false;
-			let _ = egui::Popup::menu(&more_response)
-				.id(ui.id().with(("bigtab-menu", &workspace.id)))
-				.show(|ui| {
-					ui.set_min_width(150.0);
-					let can_rename = shell.state.can_rename_workspace(&workspace.id);
-					let rename = ui.add_enabled(can_rename, egui::Button::new(t!("重命名")));
-					if rename.clicked() {
-						want_rename = true;
-						ui.close();
-					}
-					if !can_rename {
-						rename.on_disabled_hover_text(t!(
-							"只有注册项目的首个标签页会持久化命名（本机与新建标签页仅在本次运行有效）"
-						));
-					}
-					if ui.button(t!("关闭标签页")).clicked() {
-						want_close = true;
-						ui.close();
-					}
-				});
-			if want_rename {
-				let id = workspace.id.clone();
-				shell.state.begin_rename_workspace(&id);
-			}
-			if want_close {
-				let id = workspace.id.clone();
-				shell.state.act(|s| s.close_workspace(&id));
-			}
-			let close_ink = if close_response.hovered() {
-				theme::TEXT
-			} else {
-				theme::TEXT_3
-			};
-			if close_response.hovered() {
-				ui.painter()
-					.rect_filled(close, CornerRadius::same(3), theme::PANEL_4);
-			}
-			paint(ui.painter(), Icon::X, close.shrink(3.0), close_ink, 1.4);
-			if close_response.clicked() {
-				let id = workspace.id.clone();
-				shell.state.act(|s| s.close_workspace(&id));
-			} else if response.clicked() && !renaming {
-				let id = workspace.id.clone();
-				shell.state.act(|s| s.select_workspace(&id));
-			}
-			x += width + 2.0;
-		}
-	}
-	let plus_rect = Rect::from_center_size(pos2(x + 14.0, rect.center().y), vec2(28.0, 28.0));
-	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(plus_rect));
-	if icon_button(&mut child, Icon::Plus, 28.0, false, t!("新建大标签页")).clicked() {
-		// The strip's ＋ lists what the centre can show; the pick decides what
-		// the new 大标签页 opens with.
-		shell.open_picker(PickerTarget::BigTab, plus_rect);
 	}
 	// The caps, spelled the way the contract's strip spells them.
 	let count = shell
@@ -248,9 +106,243 @@ fn big_tabs(ui: &mut Ui, shell: &mut Shell) {
 		crate::state::MAX_WORKSPACES_PER_PROJECT,
 		crate::state::MAX_SUBS_PER_PANE
 	);
-	let caps_x = plus_rect.max.x + 8.0;
-	if caps_x + 150.0 < rect.max.x - 8.0 - 116.0 {
-		truncated_text(ui, pos2(caps_x, rect.center().y), &caps, 11.0, theme::TEXT_3, 140.0);
+	// 总面板 and ＋ bracket the strip: only the workspace tabs between them
+	// scroll, so both ends stay reachable however many workspaces a project has.
+	let show_caps = rect.width() >= 640.0;
+	let right_edge = rect.max.x - 8.0;
+	let plus_right = if show_caps {
+		right_edge - 156.0
+	} else {
+		right_edge
+	};
+	// Never let ＋ drift left into 总面板 on a very narrow window; the tab row
+	// simply disappears (its viewport collapses) rather than overlapping it.
+	let plus_rect = Rect::from_center_size(
+		pos2((plus_right - 14.0).max(x + 14.0), rect.center().y),
+		vec2(28.0, 28.0),
+	);
+	let scroll_right = plus_rect.min.x - 8.0;
+	let active = shell.state.active_workspace.as_deref().map(str::to_owned);
+	let project = shell.state.active_project().cloned();
+	if let Some(project) = project {
+		let viewport = Rect::from_min_max(pos2(x, rect.min.y), pos2(scroll_right, rect.max.y));
+		if viewport.width() > 1.0 {
+			let mut strip = ui.new_child(egui::UiBuilder::new().max_rect(viewport));
+			egui::ScrollArea::horizontal()
+				.id_salt("zetawork-big-tabs")
+				.auto_shrink([false, true])
+				.scroll_bar_visibility(egui::containers::scroll_area::ScrollBarVisibility::AlwaysHidden)
+				.show(&mut strip, |ui| {
+					ui.spacing_mut().item_spacing.x = 2.0;
+					// Scroll the active tab into view once per selection (or
+					// viewport-width) change, not every frame: re-centring each
+					// frame would snap the row back while the user browses it.
+					let view_key = ui.id().with("bigtab-in-view");
+					let shown: Option<(String, f32)> = ui.ctx().data(|d| d.get_temp(view_key));
+					ui.horizontal(|ui| {
+						for workspace in &project.workspaces {
+							let is_active = shell.state.center_page == CenterPage::Workspace
+								&& active.as_deref() == Some(workspace.id.as_str());
+							let renaming = shell
+								.state
+								.renaming_workspace()
+								.is_some_and(|(id, _)| id == workspace.id);
+							let text_width = (display_cols(&workspace.name) as f32 * 7.4).min(150.0);
+							// Three slots at the tab's end — ⋯ and × — plus the label's margin.
+							let width = text_width + 64.0;
+							// The allocation is what makes the row wider than the
+							// viewport (and therefore scrollable); the tab itself
+							// still spans the strip's full height.
+							let (slot, _) =
+								ui.allocate_exact_size(vec2(width, rect.height()), Sense::hover());
+							let tab = Rect::from_min_max(
+								pos2(slot.min.x, rect.min.y + theme::TOPBAR_H - 32.0 - 1.0),
+								pos2(slot.max.x, rect.max.y),
+							);
+							let more = Rect::from_min_size(
+								pos2(tab.max.x - 44.0, tab.center().y - 9.0),
+								vec2(18.0, 18.0),
+							);
+							let close = Rect::from_min_size(
+								pos2(tab.max.x - 24.0, tab.center().y - 9.0),
+								vec2(18.0, 18.0),
+							);
+							let response =
+								ui.interact(tab, ui.id().with(("bigtab", &workspace.id)), Sense::click());
+							let more_response = ui.interact(
+								more,
+								ui.id().with(("bigtab-more", &workspace.id)),
+								Sense::click(),
+							);
+							let close_response = ui.interact(
+								close,
+								ui.id().with(("bigtab-close", &workspace.id)),
+								Sense::click(),
+							);
+							tab_face(ui, tab, is_active, response.hovered());
+							// An active tab selected from elsewhere (the tree, a
+							// picker) must come into view; a user-browsed row is
+							// left where it is.
+							if is_active
+								&& !ui.clip_rect().contains_rect(tab)
+								&& shown.as_ref().is_none_or(|(id, width)| {
+									id.as_str() != workspace.id.as_str()
+										|| (*width - viewport.width()).abs() > 0.5
+								}) {
+								response.scroll_to_me(Some(Align::Center));
+							}
+							if renaming {
+								let mut text = shell
+									.state
+									.renaming_workspace()
+									.map(|(_, text)| text.to_owned())
+									.unwrap_or_default();
+								let field = Rect::from_min_max(
+									pos2(tab.min.x + 8.0, tab.min.y + 5.0),
+									pos2(more.min.x - 4.0, tab.max.y - 5.0),
+								);
+								let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
+								let edit = child.add(
+									egui::TextEdit::singleline(&mut text)
+										.frame(egui::Frame::NONE)
+										.desired_width(field.width()),
+								);
+								if shell.state.take_rename_focus() {
+									edit.request_focus();
+								}
+								if edit.changed() {
+									shell.state.set_workspace_rename_text(text);
+								}
+								let enter = child.input(|input| input.key_pressed(egui::Key::Enter));
+								let escape = child.input(|input| input.key_pressed(egui::Key::Escape));
+								if enter {
+									let notice = shell.state.commit_rename_workspace();
+									shell.state.show(notice);
+								} else if escape {
+									shell.state.cancel_rename_workspace();
+								}
+							} else {
+								truncated_text(
+									ui,
+									pos2(tab.min.x + 12.0, tab.center().y),
+									&workspace.name,
+									12.0,
+									if is_active {
+										theme::text()
+									} else {
+										theme::text_3()
+									},
+									text_width,
+								);
+							}
+							// ⋯ appears on hover (a resting tab stays quiet): the
+							// menu carries 重命名, and 关闭 for parity with the ×.
+							let more_ink = if more_response.hovered() {
+								theme::text()
+							} else if response.hovered() {
+								theme::text_2()
+							} else {
+								theme::text_3().gamma_multiply(0.35)
+							};
+							if more_response.hovered() {
+								ui.painter()
+									.rect_filled(more, CornerRadius::same(3), theme::panel_4());
+							}
+							crate::icons::paint_more(ui.painter(), more, more_ink);
+							let mut want_rename = false;
+							let mut want_close = false;
+							let can_rename = shell.state.can_rename_workspace(&workspace.id);
+							let mut menu = |ui: &mut Ui| {
+								ui.set_min_width(150.0);
+								let rename = ui.add_enabled(can_rename, egui::Button::new(t!("重命名")));
+								if rename.clicked() {
+									want_rename = true;
+									ui.close();
+								}
+								if !can_rename {
+									rename.on_disabled_hover_text(t!(
+										"只有注册项目的首个标签页会持久化命名（本机与新建标签页仅在本次运行有效）"
+									));
+								}
+								if ui.button(t!("关闭标签页")).clicked() {
+									want_close = true;
+									ui.close();
+								}
+							};
+							let _ = egui::Popup::menu(&more_response)
+								.id(ui.id().with(("bigtab-menu", &workspace.id)))
+								.show(&mut menu);
+							let _ = egui::Popup::context_menu(&response)
+								.id(ui.id().with(("bigtab-context", &workspace.id)))
+								.show(&mut menu);
+							if want_rename {
+								let id = workspace.id.clone();
+								shell.state.begin_rename_workspace(&id);
+							}
+							if want_close {
+								let id = workspace.id.clone();
+								// Removing a 大标签页 is a UI-only action: the view
+								// is archived (recoverable), never deleted from disk.
+								let notice = shell.remove_workspace_view(&id);
+								shell.state.show(notice);
+							}
+							let close_ink = if close_response.hovered() {
+								theme::text()
+							} else {
+								theme::text_3()
+							};
+							if close_response.hovered() {
+								ui.painter()
+									.rect_filled(close, CornerRadius::same(3), theme::panel_4());
+							}
+							paint(ui.painter(), Icon::X, close.shrink(3.0), close_ink, 1.4);
+							if close_response.clicked() {
+								let id = workspace.id.clone();
+								let notice = shell.remove_workspace_view(&id);
+								shell.state.show(notice);
+							} else if response.clicked() && !renaming {
+								let id = workspace.id.clone();
+								shell.state.act(|s| s.select_workspace(&id));
+							}
+						}
+					});
+					match active.as_deref() {
+						Some(active_id)
+							if shown.as_ref().is_none_or(|(id, width)| {
+								id.as_str() != active_id || (*width - viewport.width()).abs() > 0.5
+							}) =>
+						{
+							ui.ctx().data_mut(|d| {
+								d.insert_temp(view_key, (active_id.to_owned(), viewport.width()));
+							});
+						},
+						// Leaving the workspaces forgets the last one, so coming
+						// back to it brings its tab into view again.
+						None => {
+							ui.ctx().data_mut(|d| {
+								let _ = d.remove_temp::<(String, f32)>(view_key);
+							});
+						},
+						_ => {},
+					}
+				});
+		}
+	}
+	let mut child = ui.new_child(egui::UiBuilder::new().max_rect(plus_rect));
+	if icon_button(&mut child, Icon::Plus, 28.0, false, t!("新建大标签页")).clicked() {
+		// The strip's ＋ lists what the centre can show; the pick decides what
+		// the new 大标签页 opens with.
+		shell.open_picker(PickerTarget::BigTab, plus_rect);
+	}
+	if show_caps {
+		truncated_text(
+			ui,
+			pos2(plus_rect.max.x + 8.0, rect.center().y),
+			&caps,
+			11.0,
+			theme::text_3(),
+			148.0,
+		);
 	}
 }
 
@@ -264,19 +356,19 @@ fn tab_face(ui: &Ui, tab: Rect, is_active: bool, hovered: bool) {
 		ui.painter().rect_filled(
 			Rect::from_min_max(tab.min, pos2(tab.max.x, tab.max.y)),
 			radius,
-			theme::GROUND,
+			theme::ground(),
 		);
 		ui.painter().rect_stroke(
 			Rect::from_min_max(tab.min, pos2(tab.max.x, tab.min.y + 32.0)),
 			radius,
-			Stroke::new(1.0_f32, theme::BORDER),
+			Stroke::new(1.0_f32, theme::border()),
 			egui::StrokeKind::Inside,
 		);
 	} else if hovered {
 		ui.painter().rect_filled(
 			Rect::from_min_max(tab.min, pos2(tab.max.x, tab.max.y)),
 			radius,
-			theme::PANEL_3,
+			theme::panel_3(),
 		);
 	}
 }
@@ -288,10 +380,10 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 		return;
 	}
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let mut left = ui.new_child(
 		egui::UiBuilder::new()
@@ -317,8 +409,9 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 	);
 	let cols = shell.state.active_cols();
 	let frame = egui::Frame::new()
-		.fill(theme::PANEL_2)
-		.stroke(Stroke::new(1.0_f32, theme::BORDER))
+		.fill(theme::panel_2())
+		.stroke(Stroke::new(1.0_f32, theme::border()))
+		.corner_radius(CornerRadius::same(theme::R_CONTROL))
 		.inner_margin(egui::Margin::same(0));
 	frame.show(&mut right, |ui| {
 		// Same reason as the view switch: the parent here is right-to-left.
@@ -328,13 +421,19 @@ fn tool_strip(ui: &mut Ui, shell: &mut Shell) {
 				let (rect, response) = ui.allocate_exact_size(vec2(26.0, 24.0), Sense::click());
 				let on = cols == columns;
 				if on {
-					ui.painter()
-						.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_4);
+					ui.painter().rect_filled(
+						rect,
+						CornerRadius::same(theme::R_CONTROL.saturating_sub(2)),
+						theme::panel_4(),
+					);
 				} else if response.hovered() {
-					ui.painter()
-						.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_3);
+					ui.painter().rect_filled(
+						rect,
+						CornerRadius::same(theme::R_CONTROL.saturating_sub(2)),
+						theme::panel_3(),
+					);
 				}
-				let ink = if on { theme::TEXT } else { theme::TEXT_3 };
+				let ink = if on { theme::text() } else { theme::text_3() };
 				paint(ui.painter(), Icon::Columns(columns), rect.shrink(6.0), ink, 1.5);
 				let tooltip = match columns {
 					1 => t!("单列"),
@@ -353,26 +452,26 @@ fn tool_button(ui: &mut Ui, icon: Icon, label: &str) -> egui::Response {
 	let font = egui::FontId::new(12.0, egui::FontFamily::Proportional);
 	let galley = ui
 		.painter()
-		.layout_no_wrap(label.to_owned(), font.clone(), theme::TEXT_2);
+		.layout_no_wrap(label.to_owned(), font.clone(), theme::text_2());
 	let width = galley.size().x + 14.0 + 6.0 + 18.0;
 	let (rect, response) = ui.allocate_exact_size(vec2(width, 24.0), Sense::click());
 	ui.painter()
-		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_2());
 	ui.painter().rect_stroke(
 		rect,
 		CornerRadius::same(theme::R_CONTROL),
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 		egui::StrokeKind::Inside,
 	);
 	if response.hovered() {
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), theme::panel_3());
 	}
 	paint(
 		ui.painter(),
 		icon,
 		Rect::from_center_size(pos2(rect.min.x + 8.0 + 7.0, rect.center().y), vec2(14.0, 14.0)),
-		theme::TEXT_3,
+		theme::text_3(),
 		1.5,
 	);
 	ui.painter().text(
@@ -381,9 +480,9 @@ fn tool_button(ui: &mut Ui, icon: Icon, label: &str) -> egui::Response {
 		label,
 		font,
 		if response.hovered() {
-			theme::TEXT
+			theme::text()
 		} else {
-			theme::TEXT_2
+			theme::text_2()
 		},
 	);
 	response
@@ -393,7 +492,7 @@ fn tool_button(ui: &mut Ui, icon: Icon, label: &str) -> egui::Response {
 fn body_region(ui: &mut Ui, shell: &mut Shell) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::GROUND);
+		.rect_filled(rect, CornerRadius::ZERO, theme::ground());
 	// The strip's first 大标签页 owns the whole body when it is selected: 总面板
 	// is a page of its own (every project in one table), not a pane layout.
 	if shell.state.center_page == CenterPage::Total {
@@ -421,7 +520,7 @@ fn body_region(ui: &mut Ui, shell: &mut Shell) {
 		}
 	};
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	for (index, pane) in panes.iter().enumerate() {
 		let pane_rect = Rect::from_min_max(
 			pos2(boundary(index), rect.min.y),
@@ -437,7 +536,7 @@ fn body_region(ui: &mut Ui, shell: &mut Shell) {
 		let x = boundary(index) + 0.5;
 		ui.painter().line_segment(
 			[pos2(x, rect.min.y), pos2(x, rect.max.y)],
-			Stroke::new(1.0_f32, theme::BORDER),
+			Stroke::new(1.0_f32, theme::border()),
 		);
 	}
 }
@@ -452,7 +551,7 @@ fn pane_region(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 	}
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	let strip = Rect::from_min_size(rect.min, vec2(rect.width(), theme::TABSTRIP_H));
 	let body = Rect::from_min_max(pos2(rect.min.x, strip.max.y), rect.max);
 	session_strip(ui, shell, pane, strip);
@@ -463,96 +562,119 @@ fn pane_region(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 /// One pane's session-tab strip: the tabs, their ✕, ＋ and the pane's ✕.
 fn session_strip(ui: &mut Ui, shell: &mut Shell, pane: &Pane, strip: Rect) {
 	ui.painter()
-		.rect_filled(strip, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(strip, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(strip.min.x, strip.max.y - 0.5), pos2(strip.max.x, strip.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
-	let mut x = strip.min.x + 6.0;
-	let reserved = 60.0;
-	for tab in &pane.tabs {
-		let icon = match tab.kind {
-			SessionKind::Term => Icon::Term,
-			SessionKind::Editor => Icon::Code,
-			SessionKind::Diff => Icon::Diff,
-			SessionKind::Git => Icon::GitBranch,
-			SessionKind::Zetacode => Icon::Term,
-			SessionKind::Ide => Icon::Term,
-			SessionKind::Agent => Icon::History,
-			SessionKind::Pdf => Icon::File,
-		};
-		let is_active = tab.id == pane.active;
-		let text_width = (display_cols(&tab.title) as f32 * 7.2).min(120.0);
-		let width = text_width + 46.0;
-		if x + width > strip.max.x - reserved {
-			break;
-		}
-		let tab_rect = Rect::from_min_size(pos2(x, strip.min.y + 3.5), vec2(width, 28.0));
-		let close = Rect::from_min_size(
-			pos2(tab_rect.max.x - 20.0, tab_rect.center().y - 8.0),
-			vec2(16.0, 16.0),
-		);
-		let response = ui.interact(tab_rect, ui.id().with(("stab", &tab.id)), Sense::click());
-		let close_response =
-			ui.interact(close, ui.id().with(("stab-close", &tab.id)), Sense::click());
-		if is_active {
-			ui.painter()
-				.rect_filled(tab_rect, CornerRadius::same(theme::R_CONTROL), theme::GROUND);
-			ui.painter().rect_stroke(
-				tab_rect,
-				CornerRadius::same(theme::R_CONTROL),
-				Stroke::new(1.0_f32, theme::BORDER),
-				egui::StrokeKind::Inside,
-			);
-		} else if response.hovered() {
-			ui.painter()
-				.rect_filled(tab_rect, CornerRadius::same(theme::R_CONTROL), theme::PANEL_3);
-		}
-		let ink = if is_active {
-			theme::TEXT
-		} else {
-			theme::TEXT_3
-		};
-		paint(
-			ui.painter(),
-			icon,
-			Rect::from_center_size(
-				pos2(tab_rect.min.x + 9.0 + 7.0, tab_rect.center().y),
-				vec2(14.0, 14.0),
-			),
-			if is_active {
-				theme::ACCENT_2
-			} else {
-				theme::TEXT_3
-			},
-			1.5,
-		);
-		truncated_text(
-			ui,
-			pos2(tab_rect.min.x + 9.0 + 14.0 + 6.0, tab_rect.center().y),
-			&tab.title,
-			12.0,
-			ink,
-			text_width,
-		);
-		let close_ink = if close_response.hovered() {
-			theme::TEXT
-		} else {
-			theme::TEXT_3
-		};
-		if close_response.hovered() {
-			ui.painter()
-				.rect_filled(close, CornerRadius::same(3), theme::PANEL_4);
-		}
-		paint(ui.painter(), Icon::X, close.shrink(2.5), close_ink, 1.3);
-		if close_response.clicked() {
-			let (pane_id, tab_id) = (pane.id.clone(), tab.id.clone());
-			shell.state.act(|s| s.close_tab(&pane_id, &tab_id));
-		} else if response.clicked() {
-			let (pane_id, tab_id) = (pane.id.clone(), tab.id.clone());
-			shell.state.select_tab(&pane_id, &tab_id);
-		}
-		x += width + 2.0;
+	// The tab row scrolls horizontally; the old `break` silently dropped every
+	// tab after the third in a three-column layout, with no way to reach it.
+	// ＋ and the pane ✕ stay fixed at the right, outside the scroll viewport.
+	let tabs_rect = Rect::from_min_max(
+		pos2(strip.min.x + 6.0, strip.min.y + 3.5),
+		pos2(strip.max.x - 60.0, strip.max.y - 3.0),
+	);
+	let mut tabs_ui = ui.new_child(egui::UiBuilder::new().max_rect(tabs_rect));
+	let mut select: Option<String> = None;
+	let mut close_tab: Option<String> = None;
+	egui::ScrollArea::horizontal()
+		.id_salt(("zetawork-pane-tabs", &pane.id))
+		.auto_shrink([false, true])
+		.show(&mut tabs_ui, |ui| {
+			ui.spacing_mut().item_spacing.x = 2.0;
+			ui.horizontal(|ui| {
+				for tab in &pane.tabs {
+					let icon = match tab.kind {
+						SessionKind::Term => Icon::Term,
+						SessionKind::Editor => Icon::Code,
+						SessionKind::Diff => Icon::Diff,
+						SessionKind::Git => Icon::GitBranch,
+						SessionKind::Zetacode => Icon::Term,
+						SessionKind::Ide => Icon::Term,
+						SessionKind::Agent => Icon::History,
+						SessionKind::Pdf => Icon::File,
+					};
+					let is_active = tab.id == pane.active;
+					let title = tab.display_title();
+					let text_width = (display_cols(&title) as f32 * 7.2).min(120.0);
+					let width = text_width + 46.0;
+					let (tab_rect, response) = ui.allocate_exact_size(vec2(width, 28.0), Sense::click());
+					let close = Rect::from_min_size(
+						pos2(tab_rect.max.x - 20.0, tab_rect.center().y - 8.0),
+						vec2(16.0, 16.0),
+					);
+					let close_response =
+						ui.interact(close, ui.id().with(("stab-close", &tab.id)), Sense::click());
+					if is_active {
+						ui.painter().rect_filled(
+							tab_rect,
+							CornerRadius::same(theme::R_CONTROL),
+							theme::ground(),
+						);
+						ui.painter().rect_stroke(
+							tab_rect,
+							CornerRadius::same(theme::R_CONTROL),
+							Stroke::new(1.0_f32, theme::border()),
+							egui::StrokeKind::Inside,
+						);
+						ui.scroll_to_rect(tab_rect, Some(Align::Center));
+					} else if response.hovered() {
+						ui.painter().rect_filled(
+							tab_rect,
+							CornerRadius::same(theme::R_CONTROL),
+							theme::panel_3(),
+						);
+					}
+					let ink = if is_active {
+						theme::text()
+					} else {
+						theme::text_3()
+					};
+					paint(
+						ui.painter(),
+						icon,
+						Rect::from_center_size(
+							pos2(tab_rect.min.x + 9.0 + 7.0, tab_rect.center().y),
+							vec2(14.0, 14.0),
+						),
+						if is_active {
+							theme::ACCENT_2
+						} else {
+							theme::text_3()
+						},
+						1.5,
+					);
+					truncated_text(
+						ui,
+						pos2(tab_rect.min.x + 9.0 + 14.0 + 6.0, tab_rect.center().y),
+						&title,
+						12.0,
+						ink,
+						text_width,
+					);
+					let close_ink = if close_response.hovered() {
+						theme::text()
+					} else {
+						theme::text_3()
+					};
+					if close_response.hovered() {
+						ui.painter()
+							.rect_filled(close, CornerRadius::same(3), theme::panel_4());
+					}
+					paint(ui.painter(), Icon::X, close.shrink(2.5), close_ink, 1.3);
+					if close_response.clicked() {
+						close_tab = Some(tab.id.clone());
+					} else if response.clicked() {
+						select = Some(tab.id.clone());
+					}
+				}
+			});
+		});
+	if let Some(tab_id) = close_tab {
+		let notice = shell.close_tab_saving(&pane.id, &tab_id);
+		shell.state.show(notice);
+	} else if let Some(tab_id) = select {
+		shell.state.select_tab(&pane.id, &tab_id);
 	}
 	let plus = Rect::from_center_size(pos2(strip.max.x - 46.0, strip.center().y), vec2(28.0, 28.0));
 	let mut plus_ui = ui.new_child(egui::UiBuilder::new().max_rect(plus));
@@ -611,13 +733,13 @@ fn pane_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 fn markdown_body(ui: &mut Ui, shell: &mut Shell, _pane: &Pane, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 34.0));
 	ui.painter()
-		.rect_filled(head, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(head, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let title = tab
 		.doc
@@ -628,14 +750,14 @@ fn markdown_body(ui: &mut Ui, shell: &mut Shell, _pane: &Pane, tab: &SessionTab)
 		egui::Align2::LEFT_CENTER,
 		title,
 		egui::FontId::monospace(12.0),
-		theme::TEXT_2,
+		theme::text_2(),
 	);
 	ui.painter().text(
 		pos2(head.max.x - 12.0, head.center().y),
 		egui::Align2::RIGHT_CENTER,
 		t!("只读"),
 		egui::FontId::monospace(11.0),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	let body = Rect::from_min_max(
 		pos2(rect.min.x + 18.0, head.max.y + 12.0),
@@ -665,7 +787,7 @@ fn markdown_body(ui: &mut Ui, shell: &mut Shell, _pane: &Pane, tab: &SessionTab)
 						ui.label(
 							egui::RichText::new(text)
 								.font(font)
-								.color(theme::TEXT)
+								.color(theme::text())
 								.strong(),
 						);
 					},
@@ -673,21 +795,21 @@ fn markdown_body(ui: &mut Ui, shell: &mut Shell, _pane: &Pane, tab: &SessionTab)
 						ui.label(
 							egui::RichText::new(format!("• {text}"))
 								.font(small_font.clone())
-								.color(theme::TEXT_2),
+								.color(theme::text_2()),
 						);
 					},
 					crate::tracking::MdRow::Fence(text) => {
 						ui.label(
 							egui::RichText::new(text)
 								.font(small_font.clone())
-								.color(theme::TEXT_3),
+								.color(theme::text_3()),
 						);
 					},
 					crate::tracking::MdRow::Text(text) => {
 						ui.label(
 							egui::RichText::new(text)
 								.font(text_font.clone())
-								.color(theme::TEXT),
+								.color(theme::text()),
 						);
 					},
 					crate::tracking::MdRow::Blank => {
@@ -708,24 +830,32 @@ fn term_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		.rect_filled(sub, CornerRadius::ZERO, theme::TERM_SUB_BG);
 	ui.painter().line_segment(
 		[pos2(sub.min.x, sub.max.y - 0.5), pos2(sub.max.x, sub.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	// The sub-chips are this pane's terminal sessions: clicking one switches
 	// the session tab, and ＋ opens another — the same actions as the strip
 	// above, which is what the spec's `.termsub` is for.
-	let mut chips = ui.new_child(
-		egui::UiBuilder::new()
-			.max_rect(sub.shrink2(vec2(8.0, 5.0)))
-			.layout(Layout::left_to_right(Align::Center)),
+	let chips_rect = Rect::from_min_max(
+		pos2(sub.min.x + 8.0, sub.min.y + 5.0),
+		pos2(sub.max.x - 34.0, sub.max.y - 5.0),
 	);
-	for session in pane.tabs.iter().filter(|t| t.kind == SessionKind::Term) {
-		let active = session.id == tab.id;
-		let label = t!("终端 {}", session.title.trim_start_matches(t!("终端 ")));
-		let response = chip(&mut chips, &label, if active { Chip::Active } else { Chip::Plain });
-		if response.clicked() && !active {
-			shell.state.select_tab(&pane.id, &session.id);
-		}
-	}
+	let mut chips = ui.new_child(egui::UiBuilder::new().max_rect(chips_rect));
+	egui::ScrollArea::horizontal()
+		.id_salt(("zetawork-term-chips", &pane.id))
+		.auto_shrink([false, true])
+		.show(&mut chips, |ui| {
+			ui.spacing_mut().item_spacing.x = 6.0;
+			ui.horizontal(|ui| {
+				for session in pane.tabs.iter().filter(|t| t.kind == SessionKind::Term) {
+					let active = session.id == tab.id;
+					let label = session.display_title();
+					let response = chip(ui, &label, if active { Chip::Active } else { Chip::Plain });
+					if response.clicked() && !active {
+						shell.state.select_tab(&pane.id, &session.id);
+					}
+				}
+			});
+		});
 	let mut add = ui.new_child(
 		egui::UiBuilder::new()
 			.max_rect(Rect::from_min_size(pos2(sub.max.x - 30.0, sub.min.y + 5.0), vec2(20.0, 20.0))),
@@ -1025,7 +1155,14 @@ fn paint_terminal_status(ui: &mut Ui, area: Rect, status: &str, tab: &str, reaso
 		let response = ui.interact(line, ui.id().with(("term-status", tab)), Sense::hover());
 		let _ = response.on_hover_text(reason);
 	}
-	truncated_mono(ui, pos2(area.min.x + 8.0, y), status, 11.0, theme::TEXT_3, area.width() - 16.0);
+	truncated_mono(
+		ui,
+		pos2(area.min.x + 8.0, y),
+		status,
+		11.0,
+		theme::text_3(),
+		area.width() - 16.0,
+	);
 }
 
 /// An 编辑器 page: a real file, editable in place and saved to disk.
@@ -1038,13 +1175,13 @@ fn paint_terminal_status(ui: &mut Ui, area: Rect, status: &str, tab: &str, reaso
 fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	let etabs = Rect::from_min_size(rect.min, vec2(rect.width(), 34.0));
 	ui.painter()
-		.rect_filled(etabs, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(etabs, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(etabs.min.x, etabs.max.y - 0.5), pos2(etabs.max.x, etabs.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let head = tab
 		.doc
@@ -1063,7 +1200,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		pos2(etabs.min.x + 10.0, etabs.center().y),
 		&head,
 		11.0,
-		if dirty { theme::WARN } else { theme::TEXT_3 },
+		if dirty { theme::WARN } else { theme::text_3() },
 		etabs.width() - 130.0,
 	);
 	let foot = Rect::from_min_size(pos2(rect.min.x, rect.max.y - 24.0), vec2(rect.width(), 24.0));
@@ -1092,7 +1229,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		let job = egui::text::LayoutJob::simple(
 			buffer.as_str().to_owned(),
 			font.clone(),
-			theme::TEXT,
+			theme::text(),
 			if wrap { wrap_width } else { f32::INFINITY },
 		);
 		ui.painter().layout_job(job)
@@ -1100,9 +1237,9 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let output = egui::TextEdit::multiline(text)
 		.id(egui::Id::new(("zetawork-editor", &tab_id)))
 		.font(widget_font)
-		.text_color(theme::TEXT)
+		.text_color(theme::text())
 		.code_editor()
-		.frame(false)
+		.frame(egui::Frame::NONE)
 		.desired_width(text_ui.available_width())
 		.desired_rows(24)
 		.lock_focus(true)
@@ -1141,10 +1278,10 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 	let lines = text.lines().count().max(1);
 
 	ui.painter()
-		.rect_filled(foot, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(foot, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(foot.min.x, foot.min.y + 0.5), pos2(foot.max.x, foot.min.y + 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let eol = if text.contains("\r\n") { "CRLF" } else { "LF" };
 	let language = doc
@@ -1162,12 +1299,12 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		let galley = ui.painter().layout_no_wrap(
 			label.to_owned(),
 			egui::FontId::new(11.0, egui::FontFamily::Monospace),
-			if *dirty { theme::WARN } else { theme::TEXT_3 },
+			if *dirty { theme::WARN } else { theme::text_3() },
 		);
 		ui.painter().galley(
 			pos2(x, foot.center().y - galley.size().y / 2.0),
 			galley.clone(),
-			theme::TEXT_3,
+			theme::text_3(),
 		);
 		x += galley.size().x + 18.0;
 	}
@@ -1176,7 +1313,7 @@ fn editor_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane, tab: &SessionTab) {
 		egui::Align2::RIGHT_CENTER,
 		format!("{size:.0}px"),
 		egui::FontId::new(11.0, egui::FontFamily::Monospace),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 }
 
@@ -1235,7 +1372,7 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		.rect_filled(header, CornerRadius::ZERO, theme::TERM_SUB_BG);
 	ui.painter().line_segment(
 		[pos2(header.min.x, header.max.y - 0.5), pos2(header.max.x, header.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
 	let path = shell
 		.state
@@ -1247,7 +1384,7 @@ fn diff_body(ui: &mut Ui, shell: &mut Shell, pane: &Pane) {
 		pos2(header.min.x + 10.0, header.center().y),
 		&format!("git diff --no-color HEAD · {path}"),
 		11.0,
-		theme::TEXT_3,
+		theme::text_3(),
 		header.width() - 20.0,
 	);
 	let body = Rect::from_min_max(pos2(rect.min.x, header.max.y), rect.max);
@@ -1354,7 +1491,7 @@ const DIFF_ROW_H: f32 = 20.0;
 /// and, for a header, the file it names.
 fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str, marked: bool) {
 	let (sign, ink, background) = match kind {
-		DiffKind::Header => ('≡', theme::TEXT, Some(theme::PANEL_2)),
+		DiffKind::Header => ('≡', theme::text(), Some(theme::panel_2())),
 		DiffKind::Hunk => ('@', theme::ACCENT_2, Some(theme::ACCENT.gamma_multiply(0.08))),
 		DiffKind::Add => {
 			('+', Color32::from_rgb(0xa9, 0xe6, 0xb4), Some(theme::ADD.gamma_multiply(0.09)))
@@ -1384,12 +1521,12 @@ fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str, marked: bool) {
 	ui.painter()
 		.galley(pos2(row.min.x + 28.0, row.center().y - galley.size().y / 2.0), galley, ink);
 	if marked {
-		ui.painter().text(
-			pos2(row.max.x - 12.0, row.center().y),
-			egui::Align2::RIGHT_CENTER,
-			"✎",
-			egui::FontId::proportional(11.0),
+		paint(
+			ui.painter(),
+			Icon::Pencil,
+			Rect::from_center_size(pos2(row.max.x - 15.0, row.center().y), vec2(12.0, 12.0)),
 			theme::ACCENT_2,
+			1.3,
 		);
 	}
 }
@@ -1399,7 +1536,7 @@ fn diff_row(ui: &Ui, row: Rect, kind: DiffKind, line: &str, marked: bool) {
 fn note_editor(ui: &mut Ui, shell: &mut Shell, file: &str, line: u32, code: &str, width: f32) {
 	let (rect, _) = ui.allocate_exact_size(vec2(width, 30.0), Sense::hover());
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel_2());
 	const SEND_W: f32 = 92.0;
 	let field = Rect::from_min_max(
 		pos2(rect.min.x + 28.0, rect.min.y + 4.0),
@@ -1410,7 +1547,7 @@ fn note_editor(ui: &mut Ui, shell: &mut Shell, file: &str, line: u32, code: &str
 	let edit = child.add_sized(
 		field.size(),
 		egui::TextEdit::singleline(&mut shell.diff_note_draft)
-			.frame(false)
+			.frame(egui::Frame::NONE)
 			.font(egui::TextStyle::Monospace)
 			.hint_text(t!("行注释：回车保存，⇧ 回车发给 agent")),
 	);
@@ -1425,7 +1562,7 @@ fn note_editor(ui: &mut Ui, shell: &mut Shell, file: &str, line: u32, code: &str
 	let enabled = shell.agent_target.is_some();
 	if enabled {
 		ui.painter()
-			.rect_filled(button, CornerRadius::same(5), theme::PANEL_3);
+			.rect_filled(button, CornerRadius::same(5), theme::panel_3());
 	}
 	ui.painter().text(
 		button.center(),
@@ -1433,9 +1570,9 @@ fn note_editor(ui: &mut Ui, shell: &mut Shell, file: &str, line: u32, code: &str
 		t!("发给 agent"),
 		egui::FontId::proportional(11.0),
 		if enabled {
-			theme::TEXT_2
+			theme::text_2()
 		} else {
-			theme::TEXT_3
+			theme::text_3()
 		},
 	);
 	let (enter, shift, escape) = child.input(|input| {
@@ -1448,15 +1585,16 @@ fn note_editor(ui: &mut Ui, shell: &mut Shell, file: &str, line: u32, code: &str
 	if escape {
 		shell.diff_note_at = None;
 	}
-	if (edit.lost_focus() && enter) || send.clicked() {
+	let send_clicked = enabled && send.clicked();
+	if (edit.lost_focus() && enter) || send_clicked {
 		shell.save_diff_note(file, line);
-		if (shift || send.clicked()) && shell.agent_target.is_some() {
+		if (shift || send_clicked) && shell.agent_target.is_some() {
 			let message = shell.diff_note_message(file, line, code);
 			if let Some((_, session)) = shell.agent_target.clone() {
 				shell.send_agent_prompt(&session, &message);
 			}
 		}
-		if shift || send.clicked() {
+		if shift || send_clicked {
 			shell.diff_note_at = None;
 		} else {
 			edit.request_focus();
@@ -1474,15 +1612,17 @@ fn note_editor(ui: &mut Ui, shell: &mut Shell, file: &str, line: u32, code: &str
 fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	let rect = ui.max_rect();
 	ui.painter()
-		.rect_filled(rect, CornerRadius::ZERO, theme::PANEL);
+		.rect_filled(rect, CornerRadius::ZERO, theme::panel());
 	let head = Rect::from_min_size(rect.min, vec2(rect.width(), 34.0));
 	ui.painter()
-		.rect_filled(head, CornerRadius::ZERO, theme::PANEL_2);
+		.rect_filled(head, CornerRadius::ZERO, theme::panel_2());
 	ui.painter().line_segment(
 		[pos2(head.min.x, head.max.y - 0.5), pos2(head.max.x, head.max.y - 0.5)],
-		Stroke::new(1.0_f32, theme::BORDER),
+		Stroke::new(1.0_f32, theme::border()),
 	);
-	let origin = shell.stats.origin().to_owned();
+	// `/api/*` is served by the gateway (`gatewayUrl`/`webUrl`), not by the
+	// stats dashboard (`statsUrl`), so a manual 连接 must dial the former.
+	let origin = shell.gateway_origin().unwrap_or_default();
 	let pane = shell.agents.ensure(&tab.id);
 	let title = match pane.session.as_deref() {
 		Some(session) => format!("Agent · {session}"),
@@ -1497,11 +1637,11 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		head.width() - 200.0,
 	);
 	let (status, ink) = match &pane.link {
-		Link::Live if pane.view.running => ("running".to_owned(), theme::ADD),
-		Link::Live => ("not-running".to_owned(), theme::TEXT_3),
+		Link::Live if pane.view.running => (pane.status_line(), theme::ADD),
+		Link::Live => (pane.status_line(), theme::text_3()),
 		Link::Connecting => (pane.link.label().to_owned(), theme::WARN),
 		Link::Failed(_) => (pane.link.label().to_owned(), theme::DEL),
-		Link::Detached | Link::Ended => (pane.link.label().to_owned(), theme::TEXT_3),
+		Link::Detached | Link::Ended => (pane.link.label().to_owned(), theme::text_3()),
 	};
 	ui.painter().text(
 		pos2(head.max.x - 10.0, head.center().y),
@@ -1518,7 +1658,7 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 	// The session id is user-supplied: the gateway knows it, this shell does
 	// not guess it.
 	child.horizontal(|ui| {
-		ui.label(egui::RichText::new(t!("会话 id")).color(theme::TEXT_3));
+		ui.label(egui::RichText::new(t!("会话 id")).color(theme::text_3()));
 		ui.add(
 			egui::TextEdit::singleline(&mut pane.draft)
 				.desired_width(260.0)
@@ -1538,7 +1678,7 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		let ink = if matches!(pane.link, Link::Failed(_)) {
 			theme::DEL
 		} else {
-			theme::TEXT_3
+			theme::text_3()
 		};
 		child.label(egui::RichText::new(t!("原因：{}", reason)).color(ink));
 	}
@@ -1552,11 +1692,11 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 		let (label, ink) = if pane.awaiting_input() {
 			(t!("等待你的输入"), theme::WARN)
 		} else {
-			(t!("最近一次请求"), theme::TEXT_2)
+			(t!("最近一次请求"), theme::text_2())
 		};
 		child.horizontal_wrapped(|ui| {
 			ui.label(egui::RichText::new(label).color(ink).strong());
-			ui.label(egui::RichText::new(summary).color(theme::TEXT_2));
+			ui.label(egui::RichText::new(summary).color(theme::text_2()));
 		});
 	}
 
@@ -1568,16 +1708,16 @@ fn agent_body(ui: &mut Ui, shell: &mut Shell, tab: &SessionTab) {
 			if rows.is_empty() {
 				ui.label(
 					egui::RichText::new(t!("还没有会话记录；新的 durable entry 会出现在这里。"))
-						.color(theme::TEXT_3),
+						.color(theme::text_3()),
 				);
 			}
 			for row in rows {
 				let (prefix, ink) = match row.kind {
-					RowKind::User => (t!("你："), theme::TEXT),
-					RowKind::Assistant => (t!("助手："), theme::TEXT_2),
-					RowKind::Tool => (t!("工具："), theme::TEXT_3),
+					RowKind::User => (t!("你："), theme::text()),
+					RowKind::Assistant => (t!("助手："), theme::text_2()),
+					RowKind::Tool => (t!("工具："), theme::text_3()),
 					RowKind::Error => (t!("错误："), theme::DEL),
-					RowKind::Notice => ("· ", theme::TEXT_3),
+					RowKind::Notice => ("· ", theme::text_3()),
 				};
 				ui.label(
 					egui::RichText::new(format!("{prefix}{}", row.text))
@@ -1782,14 +1922,14 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 		egui::Align2::CENTER_CENTER,
 		"zetawork",
 		egui::FontId::new(26.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	ui.painter().text(
 		pos2(centre.x, mark.max.y + 46.0),
 		egui::Align2::CENTER_CENTER,
 		t!("从侧边栏中选择一个工作区开始"),
 		egui::FontId::new(13.0, egui::FontFamily::Proportional),
-		theme::TEXT_3,
+		theme::text_3(),
 	);
 	let cta_y = mark.max.y + 88.0;
 	let mut open_btn = ui.new_child(
@@ -1830,15 +1970,15 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 			egui::Align2::LEFT_CENTER,
 			label,
 			egui::FontId::new(12.5, egui::FontFamily::Proportional),
-			theme::TEXT_2,
+			theme::text_2(),
 		);
 		let rect = Rect::from_center_size(pos2(centre.x + 160.0, y), vec2(60.0, 20.0));
 		ui.painter()
-			.rect_filled(rect, CornerRadius::same(5), theme::PANEL_3);
+			.rect_filled(rect, CornerRadius::same(5), theme::panel_3());
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(5),
-			Stroke::new(1.0_f32, theme::BORDER),
+			Stroke::new(1.0_f32, theme::border()),
 			egui::StrokeKind::Inside,
 		);
 		ui.painter().text(
@@ -1846,13 +1986,15 @@ fn welcome(ui: &mut Ui, shell: &mut Shell) {
 			egui::Align2::CENTER_CENTER,
 			keys,
 			egui::FontId::new(11.0, egui::FontFamily::Monospace),
-			theme::TEXT_2,
+			theme::text_2(),
 		);
 		y += 30.0;
 	}
 	let line = Rect::from_min_size(pos2(centre.x - 190.0, y - 22.0), vec2(380.0, 1.0));
-	ui.painter()
-		.line_segment([line.min, pos2(line.max.x, line.min.y)], Stroke::new(1.0_f32, theme::BORDER));
+	ui.painter().line_segment(
+		[line.min, pos2(line.max.x, line.min.y)],
+		Stroke::new(1.0_f32, theme::border()),
+	);
 }
 
 /// The welcome panel's `.btn`.
@@ -1861,7 +2003,7 @@ fn wide_button(ui: &mut Ui, icon: Icon, label: &str, primary: bool) -> egui::Res
 	let fill = if primary {
 		theme::BRAND_A
 	} else {
-		theme::PANEL_2
+		theme::panel_2()
 	};
 	ui.painter()
 		.rect_filled(rect, CornerRadius::same(theme::R_CONTROL), fill);
@@ -1869,11 +2011,15 @@ fn wide_button(ui: &mut Ui, icon: Icon, label: &str, primary: bool) -> egui::Res
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0_f32, theme::BORDER_2),
+			Stroke::new(1.0_f32, theme::border_2()),
 			egui::StrokeKind::Inside,
 		);
 	}
-	let ink = if primary { Color32::WHITE } else { theme::TEXT };
+	let ink = if primary {
+		Color32::WHITE
+	} else {
+		theme::text()
+	};
 	paint(
 		ui.painter(),
 		icon,
@@ -1892,7 +2038,7 @@ fn wide_button(ui: &mut Ui, icon: Icon, label: &str, primary: bool) -> egui::Res
 		ui.painter().rect_stroke(
 			rect,
 			CornerRadius::same(theme::R_CONTROL),
-			Stroke::new(1.0_f32, theme::BORDER_2),
+			Stroke::new(1.0_f32, theme::border_2()),
 			egui::StrokeKind::Inside,
 		);
 	}

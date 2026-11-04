@@ -412,7 +412,15 @@ pub fn section(ui: &mut Ui, shell: &mut Shell) {
 		compact_note(ui, &pending);
 	}
 	if let Some(notice) = shell.remote_access.notice().cloned() {
-		compact_note_colored(ui, &notice.1, if notice.0 { theme::TEXT_2 } else { theme::WARN });
+		compact_note_colored(
+			ui,
+			&notice.1,
+			if notice.0 {
+				theme::text_2()
+			} else {
+				theme::WARN
+			},
+		);
 	}
 	if let Some(error) = shell.remote_access.error().map(str::to_owned) {
 		compact_note_colored(ui, &t!("远程访问加载失败：{}", error), theme::WARN);
@@ -592,7 +600,7 @@ fn pairing_url(ui: &mut Ui, pairing: &Pairing) {
 		pos2(rect.min.x + 2.0, rect.center().y),
 		&pairing.url,
 		11.0,
-		theme::TEXT_2,
+		theme::text_2(),
 		rect.width() - 4.0,
 	);
 }
@@ -603,21 +611,21 @@ fn text_row(ui: &mut Ui, shell: &mut Shell, key: &str, label: &str, seed: &str, 
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		egui::Stroke::new(1.0_f32, theme::BORDER),
+		egui::Stroke::new(1.0_f32, theme::border()),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 3.0),
 		egui::Align2::LEFT_TOP,
 		label,
 		FontId::new(12.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	truncated_text(
 		ui,
 		pos2(rect.min.x, rect.min.y + 24.0),
 		hint_text,
 		9.5,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() - width - 10.0,
 	);
 	let control_rect =
@@ -645,21 +653,21 @@ fn field_row(
 	let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
 	ui.painter().line_segment(
 		[pos2(rect.min.x, rect.max.y - 0.5), pos2(rect.max.x, rect.max.y - 0.5)],
-		egui::Stroke::new(1.0_f32, theme::BORDER),
+		egui::Stroke::new(1.0_f32, theme::border()),
 	);
 	ui.painter().text(
 		pos2(rect.min.x, rect.min.y + 3.0),
 		egui::Align2::LEFT_TOP,
 		label,
 		FontId::new(12.0, egui::FontFamily::Proportional),
-		theme::TEXT,
+		theme::text(),
 	);
 	truncated_text(
 		ui,
 		pos2(rect.min.x, rect.min.y + 24.0),
 		hint_text,
 		9.5,
-		theme::TEXT_3,
+		theme::text_3(),
 		rect.width() - 150.0,
 	);
 	let control_rect =
@@ -680,7 +688,7 @@ fn save_button(ui: &mut Ui, label: &str, changed: bool) -> bool {
 
 /// A small non-row note.
 fn compact_note(ui: &mut Ui, text: &str) {
-	compact_note_colored(ui, text, theme::TEXT_3);
+	compact_note_colored(ui, text, theme::text_3());
 }
 
 fn compact_note_colored(ui: &mut Ui, text: &str, color: Color32) {

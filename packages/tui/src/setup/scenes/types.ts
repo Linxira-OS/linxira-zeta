@@ -13,6 +13,9 @@ export interface StyledLine {
 	readonly color: ThemeColor;
 }
 
+/** Catalogue tag selectable during onboarding. */
+export type SetupLanguage = "en" | "zh";
+
 /** Terminal capabilities used by setup overlays and the startup splash. */
 export interface SetupUiHost {
 	readonly ui: Pick<TUI, "showOverlay" | "setFocus" | "requestRender" | "invalidate"> & {
@@ -27,6 +30,8 @@ export interface SetupHost extends SetupUiHost {
 	readonly symbolPreset: SymbolPreset;
 	readonly colorBlindMode: boolean;
 	readonly disabledProviders: readonly string[];
+	/** Effective UI/settings language; the onboarding language scene starts here. */
+	readonly language: SetupLanguage;
 	readonly authStorage: AuthStorage;
 	readonly modelSource: ModelBrowserSource;
 	/** Available and catalog models of every kind; role chips resolve over all of them, rows list chat models. */
@@ -36,6 +41,7 @@ export interface SetupHost extends SetupUiHost {
 	refreshProvider(provider: string): Promise<void>;
 	saveComposerShape(shape: ComposerShape): Promise<void>;
 	saveSymbolPreset(preset: SymbolPreset): void;
+	saveLanguage(language: SetupLanguage): Promise<void> | void;
 	saveColorBlindMode(enabled: boolean): void;
 	saveTheme(mode: "dark" | "light", name: string): void;
 	captureBrowserSession(request: OAuthBrowserSessionRequest, signal?: AbortSignal): Promise<string>;

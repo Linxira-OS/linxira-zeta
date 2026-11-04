@@ -1,9 +1,9 @@
-# The right column: git branches and the context ring
+# The right column: git branches, shipping and the context ring
 
-Two pieces of the desktop shell's right column became interactive: the Git
-tab can now move between branches, and 用量 draws its context share as a ring
-instead of a bar. This page covers what each one reads, what it writes, and
-where its numbers come from.
+The Git tab can move between branches, commit all changes with a message, and
+push the current branch. 用量 draws its context share as a ring instead of a
+bar. This page covers what each one reads, what it writes, and where its
+numbers come from.
 
 ## Git tab: listing, switching, creating
 
@@ -42,10 +42,35 @@ git's DWIM, which is ambiguous when two remotes carry the same branch name.
 type before the 创建 button is enabled; the real command still runs under git's
 own validation.
 
-Both actions are the only writes this column performs. Their result (the
-switched branch, or git's own refusal text) is shown on one line above the
-groups, and a success re-reads the snapshot immediately, because the changed
-files, ahead/behind counts and commit tail all belong to the new checkout.
+A branch action's result (the switched branch, or git's own refusal text) is
+shown on one line above the groups, and a success re-reads the snapshot
+immediately, because the changed files, ahead/behind counts and commit tail all
+belong to the new checkout.
+
+## Git tab: commit all and push
+
+The commit row writes the shell's one-line message to
+`git_commit_draft`; the message survives a tab switch because it belongs to the
+shell, not to the panel. 提交全部更改 is enabled only when the snapshot has
+tracked or untracked changes and the message is not blank. It runs:
+
+```
+git -C <workspace> add -A
+git -C <workspace> commit -m <message>
+```
+
+The add is deliberately repository-wide: the button says 提交全部更改, and the
+untracked list is part of that. Git's identity, hooks and refusal text are not
+bypassed. On success the draft is cleared and the snapshot is re-read.
+
+推送 runs plain `git push` when the branch already tracks an upstream, and
+`git push -u origin HEAD` when it does not, so the first push creates the
+upstream. It is enabled when there is no upstream or when the snapshot reports
+ahead commits. Both outcomes land in the same notice line above the groups.
+
+Per-file staging, hunk-level staging, pull-request creation and merge-conflict
+resolution are not implemented; the panel does not draw placeholder buttons for
+them.
 
 ## 用量: the context ring
 
