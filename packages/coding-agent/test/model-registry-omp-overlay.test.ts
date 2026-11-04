@@ -50,6 +50,7 @@ describe("ModelRegistry OMP overlay credential tier", () => {
 	let ompAgentDir: string;
 	let authStorage: AuthStorage;
 	let originalDeepseekEnv: string | undefined;
+	let originalOmpCompat: string | undefined;
 
 	function newRegistry(): ModelRegistry {
 		return new ModelRegistry(authStorage, path.join(tempDir, "models.json"), { ompAgentDir });
@@ -64,15 +65,27 @@ describe("ModelRegistry OMP overlay credential tier", () => {
 		// this suite is about the registry tier, not env precedence.
 		originalDeepseekEnv = Bun.env.DEEPSEEK_API_KEY;
 		delete Bun.env.DEEPSEEK_API_KEY;
+		originalOmpCompat = Bun.env.ZETA_OMP_COMPAT;
+		Bun.env.ZETA_OMP_COMPAT = "1";
 		authStorage = await AuthStorage.create(":memory:");
 	});
 
 	afterEach(async () => {
 		if (originalDeepseekEnv === undefined) delete Bun.env.DEEPSEEK_API_KEY;
+		if (originalOmpCompat === undefined) delete Bun.env.ZETA_OMP_COMPAT;
+		else Bun.env.ZETA_OMP_COMPAT = originalOmpCompat;
 		authStorage.close();
 		// Registry sqlite cache handles can outlive the test on Windows; never
 		// fail the suite over temp-dir cleanup.
 		await fs.promises.rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
+	});
+
+	test("switch off leaves the upstream agent.db untouched", async () => {
+		delete Bun.env.ZETA_OMP_COMPAT;
+		const registry = newRegistry();
+		expect(registry.getOmpCompatConfig()).toBeUndefined();
+		expect(registry.getOmpOriginProviders().has(PROVIDER)).toBe(false);
+		await expect(authStorage.keys.get(PROVIDER)).resolves.toBeUndefined();
 	});
 
 	test("upstream key installs at the mirror tier and keeps the provider available", async () => {

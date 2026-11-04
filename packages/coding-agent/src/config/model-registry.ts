@@ -140,6 +140,7 @@ import {
 } from "./models-config";
 import { loadModelsLayers, mergeModelsConfigs, modelsWebConfigPath } from "./models-config-layers";
 import type { ModelOverride, ModelsConfig, ProviderAuthMode } from "./models-config-schema";
+import { isOmpCompatEnabled } from "@linxiraos/pi-utils/env";
 import { type OmpCompatSnapshot, defaultOmpAgentDir, probeOmpCompat } from "./omp-compat";
 import { type Settings, settings } from "./settings";
 
@@ -1255,6 +1256,7 @@ export class ModelRegistry {
 	 * upgrades/rollbacks — whenever upstream state actually changed on disk.
 	 */
 	#ompCompatFingerprint(): string | null {
+		if (!isOmpCompatEnabled()) return null;
 		if (this.#ignoreLocalModelConfig) return null;
 		const agentDir = this.#ompAgentDir ?? defaultOmpAgentDir();
 		const parts = [agentDir];

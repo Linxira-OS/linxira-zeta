@@ -278,11 +278,17 @@ export function parseEnvFile(filePath: string): Record<string, string> {
 	return result;
 }
 
-// Read-only compatibility with the old OMP agent directory. Zeta loads its own
-// project/agent/config `.env` files first; legacy OMP dotenv files fill names the
-// new files do not define, so a migrated provider entry in `~/.omp/agent/models.yml`
-// (for example `apiKey: OD_KEY`) can still resolve its environment reference.
-// Never write these files.
+// Read-only compatibility with the old OMP agent directory. Off by default:
+// external OMP configuration must be explicitly imported. Set
+// ZETA_OMP_COMPAT=1 in the shell or a Zeta dotenv file to enable both the
+// legacy dotenv fallback and the models.yml/agent.db overlay.
+export function isOmpCompatEnabled(env: Record<string, string | undefined> = Bun.env): boolean {
+	const value = env.ZETA_OMP_COMPAT;
+	if (!value) return false;
+	const normalized = value.toLowerCase();
+	return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 function loadLegacyOmpEnv(): Record<string, string> {
 	const home = os.homedir();
 	const project = getProjectDir();
@@ -312,7 +318,15 @@ const homeEnv = parseEnvFile(path.join(os.homedir(), ".env"));
 const piEnv = parseEnvFile(path.join(getConfigRootDir(), ".env"));
 const agentEnv = parseEnvFile(path.join(getAgentDir(), ".env"));
 const projectEnv = parseEnvFile(path.join(getProjectDir(), ".env"));
-const legacyOmpEnv = loadLegacyOmpEnv();
+// The switch itself may come from the shell or any Zeta dotenv file. Check the
+// same precedence before touching legacy OMP files; do not read them by default.
+const ompCompatValue =
+	Bun.env.ZETA_OMP_COMPAT ??
+	projectEnv.ZETA_OMP_COMPAT ??
+	agentEnv.ZETA_OMP_COMPAT ??
+	piEnv.ZETA_OMP_COMPAT ??
+	homeEnv.ZETA_OMP_COMPAT;
+const legacyOmpEnv = isOmpCompatEnabled({ ZETA_OMP_COMPAT: ompCompatValue }) ? loadLegacyOmpEnv() : {};
 
 for (const key of Object.keys(Bun.env)) {
 	const value = Bun.env[key];

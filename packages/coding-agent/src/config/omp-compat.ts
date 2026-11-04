@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { JSONC, YAML } from "bun";
 import { logger, resolveYamlConfigReadPath } from "@linxiraos/pi-utils";
+import { isOmpCompatEnabled } from "@linxiraos/pi-utils/env";
 import { type ModelsConfig, ModelsConfigSchema } from "./models-config-schema";
 
 /**
@@ -15,6 +16,9 @@ import { type ModelsConfig, ModelsConfigSchema } from "./models-config-schema";
  * and the SQLite database is only opened in readonly mode. Anything the probe
  * finds is surfaced as an in-memory overlay by the model registry — no key is
  * ever persisted into Zeta's own config.
+ *
+ * Disabled unless `ZETA_OMP_COMPAT=1`: external OMP state is an explicit
+ * import, not something Zeta reads behind the user's back.
  *
  * Every failure mode is silent (debug log + "disabled"): the feature must be
  * zero-impact for machines without an upstream installation, and a corrupt or
@@ -149,7 +153,11 @@ function loadOmpCredentialKeys(agentDir: string): Record<string, string> | undef
  * disabled, zero ongoing cost) when neither a parsable `models.yml` nor
  * compatible credentials exist.
  */
-export function probeOmpCompat(agentDir: string = defaultOmpAgentDir()): OmpCompatSnapshot | undefined {
+export function probeOmpCompat(
+	agentDir: string = defaultOmpAgentDir(),
+	options?: { enabled?: boolean },
+): OmpCompatSnapshot | undefined {
+	if (!(options?.enabled ?? isOmpCompatEnabled())) return undefined;
 	if (!fs.existsSync(agentDir)) return undefined;
 	const config = loadOmpModelsConfig(agentDir);
 	const credentialKeys = loadOmpCredentialKeys(agentDir);

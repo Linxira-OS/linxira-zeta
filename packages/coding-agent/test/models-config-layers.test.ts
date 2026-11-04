@@ -374,7 +374,14 @@ describe("YAML sibling read fallback", () => {
 			path.join(dir, "models.yaml"),
 			"providers:\n  upstream:\n    baseUrl: https://upstream.example/v1\n    apiKey: k\n",
 		);
-		const snapshot = probeOmpCompat(dir);
-		expect(Object.keys(snapshot?.config.providers ?? {})).toEqual(["upstream"]);
+		const previous = Bun.env.ZETA_OMP_COMPAT;
+		Bun.env.ZETA_OMP_COMPAT = "1";
+		try {
+			const snapshot = probeOmpCompat(dir);
+			expect(Object.keys(snapshot?.config.providers ?? {})).toEqual(["upstream"]);
+		} finally {
+			if (previous === undefined) delete Bun.env.ZETA_OMP_COMPAT;
+			else Bun.env.ZETA_OMP_COMPAT = previous;
+		}
 	});
 });

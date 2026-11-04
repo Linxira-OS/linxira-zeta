@@ -19,11 +19,23 @@ Most runtime lookups use `$env` from `@linxiraos/pi-utils` (`packages/utils/src/
 3. Active agent `.env` (normally `~/.zeta/agent/.env`) for keys whose current value is empty/unset
 4. Active config-root `.env` (normally `~/.zeta/.env`) for keys whose current value is empty/unset
 5. Home `.env` (`~/.env`) for keys whose current value is empty/unset
-6. Legacy OMP dotenv files for keys still unset: `~/.omp/agent/.env`, `~/.omp/.env`, the active `~/.omp/profiles/<name>/agent/.env`, and project `.omp/.env` / `.omp/agent/.env`. These are read-only fallbacks; Zeta's own files always win.
+6. Legacy OMP dotenv files for keys still unset, only when `ZETA_OMP_COMPAT=1`: `~/.omp/agent/.env`, `~/.omp/.env`, the active `~/.omp/profiles/<name>/agent/.env`, and project `.omp/.env` / `.omp/agent/.env`. These are read-only fallbacks; Zeta's own files always win.
 
 The agent/root locations respect profiles, `ZETA_CONFIG_DIR`, and—only for the default profile—`ZETA_CODING_AGENT_DIR`. Whole dotenv files are parsed with Bun's `node:util.parseEnv`, including quoted multiline values, escaped newlines, and inline comments. Names must be shell identifiers (`[A-Za-z_][A-Za-z0-9_]*`); unsafe names/values are discarded. Variable references remain literal in this parser; only Bun's launch-directory dotenv autoload performs variable expansion before this module runs. Child-shell filtering uses the same parser to identify project dotenv values across `.env`, `.env.<NODE_ENV>` (default `development`), `.env.local`, and `.env.<NODE_ENV>.local`. It removes project-dotenv credentials from shell subprocesses while preserving launcher…
 
 Additional rule inside each `.env` file: every `OMP_*` key is mirrored to its `PI_*` alias, and that mirrored value replaces a same-file `PI_*` value. This mirroring applies to parsed dotenv files, not arbitrary variables inherited from the parent process.
+
+### Legacy OMP compatibility
+
+Reading OMP's old `models.yml`, `agent.db`, and `.env` files is **off by default**. Set:
+
+```bash
+ZETA_OMP_COMPAT=1
+```
+
+This one switch gates both the legacy dotenv fallback and the upstream OMP model/credential overlay. The switch itself must come from the process environment or a Zeta dotenv file (normally `~/.zeta/agent/.env`); it cannot be enabled from `~/.omp/agent/.env`, because that file is not read while the switch is off.
+
+Files already copied into `~/.zeta/agent` (for example a migrated `models.yml`) are native Zeta configuration and stay active; the switch only controls reading the legacy `~/.omp` tree. Use it only when migrating from an existing OMP installation. Zeta's own `.zeta` configuration always takes precedence; compatibility files are never written.
 
 Variables declared on a setting definition (see [settings precedence](./settings.md#precedence)) are parsed by the setting's type unless noted otherwise. Boolean ones (`PI_PY`, `PI_JS`, `PI_INTENT_TRACING`, `PI_AUTO_QA`, `HINDSIGHT_AUTO_RECALL`, …) follow `parseFlag`: an empty value is ignored, so the setting applies; `1`, `y`, `true`, `yes`, and `on` (all-lowercase or all-uppercase) mean true; any other non-empty value means false.
 

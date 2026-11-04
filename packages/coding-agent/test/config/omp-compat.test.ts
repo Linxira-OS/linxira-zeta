@@ -8,6 +8,18 @@ import { ModelRegistry } from "../../src/config/model-registry";
 import { mergeOmpProviderMirrors, stripOmpOriginProviders } from "../../src/server/web-gateway/models";
 import { defaultOmpAgentDir, probeOmpCompat } from "../../src/config/omp-compat";
 
+let originalOmpCompat: string | undefined;
+
+beforeEach(() => {
+	originalOmpCompat = Bun.env.ZETA_OMP_COMPAT;
+	Bun.env.ZETA_OMP_COMPAT = "1";
+});
+
+afterEach(() => {
+	if (originalOmpCompat === undefined) delete Bun.env.ZETA_OMP_COMPAT;
+	else Bun.env.ZETA_OMP_COMPAT = originalOmpCompat;
+});
+
 const OMP_YML = `providers:
   ac:
     baseUrl: https://api.aaccx.pw/v1
@@ -112,6 +124,14 @@ describe("probeOmpCompat", () => {
 
 	test("returns undefined when the upstream agent dir does not exist", () => {
 		expect(probeOmpCompat(path.join(tmpDir, "missing"))).toBeUndefined();
+	});
+
+	test("does not probe upstream state unless the compatibility switch is on", () => {
+		const dir = path.join(tmpDir, "agent");
+		writeOmpFixture(dir, OMP_YML);
+		createUpstreamDb(dir);
+		delete Bun.env.ZETA_OMP_COMPAT;
+		expect(probeOmpCompat(dir)).toBeUndefined();
 	});
 
 	test("maps models.yml providers 1:1 and filters credential rows", () => {

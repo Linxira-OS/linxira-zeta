@@ -116,9 +116,12 @@ export const OMP_PATH_ALLOW = [
 	// keeps absent; that is the reason it exists, not residue.
 	/scripts\/audit-merge-tests\.ts$/, // comparison-only brand normalization; the audit compares a Zeta tree to the upstream tag
 	/scripts\/check-removed-upstream-files\.ts$/,
-	// Read-only upstream OMP model-config compatibility (user decision 2026-10-02):
-	// the probe must name the upstream `~/.omp/agent` default root to find it.
+	// Read-only upstream OMP compatibility (opt-in via ZETA_OMP_COMPAT): the
+	// probe and the legacy dotenv fallback must name the upstream `~/.omp`
+	// roots to find them.
 	/"\.omp", "agent"/,
+	/packages\/utils\/src\/env\.ts ⟶ .*"\.omp", "\.env"/,
+	/packages\/utils\/src\/env\.ts ⟶ .*"\.omp", "profiles"/,
 	/~\/\.omp\/agent/,
 ];
 
