@@ -1,13 +1,8 @@
-# Contributing to omp
+# Contributing to Zeta
 
-Pull requests are welcome. Keep them focused, understand the work you submit,
-and be prepared to explain and maintain it.
-
-> [!NOTE]
-> Pull requests are **temporarily open to everyone** as a trial. We previously
-> required a vouch before accepting PRs; that requirement is lifted for now
-> while we evaluate how open contributions go. Depending on the results, the
-> vouch system may return.
+Zeta is a downstream runtime distribution maintained by Linxira. Pull requests
+are welcome; keep them focused and be prepared to explain and maintain the
+change.
 
 ## Before you start
 
@@ -18,48 +13,31 @@ straight to a pull request.
 
 ### Major changes
 
-Discuss major features and broad architectural or behavioral changes in
-[Discord](https://discord.gg/4NMW9cdXZa) **before writing the implementation**.
-This includes new subsystems, large UI changes, new dependencies, and changes
-that span several packages. A GitHub issue is not a substitute for this
-discussion, and prior discussion does not guarantee that a pull request will be
-merged.
+Open an issue before writing the implementation for a new subsystem, a large UI
+change, a new dependency, or a change that spans several packages. Explain the
+problem and the intended shape first. A pull request is not a substitute for
+that discussion, and prior discussion does not guarantee a merge.
 
-### Do not open an issue for work you are about to submit
-
-If you intend to implement a change yourself, **do not create an issue for it
-first**. robomp treats actionable issues as work to pick up and may start the
-same fix in parallel, wasting compute and maintainer time.
-
-Open an issue when you are reporting a problem or proposing work that you are
-not already turning into a pull request. If a relevant issue already exists,
-link it from your pull request instead of creating another one.
+Do not open an issue and a pull request for the same work at the same time. Pick
+one path: report the problem, or submit the reviewed change.
 
 ## AI-assisted contributions
 
-AI agents are welcome as tools, not as unattended contributors. Do not give an
-agent a vague goal and submit whatever it produces.
-
-Before opening a pull request, you must:
+AI agents are tools, not unattended contributors. Before opening a pull request
+with agent-assisted work, you must:
 
 - constrain the agent to the agreed scope and reject unrelated changes;
 - review every changed file and understand the resulting behavior;
 - run the relevant checks and exercise the changed behavior yourself; and
-- submit the pull request only after that review, rather than letting an agent
-  publish it autonomously.
+- submit only after that review, not by letting an agent publish autonomously.
 
-You are responsible for the code, regardless of who or what generated it.
+You are responsible for the code regardless of who or what generated it.
 
 ## Pull request requirements
 
 Every pull request body **MUST include at least one sentence written by you, in
 your own words**, explaining what changed and why. A generated summary, pasted
 agent transcript, or checklist alone does not satisfy this requirement.
-
-One honest line is enough:
-
-> I reviewed the full diff; this change fixes duplicate PR reviews by reusing
-> the existing delivery guard.
 
 You **MUST verify that the change works as intended**. `bun check` and automated
 tests are expected where relevant, but they are not proof that the behavior
@@ -71,48 +49,56 @@ result in the pull request:
 - for a feature, launch the product and use the feature end to end; and
 - for a UI change, interact with it and inspect the rendered result.
 
-“`bun check` passes” by itself is not sufficient verification. For coding-agent
-development commands and repository structure, see
+“`bun check` passes” by itself is not sufficient verification. Use
+`bun run test:rs` for Rust changes; do not invoke `cargo test` directly. For
+coding-agent development commands and repository structure, see
 [`packages/coding-agent/DEVELOPMENT.md`](packages/coding-agent/DEVELOPMENT.md).
 
 Keep each pull request to one logical change. Avoid unrelated cleanup,
-drive-by refactors, generated noise, or features that were not part of the
-agreed scope.
+drive-by refactors, generated noise, or features outside the agreed scope.
+Do not delete tests, weaken assertions, or skip a check to get green.
+
+## CI
+
+GitHub CI is tiered: pull requests and non-main dispatches take the fast path
+(no Rust/cross/native compilation), main pushes run the full gate, and release
+runs skip the test fan-out after the source commit is green. The exact job map
+is in [`document/ci-tiers.md`](document/ci-tiers.md). Contributors do not need
+to reproduce every environment locally; they do need to run the checks relevant
+to the changed paths.
+
+The Gitea mirror is for the project's own Linux hosts. GitHub Actions is the
+contribution gate.
 
 ## Coverage
 
-The repository does not enforce a coverage threshold yet, but coverage is part
-of review. The current baseline, the package-by-package limits, and the
-loaded-file caveat are in [`README.md`](README.md#coverage).
+Coverage is measured and reviewed, not enforced by a threshold. The current
+baseline, package-by-package limits, and the loaded-file caveat are in
+[`README.md`](README.md#coverage).
 
-Runtime-behavior changes and release candidates **MUST** run the
-[**Coverage** workflow](.github/workflows/coverage.yml) (Actions → Coverage →
-Run workflow) on the candidate commit. Attach the `coverage-lcov` artifact to
-the pull request or release record. A drop larger than 0.5 percentage points in
-a package's line coverage needs an explanation, and tests must not be deleted
-or skipped to protect a number. Do not report the `coding-agent` core sample as
+For runtime-behavior changes and release candidates, maintainers run the
+**Coverage** workflow and attach the `coverage-lcov` artifact to the review or
+release record. A drop larger than 0.5 percentage points in a package's line
+coverage needs an explanation. Do not report the `coding-agent` core sample as
 the whole package.
-
-Maintainers: see [`.github/MAINTAINERS.md`](.github/MAINTAINERS.md) for the
-ratchet policy and known fixture failures.
 
 ## Contribution licensing
 
-A contribution intentionally submitted for inclusion in OMP is licensed under
-the MIT License.
-
-This policy does not relicense third-party or vendored code. You must have the
-right to submit your contribution and must preserve applicable copyright,
-license, attribution, and notice material. Submitting a contribution does not
-require signing a Contributor License Agreement (CLA) or certifying a
-Developer Certificate of Origin (DCO).
+Zeta uses a per-directory licence split: `main/` is AGPL-3.0, while
+`packages/`, `crates/`, `sdk/`, `termide/`, `editor/`, `web-ui/`, and `desktop/`
+are MIT. Submit work you have the right to licence under the terms that apply to
+the files you change. Third-party or vendored code keeps its own licence and
+attribution; do not relicense it.
 
 ## Review
 
-Maintainers review the submitted behavior and the contributor's understanding
-of it—not the volume of generated code. Respond to review feedback yourself,
-and only apply suggestions you have checked.
+Maintainers review the submitted behavior and the contributor's understanding of
+it, not the volume of generated code. Respond to review feedback yourself, and
+apply only suggestions you have checked.
 
-Pull requests may be closed when they skip required prior discussion, lack the
+Pull requests may be closed when they skip required discussion, lack the
 human-written explanation, contain unreviewed agent output, or mix unrelated
 changes.
+
+Report security issues through the private channel in
+[`SECURITY.md`](.github/SECURITY.md), not a public issue or pull request.
