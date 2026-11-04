@@ -31,8 +31,8 @@ opts back into the main gate when a manual run really needs it.
 |---|---|---|---|
 | `check` | runs | runs | runs; workspace type-check skipped |
 | `rust_validate` | skipped | runs | skipped |
-| `native_addons` | restore main cache or npm; no build | builds, saves cache | restores source-main cache when the key matches; otherwise builds |
-| `native_addons_cross` | skipped | runs | runs |
+| `native_addons` | restore main cache or npm; no build | restore exact main cache; build and save on miss | restore exact main cache; build on miss |
+| `native_addons_cross` | skipped | restore exact cross cache; build and save on miss | restore exact cross cache; build on miss |
 | `test_coding_agent_native` | 3 shards | 1 shard | skipped |
 | other TS buckets | run | run | skipped |
 | `main_tests` / `termide_tests` | diff against `origin/main`; skip untouched | diff against the pushed base | skipped unless needed |
@@ -40,7 +40,8 @@ opts back into the main gate when a manual run really needs it.
 
 Native cache key inputs are Cargo/Bazel/rust-toolchain/build files. A version
 bump does not change them, so the release run can reuse the source commit's
-cache entry.
+cache entry. `native_addons_cross` uses its own prefix over the same inputs, so
+a non-native main push also skips the cross build.
 
 ## What may be skipped
 
@@ -76,7 +77,7 @@ runners unless the repository is private and every contributor is trusted.
    bucket.
 2. A single `CI / required` aggregator as the branch-protection check; skipped
    jobs count as success, failed executed jobs fail the aggregator.
-3. Release artifact reuse for cross targets, not only linux-x64.
+3. Validate the cross cache hit path on a non-native main push and release.
 4. Self-hosted `main` runner if the cold-hosted full gate remains the
    bottleneck.
 
