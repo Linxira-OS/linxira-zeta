@@ -287,7 +287,9 @@ export async function handleCopyFromOmp(
 	if (!getProviderDefinition(providerId)) {
 		return json({ error: `Unknown bundled provider: ${providerId}` }, 404);
 	}
-	const snapshot = probeOmpCompat(ompAgentDir);
+	// This endpoint is an explicit one-click import, so it is its own consent:
+	// probe the legacy tree even when ambient OMP compatibility is off.
+	const snapshot = probeOmpCompat(ompAgentDir, { enabled: true });
 	if (!snapshot) {
 		return json({ error: "No OMP configuration found" }, 404);
 	}
