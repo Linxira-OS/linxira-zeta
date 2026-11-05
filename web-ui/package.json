@@ -15,16 +15,17 @@
 	"bin": {
 		"zeta-web": "bin/zeta-web.js"
 	},
-	"files": [
-		"bin",
-		".next",
-		"!.next/cache",
-		"!.next/dev",
-		"!.next/**/*.js.map",
-		"public",
-		"next.config.ts",
-		"package.json"
-	],
+  "files": [
+    "bin",
+    ".next",
+    "!.next/cache",
+    "!.next/dev",
+    "!.next/**/*.js.map",
+    "lib",
+    "public",
+    "next.config.ts",
+    "package.json"
+  ],
 	"publishConfig": {
 		"access": "public"
 	},

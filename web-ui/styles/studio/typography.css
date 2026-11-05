@@ -1,0 +1,74 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+/* Output content keeps its own text ramp. UI controls inside it retain the UI ramp. */
+.studio-root
+  :is(
+    .ev-body,
+    .tc-body,
+    .think-scroll,
+    .btw-body,
+    .term,
+    .lifecycle-list,
+    .event-transcript,
+    .ji-output
+  ) {
+  --text-font-scale: var(--studio-output-font-scale);
+  --font-mono: var(--studio-font-output-code);
+  --fs-11: calc(11px * var(--studio-output-font-scale));
+  --fs-12: calc(12px * var(--studio-output-font-scale));
+  --fs-13: calc(13px * var(--studio-output-font-scale));
+  --fs-14: calc(14px * var(--studio-output-font-scale));
+  --fs-16: calc(16px * var(--studio-output-font-scale));
+  --fs-18: calc(18px * var(--studio-output-font-scale));
+  --fs-22: calc(22px * var(--studio-output-font-scale));
+  font-family: var(--studio-font-output);
+}
+.studio-root .tc-body {
+  font-size: var(--studio-fs-14);
+}
+.studio-root .term,
+.studio-root .lifecycle-list,
+.studio-root .event-transcript,
+.studio-root .ji-output {
+  font-family: var(--studio-font-output-code);
+}
+.studio-root .ev-body :is(pre, code, .mono),
+.studio-root .tc-body :is(pre, code, .mono) {
+  font-family: var(--studio-font-output-code);
+}
+.studio-root .convo-scroll {
+  --tc-line: calc(12px * var(--studio-output-font-scale) * 1.65);
+}
+.studio-root .ev-body .md-code-head,
+.studio-root
+  .tc-body
+  :is(
+    .tool-body-head,
+    .tc-foot,
+    .tc-label,
+    .tc-note,
+    button,
+    input,
+    textarea,
+    select
+  ),
+.studio-root .btw-body .empty {
+  --text-font-scale: var(--studio-ui-font-scale);
+  --font-mono: var(--studio-font-mono-default);
+  --fs-11: var(--studio-ui-fs-11);
+  --fs-12: var(--studio-ui-fs-12);
+  --fs-13: calc(13px * var(--studio-ui-font-scale));
+  --fs-14: var(--studio-ui-fs-14);
+  --fs-16: var(--studio-ui-fs-16);
+  font-family: var(--studio-font-ui);
+}
+.studio-root .tc-body :is(button, input, textarea, select),
+.studio-root .ev-body button {
+  font-family: var(--studio-font-ui);
+}
+.studio-root .ji-output {
+  font-size: calc(12px * var(--studio-output-font-scale));
+}
+.studio-root .event-transcript {
+  font-size: var(--studio-fs-12);
+}

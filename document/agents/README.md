@@ -22,6 +22,7 @@
 | `brand/registry.md` | OMP 合并后逐行核对品牌面 | 逐行注册表：canonical 值 + 守卫方式 + "刻意不改"清单 + 启动字符画定稿 |
 | `surface/code-locations.md` | 不确定代码该落哪个目录 | desktop / web-ui / gateway / channel / main / termide 归属、依赖方向、退役前的内嵌架构、上游面 vs Zeta 自有面 |
 | `surface/packages.md` | 查包职责、插件目录约定 | 包清单表、`plugins/` 两层结构 |
+| `surface/studio-design-checklist.md` | 改 `web-ui/components/studio/**` 或 `styles/studio/**` 的视觉 | Studio 面验收标准：颜色归属（`--studio-*` 桥接 L2）、四个字号角色、4/8/12/16/24 节奏、状态覆盖（loading/empty/error/active/disabled）、焦点环与对比度底线 |
 | `workflow/branches.md` | 开工前 / 推送前 / 清理 worktree | 并行子代理流程、feature branch、内部整合批次（一次推）、`dev/*`、工作树纪律、`temp/` 与安全清理 |
 | `workflow/branch-registry.md` | 开分支 / 删分支 / 搞不清某条分支干什么 | 分支登记簿：命名即生命周期、在册表（用途/负责人/何时删）、退役表（含 SHA，可恢复）；`scripts/check-branch-registry.ts` 在本地门禁校验 |
 | `workflow/release-publish.md` | 动发布面或新包引导 | npm trusted publishing 两步握手、新包手动首发顺序 |

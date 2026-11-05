@@ -1,0 +1,98 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .runtime-catalog-pane {
+  border-bottom: 1px solid var(--studio-border);
+  padding: 8px 0 20px;
+  margin-bottom: 16px;
+}
+.studio-root .runtime-catalog-pane h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.studio-root .runtime-mcp-rows > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--studio-border);
+}
+.studio-root .runtime-mcp-rows strong {
+  font-size: 12px;
+  min-width: 150px;
+  overflow-wrap: anywhere;
+}
+.studio-root .runtime-template-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.studio-root .runtime-template-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 30%) minmax(0, 1fr);
+  gap: 20px;
+}
+.studio-root .runtime-template-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 440px;
+  overflow: auto;
+  gap: 4px;
+}
+.studio-root .runtime-template-list > button {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 10px;
+  border: none;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.studio-root .runtime-template-list > button.selected {
+  border-left-color: var(--studio-accent);
+  background: var(--studio-surface-hover);
+}
+.studio-root .runtime-template-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.studio-root .runtime-template-editor h4 {
+  margin: 0;
+}
+.studio-root .runtime-template-editor pre {
+  margin: 0;
+  background: var(--studio-surface-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  font-size: 12px;
+}
+.studio-root .runtime-template-editor label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.studio-root .runtime-template-editor textarea {
+  width: 100%;
+  resize: vertical;
+}
+@media (max-width: 850px) {
+  .studio-root .runtime-template-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-root .runtime-mcp-rows > div {
+    flex-wrap: wrap;
+  }
+}
+.studio-root .runtime-template-search {
+  width: 100%;
+  margin: var(--studio-sp-12) 0;
+}
+.studio-root .runtime-template-editor > button {
+  justify-self: start;
+}

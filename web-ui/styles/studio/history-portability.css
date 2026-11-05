@@ -1,0 +1,167 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .transfer-workspace {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--studio-sp-24);
+}
+.studio-root .transfer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--studio-sp-24);
+  padding: var(--studio-sp-16) 0 var(--studio-sp-24);
+}
+.studio-root .transfer-heading h2 {
+  font-size: 24px;
+  letter-spacing: -0.025em;
+  margin: var(--studio-sp-8) 0;
+}
+.studio-root .transfer-heading p {
+  max-width: 620px;
+  color: var(--studio-text-muted);
+  font-size: var(--studio-fs-12);
+  line-height: 1.7;
+}
+.studio-root .transfer-heading > svg {
+  width: 44px;
+  height: 44px;
+  color: var(--studio-accent);
+  opacity: 0.7;
+}
+.studio-root .transfer-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--studio-sp-32, 32px);
+  border-top: 1px solid var(--studio-border);
+}
+.studio-root .transfer-columns > section {
+  min-width: 0;
+  padding-top: var(--studio-sp-16);
+}
+.studio-root .transfer-columns > section + section {
+  border-left: 1px solid var(--studio-border);
+  padding-left: var(--studio-sp-32, 32px);
+}
+.studio-root .transfer-columns label {
+  display: grid;
+  gap: var(--studio-sp-8);
+  margin-bottom: var(--studio-sp-20);
+}
+.studio-root .transfer-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-12);
+  padding: var(--studio-sp-20) 0;
+  border-bottom: 1px solid var(--studio-border);
+}
+.studio-root .transfer-choice > div {
+  flex: 1;
+  min-width: 0;
+}
+.studio-root .transfer-choice p,
+.studio-root .transfer-advanced p,
+.studio-root .transfer-review p {
+  color: var(--studio-text-muted);
+  font-size: var(--studio-fs-12);
+  line-height: 1.6;
+  margin: var(--studio-sp-6) 0;
+}
+.studio-root .transfer-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--studio-sp-12);
+  width: 100%;
+  min-height: 160px;
+  border: 1px dashed var(--studio-border);
+  border-radius: var(--studio-r-10);
+  color: var(--studio-text);
+  background: var(--studio-surface);
+  cursor: pointer;
+  transition:
+    border-color 0.16s,
+    background 0.16s;
+}
+.studio-root .transfer-drop:hover:not(:disabled) {
+  border-color: var(--studio-accent);
+  background: var(--studio-accent-soft);
+}
+.studio-root .transfer-drop span {
+  color: var(--studio-text-muted);
+  font-size: var(--studio-fs-11);
+}
+.studio-root .transfer-drop:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.studio-root .transfer-review,
+.studio-root .transfer-result {
+  margin-top: var(--studio-sp-20);
+  padding: var(--studio-sp-16) 0;
+  border-top: 2px solid var(--studio-accent);
+  animation: feature-detail-in 0.18s ease-out;
+}
+.studio-root .transfer-review h4 {
+  margin: var(--studio-sp-8) 0 var(--studio-sp-16);
+  font-size: var(--studio-fs-16);
+}
+.studio-root .transfer-review dl {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: var(--studio-sp-12);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .transfer-review dt {
+  color: var(--studio-text-muted);
+}
+.studio-root .transfer-review dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.studio-root .transfer-result p {
+  color: var(--studio-text-muted);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .transfer-advanced {
+  margin-top: var(--studio-sp-24);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .transfer-advanced summary {
+  color: var(--studio-text-muted);
+  cursor: pointer;
+}
+.studio-root .transfer-advanced input {
+  margin: var(--studio-sp-12) 0;
+}
+.studio-root .transfer-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--studio-sp-12);
+  padding: var(--studio-sp-16) 0;
+  font-size: var(--studio-fs-12);
+}
+.studio-root .transfer-progress progress {
+  width: 100px;
+  accent-color: var(--studio-accent);
+}
+@media (max-width: 1000px) {
+  .studio-root .transfer-columns {
+    grid-template-columns: 1fr;
+  }
+  .studio-root .transfer-columns > section + section {
+    border-left: 0;
+    border-top: 1px solid var(--studio-border);
+    padding-left: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-root .transfer-drop {
+    transition: none;
+  }
+  .studio-root .transfer-review,
+  .studio-root .transfer-result {
+    animation: none;
+  }
+}

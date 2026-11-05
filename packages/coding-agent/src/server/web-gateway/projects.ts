@@ -8,7 +8,16 @@
  */
 
 import { existsSync, realpathSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import {
+	type ResumeDirectory,
+	type ResumeProject,
+	type ResumeWorkspace,
+	loadResumeDirectory,
+	registerProject,
+	setProjectPreference,
+	unregisterProject,
+} from "../../resume";
 // Upstream v18.0.9 deleted src/utils/git.ts — git discovery now lives in the
 // pi-vcs native addon (crates/pi-vcs, exposed through pi-natives/vcs).
 import { git, gitInfo } from "@linxiraos/pi-natives/vcs";
@@ -91,4 +100,164 @@ export async function resolveProject(cwd: string): Promise<ProjectInfo> {
 
 	projectCache.set(cwd, { info, expiresAt: Date.now() + PROJECT_CACHE_TTL_MS });
 	return info;
+}
+
+// ---------------------------------------------------------------------------
+// Project registry — the shell's project list.
+//
+// GET  /api/projects → the local directory model (projects → workspaces →
+//                      conversations) built from the on-disk registry plus
+//                      session files.
+// PUT  /api/projects → register one project, or update its alias / pin /
+//                      collapse state. `{ path, registered: false }` drops it
+//                      from the registry (sessions are untouched; the cascade
+//                      delete stays on DELETE /api/projects).
+//
+// The registry file (`<agent dir>/resume-projects.json`) is shared with the
+// terminal resume picker, so a project added here appears there too.
+// ---------------------------------------------------------------------------
+
+function json(data: unknown, status = 200): Response {
+	return Response.json(data, { status });
+}
+
+/** Preferences-only record of one project, as the shell's "+" needs it. */
+export interface WebProjectSummary {
+	/** Canonical project root (the registry key); `path` is the wire name. */
+	path: string;
+	key: string;
+	name: string;
+	alias: string | null;
+	displayName: string;
+	isDefault: boolean;
+	pinned: boolean;
+	removable: boolean;
+	collapsed: boolean;
+	lastActivity: string | null;
+	counts: ResumeProject["counts"];
+	workspaces: WebWorkspaceSummary[];
+}
+
+export interface WebWorkspaceSummary {
+	path: string;
+	key: string;
+	name: string;
+	alias: string | null;
+	displayName: string;
+	branch: string | null;
+	isWorktree: boolean;
+	pinned: boolean;
+	lastActivity: string | null;
+	counts: ResumeWorkspace["counts"];
+}
+
+function isoOrNull(value: Date | null): string | null {
+	return value ? value.toISOString() : null;
+}
+
+function toWorkspaceSummary(workspace: ResumeWorkspace): WebWorkspaceSummary {
+	return {
+		path: workspace.path,
+		key: workspace.key,
+		name: workspace.name,
+		alias: workspace.alias,
+		displayName: workspace.displayName,
+		branch: workspace.branch,
+		isWorktree: workspace.isWorktree,
+		pinned: workspace.pinned,
+		lastActivity: isoOrNull(workspace.lastActivity),
+		counts: workspace.counts,
+	};
+}
+
+function toProjectSummary(project: ResumeProject): WebProjectSummary {
+	return {
+		path: project.root,
+		key: project.key,
+		name: project.name,
+		alias: project.alias,
+		displayName: project.displayName,
+		isDefault: project.isDefault,
+		pinned: project.pinned,
+		removable: project.removable,
+		collapsed: project.collapsed,
+		lastActivity: isoOrNull(project.lastActivity),
+		counts: project.counts,
+		workspaces: project.workspaces.map(toWorkspaceSummary),
+	};
+}
+
+/** Wire shape shared by GET and PUT, so the shell can replace its whole list. */
+export interface WebProjectsResponse {
+	projects: WebProjectSummary[];
+	defaultProjectKey: string;
+	defaultWorkspaceKey: string;
+	counts: ResumeDirectory["counts"];
+}
+
+function toProjectsResponse(directory: ResumeDirectory): WebProjectsResponse {
+	return {
+		projects: directory.projects.map(toProjectSummary),
+		defaultProjectKey: directory.defaultProjectKey,
+		defaultWorkspaceKey: directory.defaultWorkspaceKey,
+		counts: directory.counts,
+	};
+}
+
+async function loadResponse(): Promise<WebProjectsResponse> {
+	return toProjectsResponse(await loadResumeDirectory({ filterSubagents: true }));
+}
+
+/** GET /api/projects — every registered project with its workspaces. */
+export async function handleProjectsGet(_req: Request): Promise<Response> {
+	try {
+		return json(await loadResponse());
+	} catch (error) {
+		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+}
+
+/**
+ * PUT /api/projects — register/update one project.
+ *
+ * Body: `{ path: string, alias?: string | null, pinned?: boolean,
+ * collapsed?: boolean, registered?: boolean }`. A `null` alias clears it; an
+ * absent field is left untouched. `registered: false` removes the project from
+ * the registry.
+ */
+export async function handleProjectsPut(req: Request): Promise<Response> {
+	const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+	if (!body) return json({ error: "a JSON body is required" }, 400);
+	const rawPath = typeof body.path === "string" ? body.path.trim() : "";
+	if (!rawPath) return json({ error: "path is required" }, 400);
+	const projectPath = resolve(rawPath);
+	if (typeof body.alias === "string" && body.alias.length > 200) {
+		return json({ error: "alias is too long" }, 400);
+	}
+	if (body.registered === false) {
+		try {
+			await unregisterProject(projectPath);
+		} catch (error) {
+			return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+		}
+		invalidateProjectCache();
+		return json(await loadResponse());
+	}
+	if (!existsSync(projectPath)) return json({ error: `directory does not exist: ${projectPath}` }, 400);
+
+	try {
+		await registerProject(projectPath);
+		const patch: { alias?: string; pinned?: boolean; collapsed?: boolean; lastOpened?: number } = {
+			lastOpened: Date.now(),
+		};
+		if (typeof body.alias === "string") patch.alias = body.alias;
+		else if (body.alias === null) patch.alias = "";
+		if (typeof body.pinned === "boolean") patch.pinned = body.pinned;
+		if (typeof body.collapsed === "boolean") patch.collapsed = body.collapsed;
+		await setProjectPreference(projectPath, patch);
+	} catch (error) {
+		return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+	}
+	invalidateProjectCache();
+	return json(await loadResponse());
 }

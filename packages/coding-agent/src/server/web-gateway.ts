@@ -69,6 +69,15 @@ import { handleAgentContextUsage } from "./web-gateway/context-usage";
 import { handleDesktopInfoGet } from "./web-gateway/desktop";
 import { handleDocsGet } from "./web-gateway/docs";
 import { handleGitBranch, handleGitBranches, handleGitCheckout } from "./web-gateway/git";
+import {
+	handleGitCommit,
+	handleGitFetch,
+	handleGitLog,
+	handleGitPull,
+	handleGitPush,
+	handleGitStage,
+	handleGitUnstage,
+} from "./web-gateway/git-actions";
 import { handleMemoryItem, handleMemoryList, handleMemorySearch, handleMemoryWrite } from "./web-gateway/memory";
 import { handleServeIdentityGet, SERVE_IDENTITY_PATH } from "./web-gateway/identity";
 import { requestServeRestart } from "./serve-control";
@@ -87,6 +96,7 @@ import {
 } from "./web-gateway/models-config";
 import { handleOpenGet, handleOpenPost } from "./web-gateway/open";
 import { handleGetPlan } from "./web-gateway/plan";
+import { handleProjectsGet, handleProjectsPut } from "./web-gateway/projects";
 import { handlePluginsGet, handlePluginsPost } from "./web-gateway/plugins";
 import { getRunningSessionIds } from "./web-gateway/running-sessions";
 import { isGatewayDraining, setGatewayDraining } from "./web-gateway/draining";
@@ -367,6 +377,8 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 	}
 
 	if (pathname === "/api/projects") {
+		if (req.method === "GET") return handleProjectsGet(req);
+		if (req.method === "PUT") return handleProjectsPut(req);
 		if (req.method === "DELETE") return handleDeleteProject(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
@@ -385,6 +397,43 @@ export async function webGatewayFetch(req: Request, remoteAddr?: string): Promis
 
 	if (pathname === "/api/git/branch") {
 		if (req.method === "POST") return handleGitBranch(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	// Mutations that write: staged through the pi-vcs addon, never a spawned
+	// `git`. Next owns `/api/git/*` at the edge and proxies these six here.
+	if (pathname === "/api/git/stage") {
+		if (req.method === "POST") return handleGitStage(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/unstage") {
+		if (req.method === "POST") return handleGitUnstage(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/commit") {
+		if (req.method === "POST") return handleGitCommit(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/push") {
+		if (req.method === "POST") return handleGitPush(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/fetch") {
+		if (req.method === "POST") return handleGitFetch(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/pull") {
+		if (req.method === "POST") return handleGitPull(req);
+		return json({ error: "Method not allowed" }, 405);
+	}
+
+	if (pathname === "/api/git/log") {
+		if (req.method === "GET") return handleGitLog(req);
 		return json({ error: "Method not allowed" }, 405);
 	}
 

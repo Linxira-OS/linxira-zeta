@@ -3,13 +3,37 @@
 CLI commands for one-click startup of the Stats Dashboard and Web UI, backed by
 ZetaServer's unified reverse proxy.
 
-> **Web UI status (2026-10-24).** The Web UI is deliberately **not shipped**
-> inside the package or the release binaries for now. With no Web UI build
-> present, `zetacode serve` answers the web port with a bilingual placeholder
-> page that says the Web UI is being completed; the terminal attach client and
-> the gateway keep working. A later release completes the Web UI and makes
-> `serve` fetch `@linxiraos/zeta-web` from npm on demand. The Stats Dashboard
-> ships in every build and has an EN ⇄ 中文 switch in its top-right corner.
+> **Web UI status (2026-11-05).** The Web UI ships as **two distributions from one
+> source** (`web-ui/`), never as a fork:
+>
+> | Distribution | Contains | Transport |
+> |---|---|---|
+> | `@linxiraos/zeta-web` (`zeta-web` bin) | Next server + the built UI only; **no agent kernel** | proxies every `/api/*` to an existing `zetacode serve` |
+> | `zetawork` desktop bundle | the same UI build plus bundled `zetacode serve` | hosts the UI in a native window (Windows WebView2) or the system browser (Linux) |
+>
+> The browser-only package **never starts a kernel**: `zeta-web` probes
+> `GET /api/server/identity` at the gateway it will use, insists on
+> `app: "zeta"`, and exits `2` with the exact `zetacode serve` command when no
+> kernel answers. This is deliberate — a UI that boots and then 502s every
+> request is worse than a launcher that stops and says why.
+>
+> Ports are the Zeta block, not OMP's: gateway `43143`
+> (`--gateway-port`/`ZETA_WEB_GATEWAY_PORT`), stats `43147`
+> (`--stats-port`/`NEXT_PUBLIC_STATS_URL`), UI `43141` (`--web-port`).
+> The UI validates the origin it proxies to, so a standalone `next start`
+> targets the same gateway `zetacode serve` binds instead of squatting OMP's
+> `30142`.
+>
+> ```bash
+> # Kernel first, then the browser-only UI against it
+> zetacode serve --web-only --web-port 43141 --gateway-port 43143
+> zeta-web --no-open                      # 127.0.0.1:30141 by default
+> zeta-web --gateway http://127.0.0.1:43143
+> ```
+>
+> `zeta-web` flags: `--port`/`-p` (UI), `--hostname`/`-H`, `--gateway`/`-g`
+> (kernel origin), `--no-open`. Env: `ZETA_WEB_GATEWAY_URL`,
+> `ZETA_WEB_GATEWAY_PORT`, `ZETA_WEB_HOSTNAME`, `ZETA_WEB_NO_OPEN`.
 
 ## `zetacode serve`
 

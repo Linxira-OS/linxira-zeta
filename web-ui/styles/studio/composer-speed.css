@@ -1,0 +1,33 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .composer-speed {
+  padding: 8px 4px;
+  border-block: 1px solid var(--studio-border);
+  margin-block: 8px;
+}
+.studio-root .composer-speed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.studio-root .composer-speed-row .select {
+  max-width: 130px;
+  min-width: 0;
+}
+.studio-root .composer-speed p {
+  margin: 6px 0;
+  font-size: var(--studio-fs-11);
+  overflow-wrap: anywhere;
+}
+.studio-root .composer-speed .btn + .btn {
+  margin-inline-start: 6px;
+}
+.studio-root .composer-speed .am-label {
+  font-size: var(--studio-fs-12);
+  font-weight: var(--studio-fw-medium);
+}
+.studio-root .composer-speed .select {
+  font-size: var(--studio-fs-12);
+  height: 28px;
+}

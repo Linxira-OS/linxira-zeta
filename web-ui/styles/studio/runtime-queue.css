@@ -1,0 +1,89 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .runtime-queue .qs-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.studio-root .runtime-queue-row {
+  min-width: 0;
+}
+.studio-root .runtime-queue .qs-status {
+  flex-wrap: wrap;
+}
+.studio-root .runtime-queue-editor {
+  padding: 8px 12px;
+}
+.studio-root .runtime-queue-editor textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  max-height: 180px;
+}
+.studio-root .runtime-queue-editor .btn + .btn {
+  margin-inline-start: 6px;
+}
+.studio-root .runtime-queue > p {
+  padding: 0 12px;
+  overflow-wrap: anywhere;
+}
+.studio-root .runtime-queue {
+  min-width: 0;
+}
+.studio-root .runtime-queue .qs-list {
+  max-height: min(180px, 25vh);
+  overflow-x: hidden;
+}
+.studio-root .runtime-queue .qs-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 8px 0;
+}
+.studio-root .runtime-queue .qs-status {
+  position: static;
+  transform: none;
+  width: auto;
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: var(--studio-fs-11);
+  color: var(--studio-text-3);
+}
+.studio-root .runtime-queue .qs-actions {
+  margin-inline-start: auto;
+  opacity: 1;
+  pointer-events: auto;
+}
+.studio-root .runtime-queue-row + .runtime-queue-row {
+  border-top: 1px solid var(--studio-border);
+}
+.studio-root .composer-queues:has(.runtime-queue) {
+  max-height: min(24vh, 172px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-width: var(--studio-doc-max-w);
+  margin: 0 auto;
+  scrollbar-gutter: stable;
+}
+.studio-root .composer-queues .runtime-queue .qs-list {
+  max-height: none;
+  overflow: visible;
+}
+.studio-root .composer-queues:has(.runtime-queue) .queue-strip {
+  margin-inline: 0;
+}
+/* Only the primary composer adopts the measured reading column. Hub/inspect
+   queue instances keep their own container and the legacy --doc-max-w cap. */
+.studio-root
+  .convo-wrap[data-reading-column]
+  > .composer-region
+  > .composer-queues:has(.runtime-queue) {
+  max-width: var(--studio-conversation-width);
+}
+.studio-root
+  .convo-wrap[data-reading-column]
+  > .composer-region
+  > .composer-queues
+  .runtime-queue
+  .qs-text {
+  overflow-wrap: anywhere;
+}

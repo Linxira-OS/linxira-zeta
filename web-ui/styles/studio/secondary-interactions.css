@@ -1,0 +1,22 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .secondary-interactions {
+  position: fixed;
+  z-index: var(--studio-z-modal);
+  bottom: var(--studio-sp-24);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 48px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  border-radius: var(--studio-r-10);
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  box-shadow: var(--studio-shadow-modal);
+}
+.studio-root .secondary-interactions .deck {
+  margin: 0;
+}
+.studio-root .secondary-interactions > [role="alert"] {
+  margin: var(--studio-sp-12);
+}

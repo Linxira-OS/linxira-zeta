@@ -1,0 +1,46 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .session-model-recovery {
+  flex: none;
+  max-height: min(260px, 35vh);
+  overflow: auto;
+  margin: 8px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--studio-border-strong);
+  border-radius: var(--studio-r-8);
+  background: var(--studio-surface);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .session-model-recovery p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.studio-root .session-model-recovery .chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.studio-root .session-recovery-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.studio-root .session-recovery-actions .app-select {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 200px;
+}
+.studio-root .session-recovery-confirm {
+  padding: 10px 0 0;
+  margin-top: 10px;
+  border-top: 1px solid var(--studio-border);
+}
+.studio-root .session-recovery-confirm .btn + .btn {
+  margin-inline-start: 8px;
+}
+.studio-root .session-model-recovery {
+  min-width: 0;
+  margin-right: calc(var(--studio-sp-16) + var(--studio-minimap-w) + 8px);
+}

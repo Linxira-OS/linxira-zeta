@@ -3,13 +3,14 @@ import { createRequire } from "node:module";
 import test from "node:test";
 
 const require = createRequire(import.meta.url);
-const { parseLaunchOptions } = require("../bin/zeta-web-options.js");
+const { DEFAULT_GATEWAY_PORT, parseLaunchOptions, resolveGatewayUrl } = require("../bin/zeta-web-options.js");
 
 test("opens the browser by default", () => {
   assert.deepEqual(parseLaunchOptions([], {}), {
     port: "30141",
     hostname: "127.0.0.1",
     openBrowser: true,
+    gatewayUrl: "http://127.0.0.1:43143",
   });
 });
 
@@ -40,6 +41,7 @@ test("preserves port and hostname options", () => {
       port: "8080",
       hostname: "0.0.0.0",
       openBrowser: true,
+      gatewayUrl: "http://127.0.0.1:43143",
     },
   );
 });
@@ -53,4 +55,21 @@ test("supports ZETA_WEB_HOSTNAME without trusting the ambient system HOSTNAME", 
     parseLaunchOptions([], { ZETA_WEB_HOSTNAME: "0.0.0.0" }).hostname,
     "0.0.0.0",
   );
+});
+
+test("the gateway default matches the serve block, not OMP's 30142", () => {
+  assert.equal(DEFAULT_GATEWAY_PORT, "43143");
+  assert.equal(resolveGatewayUrl(undefined, {}), "http://127.0.0.1:43143");
+});
+
+test("gateway origin precedence: --gateway, then ZETA_WEB_GATEWAY_URL, then the port env", () => {
+  assert.equal(
+    resolveGatewayUrl("http://127.0.0.1:5000/", { ZETA_WEB_GATEWAY_URL: "http://127.0.0.1:6000" }),
+    "http://127.0.0.1:5000",
+  );
+  assert.equal(
+    resolveGatewayUrl(undefined, { ZETA_WEB_GATEWAY_URL: "http://10.0.0.2:7000/" }),
+    "http://10.0.0.2:7000",
+  );
+  assert.equal(resolveGatewayUrl(undefined, { ZETA_WEB_GATEWAY_PORT: "8123" }), "http://127.0.0.1:8123");
 });

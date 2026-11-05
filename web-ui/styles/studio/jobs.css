@@ -1,0 +1,408 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+/* Job widgets, wait-card tiles, the Agent Hub job tree and the job inspector. */
+.studio-root .job-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.studio-root .job-widget.compact {
+  gap: 3px;
+}
+.studio-root .jw-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.studio-root .jw-title {
+  font-weight: 600;
+  color: var(--studio-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .jw-state {
+  font-size: 11px;
+  color: var(--studio-text-3);
+  border: 1px solid var(--studio-border);
+  border-radius: 999px;
+  padding: 0 6px;
+}
+.studio-root .jw-state.live {
+  color: var(--studio-green);
+  border-color: var(--studio-green-soft);
+}
+.studio-root .jw-state.authoring {
+  color: var(--studio-amber);
+  border-color: var(--studio-amber-soft);
+}
+.studio-root .jw-updated {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--studio-text-3);
+  white-space: nowrap;
+}
+.studio-root .jw-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.studio-root .jw-headline-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--studio-text);
+  font-variant-numeric: tabular-nums;
+}
+.studio-root .jw-headline-label {
+  font-size: 12px;
+  color: var(--studio-text-3);
+}
+.studio-root .jw-trend {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.studio-root .jw-stage {
+  font-size: 12px;
+  color: var(--studio-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .jw-block {
+  min-width: 0;
+}
+.studio-root .jw-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.studio-root .jw-label {
+  font-size: 12px;
+  color: var(--studio-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .jw-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.studio-root .jw-spark-svg {
+  display: block;
+  width: 100%;
+  height: 44px;
+}
+.studio-root .job-widget.compact .jw-spark-svg {
+  height: 24px;
+}
+.studio-root .jw-marks {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+}
+.studio-root .jw-bar-row {
+  display: grid;
+  grid-template-columns: minmax(60px, 30%) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.studio-root .jw-bar-label {
+  color: var(--studio-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .jw-bar-track {
+  position: relative;
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--studio-surface-3);
+  overflow: hidden;
+}
+.studio-root .jw-meter .jw-bar-track {
+  margin-top: 3px;
+}
+.studio-root .jw-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+}
+.studio-root .jw-bar-text {
+  font-variant-numeric: tabular-nums;
+  color: var(--studio-text-2);
+  white-space: nowrap;
+}
+.studio-root .jw-more {
+  font-size: 11px;
+  color: var(--studio-text-3);
+}
+.studio-root .jw-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+}
+.studio-root .jw-stat {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+.studio-root .jw-stat-label {
+  color: var(--studio-text-3);
+}
+.studio-root .jw-stat-text {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.studio-root .jw-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+.studio-root .jw-cell {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 11px;
+  max-width: 220px;
+}
+.studio-root .jw-cell-label {
+  color: var(--studio-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .jw-cell-text {
+  white-space: nowrap;
+}
+.studio-root .jw-text {
+  font-size: 12px;
+  color: var(--studio-text-2);
+  font-family: var(--studio-font-mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .jw-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--studio-text-2);
+  font-variant-numeric: tabular-nums;
+}
+.studio-root .jw-ring svg {
+  display: block;
+}
+.studio-root .job-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin: 6px 0;
+}
+.studio-root .job-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--studio-surface);
+  min-width: 0;
+}
+.studio-root .job-tile[data-status="failed"] {
+  border-color: var(--studio-red-soft);
+}
+.studio-root .jt-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.studio-root .jt-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .jt-id {
+  font-size: 11px;
+  color: var(--studio-text-3);
+}
+.studio-root .jt-stage {
+  font-size: 12px;
+  color: var(--studio-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .task-stage {
+  font-size: 12px;
+  color: var(--studio-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.studio-root .tc-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 4px 0 8px;
+}
+.studio-root .tc-progress .jw-bar-track.indeterminate .jw-bar-fill {
+  width: 30%;
+  animation: tc-progress-slide 1.2s ease-in-out infinite;
+  background: var(--studio-accent);
+}
+@keyframes tc-progress-slide {
+  0% {
+    left: -30%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-root .tc-progress .jw-bar-track.indeterminate .jw-bar-fill {
+    animation: none;
+    left: 0;
+  }
+}
+.studio-root .tc-progress-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--studio-text-2);
+}
+.studio-root .ev-view-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.studio-root .ev-view-table th,
+.studio-root .ev-view-table td {
+  border-bottom: 1px solid var(--studio-border);
+  padding: 3px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+.studio-root .ev-view-table th {
+  color: var(--studio-text-3);
+  font-weight: 600;
+}
+.studio-root .ev-view-table .num {
+  text-align: right;
+}
+.studio-root .ev-view-wrap {
+  overflow: auto;
+  max-height: 320px;
+}
+.studio-root .ev-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--studio-text-2);
+}
+.studio-root .hub-agent-stage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--studio-text-2);
+}
+.studio-root .hub-job-tree .hub-job {
+  cursor: pointer;
+}
+.studio-root .hub-job-tree .hub-job.selected {
+  background: var(--studio-accent-softer);
+}
+.studio-root .hub-job-tree .hub-job:focus-visible {
+  outline: 2px solid var(--studio-accent-border);
+  outline-offset: -2px;
+}
+.studio-root .hub-job-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.studio-root .hub-job-widget {
+  margin-top: 4px;
+  max-width: 420px;
+}
+.studio-root .job-inspector {
+  border: 1px solid var(--studio-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  background: var(--studio-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-root .ji-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.studio-root .ji-title {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-root .ji-kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+}
+.studio-root .ji-kv dt {
+  color: var(--studio-text-3);
+}
+.studio-root .ji-kv dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--studio-font-mono, monospace);
+}
+.studio-root .ji-output {
+  max-height: 280px;
+  overflow: auto;
+  margin: 0;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--studio-surface-2);
+  border-radius: 6px;
+  padding: 8px;
+}
+.studio-root .ji-note {
+  font-size: 12px;
+  color: var(--studio-text-3);
+}
+.studio-root .ji-error {
+  font-size: 12px;
+  color: var(--studio-red);
+}

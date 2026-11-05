@@ -1,0 +1,51 @@
+/*
+ * Studio surface stylesheet bundle.
+ *
+ * Every sheet here is ported from OMP Studio (MIT — see THIRD-PARTY-NOTICES.txt)
+ * and scoped under `.studio-root`, so none of it can leak into the terminal /
+ * settings surfaces that still use Zeta's own classes.
+ *
+ * Order is load-bearing:
+ *   tokens   → the `--studio-*` bridge that resolves against `--zeta-alias-*`
+ *   base     → reset + shared primitives
+ *   typography, components → shared vocabulary
+ *   layout sheets (workbench, sidebar, pages, app) → the shell
+ *   feature sheets → their own panes
+ */
+@import "./tokens.css";
+@import "./base.css";
+@import "./typography.css";
+@import "./components.css";
+@import "./app.css";
+@import "./workbench.css";
+@import "./sidebar.css";
+@import "./pages.css";
+@import "./agent-hub.css";
+@import "./models-roles.css";
+@import "./context-inspector.css";
+@import "./jobs.css";
+@import "./composer-speed.css";
+@import "./prediction.css";
+@import "./runtime-queue.css";
+@import "./models-accounts.css";
+@import "./models-agent-details.css";
+@import "./models-benchmark.css";
+@import "./models-session-options.css";
+@import "./models-session-recovery.css";
+@import "./settings-features.css";
+@import "./settings-fonts.css";
+@import "./structured-editor.css";
+@import "./workspaces.css";
+@import "./worktrees.css";
+@import "./history-archive.css";
+@import "./history-portability.css";
+@import "./history-titles.css";
+@import "./mcp-auth.css";
+@import "./runtime-catalog.css";
+@import "./plan-execution.css";
+@import "./secondary-interactions.css";
+@import "./services.css";
+
+/* The shell frame itself (grid, sidebar, tab strip, page frame, primitives).
+   Loaded last so its frame rules win over the ported surface sheets. */
+@import "./shell-layout.css";

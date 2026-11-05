@@ -155,3 +155,77 @@ export function fetchDesktopInfo(): Promise<DesktopInfo> {
 	})();
 	return desktopInfoPromise;
 }
+
+// ---------------------------------------------------------------------------
+// Studio surface contract — `components/studio/**` asks these, never `window`.
+//
+// The ported renderer was written against a richer bridge (`ompStudioChrome`):
+// a platform string, reveal/open, and a picker. Everything here is expressed on
+// top of the calls above so there is still exactly one bridge object;
+// `lib/platform-capabilities.ts` turns it into the `PlatformCapabilities` the
+// shell passes down. A method an older shell does not implement simply reports
+// `false`, and that surface takes its browser path.
+// ---------------------------------------------------------------------------
+
+import type { PlatformCapabilities } from "@/components/studio/adapters/types";
+
+/** Extra fields the upcoming native shell (zetawork) may publish. */
+interface StudioBridgeExtensions {
+	platform?: string;
+	nativeTitlebar?: boolean;
+	openExternal?: (url: string) => Promise<void> | void;
+	revealPath?: (path: string) => Promise<void> | void;
+	pickDirectory?: (initialPath?: string | null) => Promise<string | null>;
+	setTitlebarTheme?: (theme: "light" | "dark") => void;
+}
+
+/** The injected bridge, or undefined in a plain browser. */
+export function getPiDesktop(): (Window["piDesktop"] & StudioBridgeExtensions) | undefined {
+	if (typeof window === "undefined") return undefined;
+	return window.piDesktop as (Window["piDesktop"] & StudioBridgeExtensions) | undefined;
+}
+
+function normalizePlatform(value: string | undefined): PlatformCapabilities["platform"] {
+	if (value === "win32" || value === "linux" || value === "darwin") return value;
+	return "other";
+}
+
+/** What the current surface can do. Cheap and synchronous; memoize at call site. */
+export function platformCapabilities(): PlatformCapabilities {
+	const bridge = getPiDesktop();
+	return {
+		desktop: bridge !== undefined,
+		windowControls: hasDesktopWindowControls(),
+		nativeDirectoryPicker: Boolean(bridge?.pickDirectory || bridge?.selectDirectory),
+		revealInFileManager: typeof bridge?.revealPath === "function",
+		openExternal: typeof bridge?.openExternal === "function",
+		platform: normalizePlatform(bridge?.platform),
+		nativeTitlebar: bridge?.nativeTitlebar === true,
+	};
+}
+
+/** Open a URL in the user's browser (shell bridge when present). */
+export function openExternal(url: string): void {
+	const bridge = getPiDesktop();
+	if (bridge?.openExternal) {
+		void bridge.openExternal(url);
+		return;
+	}
+	if (typeof window !== "undefined") window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/** Reveal a path in the OS file manager; false when the surface has no bridge. */
+export async function revealPath(path: string): Promise<boolean> {
+	const bridge = getPiDesktop();
+	if (!bridge?.revealPath) return false;
+	await bridge.revealPath(path);
+	return true;
+}
+
+/** Directory picker: the newer bridge first, the Electron one second. */
+export async function pickDirectory(initialPath?: string | null): Promise<string | null> {
+	const bridge = getPiDesktop();
+	if (bridge?.pickDirectory) return bridge.pickDirectory(initialPath ?? null);
+	if (bridge?.selectDirectory) return bridge.selectDirectory(initialPath ?? undefined);
+	return null;
+}

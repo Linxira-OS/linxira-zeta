@@ -1,0 +1,34 @@
+/* Ported from OMP Studio (MIT) — see THIRD-PARTY-NOTICES.txt.
+   Scoped under .studio-root; tokens renamed to --studio-*. */
+.studio-root .agent-model-details {
+  margin: 8px 16px;
+  padding: 8px 0;
+  border-block: 1px solid var(--studio-border);
+  font-size: var(--studio-fs-12);
+}
+.studio-root .agent-model-details summary {
+  cursor: pointer;
+  color: var(--studio-text-2);
+  font-weight: var(--studio-fw-medium);
+  margin-bottom: 8px;
+}
+.studio-root .agent-model-details dl {
+  display: grid;
+  gap: 5px;
+}
+.studio-root .agent-model-details dl > div {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr);
+  gap: 8px;
+}
+.studio-root .agent-model-details dt {
+  color: var(--studio-text-3);
+}
+.studio-root .agent-model-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.studio-root .agent-model-details ol {
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
