@@ -3,37 +3,20 @@
 CLI commands for one-click startup of the Stats Dashboard and Web UI, backed by
 ZetaServer's unified reverse proxy.
 
-> **Web UI status (2026-11-05).** The Web UI ships as **two distributions from one
-> source** (`web-ui/`), never as a fork:
+> **Status (2026-11-06).** The shipped Web UI is **Work Studio**: the renderer in
+> `web-app/`, served same-origin by `zetacode serve` (next section). Two earlier
+> distributions are retired — `@linxiraos/zeta-web` (the Next.js `web-ui/`
+> snapshot; frozen, no new builds) and the zetawork desktop bundle (Rust GUI
+> paused, no installers published). Neither is a supported way to run the UI.
 >
-> | Distribution | Contains | Transport |
-> |---|---|---|
-> | `@linxiraos/zeta-web` (`zeta-web` bin) | Next server + the built UI only; **no agent kernel** | proxies every `/api/*` to an existing `zetacode serve` |
-> | `zetawork` desktop bundle | the same UI build plus bundled `zetacode serve` | hosts the UI in a native window (Windows WebView2) or the system browser (Linux) |
->
-> The browser-only package **never starts a kernel**: `zeta-web` probes
-> `GET /api/server/identity` at the gateway it will use, insists on
-> `app: "zeta"`, and exits `2` with the exact `zetacode serve` command when no
-> kernel answers. This is deliberate — a UI that boots and then 502s every
-> request is worse than a launcher that stops and says why.
->
-> Ports are the Zeta block, not OMP's: gateway `43143`
+> Ports stay the Zeta block, not OMP's: gateway `43143`
 > (`--gateway-port`/`ZETA_WEB_GATEWAY_PORT`), stats `43147`
 > (`--stats-port`/`NEXT_PUBLIC_STATS_URL`), UI `43141` (`--web-port`).
-> The UI validates the origin it proxies to, so a standalone `next start`
-> targets the same gateway `zetacode serve` binds instead of squatting OMP's
-> `30142`.
 >
 > ```bash
-> # Kernel first, then the browser-only UI against it
 > zetacode serve --web-only --web-port 43141 --gateway-port 43143
-> zeta-web --no-open                      # 127.0.0.1:30141 by default
-> zeta-web --gateway http://127.0.0.1:43143
+> # then open http://127.0.0.1:43141/ — that origin is Work Studio
 > ```
->
-> `zeta-web` flags: `--port`/`-p` (UI), `--hostname`/`-H`, `--gateway`/`-g`
-> (kernel origin), `--no-open`. Env: `ZETA_WEB_GATEWAY_URL`,
-> `ZETA_WEB_GATEWAY_PORT`, `ZETA_WEB_HOSTNAME`, `ZETA_WEB_NO_OPEN`.
 
 ## Studio renderer and host (same origin)
 

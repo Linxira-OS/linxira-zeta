@@ -1,5 +1,11 @@
 # Terminal graphics in the desktop app
 
+> **Status (2026-11-06).** This page documents the paused Rust GUI
+> (`main/crates/zetawork-gui`), which does not ship. The desktop surface is
+> **Work Studio** in the browser (`zetacode serve`); see
+> [`desktop-app.md`](./desktop-app.md).
+
+
 A program running in a `zetawork` terminal pane can draw an image instead of
 characters. This page covers what the pane answers, what it can decode, and the
 two paths a pane's bytes can take.

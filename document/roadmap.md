@@ -85,6 +85,11 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 **2026-11-05 裁决（Superseding）：`zetawork` 暂挂，渲染器换成 `web-app`**
 
+**2026-11-06 命名与形态规范**：产品面收敛为三个 —— **Work Studio**（浏览器面，`web-app/`
++ `zetacode serve`）、`zetacode`（CLI/TUI agent）、`zetaide`（终端 IDE，Rust termide）。
+**不存在 Rust UI**；`zetawork-gui` 不恢复，`zeta-main` 的嵌套终端工作台语义由 Work Studio
+接管。三者的入口、代码落点与发布线见 `document/agents/surface/surfaces.md`。
+
 - 产品渲染层 = `web-app/`（我们自己的 Vite 7 构建），由 `zetacode serve` 直接托管
   （`server/studio-web-app.ts`，CSP / immutable 资产 / history fallback）。宿主契约
   `/api/v1/*` 由 `server/studio-host/` 回答，能力清单只广播已实现的操作。
@@ -105,9 +110,11 @@ These exist today (headline capabilities are marked in the root `README.md`):
 
 ### P0 — GUI 按 HTML 稿重做（`main/crates/zetawork-gui`）
 
-**2026-11-05 暂挂**：zetawork（含 GUI）已按当日的渲染器裁决暂停，本项不新增代码。
-重启条件 = `main-publish.yml` 的 `publish_zetawork` 恢复自动发布、GUI 重新进入 release 构建
-（`.github/workflows/ci.yml` 的 `publish_zetawork` 门控）。
+**2026-11-06 作废（不是暂挂）**：这条要求把 HTML 稿做进 Rust GUI（egui + WebView2），
+而 2026-11-06 的形态规范明确「不存在 Rust UI」。设计稿的实现面改为 **Work Studio**
+（`web-app/`），它已经接管了工作台/布局/面板的呈现；`zetawork-gui` 的代码保留在树里
+作为历史，不构建、不发布、不恢复。需要复用设计稿时，改 `web-app/src/studio/`，不要动
+`main/crates/zetawork-gui`。
 
 - **唯一基准 = 用户的两份 HTML 稿**：`Downloads/index.html` 与 `Downloads/workspace-v2.html`；
   两份**各有侧重、按各自侧重开发** —— 信息面（右栏四页·含上下文页、设置/用量模态、状态栏）
@@ -319,9 +326,12 @@ HTML 页面定一个版本化宿主协议。设计见
 把“用户 ↔ 多个仓库主代理 ↔ 各自团队/子代理”做成 Room 原语，实验性、默认关闭。
 设计见 [`document/super-agent-rooms.md`](./super-agent-rooms.md)。
 
-**2026-11-05 状态**：暂挂 —— 没有可运行的宿主（zetawork / `@linxiraos/main` 一并暂停），
-`Room` 原语在代码里也还没有实现（全树无 `SuperRoom`/`RepoRoom` 标识）。
-重启条件 = main 面（super agent / Room / resident agent）装进 `@linxiraos/main` 时。
+**2026-11-06 状态（修正 11-05 的宿主判断）**：Room 原语在代码里还没有实现（全树无
+`SuperRoom`/`RepoRoom` 标识），但**宿主已经存在**：`zeta serve` 从 2026-11-06 起随
+`@linxiraos/zeta` 出货（`server/studio-host/` 回答 `/api/v1/*`，渲染器是 `web-app/`，
+PR #233/#234）。11-05 裁决暂停的是 `@linxiraos/main` 这条**包线**，不是宿主；把它写成
+"重启条件 = 装进 @linxiraos/main" 等于给一条已被裁决停掉的路径当门槛，条件永远不会触发。
+真正的门槛见 `document/super-agent-rooms.md` §12：有效基线 `v18.16.0` + 四项实现前置。
 
 - **Room 是基建**：独立事件日志、宿主分配 `seq`、`sentAt`、parallel/serial/mention
   三种调度；成员回复按宿主顺序落盘，Agent 不自行排序。
@@ -754,9 +764,11 @@ protocols and auth flows.
 - **TUI 文案覆盖与硬编码门禁（2026-11-06 暂挂）**：TS 侧目录已完整（`packages/tui/src/i18n.ts`、
   `packages/coding-agent/src/i18n/{messages,en,zh}.ts` 3,098 key 且 `check-i18n-consistency` 全绿），
   缺的是覆盖面：`packages/tui/src` 仍有 73 个 `actionButton("…")` 字面量与若干原始模板串不走
-  catalog，任何语言下都保持英文。**暂挂**：迁完一个目录才有一个可验证的增量，且与 `zetawork`
-  暂挂无关（这是 `zetacode` 的 TUI）。重启条件：确定要发布第二门语言，或某个面板的中英混排
-  被用户报告；届时先落"禁止新增硬编码文案"的扫描门禁，再按目录迁。Rust `zeta-main` 不在此列
+  catalog，任何语言下都保持英文。**修正（2026-11-06）**：早先写的"确定要发布第二门语言"是错的 —— `zh` 已经出货：
+  `packages/coding-agent/src/i18n/index.ts` 的 `CATALOGUES = {en, zh}`、`settings.language`
+  可选、locale 还能从 `zh_CN.UTF-8` 自动识别。所以那 73 处并非"未发布语言的未来工作"，
+  而是**已发布语言下真实的中英混排**。条件改为"下一个 TUI 文案批次"；顺序仍是先落
+  "禁止新增硬编码文案"的扫描门禁（便宜且防增长），再按目录迁。与 `zetawork` 无关。Rust `zeta-main` 不在此列
   （zetawork 暂停，见 P0 裁决）。
 - **TUI 套件命名定稿与 zeta 工作台(2026-09-30 用户裁定,取代上方的
   "TUI 三件套整合设计"旧条;命名口径 2026-10-15 收口)**:产品形态 =

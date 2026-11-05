@@ -129,7 +129,7 @@ In `plugin.json`:
   At load time an invalid `ui` block is dropped with a warning and the plugin
   still works — the panels just do not appear.
 
-Where you see them: the desktop shell (zetawork GUI) has a 插件 page in the
+Where you used to see them: the paused Rust GUI had a 插件 page in the
 right column. Pick your plugin, pick a panel, and it is drawn natively. The
 `html` panel opens your page in that same column.
 

@@ -1,5 +1,11 @@
 # IM Channels in the GUI
 
+> **Status (2026-11-06).** This page documents the paused Rust GUI
+> (`main/crates/zetawork-gui`), which does not ship. The desktop surface is
+> **Work Studio** in the browser (`zetacode serve`); see
+> [`desktop-app.md`](./desktop-app.md).
+
+
 The desktop shell (`main/crates/zetawork-gui`) exposes the same messaging-channel
 surface as the web desktop. It is the fourth remote target in 设置, next to
 zetacode's own options, the provider catalog, and the IM notification fallback.

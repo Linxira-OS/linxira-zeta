@@ -18,6 +18,9 @@
 - 每个仓库的 tracking/taste/memory 保持本地权威；Room 只读摘要/引用。
 - 支持长存活子代理作为 Room 成员；用完即毁的 worker 不自动进群。
 - 实验性、默认关闭；不新增第二调度器、不新增核心 session 字段。
+  （2026-11-06 澄清：§5.2 的 serial/parallel/mention 是**消息投递顺序**，模块名固定为
+  `rooms/delivery.ts`；它不是 2026-11-01 裁决禁止的"核心里的第二条任务调度器"，扇出仍归
+  `task`/`workpool`。此前 §7 把它写成 `rooms/scheduler.ts` 是措辞越界，已改。）
 
 **非目标**
 
@@ -292,7 +295,7 @@ Resident 规则：
 | 原语（§） | 今日状态 | 归属文件 | 最小端到端切片 |
 |---|---|---|---|
 | 独立事件日志 + 宿主 `seq`/`sentAt`（§4） | **缺失**。最接近的三样都不是房间日志：`ClientEventBase.cursor` 是 per-authority-epoch 的投递游标（`contract/lifecycle.ts:188-198`），`conversation.changed.eventSeq` 是另一个命名空间（`:228-240`），`IrcBus` 只有进程序号（`irc/bus.ts:30-33`、`:131`） | 新建 `packages/coding-agent/src/rooms/log.ts`（该目录今日不存在） | 一个房间追加两条事件，重启 `zeta serve` 后 `room.log.read` 仍返回 `[1,2]` 且 `sentAt` 不变 |
-| parallel / serial / mention 调度（§5.2） | **缺失**。今日只有两类近似：`task`/`workpool` 扇出；`workspace_run` 串行中继（单回复路径、10 分钟上限，`channels/session-router.ts:12-16`、`:57`） | `rooms/scheduler.ts`；投递仍走 `IrcBus`/`deliverIrcMessage` | 同一房间两个 resident：serial 下 B 的上下文含 A 的回复 `seq`；切 mention 后只有被 @ 的一个进入 running |
+| parallel / serial / mention 投递顺序（§5.2） | **缺失**。今日只有两类近似：`task`/`workpool` 扇出；`workspace_run` 串行中继（单回复路径、10 分钟上限，`channels/session-router.ts:12-16`、`:57`） | `rooms/delivery.ts`（**只决定房间内一条事件的投递顺序与收件人**，不调度任务）；扇出仍走既有 `task`/`workpool`，投递仍走 `IrcBus`/`deliverIrcMessage` | 同一房间两个 resident：serial 下 B 的上下文含 A 的回复 `seq`；切 mention 后只有被 @ 的一个进入 running |
 | resident park / revive（§8） | **运行时已有，宿主侧没有**。生命周期在 `registry/agent-lifecycle.ts:1-19`、`:125`，空闲 TTL 默认 420000（`task/settings.ts:465-471`）；但 `agent.send\|kill\|revive\|release\|spawn` 只在契约里声明（`contract/operations.ts:492-515`），`ops/` 下**零注册**，manifest 不广告，Agent Hub 因此显示 "暂未实现"（`AgentHub.tsx:226-235`、`:818`） | `ops/session.ts`（注册命令）+ `rooms/membership.ts` | 只注册 `agent.revive`：Hub 的 revive 解锁；把空闲 resident park 掉、投一条房间事件，观察冷启动复活且回复仍落回宿主 `seq` |
 | 房间成员资格与 home repo 隔离（§6、§8.2） | **缺失**。`residents.list` 已声明（`contract/operations.ts:113`）但未注册；`ResidentsReadModel` 描述的是 broker 里的 Runtime 会话（`contract/read-models.ts:219-238`），不是"谁在这个房间" | `ops/rooms.ts` + `rooms/membership.ts` | A 仓的 resident 加入房间 R，组装出的上下文标 home=A；把 B 仓 tracking 塞进事件正文，也只能以引用摘要出现，不能成为指令 |
 | 跨仓库 proposal / ack / 决策血缘（§6.4） | **缺失**。最接近的是 IM 多工作区中继与 `sessionMapping` 绑定（`channels/session-router.ts:12-16`）；没有 proposal、ack、stale 对象 | `rooms/ledger.ts` | 针对 B 仓的 proposal 不写 B 的 tracking；B 的 agent ack 后 `.zeta/tracking/` 才出现一条带房间 `seq` 溯源的决定；B 自己 supersede 后房间里那条标 stale |

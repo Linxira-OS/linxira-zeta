@@ -37,8 +37,14 @@ Zeta 是 OMP 下游发行版。运行时树、包布局、Bun 工作流、内部
   （Node/Bun）或 `CREATE_NO_WINDOW`（`std::process::Command`）。产品自启的 helper
   （serve、daemon、git 探测、LSP/MCP、eval、更新器）全静默，日志进
   `~/.zeta/run/daemon.log`。只有测试可以开可见终端。
-- **品牌面不许被上游改回。** `.zeta` / `~/.zeta`；命令只有 `zetawork` / `zetacode` /
-  `zetaide`；内部文档协议 `zeta://`；npm scope `@linxiraos/*`；release 资产名
+- **产品面只有三个（2026-11-06 规范）。** **Work Studio** = 浏览器面（`web-app/`，
+  由 `zetacode serve` 托管）；`zetacode` = CLI/TUI agent；`zetaide` = **终端 IDE**
+  （Rust termide / ratatui，不是 GUI）。**不存在 Rust UI**：`zetawork-gui`（egui +
+  WebView2）不是产品面，`zeta-main` 的嵌套终端工作台被 Work Studio 取代。详细边界见
+  `document/agents/surface/surfaces.md`。
+- **品牌面不许被上游改回。** `.zeta` / `~/.zeta`；**已发布 bin 名**保留
+  `zetawork` / `zetacode` / `zetaide`（`zetawork` 是 `@linxiraos/main` 的暂停面，
+  不代表产品形态）；内部文档协议 `zeta://`；npm scope `@linxiraos/*`；release 资产名
   `zeta-cli-*`（**不跟 bin 名**）；OTLP `service.name` = `zeta`；遥测导出硬关闭
   （`TELEMETRY_EXPORT_ENABLED = false`，没有开关）。启动字符画 `ZETA_LOGO` /
   `ZETA_WORDMARK` / `ZETA_SUBLINE` **永久冻结**，判据是

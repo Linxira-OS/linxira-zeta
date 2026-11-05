@@ -1,5 +1,11 @@
 # Web UI 网关 API
 
+> **冻结快照说明（2026-11-06）**：本文描述的是退役的 `web-ui/` 快照及其网关。
+> 出货的渲染器是 **Work Studio**（`web-app/`），宿主契约是 `/api/v1/*`
+> （见 [`../zeta-serve-web.md`](../zeta-serve-web.md)）。下面的网关端点仍由
+> `zetacode serve` 提供。
+
+
 以下端点均由 Web Gateway 在 `http://127.0.0.1:43141/api/*`（ZetaServer 代理
 的端口）提供。除非另有说明，请求与响应体均为 JSON。错误为 `{ "error":
 string }` 并带 4xx/5xx 状态码。

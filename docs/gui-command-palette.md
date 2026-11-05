@@ -1,5 +1,11 @@
 # The GUI command palette
 
+> **Status (2026-11-06).** This page documents the paused Rust GUI
+> (`main/crates/zetawork-gui`), which does not ship. The desktop surface is
+> **Work Studio** in the browser (`zetacode serve`); see
+> [`desktop-app.md`](./desktop-app.md).
+
+
 `main/crates/zetawork-gui/src/palette.rs`, opened with **⌘K / Ctrl-K** (the
 shortcut the 帮助 toast and the 快捷键 settings already advertised).
 
